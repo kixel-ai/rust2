@@ -1481,6 +1481,12 @@ export declare function debug(self: Status): string;
 import * as rt from "./rt.ts";
 export type StdIoError = rt.Handle<"StdIoError">;
 
+// Stretch.ts
+export interface Stretch {
+    stretch(): number;
+    close?(): void;
+}
+
 // Tab.ts
 import * as rt from "./rt.ts";
 import type { Ledger } from "./Ledger.ts";
@@ -1804,6 +1810,9 @@ export declare function f13(): number;
 export declare function f14(): number;
 export declare function f15(): number;
 export declare function f16(): number;
+export declare function f17(): number;
+export declare function f18(): number;
+export declare function f19(): number;
 export declare function f2(): number;
 export declare function f3(): number;
 export declare function f4(): number;
@@ -2091,7 +2100,10 @@ export declare function t14(f: (a0: number) => number, p0: number): number;
 export declare function t15(f: (a0: number) => number, p0: number): number;
 export declare function t16(f: (a0: rt.PathBuf) => void, p0: number): void;
 export declare function t17(f: (a0: Uint8Array | undefined) => rt.u64, p0: number): bigint;
+export declare function t18(f: () => number): number;
+export declare function t19(f: () => number): number;
 export declare function t2(f: (a0: Counter) => boolean, p0: number): number;
+export declare function t20(f: () => number): number;
 export declare function t3(f: (a0: Moment, a1: Waiter) => rt.Result<Moment | undefined, string>, p0: number, p1: number, p2: number, p3: number): number;
 export declare function t4(f: (a0: number) => string, r$: number, p0: number): void;
 export declare function t5(f: (a0: Ticket) => Ticket, p0: number): number;
@@ -2105,6 +2117,7 @@ export declare function t_option_Moment(p: number, v: Moment | undefined): void;
 export declare function vt_Beat(): number;
 export declare function vt_Log(): number;
 export declare function vt_Scan(): number;
+export declare function vt_Stretch(): number;
 export declare function vt_Turner(): number;
 export declare function w_Atlas(p: number, v: Atlas): void;
 export declare function w_Booth(p: number, v: Booth): void;
@@ -2293,6 +2306,7 @@ export declare const imports: {
     api_web_cb_Beat_beat: (data: number) => number;
     api_web_cb_Log_log: (data: number, p0: number, p1: number) => number;
     api_web_cb_Scan_scan: (data: number, p0: number, p1: number) => bigint;
+    api_web_cb_Stretch_stretch: (data: number) => number;
     api_web_cb_Turner_by: (data: number) => bigint;
     api_web_cb_Turner_once: (data: number) => bigint;
     api_web_i_fn_0: (data: number, p0: bigint) => void;
@@ -2304,6 +2318,9 @@ export declare const imports: {
     api_web_i_fn_14: (data: number, p0: number) => number;
     api_web_i_fn_15: (data: number, p0: number) => void;
     api_web_i_fn_16: (data: number, p0: number) => bigint;
+    api_web_i_fn_17: (data: number) => number;
+    api_web_i_fn_18: (data: number) => number;
+    api_web_i_fn_19: (data: number) => number;
     api_web_i_fn_2: (data: number, p0: number) => number;
     api_web_i_fn_3: (data: number, p0: number, p1: number, p2: number, p3: number) => number;
     api_web_i_fn_4: (r$: number, data: number, p0: number) => void;
@@ -2383,6 +2400,7 @@ import type { Stage } from "./Stage.ts";
 import type { Stamp } from "./Stamp.ts";
 import type { Status } from "./Status.ts";
 import type { StdIoError } from "./StdIoError.ts";
+import type { Stretch } from "./Stretch.ts";
 import type { Tally } from "./Tally.ts";
 import type { Ticket } from "./Ticket.ts";
 import type { TlsCert } from "./TlsCert.ts";
@@ -2733,6 +2751,11 @@ export declare function deprecated(note: number): number;
 export declare function knob(dial: Dial): Knob;
 export declare function levelLater(dial: Dial): rt.Call<rt.u64>;
 export declare function turned(dial: Dial, turner: Turner): rt.Result<Dial, Error_>;
+export declare function unwound(): number;
+export declare function measured(f: () => number): number;
+export declare function negated(f: () => number): number;
+export declare function lettered(f: () => number): number;
+export declare function stretched(stretch: Stretch): number;
 export declare function crowded(reading: Reading, a: Stamp, b: Stamp, n0: rt.u64, n1: rt.u64, n2: rt.u64, n3: rt.u64, n4: rt.u64, n5: rt.u64, n6: rt.u64, n7: rt.u64, n8: rt.u64, n9: rt.u64, n10: rt.u64, n11: rt.u64, n12: rt.u64, n13: rt.u64, n14: rt.u64, n15: rt.u64, n16: rt.u64, n17: rt.u64, n18: rt.u64, n19: rt.u64, n20: rt.u64, n21: rt.u64, n22: rt.u64, n23: rt.u64, n24: rt.u64, n25: rt.u64, n26: rt.u64, n27: rt.u64, n28: rt.u64, n29: rt.u64, n30: rt.u64, n31: rt.u64, n32: rt.u64, n33: rt.u64, n34: rt.u64, n35: rt.u64, n36: rt.u64, n37: rt.u64, n38: rt.u64, n39: rt.u64, n40: rt.u64, n41: rt.u64, n42: rt.u64, n43: rt.u64, n44: rt.u64, n45: rt.u64, n46: rt.u64, n47: rt.u64, n48: rt.u64, n49: rt.u64, n50: rt.u64, n51: rt.u64, n52: rt.u64, n53: rt.u64, n54: rt.u64, n55: rt.u64, n56: rt.u64, n57: rt.u64, n58: rt.u64, n59: rt.u64, n60: rt.u64, n61: rt.u64, n62: rt.u64, n63: rt.u64, n64: rt.u64, n65: rt.u64, n66: rt.u64, n67: rt.u64, n68: rt.u64, n69: rt.u64, n70: rt.u64, n71: rt.u64, n72: rt.u64, n73: rt.u64, n74: rt.u64, n75: rt.u64, n76: rt.u64, n77: rt.u64, n78: rt.u64, n79: rt.u64, n80: rt.u64, n81: rt.u64, n82: rt.u64, n83: rt.u64, n84: rt.u64, n85: rt.u64, n86: rt.u64, n87: rt.u64, n88: rt.u64, n89: rt.u64, n90: rt.u64, n91: rt.u64, n92: rt.u64, n93: rt.u64, n94: rt.u64, n95: rt.u64, n96: rt.u64, n97: rt.u64, n98: rt.u64, n99: rt.u64, n100: rt.u64, n101: rt.u64, n102: rt.u64, n103: rt.u64, n104: rt.u64, n105: rt.u64, n106: rt.u64, n107: rt.u64, n108: rt.u64, n109: rt.u64, n110: rt.u64, n111: rt.u64, n112: rt.u64, n113: rt.u64, n114: rt.u64, n115: rt.u64, n116: rt.u64, n117: rt.u64, n118: rt.u64): rt.u64;
 export declare function crammed(a: Moment, b: Moment, n0: rt.u64, n1: rt.u64, n2: rt.u64, n3: rt.u64, n4: rt.u64, n5: rt.u64, n6: rt.u64, n7: rt.u64, n8: rt.u64, n9: rt.u64, n10: rt.u64, n11: rt.u64, n12: rt.u64, n13: rt.u64, n14: rt.u64, n15: rt.u64, n16: rt.u64, n17: rt.u64, n18: rt.u64, n19: rt.u64, n20: rt.u64, n21: rt.u64, n22: rt.u64, n23: rt.u64, n24: rt.u64, n25: rt.u64, n26: rt.u64, n27: rt.u64, n28: rt.u64, n29: rt.u64, n30: rt.u64, n31: rt.u64, n32: rt.u64, n33: rt.u64, n34: rt.u64, n35: rt.u64, n36: rt.u64, n37: rt.u64, n38: rt.u64, n39: rt.u64, n40: rt.u64, n41: rt.u64, n42: rt.u64, n43: rt.u64, n44: rt.u64, n45: rt.u64, n46: rt.u64, n47: rt.u64, n48: rt.u64, n49: rt.u64, n50: rt.u64, n51: rt.u64, n52: rt.u64, n53: rt.u64, n54: rt.u64, n55: rt.u64, n56: rt.u64, n57: rt.u64, n58: rt.u64, n59: rt.u64, n60: rt.u64, n61: rt.u64, n62: rt.u64, n63: rt.u64, n64: rt.u64, n65: rt.u64, n66: rt.u64, n67: rt.u64, n68: rt.u64, n69: rt.u64, n70: rt.u64, n71: rt.u64, n72: rt.u64, n73: rt.u64, n74: rt.u64, n75: rt.u64, n76: rt.u64, n77: rt.u64, n78: rt.u64, n79: rt.u64, n80: rt.u64, n81: rt.u64, n82: rt.u64, n83: rt.u64, n84: rt.u64, n85: rt.u64, n86: rt.u64, n87: rt.u64, n88: rt.u64, n89: rt.u64, n90: rt.u64, n91: rt.u64, n92: rt.u64, n93: rt.u64, n94: rt.u64, n95: rt.u64, n96: rt.u64, n97: rt.u64, n98: rt.u64, n99: rt.u64, n100: rt.u64, n101: rt.u64, n102: rt.u64, n103: rt.u64, n104: rt.u64, n105: rt.u64, n106: rt.u64, n107: rt.u64, n108: rt.u64, n109: rt.u64, n110: rt.u64, n111: rt.u64, n112: rt.u64, n113: rt.u64, n114: rt.u64, n115: rt.u64, n116: rt.u64, n117: rt.u64, n118: rt.u64, n119: rt.u64, n120: rt.u64, n121: rt.u64, n122: rt.u64, n123: rt.u64): rt.u64;
 export declare function jniOne(): number;

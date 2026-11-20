@@ -171,18 +171,114 @@ pub fn raised<R>() -> R {
 }
 
 /// Run `f` calling into Kotlin on this thread, freeing the local references it makes, and
-/// abort if what it calls throws: Rust has nowhere to unwind it to.
+/// abort if what it calls throws, unless `f` unwinds it with [`unwinds`].
 pub fn upcall<R>(what: &str, f: impl FnOnce(*mut JNIEnv) -> R) -> R {
 	let env = env();
 	// SAFETY: `env` is this thread's.
+	if unsafe { ((**env).v1_2.PushLocalFrame)(env, 8) } != JNI_OK {
+		fail(env, what, "a call into Kotlin is out of memory");
+	}
+	// Popped however `f` ends, unwinding included.
+	let frame = Frame(env);
+	let result = f(env);
+	threw(env, what);
+	drop(frame);
+	result
+}
+
+/// The local frame an [`upcall`] pushed, popped once dropped.
+struct Frame(*mut JNIEnv);
+
+impl Drop for Frame {
+	fn drop(&mut self) {
+		// SAFETY: the frame's thread pushed it, and no exception is pending: `threw`
+		// aborts on one, and `unwinds` clears what it unwinds with.
+		unsafe { ((**self.0).v1_2.PopLocalFrame)(self.0, std::ptr::null_mut()) };
+	}
+}
+
+/// Check the call into a closure or callback Kotlin implements: if Kotlin refused what it
+/// returned with `_Native.__Invalid`, as a value its Rust type cannot hold, or a call it
+/// made threw `_Native.__Unwound`, unwind the Rust frames between to the native method
+/// below, which throws `__Unwound` to the Kotlin call that reached the closure, as Rust's
+/// own closure panicking unwinds them. Anything else thrown aborts, as [`threw`] does.
+pub fn unwinds(env: *mut JNIEnv, what: &str) {
+	if pending(env) {
+		unwind(env, what);
+		fail(env, what, "a call into Kotlin threw");
+	}
+}
+
+static UNWOUND: OnceLock<usize> = OnceLock::new();
+
+/// Unwind with the `__Unwound` of the exception pending if it is the binding's `__Invalid`
+/// or `__Unwound`, aborting if no native method is below to throw it: a thread Rust
+/// attached runs no Kotlin, and a library built to abort on a panic cannot unwind. Any
+/// other stays pending.
+#[cold]
+fn unwind(env: *mut JNIEnv, what: &str) {
+	// SAFETY: `env` is this thread's, and an exception is pending.
 	unsafe {
-		if ((**env).v1_2.PushLocalFrame)(env, 8) != JNI_OK {
+		let thrown = ((**env).v1_2.ExceptionOccurred)(env);
+		((**env).v1_2.ExceptionClear)(env);
+		let id = method(env, &UNWOUND, c"__unwound", c"(Ljava/lang/Throwable;)Ljava/lang/Throwable;");
+		let args = [jvalue { l: thrown }];
+		let unwound = ((**env).v1_2.CallStaticObjectMethodA)(env, class(), id, args.as_ptr());
+		if ((**env).v1_2.ExceptionCheck)(env) {
+			fail(env, what, "a call into Kotlin threw");
+		}
+		if unwound.is_null() {
+			((**env).v1_2.Throw)(env, thrown);
+			return;
+		}
+		if cfg!(not(panic = "unwind")) || ATTACHED.with(|attached| attached.0.get()) {
+			((**env).v1_2.Throw)(env, unwound);
+			fail(env, what, "a closure's value has no Rust type to be, and no Kotlin call to throw to");
+		}
+		let global = ((**env).v1_2.NewGlobalRef)(env, unwound);
+		if global.is_null() {
 			fail(env, what, "a call into Kotlin is out of memory");
 		}
-		let result = f(env);
-		threw(env, what);
-		((**env).v1_2.PopLocalFrame)(env, std::ptr::null_mut());
-		result
+		std::panic::resume_unwind(Box::new(Unwound(global)))
+	}
+}
+
+/// What a closure's failed check unwinds Rust with: a global reference to the
+/// `__Unwound` the native method below throws.
+struct Unwound(jobject);
+
+// SAFETY: a global reference is valid on every thread.
+unsafe impl Send for Unwound {}
+
+impl Drop for Unwound {
+	fn drop(&mut self) {
+		// SAFETY: made by `unwind`, and deleted once. A `catch_unwind` of Rust's own that
+		// took it drops it as Rust drops any panic it caught.
+		let env = env();
+		unsafe { ((**env).v1_2.DeleteGlobalRef)(env, self.0) };
+	}
+}
+
+/// Run a native method's glue `f`, throwing to Kotlin the exception a closure's failed
+/// check unwound with, as [`unwinds`] says. A Rust panic goes on, aborting at the native
+/// method's boundary.
+#[inline(always)]
+pub fn entry<R>(env: *mut JNIEnv, f: impl FnOnce() -> R) -> R {
+	match std::panic::catch_unwind(std::panic::AssertUnwindSafe(f)) {
+		Ok(result) => result,
+		Err(payload) => caught_unwind(env, payload),
+	}
+}
+
+#[cold]
+fn caught_unwind<R>(env: *mut JNIEnv, payload: Box<dyn std::any::Any + Send>) -> R {
+	match payload.downcast::<Unwound>() {
+		Ok(unwound) => {
+			// SAFETY: `env` is this thread's, and nothing is pending: `unwind` cleared it.
+			unsafe { ((**env).v1_2.Throw)(env, unwound.0) };
+			raised()
+		}
+		Err(panic) => std::panic::resume_unwind(panic),
 	}
 }
 
@@ -938,8 +1034,12 @@ unsafe extern "C" fn seek_channel(data: *mut c_void, whence: std::ffi::c_int, of
 }
 
 /// The error of the exception a closure threw, cleared, if it is the binding's own
-/// exception of a `String`, as a closure returning a `Result` fails.
+/// exception of a `String`, as a closure returning a `Result` fails. A value its Rust type
+/// cannot hold unwinds, as [`unwinds`] says.
 pub fn thrown(env: *mut JNIEnv, what: &str) -> Option<Vec<u8>> {
+	if pending(env) {
+		unwind(env, what);
+	}
 	caught(env, what, &ERROR, c"__error")
 }
 

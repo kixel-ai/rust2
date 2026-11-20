@@ -1626,12 +1626,11 @@ impl<T> Object<T> {
 		});
 		// A second count, which a free by C would take, so the handle outlives it.
 		let spare = Arc::clone(&object);
-		let result = f(Arc::as_ptr(&object).cast());
-		match Arc::strong_count(&object) {
-			2 if object.borrow.is(&TABLE, state) => {}
-			1 => fail(what, "a lent handle was freed"),
-			_ => fail(what, "a lent handle is still borrowed"),
-		}
+		// Checked however `f` ends, so a closure unwinding with a failed check of what it
+		// returned cannot keep the handle past the value either.
+		let lent = Lent { object, state, what };
+		let result = f(Arc::as_ptr(&lent.object).cast());
+		drop(lent);
 		drop(spare);
 		result
 	}
@@ -1998,6 +1997,24 @@ impl<F: FnOnce()> Drop for Unlifted<F> {
 	fn drop(&mut self) {
 		if let Some(release) = self.0.take() {
 			release();
+		}
+	}
+}
+
+/// A value [`Object::lending`] lent, which checks once dropped that C gave the handle
+/// back as it was lent.
+struct Lent<'a, T> {
+	object: Arc<Object<T>>,
+	state: usize,
+	what: &'a str,
+}
+
+impl<T> Drop for Lent<'_, T> {
+	fn drop(&mut self) {
+		match Arc::strong_count(&self.object) {
+			2 if self.object.borrow.is(&TABLE, self.state) => {}
+			1 => fail(self.what, "a lent handle was freed"),
+			_ => fail(self.what, "a lent handle is still borrowed"),
 		}
 	}
 }

@@ -142,7 +142,15 @@ pub(crate) fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<O
 	}
 	// What the glue calls to read a reader, and to take the error a closure or reader threw.
 	let mut helpers = String::new();
-	let mut looked = vec!["__wake", "__free", "__poll", "__failed", "__refused", "__invalid"];
+	let mut looked = vec![
+		"__wake",
+		"__free",
+		"__poll",
+		"__failed",
+		"__refused",
+		"__invalid",
+		"__unwound",
+	];
 	if g.reads {
 		helpers.push_str(READS);
 		looked.extend(["__read", "__seek", "__io_error"]);
@@ -164,7 +172,7 @@ pub(crate) fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<O
 	}
 	let _ = write!(
 		kotlin,
-		"/** The runtime's [_Native.__Eq], by a name no class, field, or member of the binding takes, since\n * each is in Pascal or camel case. */\ninternal val _eq = _Native.__Eq\n\ninternal object _Native {{\n\tinit {{\n\t\tSystem.loadLibrary(\"{p}\")\n\t\t// Checked before any other call, which it readies the library for: a Kotlin file\n\t\t// and a library from different builds must not mix.\n\t\tkotlin.check(__contract().toULong() == {}) {{ \"{p}.kt and the library are from different builds\" }}\n\t}}\n\n\t@kotlin.jvm.JvmStatic external fun __contract(): Long\n\n\t@kotlin.jvm.JvmStatic external fun __target(): Int\n\n\t@kotlin.jvm.JvmStatic external fun __usize_max(): Long\n\n\t/** The index of the library's target among those this file serves. */\n\tprivate val target = __target()\n\n\t/** Throws unless the library's target is among those of [on], as the item [what] is. */\n\tfun check(on: ULong, what: String) {{\n\t\tif ((on shr target) and 1uL == 0uL) throw kotlin.UnsupportedOperationException(\"$what: it is not on this library's target\")\n\t}}\n\n\t@kotlin.jvm.JvmStatic external fun __waker_new(waker: Waker): Long\n\n\t@kotlin.jvm.JvmStatic external fun __waker_free(node: Long)\n\n\t@kotlin.jvm.JvmStatic external fun __waker_wake(raw: Long)\n\n\t@kotlin.jvm.JvmStatic external fun __waker_drop(raw: Long)\n\n\t@kotlin.jvm.JvmStatic external fun __bytes_get(lent: __Lent, owner: Long, index: Int): Byte\n\n\t@kotlin.jvm.JvmStatic external fun __bytes_copy(lent: __Lent, owner: Long, start: Int, len: Int, destination: ByteArray, at: Int)\n\n\t@kotlin.jvm.JvmStatic external fun __bytes_copy_direct(lent: __Lent, owner: Long, start: Int, len: Int, destination: java.nio.ByteBuffer, at: Int)\n\n\t@kotlin.jvm.JvmStatic external fun __bytes_free(owner: Long)\n\n\t@kotlin.jvm.JvmStatic private fun __wake(waker: Any) = (waker as Waker).wake()\n\n\t@kotlin.jvm.JvmStatic private fun __poll(pollable: Any, waker: Long): Boolean = (pollable as __Pollable).poll(waker)\n\n\t@kotlin.jvm.JvmStatic private fun __free(implementation: Any) {{\n\t\tif (implementation is AutoCloseable) implementation.close()\n\t}}\n\n\t/** The encoded error a native call raised, which its function throws as its exception. No stack trace: it is caught at once. */\n\tclass __Failed(@kotlin.jvm.JvmField val error: ByteArray) : kotlin.RuntimeException(null, null, false, false)\n\n\t@kotlin.jvm.JvmStatic private fun __failed(error: ByteArray): Throwable = __Failed(error)\n\n\t/** A call a failed run-time check refused, before it moved or changed anything. */\n\tclass __Refused(message: String) : kotlin.IllegalStateException(message)\n\n\t@kotlin.jvm.JvmStatic private fun __refused(message: String): Throwable = __Refused(message)\n\n\t/** A call refused before it moved or changed anything, as an argument holds a value its Rust type cannot. */\n\tclass __Invalid(message: String) : kotlin.IllegalArgumentException(message)\n\n\t@kotlin.jvm.JvmStatic private fun __invalid(message: String): Throwable = __Invalid(message)\n\n{helpers}{}{}}}\n",
+		"/** The runtime's [_Native.__Eq], by a name no class, field, or member of the binding takes, since\n * each is in Pascal or camel case. */\ninternal val _eq = _Native.__Eq\n\ninternal object _Native {{\n\tinit {{\n\t\tSystem.loadLibrary(\"{p}\")\n\t\t// Checked before any other call, which it readies the library for: a Kotlin file\n\t\t// and a library from different builds must not mix.\n\t\tkotlin.check(__contract().toULong() == {}) {{ \"{p}.kt and the library are from different builds\" }}\n\t}}\n\n\t@kotlin.jvm.JvmStatic external fun __contract(): Long\n\n\t@kotlin.jvm.JvmStatic external fun __target(): Int\n\n\t@kotlin.jvm.JvmStatic external fun __usize_max(): Long\n\n\t/** The index of the library's target among those this file serves. */\n\tprivate val target = __target()\n\n\t/** Throws unless the library's target is among those of [on], as the item [what] is. */\n\tfun check(on: ULong, what: String) {{\n\t\tif ((on shr target) and 1uL == 0uL) throw kotlin.UnsupportedOperationException(\"$what: it is not on this library's target\")\n\t}}\n\n\t@kotlin.jvm.JvmStatic external fun __waker_new(waker: Waker): Long\n\n\t@kotlin.jvm.JvmStatic external fun __waker_free(node: Long)\n\n\t@kotlin.jvm.JvmStatic external fun __waker_wake(raw: Long)\n\n\t@kotlin.jvm.JvmStatic external fun __waker_drop(raw: Long)\n\n\t@kotlin.jvm.JvmStatic external fun __bytes_get(lent: __Lent, owner: Long, index: Int): Byte\n\n\t@kotlin.jvm.JvmStatic external fun __bytes_copy(lent: __Lent, owner: Long, start: Int, len: Int, destination: ByteArray, at: Int)\n\n\t@kotlin.jvm.JvmStatic external fun __bytes_copy_direct(lent: __Lent, owner: Long, start: Int, len: Int, destination: java.nio.ByteBuffer, at: Int)\n\n\t@kotlin.jvm.JvmStatic external fun __bytes_free(owner: Long)\n\n\t@kotlin.jvm.JvmStatic private fun __wake(waker: Any) = (waker as Waker).wake()\n\n\t@kotlin.jvm.JvmStatic private fun __poll(pollable: Any, waker: Long): Boolean = (pollable as __Pollable).poll(waker)\n\n\t@kotlin.jvm.JvmStatic private fun __free(implementation: Any) {{\n\t\tif (implementation is AutoCloseable) implementation.close()\n\t}}\n\n\t/** The encoded error a native call raised, which its function throws as its exception. No stack trace: it is caught at once. */\n\tclass __Failed(@kotlin.jvm.JvmField val error: ByteArray) : kotlin.RuntimeException(null, null, false, false)\n\n\t@kotlin.jvm.JvmStatic private fun __failed(error: ByteArray): Throwable = __Failed(error)\n\n\t/** A call a failed run-time check refused, before it moved or changed anything. */\n\tclass __Refused(message: String) : kotlin.IllegalStateException(message)\n\n\t@kotlin.jvm.JvmStatic private fun __refused(message: String): Throwable = __Refused(message)\n\n\t/** A call refused before it moved or changed anything, as an argument holds a value its Rust type cannot. */\n\tclass __Invalid(message: String) : kotlin.IllegalArgumentException(message)\n\n\t@kotlin.jvm.JvmStatic private fun __invalid(message: String): Throwable = __Invalid(message)\n\n\t/** A call a closure it reached refused, by returning a value its Rust type cannot hold, as [__Invalid] refuses an argument: the call ran, so what it moved is gone. */\n\tclass __Unwound(cause: Throwable) : kotlin.IllegalArgumentException(cause.message, cause)\n\n\t/** What a closure's [thrown] unwinds Rust with, to the native method below: none, which aborts, unless the binding refused a value. */\n\t@kotlin.jvm.JvmStatic private fun __unwound(thrown: Throwable): Throwable? = when (thrown) {{\n\t\tis __Unwound -> thrown\n\t\tis __Invalid -> __Unwound(thrown)\n\t\telse -> null\n\t}}\n\n{helpers}{}{}}}\n",
 		contract_literal(contract),
 		g.natives,
 		indent_by(RUNTIME, 1),
@@ -2371,7 +2379,7 @@ impl<'a> Gen<'a> {
 			_ => unreachable!("a callback or closure returns no {c_ok:?}"),
 		};
 		let back = match thrown {
-			None => format!("rt::threw(env, \"{what}\");\n\t\t{back}"),
+			None => format!("rt::unwinds(env, \"{what}\");\n\t\t{back}"),
 			Some(_) => {
 				let err = outs.len() - 1;
 				let ok = match c_ok {
@@ -2386,9 +2394,14 @@ impl<'a> Gen<'a> {
 		let invoke = format!(
 			"let ret = unsafe {{ ((**env).v1_2.CallStatic{call_kind}MethodA)(env, rt::class(), id, args.as_ptr()) }};"
 		);
+		let types: Vec<&str> = rust_params
+			.iter()
+			.map(|p| p.split_once(": ").expect("a typed parameter").1)
+			.collect();
+		let types = types.join(", ");
 		let _ = write!(
 			self.glue,
-			"static M_{trampoline}: std::sync::OnceLock<usize> = std::sync::OnceLock::new();\n\nunsafe extern \"C\" fn {trampoline}({}) -> {rust_ret} {{\n\trt::upcall(\"{what}\", |env| {{\n\t\tlet id = rt::method(env, &M_{trampoline}, c\"{dispatcher}\", c\"{sig}\");\n\t\tlet args = [{}];\n\t\t{invoke}\n\t\tlet _ = &ret;\n\t\t{back}\n\t}})\n}}\n\n",
+			"static M_{trampoline}: std::sync::OnceLock<usize> = std::sync::OnceLock::new();\n\n/// [`{trampoline}_unwind`] as the C function the C ABI takes, which calls it as `C-unwind`.\n#[allow(non_upper_case_globals, reason = \"named as the function\")]\nconst {trampoline}: unsafe extern \"C\" fn({types}) -> {rust_ret} = unsafe {{ std::mem::transmute::<unsafe extern \"C-unwind\" fn({types}) -> {rust_ret}, _>({trampoline}_unwind) }};\n\nunsafe extern \"C-unwind\" fn {trampoline}_unwind({}) -> {rust_ret} {{\n\trt::upcall(\"{what}\", |env| {{\n\t\tlet id = rt::method(env, &M_{trampoline}, c\"{dispatcher}\", c\"{sig}\");\n\t\tlet args = [{}];\n\t\t{invoke}\n\t\tlet _ = &ret;\n\t\t{back}\n\t}})\n}}\n\n",
 			rust_params.join(", "),
 			jvalues.join(", ")
 		);
@@ -2487,11 +2500,11 @@ impl<'a> Gen<'a> {
 		all.extend(rust);
 		let _ = write!(
 			self.glue,
-			"#[unsafe(no_mangle)]\npub unsafe extern \"system\" fn Java_{}__1Native_{}({}) -> {} {{\n\tlet _ = env;\n\tunsafe {{\n\t\t{body}\n\t}}\n}}\n\n",
+			"#[unsafe(no_mangle)]\npub unsafe extern \"system\" fn Java_{}__1Native_{}({}) -> {ret} {{\n\trt::entry(env, move || -> {ret} {{\n\t\tunsafe {{\n\t\t\t{body}\n\t\t}}\n\t}})\n}}\n\n",
 			mangle(&self.abi.prefix),
 			mangle(bare),
 			all.join(", "),
-			ret.0
+			ret = ret.0
 		);
 	}
 

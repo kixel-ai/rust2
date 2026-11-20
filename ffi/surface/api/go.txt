@@ -121,6 +121,7 @@ func Least(sets [][]uint32) [][]uint32
 func Len(payload p_rt.Bytes) uint
 func LentBack(value p_rt.Bytes) p_rt.Bytes
 func Less(value uint32, value2 uint32) uint32
+func Lettered(f func() rune) rune
 func LevelLater(ctx context.Context, dial Dial) (uint64, error)
 func LocalLater(ctx context.Context, n uint32) (uint32, error)
 func LocalWaiterPollReady(ctx context.Context, n uint32) (uint32, error)
@@ -135,7 +136,9 @@ func Louder(filter *p_tracingcore.Level) *p_tracingcore.Level
 func Made(n uint32, make_ func(uint32) string) string
 func Marked(apiMarked *Mark) (uint64, error)
 func MarkerY() int32
+func Measured(f func() uint) uint
 func Named(name string) (*string, error)
+func Negated(f func() int) int
 func NextChar(c rune) (*rune, error)
 func NextHop(hop *uint64) (*uint64, error)
 func NextIps(v4 p_rt.Ipv4Addr, v6 p_rt.Ipv6Addr) (p_rt.Ipv4Addr, p_rt.Ipv6Addr)
@@ -218,6 +221,8 @@ func Spread(n uint64) *p_rt.Tuple4[uint8, int16, uint32, uint64]
 func Stored(receipt *Receipt) (uint32, error)
 func StoredText(stored string) (string, error)
 func Stray() string
+func StretchVtable_() unsafe.Pointer
+func Stretched(stretch Stretch) uint
 func SumAll(items []uint32) uint32
 func SumLists(a []int32, b *[]int32, c *[]int32) int32
 func SumU32(items []uint32) uint64
@@ -241,6 +246,7 @@ func Unescaped(text string) (string, error)
 func UnescapedLater(ctx context.Context, text string) (string, error)
 func UnescapedMaybe(ctx context.Context, text *string) (*string, error)
 func Unhook() error
+func Unwound() uint32
 func Unzeroed(bytes p_rt.Bytes) p_rt.Bytes
 func Verify(cert *p_tls.Cert) (uint32, error)
 func VisitChunks(payload p_rt.Bytes, size uint, visit func(*[]byte) uint64) []uint64
@@ -1732,6 +1738,9 @@ const (
 )
 func (self Status) Equal(other Status) bool
 func (self Status) GoString() string
+type Stretch interface {
+	Stretch() uint
+}
 type Tab struct {
 	Handle_ *p_rt.Handle_
 }
