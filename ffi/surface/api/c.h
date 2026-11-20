@@ -17,7 +17,7 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-#define API_CONTRACT ((uint64_t)0xb9b92db894e1e92eULL)
+#define API_CONTRACT ((uint64_t)0x50ec9f48e13d3bfdULL)
 uint64_t api_contract(void);
 uint32_t api_target(void);
 typedef int32_t api_status;
@@ -166,6 +166,7 @@ typedef struct api_Key api_Key;
 typedef struct api_clash_Seed api_clash_Seed;
 typedef struct api_clash_Empty_string api_clash_Empty_string;
 typedef struct api_clash_Store api_clash_Store;
+typedef struct api_clash_Reader api_clash_Reader;
 typedef struct api_tls_Session api_tls_Session;
 typedef struct api_Url api_Url;
 typedef struct api_Json api_Json;
@@ -202,6 +203,10 @@ typedef enum api_Tier {
 	API_TIER_COMPARE_TO = 2,
 	API_TIER_PARTIAL_COMPARE_TO = 3,
 } api_Tier;
+typedef enum api_clash_Level {
+	API_CLASH_LEVEL_DEFAULT = 0,
+	API_CLASH_LEVEL_DEBUG = 1,
+} api_clash_Level;
 typedef enum api_Level {
 	API_LEVEL_ERROR = 0,
 	API_LEVEL_WARN = 1,
@@ -878,6 +883,12 @@ typedef struct api_clash_Any {
 typedef struct api_clash_Break {
 	uint8_t _0;
 } api_clash_Break;
+typedef struct api_clash_Malformed {
+	uint8_t at;
+} api_clash_Malformed;
+typedef struct api_clash_Errno {
+	int32_t errno_;
+} api_clash_Errno;
 typedef struct api_clash_Escaped {
 	uint8_t new_;
 } api_clash_Escaped;
@@ -1132,6 +1143,23 @@ typedef struct api_clash_Candidate {
 		api_clash_Candidate_Match match;
 	};
 } api_clash_Candidate;
+typedef enum api_clash_Tag_tag {
+	API_CLASH_TAG_APPLICATION = 0,
+	API_CLASH_TAG_PRIVATE = 1,
+} api_clash_Tag_tag;
+typedef struct api_clash_Tag_Application {
+	uint32_t number;
+} api_clash_Tag_Application;
+typedef struct api_clash_Tag_Private {
+	uint32_t number;
+} api_clash_Tag_Private;
+typedef struct api_clash_Tag {
+	api_clash_Tag_tag tag;
+	union {
+		api_clash_Tag_Application application;
+		api_clash_Tag_Private private_;
+	};
+} api_clash_Tag;
 typedef struct api_Log_vtable {
 	void (*free)(void *data);
 	bool (*log)(void *data, uint8_t level, api_buf line);
@@ -1183,8 +1211,18 @@ typedef struct api_Stretch {
 	const api_Stretch_vtable *vtable;
 	void *data;
 } api_Stretch;
+typedef struct api_clash_Source_vtable {
+	void (*free)(void *data);
+	void (*wait)(void *data);
+	uint8_t (*read_byte)(void *data);
+} api_clash_Source_vtable;
+typedef struct api_clash_Source {
+	const api_clash_Source_vtable *vtable;
+	void *data;
+} api_clash_Source;
 #define API_LIMIT ((uint64_t)1000ULL)
 #define API_FAR ((int64_t)9223372036854775807LL)
+#define API_EOF ((int32_t)-1)
 #define API_URL ((uint64_t)1000ULL)
 #define API_STEP ((uint64_t)1ULL)
 void api_Parcel_free(api_Parcel *self);
@@ -1452,6 +1490,15 @@ bool api_clash_Break_eq(const api_clash_Break *a, const api_clash_Break *b);
 API_MUST_USE api_buf api_clash_Break_debug(const api_clash_Break *self);
 api_clash_Break api_clash_Break_Sp(void);
 api_clash_Break api_clash_Break_SP(void);
+void api_clash_Malformed_free(api_clash_Malformed *self);
+bool api_clash_Malformed_eq(const api_clash_Malformed *a, const api_clash_Malformed *b);
+API_MUST_USE api_buf api_clash_Malformed_to_string(const api_clash_Malformed *self);
+API_MUST_USE api_buf api_clash_Malformed_debug(const api_clash_Malformed *self);
+bool api_clash_Malformed_is(const api_clash_Malformed *self, uint8_t at);
+void api_clash_Errno_free(api_clash_Errno *self);
+bool api_clash_Errno_eq(const api_clash_Errno *a, const api_clash_Errno *b);
+API_MUST_USE api_buf api_clash_Errno_debug(const api_clash_Errno *self);
+api_clash_Errno api_clash_Errno_NULL(void);
 void api_clash_Escaped_free(api_clash_Escaped *self);
 bool api_clash_Escaped_eq(const api_clash_Escaped *a, const api_clash_Escaped *b);
 API_MUST_USE api_buf api_clash_Escaped_debug(const api_clash_Escaped *self);
@@ -1529,6 +1576,14 @@ API_MUST_USE api_buf api_Tier_debug(const api_Tier *self);
 void api_clash_Candidate_free(api_clash_Candidate *self);
 bool api_clash_Candidate_eq(const api_clash_Candidate *a, const api_clash_Candidate *b);
 API_MUST_USE api_buf api_clash_Candidate_debug(const api_clash_Candidate *self);
+bool api_clash_Level_eq(const api_clash_Level *a, const api_clash_Level *b);
+API_MUST_USE api_buf api_clash_Level_debug(const api_clash_Level *self);
+api_clash_Level api_clash_Level_default(void);
+uint8_t api_clash_Level_index(const api_clash_Level *self);
+void api_clash_Tag_free(api_clash_Tag *self);
+bool api_clash_Tag_eq(const api_clash_Tag *a, const api_clash_Tag *b);
+API_MUST_USE api_buf api_clash_Tag_debug(const api_clash_Tag *self);
+uint32_t api_clash_Tag_number(const api_clash_Tag *self);
 bool api_Level_eq(const api_Level *a, const api_Level *b);
 uint64_t api_Level_hash(const api_Level *self);
 int8_t api_Level_partial_cmp(const api_Level *a, const api_Level *b);
@@ -2084,6 +2139,13 @@ void api_clash_Store_free(api_clash_Store *self);
 API_MUST_USE api_clash_Store *api_clash_Store_new(uint32_t count);
 uint32_t api_clash_Store_free_(const api_clash_Store *self);
 uint32_t api_clash_Store_close(const api_clash_Store *self);
+void api_clash_Store_wait(const api_clash_Store *self);
+void api_clash_Store_finalize(const api_clash_Store *self);
+void api_clash_Reader_free(api_clash_Reader *self);
+void api_clash_Reader_drop(api_clash_Reader *self, api_status *status);
+API_MUST_USE api_clash_Reader *api_clash_Reader_new(api_buf bytes);
+API_MUST_USE bool api_clash_Reader_read_byte(api_clash_Reader *self, uint8_t *out, api_clash_Malformed *err, api_status *status);
+API_MUST_USE bool api_clash_Reader_unread_byte(api_clash_Reader *self, api_clash_Malformed *err, api_status *status);
 void api_tls_Session_free(api_tls_Session *self);
 API_MUST_USE api_buf api_tls_Session_alpn(const api_tls_Session *self);
 api_tls_policy_Lifetime api_tls_Session_lifetime(const api_tls_Session *self);
@@ -2484,6 +2546,7 @@ api_NonZeros api_non_zeros(void);
 API_MUST_USE api_buf api_describe_non_zeros(api_NonZeros non_zeros);
 api_option_non_zero_u64 api_next_hop(api_option_non_zero_u64 hop);
 uint16_t api_farther_hop(api_Pair_non_zero_u16 hops);
+int32_t api_WEXITSTATUS(int32_t status);
 api_duration api_same_duration(api_duration v);
 uint64_t api_same_u64(uint64_t v);
 size_t api_same_usize(size_t v);
@@ -2534,6 +2597,7 @@ API_MUST_USE api_clash_Any api_clash_any(api_buf type_url);
 api_clash_Candidate api_clash_candidate(uint8_t at);
 uint8_t api_clash_ignore(uint8_t arg0, uint8_t arg1, uint8_t arg2);
 API_MUST_USE api_clash_Empty_string *api_clash_empty(void);
+uint8_t api_clash_waited(api_clash_Source source);
 API_MUST_USE bool api_clash_audible(api_clash_Tone tone, api_clash_Tone *out, api_vec_clash_Tone *err);
 uint32_t api_clash_nested(api_option_tuple_tuple_u8_u16_u32 a, api_option_tuple_tuple_u8_u16_u32_ b);
 uint8_t api_clash_audio_encoder_finish(void);

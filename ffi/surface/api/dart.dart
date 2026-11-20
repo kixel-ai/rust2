@@ -735,6 +735,23 @@ final class ClashBreak {
 	static ClashBreak get sp;
 	static ClashBreak get sp_;
 }
+final class ClashMalformed implements Exception {
+	final int at;
+	const ClashMalformed({required this.at});
+	@override String toString();
+	String debug();
+	@override bool operator ==(Object other);
+	@override int get hashCode;
+	bool is_(int at);
+}
+final class ClashErrno {
+	final int errno;
+	const ClashErrno({required this.errno});
+	String debug();
+	@override bool operator ==(Object other);
+	@override int get hashCode;
+	static ClashErrno get null_;
+}
 final class ClashEscaped {
 	final int new_;
 	const ClashEscaped({required this.new_});
@@ -1045,6 +1062,29 @@ final class ClashCandidateNone extends ClashCandidate {
 final class ClashCandidateMatch extends ClashCandidate {
 	final int $0;
 	const ClashCandidateMatch(this.$0);
+}
+enum ClashLevel {
+	default__(0),
+	debug_(1),
+	const ClashLevel(this._c);
+	String debug();
+	factory ClashLevel.default_();
+	int index_();
+}
+sealed class ClashTag {
+	const ClashTag();
+	String debug();
+	@override bool operator ==(Object other);
+	@override int get hashCode;
+	int number_();
+}
+final class ClashTagApplication extends ClashTag {
+	final int number;
+	const ClashTagApplication({required this.number});
+}
+final class ClashTagPrivate extends ClashTag {
+	final int number;
+	const ClashTagPrivate({required this.number});
 }
 enum Level implements Comparable<Level> {
 	error(0),
@@ -1555,6 +1595,13 @@ final class ClashStore extends _Object {
 	factory ClashStore(int count);
 	int free();
 	int close_();
+	void wait();
+	void finalize();
+}
+final class ClashReader extends _Object {
+	factory ClashReader(typed.Uint8List bytes);
+	int readByte();
+	void unreadByte();
 }
 final class TlsSession extends _Object {
 	String alpn();
@@ -1666,6 +1713,11 @@ abstract class Stretch {
 	U64 stretch();
 	void close();
 }
+abstract class ClashSource {
+	void wait();
+	int readByte();
+	void close();
+}
 final class BoundsU64Exception implements Exception {
 	final BoundsU64 error;
 	const BoundsU64Exception(this.error);
@@ -1683,6 +1735,7 @@ final class VecClashToneException implements Exception {
 }
 const limit = U64.fromBits(1000);
 const far = 9223372036854775807;
+const eof = -1;
 const url = U64.fromBits(1000);
 @Deprecated('pass a step to `Dial::turn`, whose `}` or `{` alone stays in the note') const step = U64.fromBits(1);
 bool hasText(Note note);
@@ -1932,6 +1985,7 @@ NonZeros nonZeros();
 String describeNonZeros(NonZeros nonZeros);
 U64? nextHop(U64? hop);
 int fartherHop(PairNonZeroU16 hops);
+int wexitstatus(int status);
 RustDuration sameDuration(RustDuration v);
 U64 sameU64(U64 v);
 U64 sameUsize(U64 v);
@@ -1970,6 +2024,7 @@ ClashAny clashAny(String typeUrl);
 ClashCandidate clashCandidate(int at);
 int clashIgnore(int arg0, int arg1, int arg2);
 ClashEmptyString clashEmpty();
+int clashWaited(ClashSource source);
 ClashTone clashAudible(ClashTone tone);
 int clashNested(((int, int), int)? a, ((int, int, int),)? b);
 int clashAudioEncoderFinish();
