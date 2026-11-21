@@ -1660,7 +1660,9 @@ pub struct Dial(std::sync::atomic::AtomicU32);
 
 impl Clone for Dial {
 	fn clone(&self) -> Self {
-		Self(std::sync::atomic::AtomicU32::new(self.0.load(std::sync::atomic::Ordering::Relaxed)))
+		Self(std::sync::atomic::AtomicU32::new(
+			self.0.load(std::sync::atomic::Ordering::Relaxed),
+		))
 	}
 }
 
@@ -1681,7 +1683,10 @@ pub struct Ledger {
 }
 
 pub fn ledger() -> Ledger {
-	Ledger { dial: Dial(std::sync::atomic::AtomicU32::new(0)), seed: 0 }
+	Ledger {
+		dial: Dial(std::sync::atomic::AtomicU32::new(0)),
+		seed: 0,
+	}
 }
 
 impl Ledger {
