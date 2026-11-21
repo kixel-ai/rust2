@@ -1729,6 +1729,9 @@ impl<'a> Abi<'a> {
 		] {
 			self.claim(self.rt(runtime), "the runtime".to_string(), crate_span, None);
 		}
+		// C++'s namespace, which shares the global scope with C's declarations.
+		let namespace = crate::cpp::namespace(&self.prefix);
+		self.claim(namespace, "the runtime".to_string(), crate_span, None);
 		for constant in ["CONTRACT", "POLL_PENDING", "POLL_READY", "POLL_ERROR", "ATOMICS_H"] {
 			let name = format!("{}_{constant}", self.prefix.to_uppercase());
 			self.claim(name, "the runtime".to_string(), crate_span, None);

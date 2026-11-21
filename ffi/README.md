@@ -563,7 +563,8 @@ it in Cargo's order, so none includes another in a cycle. An item's crate is the
 packages place it in.
 
 - **Names** are the C names without the prefix, in a namespace of it, escaped as a name
-  is (`class_` for a library `class`) and stepped past every name the C header declares:
+  is (`class_` for a library `class`), which C claims as the runtime's names, since its
+  declarations share the global scope:
   `moq_track_Producer` is `moq::track_Producer`, and its method
   `moq_track_Producer_append_group` is `moq::track_Producer::append_group`. A keyword takes a trailing `_` (`counter::new_`),
   as does a member named as its class, one of its fields, or a member a trait gives it,

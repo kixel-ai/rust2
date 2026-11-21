@@ -65,18 +65,10 @@ impl Operator {
 /// `<prefix>/<package>.hpp` per crate; or the members two items name alike.
 pub(crate) fn headers(abi: &Abi<'_>, packages: &str) -> Result<Output, String> {
 	let p = &abi.prefix;
-	// The namespace: the prefix escaped as a name is, since a library may be named as a
-	// keyword or a macro (`class`), stepped past each name the C header declares in the
-	// global scope it shares, such as the function `class_` an item named only `_`s makes.
-	let global: BTreeSet<String> = abi.declared().into_iter().map(|c| c.to_string()).collect();
-	let ns = (0..)
-		.map(|n| escape(&abi::stepped(p, n)))
-		.find(|ns| !global.contains(ns))
-		.expect("a free name");
 	let mut h = Header {
 		locked: BTreeMap::new(),
 		abi,
-		ns,
+		ns: namespace(p),
 		krate: String::new(),
 		files: crate::go::packages(abi),
 		out: String::new(),
@@ -2614,6 +2606,13 @@ pub(crate) fn escape(name: &str) -> String {
 	}
 }
 
+/// The namespace of the library whose prefix is `prefix`: it escaped as a name is, since a
+/// library may be named as a keyword or a macro (`class`). C claims it as the runtime's, since
+/// the header's C declarations share the global scope, so no item's C name takes it.
+pub(crate) fn namespace(prefix: &str) -> String {
+	escape(prefix)
+}
+
 /// Whether C++ reserves `name` for the implementation in every scope: one holding `__`, or
 /// starting with `_` and a capital.
 #[cfg(test)]
@@ -2865,12 +2864,12 @@ mod tests {
 
 	#[test]
 	fn a_namespace_escapes_as_a_name() {
-		for (lib, functions, ns, c) in [
-			("_class", &["f"][..], "class_", "class_f"),
-			("unix", &["f"], "unix_", "unix_f"),
-			("api", &["f"], "api", "api_f"),
-			// Past the C function `class_` an item named only `_`s makes.
-			("_class", &["f", "__"], "class_2", "class_f"),
+		for (lib, functions, ns, calls) in [
+			("_class", &["f"][..], "class_", &[("f", "class_f")][..]),
+			("unix", &["f"], "unix_", &[("f", "unix_f")]),
+			("api", &["f"], "api", &[("f", "api_f")]),
+			// The C function an item named only `_`s makes steps past it.
+			("_class", &["f", "__"], "class_", &[("f", "class_f"), ("_2", "class_2")]),
 		] {
 			let api = crate::ir::Api::of(functions.iter().map(|f| crate::ir::Function::bare(f)).collect());
 			let rest = api.without_jni();
@@ -2879,10 +2878,10 @@ mod tests {
 			let output = super::headers(&abi, "ns").unwrap_or_else(|e| panic!("{e}"));
 			let text: String = output.files.iter().map(|(_, text)| text.as_str()).collect();
 			assert!(text.contains(&format!("namespace {ns} {{")), "{lib}:\n{text}");
-			assert!(
-				text.contains(&format!("inline void f() {{\n\t::{c}();")),
-				"{lib}:\n{text}"
-			);
+			for (cpp, c) in calls {
+				let defined = format!("inline void {cpp}() {{\n\t::{c}();");
+				assert!(text.contains(&defined), "{lib}: {c} is not {cpp}:\n{text}");
+			}
 		}
 	}
 
