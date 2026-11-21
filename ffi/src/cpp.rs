@@ -2591,7 +2591,11 @@ pub(crate) fn escape(name: &str) -> String {
 		"std",
 		"self",
 	];
-	let name = abi::unreserved(name);
+	// A C name of an item named only `_`s is its prefix and `_` alone, which leaves `_`.
+	let name = match abi::unreserved(name) {
+		name if name.is_empty() => "_".to_string(),
+		name => name,
+	};
 	match KEYWORDS.contains(&name.as_str()) {
 		// One `_`, which makes no macro's name.
 		true => format!("{name}_"),
@@ -2795,6 +2799,8 @@ mod tests {
 				"__u128",
 				"__duration",
 				"a_b",
+				"__",
+				"___",
 			]
 			.map(crate::ir::Function::bare)
 			.to_vec(),
@@ -2833,6 +2839,9 @@ mod tests {
 			// Past the runtime's.
 			("u128_", "ns_u128_"),
 			("duration_", "ns_duration_"),
+			// Names of only `_`s, whose C names are the prefix and `_`, then stepped.
+			("_", "ns_"),
+			("_2", "ns_2"),
 		] {
 			let defined = format!("inline void {cpp}() {{\n\t::{c}();");
 			assert!(text.contains(&defined), "{c} is not {cpp}:\n{text}");

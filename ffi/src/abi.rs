@@ -442,6 +442,7 @@ pub(crate) const CFG: &str = "rust2_ffi_target";
 
 pub(crate) struct Abi<'a> {
 	pub(crate) api: &'a Api,
+	/// The library's name as [`prefix`] makes it a C name's first segment.
 	pub(crate) prefix: String,
 	/// Each generic item's instances, by whether it is a function and its C name, with
 	/// the suffix that names each by its arguments.
@@ -474,10 +475,11 @@ pub(crate) struct Abi<'a> {
 }
 
 impl<'a> Abi<'a> {
-	pub(crate) fn new(api: &'a Api, prefix: &str) -> Self {
+	/// The C ABI of `api`, exported by the library `lib`, which [`prefix`] must name a prefix.
+	pub(crate) fn new(api: &'a Api, lib: &str) -> Self {
 		let mut abi = Self {
 			api,
-			prefix: prefix.to_string(),
+			prefix: prefix(lib).expect("the driver refuses a library that names no prefix"),
 			suffixes: Default::default(),
 			options: BTreeMap::new(),
 			ranges: BTreeMap::new(),
@@ -2422,6 +2424,15 @@ pub(crate) fn unreserved(name: &str) -> String {
 	}
 }
 
+/// The first segment of every C name the library `lib` exports: its name without leading or
+/// trailing `_`s, keeping one `_` of each run, so a join keeps it whole and nothing it starts
+/// is reserved, as C reserves every global name starting with `_`. `None` for a name that
+/// then starts with no letter, such as `__` or `_1`.
+pub(crate) fn prefix(lib: &str) -> Option<String> {
+	let prefix = single(lib.trim_matches('_'));
+	prefix.starts_with(|c: char| c.is_ascii_alphabetic()).then_some(prefix)
+}
+
 /// `name` keeping one `_` of each run.
 fn single(name: &str) -> String {
 	let mut out = String::with_capacity(name.len());
@@ -2677,6 +2688,27 @@ mod tests {
 			format!("{}_eq", super::stem("api_Status_")),
 			super::join("api_Status_", "eq")
 		);
+	}
+
+	#[test]
+	fn a_prefix_keeps_whole_and_unreserved() {
+		for (lib, prefix) in [
+			("moq", "moq"),
+			("a__b", "a_b"),
+			("api__", "api"),
+			("_Api", "Api"),
+			("_x_1", "x_1"),
+		] {
+			assert_eq!(super::prefix(lib).as_deref(), Some(prefix), "{lib}");
+		}
+		for lib in ["_", "__", "_1a"] {
+			assert_eq!(super::prefix(lib), None, "{lib}");
+		}
+		// Every name made of a library `api__`'s items starts with its prefix and `_`.
+		let api = crate::ir::Api::of(vec![Function::bare("f")]);
+		let abi = super::Abi::new(&api, "api__");
+		assert_eq!(abi.prefix, "api");
+		assert_eq!(abi.export(&api.functions[0], None).call.name, "api_f");
 	}
 
 	#[test]

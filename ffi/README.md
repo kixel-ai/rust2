@@ -28,7 +28,9 @@ So a facade such as moq-ffi exports several crates into one library by re-export
 it ships; a type a signature names that no path from its root reaches exports by its
 public path in its own crate ([Rules](#rules)). The prefix of every C name
 is the library's crate name, Cargo's `[lib] name`, which defaults to the package's name in
-snake case. `--out` writes a crate of `extern "C"` functions over the facade, its runtime
+snake case, without its leading and trailing `_`s and keeping one `_` of each run, since C
+reserves every global name starting with `_` and C++ every name holding `__`; a name left
+starting with no letter, such as `__`, fails the export. `--out` writes a crate of `extern "C"` functions over the facade, its runtime
 beside it, and the header in `include/<prefix>.h`; `cargo build` on that crate makes a
 static and a shared library for those targets alone: its build script refuses another, on
 which an item the target compiles would be missing, or one it leaves out left over. So a
