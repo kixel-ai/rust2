@@ -164,6 +164,8 @@ pub(crate) struct Facade<'a> {
 	pub(crate) profile_dir: Option<&'a str>,
 	/// The target's `cfg`s as cargo gives a build script them, by [`crate::ir::Profile::cfgs`].
 	pub(crate) cfgs: &'a [std::collections::BTreeMap<String, String>],
+	/// Cargo's `DEBUG` for the facade, by [`crate::ir::Profile::debug`].
+	pub(crate) debug: bool,
 	/// The `CARGO_PROFILE_*` variables that may override the profile, by
 	/// [`crate::ir::Profile::vars`].
 	pub(crate) vars: &'a std::collections::BTreeMap<String, Option<String>>,
@@ -7107,7 +7109,7 @@ fn target(tcx: TyCtxt<'_>) -> String {
 /// The profile the facade compiles with, which its leaves are proven under, beside what
 /// cargo gave its build scripts.
 fn profile(tcx: TyCtxt<'_>, facade: &Facade<'_>) -> crate::ir::Profile {
-	use rustc_session::config::{DebugInfo, OptLevel};
+	use rustc_session::config::OptLevel;
 	let sess = tcx.sess;
 	let opt_level = match sess.opts.optimize {
 		OptLevel::No => "0",
@@ -7123,9 +7125,7 @@ fn profile(tcx: TyCtxt<'_>, facade: &Facade<'_>) -> crate::ir::Profile {
 		opt_level: opt_level.to_string(),
 		debug_assertions: sess.opts.debug_assertions,
 		panic: sess.panic_strategy().desc().to_string(),
-		// Cargo's `DEBUG` is whether the profile asks for any debug info, which it passes the
-		// crate as `-C debuginfo`, under `cargo check` too.
-		debug: sess.opts.debuginfo != DebugInfo::None,
+		debug: facade.debug,
 		cfgs: facade.cfgs.to_vec(),
 		vars: facade.vars.clone(),
 	}

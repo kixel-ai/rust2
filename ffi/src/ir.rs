@@ -53,8 +53,8 @@ pub(crate) struct Profile {
 	pub(crate) debug_assertions: bool,
 	/// `cfg(panic)`'s value.
 	pub(crate) panic: String,
-	/// Cargo's `DEBUG`: whether the facade compiled with debug info, which a build script may
-	/// read.
+	/// Cargo's `DEBUG`, which a build script may read: whether cargo passed the facade debug
+	/// info, as it does under `cargo check` too, apart from any `RUSTFLAGS` add.
 	#[serde(default)]
 	pub(crate) debug: bool,
 	/// The target's `cfg`s as cargo gives a build script them, `CARGO_CFG_<NAME>` with its

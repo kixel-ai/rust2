@@ -47,12 +47,22 @@ pub(crate) fn run(args: Vec<String>) -> ExitCode {
 	})
 }
 
+/// What the wrapper finds in cargo's query of the target, which carries the check's
+/// `RUSTFLAGS` and nothing of the profile's.
+#[derive(serde::Serialize, serde::Deserialize)]
+struct Queried {
+	/// rustc's `--print=cfg`, in each view a build may see.
+	printed: Vec<String>,
+	/// How many debug info flags `RUSTFLAGS` holds, which follow cargo's own.
+	debuginfo: usize,
+}
+
 /// On cargo's query of the target, write the `cfg`s cargo's own rustc prints for it to
-/// [`config::env::CFGS`], as a JSON list: what cargo gives the glue's build script under the
-/// check's `RUSTFLAGS`, as a build with that rustc does, rather than this nightly's. Then
-/// as it prints them acting as a stable release, which keeps unstable `cfg`s back, as a
-/// stable build of the glue does whatever rustc exported it. The query names the target,
-/// and the crate `___`.
+/// [`config::env::CFGS`]: what cargo gives the glue's build script under the check's
+/// `RUSTFLAGS`, as a build with that rustc does, rather than this nightly's. Then as it
+/// prints them acting as a stable release, which keeps unstable `cfg`s back, as a stable
+/// build of the glue does whatever rustc exported it. The query names the target, and the
+/// crate `___`.
 fn record_cfgs(args: &[String]) -> Result<(), String> {
 	let Some(path) = std::env::var_os(config::env::CFGS) else {
 		return Ok(());
@@ -87,6 +97,9 @@ fn record_cfgs(args: &[String]) -> Result<(), String> {
 	std::fs::write(&argfile, asked.join("\n")).map_err(|err| format!("writing {}: {err}", argfile.display()))?;
 	let mut at = std::ffi::OsString::from("@");
 	at.push(&argfile);
+	// A stable release refuses the `-Z` flags a nightly's `RUSTFLAGS` may hold, and a build
+	// with them is a nightly's.
+	let nightly = asked.iter().any(|arg| arg.starts_with("-Z"));
 	let print = |stable: bool| {
 		let mut rustc = Command::new(&args[1]);
 		rustc.arg(&at).stdin(std::process::Stdio::null());
@@ -105,14 +118,41 @@ fn record_cfgs(args: &[String]) -> Result<(), String> {
 		}
 	};
 	let mut printed = vec![print(false)?];
-	// A stable release refuses the `-Z` flags a nightly's `RUSTFLAGS` may hold, and a build
-	// with them is a nightly's.
-	if !asked.iter().any(|arg| arg.starts_with("-Z")) {
+	if !nightly {
 		printed.push(print(true)?);
 	}
 	printed.dedup();
-	let json = serde_json::to_string(&printed).expect("strings serialize");
+	let queried = Queried {
+		printed,
+		debuginfo: debuginfo(&expanded).len(),
+	};
+	let json = serde_json::to_string(&queried).expect("strings serialize");
 	std::fs::write(&path, json).map_err(|err| format!("writing {}: {err}", Path::new(&path).display()))
+}
+
+/// The value of each debug info flag in rustc's `args`, in order.
+fn debuginfo(args: &[String]) -> Vec<&str> {
+	let mut values = Vec::new();
+	let mut rest = args.iter().map(String::as_str);
+	while let Some(arg) = rest.next() {
+		let codegen = match arg {
+			"-g" => {
+				values.push("2");
+				continue;
+			}
+			"-C" | "--codegen" => rest.next(),
+			_ => arg.strip_prefix("-C").or_else(|| arg.strip_prefix("--codegen=")),
+		};
+		values.extend(codegen.and_then(|c| c.strip_prefix("debuginfo=")));
+	}
+	values
+}
+
+/// Cargo's `DEBUG` for the crate rustc compiles with `args`: whether cargo passed it debug
+/// info, before the `queried` flags of `RUSTFLAGS`, which may set another.
+fn cargo_debug(args: &[String], queried: usize) -> bool {
+	let values = debuginfo(args);
+	values.len() > queried && !matches!(values[0], "0" | "none")
 }
 
 /// The `cfg`s rustc's `--print=cfg` lists, as cargo gives a build script them: each name's
@@ -169,6 +209,8 @@ struct Export {
 	profile_dir: Option<String>,
 	/// The target's `cfg`s as cargo gives a build script them, by [`ir::Profile::cfgs`].
 	cfgs: Vec<std::collections::BTreeMap<String, String>>,
+	/// Cargo's `DEBUG` for the facade.
+	debug: bool,
 	/// The `CARGO_PROFILE_*` variables that may override the profile, with their values.
 	vars: std::collections::BTreeMap<String, Option<String>>,
 }
@@ -248,9 +290,12 @@ impl Export {
 		// Cargo queries the target before it compiles any crate for it.
 		let printed = std::fs::read_to_string(&path)
 			.map_err(|err| format!("reading the target's cfgs from {}: {err}", Path::new(&path).display()))?;
-		let printed: Vec<String> = serde_json::from_str(&printed)
+		let queried: Queried = serde_json::from_str(&printed)
 			.map_err(|err| format!("reading the target's cfgs from {}: {err}", Path::new(&path).display()))?;
-		let cfgs = printed.iter().map(|printed| cfgs(printed)).collect::<Result<_, _>>()?;
+		let cfgs = (queried.printed.iter())
+			.map(|printed| cfgs(printed))
+			.collect::<Result<_, _>>()?;
+		let debug = cargo_debug(args, queried.debuginfo);
 		let vars =
 			std::env::var(config::env::PROFILE_VARS).map_err(|_| format!("{} is unset", config::env::PROFILE_VARS))?;
 		let vars = (vars.split(',').filter(|var| !var.is_empty()))
@@ -271,6 +316,7 @@ impl Export {
 			profile,
 			profile_dir,
 			cfgs,
+			debug,
 			vars,
 		}))
 	}
@@ -310,6 +356,7 @@ impl Callbacks for Export {
 			profile: &self.profile,
 			profile_dir: self.profile_dir.as_deref(),
 			cfgs: &self.cfgs,
+			debug: self.debug,
 			vars: &self.vars,
 		};
 		let mut collected = collect::collect(tcx, &facade);
@@ -741,5 +788,22 @@ mod tests {
 			want
 		);
 		assert!(super::cfgs("foo=bar").is_err());
+	}
+
+	#[test]
+	fn reads_cargo_debug_apart_from_rustflags() {
+		let args = |args: &str| args.split(' ').map(str::to_string).collect::<Vec<_>>();
+		// Cargo's own comes first, and `RUSTFLAGS`' after it.
+		for (facade, queried, want) in [
+			("--crate-name a -C debuginfo=2 -C opt-level=0", 0, true),
+			("--crate-name a -C opt-level=3", 0, false),
+			("--crate-name a -C opt-level=3 -Cdebuginfo=2", 1, false),
+			("--crate-name a -C debuginfo=line-tables-only -C debuginfo=0", 1, true),
+			("--crate-name a -C debuginfo=1 -g", 1, true),
+			("--crate-name a --codegen=debuginfo=2 -C debuginfo=0", 1, true),
+			("--crate-name a -C debuginfo=0", 1, false),
+		] {
+			assert_eq!(super::cargo_debug(&args(facade), queried), want, "{facade}");
+		}
 	}
 }
