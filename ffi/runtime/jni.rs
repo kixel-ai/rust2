@@ -866,28 +866,43 @@ pub fn slots(env: *mut JNIEnv, slots: jlongArray, values: &[i64]) {
 
 /// Kotlin's `__Handle` a close drops the value of in one crossing, or null for a close that
 /// frees nothing: a global reference for a value that is not `Send`, whose drop commits on
-/// its home.
-pub struct Closing {
+/// its home. Once the drop commits, dropping this frees the native handle with `free`,
+/// however the drop then ends, as a `Drop` that unwinds would skip a free after it.
+pub struct Closing<F: FnOnce()> {
 	env: *mut JNIEnv,
 	handle: jobject,
 	global: bool,
+	committed: AtomicBool,
+	free: Option<F>,
 }
 
 static STATE: OnceLock<usize> = OnceLock::new();
 
-impl Closing {
+impl<F: FnOnce()> Closing<F> {
 	/// Of a value whose drop commits on this thread.
-	pub fn here(env: *mut JNIEnv, handle: jobject) -> Self {
-		Self { env, handle, global: false }
+	pub fn here(env: *mut JNIEnv, handle: jobject, free: F) -> Self {
+		Self {
+			env,
+			handle,
+			global: false,
+			committed: AtomicBool::new(false),
+			free: Some(free),
+		}
 	}
 
 	/// Of a value that is not `Send`, whose drop may commit on its home.
-	pub fn anywhere(env: *mut JNIEnv, handle: jobject) -> Self {
+	pub fn anywhere(env: *mut JNIEnv, handle: jobject, free: F) -> Self {
 		let handle = match handle.is_null() {
 			true => handle,
 			false => global(env, handle).cast(),
 		};
-		Self { env, handle, global: true }
+		Self {
+			env,
+			handle,
+			global: true,
+			committed: AtomicBool::new(false),
+			free: Some(free),
+		}
 	}
 
 	/// What a drop's commit calls, with what, or nothing for a close that frees nothing.
@@ -905,7 +920,7 @@ impl Closing {
 	/// `data` is a live [`Closing`] [`Self::signal`] gave, on its thread unless global.
 	unsafe extern "C" fn committed(data: *mut c_void) {
 		// SAFETY: the caller's contract.
-		let closing = unsafe { &*data.cast::<Closing>() };
+		let closing = unsafe { &*data.cast::<Self>() };
 		let env = match closing.global {
 			true => env(),
 			false => closing.env,
@@ -925,6 +940,8 @@ impl Closing {
 		}) as jfieldID;
 		// SAFETY: as above; `state` is a `long`, and 1 its `CLOSED`.
 		unsafe { ((**env).v1_2.SetLongField)(env, handle, id, 1) };
+		// Read once the drop returns or unwinds, after the home, if any, ran it.
+		closing.committed.store(true, Ordering::Release);
 	}
 }
 
@@ -933,11 +950,16 @@ pub fn close_drain(env: *mut JNIEnv, raw: jlong) -> jboolean {
 	entry(env, || rt::close_drain(raw as usize as _)).into()
 }
 
-impl Drop for Closing {
+impl<F: FnOnce()> Drop for Closing<F> {
 	fn drop(&mut self) {
 		if self.global && !self.handle.is_null() {
 			// SAFETY: `anywhere` made it on this thread, and it is deleted once.
 			unsafe { ((**self.env).v1_2.DeleteGlobalRef)(self.env, self.handle) };
+		}
+		if self.committed.load(Ordering::Acquire)
+			&& let Some(free) = self.free.take()
+		{
+			free();
 		}
 	}
 }

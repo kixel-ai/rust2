@@ -639,8 +639,8 @@ class __Handle(
 					if (__close_drain(raw)) continue
 					throw e
 				}
-				// Committed, then a `Drop` unwound past the free.
-				freed(CLOSED)
+				// Committed, then a `Drop` unwound: Rust freed the handle all the same.
+				cleanup?.stop()
 				throw e
 			}
 			cleanup?.stop()
