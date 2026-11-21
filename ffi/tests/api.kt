@@ -989,6 +989,53 @@ fun owned() {
 	compared()
 	forwarded()
 	nursed()
+	unwinds()
+}
+
+/**
+ * A closure or callback returning a value its Rust type cannot hold throws at the call that
+ * reached it, once Rust dropped what the frames between held, as a closure's panic unwinds
+ * them: a `char` anywhere, and a `usize` or `isize` past a 32-bit target's.
+ */
+fun unwinds() {
+	val before = unwound()
+	val surrogate = runCatching { lettered { 0xD800 } }.exceptionOrNull()
+	check(surrogate is IllegalArgumentException && surrogate.message == "55296 is no Unicode scalar value, as a Rust char is", "a closure's surrogate throws: $surrogate")
+	check(unwound() == before + 1u, "unwinding drops what the call held")
+	check(lettered { 'a'.code } == 'a'.code && unwound() == before + 2u, "the next call returns")
+	check(rejects { lettered { lettered { 0xD800 } } } && unwound() == before + 4u, "a closure's call it throws from unwinds the outer call too")
+	check(lettered { runCatching { lettered { 0xD800 } }.getOrDefault('b'.code) } == 'b'.code, "a closure may catch it")
+	val bumps = Mut(1u)
+	check(rejects { bumped(bumps) { 0xD800 } } && bumps.value == 2u, "what Rust wrote back before the closure failed crosses back: ${bumps.value}")
+	val more = listOf(Counter.new("one", 1u))
+	val failing = object : Log {
+		override fun log(level: UByte, line: String): Boolean = lettered { 0xD800 } == 0
+	}
+	Counter.new("zero", 0u).use { counter -> check(rejects { logCounts(failing, 0u, counter, more) }, "a callback's failed check unwinds a call that moved its arguments") }
+	val gone = runCatching { more[0].get() }.exceptionOrNull()
+	check(gone is IllegalStateException && gone.message == "Counter is closed", "what it moved is closed in Kotlin: $gone")
+	val tag = Tag.new()
+	check(tag.tagged(bumps) { 'a'.code } == "a" && rejects { tag.tagged(bumps) { 0xD800 } } && bumps.value == 4u, "a borrowed result's call writes back too: ${bumps.value}")
+	check(tag.tagged(bumps) { 'b'.code } == "ab", "the receiver is whole after")
+	check(stretched(object : Stretch { override fun stretch() = 2uL }) == 3uL, "a callback's usize crosses")
+	check(Spawned.new { if (rejects { lettered { 0xD800 } }) 1u else 0u }.join() == 1u, "on a thread Rust attached, it unwinds to the native method the task called")
+	val start = Moment.new(0u, 1000u)!!
+	for (pending in 0..1) {
+		var calls = 0
+		val polled = runCatching { runBlocking { drive(start) { _, _ -> if (++calls > pending) lettered { 0xD800 }; null } } }.exceptionOrNull()
+		check(polled is IllegalArgumentException, "a future's ${if (pending == 0) "first" else "second"} poll unwinds: $polled")
+	}
+	val max = usizeMax()
+	check(measured { max - 1uL } == max && measured { max } == 0uL, "a closure's usize crosses to the target's most")
+	val range = isizeRange()
+	check(negated { range.last } == -range.last && negated { range.first } == range.first, "a closure's isize crosses to the target's least and most")
+	if (max != ULong.MAX_VALUE) {
+		val past = unwound()
+		check(rejects { measured { max + 1uL } }, "a closure's usize past the target's throws")
+		check(rejects { negated { range.last + 1 } } && rejects { negated { range.first - 1 } }, "a closure's isize past the target's throws")
+		check(rejects { stretched(object : Stretch { override fun stretch() = max + 1uL }) }, "a callback's usize past the target's throws")
+		check(unwound() == past + 4u, "each dropped what it held")
+	}
 }
 
 // The nursery of the latest objects a thread was returned, which a close leaves at once

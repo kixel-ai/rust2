@@ -199,7 +199,7 @@ impl Export {
 #[derive(Clone)]
 pub(crate) struct Handed {
 	/// The C name of the method's function, which a clash may have renamed.
-	name: String,
+	pub(crate) name: String,
 	/// How many parameters both take after `self`, before the outs.
 	lead: usize,
 	/// Whether the method returns nothing.

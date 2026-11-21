@@ -4782,6 +4782,12 @@ pub struct StartSeekable {
 	pub at: u64,
 }
 
+/// The sum of what `f` and `f_unwind` return, wrapping: Kotlin's trampoline for `f_unwind`
+/// is named as `f`'s would name its unwinding body if that were not scoped to it.
+pub fn paired(f: impl Fn() -> u8, f_unwind: impl Fn() -> u8) -> u8 {
+	f().wrapping_add(f_unwind())
+}
+
 /// Whether two floats are equal as `1`, named as the helper Kotlin's records compare through.
 pub fn same(a: f64, b: f64) -> i32 {
 	i32::from(a == b)
@@ -5653,3 +5659,81 @@ pub const URL: u64 = LIMIT;
 /// The step a [`Dial`] turned by before [`Dial::turn`] took any, at most [`URL`].
 #[deprecated(note = "pass a step to [`Dial::turn`], whose `}` or `{` alone stays in the note")]
 pub const STEP: u64 = 1;
+
+static UNWOUND: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
+
+/// What a call holding it while a closure runs drops however the call ends, as a
+/// closure's panic unwinding drops it.
+struct Unwound;
+
+impl Drop for Unwound {
+	fn drop(&mut self) {
+		UNWOUND.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+	}
+}
+
+/// How many calls of [`measured`], [`negated`], [`lettered`], [`bumped`], and [`stretched`]
+/// dropped what they held.
+pub fn unwound() -> u32 {
+	UNWOUND.load(std::sync::atomic::Ordering::Relaxed)
+}
+
+/// One past the length `f` returns, wrapping.
+pub fn measured(f: impl Fn() -> usize) -> usize {
+	let _held = Unwound;
+	f().wrapping_add(1)
+}
+
+/// The offset `f` returns, negated, wrapping.
+pub fn negated(f: impl Fn() -> isize) -> isize {
+	let _held = Unwound;
+	f().wrapping_neg()
+}
+
+/// The letter `f` returns.
+pub fn lettered(f: impl Fn() -> char) -> char {
+	let _held = Unwound;
+	f()
+}
+
+/// `n` bumped, then the letter `f` returns: a caller catching `f`'s failure sees the bump.
+pub fn bumped(n: &mut u32, f: impl Fn() -> char) -> char {
+	let _held = Unwound;
+	*n += 1;
+	f()
+}
+
+/// Letters a closure appends to, read back borrowed.
+pub struct Tag(String);
+
+impl Tag {
+	/// An empty one.
+	pub fn new() -> Self {
+		Tag(String::new())
+	}
+
+	/// `n` bumped, then the letter `f` returns appended: a borrowed result beside a written argument.
+	pub fn tagged(&mut self, n: &mut u32, f: impl Fn() -> char) -> &str {
+		*n += 1;
+		self.0.push(f());
+		&self.0
+	}
+}
+
+impl Default for Tag {
+	fn default() -> Self {
+		Self::new()
+	}
+}
+
+/// What has a length, implemented in each binding.
+pub trait Stretch {
+	/// Its length.
+	fn stretch(&self) -> usize;
+}
+
+/// One past `stretch`'s length, wrapping.
+pub fn stretched(stretch: impl Stretch) -> usize {
+	let _held = Unwound;
+	stretch.stretch().wrapping_add(1)
+}
