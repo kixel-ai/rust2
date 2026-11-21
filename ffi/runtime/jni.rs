@@ -636,7 +636,7 @@ const COLLECT_AT: usize = LENT_MAX / 2;
 static ART: AtomicBool = AtomicBool::new(false);
 
 /// Whether reaching [`COLLECT_AT`] asks ART to collect: cleared on asking, and set again
-/// once frees bring the lent bytes under half of it, so bytes a program keeps reachable
+/// once the lent bytes fall under half of it, so bytes a program keeps reachable
 /// never make it collect over and over.
 static ARMED: AtomicBool = AtomicBool::new(false);
 
@@ -654,14 +654,25 @@ fn lends(len: usize) -> bool {
 		}
 		return true;
 	}
-	LENT_BYTES.fetch_sub(len, Ordering::Relaxed);
+	unlend(len);
 	false
 }
 
+/// Take `len` bytes off [`LENT_BYTES`], a freed lend's or a refused one's, and on ART arm
+/// [`collect`] again once under half of [`COLLECT_AT`] are left.
+fn unlend(len: usize) {
+	let left = LENT_BYTES.fetch_sub(len, Ordering::Relaxed) - len;
+	if left < COLLECT_AT / 2 && ART.load(Ordering::Relaxed) && !ARMED.load(Ordering::Relaxed) {
+		ARMED.store(true, Ordering::Relaxed);
+	}
+}
+
 /// Ask the GC to collect, on a thread of its own, since a collection takes a while that
-/// the call lending bytes need not wait for.
+/// the call lending bytes need not wait for. The request is only a hint: a thread that
+/// can't start, as when the process is out of them, skips it, and the reads past the
+/// budget copy as they would without it until frees arm it again.
 fn collect() {
-	let spawned = std::thread::Builder::new().name("rust2-ffi collect".into()).spawn(|| {
+	let _ = std::thread::Builder::new().name("rust2-ffi collect".into()).spawn(|| {
 		upcall("collect", |env| {
 			// SAFETY: `env` is this thread's, and each name and signature is
 			// `java.lang.Runtime`'s, which every JVM has.
@@ -679,9 +690,6 @@ fn collect() {
 			}
 		})
 	});
-	if spawned.is_err() {
-		rt::fail("jni", "the thread asking the GC to collect cannot start");
-	}
 }
 
 /// A buffer Rust returned or lent, as Kotlin's `_Native.owned` takes it: null for none, a
@@ -801,10 +809,7 @@ pub unsafe fn free_bytes(owner: jlong) {
 	let len = buf.len;
 	// SAFETY: the caller's contract.
 	unsafe { buf.free() };
-	let left = LENT_BYTES.fetch_sub(len, Ordering::Relaxed) - len;
-	if left < COLLECT_AT / 2 && ART.load(Ordering::Relaxed) && !ARMED.load(Ordering::Relaxed) {
-		ARMED.store(true, Ordering::Relaxed);
-	}
+	unlend(len);
 }
 
 /// A buffer Rust returned as a `byte[]`, or null for none, freeing it.

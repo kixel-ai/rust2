@@ -431,11 +431,24 @@ within a round (MB/s, the slowest and fastest round in brackets):
    over. HotSpot is never asked: it copies into its young generation cheaply, and
    collects everything at once when asked.
 
-In `export.kt`'s own run, 3 rounds of before and after alternating at a load of 21 to 29,
-64 KiB rose from 915 to 1,168 MB/s and 1 MiB from 836 to 915, and 16 KiB held at 916
-against 844, within its rounds' spread of 690 to 1,065. Each of its sizes moves 64 MiB once
-a round, so the 16 KiB pass starts with the budget empty and copies little before; the
-larger sizes start with the 16 KiB pass's bytes still lent.
+These rounds kept every case's frames on one track, as `export.kt` did before [a track per
+case](#a-track-per-case). Measured again on 2026-11-21 over it, on the same host and moq,
+on an API 35 emulator with 4 cores and 2.5 GB at a load of 17 to 29: one library, its
+request to collect turned off for the before side by an environment variable, 5 rounds with
+the sides alternating in fresh processes, MB/s, the median (the slowest and fastest round):
+
+| program | 16 KiB | 64 KiB | 1 MiB |
+|---|---|---|---|
+| the throughput case alone, before | 861 (605 to 901) | 1,131 (1,040 to 1,151) | 1,039 (927 to 1,069) |
+| the throughput case alone, after | 1,338 (1,059 to 1,356) | 1,465 (1,321 to 1,468) | 1,211 (1,178 to 1,228) |
+| `export.kt`, before | 1,392 (1,196 to 1,402) | 1,086 (949 to 1,341) | 858 (718 to 936) |
+| `export.kt`, after | 1,336 (1,289 to 1,378) | 1,375 (1,354 to 1,711) | 1,108 (1,067 to 1,284) |
+
+A track per case left the budget's cost as it was: a program streaming past 64 MiB still
+loses a third at 16 KiB without the request. `export.kt` moves each size's 64 MiB once a
+round, so its 16 KiB pass starts with the budget empty and copies little either way, which
+is why its 16 KiB row rose with a track per case alone; the larger sizes start with the
+16 KiB pass's bytes still lent. Every call row moved within its rounds' spread.
 
 ## Swift's inlined calls
 
