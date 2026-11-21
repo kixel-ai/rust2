@@ -244,9 +244,10 @@ builds for, which gates each item, and refuses a target it was not exported for.
 `cfg(rust2_ffi_proven)` only under the profile the check proved [leaves](#python) under,
 by the `PROFILE`, `OPT_LEVEL`, and debug assertions cargo tells it and the profile's
 directory above its `OUT_DIR`, whose per-package overrides are then the check's, since
-the glue carries the workspace's profiles. `test` shares `dev`'s directory and `bench`
-`release`'s, so where the manifest sets anything of `test`'s or `bench`'s own, no build
-in that directory is proven. The crate's `PROVEN` also needs the check's panic
+the glue carries the workspace's profiles. `test` and `debug` (which newer cargos define,
+inheriting `dev`) share `dev`'s directory, and `bench` `release`'s, so where the
+manifest sets anything of `test`'s, `debug`'s, or `bench`'s own beyond the `inherits`
+cargo gives it, no build in that directory is proven. The crate's `PROVEN` also needs the check's panic
 strategy, which a build script cannot see, and its debug assertions, which `RUSTFLAGS`
 may set apart from the profile. A build
 under another profile may run code the proof never saw, such as a body under

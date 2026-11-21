@@ -750,9 +750,10 @@ struct CheckProfile {
 	/// or inherits from `release`, else `debug`.
 	root: &'static str,
 	/// The directory cargo builds it in, unless a build under another profile could share it
-	/// with other settings: `test` shares `dev`'s and `bench` `release`'s, the same profile
-	/// unless the manifest sets any of its own, which a package override of the glue's may
-	/// hide from the glue's build script while every other crate compiles under it.
+	/// with other settings: `dev`, `test`, and `debug` share `debug`, and `release` and
+	/// `bench` share `release`, each the same profile as its directory's root unless the
+	/// manifest sets any of its own, which a package override of the glue's may hide from the
+	/// glue's build script while every other crate compiles under it.
 	dir: Option<String>,
 }
 
@@ -773,43 +774,56 @@ fn check_profile(cargo: &[String], workspace: &Path) -> Result<CheckProfile, Str
 	let source = std::fs::read_to_string(&manifest).map_err(|err| format!("reading {}: {err}", manifest.display()))?;
 	let table: toml::Table = toml::from_str(&source).map_err(|err| format!("{}: {err}", manifest.display()))?;
 	let profiles = table.get("profile").and_then(|p| p.as_table());
-	// Whether the profile of a shared directory that inherits the other's sets nothing more.
-	let child = |child: &str| {
-		let own = profiles.and_then(|p| p.get(child)).and_then(|p| p.as_table());
-		own.is_none_or(|own| own.is_empty())
+	let (root, dir) = resolve_profile(&picked, profiles).map_err(|err| format!("{}: {err}", manifest.display()))?;
+	Ok(CheckProfile { args, root, dir })
+}
+
+/// The profile cargo's own `inherits` names where the manifest names none: `test`'s and
+/// `bench`'s, and that of `debug`, which newer cargos define (1.98 refuses it).
+fn default_inherits(name: &str) -> Option<&'static str> {
+	match name {
+		"test" | "debug" => Some("dev"),
+		"bench" => Some("release"),
+		_ => None,
+	}
+}
+
+/// The [`CheckProfile::root`] and [`CheckProfile::dir`] of the profile `picked` under the
+/// manifest's `profiles`.
+fn resolve_profile<'a>(
+	picked: &'a str,
+	profiles: Option<&'a toml::Table>,
+) -> Result<(&'static str, Option<String>), String> {
+	let table = |name: &str| profiles.and_then(|p| p.get(name)).and_then(|p| p.as_table());
+	// Whether a profile that shares its directory's root's is that root: its table sets
+	// nothing but the `inherits` cargo gives it anyway.
+	let same = |name: &str| {
+		table(name).is_none_or(|own| {
+			own.iter()
+				.all(|(key, value)| key == "inherits" && value.as_str() == default_inherits(name))
+		})
 	};
-	let dir = match picked.as_str() {
-		"dev" | "test" => child("test").then(|| "debug".to_string()),
-		"release" | "bench" => child("bench").then(|| "release".to_string()),
+	let dir = match picked {
+		"dev" | "test" | "debug" => (same("test") && same("debug")).then(|| "debug".to_string()),
+		"release" | "bench" => same("bench").then(|| "release".to_string()),
 		name => Some(name.to_string()),
 	};
 	let mut name = picked;
 	// Cargo refuses a cycle, which this bound stops at before cargo runs.
-	for _ in 0..=profiles.map_or(0, |p| p.len()) {
-		let root = match name.as_str() {
-			"dev" | "test" => "debug",
-			"release" | "bench" => "release",
-			_ => "",
-		};
-		if !root.is_empty() {
-			return Ok(CheckProfile { args, root, dir });
+	for _ in 0..=profiles.map_or(0, |p| p.len()) + 1 {
+		match name {
+			"dev" | "test" => return Ok(("debug", dir)),
+			"release" | "bench" => return Ok(("release", dir)),
+			_ => {}
 		}
-		let inherits = profiles
-			.and_then(|p| p.get(&name))
-			.and_then(|p| p.get("inherits"))
-			.and_then(|i| i.as_str());
-		let Some(inherits) = inherits else {
-			return Err(format!(
-				"{}: no profile `{name}` inherits from another here, where the profiles the export's library builds with are",
-				manifest.display()
-			));
-		};
-		name = inherits.to_string();
+		let inherits = table(name).and_then(|p| p.get("inherits")).and_then(|i| i.as_str());
+		name = inherits.or_else(|| default_inherits(name)).ok_or_else(|| {
+			format!(
+				"no profile `{name}` inherits from another here, where the profiles the export's library builds with are"
+			)
+		})?;
 	}
-	Err(format!(
-		"{}: the profile `{name}` inherits from itself",
-		manifest.display()
-	))
+	Err(format!("the profile `{name}` inherits from itself"))
 }
 
 /// The cargo args that pick the profile: `--release`, `-r`, and `--profile`.
@@ -1048,6 +1062,64 @@ mod tests {
 		] {
 			let cargo: Vec<String> = cargo.iter().map(|s| s.to_string()).collect();
 			assert_eq!(profile_args(&cargo), want, "{cargo:?}");
+		}
+	}
+
+	#[test]
+	fn resolves_the_profile_and_its_directory() {
+		let resolve = |picked: &str, manifest: &str| {
+			let profiles: toml::Table = toml::from_str(manifest).unwrap();
+			resolve_profile(picked, Some(&profiles)).map_err(|err| err.contains("inherits from another"))
+		};
+		let debug = Some("debug".to_string());
+		let release = Some("release".to_string());
+		for (picked, manifest, want) in [
+			("dev", "", Ok(("debug", debug.clone()))),
+			("release", "", Ok(("release", release.clone()))),
+			// Cargo defines `debug` itself, inheriting `dev`'s, in `dev`'s directory.
+			("debug", "", Ok(("debug", debug.clone()))),
+			("debug", "[debug]\ninherits = \"dev\"", Ok(("debug", debug.clone()))),
+			("dev", "[test]\ninherits = \"dev\"", Ok(("debug", debug.clone()))),
+			(
+				"release",
+				"[bench]\ninherits = \"release\"",
+				Ok(("release", release.clone())),
+			),
+			// A profile that sets its own, here only for a dependency, shares its directory
+			// with another of other settings.
+			("debug", "[debug]\nopt-level = 1", Ok(("debug", None))),
+			(
+				"dev",
+				"[debug.package.dep]\ndebug-assertions = true",
+				Ok(("debug", None)),
+			),
+			(
+				"debug",
+				"[test.package.dep]\ndebug-assertions = true",
+				Ok(("debug", None)),
+			),
+			("dev", "[debug]\ninherits = \"release\"", Ok(("debug", None))),
+			("debug", "[debug]\ninherits = \"release\"", Ok(("release", None))),
+			(
+				"release",
+				"[bench.package.dep]\ndebug-assertions = true",
+				Ok(("release", None)),
+			),
+			("release", "[debug]\nopt-level = 1", Ok(("release", release.clone()))),
+			(
+				"ship",
+				"[ship]\ninherits = \"release\"",
+				Ok(("release", Some("ship".to_string()))),
+			),
+			(
+				"ship",
+				"[ship]\ninherits = \"debug\"",
+				Ok(("debug", Some("ship".to_string()))),
+			),
+			("ship", "", Err(true)),
+			("ship", "[ship]\ninherits = \"ship\"", Err(false)),
+		] {
+			assert_eq!(resolve(picked, manifest), want, "{picked} under {manifest:?}");
 		}
 	}
 

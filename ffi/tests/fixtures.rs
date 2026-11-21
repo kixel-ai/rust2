@@ -5604,6 +5604,11 @@ fn leaf_profile() {
 		python("dev", "debug", "", "debugged"),
 		"a dev build did not run the dev check's leaves"
 	);
+	// Cargo defines `debug` itself, inheriting `dev`'s settings and directory.
+	assert_eq!(
+		exported(&["--profile", "debug"]),
+		profiled("released", "debug", Some("debug"))
+	);
 	// Debug assertions `RUSTFLAGS` turns off, which the build script may not see, still
 	// make no leaf call: `released` runs the hook, and would time out keeping the GIL.
 	python("dev-unasserted", "debug", "-C debug-assertions=off", "released");
