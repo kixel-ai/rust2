@@ -1574,6 +1574,7 @@ impl<'a> Abi<'a> {
 			"buf_clone",
 			"thread_wake",
 			"thread_drain",
+			"close_wait",
 			// Python's extension module function, beside each native function by this name.
 			"_register",
 			"poll",

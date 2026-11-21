@@ -381,7 +381,13 @@ func (h *Handle_) closeChecked() error {
 		// Another Close is deciding: wait for its outcome, which may leave h open. Rust
 		// clears closing_ once the drop can no longer fail, before any Drop runs, so a Close
 		// a Drop makes, from any goroutine, finds h closed rather than waiting on itself.
+		// Before then, Rust runs a Drop only on the deciding thread, draining what other
+		// threads freed, where such a Close returns at once, or on a home, which the wait
+		// runs what is queued for.
 		if n&closing_ != 0 {
+			if cCloseWait(h.raw) {
+				return nil
+			}
 			runtime.Gosched()
 			continue
 		}

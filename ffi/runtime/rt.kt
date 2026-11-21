@@ -622,7 +622,11 @@ class __Handle(
 		// Another close is deciding: wait for its outcome, which may leave it open. Rust
 		// clears CLOSING once the drop can no longer fail, before any `Drop` runs, so a close
 		// a `Drop` makes, from any thread, finds it closed rather than waiting on itself.
+		// Before then, Rust runs a `Drop` only on the deciding thread, draining what other
+		// threads freed, where such a close returns at once, or on a home, which the wait
+		// runs what is queued for.
 		if (n and CLOSING != 0L) {
+			if (__close_wait(raw)) return true
 			java.lang.Thread.yield()
 			return false
 		}

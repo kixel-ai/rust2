@@ -850,6 +850,11 @@ impl Closing {
 	}
 }
 
+/// `rt::close_wait`, for Kotlin's close waiting on another's undecided drop of `raw`.
+pub fn close_wait(raw: jlong) -> jboolean {
+	rt::close_wait(raw as usize as _).into()
+}
+
 impl Drop for Closing {
 	fn drop(&mut self) {
 		if self.global && !self.handle.is_null() {

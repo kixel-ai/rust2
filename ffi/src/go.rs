@@ -692,7 +692,8 @@ impl<'a> Gen<'a> {
 			/*\n#cgo CFLAGS: -I${{SRCDIR}}\n{links}#include <stdlib.h>\n#include \"{p}.h\"\n\n\
 			extern void {go}_call(void *data);\nextern void {go}_release(void *data);\nextern bool {go}_poll(void *data, {p}_waker waker);\n\
 			extern bool {go}_read(void *data, uint8_t *buf, size_t len, size_t *n, {p}_buf *err);\n\
-			extern bool {go}_seek(void *data, int whence, int64_t offset, uint64_t *position, {p}_buf *err);\n\n\
+			extern bool {go}_seek(void *data, int whence, int64_t offset, uint64_t *position, {p}_buf *err);\n\
+			extern bool {p}_close_wait(const void *handle);\n\n\
 			static void {go}_bufs_free({p}_buf *bufs, size_t n) {{\n\tfor (size_t i = 0; i < n; i++) {{\n\t\t{p}_buf_free(bufs[i]);\n\t}}\n}}\n\n\
 			// The header's contract, read through C: cgo built by clang reads a uint64_t macro\n\
 			// with its top bit set as a negative constant.\n\
@@ -712,6 +713,9 @@ impl<'a> Gen<'a> {
 			func cBufsFree(bufs []cBuf) {{\n\tC.{go}_bufs_free(&bufs[0], C.size_t(len(bufs)))\n}}\n\n\
 			func cWakerWake(w cWaker) {{\n\tC.{go}_waker_wake(w)\n}}\n\n\
 			func cWakerDrop(w cWaker) {{\n\tC.{go}_waker_drop(w)\n}}\n\n\
+			// cCloseWait is a turn of a Close waiting on another's undecided drop of raw: whether\n\
+			// this thread decides that drop, so the wait would never end.\n\
+			func cCloseWait(raw unsafe.Pointer) bool {{\n\treturn bool(C.{p}_close_wait(raw))\n}}\n\n\
 			// Go packages and a library from different builds must not mix: checked when the\n\
 			// runtime loads, before any other call.\n\
 			func init() {{\n\tif C.{p}_contract() != 0x{contract:016x} || C.{go}_header_contract() != 0x{contract:016x} {{\n\t\tpanic(\"the Go of {p} and the library are from different builds\")\n\t}}\n\ttarget_ = uint64(C.{p}_target())\n}}\n\n\

@@ -121,6 +121,21 @@ enum Flaw {
 	CloseSkipsCommitWait,
 	/// Rust's drop runs the value's `Drop` without storing the handle closed first.
 	DropSkipsCommit,
+	/// A checked close waits on another's undecided drop that this thread decides.
+	CloseIgnoresDeciding,
+}
+
+/// Where Rust's drop runs code of the program's: the drain of what other threads freed,
+/// before its check, or the value's `Drop`, after its commit.
+#[derive(Clone, Copy, Debug, PartialEq)]
+enum Stage {
+	Drain,
+	Drop,
+}
+
+loom::thread_local! {
+	/// Whether this thread decides a drop, before its check: `rt::Object::close`'s own.
+	static DECIDING: std::cell::Cell<bool> = std::cell::Cell::new(false);
 }
 
 /// A handle as a binding holds it, beside a table with a slot per column for its row.
@@ -151,17 +166,21 @@ impl Hold {
 		})
 	}
 
-	/// Rust's drop of the value, as `rt::Object::close` makes it: done once the value is
-	/// gone, refused while `refused` has a borrow stand, and otherwise the value taken, then
-	/// its `Drop`, `then`. For a close in one crossing, `commit`, the state stored closed, as
-	/// the glue's commit does, once it can no longer fail, before any `Drop`. Whether it
-	/// passed.
-	fn rust_drop(&self, refused: bool, commit: bool, then: &dyn Fn()) -> bool {
+	/// Rust's drop of the value, as `rt::Object::close` makes it: first the drain of what
+	/// other threads freed, `then` with [`Stage::Drain`], this thread deciding the drop
+	/// meanwhile; then done once the value is gone, refused while `refused` has a borrow
+	/// stand, and otherwise the value taken, then its `Drop`, `then` with [`Stage::Drop`].
+	/// For a close in one crossing, `commit`, the state stored closed, as the glue's commit
+	/// does, once it can no longer fail, before any `Drop`. Whether it passed.
+	fn rust_drop(&self, refused: bool, commit: bool, then: &dyn Fn(Stage)) -> bool {
 		let commit = || {
 			if commit && !self.flawed(Flaw::DropSkipsCommit) {
 				self.state.store(CLOSED);
 			}
 		};
+		DECIDING.with(|deciding| deciding.set(true));
+		then(Stage::Drain);
+		DECIDING.with(|deciding| deciding.set(false));
 		if self.taken.load() != 0 {
 			commit();
 			return true;
@@ -175,7 +194,7 @@ impl Hold {
 		}
 		commit();
 		self.dropped.fetch_add(1, SeqCst);
-		then();
+		then(Stage::Drop);
 		true
 	}
 
@@ -327,7 +346,7 @@ impl Hold {
 	/// closed, held for the drop alone, then giving up the owner's hold. Meeting another
 	/// close's crossing, it waits until Rust commits that drop or refuses it, then decides
 	/// again. Whether it closed it.
-	fn checked_close(&self, column: usize, refused: bool, then: &dyn Fn()) -> bool {
+	fn checked_close(&self, column: usize, refused: bool, then: &dyn Fn(Stage)) -> bool {
 		loop {
 			let held = match self.flawed(Flaw::DropFreeSkipsClaim) {
 				true => self.state.load() & !CLOSED,
@@ -343,6 +362,10 @@ impl Hold {
 			}
 			let n = self.state.load();
 			if n & CLOSING != 0 && !self.flawed(Flaw::CloseSkipsCommitWait) {
+				// `rt::close_wait`: a drop this thread decides would never end the wait.
+				if !self.flawed(Flaw::CloseIgnoresDeciding) && DECIDING.with(|deciding| deciding.get()) {
+					return true;
+				}
 				thread::yield_now();
 				continue;
 			}
@@ -528,7 +551,7 @@ models! {
 				call(&other, 1)
 			});
 			let collected = thread::spawn(move || collector.abandon());
-			assert!(hold.checked_close(0, false, &|| {}));
+			assert!(hold.checked_close(0, false, &|_| {}));
 			calls.join().unwrap();
 			collected.join().unwrap();
 			hold.settled(true);
@@ -542,7 +565,7 @@ models! {
 			let hold = Hold::new(2, false, flaw);
 			let other = hold.clone();
 			let held = thread::spawn(move || call(&other, 1));
-			assert!(!hold.checked_close(0, true, &|| {}));
+			assert!(!hold.checked_close(0, true, &|_| {}));
 			held.join().unwrap();
 			assert!(call(&hold, 0));
 			hold.settled(false);
@@ -583,8 +606,8 @@ models! {
 		model(move || {
 			let hold = Hold::new(2, false, flaw);
 			let other = hold.clone();
-			let first = thread::spawn(move || other.checked_close(1, true, &|| {}));
-			assert!(!hold.checked_close(0, true, &|| {}));
+			let first = thread::spawn(move || other.checked_close(1, true, &|_| {}));
+			assert!(!hold.checked_close(0, true, &|_| {}));
 			assert!(!first.join().unwrap());
 			hold.settled(false);
 		});
@@ -597,11 +620,11 @@ models! {
 			let hold = Hold::new(2, false, flaw);
 			let other = hold.clone();
 			let first = thread::spawn(move || {
-				let closed = other.checked_close(1, false, &|| {});
+				let closed = other.checked_close(1, false, &|_| {});
 				assert_eq!(other.taken.load(), 1);
 				closed
 			});
-			assert!(hold.checked_close(0, false, &|| {}));
+			assert!(hold.checked_close(0, false, &|_| {}));
 			assert_eq!(hold.taken.load(), 1);
 			assert!(first.join().unwrap());
 			hold.settled(true);
@@ -616,11 +639,34 @@ models! {
 		model(move || {
 			let hold = Hold::new(3, false, flaw);
 			let (other, inner) = (hold.clone(), hold.clone());
-			let second = thread::spawn(move || other.checked_close(1, false, &|| {}));
-			let then = move || {
+			let second = thread::spawn(move || other.checked_close(1, false, &|_| {}));
+			let then = move |stage| {
+				if stage != Stage::Drop {
+					return;
+				}
 				let inner = inner.clone();
-				let joined = thread::spawn(move || inner.checked_close(2, false, &|| {}));
+				let joined = thread::spawn(move || inner.checked_close(2, false, &|_| {}));
 				assert!(joined.join().unwrap());
+			};
+			assert!(hold.checked_close(0, false, &then));
+			assert!(second.join().unwrap());
+			hold.settled(true);
+			assert_eq!(hold.dropped.load(SeqCst), 1);
+		});
+	}
+
+	/// A `Drop` that a close's drain runs, of another value freed elsewhere, closes the value
+	/// again on that thread before the close decides: it returns rather than wait on itself,
+	/// and the close then drops the value once.
+	fn checked_close_from_drain(flaw) {
+		model(move || {
+			let hold = Hold::new(2, false, flaw);
+			let (other, inner) = (hold.clone(), hold.clone());
+			let second = thread::spawn(move || other.checked_close(1, false, &|_| {}));
+			let then = move |stage| {
+				if stage == Stage::Drain {
+					inner.checked_close(0, false, &|_| {});
+				}
 			};
 			assert!(hold.checked_close(0, false, &then));
 			assert!(second.join().unwrap());
@@ -653,6 +699,7 @@ const CAUGHT: &[(Flaw, &[&str])] = &[
 		&["checked_closes_refused", "checked_closes"],
 	),
 	(Flaw::DropSkipsCommit, &["checked_close_from_drop"]),
+	(Flaw::CloseIgnoresDeciding, &["checked_close_from_drain"]),
 ];
 
 /// The models do not pass vacuously: each fails on the flaws it is there to catch.

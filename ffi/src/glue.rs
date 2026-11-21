@@ -1582,6 +1582,10 @@ impl Gen<'_> {
 			"#[unsafe(no_mangle)]\npub extern \"C\" fn {p}_status_message(status: i32) -> *const ::std::ffi::c_char {{\n\trt::Status::text(status).as_ptr()\n}}\n"
 		));
 
+		// Go's, which the header leaves out, as `_drop_signal`.
+		self.line(format!(
+			"#[unsafe(no_mangle)]\npub extern \"C\" fn {p}_close_wait(handle: *const ::std::ffi::c_void) -> bool {{\n\trt::close_wait(handle)\n}}\n"
+		));
 		if api.unsent() {
 			self.line(format!(
 				"#[unsafe(no_mangle)]\npub extern \"C\" fn {p}_thread_drain() {{\n\trt::Thread::drain_here()\n}}\n"

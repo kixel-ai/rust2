@@ -1796,6 +1796,7 @@ impl<T> Object<T> {
 		// SAFETY: the caller's contract.
 		let object = unsafe { Self::get(handle, what) };
 		let away = object.owner.as_ref().filter(|owner| !owner.is_here());
+		let deciding = Deciding::enter(handle);
 		if away.is_none() {
 			object.own()?;
 		}
@@ -1805,12 +1806,14 @@ impl<T> Object<T> {
 		match object.borrow.take(&TABLE, TAKEN) {
 			Ok(()) => {}
 			Err(Status::Moved) => {
+				drop(deciding);
 				commit();
 				return Ok(());
 			}
 			Err(status) => return Err(status),
 		}
 		object.epoch.fetch_add(1, Ordering::Release);
+		drop(deciding);
 		commit();
 		if object.lent.is_null() {
 			// SAFETY: TAKEN excludes every other access to the loan.
@@ -1929,6 +1932,35 @@ impl<T> Object<Unsent<T>> {
 	pub fn lend_mut_unsent<R>(value: &mut T, what: &str, f: impl FnOnce(*const c_void) -> R) -> R {
 		Self::lending(std::ptr::from_mut(Unsent::from_mut(value)), 0, 0, Some(Thread::here()), what, f)
 	}
+}
+
+thread_local!(static DECIDING: std::cell::Cell<*const c_void> = const { std::cell::Cell::new(std::ptr::null()) });
+
+/// The handle whose close this thread decides, until it drops: what [`close_wait`] reads.
+struct Deciding(*const c_void);
+
+impl Deciding {
+	fn enter(handle: *const c_void) -> Self {
+		Self(DECIDING.replace(handle))
+	}
+}
+
+impl Drop for Deciding {
+	fn drop(&mut self) {
+		DECIDING.set(self.0);
+	}
+}
+
+/// What a binding's close does each turn it waits on another close's undecided drop of
+/// `handle`: whether this thread decides that drop, below the wait, as when a `Drop` the
+/// drop's drain runs closes the value again, so the wait would never end; else it runs
+/// what other threads left this thread, which may be that close, queued for its home.
+pub fn close_wait(handle: *const c_void) -> bool {
+	if DECIDING.get() == handle {
+		return true;
+	}
+	Thread::drain_here();
+	false
 }
 
 impl<T> Object<T> {
