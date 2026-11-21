@@ -6,6 +6,7 @@ stand-in `just ffi bench` exports, against BoltFFI's numbers below as targets.
 ```bash
 nix develop .#bench --command just ffi bench  # build, run 3 rounds, and write ffi/target/bench/report.md
 nix develop .#bench --command just ffi bench-run 5  # rerun what bench-build built, 5 rounds
+nix develop .#android --command just ffi bench-android  # the Kotlin rows on HotSpot and on the Android device adb reaches
 ```
 
 `ffi/moq/bench/export.*` time the same cases in each language, `export.rs` the floor
@@ -32,7 +33,7 @@ single-threaded case on every push to main and on each PR that can move one.
 | shared getter, own getter | the u64 getter the same way | none |
 | record return | `track.largest()`: an `Option` of two `u64`s, copied across | `track.info()`, a record |
 | object return | `track.info()`: a new handle, freed | none |
-| field | `info.priority`: an `i8` `pub` field read, which no user code reaches, so a leaf in C, Python, and Dart alone | none |
+| field | `info.priority`: an `i8` `pub` field read, which no user code reaches, so a leaf in C, Kotlin, Python, and Dart alone | none |
 | hop call, hop field | Dart's handle call and field read while Rust holds a closure of the isolate | none |
 | write | `group.write_frame(at, frame)` with one `Timestamp` a group and 100 B, copied into Rust | `write_frame` |
 | stamped write | the same with a new `Timestamp` per frame, as a caller holding a `u64` must | none |
@@ -220,8 +221,9 @@ A leaf is a call the export proves runs no code but std's and the glue's, waits 
 lock, and calls no binding: a method or `pub` field of a `Send` object, taking and returning
 scalars, whose body and each `Deref`'s on the way its MIR proves so, or a `PartialEq` or
 `Hash` derived down to primitives ([`Abi::leaf`](../../ffi/src/abi.rs)).
-Python keeps the GIL across one, and Dart makes it a leaf call (`isLeaf`) to the C function
-itself on the isolate's thread, with no serving thunk, no thread hop, and no `_Arena`.
+Python keeps the GIL across one, Dart makes it a leaf call (`isLeaf`) to the C function
+itself on the isolate's thread, with no serving thunk, no thread hop, and no `_Arena`, and
+Kotlin marks its native method `@FastNative` ([Kotlin on ART](#kotlin-on-art)).
 The `field` case reads `track::Info::priority`, a field; the u64 getter, `demand.start()`,
 a method returning one, is a leaf since the export reads its body ([below](#leaf-bodies)).
 
@@ -287,6 +289,75 @@ rounds at a load average of 7 to 15; each cell is the median wall time in ns per
 The four threads no longer hand the GIL to each other on every call, which was most of
 their 1.8 us. Every other case of both languages moved within 4% either way, Python's
 `field` included, whose code is the same.
+
+## Kotlin on ART
+
+`just ffi bench-android` runs `export.kt` on HotSpot on the host and, shrunk by R8 with the
+generated rules as an app is, on ART through `dalvikvm` on the Android device adb reaches,
+over a library cargo-ndk builds for it, round after round, into one report. Nightly runs it
+in the Android job, on its x86_64 API 35 emulator with 4 cores, into the run's summary; the
+other languages' rows run on arm64, so read Kotlin's on HotSpot beside ART's from this
+report alone. ART has no `java.lang.management`, so its CPU time is the kernel's tick count
+in `/proc/self/stat`, at HotSpot's own 10 ms resolution on Linux.
+
+Measured 2026-11-20 on **fedora**, an AMD Ryzen 9 9950X, through `quest gate`, against moq
+`1aa86d5e`, with this change, 3 rounds at a load of 6 to 8, on an Android 15 (API 35)
+x86_64 emulator with 4 cores under KVM. OpenJDK 21.0.13 with Kotlin 2.4.21, R8 8.6 from
+build-tools 35.0.0. Wall ns per call, the median; the CPU cells are coarse at this load's
+tick:
+
+| call | HotSpot | ART |
+|---|---|---|
+| handle call | 32 | 41 |
+| u64 getter | 23 | 32 |
+| field, a leaf | 23 | 25 |
+| record return | 56 | 129 |
+| object return | 97 | 230 |
+| write, 100 B | 224 | 382 |
+| ready read | 630 | 1,190 |
+| woken read | 1,761 | 3,751 |
+| `frame.payload`, 100 B | 64 | 143 |
+| throughput, 16 KiB frames | 9,268 MB/s | 652 MB/s |
+
+1. **A plain JNI call costs ART about 9 ns more than HotSpot.** The handle call and the
+   getter run the same Kotlin and the same Rust on both.
+2. **A leaf is `@FastNative`, which keeps ART's thread runnable across the call instead of
+   switching its state there and back.** Each leaf's native method takes it, as
+   `_Native.track_Info_priority_get` does, and `_Native`'s first call registers each through
+   `RegisterNatives` from the library's one exported `__contract`, since ART binds such a
+   method by its name only from Android 12. The annotation blocks the collector for the
+   call, so only a leaf takes it: a call that may wait on a lock, as `is_closed()` waits on
+   moq's, or call back into Kotlin, could stall every thread's collection behind it.
+3. **Throughput falls off from 16 KiB on ART alone**, near 650 MB/s against HotSpot's 6.7 to
+   9.3 GB/s, while 100 B and 1 KiB frames stay within 3x.
+   [ART's throughput](/quest/m1/ffi-speed/art-throughput.md) finds why.
+
+The spike, 5 rounds of each side alternating on one emulator at a load of 12 to 29, wall ns,
+before (main) and after (`@FastNative` on leaves, registered):
+
+| case | API 35 before | API 35 after | API 30 before | API 30 after |
+|---|---|---|---|---|
+| field, a leaf | 34.1 | 25.8 | 43.5 | 28.1 |
+| handle call, no leaf | 40.3 | 43.6 | 80.3 | 80.8 |
+| u64 getter, no leaf | 32.6 | 33.8 | 43.2 | 43.4 |
+
+Marking the handle call and the getter too, by hand, on API 35 (3 rounds), cost 36.6 against
+41.1 and 25.7 against 34.2: the same few ns, which a call the proof cannot bound may not
+take. moq's export has 200 leaves, the api fixture's 17. Registration covers only those:
+registering all of moq's 6,455 native methods would scan the class's methods once each, and
+R8 strips the natives nothing calls, which `RegisterNatives` would then refuse, so the
+generated rules keep each `@FastNative` method instead. `kotlin/FastNative.kt` declares
+the annotation, which Android's SDK makes public only from API 34, for the JVM and older
+SDKs. Compiled as a program class, R8 keeps it on the methods only by the rule naming it;
+against android.jar's own class, R8 keeps it with no rule, so a build against SDK 34 or
+later leaves the file out, as one of two exports in an app must, since D8 refuses a class
+defined twice. Only leaves whose `eq` and `hash` walk no value of a caller's size are
+marked, as Dart's leaf calls are.
+
+`just ffi android` passes, with these rules, on API 24 (Android 7, which ignores the
+annotation), 28, 30, and 35. On API 28, `export.kt` itself never finishes, with or without
+the annotation: within 100 s its native memory passes 1.5 GB under a 256 MB heap
+([Kotlin on Android 9](/quest/m1/ffi-speed/android-9-memory.md)).
 
 ## Swift's inlined calls
 

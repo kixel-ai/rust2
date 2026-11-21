@@ -374,6 +374,49 @@ fn affine(api: &Api) -> Vec<bool> {
 	}
 }
 
+/// Whether a handle of each object may be lent through a chain of lenders as long as the
+/// caller makes it, as by calling a `view(&self) -> &Self` on each handle it returned: a
+/// shared borrow of it walks that chain, so its cost has no bound. True of each object a
+/// cycle of lending methods reaches; any other's chain is at most one handle per object.
+fn chained(api: &Api) -> Vec<bool> {
+	let lent: Vec<Vec<usize>> = (api.objects.iter())
+		.map(|object| {
+			let mut lent = Vec::new();
+			for f in object.methods.iter().filter(|f| f.lends) {
+				api.handles(&f.ok, &mut lent, &mut Vec::new());
+			}
+			lent
+		})
+		.collect();
+	past_cycles(&lent)
+}
+
+/// Whether a cycle of `edges`, each node's successors, reaches each node.
+fn past_cycles(edges: &[Vec<usize>]) -> Vec<bool> {
+	let n = edges.len();
+	// The nodes reachable in one edge or more from `from`.
+	let reach = |from: usize| {
+		let mut seen = vec![false; n];
+		let mut stack = edges[from].clone();
+		while let Some(j) = stack.pop() {
+			if !std::mem::replace(&mut seen[j], true) {
+				stack.extend(&edges[j]);
+			}
+		}
+		seen
+	};
+	let mut past = vec![false; n];
+	for i in 0..n {
+		let seen = reach(i);
+		if seen[i] {
+			for (j, seen) in seen.into_iter().enumerate() {
+				past[j] |= seen;
+			}
+		}
+	}
+	past
+}
+
 /// `ty` as a clone of each borrow it holds.
 fn owned(ty: &Type) -> Type {
 	match ty {
@@ -415,6 +458,8 @@ pub(crate) struct Abi<'a> {
 	pub(crate) held: Vec<bool>,
 	/// Whether each object is not `Send` or may be lent from one: see [`affine`].
 	affine: Vec<bool>,
+	/// Whether each object's chain of lenders has no bound: see [`chained`].
+	chained: Vec<bool>,
 	/// Every C name claimed.
 	claims: Vec<Claim>,
 	/// The C name of each item whose own clashed.
@@ -437,6 +482,7 @@ impl<'a> Abi<'a> {
 			checked: checked(api),
 			held: held(api),
 			affine: affine(api),
+			chained: chained(api),
 			claims: Vec::new(),
 			renames: HashMap::new(),
 			clashes: Vec::new(),
@@ -500,6 +546,7 @@ impl<'a> Abi<'a> {
 			checked: self.checked.clone(),
 			held: self.held.clone(),
 			affine: self.affine.clone(),
+			chained: self.chained.clone(),
 		}
 	}
 
@@ -1318,8 +1365,10 @@ impl<'a> Abi<'a> {
 
 	/// Whether a call of `function`, a method of `owner` if it has one, is a leaf: proven to
 	/// run no code but the glue's, its runtime's, and std's, to wait on no lock, and to call
-	/// into no binding. Python then keeps the GIL across it, and Dart makes it a leaf call,
-	/// which runs on the isolate's own thread with no thread hop. It is a `&self` or
+	/// into no binding. Python then keeps the GIL across it, Dart makes it a leaf call,
+	/// which runs on the isolate's own thread with no thread hop, and Kotlin marks it
+	/// `@FastNative`, which ART's collector waits on, so its bound keeps a collection from
+	/// stalling behind it. It is a `&self` or
 	/// `&mut self` method, or the read or write of a `pub` field, of a `Send` object, which no
 	/// object that is not `Send` may lend, taking only scalars and returning one or nothing,
 	/// whose Rust [`Function::leaf`] proves: each body it runs, the method's and each
@@ -1338,9 +1387,10 @@ impl<'a> Abi<'a> {
 	/// Its value is `Send`, so its borrow runs no `Thread::own`, whose drain would drop what
 	/// other threads queued of the thread's values that are not `Send`, by any `Drop`; a
 	/// handle lent from another borrows that one too, so no owner up its chain of lenders
-	/// may be other than `Send` either. A body with no loop, no recursion, and no call but
-	/// to such bodies ends in a bounded number of steps whoever holds the GIL, and since it
-	/// runs no Python, nothing in it needs the GIL either.
+	/// may be other than `Send` either, and that chain is no longer than the export's objects
+	/// are many, as no cycle of lending methods reaches the object. A body with no loop,
+	/// no recursion, and no call but to such bodies ends in a bounded number of steps whoever
+	/// holds the GIL, and since it runs no Python, nothing in it needs the GIL either.
 	pub(crate) fn leaf(&self, function: &Function, owner: Option<&Type>) -> bool {
 		let Some(Type::Object(i)) = owner else {
 			return false;
@@ -1357,15 +1407,21 @@ impl<'a> Abi<'a> {
 			}
 			_ => false,
 		};
-		shape && function.leaf && !self.affine[*i] && function.err.is_none() && !function.future
+		shape
+			&& function.leaf
+			&& !self.affine[*i]
+			&& !self.chained[*i]
+			&& function.err.is_none()
+			&& !function.future
 	}
 
 	/// Whether `ty`'s `<T>_eq`, or with `hash` its `<T>_hash`, is a leaf, as [`Self::leaf`]
 	/// says: its impl is derived or std's down to primitives, and it borrows only the handle
-	/// of a `Send` object no other that is not `Send` may lend, or as a value, none.
+	/// of a `Send` object no other that is not `Send` may lend, through a chain of lenders
+	/// with a bound, or as a value, none.
 	pub(crate) fn leaf_trait(&self, ty: &Type, hash: bool) -> bool {
 		let (traits, handles) = match ty {
-			Type::Object(i) => (self.api.objects[*i].traits, self.affine[*i]),
+			Type::Object(i) => (self.api.objects[*i].traits, self.affine[*i] || self.chained[*i]),
 			Type::Record(i) => (self.api.records[*i].traits, self.holds_handles(ty)),
 			Type::Enum(i) => (self.api.enums[*i].traits, self.holds_handles(ty)),
 			_ => return false,
@@ -2242,7 +2298,7 @@ pub(crate) fn dyn_wrap(form: Dyn, expr: &str) -> String {
 
 #[cfg(test)]
 mod tests {
-	use super::{apart, defined, escape, shortest, unique};
+	use super::{apart, defined, escape, past_cycles, shortest, unique};
 
 	#[test]
 	fn escapes_keep_apart_from_every_macro() {
@@ -2271,6 +2327,13 @@ mod tests {
 		assert_eq!(escape("__cplusplus_"), "__cplusplus__");
 		assert_eq!(escape("_bool"), "_bool");
 		assert_eq!(escape("_1"), "_1");
+	}
+
+	#[test]
+	fn past_cycles_marks_what_a_cycle_reaches() {
+		// 0 lends itself and 1; 2 lends 3 and 3 lends 2, which lends 4; 5 lends 6.
+		let edges = [vec![0, 1], vec![], vec![3, 4], vec![2], vec![], vec![6], vec![]];
+		assert_eq!(past_cycles(&edges), [true, true, true, true, true, false, false]);
 	}
 
 	/// Each item's [`apart`] name, by its path's segments.

@@ -45,8 +45,9 @@ its source's URL.
 A `[replace]` from the source it replaces, which no `[patch]` can carry, is an error.
 Beside the C header, `include/<prefix>.hpp` holds the same API in C++, over a header per crate,
 `kotlin/<prefix>.kt` holds it in Kotlin, over JNI functions the crate builds with
-`--features kotlin`, and `kotlin/<prefix>.pro` the R8 and ProGuard rules keeping what
-those functions look up by name. `python/<prefix>.py` holds it in Python, over a CPython
+`--features kotlin`, beside `kotlin/FastNative.kt`, an annotation a build may need with it, and
+`kotlin/<prefix>.pro` the R8 and ProGuard rules keeping what those functions look up by
+name. `python/<prefix>.py` holds it in Python, over a CPython
 extension the crate builds with `--features python`, `swift/<prefix>.swift` holds it in
 Swift, over the C header as a clang module, `go/` holds it in Go, a package per crate
 over the C ABI through cgo, and `dart/<prefix>.dart` holds it in Dart, over the C ABI through
@@ -641,7 +642,15 @@ packages place it in.
 
 `<prefix>.kt` is Kotlin for the JVM and Android over the crate's JNI functions, which
 `--features kotlin` builds into the same library, loaded by `System.loadLibrary`. It needs
-kotlinx-coroutines. Each value crosses JNI as a scalar, a handle as a `Long`, bytes passed
+kotlinx-coroutines. A leaf's native method, a primitive field read or write or a derived
+`equals` or `hashCode` the export proves waits on nothing and walks no value of a size the
+caller sets ([`Abi::leaf`](src/abi.rs)), takes ART's `@FastNative`, so ART keeps the thread runnable across the call;
+`_Native`'s first call registers each through `RegisterNatives`, since ART binds such a
+method by its name only from Android 12, and the rules keep each. `FastNative.kt`
+declares the annotation for a build whose classpath lacks it: the JVM, or an Android SDK
+below API 34, where it became public. An Android build against SDK 34 or later leaves the
+file out, as android.jar's own class serves, and so does every build after its first of
+two exports in one app, whose two copies D8 refuses as one class defined twice. Each value crosses JNI as a scalar, a handle as a `Long`, bytes passed
 in as a `ByteArray`, bytes returned as their owner, a block of numbers as its primitive
 array, and anything else encoded into a `ByteArray` as its C struct holds it. A record a
 call takes or returns directly, or in an `Option`, crosses as its scalars, a nested
@@ -1649,6 +1658,7 @@ just ffi corpus-update  # take corpus/crates.txt afresh from crates.io's top cra
 just ffi protocol # run longer protocol scripts from more seeds through the C ABI and every binding, as the nightly does
 nix develop .#bench --command just ffi browsers  # api's TypeScript in headless Chromium, Firefox, and on Linux WebKit, lowering `using` three ways for WebKit, as the nightly runs it
 nix develop .#android --command just ffi android  # the Kotlin test, shrunk by R8, under CheckJNI on the Android device adb reaches
+nix develop .#android --command just ffi bench-android  # the benchmark's Kotlin rows on HotSpot and, shrunk by R8, on ART on the Android device adb reaches
 nix develop .#bench --command just ffi bench  # the binding benchmark: bench/ffi/README.md's cases from Rust, and through the export from C, C++, Kotlin, Python, Swift, Go, and Dart
 nix develop .#bench --command just ffi codspeed  # after bench-build, each single-threaded case once under CodSpeed's CPU simulation, as the CodSpeed workflow runs it
 nix develop .#sanitize --command just ffi sanitize  # api's C and C++ scripts under ASan with UBSan, TSan, and Valgrind, its Swift under TSan, its Go under the race detector and cgocheck2, its Python looped on a debug CPython, and its C ABI under Miri
