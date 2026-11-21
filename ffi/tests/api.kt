@@ -1014,6 +1014,31 @@ fun unwinds() {
 	Counter.new("zero", 0u).use { counter -> check(rejects { logCounts(failing, 0u, counter, more) }, "a callback's failed check unwinds a call that moved its arguments") }
 	val gone = runCatching { more[0].get() }.exceptionOrNull()
 	check(gone is IllegalStateException && gone.message == "Counter is closed", "what it moved is closed in Kotlin: $gone")
+	// A callback replacing what the call moved out of its list: the call closes what it took.
+	val taken = Counter.new("taken", 2u)
+	val placed = Counter.new("placed", 3u)
+	val changed = mutableListOf(taken)
+	val swapping = object : Log {
+		override fun log(level: UByte, line: String): Boolean {
+			changed[0] = placed
+			return true
+		}
+	}
+	Counter.new("zero", 0u).use { counter -> check(logCounts(swapping, 0u, counter, changed) == 2u, "a callback may change a list the call moved out of") }
+	check(runCatching { taken.get() }.exceptionOrNull()?.message == "Counter is closed", "what the call moved is closed")
+	check(placed.get().toUInt() == 3u, "what the callback put in its place stays open")
+	changed[0] = Counter.new("failing", 4u)
+	val replaced = changed[0]
+	val throwing = object : Log {
+		override fun log(level: UByte, line: String): Boolean {
+			changed[0] = placed
+			return lettered { 0xD800 } == 0
+		}
+	}
+	Counter.new("zero", 0u).use { counter -> check(rejects { logCounts(throwing, 0u, counter, changed) }, "a failing callback unwinds a call that moved its list") }
+	check(runCatching { replaced.get() }.exceptionOrNull()?.message == "Counter is closed", "what an unwound call moved is closed")
+	check(placed.get().toUInt() == 3u, "what the callback put in its place stays open after it unwinds")
+	placed.close()
 	val tag = Tag.new()
 	check(tag.tagged(bumps) { 'a'.code } == "a" && rejects { tag.tagged(bumps) { 0xD800 } } && bumps.value == 4u, "a borrowed result's call writes back too: ${bumps.value}")
 	check(tag.tagged(bumps) { 'b'.code } == "ab", "the receiver is whole after")

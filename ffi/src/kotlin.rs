@@ -899,6 +899,12 @@ impl<'a> Gen<'a> {
 
 	/// Kotlin statements writing the Kotlin value `e` of type `ty` into the writer `w`.
 	fn write_value(&mut self, ty: &Type, w: &str, e: &str) -> String {
+		self.encode(ty, w, e, false)
+	}
+
+	/// [`Self::write_value`], marking in `w` each handle whose value the call takes if `moves`,
+	/// for `{w}.abandon()` to close those once it returns, not whatever `e` holds by then.
+	fn encode(&mut self, ty: &Type, w: &str, e: &str, moves: bool) -> String {
 		let abi = self.abi;
 		match ty {
 			Type::Bool => format!("{w}.bool({e})"),
@@ -924,36 +930,40 @@ impl<'a> Gen<'a> {
 			Type::List(..) if let Some(inner) = ty.block() => format!("{w}.block({})", block(inner).signed(e)),
 			Type::List(_, inner) => {
 				let (l, v) = (self.fresh("l"), self.fresh("v"));
-				let item = self.write_value(inner, w, &v);
+				let item = self.encode(inner, w, &v, moves);
 				format!("{e}.let {{ {l} -> {w}.i32({l}.size); for ({v} in {l}) {{ {item} }} }}")
 			}
 			Type::Option(inner) => match inner.base() {
+				Type::Object(_) if moves && moved(abi, inner) => format!("{w}.moved({e}?.handle)"),
 				Type::Object(_) => format!("{w}.handle({e}?.handle)"),
-				base if Abi::is_buf(base) => self.write_value(base, w, e),
+				base if Abi::is_buf(base) => self.encode(base, w, e, moves),
 				// None is a length of -1.
 				Type::List(..) => {
 					let v = self.fresh("v");
-					let some = self.write_value(inner, w, &v);
+					let some = self.encode(inner, w, &v, moves);
 					format!("{e}.let {{ {v} -> if ({v} == null) {w}.i32(-1) else {some} }}")
 				}
 				_ => {
 					let v = self.fresh("v");
-					let some = self.write_value(inner, w, &v);
+					let some = self.encode(inner, w, &v, moves);
 					format!("{e}.let {{ {v} -> if ({v} == null) {w}.bool(false) else {{ {w}.bool(true); {some} }} }}")
 				}
 			},
-			Type::Box(inner) | Type::Ref(_, inner) => self.write_value(inner, w, e),
+			Type::Box(inner) => self.encode(inner, w, e, moves),
+			// Borrowed, nothing in it moves.
+			Type::Ref(_, inner) => self.write_value(inner, w, e),
 			Type::Record(i) => format!("w_{}({w}, {e})", abi.record(*i)),
 			Type::Enum(i) => match abi.api.enums[*i].plain() {
 				true => format!("{w}.i32({e}.value)"),
 				false => format!("w_{}({w}, {e})", abi.enumeration(*i)),
 			},
+			Type::Object(_) if moves && moved(abi, ty) => format!("{w}.moved({e}.handle)"),
 			Type::Object(_) => format!("{w}.handle({e}.handle)"),
 			Type::Range(_) | Type::Bound(_) | Type::Bounds(_) => format!("w_{}({w}, {e})", abi.range(ty)),
 			Type::Tuple(elements) => {
 				let t = self.fresh("t");
 				let writes: Vec<String> = (elements.iter().enumerate())
-					.map(|(k, ty)| self.write_value(ty, w, &format!("{t}.{}", ordinal(k))))
+					.map(|(k, ty)| self.encode(ty, w, &format!("{t}.{}", ordinal(k)), moves))
 					.collect();
 				format!("{e}.let {{ {t} -> {} }}", writes.join("; "))
 			}
@@ -1317,13 +1327,14 @@ impl<'a> Gen<'a> {
 			}
 			Ty::U128 | Ty::Duration | Ty::SocketAddr(_) | Ty::IpAddr(_) | Ty::Struct(_) | Ty::In(_) => {
 				let w = self.fresh("w");
-				// Taken by value, each object in a list moves out, as one passed alone does.
-				if moved(abi, ty) {
-					let close = self.close(ty, e);
-					arg.after.push(close);
+				// Taken by value, each object in a list moves out, as one passed alone does: the
+				// writer closes those it encoded, as a callback may change the list meanwhile.
+				let moves = moved(abi, ty);
+				if moves {
+					arg.after.push(format!("{w}.abandon()"));
 				}
 				arg.open = Some(format!("_Native.__Writer().use {{ {w} ->"));
-				let value = self.write_value(ty, &w, e);
+				let value = self.encode(ty, &w, e, moves);
 				arg.inside.push(value);
 				// Then the arrays and text it names, which Rust copies from once.
 				arg.jni.push("jobjectArray");
@@ -3546,33 +3557,6 @@ impl<'a> Gen<'a> {
 			docs(&text, function.deprecated.as_deref(), "")
 		);
 		Some(indent_by(&code, indent_level))
-	}
-
-	/// The Kotlin statement closing each handle the value `e` of type `ty` holds, once a
-	/// call moved their values out.
-	fn close(&mut self, ty: &Type, e: &str) -> String {
-		match ty {
-			Type::Option(inner) => {
-				let v = self.fresh("v");
-				let close = self.close(inner, &v);
-				format!("{e}?.let {{ {v} -> {close} }}")
-			}
-			Type::Box(inner) => self.close(inner, e),
-			Type::Tuple(elements) => {
-				let t = self.fresh("t");
-				let closes: Vec<String> = (elements.iter().enumerate())
-					.filter(|(_, ty)| moved(self.abi, ty))
-					.map(|(k, ty)| self.close(ty, &format!("{t}.{}", ordinal(k))))
-					.collect();
-				format!("{e}.let {{ {t} -> {} }}", closes.join("; "))
-			}
-			Type::List(_, inner) => {
-				let v = self.fresh("v");
-				let close = self.close(inner, &v);
-				format!("{e}.forEach {{ {v} -> {close} }}")
-			}
-			_ => format!("{e}.handle.abandon()"),
-		}
 	}
 
 	/// The glue's out values for `outs`, of a function returning `ok` or `err`, the

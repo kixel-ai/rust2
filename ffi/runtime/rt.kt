@@ -238,6 +238,29 @@ class __Writer {
 		held.add(v)
 	}
 
+	// Whether each of [held] is one [moved] encoded, up to the last it did.
+	private var moves: BooleanArray? = null
+
+	/** An object's handle whose value the call takes, as [handle] encodes it, which [abandon] closes. */
+	fun moved(v: __Handle?) {
+		handle(v)
+		if (v == null) return
+		val at = held!!.size - 1
+		var moves = moves ?: BooleanArray(slots.size)
+		if (moves.size <= at) moves = moves.copyOf(slots.size)
+		moves[at] = true
+		this.moves = moves
+	}
+
+	/**
+	 * Abandon each handle [moved] encoded, once the call took their values: those encoded,
+	 * not those the value holds now, as a callback may have changed it.
+	 */
+	fun abandon() {
+		val moves = moves ?: return
+		held?.forEachIndexed { i, h -> if (i < moves.size && moves[i]) h.abandon() }
+	}
+
 	/**
 	 * The encoding, then where [refs] names any, the place in it of each text, in order, and
 	 * how many, which Rust reads first.
