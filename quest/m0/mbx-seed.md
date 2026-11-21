@@ -19,6 +19,5 @@ holds a `CACHEDIR.TAG`; if it skips the directory, check that it creates no
 
 ## Waiting
 
-- Maintainer: file the mbx issue drafted for this, and link it here
-- jdx/mr-boxington: a release whose seeding writes `CACHEDIR.TAG` or skips nested target
-  directories
+- [jdx/mr-boxington#993](https://github.com/jdx/mr-boxington/issues/993): a release whose
+  seeding writes `CACHEDIR.TAG` or skips nested target directories
