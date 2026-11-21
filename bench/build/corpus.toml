@@ -99,6 +99,19 @@ base = "nightly"
 toolchain = "nightly"
 rustflags = "-Z cache-proc-macros"
 
+# Cargo's wildcard package override selects non-workspace dependencies only.
+[[variant]]
+name = "mostly-unused"
+base = "nightly"
+toolchain = "nightly"
+config = ["unstable.profile-hint-mostly-unused=true", 'profile.dev.package."*".hint-mostly-unused=true']
+
+[[variant]]
+name = "embed-metadata"
+base = "nightly"
+toolchain = "nightly"
+rustflags = "-Zembed-metadata=no"
+
 [[variant]]
 name = "nightly-control"
 base = "nightly"

@@ -23,7 +23,8 @@ build-speed levers.
 - `-Zprofile-hint-mostly-unused` alone changes nothing: it only allows the
   `hint-mostly-unused` profile setting, which the variant must also set, for the
   dependencies and not moq's own crates.
-- Add each lever as a variant in [corpus.toml](/bench/build/corpus.toml). The audit
+- The `mostly-unused` and `embed-metadata` variants are now in
+  [corpus.toml](/bench/build/corpus.toml); run both against nightly on bare metal. The audit
   diffed `rustc -Z help` between the 2026-10-22 pin and the 2026-11-12 nightly and found
   no new build-speed flag, so no pin bump is needed for these.
 - Build speed keeps only what costs nothing: a lever that wins is a line for moq's
@@ -34,3 +35,12 @@ Public API: none.
 ## Hosts
 
 - linux - the `nixos` runner's performance counters
+
+## Waiting
+
+- kixelated/nixos: provision benchmark execution on `nixos` with host-wide exclusion
+  from queue builds. The current queue runners are isolated containers, and the
+  `rust2-queue` runner group admits only `queue-build.yml` at `main`, so changing
+  `bench.yml` alone cannot admit it. Recommend a trusted manual benchmark entry
+  point coordinated with every queue on the host, with perf counters exposed;
+  verify no queue build can start during a benchmark before collecting results.
