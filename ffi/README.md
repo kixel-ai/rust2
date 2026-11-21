@@ -242,8 +242,13 @@ item that target compiles works exactly, and no other does:
 The crate's build script sets `cfg(rust2_ffi_target = "<triple>")` for the target it
 builds for, which gates each item, and refuses a target it was not exported for. It sets
 `cfg(rust2_ffi_proven)` only under the profile the check proved [leaves](#python) under,
-by the `PROFILE`, `OPT_LEVEL`, and debug assertions cargo tells it, and the crate's
-`PROVEN` also needs the check's panic strategy, which a build script cannot see. A build
+by the `PROFILE`, `OPT_LEVEL`, and debug assertions cargo tells it and the profile's
+directory above its `OUT_DIR`, whose per-package overrides are then the check's, since
+the glue carries the workspace's profiles. `test` shares `dev`'s directory and `bench`
+`release`'s, so where `test` or `bench` overrides a package or the build scripts of its
+own, no build in that directory is proven. The crate's `PROVEN` also needs the check's panic
+strategy, which a build script cannot see, and its debug assertions, which `RUSTFLAGS`
+may set apart from the profile. A build
 under another profile may run code the proof never saw, such as a body under
 `cfg(debug_assertions)`, so each binding makes every leaf as any other call instead:
 Python releases the GIL, Dart serves the isolate, and Kotlin calls a plain native method

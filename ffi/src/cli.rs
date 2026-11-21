@@ -82,12 +82,12 @@ fn try_run(args: &[String]) -> Result<ExitCode, String> {
 	let picks = Picks::parse(&args.cargo, dir)?;
 	let (facade, patch, checked) = facade(&args.manifest, &targets[0], &picks)?;
 	let crates = crates(&checked.metadata, &checked.top)?;
-	let (profile, root) = check_profile(&args.cargo, &checked.metadata.workspace_root)?;
+	let profile = check_profile(&args.cargo, &checked.metadata.workspace_root)?;
 	// The check's cargo args, with `--release` first where they pick no profile, so as not to
 	// follow a `--` of theirs.
-	let cargo = match profile == profile_args(&args.cargo) {
+	let cargo = match profile.args == profile_args(&args.cargo) {
 		true => args.cargo.clone(),
-		false => [profile.clone(), args.cargo.clone()].concat(),
+		false => [profile.args.clone(), args.cargo.clone()].concat(),
 	};
 	let line = facade.line();
 	// A staged API's spans are relative to the workspace and cargo's home, which hold the
@@ -128,7 +128,11 @@ fn try_run(args: &[String]) -> Result<ExitCode, String> {
 				(config::env::MERGE, merge),
 				(config::env::BASELINE, baseline.as_os_str()),
 				(config::env::ROOTS, roots.as_ref()),
-				(config::env::PROFILE, root.as_ref()),
+				(config::env::PROFILE, profile.root.as_ref()),
+				(
+					config::env::PROFILE_DIR,
+					profile.dir.as_deref().unwrap_or_default().as_ref(),
+				),
 				output,
 			],
 		}
@@ -177,7 +181,7 @@ fn try_run(args: &[String]) -> Result<ExitCode, String> {
 	// Resolved as `lock` resolved it, under the check's profile, whose `cfg`s the glue was
 	// generated against.
 	let mut cargo = picks.resolving().args();
-	cargo.extend(profile);
+	cargo.extend(profile.args);
 	cargo.extend(["--features".to_string(), "web".to_string()]);
 	Check {
 		tool: "rust2-ffi",
@@ -738,15 +742,28 @@ fn run_cargo(manifest: &Path, subcommand: &[&str], picks: &Picks<'_>) -> Result<
 	}
 }
 
-/// The cargo args that pick the check's profile, `--release` unless `cargo` picks one, as a
-/// library ships in it: its leaves are proven against the bodies that profile compiles. Then
-/// the `PROFILE` cargo gives a build script under it: `release` for a profile that is or
-/// inherits from `release`, else `debug`, following `inherits` through the workspace's
+/// The check's profile: the cargo args that pick it, `--release` unless `cargo` picks one,
+/// as a library ships in it, since its leaves are proven against the bodies it compiles.
+struct CheckProfile {
+	args: Vec<String>,
+	/// The `PROFILE` cargo gives a build script under it: `release` for a profile that is
+	/// or inherits from `release`, else `debug`.
+	root: &'static str,
+	/// The directory cargo builds it in, unless a build under another profile could share it
+	/// with other per-package overrides: `test` shares `dev`'s and `bench` `release`'s, and
+	/// either may override a package or the build scripts on top of the one it inherits.
+	dir: Option<String>,
+}
+
+/// The [`CheckProfile`] `cargo` picks, following `inherits` through the workspace's
 /// manifest, whose profiles alone the glue carries. One cargo's config defines is an error.
-fn check_profile(cargo: &[String], workspace: &Path) -> Result<(Vec<String>, &'static str), String> {
-	let picked = profile_args(cargo);
-	let mut name = match picked.last().map(String::as_str) {
-		None => return Ok((vec!["--release".to_string()], "release")),
+fn check_profile(cargo: &[String], workspace: &Path) -> Result<CheckProfile, String> {
+	let mut args = profile_args(cargo);
+	let picked = match args.last().map(String::as_str) {
+		None => {
+			args = vec!["--release".to_string()];
+			"release"
+		}
 		Some("--release" | "-r") => "release",
 		Some(last) => last.strip_prefix("--profile=").unwrap_or(last),
 	}
@@ -754,14 +771,30 @@ fn check_profile(cargo: &[String], workspace: &Path) -> Result<(Vec<String>, &'s
 	let manifest = workspace.join("Cargo.toml");
 	let source = std::fs::read_to_string(&manifest).map_err(|err| format!("reading {}: {err}", manifest.display()))?;
 	let table: toml::Table = toml::from_str(&source).map_err(|err| format!("{}: {err}", manifest.display()))?;
+	let profiles = table.get("profile").and_then(|p| p.as_table());
+	// The profile of a shared directory that inherits the other's and may override more.
+	let child = |child: &str| {
+		let own = profiles.and_then(|p| p.get(child)).and_then(|p| p.as_table());
+		let overrides = own.is_some_and(|own| own.contains_key("package") || own.contains_key("build-override"));
+		!overrides
+	};
+	let dir = match picked.as_str() {
+		"dev" | "test" => child("test").then(|| "debug".to_string()),
+		"release" | "bench" => child("bench").then(|| "release".to_string()),
+		name => Some(name.to_string()),
+	};
+	let mut name = picked;
 	// Cargo refuses a cycle, which this bound stops at before cargo runs.
-	for _ in 0..=table.get("profile").and_then(|p| p.as_table()).map_or(0, |p| p.len()) {
-		match name.as_str() {
-			"dev" | "test" => return Ok((picked, "debug")),
-			"release" | "bench" => return Ok((picked, "release")),
-			_ => {}
+	for _ in 0..=profiles.map_or(0, |p| p.len()) {
+		let root = match name.as_str() {
+			"dev" | "test" => "debug",
+			"release" | "bench" => "release",
+			_ => "",
+		};
+		if !root.is_empty() {
+			return Ok(CheckProfile { args, root, dir });
 		}
-		let inherits = (table.get("profile"))
+		let inherits = profiles
 			.and_then(|p| p.get(&name))
 			.and_then(|p| p.get("inherits"))
 			.and_then(|i| i.as_str());

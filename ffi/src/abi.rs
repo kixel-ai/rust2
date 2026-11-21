@@ -1379,8 +1379,9 @@ impl<'a> Abi<'a> {
 	/// what an attribute claims: the MIR the export's check compiles under the profile it
 	/// checks, release unless its cargo args pick another, with every overflow asserted.
 	/// Each binding makes it a leaf call only where the glue's build script finds that
-	/// profile's `PROFILE`, `OPT_LEVEL`, and debug assertions, and the panic strategy is the
-	/// check's too, as `PROVEN` says; else a build may compile code the proof never saw,
+	/// profile's `PROFILE`, directory, `OPT_LEVEL`, and debug assertions, and the crate's
+	/// panic strategy and debug assertions are the check's too, as `PROVEN` says; else a
+	/// build may compile code the proof never saw,
 	/// under a `cfg` such as `debug_assertions` or one a build script derives, and the call
 	/// is made as any other.
 	///

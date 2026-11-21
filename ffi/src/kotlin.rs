@@ -2544,16 +2544,18 @@ impl<'a> Gen<'a> {
 			.enumerate()
 			.map(|(n, (_, k))| format!("p{n}: {k}"))
 			.collect();
-		// On a target its item is not on, the native method throws before it calls in.
+		// On a target its item is not on, the native method throws before it calls in. The
+		// methods a native declares beside its own name end in `$` and a suffix, which no C
+		// name has, so they never take another's name.
 		let api = self.abi.api;
 		let external = match api.everywhere(self.on) {
 			true => bare.to_string(),
 			false => {
-				let external = format!("{bare}__on");
+				let external = format!("{bare}$on");
 				let args: Vec<String> = (0..params.len()).map(|n| format!("p{n}")).collect();
 				let _ = write!(
 					self.natives,
-					"\t@kotlin.jvm.JvmStatic fun {bare}({}): {} {{\n\t\tcheck({}uL, \"{}_{bare}\")\n\t\treturn {external}({})\n\t}}\n\n",
+					"\t@kotlin.jvm.JvmStatic fun {bare}({}): {} {{\n\t\tcheck({}uL, \"{}_{bare}\")\n\t\treturn `{external}`({})\n\t}}\n\n",
 					kt.join(", "),
 					ret.1,
 					self.on.0 & api.all().0,
@@ -2570,16 +2572,18 @@ impl<'a> Gen<'a> {
 				let (kt, args) = (kt.join(", "), args.join(", "));
 				let _ = write!(
 					self.natives,
-					"\t@kotlin.jvm.JvmStatic fun {bare}({kt}): {ret} = if (proven) {bare}__fast({args}) else {bare}__plain({args})\n\n\t@dalvik.annotation.optimization.FastNative\n\t@kotlin.jvm.JvmStatic external fun {bare}__fast({kt}): {ret}\n\n",
+					"\t@kotlin.jvm.JvmStatic fun {}({kt}): {ret} = if (proven) `{bare}$fast`({args}) else `{bare}$plain`({args})\n\n\t@dalvik.annotation.optimization.FastNative\n\t@kotlin.jvm.JvmStatic external fun `{bare}$fast`({kt}): {ret}\n\n",
+					tick(bare),
 					ret = ret.1
 				);
-				format!("{bare}__plain")
+				format!("{bare}$plain")
 			}
 			false => bare.to_string(),
 		};
 		let _ = write!(
 			self.natives,
-			"\t@kotlin.jvm.JvmStatic external fun {plain}({}): {}\n\n",
+			"\t@kotlin.jvm.JvmStatic external fun {}({}): {}\n\n",
+			tick(&plain),
 			kt.join(", "),
 			ret.1
 		);
@@ -2595,7 +2599,7 @@ impl<'a> Gen<'a> {
 			let jvm: String = params.iter().map(|(j, _)| descriptor(j)).collect();
 			let _ = writeln!(
 				self.fast,
-				"\t\tJNINativeMethod {{ name: c\"{bare}__fast\".as_ptr() as _, signature: c\"({jvm}){}\".as_ptr() as _, fnPtr: {function} as *mut c_void }},",
+				"\t\tJNINativeMethod {{ name: c\"{bare}$fast\".as_ptr() as _, signature: c\"({jvm}){}\".as_ptr() as _, fnPtr: {function} as *mut c_void }},",
 				descriptor(ret.0)
 			);
 		}
@@ -4397,6 +4401,15 @@ fn kw(name: &str) -> String {
 }
 
 /// A native method's name mangled as JNI's symbols spell it.
+/// `name` as Kotlin source names it: in backticks when it holds a `$`, as the methods
+/// [`Gen::declare`] adds beside a native do.
+fn tick(name: &str) -> String {
+	match name.contains('$') {
+		true => format!("`{name}`"),
+		false => name.to_string(),
+	}
+}
+
 fn mangle(name: &str) -> String {
 	let mut out = String::new();
 	for c in name.chars() {

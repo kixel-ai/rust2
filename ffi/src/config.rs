@@ -67,4 +67,7 @@ pub(crate) mod env {
 	pub(crate) const CRATES: &str = "RUST2_FFI_CRATES";
 	/// The `PROFILE` cargo gives a build script of the check: `release` or `debug`.
 	pub(crate) const PROFILE: &str = "RUST2_FFI_PROFILE";
+	/// The directory cargo builds the check's profile in, or empty where a build under
+	/// another profile could share it.
+	pub(crate) const PROFILE_DIR: &str = "RUST2_FFI_PROFILE_DIR";
 }

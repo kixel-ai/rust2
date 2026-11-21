@@ -34,14 +34,20 @@ pub(crate) struct Api {
 }
 
 /// What of a check's profile can change the code a crate compiles, as the glue's build
-/// script reads it: what cargo tells a build script, and the panic strategy, which a `cfg`
-/// tells the crate. Overflow checks, which neither can see, the check always makes, so its
+/// script reads it: what cargo tells a build script and the directory it builds in, and the
+/// panic strategy and debug assertions, which `cfg`s tell the crate. Overflow checks, which neither can see, the check always makes, so its
 /// MIR asserts every overflow a build might.
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub(crate) struct Profile {
 	/// Cargo's `PROFILE`: `release` for a profile that is or inherits from `release`, else
 	/// `debug`.
 	pub(crate) root: String,
+	/// The directory cargo builds the profile in, which a build script finds above its
+	/// `OUT_DIR`: the profile's name, but `debug` for `dev` and `test` and `release` for
+	/// `release` and `bench`. Its per-package overrides, which a build script cannot see,
+	/// are then the check's, as the glue carries the workspace's profiles. `None` where the
+	/// other profile of that directory has overrides of its own, so no build is proven.
+	pub(crate) dir: Option<String>,
 	/// Cargo's `OPT_LEVEL`.
 	pub(crate) opt_level: String,
 	pub(crate) debug_assertions: bool,

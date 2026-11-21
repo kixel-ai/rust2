@@ -26,10 +26,28 @@ const BORROW: &str = include_str!("../runtime/rt/borrow.rs");
 const THREAD: &str = include_str!("../runtime/rt/thread.rs");
 const FUTURE: &str = include_str!("../runtime/rt/future.rs");
 
-/// The `cfg` the crate's build script sets, to the panic strategy of the check's profile,
+/// The `cfg` the crate's build script sets, to [`proven`]'s value for the check's profile,
 /// when it builds under that profile, as cargo tells a build script its own. A leaf is then
-/// proven against the bodies the build compiles, once the panic strategy is the check's too.
+/// proven against the bodies the build compiles, once the panic strategy and debug
+/// assertions the crate compiles with are the check's too.
 const PROVEN: &str = "rust2_ffi_proven";
+
+/// [`PROVEN`]'s value for a check's profile: what the crate's `PROVEN` needs its own `cfg`s
+/// to match, the panic strategy, and whether debug assertions are on.
+fn proven(profile: &crate::ir::Profile) -> String {
+	match profile.debug_assertions {
+		true => format!("{} debug_assertions", profile.panic),
+		false => profile.panic.clone(),
+	}
+}
+
+/// [`proven`]'s values over each target's check, sorted, each with the profile it names.
+fn provens(api: &crate::ir::Api) -> Vec<(String, &crate::ir::Profile)> {
+	let mut provens: Vec<(String, &crate::ir::Profile)> = api.profiles.values().map(|p| (proven(p), p)).collect();
+	provens.sort_by(|a, b| a.0.cmp(&b.0));
+	provens.dedup_by(|a, b| a.0 == b.0);
+	provens
+}
 
 /// The crate's build script, which refuses to build for a target but `api`'s, on which an
 /// item a target compiles would be missing, or one it leaves out left over, and tells the
@@ -42,11 +60,15 @@ fn build(api: &crate::ir::Api) -> String {
 	let list = list.join(", ");
 	let names = targets.join(", ");
 	let profiles: Vec<String> = (api.profiles.iter())
-		.map(|(target, p)| {
-			format!(
-				"\t\t({target:?}, {:?}, {:?}, {}, {:?}),\n",
-				p.root, p.opt_level, p.debug_assertions, p.panic
-			)
+		.filter_map(|(target, p)| {
+			Some(format!(
+				"\t\t({target:?}, {:?}, {:?}, {:?}, {}, {:?}),\n",
+				p.root,
+				p.dir.as_ref()?,
+				p.opt_level,
+				p.debug_assertions,
+				proven(p)
+			))
 		})
 		.collect();
 	format!(
@@ -62,16 +84,21 @@ fn build(api: &crate::ir::Api) -> String {
 		\t}}\n\
 		\tprintln!(\"cargo::rustc-cfg={CFG}=\\\"{{target}}\\\"\");\n\
 		\t// The profile each target's check proved the leaves under, as cargo tells a build\n\
-		\t// script: its `PROFILE`, its `OPT_LEVEL`, and whether debug assertions are on. Under\n\
-		\t// another, the library may run code the proof never saw, so it makes no leaf call.\n\
+		\t// script: its `PROFILE`, the directory it builds in, which tells one profile from\n\
+		\t// another of the same `PROFILE` and holds the `build` directory `OUT_DIR` is in, its\n\
+		\t// `OPT_LEVEL`, and whether debug assertions are on. Under another, the library may\n\
+		\t// run code the proof never saw, so it makes no leaf call.\n\
 		\tprintln!(\"cargo::rustc-check-cfg=cfg({PROVEN}, values({}))\");\n\
 		\tlet profile = std::env::var(\"PROFILE\").expect(\"cargo sets PROFILE\");\n\
+		\tlet out = std::path::PathBuf::from(std::env::var_os(\"OUT_DIR\").expect(\"cargo sets OUT_DIR\"));\n\
+		\tlet build = out.ancestors().find(|dir| dir.file_name().is_some_and(|name| name == \"build\"));\n\
+		\tlet dir = build.and_then(|build| build.parent()?.file_name()?.to_str());\n\
 		\tlet opt_level = std::env::var(\"OPT_LEVEL\").expect(\"cargo sets OPT_LEVEL\");\n\
 		\tlet assertions = std::env::var_os(\"CARGO_CFG_DEBUG_ASSERTIONS\").is_some();\n\
-		\tlet checked: &[(&str, &str, &str, bool, &str)] = &[\n{}\t];\n\
-		\tfor &(on, root, level, debug, panic) in checked {{\n\
-		\t\tif on == target && root == profile && level == opt_level && debug == assertions {{\n\
-		\t\t\tprintln!(\"cargo::rustc-cfg={PROVEN}=\\\"{{panic}}\\\"\");\n\
+		\tlet checked: &[(&str, &str, &str, &str, bool, &str)] = &[\n{}\t];\n\
+		\tfor &(on, root, built, level, debug, proven) in checked {{\n\
+		\t\tif on == target && root == profile && Some(built) == dir && level == opt_level && debug == assertions {{\n\
+		\t\t\tprintln!(\"cargo::rustc-cfg={PROVEN}=\\\"{{proven}}\\\"\");\n\
 		\t\t}}\n\
 		\t}}\n\
 		\t// rustc leaves Android's page size to the NDK, whose r27 and older align to 4 KB, and\n\
@@ -83,22 +110,14 @@ fn build(api: &crate::ir::Api) -> String {
 		\tpyo3_build_config::add_extension_module_link_args();\n\
 		}}\n",
 		list.replace('"', "\\\""),
-		panics(api)
+		provens(api)
 			.iter()
-			.map(|p| format!("{p:?}"))
+			.map(|(p, _)| format!("{p:?}"))
 			.collect::<Vec<_>>()
 			.join(", ")
 			.replace('"', "\\\""),
 		profiles.concat(),
 	)
-}
-
-/// Each panic strategy a target's check compiled with, sorted.
-fn panics(api: &crate::ir::Api) -> Vec<&str> {
-	let mut panics: Vec<&str> = api.profiles.values().map(|p| p.panic.as_str()).collect();
-	panics.sort();
-	panics.dedup();
-	panics
 }
 
 /// The name the crate depends on the facade by, its root suffixed: the facade may be named
@@ -1622,11 +1641,17 @@ impl Gen<'_> {
 		));
 		// Whether each leaf is one in this build, which a binding reads before it makes a leaf
 		// call.
-		let proven: Vec<String> = (panics(api).iter())
-			.map(|panic| format!("all({PROVEN} = {panic:?}, panic = {panic:?})"))
+		let proven: Vec<String> = (provens(api).iter())
+			.map(|(proven, p)| {
+				let debug = match p.debug_assertions {
+					true => "debug_assertions",
+					false => "not(debug_assertions)",
+				};
+				format!("all({PROVEN} = {proven:?}, panic = {:?}, {debug})", p.panic)
+			})
 			.collect();
 		self.line(format!(
-			"/// Whether the leaves the export proved are the bodies this build runs: its build script\n/// found the check's profile, and its panic strategy, which a build script cannot see, is\n/// the check's too.\npub(crate) const PROVEN: bool = cfg!(any({}));\n",
+			"/// Whether the leaves the export proved are the bodies this build runs: its build script\n/// found the check's profile, and the crate compiles with the check's panic strategy, which\n/// a build script cannot see, and debug assertions, which `RUSTFLAGS` may turn on or off.\npub(crate) const PROVEN: bool = cfg!(any({}));\n",
 			proven.join(", ")
 		));
 		self.line(format!(

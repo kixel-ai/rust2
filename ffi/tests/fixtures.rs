@@ -5490,7 +5490,8 @@ fn leaf_profile() {
 			(
 				"Cargo.toml",
 				"[package]\nname = \"leaf_profile\"\nversion = \"0.0.0\"\nedition = \"2024\"\n\n\
-				[profile.ship]\ninherits = \"release\"\n\n[workspace]\n",
+				[profile.ship]\ninherits = \"release\"\n\n\
+				[profile.bench.package.leaf_profile]\nopt-level = 2\n\n[workspace]\n",
 			),
 			(".cargo/config.toml", "[profile.configured]\ninherits = \"release\"\n"),
 			(
@@ -5526,7 +5527,8 @@ fn leaf_profile() {
 			.output()
 			.unwrap()
 	};
-	// Which of Counter's methods are leaves, and the profile they were proven under.
+	// Which of Counter's methods are leaves, and the profile they were proven under: its
+	// `PROFILE`, and the directory a build under it alone builds in.
 	let exported = |cargo: &[&str]| {
 		let output = export(cargo);
 		assert!(
@@ -5543,22 +5545,33 @@ fn leaf_profile() {
 			.map(|m| m["path"].as_array().unwrap().last().unwrap().as_str().unwrap())
 			.collect();
 		let profile = &api["profiles"][host()];
-		(leaves.join(" "), profile["root"].as_str().unwrap().to_string())
+		(
+			leaves.join(" "),
+			profile["root"].as_str().unwrap().to_string(),
+			profile["dir"].as_str().map(str::to_string),
+		)
 	};
-	// Its build of the Python extension, which says whether it runs the bodies proven, and
-	// the Python calling each method with a hook set.
-	let python = |check: &str, name: &str| {
+	let profiled =
+		|leaves: &str, root: &str, dir: Option<&str>| (leaves.to_string(), root.to_string(), dir.map(str::to_string));
+	// Its build of the Python extension under the profile `dir` names, which says whether
+	// its build script found the check's profile, and the Python calling a method with a
+	// hook set, which times out if the call kept the GIL.
+	let python = |check: &str, dir: &str, rustflags: &str, name: &str| {
 		// Apart for each check, as cargo keeps the library of whichever unit it built last.
 		let target = package.join("glue").join(check);
+		let profile = match dir {
+			"debug" => "dev",
+			dir => dir,
+		};
 		let built = run(cargo()
 			.args(["build", "--locked", "--message-format=json", "--manifest-path"])
 			.arg(out.join("Cargo.toml"))
 			.arg("--target-dir")
 			.arg(&target)
-			.args(["--features", "python"])
-			.env("RUSTFLAGS", "-D warnings"));
+			.args(["--profile", profile, "--features", "python"])
+			.env("RUSTFLAGS", format!("-D warnings {rustflags}")));
 		let lib = shared("leaf_profile");
-		step::copy(&target.join("debug").join(&lib), &out.join("python").join(&lib));
+		step::copy(&target.join(dir).join(&lib), &out.join("python").join(&lib));
 		let proven = String::from_utf8_lossy(&built.stdout).lines().any(|line| {
 			let message: serde_json::Value = serde_json::from_str(line).unwrap();
 			message["reason"] == "build-script-executed"
@@ -5576,22 +5589,35 @@ fn leaf_profile() {
 		);
 		proven
 	};
-	assert_eq!(exported(&[]), ("debugged".to_string(), "release".to_string()));
+	// `bench` overrides a package on top of `release`, in the directory they share, so a
+	// release check proves no build.
+	assert_eq!(exported(&[]), profiled("debugged", "release", None));
 	assert!(
-		!python("release", "debugged"),
+		!python("release", "debug", "", "debugged"),
 		"a dev build ran the release check's leaves"
 	);
 	assert_eq!(
 		exported(&["--profile", "dev"]),
-		("released".to_string(), "debug".to_string())
+		profiled("released", "debug", Some("debug"))
 	);
 	assert!(
-		python("dev", "debugged"),
+		python("dev", "debug", "", "debugged"),
 		"a dev build did not run the dev check's leaves"
 	);
+	// Debug assertions `RUSTFLAGS` turns off, which the build script may not see, still
+	// make no leaf call: `released` runs the hook, and would time out keeping the GIL.
+	python("dev-unasserted", "debug", "-C debug-assertions=off", "released");
 	assert_eq!(
 		exported(&["--profile", "ship"]),
-		("debugged".to_string(), "release".to_string())
+		profiled("debugged", "release", Some("ship"))
+	);
+	assert!(
+		python("ship", "ship", "", "released"),
+		"a build under the check's profile did not run its leaves"
+	);
+	assert!(
+		!python("ship", "release", "", "released"),
+		"a build under another profile of its `PROFILE` ran the check's leaves"
 	);
 	// The glue's manifest carries no profile cargo's config defines.
 	let output = export(&["--profile", "configured"]);
