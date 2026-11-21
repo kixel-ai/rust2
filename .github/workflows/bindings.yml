@@ -185,7 +185,7 @@ jobs:
             targets: aarch64-unknown-linux-gnu aarch64-unknown-linux-musl
           - host: apple
             os: macos-26
-            targets: aarch64-apple-darwin aarch64-apple-ios aarch64-apple-ios-sim x86_64-apple-darwin
+            targets: aarch64-apple-darwin aarch64-apple-ios aarch64-apple-ios-sim aarch64-apple-ios-macabi x86_64-apple-darwin
           # MSVC's library for the wheel, MinGW's for Go, which links through MinGW.
           - host: windows
             os: windows-latest
@@ -264,6 +264,9 @@ jobs:
           - host: apple-ios-sim
             os: macos-26
             targets: aarch64-apple-ios-sim
+          - host: apple-catalyst
+            os: macos-26
+            targets: aarch64-apple-ios-macabi
           # Intel macOS's Go library, which the export's Go links once its API is merged, and
           # its native output; named apart from apple-*, the Swift package's slices.
           - host: darwin-x64
@@ -491,7 +494,7 @@ jobs:
           URL: https://github.com/${{ github.repository }}/releases/download/${{ needs.facts.outputs.tag }}/${{ needs.facts.outputs.module }}FFI.xcframework.zip
         run: |
           args=()
-          for target in aarch64-apple-darwin aarch64-apple-ios aarch64-apple-ios-sim; do
+          for target in aarch64-apple-darwin aarch64-apple-ios aarch64-apple-ios-sim aarch64-apple-ios-macabi; do
             args+=(--lib "$target=$(echo "$PWD"/apple/static/"$target"/*.a)" --native "$target=$PWD/apple/static/$target/native.txt")
           done
           cd source
@@ -663,7 +666,7 @@ jobs:
           "$py" -I rust2/ffi/release/package.py consume-python "${args[@]}"
 
   # A new SwiftPM package whose only library is the staged package, as a user's would be,
-  # run on macOS and built for iOS devices and simulators.
+  # run on macOS and built for iOS devices and simulators and Mac Catalyst.
   swift-consumer:
     needs: [facts, swift, agree]
     runs-on: macos-26
