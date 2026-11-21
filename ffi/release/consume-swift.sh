@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Consume a staged Swift package as a user would, before any upload: its own scheme built
-# for macOS, iOS, and the iOS Simulator at the floors it declares, then a new executable
-# package whose only library is it, run and compared with native Rust.
+# for macOS, iOS, the iOS Simulator, and Mac Catalyst at the floors it declares, then a new
+# executable package whose only library is it, run and compared with native Rust, whose
+# bundled privacy manifest must declare each required-reason API the executable imports.
 # usage: consume-swift.sh <bindings-swift artifact> <bindings-build-apple artifact>
 set -euo pipefail
 here=$(cd "$(dirname "$0")" && pwd)
@@ -20,7 +21,8 @@ python3 -I "$here/package.py" swift-local --state "$swift/swift.json" --package 
 
 (
     cd "$work/$module"
-    for destination in 'generic/platform=macOS' 'generic/platform=iOS' 'generic/platform=iOS Simulator'; do
+    for destination in 'generic/platform=macOS' 'generic/platform=iOS' 'generic/platform=iOS Simulator' \
+        'generic/platform=macOS,variant=Mac Catalyst'; do
         xcodebuild -quiet -scheme "$module" -destination "$destination" -derivedDataPath "$work/derived" \
             CODE_SIGNING_ALLOWED=NO build
     done
@@ -61,8 +63,15 @@ SWIFT
 cd "$work/consumer"
 swift build -c release
 .build/release/Check >"$work/actual.txt"
+# The manifest SwiftPM bundled beside the executable, as an app embeds it.
+manifests=$(find .build/release/ -path "*/${module}_${module}Privacy.bundle/*" -name PrivacyInfo.xcprivacy)
+if [[ -z "$manifests" || $(wc -l <<<"$manifests") -ne 1 ]]; then
+    echo "the build bundled no single privacy manifest: $manifests" >&2
+    exit 1
+fi
+python3 -I "$here/package.py" privacy-check --manifest "$manifests" .build/release/Check
 # Only a check program prints the transcript; the stub prints nothing.
 if [[ -f "$apple/checks/main.swift" && -f "$apple/native.txt" ]]; then
     python3 -I "$here/package.py" compare "$apple/native.txt" "$work/actual.txt"
 fi
-echo "installed Swift package: builds for macOS, iOS and the iOS Simulator, and its check passes"
+echo "installed Swift package: builds for macOS, iOS, the iOS Simulator, and Mac Catalyst, and its check passes"

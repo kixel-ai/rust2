@@ -62,9 +62,9 @@ The builder takes the crate's `Cargo.toml`, the `go-module` path, which without 
 export's own `<prefix>` that no proxy serves, and optional inputs the caller's tests own:
 `features` to ship, an `example` whose stdout is native Rust's transcript, and the
 `python-check`, `swift-check`, `c-check`, `go-check`, and `dart-check` programs that must
-print it through the installed packages, and `reproduce`, which builds everything twice.
-A `dart-check` prints through `print`, which a Flutter app on Android passes to its log,
-not through `stdout`. Without a check, a consumer only imports the module, or links a
+print it through the installed packages, and `reproduce`, which builds everything twice,
+from two checkouts. A `dart-check` prints through `print`, which a Flutter app on Android
+passes to its log, not through `stdout`. Without a check, a consumer only imports the module, or links a
 function of each C and C++ header. A `c-check` is C or C++ by its extension. The web package
 takes `web-manifest-path`, the package exported for `wasm32-wasip1`, often the crate's own,
 which no Cargo fact says builds for the web, and `scope`; and an optional `web-check`, a
@@ -72,6 +72,11 @@ TypeScript module importing the binding as `./web/<module>.ts` does beside an ex
 whose imports the consumer rewrites to the package's name. Its crate's version must be
 the release's. `features` and `example` apply to it when it is the crate's own; a web
 crate apart from it takes `web-features` and `web-example` instead.
+A `python-check`, `c-check`, or `web-check` may instead name a directory holding the program
+as `check.py`, `check.c` or `check.cpp`, or `check.ts`, beside the files it reads, which each
+consumer places beside it: a check that imports a module or includes a header of its own.
+A check its tests generate comes through `checks-artifact`, an artifact of the caller's run
+the builder unpacks over its checkout before reading the checks.
 
 ## What the builder does
 
@@ -118,15 +123,36 @@ crate apart from it takes `web-features` and `web-example` instead.
    deployment target it builds for, by default the target's oldest; and builds musl's
    library against a dynamic C runtime, as CPython links one, adding the flag to cargo's
    target rustflags, which cargo then reads in place of a config's `build.rustflags`.
-6. Swift: static libraries for macOS arm64 at macOS 13, and iOS arm64 and its simulator
-   at iOS 16, the floors of the generated Swift's `Swift.Duration`, each checked against
-   every object's declared minimum OS; one XCFramework of the three, zipped by the builder itself,
+6. Swift: static libraries for macOS arm64 at macOS 13, and iOS arm64, its simulator, and
+   Mac Catalyst arm64 at iOS 16, the floors of the generated Swift's `Swift.Duration`, each
+   checked against every object's declared minimum OS; one XCFramework of the four, zipped by the builder itself,
    its SHA-256 checked against `swift package compute-checksum`; and a `Package.swift`
    naming it at `https://github.com/<repo>/releases/download/<crate>-v<version>/<Module>FFI.xcframework.zip`.
    The package depends on swift-collections by the release tag at the exporter's pinned
    revision, since a package resolved by version cannot depend on a revision. Rust's
    native link libraries become linker settings, per platform where they differ; any
    other flag fails the build.
+
+   Each slice is linked as an app links it, keeping only what the C ABI reaches, and
+   `nm` lists the [required-reason APIs](https://developer.apple.com/documentation/bundleresources/describing-use-of-required-reason-api)
+   that link imports, which the App Store's upload scan refuses undeclared (ITMS-91053).
+   The package's `PrivacyInfo.xcprivacy` declares them, a resource of its own
+   `<Module>Privacy` target, which SwiftPM bundles into the app, since a static library holds
+   none: file metadata (`stat` and its kin, and Foundation's date keys such as
+   `NSURLCreationDateKey`) of the app's containers, `C617.1`, and of files
+   the user granted it, `3B52.1`; and the boot clock
+   (`mach_absolute_time`) for elapsed time, `35F9.1`. Disk space (`statfs` and its kin, and
+   keys such as `NSFileSystemFreeSize`), `getattrlist`, user defaults, and active keyboards have no reason
+   that fits every library, so a library reaching them fails the build. An Objective-C call
+   by selector, or to a class looked up at run time, imports no symbol, and the scan misses it.
+   A sandboxed macOS app may also stat a world-readable system path, such as `/etc/localtime`,
+   which no reason Apple defines covers, so neither these two nor a hand-written manifest
+   can declare it.
+
+   The slices carry line tables, `debug = "line-tables-only"` unless the crate's release
+   profile sets a level holding them: a static library has no dSYM of its own, and the app's dSYM is made
+   from the debug info of what it links, so a crash in Rust symbolicates to its source
+   line, which the build checks by `atos` on a dSYM of each slice's link.
 7. C and C++: an archive per wheel target, `<crate>-<version>-<target>.tar.gz`, or `.zip`
    on Windows, built like the wheels, Linux's against glibc 2.28 and macOS's at 11.0. It
    holds `include/` with both headers, the static and shared libraries, and three ways to
@@ -196,7 +222,8 @@ crate apart from it takes `web-features` and `web-example` instead.
     from an empty directory, and on Linux x64 checked by `mypy --strict` as installed; the
     sdist installed the same way, built by pip with rustup's Rust, in Alpine's musllinux, on
     Windows on arm64, and on Intel macOS; and the Swift package built by its own scheme for macOS, iOS,
-    and the iOS Simulator, then consumed by a new executable package that runs the check;
+    the iOS Simulator, and Mac Catalyst, then consumed by a new executable package that runs
+    the check, whose bundled privacy manifest must declare what the executable imports;
     and each C archive unpacked alone, built by a new CMake project through its CPS file and
     through its config package, and on Linux and macOS by pkg-config, linking each library,
     where a shared consumer must record the versioned name; and the Go module, unpacked from
@@ -227,7 +254,8 @@ crate apart from it takes `web-features` and `web-example` instead.
 
 rust2 runs it on every manual Check and nightly through
 [`bindings-test.yml`](/.github/workflows/bindings-test.yml): on the api fixture, whose
-wheels, C++ consumers, and web package must print its native transcript, and on moq's
+wheels, C++ consumers, and web package must print its native transcript through the checks
+`just ffi transcripts` writes, each test beside the script generated from it, and on moq's
 stand-in facade at the exporter's moq pin, through `moq/moq.py`, `moq/moq.swift`,
 `moq/moq.cpp`, `moq/moq.go`, and `moq/moq.dart`, with its wasm32 stand-in as the web package.
 
@@ -240,28 +268,33 @@ holding exactly the files it would upload, and anyone with the commit can check 
   archive format: the builder writes each ZIP itself, with sorted entries, fixed modes, and
   no host, umask, or time of its own, and rewrites each repaired wheel the same way, its
   RECORD rebuilt. Zlib's own output is the one thing a host could still change.
-- **Paths.** The crate's workspace, the exported crate, and `CARGO_HOME` are remapped to
-  fixed names for rustc and the C compilers, so panic messages and debug info name no
-  checkout. This takes `RUSTFLAGS` over a `.cargo/config.toml`'s `rustflags`, so a config
-  that sets any fails the build: export them as `RUSTFLAGS`, which the builder keeps. Apple
-  builds also stamp no archive time (`ZERO_AR_DATE`), and Windows links with `/Brepro`.
+- **Paths.** A checkout at any path builds the same bytes, as long as the export keeps its
+  place beside the crate: the exporter writes the crate's facade, and the patches and crates
+  it resolves with, relative to the export, and `build` and `web` run cargo through
+  `/tmp/rust2-ffi` (`C:\rust2-ffi` on Windows), a link to the deepest directory holding the
+  export, those crates, and their workspaces. Cargo hashes a path crate outside the
+  generated crate's workspace, the facade, by its absolute path into every symbol, and
+  dlltool names a Windows GNU library's import symbols after its target directory, so each
+  sees one path wherever the checkout is. One build at a time holds the link: a second fails
+  while it exists, and one a killed build left must be removed. An export at another depth
+  from the crate writes another relative path, so other symbols; one whose own path holds a
+  symlink, or on another drive from the crate, keeps the absolute path, so builds the same
+  only at the same path, as does a crate whose manifest names any path absolutely, or a
+  build whose `.cargo/config.toml` names a path package (a path `[patch]` or `paths`), which
+  cargo joins from the config's real directory: cargo would read it through the link as a
+  second package, so such a build runs without the link. The crate's workspace, the exported crate, and `CARGO_HOME`, by
+  each spelling, are remapped to fixed names for rustc and the C compilers, so panic
+  messages and debug info name no checkout. This takes `RUSTFLAGS` over a
+  `.cargo/config.toml`'s `rustflags`, so a config that sets any fails the build: export them
+  as `RUSTFLAGS`, which the builder keeps. Apple builds also stamp no archive time
+  (`ZERO_AR_DATE`), and Windows links with `/Brepro`. rustc's random temporary directory in
+  a Windows GNU import symbol's name is replaced by zeros.
 - **Checked.** The Swift job builds the XCFramework twice and fails unless both ZIPs match.
-  With `reproduce: true`, every build host builds a second time, from a new export at the same
-  path, and `package.py same` fails unless each wheel, static library, C archive, and Dart
-  library, the Go module's included, matches byte for byte, and the web job packs its npm tarball twice; rust2 turns it on
-  for its api fixture. It doubles the build, so a large crate may leave it to a nightly.
-- **Not yet.** The exporter writes the crate's facade, and the patches and crates it
-  resolves with, relative to its export, so two checkouts of one commit export the same
-  bytes while the export keeps its position relative to the crate (an export at another
-  depth writes another relative path, so another version hash and other glue symbols; one
-  whose own path holds a symlink, or on another drive from the crate, keeps the absolute
-  path). A rebuild must still keep the crate at the same path, and the export at the same
-  place beside it, as a rerun does: cargo hashes the absolute path of a path crate outside the generated crate's
-  workspace, the facade, into its symbols
-  ([planned](/quest/m1/ffi-packaging/relocatable.md)). So must the export directory of a
-  Windows GNU library, which is the Go module's: dlltool names the import library's symbols
-  after the path of the target directory, which no `--remap-path-prefix` reaches. rustc's
-  random temporary directory in that name is replaced by zeros.
+  With `reproduce: true`, every build host builds a second time, from a second checkout and
+  export a level deeper, and `package.py same` fails unless each wheel, static library, C
+  archive, and Dart library, the Go module's included, matches byte for byte, and the web
+  job builds its npm tarball from the second checkout too; rust2 turns it on for its api
+  fixture. It doubles the build, so a large crate may leave it to a nightly.
 
 **Attestations and SBOM.** `package.py build` writes `sbom.cdx.json`, a CycloneDX SBOM of
 the crates the binding links (normal dependencies, platform-neutral, with each registry

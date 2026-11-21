@@ -165,6 +165,22 @@ pub(crate) fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<O
 			.collect();
 		calls(&code, "_on(") > 0
 	};
+	// A library with no leaf never asks whether it has proven them.
+	let leaves = {
+		let code: String = [&g.types, &g.top]
+			.into_iter()
+			.chain(g.helpers.values())
+			.chain(g.structs.values())
+			.map(String::as_str)
+			.collect();
+		code.contains("if (_proven) {")
+	};
+	let proven = match leaves {
+		true => {
+			"/// Whether the library runs the bodies its leaves were proven against, which its leaf\n/// calls need: else each is served as any other call.\nfinal bool _proven = _dartProven();\n\n"
+		}
+		false => "",
+	};
 	let on_fn = match checks {
 		true => format!(
 			"/// The index of the library's target among those this file serves.\n\
@@ -188,6 +204,7 @@ pub(crate) fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<O
 		const _lend = {LEND};\n\n\
 		bool _contract() => {contract_fn}() == 0x{contract:016x};\n\n\
 		{on_fn}\
+		{proven}\
 		/// Throws unless [status], which the call [what] wrote, is zero: a run-time check failed.\n\
 		// ignore: unused_element\n\
 		void _status(int status, String what) {{\n\tif (status == 0) return;\n\t_n.status.value = 0;\n\tfinal m = _statusMessage(status);\n\tvar n = 0;\n\twhile (m[n] != 0) {{\n\t\tn++;\n\t}}\n\tthrow StateError('$what: ${{const convert.Utf8Decoder().convert(m.asTypedList(n))}}');\n}}\n\n"
@@ -195,6 +212,7 @@ pub(crate) fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<O
 	for (name, params, ret, dart_params, dart_ret) in [
 		("contract", "", "ffi.Uint64", "", "int"),
 		("target", "", "ffi.Uint32", "", "int"),
+		("dart_proven", "", "ffi.Bool", "", "bool"),
 		("buf_free", "_Buf", "ffi.Void", "_Buf p0", "void"),
 		("buf_copy", "_Buf", "_Buf", "_Buf p0", "_Buf"),
 		("buf_clone", "_Buf", "_Buf", "_Buf p0", "_Buf"),
@@ -320,7 +338,7 @@ pub(crate) fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<O
 			"bool",
 		),
 	] {
-		if name == "target" && !checks {
+		if (name == "target" && !checks) || (name == "dart_proven" && !leaves) {
 			continue;
 		}
 		let local = match name {
@@ -337,7 +355,7 @@ pub(crate) fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<O
 		};
 		// What returns a constant runs no other code: a leaf call.
 		let leaf = match name {
-			"contract" | "target" | "status_message" => ", isLeaf: true",
+			"contract" | "target" | "dart_proven" | "status_message" => ", isLeaf: true",
 			_ => "",
 		};
 		let _ = write!(
@@ -389,6 +407,7 @@ pub(crate) fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<O
 		unsafe extern \"C\" {{\n\tfn malloc(len: usize) -> *mut c_void;\n\tfn free(ptr: *mut c_void);\n}}\n\n\
 		#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {space}_alloc(len: usize) -> *mut c_void {{\n\tlet ptr = unsafe {{ malloc(len) }};\n\tif ptr.is_null() {{\n\t\tstd::alloc::handle_alloc_error(std::alloc::Layout::array::<u8>(len).expect(\"a length\"));\n\t}}\n\tptr\n}}\n\n\
 		#[unsafe(no_mangle)]\npub extern \"C\" fn {space}_buf(len: usize) -> rt::Buf {{\n\trt::Buf::vec(vec![0; len])\n}}\n\n\
+		#[unsafe(no_mangle)]\npub extern \"C\" fn {space}_proven() -> bool {{\n\tcrate::PROVEN\n}}\n\n\
 		#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {space}_free(ptr: *mut c_void) {{\n\tunsafe {{ free(ptr) }}\n}}\n\n\
 		#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {space}_nursery(object: *mut c_void, len: usize) -> *mut *mut c_void {{\n\tunsafe {{ runtime::nursery(object, len) }}\n}}\n\n\
 		#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {space}_abort(text: rt::Buf) {{\n\trt::fail(\"dart\", unsafe {{ text.str(\"{space}_abort\") }})\n}}\n\n\
@@ -609,20 +628,10 @@ impl<'a> Gen<'a> {
 		keys.into_iter().zip(names).collect()
 	}
 
-	/// Check that no two members of the type `rust` share a Dart name, as [`collides`] reads
-	/// them.
-	fn distinct(&mut self, rust: &str, members: &[String]) {
-		let mut clashes = BTreeSet::new();
-		for (k, member) in members.iter().enumerate() {
-			if let Some(other) = members[..k].iter().find(|other| collides(other, member)) {
-				clashes.insert(other.rsplit(' ').next().unwrap_or(other).to_string());
-			}
-		}
-		for name in clashes {
-			self.errors.push(format!(
-				"two members of `{rust}` are both `{name}` in Dart, which rust2-ffi should keep apart"
-			));
-		}
+	/// Asserts that no two members of the type `rust` share a Dart name, as [`collides`]
+	/// reads them and [`abi::assert_apart`] checks.
+	fn distinct(&self, rust: &str, members: &[String]) {
+		abi::assert_apart(rust, "Dart", members, collides);
 	}
 
 	/// Drops the constructors of the object classes that nothing calls: a type only ever lent
@@ -1363,8 +1372,8 @@ impl<'a> Gen<'a> {
 			Type::Record(i) => {
 				let record = &abi.api.records[*i];
 				let mut lines = Vec::new();
-				for field in &record.fields {
-					let e = format!("v.{}", field_name(&field.name));
+				for (field, name) in record.fields.iter().zip(field_names(&record.fields)) {
+					let e = format!("v.{name}");
 					let dst = format!("c.{}", slot(&abi::escape(&field.name)));
 					lines.push(self.write(&field.ty, &e, &dst, "t"));
 				}
@@ -1383,8 +1392,8 @@ impl<'a> Gen<'a> {
 						body.insert(0, format!("_on(0x{on:x}, '{c}.{}');", variant.name));
 					}
 					let member = abi::escape(&abi::snake(&variant.name));
-					for field in &variant.fields {
-						let e = format!("v.{}", field_name(&field.name));
+					for (field, name) in variant.fields.iter().zip(field_names(&variant.fields)) {
+						let e = format!("v.{name}");
 						let dst = format!("c.$u.{}.{}", slot(&member), slot(&abi::escape(&field.name)));
 						body.push(self.write(&field.ty, &e, &dst, "t"));
 					}
@@ -1493,20 +1502,21 @@ impl<'a> Gen<'a> {
 				let class = self.struct_class(&Ty::Struct(c.to_string()));
 				let record = &abi.api.records[*i];
 				let mut args = Vec::new();
-				for field in &record.fields {
+				for (field, name) in record.fields.iter().zip(field_names(&record.fields)) {
 					let value = self.lift(&field.ty, &format!("c.{}", slot(&abi::escape(&field.name))));
 					args.push(match record.tuple {
 						true => value,
-						false => format!("{}: {value}", field_name(&field.name)),
+						false => format!("{name}: {value}"),
 					});
 				}
 				(class, format!("{dt}({})", args.join(", ")))
 			}
 			Type::Enum(i) if abi.api.enums[*i].plain() => {
 				let e = &abi.api.enums[*i];
-				let cases: Vec<String> = (e.variants.iter())
-					.map(|v| format!("\t\t{} => {dt}.{},", v.discriminant, enum_value(&v.name)))
+				let cases: Vec<String> = (e.variants.iter().zip(enum_values(e)))
+					.map(|(v, value)| format!("\t\t{} => {dt}.{value},", v.discriminant))
 					.collect();
+
 				(
 					"int".to_string(),
 					format!(
@@ -1523,14 +1533,14 @@ impl<'a> Gen<'a> {
 					let case = self.variant_class(&dt, &variant.name);
 					let member = abi::escape(&abi::snake(&variant.name));
 					let mut args = Vec::new();
-					for field in &variant.fields {
+					for (field, name) in variant.fields.iter().zip(field_names(&variant.fields)) {
 						let value = self.lift(
 							&field.ty,
 							&format!("c.$u.{}.{}", slot(&member), slot(&abi::escape(&field.name))),
 						);
 						args.push(match variant.tuple {
 							true => value,
-							false => format!("{}: {value}", field_name(&field.name)),
+							false => format!("{name}: {value}"),
 						});
 					}
 					cases.push(format!("\t\t{n} => {case}({}),", args.join(", ")));
@@ -1750,8 +1760,12 @@ impl<'a> Gen<'a> {
 		for i in 0..api.callbacks.len() {
 			self.callback(i);
 		}
-		for function in &api.functions {
-			if let Some((code, _)) = self.function(function, None, None, &[]) {
+		let functions: Vec<&Function> = api.functions.iter().collect();
+		let named = self.names(&functions, (None, None), |_, name| {
+			TAKEN.contains(&name) || self.names.contains_key(name)
+		});
+		for (function, name) in api.functions.iter().zip(&named) {
+			if let Some((code, _)) = self.function(function, (None, None), name, &[]) {
 				self.top.push_str(&code);
 				self.top.push('\n');
 			}
@@ -1872,6 +1886,19 @@ impl<'a> Gen<'a> {
 				format!("final a_ = _Arena();\n\t\ttry {{\n\t\t\t{code}\n\t\t}} finally {{\n\t\t\ta_.end();\n\t\t}}")
 			}
 		};
+		// `code(leaf)`'s call as a leaf call where the library reports `_proven`, else served.
+		let proven = |g: &mut Self, leaf: bool, code: &dyn Fn(&mut Self, bool) -> String| match leaf {
+			true => {
+				let (proven, served) = (code(g, true), code(g, false));
+				let nested = |code: String| code.replace("\n\t\t", "\n\t\t\t");
+				format!(
+					"if (_proven) {{\n\t\t\t{}\n\t\t}} else {{\n\t\t\t{}\n\t\t}}",
+					nested(proven),
+					nested(served)
+				)
+			}
+			false => code(g, false),
+		};
 		let shown = self.abi.api.shown(ty);
 		let member = |g: &mut Self, t: &str, name: &str| crate::lock::trait_member(&mut g.locked, shown, t, name);
 		if t.display {
@@ -1936,26 +1963,28 @@ impl<'a> Gen<'a> {
 			// stalls the isolate group's GC until it returns, so it walks no length the caller
 			// picks.
 			let leaf = self.abi.leaf_trait(ty, false) && t.leaf_sized;
-			let (f, (pa, a), (pb, b)) = match (leaf, object) {
-				// `other` bound to its own type, since Dart keeps a value alive to the end of
-				// its scope only for a variable declared `Finalizable`, which a promoted
-				// `Object` is not: the `_on` check before the native may run a GC.
-				(true, true) => (
-					self.leaf(&sig),
-					(String::new(), "_live".to_string()),
-					(format!("final {name} o_ = other;\n\t\t"), "o_._live".to_string()),
-				),
-				(true, false) => (self.leaf(&sig), this(self, "this"), this(self, "other")),
-				(false, _) => (self.served(&sig), this(self, "this"), this(self, "other")),
-			};
-			let home = if leaf { "" } else { "_n.home, " };
-			let eq = arena(
-				leaf,
-				format!(
-					"{pa}{pb}{}",
-					call(&f, &format!("{home}{a}, {b}"), &what, &|r| r.to_string())
-				),
-			);
+			let eq = proven(self, leaf, &|g, leaf| {
+				let (f, (pa, a), (pb, b)) = match (leaf, object) {
+					// `other` bound to its own type, since Dart keeps a value alive to the end
+					// of its scope only for a variable declared `Finalizable`, which a
+					// promoted `Object` is not: the `_on` check before the native may run a GC.
+					(true, true) => (
+						g.leaf(&sig),
+						(String::new(), "_live".to_string()),
+						(format!("final {name} o_ = other;\n\t\t"), "o_._live".to_string()),
+					),
+					(true, false) => (g.leaf(&sig), this(g, "this"), this(g, "other")),
+					(false, _) => (g.served(&sig), this(g, "this"), this(g, "other")),
+				};
+				let home = if leaf { "" } else { "_n.home, " };
+				arena(
+					leaf,
+					format!(
+						"{pa}{pb}{}",
+						call(&f, &format!("{home}{a}, {b}"), &what, &|r| r.to_string())
+					),
+				)
+			});
 			body.push(format!(
 				"\t/// Rust's `PartialEq`.\n\t@override\n\tbool operator ==(Object other) {{\n\t\tif (other is! {name}) return false;\n\t\t{eq}\n\t}}\n"
 			));
@@ -1972,16 +2001,18 @@ impl<'a> Gen<'a> {
 					ret: Ty::Int(Int::U64),
 				};
 				let leaf = self.abi.leaf_trait(ty, true) && t.leaf_sized;
-				let (f, (pre, arg)) = match (leaf, object) {
-					(true, true) => (self.leaf(&sig), (String::new(), "_live".to_string())),
-					(true, false) => (self.leaf(&sig), this(self, "this")),
-					(false, _) => (self.served(&sig), this(self, "this")),
-				};
-				let home = if leaf { "" } else { "_n.home, " };
-				let hash = arena(
-					leaf,
-					format!("{pre}{}", call(&f, &format!("{home}{arg}"), &what, &|r| r.to_string())),
-				);
+				let hash = proven(self, leaf, &|g, leaf| {
+					let (f, (pre, arg)) = match (leaf, object) {
+						(true, true) => (g.leaf(&sig), (String::new(), "_live".to_string())),
+						(true, false) => (g.leaf(&sig), this(g, "this")),
+						(false, _) => (g.served(&sig), this(g, "this")),
+					};
+					let home = if leaf { "" } else { "_n.home, " };
+					arena(
+						leaf,
+						format!("{pre}{}", call(&f, &format!("{home}{arg}"), &what, &|r| r.to_string())),
+					)
+				});
 				body.push(format!(
 					"\t/// Rust's `Hash`.\n\t@override\n\tint get hashCode {{\n\t\t{hash}\n\t}}\n"
 				));
@@ -2071,8 +2102,16 @@ impl<'a> Gen<'a> {
 		body: &mut Vec<String>,
 		members: &mut Vec<String>,
 	) {
-		for method in methods {
-			if let Some((code, member)) = self.function(method, Some(owner), Some(ty), members) {
+		let functions: Vec<&Function> = methods.iter().collect();
+		let owned = (Some(owner), Some(ty));
+		let declared: Vec<Option<&str>> = (methods.iter()).map(|method| self.declared(method, owned).2).collect();
+		// Each name a member its type declares already takes, as [`collides`] reads it.
+		let named = self.names(&functions, owned, |k, name| match declared[k] {
+			Some(kind) => members.iter().any(|other| collides(other, &format!("{kind}{name}"))),
+			None => false,
+		});
+		for (method, name) in methods.iter().zip(&named) {
+			if let Some((code, member)) = self.function(method, owned, name, members) {
 				members.push(member);
 				body.push(indent(&code));
 			}
@@ -2127,9 +2166,8 @@ impl<'a> Gen<'a> {
 			);
 			return;
 		}
-		let fields: Vec<(String, String)> = (record.fields.iter())
-			.map(|f| {
-				let name = field_name(&f.name);
+		let fields: Vec<(String, String)> = (record.fields.iter().zip(field_names(&record.fields)))
+			.map(|(f, name)| {
 				crate::lock::field(&mut self.locked, &record.shown, &f.name, &name);
 				(name, self.dt(&f.ty))
 			})
@@ -2181,9 +2219,8 @@ impl<'a> Gen<'a> {
 			// A value of a variant the library's target lacks is refused as it crosses, when
 			// its C value is read.
 			let limited = e.variants.iter().any(|v| !abi.api.everywhere(v.on));
-			let values: Vec<String> = (e.variants.iter())
-				.map(|v| {
-					let value = enum_value(&v.name);
+			let values: Vec<String> = (e.variants.iter().zip(enum_values(e)))
+				.map(|(v, value)| {
 					crate::lock::variant(&mut self.locked, &e.shown, &v.name, &value);
 					members.push(format!("static {value}"));
 					match limited {
@@ -2208,6 +2245,8 @@ impl<'a> Gen<'a> {
 				),
 			});
 			self.traits(&ty, &c, e.traits, &mut body, &mut members);
+			// What every Dart enum has, which a method takes a trailing `_` beside.
+			members.extend(["index".to_string(), "static values".to_string()]);
 			let owner = abi.ty(&ty);
 			self.methods(&e.methods, &owner, &ty, &mut body, &mut members);
 			self.distinct(&rust, &members);
@@ -2221,6 +2260,10 @@ impl<'a> Gen<'a> {
 		}
 		body.push(format!("\tconst {name}();\n"));
 		self.traits(&ty, &c, e.traits, &mut body, &mut members);
+		// Each variant's fields, which its class declares beside the methods it inherits, so a
+		// method takes a trailing `_` beside one, as a record's does beside its own.
+		let fields: BTreeSet<String> = (e.variants.iter()).flat_map(|v| field_names(&v.fields)).collect();
+		members.extend(fields);
 		let owner = abi.ty(&ty);
 		self.methods(&e.methods, &owner, &ty, &mut body, &mut members);
 		self.distinct(&rust, &members);
@@ -2232,9 +2275,8 @@ impl<'a> Gen<'a> {
 		);
 		for (k, variant) in e.variants.iter().enumerate() {
 			let case = self.variant_class(&name, &variant.name);
-			let fields: Vec<(String, String)> = (variant.fields.iter())
-				.map(|f| {
-					let name = field_name(&f.name);
+			let fields: Vec<(String, String)> = (variant.fields.iter().zip(field_names(&variant.fields)))
+				.map(|(f, name)| {
 					crate::lock::variant_field(&mut self.locked, &e.shown, &variant.name, &f.name, &name);
 					(name, self.dt(&f.ty))
 				})
@@ -2325,14 +2367,12 @@ impl<'a> Gen<'a> {
 		let rust = callback.path.join("::");
 		let mut body = Vec::new();
 		let mut members = Vec::new();
-		// `close` is the hook Rust calls once it drops an implementation.
-		let reserved: Vec<&str> = OBJECT.iter().copied().chain(["close"]).collect();
-		for method in &callback.methods {
-			let member = member(&abi::snake(method.name()), &reserved);
+		for (method, member) in callback.methods.iter().zip(callback_members(&callback.methods)) {
 			crate::lock::function(&mut self.locked, method, &member);
 			members.push(member.clone());
-			let params: Vec<String> = (method.params.iter())
-				.map(|p| format!("{} {}", self.dt(&p.ty), param_name(&p.name)))
+			let names = abi::distinct(&method.params, param_name, |_| false);
+			let params: Vec<String> = (method.params.iter().zip(names))
+				.map(|(p, name)| format!("{} {name}", self.dt(&p.ty)))
 				.collect();
 			body.push(format!(
 				"{}\t{} {member}({});",
@@ -2376,9 +2416,7 @@ impl<'a> Gen<'a> {
 		let rust = callback.path.join("::");
 		let mut relays = Vec::new();
 		let mut trampolines = Vec::new();
-		let reserved: Vec<&str> = OBJECT.iter().copied().chain(["close"]).collect();
-		for method in &callback.methods {
-			let member = member(&abi::snake(method.name()), &reserved);
+		for (method, member) in callback.methods.iter().zip(callback_members(&callback.methods)) {
 			// The trampoline Rust's relay calls on the isolate's thread.
 			let c_params: Vec<Ty> = method.params.iter().map(|p| abi.ty(&p.ty)).collect();
 			let ret = abi.ty(&method.ok);
@@ -2430,7 +2468,7 @@ impl<'a> Gen<'a> {
 				"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {relay}(data: *mut c_void{}) -> {} {{\n\tlet relay = unsafe {{ &*data.cast::<runtime::Relay>() }};\n\tlet table = unsafe {{ &*relay.f.cast::<crate::{c}_vtable>() }};\n\tlet f = table.{m}.unwrap_or_else(|| rt::fail(\"{c}_vtable.{m}\", \"the function is null\"));{cast}\n\t{called}\n}}\n\n",
 				decls.concat(),
 				rs(&ret),
-				m = method.name(),
+				m = abi::member(method),
 			);
 		}
 		let tables = format!("_tables${}", mangle(self.bare(c)));
@@ -2623,17 +2661,99 @@ impl<'a> Gen<'a> {
 		}
 	}
 
-	/// `function`'s Dart form and its member name, a member of `owner` (whose IR type is
-	/// `owner_ty`) if it has one.
+	/// The name each of `functions` takes as a member of `owner` (whose IR type is
+	/// `owner_ty`) if it has one, or at the top level, apart from each other and from what
+	/// `taken` holds for each, by its index, as [`abi::named`] keeps a scope's. Two clash
+	/// only as [`collides`] reads them, so a named constructor keeps the name of an instance
+	/// method, as Dart allows.
+	fn names(
+		&self,
+		functions: &[&Function],
+		owner: (Option<&Ty>, Option<&Type>),
+		taken: impl Fn(usize, &str) -> bool,
+	) -> Vec<String> {
+		let mut rust = Vec::new();
+		let mut spelled = Vec::new();
+		let mut kinds = Vec::new();
+		for function in functions {
+			let (name, member, kind) = self.declared(function, owner);
+			rust.push(name);
+			spelled.push(member);
+			kinds.push(kind);
+		}
+		let rust: Vec<&str> = rust.iter().map(String::as_str).collect();
+		// An unnamed constructor clashes with none.
+		let clash = |k: usize, a: &str, j: usize, b: &str| match (kinds[k], kinds[j]) {
+			(Some(kk), Some(kj)) => collides(&format!("{kk}{a}"), &format!("{kj}{b}")),
+			_ => false,
+		};
+		abi::named_apart(&rust, spelled, own, taken, alternative, clash)
+	}
+
+	/// The declaration `function` makes as a member of `owner` (whose IR type is `owner_ty`)
+	/// if it has one, before it keeps apart from another: the Rust name it spells, its Dart
+	/// name, and what [`collides`] reads before that name, `static ` or `new ` or none, or
+	/// `None` for an unnamed constructor, which no name clashes with.
+	fn declared(
+		&self,
+		function: &Function,
+		(owner, owner_ty): (Option<&Ty>, Option<&Type>),
+	) -> (String, String, Option<&'static str>) {
+		let abi = self.abi;
+		let (back, export) = match (owner.zip(owner_ty)).and_then(|(owner, ty)| abi.handed_back(function, owner, ty)) {
+			Some((back, export, _)) => (Some(back), export),
+			None => (None, abi.export(function, owner)),
+		};
+		let function = back.as_ref().unwrap_or(function);
+		let own = match owner {
+			Some(Ty::Struct(o) | Ty::Enum(o) | Ty::Handle { name: o, .. }) => {
+				export.named.strip_prefix(o.as_str()).and_then(|r| r.strip_prefix('_'))
+			}
+			_ => None,
+		};
+		let mut reserved: Vec<&str> = OBJECT.to_vec();
+		if matches!(owner_ty, Some(Type::Object(_))) {
+			reserved.push("close");
+		}
+		// Named as Rust's path is, whatever C's clashes rename.
+		let rust = own.unwrap_or_else(|| self.bare(&export.named)).to_string();
+		let member = member(&rust, &reserved);
+		let receiver = function.receiver.filter(|_| owner.is_some());
+		let is_static = receiver.is_none() && owner.is_some();
+		let stat = if is_static { "static " } else { "" };
+		let plain = function.params.is_empty() && !function.future && function.err.is_none();
+		let kind = match (function.access, receiver) {
+			(Access::Field { set: false, .. }, Some(_)) if plain => Some(""),
+			(Access::Const, None) if plain => Some(stat),
+			// A function of a type returning it is a constructor: an object's or opaque
+			// value's `new` is its unnamed one.
+			_ if is_static && !function.future && Some(&strip_refs(&function.ok)) == owner_ty => {
+				let unnamed = match owner_ty {
+					Some(Type::Object(_)) => true,
+					Some(Type::Record(i)) => abi.api.records[*i].opaque.is_some(),
+					_ => false,
+				};
+				match rust == "new" && unnamed {
+					true => None,
+					false => Some("new "),
+				}
+			}
+			_ => Some(stat),
+		};
+		(rust, member, kind)
+	}
+
+	/// `function`'s Dart form `member`, of `owner` (whose IR type is `owner_ty`) if it has
+	/// one, apart from the members `taken` names, and its entry as [`collides`] reads it.
 	fn function(
 		&mut self,
 		function: &Function,
-		owner: Option<&Ty>,
-		owner_ty: Option<&Type>,
+		owner: (Option<&Ty>, Option<&Type>),
+		member: &str,
 		taken: &[String],
 	) -> Option<(String, String)> {
 		let on = std::mem::replace(&mut self.on, function.on);
-		let code = self.function_on(function, owner, owner_ty, taken);
+		let code = self.function_on(function, owner, member, taken);
 		self.on = on;
 		code
 	}
@@ -2641,8 +2761,8 @@ impl<'a> Gen<'a> {
 	fn function_on(
 		&mut self,
 		function: &Function,
-		owner: Option<&Ty>,
-		owner_ty: Option<&Type>,
+		(owner, owner_ty): (Option<&Ty>, Option<&Type>),
+		member: &str,
 		taken: &[String],
 	) -> Option<(String, String)> {
 		let abi = self.abi;
@@ -2669,19 +2789,15 @@ impl<'a> Gen<'a> {
 			Some(o) => export.named.strip_prefix(o.as_str()).and_then(|r| r.strip_prefix('_')),
 			None => None,
 		};
-		let mut reserved: Vec<&str> = OBJECT.to_vec();
-		if matches!(owner_ty, Some(Type::Object(_))) {
-			reserved.push("close");
-		}
 		// Named as Rust's path is, whatever C's clashes rename.
 		let named = self.bare(&export.named).to_string();
 		let snake = own.unwrap_or(&named);
-		let member = member(snake, &reserved);
 
 		let receiver = function.receiver.filter(|_| owner.is_some());
 		// A leaf call runs on the isolate's thread, with no thread hop, as nothing in it
 		// calls back: see `Abi::leaf`. Nor does Dart run meanwhile, so it holds no handle
-		// against a close, and takes only scalars, so it needs no arena.
+		// against a close, and takes only scalars, so it needs no arena. It is one only where
+		// the library reports `_proven`, else served as any other call.
 		let leaf = abi.leaf(function, owner_ty);
 		let mut pre = Vec::new();
 		let mut args: Vec<String> = Vec::new();
@@ -2710,9 +2826,9 @@ impl<'a> Gen<'a> {
 		// Whether the call is given a value Rust takes, whose buffers the arena frees
 		// unless the call returns.
 		let mut gives = false;
-		let names = abi::distinct(function.params.iter().map(|param| param_name(&param.name)));
+		let names = abi::distinct(&function.params, param_name, |_| false);
 		let mut writes = Vec::new();
-		for (k, (param, name)) in function.params.iter().zip(names).enumerate() {
+		for (k, (param, name)) in function.params.iter().zip(names.iter().cloned()).enumerate() {
 			let (_, c) = c_params.next().expect("each parameter has its C one");
 			// A value passed for `&mut`, in a holder that takes what Rust writes back.
 			if param.ty.written() {
@@ -2940,77 +3056,105 @@ impl<'a> Gen<'a> {
 			body.push(format!("return _call(_Call<{ok_dt}>._({free_fn}, {poll_name}, f_));"));
 		} else {
 			ret_type = ok_dt.clone();
-			let mut inner = pre.clone();
-			for (n, ty) in &outs {
-				inner.push(self.out_decl(n, ty));
-			}
-			let mut call_args = args.clone();
-			call_args.extend(outs.iter().map(|(n, _)| out_var(n)));
-			if status {
-				call_args.push("s_".to_string());
-			}
-			let call_fn = match leaf {
-				true => self.leaf(&export.call),
-				false => self.served(&export.call),
-			};
-			let call = format!("{call_fn}({})", call_args.join(", "));
-			// Rust took what it was given, even for a call its check refuses.
-			let took = match gives {
-				true => "\na_.took();",
-				false => "",
-			};
-			let checked = |inner: &mut Vec<String>| {
+			// The statements after `pre` making the call through `call_fn` with `args`.
+			let made = |g: &mut Self, call_fn: String, args: &[String], writes: Vec<String>| {
+				let mut inner = Vec::new();
+				for (n, ty) in &outs {
+					inner.push(g.out_decl(n, ty));
+				}
+				let mut call_args = args.to_vec();
+				call_args.extend(outs.iter().map(|(n, _)| out_var(n)));
 				if status {
-					inner.push(check.clone());
+					call_args.push("s_".to_string());
+				}
+				let call = format!("{call_fn}({})", call_args.join(", "));
+				// Rust took what it was given, even for a call its check refuses.
+				let took = match gives {
+					true => "\na_.took();",
+					false => "",
+				};
+				let checked = |inner: &mut Vec<String>| {
+					if status {
+						inner.push(check.clone());
+					}
+				};
+				match (&err, &ok) {
+					(Some(err), ok) => {
+						inner.push(format!("final ok_ = {call};{took}"));
+						checked(&mut inner);
+						inner.extend(writes);
+						let ready = match ok {
+							Type::Unit => "return;".to_string(),
+							_ => format!("return {};", g.lift_outs(&function.ok, ok)),
+						};
+						inner.push(format!("if (ok_) {{\n\t{ready}\n}}"));
+						let err_ty = outs.last().map(|(_, t)| t);
+						let lifted = g.lift(err, &g.out_value("err", err_ty));
+						inner.push(format!(
+							"throw {};",
+							thrown_value(thrown.as_ref().expect("an error throws"), &lifted)
+						));
+					}
+					(None, Type::Unit) => {
+						inner.push(format!("{call};{took}"));
+						checked(&mut inner);
+						inner.extend(writes);
+					}
+					// A value C returns beside what Rust wrote back is its return, as with none.
+					(None, ok) if outs.len() > writes.len() => {
+						inner.push(format!("{call};{took}"));
+						checked(&mut inner);
+						inner.extend(writes);
+						inner.push(format!("return {};", g.lift_outs(&function.ok, ok)));
+					}
+					(None, ok) => {
+						inner.push(format!("final r_ = {call};{took}"));
+						checked(&mut inner);
+						inner.extend(writes);
+						inner.push(format!("return {};", g.lift(ok, "r_")));
+					}
+				}
+				inner
+			};
+			// A served call, in the arena `a_`, or holding its one handle alone.
+			let served = |inner: Vec<String>| {
+				let code = inner.join("\n");
+				match held_only(&code) {
+					Some(code) => format!(
+						"final h_ = _hold();\ntry {{\n{}\n}} finally {{\n\t_release();\n}}",
+						indent(&code)
+					),
+					None => format!(
+						"final a_ = _Arena();\ntry {{\n{}\n}} finally {{\n\ta_.end();\n}}",
+						indent(&code)
+					),
 				}
 			};
-			match (&err, &ok) {
-				(Some(err), ok) => {
-					inner.push(format!("final ok_ = {call};{took}"));
-					checked(&mut inner);
-					inner.extend(writes);
-					let ready = match ok {
-						Type::Unit => "return;".to_string(),
-						_ => format!("return {};", self.lift_outs(&function.ok, ok)),
-					};
-					inner.push(format!("if (ok_) {{\n\t{ready}\n}}"));
-					let err_ty = outs.last().map(|(_, t)| t);
-					let lifted = self.lift(err, &self.out_value("err", err_ty));
-					inner.push(format!(
-						"throw {};",
-						thrown_value(thrown.as_ref().expect("an error throws"), &lifted)
+			match leaf {
+				// Served instead, holding its receiver and serving the isolate, where the build
+				// runs other bodies than the proof saw. Its `pre` needs no arena, as a leaf
+				// takes only scalars.
+				true => {
+					let call_fn = self.leaf(&export.call);
+					let proven = made(self, call_fn, &args, writes.clone());
+					let mut unproven = args.clone();
+					unproven[0] = "a_.hold(this)".to_string();
+					unproven.insert(0, "_n.home".to_string());
+					let call_fn = self.served(&export.call);
+					let unproven = made(self, call_fn, &unproven, writes);
+					body.extend(pre.clone());
+					body.push(format!(
+						"if (_proven) {{\n{}\n}} else {{\n{}\n}}",
+						indent(&proven.join("\n")),
+						indent(&served(unproven))
 					));
 				}
-				(None, Type::Unit) => {
-					inner.push(format!("{call};{took}"));
-					checked(&mut inner);
-					inner.extend(writes);
+				false => {
+					let call_fn = self.served(&export.call);
+					let mut inner = pre.clone();
+					inner.extend(made(self, call_fn, &args, writes));
+					body.push(served(inner));
 				}
-				// A value C returns beside what Rust wrote back is its return, as with none.
-				(None, ok) if outs.len() > writes.len() => {
-					inner.push(format!("{call};{took}"));
-					checked(&mut inner);
-					inner.extend(writes);
-					inner.push(format!("return {};", self.lift_outs(&function.ok, ok)));
-				}
-				(None, ok) => {
-					inner.push(format!("final r_ = {call};{took}"));
-					checked(&mut inner);
-					inner.extend(writes);
-					inner.push(format!("return {};", self.lift(ok, "r_")));
-				}
-			}
-			let code = inner.join("\n");
-			match (leaf, held_only(&code)) {
-				(true, _) => body.extend(inner),
-				(false, Some(code)) => body.push(format!(
-					"final h_ = _hold();\ntry {{\n{}\n}} finally {{\n\t_release();\n}}",
-					indent(&code)
-				)),
-				(false, None) => body.push(format!(
-					"final a_ = _Arena();\ntry {{\n{}\n}} finally {{\n\ta_.end();\n}}",
-					indent(&code)
-				)),
 			}
 		}
 
@@ -3020,8 +3164,7 @@ impl<'a> Gen<'a> {
 				"\n\nRust changes a copy of this value, which it returns first, as the call left it: this one never changes.",
 			);
 		}
-		for param in &function.params {
-			let name = param_name(&param.name);
+		for (param, name) in function.params.iter().zip(&names) {
 			match &param.ty {
 				Type::Closure(closure_) => {
 					text.push_str(&match closure_.kept {
@@ -3058,8 +3201,8 @@ impl<'a> Gen<'a> {
 		let stat = if is_static { "static " } else { "" };
 		let code_body = indent(&body.join("\n"));
 		let mut member = match owner {
-			None => self.claim(&member, format!("fn `{}`", function.path.join("::"))),
-			Some(_) => member,
+			None => self.claim(member, format!("fn `{}`", function.path.join("::"))),
+			Some(_) => member.to_string(),
 		};
 		// A member its type declares already, as a field of its name, takes the next of its
 		// alternatives.
@@ -3218,14 +3361,14 @@ impl<'a> Gen<'a> {
 				let e = &abi.api.enums[i];
 				let name = owner(doc::Owner::Enum(i));
 				match e.plain() {
-					true => format!("{name}.{}", enum_value(&e.variants[v].name)),
+					true => format!("{name}.{}", enum_values(e).swap_remove(v)),
 					false => self.variant_class(&name, &e.variants[v].name),
 				}
 			}
 			doc::Target::Field(i, n) => format!(
 				"{}.{}",
 				owner(doc::Owner::Record(i)),
-				field_name(&abi.api.records[i].fields[n].name)
+				field_names(&abi.api.records[i].fields).swap_remove(n)
 			),
 			doc::Target::Constant(c) => self.locked.get(&format!("const {}", c.path.join("::")))?.clone(),
 			doc::Target::Function(of, f) => {
@@ -3508,8 +3651,8 @@ fn member(snake: &str, reserved: &[&str]) -> String {
 	}
 }
 
-/// A field's Dart name, clear of the members every object has and of the comparison methods
-/// any type may gain, so a type that gains `PartialOrd` or `Ord` renames no field.
+/// A field's Dart name, clear of the members every object has and of the methods any trait
+/// may give a type, so a type that gains `Debug`, `PartialOrd`, or `Ord` renames no field.
 fn field_name(name: &str) -> String {
 	member(
 		name,
@@ -3518,6 +3661,7 @@ fn field_name(name: &str) -> String {
 			"noSuchMethod",
 			"runtimeType",
 			"toString",
+			"debug",
 			"compareTo",
 			"partialCompareTo",
 		],
@@ -3529,11 +3673,60 @@ fn param_name(name: &str) -> String {
 	member(name, &[])
 }
 
-/// A plain enum's value: its variant in camel case.
-fn enum_value(variant: &str) -> String {
-	member(
-		&abi::snake(variant),
-		&["values", "index", "name", "compareTo", "partialCompareTo"],
+/// Whether the Dart name `name` reads back as the Rust one `rust`, as it spells it or in
+/// camel case, for [`abi::named`].
+fn own(rust: &str, name: &str) -> bool {
+	name == rust || abi::snake(name) == rust
+}
+
+/// The `n`th of the [`alternatives`] to `name`, for [`abi::named`].
+fn alternative(name: &str, n: usize) -> String {
+	alternatives(name).nth(n).expect("alternatives never end")
+}
+
+/// The names of a callback's `methods`, one scope's, apart as [`abi::named`] keeps them, and
+/// from what every object has and the `close` hook Rust calls once it drops an implementation.
+fn callback_members(methods: &[Function]) -> Vec<String> {
+	let reserved: Vec<&str> = OBJECT.iter().copied().chain(["close"]).collect();
+	let rust: Vec<&str> = methods.iter().map(|method| method.name()).collect();
+	let spelled = rust.iter().map(|name| member(&abi::snake(name), &reserved)).collect();
+	abi::named(&rust, spelled, own, |_, _| false, alternative)
+}
+
+/// The Dart names of `fields`, one scope's, each [`field_name`], kept apart as [`abi::named`]
+/// keeps them.
+fn field_names(fields: &[crate::ir::Field]) -> Vec<String> {
+	let rust: Vec<&str> = fields.iter().map(|f| f.name.as_str()).collect();
+	let spelled = rust.iter().map(|name| field_name(name)).collect();
+	abi::named(&rust, spelled, own, |_, _| false, alternative)
+}
+
+/// A plain enum's values: each variant in camel case, kept apart from the others, and from a
+/// member every Dart enum has or one its traits give it, since a static member clashes with
+/// either kind, as [`abi::named`] keeps them.
+fn enum_values(e: &crate::ir::Enum) -> Vec<String> {
+	const ENUM: &[&str] = &[
+		"values",
+		"index",
+		"name",
+		"hashCode",
+		"noSuchMethod",
+		"runtimeType",
+		"toString",
+		"compareTo",
+		"partialCompareTo",
+	];
+	let t = e.traits;
+	let made = [(t.debug, "debug"), (t.default, "default_")];
+	let taken = |_, name: &str| ENUM.contains(&name) || made.iter().any(|(has, made)| *has && *made == name);
+	let rust: Vec<&str> = e.variants.iter().map(|v| v.name.as_str()).collect();
+	let spelled = rust.iter().map(|name| member(&abi::snake(name), &[])).collect();
+	abi::named(
+		&rust,
+		spelled,
+		|rust, name| pascal(name) == rust,
+		taken,
+		abi::underscored,
 	)
 }
 

@@ -17,7 +17,7 @@ use std::collections::{BTreeMap, HashMap};
 use rustc_span::Span;
 
 use crate::ir::{
-	Access, Api, Closure, Dyn, Family, Function, Home, Int, Jni, Literal, Mutability, On, Order, Receiver, Type,
+	Access, Api, Closure, Dyn, Family, Function, Home, Int, Jni, Literal, Mutability, On, Order, Param, Receiver, Type,
 };
 
 /// A C name one item claims twice, which no rename can tell apart: the name, then what
@@ -199,7 +199,7 @@ impl Export {
 #[derive(Clone)]
 pub(crate) struct Handed {
 	/// The C name of the method's function, which a clash may have renamed.
-	name: String,
+	pub(crate) name: String,
 	/// How many parameters both take after `self`, before the outs.
 	lead: usize,
 	/// Whether the method returns nothing.
@@ -374,6 +374,49 @@ fn affine(api: &Api) -> Vec<bool> {
 	}
 }
 
+/// Whether a handle of each object may be lent through a chain of lenders as long as the
+/// caller makes it, as by calling a `view(&self) -> &Self` on each handle it returned: a
+/// shared borrow of it walks that chain, so its cost has no bound. True of each object a
+/// cycle of lending methods reaches; any other's chain is at most one handle per object.
+fn chained(api: &Api) -> Vec<bool> {
+	let lent: Vec<Vec<usize>> = (api.objects.iter())
+		.map(|object| {
+			let mut lent = Vec::new();
+			for f in object.methods.iter().filter(|f| f.lends) {
+				api.handles(&f.ok, &mut lent, &mut Vec::new());
+			}
+			lent
+		})
+		.collect();
+	past_cycles(&lent)
+}
+
+/// Whether a cycle of `edges`, each node's successors, reaches each node.
+fn past_cycles(edges: &[Vec<usize>]) -> Vec<bool> {
+	let n = edges.len();
+	// The nodes reachable in one edge or more from `from`.
+	let reach = |from: usize| {
+		let mut seen = vec![false; n];
+		let mut stack = edges[from].clone();
+		while let Some(j) = stack.pop() {
+			if !std::mem::replace(&mut seen[j], true) {
+				stack.extend(&edges[j]);
+			}
+		}
+		seen
+	};
+	let mut past = vec![false; n];
+	for i in 0..n {
+		let seen = reach(i);
+		if seen[i] {
+			for (j, seen) in seen.into_iter().enumerate() {
+				past[j] |= seen;
+			}
+		}
+	}
+	past
+}
+
 /// `ty` as a clone of each borrow it holds.
 fn owned(ty: &Type) -> Type {
 	match ty {
@@ -415,6 +458,8 @@ pub(crate) struct Abi<'a> {
 	pub(crate) held: Vec<bool>,
 	/// Whether each object is not `Send` or may be lent from one: see [`affine`].
 	affine: Vec<bool>,
+	/// Whether each object's chain of lenders has no bound: see [`chained`].
+	chained: Vec<bool>,
 	/// Every C name claimed.
 	claims: Vec<Claim>,
 	/// The C name of each item whose own clashed.
@@ -437,6 +482,7 @@ impl<'a> Abi<'a> {
 			checked: checked(api),
 			held: held(api),
 			affine: affine(api),
+			chained: chained(api),
 			claims: Vec::new(),
 			renames: HashMap::new(),
 			clashes: Vec::new(),
@@ -500,6 +546,7 @@ impl<'a> Abi<'a> {
 			checked: self.checked.clone(),
 			held: self.held.clone(),
 			affine: self.affine.clone(),
+			chained: self.chained.clone(),
 		}
 	}
 
@@ -1318,10 +1365,25 @@ impl<'a> Abi<'a> {
 
 	/// Whether a call of `function`, a method of `owner` if it has one, is a leaf: proven to
 	/// run no code but the glue's, its runtime's, and std's, to wait on no lock, and to call
-	/// into no binding. Python then keeps the GIL across it, and Dart makes it a leaf call,
-	/// which runs on the isolate's own thread with no thread hop. It is the read or write of a
-	/// primitive `pub` field of a `Send` object reached without a `Deref`, which no object
-	/// that is not `Send` may lend.
+	/// into no binding. Python then keeps the GIL across it, Dart makes it a leaf call,
+	/// which runs on the isolate's own thread with no thread hop, and Kotlin marks it
+	/// `@FastNative`, which ART's collector waits on, so its bound keeps a collection from
+	/// stalling behind it. It is a `&self` or
+	/// `&mut self` method, or the read or write of a `pub` field, of a `Send` object, which no
+	/// object that is not `Send` may lend, taking only scalars and returning one or nothing,
+	/// whose Rust [`Function::leaf`] proves: each body it runs, the method's and each
+	/// `Deref`'s on the way, calls only bodies proven the same way and core's intrinsics that
+	/// only compute, drops nothing whose drop runs other code, loops nowhere, recurses
+	/// nowhere, asserts nothing, which would run the panic hook on failure, and uses no
+	/// static. Its MIR proves it, which is the code that runs, not how its source looks or
+	/// what an attribute claims: the MIR the export's check compiles under the profile it
+	/// checks, release unless its cargo args pick another, with every overflow asserted.
+	/// Each binding makes it a leaf call only where the glue's build script finds that
+	/// profile's `PROFILE`, directory, `OPT_LEVEL`, and debug assertions, and the crate's
+	/// panic strategy and debug assertions are the check's too, as `PROVEN` says; else a
+	/// build may compile code the proof never saw,
+	/// under a `cfg` such as `debug_assertions` or one a build script derives, and the call
+	/// is made as any other.
 	///
 	/// Why holding the GIL across one cannot deadlock: a deadlock needs the call to wait on
 	/// another thread that waits on the GIL. A leaf's only shared state is the handle's
@@ -1330,36 +1392,36 @@ impl<'a> Abi<'a> {
 	/// Its value is `Send`, so its borrow runs no `Thread::own`, whose drain would drop what
 	/// other threads queued of the thread's values that are not `Send`, by any `Drop`; a
 	/// handle lent from another borrows that one too, so no owner up its chain of lenders
-	/// may be other than `Send` either. A field
-	/// reached through `Deref`, of an enum, or of anything but a primitive would run user
-	/// code to read, clone, or drop. So it ends in a bounded number of steps whoever holds
-	/// the GIL, and since it runs no Python, nothing in it needs the GIL either.
+	/// may be other than `Send` either, and that chain is no longer than the export's objects
+	/// are many, as no cycle of lending methods reaches the object. A body with no loop,
+	/// no recursion, and no call but to such bodies ends in a bounded number of steps whoever
+	/// holds the GIL, and since it runs no Python, nothing in it needs the GIL either.
 	pub(crate) fn leaf(&self, function: &Function, owner: Option<&Type>) -> bool {
 		let Some(Type::Object(i)) = owner else {
 			return false;
 		};
-		let primitive = |ty: &Type| {
-			matches!(
-				ty,
-				Type::Bool | Type::Int(_) | Type::NonZero(_) | Type::F32 | Type::F64 | Type::Char
-			)
-		};
-		let field = match function.access {
+		let shape = match function.access {
 			Access::Field { set: false, .. } => {
-				matches!(&function.ok, Type::Ref(_, ty) if primitive(ty)) && function.params.is_empty()
+				matches!(&function.ok, Type::Ref(_, ty) if ty.scalar()) && function.params.is_empty()
 			}
-			Access::Field { set: true, .. } => matches!(&function.params[..], [param] if primitive(&param.ty)),
+			Access::Field { set: true, .. } => matches!(&function.params[..], [param] if param.ty.scalar()),
+			Access::Call => {
+				matches!(function.receiver, Some(Receiver::Ref | Receiver::Mut))
+					&& (function.ok.scalar() || matches!(function.ok, Type::Unit))
+					&& function.params.iter().all(|p| p.ty.scalar())
+			}
 			_ => false,
 		};
-		field && !self.affine[*i] && function.derefs == 0 && function.err.is_none() && !function.future
+		shape && function.leaf && !self.affine[*i] && !self.chained[*i] && function.err.is_none() && !function.future
 	}
 
 	/// Whether `ty`'s `<T>_eq`, or with `hash` its `<T>_hash`, is a leaf, as [`Self::leaf`]
 	/// says: its impl is derived or std's down to primitives, and it borrows only the handle
-	/// of a `Send` object no other that is not `Send` may lend, or as a value, none.
+	/// of a `Send` object no other that is not `Send` may lend, through a chain of lenders
+	/// with a bound, or as a value, none.
 	pub(crate) fn leaf_trait(&self, ty: &Type, hash: bool) -> bool {
 		let (traits, handles) = match ty {
-			Type::Object(i) => (self.api.objects[*i].traits, self.affine[*i]),
+			Type::Object(i) => (self.api.objects[*i].traits, self.affine[*i] || self.chained[*i]),
 			Type::Record(i) => (self.api.records[*i].traits, self.holds_handles(ty)),
 			Type::Enum(i) => (self.api.enums[*i].traits, self.holds_handles(ty)),
 			_ => return false,
@@ -1518,6 +1580,7 @@ impl<'a> Abi<'a> {
 			"buf_clone",
 			"thread_wake",
 			"thread_drain",
+			"close_drain",
 			// Python's extension module function, beside each native function by this name.
 			"_register",
 			"poll",
@@ -1621,12 +1684,14 @@ impl<'a> Abi<'a> {
 				Self::made(&item, &name),
 			);
 			if self.checked[i] {
-				self.claim(
-					format!("{name}_drop"),
-					what.clone(),
-					object.span,
-					Self::made(&item, &name),
-				);
+				for made in ["drop", "drop_signal"] {
+					self.claim(
+						format!("{name}_{made}"),
+						what.clone(),
+						object.span,
+						Self::made(&item, &name),
+					);
+				}
 			}
 			if object.shared {
 				self.claim(
@@ -2025,29 +2090,95 @@ pub(crate) fn unique(names: Vec<String>, taken: impl Fn(&str) -> bool) -> Vec<St
 		.collect()
 }
 
-/// A language's names of parameters made distinct where Rust's differ only in what its
-/// case drops, such as underscores: a later one takes the lowest free number after it.
-pub(crate) fn distinct(names: impl IntoIterator<Item = String>) -> Vec<String> {
-	let names: Vec<String> = names.into_iter().collect();
-	let mut taken = std::collections::BTreeSet::new();
-	(names.iter())
-		.map(|name| {
-			let mut unique = name.clone();
-			let mut n = 2;
-			while taken.contains(&unique) || (unique != *name && names.contains(&unique)) {
-				unique = format!("{name}{n}");
-				n += 1;
-			}
-			taken.insert(unique.clone());
-			unique
-		})
-		.collect()
+/// A language's names of `rust`, the names of one scope, kept apart from each other and from
+/// what `taken` names for each, by its index, whatever their order. `spelled` is each one's
+/// spelling in the language, and `own` whether a spelling reads back as its Rust name. One
+/// that does keeps it while neither `taken` nor another that does and is not taken holds it,
+/// and every other, in Rust's order of names, takes the first of its `step`s that is free, as
+/// [`underscored`] counts them. So beside `new`, which keeps `new`, a `new_` that camel case
+/// spells `new` takes `new_`, and no order of the source moves either.
+pub(crate) fn named(
+	rust: &[&str],
+	spelled: Vec<String>,
+	own: impl Fn(&str, &str) -> bool,
+	taken: impl Fn(usize, &str) -> bool,
+	step: impl Fn(&str, usize) -> String,
+) -> Vec<String> {
+	named_apart(rust, spelled, own, taken, step, |_, a, _, b| a == b)
 }
 
-/// A name that C or C++, which includes the header, would read as a keyword with `_`
-/// appended, and one starting with a digit with `_` prepended. Appended, since MSVC reads
-/// `_inline`, `_asm`, and `_try` as keywords too; a name already ending in `_` takes
-/// another, so no two names escape to one.
+/// [`named`]'s names, where two items clash only as `clash` reads them, each by its index and
+/// name, for a language whose items of one scope may share a name, such as Dart's named
+/// constructor and instance method, or Swift's overloads of different labels.
+pub(crate) fn named_apart(
+	rust: &[&str],
+	spelled: Vec<String>,
+	own: impl Fn(&str, &str) -> bool,
+	taken: impl Fn(usize, &str) -> bool,
+	step: impl Fn(&str, usize) -> String,
+	clash: impl Fn(usize, &str, usize, &str) -> bool,
+) -> Vec<String> {
+	let mut names = spelled.clone();
+	// Those that could keep their spelling: one taken moves anyway, so it holds back no other.
+	let owns: Vec<bool> = (0..rust.len())
+		.map(|k| own(rust[k], &spelled[k]) && !taken(k, &spelled[k]))
+		.collect();
+	let kept: Vec<bool> = (0..rust.len())
+		.map(|k| owns[k] && (0..rust.len()).all(|j| j == k || !owns[j] || !clash(k, &spelled[k], j, &spelled[j])))
+		.collect();
+	let mut held: Vec<usize> = (0..rust.len()).filter(|&k| kept[k]).collect();
+	let mut moved: Vec<usize> = (0..rust.len()).filter(|&k| !kept[k]).collect();
+	moved.sort_by_key(|&k| rust[k]);
+	for k in moved {
+		let mut n = 0;
+		while taken(k, &names[k]) || held.iter().any(|&j| clash(k, &names[k], j, &names[j])) {
+			n += 1;
+			names[k] = step(&spelled[k], n);
+		}
+		held.push(k);
+	}
+	names
+}
+
+/// Asserts that no two of the `members` of the type `rust` in `language` are one, as `same`
+/// reads them. Each generator names a scope's members apart through [`named`], and from
+/// every other scope of the type that they share, so two alike are its bug, not the crate's.
+pub(crate) fn assert_apart(rust: &str, language: &str, members: &[String], same: impl Fn(&str, &str) -> bool) {
+	for (k, member) in members.iter().enumerate() {
+		if members[..k].iter().any(|other| same(other, member)) {
+			panic!("rust2-ffi named two members of `{rust}` `{member}` in {language}");
+		}
+	}
+}
+
+/// The `n`th name to try in place of `name` where it is taken: `n` more trailing `_`s, after
+/// its name and before any `(` of argument labels.
+pub(crate) fn underscored(name: &str, n: usize) -> String {
+	let at = name.find('(').unwrap_or(name.len());
+	format!("{}{}{}", &name[..at], "_".repeat(n), &name[at..])
+}
+
+/// A language's names of `params`, each as `spell` spells its Rust name, kept apart from each
+/// other and from what `taken` names as [`named`] keeps a scope's, by [`numbered`] steps, since
+/// a generated call's own locals end in `_`. So of `new_` and `new`, both `new` in camel case,
+/// Rust's `new` keeps `new` and `new_` takes `new2`, in either order.
+pub(crate) fn distinct(params: &[Param], spell: impl Fn(&str) -> String, taken: impl Fn(&str) -> bool) -> Vec<String> {
+	let rust: Vec<&str> = params.iter().map(|param| param.name.as_str()).collect();
+	let spelled = rust.iter().map(|name| spell(name)).collect();
+	let own = |rust: &str, name: &str| name == rust || snake(name) == rust;
+	named(&rust, spelled, own, |_, name| taken(name), numbered)
+}
+
+/// The `n`th name to try in place of `name` where it is taken: it with the number `n + 1`,
+/// `foo2`, for a name that never ends in `_`.
+pub(crate) fn numbered(name: &str, n: usize) -> String {
+	format!("{name}{}", n + 1)
+}
+
+/// A name that C or C++, which includes the header, would read as a keyword or macro or
+/// reserve for itself with `_` appended, and one starting with a digit with `_` prepended.
+/// Appended, since MSVC reads `_inline`, `_asm`, and `_try` as keywords too; a name
+/// already ending in `_` takes another, so no two names escape to one.
 pub(crate) fn escape(name: &str) -> String {
 	const KEYWORDS: &[&str] = &[
 		"auto",
@@ -2148,19 +2279,80 @@ pub(crate) fn escape(name: &str) -> String {
 		"wchar_t",
 		"xor",
 		"xor_eq",
-		// Macros GNU dialects predefine, as CMake's default `-std=gnu11` and `-std=gnu++17` do.
+		// A macro 32-bit x86's GNU dialects predefine, which `macros.txt`, of 64-bit hosts,
+		// lacks.
 		"i386",
-		"linux",
-		"unix",
 	];
-	// `out0`, `out1`, ... are a returned tuple's.
-	let out = name
-		.strip_prefix("out")
-		.is_some_and(|n| !n.is_empty() && n.chars().all(|c| c.is_ascii_digit()));
 	match name.chars().next() {
 		Some(c) if c.is_ascii_digit() => format!("_{name}"),
-		_ if out || name.ends_with('_') || KEYWORDS.contains(&name) => format!("{name}_"),
-		_ => name.to_string(),
+		_ => {
+			let stem = name.trim_end_matches('_');
+			let trailing = name.len() - stem.len();
+			// `out0`, `out1`, ... are a returned tuple's.
+			let out = stem
+				.strip_prefix("out")
+				.is_some_and(|n| !n.is_empty() && n.chars().all(|c| c.is_ascii_digit()));
+			// A keyword's or reserved name's own spelling is never one of its family's, so they
+			// count from `stem_`: `bool`, which C defines as a macro too, keeps its one `_`.
+			match out || KEYWORDS.contains(&stem) || reserved(name) {
+				true => unmacroed(&format!("{stem}_"), trailing, |_| false),
+				false => unmacroed(stem, trailing + usize::from(trailing > 0), |_| false),
+			}
+		}
+	}
+}
+
+/// `stem` with trailing `_`s, as many as the `n`th count, from none, at which neither a
+/// macro nor what `also` names holds it: so the names of one stem keep their order and stay
+/// apart, as `_STRING_H` and `_STRING_H_` are both macros, and none takes a macro's.
+pub(crate) fn unmacroed(stem: &str, n: usize, also: impl Fn(&str) -> bool) -> String {
+	let mut name = stem.to_string();
+	let mut free = 0;
+	loop {
+		if !(defined(&name) || also(&name)) {
+			if free == n {
+				return name;
+			}
+			free += 1;
+		}
+		name.push('_');
+	}
+}
+
+/// Whether a C or C++ header may define `name` as a macro, one `macros.sh` found, which would
+/// expand where the header names it.
+pub(crate) fn defined(name: &str) -> bool {
+	static MACROS: std::sync::LazyLock<Vec<&str>> = std::sync::LazyLock::new(|| {
+		(include_str!("macros.txt").lines())
+			.filter(|line| !line.starts_with('#'))
+			.collect()
+	});
+	MACROS.binary_search(&name).is_ok()
+}
+
+/// Whether C and C++ reserve a name for the implementation, as `_Bool` and `__cplusplus`:
+/// one starting with `__` or `_` and an uppercase letter. Appending keeps it reserved, so
+/// escaping one by appending never meets a name the escape leaves alone.
+pub(crate) fn reserved(name: &str) -> bool {
+	let mut chars = name.chars();
+	chars.next() == Some('_') && chars.next().is_some_and(|c| c == '_' || c.is_ascii_uppercase())
+}
+
+/// The keywords a Rust name takes raw, `r#type`.
+pub(crate) const RUST_KEYWORDS: &[&str] = &[
+	"abstract", "as", "async", "await", "become", "box", "break", "const", "continue", "do", "dyn", "else", "enum",
+	"extern", "false", "final", "fn", "for", "gen", "if", "impl", "in", "let", "loop", "macro", "match", "mod", "move",
+	"mut", "override", "priv", "pub", "ref", "return", "static", "struct", "trait", "true", "try", "type", "typeof",
+	"unsafe", "unsized", "use", "virtual", "where", "while", "yield",
+];
+
+/// A callback method's member of its `<callback>_vtable`, which C and each binding's Rust
+/// glue name alike: its [`escape`]d name, with `_` appended to a Rust keyword too and to
+/// `free`, the table's own. Escaping stays injective, so no two members share a name.
+pub(crate) fn member(method: &Function) -> String {
+	match method.name() {
+		name if name == "free" || RUST_KEYWORDS.contains(&name) => format!("{name}_"),
+		name => escape(name),
 	}
 }
 
@@ -2175,7 +2367,43 @@ pub(crate) fn dyn_wrap(form: Dyn, expr: &str) -> String {
 
 #[cfg(test)]
 mod tests {
-	use super::{apart, shortest, unique};
+	use super::{apart, defined, distinct, escape, named, named_apart, past_cycles, shortest, underscored, unique};
+
+	#[test]
+	fn escapes_keep_apart_from_every_macro() {
+		let macros = include_str!("macros.txt").lines().filter(|line| !line.starts_with('#'));
+		for stem in macros.map(|m| m.trim_end_matches('_')) {
+			let family: Vec<String> = (0..4).map(|n| format!("{stem}{}", "_".repeat(n))).collect();
+			// A C++ keyword's escape merges a name with its own, which each scope's names keep
+			// apart, as `cpp::named` does.
+			let keyword = crate::cpp::escape(stem) != super::unmacroed(stem, 0, |name| name == "i386");
+			let escapes: &[fn(&str) -> String] = match keyword {
+				true => &[escape],
+				false => &[escape, crate::cpp::escape],
+			};
+			for escape in escapes {
+				let escaped: std::collections::BTreeSet<String> = family.iter().map(|n| escape(n)).collect();
+				assert_eq!(escaped.len(), family.len(), "{stem}'s names escape alike");
+				assert!(!escaped.iter().any(|e| defined(e)), "{stem}'s names escape to a macro");
+			}
+		}
+	}
+
+	#[test]
+	fn reserved_names_escape_apart() {
+		assert_eq!(escape("_Bool"), "_Bool_");
+		assert_eq!(escape("__cplusplus"), "__cplusplus_");
+		assert_eq!(escape("__cplusplus_"), "__cplusplus__");
+		assert_eq!(escape("_bool"), "_bool");
+		assert_eq!(escape("_1"), "_1");
+	}
+
+	#[test]
+	fn past_cycles_marks_what_a_cycle_reaches() {
+		// 0 lends itself and 1; 2 lends 3 and 3 lends 2, which lends 4; 5 lends 6.
+		let edges = [vec![0, 1], vec![], vec![3, 4], vec![2], vec![], vec![6], vec![]];
+		assert_eq!(past_cycles(&edges), [true, true, true, true, true, false, false]);
+	}
 
 	/// Each item's [`apart`] name, by its path's segments.
 	fn names(items: &[&[&str]]) -> Vec<String> {
@@ -2214,6 +2442,96 @@ mod tests {
 		// A later alike one, or one taken, takes a `_`, past any that is another's own.
 		assert_eq!(names(&["A", "A", "A_"], &[]), ["A", "A__", "A_"]);
 		assert_eq!(names(&["String", "B"], &["String"]), ["String_", "B"]);
+	}
+
+	#[test]
+	fn named_keeps_names_apart_in_either_order() {
+		// Camel case, which drops a trailing `_`: a name reads back as its Rust if it is that
+		// Rust's own snake case.
+		let names = |rust: &[&str], taken: &[&str]| {
+			let spelled = rust.iter().map(|name| name.trim_end_matches('_').to_string()).collect();
+			let own = |rust: &str, name: &str| name == rust;
+			named(rust, spelled, own, |_, name| taken.contains(&name), underscored)
+		};
+		// The name spelled as Rust's keeps it, and the other recovers Rust's `_`, in either order.
+		assert_eq!(names(&["new_", "new"], &[]), ["new_", "new"]);
+		assert_eq!(names(&["new", "new_"], &[]), ["new", "new_"]);
+		// Those that move go in Rust's name order, whatever the scope's.
+		assert_eq!(names(&["a__", "a", "a_"], &[]), ["a__", "a", "a_"]);
+		// Where none is spelled as Rust's, the first in Rust's order takes the spelling.
+		assert_eq!(names(&["a__", "a_"], &[]), ["a_", "a"]);
+		// A name taken moves even where it is Rust's own.
+		assert_eq!(names(&["a_", "a"], &["a"]), ["a__", "a_"]);
+		// Two that read back alike as Rust's own both move, in the scope's order where Rust's
+		// names are alike too.
+		let spelled = vec!["x".to_string(), "x".to_string()];
+		assert_eq!(
+			named(&["x", "x"], spelled, |_, _| true, |_, _| false, underscored),
+			["x", "x_"]
+		);
+	}
+
+	#[test]
+	fn named_apart_keeps_a_name_where_nothing_clashes() {
+		// Each item's space, as Dart's constructor and instance method are: 0 and 1 apart, 2 in both.
+		let names = |rust: &[&str], spaces: &[u8]| {
+			let spelled = rust.iter().map(|name| name.trim_end_matches('_').to_string()).collect();
+			let clash = |k: usize, a: &str, j: usize, b: &str| {
+				a == b && (spaces[k] == spaces[j] || spaces[k] == 2 || spaces[j] == 2)
+			};
+			named_apart(
+				rust,
+				spelled,
+				|rust, name| name == rust,
+				|_, _| false,
+				underscored,
+				clash,
+			)
+		};
+		// Apart, both keep `open`, in either order.
+		assert_eq!(names(&["open_", "open"], &[1, 0]), ["open", "open"]);
+		assert_eq!(names(&["open", "open_"], &[0, 1]), ["open", "open"]);
+		// One in both spaces clashes with each, and Rust's own keeps the name.
+		assert_eq!(names(&["open_", "open"], &[2, 0]), ["open_", "open"]);
+		assert_eq!(names(&["open", "open_"], &[1, 2]), ["open", "open_"]);
+		// One whose spelling only it finds taken, as a Swift function's is where an enum case
+		// holds one of its overloads, moves, and leaves the spelling to the other that reads
+		// back as its Rust, not to `FOO_BAR`, which comes first in Rust's order.
+		let spelled = vec!["fooBar".to_string(); 3];
+		let clash = |_: usize, a: &str, _: usize, b: &str| a == b;
+		let taken = |k: usize, name: &str| k == 0 && name == "fooBar";
+		let own = |rust: &str, _: &str| rust != "FOO_BAR";
+		let rust = ["foo_bar", "fooBar", "FOO_BAR"];
+		let names = named_apart(&rust, spelled, own, taken, underscored, clash);
+		assert_eq!(names, ["fooBar__", "fooBar", "fooBar_"]);
+	}
+
+	#[test]
+	fn distinct_params_number_the_one_not_spelled_as_rust() {
+		let params = |names: &[&str]| -> Vec<crate::ir::Param> {
+			(names.iter())
+				.map(|name| crate::ir::Param {
+					name: name.to_string(),
+					ty: crate::ir::Type::Bool,
+					interned: false,
+				})
+				.collect()
+		};
+		let camel = |name: &str| name.trim_end_matches('_').to_string();
+		let names = |names: &[&str]| distinct(&params(names), camel, |_| false);
+		// Rust's `new` keeps `new` in either order, and a number never ends a name in `_`.
+		assert_eq!(names(&["new_", "new"]), ["new2", "new"]);
+		assert_eq!(names(&["new", "new_"]), ["new", "new2"]);
+		// A step skips a name another keeps, and one taken.
+		assert_eq!(names(&["a_", "a", "a2"]), ["a3", "a", "a2"]);
+		let receiving = distinct(&params(&["self_"]), camel, |name| name == "self");
+		assert_eq!(receiving, ["self2"]);
+	}
+
+	#[test]
+	fn underscored_steps_before_labels() {
+		assert_eq!(underscored("delete", 1), "delete_");
+		assert_eq!(underscored("delete(_:_:)", 2), "delete__(_:_:)");
 	}
 
 	/// Each instance's arguments, each by its path's segments, whose forms are their

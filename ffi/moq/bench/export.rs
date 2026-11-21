@@ -104,12 +104,24 @@ fn ready<F: Future>(future: F) -> F::Output {
 	}
 }
 
+/// A timed track named `name` on `broadcast`. It caches every group written to it until it is
+/// dropped, as the broadcast's pool, which nothing polls, evicts none, so each case that writes
+/// groups writes them to a track of its own, dropped once it ends: a round holds one case's
+/// frames at a time instead of every case's, about 2 GB.
+fn create_track(broadcast: &moq::broadcast::Producer, name: &str) -> moq::track::Producer {
+	let info = moq::track::Info::default().with_timescale(moq::Timescale::MICRO);
+	broadcast.create_track(name, info).unwrap()
+}
+
 /// Groups of 100 frames of `size` bytes written and each read back, its payload's first
 /// byte touched, in about 64 MiB and at least 300 frames: megabytes a wall and a CPU second.
-fn throughput(track: &moq::track::Producer, subscriber: &mut moq::track::Subscriber, micros: &mut u64, size: usize) -> (f64, f64) {
+fn throughput(broadcast: &moq::broadcast::Producer, micros: &mut u64, size: usize) -> (f64, f64) {
 	let groups = ((64 << 20) / (size as u64 * FRAMES)).clamp(3, 2000);
 	let frame = vec![0u8; size];
-	let name = std::ffi::CString::new(format!("throughput[{size}]")).unwrap();
+	let case = format!("throughput[{size}]");
+	let track = create_track(broadcast, &case);
+	let mut subscriber = ready(track.consume().subscribe(None)).unwrap();
+	let name = std::ffi::CString::new(case).unwrap();
 	let mut sum = 0u64;
 	let start = begin();
 	for _ in 0..groups {
@@ -132,8 +144,7 @@ fn throughput(track: &moq::track::Producer, subscriber: &mut moq::track::Subscri
 
 fn round(measured: bool) -> Vec<(String, (f64, f64))> {
 	let broadcast = moq::broadcast::Info::new().produce();
-	let info = moq::track::Info::default().with_timescale(moq::Timescale::MICRO);
-	let track = broadcast.create_track("bench", info).unwrap();
+	let track = create_track(&broadcast, "bench");
 	let frame = [0u8; 100];
 	let groups = if measured { GROUPS / 10 } else { GROUPS };
 	let n = groups * FRAMES;
@@ -187,6 +198,7 @@ fn round(measured: bool) -> Vec<(String, (f64, f64))> {
 	}
 	out.push(("object".into(), end(start, n, c"object")));
 
+	let track = create_track(&broadcast, "stamped");
 	let start = begin();
 	for _ in 0..groups {
 		let mut group = track.append_group(moq::Timestamp::from_micros(micros).unwrap()).unwrap();
@@ -198,8 +210,10 @@ fn round(measured: bool) -> Vec<(String, (f64, f64))> {
 		group.finish().unwrap();
 	}
 	out.push(("stamped".into(), end(start, n, c"stamped")));
+	drop(track);
 
 	// One timestamp per group, every frame of it stamped alike.
+	let track = create_track(&broadcast, "write");
 	let start = begin();
 	for _ in 0..groups {
 		let at = moq::Timestamp::from_micros(micros).unwrap();
@@ -211,7 +225,9 @@ fn round(measured: bool) -> Vec<(String, (f64, f64))> {
 		group.finish().unwrap();
 	}
 	out.push(("write".into(), end(start, n, c"write")));
+	drop(track);
 
+	let track = create_track(&broadcast, "ready");
 	let mut subscriber = ready(track.consume().subscribe(None)).unwrap();
 	let mut last = None;
 	let start = begin();
@@ -227,7 +243,10 @@ fn round(measured: bool) -> Vec<(String, (f64, f64))> {
 		group.finish().unwrap();
 	}
 	out.push(("ready".into(), end(start, n, c"ready")));
+	drop((subscriber, track));
 
+	let track = create_track(&broadcast, "woken");
+	let mut subscriber = ready(track.consume().subscribe(None)).unwrap();
 	let start = begin();
 	for _ in 0..groups {
 		let at = moq::Timestamp::from_micros(micros).unwrap();
@@ -245,6 +264,7 @@ fn round(measured: bool) -> Vec<(String, (f64, f64))> {
 		group.finish().unwrap();
 	}
 	out.push(("woken".into(), end(start, n, c"woken")));
+	drop((subscriber, track));
 
 	// The payload as a binding hands it over: a new owner of the frame's bytes.
 	let last = last.unwrap();
@@ -255,7 +275,7 @@ fn round(measured: bool) -> Vec<(String, (f64, f64))> {
 	out.push(("payload".into(), end(start, n, c"payload")));
 
 	for size in SIZES {
-		out.push((format!("mbps:{size}"), throughput(&track, &mut subscriber, &mut micros, size)));
+		out.push((format!("mbps:{size}"), throughput(&broadcast, &mut micros, size)));
 	}
 	out
 }

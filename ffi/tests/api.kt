@@ -43,6 +43,15 @@ class Print : Log, AutoCloseable {
 	override fun close() = println("freed")
 }
 
+// The Undo callback: each method returns its own digit.
+class Edits : Undo {
+	override fun delete(n: UInt): UInt = n - 1u
+
+	override fun free(): UInt = 2u
+
+	override fun type(): UByte = 3u
+}
+
 // Print each of `n`'s lists, its floats as their bits, as transcript.rs does.
 fun numbers(what: String, n: Numbers) {
 	println("$what u16 ${n.u16s.contentToString()}")
@@ -331,6 +340,49 @@ fun checks() {
 		check(runCatching { scaled(v, 1u) }.exceptionOrNull() is IllegalArgumentException, "$v is no u128")
 	}
 	check(runCatching { ArrayU8x4(ByteArray(3)) }.exceptionOrNull() is IllegalArgumentException, "3 bytes are no [u8; 4]")
+	// Methods named as `java.lang.Object`'s, apart from them on the JVM, or in Kotlin too where
+	// an interface's would override them.
+	ClashStore.new(1u).use { store ->
+		store.wait()
+		store.finalize()
+		check(store.free() == 1u, "methods named as java.lang.Object's")
+	}
+	var waits = 0
+	val source = object : ClashSource {
+		override fun wait_() {
+			waits++
+		}
+
+		override fun readByte(): UByte = 4u
+	}
+	check(clashWaited(source) == 4.toUByte() && waits == 1, "an interface's method named as java.lang.Object's")
+	// Names that differ only by trailing underscores, each reaching its own Rust: a name Kotlin
+	// spells as Rust does keeps it, whichever comes first.
+	val underscored = ClashUnderscored(new_ = 1u, new = 2u, debug = 3u, default = 4u)
+	check(clashUnderscored(underscored, ClashOp.DELETE, ClashChange.Set(new_ = 5u, new = 6u)) == 2_561_234u, "names apart by trailing underscores cross")
+	check(
+		clashUnderscoredNext(underscored, ClashChange.Set(new_ = 5u, new = 6u)) ==
+			Pair(ClashUnderscored(new_ = 2u, new = 3u, debug = 4u, default = 5u), ClashChange.Set(new_ = 6u, new = 5u)),
+		"names apart by trailing underscores cross back",
+	)
+	val eraser = object : ClashEraser {
+		override fun delete_(new2: UByte, new: UByte): UByte = (new2.toInt() * 10 + new.toInt()).toUByte()
+
+		override fun delete(): UByte = 3u
+	}
+	check(clashErased(eraser) == 123u, "an interface's methods apart by a trailing underscore")
+	check(ClashEscaped(3u).delete() == 3.toUByte() && ClashEscaped(3u).delete_(1u, 2u) == 213.toUByte(), "methods apart by a trailing underscore")
+	check(clashErase_() == 2.toUByte() && clashErase() == 1.toUByte(), "functions apart by a trailing underscore")
+	// Rust's parameter `new` keeps `new`, wherever it is, so a named argument reaches it.
+	check(ClashEscaped(3u).delete_(new = 1u, new2 = 2u) == 213.toUByte(), "named arguments apart by a trailing underscore")
+	// A companion's function and an instance's method named alike, each in its own scope.
+	ClashStore.new(5u).use { store ->
+		check(store.count() == 5u && ClashStore.count() == 7u, "a static function and a method named alike")
+	}
+	// On the JVM, the method `open` keeps its name, and the static `open_` takes `open_`.
+	ClashStore.open().use { store ->
+		check(store.open() == 7u, "a static constructor and a method named alike")
+	}
 
 	// A record holding a value past a word crosses as its words, in and out, and a call
 	// with no slots left for one passes it encoded.
@@ -895,6 +947,7 @@ fun owned() {
 	readings()
 	crowding()
 	budgeted()
+	nudged()
 	for (n in 1023..1025) {
 		val payload = ByteArray(n) { it.toByte() }
 		val packet = nextPacket(Packet(1u, Bytes(payload)))
@@ -917,6 +970,71 @@ fun owned() {
 	token.close()
 	check(dropped() == before + 1u, "closing again frees nothing")
 	check(runCatching { token.idGet }.exceptionOrNull()?.message == "Token is closed", "a call after close throws")
+
+	// A close no call holds drops and frees in one crossing: refused under a Rust borrow, it
+	// leaves the object open, and a close from inside its own drop finds it closed.
+	val ledger = Ledger.new()
+	val draft = ledger.edit()
+	val refused = runCatching { ledger.close() }.exceptionOrNull()
+	check(refused is IllegalStateException && refused.message == "api_Ledger_drop: a handle is already borrowed", "a close under a borrow throws: $refused")
+	// Two closes under the borrow both throw: one meeting the other's crossing waits out its
+	// refusal rather than report the object closed.
+	repeat(2000) {
+		val start = java.util.concurrent.CountDownLatch(1)
+		var late: Throwable? = null
+		val second = thread {
+			start.await()
+			late = runCatching { ledger.close() }.exceptionOrNull()
+		}
+		start.countDown()
+		val first = runCatching { ledger.close() }.exceptionOrNull()
+		second.join()
+		for (thrown in listOf(first, late)) {
+			check(thrown is IllegalStateException && thrown.message == "api_Ledger_drop: a handle is already borrowed", "racing closes under a borrow both throw as borrowed: $first, $late")
+		}
+	}
+	draft.close()
+	check(ledger.published() == 0u, "a refused close leaves the object open")
+	ledger.close()
+	check(runCatching { ledger.published() }.exceptionOrNull()?.message == "Ledger is closed", "a close after a refused one closes")
+	lateinit var journal: Journal
+	var during: String? = null
+	var closes = 0
+	val nested = object : Log, AutoCloseable {
+		override fun log(level: UByte, line: String): Boolean = true
+
+		override fun close() {
+			closes++
+			during = runCatching { journal.write("x") }.exceptionOrNull()?.message
+			journal.close()
+		}
+	}
+	journal = Journal.new(nested)
+	journal.close()
+	check(closes == 1, "a close from inside its own drop closes nothing more")
+	check(during == "Journal is closed", "an object is closed in Kotlin while Rust drops it: $during")
+	// Closed again from another thread its drop waits on, which returns rather than wait.
+	lateinit var handed: Journal
+	val joined = object : Log, AutoCloseable {
+		override fun log(level: UByte, line: String): Boolean = true
+
+		override fun close() = thread { handed.close() }.join()
+	}
+	handed = Journal.new(joined)
+	handed.close()
+	check(runCatching { handed.write("x") }.exceptionOrNull()?.message == "Journal is closed", "a close its drop hands to another thread returns")
+	// A close drains the drop another thread queued of a value on its thread, whose `Drop`
+	// hands a close of the closing object to a thread it joins: that close finds it closed,
+	// since Rust runs none of the program's code on the deciding thread before it commits.
+	val pinned = Pinned.new(5uL)
+	val freed = Pinned.new(6uL)
+	thread { freed.close() }.join()
+	val met = java.util.concurrent.atomic.AtomicReference<Any?>("no hook ran")
+	hook { met.compareAndSet("no hook ran", runCatching { pinned.close() }.exceptionOrNull()) }
+	pinned.close()
+	unhook()
+	check(met.get() == null, "a close a drained Drop hands to a joined thread returns: ${met.get()}")
+	check(runCatching { pinned.valueGet }.exceptionOrNull()?.message == "Pinned is closed", "and the object is closed")
 
 	// The file serves wasm32 too: what only wasm32 has throws on the host's library.
 	check(platform() is Platform.Native && pointerBits(Platform.Native(64u)) == 64u, "the host is native")
@@ -964,6 +1082,78 @@ fun owned() {
 	compared()
 	forwarded()
 	nursed()
+	unwinds()
+}
+
+/**
+ * A closure or callback returning a value its Rust type cannot hold throws at the call that
+ * reached it, once Rust dropped what the frames between held, as a closure's panic unwinds
+ * them: a `char` anywhere, and a `usize` or `isize` past a 32-bit target's.
+ */
+fun unwinds() {
+	val before = unwound()
+	val surrogate = runCatching { lettered { 0xD800 } }.exceptionOrNull()
+	check(surrogate is IllegalArgumentException && surrogate.message == "55296 is no Unicode scalar value, as a Rust char is", "a closure's surrogate throws: $surrogate")
+	check(unwound() == before + 1u, "unwinding drops what the call held")
+	check(lettered { 'a'.code } == 'a'.code && unwound() == before + 2u, "the next call returns")
+	check(rejects { lettered { lettered { 0xD800 } } } && unwound() == before + 4u, "a closure's call it throws from unwinds the outer call too")
+	check(lettered { runCatching { lettered { 0xD800 } }.getOrDefault('b'.code) } == 'b'.code, "a closure may catch it")
+	val bumps = Mut(1u)
+	check(rejects { bumped(bumps) { 0xD800 } } && bumps.value == 2u, "what Rust wrote back before the closure failed crosses back: ${bumps.value}")
+	val more = listOf(Counter.new("one", 1u))
+	val failing = object : Log {
+		override fun log(level: UByte, line: String): Boolean = lettered { 0xD800 } == 0
+	}
+	Counter.new("zero", 0u).use { counter -> check(rejects { logCounts(failing, 0u, counter, more) }, "a callback's failed check unwinds a call that moved its arguments") }
+	val gone = runCatching { more[0].get() }.exceptionOrNull()
+	check(gone is IllegalStateException && gone.message == "Counter is closed", "what it moved is closed in Kotlin: $gone")
+	// A callback replacing what the call moved out of its list: the call closes what it took.
+	val taken = Counter.new("taken", 2u)
+	val placed = Counter.new("placed", 3u)
+	val changed = mutableListOf(taken)
+	val swapping = object : Log {
+		override fun log(level: UByte, line: String): Boolean {
+			changed[0] = placed
+			return true
+		}
+	}
+	Counter.new("zero", 0u).use { counter -> check(logCounts(swapping, 0u, counter, changed) == 2u, "a callback may change a list the call moved out of") }
+	check(runCatching { taken.get() }.exceptionOrNull()?.message == "Counter is closed", "what the call moved is closed")
+	check(placed.get().toUInt() == 3u, "what the callback put in its place stays open")
+	changed[0] = Counter.new("failing", 4u)
+	val replaced = changed[0]
+	val throwing = object : Log {
+		override fun log(level: UByte, line: String): Boolean {
+			changed[0] = placed
+			return lettered { 0xD800 } == 0
+		}
+	}
+	Counter.new("zero", 0u).use { counter -> check(rejects { logCounts(throwing, 0u, counter, changed) }, "a failing callback unwinds a call that moved its list") }
+	check(runCatching { replaced.get() }.exceptionOrNull()?.message == "Counter is closed", "what an unwound call moved is closed")
+	check(placed.get().toUInt() == 3u, "what the callback put in its place stays open after it unwinds")
+	placed.close()
+	val tag = Tag.new()
+	check(tag.tagged(bumps) { 'a'.code } == "a" && rejects { tag.tagged(bumps) { 0xD800 } } && bumps.value == 4u, "a borrowed result's call writes back too: ${bumps.value}")
+	check(tag.tagged(bumps) { 'b'.code } == "ab", "the receiver is whole after")
+	check(stretched(object : Stretch { override fun stretch() = 2uL }) == 3uL, "a callback's usize crosses")
+	check(Spawned.new { if (rejects { lettered { 0xD800 } }) 1u else 0u }.join() == 1u, "on a thread Rust attached, it unwinds to the native method the task called")
+	val start = Moment.new(0u, 1000u)!!
+	for (pending in 0..1) {
+		var calls = 0
+		val polled = runCatching { runBlocking { drive(start) { _, _ -> if (++calls > pending) lettered { 0xD800 }; null } } }.exceptionOrNull()
+		check(polled is IllegalArgumentException, "a future's ${if (pending == 0) "first" else "second"} poll unwinds: $polled")
+	}
+	val max = usizeMax()
+	check(measured { max - 1uL } == max && measured { max } == 0uL, "a closure's usize crosses to the target's most")
+	val range = isizeRange()
+	check(negated { range.last } == -range.last && negated { range.first } == range.first, "a closure's isize crosses to the target's least and most")
+	if (max != ULong.MAX_VALUE) {
+		val past = unwound()
+		check(rejects { measured { max + 1uL } }, "a closure's usize past the target's throws")
+		check(rejects { negated { range.last + 1 } } && rejects { negated { range.first - 1 } }, "a closure's isize past the target's throws")
+		check(rejects { stretched(object : Stretch { override fun stretch() = max + 1uL }) }, "a callback's usize past the target's throws")
+		check(unwound() == past + 4u, "each dropped what it held")
+	}
 }
 
 // The nursery of the latest objects a thread was returned, which a close leaves at once
@@ -1246,6 +1436,34 @@ fun budgeted() {
 	collected(before + 66u, "the GC frees bytes lent once the budget is free")
 }
 
+// On ART, Rust asks the GC to collect once half the budget is lent, so it frees the bytes
+// nothing reaches before the budget runs out, though Kotlin makes no garbage meanwhile.
+// HotSpot, which copies past the budget cheaply, is never asked.
+fun nudged() {
+	if (System.getProperty("java.vm.name") != "Dalvik") return
+	val before = dropped()
+	// A MiB at a time, none left reachable, until 32 are outstanding: a collection of
+	// ART's own meanwhile only frees some sooner, and more are lent to reach half again.
+	var lent = 0u
+	val deadline = System.nanoTime() + 10.seconds.inWholeNanoseconds
+	while (dropped() < before + 32u) {
+		check(System.nanoTime() < deadline, "ART collects the bytes lent once half the budget is")
+		if (lent - (dropped() - before) < 32u) {
+			lentUnreached()
+			lent++
+		} else {
+			Thread.sleep(1)
+		}
+	}
+	collected(before + lent, "the GC frees the bytes lent to half the budget, each once")
+}
+
+// A MiB of Rust's bytes lent and read, none left reachable.
+@OwnFrame
+fun lentUnreached() {
+	check(tokenBytes(5u, (1 shl 20).toUInt())[0] == 5.toByte(), "bytes lent toward half the budget read")
+}
+
 // Bytes lent once the GC freed those that filled the budget, with Rust's drops still [freed].
 @OwnFrame
 fun lentAgain(freed: UInt) {
@@ -1375,6 +1593,8 @@ fun clash() {
 	val out = Mut(0u)
 	check(Clash.Int(4).describe("t", 3u, Shape.SQUARE, out) == "t Int(4) 3 Square" && out.value == 6u, "clash describe")
 	check(Handle.new(5u).use { it.count() } == 5u && runBlocking { Handle.later(6u) }.use { it.count() } == 6u, "an object named as a former runtime class")
+	// Names of C library macros, which C and C++ keep apart.
+	check(errno() == 7 && assert(true) && offsetof(3u) == 3.toUByte() && MacrosStreams(1u, 2u, 3u, 4u).errno == 4.toUByte() && macrosStreamed(MacrosStreams(1u, 2u, 3u, 4u), 5u) == 15u, "names of C library macros")
 }
 
 fun returns() {

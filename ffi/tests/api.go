@@ -50,6 +50,13 @@ func (Print) Log(level uint8, line string) bool {
 	return level%2 == 0
 }
 
+// Edits is the transcript's Undo: each method returns its own digit.
+type Edits struct{}
+
+func (Edits) Delete(n uint32) uint32 { return n - 1 }
+func (Edits) Free() uint32           { return 2 }
+func (Edits) Type() uint8            { return 3 }
+
 // list is items as Rust's Debug prints a slice, each by show.
 func list[T any](items []T, show func(T) string) string {
 	shown := make([]string, len(items))
@@ -420,6 +427,34 @@ func checks() {
 	}
 	// A function named as a type of its package, which `area` names in another's.
 	check(api.Span_(1, 4) == 3, "a function named as a type of its package")
+	// Methods apart from their variants' fields and from what go vet reads as standard,
+	// unless of the standard's signature, each reaching its own Rust.
+	{
+		tag := api.ClashTagPrivate{Number: 3}
+		check(tag.Number == 3 && tag.Number_() == 13, "a method named as its variants' field")
+		check(api.ClashMalformed{At: 2}.Is_(2), "an error's method named as errors.Is")
+		reader := api.NewClashReader(rt.NewBytes([]byte{7}))
+		check(must(reader.ReadByte_()) == 7, "a method named as io.ByteReader's")
+		_, err := reader.ReadByte_()
+		var malformed api.ClashMalformed
+		check(errors.As(err, &malformed) && malformed.At == 1, "a method named as io.ByteReader's fails as Rust's")
+		ok(reader.UnreadByte())
+		var _ interface{ UnreadByte() error } = reader
+		check(must(reader.ReadByte_()) == 7, "a method of io.ByteScanner's signature keeps its name")
+		ok(reader.Close())
+		check(api.ClashWaited(source{}) == 4, "an interface's method named as io.ByteReader's")
+	}
+	// Names that differ only by trailing underscores, each reaching its own Rust: a name Go
+	// spells as Rust does keeps it, whichever comes first.
+	{
+		underscored := api.ClashUnderscored{New_: 1, New: 2, Debug: 3, Default: 4}
+		check(api.ClashUnderscored_(underscored, api.ClashOpDelete, api.ClashChangeSet{New_: 5, New: 6}) == 2_561_234, "names apart by trailing underscores cross")
+		next, change := api.ClashUnderscoredNext(underscored, api.ClashChangeSet{New_: 5, New: 6})
+		check(next == api.ClashUnderscored{New_: 2, New: 3, Debug: 4, Default: 5} && change == api.ClashChangeSet{New_: 6, New: 5}, "names apart by trailing underscores cross back")
+		check(api.ClashErased(eraser{}) == 123, "an interface's methods apart by a trailing underscore")
+		check(api.ClashEscaped{New: 3}.Delete() == 3 && api.ClashEscaped{New: 3}.Delete_(1, 2) == 213, "methods apart by a trailing underscore")
+		check(api.ClashErase_() == 2 && api.ClashErase() == 1, "functions apart by a trailing underscore")
+	}
 	// A path that is no UTF-8 is a Go string all the same.
 	check(api.Stray() == "\xff", "a path that is not UTF-8 crosses as its bytes")
 	var lent string
@@ -445,6 +480,27 @@ func checks() {
 			errors.Is(exclusive, rt.ErrBorrowed) && exclusive.Error() == "api_Ledger_published: a handle is borrowed exclusively",
 			fmt.Sprintf("a lent ledger refuses a read: %v", exclusive),
 		)
+		// Two closes under the draft's borrow both fail: one meeting the other's crossing
+		// waits out its refusal rather than report the ledger closed.
+		for range 2000 {
+			var ready, start sync.WaitGroup
+			ready.Add(1)
+			start.Add(1)
+			second := make(chan error)
+			go func() {
+				ready.Done()
+				start.Wait()
+				second <- ledger.Close()
+			}()
+			ready.Wait()
+			start.Done()
+			first := ledger.Close()
+			late := <-second
+			check(
+				errors.Is(first, rt.ErrBorrowed) && errors.Is(late, rt.ErrBorrowed),
+				fmt.Sprintf("racing closes under a borrow both fail: %v, %v", first, late),
+			)
+		}
 		check(draft.Close() == nil, "a draft closes")
 		check(must(ledger.Published()) == 0, "a closed draft frees its ledger")
 		check(ledger.Close() == nil, "a ledger closes")
@@ -1462,6 +1518,26 @@ func broken(which string) {
 	default:
 		check(false, "no case "+which)
 	}
+}
+
+// eraser is a clash.Eraser, whose methods differ only by a trailing underscore.
+type eraser struct{}
+
+func (eraser) Delete_(new_ uint8, new_2 uint8) uint8 {
+	return new_*10 + new_2
+}
+
+func (eraser) Delete() uint8 {
+	return 3
+}
+
+// source is a clash.Source, reading 4 at once.
+type source struct{}
+
+func (source) Wait() {}
+
+func (source) ReadByte_() uint8 {
+	return 4
 }
 
 // cancelLog cancels its context at each line, and counts them.

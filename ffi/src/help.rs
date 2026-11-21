@@ -36,6 +36,9 @@ pub(crate) fn of(construct: &str) -> Option<&'static str> {
 		"instance holding an instance of a type inside it" => {
 			"do not nest the generic type in itself at a deeper instance, as `Cell<Cell<u8>>` does"
 		}
+		crate::collect::DEEPER => {
+			"spell the instance in a signature of its own, such as a function returning it, or stop nesting generic types in a method's signature"
+		}
 		"unmet bound of the instance" | "unmet bound" => {
 			"implement the bound for the type, or loosen it; an instance exports only where every bound holds"
 		}
@@ -129,6 +132,12 @@ pub(crate) fn of(construct: &str) -> Option<&'static str> {
 		}
 		"borrowed return that is not Clone" => {
 			"return an owned value or a `Clone` type, since a borrowed return crosses as a clone"
+		}
+		"lent unaligned field" => {
+			"make the field `Clone` or a type aligned within the packing, or take `repr(packed)` off the struct, since rustc refuses a reference to an unaligned field and a handle cannot be lent from a copy"
+		}
+		"unaligned interior-mutable field" => {
+			"hold the field behind an `Arc<T>` or a `Box<T>`, or take `repr(packed)` off the struct, since copying out an atomic or `Cell` unaligned would race a write through `&self`"
 		}
 		"&mut of a slice" => {
 			"take `&[u8]` and return the changed `Vec<u8>`, or hold the buffer in an object; C lends no buffer mutably"

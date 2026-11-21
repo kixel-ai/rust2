@@ -259,7 +259,7 @@ impl Header<'_> {
 					.collect();
 				let decl = self.decl(
 					&abi.ty(&method.ok),
-					&format!("(*{})({})", method.name(), params.join(", ")),
+					&format!("(*{})({})", abi::member(method), params.join(", ")),
 				);
 				table.push(format!("\t{decl};"));
 			}
@@ -767,7 +767,7 @@ fn link(abi: &Abi<'_>, target: crate::doc::Target<'_>) -> String {
 		Target::Field(i, n) => format!("{}.{}", abi.record(i), abi::escape(&api.records[i].fields[n].name)),
 		Target::Constant(c) => abi.constant(&c.path),
 		// A callback's method is its table's member.
-		Target::Function(Some(Owner::Callback(i)), f) => format!("{}_vtable.{}", abi.callback(i), f.name()),
+		Target::Function(Some(Owner::Callback(i)), f) => format!("{}_vtable.{}", abi.callback(i), abi::member(f)),
 		Target::Function(of, f) => format!("{}()", abi.export(f, of.map(owner).as_ref()).call.name),
 	}
 }

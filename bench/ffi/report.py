@@ -3,9 +3,9 @@ in CPU and wall time, each beside the median 1-minute load average over its roun
 from `just ffi bench-run`'s raw.tsv; the median time and peak RSS of the export and its
 crate's build, beside moq's own, from its build.tsv; and the sizes of the export's generated bindings and
 native libraries, and of the wasm32 stand-in's TypeScript, module, and npm package, and of
-one caller's bundle.
+one caller's bundle. `just ffi bench-android`'s raw.tsv alone prints only the time tables.
 
-Usage: report.py <raw.tsv> <build.tsv> <export dir> <web export dir> <caller.ts>
+Usage: report.py <raw.tsv> [<build.tsv> <export dir> <web export dir> <caller.ts>]
 """
 
 import collections
@@ -23,6 +23,7 @@ LANGS = [
 	("cpp", "C++"),
 	("moq-c", "moq-c"),
 	("kotlin", "Kotlin"),
+	("kotlin-art", "Kotlin (ART)"),
 	("python", "Python"),
 	("swift", "Swift"),
 	("go", "Go"),
@@ -65,8 +66,8 @@ INSTEAD = {("dart", case): "no: an isolate takes no other's object" for case in 
 
 # Each step `just ffi bench-run` times from an emptied target, and what it is.
 BUILDS = [
-	("export", "rust2-ffi's export, a `cargo check` of moq under its driver"),
-	("check", "moq's own `cargo check` of the same crates"),
+	("export", "rust2-ffi's export, a release `cargo check` of moq under its driver"),
+	("check", "moq's own release `cargo check` of the same crates"),
 	("generated", "the generated crate's release build, Kotlin and Dart glue included"),
 	("moq", "moq's own release build of the same crates"),
 ]
@@ -219,7 +220,7 @@ def builds(path):
 	return table(["step", "wall s", "CPU s", "peak RSS", "load average"], rows)
 
 
-def main(raw_path, build_path, export, web, caller):
+def main(raw_path, build_path=None, export=None, web=None, caller=None):
 	rounds = collections.defaultdict(list)
 	with open(raw_path) as f:
 		for line in f:
@@ -248,7 +249,9 @@ def main(raw_path, build_path, export, web, caller):
 	for i, clock, rate in [(1, "CPU", "MB per CPU second"), (0, "wall", "MB/s")]:
 		print(f"### Calls (ns per call, {clock} time; load average)\n")
 		header = ["call"] + [name for _, name in langs]
-		print(table(header, [[label] + [cell(lang, case, i) for lang, _ in langs] for case, label in CALLS]))
+		rows = [[label] + [cell(lang, case, i) for lang, _ in langs] for case, label in CALLS]
+		# A case no language here runs, as in bench-android's Kotlin alone.
+		print(table(header, [row for row in rows if any(row[1:])]))
 		print(f"\n### Throughput ({rate}, write plus ready read; load average)\n")
 		header = ["frame"] + [name for _, name in thru]
 		rows = [[LABELS[n]] + [cell(lang, f"mbps:{n}", i) for lang, _ in thru] for n in SIZES]
@@ -260,6 +263,9 @@ def main(raw_path, build_path, export, web, caller):
 			rows = [[LABELS[n]] + [cell(lang, f"payload:{n}", i) for lang, _ in sized] for n in payloads]
 			print(table(header, rows))
 			print()
+
+	if build_path is None:
+		return
 
 	print("### Build (median, from an emptied target)\n")
 	print(builds(build_path))
@@ -305,6 +311,6 @@ def main(raw_path, build_path, export, web, caller):
 
 
 if __name__ == "__main__":
-	if len(sys.argv) != 6:
+	if len(sys.argv) not in (2, 6):
 		sys.exit(__doc__)
 	main(*sys.argv[1:])

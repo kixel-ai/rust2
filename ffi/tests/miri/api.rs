@@ -139,7 +139,7 @@ fn close_while_reserved() {
 		let counter = api_Counter_new(view("c"), 5);
 		let mut takes = rt::Takes::default();
 		Counter::reserve(counter, &mut takes, "reserve").unwrap();
-		assert_eq!(Counter::close(counter, "close"), Err(rt::Status::Borrowed));
+		assert_eq!(Counter::close(counter, "close", Some(|| panic!("a refused drop commits"))), Err(rt::Status::Borrowed));
 		assert!(Counter::borrow(counter, "borrow").is_err());
 		drop(takes);
 		let mut status = 0;

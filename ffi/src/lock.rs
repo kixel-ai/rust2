@@ -63,7 +63,12 @@ pub(crate) fn variants(
 
 /// Record the name a binding gives the field `field` of the record at `owner`.
 pub(crate) fn field(names: &mut BTreeMap<String, String>, owner: &[String], field: &str, name: &str) {
-	names.insert(format!("{} / field {field}", type_key(owner)), name.to_string());
+	names.insert(field_key(owner, field), name.to_string());
+}
+
+/// The key [`field`] records the name of the field `field` of the record at `owner` under.
+pub(crate) fn field_key(owner: &[String], field: &str) -> String {
+	format!("{} / field {field}", type_key(owner))
 }
 
 /// Record the name a binding gives the variant `variant` of the enum at `owner`.
@@ -932,6 +937,7 @@ mod tests {
 				lends: false,
 				lends_mut: false,
 				derefs: 0,
+				leaf: false,
 				ties: false,
 				access: Access::Call,
 				instance: None,
@@ -944,6 +950,7 @@ mod tests {
 			crates: vec!["lock_a".into(), "lock_b".into()],
 			targets: vec!["host".into()],
 			links: Default::default(),
+			profiles: Default::default(),
 			reached: Vec::new(),
 		}
 	}
@@ -1006,13 +1013,15 @@ mod tests {
 		};
 		let mut base = api();
 		base.objects.push(object("Fault"));
-		base.objects[0].variants = vec![variant("FooBar")];
+		base.objects[0].variants = vec![variant("Foo_Bar")];
 		base.functions[0].err = Some(Type::Object(0));
 		let old = crate::python::generate(&Abi::new(&base, "lock"), "lock", 0).unwrap();
-		assert_eq!(old.names["error Fault / variant FooBar"], "FaultException.FooBar");
-		// `Foo_Bar` added first takes `FooBar`, which the kept variant had.
+		assert_eq!(old.names["error Fault / variant Foo_Bar"], "FaultException.FooBar");
+		// `FooBar` added, which Python spells as its Rust, takes `FooBar` from the kept
+		// variant, whichever comes first.
 		let mut now = base.clone();
-		now.objects[0].variants.insert(0, variant("Foo_Bar"));
+		now.objects[0].variants.push(variant("FooBar"));
+
 		assert!(
 			breaks(&base, &now, "lock").is_empty(),
 			"an added variant passes structurally"
@@ -1029,6 +1038,113 @@ mod tests {
 			changes.iter().any(|c| c
 				.what
 				.contains("`FaultException.FooBar` is now `FaultException.FooBar_`")),
+			"{:?}",
+			changes.iter().map(|c| &c.what).collect::<Vec<_>>()
+		);
+	}
+
+	/// A case named as a member a trait gives the enum moves out of its way once the enum
+	/// has the trait, which the structure accepts and the names report.
+	#[test]
+	fn a_trait_renaming_a_case_breaks() {
+		let variant = |name: &str| crate::ir::Variant {
+			name: name.into(),
+			discriminant: 0,
+			fields: vec![],
+			tuple: false,
+			on: On::ALL,
+		};
+		let mut base = api();
+		base.enums.push(crate::ir::Enum {
+			path: vec!["lock".into(), "Mode".into()],
+			shown: vec!["lock".into(), "Mode".into()],
+			home: Home {
+				krate: "lock_a".into(),
+				outside: 1,
+			},
+			args: vec![],
+			span: DUMMY_SP,
+			on: On::ALL,
+			docs: String::new(),
+			deprecated: None,
+			variants: vec![variant("Default"), variant("Debug")],
+			exhaustive: true,
+			methods: vec![],
+			traits: Traits::default(),
+			foreign: false,
+		});
+		base.functions[0].ok = Type::Enum(0);
+		let mut now = base.clone();
+		now.enums[0].traits.default = true;
+		now.enums[0].traits.debug = true;
+		assert!(
+			breaks(&base, &now, "lock").is_empty(),
+			"an added trait passes structurally"
+		);
+		let names = |api: &Api, language: &str| {
+			let abi = Abi::new(api, "lock");
+			match language {
+				"Swift" => crate::swift::generate(&abi, "lock", 0).unwrap().names,
+				_ => crate::dart::generate(&abi, "lock", 0).unwrap().names,
+			}
+		};
+		for (language, renamed) in [
+			("Swift", "`default` is now `default_`"),
+			("Dart", "`debug` is now `debug_`"),
+		] {
+			let changes = name_breaks(
+				&BTreeMap::from([(language.into(), names(&base, language))]),
+				&BTreeMap::from([(language.into(), names(&now, language))]),
+				&base,
+				&Abi::new(&now, "lock"),
+			);
+			assert!(
+				changes.iter().any(|c| c.what.contains(renamed)),
+				"{language}: {:?}",
+				changes.iter().map(|c| &c.what).collect::<Vec<_>>()
+			);
+		}
+	}
+
+	/// A method whose JVM name moves past `Object`'s `wait(long)` moves again once a method
+	/// added before it takes that name, which only the JVM name the lock records reports.
+	#[test]
+	fn a_jvm_rename_breaks() {
+		let method = |name: &str| Function {
+			path: vec!["lock".into(), "Store".into(), name.into()],
+			shown: vec!["lock".into(), "Store".into(), name.into()],
+			receiver: Some(crate::ir::Receiver::Ref),
+			params: vec![crate::ir::Param {
+				name: "ms".into(),
+				ty: Type::Int(Int::I64),
+				interned: false,
+			}],
+			..api().functions[0].clone()
+		};
+		let mut base = api();
+		base.objects.push(object("Store"));
+		base.objects[0].methods = vec![method("wait")];
+		let mut now = base.clone();
+		now.objects[0].methods.insert(0, method("wait_"));
+		assert!(
+			breaks(&base, &now, "lock").is_empty(),
+			"an added method passes structurally"
+		);
+		let names = |api: &Api| {
+			crate::kotlin::generate(&Abi::new(api, "lock"), "lock", 0)
+				.unwrap()
+				.names
+		};
+		let changes = name_breaks(
+			&BTreeMap::from([("Kotlin".into(), names(&base))]),
+			&BTreeMap::from([("Kotlin".into(), names(&now))]),
+			&base,
+			&Abi::new(&now, "lock"),
+		);
+		assert!(
+			changes
+				.iter()
+				.any(|c| c.what.contains("/ jvm: its Kotlin name `wait_` is now `wait__`")),
 			"{:?}",
 			changes.iter().map(|c| &c.what).collect::<Vec<_>>()
 		);

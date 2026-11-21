@@ -8,9 +8,12 @@
 
 #include <algorithm>
 #include <array>
+#include <cassert>
+#include <cerrno>
 #include <chrono>
 #include <cmath>
 #include <condition_variable>
+#include <cstddef>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -69,6 +72,17 @@ unsigned long long ull(std::uint64_t v) {
 	return static_cast<unsigned long long>(v);
 }
 
+// An eraser whose methods differ only by a trailing underscore, which C++ escapes alike.
+class Eraser final : public api::clash_Eraser {
+public:
+	std::uint8_t delete_(std::uint8_t new_, std::uint8_t new__) const override {
+		return static_cast<std::uint8_t>(new_ * 10 + new__);
+	}
+	std::uint8_t delete__() const override {
+		return 3;
+	}
+};
+
 // The Log callback: keeps even levels.
 class Print final : public api::Log {
 public:
@@ -78,6 +92,20 @@ public:
 	}
 	~Print() override {
 		std::printf("freed\n");
+	}
+};
+
+// The Undo callback: each method returns its own digit.
+class Edits final : public api::Undo {
+public:
+	std::uint32_t delete_(std::uint32_t n) const override {
+		return n - 1;
+	}
+	std::uint32_t free() const override {
+		return 2;
+	}
+	std::uint8_t type() const override {
+		return 3;
 	}
 };
 
@@ -530,6 +558,14 @@ int check(bool ok, const char *what) {
 // What the transcript's script says only in Rust: C++'s own copies, hashes, ranges, and
 // operators, each checked by an assertion.
 int checks() {
+	// Names of the macros `<cassert>`, `<cerrno>`, and `<cstddef>` define, and a field and a
+	// parameter of `errno`'s name, which each take a trailing `_` rather than expand.
+	{
+		api::macros_Streams streams{1, 2, 3, 4};
+		check(api::errno_() == 7 && api::assert_(true) && api::offsetof_(3) == 3 && streams.errno_ == 4 &&
+				  api::macros_streamed(streams, 5) == 15,
+			"names of C library macros");
+	}
 	// Fields named as an `operator==`'s argument might be.
 	{
 		api::Shadowed one{{1}, 2, 3};
@@ -546,10 +582,26 @@ int checks() {
 		check(one == one && !(one == two) && unit != two_b && handle == api::c::new_(1) && !(handle == api::c::new_(2)),
 			"types named a, b, and c compare");
 	}
+	// Names a system header defines as macros, escaped.
+	check(api::EOF_ == -1 && api::WEXITSTATUS_(0x300) == 3, "names of system macros escape");
+	check(api::clash_Errno::NULL_().errno_ == 0 && api::clash_Errno{5}.errno_ == 5, "members named as system macros escape");
 	// Methods C++ escapes alike: Rust's `delete_` keeps its name and `delete` moves past it.
 	{
 		api::clash_Escaped escaped{3};
 		check(escaped.delete__() == 3 && escaped.delete_(1, 2) == 213, "methods C++ escapes alike stay apart");
+	}
+	// Names that differ only by trailing underscores, each reaching its own Rust: Rust's
+	// `new_` keeps its name and `new`, which C++ escapes alike, moves past it.
+	{
+		api::clash_Underscored underscored{1, 2, 3, 4};
+		api::clash_Change set{api::clash_Change_Set{5, 6}};
+		check(api::clash_underscored(underscored, api::clash_Op::delete__, set) == 2561234, "names apart by trailing underscores cross");
+		auto [next, change] = api::clash_underscored_next(underscored, set);
+		const auto *swapped = std::get_if<api::clash_Change_Set>(&change);
+		check(next == api::clash_Underscored{2, 3, 4, 5} && swapped && swapped->new_ == 6 && swapped->new__ == 5,
+			"names apart by trailing underscores cross back");
+		check(api::clash_erased(std::make_unique<hook::Eraser>()) == 123, "a callback's methods apart by a trailing underscore");
+		check(api::clash_erase_() == 2 && api::clash_erase() == 1, "functions apart by a trailing underscore");
 	}
 	// A name takes a copy of the caller's buffer, which is its own again after.
 	{

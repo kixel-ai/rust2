@@ -152,12 +152,18 @@ fixtures/reject/src/lib.rs:1597:1: rust2-ffi: cannot export fn `cow_error_later`
 	help: make the future's error `Cow<str>`, which crosses as its message, or an owned value
 fixtures/reject/src/lib.rs:1602:1: rust2-ffi: cannot export fn `cow_param`: Cow other than a returned string or bytes `std::borrow::Cow<'_, str>`
 	help: take `&str`, `&[u8]`, or an owned value instead, and return `Cow` only as a whole `Cow<str>` or `Cow<[u8]>`
+fixtures/reject/src/lib.rs:1623:2: rust2-ffi: cannot export method `Knot<reject::Rope<u8>>::tie`: instance deeper than any type the API spells `reject::Tie<reject::Knot<reject::Rope<u8>>>`
+	help: spell the instance in a signature of its own, such as a function returning it, or stop nesting generic types in a method's signature
 fixtures/reject/src/lib.rs:162:1: rust2-ffi: cannot export fn `measure`: foreign type `tls::held::Local`
 	help: use a type that maps, such as `BTreeMap` for a `HashMap` and `Vec` for an iterator, or wrap it in a type of your own whose methods take and return mapped types
+fixtures/reject/src/lib.rs:1643:2: rust2-ffi: cannot export field `Packed::lone`: lent unaligned field `Lone`
+	help: make the field `Clone` or a type aligned within the packing, or take `repr(packed)` off the struct, since rustc refuses a reference to an unaligned field and a handle cannot be lent from a copy
 fixtures/reject/src/lib.rs:167:1: rust2-ffi: cannot export instance `Cell<std::vec::Vec<String>>`: type argument `std::vec::Vec<String>`
 	help: instantiate it at types that map, such as integers, `String`, or an exported type; `&str`, `Cow`, and other borrows do not
 fixtures/reject/src/lib.rs:167:1: rust2-ffi: cannot export instance `Cell<tls::held::Cert>`: type argument `tls::held::Cert`
 	help: instantiate it at types that map, such as integers, `String`, or an exported type; `&str`, `Cow`, and other borrows do not
+fixtures/reject/src/lib.rs:1681:2: rust2-ffi: cannot export field `Ledger::dial`: unaligned interior-mutable field `Dial`
+	help: hold the field behind an `Arc<T>` or a `Box<T>`, or take `repr(packed)` off the struct, since copying out an atomic or `Cell` unaligned would race a write through `&self`
 fixtures/reject/src/lib.rs:16:1: rust2-ffi: cannot export fn `generic`: generic parameter `std::marker::Copy`
 	help: bound it by a trait the exporter maps, such as `Into<String>`, `AsRef<str>`, `Fn(..)`, or `IntoIterator`, or one of the crate's own traits, or take a concrete type
 fixtures/reject/src/lib.rs:170:1: rust2-ffi: cannot export fn `sealed`: refused type `reject::Cell<tls::held::Cert>`

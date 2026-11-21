@@ -97,12 +97,29 @@ var micros = 0;
 /// a frame costs what it did with one timestamp for all.
 moq.Timestamp groupStart() => moq.Timestamp.fromMicros(moq.U64(micros++));
 
+/// A timed track named [name] on [broadcast]. It caches every group written to it until it
+/// closes, as the broadcast's pool, which nothing polls, evicts none, so each case that writes
+/// groups writes them to a track of its own, closed once it ends: a round holds one case's
+/// frames at a time instead of every case's, about 2 GB.
+moq.TrackProducer createTrack(moq.BroadcastProducer broadcast, String name) =>
+    broadcast.createTrack(name, moq.TrackInfo.default_().withTimescale(moq.Timescale.micro));
+
+/// A subscriber to [track].
+Future<moq.TrackSubscriber> subscribe(moq.TrackProducer track) async {
+  final consumer = track.consume();
+  final subscriber = await consumer.subscribe(null);
+  consumer.close();
+  return subscriber;
+}
+
 /// Groups of 100 frames of `size` bytes written and each read back, its payload's first
 /// byte touched, in about 64 MiB and at least 300 frames: megabytes a wall and a CPU second.
-Future<Span> throughput(moq.TrackProducer track, moq.TrackSubscriber subscriber, int size) async {
+Future<Span> throughput(moq.BroadcastProducer broadcast, int size) async {
   final count = ((64 << 20) ~/ (size * frames)).clamp(3, 2000);
   final frame = Uint8List(size);
   final name = 'throughput[$size]';
+  final track = createTrack(broadcast, name);
+  final subscriber = await subscribe(track);
   final start = begin();
   for (var g = 0; g < count; g++) {
     final at = groupStart();
@@ -119,13 +136,15 @@ Future<Span> throughput(moq.TrackProducer track, moq.TrackSubscriber subscriber,
     group.close();
   }
   final ns = end(start, name, count * frames * size);
+  subscriber.close();
+  track.close();
   return Span(1e3 / ns.wall, 1e3 / ns.cpu);
 }
 
 Future<Map<String, Span>> round() async {
   final out = <String, Span>{};
   final broadcast = moq.BroadcastInfo().produce();
-  final track = broadcast.createTrack('bench', moq.TrackInfo.default_().withTimescale(moq.Timescale.micro));
+  var track = createTrack(broadcast, 'bench');
   final frame = Uint8List(100);
   micros = 0;
 
@@ -185,6 +204,8 @@ Future<Map<String, Span>> round() async {
   info.close();
 
   // Each frame stamped through a fresh timestamp, as a caller holding an int must.
+  track.close();
+  track = createTrack(broadcast, 'stamped');
   start = begin();
   for (var g = 0; g < groups; g++) {
     final group = track.appendGroup(moq.Timestamp.fromMicros(moq.U64(micros)));
@@ -196,6 +217,8 @@ Future<Map<String, Span>> round() async {
   }
   out['stamped'] = end(start, 'stamped');
 
+  track.close();
+  track = createTrack(broadcast, 'write');
   start = begin();
   for (var g = 0; g < groups; g++) {
     final at = groupStart();
@@ -208,12 +231,11 @@ Future<Map<String, Span>> round() async {
   }
   out['write'] = end(start, 'write');
 
-  final consumer = track.consume();
-  final subscriber = await consumer.subscribe(null);
-  consumer.close();
-
   // Each frame written, then read through a call whose future is ready at its first poll,
   // so it never waits for a wake.
+  track.close();
+  track = createTrack(broadcast, 'ready');
+  var subscriber = await subscribe(track);
   moq.FrameFrame? last;
   start = begin();
   for (var g = 0; g < groups; g++) {
@@ -233,6 +255,10 @@ Future<Map<String, Span>> round() async {
 
   // Each read called before its frame is written, so it pends, and the write's wake
   // reaches the isolate's port, whose event loop polls it again.
+  subscriber.close();
+  track.close();
+  track = createTrack(broadcast, 'woken');
+  subscriber = await subscribe(track);
   start = begin();
   for (var g = 0; g < groups; g++) {
     final at = groupStart();
@@ -250,6 +276,10 @@ Future<Map<String, Span>> round() async {
   out['woken'] = end(start, 'woken');
 
   // One writer future and one reader; one outstanding permit bounds the stream.
+  subscriber.close();
+  track.close();
+  track = createTrack(broadcast, 'loop');
+  subscriber = await subscribe(track);
   start = begin();
   final permits = StreamController<void>();
   Future<void> writeLoop() async {
@@ -281,11 +311,12 @@ Future<Map<String, Span>> round() async {
   await writer;
   await permits.close();
   out['loop'] = end(start, 'loop');
+  subscriber.close();
+  track.close();
 
   for (final size in sizes) {
-    out['mbps:$size'] = await throughput(track, subscriber, size);
+    out['mbps:$size'] = await throughput(broadcast, size);
   }
-  subscriber.close();
 
   // The last frame's 100 bytes, copied into a list, and one of them read.
   start = begin();
@@ -294,7 +325,6 @@ Future<Map<String, Span>> round() async {
   }
   out['payload'] = end(start, 'payload');
   last!.close();
-  track.close();
   broadcast.close();
   return out;
 }

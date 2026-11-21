@@ -15,7 +15,7 @@ use std::task::{Context, Poll, Wake, Waker};
 
 use api::{
 	Channel, Counter, Event, LIMIT, Label, Log, Logger, Message, Name, Node, Pair, Point, Registry, Shape, Size, Stack,
-	Stamp, Tally, Tier, Version, Waiter, Window,
+	Stamp, Tally, Tier, Undo, Version, Waiter, Window,
 };
 use bytes::Bytes;
 
@@ -35,6 +35,23 @@ impl Log for Print {
 impl Drop for Print {
 	fn drop(&mut self) {
 		println!("freed");
+	}
+}
+
+/// An edit history whose methods each return their own digit, as each language's does.
+struct Edits;
+
+impl Undo for Edits {
+	fn delete(&self, n: u32) -> u32 {
+		n - 1
+	}
+
+	fn free(&self) -> u32 {
+		2
+	}
+
+	fn r#type(&self) -> u8 {
+		3
 	}
 }
 
@@ -388,6 +405,27 @@ fn main() {
 	let mut counted = kept;
 	let same = api::Hits::eq(&mut counted, kept);
 	println!("counted {same} {}", counted.hits);
+	// A packed value's fields are read into locals, as a reference to one is refused.
+	let mut regs = api::Regs::new(1, u64::MAX, Point { x: 3, y: -4 });
+	let saved = regs;
+	regs.fcw = 9;
+	regs.at = Point { x: 5, y: 6 };
+	let fcw = regs.fcw;
+	let wide = regs.wide;
+	let at = regs.at;
+	let tag = regs.tag;
+	let old_fcw = saved.fcw;
+	let old_wide = saved.wide;
+	let old_at = saved.at;
+	println!(
+		"regs {fcw} {wide} {} {} {tag} {} {old_fcw} {old_wide} {} {} {}",
+		at.x,
+		at.y,
+		regs.seed(),
+		old_at.x,
+		old_at.y,
+		regs == saved
+	);
 	let mut extent = api::Extent::new(5, 3);
 	let start = extent;
 	let old = extent.slide(10);
@@ -426,6 +464,8 @@ fn main() {
 	println!("noted {before} {}", noted.count());
 
 	println!("kept {}", api::emit(Print, vec![1, 2, 3, 4]));
+	// Each method its own table member, whatever C, C++, or Rust reads its name as.
+	println!("undone {}", api::undone(Edits, 5));
 	let logger = Logger::new(Box::new(Print));
 	println!("write {}", logger.write("hi"));
 	drop(logger);

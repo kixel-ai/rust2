@@ -38,8 +38,17 @@ namespace api {
 		compare_to = 2,
 		partial_compare_to = 3,
 	};
+	enum class clash_Level {
+		default_ = 0,
+		debug = 1,
+	};
+	enum class clash_Op {
+		delete_ = 0,
+		delete__ = 1,
+	};
 	inline constexpr ::std::uint64_t LIMIT = API_LIMIT;
 	inline constexpr ::std::int64_t FAR = API_FAR;
+	inline constexpr ::std::int32_t EOF_ = API_EOF;
 	inline constexpr ::std::uint64_t URL = API_URL;
 	[[deprecated("pass a step to `Dial::turn`, whose `}` or `{` alone stays in the note")]] inline constexpr ::std::uint64_t STEP = API_STEP;
 	class RUST2_FFI_CONSUMABLE Board {
@@ -157,6 +166,21 @@ namespace api {
 		static ::api::Retired new_(::std::uint32_t from);
 		[[deprecated("count with `Countdown`")]] RUST2_FFI_CALLABLE ::api::Retired_next_future next();
 	};
+	class RUST2_FFI_CONSUMABLE Folio {
+		RUST2_FFI_UNCONSUMED Folio(Folio &&other RUST2_FFI_MOVED_FROM) noexcept = default;
+		Folio &operator=(Folio &&other) noexcept = default;
+		RUST2_FFI_CALLABLE ::std::uint16_t page_get() const;
+		RUST2_FFI_CALLABLE void page_set(::std::uint16_t value);
+		RUST2_FFI_CALLABLE ::api::buf title_get() const;
+		RUST2_FFI_CALLABLE void title_set(::api::input value);
+		RUST2_FFI_CALLABLE ::std::optional<::api::buf> note_get() const;
+		RUST2_FFI_CALLABLE void note_set(::std::optional<::api::input> value);
+		RUST2_FFI_CALLABLE ::api::Hasp hasp_get() const;
+		RUST2_FFI_CALLABLE void hasp_set(::api::Hasp value);
+		RUST2_FFI_CALLABLE ::api::Hasp dock_get() const;
+		static ::api::Folio new_(::std::uint16_t page, ::api::input title);
+		RUST2_FFI_CALLABLE ::std::uint8_t seed() const;
+	};
 	class RUST2_FFI_CONSUMABLE Logger {
 		RUST2_FFI_UNCONSUMED Logger(Logger &&other RUST2_FFI_MOVED_FROM) noexcept = default;
 		Logger &operator=(Logger &&other) noexcept = default;
@@ -186,6 +210,26 @@ namespace api {
 		RUST2_FFI_CALLABLE ::api::Local_poll_count_future poll_count() const;
 		RUST2_FFI_CALLABLE ::std::uint64_t thread_number() const;
 		RUST2_FFI_CALLABLE bool on_own_thread() const;
+	};
+	class RUST2_FFI_CONSUMABLE Wrapped {
+		RUST2_FFI_UNCONSUMED Wrapped(Wrapped &&other RUST2_FFI_MOVED_FROM) noexcept = default;
+		Wrapped &operator=(Wrapped &&other) noexcept = default;
+		static ::api::Wrapped new_(::std::uint64_t n);
+		RUST2_FFI_CALLABLE ::std::uint64_t n_get() const;
+		RUST2_FFI_CALLABLE void n_set(::std::uint64_t value);
+		RUST2_FFI_CALLABLE bool on_get() const;
+		RUST2_FFI_CALLABLE void on_set(bool value);
+		RUST2_FFI_CALLABLE ::std::uint64_t count() const;
+		RUST2_FFI_CALLABLE void recount(::std::uint64_t n);
+		RUST2_FFI_CALLABLE ::std::uint64_t steps() const;
+		RUST2_FFI_CALLABLE ::std::uint32_t locals() const;
+	};
+	class RUST2_FFI_CONSUMABLE Buffer {
+		RUST2_FFI_UNCONSUMED Buffer(Buffer &&other RUST2_FFI_MOVED_FROM) noexcept = default;
+		Buffer &operator=(Buffer &&other) noexcept = default;
+		static ::api::Buffer new_(::std::uint32_t len);
+		RUST2_FFI_CALLABLE void blank();
+		RUST2_FFI_CALLABLE bool zeroed() const;
 	};
 	class RUST2_FFI_CONSUMABLE LocalWaiter {
 		RUST2_FFI_UNCONSUMED LocalWaiter(LocalWaiter &&other RUST2_FFI_MOVED_FROM) noexcept = default;
@@ -307,6 +351,13 @@ namespace api {
 		static ::api::Holder new_(::std::uint64_t level);
 		[[deprecated("use `Dial`, whose 'level' is \"the same\" at $0\nand past it")]] RUST2_FFI_CALLABLE ::std::uint64_t level_get() const;
 		[[deprecated("use `Dial`, whose 'level' is \"the same\" at $0\nand past it")]] RUST2_FFI_CALLABLE ::std::uint64_t doubled() const;
+	};
+	class RUST2_FFI_CONSUMABLE Tag {
+		RUST2_FFI_UNCONSUMED Tag(Tag &&other RUST2_FFI_MOVED_FROM) noexcept = default;
+		Tag &operator=(Tag &&other) noexcept = default;
+		static Tag default_();
+		static ::api::Tag new_();
+		template <class F0> RUST2_FFI_CALLABLE ::api::buf tagged(::std::uint32_t &n, F0 &&f);
 	};
 	class RUST2_FFI_CONSUMABLE Counter {
 		RUST2_FFI_UNCONSUMED Counter(Counter &&other RUST2_FFI_MOVED_FROM) noexcept = default;
@@ -471,6 +522,12 @@ namespace api {
 		RUST2_FFI_CALLABLE ::std::uint64_t count() const;
 		RUST2_FFI_CALLABLE void add(::std::uint64_t by);
 	};
+	class RUST2_FFI_CONSUMABLE Hasp {
+		RUST2_FFI_UNCONSUMED Hasp(Hasp &&other RUST2_FFI_MOVED_FROM) noexcept = default;
+		Hasp &operator=(Hasp &&other) noexcept = default;
+		static Hasp default_();
+		RUST2_FFI_CALLABLE bool set() const;
+	};
 	class RUST2_FFI_CONSUMABLE Message {
 		RUST2_FFI_UNCONSUMED Message(Message &&other RUST2_FFI_MOVED_FROM) noexcept = default;
 		Message &operator=(Message &&other) noexcept = default;
@@ -525,6 +582,10 @@ namespace api {
 		RUST2_FFI_CALLABLE bool on_get() const;
 		RUST2_FFI_CALLABLE void on_set(bool value);
 		static ::api::Plain new_(::std::uint64_t n, bool on);
+		RUST2_FFI_CALLABLE ::std::uint64_t count() const;
+		RUST2_FFI_CALLABLE void recount(::std::uint64_t n);
+		RUST2_FFI_CALLABLE ::std::uint64_t steps() const;
+		RUST2_FFI_CALLABLE ::std::uint32_t locals() const;
 	};
 	class RUST2_FFI_CONSUMABLE Labeled {
 		RUST2_FFI_UNCONSUMED Labeled(Labeled &&other RUST2_FFI_MOVED_FROM) noexcept = default;
@@ -655,6 +716,22 @@ namespace api {
 		static ::api::clash_Store new_(::std::uint32_t count);
 		RUST2_FFI_CALLABLE ::std::uint32_t free_() const;
 		RUST2_FFI_CALLABLE ::std::uint32_t close() const;
+		RUST2_FFI_CALLABLE void wait() const;
+		RUST2_FFI_CALLABLE void finalize() const;
+		RUST2_FFI_CALLABLE ::std::uint32_t take(const ::api::Ticket &ticket) const;
+		static ::std::uint32_t take_(const ::api::Ticket &ticket);
+		static ::std::uint32_t count_();
+		RUST2_FFI_CALLABLE ::std::uint32_t count() const;
+		static ::api::clash_Store open_();
+		RUST2_FFI_CALLABLE ::std::uint32_t open() const;
+	};
+	class RUST2_FFI_CONSUMABLE clash_Reader {
+		RUST2_FFI_UNCONSUMED clash_Reader(clash_Reader &&other RUST2_FFI_MOVED_FROM) noexcept = default;
+		clash_Reader &operator=(clash_Reader &&other) noexcept = default;
+		static ::api::clash_Reader new_(::api::input bytes);
+		RUST2_FFI_CALLABLE ::api::result<::std::uint8_t, ::api::clash_Malformed> read_byte();
+		RUST2_FFI_CALLABLE ::api::result<void, ::api::clash_Malformed> unread_byte();
+		RUST2_FFI_CALLABLE void wait(::std::uint64_t ms) const;
 	};
 	class RUST2_FFI_CONSUMABLE Spawned {
 		RUST2_FFI_UNCONSUMED Spawned(Spawned &&other RUST2_FFI_MOVED_FROM) noexcept = default;
@@ -676,6 +753,16 @@ namespace api {
 		static ::api::Pinned new_(::std::uint64_t value);
 		RUST2_FFI_CALLABLE ::api::Part part() const;
 	};
+	class RUST2_FFI_CONSUMABLE Guarded {
+		RUST2_FFI_UNCONSUMED Guarded(Guarded &&other RUST2_FFI_MOVED_FROM) noexcept = default;
+		Guarded &operator=(Guarded &&other) noexcept = default;
+		static ::api::Guarded new_(::std::uint64_t n);
+		RUST2_FFI_CALLABLE ::std::uint64_t n_get() const;
+		RUST2_FFI_CALLABLE bool on_get() const;
+		RUST2_FFI_CALLABLE ::std::uint64_t count() const;
+		RUST2_FFI_CALLABLE ::std::uint64_t steps() const;
+		RUST2_FFI_CALLABLE ::std::uint32_t locals() const;
+	};
 	class RUST2_FFI_CONSUMABLE Hooked {
 		RUST2_FFI_UNCONSUMED Hooked(Hooked &&other RUST2_FFI_MOVED_FROM) noexcept = default;
 		Hooked &operator=(Hooked &&other) noexcept = default;
@@ -685,6 +772,7 @@ namespace api {
 		RUST2_FFI_CALLABLE ::std::uint64_t n_get() const;
 		RUST2_FFI_CALLABLE void n_set(::std::uint64_t value);
 		static ::api::Hooked new_(::std::uint64_t n);
+		RUST2_FFI_CALLABLE ::std::uint64_t count() const;
 	};
 	class RUST2_FFI_CONSUMABLE Forged {
 		RUST2_FFI_UNCONSUMED Forged(Forged &&other RUST2_FFI_MOVED_FROM) noexcept = default;
@@ -722,6 +810,26 @@ namespace api {
 		virtual ~Turner() = default;
 		virtual ::std::uint64_t by() const = 0;
 		[[deprecated("turn `Turner::by` instead")]] virtual ::std::uint64_t once() const = 0;
+	};
+	class Undo {
+		virtual ~Undo() = default;
+		virtual ::std::uint32_t delete_(::std::uint32_t n) const = 0;
+		virtual ::std::uint32_t free() const = 0;
+		virtual ::std::uint8_t type() const = 0;
+	};
+	class Stretch {
+		virtual ~Stretch() = default;
+		virtual ::std::size_t stretch() const = 0;
+	};
+	class clash_Source {
+		virtual ~clash_Source() = default;
+		virtual void wait() const = 0;
+		virtual ::std::uint8_t read_byte() const = 0;
+	};
+	class clash_Eraser {
+		virtual ~clash_Eraser() = default;
+		virtual ::std::uint8_t delete_(::std::uint8_t new_, ::std::uint8_t new__) const = 0;
+		virtual ::std::uint8_t delete__() const = 0;
 	};
 	struct Parcel {
 		::api::Mark mark;
@@ -845,6 +953,7 @@ namespace api {
 		::api::buf debug() const;
 		static ::api::Ticket new_(::std::uint32_t number);
 		::std::uint32_t number() const;
+		void wait() const;
 		static ::std::uint32_t clones();
 	};
 	struct Seat {
@@ -922,6 +1031,21 @@ namespace api {
 		static ::api::Hits of(::std::uint64_t hits, ::std::uint64_t misses);
 		void add(const ::api::Hits &other);
 		bool eq_(const ::api::Hits &other);
+	};
+	class Regs {
+		friend bool operator==(const Regs &a__, const Regs &b_);
+		friend bool operator!=(const Regs &a__, const Regs &b_);
+		::api::buf debug() const;
+		::std::uint16_t fcw_get() const;
+		void fcw_set(::std::uint16_t value);
+		::std::uint64_t wide_get() const;
+		void wide_set(::std::uint64_t value);
+		::api::Point at_get() const;
+		void at_set(const ::api::Point &value);
+		::std::uint8_t tag_get() const;
+		void tag_set(::std::uint8_t value);
+		static ::api::Regs new_(::std::uint16_t fcw, ::std::uint64_t wide, const ::api::Point &at);
+		::std::uint8_t seed() const;
 	};
 	class Extent {
 		friend bool operator==(const Extent &a__, const Extent &b_);
@@ -1201,6 +1325,15 @@ namespace api {
 		friend bool operator!=(const polar_Turn &a__, const polar_Turn &b_);
 		::api::buf debug() const;
 	};
+	struct macros_Streams {
+		::std::uint8_t stdin_;
+		::std::uint8_t stdout_;
+		::std::uint8_t stderr_;
+		::std::uint8_t errno_;
+		friend bool operator==(const macros_Streams &a__, const macros_Streams &b_);
+		friend bool operator!=(const macros_Streams &a__, const macros_Streams &b_);
+		::api::buf debug() const;
+	};
 	struct clash_Tone {
 		::std::uint16_t hz;
 		friend bool operator==(const clash_Tone &a__, const clash_Tone &b_);
@@ -1236,13 +1369,46 @@ namespace api {
 		static ::api::clash_Break Sp();
 		static ::api::clash_Break SP();
 	};
+	struct clash_Malformed {
+		::std::uint8_t at;
+		friend bool operator==(const clash_Malformed &a__, const clash_Malformed &b_);
+		friend bool operator!=(const clash_Malformed &a__, const clash_Malformed &b_);
+		::api::buf to_string() const;
+		::api::buf debug() const;
+		bool is(::std::uint8_t at_) const;
+	};
+	struct clash_Described {
+		::std::uint8_t description;
+		::std::uint8_t debug_description;
+		friend bool operator==(const clash_Described &a__, const clash_Described &b_);
+		friend bool operator!=(const clash_Described &a__, const clash_Described &b_);
+		::api::buf to_string() const;
+		::api::buf debug() const;
+	};
+	struct clash_Errno {
+		::std::int32_t errno_;
+		friend bool operator==(const clash_Errno &a__, const clash_Errno &b_);
+		friend bool operator!=(const clash_Errno &a__, const clash_Errno &b_);
+		::api::buf debug() const;
+		static ::api::clash_Errno NULL_();
+	};
 	struct clash_Escaped {
 		::std::uint8_t new_;
 		friend bool operator==(const clash_Escaped &a__, const clash_Escaped &b_);
 		friend bool operator!=(const clash_Escaped &a__, const clash_Escaped &b_);
 		::api::buf debug() const;
-		::std::uint8_t delete__() const;
 		::std::uint8_t delete_(::std::uint8_t new__, ::std::uint8_t new___) const;
+		::std::uint8_t delete__() const;
+	};
+	struct clash_Underscored {
+		::std::uint8_t new_;
+		::std::uint8_t new__;
+		::std::uint8_t debug_;
+		::std::uint8_t default__;
+		friend bool operator==(const clash_Underscored &a__, const clash_Underscored &b_);
+		friend bool operator!=(const clash_Underscored &a__, const clash_Underscored &b_);
+		::api::buf debug() const;
+		static clash_Underscored default_();
 	};
 	struct Core {
 		::std::uint32_t id;
@@ -1367,6 +1533,18 @@ namespace api {
 	struct clash_Candidate_Match {
 		::std::uint8_t _0;
 	};
+	struct clash_Tag_Application {
+		::std::uint32_t number;
+	};
+	struct clash_Tag_Private {
+		::std::uint32_t number;
+	};
+	struct clash_Change_Set {
+		::std::uint8_t new_;
+		::std::uint8_t new__;
+	};
+	struct clash_Change_Clear {
+	};
 	#if defined(__cpp_lib_three_way_comparison)
 	inline ::std::partial_ordering operator<=>(const Quantity &a__, const Quantity &b_);
 	#endif
@@ -1393,6 +1571,7 @@ namespace api {
 	inline bool operator==(const Clocked &a__, const Clocked &b_);
 	inline bool operator==(const Rated &a__, const Rated &b_);
 	inline bool operator==(const Hits &a__, const Hits &b_);
+	inline bool operator==(const Regs &a__, const Regs &b_);
 	inline bool operator==(const Extent &a__, const Extent &b_);
 	inline bool operator==(const Pair_Size_u8 &a__, const Pair_Size_u8 &b_);
 	inline bool operator==(const Pair_non_zero_u16 &a__, const Pair_non_zero_u16 &b_);
@@ -1435,12 +1614,17 @@ namespace api {
 	inline bool operator==(const Knob &a__, const Knob &b_);
 	inline bool operator==(const polar_Point &a__, const polar_Point &b_);
 	inline bool operator==(const polar_Turn &a__, const polar_Turn &b_);
+	inline bool operator==(const macros_Streams &a__, const macros_Streams &b_);
 	inline bool operator==(const clash_Tone &a__, const clash_Tone &b_);
 	inline bool operator==(const clash_TONE &a__, const clash_TONE &b_);
 	inline bool operator==(const clash_Span &a__, const clash_Span &b_);
 	inline bool operator==(const clash_Any &a__, const clash_Any &b_);
 	inline bool operator==(const clash_Break &a__, const clash_Break &b_);
+	inline bool operator==(const clash_Malformed &a__, const clash_Malformed &b_);
+	inline bool operator==(const clash_Described &a__, const clash_Described &b_);
+	inline bool operator==(const clash_Errno &a__, const clash_Errno &b_);
 	inline bool operator==(const clash_Escaped &a__, const clash_Escaped &b_);
+	inline bool operator==(const clash_Underscored &a__, const clash_Underscored &b_);
 	inline bool operator==(::api::Shape a__, ::api::Shape b_);
 	inline bool operator!=(::api::Shape a__, ::api::Shape b_);
 	inline ::api::buf Shape_debug(::api::Shape self);
@@ -1512,6 +1696,21 @@ namespace api {
 	inline bool operator==(const ::api::clash_Candidate &a__, const ::api::clash_Candidate &b_);
 	inline bool operator!=(const ::api::clash_Candidate &a__, const ::api::clash_Candidate &b_);
 	inline ::api::buf clash_Candidate_debug(const ::api::clash_Candidate &self);
+	inline bool operator==(::api::clash_Level a__, ::api::clash_Level b_);
+	inline bool operator!=(::api::clash_Level a__, ::api::clash_Level b_);
+	inline ::api::buf clash_Level_debug(::api::clash_Level self);
+	inline clash_Level clash_Level_default();
+	inline ::std::uint8_t clash_Level_index(::api::clash_Level self);
+	inline bool operator==(const ::api::clash_Tag &a__, const ::api::clash_Tag &b_);
+	inline bool operator!=(const ::api::clash_Tag &a__, const ::api::clash_Tag &b_);
+	inline ::api::buf clash_Tag_debug(const ::api::clash_Tag &self);
+	inline ::std::uint32_t clash_Tag_number(const ::api::clash_Tag &self);
+	inline bool operator==(::api::clash_Op a__, ::api::clash_Op b_);
+	inline bool operator!=(::api::clash_Op a__, ::api::clash_Op b_);
+	inline ::api::buf clash_Op_debug(::api::clash_Op self);
+	inline bool operator==(const ::api::clash_Change &a__, const ::api::clash_Change &b_);
+	inline bool operator!=(const ::api::clash_Change &a__, const ::api::clash_Change &b_);
+	inline ::api::buf clash_Change_debug(const ::api::clash_Change &self);
 	inline bool has_text(const ::api::Note &note);
 	inline ::std::uint64_t marked(const ::api::Mark &api_marked);
 	inline ::std::optional<::api::Reading> reading(::std::uint32_t n);
@@ -1749,13 +1948,18 @@ namespace api {
 	inline ::std::uint64_t booth_count(const ::api::Booth &booth);
 	inline ::api::Page page();
 	inline ::std::uint32_t beats(::std::unique_ptr<::api::Beat> beat);
+	template <class F0, class F1> inline ::std::uint8_t paired(F0 &&f, F1 &&f_unwind);
 	inline ::std::int32_t same(double a__, double b_);
+	inline ::std::int32_t errno_();
+	inline bool assert_(bool holds);
+	inline ::std::uint8_t offsetof_(::std::uint8_t field);
 	inline ::api::result<::std::tuple<::api::buf, ::std::optional<::std::tuple<::std::uint8_t, ::std::int16_t, ::std::uint32_t, ::std::uint64_t>>, ::std::vector<::api::buf>>, ::api::Error> return_values(::api::Point &point, bool fail);
 	inline ::api::result<::api::Counter, ::api::Error> return_moved(::api::Counter counter, bool fail);
 	inline ::api::NonZeros non_zeros();
 	inline ::api::buf describe_non_zeros(const ::api::NonZeros &non_zeros);
 	inline ::std::optional<::std::uint64_t> next_hop(const ::std::optional<::std::uint64_t> &hop);
 	inline ::std::uint16_t farther_hop(const ::api::Pair_non_zero_u16 &hops);
+	inline ::std::int32_t WEXITSTATUS_(::std::int32_t status);
 	inline ::api::duration same_duration(::api::duration v);
 	inline ::std::uint64_t same_u64(::std::uint64_t v);
 	inline ::std::size_t same_usize(::std::size_t v);
@@ -1773,17 +1977,38 @@ namespace api {
 	inline ::api::unescaped_maybe_future unescaped_maybe(::std::optional<::api::input> text);
 	inline ::api::buf unzeroed(::api::input bytes);
 	inline ::std::uint8_t deprecated(::std::uint8_t note);
+	inline ::std::uint8_t _deprecated(::std::uint8_t note);
+	inline ::std::uint8_t __all___(::std::uint8_t note);
+	inline ::std::uint8_t __all____(::std::uint8_t note);
 	[[deprecated]] inline ::api::Knob knob(const ::api::Dial &dial);
 	[[deprecated("read its `level`")]] inline ::api::level_later_future level_later(const ::api::Dial &dial);
 	inline ::api::result<::api::Dial, ::api::Error> turned(const ::api::Dial &dial, ::std::unique_ptr<::api::Turner> turner);
+	inline ::std::uint32_t undone(::std::unique_ptr<::api::Undo> undo, ::std::uint32_t n);
+	inline ::std::uint32_t unwound();
+	template <class F0> inline ::std::size_t measured(F0 &&f);
+	template <class F0> inline ::std::ptrdiff_t negated(F0 &&f);
+	template <class F0> inline char32_t lettered(F0 &&f);
+	template <class F0> inline char32_t bumped(::std::uint32_t &n, F0 &&f);
+	inline ::std::size_t stretched(::std::unique_ptr<::api::Stretch> stretch);
 	inline ::std::uint64_t crowded(const ::api::Reading &reading, const ::api::Stamp &a__, const ::api::Stamp &b_, ::std::uint64_t n0, ::std::uint64_t n1, ::std::uint64_t n2, ::std::uint64_t n3, ::std::uint64_t n4, ::std::uint64_t n5, ::std::uint64_t n6, ::std::uint64_t n7, ::std::uint64_t n8, ::std::uint64_t n9, ::std::uint64_t n10, ::std::uint64_t n11, ::std::uint64_t n12, ::std::uint64_t n13, ::std::uint64_t n14, ::std::uint64_t n15, ::std::uint64_t n16, ::std::uint64_t n17, ::std::uint64_t n18, ::std::uint64_t n19, ::std::uint64_t n20, ::std::uint64_t n21, ::std::uint64_t n22, ::std::uint64_t n23, ::std::uint64_t n24, ::std::uint64_t n25, ::std::uint64_t n26, ::std::uint64_t n27, ::std::uint64_t n28, ::std::uint64_t n29, ::std::uint64_t n30, ::std::uint64_t n31, ::std::uint64_t n32, ::std::uint64_t n33, ::std::uint64_t n34, ::std::uint64_t n35, ::std::uint64_t n36, ::std::uint64_t n37, ::std::uint64_t n38, ::std::uint64_t n39, ::std::uint64_t n40, ::std::uint64_t n41, ::std::uint64_t n42, ::std::uint64_t n43, ::std::uint64_t n44, ::std::uint64_t n45, ::std::uint64_t n46, ::std::uint64_t n47, ::std::uint64_t n48, ::std::uint64_t n49, ::std::uint64_t n50, ::std::uint64_t n51, ::std::uint64_t n52, ::std::uint64_t n53, ::std::uint64_t n54, ::std::uint64_t n55, ::std::uint64_t n56, ::std::uint64_t n57, ::std::uint64_t n58, ::std::uint64_t n59, ::std::uint64_t n60, ::std::uint64_t n61, ::std::uint64_t n62, ::std::uint64_t n63, ::std::uint64_t n64, ::std::uint64_t n65, ::std::uint64_t n66, ::std::uint64_t n67, ::std::uint64_t n68, ::std::uint64_t n69, ::std::uint64_t n70, ::std::uint64_t n71, ::std::uint64_t n72, ::std::uint64_t n73, ::std::uint64_t n74, ::std::uint64_t n75, ::std::uint64_t n76, ::std::uint64_t n77, ::std::uint64_t n78, ::std::uint64_t n79, ::std::uint64_t n80, ::std::uint64_t n81, ::std::uint64_t n82, ::std::uint64_t n83, ::std::uint64_t n84, ::std::uint64_t n85, ::std::uint64_t n86, ::std::uint64_t n87, ::std::uint64_t n88, ::std::uint64_t n89, ::std::uint64_t n90, ::std::uint64_t n91, ::std::uint64_t n92, ::std::uint64_t n93, ::std::uint64_t n94, ::std::uint64_t n95, ::std::uint64_t n96, ::std::uint64_t n97, ::std::uint64_t n98, ::std::uint64_t n99, ::std::uint64_t n100, ::std::uint64_t n101, ::std::uint64_t n102, ::std::uint64_t n103, ::std::uint64_t n104, ::std::uint64_t n105, ::std::uint64_t n106, ::std::uint64_t n107, ::std::uint64_t n108, ::std::uint64_t n109, ::std::uint64_t n110, ::std::uint64_t n111, ::std::uint64_t n112, ::std::uint64_t n113, ::std::uint64_t n114, ::std::uint64_t n115, ::std::uint64_t n116, ::std::uint64_t n117, ::std::uint64_t n118);
 	inline ::std::uint64_t crammed(const ::api::Moment &a__, const ::api::Moment &b_, ::std::uint64_t n0, ::std::uint64_t n1, ::std::uint64_t n2, ::std::uint64_t n3, ::std::uint64_t n4, ::std::uint64_t n5, ::std::uint64_t n6, ::std::uint64_t n7, ::std::uint64_t n8, ::std::uint64_t n9, ::std::uint64_t n10, ::std::uint64_t n11, ::std::uint64_t n12, ::std::uint64_t n13, ::std::uint64_t n14, ::std::uint64_t n15, ::std::uint64_t n16, ::std::uint64_t n17, ::std::uint64_t n18, ::std::uint64_t n19, ::std::uint64_t n20, ::std::uint64_t n21, ::std::uint64_t n22, ::std::uint64_t n23, ::std::uint64_t n24, ::std::uint64_t n25, ::std::uint64_t n26, ::std::uint64_t n27, ::std::uint64_t n28, ::std::uint64_t n29, ::std::uint64_t n30, ::std::uint64_t n31, ::std::uint64_t n32, ::std::uint64_t n33, ::std::uint64_t n34, ::std::uint64_t n35, ::std::uint64_t n36, ::std::uint64_t n37, ::std::uint64_t n38, ::std::uint64_t n39, ::std::uint64_t n40, ::std::uint64_t n41, ::std::uint64_t n42, ::std::uint64_t n43, ::std::uint64_t n44, ::std::uint64_t n45, ::std::uint64_t n46, ::std::uint64_t n47, ::std::uint64_t n48, ::std::uint64_t n49, ::std::uint64_t n50, ::std::uint64_t n51, ::std::uint64_t n52, ::std::uint64_t n53, ::std::uint64_t n54, ::std::uint64_t n55, ::std::uint64_t n56, ::std::uint64_t n57, ::std::uint64_t n58, ::std::uint64_t n59, ::std::uint64_t n60, ::std::uint64_t n61, ::std::uint64_t n62, ::std::uint64_t n63, ::std::uint64_t n64, ::std::uint64_t n65, ::std::uint64_t n66, ::std::uint64_t n67, ::std::uint64_t n68, ::std::uint64_t n69, ::std::uint64_t n70, ::std::uint64_t n71, ::std::uint64_t n72, ::std::uint64_t n73, ::std::uint64_t n74, ::std::uint64_t n75, ::std::uint64_t n76, ::std::uint64_t n77, ::std::uint64_t n78, ::std::uint64_t n79, ::std::uint64_t n80, ::std::uint64_t n81, ::std::uint64_t n82, ::std::uint64_t n83, ::std::uint64_t n84, ::std::uint64_t n85, ::std::uint64_t n86, ::std::uint64_t n87, ::std::uint64_t n88, ::std::uint64_t n89, ::std::uint64_t n90, ::std::uint64_t n91, ::std::uint64_t n92, ::std::uint64_t n93, ::std::uint64_t n94, ::std::uint64_t n95, ::std::uint64_t n96, ::std::uint64_t n97, ::std::uint64_t n98, ::std::uint64_t n99, ::std::uint64_t n100, ::std::uint64_t n101, ::std::uint64_t n102, ::std::uint64_t n103, ::std::uint64_t n104, ::std::uint64_t n105, ::std::uint64_t n106, ::std::uint64_t n107, ::std::uint64_t n108, ::std::uint64_t n109, ::std::uint64_t n110, ::std::uint64_t n111, ::std::uint64_t n112, ::std::uint64_t n113, ::std::uint64_t n114, ::std::uint64_t n115, ::std::uint64_t n116, ::std::uint64_t n117, ::std::uint64_t n118, ::std::uint64_t n119, ::std::uint64_t n120, ::std::uint64_t n121, ::std::uint64_t n122, ::std::uint64_t n123);
 	inline ::std::uint32_t jni_one();
 	inline ::std::optional<::api::polar_Point> polar_point(::std::uint32_t distance);
+	inline ::std::uint32_t macros_streamed(const ::api::macros_Streams &streams, ::std::uint8_t errno_);
 	inline ::api::clash_Any clash_any(::api::input type_url);
 	inline ::api::clash_Candidate clash_candidate(::std::uint8_t at);
 	inline ::std::uint8_t clash_ignore(::std::uint8_t arg0, ::std::uint8_t arg1, ::std::uint8_t arg2);
 	inline ::api::clash_Empty_string clash_empty();
+	inline ::std::uint32_t clash_described(const ::api::clash_Described &described);
+	inline ::std::uint8_t clash_waited(::std::unique_ptr<::api::clash_Source> source);
+	inline ::std::uint32_t clash_underscored(const ::api::clash_Underscored &underscored, ::api::clash_Op op, const ::api::clash_Change &change);
+	inline ::std::tuple<::api::clash_Underscored, ::api::clash_Change> clash_underscored_next(const ::api::clash_Underscored &underscored, const ::api::clash_Change &change);
+	inline ::std::uint32_t clash_erased(::std::unique_ptr<::api::clash_Eraser> eraser);
+	inline ::std::uint8_t clash_erase_();
+	inline ::std::uint8_t clash_erase();
+	inline ::std::uint32_t clash_lend_(const ::api::clash_Store *store);
+	inline ::std::uint32_t clash_lend();
+	template <class F0> inline ::std::uint32_t clash_run(F0 &&work_, ::std::uint8_t work);
 	inline ::api::result<::api::clash_Tone, ::std::vector<::api::clash_Tone>> clash_audible(const ::api::clash_Tone &tone);
 	inline ::std::uint32_t clash_nested(const ::std::optional<::std::tuple<::std::tuple<::std::uint8_t, ::std::uint16_t>, ::std::uint32_t>> &a__, const ::std::optional<::std::tuple<::std::tuple<::std::uint8_t, ::std::uint16_t, ::std::uint32_t>>> &b_);
 	inline ::std::uint8_t clash_audio_encoder_finish();
@@ -2103,6 +2328,8 @@ namespace api {
 	enum class Family;
 	enum class VecClashTone;
 	enum class Tier;
+	enum class clash_Level;
+	enum class clash_Op;
 	enum class Level;
 	struct Parcel;
 	struct Weighted;
@@ -2132,6 +2359,7 @@ namespace api {
 	class Rated;
 	class Score;
 	class Hits;
+	class Regs;
 	class Extent;
 	struct Pair_Size_u8;
 	struct Pair_non_zero_u16;
@@ -2168,12 +2396,17 @@ namespace api {
 	struct Knob;
 	struct polar_Point;
 	struct polar_Turn;
+	struct macros_Streams;
 	struct clash_Tone;
 	struct clash_TONE;
 	struct clash_Span;
 	struct clash_Any;
 	struct clash_Break;
+	struct clash_Malformed;
+	struct clash_Described;
+	struct clash_Errno;
 	struct clash_Escaped;
+	struct clash_Underscored;
 	struct tls_policy_Lifetime;
 	struct Core;
 	class Board;
@@ -2191,9 +2424,12 @@ namespace api {
 	class Feed;
 	class Countdown;
 	class Retired;
+	class Folio;
 	class Logger;
 	class Journal;
 	class Local;
+	class Wrapped;
+	class Buffer;
 	class LocalWaiter;
 	class Retry;
 	class Digest;
@@ -2210,6 +2446,7 @@ namespace api {
 	class Worker;
 	class Handle;
 	class Holder;
+	class Tag;
 	class Area;
 	class Counter;
 	class Meter;
@@ -2223,6 +2460,7 @@ namespace api {
 	class Gap;
 	class Berth;
 	class Mark;
+	class Hasp;
 	class Message;
 	class Node;
 	class Tally;
@@ -2242,6 +2480,7 @@ namespace api {
 	class clash_Seed;
 	class clash_Empty_string;
 	class clash_Store;
+	class clash_Reader;
 	class tls_Session;
 	class Url;
 	class Json;
@@ -2254,6 +2493,7 @@ namespace api {
 	class Spawned;
 	class LogThread;
 	class Pinned;
+	class Guarded;
 	class Hooked;
 	class Forged;
 	class Part;
@@ -2261,6 +2501,10 @@ namespace api {
 	class Scan;
 	class Beat;
 	class Turner;
+	class Undo;
+	class Stretch;
+	class clash_Source;
+	class clash_Eraser;
 	struct Choice_Empty;
 	struct Choice_Picked;
 	using Choice = ::std::variant<Choice_Empty, Choice_Picked>;
@@ -2317,6 +2561,12 @@ namespace api {
 	struct clash_Candidate_None;
 	struct clash_Candidate_Match;
 	using clash_Candidate = ::std::variant<clash_Candidate_None, clash_Candidate_Match>;
+	struct clash_Tag_Application;
+	struct clash_Tag_Private;
+	using clash_Tag = ::std::variant<clash_Tag_Application, clash_Tag_Private>;
+	struct clash_Change_Set;
+	struct clash_Change_Clear;
+	using clash_Change = ::std::variant<clash_Change_Set, clash_Change_Clear>;
 	using Clash_after_future = ::api::future<detail::Clash_after_future_op>;
 	using Clash_tagged_future = ::api::future<detail::Clash_tagged_future_op>;
 	using Waiter_poll_future_future = ::api::future<detail::Waiter_poll_future_future_op>;

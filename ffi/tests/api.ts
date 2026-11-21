@@ -19,6 +19,8 @@ import * as g from "./web/glue.ts";
 import * as Batch from "./web/Batch.ts";
 import * as Board from "./web/Board.ts";
 import * as Channel from "./web/Channel.ts";
+import type { ClashEraser } from "./web/ClashEraser.ts";
+import * as ClashEscaped from "./web/ClashEscaped.ts";
 import * as Counter from "./web/Counter.ts";
 import * as Countdown from "./web/Countdown.ts";
 import * as Digest from "./web/Digest.ts";
@@ -42,6 +44,7 @@ import * as Score from "./web/Score.ts";
 import * as Shape from "./web/Shape.ts";
 import * as Tally from "./web/Tally.ts";
 import * as Token from "./web/Token.ts";
+import type { Undo } from "./web/Undo.ts";
 import * as Url from "./web/Url.ts";
 import * as Waiter from "./web/Waiter.ts";
 
@@ -100,6 +103,31 @@ export class Print implements Log {
 	// Rust closes it once it drops the implementation.
 	close(): void {
 		print("freed");
+	}
+}
+
+/** An eraser whose methods differ only by a trailing underscore. */
+class Eraser implements ClashEraser {
+	delete_(new_: number, new_2: number): number {
+		return new_ * 10 + new_2;
+	}
+	delete$(): number {
+		return 3;
+	}
+}
+
+/** The Undo callback: each method returns its own digit, as transcript.rs's does. */
+export class Edits implements Undo {
+	delete$(n: number): number {
+		return n - 1;
+	}
+
+	free(): number {
+		return 2;
+	}
+
+	type(): number {
+		return 3;
 	}
 }
 
@@ -495,6 +523,18 @@ function checks(): void {
 	const counters = api.counters(["x", "y"]);
 	api.worth([counters[0]!], [counters[1]!]);
 	for (const counter of counters) closed(() => Counter.get(counter), "Counter", "a counter moved in is closed");
+	// Names that differ only by trailing underscores, each reaching its own Rust: a name
+	// TypeScript spells as Rust does keeps it, whichever comes first.
+	const underscored = { new2: 1, new: 2, debug: 3, default: 4 };
+	check(api.clashUnderscored(underscored, "Delete", { tag: "Set", new2: 5, new: 6 }) === 2_561_234, "names apart by trailing underscores cross");
+	const [next, change] = api.clashUnderscoredNext(underscored, { tag: "Set", new2: 5, new: 6 });
+	check(
+		next.new2 === 2 && next.new === 3 && next.debug === 4 && next.default === 5 && change.tag === "Set" && change.new2 === 6 && change.new === 5,
+		"names apart by trailing underscores cross back",
+	);
+	check(api.clashErased(new Eraser()) === 123, "a callback's methods apart by a trailing underscore");
+	check(ClashEscaped.delete({ new: 3 }) === 3 && ClashEscaped.delete_({ new: 3 }, 1, 2) === 213, "methods apart by a trailing underscore");
+	check(api.clashErase_() === 2 && api.clashErase() === 1, "functions apart by a trailing underscore");
 	print("checks ok");
 }
 

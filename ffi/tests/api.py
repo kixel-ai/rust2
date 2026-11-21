@@ -42,6 +42,29 @@ class Print(api.Log):
 		print("freed")
 
 
+class Eraser(api.ClashEraser):
+	"""An eraser whose methods differ only by a trailing underscore."""
+
+	def delete_(self, new_, new):
+		return new_ * 10 + new
+
+	def delete(self):
+		return 3
+
+
+class Edits(api.Undo):
+	"""The Undo callback: each method returns its own digit."""
+
+	def delete(self, n):
+		return n - 1
+
+	def free(self):
+		return 2
+
+	def type(self):
+		return 3
+
+
 def bound(b):
 	match b.kind:
 		case api.Bound.INCLUDED:
@@ -1126,6 +1149,19 @@ def values():
 		check(os.fsencode(path) == b"\xff", "a path that is not UTF-8 keeps its bytes")
 		check(api.parents([path, os.fsdecode(b"\xfe/\xff")])[1] == os.fsdecode(b"\xfe"), "and crosses back")
 	check(bytes(api.Clash.String("hi").bytes()) == b"hi", "a method named as a builtin runs")
+	# Names that differ only by trailing underscores, each reaching its own Rust: a name Python
+	# spells as Rust does keeps it, whichever comes first.
+	underscored = api.ClashUnderscored(new_=1, new=2, debug=3, default_=4)
+	check(api.clash_underscored(underscored, api.ClashOp.DELETE, api.ClashChange.Set(new_=5, new=6)) == 2_561_234, "names apart by trailing underscores cross")
+	check(
+		api.clash_underscored_next(underscored, api.ClashChange.Set(new_=5, new=6))
+		== (api.ClashUnderscored(new_=2, new=3, debug=4, default_=5), api.ClashChange.Set(new_=6, new=5)),
+		"names apart by trailing underscores cross back",
+	)
+	check(api.clash_erased(Eraser()) == 123, "a callback's methods apart by a trailing underscore")
+	check(api.ClashEscaped(new=3).delete() == 3 and api.ClashEscaped(new=3).delete_(1, 2) == 213, "methods apart by a trailing underscore")
+	check(api.clash_erase_() == 2 and api.clash_erase() == 1, "functions apart by a trailing underscore")
+	check(api.ClashStore.open_().open() == 7, "a static function and a method apart by a trailing underscore")
 	print("values ok")
 
 
@@ -1328,6 +1364,21 @@ def idioms():
 	check(type(e) is RuntimeError and "asyncio" in str(e) and "trio" in str(e), str(e))
 	e = raised(lambda: api.Waker(lambda: None))
 	check(type(e) is RuntimeError and "asyncio" in str(e), str(e))
+
+	# `import *` reaches every export: a `pub fn _deprecated` too, which takes a trailing `_`
+	# beside the module's own `_deprecated`, as `pub fn __all__` does beside the name Python
+	# reserves, past `pub fn __all___`, which keeps its own, and each constant `__getattr__`
+	# makes; and no import: what the module binds without a leading `_` but its `__future__`
+	# import.
+	star = {}
+	exec("from api import *", star)
+	del star["__builtins__"]
+	check(star["_deprecated_"](1) == 2, "a pub fn named with a leading underscore")
+	check(star["__all____"](1) == 3, "a pub fn named as a name Python reserves")
+	check(star["__all___"](1) == 4, "a pub fn named as the one Python reserves would take")
+	public = {name for name in vars(api) if not name.startswith("_")} - {"annotations"}
+	expected = public | {"_deprecated_", "__all___", "__all____"} | set(api._consts)
+	check(set(star) == expected, f"import * reaches the exports: {sorted(set(star) ^ expected)}")
 	print("idioms ok")
 
 
@@ -1340,9 +1391,18 @@ def leaf():
 	check(plain.n_get == 4 and plain.on_get, "a leaf getter reads what a leaf setter wrote")
 	check(plain == api.Plain.new(4, True) and plain != api.Plain.new(4, False), "a leaf equality")
 	check(hash(plain) == hash(api.Plain.new(4, True)), "a leaf hash")
+	plain.recount(5)
+	check(plain.count() == 5, "a leaf method reads what a leaf method wrote")
+	check(plain.steps() == 5, "a method that loops")
+	wrapped = api.Wrapped.new(3)
+	wrapped.n_set(4)
+	check(wrapped.n_get == 4 and wrapped.count() == 4, "a leaf through a Deref")
 	labeled = api.Labeled.new("a" * 100)
 	check(labeled == api.Labeled.new("a" * 100) and labeled != api.Labeled.new("b"), "a leaf equality over a string")
 	check(hash(labeled) == hash(api.Labeled.new("a" * 100)), "a leaf hash over a string")
+	buffer = api.Buffer.new(100)
+	buffer.blank()
+	check(buffer.zeroed(), "a fill the caller sized")
 
 	hooked = []
 	api.hook(lambda: hooked.append(threading.get_ident()))
@@ -1370,6 +1430,12 @@ def leaf():
 		thread.join()
 		count = len(hooked)
 		check(use() and len(hooked) == count + 1, "a use of a part that drains releases the GIL")
+	count = len(hooked)
+	check(api.Hooked.new(1).count() == 1 and len(hooked) == count + 1, "a hooked method")
+	check(hooked[-1] != threading.get_ident(), "a hooked method releases the GIL")
+	guarded = api.Guarded.new(2)
+	check(guarded.n_get == 2 and guarded.count() == 2, "a hooked Deref")
+	check(len(hooked) == count + 3, "a hooked Deref releases the GIL")
 	api.unhook()
 	del part
 	del pinned

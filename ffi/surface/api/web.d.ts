@@ -108,6 +108,14 @@ export type BoxedU8 = {
 export declare function debug(self: BoxedU8): string;
 export declare function eq(a: BoxedU8, b: BoxedU8): boolean;
 
+// Buffer.ts
+import * as rt from "./rt.ts";
+export type Buffer = rt.Handle<"Buffer">;
+export declare function new$(len: number): Buffer;
+export declare function blank(self: Buffer): void;
+export declare function zeroed(self: Buffer): boolean;
+export { new$ as new };
+
 // Builtin.ts
 import * as rt from "./rt.ts";
 export type Builtin = {
@@ -264,8 +272,8 @@ export type ClashBreak = {
 };
 export declare function debug(self: ClashBreak): string;
 export declare function eq(a: ClashBreak, b: ClashBreak): boolean;
-export declare function SP(): ClashBreak;
 export declare function SP_(): ClashBreak;
+export declare function SP(): ClashBreak;
 
 // ClashCandidate.ts
 export type ClashCandidate = {
@@ -277,10 +285,45 @@ export type ClashCandidate = {
 export declare function debug(self: ClashCandidate): string;
 export declare function eq(a: ClashCandidate, b: ClashCandidate): boolean;
 
+// ClashChange.ts
+export type ClashChange = {
+    tag: "Set";
+    new2: number;
+    new: number;
+} | {
+    tag: "Clear";
+};
+export declare function debug(self: ClashChange): string;
+export declare function eq(a: ClashChange, b: ClashChange): boolean;
+
+// ClashDescribed.ts
+export type ClashDescribed = {
+    description: number;
+    debugDescription: number;
+};
+export declare function toString(self: ClashDescribed): string;
+export declare function debug(self: ClashDescribed): string;
+export declare function eq(a: ClashDescribed, b: ClashDescribed): boolean;
+
 // ClashEmptyString.ts
 import * as rt from "./rt.ts";
 export type ClashEmptyString = rt.Handle<"ClashEmptyString">;
 export declare function isEmpty(self: ClashEmptyString): boolean;
+
+// ClashEraser.ts
+export interface ClashEraser {
+    delete_(new_: number, new_2: number): number;
+    delete$(): number;
+    close?(): void;
+}
+
+// ClashErrno.ts
+export type ClashErrno = {
+    errno: number;
+};
+export declare function debug(self: ClashErrno): string;
+export declare function eq(a: ClashErrno, b: ClashErrno): boolean;
+export declare function NULL(): ClashErrno;
 
 // ClashEscaped.ts
 export type ClashEscaped = {
@@ -288,9 +331,39 @@ export type ClashEscaped = {
 };
 export declare function debug(self: ClashEscaped): string;
 export declare function eq(a: ClashEscaped, b: ClashEscaped): boolean;
+export declare function delete_(self: ClashEscaped, new_2: number, new_: number): number;
 export declare function delete$(self: ClashEscaped): number;
-export declare function delete_(self: ClashEscaped, new_: number, new_2: number): number;
 export { delete$ as delete };
+
+// ClashLevel.ts
+export type ClashLevel = "Default" | "Debug";
+export declare function debug(self: ClashLevel): string;
+export declare function default$(): ClashLevel;
+export declare function index(self: ClashLevel): number;
+export { default$ as default };
+
+// ClashMalformed.ts
+export type ClashMalformed = {
+    at: number;
+};
+export declare function toString(self: ClashMalformed): string;
+export declare function debug(self: ClashMalformed): string;
+export declare function eq(a: ClashMalformed, b: ClashMalformed): boolean;
+export declare function is(self: ClashMalformed, at: number): boolean;
+
+// ClashOp.ts
+export type ClashOp = "Delete_" | "Delete";
+export declare function debug(self: ClashOp): string;
+
+// ClashReader.ts
+import * as rt from "./rt.ts";
+import type { ClashMalformed } from "./ClashMalformed.ts";
+export type ClashReader = rt.Handle<"ClashReader">;
+export declare function new$(bytes: Uint8Array | rt.Bytes): ClashReader;
+export declare function readByte(self: ClashReader): rt.Result<number, ClashMalformed>;
+export declare function unreadByte(self: ClashReader): rt.Result<undefined, ClashMalformed>;
+export declare function wait(self: ClashReader, ms: rt.u64): void;
+export { new$ as new };
 
 // ClashSeed.ts
 import * as rt from "./rt.ts";
@@ -300,6 +373,13 @@ export declare function default_(): ClashSeed;
 export declare function value(self: ClashSeed): number;
 export declare function bool(self: ClashSeed): boolean;
 export { default$ as default };
+
+// ClashSource.ts
+export interface ClashSource {
+    wait(): void;
+    readByte(): number;
+    close?(): void;
+}
 
 // ClashSpan.ts
 export type ClashSpan = {
@@ -313,11 +393,32 @@ export declare function toString_(self: ClashSpan): string;
 
 // ClashStore.ts
 import * as rt from "./rt.ts";
+import type { Ticket } from "./Ticket.ts";
 export type ClashStore = rt.Handle<"ClashStore">;
 export declare function new$(count: number): ClashStore;
 export declare function free(self: ClashStore): number;
 export declare function close(self: ClashStore): number;
+export declare function wait(self: ClashStore): void;
+export declare function finalize(self: ClashStore): void;
+export declare function take(self: ClashStore, ticket: Ticket): number;
+export declare function take_(ticket: Ticket): number;
+export declare function count_(): number;
+export declare function count(self: ClashStore): number;
+export declare function open_(): ClashStore;
+export declare function open(self: ClashStore): number;
 export { new$ as new };
+
+// ClashTag.ts
+export type ClashTag = {
+    tag: "Application";
+    number: number;
+} | {
+    tag: "Private";
+    number: number;
+};
+export declare function debug(self: ClashTag): string;
+export declare function eq(a: ClashTag, b: ClashTag): boolean;
+export declare function number(self: ClashTag): number;
 
 // ClashTone.ts
 export type ClashTone = {
@@ -332,6 +433,18 @@ export type ClashTone_ = {
 };
 export declare function debug(self: ClashTone_): string;
 export declare function eq(a: ClashTone_, b: ClashTone_): boolean;
+
+// ClashUnderscored.ts
+export type ClashUnderscored = {
+    new2: number;
+    new: number;
+    debug: number;
+    default: number;
+};
+export declare function debug(self: ClashUnderscored): string;
+export declare function eq(a: ClashUnderscored, b: ClashUnderscored): boolean;
+export declare function default$(): ClashUnderscored;
+export { default$ as default };
 
 // Clocked.ts
 import type { Moment } from "./Moment.ts";
@@ -522,6 +635,23 @@ export type FiledReceipt = rt.Handle<"FiledReceipt">;
 export declare function clone(self: FiledReceipt): FiledReceipt;
 export declare function count(self: FiledReceipt): number;
 
+// Folio.ts
+import * as rt from "./rt.ts";
+import type { Hasp } from "./Hasp.ts";
+export type Folio = rt.Handle<"Folio">;
+export declare function pageGet(self: Folio): number;
+export declare function pageSet(self: Folio, value: number): void;
+export declare function titleGet(self: Folio): string;
+export declare function titleSet(self: Folio, value: string): void;
+export declare function noteGet(self: Folio): string | undefined;
+export declare function noteSet(self: Folio, value: string | undefined): void;
+export declare function haspGet(self: Folio): Hasp;
+export declare function haspSet(self: Folio, value: Hasp): void;
+export declare function dockGet(self: Folio): Hasp;
+export declare function new$(page: number, title: string): Folio;
+export declare function seed(self: Folio): number;
+export { new$ as new };
+
 // Gap.ts
 import * as rt from "./rt.ts";
 export type Gap = rt.Handle<"Gap">;
@@ -556,6 +686,13 @@ export { new$ as new };
 export type Hasher = {
     seed: number;
 };
+
+// Hasp.ts
+import * as rt from "./rt.ts";
+export type Hasp = rt.Handle<"Hasp">;
+export declare function default$(): Hasp;
+export declare function set(self: Hasp): boolean;
+export { default$ as default };
 
 // Hits.ts
 import * as rt from "./rt.ts";
@@ -808,6 +945,16 @@ export declare function new$(low: rt.u64, high: rt.u64): LongArray;
 export declare function c(self: LongArray): rt.u64;
 export declare function also(self: LongArray, f: (a0: rt.u64) => void): void;
 export { new$ as new };
+
+// MacrosStreams.ts
+export type MacrosStreams = {
+    stdin: number;
+    stdout: number;
+    stderr: number;
+    errno: number;
+};
+export declare function debug(self: MacrosStreams): string;
+export declare function eq(a: MacrosStreams, b: MacrosStreams): boolean;
 
 // Mark.ts
 import * as rt from "./rt.ts";
@@ -1112,6 +1259,10 @@ export declare function nSet(self: Plain, value: rt.u64): void;
 export declare function onGet(self: Plain): boolean;
 export declare function onSet(self: Plain, value: boolean): void;
 export declare function new$(n: rt.u64, on: boolean): Plain;
+export declare function count(self: Plain): rt.u64;
+export declare function recount(self: Plain, n: rt.u64): void;
+export declare function steps(self: Plain): rt.u64;
+export declare function locals(self: Plain): number;
 export { new$ as new };
 
 // Platform.ts
@@ -1243,6 +1394,24 @@ export declare function last(self: Registry): Counter | undefined;
 export declare function push(self: Registry, counter: Counter): void;
 export declare function edit(self: Registry, edit: (a0: Counter) => boolean): boolean;
 export { default$ as default, new$ as new };
+
+// Regs.ts
+import * as rt from "./rt.ts";
+import type { Point } from "./Point.ts";
+export type Regs = rt.Opaque<"Regs">;
+export declare function debug(self: Regs): string;
+export declare function eq(a: Regs, b: Regs): boolean;
+export declare function fcwGet(self: Regs): number;
+export declare function fcwSet(self: Regs, value: number): Regs;
+export declare function wideGet(self: Regs): rt.u64;
+export declare function wideSet(self: Regs, value: rt.u64): Regs;
+export declare function atGet(self: Regs): Point;
+export declare function atSet(self: Regs, value: Point): Regs;
+export declare function tagGet(self: Regs): number;
+export declare function tagSet(self: Regs, value: number): Regs;
+export declare function new$(fcw: number, wide: rt.u64, at: Point): Regs;
+export declare function seed(self: Regs): number;
+export { new$ as new };
 
 // Resolving.ts
 import * as rt from "./rt.ts";
@@ -1481,12 +1650,26 @@ export declare function debug(self: Status): string;
 import * as rt from "./rt.ts";
 export type StdIoError = rt.Handle<"StdIoError">;
 
+// Stretch.ts
+export interface Stretch {
+    stretch(): number;
+    close?(): void;
+}
+
 // Tab.ts
 import * as rt from "./rt.ts";
 import type { Ledger } from "./Ledger.ts";
 export type Tab = rt.Handle<"Tab">;
 export declare function ledgerGet(self: Tab): Ledger;
 export declare function labelGet(self: Tab): string;
+
+// Tag.ts
+import * as rt from "./rt.ts";
+export type Tag = rt.Handle<"Tag">;
+export declare function default$(): Tag;
+export declare function new$(): Tag;
+export declare function tagged(self: Tag, n: rt.Place<number>, f: () => number): string;
+export { default$ as default, new$ as new };
 
 // Tallies.ts
 import * as rt from "./rt.ts";
@@ -1515,6 +1698,7 @@ export declare function debug(self: Ticket): string;
 export declare function eq(a: Ticket, b: Ticket): boolean;
 export declare function new$(number: number): Ticket;
 export declare function number(self: Ticket): number;
+export declare function wait(self: Ticket): void;
 export declare function clones(): number;
 export { new$ as new };
 
@@ -1586,6 +1770,14 @@ import * as rt from "./rt.ts";
 export interface Turner {
     by(): rt.u64;
     once(): rt.u64;
+    close?(): void;
+}
+
+// Undo.ts
+export interface Undo {
+    delete$(n: number): number;
+    free(): number;
+    type(): number;
     close?(): void;
 }
 
@@ -1687,6 +1879,20 @@ export type WrapU32 = {
 export declare function debug(self: WrapU32): string;
 export declare function eq(a: WrapU32, b: WrapU32): boolean;
 
+// Wrapped.ts
+import * as rt from "./rt.ts";
+export type Wrapped = rt.Handle<"Wrapped">;
+export declare function new$(n: rt.u64): Wrapped;
+export declare function nGet(self: Wrapped): rt.u64;
+export declare function nSet(self: Wrapped, value: rt.u64): void;
+export declare function onGet(self: Wrapped): boolean;
+export declare function onSet(self: Wrapped, value: boolean): void;
+export declare function count(self: Wrapped): rt.u64;
+export declare function recount(self: Wrapped, n: rt.u64): void;
+export declare function steps(self: Wrapped): rt.u64;
+export declare function locals(self: Wrapped): number;
+export { new$ as new };
+
 // glue.ts
 import * as rt from "./rt.ts";
 import type { A } from "./A.ts";
@@ -1702,10 +1908,18 @@ import type { Clash } from "./Clash.ts";
 import type { ClashAny } from "./ClashAny.ts";
 import type { ClashBreak } from "./ClashBreak.ts";
 import type { ClashCandidate } from "./ClashCandidate.ts";
+import type { ClashChange } from "./ClashChange.ts";
+import type { ClashDescribed } from "./ClashDescribed.ts";
+import type { ClashErrno } from "./ClashErrno.ts";
 import type { ClashEscaped } from "./ClashEscaped.ts";
+import type { ClashLevel } from "./ClashLevel.ts";
+import type { ClashMalformed } from "./ClashMalformed.ts";
+import type { ClashOp } from "./ClashOp.ts";
 import type { ClashSpan } from "./ClashSpan.ts";
+import type { ClashTag } from "./ClashTag.ts";
 import type { ClashTone } from "./ClashTone.ts";
 import type { ClashTone_ } from "./ClashTone_.ts";
+import type { ClashUnderscored } from "./ClashUnderscored.ts";
 import type { Clocked } from "./Clocked.ts";
 import type { Counter } from "./Counter.ts";
 import type { Cursor } from "./Cursor.ts";
@@ -1734,6 +1948,7 @@ import type { LimitsDuration } from "./LimitsDuration.ts";
 import type { Local } from "./Local.ts";
 import type { LogCount } from "./LogCount.ts";
 import type { LongArray } from "./LongArray.ts";
+import type { MacrosStreams } from "./MacrosStreams.ts";
 import type { Mark } from "./Mark.ts";
 import type { Measure } from "./Measure.ts";
 import type { Moment } from "./Moment.ts";
@@ -1761,6 +1976,7 @@ import type { Rank } from "./Rank.ts";
 import type { Rated } from "./Rated.ts";
 import type { Reading } from "./Reading.ts";
 import type { Refusal } from "./Refusal.ts";
+import type { Regs } from "./Regs.ts";
 import type { RightLeftU8 } from "./RightLeftU8.ts";
 import type { RightU8 } from "./RightU8.ts";
 import type { Score } from "./Score.ts";
@@ -1795,6 +2011,8 @@ export declare function e_Shape(v: Shape): number;
 export declare function e_Status_(v: Status): number;
 export declare function e_Tier(v: Tier): number;
 export declare function e_VecClashTone(v: VecClashTone): number;
+export declare function e_clash_Level(v: ClashLevel): number;
+export declare function e_clash_Op(v: ClashOp): number;
 export declare function f0(): number;
 export declare function f1(): number;
 export declare function f10(): number;
@@ -1804,7 +2022,11 @@ export declare function f13(): number;
 export declare function f14(): number;
 export declare function f15(): number;
 export declare function f16(): number;
+export declare function f17(): number;
+export declare function f18(): number;
+export declare function f19(): number;
 export declare function f2(): number;
+export declare function f20(): number;
 export declare function f3(): number;
 export declare function f4(): number;
 export declare function f5(): number;
@@ -1814,11 +2036,13 @@ export declare function f8(): number;
 export declare function f9(): number;
 export declare function f_Level(c: number): Level;
 export declare function f_Shape(c: number): Shape;
+export declare function f_clash_Level(c: number): ClashLevel;
 export declare const k_Area: rt.Kind;
 export declare const k_Batch: rt.Kind;
 export declare const k_Batch_2: rt.Kind;
 export declare const k_Berth: rt.Kind;
 export declare const k_Board: rt.Kind;
+export declare const k_Buffer: rt.Kind;
 export declare const k_Channel: rt.Kind;
 export declare const k_Codecs: rt.Kind;
 export declare const k_Countdown: rt.Kind;
@@ -1830,9 +2054,11 @@ export declare const k_Draft: rt.Kind;
 export declare const k_Fault: rt.Kind;
 export declare const k_Feed: rt.Kind;
 export declare const k_Filed_Receipt: rt.Kind;
+export declare const k_Folio: rt.Kind;
 export declare const k_Gap: rt.Kind;
 export declare const k_Gauge: rt.Kind;
 export declare const k_Handle: rt.Kind;
+export declare const k_Hasp: rt.Kind;
 export declare const k_Holder: rt.Kind;
 export declare const k_Instant: rt.Kind;
 export declare const k_Journal: rt.Kind;
@@ -1871,6 +2097,7 @@ export declare const k_Slot_u32: rt.Kind;
 export declare const k_Slot_u8: rt.Kind;
 export declare const k_Stack: rt.Kind;
 export declare const k_Tab: rt.Kind;
+export declare const k_Tag: rt.Kind;
 export declare const k_Tallies: rt.Kind;
 export declare const k_Tally: rt.Kind;
 export declare const k_Token: rt.Kind;
@@ -1879,8 +2106,10 @@ export declare const k_Url: rt.Kind;
 export declare const k_Verbosity: rt.Kind;
 export declare const k_Waiter: rt.Kind;
 export declare const k_Worker: rt.Kind;
+export declare const k_Wrapped: rt.Kind;
 export declare const k_c: rt.Kind;
 export declare const k_clash_Empty_string: rt.Kind;
+export declare const k_clash_Reader: rt.Kind;
 export declare const k_clash_Seed: rt.Kind;
 export declare const k_clash_Store: rt.Kind;
 export declare const k_std_io_Error: rt.Kind;
@@ -1964,6 +2193,7 @@ export declare function r_Platform(p: number, o: boolean): Platform;
 export declare function r_Point(p: number, o: boolean): Point;
 export declare function r_Rated(p: number, o: boolean): Rated;
 export declare function r_Reading(p: number, o: boolean): Reading;
+export declare function r_Regs(p: number, o: boolean): Regs;
 export declare function r_Score(p: number, o: boolean): Score;
 export declare function r_Seat(p: number, o: boolean): Seat;
 export declare function r_Size(p: number, o: boolean): Size;
@@ -2004,7 +2234,11 @@ export declare function r_bounds_u64(p: number, o: boolean): {
 export declare function r_clash_Any(p: number, o: boolean): ClashAny;
 export declare function r_clash_Break(p: number, o: boolean): ClashBreak;
 export declare function r_clash_Candidate(p: number, o: boolean): ClashCandidate;
+export declare function r_clash_Change(p: number, o: boolean): ClashChange;
+export declare function r_clash_Errno(p: number, o: boolean): ClashErrno;
+export declare function r_clash_Malformed(p: number, o: boolean): ClashMalformed;
 export declare function r_clash_Tone(p: number, o: boolean): ClashTone;
+export declare function r_clash_Underscored(p: number, o: boolean): ClashUnderscored;
 export declare function r_option_Level(p: number, o: boolean): Level | undefined;
 export declare function r_option_Moment(p: number, o: boolean): Moment | undefined;
 export declare function r_option_Point(p: number, o: boolean): Point | undefined;
@@ -2083,29 +2317,37 @@ export declare function r_vec_vec_u32(p: number, o: boolean): Uint32Array[];
 export declare function r_vec_vec_u32_2(p: number, o: boolean): number[][];
 export declare function t0(f: (a0: rt.u64) => void, p0: bigint): void;
 export declare function t1(f: () => number): number;
-export declare function t10(f: (a0: number, a1: string) => boolean, p0: number, p1: number): number;
-export declare function t11(f: (a0: Gauge) => rt.u64, p0: number): bigint;
-export declare function t12(f: (a0: Cursor) => rt.u64, p0: number): bigint;
-export declare function t13(f: (a0: Tally) => number, p0: number): number;
-export declare function t14(f: (a0: number) => number, p0: number): number;
+export declare function t10(f: (a0: number) => void, p0: number): void;
+export declare function t11(f: (a0: number, a1: string) => boolean, p0: number, p1: number): number;
+export declare function t12(f: (a0: Gauge) => rt.u64, p0: number): bigint;
+export declare function t13(f: (a0: Cursor) => rt.u64, p0: number): bigint;
+export declare function t14(f: (a0: Tally) => number, p0: number): number;
 export declare function t15(f: (a0: number) => number, p0: number): number;
-export declare function t16(f: (a0: rt.PathBuf) => void, p0: number): void;
-export declare function t17(f: (a0: Uint8Array | undefined) => rt.u64, p0: number): bigint;
-export declare function t2(f: (a0: Counter) => boolean, p0: number): number;
-export declare function t3(f: (a0: Moment, a1: Waiter) => rt.Result<Moment | undefined, string>, p0: number, p1: number, p2: number, p3: number): number;
-export declare function t4(f: (a0: number) => string, r$: number, p0: number): void;
-export declare function t5(f: (a0: Ticket) => Ticket, p0: number): number;
+export declare function t16(f: (a0: number) => number, p0: number): number;
+export declare function t17(f: (a0: rt.PathBuf) => void, p0: number): void;
+export declare function t18(f: (a0: Uint8Array | undefined) => rt.u64, p0: number): bigint;
+export declare function t19(f: () => number): number;
+export declare function t2(f: () => number): number;
+export declare function t20(f: () => number): number;
+export declare function t21(f: () => number): number;
+export declare function t3(f: (a0: Counter) => boolean, p0: number): number;
+export declare function t4(f: (a0: Moment, a1: Waiter) => rt.Result<Moment | undefined, string>, p0: number, p1: number, p2: number, p3: number): number;
+export declare function t5(f: (a0: number) => string, r$: number, p0: number): void;
 export declare function t6(f: (a0: Ticket) => Ticket, p0: number): number;
-export declare function t7(f: () => rt.Result<undefined, string>, p0: number): number;
-export declare function t8(f: (a0: Moment) => Moment, r$: number, p0: number): void;
-export declare function t9(f: (a0: number) => void, p0: number): void;
+export declare function t7(f: (a0: Ticket) => Ticket, p0: number): number;
+export declare function t8(f: () => rt.Result<undefined, string>, p0: number): number;
+export declare function t9(f: (a0: Moment) => Moment, r$: number, p0: number): void;
 export declare function t_Moment(p: number, v: Moment): void;
 export declare function t_Ticket(p: number, v: Ticket): void;
 export declare function t_option_Moment(p: number, v: Moment | undefined): void;
 export declare function vt_Beat(): number;
 export declare function vt_Log(): number;
 export declare function vt_Scan(): number;
+export declare function vt_Stretch(): number;
 export declare function vt_Turner(): number;
+export declare function vt_Undo(): number;
+export declare function vt_clash_Eraser(): number;
+export declare function vt_clash_Source(): number;
 export declare function w_Atlas(p: number, v: Atlas): void;
 export declare function w_Booth(p: number, v: Booth): void;
 export declare function w_Boxed_u16(p: number, v: BoxedU16): void;
@@ -2156,6 +2398,7 @@ export declare function w_Qualifiers(p: number, v: Qualifiers): void;
 export declare function w_Rank(p: number, v: Rank): void;
 export declare function w_Rated(p: number, v: Rated): void;
 export declare function w_Reading(p: number, v: Reading): void;
+export declare function w_Regs(p: number, v: Regs): void;
 export declare function w_Right_Left_u8(p: number, v: RightLeftU8): void;
 export declare function w_Right_u8(p: number, v: RightU8): void;
 export declare function w_Score(p: number, v: Score): void;
@@ -2208,10 +2451,17 @@ export declare function w_bounds_u64(p: number, v: {
 export declare function w_clash_Any(p: number, v: ClashAny): void;
 export declare function w_clash_Break(p: number, v: ClashBreak): void;
 export declare function w_clash_Candidate(p: number, v: ClashCandidate): void;
+export declare function w_clash_Change(p: number, v: ClashChange): void;
+export declare function w_clash_Described(p: number, v: ClashDescribed): void;
+export declare function w_clash_Errno(p: number, v: ClashErrno): void;
 export declare function w_clash_Escaped(p: number, v: ClashEscaped): void;
+export declare function w_clash_Malformed(p: number, v: ClashMalformed): void;
 export declare function w_clash_Span(p: number, v: ClashSpan): void;
 export declare function w_clash_TONE(p: number, v: ClashTone_): void;
+export declare function w_clash_Tag(p: number, v: ClashTag): void;
 export declare function w_clash_Tone(p: number, v: ClashTone): void;
+export declare function w_clash_Underscored(p: number, v: ClashUnderscored): void;
+export declare function w_macros_Streams(p: number, v: MacrosStreams): void;
 export declare function w_option_Level(p: number, v: Level | undefined): void;
 export declare function w_option_Point(p: number, v: Point | undefined): void;
 export declare function w_option_Point_2(p: number, v: Point | undefined): void;
@@ -2293,25 +2543,37 @@ export declare const imports: {
     api_web_cb_Beat_beat: (data: number) => number;
     api_web_cb_Log_log: (data: number, p0: number, p1: number) => number;
     api_web_cb_Scan_scan: (data: number, p0: number, p1: number) => bigint;
+    api_web_cb_Stretch_stretch: (data: number) => number;
     api_web_cb_Turner_by: (data: number) => bigint;
     api_web_cb_Turner_once: (data: number) => bigint;
+    api_web_cb_Undo_delete: (data: number, p0: number) => number;
+    api_web_cb_Undo_free: (data: number) => number;
+    api_web_cb_Undo_type: (data: number) => number;
+    api_web_cb_clash_Eraser_delete: (data: number) => number;
+    api_web_cb_clash_Eraser_delete_: (data: number, p0: number, p1: number) => number;
+    api_web_cb_clash_Source_read_byte: (data: number) => number;
+    api_web_cb_clash_Source_wait: (data: number) => void;
     api_web_i_fn_0: (data: number, p0: bigint) => void;
     api_web_i_fn_1: (data: number) => number;
-    api_web_i_fn_10: (data: number, p0: number) => bigint;
+    api_web_i_fn_10: (data: number, p0: number, p1: number) => number;
     api_web_i_fn_11: (data: number, p0: number) => bigint;
-    api_web_i_fn_12: (data: number, p0: number) => number;
+    api_web_i_fn_12: (data: number, p0: number) => bigint;
     api_web_i_fn_13: (data: number, p0: number) => number;
     api_web_i_fn_14: (data: number, p0: number) => number;
-    api_web_i_fn_15: (data: number, p0: number) => void;
-    api_web_i_fn_16: (data: number, p0: number) => bigint;
-    api_web_i_fn_2: (data: number, p0: number) => number;
-    api_web_i_fn_3: (data: number, p0: number, p1: number, p2: number, p3: number) => number;
-    api_web_i_fn_4: (r$: number, data: number, p0: number) => void;
-    api_web_i_fn_5: (data: number, p0: number) => number;
+    api_web_i_fn_15: (data: number, p0: number) => number;
+    api_web_i_fn_16: (data: number, p0: number) => void;
+    api_web_i_fn_17: (data: number, p0: number) => bigint;
+    api_web_i_fn_18: (data: number) => number;
+    api_web_i_fn_19: (data: number) => number;
+    api_web_i_fn_2: (data: number) => number;
+    api_web_i_fn_20: (data: number) => number;
+    api_web_i_fn_3: (data: number, p0: number) => number;
+    api_web_i_fn_4: (data: number, p0: number, p1: number, p2: number, p3: number) => number;
+    api_web_i_fn_5: (r$: number, data: number, p0: number) => void;
     api_web_i_fn_6: (data: number, p0: number) => number;
-    api_web_i_fn_7: (r$: number, data: number, p0: number) => void;
-    api_web_i_fn_8: (data: number, p0: number) => void;
-    api_web_i_fn_9: (data: number, p0: number, p1: number) => number;
+    api_web_i_fn_7: (data: number, p0: number) => number;
+    api_web_i_fn_8: (r$: number, data: number, p0: number) => void;
+    api_web_i_fn_9: (data: number, p0: number) => void;
 };
 
 // index.ts
@@ -2326,8 +2588,15 @@ import type { BoxedU8 } from "./BoxedU8.ts";
 import type { Choice } from "./Choice.ts";
 import type { ClashAny } from "./ClashAny.ts";
 import type { ClashCandidate } from "./ClashCandidate.ts";
+import type { ClashChange } from "./ClashChange.ts";
+import type { ClashDescribed } from "./ClashDescribed.ts";
 import type { ClashEmptyString } from "./ClashEmptyString.ts";
+import type { ClashEraser } from "./ClashEraser.ts";
+import type { ClashOp } from "./ClashOp.ts";
+import type { ClashSource } from "./ClashSource.ts";
+import type { ClashStore } from "./ClashStore.ts";
 import type { ClashTone } from "./ClashTone.ts";
+import type { ClashUnderscored } from "./ClashUnderscored.ts";
 import type { Clocked } from "./Clocked.ts";
 import type { Counter } from "./Counter.ts";
 import type { Cursor } from "./Cursor.ts";
@@ -2351,6 +2620,7 @@ import type { LimitsBytes } from "./LimitsBytes.ts";
 import type { LimitsDuration } from "./LimitsDuration.ts";
 import type { Local } from "./Local.ts";
 import type { Log } from "./Log.ts";
+import type { MacrosStreams } from "./MacrosStreams.ts";
 import type { Mark } from "./Mark.ts";
 import type { Moment } from "./Moment.ts";
 import type { Name } from "./Name.ts";
@@ -2383,6 +2653,7 @@ import type { Stage } from "./Stage.ts";
 import type { Stamp } from "./Stamp.ts";
 import type { Status } from "./Status.ts";
 import type { StdIoError } from "./StdIoError.ts";
+import type { Stretch } from "./Stretch.ts";
 import type { Tally } from "./Tally.ts";
 import type { Ticket } from "./Ticket.ts";
 import type { TlsCert } from "./TlsCert.ts";
@@ -2390,12 +2661,14 @@ import type { TlsConfig } from "./TlsConfig.ts";
 import type { TlsResolver } from "./TlsResolver.ts";
 import type { TlsSession } from "./TlsSession.ts";
 import type { Turner } from "./Turner.ts";
+import type { Undo } from "./Undo.ts";
 import type { Url } from "./Url.ts";
 import type { Waiter } from "./Waiter.ts";
 import type { WrapU32 } from "./WrapU32.ts";
 export declare function load(source?: rt.Source): Promise<void>;
 export declare const LIMIT: rt.u64;
 export declare const FAR: rt.i64;
+export declare const EOF: number;
 export declare const URL$: rt.u64;
 export declare const STEP: rt.u64;
 export declare function hasText(note: Note): boolean;
@@ -2706,13 +2979,18 @@ export declare function wasmLog(log: Log): void;
 export declare function boothCount(booth: Booth): rt.u64;
 export declare function page(): Page;
 export declare function beats(beat: Beat): number;
+export declare function paired(f: () => number, fUnwind: () => number): number;
 export declare function same(a: rt.f64, b: rt.f64): number;
+export declare function errno(): number;
+export declare function assert(holds: boolean): boolean;
+export declare function offsetof(field: number): number;
 export declare function returnValues(point: rt.Place<Point>, fail: boolean): rt.Result<[string, [number, number, number, rt.u64] | undefined, Uint8Array[]], Error_>;
 export declare function returnMoved(counter: Counter, fail: boolean): rt.Result<Counter, Error_>;
 export declare function nonZeros(): NonZeros;
 export declare function describeNonZeros(nonZeros: NonZeros): string;
 export declare function nextHop(hop: rt.u64 | undefined): rt.u64 | undefined;
 export declare function fartherHop(hops: PairNonZeroU16): number;
+export declare function wexitstatus(status: number): number;
 export declare function sameDuration(v: rt.Duration): rt.Duration;
 export declare function sameU64(v: rt.u64): rt.u64;
 export declare function sameUsize(v: number): number;
@@ -2730,17 +3008,38 @@ export declare function unescapedLater(text: string): rt.Call<string>;
 export declare function unescapedMaybe(text: string | undefined): rt.Call<string | undefined>;
 export declare function unzeroed(bytes: Uint8Array | rt.Bytes): rt.Bytes;
 export declare function deprecated(note: number): number;
+export declare function deprecated_(note: number): number;
+export declare function all(note: number): number;
+export declare function all_(note: number): number;
 export declare function knob(dial: Dial): Knob;
 export declare function levelLater(dial: Dial): rt.Call<rt.u64>;
 export declare function turned(dial: Dial, turner: Turner): rt.Result<Dial, Error_>;
+export declare function undone(undo: Undo, n: number): number;
+export declare function unwound(): number;
+export declare function measured(f: () => number): number;
+export declare function negated(f: () => number): number;
+export declare function lettered(f: () => number): number;
+export declare function bumped(n: rt.Place<number>, f: () => number): number;
+export declare function stretched(stretch: Stretch): number;
 export declare function crowded(reading: Reading, a: Stamp, b: Stamp, n0: rt.u64, n1: rt.u64, n2: rt.u64, n3: rt.u64, n4: rt.u64, n5: rt.u64, n6: rt.u64, n7: rt.u64, n8: rt.u64, n9: rt.u64, n10: rt.u64, n11: rt.u64, n12: rt.u64, n13: rt.u64, n14: rt.u64, n15: rt.u64, n16: rt.u64, n17: rt.u64, n18: rt.u64, n19: rt.u64, n20: rt.u64, n21: rt.u64, n22: rt.u64, n23: rt.u64, n24: rt.u64, n25: rt.u64, n26: rt.u64, n27: rt.u64, n28: rt.u64, n29: rt.u64, n30: rt.u64, n31: rt.u64, n32: rt.u64, n33: rt.u64, n34: rt.u64, n35: rt.u64, n36: rt.u64, n37: rt.u64, n38: rt.u64, n39: rt.u64, n40: rt.u64, n41: rt.u64, n42: rt.u64, n43: rt.u64, n44: rt.u64, n45: rt.u64, n46: rt.u64, n47: rt.u64, n48: rt.u64, n49: rt.u64, n50: rt.u64, n51: rt.u64, n52: rt.u64, n53: rt.u64, n54: rt.u64, n55: rt.u64, n56: rt.u64, n57: rt.u64, n58: rt.u64, n59: rt.u64, n60: rt.u64, n61: rt.u64, n62: rt.u64, n63: rt.u64, n64: rt.u64, n65: rt.u64, n66: rt.u64, n67: rt.u64, n68: rt.u64, n69: rt.u64, n70: rt.u64, n71: rt.u64, n72: rt.u64, n73: rt.u64, n74: rt.u64, n75: rt.u64, n76: rt.u64, n77: rt.u64, n78: rt.u64, n79: rt.u64, n80: rt.u64, n81: rt.u64, n82: rt.u64, n83: rt.u64, n84: rt.u64, n85: rt.u64, n86: rt.u64, n87: rt.u64, n88: rt.u64, n89: rt.u64, n90: rt.u64, n91: rt.u64, n92: rt.u64, n93: rt.u64, n94: rt.u64, n95: rt.u64, n96: rt.u64, n97: rt.u64, n98: rt.u64, n99: rt.u64, n100: rt.u64, n101: rt.u64, n102: rt.u64, n103: rt.u64, n104: rt.u64, n105: rt.u64, n106: rt.u64, n107: rt.u64, n108: rt.u64, n109: rt.u64, n110: rt.u64, n111: rt.u64, n112: rt.u64, n113: rt.u64, n114: rt.u64, n115: rt.u64, n116: rt.u64, n117: rt.u64, n118: rt.u64): rt.u64;
 export declare function crammed(a: Moment, b: Moment, n0: rt.u64, n1: rt.u64, n2: rt.u64, n3: rt.u64, n4: rt.u64, n5: rt.u64, n6: rt.u64, n7: rt.u64, n8: rt.u64, n9: rt.u64, n10: rt.u64, n11: rt.u64, n12: rt.u64, n13: rt.u64, n14: rt.u64, n15: rt.u64, n16: rt.u64, n17: rt.u64, n18: rt.u64, n19: rt.u64, n20: rt.u64, n21: rt.u64, n22: rt.u64, n23: rt.u64, n24: rt.u64, n25: rt.u64, n26: rt.u64, n27: rt.u64, n28: rt.u64, n29: rt.u64, n30: rt.u64, n31: rt.u64, n32: rt.u64, n33: rt.u64, n34: rt.u64, n35: rt.u64, n36: rt.u64, n37: rt.u64, n38: rt.u64, n39: rt.u64, n40: rt.u64, n41: rt.u64, n42: rt.u64, n43: rt.u64, n44: rt.u64, n45: rt.u64, n46: rt.u64, n47: rt.u64, n48: rt.u64, n49: rt.u64, n50: rt.u64, n51: rt.u64, n52: rt.u64, n53: rt.u64, n54: rt.u64, n55: rt.u64, n56: rt.u64, n57: rt.u64, n58: rt.u64, n59: rt.u64, n60: rt.u64, n61: rt.u64, n62: rt.u64, n63: rt.u64, n64: rt.u64, n65: rt.u64, n66: rt.u64, n67: rt.u64, n68: rt.u64, n69: rt.u64, n70: rt.u64, n71: rt.u64, n72: rt.u64, n73: rt.u64, n74: rt.u64, n75: rt.u64, n76: rt.u64, n77: rt.u64, n78: rt.u64, n79: rt.u64, n80: rt.u64, n81: rt.u64, n82: rt.u64, n83: rt.u64, n84: rt.u64, n85: rt.u64, n86: rt.u64, n87: rt.u64, n88: rt.u64, n89: rt.u64, n90: rt.u64, n91: rt.u64, n92: rt.u64, n93: rt.u64, n94: rt.u64, n95: rt.u64, n96: rt.u64, n97: rt.u64, n98: rt.u64, n99: rt.u64, n100: rt.u64, n101: rt.u64, n102: rt.u64, n103: rt.u64, n104: rt.u64, n105: rt.u64, n106: rt.u64, n107: rt.u64, n108: rt.u64, n109: rt.u64, n110: rt.u64, n111: rt.u64, n112: rt.u64, n113: rt.u64, n114: rt.u64, n115: rt.u64, n116: rt.u64, n117: rt.u64, n118: rt.u64, n119: rt.u64, n120: rt.u64, n121: rt.u64, n122: rt.u64, n123: rt.u64): rt.u64;
 export declare function jniOne(): number;
 export declare function polarPoint(distance: number): PolarPoint | undefined;
+export declare function macrosStreamed(streams: MacrosStreams, errno: number): number;
 export declare function clashAny(typeUrl: string): ClashAny;
 export declare function clashCandidate(at: number): ClashCandidate;
 export declare function clashIgnore(arg0: number, arg1: number, arg2: number): number;
 export declare function clashEmpty(): ClashEmptyString;
+export declare function clashDescribed(described: ClashDescribed): number;
+export declare function clashWaited(source: ClashSource): number;
+export declare function clashUnderscored(underscored: ClashUnderscored, op: ClashOp, change: ClashChange): number;
+export declare function clashUnderscoredNext(underscored: ClashUnderscored, change: ClashChange): [ClashUnderscored, ClashChange];
+export declare function clashErased(eraser: ClashEraser): number;
+export declare function clashErase_(): number;
+export declare function clashErase(): number;
+export declare function clashLend_(store: ClashStore | undefined): number;
+export declare function clashLend(): number;
+export declare function clashRun(work2: () => number, work: number): number;
 export declare function clashAudible(tone: ClashTone): rt.Result<ClashTone, ClashTone[]>;
 export declare function clashNested(a: [[number, number], number] | undefined, b: [[number, number, number]] | undefined): number;
 export declare function clashAudioEncoderFinish(): number;

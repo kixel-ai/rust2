@@ -1626,12 +1626,11 @@ impl<T> Object<T> {
 		});
 		// A second count, which a free by C would take, so the handle outlives it.
 		let spare = Arc::clone(&object);
-		let result = f(Arc::as_ptr(&object).cast());
-		match Arc::strong_count(&object) {
-			2 if object.borrow.is(&TABLE, state) => {}
-			1 => fail(what, "a lent handle was freed"),
-			_ => fail(what, "a lent handle is still borrowed"),
-		}
+		// Checked however `f` ends, so a closure unwinding with a failed check of what it
+		// returned cannot keep the handle past the value either.
+		let lent = Lent { object, state, what };
+		let result = f(Arc::as_ptr(&lent.object).cast());
+		drop(lent);
 		drop(spare);
 		result
 	}
@@ -1783,29 +1782,60 @@ impl<T> Object<T> {
 	/// binding's close does, so a later use fails as moved, as Rust refuses a use after a
 	/// drop. It fails, changing nothing, while a call or future borrows the value or a call
 	/// reserved it to move out, as Rust refuses a drop under a borrow, and does nothing once
-	/// the value is gone. A handle a
-	/// call returned lent from another's value only stops lending it; one lent to C for a
-	/// call fails, as Rust lent it. A value that is not `Send`, closed on another thread than
-	/// its own, drops there later, as a free does.
+	/// the value is gone. A handle a call returned lent from another's value only stops
+	/// lending it; one lent to C for a call fails, as Rust lent it. A value that is not
+	/// `Send`, closed on another thread than its own, drops there later, as a free does.
+	///
+	/// A binding's close that claimed the handle closed, so that another close meeting it
+	/// waits for its outcome, passes `commit`, which runs unless this fails, once it no
+	/// longer can, before the value's `Drop`. Until then this runs none of the program's
+	/// code, not even the drops other threads left this thread: so no code the waiting
+	/// close may itself wait on, such as a `Drop` that hands it to a thread and joins that,
+	/// runs before it returns. Those drops run after the value's own. One that would have
+	/// let this pass runs only as the binding, refused, drains them and closes again, as
+	/// [`close_drain`] has it do.
 	///
 	/// # Safety
 	/// As [`Self::borrow`].
-	pub unsafe fn close(handle: *const c_void, what: &str) -> Result<(), Status> {
+	pub unsafe fn close(handle: *const c_void, what: &str, commit: Option<impl FnOnce()>) -> Result<(), Status> {
 		// SAFETY: the caller's contract.
 		let object = unsafe { Self::get(handle, what) };
 		let away = object.owner.as_ref().filter(|owner| !owner.is_here());
-		if away.is_none() {
+		// Off its own thread, a value that is not `Send` has nothing to drain here.
+		let claimed = commit.is_some();
+		let (first, after) = (away.is_none() && !claimed, away.is_none() && claimed);
+		if first {
 			object.own()?;
 		}
+		// A drop other threads left this one may have ended the borrow that refuses it. Each
+		// refusal of a claimed close sets it, so the binding's `close_drain` right after reads
+		// this attempt's, never an earlier one's.
+		let refused = |status| {
+			if claimed {
+				SKIPPED.set(match after && object.owner.is_some() {
+					true => handle,
+					false => std::ptr::null(),
+				});
+			}
+			Err(status)
+		};
 		if !object.lent.is_null() && object.lender.is_none() {
-			return Err(Status::Lent);
+			return refused(Status::Lent);
 		}
 		match object.borrow.take(&TABLE, TAKEN) {
 			Ok(()) => {}
-			Err(Status::Moved) => return Ok(()),
-			Err(status) => return Err(status),
+			Err(Status::Moved) => {
+				if let Some(commit) = commit {
+					commit();
+				}
+				return Ok(());
+			}
+			Err(status) => return refused(status),
 		}
 		object.epoch.fetch_add(1, Ordering::Release);
+		if let Some(commit) = commit {
+			commit();
+		}
 		if object.lent.is_null() {
 			// SAFETY: TAKEN excludes every other access to the loan.
 			let loan = unsafe { (*object.loan.get()).take() };
@@ -1823,6 +1853,11 @@ impl<T> Object<T> {
 					drop(loan);
 				}
 			}
+		}
+		if after {
+			// The drops the check skipped, after the value's own, so none that unwinds skips
+			// it.
+			let _ = object.own();
 		}
 		Ok(())
 	}
@@ -1925,6 +1960,24 @@ impl<T> Object<Unsent<T>> {
 	}
 }
 
+thread_local! {
+	/// The handle whose claimed close [`Object::close`] last refused on this thread, if it
+	/// did so without draining it first, as one unclaimed would have. A close run on a home
+	/// for another thread skips nothing that matters: every drop queued before its job ran
+	/// first, as the home's queue is first in, first out.
+	static SKIPPED: std::cell::Cell<*const c_void> = const { std::cell::Cell::new(std::ptr::null()) };
+}
+
+/// What a binding's close runs as it waits on another close's undecided drop, with a null
+/// `handle`, or once [`Object::close`] refused its own close of `handle`: what other
+/// threads left this thread, which may be the close it waits on, queued for its home, or
+/// a drop ending the borrow that refused it, which runs only if that refusal skipped the
+/// drain. Whether it ran any then, so the close tries again, as one that drained first
+/// would have passed or been refused after it.
+pub fn close_drain(handle: *const c_void) -> bool {
+	(handle.is_null() || SKIPPED.replace(std::ptr::null()) == handle) && Thread::drained_here()
+}
+
 impl<T> Object<T> {
 	/// The thread `handle`'s value stays on, unless it is null: a call borrowing or moving
 	/// it runs there if that is a home elsewhere, as the thread that made it.
@@ -1998,6 +2051,49 @@ impl<F: FnOnce()> Drop for Unlifted<F> {
 	fn drop(&mut self) {
 		if let Some(release) = self.0.take() {
 			release();
+		}
+	}
+}
+
+/// What a call runs if a closure's failed check unwinds out of it, once dropped: ending what it
+/// moved and writing back what it changed, as returning would.
+pub struct Unwinding<F: FnOnce()>(::std::mem::ManuallyDrop<F>);
+
+impl<F: FnOnce()> Unwinding<F> {
+	pub fn new(after: F) -> Self {
+		Self(::std::mem::ManuallyDrop::new(after))
+	}
+
+	/// The call returned, which runs what follows it itself.
+	pub fn returned(self) {
+		let mut this = ::std::mem::ManuallyDrop::new(self);
+		// SAFETY: taken once, and `this` never drops.
+		drop(unsafe { ::std::mem::ManuallyDrop::take(&mut this.0) });
+	}
+}
+
+impl<F: FnOnce()> Drop for Unwinding<F> {
+	fn drop(&mut self) {
+		// SAFETY: taken once: `returned` never drops it.
+		let after = unsafe { ::std::mem::ManuallyDrop::take(&mut self.0) };
+		after();
+	}
+}
+
+/// A value [`Object::lending`] lent, which checks once dropped that C gave the handle
+/// back as it was lent.
+struct Lent<'a, T> {
+	object: Arc<Object<T>>,
+	state: usize,
+	what: &'a str,
+}
+
+impl<T> Drop for Lent<'_, T> {
+	fn drop(&mut self) {
+		match Arc::strong_count(&self.object) {
+			2 if self.object.borrow.is(&TABLE, self.state) => {}
+			1 => fail(self.what, "a lent handle was freed"),
+			_ => fail(self.what, "a lent handle is still borrowed"),
 		}
 	}
 }

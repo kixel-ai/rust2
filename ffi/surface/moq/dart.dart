@@ -2528,12 +2528,12 @@ final class MuxClock extends _Object {
 	@override bool operator ==(Object other);
 	@override int get hashCode;
 	factory MuxClock.default_();
-	static Timescale get timescale;
+	static Timescale get timescale_;
 	factory MuxClock();
 	factory MuxClock.at(ClockInstant epoch, ClockWall wall);
 	Timestamp now();
 	Timestamp capture(ClockInstant at);
-	Timescale timescale_();
+	Timescale timescale();
 	HangCatalogClock? wall();
 	ClockWall wallClock(Timestamp pts);
 }

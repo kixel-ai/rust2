@@ -87,6 +87,27 @@ final class Print extends api.Log {
   void close() => print('freed');
 }
 
+/// An eraser whose methods differ only by a trailing underscore.
+final class Eraser extends api.ClashEraser {
+  @override
+  int delete_(int new_, int new_2) => new_ * 10 + new_2;
+
+  @override
+  int delete() => 3;
+}
+
+/// The Undo callback: each method returns its own digit.
+final class Edits extends api.Undo {
+  @override
+  int delete(int n) => n - 1;
+
+  @override
+  int free() => 2;
+
+  @override
+  int type() => 3;
+}
+
 /// Bytes in hex, two digits each.
 String _hex(List<int> bytes) => bytes.map((b) => b.toRadixString(16).padLeft(2, '0')).join();
 
@@ -437,6 +458,35 @@ void checks() {
   }
   // A kept closure, called on another thread after the call that took it returned.
   check(api.Spawned(() => 7).join() == 7, 'a kept closure runs on another thread');
+  // Names apart from what Dart gives every enum and what a trait gives a type, each
+  // reaching its own Rust.
+  check(api.ClashLevel.default_() == api.ClashLevel.default__, 'a value named as Default\'s');
+  check(api.ClashLevel.debug_.debug() == 'Debug', 'a value named as Debug\'s');
+  check(api.ClashLevel.debug_.index_() == 2 && api.ClashLevel.debug_.index == 1, 'a method named as an enum\'s index');
+  final tag = api.ClashTagPrivate(number: 3);
+  check(tag.number == 3 && tag.number_() == 13, 'a method named as its variants\' field');
+  // Names that differ only by trailing underscores, each reaching its own Rust: a name Dart
+  // spells as Rust does keeps it, whichever comes first.
+  final underscored = api.ClashUnderscored(new_: 1, new2_: 2, debug_: 3, default_: 4);
+  check(
+    api.clashUnderscored(underscored, api.ClashOp.delete, api.ClashChangeSet(new_: 5, new2_: 6)) == 2561234,
+    'names apart by trailing underscores cross',
+  );
+  check(
+    api.clashUnderscoredNext(underscored, api.ClashChangeSet(new_: 5, new2_: 6)) ==
+        (api.ClashUnderscored(new_: 2, new2_: 3, debug_: 4, default_: 5), api.ClashChangeSet(new_: 6, new2_: 5)),
+    'names apart by trailing underscores cross back',
+  );
+  check(api.clashErased(Eraser()) == 123, 'a callback\'s methods apart by a trailing underscore');
+  check(
+    api.ClashEscaped(new_: 3).delete() == 3 && api.ClashEscaped(new_: 3).delete_(1, 2) == 213,
+    'methods apart by a trailing underscore',
+  );
+  check(api.clashErase_() == 2 && api.clashErase() == 1, 'functions apart by a trailing underscore');
+  // A named constructor keeps the name of an instance method, as Dart allows.
+  final opened = api.ClashStore.open();
+  check(opened.open() == 7, 'a named constructor and a method named alike');
+  opened.close();
   print('checks ok');
 }
 
@@ -1211,11 +1261,22 @@ Future<void> leaf() async {
   check(plain.nGet == api.U64(4) && plain.onGet, 'a leaf getter reads what a leaf setter wrote');
   check(plain == api.Plain(api.U64(4), true) && plain != api.Plain(api.U64(4), false), 'a leaf equality');
   check(plain.hashCode == api.Plain(api.U64(4), true).hashCode, 'a leaf hash');
+  plain.recount(api.U64(5));
+  check(plain.count() == api.U64(5), 'a leaf method reads what a leaf method wrote');
+  check(plain.steps() == api.U64(5), 'a method that loops');
+  final wrapped = api.Wrapped(api.U64(3));
+  wrapped.nSet(api.U64(4));
+  check(wrapped.nGet == api.U64(4) && wrapped.count() == api.U64(4), 'a leaf through a Deref');
+  wrapped.close();
   // A walk of a string the caller sized, which a leaf call would make the collector wait on.
   final labeled = api.Labeled('a' * 100);
   check(labeled == api.Labeled('a' * 100) && labeled != api.Labeled('b'), 'a served equality over a string');
   check(labeled.hashCode == api.Labeled('a' * 100).hashCode, 'a served hash over a string');
   labeled.close();
+  final buffer = api.Buffer(100);
+  buffer.blank();
+  check(buffer.zeroed(), 'a fill the caller sized');
+  buffer.close();
   plain.close();
   throws<StateError>(() => plain.nGet, 'a leaf getter of a closed object throws');
 
@@ -1232,6 +1293,12 @@ Future<void> leaf() async {
   check(pinned.valueGet == api.U64(5), 'a getter of a value kept on its thread');
   pinned.close();
   check(hooked == 3, 'a drop on a home serves the isolate');
+  check(api.Hooked(api.U64(1)).count() == api.U64(1), 'a hooked method');
+  check(hooked == 4, 'a hooked method serves the isolate');
+  final guarded = api.Guarded(api.U64(2));
+  check(guarded.nGet == api.U64(2) && guarded.count() == api.U64(2), 'a hooked Deref');
+  check(hooked == 6, 'a hooked Deref serves the isolate');
+  guarded.close();
   api.unhook();
   print('leaf ok');
 }
