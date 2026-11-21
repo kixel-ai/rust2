@@ -16,3 +16,7 @@ the refusals epic, since finished, which held back every other child.
 
 Every sibling lands first, since each breaks a generated API moq would otherwise adopt and
 then see change. A sibling planned later adds itself to `Required` here.
+
+## Required
+
+- [cpp-reserved-names](/quest/m1/ffi-export/cpp-reserved-names.md) - it renames generated C++ names moq would otherwise adopt
