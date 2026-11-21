@@ -7,9 +7,12 @@
  *
  * With an argument, it instead breaks one contract of the ABI, which must abort. */
 
+#include <assert.h>
+#include <errno.h>
 #include <math.h>
 #include <pthread.h>
 #include <stdatomic.h>
+#include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -31,6 +34,8 @@ static void print(const char *before, api_buf buf, const char *after) {
 	api_buf_free(buf);
 }
 
+/* Drops a must-use result on purpose: before C23, GCC warns of one even cast to void. */
+#define DISCARD(call) ((void)!(call))
 
 static int wakes = 0;
 static int drops = 0;
@@ -358,6 +363,22 @@ static void log_free(void *data) {
 	printf("freed\n");
 }
 
+/* The Undo callback, whose members C names apart from keywords and from its own free. */
+static uint32_t edits_delete(void *data, uint32_t n) {
+	(void)data;
+	return n - 1;
+}
+
+static uint32_t edits_free(void *data) {
+	(void)data;
+	return 2;
+}
+
+static uint8_t edits_type(void *data) {
+	(void)data;
+	return 3;
+}
+
 
 /* Breaks a lent handle's contract: frees it, or moves its value out. */
 static bool free_lent(void *data, api_Counter *counter) {
@@ -377,9 +398,11 @@ static bool move_lent(void *data, api_Counter *counter) {
 /* The transcript's own functions, which the generated script calls by the names
  * transcript.rs gives them, defined after it, beside the helpers it defines. */
 static api_Log Print(void);
+static api_Undo Edits(void);
 static void channel(void);
 static void drive(void);
 static void readers(void);
+static void streams(void);
 static void local_later(const api_Local *local);
 static api_buf hex(api_buf bytes);
 static api_buf escaped(api_buf path);
@@ -406,6 +429,12 @@ static api_buf copied(const char *text, size_t len) {
 static api_Log Print(void) {
 	static const api_Log_vtable vtable = {.free = log_free, .log = log_line};
 	return (api_Log){.vtable = &vtable};
+}
+
+/* Edits' Undo: each method returns its own digit. */
+static api_Undo Edits(void) {
+	static const api_Undo_vtable vtable = {.delete_ = edits_delete, .free_ = edits_free, .type_ = edits_type};
+	return (api_Undo){.vtable = &vtable};
 }
 
 /* A channel's futures, polled by hand. */
@@ -585,6 +614,64 @@ static void readers(void) {
 	} else {
 		print("sought error ", landed_err, "\n");
 	}
+}
+
+/* A countdown's next count, polled until ready: false once it ends. */
+static bool countdown_next(api_Countdown *countdown, uint32_t *count) {
+	api_Countdown_next_future *next = api_Countdown_next(countdown, NULL);
+	api_option_u32 out;
+	while (api_Countdown_next_poll(next, (api_waker){0}, &out) == API_POLL_PENDING) {
+	}
+	api_Countdown_next_future_free(next);
+	*count = out.value;
+	return out.some;
+}
+
+/* Streams, each next polled in turn, as C has no iteration of its own. */
+static void streams(void) {
+	uint32_t count;
+	api_Countdown *countdown = api_Countdown_new(3);
+	printf("countdown");
+	while (countdown_next(countdown, &count)) {
+		printf(" %u", (unsigned)count);
+	}
+	printf("\n");
+	api_Countdown_free(countdown);
+	countdown = api_Countdown_new(5);
+	while (countdown_next(countdown, &count) && count != 4) {
+	}
+	countdown_next(countdown, &count);
+	printf("countdown after break %u\n", (unsigned)count);
+	api_Countdown_free(countdown);
+	api_Channel *channel = api_Channel_new();
+	api_Feed *feed = api_Channel_feed(channel, NULL);
+	const char *firsts[2] = {"a", "c"};
+	for (int i = 0; i < 2; i++) {
+		api_Channel_send(channel, str(firsts[i]), NULL);
+		for (;;) {
+			api_Feed_next_future *next = api_Feed_next(feed, NULL);
+			api_buf payload;
+			api_Error err;
+			api_poll poll;
+			while ((poll = api_Feed_next_poll(next, (api_waker){0}, &payload, &err)) == API_POLL_PENDING) {
+			}
+			api_Feed_next_future_free(next);
+			if (poll == API_POLL_ERROR) {
+				print("feed error ", api_Error_to_string(&err), "\n");
+				api_Error_free(&err);
+				break;
+			}
+			if (payload.ptr == NULL) {
+				printf("feed end\n");
+				break;
+			}
+			char first = payload.len == 1 ? (char)payload.ptr[0] : 0;
+			print("feed ", payload, "\n");
+			api_Channel_send(channel, str(first == 'a' ? "b" : first == 'b' ? "!" : ""), NULL);
+		}
+	}
+	api_Feed_free(feed);
+	api_Channel_free(channel);
 }
 
 /* Futures of a value that is not Send, polled on this thread until each is ready. */
@@ -783,6 +870,18 @@ static api_buf unspelled(void) {
 
 /* What the transcript's output does not show: each check of the ABI's contract beyond it. */
 static void checks(void) {
+	/* A field named as errno.h's macro, escaped. */
+	api_clash_Errno none = api_clash_Errno_NULL();
+	if (none.errno_ != 0 || API_EOF != -1 || api_WEXITSTATUS(0x300) != 3) {
+		tr_fail("names of system macros");
+	}
+	/* A field and a parameter named as `errno`, a macro of <errno.h>, which take a trailing `_`
+	 * rather than expand. */
+	api_macros_Streams streams = {1, 2, 3, 4};
+	if (streams.errno_ != 4 || api_macros_streamed(streams, 5) != 15 || api_errno() != 7) {
+		tr_fail("names of C library macros");
+	}
+
 	/* A name takes a copy: the caller's buffer is its own again. */
 	api_Name *name = api_Name_owned(str("a"));
 	char text[] = "c";
@@ -863,7 +962,9 @@ static void checks(void) {
 /* A counter a closure was lent, which it fails to move out, then reads as it was. */
 static bool move_lent_status(void *data, api_Counter *counter) {
 	api_status *status = data;
-	api_Counter_into_label(counter, (api_option_Point){0}, status);
+	/* The refused call returns a zeroed label, which holds nothing to free. */
+	api_Label refused = api_Counter_into_label(counter, (api_option_Point){0}, status);
+	(void)refused;
 	return *status == API_STATUS_LENT && api_Counter_get(counter, NULL) == 0;
 }
 
@@ -885,7 +986,7 @@ static void *use_elsewhere(void *data) {
 	api_Local_bump(e->local, &e->bumped);
 	uint32_t out = 0;
 	e->poll = api_local_later_poll(e->later, (api_waker){0}, &out, &e->polled);
-	api_Local_poll_count_poll(e->count, (api_waker){0}, &out, &e->counted);
+	DISCARD(api_Local_poll_count_poll(e->count, (api_waker){0}, &out, &e->counted));
 	api_Local_free(e->local);
 	api_local_later_future_free(e->later);
 	api_Local_poll_count_future_free(e->count);
@@ -1260,7 +1361,7 @@ static int statuses(void) {
 		api_Ledger *ledger = api_Ledger_new();
 		api_Draft *draft;
 		api_Error err;
-		api_Ledger_edit(ledger, &draft, &err, NULL);
+		DISCARD(api_Ledger_edit(ledger, &draft, &err, NULL));
 		status = 0;
 		api_Ledger_published(ledger, &status);
 		if (status != API_STATUS_EXCLUSIVE) {
@@ -1305,7 +1406,7 @@ static int statuses(void) {
 		}
 		api_Draft_free(draft);
 		/* A close gives it back too, publishing what the draft marked. */
-		api_Ledger_edit(ledger, &draft, &err, NULL);
+		DISCARD(api_Ledger_edit(ledger, &draft, &err, NULL));
 		api_Draft_write(draft, str("y"), NULL);
 		status = 0;
 		api_Draft_drop(draft, &status);
@@ -1315,7 +1416,7 @@ static int statuses(void) {
 		}
 		api_Draft_free(draft);
 		/* The ledger freed while lent drops once the draft does, which still works. */
-		api_Ledger_edit(ledger, &draft, &err, NULL);
+		DISCARD(api_Ledger_edit(ledger, &draft, &err, NULL));
 		api_Ledger_free(ledger);
 		api_Draft_write(draft, str("z"), NULL);
 		status = 0;
@@ -1389,7 +1490,7 @@ static int statuses(void) {
 		api_Slip *twin = api_Slip_clone(slip, NULL);
 		api_Slip_free(slip);
 		status = 0;
-		api_Slip_receipt_get(twin, &status);
+		DISCARD(api_Slip_receipt_get(twin, &status));
 		if (status != API_STATUS_LENT || api_Slip_count(twin, NULL) != 0) {
 			fprintf(stderr, "a lent slip's receipt wrote %d\n", status);
 			failed = 1;
@@ -1596,18 +1697,18 @@ static int broken(const char *which) {
 		api_Channel_clear(channel, NULL);
 	} else if (strcmp(which, "utf8") == 0) {
 		api_buf bad = {.ptr = (const uint8_t *)"\xff", .len = 1};
-		api_greet(bad, API_SHAPE_CIRCLE);
+		api_buf_free(api_greet(bad, API_SHAPE_CIRCLE));
 	} else if (strcmp(which, "finished") == 0) {
 		api_Channel *channel = api_Channel_new();
 		api_Channel_send(channel, str("x"), NULL);
 		api_Channel_recv_future *recv = api_Channel_recv(channel, NULL);
 		api_waker waker = {0};
 		api_buf payload;
-		api_Channel_recv_poll(recv, waker, &payload);
+		DISCARD(api_Channel_recv_poll(recv, waker, &payload));
 		api_buf_free(payload);
-		api_Channel_recv_poll(recv, waker, &payload);
+		DISCARD(api_Channel_recv_poll(recv, waker, &payload));
 	} else if (strcmp(which, "enum") == 0) {
-		api_greet(str("x"), (api_Shape)2);
+		api_buf_free(api_greet(str("x"), (api_Shape)2));
 	} else if (strcmp(which, "lent") == 0 || strcmp(which, "lent moved") == 0) {
 		api_Registry *registry = api_Registry_new(api_Counter_new(str("c"), 0), NULL);
 		api_Registry_edit(registry, strcmp(which, "lent") == 0 ? free_lent : move_lent, NULL, NULL);
@@ -1623,26 +1724,26 @@ static int broken(const char *which) {
 		api_Registry *registry = api_Registry_new(api_Counter_new(str("c"), 0), NULL);
 		api_Registry_edit(registry, NULL, NULL, NULL);
 	} else if (strcmp(which, "returned") == 0) {
-		api_made(1, made_view, NULL);
+		api_buf_free(api_made(1, made_view, NULL));
 	} else if (strcmp(which, "reader") == 0) {
 		api_buf bytes;
 		uint64_t at;
 		api_buf err;
-		api_tail((api_foreign_reader){0}, 1, &bytes, &at, &err);
+		DISCARD(api_tail((api_foreign_reader){0}, 1, &bytes, &at, &err));
 	} else if (strcmp(which, "bound") == 0) {
 		api_count((api_bounds_u64){.start = {.kind = (api_bound)3}});
 	} else if (strcmp(which, "future") == 0) {
 		/* A future with no poll. */
-		api_after((api_foreign_future){0}, 1);
+		DISCARD(api_after((api_foreign_future){0}, 1));
 	} else if (strcmp(which, "started") == 0) {
 		/* A future with no poll, through a start, which the abort names. */
 		uint32_t out;
 		api_after_future *after;
-		api_after_start((api_foreign_future){0}, 1, &out, &after);
+		DISCARD(api_after_start((api_foreign_future){0}, 1, &out, &after));
 	} else if (strcmp(which, "start") == 0) {
 		/* A start with nowhere to put the handle of a future that pends. */
 		uint32_t out;
-		api_yielded_start(1, &out, NULL);
+		DISCARD(api_yielded_start(1, &out, NULL));
 	} else if (strcmp(which, "array") == 0) {
 		api_vec_u16 ports = api_ports((api_vec_socket_addr){0});
 		ports.len = 1;

@@ -39,6 +39,16 @@ pub(crate) struct Reached {
 }
 
 impl Api {
+	/// The path an exported record, enum, or object is shown at, which keys its names.
+	pub(crate) fn shown(&self, ty: &Type) -> &Path {
+		match ty {
+			Type::Record(i) => &self.records[*i].shown,
+			Type::Enum(i) => &self.enums[*i].shown,
+			Type::Object(i) => &self.objects[*i].shown,
+			ty => unreachable!("only an exported type is shown: {ty:?}"),
+		}
+	}
+
 	/// Each object whose handle a call borrows or moves as it lifts a value of `ty`, into
 	/// `out`: its own, and those its records and enums hold. `seen` holds the records and
 	/// enums already walked, as `(is_enum, index)`.
@@ -437,6 +447,10 @@ pub(crate) struct Traits {
 	/// A baseline written before it has none.
 	#[serde(default)]
 	pub(crate) hash: bool,
+	/// `PartialOrd` with itself, and whether it is a total order too, `Ord`. A baseline
+	/// written before it has none.
+	#[serde(default)]
+	pub(crate) ord: Order,
 	pub(crate) display: bool,
 	pub(crate) debug: bool,
 	pub(crate) default: bool,
@@ -451,6 +465,19 @@ pub(crate) struct Traits {
 	/// or type holding itself, whose length the caller picks.
 	#[serde(default)]
 	pub(crate) leaf_sized: bool,
+}
+
+/// How a type orders its values.
+#[derive(Default, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug, serde::Serialize, serde::Deserialize)]
+pub(crate) enum Order {
+	/// No `PartialOrd`.
+	#[default]
+	None,
+	/// `PartialOrd` alone: two values may be unordered, so a binding exports only the
+	/// partial comparison, never its language's total one.
+	Partial,
+	/// `Ord` as well, a total order agreeing with `PartialOrd`.
+	Total,
 }
 
 /// A function or method.
@@ -569,6 +596,15 @@ impl Function {
 	/// exports it.
 	pub(crate) fn jni(&self) -> bool {
 		self.params.iter().any(|p| matches!(p.ty, Type::Jni(_)))
+	}
+
+	/// What it yields as a stream, if it is one: a method `next` of `&self` or `&mut self`,
+	/// taking nothing else, whose future outputs `Option<T>` or `Result<Option<T>, E>`. Each
+	/// binding adds an adapter iterating it in its language's own protocol, beside it.
+	pub(crate) fn stream(&self) -> Option<&Type> {
+		let Type::Option(item) = &self.ok else { return None };
+		let receiver = matches!(self.receiver, Some(Receiver::Ref | Receiver::Mut));
+		(self.future && receiver && self.params.is_empty() && self.name() == "next").then_some(item)
 	}
 }
 

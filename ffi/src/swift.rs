@@ -30,7 +30,9 @@ use std::fmt::Write;
 
 use crate::abi::{self, Abi, Ty, pascal};
 use crate::doc;
-use crate::ir::{Access, Closure, Collection, Family, Function, Int, Literal, Mutability, On, Param, Receiver, Type};
+use crate::ir::{
+	Access, Closure, Collection, Family, Function, Int, Literal, Mutability, On, Order, Param, Receiver, Type,
+};
 
 const RUNTIME: &str = include_str!("../runtime/rt.swift");
 
@@ -175,11 +177,14 @@ pub(crate) fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<O
 }
 
 /// The standard library's names the runtime and the generated code use unqualified, which
-/// an exported type or function would shadow, and `Swift`, which qualifies the rest. The
+/// an exported type or function would shadow, and `Swift`, which qualifies the rest. A
+/// stream's class declares or infers `Element`, `Failure`, and `AsyncIterator`, which would
+/// shadow an export of that name inside it. The
 /// runtime's own are the C ABI's: `Native`, `Bytes`, and each address type are claimed as
 /// `<prefix>_native`, `<prefix>_bytes`, `<prefix>_socket_addr`, and so on.
 const TAKEN: &[&str] = &[
 	"Array",
+	"AsyncIterator",
 	"Bool",
 	"Bytes",
 	"CancellationError",
@@ -188,7 +193,9 @@ const TAKEN: &[&str] = &[
 	"CustomDebugStringConvertible",
 	"CustomStringConvertible",
 	"Data",
+	"Element",
 	"Equatable",
+	"Failure",
 	"Hashable",
 	"Int",
 	"Int64",
@@ -974,8 +981,38 @@ impl<'a> Gen<'a> {
 				),
 			}
 		};
+		// The body calling `{c}_<suffix>` of `a` and `b`, returning `lift` of its result.
+		let binary = |suffix: &str, lift: &dyn Fn(&str) -> String| {
+			let what = format!("{c}_{suffix}");
+			match (object, unique) {
+				(true, true) => call(&format!("{what}(a.handle, b.handle"), &what, lift),
+				(true, false) => {
+					let with = |h: &str| match status {
+						true => format!("try {h}.handle.with(\"{what}\")"),
+						false => format!("{h}.handle.with"),
+					};
+					format!(
+						"return {} {{ a_ in {} {{ b_ in\n\t\t\t{}\n\t\t}} }}",
+						with("a"),
+						with("b"),
+						call(&format!("{what}(a_, b_"), &what, lift).replace("\n\t\t", "\n\t\t\t")
+					)
+				}
+				(false, _) => format!(
+					"{}var ca_ = {}\n\t\tvar cb_ = {}\n\t\t{}",
+					value(&what),
+					lower.replacen("self.", "a.", 1),
+					lower.replacen("self.", "b.", 1),
+					call(&format!("{what}(&ca_, &cb_"), &what, lift)
+				),
+			}
+		};
 		let throws = match status {
 			true => " throws",
+			false => "",
+		};
+		let borrowing = match unique {
+			true => "borrowing ",
 			false => "",
 		};
 		// A property's body, in a getter that throws if the call can.
@@ -984,7 +1021,10 @@ impl<'a> Gen<'a> {
 			false => body,
 		};
 		let text = |r: &str| format!("Native.string({r})");
+		// The members named here, by trait, which the lock records.
+		let mut named = Vec::new();
 		if t.display {
+			named.push(("Display", "description"));
 			if !status {
 				protocols.push("CustomStringConvertible");
 			}
@@ -995,6 +1035,7 @@ impl<'a> Gen<'a> {
 			));
 		}
 		if t.debug {
+			named.push(("Debug", "debugDescription"));
 			if !status {
 				protocols.push("CustomDebugStringConvertible");
 			}
@@ -1005,6 +1046,7 @@ impl<'a> Gen<'a> {
 			));
 		}
 		if object && t.clone {
+			named.push(("Clone", "clone"));
 			members.push("clone".to_string());
 			let lift = |r: &str| format!("{name}(raw: {r})");
 			body.push(format!(
@@ -1020,39 +1062,41 @@ impl<'a> Gen<'a> {
 					false => "Equatable",
 				});
 			}
-			let what = format!("{c}_eq");
 			let same = |r: &str| r.to_string();
-			let compare = match (object, unique) {
-				(true, true) => call(&format!("{what}(a.handle, b.handle"), &what, &same),
-				(true, false) => {
-					let with = |h: &str| match status {
-						true => format!("try {h}.handle.with(\"{what}\")"),
-						false => format!("{h}.handle.with"),
-					};
-					format!(
-						"return {} {{ a_ in {} {{ b_ in\n\t\t\t{}\n\t\t}} }}",
-						with("a"),
-						with("b"),
-						call(&format!("{what}(a_, b_"), &what, &same).replace("\n\t\t", "\n\t\t\t")
-					)
-				}
-				(false, _) => format!(
-					"{}var ca_ = {}\n\t\tvar cb_ = {}\n\t\t{}",
-					value(&what),
-					lower.replacen("self.", "a.", 1),
-					lower.replacen("self.", "b.", 1),
-					call(&format!("{what}(&ca_, &cb_"), &what, &same)
-				),
-			};
-			let borrowing = match unique {
-				true => "borrowing ",
-				false => "",
-			};
+			let compare = binary("eq", &same);
 			body.push(format!(
 				"\tpublic static func == (a: {borrowing}{name}, b: {borrowing}{name}){throws} -> Swift.Bool {{\n\t\t{compare}\n\t}}\n"
 			));
 		}
+		// `<` and its kin through Rust's `partial_cmp`, as Rust's are: -1, 0, 1, or 2 when
+		// unordered, which none of them is. A total order is `Comparable`, whose other
+		// operators these replace.
+		if t.ord != Order::None {
+			if t.ord == Order::Total && !status {
+				protocols.push("Comparable");
+			}
+			let ordering = |r: &str| r.to_string();
+			body.push(format!(
+				"\t/// Rust's `partial_cmp`: -1, 0, 1, or 2 when unordered.\n\tstatic func _partialCmp(_ a: {borrowing}{name}, _ b: {borrowing}{name}){throws} -> Swift.Int8 {{\n\t\t{}\n\t}}\n",
+				binary("partial_cmp", &ordering)
+			));
+			let try_ = match status {
+				true => "try ",
+				false => "",
+			};
+			for (op, test) in [
+				("<", "c_ == -1"),
+				("<=", "c_ == -1 || c_ == 0"),
+				(">", "c_ == 1"),
+				(">=", "c_ == 0 || c_ == 1"),
+			] {
+				body.push(format!(
+					"\tpublic static func {op} (a: {borrowing}{name}, b: {borrowing}{name}){throws} -> Swift.Bool {{\n\t\tlet c_ = {try_}_partialCmp(a, b)\n\t\treturn {test}\n\t}}\n"
+				));
+			}
+		}
 		if t.hash {
+			named.push(("Hash", "hash(into:)"));
 			members.push("hash(into:)".to_string());
 			let combine = |r: &str| format!("hasher.combine({r})");
 			body.push(format!(
@@ -1061,6 +1105,7 @@ impl<'a> Gen<'a> {
 			));
 		}
 		if t.default {
+			named.push(("Default", "default"));
 			members.push("static default".to_string());
 			let lift = match ty {
 				Type::Object(_) => format!("{name}(raw: {c}_default())"),
@@ -1076,6 +1121,9 @@ impl<'a> Gen<'a> {
 				"\t/// Rust's `Default`.\n\tpublic static func `default`(){throws} -> {name} {{\n\t\t{}Native.check()\n\t\treturn {lift}\n\t}}\n",
 				self.on(self.on, &format!("{c}_default"), "\n\t\t", limited)
 			));
+		}
+		for (t, member) in named {
+			crate::lock::trait_member(&mut self.locked, self.abi.api.shown(ty), t, member);
 		}
 	}
 
@@ -1110,6 +1158,9 @@ impl<'a> Gen<'a> {
 		let fields: Vec<(String, String)> = (record.fields.iter())
 			.map(|f| (field_name(&f.name), self.sw(&f.ty)))
 			.collect();
+		for (f, (name, _)) in record.fields.iter().zip(&fields) {
+			crate::lock::field(&mut self.locked, &record.shown, &f.name, &unquote(name));
+		}
 		let mut members: Vec<String> = fields.iter().map(|(f, _)| unquote(f)).collect();
 		// A deprecated field is stored apart, under `_` and its name, so its own code's uses
 		// do not warn as a caller's do: Swift has no way to silence one.
@@ -1243,7 +1294,14 @@ impl<'a> Gen<'a> {
 		let mut lowers = Vec::new();
 		for variant in &e.variants {
 			let snake = abi::snake(&variant.name);
-			let case = member(&snake, &["init"]);
+			let case = case_of(e.traits, &variant.name);
+			crate::lock::variant(&mut self.locked, &e.shown, &variant.name, &unquote(&case));
+			if !variant.tuple {
+				for f in &variant.fields {
+					let label = unquote(&field_name(&f.name));
+					crate::lock::variant_field(&mut self.locked, &e.shown, &variant.name, &f.name, &label);
+				}
+			}
 			let labels = variant.fields.iter().map(|f| match variant.tuple {
 				true => "_".to_string(),
 				false => unquote(&field_name(&f.name)),
@@ -1389,7 +1447,19 @@ impl<'a> Gen<'a> {
 			name: c.clone(),
 			constant: false,
 		};
-		self.methods(&object.methods, &owner, &ty, &mut body, &mut members);
+		let mut streams = Vec::new();
+		for method in &object.methods {
+			for (code, member) in self.function(method, Some(&owner), Some(&ty), &members) {
+				if method.stream().is_some() {
+					streams.push((method, member.clone()));
+				}
+				members.push(member);
+				body.push(indent(&code));
+			}
+		}
+		for (method, next) in streams {
+			self.stream(method, &name, &next, unique, &mut body, &mut members);
+		}
 		self.distinct(&rust, &members);
 		let text = format!("{rust}\n\n{}", object.docs);
 		let docs = docs(text.trim(), object.deprecated.as_deref(), "");
@@ -1418,6 +1488,88 @@ impl<'a> Gen<'a> {
 				"#if compiler(>=6.4)\nextension {name}: {equal} {{}}\n#endif\n\n"
 			);
 		}
+	}
+
+	/// The `AsyncSequence` of the stream `method` of the object `name`, whose Swift member
+	/// is `next`: a method `stream()`, a member of the object's `body`, making a class that
+	/// owns the object, and each loop's iterator, written after it. `AsyncSequence` requires a copyable element, so a
+	/// stream of a noncopyable struct keeps `next` alone.
+	fn stream(
+		&mut self,
+		method: &Function,
+		name: &str,
+		next: &str,
+		unique: bool,
+		body: &mut Vec<String>,
+		members: &mut Vec<String>,
+	) {
+		let item = method.stream().expect("a stream yields its item");
+		if self.unique(item) {
+			return;
+		}
+		let element = self.sw(&strip_refs(item));
+		let rust = method.path.join("::");
+		let mut member = "stream".to_string();
+		while members.contains(&member) {
+			member.push('_');
+		}
+		let key = crate::lock::function_key(method);
+		self.locked.insert(format!("{key} / stream"), member.clone());
+		// A keyword's quoting would split the name it starts.
+		let class = self.claim(
+			&format!("{}Stream", name.trim_matches('`')),
+			&[],
+			format!("the stream of `{rust}`"),
+		);
+		self.locked.insert(format!("{key} / stream type"), class.clone());
+		let consuming = match unique {
+			true => "consuming ",
+			false => "",
+		};
+		// Deprecated as `next` is, so its own use of `next` warns of nothing.
+		let deprecated = method.deprecated.as_deref();
+		let doc = format!("This value as an `AsyncSequence` of what `{next}()` yields, which owns it.");
+		body.push(format!(
+			"{}\t@inlinable public {consuming}func {member}() -> {class} {{\n\t\t{class}(self)\n\t}}\n",
+			docs(&doc, deprecated, "\t")
+		));
+		members.push(member);
+		let text = format!(
+			"`{rust}` as an `AsyncSequence`, owning the value: each item is a call of `{next}()`,\n\
+			and none is read ahead, so a loop left early leaves the next item to the next loop or\n\
+			call of `next()`. Each loop's iterator ends for good once `{next}()` returns nil or throws,\n\
+			as `AsyncIteratorProtocol` requires, while the next loop, or `next()`, calls it again,\n\
+			as Rust may. Cancelling the task while `next()` waits drops its Rust future, which loses\n\
+			an item only where that future does when dropped."
+		);
+		let _ = write!(
+			self.types,
+			"{}public final class {class}: Swift.AsyncSequence {{\n\
+			\tpublic typealias Element = {element}\n\
+			\tpublic typealias Failure = any Swift.Error\n\n\
+			\t@usableFromInline var value: {name}\n\n\
+			\t@usableFromInline init(_ value: {consuming}{name}) {{\n\t\tself.value = value\n\t}}\n\n\
+			\tpublic func makeAsyncIterator() -> AsyncIterator {{\n\t\tAsyncIterator(self)\n\t}}\n\n\
+			\t/// The next item, as `{next}()` returns it, even past the end or an error.\n\
+			\t@inlinable nonisolated(nonsending) public func next() async throws -> {element}? {{\n\t\ttry await value.{next}()\n\t}}\n\n\
+			\t/// One loop over the stream, which ends for good at nil or an error.\n\
+			\tpublic struct AsyncIterator: Swift.AsyncIteratorProtocol {{\n\
+			\t\t@usableFromInline let stream: {class}\n\
+			\t\t@usableFromInline var done = false\n\n\
+			\t\t@usableFromInline init(_ stream: {class}) {{\n\t\t\tself.stream = stream\n\t\t}}\n\n\
+			\t\t/// The next item, or nil once the stream ended or threw.\n\
+			\t\t@inlinable nonisolated(nonsending) public mutating func next() async throws -> {element}? {{\n\
+			\t\t\tif done {{ return nil }}\n\
+			\t\t\tdo {{\n\t\t\t\tguard let item = try await stream.value.{next}() else {{\n\t\t\t\t\tdone = true\n\t\t\t\t\treturn nil\n\t\t\t\t}}\n\t\t\t\treturn item\n\
+			\t\t\t}} catch {{\n\t\t\t\tdone = true\n\t\t\t\tthrow error\n\t\t\t}}\n\
+			\t\t}}\n\n\
+			\t\t@inlinable public mutating func next(isolation actor: isolated (any Swift.Actor)?) async throws -> {element}? {{\n\
+			\t\t\ttry await next()\n\
+			\t\t}}\n\
+			\t}}\n\
+			}}\n\n",
+			docs(&text, deprecated, "")
+		);
 	}
 
 	fn callback(&mut self, i: usize) {
@@ -1472,7 +1624,7 @@ impl<'a> Gen<'a> {
 			closure_params.extend(ps);
 			table.push(format!(
 				"{}: {{ {} in {call} }}",
-				method.name(),
+				abi::member(method),
 				closure_params.join(", ")
 			));
 		}
@@ -1879,6 +2031,8 @@ impl<'a> Gen<'a> {
 			{
 				// Labelled, as a defaulted argument is, so that overloads leaving out
 				// different ones differ in name.
+				let key = format!("{} / label {}", crate::lock::function_key(function), param.name);
+				self.locked.insert(key, unquote(name));
 				params.push(format!("{name}: borrowing {}", self.sw(lent)));
 				args.push(Arg {
 					exprs: vec![format!("{name}.handle")],
@@ -2361,7 +2515,7 @@ impl<'a> Gen<'a> {
 			doc::Target::Variant(i, v) => format!(
 				"{}/{}",
 				owner(doc::Owner::Enum(i)),
-				unquote(&member(&abi::snake(&abi.api.enums[i].variants[v].name), &["init"]))
+				unquote(&case_of(abi.api.enums[i].traits, &abi.api.enums[i].variants[v].name))
 			),
 			doc::Target::Field(i, n) => format!(
 				"{}/{}",
@@ -2587,6 +2741,15 @@ fn camel(name: &str) -> String {
 	match chars.next() {
 		Some(first) => first.to_lowercase().chain(chars).collect(),
 		None => name.to_string(),
+	}
+}
+
+/// A variant's case: `init` would name the initializer, and `default`, with its traits `t`,
+/// `Default`'s static `default()`.
+fn case_of(t: crate::ir::Traits, variant: &str) -> String {
+	match t.default {
+		true => member(&abi::snake(variant), &["init", "default"]),
+		false => member(&abi::snake(variant), &["init"]),
 	}
 }
 

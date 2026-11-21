@@ -117,12 +117,10 @@ export function charFromStr(s: string): Result<char, ParseCharError> {
 	return s.length === (c > 0xffff ? 2 : 1) ? Ok(c) : Err({ kind: "TooManyChars" });
 }
 
-const TWO32 = 4294967296;
-const MAX_SAFE = 0x1fffffffffffff;
 
 /** A wide integer's value as a number: exact up to 2^53 in magnitude, rounded past it. */
 function approx(v: Limbs): number {
-	return "w1" in v ? ((v.hi * TWO32 + v.w2) * TWO32 + v.w1) * TWO32 + v.lo : v.hi * TWO32 + v.lo;
+	return "w1" in v ? ((v.hi * 4294967296 + v.w2) * 4294967296 + v.w1) * 4294967296 + v.lo : v.hi * 4294967296 + v.lo;
 }
 
 // Limbs and bigints trade through this buffer, as little-endian bytes: a store of each limb
@@ -146,7 +144,7 @@ function exact(v: Limbs): bigint {
 }
 
 function safe(n: number): boolean {
-	return n <= MAX_SAFE && n >= -MAX_SAFE;
+	return n <= 9007199254740991 && n >= -9007199254740991;
 }
 
 function shift(b: number | Limbs, bits: number, direction: string, at?: Location): number {
@@ -890,7 +888,7 @@ type Wide = number | Limbs;
 
 /** Whether a number is a safe integer of the sign's range. */
 function fits(n: number, signed: boolean): boolean {
-	return n <= MAX_SAFE && n >= (signed ? -MAX_SAFE : 0);
+	return n <= 9007199254740991 && n >= (signed ? -9007199254740991 : 0);
 }
 
 /** Whether `v` is in range of the type. */
@@ -925,13 +923,13 @@ function halves(hi: number, lo: number): Limbs {
 /** The one form of a 64-bit value from its halves: `hi` in the type's sign, `lo` a uint32. */
 function join(hi: number, lo: number): Wide {
 	// Rounding keeps the order, so a value past the safe integers still tests past them.
-	const n = hi * TWO32 + lo;
+	const n = hi * 4294967296 + lo;
 	return safe(n) ? n : halves(hi, lo);
 }
 
 /** A 64-bit value's high half, in the type's sign, read without boxing a number. */
 function hiOf(v: Wide): number {
-	return typeof v === "number" ? Math.floor(v / TWO32) : v.hi;
+	return typeof v === "number" ? Math.floor(v / 4294967296) : v.hi;
 }
 
 /** A 64-bit value's low half, a uint32. */
@@ -942,7 +940,7 @@ function loOf(v: Wide): number {
 /** A value's limbs, from a safe integer wrapped into range. */
 function limbs(v: Wide, bits: number, signed: boolean): Limbs {
 	if (typeof v !== "number") return v;
-	const hi = Math.floor(v / TWO32);
+	const hi = Math.floor(v / 4294967296);
 	if (bits === 64) return halves(high(hi, signed), v >>> 0);
 	const sign = v < 0 ? -1 : 0;
 	return { hi: high(sign, signed), w2: sign >>> 0, w1: hi >>> 0, lo: v >>> 0 } as Limbs;
@@ -963,21 +961,16 @@ function compare(a: Limbs, b: Limbs): number {
 	return a.lo === b.lo ? 0 : a.lo < b.lo ? -1 : 1;
 }
 
-// The high half of the last `mul32`.
-let mulHi = 0;
-
-/** The full product of two uint32s: its low half, with the high one in `mulHi`. */
-function mul32(a: number, b: number): number {
+/** The high half of the full product of two uint32s; its low half is `Math.imul(a, b) >>> 0`. */
+function mulHigh(a: number, b: number): number {
 	const a0 = a & 0xffff;
 	const a1 = a >>> 16;
 	const b0 = b & 0xffff;
 	const b1 = b >>> 16;
-	const p00 = a0 * b0;
 	const p01 = a0 * b1;
 	const p10 = a1 * b0;
-	const mid = (p00 >>> 16) + (p01 & 0xffff) + (p10 & 0xffff);
-	mulHi = a1 * b1 + (p01 >>> 16) + (p10 >>> 16) + (mid >>> 16);
-	return (((mid & 0xffff) << 16) | (p00 & 0xffff)) >>> 0;
+	const mid = ((a0 * b0) >>> 16) + (p01 & 0xffff) + (p10 & 0xffff);
+	return a1 * b1 + (p01 >>> 16) + (p10 >>> 16) + (mid >>> 16);
 }
 
 // Which way the last sum left the type's range: 1 past its maximum, -1 below its
@@ -990,7 +983,7 @@ let overflow = 0;
 /** A 64-bit `a + b`, or `a - b` if `sign` is -1, wrapped into the type's range, setting `overflow`. */
 function sum64(a: Wide, b: Wide, sign: number, signed: boolean): Wide {
 	const lo = loOf(a) + sign * loOf(b);
-	const hi = hiOf(a) + sign * hiOf(b) + Math.floor(lo / TWO32);
+	const hi = hiOf(a) + sign * hiOf(b) + Math.floor(lo / 4294967296);
 	overflow = outside(hi, signed);
 	return join(high(hi, signed), lo >>> 0);
 }
@@ -1000,9 +993,9 @@ function sum128(a: Wide, b: Wide, sign: number, signed: boolean): Wide {
 	const x = limbs(a, 128, signed) as U128Limbs;
 	const y = limbs(b, 128, signed) as U128Limbs;
 	const lo = x.lo + sign * y.lo;
-	const w1 = x.w1 + sign * y.w1 + Math.floor(lo / TWO32);
-	const w2 = x.w2 + sign * y.w2 + Math.floor(w1 / TWO32);
-	const hi = x.hi + sign * y.hi + Math.floor(w2 / TWO32);
+	const w1 = x.w1 + sign * y.w1 + Math.floor(lo / 4294967296);
+	const w2 = x.w2 + sign * y.w2 + Math.floor(w1 / 4294967296);
+	const hi = x.hi + sign * y.hi + Math.floor(w2 / 4294967296);
 	overflow = outside(hi, signed);
 	return one({ hi: high(hi, signed), w2: w2 >>> 0, w1: w1 >>> 0, lo: lo >>> 0 } as Limbs);
 }
@@ -1058,8 +1051,7 @@ function wrappingProduct(a: Wide, b: Wide, signed: boolean): Wide {
 function wrappingProduct64(a: Wide, b: Wide, signed: boolean): Wide {
 	const xl = loOf(a);
 	const yl = loOf(b);
-	const lo = mul32(xl, yl);
-	return join(high(mulHi + Math.imul(hiOf(a), yl) + Math.imul(xl, hiOf(b)), signed), lo);
+	return join(high(mulHigh(xl, yl) + Math.imul(hiOf(a), yl) + Math.imul(xl, hiOf(b)), signed), Math.imul(xl, yl) >>> 0);
 }
 
 /** Whether `a` is a multiple of `b`, unsigned: of 0, only 0 is. */
@@ -1110,8 +1102,8 @@ function product64(a: Wide, b: Wide, signed: boolean): Wide | undefined {
 	// Two high halves pass 2^64. Otherwise one factor is below 2^32, and its product with
 	// the other's high half must be too: past 2^53 that sum rounds, but stays past it.
 	if (xh !== 0 && yh !== 0) return undefined;
-	const lo = mul32(xl, yl);
-	const hi = mulHi + xh * yl + xl * yh;
+	const lo = Math.imul(xl, yl) >>> 0;
+	const hi = mulHigh(xl, yl) + xh * yl + xl * yh;
 	if (!signed) return hi > 0xffffffff ? undefined : join(hi, lo);
 	if (!negative) return hi > 0x7fffffff ? undefined : join(hi, lo);
 	if (hi > 0x80000000 || (hi === 0x80000000 && lo !== 0)) return undefined;
@@ -1127,18 +1119,18 @@ function product64(a: Wide, b: Wide, signed: boolean): Wide | undefined {
 function product128(a: number, b: number): Limbs {
 	const x = Math.abs(a);
 	const y = Math.abs(b);
-	const xh = Math.floor(x / TWO32);
+	const xh = Math.floor(x / 4294967296);
 	const xl = x >>> 0;
-	const yh = Math.floor(y / TWO32);
+	const yh = Math.floor(y / 4294967296);
 	const yl = y >>> 0;
-	const w0 = mul32(xl, yl);
+	const w0 = Math.imul(xl, yl) >>> 0;
 	const m1 = xh * yl;
 	const m2 = xl * yh;
-	const s1 = mulHi + (m1 >>> 0) + (m2 >>> 0);
-	const s2 = xh * yh + Math.floor(m1 / TWO32) + Math.floor(m2 / TWO32) + Math.floor(s1 / TWO32);
+	const s1 = mulHigh(xl, yl) + (m1 >>> 0) + (m2 >>> 0);
+	const s2 = xh * yh + Math.floor(m1 / 4294967296) + Math.floor(m2 / 4294967296) + Math.floor(s1 / 4294967296);
 	const w1 = s1 >>> 0;
 	const w2 = s2 >>> 0;
-	const w3 = Math.floor(s2 / TWO32);
+	const w3 = Math.floor(s2 / 4294967296);
 	if (a < 0 === b < 0) return { hi: w3, w2, w1, lo: w0 } as Limbs;
 	// Two's complement: each limb inverted, plus the carry out of those below it.
 	const lo = -w0 >>> 0;
@@ -1176,14 +1168,15 @@ function quotient(a: Wide, b: Wide, bits: number, signed: boolean, remainder: bo
 	if (typeof a === "number" && typeof b === "number") return (remainder ? a % b : Math.trunc(a / b)) + 0;
 	// Limbs pass every number in magnitude.
 	if (typeof a === "number") return remainder ? a : 0;
-	if (typeof b === "number" && b < TWO32 && b > -TWO32) return divideWords(a, b, bits, signed, remainder, at);
+	if (typeof b === "number" && b < 4294967296 && b > -4294967296) return divideWords(a, b, bits, signed, remainder, at);
 	const n = exact(a);
 	const d = typeof b === "number" ? BigInt(b) : exact(b);
 	if (remainder) return one(box(n % d, bits, signed));
 	return one(bigChecked(n / d, bits, signed, "divide", at));
 }
 
-// A magnitude's 32-bit words, most significant first, which `divideWords` divides in place.
+// A magnitude's 32-bit words, most significant first, which `divideWords` divides in place
+// where the dividend or the divisor is negative.
 const words = /* @__PURE__ */ new Uint32Array(4);
 
 /** Negates the 128 bits in `words`. */
@@ -1198,12 +1191,69 @@ function negateWords() {
 
 /**
  * `a / b` or `a % b` of limbs by a number below 2^32 in magnitude: a long division of
- * their magnitudes in 16-bit digits, each step exact, then signed as Rust's truncation is.
+ * their magnitudes, each step exact, then signed as Rust's truncation is.
+ *
+ * A non-negative dividend and a positive divisor divide in locals. A divisor of at most 2^21
+ * takes a whole 32-bit word a step, since the remainder times 2^32 plus a word stays below
+ * 2^53; a larger one takes 16-bit digits. A negative operand takes the `words` path in 16-bit
+ * digits.
  */
 function divideWords(a: Limbs, b: number, bits: number, signed: boolean, remainder: boolean, at?: Location): Wide {
 	const negative = a.hi < 0;
 	if (b === -1 && a.hi === -0x80000000 && a.lo === 0 && (!("w1" in a) || (a.w2 === 0 && a.w1 === 0))) {
 		panic(remainder ? "attempt to calculate the remainder with overflow" : "attempt to divide with overflow", at);
+	}
+	if (!negative && b > 0) {
+		// The common case divides in locals, two words a stage: `words`, a typed array read and
+		// written as doubles, cost more than the divisions in every engine, Firefox most.
+		const wide = "w1" in a;
+		// A 128-bit dividend under 2^64 divides in its low stage alone.
+		const top = wide && (a.hi !== 0 || a.w2 !== 0);
+		let x = top ? a.hi : wide ? a.w1 : a.hi;
+		let y = top ? a.w2 : a.lo;
+		let r = 0;
+		let q0 = 0;
+		let q1 = 0;
+		let q2 = 0;
+		let q3 = 0;
+		// Under 2^21, the remainder and a whole word make an exact double: a division a word,
+		// not one for each 16 bits.
+		const small = b <= 2097152;
+		for (let stage = top ? 0 : 1; stage < 2; stage++) {
+			q0 = q2;
+			q1 = q3;
+			if (small) {
+				let t = r * 4294967296 + x;
+				const xq = Math.floor(t / b);
+				t = (t - xq * b) * 4294967296 + y;
+				const yq = Math.floor(t / b);
+				r = t - yq * b;
+				q2 = xq;
+				q3 = yq;
+			} else {
+				let t = r * 65536 + (x >>> 16);
+				const xh = Math.floor(t / b);
+				t = (t - xh * b) * 65536 + (x & 0xffff);
+				const xl = Math.floor(t / b);
+				t = (t - xl * b) * 65536 + (y >>> 16);
+				const yh = Math.floor(t / b);
+				t = (t - yh * b) * 65536 + (y & 0xffff);
+				const yl = Math.floor(t / b);
+				r = t - yl * b;
+				q2 = xh * 65536 + xl;
+				q3 = yh * 65536 + yl;
+			}
+			if (top) {
+				x = a.w1;
+				y = a.lo;
+			}
+		}
+		if (remainder) return r;
+		if (wide) {
+			const n = ((q0 * 4294967296 + q1) * 4294967296 + q2) * 4294967296 + q3;
+			return safe(n) ? n : ({ hi: high(q0, signed), w2: q1, w1: q2, lo: q3 } as Limbs);
+		}
+		return join(high(q2, signed), q3);
 	}
 	if ("w1" in a) {
 		words[0] = a.hi;
@@ -1273,15 +1323,15 @@ function shr128(a: Wide, b: number | Limbs, signed: boolean, at?: Location): Wid
 // past that, these compute them.
 
 function wordAnd(a: number, b: number): number {
-	return (Math.floor(a / TWO32) & Math.floor(b / TWO32)) * TWO32 + ((a & b) >>> 0);
+	return (Math.floor(a / 4294967296) & Math.floor(b / 4294967296)) * 4294967296 + ((a & b) >>> 0);
 }
 
 function wordOr(a: number, b: number): number {
-	return (Math.floor(a / TWO32) | Math.floor(b / TWO32)) * TWO32 + ((a | b) >>> 0);
+	return (Math.floor(a / 4294967296) | Math.floor(b / 4294967296)) * 4294967296 + ((a | b) >>> 0);
 }
 
 function wordXor(a: number, b: number): number {
-	return (Math.floor(a / TWO32) ^ Math.floor(b / TWO32)) * TWO32 + ((a ^ b) >>> 0);
+	return (Math.floor(a / 4294967296) ^ Math.floor(b / 4294967296)) * 4294967296 + ((a ^ b) >>> 0);
 }
 
 function and64(a: Wide, b: Wide, signed: boolean): Wide {
@@ -1315,13 +1365,13 @@ function xor128(a: Wide, b: Wide, signed: boolean): Wide {
 }
 
 function not64(a: Wide, signed: boolean): Wide {
-	if (signed && typeof a === "number" && a !== MAX_SAFE) return -a - 1;
+	if (signed && typeof a === "number" && a !== 9007199254740991) return -a - 1;
 	const x = limbs(a, 64, signed);
 	return join(high(~x.hi, signed), ~x.lo >>> 0);
 }
 
 function not128(a: Wide, signed: boolean): Wide {
-	if (signed && typeof a === "number" && a !== MAX_SAFE) return -a - 1;
+	if (signed && typeof a === "number" && a !== 9007199254740991) return -a - 1;
 	return one(box(~exact(limbs(a, 128, signed)), 128, signed));
 }
 
@@ -2354,8 +2404,8 @@ function wideFromF64(x: number, bits: number, signed: boolean): Wide {
 	if (t >= bound) return of((1n << BigInt(signed ? bits - 1 : bits)) - 1n, bits, signed);
 	if (t < min) return of(BigInt(min), bits, signed);
 	if (bits === 64) {
-		const hi = Math.floor(t / TWO32);
-		return join(hi, t - hi * TWO32);
+		const hi = Math.floor(t / 4294967296);
+		return join(hi, t - hi * 4294967296);
 	}
 	return of(BigInt(t), bits, signed);
 }
@@ -2385,9 +2435,9 @@ export const u128FromF64 = (x: f64): u128 => wideFromF64(x, 128, false) as u128;
 /** `x as i128`. */
 export const i128FromF64 = (x: f64): i128 => wideFromF64(x, 128, true) as i128;
 /** `a as f64`: limbs' one sum is exact before it rounds. */
-export const u64ToF64 = (a: u64): f64 => (typeof a === "number" ? (a as number) : a.hi * TWO32 + a.lo);
+export const u64ToF64 = (a: u64): f64 => (typeof a === "number" ? (a as number) : a.hi * 4294967296 + a.lo);
 /** `a as f64`: limbs' one sum is exact before it rounds. */
-export const i64ToF64 = (a: i64): f64 => (typeof a === "number" ? (a as number) : a.hi * TWO32 + a.lo);
+export const i64ToF64 = (a: i64): f64 => (typeof a === "number" ? (a as number) : a.hi * 4294967296 + a.lo);
 /** `a as f64`: a bigint converts to the nearest double. */
 export const u128ToF64 = (a: u128): f64 => (typeof a === "number" ? (a as number) : Number(exact(a)));
 /** `a as f64`: a bigint converts to the nearest double. */

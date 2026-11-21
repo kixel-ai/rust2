@@ -56,6 +56,12 @@ made: str = api.made(3, lambda n: f"{n} times")
 spawned: int = api.Spawned.new(lambda: 7).join()
 polled: None = asyncio.run(api.Waiter.poll_future(asyncio.sleep(0)))
 
+
+# A stream is an async iterator of its items.
+async def streamed(feed: api.Feed) -> list[int]:
+	payloads: list[memoryview] = [payload async for payload in feed]
+	return [count async for count in api.Countdown.new(len(payloads))]
+
 # An error's variant is its own subclass, and a record a dataclass to `dataclasses`.
 try:
 	api.jam(0)

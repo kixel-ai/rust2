@@ -26,6 +26,12 @@ final class Print: Log {
 	}
 }
 
+// The Undo callback: each method returns its own digit.
+final class Edits: Undo {
+	func delete(_ n: UInt32) -> UInt32 { n - 1 }
+	func free() -> UInt32 { 2 }
+	func type() -> UInt8 { 3 }
+}
 
 /// A Log that counts its frees.
 final class DropLog: Log {
@@ -339,6 +345,46 @@ func readers() {
 	}
 }
 
+/// The transcript's streams, each iterated as an `AsyncSequence`: to its end, left early,
+/// and to an error, past which the stream goes on.
+func streams() {
+	block {
+		var counts: [Swift.String] = []
+		for try await count in Countdown.new(3).stream() {
+			counts.append(Swift.String(count))
+		}
+		print("countdown \(counts.joined(separator: " "))")
+		// A loop left early takes nothing past the item it stopped at.
+		let countdown = Countdown.new(5).stream()
+		for try await count in countdown {
+			if count == 4 {
+				break
+			}
+		}
+		print("countdown after break \(try await countdown.next()!)")
+		// Each payload sends the next, which `!` fails and an empty one ends.
+		let channel = Channel.new()
+		let feed = try channel.feed().stream()
+		for first in ["a", "c"] {
+			try channel.send(Bytes(first.utf8))
+			do {
+				for try await payload in feed {
+					print("feed \(text(payload))")
+					let reply = switch text(payload) {
+					case "a": "b"
+					case "b": "!"
+					default: ""
+					}
+					try channel.send(Bytes(reply.utf8))
+				}
+				print("feed end")
+			} catch {
+				print("feed error \(error)")
+			}
+		}
+	}
+}
+
 /// Futures of a value that is not Send, made on this thread, so awaited on an executor the
 /// script drains on it.
 func localLater(_ local: consuming Local) {
@@ -396,6 +442,7 @@ func checks() {
 	check(U128(high: .max, low: .max).description == "340282366920938463463374607431768211455", "a u128's decimal digits")
 	check(ArrayU8x4([1, 2, 3]) == nil, "3 bytes are no [u8; 4]")
 	check(advance(.init_(1)) == .init_(0) && advance(.init_(0)) == .done, "a variant named init crosses")
+	check(ClashLevel.default() == .default_ && ClashLevel.debug.index() == 2, "a variant named as Default's member crosses")
 	// Rust's seconds are a u64, past Int64's.
 	let rustMax = try! RustDuration(secs: .max, nanos: 999_999_999)
 	let past = RustDuration.seconds(UInt64(Int64.max) + 1)
@@ -698,6 +745,48 @@ func futures() {
 		check(!called.value && threw.value, "a cancelled receive throws CancellationError")
 		let payload = block { try await channel.recv() }
 		check(text(payload) == "kept", "a cancelled receive loses nothing")
+	}
+
+	// A stream's loop cancelled between its wake and its poll loses nothing: cancelling drops
+	// the pending `next`'s future, so the payload stays for the next call.
+	do {
+		let streamed = Channel.new()
+		let feed = Cell(try! streamed.feed().stream())
+		let got = Cell(false)
+		let threw = Cell(false)
+		let task = q.launch {
+			do {
+				for try await _ in feed.value {
+					got.value = true
+				}
+			} catch is CancellationError {
+				threw.value = true
+			}
+		}
+		q.drain()
+		try! streamed.send(Bytes("kept".utf8))
+		task.cancel()
+		q.drain()
+		check(!got.value && threw.value, "a cancelled stream's loop throws CancellationError")
+		let payload = block { try await feed.value.next() }
+		check(payload.map(text) == "kept", "a cancelled stream's loop loses nothing")
+	}
+
+	// A loop's iterator ends for good at nil or an error, calling `next` no more, while the
+	// stream's own `next()` goes on as Rust's does.
+	do {
+		let streamed = Channel.new()
+		let feed = Cell(try! streamed.feed().stream())
+		for (end, after) in [("", "past the end"), ("!", "past an error")] {
+			let loop = Cell(feed.value.makeAsyncIterator())
+			try! streamed.send(Bytes(end.utf8))
+			let ended = block { (try? await loop.value.next()) == nil }
+			try! streamed.send(Bytes(after.utf8))
+			let again = block { try await loop.value.next() }
+			check(ended && again == nil, "a stream's iterator ends for good \(after)")
+			let payload = block { try await feed.value.next() }
+			check(payload.map(text) == after, "a stream goes on \(after)")
+		}
 	}
 
 	// A task cancelled before its call takes nothing, even a payload ready at the first poll.

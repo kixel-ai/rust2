@@ -16,8 +16,3 @@ the refusals epic, since finished, which held back every other child.
 
 Every sibling lands first, since each breaks a generated API moq would otherwise adopt and
 then see change. A sibling planned later adds itself to `Required` here.
-
-## Required
-
-- [C and C++ idioms](/quest/m1/ffi-export/cpp-idioms.md) - numeric slice views and must-use returns change the C++ API
-- [Dart analysis](/quest/m1/ffi-export/dart-analyze.md) - lint fixes may rename generated Dart

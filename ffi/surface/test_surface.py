@@ -193,6 +193,7 @@ inline ::api::Marker Marker::new_(const char *s) {
 	return {};
 }
 inline bool operator==(const Marker &a, const Marker &b) { return true; }
+inline ::std::weak_ordering operator<=>(const Marker &a, const Marker &b) { return a.n <=> b.n; }
 } // namespace api
 """
         self.assertEqual(self.outline(source), [
@@ -214,13 +215,44 @@ inline bool operator==(const Marker &a, const Marker &b) { return true; }
             "\t\ttemplate <class F, class = ::std::enable_if_t<true>> void each(F f) const;",
             "\t};",
             "\tinline bool operator==(const Marker &a, const Marker &b);",
+            "\tinline ::std::weak_ordering operator<=>(const Marker &a, const Marker &b);",
             "}",
+        ])
+
+    def test_attributed_type(self):
+        source = """
+template <class T>
+class [[nodiscard]] API_POINTER(T) span {
+public:
+	const T *data() const noexcept { return nullptr; }
+};
+"""
+        self.assertEqual(self.outline(source), [
+            "template <class T> class [[nodiscard]] API_POINTER(T) span {",
+            "\tconst T *data() const noexcept;",
+            "};",
         ])
 
 
 class Dart(unittest.TestCase):
     def outline(self, text):
         return lines(surface.braced(text, "dart"))
+
+    def test_constructor_initializer_list_ends_at_its_body(self):
+        self.assertEqual(self.outline("""
+final class A {
+\tA(List<int> b) : _b = b {
+\t\tx();
+\t}
+
+\tint operator [](int index) => _b[index];
+}
+"""), [
+            "final class A {",
+            "\tA(List<int> b);",
+            "\tint operator [](int index);",
+            "}",
+        ])
 
     def test_private_names_and_bodies(self):
         source = """

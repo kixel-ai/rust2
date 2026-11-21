@@ -1,6 +1,8 @@
 // api.dart
 extension type const U64.fromBits(int bits) {
 	U64(int value);
+	factory U64.fromBigInt(BigInt value);
+	static const max = U64.fromBits(-1);
 	int toInt();
 	BigInt toBigInt();
 	String toRadixString(int radix);
@@ -566,9 +568,9 @@ final class Booth {
 	@override bool operator ==(Object other);
 	@override int get hashCode;
 }
-final class Cancelled_ {
+final class Cancelled2 {
 	final int step;
-	const Cancelled_({required this.step});
+	const Cancelled2({required this.step});
 	String debug();
 	@override bool operator ==(Object other);
 	@override int get hashCode;
@@ -615,6 +617,20 @@ final class Qualifiers {
 	@override bool operator ==(Object other);
 	@override int get hashCode;
 }
+final class Version implements Comparable<Version> {
+	final int major;
+	final int minor;
+	const Version({required this.major, required this.minor});
+	String debug();
+	@override bool operator ==(Object other);
+	@override int get hashCode;
+	int? partialCompareTo(Version other);
+	bool operator <(Version other);
+	bool operator <=(Version other);
+	bool operator >(Version other);
+	bool operator >=(Version other);
+	@override int compareTo(Version other);
+}
 final class Spot {
 	final int x;
 	final int y;
@@ -624,15 +640,15 @@ final class Spot {
 	@override int get hashCode;
 	factory Spot.deserialize(Json deserializer);
 }
-final class Deprecated_ {
+final class Deprecated2 {
 	final bool on;
 	@Deprecated('') final int lower;
 	final bool deprecated;
-	const Deprecated_({required this.on, required this.lower, required this.deprecated});
+	const Deprecated2({required this.on, required this.lower, required this.deprecated});
 	String debug();
 	@override bool operator ==(Object other);
 	@override int get hashCode;
-	factory Deprecated_.default_();
+	factory Deprecated2.default_();
 }
 final class Dial {
 	final U64 level;
@@ -662,9 +678,19 @@ final class PolarPoint {
 	@override bool operator ==(Object other);
 	@override int get hashCode;
 }
-final class Polar_Turn {
+final class PolarTurn2 {
 	final int part;
-	const Polar_Turn({required this.part});
+	const PolarTurn2({required this.part});
+	String debug();
+	@override bool operator ==(Object other);
+	@override int get hashCode;
+}
+final class MacrosStreams {
+	final int stdin;
+	final int stdout;
+	final int stderr;
+	final int errno;
+	const MacrosStreams({required this.stdin, required this.stdout, required this.stderr, required this.errno});
 	String debug();
 	@override bool operator ==(Object other);
 	@override int get hashCode;
@@ -676,9 +702,9 @@ final class ClashTone {
 	@override bool operator ==(Object other);
 	@override int get hashCode;
 }
-final class ClashTone_ {
+final class ClashTone2 {
 	final int db;
-	const ClashTone_({required this.db});
+	const ClashTone2({required this.db});
 	String debug();
 	@override bool operator ==(Object other);
 	@override int get hashCode;
@@ -706,8 +732,34 @@ final class ClashBreak {
 	String debug();
 	@override bool operator ==(Object other);
 	@override int get hashCode;
-	static ClashBreak get SP;
-	static ClashBreak get SP_;
+	static ClashBreak get sp;
+	static ClashBreak get sp_;
+}
+final class ClashMalformed implements Exception {
+	final int at;
+	const ClashMalformed({required this.at});
+	@override String toString();
+	String debug();
+	@override bool operator ==(Object other);
+	@override int get hashCode;
+	bool is_(int at);
+}
+final class ClashErrno {
+	final int errno;
+	const ClashErrno({required this.errno});
+	String debug();
+	@override bool operator ==(Object other);
+	@override int get hashCode;
+	static ClashErrno get null_;
+}
+final class ClashEscaped {
+	final int new_;
+	const ClashEscaped({required this.new_});
+	String debug();
+	@override bool operator ==(Object other);
+	@override int get hashCode;
+	int delete();
+	int delete_(int new_, int new_2);
 }
 final class TlsPolicyLifetime {
 	final int seconds;
@@ -735,9 +787,9 @@ final class ChoicePicked extends Choice {
 sealed class Array {
 	const Array();
 }
-final class ArrayU8x4_ extends Array {
+final class ArrayU8x42 extends Array {
 	final int $0;
-	const ArrayU8x4_(this.$0);
+	const ArrayU8x42(this.$0);
 }
 sealed class Platform {
 	const Platform();
@@ -768,8 +820,8 @@ enum Shape {
 	const Shape(this._c);
 	String debug();
 	static Shape? valueOf(String name);
-	static List<Shape> get ALL;
-	static List<Shape> get BOTH;
+	static List<Shape> get all;
+	static List<Shape> get both;
 }
 sealed class Event {
 	const Event();
@@ -846,8 +898,8 @@ final class ClashBytes extends Clash {
 	final typed.Uint8List $0;
 	const ClashBytes(this.$0);
 }
-final class ClashAny_ extends Clash {
-	const ClashAny_();
+final class ClashAny2 extends Clash {
+	const ClashAny2();
 }
 final class ClashUnit extends Clash {
 	const ClashUnit();
@@ -962,6 +1014,42 @@ final class BuiltinNative extends Builtin {
 	final double $0;
 	const BuiltinNative(this.$0);
 }
+sealed class Rank implements Comparable<Rank> {
+	const Rank();
+	String debug();
+	@override bool operator ==(Object other);
+	@override int get hashCode;
+	int? partialCompareTo(Rank other);
+	bool operator <(Rank other);
+	bool operator <=(Rank other);
+	bool operator >(Rank other);
+	bool operator >=(Rank other);
+	@override int compareTo(Rank other);
+}
+final class RankUnranked extends Rank {
+	const RankUnranked();
+}
+final class RankRanked extends Rank {
+	final int compare;
+	final int partialCompare;
+	final int compareTo_;
+	final int partialCompareTo_;
+	const RankRanked({required this.compare, required this.partialCompare, required this.compareTo_, required this.partialCompareTo_});
+}
+enum Tier implements Comparable<Tier> {
+	low(0),
+	high(1),
+	compareTo_(2),
+	partialCompareTo_(3),
+	const Tier(this._c);
+	String debug();
+	int? partialCompareTo(Tier other);
+	bool operator <(Tier other);
+	bool operator <=(Tier other);
+	bool operator >(Tier other);
+	bool operator >=(Tier other);
+	@override int compareTo(Tier other);
+}
 sealed class ClashCandidate {
 	const ClashCandidate();
 	String debug();
@@ -975,14 +1063,43 @@ final class ClashCandidateMatch extends ClashCandidate {
 	final int $0;
 	const ClashCandidateMatch(this.$0);
 }
-enum Level {
-	trace(0),
-	debug(1),
+enum ClashLevel {
+	default__(0),
+	debug_(1),
+	const ClashLevel(this._c);
+	String debug();
+	factory ClashLevel.default_();
+	int index_();
+}
+sealed class ClashTag {
+	const ClashTag();
+	String debug();
+	@override bool operator ==(Object other);
+	@override int get hashCode;
+	int number_();
+}
+final class ClashTagApplication extends ClashTag {
+	final int number;
+	const ClashTagApplication({required this.number});
+}
+final class ClashTagPrivate extends ClashTag {
+	final int number;
+	const ClashTagPrivate({required this.number});
+}
+enum Level implements Comparable<Level> {
+	error(0),
+	warn(1),
 	info(2),
-	warn(3),
-	error(4),
+	debug(3),
+	trace(4),
 	const Level(this._c);
 	@override String toString();
+	int? partialCompareTo(Level other);
+	bool operator <(Level other);
+	bool operator <=(Level other);
+	bool operator >(Level other);
+	bool operator >=(Level other);
+	@override int compareTo(Level other);
 }
 final class Board extends _Object {
 	factory Board(List<(String, Counter)> counters);
@@ -1057,6 +1174,21 @@ final class Waiter extends _Object {
 	Waker context();
 	static Cancelable<void> pollFuture(Future<void> future);
 }
+final class Feed extends _Object {
+	Cancelable<typed.Uint8List?> next();
+	dasync.Stream<typed.Uint8List> asStream();
+}
+final class Countdown extends _Object {
+	factory Countdown(int from);
+	factory Countdown.told(int from, Log log);
+	Cancelable<int?> next();
+	dasync.Stream<int> asStream();
+}
+final class Retired extends _Object {
+	factory Retired(int from);
+	@Deprecated('count with `Countdown`') Cancelable<int?> next();
+	@Deprecated('count with `Countdown`') dasync.Stream<int> asStream();
+}
 final class Logger extends _Object {
 	factory Logger(Log sink);
 	bool write(String line);
@@ -1119,8 +1251,8 @@ final class SlotU8 extends _Object {
 	int value();
 }
 final class Resolving extends _Object {
-	TlsResolver get $0_get;
-	void $0_set(TlsResolver value);
+	TlsResolver get $0Get;
+	void $0Set(TlsResolver value);
 	factory Resolving(String name);
 }
 final class Codecs extends _Object {
@@ -1288,6 +1420,7 @@ final class Channel extends _Object {
 	void listen(void Function() cx);
 	Cancelable<(typed.Uint8List, U64)> recvSized();
 	Cancelable<typed.Uint8List> recvNonempty();
+	Feed feed();
 	void sendFromThread(typed.Uint8List payload);
 }
 final class Gap extends _Object {
@@ -1412,6 +1545,30 @@ final class C extends _Object {
 	@override int get hashCode;
 	factory C(int value);
 }
+final class Quantity extends _Object {
+	String debug();
+	@override bool operator ==(Object other);
+	@override int get hashCode;
+	int? partialCompareTo(Quantity other);
+	bool operator <(Quantity other);
+	bool operator <=(Quantity other);
+	bool operator >(Quantity other);
+	bool operator >=(Quantity other);
+	factory Quantity(int value, String unit);
+}
+final class Pass extends _Object implements Comparable<Pass> {
+	String debug();
+	@override bool operator ==(Object other);
+	@override int get hashCode;
+	int? partialCompareTo(Pass other);
+	bool operator <(Pass other);
+	bool operator <=(Pass other);
+	bool operator >(Pass other);
+	bool operator >=(Pass other);
+	@override int compareTo(Pass other);
+	factory Pass(int number);
+	int redeem();
+}
 final class Key extends _Object {
 	String debug();
 	Key clone();
@@ -1422,7 +1579,7 @@ final class Key extends _Object {
 }
 final class ClashSeed extends _Object {
 	factory ClashSeed.default_();
-	factory ClashSeed.default__();
+	factory ClashSeed.default2_();
 	int value();
 	bool bool_();
 }
@@ -1433,28 +1590,47 @@ final class ClashStore extends _Object {
 	factory ClashStore(int count);
 	int free();
 	int close_();
+	void wait();
+	void finalize();
+}
+final class ClashReader extends _Object {
+	factory ClashReader(typed.Uint8List bytes);
+	int readByte();
+	void unreadByte();
 }
 final class TlsSession extends _Object {
 	String alpn();
 	TlsPolicyLifetime lifetime();
 }
-final class Url extends _Object {
+final class Url extends _Object implements Comparable<Url> {
 	@override String toString();
 	String debug();
 	Url clone();
 	@override bool operator ==(Object other);
 	@override int get hashCode;
+	int? partialCompareTo(Url other);
+	bool operator <(Url other);
+	bool operator <=(Url other);
+	bool operator >(Url other);
+	bool operator >=(Url other);
+	@override int compareTo(Url other);
 	factory Url.parse(String input);
 }
 final class Json extends _Object {
 	factory Json.parse(String input);
 	String toText();
 }
-final class Instant extends _Object {
+final class Instant extends _Object implements Comparable<Instant> {
 	String debug();
 	Instant clone();
 	@override bool operator ==(Object other);
 	@override int get hashCode;
+	int? partialCompareTo(Instant other);
+	bool operator <(Instant other);
+	bool operator <=(Instant other);
+	bool operator >(Instant other);
+	bool operator >=(Instant other);
+	@override int compareTo(Instant other);
 }
 final class StdIoError extends _Object {
 }
@@ -1522,6 +1698,17 @@ abstract class Turner {
 	@Deprecated('turn `Turner::by` instead') U64 once();
 	void close();
 }
+abstract class Undo {
+	int delete(int n);
+	int free();
+	int type();
+	void close();
+}
+abstract class ClashSource {
+	void wait();
+	int readByte();
+	void close();
+}
 final class BoundsU64Exception implements Exception {
 	final BoundsU64 error;
 	const BoundsU64Exception(this.error);
@@ -1537,10 +1724,11 @@ final class VecClashToneException implements Exception {
 	const VecClashToneException(this.error);
 	@override String toString();
 }
-const LIMIT = U64.fromBits(1000);
-const FAR = 9223372036854775807;
-const URL = U64.fromBits(1000);
-@Deprecated('pass a step to `Dial::turn`, whose `}` or `{` alone stays in the note') const STEP = U64.fromBits(1);
+const limit = U64.fromBits(1000);
+const far = 9223372036854775807;
+const eof = -1;
+const url = U64.fromBits(1000);
+@Deprecated('pass a step to `Dial::turn`, whose `}` or `{` alone stays in the note') const step = U64.fromBits(1);
 bool hasText(Note note);
 U64 marked(Mark apiMarked);
 Reading? reading(int n);
@@ -1658,7 +1846,7 @@ U64 keptPolarPoint(PolarPoint from);
 int keepPoint(Point kept);
 int keptOrPoint(Point? kept);
 int keeperPoint(Point keeper);
-BoxedU16 get BOXED;
+BoxedU16 get boxed;
 BoxedU8 keeps(Log log);
 int weighPoint(Point from);
 int applyNonZeroU16(PairNonZeroU16 pair, int Function(int) f);
@@ -1666,7 +1854,7 @@ int applyU32(PairU32 pair, int Function(int) f);
 int reportNonZeroU16(PairNonZeroU16 pair, Log log);
 int reportU32(PairU32 pair, Log log);
 int tallyLogCount(Log log);
-int wind(PolarTurn whole, Polar_Turn part);
+int wind(PolarTurn whole, PolarTurn2 part);
 U64 area(Size size);
 U64 seedsPointPoint(Point from);
 U64 seedsPointCounter(Counter from);
@@ -1756,8 +1944,8 @@ RustDuration since(Instant later, Instant earlier);
 bool hasInstant(Instant? at);
 Level? louder(Level? filter);
 String spell(Level? filter);
-List<String> get GREETINGS;
-typed.Uint32List get PRIMES;
+List<String> get greetings;
+typed.Uint32List get primes;
 List<Counter> numbered(List<String> names);
 (SocketAddrV4, SocketAddrV6) nexts(SocketAddrV4 v4, SocketAddrV6 v6);
 (Ipv4Addr, Ipv6Addr) nextIps(Ipv4Addr v4, Ipv6Addr v6);
@@ -1779,12 +1967,16 @@ U64 boothCount(Booth booth);
 Page page();
 int beats(Beat beat);
 int same(double a, double b);
+int errno();
+bool assert_(bool holds);
+int offsetof(int field);
 (String, (int, int, int, U64)?, List<typed.Uint8List>) returnValues(Mut<Point> point, bool fail);
 Counter returnMoved(Counter counter, bool fail);
 NonZeros nonZeros();
 String describeNonZeros(NonZeros nonZeros);
 U64? nextHop(U64? hop);
 int fartherHop(PairNonZeroU16 hops);
+int wexitstatus(int status);
 RustDuration sameDuration(RustDuration v);
 U64 sameU64(U64 v);
 U64 sameUsize(U64 v);
@@ -1802,17 +1994,22 @@ Cancelable<String> unescapedLater(String text);
 Cancelable<String?> unescapedMaybe(String? text);
 typed.Uint8List unzeroed(typed.Uint8List bytes);
 int deprecated(int note);
+int deprecated_(int note);
+int all(int note);
 @Deprecated('') Knob knob(Dial dial);
 @Deprecated('read its `level`') Cancelable<U64> levelLater(Dial dial);
 Dial turned(Dial dial, Turner turner);
+int undone(Undo undo, int n);
 U64 crowded(Reading reading, Stamp a, Stamp b, U64 n0, U64 n1, U64 n2, U64 n3, U64 n4, U64 n5, U64 n6, U64 n7, U64 n8, U64 n9, U64 n10, U64 n11, U64 n12, U64 n13, U64 n14, U64 n15, U64 n16, U64 n17, U64 n18, U64 n19, U64 n20, U64 n21, U64 n22, U64 n23, U64 n24, U64 n25, U64 n26, U64 n27, U64 n28, U64 n29, U64 n30, U64 n31, U64 n32, U64 n33, U64 n34, U64 n35, U64 n36, U64 n37, U64 n38, U64 n39, U64 n40, U64 n41, U64 n42, U64 n43, U64 n44, U64 n45, U64 n46, U64 n47, U64 n48, U64 n49, U64 n50, U64 n51, U64 n52, U64 n53, U64 n54, U64 n55, U64 n56, U64 n57, U64 n58, U64 n59, U64 n60, U64 n61, U64 n62, U64 n63, U64 n64, U64 n65, U64 n66, U64 n67, U64 n68, U64 n69, U64 n70, U64 n71, U64 n72, U64 n73, U64 n74, U64 n75, U64 n76, U64 n77, U64 n78, U64 n79, U64 n80, U64 n81, U64 n82, U64 n83, U64 n84, U64 n85, U64 n86, U64 n87, U64 n88, U64 n89, U64 n90, U64 n91, U64 n92, U64 n93, U64 n94, U64 n95, U64 n96, U64 n97, U64 n98, U64 n99, U64 n100, U64 n101, U64 n102, U64 n103, U64 n104, U64 n105, U64 n106, U64 n107, U64 n108, U64 n109, U64 n110, U64 n111, U64 n112, U64 n113, U64 n114, U64 n115, U64 n116, U64 n117, U64 n118);
 U64 crammed(Moment a, Moment b, U64 n0, U64 n1, U64 n2, U64 n3, U64 n4, U64 n5, U64 n6, U64 n7, U64 n8, U64 n9, U64 n10, U64 n11, U64 n12, U64 n13, U64 n14, U64 n15, U64 n16, U64 n17, U64 n18, U64 n19, U64 n20, U64 n21, U64 n22, U64 n23, U64 n24, U64 n25, U64 n26, U64 n27, U64 n28, U64 n29, U64 n30, U64 n31, U64 n32, U64 n33, U64 n34, U64 n35, U64 n36, U64 n37, U64 n38, U64 n39, U64 n40, U64 n41, U64 n42, U64 n43, U64 n44, U64 n45, U64 n46, U64 n47, U64 n48, U64 n49, U64 n50, U64 n51, U64 n52, U64 n53, U64 n54, U64 n55, U64 n56, U64 n57, U64 n58, U64 n59, U64 n60, U64 n61, U64 n62, U64 n63, U64 n64, U64 n65, U64 n66, U64 n67, U64 n68, U64 n69, U64 n70, U64 n71, U64 n72, U64 n73, U64 n74, U64 n75, U64 n76, U64 n77, U64 n78, U64 n79, U64 n80, U64 n81, U64 n82, U64 n83, U64 n84, U64 n85, U64 n86, U64 n87, U64 n88, U64 n89, U64 n90, U64 n91, U64 n92, U64 n93, U64 n94, U64 n95, U64 n96, U64 n97, U64 n98, U64 n99, U64 n100, U64 n101, U64 n102, U64 n103, U64 n104, U64 n105, U64 n106, U64 n107, U64 n108, U64 n109, U64 n110, U64 n111, U64 n112, U64 n113, U64 n114, U64 n115, U64 n116, U64 n117, U64 n118, U64 n119, U64 n120, U64 n121, U64 n122, U64 n123);
 int jniOne();
 PolarPoint? polarPoint(int distance);
+int macrosStreamed(MacrosStreams streams, int errno);
 ClashAny clashAny(String typeUrl);
 ClashCandidate clashCandidate(int at);
 int clashIgnore(int arg0, int arg1, int arg2);
 ClashEmptyString clashEmpty();
+int clashWaited(ClashSource source);
 ClashTone clashAudible(ClashTone tone);
 int clashNested(((int, int), int)? a, ((int, int, int),)? b);
 int clashAudioEncoderFinish();
