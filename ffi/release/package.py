@@ -2775,8 +2775,6 @@ def web(args):
         program = target_dir / WEB_TARGET / "release" / "examples" / f"{args.example}.wasm"
         native = run("node", "--no-warnings", "--input-type=module", "-e", WASI_RUN, program, capture_output=True)
         (out / "native.txt").write_bytes(native.stdout)
-    if args.example and ANDROID_EMULATOR in args.targets:
-        android_example(info, args, out)
         shutil.rmtree(target_dir)
 
 

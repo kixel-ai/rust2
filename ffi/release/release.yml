@@ -406,7 +406,9 @@ jobs:
           api=https://central.sonatype.com/api/v1/publisher
           auth="Authorization: Bearer $(printf '%s:%s' "$USERNAME" "$PASSWORD" | base64 -w0)"
           files=$(find "$dir" -type f ! -name '*.md5' ! -name '*.sha1' | sort)
-          published=$(curl -sSf -H "$auth" "$api/published?namespace=$group&name=$artifact&version=$version" | jq -er .published)
+          # Two steps, since the step's shell has no pipefail: a failed query must stop the job.
+          published=$(curl -sSf -H "$auth" "$api/published?namespace=$group&name=$artifact&version=$version")
+          published=$(jq -r '.published | if type == "boolean" then . else error("no published flag") end' <<< "$published")
           if [[ "$published" == true ]]; then
             for file in $files; do
               if ! curl -sSfLo hosted "https://repo1.maven.org/maven2/$file"; then
