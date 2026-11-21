@@ -351,9 +351,11 @@ jobs:
           "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "ndk;$NDK" "platforms;android-35" > /dev/null
           echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/$NDK" >> "$GITHUB_ENV"
           cd "$RUNNER_TEMP"
-          curl -sSfLo kotlin.zip "https://github.com/JetBrains/kotlin/releases/download/v$KOTLIN/kotlin-compiler-$KOTLIN.zip"
+          # Release downloads now and then answer 403; the checksums below make any retry safe.
+          get() { curl -sSfL --retry 5 --retry-all-errors -o "$1" "$2"; }
+          get kotlin.zip "https://github.com/JetBrains/kotlin/releases/download/v$KOTLIN/kotlin-compiler-$KOTLIN.zip"
           jar="kotlinx-coroutines-core-jvm-$COROUTINES.jar"
-          curl -sSfLo "$jar" "https://repo1.maven.org/maven2/org/jetbrains/kotlinx/kotlinx-coroutines-core-jvm/$COROUTINES/$jar"
+          get "$jar" "https://repo1.maven.org/maven2/org/jetbrains/kotlinx/kotlinx-coroutines-core-jvm/$COROUTINES/$jar"
           printf '%s  kotlin.zip\n%s  %s\n' "$KOTLIN_SHA256" "$COROUTINES_SHA256" "$jar" | sha256sum --check --strict
           unzip -q kotlin.zip
           echo "$RUNNER_TEMP/kotlinc/bin" >> "$GITHUB_PATH"
