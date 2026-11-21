@@ -56,7 +56,7 @@ The builder takes the crate's `Cargo.toml`, the `go-module` path, which without 
 export's own `<prefix>` that no proxy serves, and optional inputs the caller's tests own:
 `features` to ship, an `example` whose stdout is native Rust's transcript, and the
 `python-check`, `swift-check`, `c-check`, and `go-check` programs that must print it through
-the installed packages, and `reproduce`, which builds everything twice. Without a check, a consumer only imports the module, or links a
+the installed packages, and `reproduce`, which builds everything twice, from two checkouts. Without a check, a consumer only imports the module, or links a
 function of each C and C++ header. A `c-check` is C or C++ by its extension. The web package
 takes `web-manifest-path`, the package exported for `wasm32-wasip1`, often the crate's own,
 which no Cargo fact says builds for the web, and `scope`; and an optional `web-check`, a
@@ -234,28 +234,33 @@ holding exactly the files it would upload, and anyone with the commit can check 
   archive format: the builder writes each ZIP itself, with sorted entries, fixed modes, and
   no host, umask, or time of its own, and rewrites each repaired wheel the same way, its
   RECORD rebuilt. Zlib's own output is the one thing a host could still change.
-- **Paths.** The crate's workspace, the exported crate, and `CARGO_HOME` are remapped to
-  fixed names for rustc and the C compilers, so panic messages and debug info name no
-  checkout. This takes `RUSTFLAGS` over a `.cargo/config.toml`'s `rustflags`, so a config
-  that sets any fails the build: export them as `RUSTFLAGS`, which the builder keeps. Apple
-  builds also stamp no archive time (`ZERO_AR_DATE`), and Windows links with `/Brepro`.
+- **Paths.** A checkout at any path builds the same bytes, as long as the export keeps its
+  place beside the crate: the exporter writes the crate's facade, and the patches and crates
+  it resolves with, relative to the export, and `build` and `web` run cargo through
+  `/tmp/rust2-ffi` (`C:\rust2-ffi` on Windows), a link to the deepest directory holding the
+  export, those crates, and their workspaces. Cargo hashes a path crate outside the
+  generated crate's workspace, the facade, by its absolute path into every symbol, and
+  dlltool names a Windows GNU library's import symbols after its target directory, so each
+  sees one path wherever the checkout is. One build at a time holds the link: a second fails
+  while it exists, and one a killed build left must be removed. An export at another depth
+  from the crate writes another relative path, so other symbols; one whose own path holds a
+  symlink, or on another drive from the crate, keeps the absolute path, so builds the same
+  only at the same path, as does a crate whose manifest names any path absolutely, or a
+  build whose `.cargo/config.toml` names a path package (a path `[patch]` or `paths`), which
+  cargo joins from the config's real directory: cargo would read it through the link as a
+  second package, so such a build runs without the link. The crate's workspace, the exported crate, and `CARGO_HOME`, by
+  each spelling, are remapped to fixed names for rustc and the C compilers, so panic
+  messages and debug info name no checkout. This takes `RUSTFLAGS` over a
+  `.cargo/config.toml`'s `rustflags`, so a config that sets any fails the build: export them
+  as `RUSTFLAGS`, which the builder keeps. Apple builds also stamp no archive time
+  (`ZERO_AR_DATE`), and Windows links with `/Brepro`. rustc's random temporary directory in
+  a Windows GNU import symbol's name is replaced by zeros.
 - **Checked.** The Swift job builds the XCFramework twice and fails unless both ZIPs match.
-  With `reproduce: true`, every build host builds a second time, from a new export at the same
-  path, and `package.py same` fails unless each wheel, static library, and C archive, the Go
-  module's included, matches byte for byte, and the web job packs its npm tarball twice; rust2 turns it on
-  for its api fixture. It doubles the build, so a large crate may leave it to a nightly.
-- **Not yet.** The exporter writes the crate's facade, and the patches and crates it
-  resolves with, relative to its export, so two checkouts of one commit export the same
-  bytes while the export keeps its position relative to the crate (an export at another
-  depth writes another relative path, so another version hash and other glue symbols; one
-  whose own path holds a symlink, or on another drive from the crate, keeps the absolute
-  path). A rebuild must still keep the crate at the same path, and the export at the same
-  place beside it, as a rerun does: cargo hashes the absolute path of a path crate outside the generated crate's
-  workspace, the facade, into its symbols
-  ([planned](/quest/m1/ffi-packaging/relocatable.md)). So must the export directory of a
-  Windows GNU library, which is the Go module's: dlltool names the import library's symbols
-  after the path of the target directory, which no `--remap-path-prefix` reaches. rustc's
-  random temporary directory in that name is replaced by zeros.
+  With `reproduce: true`, every build host builds a second time, from a second checkout and
+  export a level deeper, and `package.py same` fails unless each wheel, static library, and C
+  archive, the Go module's included, matches byte for byte, and the web job builds its npm
+  tarball from the second checkout too; rust2 turns it on for its api fixture. It doubles
+  the build, so a large crate may leave it to a nightly.
 
 **Attestations and SBOM.** `package.py build` writes `sbom.cdx.json`, a CycloneDX SBOM of
 the crates the binding links (normal dependencies, platform-neutral, with each registry

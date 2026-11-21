@@ -29,7 +29,7 @@ on:
         default: ''
         type: string
       reproduce:
-        description: Build every host's packages a second time, from a new export, and fail unless the bytes match
+        description: Build every host's packages a second time, from a second checkout and export, and fail unless the bytes match
         default: false
         type: boolean
       c-check:
@@ -352,24 +352,33 @@ jobs:
       - name: Source distribution
         if: matrix.host == 'linux-x64'
         run: python3 -I rust2/ffi/release/package.py sdist --manifest-path "source/$MANIFEST" --export export --out dist
-      # The build again, as a rerun makes it: the same packages byte for byte, from a new
-      # export at the same path, since dlltool names the Windows GNU library's import symbols
-      # after the target directory. It doubles the job's time.
+      # The build again, as anyone with the commit makes it: the same packages byte for byte,
+      # from a second checkout and export a level deeper, beside each other as the first are.
+      # It doubles the job's time.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        if: inputs.reproduce
+        with:
+          path: again/source
+          persist-credentials: false
+      - name: Stand-in again
+        if: inputs.reproduce && needs.facts.outputs.fixture == 'true'
+        working-directory: again/source
+        run: just ffi standin
       - name: Rebuild
         if: inputs.reproduce
+        working-directory: again
         env:
           TARGETS: ${{ matrix.targets }}
           GO_MODULE: ${{ inputs.go-module }}
           HOST: ${{ matrix.host }}
         run: |
           read -ra targets <<< "$TARGETS"
-          mv export first-export
-          python3 -I rust2/ffi/release/package.py export --manifest-path "source/$MANIFEST" --features "$FEATURES" --api api --go-module "$GO_MODULE" --out export "${targets[@]}"
-          python -I rust2/ffi/release/package.py build --manifest-path "source/$MANIFEST" --features "$FEATURES" --export export --out again/dist "${targets[@]}"
+          python3 -I ../rust2/ffi/release/package.py export --manifest-path "source/$MANIFEST" --features "$FEATURES" --api ../api --go-module "$GO_MODULE" --out export "${targets[@]}"
+          python -I ../rust2/ffi/release/package.py build --manifest-path "source/$MANIFEST" --features "$FEATURES" --export export --out dist "${targets[@]}"
           if [[ "$HOST" == linux-x64 ]]; then
-            python3 -I rust2/ffi/release/package.py sdist --manifest-path "source/$MANIFEST" --export export --out again/dist
+            python3 -I ../rust2/ffi/release/package.py sdist --manifest-path "source/$MANIFEST" --export export --out dist
           fi
-          python3 -I rust2/ffi/release/package.py same dist again/dist
+          python3 -I ../rust2/ffi/release/package.py same ../dist dist
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         if: inputs.checks-artifact != ''
         with:
@@ -769,6 +778,16 @@ jobs:
         if: needs.facts.outputs.web-fixture == 'true'
         working-directory: source
         run: just ffi standin "" web
+      # The second checkout the rebuild below makes its package from, a level deeper.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        if: inputs.reproduce
+        with:
+          path: again/source
+          persist-credentials: false
+      - name: Stand-in again
+        if: inputs.reproduce && needs.facts.outputs.web-fixture == 'true'
+        working-directory: again/source
+        run: just ffi standin "" web
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         if: inputs.checks-artifact != ''
         with:
@@ -809,10 +828,11 @@ jobs:
           elif [[ -n "$WEB_CHECK" ]]; then
             mkdir web/check && cp "source/$WEB_CHECK" web/check/check.ts
           fi
-          # The build again, from a new export, which must pack the same tarball.
+          # The build again, from the second checkout, which must pack the same tarball.
           if [[ "$REPRODUCE" == true ]]; then
-            python3 -I rust2/ffi/release/package.py web --manifest-path "source/$WEB_MANIFEST" --features "$features" --scope "$SCOPE" --version "$VERSION" --example "" --out web-again
-            python3 -I rust2/ffi/release/package.py same web web-again
+            cd again
+            python3 -I ../rust2/ffi/release/package.py web --manifest-path "source/$WEB_MANIFEST" --features "$features" --scope "$SCOPE" --version "$VERSION" --example "" --out web
+            python3 -I ../rust2/ffi/release/package.py same ../web web
           fi
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
