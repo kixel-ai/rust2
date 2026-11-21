@@ -17,7 +17,7 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-#define API_CONTRACT ((uint64_t)0x3906a14bfdda8e36ULL)
+#define API_CONTRACT ((uint64_t)0x145f81d2ea707190ULL)
 uint64_t api_contract(void);
 uint32_t api_target(void);
 typedef int32_t api_status;
@@ -1705,6 +1705,7 @@ API_MUST_USE api_buf api_Folio_note_get(const api_Folio *self, api_status *statu
 void api_Folio_note_set(api_Folio *self, api_buf value, api_status *status);
 API_MUST_USE api_Hasp *api_Folio_hasp_get(const api_Folio *self, api_status *status);
 void api_Folio_hasp_set(api_Folio *self, api_Hasp *value, api_status *status);
+API_MUST_USE api_Hasp *api_Folio_dock_get(const api_Folio *self, api_status *status);
 API_MUST_USE api_Folio *api_Folio_new(uint16_t page, api_buf title);
 uint8_t api_Folio_seed(const api_Folio *self, api_status *status);
 void api_Logger_free(api_Logger *self);

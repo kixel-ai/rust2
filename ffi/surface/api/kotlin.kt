@@ -779,6 +779,7 @@ class Folio internal constructor(raw: Long, lent: Boolean = false) : AutoCloseab
 	fun noteSet(value: kotlin.String?)
 	val haspGet: api.Hasp
 	fun haspSet(value: api.Hasp)
+	val dockGet: api.Hasp
 	fun seed(): kotlin.UByte
 	companion object {
 		@kotlin.jvm.JvmStatic fun new(page: kotlin.UShort, title: kotlin.String): api.Folio

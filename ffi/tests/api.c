@@ -1593,6 +1593,15 @@ static int statuses(void) {
 	}
 	api_Hasp_free(hasp);
 	api_Hasp_free(again);
+	api_Hasp *dock = api_Folio_dock_get(folio, &status);
+	api_Hasp *docked = api_Folio_dock_get(folio, &status);
+	bool dock_first = api_Hasp_set(dock, &status);
+	if (dock_first || !api_Hasp_set(docked, &status) || status != 0) {
+		fprintf(stderr, "a packed folio's dock is not the one it points to, status %d\n", status);
+		failed = 1;
+	}
+	api_Hasp_free(dock);
+	api_Hasp_free(docked);
 	api_Folio_free(folio);
 
 	/* A counter moved in beside a dropped mark, alone or held in a record or an enum, is

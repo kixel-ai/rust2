@@ -1213,6 +1213,7 @@ final class Folio extends _Object {
 	void noteSet(String? value);
 	Hasp get haspGet;
 	void haspSet(Hasp value);
+	Hasp get dockGet;
 	factory Folio(int page, String title);
 	int seed();
 }

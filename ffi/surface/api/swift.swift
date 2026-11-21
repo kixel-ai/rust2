@@ -1028,6 +1028,7 @@ public struct Folio: ~Copyable, @unchecked Sendable {
 	@inlinable public mutating func noteSet(_ value: Swift.String?) throws
 	@inlinable public func haspGet() throws -> Hasp
 	@inlinable public mutating func haspSet(_ value: consuming Hasp) throws
+	@inlinable public func dockGet() throws -> Hasp
 	@inlinable public static func new(_ page: Swift.UInt16, _ title: Swift.String) -> Folio
 	@inlinable public func seed() throws -> Swift.UInt8
 }

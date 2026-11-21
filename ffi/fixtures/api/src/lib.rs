@@ -2195,16 +2195,20 @@ impl Regs {
 }
 
 /// A packed object: its `String` and `Option` lie unaligned, so a getter clones what it
-/// reads out of the field without dropping the original, and its hasp, aligned to 1, is
-/// lent from the folio in place.
+/// reads out of the field without dropping the original, its hasp, aligned to 1, is
+/// lent from the folio in place, and its dock is lent through the reference it holds, which
+/// is copied out.
 #[repr(C, packed)]
 pub struct Folio {
 	pub page: u16,
 	pub title: String,
 	pub note: Option<String>,
 	pub hasp: Hasp,
+	pub dock: &'static Hasp,
 	seed: u8,
 }
+
+static DOCK: Hasp = Hasp(std::sync::atomic::AtomicBool::new(false));
 
 impl Folio {
 	pub fn new(page: u16, title: &str) -> Self {
@@ -2213,6 +2217,7 @@ impl Folio {
 			title: title.to_string(),
 			note: None,
 			hasp: Hasp::default(),
+			dock: &DOCK,
 			seed: 3,
 		}
 	}

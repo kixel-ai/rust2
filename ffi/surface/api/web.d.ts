@@ -588,6 +588,7 @@ export declare function noteGet(self: Folio): string | undefined;
 export declare function noteSet(self: Folio, value: string | undefined): void;
 export declare function haspGet(self: Folio): Hasp;
 export declare function haspSet(self: Folio, value: Hasp): void;
+export declare function dockGet(self: Folio): Hasp;
 export declare function new$(page: number, title: string): Folio;
 export declare function seed(self: Folio): number;
 export { new$ as new };

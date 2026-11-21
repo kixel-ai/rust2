@@ -969,6 +969,7 @@ type Folio struct {
 }
 func NewFolio(page uint16, title string) (*Folio, error)
 func (self *Folio) Close() error
+func (self *Folio) DockGet() (*Hasp, error)
 func (self *Folio) HaspGet() (*Hasp, error)
 func (self *Folio) HaspSet(value *Hasp) error
 func (self *Folio) NoteGet() (*string, error)

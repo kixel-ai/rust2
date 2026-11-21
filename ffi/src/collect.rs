@@ -2981,8 +2981,9 @@ impl<'tcx> Collector<'tcx> {
 			let how = self.field_read(site, ty);
 			let mapped = {
 				self.lending.set(lends);
-				// A lent field is the field itself, which an unaligned one cannot be.
-				let get = match lends && how != Read::Borrow {
+				// A lent field is the field itself, which an unaligned one cannot be; one lent
+				// through a reference it holds is its pointee, which the copied reference reaches.
+				let get = match lends && assigned && how != Read::Borrow {
 					true => Err(why(UNALIGNED, ty.to_string())),
 					false => self.ty(read, Pos::Return),
 				};

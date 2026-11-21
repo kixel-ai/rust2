@@ -173,6 +173,7 @@ namespace api {
 		RUST2_FFI_CALLABLE void note_set(::std::optional<::api::input> value);
 		RUST2_FFI_CALLABLE ::api::Hasp hasp_get() const;
 		RUST2_FFI_CALLABLE void hasp_set(::api::Hasp value);
+		RUST2_FFI_CALLABLE ::api::Hasp dock_get() const;
 		static ::api::Folio new_(::std::uint16_t page, ::api::input title);
 		RUST2_FFI_CALLABLE ::std::uint8_t seed() const;
 	};
