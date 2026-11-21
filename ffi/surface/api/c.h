@@ -17,7 +17,7 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-#define API_CONTRACT ((uint64_t)0xebb3a61bd95d0a85ULL)
+#define API_CONTRACT ((uint64_t)0xfce3b9ae05a2935cULL)
 uint64_t api_contract(void);
 uint32_t api_target(void);
 typedef int32_t api_status;
@@ -2224,6 +2224,7 @@ void api_clash_Reader_drop(api_clash_Reader *self, api_status *status);
 API_MUST_USE api_clash_Reader *api_clash_Reader_new(api_buf bytes);
 API_MUST_USE bool api_clash_Reader_read_byte(api_clash_Reader *self, uint8_t *out, api_clash_Malformed *err, api_status *status);
 API_MUST_USE bool api_clash_Reader_unread_byte(api_clash_Reader *self, api_clash_Malformed *err, api_status *status);
+void api_clash_Reader_wait(const api_clash_Reader *self, uint64_t ms, api_status *status);
 void api_tls_Session_free(api_tls_Session *self);
 API_MUST_USE api_buf api_tls_Session_alpn(const api_tls_Session *self);
 api_tls_policy_Lifetime api_tls_Session_lifetime(const api_tls_Session *self);

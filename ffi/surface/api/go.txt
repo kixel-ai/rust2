@@ -716,6 +716,7 @@ func NewClashReader(bytes p_rt.Bytes) *ClashReader
 func (self *ClashReader) Close() error
 func (self *ClashReader) ReadByte_() (uint8, error)
 func (self *ClashReader) UnreadByte() error
+func (self *ClashReader) Wait(ms uint64) error
 type ClashSeed struct {
 	Handle_ *p_rt.Handle_
 }

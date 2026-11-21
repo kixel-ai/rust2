@@ -5220,6 +5220,11 @@ pub mod clash {
 			self.at = self.at.checked_sub(1).ok_or(Malformed { at: 0 })?;
 			Ok(())
 		}
+
+		/// Nothing, typed on the JVM as `java.lang.Object`'s final `wait(long)`.
+		pub fn wait(&self, ms: u64) {
+			let _ = ms;
+		}
 	}
 
 	/// What a caller waits on, whose methods are named as `java.lang.Object`'s final `wait`

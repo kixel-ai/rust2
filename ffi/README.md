@@ -727,10 +727,11 @@ the rest cross encoded.
   function is `@JvmStatic`, so Java calls it on the class, as Kotlin does, but for
   `default()` and `new()`, whose names Java reserves; one whose JVM name a field's getter has, as
   `getX()` beside `x`, takes a trailing `_` on the JVM alone. One taking an unsigned
-  integer or its array, or a member returning one, which Kotlin would give a mangled JVM
-  name such as `count-pVg5ArA`, keeps its own through `@JvmName`, so Java calls `count()`
-  with an `int`; Java calls no member of a value class, which Kotlin compiles to such a
-  static, nor a function taking an opaque value, whose bits Java could forge. An **opaque
+  integer, its array, or an opaque value Kotlin holds in a value class, or a member
+  returning one, which Kotlin would give a mangled JVM name such as `count-pVg5ArA`, keeps
+  its own through `@JvmName`, so Java calls `count()` for an `int`, and passes such an
+  opaque value as its `long`. Java calls no member of a value class, which Kotlin compiles
+  to such a static. An **opaque
   value** is a class with an internal constructor, so only Rust makes one: of no more than
   8 bytes on every target, with no padding, fields of integers, `bool`s, and `char`s alone, nested or not, and a
   derived or std `PartialEq`, a value class over a `Long`, compared by its bits, which

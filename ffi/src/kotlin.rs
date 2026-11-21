@@ -2786,7 +2786,7 @@ impl<'a> Gen<'a> {
 			};
 			let (name, declared) = self.spelled(method, (owner, owner_ty), place);
 			let kind = declared.split_once(' ').map_or("fun", |(kind, _)| kind);
-			// The parameter types `function_on` declares, which `object_method` reads.
+			// The JVM types of the parameters `function_on` declares, which `object_method` reads.
 			let (back, export) = match (owner.zip(owner_ty)).and_then(|(o, ty)| abi.handed_back(method, o, ty)) {
 				Some((back, export, _)) => (Some(back), export),
 				None => (None, abi.export(method, owner)),
@@ -2796,7 +2796,11 @@ impl<'a> Gen<'a> {
 				Some(_) => vec!["kotlin.coroutines.Continuation".to_string()],
 				None => (function.params.iter())
 					.filter(|p| p.ty != Type::Jni(Jni::Env))
-					.map(|p| self.kt_param(&p.ty))
+					// What the JVM passes, which `Object`'s methods are matched by.
+					.map(|p| match lowered(abi.api, &p.ty) {
+						Some(primitive) => primitive.to_string(),
+						None => self.kt_param(&p.ty),
+					})
 					.collect(),
 			};
 			rust.push(name);
@@ -3701,16 +3705,14 @@ impl<'a> Gen<'a> {
 			annotations.push_str("@kotlin.jvm.JvmStatic\n");
 		}
 		// Kotlin mangles the JVM name of a function taking an inline class and of a member
-		// returning one, as `count-pVg5ArA`, which Java cannot name. A value class's member
-		// compiles to such a static, which `@JvmName` cannot rename, and an opaque value
-		// Java would pass as its bits, which Rust may not hold, so neither is Java's to call.
-		let inline_params: Vec<Inline> = (function.params.iter())
-			.filter_map(|p| inline(abi.api, &p.ty))
-			.collect();
-		let mangled = !inline_params.is_empty() || (!top && inline(abi.api, &strip_refs(&function.ok)).is_some());
-		let value_member = place == Place::Member && owner_ty.is_some_and(|ty| inline(abi.api, ty).is_some());
+		// returning one, as `count-pVg5ArA`, which Java cannot name, so it is pinned. A value
+		// class's member compiles to such a static, which `@JvmName` cannot rename, so is not
+		// Java's to call.
+		let mangled = function.params.iter().any(|p| inline(abi.api, &p.ty))
+			|| (!top && inline(abi.api, &strip_refs(&function.ok)));
+		let value_member = place == Place::Member && owner_ty.is_some_and(|ty| inline(abi.api, ty));
 		let target = if getter { "get:" } else { "" };
-		if !value_member && !inline_params.contains(&Inline::Opaque) {
+		if !value_member {
 			// A JVM name [`Gen::jvm_named`] moved leaves the Kotlin name alone.
 			if mangled || jvm != jvm_name(&format!("{kind} {member}")) {
 				let _ = writeln!(annotations, "@{target}kotlin.jvm.JvmName(\"{jvm}\")");
@@ -4202,26 +4204,33 @@ fn word(opaque: &Opaque) -> bool {
 	opaque.compared()
 }
 
-/// A Kotlin inline class, which the JVM sees as its underlying type.
-#[derive(Clone, Copy, PartialEq, Eq)]
-enum Inline {
-	/// One every value of its underlying type is, such as `UInt` of an `Int`.
-	Total,
-	/// An opaque value's, which only Rust makes.
-	Opaque,
+/// Whether Kotlin's type of a parameter or return of type `ty` is an inline class, nullable
+/// or not, which the JVM sees as its underlying type or a box.
+fn inline(api: &Api, ty: &Type) -> bool {
+	match ty {
+		Type::Option(inner) | Type::Box(inner) => inline(api, inner),
+		Type::Ref(_, inner) if !ty.written() => inline(api, inner),
+		Type::List(..) => ty.block().is_some_and(|elem| block(elem).kt.starts_with('U')),
+		_ => lowered(api, ty).is_some(),
+	}
 }
 
-/// The inline class Kotlin's type of a parameter or return of type `ty` is, nullable or not,
-/// if any.
-fn inline(api: &Api, ty: &Type) -> Option<Inline> {
+/// The Kotlin type of the primitive the JVM passes for a parameter of type `ty`, where Kotlin's
+/// is an inline class over one, such as `kotlin.Long` for a `kotlin.ULong`.
+fn lowered(api: &Api, ty: &Type) -> Option<&'static str> {
 	match ty {
-		Type::Int(int) | Type::NonZero(int) if kt_int(*int).starts_with('U') => Some(Inline::Total),
-		Type::List(..) if ty.block().is_some_and(|elem| block(elem).kt.starts_with('U')) => Some(Inline::Total),
-		Type::IpAddr(Family::V4) | Type::SocketAddr(Family::V4) => Some(Inline::Total),
-		Type::Record(i) if api.records[*i].opaque.is_some_and(|o| word(&o)) => Some(Inline::Opaque),
-		Type::Option(inner) | Type::Box(inner) => inline(api, inner),
+		Type::Int(int) | Type::NonZero(int) if kt_int(*int).starts_with('U') => Some(match int {
+			Int::U8 => "kotlin.Byte",
+			Int::U16 => "kotlin.Short",
+			Int::U32 => "kotlin.Int",
+			_ => "kotlin.Long",
+		}),
+		Type::IpAddr(Family::V4) => Some("kotlin.Int"),
+		Type::SocketAddr(Family::V4) => Some("kotlin.Long"),
+		Type::Record(i) if api.records[*i].opaque.is_some_and(|o| word(&o)) => Some("kotlin.Long"),
+		Type::Box(inner) => lowered(api, inner),
 		// One Rust writes back is a `Mut`.
-		Type::Ref(_, inner) if !ty.written() => inline(api, inner),
+		Type::Ref(_, inner) if !ty.written() => lowered(api, inner),
 		_ => None,
 	}
 }

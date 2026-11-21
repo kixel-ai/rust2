@@ -708,6 +708,7 @@ namespace api {
 		static ::api::clash_Reader new_(::api::input bytes);
 		RUST2_FFI_CALLABLE ::api::result<::std::uint8_t, ::api::clash_Malformed> read_byte();
 		RUST2_FFI_CALLABLE ::api::result<void, ::api::clash_Malformed> unread_byte();
+		RUST2_FFI_CALLABLE void wait(::std::uint64_t ms) const;
 	};
 	class RUST2_FFI_CONSUMABLE Spawned {
 		RUST2_FFI_UNCONSUMED Spawned(Spawned &&other RUST2_FFI_MOVED_FROM) noexcept = default;

@@ -3,8 +3,8 @@
 ## Goal
 
 Plain Java, compiling against the generated Kotlin's classes, calls every function, reads
-every field, and makes every value a Kotlin caller can, apart from a value class's members
-and a function taking an opaque value, which stay Kotlin's, so a Java caller of the Kotlin
+every field, and makes every value a Kotlin caller can, apart from a value class's members,
+which Kotlin compiles to statics `@JvmName` cannot rename, so a Java caller of the Kotlin
 library never needs reflection or a Kotlin shim.
 
 ## Plan

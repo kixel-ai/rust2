@@ -1667,6 +1667,7 @@ final class ClashReader extends _Object {
 	factory ClashReader(typed.Uint8List bytes);
 	int readByte();
 	void unreadByte();
+	void wait(U64 ms);
 }
 final class TlsSession extends _Object {
 	String alpn();

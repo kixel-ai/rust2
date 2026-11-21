@@ -1480,6 +1480,7 @@ public struct ClashReader: ~Copyable, @unchecked Sendable {
 	@inlinable public static func new(_ bytes: Bytes) -> ClashReader
 	@inlinable public mutating func readByte() throws -> Swift.UInt8
 	@inlinable public mutating func unreadByte() throws
+	@inlinable public func wait(_ ms: Swift.UInt64) throws
 }
 public struct TlsSession: ~Copyable, @unchecked Sendable {
 	@inlinable public func alpn() -> Swift.String

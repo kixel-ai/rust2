@@ -362,6 +362,7 @@ export type ClashReader = rt.Handle<"ClashReader">;
 export declare function new$(bytes: Uint8Array | rt.Bytes): ClashReader;
 export declare function readByte(self: ClashReader): rt.Result<number, ClashMalformed>;
 export declare function unreadByte(self: ClashReader): rt.Result<undefined, ClashMalformed>;
+export declare function wait(self: ClashReader, ms: rt.u64): void;
 export { new$ as new };
 
 // ClashSeed.ts
