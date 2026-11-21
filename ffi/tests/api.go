@@ -444,6 +444,17 @@ func checks() {
 		ok(reader.Close())
 		check(api.ClashWaited(source{}) == 4, "an interface's method named as io.ByteReader's")
 	}
+	// Names that differ only by trailing underscores, each reaching its own Rust: a name Go
+	// spells as Rust does keeps it, whichever comes first.
+	{
+		underscored := api.ClashUnderscored{New_: 1, New: 2, Debug: 3, Default: 4}
+		check(api.ClashUnderscored_(underscored, api.ClashOpDelete, api.ClashChangeSet{New_: 5, New: 6}) == 2_561_234, "names apart by trailing underscores cross")
+		next, change := api.ClashUnderscoredNext(underscored, api.ClashChangeSet{New_: 5, New: 6})
+		check(next == api.ClashUnderscored{New_: 2, New: 3, Debug: 4, Default: 5} && change == api.ClashChangeSet{New_: 6, New: 5}, "names apart by trailing underscores cross back")
+		check(api.ClashErased(eraser{}) == 123, "an interface's methods apart by a trailing underscore")
+		check(api.ClashEscaped{New: 3}.Delete() == 3 && api.ClashEscaped{New: 3}.Delete_(1, 2) == 213, "methods apart by a trailing underscore")
+		check(api.ClashErase_() == 2 && api.ClashErase() == 1, "functions apart by a trailing underscore")
+	}
 	// A path that is no UTF-8 is a Go string all the same.
 	check(api.Stray() == "\xff", "a path that is not UTF-8 crosses as its bytes")
 	var lent string
@@ -1489,7 +1500,19 @@ func broken(which string) {
 }
 
 // cancelLog cancels its context at each line, and counts them.
+// eraser is a clash.Eraser, whose methods differ only by a trailing underscore.
+type eraser struct{}
+
+func (eraser) Delete_(new_ uint8, new_2 uint8) uint8 {
+	return new_*10 + new_2
+}
+
+func (eraser) Delete() uint8 {
+	return 3
+}
+
 // source is a clash.Source, reading 4 at once.
+
 type source struct{}
 
 func (source) Wait() {}

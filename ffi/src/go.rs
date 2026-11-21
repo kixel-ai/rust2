@@ -1466,12 +1466,24 @@ impl<'a> Gen<'a> {
 		for i in (0..api.callbacks.len()).filter(|&i| mine(&api.callbacks[i].home)) {
 			self.callback(i);
 		}
-		for function in api.functions.iter().filter(|f| mine(&f.home)) {
-			let mut method = self.function(function, None, None);
-			method.name = self.claim(&method.name, format!("fn `{}`", function.path.join("::")));
+		// Named apart from each other as [`abi::named`] keeps a scope's, then from the rest.
+		let functions: Vec<&Function> = api.functions.iter().filter(|f| mine(&f.home)).collect();
+		let mut methods: Vec<Method> = functions.iter().map(|f| self.function(f, None, None)).collect();
+		let rust: Vec<String> = (functions.iter())
+			.map(|f| rest(&abi.prefix, &abi.export(f, None).on_home().named, &f.shown, &f.home).to_string())
+			.collect();
+		let rust: Vec<&str> = rust.iter().map(String::as_str).collect();
+		let spelled = methods.iter().map(|method| method.name.clone()).collect();
+		let rt = self.pkg == Packages::RT;
+		let own = |rust: &str, name: &str| abi::snake(name) == rust || name == rust.to_uppercase();
+		let free = |_: usize, name: &str| rt && taken(name) || self.names.contains_key(name);
+		let names = abi::named(&rust, spelled, own, free, abi::underscored);
+		for ((function, method), name) in functions.into_iter().zip(&mut methods).zip(names) {
+			method.name = self.claim(&name, format!("fn `{}`", function.path.join("::")));
 			crate::lock::function(&mut self.locked, function, &method.name);
 			self.top.push_str(&method.write());
 		}
+
 		self.moved();
 		self.errors_of();
 	}

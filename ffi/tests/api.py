@@ -42,7 +42,18 @@ class Print(api.Log):
 		print("freed")
 
 
+class Eraser(api.ClashEraser):
+	"""An eraser whose methods differ only by a trailing underscore."""
+
+	def delete_(self, new_, new):
+		return new_ * 10 + new
+
+	def delete(self):
+		return 3
+
+
 class Edits(api.Undo):
+
 	"""The Undo callback: each method returns its own digit."""
 
 	def delete(self, n):
@@ -1139,6 +1150,18 @@ def values():
 		check(os.fsencode(path) == b"\xff", "a path that is not UTF-8 keeps its bytes")
 		check(api.parents([path, os.fsdecode(b"\xfe/\xff")])[1] == os.fsdecode(b"\xfe"), "and crosses back")
 	check(bytes(api.Clash.String("hi").bytes()) == b"hi", "a method named as a builtin runs")
+	# Names that differ only by trailing underscores, each reaching its own Rust: a name Python
+	# spells as Rust does keeps it, whichever comes first.
+	underscored = api.ClashUnderscored(new_=1, new=2, debug=3, default_=4)
+	check(api.clash_underscored(underscored, api.ClashOp.DELETE, api.ClashChange.Set(new_=5, new=6)) == 2_561_234, "names apart by trailing underscores cross")
+	check(
+		api.clash_underscored_next(underscored, api.ClashChange.Set(new_=5, new=6))
+		== (api.ClashUnderscored(new_=2, new=3, debug=4, default_=5), api.ClashChange.Set(new_=6, new=5)),
+		"names apart by trailing underscores cross back",
+	)
+	check(api.clash_erased(Eraser()) == 123, "a callback's methods apart by a trailing underscore")
+	check(api.ClashEscaped(new=3).delete() == 3 and api.ClashEscaped(new=3).delete_(1, 2) == 213, "methods apart by a trailing underscore")
+	check(api.clash_erase_() == 2 and api.clash_erase() == 1, "functions apart by a trailing underscore")
 	print("values ok")
 
 

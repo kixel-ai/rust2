@@ -2312,12 +2312,7 @@ impl<'a> Gen<'a> {
 		let rust = callback.path.join("::");
 		let mut body = Vec::new();
 		let mut members = Vec::new();
-		// `close` is the hook Rust calls once it drops an implementation.
-		let reserved: Vec<&str> = OBJECT.iter().copied().chain(["close"]).collect();
-		let methods: Vec<&str> = callback.methods.iter().map(|method| method.name()).collect();
-		let spelled = methods.iter().map(|name| member(&abi::snake(name), &reserved)).collect();
-		let named = abi::named(&methods, spelled, own, |_, _| false, alternative);
-		for (method, member) in callback.methods.iter().zip(named) {
+		for (method, member) in callback.methods.iter().zip(callback_members(&callback.methods)) {
 			crate::lock::function(&mut self.locked, method, &member);
 			members.push(member.clone());
 			let names = abi::distinct(method.params.iter().map(|param| param_name(&param.name)));
@@ -2366,9 +2361,7 @@ impl<'a> Gen<'a> {
 		let rust = callback.path.join("::");
 		let mut relays = Vec::new();
 		let mut trampolines = Vec::new();
-		let reserved: Vec<&str> = OBJECT.iter().copied().chain(["close"]).collect();
-		for method in &callback.methods {
-			let member = member(&abi::snake(method.name()), &reserved);
+		for (method, member) in callback.methods.iter().zip(callback_members(&callback.methods)) {
 			// The trampoline Rust's relay calls on the isolate's thread.
 			let c_params: Vec<Ty> = method.params.iter().map(|p| abi.ty(&p.ty)).collect();
 			let ret = abi.ty(&method.ok);
@@ -3597,6 +3590,15 @@ fn own(rust: &str, name: &str) -> bool {
 /// The `n`th of the [`alternatives`] to `name`, for [`abi::named`].
 fn alternative(name: &str, n: usize) -> String {
 	alternatives(name).nth(n).expect("alternatives never end")
+}
+
+/// The names of a callback's `methods`, one scope's, apart as [`abi::named`] keeps them, and
+/// from what every object has and the `close` hook Rust calls once it drops an implementation.
+fn callback_members(methods: &[Function]) -> Vec<String> {
+	let reserved: Vec<&str> = OBJECT.iter().copied().chain(["close"]).collect();
+	let rust: Vec<&str> = methods.iter().map(|method| method.name()).collect();
+	let spelled = rust.iter().map(|name| member(&abi::snake(name), &reserved)).collect();
+	abi::named(&rust, spelled, own, |_, _| false, alternative)
 }
 
 /// The Dart names of `fields`, one scope's, each [`field_name`], kept apart as [`abi::named`]

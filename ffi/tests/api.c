@@ -870,7 +870,15 @@ static api_buf unspelled(void) {
 
 /* What the transcript's output does not show: each check of the ABI's contract beyond it. */
 static void checks(void) {
+	/* Names that differ only by trailing underscores, which C keeps apart, each reaching its own
+	 * Rust. */
+	api_clash_Underscored underscored = {1, 2, 3, 4};
+	api_clash_Change set = {.tag = API_CLASH_CHANGE_SET, .set = {5, 6}};
+	if (api_clash_underscored(underscored, API_CLASH_OP_DELETE, set) != 2561234 || api_clash_erase_() != 2 || api_clash_erase() != 1) {
+		tr_fail("names apart by trailing underscores");
+	}
 	/* A field named as errno.h's macro, escaped. */
+
 	api_clash_Errno none = api_clash_Errno_NULL();
 	if (none.errno_ != 0 || API_EOF != -1 || api_WEXITSTATUS(0x300) != 3) {
 		tr_fail("names of system macros");
