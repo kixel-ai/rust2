@@ -189,7 +189,8 @@ the builder unpacks over its checkout before reading the checks.
    version's `/vN` suffix checked: the export's `go/`, whose runtime's `#cgo` lines link
    `rt/lib<prefix>_<goos>_<goarch>.a` for `linux/amd64` and `linux/arm64` (built against
    glibc 2.28), `darwin/amd64`, `darwin/arm64` and `ios/arm64` (the latter two the Swift
-   package's macOS and iOS device libraries; no consumer here runs iOS), and `windows/amd64` (an
+   package's macOS and iOS device libraries; no consumer here runs iOS), `android/amd64` and
+   `android/arm64` (at the AAR's API 24; no consumer here runs Go on Android), and `windows/amd64` (an
    `x86_64-pc-windows-gnu` library, for Go's MinGW linker), and the license files. Each
    library must need exactly the system libraries the export's line names, as rustc prints
    them building it, and loses its debug info and the LLVM bitcode Go refuses. The module's

@@ -643,7 +643,8 @@ class Go(unittest.TestCase):
             self.assertEqual((versions / "list").read_text(), "v0.4.12\n")
             with zipfile.ZipFile(versions / "v0.4.12.zip") as z:
                 self.assertEqual(sorted(z.namelist()), [f"moq.dev/moq-ffi@v0.4.12/{n}" for n in [
-                    "LICENSE-MIT", "go.mod", "rt/libmoq_darwin_amd64.a", "rt/libmoq_darwin_arm64.a", "rt/libmoq_ios_arm64.a",
+                    "LICENSE-MIT", "go.mod", "rt/libmoq_android_amd64.a", "rt/libmoq_android_arm64.a",
+        "rt/libmoq_darwin_amd64.a", "rt/libmoq_darwin_arm64.a", "rt/libmoq_ios_arm64.a",
                     "rt/libmoq_linux_amd64.a", "rt/libmoq_linux_arm64.a", "rt/libmoq_windows_amd64.a", "rt/rt.go"]])
             # The module ships exactly the libraries the runtime links.
             (root / "libs/libmoq_linux_arm64.a").unlink()

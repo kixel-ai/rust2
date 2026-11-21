@@ -110,6 +110,8 @@ GO_TARGETS = {
     "aarch64-apple-darwin": "darwin_arm64",
     "aarch64-apple-ios": "ios_arm64",
     "x86_64-pc-windows-gnu": "windows_amd64",
+    "x86_64-linux-android": "android_amd64",
+    "aarch64-linux-android": "android_arm64",
 }
 # Every Android ABI the AAR holds a library of, by the target built for it.
 ANDROID_TARGETS = {
@@ -1890,7 +1892,7 @@ def staticlib(manifest, crate, lib, target, env=None, config=()):
     # Its own target directory, since cargo does not rebuild for a changed deployment target.
     target_dir = crate.parent / ("target-swift" if target in APPLE_TARGETS else "target-go")
     # cargo-zigbuild links Linux against the glibc floor's symbols, whichever glibc the host has.
-    linux = "linux" in target
+    linux = target.endswith("-linux-gnu")
     # Uncolored, so the note below reads as written whatever the caller's terminal.
     built = run(*(["cargo-zigbuild"] if linux else ["cargo"]), "rustc", "--color", "never", "--locked", "--release",
                 "--manifest-path", crate, "--target", f"{target}.{GLIBC}" if linux else target,
@@ -1997,7 +1999,11 @@ def build(args):
                 if target in GO_TARGETS:
                     go_library(args, through, lib, target, library, native, out)
             elif target in GO_TARGETS:
-                library, native = staticlib(args.manifest_path, crate, lib, target, env=reproducible(inside, through, target))
+                env = reproducible(inside, through, target)
+                # Android's at the AAR's API floor, through the NDK.
+                if target in ANDROID_TARGETS:
+                    env.update(android_toolchain(target, ANDROID_API))
+                library, native = staticlib(args.manifest_path, crate, lib, target, env=env)
                 go_library(args, through, lib, target, library, native, out)
             if target in ANDROID_TARGETS:
                 android_library(inside, args.manifest_path, through, target, out)
@@ -2011,7 +2017,8 @@ def build(args):
     (out / "lib.txt").write_text(lib + "\n", newline="\n", encoding="utf-8")
     # Native output for a host whose wheel or Go module a consumer runs; an iOS slice runs
     # nowhere here, and an Android one runs on the emulator, which runs the example's build.
-    runs = [t for t in args.targets if t in WHEEL_TARGETS or t in GO_TARGETS and t not in APPLE_TARGETS]
+    runs = [t for t in args.targets
+            if t in WHEEL_TARGETS or t in GO_TARGETS and t not in APPLE_TARGETS and t not in ANDROID_TARGETS]
     if args.example and runs:
         if args.example not in info["examples"]:
             raise SystemExit(f"{info['name']} has no example {args.example}: it has {info['examples']}")
@@ -2636,6 +2643,9 @@ dependencyResolutionManagement {{
 
 rootProject.name = "check"
 """, encoding="utf-8")
+        # Signing a bundle holds it in memory, and a library's debug info can make it larger
+        # than Gradle's default 512 MB heap.
+        (app / "gradle.properties").write_text("org.gradle.jvmargs=-Xmx4g -Dfile.encoding=UTF-8\n", encoding="utf-8")
         (app / "build.gradle.kts").write_text(f"""plugins {{
 	id("com.android.application") version "{AGP}"
 }}
