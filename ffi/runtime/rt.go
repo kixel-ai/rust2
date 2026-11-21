@@ -367,7 +367,7 @@ func (h *Handle_) closeChecked() error {
 	for {
 		// Held by no call, as soon after its return: claimed closed so none starts, then the
 		// value dropped and the handle freed in one crossing. A call meanwhile fails as
-		// closed, as one racing any Close may.
+		// closed, as one racing any Close may. A drop that passed stored closed_ itself.
 		if h.state.CompareAndSwap(held_, closed_|closing_) {
 			h.leave()
 			if err := h.drop(h.raw, unsafe.Pointer(&h.state)); err != nil {
@@ -375,7 +375,6 @@ func (h *Handle_) closeChecked() error {
 				h.state.Store(held_)
 				return err
 			}
-			h.state.Store(closed_)
 			return nil
 		}
 		n := h.state.Load()

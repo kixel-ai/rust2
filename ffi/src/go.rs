@@ -924,7 +924,7 @@ impl<'a> Gen<'a> {
 		let committed = format!("{p}GoCommitted");
 		if self.shims.insert(committed.clone()) {
 			self.decls.push(format!(
-				"static void {committed}(void *state) {{\n\t__atomic_store_n((int64_t *)state, 1, __ATOMIC_SEQ_CST);\n}}\n"
+				"static void {committed}(void *state) {{\n\t__atomic_store_n((int64_t *)state, 1, __ATOMIC_RELEASE);\n}}\n"
 			));
 		}
 		self.decls.push(format!(

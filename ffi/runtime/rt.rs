@@ -1789,7 +1789,7 @@ impl<T> Object<T> {
 	///
 	/// `commit` runs once the drop can no longer fail, on this thread, before any `Drop`
 	/// runs: so a binding's close that meets this one waits only for its check, never on a
-	/// `Drop` that may wait on that close.
+	/// `Drop` that may wait on that close. It runs unless this fails.
 	///
 	/// # Safety
 	/// As [`Self::borrow`].
@@ -1802,7 +1802,10 @@ impl<T> Object<T> {
 		}
 		match object.borrow.take(&TABLE, TAKEN) {
 			Ok(()) => {}
-			Err(Status::Moved) => return Ok(()),
+			Err(Status::Moved) => {
+				commit();
+				return Ok(());
+			}
 			Err(status) => return Err(status),
 		}
 		object.epoch.fetch_add(1, Ordering::Release);

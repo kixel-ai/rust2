@@ -602,16 +602,16 @@ class __Handle(
 		while (true) {
 			// Held by no call, as soon after its return: claimed closed so none starts, then
 			// the value dropped and the handle freed in one crossing. A call meanwhile throws
-			// as closed, as one racing any close may.
+			// as closed, as one racing any close may. A drop that passed stored CLOSED itself.
 			if (STATE.compareAndSet(this, HELD, CLOSED or CLOSING)) {
 				try {
 					drop.close(raw, this)
 				} catch (e: Throwable) {
-					state = HELD
+					// Reopened only if Rust refused the drop, before it committed.
+					STATE.compareAndSet(this, CLOSED or CLOSING, HELD)
 					throw e
 				}
 				cleanup?.stop()
-				state = CLOSED
 				return
 			}
 			val n = state
