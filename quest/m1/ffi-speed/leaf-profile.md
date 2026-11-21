@@ -18,9 +18,11 @@ whose release body waits on something that waits on the GIL would then deadlock 
 outside Dart's serving path. No text scan closes this gap: build scripts, proc macros, and
 other crates' macros can each hide a profile-dependent cfg.
 
-Decided by the maintainer on [#911](https://github.com/kixel-ai/rust2/pull/911#issuecomment-7054086583):
-check with release settings plus a build-time guard in each binding (rejected: the guard alone
-on today's dev check, which loses every leaf in release builds; keeping the documented boundary).
+Decided by the maintainer on [#911](https://github.com/kixel-ai/rust2/pull/911#issuecomment-7054086583),
+which lands with the boundary documented in `Abi::leaf` (rejected there: growing #911 into this
+quest's work). This quest closes it: check with release settings plus a build-time guard in each
+binding (rejected: the guard alone on today's dev check, which loses every leaf in release
+builds; keeping the documented boundary for good).
 
 - Check with release settings, so the proof covers the release body. This also moves the
   API's own `cfg(debug_assertions)` items to release's side, so it is a change to what the
