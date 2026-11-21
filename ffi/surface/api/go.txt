@@ -11,6 +11,7 @@ FUNCTIONS
 func Admit(entry p_rt.Tuple4[*Counter, *Mark, Seat, Choice]) (uint64, error)
 func After(ctx context.Context, first func(context.Context), value uint32) (uint32, error)
 func All(note uint8) uint8
+func All_(note uint8) uint8
 func Alpn(config *p_tls.Config) (string, error)
 func AlpnLent(config *p_tls.Config) (string, error)
 func ApplyNonZeroU16(pair PairNonZeroU16, f func(uint16) uint32) (uint32, error)
@@ -43,10 +44,21 @@ func Choose(choice Choice) (uint64, error)
 func Chunks(bytes p_rt.Bytes, size uint) []p_rt.Bytes
 func ClashAudioEncoderFinish() uint8
 func ClashAudioEncoderFinish_() uint8
+func ClashDescribed_(described ClashDescribed) uint32
+func ClashErase() uint8
+func ClashErase_() uint8
+func ClashErased(eraser ClashEraser) uint32
+func ClashEraserVtable_() unsafe.Pointer
 func ClashIgnore(arg0 uint8, arg1 uint8, arg2 uint8) uint8
+func ClashLend() uint32
+func ClashLend_(store *ClashStore) (uint32, error)
 func ClashListed(java []uint32, kotlin *uint32) [][]uint32
 func ClashNested(a *p_rt.Tuple2[p_rt.Tuple2[uint8, uint16], uint32], b *p_rt.Tuple3[uint8, uint16, uint32]) uint32
+func ClashRun(work2 func() uint8, work uint8) uint32
 func ClashSourceVtable_() unsafe.Pointer
+func ClashStoreCount() uint32
+func ClashUnderscoredNext(underscored ClashUnderscored, change ClashChange) (ClashUnderscored, ClashChange)
+func ClashUnderscored_(underscored ClashUnderscored, op ClashOp, change ClashChange) uint32
 func ClashWaited(source ClashSource) uint8
 func Coordinates(point *Point) int32
 func Corner(unit bool) (p_rt.Tuple2[uint32, uint32], error)
@@ -512,6 +524,27 @@ type ClashCandidateNone struct {
 }
 func (self ClashCandidateNone) Equal(other ClashCandidate) bool
 func (self ClashCandidateNone) GoString() string
+type ClashChange interface {
+	GoString() string
+	Equal(other ClashChange) bool
+}
+type ClashChangeClear struct {
+}
+func (self ClashChangeClear) Equal(other ClashChange) bool
+func (self ClashChangeClear) GoString() string
+type ClashChangeSet struct {
+	New_ uint8
+	New  uint8
+}
+func (self ClashChangeSet) Equal(other ClashChange) bool
+func (self ClashChangeSet) GoString() string
+type ClashDescribed struct {
+	Description      uint8
+	DebugDescription uint8
+}
+func (self ClashDescribed) Equal(other ClashDescribed) bool
+func (self ClashDescribed) GoString() string
+func (self ClashDescribed) String() string
 type ClashDouble struct {
 	V0 float64
 }
@@ -531,6 +564,10 @@ type ClashEmptyString struct {
 func ClashEmpty() *ClashEmptyString
 func (self *ClashEmptyString) Close() error
 func (self *ClashEmptyString) IsEmpty() (bool, error)
+type ClashEraser interface {
+	Delete_(new_ uint8, new_2 uint8) uint8
+	Delete() uint8
+}
 type ClashErrno struct {
 	Errno int32
 }
@@ -541,7 +578,7 @@ type ClashEscaped struct {
 	New uint8
 }
 func (self ClashEscaped) Delete() uint8
-func (self ClashEscaped) Delete_(new_ uint8, new_2 uint8) uint8
+func (self ClashEscaped) Delete_(new_2 uint8, new_ uint8) uint8
 func (self ClashEscaped) Equal(other ClashEscaped) bool
 func (self ClashEscaped) GoString() string
 type ClashEvent struct {
@@ -638,6 +675,13 @@ func (self ClashNative) Point() (*Point, error)
 func (self ClashNative) Reading(kotlin uint32) (Reading, error)
 func (self ClashNative) Stamp(kotlin uint64) (Stamp, error)
 func (self ClashNative) Tagged(ctx context.Context, tag string) (string, error)
+type ClashOp int32
+const (
+	ClashOpDelete_ ClashOp = 0
+	ClashOpDelete  ClashOp = 1
+)
+func (self ClashOp) Equal(other ClashOp) bool
+func (self ClashOp) GoString() string
 type ClashPair struct {
 	V0 uint8
 	V1 uint8
@@ -721,11 +765,14 @@ func (self ClashStamp) Tagged(ctx context.Context, tag string) (string, error)
 type ClashStore struct {
 	Handle_ *p_rt.Handle_
 }
+func ClashStoreOpen() *ClashStore
 func NewClashStore(count uint32) *ClashStore
 func (self *ClashStore) Close() error
 func (self *ClashStore) Close_() (uint32, error)
+func (self *ClashStore) Count() (uint32, error)
 func (self *ClashStore) Finalize() error
 func (self *ClashStore) Free() (uint32, error)
+func (self *ClashStore) Open() (uint32, error)
 func (self *ClashStore) Wait() error
 type ClashString struct {
 	V0 string
@@ -768,6 +815,15 @@ type ClashTone_ struct {
 }
 func (self ClashTone_) Equal(other ClashTone_) bool
 func (self ClashTone_) GoString() string
+type ClashUnderscored struct {
+	New_    uint8
+	New     uint8
+	Debug   uint8
+	Default uint8
+}
+func ClashUnderscoredDefault() ClashUnderscored
+func (self ClashUnderscored) Equal(other ClashUnderscored) bool
+func (self ClashUnderscored) GoString() string
 type ClashUnit struct {
 }
 func (self ClashUnit) Bytes() (p_rt.Bytes, error)

@@ -272,8 +272,8 @@ export type ClashBreak = {
 };
 export declare function debug(self: ClashBreak): string;
 export declare function eq(a: ClashBreak, b: ClashBreak): boolean;
-export declare function SP(): ClashBreak;
 export declare function SP_(): ClashBreak;
+export declare function SP(): ClashBreak;
 
 // ClashCandidate.ts
 export type ClashCandidate = {
@@ -285,10 +285,37 @@ export type ClashCandidate = {
 export declare function debug(self: ClashCandidate): string;
 export declare function eq(a: ClashCandidate, b: ClashCandidate): boolean;
 
+// ClashChange.ts
+export type ClashChange = {
+    tag: "Set";
+    new2: number;
+    new: number;
+} | {
+    tag: "Clear";
+};
+export declare function debug(self: ClashChange): string;
+export declare function eq(a: ClashChange, b: ClashChange): boolean;
+
+// ClashDescribed.ts
+export type ClashDescribed = {
+    description: number;
+    debugDescription: number;
+};
+export declare function toString(self: ClashDescribed): string;
+export declare function debug(self: ClashDescribed): string;
+export declare function eq(a: ClashDescribed, b: ClashDescribed): boolean;
+
 // ClashEmptyString.ts
 import * as rt from "./rt.ts";
 export type ClashEmptyString = rt.Handle<"ClashEmptyString">;
 export declare function isEmpty(self: ClashEmptyString): boolean;
+
+// ClashEraser.ts
+export interface ClashEraser {
+    delete_(new_: number, new_2: number): number;
+    delete$(): number;
+    close?(): void;
+}
 
 // ClashErrno.ts
 export type ClashErrno = {
@@ -304,8 +331,8 @@ export type ClashEscaped = {
 };
 export declare function debug(self: ClashEscaped): string;
 export declare function eq(a: ClashEscaped, b: ClashEscaped): boolean;
+export declare function delete_(self: ClashEscaped, new_2: number, new_: number): number;
 export declare function delete$(self: ClashEscaped): number;
-export declare function delete_(self: ClashEscaped, new_: number, new_2: number): number;
 export { delete$ as delete };
 
 // ClashLevel.ts
@@ -323,6 +350,10 @@ export declare function toString(self: ClashMalformed): string;
 export declare function debug(self: ClashMalformed): string;
 export declare function eq(a: ClashMalformed, b: ClashMalformed): boolean;
 export declare function is(self: ClashMalformed, at: number): boolean;
+
+// ClashOp.ts
+export type ClashOp = "Delete_" | "Delete";
+export declare function debug(self: ClashOp): string;
 
 // ClashReader.ts
 import * as rt from "./rt.ts";
@@ -367,6 +398,10 @@ export declare function free(self: ClashStore): number;
 export declare function close(self: ClashStore): number;
 export declare function wait(self: ClashStore): void;
 export declare function finalize(self: ClashStore): void;
+export declare function count_(): number;
+export declare function count(self: ClashStore): number;
+export declare function open_(): ClashStore;
+export declare function open(self: ClashStore): number;
 export { new$ as new };
 
 // ClashTag.ts
@@ -394,6 +429,18 @@ export type ClashTone_ = {
 };
 export declare function debug(self: ClashTone_): string;
 export declare function eq(a: ClashTone_, b: ClashTone_): boolean;
+
+// ClashUnderscored.ts
+export type ClashUnderscored = {
+    new2: number;
+    new: number;
+    debug: number;
+    default: number;
+};
+export declare function debug(self: ClashUnderscored): string;
+export declare function eq(a: ClashUnderscored, b: ClashUnderscored): boolean;
+export declare function default$(): ClashUnderscored;
+export { default$ as default };
 
 // Clocked.ts
 import type { Moment } from "./Moment.ts";
@@ -1856,14 +1903,18 @@ import type { Clash } from "./Clash.ts";
 import type { ClashAny } from "./ClashAny.ts";
 import type { ClashBreak } from "./ClashBreak.ts";
 import type { ClashCandidate } from "./ClashCandidate.ts";
+import type { ClashChange } from "./ClashChange.ts";
+import type { ClashDescribed } from "./ClashDescribed.ts";
 import type { ClashErrno } from "./ClashErrno.ts";
 import type { ClashEscaped } from "./ClashEscaped.ts";
 import type { ClashLevel } from "./ClashLevel.ts";
 import type { ClashMalformed } from "./ClashMalformed.ts";
+import type { ClashOp } from "./ClashOp.ts";
 import type { ClashSpan } from "./ClashSpan.ts";
 import type { ClashTag } from "./ClashTag.ts";
 import type { ClashTone } from "./ClashTone.ts";
 import type { ClashTone_ } from "./ClashTone_.ts";
+import type { ClashUnderscored } from "./ClashUnderscored.ts";
 import type { Clocked } from "./Clocked.ts";
 import type { Counter } from "./Counter.ts";
 import type { Cursor } from "./Cursor.ts";
@@ -1956,6 +2007,7 @@ export declare function e_Status_(v: Status): number;
 export declare function e_Tier(v: Tier): number;
 export declare function e_VecClashTone(v: VecClashTone): number;
 export declare function e_clash_Level(v: ClashLevel): number;
+export declare function e_clash_Op(v: ClashOp): number;
 export declare function f0(): number;
 export declare function f1(): number;
 export declare function f10(): number;
@@ -2177,9 +2229,11 @@ export declare function r_bounds_u64(p: number, o: boolean): {
 export declare function r_clash_Any(p: number, o: boolean): ClashAny;
 export declare function r_clash_Break(p: number, o: boolean): ClashBreak;
 export declare function r_clash_Candidate(p: number, o: boolean): ClashCandidate;
+export declare function r_clash_Change(p: number, o: boolean): ClashChange;
 export declare function r_clash_Errno(p: number, o: boolean): ClashErrno;
 export declare function r_clash_Malformed(p: number, o: boolean): ClashMalformed;
 export declare function r_clash_Tone(p: number, o: boolean): ClashTone;
+export declare function r_clash_Underscored(p: number, o: boolean): ClashUnderscored;
 export declare function r_option_Level(p: number, o: boolean): Level | undefined;
 export declare function r_option_Moment(p: number, o: boolean): Moment | undefined;
 export declare function r_option_Point(p: number, o: boolean): Point | undefined;
@@ -2287,6 +2341,7 @@ export declare function vt_Scan(): number;
 export declare function vt_Stretch(): number;
 export declare function vt_Turner(): number;
 export declare function vt_Undo(): number;
+export declare function vt_clash_Eraser(): number;
 export declare function vt_clash_Source(): number;
 export declare function w_Atlas(p: number, v: Atlas): void;
 export declare function w_Booth(p: number, v: Booth): void;
@@ -2391,6 +2446,8 @@ export declare function w_bounds_u64(p: number, v: {
 export declare function w_clash_Any(p: number, v: ClashAny): void;
 export declare function w_clash_Break(p: number, v: ClashBreak): void;
 export declare function w_clash_Candidate(p: number, v: ClashCandidate): void;
+export declare function w_clash_Change(p: number, v: ClashChange): void;
+export declare function w_clash_Described(p: number, v: ClashDescribed): void;
 export declare function w_clash_Errno(p: number, v: ClashErrno): void;
 export declare function w_clash_Escaped(p: number, v: ClashEscaped): void;
 export declare function w_clash_Malformed(p: number, v: ClashMalformed): void;
@@ -2398,6 +2455,7 @@ export declare function w_clash_Span(p: number, v: ClashSpan): void;
 export declare function w_clash_TONE(p: number, v: ClashTone_): void;
 export declare function w_clash_Tag(p: number, v: ClashTag): void;
 export declare function w_clash_Tone(p: number, v: ClashTone): void;
+export declare function w_clash_Underscored(p: number, v: ClashUnderscored): void;
 export declare function w_macros_Streams(p: number, v: MacrosStreams): void;
 export declare function w_option_Level(p: number, v: Level | undefined): void;
 export declare function w_option_Point(p: number, v: Point | undefined): void;
@@ -2486,6 +2544,8 @@ export declare const imports: {
     api_web_cb_Undo_delete: (data: number, p0: number) => number;
     api_web_cb_Undo_free: (data: number) => number;
     api_web_cb_Undo_type: (data: number) => number;
+    api_web_cb_clash_Eraser_delete: (data: number) => number;
+    api_web_cb_clash_Eraser_delete_: (data: number, p0: number, p1: number) => number;
     api_web_cb_clash_Source_read_byte: (data: number) => number;
     api_web_cb_clash_Source_wait: (data: number) => void;
     api_web_i_fn_0: (data: number, p0: bigint) => void;
@@ -2523,9 +2583,15 @@ import type { BoxedU8 } from "./BoxedU8.ts";
 import type { Choice } from "./Choice.ts";
 import type { ClashAny } from "./ClashAny.ts";
 import type { ClashCandidate } from "./ClashCandidate.ts";
+import type { ClashChange } from "./ClashChange.ts";
+import type { ClashDescribed } from "./ClashDescribed.ts";
 import type { ClashEmptyString } from "./ClashEmptyString.ts";
+import type { ClashEraser } from "./ClashEraser.ts";
+import type { ClashOp } from "./ClashOp.ts";
 import type { ClashSource } from "./ClashSource.ts";
+import type { ClashStore } from "./ClashStore.ts";
 import type { ClashTone } from "./ClashTone.ts";
+import type { ClashUnderscored } from "./ClashUnderscored.ts";
 import type { Clocked } from "./Clocked.ts";
 import type { Counter } from "./Counter.ts";
 import type { Cursor } from "./Cursor.ts";
@@ -2939,6 +3005,7 @@ export declare function unzeroed(bytes: Uint8Array | rt.Bytes): rt.Bytes;
 export declare function deprecated(note: number): number;
 export declare function deprecated_(note: number): number;
 export declare function all(note: number): number;
+export declare function all_(note: number): number;
 export declare function knob(dial: Dial): Knob;
 export declare function levelLater(dial: Dial): rt.Call<rt.u64>;
 export declare function turned(dial: Dial, turner: Turner): rt.Result<Dial, Error_>;
@@ -2958,7 +3025,16 @@ export declare function clashAny(typeUrl: string): ClashAny;
 export declare function clashCandidate(at: number): ClashCandidate;
 export declare function clashIgnore(arg0: number, arg1: number, arg2: number): number;
 export declare function clashEmpty(): ClashEmptyString;
+export declare function clashDescribed(described: ClashDescribed): number;
 export declare function clashWaited(source: ClashSource): number;
+export declare function clashUnderscored(underscored: ClashUnderscored, op: ClashOp, change: ClashChange): number;
+export declare function clashUnderscoredNext(underscored: ClashUnderscored, change: ClashChange): [ClashUnderscored, ClashChange];
+export declare function clashErased(eraser: ClashEraser): number;
+export declare function clashErase_(): number;
+export declare function clashErase(): number;
+export declare function clashLend_(store: ClashStore | undefined): number;
+export declare function clashLend(): number;
+export declare function clashRun(work2: () => number, work: number): number;
 export declare function clashAudible(tone: ClashTone): rt.Result<ClashTone, ClashTone[]>;
 export declare function clashNested(a: [[number, number], number] | undefined, b: [[number, number, number]] | undefined): number;
 export declare function clashAudioEncoderFinish(): number;

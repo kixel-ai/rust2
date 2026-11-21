@@ -15,7 +15,8 @@ rust2-ffi (--out dir | --census dir | --api file) [--manifest-path Cargo.toml] [
 ```
 
 It runs `cargo check` on the package with itself as `RUSTC_WRAPPER`, for each `--target`
-or else the host, whatever cargo's config names, through
+or else the host, whatever cargo's config names, under the release profile unless the cargo
+args pick another, as a library ships, through
 the front end it shares with [rust2-ts](../ts/README.md) in [`driver/`](../driver). A build
 script's probe of the compiler through that wrapper, as `rustversion` and `autocfg` make,
 runs the `rustc` cargo resolved, the one the glue builds with, rather than the exporter's
@@ -239,7 +240,20 @@ item that target compiles works exactly, and no other does:
   another value, or a constant of another value, is refused at its span, with a note at the other's, naming both targets.
 
 The crate's build script sets `cfg(rust2_ffi_target = "<triple>")` for the target it
-builds for, which gates each item, and refuses a target it was not exported for.
+builds for, which gates each item, and refuses a target it was not exported for. It sets
+`cfg(rust2_ffi_proven)` only under the profile the check proved [leaves](#python) under,
+by the `PROFILE`, `OPT_LEVEL`, and debug assertions cargo tells it and the profile's
+directory above its `OUT_DIR`, whose per-package overrides are then the check's, since
+the glue carries the workspace's profiles. `test` and `debug` (which newer cargos define,
+inheriting `dev`) share `dev`'s directory, and `bench` `release`'s, so where the
+manifest sets anything of `test`'s, `debug`'s, or `bench`'s own beyond the `inherits`
+cargo gives it, no build in that directory is proven. The crate's `PROVEN` also needs the check's panic
+strategy, which a build script cannot see, and its debug assertions, which `RUSTFLAGS`
+may set apart from the profile. A build
+under another profile may run code the proof never saw, such as a body under
+`cfg(debug_assertions)`, so each binding makes every leaf as any other call instead:
+Python releases the GIL, Dart serves the isolate, and Kotlin calls a plain native method
+in place of the `@FastNative` one.
 `<prefix>_target()` returns the library's target as its index among the header's,
 listed in its comment, which each binding reads once when it loads.
 
@@ -669,7 +683,13 @@ the rest cross encoded.
   name, as does a type named as the runtime or a generated class. Any other top-level name,
   such as a function's or an exception's, takes a trailing `_` where a type, the runtime, or
   an earlier name has it. A keyword is quoted in backticks, and a member named as one Kotlin
-  gives its type takes a trailing `_`. A constructor such as `new` stays a companion function: `Counter.new(1)`.
+  gives its type takes a trailing `_`. Names of one scope that Kotlin spells alike, such as
+  the fields `new` and `new_` in camel case, are kept apart in any order, as C++'s are: one
+  spelled as its Rust name keeps it, and the rest take a trailing `_` until free, in Rust's
+  name order (`new_` and `new`). A companion's functions are a scope apart from the
+  instance's. A call's parameters are kept apart the same way, but by a number, since the
+  call's own locals end in `_`: Rust's `(new_, new)` are `(new2, new)`, so a named argument
+  reads as Rust's. A constructor such as `new` stays a companion function: `Counter.new(1)`.
 - **Objects** are classes owning their handle, `AutoCloseable`, which each call holds
   until it returns, so the handle is freed only once no call holds it; a call after
   `close()` throws. Of a checked type, `close()` drops the value through Rust's own
@@ -838,7 +858,10 @@ returning only scalars, whose body and each `Deref`'s on the way the export prov
 their MIR, run no code but std's and the glue's in a bounded number of steps, or a
 `PartialEq` or `Hash` derived, or std's, down to primitives. A leaf waits on no lock and
 calls no Python, so it cannot deadlock on the GIL (`Abi::leaf` in `src/abi.rs` gives the
-argument, and `src/leaf.rs` the proof). So `demand.start()`, which returns a field, costs
+argument, and `src/leaf.rs` the proof). The proof reads the MIR of the profile the export
+checks, release by default, with every arithmetic overflow asserted, which a profile may
+turn off but a build script cannot see; a build under another profile releases the GIL
+across a leaf too ([Targets](#targets)). So `demand.start()`, which returns a field, costs
 27 ns, against 65 releasing the GIL, and 0.1 us on four threads at once, against 1.8
 ([the benchmark](../bench/ffi/README.md#leaf-calls)).
 Each function, method, and property but an `async def` is the extension's own, bound in
@@ -852,7 +875,8 @@ caller imports it with no ignores.
   snake_case without their type's name (`moq.TrackProducer.append_group`), and two types
   whose names would match kept apart as Kotlin's are (`TokioConnect_Error`), as are
   top-level names that clash. A keyword, a member Python gives every such class, or a
-  method named as a field takes a trailing `_`. A member or top-level name may be a
+  method named as a field takes a trailing `_`, as does a field named as a member a trait
+  gives its type (`default_` beside `Default`'s `default()`). A member or top-level name may be a
   builtin's (`bytes`, `int`): the module reads each builtin through an alias (`_bytes`).
   Constructors such as `new` stay static methods: `Counter.new(1)`. The module's `__all__`
   lists every export, so `from moq import *` reaches one whose Rust name starts with `_`
@@ -973,8 +997,10 @@ value of a Rust type crosses as one Swift type that holds it exactly, and back u
 - **Names** are as Kotlin's, at the module's top level: types in PascalCase without the
   prefix, members in camelCase without their type's name (`TrackProducer.appendGroup`). A
   keyword is quoted in backticks, and a member named as one Swift gives its type, such as
-  `init`, or as a field or member before it, takes a trailing `_`. Names that clash are
-  kept apart as Kotlin's are. Parameters have no labels but an optional borrowed object's,
+  `init`, or as a field, takes a trailing `_`, as does a record's field named as a member
+  `Display` or `Debug` gives it (`description_`). Names that clash are kept apart as Kotlin's
+  are, in any order, a method by its name with its labels: Rust's `delete()` and
+  `delete_(a, b)` are `delete()` and `delete(_:_:)`. Parameters have no labels but an optional borrowed object's,
   so a call reads as Rust's, and a
   constructor such as `new` stays a static function: `Counter.new(1)`.
 - **Objects** are noncopyable structs (`~Copyable`) owning their handle, freed in `deinit`,
@@ -1165,10 +1191,12 @@ other than one in its own form, `module <path>` and `go 1.24`.
   returns that type, or an `Option` of it (moq's `clock::interval` is
   `kio.NewClockInterval`), and otherwise takes a trailing `_` (`mux::codec::opus::config`
   is `mux.CodecOpusConfig_`).
-  A method named `Close` or `Error`, or as a field or a method before it, and a parameter
+  A method named `Close` or `Error`, or as a field, and a parameter
   named as a Go keyword, a predeclared name, or a package the code uses, take a trailing
   `_` too, as does a variant's or error's name or any other in a package that another
-  there, or the runtime's, takes.
+  there, or the runtime's, takes. Names of one scope that Pascal case spells alike, such
+  as the fields `new` and `new_`, are kept apart as Kotlin's are, in any order: `New` and
+  `New_`.
 - **Objects** are pointers to structs owning their handle, each an `io.Closer`, which
   each call holds until it returns, so the handle is freed only once no call holds it. Of
   a checked type, `Close()` drops the value through Rust's own `_drop`, as Rust's `drop`
@@ -1321,7 +1349,8 @@ the library's own URI, mapped to the library by a build hook or by `--native-ass
   (`Position.group`). A type's other functions are static members. Two types whose
   names would match are kept apart by a number (`Cancelled2`), as a type's name holds no
   `_`, which Dart's lints refuse. A reserved word takes a trailing `_` (`Point.default_()`),
-  and any other member that clashes takes a trailing `_` (`foo_`) when that is free, else a number then a `_` (`default2_`); names that clash,
+  and any other member that clashes takes a trailing `_` (`foo_`) when that is free, else a number then a `_` (`default2_`),
+  in any order, as Kotlin's do: one spelled as its Rust name keeps it; names that clash,
   such as one the runtime declares or a data enum's variant class, are kept apart the same
   way. The glue's C names are `<prefix>_dart_`, with a `_` more for each C name of the
   export already there. The generated file passes `dart analyze --fatal-infos` with
@@ -1553,7 +1582,9 @@ packs the api fixture's with npm, installs it into a project of its own, type-ch
   and `load`. Names are the C names without the prefix: a type in Pascal case, and a
   function in camel case, a constant's in upper case; a reserved word is exported as is
   from a local with a trailing `$`, so `Counter.new("c", 1)` and `Point.default()` work
-  through the module's namespace.
+  through the module's namespace. Names of one scope that camel case spells alike are kept
+  apart as Kotlin's are, in any order: functions `erase_` and `erase` are `erase_` and
+  `erase`, and fields `new_` and `new`, as no field takes a trailing `_`, are `new2` and `new`.
 - **Values**: a record is a plain object of its fields in camel case, positional ones `_0`,
   `_1`, and so on; an opaque value an `rt.Opaque`, its bytes, which only Rust makes. A plain
   enum is a union of its variants' names, and an enum with data a union of objects tagged

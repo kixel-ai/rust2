@@ -431,6 +431,7 @@ impl Merged {
 	/// Add `api`'s items, of one target, to the merged API's.
 	fn add(&mut self, mut api: Api) {
 		self.api.links.append(&mut api.links);
+		self.api.profiles.append(&mut api.profiles);
 		let maps = Maps {
 			records: Maps::of(&api.records, self.api.records.len(), |r| {
 				(self.api.records.iter()).position(|m| m.shown == r.shown)
@@ -975,6 +976,7 @@ mod tests {
 			reached: Vec::new(),
 			targets: ["x", "y"].map(String::from).to_vec(),
 			links: Default::default(),
+			profiles: Default::default(),
 		};
 		let Err(cycle) = order_crates(&api) else {
 			panic!("a cycle")
@@ -1009,6 +1011,7 @@ mod tests {
 			.collect(),
 			targets: vec![target.into()],
 			links: Default::default(),
+			profiles: Default::default(),
 		};
 		let (_, differs) = super::merge(vec![api("x", true), api("y", false)]);
 		assert_eq!(differs.len(), 1);

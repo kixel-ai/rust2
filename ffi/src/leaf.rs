@@ -13,22 +13,28 @@ use rustc_middle::mir::{self, BasicBlock, Location, NonDivergingIntrinsic, Rvalu
 use rustc_middle::ty::{self, Instance, InstanceKind, ShimKind, Ty, TyCtxt, TypeVisitableExt, TypingEnv};
 use rustc_span::DUMMY_SP;
 
-/// The flag each crate compiled for an export's target adds to rustc's: all of its MIR, which
-/// `cargo check` encodes none of. Measured on moq's stand-in, it costs the export about 9%
-/// of its CPU time and 5% of its peak memory (`bench/ffi/README.md`'s "The export's build
-/// cost").
-const FLAG: &str = "-Zalways-encode-mir";
+/// The flags each crate compiled for an export's target adds to rustc's, after cargo's: all
+/// of its MIR, which `cargo check` encodes none of; an assertion at every arithmetic
+/// overflow, whatever the profile picks; and the MIR optimized as a dev build's is, whatever
+/// the profile's opt level. A build script cannot see whether a build checks overflow, so
+/// the glue's cannot compare it with the check's; a body proven with every assertion is
+/// proven without any too, since an assertion is no leaf. An optimization keeps what a body
+/// does, so the proof holds of the bodies a release build optimizes further, and the
+/// release profile's MIR inlining, measured on moq's stand-in, would add 13% to the export's
+/// CPU time and 17% to its peak memory for no leaf more. The MIR itself costs it about 9%
+/// and 5% (`bench/ffi/README.md`'s "The export's build cost").
+const FLAGS: [&str; 3] = ["-Zalways-encode-mir", "-Coverflow-checks=on", "-Zmir-opt-level=1"];
 
-/// Add [`FLAG`] to rustc's `args` for a crate of the export's target, not a build script or
+/// Add [`FLAGS`] to rustc's `args` for a crate of the export's target, not a build script or
 /// proc macro, which cargo compiles without `--target`. Cargo's query of the compiler, whose
-/// answer it hashes into every unit's fingerprint, names it, so a target directory keeps
-/// nothing compiled without it.
+/// answer it hashes into every unit's fingerprint, names them, so a target directory keeps
+/// nothing compiled without them.
 pub(crate) fn flags(args: &[String], added: &mut Vec<String>) {
 	if args[1..] == ["-vV"] {
-		println!("rust2-ffi-leaf: {FLAG}");
+		println!("rust2-ffi-leaf: {}", FLAGS.join(" "));
 	}
 	if args.iter().any(|arg| arg == "--target") {
-		added.push(FLAG.to_string());
+		added.extend(FLAGS.map(String::from));
 	}
 }
 

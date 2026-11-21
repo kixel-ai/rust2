@@ -17,7 +17,7 @@ use std::collections::{BTreeMap, HashMap};
 use rustc_span::Span;
 
 use crate::ir::{
-	Access, Api, Closure, Dyn, Family, Function, Home, Int, Jni, Literal, Mutability, On, Order, Receiver, Type,
+	Access, Api, Closure, Dyn, Family, Function, Home, Int, Jni, Literal, Mutability, On, Order, Param, Receiver, Type,
 };
 
 /// A C name one item claims twice, which no rename can tell apart: the name, then what
@@ -1376,9 +1376,14 @@ impl<'a> Abi<'a> {
 	/// only compute, drops nothing whose drop runs other code, loops nowhere, recurses
 	/// nowhere, asserts nothing, which would run the panic hook on failure, and uses no
 	/// static. Its MIR proves it, which is the code that runs, not how its source looks or
-	/// what an attribute claims: the MIR the export's check compiles, with `debug_assertions`
-	/// on, so code only a build without them compiles, under `cfg(not(debug_assertions))`, is
-	/// code the proof never sees.
+	/// what an attribute claims: the MIR the export's check compiles under the profile it
+	/// checks, release unless its cargo args pick another, with every overflow asserted.
+	/// Each binding makes it a leaf call only where the glue's build script finds that
+	/// profile's `PROFILE`, directory, `OPT_LEVEL`, and debug assertions, and the crate's
+	/// panic strategy and debug assertions are the check's too, as `PROVEN` says; else a
+	/// build may compile code the proof never saw,
+	/// under a `cfg` such as `debug_assertions` or one a build script derives, and the call
+	/// is made as any other.
 	///
 	/// Why holding the GIL across one cannot deadlock: a deadlock needs the call to wait on
 	/// another thread that waits on the GIL. A leaf's only shared state is the handle's
@@ -2082,23 +2087,89 @@ pub(crate) fn unique(names: Vec<String>, taken: impl Fn(&str) -> bool) -> Vec<St
 		.collect()
 }
 
-/// A language's names of parameters made distinct where Rust's differ only in what its
-/// case drops, such as underscores: a later one takes the lowest free number after it.
-pub(crate) fn distinct(names: impl IntoIterator<Item = String>) -> Vec<String> {
-	let names: Vec<String> = names.into_iter().collect();
-	let mut taken = std::collections::BTreeSet::new();
-	(names.iter())
-		.map(|name| {
-			let mut unique = name.clone();
-			let mut n = 2;
-			while taken.contains(&unique) || (unique != *name && names.contains(&unique)) {
-				unique = format!("{name}{n}");
-				n += 1;
-			}
-			taken.insert(unique.clone());
-			unique
-		})
-		.collect()
+/// A language's names of `rust`, the names of one scope, kept apart from each other and from
+/// what `taken` names for each, by its index, whatever their order. `spelled` is each one's
+/// spelling in the language, and `own` whether a spelling reads back as its Rust name. One
+/// that does keeps it while neither `taken` nor another that does and is not taken holds it,
+/// and every other, in Rust's order of names, takes the first of its `step`s that is free, as
+/// [`underscored`] counts them. So beside `new`, which keeps `new`, a `new_` that camel case
+/// spells `new` takes `new_`, and no order of the source moves either.
+pub(crate) fn named(
+	rust: &[&str],
+	spelled: Vec<String>,
+	own: impl Fn(&str, &str) -> bool,
+	taken: impl Fn(usize, &str) -> bool,
+	step: impl Fn(&str, usize) -> String,
+) -> Vec<String> {
+	named_apart(rust, spelled, own, taken, step, |_, a, _, b| a == b)
+}
+
+/// [`named`]'s names, where two items clash only as `clash` reads them, each by its index and
+/// name, for a language whose items of one scope may share a name, such as Dart's named
+/// constructor and instance method, or Swift's overloads of different labels.
+pub(crate) fn named_apart(
+	rust: &[&str],
+	spelled: Vec<String>,
+	own: impl Fn(&str, &str) -> bool,
+	taken: impl Fn(usize, &str) -> bool,
+	step: impl Fn(&str, usize) -> String,
+	clash: impl Fn(usize, &str, usize, &str) -> bool,
+) -> Vec<String> {
+	let mut names = spelled.clone();
+	// Those that could keep their spelling: one taken moves anyway, so it holds back no other.
+	let owns: Vec<bool> = (0..rust.len())
+		.map(|k| own(rust[k], &spelled[k]) && !taken(k, &spelled[k]))
+		.collect();
+	let kept: Vec<bool> = (0..rust.len())
+		.map(|k| owns[k] && (0..rust.len()).all(|j| j == k || !owns[j] || !clash(k, &spelled[k], j, &spelled[j])))
+		.collect();
+	let mut held: Vec<usize> = (0..rust.len()).filter(|&k| kept[k]).collect();
+	let mut moved: Vec<usize> = (0..rust.len()).filter(|&k| !kept[k]).collect();
+	moved.sort_by_key(|&k| rust[k]);
+	for k in moved {
+		let mut n = 0;
+		while taken(k, &names[k]) || held.iter().any(|&j| clash(k, &names[k], j, &names[j])) {
+			n += 1;
+			names[k] = step(&spelled[k], n);
+		}
+		held.push(k);
+	}
+	names
+}
+
+/// Asserts that no two of the `members` of the type `rust` in `language` are one, as `same`
+/// reads them. Each generator names a scope's members apart through [`named`], and from
+/// every other scope of the type that they share, so two alike are its bug, not the crate's.
+pub(crate) fn assert_apart(rust: &str, language: &str, members: &[String], same: impl Fn(&str, &str) -> bool) {
+	for (k, member) in members.iter().enumerate() {
+		if members[..k].iter().any(|other| same(other, member)) {
+			panic!("rust2-ffi named two members of `{rust}` `{member}` in {language}");
+		}
+	}
+}
+
+/// The `n`th name to try in place of `name` where it is taken: `n` more trailing `_`s, after
+/// its name and before any `(` of argument labels.
+pub(crate) fn underscored(name: &str, n: usize) -> String {
+	let at = name.find('(').unwrap_or(name.len());
+	format!("{}{}{}", &name[..at], "_".repeat(n), &name[at..])
+}
+
+/// A language's names of `params`, each as `spell` spells its Rust name, kept apart from each
+/// other and from what `taken` names as [`named`] keeps a scope's, by [`numbered`] steps, since
+/// a generated call's own locals end in `_`. So of `new_` and `new`, both `new` in camel case,
+/// Rust's `new` keeps `new` and `new_` takes `new2`, in either order.
+pub(crate) fn distinct(params: &[Param], spell: impl Fn(&str) -> String, taken: impl Fn(&str) -> bool) -> Vec<String> {
+	let rust: Vec<&str> = params.iter().map(|param| param.name.as_str()).collect();
+	let spelled = rust.iter().map(|name| spell(name)).collect();
+	let own = |rust: &str, name: &str| name == rust || snake(name) == rust;
+	named(&rust, spelled, own, |_, name| taken(name), numbered)
+}
+
+/// The `n`th name to try in place of `name` where it is taken: it with the number `n + 1`,
+/// `foo2`, for a name that never ends in `_`.
+pub(crate) fn numbered(name: &str, n: usize) -> String {
+	format!("{name}{}", n + 1)
 }
 
 /// A name that C or C++, which includes the header, would read as a keyword or macro or
@@ -2293,7 +2364,7 @@ pub(crate) fn dyn_wrap(form: Dyn, expr: &str) -> String {
 
 #[cfg(test)]
 mod tests {
-	use super::{apart, defined, escape, past_cycles, shortest, unique};
+	use super::{apart, defined, distinct, escape, named, named_apart, past_cycles, shortest, underscored, unique};
 
 	#[test]
 	fn escapes_keep_apart_from_every_macro() {
@@ -2368,6 +2439,96 @@ mod tests {
 		// A later alike one, or one taken, takes a `_`, past any that is another's own.
 		assert_eq!(names(&["A", "A", "A_"], &[]), ["A", "A__", "A_"]);
 		assert_eq!(names(&["String", "B"], &["String"]), ["String_", "B"]);
+	}
+
+	#[test]
+	fn named_keeps_names_apart_in_either_order() {
+		// Camel case, which drops a trailing `_`: a name reads back as its Rust if it is that
+		// Rust's own snake case.
+		let names = |rust: &[&str], taken: &[&str]| {
+			let spelled = rust.iter().map(|name| name.trim_end_matches('_').to_string()).collect();
+			let own = |rust: &str, name: &str| name == rust;
+			named(rust, spelled, own, |_, name| taken.contains(&name), underscored)
+		};
+		// The name spelled as Rust's keeps it, and the other recovers Rust's `_`, in either order.
+		assert_eq!(names(&["new_", "new"], &[]), ["new_", "new"]);
+		assert_eq!(names(&["new", "new_"], &[]), ["new", "new_"]);
+		// Those that move go in Rust's name order, whatever the scope's.
+		assert_eq!(names(&["a__", "a", "a_"], &[]), ["a__", "a", "a_"]);
+		// Where none is spelled as Rust's, the first in Rust's order takes the spelling.
+		assert_eq!(names(&["a__", "a_"], &[]), ["a_", "a"]);
+		// A name taken moves even where it is Rust's own.
+		assert_eq!(names(&["a_", "a"], &["a"]), ["a__", "a_"]);
+		// Two that read back alike as Rust's own both move, in the scope's order where Rust's
+		// names are alike too.
+		let spelled = vec!["x".to_string(), "x".to_string()];
+		assert_eq!(
+			named(&["x", "x"], spelled, |_, _| true, |_, _| false, underscored),
+			["x", "x_"]
+		);
+	}
+
+	#[test]
+	fn named_apart_keeps_a_name_where_nothing_clashes() {
+		// Each item's space, as Dart's constructor and instance method are: 0 and 1 apart, 2 in both.
+		let names = |rust: &[&str], spaces: &[u8]| {
+			let spelled = rust.iter().map(|name| name.trim_end_matches('_').to_string()).collect();
+			let clash = |k: usize, a: &str, j: usize, b: &str| {
+				a == b && (spaces[k] == spaces[j] || spaces[k] == 2 || spaces[j] == 2)
+			};
+			named_apart(
+				rust,
+				spelled,
+				|rust, name| name == rust,
+				|_, _| false,
+				underscored,
+				clash,
+			)
+		};
+		// Apart, both keep `open`, in either order.
+		assert_eq!(names(&["open_", "open"], &[1, 0]), ["open", "open"]);
+		assert_eq!(names(&["open", "open_"], &[0, 1]), ["open", "open"]);
+		// One in both spaces clashes with each, and Rust's own keeps the name.
+		assert_eq!(names(&["open_", "open"], &[2, 0]), ["open_", "open"]);
+		assert_eq!(names(&["open", "open_"], &[1, 2]), ["open", "open_"]);
+		// One whose spelling only it finds taken, as a Swift function's is where an enum case
+		// holds one of its overloads, moves, and leaves the spelling to the other that reads
+		// back as its Rust, not to `FOO_BAR`, which comes first in Rust's order.
+		let spelled = vec!["fooBar".to_string(); 3];
+		let clash = |_: usize, a: &str, _: usize, b: &str| a == b;
+		let taken = |k: usize, name: &str| k == 0 && name == "fooBar";
+		let own = |rust: &str, _: &str| rust != "FOO_BAR";
+		let rust = ["foo_bar", "fooBar", "FOO_BAR"];
+		let names = named_apart(&rust, spelled, own, taken, underscored, clash);
+		assert_eq!(names, ["fooBar__", "fooBar", "fooBar_"]);
+	}
+
+	#[test]
+	fn distinct_params_number_the_one_not_spelled_as_rust() {
+		let params = |names: &[&str]| -> Vec<crate::ir::Param> {
+			(names.iter())
+				.map(|name| crate::ir::Param {
+					name: name.to_string(),
+					ty: crate::ir::Type::Bool,
+					interned: false,
+				})
+				.collect()
+		};
+		let camel = |name: &str| name.trim_end_matches('_').to_string();
+		let names = |names: &[&str]| distinct(&params(names), camel, |_| false);
+		// Rust's `new` keeps `new` in either order, and a number never ends a name in `_`.
+		assert_eq!(names(&["new_", "new"]), ["new2", "new"]);
+		assert_eq!(names(&["new", "new_"]), ["new", "new2"]);
+		// A step skips a name another keeps, and one taken.
+		assert_eq!(names(&["a_", "a", "a2"]), ["a3", "a", "a2"]);
+		let receiving = distinct(&params(&["self_"]), camel, |name| name == "self");
+		assert_eq!(receiving, ["self2"]);
+	}
+
+	#[test]
+	fn underscored_steps_before_labels() {
+		assert_eq!(underscored("delete", 1), "delete_");
+		assert_eq!(underscored("delete(_:_:)", 2), "delete__(_:_:)");
 	}
 
 	/// Each instance's arguments, each by its path's segments, whose forms are their

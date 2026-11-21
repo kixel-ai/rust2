@@ -239,15 +239,16 @@ fn cargo() -> Command {
 }
 
 /// The cargo args that pick how the workspace resolves, which `cargo clean` resolves it
-/// by too: `--config`, and the lockfile and network flags.
+/// by too: `--config`, and the lockfile and network flags; and the profile, in whose
+/// directory alone it removes the package's artifacts.
 fn resolution(args: &[String]) -> Vec<&str> {
 	let mut picked = Vec::new();
 	let mut args = args.iter().map(String::as_str);
 	while let Some(arg) = args.next() {
 		match arg {
-			"--locked" | "--frozen" | "--offline" => picked.push(arg),
-			"--config" => picked.extend([Some(arg), args.next()].into_iter().flatten()),
-			_ if arg.starts_with("--config=") => picked.push(arg),
+			"--locked" | "--frozen" | "--offline" | "--release" | "-r" => picked.push(arg),
+			"--config" | "--profile" => picked.extend([Some(arg), args.next()].into_iter().flatten()),
+			_ if arg.starts_with("--config=") || arg.starts_with("--profile=") => picked.push(arg),
 			_ => {}
 		}
 	}
