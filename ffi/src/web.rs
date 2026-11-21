@@ -1600,19 +1600,32 @@ fn field_name(name: &str) -> String {
 	camel(name)
 }
 
-/// The names of a record's fields, each a field's, and distinct: `foo` and `foo_`, both
-/// `foo` in camel case, are `foo` and `foo2`.
+/// The names of a record's fields, each a field's, kept apart as [`abi::named`] keeps them,
+/// by a [`numbered`] step: `foo` and `foo_`, both `foo` in camel case, are `foo` and `foo2`
+/// in either order.
 fn field_names(fields: &[crate::ir::Field]) -> Vec<String> {
-	abi::distinct(fields.iter().map(|f| field_name(&f.name)))
+	let rust: Vec<&str> = fields.iter().map(|f| f.name.as_str()).collect();
+	let spelled = rust.iter().map(|name| field_name(name)).collect();
+	abi::named(&rust, spelled, |rust, name| abi::snake(name) == rust, |_, _| false, numbered)
 }
 
 /// The names of a data enum variant's fields: a record's, but `tag$` for one named `tag`,
 /// which names the variant.
 fn variant_fields(fields: &[crate::ir::Field]) -> Vec<String> {
-	abi::distinct(fields.iter().map(|f| match field_name(&f.name) {
-		name if name == "tag" => "tag$".to_string(),
-		name => name,
-	}))
+	let rust: Vec<&str> = fields.iter().map(|f| f.name.as_str()).collect();
+	let spelled = (rust.iter())
+		.map(|name| match field_name(name) {
+			name if name == "tag" => "tag$".to_string(),
+			name => name,
+		})
+		.collect();
+	abi::named(&rust, spelled, |rust, name| abi::snake(name) == rust, |_, _| false, numbered)
+}
+
+/// The `n`th name to try in place of `name` where it is taken: it with the number `n + 1`,
+/// `foo2`, as no camel-case name ends in a `_`.
+fn numbered(name: &str, n: usize) -> String {
+	format!("{name}{}", n + 1)
 }
 
 /// A parameter's name: in camel case, with `_` appended if a reserved word.
@@ -1981,7 +1994,8 @@ impl Gen<'_> {
 		let rust = callback.path.join("::");
 		let class = self.class(&c);
 		let mut fields = vec!["free: Some(runtime::FREE)".to_string()];
-		for method in &callback.methods {
+		let members = method_names(&callback.methods);
+		for (method, member) in callback.methods.iter().zip(&members) {
 			let m = method.name();
 			let name = format!("{space}_cb_{bare}_{m}");
 			let params: Vec<Ty> = method.params.iter().map(|p| abi.ty(&p.ty)).collect();
@@ -1998,7 +2012,6 @@ impl Gen<'_> {
 			for (n, (param, c)) in method.params.iter().zip(&params).enumerate() {
 				args.push(self.arg_in(&param.ty, c, &format!("p{n}"), &mut lines, &mut lent));
 			}
-			let member = method_name(m);
 			let call = format!("rt.find<{t}>(data).{member}({})", args.join(", "));
 			let mut body = Vec::new();
 			self.outgoing(&method.ok, &ret, &call, &mut body);
@@ -2183,14 +2196,19 @@ fn constant_local(name: &str) -> String {
 	}
 }
 
-/// A trait method's name in camel case, with `$` appended if a reserved word or `close`.
-fn method_name(name: &str) -> String {
-	let name = camel(name);
+/// The names of a trait's methods, one scope's, in camel case as [`abi::named`] keeps them
+/// apart, each with `$` appended if a reserved word or `close`.
+fn method_names(methods: &[Function]) -> Vec<String> {
 	// `close` is the hook Rust calls once it drops an implementation.
-	match RESERVED.contains(&name.as_str()) || name == "close" {
+	let escape = |name: &str| match RESERVED.contains(&name) || name == "close" {
 		true => format!("{name}$"),
-		false => name,
-	}
+		false => name.to_string(),
+	};
+	let rust: Vec<&str> = methods.iter().map(|method| method.name()).collect();
+	let spelled = rust.iter().map(|name| escape(&camel(name))).collect();
+	let own = |rust: &str, name: &str| abi::snake(name.trim_end_matches('$')) == rust;
+	let step = |name: &str, n: usize| escape(&abi::underscored(name.trim_end_matches('$'), n));
+	abi::named(&rust, spelled, own, |_, _| false, step)
 }
 
 impl Gen<'_> {
@@ -2255,8 +2273,9 @@ impl Gen<'_> {
 		}
 		self.module = "index".to_string();
 		let mut taken = BTreeSet::new();
-		for function in &api.functions {
-			if let Some(code) = self.function(function, None, None, &mut taken) {
+		let names = self.names(&api.functions, (None, None), |name| self.names.contains_key(name));
+		for (function, name) in api.functions.iter().zip(&names) {
+			if let Some(code) = self.function(function, (None, None), name, &mut taken) {
 				self.module = "index".to_string();
 				self.out().body.push_str(&code);
 				self.out().body.push('\n');
@@ -2275,8 +2294,9 @@ impl Gen<'_> {
 	/// Each method of a type, into its module.
 	fn methods(&mut self, methods: &[Function], owner: &Ty, ty: &Type, taken: &mut BTreeSet<String>) {
 		let module = self.module.clone();
-		for method in methods {
-			if let Some(code) = self.function(method, Some(owner), Some(ty), taken) {
+		let names = self.names(methods, (Some(owner), Some(ty)), |name| taken.contains(name));
+		for (method, name) in methods.iter().zip(&names) {
+			if let Some(code) = self.function(method, (Some(owner), Some(ty)), name, taken) {
 				self.module = module.clone();
 				self.out().body.push_str(&code);
 				self.out().body.push('\n');
@@ -2513,11 +2533,11 @@ impl Gen<'_> {
 		let rust = callback.path.join("::");
 		self.module = name.clone();
 		let mut members = Vec::new();
-		for method in &callback.methods {
-			let member = method_name(method.name());
+		for (method, member) in callback.methods.iter().zip(method_names(&callback.methods)) {
 			crate::lock::function(&mut self.locked, method, &member);
-			let params: Vec<String> = (method.params.iter())
-				.map(|p| format!("{}: {}", param_name(&p.name), self.tt(&p.ty)))
+			let names = abi::distinct(method.params.iter().map(|p| param_name(&p.name)));
+			let params: Vec<String> = (method.params.iter().zip(names))
+				.map(|(p, name)| format!("{name}: {}", self.tt(&p.ty)))
 				.collect();
 			let ok = self.tt(&method.ok);
 			members.push(format!(
@@ -2747,11 +2767,53 @@ fn wrap(lines: &[String]) -> String {
 impl Gen<'_> {
 	/// `function`'s TypeScript, a function of the module of its type `owner_ty` if it has
 	/// one, whose C type is `owner`, named apart from `taken`; none if not on the target.
+	/// The name each of `functions` takes as a member of `owner` (whose IR type is
+	/// `owner_ty`) if it has one, or at the top level, apart from each other and from what
+	/// `taken` holds, as [`abi::named`] keeps a scope's: a constant's in upper case, and each
+	/// other's in camel case. One not on this target takes none.
+	fn names(
+		&self,
+		functions: &[Function],
+		(owner, owner_ty): (Option<&Ty>, Option<&Type>),
+		taken: impl Fn(&str) -> bool,
+	) -> Vec<String> {
+		let abi = self.abi;
+		let (rust, spelled): (Vec<String>, Vec<String>) = (functions.iter())
+			.map(|function| {
+				let export = match (owner.zip(owner_ty)).and_then(|(owner, ty)| abi.handed_back(function, owner, ty)) {
+					Some((_, export, _)) => export,
+					None => abi.export(function, owner),
+				};
+				let own = match owner {
+					Some(Ty::Struct(o) | Ty::Enum(o) | Ty::Handle { name: o, .. }) => {
+						export.named.strip_prefix(o.as_str()).and_then(|r| r.strip_prefix('_'))
+					}
+					_ => None,
+				};
+				// Named as Rust's path is, whatever C's clashes rename.
+				let rust = own.unwrap_or_else(|| self.bare(&export.named)).to_string();
+				let base = match function.access {
+					Access::Const => abi::snake(&rust).to_uppercase(),
+					_ => camel(&rust),
+				};
+				match self.here(function.on) {
+					true => (rust, base),
+					false => (String::new(), String::new()),
+				}
+			})
+			.unzip();
+		let rust: Vec<&str> = rust.iter().map(String::as_str).collect();
+		let own = |rust: &str, name: &str| name == rust || abi::snake(name) == rust;
+		abi::named(&rust, spelled, own, |_, name| !name.is_empty() && taken(name), abi::underscored)
+	}
+
+	/// `function`'s TypeScript form `member`, of `owner` (whose IR type is `owner_ty`) if it
+	/// has one, which `taken` then holds.
 	fn function(
 		&mut self,
 		function: &Function,
-		owner: Option<&Ty>,
-		owner_ty: Option<&Type>,
+		(owner, owner_ty): (Option<&Ty>, Option<&Type>),
+		member: &str,
 		taken: &mut BTreeSet<String>,
 	) -> Option<String> {
 		let abi = self.abi;
@@ -2786,36 +2848,22 @@ impl Gen<'_> {
 		};
 		let function = handed.as_ref().unwrap_or(function);
 		let c_name = export.call.name.clone();
-		let owner_c = match owner {
-			Some(Ty::Struct(n) | Ty::Enum(n) | Ty::Handle { name: n, .. }) => Some(n.clone()),
-			_ => None,
-		};
-		let own = match &owner_c {
-			Some(o) => export.named.strip_prefix(o.as_str()).and_then(|r| r.strip_prefix('_')),
-			None => None,
-		};
-		// Named as Rust's path is, whatever C's clashes rename.
-		let named = self.bare(&export.named).to_string();
-		let snake = own.unwrap_or(&named);
-		let base = match function.access {
-			Access::Const => abi::snake(snake).to_uppercase(),
-			_ => camel(snake),
-		};
 		let member = match owner {
 			None => abi::claim(
 				&mut self.names,
 				|_| false,
-				&base,
+				member,
 				format!("fn `{}`", function.path.join("::")),
 			),
 			Some(_) => {
-				let mut member = base;
+				let mut member = member.to_string();
 				while taken.contains(&member) {
 					member.push('_');
 				}
 				member
 			}
 		};
+
 		taken.insert(member.clone());
 		crate::lock::function(&mut self.locked, function, &member);
 		let local = match RESERVED.contains(&member.as_str()) {
