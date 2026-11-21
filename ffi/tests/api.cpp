@@ -75,10 +75,10 @@ unsigned long long ull(std::uint64_t v) {
 // An eraser whose methods differ only by a trailing underscore, which C++ escapes alike.
 class Eraser final : public api::clash_Eraser {
 public:
-	std::uint8_t delete_(std::uint8_t new_, std::uint8_t new__) const override {
-		return static_cast<std::uint8_t>(new_ * 10 + new__);
+	std::uint8_t delete_(std::uint8_t new_, std::uint8_t new_2) const override {
+		return static_cast<std::uint8_t>(new_ * 10 + new_2);
 	}
-	std::uint8_t delete__() const override {
+	std::uint8_t delete_2() const override {
 		return 3;
 	}
 };
@@ -588,17 +588,20 @@ int checks() {
 	// Methods C++ escapes alike: Rust's `delete_` keeps its name and `delete` moves past it.
 	{
 		api::clash_Escaped escaped{3};
-		check(escaped.delete__() == 3 && escaped.delete_(1, 2) == 213, "methods C++ escapes alike stay apart");
+		check(escaped.delete_2() == 3 && escaped.delete_(1, 2) == 213, "methods C++ escapes alike stay apart");
 	}
+	// A name C++ reserves, which holds `__`, drops its leading `_`s and each run's others.
+	// `__all__` and `__all___` unreserve alike and step apart in Rust's order.
+	check(api::all_(1) == 3 && api::all_2(1) == 4 && api::_deprecated(1) == 2, "a name C++ reserves escapes unreserved");
 	// Names that differ only by trailing underscores, each reaching its own Rust: Rust's
 	// `new_` keeps its name and `new`, which C++ escapes alike, moves past it.
 	{
 		api::clash_Underscored underscored{1, 2, 3, 4};
 		api::clash_Change set{api::clash_Change_Set{5, 6}};
-		check(api::clash_underscored(underscored, api::clash_Op::delete__, set) == 2561234, "names apart by trailing underscores cross");
+		check(api::clash_underscored(underscored, api::clash_Op::delete_2, set) == 2561234, "names apart by trailing underscores cross");
 		auto [next, change] = api::clash_underscored_next(underscored, set);
 		const auto *swapped = std::get_if<api::clash_Change_Set>(&change);
-		check(next == api::clash_Underscored{2, 3, 4, 5} && swapped && swapped->new_ == 6 && swapped->new__ == 5,
+		check(next == api::clash_Underscored{2, 3, 4, 5} && swapped && swapped->new_ == 6 && swapped->new_2 == 5,
 			"names apart by trailing underscores cross back");
 		check(api::clash_erased(std::make_unique<hook::Eraser>()) == 123, "a callback's methods apart by a trailing underscore");
 		check(api::clash_erase_() == 2 && api::clash_erase() == 1, "functions apart by a trailing underscore");

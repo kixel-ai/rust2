@@ -12,7 +12,7 @@
 //! `moq_audio_encoder_finish_`. A `_` doubled at the split would read better, but C++
 //! reserves every name containing `__`. Only the names that clash change.
 
-use std::collections::{BTreeMap, HashMap};
+use std::collections::{BTreeMap, BTreeSet, HashMap};
 
 use rustc_span::Span;
 
@@ -499,6 +499,14 @@ impl<'a> Abi<'a> {
 		abi
 	}
 
+	/// Every name the C header declares for the API, the runtime's aside, each once.
+	pub(crate) fn declared(&self) -> BTreeSet<&str> {
+		(self.claims.iter())
+			.filter(|claim| claim.what != "the runtime")
+			.map(|claim| claim.name.as_str())
+			.collect()
+	}
+
 	/// This ABI over `api`, the API it was made of without its functions taking a JNI value,
 	/// as every language but Kotlin exports it: each name stays the one the whole API gives
 	/// it, so the C its glue calls keeps the names the crate defines.
@@ -540,7 +548,15 @@ impl<'a> Abi<'a> {
 			lists: self.lists.clone(),
 			tuples: self.tuples.clone(),
 			arrays: self.arrays.clone(),
-			claims: Vec::new(),
+			// Its names, for [`Self::declared`], but not their owners, which are `self.api`'s.
+			claims: (self.claims.iter())
+				.map(|claim| Claim {
+					name: claim.name.clone(),
+					what: claim.what.clone(),
+					span: claim.span,
+					owner: None,
+				})
+				.collect(),
 			renames,
 			clashes: self.clashes.clone(),
 			checked: self.checked.clone(),
@@ -2374,18 +2390,9 @@ mod tests {
 		let macros = include_str!("macros.txt").lines().filter(|line| !line.starts_with('#'));
 		for stem in macros.map(|m| m.trim_end_matches('_')) {
 			let family: Vec<String> = (0..4).map(|n| format!("{stem}{}", "_".repeat(n))).collect();
-			// A C++ keyword's escape merges a name with its own, which each scope's names keep
-			// apart, as `cpp::named` does.
-			let keyword = crate::cpp::escape(stem) != super::unmacroed(stem, 0, |name| name == "i386");
-			let escapes: &[fn(&str) -> String] = match keyword {
-				true => &[escape],
-				false => &[escape, crate::cpp::escape],
-			};
-			for escape in escapes {
-				let escaped: std::collections::BTreeSet<String> = family.iter().map(|n| escape(n)).collect();
-				assert_eq!(escaped.len(), family.len(), "{stem}'s names escape alike");
-				assert!(!escaped.iter().any(|e| defined(e)), "{stem}'s names escape to a macro");
-			}
+			let escaped: std::collections::BTreeSet<String> = family.iter().map(|n| escape(n)).collect();
+			assert_eq!(escaped.len(), family.len(), "{stem}'s names escape alike");
+			assert!(!escaped.iter().any(|e| defined(e)), "{stem}'s names escape to a macro");
 		}
 	}
 
