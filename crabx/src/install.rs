@@ -8,10 +8,11 @@ use crate::{
 	trust,
 };
 use anyhow::{Context, Result, bail, ensure};
+use binstalk::{
+	helpers::{gh_api_client::GhApiClient, remote, tasks::AutoAbortJoinHandle},
+	manifests::cargo_toml_binstall::{PkgMeta, Strategy},
+};
 use binstalk_bins::{self as bins, BinFile};
-use binstalk_downloader::remote;
-use binstalk_git_repo_api::gh_api_client::GhApiClient;
-use binstalk_types::cargo_toml_binstall::{PkgMeta, Strategy};
 use semver::{Version, VersionReq};
 use std::{collections::BTreeSet, fs, path::Path, process::Command, str::FromStr, sync::Arc, time::Duration};
 
@@ -83,7 +84,7 @@ async fn fetch(stage: &Path, cache: &Cache, spec: &Spec, quickinstall: bool) -> 
 		.map(|v| VersionReq::parse(&format!("={v}")))
 		.transpose()?
 		.unwrap_or(VersionReq::STAR);
-	let (manifest, _) = binstalk_registry::Registry::default()
+	let (manifest, _) = binstalk::registry::Registry::default()
 		.fetch_crate_matched(client.clone(), &spec.name.to_ascii_lowercase(), &req)
 		.await?;
 	let mut package = manifest.package.context("crate manifest has no package")?;
@@ -185,12 +186,12 @@ async fn fetch(stage: &Path, cache: &Cache, spec: &Spec, quickinstall: bool) -> 
 		}
 	}
 	for (name, fetcher) in candidates {
-		let mut task = fetcher.clone().find();
-		let Ok(found) = tokio::time::timeout(Duration::from_secs(30), &mut task).await else {
-			task.abort();
-			bail!("release discovery timed out");
-		};
-		let found = found??;
+		let found = tokio::time::timeout(
+			Duration::from_secs(30),
+			AutoAbortJoinHandle::new(fetcher.clone().find()),
+		)
+		.await
+		.context("release discovery timed out")???;
 		if !found {
 			continue;
 		}
@@ -200,7 +201,7 @@ async fn fetch(stage: &Path, cache: &Cache, spec: &Spec, quickinstall: bool) -> 
 		"no usable prebuilt release for {}@{} on {}; use --build to compile explicitly",
 		package.name,
 		package.version,
-		crate::TARGET
+		binstalk::TARGET
 	)
 }
 
@@ -343,7 +344,7 @@ fn build(stage: &std::path::Path, spec: &Spec, version: Option<&Version>) -> Res
 		.arg(&spec.name)
 		.arg("--locked")
 		.arg("--target")
-		.arg(crate::TARGET)
+		.arg(binstalk::TARGET)
 		.arg("--root")
 		.arg(stage)
 		.arg("--index")
@@ -400,7 +401,7 @@ fn build(stage: &std::path::Path, spec: &Spec, version: Option<&Version>) -> Res
 }
 
 fn host_targets() -> Vec<String> {
-	let mut targets = vec![crate::TARGET.to_owned()];
+	let mut targets = vec![binstalk::TARGET.to_owned()];
 	if cfg!(target_os = "macos") {
 		targets.extend([
 			"universal-apple-darwin".to_owned(),
@@ -465,15 +466,15 @@ mod tests {
 	#[test]
 	fn author_layouts_include_nested_bin_and_respect_metadata() {
 		let temp = tempfile::tempdir().unwrap();
-		let target = TargetTriple::from_str(crate::TARGET).unwrap();
-		let directory = format!("moq-cli-v0.14.16-{}", crate::TARGET);
+		let target = TargetTriple::from_str(binstalk::TARGET).unwrap();
+		let directory = format!("moq-cli-v0.14.16-{}", binstalk::TARGET);
 		let nested = temp.path().join(&directory).join("bin");
 		fs::create_dir_all(&nested).unwrap();
 		let name = format!("moq{}", std::env::consts::EXE_SUFFIX);
 		fs::write(nested.join(&name), b"native binary fixture").unwrap();
 		let mut data = bins::Data {
 			name: "moq-cli",
-			target: crate::TARGET,
+			target: binstalk::TARGET,
 			version: "0.14.16",
 			repo: None,
 			meta: PkgMeta::default(),
@@ -503,7 +504,7 @@ mod tests {
 		assert_eq!(source(&data), direct);
 		// A differently named binary can also name the release's enclosing directory.
 		fs::remove_dir_all(temp.path().join(&directory)).unwrap();
-		let alternate = temp.path().join(format!("moq-v0.14.16-{}", crate::TARGET));
+		let alternate = temp.path().join(format!("moq-v0.14.16-{}", binstalk::TARGET));
 		fs::create_dir_all(alternate.join("bin")).unwrap();
 		fs::write(alternate.join("bin").join(&name), b"alternate nested fixture").unwrap();
 		assert_eq!(source(&data), alternate.join("bin").join(&name));

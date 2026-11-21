@@ -1,4 +1,5 @@
 [toolchain]
-# Matches moq's build toolchain. Keep in sync with flake.nix, which reads this file.
-channel = "1.98.1"
+# One release ahead of moq's 1.98.1: crabx's binstalk 0.31 needs 1.100. Keep in sync with
+# flake.nix, which reads this file.
+channel = "1.100.0"
 components = ["rustfmt", "clippy", "rust-src", "rust-analyzer", "llvm-tools"]

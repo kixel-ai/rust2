@@ -73,7 +73,7 @@ fn setup(temp: &Path, name: &str) -> std::path::PathBuf {
 	);
 	let root = cache(temp)
 		.join("crabx/v1")
-		.join(env!("TARGET"))
+		.join(binstalk::TARGET)
 		.join("author")
 		.join(name);
 	let entry = root.join("1.2.3");
@@ -95,7 +95,7 @@ fn build_is_explicit_host_targeted_and_separate_from_author_cache() {
 		.args(["--build", "FiXtUrE@1.2.3", "built argument"])
 		.env("CARGO", temp.path().join("helper"))
 		.env("CRABX_TEST_CRATE", "FiXtUrE")
-		.env("CRABX_TEST_TARGET", env!("TARGET"))
+		.env("CRABX_TEST_TARGET", binstalk::TARGET)
 		.env("PATH", "")
 		.output()
 		.unwrap();
@@ -107,7 +107,7 @@ fn build_is_explicit_host_targeted_and_separate_from_author_cache() {
 	);
 	let built = cache(temp.path())
 		.join("crabx/v1")
-		.join(env!("TARGET"))
+		.join(binstalk::TARGET)
 		.join("build/fixture/1.2.3");
 	assert!(built.join(".crates2.json").is_file());
 	assert!(built.join("record.json").is_file());
@@ -198,14 +198,14 @@ fn cold_unpinned_build_publishes_latest_before_binary_selection() {
 	let output = crabx(temp.path())
 		.args(["--build", "--bin", "missing", "fixture"])
 		.env("CARGO", temp.path().join("helper"))
-		.env("CRABX_TEST_TARGET", env!("TARGET"))
+		.env("CRABX_TEST_TARGET", binstalk::TARGET)
 		.output()
 		.unwrap();
 	assert_eq!(output.status.code(), Some(1));
 	assert!(String::from_utf8_lossy(&output.stderr).contains("no binary \"missing\""));
 	let root = cache(temp.path())
 		.join("crabx/v1")
-		.join(env!("TARGET"))
+		.join(binstalk::TARGET)
 		.join("build/fixture");
 	assert_eq!(fs::read_to_string(root.join("latest")).unwrap(), "1.2.3");
 	let output = crabx(temp.path())
@@ -222,14 +222,14 @@ fn cached_runs_report_diagnostics_once_and_pins_ignore_corrupt_refresh_state() {
 	setup(temp.path(), "fixture");
 	let root = cache(temp.path())
 		.join("crabx/v1")
-		.join(env!("TARGET"))
+		.join(binstalk::TARGET)
 		.join("build/fixture");
 	// A pin starts no updater. Seed latest before the first unpinned invocation,
 	// so no earlier detached process can own the diagnostic lock.
 	let output = crabx(temp.path())
 		.args(["--build", "fixture@1.2.3"])
 		.env("CARGO", temp.path().join("helper"))
-		.env("CRABX_TEST_TARGET", env!("TARGET"))
+		.env("CRABX_TEST_TARGET", binstalk::TARGET)
 		.output()
 		.unwrap();
 	assert_eq!(

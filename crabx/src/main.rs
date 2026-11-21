@@ -14,9 +14,6 @@ use anyhow::{Context, Result};
 use clap::Parser;
 use std::{path::PathBuf, process::Command};
 
-/// The target crabx was built for, whose release assets it fetches.
-const TARGET: &str = env!("TARGET");
-
 fn main() {
 	if let Err(error) = run(cli::Args::parse()) {
 		eprintln!("crabx: {error:#}");
