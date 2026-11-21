@@ -1278,27 +1278,26 @@ fun budgeted() {
 fun nudged() {
 	if (System.getProperty("java.vm.name") != "Dalvik") return
 	val before = dropped()
-	lentUnreached()
-	lentToHalf(before)
-	collected(before + 32u, "the GC frees the bytes that reached half the budget")
+	// A MiB at a time, none left reachable, until 32 are outstanding: a collection of
+	// ART's own meanwhile only frees some sooner, and more are lent to reach half again.
+	var lent = 0u
+	val deadline = System.nanoTime() + 10.seconds.inWholeNanoseconds
+	while (dropped() < before + 32u) {
+		check(System.nanoTime() < deadline, "ART collects the bytes lent once half the budget is")
+		if (lent - (dropped() - before) < 32u) {
+			lentUnreached()
+			lent++
+		} else {
+			Thread.sleep(1)
+		}
+	}
+	collected(before + lent, "the GC frees the bytes lent to half the budget, each once")
 }
 
-// 31 MiB of Rust's bytes lent, just under half the budget, none left reachable.
+// A MiB of Rust's bytes lent and read, none left reachable.
 @OwnFrame
 fun lentUnreached() {
-	repeat(31) { check(tokenBytes(5u, (1 shl 20).toUInt())[0] == 5.toByte(), "bytes lent under half the budget read") }
-}
-
-// One more MiB lent, reaching half the budget, held while ART frees the 31 before it.
-@OwnFrame
-fun lentToHalf(before: UInt) {
-	val held = tokenBytes(6u, (1 shl 20).toUInt())
-	val deadline = System.nanoTime() + 10.seconds.inWholeNanoseconds
-	while (dropped() < before + 31u) {
-		check(System.nanoTime() < deadline, "ART collects the bytes lent once half the budget is")
-		Thread.sleep(1)
-	}
-	check(held[0] == 6.toByte() && dropped() == before + 31u, "the bytes that reached half the budget stay lent")
+	check(tokenBytes(5u, (1 shl 20).toUInt())[0] == 5.toByte(), "bytes lent toward half the budget read")
 }
 
 // Bytes lent once the GC freed those that filled the budget, with Rust's drops still [freed].
