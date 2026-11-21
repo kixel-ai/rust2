@@ -796,6 +796,13 @@ class Sdist(unittest.TestCase):
         moved = tomllib.loads(package.relocate(manifest, {"/src/a": "../a"}))
         self.assertEqual(moved["dependencies"], {"a": {"path": "../a"}, "b": {"path": "/elsewhere/b"}})
 
+    def test_a_dependency_named_path_is_searched(self):
+        manifest = ('[dependencies]\npath = { package = "helper", path = "/src/helper" }\n'
+                    '[target.x.dependencies]\nb = { path = "../b" }\n')
+        self.assertEqual(package.manifest_paths(tomllib.loads(manifest)), ["/src/helper", "../b"])
+        moved = tomllib.loads(package.relocate(manifest, {"/src/helper": "../helper", "../b": "../b"}, strict=True))
+        self.assertEqual(moved["dependencies"]["path"], {"package": "helper", "path": "../helper"})
+
     def test_refuses_a_path_spelled_otherwise(self):
         with self.assertRaises(SystemExit):
             package.relocate("[dependencies]\na = { path = '/src/a' }\n", {"/src/a": "../a"})

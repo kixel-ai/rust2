@@ -331,9 +331,10 @@ def workspace_manifest(path):
 
 
 def manifest_paths(value):
-    """Every `path` a parsed manifest names, in any table."""
+    """Every `path` a parsed manifest names, in any table. A dependency may itself be named
+    `path`, so a `path` key holding a table is searched like any other table."""
     if isinstance(value, dict):
-        return [p for k, v in value.items() for p in ([v] if k == "path" else manifest_paths(v))]
+        return [p for k, v in value.items() for p in ([v] if k == "path" and isinstance(v, str) else manifest_paths(v))]
     return [p for v in value for p in manifest_paths(v)] if isinstance(value, list) else []
 
 
