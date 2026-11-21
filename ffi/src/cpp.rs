@@ -1,8 +1,8 @@
 //! The C++ header: header-only classes over the C header's declarations, from C++17, with
 //! exceptions and RTTI on or off.
 //!
-//! Each name is its C name without the prefix, in a namespace of the prefix: `moq_track`
-//! is `moq::track`, and a method is its C name without its type's (`moq_track_close` is
+//! Each name is its C name without the prefix, in a namespace of the prefix, escaped as a
+//! name is: `moq_track` is `moq::track`, and a method is its C name without its type's (`moq_track_close` is
 //! `moq::track::close`). C names are unique, so these are too, once a keyword, or a member
 //! named as its class, a field, or a trait's member, takes a trailing `_`, a name C++
 //! reserves drops its `__`s (`__all__` is `all_`), and one an escape makes another's takes
@@ -68,7 +68,8 @@ pub(crate) fn headers(abi: &Abi<'_>, packages: &str) -> Result<Output, String> {
 	let mut h = Header {
 		locked: BTreeMap::new(),
 		abi,
-		ns: p.clone(),
+		// Escaped as a name is, since a library may be named as a keyword or a macro: `class`.
+		ns: escape(p),
 		krate: String::new(),
 		files: crate::go::packages(abi),
 		out: String::new(),
@@ -2852,6 +2853,20 @@ mod tests {
 		for (cpp, c) in [("LIMIT_", "NS_LIMIT_"), ("LIMIT", "NS_LIMIT"), ("a_b", "NS_A_B")] {
 			let defined = format!("inline constexpr bool {cpp} = {c};");
 			assert!(text.contains(&defined), "{c} is not {cpp}:\n{text}");
+		}
+	}
+
+	#[test]
+	fn a_namespace_escapes_as_a_name() {
+		let api = crate::ir::Api::of(vec![crate::ir::Function::bare("f")]);
+		for (lib, ns, c) in [("_class", "class_", "class_f"), ("unix", "unix_", "unix_f"), ("api", "api", "api_f")] {
+			let rest = api.without_jni();
+			let abi = crate::abi::Abi::new(&api, lib);
+			let abi = abi.without_jni(&rest);
+			let output = super::headers(&abi, "ns").unwrap_or_else(|e| panic!("{e}"));
+			let text: String = output.files.iter().map(|(_, text)| text.as_str()).collect();
+			assert!(text.contains(&format!("namespace {ns} {{")), "{lib}:\n{text}");
+			assert!(text.contains(&format!("inline void f() {{\n\t::{c}();")), "{lib}:\n{text}");
 		}
 	}
 
