@@ -371,7 +371,7 @@ class Reproducible(unittest.TestCase):
                 self.assertIn(f"--remap-path-prefix={spelled / 'export'}=/export", flags)
 
     def test_a_build_reaches_its_packages_through_the_link(self):
-        with tempfile.TemporaryDirectory() as tmp:
+        with tempfile.TemporaryDirectory() as tmp, mock.patch.dict(os.environ, {"CARGO_HOME": tmp + "/home"}):
             root = Path(tmp).resolve()
             crate, export = root / "checkout/source/crate", root / "checkout/export"
             crate.mkdir(parents=True)
@@ -381,22 +381,35 @@ class Reproducible(unittest.TestCase):
             (root / "checkout/source/Cargo.toml").write_text('[workspace]\nmembers = ["crate"]\n')
             link = root / "link"
             graph = ([crate], [root / "checkout/source/Cargo.toml"])
+            # Where cargo runs, and so where it reads its config from.
+            manifest = export / "Cargo.toml"
             with mock.patch.object(package, "LINK", link), mock.patch.object(package, "local_packages", return_value=graph):
-                with package.linked("Cargo.toml", export) as spell:
+                with package.linked(manifest, export) as spell:
                     # The deepest directory holding the export, the crate, and its workspace root.
                     self.assertEqual(link.resolve(), root / "checkout")
                     self.assertEqual(spell(export), link / "export")
                     self.assertEqual(spell(crate), link / "source/crate")
                     # A second build while one holds the link would build the other's sources.
-                    with self.assertRaises(SystemExit), package.linked("Cargo.toml", export):
+                    with self.assertRaises(SystemExit), package.linked(manifest, export):
                         pass
                 self.assertFalse(os.path.lexists(link))
                 self.assertTrue(export.is_dir())
                 # A package named by its absolute path would be two packages, by it and through the link.
                 (crate / "Cargo.toml").write_text(f'[package]\nname = "crate"\n\n[dependencies]\nother = {{ path = {json.dumps(str(root))} }}\n')
-                with package.linked("Cargo.toml", export) as spell:
+                with package.linked(manifest, export) as spell:
                     self.assertFalse(os.path.lexists(link))
                     self.assertEqual(spell(export), export)
+                # So would one a cargo config names, which cargo joins from the config's real directory.
+                (crate / "Cargo.toml").write_text('[package]\nname = "crate"\n')
+                (root / "checkout/.cargo").mkdir()
+                for config in ('[patch.crates-io]\nother = { path = "source/other" }\n', 'paths = ["source/other"]\n'):
+                    (root / "checkout/.cargo/config.toml").write_text(config)
+                    with package.linked(manifest, export) as spell:
+                        self.assertFalse(os.path.lexists(link))
+                        self.assertEqual(spell(export), export)
+                (root / "checkout/.cargo/config.toml").write_text('[build]\nincremental = false\n')
+                with package.linked(manifest, export) as spell:
+                    self.assertEqual(spell(export), link / "export")
 
     def test_a_path_cc_would_split_fails(self):
         with tempfile.TemporaryDirectory() as tmp, mock.patch.dict(os.environ, {"CARGO_HOME": tmp + "/home"}):

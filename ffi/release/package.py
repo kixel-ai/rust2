@@ -1399,19 +1399,23 @@ def export(args):
     exporter(args.manifest_path, args.features, *targets, *withs, *baseline, "--out", out)
 
 
-def rustflags_config(directory, target):
-    """What sets rustflags for cargo where a RUSTFLAGS override would silently replace it."""
+def cargo_configs(directory):
+    """Each config file cargo run from `directory` reads, parsed."""
     here = Path(directory).resolve()
     home = Path(os.environ.get("CARGO_HOME") or Path.home() / ".cargo")
     for root in [home, *(r / ".cargo" for r in [here, *here.parents])]:
         for name in ("config.toml", "config"):
             found = root / name
-            if not found.is_file():
-                continue
-            config = tomllib.loads(found.read_text(encoding="utf-8"))
-            tables = {key: table for key, table in config.get("target", {}).items() if key == target or key.startswith("cfg(")}
-            if "rustflags" in config.get("build", {}) or any("rustflags" in table for table in tables.values()):
-                yield str(found)
+            if found.is_file():
+                yield found, tomllib.loads(found.read_text(encoding="utf-8"))
+
+
+def rustflags_config(directory, target):
+    """What sets rustflags for cargo where a RUSTFLAGS override would silently replace it."""
+    for found, config in cargo_configs(directory):
+        tables = {key: table for key, table in config.get("target", {}).items() if key == target or key.startswith("cfg(")}
+        if "rustflags" in config.get("build", {}) or any("rustflags" in table for table in tables.values()):
+            yield str(found)
     for key in os.environ:
         if key == "CARGO_BUILD_RUSTFLAGS" or re.fullmatch(r"CARGO_TARGET_.*_RUSTFLAGS", key):
             yield key
@@ -1667,14 +1671,19 @@ def linked(manifest, export, *features):
     it and every local package and workspace root it builds with, so their layout below that
     directory alone names them. Cargo joins each relative path lexically from it, never
     resolving the link. Yields the spelling through `LINK` of a directory below it, or the
-    directory itself where a manifest names a path absolutely: cargo reaches that package by
-    that path, which no build at another path shares, and through the link by another, which
-    it would read as two packages."""
+    directory itself where a manifest names a path absolutely, or a cargo config names a path
+    package (a path `[patch]` or `paths`), which it joins from its own real directory: cargo
+    reaches that package by that path, which no build at another path shares, and through the
+    link by another, which it would read as two packages."""
     local, roots = local_packages(manifest, export, *features)
     for path in [export / "Cargo.toml", *(d / "Cargo.toml" for d in local), *roots]:
         if any(Path(p).is_absolute() for p in manifest_paths(tomllib.loads(path.read_text(encoding="utf-8")))):
             yield Path
             return
+    # Cargo reads its config from where it runs, the manifest's real directory, as `cargo` runs it.
+    if any(manifest_paths(config.get("patch", {})) or config.get("paths") for _, config in cargo_configs(Path(manifest).resolve().parent)):
+        yield Path
+        return
     try:
         base = Path(os.path.commonpath([p.resolve() for p in (export, *local, *(r.parent for r in roots))]))
     except ValueError:
