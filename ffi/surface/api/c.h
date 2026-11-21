@@ -17,7 +17,7 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-#define API_CONTRACT ((uint64_t)0xc65fceb3eb86432eULL)
+#define API_CONTRACT ((uint64_t)0x7d5e461fad3b77d3ULL)
 uint64_t api_contract(void);
 uint32_t api_target(void);
 typedef int32_t api_status;
@@ -117,6 +117,7 @@ typedef struct api_Retired api_Retired;
 typedef struct api_Folio api_Folio;
 typedef struct api_Logger api_Logger;
 typedef struct api_Journal api_Journal;
+typedef struct api_Epilogue api_Epilogue;
 typedef struct api_Local api_Local;
 typedef struct api_Wrapped api_Wrapped;
 typedef struct api_Buffer api_Buffer;
@@ -1811,6 +1812,10 @@ void api_Journal_drop(api_Journal *self, api_status *status);
 API_MUST_USE api_Journal *api_Journal_new(api_Log sink);
 void api_Journal_redirect(api_Journal *self, api_Log sink, api_status *status);
 bool api_Journal_write(const api_Journal *self, api_buf line, api_status *status);
+void api_Epilogue_free(api_Epilogue *self);
+void api_Epilogue_drop(api_Epilogue *self, api_status *status);
+API_MUST_USE api_Epilogue *api_Epilogue_new(api_Log sink, uint32_t id);
+void api_Epilogue_redirect(api_Epilogue *self, api_Log sink, api_status *status);
 void api_Local_free(api_Local *self);
 void api_Local_drop(api_Local *self, api_status *status);
 bool api_Local_eq(const api_Local *a, const api_Local *b, api_status *status);

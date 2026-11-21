@@ -1857,11 +1857,17 @@ under loom, and `tests/future.rs` and `tests/thread.rs` model the runtime's futu
 threads, each mounting the runtime's own source over loom's primitives. The futures' model
 races a wake from another thread against a poll, a change of waker, a start, and a free:
 each C waker drops once and is never woken after, a pending poll is always woken, and a
-future that is not `Send` refuses a poll elsewhere and drops on its own thread. The threads'
+future that is not `Send` refuses a poll elsewhere and drops on its own thread, and two polls
+of one future never run at once. The threads'
 model races a free elsewhere against its thread's check, wake, drain, and exit, and lends
 calls to homes that call each other: each value drops once on its own thread, or leaks once
 that thread exited, and each home goes idle once no value or call holds it. Each explores
-every interleaving, or for homes those within a preemption bound, in the gate.
+every interleaving, or for homes those within a preemption bound, in the gate. loom's
+partial-order reduction skips an order of two threads' accesses to one atomic after a load
+([tokio-rs/loom#392](https://github.com/tokio-rs/loom/issues/392)), so `tests/hold.rs`'s
+`Atom` and the runtime's `AtomicBool` in `tests/loom/rt.rs` make every access conflict
+with every other thread's, and `flaws_are_caught` in each of the three has the models fail
+on the atomics made wrong.
 The `reject` fixture's expected errors, each with its notes, are `fixtures/reject/expected.txt`.
 The `lock` test exports the `lock` fixture for wasm32, staged, and the host, then again
 against that export's `api.json`: its `added` feature only adds and must pass, and its `next`

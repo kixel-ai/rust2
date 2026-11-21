@@ -997,6 +997,12 @@ func (self *Draft) Lines() (uint32, error)
 func (self *Draft) TitleGet() (string, error)
 func (self *Draft) TitleSet(value string) error
 func (self *Draft) Write(line string) error
+type Epilogue struct {
+	Handle_ *p_rt.Handle_
+}
+func NewEpilogue(sink Log, id uint32) *Epilogue
+func (self *Epilogue) Close() error
+func (self *Epilogue) Redirect(sink Log) error
 type Error interface {
 	String() string
 	GoString() string

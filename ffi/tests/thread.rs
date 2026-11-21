@@ -297,3 +297,36 @@ fn homes_call_each_other() {
 		rt::os::stop();
 	});
 }
+
+/// The models each fail on the atomics made wrong, so they do not pass vacuously.
+#[test]
+fn flaws_are_caught() {
+	use rt::Flaw::*;
+	rt::flaws_are_caught(&[
+		(
+			SwapsKeepFlag,
+			&[
+				"free_elsewhere_drops_on_check",
+				"wake_schedules_drain",
+				"calls_on_a_home",
+				"homes_call_each_other",
+			],
+		),
+		(SwapsSeeSet, &["wake_schedules_drain"]),
+		(
+			LoadsClear,
+			&[
+				"free_elsewhere_drops_on_check",
+				"wake_schedules_drain",
+				"calls_on_a_home",
+				"homes_call_each_other",
+			],
+		),
+		(
+			LoadsSet,
+			&["wake_schedules_drain", "calls_on_a_home", "homes_call_each_other"],
+		),
+		(StoresSetSkipped, &["calls_on_a_home", "homes_call_each_other"]),
+		(StoresClearSkipped, &["calls_on_a_home", "homes_call_each_other"]),
+	]);
+}
