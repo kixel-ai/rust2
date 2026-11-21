@@ -1802,14 +1802,20 @@ impl<T> Object<T> {
 		let object = unsafe { Self::get(handle, what) };
 		let away = object.owner.as_ref().filter(|owner| !owner.is_here());
 		// Off its own thread, a value that is not `Send` has nothing to drain here.
-		let (first, after) = (away.is_none() && commit.is_none(), away.is_none() && commit.is_some());
+		let claimed = commit.is_some();
+		let (first, after) = (away.is_none() && !claimed, away.is_none() && claimed);
 		if first {
 			object.own()?;
 		}
-		// A drop other threads left this one may have ended the borrow that refuses it.
+		// A drop other threads left this one may have ended the borrow that refuses it. Each
+		// refusal of a claimed close sets it, so the binding's `close_drain` right after reads
+		// this attempt's, never an earlier one's.
 		let refused = |status| {
-			if after && object.owner.is_some() {
-				SKIPPED.set(handle);
+			if claimed {
+				SKIPPED.set(match after && object.owner.is_some() {
+					true => handle,
+					false => std::ptr::null(),
+				});
 			}
 			Err(status)
 		};
@@ -1955,8 +1961,10 @@ impl<T> Object<Unsent<T>> {
 }
 
 thread_local! {
-	/// The handle whose claimed close [`Object::close`] last refused on this thread without
-	/// draining it first, as one unclaimed would have.
+	/// The handle whose claimed close [`Object::close`] last refused on this thread, if it
+	/// did so without draining it first, as one unclaimed would have. A close run on a home
+	/// for another thread skips nothing that matters: every drop queued before its job ran
+	/// first, as the home's queue is first in, first out.
 	static SKIPPED: std::cell::Cell<*const c_void> = const { std::cell::Cell::new(std::ptr::null()) };
 }
 
