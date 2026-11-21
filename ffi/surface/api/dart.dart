@@ -732,8 +732,8 @@ final class ClashBreak {
 	String debug();
 	@override bool operator ==(Object other);
 	@override int get hashCode;
-	static ClashBreak get sp;
 	static ClashBreak get sp_;
+	static ClashBreak get sp;
 }
 final class ClashMalformed implements Exception {
 	final int at;
@@ -743,6 +743,15 @@ final class ClashMalformed implements Exception {
 	@override bool operator ==(Object other);
 	@override int get hashCode;
 	bool is_(int at);
+}
+final class ClashDescribed {
+	final int description;
+	final int debugDescription;
+	const ClashDescribed({required this.description, required this.debugDescription});
+	@override String toString();
+	String debug();
+	@override bool operator ==(Object other);
+	@override int get hashCode;
 }
 final class ClashErrno {
 	final int errno;
@@ -758,8 +767,19 @@ final class ClashEscaped {
 	String debug();
 	@override bool operator ==(Object other);
 	@override int get hashCode;
+	int delete_(int new_2, int new_);
 	int delete();
-	int delete_(int new_, int new_2);
+}
+final class ClashUnderscored {
+	final int new_;
+	final int new2_;
+	final int debug_;
+	final int default_;
+	const ClashUnderscored({required this.new_, required this.new2_, required this.debug_, required this.default_});
+	String debug();
+	@override bool operator ==(Object other);
+	@override int get hashCode;
+	factory ClashUnderscored.default_();
 }
 final class TlsPolicyLifetime {
 	final int seconds;
@@ -1085,6 +1105,26 @@ final class ClashTagApplication extends ClashTag {
 final class ClashTagPrivate extends ClashTag {
 	final int number;
 	const ClashTagPrivate({required this.number});
+}
+enum ClashOp {
+	delete_(0),
+	delete(1),
+	const ClashOp(this._c);
+	String debug();
+}
+sealed class ClashChange {
+	const ClashChange();
+	String debug();
+	@override bool operator ==(Object other);
+	@override int get hashCode;
+}
+final class ClashChangeSet extends ClashChange {
+	final int new_;
+	final int new2_;
+	const ClashChangeSet({required this.new_, required this.new2_});
+}
+final class ClashChangeClear extends ClashChange {
+	const ClashChangeClear();
 }
 enum Level implements Comparable<Level> {
 	error(0),
@@ -1617,6 +1657,10 @@ final class ClashStore extends _Object {
 	int close_();
 	void wait();
 	void finalize();
+	static int count_();
+	int count();
+	factory ClashStore.open();
+	int open();
 }
 final class ClashReader extends _Object {
 	factory ClashReader(typed.Uint8List bytes);
@@ -1745,6 +1789,11 @@ abstract class Stretch {
 abstract class ClashSource {
 	void wait();
 	int readByte();
+	void close();
+}
+abstract class ClashEraser {
+	int delete_(int new_, int new_2);
+	int delete();
 	void close();
 }
 final class BoundsU64Exception implements Exception {
@@ -2035,6 +2084,7 @@ typed.Uint8List unzeroed(typed.Uint8List bytes);
 int deprecated(int note);
 int deprecated_(int note);
 int all(int note);
+int all_(int note);
 @Deprecated('') Knob knob(Dial dial);
 @Deprecated('read its `level`') Cancelable<U64> levelLater(Dial dial);
 Dial turned(Dial dial, Turner turner);
@@ -2054,7 +2104,16 @@ ClashAny clashAny(String typeUrl);
 ClashCandidate clashCandidate(int at);
 int clashIgnore(int arg0, int arg1, int arg2);
 ClashEmptyString clashEmpty();
+int clashDescribed(ClashDescribed described);
 int clashWaited(ClashSource source);
+int clashUnderscored(ClashUnderscored underscored, ClashOp op, ClashChange change);
+(ClashUnderscored, ClashChange) clashUnderscoredNext(ClashUnderscored underscored, ClashChange change);
+int clashErased(ClashEraser eraser);
+int clashErase_();
+int clashErase();
+int clashLend_(ClashStore? store);
+int clashLend();
+int clashRun(int Function() work2, int work);
 ClashTone clashAudible(ClashTone tone);
 int clashNested(((int, int), int)? a, ((int, int, int),)? b);
 int clashAudioEncoderFinish();

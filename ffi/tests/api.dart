@@ -87,6 +87,15 @@ final class Print extends api.Log {
   void close() => print('freed');
 }
 
+/// An eraser whose methods differ only by a trailing underscore.
+final class Eraser extends api.ClashEraser {
+  @override
+  int delete_(int new_, int new_2) => new_ * 10 + new_2;
+
+  @override
+  int delete() => 3;
+}
+
 /// The Undo callback: each method returns its own digit.
 final class Edits extends api.Undo {
   @override
@@ -456,6 +465,28 @@ void checks() {
   check(api.ClashLevel.debug_.index_() == 2 && api.ClashLevel.debug_.index == 1, 'a method named as an enum\'s index');
   final tag = api.ClashTagPrivate(number: 3);
   check(tag.number == 3 && tag.number_() == 13, 'a method named as its variants\' field');
+  // Names that differ only by trailing underscores, each reaching its own Rust: a name Dart
+  // spells as Rust does keeps it, whichever comes first.
+  final underscored = api.ClashUnderscored(new_: 1, new2_: 2, debug_: 3, default_: 4);
+  check(
+    api.clashUnderscored(underscored, api.ClashOp.delete, api.ClashChangeSet(new_: 5, new2_: 6)) == 2561234,
+    'names apart by trailing underscores cross',
+  );
+  check(
+    api.clashUnderscoredNext(underscored, api.ClashChangeSet(new_: 5, new2_: 6)) ==
+        (api.ClashUnderscored(new_: 2, new2_: 3, debug_: 4, default_: 5), api.ClashChangeSet(new_: 6, new2_: 5)),
+    'names apart by trailing underscores cross back',
+  );
+  check(api.clashErased(Eraser()) == 123, 'a callback\'s methods apart by a trailing underscore');
+  check(
+    api.ClashEscaped(new_: 3).delete() == 3 && api.ClashEscaped(new_: 3).delete_(1, 2) == 213,
+    'methods apart by a trailing underscore',
+  );
+  check(api.clashErase_() == 2 && api.clashErase() == 1, 'functions apart by a trailing underscore');
+  // A named constructor keeps the name of an instance method, as Dart allows.
+  final opened = api.ClashStore.open();
+  check(opened.open() == 7, 'a named constructor and a method named alike');
+  opened.close();
   print('checks ok');
 }
 

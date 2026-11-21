@@ -5095,6 +5095,27 @@ pub mod clash {
 
 		/// Nothing, named and typed as the method a JVM finalizer overrides.
 		pub fn finalize(&self) {}
+
+		/// Seven, by a static function that camel case names as the method `count`.
+		pub fn count_() -> u32 {
+			7
+		}
+
+		/// The count, by a method that camel case names as the static `count_`.
+		pub fn count(&self) -> u32 {
+			self.count
+		}
+
+		/// A store of five, by a constructor that camel case names as the method `open`.
+		pub fn open_() -> Store {
+			Store { count: 5 }
+		}
+
+		/// The count plus two, wrapping past `u32::MAX`, by a method that camel case names as
+		/// the constructor `open_`.
+		pub fn open(&self) -> u32 {
+			self.count.wrapping_add(2)
+		}
 	}
 
 	/// A level, whose values are named as the members `Debug` and `Default` give a type, as
@@ -5150,6 +5171,25 @@ pub mod clash {
 		fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
 			write!(f, "malformed at {}", self.at)
 		}
+	}
+
+	/// Digits whose fields are named as the members Swift's protocols for `Display` and `Debug`
+	/// give a type.
+	#[derive(Clone, Copy, Debug, PartialEq)]
+	pub struct Described {
+		pub description: u8,
+		pub debug_description: u8,
+	}
+
+	impl std::fmt::Display for Described {
+		fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+			write!(f, "{}{}", self.description, self.debug_description)
+		}
+	}
+
+	/// `described`'s fields as decimal digits, from `description` up.
+	pub fn described(described: Described) -> u32 {
+		u32::from(described.description) * 10 + u32::from(described.debug_description)
 	}
 
 	/// Bytes read one at a time, whose methods go vet reads as `io.ByteScanner`'s, as
@@ -5216,22 +5256,132 @@ pub mod clash {
 		}
 	}
 
-	/// A byte, whose methods `delete` and `delete_` C++ escapes alike, as `delete_`.
+	/// A byte, whose methods `delete_` and `delete` C++ escapes alike, as `delete_`, and the
+	/// rest name alike where their case drops the `_`.
 	#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 	pub struct Escaped {
 		pub new: u8,
 	}
 
 	impl Escaped {
-		/// `new`, by a method C++ escapes as `delete_`.
-		pub fn delete(&self) -> u8 {
-			self.new
-		}
-
 		/// `new` plus the arguments, by parameters C++ escapes alike.
 		pub fn delete_(&self, new: u8, new_: u8) -> u8 {
 			self.new + new * 10 + new_ * 100
 		}
+
+		/// `new`, by a method C++ escapes as `delete_`.
+		pub fn delete(&self) -> u8 {
+			self.new
+		}
+	}
+
+	/// Digits whose fields differ only by trailing underscores, which camel case drops, and
+	/// are named as the members `Debug` and `Default` give a type.
+	#[derive(Clone, Copy, Debug, Default, PartialEq)]
+	pub struct Underscored {
+		pub new_: u8,
+		pub new: u8,
+		pub debug: u8,
+		pub default: u8,
+	}
+
+	/// An edit, whose values differ only by a trailing underscore, which Swift's case drops.
+	#[allow(non_camel_case_types, reason = "the clash under test")]
+	#[derive(Clone, Copy, Debug, PartialEq)]
+	pub enum Op {
+		Delete_,
+		Delete,
+	}
+
+	/// A change, whose payload's fields differ only by a trailing underscore.
+	#[derive(Clone, Copy, Debug, PartialEq)]
+	pub enum Change {
+		Set { new_: u8, new: u8 },
+		Clear,
+	}
+
+	/// `underscored`'s fields as decimal digits, from `new_` up, after `op`'s and `change`'s,
+	/// to show each crossed to its own place.
+	pub fn underscored(underscored: Underscored, op: Op, change: Change) -> u32 {
+		let Underscored {
+			new_,
+			new,
+			debug,
+			default,
+		} = underscored;
+		let change = match change {
+			Change::Set { new_, new } => u32::from(new_) * 10 + u32::from(new),
+			Change::Clear => 0,
+		};
+		let digits = [new_, new, debug, default]
+			.iter()
+			.fold(0, |n, &d| n * 10 + u32::from(d));
+		(op as u32 + 1) * 1_000_000 + change * 10_000 + digits
+	}
+
+	/// The underscored record with each field one more, wrapping past 255, and the change with
+	/// each swapped.
+	pub fn underscored_next(underscored: Underscored, change: Change) -> (Underscored, Change) {
+		let Underscored {
+			new_,
+			new,
+			debug,
+			default,
+		} = underscored;
+		let next = Underscored {
+			new_: new_.wrapping_add(1),
+			new: new.wrapping_add(1),
+			debug: debug.wrapping_add(1),
+			default: default.wrapping_add(1),
+		};
+		let change = match change {
+			Change::Set { new_, new } => Change::Set { new_: new, new: new_ },
+			Change::Clear => Change::Clear,
+		};
+		(next, change)
+	}
+
+	/// An eraser, implemented in each binding, whose methods and parameters differ only by
+	/// trailing underscores.
+	pub trait Eraser {
+		/// The arguments as decimal digits.
+		fn delete_(&self, new_: u8, new: u8) -> u8;
+
+		/// One.
+		fn delete(&self) -> u8;
+	}
+
+	/// `eraser`'s `delete_(1, 2)`, then its `delete()`, as decimal digits.
+	pub fn erased(eraser: impl Eraser) -> u32 {
+		u32::from(eraser.delete_(1, 2)) * 10 + u32::from(eraser.delete())
+	}
+
+	/// Two, by a name that differs only by a trailing underscore from `erase`'s.
+	pub fn erase_() -> u8 {
+		2
+	}
+
+	/// One.
+	pub fn erase() -> u8 {
+		1
+	}
+
+	/// One more than the store's count, or none without one, by a name that differs only by
+	/// a trailing underscore from `lend`'s: Swift's overload leaving out `store` would be
+	/// `lend()` too. The sum saturates at `u32::MAX`.
+	pub fn lend_(store: Option<&Store>) -> u32 {
+		store.map_or(0, |store| store.count.saturating_add(1))
+	}
+
+	/// Nine.
+	pub fn lend() -> u32 {
+		9
+	}
+
+	/// Ten times what `work_` returns, plus `work`, by parameters that differ only by a
+	/// trailing underscore, the closure's first.
+	pub fn run(work_: impl Fn() -> u8, work: u8) -> u32 {
+		u32::from(work_()) * 10 + u32::from(work)
 	}
 
 	/// The tone, or no tones where it is silent: an error Go names as `VecClashTone`'s variant.
@@ -5613,6 +5763,12 @@ pub fn _deprecated(note: u8) -> u8 {
 /// Two more than `note`, by a name Python reserves, as the module's own `__all__` is.
 pub fn __all__(note: u8) -> u8 {
 	note + 2
+}
+
+/// Three more than `note`, wrapping past 255, by the name Python would give `__all__`, which
+/// this one keeps.
+pub fn __all___(note: u8) -> u8 {
+	note.wrapping_add(3)
 }
 
 /// A dial, whose docs carry each rustdoc form a binding renders as its own: links to a
