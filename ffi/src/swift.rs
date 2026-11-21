@@ -1591,8 +1591,16 @@ impl<'a> Gen<'a> {
 		let mut body = Vec::new();
 		let mut members = Vec::new();
 		let mut table = vec![format!("free: {{ data in Box<any {name}>.release(data) }}")];
-		for method in &callback.methods {
-			let member = member(&abi::snake(method.name()), &[]);
+		let methods: Vec<&str> = callback.methods.iter().map(|method| method.name()).collect();
+		let spelled = (callback.methods.iter())
+			.map(|method| {
+				let member = member(&abi::snake(method.name()), &[]);
+				full(false, &member, method.params.iter().map(|_| "_".to_string()))
+			})
+			.collect();
+		let named = abi::named(&methods, spelled, own, |_, _| false, abi::underscored);
+		for (method, full_name) in callback.methods.iter().zip(&named) {
+			let member = kw(&unfull(full_name));
 			crate::lock::function(&mut self.locked, method, &member);
 			self.docc.insert(
 				crate::lock::function_key(method),
@@ -1912,16 +1920,8 @@ impl<'a> Gen<'a> {
 			})
 			.unzip();
 		let rust: Vec<&str> = rust.iter().map(String::as_str).collect();
-		let name = |full: &str| {
-			let full = full.strip_prefix("static ").unwrap_or(full);
-			full.split('(').next().unwrap_or(full).to_string()
-		};
-		let own = |rust: &str, full: &str| {
-			let name = name(full);
-			name == rust || abi::snake(&name) == rust
-		};
 		(abi::named(&rust, spelled, own, |_, name| taken(name), abi::underscored).iter())
-			.map(|full| kw(&name(full)))
+			.map(|full| kw(&unfull(full)))
 			.collect()
 	}
 
@@ -2859,7 +2859,21 @@ fn full(is_static: bool, name: &str, labels: impl IntoIterator<Item = String>) -
 	}
 }
 
+/// The name of a member's [`full`] name.
+fn unfull(full: &str) -> String {
+	let full = full.strip_prefix("static ").unwrap_or(full);
+	full.split('(').next().unwrap_or(full).to_string()
+}
+
+/// Whether the member's [`full`] name `full` reads back as the Rust name `rust`, as it
+/// spells it or in camel case, for [`abi::named`].
+fn own(rust: &str, full: &str) -> bool {
+	let name = unfull(full);
+	name == rust || abi::snake(&name) == rust
+}
+
 /// A function's name as DocC links it: with its argument labels.
+
 fn docc_call<'l>(name: &str, labels: impl IntoIterator<Item = &'l str>) -> String {
 	let labels: String = labels.into_iter().map(|l| format!("{l}:")).collect();
 	format!("{}({labels})", unquote(name))

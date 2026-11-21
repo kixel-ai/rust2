@@ -1332,8 +1332,8 @@ impl<'a> Gen<'a> {
 			Type::Record(i) => {
 				let record = &abi.api.records[*i];
 				let mut lines = Vec::new();
-				for field in &record.fields {
-					let e = format!("v.{}", field_name(&field.name));
+				for (field, name) in record.fields.iter().zip(field_names(&record.fields)) {
+					let e = format!("v.{name}");
 					let dst = format!("c.{}", slot(&abi::escape(&field.name)));
 					lines.push(self.write(&field.ty, &e, &dst, "t"));
 				}
@@ -1352,8 +1352,8 @@ impl<'a> Gen<'a> {
 						body.insert(0, format!("_on(0x{on:x}, '{c}.{}');", variant.name));
 					}
 					let member = abi::escape(&abi::snake(&variant.name));
-					for field in &variant.fields {
-						let e = format!("v.{}", field_name(&field.name));
+					for (field, name) in variant.fields.iter().zip(field_names(&variant.fields)) {
+						let e = format!("v.{name}");
 						let dst = format!("c.$u.{}.{}", slot(&member), slot(&abi::escape(&field.name)));
 						body.push(self.write(&field.ty, &e, &dst, "t"));
 					}
@@ -1462,20 +1462,21 @@ impl<'a> Gen<'a> {
 				let class = self.struct_class(&Ty::Struct(c.to_string()));
 				let record = &abi.api.records[*i];
 				let mut args = Vec::new();
-				for field in &record.fields {
+				for (field, name) in record.fields.iter().zip(field_names(&record.fields)) {
 					let value = self.lift(&field.ty, &format!("c.{}", slot(&abi::escape(&field.name))));
 					args.push(match record.tuple {
 						true => value,
-						false => format!("{}: {value}", field_name(&field.name)),
+						false => format!("{name}: {value}"),
 					});
 				}
 				(class, format!("{dt}({})", args.join(", ")))
 			}
 			Type::Enum(i) if abi.api.enums[*i].plain() => {
 				let e = &abi.api.enums[*i];
-				let cases: Vec<String> = (e.variants.iter())
-					.map(|v| format!("\t\t{} => {dt}.{},", v.discriminant, enum_value(e.traits, &v.name)))
+				let cases: Vec<String> = (e.variants.iter().zip(enum_values(e)))
+					.map(|(v, value)| format!("\t\t{} => {dt}.{value},", v.discriminant))
 					.collect();
+
 				(
 					"int".to_string(),
 					format!(
@@ -1492,14 +1493,14 @@ impl<'a> Gen<'a> {
 					let case = self.variant_class(&dt, &variant.name);
 					let member = abi::escape(&abi::snake(&variant.name));
 					let mut args = Vec::new();
-					for field in &variant.fields {
+					for (field, name) in variant.fields.iter().zip(field_names(&variant.fields)) {
 						let value = self.lift(
 							&field.ty,
 							&format!("c.$u.{}.{}", slot(&member), slot(&abi::escape(&field.name))),
 						);
 						args.push(match variant.tuple {
 							true => value,
-							false => format!("{}: {value}", field_name(&field.name)),
+							false => format!("{name}: {value}"),
 						});
 					}
 					cases.push(format!("\t\t{n} => {case}({}),", args.join(", ")));
@@ -1719,8 +1720,12 @@ impl<'a> Gen<'a> {
 		for i in 0..api.callbacks.len() {
 			self.callback(i);
 		}
-		for function in &api.functions {
-			if let Some((code, _)) = self.function(function, None, None, &[]) {
+		let functions: Vec<&Function> = api.functions.iter().collect();
+		let named = self.names(&functions, (None, None), |_, name| {
+			TAKEN.contains(&name) || self.names.contains_key(name)
+		});
+		for (function, name) in api.functions.iter().zip(&named) {
+			if let Some((code, _)) = self.function(function, (None, None), name, &[]) {
 				self.top.push_str(&code);
 				self.top.push('\n');
 			}
@@ -2040,8 +2045,18 @@ impl<'a> Gen<'a> {
 		body: &mut Vec<String>,
 		members: &mut Vec<String>,
 	) {
-		for method in methods {
-			if let Some((code, member)) = self.function(method, Some(owner), Some(ty), members) {
+		let functions: Vec<&Function> = methods.iter().collect();
+		let owned = (Some(owner), Some(ty));
+		let declared: Vec<Option<&str>> = (methods.iter())
+			.map(|method| self.declared(method, owned).2)
+			.collect();
+		// Each name a member its type declares already takes, as [`collides`] reads it.
+		let named = self.names(&functions, owned, |k, name| match declared[k] {
+			Some(kind) => members.iter().any(|other| collides(other, &format!("{kind}{name}"))),
+			None => false,
+		});
+		for (method, name) in methods.iter().zip(&named) {
+			if let Some((code, member)) = self.function(method, owned, name, members) {
 				members.push(member);
 				body.push(indent(&code));
 			}
@@ -2096,9 +2111,8 @@ impl<'a> Gen<'a> {
 			);
 			return;
 		}
-		let fields: Vec<(String, String)> = (record.fields.iter())
-			.map(|f| {
-				let name = field_name(&f.name);
+		let fields: Vec<(String, String)> = (record.fields.iter().zip(field_names(&record.fields)))
+			.map(|(f, name)| {
 				crate::lock::field(&mut self.locked, &record.shown, &f.name, &name);
 				(name, self.dt(&f.ty))
 			})
@@ -2150,9 +2164,8 @@ impl<'a> Gen<'a> {
 			// A value of a variant the library's target lacks is refused as it crosses, when
 			// its C value is read.
 			let limited = e.variants.iter().any(|v| !abi.api.everywhere(v.on));
-			let values: Vec<String> = (e.variants.iter())
-				.map(|v| {
-					let value = enum_value(e.traits, &v.name);
+			let values: Vec<String> = (e.variants.iter().zip(enum_values(e)))
+				.map(|(v, value)| {
 					crate::lock::variant(&mut self.locked, &e.shown, &v.name, &value);
 					members.push(format!("static {value}"));
 					match limited {
@@ -2194,9 +2207,7 @@ impl<'a> Gen<'a> {
 		self.traits(&ty, &c, e.traits, &mut body, &mut members);
 		// Each variant's fields, which its class declares beside the methods it inherits, so a
 		// method takes a trailing `_` beside one, as a record's does beside its own.
-		let fields: BTreeSet<String> = (e.variants.iter().flat_map(|v| &v.fields))
-			.map(|f| field_name(&f.name))
-			.collect();
+		let fields: BTreeSet<String> = (e.variants.iter()).flat_map(|v| field_names(&v.fields)).collect();
 		members.extend(fields);
 		let owner = abi.ty(&ty);
 		self.methods(&e.methods, &owner, &ty, &mut body, &mut members);
@@ -2209,9 +2220,8 @@ impl<'a> Gen<'a> {
 		);
 		for (k, variant) in e.variants.iter().enumerate() {
 			let case = self.variant_class(&name, &variant.name);
-			let fields: Vec<(String, String)> = (variant.fields.iter())
-				.map(|f| {
-					let name = field_name(&f.name);
+			let fields: Vec<(String, String)> = (variant.fields.iter().zip(field_names(&variant.fields)))
+				.map(|(f, name)| {
 					crate::lock::variant_field(&mut self.locked, &e.shown, &variant.name, &f.name, &name);
 					(name, self.dt(&f.ty))
 				})
@@ -2304,12 +2314,15 @@ impl<'a> Gen<'a> {
 		let mut members = Vec::new();
 		// `close` is the hook Rust calls once it drops an implementation.
 		let reserved: Vec<&str> = OBJECT.iter().copied().chain(["close"]).collect();
-		for method in &callback.methods {
-			let member = member(&abi::snake(method.name()), &reserved);
+		let methods: Vec<&str> = callback.methods.iter().map(|method| method.name()).collect();
+		let spelled = methods.iter().map(|name| member(&abi::snake(name), &reserved)).collect();
+		let named = abi::named(&methods, spelled, own, |_, _| false, alternative);
+		for (method, member) in callback.methods.iter().zip(named) {
 			crate::lock::function(&mut self.locked, method, &member);
 			members.push(member.clone());
-			let params: Vec<String> = (method.params.iter())
-				.map(|p| format!("{} {}", self.dt(&p.ty), param_name(&p.name)))
+			let names = abi::distinct(method.params.iter().map(|param| param_name(&param.name)));
+			let params: Vec<String> = (method.params.iter().zip(names))
+				.map(|(p, name)| format!("{} {name}", self.dt(&p.ty)))
 				.collect();
 			body.push(format!(
 				"{}\t{} {member}({});",
@@ -2602,15 +2615,89 @@ impl<'a> Gen<'a> {
 
 	/// `function`'s Dart form and its member name, a member of `owner` (whose IR type is
 	/// `owner_ty`) if it has one.
+	/// The name each of `functions` takes as a member of `owner` (whose IR type is
+	/// `owner_ty`) if it has one, or at the top level, apart from each other and from what
+	/// `taken` holds for each, by its index, as [`abi::named`] keeps a scope's.
+	fn names(
+		&self,
+		functions: &[&Function],
+		owner: (Option<&Ty>, Option<&Type>),
+		taken: impl Fn(usize, &str) -> bool,
+	) -> Vec<String> {
+		let (rust, spelled): (Vec<String>, Vec<String>) = (functions.iter())
+			.map(|function| {
+				let (rust, member, _) = self.declared(function, owner);
+				(rust, member)
+			})
+			.unzip();
+		let rust: Vec<&str> = rust.iter().map(String::as_str).collect();
+		abi::named(&rust, spelled, own, taken, alternative)
+	}
+
+	/// The declaration `function` makes as a member of `owner` (whose IR type is `owner_ty`)
+	/// if it has one, before it keeps apart from another: the Rust name it spells, its Dart
+	/// name, and what [`collides`] reads before that name, `static ` or `new ` or none, or
+	/// `None` for an unnamed constructor, which no name clashes with.
+	fn declared(
+		&self,
+		function: &Function,
+		(owner, owner_ty): (Option<&Ty>, Option<&Type>),
+	) -> (String, String, Option<&'static str>) {
+		let abi = self.abi;
+		let (back, export) = match (owner.zip(owner_ty)).and_then(|(owner, ty)| abi.handed_back(function, owner, ty)) {
+			Some((back, export, _)) => (Some(back), export),
+			None => (None, abi.export(function, owner)),
+		};
+		let function = back.as_ref().unwrap_or(function);
+		let own = match owner {
+			Some(Ty::Struct(o) | Ty::Enum(o) | Ty::Handle { name: o, .. }) => {
+				export.named.strip_prefix(o.as_str()).and_then(|r| r.strip_prefix('_'))
+			}
+			_ => None,
+		};
+		let mut reserved: Vec<&str> = OBJECT.to_vec();
+		if matches!(owner_ty, Some(Type::Object(_))) {
+			reserved.push("close");
+		}
+		// Named as Rust's path is, whatever C's clashes rename.
+		let rust = own.unwrap_or_else(|| self.bare(&export.named)).to_string();
+		let member = member(&rust, &reserved);
+		let receiver = function.receiver.filter(|_| owner.is_some());
+		let is_static = receiver.is_none() && owner.is_some();
+		let stat = if is_static { "static " } else { "" };
+		let plain = function.params.is_empty() && !function.future && function.err.is_none();
+		let kind = match (function.access, receiver) {
+			(Access::Field { set: false, .. }, Some(_)) if plain => Some(""),
+			(Access::Const, None) if plain => Some(stat),
+			// A function of a type returning it is a constructor: an object's or opaque
+			// value's `new` is its unnamed one.
+			_ if is_static && !function.future && Some(&strip_refs(&function.ok)) == owner_ty => {
+				let unnamed = match owner_ty {
+					Some(Type::Object(_)) => true,
+					Some(Type::Record(i)) => abi.api.records[*i].opaque.is_some(),
+					_ => false,
+				};
+				match rust == "new" && unnamed {
+					true => None,
+					false => Some("new "),
+				}
+			}
+			_ => Some(stat),
+		};
+		(rust, member, kind)
+	}
+
+	/// `function`'s Dart form `member`, of `owner` (whose IR type is `owner_ty`) if it has
+	/// one, apart from the members `taken` names, and its entry as [`collides`] reads it.
 	fn function(
 		&mut self,
 		function: &Function,
-		owner: Option<&Ty>,
-		owner_ty: Option<&Type>,
+		owner: (Option<&Ty>, Option<&Type>),
+		member: &str,
 		taken: &[String],
 	) -> Option<(String, String)> {
 		let on = std::mem::replace(&mut self.on, function.on);
-		let code = self.function_on(function, owner, owner_ty, taken);
+		let code = self.function_on(function, owner, member, taken);
 		self.on = on;
 		code
 	}
@@ -2618,8 +2705,8 @@ impl<'a> Gen<'a> {
 	fn function_on(
 		&mut self,
 		function: &Function,
-		owner: Option<&Ty>,
-		owner_ty: Option<&Type>,
+		(owner, owner_ty): (Option<&Ty>, Option<&Type>),
+		member: &str,
 		taken: &[String],
 	) -> Option<(String, String)> {
 		let abi = self.abi;
@@ -2646,14 +2733,9 @@ impl<'a> Gen<'a> {
 			Some(o) => export.named.strip_prefix(o.as_str()).and_then(|r| r.strip_prefix('_')),
 			None => None,
 		};
-		let mut reserved: Vec<&str> = OBJECT.to_vec();
-		if matches!(owner_ty, Some(Type::Object(_))) {
-			reserved.push("close");
-		}
 		// Named as Rust's path is, whatever C's clashes rename.
 		let named = self.bare(&export.named).to_string();
 		let snake = own.unwrap_or(&named);
-		let member = member(snake, &reserved);
 
 		let receiver = function.receiver.filter(|_| owner.is_some());
 		// A leaf call runs on the isolate's thread, with no thread hop, as nothing in it
@@ -2689,7 +2771,7 @@ impl<'a> Gen<'a> {
 		let mut gives = false;
 		let names = abi::distinct(function.params.iter().map(|param| param_name(&param.name)));
 		let mut writes = Vec::new();
-		for (k, (param, name)) in function.params.iter().zip(names).enumerate() {
+		for (k, (param, name)) in function.params.iter().zip(names.iter().cloned()).enumerate() {
 			let (_, c) = c_params.next().expect("each parameter has its C one");
 			// A value passed for `&mut`, in a holder that takes what Rust writes back.
 			if param.ty.written() {
@@ -2997,8 +3079,7 @@ impl<'a> Gen<'a> {
 				"\n\nRust changes a copy of this value, which it returns first, as the call left it: this one never changes.",
 			);
 		}
-		for param in &function.params {
-			let name = param_name(&param.name);
+		for (param, name) in function.params.iter().zip(&names) {
 			match &param.ty {
 				Type::Closure(closure_) => {
 					text.push_str(&match closure_.kept {
@@ -3035,8 +3116,8 @@ impl<'a> Gen<'a> {
 		let stat = if is_static { "static " } else { "" };
 		let code_body = indent(&body.join("\n"));
 		let mut member = match owner {
-			None => self.claim(&member, format!("fn `{}`", function.path.join("::"))),
-			Some(_) => member,
+			None => self.claim(member, format!("fn `{}`", function.path.join("::"))),
+			Some(_) => member.to_string(),
 		};
 		// A member its type declares already, as a field of its name, takes the next of its
 		// alternatives.
@@ -3195,14 +3276,14 @@ impl<'a> Gen<'a> {
 				let e = &abi.api.enums[i];
 				let name = owner(doc::Owner::Enum(i));
 				match e.plain() {
-					true => format!("{name}.{}", enum_value(e.traits, &e.variants[v].name)),
+					true => format!("{name}.{}", enum_values(e).swap_remove(v)),
 					false => self.variant_class(&name, &e.variants[v].name),
 				}
 			}
 			doc::Target::Field(i, n) => format!(
 				"{}.{}",
 				owner(doc::Owner::Record(i)),
-				field_name(&abi.api.records[i].fields[n].name)
+				field_names(&abi.api.records[i].fields).swap_remove(n)
 			),
 			doc::Target::Constant(c) => self.locked.get(&format!("const {}", c.path.join("::")))?.clone(),
 			doc::Target::Function(of, f) => {
@@ -3507,10 +3588,29 @@ fn param_name(name: &str) -> String {
 	member(name, &[])
 }
 
-/// A plain enum's value: its variant in camel case, with `_` appended while a member every
-/// Dart enum has, or one its traits `t` give it, takes it, since a static member clashes
-/// with either kind.
-fn enum_value(t: crate::ir::Traits, variant: &str) -> String {
+/// Whether the Dart name `name` reads back as the Rust one `rust`, as it spells it or in
+/// camel case, for [`abi::named`].
+fn own(rust: &str, name: &str) -> bool {
+	name == rust || abi::snake(name) == rust
+}
+
+/// The `n`th of the [`alternatives`] to `name`, for [`abi::named`].
+fn alternative(name: &str, n: usize) -> String {
+	alternatives(name).nth(n).expect("alternatives never end")
+}
+
+/// The Dart names of `fields`, one scope's, each [`field_name`], kept apart as [`abi::named`]
+/// keeps them.
+fn field_names(fields: &[crate::ir::Field]) -> Vec<String> {
+	let rust: Vec<&str> = fields.iter().map(|f| f.name.as_str()).collect();
+	let spelled = rust.iter().map(|name| field_name(name)).collect();
+	abi::named(&rust, spelled, own, |_, _| false, alternative)
+}
+
+/// A plain enum's values: each variant in camel case, kept apart from the others, and from a
+/// member every Dart enum has or one its traits give it, since a static member clashes with
+/// either kind, as [`abi::named`] keeps them.
+fn enum_values(e: &crate::ir::Enum) -> Vec<String> {
 	const ENUM: &[&str] = &[
 		"values",
 		"index",
@@ -3522,13 +3622,12 @@ fn enum_value(t: crate::ir::Traits, variant: &str) -> String {
 		"compareTo",
 		"partialCompareTo",
 	];
+	let t = e.traits;
 	let made = [(t.debug, "debug"), (t.default, "default_")];
-	let taken = |name: &str| ENUM.contains(&name) || made.iter().any(|(has, made)| *has && *made == name);
-	let mut name = member(&abi::snake(variant), &[]);
-	while taken(&name) {
-		name.push('_');
-	}
-	name
+	let taken = |_, name: &str| ENUM.contains(&name) || made.iter().any(|(has, made)| *has && *made == name);
+	let rust: Vec<&str> = e.variants.iter().map(|v| v.name.as_str()).collect();
+	let spelled = rust.iter().map(|name| member(&abi::snake(name), &[])).collect();
+	abi::named(&rust, spelled, |rust, name| pascal(name) == rust, taken, abi::underscored)
 }
 
 /// Whether the members `a` and `b` of one type clash, each `static x`, `new x` for a
