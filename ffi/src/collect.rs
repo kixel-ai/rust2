@@ -79,6 +79,7 @@ const UNMET: &str = "bound no type C holds meets";
 
 /// The construct of a field lent from a `repr(packed)` struct, where it may lie unaligned.
 const UNALIGNED: &str = "lent unaligned field";
+const RACY: &str = "unaligned interior-mutable field";
 
 fn why(construct: &'static str, detail: impl Into<String>) -> Why {
 	Why {
@@ -2997,9 +2998,10 @@ impl<'tcx> Collector<'tcx> {
 				self.lending.set(lends);
 				// A lent field is the field itself, which an unaligned one cannot be; one lent
 				// through a reference it holds is its pointee, which the copied reference reaches.
-				let get = match lends && assigned && how != Read::Borrow {
-					true => Err(why(UNALIGNED, ty.to_string())),
-					false => self.ty(read, Pos::Return),
+				let get = match (lends && assigned && how != Read::Borrow, self.racy(how, ty)) {
+					(true, _) => Err(why(UNALIGNED, ty.to_string())),
+					(_, true) => Err(why(RACY, ty.to_string())),
+					_ => self.ty(read, Pos::Return),
 				};
 				self.lending.set(false);
 				// A handle outlives every call, so a reference it holds is `'static`, which
@@ -3016,7 +3018,9 @@ impl<'tcx> Collector<'tcx> {
 					// setter keeps the type in the API, so one no export returns leaves out
 					// both.
 					(Err(get), Ok(Some(set)))
-						if get.construct == "borrowed return that is not Clone" || get.construct == UNALIGNED =>
+						if get.construct == "borrowed return that is not Clone"
+							|| get.construct == UNALIGNED
+							|| get.construct == RACY =>
 					{
 						self.refuse(&shown, "field", span, vec![get]);
 						Ok((None, Some(set)))
@@ -3122,6 +3126,15 @@ impl<'tcx> Collector<'tcx> {
 			true => Read::Copy,
 			false => Read::Take,
 		}
+	}
+
+	/// Whether reading a field of type `ty` out unaligned, as `how` says, would race: a type
+	/// holding an `UnsafeCell` inline, such as an atomic, may be written through `&self`
+	/// while the read copies its bytes, and a non-atomic read of that is undefined behavior.
+	fn racy(&self, how: Read, ty: Ty<'tcx>) -> bool {
+		let tcx = self.tcx;
+		let ty = tcx.erase_and_anonymize_regions(ty);
+		how == Read::Take && !ty.is_freeze(tcx, TypingEnv::fully_monomorphized())
 	}
 
 	/// A value's methods, refusing each through `&mut self`: C passes the value as a copy,

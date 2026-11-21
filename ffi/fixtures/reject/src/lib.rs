@@ -1653,3 +1653,39 @@ impl Packed {
 		self.seed
 	}
 }
+
+/// A `Clone` object holding an atomic, which another `&self` method may write while a getter
+/// copies its bytes out unaligned: that read is non-atomic, so the getter is refused.
+pub struct Dial(std::sync::atomic::AtomicU32);
+
+impl Clone for Dial {
+	fn clone(&self) -> Self {
+		Self(std::sync::atomic::AtomicU32::new(self.0.load(std::sync::atomic::Ordering::Relaxed)))
+	}
+}
+
+pub fn dial() -> Dial {
+	Dial(std::sync::atomic::AtomicU32::new(0))
+}
+
+impl Dial {
+	pub fn hit(&self) {
+		self.0.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+	}
+}
+
+#[repr(C, packed)]
+pub struct Ledger {
+	pub dial: Dial,
+	seed: u8,
+}
+
+pub fn ledger() -> Ledger {
+	Ledger { dial: Dial(std::sync::atomic::AtomicU32::new(0)), seed: 0 }
+}
+
+impl Ledger {
+	pub fn seed(&self) -> u8 {
+		self.seed
+	}
+}
