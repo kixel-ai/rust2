@@ -597,7 +597,12 @@ pub(crate) enum Access {
 
 /// How a getter reads a field in Rust, which the field's struct decides: a `repr(packed)`
 /// one's field may lie unaligned, which rustc refuses a reference to.
-#[derive(Clone, Copy, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+///
+/// A getter's value is the same through any mode that compiles, and the order is how far one
+/// reaches: `Take` reads any field on any layout, `Copy` any `Copy` one, and a field's two
+/// targets mean the same type, so the merge of their getters reads it the greater of theirs,
+/// which each target accepts.
+#[derive(Clone, Copy, Default, PartialEq, Eq, PartialOrd, Ord, serde::Serialize, serde::Deserialize)]
 pub(crate) enum Read {
 	/// It borrows the field.
 	#[default]

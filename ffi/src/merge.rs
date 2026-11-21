@@ -13,7 +13,8 @@ use rustc_span::source_map::SourceMap;
 use rustc_span::{DUMMY_SP, Span};
 
 use crate::ir::{
-	Api, Callback, Constant, Enum, Field, Function, Home, Object, On, Record, TaskKind, Traits, Type, Variant,
+	Access, Api, Callback, Constant, Enum, Field, Function, Home, Object, On, Read, Record, TaskKind, Traits, Type,
+	Variant,
 };
 
 /// A target's API, as a check writes it for the export of several targets.
@@ -202,6 +203,22 @@ fn bare<T: Clone>(item: &T, clear: impl Fn(&mut T)) -> T {
 	item
 }
 
+/// Whether two functions read alike, which a field's two targets do whichever way its
+/// layout makes each getter read it.
+fn same_access(a: &Access, b: &Access) -> bool {
+	match (a, b) {
+		(
+			Access::Field { set, through, .. },
+			Access::Field {
+				set: other,
+				through: through_other,
+				..
+			},
+		) => set == other && through == through_other,
+		_ => a == b,
+	}
+}
+
 pub(crate) fn bare_function(f: &Function) -> Function {
 	bare(f, |f| {
 		f.span = DUMMY_SP;
@@ -210,6 +227,10 @@ pub(crate) fn bare_function(f: &Function) -> Function {
 		f.on = On::ALL;
 		// Merged apart, as a trait's leaves are.
 		f.leaf = false;
+		// Merged to the greatest, as a target's layout may decide it.
+		if let Access::Field { read, .. } = &mut f.access {
+			*read = Read::Borrow;
+		}
 	})
 }
 
@@ -574,7 +595,7 @@ impl Merged {
 			// A field's getter and setter share its path.
 			let Some(at) = ours
 				.iter()
-				.position(|f| f.shown == function.shown && f.access == function.access)
+				.position(|f| f.shown == function.shown && same_access(&f.access, &function.access))
 			else {
 				ours.push(function);
 				continue;
@@ -582,6 +603,14 @@ impl Merged {
 			if bare_function(&ours[at]) != bare_function(&function) {
 				let what = format!("fn `{}`", function.shown.join("::"));
 				self.differ(what, (ours[at].on, ours[at].span), (function.on, function.span));
+			}
+			// One getter serves a field on every target, though `repr(packed)` may make one
+			// target's layout need another read than the next's: it reads by the mode that
+			// accepts both, whose value is the same.
+			if let (Access::Field { read: ours, .. }, Access::Field { read: theirs, .. }) =
+				(&mut ours[at].access, &function.access)
+			{
+				*ours = (*ours).max(*theirs);
 			}
 			ours[at].on.0 |= function.on.0;
 			ours[at].leaf &= function.leaf;
@@ -844,7 +873,7 @@ mod tests {
 	use rustc_span::DUMMY_SP;
 
 	use super::{On, cycle, linked, order_crates};
-	use crate::ir::{Api, Enum, Field, Home, Traits, Type, Variant};
+	use crate::ir::{Access, Api, Enum, Field, Function, Home, Read, Traits, Type, Variant};
 
 	/// Docs keep the target's whose links resolve more, as one lacking an item does not.
 	#[test]
@@ -955,5 +984,81 @@ mod tests {
 		assert_eq!((differs[0].first.0.as_str(), differs[0].second.0.as_str()), ("x", "y"));
 		let (_, differs) = super::merge(vec![api("x", true), api("y", true)]);
 		assert!(differs.is_empty());
+	}
+
+	/// A packed struct's field may read another way on each target, by its layout there: the
+	/// merge keeps one getter for it, reading the way both accept, and no difference.
+	#[test]
+	fn merges_a_fields_getter_across_read_modes() {
+		let getter = |read: Read| Function {
+			path: ["f", "Regs", "n"].map(String::from).to_vec(),
+			shown: ["f", "Regs", "n"].map(String::from).to_vec(),
+			span: DUMMY_SP,
+			on: On::ALL,
+			docs: String::new(),
+			deprecated: None,
+			receiver: Some(crate::ir::Receiver::Ref),
+			params: Vec::new(),
+			units: Vec::new(),
+			ok: Type::Int(crate::ir::Int::Usize),
+			err: None,
+			future: false,
+			eager: false,
+			holds: false,
+			task: None,
+			send: true,
+			collect: false,
+			lends: false,
+			lends_mut: false,
+			derefs: 0,
+			leaf: true,
+			ties: false,
+			access: Access::Field {
+				set: false,
+				through: false,
+				read,
+			},
+			instance: None,
+			home: Home::default(),
+		};
+		let api = |target: &str, read: Read| {
+			let path = ["f", "Regs"].map(String::from).to_vec();
+			let record = crate::ir::Record {
+				path: path.clone(),
+				home: Home::default(),
+				shown: path,
+				args: Vec::new(),
+				span: DUMMY_SP,
+				on: On::ALL,
+				docs: String::new(),
+				deprecated: None,
+				fields: Vec::new(),
+				tuple: false,
+				methods: vec![getter(read)],
+				traits: Traits::default(),
+				opaque: None,
+				sizes: BTreeMap::new(),
+			};
+			Api {
+				records: vec![record],
+				enums: Vec::new(),
+				objects: Vec::new(),
+				callbacks: Vec::new(),
+				functions: Vec::new(),
+				constants: Vec::new(),
+				crates: vec!["f".into()],
+				reached: Vec::new(),
+				targets: vec![target.into()],
+				links: Default::default(),
+			}
+		};
+		for (first, second) in [(Read::Borrow, Read::Copy), (Read::Copy, Read::Borrow)] {
+			let (merged, differs) = super::merge(vec![api("x", first), api("y", second)]);
+			assert!(differs.is_empty());
+			let methods = &merged.records[0].methods;
+			assert_eq!(methods.len(), 1, "one getter for the field");
+			assert_eq!(methods[0].on.0, 3);
+			assert!(matches!(methods[0].access, Access::Field { read: Read::Copy, .. }));
+		}
 	}
 }
