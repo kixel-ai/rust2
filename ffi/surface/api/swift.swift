@@ -270,6 +270,7 @@ public struct Ticket: Sendable, CustomDebugStringConvertible, Equatable {
 	@inlinable public static func == (a: Ticket, b: Ticket) -> Swift.Bool
 	@inlinable public static func new(_ number: Swift.UInt32) -> Ticket
 	@inlinable public func number() -> Swift.UInt32
+	@inlinable public func wait()
 	@inlinable public static func clones() -> Swift.UInt32
 }
 public struct Seat: Sendable {
@@ -1501,6 +1502,8 @@ public struct ClashStore: ~Copyable, @unchecked Sendable {
 	@inlinable public func close() -> Swift.UInt32
 	@inlinable public func wait()
 	@inlinable public func finalize()
+	@inlinable public func take(_ ticket: Ticket) -> Swift.UInt32
+	@inlinable public static func take(_ ticket: Ticket) -> Swift.UInt32
 	@inlinable public static func count() -> Swift.UInt32
 	@inlinable public func count() -> Swift.UInt32
 	@inlinable public static func `open`() -> ClashStore
@@ -1510,6 +1513,7 @@ public struct ClashReader: ~Copyable, @unchecked Sendable {
 	@inlinable public static func new(_ bytes: Bytes) -> ClashReader
 	@inlinable public mutating func readByte() throws -> Swift.UInt8
 	@inlinable public mutating func unreadByte() throws
+	@inlinable public func wait(_ ms: Swift.UInt64) throws
 }
 public struct TlsSession: ~Copyable, @unchecked Sendable {
 	@inlinable public func alpn() -> Swift.String

@@ -268,6 +268,7 @@ final class Ticket {
 	@override int get hashCode;
 	factory Ticket(int number);
 	int number();
+	void wait();
 	static int clones();
 }
 final class Seat {
@@ -1689,6 +1690,8 @@ final class ClashStore extends _Object {
 	int close_();
 	void wait();
 	void finalize();
+	int take(Ticket ticket);
+	static int take_(Ticket ticket);
 	static int count_();
 	int count();
 	factory ClashStore.open();
@@ -1698,6 +1701,7 @@ final class ClashReader extends _Object {
 	factory ClashReader(typed.Uint8List bytes);
 	int readByte();
 	void unreadByte();
+	void wait(U64 ms);
 }
 final class TlsSession extends _Object {
 	String alpn();

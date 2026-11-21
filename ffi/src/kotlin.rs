@@ -31,7 +31,7 @@ use rustc_data_structures::stable_hash::StableHasher;
 use crate::abi::{self, Abi, Ty, pascal};
 use crate::doc;
 use crate::ir::{
-	Access, Family, Field, Function, Int, Jni, Literal, Mutability, On, Opaque, Order, Param, Receiver, Type,
+	Access, Api, Family, Field, Function, Int, Jni, Literal, Mutability, On, Opaque, Order, Param, Receiver, Type,
 };
 
 const RUNTIME: &str = include_str!("../runtime/rt.kt");
@@ -2786,7 +2786,7 @@ impl<'a> Gen<'a> {
 			};
 			let (name, declared) = self.spelled(method, (owner, owner_ty), place);
 			let kind = declared.split_once(' ').map_or("fun", |(kind, _)| kind);
-			// The parameter types `function_on` declares, which `object_method` reads.
+			// The JVM types of the parameters `function_on` declares, which `object_method` reads.
 			let (back, export) = match (owner.zip(owner_ty)).and_then(|(o, ty)| abi.handed_back(method, o, ty)) {
 				Some((back, export, _)) => (Some(back), export),
 				None => (None, abi.export(method, owner)),
@@ -2796,7 +2796,11 @@ impl<'a> Gen<'a> {
 				Some(_) => vec!["kotlin.coroutines.Continuation".to_string()],
 				None => (function.params.iter())
 					.filter(|p| p.ty != Type::Jni(Jni::Env))
-					.map(|p| self.kt_param(&p.ty))
+					// What the JVM passes, which `Object`'s methods are matched by.
+					.map(|p| match lowered(abi.api, &p.ty) {
+						Some(primitive) => primitive.to_string(),
+						None => self.kt_param(&p.ty),
+					})
 					.collect(),
 			};
 			rust.push(name);
@@ -3700,16 +3704,29 @@ impl<'a> Gen<'a> {
 		if place == Place::Static && !top {
 			annotations.push_str("@kotlin.jvm.JvmStatic\n");
 		}
-		// A JVM name [`Gen::jvm_named`] moved leaves the Kotlin name alone.
+		// Kotlin mangles the JVM name of a function taking an inline class and of a member
+		// returning one, as `count-pVg5ArA`, which Java cannot name, so it is pinned. A value
+		// class's member compiles to such a static, which `@JvmName` cannot rename, so is not
+		// Java's to call.
+		let mangled = function.params.iter().any(|p| inline(abi.api, &p.ty))
+			|| (!top && inline(abi.api, &strip_refs(&function.ok)));
+		let value_member = place == Place::Member && owner_ty.is_some_and(|ty| inline(abi.api, ty));
+		// Nor is one taking an opaque value, which Java would pass as an unchecked `long`, so
+		// it is pinned apart from the others of its class to a name no Java identifier is.
+		let takes_opaque = function.params.iter().any(|p| opaque_value(abi.api, &p.ty));
 		let target = if getter { "get:" } else { "" };
-		let declared = jvm_name(&format!("{kind} {member}"));
-		if jvm != declared {
-			let _ = writeln!(annotations, "@{target}kotlin.jvm.JvmName(\"{jvm}\")");
+		if takes_opaque && !value_member {
+			let _ = writeln!(annotations, "@{target}kotlin.jvm.JvmName(\"{jvm}-opaque\")");
+		} else if !value_member {
+			// A JVM name [`Gen::jvm_named`] moved leaves the Kotlin name alone.
+			if mangled || jvm != jvm_name(&format!("{kind} {member}")) {
+				let _ = writeln!(annotations, "@{target}kotlin.jvm.JvmName(\"{jvm}\")");
+			}
+			// Java calls it by its JVM name, which the lock keeps beside the Kotlin one, so a
+			// member added beside it that moves it is a break even where it had none.
+			let key = format!("{} / jvm", crate::lock::function_key(function));
+			self.locked.insert(key, jvm.to_string());
 		}
-		// Java calls it by its JVM name, which the lock keeps beside the Kotlin one, so a
-		// member added beside it that moves it is a break even where it had none.
-		let key = format!("{} / jvm", crate::lock::function_key(function));
-		self.locked.insert(key, jvm.to_string());
 		if let Some(exception) = &exception {
 			let _ = writeln!(annotations, "@{target}kotlin.jvm.Throws({exception}::class)");
 		}
@@ -4190,6 +4207,48 @@ fn holders(opaque: &Opaque) -> Vec<String> {
 /// compares them.
 fn word(opaque: &Opaque) -> bool {
 	opaque.compared()
+}
+
+/// Whether Kotlin's type of a parameter or return of type `ty` is an inline class, nullable
+/// or not, which the JVM sees as its underlying type or a box.
+fn inline(api: &Api, ty: &Type) -> bool {
+	match ty {
+		Type::Option(inner) | Type::Box(inner) => inline(api, inner),
+		Type::Ref(_, inner) if !ty.written() => inline(api, inner),
+		Type::List(..) => ty.block().is_some_and(|elem| block(elem).kt.starts_with('U')),
+		_ => lowered(api, ty).is_some(),
+	}
+}
+
+/// The Kotlin type of the primitive the JVM passes for a parameter of type `ty`, where Kotlin's
+/// is an inline class over one, such as `kotlin.Long` for a `kotlin.ULong`.
+fn lowered(api: &Api, ty: &Type) -> Option<&'static str> {
+	match ty {
+		Type::Int(int) | Type::NonZero(int) if kt_int(*int).starts_with('U') => Some(match int {
+			Int::U8 => "kotlin.Byte",
+			Int::U16 => "kotlin.Short",
+			Int::U32 => "kotlin.Int",
+			_ => "kotlin.Long",
+		}),
+		Type::IpAddr(Family::V4) => Some("kotlin.Int"),
+		Type::SocketAddr(Family::V4) => Some("kotlin.Long"),
+		Type::Record(i) if api.records[*i].opaque.is_some_and(|o| word(&o)) => Some("kotlin.Long"),
+		Type::Box(inner) => lowered(api, inner),
+		// One Rust writes back is a `Mut`.
+		Type::Ref(_, inner) if !ty.written() => lowered(api, inner),
+		_ => None,
+	}
+}
+
+/// Whether a parameter of type `ty` takes an opaque value Kotlin holds in a value class,
+/// nullable or not.
+fn opaque_value(api: &Api, ty: &Type) -> bool {
+	match ty {
+		Type::Record(i) => api.records[*i].opaque.is_some_and(|o| word(&o)),
+		Type::Option(inner) | Type::Box(inner) => opaque_value(api, inner),
+		Type::Ref(_, inner) if !ty.written() => opaque_value(api, inner),
+		_ => false,
+	}
 }
 
 /// Whether `opaque` crosses JNI as one `long` wherever it crosses alone.

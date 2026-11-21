@@ -718,6 +718,8 @@ namespace api {
 		RUST2_FFI_CALLABLE ::std::uint32_t close() const;
 		RUST2_FFI_CALLABLE void wait() const;
 		RUST2_FFI_CALLABLE void finalize() const;
+		RUST2_FFI_CALLABLE ::std::uint32_t take(const ::api::Ticket &ticket) const;
+		static ::std::uint32_t take_(const ::api::Ticket &ticket);
 		static ::std::uint32_t count_();
 		RUST2_FFI_CALLABLE ::std::uint32_t count() const;
 		static ::api::clash_Store open_();
@@ -729,6 +731,7 @@ namespace api {
 		static ::api::clash_Reader new_(::api::input bytes);
 		RUST2_FFI_CALLABLE ::api::result<::std::uint8_t, ::api::clash_Malformed> read_byte();
 		RUST2_FFI_CALLABLE ::api::result<void, ::api::clash_Malformed> unread_byte();
+		RUST2_FFI_CALLABLE void wait(::std::uint64_t ms) const;
 	};
 	class RUST2_FFI_CONSUMABLE Spawned {
 		RUST2_FFI_UNCONSUMED Spawned(Spawned &&other RUST2_FFI_MOVED_FROM) noexcept = default;
@@ -950,6 +953,7 @@ namespace api {
 		::api::buf debug() const;
 		static ::api::Ticket new_(::std::uint32_t number);
 		::std::uint32_t number() const;
+		void wait() const;
 		static ::std::uint32_t clones();
 	};
 	struct Seat {

@@ -17,7 +17,7 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-#define API_CONTRACT ((uint64_t)0xad26ecc1f5ae34e2ULL)
+#define API_CONTRACT ((uint64_t)0x43447afc7b8f8462ULL)
 uint64_t api_contract(void);
 uint32_t api_target(void);
 typedef int32_t api_status;
@@ -1318,6 +1318,7 @@ bool api_Ticket_eq(const api_Ticket *a, const api_Ticket *b);
 API_MUST_USE api_buf api_Ticket_debug(const api_Ticket *self);
 api_Ticket api_Ticket_new(uint32_t number);
 uint32_t api_Ticket_number(const api_Ticket *self);
+void api_Ticket_wait(const api_Ticket *self);
 uint32_t api_Ticket_clones(void);
 void api_Seat_free(api_Seat *self);
 bool api_Seat_eq(const api_Seat *a, const api_Seat *b, api_status *status);
@@ -2248,6 +2249,8 @@ uint32_t api_clash_Store_free_(const api_clash_Store *self);
 uint32_t api_clash_Store_close(const api_clash_Store *self);
 void api_clash_Store_wait(const api_clash_Store *self);
 void api_clash_Store_finalize(const api_clash_Store *self);
+uint32_t api_clash_Store_take(const api_clash_Store *self, api_Ticket ticket);
+uint32_t api_clash_Store_take_(api_Ticket ticket);
 uint32_t api_clash_Store_count_(void);
 uint32_t api_clash_Store_count(const api_clash_Store *self);
 API_MUST_USE api_clash_Store *api_clash_Store_open_(void);
@@ -2257,6 +2260,7 @@ void api_clash_Reader_drop(api_clash_Reader *self, api_status *status);
 API_MUST_USE api_clash_Reader *api_clash_Reader_new(api_buf bytes);
 API_MUST_USE bool api_clash_Reader_read_byte(api_clash_Reader *self, uint8_t *out, api_clash_Malformed *err, api_status *status);
 API_MUST_USE bool api_clash_Reader_unread_byte(api_clash_Reader *self, api_clash_Malformed *err, api_status *status);
+void api_clash_Reader_wait(const api_clash_Reader *self, uint64_t ms, api_status *status);
 void api_tls_Session_free(api_tls_Session *self);
 API_MUST_USE api_buf api_tls_Session_alpn(const api_tls_Session *self);
 api_tls_policy_Lifetime api_tls_Session_lifetime(const api_tls_Session *self);

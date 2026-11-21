@@ -362,6 +362,7 @@ export type ClashReader = rt.Handle<"ClashReader">;
 export declare function new$(bytes: Uint8Array | rt.Bytes): ClashReader;
 export declare function readByte(self: ClashReader): rt.Result<number, ClashMalformed>;
 export declare function unreadByte(self: ClashReader): rt.Result<undefined, ClashMalformed>;
+export declare function wait(self: ClashReader, ms: rt.u64): void;
 export { new$ as new };
 
 // ClashSeed.ts
@@ -392,12 +393,15 @@ export declare function toString_(self: ClashSpan): string;
 
 // ClashStore.ts
 import * as rt from "./rt.ts";
+import type { Ticket } from "./Ticket.ts";
 export type ClashStore = rt.Handle<"ClashStore">;
 export declare function new$(count: number): ClashStore;
 export declare function free(self: ClashStore): number;
 export declare function close(self: ClashStore): number;
 export declare function wait(self: ClashStore): void;
 export declare function finalize(self: ClashStore): void;
+export declare function take(self: ClashStore, ticket: Ticket): number;
+export declare function take_(ticket: Ticket): number;
 export declare function count_(): number;
 export declare function count(self: ClashStore): number;
 export declare function open_(): ClashStore;
@@ -1694,6 +1698,7 @@ export declare function debug(self: Ticket): string;
 export declare function eq(a: Ticket, b: Ticket): boolean;
 export declare function new$(number: number): Ticket;
 export declare function number(self: Ticket): number;
+export declare function wait(self: Ticket): void;
 export declare function clones(): number;
 export { new$ as new };
 

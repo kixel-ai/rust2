@@ -17,6 +17,7 @@ mod step;
 #[path = "fixtures/transcript/mod.rs"]
 mod transcript;
 
+use std::collections::BTreeSet;
 use std::env::consts::EXE_SUFFIX;
 use std::ffi::OsString;
 use std::path::{Path, PathBuf};
@@ -1124,6 +1125,7 @@ fn api_kotlin() {
 		"java\n",
 		"plain Java calls the binding"
 	);
+	jvm_names_exist(api, &classes);
 
 	let kotlin_returns = run(&mut java(&[&classes], &["returns"]));
 	assert_eq!(
@@ -1476,6 +1478,60 @@ fn kotlin_classes(api: &Api) -> PathBuf {
 	}
 	.run(&mut kotlinc(&api.out, &script, &classes));
 	classes
+}
+
+/// Each JVM name the api fixture's lock records is a public method of its class, as javap
+/// reads `classes`, the compiled Kotlin: the class of the type the function is a member of,
+/// or the file's for one at the top level.
+fn jvm_names_exist(api: &Api, classes: &Path) {
+	let json: serde_json::Value =
+		serde_json::from_slice(&std::fs::read(api.out.join("api.json")).unwrap()).expect("the export's API");
+	let names = json["names"]["Kotlin"].as_object().expect("Kotlin's names");
+	let jvm: Vec<(String, &str)> = (names.iter())
+		.filter_map(|(key, jvm)| {
+			let (_, path) = key.strip_suffix(" / jvm")?.split_once(' ')?;
+			// The last `::` outside a generic method's arguments, as `api::Area::scaled<api::Point>`'s.
+			let mut depth = 0;
+			let at = (path.char_indices()).rfind(|&(k, c)| {
+				depth += match c {
+					'>' => 1,
+					'<' => -1,
+					_ => 0,
+				};
+				depth == 0 && path[k..].starts_with("::")
+			})?;
+			let owner = &path[..at.0];
+			let class = match names.get(&format!("type {owner}")) {
+				Some(class) => format!("api.{}", class.as_str().unwrap()),
+				None => "api.ApiKt".to_string(),
+			};
+			Some((class, jvm.as_str().unwrap()))
+		})
+		.collect();
+	assert!(jvm.len() > 100, "the lock records JVM names: {}", jvm.len());
+	let owners: BTreeSet<&str> = jvm.iter().map(|(class, _)| class.as_str()).collect();
+	let javap = run(Command::new("javap")
+		.arg("-public")
+		.arg("-cp")
+		.arg(classes)
+		.args(&owners));
+	let mut methods: BTreeSet<(String, String)> = BTreeSet::new();
+	let mut class = String::new();
+	for line in String::from_utf8_lossy(&javap.stdout).lines() {
+		let words: Vec<&str> = line.split(['(', ' ']).collect();
+		if let Some(at) = words.iter().position(|w| ["class", "interface"].contains(w)) {
+			class = words[at + 1].split('<').next().unwrap().to_string();
+		} else if let Some((head, _)) = line.split_once('(') {
+			methods.insert((class.clone(), head.rsplit(' ').next().unwrap().to_string()));
+		}
+	}
+	let missing: Vec<&(String, &str)> = (jvm.iter())
+		.filter(|(class, name)| !methods.contains(&(class.clone(), name.to_string())))
+		.collect();
+	assert!(
+		missing.is_empty(),
+		"JVM names the lock records that no class has: {missing:?}"
+	);
 }
 
 /// kotlinc compiling the generated Kotlin with `tests/api.kt`, the transcript `script`,
@@ -3904,7 +3960,7 @@ fn lacks() {
 	let output = export("lacks", &out, &[WEB], &[]);
 	assert!(!output.status.success(), "exporting lacks succeeded");
 	// Each `module.name` a refusal names.
-	let named: std::collections::BTreeSet<String> = (errors(&output).iter())
+	let named: BTreeSet<String> = (errors(&output).iter())
 		.flat_map(|error| {
 			error
 				.split('`')
@@ -3939,7 +3995,7 @@ fn lacks() {
 	let binding: String = (std::fs::read_dir(out.join("web")).unwrap())
 		.map(|entry| std::fs::read_to_string(entry.unwrap().path()).unwrap())
 		.collect();
-	let mut lacking = std::collections::BTreeSet::new();
+	let mut lacking = BTreeSet::new();
 	for payload in wasmparser::Parser::new(0).parse_all(&wasm) {
 		if let wasmparser::Payload::ImportSection(section) = payload.unwrap() {
 			for import in section.into_imports() {
