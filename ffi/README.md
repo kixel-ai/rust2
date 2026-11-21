@@ -247,9 +247,20 @@ directory above its `OUT_DIR`, whose per-package overrides are then the check's,
 the glue carries the workspace's profiles. `test` and `debug` (which newer cargos define,
 inheriting `dev`) share `dev`'s directory, and `bench` `release`'s, so where the
 manifest sets anything of `test`'s, `debug`'s, or `bench`'s own beyond the `inherits`
-cargo gives it, no build in that directory is proven. The crate's `PROVEN` also needs the check's panic
+cargo gives it, no build in that directory is proven. It also compares `DEBUG`, which the
+crate's debug info sets, and the target's `cfg`s cargo gives it as `CARGO_CFG_*`, less the
+crate's features and debug assertions: the check records them as cargo's `rustc` prints
+them under the check's `RUSTFLAGS`, and again acting as a stable release, which lists no
+unstable `cfg` or target feature, so a stable build of a nightly's export is proven too.
+A `-C target-cpu`, `-C target-feature`, or `--cfg` the check did not have makes the build
+unproven. So does any `CARGO_PROFILE_<NAME>_OPT_LEVEL`, `_DEBUG`, `_DEBUG_ASSERTIONS`, or
+`_BUILD_OVERRIDE_DEBUG_ASSERTIONS` of the profile or one it inherits from, set apart from the
+check's environment, which would change another crate's build, or of another profile that
+shares its directory (`bench` beside `release`, `test` and `debug` beside `dev`) set at all. The crate's `PROVEN` also needs the check's panic
 strategy, which a build script cannot see, and its debug assertions, which `RUSTFLAGS`
-may set apart from the profile. A build
+may set apart from the profile. A package override or `build-override` that cargo's
+config files or a `--config` set, which a build script cannot see, is the one setting the
+guard misses: build with the export's config. A build
 under another profile may run code the proof never saw, such as a body under
 `cfg(debug_assertions)`, so each binding makes every leaf as any other call instead:
 Python releases the GIL, Dart serves the isolate, and Kotlin calls a plain native method

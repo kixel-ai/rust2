@@ -162,6 +162,13 @@ pub(crate) struct Facade<'a> {
 	pub(crate) profile: &'a str,
 	/// The directory cargo builds the check's profile in, unless another's could share it.
 	pub(crate) profile_dir: Option<&'a str>,
+	/// The target's `cfg`s as cargo gives a build script them, by [`crate::ir::Profile::cfgs`].
+	pub(crate) cfgs: &'a [std::collections::BTreeMap<String, String>],
+	/// Cargo's `DEBUG` for the facade, by [`crate::ir::Profile::debug`].
+	pub(crate) debug: bool,
+	/// The `CARGO_PROFILE_*` variables that may override the profile, by
+	/// [`crate::ir::Profile::vars`].
+	pub(crate) vars: &'a std::collections::BTreeMap<String, Option<String>>,
 }
 
 /// What collection found in the facade, by paths from its root.
@@ -481,7 +488,7 @@ pub(crate) fn collect<'tcx>(tcx: TyCtxt<'tcx>, facade: &Facade<'_>) -> Collected
 				reached: Vec::new(),
 				targets: vec![target(tcx)],
 				links: [(target(tcx), links(tcx))].into(),
-				profiles: [(target(tcx), profile(tcx, facade.profile, facade.profile_dir))].into(),
+				profiles: [(target(tcx), profile(tcx, facade))].into(),
 			},
 		};
 		c.walk();
@@ -7099,9 +7106,9 @@ fn target(tcx: TyCtxt<'_>) -> String {
 	tcx.sess.opts.target_triple.tuple().to_string()
 }
 
-/// The profile the facade compiles with, which its leaves are proven under, beside the
-/// `PROFILE` cargo gave its build scripts.
-fn profile(tcx: TyCtxt<'_>, root: &str, dir: Option<&str>) -> crate::ir::Profile {
+/// The profile the facade compiles with, which its leaves are proven under, beside what
+/// cargo gave its build scripts.
+fn profile(tcx: TyCtxt<'_>, facade: &Facade<'_>) -> crate::ir::Profile {
 	use rustc_session::config::OptLevel;
 	let sess = tcx.sess;
 	let opt_level = match sess.opts.optimize {
@@ -7113,11 +7120,14 @@ fn profile(tcx: TyCtxt<'_>, root: &str, dir: Option<&str>) -> crate::ir::Profile
 		OptLevel::SizeMin => "z",
 	};
 	crate::ir::Profile {
-		root: root.to_string(),
-		dir: dir.map(str::to_string),
+		root: facade.profile.to_string(),
+		dir: facade.profile_dir.map(str::to_string),
 		opt_level: opt_level.to_string(),
 		debug_assertions: sess.opts.debug_assertions,
 		panic: sess.panic_strategy().desc().to_string(),
+		debug: facade.debug,
+		cfgs: facade.cfgs.to_vec(),
+		vars: facade.vars.clone(),
 	}
 }
 

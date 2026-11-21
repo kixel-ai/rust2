@@ -5558,15 +5558,17 @@ fn leaf_profile() {
 	};
 	let profiled =
 		|leaves: &str, root: &str, dir: Option<&str>| (leaves.to_string(), root.to_string(), dir.map(str::to_string));
-	// Its build of the Python extension under the profile `dir` names, which says whether
-	// its build script found the check's profile, and the Python calling a method with a
-	// hook set, which times out if the call kept the GIL.
-	let python = |check: &str, dir: &str, rustflags: &str, name: &str| {
+	// Its build of the Python extension under the profile `dir` names (`test` in `debug`), with `RUSTFLAGS`,
+	// cargo's `--config`s, and the environment `with` adds, which says whether its build
+	// script found the check's profile, and the Python calling a method with a hook set,
+	// which times out if the call kept the GIL.
+	let python = |check: &str, dir: &str, rustflags: &str, with: (&[&str], &[(&str, &str)]), name: &str| {
 		// Apart for each check, as cargo keeps the library of whichever unit it built last.
 		let target = package.join("glue").join(check);
-		let profile = match dir {
-			"debug" => "dev",
-			dir => dir,
+		let (profile, dir) = match dir {
+			"debug" => ("dev", "debug"),
+			"test" => ("test", "debug"),
+			dir => (dir, dir),
 		};
 		let built = run(cargo()
 			.args(["build", "--locked", "--message-format=json", "--manifest-path"])
@@ -5574,6 +5576,8 @@ fn leaf_profile() {
 			.arg("--target-dir")
 			.arg(&target)
 			.args(["--profile", profile, "--features", "python"])
+			.args(with.0.iter().flat_map(|config| ["--config", config]))
+			.envs(with.1.iter().copied())
 			.env("RUSTFLAGS", format!("-D warnings {rustflags}")));
 		let lib = shared("leaf_profile");
 		step::copy(&target.join(dir).join(&lib), &out.join("python").join(&lib));
@@ -5601,7 +5605,7 @@ fn leaf_profile() {
 	// second one for cargo to refuse.
 	assert_eq!(exported(&["-qr"]), profiled("debugged", "release", None));
 	assert!(
-		!python("release", "debug", "", "debugged"),
+		!python("release", "debug", "", (&[], &[]), "debugged"),
 		"a dev build ran the release check's leaves"
 	);
 	assert_eq!(
@@ -5609,8 +5613,57 @@ fn leaf_profile() {
 		profiled("released", "debug", Some("debug"))
 	);
 	assert!(
-		python("dev", "debug", "", "debugged"),
+		python("dev", "debug", "", (&[], &[]), "debugged"),
 		"a dev build did not run the dev check's leaves"
+	);
+	// A build whose target cfgs, `DEBUG`, or profile variables are not the check's makes no
+	// leaf call, though it builds in the same directory: its build script runs again.
+	let api: serde_json::Value = serde_json::from_str(&std::fs::read_to_string(out.join("api.json")).unwrap()).unwrap();
+	let debug = api["api"]["profiles"][host()]["debug"].as_bool().unwrap();
+	let undebugged = format!("profile.dev.debug={}", !debug);
+	for (rustflags, with) in [
+		("--cfg rust2_extra --check-cfg cfg(rust2_extra)", (&[][..], &[][..])),
+		("", (&[undebugged.as_str()][..], &[][..])),
+		(
+			"",
+			(
+				&[][..],
+				&[("CARGO_PROFILE_DEV_BUILD_OVERRIDE_DEBUG_ASSERTIONS", "true")][..],
+			),
+		),
+	] {
+		assert!(
+			!python("dev", "debug", rustflags, with, "debugged"),
+			"a build with {rustflags:?} and {with:?} ran the check's leaves"
+		);
+	}
+	// `test` builds in `dev`'s directory, where the check never saw its variables apply.
+	assert!(
+		!python(
+			"dev",
+			"test",
+			"",
+			(&[], &[("CARGO_PROFILE_TEST_BUILD_OVERRIDE_DEBUG_ASSERTIONS", "true")]),
+			"debugged"
+		),
+		"a test build with its own build-override debug assertions ran the dev check's leaves"
+	);
+	assert!(
+		python("dev", "debug", "", (&[], &[]), "debugged"),
+		"a dev build did not run the dev check's leaves again"
+	);
+	// The nightly the export ran lists `cfg`s a stable rustc keeps back, so the check also
+	// records them as the nightly lists them acting as a stable release.
+	let stable = stable_rustc();
+	assert!(
+		python(
+			"dev-stable",
+			"debug",
+			"",
+			(&[], &[("RUSTC", stable.to_str().unwrap())]),
+			"debugged"
+		),
+		"a stable build did not run the dev check's leaves"
 	);
 	// Cargo defines `debug` itself, inheriting `dev`'s settings and directory.
 	assert_eq!(
@@ -5619,17 +5672,23 @@ fn leaf_profile() {
 	);
 	// Debug assertions `RUSTFLAGS` turns off, which the build script may not see, still
 	// make no leaf call: `released` runs the hook, and would time out keeping the GIL.
-	python("dev-unasserted", "debug", "-C debug-assertions=off", "released");
+	python(
+		"dev-unasserted",
+		"debug",
+		"-C debug-assertions=off",
+		(&[], &[]),
+		"released",
+	);
 	assert_eq!(
 		exported(&["--profile", "ship"]),
 		profiled("debugged", "release", Some("ship"))
 	);
 	assert!(
-		python("ship", "ship", "", "released"),
+		python("ship", "ship", "", (&[], &[]), "released"),
 		"a build under the check's profile did not run its leaves"
 	);
 	assert!(
-		!python("ship", "release", "", "released"),
+		!python("ship", "release", "", (&[], &[]), "released"),
 		"a build under another profile of its `PROFILE` ran the check's leaves"
 	);
 	// The glue's manifest carries no profile cargo's config defines.

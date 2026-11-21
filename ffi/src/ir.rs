@@ -53,6 +53,22 @@ pub(crate) struct Profile {
 	pub(crate) debug_assertions: bool,
 	/// `cfg(panic)`'s value.
 	pub(crate) panic: String,
+	/// Cargo's `DEBUG`, which a build script may read: whether cargo passed the facade debug
+	/// info, as it does under `cargo check` too, apart from any `RUSTFLAGS` add.
+	#[serde(default)]
+	pub(crate) debug: bool,
+	/// The target's `cfg`s as cargo gives a build script them, `CARGO_CFG_<NAME>` with its
+	/// values joined, by `<NAME>`: all but the crate's own features and debug assertions,
+	/// which the profile picks. The check's `RUSTFLAGS`, such as a `-C target-feature`,
+	/// change them. Each as cargo's rustc lists them, and as it does acting as a stable
+	/// release, which lists no unstable `cfg` or target feature, where that differs.
+	#[serde(default)]
+	pub(crate) cfgs: Vec<std::collections::BTreeMap<String, String>>,
+	/// Each `CARGO_PROFILE_*` variable that may override the profile, with its value in the
+	/// check's environment. A build script sees each, but not cargo's config, whose package
+	/// overrides no variable can set.
+	#[serde(default)]
+	pub(crate) vars: std::collections::BTreeMap<String, Option<String>>,
 }
 
 /// A crate the glue depends on beside the facade, as the facade resolves it.
