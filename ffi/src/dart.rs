@@ -134,6 +134,22 @@ pub(crate) fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<O
 			.collect();
 		calls(&code, "_on(") > 0
 	};
+	// A library with no leaf never asks whether it has proven them.
+	let leaves = {
+		let code: String = [&g.types, &g.top]
+			.into_iter()
+			.chain(g.helpers.values())
+			.chain(g.structs.values())
+			.map(String::as_str)
+			.collect();
+		code.contains("if (_proven) {")
+	};
+	let proven = match leaves {
+		true => {
+			"/// Whether the library runs the bodies its leaves were proven against, which its leaf\n/// calls need: else each is served as any other call.\nfinal bool _proven = _dartProven();\n\n"
+		}
+		false => "",
+	};
 	let on_fn = match checks {
 		true => format!(
 			"/// The index of the library's target among those this file serves.\n\
@@ -157,6 +173,7 @@ pub(crate) fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<O
 		const _lend = {LEND};\n\n\
 		bool _contract() => {contract_fn}() == 0x{contract:016x};\n\n\
 		{on_fn}\
+		{proven}\
 		/// Throws unless [status], which the call [what] wrote, is zero: a run-time check failed.\n\
 		// ignore: unused_element\n\
 		void _status(int status, String what) {{\n\tif (status == 0) return;\n\t_n.status.value = 0;\n\tfinal m = _statusMessage(status);\n\tvar n = 0;\n\twhile (m[n] != 0) {{\n\t\tn++;\n\t}}\n\tthrow StateError('$what: ${{const convert.Utf8Decoder().convert(m.asTypedList(n))}}');\n}}\n\n"
@@ -164,6 +181,7 @@ pub(crate) fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<O
 	for (name, params, ret, dart_params, dart_ret) in [
 		("contract", "", "ffi.Uint64", "", "int"),
 		("target", "", "ffi.Uint32", "", "int"),
+		("dart_proven", "", "ffi.Bool", "", "bool"),
 		("buf_free", "_Buf", "ffi.Void", "_Buf p0", "void"),
 		("buf_copy", "_Buf", "_Buf", "_Buf p0", "_Buf"),
 		("buf_clone", "_Buf", "_Buf", "_Buf p0", "_Buf"),
@@ -289,7 +307,7 @@ pub(crate) fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<O
 			"bool",
 		),
 	] {
-		if name == "target" && !checks {
+		if (name == "target" && !checks) || (name == "dart_proven" && !leaves) {
 			continue;
 		}
 		let local = match name {
@@ -306,7 +324,7 @@ pub(crate) fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<O
 		};
 		// What returns a constant runs no other code: a leaf call.
 		let leaf = match name {
-			"contract" | "target" | "status_message" => ", isLeaf: true",
+			"contract" | "target" | "dart_proven" | "status_message" => ", isLeaf: true",
 			_ => "",
 		};
 		let _ = write!(
@@ -358,6 +376,7 @@ pub(crate) fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<O
 		unsafe extern \"C\" {{\n\tfn malloc(len: usize) -> *mut c_void;\n\tfn free(ptr: *mut c_void);\n}}\n\n\
 		#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {space}_alloc(len: usize) -> *mut c_void {{\n\tlet ptr = unsafe {{ malloc(len) }};\n\tif ptr.is_null() {{\n\t\tstd::alloc::handle_alloc_error(std::alloc::Layout::array::<u8>(len).expect(\"a length\"));\n\t}}\n\tptr\n}}\n\n\
 		#[unsafe(no_mangle)]\npub extern \"C\" fn {space}_buf(len: usize) -> rt::Buf {{\n\trt::Buf::vec(vec![0; len])\n}}\n\n\
+		#[unsafe(no_mangle)]\npub extern \"C\" fn {space}_proven() -> bool {{\n\tcrate::PROVEN\n}}\n\n\
 		#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {space}_free(ptr: *mut c_void) {{\n\tunsafe {{ free(ptr) }}\n}}\n\n\
 		#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {space}_nursery(object: *mut c_void, len: usize) -> *mut *mut c_void {{\n\tunsafe {{ runtime::nursery(object, len) }}\n}}\n\n\
 		#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {space}_abort(text: rt::Buf) {{\n\trt::fail(\"dart\", unsafe {{ text.str(\"{space}_abort\") }})\n}}\n\n\
@@ -1836,6 +1855,19 @@ impl<'a> Gen<'a> {
 				format!("final a_ = _Arena();\n\t\ttry {{\n\t\t\t{code}\n\t\t}} finally {{\n\t\t\ta_.end();\n\t\t}}")
 			}
 		};
+		// `code(leaf)`'s call as a leaf call where the library reports `_proven`, else served.
+		let proven = |g: &mut Self, leaf: bool, code: &dyn Fn(&mut Self, bool) -> String| match leaf {
+			true => {
+				let (proven, served) = (code(g, true), code(g, false));
+				let nested = |code: String| code.replace("\n\t\t", "\n\t\t\t");
+				format!(
+					"if (_proven) {{\n\t\t\t{}\n\t\t}} else {{\n\t\t\t{}\n\t\t}}",
+					nested(proven),
+					nested(served)
+				)
+			}
+			false => code(g, false),
+		};
 		let shown = self.abi.api.shown(ty);
 		let member = |g: &mut Self, t: &str, name: &str| crate::lock::trait_member(&mut g.locked, shown, t, name);
 		if t.display {
@@ -1900,26 +1932,28 @@ impl<'a> Gen<'a> {
 			// stalls the isolate group's GC until it returns, so it walks no length the caller
 			// picks.
 			let leaf = self.abi.leaf_trait(ty, false) && t.leaf_sized;
-			let (f, (pa, a), (pb, b)) = match (leaf, object) {
-				// `other` bound to its own type, since Dart keeps a value alive to the end of
-				// its scope only for a variable declared `Finalizable`, which a promoted
-				// `Object` is not: the `_on` check before the native may run a GC.
-				(true, true) => (
-					self.leaf(&sig),
-					(String::new(), "_live".to_string()),
-					(format!("final {name} o_ = other;\n\t\t"), "o_._live".to_string()),
-				),
-				(true, false) => (self.leaf(&sig), this(self, "this"), this(self, "other")),
-				(false, _) => (self.served(&sig), this(self, "this"), this(self, "other")),
-			};
-			let home = if leaf { "" } else { "_n.home, " };
-			let eq = arena(
-				leaf,
-				format!(
-					"{pa}{pb}{}",
-					call(&f, &format!("{home}{a}, {b}"), &what, &|r| r.to_string())
-				),
-			);
+			let eq = proven(self, leaf, &|g, leaf| {
+				let (f, (pa, a), (pb, b)) = match (leaf, object) {
+					// `other` bound to its own type, since Dart keeps a value alive to the end
+					// of its scope only for a variable declared `Finalizable`, which a
+					// promoted `Object` is not: the `_on` check before the native may run a GC.
+					(true, true) => (
+						g.leaf(&sig),
+						(String::new(), "_live".to_string()),
+						(format!("final {name} o_ = other;\n\t\t"), "o_._live".to_string()),
+					),
+					(true, false) => (g.leaf(&sig), this(g, "this"), this(g, "other")),
+					(false, _) => (g.served(&sig), this(g, "this"), this(g, "other")),
+				};
+				let home = if leaf { "" } else { "_n.home, " };
+				arena(
+					leaf,
+					format!(
+						"{pa}{pb}{}",
+						call(&f, &format!("{home}{a}, {b}"), &what, &|r| r.to_string())
+					),
+				)
+			});
 			body.push(format!(
 				"\t/// Rust's `PartialEq`.\n\t@override\n\tbool operator ==(Object other) {{\n\t\tif (other is! {name}) return false;\n\t\t{eq}\n\t}}\n"
 			));
@@ -1936,16 +1970,18 @@ impl<'a> Gen<'a> {
 					ret: Ty::Int(Int::U64),
 				};
 				let leaf = self.abi.leaf_trait(ty, true) && t.leaf_sized;
-				let (f, (pre, arg)) = match (leaf, object) {
-					(true, true) => (self.leaf(&sig), (String::new(), "_live".to_string())),
-					(true, false) => (self.leaf(&sig), this(self, "this")),
-					(false, _) => (self.served(&sig), this(self, "this")),
-				};
-				let home = if leaf { "" } else { "_n.home, " };
-				let hash = arena(
-					leaf,
-					format!("{pre}{}", call(&f, &format!("{home}{arg}"), &what, &|r| r.to_string())),
-				);
+				let hash = proven(self, leaf, &|g, leaf| {
+					let (f, (pre, arg)) = match (leaf, object) {
+						(true, true) => (g.leaf(&sig), (String::new(), "_live".to_string())),
+						(true, false) => (g.leaf(&sig), this(g, "this")),
+						(false, _) => (g.served(&sig), this(g, "this")),
+					};
+					let home = if leaf { "" } else { "_n.home, " };
+					arena(
+						leaf,
+						format!("{pre}{}", call(&f, &format!("{home}{arg}"), &what, &|r| r.to_string())),
+					)
+				});
 				body.push(format!(
 					"\t/// Rust's `Hash`.\n\t@override\n\tint get hashCode {{\n\t\t{hash}\n\t}}\n"
 				));
@@ -2729,7 +2765,8 @@ impl<'a> Gen<'a> {
 		let receiver = function.receiver.filter(|_| owner.is_some());
 		// A leaf call runs on the isolate's thread, with no thread hop, as nothing in it
 		// calls back: see `Abi::leaf`. Nor does Dart run meanwhile, so it holds no handle
-		// against a close, and takes only scalars, so it needs no arena.
+		// against a close, and takes only scalars, so it needs no arena. It is one only where
+		// the library reports `_proven`, else served as any other call.
 		let leaf = abi.leaf(function, owner_ty);
 		let mut pre = Vec::new();
 		let mut args: Vec<String> = Vec::new();
@@ -2988,77 +3025,105 @@ impl<'a> Gen<'a> {
 			body.push(format!("return _call(_Call<{ok_dt}>._({free_fn}, {poll_name}, f_));"));
 		} else {
 			ret_type = ok_dt.clone();
-			let mut inner = pre.clone();
-			for (n, ty) in &outs {
-				inner.push(self.out_decl(n, ty));
-			}
-			let mut call_args = args.clone();
-			call_args.extend(outs.iter().map(|(n, _)| out_var(n)));
-			if status {
-				call_args.push("s_".to_string());
-			}
-			let call_fn = match leaf {
-				true => self.leaf(&export.call),
-				false => self.served(&export.call),
-			};
-			let call = format!("{call_fn}({})", call_args.join(", "));
-			// Rust took what it was given, even for a call its check refuses.
-			let took = match gives {
-				true => "\na_.took();",
-				false => "",
-			};
-			let checked = |inner: &mut Vec<String>| {
+			// The statements after `pre` making the call through `call_fn` with `args`.
+			let made = |g: &mut Self, call_fn: String, args: &[String], writes: Vec<String>| {
+				let mut inner = Vec::new();
+				for (n, ty) in &outs {
+					inner.push(g.out_decl(n, ty));
+				}
+				let mut call_args = args.to_vec();
+				call_args.extend(outs.iter().map(|(n, _)| out_var(n)));
 				if status {
-					inner.push(check.clone());
+					call_args.push("s_".to_string());
+				}
+				let call = format!("{call_fn}({})", call_args.join(", "));
+				// Rust took what it was given, even for a call its check refuses.
+				let took = match gives {
+					true => "\na_.took();",
+					false => "",
+				};
+				let checked = |inner: &mut Vec<String>| {
+					if status {
+						inner.push(check.clone());
+					}
+				};
+				match (&err, &ok) {
+					(Some(err), ok) => {
+						inner.push(format!("final ok_ = {call};{took}"));
+						checked(&mut inner);
+						inner.extend(writes);
+						let ready = match ok {
+							Type::Unit => "return;".to_string(),
+							_ => format!("return {};", g.lift_outs(&function.ok, ok)),
+						};
+						inner.push(format!("if (ok_) {{\n\t{ready}\n}}"));
+						let err_ty = outs.last().map(|(_, t)| t);
+						let lifted = g.lift(err, &g.out_value("err", err_ty));
+						inner.push(format!(
+							"throw {};",
+							thrown_value(thrown.as_ref().expect("an error throws"), &lifted)
+						));
+					}
+					(None, Type::Unit) => {
+						inner.push(format!("{call};{took}"));
+						checked(&mut inner);
+						inner.extend(writes);
+					}
+					// A value C returns beside what Rust wrote back is its return, as with none.
+					(None, ok) if outs.len() > writes.len() => {
+						inner.push(format!("{call};{took}"));
+						checked(&mut inner);
+						inner.extend(writes);
+						inner.push(format!("return {};", g.lift_outs(&function.ok, ok)));
+					}
+					(None, ok) => {
+						inner.push(format!("final r_ = {call};{took}"));
+						checked(&mut inner);
+						inner.extend(writes);
+						inner.push(format!("return {};", g.lift(ok, "r_")));
+					}
+				}
+				inner
+			};
+			// A served call, in the arena `a_`, or holding its one handle alone.
+			let served = |inner: Vec<String>| {
+				let code = inner.join("\n");
+				match held_only(&code) {
+					Some(code) => format!(
+						"final h_ = _hold();\ntry {{\n{}\n}} finally {{\n\t_release();\n}}",
+						indent(&code)
+					),
+					None => format!(
+						"final a_ = _Arena();\ntry {{\n{}\n}} finally {{\n\ta_.end();\n}}",
+						indent(&code)
+					),
 				}
 			};
-			match (&err, &ok) {
-				(Some(err), ok) => {
-					inner.push(format!("final ok_ = {call};{took}"));
-					checked(&mut inner);
-					inner.extend(writes);
-					let ready = match ok {
-						Type::Unit => "return;".to_string(),
-						_ => format!("return {};", self.lift_outs(&function.ok, ok)),
-					};
-					inner.push(format!("if (ok_) {{\n\t{ready}\n}}"));
-					let err_ty = outs.last().map(|(_, t)| t);
-					let lifted = self.lift(err, &self.out_value("err", err_ty));
-					inner.push(format!(
-						"throw {};",
-						thrown_value(thrown.as_ref().expect("an error throws"), &lifted)
+			match leaf {
+				// Served instead, holding its receiver and serving the isolate, where the build
+				// runs other bodies than the proof saw. Its `pre` needs no arena, as a leaf
+				// takes only scalars.
+				true => {
+					let call_fn = self.leaf(&export.call);
+					let proven = made(self, call_fn, &args, writes.clone());
+					let mut unproven = args.clone();
+					unproven[0] = "a_.hold(this)".to_string();
+					unproven.insert(0, "_n.home".to_string());
+					let call_fn = self.served(&export.call);
+					let unproven = made(self, call_fn, &unproven, writes);
+					body.extend(pre.clone());
+					body.push(format!(
+						"if (_proven) {{\n{}\n}} else {{\n{}\n}}",
+						indent(&proven.join("\n")),
+						indent(&served(unproven))
 					));
 				}
-				(None, Type::Unit) => {
-					inner.push(format!("{call};{took}"));
-					checked(&mut inner);
-					inner.extend(writes);
+				false => {
+					let call_fn = self.served(&export.call);
+					let mut inner = pre.clone();
+					inner.extend(made(self, call_fn, &args, writes));
+					body.push(served(inner));
 				}
-				// A value C returns beside what Rust wrote back is its return, as with none.
-				(None, ok) if outs.len() > writes.len() => {
-					inner.push(format!("{call};{took}"));
-					checked(&mut inner);
-					inner.extend(writes);
-					inner.push(format!("return {};", self.lift_outs(&function.ok, ok)));
-				}
-				(None, ok) => {
-					inner.push(format!("final r_ = {call};{took}"));
-					checked(&mut inner);
-					inner.extend(writes);
-					inner.push(format!("return {};", self.lift(ok, "r_")));
-				}
-			}
-			let code = inner.join("\n");
-			match (leaf, held_only(&code)) {
-				(true, _) => body.extend(inner),
-				(false, Some(code)) => body.push(format!(
-					"final h_ = _hold();\ntry {{\n{}\n}} finally {{\n\t_release();\n}}",
-					indent(&code)
-				)),
-				(false, None) => body.push(format!(
-					"final a_ = _Arena();\ntry {{\n{}\n}} finally {{\n\ta_.end();\n}}",
-					indent(&code)
-				)),
 			}
 		}
 

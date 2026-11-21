@@ -168,6 +168,14 @@ pub(crate) fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<O
 			n = g.slots
 		);
 	}
+	if !g.fast.is_empty() {
+		helpers.push_str("\t/** Whether the library runs the bodies its leaves were proven against, which a `@FastNative` call needs: else each is made as any other. */\n\tprivate val proven = __proven()\n\n\t@kotlin.jvm.JvmStatic external fun __proven(): Boolean\n\n");
+		let _ = write!(
+			g.glue,
+			"#[unsafe(no_mangle)]\npub extern \"system\" fn Java_{}__1Native__1_1proven(_: *mut JNIEnv, _: jclass) -> jboolean {{\n\tcrate::PROVEN as jboolean\n}}\n\n",
+			mangle(p)
+		);
+	}
 	if g.fails {
 		let thrown = g.thrown.get("kotlin.String").expect("a closure's error is a String");
 		let _ = write!(
@@ -901,6 +909,12 @@ impl<'a> Gen<'a> {
 
 	/// Kotlin statements writing the Kotlin value `e` of type `ty` into the writer `w`.
 	fn write_value(&mut self, ty: &Type, w: &str, e: &str) -> String {
+		self.encode(ty, w, e, false)
+	}
+
+	/// [`Self::write_value`], marking in `w` each handle whose value the call takes if `moves`,
+	/// for `{w}.abandon()` to close those once it returns, not whatever `e` holds by then.
+	fn encode(&mut self, ty: &Type, w: &str, e: &str, moves: bool) -> String {
 		let abi = self.abi;
 		match ty {
 			Type::Bool => format!("{w}.bool({e})"),
@@ -926,36 +940,40 @@ impl<'a> Gen<'a> {
 			Type::List(..) if let Some(inner) = ty.block() => format!("{w}.block({})", block(inner).signed(e)),
 			Type::List(_, inner) => {
 				let (l, v) = (self.fresh("l"), self.fresh("v"));
-				let item = self.write_value(inner, w, &v);
+				let item = self.encode(inner, w, &v, moves);
 				format!("{e}.let {{ {l} -> {w}.i32({l}.size); for ({v} in {l}) {{ {item} }} }}")
 			}
 			Type::Option(inner) => match inner.base() {
+				Type::Object(_) if moves && moved(abi, inner) => format!("{w}.moved({e}?.handle)"),
 				Type::Object(_) => format!("{w}.handle({e}?.handle)"),
-				base if Abi::is_buf(base) => self.write_value(base, w, e),
+				base if Abi::is_buf(base) => self.encode(base, w, e, moves),
 				// None is a length of -1.
 				Type::List(..) => {
 					let v = self.fresh("v");
-					let some = self.write_value(inner, w, &v);
+					let some = self.encode(inner, w, &v, moves);
 					format!("{e}.let {{ {v} -> if ({v} == null) {w}.i32(-1) else {some} }}")
 				}
 				_ => {
 					let v = self.fresh("v");
-					let some = self.write_value(inner, w, &v);
+					let some = self.encode(inner, w, &v, moves);
 					format!("{e}.let {{ {v} -> if ({v} == null) {w}.bool(false) else {{ {w}.bool(true); {some} }} }}")
 				}
 			},
-			Type::Box(inner) | Type::Ref(_, inner) => self.write_value(inner, w, e),
+			Type::Box(inner) => self.encode(inner, w, e, moves),
+			// Borrowed, nothing in it moves.
+			Type::Ref(_, inner) => self.write_value(inner, w, e),
 			Type::Record(i) => format!("w_{}({w}, {e})", abi.record(*i)),
 			Type::Enum(i) => match abi.api.enums[*i].plain() {
 				true => format!("{w}.i32({e}.value)"),
 				false => format!("w_{}({w}, {e})", abi.enumeration(*i)),
 			},
+			Type::Object(_) if moves && moved(abi, ty) => format!("{w}.moved({e}.handle)"),
 			Type::Object(_) => format!("{w}.handle({e}.handle)"),
 			Type::Range(_) | Type::Bound(_) | Type::Bounds(_) => format!("w_{}({w}, {e})", abi.range(ty)),
 			Type::Tuple(elements) => {
 				let t = self.fresh("t");
 				let writes: Vec<String> = (elements.iter().enumerate())
-					.map(|(k, ty)| self.write_value(ty, w, &format!("{t}.{}", ordinal(k))))
+					.map(|(k, ty)| self.encode(ty, w, &format!("{t}.{}", ordinal(k)), moves))
 					.collect();
 				format!("{e}.let {{ {t} -> {} }}", writes.join("; "))
 			}
@@ -1319,13 +1337,14 @@ impl<'a> Gen<'a> {
 			}
 			Ty::U128 | Ty::Duration | Ty::SocketAddr(_) | Ty::IpAddr(_) | Ty::Struct(_) | Ty::In(_) => {
 				let w = self.fresh("w");
-				// Taken by value, each object in a list moves out, as one passed alone does.
-				if moved(abi, ty) {
-					let close = self.close(ty, e);
-					arg.after.push(close);
+				// Taken by value, each object in a list moves out, as one passed alone does: the
+				// writer closes those it encoded, as a callback may change the list meanwhile.
+				let moves = moved(abi, ty);
+				if moves {
+					arg.after.push(format!("{w}.abandon()"));
 				}
 				arg.open = Some(format!("_Native.__Writer().use {{ {w} ->"));
-				let value = self.write_value(ty, &w, e);
+				let value = self.encode(ty, &w, e, moves);
 				arg.inside.push(value);
 				// Then the arrays and text it names, which Rust copies from once.
 				arg.jni.push("jobjectArray");
@@ -2558,7 +2577,9 @@ impl<'a> Gen<'a> {
 	/// [`Self::native`] for a leaf, as [`Abi::leaf`] proves: `@FastNative`, so ART keeps
 	/// the thread runnable across it rather than switching its state twice, which a call
 	/// that ends in a bounded number of steps and waits on no lock allows. ART binds such a
-	/// method by its name only from Android 12, so `__contract` registers it instead.
+	/// method by its name only from Android 12, so `__contract` registers it instead. Where
+	/// the library runs other bodies than the proof saw, a plain native method bound to the
+	/// same function makes the call.
 	fn leaf_native(&mut self, bare: &str, params: &[(&str, &str)], ret: (&str, &str), body: &str) {
 		self.declare(bare, params, ret, body, true);
 	}
@@ -2569,16 +2590,18 @@ impl<'a> Gen<'a> {
 			.enumerate()
 			.map(|(n, (_, k))| format!("p{n}: {k}"))
 			.collect();
-		// On a target its item is not on, the native method throws before it calls in.
+		// On a target its item is not on, the native method throws before it calls in. The
+		// methods a native declares beside its own name end in `$` and a suffix, which no C
+		// name has, so they never take another's name.
 		let api = self.abi.api;
 		let external = match api.everywhere(self.on) {
 			true => bare.to_string(),
 			false => {
-				let external = format!("{bare}__on");
+				let external = format!("{bare}$on");
 				let args: Vec<String> = (0..params.len()).map(|n| format!("p{n}")).collect();
 				let _ = write!(
 					self.natives,
-					"\t@kotlin.jvm.JvmStatic fun {bare}({}): {} {{\n\t\tcheck({}uL, \"{}_{bare}\")\n\t\treturn {external}({})\n\t}}\n\n",
+					"\t@kotlin.jvm.JvmStatic fun {bare}({}): {} {{\n\t\tcheck({}uL, \"{}_{bare}\")\n\t\treturn `{external}`({})\n\t}}\n\n",
 					kt.join(", "),
 					ret.1,
 					self.on.0 & api.all().0,
@@ -2589,13 +2612,24 @@ impl<'a> Gen<'a> {
 			}
 		};
 		let bare = external.as_str();
+		let plain = match fast {
+			true => {
+				let args: Vec<String> = (0..params.len()).map(|n| format!("p{n}")).collect();
+				let (kt, args) = (kt.join(", "), args.join(", "));
+				let _ = write!(
+					self.natives,
+					"\t@kotlin.jvm.JvmStatic fun {}({kt}): {ret} = if (proven) `{bare}$fast`({args}) else `{bare}$plain`({args})\n\n\t@dalvik.annotation.optimization.FastNative\n\t@kotlin.jvm.JvmStatic external fun `{bare}$fast`({kt}): {ret}\n\n",
+					tick(bare),
+					ret = ret.1
+				);
+				format!("{bare}$plain")
+			}
+			false => bare.to_string(),
+		};
 		let _ = write!(
 			self.natives,
-			"{}\t@kotlin.jvm.JvmStatic external fun {bare}({}): {}\n\n",
-			match fast {
-				true => "\t@dalvik.annotation.optimization.FastNative\n",
-				false => "",
-			},
+			"\t@kotlin.jvm.JvmStatic external fun {}({}): {}\n\n",
+			tick(&plain),
 			kt.join(", "),
 			ret.1
 		);
@@ -2606,22 +2640,17 @@ impl<'a> Gen<'a> {
 			.collect();
 		let mut all = vec!["env: *mut JNIEnv".to_string(), "_: jclass".to_string()];
 		all.extend(rust);
-		let function = format!("Java_{}__1Native_{}", mangle(&self.abi.prefix), mangle(bare));
-		// A registered function needs no symbol of its own.
-		let export = match fast {
-			true => {
-				let jvm: String = params.iter().map(|(j, _)| descriptor(j)).collect();
-				let _ = writeln!(
-					self.fast,
-					"\t\tJNINativeMethod {{ name: c\"{bare}\".as_ptr() as _, signature: c\"({jvm}){}\".as_ptr() as _, fnPtr: {function} as *mut c_void }},",
-					descriptor(ret.0)
-				);
-				""
-			}
-			false => "#[unsafe(no_mangle)]\npub ",
-		};
+		let function = format!("Java_{}__1Native_{}", mangle(&self.abi.prefix), mangle(&plain));
+		if fast {
+			let jvm: String = params.iter().map(|(j, _)| descriptor(j)).collect();
+			let _ = writeln!(
+				self.fast,
+				"\t\tJNINativeMethod {{ name: c\"{bare}$fast\".as_ptr() as _, signature: c\"({jvm}){}\".as_ptr() as _, fnPtr: {function} as *mut c_void }},",
+				descriptor(ret.0)
+			);
+		}
 		let head = format!(
-			"{export}unsafe extern \"system\" fn {function}({}) -> {}",
+			"#[unsafe(no_mangle)]\npub unsafe extern \"system\" fn {function}({}) -> {}",
 			all.join(", "),
 			ret.0
 		);
@@ -3692,33 +3721,6 @@ impl<'a> Gen<'a> {
 		Some(indent_by(&code, indent_level))
 	}
 
-	/// The Kotlin statement closing each handle the value `e` of type `ty` holds, once a
-	/// call moved their values out.
-	fn close(&mut self, ty: &Type, e: &str) -> String {
-		match ty {
-			Type::Option(inner) => {
-				let v = self.fresh("v");
-				let close = self.close(inner, &v);
-				format!("{e}?.let {{ {v} -> {close} }}")
-			}
-			Type::Box(inner) => self.close(inner, e),
-			Type::Tuple(elements) => {
-				let t = self.fresh("t");
-				let closes: Vec<String> = (elements.iter().enumerate())
-					.filter(|(_, ty)| moved(self.abi, ty))
-					.map(|(k, ty)| self.close(ty, &format!("{t}.{}", ordinal(k))))
-					.collect();
-				format!("{e}.let {{ {t} -> {} }}", closes.join("; "))
-			}
-			Type::List(_, inner) => {
-				let v = self.fresh("v");
-				let close = self.close(inner, &v);
-				format!("{e}.forEach {{ {v} -> {close} }}")
-			}
-			_ => format!("{e}.handle.abandon()"),
-		}
-	}
-
 	/// The glue's out values for `outs`, of a function returning `ok` or `err`, the
 	/// pointers the C call takes after its parameters, and the statements writing them,
 	/// `ok` saying whether it returned ok.
@@ -4566,6 +4568,15 @@ fn kw(name: &str) -> String {
 }
 
 /// A native method's name mangled as JNI's symbols spell it.
+/// `name` as Kotlin source names it: in backticks when it holds a `$`, as the methods
+/// [`Gen::declare`] adds beside a native do.
+fn tick(name: &str) -> String {
+	match name.contains('$') {
+		true => format!("`{name}`"),
+		false => name.to_string(),
+	}
+}
+
 fn mangle(name: &str) -> String {
 	let mut out = String::new();
 	for c in name.chars() {

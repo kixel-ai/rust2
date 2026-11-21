@@ -1376,9 +1376,14 @@ impl<'a> Abi<'a> {
 	/// only compute, drops nothing whose drop runs other code, loops nowhere, recurses
 	/// nowhere, asserts nothing, which would run the panic hook on failure, and uses no
 	/// static. Its MIR proves it, which is the code that runs, not how its source looks or
-	/// what an attribute claims: the MIR the export's check compiles, with `debug_assertions`
-	/// on, so code only a build without them compiles, under `cfg(not(debug_assertions))`, is
-	/// code the proof never sees.
+	/// what an attribute claims: the MIR the export's check compiles under the profile it
+	/// checks, release unless its cargo args pick another, with every overflow asserted.
+	/// Each binding makes it a leaf call only where the glue's build script finds that
+	/// profile's `PROFILE`, directory, `OPT_LEVEL`, and debug assertions, and the crate's
+	/// panic strategy and debug assertions are the check's too, as `PROVEN` says; else a
+	/// build may compile code the proof never saw,
+	/// under a `cfg` such as `debug_assertions` or one a build script derives, and the call
+	/// is made as any other.
 	///
 	/// Why holding the GIL across one cannot deadlock: a deadlock needs the call to wait on
 	/// another thread that waits on the GIL. A leaf's only shared state is the handle's

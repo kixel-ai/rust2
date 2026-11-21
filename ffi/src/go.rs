@@ -3928,6 +3928,7 @@ fn package_names_are_locked() {
 		crates: vec!["lock_foobar".into()],
 		targets: vec!["host".into()],
 		links: Default::default(),
+		profiles: Default::default(),
 		reached: Vec::new(),
 	};
 	let base = api.clone();
@@ -3970,6 +3971,7 @@ fn links_each_target_go_builds_for() {
 			.filter(|t| **t != "wasm32-wasip1")
 			.map(|t| (t.to_string(), vec![format!("-l{}", &t[..3])]))
 			.collect(),
+		profiles: Default::default(),
 	};
 	let (lines, platform) = link(&Abi::new(&api, "lock")).unwrap();
 	// iOS also satisfies `darwin`; MSVC's library is none Go links; wasm32 runs no cgo.
