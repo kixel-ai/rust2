@@ -1806,8 +1806,9 @@ def local_packages(manifest, export, *features):
     manifests = {d / "Cargo.toml" for d in local}
     roots = set()
     for directory in local:
-        root = Path(output("cargo", "locate-project", "--workspace", "--message-format", "plain",
-                           "--manifest-path", directory / "Cargo.toml", cwd=directory).strip())
+        # From the build's directory, with its toolchain, not one a dependency's own file pins.
+        root = Path(cargo(manifest, "locate-project", "--workspace", "--message-format", "plain",
+                          "--manifest-path", directory / "Cargo.toml").stdout.strip())
         if not any(root.samefile(m) for m in manifests):
             roots.add(root)
     return local, sorted(roots)
