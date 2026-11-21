@@ -439,7 +439,7 @@ func f64Bits(_ floats: [Double]) -> [UInt64] {
 /// An eraser whose methods differ only by a trailing underscore, which Swift keeps apart by
 /// their labels.
 struct Eraser: ClashEraser {
-	func delete(_ new: UInt8, _ new2: UInt8) -> UInt8 { new * 10 + new2 }
+	func delete(_ new2: UInt8, _ new: UInt8) -> UInt8 { new2 * 10 + new }
 	func delete() -> UInt8 { 3 }
 }
 
@@ -463,6 +463,11 @@ func checks() {
 	check(clashErased(Eraser()) == 123, "a protocol's methods apart by a trailing underscore")
 	check(ClashEscaped(new: 3).delete() == 3 && ClashEscaped(new: 3).delete(1, 2) == 213, "methods apart by a trailing underscore")
 	check(clashErase_() == 2 && clashErase() == 1, "functions apart by a trailing underscore")
+	// Fields named as `Display`'s and `Debug`'s members, which take a trailing `_`.
+	let described = ClashDescribed(description_: 1, debugDescription_: 2)
+	check(clashDescribed(described) == 12 && described.description == "12", "fields named as a trait's members")
+	// A static function and a method named alike.
+	check(ClashStore.count() == 7 && ClashStore.new(5).count() == 5, "a static function and a method named alike")
 
 	// Rust's seconds are a u64, past Int64's.
 	let rustMax = try! RustDuration(secs: .max, nanos: 999_999_999)

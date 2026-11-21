@@ -4987,6 +4987,16 @@ pub mod clash {
 
 		/// Nothing, named and typed as the method a JVM finalizer overrides.
 		pub fn finalize(&self) {}
+
+		/// Seven, by a static function that camel case names as the method `count`.
+		pub fn count_() -> u32 {
+			7
+		}
+
+		/// The count, by a method that camel case names as the static `count_`.
+		pub fn count(&self) -> u32 {
+			self.count
+		}
 	}
 
 	/// A level, whose values are named as the members `Debug` and `Default` give a type, as
@@ -5042,6 +5052,25 @@ pub mod clash {
 		fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
 			write!(f, "malformed at {}", self.at)
 		}
+	}
+
+	/// Digits whose fields are named as the members Swift's protocols for `Display` and `Debug`
+	/// give a type.
+	#[derive(Clone, Copy, Debug, PartialEq)]
+	pub struct Described {
+		pub description: u8,
+		pub debug_description: u8,
+	}
+
+	impl std::fmt::Display for Described {
+		fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+			write!(f, "{}{}", self.description, self.debug_description)
+		}
+	}
+
+	/// `described`'s fields as decimal digits, from `description` up.
+	pub fn described(described: Described) -> u32 {
+		u32::from(described.description) * 10 + u32::from(described.debug_description)
 	}
 
 	/// Bytes read one at a time, whose methods go vet reads as `io.ByteScanner`'s, as

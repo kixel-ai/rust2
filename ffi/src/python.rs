@@ -1418,16 +1418,15 @@ impl<'a> Gen<'a> {
 		[aiter.to_string(), format!("{}{anext}", deprecator(deprecated))]
 	}
 
-	/// Check that the members `codes` of the type `rust` and its data's names `data` differ.
-	fn distinct<'c>(&mut self, rust: &str, data: &[String], codes: impl Iterator<Item = &'c String>) {
-		let mut seen = BTreeSet::new();
-		for name in data.iter().cloned().chain(codes.filter_map(|code| member_name(code))) {
-			if !seen.insert(name.clone()) {
-				self.errors.push(format!(
-					"two members of `{rust}` are both `{name}` in Python, which rust2-ffi should keep apart"
-				));
-			}
-		}
+	/// Asserts that the members `codes` of the type `rust` and its data's names `data`
+	/// differ, as [`abi::assert_apart`] does.
+	fn distinct<'c>(&self, rust: &str, data: &[String], codes: impl Iterator<Item = &'c String>) {
+		let members: Vec<String> = data
+			.iter()
+			.cloned()
+			.chain(codes.filter_map(|code| member_name(code)))
+			.collect();
+		abi::assert_apart(rust, "Python", &members, |a, b| a == b);
 	}
 
 	fn record(&mut self, i: usize) {
@@ -1566,10 +1565,11 @@ impl<'a> Gen<'a> {
 		for (variant, vname) in e.variants.iter().zip(&vnames) {
 			crate::lock::variant(&mut self.locked, &e.shown, &variant.name, &format!("{name}.{vname}"));
 		}
-		// A field yields to a member its traits made, as a method does.
+		// A field yields to a member its traits made, as a method does, and to a variant's class,
+		// which a name of no case, such as `名`, spells alike.
 		let made: Vec<String> = body.codes().filter_map(|code| member_name(code)).collect();
 		let named: Vec<Vec<String>> = (e.variants.iter())
-			.map(|v| field_names(&v.fields, |name| made.iter().any(|m| m == name)))
+			.map(|v| field_names(&v.fields, |name| made.iter().chain(&vnames).any(|m| m == name)))
 			.collect();
 		let mut data = vnames.clone();
 		data.extend(named.iter().flatten().cloned().collect::<BTreeSet<String>>());

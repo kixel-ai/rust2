@@ -934,9 +934,9 @@ impl<'a> Gen<'a> {
 		pascal(self.bare(c))
 	}
 
-	/// The Go names of parameters, each [`local`], [`abi::distinct`].
+	/// The Go names of parameters, each [`local`], kept apart as [`abi::distinct`] keeps them.
 	fn locals(&self, params: &[Param]) -> Vec<String> {
-		abi::distinct(params.iter().map(|p| local(&p.name)))
+		abi::distinct(params, local, |_| false)
 	}
 
 	/// The package-level Go name `what` takes, `name` unless that is taken.
@@ -945,16 +945,10 @@ impl<'a> Gen<'a> {
 		abi::claim(&mut self.names, |name| rt && taken(name), name, what)
 	}
 
-	/// Check that no two members of the type `rust` share a Go name.
-	fn distinct(&mut self, rust: &str, members: &[String]) {
-		let mut seen = BTreeSet::new();
-		for member in members {
-			if !seen.insert(member) {
-				self.errors.push(format!(
-					"two members of `{rust}` are both `{member}` in Go, which rust2-ffi should keep apart"
-				));
-			}
-		}
+	/// Asserts that no two members of the type `rust` share a Go name, as
+	/// [`abi::assert_apart`] does.
+	fn distinct(&self, rust: &str, members: &[String]) {
+		abi::assert_apart(rust, "Go", members, |a, b| a == b);
 	}
 
 	/// The Go type of `ty`, as a value, a parameter, or a result.

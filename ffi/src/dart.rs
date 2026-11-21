@@ -578,20 +578,10 @@ impl<'a> Gen<'a> {
 		keys.into_iter().zip(names).collect()
 	}
 
-	/// Check that no two members of the type `rust` share a Dart name, as [`collides`] reads
-	/// them.
-	fn distinct(&mut self, rust: &str, members: &[String]) {
-		let mut clashes = BTreeSet::new();
-		for (k, member) in members.iter().enumerate() {
-			if let Some(other) = members[..k].iter().find(|other| collides(other, member)) {
-				clashes.insert(other.rsplit(' ').next().unwrap_or(other).to_string());
-			}
-		}
-		for name in clashes {
-			self.errors.push(format!(
-				"two members of `{rust}` are both `{name}` in Dart, which rust2-ffi should keep apart"
-			));
-		}
+	/// Asserts that no two members of the type `rust` share a Dart name, as [`collides`]
+	/// reads them and [`abi::assert_apart`] checks.
+	fn distinct(&self, rust: &str, members: &[String]) {
+		abi::assert_apart(rust, "Dart", members, collides);
 	}
 
 	/// Drops the constructors of the object classes that nothing calls: a type only ever lent
@@ -2313,7 +2303,7 @@ impl<'a> Gen<'a> {
 		for (method, member) in callback.methods.iter().zip(callback_members(&callback.methods)) {
 			crate::lock::function(&mut self.locked, method, &member);
 			members.push(member.clone());
-			let names = abi::distinct(method.params.iter().map(|param| param_name(&param.name)));
+			let names = abi::distinct(&method.params, param_name, |_| false);
 			let params: Vec<String> = (method.params.iter().zip(names))
 				.map(|(p, name)| format!("{} {name}", self.dt(&p.ty)))
 				.collect();
@@ -2760,7 +2750,7 @@ impl<'a> Gen<'a> {
 		// Whether the call is given a value Rust takes, whose buffers the arena frees
 		// unless the call returns.
 		let mut gives = false;
-		let names = abi::distinct(function.params.iter().map(|param| param_name(&param.name)));
+		let names = abi::distinct(&function.params, param_name, |_| false);
 		let mut writes = Vec::new();
 		for (k, (param, name)) in function.params.iter().zip(names.iter().cloned()).enumerate() {
 			let (_, c) = c_params.next().expect("each parameter has its C one");

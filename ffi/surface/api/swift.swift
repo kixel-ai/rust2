@@ -692,6 +692,14 @@ public struct ClashMalformed: Sendable, CustomStringConvertible, CustomDebugStri
 	@inlinable public static func == (a: ClashMalformed, b: ClashMalformed) -> Swift.Bool
 	@inlinable public func `is`(_ at: Swift.UInt8) -> Swift.Bool
 }
+public struct ClashDescribed: Sendable, CustomStringConvertible, CustomDebugStringConvertible, Equatable {
+	public var description_: Swift.UInt8
+	public var debugDescription_: Swift.UInt8
+	@inlinable public init(description_: Swift.UInt8, debugDescription_: Swift.UInt8)
+	@inlinable public var description: Swift.String { get }
+	@inlinable public var debugDescription: Swift.String { get }
+	@inlinable public static func == (a: ClashDescribed, b: ClashDescribed) -> Swift.Bool
+}
 public struct ClashErrno: Sendable, CustomDebugStringConvertible, Equatable {
 	public var errno: Swift.Int32
 	@inlinable public init(errno: Swift.Int32)
@@ -1437,6 +1445,8 @@ public struct ClashStore: ~Copyable, @unchecked Sendable {
 	@inlinable public func close() -> Swift.UInt32
 	@inlinable public func wait()
 	@inlinable public func finalize()
+	@inlinable public static func count() -> Swift.UInt32
+	@inlinable public func count() -> Swift.UInt32
 }
 public struct ClashReader: ~Copyable, @unchecked Sendable {
 	@inlinable public static func new(_ bytes: Bytes) -> ClashReader
@@ -1540,7 +1550,7 @@ public protocol ClashSource: Sendable {
 	func readByte() -> Swift.UInt8
 }
 public protocol ClashEraser: Sendable {
-	func delete(_ new: Swift.UInt8, _ new2: Swift.UInt8) -> Swift.UInt8
+	func delete(_ new2: Swift.UInt8, _ new: Swift.UInt8) -> Swift.UInt8
 	func delete() -> Swift.UInt8
 }
 public struct BoundsU64Error: Swift.Error, CustomStringConvertible {
@@ -1850,6 +1860,7 @@ public let URL: Swift.UInt64
 @inlinable public func clashCandidate(_ at: Swift.UInt8) -> ClashCandidate
 @inlinable public func clashIgnore(_ arg0: Swift.UInt8, _ arg1: Swift.UInt8, _ arg2: Swift.UInt8) -> Swift.UInt8
 @inlinable public func clashEmpty() -> ClashEmptyString
+@inlinable public func clashDescribed(_ described: ClashDescribed) -> Swift.UInt32
 @inlinable public func clashWaited(_ source: any ClashSource) -> Swift.UInt8
 @inlinable public func clashUnderscored(_ underscored: ClashUnderscored, _ op: ClashOp, _ change: ClashChange) -> Swift.UInt32
 @inlinable public func clashUnderscoredNext(_ underscored: ClashUnderscored, _ change: ClashChange) -> (ClashUnderscored, ClashChange)

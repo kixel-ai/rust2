@@ -666,6 +666,8 @@ namespace api {
 		RUST2_FFI_CALLABLE ::std::uint32_t close() const;
 		RUST2_FFI_CALLABLE void wait() const;
 		RUST2_FFI_CALLABLE void finalize() const;
+		static ::std::uint32_t count_();
+		RUST2_FFI_CALLABLE ::std::uint32_t count() const;
 	};
 	class RUST2_FFI_CONSUMABLE clash_Reader {
 		RUST2_FFI_UNCONSUMED clash_Reader(clash_Reader &&other RUST2_FFI_MOVED_FROM) noexcept = default;
@@ -1287,6 +1289,14 @@ namespace api {
 		::api::buf debug() const;
 		bool is(::std::uint8_t at_) const;
 	};
+	struct clash_Described {
+		::std::uint8_t description;
+		::std::uint8_t debug_description;
+		friend bool operator==(const clash_Described &a__, const clash_Described &b_);
+		friend bool operator!=(const clash_Described &a__, const clash_Described &b_);
+		::api::buf to_string() const;
+		::api::buf debug() const;
+	};
 	struct clash_Errno {
 		::std::int32_t errno_;
 		friend bool operator==(const clash_Errno &a__, const clash_Errno &b_);
@@ -1522,6 +1532,7 @@ namespace api {
 	inline bool operator==(const clash_Any &a__, const clash_Any &b_);
 	inline bool operator==(const clash_Break &a__, const clash_Break &b_);
 	inline bool operator==(const clash_Malformed &a__, const clash_Malformed &b_);
+	inline bool operator==(const clash_Described &a__, const clash_Described &b_);
 	inline bool operator==(const clash_Errno &a__, const clash_Errno &b_);
 	inline bool operator==(const clash_Escaped &a__, const clash_Escaped &b_);
 	inline bool operator==(const clash_Underscored &a__, const clash_Underscored &b_);
@@ -1891,6 +1902,7 @@ namespace api {
 	inline ::api::clash_Candidate clash_candidate(::std::uint8_t at);
 	inline ::std::uint8_t clash_ignore(::std::uint8_t arg0, ::std::uint8_t arg1, ::std::uint8_t arg2);
 	inline ::api::clash_Empty_string clash_empty();
+	inline ::std::uint32_t clash_described(const ::api::clash_Described &described);
 	inline ::std::uint8_t clash_waited(::std::unique_ptr<::api::clash_Source> source);
 	inline ::std::uint32_t clash_underscored(const ::api::clash_Underscored &underscored, ::api::clash_Op op, const ::api::clash_Change &change);
 	inline ::std::tuple<::api::clash_Underscored, ::api::clash_Change> clash_underscored_next(const ::api::clash_Underscored &underscored, const ::api::clash_Change &change);
@@ -2290,6 +2302,7 @@ namespace api {
 	struct clash_Any;
 	struct clash_Break;
 	struct clash_Malformed;
+	struct clash_Described;
 	struct clash_Errno;
 	struct clash_Escaped;
 	struct clash_Underscored;

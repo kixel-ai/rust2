@@ -441,6 +441,10 @@ data class ClashMalformed(val at: kotlin.UByte) {
 	fun debug(): kotlin.String
 	fun `is`(at: kotlin.UByte): kotlin.Boolean
 }
+data class ClashDescribed(val description: kotlin.UByte, val debugDescription: kotlin.UByte) {
+	final override fun toString(): kotlin.String
+	fun debug(): kotlin.String
+}
 data class ClashErrno(val errno: kotlin.Int) {
 	fun debug(): kotlin.String
 	companion object {
@@ -1305,8 +1309,10 @@ class ClashStore internal constructor(raw: Long, lent: Boolean = false) : AutoCl
 	fun close_(): kotlin.UInt
 	@kotlin.jvm.JvmName("wait_") fun wait()
 	@kotlin.jvm.JvmName("finalize_") fun finalize()
+	@kotlin.jvm.JvmName("count_") fun count(): kotlin.UInt
 	companion object {
 		@kotlin.jvm.JvmStatic fun new(count: kotlin.UInt): api.ClashStore
+		@kotlin.jvm.JvmStatic fun count(): kotlin.UInt
 	}
 }
 class ClashReader internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -1444,7 +1450,7 @@ interface ClashSource {
 	fun readByte(): kotlin.UByte
 }
 interface ClashEraser {
-	fun delete_(new: kotlin.UByte, new2: kotlin.UByte): kotlin.UByte
+	fun delete_(new2: kotlin.UByte, new: kotlin.UByte): kotlin.UByte
 	fun delete(): kotlin.UByte
 }
 data class Tuple1<T1>(val first: T1) {
@@ -1768,6 +1774,7 @@ fun clashAny(typeUrl: kotlin.String): api.ClashAny
 fun clashCandidate(at: kotlin.UByte): api.ClashCandidate
 fun clashIgnore(arg0: kotlin.UByte, arg1: kotlin.UByte, arg2: kotlin.UByte): kotlin.UByte
 fun clashEmpty(): api.ClashEmptyString
+fun clashDescribed(described: api.ClashDescribed): kotlin.UInt
 fun clashWaited(source: api.ClashSource): kotlin.UByte
 fun clashUnderscored(underscored: api.ClashUnderscored, op: api.ClashOp, change: api.ClashChange): kotlin.UInt
 fun clashUnderscoredNext(underscored: api.ClashUnderscored, change: api.ClashChange): kotlin.Pair<api.ClashUnderscored, api.ClashChange>

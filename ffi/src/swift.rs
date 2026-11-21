@@ -334,17 +334,10 @@ impl<'a> Gen<'a> {
 		name
 	}
 
-	/// Check that no two members of the type `rust` share a full Swift name, as [`full`]
-	/// spells it.
-	fn distinct(&mut self, rust: &str, members: &[String]) {
-		let mut seen = BTreeSet::new();
-		for member in members {
-			if !seen.insert(member) {
-				self.errors.push(format!(
-					"two members of `{rust}` are both `{member}` in Swift, which rust2-ffi should keep apart"
-				));
-			}
-		}
+	/// Asserts that no two members of the type `rust` share a full Swift name, as [`full`]
+	/// spells it and [`abi::assert_apart`] checks.
+	fn distinct(&self, rust: &str, members: &[String]) {
+		abi::assert_apart(rust, "Swift", members, |a, b| a == b);
 	}
 
 	/// Whether Swift's value of `ty` is noncopyable: it holds an object's struct.
@@ -1164,7 +1157,7 @@ impl<'a> Gen<'a> {
 		if record.opaque.is_some() {
 			return self.opaque(i);
 		}
-		let fields: Vec<(String, String)> = (record.fields.iter().zip(field_names(&record.fields)))
+		let fields: Vec<(String, String)> = (record.fields.iter().zip(field_names(&record.fields, RECORD)))
 			.map(|(f, name)| (name, self.sw(&f.ty)))
 			.collect();
 		for (f, (name, _)) in record.fields.iter().zip(&fields) {
@@ -1303,7 +1296,7 @@ impl<'a> Gen<'a> {
 		let mut lowers = Vec::new();
 		for (variant, case) in e.variants.iter().zip(case_names(e)) {
 			let snake = abi::snake(&variant.name);
-			let names = field_names(&variant.fields);
+			let names = field_names(&variant.fields, &["init"]);
 			crate::lock::variant(&mut self.locked, &e.shown, &variant.name, &unquote(&case));
 			if !variant.tuple {
 				for (f, name) in variant.fields.iter().zip(&names) {
@@ -2595,7 +2588,7 @@ impl<'a> Gen<'a> {
 			doc::Target::Field(i, n) => format!(
 				"{}/{}",
 				owner(doc::Owner::Record(i)),
-				unquote(&field_names(&abi.api.records[i].fields).swap_remove(n))
+				unquote(&field_names(&abi.api.records[i].fields, RECORD).swap_remove(n))
 			),
 			doc::Target::Constant(c) => self.locked.get(&format!("const {}", c.path.join("::")))?.clone(),
 			doc::Target::Function(of, f) => {
@@ -2798,10 +2791,10 @@ fn lift_int(int: Int, e: &str) -> String {
 	}
 }
 
-/// The Swift names of parameters, in camel case, [`abi::distinct`], and quoted if a
-/// keyword.
+/// The Swift names of parameters, in camel case, kept apart as [`abi::distinct`] keeps
+/// them, and quoted if a keyword.
 fn locals(params: &[Param]) -> Vec<String> {
-	(abi::distinct(params.iter().map(|p| camel(&p.name))).iter())
+	(abi::distinct(params, camel, |_| false).iter())
 		.map(|name| kw(name))
 		.collect()
 }
@@ -2836,16 +2829,20 @@ fn case_names(e: &crate::ir::Enum) -> Vec<String> {
 	names.iter().map(|name| kw(name)).collect()
 }
 
+/// A record's members its fields keep apart from: the initializer, and the properties
+/// `Display` and `Debug` give it, so a record that gains either renames no field.
+const RECORD: &[&str] = &["init", "description", "debugDescription"];
+
 /// The Swift names of `fields`, one scope's, in camel case as [`abi::named`] keeps them
-/// apart, and quoted where a keyword: `init` would name the initializer.
-fn field_names(fields: &[crate::ir::Field]) -> Vec<String> {
+/// apart from each other and from `taken`, and quoted where a keyword.
+fn field_names(fields: &[crate::ir::Field], taken: &[&str]) -> Vec<String> {
 	let rust: Vec<&str> = fields.iter().map(|f| f.name.as_str()).collect();
 	let spelled = rust.iter().map(|name| camel(name)).collect();
 	let names = abi::named(
 		&rust,
 		spelled,
 		|rust, name| abi::snake(name) == rust,
-		|_, name| name == "init",
+		|_, name| taken.contains(&name),
 		abi::underscored,
 	);
 	names.iter().map(|name| kw(name)).collect()

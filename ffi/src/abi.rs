@@ -17,7 +17,7 @@ use std::collections::{BTreeMap, HashMap};
 use rustc_span::Span;
 
 use crate::ir::{
-	Access, Api, Closure, Dyn, Family, Function, Home, Int, Jni, Literal, Mutability, On, Order, Receiver, Type,
+	Access, Api, Closure, Dyn, Family, Function, Home, Int, Jni, Literal, Mutability, On, Order, Param, Receiver, Type,
 };
 
 /// A C name one item claims twice, which no rename can tell apart: the name, then what
@@ -2122,6 +2122,17 @@ pub(crate) fn named(
 	names
 }
 
+/// Asserts that no two of the `members` of the type `rust` in `language` are one, as `same`
+/// reads them. Each generator names a scope's members apart through [`named`], and from
+/// every other scope of the type that they share, so two alike are its bug, not the crate's.
+pub(crate) fn assert_apart(rust: &str, language: &str, members: &[String], same: impl Fn(&str, &str) -> bool) {
+	for (k, member) in members.iter().enumerate() {
+		if members[..k].iter().any(|other| same(other, member)) {
+			panic!("rust2-ffi named two members of `{rust}` `{member}` in {language}");
+		}
+	}
+}
+
 /// The `n`th name to try in place of `name` where it is taken: `n` more trailing `_`s, after
 /// its name and before any `(` of argument labels.
 pub(crate) fn underscored(name: &str, n: usize) -> String {
@@ -2129,23 +2140,21 @@ pub(crate) fn underscored(name: &str, n: usize) -> String {
 	format!("{}{}{}", &name[..at], "_".repeat(n), &name[at..])
 }
 
-/// A language's names of parameters made distinct where Rust's differ only in what its
-/// case drops, such as underscores: a later one takes the lowest free number after it.
-pub(crate) fn distinct(names: impl IntoIterator<Item = String>) -> Vec<String> {
-	let names: Vec<String> = names.into_iter().collect();
-	let mut taken = std::collections::BTreeSet::new();
-	(names.iter())
-		.map(|name| {
-			let mut unique = name.clone();
-			let mut n = 2;
-			while taken.contains(&unique) || (unique != *name && names.contains(&unique)) {
-				unique = format!("{name}{n}");
-				n += 1;
-			}
-			taken.insert(unique.clone());
-			unique
-		})
-		.collect()
+/// A language's names of `params`, each as `spell` spells its Rust name, kept apart from each
+/// other and from what `taken` names as [`named`] keeps a scope's, by [`numbered`] steps, since
+/// a generated call's own locals end in `_`. So of `new_` and `new`, both `new` in camel case,
+/// Rust's `new` keeps `new` and `new_` takes `new2`, in either order.
+pub(crate) fn distinct(params: &[Param], spell: impl Fn(&str) -> String, taken: impl Fn(&str) -> bool) -> Vec<String> {
+	let rust: Vec<&str> = params.iter().map(|param| param.name.as_str()).collect();
+	let spelled = rust.iter().map(|name| spell(name)).collect();
+	let own = |rust: &str, name: &str| name == rust || snake(name) == rust;
+	named(&rust, spelled, own, |_, name| taken(name), numbered)
+}
+
+/// The `n`th name to try in place of `name` where it is taken: it with the number `n + 1`,
+/// `foo2`, for a name that never ends in `_`.
+pub(crate) fn numbered(name: &str, n: usize) -> String {
+	format!("{name}{}", n + 1)
 }
 
 /// A name that C or C++, which includes the header, would read as a keyword or macro or
@@ -2340,7 +2349,7 @@ pub(crate) fn dyn_wrap(form: Dyn, expr: &str) -> String {
 
 #[cfg(test)]
 mod tests {
-	use super::{apart, defined, escape, named, past_cycles, shortest, underscored, unique};
+	use super::{apart, defined, distinct, escape, named, past_cycles, shortest, underscored, unique};
 
 	#[test]
 	fn escapes_keep_apart_from_every_macro() {
@@ -2442,6 +2451,28 @@ mod tests {
 			named(&["x", "x"], spelled, |_, _| true, |_, _| false, underscored),
 			["x", "x_"]
 		);
+	}
+
+	#[test]
+	fn distinct_params_number_the_one_not_spelled_as_rust() {
+		let params = |names: &[&str]| -> Vec<crate::ir::Param> {
+			(names.iter())
+				.map(|name| crate::ir::Param {
+					name: name.to_string(),
+					ty: crate::ir::Type::Bool,
+					interned: false,
+				})
+				.collect()
+		};
+		let camel = |name: &str| name.trim_end_matches('_').to_string();
+		let names = |names: &[&str]| distinct(&params(names), camel, |_| false);
+		// Rust's `new` keeps `new` in either order, and a number never ends a name in `_`.
+		assert_eq!(names(&["new_", "new"]), ["new2", "new"]);
+		assert_eq!(names(&["new", "new_"]), ["new", "new2"]);
+		// A step skips a name another keeps, and one taken.
+		assert_eq!(names(&["a_", "a", "a2"]), ["a3", "a", "a2"]);
+		let receiving = distinct(&params(&["self_"]), camel, |name| name == "self");
+		assert_eq!(receiving, ["self2"]);
 	}
 
 	#[test]

@@ -744,6 +744,15 @@ final class ClashMalformed implements Exception {
 	@override int get hashCode;
 	bool is_(int at);
 }
+final class ClashDescribed {
+	final int description;
+	final int debugDescription;
+	const ClashDescribed({required this.description, required this.debugDescription});
+	@override String toString();
+	String debug();
+	@override bool operator ==(Object other);
+	@override int get hashCode;
+}
 final class ClashErrno {
 	final int errno;
 	const ClashErrno({required this.errno});
@@ -758,7 +767,7 @@ final class ClashEscaped {
 	String debug();
 	@override bool operator ==(Object other);
 	@override int get hashCode;
-	int delete_(int new_, int new_2);
+	int delete_(int new_2, int new_);
 	int delete();
 }
 final class ClashUnderscored {
@@ -1623,6 +1632,8 @@ final class ClashStore extends _Object {
 	int close_();
 	void wait();
 	void finalize();
+	static int count_();
+	int count();
 }
 final class ClashReader extends _Object {
 	factory ClashReader(typed.Uint8List bytes);
@@ -2045,6 +2056,7 @@ ClashAny clashAny(String typeUrl);
 ClashCandidate clashCandidate(int at);
 int clashIgnore(int arg0, int arg1, int arg2);
 ClashEmptyString clashEmpty();
+int clashDescribed(ClashDescribed described);
 int clashWaited(ClashSource source);
 int clashUnderscored(ClashUnderscored underscored, ClashOp op, ClashChange change);
 (ClashUnderscored, ClashChange) clashUnderscoredNext(ClashUnderscored underscored, ClashChange change);

@@ -1831,6 +1831,7 @@ impl<'a> Gen<'a> {
 		}
 		members.extend(body.iter().filter_map(|b| member_name(b)));
 		self.distinct(&rust, &members);
+		self.distinct(&rust, &names(&statics));
 		if !statics.is_empty() {
 			body.push(format!("\tcompanion object {{\n{}\t}}\n", statics.join("\n")));
 		}
@@ -2126,6 +2127,7 @@ impl<'a> Gen<'a> {
 			}
 		}
 		self.distinct(&rust, &members);
+		self.distinct(&rust, &names(&statics));
 		if !statics.is_empty() {
 			body.push(format!("\tcompanion object {{\n{}\t}}\n", statics.join("\n")));
 		}
@@ -2233,9 +2235,8 @@ impl<'a> Gen<'a> {
 				&mut self.locked,
 			));
 		}
-		let mut members: Vec<String> = body.iter().filter_map(|b| member_name(b)).collect();
-		members.extend(statics.iter().filter_map(|s| member_name(s)));
-		self.distinct(&rust, &members);
+		self.distinct(&rust, &names(&body));
+		self.distinct(&rust, &names(&statics));
 		if !statics.is_empty() {
 			body.push(format!("\tcompanion object {{\n{}\t}}\n", statics.join("\n")));
 		}
@@ -2658,17 +2659,10 @@ impl<'a> Gen<'a> {
 		name
 	}
 
-	/// Check that no two members of the type `rust` share a Kotlin name.
-	fn distinct(&mut self, rust: &str, members: &[String]) {
-		let mut seen = BTreeSet::new();
-		for member in members {
-			if !seen.insert(member) {
-				let name = member.split(' ').next_back().unwrap_or(member);
-				self.errors.push(format!(
-					"two members of `{rust}` are both `{name}` in Kotlin, which rust2-ffi should keep apart"
-				));
-			}
-		}
+	/// Asserts that no two members of the type `rust`, each by its kind and Kotlin name, are
+	/// one, as [`abi::assert_apart`] does.
+	fn distinct(&self, rust: &str, members: &[String]) {
+		abi::assert_apart(rust, "Kotlin", members, |a, b| a == b);
 	}
 
 	/// The name each of a type's `methods` takes, of `owner` (whose IR type is `owner_ty`),
@@ -4327,10 +4321,10 @@ fn camel(name: &str) -> String {
 	}
 }
 
-/// The Kotlin names of parameters, in camel case, [`abi::distinct`], and quoted if a
-/// keyword.
+/// The Kotlin names of parameters, in camel case, kept apart as [`abi::distinct`] keeps
+/// them, and quoted if a keyword.
 fn locals(params: &[Param]) -> Vec<String> {
-	(abi::distinct(params.iter().map(|p| camel(&p.name))).iter())
+	(abi::distinct(params, camel, |_| false).iter())
 		.map(|name| kw(name))
 		.collect()
 }

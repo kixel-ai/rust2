@@ -1601,8 +1601,8 @@ fn field_name(name: &str) -> String {
 }
 
 /// The names of a record's fields, each a field's, kept apart as [`abi::named`] keeps them,
-/// by a [`numbered`] step: `foo` and `foo_`, both `foo` in camel case, are `foo` and `foo2`
-/// in either order.
+/// by an [`abi::numbered`] step: `foo` and `foo_`, both `foo` in camel case, are `foo` and
+/// `foo2` in either order.
 fn field_names(fields: &[crate::ir::Field]) -> Vec<String> {
 	let rust: Vec<&str> = fields.iter().map(|f| f.name.as_str()).collect();
 	let spelled = rust.iter().map(|name| field_name(name)).collect();
@@ -1611,7 +1611,7 @@ fn field_names(fields: &[crate::ir::Field]) -> Vec<String> {
 		spelled,
 		|rust, name| abi::snake(name) == rust,
 		|_, _| false,
-		numbered,
+		abi::numbered,
 	)
 }
 
@@ -1630,14 +1630,8 @@ fn variant_fields(fields: &[crate::ir::Field]) -> Vec<String> {
 		spelled,
 		|rust, name| abi::snake(name) == rust,
 		|_, _| false,
-		numbered,
+		abi::numbered,
 	)
-}
-
-/// The `n`th name to try in place of `name` where it is taken: it with the number `n + 1`,
-/// `foo2`, as no camel-case name ends in a `_`.
-fn numbered(name: &str, n: usize) -> String {
-	format!("{name}{}", n + 1)
 }
 
 /// A parameter's name: in camel case, with `_` appended if a reserved word.
@@ -2547,7 +2541,7 @@ impl Gen<'_> {
 		let mut members = Vec::new();
 		for (method, member) in callback.methods.iter().zip(method_names(&callback.methods)) {
 			crate::lock::function(&mut self.locked, method, &member);
-			let names = abi::distinct(method.params.iter().map(|p| param_name(&p.name)));
+			let names = abi::distinct(&method.params, param_name, |_| false);
 			let params: Vec<String> = (method.params.iter().zip(names))
 				.map(|(p, name)| format!("{name}: {}", self.tt(&p.ty)))
 				.collect();
@@ -2916,10 +2910,8 @@ impl Gen<'_> {
 			args.push("self$".to_string());
 		}
 		// Distinct from each other, and from the receiver's `self`.
-		let receiving = receiver.is_some() as usize;
-		let names = (function.params.iter()).map(|param| param_name(&param.name));
-		let names = abi::distinct(["self".to_string()].into_iter().take(receiving).chain(names));
-		let names = names.into_iter().skip(receiving);
+		let receiving = receiver.is_some();
+		let names = abi::distinct(&function.params, param_name, |name| receiving && name == "self");
 		let mut writes = Vec::new();
 		for (k, (param, name)) in function.params.iter().zip(names).enumerate() {
 			let (_, c) = c_params.next().expect("each parameter has its C one");

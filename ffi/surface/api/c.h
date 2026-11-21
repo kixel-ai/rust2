@@ -17,7 +17,7 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-#define API_CONTRACT ((uint64_t)0xd89c1458f3a23d35ULL)
+#define API_CONTRACT ((uint64_t)0x89b9befff8b52600ULL)
 uint64_t api_contract(void);
 uint32_t api_target(void);
 typedef int32_t api_status;
@@ -889,6 +889,10 @@ typedef struct api_clash_Break {
 typedef struct api_clash_Malformed {
 	uint8_t at;
 } api_clash_Malformed;
+typedef struct api_clash_Described {
+	uint8_t description;
+	uint8_t debug_description;
+} api_clash_Described;
 typedef struct api_clash_Errno {
 	int32_t errno_;
 } api_clash_Errno;
@@ -1519,6 +1523,10 @@ bool api_clash_Malformed_eq(const api_clash_Malformed *a, const api_clash_Malfor
 API_MUST_USE api_buf api_clash_Malformed_to_string(const api_clash_Malformed *self);
 API_MUST_USE api_buf api_clash_Malformed_debug(const api_clash_Malformed *self);
 bool api_clash_Malformed_is(const api_clash_Malformed *self, uint8_t at);
+void api_clash_Described_free(api_clash_Described *self);
+bool api_clash_Described_eq(const api_clash_Described *a, const api_clash_Described *b);
+API_MUST_USE api_buf api_clash_Described_to_string(const api_clash_Described *self);
+API_MUST_USE api_buf api_clash_Described_debug(const api_clash_Described *self);
 void api_clash_Errno_free(api_clash_Errno *self);
 bool api_clash_Errno_eq(const api_clash_Errno *a, const api_clash_Errno *b);
 API_MUST_USE api_buf api_clash_Errno_debug(const api_clash_Errno *self);
@@ -2169,6 +2177,8 @@ uint32_t api_clash_Store_free_(const api_clash_Store *self);
 uint32_t api_clash_Store_close(const api_clash_Store *self);
 void api_clash_Store_wait(const api_clash_Store *self);
 void api_clash_Store_finalize(const api_clash_Store *self);
+uint32_t api_clash_Store_count_(void);
+uint32_t api_clash_Store_count(const api_clash_Store *self);
 void api_clash_Reader_free(api_clash_Reader *self);
 void api_clash_Reader_drop(api_clash_Reader *self, api_status *status);
 API_MUST_USE api_clash_Reader *api_clash_Reader_new(api_buf bytes);
@@ -2619,6 +2629,7 @@ API_MUST_USE api_clash_Any api_clash_any(api_buf type_url);
 api_clash_Candidate api_clash_candidate(uint8_t at);
 uint8_t api_clash_ignore(uint8_t arg0, uint8_t arg1, uint8_t arg2);
 API_MUST_USE api_clash_Empty_string *api_clash_empty(void);
+uint32_t api_clash_described(api_clash_Described described);
 uint8_t api_clash_waited(api_clash_Source source);
 uint32_t api_clash_underscored(api_clash_Underscored underscored, api_clash_Op op, api_clash_Change change);
 void api_clash_underscored_next(api_clash_Underscored underscored, api_clash_Change change, api_clash_Underscored *out0, api_clash_Change *out1);

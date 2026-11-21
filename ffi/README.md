@@ -672,7 +672,10 @@ the rest cross encoded.
   gives its type takes a trailing `_`. Names of one scope that Kotlin spells alike, such as
   the fields `new` and `new_` in camel case, are kept apart in any order, as C++'s are: one
   spelled as its Rust name keeps it, and the rest take a trailing `_` until free, in Rust's
-  name order (`new_` and `new`). A constructor such as `new` stays a companion function: `Counter.new(1)`.
+  name order (`new_` and `new`). A companion's functions are a scope apart from the
+  instance's. A call's parameters are kept apart the same way, but by a number, since the
+  call's own locals end in `_`: Rust's `(new_, new)` are `(new2, new)`, so a named argument
+  reads as Rust's. A constructor such as `new` stays a companion function: `Counter.new(1)`.
 - **Objects** are classes owning their handle, `AutoCloseable`, which each call holds
   until it returns, so the handle is freed only once no call holds it; a call after
   `close()` throws. Of a checked type, `close()` drops the value through Rust's own
@@ -972,7 +975,8 @@ value of a Rust type crosses as one Swift type that holds it exactly, and back u
 - **Names** are as Kotlin's, at the module's top level: types in PascalCase without the
   prefix, members in camelCase without their type's name (`TrackProducer.appendGroup`). A
   keyword is quoted in backticks, and a member named as one Swift gives its type, such as
-  `init`, or as a field, takes a trailing `_`. Names that clash are kept apart as Kotlin's
+  `init`, or as a field, takes a trailing `_`, as does a record's field named as a member
+  `Display` or `Debug` gives it (`description_`). Names that clash are kept apart as Kotlin's
   are, in any order, a method by its name with its labels: Rust's `delete()` and
   `delete_(a, b)` are `delete()` and `delete(_:_:)`. Parameters have no labels but an optional borrowed object's,
   so a call reads as Rust's, and a
