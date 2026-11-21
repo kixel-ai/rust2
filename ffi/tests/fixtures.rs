@@ -5558,16 +5558,17 @@ fn leaf_profile() {
 	};
 	let profiled =
 		|leaves: &str, root: &str, dir: Option<&str>| (leaves.to_string(), root.to_string(), dir.map(str::to_string));
-	// Its build of the Python extension under the profile `dir` names, with `RUSTFLAGS`,
+	// Its build of the Python extension under the profile `dir` names (`test` in `debug`), with `RUSTFLAGS`,
 	// cargo's `--config`s, and the environment `with` adds, which says whether its build
 	// script found the check's profile, and the Python calling a method with a hook set,
 	// which times out if the call kept the GIL.
 	let python = |check: &str, dir: &str, rustflags: &str, with: (&[&str], &[(&str, &str)]), name: &str| {
 		// Apart for each check, as cargo keeps the library of whichever unit it built last.
 		let target = package.join("glue").join(check);
-		let profile = match dir {
-			"debug" => "dev",
-			dir => dir,
+		let (profile, dir) = match dir {
+			"debug" => ("dev", "debug"),
+			"test" => ("test", "debug"),
+			dir => (dir, dir),
 		};
 		let built = run(cargo()
 			.args(["build", "--locked", "--message-format=json", "--manifest-path"])
@@ -5636,6 +5637,17 @@ fn leaf_profile() {
 			"a build with {rustflags:?} and {with:?} ran the check's leaves"
 		);
 	}
+	// `test` builds in `dev`'s directory, where the check never saw its variables apply.
+	assert!(
+		!python(
+			"dev",
+			"test",
+			"",
+			(&[], &[("CARGO_PROFILE_TEST_BUILD_OVERRIDE_DEBUG_ASSERTIONS", "true")]),
+			"debugged"
+		),
+		"a test build with its own build-override debug assertions ran the dev check's leaves"
+	);
 	assert!(
 		python("dev", "debug", "", (&[], &[]), "debugged"),
 		"a dev build did not run the dev check's leaves again"
