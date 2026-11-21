@@ -2159,11 +2159,13 @@ def android_toolchain(target, api):
     bin_dir = Path(ndk) / "toolchains" / "llvm" / "prebuilt" / host / "bin"
     # The NDK spells 32-bit Arm's compiler armv7a, where Rust's target is armv7.
     triple = "armv7a-linux-androideabi" if target.startswith("armv7") else target
-    clang = bin_dir / f"{triple}{api}-clang"
+    # Windows' NDK wraps each in a batch file.
+    cmd = ".cmd" if sys.platform == "win32" else ""
+    clang, clangxx = (bin_dir / f"{triple}{api}-{name}{cmd}" for name in ("clang", "clang++"))
     if not clang.is_file():
         raise SystemExit(f"the NDK at {ndk} has no {clang.name}")
     key = target.replace("-", "_")
-    return {f"CARGO_TARGET_{key.upper()}_LINKER": str(clang), f"CC_{key}": str(clang), f"CXX_{key}": f"{clang}++",
+    return {f"CARGO_TARGET_{key.upper()}_LINKER": str(clang), f"CC_{key}": str(clang), f"CXX_{key}": str(clangxx),
             f"AR_{key}": str(bin_dir / "llvm-ar")}
 
 

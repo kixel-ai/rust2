@@ -140,6 +140,9 @@ Future<(File, List<Uri>)> _build(BuildInput input, CodeConfig code, String targe
   }
   final environment = <String, String>{};
   final key = target.replaceAll('-', '_');
+  // The system the app targets, which Cargo rebuilds for no change in, so each builds in a
+  // target directory of its own.
+  String? floor;
   switch (code.targetOS) {
     case OS.android:
       // The NDK's clang for the app's API level, which Flutter passes beside its own.
@@ -152,12 +155,15 @@ Future<(File, List<Uri>)> _build(BuildInput input, CodeConfig code, String targe
       environment['CC_$key'] = '${clang.toFilePath()}$cmd';
       environment['CXX_$key'] = '${clang.toFilePath()}++$cmd';
       environment['AR_$key'] = compiler.archiver.toFilePath();
+      floor = 'android-${code.android.targetNdkApi}';
     case OS.iOS:
       final version = code.iOS.deploymentVersion;
       environment['IPHONEOS_DEPLOYMENT_TARGET'] = '${version.major}.${version.minor}';
+      floor = 'ios-${version.major}.${version.minor}';
     case OS.macOS:
       final version = code.macOS.deploymentVersion;
       environment['MACOSX_DEPLOYMENT_TARGET'] = '${version.major}.${version.minor}';
+      floor = 'macos-${version.major}.${version.minor}';
   }
   // The crate the export depends on as `<package>_export`, as the exporter writes its line,
   // its path a Rust string, relative to the export or absolute: from its directory rustup
@@ -176,6 +182,7 @@ Future<(File, List<Uri>)> _build(BuildInput input, CodeConfig code, String targe
   final output = await _cargo([
     'build', '--release', '--lib', '--features', 'dart', '--target', target, //
     '--manifest-path', manifest.path, '--message-format=json-render-diagnostics',
+    if (floor != null) ...['--target-dir', '${resolved['target_directory']}${Platform.pathSeparator}$floor'],
   ], facade, environment);
   final name = code.targetOS.dylibFileName(input.packageName);
   final built = <String>{
