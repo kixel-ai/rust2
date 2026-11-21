@@ -178,7 +178,19 @@ impl Check<'_> {
 			}
 			cmd
 		};
-		run_cargo(cargo("clean").arg("--quiet").args(resolution(self.args)))?;
+		// Show what it says only when it fails: `--quiet` would hide even its error.
+		let clean = cargo("clean")
+			.args(resolution(self.args))
+			.output()
+			.map_err(|err| format!("running cargo clean: {err}"))?;
+		if !clean.status.success() {
+			return Err(format!(
+				"cargo clean of {} failed ({}): {}",
+				target_dir.display(),
+				clean.status,
+				String::from_utf8_lossy(&clean.stderr).trim()
+			));
+		}
 		// Its own, since runs may share a target directory.
 		let ran = target_dir.join(format!("{}-{}.ran", self.tool, std::process::id()));
 		match std::fs::remove_file(&ran) {
@@ -224,14 +236,6 @@ fn absolute(path: &Path) -> Result<PathBuf, String> {
 
 fn cargo() -> Command {
 	Command::new(std::env::var_os("CARGO").unwrap_or_else(|| "cargo".into()))
-}
-
-fn run_cargo(cmd: &mut Command) -> Result<(), String> {
-	let status = cmd.status().map_err(|err| format!("running cargo: {err}"))?;
-	match status.success() {
-		true => Ok(()),
-		false => Err(format!("{cmd:?} failed")),
-	}
 }
 
 /// The cargo args that pick how the workspace resolves, which `cargo clean` resolves it
