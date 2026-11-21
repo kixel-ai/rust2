@@ -65,11 +65,18 @@ impl Operator {
 /// `<prefix>/<package>.hpp` per crate; or the members two items name alike.
 pub(crate) fn headers(abi: &Abi<'_>, packages: &str) -> Result<Output, String> {
 	let p = &abi.prefix;
+	// The namespace: the prefix escaped as a name is, since a library may be named as a
+	// keyword or a macro (`class`), stepped past each name the C header declares in the
+	// global scope it shares, such as the function `class_` an item named only `_`s makes.
+	let global: BTreeSet<String> = abi.declared().into_iter().map(|c| c.to_string()).collect();
+	let ns = (0..)
+		.map(|n| escape(&abi::stepped(p, n)))
+		.find(|ns| !global.contains(ns))
+		.expect("a free name");
 	let mut h = Header {
 		locked: BTreeMap::new(),
 		abi,
-		// Escaped as a name is, since a library may be named as a keyword or a macro: `class`.
-		ns: escape(p),
+		ns,
 		krate: String::new(),
 		files: crate::go::packages(abi),
 		out: String::new(),
@@ -2858,12 +2865,14 @@ mod tests {
 
 	#[test]
 	fn a_namespace_escapes_as_a_name() {
-		let api = crate::ir::Api::of(vec![crate::ir::Function::bare("f")]);
-		for (lib, ns, c) in [
-			("_class", "class_", "class_f"),
-			("unix", "unix_", "unix_f"),
-			("api", "api", "api_f"),
+		for (lib, functions, ns, c) in [
+			("_class", &["f"][..], "class_", "class_f"),
+			("unix", &["f"], "unix_", "unix_f"),
+			("api", &["f"], "api", "api_f"),
+			// Past the C function `class_` an item named only `_`s makes.
+			("_class", &["f", "__"], "class_2", "class_f"),
 		] {
+			let api = crate::ir::Api::of(functions.iter().map(|f| crate::ir::Function::bare(f)).collect());
 			let rest = api.without_jni();
 			let abi = crate::abi::Abi::new(&api, lib);
 			let abi = abi.without_jni(&rest);
