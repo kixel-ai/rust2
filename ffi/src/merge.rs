@@ -13,7 +13,8 @@ use rustc_span::source_map::SourceMap;
 use rustc_span::{DUMMY_SP, Span};
 
 use crate::ir::{
-	Api, Callback, Constant, Enum, Field, Function, Home, Object, On, Record, TaskKind, Traits, Type, Variant,
+	Access, Api, Callback, Constant, Enum, Field, Function, Home, Object, On, Read, Record, TaskKind, Traits, Type,
+	Variant,
 };
 
 /// A target's API, as a check writes it for the export of several targets.
@@ -202,6 +203,22 @@ fn bare<T: Clone>(item: &T, clear: impl Fn(&mut T)) -> T {
 	item
 }
 
+/// Whether two functions read alike, which a field's two targets do whichever way its
+/// layout makes each getter read it.
+fn same_access(a: &Access, b: &Access) -> bool {
+	match (a, b) {
+		(
+			Access::Field { set, through, .. },
+			Access::Field {
+				set: other,
+				through: through_other,
+				..
+			},
+		) => set == other && through == through_other,
+		_ => a == b,
+	}
+}
+
 pub(crate) fn bare_function(f: &Function) -> Function {
 	bare(f, |f| {
 		f.span = DUMMY_SP;
@@ -210,6 +227,15 @@ pub(crate) fn bare_function(f: &Function) -> Function {
 		f.on = On::ALL;
 		// Merged apart, as a trait's leaves are.
 		f.leaf = false;
+		// Merged to the greatest, as a target's layout may decide it.
+		if let Access::Field {
+			read, unfrozen, copy, ..
+		} = &mut f.access
+		{
+			*read = Read::Borrow;
+			*unfrozen = false;
+			*copy = false;
+		}
 	})
 }
 
@@ -575,13 +601,61 @@ impl Merged {
 			// A field's getter and setter share its path.
 			let Some(at) = ours
 				.iter()
-				.position(|f| f.shown == function.shown && f.access == function.access)
+				.position(|f| f.shown == function.shown && same_access(&f.access, &function.access))
 			else {
 				ours.push(function);
 				continue;
 			};
 			if bare_function(&ours[at]) != bare_function(&function) {
 				let what = format!("fn `{}`", function.shown.join("::"));
+				self.differ(what, (ours[at].on, ours[at].span), (function.on, function.span));
+			}
+			// One getter serves a field on every target, though `repr(packed)` may make one
+			// target's layout need another read than the next's: it reads by the mode that
+			// accepts both, whose value is the same, unless that is an unaligned read of what
+			// a target holds an `UnsafeCell` in, which would race there. A target that
+			// borrows a field that is not `Copy` there is not served by a `Copy` read, so
+			// that merges to `Take`.
+			let races = match (&mut ours[at].access, &function.access) {
+				(
+					Access::Field {
+						set,
+						read: ours,
+						unfrozen: ours_unfrozen,
+						copy: ours_copy,
+						..
+					},
+					Access::Field {
+						read: theirs,
+						unfrozen: theirs_unfrozen,
+						copy: theirs_copy,
+						..
+					},
+				) => {
+					let mut read = (*ours).max(*theirs);
+					if read == Read::Copy
+						&& ((*ours == Read::Borrow && !*ours_copy) || (*theirs == Read::Borrow && !*theirs_copy))
+					{
+						read = Read::Take;
+					}
+					// A setter assigns and never reads the field, so it cannot race.
+					let races = !*set
+						&& read == Read::Take
+						&& ((*ours != read && *ours_unfrozen) || (*theirs != read && *theirs_unfrozen));
+					if !races {
+						*ours = read;
+						*ours_unfrozen |= *theirs_unfrozen;
+						*ours_copy &= *theirs_copy;
+					}
+					races
+				}
+				_ => false,
+			};
+			if races {
+				let what = format!(
+					"fn `{}`, which one target reads out unaligned and another holds an atomic or `Cell` in",
+					function.shown.join("::")
+				);
 				self.differ(what, (ours[at].on, ours[at].span), (function.on, function.span));
 			}
 			ours[at].on.0 |= function.on.0;
@@ -845,7 +919,7 @@ mod tests {
 	use rustc_span::DUMMY_SP;
 
 	use super::{On, cycle, linked, order_crates};
-	use crate::ir::{Api, Enum, Field, Home, Traits, Type, Variant};
+	use crate::ir::{Access, Api, Enum, Field, Function, Home, Read, Traits, Type, Variant};
 
 	/// Docs keep the target's whose links resolve more, as one lacking an item does not.
 	#[test]
@@ -958,5 +1032,144 @@ mod tests {
 		assert_eq!((differs[0].first.0.as_str(), differs[0].second.0.as_str()), ("x", "y"));
 		let (_, differs) = super::merge(vec![api("x", true), api("y", true)]);
 		assert!(differs.is_empty());
+	}
+
+	/// A packed struct's field may read another way on each target, by its layout there: the
+	/// merge keeps one getter for it, reading the way both accept, and no difference.
+	#[test]
+	fn merges_a_fields_getter_across_read_modes() {
+		let getter = |read: Read, unfrozen: bool| Function {
+			path: ["f", "Regs", "n"].map(String::from).to_vec(),
+			shown: ["f", "Regs", "n"].map(String::from).to_vec(),
+			span: DUMMY_SP,
+			on: On::ALL,
+			docs: String::new(),
+			deprecated: None,
+			receiver: Some(crate::ir::Receiver::Ref),
+			params: Vec::new(),
+			units: Vec::new(),
+			ok: Type::Int(crate::ir::Int::Usize),
+			err: None,
+			future: false,
+			eager: false,
+			holds: false,
+			task: None,
+			send: true,
+			collect: false,
+			lends: false,
+			lends_mut: false,
+			derefs: 0,
+			leaf: true,
+			ties: false,
+			access: Access::Field {
+				set: false,
+				through: false,
+				read,
+				unfrozen,
+				copy: read != Read::Take,
+			},
+			instance: None,
+			home: Home::default(),
+		};
+		let api = |target: &str, read: Read, unfrozen: bool| {
+			let path = ["f", "Regs"].map(String::from).to_vec();
+			let record = crate::ir::Record {
+				path: path.clone(),
+				home: Home::default(),
+				shown: path,
+				args: Vec::new(),
+				span: DUMMY_SP,
+				on: On::ALL,
+				docs: String::new(),
+				deprecated: None,
+				fields: Vec::new(),
+				tuple: false,
+				methods: vec![getter(read, unfrozen)],
+				traits: Traits::default(),
+				opaque: None,
+				sizes: BTreeMap::new(),
+			};
+			Api {
+				records: vec![record],
+				enums: Vec::new(),
+				objects: Vec::new(),
+				callbacks: Vec::new(),
+				functions: Vec::new(),
+				constants: Vec::new(),
+				crates: vec!["f".into()],
+				reached: Vec::new(),
+				profiles: Default::default(),
+				targets: vec![target.into()],
+				links: Default::default(),
+			}
+		};
+		for (first, second) in [(Read::Borrow, Read::Copy), (Read::Copy, Read::Borrow)] {
+			let (merged, differs) = super::merge(vec![api("x", first, false), api("y", second, false)]);
+			assert!(differs.is_empty());
+			let methods = &merged.records[0].methods;
+			assert_eq!(methods.len(), 1, "one getter for the field");
+			assert_eq!(methods[0].on.0, 3);
+			assert!(matches!(methods[0].access, Access::Field { read: Read::Copy, .. }));
+		}
+		// An unaligned read of what one target holds an atomic in would race there.
+		let (merged, differs) = super::merge(vec![api("x", Read::Borrow, false), api("y", Read::Take, false)]);
+		assert!(differs.is_empty());
+		assert!(matches!(
+			merged.records[0].methods[0].access,
+			Access::Field { read: Read::Take, .. }
+		));
+		for (first, second) in [
+			(api("x", Read::Borrow, true), api("y", Read::Take, false)),
+			(api("x", Read::Take, false), api("y", Read::Borrow, true)),
+		] {
+			let (merged, differs) = super::merge(vec![first, second]);
+			assert_eq!(differs.len(), 1);
+			assert_eq!((differs[0].first.0.as_str(), differs[0].second.0.as_str()), ("x", "y"));
+			assert_eq!(merged.records[0].methods.len(), 1);
+		}
+		// A target that borrows what is not `Copy` there is not served by a `Copy` read: the
+		// merge reads by `Take`, and it still reports a field the other target holds an atomic in.
+		let uncopied = |mut api: Api| {
+			if let Access::Field { copy, .. } = &mut api.records[0].methods[0].access {
+				*copy = false;
+			}
+			api
+		};
+		for (first, second) in [
+			(uncopied(api("x", Read::Borrow, false)), api("y", Read::Copy, false)),
+			(api("x", Read::Copy, false), uncopied(api("y", Read::Borrow, false))),
+		] {
+			let (merged, differs) = super::merge(vec![first, second]);
+			assert!(differs.is_empty());
+			assert!(matches!(
+				merged.records[0].methods[0].access,
+				Access::Field {
+					read: Read::Take,
+					copy: false,
+					..
+				}
+			));
+		}
+		let (merged, differs) = super::merge(vec![
+			uncopied(api("x", Read::Borrow, true)),
+			api("y", Read::Copy, false),
+		]);
+		assert_eq!(differs.len(), 1);
+		assert_eq!(merged.records[0].methods.len(), 1);
+		// A setter never reads the field, so the same pair merges without a difference.
+		let setter = |mut api: Api| {
+			if let Access::Field { set, .. } = &mut api.records[0].methods[0].access {
+				*set = true;
+			}
+			api
+		};
+		for (first, second) in [
+			(api("x", Read::Borrow, true), api("y", Read::Take, true)),
+			(api("x", Read::Take, true), api("y", Read::Borrow, true)),
+		] {
+			let (merged, differs) = super::merge(vec![setter(first), setter(second)]);
+			assert!(differs.is_empty());
+			assert_eq!(merged.records[0].methods.len(), 1);
+		}
 	}
 }

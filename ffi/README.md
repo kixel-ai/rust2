@@ -94,7 +94,7 @@ public path names, or an error taken by value, is held by value as an opaque han
 | any other type | an object: an opaque handle to an `Arc`, freed with `_free`; one that is `Copy`, such as std's `Instant`, whose padding a `rustc` may place anywhere, is copied out of its handle where Rust takes it by value, and a closure neither takes nor returns one by value; one that is not `Send`, such as kio's `clock::Entered`, stays on the thread that made it, as [the C ABI](#the-c-abi)'s threads say |
 | a type whose only generic parameters are lifetimes, such as `Path<'a>` | an object holding its `'static` form |
 | a generic type, at each instance it infers | that instance as any other type, with each method whose impl and own bounds it meets; any other instance is refused |
-| a `pub` field of an object or opaque value | a getter returning a copy, and a setter assigning in place, as `x.field = value` does |
+| a `pub` field of an object or opaque value | a getter returning a copy, and a setter assigning in place, as `x.field = value` does; a `repr(packed)` struct's field that may lie unaligned, which rustc lets no reference point at, is copied out if `Copy`, else read unaligned into a `ManuallyDrop`, which the struct still owns and drops, so one that must be lent instead, a field that is not `Clone`, is refused unless aligned within the packing, as is one holding an atomic or `Cell` inline, whose unaligned copy would race a write through `&self` |
 | a `pub` trait | a callback interface: a table of C functions and their data; a trait C cannot implement, such as one with a blanket impl, an associated type, or a supertrait but a marker, is left out, since C never passes one, and a signature taking one from C is refused |
 | a type parameter or `impl` bounded by `Fn`, `FnMut`, or `FnOnce` alone, taking what a callback takes, objects by reference, or opaque values, and returning a scalar, a `String`, an opaque value, an `Option` of one, or a `Result` of one and a `String` | a C function and its `void *` data; one a lifetime bound or the return lets outlive the call, as kio's `clock::drive` and a spawned task's are, adds a `free` Rust calls once it drops it; a closure of any other signature is refused |
 | a type parameter or `impl` taken by value and bounded by `Future` or `IntoFuture`, whose every bound `Pin<Box<dyn Future<Output = ()> + Send>>` meets, as kio's `clock::timeout` takes, or taken as `Pin<&mut F>` by a poll, as kio's `Waiter::poll_future` takes | `<prefix>_foreign_future`: a future of `()` C implements, which Rust takes as that type, or which the future the poll makes owns and pins; a future of another output is refused |
@@ -247,9 +247,20 @@ directory above its `OUT_DIR`, whose per-package overrides are then the check's,
 the glue carries the workspace's profiles. `test` and `debug` (which newer cargos define,
 inheriting `dev`) share `dev`'s directory, and `bench` `release`'s, so where the
 manifest sets anything of `test`'s, `debug`'s, or `bench`'s own beyond the `inherits`
-cargo gives it, no build in that directory is proven. The crate's `PROVEN` also needs the check's panic
+cargo gives it, no build in that directory is proven. It also compares `DEBUG`, which the
+crate's debug info sets, and the target's `cfg`s cargo gives it as `CARGO_CFG_*`, less the
+crate's features and debug assertions: the check records them as cargo's `rustc` prints
+them under the check's `RUSTFLAGS`, and again acting as a stable release, which lists no
+unstable `cfg` or target feature, so a stable build of a nightly's export is proven too.
+A `-C target-cpu`, `-C target-feature`, or `--cfg` the check did not have makes the build
+unproven. So does any `CARGO_PROFILE_<NAME>_OPT_LEVEL`, `_DEBUG`, `_DEBUG_ASSERTIONS`, or
+`_BUILD_OVERRIDE_DEBUG_ASSERTIONS` of the profile or one it inherits from, set apart from the
+check's environment, which would change another crate's build, or of another profile that
+shares its directory (`bench` beside `release`, `test` and `debug` beside `dev`) set at all. The crate's `PROVEN` also needs the check's panic
 strategy, which a build script cannot see, and its debug assertions, which `RUSTFLAGS`
-may set apart from the profile. A build
+may set apart from the profile. A package override or `build-override` that cargo's
+config files or a `--config` set, which a build script cannot see, is the one setting the
+guard misses: build with the export's config. A build
 under another profile may run code the proof never saw, such as a body under
 `cfg(debug_assertions)`, so each binding makes every leaf as any other call instead:
 Python releases the GIL, Dart serves the isolate, and Kotlin calls a plain native method
@@ -758,7 +769,11 @@ the rest cross encoded.
   which JNI keeps reachable until the call returns, and are freed once the GC finds no
   `Bytes` reaching them, slices included. The GC sees none of Rust's buffers, so at most
   64 MiB are lent at once, freed or not; past that, longer ones are copied too, and that
-  garbage in Kotlin's heap runs the GC, which frees them. A `Bytes` equals and hashes by its contents, wherever each keeps them, so a
+  garbage in Kotlin's heap runs the GC, which frees them. On ART, which puts each copy of
+  12 KiB or more in its large-object space at several times a lend's cost, Rust asks the
+  GC to collect, from a thread of its own, once 32 MiB are lent, and again only after
+  frees bring them under 16 MiB, so lent bytes a program keeps never make it collect over
+  and over. A `Bytes` equals and hashes by its contents, wherever each keeps them, so a
   record holding bytes does too; Rust's lent ones are copied across in one call to compare.
   Strings are `String`, passed in as their UTF-16, which Rust encodes once into UTF-8 before
   the call reads any argument, so one holding a lone surrogate, which no Rust text holds,

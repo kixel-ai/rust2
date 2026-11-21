@@ -362,6 +362,20 @@ public struct Hits: Sendable, CustomDebugStringConvertible, Equatable {
 	@inlinable public mutating func add(_ other: Hits)
 	@inlinable public mutating func eq(_ other: Hits) -> Swift.Bool
 }
+public struct Regs: Sendable, CustomDebugStringConvertible, Equatable {
+	@inlinable public var debugDescription: Swift.String { get }
+	@inlinable public static func == (a: Regs, b: Regs) -> Swift.Bool
+	@inlinable public var fcwGet: Swift.UInt16 { get }
+	@inlinable public mutating func fcwSet(_ value: Swift.UInt16)
+	@inlinable public var wideGet: Swift.UInt64 { get }
+	@inlinable public mutating func wideSet(_ value: Swift.UInt64)
+	@inlinable public var atGet: Point { get }
+	@inlinable public mutating func atSet(_ value: Point)
+	@inlinable public var tagGet: Swift.UInt8 { get }
+	@inlinable public mutating func tagSet(_ value: Swift.UInt8)
+	@inlinable public static func new(_ fcw: Swift.UInt16, _ wide: Swift.UInt64, _ at: Point) -> Regs
+	@inlinable public func seed() -> Swift.UInt8
+}
 public struct Extent: Sendable, CustomDebugStringConvertible, Equatable {
 	@inlinable public var debugDescription: Swift.String { get }
 	@inlinable public static func == (a: Extent, b: Extent) -> Swift.Bool
@@ -1036,6 +1050,19 @@ public struct Retired: ~Copyable, @unchecked Sendable {
 	@available(*, deprecated, message: "count with `Countdown`") @inlinable nonisolated(nonsending) public mutating func next() async throws -> Swift.UInt32?
 	@available(*, deprecated, message: "count with `Countdown`") @inlinable public consuming func stream() -> RetiredStream
 }
+public struct Folio: ~Copyable, @unchecked Sendable {
+	@inlinable public var pageGet: Swift.UInt16 { get }
+	@inlinable public mutating func pageSet(_ value: Swift.UInt16) throws
+	@inlinable public var titleGet: Swift.String { get }
+	@inlinable public mutating func titleSet(_ value: Swift.String) throws
+	@inlinable public var noteGet: Swift.String? { get }
+	@inlinable public mutating func noteSet(_ value: Swift.String?) throws
+	@inlinable public func haspGet() throws -> Hasp
+	@inlinable public mutating func haspSet(_ value: consuming Hasp) throws
+	@inlinable public func dockGet() throws -> Hasp
+	@inlinable public static func new(_ page: Swift.UInt16, _ title: Swift.String) -> Folio
+	@inlinable public func seed() throws -> Swift.UInt8
+}
 public struct Logger: ~Copyable, @unchecked Sendable {
 	@inlinable public static func new(_ sink: any Log) -> Logger
 	@inlinable public func write(_ line: Swift.String) -> Swift.Bool
@@ -1315,6 +1342,10 @@ public final class Mark: @unchecked Sendable {
 	@inlinable public static func of(_ count: Swift.UInt64) -> Mark
 	@inlinable public func count() throws -> Swift.UInt64
 	@inlinable public func add(_ by: Swift.UInt64) throws
+}
+public struct Hasp: ~Copyable, @unchecked Sendable {
+	@inlinable public static func `default`() -> Hasp
+	@inlinable public func set() throws -> Swift.Bool
 }
 public struct Message: ~Copyable, @unchecked Sendable {
 	@inlinable public var debugDescription: Swift.String { get }

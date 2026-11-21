@@ -17,7 +17,7 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-#define API_CONTRACT ((uint64_t)0xfce3b9ae05a2935cULL)
+#define API_CONTRACT ((uint64_t)0x097978987abcd150ULL)
 uint64_t api_contract(void);
 uint32_t api_target(void);
 typedef int32_t api_status;
@@ -114,6 +114,7 @@ typedef struct api_Waiter api_Waiter;
 typedef struct api_Feed api_Feed;
 typedef struct api_Countdown api_Countdown;
 typedef struct api_Retired api_Retired;
+typedef struct api_Folio api_Folio;
 typedef struct api_Logger api_Logger;
 typedef struct api_Journal api_Journal;
 typedef struct api_Local api_Local;
@@ -149,6 +150,7 @@ typedef struct api_Channel api_Channel;
 typedef struct api_Gap api_Gap;
 typedef struct api_Berth api_Berth;
 typedef struct api_Mark api_Mark;
+typedef struct api_Hasp api_Hasp;
 typedef struct api_Message api_Message;
 typedef struct api_Node api_Node;
 typedef struct api_Tally api_Tally;
@@ -733,6 +735,9 @@ typedef struct api_Rated {
 typedef struct api_Hits {
 	uint64_t opaque[2];
 } api_Hits;
+typedef struct api_Regs {
+	uint8_t opaque[20];
+} api_Regs;
 typedef struct api_Extent {
 	uint64_t opaque[2];
 } api_Extent;
@@ -1373,6 +1378,18 @@ void api_Hits_misses_set(api_Hits *self, uint64_t value);
 api_Hits api_Hits_of(uint64_t hits, uint64_t misses);
 void api_Hits_add(api_Hits *self, api_Hits other);
 bool api_Hits_eq_(api_Hits *self, api_Hits other);
+bool api_Regs_eq(const api_Regs *a, const api_Regs *b);
+API_MUST_USE api_buf api_Regs_debug(const api_Regs *self);
+uint16_t api_Regs_fcw_get(const api_Regs *self);
+void api_Regs_fcw_set(api_Regs *self, uint16_t value);
+uint64_t api_Regs_wide_get(const api_Regs *self);
+void api_Regs_wide_set(api_Regs *self, uint64_t value);
+api_Point api_Regs_at_get(const api_Regs *self);
+void api_Regs_at_set(api_Regs *self, api_Point value);
+uint8_t api_Regs_tag_get(const api_Regs *self);
+void api_Regs_tag_set(api_Regs *self, uint8_t value);
+api_Regs api_Regs_new(uint16_t fcw, uint64_t wide, api_Point at);
+uint8_t api_Regs_seed(const api_Regs *self);
 bool api_Extent_eq(const api_Extent *a, const api_Extent *b);
 API_MUST_USE api_buf api_Extent_debug(const api_Extent *self);
 uint64_t api_Extent_start_get(const api_Extent *self);
@@ -1741,6 +1758,19 @@ API_MUST_USE api_Retired_next_future *api_Retired_next(api_Retired *self, api_st
 API_MUST_USE api_poll api_Retired_next_start(api_Retired *self, api_option_u32 *out, api_Retired_next_future **future, api_status *status);
 API_MUST_USE api_poll api_Retired_next_poll(api_Retired_next_future *future, api_waker waker, api_option_u32 *out);
 void api_Retired_next_future_free(api_Retired_next_future *future);
+void api_Folio_free(api_Folio *self);
+void api_Folio_drop(api_Folio *self, api_status *status);
+uint16_t api_Folio_page_get(const api_Folio *self, api_status *status);
+void api_Folio_page_set(api_Folio *self, uint16_t value, api_status *status);
+API_MUST_USE api_buf api_Folio_title_get(const api_Folio *self, api_status *status);
+void api_Folio_title_set(api_Folio *self, api_buf value, api_status *status);
+API_MUST_USE api_buf api_Folio_note_get(const api_Folio *self, api_status *status);
+void api_Folio_note_set(api_Folio *self, api_buf value, api_status *status);
+API_MUST_USE api_Hasp *api_Folio_hasp_get(const api_Folio *self, api_status *status);
+void api_Folio_hasp_set(api_Folio *self, api_Hasp *value, api_status *status);
+API_MUST_USE api_Hasp *api_Folio_dock_get(const api_Folio *self, api_status *status);
+API_MUST_USE api_Folio *api_Folio_new(uint16_t page, api_buf title);
+uint8_t api_Folio_seed(const api_Folio *self, api_status *status);
 void api_Logger_free(api_Logger *self);
 API_MUST_USE api_Logger *api_Logger_new(api_Log sink);
 bool api_Logger_write(const api_Logger *self, api_buf line);
@@ -2069,6 +2099,10 @@ API_MUST_USE api_buf api_Mark_debug(const api_Mark *self, api_status *status);
 API_MUST_USE api_Mark *api_Mark_of(uint64_t count);
 uint64_t api_Mark_count(const api_Mark *self, api_status *status);
 void api_Mark_add(api_Mark *self, uint64_t by, api_status *status);
+void api_Hasp_free(api_Hasp *self);
+void api_Hasp_drop(api_Hasp *self, api_status *status);
+API_MUST_USE api_Hasp *api_Hasp_default(void);
+bool api_Hasp_set(const api_Hasp *self, api_status *status);
 void api_Message_free(api_Message *self);
 void api_Message_drop(api_Message *self, api_status *status);
 API_MUST_USE api_Message *api_Message_clone(const api_Message *self, api_status *status);

@@ -405,6 +405,27 @@ fn main() {
 	let mut counted = kept;
 	let same = api::Hits::eq(&mut counted, kept);
 	println!("counted {same} {}", counted.hits);
+	// A packed value's fields are read into locals, as a reference to one is refused.
+	let mut regs = api::Regs::new(1, u64::MAX, Point { x: 3, y: -4 });
+	let saved = regs;
+	regs.fcw = 9;
+	regs.at = Point { x: 5, y: 6 };
+	let fcw = regs.fcw;
+	let wide = regs.wide;
+	let at = regs.at;
+	let tag = regs.tag;
+	let old_fcw = saved.fcw;
+	let old_wide = saved.wide;
+	let old_at = saved.at;
+	println!(
+		"regs {fcw} {wide} {} {} {tag} {} {old_fcw} {old_wide} {} {} {}",
+		at.x,
+		at.y,
+		regs.seed(),
+		old_at.x,
+		old_at.y,
+		regs == saved
+	);
 	let mut extent = api::Extent::new(5, 3);
 	let start = extent;
 	let old = extent.slide(10);

@@ -30,7 +30,7 @@ use rustc_trait_selection::traits::query::evaluate_obligation::InferCtxtExt as _
 
 use crate::ir::{
 	Access, Api, Callback, Closure, Collection, Constant, Dyn, Enum, Family, Field, Function, Held, Home, Int, Jni,
-	Literal, Mutability, Object, On, Order, Param, Path, Receiver, Record, Task, TaskKind, Traits, Type, Variant,
+	Literal, Mutability, Object, On, Order, Param, Path, Read, Receiver, Record, Task, TaskKind, Traits, Type, Variant,
 };
 
 /// Why something is refused: a construct, ranked by the census, and what it names.
@@ -76,6 +76,10 @@ pub(crate) const UNHELD: [&str; 5] = [
 /// The construct of a type parameter bounded by another crate's trait that no export
 /// implements and C cannot: no value C holds could be passed for it.
 const UNMET: &str = "bound no type C holds meets";
+
+/// The construct of a field lent from a `repr(packed)` struct, where it may lie unaligned.
+const UNALIGNED: &str = "lent unaligned field";
+const RACY: &str = "unaligned interior-mutable field";
 
 fn why(construct: &'static str, detail: impl Into<String>) -> Why {
 	Why {
@@ -162,6 +166,13 @@ pub(crate) struct Facade<'a> {
 	pub(crate) profile: &'a str,
 	/// The directory cargo builds the check's profile in, unless another's could share it.
 	pub(crate) profile_dir: Option<&'a str>,
+	/// The target's `cfg`s as cargo gives a build script them, by [`crate::ir::Profile::cfgs`].
+	pub(crate) cfgs: &'a [std::collections::BTreeMap<String, String>],
+	/// Cargo's `DEBUG` for the facade, by [`crate::ir::Profile::debug`].
+	pub(crate) debug: bool,
+	/// The `CARGO_PROFILE_*` variables that may override the profile, by
+	/// [`crate::ir::Profile::vars`].
+	pub(crate) vars: &'a std::collections::BTreeMap<String, Option<String>>,
 }
 
 /// What collection found in the facade, by paths from its root.
@@ -481,7 +492,7 @@ pub(crate) fn collect<'tcx>(tcx: TyCtxt<'tcx>, facade: &Facade<'_>) -> Collected
 				reached: Vec::new(),
 				targets: vec![target(tcx)],
 				links: [(target(tcx), links(tcx))].into(),
-				profiles: [(target(tcx), profile(tcx, facade.profile, facade.profile_dir))].into(),
+				profiles: [(target(tcx), profile(tcx, facade))].into(),
 			},
 		};
 		c.walk();
@@ -2994,9 +3005,16 @@ impl<'tcx> Collector<'tcx> {
 			let lends = handle
 				&& !self.is_clone(held)
 				&& matches!(object.kind(), ty::Adt(adt, args) if matches!(self.decl(adt.did(), *args), Some(Decl::Object(_))));
+			let how = self.field_read(site, ty);
 			let mapped = {
 				self.lending.set(lends);
-				let get = self.ty(read, Pos::Return);
+				// A lent field is the field itself, which an unaligned one cannot be; one lent
+				// through a reference it holds is its pointee, which the copied reference reaches.
+				let get = match (lends && assigned && how != Read::Borrow, self.racy(how, ty)) {
+					(true, _) => Err(why(UNALIGNED, ty.to_string())),
+					(_, true) => Err(why(RACY, ty.to_string())),
+					_ => self.ty(read, Pos::Return),
+				};
 				self.lending.set(false);
 				// A handle outlives every call, so a reference it holds is `'static`, which
 				// C's borrow for the call is not.
@@ -3011,7 +3029,11 @@ impl<'tcx> Collector<'tcx> {
 					// crate's is not, is still written: its getter alone is refused, and the
 					// setter keeps the type in the API, so one no export returns leaves out
 					// both.
-					(Err(get), Ok(Some(set))) if get.construct == "borrowed return that is not Clone" => {
+					(Err(get), Ok(Some(set)))
+						if get.construct == "borrowed return that is not Clone"
+							|| get.construct == UNALIGNED
+							|| get.construct == RACY =>
+					{
 						self.refuse(&shown, "field", span, vec![get]);
 						Ok((None, Some(set)))
 					}
@@ -3072,6 +3094,9 @@ impl<'tcx> Collector<'tcx> {
 						access: Access::Field {
 							set,
 							through: !assigned,
+							read: how,
+							unfrozen: self.unfrozen(ty),
+							copy: self.copies(site, ty),
 						},
 						instance: None,
 						home: Home::default(),
@@ -3095,6 +3120,50 @@ impl<'tcx> Collector<'tcx> {
 			}
 		}
 		accessors
+	}
+
+	/// How the glue reads a field of type `ty` of the struct `site`: rustc refuses a reference
+	/// to a `repr(packed)` struct's field whose alignment exceeds the packing (E0793), so
+	/// that one is copied out by value if it is `Copy`, else read unaligned into a
+	/// `ManuallyDrop`, which the getter takes its clone from, leaving the struct its owner.
+	fn field_read(&self, site: &Site<'tcx>, ty: Ty<'tcx>) -> Read {
+		let tcx = self.tcx;
+		let Some(pack) = tcx.adt_def(site.key.def_id).repr().pack else {
+			return Read::Borrow;
+		};
+		let ty = tcx.erase_and_anonymize_regions(ty);
+		let input = TypingEnv::fully_monomorphized().as_query_input(ty);
+		if tcx.layout_of(input).is_ok_and(|layout| layout.align <= pack) {
+			return Read::Borrow;
+		}
+		match self.copies(site, ty) {
+			true => Read::Copy,
+			false => Read::Take,
+		}
+	}
+
+	/// Whether a field of type `ty` of the struct `site` is `Copy` on this target: another
+	/// target of the same field, which reads it by `Copy`, may not have it so.
+	fn copies(&self, site: &Site<'tcx>, ty: Ty<'tcx>) -> bool {
+		let ty = self.tcx.erase_and_anonymize_regions(ty);
+		implements(self.tcx, ty, site.key.def_id, sym::Copy)
+	}
+
+	/// Whether reading a field of type `ty` out unaligned, as `how` says, would race: a type
+	/// holding an `UnsafeCell` inline, such as an atomic, may be written through `&self`
+	/// while the read copies its bytes, and a non-atomic read of that is undefined behavior.
+	fn racy(&self, how: Read, ty: Ty<'tcx>) -> bool {
+		let tcx = self.tcx;
+		let ty = tcx.erase_and_anonymize_regions(ty);
+		how == Read::Take && !ty.is_freeze(tcx, TypingEnv::fully_monomorphized())
+	}
+
+	/// Whether a field of type `ty` holds an `UnsafeCell` inline: another target of the same
+	/// field, whose packing may differ, may read it unaligned, which would race there.
+	fn unfrozen(&self, ty: Ty<'tcx>) -> bool {
+		let tcx = self.tcx;
+		let ty = tcx.erase_and_anonymize_regions(ty);
+		!ty.is_freeze(tcx, TypingEnv::fully_monomorphized())
 	}
 
 	/// A value's methods, refusing each through `&mut self`: C passes the value as a copy,
@@ -7099,9 +7168,9 @@ fn target(tcx: TyCtxt<'_>) -> String {
 	tcx.sess.opts.target_triple.tuple().to_string()
 }
 
-/// The profile the facade compiles with, which its leaves are proven under, beside the
-/// `PROFILE` cargo gave its build scripts.
-fn profile(tcx: TyCtxt<'_>, root: &str, dir: Option<&str>) -> crate::ir::Profile {
+/// The profile the facade compiles with, which its leaves are proven under, beside what
+/// cargo gave its build scripts.
+fn profile(tcx: TyCtxt<'_>, facade: &Facade<'_>) -> crate::ir::Profile {
 	use rustc_session::config::OptLevel;
 	let sess = tcx.sess;
 	let opt_level = match sess.opts.optimize {
@@ -7113,11 +7182,14 @@ fn profile(tcx: TyCtxt<'_>, root: &str, dir: Option<&str>) -> crate::ir::Profile
 		OptLevel::SizeMin => "z",
 	};
 	crate::ir::Profile {
-		root: root.to_string(),
-		dir: dir.map(str::to_string),
+		root: facade.profile.to_string(),
+		dir: facade.profile_dir.map(str::to_string),
 		opt_level: opt_level.to_string(),
 		debug_assertions: sess.opts.debug_assertions,
 		panic: sess.panic_strategy().desc().to_string(),
+		debug: facade.debug,
+		cfgs: facade.cfgs.to_vec(),
+		vars: facade.vars.clone(),
 	}
 }
 

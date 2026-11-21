@@ -33,6 +33,10 @@ pub(crate) fn run(args: Vec<String>) -> ExitCode {
 			}
 		};
 	}
+	if let Err(err) = record_cfgs(&args) {
+		eprintln!("rust2-ffi: {err}");
+		return ExitCode::FAILURE;
+	}
 	rust2_driver::rustc::run("rust2-ffi", args, |args, added| {
 		crate::leaf::flags(args, added);
 		crate::wasm::flags(args, added)?;
@@ -41,6 +45,143 @@ pub(crate) fn run(args: Vec<String>) -> ExitCode {
 		}
 		Ok(Export::for_args(args)?.map(|job| Box::new(job) as rust2_driver::rustc::Job))
 	})
+}
+
+/// What the wrapper finds in cargo's query of the target, which carries the check's
+/// `RUSTFLAGS` and nothing of the profile's.
+#[derive(serde::Serialize, serde::Deserialize)]
+struct Queried {
+	/// rustc's `--print=cfg`, in each view a build may see.
+	printed: Vec<String>,
+	/// How many debug info flags `RUSTFLAGS` holds, which follow cargo's own.
+	debuginfo: usize,
+}
+
+/// On cargo's query of the target, write the `cfg`s cargo's own rustc prints for it to
+/// [`config::env::CFGS`]: what cargo gives the glue's build script under the check's
+/// `RUSTFLAGS`, as a build with that rustc does, rather than this nightly's. Then as it
+/// prints them acting as a stable release, which keeps unstable `cfg`s back, as a stable
+/// build of the glue does whatever rustc exported it. The query names the target, and the
+/// crate `___`.
+fn record_cfgs(args: &[String]) -> Result<(), String> {
+	let Some(path) = std::env::var_os(config::env::CFGS) else {
+		return Ok(());
+	};
+	// Cargo passes the args in an argfile once they overflow a command line, as many
+	// `RUSTFLAGS` may.
+	let early = rustc_session::EarlyDiagCtxt::new(rustc_session::config::ErrorOutputType::default());
+	let expanded = rustc_driver::args::arg_expand_all(&early, &args[2..]);
+	let query = expanded.windows(2).any(|w| w[0] == "--crate-name" && w[1] == "___")
+		&& expanded
+			.iter()
+			.any(|arg| arg == "--target" || arg.starts_with("--target="))
+		&& expanded.iter().any(|arg| arg == "--print=cfg");
+	if !query {
+		return Ok(());
+	}
+	// Its args without what it prints, and the crate types `--print=file-names` reads, in
+	// an argfile of its own.
+	let mut asked = Vec::new();
+	let mut rest = expanded.iter();
+	while let Some(arg) = rest.next() {
+		match arg.as_str() {
+			"--print" | "--crate-type" => {
+				rest.next();
+			}
+			_ if arg.starts_with("--print=") || arg.starts_with("--crate-type=") => {}
+			_ => asked.push(arg.as_str()),
+		}
+	}
+	let argfile = Path::new(&path).with_extension("args");
+	asked.push("--print=cfg");
+	std::fs::write(&argfile, asked.join("\n")).map_err(|err| format!("writing {}: {err}", argfile.display()))?;
+	let mut at = std::ffi::OsString::from("@");
+	at.push(&argfile);
+	// A stable release refuses the `-Z` flags a nightly's `RUSTFLAGS` may hold, and a build
+	// with them is a nightly's.
+	let nightly = asked.iter().any(|arg| arg.starts_with("-Z"));
+	let print = |stable: bool| {
+		let mut rustc = Command::new(&args[1]);
+		rustc.arg(&at).stdin(std::process::Stdio::null());
+		if stable {
+			rustc.env("RUSTC_BOOTSTRAP", "-1");
+		}
+		let output = rustc.output().map_err(|err| format!("running {}: {err}", args[1]))?;
+		match output.status.success() {
+			true => String::from_utf8(output.stdout).map_err(|_| format!("{} printed a non-UTF-8 cfg", args[1])),
+			false => Err(format!(
+				"{} --print=cfg failed ({}): {}",
+				args[1],
+				output.status,
+				String::from_utf8_lossy(&output.stderr).trim()
+			)),
+		}
+	};
+	let mut printed = vec![print(false)?];
+	if !nightly {
+		printed.push(print(true)?);
+	}
+	printed.dedup();
+	let queried = Queried {
+		printed,
+		debuginfo: debuginfo(&expanded).len(),
+	};
+	let json = serde_json::to_string(&queried).expect("strings serialize");
+	std::fs::write(&path, json).map_err(|err| format!("writing {}: {err}", Path::new(&path).display()))
+}
+
+/// The value of each debug info flag in rustc's `args`, in order.
+fn debuginfo(args: &[String]) -> Vec<&str> {
+	let mut values = Vec::new();
+	let mut rest = args.iter().map(String::as_str);
+	while let Some(arg) = rest.next() {
+		let codegen = match arg {
+			"-g" => {
+				values.push("2");
+				continue;
+			}
+			"-C" | "--codegen" => rest.next(),
+			_ => arg.strip_prefix("-C").or_else(|| arg.strip_prefix("--codegen=")),
+		};
+		values.extend(codegen.and_then(|c| c.strip_prefix("debuginfo=")));
+	}
+	values
+}
+
+/// Cargo's `DEBUG` for the crate rustc compiles with `args`: whether cargo passed it debug
+/// info, before the `queried` flags of `RUSTFLAGS`, which may set another.
+fn cargo_debug(args: &[String], queried: usize) -> bool {
+	let values = debuginfo(args);
+	values.len() > queried && !matches!(values[0], "0" | "none")
+}
+
+/// The `cfg`s rustc's `--print=cfg` lists, as cargo gives a build script them: each name's
+/// values joined by commas in the order rustc lists them, by the name as cargo's
+/// `CARGO_CFG_<NAME>` spells it. Less the crate's features and debug assertions, which
+/// cargo sets from the crate and its profile instead.
+fn cfgs(printed: &str) -> Result<std::collections::BTreeMap<String, String>, String> {
+	let mut values: std::collections::BTreeMap<String, Vec<&str>> = Default::default();
+	for line in printed.lines() {
+		let (name, value) = match line.split_once('=') {
+			None => (line, None),
+			Some((name, value)) => {
+				let value = (value.strip_prefix('"').and_then(|v| v.strip_suffix('"')))
+					.ok_or_else(|| format!("rustc printed the cfg `{line}`, whose value is unquoted"))?;
+				(name, Some(value))
+			}
+		};
+		if name.is_empty() || matches!(name, "feature" | "debug_assertions") {
+			continue;
+		}
+		values
+			.entry(name.to_uppercase().replace('-', "_"))
+			.or_default()
+			.extend(value);
+	}
+	Ok(values
+		.into_iter()
+		.map(|(name, values)| (name, values.join(",")))
+		.collect())
 }
 
 /// The file in the export that holds its API, which `--baseline` reads back.
@@ -66,6 +207,12 @@ struct Export {
 	profile: String,
 	/// The directory cargo builds the check's profile in, unless another's could share it.
 	profile_dir: Option<String>,
+	/// The target's `cfg`s as cargo gives a build script them, by [`ir::Profile::cfgs`].
+	cfgs: Vec<std::collections::BTreeMap<String, String>>,
+	/// Cargo's `DEBUG` for the facade.
+	debug: bool,
+	/// The `CARGO_PROFILE_*` variables that may override the profile, with their values.
+	vars: std::collections::BTreeMap<String, Option<String>>,
 }
 
 /// What the job writes.
@@ -139,6 +286,25 @@ impl Export {
 		let profile_dir =
 			std::env::var(config::env::PROFILE_DIR).map_err(|_| format!("{} is unset", config::env::PROFILE_DIR))?;
 		let profile_dir = Some(profile_dir).filter(|dir| !dir.is_empty());
+		let path = std::env::var_os(config::env::CFGS).ok_or_else(|| format!("{} is unset", config::env::CFGS))?;
+		// Cargo queries the target before it compiles any crate for it.
+		let printed = std::fs::read_to_string(&path)
+			.map_err(|err| format!("reading the target's cfgs from {}: {err}", Path::new(&path).display()))?;
+		let queried: Queried = serde_json::from_str(&printed)
+			.map_err(|err| format!("reading the target's cfgs from {}: {err}", Path::new(&path).display()))?;
+		let cfgs = (queried.printed.iter())
+			.map(|printed| cfgs(printed))
+			.collect::<Result<_, _>>()?;
+		let debug = cargo_debug(args, queried.debuginfo);
+		let vars =
+			std::env::var(config::env::PROFILE_VARS).map_err(|_| format!("{} is unset", config::env::PROFILE_VARS))?;
+		let vars = (vars.split(',').filter(|var| !var.is_empty()))
+			.map(|var| {
+				let value = std::env::var_os(var).map(|value| value.into_string());
+				let value = value.transpose().map_err(|_| format!("{var} is not UTF-8"))?;
+				Ok((var.to_string(), value))
+			})
+			.collect::<Result<_, String>>()?;
 		Ok(Some(Self {
 			crates,
 			output,
@@ -149,6 +315,9 @@ impl Export {
 			baseline,
 			profile,
 			profile_dir,
+			cfgs,
+			debug,
+			vars,
 		}))
 	}
 }
@@ -186,6 +355,9 @@ impl Callbacks for Export {
 			crates: &self.crates,
 			profile: &self.profile,
 			profile_dir: self.profile_dir.as_deref(),
+			cfgs: &self.cfgs,
+			debug: self.debug,
+			vars: &self.vars,
 		};
 		let mut collected = collect::collect(tcx, &facade);
 		if let Output::Census(dir) = &self.output {
@@ -595,4 +767,43 @@ pub(crate) fn write(path: &Path, text: &str) -> Result<(), String> {
 		let _ = std::fs::remove_file(&temp);
 		format!("writing {}: {err}", path.display())
 	})
+}
+
+#[cfg(test)]
+mod tests {
+	#[test]
+	fn reads_cfgs_as_cargo_gives_them() {
+		let printed = "debug_assertions\nfeature=\"x\"\nfoo\nfoo=\"a,b\"\nfoo=\"x\"\npanic=\"unwind\"\n\
+			target_abi=\"\"\ntarget_feature=\"sse\"\ntarget_feature=\"sse2\"\nunix\n";
+		let cfgs = super::cfgs(printed).unwrap();
+		let want = [
+			("FOO", "a,b,x"),
+			("PANIC", "unwind"),
+			("TARGET_ABI", ""),
+			("TARGET_FEATURE", "sse,sse2"),
+			("UNIX", ""),
+		];
+		assert_eq!(
+			cfgs.iter().map(|(k, v)| (k.as_str(), v.as_str())).collect::<Vec<_>>(),
+			want
+		);
+		assert!(super::cfgs("foo=bar").is_err());
+	}
+
+	#[test]
+	fn reads_cargo_debug_apart_from_rustflags() {
+		let args = |args: &str| args.split(' ').map(str::to_string).collect::<Vec<_>>();
+		// Cargo's own comes first, and `RUSTFLAGS`' after it.
+		for (facade, queried, want) in [
+			("--crate-name a -C debuginfo=2 -C opt-level=0", 0, true),
+			("--crate-name a -C opt-level=3", 0, false),
+			("--crate-name a -C opt-level=3 -Cdebuginfo=2", 1, false),
+			("--crate-name a -C debuginfo=line-tables-only -C debuginfo=0", 1, true),
+			("--crate-name a -C debuginfo=1 -g", 1, true),
+			("--crate-name a --codegen=debuginfo=2 -C debuginfo=0", 1, true),
+			("--crate-name a -C debuginfo=0", 1, false),
+		] {
+			assert_eq!(super::cargo_debug(&args(facade), queried), want, "{facade}");
+		}
+	}
 }
