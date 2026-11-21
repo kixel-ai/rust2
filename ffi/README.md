@@ -1376,8 +1376,8 @@ C function is an `@Native` external, which finds the shared library the crate bu
 `hook/build.dart` maps to the library when an app depending on it builds or runs. In an
 export, the hook builds the crate beside the package, `../Cargo.toml`, with Cargo, on the
 target the app builds for, for the Android NDK of an app's Flutter build, and reruns when a
-source the build read changes, Cargo's dep-info says which, or a Cargo manifest or config at
-or above a path package it builds. It builds each Android API
+source the build read changes, Cargo's dep-info says which, or a path package's manifest,
+its workspace's, or a Cargo config the build reads. It builds each Android API
 level and Apple deployment target in a target directory of its own, as Cargo rebuilds for
 no change in them. A release's adds `hook/release.json`, from which it downloads the
 library instead ([Binding releases](release/README.md)). The prefix must name a Dart
