@@ -18,6 +18,7 @@ import os
 from pathlib import Path
 import posixpath
 import plistlib
+import queue
 import re
 import shlex
 import shutil
@@ -2429,8 +2430,11 @@ void main() {
 class Flutter:
     """`flutter run --machine` on an app: its events, from a thread reading them, and its commands."""
 
+    # Longer than flutter's longest quiet step, a cold Gradle build, so a stalled run fails
+    # saying so rather than at the job's limit.
+    SILENT = 15 * 60
+
     def __init__(self, app, device):
-        import queue
         import threading
         self.process = subprocess.Popen(["flutter", "run", "--machine", "--debug", "-d", device], cwd=app, text=True,
                                         encoding="utf-8", stdin=subprocess.PIPE, stdout=subprocess.PIPE)
@@ -2440,20 +2444,27 @@ class Flutter:
     def read(self):
         for line in self.process.stdout:
             line = line.strip()
-            if line.startswith("[{"):
-                for event in json.loads(line):
+            try:
+                events = json.loads(line) if line.startswith("[{") else None
+            except json.JSONDecodeError:
+                events = None
+            if events is not None:
+                for event in events:
                     # What flutter is doing, such as installing the app, so a stall says where.
                     if event.get("event") in ("app.progress", "daemon.logMessage") and event["params"].get("message"):
                         print(f"flutter: {event['params']['message']}", file=sys.stderr, flush=True)
                     self.events.put(event)
             elif line:
-                # A desktop app's own output, which flutter passes through as is.
+                # Any other line, such as a desktop app's own output, which flutter passes through as is.
                 self.events.put({"event": "app.log", "params": {"log": line}})
         self.events.put(None)
 
     def next(self):
         """The next event, failing once flutter exits or a command fails."""
-        event = self.events.get()
+        try:
+            event = self.events.get(timeout=self.SILENT)
+        except queue.Empty:
+            raise SystemExit(f"flutter run said nothing for {self.SILENT // 60} minutes") from None
         if event is None:
             raise SystemExit("flutter run exited before the check did")
         if "error" in event:
@@ -2522,11 +2533,15 @@ def consume_flutter(package, libs, lib, check, native, platform, device):
             second = flutter.output()
             flutter.command("app.stop")
             flutter.process.stdin.close()
+            try:
+                status = flutter.process.wait(timeout=Flutter.SILENT)
+            except subprocess.TimeoutExpired:
+                raise SystemExit(f"flutter run went on {Flutter.SILENT // 60} minutes after the app stopped") from None
         except BaseException:
             flutter.process.kill()
             raise
-        if flutter.process.wait():
-            raise SystemExit(f"flutter run failed with status {flutter.process.returncode}")
+        if status:
+            raise SystemExit(f"flutter run failed with status {status}")
     for output, what in ((first, "Flutter app"), (second, "Flutter app after a hot restart")):
         if native and check:
             compare(Path(native).read_bytes(), output, what)

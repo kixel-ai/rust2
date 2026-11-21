@@ -4,6 +4,7 @@
 // downloads; an export holds none, so this builds the crate rust2-ffi exported the package
 // beside, ../Cargo.toml, with Cargo.
 
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
@@ -76,7 +77,10 @@ Future<File> _download(BuildInput input, CodeConfig code, File release, String t
   final cached = File.fromUri(input.outputDirectoryShared.resolve(name));
   if (cached.existsSync() && sha256.convert(await cached.readAsBytes()).toString() == hash) return cached;
   final url = Uri.parse(manifest['url']! as String).resolve(name);
-  final client = HttpClient()..findProxy = HttpClient.findProxyFromEnvironment;
+  // A host that stops answering fails the build rather than holding it.
+  final client = HttpClient()
+    ..findProxy = HttpClient.findProxyFromEnvironment
+    ..connectionTimeout = const Duration(seconds: 30);
   try {
     final response = await (await client.getUrl(url)).close();
     if (response.statusCode != HttpStatus.ok) {
@@ -84,7 +88,11 @@ Future<File> _download(BuildInput input, CodeConfig code, File release, String t
     }
     // Never more than the release names, whatever the host sends.
     final bytes = BytesBuilder(copy: false);
-    await for (final chunk in response) {
+    const stalled = Duration(seconds: 60);
+    await for (final chunk in response.timeout(
+      stalled,
+      onTimeout: (_) => throw TimeoutException('$url sent nothing for ${stalled.inSeconds}s', stalled),
+    )) {
       bytes.add(chunk);
       if (bytes.length > size) throw StateError('$url is longer than the $size bytes the release names');
     }
@@ -217,7 +225,14 @@ Future<(File, List<Uri>)> _build(BuildInput input, CodeConfig code, String targe
 /// What Cargo prints, run from `directory`, failing with what it says on stderr.
 Future<String> _cargo(List<String> args, String directory, Map<String, String> environment) async {
   final result = await Process.run('cargo', args, workingDirectory: directory, environment: environment);
-  if (result.exitCode != 0) throw ProcessException('cargo', args, '${result.stderr}', result.exitCode);
+  if (result.exitCode != 0) {
+    // A Dart before the hook runner passed them on withholds both from the hook.
+    final homes = Platform.environment.keys.any((key) => key == 'CARGO_HOME' || key == 'RUSTUP_HOME')
+        ? ''
+        : '\nThis hook got no CARGO_HOME or RUSTUP_HOME, which older Dart SDKs withhold from hooks: '
+              "with rustup outside ~/.cargo and ~/.rustup, put a toolchain's own cargo on PATH, or use a newer Dart.";
+    throw ProcessException('cargo', args, '${result.stderr}$homes', result.exitCode);
+  }
   return result.stdout as String;
 }
 
