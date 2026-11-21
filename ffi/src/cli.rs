@@ -828,7 +828,7 @@ fn resolve_profile<'a>(
 }
 
 /// The cargo args with each group of short flags, such as `-qr` or `-vFa`, apart, as
-/// `-q -r` and `-v -F a`, so that each reader of them finds the one it picks. A group with
+/// `-q -r` and `-v -Fa`, so that each reader of them finds the one it picks. A group with
 /// a letter cargo gives no short flag stays as it is, for cargo to refuse.
 fn ungroup(cargo: &[String]) -> Vec<String> {
 	let mut out = Vec::new();
@@ -850,15 +850,10 @@ fn ungroup(cargo: &[String]) -> Vec<String> {
 		for (at, flag) in group.char_indices() {
 			match flag {
 				'q' | 'v' | 'r' | 'h' => split.push(format!("-{flag}")),
-				// A flag that takes a value takes the rest of the group.
+				// A flag that takes a value takes the rest of the group as written, an empty
+				// `=` value included.
 				'p' | 'j' | 'F' | 'Z' | 'C' => {
-					split.push(format!("-{flag}"));
-					let value = &group[at + 1..];
-					split.extend(
-						Some(value.strip_prefix('=').unwrap_or(value))
-							.filter(|v| !v.is_empty())
-							.map(str::to_string),
-					);
+					split.push(format!("-{}", &group[at..]));
 					break;
 				}
 				_ => {
@@ -1118,8 +1113,9 @@ mod tests {
 	fn ungroups_short_flags() {
 		for (cargo, want) in [
 			(&["-qr", "--locked"][..], &["-q", "-r", "--locked"][..]),
-			(&["-vvFa,b"], &["-v", "-v", "-F", "a,b"]),
-			(&["-qF=a"], &["-q", "-F", "a"]),
+			(&["-vvFa,b"], &["-v", "-v", "-Fa,b"]),
+			(&["-qF=a"], &["-q", "-F=a"]),
+			(&["-qF="], &["-q", "-F="]),
 			(&["-qp", "foo"], &["-q", "-p", "foo"]),
 			(&["-r", "-Frelease", "-q"], &["-r", "-Frelease", "-q"]),
 			(&["-qx"], &["-qx"]),
