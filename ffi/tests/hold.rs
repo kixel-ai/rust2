@@ -90,29 +90,48 @@ impl Atom {
 	}
 }
 
-/// A way the port can be made wrong, which its models must each fail on.
-#[derive(Clone, Copy, Debug, PartialEq)]
-enum Flaw {
+/// A way the port can be made wrong, with the models that must each fail on it.
+macro_rules! flaws {
+	($($(#[$doc:meta])* $name:ident => [$($model:literal),+],)*) => {
+		#[derive(Clone, Copy, Debug, PartialEq)]
+		enum Flaw {
+			$($(#[$doc])* $name,)*
+		}
+
+		impl Flaw {
+			const ALL: &[Flaw] = &[$(Flaw::$name),*];
+
+			/// The models that must fail with the port flawed so.
+			fn caught(self) -> &'static [&'static str] {
+				match self {
+					$(Flaw::$name => &[$($model),+],)*
+				}
+			}
+		}
+	};
+}
+
+flaws! {
 	/// A call on the count does not look for a close.
-	HoldIgnoresClosed,
+	HoldIgnoresClosed => ["abandon_while_bias_taken"],
 	/// A call in the table does not look again for a close that claimed it meanwhile.
-	HoldSkipsRecheck,
+	HoldSkipsRecheck => ["abandon_against_biased_calls", "close_against_biased_call"],
 	/// A call in the table publishes its slot without the fence ordering it before that look.
-	HoldSkipsFence,
+	HoldSkipsFence => ["abandon_against_biased_calls", "close_against_biased_call"],
 	/// A close frees a handle a call on the count holds.
-	CloseIgnoresCount,
+	CloseIgnoresCount => ["close_against_call"],
 	/// A close frees a handle a call in the table holds.
-	CloseIgnoresSlots,
+	CloseIgnoresSlots => ["close_against_biased_call"],
 	/// A close claims the handle without the fence ordering it before its look at the table.
-	CloseSkipsFence,
+	CloseSkipsFence => ["close_against_biased_call"],
 	/// A move claims the handle without the fence ordering it before its look at the table.
-	AbandonSkipsFence,
+	AbandonSkipsFence => ["abandon_against_biased_calls"],
 	/// A move does not turn the holds in the table into counts.
-	AbandonSkipsSlots,
+	AbandonSkipsSlots => ["abandon_against_biased_calls"],
 	/// A checked close's one-crossing drop claims a handle calls hold.
-	DropFreeSkipsClaim,
+	DropFreeSkipsClaim => ["checked_close_against_calls"],
 	/// The last hold is let go of while the owner's remains.
-	ReleaseFreesEarly,
+	ReleaseFreesEarly => ["calls_alone"],
 }
 
 /// A handle as a binding holds it, beside a table with a slot per column for its row.
@@ -369,6 +388,9 @@ macro_rules! models {
 			use super::*;
 			$(pub fn $name($flaw: Option<Flaw>) $body)*
 
+			/// Every model's name.
+			pub const NAMES: &[&str] = &[$(stringify!($name)),*];
+
 			/// The model of that name.
 			pub fn run(name: &str, flaw: Option<Flaw>) {
 				match name {
@@ -532,32 +554,18 @@ models! {
 	}
 }
 
-/// Each flaw with the models that must fail on it.
-const CAUGHT: &[(Flaw, &[&str])] = &[
-	(Flaw::HoldIgnoresClosed, &["abandon_while_bias_taken"]),
-	(
-		Flaw::HoldSkipsRecheck,
-		&["abandon_against_biased_calls", "close_against_biased_call"],
-	),
-	(
-		Flaw::HoldSkipsFence,
-		&["abandon_against_biased_calls", "close_against_biased_call"],
-	),
-	(Flaw::CloseIgnoresCount, &["close_against_call"]),
-	(Flaw::CloseIgnoresSlots, &["close_against_biased_call"]),
-	(Flaw::CloseSkipsFence, &["close_against_biased_call"]),
-	(Flaw::AbandonSkipsFence, &["abandon_against_biased_calls"]),
-	(Flaw::AbandonSkipsSlots, &["abandon_against_biased_calls"]),
-	(Flaw::DropFreeSkipsClaim, &["checked_close_against_calls"]),
-	(Flaw::ReleaseFreesEarly, &["calls_alone"]),
-];
-
 /// The models do not pass vacuously: each fails on the flaws it is there to catch.
 #[test]
 fn flaws_are_caught() {
-	let runs: Vec<_> = CAUGHT
+	// A name no model has would panic in `run`, which counts as caught.
+	for flaw in Flaw::ALL {
+		for name in flaw.caught() {
+			assert!(models::NAMES.contains(name), "{flaw:?} names no model {name}");
+		}
+	}
+	let runs: Vec<_> = Flaw::ALL
 		.iter()
-		.flat_map(|&(flaw, names)| names.iter().map(move |&name| (flaw, name)))
+		.flat_map(|&flaw| flaw.caught().iter().map(move |&name| (flaw, name)))
 		.map(|(flaw, name)| {
 			let run = std::thread::spawn(move || models::run(name, Some(flaw)));
 			(flaw, name, run)
