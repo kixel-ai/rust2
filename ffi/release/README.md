@@ -212,8 +212,12 @@ the builder unpacks over its checkout before reading the checks.
    an app targeting an older system. Its pubspec takes Cargo's description, repository,
    and homepage; `LICENSE` holds each license file's text, or else Cargo's SPDX expression,
    as pub reads no other name; `README.md` is the crate's readme, or else a line naming
-   the crate; and `CHANGELOG.md` is `changes.md` under the version. `dart pub publish
-   --dry-run` must find no warning, and the analyzer no issue with the lints pub.dev scores by.
+   the crate; and `CHANGELOG.md` is `changes.md` under the version. `PrivacyInfo.xcprivacy`
+   declares the required-reason APIs each Apple library imports, as step 6 finds them for
+   the Swift package, failing on the same categories; an app on Apple's stores merges it
+   into its own manifest, as Flutter wraps a code asset in a framework it generates, which
+   carries none. `dart pub publish --dry-run` must find no warning, and the analyzer no
+   issue with the lints pub.dev scores by.
 10. The release's `api.json`, and `changes.md`, the items removed, changed, and added since
    the previous release's, by kind and Rust path; the caller's release publishes the first
    as an asset and the second as its notes.

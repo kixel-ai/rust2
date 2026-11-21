@@ -885,16 +885,44 @@ def dart_libs(root, facts, skip=()):
     return root
 
 
+def dart_privacy(root, found):
+    """Each Apple Dart library's privacy manifest, as `build` writes them, from `found`, its
+    required-reason APIs by target."""
+    root.mkdir()
+    for target in (t for t in package.DART_TARGETS if "apple" in t):
+        (root / f"{target}.xcprivacy").write_bytes(package.privacy_manifest("moq", found.get(target, {})))
+    return root
+
+
 class PubPackage(unittest.TestCase):
     URL = "https://github.com/moq-dev/moq/releases/download/moq-ffi-v0.4.12/"
 
-    def make(self, facts, libs=None, changes="## API\n\nAdded `moq::Track`.\n", url=URL):
+    def make(self, facts, libs=None, changes="## API\n\nAdded `moq::Track`.\n", url=URL, privacy=None):
         tmp = Path(self.enterContext(tempfile.TemporaryDirectory()))
         export = dart_export(tmp / "export")
         (tmp / "changes.md").write_text(changes)
         out = tmp / "pub"
-        package.pub_package(facts, export, libs or dart_libs(tmp / "libs", facts), url, tmp / "changes.md", out)
+        package.pub_package(facts, export, libs or dart_libs(tmp / "libs", facts), url, tmp / "changes.md",
+                            privacy or dart_privacy(tmp / "privacy", {}), out)
         return out
+
+    def test_declares_every_apple_librarys_apis(self):
+        tmp = Path(self.enterContext(tempfile.TemporaryDirectory()))
+        privacy = dart_privacy(tmp / "privacy", {"aarch64-apple-ios": {"FileTimestamp": {"fstat"}},
+                                                 "x86_64-apple-darwin": {"SystemBootTime": {"mach_absolute_time"},
+                                                                         "FileTimestamp": {"stat"}}})
+        with open(self.make(info(tmp), privacy=privacy) / "PrivacyInfo.xcprivacy", "rb") as f:
+            declared = package.plistlib.load(f)["NSPrivacyAccessedAPITypes"]
+        self.assertEqual(declared, [
+            {"NSPrivacyAccessedAPIType": "NSPrivacyAccessedAPICategoryFileTimestamp",
+             "NSPrivacyAccessedAPITypeReasons": ["C617.1", "3B52.1"]},
+            {"NSPrivacyAccessedAPIType": "NSPrivacyAccessedAPICategorySystemBootTime",
+             "NSPrivacyAccessedAPITypeReasons": ["35F9.1"]},
+        ])
+        # An Apple library's manifest missing fails the package.
+        (privacy / "aarch64-apple-ios-sim.xcprivacy").unlink()
+        with self.assertRaises(SystemExit):
+            self.make(info(tmp), privacy=privacy)
 
     def test_names_each_library_by_size_hash_and_floor(self):
         tmp = Path(self.enterContext(tempfile.TemporaryDirectory()))

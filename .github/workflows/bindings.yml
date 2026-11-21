@@ -1009,8 +1009,9 @@ jobs:
           python3 -I rust2/ffi/release/package.py consume-go --proxy proxy "${args[@]}"
 
   # The pub.dev package: the export's, its hook/release.json naming each target's library on
-  # the release by size and SHA-256, and what pub asks of a package beside, which pub checks
-  # as publishing would, and the analyzer with the lints pub.dev scores it by.
+  # the release by size and SHA-256, the Apple libraries' privacy manifest for an app to merge,
+  # and what pub asks of a package beside, which pub checks as publishing would, and the
+  # analyzer with the lints pub.dev scores it by.
   pub:
     needs: [facts, build, agree, changes]
     runs-on: ubuntu-24.04
@@ -1054,10 +1055,11 @@ jobs:
           NAME: ${{ needs.facts.outputs.name }}
           URL: https://github.com/${{ github.repository }}/releases/download/${{ needs.facts.outputs.tag }}/
         run: |
-          mkdir -p pub/libs
+          mkdir -p pub/libs privacy
           cp builds/*/dart/* pub/libs/
+          cp builds/*/dart-privacy/* privacy/
           cd source
-          python3 -I ../rust2/ffi/release/package.py pub --manifest-path "$MANIFEST" --export "../builds/$NAME-build-linux-x64/export" --libs ../pub/libs --url "$URL" --changes ../release/changes.md --out ../pub/package
+          python3 -I ../rust2/ffi/release/package.py pub --manifest-path "$MANIFEST" --export "../builds/$NAME-build-linux-x64/export" --libs ../pub/libs --url "$URL" --changes ../release/changes.md --privacy ../privacy --out ../pub/package
       # Each in a copy, as resolving writes into the package.
       - name: Check
         run: |
