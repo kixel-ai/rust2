@@ -545,15 +545,19 @@ packages place it in.
 
 - **Names** are the C names without the prefix, in a namespace of it: `moq_track_Producer`
   is `moq::track_Producer`, and its method `moq_track_Producer_append_group` is
-  `moq::track_Producer::append_group`. A keyword, or a macro that a C or C++ system header
-  defines or a GNU dialect predefines, as `src/macros.txt` lists them (`unix`, `EOF`,
-  `errno`, as in moq-tokio's `tokio::unix_`), takes a trailing `_` (`counter::new_`),
+  `moq::track_Producer::append_group`. A keyword takes a trailing `_` (`counter::new_`),
   as does a member named as its class, one of its fields, or a member a trait gives it,
   and a parameter named as a member or as anything in the namespace, which it would hide.
-  A name already ending in `_` takes as many more as keep it apart and off every macro:
-  `unix_` becomes `unix__`.
-  A name the escape leaves alone keeps it, and one escaped onto another's takes more `_`s
-  until free: the values `Delete` and `Delete_` are `delete__` and `delete_`, in any order.
+  A name C++ reserves, one holding `__` or starting with `_` and a capital, first drops its
+  leading `_`s and keeps one `_` of each run: `__all__` is `all_`, and serde's parameter
+  `__deserializer` is `deserializer`.
+  A name that moves steps along its stem's names `x`, `x_`, `x_2`, `x_3`, ..., never making
+  `__`. So a macro that a C or C++ system header defines or a GNU dialect predefines, as
+  `src/macros.txt` lists them (`unix`, `EOF`, `errno`), moves to the next of its stem's
+  names no macro holds, keeping the stem's names in order: `unix` is `unix_`, as in
+  moq-tokio's `tokio::unix_`, and `unix_` is `unix_2`.
+  A name the escape leaves alone keeps it, and one escaped onto another's steps until free:
+  the values `Delete` and `Delete_` are `delete_2` and `delete_`, in any order.
 - **Objects** are classes owning their handle through a `std::unique_ptr` whose deleter
   calls `_free`, so they move and never copy, and a `Clone` type's `clone()` crosses into
   Rust for a value of its own. A type implementing `Hash` has `hash()`, Rust's, by which
