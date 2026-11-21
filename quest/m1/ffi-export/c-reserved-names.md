@@ -16,8 +16,8 @@ from C's naming, which appends `_` to resolve a clash and joins with `_`, so a c
 `__` (the api fixture's names are listed in `RESERVED_FROM_C`):
 
 - A type renamed past another's name, joined to a member: the fixture's `Status`, apart
-  from the runtime's status as `api_Status_`, gives `api_Status__eq`, `API_STATUS__MOVED`,
-  and in C++ the enum's free function `Status__debug`.
+  from the runtime's status as `api_Status_`, gives `api_Status__eq`, `api_Status__debug`,
+  and `API_STATUS__MOVED`.
 - A function whose Rust name starts with `_`: `api__deprecated`, `api___all__`.
 - A parameter's or callback member's escape and the names made of it: `new__`, `by__`,
   `by___data`, `work__`, `work___data`, `delete__`, `out__out`, and in C++ the local

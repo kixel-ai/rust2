@@ -1658,7 +1658,7 @@ namespace api {
 	inline ::api::buf Error_debug(const ::api::Error &self);
 	inline bool operator==(::api::Status_ a_2, ::api::Status_ b_);
 	inline bool operator!=(::api::Status_ a_2, ::api::Status_ b_);
-	inline ::api::buf Status__debug(::api::Status_ self);
+	inline ::api::buf Status_debug(::api::Status_ self);
 	inline bool operator==(const ::api::Labelled &a_2, const ::api::Labelled &b_);
 	inline bool operator!=(const ::api::Labelled &a_2, const ::api::Labelled &b_);
 	inline ::api::buf Labelled_debug(const ::api::Labelled &self);

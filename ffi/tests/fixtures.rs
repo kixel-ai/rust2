@@ -834,7 +834,6 @@ int main() {}
 const RESERVED_FROM_C: &[&str] = &[
 	"API_STATUS__KEPT",
 	"API_STATUS__MOVED",
-	"Status__debug",
 	"api_Status__debug",
 	"api_Status__eq",
 	"api___all__",

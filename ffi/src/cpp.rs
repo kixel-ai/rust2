@@ -79,16 +79,16 @@ pub(crate) fn headers(abi: &Abi<'_>, packages: &str) -> Result<Output, String> {
 		names: BTreeMap::new(),
 		errors: Vec::new(),
 	};
-	let c: Vec<&str> = (abi.declared().into_iter())
+	// Every name the namespace declares: those of C's own, and each constant's, whose C name
+	// is in capitals.
+	let c: BTreeSet<String> = (abi.declared().into_iter())
 		.filter(|c| c.strip_prefix(p.as_str()).is_some_and(|rest| rest.starts_with('_')))
+		.map(str::to_string)
+		.chain(abi.api.constants.iter().map(|constant| abi.name(&constant.path)))
 		.collect();
 	let rust: Vec<String> = c.iter().map(|c| c[p.len() + 1..].to_string()).collect();
 	let runtime: BTreeSet<&str> = runtime_names().collect();
-	h.names = c
-		.iter()
-		.map(|c| c.to_string())
-		.zip(named(&rust, |n| runtime.contains(n)))
-		.collect();
+	h.names = c.into_iter().zip(named(&rust, |n| runtime.contains(n))).collect();
 	// A C++ class is named by its C name alone.
 	let api = abi.api;
 	let classes = (0..api.records.len())
@@ -1540,18 +1540,20 @@ impl<'a> Header<'a> {
 		}
 		for (on, key, trait_name) in [(t.display, "Display", "to_string"), (t.debug, "Debug", "debug")] {
 			if on {
-				crate::lock::trait_member(&mut self.locked, &e.shown, key, &format!("{name}_{trait_name}"));
+				let helper = self.name(&format!("{c}_{trait_name}"));
+				crate::lock::trait_member(&mut self.locked, &e.shown, key, &helper);
 				self.def(format!(
-					"inline ::{ns}::buf {name}_{trait_name}({}) {{\n{scope}\tauto c_self_ = {this};\n\treturn {d}::access::adopt(::{c}_{trait_name}(&c_self_{status}));\n}}\n",
+					"inline ::{ns}::buf {helper}({}) {{\n{scope}\tauto c_self_ = {this};\n\treturn {d}::access::adopt(::{c}_{trait_name}(&c_self_{status}));\n}}\n",
 					declare(&param, "self"),
 					d = self.d()
 				));
 			}
 		}
 		if t.default {
-			crate::lock::trait_member(&mut self.locked, &e.shown, "Default", &format!("{name}_default"));
+			let helper = self.name(&format!("{c}_default"));
+			crate::lock::trait_member(&mut self.locked, &e.shown, "Default", &helper);
 			self.def(format!(
-				"inline {name} {name}_default() {{\n\tauto c_ret_ = ::{c}_default();\n\treturn {lifted};\n}}\n"
+				"inline {name} {helper}() {{\n\tauto c_ret_ = ::{c}_default();\n\treturn {lifted};\n}}\n"
 			));
 		}
 		let owner = abi.ty(&ty);
@@ -2828,7 +2830,20 @@ mod tests {
 			objects: vec![],
 			callbacks: vec![],
 			functions: ["__all__", "all_", "all", "delete", "delete_"].map(function).to_vec(),
-			constants: vec![],
+			constants: ["__LIMIT", "LIMIT"]
+				.map(|name| crate::ir::Constant {
+					path: vec!["ns".into(), name.into()],
+					home: crate::ir::Home {
+						krate: "ns".into(),
+						outside: 1,
+					},
+					span: rustc_span::DUMMY_SP,
+					on: crate::ir::On::ALL,
+					docs: String::new(),
+					deprecated: None,
+					value: crate::ir::Literal::Bool(true),
+				})
+				.to_vec(),
 			crates: vec!["ns".into()],
 			targets: vec!["host".into()],
 			links: Default::default(),
@@ -2848,6 +2863,11 @@ mod tests {
 			("delete_", "ns_delete_"),
 		] {
 			let defined = format!("inline void {cpp}() {{\n\t::{c}();");
+			assert!(text.contains(&defined), "{c} is not {cpp}:\n{text}");
+		}
+		// Constants, whose C names are in capitals, keep apart too.
+		for (cpp, c) in [("LIMIT_", "NS___LIMIT"), ("LIMIT", "NS_LIMIT")] {
+			let defined = format!("inline constexpr bool {cpp} = {c};");
 			assert!(text.contains(&defined), "{c} is not {cpp}:\n{text}");
 		}
 	}
