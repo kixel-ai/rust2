@@ -45,6 +45,7 @@ mod help;
 mod ir;
 mod js;
 mod kotlin;
+mod leaf;
 mod lock;
 mod merge;
 mod python;

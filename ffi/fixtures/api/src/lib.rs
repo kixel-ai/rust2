@@ -2667,6 +2667,13 @@ impl Hooked {
 	pub fn new(n: u64) -> Self {
 		Self { n, gated: Gated(n) }
 	}
+
+	/// Its count, by a method that runs the hook first: no leaf call, though it returns
+	/// what a leaf would.
+	pub fn count(&self) -> u64 {
+		run_hook();
+		self.n
+	}
 }
 
 /// A value whose `PartialEq`, written by hand, claims to be derived, as a procedural
@@ -2752,6 +2759,76 @@ impl Plain {
 			pinned: (-1, 'p'),
 		}
 	}
+
+	/// Its count, by a method whose body only reads it: a leaf call.
+	pub fn count(&self) -> u64 {
+		self.n
+	}
+
+	/// Set its count, by a method whose body only writes it: a leaf call.
+	pub fn recount(&mut self, n: u64) {
+		self.n = n;
+	}
+
+	/// Count up to its count: a loop as long as the caller makes it, so no leaf call.
+	pub fn steps(&self) -> u64 {
+		let mut i = 0u64;
+		while i < self.n {
+			i = i.wrapping_add(1);
+		}
+		i
+	}
+
+	/// How many locals have dropped, a static's count: no leaf call.
+	pub fn locals(&self) -> u32 {
+		LOCALS.load(std::sync::atomic::Ordering::Relaxed)
+	}
+}
+
+/// A [`Plain`] behind a `Deref` and `DerefMut` that only borrow it, so its fields and
+/// methods are leaf calls through it too.
+pub struct Wrapped(Plain);
+
+impl Wrapped {
+	pub fn new(n: u64) -> Self {
+		Self(Plain::new(n, false))
+	}
+}
+
+impl std::ops::Deref for Wrapped {
+	type Target = Plain;
+
+	fn deref(&self) -> &Plain {
+		&self.0
+	}
+}
+
+impl std::ops::DerefMut for Wrapped {
+	fn deref_mut(&mut self) -> &mut Plain {
+		&mut self.0
+	}
+}
+
+/// A [`Plain`] behind a `Deref` that runs the hook, so nothing reached through it is a
+/// leaf call.
+#[cfg(not(target_arch = "wasm32"))]
+pub struct Guarded(Plain);
+
+#[cfg(not(target_arch = "wasm32"))]
+impl Guarded {
+	pub fn new(n: u64) -> Self {
+		Self(Plain::new(n, false))
+	}
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+impl std::ops::Deref for Guarded {
+	type Target = Plain;
+
+	fn deref(&self) -> &Plain {
+		run_hook();
+		&self.0
+	}
 }
 
 /// A value whose derived `PartialEq` and `Hash` reach no user code but walk a string as
@@ -2765,6 +2842,31 @@ pub struct Labeled {
 impl Labeled {
 	pub fn new(label: String) -> Self {
 		Self { label }
+	}
+}
+
+/// Bytes as many as the caller asks for.
+pub struct Buffer {
+	bytes: Vec<u8>,
+}
+
+impl Buffer {
+	/// A buffer of `len` ones.
+	pub fn new(len: u32) -> Self {
+		Self {
+			bytes: vec![1; len as usize],
+		}
+	}
+
+	/// Zero its bytes: a fill as long as the caller makes it, with no loop in its MIR, so no
+	/// leaf call.
+	pub fn blank(&mut self) {
+		self.bytes.fill(0);
+	}
+
+	/// Whether every byte is zero.
+	pub fn zeroed(&self) -> bool {
+		self.bytes.iter().all(|&b| b == 0)
 	}
 }
 
@@ -4782,6 +4884,12 @@ pub struct StartSeekable {
 	pub at: u64,
 }
 
+/// The sum of what `f` and `f_unwind` return, wrapping: Kotlin's trampoline for `f_unwind`
+/// is named as `f`'s would name its unwinding body if that were not scoped to it.
+pub fn paired(f: impl Fn() -> u8, f_unwind: impl Fn() -> u8) -> u8 {
+	f().wrapping_add(f_unwind())
+}
+
 /// Whether two floats are equal as `1`, named as the helper Kotlin's records compare through.
 pub fn same(a: f64, b: f64) -> i32 {
 	i32::from(a == b)
@@ -5653,3 +5761,81 @@ pub const URL: u64 = LIMIT;
 /// The step a [`Dial`] turned by before [`Dial::turn`] took any, at most [`URL`].
 #[deprecated(note = "pass a step to [`Dial::turn`], whose `}` or `{` alone stays in the note")]
 pub const STEP: u64 = 1;
+
+static UNWOUND: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
+
+/// What a call holding it while a closure runs drops however the call ends, as a
+/// closure's panic unwinding drops it.
+struct Unwound;
+
+impl Drop for Unwound {
+	fn drop(&mut self) {
+		UNWOUND.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+	}
+}
+
+/// How many calls of [`measured`], [`negated`], [`lettered`], [`bumped`], and [`stretched`]
+/// dropped what they held.
+pub fn unwound() -> u32 {
+	UNWOUND.load(std::sync::atomic::Ordering::Relaxed)
+}
+
+/// One past the length `f` returns, wrapping.
+pub fn measured(f: impl Fn() -> usize) -> usize {
+	let _held = Unwound;
+	f().wrapping_add(1)
+}
+
+/// The offset `f` returns, negated, wrapping.
+pub fn negated(f: impl Fn() -> isize) -> isize {
+	let _held = Unwound;
+	f().wrapping_neg()
+}
+
+/// The letter `f` returns.
+pub fn lettered(f: impl Fn() -> char) -> char {
+	let _held = Unwound;
+	f()
+}
+
+/// `n` bumped, then the letter `f` returns: a caller catching `f`'s failure sees the bump.
+pub fn bumped(n: &mut u32, f: impl Fn() -> char) -> char {
+	let _held = Unwound;
+	*n += 1;
+	f()
+}
+
+/// Letters a closure appends to, read back borrowed.
+pub struct Tag(String);
+
+impl Tag {
+	/// An empty one.
+	pub fn new() -> Self {
+		Tag(String::new())
+	}
+
+	/// `n` bumped, then the letter `f` returns appended: a borrowed result beside a written argument.
+	pub fn tagged(&mut self, n: &mut u32, f: impl Fn() -> char) -> &str {
+		*n += 1;
+		self.0.push(f());
+		&self.0
+	}
+}
+
+impl Default for Tag {
+	fn default() -> Self {
+		Self::new()
+	}
+}
+
+/// What has a length, implemented in each binding.
+pub trait Stretch {
+	/// Its length.
+	fn stretch(&self) -> usize;
+}
+
+/// One past `stretch`'s length, wrapping.
+pub fn stretched(stretch: impl Stretch) -> usize {
+	let _held = Unwound;
+	stretch.stretch().wrapping_add(1)
+}

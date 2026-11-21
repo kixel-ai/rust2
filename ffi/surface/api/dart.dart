@@ -1212,6 +1212,22 @@ final class Local extends _Object {
 	U64 threadNumber();
 	bool onOwnThread();
 }
+final class Wrapped extends _Object {
+	factory Wrapped(U64 n);
+	U64 get nGet;
+	void nSet(U64 value);
+	bool get onGet;
+	void onSet(bool value);
+	U64 count();
+	void recount(U64 n);
+	U64 steps();
+	int locals();
+}
+final class Buffer extends _Object {
+	factory Buffer(int len);
+	void blank();
+	bool zeroed();
+}
 final class LocalWaiter extends _Object {
 	factory LocalWaiter(void Function() waker);
 	static Cancelable<int> pollReady(int n);
@@ -1300,6 +1316,11 @@ final class Holder extends _Object {
 	factory Holder(U64 level);
 	@Deprecated('use `Dial`, whose \'level\' is "the same" at \$0\nand past it') U64 get levelGet;
 	@Deprecated('use `Dial`, whose \'level\' is "the same" at \$0\nand past it') U64 doubled();
+}
+final class Tag extends _Object {
+	factory Tag.default_();
+	factory Tag();
+	String tagged(Mut<int> n, String Function() f);
 }
 final class Area extends _Object {
 	String debug();
@@ -1489,6 +1510,10 @@ final class Plain extends _Object {
 	bool get onGet;
 	void onSet(bool value);
 	factory Plain(U64 n, bool on);
+	U64 count();
+	void recount(U64 n);
+	U64 steps();
+	int locals();
 }
 final class Labeled extends _Object {
 	String debug();
@@ -1658,6 +1683,14 @@ final class Pinned extends _Object {
 	factory Pinned(U64 value);
 	Part part();
 }
+final class Guarded extends _Object {
+	factory Guarded(U64 n);
+	U64 get nGet;
+	bool get onGet;
+	U64 count();
+	U64 steps();
+	int locals();
+}
 final class Hooked extends _Object {
 	String debug();
 	@override bool operator ==(Object other);
@@ -1665,6 +1698,7 @@ final class Hooked extends _Object {
 	U64 get nGet;
 	void nSet(U64 value);
 	factory Hooked(U64 n);
+	U64 count();
 }
 final class Forged extends _Object {
 	String debug();
@@ -1702,6 +1736,10 @@ abstract class Undo {
 	int delete(int n);
 	int free();
 	int type();
+	void close();
+}
+abstract class Stretch {
+	U64 stretch();
 	void close();
 }
 abstract class ClashSource {
@@ -1966,6 +2004,7 @@ void wasmLog(Log log);
 U64 boothCount(Booth booth);
 Page page();
 int beats(Beat beat);
+int paired(int Function() f, int Function() fUnwind);
 int same(double a, double b);
 int errno();
 bool assert_(bool holds);
@@ -2000,6 +2039,12 @@ int all(int note);
 @Deprecated('read its `level`') Cancelable<U64> levelLater(Dial dial);
 Dial turned(Dial dial, Turner turner);
 int undone(Undo undo, int n);
+int unwound();
+U64 measured(U64 Function() f);
+int negated(int Function() f);
+String lettered(String Function() f);
+String bumped(Mut<int> n, String Function() f);
+U64 stretched(Stretch stretch);
 U64 crowded(Reading reading, Stamp a, Stamp b, U64 n0, U64 n1, U64 n2, U64 n3, U64 n4, U64 n5, U64 n6, U64 n7, U64 n8, U64 n9, U64 n10, U64 n11, U64 n12, U64 n13, U64 n14, U64 n15, U64 n16, U64 n17, U64 n18, U64 n19, U64 n20, U64 n21, U64 n22, U64 n23, U64 n24, U64 n25, U64 n26, U64 n27, U64 n28, U64 n29, U64 n30, U64 n31, U64 n32, U64 n33, U64 n34, U64 n35, U64 n36, U64 n37, U64 n38, U64 n39, U64 n40, U64 n41, U64 n42, U64 n43, U64 n44, U64 n45, U64 n46, U64 n47, U64 n48, U64 n49, U64 n50, U64 n51, U64 n52, U64 n53, U64 n54, U64 n55, U64 n56, U64 n57, U64 n58, U64 n59, U64 n60, U64 n61, U64 n62, U64 n63, U64 n64, U64 n65, U64 n66, U64 n67, U64 n68, U64 n69, U64 n70, U64 n71, U64 n72, U64 n73, U64 n74, U64 n75, U64 n76, U64 n77, U64 n78, U64 n79, U64 n80, U64 n81, U64 n82, U64 n83, U64 n84, U64 n85, U64 n86, U64 n87, U64 n88, U64 n89, U64 n90, U64 n91, U64 n92, U64 n93, U64 n94, U64 n95, U64 n96, U64 n97, U64 n98, U64 n99, U64 n100, U64 n101, U64 n102, U64 n103, U64 n104, U64 n105, U64 n106, U64 n107, U64 n108, U64 n109, U64 n110, U64 n111, U64 n112, U64 n113, U64 n114, U64 n115, U64 n116, U64 n117, U64 n118);
 U64 crammed(Moment a, Moment b, U64 n0, U64 n1, U64 n2, U64 n3, U64 n4, U64 n5, U64 n6, U64 n7, U64 n8, U64 n9, U64 n10, U64 n11, U64 n12, U64 n13, U64 n14, U64 n15, U64 n16, U64 n17, U64 n18, U64 n19, U64 n20, U64 n21, U64 n22, U64 n23, U64 n24, U64 n25, U64 n26, U64 n27, U64 n28, U64 n29, U64 n30, U64 n31, U64 n32, U64 n33, U64 n34, U64 n35, U64 n36, U64 n37, U64 n38, U64 n39, U64 n40, U64 n41, U64 n42, U64 n43, U64 n44, U64 n45, U64 n46, U64 n47, U64 n48, U64 n49, U64 n50, U64 n51, U64 n52, U64 n53, U64 n54, U64 n55, U64 n56, U64 n57, U64 n58, U64 n59, U64 n60, U64 n61, U64 n62, U64 n63, U64 n64, U64 n65, U64 n66, U64 n67, U64 n68, U64 n69, U64 n70, U64 n71, U64 n72, U64 n73, U64 n74, U64 n75, U64 n76, U64 n77, U64 n78, U64 n79, U64 n80, U64 n81, U64 n82, U64 n83, U64 n84, U64 n85, U64 n86, U64 n87, U64 n88, U64 n89, U64 n90, U64 n91, U64 n92, U64 n93, U64 n94, U64 n95, U64 n96, U64 n97, U64 n98, U64 n99, U64 n100, U64 n101, U64 n102, U64 n103, U64 n104, U64 n105, U64 n106, U64 n107, U64 n108, U64 n109, U64 n110, U64 n111, U64 n112, U64 n113, U64 n114, U64 n115, U64 n116, U64 n117, U64 n118, U64 n119, U64 n120, U64 n121, U64 n122, U64 n123);
 int jniOne();

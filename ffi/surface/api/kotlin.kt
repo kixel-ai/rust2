@@ -784,6 +784,28 @@ class Local internal constructor(raw: Long, lent: Boolean = false) : AutoCloseab
 		@kotlin.jvm.JvmStatic fun new(): api.Local
 	}
 }
+class Wrapped internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
+	override fun close()
+	val nGet: kotlin.ULong
+	fun nSet(value: kotlin.ULong)
+	val onGet: kotlin.Boolean
+	fun onSet(value: kotlin.Boolean)
+	fun count(): kotlin.ULong
+	fun recount(n: kotlin.ULong)
+	fun steps(): kotlin.ULong
+	fun locals(): kotlin.UInt
+	companion object {
+		@kotlin.jvm.JvmStatic fun new(n: kotlin.ULong): api.Wrapped
+	}
+}
+class Buffer internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
+	override fun close()
+	fun blank()
+	fun zeroed(): kotlin.Boolean
+	companion object {
+		@kotlin.jvm.JvmStatic fun new(len: kotlin.UInt): api.Buffer
+	}
+}
 class LocalWaiter internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
 	companion object {
@@ -917,6 +939,14 @@ class Holder internal constructor(raw: Long, lent: Boolean = false) : AutoClosea
 	@kotlin.Deprecated("use `Dial`, whose 'level' is \"the same\" at \$0\nand past it") fun doubled(): kotlin.ULong
 	companion object {
 		@kotlin.jvm.JvmStatic fun new(level: kotlin.ULong): api.Holder
+	}
+}
+class Tag internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
+	override fun close()
+	fun tagged(n: api.Mut<kotlin.UInt>, f: () -> kotlin.Int): kotlin.String
+	companion object {
+		@kotlin.jvm.JvmStatic fun default(): api.Tag
+		@kotlin.jvm.JvmStatic fun new(): api.Tag
 	}
 }
 class Area internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -1157,6 +1187,10 @@ class Plain internal constructor(raw: Long, lent: Boolean = false) : AutoCloseab
 	fun nSet(value: kotlin.ULong)
 	val onGet: kotlin.Boolean
 	fun onSet(value: kotlin.Boolean)
+	fun count(): kotlin.ULong
+	fun recount(n: kotlin.ULong)
+	fun steps(): kotlin.ULong
+	fun locals(): kotlin.UInt
 	companion object {
 		@kotlin.jvm.JvmStatic fun new(n: kotlin.ULong, on: kotlin.Boolean): api.Plain
 	}
@@ -1374,6 +1408,17 @@ class Pinned internal constructor(raw: Long, lent: Boolean = false) : AutoClosea
 		@kotlin.jvm.JvmStatic fun new(value: kotlin.ULong): api.Pinned
 	}
 }
+class Guarded internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
+	override fun close()
+	val nGet: kotlin.ULong
+	val onGet: kotlin.Boolean
+	fun count(): kotlin.ULong
+	fun steps(): kotlin.ULong
+	fun locals(): kotlin.UInt
+	companion object {
+		@kotlin.jvm.JvmStatic fun new(n: kotlin.ULong): api.Guarded
+	}
+}
 class Hooked internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
 	fun debug(): kotlin.String
@@ -1381,6 +1426,7 @@ class Hooked internal constructor(raw: Long, lent: Boolean = false) : AutoClosea
 	override fun hashCode(): kotlin.Int
 	val nGet: kotlin.ULong
 	fun nSet(value: kotlin.ULong)
+	fun count(): kotlin.ULong
 	companion object {
 		@kotlin.jvm.JvmStatic fun new(n: kotlin.ULong): api.Hooked
 	}
@@ -1421,6 +1467,9 @@ interface Undo {
 	fun delete(n: kotlin.UInt): kotlin.UInt
 	fun free(): kotlin.UInt
 	fun type(): kotlin.UByte
+}
+interface Stretch {
+	fun stretch(): kotlin.ULong
 }
 interface ClashSource {
 	fun wait_()
@@ -1704,6 +1753,7 @@ fun wasmLog(log: api.Log)
 fun boothCount(booth: api.Booth): kotlin.ULong
 fun page(): api.Page
 fun beats(beat: api.Beat): kotlin.UInt
+fun paired(f: () -> kotlin.UByte, fUnwind: () -> kotlin.UByte): kotlin.UByte
 fun same(a: kotlin.Double, b: kotlin.Double): kotlin.Int
 fun errno(): kotlin.Int
 fun assert(holds: kotlin.Boolean): kotlin.Boolean
@@ -1738,6 +1788,12 @@ fun all(note: kotlin.UByte): kotlin.UByte
 @kotlin.Deprecated("read its `level`") suspend fun levelLater(dial: api.Dial): kotlin.ULong
 @kotlin.jvm.Throws(ErrorException::class) fun turned(dial: api.Dial, turner: api.Turner): api.Dial
 fun undone(undo: api.Undo, n: kotlin.UInt): kotlin.UInt
+fun unwound(): kotlin.UInt
+fun measured(f: () -> kotlin.ULong): kotlin.ULong
+fun negated(f: () -> kotlin.Long): kotlin.Long
+fun lettered(f: () -> kotlin.Int): kotlin.Int
+fun bumped(n: api.Mut<kotlin.UInt>, f: () -> kotlin.Int): kotlin.Int
+fun stretched(stretch: api.Stretch): kotlin.ULong
 fun crowded(reading: api.Reading, a: api.Stamp, b: api.Stamp, n0: kotlin.ULong, n1: kotlin.ULong, n2: kotlin.ULong, n3: kotlin.ULong, n4: kotlin.ULong, n5: kotlin.ULong, n6: kotlin.ULong, n7: kotlin.ULong, n8: kotlin.ULong, n9: kotlin.ULong, n10: kotlin.ULong, n11: kotlin.ULong, n12: kotlin.ULong, n13: kotlin.ULong, n14: kotlin.ULong, n15: kotlin.ULong, n16: kotlin.ULong, n17: kotlin.ULong, n18: kotlin.ULong, n19: kotlin.ULong, n20: kotlin.ULong, n21: kotlin.ULong, n22: kotlin.ULong, n23: kotlin.ULong, n24: kotlin.ULong, n25: kotlin.ULong, n26: kotlin.ULong, n27: kotlin.ULong, n28: kotlin.ULong, n29: kotlin.ULong, n30: kotlin.ULong, n31: kotlin.ULong, n32: kotlin.ULong, n33: kotlin.ULong, n34: kotlin.ULong, n35: kotlin.ULong, n36: kotlin.ULong, n37: kotlin.ULong, n38: kotlin.ULong, n39: kotlin.ULong, n40: kotlin.ULong, n41: kotlin.ULong, n42: kotlin.ULong, n43: kotlin.ULong, n44: kotlin.ULong, n45: kotlin.ULong, n46: kotlin.ULong, n47: kotlin.ULong, n48: kotlin.ULong, n49: kotlin.ULong, n50: kotlin.ULong, n51: kotlin.ULong, n52: kotlin.ULong, n53: kotlin.ULong, n54: kotlin.ULong, n55: kotlin.ULong, n56: kotlin.ULong, n57: kotlin.ULong, n58: kotlin.ULong, n59: kotlin.ULong, n60: kotlin.ULong, n61: kotlin.ULong, n62: kotlin.ULong, n63: kotlin.ULong, n64: kotlin.ULong, n65: kotlin.ULong, n66: kotlin.ULong, n67: kotlin.ULong, n68: kotlin.ULong, n69: kotlin.ULong, n70: kotlin.ULong, n71: kotlin.ULong, n72: kotlin.ULong, n73: kotlin.ULong, n74: kotlin.ULong, n75: kotlin.ULong, n76: kotlin.ULong, n77: kotlin.ULong, n78: kotlin.ULong, n79: kotlin.ULong, n80: kotlin.ULong, n81: kotlin.ULong, n82: kotlin.ULong, n83: kotlin.ULong, n84: kotlin.ULong, n85: kotlin.ULong, n86: kotlin.ULong, n87: kotlin.ULong, n88: kotlin.ULong, n89: kotlin.ULong, n90: kotlin.ULong, n91: kotlin.ULong, n92: kotlin.ULong, n93: kotlin.ULong, n94: kotlin.ULong, n95: kotlin.ULong, n96: kotlin.ULong, n97: kotlin.ULong, n98: kotlin.ULong, n99: kotlin.ULong, n100: kotlin.ULong, n101: kotlin.ULong, n102: kotlin.ULong, n103: kotlin.ULong, n104: kotlin.ULong, n105: kotlin.ULong, n106: kotlin.ULong, n107: kotlin.ULong, n108: kotlin.ULong, n109: kotlin.ULong, n110: kotlin.ULong, n111: kotlin.ULong, n112: kotlin.ULong, n113: kotlin.ULong, n114: kotlin.ULong, n115: kotlin.ULong, n116: kotlin.ULong, n117: kotlin.ULong, n118: kotlin.ULong): kotlin.ULong
 fun crammed(a: api.Moment, b: api.Moment, n0: kotlin.ULong, n1: kotlin.ULong, n2: kotlin.ULong, n3: kotlin.ULong, n4: kotlin.ULong, n5: kotlin.ULong, n6: kotlin.ULong, n7: kotlin.ULong, n8: kotlin.ULong, n9: kotlin.ULong, n10: kotlin.ULong, n11: kotlin.ULong, n12: kotlin.ULong, n13: kotlin.ULong, n14: kotlin.ULong, n15: kotlin.ULong, n16: kotlin.ULong, n17: kotlin.ULong, n18: kotlin.ULong, n19: kotlin.ULong, n20: kotlin.ULong, n21: kotlin.ULong, n22: kotlin.ULong, n23: kotlin.ULong, n24: kotlin.ULong, n25: kotlin.ULong, n26: kotlin.ULong, n27: kotlin.ULong, n28: kotlin.ULong, n29: kotlin.ULong, n30: kotlin.ULong, n31: kotlin.ULong, n32: kotlin.ULong, n33: kotlin.ULong, n34: kotlin.ULong, n35: kotlin.ULong, n36: kotlin.ULong, n37: kotlin.ULong, n38: kotlin.ULong, n39: kotlin.ULong, n40: kotlin.ULong, n41: kotlin.ULong, n42: kotlin.ULong, n43: kotlin.ULong, n44: kotlin.ULong, n45: kotlin.ULong, n46: kotlin.ULong, n47: kotlin.ULong, n48: kotlin.ULong, n49: kotlin.ULong, n50: kotlin.ULong, n51: kotlin.ULong, n52: kotlin.ULong, n53: kotlin.ULong, n54: kotlin.ULong, n55: kotlin.ULong, n56: kotlin.ULong, n57: kotlin.ULong, n58: kotlin.ULong, n59: kotlin.ULong, n60: kotlin.ULong, n61: kotlin.ULong, n62: kotlin.ULong, n63: kotlin.ULong, n64: kotlin.ULong, n65: kotlin.ULong, n66: kotlin.ULong, n67: kotlin.ULong, n68: kotlin.ULong, n69: kotlin.ULong, n70: kotlin.ULong, n71: kotlin.ULong, n72: kotlin.ULong, n73: kotlin.ULong, n74: kotlin.ULong, n75: kotlin.ULong, n76: kotlin.ULong, n77: kotlin.ULong, n78: kotlin.ULong, n79: kotlin.ULong, n80: kotlin.ULong, n81: kotlin.ULong, n82: kotlin.ULong, n83: kotlin.ULong, n84: kotlin.ULong, n85: kotlin.ULong, n86: kotlin.ULong, n87: kotlin.ULong, n88: kotlin.ULong, n89: kotlin.ULong, n90: kotlin.ULong, n91: kotlin.ULong, n92: kotlin.ULong, n93: kotlin.ULong, n94: kotlin.ULong, n95: kotlin.ULong, n96: kotlin.ULong, n97: kotlin.ULong, n98: kotlin.ULong, n99: kotlin.ULong, n100: kotlin.ULong, n101: kotlin.ULong, n102: kotlin.ULong, n103: kotlin.ULong, n104: kotlin.ULong, n105: kotlin.ULong, n106: kotlin.ULong, n107: kotlin.ULong, n108: kotlin.ULong, n109: kotlin.ULong, n110: kotlin.ULong, n111: kotlin.ULong, n112: kotlin.ULong, n113: kotlin.ULong, n114: kotlin.ULong, n115: kotlin.ULong, n116: kotlin.ULong, n117: kotlin.ULong, n118: kotlin.ULong, n119: kotlin.ULong, n120: kotlin.ULong, n121: kotlin.ULong, n122: kotlin.ULong, n123: kotlin.ULong): kotlin.ULong
 fun jniOne(): kotlin.UInt

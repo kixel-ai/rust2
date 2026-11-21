@@ -21,7 +21,7 @@ on:
         default: ''
         type: string
       python-check:
-        description: A program run on each installed wheel from a clean directory
+        description: A program run on each installed wheel from a clean directory, or a directory holding it as check.py beside the modules it imports
         default: ''
         type: string
       swift-check:
@@ -29,11 +29,11 @@ on:
         default: ''
         type: string
       reproduce:
-        description: Build every host's packages a second time, from a new export, and fail unless the bytes match
+        description: Build every host's packages a second time, from a second checkout and export, and fail unless the bytes match
         default: false
         type: boolean
       c-check:
-        description: A C or C++ program built by clean CMake and pkg-config consumers of each C archive
+        description: A C or C++ program built by clean CMake and pkg-config consumers of each C archive, or a directory holding it as check.c or check.cpp beside the headers it includes
         default: ''
         type: string
       web-manifest-path:
@@ -45,7 +45,7 @@ on:
         default: ''
         type: string
       web-check:
-        description: A TypeScript module run on the installed npm package, importing the binding as ./web/<module>.ts does beside the export
+        description: A TypeScript module run on the installed npm package, importing the binding as ./web/<module>.ts does beside the export, or a directory holding it as check.ts beside the modules it imports
         default: ''
         type: string
       web-features:
@@ -62,6 +62,10 @@ on:
         type: string
       go-check:
         description: The main.go of a program, importing the module's packages, run against it
+        default: ''
+        type: string
+      checks-artifact:
+        description: An artifact of the caller's run unpacked over its checkout before the checks are read, for checks it generates
         default: ''
         type: string
     outputs:
@@ -138,7 +142,7 @@ jobs:
           ref: ${{ steps.identity.outputs.workflow_sha }}
           path: rust2
           persist-credentials: false
-      - uses: taiki-e/install-action@3a3daafd3b7f23b8f65d9f5ba2db203fb59b79e2 # v2.90.2
+      - uses: taiki-e/install-action@cfdb7ed4ccc7c7dce37759eae89dc5674b469b39 # v2.90.3
         if: steps.mode.outputs.fixture == 'true'
         with:
           tool: just
@@ -181,7 +185,7 @@ jobs:
             targets: aarch64-unknown-linux-gnu aarch64-unknown-linux-musl
           - host: apple
             os: macos-26
-            targets: aarch64-apple-darwin aarch64-apple-ios aarch64-apple-ios-sim x86_64-apple-darwin
+            targets: aarch64-apple-darwin aarch64-apple-ios aarch64-apple-ios-sim aarch64-apple-ios-macabi x86_64-apple-darwin
           # MSVC's library for the wheel, MinGW's for Go, which links through MinGW.
           - host: windows
             os: windows-latest
@@ -205,7 +209,7 @@ jobs:
           ref: ${{ needs.facts.outputs.rust2-sha }}
           path: rust2
           persist-credentials: false
-      - uses: taiki-e/install-action@3a3daafd3b7f23b8f65d9f5ba2db203fb59b79e2 # v2.90.2
+      - uses: taiki-e/install-action@cfdb7ed4ccc7c7dce37759eae89dc5674b469b39 # v2.90.3
         if: needs.facts.outputs.fixture == 'true'
         with:
           tool: just
@@ -260,6 +264,9 @@ jobs:
           - host: apple-ios-sim
             os: macos-26
             targets: aarch64-apple-ios-sim
+          - host: apple-catalyst
+            os: macos-26
+            targets: aarch64-apple-ios-macabi
           # Intel macOS's Go library, which the export's Go links once its API is merged, and
           # its native output; named apart from apple-*, the Swift package's slices.
           - host: darwin-x64
@@ -286,7 +293,7 @@ jobs:
           ref: ${{ needs.facts.outputs.rust2-sha }}
           path: rust2
           persist-credentials: false
-      - uses: taiki-e/install-action@3a3daafd3b7f23b8f65d9f5ba2db203fb59b79e2 # v2.90.2
+      - uses: taiki-e/install-action@cfdb7ed4ccc7c7dce37759eae89dc5674b469b39 # v2.90.3
         if: needs.facts.outputs.fixture == 'true'
         with:
           tool: just
@@ -345,24 +352,40 @@ jobs:
       - name: Source distribution
         if: matrix.host == 'linux-x64'
         run: python3 -I rust2/ffi/release/package.py sdist --manifest-path "source/$MANIFEST" --export export --out dist
-      # The build again, as a rerun makes it: the same packages byte for byte, from a new
-      # export at the same path, since dlltool names the Windows GNU library's import symbols
-      # after the target directory. It doubles the job's time.
+      # The build again, as anyone with the commit makes it: the same packages byte for byte,
+      # from a second checkout and export a level deeper, beside each other as the first are.
+      # It doubles the job's time.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        if: inputs.reproduce
+        with:
+          path: again/source
+          persist-credentials: false
+      - name: Stand-in again
+        if: inputs.reproduce && needs.facts.outputs.fixture == 'true'
+        working-directory: again/source
+        run: just ffi standin
       - name: Rebuild
         if: inputs.reproduce
+        working-directory: again
         env:
           TARGETS: ${{ matrix.targets }}
           GO_MODULE: ${{ inputs.go-module }}
           HOST: ${{ matrix.host }}
         run: |
           read -ra targets <<< "$TARGETS"
-          mv export first-export
-          python3 -I rust2/ffi/release/package.py export --manifest-path "source/$MANIFEST" --features "$FEATURES" --api api --go-module "$GO_MODULE" --out export "${targets[@]}"
-          python -I rust2/ffi/release/package.py build --manifest-path "source/$MANIFEST" --features "$FEATURES" --export export --out again/dist "${targets[@]}"
+          python3 -I ../rust2/ffi/release/package.py export --manifest-path "source/$MANIFEST" --features "$FEATURES" --api ../api --go-module "$GO_MODULE" --out export "${targets[@]}"
+          python -I ../rust2/ffi/release/package.py build --manifest-path "source/$MANIFEST" --features "$FEATURES" --export export --out dist "${targets[@]}"
           if [[ "$HOST" == linux-x64 ]]; then
-            python3 -I rust2/ffi/release/package.py sdist --manifest-path "source/$MANIFEST" --export export --out again/dist
+            python3 -I ../rust2/ffi/release/package.py sdist --manifest-path "source/$MANIFEST" --export export --out dist
           fi
-          python3 -I rust2/ffi/release/package.py same dist again/dist
+          python3 -I ../rust2/ffi/release/package.py same ../dist dist
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        if: inputs.checks-artifact != ''
+        with:
+          name: ${{ inputs.checks-artifact }}
+          path: source
+      # A Python or C check lands as a directory holding it as check.<ext>, whichever form the
+      # input takes: a file is copied into one, and a directory whole.
       - name: Checks
         env:
           PYTHON_CHECK: ${{ inputs.python-check }}
@@ -371,10 +394,13 @@ jobs:
           GO_CHECK: ${{ inputs.go-check }}
         run: |
           mkdir -p dist/checks
-          if [[ -n "$PYTHON_CHECK" ]]; then cp "source/$PYTHON_CHECK" dist/checks/check.py; fi
+          stage() {
+            if [[ -d "source/$1" ]]; then cp -R "source/$1" "$2"; else mkdir "$2" && cp "source/$1" "$2/$3"; fi
+          }
+          if [[ -n "$PYTHON_CHECK" ]]; then stage "$PYTHON_CHECK" dist/checks/python check.py; fi
           if [[ -n "$SWIFT_CHECK" ]]; then cp "source/$SWIFT_CHECK" dist/checks/main.swift; fi
-          # Its extension says whether it is C or C++.
-          if [[ -n "$C_CHECK" ]]; then mkdir dist/checks/c && cp "source/$C_CHECK" dist/checks/c/; fi
+          # A file's extension says whether it is C or C++.
+          if [[ -n "$C_CHECK" ]]; then stage "$C_CHECK" dist/checks/c "check.${C_CHECK##*.}"; fi
           if [[ -n "$GO_CHECK" ]]; then cp "source/$GO_CHECK" dist/checks/main.go; fi
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
@@ -459,7 +485,7 @@ jobs:
           ref: ${{ needs.facts.outputs.rust2-sha }}
           path: rust2
           persist-credentials: false
-      - uses: taiki-e/install-action@3a3daafd3b7f23b8f65d9f5ba2db203fb59b79e2 # v2.90.2
+      - uses: taiki-e/install-action@cfdb7ed4ccc7c7dce37759eae89dc5674b469b39 # v2.90.3
         if: needs.facts.outputs.fixture == 'true'
         with:
           tool: just
@@ -477,7 +503,7 @@ jobs:
           URL: https://github.com/${{ github.repository }}/releases/download/${{ needs.facts.outputs.tag }}/${{ needs.facts.outputs.module }}FFI.xcframework.zip
         run: |
           args=()
-          for target in aarch64-apple-darwin aarch64-apple-ios aarch64-apple-ios-sim; do
+          for target in aarch64-apple-darwin aarch64-apple-ios aarch64-apple-ios-sim aarch64-apple-ios-macabi; do
             args+=(--lib "$target=$(echo "$PWD"/apple/static/"$target"/*.a)" --native "$target=$PWD/apple/static/$target/native.txt")
           done
           cd source
@@ -540,8 +566,8 @@ jobs:
           "$py" -m pip install --no-index --no-deps dist/wheels/*.whl
           args=()
           if [[ -f dist/native.txt ]]; then args+=(--native dist/native.txt); fi
-          if [[ -f dist/checks/check.py ]]; then
-            "$py" -I rust2/ffi/release/package.py consume-python --check dist/checks/check.py "${args[@]}"
+          if [[ -d dist/checks/python ]]; then
+            "$py" -I rust2/ffi/release/package.py consume-python --check dist/checks/python "${args[@]}"
           else
             "$py" -I rust2/ffi/release/package.py consume-python --import "$(cat dist/lib.txt)"
           fi
@@ -605,8 +631,8 @@ jobs:
           tag=$(basename "${wheels[0]}" .whl | cut -d- -f3)
           [[ "$tag" =~ ^cp3([0-9]+)$ ]] || { echo "::error::no CPython floor in ${wheels[0]}"; exit 1; }
           echo "version=3.${BASH_REMATCH[1]}" >> "$GITHUB_OUTPUT"
-          args=(--check dist/checks/check.py)
-          if [[ ! -f dist/checks/check.py ]]; then args=(--import "$(cat dist/lib.txt)"); fi
+          args=(--check dist/checks/python)
+          if [[ ! -d dist/checks/python ]]; then args=(--import "$(cat dist/lib.txt)"); fi
           if [[ -f native/native.txt ]]; then args+=(--native native/native.txt); fi
           echo "args=${args[*]}" >> "$GITHUB_OUTPUT"
       # Alpine's own Python and rustup's Rust, whose host is the musl target the export names.
@@ -649,7 +675,7 @@ jobs:
           "$py" -I rust2/ffi/release/package.py consume-python "${args[@]}"
 
   # A new SwiftPM package whose only library is the staged package, as a user's would be,
-  # run on macOS and built for iOS devices and simulators.
+  # run on macOS and built for iOS devices and simulators and Mac Catalyst.
   swift-consumer:
     needs: [facts, swift, agree]
     runs-on: macos-26
@@ -722,8 +748,7 @@ jobs:
           [[ ${#archives[@]} == 1 ]] || { echo "::error::expected one C archive, found ${archives[*]}"; exit 1; }
           args=(--archive "${archives[0]}")
           if [[ -f dist/native.txt ]]; then args+=(--native dist/native.txt); fi
-          checks=(dist/checks/c/*)
-          if [[ ${#checks[@]} == 1 ]]; then args+=(--check "${checks[0]}"); fi
+          if [[ -d dist/checks/c ]]; then args+=(--check dist/checks/c); fi
           python -I rust2/ffi/release/package.py consume-c "${args[@]}"
 
   # The web binding's npm and JSR packages: web-manifest-path exported for wasm32-wasip1
@@ -745,7 +770,7 @@ jobs:
           ref: ${{ needs.facts.outputs.rust2-sha }}
           path: rust2
           persist-credentials: false
-      - uses: taiki-e/install-action@3a3daafd3b7f23b8f65d9f5ba2db203fb59b79e2 # v2.90.2
+      - uses: taiki-e/install-action@cfdb7ed4ccc7c7dce37759eae89dc5674b469b39 # v2.90.3
         if: needs.facts.outputs.web-fixture == 'true'
         with:
           tool: just
@@ -753,6 +778,21 @@ jobs:
         if: needs.facts.outputs.web-fixture == 'true'
         working-directory: source
         run: just ffi standin "" web
+      # The second checkout the rebuild below makes its package from, a level deeper.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        if: inputs.reproduce
+        with:
+          path: again/source
+          persist-credentials: false
+      - name: Stand-in again
+        if: inputs.reproduce && needs.facts.outputs.web-fixture == 'true'
+        working-directory: again/source
+        run: just ffi standin "" web
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        if: inputs.checks-artifact != ''
+        with:
+          name: ${{ inputs.checks-artifact }}
+          path: source
       # npm packs, and Node's WASI runs the native example.
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
@@ -782,11 +822,17 @@ jobs:
             features=$WEB_FEATURES example=$WEB_EXAMPLE
           fi
           python3 -I rust2/ffi/release/package.py web --manifest-path "source/$WEB_MANIFEST" --features "$features" --scope "$SCOPE" --version "$VERSION" --example "$example" --out web
-          if [[ -n "$WEB_CHECK" ]]; then cp "source/$WEB_CHECK" web/check.ts; fi
-          # The build again, from a new export, which must pack the same tarball.
+          # A directory whole, or a file copied into one as check.ts.
+          if [[ -n "$WEB_CHECK" && -d "source/$WEB_CHECK" ]]; then
+            cp -R "source/$WEB_CHECK" web/check
+          elif [[ -n "$WEB_CHECK" ]]; then
+            mkdir web/check && cp "source/$WEB_CHECK" web/check/check.ts
+          fi
+          # The build again, from the second checkout, which must pack the same tarball.
           if [[ "$REPRODUCE" == true ]]; then
-            python3 -I rust2/ffi/release/package.py web --manifest-path "source/$WEB_MANIFEST" --features "$features" --scope "$SCOPE" --version "$VERSION" --example "" --out web-again
-            python3 -I rust2/ffi/release/package.py same web web-again
+            cd again
+            python3 -I ../rust2/ffi/release/package.py web --manifest-path "source/$WEB_MANIFEST" --features "$features" --scope "$SCOPE" --version "$VERSION" --example "" --out web
+            python3 -I ../rust2/ffi/release/package.py same ../web web
           fi
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
@@ -822,7 +868,7 @@ jobs:
       - name: Install and run
         run: |
           args=()
-          if [[ -f web/check.ts ]]; then args+=(--check web/check.ts); fi
+          if [[ -d web/check ]]; then args+=(--check web/check); fi
           if [[ -f web/native.txt ]]; then args+=(--native web/native.txt); fi
           python3 -I rust2/ffi/release/package.py consume-web --dist web "${args[@]}"
 
@@ -843,7 +889,7 @@ jobs:
           ref: ${{ needs.facts.outputs.rust2-sha }}
           path: rust2
           persist-credentials: false
-      - uses: taiki-e/install-action@3a3daafd3b7f23b8f65d9f5ba2db203fb59b79e2 # v2.90.2
+      - uses: taiki-e/install-action@cfdb7ed4ccc7c7dce37759eae89dc5674b469b39 # v2.90.3
         if: needs.facts.outputs.fixture == 'true'
         with:
           tool: just

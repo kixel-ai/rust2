@@ -60,10 +60,10 @@ pub fn host(target: &str) -> Option<&'static Host> {
 	HOSTS.iter().find(|host| host.target == target)
 }
 
-/// The rustc flags of every crate compiled for a target with a host: all of its MIR, which
-/// `cargo check` encodes for generic and inline functions alone, with each call where the
-/// source makes it, as inlining would not keep it.
-const MIR: [&str; 2] = ["-Zalways-encode-mir", "-Zinline-mir=no"];
+/// The rustc flags of every crate compiled for a target with a host, beside the MIR
+/// [`crate::leaf::flags`] has every crate encode: each call where the source makes it, as
+/// inlining would not keep it.
+const MIR: [&str; 1] = ["-Zinline-mir=no"];
 
 /// The std crates `-Zbuild-std` checks for a target with a host when no sysroot is set,
 /// which flake.nix's sysroot holds too.

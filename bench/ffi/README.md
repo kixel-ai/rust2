@@ -82,6 +82,15 @@ must not be ranked against the managed `loop` row. C, C++, and Rust's existing `
 cases already manually poll in one loop; they remain the native floor, without printing
 the same measurement twice under another name.
 
+Each case that writes groups writes them to a track of its own, created before its clock
+starts and freed after it stops. A track caches every group written to it until it is
+freed: a broadcast's pool evicts by its expiry only when something polls it, and nothing
+here does. Before, every case wrote to one track, so a round held all of its frames, about
+1.4 GB in C and Rust, and each later case ran on a heap that grew as it ran; now a round
+peaks near 290 MB there. Go and Swift peak at 1.1 and 1.2 GB, as their reads run on many
+threads, each with a glibc malloc arena that keeps what it freed: with
+`MALLOC_ARENA_MAX=1` they peak near 330 and 400 MB.
+
 ## CodSpeed
 
 [CodSpeed](https://app.codspeed.io/kixel-ai/rust2) keeps main's history of each
@@ -218,14 +227,14 @@ GIL, which dwarfs the handle's own contention.
 ## Leaf calls
 
 A leaf is a call the export proves runs no code but std's and the glue's, waits on no
-lock, and calls no binding: a primitive `pub` field of a `Send` object reached without a
-`Deref`, or a `PartialEq` or `Hash` derived down to primitives ([`Abi::leaf`](../../ffi/src/abi.rs)).
+lock, and calls no binding: a method or `pub` field of a `Send` object, taking and returning
+scalars, whose body and each `Deref`'s on the way its MIR proves so, or a `PartialEq` or
+`Hash` derived down to primitives ([`Abi::leaf`](../../ffi/src/abi.rs)).
 Python keeps the GIL across one, Dart makes it a leaf call (`isLeaf`) to the C function
 itself on the isolate's thread, with no serving thunk, no thread hop, and no `_Arena`, and
 Kotlin marks its native method `@FastNative` ([Kotlin on ART](#kotlin-on-art)).
-The benchmark's u64 getter, `demand.sequence()`, is a method, which the proof cannot see
-into, so the `field` case reads `track::Info::priority` instead; `group.sequence` is a
-field too, but reached through `group::Producer`'s `Deref`, which is user code.
+The `field` case reads `track::Info::priority`, a field; the u64 getter, `demand.start()`,
+a method returning one, is a leaf since the export reads its body ([below](#leaf-bodies)).
 
 Measured 2026-11-19 on **fedora**, an AMD Ryzen 9 9950X (16 cores, 32 threads), through
 `quest gate`, against moq `ffcb7cd9`. Before is rust2 `52070b3d` with this change's
@@ -263,7 +272,32 @@ within the spread of its rounds.
 Python's 37 ns is more than the 10 to 15 the per-language audit estimated for the GIL's
 round trip, as `rt::call` does more around it: it may look for the event loop running, and
 after the call drains what other threads freed and resumes what the call woke, all of which
-a leaf skips. A getter that is no leaf, such as `demand.sequence()`, still pays it.
+a leaf skips. A call that is no leaf, such as `track.is_closed()`, which takes moq's lock,
+still pays it.
+
+### Leaf bodies
+
+A method's body, and a `Deref`'s on the way to a member, is a leaf when its MIR
+([`leaf.rs`](../../ffi/src/leaf.rs)) calls only bodies proven the same way and core's
+intrinsics that only compute, drops nothing whose drop runs other code, has no loop, no
+recursion, no assertion, and no static. So `demand.start()` and `group::Producer`'s
+`start`, through its `Deref`, are leaves, as are 91 more of the stand-in's methods and
+accessors: Dart makes 348 of its calls leaf calls, against 255.
+
+Measured 2026-11-20 on **fedora**, through `quest gate`, against moq `1aa86d5e`: before is
+rust2 `8798a5d7`, after is this change, each program alternating before and after for 5
+rounds at a load average of 7 to 15; each cell is the median wall time in ns per call.
+
+| case | before | after |
+|---|---|---|
+| Python `getter` | 64.5 | 26.7 |
+| Python `shared:getter` | 1,790 | 119 |
+| Python `own:getter` | 1,779 | 113 |
+| Dart `getter` | 26.5 | 15.8 |
+
+The four threads no longer hand the GIL to each other on every call, which was most of
+their 1.8 us. Every other case of both languages moved within 4% either way, Python's
+`field` included, whose code is the same.
 
 ## Kotlin on ART
 
@@ -304,9 +338,10 @@ tick:
    call, so only a leaf takes it: a call that may wait on a lock, as `is_closed()` waits on
    moq's, or call back into Kotlin, could stall every thread's collection behind it.
 3. **Throughput falls off from 16 KiB on ART alone**, near 650 MB/s against HotSpot's 6.7 to
-   9.3 GB/s, while 100 B and 1 KiB frames stay within 3x: mostly the emulator's cost of
-   fresh memory, which C pays on it too, and partly copies past the lent budget, which
-   [ART's throughput](#arts-throughput) cuts.
+   9.3 GB/s, while 100 B and 1 KiB frames stay within 3x. These rounds kept every case's
+   frames on one track; a track per case ([below](#a-track-per-case)) raised both runtimes
+   but HotSpot more, so the gap stands. [ART's throughput](#arts-throughput)
+   finds why.
 
 The spike, 5 rounds of each side alternating on one emulator at a load of 12 to 29, wall ns,
 before (main) and after (`@FastNative` on leaves, registered):
@@ -331,9 +366,36 @@ defined twice. Only leaves whose `eq` and `hash` walk no value of a caller's siz
 marked, as Dart's leaf calls are.
 
 `just ffi android` passes, with these rules, on API 24 (Android 7, which ignores the
-annotation), 28, 30, and 35. On API 28, `export.kt` itself never finishes, with or without
-the annotation: within 100 s its native memory passes 1.5 GB under a 256 MB heap
-([Kotlin on Android 9](/quest/m1/ffi-speed/android-9-memory.md)).
+annotation), 28, 30, and 35.
+
+### A track per case
+
+Before this change, `export.kt` never finished on API 28: within 15 s its resident memory
+passed 1.7 GB under a 256 MB heap, and the emulator, with 2 GB and no swap, stopped
+answering adb for the 10 minutes it was given. The binding leaked nothing: the cases that
+make and free a million handles grew it by 3 MB in all, while each case writing a million
+100 B frames grew it by 270 to 300 MB, the frames its one track cached. HotSpot held the
+same, 2.1 GB at its peak, and API 35's emulator swapped it to zram. With each writing case
+on a track of its own ([above](#binding-benchmark)), the API 28 run peaks near 380 MB and
+finishes, and nightly runs it there with 2 GB, where a bench that outgrows the device
+hangs and the step's 20 minutes fail it.
+
+Measured 2026-11-20 on **desktop**, an Intel Core Ultra 7 270K Plus (24 cores), through
+`quest gate`, against moq `1aa86d5e`, on an Android 15 (API 35) x86_64 emulator with 4
+cores and 2.5 GB under KVM. Before is rust2 `cd40ee4d`, after is this change, 3 rounds
+each at a load of 26 to 28 before and 20 to 21 after; throughput in wall MB/s, the
+median:
+
+| frame | HotSpot before | HotSpot after | ART before | ART after |
+|---|---|---|---|---|
+| 100 B | 159 | 161 | 52 | 74 |
+| 1 KiB | 1,298 | 1,304 | 398 | 393 |
+| 16 KiB | 2,553 | 7,705 | 906 | 1,368 |
+| 64 KiB | 1,839 | 5,610 | 941 | 1,168 |
+| 1 MiB | 2,805 | 4,017 | 744 | 935 |
+
+The call rows moved within their rounds' spread; on ART, the 100 B write fell from 496
+to 404 ns and the ready read from 1,324 to 1,162.
 
 ### ART's throughput
 
@@ -662,8 +724,12 @@ frame path:
    that finds its P's nursery. Since kixel-ai/rust2#880, each Kotlin thread holds one too, and
    a close no longer links and unlinks a phantom reference under a lock: Kotlin's object return
    fell from 124 to 118 ns median wall (from 112 to 94 at best) and from 56 to 38 on 4
-   threads at once. What it has left is mostly a checked close's two JNI crossings, its drop
-   and then its free ([TypeScript](#the-nursery) has the web's).
+   threads at once. Since kixel-ai/rust2#906, a checked close no call holds drops and frees in
+   one JNI crossing, as Go's and Dart's do: measured 2026-11-20 on **fedora** at a load
+   average of 11 to 30, 8 rounds alternating with main at `1fd44bdd`, Kotlin's object return
+   fell from 93 to 77 ns wall at best, and from 132 to 83 median, as half of main's rounds
+   ran at 169 to 199 and none of this one's past 92; and from 260 to 170 median CPU
+   ([TypeScript](#the-nursery) has the web's).
 3. **A woken read.** C's 427 ns is Rust's 329 plus a future's crossings. Kotlin's 1.6 us and
    Dart's 1.8 us add their event loops; Go's 5.1 us and Swift's 5.7 us wall (16.6 us CPU)
    are a goroutine or `Task` and a cross-thread wake per read, and Python's 6.9 us is
@@ -899,8 +965,27 @@ the refusal), 3 rounds each, alternating, at a load average of 24 to 31; medians
 The refusal adds about 11 CPU seconds, and its walk of the stand-in's 299,455 reachable
 instances takes 6.5 s of them. Wall time ranged 24 to 60 s and 39 to 69 s between rounds
 at this load, so its gap is rough; the walk's check runs after moq's crates, with nothing
-beside it. Peak memory doubles, steady across rounds. A native export reads no MIR and
-pays none of it.
+beside it. Peak memory doubles, steady across rounds.
+
+A native export reads MIR only for its [leaf bodies](#leaf-bodies), which every crate
+encodes for it with `-Zalways-encode-mir`, as `cargo check` encodes none. Measured
+2026-11-20 on **fedora** the same way, the stand-in's native export from an emptied target
+before (rust2 `8798a5d7`) and after this change, 10 rounds each, alternating, at a load
+average of 9 to 19; medians:
+
+| export | wall s | CPU s | peak RSS |
+|---|---|---|---|
+| before | 23.0 | 101.8 | 896 MiB |
+| after | 25.1 | 110.7 | 937 MiB |
+
+So leaves cost the export about 9 CPU seconds, 9%, and 5% of its peak memory, and the
+crates' metadata grows from 135 to 228 MB. The flag alone, measured apart at rust2
+`8798a5d7` in 7 rounds at a load of 12 to 25, added 8 CPU seconds and 44 MiB, so nearly
+all of it is the flag's: the proof walks only the bodies of methods whose signature a leaf
+could have. CPU time ranged 95 to 117 s and 104 to 134 s between rounds, so its gap is
+rough. Recording each crate's leaves in the driver as it compiles the crate would cost
+less, but needs a store of facts keyed by each crate's build beside cargo's own, which
+9 seconds does not repay.
 
 ### Lending returned bytes
 
