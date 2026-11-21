@@ -798,6 +798,11 @@ namespace api {
 		virtual ~Log() = default;
 		virtual bool log(::std::uint8_t level, ::api::view line) const = 0;
 	};
+	class Sensor {
+		virtual ~Sensor() = default;
+		virtual ::std::uint32_t read() const = 0;
+		virtual void close() const = 0;
+	};
 	class Scan {
 		virtual ~Scan() = default;
 		virtual ::std::uint64_t scan(::api::view payload, ::std::optional<::api::view> rest) const = 0;
@@ -1797,6 +1802,7 @@ namespace api {
 	inline ::std::uint32_t jvm_sum(const ::api::JvmField &field, const ::api::JvmStatic &method, const ::api::OptIn &opt);
 	inline ::api::Clocked clocked_after(const ::api::Clocked &clocked, ::std::uint64_t ticks);
 	inline ::std::uint32_t emit(::std::unique_ptr<::api::Log> log, ::api::input lines);
+	inline ::std::uint32_t sensed(::std::unique_ptr<::api::Sensor> sensor);
 	template <class F0> inline ::api::counted_future counted(::std::uint32_t n, F0 &&count);
 	template <class F0> inline ::std::uint32_t filter(::api::input lines, F0 &&keep);
 	inline ::api::log_later_future log_later(::std::unique_ptr<::api::Log> log);
@@ -2512,6 +2518,7 @@ namespace api {
 	class Forged;
 	class Part;
 	class Log;
+	class Sensor;
 	class Scan;
 	class Beat;
 	class Turner;

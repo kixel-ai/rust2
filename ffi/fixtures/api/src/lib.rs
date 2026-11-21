@@ -2344,6 +2344,21 @@ pub fn emit(log: impl Log, lines: Vec<u8>) -> u32 {
 	lines.iter().filter(|&&n| log.log(n, &format!("line {n}"))).count() as u32
 }
 
+/// A sensor Rust reads, then stops by a method of its own named as a binding's closing is.
+pub trait Sensor: Send + Sync {
+	/// The sensor's reading.
+	fn read(&self) -> u32;
+	/// Stops the sensor.
+	fn close(&self);
+}
+
+/// `sensor`'s reading, taken before stopping it.
+pub fn sensed(sensor: impl Sensor) -> u32 {
+	let read = sensor.read();
+	sensor.close();
+	read
+}
+
 #[cfg(not(target_arch = "wasm32"))]
 /// [`emit`] on another thread, which the call waits on.
 pub fn emit_from_thread(log: impl Log, lines: Vec<u8>) -> u32 {

@@ -235,6 +235,8 @@ func SeedsPointPolarPoint(from PolarPoint) uint64
 func SeedsPointSize(from p_dep.Size) uint64
 func SeedsPointWrapU32(from WrapU32) uint64
 func SeekTo(file io.ReadSeeker, at uint64) (uint64, error)
+func Sensed(sensor Sensor) uint32
+func SensorVtable_() unsafe.Pointer
 func Sentence(words *[]string) (string, error)
 func Shift(by func() uint32, cBy uint32) uint32
 func Since(later *p_std.Instant, earlier *p_std.Instant) (p_rt.Duration, error)
@@ -1793,6 +1795,10 @@ func NewSeat(mark *Mark, row uint32) (Seat, error)
 func (self Seat) Count() (uint64, error)
 func (self Seat) Equal(other Seat) (bool, error)
 func (self Seat) GoString() string
+type Sensor interface {
+	Read() uint32
+	Close()
+}
 type Shadowed struct {
 	Other []int32
 	A     uint8

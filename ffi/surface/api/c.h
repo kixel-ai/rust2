@@ -17,7 +17,7 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-#define API_CONTRACT ((uint64_t)0x7c82cdb96e0f58eaULL)
+#define API_CONTRACT ((uint64_t)0x88a5ba391818562fULL)
 uint64_t api_contract(void);
 uint32_t api_target(void);
 typedef int32_t api_status;
@@ -1204,6 +1204,15 @@ typedef struct api_Log {
 	const api_Log_vtable *vtable;
 	void *data;
 } api_Log;
+typedef struct api_Sensor_vtable {
+	void (*free)(void *data);
+	uint32_t (*read)(void *data);
+	void (*close)(void *data);
+} api_Sensor_vtable;
+typedef struct api_Sensor {
+	const api_Sensor_vtable *vtable;
+	void *data;
+} api_Sensor;
 typedef struct api_Scan_vtable {
 	void (*free)(void *data);
 	uint64_t (*scan)(void *data, api_buf payload, api_buf rest);
@@ -2454,6 +2463,7 @@ api_Moment api_shifted(api_Moment moment, api_Moment (*shift)(void *data, api_Mo
 uint32_t api_jvm_sum(api_JvmField field, api_JvmStatic method, api_OptIn opt);
 api_Clocked api_clocked_after(api_Clocked clocked, uint64_t ticks);
 uint32_t api_emit(api_Log log, api_buf lines);
+uint32_t api_sensed(api_Sensor sensor);
 typedef struct api_counted_future api_counted_future;
 API_MUST_USE api_counted_future *api_counted(uint32_t n, void (*count)(void *data, uint32_t), void *count_data);
 API_MUST_USE api_poll api_counted_start(uint32_t n, void (*count)(void *data, uint32_t), void *count_data, uint32_t *out, api_Error *err, api_counted_future **future);

@@ -1606,6 +1606,10 @@ public struct Part: ~Copyable, @unchecked Sendable {
 public protocol Log: Sendable {
 	func log(_ level: Swift.UInt8, _ line: Swift.String) -> Swift.Bool
 }
+public protocol Sensor: Sendable {
+	func read() -> Swift.UInt32
+	func close()
+}
 public protocol Scan: Sendable {
 	func scan(_ payload: Swift.Span<Swift.UInt8>, _ rest: Swift.Span<Swift.UInt8>?) -> Swift.UInt64
 }
@@ -1736,6 +1740,7 @@ public let URL: Swift.UInt64
 @inlinable public func jvmSum(_ field: JvmField, _ method: JvmStatic, _ opt: OptIn) -> Swift.UInt32
 @inlinable public func clockedAfter(_ clocked: Clocked, _ ticks: Swift.UInt64) -> Clocked
 @inlinable public func emit(_ log: any Log, _ lines: Bytes) -> Swift.UInt32
+@inlinable public func sensed(_ sensor: any Sensor) -> Swift.UInt32
 @inlinable nonisolated(nonsending) public func counted(_ n: Swift.UInt32, _ count: @Sendable (Swift.UInt32) -> Void) async throws -> Swift.UInt32
 @inlinable public func filter(_ lines: Bytes, _ keep: @Sendable (Swift.UInt8, Swift.String) -> Swift.Bool) -> Swift.UInt32
 @inlinable nonisolated(nonsending) public func logLater(_ log: any Log) async throws -> Swift.Bool

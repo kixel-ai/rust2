@@ -19,6 +19,7 @@ import api.Packet;
 import api.Platform;
 import api.Point;
 import api.RangeU64;
+import api.Sensor;
 import api.Shape;
 import api.SocketAddrV4;
 import api.SocketAddrV6;
@@ -117,6 +118,8 @@ class Caller {
 		Levels levels = new Levels();
 		check(ApiKt.emit(Log.of(levels), new Bytes(new byte[] {(byte) 200, 1})) == 1, "Java implements a callback interface of an unsigned integer");
 		check(levels.seen == 201 && levels.closed, "Rust passes the callback each unsigned integer's bits, and closes it as it drops it");
+		Dial dial = new Dial();
+		check(ApiKt.sensed(Sensor.of(dial)) == -1 && dial.stopped == 1, "Rust calls a callback's own close once, apart from closing it as it drops it");
 		try (Far far = new Far()) {
 			check(ApiKt.seekTo(far, -1L) == -1L && far.at == -1L, "Java implements StartSeekable");
 		}
@@ -148,6 +151,21 @@ class Caller {
 		@Override
 		public void close() {
 			closed = true;
+		}
+	}
+
+	/** A sensor reading the most a `u32` holds, counting how often Rust stops it. */
+	static final class Dial implements Sensor.Java {
+		int stopped;
+
+		@Override
+		public int read() {
+			return -1;
+		}
+
+		@Override
+		public void close() {
+			stopped++;
 		}
 	}
 

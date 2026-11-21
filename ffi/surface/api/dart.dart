@@ -1806,6 +1806,11 @@ abstract class Log {
 	bool log(int level, String line);
 	void close();
 }
+abstract class Sensor {
+	int read();
+	void close_();
+	void close();
+}
 abstract class Scan {
 	U64 scan(typed.Uint8List payload, typed.Uint8List? rest);
 	void close();
@@ -1938,6 +1943,7 @@ Moment shifted(Moment moment, Moment Function(Moment) shift);
 int jvmSum(JvmField field, JvmStatic method, OptIn opt);
 Clocked clockedAfter(Clocked clocked, U64 ticks);
 int emit(Log log, typed.Uint8List lines);
+int sensed(Sensor sensor);
 Cancelable<int> counted(int n, void Function(int) count);
 int filter(typed.Uint8List lines, bool Function(int, String) keep);
 Cancelable<bool> logLater(Log log);

@@ -1620,6 +1620,17 @@ interface Log {
 		@kotlin.jvm.JvmStatic fun of(java: Java): Log
 	}
 }
+interface Sensor {
+	fun read(): kotlin.UInt
+	fun close()
+	interface Java {
+		fun read(): kotlin.Int
+		fun close()
+	}
+	companion object {
+		@kotlin.jvm.JvmStatic fun of(java: Java): Sensor
+	}
+}
 interface Scan {
 	fun scan(payload: api.Bytes, rest: api.Bytes?): kotlin.ULong
 	interface Java {
@@ -1816,6 +1827,7 @@ fun shifted(moment: api.Moment, shift: (api.Moment) -> api.Moment): api.Moment
 fun jvmSum(field: api.JvmField, method: api.JvmStatic, opt: api.OptIn): kotlin.UInt
 @kotlin.jvm.JvmName("clockedAfter") fun clockedAfter(clocked: api.Clocked, ticks: kotlin.ULong): api.Clocked
 fun emit(log: api.Log, lines: api.Bytes): kotlin.UInt
+fun sensed(sensor: api.Sensor): kotlin.UInt
 @kotlin.jvm.JvmName("counted") @kotlin.jvm.Throws(ErrorException::class) suspend fun counted(n: kotlin.UInt, count: (kotlin.UInt) -> kotlin.Unit): kotlin.UInt
 fun filter(lines: api.Bytes, keep: (kotlin.UByte, kotlin.String) -> kotlin.Boolean): kotlin.UInt
 suspend fun logLater(log: api.Log): kotlin.Boolean
