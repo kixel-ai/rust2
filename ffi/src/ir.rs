@@ -27,6 +27,26 @@ pub(crate) struct Api {
 	/// rustc's `--print native-static-libs` prints them. An API from before it holds none.
 	#[serde(default)]
 	pub(crate) links: std::collections::BTreeMap<String, Vec<String>>,
+	/// By target, the profile its check compiled with, whose bodies its leaves are proven
+	/// against. An API from before it holds none, so it proves no leaf.
+	#[serde(default)]
+	pub(crate) profiles: std::collections::BTreeMap<String, Profile>,
+}
+
+/// What of a check's profile can change the code a crate compiles, as the glue's build
+/// script reads it: what cargo tells a build script, and the panic strategy, which a `cfg`
+/// tells the crate. Overflow checks, which neither can see, the check always makes, so its
+/// MIR asserts every overflow a build might.
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
+pub(crate) struct Profile {
+	/// Cargo's `PROFILE`: `release` for a profile that is or inherits from `release`, else
+	/// `debug`.
+	pub(crate) root: String,
+	/// Cargo's `OPT_LEVEL`.
+	pub(crate) opt_level: String,
+	pub(crate) debug_assertions: bool,
+	/// `cfg(panic)`'s value.
+	pub(crate) panic: String,
 }
 
 /// A crate the glue depends on beside the facade, as the facade resolves it.

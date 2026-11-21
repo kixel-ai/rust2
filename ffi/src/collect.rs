@@ -158,6 +158,8 @@ pub(crate) struct Facade<'a> {
 	pub(crate) package: &'a str,
 	/// The dependency the glue names each crate it builds with by, by its crate name.
 	pub(crate) crates: &'a std::collections::BTreeMap<String, String>,
+	/// The `PROFILE` cargo gives a build script of the check.
+	pub(crate) profile: &'a str,
 }
 
 /// What collection found in the facade, by paths from its root.
@@ -477,6 +479,7 @@ pub(crate) fn collect<'tcx>(tcx: TyCtxt<'tcx>, facade: &Facade<'_>) -> Collected
 				reached: Vec::new(),
 				targets: vec![target(tcx)],
 				links: [(target(tcx), links(tcx))].into(),
+				profiles: [(target(tcx), profile(tcx, facade.profile))].into(),
 			},
 		};
 		c.walk();
@@ -7092,6 +7095,27 @@ fn opaque<'tcx>(
 /// The target the export is collected for.
 fn target(tcx: TyCtxt<'_>) -> String {
 	tcx.sess.opts.target_triple.tuple().to_string()
+}
+
+/// The profile the facade compiles with, which its leaves are proven under, beside the
+/// `PROFILE` cargo gave its build scripts.
+fn profile(tcx: TyCtxt<'_>, root: &str) -> crate::ir::Profile {
+	use rustc_session::config::OptLevel;
+	let sess = tcx.sess;
+	let opt_level = match sess.opts.optimize {
+		OptLevel::No => "0",
+		OptLevel::Less => "1",
+		OptLevel::More => "2",
+		OptLevel::Aggressive => "3",
+		OptLevel::Size => "s",
+		OptLevel::SizeMin => "z",
+	};
+	crate::ir::Profile {
+		root: root.to_string(),
+		opt_level: opt_level.to_string(),
+		debug_assertions: sess.opts.debug_assertions,
+		panic: sess.panic_strategy().desc().to_string(),
+	}
 }
 
 /// The system libraries a static library of the facade links beside it on this target, as

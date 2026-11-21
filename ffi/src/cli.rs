@@ -14,7 +14,8 @@ Exports the pub API of the package's library, following its `pub use` re-exports
 other crates, as one library: a crate in <dir> that builds the C ABI, with its C header
 in <dir>/include, every C name prefixed by the library's crate name. An item that cannot
 export fails the export. The package's Cargo.toml is in the current directory unless
---manifest-path says where. Cargo args, such as --features, are passed to `cargo check`.
+--manifest-path says where. Cargo args, such as --features, are passed to `cargo check`,
+which checks the release profile unless they pick another, as a library ships.
 
 --target exports the API the package has on that target, the host by default, whatever
 cargo's config names: its `cfg`s and its layouts. Given several times, it exports each
@@ -81,6 +82,13 @@ fn try_run(args: &[String]) -> Result<ExitCode, String> {
 	let picks = Picks::parse(&args.cargo, dir)?;
 	let (facade, patch, checked) = facade(&args.manifest, &targets[0], &picks)?;
 	let crates = crates(&checked.metadata, &checked.top)?;
+	let (profile, root) = check_profile(&args.cargo, &checked.metadata.workspace_root)?;
+	// The check's cargo args, with `--release` first where they pick no profile, so as not to
+	// follow a `--` of theirs.
+	let cargo = match profile == profile_args(&args.cargo) {
+		true => args.cargo.clone(),
+		false => [profile.clone(), args.cargo.clone()].concat(),
+	};
 	let line = facade.line();
 	// A staged API's spans are relative to the workspace and cargo's home, which hold the
 	// same files at other paths on another host.
@@ -107,7 +115,7 @@ fn try_run(args: &[String]) -> Result<ExitCode, String> {
 			root: None,
 			// Always named, so cargo's config never picks another: the exports are found on it.
 			target: Some(target),
-			args: &cargo_args(target, args.cargo.clone())?,
+			args: &cargo_args(target, cargo.clone())?,
 			target_dir: None,
 			dir: None,
 			env: &[
@@ -120,6 +128,7 @@ fn try_run(args: &[String]) -> Result<ExitCode, String> {
 				(config::env::MERGE, merge),
 				(config::env::BASELINE, baseline.as_os_str()),
 				(config::env::ROOTS, roots.as_ref()),
+				(config::env::PROFILE, root.as_ref()),
 				output,
 			],
 		}
@@ -168,7 +177,7 @@ fn try_run(args: &[String]) -> Result<ExitCode, String> {
 	// Resolved as `lock` resolved it, under the check's profile, whose `cfg`s the glue was
 	// generated against.
 	let mut cargo = picks.resolving().args();
-	cargo.extend(profile_args(&args.cargo));
+	cargo.extend(profile);
 	cargo.extend(["--features".to_string(), "web".to_string()]);
 	Check {
 		tool: "rust2-ffi",
@@ -727,6 +736,47 @@ fn run_cargo(manifest: &Path, subcommand: &[&str], picks: &Picks<'_>) -> Result<
 		true => Ok(output.stdout),
 		false => Err(String::from_utf8_lossy(&output.stderr).into_owned()),
 	}
+}
+
+/// The cargo args that pick the check's profile, `--release` unless `cargo` picks one, as a
+/// library ships in it: its leaves are proven against the bodies that profile compiles. Then
+/// the `PROFILE` cargo gives a build script under it: `release` for a profile that is or
+/// inherits from `release`, else `debug`, following `inherits` through the workspace's
+/// manifest, whose profiles alone the glue carries. One cargo's config defines is an error.
+fn check_profile(cargo: &[String], workspace: &Path) -> Result<(Vec<String>, &'static str), String> {
+	let picked = profile_args(cargo);
+	let mut name = match picked.last().map(String::as_str) {
+		None => return Ok((vec!["--release".to_string()], "release")),
+		Some("--release" | "-r") => "release",
+		Some(last) => last.strip_prefix("--profile=").unwrap_or(last),
+	}
+	.to_string();
+	let manifest = workspace.join("Cargo.toml");
+	let source = std::fs::read_to_string(&manifest).map_err(|err| format!("reading {}: {err}", manifest.display()))?;
+	let table: toml::Table = toml::from_str(&source).map_err(|err| format!("{}: {err}", manifest.display()))?;
+	// Cargo refuses a cycle, which this bound stops at before cargo runs.
+	for _ in 0..=table.get("profile").and_then(|p| p.as_table()).map_or(0, |p| p.len()) {
+		match name.as_str() {
+			"dev" | "test" => return Ok((picked, "debug")),
+			"release" | "bench" => return Ok((picked, "release")),
+			_ => {}
+		}
+		let inherits = (table.get("profile"))
+			.and_then(|p| p.get(&name))
+			.and_then(|p| p.get("inherits"))
+			.and_then(|i| i.as_str());
+		let Some(inherits) = inherits else {
+			return Err(format!(
+				"{}: no profile `{name}` inherits from another here, where the profiles the export's library builds with are",
+				manifest.display()
+			));
+		};
+		name = inherits.to_string();
+	}
+	Err(format!(
+		"{}: the profile `{name}` inherits from itself",
+		manifest.display()
+	))
 }
 
 /// The cargo args that pick the profile: `--release`, `-r`, and `--profile`.

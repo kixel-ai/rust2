@@ -65,4 +65,6 @@ pub(crate) mod env {
 	/// The dependency the glue would name each crate the facade builds with by, as a TOML
 	/// table from its library's crate name to its keys.
 	pub(crate) const CRATES: &str = "RUST2_FFI_CRATES";
+	/// The `PROFILE` cargo gives a build script of the check: `release` or `debug`.
+	pub(crate) const PROFILE: &str = "RUST2_FFI_PROFILE";
 }

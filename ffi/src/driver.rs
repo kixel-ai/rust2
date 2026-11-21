@@ -62,6 +62,8 @@ struct Export {
 	roots: Vec<PathBuf>,
 	/// The API an earlier export wrote, which this one's must not break.
 	baseline: Option<PathBuf>,
+	/// The `PROFILE` cargo gives a build script of the check.
+	profile: String,
 }
 
 /// What the job writes.
@@ -131,6 +133,7 @@ impl Export {
 		let baseline = std::env::var_os(config::env::BASELINE)
 			.filter(|p| !p.is_empty())
 			.map(PathBuf::from);
+		let profile = std::env::var(config::env::PROFILE).map_err(|_| format!("{} is unset", config::env::PROFILE))?;
 		Ok(Some(Self {
 			crates,
 			output,
@@ -139,6 +142,7 @@ impl Export {
 			merge,
 			roots,
 			baseline,
+			profile,
 		}))
 	}
 }
@@ -174,6 +178,7 @@ impl Callbacks for Export {
 			root: self.facade.root(),
 			package: &self.facade.name,
 			crates: &self.crates,
+			profile: &self.profile,
 		};
 		let mut collected = collect::collect(tcx, &facade);
 		if let Output::Census(dir) = &self.output {

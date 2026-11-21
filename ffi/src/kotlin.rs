@@ -166,6 +166,14 @@ pub(crate) fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<O
 			n = g.slots
 		);
 	}
+	if !g.fast.is_empty() {
+		helpers.push_str("\t/** Whether the library runs the bodies its leaves were proven against, which a `@FastNative` call needs: else each is made as any other. */\n\tprivate val proven = __proven()\n\n\t@kotlin.jvm.JvmStatic external fun __proven(): Boolean\n\n");
+		let _ = write!(
+			g.glue,
+			"#[unsafe(no_mangle)]\npub extern \"system\" fn Java_{}__1Native__1_1proven(_: *mut JNIEnv, _: jclass) -> jboolean {{\n\tcrate::PROVEN as jboolean\n}}\n\n",
+			mangle(p)
+		);
+	}
 	if g.fails {
 		let thrown = g.thrown.get("kotlin.String").expect("a closure's error is a String");
 		let _ = write!(
@@ -2523,7 +2531,9 @@ impl<'a> Gen<'a> {
 	/// [`Self::native`] for a leaf, as [`Abi::leaf`] proves: `@FastNative`, so ART keeps
 	/// the thread runnable across it rather than switching its state twice, which a call
 	/// that ends in a bounded number of steps and waits on no lock allows. ART binds such a
-	/// method by its name only from Android 12, so `__contract` registers it instead.
+	/// method by its name only from Android 12, so `__contract` registers it instead. Where
+	/// the library runs other bodies than the proof saw, a plain native method bound to the
+	/// same function makes the call.
 	fn leaf_native(&mut self, bare: &str, params: &[(&str, &str)], ret: (&str, &str), body: &str) {
 		self.declare(bare, params, ret, body, true);
 	}
@@ -2554,13 +2564,22 @@ impl<'a> Gen<'a> {
 			}
 		};
 		let bare = external.as_str();
+		let plain = match fast {
+			true => {
+				let args: Vec<String> = (0..params.len()).map(|n| format!("p{n}")).collect();
+				let (kt, args) = (kt.join(", "), args.join(", "));
+				let _ = write!(
+					self.natives,
+					"\t@kotlin.jvm.JvmStatic fun {bare}({kt}): {ret} = if (proven) {bare}__fast({args}) else {bare}__plain({args})\n\n\t@dalvik.annotation.optimization.FastNative\n\t@kotlin.jvm.JvmStatic external fun {bare}__fast({kt}): {ret}\n\n",
+					ret = ret.1
+				);
+				format!("{bare}__plain")
+			}
+			false => bare.to_string(),
+		};
 		let _ = write!(
 			self.natives,
-			"{}\t@kotlin.jvm.JvmStatic external fun {bare}({}): {}\n\n",
-			match fast {
-				true => "\t@dalvik.annotation.optimization.FastNative\n",
-				false => "",
-			},
+			"\t@kotlin.jvm.JvmStatic external fun {plain}({}): {}\n\n",
 			kt.join(", "),
 			ret.1
 		);
@@ -2571,22 +2590,17 @@ impl<'a> Gen<'a> {
 			.collect();
 		let mut all = vec!["env: *mut JNIEnv".to_string(), "_: jclass".to_string()];
 		all.extend(rust);
-		let function = format!("Java_{}__1Native_{}", mangle(&self.abi.prefix), mangle(bare));
-		// A registered function needs no symbol of its own.
-		let export = match fast {
-			true => {
-				let jvm: String = params.iter().map(|(j, _)| descriptor(j)).collect();
-				let _ = writeln!(
-					self.fast,
-					"\t\tJNINativeMethod {{ name: c\"{bare}\".as_ptr() as _, signature: c\"({jvm}){}\".as_ptr() as _, fnPtr: {function} as *mut c_void }},",
-					descriptor(ret.0)
-				);
-				""
-			}
-			false => "#[unsafe(no_mangle)]\npub ",
-		};
+		let function = format!("Java_{}__1Native_{}", mangle(&self.abi.prefix), mangle(&plain));
+		if fast {
+			let jvm: String = params.iter().map(|(j, _)| descriptor(j)).collect();
+			let _ = writeln!(
+				self.fast,
+				"\t\tJNINativeMethod {{ name: c\"{bare}__fast\".as_ptr() as _, signature: c\"({jvm}){}\".as_ptr() as _, fnPtr: {function} as *mut c_void }},",
+				descriptor(ret.0)
+			);
+		}
 		let head = format!(
-			"{export}unsafe extern \"system\" fn {function}({}) -> {}",
+			"#[unsafe(no_mangle)]\npub unsafe extern \"system\" fn {function}({}) -> {}",
 			all.join(", "),
 			ret.0
 		);

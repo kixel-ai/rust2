@@ -1181,7 +1181,7 @@ impl<'a> Gen<'a> {
 		};
 		// A leaf keeps the GIL, which no part of it can wait on: see `Abi::leaf`.
 		let called = |leaf: bool, call: String| match leaf {
-			true => call,
+			true => format!("rt::leaf(|| {call})"),
 			false => format!("rt::call(|| {call})"),
 		};
 		let unary = |g: &mut Self, suffix: &str, member: &str, docs: &str, lower: String| {
@@ -2238,7 +2238,7 @@ impl<'a> Gen<'a> {
 			};
 			// A leaf keeps the GIL, which no part of it can wait on: see `Abi::leaf`.
 			let call = match abi.leaf(function, owner_ty.map(|(ty, _)| ty)) {
-				true => call,
+				true => format!("rt::leaf(|| {call})"),
 				false => format!("rt::call(|| {call})"),
 			};
 			stmts.push(format!(

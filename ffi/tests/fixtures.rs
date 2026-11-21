@@ -182,7 +182,7 @@ fn transcripts() {
 	let dir = PathBuf::from(std::env::var_os("RUST2_TRANSCRIPTS").expect("RUST2_TRANSCRIPTS names the directory"));
 	let out = scratch().join("transcripts").join("out");
 	// The export `api` makes, so each script is the one its test runs.
-	let output = export("api", &out, &[host(), WEB], &["--features", "doubled"]);
+	let output = export("api", &out, &[host(), WEB], &API_CARGO);
 	assert!(
 		output.status.success(),
 		"exporting failed:\n{}",
@@ -232,15 +232,18 @@ fn cpp_transcript() -> PathBuf {
 	generated("cpp", "transcript.hpp", &transcript::cpp::emit(transcript()))
 }
 
+/// The cargo args each export of the api fixture its tests build takes: a feature of the
+/// facade's that enables one in a crate it re-exports, which the C library must build with,
+/// and the dev profile its tests build, so its leaves are leaf calls in them.
+const API_CARGO: [&str; 4] = ["--profile", "dev", "--features", "doubled"];
+
 fn api() -> &'static Api {
 	static API: OnceLock<Api> = OnceLock::new();
 	API.get_or_init(|| {
 		let out = scratch().join("api").join("out");
-		// A feature of the facade's that enables one in a crate it re-exports, which the C
-		// library must build with.
 		let features = ["--features", "doubled"];
 		// One binding for the host and wasm32, which the web binding runs.
-		let output = export("api", &out, &[host(), WEB], &features);
+		let output = export("api", &out, &[host(), WEB], &API_CARGO);
 		assert!(
 			output.status.success(),
 			"exporting failed:\n{}",
@@ -1215,7 +1218,7 @@ fn api_android() {
 		abi => panic!("the android shell's toolchain has no target for the device's ABI {abi}"),
 	};
 	let out = dir.join("out");
-	let output = export("api", &out, &[target, WEB], &["--features", "doubled"]);
+	let output = export("api", &out, &[target, WEB], &API_CARGO);
 	assert!(
 		output.status.success(),
 		"exporting for {target} failed:\n{}",
@@ -5470,6 +5473,134 @@ fn config_patched() {
 	);
 	// Built from here, where none of that config is read.
 	build_offline(&out, &root.join("glue"));
+}
+
+/// A leaf is proven against the profile the export checks, release unless its cargo args pick
+/// another, and a build under another makes no leaf call. A method that runs a hook only
+/// with debug assertions on is a leaf of a release check; built for dev, Python makes it as
+/// any other call, releasing the GIL, which the hook's thread needs. Kept, the call would wait
+/// on that thread for good, which the hook fails loud on instead. Every overflow asserts in
+/// the check, so arithmetic is no leaf even in release, where a build may still check it. A
+/// profile of cargo's config, which the glue does not carry, is an error.
+#[test]
+fn leaf_profile() {
+	let package = package(
+		"leaf_profile",
+		&[
+			(
+				"Cargo.toml",
+				"[package]\nname = \"leaf_profile\"\nversion = \"0.0.0\"\nedition = \"2024\"\n\n\
+				[profile.ship]\ninherits = \"release\"\n\n[workspace]\n",
+			),
+			(".cargo/config.toml", "[profile.configured]\ninherits = \"release\"\n"),
+			(
+				"src/lib.rs",
+				"use std::sync::Mutex;\n\n\
+				static HOOK: Mutex<Option<Box<dyn Fn() + Send>>> = Mutex::new(None);\n\n\
+				pub fn hook(f: impl Fn() + Send + 'static) {\n\t*HOOK.lock().unwrap() = Some(Box::new(f));\n}\n\n\
+				fn run_hook() {\n\
+				\tlet Some(f) = HOOK.lock().unwrap().take() else {\n\t\treturn;\n\t};\n\
+				\tlet (done, ran) = std::sync::mpsc::channel();\n\
+				\tstd::thread::spawn(move || {\n\t\tf();\n\t\tlet _ = done.send(f);\n\t});\n\
+				\tlet f = ran.recv_timeout(std::time::Duration::from_secs(30)).expect(\"the hook ran: the call kept the GIL\");\n\
+				\t*HOOK.lock().unwrap() = Some(f);\n}\n\n\
+				pub struct Counter {\n\tn: u64,\n}\n\n\
+				impl Counter {\n\
+				\tpub fn new(n: u64) -> Self {\n\t\tSelf { n }\n\t}\n\n\
+				\tpub fn debugged(&self) -> u64 {\n\t\t#[cfg(debug_assertions)]\n\t\trun_hook();\n\t\tself.n\n\t}\n\n\
+				\tpub fn released(&self) -> u64 {\n\t\t#[cfg(not(debug_assertions))]\n\t\trun_hook();\n\t\tself.n\n\t}\n\n\
+				\tpub fn next(&self) -> u64 {\n\t\tself.n + 1\n\t}\n}\n",
+			),
+		],
+	);
+	let out = package.join("out");
+	let export = |cargo: &[&str]| {
+		Command::new(env!("CARGO_BIN_EXE_rust2-ffi"))
+			.arg("--manifest-path")
+			.arg(package.join("Cargo.toml"))
+			.arg("--out")
+			.arg(&out)
+			.arg("--")
+			.args(cargo)
+			.env("CARGO_TARGET_DIR", package.join("build"))
+			.output()
+			.unwrap()
+	};
+	// Which of Counter's methods are leaves, and the profile they were proven under.
+	let exported = |cargo: &[&str]| {
+		let output = export(cargo);
+		assert!(
+			output.status.success(),
+			"{cargo:?} failed:\n{}",
+			String::from_utf8_lossy(&output.stderr)
+		);
+		let api: serde_json::Value =
+			serde_json::from_str(&std::fs::read_to_string(out.join("api.json")).unwrap()).unwrap();
+		let api = &api["api"];
+		let methods = api["objects"][0]["methods"].as_array().unwrap();
+		let leaves: Vec<&str> = (methods.iter())
+			.filter(|m| m["leaf"] == true)
+			.map(|m| m["path"].as_array().unwrap().last().unwrap().as_str().unwrap())
+			.collect();
+		let profile = &api["profiles"][host()];
+		(leaves.join(" "), profile["root"].as_str().unwrap().to_string())
+	};
+	// Its build of the Python extension, which says whether it runs the bodies proven, and
+	// the Python calling each method with a hook set.
+	let python = |check: &str, name: &str| {
+		// Apart for each check, as cargo keeps the library of whichever unit it built last.
+		let target = package.join("glue").join(check);
+		let built = run(cargo()
+			.args(["build", "--locked", "--message-format=json", "--manifest-path"])
+			.arg(out.join("Cargo.toml"))
+			.arg("--target-dir")
+			.arg(&target)
+			.args(["--features", "python"])
+			.env("RUSTFLAGS", "-D warnings"));
+		let lib = shared("leaf_profile");
+		step::copy(&target.join("debug").join(&lib), &out.join("python").join(&lib));
+		let proven = String::from_utf8_lossy(&built.stdout).lines().any(|line| {
+			let message: serde_json::Value = serde_json::from_str(line).unwrap();
+			message["reason"] == "build-script-executed"
+				&& (message["cfgs"].as_array().unwrap().iter())
+					.any(|cfg| cfg.as_str().unwrap().starts_with("rust2_ffi_proven"))
+		});
+		let script = format!(
+			"import threading\nimport leaf_profile as m\nran = []\nm.hook(lambda: ran.append(threading.get_ident()))\n\
+			assert m.Counter.new(3).{name}() == 3\nassert len(ran) == 1 and ran[0] != threading.get_ident(), ran\n"
+		);
+		run(
+			Command::new(std::env::var_os("PYTHON").unwrap_or_else(|| "python3".into()))
+				.args(["-P", "-c", &script])
+				.env("PYTHONPATH", out.join("python")),
+		);
+		proven
+	};
+	assert_eq!(exported(&[]), ("debugged".to_string(), "release".to_string()));
+	assert!(
+		!python("release", "debugged"),
+		"a dev build ran the release check's leaves"
+	);
+	assert_eq!(
+		exported(&["--profile", "dev"]),
+		("released".to_string(), "debug".to_string())
+	);
+	assert!(
+		python("dev", "debugged"),
+		"a dev build did not run the dev check's leaves"
+	);
+	assert_eq!(
+		exported(&["--profile", "ship"]),
+		("debugged".to_string(), "release".to_string())
+	);
+	// The glue's manifest carries no profile cargo's config defines.
+	let output = export(&["--profile", "configured"]);
+	assert!(!output.status.success(), "a profile of cargo's config passed");
+	let stderr = String::from_utf8_lossy(&output.stderr);
+	assert!(
+		stderr.contains("no profile `configured` inherits from another here"),
+		"{stderr}"
+	);
 }
 
 /// The workspace's profiles reach the glue's build, with an override of a package the

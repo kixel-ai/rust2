@@ -945,6 +945,7 @@ mod tests {
 			crates: vec!["lock_a".into(), "lock_b".into()],
 			targets: vec!["host".into()],
 			links: Default::default(),
+			profiles: Default::default(),
 			reached: Vec::new(),
 		}
 	}
