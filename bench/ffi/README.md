@@ -313,9 +313,10 @@ tick:
    call, so only a leaf takes it: a call that may wait on a lock, as `is_closed()` waits on
    moq's, or call back into Kotlin, could stall every thread's collection behind it.
 3. **Throughput falls off from 16 KiB on ART alone**, near 650 MB/s against HotSpot's 6.7 to
-   9.3 GB/s, while 100 B and 1 KiB frames stay within 3x. Most of that was the round's
-   frames, which every case then kept on one track ([below](#a-track-per-case)).
-   [ART's throughput](/quest/m1/ffi-speed/art-throughput.md) finds why the rest.
+   9.3 GB/s, while 100 B and 1 KiB frames stay within 3x. These rounds kept every case's
+   frames on one track; a track per case ([below](#a-track-per-case)) raised both runtimes
+   but HotSpot more, so the gap stands. [ART's throughput](/quest/m1/ffi-speed/art-throughput.md)
+   finds why.
 
 The spike, 5 rounds of each side alternating on one emulator at a load of 12 to 29, wall ns,
 before (main) and after (`@FastNative` on leaves, registered):
