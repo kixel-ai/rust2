@@ -437,6 +437,21 @@ jobs:
       - name: Summarize the bench
         run: cat ffi/target/bench-android/report.md >> "$GITHUB_STEP_SUMMARY"
 
+      # The same on Android 9 with 2 GB, whose emulator has no swap: a bench that holds more
+      # than the device's memory hangs it here, where API 35 swaps to zram and only slows.
+      - name: Bench on API 28
+        timeout-minutes: 20
+        uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2.38.0
+        with:
+          api-level: 28
+          arch: x86_64
+          cores: 4
+          ram-size: 2048M
+          script: nix develop .#android --command just ffi bench-android 1
+
+      - name: Summarize the bench on API 28
+        run: cat ffi/target/bench-android/report.md >> "$GITHUB_STEP_SUMMARY"
+
   ffi-bench:
     name: Bench the bindings
     runs-on: ubuntu-24.04-arm
