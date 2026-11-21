@@ -91,6 +91,7 @@ fn try_run(args: &[String]) -> Result<ExitCode, String> {
 		false => [profile.args.clone(), args.cargo.clone()].concat(),
 	};
 	let line = facade.line();
+	let vars = profile.vars.join(",");
 	// A staged API's spans are relative to the workspace and cargo's home, which hold the
 	// same files at other paths on another host.
 	let cargo_home = std::env::var_os("CARGO_HOME")
@@ -100,6 +101,9 @@ fn try_run(args: &[String]) -> Result<ExitCode, String> {
 	let roots = std::env::join_paths(std::iter::once(workspace).chain(cargo_home))
 		.map_err(|err| format!("joining the roots of spans: {err}"))?;
 	let baseline = own.baseline.unwrap_or_default();
+	// Where the wrapper writes each target's `cfg`s on cargo's query of it, which comes before
+	// cargo makes its target directory, and so outside it.
+	let queried = std::env::temp_dir().join(format!("rust2-ffi-cfgs-{}", std::process::id()));
 	// A target with a host checks std's MIR too, from the sysroot or else from source.
 	let cargo_args = |target: &str, args: Vec<String>| -> Result<Vec<String>, String> {
 		let build_std = crate::wasm::host(target).is_some() && crate::wasm::sysroot(target)?.is_none();
@@ -134,6 +138,8 @@ fn try_run(args: &[String]) -> Result<ExitCode, String> {
 					config::env::PROFILE_DIR,
 					profile.dir.as_deref().unwrap_or_default().as_ref(),
 				),
+				(config::env::PROFILE_VARS, vars.as_ref()),
+				(config::env::CFGS, queried.join(target).as_os_str()),
 				output,
 			],
 		}
@@ -144,6 +150,7 @@ fn try_run(args: &[String]) -> Result<ExitCode, String> {
 	let stage =
 		rust2_driver::cargo::target_dir("rust2-ffi", Some(&args.manifest))?.join(format!("api-{}", std::process::id()));
 	let run = || {
+		std::fs::create_dir_all(&queried).map_err(|err| format!("creating {}: {err}", queried.display()))?;
 		let mut merge = own.with.clone();
 		for target in rest {
 			let staged = crate::merge::staged(&stage, target);
@@ -157,8 +164,10 @@ fn try_run(args: &[String]) -> Result<ExitCode, String> {
 		check(last, (output.0, output.1.as_os_str()), &merge, &baseline)
 	};
 	let code = run();
-	if stage.exists() {
-		std::fs::remove_dir_all(&stage).map_err(|err| format!("removing {}: {err}", stage.display()))?;
+	for dir in [&stage, &queried] {
+		if dir.exists() {
+			std::fs::remove_dir_all(dir).map_err(|err| format!("removing {}: {err}", dir.display()))?;
+		}
 	}
 	let code = code?;
 	if output.0 != config::env::OUT || code != ExitCode::SUCCESS {
@@ -756,6 +765,29 @@ struct CheckProfile {
 	/// manifest sets any of its own, which a package override of the glue's may hide from the
 	/// glue's build script while every other crate compiles under it.
 	dir: Option<String>,
+	/// The `CARGO_PROFILE_*` variables that may change what a crate compiles under it.
+	vars: Vec<String>,
+}
+
+/// The keys of a profile, as a `CARGO_PROFILE_<NAME>_<KEY>` variable spells them, that may
+/// change what a crate compiles: the settings a build script reads, and the debug
+/// assertions of the build scripts and proc macros themselves. Overflow checks the check
+/// always makes, and the panic strategy the crate's `PROVEN` compares.
+const PROFILE_KEYS: [&str; 4] = [
+	"OPT_LEVEL",
+	"DEBUG",
+	"DEBUG_ASSERTIONS",
+	"BUILD_OVERRIDE_DEBUG_ASSERTIONS",
+];
+
+/// The [`PROFILE_KEYS`] variables of each profile in `chain`.
+fn profile_vars(chain: &[&str]) -> Vec<String> {
+	(chain.iter())
+		.flat_map(|name| {
+			let name = name.to_uppercase().replace('-', "_");
+			PROFILE_KEYS.map(|key| format!("CARGO_PROFILE_{name}_{key}"))
+		})
+		.collect()
 }
 
 /// The [`CheckProfile`] `cargo` picks, following `inherits` through the workspace's
@@ -775,8 +807,10 @@ fn check_profile(cargo: &[String], workspace: &Path) -> Result<CheckProfile, Str
 	let source = std::fs::read_to_string(&manifest).map_err(|err| format!("reading {}: {err}", manifest.display()))?;
 	let table: toml::Table = toml::from_str(&source).map_err(|err| format!("{}: {err}", manifest.display()))?;
 	let profiles = table.get("profile").and_then(|p| p.as_table());
-	let (root, dir) = resolve_profile(&picked, profiles).map_err(|err| format!("{}: {err}", manifest.display()))?;
-	Ok(CheckProfile { args, root, dir })
+	let (root, dir, chain) =
+		resolve_profile(&picked, profiles).map_err(|err| format!("{}: {err}", manifest.display()))?;
+	let vars = profile_vars(&chain);
+	Ok(CheckProfile { args, root, dir, vars })
 }
 
 /// The profile cargo's own `inherits` names where the manifest names none: `test`'s and
@@ -790,11 +824,11 @@ fn default_inherits(name: &str) -> Option<&'static str> {
 }
 
 /// The [`CheckProfile::root`] and [`CheckProfile::dir`] of the profile `picked` under the
-/// manifest's `profiles`.
+/// manifest's `profiles`, and the profiles it inherits from, itself first.
 fn resolve_profile<'a>(
 	picked: &'a str,
 	profiles: Option<&'a toml::Table>,
-) -> Result<(&'static str, Option<String>), String> {
+) -> Result<(&'static str, Option<String>, Vec<&'a str>), String> {
 	let table = |name: &str| profiles.and_then(|p| p.get(name)).and_then(|p| p.as_table());
 	// Whether a profile that shares its directory's root's is that root: its table sets
 	// nothing but the `inherits` cargo gives it anyway.
@@ -810,11 +844,13 @@ fn resolve_profile<'a>(
 		name => Some(name.to_string()),
 	};
 	let mut name = picked;
+	let mut chain = Vec::new();
 	// Cargo refuses a cycle, which this bound stops at before cargo runs.
 	for _ in 0..=profiles.map_or(0, |p| p.len()) + 1 {
+		chain.push(name);
 		match name {
-			"dev" => return Ok(("debug", dir)),
-			"release" => return Ok(("release", dir)),
+			"dev" => return Ok(("debug", dir, chain)),
+			"release" => return Ok(("release", dir, chain)),
 			_ => {}
 		}
 		let inherits = table(name).and_then(|p| p.get("inherits")).and_then(|i| i.as_str());
@@ -1127,10 +1163,26 @@ mod tests {
 	}
 
 	#[test]
+	fn watches_the_variables_of_each_inherited_profile() {
+		let profiles: toml::Table = toml::from_str("[ship-it]\ninherits = \"test\"").unwrap();
+		let (_, _, chain) = resolve_profile("ship-it", Some(&profiles)).unwrap();
+		assert_eq!(chain, ["ship-it", "test", "dev"]);
+		let vars = profile_vars(&chain);
+		assert_eq!(vars.len(), 3 * PROFILE_KEYS.len());
+		assert!(vars.contains(&"CARGO_PROFILE_SHIP_IT_DEBUG".to_string()), "{vars:?}");
+		assert!(
+			vars.contains(&"CARGO_PROFILE_DEV_BUILD_OVERRIDE_DEBUG_ASSERTIONS".to_string()),
+			"{vars:?}"
+		);
+	}
+
+	#[test]
 	fn resolves_the_profile_and_its_directory() {
 		let resolve = |picked: &str, manifest: &str| {
 			let profiles: toml::Table = toml::from_str(manifest).unwrap();
-			resolve_profile(picked, Some(&profiles)).map_err(|err| err.contains("inherits from another"))
+			(resolve_profile(picked, Some(&profiles)))
+				.map(|(root, dir, _)| (root, dir))
+				.map_err(|err| err.contains("inherits from another"))
 		};
 		let debug = Some("debug".to_string());
 		let release = Some("release".to_string());
