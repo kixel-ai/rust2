@@ -156,7 +156,11 @@ impl Hold {
 		// The fast path each binding inlines: the count, while calls neither contend for it
 		// nor find it closed.
 		let n = self.state.load();
-		let closed = if self.flawed(Flaw::HoldIgnoresClosed) { 0 } else { CLOSED };
+		let closed = if self.flawed(Flaw::HoldIgnoresClosed) {
+			0
+		} else {
+			CLOSED
+		};
 		if n & (closed | BIAS) == 0 && self.state.compare_exchange(n, n + HELD).is_ok() {
 			return Some(None);
 		}
@@ -195,7 +199,11 @@ impl Hold {
 		{
 			return;
 		}
-		let left = if self.flawed(Flaw::ReleaseFreesEarly) { 2 * HELD } else { HELD };
+		let left = if self.flawed(Flaw::ReleaseFreesEarly) {
+			2 * HELD
+		} else {
+			HELD
+		};
 		if self.state.fetch_sub(HELD) - HELD < left {
 			self.free();
 		}
@@ -527,8 +535,14 @@ models! {
 /// Each flaw with the models that must fail on it.
 const CAUGHT: &[(Flaw, &[&str])] = &[
 	(Flaw::HoldIgnoresClosed, &["abandon_while_bias_taken"]),
-	(Flaw::HoldSkipsRecheck, &["abandon_against_biased_calls", "close_against_biased_call"]),
-	(Flaw::HoldSkipsFence, &["abandon_against_biased_calls", "close_against_biased_call"]),
+	(
+		Flaw::HoldSkipsRecheck,
+		&["abandon_against_biased_calls", "close_against_biased_call"],
+	),
+	(
+		Flaw::HoldSkipsFence,
+		&["abandon_against_biased_calls", "close_against_biased_call"],
+	),
 	(Flaw::CloseIgnoresCount, &["close_against_call"]),
 	(Flaw::CloseIgnoresSlots, &["close_against_biased_call"]),
 	(Flaw::CloseSkipsFence, &["close_against_biased_call"]),
