@@ -303,7 +303,8 @@
             # mbx's target seeding creates the drivers' own target directories, such as
             # target/rust2-ffi, without the CACHEDIR.TAG cargo writes into each it creates, and
             # `cargo clean --target-dir` refuses a directory without one. It saves about 4% of a
-            # fresh checkout's first build, which mbx's cache already serves.
+            # fresh checkout's first build, which mbx's cache already serves. Off until mbx
+            # fixes it: quest/m0/mbx-seed.md.
             MBX_TARGET_SEED = "false";
             # The pinned toolchain goes on PATH ahead of everything the host had, which
             # shadows the Cargo shim `mbx setup` installs. Put it back in front, as moq's dev
