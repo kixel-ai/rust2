@@ -21,7 +21,7 @@ namespace api {
 		circle = 1,
 		square = 4,
 	};
-	enum class Status_ {
+	enum class Status_2 {
 		moved = 0,
 		kept = 1,
 	};
@@ -1656,9 +1656,9 @@ namespace api {
 	inline bool operator!=(const ::api::Error &a_2, const ::api::Error &b_);
 	inline ::api::buf Error_to_string(const ::api::Error &self);
 	inline ::api::buf Error_debug(const ::api::Error &self);
-	inline bool operator==(::api::Status_ a_2, ::api::Status_ b_);
-	inline bool operator!=(::api::Status_ a_2, ::api::Status_ b_);
-	inline ::api::buf Status_debug(::api::Status_ self);
+	inline bool operator==(::api::Status_2 a_2, ::api::Status_2 b_);
+	inline bool operator!=(::api::Status_2 a_2, ::api::Status_2 b_);
+	inline ::api::buf Status_2_debug(::api::Status_2 self);
 	inline bool operator==(const ::api::Labelled &a_2, const ::api::Labelled &b_);
 	inline bool operator!=(const ::api::Labelled &a_2, const ::api::Labelled &b_);
 	inline ::api::buf Labelled_debug(const ::api::Labelled &self);
@@ -1769,7 +1769,7 @@ namespace api {
 	inline ::std::uint64_t choose(const ::api::Choice &choice);
 	inline ::std::uint64_t heft(const ::std::tuple<::api::Mark, ::api::view> &marked, const ::api::Parcel &lent, ::std::tuple<::api::Counter, ::api::view> moved);
 	inline ::api::result<::std::uint64_t, ::api::buf> spend(::api::Counter e, ::api::Counter it);
-	inline bool is_kept(::api::Status_ status);
+	inline bool is_kept(::api::Status_2 status);
 	template <class F0> inline ::api::result<void, ::api::buf> attempt(F0 &&check);
 	template <class F0> inline ::api::result<::std::tuple<::api::buf, ::std::uint64_t>, ::api::buf> tail(F0 &file, ::std::uint64_t len);
 	template <class F0> inline ::api::result<::std::uint64_t, ::api::buf> seek_to(F0 &file, ::std::uint64_t at);
@@ -1977,9 +1977,9 @@ namespace api {
 	inline ::api::unescaped_maybe_future unescaped_maybe(::std::optional<::api::input> text);
 	inline ::api::buf unzeroed(::api::input bytes);
 	inline ::std::uint8_t deprecated(::std::uint8_t note);
-	inline ::std::uint8_t _deprecated(::std::uint8_t note);
-	inline ::std::uint8_t all_(::std::uint8_t note);
+	inline ::std::uint8_t deprecated_(::std::uint8_t note);
 	inline ::std::uint8_t all_2(::std::uint8_t note);
+	inline ::std::uint8_t all_(::std::uint8_t note);
 	[[deprecated]] inline ::api::Knob knob(const ::api::Dial &dial);
 	[[deprecated("read its `level`")]] inline ::api::level_later_future level_later(const ::api::Dial &dial);
 	inline ::api::result<::api::Dial, ::api::Error> turned(const ::api::Dial &dial, ::std::unique_ptr<::api::Turner> turner);
@@ -2324,7 +2324,7 @@ namespace api {
 	using bounds_u64 = ::api_bounds_u64;
 	using range_u64 = ::api_range_u64;
 	enum class Shape;
-	enum class Status_;
+	enum class Status_2;
 	enum class Family;
 	enum class VecClashTone;
 	enum class Tier;

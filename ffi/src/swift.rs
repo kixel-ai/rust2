@@ -665,9 +665,9 @@ impl<'a> Gen<'a> {
 			Type::List(_, inner) if ty.block().is_some() => {
 				let v = self.fresh("v");
 				format!(
-					"{{ () -> {} in let {v} = {e}; defer {{ {}_free({v}) }}; return Native.block({v}.ptr, {v}.len) }}()",
+					"{{ () -> {} in let {v} = {e}; defer {{ {}({v}) }}; return Native.block({v}.ptr, {v}.len) }}()",
 					self.sw(ty),
-					abi.list(inner)
+					abi::join(&abi.list(inner), "free")
 				)
 			}
 			Type::List(_, inner) => {
@@ -678,9 +678,9 @@ impl<'a> Gen<'a> {
 					false => "list",
 				};
 				format!(
-					"{{ () -> {} in var {v} = {e}; defer {{ {v}.len = 0; {}_free({v}) }}; return Native.{list}({v}.ptr, {v}.len) {{ {c} in {item} }} }}()",
+					"{{ () -> {} in var {v} = {e}; defer {{ {v}.len = 0; {}({v}) }}; return Native.{list}({v}.ptr, {v}.len) {{ {c} in {item} }} }}()",
 					self.sw(ty),
-					abi.list(inner)
+					abi::join(&abi.list(inner), "free")
 				)
 			}
 			Type::Option(inner) => match inner.base() {
@@ -926,6 +926,7 @@ impl<'a> Gen<'a> {
 		members: &mut Vec<String>,
 		protocols: &mut Vec<&'static str>,
 	) {
+		let c_ = crate::abi::stem(c);
 		let name = self.sw(ty);
 		let object = matches!(ty, Type::Object(_));
 		let unique = self.unique(ty);
@@ -959,7 +960,7 @@ impl<'a> Gen<'a> {
 		};
 		// The body calling `{c}_<suffix>` of the receiver, returning `lift` of its result.
 		let unary = |suffix: &str, lift: &dyn Fn(&str) -> String| {
-			let what = format!("{c}_{suffix}");
+			let what = format!("{c_}_{suffix}");
 			match (object, unique) {
 				(true, true) => call(&format!("{what}(self.handle"), &what, lift),
 				(true, false) => {
@@ -981,7 +982,7 @@ impl<'a> Gen<'a> {
 		};
 		// The body calling `{c}_<suffix>` of `a` and `b`, returning `lift` of its result.
 		let binary = |suffix: &str, lift: &dyn Fn(&str) -> String| {
-			let what = format!("{c}_{suffix}");
+			let what = format!("{c_}_{suffix}");
 			match (object, unique) {
 				(true, true) => call(&format!("{what}(a.handle, b.handle"), &what, lift),
 				(true, false) => {
@@ -1106,8 +1107,8 @@ impl<'a> Gen<'a> {
 			named.push(("Default", "default"));
 			members.push("static default".to_string());
 			let lift = match ty {
-				Type::Object(_) => format!("{name}(raw: {c}_default())"),
-				_ => format!("{name}._lift({c}_default())"),
+				Type::Object(_) => format!("{name}(raw: {c_}_default())"),
+				_ => format!("{name}._lift({c_}_default())"),
 			};
 			// A constructor the target lacks throws, as a function's call does.
 			let limited = !self.abi.api.everywhere(self.on);
@@ -1117,7 +1118,7 @@ impl<'a> Gen<'a> {
 			};
 			body.push(format!(
 				"\t/// Rust's `Default`.\n\tpublic static func `default`(){throws} -> {name} {{\n\t\t{}Native.check()\n\t\treturn {lift}\n\t}}\n",
-				self.on(self.on, &format!("{c}_default"), "\n\t\t", limited)
+				self.on(self.on, &format!("{c_}_default"), "\n\t\t", limited)
 			));
 		}
 		for (t, member) in named {
@@ -1309,7 +1310,7 @@ impl<'a> Gen<'a> {
 				false => unquote(name),
 			});
 			members.push(full(true, &case, labels));
-			let tag = format!("{upper}_{}", snake.to_uppercase());
+			let tag = abi::join(&upper, &snake.to_uppercase());
 			let member = kw(&abi::escape(&snake));
 			let fields: Vec<String> = (variant.fields.iter().zip(&names))
 				.map(|(f, name)| match variant.tuple {
@@ -1424,6 +1425,7 @@ impl<'a> Gen<'a> {
 		let object = &abi.api.objects[i];
 		self.on = object.on;
 		let c = abi.object(i);
+		let c_ = crate::abi::stem(&c);
 		let name = self.class(&c);
 		let rust = abi.api.rust(&object.path, &object.args);
 		let ty = Type::Object(i);
@@ -1432,10 +1434,10 @@ impl<'a> Gen<'a> {
 		let mut body = vec![match unique {
 			// A lend ends with `_end`, which leaves Rust the handle it lent to free.
 			true => format!(
-				"\tlet handle: OpaquePointer?\n\n\tinit(raw: OpaquePointer?) {{\n\t\thandle = raw\n\t}}\n\n\tdeinit {{\n\t\t{c}_free(handle)\n\t}}\n\n\t@usableFromInline consuming func _end() {{\n\t\tdiscard self\n\t}}\n"
+				"\tlet handle: OpaquePointer?\n\n\tinit(raw: OpaquePointer?) {{\n\t\thandle = raw\n\t}}\n\n\tdeinit {{\n\t\t{c_}_free(handle)\n\t}}\n\n\t@usableFromInline consuming func _end() {{\n\t\tdiscard self\n\t}}\n"
 			),
 			false => format!(
-				"\tlet handle: Native.Handle\n\n\tinit(raw: OpaquePointer?) {{\n\t\thandle = Native.Handle(raw, {c}_free, \"{name}\")\n\t}}\n\n\tinit(lent raw: OpaquePointer?) {{\n\t\thandle = Native.Handle(raw, nil, \"{name}\")\n\t}}\n\n\tdeinit {{\n\t\thandle.drop()\n\t}}\n"
+				"\tlet handle: Native.Handle\n\n\tinit(raw: OpaquePointer?) {{\n\t\thandle = Native.Handle(raw, {c_}_free, \"{name}\")\n\t}}\n\n\tinit(lent raw: OpaquePointer?) {{\n\t\thandle = Native.Handle(raw, nil, \"{name}\")\n\t}}\n\n\tdeinit {{\n\t\thandle.drop()\n\t}}\n"
 			),
 		}];
 		// Rust checks each borrow at run time, so it is `Sendable` unless its value stays on
@@ -1583,6 +1585,7 @@ impl<'a> Gen<'a> {
 		let callback = &abi.api.callbacks[i];
 		self.on = callback.on;
 		let c = abi.callback(i);
+		let c_ = crate::abi::stem(&c);
 		let name = self.class(&c);
 		let rust = callback.path.join("::");
 		let mut body = Vec::new();
@@ -1655,7 +1658,7 @@ impl<'a> Gen<'a> {
 		);
 		let _ = write!(
 			self.natives,
-			"\tnonisolated(unsafe) static let vtable_{c}: UnsafeMutablePointer<{c}_vtable> = {{\n\t\tlet vtable = UnsafeMutablePointer<{c}_vtable>.allocate(capacity: 1)\n\t\tvtable.initialize(to: {c}_vtable(\n\t\t\t{}))\n\t\treturn vtable\n\t}}()\n\n\tstatic func lower_{c}(_ implementation: any {name}) -> {c} {{\n\t\t{c}(vtable: vtable_{c}, data: Box.give(implementation))\n\t}}\n\n",
+			"\tnonisolated(unsafe) static let vtable_{c}: UnsafeMutablePointer<{c_}_vtable> = {{\n\t\tlet vtable = UnsafeMutablePointer<{c_}_vtable>.allocate(capacity: 1)\n\t\tvtable.initialize(to: {c_}_vtable(\n\t\t\t{}))\n\t\treturn vtable\n\t}}()\n\n\tstatic func lower_{c}(_ implementation: any {name}) -> {c} {{\n\t\t{c}(vtable: vtable_{c}, data: Box.give(implementation))\n\t}}\n\n",
 			table.join(",\n\t\t\t")
 		);
 	}

@@ -737,9 +737,9 @@ impl<'a> Gen<'a> {
 			Type::List(..) => format!("w_{}({v})", self.converter(ty)),
 			Type::Option(inner) => match inner.base() {
 				Type::Object(i) => format!(
-					"rt::object_opt({v}, {}, crate::{}_free)",
+					"rt::object_opt({v}, {}, crate::{})",
 					self.t(&abi.object(*i)),
-					abi.object(*i)
+					abi::join(&abi.object(*i), "free")
 				),
 				base if Abi::is_buf(base) || matches!(base, Type::List(..)) => {
 					let some = self.lower(inner, "v");
@@ -754,9 +754,9 @@ impl<'a> Gen<'a> {
 				false => format!("w_{}({v})", abi.enumeration(*i)),
 			},
 			Type::Object(i) => format!(
-				"rt::object({v}, {}, crate::{}_free)",
+				"rt::object({v}, {}, crate::{})",
 				self.t(&abi.object(*i)),
-				abi.object(*i)
+				abi::join(&abi.object(*i), "free")
 			),
 			Type::Range(int) => {
 				let start = self.lower(&Type::Int(*int), "r.start");
@@ -786,6 +786,7 @@ impl<'a> Gen<'a> {
 	fn converter(&mut self, ty: &Type) -> String {
 		let abi = self.abi;
 		let c = self.c_struct(ty);
+		let c_ = crate::abi::stem(&c);
 		let (held, made): (Vec<Type>, Vec<Type>) = match strip_refs(ty) {
 			Type::Option(inner) => (vec![*inner], vec![abi.options[&c].clone()]),
 			Type::List(_, elem) => (vec![*elem], vec![abi.lists[&c].clone()]),
@@ -813,7 +814,7 @@ impl<'a> Gen<'a> {
 		let name = match held == made {
 			true => c.clone(),
 			false => (self.converters.len() + 2..)
-				.map(|k| format!("{c}_{k}"))
+				.map(|k| format!("{c_}_{k}"))
 				.find(|name| !taken(name))
 				.expect("some number is free"),
 		};
@@ -1163,6 +1164,7 @@ impl<'a> Gen<'a> {
 	/// `__str__` from `Display`, `__repr__` from `Debug`, a static `default` from
 	/// `Default`, and `clone`, `__eq__`, and `__hash__` from `Hash` for an object.
 	fn traits(&mut self, ty: &Type, c: &str, t: Traits, body: &mut Body) {
+		let c_ = crate::abi::stem(&c);
 		let bare = self.bare(c).to_string();
 		let class = self.class(c);
 		let object = matches!(ty, Type::Object(_));
@@ -1187,7 +1189,7 @@ impl<'a> Gen<'a> {
 			false => ("", ""),
 		};
 		let check = |suffix: &str| match checked {
-			true => format!("\n\t\ts.status(status, \"{c}_{suffix}\")?;"),
+			true => format!("\n\t\ts.status(status, \"{c_}_{suffix}\")?;"),
 			false => String::new(),
 		};
 		// A leaf keeps the GIL, which no part of it can wait on: see `Abi::leaf`.
@@ -1198,7 +1200,7 @@ impl<'a> Gen<'a> {
 		let unary = |g: &mut Self, suffix: &str, member: &str, docs: &str, lower: String| {
 			let call = called(
 				suffix == "hash" && g.abi.leaf_trait(ty, true),
-				format!("crate::{c}_{suffix}({pass}{arg})"),
+				format!("crate::{c_}_{suffix}({pass}{arg})"),
 			);
 			let d = Direct {
 				member,
@@ -1253,7 +1255,7 @@ impl<'a> Gen<'a> {
 				true => ("this", "other"),
 				false => ("&this", "&other"),
 			};
-			let call = called(self.abi.leaf_trait(ty, false), format!("crate::{c}_eq({a}, {b}{arg})"));
+			let call = called(self.abi.leaf_trait(ty, false), format!("crate::{c_}_eq({a}, {b}{arg})"));
 			self.native(
 				&format!("{bare}_eq"),
 				2,
@@ -1285,7 +1287,7 @@ impl<'a> Gen<'a> {
 				true => ("this", "other"),
 				false => ("&this", "&other"),
 			};
-			let call = called(false, format!("crate::{c}_partial_cmp({a}, {b}{arg})"));
+			let call = called(false, format!("crate::{c_}_partial_cmp({a}, {b}{arg})"));
 			self.native(
 				&format!("{bare}_partial_cmp"),
 				2,
@@ -1329,7 +1331,7 @@ impl<'a> Gen<'a> {
 			self.direct(
 				&format!("{bare}_default"),
 				d,
-				&format!("let ret = rt::call(|| crate::{c}_default());\n\t\ts.done();\n\t\t{lower}"),
+				&format!("let ret = rt::call(|| crate::{c_}_default());\n\t\ts.done();\n\t\t{lower}"),
 			);
 			body.native.push(format!(
 				"\t@_staticmethod\n\tdef default() -> {class}:\n\t\t\"\"\"{docs}\"\"\"\n\t\t...\n"
@@ -1692,6 +1694,7 @@ impl<'a> Gen<'a> {
 		let callback = &abi.api.callbacks[i];
 		self.on = callback.on;
 		let c = abi.callback(i);
+		let c_ = crate::abi::stem(&c);
 		let name = self.class(&c);
 		let rust = callback.path.join("::");
 		self.register(&c, name.clone());
@@ -1764,7 +1767,7 @@ impl<'a> Gen<'a> {
 		);
 		let _ = write!(
 			self.glue,
-			"static VTABLE_{c}: crate::{c}_vtable = crate::{c}_vtable {{ {} }};\n\n",
+			"static VTABLE_{c}: crate::{c_}_vtable = crate::{c_}_vtable {{ {} }};\n\n",
 			table.join(", ")
 		);
 	}

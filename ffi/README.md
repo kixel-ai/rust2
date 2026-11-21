@@ -461,11 +461,9 @@ Linux's exports, as the merge queue runs on, since a header names its targets.
 - **Callbacks** are a struct of a table and its data. Rust calls `free` once it drops the
   implementation, and may call the others from any thread. A callback takes scalars and
   buffers lent for the call, and returns a scalar. Each method is its table's member by
-  its name, with `_` appended where C, C++, or Rust reads it as a keyword, where a header
-  or GNU dialect defines it as a macro (`src/macros.txt`: `unix`, `EOF`), where C and C++ reserve it
-  (`_Bool`, `__cplusplus`), where the ABI's own parameters take it (`data`, `out`, `err`,
-  `future`, `waker`, `out0`, ...), where it ends in `_`, and for `free`, the table's own:
-  `delete`, `free`, `type`, and `data` are `delete_`, `free_`, `type_`, and `data_`.
+  its name, escaped as a field is, with Rust's keywords and `free`, the table's own, taken
+  as keywords too: `delete`, `delete_`, `free`, `type`, and `data` are `delete_`,
+  `delete_2`, `free_`, `type_`, and `data_`.
 - **Closures** are a function and its data, which Rust calls from any thread, one call
   at a time. One lent for a call Rust calls only during the call; one Rust keeps comes
   with a `free`, which Rust calls once it drops the closure, done or not, maybe before
@@ -507,14 +505,33 @@ Linux's exports, as the merge queue runs on, since a header names its targets.
   `moq_tokio_Backoff_initial_get` and `moq_tokio_Backoff_initial_set` beside the method
   `moq_tokio_Backoff_initial`. An enum variant's
   payload is `<enum>_<Variant>`, and its tag and a constant are the name in upper case.
+  Every join keeps one `_` of each run, since C++ reserves every name holding `__`, so a
+  `pub fn _deprecated` is `moq_deprecated`, and a name made of one ending in `_` is made of
+  its stem: `moq_Foo_`'s `_free` is `moq_Foo_free`.
   Joining still loses where segments split, and the runtime shares the prefix, so every C
   name is registered, and only names that clash change. An item whose name matches another's,
   or one the runtime or a type's own functions take, such as a method `free` beside the
-  type's `_free`, takes a trailing `_`, as do the names made from it: `audio::encoder_finish`
-  and `audio_encoder::finish` are `moq_audio_encoder_finish` and `moq_audio_encoder_finish_`.
-  The runtime's names keep theirs first, then names made from an item, then items' own, each
-  by its kind and Rust path. A name depends on every item exported, so one an upstream
-  change adds can lengthen another's.
+  type's `_free`, steps along its name's `x_`, `x_2`, `x_3`, ..., as do the names made from
+  it: `audio::encoder_finish` and `audio_encoder::finish` are `moq_audio_encoder_finish` and
+  `moq_audio_encoder_finish_`. As `x_` makes the names `x` does, an item whose made name
+  clashed steps on: an enum `Status`, whose variant `Moved` would be the runtime's
+  `MOQ_STATUS_MOVED`, is `moq_Status_2`, with `MOQ_STATUS_2_MOVED`. The runtime's names keep
+  theirs first, then names made from an item, then items' own as Rust spells them, then
+  those a join or a step respelled, each by its kind and Rust path. A name depends on every
+  item exported, so one an upstream change adds can lengthen another's.
+
+  A field, a data enum's member, and a parameter are their Rust names, escaped where C or
+  C++ would misread one. A keyword, or a name the ABI's own parameters take (`data`, `out`,
+  `err`, `future`, `waker`, `out0`, ...), takes `_`, and one of them already ending in `_`
+  steps on to `_2`: `new` and `new_` are `new_` and `new_2`. A macro a C or C++ system
+  header defines or a GNU dialect predefines, as `src/macros.txt` lists them (`unix`,
+  `EOF`), moves to the next of its stem's names no macro holds, keeping their order: `unix`
+  is `unix_`, and `unix_` is `unix_2`. A name C or C++ reserves, one holding `__` or
+  starting with `_` and a capital, first drops its leading `_`s and keeps one `_` of each
+  run: serde's parameter `__deserializer` is `deserializer`. A parameter the ABI adds, such
+  as a closure's `<name>_data` or the `<name>_out` a `&mut` is written back through, steps
+  past every other. Two names of one scope that escape alike, as only a reserved one or one
+  ending in `_` and a number can beside another, fail the export.
 
   An instance is named by its generic item's name, then each argument but those at their
   defaults after the last that is not, so the instance at its defaults is named as the

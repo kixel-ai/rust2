@@ -17,7 +17,7 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-#define API_CONTRACT ((uint64_t)0x43447afc7b8f8462ULL)
+#define API_CONTRACT ((uint64_t)0x2bf117c204fec13fULL)
 uint64_t api_contract(void);
 uint32_t api_target(void);
 typedef int32_t api_status;
@@ -191,10 +191,10 @@ typedef enum api_Shape {
 	API_SHAPE_CIRCLE = 1,
 	API_SHAPE_SQUARE = 4,
 } api_Shape;
-typedef enum api_Status_ {
-	API_STATUS__MOVED = 0,
-	API_STATUS__KEPT = 1,
-} api_Status_;
+typedef enum api_Status_2 {
+	API_STATUS_2_MOVED = 0,
+	API_STATUS_2_KEPT = 1,
+} api_Status_2;
 typedef enum api_Family {
 	API_FAMILY_NATIVE = 0,
 	API_FAMILY_WASM = 1,
@@ -909,7 +909,7 @@ typedef struct api_clash_Escaped {
 	uint8_t new_;
 } api_clash_Escaped;
 typedef struct api_clash_Underscored {
-	uint8_t new__;
+	uint8_t new_2;
 	uint8_t new_;
 	uint8_t debug;
 	uint8_t default_;
@@ -1187,7 +1187,7 @@ typedef enum api_clash_Change_tag {
 	API_CLASH_CHANGE_CLEAR = 1,
 } api_clash_Change_tag;
 typedef struct api_clash_Change_Set {
-	uint8_t new__;
+	uint8_t new_2;
 	uint8_t new_;
 } api_clash_Change_Set;
 typedef struct api_clash_Change {
@@ -1258,7 +1258,7 @@ typedef struct api_clash_Source {
 } api_clash_Source;
 typedef struct api_clash_Eraser_vtable {
 	void (*free)(void *data);
-	uint8_t (*delete__)(void *data, uint8_t new__, uint8_t new_);
+	uint8_t (*delete_2)(void *data, uint8_t new_2, uint8_t new_);
 	uint8_t (*delete_)(void *data);
 } api_clash_Eraser_vtable;
 typedef struct api_clash_Eraser {
@@ -1564,7 +1564,7 @@ api_clash_Errno api_clash_Errno_NULL(void);
 void api_clash_Escaped_free(api_clash_Escaped *self);
 bool api_clash_Escaped_eq(const api_clash_Escaped *a, const api_clash_Escaped *b);
 API_MUST_USE api_buf api_clash_Escaped_debug(const api_clash_Escaped *self);
-uint8_t api_clash_Escaped_delete_(const api_clash_Escaped *self, uint8_t new_, uint8_t new__);
+uint8_t api_clash_Escaped_delete_(const api_clash_Escaped *self, uint8_t new_, uint8_t new_2);
 uint8_t api_clash_Escaped_delete(const api_clash_Escaped *self);
 void api_clash_Underscored_free(api_clash_Underscored *self);
 bool api_clash_Underscored_eq(const api_clash_Underscored *a, const api_clash_Underscored *b);
@@ -1608,7 +1608,7 @@ void api_Clash_tagged_future_free(api_Clash_tagged_future *future);
 api_Stamp api_Clash_stamp(const api_Clash *self, uint64_t kotlin);
 api_Moment api_Clash_moment(const api_Clash *self, uint64_t kotlin);
 API_MUST_USE api_Clash api_Clash_at(api_Point api);
-API_MUST_USE api_buf api_Clash_describe(const api_Clash *self, api_buf text, uint32_t n, api_Shape shape, uint32_t out_, uint32_t *out__out);
+API_MUST_USE api_buf api_Clash_describe(const api_Clash *self, api_buf text, uint32_t n, api_Shape shape, uint32_t out_, uint32_t *out_out);
 void api_Stage_free(api_Stage *self);
 bool api_Stage_eq(const api_Stage *a, const api_Stage *b);
 API_MUST_USE api_buf api_Stage_debug(const api_Stage *self);
@@ -1616,8 +1616,8 @@ void api_Error_free(api_Error *self);
 bool api_Error_eq(const api_Error *a, const api_Error *b);
 API_MUST_USE api_buf api_Error_to_string(const api_Error *self);
 API_MUST_USE api_buf api_Error_debug(const api_Error *self);
-bool api_Status__eq(const api_Status_ *a, const api_Status_ *b);
-API_MUST_USE api_buf api_Status__debug(const api_Status_ *self);
+bool api_Status_2_eq(const api_Status_2 *a, const api_Status_2 *b);
+API_MUST_USE api_buf api_Status_2_debug(const api_Status_2 *self);
 void api_Labelled_free(api_Labelled *self);
 bool api_Labelled_eq(const api_Labelled *a, const api_Labelled *b);
 API_MUST_USE api_buf api_Labelled_debug(const api_Labelled *self);
@@ -2419,7 +2419,7 @@ uint64_t api_admit(api_tuple_Counter_Mark_Seat_Choice entry, api_status *status)
 uint64_t api_choose(api_Choice choice, api_status *status);
 uint64_t api_heft(api_tuple_Mark_bytes marked, api_Parcel lent, api_tuple_Counter_bytes moved, api_status *status);
 API_MUST_USE bool api_spend(api_Counter *e, api_Counter *it, uint64_t *out, api_buf *err, api_status *status);
-bool api_is_kept(api_Status_ status);
+bool api_is_kept(api_Status_2 status);
 API_MUST_USE bool api_attempt(bool (*check)(void *data, api_buf *), void *check_data, api_buf *err);
 API_MUST_USE bool api_tail(api_foreign_reader file, uint64_t len, api_buf *out0, uint64_t *out1, api_buf *err);
 API_MUST_USE bool api_seek_to(api_foreign_reader file, uint64_t at, uint64_t *out, api_buf *err);
@@ -2502,7 +2502,7 @@ API_MUST_USE bool api_fingerprint(api_buf hex, api_array_u8_4 *out, api_buf *err
 uint32_t api_dropped(void);
 uint32_t api_bump_both(const api_Tally *a, const api_Tally *b, api_status *status);
 uint32_t api_offset(uint32_t (*by)(void *data), void *by_data_, uint32_t by_data);
-uint32_t api_shift(uint32_t (*by__)(void *data), void *by___data, uint32_t c_by__);
+uint32_t api_shift(uint32_t (*by_)(void *data), void *by_data, uint32_t c_by_);
 uint64_t api_walk(uint64_t steps, uint64_t (*visit)(void *data, const api_Cursor *), void *visit_data);
 uint32_t api_each(uint32_t steps, void (*visit)(void *data, uint32_t), void *visit_data);
 uint32_t api_peek(const api_Tally *tally, uint32_t (*peek)(void *data, const api_Tally *), void *peek_data, api_status *status);
@@ -2696,9 +2696,9 @@ API_MUST_USE api_poll api_unescaped_maybe_poll(api_unescaped_maybe_future *futur
 void api_unescaped_maybe_future_free(api_unescaped_maybe_future *future);
 API_MUST_USE api_buf api_unzeroed(api_buf bytes);
 uint8_t api_deprecated(uint8_t note);
-uint8_t api__deprecated(uint8_t note);
-uint8_t api___all__(uint8_t note);
-uint8_t api___all___(uint8_t note);
+uint8_t api_deprecated_(uint8_t note);
+uint8_t api_all_2(uint8_t note);
+uint8_t api_all_(uint8_t note);
 api_Knob api_knob(api_Dial dial);
 typedef struct api_level_later_future api_level_later_future;
 API_MUST_USE api_level_later_future *api_level_later(api_Dial dial);
@@ -2731,7 +2731,7 @@ uint8_t api_clash_erase_(void);
 uint8_t api_clash_erase(void);
 uint32_t api_clash_lend_(const api_clash_Store *store);
 uint32_t api_clash_lend(void);
-uint32_t api_clash_run(uint8_t (*work__)(void *data), void *work___data, uint8_t work);
+uint32_t api_clash_run(uint8_t (*work_)(void *data), void *work_data, uint8_t work);
 API_MUST_USE bool api_clash_audible(api_clash_Tone tone, api_clash_Tone *out, api_vec_clash_Tone *err);
 uint32_t api_clash_nested(api_option_tuple_tuple_u8_u16_u32 a, api_option_tuple_tuple_u8_u16_u32_ b);
 uint8_t api_clash_audio_encoder_finish(void);

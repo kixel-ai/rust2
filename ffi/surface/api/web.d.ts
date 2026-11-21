@@ -2008,7 +2008,7 @@ import type { WrapU32 } from "./WrapU32.ts";
 export declare function e_Family(v: Family): number;
 export declare function e_Level(v: Level): number;
 export declare function e_Shape(v: Shape): number;
-export declare function e_Status_(v: Status): number;
+export declare function e_Status_2(v: Status): number;
 export declare function e_Tier(v: Tier): number;
 export declare function e_VecClashTone(v: VecClashTone): number;
 export declare function e_clash_Level(v: ClashLevel): number;

@@ -917,6 +917,7 @@ impl<'a> Gen<'a> {
 	/// crossing, which stores closed to the state as the drop commits, so a close waiting on
 	/// it returns before any `Drop` runs.
 	fn close_c(&mut self, c: &str) -> String {
+		let c_ = crate::abi::stem(&c);
 		let p = &self.abi.prefix;
 		let name = format!("{p}GoClose_{}", self.bare(c));
 		let handle = Ty::Handle {
@@ -932,8 +933,8 @@ impl<'a> Gen<'a> {
 			));
 		}
 		self.decls.push(format!(
-			"extern void {c}_drop_signal({decl}, {status} *status, void (*commit)(void *), void *data);\n\
-			static inline {status} {name}({decl}, int64_t *state) {{\n\t{status} r = 0;\n\t{c}_drop_signal(self, &r, state ? {committed} : NULL, state);\n\tif (r == 0 && state) {{\n\t\t{c}_free(self);\n\t}}\n\treturn r;\n}}\n"
+			"extern void {c_}_drop_signal({decl}, {status} *status, void (*commit)(void *), void *data);\n\
+			static inline {status} {name}({decl}, int64_t *state) {{\n\t{status} r = 0;\n\t{c_}_drop_signal(self, &r, state ? {committed} : NULL, state);\n\tif (r == 0 && state) {{\n\t\t{c_}_free(self);\n\t}}\n\treturn r;\n}}\n"
 		));
 		name
 	}
@@ -1407,19 +1408,20 @@ impl<'a> Gen<'a> {
 
 	/// The helper lifting the C array struct `c` of `elem`s, then freeing the array alone.
 	fn lift_list(&mut self, c: &str, elem: &Type) {
+		let c_ = crate::abi::stem(&c);
 		let elem = elem.clone();
 		self.helper(&format!("lift_{c}"), |g| {
 			let go = g.go(&elem);
 			// A block of numbers is copied out whole.
 			if block(&elem) {
 				return format!(
-					"func lift_{c}(c C.{c}) []{go} {{\n\tv := liftBlock_[{go}](c.ptr, c.len)\n\tC.{c}_free(c)\n\treturn v\n}}\n\n"
+					"func lift_{c}(c C.{c}) []{go} {{\n\tv := liftBlock_[{go}](c.ptr, c.len)\n\tC.{c_}_free(c)\n\treturn v\n}}\n\n"
 				);
 			}
 			let item = g.lift(&elem, "x");
 			let elem_c = g.c_go(&g.abi.ty(&elem));
 			format!(
-				"func lift_{c}(c C.{c}) []{go} {{\n\tv := liftList_(c.ptr, c.len, func(x {elem_c}) {go} {{\n\t\treturn {item}\n\t}})\n\tc.len = 0\n\tC.{c}_free(c)\n\treturn v\n}}\n\n"
+				"func lift_{c}(c C.{c}) []{go} {{\n\tv := liftList_(c.ptr, c.len, func(x {elem_c}) {go} {{\n\t\treturn {item}\n\t}})\n\tc.len = 0\n\tC.{c_}_free(c)\n\treturn v\n}}\n\n"
 			)
 		});
 	}
@@ -1778,6 +1780,7 @@ impl<'a> Gen<'a> {
 	/// `PartialEq` `Equal`, and `Clone` an object's `Clone`; and the package's function for
 	/// `Default`.
 	fn traits(&mut self, ty: &Type, c: &str, t: Traits) -> (Vec<Method>, Option<Method>) {
+		let c_ = crate::abi::stem(&c);
 		let name = self.go(ty);
 		let object = matches!(ty, Type::Object(_));
 		let arena = self.arena(ty);
@@ -1844,7 +1847,7 @@ impl<'a> Gen<'a> {
 			false => Ty::In(Box::new(self.abi.ty(ty))),
 		};
 		let sig = |what: &str, n: usize, ret: Ty| abi::Sig {
-			name: format!("{c}_{what}"),
+			name: format!("{c_}_{what}"),
 			params: (0..n)
 				.map(|k| (format!("p{k}"), this_ty.clone()))
 				.chain(status.then(|| ("status".to_string(), Ty::Out(Box::new(Ty::Status)))))
@@ -2020,8 +2023,8 @@ impl<'a> Gen<'a> {
 				_ => "",
 			};
 			let lift = match object {
-				true => format!("own_{c}(C.{c}_default{homed}())"),
-				false => format!("lift_{c}(C.{c}_default())"),
+				true => format!("own_{c}(C.{c_}_default{homed}())"),
+				false => format!("lift_{c}(C.{c_}_default())"),
 			};
 			let (results, ok) = match limited {
 				true => (vec![name.clone(), "error".to_string()], ", nil"),
@@ -2053,7 +2056,7 @@ impl<'a> Gen<'a> {
 					_ => ("default", format!("{zero}, err_")),
 				};
 				method.body = format!(
-					"if err_ := {supported}({on}, \"{c}_{what}\"); err_ != nil {{\n\treturn {failed}\n}}\n{}",
+					"if err_ := {supported}({on}, \"{c_}_{what}\"); err_ != nil {{\n\treturn {failed}\n}}\n{}",
 					method.body
 				);
 			}
@@ -2573,6 +2576,7 @@ impl<'a> Gen<'a> {
 	/// An object's free, own, lend, and hold of one that may be nil.
 	fn object_conv(&mut self, i: usize) -> String {
 		let c = self.abi.object(i);
+		let c_ = crate::abi::stem(&c);
 		let ty = Type::Object(i);
 		let (_, local) = self.named(&ty);
 		let name = self.qualified(&ty);
@@ -2582,7 +2586,7 @@ impl<'a> Gen<'a> {
 				format!(
 					"// drop_{c} drops the value of the handle p, which Rust checks, then, given its state,\n\
 					// frees p if the drop passed, storing closed to state once it can no longer fail.\n\
-					func drop_{c}(p, state unsafe.Pointer) error {{\n\treturn {status_}(int32(C.{shim}((*C.{c})(p), (*C.int64_t)(state))), \"{c}_drop\")\n}}\n\n",
+					func drop_{c}(p, state unsafe.Pointer) error {{\n\treturn {status_}(int32(C.{shim}((*C.{c})(p), (*C.int64_t)(state))), \"{c_}_drop\")\n}}\n\n",
 					shim = self.close_c(&c),
 					status_ = self.qualify(Packages::RT, "Status_"),
 				),
@@ -2591,7 +2595,7 @@ impl<'a> Gen<'a> {
 			false => (String::new(), "nil".to_string()),
 		};
 		format!(
-			"func free_{c}(p unsafe.Pointer) {{\n\tC.{c}_free((*C.{c})(p))\n}}\n\n\
+			"func free_{c}(p unsafe.Pointer) {{\n\tC.{c_}_free((*C.{c})(p))\n}}\n\n\
 			{drop}\
 			// own_{c} owns a handle Rust returned, or is nil for none: the object and its handle\n\
 			// in one allocation, in the nursery Own puts it in.\n\
@@ -2607,6 +2611,7 @@ impl<'a> Gen<'a> {
 		let abi = self.abi;
 		let callback = &abi.api.callbacks[i];
 		let c = abi.callback(i);
+		let c_ = crate::abi::stem(&c);
 		let ty = Type::Callback(i, crate::ir::Dyn::Impl);
 		let name = self.named(&ty).1;
 		let rust = callback.path.join("::");
@@ -2693,7 +2698,7 @@ impl<'a> Gen<'a> {
 		let _ = write!(
 			self.types,
 			"{}type {name} interface {{\n{}\n}}\n\n\
-			var vtable_{c} = func() *C.{c}_vtable {{\n\tv := (*C.{c}_vtable)(C.malloc(C.size_t(unsafe.Sizeof(C.{c}_vtable{{}}))))\n{}\treturn v\n}}()\n\n\
+			var vtable_{c} = func() *C.{c_}_vtable {{\n\tv := (*C.{c_}_vtable)(C.malloc(C.size_t(unsafe.Sizeof(C.{c_}_vtable{{}}))))\n{}\treturn v\n}}()\n\n\
 			// {vtable} is the table of {name}'s methods Rust calls, for the generated packages.\n\
 			func {vtable}() unsafe.Pointer {{\n\treturn unsafe.Pointer(vtable_{c})\n}}\n\n",
 			docs(text.trim(), callback.deprecated.as_deref(), ""),
@@ -2705,12 +2710,13 @@ impl<'a> Gen<'a> {
 	/// A callback's lower: a Go implementation, kept for Rust until it drops it.
 	fn callback_conv(&mut self, i: usize) -> String {
 		let c = self.abi.callback(i);
+		let c_ = crate::abi::stem(&c);
 		let ty = Type::Callback(i, crate::ir::Dyn::Impl);
 		let (krate, local) = self.named(&ty);
 		let name = self.qualify(krate, &local);
 		let vtable = self.qualify(krate, &self.vtables[&c]);
 		format!(
-			"func lower_{c}(v {name}) C.{c} {{\n\tif v == nil {{\n\t\tpanic(\"a nil {local}\")\n\t}}\n\treturn C.{c}{{vtable: (*C.{c}_vtable)({vtable}()), data: give_(v)}}\n}}\n\n"
+			"func lower_{c}(v {name}) C.{c} {{\n\tif v == nil {{\n\t\tpanic(\"a nil {local}\")\n\t}}\n\treturn C.{c}{{vtable: (*C.{c_}_vtable)({vtable}()), data: give_(v)}}\n}}\n\n"
 		)
 	}
 

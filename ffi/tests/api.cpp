@@ -590,9 +590,11 @@ int checks() {
 		api::clash_Escaped escaped{3};
 		check(escaped.delete_2() == 3 && escaped.delete_(1, 2) == 213, "methods C++ escapes alike stay apart");
 	}
-	// A name C++ reserves, which holds `__`, drops its leading `_`s and each run's others.
-	// `__all__` and `__all___` unreserve alike and step apart in Rust's order.
-	check(api::all_(1) == 3 && api::all_2(1) == 4 && api::_deprecated(1) == 2, "a name C++ reserves escapes unreserved");
+	// A name C++ reserves, which holds `__`, drops its leading `_`s and each run's others, as
+	// its C name does: `__all__` and `__all___` unreserve alike and step apart, and
+	// `_deprecated` steps past `deprecated`.
+	check(api::all_2(1) == 3 && api::all_(1) == 4 && api::deprecated_(1) == 2 && api::deprecated(1) == 1,
+		"a name C++ reserves escapes unreserved");
 	// Names that differ only by trailing underscores, each reaching its own Rust: Rust's
 	// `new_` keeps its name and `new`, which C++ escapes alike, moves past it.
 	{

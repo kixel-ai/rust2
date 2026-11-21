@@ -3,14 +3,18 @@
 //!
 //! Names follow one rule: the prefix, then the item's path from the facade's root, each
 //! segment in Rust's case, joined by `_`; a method's path goes through its type's, and a
-//! field's getter and setter add `_get` and `_set` to it. Case keeps a type apart from a
-//! function or module of its name, and Rust's verb-first names keep a method apart from a
-//! field's accessors. Joining still loses where segments split (`audio_encoder::finish`
-//! and `audio::encoder_finish` both join as `moq_audio_encoder_finish`), so every name is
-//! registered, and of the items whose names clash, every one but the first by rank takes a
-//! trailing `_`, as do the names made from it: `moq_audio_encoder_finish` and
-//! `moq_audio_encoder_finish_`. A `_` doubled at the split would read better, but C++
-//! reserves every name containing `__`. Only the names that clash change.
+//! field's getter and setter add `_get` and `_set` to it. Every join keeps one `_` of each
+//! run, since C++ reserves every name containing `__`, so Rust's `_deprecated` is
+//! `moq_deprecated`. Case keeps a type apart from a function or module of its name, and
+//! Rust's verb-first names keep a method apart from a field's accessors. Joining still loses
+//! where segments split (`audio_encoder::finish` and `audio::encoder_finish` both join as
+//! `moq_audio_encoder_finish`), so every name is registered, and of the items whose names
+//! clash, every one but the first by rank steps along its name's `x_`, `x_2`, `x_3`, ...,
+//! as do the names made from it: `moq_audio_encoder_finish` and
+//! `moq_audio_encoder_finish_`. A name made from one ending in `_` is its stem's, so where
+//! that clashes too, the item steps on: an enum `Status` beside the runtime's
+//! `MOQ_STATUS_MOVED` is `moq_Status_2`, with `MOQ_STATUS_2_MOVED`. Only the names that
+//! clash change.
 
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 
@@ -37,12 +41,13 @@ enum Item {
 	Tuple(Vec<Type>),
 }
 
-/// The item a claimed name belongs to: its own C name, and whether the claimed name is
-/// that one, unrenamed, rather than one made from it.
+/// The item a claimed name belongs to: whether the claimed name is its own C name rather
+/// than one made from it, and whether it is that one as Rust spells it, unrenamed and with
+/// no `_` [`join`] dropped.
 struct Owner {
 	item: Item,
-	base: String,
 	own: bool,
+	spelled: bool,
 }
 
 /// A C name claimed, by what, and the item a clash renames, or none for the runtime's.
@@ -121,7 +126,7 @@ impl Sig {
 	/// Its twin that runs it on a home: `<name>_homed`, of the same signature.
 	pub(crate) fn homed(&self) -> Sig {
 		Sig {
-			name: format!("{}_homed", self.name),
+			name: join(&self.name, "homed"),
 			params: self.params.clone(),
 			ret: self.ret.clone(),
 		}
@@ -462,8 +467,8 @@ pub(crate) struct Abi<'a> {
 	chained: Vec<bool>,
 	/// Every C name claimed.
 	claims: Vec<Claim>,
-	/// The C name of each item whose own clashed.
-	renames: HashMap<Item, String>,
+	/// How many steps each item whose own C name clashed took past it.
+	renames: HashMap<Item, usize>,
 	/// Each name one item claims twice.
 	pub(crate) clashes: Vec<Clash>,
 }
@@ -496,6 +501,7 @@ impl<'a> Abi<'a> {
 			}
 		}
 		abi.clashes = abi.residue();
+		abi.clashes.extend(abi.scoped());
 		abi
 	}
 
@@ -534,9 +540,9 @@ impl<'a> Abi<'a> {
 			}
 		}
 		let renames = (self.renames.iter())
-			.filter_map(|(item, name)| match item {
-				Item::Function(at) => Some((Item::Function(*moved.get(at)?), name.clone())),
-				item => Some((item.clone(), name.clone())),
+			.filter_map(|(item, &steps)| match item {
+				Item::Function(at) => Some((Item::Function(*moved.get(at)?), steps)),
+				item => Some((item.clone(), steps)),
 			})
 			.collect();
 		Abi {
@@ -593,9 +599,14 @@ impl<'a> Abi<'a> {
 		on
 	}
 
-	/// The C name of `item`, renamed if its own clashed, else `name`.
+	/// The C name of `item` whose path joins as `name`: it keeping one `_` of each run, then
+	/// [`stepped`] as often as it clashed.
 	fn renamed(&self, item: Item, name: impl FnOnce() -> String) -> String {
-		self.renames.get(&item).cloned().unwrap_or_else(name)
+		let name = single(&name());
+		match self.renames.get(&item) {
+			Some(&n) => stepped(&name, n),
+			None => name,
+		}
 	}
 
 	/// The claims of each name claimed more than once.
@@ -609,23 +620,26 @@ impl<'a> Abi<'a> {
 	}
 
 	/// Rename the items whose names clash, returning whether any was. The runtime's names
-	/// come first, then names made from an item, then items' own, each by what claims it:
-	/// the first keeps the name and every later one takes a trailing `_`.
+	/// come first, then names made from an item, then items' own as Rust spells them, then
+	/// those a [`join`] or a step respelled, each by what claims it: the first keeps the name and
+	/// every later one steps once more.
 	fn rename(&mut self) -> bool {
-		let mut renames: HashMap<Item, String> = HashMap::new();
+		let mut renames: HashMap<Item, usize> = HashMap::new();
 		for group in self.groups().into_values() {
 			let mut group = group;
 			let rank = |claim: &Claim| match &claim.owner {
 				None => 0,
 				Some(Owner { own: false, .. }) => 1,
-				Some(_) => 2,
+				Some(Owner { spelled: true, .. }) => 2,
+				Some(_) => 3,
 			};
 			group.sort_by(|a, b| (rank(a), &a.what).cmp(&(rank(b), &b.what)));
 			let first = group[0].owner.as_ref().map(|owner| &owner.item);
 			for claim in &group[1..] {
 				// A name an item claims twice, no rename of it tells apart.
 				if let Some(owner) = claim.owner.as_ref().filter(|owner| Some(&owner.item) != first) {
-					renames.entry(owner.item.clone()).or_insert(format!("{}_", owner.base));
+					let steps = self.renames.get(&owner.item).copied().unwrap_or(0);
+					renames.entry(owner.item.clone()).or_insert(steps + 1);
 				}
 			}
 		}
@@ -649,7 +663,102 @@ impl<'a> Abi<'a> {
 		clashes
 	}
 
-	/// The C name for a Rust path, which starts with the facade's root.
+	/// Each two names of one C scope that [`escape`] makes alike, as it may one C or C++
+	/// reserves or one ending in `_` and a number: a struct's fields, a data enum's members and each
+	/// variant's fields, a trait's table and each method's parameters, and a function's.
+	fn scoped(&self) -> Vec<Clash> {
+		let api = self.api;
+		let mut clashes = Vec::new();
+		let mut scope = |names: Vec<(String, String)>, span: Span| {
+			for (k, (name, what)) in names.iter().enumerate() {
+				if let Some((_, first)) = names[..k].iter().find(|(other, _)| other == name) {
+					clashes.push((name.clone(), (first.clone(), span), (what.clone(), span)));
+				}
+			}
+		};
+		let fields = |of: &str, fields: &[crate::ir::Field]| -> Vec<(String, String)> {
+			(fields.iter())
+				.map(|f| (escape(&f.name), format!("field `{}` of {of}", f.name)))
+				.collect()
+		};
+		let mut functions: Vec<(&Function, Option<Ty>)> = Vec::new();
+		for (i, record) in api.records.iter().enumerate() {
+			let rust = format!("struct `{}`", api.rust(&record.path, &record.args));
+			scope(fields(&rust, &record.fields), record.span);
+			functions.extend(record.methods.iter().map(|m| (m, Some(Ty::Struct(self.record(i))))));
+		}
+		for (i, e) in api.enums.iter().enumerate() {
+			let rust = format!("enum `{}`", api.rust(&e.path, &e.args));
+			let members = (e.variants.iter())
+				.filter(|v| !v.fields.is_empty())
+				.map(|v| (escape(&snake(&v.name)), format!("variant `{}` of {rust}", v.name)));
+			scope(
+				std::iter::once(("tag".to_string(), format!("the tag of {rust}")))
+					.chain(members)
+					.collect(),
+				e.span,
+			);
+			for v in &e.variants {
+				scope(fields(&format!("variant `{}` of {rust}", v.name), &v.fields), e.span);
+			}
+			functions.extend(e.methods.iter().map(|m| (m, Some(self.ty(&Type::Enum(i))))));
+		}
+		for (i, object) in api.objects.iter().enumerate() {
+			let owner = Ty::Handle {
+				name: self.object(i),
+				constant: false,
+			};
+			functions.extend(object.methods.iter().map(|m| (m, Some(owner.clone()))));
+		}
+		for callback in &api.callbacks {
+			let rust = format!("trait `{}`", callback.path.join("::"));
+			let table = (callback.methods.iter()).map(|m| (member(m), format!("method `{}` of {rust}", m.name())));
+			scope(
+				std::iter::once(("free".to_string(), format!("the free of {rust}")))
+					.chain(table)
+					.collect(),
+				callback.span,
+			);
+			for method in &callback.methods {
+				let params = (method.params.iter()).map(|p| (escape(&p.name), format!("parameter `{}` of {rust}", p.name)));
+				scope(
+					std::iter::once(("data".to_string(), "its data".to_string()))
+						.chain(params)
+						.collect(),
+					method.span,
+				);
+			}
+		}
+		functions.extend(api.functions.iter().map(|f| (f, None)));
+		for (function, owner) in functions {
+			let export = self.export(function, owner.as_ref());
+			let sigs = std::iter::once(&export.call)
+				.chain(export.future.iter().flat_map(|future| [&future.start, &future.poll]));
+			for sig in sigs {
+				// Each C parameter's Rust one, the first not yet named that escapes to it.
+				let mut named = vec![false; function.params.len()];
+				let fun = function.path.join("::");
+				let names = (sig.params.iter())
+					.map(|(name, _)| {
+						let rust = (0..named.len()).find(|&k| !named[k] && escape(&function.params[k].name) == *name);
+						let what = match rust {
+							Some(k) => {
+								named[k] = true;
+								format!("parameter `{}` of fn `{fun}`", function.params[k].name)
+							}
+							None => format!("`{name}`, which C adds to fn `{fun}`"),
+						};
+						(name.clone(), what)
+					})
+					.collect();
+				scope(names, function.span);
+			}
+		}
+		clashes
+	}
+
+	/// The name a Rust path joins as, which starts with the facade's root: its item's C
+	/// name, but for a clash or a `_` [`join`] drops, which other languages' names keep.
 	pub(crate) fn name(&self, path: &[String]) -> String {
 		std::iter::once(self.prefix.clone())
 			.chain(self.segments(path))
@@ -926,7 +1035,7 @@ impl<'a> Abi<'a> {
 			.iter()
 			.any(|name| *name == space || name.starts_with(&format!("{space}_")))
 		{
-			space.push('_');
+			space = stepped(&space, 1);
 		}
 		space
 	}
@@ -938,12 +1047,12 @@ impl<'a> Abi<'a> {
 
 	/// The C name of `Option<inner>`'s struct.
 	pub(crate) fn option(&self, inner: &Type) -> String {
-		format!("{}_option_{}", self.prefix, self.key(inner))
+		join(&format!("{}_option", self.prefix), &self.key(inner))
 	}
 
 	/// The C name of `Vec<elem>`'s struct: `<prefix>_vec_string`.
 	pub(crate) fn list(&self, elem: &Type) -> String {
-		format!("{}_vec_{}", self.prefix, self.key(elem))
+		join(&format!("{}_vec", self.prefix), &self.key(elem))
 	}
 
 	/// The C name of a tuple's struct: `<prefix>_tuple_string_u64`.
@@ -967,7 +1076,7 @@ impl<'a> Abi<'a> {
 
 	/// The C name of a range, bound, or pair of bounds struct: `<prefix>_range_u64`.
 	pub(crate) fn range(&self, ty: &Type) -> String {
-		format!("{}_{}", self.prefix, self.key(ty))
+		join(&self.prefix, &self.key(ty))
 	}
 
 	/// A type's name within the prefix, for naming the structs and instances built from it.
@@ -1179,15 +1288,9 @@ impl<'a> Abi<'a> {
 			};
 			let name = escape(&param.name);
 			if let Type::Closure(closure) = &param.ty {
-				// Named apart from every parameter of the function, which C requires.
-				let apart = |suffix: &str| {
-					let mut named = format!("{name}_{suffix}");
-					while function.params.iter().any(|p| escape(&p.name) == named) {
-						named.push('_');
-					}
-					named
-				};
-				let (data, free) = (apart("data"), apart("free"));
+				let taken: Vec<String> = params.iter().map(|(name, _)| name.clone()).collect();
+				let data = beside(function, &taken, join(&name, "data"));
+				let free = beside(function, &taken, join(&name, "free"));
 				params.push((name, ty));
 				params.push((data, Ty::Data));
 				// A kept closure's free, which Rust calls with its data once it drops it.
@@ -1216,15 +1319,12 @@ impl<'a> Abi<'a> {
 		if let Some(err) = &function.err {
 			outs.push(("err".to_string(), Ty::Out(Box::new(self.returned(err)))));
 		}
-		let status = self.status(function, owner).then(|| {
-			let mut status = "status".to_string();
-			while function.params.iter().any(|p| escape(&p.name) == status) {
-				status.push('_');
-			}
+		let status = (self.status(function, owner)).then(|| {
+			let status = beside(function, &[], "status".to_string());
 			(status, Ty::Out(Box::new(Ty::Status)))
 		});
 		if function.future {
-			let handle = format!("{name}_future");
+			let handle = join(&name, "future");
 			let mut poll_params = vec![
 				("future".to_string(), Ty::Future(handle.clone())),
 				("waker".to_string(), Ty::Waker),
@@ -1237,7 +1337,7 @@ impl<'a> Abi<'a> {
 			start_params.extend(status.clone());
 			params.extend(status);
 			let start = Sig {
-				name: format!("{name}_start"),
+				name: join(&name, "start"),
 				params: start_params,
 				ret: Ty::Poll,
 			};
@@ -1246,12 +1346,12 @@ impl<'a> Abi<'a> {
 				poll_params.push(("status".to_string(), Ty::Out(Box::new(Ty::Status))));
 			}
 			let poll = Sig {
-				name: format!("{name}_poll"),
+				name: join(&name, "poll"),
 				params: poll_params,
 				ret: Ty::Poll,
 			};
 			let free = Sig {
-				name: format!("{name}_future_free"),
+				name: join(&name, "future_free"),
 				params: vec![("future".to_string(), Ty::Future(handle.clone()))],
 				ret: Ty::Void,
 			};
@@ -1457,13 +1557,18 @@ impl<'a> Abi<'a> {
 	}
 
 	/// The out pointer Rust writes back the value C passed for `&mut` as parameter `name`
-	/// through, named apart from every parameter of `function`.
+	/// through, named apart from every parameter of `function` and every earlier one's out.
 	pub(crate) fn written(function: &Function, name: &str) -> String {
-		let mut out = format!("{name}_out");
-		while function.params.iter().any(|p| escape(&p.name) == out) {
-			out.push('_');
+		let mut taken = Vec::new();
+		for param in function.params.iter().filter(|param| param.ty.written()) {
+			let escaped = escape(&param.name);
+			let out = beside(function, &taken, join(&escaped, "out"));
+			if escaped == name {
+				return out;
+			}
+			taken.push(out);
 		}
-		out
+		unreachable!("`{name}` is a parameter of `{}` Rust writes back", function.name())
 	}
 
 	/// A value's `&mut self` method as a language whose values are immutable calls it:
@@ -1527,37 +1632,37 @@ impl<'a> Abi<'a> {
 		});
 	}
 
-	/// The owner of a name made from `item`, whose own C name is `base`.
-	fn made(item: &Item, base: &str) -> Option<Owner> {
+	/// The owner of a name made from `item`.
+	fn made(item: &Item) -> Option<Owner> {
 		Some(Owner {
 			item: item.clone(),
-			base: base.to_string(),
 			own: false,
+			spelled: false,
 		})
 	}
 
 	/// The owner of `item`'s own C name, `base`, which joins the prefix and `segments`
-	/// unless a rename already changed it.
+	/// unless a join or a rename respelled it.
 	fn own(&self, item: &Item, base: &str, segments: Vec<String>) -> Option<Owner> {
 		let prefix = match base.starts_with(&self.prefix) {
 			true => self.prefix.clone(),
 			false => self.prefix.to_uppercase(),
 		};
-		let segments: Vec<String> = std::iter::once(prefix).chain(segments).collect();
+		let spelled: Vec<String> = std::iter::once(prefix).chain(segments).collect();
 		Some(Owner {
 			item: item.clone(),
-			base: base.to_string(),
-			own: segments.join("_") == base,
+			own: true,
+			spelled: spelled.join("_") == base,
 		})
 	}
 
-	/// The item a name made from `ty` belongs to, with its own C name: a type's, or a tuple's.
-	fn item_of(&self, ty: &Type) -> Option<(Item, String)> {
+	/// The item a name made from `ty` belongs to: a type, or a tuple.
+	fn item_of(&self, ty: &Type) -> Option<Item> {
 		match ty {
-			Type::Record(i) => Some((Item::Record(*i), self.record(*i))),
-			Type::Enum(i) => Some((Item::Enum(*i), self.enumeration(*i))),
-			Type::Object(i) => Some((Item::Object(*i), self.object(*i))),
-			Type::Tuple(elements) => Some((Item::Tuple(elements.iter().map(owned).collect()), self.tuple(elements))),
+			Type::Record(i) => Some(Item::Record(*i)),
+			Type::Enum(i) => Some(Item::Enum(*i)),
+			Type::Object(i) => Some(Item::Object(*i)),
+			Type::Tuple(elements) => Some(Item::Tuple(elements.iter().map(owned).collect())),
 			Type::Ref(_, inner) | Type::Box(inner) => self.item_of(inner),
 			_ => None,
 		}
@@ -1660,23 +1765,23 @@ impl<'a> Abi<'a> {
 			let upper = name.to_uppercase();
 			for variant in &e.variants {
 				self.claim(
-					format!("{upper}_{}", snake(&variant.name).to_uppercase()),
+					join(&upper, &snake(&variant.name).to_uppercase()),
 					what.clone(),
 					e.span,
-					Self::made(&item, &name),
+					Self::made(&item),
 				);
 				types.extend(variant.fields.iter().map(|f| &f.ty));
 			}
 			let plain = e.plain();
 			if !plain {
-				self.claim(format!("{name}_tag"), what.clone(), e.span, Self::made(&item, &name));
+				self.claim(join(&name, "tag"), what.clone(), e.span, Self::made(&item));
 				// Each variant's payload, which C++ names even when it has no fields.
 				for variant in &e.variants {
 					self.claim(
 						payload(&name, &variant.name),
 						what.clone(),
 						e.span,
-						Self::made(&item, &name),
+						Self::made(&item),
 					);
 				}
 			}
@@ -1694,37 +1799,37 @@ impl<'a> Abi<'a> {
 			let segments = self.type_segments(&item);
 			let what = format!("type `{}`", api.rust(&object.path, &object.args));
 			self.claim(
-				format!("{name}_free"),
+				join(&name, "free"),
 				what.clone(),
 				object.span,
-				Self::made(&item, &name),
+				Self::made(&item),
 			);
 			if self.checked[i] {
 				for made in ["drop", "drop_signal"] {
 					self.claim(
-						format!("{name}_{made}"),
+						join(&name, made),
 						what.clone(),
 						object.span,
-						Self::made(&item, &name),
+						Self::made(&item),
 					);
 				}
 			}
 			if object.shared {
 				self.claim(
-					format!("{name}_borrowed"),
+					join(&name, "borrowed"),
 					what.clone(),
 					object.span,
-					Self::made(&item, &name),
+					Self::made(&item),
 				);
 			}
 			self.claim_traits(&item, &name, &what, object.span, object.traits, false);
 			// `Default` of a value that is not `Send` makes one from none.
 			if object.traits.default && !object.send {
 				self.claim(
-					format!("{name}_default_homed"),
+					join(&name, "default_homed"),
 					what.clone(),
 					object.span,
-					Self::made(&item, &name),
+					Self::made(&item),
 				);
 			}
 			self.claim(
@@ -1747,10 +1852,10 @@ impl<'a> Abi<'a> {
 			let segments = self.type_segments(&item);
 			let what = format!("trait `{}`", callback.path.join("::"));
 			self.claim(
-				format!("{name}_vtable"),
+				join(&name, "vtable"),
 				what.clone(),
 				callback.span,
-				Self::made(&item, &name),
+				Self::made(&item),
 			);
 			self.claim(name.clone(), what, callback.span, self.own(&item, &name, segments));
 			for method in &callback.methods {
@@ -1798,11 +1903,11 @@ impl<'a> Abi<'a> {
 			}) = &export.future
 			{
 				for made in [handle, &start.name, &poll.name, &free.name] {
-					self.claim(made.clone(), what.clone(), function.span, Self::made(&item, &name));
+					self.claim(made.clone(), what.clone(), function.span, Self::made(&item));
 				}
 			}
 			for homed in export.homed_call().into_iter().chain(export.homed_start()) {
-				self.claim(homed.name, what.clone(), function.span, Self::made(&item, &name));
+				self.claim(homed.name, what.clone(), function.span, Self::made(&item));
 			}
 			types.extend(function.params.iter().map(|p| &p.ty));
 			// A tuple returned whole is written element by element, with no struct of its own.
@@ -1875,7 +1980,7 @@ impl<'a> Abi<'a> {
 			}
 		}
 		for (name, inner) in &options {
-			let owner = self.item_of(inner).and_then(|(item, base)| Self::made(&item, &base));
+			let owner = self.item_of(inner).and_then(|item| Self::made(&item));
 			self.claim(name.clone(), "an option".to_string(), crate_span, owner);
 		}
 		for name in ranges.keys() {
@@ -1890,14 +1995,14 @@ impl<'a> Abi<'a> {
 		{
 			let ty = Type::Tuple(elements.clone());
 			let what = format!("tuple `{}`", self.spell(&ty));
-			let owner = self.item_of(&ty).and_then(|(item, base)| Self::made(&item, &base));
+			let owner = self.item_of(&ty).and_then(|item| Self::made(&item));
 			self.claim(name.clone(), what, crate_span, owner);
 		}
 		for (name, inner) in &lists {
 			let item = self.item_of(inner);
-			let owner = || item.as_ref().and_then(|(item, base)| Self::made(item, base));
+			let owner = || item.as_ref().and_then(Self::made);
 			self.claim(name.clone(), "a Vec".to_string(), crate_span, owner());
-			self.claim(format!("{name}_free"), "a Vec".to_string(), crate_span, owner());
+			self.claim(join(name, "free"), "a Vec".to_string(), crate_span, owner());
 		}
 		if ranges.values().any(|ty| matches!(ty, Type::Bound(_))) {
 			let bound = self.rt("bound");
@@ -1928,10 +2033,10 @@ impl<'a> Abi<'a> {
 	) {
 		let mut claim = |suffix: &str| {
 			self.claim(
-				format!("{name}_{suffix}"),
+				join(name, suffix),
 				what.to_string(),
 				span,
-				Self::made(item, name),
+				Self::made(item),
 			)
 		};
 		if traits.clone && !owned {
@@ -2046,7 +2151,7 @@ pub(crate) fn pascal(name: &str) -> String {
 /// The C name of the struct of an enum's variant's fields: its own in Rust's case, after
 /// the enum's.
 pub(crate) fn payload(name: &str, variant: &str) -> String {
-	format!("{name}_{variant}")
+	join(name, variant)
 }
 
 /// A Rust identifier in snake case: `TrackProducer` is `track_producer`, and a name
@@ -2192,10 +2297,15 @@ pub(crate) fn numbered(name: &str, n: usize) -> String {
 }
 
 /// A name that C or C++, which includes the header, would read as a keyword or macro or
-/// reserve for itself with `_` appended, and one starting with a digit with `_` prepended.
-/// Appended, since MSVC reads `_inline`, `_asm`, and `_try` as keywords too; a name
-/// already ending in `_` takes another, so no two names escape to one.
+/// reserve for itself, as [`escaped`] moves it: a keyword or a generated parameter's name
+/// such as `out` takes `_`, and one already ending in `_` moves on to `_2`, so `new` and
+/// `new_` are `new_` and `new_2`.
 pub(crate) fn escape(name: &str) -> String {
+	escaped(name, keyword)
+}
+
+/// Whether C or C++ reads `name` as a keyword, or C names a generated parameter so.
+fn keyword(name: &str) -> bool {
 	const KEYWORDS: &[&str] = &[
 		"auto",
 		"bool",
@@ -2299,39 +2409,96 @@ pub(crate) fn escape(name: &str) -> String {
 		// lacks.
 		"i386",
 	];
-	match name.chars().next() {
-		Some(c) if c.is_ascii_digit() => format!("_{name}"),
-		_ => {
-			let stem = name.trim_end_matches('_');
-			let trailing = name.len() - stem.len();
-			// `out0`, `out1`, ... are a returned tuple's.
-			let out = stem
-				.strip_prefix("out")
-				.is_some_and(|n| !n.is_empty() && n.chars().all(|c| c.is_ascii_digit()));
-			// A keyword's or reserved name's own spelling is never one of its family's, so they
-			// count from `stem_`: `bool`, which C defines as a macro too, keeps its one `_`.
-			match out || KEYWORDS.contains(&stem) || reserved(name) {
-				true => unmacroed(&format!("{stem}_"), trailing, |_| false),
-				false => unmacroed(stem, trailing + usize::from(trailing > 0), |_| false),
-			}
-		}
+	// `out0`, `out1`, ... are a returned tuple's.
+	let out = name
+		.strip_prefix("out")
+		.is_some_and(|n| !n.is_empty() && n.chars().all(|c| c.is_ascii_digit()));
+	out || KEYWORDS.contains(&name)
+}
+
+/// `name` as C and C++ leave it to programs, past what `keyword` names and every macro a
+/// header defines: one C++ reserves, holding `__` or starting with `_` and a capital, first
+/// [`unreserved`], and one starting with a digit with `_` prepended. Then, a name ends in one
+/// `_` at most, and the names of its stem that no macro holds, nor the stem itself where
+/// `keyword` names it, keep their order, as [`stepped`] counts them: `unix` and `unix_` are
+/// `unix_` and `unix_2`, and a keyword `new` and `new_` are `new_` and `new_2`. Names apart
+/// in Rust stay apart unless one is reserved or ends in `_` and a number, such as `x__`
+/// beside `x_2`, which a scope's check refuses.
+pub(crate) fn escaped(name: &str, keyword: impl Fn(&str) -> bool) -> String {
+	let name = unreserved(name);
+	if name.starts_with(|c: char| c.is_ascii_digit()) {
+		return format!("_{name}");
+	}
+	let stem = name.strip_suffix('_').unwrap_or(&name);
+	let place = name.len() - stem.len();
+	let keyword = keyword(stem);
+	(0..)
+		.map(|n| stepped(stem, n))
+		.filter(|name| !(defined(name) || (keyword && name == stem)))
+		.nth(place)
+		.expect("a free name")
+}
+
+/// `name` as C and C++ leave it to programs: one C++ reserves for the implementation,
+/// holding `__` or starting with `_` and a capital ([lex.name]), drops its leading `_`s and
+/// keeps one `_` of each run, so `__all__` is `all_`: appending keeps a reserved name
+/// reserved. Rust's `__` alone, which a parameter may take, is `_`.
+pub(crate) fn unreserved(name: &str) -> String {
+	if !(name.contains("__") || reserved(name)) {
+		return name.to_string();
+	}
+	match single(name.trim_start_matches('_')) {
+		name if name.is_empty() => "_".to_string(),
+		name => name,
 	}
 }
 
-/// `stem` with trailing `_`s, as many as the `n`th count, from none, at which neither a
-/// macro nor what `also` names holds it: so the names of one stem keep their order and stay
-/// apart, as `_STRING_H` and `_STRING_H_` are both macros, and none takes a macro's.
-pub(crate) fn unmacroed(stem: &str, n: usize, also: impl Fn(&str) -> bool) -> String {
-	let mut name = stem.to_string();
-	let mut free = 0;
-	loop {
-		if !(defined(&name) || also(&name)) {
-			if free == n {
-				return name;
-			}
-			free += 1;
+/// `name` keeping one `_` of each run.
+fn single(name: &str) -> String {
+	let mut out = String::with_capacity(name.len());
+	for c in name.chars() {
+		if !(c == '_' && out.ends_with('_')) {
+			out.push(c);
 		}
-		name.push('_');
+	}
+	out
+}
+
+/// The C name made of `name` and `part`: them joined by `_`, keeping one `_` of each run,
+/// since C++ reserves every name holding `__`. So a name ending in `_`, as Rust's `erase_`
+/// or a clash's step does, makes the names its stem would: `api_Status_`'s `eq` is
+/// `api_Status_eq`, which a clash then steps past.
+pub(crate) fn join(name: &str, part: &str) -> String {
+	single(&format!("{name}_{part}"))
+}
+
+/// A name C makes for a parameter of `function`, `name`, [`stepped`] until neither a
+/// parameter of it in Rust escapes to it nor `taken` holds it.
+fn beside(function: &Function, taken: &[String], name: String) -> String {
+	let mut beside = name.clone();
+	let mut n = 0;
+	while function.params.iter().any(|p| escape(&p.name) == beside) || taken.contains(&beside) {
+		n += 1;
+		beside = stepped(&name, n);
+	}
+	beside
+}
+
+/// What the C names made of `name` start with, before a `_` and the part: `name` without a
+/// trailing `_`, so `format!("{}_eq", stem(name))` is [`join`]`(name, "eq")`.
+pub(crate) fn stem(name: &str) -> &str {
+	name.strip_suffix('_').unwrap_or(name)
+}
+
+/// The `n`th name to try in place of `name` where it is taken. The names of a stem `x` count
+/// along `x`, `x_`, `x_2`, `x_3`, ..., from `name`'s place, so `delete` steps to `delete_`
+/// and `delete_` to `delete_2`: never `__`, which would make a name C++ reserves.
+pub(crate) fn stepped(name: &str, n: usize) -> String {
+	match (name.strip_suffix('_'), n) {
+		(_, 0) => name.to_string(),
+		(Some(stem), n) => format!("{stem}_{}", n + 1),
+		(None, 1) => format!("{name}_"),
+		(None, n) => format!("{name}_{n}"),
 	}
 }
 
@@ -2347,8 +2514,7 @@ pub(crate) fn defined(name: &str) -> bool {
 }
 
 /// Whether C and C++ reserve a name for the implementation, as `_Bool` and `__cplusplus`:
-/// one starting with `__` or `_` and an uppercase letter. Appending keeps it reserved, so
-/// escaping one by appending never meets a name the escape leaves alone.
+/// one starting with `__` or `_` and an uppercase letter.
 pub(crate) fn reserved(name: &str) -> bool {
 	let mut chars = name.chars();
 	chars.next() == Some('_') && chars.next().is_some_and(|c| c == '_' || c.is_ascii_uppercase())
@@ -2363,13 +2529,15 @@ pub(crate) const RUST_KEYWORDS: &[&str] = &[
 ];
 
 /// A callback method's member of its `<callback>_vtable`, which C and each binding's Rust
-/// glue name alike: its [`escape`]d name, with `_` appended to a Rust keyword too and to
-/// `free`, the table's own. Escaping stays injective, so no two members share a name.
+/// glue name alike: its [`escape`]d name, a Rust keyword and `free`, the table's own,
+/// escaped as C's keywords are.
 pub(crate) fn member(method: &Function) -> String {
-	match method.name() {
-		name if name == "free" || RUST_KEYWORDS.contains(&name) => format!("{name}_"),
-		name => escape(name),
-	}
+	member_named(method.name())
+}
+
+/// The member of a callback's table for a method named `name`: see [`member`].
+fn member_named(name: &str) -> String {
+	escaped(name, |stem| stem == "free" || RUST_KEYWORDS.contains(&stem) || keyword(stem))
 }
 
 /// What a callback parameter needs, by the form it takes.
@@ -2384,25 +2552,151 @@ pub(crate) fn dyn_wrap(form: Dyn, expr: &str) -> String {
 #[cfg(test)]
 mod tests {
 	use super::{apart, defined, distinct, escape, named, named_apart, past_cycles, shortest, underscored, unique};
+	use crate::ir::{Function, Int, Type};
 
+	/// Whether C or C++ reserves `name` in any scope: one holding `__`, or starting with `_`
+	/// and a capital.
+	fn reserved(name: &str) -> bool {
+		name.contains("__") || super::reserved(name)
+	}
+
+	/// Each macro's stem, and it with one `_`, escape apart, to neither a macro nor a name C
+	/// or C++ reserves. More `_`s make a reserved name, which unreserves onto one of these two.
 	#[test]
 	fn escapes_keep_apart_from_every_macro() {
 		let macros = include_str!("macros.txt").lines().filter(|line| !line.starts_with('#'));
 		for stem in macros.map(|m| m.trim_end_matches('_')) {
-			let family: Vec<String> = (0..4).map(|n| format!("{stem}{}", "_".repeat(n))).collect();
-			let escaped: std::collections::BTreeSet<String> = family.iter().map(|n| escape(n)).collect();
-			assert_eq!(escaped.len(), family.len(), "{stem}'s names escape alike");
-			assert!(!escaped.iter().any(|e| defined(e)), "{stem}'s names escape to a macro");
+			let escaped = [escape(stem), escape(&format!("{stem}_"))];
+			assert_ne!(escaped[0], escaped[1], "{stem}'s names escape alike");
+			for e in &escaped {
+				assert!(!defined(e) && !reserved(e), "{stem} escapes to {e}");
+			}
 		}
 	}
 
 	#[test]
-	fn reserved_names_escape_apart() {
-		assert_eq!(escape("_Bool"), "_Bool_");
-		assert_eq!(escape("__cplusplus"), "__cplusplus_");
-		assert_eq!(escape("__cplusplus_"), "__cplusplus__");
+	fn escapes_step_past_keywords_and_macros() {
+		// A keyword, or a name the ABI's own parameters take, takes `_`, past which the name
+		// with `_` steps.
+		assert_eq!(escape("new"), "new_");
+		assert_eq!(escape("new_"), "new_2");
+		assert_eq!(escape("out"), "out_");
+		assert_eq!(escape("out0"), "out0_");
+		assert_eq!(escape("out0_"), "out0_2");
+		// C defines `bool` as a macro too, which takes one `_` all the same.
+		assert_eq!(escape("bool"), "bool_");
+		assert_eq!(escape("bool_"), "bool_2");
+		// Any other name keeps its own, a macro's moving to the next of its stem's names.
+		assert_eq!(escape("value_"), "value_");
+		assert_eq!(escape("unix"), "unix_");
+		assert_eq!(escape("unix_"), "unix_2");
+		assert_eq!(escape("errno"), "errno_");
+		// Past `ABDAY_2`, ..., `ABDAY_7`, which `<langinfo.h>` defines.
+		assert_eq!(escape("ABDAY_1"), "ABDAY_1_");
+		assert_eq!(escape("ABDAY_1_"), "ABDAY_1_2");
+		// A table's member takes Rust's keywords and `free` as keywords too.
+		let method = super::member_named;
+		assert_eq!(method("free"), "free_");
+		assert_eq!(method("free_"), "free_2");
+		assert_eq!(method("type"), "type_");
+		assert_eq!(method("type_"), "type_2");
+		assert_eq!(method("delete"), "delete_");
+	}
+
+	#[test]
+	fn reserved_names_escape_unreserved() {
+		// serde's derived `Deserialize::deserialize` parameter.
+		assert_eq!(escape("__deserializer"), "deserializer");
+		assert_eq!(escape("_Bool"), "Bool");
+		assert_eq!(escape("__cplusplus"), "cplusplus");
+		assert_eq!(escape("__cplusplus_"), "cplusplus_");
+		assert_eq!(escape("a__b"), "a_b");
+		assert_eq!(escape("__"), "_");
+		assert_eq!(escape("__1"), "_1");
+		// Unreserved, it escapes as any other name, keywords and macros included.
+		assert_eq!(escape("__new"), "new_");
+		assert_eq!(escape("EOF__"), "EOF_2");
+		assert_eq!(escape("_STRING_H"), "STRING_H");
+		// C++ reserves a lowercase `_x` only in the global namespace, which holds no field or
+		// parameter, and C only at file scope.
 		assert_eq!(escape("_bool"), "_bool");
 		assert_eq!(escape("_1"), "_1");
+	}
+
+	/// Every identifier of up to five of `_`, `a`, `A`, `1`, and the keywords' and macros' with
+	/// trailing `_`s, escapes to a name neither C nor C++ reserves or defines; and two escape
+	/// alike only where one is reserved or ends in `_` and a number, which a scope refuses.
+	#[test]
+	fn no_escape_is_reserved() {
+		let mut rust: Vec<String> = vec![String::new()];
+		let mut all = Vec::new();
+		for _ in 0..5 {
+			rust = (rust.iter())
+				.flat_map(|name| "_aA1".chars().map(move |c| format!("{name}{c}")))
+				.collect();
+			all.extend(rust.iter().filter(|n| !n.starts_with('1') && *n != "_").cloned());
+		}
+		for stem in ["new", "out", "out0", "data", "bool", "unix", "errno", "EOF", "ABDAY_1"] {
+			all.extend((0..3).map(|n| format!("{stem}{}", "_".repeat(n))));
+		}
+		let mut by: std::collections::BTreeMap<String, String> = std::collections::BTreeMap::new();
+		for name in &all {
+			let e = escape(name);
+			assert!(!reserved(&e) && !defined(&e), "{name} escapes to {e}");
+			let numbered = |name: &str| name.rsplit_once('_').is_some_and(|(_, n)| n.parse::<u32>().is_ok());
+			let plain = |name: &str| !reserved(name) && !numbered(name);
+			if let Some(other) = by.insert(e.clone(), name.clone()) {
+				assert!(!plain(name) || !plain(&other), "{other} and {name} both escape to {e}");
+			}
+		}
+	}
+
+	/// The C names of `functions`, each free and named as its string, with `params` given
+	/// to the first.
+	fn c_names(functions: &[&str], params: &[&str]) -> (Vec<String>, Vec<super::Clash>) {
+		let mut functions: Vec<Function> = functions.iter().map(|name| Function::bare(name)).collect();
+		functions[0].params = (params.iter())
+			.map(|name| crate::ir::Param {
+				name: name.to_string(),
+				ty: Type::Int(Int::U8),
+				interned: false,
+			})
+			.collect();
+		let api = crate::ir::Api::of(functions);
+		let abi = super::Abi::new(&api, "ns");
+		let names = (api.functions.iter()).map(|f| abi.export(f, None).call.name).collect();
+		(names, abi.clashes)
+	}
+
+	/// A name a join respells steps past those Rust spells so, and past each name a step
+	/// already took, never making `__`.
+	#[test]
+	fn a_respelled_name_steps_past_rusts_own() {
+		let (names, clashes) = c_names(&["__x", "x", "x_", "_x_", "a__b"], &[]);
+		assert_eq!(names, ["ns_x_2", "ns_x", "ns_x_", "ns_x_3", "ns_a_b"]);
+		assert!(clashes.is_empty(), "{clashes:?}");
+	}
+
+	/// Two names of one scope that escape alike are refused, which C would otherwise read as
+	/// one parameter declared twice.
+	#[test]
+	fn a_scope_refuses_names_that_escape_alike() {
+		let (_, clashes) = c_names(&["pick"], &["_A", "A"]);
+		let refused: Vec<_> = clashes.iter().map(|(name, (first, _), (second, _))| (name.as_str(), first.as_str(), second.as_str())).collect();
+		assert_eq!(refused, [("A", "parameter `_A` of fn `ns::pick`", "parameter `A` of fn `ns::pick`")]);
+		// A keyword and it with `_` escape apart.
+		let (_, clashes) = c_names(&["pick"], &["new", "new_", "out"]);
+		assert!(clashes.is_empty(), "{clashes:?}");
+	}
+
+	#[test]
+	fn joins_keep_one_underscore_of_each_run() {
+		assert_eq!(super::join("api_Status_", "eq"), "api_Status_eq");
+		assert_eq!(super::join("api_Status", "eq"), "api_Status_eq");
+		assert_eq!(super::join("api", "__all__"), "api_all_");
+		assert_eq!(super::join("by_", "data"), "by_data");
+		assert_eq!(super::stem("api_Status_"), "api_Status");
+		assert_eq!(format!("{}_eq", super::stem("api_Status_")), super::join("api_Status_", "eq"));
 	}
 
 	#[test]
