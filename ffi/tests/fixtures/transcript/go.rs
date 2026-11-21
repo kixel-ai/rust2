@@ -417,8 +417,8 @@ struct Emitter<'t> {
 	used: BTreeSet<String>,
 	/// Names no local may take.
 	reserved: BTreeSet<String>,
-	/// The temporaries holding a handle no use has taken yet, each whether it is optional.
-	handles: BTreeMap<String, bool>,
+	/// The temporaries holding a handle no use has taken yet, each by its type.
+	handles: BTreeMap<String, Type>,
 	/// What closes each handle the current statement only lent, at its end.
 	drops: Vec<String>,
 }
@@ -500,7 +500,10 @@ impl Emitter<'_> {
 			}
 			Step::Do(value) => self.discard(value, out),
 			Step::Drop(name) => match unref(&self.local_type(name)).base() {
-				Type::Object(_) => self.line(out, &format!("done_({}.Close())", self.ident(name))),
+				ty @ Type::Object(_) => {
+					let close = self.close(&self.ident(name), ty);
+					self.line(out, &close)
+				}
 				ty if !holds(self.t, ty) => self.line(out, &format!("_ = {}", self.ident(name))),
 				ty => panic!("a drop of {ty:?}, which holds a handle"),
 			},
@@ -553,24 +556,31 @@ impl Emitter<'_> {
 		}
 	}
 
+	/// The statement closing `v`, a handle of `ty` or an optional one, as Rust drops it.
+	fn close(&self, v: &str, ty: &Type) -> String {
+		match unref(ty).base() {
+			ty @ Type::Object(_) => format!("done_({v}.{}())", self.t.member(LANGUAGE, ty, "Drop")),
+			Type::Option(inner) => format!("if {v} != nil {{\n\t{}\n}}", self.close(v, inner)),
+			ty => panic!("a close of {ty:?}"),
+		}
+	}
+
 	/// The value `v` of `ty`, which nothing reads: a handle closes, as Rust drops it.
 	fn dropped(&mut self, v: &str, ty: &Type, out: &mut String) {
 		self.handles.remove(v);
-		match unref(ty).base() {
-			Type::Object(_) => self.line(out, &format!("done_({v}.Close())")),
-			Type::Option(inner) if matches!(inner.base(), Type::Object(_)) => {
-				self.line(out, &format!("if {v} != nil {{\n\tdone_({v}.Close())\n}}"))
-			}
-			_ => self.line(out, &format!("_ = {v}")),
-		}
+		let line = match unref(ty).base() {
+			Type::Object(_) => self.close(v, ty),
+			Type::Option(inner) if matches!(inner.base(), Type::Object(_)) => self.close(v, ty),
+			_ => format!("_ = {v}"),
+		};
+		self.line(out, &line);
 	}
 
 	/// `v`, a value read only by reference: a temporary handle closes at the statement's end.
 	fn lent(&mut self, v: &str) {
-		match self.handles.remove(v) {
-			Some(false) => self.drops.push(format!("done_({v}.Close())")),
-			Some(true) => self.drops.push(format!("if {v} != nil {{\n\tdone_({v}.Close())\n}}")),
-			None => {}
+		if let Some(ty) = self.handles.remove(v) {
+			let close = self.close(v, &ty);
+			self.drops.push(close);
 		}
 	}
 
@@ -719,7 +729,7 @@ impl Emitter<'_> {
 		match unref(err).base() {
 			ty @ (Type::Record(_) | Type::Enum(_) | Type::Object(_)) => self.go(ty),
 			ty => {
-				let named = self.t.named(LANGUAGE, &format!("error {}", self.key(ty))).to_string();
+				let named = self.t.error(LANGUAGE, ty).to_string();
 				let (krate, name) = named.split_once("::").unwrap();
 				let package = match krate {
 					"" => self.rt(),
@@ -736,22 +746,6 @@ impl Emitter<'_> {
 		match unref(err).base() {
 			Type::Record(_) | Type::Enum(_) | Type::Object(_) => format!("errOf_[{ty}]({error})"),
 			_ => format!("errOf_[{ty}]({error}).Value"),
-		}
-	}
-
-	/// The key the export names a type by, as an error's.
-	fn key(&self, ty: &Type) -> String {
-		match unref(ty).base() {
-			Type::Str | Type::String => "string".to_string(),
-			Type::Slice | Type::Vec | Type::Bytes => "bytes".to_string(),
-			Type::Bool => "bool".to_string(),
-			Type::Int(int) => int.rust().to_string(),
-			Type::Range(int) => format!("range_{}", int.rust()),
-			Type::Bound(int) => format!("bound_{}", int.rust()),
-			Type::Bounds(int) => format!("bounds_{}", int.rust()),
-			Type::Option(inner) => format!("option_{}", self.key(inner)),
-			Type::List(_, inner) => format!("vec_{}", self.key(inner)),
-			ty => panic!("an error of {ty:?}"),
 		}
 	}
 
@@ -814,7 +808,9 @@ impl Emitter<'_> {
 				let made = self.call_with(id, Some(v.to_string()), Vec::new(), Failure::Panic, true, out);
 				made.values[0].clone()
 			}
-			Type::Object(_) | Type::Record(_) | Type::Enum(_) => format!("{v}.String()"),
+			ty @ (Type::Object(_) | Type::Record(_) | Type::Enum(_)) => {
+				format!("{v}.{}()", self.t.member(LANGUAGE, ty, "Display"))
+			}
 			ty => panic!("Display of {ty:?}"),
 		}
 	}
@@ -855,7 +851,9 @@ impl Emitter<'_> {
 				format!("\"(\" + {} + \"{tail}\"", parts.join(" + \", \" + "))
 			}
 			Type::Bound(_) => format!("bound_({v}.Kind, {v}.Value)"),
-			Type::Record(_) | Type::Enum(_) | Type::Object(_) => format!("{v}.GoString()"),
+			ty @ (Type::Record(_) | Type::Enum(_) | Type::Object(_)) => {
+				format!("{v}.{}()", self.t.member(LANGUAGE, ty, "Debug"))
+			}
 			ty => panic!("Debug of {ty:?}"),
 		}
 	}
@@ -950,17 +948,9 @@ impl Emitter<'_> {
 			Kind::Record(r, fields) => {
 				let ty = Type::Record(*r);
 				let name = self.go(&ty);
-				let rust = self.t.rust(&ty);
 				let record = &self.t.api.records[*r];
 				let named: Vec<(String, Type)> = (record.fields.iter())
-					.map(|f| {
-						(
-							self.t
-								.named(LANGUAGE, &format!("type {rust} / field {}", f.name))
-								.to_string(),
-							f.ty.clone(),
-						)
-					})
+					.map(|f| (self.t.field(LANGUAGE, &ty, &f.name).to_string(), f.ty.clone()))
 					.collect();
 				let values: Vec<String> = (fields.iter().zip(&named))
 					.map(|(f, (name, ty))| {
@@ -973,21 +963,18 @@ impl Emitter<'_> {
 			}
 			Kind::Variant(en, v, fields) => {
 				let ty = Type::Enum(*en);
-				let rust = self.t.rust(&ty);
 				let enumeration = &self.t.api.enums[*en];
 				let variant = &enumeration.variants[*v];
-				let name = self
-					.t
-					.named(LANGUAGE, &format!("type {rust} / variant {}", variant.name))
-					.to_string();
+				let name = self.t.variant(LANGUAGE, &ty, &variant.name).to_string();
 				let package = self.package(&enumeration.home.krate.clone());
 				if enumeration.variants.iter().all(|v| v.fields.is_empty()) {
 					return format!("{package}.{name}");
 				}
-				let named: Vec<(String, Type)> = variant
-					.fields
-					.iter()
-					.map(|f| (field_name(&f.name), f.ty.clone()))
+				let named: Vec<(String, Type)> = (variant.fields.iter())
+					.map(|f| {
+						let name = self.t.variant_field(LANGUAGE, &ty, &variant.name, &f.name);
+						(name.to_string(), f.ty.clone())
+					})
 					.collect();
 				let values: Vec<String> = (fields.iter().zip(&named))
 					.map(|(f, (name, ty))| {
@@ -1024,8 +1011,7 @@ impl Emitter<'_> {
 					Type::Record(_) | Type::Object(_) => base.clone(),
 					_ => unref(&e.ty).base().clone(),
 				};
-				let rust = self.t.rust(&ty);
-				let name = self.t.named(LANGUAGE, &format!("type {rust} / Default")).to_string();
+				let name = self.t.member(LANGUAGE, &ty, "Default").to_string();
 				let krate = self.home(&ty);
 				let package = self.package(&krate);
 				let call = format!("{package}.{name}()");
@@ -1071,12 +1057,8 @@ impl Emitter<'_> {
 				let Type::Record(r) = unref(&base.ty).base() else {
 					panic!("a field of {:?}", base.ty)
 				};
-				let rust = self.t.rust(&Type::Record(*r));
 				let field = &self.t.api.records[*r].fields[*i].name;
-				let name = self
-					.t
-					.named(LANGUAGE, &format!("type {rust} / field {field}"))
-					.to_string();
+				let name = self.t.field(LANGUAGE, &Type::Record(*r), field).to_string();
 				format!("{b}.{name}")
 			}
 			Kind::Element(base, i) => {
@@ -1092,7 +1074,7 @@ impl Emitter<'_> {
 					Type::Object(_) => {
 						self.lent(&v);
 						let made = self.hoist(
-							&format!("{v}.Clone()"),
+							&format!("{v}.{}()", self.t.member(LANGUAGE, &inner.ty, "Clone")),
 							std::slice::from_ref(&inner.ty),
 							true,
 							Failure::Panic,
@@ -1359,7 +1341,7 @@ impl Emitter<'_> {
 						self.lent(&y);
 						let fails = matches!(ty, Type::Object(_)) || fails(self.t, &ty);
 						let made = self.hoist(
-							&format!("{x}.Equal({y})"),
+							&format!("{x}.{}({y})", self.t.member(LANGUAGE, &ty, "PartialEq")),
 							&[Type::Bool],
 							fails,
 							Failure::Panic,
@@ -1381,8 +1363,46 @@ impl Emitter<'_> {
 					ty => panic!("== of {ty:?}"),
 				}
 			}
+			// A value of the API orders through `PartialCompare`, whose false is unordered, and
+			// with `Ord` through `Compare`.
+			Op::Lt | Op::Le | Op::Gt | Op::Ge | Op::Cmp
+				if matches!(ty, Type::Record(_) | Type::Enum(_) | Type::Object(_)) =>
+			{
+				self.lent(&x);
+				self.lent(&y);
+				let fails = matches!(ty, Type::Object(_)) || fails(self.t, &ty);
+				if op == Op::Cmp {
+					let made = self.hoist(
+						&format!("{x}.{}({y})", self.t.member(LANGUAGE, &ty, "Ord")),
+						&[Type::Int(Int::I8)],
+						fails,
+						Failure::Panic,
+						true,
+						out,
+					);
+					return made.values[0].clone();
+				}
+				let made = self.hoist(
+					&format!("{x}.{}({y})", self.t.member(LANGUAGE, &ty, "PartialOrd")),
+					&[Type::Int(Int::I8), Type::Bool],
+					fails,
+					Failure::Panic,
+					true,
+					out,
+				);
+				let sym = match op {
+					Op::Lt => "<",
+					Op::Le => "<=",
+					Op::Gt => ">",
+					_ => ">=",
+				};
+				format!("({} && {} {sym} 0)", made.values[1], made.values[0])
+			}
 			Op::Lt => format!("({x} < {y})"),
+			Op::Le => format!("({x} <= {y})"),
 			Op::Gt => format!("({x} > {y})"),
+			Op::Ge => format!("({x} >= {y})"),
+			Op::Cmp => unreachable!("`cmp` of a value of the API"),
 			Op::Add | Op::Sub | Op::Mul | Op::Rem => {
 				let Type::Int(_) = ty else {
 					panic!("arithmetic on {ty:?}")
@@ -1593,8 +1613,7 @@ impl Emitter<'_> {
 		}
 		for (v, ty) in made.values.iter().zip(types) {
 			if v != "_" && holds_handle(ty) {
-				self.handles
-					.insert(v.clone(), !matches!(unref(ty).base(), Type::Object(_)));
+				self.handles.insert(v.clone(), unref(ty).base().clone());
 			}
 		}
 		made
@@ -1765,21 +1784,6 @@ fn pascal_int(int: Int) -> String {
 	let mut chars = rust.chars();
 	let first = chars.next().unwrap().to_ascii_uppercase();
 	format!("{first}{}", chars.as_str())
-}
-
-/// A field's Go name, as the export spells a variant's: `V0` for a positional one.
-fn field_name(name: &str) -> String {
-	match name.starts_with(|c: char| c.is_ascii_digit()) {
-		true => format!("V{name}"),
-		false => {
-			let camel = local(name);
-			let mut chars = camel.chars();
-			match chars.next() {
-				Some(first) => first.to_uppercase().chain(chars).collect(),
-				None => String::new(),
-			}
-		}
-	}
 }
 
 /// A Go string literal.

@@ -18,6 +18,11 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.takeWhile
+import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
@@ -36,6 +41,15 @@ class Print : Log, AutoCloseable {
 
 	// Rust closes it once it drops the implementation.
 	override fun close() = println("freed")
+}
+
+// The Undo callback: each method returns its own digit.
+class Edits : Undo {
+	override fun delete(n: UInt): UInt = n - 1u
+
+	override fun free(): UInt = 2u
+
+	override fun type(): UByte = 3u
 }
 
 // Print each of `n`'s lists, its floats as their bits, as transcript.rs does.
@@ -226,6 +240,36 @@ fun readers() {
 	}
 }
 
+// Streams, each collected as a flow: to its end, left early, and to an error, past which
+// the stream goes on.
+fun streams() = runBlocking {
+	Countdown.new(3u).use { c -> println("countdown " + c.asFlow().toList().joinToString(" ")) }
+	Countdown.new(5u).use { c ->
+		c.asFlow().takeWhile { it != 4u }.collect {}
+		println("countdown after break ${c.next()}")
+	}
+	val channel = Channel.new()
+	channel.feed().use { feed ->
+		for (first in listOf("a", "c")) {
+			channel.send(Bytes(first.encodeToByteArray()))
+			try {
+				feed.asFlow().collect { payload ->
+					println("feed ${payload.text()}")
+					val reply = when (payload.text()) {
+						"a" -> "b"
+						"b" -> "!"
+						else -> ""
+					}
+					channel.send(Bytes(reply.encodeToByteArray()))
+				}
+				println("feed end")
+			} catch (e: ErrorException) {
+				println("feed error ${e.message}")
+			}
+		}
+	}
+}
+
 // Futures of a value that is not `Send`, run on this thread.
 fun localLater(local: Local) {
 	println("local later ${runBlocking { localOrNewLater(local) }.bump()}")
@@ -296,6 +340,22 @@ fun checks() {
 		check(runCatching { scaled(v, 1u) }.exceptionOrNull() is IllegalArgumentException, "$v is no u128")
 	}
 	check(runCatching { ArrayU8x4(ByteArray(3)) }.exceptionOrNull() is IllegalArgumentException, "3 bytes are no [u8; 4]")
+	// Methods named as `java.lang.Object`'s, apart from them on the JVM, or in Kotlin too where
+	// an interface's would override them.
+	ClashStore.new(1u).use { store ->
+		store.wait()
+		store.finalize()
+		check(store.free() == 1u, "methods named as java.lang.Object's")
+	}
+	var waits = 0
+	val source = object : ClashSource {
+		override fun wait_() {
+			waits++
+		}
+
+		override fun readByte(): UByte = 4u
+	}
+	check(clashWaited(source) == 4.toUByte() && waits == 1, "an interface's method named as java.lang.Object's")
 
 	// A record holding a value past a word crosses as its words, in and out, and a call
 	// with no slots left for one passes it encoded.
@@ -680,6 +740,44 @@ fun futures() {
 		job.cancel()
 		q.drain()
 		released(weak, "a closure a cancelled future kept is released")
+	}
+	// Cancelling a flow's collection cancels its pending `next`, which loses nothing: the
+	// payload sent after is the next call's. A collector leaving early reads nothing ahead.
+	val fed = Channel.new()
+	fed.feed().use { feed ->
+		var got: String? = null
+		val job = scope.launch { feed.asFlow().collect { got = it.text() } }
+		q.drain()
+		job.cancel()
+		q.drain()
+		check(job.isCancelled && got == null, "a flow's collection cancels while next pends")
+		fed.send(Bytes("kept".encodeToByteArray()))
+		val next = runBlocking { feed.next() }
+		check(next?.text() == "kept", "cancelling a flow's collection loses no payload")
+		// A collector cancelling its job in its handler calls no `next` after, though the next
+		// payload is ready at once.
+		fed.send(Bytes("first".encodeToByteArray()))
+		got = null
+		val stopped = scope.launch {
+			feed.asFlow().collect {
+				got = it.text()
+				fed.send(Bytes("second".encodeToByteArray()))
+				currentCoroutineContext().cancel()
+			}
+		}
+		q.drain()
+		check(stopped.isCancelled && got == "first", "a flow's collection cancels in its handler")
+		// Awaited on the queue, so a lost payload fails the check rather than waiting forever.
+		var after: String? = null
+		val direct = scope.launch { after = feed.next()?.text() }
+		q.drain()
+		direct.cancel()
+		q.drain()
+		check(after == "second", "a flow cancelled in its handler reads nothing ahead")
+		Countdown.new(3u).use { c ->
+			val first = runBlocking { c.asFlow().first() }
+			check(first == 3u && runBlocking { c.next() } == 2u, "a flow left early reads nothing ahead")
+		}
 	}
 	println("futures ok")
 }
@@ -1302,6 +1400,8 @@ fun clash() {
 	val out = Mut(0u)
 	check(Clash.Int(4).describe("t", 3u, Shape.SQUARE, out) == "t Int(4) 3 Square" && out.value == 6u, "clash describe")
 	check(Handle.new(5u).use { it.count() } == 5u && runBlocking { Handle.later(6u) }.use { it.count() } == 6u, "an object named as a former runtime class")
+	// Names of C library macros, which C and C++ keep apart.
+	check(errno() == 7 && assert(true) && offsetof(3u) == 3.toUByte() && MacrosStreams(1u, 2u, 3u, 4u).errno == 4.toUByte() && macrosStreamed(MacrosStreams(1u, 2u, 3u, 4u), 5u) == 15u, "names of C library macros")
 }
 
 fun returns() {

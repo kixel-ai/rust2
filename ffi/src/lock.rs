@@ -15,7 +15,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use rustc_span::{DUMMY_SP, Span};
 
 use crate::abi::{Abi, Ty};
-use crate::ir::{Access, Api, Constant, Function, Literal, On, Opaque, Traits, Type};
+use crate::ir::{Access, Api, Constant, Function, Literal, On, Opaque, Order, Traits, Type};
 use crate::merge::{self, Maps};
 
 /// Each language's public names, keyed by the item's kind and Rust path.
@@ -55,10 +55,44 @@ pub(crate) fn variants(
 	for (i, e) in abi.api.enums.iter().enumerate() {
 		for v in &e.variants {
 			if let Some(name) = variant(&abi.enumeration(i), &v.name) {
-				names.insert(format!("{} / variant {}", type_key(&e.shown), v.name), name);
+				self::variant(names, &e.shown, &v.name, &name);
 			}
 		}
 	}
+}
+
+/// Record the name a binding gives the field `field` of the record at `owner`.
+pub(crate) fn field(names: &mut BTreeMap<String, String>, owner: &[String], field: &str, name: &str) {
+	names.insert(format!("{} / field {field}", type_key(owner)), name.to_string());
+}
+
+/// Record the name a binding gives the variant `variant` of the enum at `owner`.
+pub(crate) fn variant(names: &mut BTreeMap<String, String>, owner: &[String], variant: &str, name: &str) {
+	names.insert(format!("{} / variant {variant}", type_key(owner)), name.to_string());
+}
+
+/// Record the name a binding gives the field `field` of the data variant `variant`.
+pub(crate) fn variant_field(
+	names: &mut BTreeMap<String, String>,
+	owner: &[String],
+	variant: &str,
+	field: &str,
+	name: &str,
+) {
+	let key = format!("{} / variant {variant} / field {field}", type_key(owner));
+	names.insert(key, name.to_string());
+}
+
+/// Record the name a binding gives the member of the std trait `t`, such as `Clone`, on the
+/// type at `owner`, keyed by the trait, since each exports one member a binding names.
+pub(crate) fn trait_member(names: &mut BTreeMap<String, String>, owner: &[String], t: &str, name: &str) {
+	names.insert(format!("{} / {t}", type_key(owner)), name.to_string());
+}
+
+/// Record the name a binding gives the tuple of `elements`, keyed by its Rust spelling.
+pub(crate) fn tuple(names: &mut BTreeMap<String, String>, abi: &Abi<'_>, elements: &[Type], name: &str) {
+	let key = format!("tuple {}", abi.spell(&Type::Tuple(elements.to_vec())));
+	names.insert(key, name.to_string());
 }
 
 /// Record the final public name of a function or field accessor.
@@ -596,6 +630,8 @@ fn changed(base: &Index<'_>, now: &Index<'_>, maps: &Maps, ours: &Item<'_>, thei
 			("Clone", ours.clone && !theirs.clone),
 			("PartialEq", ours.eq && !theirs.eq),
 			("Hash", ours.hash && !theirs.hash),
+			("PartialOrd", ours.ord != Order::None && theirs.ord == Order::None),
+			("Ord", ours.ord == Order::Total && theirs.ord != Order::Total),
 			("Display", ours.display && !theirs.display),
 			("Debug", ours.debug && !theirs.debug),
 			("Default", ours.default && !theirs.default),
@@ -994,6 +1030,113 @@ mod tests {
 			changes.iter().any(|c| c
 				.what
 				.contains("`FaultException.FooBar` is now `FaultException.FooBar_`")),
+			"{:?}",
+			changes.iter().map(|c| &c.what).collect::<Vec<_>>()
+		);
+	}
+
+	/// A case named as a member a trait gives the enum moves out of its way once the enum
+	/// has the trait, which the structure accepts and the names report.
+	#[test]
+	fn a_trait_renaming_a_case_breaks() {
+		let variant = |name: &str| crate::ir::Variant {
+			name: name.into(),
+			discriminant: 0,
+			fields: vec![],
+			tuple: false,
+			on: On::ALL,
+		};
+		let mut base = api();
+		base.enums.push(crate::ir::Enum {
+			path: vec!["lock".into(), "Mode".into()],
+			shown: vec!["lock".into(), "Mode".into()],
+			home: Home {
+				krate: "lock_a".into(),
+				outside: 1,
+			},
+			args: vec![],
+			span: DUMMY_SP,
+			on: On::ALL,
+			docs: String::new(),
+			deprecated: None,
+			variants: vec![variant("Default"), variant("Debug")],
+			exhaustive: true,
+			methods: vec![],
+			traits: Traits::default(),
+			foreign: false,
+		});
+		base.functions[0].ok = Type::Enum(0);
+		let mut now = base.clone();
+		now.enums[0].traits.default = true;
+		now.enums[0].traits.debug = true;
+		assert!(
+			breaks(&base, &now, "lock").is_empty(),
+			"an added trait passes structurally"
+		);
+		let names = |api: &Api, language: &str| {
+			let abi = Abi::new(api, "lock");
+			match language {
+				"Swift" => crate::swift::generate(&abi, "lock", 0).unwrap().names,
+				_ => crate::dart::generate(&abi, "lock", 0).unwrap().names,
+			}
+		};
+		for (language, renamed) in [
+			("Swift", "`default` is now `default_`"),
+			("Dart", "`debug` is now `debug_`"),
+		] {
+			let changes = name_breaks(
+				&BTreeMap::from([(language.into(), names(&base, language))]),
+				&BTreeMap::from([(language.into(), names(&now, language))]),
+				&base,
+				&Abi::new(&now, "lock"),
+			);
+			assert!(
+				changes.iter().any(|c| c.what.contains(renamed)),
+				"{language}: {:?}",
+				changes.iter().map(|c| &c.what).collect::<Vec<_>>()
+			);
+		}
+	}
+
+	/// A method whose JVM name moves past `Object`'s `wait(long)` moves again once a method
+	/// added before it takes that name, which only the JVM name the lock records reports.
+	#[test]
+	fn a_jvm_rename_breaks() {
+		let method = |name: &str| Function {
+			path: vec!["lock".into(), "Store".into(), name.into()],
+			shown: vec!["lock".into(), "Store".into(), name.into()],
+			receiver: Some(crate::ir::Receiver::Ref),
+			params: vec![crate::ir::Param {
+				name: "ms".into(),
+				ty: Type::Int(Int::I64),
+				interned: false,
+			}],
+			..api().functions[0].clone()
+		};
+		let mut base = api();
+		base.objects.push(object("Store"));
+		base.objects[0].methods = vec![method("wait")];
+		let mut now = base.clone();
+		now.objects[0].methods.insert(0, method("wait_"));
+		assert!(
+			breaks(&base, &now, "lock").is_empty(),
+			"an added method passes structurally"
+		);
+		let names = |api: &Api| {
+			crate::kotlin::generate(&Abi::new(api, "lock"), "lock", 0)
+				.unwrap()
+				.names
+		};
+		let changes = name_breaks(
+			&BTreeMap::from([("Kotlin".into(), names(&base))]),
+			&BTreeMap::from([("Kotlin".into(), names(&now))]),
+			&base,
+			&Abi::new(&now, "lock"),
+		);
+		assert!(
+			changes
+				.iter()
+				.any(|c| c.what.contains("/ jvm: its Kotlin name `wait_` is now `wait__`")),
 			"{:?}",
 			changes.iter().map(|c| &c.what).collect::<Vec<_>>()
 		);
