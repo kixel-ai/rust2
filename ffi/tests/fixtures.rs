@@ -5635,10 +5635,17 @@ fn leaf_profile() {
 		python("dev", "debug", "", (&[], &[]), "debugged"),
 		"a dev build did not run the dev check's leaves again"
 	);
-	// The nightly the export ran, acting as a stable release, lists no unstable `cfg`,
-	// as a stable build of the glue does not either.
+	// The nightly the export ran lists `cfg`s a stable rustc keeps back, so the check also
+	// records them as the nightly lists them acting as a stable release.
+	let stable = stable_rustc();
 	assert!(
-		python("dev", "debug", "", (&[], &[("RUSTC_BOOTSTRAP", "-1")]), "debugged"),
+		python(
+			"dev-stable",
+			"debug",
+			"",
+			(&[], &[("RUSTC", stable.to_str().unwrap())]),
+			"debugged"
+		),
 		"a stable build did not run the dev check's leaves"
 	);
 	// Cargo defines `debug` itself, inheriting `dev`'s settings and directory.

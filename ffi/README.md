@@ -257,9 +257,9 @@ unproven. So does any `CARGO_PROFILE_<NAME>_OPT_LEVEL`, `_DEBUG`, `_DEBUG_ASSERT
 `_BUILD_OVERRIDE_DEBUG_ASSERTIONS` of the profile or one it inherits from, set apart from the
 check's environment, which would change another crate's build. The crate's `PROVEN` also needs the check's panic
 strategy, which a build script cannot see, and its debug assertions, which `RUSTFLAGS`
-may set apart from the profile. A package override or `build-override` in cargo's config
-or a `--config`, which no variable can set and a build script cannot see, is the one
-setting the guard misses: build with the export's. A build
+may set apart from the profile. A package override or `build-override` that cargo's
+config files or a `--config` set, which a build script cannot see, is the one setting the
+guard misses: build with the export's config. A build
 under another profile may run code the proof never saw, such as a body under
 `cfg(debug_assertions)`, so each binding makes every leaf as any other call instead:
 Python releases the GIL, Dart serves the isolate, and Kotlin calls a plain native method
