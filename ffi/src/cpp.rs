@@ -2248,7 +2248,13 @@ fn named(rust: &[String], taken: impl Fn(&str) -> bool) -> Vec<String> {
 	let rust: Vec<&str> = rust.iter().map(String::as_str).collect();
 	let spelled = rust.iter().map(|name| escape(name)).collect();
 	let own = |rust: &str, name: &str| name == rust;
-	abi::named(&rust, spelled, own, |_, name| taken(name) || abi::defined(name), stepped)
+	abi::named(
+		&rust,
+		spelled,
+		own,
+		|_, name| taken(name) || abi::defined(name),
+		stepped,
+	)
 }
 
 /// The C++ names of `fields`, a struct's with no other members: a data enum's payload's.
@@ -2595,7 +2601,11 @@ pub(crate) fn escape(name: &str) -> String {
 			let stem = name.strip_suffix('_').unwrap_or(name);
 			let place = name.len() - stem.len();
 			let free = |name: &String| !(abi::defined(name) || name == "i386");
-			(0..).map(|n| stepped(stem, n)).filter(free).nth(place).expect("a free name")
+			(0..)
+				.map(|n| stepped(stem, n))
+				.filter(free)
+				.nth(place)
+				.expect("a free name")
 		}
 	}
 }
@@ -2691,7 +2701,10 @@ mod tests {
 		assert_eq!(escape("ABDAY"), "ABDAY");
 		assert_eq!(escape("ABDAY_"), "ABDAY_");
 		// A step moves past each of `ABDAY_2` to `ABDAY_7`.
-		assert_eq!(named(&["ABDAY".into(), "ABDAY_".into()], |n| n == "ABDAY_"), ["ABDAY", "ABDAY_8"]);
+		assert_eq!(
+			named(&["ABDAY".into(), "ABDAY_".into()], |n| n == "ABDAY_"),
+			["ABDAY", "ABDAY_8"]
+		);
 		// C's escapes, which take more `_`s, since C reserves no `__` past a name's start.
 		assert_eq!(crate::abi::escape("_STRING_H"), "_STRING_H__");
 		assert_eq!(crate::abi::escape("_STRING_H_"), "_STRING_H___");
@@ -2761,7 +2774,10 @@ mod tests {
 			let escaped = [escape(stem), escape(&format!("{stem}_"))];
 			// A keyword's one escape merges it with its own `_`, which each scope keeps apart.
 			let keyword = |e: &str| e.strip_suffix('_').is_some_and(|k| escape(k) == e);
-			assert!(escaped[0] != escaped[1] || keyword(&escaped[0]), "{stem}'s names escape alike");
+			assert!(
+				escaped[0] != escaped[1] || keyword(&escaped[0]),
+				"{stem}'s names escape alike"
+			);
 			for e in &escaped {
 				assert!(!crate::abi::defined(e) && !super::reserved(e), "{stem} escapes to {e}");
 			}
