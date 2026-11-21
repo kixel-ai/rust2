@@ -681,8 +681,8 @@ public struct ClashBreak: Sendable, CustomDebugStringConvertible, Equatable {
 	@inlinable public init(_ _0: Swift.UInt8)
 	@inlinable public var debugDescription: Swift.String { get }
 	@inlinable public static func == (a: ClashBreak, b: ClashBreak) -> Swift.Bool
-	@inlinable public static var SP: ClashBreak { get }
 	@inlinable public static var SP_: ClashBreak { get }
+	@inlinable public static var SP: ClashBreak { get }
 }
 public struct ClashMalformed: Sendable, CustomStringConvertible, CustomDebugStringConvertible, Equatable {
 	public var at: Swift.UInt8
@@ -704,8 +704,18 @@ public struct ClashEscaped: Sendable, CustomDebugStringConvertible, Equatable {
 	@inlinable public init(new: Swift.UInt8)
 	@inlinable public var debugDescription: Swift.String { get }
 	@inlinable public static func == (a: ClashEscaped, b: ClashEscaped) -> Swift.Bool
-	@inlinable public func delete() -> Swift.UInt8
 	@inlinable public func delete(_ new: Swift.UInt8, _ new2: Swift.UInt8) -> Swift.UInt8
+	@inlinable public func delete() -> Swift.UInt8
+}
+public struct ClashUnderscored: Sendable, CustomDebugStringConvertible, Equatable {
+	public var new_: Swift.UInt8
+	public var new: Swift.UInt8
+	public var debug: Swift.UInt8
+	public var `default`: Swift.UInt8
+	@inlinable public init(new_: Swift.UInt8, new: Swift.UInt8, debug: Swift.UInt8, `default`: Swift.UInt8)
+	@inlinable public var debugDescription: Swift.String { get }
+	@inlinable public static func == (a: ClashUnderscored, b: ClashUnderscored) -> Swift.Bool
+	@inlinable public static func `default`() -> ClashUnderscored
 }
 public struct TlsPolicyLifetime: Sendable, CustomDebugStringConvertible, Equatable {
 	public var seconds: Swift.UInt32
@@ -872,6 +882,18 @@ public enum ClashTag: Sendable, CustomDebugStringConvertible, Equatable {
 	@inlinable public var debugDescription: Swift.String { get }
 	@inlinable public static func == (a: ClashTag, b: ClashTag) -> Swift.Bool
 	@inlinable public func number() -> Swift.UInt32
+}
+public enum ClashOp: Sendable, CustomDebugStringConvertible, Equatable {
+	case delete_
+	case delete
+	@inlinable public var debugDescription: Swift.String { get }
+	@inlinable public static func == (a: ClashOp, b: ClashOp) -> Swift.Bool
+}
+public enum ClashChange: Sendable, CustomDebugStringConvertible, Equatable {
+	case set(new_: Swift.UInt8, new: Swift.UInt8)
+	case clear
+	@inlinable public var debugDescription: Swift.String { get }
+	@inlinable public static func == (a: ClashChange, b: ClashChange) -> Swift.Bool
 }
 public enum Level: Sendable, CustomStringConvertible, Hashable, Comparable {
 	case error
@@ -1517,6 +1539,10 @@ public protocol ClashSource: Sendable {
 	func wait()
 	func readByte() -> Swift.UInt8
 }
+public protocol ClashEraser: Sendable {
+	func delete(_ new: Swift.UInt8, _ new2: Swift.UInt8) -> Swift.UInt8
+	func delete() -> Swift.UInt8
+}
 public struct BoundsU64Error: Swift.Error, CustomStringConvertible {
 	public let error: BoundsU64
 	@inlinable public init(error: BoundsU64)
@@ -1825,6 +1851,11 @@ public let URL: Swift.UInt64
 @inlinable public func clashIgnore(_ arg0: Swift.UInt8, _ arg1: Swift.UInt8, _ arg2: Swift.UInt8) -> Swift.UInt8
 @inlinable public func clashEmpty() -> ClashEmptyString
 @inlinable public func clashWaited(_ source: any ClashSource) -> Swift.UInt8
+@inlinable public func clashUnderscored(_ underscored: ClashUnderscored, _ op: ClashOp, _ change: ClashChange) -> Swift.UInt32
+@inlinable public func clashUnderscoredNext(_ underscored: ClashUnderscored, _ change: ClashChange) -> (ClashUnderscored, ClashChange)
+@inlinable public func clashErased(_ eraser: any ClashEraser) -> Swift.UInt32
+@inlinable public func clashErase_() -> Swift.UInt8
+@inlinable public func clashErase() -> Swift.UInt8
 @inlinable public func clashAudible(_ tone: ClashTone) throws -> ClashTone
 @inlinable public func clashNested(_ a: ((Swift.UInt8, Swift.UInt16), Swift.UInt32)?, _ b: (Swift.UInt8, Swift.UInt16, Swift.UInt32)?) -> Swift.UInt32
 @inlinable public func clashAudioEncoderFinish() -> Swift.UInt8

@@ -732,8 +732,8 @@ final class ClashBreak {
 	String debug();
 	@override bool operator ==(Object other);
 	@override int get hashCode;
-	static ClashBreak get sp;
 	static ClashBreak get sp_;
+	static ClashBreak get sp;
 }
 final class ClashMalformed implements Exception {
 	final int at;
@@ -758,8 +758,19 @@ final class ClashEscaped {
 	String debug();
 	@override bool operator ==(Object other);
 	@override int get hashCode;
-	int delete();
 	int delete_(int new_, int new_2);
+	int delete();
+}
+final class ClashUnderscored {
+	final int new_;
+	final int new2_;
+	final int debug_;
+	final int default_;
+	const ClashUnderscored({required this.new_, required this.new2_, required this.debug_, required this.default_});
+	String debug();
+	@override bool operator ==(Object other);
+	@override int get hashCode;
+	factory ClashUnderscored.default_();
 }
 final class TlsPolicyLifetime {
 	final int seconds;
@@ -1085,6 +1096,26 @@ final class ClashTagApplication extends ClashTag {
 final class ClashTagPrivate extends ClashTag {
 	final int number;
 	const ClashTagPrivate({required this.number});
+}
+enum ClashOp {
+	delete_(0),
+	delete(1),
+	const ClashOp(this._c);
+	String debug();
+}
+sealed class ClashChange {
+	const ClashChange();
+	String debug();
+	@override bool operator ==(Object other);
+	@override int get hashCode;
+}
+final class ClashChangeSet extends ClashChange {
+	final int new_;
+	final int new2_;
+	const ClashChangeSet({required this.new_, required this.new2_});
+}
+final class ClashChangeClear extends ClashChange {
+	const ClashChangeClear();
 }
 enum Level implements Comparable<Level> {
 	error(0),
@@ -1709,6 +1740,11 @@ abstract class ClashSource {
 	int readByte();
 	void close();
 }
+abstract class ClashEraser {
+	int delete_(int new_, int new_2);
+	int delete();
+	void close();
+}
 final class BoundsU64Exception implements Exception {
 	final BoundsU64 error;
 	const BoundsU64Exception(this.error);
@@ -2010,6 +2046,11 @@ ClashCandidate clashCandidate(int at);
 int clashIgnore(int arg0, int arg1, int arg2);
 ClashEmptyString clashEmpty();
 int clashWaited(ClashSource source);
+int clashUnderscored(ClashUnderscored underscored, ClashOp op, ClashChange change);
+(ClashUnderscored, ClashChange) clashUnderscoredNext(ClashUnderscored underscored, ClashChange change);
+int clashErased(ClashEraser eraser);
+int clashErase_();
+int clashErase();
 ClashTone clashAudible(ClashTone tone);
 int clashNested(((int, int), int)? a, ((int, int, int),)? b);
 int clashAudioEncoderFinish();
