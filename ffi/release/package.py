@@ -2424,6 +2424,9 @@ class Flutter:
             line = line.strip()
             if line.startswith("[{"):
                 for event in json.loads(line):
+                    # What flutter is doing, such as installing the app, so a stall says where.
+                    if event.get("event") in ("app.progress", "daemon.logMessage") and event["params"].get("message"):
+                        print(f"flutter: {event['params']['message']}", file=sys.stderr, flush=True)
                     self.events.put(event)
             elif line:
                 # A desktop app's own output, which flutter passes through as is.
