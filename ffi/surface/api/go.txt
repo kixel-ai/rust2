@@ -355,6 +355,13 @@ type BoxedU8 struct {
 func Keeps(log Log) BoxedU8
 func (self BoxedU8) Equal(other BoxedU8) bool
 func (self BoxedU8) GoString() string
+type Buffer struct {
+	Handle_ *p_rt.Handle_
+}
+func NewBuffer(len_ uint32) *Buffer
+func (self *Buffer) Blank() error
+func (self *Buffer) Close() error
+func (self *Buffer) Zeroed() (bool, error)
 type Builtin interface {
 	Equal(other Builtin) bool
 }
@@ -1094,7 +1101,6 @@ type Labeled struct {
 	Handle_ *p_rt.Handle_
 }
 func NewLabeled(label string) (*Labeled, error)
-func (self *Labeled) Blank() error
 func (self *Labeled) Close() error
 func (self *Labeled) Equal(other *Labeled) (bool, error)
 func (self *Labeled) GoString() string

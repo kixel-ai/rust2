@@ -794,6 +794,14 @@ class Wrapped internal constructor(raw: Long, lent: Boolean = false) : AutoClose
 		@kotlin.jvm.JvmStatic fun new(n: kotlin.ULong): api.Wrapped
 	}
 }
+class Buffer internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
+	override fun close()
+	fun blank()
+	fun zeroed(): kotlin.Boolean
+	companion object {
+		@kotlin.jvm.JvmStatic fun new(len: kotlin.UInt): api.Buffer
+	}
+}
 class LocalWaiter internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
 	companion object {
@@ -1180,7 +1188,6 @@ class Labeled internal constructor(raw: Long, lent: Boolean = false) : AutoClose
 	fun debug(): kotlin.String
 	override fun equals(other: kotlin.Any?): kotlin.Boolean
 	override fun hashCode(): kotlin.Int
-	fun blank()
 	companion object {
 		@kotlin.jvm.JvmStatic fun new(label: kotlin.String): api.Labeled
 	}

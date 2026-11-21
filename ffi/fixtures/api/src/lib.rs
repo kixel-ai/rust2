@@ -2837,19 +2837,36 @@ impl std::ops::Deref for Guarded {
 #[derive(Debug, PartialEq, Hash)]
 pub struct Labeled {
 	label: String,
-	bytes: Vec<u8>,
 }
 
 impl Labeled {
 	pub fn new(label: String) -> Self {
-		let bytes = label.clone().into_bytes();
-		Self { label, bytes }
+		Self { label }
+	}
+}
+
+/// Bytes as many as the caller asks for.
+pub struct Buffer {
+	bytes: Vec<u8>,
+}
+
+impl Buffer {
+	/// A buffer of `len` ones.
+	pub fn new(len: u32) -> Self {
+		Self {
+			bytes: vec![1; len as usize],
+		}
 	}
 
 	/// Zero its bytes: a fill as long as the caller makes it, with no loop in its MIR, so no
 	/// leaf call.
 	pub fn blank(&mut self) {
 		self.bytes.fill(0);
+	}
+
+	/// Whether every byte is zero.
+	pub fn zeroed(&self) -> bool {
+		self.bytes.iter().all(|&b| b == 0)
 	}
 }
 

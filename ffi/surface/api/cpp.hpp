@@ -205,6 +205,13 @@ namespace api {
 		RUST2_FFI_CALLABLE ::std::uint64_t steps() const;
 		RUST2_FFI_CALLABLE ::std::uint32_t locals() const;
 	};
+	class RUST2_FFI_CONSUMABLE Buffer {
+		RUST2_FFI_UNCONSUMED Buffer(Buffer &&other RUST2_FFI_MOVED_FROM) noexcept = default;
+		Buffer &operator=(Buffer &&other) noexcept = default;
+		static ::api::Buffer new_(::std::uint32_t len);
+		RUST2_FFI_CALLABLE void blank();
+		RUST2_FFI_CALLABLE bool zeroed() const;
+	};
 	class RUST2_FFI_CONSUMABLE LocalWaiter {
 		RUST2_FFI_UNCONSUMED LocalWaiter(LocalWaiter &&other RUST2_FFI_MOVED_FROM) noexcept = default;
 		LocalWaiter &operator=(LocalWaiter &&other) noexcept = default;
@@ -556,7 +563,6 @@ namespace api {
 		RUST2_FFI_CALLABLE ::std::uint64_t hash() const;
 		RUST2_FFI_CALLABLE ::api::buf debug() const;
 		static ::api::Labeled new_(::api::input label);
-		RUST2_FFI_CALLABLE void blank();
 	};
 	class RUST2_FFI_CONSUMABLE Gauge {
 		RUST2_FFI_UNCONSUMED Gauge(Gauge &&other RUST2_FFI_MOVED_FROM) noexcept = default;
@@ -2304,6 +2310,7 @@ namespace api {
 	class Journal;
 	class Local;
 	class Wrapped;
+	class Buffer;
 	class LocalWaiter;
 	class Retry;
 	class Digest;

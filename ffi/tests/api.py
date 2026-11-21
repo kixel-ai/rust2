@@ -1375,8 +1375,9 @@ def leaf():
 	labeled = api.Labeled.new("a" * 100)
 	check(labeled == api.Labeled.new("a" * 100) and labeled != api.Labeled.new("b"), "a leaf equality over a string")
 	check(hash(labeled) == hash(api.Labeled.new("a" * 100)), "a leaf hash over a string")
-	labeled.blank()
-	check(labeled != api.Labeled.new("a" * 100), "a fill the caller sized")
+	buffer = api.Buffer.new(100)
+	buffer.blank()
+	check(buffer.zeroed(), "a fill the caller sized")
 
 	hooked = []
 	api.hook(lambda: hooked.append(threading.get_ident()))

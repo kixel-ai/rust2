@@ -108,6 +108,14 @@ export type BoxedU8 = {
 export declare function debug(self: BoxedU8): string;
 export declare function eq(a: BoxedU8, b: BoxedU8): boolean;
 
+// Buffer.ts
+import * as rt from "./rt.ts";
+export type Buffer = rt.Handle<"Buffer">;
+export declare function new$(len: number): Buffer;
+export declare function blank(self: Buffer): void;
+export declare function zeroed(self: Buffer): boolean;
+export { new$ as new };
+
 // Builtin.ts
 import * as rt from "./rt.ts";
 export type Builtin = {
@@ -720,7 +728,6 @@ export declare function debug(self: Labeled): string;
 export declare function eq(a: Labeled, b: Labeled): boolean;
 export declare function hash(self: Labeled): rt.u64;
 export declare function new$(label: string): Labeled;
-export declare function blank(self: Labeled): void;
 export { new$ as new };
 
 // Labelled.ts
@@ -1917,6 +1924,7 @@ export declare const k_Batch: rt.Kind;
 export declare const k_Batch_2: rt.Kind;
 export declare const k_Berth: rt.Kind;
 export declare const k_Board: rt.Kind;
+export declare const k_Buffer: rt.Kind;
 export declare const k_Channel: rt.Kind;
 export declare const k_Codecs: rt.Kind;
 export declare const k_Countdown: rt.Kind;

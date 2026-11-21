@@ -1039,6 +1039,11 @@ public struct Wrapped: ~Copyable, @unchecked Sendable {
 	@inlinable public func steps() throws -> Swift.UInt64
 	@inlinable public func locals() throws -> Swift.UInt32
 }
+public struct Buffer: ~Copyable, @unchecked Sendable {
+	@inlinable public static func new(_ len: Swift.UInt32) -> Buffer
+	@inlinable public mutating func blank() throws
+	@inlinable public func zeroed() throws -> Swift.Bool
+}
 public struct LocalWaiter: ~Copyable {
 	@inlinable public static func new(_ waker: @escaping @Sendable () -> Void) -> LocalWaiter
 	@inlinable nonisolated(nonsending) public static func pollReady(_ n: Swift.UInt32) async throws -> Swift.UInt32
@@ -1324,11 +1329,13 @@ public struct Plain: ~Copyable, @unchecked Sendable {
 }
 public struct Labeled: ~Copyable, @unchecked Sendable {
 	@inlinable public var debugDescription: Swift.String { get }
-	@inlinable public static func == (a: borrowing Labeled, b: borrowing Labeled) throws -> Swift.Bool
-	@inlinable public func hash(into hasher: inout Swift.Hasher) throws
+	@inlinable public static func == (a: borrowing Labeled, b: borrowing Labeled) -> Swift.Bool
+	@inlinable public func hash(into hasher: inout Swift.Hasher)
 	@inlinable public static func new(_ label: Swift.String) -> Labeled
-	@inlinable public mutating func blank() throws
 }
+#if compiler(>=6.4)
+extension Labeled: Hashable {}
+#endif
 public struct Gauge: ~Copyable, @unchecked Sendable {
 	@inlinable public func clone() throws -> Gauge
 	@inlinable public static func new(_ level: Swift.UInt64) -> Gauge

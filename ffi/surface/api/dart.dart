@@ -1223,6 +1223,11 @@ final class Wrapped extends _Object {
 	U64 steps();
 	int locals();
 }
+final class Buffer extends _Object {
+	factory Buffer(int len);
+	void blank();
+	bool zeroed();
+}
 final class LocalWaiter extends _Object {
 	factory LocalWaiter(void Function() waker);
 	static Cancelable<int> pollReady(int n);
@@ -1510,7 +1515,6 @@ final class Labeled extends _Object {
 	@override bool operator ==(Object other);
 	@override int get hashCode;
 	factory Labeled(String label);
-	void blank();
 }
 final class Gauge extends _Object {
 	Gauge clone();
