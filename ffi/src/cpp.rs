@@ -87,7 +87,9 @@ pub(crate) fn headers(abi: &Abi<'_>, packages: &str) -> Result<Output, String> {
 		.chain(abi.api.constants.iter().map(|constant| abi.name(&constant.path)))
 		.collect();
 	let rust: Vec<String> = c.iter().map(|c| c[p.len() + 1..].to_string()).collect();
-	let runtime: BTreeSet<&str> = runtime_names().collect();
+	let runtime: BTreeSet<String> = (runtime_names().map(str::to_string))
+		.chain(fixed_aliases(abi).into_iter().map(|(alias, _)| alias))
+		.collect();
 	h.names = c.into_iter().zip(named(&rust, |n| runtime.contains(n))).collect();
 	// A C++ class is named by its C name alone.
 	let api = abi.api;
@@ -694,19 +696,7 @@ impl<'a> Header<'a> {
 			"\nnamespace detail {{\n\n// Checked at load, before any other call: a header and a library from different builds\n// must not mix.\ninline const bool contract = ::{p}_contract() == {upper}_CONTRACT ||\n\t(fail(\"{p}/rt.hpp and the library are from different builds\"), false);\n\n}} // namespace detail\n",
 			upper = p.to_uppercase()
 		));
-		let mut aliases = vec![
-			("u128".to_string(), format!("{p}_u128")),
-			("duration".to_string(), format!("{p}_duration")),
-		];
-		for socket in [true, false] {
-			for family in [Family::Any, Family::V4, Family::V6] {
-				let name = crate::abi::addr(socket, family);
-				aliases.push((name.to_string(), format!("{p}_{name}")));
-			}
-		}
-		if abi.ranges.values().any(|ty| matches!(ty, Type::Bound(_))) {
-			aliases.push(("bound".to_string(), abi.rt("bound")));
-		}
+		let mut aliases = fixed_aliases(abi);
 		aliases.extend(abi.ranges.keys().map(|name| (self.name(name), name.clone())));
 		for (alias, c) in aliases {
 			let alias = self.global(&alias);
@@ -2210,6 +2200,26 @@ impl<'a> Header<'a> {
 	}
 }
 
+/// The aliases `rt.hpp` declares in the namespace for the runtime's C types, whatever the
+/// API, each with its C name.
+fn fixed_aliases(abi: &Abi<'_>) -> Vec<(String, String)> {
+	let p = &abi.prefix;
+	let mut aliases = vec![
+		("u128".to_string(), format!("{p}_u128")),
+		("duration".to_string(), format!("{p}_duration")),
+	];
+	for socket in [true, false] {
+		for family in [Family::Any, Family::V4, Family::V6] {
+			let name = crate::abi::addr(socket, family);
+			aliases.push((name.to_string(), format!("{p}_{name}")));
+		}
+	}
+	if abi.ranges.values().any(|ty| matches!(ty, Type::Bound(_))) {
+		aliases.push(("bound".to_string(), abi.rt("bound")));
+	}
+	aliases
+}
+
 /// The names the runtime declares in the namespace, outside its `detail`, and `detail`.
 fn runtime_names() -> impl Iterator<Item = &'static str> {
 	let mut detail = false;
@@ -2829,7 +2839,9 @@ mod tests {
 			enums: vec![],
 			objects: vec![],
 			callbacks: vec![],
-			functions: ["__all__", "all_", "all", "delete", "delete_"].map(function).to_vec(),
+			functions: ["__all__", "all_", "all", "delete", "delete_", "__u128", "__duration"]
+				.map(function)
+				.to_vec(),
 			constants: ["__LIMIT", "LIMIT"]
 				.map(|name| crate::ir::Constant {
 					path: vec!["ns".into(), name.into()],
@@ -2861,6 +2873,9 @@ mod tests {
 			("all", "ns_all"),
 			("delete_2", "ns_delete"),
 			("delete_", "ns_delete_"),
+			// Past `rt.hpp`'s aliases.
+			("u128_", "ns___u128"),
+			("duration_", "ns___duration"),
 		] {
 			let defined = format!("inline void {cpp}() {{\n\t::{c}();");
 			assert!(text.contains(&defined), "{c} is not {cpp}:\n{text}");
