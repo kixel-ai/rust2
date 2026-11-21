@@ -3083,6 +3083,7 @@ impl<'tcx> Collector<'tcx> {
 							set,
 							through: !assigned,
 							read: how,
+							unfrozen: self.unfrozen(site, ty),
 						},
 						instance: None,
 						home: Home::default(),
@@ -3135,6 +3136,15 @@ impl<'tcx> Collector<'tcx> {
 		let tcx = self.tcx;
 		let ty = tcx.erase_and_anonymize_regions(ty);
 		how == Read::Take && !ty.is_freeze(tcx, TypingEnv::fully_monomorphized())
+	}
+
+	/// Whether the field of type `ty` of the struct `site` is a `repr(packed)` one holding an
+	/// `UnsafeCell` inline: another target of the same field may read it unaligned, which
+	/// would race there.
+	fn unfrozen(&self, site: &Site<'tcx>, ty: Ty<'tcx>) -> bool {
+		let tcx = self.tcx;
+		let ty = tcx.erase_and_anonymize_regions(ty);
+		tcx.adt_def(site.key.def_id).repr().pack.is_some() && !ty.is_freeze(tcx, TypingEnv::fully_monomorphized())
 	}
 
 	/// A value's methods, refusing each through `&mut self`: C passes the value as a copy,

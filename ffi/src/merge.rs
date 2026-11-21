@@ -228,8 +228,9 @@ pub(crate) fn bare_function(f: &Function) -> Function {
 		// Merged apart, as a trait's leaves are.
 		f.leaf = false;
 		// Merged to the greatest, as a target's layout may decide it.
-		if let Access::Field { read, .. } = &mut f.access {
+		if let Access::Field { read, unfrozen, .. } = &mut f.access {
 			*read = Read::Borrow;
+			*unfrozen = false;
 		}
 	})
 }
@@ -606,11 +607,38 @@ impl Merged {
 			}
 			// One getter serves a field on every target, though `repr(packed)` may make one
 			// target's layout need another read than the next's: it reads by the mode that
-			// accepts both, whose value is the same.
-			if let (Access::Field { read: ours, .. }, Access::Field { read: theirs, .. }) =
-				(&mut ours[at].access, &function.access)
-			{
-				*ours = (*ours).max(*theirs);
+			// accepts both, whose value is the same, unless that is an unaligned read of what
+			// a target holds an `UnsafeCell` in, which would race there.
+			let races = match (&mut ours[at].access, &function.access) {
+				(
+					Access::Field {
+						read: ours,
+						unfrozen: ours_unfrozen,
+						..
+					},
+					Access::Field {
+						read: theirs,
+						unfrozen: theirs_unfrozen,
+						..
+					},
+				) => {
+					let read = (*ours).max(*theirs);
+					let races = read == Read::Take
+						&& ((*ours != read && *ours_unfrozen) || (*theirs != read && *theirs_unfrozen));
+					if !races {
+						*ours = read;
+						*ours_unfrozen |= *theirs_unfrozen;
+					}
+					races
+				}
+				_ => false,
+			};
+			if races {
+				let what = format!(
+					"fn `{}`, which one target reads out unaligned and another holds an atomic or `Cell` in",
+					function.shown.join("::")
+				);
+				self.differ(what, (ours[at].on, ours[at].span), (function.on, function.span));
 			}
 			ours[at].on.0 |= function.on.0;
 			ours[at].leaf &= function.leaf;
@@ -990,7 +1018,7 @@ mod tests {
 	/// merge keeps one getter for it, reading the way both accept, and no difference.
 	#[test]
 	fn merges_a_fields_getter_across_read_modes() {
-		let getter = |read: Read| Function {
+		let getter = |read: Read, unfrozen: bool| Function {
 			path: ["f", "Regs", "n"].map(String::from).to_vec(),
 			shown: ["f", "Regs", "n"].map(String::from).to_vec(),
 			span: DUMMY_SP,
@@ -1017,11 +1045,12 @@ mod tests {
 				set: false,
 				through: false,
 				read,
+				unfrozen,
 			},
 			instance: None,
 			home: Home::default(),
 		};
-		let api = |target: &str, read: Read| {
+		let api = |target: &str, read: Read, unfrozen: bool| {
 			let path = ["f", "Regs"].map(String::from).to_vec();
 			let record = crate::ir::Record {
 				path: path.clone(),
@@ -1034,7 +1063,7 @@ mod tests {
 				deprecated: None,
 				fields: Vec::new(),
 				tuple: false,
-				methods: vec![getter(read)],
+				methods: vec![getter(read, unfrozen)],
 				traits: Traits::default(),
 				opaque: None,
 				sizes: BTreeMap::new(),
@@ -1053,12 +1082,28 @@ mod tests {
 			}
 		};
 		for (first, second) in [(Read::Borrow, Read::Copy), (Read::Copy, Read::Borrow)] {
-			let (merged, differs) = super::merge(vec![api("x", first), api("y", second)]);
+			let (merged, differs) = super::merge(vec![api("x", first, false), api("y", second, false)]);
 			assert!(differs.is_empty());
 			let methods = &merged.records[0].methods;
 			assert_eq!(methods.len(), 1, "one getter for the field");
 			assert_eq!(methods[0].on.0, 3);
 			assert!(matches!(methods[0].access, Access::Field { read: Read::Copy, .. }));
+		}
+		// An unaligned read of what one target holds an atomic in would race there.
+		let (merged, differs) = super::merge(vec![api("x", Read::Borrow, false), api("y", Read::Take, false)]);
+		assert!(differs.is_empty());
+		assert!(matches!(
+			merged.records[0].methods[0].access,
+			Access::Field { read: Read::Take, .. }
+		));
+		for (first, second) in [
+			(api("x", Read::Borrow, true), api("y", Read::Take, false)),
+			(api("x", Read::Take, false), api("y", Read::Borrow, true)),
+		] {
+			let (merged, differs) = super::merge(vec![first, second]);
+			assert_eq!(differs.len(), 1);
+			assert_eq!((differs[0].first.0.as_str(), differs[0].second.0.as_str()), ("x", "y"));
+			assert_eq!(merged.records[0].methods.len(), 1);
 		}
 	}
 }

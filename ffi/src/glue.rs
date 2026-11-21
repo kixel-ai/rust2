@@ -3030,6 +3030,7 @@ impl Gen<'_> {
 				set: false,
 				through,
 				read,
+				..
 			} => {
 				let deref = if through { "*" } else { "" };
 				let field = format!("({}).{}", args[0], ident(function.name()));

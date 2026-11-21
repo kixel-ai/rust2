@@ -585,6 +585,11 @@ pub(crate) enum Access {
 		through: bool,
 		#[serde(default, skip_serializing_if = "Read::is_borrow")]
 		read: Read,
+		/// Whether the field of a `repr(packed)` struct holds an `UnsafeCell` inline, so that
+		/// reading it unaligned, as `Take` does, would race: no target where it does may merge
+		/// with one reading it that way.
+		#[serde(default, skip_serializing_if = "std::ops::Not::not")]
+		unfrozen: bool,
 	},
 	/// It reads a constant that is not a `bool` or integer.
 	Const,
@@ -599,9 +604,10 @@ pub(crate) enum Access {
 /// one's field may lie unaligned, which rustc refuses a reference to.
 ///
 /// A getter's value is the same through any mode that compiles, and the order is how far one
-/// reaches: `Take` reads any field on any layout, `Copy` any `Copy` one, and a field's two
-/// targets mean the same type, so the merge of their getters reads it the greater of theirs,
-/// which each target accepts.
+/// reaches: `Take` reads any field on any layout, `Copy` any `Copy` one. The merge of two
+/// targets' getters of a field reads it the greater of theirs, unless that reads out unaligned
+/// what the other target holds an `UnsafeCell` in (`Access::Field`'s `unfrozen`), which is a
+/// difference between the targets.
 #[derive(Clone, Copy, Default, PartialEq, Eq, PartialOrd, Ord, serde::Serialize, serde::Deserialize)]
 pub(crate) enum Read {
 	/// It borrows the field.
