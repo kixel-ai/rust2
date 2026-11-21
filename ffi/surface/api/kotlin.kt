@@ -249,6 +249,23 @@ class Hits internal constructor() {
 		@kotlin.jvm.JvmStatic fun of(hits: kotlin.ULong, misses: kotlin.ULong): api.Hits
 	}
 }
+class Regs internal constructor() {
+	fun debug(): kotlin.String
+	override fun equals(other: kotlin.Any?): kotlin.Boolean
+	override fun hashCode(): kotlin.Int
+	val fcwGet: kotlin.UShort
+	fun fcwSet(value: kotlin.UShort): api.Regs
+	val wideGet: kotlin.ULong
+	fun wideSet(value: kotlin.ULong): api.Regs
+	val atGet: api.Point
+	fun atSet(value: api.Point): api.Regs
+	val tagGet: kotlin.UByte
+	fun tagSet(value: kotlin.UByte): api.Regs
+	fun seed(): kotlin.UByte
+	companion object {
+		@kotlin.jvm.JvmStatic fun new(fcw: kotlin.UShort, wide: kotlin.ULong, at: api.Point): api.Regs
+	}
+}
 class Extent internal constructor() {
 	fun debug(): kotlin.String
 	override fun equals(other: kotlin.Any?): kotlin.Boolean
@@ -773,6 +790,22 @@ class Retired internal constructor(raw: Long, lent: Boolean = false) : AutoClose
 		@kotlin.jvm.JvmStatic fun new(from: kotlin.UInt): api.Retired
 	}
 }
+class Folio internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
+	override fun close()
+	val pageGet: kotlin.UShort
+	fun pageSet(value: kotlin.UShort)
+	val titleGet: kotlin.String
+	fun titleSet(value: kotlin.String)
+	val noteGet: kotlin.String?
+	fun noteSet(value: kotlin.String?)
+	val haspGet: api.Hasp
+	fun haspSet(value: api.Hasp)
+	val dockGet: api.Hasp
+	fun seed(): kotlin.UByte
+	companion object {
+		@kotlin.jvm.JvmStatic fun new(page: kotlin.UShort, title: kotlin.String): api.Folio
+	}
+}
 class Logger internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
 	fun write(line: kotlin.String): kotlin.Boolean
@@ -1151,6 +1184,13 @@ class Mark internal constructor(raw: Long, lent: Boolean = false) : AutoCloseabl
 	fun add(by: kotlin.ULong)
 	companion object {
 		@kotlin.jvm.JvmStatic fun of(count: kotlin.ULong): api.Mark
+	}
+}
+class Hasp internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
+	override fun close()
+	fun set(): kotlin.Boolean
+	companion object {
+		@kotlin.jvm.JvmStatic fun default(): api.Hasp
 	}
 }
 class Message internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {

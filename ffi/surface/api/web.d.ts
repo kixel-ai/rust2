@@ -631,6 +631,23 @@ export type FiledReceipt = rt.Handle<"FiledReceipt">;
 export declare function clone(self: FiledReceipt): FiledReceipt;
 export declare function count(self: FiledReceipt): number;
 
+// Folio.ts
+import * as rt from "./rt.ts";
+import type { Hasp } from "./Hasp.ts";
+export type Folio = rt.Handle<"Folio">;
+export declare function pageGet(self: Folio): number;
+export declare function pageSet(self: Folio, value: number): void;
+export declare function titleGet(self: Folio): string;
+export declare function titleSet(self: Folio, value: string): void;
+export declare function noteGet(self: Folio): string | undefined;
+export declare function noteSet(self: Folio, value: string | undefined): void;
+export declare function haspGet(self: Folio): Hasp;
+export declare function haspSet(self: Folio, value: Hasp): void;
+export declare function dockGet(self: Folio): Hasp;
+export declare function new$(page: number, title: string): Folio;
+export declare function seed(self: Folio): number;
+export { new$ as new };
+
 // Gap.ts
 import * as rt from "./rt.ts";
 export type Gap = rt.Handle<"Gap">;
@@ -665,6 +682,13 @@ export { new$ as new };
 export type Hasher = {
     seed: number;
 };
+
+// Hasp.ts
+import * as rt from "./rt.ts";
+export type Hasp = rt.Handle<"Hasp">;
+export declare function default$(): Hasp;
+export declare function set(self: Hasp): boolean;
+export { default$ as default };
 
 // Hits.ts
 import * as rt from "./rt.ts";
@@ -1367,6 +1391,24 @@ export declare function push(self: Registry, counter: Counter): void;
 export declare function edit(self: Registry, edit: (a0: Counter) => boolean): boolean;
 export { default$ as default, new$ as new };
 
+// Regs.ts
+import * as rt from "./rt.ts";
+import type { Point } from "./Point.ts";
+export type Regs = rt.Opaque<"Regs">;
+export declare function debug(self: Regs): string;
+export declare function eq(a: Regs, b: Regs): boolean;
+export declare function fcwGet(self: Regs): number;
+export declare function fcwSet(self: Regs, value: number): Regs;
+export declare function wideGet(self: Regs): rt.u64;
+export declare function wideSet(self: Regs, value: rt.u64): Regs;
+export declare function atGet(self: Regs): Point;
+export declare function atSet(self: Regs, value: Point): Regs;
+export declare function tagGet(self: Regs): number;
+export declare function tagSet(self: Regs, value: number): Regs;
+export declare function new$(fcw: number, wide: rt.u64, at: Point): Regs;
+export declare function seed(self: Regs): number;
+export { new$ as new };
+
 // Resolving.ts
 import * as rt from "./rt.ts";
 import type { TlsResolver } from "./TlsResolver.ts";
@@ -1929,6 +1971,7 @@ import type { Rank } from "./Rank.ts";
 import type { Rated } from "./Rated.ts";
 import type { Reading } from "./Reading.ts";
 import type { Refusal } from "./Refusal.ts";
+import type { Regs } from "./Regs.ts";
 import type { RightLeftU8 } from "./RightLeftU8.ts";
 import type { RightU8 } from "./RightU8.ts";
 import type { Score } from "./Score.ts";
@@ -2006,9 +2049,11 @@ export declare const k_Draft: rt.Kind;
 export declare const k_Fault: rt.Kind;
 export declare const k_Feed: rt.Kind;
 export declare const k_Filed_Receipt: rt.Kind;
+export declare const k_Folio: rt.Kind;
 export declare const k_Gap: rt.Kind;
 export declare const k_Gauge: rt.Kind;
 export declare const k_Handle: rt.Kind;
+export declare const k_Hasp: rt.Kind;
 export declare const k_Holder: rt.Kind;
 export declare const k_Instant: rt.Kind;
 export declare const k_Journal: rt.Kind;
@@ -2143,6 +2188,7 @@ export declare function r_Platform(p: number, o: boolean): Platform;
 export declare function r_Point(p: number, o: boolean): Point;
 export declare function r_Rated(p: number, o: boolean): Rated;
 export declare function r_Reading(p: number, o: boolean): Reading;
+export declare function r_Regs(p: number, o: boolean): Regs;
 export declare function r_Score(p: number, o: boolean): Score;
 export declare function r_Seat(p: number, o: boolean): Seat;
 export declare function r_Size(p: number, o: boolean): Size;
@@ -2347,6 +2393,7 @@ export declare function w_Qualifiers(p: number, v: Qualifiers): void;
 export declare function w_Rank(p: number, v: Rank): void;
 export declare function w_Rated(p: number, v: Rated): void;
 export declare function w_Reading(p: number, v: Reading): void;
+export declare function w_Regs(p: number, v: Regs): void;
 export declare function w_Right_Left_u8(p: number, v: RightLeftU8): void;
 export declare function w_Right_u8(p: number, v: RightU8): void;
 export declare function w_Score(p: number, v: Score): void;

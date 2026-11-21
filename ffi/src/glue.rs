@@ -16,7 +16,7 @@ use rustc_data_structures::stable_hash::StableHasher;
 use crate::abi::{self, Abi, CFG, Ty};
 use crate::config::Package;
 use crate::ir::{
-	Access, Closure, Collection, Family, Function, Held, Jni, Literal, Mutability, On, Opaque, Receiver, Task,
+	Access, Closure, Collection, Family, Function, Held, Jni, Literal, Mutability, On, Opaque, Read, Receiver, Task,
 	TaskKind, Traits, Type,
 };
 
@@ -3158,12 +3158,24 @@ impl Gen<'_> {
 				)
 			}
 			Access::Call => format!("{callee}({})", args.join(", ")),
-			Access::Field { set: false, through } => format!(
-				"&{}({}).{}",
-				if through { "*" } else { "" },
-				args[0],
-				ident(function.name())
-			),
+			Access::Field {
+				set: false,
+				through,
+				read,
+				..
+			} => {
+				let deref = if through { "*" } else { "" };
+				let field = format!("({}).{}", args[0], ident(function.name()));
+				// An unaligned field of a packed struct is no reference's target: it is
+				// copied out, or read into a `ManuallyDrop` that the struct still owns.
+				match read {
+					Read::Borrow => format!("&{deref}{field}"),
+					Read::Copy => format!("&{deref}{{ {field} }}"),
+					Read::Take => format!(
+						"&{deref}*::std::mem::ManuallyDrop::new(unsafe {{ ::std::ptr::addr_of!({field}).read_unaligned() }})"
+					),
+				}
+			}
 			Access::Field { set: true, .. } => format!("({}).{} = {}", args[0], ident(function.name()), args[1]),
 			Access::Const => callee,
 			Access::Parse => format!(

@@ -370,6 +370,21 @@ final class Hits {
 	Hits add(Hits other);
 	(Hits, bool) eq(Hits other);
 }
+final class Regs {
+	String debug();
+	@override bool operator ==(Object other);
+	@override int get hashCode;
+	int get fcwGet;
+	Regs fcwSet(int value);
+	U64 get wideGet;
+	Regs wideSet(U64 value);
+	Point get atGet;
+	Regs atSet(Point value);
+	int get tagGet;
+	Regs tagSet(int value);
+	factory Regs(int fcw, U64 wide, Point at);
+	int seed();
+}
 final class Extent {
 	String debug();
 	@override bool operator ==(Object other);
@@ -1229,6 +1244,19 @@ final class Retired extends _Object {
 	@Deprecated('count with `Countdown`') Cancelable<int?> next();
 	@Deprecated('count with `Countdown`') dasync.Stream<int> asStream();
 }
+final class Folio extends _Object {
+	int get pageGet;
+	void pageSet(int value);
+	String get titleGet;
+	void titleSet(String value);
+	String? get noteGet;
+	void noteSet(String? value);
+	Hasp get haspGet;
+	void haspSet(Hasp value);
+	Hasp get dockGet;
+	factory Folio(int page, String title);
+	int seed();
+}
 final class Logger extends _Object {
 	factory Logger(Log sink);
 	bool write(String line);
@@ -1506,6 +1534,10 @@ final class Mark extends _Object {
 	factory Mark.of(U64 count);
 	U64 count();
 	void add(U64 by);
+}
+final class Hasp extends _Object {
+	factory Hasp.default_();
+	bool set();
 }
 final class Message extends _Object {
 	String debug();
