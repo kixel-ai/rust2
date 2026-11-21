@@ -37,9 +37,10 @@ const KEY: usize = 8;
 /// a load after another thread's never races the store or exchange that follows it, and
 /// that exchange never runs after the other thread's load and before its next access: a
 /// close never lands between a call's `load`, `compare_exchange`, and `fetch_sub` on the
-/// count. Each access here first takes a relaxed read-modify-write on one `gate` all the
-/// atomics share, which DPOR sees conflict with every other thread's, so it tries each
-/// order of the accesses within the preemption bound.
+/// count ([tokio-rs/loom#392](https://github.com/tokio-rs/loom/issues/392)). Each access
+/// here first takes a relaxed read-modify-write on one `gate` all the atomics share, which
+/// DPOR sees conflict with every other thread's, so it tries each order of the accesses
+/// within the preemption bound.
 struct Atom {
 	value: AtomicUsize,
 	gate: Arc<AtomicUsize>,
