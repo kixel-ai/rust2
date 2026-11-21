@@ -1954,7 +1954,9 @@ fn kotlin(built: &Built, calls: &[Call]) -> String {
 	let thrown: std::collections::HashMap<&str, &str> = (source.lines())
 		.filter_map(|line| {
 			let rest = line.strip_prefix("class ")?;
-			let (class, rest) = rest.split_once("(val error: ")?;
+			let (class, rest) = rest.split_once('(')?;
+			// An unsigned or opaque `error` pins its getter's JVM name ahead of the `val`.
+			let rest = rest.split_once("val error: ")?.1;
 			Some((rest.strip_suffix(") : Exception() {")?, class))
 		})
 		.collect();
