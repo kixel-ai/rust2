@@ -57,27 +57,37 @@ fn record_cfgs(args: &[String]) -> Result<(), String> {
 	let Some(path) = std::env::var_os(config::env::CFGS) else {
 		return Ok(());
 	};
-	let query = args.windows(2).any(|w| w[0] == "--crate-name" && w[1] == "___")
-		&& args.iter().any(|arg| arg == "--target" || arg.starts_with("--target="))
-		&& args.iter().any(|arg| arg == "--print=cfg");
+	// Cargo passes the args in an argfile once they overflow a command line, as many
+	// `RUSTFLAGS` may.
+	let early = rustc_session::EarlyDiagCtxt::new(rustc_session::config::ErrorOutputType::default());
+	let expanded = rustc_driver::args::arg_expand_all(&early, &args[2..]);
+	let query = expanded.windows(2).any(|w| w[0] == "--crate-name" && w[1] == "___")
+		&& expanded.iter().any(|arg| arg == "--target" || arg.starts_with("--target="))
+		&& expanded.iter().any(|arg| arg == "--print=cfg");
 	if !query {
 		return Ok(());
 	}
-	// Its args without what it prints, and the crate types `--print=file-names` reads.
+	// Its args without what it prints, and the crate types `--print=file-names` reads, in
+	// an argfile of its own.
 	let mut asked = Vec::new();
-	let mut rest = args[2..].iter();
+	let mut rest = expanded.iter();
 	while let Some(arg) = rest.next() {
 		match arg.as_str() {
 			"--print" | "--crate-type" => {
 				rest.next();
 			}
 			_ if arg.starts_with("--print=") || arg.starts_with("--crate-type=") => {}
-			_ => asked.push(arg),
+			_ => asked.push(arg.as_str()),
 		}
 	}
+	let argfile = Path::new(&path).with_extension("args");
+	asked.push("--print=cfg");
+	std::fs::write(&argfile, asked.join("\n")).map_err(|err| format!("writing {}: {err}", argfile.display()))?;
+	let mut at = std::ffi::OsString::from("@");
+	at.push(&argfile);
 	let print = |stable: bool| {
 		let mut rustc = Command::new(&args[1]);
-		rustc.args(&asked).arg("--print=cfg").stdin(std::process::Stdio::null());
+		rustc.arg(&at).stdin(std::process::Stdio::null());
 		if stable {
 			rustc.env("RUSTC_BOOTSTRAP", "-1");
 		}
