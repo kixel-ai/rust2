@@ -733,6 +733,24 @@ namespace api {
 		RUST2_FFI_CALLABLE ::api::result<void, ::api::clash_Malformed> unread_byte();
 		RUST2_FFI_CALLABLE void wait(::std::uint64_t ms) const;
 	};
+	class RUST2_FFI_CONSUMABLE clash_Notch_ {
+		RUST2_FFI_UNCONSUMED clash_Notch_(clash_Notch_ &&other RUST2_FFI_MOVED_FROM) noexcept = default;
+		clash_Notch_ &operator=(clash_Notch_ &&other) noexcept = default;
+		RUST2_FFI_UNCONSUMED clash_Notch_(const clash_Notch_ &other) = default;
+		clash_Notch_ &operator=(const clash_Notch_ &other) = default;
+		friend bool operator==(const clash_Notch_ &a_2, const clash_Notch_ &b_);
+		friend bool operator!=(const clash_Notch_ &a_2, const clash_Notch_ &b_);
+		friend bool operator<(const clash_Notch_ &a_2, const clash_Notch_ &b_);
+		friend bool operator<=(const clash_Notch_ &a_2, const clash_Notch_ &b_);
+		friend bool operator>(const clash_Notch_ &a_2, const clash_Notch_ &b_);
+		friend bool operator>=(const clash_Notch_ &a_2, const clash_Notch_ &b_);
+		RUST2_FFI_CALLABLE ::std::uint64_t hash() const;
+		RUST2_FFI_CALLABLE ::api::buf to_string() const;
+		RUST2_FFI_CALLABLE ::api::buf debug() const;
+		static clash_Notch_ default_();
+		static ::api::clash_Notch_ new_(::std::uint32_t count);
+		RUST2_FFI_CALLABLE ::std::uint32_t count() const;
+	};
 	class RUST2_FFI_CONSUMABLE Spawned {
 		RUST2_FFI_UNCONSUMED Spawned(Spawned &&other RUST2_FFI_MOVED_FROM) noexcept = default;
 		Spawned &operator=(Spawned &&other) noexcept = default;
@@ -830,6 +848,10 @@ namespace api {
 		virtual ~clash_Eraser() = default;
 		virtual ::std::uint8_t delete_(::std::uint8_t new_, ::std::uint8_t new_2) const = 0;
 		virtual ::std::uint8_t delete_2() const = 0;
+	};
+	class clash_Count_ {
+		virtual ~clash_Count_() = default;
+		virtual ::std::uint32_t next() const = 0;
 	};
 	struct Parcel {
 		::api::Mark mark;
@@ -1545,11 +1567,19 @@ namespace api {
 	};
 	struct clash_Change_Clear {
 	};
+	struct clash_Shift_Up {
+		::std::uint8_t _0;
+	};
+	struct clash_Shift_Down {
+	};
 	#if defined(__cpp_lib_three_way_comparison)
 	inline ::std::partial_ordering operator<=>(const Quantity &a_2, const Quantity &b_);
 	#endif
 	#if defined(__cpp_lib_three_way_comparison)
 	inline ::std::weak_ordering operator<=>(const Pass &a_2, const Pass &b_);
+	#endif
+	#if defined(__cpp_lib_three_way_comparison)
+	inline ::std::weak_ordering operator<=>(const clash_Notch_ &a_2, const clash_Notch_ &b_);
 	#endif
 	inline bool operator==(const Stamp &a_2, const Stamp &b_);
 	inline bool operator==(const Point &a_2, const Point &b_);
@@ -1711,6 +1741,9 @@ namespace api {
 	inline bool operator==(const ::api::clash_Change &a_2, const ::api::clash_Change &b_);
 	inline bool operator!=(const ::api::clash_Change &a_2, const ::api::clash_Change &b_);
 	inline ::api::buf clash_Change_debug(const ::api::clash_Change &self);
+	inline bool operator==(const ::api::clash_Shift_ &a_2, const ::api::clash_Shift_ &b_);
+	inline bool operator!=(const ::api::clash_Shift_ &a_2, const ::api::clash_Shift_ &b_);
+	inline ::api::buf clash_Shift_debug(const ::api::clash_Shift_ &self);
 	inline bool has_text(const ::api::Note &note);
 	inline ::std::uint64_t marked(const ::api::Mark &api_marked);
 	inline ::std::optional<::api::Reading> reading(::std::uint32_t n);
@@ -2004,6 +2037,9 @@ namespace api {
 	inline ::std::uint32_t clash_underscored(const ::api::clash_Underscored &underscored, ::api::clash_Op op, const ::api::clash_Change &change);
 	inline ::std::tuple<::api::clash_Underscored, ::api::clash_Change> clash_underscored_next(const ::api::clash_Underscored &underscored, const ::api::clash_Change &change);
 	inline ::std::uint32_t clash_erased(::std::unique_ptr<::api::clash_Eraser> eraser);
+	inline ::std::vector<::api::clash_Notch_> clash_notches(::std::uint32_t n);
+	inline ::std::uint8_t clash_shifted(::std::uint8_t at, const ::api::clash_Shift_ &shift);
+	inline ::std::uint32_t clash_counted(::std::unique_ptr<::api::clash_Count_> count);
 	inline ::std::uint8_t clash_erase_();
 	inline ::std::uint8_t clash_erase();
 	inline ::std::uint32_t clash_lend_(const ::api::clash_Store *store);
@@ -2038,6 +2074,11 @@ namespace std {
 namespace std {
 	template <> struct hash<::api::Key> {
 		size_t operator()(const ::api::Key &value) const noexcept;
+	};
+}
+namespace std {
+	template <> struct hash<::api::clash_Notch_> {
+		size_t operator()(const ::api::clash_Notch_ &value) const noexcept;
 	};
 }
 namespace std {
@@ -2481,6 +2522,7 @@ namespace api {
 	class clash_Empty_string;
 	class clash_Store;
 	class clash_Reader;
+	class clash_Notch_;
 	class tls_Session;
 	class Url;
 	class Json;
@@ -2505,6 +2547,7 @@ namespace api {
 	class Stretch;
 	class clash_Source;
 	class clash_Eraser;
+	class clash_Count_;
 	struct Choice_Empty;
 	struct Choice_Picked;
 	using Choice = ::std::variant<Choice_Empty, Choice_Picked>;
@@ -2567,6 +2610,9 @@ namespace api {
 	struct clash_Change_Set;
 	struct clash_Change_Clear;
 	using clash_Change = ::std::variant<clash_Change_Set, clash_Change_Clear>;
+	struct clash_Shift_Up;
+	struct clash_Shift_Down;
+	using clash_Shift_ = ::std::variant<clash_Shift_Up, clash_Shift_Down>;
 	using Clash_after_future = ::api::future<detail::Clash_after_future_op>;
 	using Clash_tagged_future = ::api::future<detail::Clash_tagged_future_op>;
 	using Waiter_poll_future_future = ::api::future<detail::Waiter_poll_future_future_op>;

@@ -52,6 +52,13 @@ class Eraser(api.ClashEraser):
 		return 3
 
 
+class Count(api.ClashCount):
+	"""A count named with a trailing underscore in Rust, whose C names join no `__`."""
+
+	def next(self):
+		return 4
+
+
 class Edits(api.Undo):
 	"""The Undo callback: each method returns its own digit."""
 
@@ -1161,6 +1168,14 @@ def values():
 	check(api.clash_erased(Eraser()) == 123, "a callback's methods apart by a trailing underscore")
 	check(api.ClashEscaped(new=3).delete() == 3 and api.ClashEscaped(new=3).delete_(1, 2) == 213, "methods apart by a trailing underscore")
 	check(api.clash_erase_() == 2 and api.clash_erase() == 1, "functions apart by a trailing underscore")
+	# Items whose Rust names end in `_`, so every C name joined to them keeps one `_`.
+	notch = api.ClashNotch.new(3)
+	check(notch.count() == 3 and notch.clone() == notch and hash(notch.clone()) == hash(notch), "a class named with a trailing underscore")
+	check(api.ClashNotch.default() < notch, "a class named with a trailing underscore orders")
+	check(str(notch) == "notch 3" and repr(notch) == "Notch_ { count: 3 }", "a class named with a trailing underscore prints")
+	check(len(api.clash_notches(2)) == 2, "a list of a class named with a trailing underscore")
+	check(api.clash_shifted(1, api.ClashShift.Up(2)) == 3 and api.clash_shifted(1, api.ClashShift.Down()) == 0, "an enum named with a trailing underscore")
+	check(api.clash_counted(Count()) == 5, "a callback named with a trailing underscore")
 	check(api.ClashStore.open_().open() == 7, "a static function and a method apart by a trailing underscore")
 	print("values ok")
 

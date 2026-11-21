@@ -850,7 +850,13 @@ fn cpp_strict(link: &Link) {
 	// What each case printed, kept apart from the others'; its object is not.
 	let clang = |src: &Path, case: u8| {
 		let mut cmd = Command::new(&compiler);
-		cmd.args(["-std=c++17", "-Wconsumed", "-Wdangling", "-Wreserved-identifier", "-Werror"]);
+		cmd.args([
+			"-std=c++17",
+			"-Wconsumed",
+			"-Wdangling",
+			"-Wreserved-identifier",
+			"-Werror",
+		]);
 		if lifetimes {
 			cmd.arg("-Wlifetime-safety");
 		}

@@ -720,7 +720,8 @@ impl<'a> Abi<'a> {
 				callback.span,
 			);
 			for method in &callback.methods {
-				let params = (method.params.iter()).map(|p| (escape(&p.name), format!("parameter `{}` of {rust}", p.name)));
+				let params =
+					(method.params.iter()).map(|p| (escape(&p.name), format!("parameter `{}` of {rust}", p.name)));
 				scope(
 					std::iter::once(("data".to_string(), "its data".to_string()))
 						.chain(params)
@@ -1777,12 +1778,7 @@ impl<'a> Abi<'a> {
 				self.claim(join(&name, "tag"), what.clone(), e.span, Self::made(&item));
 				// Each variant's payload, which C++ names even when it has no fields.
 				for variant in &e.variants {
-					self.claim(
-						payload(&name, &variant.name),
-						what.clone(),
-						e.span,
-						Self::made(&item),
-					);
+					self.claim(payload(&name, &variant.name), what.clone(), e.span, Self::made(&item));
 				}
 			}
 			self.claim_traits(&item, &name, &what, e.span, e.traits, !plain);
@@ -1798,29 +1794,14 @@ impl<'a> Abi<'a> {
 			let name = self.object(i);
 			let segments = self.type_segments(&item);
 			let what = format!("type `{}`", api.rust(&object.path, &object.args));
-			self.claim(
-				join(&name, "free"),
-				what.clone(),
-				object.span,
-				Self::made(&item),
-			);
+			self.claim(join(&name, "free"), what.clone(), object.span, Self::made(&item));
 			if self.checked[i] {
 				for made in ["drop", "drop_signal"] {
-					self.claim(
-						join(&name, made),
-						what.clone(),
-						object.span,
-						Self::made(&item),
-					);
+					self.claim(join(&name, made), what.clone(), object.span, Self::made(&item));
 				}
 			}
 			if object.shared {
-				self.claim(
-					join(&name, "borrowed"),
-					what.clone(),
-					object.span,
-					Self::made(&item),
-				);
+				self.claim(join(&name, "borrowed"), what.clone(), object.span, Self::made(&item));
 			}
 			self.claim_traits(&item, &name, &what, object.span, object.traits, false);
 			// `Default` of a value that is not `Send` makes one from none.
@@ -1851,12 +1832,7 @@ impl<'a> Abi<'a> {
 			let name = self.callback(i);
 			let segments = self.type_segments(&item);
 			let what = format!("trait `{}`", callback.path.join("::"));
-			self.claim(
-				join(&name, "vtable"),
-				what.clone(),
-				callback.span,
-				Self::made(&item),
-			);
+			self.claim(join(&name, "vtable"), what.clone(), callback.span, Self::made(&item));
 			self.claim(name.clone(), what, callback.span, self.own(&item, &name, segments));
 			for method in &callback.methods {
 				types.extend(method.params.iter().map(|p| &p.ty));
@@ -2031,14 +2007,7 @@ impl<'a> Abi<'a> {
 		traits: crate::ir::Traits,
 		owned: bool,
 	) {
-		let mut claim = |suffix: &str| {
-			self.claim(
-				join(name, suffix),
-				what.to_string(),
-				span,
-				Self::made(item),
-			)
-		};
+		let mut claim = |suffix: &str| self.claim(join(name, suffix), what.to_string(), span, Self::made(item));
 		if traits.clone && !owned {
 			claim("clone");
 		}
@@ -2537,7 +2506,9 @@ pub(crate) fn member(method: &Function) -> String {
 
 /// The member of a callback's table for a method named `name`: see [`member`].
 fn member_named(name: &str) -> String {
-	escaped(name, |stem| stem == "free" || RUST_KEYWORDS.contains(&stem) || keyword(stem))
+	escaped(name, |stem| {
+		stem == "free" || RUST_KEYWORDS.contains(&stem) || keyword(stem)
+	})
 }
 
 /// What a callback parameter needs, by the form it takes.
@@ -2682,8 +2653,14 @@ mod tests {
 	#[test]
 	fn a_scope_refuses_names_that_escape_alike() {
 		let (_, clashes) = c_names(&["pick"], &["_A", "A"]);
-		let refused: Vec<_> = clashes.iter().map(|(name, (first, _), (second, _))| (name.as_str(), first.as_str(), second.as_str())).collect();
-		assert_eq!(refused, [("A", "parameter `_A` of fn `ns::pick`", "parameter `A` of fn `ns::pick`")]);
+		let refused: Vec<_> = clashes
+			.iter()
+			.map(|(name, (first, _), (second, _))| (name.as_str(), first.as_str(), second.as_str()))
+			.collect();
+		assert_eq!(
+			refused,
+			[("A", "parameter `_A` of fn `ns::pick`", "parameter `A` of fn `ns::pick`")]
+		);
 		// A keyword and it with `_` escape apart.
 		let (_, clashes) = c_names(&["pick"], &["new", "new_", "out"]);
 		assert!(clashes.is_empty(), "{clashes:?}");
@@ -2696,7 +2673,10 @@ mod tests {
 		assert_eq!(super::join("api", "__all__"), "api_all_");
 		assert_eq!(super::join("by_", "data"), "by_data");
 		assert_eq!(super::stem("api_Status_"), "api_Status");
-		assert_eq!(format!("{}_eq", super::stem("api_Status_")), super::join("api_Status_", "eq"));
+		assert_eq!(
+			format!("{}_eq", super::stem("api_Status_")),
+			super::join("api_Status_", "eq")
+		);
 	}
 
 	#[test]

@@ -1164,7 +1164,7 @@ impl<'a> Gen<'a> {
 	/// `__str__` from `Display`, `__repr__` from `Debug`, a static `default` from
 	/// `Default`, and `clone`, `__eq__`, and `__hash__` from `Hash` for an object.
 	fn traits(&mut self, ty: &Type, c: &str, t: Traits, body: &mut Body) {
-		let c_ = crate::abi::stem(&c);
+		let c_ = crate::abi::stem(c);
 		let bare = self.bare(c).to_string();
 		let class = self.class(c);
 		let object = matches!(ty, Type::Object(_));

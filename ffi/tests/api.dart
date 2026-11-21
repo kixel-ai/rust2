@@ -96,6 +96,12 @@ final class Eraser extends api.ClashEraser {
   int delete() => 3;
 }
 
+/// A count named with a trailing underscore in Rust, whose C names join no `__`.
+final class Count extends api.ClashCount {
+  @override
+  int next() => 4;
+}
+
 /// The Undo callback: each method returns its own digit.
 final class Edits extends api.Undo {
   @override
@@ -483,6 +489,25 @@ void checks() {
     'methods apart by a trailing underscore',
   );
   check(api.clashErase_() == 2 && api.clashErase() == 1, 'functions apart by a trailing underscore');
+  // Items whose Rust names end in `_`, so every C name joined to them keeps one `_`.
+  final notch = api.ClashNotch(3);
+  final copy = notch.clone();
+  final zero = api.ClashNotch.default_();
+  check(notch.count() == 3 && copy == notch && copy.hashCode == notch.hashCode && zero < notch, 'a class named with a trailing underscore');
+  check(notch.toString() == 'notch 3' && notch.debug() == 'Notch_ { count: 3 }', 'a class named with a trailing underscore prints');
+  for (final value in [notch, copy, zero]) {
+    value.close();
+  }
+  final notches = api.clashNotches(2);
+  check(notches.length == 2, 'a list of a class named with a trailing underscore');
+  for (final value in notches) {
+    value.close();
+  }
+  check(
+    api.clashShifted(1, const api.ClashShiftUp(2)) == 3 && api.clashShifted(1, const api.ClashShiftDown()) == 0,
+    'an enum named with a trailing underscore',
+  );
+  check(api.clashCounted(Count()) == 5, 'a callback named with a trailing underscore');
   // A named constructor keeps the name of an instance method, as Dart allows.
   final opened = api.ClashStore.open();
   check(opened.open() == 7, 'a named constructor and a method named alike');

@@ -917,7 +917,7 @@ impl<'a> Gen<'a> {
 	/// crossing, which stores closed to the state as the drop commits, so a close waiting on
 	/// it returns before any `Drop` runs.
 	fn close_c(&mut self, c: &str) -> String {
-		let c_ = crate::abi::stem(&c);
+		let c_ = crate::abi::stem(c);
 		let p = &self.abi.prefix;
 		let name = format!("{p}GoClose_{}", self.bare(c));
 		let handle = Ty::Handle {
@@ -1408,7 +1408,7 @@ impl<'a> Gen<'a> {
 
 	/// The helper lifting the C array struct `c` of `elem`s, then freeing the array alone.
 	fn lift_list(&mut self, c: &str, elem: &Type) {
-		let c_ = crate::abi::stem(&c);
+		let c_ = crate::abi::stem(c);
 		let elem = elem.clone();
 		self.helper(&format!("lift_{c}"), |g| {
 			let go = g.go(&elem);
@@ -1780,7 +1780,7 @@ impl<'a> Gen<'a> {
 	/// `PartialEq` `Equal`, and `Clone` an object's `Clone`; and the package's function for
 	/// `Default`.
 	fn traits(&mut self, ty: &Type, c: &str, t: Traits) -> (Vec<Method>, Option<Method>) {
-		let c_ = crate::abi::stem(&c);
+		let c_ = crate::abi::stem(c);
 		let name = self.go(ty);
 		let object = matches!(ty, Type::Object(_));
 		let arena = self.arena(ty);

@@ -1003,7 +1003,10 @@ impl<'a> Header<'a> {
 		let bare: Vec<String> = (methods.iter())
 			.map(|method| {
 				let call = self.abi.export(method, Some(owner)).call.name;
-				match call.strip_prefix(c.as_str()).and_then(|rest| rest.strip_prefix('_')) {
+				match call
+					.strip_prefix(crate::abi::stem(c))
+					.and_then(|rest| rest.strip_prefix('_'))
+				{
 					Some(rest) => rest.to_string(),
 					None => call[self.abi.prefix.len() + 1..].to_string(),
 				}

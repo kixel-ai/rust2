@@ -455,6 +455,30 @@ func checks() {
 		check(api.ClashEscaped{New: 3}.Delete() == 3 && api.ClashEscaped{New: 3}.Delete_(1, 2) == 213, "methods apart by a trailing underscore")
 		check(api.ClashErase_() == 2 && api.ClashErase() == 1, "functions apart by a trailing underscore")
 	}
+	// Items whose Rust names end in `_`, so every C name joined to them keeps one `_`.
+	{
+		notch := api.NewClashNotch(3)
+		defer notch.Close()
+		copied, err := notch.Clone()
+		check(err == nil, "a class named with a trailing underscore clones")
+		defer copied.Close()
+		same, err := copied.Equal(notch)
+		check(err == nil && same, "a class named with a trailing underscore compares")
+		zero := api.ClashNotchDefault()
+		defer zero.Close()
+		order, err := zero.Compare(notch)
+		check(err == nil && order < 0, "a class named with a trailing underscore orders")
+		n, err := notch.Count()
+		check(err == nil && n == 3, "a class named with a trailing underscore")
+		check(notch.String() == "notch 3" && notch.GoString() == "Notch_ { count: 3 }", "a class named with a trailing underscore prints")
+		notches := api.ClashNotches(2)
+		check(len(notches) == 2, "a list of a class named with a trailing underscore")
+		for _, n := range notches {
+			n.Close()
+		}
+		check(api.ClashShifted(1, api.ClashShiftUp{V0: 2}) == 3 && api.ClashShifted(1, api.ClashShiftDown{}) == 0, "an enum named with a trailing underscore")
+		check(api.ClashCounted(notchCount{}) == 5, "an interface named with a trailing underscore")
+	}
 	// A path that is no UTF-8 is a Go string all the same.
 	check(api.Stray() == "\xff", "a path that is not UTF-8 crosses as its bytes")
 	var lent string
@@ -1529,6 +1553,13 @@ func (eraser) Delete_(new_ uint8, new_2 uint8) uint8 {
 
 func (eraser) Delete() uint8 {
 	return 3
+}
+
+// notchCount is a clash.Count_, named with a trailing underscore in Rust, whose C names join no `__`.
+type notchCount struct{}
+
+func (notchCount) Next() uint32 {
+	return 4
 }
 
 // source is a clash.Source, reading 4 at once.

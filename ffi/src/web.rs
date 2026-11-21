@@ -1246,7 +1246,7 @@ impl<'a> Gen<'a> {
 	}
 
 	fn read_body(&mut self, ty: &Type, c: &str) -> String {
-		let c_ = crate::abi::stem(&c);
+		let c_ = crate::abi::stem(c);
 		let abi = self.abi;
 		let offsets = |g: &Self| match g.shape(c) {
 			Shape::Fields(fields) => g.place(&fields).1,
@@ -2578,7 +2578,7 @@ impl Gen<'_> {
 	/// `Debug` `debug`, `Clone` an object's `clone`, `PartialEq` `eq`, with `Hash` `hash`,
 	/// and `Default` `default`.
 	fn traits(&mut self, ty: &Type, c: &str, t: crate::ir::Traits, taken: &mut BTreeSet<String>) {
-		let c_ = crate::abi::stem(&c);
+		let c_ = crate::abi::stem(c);
 		let abi = self.abi;
 		let name = self.tt(ty);
 		let object = matches!(ty, Type::Object(_));

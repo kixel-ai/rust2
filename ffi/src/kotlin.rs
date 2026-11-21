@@ -1584,7 +1584,7 @@ impl<'a> Gen<'a> {
 	/// `clone` and `equals` for an object. `this_c` is the C name, and `object` whether
 	/// it holds a handle.
 	fn traits(&mut self, ty: &Type, c: &str, t: crate::ir::Traits, body: &mut Vec<String>, statics: &mut Vec<String>) {
-		let c_ = crate::abi::stem(&c);
+		let c_ = crate::abi::stem(c);
 		let class = self.qualified(c);
 		let bare = self.bare(c).to_string();
 		let u = format!("{}_{c}", self.unwind);
@@ -1731,7 +1731,7 @@ impl<'a> Gen<'a> {
 					let (this, other) = (self.write_value(ty, "w", "this"), self.write_value(ty, "w", "other"));
 					(
 						vec![("jbyteArray", "ByteArray"), ("jobjectArray", "kotlin.Array<Any?>?")],
-						"{ let b = rt::bytes(env, p0).unwrap_or_default(); let Some(mut r) = rt::Reader::new(env, &b, p1) else { return rt::raised() }; crate::{u_}_eq(&r.get(), &r.get()) }".replace("{u}", &u),
+						"{ let b = rt::bytes(env, p0).unwrap_or_default(); let Some(mut r) = rt::Reader::new(env, &b, p1) else { return rt::raised() }; crate::{u_}_eq(&r.get(), &r.get()) }".replace("{u_}", u_),
 						format!("_Native.__Writer().use {{ w -> {this}; {other}; _Native.{bare}_eq(w.finish(), w.refs()) }}"),
 					)
 				}

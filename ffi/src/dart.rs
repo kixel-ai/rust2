@@ -1147,7 +1147,7 @@ impl<'a> Gen<'a> {
 	/// a checked value, the one dropping it then freeing it if asked; the last two serve the
 	/// isolate meanwhile and take back the garbage collector's hold if it took one.
 	fn owned(&mut self, c: &str, handle: &Ty, checked: bool) -> Owned {
-		let c_ = crate::abi::stem(&c);
+		let c_ = crate::abi::stem(c);
 		let bare = self.bare(c);
 		let space = &self.space;
 		let own = format!("{space}_own_{bare}");
@@ -1448,7 +1448,7 @@ impl<'a> Gen<'a> {
 	/// The function reading a Dart value of type `ty` out of the C struct `c`, owning what
 	/// it holds.
 	fn reader(&mut self, c: &str, ty: &Type) -> String {
-		let c_ = crate::abi::stem(&c);
+		let c_ = crate::abi::stem(c);
 		if let Some(name) = self.readers.get(ty) {
 			return name.clone();
 		}
@@ -1812,7 +1812,7 @@ impl<'a> Gen<'a> {
 	/// `debug()`, `PartialEq` `==` and with `Hash` `hashCode`, `Default` a constructor
 	/// `default_()`, and `Clone` an object's `clone()`.
 	fn traits(&mut self, ty: &Type, c: &str, t: crate::ir::Traits, body: &mut Vec<String>, members: &mut Vec<String>) {
-		let c_ = crate::abi::stem(&c);
+		let c_ = crate::abi::stem(c);
 		let name = self.dt(ty);
 		let object = matches!(ty, Type::Object(_));
 		let c_ty = self.abi.ty(ty);
@@ -2380,7 +2380,7 @@ impl<'a> Gen<'a> {
 	/// thread, the relay in the glue that reaches it, and the tables that hold both, which only
 	/// a callback given to Rust needs.
 	fn callback_tables(&mut self, c: &str) {
-		let c_ = crate::abi::stem(&c);
+		let c_ = crate::abi::stem(c);
 		let abi = self.abi;
 		let i = (0..abi.api.callbacks.len())
 			.find(|&i| abi.callback(i) == c)

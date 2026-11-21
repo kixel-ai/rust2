@@ -17,7 +17,7 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-#define API_CONTRACT ((uint64_t)0x2bf117c204fec13fULL)
+#define API_CONTRACT ((uint64_t)0xc65fceb3eb86432eULL)
 uint64_t api_contract(void);
 uint32_t api_target(void);
 typedef int32_t api_status;
@@ -171,6 +171,7 @@ typedef struct api_clash_Seed api_clash_Seed;
 typedef struct api_clash_Empty_string api_clash_Empty_string;
 typedef struct api_clash_Store api_clash_Store;
 typedef struct api_clash_Reader api_clash_Reader;
+typedef struct api_clash_Notch_ api_clash_Notch_;
 typedef struct api_tls_Session api_tls_Session;
 typedef struct api_Url api_Url;
 typedef struct api_Json api_Json;
@@ -287,6 +288,12 @@ typedef struct api_vec_bytes {
 	void *owner;
 } api_vec_bytes;
 void api_vec_bytes_free(api_vec_bytes vec);
+typedef struct api_vec_clash_Notch_ {
+	api_clash_Notch_ *const *ptr;
+	size_t len;
+	void *owner;
+} api_vec_clash_Notch_;
+void api_vec_clash_Notch_free(api_vec_clash_Notch_ vec);
 typedef struct api_clash_Tone {
 	uint16_t hz;
 } api_clash_Tone;
@@ -1196,6 +1203,19 @@ typedef struct api_clash_Change {
 		api_clash_Change_Set set;
 	};
 } api_clash_Change;
+typedef enum api_clash_Shift_tag {
+	API_CLASH_SHIFT_UP = 0,
+	API_CLASH_SHIFT_DOWN = 1,
+} api_clash_Shift_tag;
+typedef struct api_clash_Shift_Up {
+	uint8_t _0;
+} api_clash_Shift_Up;
+typedef struct api_clash_Shift_ {
+	api_clash_Shift_tag tag;
+	union {
+		api_clash_Shift_Up up;
+	};
+} api_clash_Shift_;
 typedef struct api_Log_vtable {
 	void (*free)(void *data);
 	bool (*log)(void *data, uint8_t level, api_buf line);
@@ -1265,6 +1285,14 @@ typedef struct api_clash_Eraser {
 	const api_clash_Eraser_vtable *vtable;
 	void *data;
 } api_clash_Eraser;
+typedef struct api_clash_Count_vtable {
+	void (*free)(void *data);
+	uint32_t (*next)(void *data);
+} api_clash_Count_vtable;
+typedef struct api_clash_Count_ {
+	const api_clash_Count_vtable *vtable;
+	void *data;
+} api_clash_Count_;
 #define API_LIMIT ((uint64_t)1000ULL)
 #define API_FAR ((int64_t)9223372036854775807LL)
 #define API_EOF ((int32_t)-1)
@@ -1655,6 +1683,9 @@ API_MUST_USE api_buf api_clash_Op_debug(const api_clash_Op *self);
 void api_clash_Change_free(api_clash_Change *self);
 bool api_clash_Change_eq(const api_clash_Change *a, const api_clash_Change *b);
 API_MUST_USE api_buf api_clash_Change_debug(const api_clash_Change *self);
+void api_clash_Shift_free(api_clash_Shift_ *self);
+bool api_clash_Shift_eq(const api_clash_Shift_ *a, const api_clash_Shift_ *b);
+API_MUST_USE api_buf api_clash_Shift_debug(const api_clash_Shift_ *self);
 bool api_Level_eq(const api_Level *a, const api_Level *b);
 uint64_t api_Level_hash(const api_Level *self);
 int8_t api_Level_partial_cmp(const api_Level *a, const api_Level *b);
@@ -2261,6 +2292,18 @@ API_MUST_USE api_clash_Reader *api_clash_Reader_new(api_buf bytes);
 API_MUST_USE bool api_clash_Reader_read_byte(api_clash_Reader *self, uint8_t *out, api_clash_Malformed *err, api_status *status);
 API_MUST_USE bool api_clash_Reader_unread_byte(api_clash_Reader *self, api_clash_Malformed *err, api_status *status);
 void api_clash_Reader_wait(const api_clash_Reader *self, uint64_t ms, api_status *status);
+void api_clash_Notch_free(api_clash_Notch_ *self);
+bool api_clash_Notch_borrowed(const api_clash_Notch_ *self);
+API_MUST_USE api_clash_Notch_ *api_clash_Notch_clone(const api_clash_Notch_ *self);
+bool api_clash_Notch_eq(const api_clash_Notch_ *a, const api_clash_Notch_ *b);
+uint64_t api_clash_Notch_hash(const api_clash_Notch_ *self);
+int8_t api_clash_Notch_partial_cmp(const api_clash_Notch_ *a, const api_clash_Notch_ *b);
+int8_t api_clash_Notch_cmp(const api_clash_Notch_ *a, const api_clash_Notch_ *b);
+API_MUST_USE api_buf api_clash_Notch_to_string(const api_clash_Notch_ *self);
+API_MUST_USE api_buf api_clash_Notch_debug(const api_clash_Notch_ *self);
+API_MUST_USE api_clash_Notch_ *api_clash_Notch_default(void);
+API_MUST_USE api_clash_Notch_ *api_clash_Notch_new(uint32_t count);
+uint32_t api_clash_Notch_count(const api_clash_Notch_ *self);
 void api_tls_Session_free(api_tls_Session *self);
 API_MUST_USE api_buf api_tls_Session_alpn(const api_tls_Session *self);
 api_tls_policy_Lifetime api_tls_Session_lifetime(const api_tls_Session *self);
@@ -2727,6 +2770,9 @@ uint8_t api_clash_waited(api_clash_Source source);
 uint32_t api_clash_underscored(api_clash_Underscored underscored, api_clash_Op op, api_clash_Change change);
 void api_clash_underscored_next(api_clash_Underscored underscored, api_clash_Change change, api_clash_Underscored *out0, api_clash_Change *out1);
 uint32_t api_clash_erased(api_clash_Eraser eraser);
+API_MUST_USE api_vec_clash_Notch_ api_clash_notches(uint32_t n);
+uint8_t api_clash_shifted(uint8_t at, api_clash_Shift_ shift);
+uint32_t api_clash_counted(api_clash_Count_ count);
 uint8_t api_clash_erase_(void);
 uint8_t api_clash_erase(void);
 uint32_t api_clash_lend_(const api_clash_Store *store);

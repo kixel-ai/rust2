@@ -205,7 +205,13 @@ impl Header<'_> {
 			let variants: Vec<String> = e
 				.variants
 				.iter()
-				.map(|v| format!("\t{} = {},", abi::join(&upper, &abi::snake(&v.name).to_uppercase()), v.discriminant))
+				.map(|v| {
+					format!(
+						"\t{} = {},",
+						abi::join(&upper, &abi::snake(&v.name).to_uppercase()),
+						v.discriminant
+					)
+				})
 				.collect();
 			self.line(format!(
 				"{}typedef enum {name} {{\n{}\n}} {name};\n",
@@ -333,7 +339,10 @@ impl Header<'_> {
 					)
 					.trim_end(),
 				);
-				self.line(format!("void {}({name} *self, {p}_status *status);", abi::join(&name, "drop")));
+				self.line(format!(
+					"void {}({name} *self, {p}_status *status);",
+					abi::join(&name, "drop")
+				));
 			}
 			if object.shared {
 				self.line(format!("bool {}(const {name} *self);", abi::join(&name, "borrowed")));

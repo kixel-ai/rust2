@@ -5450,6 +5450,62 @@ pub mod clash {
 		u32::from(eraser.delete_(1, 2)) * 10 + u32::from(eraser.delete())
 	}
 
+	/// A notch named with a trailing underscore, `api_clash_Notch_` in C, whose functions C
+	/// names as its stem's, `api_clash_Notch_eq`, since C++ reserves every name holding `__`.
+	#[derive(Clone, Debug, Default, PartialEq, Eq, Hash, PartialOrd, Ord)]
+	pub struct Notch_ {
+		count: u32,
+	}
+
+	impl Notch_ {
+		pub fn new(count: u32) -> Notch_ {
+			Notch_ { count }
+		}
+
+		/// The count.
+		pub fn count(&self) -> u32 {
+			self.count
+		}
+	}
+
+	impl std::fmt::Display for Notch_ {
+		fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+			write!(f, "notch {}", self.count)
+		}
+	}
+
+	/// Notches of each count below `n`, in a `Vec` C frees as `api_vec_clash_Notch_free`.
+	pub fn notches(n: u32) -> Vec<Notch_> {
+		(0..n).map(Notch_::new).collect()
+	}
+
+	/// A shift named with a trailing underscore, whose tag C names `api_clash_Shift_tag`.
+	#[derive(Clone, Copy, Debug, PartialEq)]
+	pub enum Shift_ {
+		Up(u8),
+		Down,
+	}
+
+	/// `at` shifted, wrapping.
+	pub fn shifted(at: u8, shift: Shift_) -> u8 {
+		match shift {
+			Shift_::Up(by) => at.wrapping_add(by),
+			Shift_::Down => at.wrapping_sub(1),
+		}
+	}
+
+	/// A count implemented in each binding, named with a trailing underscore, whose table C
+	/// names `api_clash_Count_vtable`.
+	pub trait Count_ {
+		/// The next count.
+		fn next(&self) -> u32;
+	}
+
+	/// `count`'s next, plus one, wrapping.
+	pub fn counted(count: impl Count_) -> u32 {
+		count.next().wrapping_add(1)
+	}
+
 	/// Two, by a name that differs only by a trailing underscore from `erase`'s.
 	pub fn erase_() -> u8 {
 		2

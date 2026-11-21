@@ -373,6 +373,20 @@ fun checks() {
 	check(clashErased(eraser) == 123u, "an interface's methods apart by a trailing underscore")
 	check(ClashEscaped(3u).delete() == 3.toUByte() && ClashEscaped(3u).delete_(1u, 2u) == 213.toUByte(), "methods apart by a trailing underscore")
 	check(clashErase_() == 2.toUByte() && clashErase() == 1.toUByte(), "functions apart by a trailing underscore")
+	// Items whose Rust names end in `_`, so every C name joined to them keeps one `_`.
+	ClashNotch.new(3u).use { notch ->
+		notch.clone().use { copy -> check(copy == notch && copy.hashCode() == notch.hashCode(), "a class named with a trailing underscore clones") }
+		ClashNotch.default().use { zero -> check(zero < notch && notch.count() == 3u, "a class named with a trailing underscore") }
+		check(notch.toString() == "notch 3" && notch.debug() == "Notch_ { count: 3 }", "a class named with a trailing underscore prints")
+	}
+	val notches = clashNotches(2u)
+	check(notches.size == 2, "a list of a class named with a trailing underscore")
+	notches.forEach { it.close() }
+	check(clashShifted(1u, ClashShift.Up(2u)) == 3.toUByte() && clashShifted(1u, ClashShift.Down) == 0.toUByte(), "an enum named with a trailing underscore")
+	val count = object : ClashCount {
+		override fun next(): UInt = 4u
+	}
+	check(clashCounted(count) == 5u, "an interface named with a trailing underscore")
 	// Rust's parameter `new` keeps `new`, wherever it is, so a named argument reaches it.
 	check(ClashEscaped(3u).delete_(new = 1u, new2 = 2u) == 213.toUByte(), "named arguments apart by a trailing underscore")
 	// A companion's function and an instance's method named alike, each in its own scope.

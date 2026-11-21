@@ -83,6 +83,14 @@ public:
 	}
 };
 
+// A count named with a trailing underscore in Rust, whose C names join no `__`.
+class Count final : public api::clash_Count_ {
+public:
+	std::uint32_t next() const override {
+		return 4;
+	}
+};
+
 // The Log callback: keeps even levels.
 class Print final : public api::Log {
 public:
@@ -607,6 +615,20 @@ int checks() {
 			"names apart by trailing underscores cross back");
 		check(api::clash_erased(std::make_unique<hook::Eraser>()) == 123, "a callback's methods apart by a trailing underscore");
 		check(api::clash_erase_() == 2 && api::clash_erase() == 1, "functions apart by a trailing underscore");
+	}
+	// Items whose Rust names end in `_`, so every C name joined to them keeps one `_`.
+	{
+		auto notch = api::clash_Notch_::new_(3);
+		auto copy = notch;
+		check(notch.count() == 3 && copy == notch && copy.hash() == notch.hash() && api::clash_Notch_::default_() < notch,
+			"a class named with a trailing underscore");
+		check(notch.to_string().str() == "notch 3" && notch.debug().str() == "Notch_ { count: 3 }",
+			"a class named with a trailing underscore prints");
+		check(api::clash_notches(2).size() == 2, "a list of a class named with a trailing underscore");
+		check(api::clash_shifted(1, api::clash_Shift_Up{2}) == 3 && api::clash_shifted(1, api::clash_Shift_Down{}) == 0,
+			"an enum named with a trailing underscore");
+		check(api::clash_Shift_debug(api::clash_Shift_Up{2}).str() == "Up(2)", "an enum named with a trailing underscore prints");
+		check(api::clash_counted(std::make_unique<hook::Count>()) == 5, "a callback named with a trailing underscore");
 	}
 	// A name takes a copy of the caller's buffer, which is its own again after.
 	{
