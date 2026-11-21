@@ -62,6 +62,10 @@ struct Export {
 	roots: Vec<PathBuf>,
 	/// The API an earlier export wrote, which this one's must not break.
 	baseline: Option<PathBuf>,
+	/// The `PROFILE` cargo gives a build script of the check.
+	profile: String,
+	/// The directory cargo builds the check's profile in, unless another's could share it.
+	profile_dir: Option<String>,
 }
 
 /// What the job writes.
@@ -131,6 +135,10 @@ impl Export {
 		let baseline = std::env::var_os(config::env::BASELINE)
 			.filter(|p| !p.is_empty())
 			.map(PathBuf::from);
+		let profile = std::env::var(config::env::PROFILE).map_err(|_| format!("{} is unset", config::env::PROFILE))?;
+		let profile_dir =
+			std::env::var(config::env::PROFILE_DIR).map_err(|_| format!("{} is unset", config::env::PROFILE_DIR))?;
+		let profile_dir = Some(profile_dir).filter(|dir| !dir.is_empty());
 		Ok(Some(Self {
 			crates,
 			output,
@@ -139,6 +147,8 @@ impl Export {
 			merge,
 			roots,
 			baseline,
+			profile,
+			profile_dir,
 		}))
 	}
 }
@@ -174,6 +184,8 @@ impl Callbacks for Export {
 			root: self.facade.root(),
 			package: &self.facade.name,
 			crates: &self.crates,
+			profile: &self.profile,
+			profile_dir: self.profile_dir.as_deref(),
 		};
 		let mut collected = collect::collect(tcx, &facade);
 		if let Output::Census(dir) = &self.output {

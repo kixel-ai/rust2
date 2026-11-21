@@ -14,7 +14,8 @@ Exports the pub API of the package's library, following its `pub use` re-exports
 other crates, as one library: a crate in <dir> that builds the C ABI, with its C header
 in <dir>/include, every C name prefixed by the library's crate name. An item that cannot
 export fails the export. The package's Cargo.toml is in the current directory unless
---manifest-path says where. Cargo args, such as --features, are passed to `cargo check`.
+--manifest-path says where. Cargo args, such as --features, are passed to `cargo check`,
+which checks the release profile unless they pick another, as a library ships.
 
 --target exports the API the package has on that target, the host by default, whatever
 cargo's config names: its `cfg`s and its layouts. Given several times, it exports each
@@ -46,9 +47,10 @@ pub(crate) fn run(args: &[String]) -> ExitCode {
 
 fn try_run(args: &[String]) -> Result<ExitCode, String> {
 	let (own, args) = Own::parse(args)?;
-	let Some(args) = Args::parse_configless(&args, USAGE)? else {
+	let Some(mut args) = Args::parse_configless(&args, USAGE)? else {
 		return Ok(ExitCode::SUCCESS);
 	};
+	args.cargo = ungroup(&args.cargo);
 	let mut targets = own.targets;
 	if targets.is_empty() {
 		targets.push(rustc_session::config::host_tuple().to_string());
@@ -81,6 +83,13 @@ fn try_run(args: &[String]) -> Result<ExitCode, String> {
 	let picks = Picks::parse(&args.cargo, dir)?;
 	let (facade, patch, checked) = facade(&args.manifest, &targets[0], &picks)?;
 	let crates = crates(&checked.metadata, &checked.top)?;
+	let profile = check_profile(&args.cargo, &checked.metadata.workspace_root)?;
+	// The check's cargo args, with `--release` first where they pick no profile, so as not to
+	// follow a `--` of theirs.
+	let cargo = match profile.args == profile_args(&args.cargo) {
+		true => args.cargo.clone(),
+		false => [profile.args.clone(), args.cargo.clone()].concat(),
+	};
 	let line = facade.line();
 	// A staged API's spans are relative to the workspace and cargo's home, which hold the
 	// same files at other paths on another host.
@@ -107,7 +116,7 @@ fn try_run(args: &[String]) -> Result<ExitCode, String> {
 			root: None,
 			// Always named, so cargo's config never picks another: the exports are found on it.
 			target: Some(target),
-			args: &cargo_args(target, args.cargo.clone())?,
+			args: &cargo_args(target, cargo.clone())?,
 			target_dir: None,
 			dir: None,
 			env: &[
@@ -120,6 +129,11 @@ fn try_run(args: &[String]) -> Result<ExitCode, String> {
 				(config::env::MERGE, merge),
 				(config::env::BASELINE, baseline.as_os_str()),
 				(config::env::ROOTS, roots.as_ref()),
+				(config::env::PROFILE, profile.root.as_ref()),
+				(
+					config::env::PROFILE_DIR,
+					profile.dir.as_deref().unwrap_or_default().as_ref(),
+				),
 				output,
 			],
 		}
@@ -168,7 +182,7 @@ fn try_run(args: &[String]) -> Result<ExitCode, String> {
 	// Resolved as `lock` resolved it, under the check's profile, whose `cfg`s the glue was
 	// generated against.
 	let mut cargo = picks.resolving().args();
-	cargo.extend(profile_args(&args.cargo));
+	cargo.extend(profile.args);
 	cargo.extend(["--features".to_string(), "web".to_string()]);
 	Check {
 		tool: "rust2-ffi",
@@ -729,6 +743,133 @@ fn run_cargo(manifest: &Path, subcommand: &[&str], picks: &Picks<'_>) -> Result<
 	}
 }
 
+/// The check's profile: the cargo args that pick it, `--release` unless `cargo` picks one,
+/// as a library ships in it, since its leaves are proven against the bodies it compiles.
+struct CheckProfile {
+	args: Vec<String>,
+	/// The `PROFILE` cargo gives a build script under it: `release` for a profile that is
+	/// or inherits from `release`, else `debug`.
+	root: &'static str,
+	/// The directory cargo builds it in, unless a build under another profile could share it
+	/// with other settings: `dev`, `test`, and `debug` share `debug`, and `release` and
+	/// `bench` share `release`, each the same profile as its directory's root unless the
+	/// manifest sets any of its own, which a package override of the glue's may hide from the
+	/// glue's build script while every other crate compiles under it.
+	dir: Option<String>,
+}
+
+/// The [`CheckProfile`] `cargo` picks, following `inherits` through the workspace's
+/// manifest, whose profiles alone the glue carries. One cargo's config defines is an error.
+fn check_profile(cargo: &[String], workspace: &Path) -> Result<CheckProfile, String> {
+	let mut args = profile_args(cargo);
+	let picked = match args.last().map(String::as_str) {
+		None => {
+			args = vec!["--release".to_string()];
+			"release"
+		}
+		Some("--release" | "-r") => "release",
+		Some(last) => last.strip_prefix("--profile=").unwrap_or(last),
+	}
+	.to_string();
+	let manifest = workspace.join("Cargo.toml");
+	let source = std::fs::read_to_string(&manifest).map_err(|err| format!("reading {}: {err}", manifest.display()))?;
+	let table: toml::Table = toml::from_str(&source).map_err(|err| format!("{}: {err}", manifest.display()))?;
+	let profiles = table.get("profile").and_then(|p| p.as_table());
+	let (root, dir) = resolve_profile(&picked, profiles).map_err(|err| format!("{}: {err}", manifest.display()))?;
+	Ok(CheckProfile { args, root, dir })
+}
+
+/// The profile cargo's own `inherits` names where the manifest names none: `test`'s and
+/// `bench`'s, and that of `debug`, which newer cargos define (1.98 refuses it).
+fn default_inherits(name: &str) -> Option<&'static str> {
+	match name {
+		"test" | "debug" => Some("dev"),
+		"bench" => Some("release"),
+		_ => None,
+	}
+}
+
+/// The [`CheckProfile::root`] and [`CheckProfile::dir`] of the profile `picked` under the
+/// manifest's `profiles`.
+fn resolve_profile<'a>(
+	picked: &'a str,
+	profiles: Option<&'a toml::Table>,
+) -> Result<(&'static str, Option<String>), String> {
+	let table = |name: &str| profiles.and_then(|p| p.get(name)).and_then(|p| p.as_table());
+	// Whether a profile that shares its directory's root's is that root: its table sets
+	// nothing but the `inherits` cargo gives it anyway.
+	let same = |name: &str| {
+		table(name).is_none_or(|own| {
+			own.iter()
+				.all(|(key, value)| key == "inherits" && value.as_str() == default_inherits(name))
+		})
+	};
+	let dir = match picked {
+		"dev" | "test" | "debug" => (same("test") && same("debug")).then(|| "debug".to_string()),
+		"release" | "bench" => same("bench").then(|| "release".to_string()),
+		name => Some(name.to_string()),
+	};
+	let mut name = picked;
+	// Cargo refuses a cycle, which this bound stops at before cargo runs.
+	for _ in 0..=profiles.map_or(0, |p| p.len()) + 1 {
+		match name {
+			"dev" => return Ok(("debug", dir)),
+			"release" => return Ok(("release", dir)),
+			_ => {}
+		}
+		let inherits = table(name).and_then(|p| p.get("inherits")).and_then(|i| i.as_str());
+		name = inherits.or_else(|| default_inherits(name)).ok_or_else(|| {
+			format!(
+				"no profile `{name}` inherits from another here, where the profiles the export's library builds with are"
+			)
+		})?;
+	}
+	Err(format!("the profile `{name}` inherits from itself"))
+}
+
+/// The cargo args with each group of short flags, such as `-qr` or `-vFa`, apart, as
+/// `-q -r` and `-v -Fa`, so that each reader of them finds the one it picks. A group with
+/// a letter cargo gives no short flag stays as it is, for cargo to refuse.
+fn ungroup(cargo: &[String]) -> Vec<String> {
+	let mut out = Vec::new();
+	let mut args = cargo.iter();
+	while let Some(arg) = args.next() {
+		if arg == "--" {
+			out.extend(std::iter::once(arg).chain(args).cloned());
+			break;
+		}
+		let group = arg
+			.strip_prefix('-')
+			.filter(|g| g.len() > 1 && g.starts_with(['q', 'v', 'r', 'h']));
+		let Some(group) = group else {
+			out.push(arg.clone());
+			continue;
+		};
+		let mut split = Vec::new();
+		let mut whole = true;
+		for (at, flag) in group.char_indices() {
+			match flag {
+				'q' | 'v' | 'r' | 'h' => split.push(format!("-{flag}")),
+				// A flag that takes a value takes the rest of the group as written, an empty
+				// `=` value included.
+				'p' | 'j' | 'F' | 'Z' | 'C' => {
+					split.push(format!("-{}", &group[at..]));
+					break;
+				}
+				_ => {
+					whole = false;
+					break;
+				}
+			}
+		}
+		match whole {
+			true => out.extend(split),
+			false => out.push(arg.clone()),
+		}
+	}
+	out
+}
+
 /// The cargo args that pick the profile: `--release`, `-r`, and `--profile`.
 fn profile_args(cargo: &[String]) -> Vec<String> {
 	let mut picked = Vec::new();
@@ -965,6 +1106,89 @@ mod tests {
 		] {
 			let cargo: Vec<String> = cargo.iter().map(|s| s.to_string()).collect();
 			assert_eq!(profile_args(&cargo), want, "{cargo:?}");
+		}
+	}
+
+	#[test]
+	fn ungroups_short_flags() {
+		for (cargo, want) in [
+			(&["-qr", "--locked"][..], &["-q", "-r", "--locked"][..]),
+			(&["-vvFa,b"], &["-v", "-v", "-Fa,b"]),
+			(&["-qF=a"], &["-q", "-F=a"]),
+			(&["-qF="], &["-q", "-F="]),
+			(&["-qp", "foo"], &["-q", "-p", "foo"]),
+			(&["-r", "-Frelease", "-q"], &["-r", "-Frelease", "-q"]),
+			(&["-qx"], &["-qx"]),
+			(&["--", "-qr"], &["--", "-qr"]),
+		] {
+			let cargo: Vec<String> = cargo.iter().map(|s| s.to_string()).collect();
+			assert_eq!(ungroup(&cargo), want, "{cargo:?}");
+		}
+	}
+
+	#[test]
+	fn resolves_the_profile_and_its_directory() {
+		let resolve = |picked: &str, manifest: &str| {
+			let profiles: toml::Table = toml::from_str(manifest).unwrap();
+			resolve_profile(picked, Some(&profiles)).map_err(|err| err.contains("inherits from another"))
+		};
+		let debug = Some("debug".to_string());
+		let release = Some("release".to_string());
+		for (picked, manifest, want) in [
+			("dev", "", Ok(("debug", debug.clone()))),
+			("release", "", Ok(("release", release.clone()))),
+			// Cargo defines `debug` itself, inheriting `dev`'s, in `dev`'s directory.
+			("debug", "", Ok(("debug", debug.clone()))),
+			("debug", "[debug]\ninherits = \"dev\"", Ok(("debug", debug.clone()))),
+			("dev", "[test]\ninherits = \"dev\"", Ok(("debug", debug.clone()))),
+			(
+				"release",
+				"[bench]\ninherits = \"release\"",
+				Ok(("release", release.clone())),
+			),
+			// A profile that sets its own, here only for a dependency, shares its directory
+			// with another of other settings.
+			("debug", "[debug]\nopt-level = 1", Ok(("debug", None))),
+			(
+				"dev",
+				"[debug.package.dep]\ndebug-assertions = true",
+				Ok(("debug", None)),
+			),
+			(
+				"debug",
+				"[test.package.dep]\ndebug-assertions = true",
+				Ok(("debug", None)),
+			),
+			("dev", "[debug]\ninherits = \"release\"", Ok(("debug", None))),
+			("debug", "[debug]\ninherits = \"release\"", Ok(("release", None))),
+			(
+				"release",
+				"[bench.package.dep]\ndebug-assertions = true",
+				Ok(("release", None)),
+			),
+			("release", "[debug]\nopt-level = 1", Ok(("release", release.clone()))),
+			(
+				"ship",
+				"[ship]\ninherits = \"release\"",
+				Ok(("release", Some("ship".to_string()))),
+			),
+			(
+				"ship",
+				"[ship]\ninherits = \"debug\"",
+				Ok(("debug", Some("ship".to_string()))),
+			),
+			// `test` and `bench` follow an `inherits` of their own.
+			(
+				"ship",
+				"[ship]\ninherits = \"test\"\n[test]\ninherits = \"release\"",
+				Ok(("release", Some("ship".to_string()))),
+			),
+			("test", "[test]\ninherits = \"release\"", Ok(("release", None))),
+			("bench", "[bench]\ninherits = \"dev\"", Ok(("debug", None))),
+			("ship", "", Err(true)),
+			("ship", "[ship]\ninherits = \"ship\"", Err(false)),
+		] {
+			assert_eq!(resolve(picked, manifest), want, "{picked} under {manifest:?}");
 		}
 	}
 

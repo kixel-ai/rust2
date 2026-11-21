@@ -263,6 +263,16 @@ pub fn call<T>(f: impl FnOnce() -> T) -> T {
 	result
 }
 
+/// Call a leaf, as `Abi::leaf` proves it, keeping the GIL, which nothing in it waits on, when
+/// the build runs the bodies the proof saw; else as [`call`] calls any other.
+#[inline]
+pub fn leaf<T>(f: impl FnOnce() -> T) -> T {
+	match crate::PROVEN {
+		true => f(),
+		false => call(f),
+	}
+}
+
 /// The token of a drain, which no future or `Waker` takes.
 const DRAIN: i64 = 0;
 

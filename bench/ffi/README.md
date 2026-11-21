@@ -19,7 +19,7 @@ so a JIT has warmed up, in wall time and in the process's CPU time on every thre
 over each run, and [`report.py`](report.py) prints each case's median over the rounds
 beside the median load, then the export's build cost and sizes. Each round also times,
 from an emptied target and without a compiler cache, the export (`rust2-ffi`, which
-runs `cargo check` of moq under its driver) beside moq's own `cargo check` of the same
+runs a release `cargo check` of moq under its driver) beside moq's own of the same
 crates, and the generated crate's release build beside moq's own release build, each with
 its peak RSS, through [`measure.py`](measure.py). Nightly runs it on arm64 Linux into
 the run's summary; nothing fails on a number. [CodSpeed](#codspeed) counts each
@@ -946,6 +946,22 @@ could have. CPU time ranged 95 to 117 s and 104 to 134 s between rounds, so its 
 rough. Recording each crate's leaves in the driver as it compiles the crate would cost
 less, but needs a store of facts keyed by each crate's build beside cargo's own, which
 9 seconds does not repay.
+
+The export checks the release profile, which libraries ship, so its leaves are proven
+against the bodies a release build runs ([leaf profiles](../../ffi/README.md#targets)).
+Measured 2026-11-21 on **fedora** the same way, before (rust2 `e8dcd892`, a dev check) and
+after, 3 rounds each, alternating, at a load average of 9 to 11; medians:
+
+| export | wall s | CPU s | peak RSS |
+|---|---|---|---|
+| dev check | 28.6 | 107.3 | 936 MiB |
+| release check | 28.3 | 105.9 | 934 MiB |
+
+Its own MIR optimizations, inlining most, would have cost 17 CPU seconds and 160 MiB more
+in one round apiece, for no leaf more, so the check optimizes MIR as a dev build does,
+which keeps what each body does. The stand-in's API is the same under both profiles, and
+two more of its methods are leaves, `hang::Extra`'s `len` and `is_empty`, whose
+`indexmap` makes a `debug_assert_eq!` a release build compiles out.
 
 ### Lending returned bytes
 

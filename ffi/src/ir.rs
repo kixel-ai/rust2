@@ -27,6 +27,32 @@ pub(crate) struct Api {
 	/// rustc's `--print native-static-libs` prints them. An API from before it holds none.
 	#[serde(default)]
 	pub(crate) links: std::collections::BTreeMap<String, Vec<String>>,
+	/// By target, the profile its check compiled with, whose bodies its leaves are proven
+	/// against. An API from before it holds none, so it proves no leaf.
+	#[serde(default)]
+	pub(crate) profiles: std::collections::BTreeMap<String, Profile>,
+}
+
+/// What of a check's profile can change the code a crate compiles, as the glue's build
+/// script reads it: what cargo tells a build script and the directory it builds in, and the
+/// panic strategy and debug assertions, which `cfg`s tell the crate. Overflow checks, which neither can see, the check always makes, so its
+/// MIR asserts every overflow a build might.
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
+pub(crate) struct Profile {
+	/// Cargo's `PROFILE`: `release` for a profile that is or inherits from `release`, else
+	/// `debug`.
+	pub(crate) root: String,
+	/// The directory cargo builds the profile in, which a build script finds above its
+	/// `OUT_DIR`: the profile's name, but `debug` for `dev` and `test` and `release` for
+	/// `release` and `bench`. Its per-package overrides, which a build script cannot see,
+	/// are then the check's, as the glue carries the workspace's profiles. `None` where the
+	/// manifest sets `test` or `bench`, which share that directory, so no build is proven.
+	pub(crate) dir: Option<String>,
+	/// Cargo's `OPT_LEVEL`.
+	pub(crate) opt_level: String,
+	pub(crate) debug_assertions: bool,
+	/// `cfg(panic)`'s value.
+	pub(crate) panic: String,
 }
 
 /// A crate the glue depends on beside the facade, as the facade resolves it.
