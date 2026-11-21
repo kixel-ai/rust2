@@ -2073,7 +2073,6 @@ pub(crate) fn underscored(name: &str, n: usize) -> String {
 	format!("{}{}{}", &name[..at], "_".repeat(n), &name[at..])
 }
 
-
 /// A language's names of parameters made distinct where Rust's differ only in what its
 /// case drops, such as underscores: a later one takes the lowest free number after it.
 pub(crate) fn distinct(names: impl IntoIterator<Item = String>) -> Vec<String> {
@@ -2376,7 +2375,10 @@ mod tests {
 		// Two that read back alike as Rust's own both move, in the scope's order where Rust's
 		// names are alike too.
 		let spelled = vec!["x".to_string(), "x".to_string()];
-		assert_eq!(named(&["x", "x"], spelled, |_, _| true, |_, _| false, underscored), ["x", "x_"]);
+		assert_eq!(
+			named(&["x", "x"], spelled, |_, _| true, |_, _| false, underscored),
+			["x", "x_"]
+		);
 	}
 
 	#[test]

@@ -2233,7 +2233,13 @@ impl<'a> Gen<'a> {
 			}
 		}
 		let spelled = own.iter().map(|&k| methods[k].name.clone()).collect();
-		let names = abi::named(&rust, spelled, |rust, name| abi::snake(name) == rust, |_, name| taken.contains(name), abi::underscored);
+		let names = abi::named(
+			&rust,
+			spelled,
+			|rust, name| abi::snake(name) == rust,
+			|_, name| taken.contains(name),
+			abi::underscored,
+		);
 		for (k, name) in own.into_iter().zip(names) {
 			taken.insert(name.clone());
 			methods[k].name = name;
@@ -2624,7 +2630,13 @@ impl<'a> Gen<'a> {
 			})
 			.collect();
 		let methods: Vec<&str> = callback.methods.iter().map(|method| method.name()).collect();
-		let named = abi::named(&methods, spelled, |rust, name| abi::snake(name) == rust, |_, _| false, abi::underscored);
+		let named = abi::named(
+			&methods,
+			spelled,
+			|rust, name| abi::snake(name) == rust,
+			|_, _| false,
+			abi::underscored,
+		);
 		for ((method, (types, ret)), member) in callback.methods.iter().zip(signatures).zip(named) {
 			crate::lock::function(&mut self.locked, method, &member);
 			members.push(member.clone());
@@ -3710,12 +3722,17 @@ fn vetted(name: &str, params: &[&str], results: &[&str], error: bool) -> bool {
 fn field_names(fields: &[crate::ir::Field], taken: &BTreeSet<String>) -> Vec<String> {
 	let rust: Vec<&str> = fields.iter().map(|f| f.name.as_str()).collect();
 	let spelled = rust.iter().map(|name| field_name(name)).collect();
-	abi::named(&rust, spelled, |rust, name| abi::snake(name) == rust, |_, name| taken.contains(name), abi::underscored)
+	abi::named(
+		&rust,
+		spelled,
+		|rust, name| abi::snake(name) == rust,
+		|_, name| taken.contains(name),
+		abi::underscored,
+	)
 }
 
 /// A field's Go name, in Pascal case: a positional one's is `V0`, `V1`, ...
 fn field_name(name: &str) -> String {
-
 	match name.starts_with(|c: char| c.is_ascii_digit()) {
 		true => format!("V{name}"),
 		false => pascal(name),

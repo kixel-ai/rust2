@@ -4168,12 +4168,17 @@ fn lock() {
 		("Kotlin", "smoothStep", "smoothStep_"),
 		("Swift", "smoothStep", "smoothStep_"),
 		("Dart", "smoothStep", "smoothStep_"),
-		("Python", "smooth_step", "smooth_step_"),
-		("Go", "SmoothStep", "SmoothStep_"),
 	] {
 		assert!(
 			stderr.contains(&format!("its {language} name `{old}` is now `{new}`")),
 			"missing member rename for {language}:\n{stderr}"
+		);
+	}
+	// Python's and Go's cases spell `smooth_step` alone as its Rust, so it keeps its name.
+	for (language, old) in [("Python", "smooth_step"), ("Go", "SmoothStep")] {
+		assert!(
+			!stderr.contains(&format!("its {language} name `{old}` is now")),
+			"a {language} name spelled as its Rust moved:\n{stderr}"
 		);
 	}
 

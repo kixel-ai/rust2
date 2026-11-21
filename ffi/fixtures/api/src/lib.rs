@@ -5155,18 +5155,30 @@ pub mod clash {
 	/// `underscored`'s fields as decimal digits, from `new_` up, after `op`'s and `change`'s,
 	/// to show each crossed to its own place.
 	pub fn underscored(underscored: Underscored, op: Op, change: Change) -> u32 {
-		let Underscored { new_, new, debug, default } = underscored;
+		let Underscored {
+			new_,
+			new,
+			debug,
+			default,
+		} = underscored;
 		let change = match change {
 			Change::Set { new_, new } => u32::from(new_) * 10 + u32::from(new),
 			Change::Clear => 0,
 		};
-		let digits = [new_, new, debug, default].iter().fold(0, |n, &d| n * 10 + u32::from(d));
+		let digits = [new_, new, debug, default]
+			.iter()
+			.fold(0, |n, &d| n * 10 + u32::from(d));
 		(op as u32 + 1) * 1_000_000 + change * 10_000 + digits
 	}
 
 	/// The underscored record with each field one more, and the change with each swapped.
 	pub fn underscored_next(underscored: Underscored, change: Change) -> (Underscored, Change) {
-		let Underscored { new_, new, debug, default } = underscored;
+		let Underscored {
+			new_,
+			new,
+			debug,
+			default,
+		} = underscored;
 		let next = Underscored {
 			new_: new_ + 1,
 			new: new + 1,

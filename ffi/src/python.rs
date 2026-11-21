@@ -888,10 +888,15 @@ impl<'a> Gen<'a> {
 			.map(|function| self.spelled(function, None, Place::Top, &[]))
 			.unzip();
 		let rust: Vec<&str> = rust.iter().map(String::as_str).collect();
-		let named = abi::named(&rust, spelled, |rust, name| name == rust, |_, name| self.names.contains_key(name), abi::underscored);
+		let named = abi::named(
+			&rust,
+			spelled,
+			|rust, name| name == rust,
+			|_, name| self.names.contains_key(name),
+			abi::underscored,
+		);
 		for (function, member) in api.functions.iter().zip(&named) {
 			match self.function(function, None, Place::Top, member) {
-
 				Some(Form::Native(code, binding)) => {
 					bound.push(indent_by(&binding.expect("a module's function is bound"), 1));
 					declared.push(indent_by(&code, 1));
@@ -1368,7 +1373,13 @@ impl<'a> Gen<'a> {
 			.unzip();
 		let own: Vec<&str> = names.iter().map(String::as_str).collect();
 		let taken = |name: &str| reserved.contains(&name) || TAKEN.contains(&name);
-		let named = abi::named(&own, spelled, |rust, name| name == rust, |_, name| taken(name), abi::underscored);
+		let named = abi::named(
+			&own,
+			spelled,
+			|rust, name| name == rust,
+			|_, name| taken(name),
+			abi::underscored,
+		);
 		for (method, member) in methods.iter().zip(&named) {
 			let place = place(method);
 			let code = match self.function(method, Some((owner, ty)), place, member) {
@@ -1882,7 +1893,10 @@ impl<'a> Gen<'a> {
 			doc::Target::Variant(i, v) => {
 				let e = &abi.api.enums[i];
 				match e.plain() {
-					true => ("attr", format!("{}.{}", owner(doc::Owner::Enum(i)), values(e).swap_remove(v))),
+					true => (
+						"attr",
+						format!("{}.{}", owner(doc::Owner::Enum(i)), values(e).swap_remove(v)),
+					),
 					// As its class is named, apart from its siblings'.
 					false => (
 						"class",
@@ -1899,7 +1913,10 @@ impl<'a> Gen<'a> {
 			doc::Target::Field(i, n) => {
 				let record = &abi.api.records[i];
 				let key = crate::lock::field_key(&record.shown, &record.fields[n].name);
-				("attr", format!("{}.{}", owner(doc::Owner::Record(i)), self.locked.get(&key)?))
+				(
+					"attr",
+					format!("{}.{}", owner(doc::Owner::Record(i)), self.locked.get(&key)?),
+				)
 			}
 			doc::Target::Constant(c) => (
 				"data",
@@ -2545,7 +2562,13 @@ fn member(snake: &str, reserved: &[&str]) -> String {
 /// and `Foo_Bar` alike, kept apart as [`abi::named`] keeps a scope's.
 fn variant_classes(names: &[&str]) -> Vec<String> {
 	let spelled = names.iter().map(|name| kw(&pascal(name))).collect();
-	abi::named(names, spelled, |rust, name| name == rust, |_, _| false, abi::underscored)
+	abi::named(
+		names,
+		spelled,
+		|rust, name| name == rust,
+		|_, _| false,
+		abi::underscored,
+	)
 }
 
 /// The Python names of the plain enum `e`'s values, in upper snake case, kept apart as
@@ -2553,7 +2576,13 @@ fn variant_classes(names: &[&str]) -> Vec<String> {
 fn values(e: &crate::ir::Enum) -> Vec<String> {
 	let rust: Vec<&str> = e.variants.iter().map(|v| v.name.as_str()).collect();
 	let spelled = rust.iter().map(|name| abi::snake(name).to_uppercase()).collect();
-	abi::named(&rust, spelled, |rust, name| pascal(&name.to_lowercase()) == rust, |_, _| false, abi::underscored)
+	abi::named(
+		&rust,
+		spelled,
+		|rust, name| pascal(&name.to_lowercase()) == rust,
+		|_, _| false,
+		abi::underscored,
+	)
 }
 
 /// The Python names of `fields`, one scope's, kept apart from each other and from what
@@ -2561,9 +2590,14 @@ fn values(e: &crate::ir::Enum) -> Vec<String> {
 fn field_names(fields: &[crate::ir::Field], taken: impl Fn(&str) -> bool) -> Vec<String> {
 	let rust: Vec<&str> = fields.iter().map(|f| f.name.as_str()).collect();
 	let spelled = rust.iter().map(|name| field_name(name)).collect();
-	abi::named(&rust, spelled, |rust, name| name == rust, |_, name| taken(name), abi::underscored)
+	abi::named(
+		&rust,
+		spelled,
+		|rust, name| name == rust,
+		|_, name| taken(name),
+		abi::underscored,
+	)
 }
-
 
 /// A field's Python name: a positional one's is `_0`, `_1`, ...
 fn field_name(name: &str) -> String {
@@ -2839,7 +2873,6 @@ mod tests {
 		);
 		// Pascal case spells `FooBar` as its Rust whichever comes first.
 		assert_eq!(variant_classes(&["Foo_Bar", "FooBar"]), ["FooBar_", "FooBar"]);
-
 	}
 
 	#[test]

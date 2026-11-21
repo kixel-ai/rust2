@@ -2047,9 +2047,7 @@ impl<'a> Gen<'a> {
 	) {
 		let functions: Vec<&Function> = methods.iter().collect();
 		let owned = (Some(owner), Some(ty));
-		let declared: Vec<Option<&str>> = (methods.iter())
-			.map(|method| self.declared(method, owned).2)
-			.collect();
+		let declared: Vec<Option<&str>> = (methods.iter()).map(|method| self.declared(method, owned).2).collect();
 		// Each name a member its type declares already takes, as [`collides`] reads it.
 		let named = self.names(&functions, owned, |k, name| match declared[k] {
 			Some(kind) => members.iter().any(|other| collides(other, &format!("{kind}{name}"))),
@@ -3629,7 +3627,13 @@ fn enum_values(e: &crate::ir::Enum) -> Vec<String> {
 	let taken = |_, name: &str| ENUM.contains(&name) || made.iter().any(|(has, made)| *has && *made == name);
 	let rust: Vec<&str> = e.variants.iter().map(|v| v.name.as_str()).collect();
 	let spelled = rust.iter().map(|name| member(&abi::snake(name), &[])).collect();
-	abi::named(&rust, spelled, |rust, name| pascal(name) == rust, taken, abi::underscored)
+	abi::named(
+		&rust,
+		spelled,
+		|rust, name| pascal(name) == rust,
+		taken,
+		abi::underscored,
+	)
 }
 
 /// Whether the members `a` and `b` of one type clash, each `static x`, `new x` for a

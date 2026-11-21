@@ -1606,7 +1606,13 @@ fn field_name(name: &str) -> String {
 fn field_names(fields: &[crate::ir::Field]) -> Vec<String> {
 	let rust: Vec<&str> = fields.iter().map(|f| f.name.as_str()).collect();
 	let spelled = rust.iter().map(|name| field_name(name)).collect();
-	abi::named(&rust, spelled, |rust, name| abi::snake(name) == rust, |_, _| false, numbered)
+	abi::named(
+		&rust,
+		spelled,
+		|rust, name| abi::snake(name) == rust,
+		|_, _| false,
+		numbered,
+	)
 }
 
 /// The names of a data enum variant's fields: a record's, but `tag$` for one named `tag`,
@@ -1619,7 +1625,13 @@ fn variant_fields(fields: &[crate::ir::Field]) -> Vec<String> {
 			name => name,
 		})
 		.collect();
-	abi::named(&rust, spelled, |rust, name| abi::snake(name) == rust, |_, _| false, numbered)
+	abi::named(
+		&rust,
+		spelled,
+		|rust, name| abi::snake(name) == rust,
+		|_, _| false,
+		numbered,
+	)
 }
 
 /// The `n`th name to try in place of `name` where it is taken: it with the number `n + 1`,
@@ -2804,7 +2816,13 @@ impl Gen<'_> {
 			.unzip();
 		let rust: Vec<&str> = rust.iter().map(String::as_str).collect();
 		let own = |rust: &str, name: &str| name == rust || abi::snake(name) == rust;
-		abi::named(&rust, spelled, own, |_, name| !name.is_empty() && taken(name), abi::underscored)
+		abi::named(
+			&rust,
+			spelled,
+			own,
+			|_, name| !name.is_empty() && taken(name),
+			abi::underscored,
+		)
 	}
 
 	/// `function`'s TypeScript form `member`, of `owner` (whose IR type is `owner_ty`) if it

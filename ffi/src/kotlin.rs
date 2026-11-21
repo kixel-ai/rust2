@@ -30,7 +30,9 @@ use rustc_data_structures::stable_hash::StableHasher;
 
 use crate::abi::{self, Abi, Ty, pascal};
 use crate::doc;
-use crate::ir::{Access, Family, Field, Function, Int, Jni, Literal, Mutability, On, Opaque, Order, Param, Receiver, Type};
+use crate::ir::{
+	Access, Family, Field, Function, Int, Jni, Literal, Mutability, On, Opaque, Order, Param, Receiver, Type,
+};
 
 const RUNTIME: &str = include_str!("../runtime/rt.kt");
 /// The runtime's public types, at the generated file's top level.
@@ -1769,10 +1771,14 @@ impl<'a> Gen<'a> {
 		}
 		let owner = Ty::Struct(c.clone());
 		let (own_members, own_statics) = (names(&body), names(&statics));
-		let methods = self.methods_named(&record.methods, (Some(&owner), Some(&ty)), |place, declared| match place {
-			Place::Member => members.iter().chain(&own_members).any(|m| m == declared),
-			Place::Static => own_statics.iter().any(|m| m == declared),
-		});
+		let methods = self.methods_named(
+			&record.methods,
+			(Some(&owner), Some(&ty)),
+			|place, declared| match place {
+				Place::Member => members.iter().chain(&own_members).any(|m| m == declared),
+				Place::Static => own_statics.iter().any(|m| m == declared),
+			},
+		);
 		for (method, member) in record.methods.iter().zip(&methods) {
 			let place = match method.receiver {
 				Some(_) => Place::Member,
@@ -2165,10 +2171,14 @@ impl<'a> Gen<'a> {
 			constant: false,
 		};
 		let (own_members, own_statics) = (names(&body), names(&statics));
-		let methods = self.methods_named(&object.methods, (Some(&owner), Some(&ty)), |place, declared| match place {
-			Place::Member => own_members.iter().any(|m| m == declared),
-			Place::Static => own_statics.iter().any(|m| m == declared),
-		});
+		let methods = self.methods_named(
+			&object.methods,
+			(Some(&owner), Some(&ty)),
+			|place, declared| match place {
+				Place::Member => own_members.iter().any(|m| m == declared),
+				Place::Static => own_statics.iter().any(|m| m == declared),
+			},
+		);
 		for (method, member) in object.methods.iter().zip(&methods) {
 			let place = match method.receiver {
 				Some(_) => Place::Member,
@@ -2245,7 +2255,13 @@ impl<'a> Gen<'a> {
 			})
 			.collect();
 		let methods: Vec<&str> = callback.methods.iter().map(|method| method.name()).collect();
-		let named = abi::named(&methods, spelled, |rust, name| abi::snake(name) == rust, |_, _| false, abi::underscored);
+		let named = abi::named(
+			&methods,
+			spelled,
+			|rust, name| abi::snake(name) == rust,
+			|_, _| false,
+			abi::underscored,
+		);
 		for (n, (method, member)) in callback.methods.iter().zip(&named).enumerate() {
 			let member = kw(member);
 			crate::lock::function(&mut self.locked, method, &member);
@@ -2621,7 +2637,10 @@ impl<'a> Gen<'a> {
 				.filter(|&k| (methods[k].receiver.is_some()) == (place == Place::Member))
 				.collect();
 			let functions: Vec<&Function> = of.iter().map(|&k| &methods[k]).collect();
-			for (k, name) in of.into_iter().zip(self.names(&functions, owner, place, |d| taken(place, d))) {
+			for (k, name) in of
+				.into_iter()
+				.zip(self.names(&functions, owner, place, |d| taken(place, d)))
+			{
 				named[k] = name;
 			}
 		}
@@ -2629,7 +2648,6 @@ impl<'a> Gen<'a> {
 	}
 
 	/// The name each of `functions` takes in `place` of `owner` (whose IR type is
-
 	/// `owner_ty`) if it has one, or at the top level, apart from each other and from what
 	/// `taken` holds of a declaration's kind and name, such as `fun of`, as [`abi::named`]
 	/// keeps a scope's.
@@ -2644,7 +2662,11 @@ impl<'a> Gen<'a> {
 			.map(|function| self.spelled(function, (owner, owner_ty), place))
 			.unzip();
 		let rust: Vec<&str> = rust.iter().map(String::as_str).collect();
-		let unkind = |declared: &str| declared.split_once(' ').map_or(declared.to_string(), |(_, name)| name.to_string());
+		let unkind = |declared: &str| {
+			declared
+				.split_once(' ')
+				.map_or(declared.to_string(), |(_, name)| name.to_string())
+		};
 		// A constant's upper case reads back as it is, and each other's camel case in snake case.
 		let own = |rust: &str, declared: &str| {
 			let name = unkind(declared);
@@ -4272,11 +4294,23 @@ fn variant_names(e: &crate::ir::Enum) -> Vec<String> {
 	match e.plain() {
 		true => {
 			let spelled = rust.iter().map(|name| abi::snake(name).to_uppercase()).collect();
-			abi::named(&rust, spelled, |rust, name| pascal(&name.to_lowercase()) == rust, |_, _| false, abi::underscored)
+			abi::named(
+				&rust,
+				spelled,
+				|rust, name| pascal(&name.to_lowercase()) == rust,
+				|_, _| false,
+				abi::underscored,
+			)
 		}
 		false => {
 			let spelled = rust.iter().map(|name| pascal(name)).collect();
-			abi::named(&rust, spelled, |rust, name| name == rust, |_, _| false, abi::underscored)
+			abi::named(
+				&rust,
+				spelled,
+				|rust, name| name == rust,
+				|_, _| false,
+				abi::underscored,
+			)
 		}
 	}
 }
@@ -4286,7 +4320,13 @@ fn variant_names(e: &crate::ir::Enum) -> Vec<String> {
 fn field_names(fields: &[Field]) -> Vec<String> {
 	let rust: Vec<&str> = fields.iter().map(|f| f.name.as_str()).collect();
 	let spelled = rust.iter().map(|name| camel(name)).collect();
-	let names = abi::named(&rust, spelled, |rust, name| abi::snake(name) == rust, |_, _| false, abi::underscored);
+	let names = abi::named(
+		&rust,
+		spelled,
+		|rust, name| abi::snake(name) == rust,
+		|_, _| false,
+		abi::underscored,
+	);
 	names.iter().map(|name| kw(name)).collect()
 }
 

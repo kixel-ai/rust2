@@ -1142,7 +1142,9 @@ impl<'a> Gen<'a> {
 		members: &mut Vec<String>,
 	) {
 		let methods_: Vec<&Function> = methods.iter().collect();
-		let named = self.names(&methods_, Some(owner), Some(ty), |full| members.iter().any(|m| m == full));
+		let named = self.names(&methods_, Some(owner), Some(ty), |full| {
+			members.iter().any(|m| m == full)
+		});
 		for (method, name) in methods.iter().zip(&named) {
 			for (code, member) in self.function(method, (Some(owner), Some(ty)), name, members) {
 				members.push(member);
@@ -1456,7 +1458,9 @@ impl<'a> Gen<'a> {
 		};
 		let mut streams = Vec::new();
 		let methods: Vec<&Function> = object.methods.iter().collect();
-		let named = self.names(&methods, Some(&owner), Some(&ty), |full| members.iter().any(|m| m == full));
+		let named = self.names(&methods, Some(&owner), Some(&ty), |full| {
+			members.iter().any(|m| m == full)
+		});
 		for (method, name) in object.methods.iter().zip(&named) {
 			for (code, member) in self.function(method, (Some(&owner), Some(&ty)), name, &members) {
 				if method.stream().is_some() {
@@ -1966,7 +1970,9 @@ impl<'a> Gen<'a> {
 		// from its getter, unless Swift cannot copy its value, whose getter cannot throw.
 		let getter = throws && !function.future && function.err.is_none() && everywhere && !self.unique(&function.ok);
 		let var = match (function.access, receiver) {
-			(Access::Field { set: false, .. }, Some(_)) => function.params.is_empty() && (!throws || getter) && !mutates,
+			(Access::Field { set: false, .. }, Some(_)) => {
+				function.params.is_empty() && (!throws || getter) && !mutates
+			}
 			(Access::Const, None) => function.params.is_empty() && !throws,
 			_ => false,
 		};
@@ -2820,7 +2826,13 @@ fn case_names(e: &crate::ir::Enum) -> Vec<String> {
 	let rust: Vec<&str> = e.variants.iter().map(|v| v.name.as_str()).collect();
 	let spelled = rust.iter().map(|name| camel(&abi::snake(name))).collect();
 	let taken = |name: &str| name == "init" || (e.traits.default && name == "default");
-	let names = abi::named(&rust, spelled, |rust, name| pascal(name) == rust, |_, name| taken(name), abi::underscored);
+	let names = abi::named(
+		&rust,
+		spelled,
+		|rust, name| pascal(name) == rust,
+		|_, name| taken(name),
+		abi::underscored,
+	);
 	names.iter().map(|name| kw(name)).collect()
 }
 
@@ -2829,10 +2841,15 @@ fn case_names(e: &crate::ir::Enum) -> Vec<String> {
 fn field_names(fields: &[crate::ir::Field]) -> Vec<String> {
 	let rust: Vec<&str> = fields.iter().map(|f| f.name.as_str()).collect();
 	let spelled = rust.iter().map(|name| camel(name)).collect();
-	let names = abi::named(&rust, spelled, |rust, name| abi::snake(name) == rust, |_, name| name == "init", abi::underscored);
+	let names = abi::named(
+		&rust,
+		spelled,
+		|rust, name| abi::snake(name) == rust,
+		|_, name| name == "init",
+		abi::underscored,
+	);
 	names.iter().map(|name| kw(name)).collect()
 }
-
 
 /// A member's Swift name: in camel case, quoted if a keyword, or with `_` appended if
 /// Swift gives every such type a member of that name.
@@ -2873,7 +2890,6 @@ fn own(rust: &str, full: &str) -> bool {
 }
 
 /// A function's name as DocC links it: with its argument labels.
-
 fn docc_call<'l>(name: &str, labels: impl IntoIterator<Item = &'l str>) -> String {
 	let labels: String = labels.into_iter().map(|l| format!("{l}:")).collect();
 	format!("{}({labels})", unquote(name))
