@@ -707,7 +707,12 @@ the rest cross encoded.
   `_drop`, as Rust's `drop` would, and throws instead while a call borrows the value, as
   Rust refuses that drop, leaving the value to a later `close()`; one no call holds, as
   soon after its return, takes the value through `_drop` and frees the handle in the same
-  crossing, and a `Drop` that calls back into Kotlin finds it closed. Of any other type,
+  crossing. A `close()` meeting that crossing waits until Rust commits or refuses the drop,
+  then decides again: once refused, the object is open, so it throws too while the borrow
+  stands, and closes if it ended meanwhile. Rust runs none of the program's code on the
+  closing thread before it commits, not even the drops other threads left that thread,
+  which it runs after the value's own; a refused close runs them and tries again. So a
+  `Drop` that calls back into Kotlin, from any thread, finds it closed. Of any other type,
   `close()` frees the handle, and throws while a call holds it. A returned object waits in
   a nursery of the last 64 its thread returned, where `close()` frees it without the GC's
   registration, a phantom reference linked into a list under a lock. One never closed is
@@ -1222,9 +1227,15 @@ other than one in its own form, `module <path>` and `go 1.24`.
   a checked type, `Close()` drops the value through Rust's own `_drop`, as Rust's `drop`
   would, and returns an error matching `rt.ErrBorrowed` instead while a call on another
   goroutine borrows the value, as Rust refuses that drop, leaving the value to a later
-  `Close()`. Of any other type, `Close()` frees the handle, and returns an error matching
-  `rt.ErrBorrowed` while a call holds it; one no call holds, as soon after its return,
-  drops and frees in one crossing. A second `Close()` does nothing. A returned object waits
+  `Close()`; one no call holds, as soon after its return, drops and frees in one crossing.
+  A `Close()` meeting that crossing waits until Rust commits or refuses the drop, then
+  decides again: once refused, the object is open, so it fails too while the borrow
+  stands, and closes if it ended meanwhile. Rust runs none of the program's code before it
+  commits, so a `Drop` that calls back into Go finds it closed. Only a value's home runs
+  other code meanwhile, as it does before any call queued there: so a `Close()` from a
+  goroutine the home waits on blocks, as a call on that value from it does. Of any other
+  type, `Close()` frees the handle, and returns an error matching `rt.ErrBorrowed` while a
+  call holds it. A second `Close()` does nothing. A returned object waits
   in a nursery of the last 64 its P returned, where `Close()` frees it without the GC's
   registration (`runtime.AddCleanup` and its `Stop`), which costs more than the rest of a
   return and close. One never closed is registered once pushed out, by 64 later returns or

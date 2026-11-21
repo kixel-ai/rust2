@@ -1580,6 +1580,7 @@ impl<'a> Abi<'a> {
 			"buf_clone",
 			"thread_wake",
 			"thread_drain",
+			"close_drain",
 			// Python's extension module function, beside each native function by this name.
 			"_register",
 			"poll",
@@ -1683,12 +1684,14 @@ impl<'a> Abi<'a> {
 				Self::made(&item, &name),
 			);
 			if self.checked[i] {
-				self.claim(
-					format!("{name}_drop"),
-					what.clone(),
-					object.span,
-					Self::made(&item, &name),
-				);
+				for made in ["drop", "drop_signal"] {
+					self.claim(
+						format!("{name}_{made}"),
+						what.clone(),
+						object.span,
+						Self::made(&item, &name),
+					);
+				}
 			}
 			if object.shared {
 				self.claim(

@@ -186,7 +186,7 @@ pub(crate) fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<O
 	}
 	let _ = write!(
 		kotlin,
-		"/** The runtime's [_Native.__Eq], by a name no class, field, or member of the binding takes, since\n * each is in Pascal or camel case. */\ninternal val _eq = _Native.__Eq\n\ninternal object _Native {{\n\tinit {{\n\t\tSystem.loadLibrary(\"{p}\")\n\t\t// Checked before any other call, which it readies the library for: a Kotlin file\n\t\t// and a library from different builds must not mix.\n\t\tkotlin.check(__contract().toULong() == {}) {{ \"{p}.kt and the library are from different builds\" }}\n\t}}\n\n\t@kotlin.jvm.JvmStatic external fun __contract(): Long\n\n\t@kotlin.jvm.JvmStatic external fun __target(): Int\n\n\t@kotlin.jvm.JvmStatic external fun __usize_max(): Long\n\n\t/** The index of the library's target among those this file serves. */\n\tprivate val target = __target()\n\n\t/** Throws unless the library's target is among those of [on], as the item [what] is. */\n\tfun check(on: ULong, what: String) {{\n\t\tif ((on shr target) and 1uL == 0uL) throw kotlin.UnsupportedOperationException(\"$what: it is not on this library's target\")\n\t}}\n\n\t@kotlin.jvm.JvmStatic external fun __waker_new(waker: Waker): Long\n\n\t@kotlin.jvm.JvmStatic external fun __waker_free(node: Long)\n\n\t@kotlin.jvm.JvmStatic external fun __waker_wake(raw: Long)\n\n\t@kotlin.jvm.JvmStatic external fun __waker_drop(raw: Long)\n\n\t@kotlin.jvm.JvmStatic external fun __bytes_get(lent: __Lent, owner: Long, index: Int): Byte\n\n\t@kotlin.jvm.JvmStatic external fun __bytes_copy(lent: __Lent, owner: Long, start: Int, len: Int, destination: ByteArray, at: Int)\n\n\t@kotlin.jvm.JvmStatic external fun __bytes_copy_direct(lent: __Lent, owner: Long, start: Int, len: Int, destination: java.nio.ByteBuffer, at: Int)\n\n\t@kotlin.jvm.JvmStatic external fun __bytes_free(owner: Long)\n\n\t@kotlin.jvm.JvmStatic private fun __wake(waker: Any) = (waker as Waker).wake()\n\n\t@kotlin.jvm.JvmStatic private fun __poll(pollable: Any, waker: Long): Boolean = (pollable as __Pollable).poll(waker)\n\n\t@kotlin.jvm.JvmStatic private fun __free(implementation: Any) {{\n\t\tif (implementation is AutoCloseable) implementation.close()\n\t}}\n\n\t/** The encoded error a native call raised, which its function throws as its exception. No stack trace: it is caught at once. */\n\tclass __Failed(@kotlin.jvm.JvmField val error: ByteArray) : kotlin.RuntimeException(null, null, false, false)\n\n\t@kotlin.jvm.JvmStatic private fun __failed(error: ByteArray): Throwable = __Failed(error)\n\n\t/** A call a failed run-time check refused, before it moved or changed anything. */\n\tclass __Refused(message: String) : kotlin.IllegalStateException(message)\n\n\t@kotlin.jvm.JvmStatic private fun __refused(message: String): Throwable = __Refused(message)\n\n\t/** A call refused before it moved or changed anything, as an argument holds a value its Rust type cannot. */\n\tclass __Invalid(message: String) : kotlin.IllegalArgumentException(message)\n\n\t@kotlin.jvm.JvmStatic private fun __invalid(message: String): Throwable = __Invalid(message)\n\n\t/** A call a closure it reached refused, by returning a value its Rust type cannot hold, as [__Invalid] refuses an argument: the call ran, so what it moved is gone. */\n\tclass __Unwound(cause: Throwable) : kotlin.IllegalArgumentException(cause.message, cause)\n\n\t/** What a closure's [thrown] unwinds Rust with, to the native method below: none, which aborts, unless the binding refused a value. */\n\t@kotlin.jvm.JvmStatic private fun __unwound(thrown: Throwable): Throwable? = when (thrown) {{\n\t\tis __Unwound -> thrown\n\t\tis __Invalid -> __Unwound(thrown)\n\t\telse -> null\n\t}}\n\n{helpers}{}{}}}\n",
+		"/** The runtime's [_Native.__Eq], by a name no class, field, or member of the binding takes, since\n * each is in Pascal or camel case. */\ninternal val _eq = _Native.__Eq\n\ninternal object _Native {{\n\tinit {{\n\t\tSystem.loadLibrary(\"{p}\")\n\t\t// Checked before any other call, which it readies the library for: a Kotlin file\n\t\t// and a library from different builds must not mix.\n\t\tkotlin.check(__contract().toULong() == {}) {{ \"{p}.kt and the library are from different builds\" }}\n\t}}\n\n\t@kotlin.jvm.JvmStatic external fun __contract(): Long\n\n\t@kotlin.jvm.JvmStatic external fun __target(): Int\n\n\t@kotlin.jvm.JvmStatic external fun __usize_max(): Long\n\n\t/** The index of the library's target among those this file serves. */\n\tprivate val target = __target()\n\n\t/** Throws unless the library's target is among those of [on], as the item [what] is. */\n\tfun check(on: ULong, what: String) {{\n\t\tif ((on shr target) and 1uL == 0uL) throw kotlin.UnsupportedOperationException(\"$what: it is not on this library's target\")\n\t}}\n\n\t@kotlin.jvm.JvmStatic external fun __waker_new(waker: Waker): Long\n\n\t@kotlin.jvm.JvmStatic external fun __waker_free(node: Long)\n\n\t@kotlin.jvm.JvmStatic external fun __waker_wake(raw: Long)\n\n\t@kotlin.jvm.JvmStatic external fun __waker_drop(raw: Long)\n\n\t@kotlin.jvm.JvmStatic external fun __bytes_get(lent: __Lent, owner: Long, index: Int): Byte\n\n\t@kotlin.jvm.JvmStatic external fun __bytes_copy(lent: __Lent, owner: Long, start: Int, len: Int, destination: ByteArray, at: Int)\n\n\t@kotlin.jvm.JvmStatic external fun __bytes_copy_direct(lent: __Lent, owner: Long, start: Int, len: Int, destination: java.nio.ByteBuffer, at: Int)\n\n\t@kotlin.jvm.JvmStatic external fun __bytes_free(owner: Long)\n\n\t@kotlin.jvm.JvmStatic external fun __close_drain(raw: Long): Boolean\n\n\t@kotlin.jvm.JvmStatic private fun __wake(waker: Any) = (waker as Waker).wake()\n\n\t@kotlin.jvm.JvmStatic private fun __poll(pollable: Any, waker: Long): Boolean = (pollable as __Pollable).poll(waker)\n\n\t@kotlin.jvm.JvmStatic private fun __free(implementation: Any) {{\n\t\tif (implementation is AutoCloseable) implementation.close()\n\t}}\n\n\t/** The encoded error a native call raised, which its function throws as its exception. No stack trace: it is caught at once. */\n\tclass __Failed(@kotlin.jvm.JvmField val error: ByteArray) : kotlin.RuntimeException(null, null, false, false)\n\n\t@kotlin.jvm.JvmStatic private fun __failed(error: ByteArray): Throwable = __Failed(error)\n\n\t/** A call a failed run-time check refused, before it moved or changed anything. */\n\tclass __Refused(message: String) : kotlin.IllegalStateException(message)\n\n\t@kotlin.jvm.JvmStatic private fun __refused(message: String): Throwable = __Refused(message)\n\n\t/** A call refused before it moved or changed anything, as an argument holds a value its Rust type cannot. */\n\tclass __Invalid(message: String) : kotlin.IllegalArgumentException(message)\n\n\t@kotlin.jvm.JvmStatic private fun __invalid(message: String): Throwable = __Invalid(message)\n\n\t/** A call a closure it reached refused, by returning a value its Rust type cannot hold, as [__Invalid] refuses an argument: the call ran, so what it moved is gone. */\n\tclass __Unwound(cause: Throwable) : kotlin.IllegalArgumentException(cause.message, cause)\n\n\t/** What a closure's [thrown] unwinds Rust with, to the native method below: none, which aborts, unless the binding refused a value. */\n\t@kotlin.jvm.JvmStatic private fun __unwound(thrown: Throwable): Throwable? = when (thrown) {{\n\t\tis __Unwound -> thrown\n\t\tis __Invalid -> __Unwound(thrown)\n\t\telse -> null\n\t}}\n\n{helpers}{}{}}}\n",
 		contract_literal(contract),
 		g.natives,
 		indent_by(RUNTIME, 1),
@@ -248,6 +248,10 @@ pub(crate) fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<O
 		pub unsafe extern \"system\" fn Java_{pkg}__1Native__1_1bytes_1free(_: *mut JNIEnv, _: jclass, owner: jlong) {{\n\
 		\tunsafe {{ rt::free_bytes(owner) }}\n\
 		}}\n\n\
+		#[unsafe(no_mangle)]\n\
+		pub extern \"system\" fn Java_{pkg}__1Native__1_1close_1drain(env: *mut JNIEnv, _: jclass, raw: jlong) -> jboolean {{\n\
+		\trt::close_drain(env, raw)\n\
+		}}\n\n\
 		{}",
 		g.glue,
 		pkg = mangle(p),
@@ -266,6 +270,13 @@ pub(crate) fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<O
 		let _ = writeln!(rules, "\tstatic *** {name}(...);");
 	}
 	rules.push_str("}\n");
+	// A checked close's drop sets its handle's state by name.
+	if abi.checked.contains(&true) {
+		let _ = write!(
+			rules,
+			"\n-keepclassmembernames class {p}._Native$__Handle {{\n\tlong state;\n}}\n"
+		);
+	}
 	// ART reads `@FastNative` off the dex, and `__contract` registers each method it marks,
 	// so a shrinker keeps them, even those nothing calls.
 	if !g.fast.is_empty() {
@@ -2227,14 +2238,18 @@ impl<'a> Gen<'a> {
 			true => {
 				self.native(
 					&format!("{bare}_drop"),
-					&[("jlong", "Long"), ("jboolean", "Boolean")],
+					&[("jlong", "Long"), ("jobject", "__Handle?")],
 					("()", "Unit"),
 					&format!(
-						"let mut status = 0;\n\t\tcrate::{u}_drop(p0 as usize as _, &mut status);\n\t\tif status != 0 {{\n\t\t\treturn rt::refuse(env, status, \"{c}_drop\");\n\t\t}}\n\t\tif p1 {{\n\t\t\tcrate::{u}_free(p0 as usize as _);\n\t\t}}"
+						"let mut status = 0;\n\t\tlet closing = rt::Closing::{closing}(env, p1, || crate::{u}_free(p0 as usize as _));\n\t\tlet (commit, data) = closing.signal();\n\t\tcrate::{u}_drop_signal(p0 as usize as _, &mut status, commit, data);\n\t\tif status != 0 {{\n\t\t\treturn rt::refuse(env, status, \"{c}_drop\");\n\t\t}}",
+						closing = match object.send {
+							true => "here",
+							false => "anywhere",
+						}
 					),
 				);
 				format!(
-					"\tinternal val handle = _Native.__Handle(this, raw, if (lent) null else _Native.__Drop {{ _Native.{bare}_free(it) }}, \"{name}\", if (lent) null else _Native.__Close {{ p, free -> _Native.{bare}_drop(p, free) }})\n\n\t/** Drop the value now, as Rust's drop does, and free the handle once no call holds it: a call after this throws, and one still borrowing the value makes this throw. */\n\toverride fun close() = handle.close(this)\n"
+					"\tinternal val handle = _Native.__Handle(this, raw, if (lent) null else _Native.__Drop {{ _Native.{bare}_free(it) }}, \"{name}\", if (lent) null else _Native.__Close {{ p, closing -> _Native.{bare}_drop(p, closing) }})\n\n\t/** Drop the value now, as Rust's drop does, and free the handle once no call holds it: a call after this throws, and one still borrowing the value makes this throw. */\n\toverride fun close() = handle.close(this)\n"
 				)
 			}
 			false => format!(

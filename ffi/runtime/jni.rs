@@ -864,13 +864,118 @@ pub fn slots(env: *mut JNIEnv, slots: jlongArray, values: &[i64]) {
 	unsafe { ((**env).v1_2.SetLongArrayRegion)(env, slots, 0, values.len() as jsize, values.as_ptr()) }
 }
 
+/// Kotlin's `__Handle` a close drops the value of in one crossing, or null for a close that
+/// frees nothing: a global reference for a value that is not `Send`, whose drop commits on
+/// its home. Once the drop commits, dropping this frees the native handle with `free`,
+/// however the drop then ends, as a `Drop` that unwinds would skip a free after it.
+pub struct Closing<F: FnOnce()> {
+	env: *mut JNIEnv,
+	handle: jobject,
+	global: bool,
+	committed: AtomicBool,
+	free: Option<F>,
+}
+
+static STATE: OnceLock<usize> = OnceLock::new();
+
+impl<F: FnOnce()> Closing<F> {
+	/// Of a value whose drop commits on this thread.
+	pub fn here(env: *mut JNIEnv, handle: jobject, free: F) -> Self {
+		Self {
+			env,
+			handle,
+			global: false,
+			committed: AtomicBool::new(false),
+			free: Some(free),
+		}
+	}
+
+	/// Of a value that is not `Send`, whose drop may commit on its home.
+	pub fn anywhere(env: *mut JNIEnv, handle: jobject, free: F) -> Self {
+		let handle = match handle.is_null() {
+			true => handle,
+			false => global(env, handle).cast(),
+		};
+		Self {
+			env,
+			handle,
+			global: true,
+			committed: AtomicBool::new(false),
+			free: Some(free),
+		}
+	}
+
+	/// What a drop's commit calls, with what, or nothing for a close that frees nothing.
+	pub fn signal(&self) -> (Option<unsafe extern "C" fn(*mut c_void)>, *mut c_void) {
+		match self.handle.is_null() {
+			true => (None, std::ptr::null_mut()),
+			false => (Some(Self::committed), std::ptr::from_ref(self).cast_mut().cast()),
+		}
+	}
+
+	/// Store the handle's state closed, no longer closing, once its drop can no longer fail:
+	/// so a close waiting on it returns, before any `Drop` runs.
+	///
+	/// # Safety
+	/// `data` is a live [`Closing`] [`Self::signal`] gave, on its thread unless global.
+	unsafe extern "C" fn committed(data: *mut c_void) {
+		// SAFETY: the caller's contract.
+		let closing = unsafe { &*data.cast::<Self>() };
+		let env = match closing.global {
+			true => env(),
+			false => closing.env,
+		};
+		let handle = closing.handle;
+		let id = *STATE.get_or_init(|| {
+			// SAFETY: `env` is this thread's, and `handle` a live `__Handle`.
+			unsafe {
+				let class = ((**env).v1_2.GetObjectClass)(env, handle);
+				let id = ((**env).v1_2.GetFieldID)(env, class, c"state".as_ptr(), c"J".as_ptr());
+				if id.is_null() {
+					fail(env, "jni", "a Kotlin field the library sets is missing");
+				}
+				((**env).v1_2.DeleteLocalRef)(env, class);
+				id as usize
+			}
+		}) as jfieldID;
+		// SAFETY: as above; `state` is a `long`, and 1 its `CLOSED`.
+		unsafe { ((**env).v1_2.SetLongField)(env, handle, id, 1) };
+		// Read once the drop returns or unwinds, after the home, if any, ran it.
+		closing.committed.store(true, Ordering::Release);
+	}
+}
+
+/// `rt::close_drain`, for Kotlin's close, raising what a `Drop` it runs unwinds with.
+pub fn close_drain(env: *mut JNIEnv, raw: jlong) -> jboolean {
+	entry(env, || rt::close_drain(raw as usize as _)).into()
+}
+
+impl<F: FnOnce()> Drop for Closing<F> {
+	fn drop(&mut self) {
+		if self.global && !self.handle.is_null() {
+			// SAFETY: `anywhere` made it on this thread, and it is deleted once.
+			unsafe { ((**self.env).v1_2.DeleteGlobalRef)(self.env, self.handle) };
+		}
+		if self.committed.load(Ordering::Acquire)
+			&& let Some(free) = self.free.take()
+		{
+			free();
+		}
+	}
+}
+
 /// A global reference to a Kotlin value, which Rust may hold on any thread.
 pub fn global(env: *mut JNIEnv, value: jobject) -> *mut c_void {
 	if value.is_null() {
 		rt::fail("jni", "a Kotlin value is null");
 	}
 	// SAFETY: `env` is this thread's, and `value` a live reference.
-	unsafe { ((**env).v1_2.NewGlobalRef)(env, value).cast() }
+	let global = unsafe { ((**env).v1_2.NewGlobalRef)(env, value) };
+	// Null only once the JVM ran out of memory, which no caller could recover from.
+	if global.is_null() {
+		fail(env, "jni", "the JVM made no global reference");
+	}
+	global.cast()
 }
 
 /// Delete a global reference [`global`] made, from any thread.

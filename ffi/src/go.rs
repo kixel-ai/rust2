@@ -692,7 +692,8 @@ impl<'a> Gen<'a> {
 			/*\n#cgo CFLAGS: -I${{SRCDIR}}\n{links}#include <stdlib.h>\n#include \"{p}.h\"\n\n\
 			extern void {go}_call(void *data);\nextern void {go}_release(void *data);\nextern bool {go}_poll(void *data, {p}_waker waker);\n\
 			extern bool {go}_read(void *data, uint8_t *buf, size_t len, size_t *n, {p}_buf *err);\n\
-			extern bool {go}_seek(void *data, int whence, int64_t offset, uint64_t *position, {p}_buf *err);\n\n\
+			extern bool {go}_seek(void *data, int whence, int64_t offset, uint64_t *position, {p}_buf *err);\n\
+			extern bool {p}_close_drain(const void *handle);\n\n\
 			static void {go}_bufs_free({p}_buf *bufs, size_t n) {{\n\tfor (size_t i = 0; i < n; i++) {{\n\t\t{p}_buf_free(bufs[i]);\n\t}}\n}}\n\n\
 			// The header's contract, read through C: cgo built by clang reads a uint64_t macro\n\
 			// with its top bit set as a negative constant.\n\
@@ -712,6 +713,9 @@ impl<'a> Gen<'a> {
 			func cBufsFree(bufs []cBuf) {{\n\tC.{go}_bufs_free(&bufs[0], C.size_t(len(bufs)))\n}}\n\n\
 			func cWakerWake(w cWaker) {{\n\tC.{go}_waker_wake(w)\n}}\n\n\
 			func cWakerDrop(w cWaker) {{\n\tC.{go}_waker_drop(w)\n}}\n\n\
+			// cCloseDrain runs what other threads left this thread, for a Close waiting on another's\n\
+			// undecided drop, given nil, or for one of raw refused: whether to try again.\n\
+			func cCloseDrain(raw unsafe.Pointer) bool {{\n\treturn bool(C.{p}_close_drain(raw))\n}}\n\n\
 			// Go packages and a library from different builds must not mix: checked when the\n\
 			// runtime loads, before any other call.\n\
 			func init() {{\n\tif C.{p}_contract() != 0x{contract:016x} || C.{go}_header_contract() != 0x{contract:016x} {{\n\t\tpanic(\"the Go of {p} and the library are from different builds\")\n\t}}\n\ttarget_ = uint64(C.{p}_target())\n}}\n\n\
@@ -908,18 +912,28 @@ impl<'a> Gen<'a> {
 		(stmts, value)
 	}
 
-	/// The C shim dropping the value of the object `c`'s handle, which Rust checks, then
-	/// freeing the handle if asked and the drop passed: a close in one crossing.
+	/// The C shim dropping the value of the object `c`'s handle, which Rust checks, then,
+	/// given the handle's state, freeing the handle if the drop passed: a close in one
+	/// crossing, which stores closed to the state as the drop commits, so a close waiting on
+	/// it returns before any `Drop` runs.
 	fn close_c(&mut self, c: &str) -> String {
-		let name = format!("{}GoClose_{}", self.abi.prefix, self.bare(c));
+		let p = &self.abi.prefix;
+		let name = format!("{p}GoClose_{}", self.bare(c));
 		let handle = Ty::Handle {
 			name: c.to_string(),
 			constant: false,
 		};
 		let decl = crate::c::decl(self.abi, &handle, "self");
 		let status = crate::c::decl(self.abi, &Ty::Status, "");
+		let committed = format!("{p}GoCommitted");
+		if self.shims.insert(committed.clone()) {
+			self.decls.push(format!(
+				"static void {committed}(void *state) {{\n\t__atomic_store_n((int64_t *)state, 1, __ATOMIC_RELEASE);\n}}\n"
+			));
+		}
 		self.decls.push(format!(
-			"static inline {status} {name}({decl}, int free) {{\n\t{status} r = 0;\n\t{c}_drop(self, &r);\n\tif (r == 0 && free) {{\n\t\t{c}_free(self);\n\t}}\n\treturn r;\n}}\n"
+			"extern void {c}_drop_signal({decl}, {status} *status, void (*commit)(void *), void *data);\n\
+			static inline {status} {name}({decl}, int64_t *state) {{\n\t{status} r = 0;\n\t{c}_drop_signal(self, &r, state ? {committed} : NULL, state);\n\tif (r == 0 && state) {{\n\t\t{c}_free(self);\n\t}}\n\treturn r;\n}}\n"
 		));
 		name
 	}
@@ -2566,9 +2580,9 @@ impl<'a> Gen<'a> {
 		let (drop, dropping) = match self.abi.checked[i] {
 			true => (
 				format!(
-					"// drop_{c} drops the value of the handle p, which Rust checks, then frees p if free\n\
-					// and the drop passed.\n\
-					func drop_{c}(p unsafe.Pointer, free bool) error {{\n\tvar f C.int\n\tif free {{\n\t\tf = 1\n\t}}\n\treturn {status_}(int32(C.{shim}((*C.{c})(p), f)), \"{c}_drop\")\n}}\n\n",
+					"// drop_{c} drops the value of the handle p, which Rust checks, then, given its state,\n\
+					// frees p if the drop passed, storing closed to state once it can no longer fail.\n\
+					func drop_{c}(p, state unsafe.Pointer) error {{\n\treturn {status_}(int32(C.{shim}((*C.{c})(p), (*C.int64_t)(state))), \"{c}_drop\")\n}}\n\n",
 					shim = self.close_c(&c),
 					status_ = self.qualify(Packages::RT, "Status_"),
 				),

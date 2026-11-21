@@ -624,31 +624,57 @@ class __Handle(
 	private fun closeChecked(drop: __Close) {
 		// Held by no call, as soon after its return: claimed closed so none starts, then the
 		// value dropped and the handle freed in one crossing. A call meanwhile throws as
-		// closed, as one racing any close may, and a close meanwhile, such as one a `Drop`
-		// calls back into Kotlin to make, from any thread, returns at once rather than wait
-		// on a drop that may wait on it.
-		if (STATE.compareAndSet(this, HELD, CLOSED or CLOSING)) {
+		// closed, as one racing any close may. A drop that passed stored CLOSED itself.
+		while (true) {
+			while (!STATE.compareAndSet(this, HELD, CLOSED or CLOSING)) {
+				if (closeMet(drop)) return
+			}
 			try {
-				drop.close(raw, true)
+				drop.close(raw, this)
 			} catch (e: Throwable) {
-				state = HELD
+				// Rust refused the drop, before it committed: reopened. It refused before
+				// draining what other threads left this one, which may end the borrow that
+				// refused it: drained, it tries again.
+				if (STATE.compareAndSet(this, CLOSED or CLOSING, HELD)) {
+					if (__close_drain(raw)) continue
+					throw e
+				}
+				// Committed, then a `Drop` unwound: Rust freed the handle all the same.
+				cleanup?.stop()
 				throw e
 			}
 			cleanup?.stop()
-			state = CLOSED
 			return
 		}
+	}
+
+	// [closeChecked] once a call holds it or another close is deciding: whether it is done,
+	// rather than to try the one crossing again.
+	private fun closeMet(drop: __Close): Boolean {
+		val n = state
+		// Another close is deciding: wait for its outcome, which may leave it open. Rust
+		// clears CLOSING once the drop can no longer fail, and runs none of the program's
+		// code on the deciding thread before then, so a close a `Drop` makes, from any
+		// thread, finds it closed rather than waiting on itself. A home runs one queued
+		// there only as it drains, which the wait does, for a callback on that home.
+		if (n and CLOSING != 0L) {
+			__close_drain(0L)
+			java.lang.Thread.yield()
+			return false
+		}
+		if (n and CLOSED != 0L) return true
 		val slot = try {
 			hold()
 		} catch (_: IllegalStateException) {
-			return
+			return false
 		}
 		try {
-			drop.close(raw, false)
+			drop.close(raw, null)
 		} finally {
 			release(slot)
 		}
 		abandon()
+		return true
 	}
 
 	// Whether a call holds it in the table.
@@ -884,9 +910,12 @@ fun interface __Drop {
 	fun drop(raw: Long)
 }
 
-/** Drops the value of a raw handle, then frees the handle too if [free] and the drop passed. */
+/**
+ * Drops the value of a raw handle, then, given its [closing] handle, frees the handle too if
+ * the drop passed, storing that handle's state closed once the drop can no longer fail.
+ */
 fun interface __Close {
-	fun close(raw: Long, free: Boolean)
+	fun close(raw: Long, closing: __Handle?)
 }
 
 /**

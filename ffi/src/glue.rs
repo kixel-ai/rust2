@@ -1714,6 +1714,10 @@ impl Gen<'_> {
 			"#[unsafe(no_mangle)]\npub extern \"C\" fn {p}_status_message(status: i32) -> *const ::std::ffi::c_char {{\n\trt::Status::text(status).as_ptr()\n}}\n"
 		));
 
+		// Go's and Kotlin's, which the header leaves out, as `_drop_signal`.
+		self.line(format!(
+			"#[unsafe(no_mangle)]\npub extern \"C\" fn {p}_close_drain(handle: *const ::std::ffi::c_void) -> bool {{\n\trt::close_drain(handle)\n}}\n"
+		));
 		if api.unsent() {
 			self.line(format!(
 				"#[unsafe(no_mangle)]\npub extern \"C\" fn {p}_thread_drain() {{\n\trt::Thread::drain_here()\n}}\n"
@@ -1778,22 +1782,26 @@ impl Gen<'_> {
 			self.export(format!(
 				"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {name}_free(this: *const ::std::ffi::c_void) {{\n\tunsafe {{ rt::Object::<{path}>::free(this) }}\n}}\n"
 			));
-			// A call on a value that is not `Send` runs on its home, if it has one elsewhere.
-			let away = |name: &str, params: &[&str]| match object.send {
-				true => String::new(),
-				false => {
-					let params: Vec<String> = params.iter().map(|p| p.to_string()).collect();
-					let this = params[0].split_once(": ").map_or("this", |(name, _)| name);
-					away(name, &params, &[(path.clone(), this.to_string())])
-				}
-			};
+			// `_drop_signal`, Go's and Kotlin's, which the header leaves out, calls `commit`
+			// with `data`, if any, once the drop can no longer fail, before the value's `Drop`.
+			// A value that is not `Send` drops on its home, if it has one elsewhere.
 			if self.abi.checked[i] {
-				let away = away(
-					&format!("{name}_drop"),
-					&["this: *const ::std::ffi::c_void", "status: *mut i32"],
-				);
+				let away = match object.send {
+					true => String::new(),
+					false => {
+						let params = ["this", "status", "commit", "data"].map(String::from);
+						away(
+							&format!("{name}_drop_signal"),
+							&params,
+							&[(path.clone(), "this".to_string())],
+						)
+					}
+				};
 				self.export(format!(
-					"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {name}_drop(this: *const ::std::ffi::c_void, status: *mut i32) {{\n\tlet w = \"{name}_drop\";\n\t{away}if let Err(s) = unsafe {{ rt::Object::<{path}>::close(this, w) }} {{\n\t\tunsafe {{ rt::failed::<()>(status, s, w) }}\n\t}}\n}}\n"
+					"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {name}_drop(this: *const ::std::ffi::c_void, status: *mut i32) {{\n\tunsafe {{ {name}_drop_signal(this, status, None, ::std::ptr::null_mut()) }}\n}}\n"
+				));
+				self.export(format!(
+					"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {name}_drop_signal(this: *const ::std::ffi::c_void, status: *mut i32, commit: Option<unsafe extern \"C\" fn(*mut ::std::ffi::c_void)>, data: *mut ::std::ffi::c_void) {{\n\tlet w = \"{name}_drop\";\n\t{away}let commit = commit.map(|commit| move || unsafe {{ commit(data) }});\n\tif let Err(s) = unsafe {{ rt::Object::<{path}>::close(this, w, commit) }} {{\n\t\tunsafe {{ rt::failed::<()>(status, s, w) }}\n\t}}\n}}\n"
 				));
 			}
 			if object.shared {

@@ -977,6 +977,22 @@ fun owned() {
 	val draft = ledger.edit()
 	val refused = runCatching { ledger.close() }.exceptionOrNull()
 	check(refused is IllegalStateException && refused.message == "api_Ledger_drop: a handle is already borrowed", "a close under a borrow throws: $refused")
+	// Two closes under the borrow both throw: one meeting the other's crossing waits out its
+	// refusal rather than report the object closed.
+	repeat(2000) {
+		val start = java.util.concurrent.CountDownLatch(1)
+		var late: Throwable? = null
+		val second = thread {
+			start.await()
+			late = runCatching { ledger.close() }.exceptionOrNull()
+		}
+		start.countDown()
+		val first = runCatching { ledger.close() }.exceptionOrNull()
+		second.join()
+		for (thrown in listOf(first, late)) {
+			check(thrown is IllegalStateException && thrown.message == "api_Ledger_drop: a handle is already borrowed", "racing closes under a borrow both throw as borrowed: $first, $late")
+		}
+	}
 	draft.close()
 	check(ledger.published() == 0u, "a refused close leaves the object open")
 	ledger.close()
@@ -1007,6 +1023,18 @@ fun owned() {
 	handed = Journal.new(joined)
 	handed.close()
 	check(runCatching { handed.write("x") }.exceptionOrNull()?.message == "Journal is closed", "a close its drop hands to another thread returns")
+	// A close drains the drop another thread queued of a value on its thread, whose `Drop`
+	// hands a close of the closing object to a thread it joins: that close finds it closed,
+	// since Rust runs none of the program's code on the deciding thread before it commits.
+	val pinned = Pinned.new(5uL)
+	val freed = Pinned.new(6uL)
+	thread { freed.close() }.join()
+	val met = java.util.concurrent.atomic.AtomicReference<Any?>("no hook ran")
+	hook { met.compareAndSet("no hook ran", runCatching { pinned.close() }.exceptionOrNull()) }
+	pinned.close()
+	unhook()
+	check(met.get() == null, "a close a drained Drop hands to a joined thread returns: ${met.get()}")
+	check(runCatching { pinned.valueGet }.exceptionOrNull()?.message == "Pinned is closed", "and the object is closed")
 
 	// The file serves wasm32 too: what only wasm32 has throws on the host's library.
 	check(platform() is Platform.Native && pointerBits(Platform.Native(64u)) == 64u, "the host is native")
