@@ -105,19 +105,24 @@ impl Drop for Attached {
 /// This thread's JNI environment, attaching it as a daemon until it exits if the JVM
 /// does not know it, as a thread Rust spawned.
 pub fn env() -> *mut JNIEnv {
+	attach().unwrap_or_else(|| rt::fail("jni", "a thread cannot attach to the JVM"))
+}
+
+/// [`env`], or none where the JVM refuses to attach this thread, which JNI allows.
+fn attach() -> Option<*mut JNIEnv> {
 	let vm = *VM.get().expect("the library is loaded") as *mut JavaVM;
 	let mut env: *mut c_void = std::ptr::null_mut();
 	// SAFETY: `vm` is the JVM, which outlives every thread calling into it.
 	unsafe {
 		if ((**vm).v1_4.GetEnv)(vm, &mut env, JNI_VERSION_1_6) == JNI_OK {
-			return env.cast();
+			return Some(env.cast());
 		}
 		if ((**vm).v1_4.AttachCurrentThreadAsDaemon)(vm, &mut env, std::ptr::null_mut()) != JNI_OK {
-			rt::fail("jni", "a thread cannot attach to the JVM");
+			return None;
 		}
 	}
 	ATTACHED.with(|attached| attached.0.set(true));
-	env.cast()
+	Some(env.cast())
 }
 
 /// Whether the Rust a native method called left a Java exception pending, which the
@@ -669,10 +674,14 @@ fn unlend(len: usize) {
 
 /// Ask the GC to collect, on a thread of its own, since a collection takes a while that
 /// the call lending bytes need not wait for. The request is only a hint: a thread that
-/// can't start, as when the process is out of them, skips it, and the reads past the
-/// budget copy as they would without it until frees arm it again.
+/// can't start, as when the process is out of them, or that the JVM won't attach, skips
+/// it, and the reads past the budget copy as they would without it until frees arm it
+/// again.
 fn collect() {
 	let _ = std::thread::Builder::new().name("rust2-ffi collect".into()).spawn(|| {
+		if attach().is_none() {
+			return;
+		}
 		upcall("collect", |env| {
 			// SAFETY: `env` is this thread's, and each name and signature is
 			// `java.lang.Runtime`'s, which every JVM has.
