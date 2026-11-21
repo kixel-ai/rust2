@@ -540,6 +540,12 @@ pub(crate) struct Function {
 	/// the receiver's handle, each a `DerefMut` for `&mut self`, as Rust's auto-deref does.
 	#[serde(default)]
 	pub(crate) derefs: usize,
+	/// Whether the Rust a call runs is proven to run no code but std's and the glue's, in a
+	/// bounded number of steps: a field's read or write, or a method's body, and each
+	/// `Deref` on the way to it. [`crate::abi::Abi::leaf`] says what else a leaf needs. A
+	/// baseline written before it has none.
+	#[serde(default, skip_serializing_if = "std::ops::Not::not")]
+	pub(crate) leaf: bool,
 	/// Whether a lifetime of an object it takes is `'static`, or names something else in the
 	/// signature, so the value may outlive the call or carry its borrow out of it: a handle an
 	/// exclusive lend returned fails it, since its borrow is the lend's.
@@ -908,6 +914,14 @@ pub(crate) fn each(ty: &Type, f: &mut dyn FnMut(&Type)) {
 }
 
 impl Type {
+	/// Whether it crosses as one C scalar, which no code but the glue's lifts or lowers.
+	pub(crate) fn scalar(&self) -> bool {
+		matches!(
+			self,
+			Type::Bool | Type::Int(_) | Type::NonZero(_) | Type::F32 | Type::F64 | Type::Char
+		)
+	}
+
 	/// Whether a parameter of this type is a value C passes in that Rust writes back
 	/// through an out pointer: `&mut` of anything but an object, whose handle it borrows,
 	/// or a reader, which C implements.

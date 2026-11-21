@@ -135,16 +135,33 @@ class Permits {
 }
 
 /**
+ * A timed track named `name` on `broadcast`. It caches every group written to it until it is
+ * disposed, as the broadcast's pool, which nothing polls, evicts none, so each case that
+ * writes groups writes them to a track of its own, disposed once it ends: a round holds one
+ * case's frames at a time instead of every case's, about 2 GB.
+ */
+function createTrack(broadcast: BroadcastProducer.BroadcastProducer, name: string): TrackProducer.TrackProducer {
+	const info = TrackInfo.withTimescale(TrackInfo.default(), Timescale.MICRO());
+	return ok(BroadcastProducer.createTrack(broadcast, name, info), "createTrack");
+}
+
+/** A subscriber to `track`. */
+async function subscribe(track: TrackProducer.TrackProducer): Promise<TrackSubscriber.TrackSubscriber> {
+	const consumer = TrackProducer.consume(track);
+	const subscriber = ok(await TrackConsumer.subscribe(consumer, undefined), "subscribe");
+	consumer[Symbol.dispose]();
+	return subscriber;
+}
+
+/**
  * Groups of 100 frames of `size` bytes written and each read back, its payload's first byte
  * touched, in about 64 MiB and at least 300 frames: megabytes a wall and a CPU second.
  */
-async function throughput(
-	track: TrackProducer.TrackProducer,
-	subscriber: TrackSubscriber.TrackSubscriber,
-	size: number,
-): Promise<Span> {
+async function throughput(broadcast: BroadcastProducer.BroadcastProducer, size: number): Promise<Span> {
 	const count = Math.min(Math.max(Math.floor((64 << 20) / (size * frames)), 3), 2000);
 	const frame = new Uint8Array(size);
+	const track = createTrack(broadcast, `throughput[${size}]`);
+	const subscriber = await subscribe(track);
 	const start = begin();
 	for (let g = 0; g < count; g++) {
 		const at = next();
@@ -162,17 +179,17 @@ async function throughput(
 		finish(group);
 	}
 	const ns = end(start, `throughput[${size}]`, count * frames * size);
+	subscriber[Symbol.dispose]();
+	track[Symbol.dispose]();
 	return { wall: 1e3 / ns.wall, cpu: 1e3 / ns.cpu };
 }
 
 /** `frame.payload` of one frame of `size` bytes, read many times, a byte of each touched. */
-async function payload(
-	track: TrackProducer.TrackProducer,
-	subscriber: TrackSubscriber.TrackSubscriber,
-	size: number,
-): Promise<Span> {
+async function payload(broadcast: BroadcastProducer.BroadcastProducer, size: number): Promise<Span> {
 	// A call a frame, at most a GiB of them copied.
 	const calls = Math.min(n, Math.max(1000, Math.floor((1 << 30) / size)));
+	const track = createTrack(broadcast, `payload[${size}]`);
+	const subscriber = await subscribe(track);
 	const at = next();
 	const group = append(track, at);
 	const reader = some(ok(await TrackSubscriber.recvGroup(subscriber), "recvGroup"), "recvGroup");
@@ -180,6 +197,8 @@ async function payload(
 	const read = some(ok(await GroupConsumer.readFrame(reader), "readFrame"), "readFrame");
 	reader[Symbol.dispose]();
 	finish(group);
+	subscriber[Symbol.dispose]();
+	track[Symbol.dispose]();
 	const start = begin();
 	for (let i = 0; i < calls; i++) {
 		const bytes = FrameFrame.payloadGet(read);
@@ -194,8 +213,7 @@ async function payload(
 async function round(): Promise<Map<string, Span>> {
 	const out = new Map<string, Span>();
 	const broadcast = BroadcastInfo.produce(BroadcastInfo.new());
-	const info = TrackInfo.withTimescale(TrackInfo.default(), Timescale.MICRO());
-	const track = ok(BroadcastProducer.createTrack(broadcast, "bench", info), "createTrack");
+	let track = createTrack(broadcast, "bench");
 	const frame = new Uint8Array(100);
 	micros = 0;
 
@@ -228,6 +246,8 @@ async function round(): Promise<Map<string, Span>> {
 	out.set("object", end(start, "object"));
 
 	// Each frame stamped through a fresh timestamp, as a caller holding a number must.
+	track[Symbol.dispose]();
+	track = createTrack(broadcast, "stamped");
 	start = begin();
 	for (let g = 0; g < groups; g++) {
 		const group = append(track, ok(Timestamp.fromMicros(micros), "fromMicros"));
@@ -239,6 +259,8 @@ async function round(): Promise<Map<string, Span>> {
 	out.set("stamped", end(start, "stamped"));
 
 	// One timestamp per group, every frame of it stamped alike.
+	track[Symbol.dispose]();
+	track = createTrack(broadcast, "write");
 	start = begin();
 	for (let g = 0; g < groups; g++) {
 		const at = next();
@@ -250,12 +272,11 @@ async function round(): Promise<Map<string, Span>> {
 	}
 	out.set("write", end(start, "write"));
 
-	const consumer = TrackProducer.consume(track);
-	const subscriber = ok(await TrackConsumer.subscribe(consumer, undefined), "subscribe");
-	consumer[Symbol.dispose]();
-
 	// Each frame written, then read through a call whose future is ready at its first poll,
 	// so it never waits for a wake.
+	track[Symbol.dispose]();
+	track = createTrack(broadcast, "ready");
+	let subscriber = await subscribe(track);
 	let last: FrameFrame.FrameFrame | undefined;
 	start = begin();
 	for (let g = 0; g < groups; g++) {
@@ -274,6 +295,10 @@ async function round(): Promise<Map<string, Span>> {
 
 	// Each read's promise made before its frame is written, so its first poll pends, and the
 	// write's wake polls it again on a microtask.
+	subscriber[Symbol.dispose]();
+	track[Symbol.dispose]();
+	track = createTrack(broadcast, "woken");
+	subscriber = await subscribe(track);
 	start = begin();
 	for (let g = 0; g < groups; g++) {
 		const at = next();
@@ -290,6 +315,10 @@ async function round(): Promise<Map<string, Span>> {
 	out.set("woken", end(start, "woken"));
 
 	// One writer and one reader; one outstanding permit bounds the stream.
+	subscriber[Symbol.dispose]();
+	track[Symbol.dispose]();
+	track = createTrack(broadcast, "loop");
+	subscriber = await subscribe(track);
 	start = begin();
 	const permits = new Permits();
 	const writer = (async () => {
@@ -316,8 +345,10 @@ async function round(): Promise<Map<string, Span>> {
 	}
 	await writer;
 	out.set("loop", end(start, "loop"));
+	subscriber[Symbol.dispose]();
+	track[Symbol.dispose]();
 
-	for (const size of sizes) out.set(`mbps:${size}`, await throughput(track, subscriber, size));
+	for (const size of sizes) out.set(`mbps:${size}`, await throughput(broadcast, size));
 
 	// The last frame's 100 bytes, handed to JavaScript, one of them read, and disposed.
 	start = begin();
@@ -329,9 +360,7 @@ async function round(): Promise<Map<string, Span>> {
 	out.set("payload", end(start, "payload"));
 	last![Symbol.dispose]();
 
-	for (const size of payloads) out.set(`payload:${size}`, await payload(track, subscriber, size));
-	subscriber[Symbol.dispose]();
-	track[Symbol.dispose]();
+	for (const size of payloads) out.set(`payload:${size}`, await payload(broadcast, size));
 	broadcast[Symbol.dispose]();
 	return out;
 }

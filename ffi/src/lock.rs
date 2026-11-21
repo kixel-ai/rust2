@@ -932,6 +932,7 @@ mod tests {
 				lends: false,
 				lends_mut: false,
 				derefs: 0,
+				leaf: false,
 				ties: false,
 				access: Access::Call,
 				instance: None,
