@@ -63,7 +63,12 @@ pub(crate) fn variants(
 
 /// Record the name a binding gives the field `field` of the record at `owner`.
 pub(crate) fn field(names: &mut BTreeMap<String, String>, owner: &[String], field: &str, name: &str) {
-	names.insert(format!("{} / field {field}", type_key(owner)), name.to_string());
+	names.insert(field_key(owner, field), name.to_string());
+}
+
+/// The key [`field`] records the name of the field `field` of the record at `owner` under.
+pub(crate) fn field_key(owner: &[String], field: &str) -> String {
+	format!("{} / field {field}", type_key(owner))
 }
 
 /// Record the name a binding gives the variant `variant` of the enum at `owner`.
@@ -1008,13 +1013,15 @@ mod tests {
 		};
 		let mut base = api();
 		base.objects.push(object("Fault"));
-		base.objects[0].variants = vec![variant("FooBar")];
+		base.objects[0].variants = vec![variant("Foo_Bar")];
 		base.functions[0].err = Some(Type::Object(0));
 		let old = crate::python::generate(&Abi::new(&base, "lock"), "lock", 0).unwrap();
-		assert_eq!(old.names["error Fault / variant FooBar"], "FaultException.FooBar");
-		// `Foo_Bar` added first takes `FooBar`, which the kept variant had.
+		assert_eq!(old.names["error Fault / variant Foo_Bar"], "FaultException.FooBar");
+		// `FooBar` added, which Python spells as its Rust, takes `FooBar` from the kept
+		// variant, whichever comes first.
 		let mut now = base.clone();
-		now.objects[0].variants.insert(0, variant("Foo_Bar"));
+		now.objects[0].variants.push(variant("FooBar"));
+
 		assert!(
 			breaks(&base, &now, "lock").is_empty(),
 			"an added variant passes structurally"

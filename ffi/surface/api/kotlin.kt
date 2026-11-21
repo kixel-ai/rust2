@@ -432,8 +432,8 @@ data class ClashAny(val typeUrl: kotlin.String) {
 data class ClashBreak(val _0: kotlin.UByte) {
 	fun debug(): kotlin.String
 	companion object {
-		@kotlin.jvm.JvmStatic val SP: api.ClashBreak
 		@kotlin.jvm.JvmStatic val SP_: api.ClashBreak
+		@kotlin.jvm.JvmStatic val SP: api.ClashBreak
 	}
 }
 data class ClashMalformed(val at: kotlin.UByte) {
@@ -441,16 +441,26 @@ data class ClashMalformed(val at: kotlin.UByte) {
 	fun debug(): kotlin.String
 	fun `is`(at: kotlin.UByte): kotlin.Boolean
 }
+data class ClashDescribed(val description: kotlin.UByte, val debugDescription: kotlin.UByte) {
+	final override fun toString(): kotlin.String
+	fun debug(): kotlin.String
+}
 data class ClashErrno(val errno: kotlin.Int) {
 	fun debug(): kotlin.String
 	companion object {
-		@kotlin.jvm.JvmStatic val `NULL`: api.ClashErrno
+		@kotlin.jvm.JvmStatic val NULL: api.ClashErrno
 	}
 }
 data class ClashEscaped(val new: kotlin.UByte) {
 	fun debug(): kotlin.String
-	fun delete(): kotlin.UByte
 	fun delete_(new: kotlin.UByte, new2: kotlin.UByte): kotlin.UByte
+	fun delete(): kotlin.UByte
+}
+data class ClashUnderscored(val new_: kotlin.UByte, val new: kotlin.UByte, val debug: kotlin.UByte, val default: kotlin.UByte) {
+	fun debug(): kotlin.String
+	companion object {
+		@kotlin.jvm.JvmStatic fun default(): api.ClashUnderscored
+	}
 }
 data class TlsPolicyLifetime(val seconds: kotlin.UInt) {
 	fun debug(): kotlin.String
@@ -618,6 +628,17 @@ sealed class ClashTag {
 	data class Private(val number: kotlin.UInt) : ClashTag()
 	fun debug(): kotlin.String
 	fun number(): kotlin.UInt
+}
+enum class ClashOp(internal val value: Int) {
+	DELETE_(0),
+	DELETE(1);
+	fun debug(): kotlin.String
+	companion object {}
+}
+sealed class ClashChange {
+	data class Set(val new_: kotlin.UByte, val new: kotlin.UByte) : ClashChange()
+	data object Clear : ClashChange()
+	fun debug(): kotlin.String
 }
 enum class Level(internal val value: Int) {
 	ERROR(0),
@@ -1322,8 +1343,12 @@ class ClashStore internal constructor(raw: Long, lent: Boolean = false) : AutoCl
 	fun close_(): kotlin.UInt
 	@kotlin.jvm.JvmName("wait_") fun wait()
 	@kotlin.jvm.JvmName("finalize_") fun finalize()
+	fun count(): kotlin.UInt
+	fun open(): kotlin.UInt
 	companion object {
 		@kotlin.jvm.JvmStatic fun new(count: kotlin.UInt): api.ClashStore
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("count_") fun count(): kotlin.UInt
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("open_") fun open(): api.ClashStore
 	}
 }
 class ClashReader internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -1474,6 +1499,10 @@ interface Stretch {
 interface ClashSource {
 	fun wait_()
 	fun readByte(): kotlin.UByte
+}
+interface ClashEraser {
+	fun delete_(new2: kotlin.UByte, new: kotlin.UByte): kotlin.UByte
+	fun delete(): kotlin.UByte
 }
 data class Tuple1<T1>(val first: T1) {
 	override fun equals(other: kotlin.Any?): kotlin.Boolean
@@ -1784,6 +1813,7 @@ fun unzeroed(bytes: api.Bytes): api.Bytes
 fun deprecated(note: kotlin.UByte): kotlin.UByte
 fun deprecated_(note: kotlin.UByte): kotlin.UByte
 fun all(note: kotlin.UByte): kotlin.UByte
+fun all_(note: kotlin.UByte): kotlin.UByte
 @kotlin.Deprecated("") fun knob(dial: api.Dial): api.Knob
 @kotlin.Deprecated("read its `level`") suspend fun levelLater(dial: api.Dial): kotlin.ULong
 @kotlin.jvm.Throws(ErrorException::class) fun turned(dial: api.Dial, turner: api.Turner): api.Dial
@@ -1803,7 +1833,16 @@ fun clashAny(typeUrl: kotlin.String): api.ClashAny
 fun clashCandidate(at: kotlin.UByte): api.ClashCandidate
 fun clashIgnore(arg0: kotlin.UByte, arg1: kotlin.UByte, arg2: kotlin.UByte): kotlin.UByte
 fun clashEmpty(): api.ClashEmptyString
+fun clashDescribed(described: api.ClashDescribed): kotlin.UInt
 fun clashWaited(source: api.ClashSource): kotlin.UByte
+fun clashUnderscored(underscored: api.ClashUnderscored, op: api.ClashOp, change: api.ClashChange): kotlin.UInt
+fun clashUnderscoredNext(underscored: api.ClashUnderscored, change: api.ClashChange): kotlin.Pair<api.ClashUnderscored, api.ClashChange>
+fun clashErased(eraser: api.ClashEraser): kotlin.UInt
+fun clashErase_(): kotlin.UByte
+fun clashErase(): kotlin.UByte
+fun clashLend_(store: api.ClashStore?): kotlin.UInt
+fun clashLend(): kotlin.UInt
+fun clashRun(work2: () -> kotlin.UByte, work: kotlin.UByte): kotlin.UInt
 @kotlin.jvm.Throws(kotlincollectionsListClashToneException::class) fun clashAudible(tone: api.ClashTone): api.ClashTone
 fun clashNested(a: kotlin.Pair<kotlin.Pair<kotlin.UByte, kotlin.UShort>, kotlin.UInt>?, b: api.Tuple1<kotlin.Triple<kotlin.UByte, kotlin.UShort, kotlin.UInt>>?): kotlin.UInt
 fun clashAudioEncoderFinish(): kotlin.UByte

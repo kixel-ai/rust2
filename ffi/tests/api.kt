@@ -356,6 +356,33 @@ fun checks() {
 		override fun readByte(): UByte = 4u
 	}
 	check(clashWaited(source) == 4.toUByte() && waits == 1, "an interface's method named as java.lang.Object's")
+	// Names that differ only by trailing underscores, each reaching its own Rust: a name Kotlin
+	// spells as Rust does keeps it, whichever comes first.
+	val underscored = ClashUnderscored(new_ = 1u, new = 2u, debug = 3u, default = 4u)
+	check(clashUnderscored(underscored, ClashOp.DELETE, ClashChange.Set(new_ = 5u, new = 6u)) == 2_561_234u, "names apart by trailing underscores cross")
+	check(
+		clashUnderscoredNext(underscored, ClashChange.Set(new_ = 5u, new = 6u)) ==
+			Pair(ClashUnderscored(new_ = 2u, new = 3u, debug = 4u, default = 5u), ClashChange.Set(new_ = 6u, new = 5u)),
+		"names apart by trailing underscores cross back",
+	)
+	val eraser = object : ClashEraser {
+		override fun delete_(new2: UByte, new: UByte): UByte = (new2.toInt() * 10 + new.toInt()).toUByte()
+
+		override fun delete(): UByte = 3u
+	}
+	check(clashErased(eraser) == 123u, "an interface's methods apart by a trailing underscore")
+	check(ClashEscaped(3u).delete() == 3.toUByte() && ClashEscaped(3u).delete_(1u, 2u) == 213.toUByte(), "methods apart by a trailing underscore")
+	check(clashErase_() == 2.toUByte() && clashErase() == 1.toUByte(), "functions apart by a trailing underscore")
+	// Rust's parameter `new` keeps `new`, wherever it is, so a named argument reaches it.
+	check(ClashEscaped(3u).delete_(new = 1u, new2 = 2u) == 213.toUByte(), "named arguments apart by a trailing underscore")
+	// A companion's function and an instance's method named alike, each in its own scope.
+	ClashStore.new(5u).use { store ->
+		check(store.count() == 5u && ClashStore.count() == 7u, "a static function and a method named alike")
+	}
+	// On the JVM, the method `open` keeps its name, and the static `open_` takes `open_`.
+	ClashStore.open().use { store ->
+		check(store.open() == 7u, "a static constructor and a method named alike")
+	}
 
 	// A record holding a value past a word crosses as its words, in and out, and a call
 	// with no slots left for one passes it encoded.
