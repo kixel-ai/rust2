@@ -1073,6 +1073,10 @@ public struct Journal: ~Copyable, @unchecked Sendable {
 	@inlinable public mutating func redirect(_ sink: any Log) throws
 	@inlinable public func write(_ line: Swift.String) throws -> Swift.Bool
 }
+public struct Epilogue: ~Copyable, @unchecked Sendable {
+	@inlinable public static func new(_ sink: any Log, _ id: Swift.UInt32) -> Epilogue
+	@inlinable public mutating func redirect(_ sink: any Log) throws
+}
 public struct Local: ~Copyable {
 	@inlinable public static func == (a: borrowing Local, b: borrowing Local) throws -> Swift.Bool
 	@inlinable public func hash(into hasher: inout Swift.Hasher) throws
