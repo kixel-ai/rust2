@@ -947,6 +947,7 @@ fun owned() {
 	readings()
 	crowding()
 	budgeted()
+	nudged()
 	for (n in 1023..1025) {
 		val payload = ByteArray(n) { it.toByte() }
 		val packet = nextPacket(Packet(1u, Bytes(payload)))
@@ -1405,6 +1406,34 @@ fun budgeted() {
 	collected(before + 65u, "the GC frees bytes lent up to the budget")
 	lentAgain(before + 65u)
 	collected(before + 66u, "the GC frees bytes lent once the budget is free")
+}
+
+// On ART, Rust asks the GC to collect once half the budget is lent, so it frees the bytes
+// nothing reaches before the budget runs out, though Kotlin makes no garbage meanwhile.
+// HotSpot, which copies past the budget cheaply, is never asked.
+fun nudged() {
+	if (System.getProperty("java.vm.name") != "Dalvik") return
+	val before = dropped()
+	// A MiB at a time, none left reachable, until 32 are outstanding: a collection of
+	// ART's own meanwhile only frees some sooner, and more are lent to reach half again.
+	var lent = 0u
+	val deadline = System.nanoTime() + 10.seconds.inWholeNanoseconds
+	while (dropped() < before + 32u) {
+		check(System.nanoTime() < deadline, "ART collects the bytes lent once half the budget is")
+		if (lent - (dropped() - before) < 32u) {
+			lentUnreached()
+			lent++
+		} else {
+			Thread.sleep(1)
+		}
+	}
+	collected(before + lent, "the GC frees the bytes lent to half the budget, each once")
+}
+
+// A MiB of Rust's bytes lent and read, none left reachable.
+@OwnFrame
+fun lentUnreached() {
+	check(tokenBytes(5u, (1 shl 20).toUInt())[0] == 5.toByte(), "bytes lent toward half the budget read")
 }
 
 // Bytes lent once the GC freed those that filled the budget, with Rust's drops still [freed].

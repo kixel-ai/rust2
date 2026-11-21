@@ -340,7 +340,7 @@ tick:
 3. **Throughput falls off from 16 KiB on ART alone**, near 650 MB/s against HotSpot's 6.7 to
    9.3 GB/s, while 100 B and 1 KiB frames stay within 3x. These rounds kept every case's
    frames on one track; a track per case ([below](#a-track-per-case)) raised both runtimes
-   but HotSpot more, so the gap stands. [ART's throughput](/quest/m1/ffi-speed/art-throughput.md)
+   but HotSpot more, so the gap stands. [ART's throughput](#arts-throughput)
    finds why.
 
 The spike, 5 rounds of each side alternating on one emulator at a load of 12 to 29, wall ns,
@@ -396,6 +396,59 @@ median:
 
 The call rows moved within their rounds' spread; on ART, the 100 B write fell from 496
 to 404 ns and the ready read from 1,324 to 1,162.
+
+### ART's throughput
+
+Profiled 2026-11-20 on **desktop**, an Intel Core Ultra 7 270K Plus, against moq `1aa86d5e`,
+on an Android 15 (API 35) x86_64 emulator with 4 cores and 2 GB under KVM, beside another
+agent's emulator at a load of 18 to 29, with `simpleperf` from NDK 30 as root. Each program
+ran the throughput case alone in a fresh process, 6 passes of about 64 MiB, and each cell is
+the median over 5 rounds of the median of its last 5 passes, every program alternating
+within a round (MB/s, the slowest and fastest round in brackets):
+
+| program | 16 KiB | 64 KiB | 1 MiB |
+|---|---|---|---|
+| C, `export.c`'s case through the same library | 1,973 (1,098 to 2,027) | 2,292 (2,205 to 2,304) | 2,131 (2,024 to 2,587) |
+| Kotlin, each frame read but not its payload | 1,407 (1,351 to 1,431) | 1,467 (1,443 to 1,882) | 1,235 (1,170 to 1,344) |
+| Kotlin, before | 878 (860 to 894) | 1,171 (1,071 to 1,230) | 1,006 (956 to 1,039) |
+| Kotlin, after | 1,259 (1,249 to 1,328) | 1,403 (1,381 to 1,783) | 1,212 (1,149 to 1,225) |
+
+1. **Fresh memory is most of the cost, in C too.** A track's default cache never evicts, so
+   each frame's copy into moq, `Bytes::copy_from_slice` in `write_frame`, lands in pages
+   the process never touched: 54% of C's samples and 62% of Kotlin's, after, are the page
+   fault, 21 and 44% the kernel zeroing the page. A C loop copying 16 KiB on the same
+   emulator moves 138 GB/s into a buffer it reuses and 61 GB/s into a fresh `malloc` freed
+   after, so its bandwidth is no limit, and HotSpot's host faults far more cheaply.
+2. **Before, reads past the lent budget copied into ART's large-object space.** At most
+   64 MiB are lent to Kotlin at once, and a program making little garbage of its own fills
+   that before ART collects the `Bytes` holding them, so later reads cross copied until it
+   does. ART puts each array of 12 KiB or more in its own mapping: in 5 other rounds at
+   16 KiB, a library always copying moved 509 MB/s, one always lending 1,374, and reading
+   no payload 1,437, so about a third of before's reads copied.
+3. **After, Rust asks ART to collect once 32 MiB are lent**, on a thread of its own, so the
+   collection frees them before the budget runs out. It asks again only once frees bring
+   them under 16 MiB, so bytes a program keeps reachable never make it collect over and
+   over. HotSpot is never asked: it copies into its young generation cheaply, and
+   collects everything at once when asked.
+
+These rounds kept every case's frames on one track, as `export.kt` did before [a track per
+case](#a-track-per-case). Measured again on 2026-11-21 over it, on the same host and moq,
+on an API 35 emulator with 4 cores and 2.5 GB at a load of 17 to 29: one library, its
+request to collect turned off for the before side by an environment variable, 5 rounds with
+the sides alternating in fresh processes, MB/s, the median (the slowest and fastest round):
+
+| program | 16 KiB | 64 KiB | 1 MiB |
+|---|---|---|---|
+| the throughput case alone, before | 861 (605 to 901) | 1,131 (1,040 to 1,151) | 1,039 (927 to 1,069) |
+| the throughput case alone, after | 1,338 (1,059 to 1,356) | 1,465 (1,321 to 1,468) | 1,211 (1,178 to 1,228) |
+| `export.kt`, before | 1,392 (1,196 to 1,402) | 1,086 (949 to 1,341) | 858 (718 to 936) |
+| `export.kt`, after | 1,336 (1,289 to 1,378) | 1,375 (1,354 to 1,711) | 1,108 (1,067 to 1,284) |
+
+A track per case left the budget's cost as it was: a program streaming past 64 MiB still
+loses a third at 16 KiB without the request. `export.kt` moves each size's 64 MiB once a
+round, so its 16 KiB pass starts with the budget empty and copies little either way, which
+is why its 16 KiB row rose with a track per case alone; the larger sizes start with the
+16 KiB pass's bytes still lent. Every call row moved within its rounds' spread.
 
 ## Swift's inlined calls
 

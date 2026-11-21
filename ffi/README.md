@@ -753,7 +753,11 @@ the rest cross encoded.
   which JNI keeps reachable until the call returns, and are freed once the GC finds no
   `Bytes` reaching them, slices included. The GC sees none of Rust's buffers, so at most
   64 MiB are lent at once, freed or not; past that, longer ones are copied too, and that
-  garbage in Kotlin's heap runs the GC, which frees them. A `Bytes` equals and hashes by its contents, wherever each keeps them, so a
+  garbage in Kotlin's heap runs the GC, which frees them. On ART, which puts each copy of
+  12 KiB or more in its large-object space at several times a lend's cost, Rust asks the
+  GC to collect, from a thread of its own, once 32 MiB are lent, and again only after
+  frees bring them under 16 MiB, so lent bytes a program keeps never make it collect over
+  and over. A `Bytes` equals and hashes by its contents, wherever each keeps them, so a
   record holding bytes does too; Rust's lent ones are copied across in one call to compare.
   Strings are `String`, passed in as their UTF-16, which Rust encodes once into UTF-8 before
   the call reads any argument, so one holding a lone surrogate, which no Rust text holds,
