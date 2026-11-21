@@ -853,7 +853,12 @@ namespace api {
 	class Stamp {
 		friend bool operator==(const Stamp &a__, const Stamp &b_);
 		friend bool operator!=(const Stamp &a__, const Stamp &b_);
+		friend bool operator<(const Stamp &a__, const Stamp &b_);
+		friend bool operator<=(const Stamp &a__, const Stamp &b_);
+		friend bool operator>(const Stamp &a__, const Stamp &b_);
+		friend bool operator>=(const Stamp &a__, const Stamp &b_);
 		::api::buf debug() const;
+		static Stamp default_();
 		static ::api::Stamp from_millis(::std::uint64_t millis);
 		::std::uint64_t secs() const;
 		::api::Stamp whole() const;
@@ -1552,6 +1557,13 @@ namespace api {
 	inline ::std::weak_ordering operator<=>(const Pass &a__, const Pass &b_);
 	#endif
 	inline bool operator==(const Stamp &a__, const Stamp &b_);
+	inline bool operator<(const Stamp &a__, const Stamp &b_);
+	inline bool operator<=(const Stamp &a__, const Stamp &b_);
+	inline bool operator>(const Stamp &a__, const Stamp &b_);
+	inline bool operator>=(const Stamp &a__, const Stamp &b_);
+	#if defined(__cpp_lib_three_way_comparison)
+	inline ::std::weak_ordering operator<=>(const Stamp &a__, const Stamp &b_);
+	#endif
 	inline bool operator==(const Point &a__, const Point &b_);
 	inline bool operator==(const Label &a__, const Label &b_);
 	inline bool operator==(const Note &a__, const Note &b_);
@@ -1777,6 +1789,8 @@ namespace api {
 	inline ::api::yielded_future yielded(::std::uint32_t value);
 	template <class F0> inline ::api::after_future after(F0 first, ::std::uint32_t value);
 	template <class F0> inline ::api::within_future within(::std::uint32_t polls, F0 future_);
+	inline ::api::result<::api::Stamp, ::api::Stamp> past(const ::api::Stamp &at, const ::api::Stamp &deadline);
+	inline ::api::result<::std::uint32_t, ::std::uint32_t> odd(::std::uint32_t n);
 	inline ::api::result<::api::Moment, ::api::buf> moment_at(::std::uint64_t ticks, ::std::uint64_t rate);
 	inline ::api::result<::api::Stamp, ::api::buf> stamp_at(::std::uint64_t millis);
 	template <class F0> inline ::api::Moment shifted(const ::api::Moment &moment, F0 &&shift);

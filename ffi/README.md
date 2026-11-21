@@ -739,15 +739,7 @@ the rest cross encoded.
   `IllegalStateException` naming the function and the rule, before any Rust code runs, so the call changed nothing.
 - **Records** are data classes, compared by their fields, and **enums** an `enum class`,
   or for one with data a sealed class of a data class per variant. `Display` is
-  `toString()`, `Debug` `debug()`, and `Default` a companion's `default()`. A companion's
-  function is `@JvmStatic`, so Java calls it on the class, as Kotlin does, but for
-  `default()` and `new()`, whose names Java reserves; one whose JVM name a field's getter has, as
-  `getX()` beside `x`, takes a trailing `_` on the JVM alone. One taking an unsigned
-  integer or its array, or a member returning one, which Kotlin would give a mangled JVM
-  name such as `count-pVg5ArA`, keeps its own through `@JvmName`, so Java calls `count()`
-  for an `int`. Java calls no member of a value class, which Kotlin compiles to such a
-  static, nor a function taking an opaque value Kotlin holds in one, whose bits Java would
-  pass unchecked: its JVM name, such as `take-opaque`, is no Java identifier. An **opaque
+  `toString()`, `Debug` `debug()`, and `Default` a companion's `default()`. An **opaque
   value** is a class with an internal constructor, so only Rust makes one: of no more than
   8 bytes on every target, with no padding, fields of integers, `bool`s, and `char`s alone, nested or not, and a
   derived or std `PartialEq`, a value class over a `Long`, compared by its bits, which
@@ -820,6 +812,28 @@ the rest cross encoded.
   a `List`, and passing a `Vec` by value closes each object in it once the call returns.
 - **Traits** are interfaces; once Rust drops an implementation, it is closed if
   `AutoCloseable`.
+- **Plain Java** compiling against the same classes reaches what Kotlin does. A
+  companion's function is `@JvmStatic`, a static of the class. A JVM name Java cannot
+  call takes a trailing `_` on the JVM alone: a keyword of Java's, as `new_()` and
+  `default_()` are, a method of `Object`'s, or a field's getter, as `getX_()` beside `x`.
+  An unsigned integer is the signed primitive of its bits: Kotlin gives a function taking
+  one, and a member returning one, a mangled JVM name such as `count-pVg5ArA`, which
+  `@JvmName` pins to its own. One nullable or generic is Kotlin's box, which
+  `Unsigned.box(int)` makes and `Unsigned.bits(UInt)` reads, for each width. Any other
+  value class, an opaque value's, `Ipv4Addr`, or `SocketAddrV4`, is its class, never the
+  bits Rust would read unchecked: a function passing one is Java's through an internal
+  bridge of its JVM name, the Kotlin one's taking `-kotlin`, and a value class's member,
+  which Kotlin compiles to a static `@JvmName` cannot rename, is a static of its class
+  taking the value first, as `Ticket.number(ticket)`. A record, variant, range, or
+  exception holding an inline class, whose constructor Kotlin makes synthetic, is made by
+  a static `of` of its fields, as `Packet.of(seq, payload)`; the runtime's `Duration.of`,
+  `Ipv4Addr.of`, `SocketAddrV4.of`, and `SocketAddrV6.of`, and its `Ipv4Addr.bits`,
+  `SocketAddrV4.ip`, and each `port`, stand in for what Kotlin mangles of theirs. A trait
+  with a method Kotlin mangles, or named as a keyword of Java's, nests an interface `Java`
+  of its methods, each unsigned integer the signed one of its bits and an `Ipv4Addr` or
+  `SocketAddrV4` its sealed interface, and `Log.of(java)` wraps one in the trait, closing
+  it as Rust drops it if it is `AutoCloseable`. A data class's `copy` and `componentN`
+  of an inline class stay Kotlin's.
 - **Closures** are function types, which Rust calls from any thread: one lent for a call
   only during the call, and one Rust keeps, as `Spawned.new` does, until it drops it,
   when it deletes its global reference and the GC may collect it. An object it lends is
@@ -832,7 +846,8 @@ the rest cross encoded.
   time: each read fills a `ByteArray` Kotlin allocates, which Rust copies out of, so no
   view of Rust's memory escapes to a channel that keeps its buffer. A seek from the start
   past `Long.MAX_VALUE`, as Rust's `SeekFrom::Start` takes a `u64`, calls `seekStart` of a
-  channel that is also a `StartSeekable`. An `IOException` it throws, or a seek before the
+  channel that is also a `StartSeekable`, or a `StartSeekable.Java`, whose offset is a
+  `Long`'s bits, as Java implements it. An `IOException` it throws, or a seek before the
   start or past `Long.MAX_VALUE` it cannot take, is Rust's `io::Error` of its message; any
   other exception aborts.
 - **Futures** are `suspend fun`s, which resume on the coroutine's dispatcher, as C++ resumes

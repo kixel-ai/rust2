@@ -1432,7 +1432,8 @@ impl Ticket {
 	}
 
 	/// Named as `Object`'s final `wait()`, which Kotlin's value class member, a static of
-	/// another name on the JVM, keeps without `@JvmName`, which it cannot take.
+	/// another name on the JVM, keeps without `@JvmName`, which it cannot take, as Java's
+	/// static `wait(Ticket)` does.
 	pub fn wait(&self) {}
 
 	/// How many times any ticket's `Clone` ran.
@@ -1839,10 +1840,28 @@ impl<F: Future> Future for Within<F> {
 	}
 }
 
-/// A time: `Copy` with a private field, so a value only Rust makes, copied across.
-#[derive(Clone, Copy, Debug, PartialEq)]
+/// A time: `Copy` with a private field, so a value only Rust makes, copied across, and
+/// ordered with a default, as moq's `Timescale` is.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Stamp {
 	millis: u64,
+}
+
+/// `at` where it is past `deadline`, or else an error of `deadline`, which only Rust makes,
+/// as moq's `clock::Elapsed` is.
+pub fn past(at: Stamp, deadline: Stamp) -> Result<Stamp, Stamp> {
+	match at > deadline {
+		true => Ok(at),
+		false => Err(deadline),
+	}
+}
+
+/// `n` where it is odd, or else an error of `n`.
+pub fn odd(n: u32) -> Result<u32, u32> {
+	match n % 2 {
+		1 => Ok(n),
+		_ => Err(n),
+	}
 }
 
 impl Stamp {

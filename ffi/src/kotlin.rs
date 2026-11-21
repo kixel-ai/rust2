@@ -310,6 +310,15 @@ const START_SEEKABLE: &str = "/**
 interface StartSeekable {
 	/** Move to [offset] from the start, returning the position. */
 	fun seekStart(offset: ULong): ULong
+
+	/**
+	 * [StartSeekable] as a Java channel implements it, which Kotlin's mangled method name keeps
+	 * from implementing it: each offset as a `Long`'s bits, unsigned.
+	 */
+	interface Java {
+		/** Move to [offset] from the start, returning the position. */
+		fun seekStart(offset: Long): Long
+	}
 }
 
 ";
@@ -332,8 +341,11 @@ const READS: &str = "\t@kotlin.jvm.JvmStatic private fun __read(channel: Any, le
 \t\tval at = base + offset
 \t\t// From the start, a negative offset's bits are unsigned, past what a Long holds.
 \t\tif (whence == 0 && offset < 0) {
-\t\t\tval start = channel as? StartSeekable ?: throw java.io.IOException(\"a seek past Long.MAX_VALUE of a channel that is no StartSeekable\")
-\t\t\treturn start.seekStart(offset.toULong()).toLong()
+\t\t\treturn when (channel) {
+\t\t\t\tis StartSeekable -> channel.seekStart(offset.toULong()).toLong()
+\t\t\t\tis StartSeekable.Java -> channel.seekStart(offset)
+\t\t\t\telse -> throw java.io.IOException(\"a seek past Long.MAX_VALUE of a channel that is no StartSeekable\")
+\t\t\t}
 \t\t}
 \t\tif (at < 0 || (offset > 0 && at < base)) throw java.io.IOException(\"invalid seek to a negative or overflowing position\")
 \t\tchannel.position(at)
@@ -574,6 +586,7 @@ const TAKEN: &[&str] = &[
 	"UShort",
 	"UShortArray",
 	"Unit",
+	"Unsigned",
 	"Waker",
 	"also",
 	"check",
@@ -1486,8 +1499,9 @@ impl<'a> Gen<'a> {
 		});
 		let jvm = self.jvm_named(&api.functions, (None, None), &named, &[]);
 		for ((function, name), jvm) in api.functions.iter().zip(&named).zip(&jvm) {
-			if let Some(code) = self.function(function, (None, None), Place::Static, (name, jvm), &[]) {
+			if let Some((code, bridge)) = self.function(function, (None, None), Place::Static, (name, jvm), &[]) {
 				top.push(code);
+				top.extend(bridge);
 			}
 		}
 		for code in top {
@@ -1500,9 +1514,18 @@ impl<'a> Gen<'a> {
 				Type::Str | Type::String => "error",
 				_ => "error.toString()",
 			};
+			let (annotations, members, statics) = self.java_fields(name, &[("error", &kt, Some(ty))]);
+			let mut body = vec![format!("\toverride val message: String\n\t\tget() = {message}\n")];
+			body.extend(members.iter().map(|m| indent(m)));
+			if !statics.is_empty() {
+				let statics: Vec<String> = statics.iter().map(|s| indent_by(s, 2)).collect();
+				body.push(format!("\tcompanion object {{\n{}\t}}\n", statics.join("\n")));
+			}
 			let _ = write!(
 				self.types,
-				"/** A `{kt}` Rust returned as an error. */\nclass {name}(val error: {kt}) : Exception() {{\n\toverride val message: String\n\t\tget() = {message}\n}}\n\n"
+				"/** A `{kt}` Rust returned as an error. */\nclass {name}({}val error: {kt}) : Exception() {{\n{}}}\n\n",
+				annotations[0],
+				body.join("\n")
 			);
 		}
 	}
@@ -1510,12 +1533,15 @@ impl<'a> Gen<'a> {
 	/// A Kotlin data class for a range, bound, or pair of bounds, and its codec.
 	fn range(&mut self, c: &str, ty: &Type) {
 		let name = self.class(c);
-		let (fields, write, read) = match ty {
+		let (fields, write, read): (Vec<(&str, String, Option<Type>)>, _, _) = match ty {
 			Type::Range(int) => {
 				let kt = kt_int(*int);
 				let (m, _) = wire_int(*int);
 				(
-					format!("val start: {kt}, val end: {kt}"),
+					vec![
+						("start", kt.to_string(), Some(Type::Int(*int))),
+						("end", kt.to_string(), Some(Type::Int(*int))),
+					],
 					format!(
 						"w.{m}({}); w.{m}({})",
 						to_signed(*int, "v.start"),
@@ -1532,7 +1558,10 @@ impl<'a> Gen<'a> {
 				let kt = kt_int(*int);
 				let (m, _) = wire_int(*int);
 				(
-					format!("val kind: Bound, val value: {kt}"),
+					vec![
+						("kind", "Bound".to_string(), None),
+						("value", kt.to_string(), Some(Type::Int(*int))),
+					],
 					format!("w.i32(v.kind.ordinal); w.{m}({})", to_signed(*int, "v.value")),
 					format!(
 						"{name}(Bound.entries[r.i32()], {})",
@@ -1544,14 +1573,28 @@ impl<'a> Gen<'a> {
 				let bound = abi_bound(self.abi, *int);
 				let class = self.class(&bound);
 				(
-					format!("val start: {class}, val end: {class}"),
+					vec![("start", class.clone(), None), ("end", class, None)],
 					format!("w_{bound}(w, v.start); w_{bound}(w, v.end)"),
 					format!("{name}(r_{bound}(r), r_{bound}(r))"),
 				)
 			}
 			other => unreachable!("{other:?} is no range"),
 		};
-		let _ = write!(self.types, "data class {name}({fields})\n\n");
+		let typed: Vec<(&str, &str, Option<&Type>)> = (fields.iter())
+			.map(|(field, kt, ty)| (*field, kt.as_str(), ty.as_ref()))
+			.collect();
+		let (annotations, _, statics) = self.java_fields(&name, &typed);
+		let params: Vec<String> = (fields.iter().zip(&annotations))
+			.map(|((field, kt, _), annotation)| format!("{annotation}val {field}: {kt}"))
+			.collect();
+		let body = match statics.is_empty() {
+			true => String::new(),
+			false => {
+				let statics: Vec<String> = statics.iter().map(|s| indent_by(s, 2)).collect();
+				format!(" {{\n\tcompanion object {{\n{}\t}}\n}}", statics.join("\n"))
+			}
+		};
+		let _ = write!(self.types, "data class {name}({}){body}\n\n", params.join(", "));
 		let _ = write!(
 			self.top,
 			"internal fun w_{c}(w: _Native.__Writer, v: {name}) {{\n\t{write}\n}}\n\ninternal fun r_{c}(r: _Native.__Reader): {name} = {read}\n\n"
@@ -1684,12 +1727,27 @@ impl<'a> Gen<'a> {
 			// its own.
 			body.push(unary(self, "to_string", "final override fun toString(): kotlin.String"));
 		}
+		// A value class's member is Java's through a static of its companion taking the
+		// value, as [`Gen::function`] bridges one.
+		let value = opaque.is_some_and(|o| word(&o));
+		let bridge = |member: &str, others: usize, ret: &str| {
+			let typed: Vec<String> = (0..others).map(|k| format!(", _{k}: {class}?")).collect();
+			let args: Vec<String> = (0..others).map(|k| format!("_{k}!!")).collect();
+			format!(
+				"\t\t/** [{member}] as Java calls it, passing each value class as its class. */\n\t\t@kotlin.jvm.JvmStatic\n\t\t@kotlin.jvm.JvmName(\"{member}\")\n\t\tinternal fun `{member}-java`(_v: {class}?{}): {ret} = _v!!.{member}({})\n",
+				typed.concat(),
+				args.join(", ")
+			)
+		};
 		if t.debug {
 			body.push(unary(
 				self,
 				"debug",
 				"/** Rust's `Debug` form. */\n\tfun debug(): kotlin.String",
 			));
+			if value {
+				statics.push(bridge("debug", 0, "kotlin.String"));
+			}
 		}
 		if object && t.clone {
 			self.native(
@@ -1793,6 +1851,14 @@ impl<'a> Gen<'a> {
 				false => format!("{pre}let ret = {call};\n\t\tret as jint"),
 			};
 			self.native(&format!("{bare}_{suffix}"), &params, ("jint", "Int"), &rust);
+			// The boxed class implements `Comparable` through a bridge javac does not resolve
+			// `compareTo` to, so Java calls it as another member.
+			if value {
+				statics.push(match member {
+					true => bridge("compareTo", 1, "kotlin.Int"),
+					false => bridge("partialCompareTo", 1, "kotlin.Int?"),
+				});
+			}
 			body.push(match member {
 				true => format!(
 					"\t/** Rust's `Ord`: -1, 0, or 1 as this is less than, equal to, or greater than `other`. */\n\toverride fun compareTo(other: {class}): kotlin.Int = {kt}\n"
@@ -1824,9 +1890,19 @@ impl<'a> Gen<'a> {
 				),
 			};
 			self.native(&format!("{bare}_default"), &[], (jni, native), &rust);
+			// Java reserves `default`, and passes a value class as its class.
+			let jvm = match value {
+				true => "default-kotlin",
+				false => "default_",
+			};
 			statics.push(format!(
-				"\t\t/** Rust's `Default`. */\n\t\t@kotlin.jvm.JvmStatic\n\t\tfun default(): {class} = {lift}\n"
+				"\t\t/** Rust's `Default`. */\n\t\t@kotlin.jvm.JvmStatic\n\t\t@kotlin.jvm.JvmName(\"{jvm}\")\n\t\tfun default(): {class} = {lift}\n"
 			));
+			if value {
+				statics.push(format!(
+					"\t\t/** [default] as Java calls it, returning the value as its class. */\n\t\t@kotlin.jvm.JvmStatic\n\t\t@kotlin.jvm.JvmName(\"default_\")\n\t\tinternal fun `default-java`(): {class}? = default()\n"
+				));
+			}
 		}
 	}
 
@@ -1862,12 +1938,22 @@ impl<'a> Gen<'a> {
 				Place::Static => own_statics.iter().any(|m| m == declared),
 			},
 		);
-		// A data class's `componentN`, which Kotlin declares for each field.
+		let class = self.qualified(&c);
+		let typed: Vec<(&str, &str, Option<&Type>)> = (fields.iter().zip(&record.fields))
+			.map(|((field, kt), f)| (field.as_str(), kt.as_str(), Some(&f.ty)))
+			.collect();
+		let (annotations, java_members, java_statics) = match record.opaque {
+			Some(_) => (vec![String::new(); fields.len()], Vec::new(), Vec::new()),
+			None => self.java_fields(&class, &typed),
+		};
+		// A data class's `componentN`, which Kotlin declares for each field, and the factory
+		// Java makes one by, which takes its name before any Rust function.
 		let components = (1..=fields.len()).map(|n| format!("component{n}"));
 		let jvm_taken: Vec<String> = (members.iter().map(|m| jvm_name(m)))
 			.chain(components)
 			.chain(jvm_names(&body))
 			.chain(jvm_names(&statics))
+			.chain(jvm_names(&java_statics))
 			.collect();
 		let jvm = self.jvm_named(&record.methods, (Some(&owner), Some(&ty)), &methods, &jvm_taken);
 		for ((method, member), jvm) in record.methods.iter().zip(&methods).zip(&jvm) {
@@ -1881,10 +1967,13 @@ impl<'a> Gen<'a> {
 				Place::Static => names(&statics),
 			};
 			if let Some(code) = self.function(method, (Some(&owner), Some(&ty)), place, (member, jvm), &own) {
-				match place {
-					Place::Member => body.push(code),
-					Place::Static => statics.push(indent(&code)),
-				}
+				put_function(
+					code,
+					place,
+					record.opaque.is_some_and(|o| word(&o)),
+					&mut body,
+					&mut statics,
+				);
 			}
 		}
 		// A data class compares arrays by identity and floats by their bits, and Rust both by IEEE `==`.
@@ -1892,6 +1981,8 @@ impl<'a> Gen<'a> {
 			let fields: Vec<String> = fields.iter().map(|(f, _)| f.clone()).collect();
 			body.push(Self::contents(&name, &fields));
 		}
+		body.extend(java_members.iter().map(|m| indent(m)));
+		statics.extend(java_statics.iter().map(|s| indent_by(s, 2)));
 		members.extend(body.iter().filter_map(|b| member_name(b)));
 		self.distinct(&rust, &members);
 		self.distinct(&rust, &names(&statics));
@@ -1928,12 +2019,10 @@ impl<'a> Gen<'a> {
 				);
 			}
 			false => {
-				let params: Vec<String> = fields
-					.iter()
-					.zip(&record.fields)
-					.map(|((f, kt), field)| {
+				let params: Vec<String> = (fields.iter().zip(&record.fields).zip(&annotations))
+					.map(|(((f, kt), field), annotation)| {
 						format!(
-							"{}\tval {f}: {kt},",
+							"{}\t{annotation}val {f}: {kt},",
 							docs(&field.docs, field.deprecated.as_deref(), "\t")
 						)
 					})
@@ -1968,6 +2057,56 @@ impl<'a> Gen<'a> {
 			"impl Wire for crate::{c} {{\n\tfn read(r: &mut Reader<'_>) -> Self {{\n\t\tlet _ = &r;\n\t\tSelf {{ {} }}\n\t}}\n\n\tfn write(self, w: &mut Writer) {{\n\t\tlet _ = &w;\n{puts}\t}}\n}}\n\n",
 			fields.join(", ")
 		);
+	}
+
+	/// What plain Java needs of the data class `class`'s `fields`, each its Kotlin name, type,
+	/// and IR type, where an inline class may hold it: the annotation each field's property
+	/// takes, which pins the getter Kotlin would mangle for an unsigned one; the members its
+	/// body gains, a getter of each value class's as its class; and the companion's statics, a
+	/// factory `of` where Kotlin compiles its constructor to a synthetic one Java cannot call,
+	/// as it does for one taking an inline class. Each is unindented.
+	fn java_fields(
+		&self,
+		class: &str,
+		fields: &[(&str, &str, Option<&Type>)],
+	) -> (Vec<String>, Vec<String>, Vec<String>) {
+		let api = self.abi.api;
+		let (mut annotations, mut members) = (Vec::new(), Vec::new());
+		let (mut params, mut args) = (Vec::new(), Vec::new());
+		for (k, &(field, kt, ty)) in fields.iter().enumerate() {
+			let getter = jvm_name(&format!("val {field}"));
+			let field = field.trim_matches('`');
+			let (inline, boxed) = ty.map_or((false, false), |ty| (inline(api, ty), boxed(api, ty)));
+			// A value class's own getter returns its bits, so is pinned beside Java's.
+			annotations.push(match (inline, boxed) {
+				(_, true) => format!("@get:kotlin.jvm.JvmName(\"{getter}-kotlin\") "),
+				(true, false) => format!("@get:kotlin.jvm.JvmName(\"{getter}\") "),
+				(false, false) => String::new(),
+			});
+			if boxed {
+				members.push(format!(
+					"/** [{field}] as Java reads it, as its class. */\n@get:kotlin.jvm.JvmName(\"{getter}\")\ninternal val `{field}-java`: {kt}?\n\tget() = this.`{field}`\n"
+				));
+			}
+			let (optional, unwrap) = match boxed {
+				true => ("?", "!!"),
+				false => ("", ""),
+			};
+			params.push(format!("_{k}: {kt}{optional}"));
+			args.push(format!("_{k}{unwrap}"));
+		}
+		let factory = fields.iter().any(|(_, _, ty)| ty.is_some_and(|ty| inline(api, ty)));
+		let statics = factory
+			.then(|| {
+				format!(
+					"/** A [{class}] of each field, as Java makes one, passing each value class as its class. */\n@kotlin.jvm.JvmStatic\n@kotlin.jvm.JvmName(\"of\")\ninternal fun `of-java`({}): {class} = {class}({})\n",
+					params.join(", "),
+					args.join(", ")
+				)
+			})
+			.into_iter()
+			.collect();
+		(annotations, members, statics)
 	}
 
 	/// An opaque value's class, `name` in Kotlin and `c` in C, and its codec: a value class
@@ -2072,10 +2211,7 @@ impl<'a> Gen<'a> {
 				Place::Static => names(&statics),
 			};
 			if let Some(code) = self.function(method, (Some(&owner), Some(&ty)), place, (member, jvm), &own) {
-				match place {
-					Place::Member => body.push(code),
-					Place::Static => statics.push(indent(&code)),
-				}
+				put_function(code, place, false, &mut body, &mut statics);
 			}
 		}
 		let mut members: Vec<String> = body.iter().filter_map(|b| member_name(b)).collect();
@@ -2130,11 +2266,18 @@ impl<'a> Gen<'a> {
 			crate::lock::variant(&mut self.locked, &e.shown, &variant.name, &format!("{name}.{vname}"));
 			members.push(format!("class {vname}"));
 			let names = field_names(&variant.fields);
-			let fields: Vec<String> = (variant.fields.iter().zip(&names))
+			let kts: Vec<String> = (variant.fields.iter().zip(&names))
 				.map(|(f, field)| {
 					crate::lock::variant_field(&mut self.locked, &e.shown, &variant.name, &f.name, field);
-					format!("val {field}: {}", self.kt(&f.ty))
+					self.kt(&f.ty)
 				})
+				.collect();
+			let typed: Vec<(&str, &str, Option<&Type>)> = (names.iter().zip(&kts).zip(&variant.fields))
+				.map(|((field, kt), f)| (field.as_str(), kt.as_str(), Some(&f.ty)))
+				.collect();
+			let (annotations, java_members, java_statics) = self.java_fields(&vname, &typed);
+			let fields: Vec<String> = (names.iter().zip(&kts).zip(&annotations))
+				.map(|((field, kt), annotation)| format!("{annotation}val {field}: {kt}"))
 				.collect();
 			let mut write = vec![format!("w.i32({n})")];
 			// A value of a variant the library's target lacks is refused as it crosses.
@@ -2156,11 +2299,18 @@ impl<'a> Gen<'a> {
 					));
 				}
 				false => {
-					let body = match variant.fields.iter().any(|f| self.by_contents(&f.ty)) {
-						true => {
-							format!(" {{\n{}\t}}", indent(&Self::contents(&vname, &names)))
-						}
-						false => String::new(),
+					let mut inner: Vec<String> = Vec::new();
+					if variant.fields.iter().any(|f| self.by_contents(&f.ty)) {
+						inner.push(indent(&Self::contents(&vname, &names)));
+					}
+					inner.extend(java_members.iter().map(|m| indent_by(m, 2)));
+					if !java_statics.is_empty() {
+						let statics: Vec<String> = java_statics.iter().map(|s| indent_by(s, 3)).collect();
+						inner.push(format!("\t\tcompanion object {{\n{}\t\t}}\n", statics.join("\n")));
+					}
+					let body = match inner.is_empty() {
+						true => String::new(),
+						false => format!(" {{\n{}\t}}", inner.join("\n")),
 					};
 					variants.push(format!(
 						"\tdata class {vname}({}) : {name}(){body}\n",
@@ -2284,10 +2434,7 @@ impl<'a> Gen<'a> {
 				Place::Static => names(&statics),
 			};
 			if let Some(code) = self.function(method, (Some(&owner), Some(&ty)), place, (member, jvm), &own) {
-				match place {
-					Place::Member => body.push(code),
-					Place::Static => statics.push(indent(&code)),
-				}
+				put_function(code, place, false, &mut body, &mut statics);
 			}
 		}
 		// Each stream's flow, after every Rust method, so a Rust name keeps itself.
@@ -2391,6 +2538,7 @@ impl<'a> Gen<'a> {
 			table.push(format!("{}: Some({trampoline})", abi::member(method)));
 		}
 		self.distinct(&rust, &members);
+		body.extend(self.java_callback(&name, &callback.methods, &named));
 		let text = format!(
 			"{rust}: implemented in Kotlin. Rust calls its methods from any thread, and once it\ndrops the implementation, closes it if it is `AutoCloseable`.\n\n{}",
 			callback.docs
@@ -2406,6 +2554,122 @@ impl<'a> Gen<'a> {
 			"static VTABLE_{c}: crate::{c}_vtable = crate::{c}_vtable {{ {} }};\n\n",
 			table.join(", ")
 		);
+	}
+
+	/// What plain Java implements the callback interface `name` of `methods`, Kotlin's
+	/// `named`, through, where it cannot implement the interface itself: Kotlin mangles the JVM
+	/// name of a method taking or returning an inline class, and refuses `@JvmName` on one, as
+	/// it is open, and Java names no method a keyword. A nested interface `Java` declares the
+	/// methods without one, each unsigned integer as the signed one of its bits, and an
+	/// `Ipv4Addr` or `SocketAddrV4` as the interface it implements, and a companion's `of`
+	/// wraps one in the interface. None where Java implements the interface itself.
+	fn java_callback(&mut self, name: &str, methods: &[Function], named: &[String]) -> Option<String> {
+		let api = self.abi.api;
+		let needed = (methods.iter().zip(named)).any(|(method, member)| {
+			java_keyword(member) || inline(api, &method.ok) || method.params.iter().any(|p| inline(api, &p.ty))
+		});
+		if !needed {
+			return None;
+		}
+		// Each type as Java's interface declares it, and the expression converting a value
+		// `e` of Kotlin's to it.
+		let java = |g: &mut Self, ty: &Type| -> (String, Option<&'static str>) {
+			let (inner, optional) = match ty {
+				Type::Option(inner) => (&**inner, "?"),
+				_ => (ty, ""),
+			};
+			match (lowered(inner), inner) {
+				(Some(primitive), _) => (format!("{primitive}{optional}"), Some(primitive)),
+				(None, Type::IpAddr(Family::V4)) => (format!("{}{optional}", g.own("IpAddr")), None),
+				(None, Type::SocketAddr(Family::V4)) => (format!("{}{optional}", g.own("SocketAddr")), None),
+				_ => (g.kt_param(ty), None),
+			}
+		};
+		let to = |primitive: &str| match primitive {
+			"kotlin.Byte" => "toByte()",
+			"kotlin.Short" => "toShort()",
+			"kotlin.Int" => "toInt()",
+			_ => "toLong()",
+		};
+		let from = |primitive: &str| match primitive {
+			"kotlin.Byte" => "toUByte()",
+			"kotlin.Short" => "toUShort()",
+			"kotlin.Int" => "toUInt()",
+			_ => "toULong()",
+		};
+		let mut types = Vec::new();
+		for method in methods {
+			let params: Vec<(String, Option<&'static str>)> = method.params.iter().map(|p| java(self, &p.ty)).collect();
+			types.push((params, java(self, &method.ok)));
+		}
+		// Apart from Java's keywords, and what `java.lang.Object` declares of the signature
+		// Java's interface gives it.
+		let rust: Vec<&str> = methods.iter().map(|method| method.name()).collect();
+		let javas = abi::named(
+			&rust,
+			named.iter().map(|n| n.trim_matches('`').to_string()).collect(),
+			|rust, name| abi::snake(name) == rust,
+			|k, name| {
+				let params: Vec<&str> = types[k].0.iter().map(|(kt, _)| kt.as_str()).collect();
+				java_keyword(name)
+					|| object_method(name, &params)
+					|| (params.is_empty() && ["toString", "hashCode"].contains(&name))
+			},
+			abi::underscored,
+		);
+		let (mut declared, mut wrapped) = (Vec::new(), Vec::new());
+		for (k, (method, member)) in methods.iter().zip(named).enumerate() {
+			let (params, (ret, ret_primitive)) = &types[k];
+			let java = kw(&javas[k]);
+			// Named as the interface's, which Kotlin warns an override's differing from.
+			let locals = locals(&method.params);
+			let typed: Vec<String> = (params.iter().zip(&locals))
+				.map(|((kt, _), local)| format!("{local}: {kt}"))
+				.collect();
+			let ret_kt = match method.ok {
+				Type::Unit => String::new(),
+				_ => format!(": {ret}"),
+			};
+			declared.push(format!(
+				"{}\t\tfun {java}({}){ret_kt}",
+				docs("", method.deprecated.as_deref(), "\t\t"),
+				typed.join(", ")
+			));
+			let kotlin: Vec<String> = (method.params.iter().zip(&locals))
+				.map(|(p, local)| format!("{local}: {}", self.kt_param(&p.ty)))
+				.collect();
+			let args: Vec<String> = (params.iter().zip(&locals).enumerate())
+				.map(|(n, ((_, primitive), local))| match (primitive, &method.params[n].ty) {
+					(Some(primitive), Type::Option(_)) => format!("{local}?.{}", to(primitive)),
+					(Some(primitive), _) => format!("{local}.{}", to(primitive)),
+					(None, _) => local.clone(),
+				})
+				.collect();
+			let call = format!("this.java.{java}({})", args.join(", "));
+			let call = match ret_primitive {
+				Some(primitive) => format!("{call}.{}", from(primitive)),
+				None => call,
+			};
+			let ret_kt = match method.ok {
+				Type::Unit => String::new(),
+				_ => format!(": {}", self.kt(&method.ok)),
+			};
+			wrapped.push(format!(
+				"{}\t\t\toverride fun {member}({}){ret_kt} = {call}",
+				docs("", method.deprecated.as_deref(), "\t\t\t"),
+				kotlin.join(", ")
+			));
+		}
+		// Java forbids a nested class its outer one's name.
+		let nested = match name == "Java" {
+			true => "Java_",
+			false => "Java",
+		};
+		Some(format!(
+			"\t/**\n\t * [{name}] as Java implements it, which [of] wraps in one: each unsigned integer as the\n\t * signed one of its bits, and an `Ipv4Addr` or `SocketAddrV4` as the interface it implements.\n\t */\n\tinterface {nested} {{\n{}\n\t}}\n\n\tcompanion object {{\n\t\t/** [java] as a [{name}], which closes it as Rust drops it, where it is `AutoCloseable`. */\n\t\t@kotlin.jvm.JvmStatic\n\t\tfun of(java: {nested}): {name} = object : {name}, AutoCloseable {{\n\t\t\t// Read through `this`, past any parameter of its name.\n\t\t\tprivate val java: {nested} = java\n\n{}\n\n\t\t\toverride fun close() {{\n\t\t\t\t(this.java as? AutoCloseable)?.close()\n\t\t\t}}\n\t\t}}\n\t}}",
+			declared.join("\n\n"),
+			wrapped.join("\n\n")
+		))
 	}
 
 	/// The Rust function C calls for a callback's method or a closure, named `trampoline`,
@@ -2781,8 +3045,9 @@ impl<'a> Gen<'a> {
 
 	/// The JVM method each of a type's `methods`, Kotlin's `named`, compiles to, of `owner`
 	/// (whose IR type is `owner_ty`): apart across both places, since a companion's
-	/// `@JvmStatic` member shares the class's names, from the JVM methods `taken` names and
-	/// `java.lang.Object`'s, as [`abi::named`] keeps a scope's. So of Rust's `count(&self)`
+	/// `@JvmStatic` member shares the class's names, from the JVM methods `taken` names,
+	/// `java.lang.Object`'s, and Java's keywords, as [`abi::named`] keeps a scope's, so Rust's
+	/// `new` is `new_` on the JVM. So of Rust's `count(&self)`
 	/// and `count_()`, both Kotlin's `count`, the method keeps `count` on the JVM in either
 	/// order.
 	fn jvm_named(
@@ -2807,15 +3072,21 @@ impl<'a> Gen<'a> {
 				None => (None, abi.export(method, owner)),
 			};
 			let function = back.as_ref().unwrap_or(method);
+			// A value class's member is Java's as a static taking the value first.
+			let value = (place == Place::Member && owner_ty.is_some_and(|ty| boxed(abi.api, ty)))
+				.then(|| self.kt(owner_ty.expect("a member has its type")));
 			let params: Vec<String> = match export.future {
 				Some(_) => vec!["kotlin.coroutines.Continuation".to_string()],
-				None => (function.params.iter())
-					.filter(|p| p.ty != Type::Jni(Jni::Env))
-					// What the JVM passes, which `Object`'s methods are matched by.
-					.map(|p| match lowered(abi.api, &p.ty) {
-						Some(primitive) => primitive.to_string(),
-						None => self.kt_param(&p.ty),
-					})
+				None => (value.into_iter())
+					.chain(
+						(function.params.iter())
+							.filter(|p| p.ty != Type::Jni(Jni::Env))
+							// What the JVM passes, which `Object`'s methods are matched by.
+							.map(|p| match lowered(&p.ty) {
+								Some(primitive) => primitive.to_string(),
+								None => self.kt_param(&p.ty),
+							}),
+					)
 					.collect(),
 			};
 			rust.push(name);
@@ -2827,7 +3098,7 @@ impl<'a> Gen<'a> {
 		let own = |rust: &str, jvm: &str| jvm == rust || abi::snake(jvm) == rust;
 		let taken = |k: usize, jvm: &str| {
 			let params: Vec<&str> = types[k].iter().map(String::as_str).collect();
-			taken.iter().any(|t| t == jvm) || (!getters[k] && object_method(jvm, &params))
+			taken.iter().any(|t| t == jvm) || java_keyword(jvm) || (!getters[k] && object_method(jvm, &params))
 		};
 		abi::named(&rust, spelled, own, taken, abi::underscored)
 	}
@@ -2922,7 +3193,8 @@ impl<'a> Gen<'a> {
 
 	/// `function`'s Kotlin form `member`, compiled to the JVM method `jvm`, of `owner` (whose
 	/// IR type is `owner_ty`) if it has one, apart from the members `taken` names, with its
-	/// native methods and glue.
+	/// native methods and glue, and the bridge Java calls it through, if it needs one: a
+	/// static of the companion for a value class's member, else beside it.
 	fn function(
 		&mut self,
 		function: &Function,
@@ -2930,7 +3202,7 @@ impl<'a> Gen<'a> {
 		place: Place,
 		(member, jvm): (&str, &str),
 		taken: &[String],
-	) -> Option<String> {
+	) -> Option<(String, Option<String>)> {
 		let on = std::mem::replace(&mut self.on, function.on);
 		let code = self.function_on(function, owner, place, (member, jvm), taken);
 		self.on = on;
@@ -2944,7 +3216,7 @@ impl<'a> Gen<'a> {
 		place: Place,
 		(member, jvm): (&str, &str),
 		taken: &[String],
-	) -> Option<String> {
+	) -> Option<(String, Option<String>)> {
 		let abi = self.abi;
 		// A value is immutable in Kotlin, so its `&mut self` method returns it as the call
 		// left it, calling the C function in place on a copy it hands back.
@@ -3720,37 +3992,85 @@ impl<'a> Gen<'a> {
 			annotations.push_str("@kotlin.jvm.JvmStatic\n");
 		}
 		// Kotlin mangles the JVM name of a function taking an inline class and of a member
-		// returning one, as `count-pVg5ArA`, which Java cannot name, so it is pinned. A value
-		// class's member compiles to such a static, which `@JvmName` cannot rename, so is not
-		// Java's to call.
+		// returning one, as `count-pVg5ArA`, which Java cannot name, so it is pinned.
 		let mangled = function.params.iter().any(|p| inline(abi.api, &p.ty))
 			|| (!top && inline(abi.api, &strip_refs(&function.ok)));
-		let value_member = place == Place::Member && owner_ty.is_some_and(|ty| inline(abi.api, ty));
-		// Nor is one taking an opaque value, which Java would pass as an unchecked `long`, so
-		// it is pinned apart from the others of its class to a name no Java identifier is.
-		let takes_opaque = function.params.iter().any(|p| opaque_value(abi.api, &p.ty));
+		// One passing a value class's bits, which Java would pass unchecked, or a value
+		// class's member, which compiles to a static `@JvmName` cannot rename, is Java's
+		// through a bridge passing the class instead, and itself pinned apart from the
+		// others of its class to a name no Java identifier is.
+		let value_member = place == Place::Member && owner_ty.is_some_and(|ty| boxed(abi.api, ty));
+		let ret_boxed = boxed(abi.api, &strip_refs(&function.ok));
+		let bridged = value_member || ret_boxed || function.params.iter().any(|p| boxed(abi.api, &p.ty));
 		let target = if getter { "get:" } else { "" };
-		if takes_opaque && !value_member {
-			let _ = writeln!(annotations, "@{target}kotlin.jvm.JvmName(\"{jvm}-opaque\")");
-		} else if !value_member {
-			// A JVM name [`Gen::jvm_named`] moved leaves the Kotlin name alone.
-			if mangled || jvm != jvm_name(&format!("{kind} {member}")) {
-				let _ = writeln!(annotations, "@{target}kotlin.jvm.JvmName(\"{jvm}\")");
+		// A value class's member takes no `@JvmName`, and a JVM name [`Gen::jvm_named`] moved
+		// leaves the Kotlin name alone.
+		let pinned = match (value_member, bridged) {
+			(true, _) => None,
+			(false, true) => Some(format!("{jvm}-kotlin")),
+			(false, false) => (mangled || jvm != jvm_name(&format!("{kind} {member}"))).then(|| jvm.to_string()),
+		};
+		if let Some(pinned) = pinned {
+			let _ = writeln!(annotations, "@{target}kotlin.jvm.JvmName(\"{pinned}\")");
+		}
+		// Java calls it by its JVM name, which the lock keeps beside the Kotlin one, so a
+		// member added beside it that moves it is a break even where it had none.
+		let key = format!("{} / jvm", crate::lock::function_key(function));
+		self.locked.insert(key, jvm.to_string());
+		let thrown = (exception.as_ref()).map(|exception| format!("kotlin.jvm.Throws({exception}::class)\n"));
+		if let Some(thrown) = &thrown {
+			let _ = write!(annotations, "@{target}{thrown}");
+		}
+		let bridge = bridged.then(|| {
+			let throws = thrown.map(|thrown| format!("@{thrown}")).unwrap_or_default();
+			// Its parameters, `_v` and `_0` on, are named as no function the call could
+			// resolve to is, as no Rust function's camel-case name starts with `_`.
+			let mut params = Vec::new();
+			let mut args = Vec::new();
+			if value_member {
+				params.push(format!("_v: {}?", self.kt(owner_ty.expect("a member has its type"))));
 			}
-			// Java calls it by its JVM name, which the lock keeps beside the Kotlin one, so a
-			// member added beside it that moves it is a break even where it had none.
-			let key = format!("{} / jvm", crate::lock::function_key(function));
-			self.locked.insert(key, jvm.to_string());
-		}
-		if let Some(exception) = &exception {
-			let _ = writeln!(annotations, "@{target}kotlin.jvm.Throws({exception}::class)");
-		}
+			let lent = (function.params.iter()).filter(|p| p.ty != Type::Jni(Jni::Env));
+			for (k, p) in lent.enumerate() {
+				let kt = self.kt_param(&p.ty);
+				let (optional, unwrap) = match boxed(abi.api, &p.ty) {
+					true => ("?", "!!"),
+					false => ("", ""),
+				};
+				params.push(format!("_{k}: {kt}{optional}"));
+				args.push(format!("_{k}{unwrap}"));
+			}
+			let ret = match (ret.is_empty(), ret_boxed) {
+				(false, true) => format!("{ret}?"),
+				_ => ret.clone(),
+			};
+			let receiver = match (value_member, top) {
+				(true, _) => "_v!!.",
+				(false, true) => "",
+				(false, false) => "this.",
+			};
+			let call = match property {
+				true => format!("{receiver}{member}"),
+				false => format!("{receiver}{member}({})", args.join(", ")),
+			};
+			let statics = match (place == Place::Static && !top) || value_member {
+				true => "@kotlin.jvm.JvmStatic\n",
+				false => "",
+			};
+			let bridge = format!(
+				"/** [{}] as Java calls it, passing each value class as its class. */\n{}{statics}@kotlin.jvm.JvmName(\"{jvm}\")\n{throws}internal {suspend}fun `{jvm}-java`({}){ret} = {call}\n",
+				member.trim_matches('`'),
+				docs("", function.deprecated.as_deref(), ""),
+				params.join(", ")
+			);
+			indent_by(&bridge, indent_level)
+		});
 		let text = self.function_docs(function, text);
 		let code = format!(
 			"{}{annotations}{code}\n",
 			docs(&text, function.deprecated.as_deref(), "")
 		);
-		Some(indent_by(&code, indent_level))
+		Some((indent_by(&code, indent_level), bridge))
 	}
 
 	/// The glue's out values for `outs`, of a function returning `ok` or `err`, the
@@ -4225,19 +4545,20 @@ fn word(opaque: &Opaque) -> bool {
 }
 
 /// Whether Kotlin's type of a parameter or return of type `ty` is an inline class, nullable
-/// or not, which the JVM sees as its underlying type or a box.
+/// or not, which the JVM sees as its underlying type or a box, and which mangles the JVM
+/// name of a function taking it.
 fn inline(api: &Api, ty: &Type) -> bool {
 	match ty {
 		Type::Option(inner) | Type::Box(inner) => inline(api, inner),
 		Type::Ref(_, inner) if !ty.written() => inline(api, inner),
 		Type::List(..) => ty.block().is_some_and(|elem| block(elem).kt.starts_with('U')),
-		_ => lowered(api, ty).is_some(),
+		_ => lowered(ty).is_some() || boxed(api, ty),
 	}
 }
 
-/// The Kotlin type of the primitive the JVM passes for a parameter of type `ty`, where Kotlin's
-/// is an inline class over one, such as `kotlin.Long` for a `kotlin.ULong`.
-fn lowered(api: &Api, ty: &Type) -> Option<&'static str> {
+/// The Kotlin type of the signed primitive the JVM passes for an unsigned integer of type
+/// `ty`, such as `kotlin.Long` for a `kotlin.ULong`.
+fn lowered(ty: &Type) -> Option<&'static str> {
 	match ty {
 		Type::Int(int) | Type::NonZero(int) if kt_int(*int).starts_with('U') => Some(match int {
 			Int::U8 => "kotlin.Byte",
@@ -4245,25 +4566,87 @@ fn lowered(api: &Api, ty: &Type) -> Option<&'static str> {
 			Int::U32 => "kotlin.Int",
 			_ => "kotlin.Long",
 		}),
-		Type::IpAddr(Family::V4) => Some("kotlin.Int"),
-		Type::SocketAddr(Family::V4) => Some("kotlin.Long"),
-		Type::Record(i) if api.records[*i].opaque.is_some_and(|o| word(&o)) => Some("kotlin.Long"),
-		Type::Box(inner) => lowered(api, inner),
+		Type::Box(inner) => lowered(inner),
 		// One Rust writes back is a `Mut`.
-		Type::Ref(_, inner) if !ty.written() => lowered(api, inner),
+		Type::Ref(_, inner) if !ty.written() => lowered(inner),
 		_ => None,
 	}
 }
 
-/// Whether a parameter of type `ty` takes an opaque value Kotlin holds in a value class,
-/// nullable or not.
-fn opaque_value(api: &Api, ty: &Type) -> bool {
+/// Whether Kotlin holds a value of `ty` in a value class other than an unsigned integer's,
+/// which the JVM passes as its bits where it is not null, and Java only as its class, so it
+/// never passes bits Rust reads unchecked: an opaque value of a word, an `Ipv4Addr`, or a
+/// `SocketAddrV4`.
+fn boxed(api: &Api, ty: &Type) -> bool {
 	match ty {
 		Type::Record(i) => api.records[*i].opaque.is_some_and(|o| word(&o)),
-		Type::Option(inner) | Type::Box(inner) => opaque_value(api, inner),
-		Type::Ref(_, inner) if !ty.written() => opaque_value(api, inner),
+		Type::IpAddr(Family::V4) | Type::SocketAddr(Family::V4) => true,
+		Type::Box(inner) => boxed(api, inner),
+		Type::Ref(_, inner) if !ty.written() => boxed(api, inner),
 		_ => false,
 	}
+}
+
+/// Whether Java reads `name` as a keyword or a literal, so calls no method of that name, as
+/// `new` and `default`, which most constructors are named.
+fn java_keyword(name: &str) -> bool {
+	const KEYWORDS: &[&str] = &[
+		"_",
+		"abstract",
+		"assert",
+		"boolean",
+		"break",
+		"byte",
+		"case",
+		"catch",
+		"char",
+		"class",
+		"const",
+		"continue",
+		"default",
+		"do",
+		"double",
+		"else",
+		"enum",
+		"extends",
+		"false",
+		"final",
+		"finally",
+		"float",
+		"for",
+		"goto",
+		"if",
+		"implements",
+		"import",
+		"instanceof",
+		"int",
+		"interface",
+		"long",
+		"native",
+		"new",
+		"null",
+		"package",
+		"private",
+		"protected",
+		"public",
+		"return",
+		"short",
+		"static",
+		"strictfp",
+		"super",
+		"switch",
+		"synchronized",
+		"this",
+		"throw",
+		"throws",
+		"transient",
+		"true",
+		"try",
+		"void",
+		"volatile",
+		"while",
+	];
+	KEYWORDS.contains(&name)
 }
 
 /// Whether `opaque` crosses JNI as one `long` wherever it crosses alone.
@@ -4569,6 +4952,26 @@ fn field_names(fields: &[Field]) -> Vec<String> {
 		abi::underscored,
 	);
 	names.iter().map(|name| kw(name)).collect()
+}
+
+/// Puts a function's code and the bridge Java calls it through, if any, as [`Gen::function`]
+/// makes them, in `place` of its type's `body` or of its companion's `statics`: the bridge of
+/// a `value` class's member is a static.
+fn put_function(
+	(code, bridge): (String, Option<String>),
+	place: Place,
+	value: bool,
+	body: &mut Vec<String>,
+	statics: &mut Vec<String>,
+) {
+	match place {
+		Place::Member => body.push(code),
+		Place::Static => statics.push(indent(&code)),
+	}
+	match (place, value) {
+		(Place::Member, false) => body.extend(bridge),
+		_ => statics.extend(bridge.map(|b| indent(&b))),
+	}
 }
 
 /// A member's Kotlin name: in camel case, quoted if a keyword, or with `_` appended if

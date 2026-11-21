@@ -168,6 +168,7 @@ func Nexts(v4 p_rt.SocketAddrV4, v6 p_rt.SocketAddrV6) (p_rt.SocketAddrV4, p_rt.
 func Now() *p_std.Instant
 func Nudge(point *Point, by int32)
 func NudgeBy(point *Point, refusal *Refusal) error
+func Odd(n uint32) (uint32, error)
 func OfferedLen(alpns []p_rt.Bytes) uint
 func Offset(by func() uint32, byData uint32) uint32
 func Offsetof(field uint8) uint8
@@ -1907,11 +1908,16 @@ type Stamp struct {
 	Bytes_ [1]uint64
 	Made_ bool
 }
+func Past(at Stamp, deadline Stamp) (Stamp, error)
 func StampAt(millis uint64) (Stamp, error)
+func StampDefault() Stamp
 func StampFromMillis(millis uint64) Stamp
+func (self Stamp) Compare(other Stamp) int
 func (self Stamp) Equal(other Stamp) bool
+func (self Stamp) Error() string
 func (self Stamp) GoString() string
 func (self Stamp) Later(other_ Stamp) bool
+func (self Stamp) PartialCompare(other Stamp) (int, bool)
 func (self Stamp) Secs() uint64
 func (self Stamp) Whole() Stamp
 type Stamped struct {
@@ -2266,6 +2272,10 @@ type U128 struct {
 }
 func U128Of(v *big.Int) (U128, error)
 func (v U128) Big() *big.Int
+type U32Error struct {
+	Value uint32
+}
+func (e U32Error) Error() string
 
 package serdejson // import "api/serdejson"
 

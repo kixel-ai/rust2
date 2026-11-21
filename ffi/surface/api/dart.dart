@@ -280,10 +280,17 @@ final class Seat {
 	@override int get hashCode;
 	U64 count();
 }
-final class Stamp {
+final class Stamp implements Exception, Comparable<Stamp> {
 	String debug();
 	@override bool operator ==(Object other);
 	@override int get hashCode;
+	int? partialCompareTo(Stamp other);
+	bool operator <(Stamp other);
+	bool operator <=(Stamp other);
+	bool operator >(Stamp other);
+	bool operator >=(Stamp other);
+	@override int compareTo(Stamp other);
+	factory Stamp.default_();
 	factory Stamp.fromMillis(U64 millis);
 	U64 secs();
 	Stamp whole();
@@ -1842,6 +1849,11 @@ final class StringException implements Exception {
 	const StringException(this.error);
 	@override String toString();
 }
+final class U32Exception implements Exception {
+	final int error;
+	const U32Exception(this.error);
+	@override String toString();
+}
 final class VecClashToneException implements Exception {
 	final List<ClashTone> error;
 	const VecClashToneException(this.error);
@@ -1918,6 +1930,8 @@ Cancelable<int?> halved(int n);
 Cancelable<int> yielded(int value);
 Cancelable<int> after(Future<void> first, int value);
 Cancelable<void> within(int polls, Future<void> future);
+Stamp past(Stamp at, Stamp deadline);
+int odd(int n);
 Moment momentAt(U64 ticks, U64 rate);
 Stamp stampAt(U64 millis);
 Moment shifted(Moment moment, Moment Function(Moment) shift);

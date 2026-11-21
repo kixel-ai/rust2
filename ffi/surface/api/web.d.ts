@@ -1620,10 +1620,14 @@ import * as rt from "./rt.ts";
 export type Stamp = rt.Opaque<"Stamp">;
 export declare function debug(self: Stamp): string;
 export declare function eq(a: Stamp, b: Stamp): boolean;
+export declare function partialCmp(a: Stamp, b: Stamp): number | undefined;
+export declare function cmp(a: Stamp, b: Stamp): number;
+export declare function default$(): Stamp;
 export declare function fromMillis(millis: rt.u64): Stamp;
 export declare function secs(self: Stamp): rt.u64;
 export declare function whole(self: Stamp): Stamp;
 export declare function later(self: Stamp, other: Stamp): boolean;
+export { default$ as default };
 
 // Stamped.ts
 import * as rt from "./rt.ts";
@@ -2808,6 +2812,8 @@ export declare function halved(n: number): rt.Call<number | undefined>;
 export declare function yielded(value: number): rt.Call<number>;
 export declare function after(first: Promise<unknown>, value: number): rt.Call<number>;
 export declare function within(polls: number, future: Promise<unknown>): rt.Call<rt.Result<undefined, Error_>>;
+export declare function past(at: Stamp, deadline: Stamp): rt.Result<Stamp, Stamp>;
+export declare function odd(n: number): rt.Result<number, number>;
 export declare function momentAt(ticks: rt.u64, rate: rt.u64): rt.Result<Moment, string>;
 export declare function stampAt(millis: rt.u64): rt.Result<Stamp, string>;
 export declare function shifted(moment: Moment, shift: (a0: Moment) => Moment): Moment;
