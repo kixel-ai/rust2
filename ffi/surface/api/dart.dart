@@ -1975,6 +1975,7 @@ void wasmLog(Log log);
 U64 boothCount(Booth booth);
 Page page();
 int beats(Beat beat);
+int paired(int Function() f, int Function() fUnwind);
 int same(double a, double b);
 int errno();
 bool assert_(bool holds);

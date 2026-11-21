@@ -1789,6 +1789,7 @@ public let URL: Swift.UInt64
 @inlinable public func boothCount(_ booth: Booth) throws -> Swift.UInt64
 @inlinable public func page() throws -> Page
 @inlinable public func beats(_ beat: any Beat) throws -> Swift.UInt32
+@inlinable public func paired(_ f: @Sendable () -> Swift.UInt8, _ fUnwind: @Sendable () -> Swift.UInt8) -> Swift.UInt8
 @inlinable public func same(_ a: Swift.Double, _ b: Swift.Double) -> Swift.Int32
 @inlinable public func errno() -> Swift.Int32
 @inlinable public func assert(_ holds: Swift.Bool) -> Swift.Bool

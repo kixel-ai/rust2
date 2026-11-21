@@ -17,7 +17,7 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-#define API_CONTRACT ((uint64_t)0x50ec9f48e13d3bfdULL)
+#define API_CONTRACT ((uint64_t)0xe381dfc89d46f06bULL)
 uint64_t api_contract(void);
 uint32_t api_target(void);
 typedef int32_t api_status;
@@ -2536,6 +2536,7 @@ void api_wasm_log(api_Log log);
 uint64_t api_booth_count(api_Booth booth, api_status *status);
 api_Page api_page(void);
 uint32_t api_beats(api_Beat beat);
+uint8_t api_paired(uint8_t (*f)(void *data), void *f_data, uint8_t (*f_unwind)(void *data), void *f_unwind_data);
 int32_t api_same(double a, double b);
 int32_t api_errno(void);
 bool api_assert(bool holds);

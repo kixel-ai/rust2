@@ -2458,7 +2458,7 @@ impl<'a> Gen<'a> {
 		let types = types.join(", ");
 		let _ = write!(
 			self.glue,
-			"static M_{trampoline}: std::sync::OnceLock<usize> = std::sync::OnceLock::new();\n\n/// [`{trampoline}_unwind`] as the C function the C ABI takes, which calls it as `C-unwind`.\n#[allow(non_upper_case_globals, reason = \"named as the function\")]\nconst {trampoline}: unsafe extern \"C\" fn({types}) -> {rust_ret} = unsafe {{ std::mem::transmute::<unsafe extern \"C-unwind\" fn({types}) -> {rust_ret}, _>({trampoline}_unwind) }};\n\nunsafe extern \"C-unwind\" fn {trampoline}_unwind({}) -> {rust_ret} {{\n\trt::upcall(\"{what}\", |env| {{\n\t\tlet id = rt::method(env, &M_{trampoline}, c\"{dispatcher}\", c\"{sig}\");\n\t\tlet args = [{}];\n\t\t{invoke}\n\t\tlet _ = &ret;\n\t\t{back}\n\t}})\n}}\n\n",
+			"static M_{trampoline}: std::sync::OnceLock<usize> = std::sync::OnceLock::new();\n\n/// Its `C-unwind` body as the C function the C ABI takes, which calls it as `C-unwind`.\n/// The body is scoped to the initializer, so no other trampoline's name can clash with it.\n#[allow(non_upper_case_globals, reason = \"named as the function\")]\nconst {trampoline}: unsafe extern \"C\" fn({types}) -> {rust_ret} = {{\n\tunsafe extern \"C-unwind\" fn body({}) -> {rust_ret} {{\n\t\trt::upcall(\"{what}\", |env| {{\n\t\t\tlet id = rt::method(env, &M_{trampoline}, c\"{dispatcher}\", c\"{sig}\");\n\t\t\tlet args = [{}];\n\t\t\t{invoke}\n\t\t\tlet _ = &ret;\n\t\t\t{back}\n\t\t}})\n\t}}\n\tunsafe {{ std::mem::transmute::<unsafe extern \"C-unwind\" fn({types}) -> {rust_ret}, _>(body) }}\n}};\n\n",
 			rust_params.join(", "),
 			jvalues.join(", ")
 		);

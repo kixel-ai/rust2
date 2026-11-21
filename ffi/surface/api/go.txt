@@ -160,6 +160,7 @@ func Offset(by func() uint32, byData uint32) uint32
 func Offsetof(field uint8) uint8
 func OnFirstThread() bool
 func PRIMES() []uint32
+func Paired(f func() uint8, fUnwind func() uint8) uint8
 func Parents(paths []string) ([]*string, error)
 func ParseCert(text string) (uint32, error)
 func ParseLater(ctx context.Context, text string) (uint32, error)

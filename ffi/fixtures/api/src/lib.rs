@@ -4782,6 +4782,12 @@ pub struct StartSeekable {
 	pub at: u64,
 }
 
+/// The sum of what `f` and `f_unwind` return, wrapping: Kotlin's trampoline for `f_unwind`
+/// is named as `f`'s would name its unwinding body if that were not scoped to it.
+pub fn paired(f: impl Fn() -> u8, f_unwind: impl Fn() -> u8) -> u8 {
+	f().wrapping_add(f_unwind())
+}
+
 /// Whether two floats are equal as `1`, named as the helper Kotlin's records compare through.
 pub fn same(a: f64, b: f64) -> i32 {
 	i32::from(a == b)

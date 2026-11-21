@@ -1715,6 +1715,7 @@ fun wasmLog(log: api.Log)
 fun boothCount(booth: api.Booth): kotlin.ULong
 fun page(): api.Page
 fun beats(beat: api.Beat): kotlin.UInt
+fun paired(f: () -> kotlin.UByte, fUnwind: () -> kotlin.UByte): kotlin.UByte
 fun same(a: kotlin.Double, b: kotlin.Double): kotlin.Int
 fun errno(): kotlin.Int
 fun assert(holds: kotlin.Boolean): kotlin.Boolean

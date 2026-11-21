@@ -1827,6 +1827,7 @@ namespace api {
 	inline ::std::uint64_t booth_count(const ::api::Booth &booth);
 	inline ::api::Page page();
 	inline ::std::uint32_t beats(::std::unique_ptr<::api::Beat> beat);
+	template <class F0, class F1> inline ::std::uint8_t paired(F0 &&f, F1 &&f_unwind);
 	inline ::std::int32_t same(double a__, double b_);
 	inline ::std::int32_t errno_();
 	inline bool assert_(bool holds);
