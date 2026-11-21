@@ -1,9 +1,166 @@
 //! The runtime's `rt/thread.rs` and `rt/future.rs`, mounted as they are under loom: this
 //! module stands in for `rt.rs`, giving them loom's locks, atomics, `Arc`, thread locals,
 //! and threads in place of std's, and a panic where the runtime aborts, so loom reports it.
+//! Its atomics are [`AtomicBool`], which loom explores every access of, and which a [`Flaw`]
+//! makes wrong for `flaws_are_caught`.
 
-pub use loom::sync::atomic::{AtomicBool, Ordering};
+use std::process::{Command, Stdio};
+use std::sync::OnceLock as StdOnce;
+
+pub use loom::sync::atomic::Ordering;
 pub use loom::sync::{Arc, Mutex, MutexGuard};
+
+/// loom's `AtomicBool`, which it also explores every thread's access around.
+///
+/// loom's DPOR keeps one last access per atomic, which a thread's own load overwrites, so a
+/// load after another thread's never races the swap or store that follows it, and that
+/// swap never runs after the other thread's load and before its next access
+/// ([tokio-rs/loom#392](https://github.com/tokio-rs/loom/issues/392)). Each access here
+/// first takes a relaxed read-modify-write on one gate every atomic shares, which DPOR sees
+/// conflict with every other thread's, so it tries each order of the accesses within the
+/// preemption bound, as `hold.rs`'s `Atom` does.
+pub struct AtomicBool(loom::sync::atomic::AtomicBool);
+
+loom::lazy_static! {
+	/// The one gate, made anew each run as loom's statics are.
+	static ref GATE: loom::sync::atomic::AtomicUsize = loom::sync::atomic::AtomicUsize::new(0);
+}
+
+impl AtomicBool {
+	pub fn new(value: bool) -> Self {
+		Self(loom::sync::atomic::AtomicBool::new(value))
+	}
+
+	fn step() {
+		GATE.fetch_add(0, Ordering::Relaxed);
+	}
+
+	pub fn load(&self, order: Ordering) -> bool {
+		Self::step();
+		match Flaw::current() {
+			Some(Flaw::LoadsClear) => false,
+			Some(Flaw::LoadsSet) => true,
+			_ => self.0.load(order),
+		}
+	}
+
+	pub fn store(&self, value: bool, order: Ordering) {
+		Self::step();
+		match Flaw::current() {
+			Some(Flaw::StoresSetSkipped) if value => {}
+			Some(Flaw::StoresClearSkipped) if !value => {}
+			_ => self.0.store(value, order),
+		}
+	}
+
+	pub fn swap(&self, value: bool, order: Ordering) -> bool {
+		Self::step();
+		match Flaw::current() {
+			// Reads the flag and leaves it as it was.
+			Some(Flaw::SwapsKeepFlag) => self.0.fetch_and(true, order),
+			Some(Flaw::SwapsSeeSet) => {
+				self.0.swap(value, order);
+				true
+			}
+			_ => self.0.swap(value, order),
+		}
+	}
+}
+
+/// A way the runtime's atomics can be made wrong, which the models must each fail on. They
+/// are the runtime's own source, mounted as it is, so the atomics carry the flaws and not
+/// the runtime.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum Flaw {
+	/// A swap reads the flag and leaves it as it was: a push never marks its thread's queue
+	/// as pending, and a poll never claims its future.
+	SwapsKeepFlag,
+	/// A swap finds the flag already set: a push is never the first, so wakes nothing, and
+	/// every poll finds another in progress.
+	SwapsSeeSet,
+	/// A load finds the flag clear: a check never finds a drop queued, and a wait never finds
+	/// its call run.
+	LoadsClear,
+	/// A load finds the flag set: a check drains a queue that has nothing, and a wait ends
+	/// before its call ran.
+	LoadsSet,
+	/// A store of `true` does nothing: a call a home ran never says so.
+	StoresSetSkipped,
+	/// A store of `false` does nothing: a drained queue stays pending, and a poll's claim of
+	/// its future is never let go of.
+	StoresClearSkipped,
+}
+
+impl Flaw {
+	pub const ALL: &[Flaw] = &[
+		Flaw::SwapsKeepFlag,
+		Flaw::SwapsSeeSet,
+		Flaw::LoadsClear,
+		Flaw::LoadsSet,
+		Flaw::StoresSetSkipped,
+		Flaw::StoresClearSkipped,
+	];
+
+	/// The flaw this process is run with, by the `RT_FLAW` that [`flaws_are_caught`] sets
+	/// for the process it runs a model in.
+	fn current() -> Option<Flaw> {
+		static CURRENT: StdOnce<Option<Flaw>> = StdOnce::new();
+		*CURRENT.get_or_init(|| {
+			let name = std::env::var("RT_FLAW").ok()?;
+			Some(
+				*Flaw::ALL
+					.iter()
+					.find(|flaw| format!("{flaw:?}") == name)
+					.unwrap_or_else(|| panic!("no flaw {name}")),
+			)
+		})
+	}
+}
+
+/// The models do not pass vacuously: each of `caught` fails on its flaw.
+///
+/// A model that fails with a thread of its own still parked aborts the process, which
+/// loom's failure is, so each runs alone in a process of this test's binary with its flaw
+/// set. A model that passes, or a name this binary has no test of, which passes by running
+/// none, is missed.
+pub fn flaws_are_caught(caught: &[(Flaw, &[&str])]) {
+	let exe = std::env::current_exe().unwrap();
+	let listed = Command::new(&exe).arg("--list").output().unwrap();
+	let listed = String::from_utf8(listed.stdout).unwrap();
+	for flaw in Flaw::ALL {
+		let models: Vec<_> = caught.iter().filter(|(f, _)| f == flaw).collect();
+		assert_eq!(models.len(), 1, "{flaw:?} has {} entries", models.len());
+		assert!(!models[0].1.is_empty(), "{flaw:?} names no model");
+	}
+	for (flaw, names) in caught {
+		for name in *names {
+			assert!(
+				listed.lines().any(|line| line == format!("{name}: test")),
+				"{flaw:?} names no model {name}"
+			);
+		}
+	}
+	let runs: Vec<_> = caught
+		.iter()
+		.flat_map(|(flaw, names)| names.iter().map(move |name| (*flaw, *name)))
+		.map(|(flaw, name)| {
+			let run = Command::new(&exe)
+				.args(["--exact", name])
+				.env("RT_FLAW", format!("{flaw:?}"))
+				.stdin(Stdio::null())
+				.stdout(Stdio::null())
+				.stderr(Stdio::null())
+				.spawn()
+				.unwrap();
+			(flaw, name, run)
+		})
+		.collect();
+	let missed: Vec<_> = runs
+		.into_iter()
+		.filter_map(|(flaw, name, mut run)| run.wait().unwrap().success().then_some((flaw, name)))
+		.collect();
+	assert!(missed.is_empty(), "no failure from {missed:?}");
+}
 
 /// loom's thread locals, which it drops as each of its threads ends, as std's do. loom's
 /// macro takes no `const` initializer, which is only std's hint.

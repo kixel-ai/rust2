@@ -545,15 +545,19 @@ packages place it in.
 
 - **Names** are the C names without the prefix, in a namespace of it: `moq_track_Producer`
   is `moq::track_Producer`, and its method `moq_track_Producer_append_group` is
-  `moq::track_Producer::append_group`. A keyword, or a macro that a C or C++ system header
-  defines or a GNU dialect predefines, as `src/macros.txt` lists them (`unix`, `EOF`,
-  `errno`, as in moq-tokio's `tokio::unix_`), takes a trailing `_` (`counter::new_`),
+  `moq::track_Producer::append_group`. A keyword takes a trailing `_` (`counter::new_`),
   as does a member named as its class, one of its fields, or a member a trait gives it,
   and a parameter named as a member or as anything in the namespace, which it would hide.
-  A name already ending in `_` takes as many more as keep it apart and off every macro:
-  `unix_` becomes `unix__`.
-  A name the escape leaves alone keeps it, and one escaped onto another's takes more `_`s
-  until free: the values `Delete` and `Delete_` are `delete__` and `delete_`, in any order.
+  A name C++ reserves, one holding `__` or starting with `_` and a capital, first drops its
+  leading `_`s and keeps one `_` of each run: `__all__` is `all_`, and serde's parameter
+  `__deserializer` is `deserializer`.
+  A name that moves steps along its stem's names `x`, `x_`, `x_2`, `x_3`, ..., never making
+  `__`. So a macro that a C or C++ system header defines or a GNU dialect predefines, as
+  `src/macros.txt` lists them (`unix`, `EOF`, `errno`), moves to the next of its stem's
+  names no macro holds, keeping the stem's names in order: `unix` is `unix_`, as in
+  moq-tokio's `tokio::unix_`, and `unix_` is `unix_2`.
+  A name the escape leaves alone keeps it, and one escaped onto another's steps until free:
+  the values `Delete` and `Delete_` are `delete_2` and `delete_`, in any order.
 - **Objects** are classes owning their handle through a `std::unique_ptr` whose deleter
   calls `_free`, so they move and never copy, and a `Clone` type's `clone()` crosses into
   Rust for a value of its own. A type implementing `Hash` has `hash()`, Rust's, by which
@@ -1833,11 +1837,17 @@ under loom, and `tests/future.rs` and `tests/thread.rs` model the runtime's futu
 threads, each mounting the runtime's own source over loom's primitives. The futures' model
 races a wake from another thread against a poll, a change of waker, a start, and a free:
 each C waker drops once and is never woken after, a pending poll is always woken, and a
-future that is not `Send` refuses a poll elsewhere and drops on its own thread. The threads'
+future that is not `Send` refuses a poll elsewhere and drops on its own thread, and two polls
+of one future never run at once. The threads'
 model races a free elsewhere against its thread's check, wake, drain, and exit, and lends
 calls to homes that call each other: each value drops once on its own thread, or leaks once
 that thread exited, and each home goes idle once no value or call holds it. Each explores
-every interleaving, or for homes those within a preemption bound, in the gate.
+every interleaving, or for homes those within a preemption bound, in the gate. loom's
+partial-order reduction skips an order of two threads' accesses to one atomic after a load
+([tokio-rs/loom#392](https://github.com/tokio-rs/loom/issues/392)), so `tests/hold.rs`'s
+`Atom` and the runtime's `AtomicBool` in `tests/loom/rt.rs` make every access conflict
+with every other thread's, and `flaws_are_caught` in each of the three has the models fail
+on the atomics made wrong.
 The `reject` fixture's expected errors, each with its notes, are `fixtures/reject/expected.txt`.
 The `lock` test exports the `lock` fixture for wasm32, staged, and the host, then again
 against that export's `api.json`: its `added` feature only adds and must pass, and its `next`

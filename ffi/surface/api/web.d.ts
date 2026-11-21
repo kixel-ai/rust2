@@ -574,6 +574,14 @@ export declare function titleSet(self: Draft, value: string): void;
 export declare function lines(self: Draft): number;
 export declare function write(self: Draft, line: string): void;
 
+// Epilogue.ts
+import * as rt from "./rt.ts";
+import type { Log } from "./Log.ts";
+export type Epilogue = rt.Handle<"Epilogue">;
+export declare function new$(sink: Log, id: number): Epilogue;
+export declare function redirect(self: Epilogue, sink: Log): void;
+export { new$ as new };
+
 // Error_.ts
 import * as rt from "./rt.ts";
 export type Error_ = {
@@ -2051,6 +2059,7 @@ export declare const k_Cursor: rt.Kind;
 export declare const k_Der: rt.Kind;
 export declare const k_Digest: rt.Kind;
 export declare const k_Draft: rt.Kind;
+export declare const k_Epilogue: rt.Kind;
 export declare const k_Fault: rt.Kind;
 export declare const k_Feed: rt.Kind;
 export declare const k_Filed_Receipt: rt.Kind;
