@@ -1,6 +1,13 @@
 // api.hpp
 #ifndef API_HPP_CRATE7
 #define API_HPP_CRATE7
+#if defined(__GNUC__) || defined(__clang__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+#elif defined(_MSC_VER)
+#pragma warning(push)
+#pragma warning(disable : 4996)
+#endif
 #include "rt.hpp"
 #include "core.hpp"
 #include "dep.hpp"
@@ -25,8 +32,21 @@ namespace api {
 	enum class VecClashTone {
 		error = 0,
 	};
+	enum class Tier {
+		low = 0,
+		high = 1,
+		compare_to = 2,
+		partial_compare_to = 3,
+	};
+	enum class clash_Level {
+		default_ = 0,
+		debug = 1,
+	};
 	inline constexpr ::std::uint64_t LIMIT = API_LIMIT;
 	inline constexpr ::std::int64_t FAR = API_FAR;
+	inline constexpr ::std::int32_t EOF_ = API_EOF;
+	inline constexpr ::std::uint64_t URL = API_URL;
+	[[deprecated("pass a step to `Dial::turn`, whose `}` or `{` alone stays in the note")]] inline constexpr ::std::uint64_t STEP = API_STEP;
 	class RUST2_FFI_CONSUMABLE Board {
 		RUST2_FFI_UNCONSUMED Board(Board &&other RUST2_FFI_MOVED_FROM) noexcept = default;
 		Board &operator=(Board &&other) noexcept = default;
@@ -34,6 +54,12 @@ namespace api {
 		RUST2_FFI_CONSUMES ::std::vector<::std::tuple<::api::buf, ::api::Counter>> into_counters() &&;
 		RUST2_FFI_CALLABLE ::std::vector<::std::tuple<::api::buf, ::api::Counter>> ranked() const;
 		RUST2_FFI_CALLABLE ::api::Counter best() const;
+	};
+	class RUST2_FFI_CONSUMABLE Tab {
+		RUST2_FFI_UNCONSUMED Tab(Tab &&other RUST2_FFI_MOVED_FROM) noexcept = default;
+		Tab &operator=(Tab &&other) noexcept = default;
+		RUST2_FFI_CALLABLE ::api::Ledger ledger_get() const;
+		RUST2_FFI_CALLABLE ::api::buf label_get() const;
 	};
 	class RUST2_FFI_CONSUMABLE Receipt {
 		RUST2_FFI_UNCONSUMED Receipt(Receipt &&other RUST2_FFI_MOVED_FROM) noexcept = default;
@@ -64,6 +90,8 @@ namespace api {
 		static ::api::Pad_u16 wide();
 		RUST2_FFI_CALLABLE ::std::uint16_t tag() const;
 		RUST2_FFI_CALLABLE ::std::uint16_t title() const;
+		RUST2_FFI_CALLABLE ::api::buf title_get() const;
+		RUST2_FFI_CALLABLE ::std::uint32_t lines() const;
 		RUST2_FFI_CALLABLE ::api::buf describe() const;
 	};
 	class RUST2_FFI_CONSUMABLE Pad_u8 {
@@ -86,6 +114,8 @@ namespace api {
 		Marker &operator=(Marker &&other) noexcept = default;
 		static ::api::Marker new_(::api::input label, ::std::int32_t x, ::std::int32_t y);
 		RUST2_FFI_CALLABLE ::api::buf label() const;
+		RUST2_FFI_CALLABLE ::std::int32_t x() const;
+		static ::std::int32_t y();
 		RUST2_FFI_CALLABLE ::std::int32_t x_get() const;
 		RUST2_FFI_CALLABLE void x_set(::std::int32_t value);
 		RUST2_FFI_CALLABLE ::std::int32_t y_get() const;
@@ -113,6 +143,24 @@ namespace api {
 		RUST2_FFI_CALLABLE ::api::waker waker() const;
 		RUST2_FFI_CALLABLE ::api::waker context() const;
 		template <class F0> static ::api::Waiter_poll_future_future poll_future(F0 future_);
+	};
+	class RUST2_FFI_CONSUMABLE Feed {
+		RUST2_FFI_UNCONSUMED Feed(Feed &&other RUST2_FFI_MOVED_FROM) noexcept = default;
+		Feed &operator=(Feed &&other) noexcept = default;
+		RUST2_FFI_CALLABLE ::api::Feed_next_future next();
+	};
+	class RUST2_FFI_CONSUMABLE Countdown {
+		RUST2_FFI_UNCONSUMED Countdown(Countdown &&other RUST2_FFI_MOVED_FROM) noexcept = default;
+		Countdown &operator=(Countdown &&other) noexcept = default;
+		static ::api::Countdown new_(::std::uint32_t from);
+		static ::api::Countdown told(::std::uint32_t from, ::std::unique_ptr<::api::Log> log);
+		RUST2_FFI_CALLABLE ::api::Countdown_next_future next();
+	};
+	class RUST2_FFI_CONSUMABLE Retired {
+		RUST2_FFI_UNCONSUMED Retired(Retired &&other RUST2_FFI_MOVED_FROM) noexcept = default;
+		Retired &operator=(Retired &&other) noexcept = default;
+		static ::api::Retired new_(::std::uint32_t from);
+		[[deprecated("count with `Countdown`")]] RUST2_FFI_CALLABLE ::api::Retired_next_future next();
 	};
 	class RUST2_FFI_CONSUMABLE Logger {
 		RUST2_FFI_UNCONSUMED Logger(Logger &&other RUST2_FFI_MOVED_FROM) noexcept = default;
@@ -155,6 +203,8 @@ namespace api {
 		Retry &operator=(Retry &&other) noexcept = default;
 		RUST2_FFI_CALLABLE ::std::optional<::std::uint32_t> limit_get() const;
 		RUST2_FFI_CALLABLE void limit_set(const ::std::optional<::std::uint32_t> &value);
+		RUST2_FFI_CALLABLE ::std::optional<::std::uint32_t> delay_get() const;
+		RUST2_FFI_CALLABLE void delay_set(const ::std::optional<::std::uint32_t> &value);
 		static ::api::Retry new_(const ::std::optional<::std::uint32_t> &limit);
 		RUST2_FFI_CALLABLE ::std::uint32_t limit() const;
 		RUST2_FFI_CALLABLE ::std::uint32_t delay() const;
@@ -182,11 +232,15 @@ namespace api {
 	class RUST2_FFI_CONSUMABLE Slot_u32 {
 		RUST2_FFI_UNCONSUMED Slot_u32(Slot_u32 &&other RUST2_FFI_MOVED_FROM) noexcept = default;
 		Slot_u32 &operator=(Slot_u32 &&other) noexcept = default;
+		RUST2_FFI_CALLABLE ::std::uint32_t value_get() const;
+		RUST2_FFI_CALLABLE void value_set(::std::uint32_t value);
 		static ::api::Slot_u32 new_(::std::uint32_t value);
 	};
 	class RUST2_FFI_CONSUMABLE Slot_u8 {
 		RUST2_FFI_UNCONSUMED Slot_u8(Slot_u8 &&other RUST2_FFI_MOVED_FROM) noexcept = default;
 		Slot_u8 &operator=(Slot_u8 &&other) noexcept = default;
+		RUST2_FFI_CALLABLE ::std::uint8_t value_get() const;
+		RUST2_FFI_CALLABLE void value_set(::std::uint8_t value);
 		static ::api::Slot_u8 new_(::std::uint8_t value);
 		RUST2_FFI_CALLABLE ::std::uint16_t value() const;
 	};
@@ -251,6 +305,13 @@ namespace api {
 		static ::api::Handle new_(::std::uint32_t count);
 		RUST2_FFI_CALLABLE ::std::uint32_t count() const;
 		static ::api::Handle_later_future later(::std::uint32_t count);
+	};
+	class RUST2_FFI_CONSUMABLE Holder {
+		RUST2_FFI_UNCONSUMED Holder(Holder &&other RUST2_FFI_MOVED_FROM) noexcept = default;
+		Holder &operator=(Holder &&other) noexcept = default;
+		static ::api::Holder new_(::std::uint64_t level);
+		[[deprecated("use `Dial`, whose 'level' is \"the same\" at $0\nand past it")]] RUST2_FFI_CALLABLE ::std::uint64_t level_get() const;
+		[[deprecated("use `Dial`, whose 'level' is \"the same\" at $0\nand past it")]] RUST2_FFI_CALLABLE ::std::uint64_t doubled() const;
 	};
 	class RUST2_FFI_CONSUMABLE Counter {
 		RUST2_FFI_UNCONSUMED Counter(Counter &&other RUST2_FFI_MOVED_FROM) noexcept = default;
@@ -323,6 +384,7 @@ namespace api {
 		RUST2_FFI_CALLABLE ::api::Receipt receipt();
 		RUST2_FFI_CALLABLE ::api::Receipt noted();
 		RUST2_FFI_CALLABLE ::api::Filed_Receipt file_Receipt(::api::Receipt item);
+		RUST2_FFI_CALLABLE ::api::Tab tab();
 		RUST2_FFI_CALLABLE ::api::Slip slip();
 	};
 	class RUST2_FFI_CONSUMABLE Slip {
@@ -374,12 +436,13 @@ namespace api {
 		RUST2_FFI_CALLABLE void notify(const ::api::waker &waker_) const;
 		RUST2_FFI_CALLABLE ::api::Channel_send_later_future send_later(::api::input payload) const;
 		RUST2_FFI_CALLABLE ::api::Channel_tagged_future tagged(::api::input tag) const;
-		RUST2_FFI_CALLABLE ::api::Channel_itemized_future itemized(const ::std::optional<::std::vector<::std::uint32_t>> &items_) const;
+		RUST2_FFI_CALLABLE ::api::Channel_itemized_future itemized(::std::optional<::api::slice<::std::uint32_t>> items_) const;
 		RUST2_FFI_CALLABLE ::api::Channel_poll_take_future poll_take() const;
 		RUST2_FFI_CALLABLE ::api::Channel_poll_measure_future poll_measure(::std::size_t extra);
 		RUST2_FFI_CALLABLE void listen(const ::api::waker &cx) const;
 		RUST2_FFI_CALLABLE ::api::Channel_recv_sized_future recv_sized() const;
 		RUST2_FFI_CALLABLE ::api::Channel_recv_nonempty_future recv_nonempty() const;
+		RUST2_FFI_CALLABLE ::api::Feed feed() const;
 		RUST2_FFI_CALLABLE void send_from_thread(::api::input payload) const;
 	};
 	class RUST2_FFI_CONSUMABLE Gap {
@@ -431,6 +494,8 @@ namespace api {
 		RUST2_FFI_CALLABLE ::api::buf debug() const;
 		RUST2_FFI_CALLABLE ::std::uint64_t value_get() const;
 		RUST2_FFI_CALLABLE void value_set(::std::uint64_t value);
+		RUST2_FFI_CALLABLE ::std::optional<::api::Node> next_get() const;
+		RUST2_FFI_CALLABLE void next_set(::std::optional<::api::Node> value);
 		static ::api::Node new_(::std::uint64_t value, ::std::optional<::api::Node> next);
 		RUST2_FFI_CALLABLE void push(::std::uint64_t value);
 		RUST2_FFI_CALLABLE ::std::uint64_t sum() const;
@@ -517,6 +582,7 @@ namespace api {
 		RUST2_FFI_CALLABLE ::std::uint64_t depth_past_Counter(const ::api::Counter &from) const;
 		RUST2_FFI_CALLABLE ::std::uint64_t depth_past_Size(const ::api::Size &from) const;
 		RUST2_FFI_CALLABLE ::std::uint64_t depth_past_Wrap_u32(const ::api::Wrap_u32 &from) const;
+		RUST2_FFI_CALLABLE ::std::uint64_t depth_past_polar_Point(const ::api::polar_Point &from) const;
 	};
 	class RUST2_FFI_CONSUMABLE Refusal {
 		RUST2_FFI_UNCONSUMED Refusal(Refusal &&other RUST2_FFI_MOVED_FROM) noexcept = default;
@@ -537,6 +603,31 @@ namespace api {
 		friend bool operator!=(const c &a__, const c &b_);
 		RUST2_FFI_CALLABLE ::api::buf debug() const;
 		static ::api::c new_(::std::uint8_t value);
+	};
+	class RUST2_FFI_CONSUMABLE Quantity {
+		RUST2_FFI_UNCONSUMED Quantity(Quantity &&other RUST2_FFI_MOVED_FROM) noexcept = default;
+		Quantity &operator=(Quantity &&other) noexcept = default;
+		friend bool operator==(const Quantity &a__, const Quantity &b_);
+		friend bool operator!=(const Quantity &a__, const Quantity &b_);
+		friend bool operator<(const Quantity &a__, const Quantity &b_);
+		friend bool operator<=(const Quantity &a__, const Quantity &b_);
+		friend bool operator>(const Quantity &a__, const Quantity &b_);
+		friend bool operator>=(const Quantity &a__, const Quantity &b_);
+		RUST2_FFI_CALLABLE ::api::buf debug() const;
+		static ::api::Quantity new_(::std::int64_t value, char32_t unit);
+	};
+	class RUST2_FFI_CONSUMABLE Pass {
+		RUST2_FFI_UNCONSUMED Pass(Pass &&other RUST2_FFI_MOVED_FROM) noexcept = default;
+		Pass &operator=(Pass &&other) noexcept = default;
+		friend bool operator==(const Pass &a__, const Pass &b_);
+		friend bool operator!=(const Pass &a__, const Pass &b_);
+		friend bool operator<(const Pass &a__, const Pass &b_);
+		friend bool operator<=(const Pass &a__, const Pass &b_);
+		friend bool operator>(const Pass &a__, const Pass &b_);
+		friend bool operator>=(const Pass &a__, const Pass &b_);
+		RUST2_FFI_CALLABLE ::api::buf debug() const;
+		static ::api::Pass new_(::std::uint32_t number);
+		RUST2_FFI_CONSUMES ::std::uint32_t redeem() &&;
 	};
 	class RUST2_FFI_CONSUMABLE Key {
 		RUST2_FFI_UNCONSUMED Key(Key &&other RUST2_FFI_MOVED_FROM) noexcept = default;
@@ -569,6 +660,15 @@ namespace api {
 		static ::api::clash_Store new_(::std::uint32_t count);
 		RUST2_FFI_CALLABLE ::std::uint32_t free_() const;
 		RUST2_FFI_CALLABLE ::std::uint32_t close() const;
+		RUST2_FFI_CALLABLE void wait() const;
+		RUST2_FFI_CALLABLE void finalize() const;
+	};
+	class RUST2_FFI_CONSUMABLE clash_Reader {
+		RUST2_FFI_UNCONSUMED clash_Reader(clash_Reader &&other RUST2_FFI_MOVED_FROM) noexcept = default;
+		clash_Reader &operator=(clash_Reader &&other) noexcept = default;
+		static ::api::clash_Reader new_(::api::input bytes);
+		RUST2_FFI_CALLABLE ::api::result<::std::uint8_t, ::api::clash_Malformed> read_byte();
+		RUST2_FFI_CALLABLE ::api::result<void, ::api::clash_Malformed> unread_byte();
 	};
 	class RUST2_FFI_CONSUMABLE Spawned {
 		RUST2_FFI_UNCONSUMED Spawned(Spawned &&other RUST2_FFI_MOVED_FROM) noexcept = default;
@@ -624,9 +724,29 @@ namespace api {
 		virtual ~Log() = default;
 		virtual bool log(::std::uint8_t level, ::api::view line) const = 0;
 	};
+	class Scan {
+		virtual ~Scan() = default;
+		virtual ::std::uint64_t scan(::api::view payload, ::std::optional<::api::view> rest) const = 0;
+	};
 	class Beat {
 		virtual ~Beat() = default;
 		virtual ::std::uint32_t beat() const = 0;
+	};
+	class Turner {
+		virtual ~Turner() = default;
+		virtual ::std::uint64_t by() const = 0;
+		[[deprecated("turn `Turner::by` instead")]] virtual ::std::uint64_t once() const = 0;
+	};
+	class Undo {
+		virtual ~Undo() = default;
+		virtual ::std::uint32_t delete_(::std::uint32_t n) const = 0;
+		virtual ::std::uint32_t free() const = 0;
+		virtual ::std::uint8_t type() const = 0;
+	};
+	class clash_Source {
+		virtual ~clash_Source() = default;
+		virtual void wait() const = 0;
+		virtual ::std::uint8_t read_byte() const = 0;
 	};
 	struct Parcel {
 		::api::Mark mark;
@@ -808,6 +928,13 @@ namespace api {
 		friend bool operator!=(const Clocked &a__, const Clocked &b_);
 		::api::buf debug() const;
 	};
+	class Rated {
+		friend bool operator==(const Rated &a__, const Rated &b_);
+		friend bool operator!=(const Rated &a__, const Rated &b_);
+		::api::buf debug() const;
+		static ::api::Rated new_(::std::uint64_t count, ::std::uint64_t scale);
+		::std::uint64_t scale() const;
+	};
 	class Hits {
 		friend bool operator==(const Hits &a__, const Hits &b_);
 		friend bool operator!=(const Hits &a__, const Hits &b_);
@@ -865,6 +992,7 @@ namespace api {
 		friend bool operator==(const Pair_u8_Size &a__, const Pair_u8_Size &b_);
 		friend bool operator!=(const Pair_u8_Size &a__, const Pair_u8_Size &b_);
 		::api::buf debug() const;
+		::api::Pair_Size_u8 swap() const;
 	};
 	struct Right_u8 {
 		::std::uint8_t value;
@@ -1039,6 +1167,52 @@ namespace api {
 		friend bool operator==(const Qualifiers &a__, const Qualifiers &b_);
 		friend bool operator!=(const Qualifiers &a__, const Qualifiers &b_);
 	};
+	struct Version {
+		::std::uint16_t major;
+		::std::uint16_t minor;
+		friend bool operator==(const Version &a__, const Version &b_);
+		friend bool operator!=(const Version &a__, const Version &b_);
+		friend bool operator<(const Version &a__, const Version &b_);
+		friend bool operator<=(const Version &a__, const Version &b_);
+		friend bool operator>(const Version &a__, const Version &b_);
+		friend bool operator>=(const Version &a__, const Version &b_);
+		::api::buf debug() const;
+	};
+	struct Spot {
+		::std::uint32_t x;
+		::std::uint32_t y;
+		friend bool operator==(const Spot &a__, const Spot &b_);
+		friend bool operator!=(const Spot &a__, const Spot &b_);
+		::api::buf debug() const;
+		static ::api::result<::api::Spot, ::api::buf> deserialize(::api::Json deserializer);
+	};
+	struct Deprecated {
+		bool on;
+		[[deprecated]] ::std::uint32_t lower;
+		bool deprecated;
+		friend bool operator==(const Deprecated &a__, const Deprecated &b_);
+		friend bool operator!=(const Deprecated &a__, const Deprecated &b_);
+		::api::buf debug() const;
+		static Deprecated default_();
+	};
+	struct Dial {
+		::std::uint64_t level;
+		[[deprecated("keep the `Dial` from before the turn")]] ::std::uint64_t before;
+		friend bool operator==(const Dial &a__, const Dial &b_);
+		friend bool operator!=(const Dial &a__, const Dial &b_);
+		::api::buf debug() const;
+		static Dial default_();
+		::api::result<::api::Dial, ::api::Error> turn(::std::uint64_t by) const;
+		[[deprecated("turn it by `LIMIT` with `Dial::turn`")]] ::api::Dial max() const;
+	};
+	struct [[deprecated("use `Dial`, whose 'level' is \"the same\" at $0\nand past it")]] Knob {
+		::std::uint64_t level;
+		friend bool operator==(const Knob &a__, const Knob &b_);
+		friend bool operator!=(const Knob &a__, const Knob &b_);
+		::api::buf debug() const;
+		static Knob default_();
+		::std::uint64_t doubled() const;
+	};
 	struct polar_Point {
 		::std::uint8_t turns;
 		::std::uint32_t distance;
@@ -1050,6 +1224,15 @@ namespace api {
 		::std::uint8_t part;
 		friend bool operator==(const polar_Turn &a__, const polar_Turn &b_);
 		friend bool operator!=(const polar_Turn &a__, const polar_Turn &b_);
+		::api::buf debug() const;
+	};
+	struct macros_Streams {
+		::std::uint8_t stdin_;
+		::std::uint8_t stdout_;
+		::std::uint8_t stderr_;
+		::std::uint8_t errno_;
+		friend bool operator==(const macros_Streams &a__, const macros_Streams &b_);
+		friend bool operator!=(const macros_Streams &a__, const macros_Streams &b_);
 		::api::buf debug() const;
 	};
 	struct clash_Tone {
@@ -1086,6 +1269,29 @@ namespace api {
 		::api::buf debug() const;
 		static ::api::clash_Break Sp();
 		static ::api::clash_Break SP();
+	};
+	struct clash_Malformed {
+		::std::uint8_t at;
+		friend bool operator==(const clash_Malformed &a__, const clash_Malformed &b_);
+		friend bool operator!=(const clash_Malformed &a__, const clash_Malformed &b_);
+		::api::buf to_string() const;
+		::api::buf debug() const;
+		bool is(::std::uint8_t at_) const;
+	};
+	struct clash_Errno {
+		::std::int32_t errno_;
+		friend bool operator==(const clash_Errno &a__, const clash_Errno &b_);
+		friend bool operator!=(const clash_Errno &a__, const clash_Errno &b_);
+		::api::buf debug() const;
+		static ::api::clash_Errno NULL_();
+	};
+	struct clash_Escaped {
+		::std::uint8_t new_;
+		friend bool operator==(const clash_Escaped &a__, const clash_Escaped &b_);
+		friend bool operator!=(const clash_Escaped &a__, const clash_Escaped &b_);
+		::api::buf debug() const;
+		::std::uint8_t delete__() const;
+		::std::uint8_t delete_(::std::uint8_t new__, ::std::uint8_t new___) const;
 	};
 	struct Core {
 		::std::uint32_t id;
@@ -1197,11 +1403,31 @@ namespace api {
 	struct Builtin_Native {
 		double _0;
 	};
+	struct Rank_Unranked {
+	};
+	struct Rank_Ranked {
+		::std::uint8_t compare;
+		::std::uint8_t partial_compare;
+		::std::uint8_t compare_to;
+		::std::uint8_t partial_compare_to;
+	};
 	struct clash_Candidate_None {
 	};
 	struct clash_Candidate_Match {
 		::std::uint8_t _0;
 	};
+	struct clash_Tag_Application {
+		::std::uint32_t number;
+	};
+	struct clash_Tag_Private {
+		::std::uint32_t number;
+	};
+	#if defined(__cpp_lib_three_way_comparison)
+	inline ::std::partial_ordering operator<=>(const Quantity &a__, const Quantity &b_);
+	#endif
+	#if defined(__cpp_lib_three_way_comparison)
+	inline ::std::weak_ordering operator<=>(const Pass &a__, const Pass &b_);
+	#endif
 	inline bool operator==(const Stamp &a__, const Stamp &b_);
 	inline bool operator==(const Point &a__, const Point &b_);
 	inline bool operator==(const Label &a__, const Label &b_);
@@ -1220,6 +1446,7 @@ namespace api {
 	inline bool operator==(const OptIn &a__, const OptIn &b_);
 	inline bool operator==(const Wide &a__, const Wide &b_);
 	inline bool operator==(const Clocked &a__, const Clocked &b_);
+	inline bool operator==(const Rated &a__, const Rated &b_);
 	inline bool operator==(const Hits &a__, const Hits &b_);
 	inline bool operator==(const Extent &a__, const Extent &b_);
 	inline bool operator==(const Pair_Size_u8 &a__, const Pair_Size_u8 &b_);
@@ -1249,13 +1476,29 @@ namespace api {
 	inline bool operator==(const DoubleArray &a__, const DoubleArray &b_);
 	inline bool operator==(const a &a__, const a &b_);
 	inline bool operator==(const Qualifiers &a__, const Qualifiers &b_);
+	inline bool operator==(const Version &a__, const Version &b_);
+	inline bool operator<(const Version &a__, const Version &b_);
+	inline bool operator<=(const Version &a__, const Version &b_);
+	inline bool operator>(const Version &a__, const Version &b_);
+	inline bool operator>=(const Version &a__, const Version &b_);
+	#if defined(__cpp_lib_three_way_comparison)
+	inline ::std::weak_ordering operator<=>(const Version &a__, const Version &b_);
+	#endif
+	inline bool operator==(const Spot &a__, const Spot &b_);
+	inline bool operator==(const Deprecated &a__, const Deprecated &b_);
+	inline bool operator==(const Dial &a__, const Dial &b_);
+	inline bool operator==(const Knob &a__, const Knob &b_);
 	inline bool operator==(const polar_Point &a__, const polar_Point &b_);
 	inline bool operator==(const polar_Turn &a__, const polar_Turn &b_);
+	inline bool operator==(const macros_Streams &a__, const macros_Streams &b_);
 	inline bool operator==(const clash_Tone &a__, const clash_Tone &b_);
 	inline bool operator==(const clash_TONE &a__, const clash_TONE &b_);
 	inline bool operator==(const clash_Span &a__, const clash_Span &b_);
 	inline bool operator==(const clash_Any &a__, const clash_Any &b_);
 	inline bool operator==(const clash_Break &a__, const clash_Break &b_);
+	inline bool operator==(const clash_Malformed &a__, const clash_Malformed &b_);
+	inline bool operator==(const clash_Errno &a__, const clash_Errno &b_);
+	inline bool operator==(const clash_Escaped &a__, const clash_Escaped &b_);
 	inline bool operator==(::api::Shape a__, ::api::Shape b_);
 	inline bool operator!=(::api::Shape a__, ::api::Shape b_);
 	inline ::api::buf Shape_debug(::api::Shape self);
@@ -1272,7 +1515,7 @@ namespace api {
 	inline ::api::Clash Clash_of(double value);
 	inline ::api::buf Clash_bytes(const ::api::Clash &self);
 	inline ::api::Reading Clash_reading(const ::api::Clash &self, ::std::uint32_t kotlin);
-	inline ::std::vector<::std::vector<::std::uint32_t>> Clash_listed(const ::std::vector<::std::uint32_t> &java, ::std::uint32_t &kotlin);
+	inline ::std::vector<::std::vector<::std::uint32_t>> Clash_listed(::api::slice<::std::uint32_t> java, ::std::uint32_t &kotlin);
 	template <class F0> inline ::api::Clash_after_future Clash_after(F0 first, double kotlin);
 	inline ::api::buf Clash_joined(const ::api::Clash &self, ::api::input lent, ::api::input owned, ::std::optional<::api::input> maybe);
 	inline ::api::Clash_tagged_future Clash_tagged(const ::api::Clash &self, ::api::input tag);
@@ -1304,9 +1547,38 @@ namespace api {
 	inline ::api::buf b_debug(const ::api::b &self);
 	inline bool operator==(const ::api::Builtin &a__, const ::api::Builtin &b_);
 	inline bool operator!=(const ::api::Builtin &a__, const ::api::Builtin &b_);
+	inline bool operator==(const ::api::Rank &a__, const ::api::Rank &b_);
+	inline bool operator!=(const ::api::Rank &a__, const ::api::Rank &b_);
+	inline bool operator<(const ::api::Rank &a__, const ::api::Rank &b_);
+	inline bool operator<=(const ::api::Rank &a__, const ::api::Rank &b_);
+	inline bool operator>(const ::api::Rank &a__, const ::api::Rank &b_);
+	inline bool operator>=(const ::api::Rank &a__, const ::api::Rank &b_);
+	#if defined(__cpp_lib_three_way_comparison)
+	inline ::std::weak_ordering operator<=>(const ::api::Rank &a__, const ::api::Rank &b_);
+	#endif
+	inline ::api::buf Rank_debug(const ::api::Rank &self);
+	inline bool operator==(::api::Tier a__, ::api::Tier b_);
+	inline bool operator!=(::api::Tier a__, ::api::Tier b_);
+	inline bool operator<(::api::Tier a__, ::api::Tier b_);
+	inline bool operator<=(::api::Tier a__, ::api::Tier b_);
+	inline bool operator>(::api::Tier a__, ::api::Tier b_);
+	inline bool operator>=(::api::Tier a__, ::api::Tier b_);
+	#if defined(__cpp_lib_three_way_comparison)
+	inline ::std::weak_ordering operator<=>(::api::Tier a__, ::api::Tier b_);
+	#endif
+	inline ::api::buf Tier_debug(::api::Tier self);
 	inline bool operator==(const ::api::clash_Candidate &a__, const ::api::clash_Candidate &b_);
 	inline bool operator!=(const ::api::clash_Candidate &a__, const ::api::clash_Candidate &b_);
 	inline ::api::buf clash_Candidate_debug(const ::api::clash_Candidate &self);
+	inline bool operator==(::api::clash_Level a__, ::api::clash_Level b_);
+	inline bool operator!=(::api::clash_Level a__, ::api::clash_Level b_);
+	inline ::api::buf clash_Level_debug(::api::clash_Level self);
+	inline clash_Level clash_Level_default();
+	inline ::std::uint8_t clash_Level_index(::api::clash_Level self);
+	inline bool operator==(const ::api::clash_Tag &a__, const ::api::clash_Tag &b_);
+	inline bool operator!=(const ::api::clash_Tag &a__, const ::api::clash_Tag &b_);
+	inline ::api::buf clash_Tag_debug(const ::api::clash_Tag &self);
+	inline ::std::uint32_t clash_Tag_number(const ::api::clash_Tag &self);
 	inline bool has_text(const ::api::Note &note);
 	inline ::std::uint64_t marked(const ::api::Mark &api_marked);
 	inline ::std::optional<::api::Reading> reading(::std::uint32_t n);
@@ -1406,7 +1678,6 @@ namespace api {
 	inline ::std::size_t len(::api::input payload);
 	inline ::api::buf hex(::api::input payload);
 	inline ::api::buf timed_hex(::api::input payload);
-	inline ::api::buf timed_text(const ::api::Json &value);
 	inline ::api::buf sample_hex(::api::input sample);
 	inline ::api::buf queued_hex(::api::input queued);
 	inline ::api::buf tick_name(const ::api::Label &tick);
@@ -1489,7 +1760,7 @@ namespace api {
 	inline ::std::size_t either(::std::optional<::api::input> text);
 	inline ::api::either_later_future either_later(::std::optional<::api::input> text);
 	inline ::api::buf prefixed(::api::input payload, ::std::optional<::api::input> prefix);
-	inline ::std::int32_t sum_lists(const ::std::vector<::std::int32_t> &a__, const ::std::optional<::std::vector<::std::int32_t>> &b_, const ::std::optional<::std::vector<::std::int32_t>> &c_);
+	inline ::std::int32_t sum_lists(::api::slice<::std::int32_t> a__, ::std::optional<::api::slice<::std::int32_t>> b_, ::std::optional<::api::slice<::std::int32_t>> c_);
 	inline ::std::int32_t coordinates(const ::std::optional<::api::Point> &point);
 	inline ::std::vector<::api::buf> chunks(::api::input bytes, ::std::size_t size);
 	inline ::std::vector<::api::Counter> counters(const ::api::items<::api::view> &names);
@@ -1500,10 +1771,12 @@ namespace api {
 	inline ::std::uint32_t less(::std::uint32_t value, ::std::uint32_t _value);
 	inline ::std::vector<::std::uint32_t> sums(const ::std::vector<::std::vector<::std::uint32_t>> &rows);
 	inline ::std::vector<::std::vector<::std::uint32_t>> least(const ::std::vector<::std::vector<::std::uint32_t>> &sets);
-	inline ::std::tuple<::std::vector<::std::int32_t>, ::std::uint32_t> split_last(const ::std::vector<::std::int32_t> &items_);
-	inline ::std::uint64_t sum_u32(const ::std::vector<::std::uint32_t> &items_);
-	inline ::std::vector<::std::int64_t> doubled_i64(const ::std::vector<::std::int64_t> &items_);
-	inline ::std::vector<double> boxed_floats(const ::std::vector<double> &items_);
+	inline ::std::tuple<::std::vector<::std::int32_t>, ::std::uint32_t> split_last(::api::slice<::std::int32_t> items_);
+	inline ::std::uint64_t sum_u32(::api::slice<::std::uint32_t> items_);
+	inline ::std::vector<::std::int64_t> doubled_i64(::api::slice<::std::int64_t> items_);
+	template <class F0> inline ::std::vector<::std::uint64_t> visit_chunks(::api::input payload, ::std::size_t size, F0 &&visit);
+	inline ::std::uint64_t scanned(::std::unique_ptr<::api::Scan> scan, ::api::input payload);
+	inline ::std::vector<double> boxed_floats(::api::slice<double> items_);
 	inline ::api::Point summed(const ::std::vector<::api::Point> &points);
 	inline ::api::duration breadth(const ::api::Limits_duration &limits);
 	inline ::api::Limits_bytes byte_limits(::api::input low, ::api::input high);
@@ -1544,12 +1817,16 @@ namespace api {
 	inline ::api::Page page();
 	inline ::std::uint32_t beats(::std::unique_ptr<::api::Beat> beat);
 	inline ::std::int32_t same(double a__, double b_);
+	inline ::std::int32_t errno_();
+	inline bool assert_(bool holds);
+	inline ::std::uint8_t offsetof_(::std::uint8_t field);
 	inline ::api::result<::std::tuple<::api::buf, ::std::optional<::std::tuple<::std::uint8_t, ::std::int16_t, ::std::uint32_t, ::std::uint64_t>>, ::std::vector<::api::buf>>, ::api::Error> return_values(::api::Point &point, bool fail);
 	inline ::api::result<::api::Counter, ::api::Error> return_moved(::api::Counter counter, bool fail);
 	inline ::api::NonZeros non_zeros();
 	inline ::api::buf describe_non_zeros(const ::api::NonZeros &non_zeros);
 	inline ::std::optional<::std::uint64_t> next_hop(const ::std::optional<::std::uint64_t> &hop);
 	inline ::std::uint16_t farther_hop(const ::api::Pair_non_zero_u16 &hops);
+	inline ::std::int32_t WEXITSTATUS_(::std::int32_t status);
 	inline ::api::duration same_duration(::api::duration v);
 	inline ::std::uint64_t same_u64(::std::uint64_t v);
 	inline ::std::size_t same_usize(::std::size_t v);
@@ -1562,14 +1839,27 @@ namespace api {
 	inline ::api::socket_addr_v4 same_socket_addr_v4(::api::socket_addr_v4 v);
 	inline ::api::socket_addr_v6 same_socket_addr_v6(::api::socket_addr_v6 v);
 	inline ::api::ip_addr same_ip_addr(::api::ip_addr v);
+	inline ::api::buf unescaped(::api::input text);
+	inline ::api::unescaped_later_future unescaped_later(::api::input text);
+	inline ::api::unescaped_maybe_future unescaped_maybe(::std::optional<::api::input> text);
+	inline ::api::buf unzeroed(::api::input bytes);
+	inline ::std::uint8_t deprecated(::std::uint8_t note);
+	inline ::std::uint8_t _deprecated(::std::uint8_t note);
+	inline ::std::uint8_t __all___(::std::uint8_t note);
+	[[deprecated]] inline ::api::Knob knob(const ::api::Dial &dial);
+	[[deprecated("read its `level`")]] inline ::api::level_later_future level_later(const ::api::Dial &dial);
+	inline ::api::result<::api::Dial, ::api::Error> turned(const ::api::Dial &dial, ::std::unique_ptr<::api::Turner> turner);
+	inline ::std::uint32_t undone(::std::unique_ptr<::api::Undo> undo, ::std::uint32_t n);
 	inline ::std::uint64_t crowded(const ::api::Reading &reading, const ::api::Stamp &a__, const ::api::Stamp &b_, ::std::uint64_t n0, ::std::uint64_t n1, ::std::uint64_t n2, ::std::uint64_t n3, ::std::uint64_t n4, ::std::uint64_t n5, ::std::uint64_t n6, ::std::uint64_t n7, ::std::uint64_t n8, ::std::uint64_t n9, ::std::uint64_t n10, ::std::uint64_t n11, ::std::uint64_t n12, ::std::uint64_t n13, ::std::uint64_t n14, ::std::uint64_t n15, ::std::uint64_t n16, ::std::uint64_t n17, ::std::uint64_t n18, ::std::uint64_t n19, ::std::uint64_t n20, ::std::uint64_t n21, ::std::uint64_t n22, ::std::uint64_t n23, ::std::uint64_t n24, ::std::uint64_t n25, ::std::uint64_t n26, ::std::uint64_t n27, ::std::uint64_t n28, ::std::uint64_t n29, ::std::uint64_t n30, ::std::uint64_t n31, ::std::uint64_t n32, ::std::uint64_t n33, ::std::uint64_t n34, ::std::uint64_t n35, ::std::uint64_t n36, ::std::uint64_t n37, ::std::uint64_t n38, ::std::uint64_t n39, ::std::uint64_t n40, ::std::uint64_t n41, ::std::uint64_t n42, ::std::uint64_t n43, ::std::uint64_t n44, ::std::uint64_t n45, ::std::uint64_t n46, ::std::uint64_t n47, ::std::uint64_t n48, ::std::uint64_t n49, ::std::uint64_t n50, ::std::uint64_t n51, ::std::uint64_t n52, ::std::uint64_t n53, ::std::uint64_t n54, ::std::uint64_t n55, ::std::uint64_t n56, ::std::uint64_t n57, ::std::uint64_t n58, ::std::uint64_t n59, ::std::uint64_t n60, ::std::uint64_t n61, ::std::uint64_t n62, ::std::uint64_t n63, ::std::uint64_t n64, ::std::uint64_t n65, ::std::uint64_t n66, ::std::uint64_t n67, ::std::uint64_t n68, ::std::uint64_t n69, ::std::uint64_t n70, ::std::uint64_t n71, ::std::uint64_t n72, ::std::uint64_t n73, ::std::uint64_t n74, ::std::uint64_t n75, ::std::uint64_t n76, ::std::uint64_t n77, ::std::uint64_t n78, ::std::uint64_t n79, ::std::uint64_t n80, ::std::uint64_t n81, ::std::uint64_t n82, ::std::uint64_t n83, ::std::uint64_t n84, ::std::uint64_t n85, ::std::uint64_t n86, ::std::uint64_t n87, ::std::uint64_t n88, ::std::uint64_t n89, ::std::uint64_t n90, ::std::uint64_t n91, ::std::uint64_t n92, ::std::uint64_t n93, ::std::uint64_t n94, ::std::uint64_t n95, ::std::uint64_t n96, ::std::uint64_t n97, ::std::uint64_t n98, ::std::uint64_t n99, ::std::uint64_t n100, ::std::uint64_t n101, ::std::uint64_t n102, ::std::uint64_t n103, ::std::uint64_t n104, ::std::uint64_t n105, ::std::uint64_t n106, ::std::uint64_t n107, ::std::uint64_t n108, ::std::uint64_t n109, ::std::uint64_t n110, ::std::uint64_t n111, ::std::uint64_t n112, ::std::uint64_t n113, ::std::uint64_t n114, ::std::uint64_t n115, ::std::uint64_t n116, ::std::uint64_t n117, ::std::uint64_t n118);
 	inline ::std::uint64_t crammed(const ::api::Moment &a__, const ::api::Moment &b_, ::std::uint64_t n0, ::std::uint64_t n1, ::std::uint64_t n2, ::std::uint64_t n3, ::std::uint64_t n4, ::std::uint64_t n5, ::std::uint64_t n6, ::std::uint64_t n7, ::std::uint64_t n8, ::std::uint64_t n9, ::std::uint64_t n10, ::std::uint64_t n11, ::std::uint64_t n12, ::std::uint64_t n13, ::std::uint64_t n14, ::std::uint64_t n15, ::std::uint64_t n16, ::std::uint64_t n17, ::std::uint64_t n18, ::std::uint64_t n19, ::std::uint64_t n20, ::std::uint64_t n21, ::std::uint64_t n22, ::std::uint64_t n23, ::std::uint64_t n24, ::std::uint64_t n25, ::std::uint64_t n26, ::std::uint64_t n27, ::std::uint64_t n28, ::std::uint64_t n29, ::std::uint64_t n30, ::std::uint64_t n31, ::std::uint64_t n32, ::std::uint64_t n33, ::std::uint64_t n34, ::std::uint64_t n35, ::std::uint64_t n36, ::std::uint64_t n37, ::std::uint64_t n38, ::std::uint64_t n39, ::std::uint64_t n40, ::std::uint64_t n41, ::std::uint64_t n42, ::std::uint64_t n43, ::std::uint64_t n44, ::std::uint64_t n45, ::std::uint64_t n46, ::std::uint64_t n47, ::std::uint64_t n48, ::std::uint64_t n49, ::std::uint64_t n50, ::std::uint64_t n51, ::std::uint64_t n52, ::std::uint64_t n53, ::std::uint64_t n54, ::std::uint64_t n55, ::std::uint64_t n56, ::std::uint64_t n57, ::std::uint64_t n58, ::std::uint64_t n59, ::std::uint64_t n60, ::std::uint64_t n61, ::std::uint64_t n62, ::std::uint64_t n63, ::std::uint64_t n64, ::std::uint64_t n65, ::std::uint64_t n66, ::std::uint64_t n67, ::std::uint64_t n68, ::std::uint64_t n69, ::std::uint64_t n70, ::std::uint64_t n71, ::std::uint64_t n72, ::std::uint64_t n73, ::std::uint64_t n74, ::std::uint64_t n75, ::std::uint64_t n76, ::std::uint64_t n77, ::std::uint64_t n78, ::std::uint64_t n79, ::std::uint64_t n80, ::std::uint64_t n81, ::std::uint64_t n82, ::std::uint64_t n83, ::std::uint64_t n84, ::std::uint64_t n85, ::std::uint64_t n86, ::std::uint64_t n87, ::std::uint64_t n88, ::std::uint64_t n89, ::std::uint64_t n90, ::std::uint64_t n91, ::std::uint64_t n92, ::std::uint64_t n93, ::std::uint64_t n94, ::std::uint64_t n95, ::std::uint64_t n96, ::std::uint64_t n97, ::std::uint64_t n98, ::std::uint64_t n99, ::std::uint64_t n100, ::std::uint64_t n101, ::std::uint64_t n102, ::std::uint64_t n103, ::std::uint64_t n104, ::std::uint64_t n105, ::std::uint64_t n106, ::std::uint64_t n107, ::std::uint64_t n108, ::std::uint64_t n109, ::std::uint64_t n110, ::std::uint64_t n111, ::std::uint64_t n112, ::std::uint64_t n113, ::std::uint64_t n114, ::std::uint64_t n115, ::std::uint64_t n116, ::std::uint64_t n117, ::std::uint64_t n118, ::std::uint64_t n119, ::std::uint64_t n120, ::std::uint64_t n121, ::std::uint64_t n122, ::std::uint64_t n123);
 	inline ::std::uint32_t jni_one();
 	inline ::std::optional<::api::polar_Point> polar_point(::std::uint32_t distance);
+	inline ::std::uint32_t macros_streamed(const ::api::macros_Streams &streams, ::std::uint8_t errno_);
 	inline ::api::clash_Any clash_any(::api::input type_url);
 	inline ::api::clash_Candidate clash_candidate(::std::uint8_t at);
 	inline ::std::uint8_t clash_ignore(::std::uint8_t arg0, ::std::uint8_t arg1, ::std::uint8_t arg2);
 	inline ::api::clash_Empty_string clash_empty();
+	inline ::std::uint8_t clash_waited(::std::unique_ptr<::api::clash_Source> source);
 	inline ::api::result<::api::clash_Tone, ::std::vector<::api::clash_Tone>> clash_audible(const ::api::clash_Tone &tone);
 	inline ::std::uint32_t clash_nested(const ::std::optional<::std::tuple<::std::tuple<::std::uint8_t, ::std::uint16_t>, ::std::uint32_t>> &a__, const ::std::optional<::std::tuple<::std::tuple<::std::uint8_t, ::std::uint16_t, ::std::uint32_t>>> &b_);
 	inline ::std::uint8_t clash_audio_encoder_finish();
@@ -1606,11 +1896,23 @@ namespace std {
 		size_t operator()(const ::api::Part &value) const noexcept;
 	};
 }
+#if defined(__GNUC__) || defined(__clang__)
+#pragma GCC diagnostic pop
+#elif defined(_MSC_VER)
+#pragma warning(pop)
+#endif
 #endif
 
 // core.hpp
 #ifndef API_HPP_CRATE0
 #define API_HPP_CRATE0
+#if defined(__GNUC__) || defined(__clang__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+#elif defined(_MSC_VER)
+#pragma warning(push)
+#pragma warning(disable : 4996)
+#endif
 #include "rt.hpp"
 namespace api {
 	class RUST2_FFI_CONSUMABLE std_io_Error {
@@ -1618,11 +1920,23 @@ namespace api {
 		std_io_Error &operator=(std_io_Error &&other) noexcept = default;
 	};
 }
+#if defined(__GNUC__) || defined(__clang__)
+#pragma GCC diagnostic pop
+#elif defined(_MSC_VER)
+#pragma warning(pop)
+#endif
 #endif
 
 // dep.hpp
 #ifndef API_HPP_CRATE2
 #define API_HPP_CRATE2
+#if defined(__GNUC__) || defined(__clang__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+#elif defined(_MSC_VER)
+#pragma warning(push)
+#pragma warning(disable : 4996)
+#endif
 #include "rt.hpp"
 namespace api {
 	class RUST2_FFI_CONSUMABLE Area {
@@ -1645,11 +1959,23 @@ namespace api {
 	};
 	inline bool operator==(const Size &a__, const Size &b_);
 }
+#if defined(__GNUC__) || defined(__clang__)
+#pragma GCC diagnostic pop
+#elif defined(_MSC_VER)
+#pragma warning(pop)
+#endif
 #endif
 
 // rt.hpp
 #ifndef API_HPP_RT
 #define API_HPP_RT
+#if defined(__GNUC__) || defined(__clang__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+#elif defined(_MSC_VER)
+#pragma warning(push)
+#pragma warning(disable : 4996)
+#endif
 #include "../api.h"
 #include <array>
 #include <atomic>
@@ -1675,8 +2001,13 @@ namespace api {
 #if defined(__cpp_impl_coroutine) && __cpp_impl_coroutine >= 201902L && __has_include(<coroutine>)
 #include <coroutine>
 #endif
+#if defined(__cpp_impl_three_way_comparison) && __cpp_impl_three_way_comparison >= 201907L && __has_include(<compare>)
+#include <compare>
+#endif
 namespace api {
 	#if defined(__clang__)
+	#define RUST2_FFI_OWNER(T) [[gsl::Owner(T)]]
+	#define RUST2_FFI_POINTER(T) [[gsl::Pointer(T)]]
 	#define RUST2_FFI_LIFETIMEBOUND [[clang::lifetimebound]]
 	#define RUST2_FFI_CONSUMABLE [[clang::consumable(unconsumed)]]
 	#define RUST2_FFI_CALLABLE [[clang::callable_when("unconsumed", "unknown")]]
@@ -1684,6 +2015,8 @@ namespace api {
 	#define RUST2_FFI_UNCONSUMED [[clang::return_typestate(unconsumed)]]
 	#define RUST2_FFI_MOVED_FROM [[clang::return_typestate(consumed)]]
 	#else
+	#define RUST2_FFI_OWNER(T)
+	#define RUST2_FFI_POINTER(T)
 	#define RUST2_FFI_LIFETIMEBOUND
 	#define RUST2_FFI_CONSUMABLE
 	#define RUST2_FFI_CALLABLE
@@ -1699,7 +2032,7 @@ namespace api {
 		borrow &operator=(const borrow &) = delete;
 		T *operator->() const noexcept;
 	};
-	class view {
+	class RUST2_FFI_POINTER(::std::uint8_t) view {
 		view() noexcept : data_(detail::bytes(nullptr, 0)), size_(0);
 		view(const void *data, ::std::size_t size) noexcept : data_(detail::bytes(data, size)), size_(size);
 		view(const char *text) noexcept : view(text, ::std::strlen(text));
@@ -1711,7 +2044,26 @@ namespace api {
 		const ::std::uint8_t *end() const noexcept;
 		::std::string_view str() const noexcept;
 	};
-	class buf {
+	#if defined(__GNUC__) && !defined(__clang__)
+	#pragma GCC diagnostic push
+	#pragma GCC diagnostic ignored "-Winit-list-lifetime"
+	#endif
+	template <class T> class RUST2_FFI_POINTER(T) slice {
+		slice() noexcept : data_(nullptr), size_(0);
+		slice(const T *data, ::std::size_t size) noexcept : data_(data), size_(size);
+		template <::std::size_t N> slice(const T (&array RUST2_FFI_LIFETIMEBOUND)[N]) noexcept : data_(array), size_(N);
+		slice(::std::initializer_list<T> list RUST2_FFI_LIFETIMEBOUND) noexcept : data_(list.begin()), size_(list.size());
+		template <class R, class = ::std::enable_if_t<::std::is_same_v< ::std::remove_cv_t<::std::remove_pointer_t<decltype(::std::declval<const R &>().data())>>, T>>, class = decltype(::std::declval<const R &>().size())> slice(const R &range RUST2_FFI_LIFETIMEBOUND) noexcept : data_(range.data()), size_(range.size());
+		const T *data() const noexcept;
+		::std::size_t size() const noexcept;
+		bool empty() const noexcept;
+		const T *begin() const noexcept;
+		const T *end() const noexcept;
+	};
+	#if defined(__GNUC__) && !defined(__clang__)
+	#pragma GCC diagnostic pop
+	#endif
+	class [[nodiscard]] RUST2_FFI_OWNER(::std::uint8_t) buf {
 		buf() noexcept;
 		explicit buf(view bytes) : buf();
 		buf(const buf &other) : buf();
@@ -1736,7 +2088,7 @@ namespace api {
 		input &operator=(input &&) = delete;
 		~input();
 	};
-	template <class T> class items {
+	template <class T> class RUST2_FFI_POINTER(T) items {
 		items(const ::std::vector<T> &vector RUST2_FFI_LIFETIMEBOUND) noexcept : data_(vector.data()), size_(vector.size());
 		items(::std::initializer_list<T> list) : converted_(list), data_(converted_.data()), size_(converted_.size());
 		template <class R, class = ::std::enable_if_t<!::std::is_same_v<::std::decay_t<R>, ::std::vector<T>> && !::std::is_same_v<::std::decay_t<R>, items> && detail::lasting<const R, T> && ::std::is_convertible_v<decltype(*::std::begin(::std::declval<const R &>())), T>>> items(const R &range RUST2_FFI_LIFETIMEBOUND);
@@ -1758,7 +2110,7 @@ namespace api {
 		::std::size_t size() const noexcept;
 		bool empty() const noexcept;
 	};
-	template <class T, class E> class result {
+	template <class T, class E> class [[nodiscard]] result {
 		static result ok(T value);
 		static result err(E error);
 		bool has_value() const noexcept;
@@ -1775,7 +2127,7 @@ namespace api {
 		const E &error() const &;
 		E &&error() &&;
 	};
-	template <class E> class result<void, E> {
+	template <class E> class [[nodiscard]] result<void, E> {
 		static result ok();
 		static result err(E error);
 		bool has_value() const noexcept;
@@ -1794,13 +2146,13 @@ namespace api {
 	};
 	template <class T> using poll_t = ::std::conditional_t<::std::is_void_v<T>, bool, ::std::optional<T>>;
 	class task;
-	class task {
+	class [[nodiscard]] task {
 		task() noexcept = default;
 		task(task &&other) noexcept : node_(::std::exchange(other.node_, nullptr));
 		task &operator=(task &&other) noexcept;
 		~task();
 	};
-	template <class Op> class future {
+	template <class Op> class [[nodiscard]] future {
 		using output = typename Op::output;
 		future(future &&other) noexcept : raw_(::std::exchange(other.raw_, nullptr)), last_(::std::exchange(other.last_, nullptr));
 		future &operator=(future &&other) noexcept;
@@ -1826,6 +2178,8 @@ namespace api {
 	enum class Status_;
 	enum class Family;
 	enum class VecClashTone;
+	enum class Tier;
+	enum class clash_Level;
 	enum class Level;
 	struct Parcel;
 	struct Weighted;
@@ -1852,6 +2206,7 @@ namespace api {
 	struct OptIn;
 	class Wide;
 	struct Clocked;
+	class Rated;
 	class Score;
 	class Hits;
 	class Extent;
@@ -1883,16 +2238,26 @@ namespace api {
 	struct NonZeros;
 	struct a;
 	struct Qualifiers;
+	struct Version;
+	struct Spot;
+	struct Deprecated;
+	struct Dial;
+	struct Knob;
 	struct polar_Point;
 	struct polar_Turn;
+	struct macros_Streams;
 	struct clash_Tone;
 	struct clash_TONE;
 	struct clash_Span;
 	struct clash_Any;
 	struct clash_Break;
+	struct clash_Malformed;
+	struct clash_Errno;
+	struct clash_Escaped;
 	struct tls_policy_Lifetime;
 	struct Core;
 	class Board;
+	class Tab;
 	class Receipt;
 	class Draft;
 	class Filed_Receipt;
@@ -1903,6 +2268,9 @@ namespace api {
 	class Batch;
 	class Batch_2;
 	class Waiter;
+	class Feed;
+	class Countdown;
+	class Retired;
 	class Logger;
 	class Journal;
 	class Local;
@@ -1921,6 +2289,7 @@ namespace api {
 	class Trail;
 	class Worker;
 	class Handle;
+	class Holder;
 	class Area;
 	class Counter;
 	class Meter;
@@ -1947,10 +2316,13 @@ namespace api {
 	class Refusal;
 	class Fault;
 	class c;
+	class Quantity;
+	class Pass;
 	class Key;
 	class clash_Seed;
 	class clash_Empty_string;
 	class clash_Store;
+	class clash_Reader;
 	class tls_Session;
 	class Url;
 	class Json;
@@ -1967,7 +2339,11 @@ namespace api {
 	class Forged;
 	class Part;
 	class Log;
+	class Scan;
 	class Beat;
+	class Turner;
+	class Undo;
+	class clash_Source;
 	struct Choice_Empty;
 	struct Choice_Picked;
 	using Choice = ::std::variant<Choice_Empty, Choice_Picked>;
@@ -2018,12 +2394,21 @@ namespace api {
 	struct Builtin_Int;
 	struct Builtin_Native;
 	using Builtin = ::std::variant<Builtin_Any, Builtin_Boolean, Builtin_Int, Builtin_Native>;
+	struct Rank_Unranked;
+	struct Rank_Ranked;
+	using Rank = ::std::variant<Rank_Unranked, Rank_Ranked>;
 	struct clash_Candidate_None;
 	struct clash_Candidate_Match;
 	using clash_Candidate = ::std::variant<clash_Candidate_None, clash_Candidate_Match>;
+	struct clash_Tag_Application;
+	struct clash_Tag_Private;
+	using clash_Tag = ::std::variant<clash_Tag_Application, clash_Tag_Private>;
 	using Clash_after_future = ::api::future<detail::Clash_after_future_op>;
 	using Clash_tagged_future = ::api::future<detail::Clash_tagged_future_op>;
 	using Waiter_poll_future_future = ::api::future<detail::Waiter_poll_future_future_op>;
+	using Feed_next_future = ::api::future<detail::Feed_next_future_op>;
+	using Countdown_next_future = ::api::future<detail::Countdown_next_future_op>;
+	using Retired_next_future = ::api::future<detail::Retired_next_future_op>;
 	using Local_later_future = ::api::future<detail::Local_later_future_op>;
 	using Local_poll_count_future = ::api::future<detail::Local_poll_count_future_op>;
 	using LocalWaiter_poll_ready_future = ::api::future<detail::LocalWaiter_poll_ready_future_op>;
@@ -2057,14 +2442,29 @@ namespace api {
 	using byte_len_future = ::api::future<detail::byte_len_future_op>;
 	using parse_later_future = ::api::future<detail::parse_later_future_op>;
 	using either_later_future = ::api::future<detail::either_later_future_op>;
+	using unescaped_later_future = ::api::future<detail::unescaped_later_future_op>;
+	using unescaped_maybe_future = ::api::future<detail::unescaped_maybe_future_op>;
+	using level_later_future = ::api::future<detail::level_later_future_op>;
 	using emit_later_future = ::api::future<detail::emit_later_future_op>;
 	using log_on_drop_future = ::api::future<detail::log_on_drop_future_op>;
 }
+#if defined(__GNUC__) || defined(__clang__)
+#pragma GCC diagnostic pop
+#elif defined(_MSC_VER)
+#pragma warning(pop)
+#endif
 #endif
 
 // serdejson.hpp
 #ifndef API_HPP_CRATE4
 #define API_HPP_CRATE4
+#if defined(__GNUC__) || defined(__clang__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+#elif defined(_MSC_VER)
+#pragma warning(push)
+#pragma warning(disable : 4996)
+#endif
 #include "rt.hpp"
 namespace api {
 	class RUST2_FFI_CONSUMABLE Json {
@@ -2074,11 +2474,23 @@ namespace api {
 		RUST2_FFI_CALLABLE ::api::buf to_text() const;
 	};
 }
+#if defined(__GNUC__) || defined(__clang__)
+#pragma GCC diagnostic pop
+#elif defined(_MSC_VER)
+#pragma warning(pop)
+#endif
 #endif
 
 // std.hpp
 #ifndef API_HPP_CRATE1
 #define API_HPP_CRATE1
+#if defined(__GNUC__) || defined(__clang__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+#elif defined(_MSC_VER)
+#pragma warning(push)
+#pragma warning(disable : 4996)
+#endif
 #include "rt.hpp"
 namespace api {
 	class RUST2_FFI_CONSUMABLE Instant {
@@ -2088,20 +2500,39 @@ namespace api {
 		Instant &operator=(const Instant &other) = default;
 		friend bool operator==(const Instant &a__, const Instant &b_);
 		friend bool operator!=(const Instant &a__, const Instant &b_);
+		friend bool operator<(const Instant &a__, const Instant &b_);
+		friend bool operator<=(const Instant &a__, const Instant &b_);
+		friend bool operator>(const Instant &a__, const Instant &b_);
+		friend bool operator>=(const Instant &a__, const Instant &b_);
 		RUST2_FFI_CALLABLE ::std::uint64_t hash() const;
 		RUST2_FFI_CALLABLE ::api::buf debug() const;
 	};
+	#if defined(__cpp_lib_three_way_comparison)
+	inline ::std::weak_ordering operator<=>(const Instant &a__, const Instant &b_);
+	#endif
 }
 namespace std {
 	template <> struct hash<::api::Instant> {
 		size_t operator()(const ::api::Instant &value) const noexcept;
 	};
 }
+#if defined(__GNUC__) || defined(__clang__)
+#pragma GCC diagnostic pop
+#elif defined(_MSC_VER)
+#pragma warning(pop)
+#endif
 #endif
 
 // tls.hpp
 #ifndef API_HPP_CRATE6
 #define API_HPP_CRATE6
+#if defined(__GNUC__) || defined(__clang__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+#elif defined(_MSC_VER)
+#pragma warning(push)
+#pragma warning(disable : 4996)
+#endif
 #include "rt.hpp"
 namespace api {
 	class RUST2_FFI_CONSUMABLE tls_Session {
@@ -2138,29 +2569,60 @@ namespace api {
 	};
 	inline bool operator==(const tls_policy_Lifetime &a__, const tls_policy_Lifetime &b_);
 }
+#if defined(__GNUC__) || defined(__clang__)
+#pragma GCC diagnostic pop
+#elif defined(_MSC_VER)
+#pragma warning(pop)
+#endif
 #endif
 
 // tracingcore.hpp
 #ifndef API_HPP_CRATE3
 #define API_HPP_CRATE3
+#if defined(__GNUC__) || defined(__clang__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+#elif defined(_MSC_VER)
+#pragma warning(push)
+#pragma warning(disable : 4996)
+#endif
 #include "rt.hpp"
 namespace api {
 	enum class Level {
-		trace = 0,
-		debug = 1,
+		error = 0,
+		warn = 1,
 		info = 2,
-		warn = 3,
-		error = 4,
+		debug = 3,
+		trace = 4,
 	};
 	inline bool operator==(::api::Level a__, ::api::Level b_);
 	inline bool operator!=(::api::Level a__, ::api::Level b_);
+	inline bool operator<(::api::Level a__, ::api::Level b_);
+	inline bool operator<=(::api::Level a__, ::api::Level b_);
+	inline bool operator>(::api::Level a__, ::api::Level b_);
+	inline bool operator>=(::api::Level a__, ::api::Level b_);
+	#if defined(__cpp_lib_three_way_comparison)
+	inline ::std::weak_ordering operator<=>(::api::Level a__, ::api::Level b_);
+	#endif
 	inline ::api::buf Level_to_string(::api::Level self);
 }
+#if defined(__GNUC__) || defined(__clang__)
+#pragma GCC diagnostic pop
+#elif defined(_MSC_VER)
+#pragma warning(pop)
+#endif
 #endif
 
 // url.hpp
 #ifndef API_HPP_CRATE5
 #define API_HPP_CRATE5
+#if defined(__GNUC__) || defined(__clang__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+#elif defined(_MSC_VER)
+#pragma warning(push)
+#pragma warning(disable : 4996)
+#endif
 #include "rt.hpp"
 namespace api {
 	class RUST2_FFI_CONSUMABLE Url {
@@ -2170,15 +2632,27 @@ namespace api {
 		Url &operator=(const Url &other) = default;
 		friend bool operator==(const Url &a__, const Url &b_);
 		friend bool operator!=(const Url &a__, const Url &b_);
+		friend bool operator<(const Url &a__, const Url &b_);
+		friend bool operator<=(const Url &a__, const Url &b_);
+		friend bool operator>(const Url &a__, const Url &b_);
+		friend bool operator>=(const Url &a__, const Url &b_);
 		RUST2_FFI_CALLABLE ::std::uint64_t hash() const;
 		RUST2_FFI_CALLABLE ::api::buf to_string() const;
 		RUST2_FFI_CALLABLE ::api::buf debug() const;
 		static ::api::result<::api::Url, ::api::buf> parse(::api::input input_);
 	};
+	#if defined(__cpp_lib_three_way_comparison)
+	inline ::std::weak_ordering operator<=>(const Url &a__, const Url &b_);
+	#endif
 }
 namespace std {
 	template <> struct hash<::api::Url> {
 		size_t operator()(const ::api::Url &value) const noexcept;
 	};
 }
+#if defined(__GNUC__) || defined(__clang__)
+#pragma GCC diagnostic pop
+#elif defined(_MSC_VER)
+#pragma warning(pop)
+#endif
 #endif

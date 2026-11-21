@@ -613,6 +613,29 @@ pub fn order(data: &[u8], out: &mut Vec<u8>) {
 	}) {
 		sum += i;
 	}
+	// The same with 64-bit bounds, whose difference is written out in the loop's setup.
+	let mut wide = 0u64;
+	for i in (std::ops::Range {
+		end: mark(out, 14) as u64,
+		start: mark(out, 15) as u64 - 4,
+	}) {
+		wide += i;
+	}
+	sum += wide as usize;
+	// A 64-bit sum and difference at the edge of the numbers it is held as, and the order of
+	// values on either side of it.
+	let edge = (1u64 << 53) - 1 + u64::from(at(1) % 2);
+	let nudge = u64::from(at(2) % 3);
+	out.extend_from_slice(&edge.wrapping_add(nudge).to_le_bytes());
+	out.extend_from_slice(&nudge.wrapping_sub(edge).to_le_bytes());
+	out.extend_from_slice(&(edge - nudge).to_le_bytes());
+	out.extend_from_slice(&(edge + nudge).to_le_bytes());
+	let below = -(edge as i64) - i64::from(at(3) % 2);
+	out.extend([
+		u8::from(edge < nudge),
+		u8::from(edge + nudge > edge),
+		u8::from(below <= -(1 << 53)),
+	]);
 	let len = data.len();
 	// The sliced value comes before the range's fields.
 	let slice = &logged(data, out)[std::ops::Range {

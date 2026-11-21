@@ -1,7 +1,7 @@
 // The api fixture's web test: the script fixtures/api/examples/transcript.rs runs as
 // native Rust does on wasm32-wasip1, through the TypeScript tests/fixtures/transcript
 // writes from it, transcript.ts, which calls the functions exported here that
-// transcript.rs defines. It runs on Node or Deno, from beside the binding's `web`
+// transcript.rs defines. It runs on Node, Deno, or Bun, from beside the binding's `web`
 // directory, or in a browser, through tests/browser.ts's `process`. RUST2_WASM is the path
 // of the module, built with the crate's `web` feature; without it, the script loads the
 // module its package holds, as `load` does by default. tests/fixtures.rs compares the
@@ -20,8 +20,10 @@ import * as Batch from "./web/Batch.ts";
 import * as Board from "./web/Board.ts";
 import * as Channel from "./web/Channel.ts";
 import * as Counter from "./web/Counter.ts";
+import * as Countdown from "./web/Countdown.ts";
 import * as Digest from "./web/Digest.ts";
 import * as Error_ from "./web/Error_.ts";
+import * as Feed from "./web/Feed.ts";
 import type * as Event from "./web/Event.ts";
 import * as Key from "./web/Key.ts";
 import * as Labelled from "./web/Labelled.ts";
@@ -40,6 +42,7 @@ import * as Score from "./web/Score.ts";
 import * as Shape from "./web/Shape.ts";
 import * as Tally from "./web/Tally.ts";
 import * as Token from "./web/Token.ts";
+import type { Undo } from "./web/Undo.ts";
 import * as Url from "./web/Url.ts";
 import * as Waiter from "./web/Waiter.ts";
 
@@ -98,6 +101,21 @@ export class Print implements Log {
 	// Rust closes it once it drops the implementation.
 	close(): void {
 		print("freed");
+	}
+}
+
+/** The Undo callback: each method returns its own digit, as transcript.rs's does. */
+export class Edits implements Undo {
+	delete$(n: number): number {
+		return n - 1;
+	}
+
+	free(): number {
+		return 2;
+	}
+
+	type(): number {
+		return 3;
 	}
 }
 
@@ -350,6 +368,44 @@ export function readers(): void {
 	print(sought.ok ? `sought ${dec(sought.value)}` : `sought error ${sought.error}`);
 }
 
+/** Streams, each iterated by `for await` through its `values`: to its end, left early, and
+ * to an error, past which the stream goes on. */
+export async function streams(): Promise<void> {
+	const counts: number[] = [];
+	const three = Countdown.new(3);
+	for await (const count of Countdown.values(three)) counts.push(count);
+	print(`countdown ${counts.join(" ")}`);
+	close(three);
+	// A loop left early takes nothing past the item it stopped at.
+	const five = Countdown.new(5);
+	for await (const count of Countdown.values(five)) {
+		if (count === 4) break;
+	}
+	print(`countdown after break ${await Countdown.next(five)}`);
+	close(five);
+	// Each payload sends the next, which `!` fails and an empty one ends.
+	const channel = Channel.new();
+	const feed = Channel.feed(channel);
+	const replies: Record<string, string> = { a: "b", b: "!" };
+	for (const first of ["a", "c"]) {
+		Channel.send(channel, enc(first));
+		let ended = true;
+		for await (const item of Feed.values(feed)) {
+			if (!item.ok) {
+				print(`feed error ${Error_.toString(item.error)}`);
+				ended = false;
+				continue;
+			}
+			const payload = text(item.value);
+			print(`feed ${payload}`);
+			Channel.send(channel, enc(replies[payload] ?? ""));
+		}
+		if (ended) print("feed end");
+	}
+	close(feed);
+	close(channel);
+}
+
 /** Futures of a value that is not `Send`, awaited on JavaScript's one thread. */
 export async function localLater(local: Local.Local): Promise<void> {
 	print(`local later ${Local.bump(await api.localOrNewLater(local))}`);
@@ -525,6 +581,34 @@ async function futures(): Promise<void> {
 	waiting.cancel();
 	await cancelled(waiting, "a waiting receive cancelled rejects with Cancelled");
 
+	// A stream's `return` while its `next` pends cancels that `next` in Rust, losing nothing:
+	// the payload waits for the next call, whether it landed before the return or after.
+	{
+		const feed = Channel.feed(channel);
+		for (const sent of [false, true]) {
+			const items = Feed.values(feed);
+			const pending = items.next();
+			await step();
+			if (sent) Channel.send(channel, enc("woken"));
+			await items.return!();
+			check((await within(pending, "a stream's pending next after its return")).done === true, "a stream's pending next returns done");
+			check((await items.next()).done === true, "a returned stream stays done");
+			if (!sent) Channel.send(channel, enc("after"));
+			const kept = await within(Feed.next(feed), "the next call after a stream's return");
+			check(kept.ok && text(kept.value!) === (sent ? "woken" : "after"), "a stream's return loses nothing");
+		}
+		// A loop left early reads nothing ahead, so the next payload is the next call's.
+		Channel.send(channel, enc("first"));
+		for await (const item of Feed.values(feed)) {
+			check(item.ok && text(item.value) === "first", "a stream yields its payload");
+			break;
+		}
+		Channel.send(channel, enc("second"));
+		const second = await within(Feed.next(feed), "the next call after a loop left early");
+		check(second.ok && text(second.value!) === "second", "a stream reads nothing ahead");
+		close(feed);
+	}
+
 	// Cancelling a finished future does nothing.
 	const done = api.halved(4);
 	check((await done) === 2, "halved returns its value");
@@ -601,14 +685,19 @@ async function futures(): Promise<void> {
 	print("futures ok");
 }
 
-/** Node's garbage collector, which a flag exposes. */
+/** The garbage collector: Bun's own, else V8's, which a flag exposes. */
 let gc: (() => void) | undefined;
 
 /** Run the garbage collector until `done()`, failing past a deadline. */
 async function collect(done: () => boolean, what: string): Promise<void> {
 	if (gc === undefined) {
-		process.getBuiltinModule("node:v8").setFlagsFromString("--expose-gc");
-		gc = process.getBuiltinModule("node:vm").runInNewContext("gc");
+		const bun = (globalThis as { Bun?: { gc(force: boolean): void } }).Bun;
+		if (bun !== undefined) {
+			gc = () => bun.gc(true);
+		} else {
+			process.getBuiltinModule("node:v8").setFlagsFromString("--expose-gc");
+			gc = process.getBuiltinModule("node:vm").runInNewContext("gc");
+		}
 	}
 	const deadline = Date.now() + 10000;
 	while (!done()) {

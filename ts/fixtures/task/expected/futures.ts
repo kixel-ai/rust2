@@ -119,7 +119,7 @@ export class helpersFuture {
 						}), (value4: rs.u64): rs.u64 => {
 							return rs.u64Mul(value4, 2);
 						}), (total: rs.u64): rs.u64 => {
-							return rs.u64Add(total, 1);
+							return (typeof total === "number" && total + 1 <= 9007199254740991 ? total + 1 : rs.u64Add(total, 1)) as rs.u64;
 						});
 					}, (): void => {
 						rs.drop(captured3);
@@ -138,7 +138,8 @@ export class helpersFuture {
 								bb0 = 36;
 								continue;
 							}
-							this.#total = rs.u64Add(this.#total, read.value);
+							const value: rs.u64 = read.value;
+							this.#total = (typeof this.#total === "number" && typeof value === "number" && this.#total + value <= 9007199254740991 ? this.#total + value : rs.u64Add(this.#total, value)) as rs.u64;
 							rs.drop(this.#pinned$2);
 							bb0 = 11;
 							continue;
@@ -327,7 +328,8 @@ export class wakersFuture {
 							this.#state = 1;
 							return _126;
 						}
-						this.#total = rs.u64Add(this.#total, value);
+						const value2: rs.u64 = value;
+						this.#total = (typeof this.#total === "number" && typeof value2 === "number" && this.#total + value2 <= 9007199254740991 ? this.#total + value2 : rs.u64Add(this.#total, value2)) as rs.u64;
 						rs.drop(this.#pinned);
 						bb0 = 57;
 						continue;
@@ -555,7 +557,7 @@ export class boxedFuture {
 									if (_58 !== rs.Pending) {
 										const result2: rs.u64 = _58;
 										rs.drop(this.#awaitee$3);
-										const lent3: rs.u64 = rs.u64Add(this.#saved, result2);
+										const lent3: rs.u64 = (typeof this.#saved === "number" && typeof result2 === "number" && this.#saved + result2 <= 9007199254740991 ? this.#saved + result2 : rs.u64Add(this.#saved, result2)) as rs.u64;
 										this.#awaitee$3 = this.#lend;
 										const direct: rs.Future<rs.u64> = this.#awaitee$3;
 										this.#saved = lent3;
@@ -567,7 +569,8 @@ export class boxedFuture {
 								}
 								const _70: rs.Poll<rs.u64> = this.#awaitee$4.poll(_2);
 								if (_70 !== rs.Pending) {
-									this.#saved = rs.u64Add(this.#saved, _70);
+									const result3: rs.u64 = _70;
+									this.#saved = (typeof this.#saved === "number" && typeof result3 === "number" && this.#saved + result3 <= 9007199254740991 ? this.#saved + result3 : rs.u64Add(this.#saved, result3)) as rs.u64;
 									this.#awaitee$4 = this.#lend;
 								} else {
 									this.#state = 6;
@@ -576,7 +579,8 @@ export class boxedFuture {
 							}
 							const _81: rs.Poll<rs.u64> = this.#awaitee$4.poll(_2);
 							if (_81 !== rs.Pending) {
-								this.#saved = rs.u64Add(this.#saved, _81);
+								const result4: rs.u64 = _81;
+								this.#saved = (typeof this.#saved === "number" && typeof result4 === "number" && this.#saved + result4 <= 9007199254740991 ? this.#saved + result4 : rs.u64Add(this.#saved, result4)) as rs.u64;
 								const arg2 = this.#saved;
 								const _92: string = rs.fmtFormat(["lent ", (f: rs.Formatter) => rs.u64Display(arg2, f)]).v;
 								Guard.note(this.#guard, _92);
@@ -612,7 +616,7 @@ export class boxedFuture {
 					if (_150 !== rs.Pending) {
 						const result6: rs.u64 = _150;
 						this.#old[Symbol.dispose]();
-						this.#moved = rs.u64Add(this.#moved, result6);
+						this.#moved = (typeof this.#moved === "number" && typeof result6 === "number" && this.#moved + result6 <= 9007199254740991 ? this.#moved + result6 : rs.u64Add(this.#moved, result6)) as rs.u64;
 						this.#saved$4 = false;
 						this.#old = this.#other;
 					} else {
@@ -624,7 +628,7 @@ export class boxedFuture {
 				if (_161 !== rs.Pending) {
 					const result7: rs.u64 = _161;
 					this.#old[Symbol.dispose]();
-					this.#moved = rs.u64Add(this.#moved, result7);
+					this.#moved = (typeof this.#moved === "number" && typeof result7 === "number" && this.#moved + result7 <= 9007199254740991 ? this.#moved + result7 : rs.u64Add(this.#moved, result7)) as rs.u64;
 					this.#saved$2 = false;
 					this.#old = this.#boxed;
 				} else {
@@ -636,7 +640,7 @@ export class boxedFuture {
 			if (_172 !== rs.Pending) {
 				const result8: rs.u64 = _172;
 				this.#old[Symbol.dispose]();
-				this.#moved = rs.u64Add(this.#moved, result8);
+				this.#moved = (typeof this.#moved === "number" && typeof result8 === "number" && this.#moved + result8 <= 9007199254740991 ? this.#moved + result8 : rs.u64Add(this.#moved, result8)) as rs.u64;
 				const arg3 = this.#moved;
 				const _183: string = rs.fmtFormat(["moved ", (f: rs.Formatter) => rs.u64Display(arg3, f)]).v;
 				Guard.note(this.#guard, _183);
@@ -652,7 +656,8 @@ export class boxedFuture {
 				const _223: rs.Future<rs.u64> = new rs.DynFuture(wait$futures_boxed_closure0_closure3_u64(rs.closure((waiter: Waiter.Waiter): rs.Poll<rs.u64> => {
 					return poll_map$1a7g3ip(Consumer.pollRecv(captured2, waiter), (value5: rs.u64 | undefined): rs.u64 => {
 						Guard.note(captured3, "waited");
-						return rs.u64Add(option_unwrapOr$15hbiwd(value5, 0), 2);
+						const _56: rs.u64 = option_unwrapOr$15hbiwd(value5, 0);
+						return (typeof _56 === "number" && _56 + 2 <= 9007199254740991 ? _56 + 2 : rs.u64Add(_56, 2)) as rs.u64;
 					});
 				}, (): void => {
 					captured2[Symbol.dispose]();
@@ -680,7 +685,8 @@ export class boxedFuture {
 					while (i < captured6.items.length) {
 						const _83: rs.Poll<rs.u64> = pollUnsized$dyn_Future_u64(captured6.items[rs.idx(captured6.items, i)], cx);
 						if (_83 !== rs.Pending) {
-							captured7 = rs.u64Add(captured7, _83);
+							const value6: rs.u64 = _83;
+							captured7 = (typeof captured7 === "number" && typeof value6 === "number" && captured7 + value6 <= 9007199254740991 ? captured7 + value6 : rs.u64Add(captured7, value6)) as rs.u64;
 							rs.drop(rs.vecSwapRemove(captured6, i));
 						} else {
 							i = rs.usizeAdd(i, 1);
@@ -690,7 +696,8 @@ export class boxedFuture {
 						return rs.Pending;
 					}
 					return poll_map$1a7lmes(pollUnsized$dyn_Future_u64(new rs.DynFuture(captured8, Pending.poll$Future_futures_boxed_closure0_closure5), cx), (value7: rs.u64): rs.u64 => {
-						return rs.u64Add(captured7, value7);
+						const _39: rs.u64 = captured7;
+						return (typeof _39 === "number" && typeof value7 === "number" && _39 + value7 <= 9007199254740991 ? _39 + value7 : rs.u64Add(_39, value7)) as rs.u64;
 					});
 				}, (): void => {
 					rs.dropVec(captured6);
@@ -757,7 +764,7 @@ export class boxedFuture$closure2 {
 			const value: rs.u64 = option_unwrapOr$15hbiwd(result, 0);
 			const _17: string = rs.fmtFormat(["block ", (f: rs.Formatter) => rs.u64Display(value, f)]).v;
 			Guard.note(this.#block, _17);
-			const _30: rs.u64 = rs.u64Add(value, 1);
+			const _30: rs.u64 = (typeof value === "number" && value + 1 <= 9007199254740991 ? value + 1 : rs.u64Add(value, 1)) as rs.u64;
 			this.#rx[Symbol.dispose]();
 			this.#block[Symbol.dispose]();
 			this.#state = 1;

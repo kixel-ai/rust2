@@ -1,7 +1,8 @@
 // bench/export.c's cases through the generated Kotlin, so the two differ by what JNI and
 // the Kotlin wrapper add. Each round runs twice, the first to warm the JIT. Each case prints
 // its wall time and the process's CPU time, the JIT's and GC's threads included, or under
-// CodSpeed, runs once for its CPU simulation to count.
+// CodSpeed, runs once for its CPU simulation to count. It runs on HotSpot and, shrunk by R8,
+// on ART.
 
 import java.lang.management.ManagementFactory
 import java.util.concurrent.CountDownLatch
@@ -22,15 +23,35 @@ val SIZES = listOf(100, 1024, 16384, 65536, 1048576)
 // Wall and CPU nanoseconds: a point, or a span per call.
 data class Span(val wall: Double, val cpu: Double)
 
-val os = ManagementFactory.getOperatingSystemMXBean() as com.sun.management.OperatingSystemMXBean
+// ART, which has no java.lang.management, reports itself as Dalvik.
+val art = System.getProperty("java.vm.name") == "Dalvik"
 
-fun now() = Span(System.nanoTime().toDouble(), os.processCpuTime.toDouble())
+// HotSpot's count of the process's CPU time, apart so that ART never resolves its class.
+object HotSpot {
+	val os = ManagementFactory.getOperatingSystemMXBean() as com.sun.management.OperatingSystemMXBean
+}
+
+// The process's CPU nanoseconds, every thread's, ended ones included: on ART, the kernel's
+// user and system ticks, at the 100 Hz USER_HZ every Linux ABI fixes, which is HotSpot's
+// own clock on Linux too.
+fun cpu(): Long = when (art) {
+	true -> java.io.File("/proc/self/stat").readText().substringAfterLast(") ").split(' ').let { stat ->
+		(stat[11].toLong() + stat[12].toLong()) * 10_000_000
+	}
+	false -> HotSpot.os.processCpuTime
+}
+
+fun now() = Span(System.nanoTime().toDouble(), cpu().toDouble())
 
 // Nanoseconds per call since `start`, over `n` calls.
 fun per(start: Span, n: Double = N.toDouble()): Span {
 	val end = now()
 	return Span((end.wall - start.wall) / n, (end.cpu - start.cpu) / n)
 }
+
+// Whether CodSpeed runs this, as `just ffi codspeed` says: only then is its library loaded,
+// which ART's run has none of.
+val codspeed = System.getenv("RUST2_CODSPEED") != null
 
 // moq/bench/codspeed.h, through the JNI functions in the shared library bench-build makes.
 object Codspeed {
@@ -48,13 +69,13 @@ object Codspeed {
 // A case's start: now, and CodSpeed counting from here.
 fun begin(): Span {
 	val start = now()
-	Codspeed.start()
+	if (codspeed) Codspeed.start()
 	return start
 }
 
 // The case `name`'s nanoseconds per call since `start`, over `n` calls.
 fun end(start: Span, name: String, n: Double = N.toDouble()): Span {
-	Codspeed.stop(name)
+	if (codspeed) Codspeed.stop(name)
 	return per(start, n)
 }
 
@@ -109,7 +130,6 @@ suspend fun throughput(track: TrackProducer, subscriber: TrackSubscriber, next: 
 			}
 			group.finish().close()
 		}
-		at.close()
 	}
 	sink += sum
 	val ns = end(start, name, groups.toDouble() * FRAMES * size)
@@ -132,7 +152,7 @@ fun round(measured: Boolean): Map<String, Span> {
 	repeat(N) { if (track.isClosed()) sum++ }
 	out["call"] = end(start, "call")
 
-	next().use { track.appendGroup(it) }.use { group ->
+	track.appendGroup(next()).use { group ->
 		group.demand().use { demand ->
 			start = begin()
 			repeat(N) { sum += demand.start().toInt() }
@@ -165,6 +185,13 @@ fun round(measured: Boolean): Map<String, Span> {
 	repeat(N) { track.info().close() }
 	out["object"] = end(start, "object")
 
+	// A primitive pub field read, which reaches no user code.
+	track.info().use { info ->
+		start = begin()
+		repeat(N) { sum += info.priorityGet }
+		out["field"] = end(start, "field")
+	}
+
 	// The same from THREADS threads at once, so objects made and freed together contend
 	// for whatever the binding shares between them. Kotlin's alone: the others share none.
 	// CodSpeed skips it as it does the other threaded cases.
@@ -181,9 +208,9 @@ fun round(measured: Boolean): Map<String, Span> {
 	// group starting at its first frame's.
 	start = begin()
 	repeat(GROUPS) {
-		Timestamp.fromMicros(micros).use { track.appendGroup(it) }.use { group ->
+		track.appendGroup(Timestamp.fromMicros(micros)).use { group ->
 			repeat(FRAMES) {
-				Timestamp.fromMicros(micros++).use { group.writeFrame(it, frame) }
+				group.writeFrame(Timestamp.fromMicros(micros++), frame)
 			}
 			group.finish().close()
 		}
@@ -197,7 +224,6 @@ fun round(measured: Boolean): Map<String, Span> {
 			repeat(FRAMES) { group.writeFrame(at, frame) }
 			group.finish().close()
 		}
-		at.close()
 	}
 	out["write"] = end(start, "write")
 
@@ -220,7 +246,6 @@ fun round(measured: Boolean): Map<String, Span> {
 				}
 				group.finish().close()
 			}
-			at.close()
 		}
 		out["ready"] = end(t0, "ready")
 
@@ -239,7 +264,6 @@ fun round(measured: Boolean): Map<String, Span> {
 				}
 				group.finish().close()
 			}
-			at.close()
 		}
 		out["woken"] = end(t0, "woken")
 
@@ -257,7 +281,6 @@ fun round(measured: Boolean): Map<String, Span> {
 					permits.receive()
 					group.finish().close()
 				}
-				at.close()
 			}
 		}
 		repeat(GROUPS) {
@@ -291,7 +314,7 @@ fun round(measured: Boolean): Map<String, Span> {
 
 fun main() {
 	// Under CodSpeed, one round, which prints nothing: its simulation counts each case.
-	if (Codspeed.init("ffi/moq/bench/export.kt::kotlin")) {
+	if (codspeed && Codspeed.init("ffi/moq/bench/export.kt::kotlin")) {
 		GROUPS /= 10
 		round(true)
 		return

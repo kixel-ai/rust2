@@ -60,8 +60,9 @@ export function steps$ascii_EscapeDefault(e: rs.Iter<rs.u8>, data: rs.ByteSlice,
 		rs.byteVecPush(out, option_mapOr$188iunt(hi, 255, (h: rs.usize): rs.u8 => {
 			return h & 0xff;
 		}));
+		const _18: rs.u8 | undefined = rs.byteSliceGet(data, rs.usizeRem(i, rs.max(data.length, 1)));
 		const _25: rs.usize = i;
-		if (!isSomeAnd$1s2u5lz(rs.byteSliceGet(data, rs.usizeRem(i, rs.max(data.length, 1))), (b2: rs.u8): boolean => {
+		if (!isSomeAnd$1s2u5lz(_18, (b2: rs.u8): boolean => {
 			return (rs.u8Shr(b2, rs.usizeRem(_25, 8)) & 1) === 1;
 		})) {
 			next = rs.iterToOption(e.next());

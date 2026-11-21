@@ -14,7 +14,7 @@ export function merge$rangemap_operations_RangeMerge_ops_Range_u64(self: rs.Rang
 	if (!rs.rangeContains(self, other.start)) {
 		return false;
 	}
-	if (rs.u64Gt(other.end, self.end)) {
+	if (typeof other.end === "number" && typeof self.end === "number" ? other.end > self.end : rs.u64Gt(other.end, self.end)) {
 		self.end = other.end;
 	}
 	return true;
@@ -23,7 +23,7 @@ export function merge$rangemap_operations_RangeMerge_ops_Range_u64(self: rs.Rang
 export function intersect$rangemap_operations_RangeIntersect_ops_Range_u64(self: rs.Range<rs.u64>, other: rs.Range<rs.u64>): rs.Range<rs.u64> | undefined {
 	const start: rs.u64 = rs.u64Max(self.start, other.start);
 	const end: rs.u64 = rs.u64Min(self.end, other.end);
-	if (!rs.u64Ge(start, end)) {
+	if (!(typeof start === "number" && typeof end === "number" ? start >= end : rs.u64Ge(start, end))) {
 		return new rs.Range(start, end, rs.u64Step);
 	}
 	return undefined;

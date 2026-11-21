@@ -85,16 +85,21 @@ def local(loop):
 	# When it arrived: kio's clock's `Instant`, from kio's own export.
 	expect(moq.clock_now().checked_duration_since(hello.arrived()) is not None, "a frame arrived before now")
 
-	# A timestamp is a handle, which a call borrows and leaves usable. The track is untimed,
-	# so a timed frame is refused.
+	# A timestamp is a `Copy` value copied across, which allocates nothing. The track is
+	# untimed, so a timed frame is refused.
 	at = moq.Timestamp.from_millis(1500)
 	expect(at.as_secs() == 1, "1500 ms is 1 s")
+	# Timestamps order in time across scales, and a scaled one and an unscaled key not at all.
+	second = moq.Timestamp.from_secs(1)
+	key = moq.Timestamp.unscaled(0)
+	expect(second < at and at > second, "1 s is before 1500 ms")
+	expect(not key < at and not key >= at, "an unscaled key is unordered against a time")
 	try:
 		writer.write_frame(at, b"late")
 		expect(False, "a timed frame on an untimed track is an error")
 	except moq.ErrorException as e:
 		expect(str(e) == "frame timestamp doesn't fit its track", "the late frame's error is Rust's")
-	expect(at.as_secs() == 1, "a lent timestamp stays usable")
+	expect(at.as_secs() == 1, "a copied timestamp stays usable")
 
 	# The last frame, bytes that are not UTF-8, then the group's end, which reads as None.
 	world = b"\xffworld"

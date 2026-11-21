@@ -25,6 +25,7 @@ export declare function isClosed(self: AnnounceConsumer): boolean;
 export declare function pollSynced(self: AnnounceConsumer): rt.Call<void>;
 export declare function root(self: AnnounceConsumer): Path;
 export declare function absolute(self: AnnounceConsumer, prefix: string): rt.Result<Path, Error_>;
+export declare function values(self: AnnounceConsumer): rt.Stream<AnnounceEvent>;
 
 // AnnounceEvent.ts
 import * as rt from "./rt.ts";
@@ -105,6 +106,7 @@ import * as rt from "./rt.ts";
 import type { AuthRequest } from "./AuthRequest.ts";
 export type AuthRequests = rt.Handle<"AuthRequests">;
 export declare function next(self: AuthRequests): rt.Call<AuthRequest | undefined>;
+export declare function values(self: AuthRequests): rt.Stream<AuthRequest>;
 
 // AuthWatch.ts
 import * as rt from "./rt.ts";
@@ -200,13 +202,15 @@ export type BandwidthRate = rt.Opaque<"BandwidthRate">;
 export declare function debug(self: BandwidthRate): string;
 export declare function eq(a: BandwidthRate, b: BandwidthRate): boolean;
 export declare function hash(self: BandwidthRate): rt.u64;
+export declare function partialCmp(a: BandwidthRate, b: BandwidthRate): number | undefined;
+export declare function cmp(a: BandwidthRate, b: BandwidthRate): number;
 export declare function default$(): BandwidthRate;
 export declare function ZERO(): BandwidthRate;
 export declare function fromBps(bps: rt.u64): BandwidthRate;
 export declare function fromKbps(kbps: rt.u64): BandwidthRate;
 export declare function fromMbps(mbps: rt.u64): BandwidthRate;
 export declare function asBps(self: BandwidthRate): rt.u64;
-export declare function scaled(self: BandwidthRate, factor: number): BandwidthRate;
+export declare function scaled(self: BandwidthRate, factor: rt.f64): BandwidthRate;
 export declare function absDiff(self: BandwidthRate, other: BandwidthRate): BandwidthRate;
 export { default$ as default };
 
@@ -382,6 +386,7 @@ import type { Error_ } from "./Error_.ts";
 export type BroadcastTracks = rt.Handle<"BroadcastTracks">;
 export declare function next(self: BroadcastTracks): rt.Call<rt.Result<BroadcastTracksEvent | undefined, Error_>>;
 export declare function broadcast(self: BroadcastTracks): BroadcastConsumer;
+export declare function values(self: BroadcastTracks): rt.Stream<rt.Result<BroadcastTracksEvent, Error_>>;
 
 // BroadcastTracksEvent.ts
 import * as rt from "./rt.ts";
@@ -526,6 +531,8 @@ export type ClockInstant = rt.Opaque<"ClockInstant">;
 export declare function debug(self: ClockInstant): string;
 export declare function eq(a: ClockInstant, b: ClockInstant): boolean;
 export declare function hash(self: ClockInstant): rt.u64;
+export declare function partialCmp(a: ClockInstant, b: ClockInstant): number | undefined;
+export declare function cmp(a: ClockInstant, b: ClockInstant): number;
 export declare function ZERO(): ClockInstant;
 export declare function now(): ClockInstant;
 export declare function elapsed(self: ClockInstant): rt.Duration;
@@ -580,6 +587,8 @@ export type ClockWall = rt.Opaque<"ClockWall">;
 export declare function debug(self: ClockWall): string;
 export declare function eq(a: ClockWall, b: ClockWall): boolean;
 export declare function hash(self: ClockWall): rt.u64;
+export declare function partialCmp(a: ClockWall, b: ClockWall): number | undefined;
+export declare function cmp(a: ClockWall, b: ClockWall): number;
 export declare function UNIX_EPOCH(): ClockWall;
 export declare function MOQ_EPOCH(): ClockWall;
 export declare function now(): ClockWall;
@@ -874,6 +883,8 @@ export type GroupInfo = {
 export declare function debug(self: GroupInfo): string;
 export declare function eq(a: GroupInfo, b: GroupInfo): boolean;
 export declare function hash(self: GroupInfo): rt.u64;
+export declare function partialCmp(a: GroupInfo, b: GroupInfo): number | undefined;
+export declare function cmp(a: GroupInfo, b: GroupInfo): number;
 
 // GroupProducer.ts
 import * as rt from "./rt.ts";
@@ -1137,9 +1148,10 @@ export declare function new$(mode: HangCatalogMode): HangCatalogBinaryConfig;
 export { new$ as new };
 
 // HangCatalogChromaticity.ts
+import * as rt from "./rt.ts";
 export type HangCatalogChromaticity = {
-    x: number;
-    y: number;
+    x: rt.f64;
+    y: rt.f64;
 };
 export declare function debug(self: HangCatalogChromaticity): string;
 export declare function eq(a: HangCatalogChromaticity, b: HangCatalogChromaticity): boolean;
@@ -1149,12 +1161,11 @@ import * as rt from "./rt.ts";
 import type { ClockWall } from "./ClockWall.ts";
 import type { HangError } from "./HangError.ts";
 import type { Timestamp } from "./Timestamp.ts";
-export type HangCatalogClock = rt.Handle<"HangCatalogClock">;
+export type HangCatalogClock = rt.Opaque<"HangCatalogClock">;
 export declare function debug(self: HangCatalogClock): string;
-export declare function clone(self: HangCatalogClock): HangCatalogClock;
 export declare function eq(a: HangCatalogClock, b: HangCatalogClock): boolean;
 export declare function wallGet(self: HangCatalogClock): Timestamp;
-export declare function wallSet(self: HangCatalogClock, value: Timestamp): void;
+export declare function wallSet(self: HangCatalogClock, value: Timestamp): HangCatalogClock;
 export declare function new$(wall: Timestamp): rt.Result<HangCatalogClock, HangError>;
 export declare function wallClock(self: HangCatalogClock, pts: Timestamp): rt.Result<ClockWall, HangError>;
 export { new$ as new };
@@ -1424,14 +1435,15 @@ export declare function new$(mode: HangCatalogMode): HangCatalogJsonConfig;
 export { new$ as new };
 
 // HangCatalogMastering.ts
+import * as rt from "./rt.ts";
 import type { HangCatalogChromaticity } from "./HangCatalogChromaticity.ts";
 export type HangCatalogMastering = {
     red: HangCatalogChromaticity;
     green: HangCatalogChromaticity;
     blue: HangCatalogChromaticity;
     white: HangCatalogChromaticity;
-    maxLuminance: number;
-    minLuminance: number;
+    maxLuminance: rt.f64;
+    minLuminance: rt.f64;
 };
 export declare function debug(self: HangCatalogMastering): string;
 export declare function eq(a: HangCatalogMastering, b: HangCatalogMastering): boolean;
@@ -1633,8 +1645,8 @@ export declare function renditionsGet(self: HangCatalogVideo): ([string, HangCat
 export declare function renditionsSet(self: HangCatalogVideo, value: ([string, HangCatalogVideoConfig])[]): void;
 export declare function displayGet(self: HangCatalogVideo): HangCatalogDisplay | undefined;
 export declare function displaySet(self: HangCatalogVideo, value: HangCatalogDisplay | undefined): void;
-export declare function rotationGet(self: HangCatalogVideo): number | undefined;
-export declare function rotationSet(self: HangCatalogVideo, value: number | undefined): void;
+export declare function rotationGet(self: HangCatalogVideo): rt.f64 | undefined;
+export declare function rotationSet(self: HangCatalogVideo, value: rt.f64 | undefined): void;
 export declare function flipGet(self: HangCatalogVideo): boolean | undefined;
 export declare function flipSet(self: HangCatalogVideo, value: boolean | undefined): void;
 export declare function insert(self: HangCatalogVideo, name: string, config: HangCatalogVideoConfig): rt.Result<undefined, HangError>;
@@ -1725,8 +1737,8 @@ export declare function enabledGet(self: HangCatalogVideoConfig): boolean;
 export declare function enabledSet(self: HangCatalogVideoConfig, value: boolean): void;
 export declare function preferenceGet(self: HangCatalogVideoConfig): number;
 export declare function preferenceSet(self: HangCatalogVideoConfig, value: number): void;
-export declare function framerateGet(self: HangCatalogVideoConfig): number | undefined;
-export declare function framerateSet(self: HangCatalogVideoConfig, value: number | undefined): void;
+export declare function framerateGet(self: HangCatalogVideoConfig): rt.f64 | undefined;
+export declare function framerateSet(self: HangCatalogVideoConfig, value: rt.f64 | undefined): void;
 export declare function reorderGet(self: HangCatalogVideoConfig): number | undefined;
 export declare function reorderSet(self: HangCatalogVideoConfig, value: number | undefined): void;
 export declare function optimizeForLatencyGet(self: HangCatalogVideoConfig): boolean | undefined;
@@ -1751,8 +1763,8 @@ export declare function eq(a: HangCatalogVideoProperties, b: HangCatalogVideoPro
 export declare function default$(): HangCatalogVideoProperties;
 export declare function displayGet(self: HangCatalogVideoProperties): HangCatalogDisplay | undefined;
 export declare function displaySet(self: HangCatalogVideoProperties, value: HangCatalogDisplay | undefined): void;
-export declare function rotationGet(self: HangCatalogVideoProperties): number | undefined;
-export declare function rotationSet(self: HangCatalogVideoProperties, value: number | undefined): void;
+export declare function rotationGet(self: HangCatalogVideoProperties): rt.f64 | undefined;
+export declare function rotationSet(self: HangCatalogVideoProperties, value: rt.f64 | undefined): void;
 export declare function flipGet(self: HangCatalogVideoProperties): boolean | undefined;
 export declare function flipSet(self: HangCatalogVideoProperties, value: boolean | undefined): void;
 export { default$ as default };
@@ -1914,6 +1926,8 @@ export declare function debug(self: Instance): string;
 export declare function clone(self: Instance): Instance;
 export declare function eq(a: Instance, b: Instance): boolean;
 export declare function hash(self: Instance): rt.u64;
+export declare function partialCmp(a: Instance, b: Instance): number | undefined;
+export declare function cmp(a: Instance, b: Instance): number;
 export declare function random(): Instance;
 export declare function asStr(self: Instance): string;
 export declare function isMinted(self: Instance): boolean;
@@ -1925,6 +1939,8 @@ export declare function debug(self: Instant): string;
 export declare function clone(self: Instant): Instant;
 export declare function eq(a: Instant, b: Instant): boolean;
 export declare function hash(self: Instant): rt.u64;
+export declare function partialCmp(a: Instant, b: Instant): number | undefined;
+export declare function cmp(a: Instant, b: Instant): number;
 
 // IntersectionError.ts
 export type IntersectionError = "TooManyPatterns";
@@ -2096,12 +2112,12 @@ export declare function bitrateGet(self: MuxCatalogEstimate): rt.u64 | undefined
 export declare function bitrateSet(self: MuxCatalogEstimate, value: rt.u64 | undefined): void;
 export declare function delayGet(self: MuxCatalogEstimate): rt.Duration | undefined;
 export declare function delaySet(self: MuxCatalogEstimate, value: rt.Duration | undefined): void;
-export declare function framerateGet(self: MuxCatalogEstimate): number | undefined;
-export declare function framerateSet(self: MuxCatalogEstimate, value: number | undefined): void;
+export declare function framerateGet(self: MuxCatalogEstimate): rt.f64 | undefined;
+export declare function framerateSet(self: MuxCatalogEstimate, value: rt.f64 | undefined): void;
 export declare function withJitter(self: MuxCatalogEstimate, jitter: rt.Duration | undefined): MuxCatalogEstimate;
 export declare function withBitrate(self: MuxCatalogEstimate, bitrate: rt.u64 | undefined): MuxCatalogEstimate;
 export declare function withDelay(self: MuxCatalogEstimate, delay: rt.Duration | undefined): MuxCatalogEstimate;
-export declare function withFramerate(self: MuxCatalogEstimate, framerate: number | undefined): MuxCatalogEstimate;
+export declare function withFramerate(self: MuxCatalogEstimate, framerate: rt.f64 | undefined): MuxCatalogEstimate;
 export { default$ as default };
 
 // MuxCatalogGuard.ts
@@ -2250,6 +2266,7 @@ import type { TrackConsumer } from "./TrackConsumer.ts";
 export type MuxCatalogHangConsumer = rt.Handle<"MuxCatalogHangConsumer">;
 export declare function new$(track: TrackConsumer): MuxCatalogHangConsumer;
 export declare function next(self: MuxCatalogHangConsumer): rt.Call<rt.Result<HangCatalog | undefined, MuxError>>;
+export declare function values(self: MuxCatalogHangConsumer): rt.Stream<rt.Result<HangCatalog, MuxError>>;
 export { new$ as new };
 
 // MuxCatalogHangConsumerExt.ts
@@ -2260,6 +2277,7 @@ import type { TrackConsumer } from "./TrackConsumer.ts";
 export type MuxCatalogHangConsumerExt = rt.Handle<"MuxCatalogHangConsumerExt">;
 export declare function new$(track: TrackConsumer): MuxCatalogHangConsumerExt;
 export declare function next(self: MuxCatalogHangConsumerExt): rt.Call<rt.Result<HangCatalogExt | undefined, MuxError>>;
+export declare function values(self: MuxCatalogHangConsumerExt): rt.Stream<rt.Result<HangCatalogExt, MuxError>>;
 export { new$ as new };
 
 // MuxCatalogHangConsumerExtra.ts
@@ -2270,6 +2288,7 @@ import type { TrackConsumer } from "./TrackConsumer.ts";
 export type MuxCatalogHangConsumerExtra = rt.Handle<"MuxCatalogHangConsumerExtra">;
 export declare function new$(track: TrackConsumer): MuxCatalogHangConsumerExtra;
 export declare function next(self: MuxCatalogHangConsumerExtra): rt.Call<rt.Result<HangCatalogExtra | undefined, MuxError>>;
+export declare function values(self: MuxCatalogHangConsumerExtra): rt.Stream<rt.Result<HangCatalogExtra, MuxError>>;
 export { new$ as new };
 
 // MuxCatalogHangContainer.ts
@@ -2306,6 +2325,7 @@ import type { TrackSubscriber } from "./TrackSubscriber.ts";
 export type MuxCatalogMsfConsumer = rt.Handle<"MuxCatalogMsfConsumer">;
 export declare function new$(track: TrackSubscriber): MuxCatalogMsfConsumer;
 export declare function next(self: MuxCatalogMsfConsumer): rt.Call<rt.Result<HangCatalog | undefined, MuxError>>;
+export declare function values(self: MuxCatalogMsfConsumer): rt.Stream<rt.Result<HangCatalog, MuxError>>;
 export { new$ as new };
 
 // MuxCatalogMsfConsumerExt.ts
@@ -2316,6 +2336,7 @@ import type { TrackSubscriber } from "./TrackSubscriber.ts";
 export type MuxCatalogMsfConsumerExt = rt.Handle<"MuxCatalogMsfConsumerExt">;
 export declare function new$(track: TrackSubscriber): MuxCatalogMsfConsumerExt;
 export declare function next(self: MuxCatalogMsfConsumerExt): rt.Call<rt.Result<HangCatalogExt | undefined, MuxError>>;
+export declare function values(self: MuxCatalogMsfConsumerExt): rt.Stream<rt.Result<HangCatalogExt, MuxError>>;
 export { new$ as new };
 
 // MuxCatalogMsfConsumerExtra.ts
@@ -2326,6 +2347,7 @@ import type { TrackSubscriber } from "./TrackSubscriber.ts";
 export type MuxCatalogMsfConsumerExtra = rt.Handle<"MuxCatalogMsfConsumerExtra">;
 export declare function new$(track: TrackSubscriber): MuxCatalogMsfConsumerExtra;
 export declare function next(self: MuxCatalogMsfConsumerExtra): rt.Call<rt.Result<HangCatalogExtra | undefined, MuxError>>;
+export declare function values(self: MuxCatalogMsfConsumerExtra): rt.Stream<rt.Result<HangCatalogExtra, MuxError>>;
 export { new$ as new };
 
 // MuxCatalogMsfError.ts
@@ -2997,8 +3019,8 @@ export declare function colorGet(self: MuxCatalogVideoHint): HangCatalogColor | 
 export declare function colorSet(self: MuxCatalogVideoHint, value: HangCatalogColor | undefined): void;
 export declare function bitrateGet(self: MuxCatalogVideoHint): rt.u64 | undefined;
 export declare function bitrateSet(self: MuxCatalogVideoHint, value: rt.u64 | undefined): void;
-export declare function framerateGet(self: MuxCatalogVideoHint): number | undefined;
-export declare function framerateSet(self: MuxCatalogVideoHint, value: number | undefined): void;
+export declare function framerateGet(self: MuxCatalogVideoHint): rt.f64 | undefined;
+export declare function framerateSet(self: MuxCatalogVideoHint, value: rt.f64 | undefined): void;
 export declare function reorderGet(self: MuxCatalogVideoHint): number | undefined;
 export declare function reorderSet(self: MuxCatalogVideoHint, value: number | undefined): void;
 export declare function optimizeForLatencyGet(self: MuxCatalogVideoHint): boolean | undefined;
@@ -4512,8 +4534,8 @@ export declare function enabledGet(self: MuxContainerGuardVideoConfig): boolean;
 export declare function enabledSet(self: MuxContainerGuardVideoConfig, value: boolean): void;
 export declare function preferenceGet(self: MuxContainerGuardVideoConfig): number;
 export declare function preferenceSet(self: MuxContainerGuardVideoConfig, value: number): void;
-export declare function framerateGet(self: MuxContainerGuardVideoConfig): number | undefined;
-export declare function framerateSet(self: MuxContainerGuardVideoConfig, value: number | undefined): void;
+export declare function framerateGet(self: MuxContainerGuardVideoConfig): rt.f64 | undefined;
+export declare function framerateSet(self: MuxContainerGuardVideoConfig, value: rt.f64 | undefined): void;
 export declare function reorderGet(self: MuxContainerGuardVideoConfig): number | undefined;
 export declare function reorderSet(self: MuxContainerGuardVideoConfig, value: number | undefined): void;
 export declare function optimizeForLatencyGet(self: MuxContainerGuardVideoConfig): boolean | undefined;
@@ -6356,6 +6378,7 @@ export declare function next(self: MuxContainerTsExportConsumer): rt.Call<rt.Res
 export declare function stats(self: MuxContainerTsExportConsumer): MuxContainerTsStatsExport;
 export declare function discontinuity(self: MuxContainerTsExportConsumer): rt.u64;
 export declare function follow(self: MuxContainerTsExportConsumer, broadcast: BroadcastConsumer, catalog: MuxCatalogConsumer): rt.Result<MuxContainerTsExportConsumer, MuxError>;
+export declare function values(self: MuxContainerTsExportConsumer): rt.Stream<rt.Result<MuxContainerFrame, MuxError>>;
 export { new$ as new };
 
 // MuxContainerTsExportConsumerExt.ts
@@ -6373,6 +6396,7 @@ export declare function next(self: MuxContainerTsExportConsumerExt): rt.Call<rt.
 export declare function stats(self: MuxContainerTsExportConsumerExt): MuxContainerTsStatsExport;
 export declare function discontinuity(self: MuxContainerTsExportConsumerExt): rt.u64;
 export declare function follow(self: MuxContainerTsExportConsumerExt, broadcast: BroadcastConsumer, catalog: MuxCatalogConsumerExt): rt.Result<MuxContainerTsExportConsumerExt, MuxError>;
+export declare function values(self: MuxContainerTsExportConsumerExt): rt.Stream<rt.Result<MuxContainerFrame, MuxError>>;
 export { new$ as new };
 
 // MuxContainerTsExportConsumerExtra.ts
@@ -6390,6 +6414,7 @@ export declare function next(self: MuxContainerTsExportConsumerExtra): rt.Call<r
 export declare function stats(self: MuxContainerTsExportConsumerExtra): MuxContainerTsStatsExport;
 export declare function discontinuity(self: MuxContainerTsExportConsumerExtra): rt.u64;
 export declare function follow(self: MuxContainerTsExportConsumerExtra, broadcast: BroadcastConsumer, catalog: MuxCatalogConsumerExtra): rt.Result<MuxContainerTsExportConsumerExtra, MuxError>;
+export declare function values(self: MuxContainerTsExportConsumerExtra): rt.Stream<rt.Result<MuxContainerFrame, MuxError>>;
 export { new$ as new };
 
 // MuxContainerTsExt.ts
@@ -6439,6 +6464,7 @@ export declare function withFollow(self: MuxContainerTsFollower, follow: rt.Dura
 export declare function withStitch(self: MuxContainerTsFollower, stitch: boolean): MuxContainerTsFollower;
 export declare function export$(self: MuxContainerTsFollower): MuxContainerTsExportConsumer;
 export declare function next(self: MuxContainerTsFollower): rt.Call<rt.Result<MuxContainerFrame | undefined, MuxError>>;
+export declare function values(self: MuxContainerTsFollower): rt.Stream<rt.Result<MuxContainerFrame, MuxError>>;
 export { export$ as export, new$ as new };
 
 // MuxContainerTsFollowerExt.ts
@@ -6452,6 +6478,7 @@ export declare function withFollow(self: MuxContainerTsFollowerExt, follow: rt.D
 export declare function withStitch(self: MuxContainerTsFollowerExt, stitch: boolean): MuxContainerTsFollowerExt;
 export declare function export$(self: MuxContainerTsFollowerExt): MuxContainerTsExportConsumerExt;
 export declare function next(self: MuxContainerTsFollowerExt): rt.Call<rt.Result<MuxContainerFrame | undefined, MuxError>>;
+export declare function values(self: MuxContainerTsFollowerExt): rt.Stream<rt.Result<MuxContainerFrame, MuxError>>;
 export { export$ as export, new$ as new };
 
 // MuxContainerTsFollowerExtra.ts
@@ -6465,6 +6492,7 @@ export declare function withFollow(self: MuxContainerTsFollowerExtra, follow: rt
 export declare function withStitch(self: MuxContainerTsFollowerExtra, stitch: boolean): MuxContainerTsFollowerExtra;
 export declare function export$(self: MuxContainerTsFollowerExtra): MuxContainerTsExportConsumerExtra;
 export declare function next(self: MuxContainerTsFollowerExtra): rt.Call<rt.Result<MuxContainerFrame | undefined, MuxError>>;
+export declare function values(self: MuxContainerTsFollowerExtra): rt.Stream<rt.Result<MuxContainerFrame, MuxError>>;
 export { export$ as export, new$ as new };
 
 // MuxContainerTsFraming.ts
@@ -6535,6 +6563,7 @@ export { new$ as new };
 
 // MuxContainerTsMpegts.ts
 import * as rt from "./rt.ts";
+import type { Json } from "./Json.ts";
 import type { MuxContainerTsDescriptor } from "./MuxContainerTsDescriptor.ts";
 import type { MuxContainerTsPassthroughTrack } from "./MuxContainerTsPassthroughTrack.ts";
 import type { MuxContainerTsProgram } from "./MuxContainerTsProgram.ts";
@@ -6557,6 +6586,7 @@ export declare function muxRateGet(self: MuxContainerTsMpegts): rt.u64 | undefin
 export declare function muxRateSet(self: MuxContainerTsMpegts, value: rt.u64 | undefined): void;
 export declare function passthroughGet(self: MuxContainerTsMpegts): MuxContainerTsPassthroughTrack | undefined;
 export declare function passthroughSet(self: MuxContainerTsMpegts, value: MuxContainerTsPassthroughTrack | undefined): void;
+export declare function deserialize(deserializer: Json): rt.Result<MuxContainerTsMpegts, string>;
 export declare function isEmpty(self: MuxContainerTsMpegts): boolean;
 export { default$ as default };
 
@@ -6706,10 +6736,11 @@ import type { MuxSource } from "./MuxSource.ts";
 export type MuxContainerTsRelease = rt.Handle<"MuxContainerTsRelease">;
 export declare function new$(source: MuxSource, catalogFormat: MuxCatalogCatalogFormat, delay: rt.Duration): rt.Call<rt.Result<MuxContainerTsRelease, MuxError>>;
 export declare function dropped(self: MuxContainerTsRelease): rt.u64;
-export declare function drift(self: MuxContainerTsRelease): number | undefined;
+export declare function drift(self: MuxContainerTsRelease): rt.f64 | undefined;
 export declare function outOfTolerance(self: MuxContainerTsRelease): rt.u64;
 export declare function stats(self: MuxContainerTsRelease): MuxContainerTsStatsRelease;
 export declare function next(self: MuxContainerTsRelease): rt.Call<rt.Result<MuxContainerFrame | undefined, MuxError>>;
+export declare function values(self: MuxContainerTsRelease): rt.Stream<rt.Result<MuxContainerFrame, MuxError>>;
 export { new$ as new };
 
 // MuxContainerTsRepublish.ts
@@ -6820,8 +6851,8 @@ export declare function marginGet(self: MuxContainerTsStatsRelease): rt.i64 | un
 export declare function marginSet(self: MuxContainerTsStatsRelease, value: rt.i64 | undefined): void;
 export declare function offsetGet(self: MuxContainerTsStatsRelease): rt.i64 | undefined;
 export declare function offsetSet(self: MuxContainerTsStatsRelease, value: rt.i64 | undefined): void;
-export declare function driftGet(self: MuxContainerTsStatsRelease): number | undefined;
-export declare function driftSet(self: MuxContainerTsStatsRelease, value: number | undefined): void;
+export declare function driftGet(self: MuxContainerTsStatsRelease): rt.f64 | undefined;
+export declare function driftSet(self: MuxContainerTsStatsRelease, value: rt.f64 | undefined): void;
 export declare function outOfToleranceGet(self: MuxContainerTsStatsRelease): rt.u64;
 export declare function outOfToleranceSet(self: MuxContainerTsStatsRelease, value: rt.u64): void;
 export { default$ as default };
@@ -6977,6 +7008,7 @@ import type { BroadcastConsumer } from "./BroadcastConsumer.ts";
 import type { MuxError } from "./MuxError.ts";
 export type MuxFollowInstances = rt.Handle<"MuxFollowInstances">;
 export declare function next(self: MuxFollowInstances): rt.Call<rt.Result<BroadcastConsumer | undefined, MuxError>>;
+export declare function values(self: MuxFollowInstances): rt.Stream<rt.Result<BroadcastConsumer, MuxError>>;
 
 // MuxImportAudioFormat.ts
 export type MuxImportAudioFormat = "Aac" | "Opus" | "Flac" | "Mp3";
@@ -7253,6 +7285,7 @@ export declare function fromTrack(track: TrackConsumer, config: HangCatalogJsonC
 export declare function mode(self: MuxJsonConsumerJson): HangCatalogMode;
 export declare function next(self: MuxJsonConsumerJson): rt.Call<rt.Result<MoqJsonTimedJson | undefined, MuxError>>;
 export declare function latest(self: MuxJsonConsumerJson): rt.Call<rt.Result<MoqJsonTimedJson | undefined, MuxError>>;
+export declare function values(self: MuxJsonConsumerJson): rt.Stream<rt.Result<MoqJsonTimedJson, MuxError>>;
 
 // MuxJsonOptions.ts
 import * as rt from "./rt.ts";
@@ -7572,6 +7605,8 @@ import * as rt from "./rt.ts";
 export type OriginCost = rt.Opaque<"OriginCost">;
 export declare function debug(self: OriginCost): string;
 export declare function eq(a: OriginCost, b: OriginCost): boolean;
+export declare function partialCmp(a: OriginCost, b: OriginCost): number | undefined;
+export declare function cmp(a: OriginCost, b: OriginCost): number;
 export declare function default$(): OriginCost;
 export declare function new$(cost: rt.u64): OriginCost;
 export declare function value(self: OriginCost): rt.u64;
@@ -7604,6 +7639,8 @@ export type OriginPriority = rt.Opaque<"OriginPriority">;
 export declare function debug(self: OriginPriority): string;
 export declare function eq(a: OriginPriority, b: OriginPriority): boolean;
 export declare function hash(self: OriginPriority): rt.u64;
+export declare function partialCmp(a: OriginPriority, b: OriginPriority): number | undefined;
+export declare function cmp(a: OriginPriority, b: OriginPriority): number;
 export declare function default$(): OriginPriority;
 export declare function new$(priority: number): OriginPriority;
 export declare function value(self: OriginPriority): number;
@@ -7731,6 +7768,7 @@ export declare function isClosed(self: OriginRoutes): boolean;
 export declare function pollSynced(self: OriginRoutes): rt.Call<void>;
 export declare function root(self: OriginRoutes): Path;
 export declare function absolute(self: OriginRoutes, prefix: string): rt.Result<Path, Error_>;
+export declare function values(self: OriginRoutes): rt.Stream<OriginRouteEvent>;
 
 // Park.ts
 import * as rt from "./rt.ts";
@@ -7753,6 +7791,8 @@ export declare function debug(self: Path): string;
 export declare function clone(self: Path): Path;
 export declare function eq(a: Path, b: Path): boolean;
 export declare function hash(self: Path): rt.u64;
+export declare function partialCmp(a: Path, b: Path): number | undefined;
+export declare function cmp(a: Path, b: Path): number;
 export declare function default$(): Path;
 export declare function new$(s: string): rt.Result<Path, PathError>;
 export declare function fromStatic(s: string): Path;
@@ -7804,6 +7844,8 @@ export declare function debug(self: Pattern): string;
 export declare function clone(self: Pattern): Pattern;
 export declare function eq(a: Pattern, b: Pattern): boolean;
 export declare function hash(self: Pattern): rt.u64;
+export declare function partialCmp(a: Pattern, b: Pattern): number | undefined;
+export declare function cmp(a: Pattern, b: Pattern): number;
 export declare function default$(): Pattern;
 export declare function new$(segments: Segment[]): rt.Result<Pattern, InvalidPattern>;
 export declare function all(): Pattern;
@@ -8161,6 +8203,8 @@ export declare function debug(self: Specificity): string;
 export declare function clone(self: Specificity): Specificity;
 export declare function eq(a: Specificity, b: Specificity): boolean;
 export declare function hash(self: Specificity): rt.u64;
+export declare function partialCmp(a: Specificity, b: Specificity): number | undefined;
+export declare function cmp(a: Specificity, b: Specificity): number;
 
 // StatsActivity.ts
 import * as rt from "./rt.ts";
@@ -8706,6 +8750,8 @@ export declare function toString(self: Timescale): string;
 export declare function debug(self: Timescale): string;
 export declare function eq(a: Timescale, b: Timescale): boolean;
 export declare function hash(self: Timescale): rt.u64;
+export declare function partialCmp(a: Timescale, b: Timescale): number | undefined;
+export declare function cmp(a: Timescale, b: Timescale): number;
 export declare function SECOND(): Timescale;
 export declare function MILLI(): Timescale;
 export declare function MICRO(): Timescale;
@@ -8718,11 +8764,11 @@ export { new$ as new };
 import * as rt from "./rt.ts";
 import type { TimeOverflow } from "./TimeOverflow.ts";
 import type { Timescale } from "./Timescale.ts";
-export type Timestamp = rt.Handle<"Timestamp">;
+export type Timestamp = rt.Opaque<"Timestamp">;
 export declare function debug(self: Timestamp): string;
-export declare function clone(self: Timestamp): Timestamp;
 export declare function eq(a: Timestamp, b: Timestamp): boolean;
 export declare function hash(self: Timestamp): rt.u64;
+export declare function partialCmp(a: Timestamp, b: Timestamp): number | undefined;
 export declare function ZERO(): Timestamp;
 export declare function new$(value: rt.u64, scale: Timescale): rt.Result<Timestamp, TimeOverflow>;
 export declare function unscaled(key: rt.u64): Timestamp;
@@ -8766,6 +8812,8 @@ export type TrackAnchor = {
 export declare function debug(self: TrackAnchor): string;
 export declare function eq(a: TrackAnchor, b: TrackAnchor): boolean;
 export declare function hash(self: TrackAnchor): rt.u64;
+export declare function partialCmp(a: TrackAnchor, b: TrackAnchor): number | undefined;
+export declare function cmp(a: TrackAnchor, b: TrackAnchor): number;
 
 // TrackCompression.ts
 export type TrackCompression = "None" | "Deflate";
@@ -8928,6 +8976,8 @@ export type TrackPosition = rt.Opaque<"TrackPosition">;
 export declare function debug(self: TrackPosition): string;
 export declare function eq(a: TrackPosition, b: TrackPosition): boolean;
 export declare function hash(self: TrackPosition): rt.u64;
+export declare function partialCmp(a: TrackPosition, b: TrackPosition): number | undefined;
+export declare function cmp(a: TrackPosition, b: TrackPosition): number;
 export declare function default$(): TrackPosition;
 export declare function groupGet(self: TrackPosition): rt.u64;
 export declare function groupSet(self: TrackPosition, value: rt.u64): TrackPosition;
@@ -8994,6 +9044,8 @@ export type TrackRange = {
 export declare function debug(self: TrackRange): string;
 export declare function eq(a: TrackRange, b: TrackRange): boolean;
 export declare function hash(self: TrackRange): rt.u64;
+export declare function partialCmp(a: TrackRange, b: TrackRange): number | undefined;
+export declare function cmp(a: TrackRange, b: TrackRange): number;
 export declare function live(): TrackRange;
 export declare function oldest(): TrackRange;
 
@@ -9132,13 +9184,12 @@ export { default$ as default };
 
 // TransportLimits.ts
 import * as rt from "./rt.ts";
-export type TransportLimits = rt.Handle<"TransportLimits">;
+export type TransportLimits = rt.Opaque<"TransportLimits">;
 export declare function debug(self: TransportLimits): string;
-export declare function clone(self: TransportLimits): TransportLimits;
 export declare function eq(a: TransportLimits, b: TransportLimits): boolean;
 export declare function default$(): TransportLimits;
 export declare function receiveWindowGet(self: TransportLimits): rt.u64 | undefined;
-export declare function receiveWindowSet(self: TransportLimits, value: rt.u64 | undefined): void;
+export declare function receiveWindowSet(self: TransportLimits, value: rt.u64 | undefined): TransportLimits;
 export { default$ as default };
 
 // TransportLimitsError.ts
@@ -9224,14 +9275,13 @@ export { default$ as default, new$ as new };
 
 // TransportReceiveWindow.ts
 import * as rt from "./rt.ts";
-export type TransportReceiveWindow = rt.Handle<"TransportReceiveWindow">;
+export type TransportReceiveWindow = rt.Opaque<"TransportReceiveWindow">;
 export declare function debug(self: TransportReceiveWindow): string;
-export declare function clone(self: TransportReceiveWindow): TransportReceiveWindow;
 export declare function eq(a: TransportReceiveWindow, b: TransportReceiveWindow): boolean;
 export declare function connectionGet(self: TransportReceiveWindow): rt.u64 | undefined;
-export declare function connectionSet(self: TransportReceiveWindow, value: rt.u64 | undefined): void;
+export declare function connectionSet(self: TransportReceiveWindow, value: rt.u64 | undefined): TransportReceiveWindow;
 export declare function streamGet(self: TransportReceiveWindow): rt.u64;
-export declare function streamSet(self: TransportReceiveWindow, value: rt.u64): void;
+export declare function streamSet(self: TransportReceiveWindow, value: rt.u64): TransportReceiveWindow;
 export declare function new$(connection: rt.u64 | undefined, stream: rt.u64): TransportReceiveWindow;
 export { new$ as new };
 
@@ -9256,6 +9306,8 @@ export declare function debug(self: Url): string;
 export declare function clone(self: Url): Url;
 export declare function eq(a: Url, b: Url): boolean;
 export declare function hash(self: Url): rt.u64;
+export declare function partialCmp(a: Url, b: Url): number | undefined;
+export declare function cmp(a: Url, b: Url): number;
 export declare function parse(input: string): rt.Result<Url, string>;
 
 // Version.ts
@@ -9350,6 +9402,7 @@ import type { HangCatalogAudioLayout } from "./HangCatalogAudioLayout.ts";
 import type { HangCatalogAv1 } from "./HangCatalogAv1.ts";
 import type { HangCatalogBinaryConfig } from "./HangCatalogBinaryConfig.ts";
 import type { HangCatalogChromaticity } from "./HangCatalogChromaticity.ts";
+import type { HangCatalogClock } from "./HangCatalogClock.ts";
 import type { HangCatalogColorRange } from "./HangCatalogColorRange.ts";
 import type { HangCatalogContentLight } from "./HangCatalogContentLight.ts";
 import type { HangCatalogDisplay } from "./HangCatalogDisplay.ts";
@@ -9482,9 +9535,11 @@ import type { TrackSubscriber } from "./TrackSubscriber.ts";
 import type { TrackSubscription } from "./TrackSubscription.ts";
 import type { TransportAddress } from "./TransportAddress.ts";
 import type { TransportCloseKind } from "./TransportCloseKind.ts";
+import type { TransportLimits } from "./TransportLimits.ts";
 import type { TransportLimitsError } from "./TransportLimitsError.ts";
 import type { TransportMemoryError } from "./TransportMemoryError.ts";
 import type { TransportPollAcked } from "./TransportPollAcked.ts";
+import type { TransportReceiveWindow } from "./TransportReceiveWindow.ts";
 import type { Version } from "./Version.ts";
 import type { Waiter } from "./Waiter.ts";
 export declare function e_EncodeError(v: EncodeError): number;
@@ -9578,7 +9633,6 @@ export declare const k_Patterns: rt.Kind;
 export declare const k_Server: rt.Kind;
 export declare const k_Session: rt.Kind;
 export declare const k_Specificity: rt.Kind;
-export declare const k_Timestamp: rt.Kind;
 export declare const k_Url: rt.Kind;
 export declare const k_Version: rt.Kind;
 export declare const k_Versions: rt.Kind;
@@ -9647,7 +9701,6 @@ export declare const k_hang_catalog_Audio: rt.Kind;
 export declare const k_hang_catalog_AudioConfig: rt.Kind;
 export declare const k_hang_catalog_Binary: rt.Kind;
 export declare const k_hang_catalog_BinaryConfig: rt.Kind;
-export declare const k_hang_catalog_Clock: rt.Kind;
 export declare const k_hang_catalog_Color: rt.Kind;
 export declare const k_hang_catalog_Consumer: rt.Kind;
 export declare const k_hang_catalog_Container: rt.Kind;
@@ -9931,9 +9984,7 @@ export declare const k_track_Request: rt.Kind;
 export declare const k_track_Requests: rt.Kind;
 export declare const k_track_Subscriber: rt.Kind;
 export declare const k_track_Subscription: rt.Kind;
-export declare const k_transport_Limits: rt.Kind;
 export declare const k_transport_Probe: rt.Kind;
-export declare const k_transport_ReceiveWindow: rt.Kind;
 export declare const k_transport_Wire: rt.Kind;
 export declare const k_transport_memory_Closer: rt.Kind;
 export declare const k_transport_memory_Config: rt.Kind;
@@ -10089,6 +10140,7 @@ export declare function r_SessionError(p: number, o: boolean): SessionError;
 export declare function r_StreamError(p: number, o: boolean): StreamError;
 export declare function r_TimeOverflow(p: number, o: boolean): TimeOverflow;
 export declare function r_Timescale(p: number, o: boolean): Timescale;
+export declare function r_Timestamp(p: number, o: boolean): Timestamp;
 export declare function r_bandwidth_Rate(p: number, o: boolean): BandwidthRate;
 export declare function r_clock_Elapsed(p: number, o: boolean): ClockElapsed;
 export declare function r_clock_Instant(p: number, o: boolean): ClockInstant;
@@ -10099,6 +10151,7 @@ export declare function r_hang_catalog_AV1(p: number, o: boolean): HangCatalogAv
 export declare function r_hang_catalog_AudioCodec(p: number, o: boolean): HangCatalogAudioCodec;
 export declare function r_hang_catalog_AudioLayout(p: number, o: boolean): HangCatalogAudioLayout;
 export declare function r_hang_catalog_Chromaticity(p: number, o: boolean): HangCatalogChromaticity;
+export declare function r_hang_catalog_Clock(p: number, o: boolean): HangCatalogClock;
 export declare function r_hang_catalog_ContentLight(p: number, o: boolean): HangCatalogContentLight;
 export declare function r_hang_catalog_Display(p: number, o: boolean): HangCatalogDisplay;
 export declare function r_hang_catalog_H264(p: number, o: boolean): HangCatalogH264;
@@ -10129,14 +10182,16 @@ export declare function r_mux_rate_Target(p: number, o: boolean): MuxRateTarget;
 export declare function r_option_SessionError(p: number, o: boolean): SessionError | undefined;
 export declare function r_option_StreamError(p: number, o: boolean): StreamError | undefined;
 export declare function r_option_Timescale(p: number, o: boolean): Timescale | undefined;
+export declare function r_option_Timestamp(p: number, o: boolean): Timestamp | undefined;
 export declare function r_option_bandwidth_Rate(p: number, o: boolean): BandwidthRate | undefined;
 export declare function r_option_bool(p: number, o: boolean): boolean | undefined;
 export declare function r_option_clock_Instant(p: number, o: boolean): ClockInstant | undefined;
 export declare function r_option_clock_Wall(p: number, o: boolean): ClockWall | undefined;
 export declare function r_option_datagram_Datagram(p: number, o: boolean): DatagramDatagram | undefined;
 export declare function r_option_duration(p: number, o: boolean): rt.Duration | undefined;
-export declare function r_option_f64(p: number, o: boolean): number | undefined;
+export declare function r_option_f64(p: number, o: boolean): rt.f64 | undefined;
 export declare function r_option_hang_catalog_AudioLayout(p: number, o: boolean): HangCatalogAudioLayout | undefined;
+export declare function r_option_hang_catalog_Clock(p: number, o: boolean): HangCatalogClock | undefined;
 export declare function r_option_hang_catalog_ColorRange(p: number, o: boolean): HangCatalogColorRange | undefined;
 export declare function r_option_hang_catalog_ContentLight(p: number, o: boolean): HangCatalogContentLight | undefined;
 export declare function r_option_hang_catalog_Display(p: number, o: boolean): HangCatalogDisplay | undefined;
@@ -10182,6 +10237,8 @@ export declare function r_track_Anchor(p: number, o: boolean): TrackAnchor;
 export declare function r_track_Delay(p: number, o: boolean): TrackDelay;
 export declare function r_track_Position(p: number, o: boolean): TrackPosition;
 export declare function r_track_Range(p: number, o: boolean): TrackRange;
+export declare function r_transport_Limits(p: number, o: boolean): TransportLimits;
+export declare function r_transport_ReceiveWindow(p: number, o: boolean): TransportReceiveWindow;
 export declare function r_tuple_stats_Tier_stats_Activity(p: number, o: boolean): [StatsTier, StatsActivity];
 export declare function r_tuple_stats_Tier_stats_Message_stats_Totals(p: number, o: boolean): [StatsTier, StatsMessage, StatsTotals];
 export declare function r_tuple_stats_Tier_stats_Presence(p: number, o: boolean): [StatsTier, StatsPresence];
@@ -10258,6 +10315,7 @@ export declare function w_SessionError(p: number, v: SessionError): void;
 export declare function w_StreamError(p: number, v: StreamError): void;
 export declare function w_TimeOverflow(p: number, v: TimeOverflow): void;
 export declare function w_Timescale(p: number, v: Timescale): void;
+export declare function w_Timestamp(p: number, v: Timestamp): void;
 export declare function w_bandwidth_Rate(p: number, v: BandwidthRate): void;
 export declare function w_bound_u64(p: number, v: {
     readonly tag: "Included";
@@ -10299,6 +10357,7 @@ export declare function w_hang_catalog_AV1(p: number, v: HangCatalogAv1): void;
 export declare function w_hang_catalog_AudioCodec(p: number, v: HangCatalogAudioCodec): void;
 export declare function w_hang_catalog_AudioLayout(p: number, v: HangCatalogAudioLayout): void;
 export declare function w_hang_catalog_Chromaticity(p: number, v: HangCatalogChromaticity): void;
+export declare function w_hang_catalog_Clock(p: number, v: HangCatalogClock): void;
 export declare function w_hang_catalog_ContentLight(p: number, v: HangCatalogContentLight): void;
 export declare function w_hang_catalog_Display(p: number, v: HangCatalogDisplay): void;
 export declare function w_hang_catalog_H264(p: number, v: HangCatalogH264): void;
@@ -10333,12 +10392,14 @@ export declare function w_mux_container_ts_Step(p: number, v: MuxContainerTsStep
 export declare function w_mux_import_Format(p: number, v: MuxImportFormat): void;
 export declare function w_mux_rate_Target(p: number, v: MuxRateTarget): void;
 export declare function w_option_Timescale(p: number, v: Timescale | undefined): void;
+export declare function w_option_Timestamp(p: number, v: Timestamp | undefined): void;
 export declare function w_option_bandwidth_Rate(p: number, v: BandwidthRate | undefined): void;
 export declare function w_option_bool(p: number, v: boolean | undefined): void;
 export declare function w_option_clock_Instant(p: number, v: ClockInstant | undefined): void;
 export declare function w_option_duration(p: number, v: rt.Duration | undefined): void;
-export declare function w_option_f64(p: number, v: number | undefined): void;
+export declare function w_option_f64(p: number, v: rt.f64 | undefined): void;
 export declare function w_option_hang_catalog_AudioLayout(p: number, v: HangCatalogAudioLayout | undefined): void;
+export declare function w_option_hang_catalog_Clock(p: number, v: HangCatalogClock | undefined): void;
 export declare function w_option_hang_catalog_ColorRange(p: number, v: HangCatalogColorRange | undefined): void;
 export declare function w_option_hang_catalog_ContentLight(p: number, v: HangCatalogContentLight | undefined): void;
 export declare function w_option_hang_catalog_Display(p: number, v: HangCatalogDisplay | undefined): void;
@@ -10376,7 +10437,9 @@ export declare function w_track_Anchor(p: number, v: TrackAnchor): void;
 export declare function w_track_Delay(p: number, v: TrackDelay): void;
 export declare function w_track_Position(p: number, v: TrackPosition): void;
 export declare function w_track_Range(p: number, v: TrackRange): void;
+export declare function w_transport_Limits(p: number, v: TransportLimits): void;
 export declare function w_transport_LimitsError(p: number, v: TransportLimitsError): void;
+export declare function w_transport_ReceiveWindow(p: number, v: TransportReceiveWindow): void;
 export declare function w_transport_memory_Error(p: number, v: TransportMemoryError): void;
 export declare function w_tuple_string_Json(p: number, v: [string, Json]): void;
 export declare function w_tuple_string_hang_catalog_AudioConfig(p: number, v: [string, HangCatalogAudioConfig]): void;
@@ -10461,6 +10524,8 @@ export declare const TRANSPORT_SETUP_RECEIVE_WINDOW: rt.u64;
 export declare const HANG_CATALOG_MAX_SAFE_INTEGER: rt.u64;
 export declare function IMPLEMENTATION(): string;
 export declare function ALPNS(): string[];
+export declare function escape(content: string): string;
+export declare function unescape(segment: string): string;
 export declare function clockNow(): ClockInstant;
 export declare function clockWall(): ClockWall;
 export declare function clockOrigin(): [ClockInstant, ClockWall];
@@ -10531,6 +10596,17 @@ type Num<T extends string> = number & {
 export type u64 = Num<"u64"> | U64Limbs;
 export type i64 = Num<"i64"> | I64Limbs;
 export type u128 = Num<"u128"> | U128Limbs;
+export type F32Nan = {
+    readonly bits: number;
+    readonly [brand]: "f32";
+};
+export type F64Nan = {
+    readonly hi: number;
+    readonly lo: number;
+    readonly [brand]: "f64";
+};
+export type f32 = Num<"f32"> | F32Nan;
+export type f64 = Num<"f64"> | F64Nan;
 export type Result<T, E> = {
     readonly ok: true;
     readonly value: T;
@@ -10648,7 +10724,12 @@ export declare function holdOr(handle: Handle | undefined): number;
 export declare function lentHandle<T extends string>(p: number, k: Kind): Handle<T>;
 export declare function int(v: number, min: number, max: number, what: string): number;
 export declare function nonZero<T extends number | u64 | i64>(v: T): T;
-export declare function f32(v: number): number;
+export declare function f32Get(p: number): f32;
+export declare function f32Put(p: number, v: f32): void;
+export declare function f64Get(p: number): f64;
+export declare function f64Put(p: number, v: f64): void;
+export declare function f32Number(v: f32): number;
+export declare function f64Number(v: f64): number;
 export declare function char(v: number): number;
 export declare function u64Of(hi: number, lo: number): u64;
 export declare function i64Of(hi: number, lo: number): i64;
@@ -10727,6 +10808,8 @@ export declare function readerOf(dst: number, reader: Reader): void;
 export declare function pending<T>(f: number, poll: (f: number, waker: number) => [boolean, T], free: string): Call<T>;
 export declare function ready<T>(value: T): Call<T>;
 export declare function failed<T>(error: unknown): Call<T>;
+export type Stream<T> = AsyncIterableIterator<T>;
+export declare function values<T>(next: () => Call<unknown>, none: unknown, fallible: boolean): Stream<T>;
 export type Source = WebAssembly.Module | BufferSource | Response | PromiseLike<Response> | URL;
 export type Glue = {
     readonly prefix: string;

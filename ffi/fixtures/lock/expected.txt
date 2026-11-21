@@ -1,6 +1,10 @@
 fixtures/lock/src/lib.rs:106:1: rust2-ffi: the API breaks the baseline at enum `lock::Mode`: variant `Idle` is added to an exhaustive enum
 fixtures/lock/src/lib.rs:113:1: rust2-ffi: the API breaks the baseline at enum `lock::Shape`: variant `Circle`'s field `0`'s type changed
 fixtures/lock/src/lib.rs:123:1: rust2-ffi: the API breaks the baseline at enum `lock::Stroke`: variant `Solid`'s tag 0 is now 1; variant `Dashed`'s tag 1 is now 0
+fixtures/lock/src/lib.rs:135:1: rust2-ffi: the API breaks the baseline at enum `lock::Level` / variant Low: its C++ name `low` is now `Level_Low`
+fixtures/lock/src/lib.rs:135:1: rust2-ffi: the API breaks the baseline at enum `lock::Level` / variant Low: its Dart name `low` is now `LevelLow`
+fixtures/lock/src/lib.rs:135:1: rust2-ffi: the API breaks the baseline at enum `lock::Level` / variant Low: its Kotlin name `Level.LOW` is now `Level.Low`
+fixtures/lock/src/lib.rs:135:1: rust2-ffi: the API breaks the baseline at enum `lock::Level` / variant Low: its Python name `Level.LOW` is now `Level.Low`
 fixtures/lock/src/lib.rs:135:1: rust2-ffi: the API breaks the baseline at enum `lock::Level`: a variant with fields makes it a struct in C
 fixtures/lock/src/lib.rs:176:1: rust2-ffi: the API breaks the baseline at const `lock::DEPTH`: its type: it was `u32`, and is now `u64`
 fixtures/lock/src/lib.rs:182:1: rust2-ffi: the API breaks the baseline at const `lock::PAGES`: its type: it was `u16`, and is now `i16`

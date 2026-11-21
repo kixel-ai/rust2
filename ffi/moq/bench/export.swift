@@ -164,7 +164,7 @@ func throughput(_ track: TrackProducer, _ subscriber: inout TrackSubscriber, _ m
 		var group = try track.appendGroup(at)
 		var reader = try await subscriber.recvGroup()!
 		for _ in 0..<frames {
-			try group.writeFrame(at, frame)
+			try frame.withSpan { try group.writeFrame(at, $0) }
 			sum += Int(try await reader.readFrame()!.payloadGet[0])
 		}
 		_ = try group.finish()
@@ -231,7 +231,7 @@ func round(_ measured: Bool) throws -> ([(String, Span)], Int) {
 		for _ in 0..<frames {
 			let at = try Timestamp.fromMicros(micros)
 			micros += 1
-			try group.writeFrame(at, frame)
+			try frame.withSpan { try group.writeFrame(at, $0) }
 		}
 		_ = try group.finish()
 	}
@@ -244,7 +244,7 @@ func round(_ measured: Bool) throws -> ([(String, Span)], Int) {
 		micros += 1
 		var group = try track.appendGroup(at)
 		for _ in 0..<frames {
-			try group.writeFrame(at, frame)
+			try frame.withSpan { try group.writeFrame(at, $0) }
 		}
 		_ = try group.finish()
 	}
@@ -266,7 +266,7 @@ func round(_ measured: Bool) throws -> ([(String, Span)], Int) {
 			var group = try track.appendGroup(at)
 			var reader = try await subscriber.recvGroup()!
 			for _ in 0..<frames {
-				try group.writeFrame(at, frame)
+				try frame.withSpan { try group.writeFrame(at, $0) }
 				last = try await reader.readFrame()!
 			}
 			_ = try group.finish()
@@ -284,7 +284,7 @@ func round(_ measured: Bool) throws -> ([(String, Span)], Int) {
 			for _ in 0..<frames {
 				let pending = Task { _ = try await reader.readFrame()! }
 				await Task.yield()
-				try group.writeFrame(at, frame)
+				try frame.withSpan { try group.writeFrame(at, $0) }
 				try await pending.value
 			}
 			_ = try group.finish()
@@ -306,7 +306,7 @@ func round(_ measured: Bool) throws -> ([(String, Span)], Int) {
 				for _ in 0..<frames {
 					let permit: Void? = await next.next()
 					precondition(permit != nil)
-					try group.writeFrame(at, frame)
+					try frame.withSpan { try group.writeFrame(at, $0) }
 				}
 				let consumed: Void? = await next.next()
 				precondition(consumed != nil)
@@ -366,7 +366,7 @@ func round(_ measured: Bool) throws -> ([(String, Span)], Int) {
 		queue.drain()
 		for f in 0..<frames {
 			precondition(consumed.value == g * frames + f)
-			try group.writeFrame(at, frame)
+			try frame.withSpan { try group.writeFrame(at, $0) }
 			queue.drain()
 			precondition(consumed.value == g * frames + f + 1)
 		}

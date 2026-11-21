@@ -158,18 +158,24 @@ func script() {
 	expect(writer.WriteFrame(net.TimestampUnscaled(0), rt.NewBytes([]byte("hello"))) == nil, "a frame writes")
 	hello := within(frame, "a frame's arrival wakes the read")
 	expect(string(must(hello.PayloadGet()).Copy()) == "hello", "a frame has its payload")
-	expect(must(must(hello.TimestampGet()).Scale()) == nil, "an untimed frame's timestamp has no scale")
+	expect(must(hello.TimestampGet()).Scale() == nil, "an untimed frame's timestamp has no scale")
 	// When it arrived: kio's clock's `Instant`, from kio's own export.
 	expect(kio.ClockNow().CheckedDurationSince(must(hello.Arrived())) != nil, "a frame arrived before now")
 
-	// A timestamp is a handle a call borrows, so Go keeps it. The track is
+	// A timestamp is a `Copy` value Go copies, which allocates nothing. The track is
 	// untimed, so a timed frame is refused.
 	at := must(net.TimestampFromMillis(1500))
 	expect(must(at.AsSecs()) == 1, "1500 ms is 1 s")
+	// Timestamps order in time across scales, and a scaled one and an unscaled key not at all.
+	second := must(net.TimestampFromSecs(1))
+	key := net.TimestampUnscaled(0)
+	order, ordered := second.PartialCompare(at)
+	expect(ordered && order == -1, "1 s is before 1500 ms")
+	_, ordered = key.PartialCompare(at)
+	expect(!ordered, "an unscaled key is unordered against a time")
 	err = writer.WriteFrame(at, rt.NewBytes([]byte("late")))
 	expect(errors.As(err, &merr) && err.Error() == "frame timestamp doesn't fit its track", "the late frame's error is Rust's")
-	expect(must(at.AsSecs()) == 1, "a lent timestamp stays usable")
-	at.Close()
+	expect(must(at.AsSecs()) == 1, "a copied timestamp stays usable")
 
 	// The last frame, bytes that are not UTF-8, then the group's end, which reads as nil.
 	world := append([]byte{0xff}, "world"...)
@@ -206,6 +212,21 @@ func script() {
 	// A broadcast the origin routes is stamped with its path, which its info lends. Each
 	// handle to it is closed, since an open one keeps it, and so the origin, alive.
 	publication := must(origin.Route("room/alice", net.OriginRouteOptionsDefault()))
+	// An origin's announcements, a stream Go ranges over: the route is the first, and
+	// leaving the loop takes nothing past it.
+	listing := must(origin.Consume())
+	announced := must(listing.Announced())
+	waitAnnounce, stop := context.WithTimeout(ctx, 10*time.Second)
+	for event, err := range announced.All(waitAnnounce) {
+		check(err)
+		expect(strings.Contains(event.GoString(), "room/alice"), "a route is announced present")
+		check(event.Close())
+		break
+	}
+	stop()
+	expect(must(announced.TryNext()) == nil, "a loop left early reads nothing ahead")
+	check(announced.Close())
+	check(listing.Close())
 	created := must(publication.Broadcast())
 	path := must(must(created.Info()).PathGet())
 	created.Close()

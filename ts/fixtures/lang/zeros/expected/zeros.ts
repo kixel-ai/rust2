@@ -444,9 +444,12 @@ export function impls(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 			const a: Tagged.Tagged<rs.String> = part;
 			const b: Tagged.Tagged<rs.String> = part2;
 			rs.byteVecPush(out, (Tagged.cmp$cmp_Ord_String(a, b) & 0xff) | (((Tagged.eq$cmp_PartialEq_String(a, b) ? 1 : 0) << 2) & 0xff) | (((Tagged.partialCmp$cmp_PartialOrd_String(a, b) === Tagged.cmp$cmp_Ord_String(a, b) as rs.Ordering | undefined ? 1 : 0) << 3) & 0xff));
-			rs.byteVecPush(out, Tagged.cmp$cmp_Ord_String(a, b) === 0 === rs.u64Eq(hash$zeros_Tagged_String(a), hash$zeros_Tagged_String(b)) ? 1 : 0);
+			const _117: boolean = Tagged.cmp$cmp_Ord_String(a, b) === 0;
+			const _120: rs.u64 = hash$zeros_Tagged_String(a);
+			const _121: rs.u64 = hash$zeros_Tagged_String(b);
+			rs.byteVecPush(out, _117 === (typeof _120 === "number" && typeof _121 === "number" ? _120 === _121 : rs.u64Eq(_120, _121)) ? 1 : 0);
 		}
-		rs.byteVecPush(out, (true ? 1 : 0) | (((true ? 1 : 0) << 1) & 0xff));
+		rs.byteVecPush(out, 1 | ((1 << 1) & 0xff));
 		rs.byteVecPush(out, rs.cmpNothing(undefined, undefined) & 0xff);
 		rs.byteVecPush(out, rs.cmpNothing(undefined, undefined) & 0xff);
 	} else if (_7 === 2) {
@@ -478,7 +481,7 @@ export function impls(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		}
 		rs.byteVecPush(out, found ? 1 : 0);
 		Rest.default$Default();
-		rs.byteVecPush(out, true ? 1 : 0);
+		rs.byteVecPush(out, 1);
 	}
 }
 
@@ -643,7 +646,7 @@ export function unread(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		}));
 		rs.byteVecPush(out, (((_22: undefined): boolean => {
 			return true;
-		})(([undefined] as [undefined])[0]) ? 1 : 0) | (((true ? 1 : 0) << 1) & 0xff));
+		})(([undefined] as [undefined])[0]) ? 1 : 0) | ((1 << 1) & 0xff));
 		drop$zeros_Lock_u32(lock);
 		rs.iterExtendBytes(out, rs.iterSlice(rs.u32ToBeBytes(rs.atomicLoad(LOG, 0))), undefined, true);
 	}
@@ -671,14 +674,14 @@ export function writes(kind: rs.u8, _dataData: Uint8Array, _dataStart: number, d
 	const _9: rs.u8 = rs.u8Rem(kind, 5);
 	if (_9 === 0) {
 		leaked(1);
-		rs.byteVecPush(out, true ? 1 : 0);
+		rs.byteVecPush(out, 1);
 		leaked(2);
 		leaked(3);
 		leaked(4);
 		leaked(6);
-		rs.byteVecPush(out, (true ? 1 : 0) | ((n << 1) & 0xff));
+		rs.byteVecPush(out, 1 | ((n << 1) & 0xff));
 	} else if (_9 === 1) {
-		rs.byteVecPush(out, true ? 1 : 0);
+		rs.byteVecPush(out, 1);
 		const _53: Unit.Unit = {};
 		unit();
 		Unit.default$Default();
@@ -712,7 +715,7 @@ export function writes(kind: rs.u8, _dataData: Uint8Array, _dataStart: number, d
 		const _141: rs.Cell<undefined> = new rs.Cell(undefined);
 		rs.cellReplace(_141, undefined);
 		rs.cellReplace(_141, undefined);
-		rs.byteVecPush(out, true ? 1 : 0);
+		rs.byteVecPush(out, 1);
 	} else {
 		let o: undefined | rs.None = thenSome$1n1oy1h(n > 0, undefined);
 		const old2: undefined | rs.None = o;

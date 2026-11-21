@@ -1,3 +1,0 @@
-# The codec fixture's C ABI: only its entry points, the rest being crate-private.
-package = "codec"
-prefix = "codec"

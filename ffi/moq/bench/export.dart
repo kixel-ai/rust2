@@ -117,7 +117,6 @@ Future<Span> throughput(moq.TrackProducer track, moq.TrackSubscriber subscriber,
     reader.close();
     group.finish().close();
     group.close();
-    at.close();
   }
   final ns = end(start, name, count * frames * size);
   return Span(1e3 / ns.wall, 1e3 / ns.cpu);
@@ -126,7 +125,7 @@ Future<Span> throughput(moq.TrackProducer track, moq.TrackSubscriber subscriber,
 Future<Map<String, Span>> round() async {
   final out = <String, Span>{};
   final broadcast = moq.BroadcastInfo().produce();
-  final track = broadcast.createTrack('bench', moq.TrackInfo.default_().withTimescale(moq.Timescale.MICRO));
+  final track = broadcast.createTrack('bench', moq.TrackInfo.default_().withTimescale(moq.Timescale.micro));
   final frame = Uint8List(100);
   micros = 0;
 
@@ -136,9 +135,7 @@ Future<Map<String, Span>> round() async {
   }
   out['call'] = end(start, 'call');
 
-  final demandedAt = groupStart();
-  final demanded = track.appendGroup(demandedAt);
-  demandedAt.close();
+  final demanded = track.appendGroup(groupStart());
   final demand = demanded.demand();
   start = begin();
   for (var i = 0; i < n; i++) {
@@ -190,13 +187,9 @@ Future<Map<String, Span>> round() async {
   // Each frame stamped through a fresh timestamp, as a caller holding an int must.
   start = begin();
   for (var g = 0; g < groups; g++) {
-    final first = moq.Timestamp.fromMicros(moq.U64(micros));
-    final group = track.appendGroup(first);
-    first.close();
+    final group = track.appendGroup(moq.Timestamp.fromMicros(moq.U64(micros)));
     for (var f = 0; f < frames; f++) {
-      final at = moq.Timestamp.fromMicros(moq.U64(micros++));
-      group.writeFrame(at, frame);
-      at.close();
+      group.writeFrame(moq.Timestamp.fromMicros(moq.U64(micros++)), frame);
     }
     group.finish().close();
     group.close();
@@ -212,7 +205,6 @@ Future<Map<String, Span>> round() async {
     }
     group.finish().close();
     group.close();
-    at.close();
   }
   out['write'] = end(start, 'write');
 
@@ -236,7 +228,6 @@ Future<Map<String, Span>> round() async {
     reader.close();
     group.finish().close();
     group.close();
-    at.close();
   }
   out['ready'] = end(start, 'ready');
 
@@ -255,7 +246,6 @@ Future<Map<String, Span>> round() async {
     reader.close();
     group.finish().close();
     group.close();
-    at.close();
   }
   out['woken'] = end(start, 'woken');
 
@@ -274,7 +264,6 @@ Future<Map<String, Span>> round() async {
       if (!await next.moveNext()) throw StateError('missing group acknowledgement');
       group.finish().close();
       group.close();
-      at.close();
     }
     await next.cancel();
   }

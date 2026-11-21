@@ -15,7 +15,7 @@ use std::task::{Context, Poll, Wake, Waker};
 
 use api::{
 	Channel, Counter, Event, LIMIT, Label, Log, Logger, Message, Name, Node, Pair, Point, Registry, Shape, Size, Stack,
-	Stamp, Tally, Waiter, Window,
+	Stamp, Tally, Tier, Undo, Version, Waiter, Window,
 };
 use bytes::Bytes;
 
@@ -35,6 +35,23 @@ impl Log for Print {
 impl Drop for Print {
 	fn drop(&mut self) {
 		println!("freed");
+	}
+}
+
+/// An edit history whose methods each return their own digit, as each language's does.
+struct Edits;
+
+impl Undo for Edits {
+	fn delete(&self, n: u32) -> u32 {
+		n - 1
+	}
+
+	fn free(&self) -> u32 {
+		2
+	}
+
+	fn r#type(&self) -> u8 {
+		3
 	}
 }
 
@@ -426,6 +443,8 @@ fn main() {
 	println!("noted {before} {}", noted.count());
 
 	println!("kept {}", api::emit(Print, vec![1, 2, 3, 4]));
+	// Each method its own table member, whatever C, C++, or Rust reads its name as.
+	println!("undone {}", api::undone(Edits, 5));
 	let logger = Logger::new(Box::new(Print));
 	println!("write {}", logger.write("hi"));
 	drop(logger);
@@ -442,6 +461,10 @@ fn main() {
 	let mut list = Node::new(1, None);
 	list.push(2);
 	println!("node {}", list.sum());
+	match list.next.as_deref() {
+		Some(next) => println!("node next {}", next.value),
+		None => println!("node next none"),
+	}
 
 	let tally = Tally::new();
 	tally.bump();
@@ -716,6 +739,10 @@ fn main() {
 	drop(draft);
 	println!("dropped {}", ledger.published());
 	println!("receipt {}", ledger.receipt().count());
+	let tab = ledger.tab();
+	println!("tab {}", tab.ledger.published());
+	println!("tab label {}", tab.label);
+	drop(tab);
 	// Members a `Deref` reaches: past an unexported target, beside a method of the same
 	// name, and a field a method's path shares.
 	let mut marker = api::Marker::new("m", 3, 5);
@@ -732,6 +759,18 @@ fn main() {
 	ledger.seal();
 	println!("sealed {}", ledger.edit().err().unwrap());
 	println!("chunks {:?}", api::chunks(b"abcde", 2));
+	println!(
+		"chunk lens {} {} {} {}",
+		api::chunks(b"abcde", 2)
+			.iter()
+			.map(|c| format!("{}", api::len(c)))
+			.collect::<Vec<_>>()
+			.join(" "),
+		api::held_count(Some((Counter::new("h", 4),)))
+			.map_or("none".to_string(), |v| format!("{v} {}", api::len(b"ab"))),
+		api::fingerprint(&format!("{}", api::len(b"abc"))).is_err(),
+		api::sum_u32(&[ledger.published(), 1])
+	);
 	let counters = api::counters(vec!["x".to_string(), "y".to_string()]);
 	println!(
 		"counters {}",
@@ -824,7 +863,21 @@ fn main() {
 	);
 	let doc: serde_json::Value = r#"{"b": [1, 2.5, null], "a": "\u00e9"}"#.parse().unwrap();
 	println!("json {}", api::encode(&doc));
-	println!("timed text {}", api::timed_text(&doc));
+	println!(
+		"cow {} {} {} {}",
+		api::unescaped(r"a\b"),
+		api::unescaped("plain"),
+		api::unzeroed(&[1, 0, 2]).len(),
+		api::unzeroed(&[3]).len()
+	);
+	let pair: serde_json::Value = "[1, 2]".parse().unwrap();
+	let spot = api::Spot::deserialize(pair).unwrap();
+	println!("spot {} {}", spot.x, spot.y);
+	let text: serde_json::Value = "\"x\"".parse().unwrap();
+	match api::Spot::deserialize(text) {
+		Ok(spot) => println!("spot {} {}", spot.x, spot.y),
+		Err(err) => println!("spot err {err}"),
+	}
 	println!("tagged {}", api::tagged(doc, "t"));
 	println!(
 		"entries {}",
@@ -961,6 +1014,73 @@ fn main() {
 		a.hash_of() == api::Key::new("a").hash_of(),
 		a.hash_of() == b.hash_of()
 	);
+	// A version orders by its derived `Ord`, and its `<` by `PartialOrd`, which agrees.
+	let (v1, v2) = (Version { major: 1, minor: 2 }, Version { major: 1, minor: 10 });
+	println!(
+		"version {} {} {} {} {} {} {}",
+		v1 < v2,
+		v1 <= v2,
+		v1 > v2,
+		v1 >= v2,
+		v1.cmp(&v2) as i8,
+		v2.cmp(&v1) as i8,
+		v1.cmp(&v1) as i8
+	);
+	// A quantity orders by its hand-written `PartialOrd`, which leaves two units unordered.
+	let (m1, m2, g1) = (
+		api::Quantity::new(1, 'm'),
+		api::Quantity::new(2, 'm'),
+		api::Quantity::new(1, 'g'),
+	);
+	println!(
+		"quantity {} {} {} {} {} {} {} {} {}",
+		m1 < m2,
+		m1 <= m2,
+		m1 > m2,
+		m1 >= m2,
+		m1 <= api::Quantity::new(1, 'm'),
+		m1 < g1,
+		m1 <= g1,
+		m1 > g1,
+		m1 >= g1
+	);
+	println!(
+		"tier {} {} {} {} {}",
+		Tier::Low < Tier::High,
+		Tier::CompareTo < Tier::PartialCompareTo,
+		Tier::Low >= Tier::Low,
+		Tier::High.cmp(&Tier::Low) as i8,
+		Tier::Low.cmp(&Tier::High) as i8
+	);
+	// A pass's handle is checked, so its comparisons can fail, yet it still orders by `Ord`.
+	let (t1, t2) = (api::Pass::new(1), api::Pass::new(2));
+	println!(
+		"pass {} {} {} {} {}",
+		t1 < t2,
+		t1 >= t2,
+		t1.cmp(&t2) as i8,
+		t2.cmp(&t1) as i8,
+		t1.cmp(&t1) as i8
+	);
+	// A rank's fields are named as the comparison methods, which each binding keeps apart.
+	let ranked = api::Rank::Ranked {
+		compare: 1,
+		partial_compare: 2,
+		compare_to: 3,
+		partial_compare_to: 4,
+	};
+	println!(
+		"rank {} {} {}",
+		api::Rank::Unranked < ranked,
+		ranked.cmp(&api::Rank::Unranked) as i8,
+		ranked
+			== api::Rank::Ranked {
+				compare: 1,
+				partial_compare: 2,
+				compare_to: 3,
+				partial_compare_to: 4
+			}
+	);
 	println!(
 		"lossless ip {} {}",
 		ip_hex(api::same_ip_addr("255.255.255.255".parse().unwrap())),
@@ -1023,6 +1143,7 @@ fn main() {
 	println!("seat {front:?} {} {}", front == front.clone(), front == back);
 	drive();
 	readers();
+	streams();
 	println!("non zeros {}", api::describe_non_zeros(api::non_zeros()));
 	println!(
 		"hop {:?} {:?} {:?}",
@@ -1176,6 +1297,52 @@ fn readers() {
 	match api::seek_to(&mut std::io::Cursor::new(Vec::<u8>::new()), u64::MAX) {
 		Ok(at) => println!("sought {at}"),
 		Err(err) => println!("sought error {err}"),
+	}
+}
+
+/// Streams, each iterated in its language's own protocol: to its end, left early, and to
+/// an error, past which the stream goes on.
+fn streams() {
+	let mut counts = Vec::new();
+	let mut countdown = api::Countdown::new(3);
+	while let Some(count) = finish(countdown.next()) {
+		counts.push(count.to_string());
+	}
+	println!("countdown {}", counts.join(" "));
+	// A loop left early takes nothing past the item it stopped at.
+	let mut countdown = api::Countdown::new(5);
+	while let Some(count) = finish(countdown.next()) {
+		if count == 4 {
+			break;
+		}
+	}
+	println!("countdown after break {}", finish(countdown.next()).unwrap());
+	// Each payload sends the next, which `!` fails and an empty one ends.
+	let channel = Channel::new();
+	let mut feed = channel.feed();
+	for first in ["a", "c"] {
+		channel.send(Bytes::from_static(first.as_bytes()));
+		loop {
+			match finish(feed.next()) {
+				Ok(Some(payload)) => {
+					println!("feed {}", String::from_utf8_lossy(&payload));
+					let reply: &'static str = match &payload[..] {
+						b"a" => "b",
+						b"b" => "!",
+						_ => "",
+					};
+					channel.send(Bytes::from_static(reply.as_bytes()));
+				}
+				Ok(None) => {
+					println!("feed end");
+					break;
+				}
+				Err(err) => {
+					println!("feed error {err}");
+					break;
+				}
+			}
+		}
 	}
 }
 

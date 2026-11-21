@@ -2,16 +2,22 @@
 
 import importlib.util
 import json
+import os
 from pathlib import Path
+import shutil
+import subprocess
 import tarfile
 import tempfile
+import tomllib
 import unittest
+from unittest import mock
 import zipfile
 
 HERE = Path(__file__).resolve().parent
 spec = importlib.util.spec_from_file_location("package", HERE / "package.py")
 package = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(package)
+backend = package.backend
 
 
 def info(root, **overrides):
@@ -20,6 +26,7 @@ def info(root, **overrides):
         "name": "moq-ffi", "version": "0.4.12", "description": "Media over QUIC,\n bindings",
         "license": "MIT OR Apache-2.0", "license_file": None, "repository": "https://github.com/moq-dev/moq",
         "homepage": None, "lib": "moq", "dir": str(root), "workspace": str(root), "examples": [],
+        "epoch": 1_700_000_000, "sbom": b"{}\n",
     }
     return {**base, **overrides}
 
@@ -180,6 +187,7 @@ class Wheel(unittest.TestCase):
                 names = set(archive.namelist())
                 meta = archive.read("moq_ffi-0.4.12.dist-info/METADATA").decode()
             self.assertIn("moq/__init__.py", names)
+            self.assertIn("moq/py.typed", names)
             self.assertIn("moq/libmoq.so", names)
             self.assertIn("moq_ffi-0.4.12.dist-info/licenses/LICENSE-MIT", names)
             self.assertIn("Requires-Python: >=3.11\n", meta)
@@ -223,6 +231,284 @@ class Wheel(unittest.TestCase):
     def test_floor_comes_from_the_glue(self):
         with tempfile.TemporaryDirectory() as tmp:
             self.assertEqual(package.python_floor(export(Path(tmp), "312")), 12)
+
+
+class Reproducible(unittest.TestCase):
+    def wheel(self, root, **touch):
+        """A wheel built from inputs of the given mtimes, whose repair tool put its files in any order and time."""
+        built = export(root / "export")
+        library = root / "libmoq.so"
+        library.write_bytes(b"\x7fELF")
+        for path in (library, built / "python/moq.py"):
+            os.utime(path, (touch.get("time", 0), touch.get("time", 0)))
+        return package.write_wheel(info(root), built, library, "x86_64-unknown-linux-gnu", root)
+
+    def test_wheel_bytes_ignore_when_and_where(self):
+        with tempfile.TemporaryDirectory() as a, tempfile.TemporaryDirectory() as b:
+            first = self.wheel(Path(a), time=1_000_000_000)
+            second = self.wheel(Path(b), time=1_600_000_000)
+            self.assertEqual(first.read_bytes(), second.read_bytes())
+            with zipfile.ZipFile(first) as archive:
+                names = archive.namelist()
+                self.assertTrue(all(entry.date_time == (2023, 11, 14, 22, 13, 20) for entry in archive.infolist()))
+            self.assertTrue(names[-1].endswith(".dist-info/RECORD"))
+            self.assertEqual(names[:2], ["moq/__init__.py", "moq/libmoq.so"])
+
+    def test_a_repair_tools_wheel_is_rewritten_as_one_of_ours(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            wheel = self.wheel(root)
+            repaired = root / "repaired.whl"
+            with zipfile.ZipFile(wheel) as src, zipfile.ZipFile(repaired, "w") as dst:
+                # As a repair tool leaves it: directories, reversed order, its own times, and a RECORD of its own.
+                dst.writestr("moq/", b"")
+                for name in reversed(src.namelist()):
+                    entry = zipfile.ZipInfo(name, (2031, 5, 6, 7, 8, 10))
+                    entry.external_attr = src.getinfo(name).external_attr
+                    dst.writestr(entry, b"other\n" if name.endswith("/RECORD") else src.read(name))
+            package.normalize_wheel(repaired, 1_700_000_000)
+            package.check_wheel(repaired)
+            self.assertEqual(repaired.read_bytes(), wheel.read_bytes())
+
+    def test_the_sbom_rides_in_the_wheel(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            with zipfile.ZipFile(self.wheel(Path(tmp))) as archive:
+                self.assertEqual(archive.read("moq_ffi-0.4.12.dist-info/sboms/moq-ffi.cdx.json"), b"{}\n")
+
+    def test_xcframework_zip_ignores_mtimes_and_umask(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            zips = []
+            for index, (mode, time) in enumerate(((0o644, 1), (0o664, 2_000_000_000))):
+                tree = Path(tmp) / str(index) / "MoqFFI.xcframework"
+                (tree / "macos").mkdir(parents=True)
+                (tree / "Info.plist").write_text("plist\n")
+                (tree / "macos/libmoq.a").write_bytes(b"!<arch>\n")
+                for path in (tree, tree / "macos", tree / "Info.plist", tree / "macos/libmoq.a"):
+                    os.utime(path, (time, time))
+                (tree / "Info.plist").chmod(mode)
+                package.zip_tree(tree, Path(tmp) / f"{index}.zip", 1_700_000_000)
+                zips.append((Path(tmp) / f"{index}.zip").read_bytes())
+            self.assertEqual(zips[0], zips[1])
+            with zipfile.ZipFile(Path(tmp) / "0.zip") as archive:
+                self.assertEqual(archive.namelist(), [
+                    "MoqFFI.xcframework/", "MoqFFI.xcframework/Info.plist", "MoqFFI.xcframework/macos/",
+                    "MoqFFI.xcframework/macos/libmoq.a"])
+
+    def test_xcframework_plist_lists_libraries_in_name_order(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "Info.plist"
+            libraries = [{"LibraryIdentifier": name} for name in ("macos-arm64", "ios-arm64-simulator", "ios-arm64")]
+            for order in (libraries, libraries[::-1]):
+                path.write_bytes(package.plistlib.dumps({"AvailableLibraries": order, "CFBundlePackageType": "XFWK"}))
+                package.sort_plist(path)
+                first = path.read_bytes() if order is libraries else first
+            self.assertEqual(path.read_bytes(), first)
+            self.assertEqual([x["LibraryIdentifier"] for x in package.plistlib.loads(first)["AvailableLibraries"]],
+                             ["ios-arm64", "ios-arm64-simulator", "macos-arm64"])
+
+    def test_a_symlink_in_the_xcframework_fails(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            tree = Path(tmp) / "MoqFFI.xcframework"
+            tree.mkdir()
+            (tree / "link").symlink_to("target")
+            with self.assertRaises(SystemExit):
+                package.zip_tree(tree, Path(tmp) / "out.zip", 1_700_000_000)
+
+    def test_epoch_is_the_environment_or_the_commit(self):
+        with mock.patch.dict(os.environ, {"SOURCE_DATE_EPOCH": "1700000000"}):
+            self.assertEqual(package.epoch("."), 1_700_000_000)
+        with mock.patch.dict(os.environ, {"SOURCE_DATE_EPOCH": "86400"}), self.assertRaises(SystemExit):
+            package.epoch(".")
+        with tempfile.TemporaryDirectory() as tmp, mock.patch.dict(os.environ):
+            os.environ.pop("SOURCE_DATE_EPOCH", None)
+            git = ["git", "-C", tmp, "-c", "user.name=t", "-c", "user.email=t@t"]
+            subprocess.run([*git, "init", "-q"], check=True)
+            subprocess.run([*git, "commit", "-q", "--allow-empty", "-m", "x", "--date", "2023-11-14T22:13:20Z"],
+                           check=True, env={**os.environ, "GIT_COMMITTER_DATE": "2023-11-14T22:13:20Z"})
+            self.assertEqual(package.epoch(tmp), 1_700_000_000)
+
+    def test_paths_are_remapped_and_rustflags_kept(self):
+        with tempfile.TemporaryDirectory() as tmp, mock.patch.dict(os.environ, {"RUSTFLAGS": "-C target-cpu=native -Lnative=C:\\deps", "CARGO_HOME": "/home/u/.cargo"}):
+            os.environ.pop("CARGO_ENCODED_RUSTFLAGS", None)
+            env = package.reproducible(info(tmp), Path(tmp) / "export", "x86_64-unknown-linux-gnu")
+            flags = env["CARGO_ENCODED_RUSTFLAGS"].split("\x1f")
+            # Cargo splits on whitespace alone, so a Windows path keeps its backslash.
+            self.assertEqual(flags[:3], ["-C", "target-cpu=native", "-Lnative=C:\\deps"])
+            self.assertIn(f"--remap-path-prefix={tmp}/export=/export", flags)
+            # The deeper directory comes last, as rustc prefers the last match.
+            self.assertLess(flags.index(f"--remap-path-prefix={tmp}=/source"), flags.index(f"--remap-path-prefix={tmp}/export=/export"))
+            self.assertEqual(env["SOURCE_DATE_EPOCH"], "1700000000")
+            self.assertIn(f"-ffile-prefix-map={tmp}=/source", env["CFLAGS"])
+            self.assertIn(f"-ffile-prefix-map={tmp}=/source", env["CXXFLAGS"])
+            windows = package.reproducible(info(tmp), Path(tmp) / "export", "x86_64-pc-windows-msvc")
+            self.assertIn("link-arg=/Brepro", windows["CARGO_ENCODED_RUSTFLAGS"])
+            self.assertNotIn("CFLAGS", windows)
+            self.assertNotIn("CXXFLAGS", windows)
+            apple = package.reproducible(info(tmp), Path(tmp), "aarch64-apple-darwin")
+            self.assertEqual(apple["ZERO_AR_DATE"], "1")
+            self.assertIn("link-arg=-Wl,-install_name,@rpath/libmoq.dylib", apple["CARGO_ENCODED_RUSTFLAGS"])
+            named = package.reproducible(info(tmp), Path(tmp), "aarch64-apple-darwin", "libmoq.0.4.12.dylib")
+            self.assertIn("link-arg=-Wl,-install_name,@rpath/libmoq.0.4.12.dylib", named["CARGO_ENCODED_RUSTFLAGS"])
+            self.assertNotIn("@rpath/libmoq.dylib", named["CARGO_ENCODED_RUSTFLAGS"])
+
+    def test_an_empty_encoded_rustflags_is_no_flags(self):
+        with tempfile.TemporaryDirectory() as tmp, mock.patch.dict(os.environ, {"CARGO_ENCODED_RUSTFLAGS": "", "RUSTFLAGS": "-C x", "CARGO_HOME": tmp + "/home"}):
+            env = package.reproducible(info(tmp), Path(tmp) / "export", "x86_64-unknown-linux-gnu")
+            flags = env["CARGO_ENCODED_RUSTFLAGS"].split("\x1f")
+            self.assertTrue(flags[0].startswith("--remap-path-prefix="), flags)
+            self.assertNotIn("-C", flags)
+
+    def test_a_path_cc_would_split_fails(self):
+        with tempfile.TemporaryDirectory() as tmp, mock.patch.dict(os.environ, {"CARGO_HOME": tmp + "/home"}):
+            os.environ.pop("CARGO_ENCODED_RUSTFLAGS", None)
+            spaced = Path(tmp) / "a b"
+            with self.assertRaises(SystemExit):
+                package.reproducible(info(tmp), spaced, "x86_64-unknown-linux-gnu")
+            # MSVC's C flags are not CFLAGS, so a space there is harmless.
+            package.reproducible(info(tmp), spaced, "x86_64-pc-windows-msvc")
+
+    def test_a_cargo_config_that_RUSTFLAGS_would_replace_fails(self):
+        with tempfile.TemporaryDirectory() as tmp, mock.patch.dict(os.environ, {"CARGO_HOME": tmp + "/home"}):
+            crate = Path(tmp) / "crate"
+            (crate / ".cargo").mkdir(parents=True)
+            (crate / ".cargo/config.toml").write_text('[target.x86_64-pc-windows-msvc]\nrustflags = ["-C", "x"]\n')
+            self.assertEqual(list(package.rustflags_config(crate, "x86_64-unknown-linux-gnu")), [])
+            self.assertEqual(len(list(package.rustflags_config(crate, "x86_64-pc-windows-msvc"))), 1)
+            (crate / ".cargo/config.toml").write_text('[build]\nrustflags = ["-C", "x"]\n')
+            with self.assertRaises(SystemExit):
+                package.reproducible(info(crate), crate / "export", "x86_64-unknown-linux-gnu")
+
+    def test_same_names_what_differs(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            roots = [Path(tmp) / "a", Path(tmp) / "b"]
+            for root in roots:
+                (root / "static/aarch64-apple-ios").mkdir(parents=True)
+                (root / "static/aarch64-apple-ios/libmoq.a").write_bytes(b"same")
+                (root / "wheels").mkdir()
+            first = self.wheel(roots[0])
+            second = self.wheel(roots[1])
+            for root, wheel in zip(roots, (first, second)):
+                wheel.replace(root / "wheels" / wheel.name)
+            package.same(roots[0], roots[1])
+            (roots[1] / "static/aarch64-apple-ios/libmoq.a").write_bytes(b"other")
+            with self.assertRaisesRegex(SystemExit, "static/aarch64-apple-ios/libmoq.a"):
+                package.same(roots[0], roots[1])
+
+
+class Sbom(unittest.TestCase):
+    def crate(self, root):
+        """A generated crate whose normal, proc-macro, and build dependencies are each a path crate."""
+        for name, extra in (("dep", ""), ("builder", ""), ("derive", "[lib]\nproc-macro = true\n")):
+            (root / name / "src").mkdir(parents=True)
+            (root / name / "src/lib.rs").write_text("")
+            (root / name / "Cargo.toml").write_text(f'[package]\nname = "{name}"\nversion = "1.2.3"\nedition = "2021"\nlicense = "MIT/Apache-2.0"\n{extra}')
+        (root / "glue/src").mkdir(parents=True)
+        (root / "glue/src/lib.rs").write_text("")
+        (root / "glue/Cargo.toml").write_text(
+            '[package]\nname = "glue"\nversion = "0.0.0"\nedition = "2021"\n[features]\npython = []\n'
+            '[dependencies]\ndep = { path = "../dep" }\nderive = { path = "../derive" }\n'
+            '[build-dependencies]\nbuilder = { path = "../builder" }\n[workspace]\n')
+        subprocess.run(["cargo", "generate-lockfile", "--offline", "--manifest-path", root / "glue/Cargo.toml"], check=True,
+                       capture_output=True)
+        return root / "glue/Cargo.toml"
+
+    def test_what_ships_is_what_the_library_links(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            crate = self.crate(Path(tmp))
+            first = package.sbom(info(tmp, name="moq-ffi", version="0.4.12"), crate)
+            self.assertEqual(first, package.sbom(info(tmp, name="moq-ffi", version="0.4.12"), crate))
+            document = json.loads(first)
+            self.assertEqual(document["bomFormat"], "CycloneDX")
+            # actions/attest rejects a CycloneDX file without one.
+            self.assertRegex(document["serialNumber"], r"urn:uuid:[0-9a-f-]{36}")
+            self.assertEqual(document["metadata"]["timestamp"], "2023-11-14T22:13:20Z")
+            self.assertEqual([c["name"] for c in document["components"]], ["dep"])
+            self.assertEqual(document["components"][0]["licenses"], [{"license": {"name": "MIT/Apache-2.0"}}])
+            self.assertEqual(document["dependencies"], [
+                {"ref": "pkg:cargo/dep@1.2.3", "dependsOn": []},
+                {"ref": "pkg:cargo/moq-ffi@0.4.12", "dependsOn": ["pkg:cargo/dep@1.2.3"]},
+            ])
+
+
+    def test_one_version_from_two_sources_is_two_components(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            crate = self.crate(root)
+            # The same name and version again, from a git repository.
+            fork = root / "fork"
+            shutil.copytree(root / "dep", fork)
+            git = ["git", "-C", str(fork), "-c", "user.name=t", "-c", "user.email=t@t"]
+            subprocess.run([*git, "init", "-q"], check=True)
+            subprocess.run([*git, "add", "."], check=True)
+            subprocess.run([*git, "commit", "-q", "-m", "x"], check=True)
+            manifest = crate.read_text().replace("[build-dependencies]", f'forked = {{ package = "dep", git = "file://{fork}" }}\n[build-dependencies]')
+            crate.write_text(manifest)
+            # A local repository, which cargo fetches without a network.
+            subprocess.run(["cargo", "generate-lockfile", "--manifest-path", crate], check=True, capture_output=True)
+            document = json.loads(package.sbom(info(tmp, name="moq-ffi", version="0.4.12"), crate))
+            refs = [c["bom-ref"] for c in document["components"]]
+            self.assertEqual(len(refs), 2)
+            self.assertIn("pkg:cargo/dep@1.2.3", refs)
+            self.assertTrue(any(ref.startswith("pkg:cargo/dep@1.2.3?vcs_url=git%2Bfile") for ref in refs), refs)
+
+
+class Archive(unittest.TestCase):
+    def test_members_that_differ_are_named(self):
+        def ar(*members):
+            out = b"!<arch>\n"
+            for name, date, body in members:
+                out += f"{name + '/':<16}{date:<12}{0:<6}{0:<6}{100644:<8}{len(body):<10}`\n".encode() + body + b"\n" * (len(body) % 2)
+            return out
+        with tempfile.TemporaryDirectory() as tmp:
+            one, two = Path(tmp) / "one.a", Path(tmp) / "two.a"
+            one.write_bytes(ar(("a.o", 0, b"same"), ("b.o", 0, b"before")))
+            two.write_bytes(ar(("a.o", 0, b"same"), ("b.o", 5, b"before")))
+            lines = package.ar_diff(one, two)
+            self.assertEqual(len(lines), 1)
+            self.assertIn("b.o", lines[0])
+
+
+class ImportNames(unittest.TestCase):
+    @staticmethod
+    def archive(*members):
+        out = b"!<arch>\n"
+        for name, body in members:
+            out += f"{name + '/':<16}{0:<12}{0:<6}{0:<6}{100644:<8}{len(body):<10}`\n".encode() + body + b"\n" * (len(body) % 2)
+        return out
+
+    def test_only_the_import_library_loses_its_random_directory(self):
+        imported = b"_head_D__a_x_out_rustc4TX99l_kernel32_dll_imports_lib\x00"
+        data = b"_out_rustcAbCdEf_kernel32_dll_imports_lib is a string the crate returns"
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "lib.a"
+            path.write_bytes(self.archive(("", imported), ("kernel32.dllh.o", imported), ("api.o", data)))
+            package.fix_import_names(path)
+            members = package.ar_members(path)
+            self.assertEqual(members["kernel32.dllh.o"][0], imported.replace(b"4TX99l", b"000000"))
+            self.assertEqual(members["api.o"][0], data)
+
+
+class BsdArchive(unittest.TestCase):
+    def test_extended_names_are_read_from_the_data(self):
+        body = b"a_long_object_name.o\0\0\0\0" + b"CONTENT"
+        header = f"{'#1/24':<16}{0:<12}{0:<6}{0:<6}{100644:<8}{len(body):<10}`\n".encode()
+        data = b"!<arch>\n" + header + body + b"\n" * (len(body) % 2)
+        entries = package.ar_entries(data)
+        self.assertEqual([(name, data[start:end]) for name, _, start, end in entries], [("a_long_object_name.o", b"CONTENT")])
+
+
+class Purl(unittest.TestCase):
+    def test_each_registry_is_its_own_package(self):
+        def purl(source):
+            return package.purl({"name": "dep", "version": "1.2.3", "source": source})
+        crates_io = "registry+https://github.com/rust-lang/crates.io-index"
+        self.assertEqual(purl(crates_io), "pkg:cargo/dep@1.2.3")
+        self.assertEqual(purl(None), "pkg:cargo/dep@1.2.3")
+        git = purl("registry+https://example.com/index")
+        sparse = purl("sparse+https://example.com/index/")
+        self.assertIn("?repository_url=https%3A%2F%2Fexample.com%2Findex", git)
+        self.assertIn("?repository_url=https%3A%2F%2Fexample.com%2Findex%2F", sparse)
+        self.assertEqual(len({purl(crates_io), git, sparse}), 3)
 
 
 class Digest(unittest.TestCase):
@@ -289,7 +575,7 @@ class Go(unittest.TestCase):
             self.assertEqual((versions / "list").read_text(), "v0.4.12\n")
             with zipfile.ZipFile(versions / "v0.4.12.zip") as z:
                 self.assertEqual(sorted(z.namelist()), [f"moq.dev/moq-ffi@v0.4.12/{n}" for n in [
-                    "LICENSE-MIT", "go.mod", "rt/libmoq_darwin_arm64.a", "rt/libmoq_ios_arm64.a",
+                    "LICENSE-MIT", "go.mod", "rt/libmoq_darwin_amd64.a", "rt/libmoq_darwin_arm64.a", "rt/libmoq_ios_arm64.a",
                     "rt/libmoq_linux_amd64.a", "rt/libmoq_linux_arm64.a", "rt/libmoq_windows_amd64.a", "rt/rt.go"]])
             # The module ships exactly the libraries the runtime links.
             (root / "libs/libmoq_linux_arm64.a").unlink()
@@ -426,13 +712,166 @@ libmoq.a(other.o):
             (root / "lib/libmoq.so").symlink_to("libmoq.so.0.4.12")
             (root / "lib/libmoq.a").write_bytes(b"!<arch>\n")
             (root / "lib/libmoq.a").chmod(0o600)
-            path = package.pack(root, Path(tmp) / "out.tar.gz")
+            path = package.pack(root, Path(tmp) / "out.tar.gz", 1_700_000_000)
             with tarfile.open(path) as archive:
                 members = {m.name.split("/", 1)[-1]: m for m in archive.getmembers()}
             self.assertEqual(members["lib/libmoq.so.0.4.12"].mode, 0o755)
             self.assertEqual(members["lib/libmoq.a"].mode, 0o644)
             self.assertEqual(members["lib/libmoq.so"].linkname, "libmoq.so.0.4.12")
             self.assertEqual({(m.uid, m.uname) for m in members.values()}, {(0, "")})
+            self.assertEqual({m.mtime for m in members.values()}, {1_700_000_000})
+
+    def test_archives_are_the_same_bytes_whenever_and_wherever_packed(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            made = []
+            for n, (touch, suffix) in enumerate(((1, ".tar.gz"), (2_000_000_000, ".tar.gz"), (1, ".zip"), (2_000_000_000, ".zip"))):
+                base = Path(tmp) / f"base{n}"
+                root = base / "moq-ffi-0.4.12-x"
+                (root / "lib").mkdir(parents=True)
+                for name in ("lib/b.txt", "lib/a.txt", "z.txt"):
+                    (root / name).write_text(name)
+                    os.utime(root / name, (touch, touch))
+                (root / "lib/a.txt").chmod(0o640 if n % 2 else 0o600)
+                made.append(package.pack(root, Path(tmp) / f"out{n}{suffix}", 1_700_000_000).read_bytes())
+            self.assertEqual(made[0], made[1])
+            self.assertEqual(made[2], made[3])
+
+
+class Sdist(unittest.TestCase):
+    def test_moves_each_local_path(self):
+        manifest = ('[dependencies]\napi_export = { package = "api", path = "/src/api", features = ["x"] }\n'
+                    'serde = "1"\n[target."cfg(unix)".dependencies]\ntls = { path = "/src/tls" }\n'
+                    '[patch.crates-io.url]\npath = "/vendor/url"\n')
+        moves = {"/src/api": "../sources/src/api", "/src/tls": "../sources/src/tls", "/vendor/url": "../sources/vendor/url"}
+        moved = tomllib.loads(package.relocate(manifest, moves, strict=True))
+        self.assertEqual(moved["dependencies"]["api_export"], {"package": "api", "path": "../sources/src/api", "features": ["x"]})
+        self.assertEqual(moved["target"]["cfg(unix)"]["dependencies"]["tls"]["path"], "../sources/src/tls")
+        self.assertEqual(moved["patch"]["crates-io"]["url"]["path"], "../sources/vendor/url")
+
+    def test_refuses_a_path_no_package_lies_at(self):
+        manifest = '[dependencies]\na = { path = "/src/a" }\nb = { path = "/elsewhere/b" }\n'
+        with self.assertRaises(SystemExit):
+            package.relocate(manifest, {"/src/a": "../sources/a"}, strict=True)
+        # A package's own manifest may name what its build never loads, such as a dev-dependency.
+        moved = tomllib.loads(package.relocate(manifest, {"/src/a": "../a"}))
+        self.assertEqual(moved["dependencies"], {"a": {"path": "../a"}, "b": {"path": "/elsewhere/b"}})
+
+    def test_refuses_a_path_spelled_otherwise(self):
+        with self.assertRaises(SystemExit):
+            package.relocate("[dependencies]\na = { path = '/src/a' }\n", {"/src/a": "../a"})
+
+    def test_a_root_package_keeps_its_workspace_alone(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp) / "Cargo.toml"
+            root.write_text('cargo-features = ["edition2027"]\n[package]\nname = "root"\n[dependencies]\nx = "1"\n'
+                            '[workspace]\nmembers = ["fixtures/*"]\n[workspace.package]\nversion = "0.4.12"\n'
+                            '[workspace.dependencies]\nkio = { path = "rs/kio", features = ["runtime"] }\n'
+                            '[workspace.lints.clippy]\nall = { level = "warn", priority = -1 }\n'
+                            'quoted = "a \\"b\\" \\u00e9"\n[profile.release]\nlto = true\n')
+            reduced = tomllib.loads(package.workspace_manifest(root))
+        self.assertEqual(set(reduced), {"cargo-features", "workspace"})
+        self.assertEqual(reduced["workspace"]["dependencies"]["kio"], {"path": "rs/kio", "features": ["runtime"]})
+        self.assertEqual(reduced["workspace"]["lints"]["clippy"]["all"], {"level": "warn", "priority": -1})
+        self.assertEqual(reduced["workspace"]["lints"]["clippy"]["quoted"], 'a "b" \u00e9')
+
+    def test_moves_a_reduced_roots_absolute_paths(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp) / "Cargo.toml"
+            root.write_text('[workspace]\nmembers = ["rs/*"]\n[workspace.dependencies]\n'
+                            'kio = { path = "/src/kio", "odd key" = 1 }\n')
+            moved = package.relocate(package.workspace_manifest(root), {"/src/kio": "kio"})
+        self.assertEqual(tomllib.loads(moved)["workspace"]["dependencies"]["kio"], {"path": "kio", "odd key": 1})
+
+    def test_pins_the_channel_alone(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            crate = root / "rs" / "moq-ffi"
+            crate.mkdir(parents=True)
+            self.assertIsNone(package.toolchain(crate))
+            (root / "rust-toolchain.toml").write_text('[toolchain]\nchannel = "1.98.1"\ncomponents = ["clippy"]\n')
+            self.assertEqual(tomllib.loads(package.toolchain(crate)),
+                             {"toolchain": {"channel": "1.98.1", "profile": "minimal"}})
+            # The legacy file, nearer, wins, as rustup reads it.
+            (crate / "rust-toolchain").write_text("nightly-2026-11-12\n")
+            self.assertEqual(tomllib.loads(package.toolchain(crate))["toolchain"]["channel"], "nightly-2026-11-12")
+            (crate / "rust-toolchain").write_text('[toolchain]\npath = "/opt/rust"\n')
+            with self.assertRaises(SystemExit):
+                package.toolchain(crate)
+
+    def test_builds_on_every_target_it_stages(self):
+        targets = tomllib.loads(package.pyproject(["x86_64-unknown-linux-musl"]))
+        self.assertEqual(targets["build-system"], {"requires": [], "build-backend": "backend", "backend-path": ["rust2"]})
+        self.assertEqual(targets["tool"]["rust2-ffi"]["targets"], ["x86_64-unknown-linux-musl"])
+        # The builder stages each sdist target's API on some host.
+        workflow = (package.ROOT / ".github" / "workflows" / "bindings.yml").read_text(encoding="utf-8")
+        for target in package.SDIST_TARGETS:
+            self.assertRegex(workflow, rf"\n            targets: .*\b{target}\b")
+
+    def test_archive_and_its_rebuild(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            files = {"PKG-INFO": (b"Metadata-Version: 2.4\nName: moq-ffi\nVersion: 0.4.12rc1\n\n", False),
+                     "sources/kio/configure": (b"#!/bin/sh\n", True), "binding/Cargo.toml": (b"[package]\n", False)}
+            path = backend.write_sdist(root, "moq-ffi", "0.4.12rc1", files, 1700000000)
+            self.assertEqual(path.name, "moq_ffi-0.4.12rc1.tar.gz")
+            with tarfile.open(path) as tar:
+                members = tar.getmembers()
+                self.assertEqual([m.name for m in members], [f"moq_ffi-0.4.12rc1/{n}" for n in sorted(files)])
+                self.assertEqual({m.name.split("/", 1)[1]: (m.mode, m.mtime) for m in members},
+                                 {"PKG-INFO": (0o644, 1700000000), "binding/Cargo.toml": (0o644, 1700000000),
+                                  "sources/kio/configure": (0o755, 1700000000)})
+                tar.extractall(root / "tree", filter="data")
+            tree = root / "tree" / "moq_ffi-0.4.12rc1"
+            # What a build wrote is no source.
+            (tree / "binding" / "target" / "release").mkdir(parents=True)
+            (tree / "binding" / "target" / "release" / "libmoq.so").write_bytes(b"\x7fELF")
+            (tree / "rust2" / "__pycache__").mkdir(parents=True)
+            (tree / "rust2" / "__pycache__" / "backend.pyc").write_bytes(b"")
+            (tree / "dist").mkdir()
+            (tree / "dist" / "moq_ffi-0.4.12rc1.tar.gz").write_bytes(path.read_bytes())
+            with mock.patch.object(Path, "cwd", return_value=tree), mock.patch.dict(os.environ, clear=True):
+                (tree / "dist" / backend.build_sdist(tree / "dist")).replace(root / "again.tar.gz")
+            # The same bytes, stamped with the time the sdist's files carry.
+            self.assertEqual((root / "again.tar.gz").read_bytes(), path.read_bytes())
+
+
+class Backend(unittest.TestCase):
+    def test_macos_tags_as_pip_reads_them(self):
+        with mock.patch.object(backend.sys, "platform", "darwin"):
+            for target, asked, built, tag in [("aarch64-apple-darwin", None, "11.0", "macosx_11_0_arm64"),
+                                              ("x86_64-apple-darwin", None, "10.12", "macosx_10_12_x86_64"),
+                                              ("x86_64-apple-darwin", "10.15", "10.15", "macosx_10_15_x86_64"),
+                                              ("aarch64-apple-darwin", "14.2", "14.2", "macosx_14_0_arm64"),
+                                              # Older than the target's oldest, which rustc builds for instead.
+                                              ("x86_64-apple-darwin", "10.9", "10.12", "macosx_10_12_x86_64"),
+                                              ("aarch64-apple-darwin", "10.15", "11.0", "macosx_11_0_arm64")]:
+                env = {} if asked is None else {"MACOSX_DEPLOYMENT_TARGET": asked}
+                self.assertEqual(backend.platform_tag(target, env), tag)
+                # cargo builds for the floor the tag claims.
+                self.assertEqual(env["MACOSX_DEPLOYMENT_TARGET"], built)
+            with self.assertRaises(SystemExit):
+                backend.platform_tag("aarch64-apple-darwin", {"MACOSX_DEPLOYMENT_TARGET": "sonoma"})
+
+    def test_musl_links_its_c_runtime_dynamically(self):
+        flag = "-Ctarget-feature=-crt-static"
+        self.assertEqual(backend.dynamic_crt("x86_64-unknown-linux-gnu", {}), [])
+        self.assertEqual(backend.dynamic_crt("x86_64-unknown-linux-musl", {}),
+                         ["--config", f'target.x86_64-unknown-linux-musl.rustflags = ["{flag}"]'])
+        # Either variable, even empty, is all cargo reads, so the flag joins it.
+        for name, value, want in [("RUSTFLAGS", "", flag), ("RUSTFLAGS", "-Copt-level=2", f"-Copt-level=2 {flag}"),
+                                  ("CARGO_ENCODED_RUSTFLAGS", "-Copt-level=2", f"-Copt-level=2\x1f{flag}")]:
+            env = {name: value}
+            self.assertEqual(backend.dynamic_crt("aarch64-unknown-linux-musl", env), [])
+            self.assertEqual(env[name], want)
+
+    def test_refuses_an_emulated_python(self):
+        with mock.patch.object(backend.platform, "machine", return_value="x86_64"), \
+                mock.patch.object(backend.os, "name", "posix"):
+            backend.check_arch("x86_64-apple-darwin")
+            with self.assertRaises(SystemExit):
+                backend.check_arch("aarch64-apple-darwin")
+            # An architecture apart from these two is no emulation to catch.
+            backend.check_arch("riscv64gc-unknown-linux-gnu")
 
 
 class Template(unittest.TestCase):

@@ -1,4 +1,4 @@
-//! The command line: run cargo on the configured package with this binary as rustc.
+//! The command line: run cargo on the package with this binary as rustc.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
@@ -6,15 +6,15 @@ use std::process::{Command, ExitCode};
 
 use rust2_driver::cargo::{Args, Check, Output};
 
-use crate::config::{self, Config};
+use crate::config;
 
-const USAGE: &str = "usage: rust2-ffi --config <ffi.toml> (--out <dir> | --census <dir> | --api <file>) [--manifest-path <Cargo.toml>] [--target <triple>]... [--with <file>]... [--baseline <api.json>] [-- <cargo args>]
+const USAGE: &str = "usage: rust2-ffi (--out <dir> | --census <dir> | --api <file>) [--manifest-path <Cargo.toml>] [--target <triple>]... [--with <file>]... [--baseline <api.json>] [-- <cargo args>]
 
 Exports the pub API of the package's library, following its `pub use` re-exports into
 other crates, as one library: a crate in <dir> that builds the C ABI, with its C header
-in <dir>/include, every C name prefixed by the library's crate name. ffi.toml says what
-to leave out. The package's Cargo.toml is beside ffi.toml unless --manifest-path says
-where. Cargo args, such as --features, are passed to `cargo check`.
+in <dir>/include, every C name prefixed by the library's crate name. An item that cannot
+export fails the export. The package's Cargo.toml is in the current directory unless
+--manifest-path says where. Cargo args, such as --features, are passed to `cargo check`.
 
 --target exports the API the package has on that target, the host by default, whatever
 cargo's config names: its `cfg`s and its layouts. Given several times, it exports each
@@ -46,11 +46,9 @@ pub(crate) fn run(args: &[String]) -> ExitCode {
 
 fn try_run(args: &[String]) -> Result<ExitCode, String> {
 	let (own, args) = Own::parse(args)?;
-	let Some(args) = Args::parse(&args, USAGE)? else {
+	let Some(args) = Args::parse_configless(&args, USAGE)? else {
 		return Ok(ExitCode::SUCCESS);
 	};
-	// Read now, so a malformed config fails before the check.
-	Config::load(&args.config)?;
 	let mut targets = own.targets;
 	if targets.is_empty() {
 		targets.push(rustc_session::config::host_tuple().to_string());
@@ -116,7 +114,6 @@ fn try_run(args: &[String]) -> Result<ExitCode, String> {
 				// The wrapper's answer to cargo's query names the sysroot, which cargo would
 				// otherwise cache by the executables alone.
 				("CARGO_CACHE_RUSTC_INFO", "0".as_ref()),
-				(config::env::CONFIG, args.config.as_os_str()),
 				(config::env::PACKAGE, line.as_ref()),
 				(config::env::PATCH, patch.as_ref()),
 				(config::env::CRATES, crates.as_ref()),
@@ -477,7 +474,8 @@ mod decode_tests {
 }
 
 /// The `[patch]` the glue's workspace resolves the exports by as the check did, wherever
-/// it builds, as TOML with each path absolute, and the `[profile]` the exports build with.
+/// it builds, as TOML with each path absolute, which the glue writes relative to its export,
+/// and the `[profile]` the exports build with.
 fn overrides(metadata: &Metadata, top: &Package) -> Result<String, String> {
 	let (patch, built) = patch(metadata, top)?;
 	let mut overrides = toml::Table::new();

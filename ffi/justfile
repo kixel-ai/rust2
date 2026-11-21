@@ -57,13 +57,13 @@ protocol:
 browsers:
     cargo test --locked --test fixtures -- --ignored --exact api_browsers
 
-# Shrink the api fixture's Kotlin with R8 and its generated rules, and run its test on the Android device adb reaches, in the Android shell (nix develop .#android) with ANDROID_HOME and ANDROID_NDK_HOME set.
+# Shrink the api fixture's Kotlin with R8 and its generated rules, and run its test under CheckJNI on the Android device adb reaches, in the Android shell (nix develop .#android) with ANDROID_HOME and ANDROID_NDK_HOME set.
 android:
     cargo test --locked --test fixtures -- --ignored --exact api_android
 
-# Run the api fixture's C and C++ scripts under AddressSanitizer and ThreadSanitizer, its Go script under Go's race detector, and its glue's C ABI under Miri, in the sanitize shell: nix develop .#sanitize.
+# Run the api fixture's C and C++ scripts under AddressSanitizer with UndefinedBehaviorSanitizer, ThreadSanitizer, and Valgrind, its Swift script under ThreadSanitizer, its Go script under Go's race detector and cgocheck2, its Python script looped on a debug CPython, and its glue's C ABI under Miri, in the sanitize shell: nix develop .#sanitize.
 sanitize:
-    cargo test --locked --test fixtures -- --ignored --exact api_asan api_tsan api_go_race api_miri
+    cargo test --locked --test fixtures -- --ignored --exact api_asan api_tsan api_valgrind api_swift_tsan api_go_checked api_python_debug api_miri
 
 # Apply formatters without changing program behavior.
 fix:
@@ -72,7 +72,11 @@ fix:
     cargo shear --fix
     cargo sort --workspace --no-format
 
-# Run the exporter: `just ffi run --config <ffi.toml> --out <dir>`.
+# Write src/macros.txt, the macros a C or C++ header may define, which a C or C++ name keeps apart from, from glibc's, musl's, and macOS's headers.
+macros:
+    src/macros.sh
+
+# Run the exporter: `just ffi run --manifest-path <Cargo.toml> --out <dir>`.
 run *args:
     cargo run --locked --quiet -- {{ args }}
 
@@ -90,16 +94,16 @@ surface *flags: (moq-write "") (standin "" "web")
         exit 1
     fi
     # The api fixture as its tests export it, with wasm32 for the web binding.
-    cargo run --locked --quiet -- --config fixtures/api/ffi.toml --out target/surface/api --target x86_64-unknown-linux-gnu --target wasm32-wasip1 -- --features doubled
-    cargo run --locked --quiet -- --config moq/web.toml --manifest-path target/moq-ffi-web/Cargo.toml --target wasm32-wasip1 --out target/surface/moq-web
+    cargo run --locked --quiet -- --manifest-path fixtures/api/Cargo.toml --out target/surface/api --target x86_64-unknown-linux-gnu --target wasm32-wasip1 -- --features doubled
+    cargo run --locked --quiet -- --manifest-path target/moq-ffi-web/Cargo.toml --target wasm32-wasip1 --out target/surface/moq-web
     python3 -I surface/surface.py {{ flags }} target/surface/api surface/api
     python3 -I surface/surface.py {{ flags }} target/export/moq surface/moq
     # Its other bindings are moq's on wasm32, which no one ships.
     python3 -I surface/surface.py {{ flags }} target/surface/moq-web surface/moq-web web.d.ts
 
-# Census the stand-in facade moq/ffi.toml exports into target/census/moq-ffi.md, from the pinned moq revision or a checkout, failing when moq/ffi.toml excludes an item that exports.
+# Census the stand-in facade into target/census/moq-ffi.md, from the pinned moq revision or a checkout.
 census checkout="": (standin checkout)
-    cargo run --locked --quiet -- --config moq/ffi.toml --manifest-path target/moq-ffi/Cargo.toml --census target/census
+    cargo run --locked --quiet -- --manifest-path target/moq-ffi/Cargo.toml --census target/census
 
 # Measure the binding benchmark (bench/ffi/README.md) from the pinned moq revision or a checkout, in the bench shell: nix develop .#bench. Its tables go to target/bench/report.md.
 bench checkout="": (bench-build checkout) bench-run
@@ -136,9 +140,76 @@ bench-build checkout="": (moq-export checkout) (moq-web checkout) ts-program cod
     {{ quote(just_executable()) }} dart-program bench-dart moq/bench/export.dart
     rm -rf target/bench-kt
     # moq's Kotlin outgrows the 512 MiB heap kotlinc's launcher defaults to.
-    JAVA_OPTS="-Xmx2g -Xms128M" kotlinc -Werror -cp "$KOTLINX_COROUTINES" "$out/kotlin/moq.kt" moq/bench/export.kt -d target/bench-kt
+    JAVA_OPTS="-Xmx2g -Xms128M" kotlinc -Werror -cp "$KOTLINX_COROUTINES" "$out/kotlin/moq.kt" "$out/kotlin/FastNative.kt" moq/bench/export.kt -d target/bench-kt
     {{ quote(just_executable()) }} swift-module -O
     swiftc -O -warnings-as-errors $({{ quote(just_executable()) }} swift-target 15) -I target/swift -I target/swift-collections/build -I "$out/swift" -I "$hooks" moq/bench/export.swift target/swift/libMoq.a -L target/swift-collections/build -lBasicContainers -lInternalCollectionsUtilities -lSpanPreview "$out/target/release/libmoq.a" "$hooks/libcodspeed.a" -lpthread -ldl -lm -o target/bench-export-swift
+
+# Measure the binding benchmark's Kotlin rows (bench/ffi/README.md) on HotSpot here and, shrunk by R8 as an app is, on ART on the Android device adb reaches, from the pinned moq revision or a checkout, in the Android shell (nix develop .#android) with ANDROID_HOME and ANDROID_NDK_HOME set. Its tables go to target/bench-android/report.md.
+bench-android rounds="3" checkout="":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    sdk=${ANDROID_HOME:?ANDROID_HOME names the Android SDK}
+    adb=$sdk/platform-tools/adb
+    newest() { find "$1" -mindepth 1 -maxdepth 1 | sort -V | tail -n 1; }
+    abi=$("$adb" shell getprop ro.product.cpu.abi | tr -d '\r')
+    case "$abi" in
+        arm64-v8a) target=aarch64-linux-android ;;
+        x86_64) target=x86_64-linux-android ;;
+        *) echo "bench-android: the Android shell's toolchain has no target for the device's ABI $abi" >&2; exit 1 ;;
+    esac
+    # The export merges the device's API, so its Kotlin and libraries serve both; the API
+    # stays staged in target/moq-api, as moq-api leaves it.
+    {{ quote(just_executable()) }} moq-api "$target" {{ quote(checkout) }}
+    {{ quote(just_executable()) }} moq-write {{ quote(checkout) }}
+    out=target/export/moq
+    dir=target/bench-android
+    rm -rf "$dir"
+    mkdir -p "$dir/dex"
+    cargo build --locked --quiet --release --manifest-path "$out/Cargo.toml" --features kotlin
+    cargo ndk --target "$abi" --platform 24 --output-dir "$dir/lib" build --locked --quiet --release --manifest-path "$out/Cargo.toml" --features kotlin
+    # One jar for both VMs, the Kotlin standard library inside, as R8 reads an app's.
+    JAVA_OPTS="-Xmx2g -Xms128M" kotlinc -Werror -cp "$KOTLINX_COROUTINES" "$out/kotlin/moq.kt" "$out/kotlin/FastNative.kt" moq/bench/export.kt -include-runtime -d "$dir/bench.jar"
+    (cd "$dir" && jar xf "$KOTLINX_COROUTINES" META-INF/com.android.tools/r8/coroutines.pro)
+    # HotSpot's CPU clock, which ART's run never reaches, is not in Android's library.
+    printf '%s\n' '-keep class ExportKt { public static void main(java.lang.String[]); }' '-dontwarn com.sun.management.**' '-dontwarn java.lang.management.**' '-dontwarn org.jetbrains.annotations.**' > "$dir/app.pro"
+    java -cp "$(newest "$sdk/build-tools")/lib/d8.jar" com.android.tools.r8.R8 --release --min-api 24 --lib "$(newest "$sdk/platforms")/android.jar" \
+        --pg-conf "$out/kotlin/moq.pro" --pg-conf "$dir/META-INF/com.android.tools/r8/coroutines.pro" --pg-conf "$dir/app.pro" \
+        --output "$dir/dex" "$dir/bench.jar" "$KOTLINX_COROUTINES"
+    device=/data/local/tmp/rust2-bench
+    "$adb" shell "rm -rf $device && mkdir -p $device/dalvik-cache"
+    "$adb" push --sync "$dir/dex/classes.dex" "$dir/lib/$abi/libmoq.so" "$device" > /dev/null
+    # As bench-run does: each program's lines prefixed by its language and round, and
+    # suffixed by the host's load average over the run.
+    raw=$dir/raw.tsv
+    : > "$raw"
+    load() {
+        if [ "{{ os() }}" = macos ]; then
+            sysctl -n vm.loadavg | awk '{ print $2 }'
+        else
+            awk '{ print $1 }' /proc/loadavg
+        fi
+    }
+    run() {
+        local lang=$1 before after
+        shift
+        before=$(load)
+        "$@" | tr -d '\r' > "$dir/run.tsv"
+        after=$(load)
+        awk -v lang="$lang" -v round="$r" -v loadavg="$(echo "$before $after" | awk '{ print ($1 + $2) / 2 }')" -F '\t' \
+            'NF == 3 { print lang "\t" round "\t" $1 "\t" $2 "\t" $3 "\t" loadavg; next } { print "bench-android: " lang ": unexpected line: " $0 > "/dev/stderr"; exit 1 }' \
+            "$dir/run.tsv" >> "$raw"
+    }
+    for r in $(seq {{ rounds }}); do
+        run kotlin java -Djava.library.path="$out/target/release" -cp "$dir/bench.jar:$KOTLINX_COROUTINES" ExportKt
+        # dalvikvm interprets on Android 9 unless told to JIT, as an app's runtime does.
+        run kotlin-art "$adb" shell "ANDROID_DATA=$device dalvikvm -Xusejit:true -Djava.library.path=$device -cp $device/classes.dex ExportKt"
+    done
+    {
+        printf '## Kotlin on HotSpot and ART\n\nART: Android %s (API %s), %s, %s cores.\n\n' \
+            "$("$adb" shell getprop ro.build.version.release | tr -d '\r')" "$("$adb" shell getprop ro.build.version.sdk | tr -d '\r')" "$abi" "$("$adb" shell grep -c ^processor /proc/cpuinfo | tr -d '\r')"
+        python3 -I ../bench/ffi/report.py "$raw"
+    } > "$dir/report.md"
+    cat "$dir/report.md"
 
 # Build moq/bench/codspeed.c over the bench shell's instrument-hooks into target/codspeed: a static library the compiled programs link, a shared one with the JNI functions that Kotlin, Python, and Dart load, the addon Node loads, and a module map Swift imports it by.
 [private]
@@ -215,7 +286,7 @@ bench-run rounds="3":
     }
     build() {
         rm -rf "$scratch"
-        measure export env "$libpath=$sysroot/lib" target/release/rust2-ffi --config moq/ffi.toml --manifest-path target/moq-ffi/Cargo.toml --out "$scratch/moq"
+        measure export env "$libpath=$sysroot/lib" target/release/rust2-ffi --manifest-path target/moq-ffi/Cargo.toml --out "$scratch/moq"
         measure check cargo check --quiet --lib --manifest-path target/moq-ffi/Cargo.toml
         measure generated cargo build --locked --quiet --release --manifest-path "$scratch/moq/Cargo.toml" --features kotlin,dart
         measure moq cargo build --quiet --release --lib --manifest-path target/moq-ffi/Cargo.toml
@@ -282,7 +353,7 @@ moq checkout="": (moq-cpp checkout)
     target/moq-test
     # The Kotlin, on the JVM, through the JNI functions the kotlin feature builds.
     rm -rf target/moq-kt
-    JAVA_OPTS="-Xmx2g -Xms128M" kotlinc -Werror -cp "$KOTLINX_COROUTINES" "$out/kotlin/moq.kt" moq/moq.kt -d target/moq-kt
+    JAVA_OPTS="-Xmx2g -Xms128M" kotlinc -Werror -cp "$KOTLINX_COROUTINES" "$out/kotlin/moq.kt" "$out/kotlin/FastNative.kt" moq/moq.kt -d target/moq-kt
     kotlin -Djava.library.path="$out/target/release" -cp "target/moq-kt:$KOTLINX_COROUTINES" MoqKt
     # The Python, through the CPython extension the python feature builds, and its types
     # through mypy and pyright, as `api_py_types` checks the api fixture's.
@@ -429,6 +500,12 @@ dart-program dir main:
     printf '{"configVersion": 2, "packages": [{"name": "moq", "rootUri": "file://%s/dart/", "packageUri": "./"}]}\n' "$out" > "$dir/.dart_tool/package_config.json"
     printf 'format-version: [1, 0, 0]\nnative-assets:\n  %s_%s:\n    "package:moq/moq.dart": [absolute, "%s"]\n' "{{ os() }}" "$arch" "$out/target/release/$lib" > "$dir/native_assets.yaml"
     dart analyze --fatal-infos "$dir"
+    # pub.dev scores the library with the lints in tests/dart_lints.yaml, which the analyzer reads from the directory it analyzes.
+    rm -rf "$dir-lint"
+    mkdir "$dir-lint"
+    cp "$out"/dart/*.dart "$dir-lint"
+    cp tests/dart_lints.yaml "$dir-lint/analysis_options.yaml"
+    dart analyze --fatal-infos "$dir-lint"
     sdk=$(dirname "$(dirname "$(realpath "$(command -v dart)")")")
     "$sdk/bin/dartaotruntime" "$sdk/bin/snapshots/gen_kernel_aot.dart.snapshot" --platform "$sdk/lib/_internal/vm_platform_strong.dill" \
         --packages "$dir/.dart_tool/package_config.json" --native-assets "$dir/native_assets.yaml" -o "$dir/main.dill" "$dir/main.dart"
@@ -476,7 +553,7 @@ moq-write checkout="": (standin checkout)
         with+=(--with "$api")
     done
     # macOS's bash 3.2 reads an empty array as unset.
-    cargo run --locked --quiet -- --config moq/ffi.toml --manifest-path target/moq-ffi/Cargo.toml --out target/export/moq ${with[@]+"${with[@]}"}
+    cargo run --locked --quiet -- --manifest-path target/moq-ffi/Cargo.toml --out target/export/moq ${with[@]+"${with[@]}"}
     # Sources that changed while the export read them leave it matching neither version.
     if [ -f target/moq-ffi/source ]; then
         before=$(cat target/moq-ffi/source)
@@ -512,7 +589,7 @@ moq-api target checkout="": (standin checkout)
     mkdir -p target/moq-api
     rm -f "target/moq-api/$target.json" "target/moq-api/$target.source"
     before=$(cat target/moq-ffi/source)
-    cargo run --locked --quiet -- --config moq/ffi.toml --manifest-path target/moq-ffi/Cargo.toml --target "$target" --api "target/moq-api/$target.json"
+    cargo run --locked --quiet -- --manifest-path target/moq-ffi/Cargo.toml --target "$target" --api "target/moq-api/$target.json"
     # Sources that changed while the check read them leave the API matching neither version.
     {{ quote(just_executable()) }} standin {{ quote(checkout) }}
     if [ "$before" != "$(cat target/moq-ffi/source)" ]; then
@@ -525,7 +602,7 @@ moq-api target checkout="": (standin checkout)
 # Export the wasm32 stand-in, moq's crates but moq-tokio, into target/export/moq-web for wasm32-wasip1, and build its module for the web binding.
 [private]
 moq-web checkout="": (standin checkout "web")
-    cargo run --locked --quiet -- --config moq/web.toml --manifest-path target/moq-ffi-web/Cargo.toml --target wasm32-wasip1 --out target/export/moq-web
+    cargo run --locked --quiet -- --manifest-path target/moq-ffi-web/Cargo.toml --target wasm32-wasip1 --out target/export/moq-web
     cargo build --locked --quiet --release --manifest-path target/export/moq-web/Cargo.toml --target wasm32-wasip1 --features web
 
 # Export moq's crates' C ABI into target/export/moq and build it, with the libraries a program linking it needs besides in target/moq-native.

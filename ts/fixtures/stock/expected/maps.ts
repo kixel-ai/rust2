@@ -1436,7 +1436,7 @@ export function defaultHasher(data: rs.ByteSlice, out: rs.ByteVec): void {
 	dst2.data[pos2 + 6] = (word6 >>> 16) & 255;
 	dst2.data[pos2 + 7] = (word6 >>> 24) & 255;
 	dst2.length = dst2.length + 8;
-	rs.byteVecPush(out, true ? 1 : 0);
+	rs.byteVecPush(out, 1);
 	const _79: rs.HashMap<[rs.u8, rs.u8], rs.u32> = rs.hashClone(pairs, undefined, undefined, (_a02: undefined): undefined => {
 		return undefined;
 	});

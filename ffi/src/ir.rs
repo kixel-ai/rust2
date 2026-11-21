@@ -39,6 +39,16 @@ pub(crate) struct Reached {
 }
 
 impl Api {
+	/// The path an exported record, enum, or object is shown at, which keys its names.
+	pub(crate) fn shown(&self, ty: &Type) -> &Path {
+		match ty {
+			Type::Record(i) => &self.records[*i].shown,
+			Type::Enum(i) => &self.enums[*i].shown,
+			Type::Object(i) => &self.objects[*i].shown,
+			ty => unreachable!("only an exported type is shown: {ty:?}"),
+		}
+	}
+
 	/// Each object whose handle a call borrows or moves as it lifts a value of `ty`, into
 	/// `out`: its own, and those its records and enums hold. `seen` holds the records and
 	/// enums already walked, as `(is_enum, index)`.
@@ -210,6 +220,10 @@ pub(crate) struct Record {
 	/// The targets it compiles on.
 	pub(crate) on: On,
 	pub(crate) docs: String,
+	/// Its `#[deprecated]` note, if it is deprecated: empty for none. A baseline written
+	/// before it has none.
+	#[serde(default)]
+	pub(crate) deprecated: Option<String>,
 	pub(crate) fields: Vec<Field>,
 	/// Whether its fields are positional, named `0`, `1`, ...
 	pub(crate) tuple: bool,
@@ -277,6 +291,10 @@ pub(crate) struct Field {
 	/// Its Rust name: a number for a positional field.
 	pub(crate) name: String,
 	pub(crate) docs: String,
+	/// Its `#[deprecated]` note, if it is deprecated: empty for none. A baseline written
+	/// before it has none.
+	#[serde(default)]
+	pub(crate) deprecated: Option<String>,
 	pub(crate) ty: Type,
 }
 
@@ -293,6 +311,10 @@ pub(crate) struct Enum {
 	/// The targets it compiles on.
 	pub(crate) on: On,
 	pub(crate) docs: String,
+	/// Its `#[deprecated]` note, if it is deprecated: empty for none. A baseline written
+	/// before it has none.
+	#[serde(default)]
+	pub(crate) deprecated: Option<String>,
 	pub(crate) variants: Vec<Variant>,
 	/// Whether another crate can match it without a wildcard arm.
 	pub(crate) exhaustive: bool,
@@ -335,6 +357,10 @@ pub(crate) struct Object {
 	/// The targets it compiles on.
 	pub(crate) on: On,
 	pub(crate) docs: String,
+	/// Its `#[deprecated]` note, if it is deprecated: empty for none. A baseline written
+	/// before it has none.
+	#[serde(default)]
+	pub(crate) deprecated: Option<String>,
 	/// Whether it is `Sync`: if not, `&self` borrows it on one thread at a time. One that is
 	/// not `Send` is not, as only its thread borrows it.
 	pub(crate) sync: bool,
@@ -404,6 +430,10 @@ pub(crate) struct Callback {
 	/// The targets it compiles on.
 	pub(crate) on: On,
 	pub(crate) docs: String,
+	/// Its `#[deprecated]` note, if it is deprecated: empty for none. A baseline written
+	/// before it has none.
+	#[serde(default)]
+	pub(crate) deprecated: Option<String>,
 	/// Its required methods, each taking `&self` or `&mut self`.
 	pub(crate) methods: Vec<Function>,
 }
@@ -417,6 +447,10 @@ pub(crate) struct Traits {
 	/// A baseline written before it has none.
 	#[serde(default)]
 	pub(crate) hash: bool,
+	/// `PartialOrd` with itself, and whether it is a total order too, `Ord`. A baseline
+	/// written before it has none.
+	#[serde(default)]
+	pub(crate) ord: Order,
 	pub(crate) display: bool,
 	pub(crate) debug: bool,
 	pub(crate) default: bool,
@@ -433,6 +467,19 @@ pub(crate) struct Traits {
 	pub(crate) leaf_sized: bool,
 }
 
+/// How a type orders its values.
+#[derive(Default, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug, serde::Serialize, serde::Deserialize)]
+pub(crate) enum Order {
+	/// No `PartialOrd`.
+	#[default]
+	None,
+	/// `PartialOrd` alone: two values may be unordered, so a binding exports only the
+	/// partial comparison, never its language's total one.
+	Partial,
+	/// `Ord` as well, a total order agreeing with `PartialOrd`.
+	Total,
+}
+
 /// A function or method.
 #[derive(Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub(crate) struct Function {
@@ -447,6 +494,10 @@ pub(crate) struct Function {
 	pub(crate) on: On,
 	/// Its doc comment, as Markdown.
 	pub(crate) docs: String,
+	/// Its `#[deprecated]` note, if it is deprecated: empty for none. A baseline written
+	/// before it has none.
+	#[serde(default)]
+	pub(crate) deprecated: Option<String>,
 	pub(crate) receiver: Option<Receiver>,
 	pub(crate) params: Vec<Param>,
 	/// Where among Rust's parameters each `()` one sits, which C does not pass.
@@ -520,10 +571,13 @@ pub(crate) struct Instance {
 pub(crate) enum Access {
 	/// It calls the function.
 	Call,
-	/// It reads a `pub` field of its receiver, or with `set` assigns it. `shared` when a
-	/// method or constant of its type takes its name, which its path then names, so the
-	/// config names the field `field@<path>`, as rustdoc does.
-	Field { shared: bool, set: bool },
+	/// It reads a `pub` field of its receiver, or with `set` assigns it; `through` the
+	/// reference the field holds, which then has no setter.
+	Field {
+		set: bool,
+		#[serde(default, skip_serializing_if = "std::ops::Not::not")]
+		through: bool,
+	},
 	/// It reads a constant that is not a `bool` or integer.
 	Const,
 	/// It parses its receiver's type from text, with `FromStr`, failing with the parse
@@ -542,6 +596,15 @@ impl Function {
 	/// exports it.
 	pub(crate) fn jni(&self) -> bool {
 		self.params.iter().any(|p| matches!(p.ty, Type::Jni(_)))
+	}
+
+	/// What it yields as a stream, if it is one: a method `next` of `&self` or `&mut self`,
+	/// taking nothing else, whose future outputs `Option<T>` or `Result<Option<T>, E>`. Each
+	/// binding adds an adapter iterating it in its language's own protocol, beside it.
+	pub(crate) fn stream(&self) -> Option<&Type> {
+		let Type::Option(item) = &self.ok else { return None };
+		let receiver = matches!(self.receiver, Some(Receiver::Ref | Receiver::Mut));
+		(self.future && receiver && self.params.is_empty() && self.name() == "next").then_some(item)
 	}
 }
 
@@ -594,6 +657,10 @@ pub(crate) struct Constant {
 	/// The targets it compiles on.
 	pub(crate) on: On,
 	pub(crate) docs: String,
+	/// Its `#[deprecated]` note, if it is deprecated: empty for none. A baseline written
+	/// before it has none.
+	#[serde(default)]
+	pub(crate) deprecated: Option<String>,
 	pub(crate) value: Literal,
 }
 

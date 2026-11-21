@@ -35,7 +35,9 @@ export const hasher$hash_Hasher: rs.HasherImpl<Tally> = { write: write$hash_Hash
 export function write$hash_Hasher(self: Tally, bytes: rs.ByteSlice): void {
 	for (const b of rs.byteSliceView(bytes)) {
 		event(119, b);
-		self._0 = rs.u64WrappingAdd(rs.u64WrappingMul(self._0, 31), b as rs.u64);
+		const _11: rs.u64 = rs.u64WrappingMul(self._0, 31);
+		const _13: rs.u64 = b as rs.u64;
+		self._0 = (typeof _11 === "number" && typeof _13 === "number" && _11 + _13 <= 9007199254740991 ? _11 + _13 : rs.u64WrappingAdd(_11, _13)) as rs.u64;
 	}
 }
 

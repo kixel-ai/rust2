@@ -3456,7 +3456,8 @@ export function itemWrites(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): vo
 				const iterE: number = part.start + part.length;
 				while (iterI < iterE) {
 					const _31: number = iterI++;
-					iterS[_31] = rs.u64WrappingAdd(iterS[_31], 1);
+					const _36: rs.u64 = iterS[_31];
+					iterS[_31] = (typeof _36 === "number" && _36 + 1 <= 9007199254740991 ? _36 + 1 : rs.u64WrappingAdd(_36, 1)) as rs.u64;
 				}
 				const _38: rs.Slice<rs.u64> = rs.sliceRange(rs.sliceFrom(wide.items), cut);
 				const iterS2: rs.u64[] = _38.data;

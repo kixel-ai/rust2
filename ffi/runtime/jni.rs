@@ -26,17 +26,30 @@ use crate::rt;
 static VM: OnceLock<usize> = OnceLock::new();
 static CLASS: OnceLock<usize> = OnceLock::new();
 
-/// Note the JVM and `class`, from its first native call, which its initializer makes. The
-/// library defines no `JNI_OnLoad`, so the crate it exports may define its own.
+/// Note the JVM and `class`, from its first native call, which its initializer makes, and
+/// register `natives` on it: the `@FastNative` methods, which ART binds by their names only
+/// from Android 12. The library defines no `JNI_OnLoad`, so the crate it exports may define
+/// its own.
+///
+/// Returns false, with the JVM's `NoSuchMethodError` pending, when `class` lacks one of
+/// `natives`: a Kotlin file from another build, or a shrinker dropping a method the rules
+/// keep. The caller returns at once, so the class's initializer throws it.
 ///
 /// # Safety
-/// `env` is this thread's, and `class` the native class.
-pub unsafe fn load(env: *mut JNIEnv, class: jclass) {
+/// `env` is this thread's, `class` the native class, and each of `natives` a function of
+/// the signature it names.
+pub unsafe fn load(env: *mut JNIEnv, class: jclass, natives: &[JNINativeMethod]) -> bool {
 	// SAFETY: `env` is this thread's, as the caller's contract says.
 	unsafe {
 		let mut vm: *mut JavaVM = std::ptr::null_mut();
 		if ((**env).v1_2.GetJavaVM)(env, &mut vm) != JNI_OK {
 			fail(env, "load", "the JVM is missing");
+		}
+		if !natives.is_empty() && ((**env).v1_2.RegisterNatives)(env, class, natives.as_ptr(), natives.len() as jint) != JNI_OK {
+			if !((**env).v1_2.ExceptionCheck)(env) {
+				fail(env, "load", "registering the native methods failed with no exception");
+			}
+			return false;
 		}
 		let _ = VM.set(vm as usize);
 		CLASS.get_or_init(|| ((**env).v1_2.NewGlobalRef)(env, class) as usize);
@@ -49,6 +62,12 @@ pub unsafe fn load(env: *mut JNIEnv, class: jclass) {
 		}
 		((**env).v1_2.DeleteLocalRef)(env, buffer);
 	}
+	// Looked up now, before a leaf can run: a `@FastNative` call refusing its borrow or an
+	// argument must not wait on another thread's lookup, which a collection pending on the
+	// leaf would stall.
+	method(env, &REFUSED, REFUSED_METHOD.0, REFUSED_METHOD.1);
+	method(env, &INVALID, INVALID_METHOD.0, INVALID_METHOD.1);
+	true
 }
 
 /// The class holding the Kotlin functions Rust calls.
@@ -111,6 +130,7 @@ pub fn fail(env: *mut JNIEnv, what: &str, msg: &str) -> ! {
 }
 
 static REFUSED: OnceLock<usize> = OnceLock::new();
+const REFUSED_METHOD: (&CStr, &CStr) = (c"__refused", c"(Ljava/lang/String;)Ljava/lang/Throwable;");
 
 /// Throw the `_Native.__Refused`, an `IllegalStateException`, a call of `what` raises once
 /// its check failed with `status`, returning a zeroed value Kotlin never reads, as JNI's
@@ -123,7 +143,7 @@ pub fn refuse<R>(env: *mut JNIEnv, status: i32, what: &str) -> R {
 		None => format!("{what}: an unknown status {status}"),
 	};
 	let message = std::ffi::CString::new(message).expect("no NUL in a message");
-	let id = method(env, &REFUSED, c"__refused", c"(Ljava/lang/String;)Ljava/lang/Throwable;");
+	let id = method(env, &REFUSED, REFUSED_METHOD.0, REFUSED_METHOD.1);
 	// SAFETY: `env` is this thread's, and `__refused` takes the message.
 	unsafe {
 		let text = ((**env).v1_2.NewStringUTF)(env, message.as_ptr());
@@ -141,13 +161,14 @@ pub fn refuse<R>(env: *mut JNIEnv, status: i32, what: &str) -> R {
 }
 
 static INVALID: OnceLock<usize> = OnceLock::new();
+const INVALID_METHOD: (&CStr, &CStr) = (c"__invalid", c"(Ljava/lang/String;)Ljava/lang/Throwable;");
 
 /// Throw the `_Native.__Invalid`, an `IllegalArgumentException`, an argument holding a
 /// value its Rust type cannot raises, which the native method then returns with, as
 /// [`raised`] does. Its own class tells Kotlin the call moved nothing.
 #[cold]
 fn invalid(env: *mut JNIEnv, message: &CStr) {
-	let id = method(env, &INVALID, c"__invalid", c"(Ljava/lang/String;)Ljava/lang/Throwable;");
+	let id = method(env, &INVALID, INVALID_METHOD.0, INVALID_METHOD.1);
 	// SAFETY: `env` is this thread's, and `__invalid` takes the message.
 	unsafe {
 		let text = ((**env).v1_2.NewStringUTF)(env, message.as_ptr());
@@ -180,11 +201,18 @@ pub fn upcall<R>(what: &str, f: impl FnOnce(*mut JNIEnv) -> R) -> R {
 			fail(env, what, "a call into Kotlin is out of memory");
 		}
 		let result = f(env);
-		if ((**env).v1_2.ExceptionCheck)(env) {
-			fail(env, what, "a call into Kotlin threw");
-		}
+		threw(env, what);
 		((**env).v1_2.PopLocalFrame)(env, std::ptr::null_mut());
 		result
+	}
+}
+
+/// Abort if the call into Kotlin `f` just made threw: JNI allows no other call while an
+/// exception is pending, so a call whose result is read checks this first.
+pub fn threw(env: *mut JNIEnv, what: &str) {
+	// SAFETY: `env` is this thread's.
+	if unsafe { ((**env).v1_2.ExceptionCheck)(env) } {
+		fail(env, what, "a call into Kotlin threw");
 	}
 }
 

@@ -20,6 +20,7 @@ import (
 	"net/netip"
 	"os"
 	"runtime"
+	"runtime/pprof"
 	"slices"
 	"strings"
 	"sync"
@@ -48,6 +49,13 @@ func (Print) Log(level uint8, line string) bool {
 	fmt.Printf("log %d %s\n", level, line)
 	return level%2 == 0
 }
+
+// Edits is the transcript's Undo: each method returns its own digit.
+type Edits struct{}
+
+func (Edits) Delete(n uint32) uint32 { return n - 1 }
+func (Edits) Free() uint32           { return 2 }
+func (Edits) Type() uint8            { return 3 }
 
 // list is items as Rust's Debug prints a slice, each by show.
 func list[T any](items []T, show func(T) string) string {
@@ -297,6 +305,47 @@ func channel() {
 	fmt.Printf("woken %d\n", wakes)
 }
 
+// streams is the transcript's: streams ranged over by All, to their end, left early, and
+// to an error, which ends the range but not the stream.
+func streams() {
+	ctx := context.Background()
+	var counts []string
+	for count, err := range api.NewCountdown(3).All(ctx) {
+		ok(err)
+		counts = append(counts, fmt.Sprint(count))
+	}
+	fmt.Printf("countdown %s\n", strings.Join(counts, " "))
+	// A range left early takes nothing past the item it stopped at.
+	countdown := api.NewCountdown(5)
+	for count := range countdown.All(ctx) {
+		if count == 4 {
+			break
+		}
+	}
+	fmt.Printf("countdown after break %d\n", *must(countdown.Next(ctx)))
+	// Each payload sends the next, which `!` fails and an empty one ends.
+	c := api.NewChannel()
+	feed := must(c.Feed())
+	replies := map[string]string{"a": "b", "b": "!"}
+	for _, first := range []string{"a", "c"} {
+		c.Send(rt.NewBytes([]byte(first)))
+		failed := false
+		for payload, err := range feed.All(ctx) {
+			check(!failed, "a stream yields nothing past its error")
+			if err != nil {
+				fmt.Printf("feed error %s\n", err)
+				failed = true
+				continue
+			}
+			fmt.Printf("feed %s\n", payload.Copy())
+			c.Send(rt.NewBytes([]byte(replies[string(payload.Copy())])))
+		}
+		if !failed {
+			fmt.Println("feed end")
+		}
+	}
+}
+
 // must2 is a call's two values, or a panic on its error.
 func must2[A, B any](a A, b B, err error) (A, B) {
 	if err != nil {
@@ -378,6 +427,23 @@ func checks() {
 	}
 	// A function named as a type of its package, which `area` names in another's.
 	check(api.Span_(1, 4) == 3, "a function named as a type of its package")
+	// Methods apart from their variants' fields and from what go vet reads as standard,
+	// unless of the standard's signature, each reaching its own Rust.
+	{
+		tag := api.ClashTagPrivate{Number: 3}
+		check(tag.Number == 3 && tag.Number_() == 13, "a method named as its variants' field")
+		check(api.ClashMalformed{At: 2}.Is_(2), "an error's method named as errors.Is")
+		reader := api.NewClashReader(rt.NewBytes([]byte{7}))
+		check(must(reader.ReadByte_()) == 7, "a method named as io.ByteReader's")
+		_, err := reader.ReadByte_()
+		var malformed api.ClashMalformed
+		check(errors.As(err, &malformed) && malformed.At == 1, "a method named as io.ByteReader's fails as Rust's")
+		ok(reader.UnreadByte())
+		var _ interface{ UnreadByte() error } = reader
+		check(must(reader.ReadByte_()) == 7, "a method of io.ByteScanner's signature keeps its name")
+		ok(reader.Close())
+		check(api.ClashWaited(source{}) == 4, "an interface's method named as io.ByteReader's")
+	}
 	// A path that is no UTF-8 is a Go string all the same.
 	check(api.Stray() == "\xff", "a path that is not UTF-8 crosses as its bytes")
 	var lent string
@@ -621,6 +687,37 @@ func futures() {
 	// The send lands from another goroutine's thread while the receive waits.
 	go channel.Send(rt.NewBytes([]byte("blocked")))
 	check(string(must(channel.Recv(ctx)).Copy()) == "blocked", "recv returns the payload another goroutine sent")
+
+	// A stream's range ends with ctx's error once ctx is done while its Next pends, which
+	// drops Rust's future and loses nothing: the stream stays usable, and the payload sent
+	// afterwards is the next call's.
+	{
+		feed := must(channel.Feed())
+		cancelled, cancel := context.WithCancel(ctx)
+		watching := watch(cancelled)
+		ended := make(chan error)
+		go func() {
+			for _, err := range feed.All(watching) {
+				ended <- err
+				return
+			}
+			ended <- nil
+		}()
+		<-watching.waiting
+		cancel()
+		check(errors.Is(<-ended, context.Canceled), "a range whose context ends yields its error")
+		channel.Send(rt.NewBytes([]byte("kept")))
+		check(string(must(feed.Next(ctx)).Copy()) == "kept", "a cancelled range loses nothing")
+		// A break takes nothing past its item: the payload sent after it is the next call's.
+		channel.Send(rt.NewBytes([]byte("first")))
+		for payload, err := range feed.All(ctx) {
+			ok(err)
+			check(string(payload.Copy()) == "first", "a range yields the payload sent")
+			channel.Send(rt.NewBytes([]byte("second")))
+			break
+		}
+		check(string(must(feed.Next(ctx)).Copy()) == "second", "a range reads nothing ahead")
+	}
 
 	// A wake that lands while the future polls, before it returns pending, is kept: the
 	// call polls again rather than waiting for a wake that already happened.
@@ -1392,6 +1489,15 @@ func broken(which string) {
 }
 
 // cancelLog cancels its context at each line, and counts them.
+// source is a clash.Source, reading 4 at once.
+type source struct{}
+
+func (source) Wait() {}
+
+func (source) ReadByte_() uint8 {
+	return 4
+}
+
 type cancelLog struct {
 	cancel context.CancelFunc
 	lines  atomic.Int32
@@ -1434,5 +1540,19 @@ func main() {
 		checks()
 	default:
 		broken(os.Args[1])
+	}
+	unleaked()
+}
+
+// unleaked fails if a goroutine is blocked forever on what nothing else can reach, such
+// as a future's wake channel a cancelled call dropped.
+func unleaked() {
+	leaks := pprof.Lookup("goroutineleak")
+	var stacks strings.Builder
+	// Writing it runs the collection that finds them.
+	ok(leaks.WriteTo(&stacks, 1))
+	if leaks.Count() != 0 {
+		fmt.Fprint(os.Stderr, stacks.String())
+		os.Exit(1)
 	}
 }

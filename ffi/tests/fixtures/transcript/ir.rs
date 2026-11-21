@@ -31,6 +31,16 @@ impl Api {
 		on & all == all
 	}
 
+	/// The std traits of `ty`, a record, an enum, or an object.
+	pub(crate) fn traits(&self, ty: &Type) -> Option<Traits> {
+		match ty {
+			Type::Record(i) => Some(self.records[*i].traits),
+			Type::Enum(i) => Some(self.enums[*i].traits),
+			Type::Object(i) => Some(self.objects[*i].traits),
+			_ => None,
+		}
+	}
+
 	/// The objects a value of `ty` holds, its records' and enums' fields included.
 	pub(crate) fn handles(&self, ty: &Type, out: &mut Vec<usize>, seen: &mut Vec<(bool, usize)>) {
 		match ty {
@@ -133,6 +143,17 @@ pub(crate) struct Traits {
 	pub(crate) clone: bool,
 	pub(crate) display: bool,
 	pub(crate) debug: bool,
+	#[serde(default)]
+	pub(crate) ord: Order,
+}
+
+/// How a type orders its values: by `PartialOrd`, and whether `Ord` too.
+#[derive(Clone, Copy, Default, PartialEq, Eq, Debug, serde::Deserialize)]
+pub(crate) enum Order {
+	#[default]
+	None,
+	Partial,
+	Total,
 }
 
 #[derive(serde::Deserialize)]
@@ -161,7 +182,11 @@ pub(crate) struct Instance {
 #[derive(Clone, Copy, PartialEq, Eq, Debug, serde::Deserialize)]
 pub(crate) enum Access {
 	Call,
-	Field { shared: bool, set: bool },
+	Field {
+		set: bool,
+		#[serde(default)]
+		through: bool,
+	},
 	Const,
 	Parse,
 	Text,

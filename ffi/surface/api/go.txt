@@ -1,18 +1,23 @@
 package api // import "api/api"
 
 CONSTANTS
+const EOF int32 = -1
 const FAR int64 = 9223372036854775807
 const LIMIT uint64 = 1000
+const STEP uint64 = 1
+const URL uint64 = 1000
 
 FUNCTIONS
 func Admit(entry p_rt.Tuple4[*Counter, *Mark, Seat, Choice]) (uint64, error)
 func After(ctx context.Context, first func(context.Context), value uint32) (uint32, error)
+func All(note uint8) uint8
 func Alpn(config *p_tls.Config) (string, error)
 func AlpnLent(config *p_tls.Config) (string, error)
 func ApplyNonZeroU16(pair PairNonZeroU16, f func(uint16) uint32) (uint32, error)
 func ApplyU32(pair PairU32, f func(uint32) uint32) uint32
 func Area(size p_dep.Size) uint64
 func AreaScaledPoint(self *p_dep.Area, by Point) (uint64, error)
+func Assert(holds bool) bool
 func Attempt(check func() error) error
 func BeatVtable_() unsafe.Pointer
 func Beats(beat Beat) (uint32, error)
@@ -40,6 +45,8 @@ func ClashAudioEncoderFinish_() uint8
 func ClashIgnore(arg0 uint8, arg1 uint8, arg2 uint8) uint8
 func ClashListed(java []uint32, kotlin *uint32) [][]uint32
 func ClashNested(a *p_rt.Tuple2[p_rt.Tuple2[uint8, uint16], uint32], b *p_rt.Tuple3[uint8, uint16, uint32]) uint32
+func ClashSourceVtable_() unsafe.Pointer
+func ClashWaited(source ClashSource) uint8
 func Coordinates(point *Point) int32
 func Corner(unit bool) (p_rt.Tuple2[uint32, uint32], error)
 func CornerLater(ctx context.Context) (p_rt.Tuple2[uint32, uint32], error)
@@ -48,6 +55,8 @@ func Counted(ctx context.Context, n uint32, count func(uint32)) (uint32, error)
 func Crammed(a Moment, b Moment, n0 uint64, n1 uint64, n2 uint64, n3 uint64, n4 uint64, n5 uint64, n6 uint64, n7 uint64, n8 uint64, n9 uint64, n10 uint64, n11 uint64, n12 uint64, n13 uint64, n14 uint64, n15 uint64, n16 uint64, n17 uint64, n18 uint64, n19 uint64, n20 uint64, n21 uint64, n22 uint64, n23 uint64, n24 uint64, n25 uint64, n26 uint64, n27 uint64, n28 uint64, n29 uint64, n30 uint64, n31 uint64, n32 uint64, n33 uint64, n34 uint64, n35 uint64, n36 uint64, n37 uint64, n38 uint64, n39 uint64, n40 uint64, n41 uint64, n42 uint64, n43 uint64, n44 uint64, n45 uint64, n46 uint64, n47 uint64, n48 uint64, n49 uint64, n50 uint64, n51 uint64, n52 uint64, n53 uint64, n54 uint64, n55 uint64, n56 uint64, n57 uint64, n58 uint64, n59 uint64, n60 uint64, n61 uint64, n62 uint64, n63 uint64, n64 uint64, n65 uint64, n66 uint64, n67 uint64, n68 uint64, n69 uint64, n70 uint64, n71 uint64, n72 uint64, n73 uint64, n74 uint64, n75 uint64, n76 uint64, n77 uint64, n78 uint64, n79 uint64, n80 uint64, n81 uint64, n82 uint64, n83 uint64, n84 uint64, n85 uint64, n86 uint64, n87 uint64, n88 uint64, n89 uint64, n90 uint64, n91 uint64, n92 uint64, n93 uint64, n94 uint64, n95 uint64, n96 uint64, n97 uint64, n98 uint64, n99 uint64, n100 uint64, n101 uint64, n102 uint64, n103 uint64, n104 uint64, n105 uint64, n106 uint64, n107 uint64, n108 uint64, n109 uint64, n110 uint64, n111 uint64, n112 uint64, n113 uint64, n114 uint64, n115 uint64, n116 uint64, n117 uint64, n118 uint64, n119 uint64, n120 uint64, n121 uint64, n122 uint64, n123 uint64) uint64
 func Cross(left LeftRightU8, right RightLeftU8) uint8
 func Crowded(reading Reading, a Stamp, b Stamp, n0 uint64, n1 uint64, n2 uint64, n3 uint64, n4 uint64, n5 uint64, n6 uint64, n7 uint64, n8 uint64, n9 uint64, n10 uint64, n11 uint64, n12 uint64, n13 uint64, n14 uint64, n15 uint64, n16 uint64, n17 uint64, n18 uint64, n19 uint64, n20 uint64, n21 uint64, n22 uint64, n23 uint64, n24 uint64, n25 uint64, n26 uint64, n27 uint64, n28 uint64, n29 uint64, n30 uint64, n31 uint64, n32 uint64, n33 uint64, n34 uint64, n35 uint64, n36 uint64, n37 uint64, n38 uint64, n39 uint64, n40 uint64, n41 uint64, n42 uint64, n43 uint64, n44 uint64, n45 uint64, n46 uint64, n47 uint64, n48 uint64, n49 uint64, n50 uint64, n51 uint64, n52 uint64, n53 uint64, n54 uint64, n55 uint64, n56 uint64, n57 uint64, n58 uint64, n59 uint64, n60 uint64, n61 uint64, n62 uint64, n63 uint64, n64 uint64, n65 uint64, n66 uint64, n67 uint64, n68 uint64, n69 uint64, n70 uint64, n71 uint64, n72 uint64, n73 uint64, n74 uint64, n75 uint64, n76 uint64, n77 uint64, n78 uint64, n79 uint64, n80 uint64, n81 uint64, n82 uint64, n83 uint64, n84 uint64, n85 uint64, n86 uint64, n87 uint64, n88 uint64, n89 uint64, n90 uint64, n91 uint64, n92 uint64, n93 uint64, n94 uint64, n95 uint64, n96 uint64, n97 uint64, n98 uint64, n99 uint64, n100 uint64, n101 uint64, n102 uint64, n103 uint64, n104 uint64, n105 uint64, n106 uint64, n107 uint64, n108 uint64, n109 uint64, n110 uint64, n111 uint64, n112 uint64, n113 uint64, n114 uint64, n115 uint64, n116 uint64, n117 uint64, n118 uint64) (uint64, error)
+func Deprecated_(note uint8) uint8
+func Deprecated__(note uint8) uint8
 func Describe(event Event) (string, error)
 func DescribeNonZeros(nonZeros NonZeros) (string, error)
 func Digit(r *p_rt.Bytes) (uint8, error)
@@ -70,6 +79,7 @@ func End(limit uint64) p_rt.BoundU64
 func Ends(limit uint64) (p_rt.BoundU64, p_rt.BoundU64)
 func Entries(entries []p_rt.Tuple2[string, *p_serdejson.Json], tag string) ([]p_rt.Tuple2[string, *p_serdejson.Json], error)
 func Erased(receipt *Receipt) (uint32, error)
+func Errno() int32
 func Excuse(note p_rt.Bytes, entry p_rt.Tuple2[p_rt.Bytes, *Refusal]) (uint, error)
 func Extended(duration p_rt.Duration, by p_rt.Duration) *p_rt.Duration
 func Failure(message string) (*p_core.IoError, error)
@@ -118,6 +128,7 @@ func Least(sets [][]uint32) [][]uint32
 func Len(payload p_rt.Bytes) uint
 func LentBack(value p_rt.Bytes) p_rt.Bytes
 func Less(value uint32, value2 uint32) uint32
+func LevelLater(ctx context.Context, dial Dial) (uint64, error)
 func LocalLater(ctx context.Context, n uint32) (uint32, error)
 func LocalWaiterPollReady(ctx context.Context, n uint32) (uint32, error)
 func LocalsDropped() uint32
@@ -128,8 +139,10 @@ func LogVtable_() unsafe.Pointer
 func LogWaker(log Log) (func(), error)
 func Longest(words []string) (uint, error)
 func Louder(filter *p_tracingcore.Level) *p_tracingcore.Level
+func MacrosStreamed(streams MacrosStreams, errno uint8) uint32
 func Made(n uint32, make_ func(uint32) string) string
 func Marked(apiMarked *Mark) (uint64, error)
+func MarkerY() int32
 func Named(name string) (*string, error)
 func NextChar(c rune) (*rune, error)
 func NextHop(hop *uint64) (*uint64, error)
@@ -140,6 +153,7 @@ func Nudge(point *Point, by int32)
 func NudgeBy(point *Point, refusal *Refusal) error
 func OfferedLen(alpns []p_rt.Bytes) uint
 func Offset(by func() uint32, byData uint32) uint32
+func Offsetof(field uint8) uint8
 func OnFirstThread() bool
 func PRIMES() []uint32
 func Parents(paths []string) ([]*string, error)
@@ -186,6 +200,8 @@ func SameU64(v uint64) uint64
 func SameUsize(v uint) uint
 func SampleHex(sample p_rt.Bytes) string
 func Scaled(v p_rt.U128, by uint64) *p_rt.U128
+func ScanVtable_() unsafe.Pointer
+func Scanned(scan Scan, payload p_rt.Bytes) uint64
 func SecondLater(w235 p_rt.Duration) p_rt.Duration
 func Sections(entries []p_rt.Tuple2[string, *p_serdejson.Json]) ([]p_rt.Tuple2[string, *p_serdejson.Json], error)
 func Secure(alpn string) (*p_tls.Config, error)
@@ -225,13 +241,20 @@ func TickName(tick Label) (string, error)
 func TicketClones() uint32
 func Tickets(entries []p_rt.Tuple2[string, Ticket]) ([]p_rt.Tuple2[string, Ticket], error)
 func TimedHex(payload p_rt.Bytes) string
-func TimedText(value *p_serdejson.Json) (string, error)
 func Title(formal bool) *string
 func TokenBytes(id uint32, len_ uint32) p_rt.Bytes
 func TokenSlice(id uint32, len_ uint32, of uint32) p_rt.Bytes
 func Total(range_ p_rt.RangeU64) uint64
+func TurnerVtable_() unsafe.Pointer
+func UndoVtable_() unsafe.Pointer
+func Undone(undo Undo, n uint32) uint32
+func Unescaped(text string) (string, error)
+func UnescapedLater(ctx context.Context, text string) (string, error)
+func UnescapedMaybe(ctx context.Context, text *string) (*string, error)
 func Unhook() error
+func Unzeroed(bytes p_rt.Bytes) p_rt.Bytes
 func Verify(cert *p_tls.Cert) (uint32, error)
+func VisitChunks(payload p_rt.Bytes, size uint, visit func(*[]byte) uint64) []uint64
 func VisitStray(visit func(string))
 func WaiterPollFuture(ctx context.Context, future func(context.Context)) error
 func Walk(steps uint64, visit func(*Cursor) uint64) uint64
@@ -241,6 +264,7 @@ func WasmTake(counter *Counter) (uint64, error)
 func Watch(gauge *Gauge, watch func(*Gauge) uint64) (uint64, error)
 func WeighAllCounter(items []*Counter) (uint64, error)
 func WeighPoint(from Point) uint32
+func Wexitstatus(status int32) int32
 func Widen(range_ p_rt.RangeU64, by uint64) p_rt.RangeU64
 func Widths(n uint64) (uint8, int16, uint32, uint64)
 func Wind(whole PolarTurn, part Polar_Turn) uint32
@@ -373,6 +397,7 @@ func NewChannel() *Channel
 func (self *Channel) Clear() error
 func (self *Channel) Clone() (*Channel, error)
 func (self *Channel) Close() error
+func (self *Channel) Feed() (*Feed, error)
 func (self *Channel) Itemized(ctx context.Context, items *[]uint32) (uint, error)
 func (self *Channel) Listen(cx func()) error
 func (self *Channel) Notify(waker func()) error
@@ -491,6 +516,19 @@ type ClashEmptyString struct {
 func ClashEmpty() *ClashEmptyString
 func (self *ClashEmptyString) Close() error
 func (self *ClashEmptyString) IsEmpty() (bool, error)
+type ClashErrno struct {
+	Errno int32
+}
+func ClashErrnoNULL() ClashErrno
+func (self ClashErrno) Equal(other ClashErrno) bool
+func (self ClashErrno) GoString() string
+type ClashEscaped struct {
+	New uint8
+}
+func (self ClashEscaped) Delete() uint8
+func (self ClashEscaped) Delete_(new_ uint8, new_2 uint8) uint8
+func (self ClashEscaped) Equal(other ClashEscaped) bool
+func (self ClashEscaped) GoString() string
 type ClashEvent struct {
 	V0 Event
 }
@@ -530,6 +568,23 @@ func (self ClashInt) Point() (*Point, error)
 func (self ClashInt) Reading(kotlin uint32) (Reading, error)
 func (self ClashInt) Stamp(kotlin uint64) (Stamp, error)
 func (self ClashInt) Tagged(ctx context.Context, tag string) (string, error)
+type ClashLevel int32
+const (
+	ClashLevelDefault ClashLevel = 0
+	ClashLevelDebug   ClashLevel = 1
+)
+func ClashLevelDefault_() ClashLevel
+func (self ClashLevel) Equal(other ClashLevel) bool
+func (self ClashLevel) GoString() string
+func (self ClashLevel) Index() uint8
+type ClashMalformed struct {
+	At uint8
+}
+func (self ClashMalformed) Equal(other ClashMalformed) bool
+func (self ClashMalformed) Error() string
+func (self ClashMalformed) GoString() string
+func (self ClashMalformed) Is_(at uint8) bool
+func (self ClashMalformed) String() string
 type ClashMoment struct {
 	V0 Moment
 }
@@ -595,6 +650,13 @@ func (self ClashPoint) Point() (*Point, error)
 func (self ClashPoint) Reading(kotlin uint32) (Reading, error)
 func (self ClashPoint) Stamp(kotlin uint64) (Stamp, error)
 func (self ClashPoint) Tagged(ctx context.Context, tag string) (string, error)
+type ClashReader struct {
+	Handle_ *p_rt.Handle_
+}
+func NewClashReader(bytes p_rt.Bytes) *ClashReader
+func (self *ClashReader) Close() error
+func (self *ClashReader) ReadByte_() (uint8, error)
+func (self *ClashReader) UnreadByte() error
 type ClashSeed struct {
 	Handle_ *p_rt.Handle_
 }
@@ -616,6 +678,10 @@ func (self ClashShape) Point() (*Point, error)
 func (self ClashShape) Reading(kotlin uint32) (Reading, error)
 func (self ClashShape) Stamp(kotlin uint64) (Stamp, error)
 func (self ClashShape) Tagged(ctx context.Context, tag string) (string, error)
+type ClashSource interface {
+	Wait()
+	ReadByte_() uint8
+}
 type ClashSpan struct {
 	Width uint32
 }
@@ -643,7 +709,9 @@ type ClashStore struct {
 func NewClashStore(count uint32) *ClashStore
 func (self *ClashStore) Close() error
 func (self *ClashStore) Close_() (uint32, error)
+func (self *ClashStore) Finalize() error
 func (self *ClashStore) Free() (uint32, error)
+func (self *ClashStore) Wait() error
 type ClashString struct {
 	V0 string
 }
@@ -657,6 +725,23 @@ func (self ClashString) Point() (*Point, error)
 func (self ClashString) Reading(kotlin uint32) (Reading, error)
 func (self ClashString) Stamp(kotlin uint64) (Stamp, error)
 func (self ClashString) Tagged(ctx context.Context, tag string) (string, error)
+type ClashTag interface {
+	GoString() string
+	Equal(other ClashTag) bool
+	Number_() uint32
+}
+type ClashTagApplication struct {
+	Number uint32
+}
+func (self ClashTagApplication) Equal(other ClashTag) bool
+func (self ClashTagApplication) GoString() string
+func (self ClashTagApplication) Number_() uint32
+type ClashTagPrivate struct {
+	Number uint32
+}
+func (self ClashTagPrivate) Equal(other ClashTag) bool
+func (self ClashTagPrivate) GoString() string
+func (self ClashTagPrivate) Number_() uint32
 type ClashTone struct {
 	Hz uint16
 }
@@ -711,6 +796,14 @@ func (self *Codecs) ListSet(value []*p_tls.Codec) error
 type Core struct {
 	Id uint32
 }
+type Countdown struct {
+	Handle_ *p_rt.Handle_
+}
+func CountdownTold(from uint32, log Log) *Countdown
+func NewCountdown(from uint32) *Countdown
+func (self *Countdown) All(ctx context.Context) iter.Seq2[uint32, error]
+func (self *Countdown) Close() error
+func (self *Countdown) Next(ctx context.Context) (*uint32, error)
 type Counter struct {
 	Handle_ *p_rt.Handle_
 }
@@ -749,12 +842,30 @@ type Cursor struct {
 }
 func (self *Cursor) At() (uint64, error)
 func (self *Cursor) Close() error
+type Deprecated struct {
+	On bool
+	Lower uint32
+	Deprecated bool
+}
+func DeprecatedDefault() Deprecated
+func (self Deprecated) Equal(other Deprecated) bool
+func (self Deprecated) GoString() string
 type Der struct {
 	Handle_ *p_rt.Handle_
 }
 func DerFromSlice(bytes p_rt.Bytes) *Der
 func (self *Der) Bytes() (p_rt.Bytes, error)
 func (self *Der) Close() error
+type Dial struct {
+	Level uint64
+	Before uint64
+}
+func DialDefault() Dial
+func Turned(dial Dial, turner Turner) (Dial, error)
+func (self Dial) Equal(other Dial) bool
+func (self Dial) GoString() string
+func (self Dial) Max() Dial
+func (self Dial) Turn(by uint64) (Dial, error)
 type Digest struct {
 	Handle_ *p_rt.Handle_
 }
@@ -841,6 +952,12 @@ func (self *Fault) Close() error
 func (self *Fault) Error() string
 func (self *Fault) GoString() string
 func (self *Fault) String() string
+type Feed struct {
+	Handle_ *p_rt.Handle_
+}
+func (self *Feed) All(ctx context.Context) iter.Seq2[p_rt.Bytes, error]
+func (self *Feed) Close() error
+func (self *Feed) Next(ctx context.Context) (*p_rt.Bytes, error)
 type FiledReceipt struct {
 	Handle_ *p_rt.Handle_
 }
@@ -900,6 +1017,13 @@ func (self Hits) HitsGet() uint64
 func (self *Hits) HitsSet(value uint64)
 func (self Hits) MissesGet() uint64
 func (self *Hits) MissesSet(value uint64)
+type Holder struct {
+	Handle_ *p_rt.Handle_
+}
+func NewHolder(level uint64) *Holder
+func (self *Holder) Close() error
+func (self *Holder) Doubled() (uint64, error)
+func (self *Holder) LevelGet() (uint64, error)
 type Hooked struct {
 	Handle_ *p_rt.Handle_
 }
@@ -940,6 +1064,14 @@ func (self *Key) Close() error
 func (self *Key) Equal(other *Key) (bool, error)
 func (self *Key) GoString() string
 func (self *Key) HashOf() (uint64, error)
+type Knob struct {
+	Level uint64
+}
+func KnobDefault() Knob
+func NewKnob(dial Dial) Knob
+func (self Knob) Doubled() uint64
+func (self Knob) Equal(other Knob) bool
+func (self Knob) GoString() string
 type Label struct {
 	Name string
 	At   *Point
@@ -996,6 +1128,7 @@ func (self *Ledger) Published() (uint32, error)
 func (self *Ledger) Receipt() (*Receipt, error)
 func (self *Ledger) Seal() error
 func (self *Ledger) Slip() (*Slip, error)
+func (self *Ledger) Tab() (*Tab, error)
 func (self *Ledger) Title() (string, error)
 type LeftRightU8 struct {
 	Value RightU8
@@ -1072,6 +1205,14 @@ func (self LongArray) Also(f func(uint64))
 func (self LongArray) C() uint64
 func (self LongArray) Equal(other LongArray) bool
 func (self LongArray) GoString() string
+type MacrosStreams struct {
+	Stdin  uint8
+	Stdout uint8
+	Stderr uint8
+	Errno  uint8
+}
+func (self MacrosStreams) Equal(other MacrosStreams) bool
+func (self MacrosStreams) GoString() string
 type Mark struct {
 	Handle_ *p_rt.Handle_
 }
@@ -1089,6 +1230,7 @@ func NewMarker(label string, x int32, y int32) (*Marker, error)
 func (self *Marker) Close() error
 func (self *Marker) Label() (string, error)
 func (self *Marker) Offset(dx int32, dy int32) (Point, error)
+func (self *Marker) X() (int32, error)
 func (self *Marker) XGet() (int32, error)
 func (self *Marker) XSet(value int32) error
 func (self *Marker) YGet() (int32, error)
@@ -1164,6 +1306,8 @@ type Node struct {
 func NewNode(value uint64, next *Node) (*Node, error)
 func (self *Node) Close() error
 func (self *Node) GoString() string
+func (self *Node) NextGet() (*Node, error)
+func (self *Node) NextSet(value *Node) error
 func (self *Node) Push(value uint64) error
 func (self *Node) Sum() (uint64, error)
 func (self *Node) ValueGet() (uint64, error)
@@ -1234,8 +1378,10 @@ type PadU16 struct {
 func PadU16Wide() *PadU16
 func (self *PadU16) Close() error
 func (self *PadU16) Describe() (string, error)
+func (self *PadU16) Lines() (uint32, error)
 func (self *PadU16) Tag() (uint16, error)
 func (self *PadU16) Title() (uint16, error)
+func (self *PadU16) TitleGet() (string, error)
 type PadU8 struct {
 	Handle_ *p_rt.Handle_
 }
@@ -1283,6 +1429,7 @@ type PairU8Size struct {
 }
 func (self PairU8Size) Equal(other PairU8Size) bool
 func (self PairU8Size) GoString() string
+func (self PairU8Size) Swap() PairSizeU8
 type Parcel struct {
 	Mark    *Mark
 	Payload p_rt.Bytes
@@ -1295,6 +1442,16 @@ func (self *Part) Equal(other *Part) (bool, error)
 func (self *Part) GoString() string
 func (self *Part) ValueGet() (uint64, error)
 func (self *Part) ValueSet(value uint64) error
+type Pass struct {
+	Handle_ *p_rt.Handle_
+}
+func NewPass(number uint32) *Pass
+func (self *Pass) Close() error
+func (self *Pass) Compare(other *Pass) (int, error)
+func (self *Pass) Equal(other *Pass) (bool, error)
+func (self *Pass) GoString() string
+func (self *Pass) PartialCompare(other *Pass) (int, bool, error)
+func (self *Pass) Redeem() (uint32, error)
 type Peer struct {
 	Addr  p_rt.SocketAddr
 	Names []string
@@ -1370,6 +1527,44 @@ type Qualifiers struct {
 	Kotlin float64
 }
 func (self Qualifiers) Equal(other Qualifiers) bool
+type Quantity struct {
+	Handle_ *p_rt.Handle_
+}
+func NewQuantity(value int64, unit rune) (*Quantity, error)
+func (self *Quantity) Close() error
+func (self *Quantity) Equal(other *Quantity) (bool, error)
+func (self *Quantity) GoString() string
+func (self *Quantity) PartialCompare(other *Quantity) (int, bool, error)
+type Rank interface {
+	GoString() string
+	Equal(other Rank) bool
+	PartialCompare(other Rank) (int, bool)
+	Compare(other Rank) int
+}
+type RankRanked struct {
+	Compare_         uint8
+	PartialCompare_  uint8
+	CompareTo        uint8
+	PartialCompareTo uint8
+}
+func (self RankRanked) Compare(other Rank) int
+func (self RankRanked) Equal(other Rank) bool
+func (self RankRanked) GoString() string
+func (self RankRanked) PartialCompare(other Rank) (int, bool)
+type RankUnranked struct {
+}
+func (self RankUnranked) Compare(other Rank) int
+func (self RankUnranked) Equal(other Rank) bool
+func (self RankUnranked) GoString() string
+func (self RankUnranked) PartialCompare(other Rank) (int, bool)
+type Rated struct {
+	Bytes_ [2]uint64
+	Made_ bool
+}
+func NewRated(count uint64, scale uint64) Rated
+func (self Rated) Equal(other Rated) bool
+func (self Rated) GoString() string
+func (self Rated) Scale() uint64
 type Reading struct {
 	Ok     bool
 	Level  float32
@@ -1419,12 +1614,21 @@ func NewResolving(name string) (*Resolving, error)
 func (self *Resolving) Close() error
 func (self *Resolving) V0Get() (*p_tls.Resolver, error)
 func (self *Resolving) V0Set(value *p_tls.Resolver) error
+type Retired struct {
+	Handle_ *p_rt.Handle_
+}
+func NewRetired(from uint32) *Retired
+func (self *Retired) All(ctx context.Context) iter.Seq2[uint32, error]
+func (self *Retired) Close() error
+func (self *Retired) Next(ctx context.Context) (*uint32, error)
 type Retry struct {
 	Handle_ *p_rt.Handle_
 }
 func NewRetry(limit *uint32) *Retry
 func (self *Retry) Close() error
 func (self *Retry) Delay() (uint32, error)
+func (self *Retry) DelayGet() (*uint32, error)
+func (self *Retry) DelaySet(value *uint32) error
 func (self *Retry) Limit() (uint32, error)
 func (self *Retry) LimitGet() (*uint32, error)
 func (self *Retry) LimitSet(value *uint32) error
@@ -1439,6 +1643,9 @@ type RightU8 struct {
 }
 func (self RightU8) Equal(other RightU8) bool
 func (self RightU8) GoString() string
+type Scan interface {
+	Scan(payload []byte, rest *[]byte) uint64
+}
 type Score struct {
 	Bytes_ [1]uint64
 	Made_ bool
@@ -1512,12 +1719,16 @@ type SlotU32 struct {
 func NewSlotU32(value uint32) *SlotU32
 func Wide_(value uint32) *SlotU32
 func (self *SlotU32) Close() error
+func (self *SlotU32) ValueGet() (uint32, error)
+func (self *SlotU32) ValueSet(value uint32) error
 type SlotU8 struct {
 	Handle_ *p_rt.Handle_
 }
 func NewSlotU8(value uint8) *SlotU8
 func (self *SlotU8) Close() error
 func (self *SlotU8) Value() (uint16, error)
+func (self *SlotU8) ValueGet() (uint8, error)
+func (self *SlotU8) ValueSet(value uint8) error
 type Span struct {
 	Bounds p_rt.Tuple2[uint32, uint32]
 	Named  *p_rt.Tuple2[string, Shape]
@@ -1530,6 +1741,13 @@ type Spawned struct {
 func NewSpawned(task func() uint32) (*Spawned, error)
 func (self *Spawned) Close() error
 func (self *Spawned) Join() (uint32, error)
+type Spot struct {
+	X uint32
+	Y uint32
+}
+func SpotDeserialize(deserializer *p_serdejson.Json) (Spot, error)
+func (self Spot) Equal(other Spot) bool
+func (self Spot) GoString() string
 type Stack struct {
 	Handle_ *p_rt.Handle_
 }
@@ -1539,6 +1757,7 @@ func (self *Stack) Close() error
 func (self *Stack) Depth() (uint, error)
 func (self *Stack) DepthPastCounter(from *Counter) (uint64, error)
 func (self *Stack) DepthPastPoint(from Point) (uint64, error)
+func (self *Stack) DepthPastPolarPoint(from PolarPoint) (uint64, error)
 func (self *Stack) DepthPastSize(from p_dep.Size) (uint64, error)
 func (self *Stack) DepthPastWrapU32(from WrapU32) (uint64, error)
 func (self *Stack) GoString() string
@@ -1586,6 +1805,12 @@ const (
 )
 func (self Status) Equal(other Status) bool
 func (self Status) GoString() string
+type Tab struct {
+	Handle_ *p_rt.Handle_
+}
+func (self *Tab) Close() error
+func (self *Tab) LabelGet() (string, error)
+func (self *Tab) LedgerGet() (*Ledger, error)
 type Tallies struct {
 	Handle_ *p_rt.Handle_
 }
@@ -1613,6 +1838,17 @@ func ReissueLent(ticket Ticket, swap func(Ticket) Ticket) Ticket
 func (self Ticket) Equal(other Ticket) bool
 func (self Ticket) GoString() string
 func (self Ticket) Number() uint32
+type Tier int32
+const (
+	TierLow              Tier = 0
+	TierHigh             Tier = 1
+	TierCompareTo        Tier = 2
+	TierPartialCompareTo Tier = 3
+)
+func (self Tier) Compare(other Tier) int
+func (self Tier) Equal(other Tier) bool
+func (self Tier) GoString() string
+func (self Tier) PartialCompare(other Tier) (int, bool)
 type Token struct {
 	Handle_ *p_rt.Handle_
 }
@@ -1634,6 +1870,15 @@ func (self *Trail) Iter() ([]Point, error)
 func (self *Trail) Labels() ([]Label, error)
 func (self *Trail) Names() ([]string, error)
 func (self *Trail) Points() ([]Point, error)
+type Turner interface {
+	By() uint64
+	Once() uint64
+}
+type Undo interface {
+	Delete(n uint32) uint32
+	Free() uint32
+	Type() uint8
+}
 type VecClashTone int32
 const (
 	VecClashToneError_ VecClashTone = 0
@@ -1652,6 +1897,14 @@ func (self *Verbosity) Close() error
 func (self *Verbosity) Filter() (*p_tracingcore.Level, error)
 func (self *Verbosity) LevelGet() (p_tracingcore.Level, error)
 func (self *Verbosity) LevelSet(value p_tracingcore.Level) error
+type Version struct {
+	Major uint16
+	Minor uint16
+}
+func (self Version) Compare(other Version) int
+func (self Version) Equal(other Version) bool
+func (self Version) GoString() string
+func (self Version) PartialCompare(other Version) (int, bool)
 type Waiter struct {
 	Handle_ *p_rt.Handle_
 }
@@ -1882,8 +2135,10 @@ type Instant struct {
 }
 func (self *Instant) Clone() (*Instant, error)
 func (self *Instant) Close() error
+func (self *Instant) Compare(other *Instant) (int, error)
 func (self *Instant) Equal(other *Instant) (bool, error)
 func (self *Instant) GoString() string
+func (self *Instant) PartialCompare(other *Instant) (int, bool, error)
 
 package tls // import "api/tls"
 
@@ -1923,13 +2178,15 @@ package tracingcore // import "api/tracingcore"
 TYPES
 type Level int32
 const (
-	LevelTrace Level = 0
-	LevelDebug Level = 1
+	LevelError Level = 0
+	LevelWarn  Level = 1
 	LevelInfo  Level = 2
-	LevelWarn  Level = 3
-	LevelError Level = 4
+	LevelDebug Level = 3
+	LevelTrace Level = 4
 )
+func (self Level) Compare(other Level) int
 func (self Level) Equal(other Level) bool
+func (self Level) PartialCompare(other Level) (int, bool)
 func (self Level) String() string
 
 package url // import "api/url"
@@ -1941,7 +2198,9 @@ type Url struct {
 func UrlParse(input string) (*Url, error)
 func (self *Url) Clone() (*Url, error)
 func (self *Url) Close() error
+func (self *Url) Compare(other *Url) (int, error)
 func (self *Url) Equal(other *Url) (bool, error)
 func (self *Url) GoString() string
+func (self *Url) PartialCompare(other *Url) (int, bool, error)
 func (self *Url) String() string
 

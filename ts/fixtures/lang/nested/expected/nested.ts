@@ -167,7 +167,10 @@ export function keys(dataData: Uint8Array, dataStart: number, dataLen: number, o
 		const a: rs.u8 | undefined | rs.None = _16;
 		const b: rs.u8 | undefined | rs.None = _15[1];
 		rs.byteVecPush(out, (a === b ? 1 : 0) | (((a !== b ? 1 : 0) << 1) & 0xff) | (((rs.cmpOption(rs.cmpOption(rs.cmp), rs.None)(a, b) === -1 ? 1 : 0) << 2) & 0xff) | ((order(rs.cmpOption(rs.cmpOption(rs.cmp), rs.None)(a, b)) << 3) & 0xff));
-		rs.byteVecPush(out, (rs.ordMax(a, b, rs.cmpLt(rs.cmpOption(rs.cmpOption(rs.cmp), rs.None))) === b ? 1 : 0) | (((rs.u64Eq(hashOf$Option_Option_u8(a), hashOf$Option_Option_u8(b)) ? 1 : 0) << 1) & 0xff));
+		const _57: rs.u8 = rs.ordMax(a, b, rs.cmpLt(rs.cmpOption(rs.cmpOption(rs.cmp), rs.None))) === b ? 1 : 0;
+		const _65: rs.u64 = hashOf$Option_Option_u8(a);
+		const _67: rs.u64 = hashOf$Option_Option_u8(b);
+		rs.byteVecPush(out, _57 | ((((typeof _65 === "number" && typeof _67 === "number" ? _65 === _67 : rs.u64Eq(_65, _67)) ? 1 : 0) << 1) & 0xff));
 		if (i >= dataLen) {
 			rs.panic("index out of bounds: the len is " + dataLen + " but the index is " + i);
 		}
@@ -392,8 +395,9 @@ export function closures(data: rs.ByteSlice, out: rs.ByteVec): void {
 		return 209;
 	}));
 	called = 0;
+	const _20: rs.Iter<rs.u8> = rs.iterSlice(rs.byteSliceView(data));
 	const _22: rs.Place<rs.u8> = rs.place(() => called, (value2) => called = value2);
-	rs.iterExtendBytes(out, rs.iterMap(rs.iterSlice(rs.iterToVec(rs.iterFilterMap(rs.iterSlice(rs.byteSliceView(data)), (_27: rs.u8): rs.u8 | undefined | rs.None => {
+	rs.iterExtendBytes(out, rs.iterMap(rs.iterSlice(rs.iterToVec(rs.iterFilterMap(_20, (_27: rs.u8): rs.u8 | undefined | rs.None => {
 		const b4: rs.u8 = _27;
 		_22.v = rs.u8Add(_22.v, 1);
 		return pick(b4);
@@ -415,8 +419,9 @@ export function closures(data: rs.ByteSlice, out: rs.ByteVec): void {
 		return unit(_213);
 	}, rs.None)) & 0xff);
 	called = 0;
+	const _50: rs.Iter<rs.u8> = rs.iterSlice(rs.byteSliceView(data));
 	const _52: rs.Place<rs.u8> = rs.place(() => called, (value3) => called = value3);
-	const whiles: rs.Vec<rs.u8 | undefined> = rs.iterToVec(rs.iterMapWhile(rs.iterSlice(rs.byteSliceView(data)), (_214: rs.u8): rs.u8 | undefined | rs.None => {
+	const whiles: rs.Vec<rs.u8 | undefined> = rs.iterToVec(rs.iterMapWhile(_50, (_214: rs.u8): rs.u8 | undefined | rs.None => {
 		const b8: rs.u8 = _214;
 		_52.v = rs.u8Add(_52.v, 1);
 		return pick(b8);

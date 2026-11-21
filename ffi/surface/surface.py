@@ -190,7 +190,8 @@ def assignment(masked):
         k = m.start()
         if k in top and not re.search(r"\boperator\s*\S*$", masked[:k]):
             return k
-    for m in re.finditer(r"=>", masked):
+    # Dart's expression body, not C++'s `operator<=>`.
+    for m in re.finditer(r"(?<!<)=>", masked):
         if m.start() in top:
             return m.start()
     return None
@@ -215,6 +216,7 @@ CPP_TYPE = re.compile(r"^(?:template\s*<.*?>\s*)?(class|struct|union|enum|namesp
 DART_TYPE = re.compile(
     r"^(?:@\S+\s+)*(?:(?:abstract|sealed|final|base|interface|mixin)\s+)*(class|mixin|enum|extension)\b")
 ACCESS = re.compile(r"^(public|private|protected)$")
+ATTRIBUTE = re.compile(r"\[\[.*?\]\]|\b[A-Z][A-Z0-9_]*\([^()]*\)")
 
 
 def braced(text, lang):
@@ -283,7 +285,7 @@ class Braced:
             elif depth == 0 and c == "{":
                 j = self.close(i)
                 header, hmask = code[hs:i], masked[hs:i]
-                if assignment(hmask) is not None:
+                if assignment(hmask) is not None and not self.initializers(hmask):
                     # A value, such as a lambda or a set literal, that the `;` ends.
                     i = j + 1
                     continue
@@ -308,6 +310,11 @@ class Braced:
         if masked[hs:end].strip():
             raise Malformed(f"a declaration without its end: {squash(code[hs:end])[:80]}")
 
+    def initializers(self, hmask):
+        """Whether a Dart header is a constructor with an initializer list (`A(x) : _x = x`),
+        whose `{` opens a body rather than a value."""
+        return self.lang == "dart" and re.search(r"\)\s*:[^;]*$", hmask) is not None
+
     def friend(self, hmask):
         """Whether a C++ declaration declares a function as a friend, which a caller finds by
         its arguments whatever access section declares it, unlike a friend type or a function
@@ -325,7 +332,10 @@ class Braced:
             if head.startswith('extern "') or head == "extern _":
                 return "namespace"
             m = CPP_TYPE.match(head)
-            if m and first(hmask, re.compile(r"\(")) is None or (m and m.group(1) == "namespace"):
+            # A type's attributes, such as `[[nodiscard]]` or a macro's `RUST2_FFI_OWNER(T)`,
+            # hold the only parentheses its header may.
+            bare = ATTRIBUTE.sub(" ", hmask)
+            if m and first(bare, re.compile(r"\(")) is None or (m and m.group(1) == "namespace"):
                 return m.group(1)
             return None
         m = DART_TYPE.match(head)
