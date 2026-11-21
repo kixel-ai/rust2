@@ -198,8 +198,10 @@ Future<(File, List<Uri>)> _build(BuildInput input, CodeConfig code, String targe
   final lock = File('${resolved['workspace_root']}${Platform.pathSeparator}Cargo.lock');
   final inputs = [
     lock.uri,
-    for (final package in packages)
-      if (package['source'] == null) File(package['manifest_path']! as String).uri,
+    ...{
+      for (final package in packages)
+        if (package['source'] == null) ..._above(File(package['manifest_path']! as String).parent),
+    }.map((path) => File(path).uri),
     for (final path in _depInfo(await info.readAsString())) File(path).uri,
   ];
   return (library, inputs);
@@ -220,3 +222,17 @@ List<String> _depInfo(String text) => [
       for (final match in RegExp(r'(?:\\ |[^ ])+').allMatches(line.substring(at + 2)))
         match[0]!.replaceAll(r'\ ', ' '),
 ];
+
+/// The Cargo files at and above a path package's `directory`, which change its build and
+/// which no dep-info names: each `Cargo.toml`, among which Cargo finds the workspace it
+/// inherits from, and each `.cargo/config.toml` or `.cargo/config`.
+Iterable<String> _above(Directory directory) sync* {
+  final sep = Platform.pathSeparator;
+  for (var dir = directory.absolute; ; dir = dir.parent) {
+    for (final name in ['Cargo.toml', '.cargo${sep}config.toml', '.cargo${sep}config']) {
+      final file = File('${dir.path}$sep$name');
+      if (file.existsSync()) yield file.path;
+    }
+    if (dir.parent.path == dir.path) return;
+  }
+}

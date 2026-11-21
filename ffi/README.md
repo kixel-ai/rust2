@@ -1376,12 +1376,14 @@ C function is an `@Native` external, which finds the shared library the crate bu
 `hook/build.dart` maps to the library when an app depending on it builds or runs. In an
 export, the hook builds the crate beside the package, `../Cargo.toml`, with Cargo, on the
 target the app builds for, for the Android NDK of an app's Flutter build, and reruns when a
-source the build read changes, Cargo's dep-info says which. It builds each Android API
+source the build read changes, Cargo's dep-info says which, or a Cargo manifest or config at
+or above a path package it builds. It builds each Android API
 level and Apple deployment target in a target directory of its own, as Cargo rebuilds for
 no change in them. A release's adds `hook/release.json`, from which it downloads the
 library instead ([Binding releases](release/README.md)). The prefix must name a Dart
 package, lowercase letters, digits, and `_`, no word pub reserves, and none of the
-packages the hook depends on (`code_assets`, `crypto`, `hooks`), or the export fails.
+packages the hook resolves with (`hooks`, `code_assets`, `crypto`, and theirs), or the export
+fails.
 
 - **Names** are the C names without the prefix: a type in Pascal case and a member in
   camel case, so `moq_track_Producer` is `TrackProducer`, and its method

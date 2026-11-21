@@ -59,7 +59,7 @@ pub(crate) fn pubspec(facade: &crate::config::Package, lib: &str) -> Result<Stri
 }
 
 /// Why pub takes no package named `lib`, if it doesn't: pub's own rules, which are not
-/// Dart's for an identifier, or the name of a package the hook depends on.
+/// Dart's for an identifier, or the name of a package the hook resolves with.
 fn package_name(lib: &str) -> Result<(), String> {
 	let valid = lib.starts_with(|c: char| c.is_ascii_lowercase() || c == '_')
 		&& lib
@@ -73,7 +73,7 @@ fn package_name(lib: &str) -> Result<(), String> {
 	}
 	if HOOK_PACKAGES.contains(&lib) {
 		return Err(format!(
-			"the library `{lib}` names a package the Dart package's build hook depends on: rename the crate's `[lib] name`"
+			"the library `{lib}` names a package the Dart package's build hook resolves with: rename the crate's `[lib] name`"
 		));
 	}
 	Ok(())
@@ -86,8 +86,24 @@ const PUB_RESERVED: &str = "abstract as assert await break case catch class cons
 	library mixin new null of on operator part required rethrow return sealed set super switch this throw true try type \
 	var void while with yield";
 
-/// The packages the generated pubspec depends on, which it cannot also be.
-const HOOK_PACKAGES: &[&str] = &["code_assets", "crypto", "hooks"];
+/// The packages the hook resolves with, which pub takes no package of the same name beside:
+/// those the generated pubspec depends on and theirs, as Dart 3.13's pub resolves them. One
+/// they add later fails at `dart pub get` instead.
+const HOOK_PACKAGES: &[&str] = &[
+	"code_assets",
+	"collection",
+	"crypto",
+	"hooks",
+	"logging",
+	"meta",
+	"path",
+	"pub_semver",
+	"record_use",
+	"source_span",
+	"string_scanner",
+	"term_glyph",
+	"yaml",
+];
 
 /// Bytes Rust returns up to this long are copied into Dart's memory, and longer ones lent
 /// to it: a lent list's finalizer, and the external size it charges the garbage collector,
@@ -3850,6 +3866,7 @@ mod tests {
 			"hooks",
 			"crypto",
 			"code_assets",
+			"logging",
 		] {
 			assert!(package_name(name).is_err(), "{name}");
 		}
