@@ -1402,7 +1402,8 @@ def export(args):
 def cargo_configs(directory):
     """Each config file cargo run from `directory` reads, parsed."""
     here = Path(directory).resolve()
-    home = Path(os.environ.get("CARGO_HOME") or Path.home() / ".cargo")
+    # Cargo joins a relative CARGO_HOME to where it runs.
+    home = here / os.environ["CARGO_HOME"] if os.environ.get("CARGO_HOME") else Path.home() / ".cargo"
     for root in [home, *(r / ".cargo" for r in [here, *here.parents])]:
         for name in ("config.toml", "config"):
             found = root / name

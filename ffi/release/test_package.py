@@ -411,6 +411,13 @@ class Reproducible(unittest.TestCase):
                 with package.linked(manifest, export) as spell:
                     self.assertEqual(spell(export), link / "export")
 
+    def test_a_relative_cargo_home_is_where_cargo_runs(self):
+        with tempfile.TemporaryDirectory() as tmp, mock.patch.dict(os.environ, {"CARGO_HOME": "home"}):
+            crate = Path(tmp).resolve() / "crate"
+            (crate / "home").mkdir(parents=True)
+            (crate / "home/config.toml").write_text('paths = ["other"]\n')
+            self.assertIn(crate / "home/config.toml", [found for found, _ in package.cargo_configs(crate)])
+
     def test_a_path_cc_would_split_fails(self):
         with tempfile.TemporaryDirectory() as tmp, mock.patch.dict(os.environ, {"CARGO_HOME": tmp + "/home"}):
             os.environ.pop("CARGO_ENCODED_RUSTFLAGS", None)
