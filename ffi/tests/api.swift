@@ -436,12 +436,43 @@ func f64Bits(_ floats: [Double]) -> [UInt64] {
 	floats.map(\.bitPattern)
 }
 
+/// An eraser whose methods differ only by a trailing underscore, which Swift keeps apart by
+/// their labels.
+struct Eraser: ClashEraser {
+	func delete(_ new2: UInt8, _ new: UInt8) -> UInt8 { new2 * 10 + new }
+	func delete() -> UInt8 { 3 }
+}
+
 /// What the transcript's script says only in Rust, or Swift alone has: its own types'
 /// conversions, the errors and checks it throws, and its protocols.
 func checks() {
 	check(U128(high: .max, low: .max).description == "340282366920938463463374607431768211455", "a u128's decimal digits")
 	check(ArrayU8x4([1, 2, 3]) == nil, "3 bytes are no [u8; 4]")
 	check(advance(.init_(1)) == .init_(0) && advance(.init_(0)) == .done, "a variant named init crosses")
+	check(ClashLevel.default() == .default_ && ClashLevel.debug.index() == 2, "a variant named as Default's member crosses")
+	// Names that differ only by trailing underscores, each reaching its own Rust: a name Swift
+	// spells as Rust does keeps it, whichever comes first.
+	let underscored = ClashUnderscored(new_: 1, new: 2, debug: 3, default: 4)
+	check(clashUnderscored(underscored, .delete, .set(new_: 5, new: 6)) == 2_561_234, "names apart by trailing underscores cross")
+	let next = clashUnderscoredNext(underscored, .set(new_: 5, new: 6))
+	check(
+		next.0 == ClashUnderscored(new_: 2, new: 3, debug: 4, default: 5) && next.1 == ClashChange.set(new_: 6, new: 5),
+		"names apart by trailing underscores cross back"
+	)
+	check(ClashOp.delete_ != ClashOp.delete, "values apart by a trailing underscore")
+	check(clashErased(Eraser()) == 123, "a protocol's methods apart by a trailing underscore")
+	check(ClashEscaped(new: 3).delete() == 3 && ClashEscaped(new: 3).delete(1, 2) == 213, "methods apart by a trailing underscore")
+	check(clashErase_() == 2 && clashErase() == 1, "functions apart by a trailing underscore")
+	// Fields named as `Display`'s and `Debug`'s members, which take a trailing `_`.
+	let described = ClashDescribed(description_: 1, debugDescription_: 2)
+	check(clashDescribed(described) == 12 && described.description == "12", "fields named as a trait's members")
+	// A static function and a method named alike.
+	check(ClashStore.count() == 7 && ClashStore.new(5).count() == 5, "a static function and a method named alike")
+	check(ClashStore.open().open() == 7, "a static constructor and a method named alike")
+	// Rust's `lend()` keeps its name beside the overload of `lend_` that leaves out `store`.
+	let lent = ClashStore.new(3)
+	check(clashLend() == 9 && clashLend_() == 0 && clashLend_(store: lent) == 4, "an overload apart from a function by a trailing underscore")
+
 	// Rust's seconds are a u64, past Int64's.
 	let rustMax = try! RustDuration(secs: .max, nanos: 999_999_999)
 	let past = RustDuration.seconds(UInt64(Int64.max) + 1)

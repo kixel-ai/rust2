@@ -2239,26 +2239,16 @@ fn apart(bare: &str, class: &str) -> String {
 	}
 }
 
-/// The C++ names of `rust`, the names of one scope, each kept apart from those `taken` holds
-/// and the rest: a name escaping leaves as it is keeps it while `taken` lacks it, and every
-/// other, escaped, takes a [`step`] while a name before it in Rust's order holds it. So a
-/// field `new_` stays `new_` beside `new`, which becomes `new_2`, and no order of the source
-/// moves one.
+/// The C++ names of `rust`, the names of one scope, kept apart from each other and from those
+/// `taken` holds or a header defines as a macro, by [`abi::named`]'s rule with C++'s
+/// [`stepped`]: a name escaping leaves as it is keeps it while `taken` lacks it, and every
+/// other, escaped, steps in Rust's order of names. So a field `new_` stays `new_` beside
+/// `new`, which becomes `new_2`, and no order of the source moves one.
 fn named(rust: &[String], taken: impl Fn(&str) -> bool) -> Vec<String> {
-	let mut names: Vec<String> = rust.iter().map(|name| escape(name)).collect();
-	let kept: Vec<bool> = (0..rust.len())
-		.map(|k| names[k] == rust[k] && !taken(&names[k]))
-		.collect();
-	let mut held: Vec<String> = (0..rust.len()).filter(|&k| kept[k]).map(|k| names[k].clone()).collect();
-	let mut moved: Vec<usize> = (0..rust.len()).filter(|&k| !kept[k]).collect();
-	moved.sort_by(|&a, &b| rust[a].cmp(&rust[b]));
-	for k in moved {
-		while taken(&names[k]) || held.contains(&names[k]) {
-			step(&mut names[k]);
-		}
-		held.push(names[k].clone());
-	}
-	names
+	let rust: Vec<&str> = rust.iter().map(String::as_str).collect();
+	let spelled = rust.iter().map(|name| escape(name)).collect();
+	let own = |rust: &str, name: &str| name == rust;
+	abi::named(&rust, spelled, own, |_, name| taken(name) || abi::defined(name), stepped)
 }
 
 /// The C++ names of `fields`, a struct's with no other members: a data enum's payload's.
@@ -2267,22 +2257,28 @@ fn field_names(fields: &[crate::ir::Field]) -> Vec<String> {
 	named(&rust, |_| false)
 }
 
-/// The C++ name of the parameter `rust`, a [`step`] further while `taken` holds it or it is
-/// a name the header gives its own locals and members.
+/// The C++ name of the parameter `rust`, [`stepped`] further while `taken` holds it, a header
+/// defines it as a macro, or it is a name the header gives its own locals and members.
 fn parameter(rust: &str, taken: impl Fn(&str) -> bool) -> String {
-	let mut name = escape(rust);
-	while taken(&name) || generated(&name) {
-		step(&mut name);
+	let escaped = escape(rust);
+	let mut name = escaped.clone();
+	let mut n = 0;
+	while taken(&name) || generated(&name) || abi::defined(&name) {
+		n += 1;
+		name = stepped(&escaped, n);
 	}
 	name
 }
 
-/// Moves `name` one step from a name it clashed with: `_` appended, or `2` after one already
-/// there, since `__` would make a name C++ reserves.
-fn step(name: &mut String) {
-	match name.ends_with('_') {
-		true => name.push('2'),
-		false => name.push('_'),
+/// The `n`th name to try in place of `name` where it is taken. The names of a stem `x` count
+/// along `x`, `x_`, `x_2`, `x_3`, ..., from `name`'s place, so `delete` steps to `delete_`
+/// and `delete_` to `delete_2`: never `__`, which would make a name C++ reserves.
+fn stepped(name: &str, n: usize) -> String {
+	match (name.strip_suffix('_'), n) {
+		(_, 0) => name.to_string(),
+		(Some(stem), n) => format!("{stem}_{}", n + 1),
+		(None, 1) => format!("{name}_"),
+		(None, n) => format!("{name}_{n}"),
 	}
 }
 
@@ -2468,10 +2464,11 @@ fn cpp_int(int: Int) -> &'static str {
 	}
 }
 
-/// A name C++ would read as a keyword or a macro with `_` appended, and one starting with a
-/// digit with `_` prepended, as C's are. One C++ reserves for the implementation, holding
-/// `__` or starting with `_` and a capital ([lex.name]), first drops its leading `_`s and
-/// takes one `_` for each run, so `__all__` is `all_`: appending keeps a reserved name reserved.
+/// A name C++ would read as a keyword with `_` appended, one starting with a digit with `_`
+/// prepended, as C's are, and one a header defines as a macro [`stepped`] past it. One C++
+/// reserves for the implementation, holding `__` or starting with `_` and a capital
+/// ([lex.name]), first drops its leading `_`s and keeps one `_` of each run, so `__all__` is
+/// `all_`: appending keeps a reserved name reserved.
 pub(crate) fn escape(name: &str) -> String {
 	const KEYWORDS: &[&str] = &[
 		"alignas",
@@ -2587,15 +2584,19 @@ pub(crate) fn escape(name: &str) -> String {
 		}
 		false => name,
 	};
-	// Each name of a macro and trailing `_`s takes a step, so `unix` and `unix_` stay apart.
 	match name.chars().next() {
 		Some(c) if c.is_ascii_digit() => format!("_{name}"),
-		_ if KEYWORDS.contains(&name) || abi::MACROS.contains(&name.trim_end_matches('_')) => {
-			let mut name = name.to_string();
-			step(&mut name);
-			name
+		// One `_`, which makes no macro's name.
+		_ if KEYWORDS.contains(&name) => format!("{name}_"),
+		_ => {
+			// Unreserved, a name ends in one `_` at most. The names of its stem that no macro
+			// holds keep their order, so `unix` and `unix_` stay apart as `unix_` and `unix_2`.
+			// 32-bit x86's GNU dialects predefine `i386`, which `macros.txt` lacks.
+			let stem = name.strip_suffix('_').unwrap_or(name);
+			let place = name.len() - stem.len();
+			let free = |name: &String| !(abi::defined(name) || name == "i386");
+			(0..).map(|n| stepped(stem, n)).filter(free).nth(place).expect("a free name")
 		}
-		_ => name.to_string(),
 	}
 }
 
@@ -2643,7 +2644,7 @@ mod tests {
 		assert_eq!(names(&["delete_", "delete"], &[]), ["delete_", "delete_2"]);
 		assert_eq!(
 			names(&["class", "class_", "class__"], &[]),
-			["class_2", "class_", "class_2_"]
+			["class_2", "class_", "class_3"]
 		);
 		// Unless something else holds it, such as a trait's member.
 		assert_eq!(names(&["debug", "debug_"], &["debug"]), ["debug_2", "debug_"]);
@@ -2651,11 +2652,11 @@ mod tests {
 		// And two that neither keeps move by Rust's order, not the source's.
 		assert_eq!(
 			names(&["default", "default_"], &["default_"]),
-			["default_2", "default_2_"]
+			["default_2", "default_3"]
 		);
 		assert_eq!(
 			names(&["default_", "default"], &["default_"]),
-			["default_2_", "default_2"]
+			["default_3", "default_2"]
 		);
 		// The macros' family escapes apart already.
 		assert_eq!(names(&["unix", "unix_"], &[]), ["unix_", "unix_2"]);
@@ -2667,15 +2668,38 @@ mod tests {
 	}
 
 	#[test]
-	fn predefined_macros_escape_apart() {
+	fn macros_escape_apart() {
+		// What a system header defines, whether a constant, a function, or a field.
+		assert_eq!(escape("WEXITSTATUS"), "WEXITSTATUS_");
+		assert_eq!(escape("NULL"), "NULL_");
+		assert_eq!(escape("errno"), "errno_");
+		assert_eq!(escape("h_addr"), "h_addr_");
+		// Only C's `tgmath.h` defines `sin`, and only as a function-like macro.
+		assert_eq!(escape("sin"), "sin");
+		// A keyword C defines as a macro keeps its one escape, past which the rest move.
+		assert_eq!(escape("bool"), "bool_");
+		assert_eq!(escape("bool_"), "bool_2");
+		// Predefined by GNU dialects.
+		assert_eq!(escape("i386"), "i386_");
 		assert_eq!(escape("unix"), "unix_");
 		assert_eq!(escape("unix_"), "unix_2");
 		assert_eq!(escape("unixes"), "unixes");
-		// And the C library's, which `<cerrno>` and `<cstddef>` define.
-		assert_eq!(escape("errno"), "errno_");
 		assert_eq!(escape("offsetof_"), "offsetof_2");
 		// A keyword keeps its single escape, so a field `type_` stays `type_`.
 		assert_eq!(escape("type_"), "type_");
+		// Past `ABDAY_2`, a macro `<langinfo.h>` defines.
+		assert_eq!(escape("ABDAY"), "ABDAY");
+		assert_eq!(escape("ABDAY_"), "ABDAY_");
+		// A step moves past each of `ABDAY_2` to `ABDAY_7`.
+		assert_eq!(named(&["ABDAY".into(), "ABDAY_".into()], |n| n == "ABDAY_"), ["ABDAY", "ABDAY_8"]);
+		// C's escapes, which take more `_`s, since C reserves no `__` past a name's start.
+		assert_eq!(crate::abi::escape("_STRING_H"), "_STRING_H__");
+		assert_eq!(crate::abi::escape("_STRING_H_"), "_STRING_H___");
+		assert_eq!(crate::abi::escape("bool"), "bool_");
+		assert_eq!(crate::abi::escape("bool_"), "bool__");
+		assert_eq!(crate::abi::escape("or__"), "or___");
+		assert_eq!(crate::abi::escape("out0"), "out0_");
+		assert_eq!(crate::abi::escape("out0_"), "out0__");
 	}
 
 	#[test]
@@ -2685,9 +2709,14 @@ mod tests {
 		assert_eq!(escape("__deserializer"), "deserializer");
 		assert_eq!(escape("_Bool"), "Bool");
 		assert_eq!(escape("a__b"), "a_b");
-		// Unreserved, it escapes as any other name.
+		// Unreserved, it escapes as any other name, macros included.
 		assert_eq!(escape("__class"), "class_");
 		assert_eq!(escape("linux__"), "linux_2");
+		assert_eq!(escape("EOF__"), "EOF_2");
+		assert_eq!(escape("__cplusplus"), "cplusplus");
+		assert_eq!(escape("__GNUC__"), "GNUC_");
+		assert_eq!(escape("_STRING_H"), "STRING_H");
+		assert_eq!(escape("_STRING_H_"), "STRING_H_");
 		assert_eq!(escape("__1"), "_1");
 		assert_eq!(escape("__"), "_");
 		// C++ reserves a lowercase `_x` only in the global namespace, which holds no name of
@@ -2723,6 +2752,22 @@ mod tests {
 		assert_eq!(distinct.len(), names.len(), "a scope names two alike");
 	}
 
+	/// Each macro's stem, and it with one `_`, escape apart, to neither a macro nor a name C++
+	/// reserves. More `_`s make a reserved name, which unreserves onto one of these two.
+	#[test]
+	fn escapes_keep_apart_from_every_macro() {
+		let macros = include_str!("macros.txt").lines().filter(|line| !line.starts_with('#'));
+		for stem in macros.map(|m| m.trim_end_matches('_')) {
+			let escaped = [escape(stem), escape(&format!("{stem}_"))];
+			// A keyword's one escape merges it with its own `_`, which each scope keeps apart.
+			let keyword = |e: &str| e.strip_suffix('_').is_some_and(|k| escape(k) == e);
+			assert!(escaped[0] != escaped[1] || keyword(&escaped[0]), "{stem}'s names escape alike");
+			for e in &escaped {
+				assert!(!crate::abi::defined(e) && !super::reserved(e), "{stem} escapes to {e}");
+			}
+		}
+	}
+
 	/// A free function `name` of the crate `ns`, taking and returning nothing.
 	fn function(name: &str) -> crate::ir::Function {
 		crate::ir::Function {
@@ -2745,6 +2790,7 @@ mod tests {
 			collect: false,
 			lends: false,
 			lends_mut: false,
+			leaf: false,
 			derefs: 0,
 			ties: false,
 			access: crate::ir::Access::Call,
@@ -2771,6 +2817,7 @@ mod tests {
 			targets: vec!["host".into()],
 			links: Default::default(),
 			reached: Vec::new(),
+			profiles: Default::default(),
 		};
 		let rest = api.without_jni();
 		let abi = crate::abi::Abi::new(&api, "ns");

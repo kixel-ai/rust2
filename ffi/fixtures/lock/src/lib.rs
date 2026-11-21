@@ -265,7 +265,7 @@ pub fn smoothStep() -> u32 {
 	2
 }
 
-/// Kept function whose camel name is claimed by the added function first.
+/// Kept function, which moves past the added `smoothStep` in camel case, in Rust's name order.
 pub fn smooth_step() -> u32 {
 	1
 }

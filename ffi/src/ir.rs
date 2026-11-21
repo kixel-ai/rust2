@@ -27,6 +27,48 @@ pub(crate) struct Api {
 	/// rustc's `--print native-static-libs` prints them. An API from before it holds none.
 	#[serde(default)]
 	pub(crate) links: std::collections::BTreeMap<String, Vec<String>>,
+	/// By target, the profile its check compiled with, whose bodies its leaves are proven
+	/// against. An API from before it holds none, so it proves no leaf.
+	#[serde(default)]
+	pub(crate) profiles: std::collections::BTreeMap<String, Profile>,
+}
+
+/// What of a check's profile can change the code a crate compiles, as the glue's build
+/// script reads it: what cargo tells a build script and the directory it builds in, and the
+/// panic strategy and debug assertions, which `cfg`s tell the crate. Overflow checks, which neither can see, the check always makes, so its
+/// MIR asserts every overflow a build might.
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
+pub(crate) struct Profile {
+	/// Cargo's `PROFILE`: `release` for a profile that is or inherits from `release`, else
+	/// `debug`.
+	pub(crate) root: String,
+	/// The directory cargo builds the profile in, which a build script finds above its
+	/// `OUT_DIR`: the profile's name, but `debug` for `dev` and `test` and `release` for
+	/// `release` and `bench`. Its per-package overrides, which a build script cannot see,
+	/// are then the check's, as the glue carries the workspace's profiles. `None` where the
+	/// manifest sets `test` or `bench`, which share that directory, so no build is proven.
+	pub(crate) dir: Option<String>,
+	/// Cargo's `OPT_LEVEL`.
+	pub(crate) opt_level: String,
+	pub(crate) debug_assertions: bool,
+	/// `cfg(panic)`'s value.
+	pub(crate) panic: String,
+	/// Cargo's `DEBUG`, which a build script may read: whether cargo passed the facade debug
+	/// info, as it does under `cargo check` too, apart from any `RUSTFLAGS` add.
+	#[serde(default)]
+	pub(crate) debug: bool,
+	/// The target's `cfg`s as cargo gives a build script them, `CARGO_CFG_<NAME>` with its
+	/// values joined, by `<NAME>`: all but the crate's own features and debug assertions,
+	/// which the profile picks. The check's `RUSTFLAGS`, such as a `-C target-feature`,
+	/// change them. Each as cargo's rustc lists them, and as it does acting as a stable
+	/// release, which lists no unstable `cfg` or target feature, where that differs.
+	#[serde(default)]
+	pub(crate) cfgs: Vec<std::collections::BTreeMap<String, String>>,
+	/// Each `CARGO_PROFILE_*` variable that may override the profile, with its value in the
+	/// check's environment. A build script sees each, but not cargo's config, whose package
+	/// overrides no variable can set.
+	#[serde(default)]
+	pub(crate) vars: std::collections::BTreeMap<String, Option<String>>,
 }
 
 /// A crate the glue depends on beside the facade, as the facade resolves it.
@@ -540,6 +582,12 @@ pub(crate) struct Function {
 	/// the receiver's handle, each a `DerefMut` for `&mut self`, as Rust's auto-deref does.
 	#[serde(default)]
 	pub(crate) derefs: usize,
+	/// Whether the Rust a call runs is proven to run no code but std's and the glue's, in a
+	/// bounded number of steps: a field's read or write, or a method's body, and each
+	/// `Deref` on the way to it. [`crate::abi::Abi::leaf`] says what else a leaf needs. A
+	/// baseline written before it has none.
+	#[serde(default, skip_serializing_if = "std::ops::Not::not")]
+	pub(crate) leaf: bool,
 	/// Whether a lifetime of an object it takes is `'static`, or names something else in the
 	/// signature, so the value may outlive the call or carry its borrow out of it: a handle an
 	/// exclusive lend returned fails it, since its borrow is the lend's.
@@ -577,6 +625,17 @@ pub(crate) enum Access {
 		set: bool,
 		#[serde(default, skip_serializing_if = "std::ops::Not::not")]
 		through: bool,
+		#[serde(default, skip_serializing_if = "Read::is_borrow")]
+		read: Read,
+		/// Whether the field holds an `UnsafeCell` inline, so that reading it unaligned, as
+		/// `Take` does, would race: no target where it does may merge with one reading it that
+		/// way, as its struct's packing may differ between targets.
+		#[serde(default, skip_serializing_if = "std::ops::Not::not")]
+		unfrozen: bool,
+		/// Whether the field's type is `Copy` on its target, which `Copy` reads it by: a merge
+		/// reads it that way for a target that borrows it only where that target has it so.
+		#[serde(default, skip_serializing_if = "std::ops::Not::not")]
+		copy: bool,
 	},
 	/// It reads a constant that is not a `bool` or integer.
 	Const,
@@ -585,6 +644,33 @@ pub(crate) enum Access {
 	Parse,
 	/// It writes its receiver as text, with `Display`: a foreign type exported as an object.
 	Text,
+}
+
+/// How a getter reads a field in Rust, which the field's struct decides: a `repr(packed)`
+/// one's field may lie unaligned, which rustc refuses a reference to.
+///
+/// A getter's value is the same through any mode that compiles, and the order is how far one
+/// reaches: `Take` reads any field on any layout, `Copy` any `Copy` one. The merge of two
+/// targets' getters of a field reads it the greater of theirs, but by `Take` rather than `Copy`
+/// where a target that borrows the field does not have it `Copy` (`Access::Field`'s `copy`),
+/// and not at all where that reads out unaligned what the other target holds an `UnsafeCell`
+/// in (`unfrozen`), which is a difference between the targets.
+#[derive(Clone, Copy, Default, PartialEq, Eq, PartialOrd, Ord, serde::Serialize, serde::Deserialize)]
+pub(crate) enum Read {
+	/// It borrows the field.
+	#[default]
+	Borrow,
+	/// It copies the field out, as `Copy` allows of an unaligned one.
+	Copy,
+	/// It reads the field out unaligned into a `ManuallyDrop`, which never drops it: the
+	/// struct still owns and drops the original.
+	Take,
+}
+
+impl Read {
+	fn is_borrow(&self) -> bool {
+		*self == Self::Borrow
+	}
 }
 
 impl Function {
@@ -886,6 +972,14 @@ pub(crate) fn each(ty: &Type, f: &mut dyn FnMut(&Type)) {
 }
 
 impl Type {
+	/// Whether it crosses as one C scalar, which no code but the glue's lifts or lowers.
+	pub(crate) fn scalar(&self) -> bool {
+		matches!(
+			self,
+			Type::Bool | Type::Int(_) | Type::NonZero(_) | Type::F32 | Type::F64 | Type::Char
+		)
+	}
+
 	/// Whether a parameter of this type is a value C passes in that Rust writes back
 	/// through an out pointer: `&mut` of anything but an object, whose handle it borrows,
 	/// or a reader, which C implements.

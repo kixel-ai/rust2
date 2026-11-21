@@ -32,7 +32,7 @@ pub struct Thread {
 
 /// What other threads left a thread to run.
 struct Jobs {
-	queue: Vec<Job>,
+	queue: std::collections::VecDeque<Job>,
 	/// Whether the thread exited, so that nothing queued runs.
 	gone: bool,
 	/// Called, from the thread that queues, as the queue goes from empty to not.
@@ -157,7 +157,7 @@ impl Thread {
 		Self {
 			pending: AtomicBool::new(false),
 			jobs: Mutex::new(Jobs {
-				queue: Vec::new(),
+				queue: std::collections::VecDeque::new(),
 				gone,
 				wake: None,
 			}),
@@ -205,13 +205,19 @@ impl Thread {
 
 	/// Run what other threads queued for this thread, if any: what a [`Wake`] schedules.
 	pub fn drain_here() {
-		let _ = HERE.try_with(|here| {
-			if let Some(thread) = here.0.get()
-				&& thread.pending.load(Ordering::Acquire)
-			{
+		Self::drained_here();
+	}
+
+	/// [`Self::drain_here`], and whether it ran any.
+	pub fn drained_here() -> bool {
+		HERE.try_with(|here| match here.0.get() {
+			Some(thread) if thread.pending.load(Ordering::Acquire) => {
 				thread.drain();
+				true
 			}
-		});
+			_ => false,
+		})
+		.unwrap_or(false)
 	}
 
 	/// Whether this is its thread.
@@ -248,7 +254,7 @@ impl Thread {
 		if jobs.gone {
 			return Err(job);
 		}
-		jobs.queue.push(job);
+		jobs.queue.push_back(job);
 		let first = !self.pending.swap(true, Ordering::Release);
 		let wake = jobs.wake.clone().filter(|_| first);
 		drop(jobs);
@@ -262,15 +268,24 @@ impl Thread {
 		Ok(())
 	}
 
-	/// Run what other threads queued for this one, on it.
+	/// Run what other threads queued for this one, on it: one at a time, so a job waiting
+	/// on a later one, as a binding's close in a callback may on a close queued after it,
+	/// runs that one through a drain of its own.
 	#[cold]
 	fn drain(&self) {
-		let queue = {
-			let mut jobs = self.lock();
-			self.pending.store(false, Ordering::Relaxed);
-			std::mem::take(&mut jobs.queue)
-		};
-		queue.into_iter().for_each(Job::run);
+		loop {
+			let job = {
+				let mut jobs = self.lock();
+				match jobs.queue.pop_front() {
+					Some(job) => job,
+					None => {
+						self.pending.store(false, Ordering::Relaxed);
+						return;
+					}
+				}
+			};
+			job.run();
+		}
 	}
 
 	/// The thread exited: drop what was queued, and what those drops queue in turn, as a

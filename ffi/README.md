@@ -15,7 +15,8 @@ rust2-ffi (--out dir | --census dir | --api file) [--manifest-path Cargo.toml] [
 ```
 
 It runs `cargo check` on the package with itself as `RUSTC_WRAPPER`, for each `--target`
-or else the host, whatever cargo's config names, through
+or else the host, whatever cargo's config names, under the release profile unless the cargo
+args pick another, as a library ships, through
 the front end it shares with [rust2-ts](../ts/README.md) in [`driver/`](../driver). A build
 script's probe of the compiler through that wrapper, as `rustversion` and `autocfg` make,
 runs the `rustc` cargo resolved, the one the glue builds with, rather than the exporter's
@@ -45,8 +46,9 @@ its source's URL.
 A `[replace]` from the source it replaces, which no `[patch]` can carry, is an error.
 Beside the C header, `include/<prefix>.hpp` holds the same API in C++, over a header per crate,
 `kotlin/<prefix>.kt` holds it in Kotlin, over JNI functions the crate builds with
-`--features kotlin`, and `kotlin/<prefix>.pro` the R8 and ProGuard rules keeping what
-those functions look up by name. `python/<prefix>.py` holds it in Python, over a CPython
+`--features kotlin`, beside `kotlin/FastNative.kt`, an annotation a build may need with it, and
+`kotlin/<prefix>.pro` the R8 and ProGuard rules keeping what those functions look up by
+name. `python/<prefix>.py` holds it in Python, over a CPython
 extension the crate builds with `--features python`, `swift/<prefix>.swift` holds it in
 Swift, over the C header as a clang module, `go/` holds it in Go, a package per crate
 over the C ABI through cgo, and `dart/<prefix>.dart` holds it in Dart, over the C ABI through
@@ -92,7 +94,7 @@ public path names, or an error taken by value, is held by value as an opaque han
 | any other type | an object: an opaque handle to an `Arc`, freed with `_free`; one that is `Copy`, such as std's `Instant`, whose padding a `rustc` may place anywhere, is copied out of its handle where Rust takes it by value, and a closure neither takes nor returns one by value; one that is not `Send`, such as kio's `clock::Entered`, stays on the thread that made it, as [the C ABI](#the-c-abi)'s threads say |
 | a type whose only generic parameters are lifetimes, such as `Path<'a>` | an object holding its `'static` form |
 | a generic type, at each instance it infers | that instance as any other type, with each method whose impl and own bounds it meets; any other instance is refused |
-| a `pub` field of an object or opaque value | a getter returning a copy, and a setter assigning in place, as `x.field = value` does |
+| a `pub` field of an object or opaque value | a getter returning a copy, and a setter assigning in place, as `x.field = value` does; a `repr(packed)` struct's field that may lie unaligned, which rustc lets no reference point at, is copied out if `Copy`, else read unaligned into a `ManuallyDrop`, which the struct still owns and drops, so one that must be lent instead, a field that is not `Clone`, is refused unless aligned within the packing, as is one holding an atomic or `Cell` inline, whose unaligned copy would race a write through `&self` |
 | a `pub` trait | a callback interface: a table of C functions and their data; a trait C cannot implement, such as one with a blanket impl, an associated type, or a supertrait but a marker, is left out, since C never passes one, and a signature taking one from C is refused |
 | a type parameter or `impl` bounded by `Fn`, `FnMut`, or `FnOnce` alone, taking what a callback takes, objects by reference, or opaque values, and returning a scalar, a `String`, an opaque value, an `Option` of one, or a `Result` of one and a `String` | a C function and its `void *` data; one a lifetime bound or the return lets outlive the call, as kio's `clock::drive` and a spawned task's are, adds a `free` Rust calls once it drops it; a closure of any other signature is refused |
 | a type parameter or `impl` taken by value and bounded by `Future` or `IntoFuture`, whose every bound `Pin<Box<dyn Future<Output = ()> + Send>>` meets, as kio's `clock::timeout` takes, or taken as `Pin<&mut F>` by a poll, as kio's `Waiter::poll_future` takes | `<prefix>_foreign_future`: a future of `()` C implements, which Rust takes as that type, or which the future the poll makes owns and pins; a future of another output is refused |
@@ -238,7 +240,31 @@ item that target compiles works exactly, and no other does:
   another value, or a constant of another value, is refused at its span, with a note at the other's, naming both targets.
 
 The crate's build script sets `cfg(rust2_ffi_target = "<triple>")` for the target it
-builds for, which gates each item, and refuses a target it was not exported for.
+builds for, which gates each item, and refuses a target it was not exported for. It sets
+`cfg(rust2_ffi_proven)` only under the profile the check proved [leaves](#python) under,
+by the `PROFILE`, `OPT_LEVEL`, and debug assertions cargo tells it and the profile's
+directory above its `OUT_DIR`, whose per-package overrides are then the check's, since
+the glue carries the workspace's profiles. `test` and `debug` (which newer cargos define,
+inheriting `dev`) share `dev`'s directory, and `bench` `release`'s, so where the
+manifest sets anything of `test`'s, `debug`'s, or `bench`'s own beyond the `inherits`
+cargo gives it, no build in that directory is proven. It also compares `DEBUG`, which the
+crate's debug info sets, and the target's `cfg`s cargo gives it as `CARGO_CFG_*`, less the
+crate's features and debug assertions: the check records them as cargo's `rustc` prints
+them under the check's `RUSTFLAGS`, and again acting as a stable release, which lists no
+unstable `cfg` or target feature, so a stable build of a nightly's export is proven too.
+A `-C target-cpu`, `-C target-feature`, or `--cfg` the check did not have makes the build
+unproven. So does any `CARGO_PROFILE_<NAME>_OPT_LEVEL`, `_DEBUG`, `_DEBUG_ASSERTIONS`, or
+`_BUILD_OVERRIDE_DEBUG_ASSERTIONS` of the profile or one it inherits from, set apart from the
+check's environment, which would change another crate's build, or of another profile that
+shares its directory (`bench` beside `release`, `test` and `debug` beside `dev`) set at all. The crate's `PROVEN` also needs the check's panic
+strategy, which a build script cannot see, and its debug assertions, which `RUSTFLAGS`
+may set apart from the profile. A package override or `build-override` that cargo's
+config files or a `--config` set, which a build script cannot see, is the one setting the
+guard misses: build with the export's config. A build
+under another profile may run code the proof never saw, such as a body under
+`cfg(debug_assertions)`, so each binding makes every leaf as any other call instead:
+Python releases the GIL, Dart serves the isolate, and Kotlin calls a plain native method
+in place of the `@FastNative` one.
 `<prefix>_target()` returns the library's target as its index among the header's,
 listed in its comment, which each binding reads once when it loads.
 
@@ -435,8 +461,8 @@ Linux's exports, as the merge queue runs on, since a header names its targets.
 - **Callbacks** are a struct of a table and its data. Rust calls `free` once it drops the
   implementation, and may call the others from any thread. A callback takes scalars and
   buffers lent for the call, and returns a scalar. Each method is its table's member by
-  its name, with `_` appended where C, C++, or Rust reads it as a keyword, where GNU
-  dialects predefine it as a macro (`i386`, `linux`, `unix`), where C and C++ reserve it
+  its name, with `_` appended where C, C++, or Rust reads it as a keyword, where a header
+  or GNU dialect defines it as a macro (`src/macros.txt`: `unix`, `EOF`), where C and C++ reserve it
   (`_Bool`, `__cplusplus`), where the ABI's own parameters take it (`data`, `out`, `err`,
   `future`, `waker`, `out0`, ...), where it ends in `_`, and for `free`, the table's own:
   `delete`, `free`, `type`, and `data` are `delete_`, `free_`, `type_`, and `data_`.
@@ -519,19 +545,19 @@ packages place it in.
 
 - **Names** are the C names without the prefix, in a namespace of it: `moq_track_Producer`
   is `moq::track_Producer`, and its method `moq_track_Producer_append_group` is
-  `moq::track_Producer::append_group`. A keyword, or a macro of a short list that GNU dialects predefine or the
-  C library's headers define (`unix`, `linux`, `i386`, as in moq-tokio's `tokio::unix_`,
-  and `errno`, `assert`, `offsetof`, `stdin`, `stdout`, and `stderr`, and each of them
-  followed by underscores, so `unix_` becomes `unix_2`; any other macro, such as `EOF` or
-  `va_start`, is not escaped yet, see [ffi-apart](../quest/m1/ffi-apart.md)), takes a trailing `_` (`counter::new_`),
+  `moq::track_Producer::append_group`. A keyword takes a trailing `_` (`counter::new_`),
   as does a member named as its class, one of its fields, or a member a trait gives it,
   and a parameter named as a member or as anything in the namespace, which it would hide.
   A name C++ reserves, one holding `__` or starting with `_` and a capital, first drops its
   leading `_`s and keeps one `_` of each run: `__all__` is `all_`, and serde's parameter
   `__deserializer` is `deserializer`.
-  A name the escape leaves alone keeps it, and one escaped onto another's takes `_`, or `2`
-  after a trailing `_`, until free, never making `__`: the values `Delete` and `Delete_`
-  are `delete_2` and `delete_`, in any order.
+  A name that moves steps along its stem's names `x`, `x_`, `x_2`, `x_3`, ..., never making
+  `__`. So a macro that a C or C++ system header defines or a GNU dialect predefines, as
+  `src/macros.txt` lists them (`unix`, `EOF`, `errno`), moves to the next of its stem's
+  names no macro holds, keeping the stem's names in order: `unix` is `unix_`, as in
+  moq-tokio's `tokio::unix_`, and `unix_` is `unix_2`.
+  A name the escape leaves alone keeps it, and one escaped onto another's steps until free:
+  the values `Delete` and `Delete_` are `delete_2` and `delete_`, in any order.
 - **Objects** are classes owning their handle through a `std::unique_ptr` whose deleter
   calls `_free`, so they move and never copy, and a `Clone` type's `clone()` crosses into
   Rust for a value of its own. A type implementing `Hash` has `hash()`, Rust's, by which
@@ -645,7 +671,15 @@ packages place it in.
 
 `<prefix>.kt` is Kotlin for the JVM and Android over the crate's JNI functions, which
 `--features kotlin` builds into the same library, loaded by `System.loadLibrary`. It needs
-kotlinx-coroutines. Each value crosses JNI as a scalar, a handle as a `Long`, bytes passed
+kotlinx-coroutines. A leaf's native method, a primitive field read or write or a derived
+`equals` or `hashCode` the export proves waits on nothing and walks no value of a size the
+caller sets ([`Abi::leaf`](src/abi.rs)), takes ART's `@FastNative`, so ART keeps the thread runnable across the call;
+`_Native`'s first call registers each through `RegisterNatives`, since ART binds such a
+method by its name only from Android 12, and the rules keep each. `FastNative.kt`
+declares the annotation for a build whose classpath lacks it: the JVM, or an Android SDK
+below API 34, where it became public. An Android build against SDK 34 or later leaves the
+file out, as android.jar's own class serves, and so does every build after its first of
+two exports in one app, whose two copies D8 refuses as one class defined twice. Each value crosses JNI as a scalar, a handle as a `Long`, bytes passed
 in as a `ByteArray`, bytes returned as their owner, a block of numbers as its primitive
 array, and anything else encoded into a `ByteArray` as its C struct holds it. A record a
 call takes or returns directly, or in an `Option`, crosses as its scalars, a nested
@@ -664,12 +698,25 @@ the rest cross encoded.
   name, as does a type named as the runtime or a generated class. Any other top-level name,
   such as a function's or an exception's, takes a trailing `_` where a type, the runtime, or
   an earlier name has it. A keyword is quoted in backticks, and a member named as one Kotlin
-  gives its type takes a trailing `_`. A constructor such as `new` stays a companion function: `Counter.new(1)`.
+  gives its type takes a trailing `_`. Names of one scope that Kotlin spells alike, such as
+  the fields `new` and `new_` in camel case, are kept apart in any order, as C++'s are: one
+  spelled as its Rust name keeps it, and the rest take a trailing `_` until free, in Rust's
+  name order (`new_` and `new`). A companion's functions are a scope apart from the
+  instance's. A call's parameters are kept apart the same way, but by a number, since the
+  call's own locals end in `_`: Rust's `(new_, new)` are `(new2, new)`, so a named argument
+  reads as Rust's. A constructor such as `new` stays a companion function: `Counter.new(1)`.
 - **Objects** are classes owning their handle, `AutoCloseable`, which each call holds
   until it returns, so the handle is freed only once no call holds it; a call after
   `close()` throws. Of a checked type, `close()` drops the value through Rust's own
   `_drop`, as Rust's `drop` would, and throws instead while a call borrows the value, as
-  Rust refuses that drop, leaving the value to a later `close()`. Of any other type,
+  Rust refuses that drop, leaving the value to a later `close()`; one no call holds, as
+  soon after its return, takes the value through `_drop` and frees the handle in the same
+  crossing. A `close()` meeting that crossing waits until Rust commits or refuses the drop,
+  then decides again: once refused, the object is open, so it throws too while the borrow
+  stands, and closes if it ended meanwhile. Rust runs none of the program's code on the
+  closing thread before it commits, not even the drops other threads left that thread,
+  which it runs after the value's own; a refused close runs them and tries again. So a
+  `Drop` that calls back into Kotlin, from any thread, finds it closed. Of any other type,
   `close()` frees the handle, and throws while a call holds it. A returned object waits in
   a nursery of the last 64 its thread returned, where `close()` frees it without the GC's
   registration, a phantom reference linked into a list under a lock. One never closed is
@@ -698,8 +745,13 @@ the rest cross encoded.
   or for one with data a sealed class of a data class per variant. `Display` is
   `toString()`, `Debug` `debug()`, and `Default` a companion's `default()`. A companion's
   function is `@JvmStatic`, so Java calls it on the class, as Kotlin does, but for
-  `default()`, whose name Java reserves; one whose JVM name a field's getter has, as
-  `getX()` beside `x`, takes a trailing `_` on the JVM alone. An **opaque
+  `default()` and `new()`, whose names Java reserves; one whose JVM name a field's getter has, as
+  `getX()` beside `x`, takes a trailing `_` on the JVM alone. One taking an unsigned
+  integer or its array, or a member returning one, which Kotlin would give a mangled JVM
+  name such as `count-pVg5ArA`, keeps its own through `@JvmName`, so Java calls `count()`
+  for an `int`. Java calls no member of a value class, which Kotlin compiles to such a
+  static, nor a function taking an opaque value Kotlin holds in one, whose bits Java would
+  pass unchecked: its JVM name, such as `take-opaque`, is no Java identifier. An **opaque
   value** is a class with an internal constructor, so only Rust makes one: of no more than
   8 bytes on every target, with no padding, fields of integers, `bool`s, and `char`s alone, nested or not, and a
   derived or std `PartialEq`, a value class over a `Long`, compared by its bits, which
@@ -726,7 +778,11 @@ the rest cross encoded.
   which JNI keeps reachable until the call returns, and are freed once the GC finds no
   `Bytes` reaching them, slices included. The GC sees none of Rust's buffers, so at most
   64 MiB are lent at once, freed or not; past that, longer ones are copied too, and that
-  garbage in Kotlin's heap runs the GC, which frees them. A `Bytes` equals and hashes by its contents, wherever each keeps them, so a
+  garbage in Kotlin's heap runs the GC, which frees them. On ART, which puts each copy of
+  12 KiB or more in its large-object space at several times a lend's cost, Rust asks the
+  GC to collect, from a thread of its own, once 32 MiB are lent, and again only after
+  frees bring them under 16 MiB, so lent bytes a program keeps never make it collect over
+  and over. A `Bytes` equals and hashes by its contents, wherever each keeps them, so a
   record holding bytes does too; Rust's lent ones are copied across in one call to compare.
   Strings are `String`, passed in as their UTF-16, which Rust encodes once into UTF-8 before
   the call reads any argument, so one holding a lone surrogate, which no Rust text holds,
@@ -825,12 +881,18 @@ free-threaded build (3.13t, 3.14t), which the module refuses at import with an `
 loads the library from beside itself: `lib<prefix>.so`, `lib<prefix>.dylib`, or
 `<prefix>.dll`. Its glue converts each Python value to the C value and calls the C ABI
 function in-process, so a call is one crossing, which releases the GIL while Rust runs,
-so Rust may call Python back from any thread meanwhile. A leaf keeps it: a read or write of
-a primitive `pub` field of a `Send` object reached without a `Deref`, or a `PartialEq` or
-`Hash` derived, or std's, down to primitives, which the export proves runs no code but
-std's and the glue's, waits on no lock, and calls no Python, so it cannot deadlock on the
-GIL (`Abi::leaf` in `src/abi.rs` gives the argument). A field read costs 26 ns that way,
-against 63 releasing it ([the benchmark](../bench/ffi/README.md#leaf-calls)).
+so Rust may call Python back from any thread meanwhile. A leaf keeps it: a `&self` or
+`&mut self` method, or a read or write of a `pub` field, of a `Send` object, taking and
+returning only scalars, whose body and each `Deref`'s on the way the export proves, from
+their MIR, run no code but std's and the glue's in a bounded number of steps, or a
+`PartialEq` or `Hash` derived, or std's, down to primitives. A leaf waits on no lock and
+calls no Python, so it cannot deadlock on the GIL (`Abi::leaf` in `src/abi.rs` gives the
+argument, and `src/leaf.rs` the proof). The proof reads the MIR of the profile the export
+checks, release by default, with every arithmetic overflow asserted, which a profile may
+turn off but a build script cannot see; a build under another profile releases the GIL
+across a leaf too ([Targets](#targets)). So `demand.start()`, which returns a field, costs
+27 ns, against 65 releasing the GIL, and 0.1 us on four threads at once, against 1.8
+([the benchmark](../bench/ffi/README.md#leaf-calls)).
 Each function, method, and property but an `async def` is the extension's own, bound in
 the module or set on its class as it loads, so a call enters it with no Python frame
 between; the Python declares them under `typing.TYPE_CHECKING`, for type checkers. They
@@ -842,7 +904,8 @@ caller imports it with no ignores.
   snake_case without their type's name (`moq.TrackProducer.append_group`), and two types
   whose names would match kept apart as Kotlin's are (`TokioConnect_Error`), as are
   top-level names that clash. A keyword, a member Python gives every such class, or a
-  method named as a field takes a trailing `_`. A member or top-level name may be a
+  method named as a field takes a trailing `_`, as does a field named as a member a trait
+  gives its type (`default_` beside `Default`'s `default()`). A member or top-level name may be a
   builtin's (`bytes`, `int`): the module reads each builtin through an alias (`_bytes`).
   Constructors such as `new` stay static methods: `Counter.new(1)`. The module's `__all__`
   lists every export, so `from moq import *` reaches one whose Rust name starts with `_`
@@ -963,8 +1026,10 @@ value of a Rust type crosses as one Swift type that holds it exactly, and back u
 - **Names** are as Kotlin's, at the module's top level: types in PascalCase without the
   prefix, members in camelCase without their type's name (`TrackProducer.appendGroup`). A
   keyword is quoted in backticks, and a member named as one Swift gives its type, such as
-  `init`, or as a field or member before it, takes a trailing `_`. Names that clash are
-  kept apart as Kotlin's are. Parameters have no labels but an optional borrowed object's,
+  `init`, or as a field, takes a trailing `_`, as does a record's field named as a member
+  `Display` or `Debug` gives it (`description_`). Names that clash are kept apart as Kotlin's
+  are, in any order, a method by its name with its labels: Rust's `delete()` and
+  `delete_(a, b)` are `delete()` and `delete(_:_:)`. Parameters have no labels but an optional borrowed object's,
   so a call reads as Rust's, and a
   constructor such as `new` stays a static function: `Counter.new(1)`.
 - **Objects** are noncopyable structs (`~Copyable`) owning their handle, freed in `deinit`,
@@ -1155,18 +1220,26 @@ other than one in its own form, `module <path>` and `go 1.24`.
   returns that type, or an `Option` of it (moq's `clock::interval` is
   `kio.NewClockInterval`), and otherwise takes a trailing `_` (`mux::codec::opus::config`
   is `mux.CodecOpusConfig_`).
-  A method named `Close` or `Error`, or as a field or a method before it, and a parameter
+  A method named `Close` or `Error`, or as a field, and a parameter
   named as a Go keyword, a predeclared name, or a package the code uses, take a trailing
   `_` too, as does a variant's or error's name or any other in a package that another
-  there, or the runtime's, takes.
+  there, or the runtime's, takes. Names of one scope that Pascal case spells alike, such
+  as the fields `new` and `new_`, are kept apart as Kotlin's are, in any order: `New` and
+  `New_`.
 - **Objects** are pointers to structs owning their handle, each an `io.Closer`, which
   each call holds until it returns, so the handle is freed only once no call holds it. Of
   a checked type, `Close()` drops the value through Rust's own `_drop`, as Rust's `drop`
   would, and returns an error matching `rt.ErrBorrowed` instead while a call on another
   goroutine borrows the value, as Rust refuses that drop, leaving the value to a later
-  `Close()`. Of any other type, `Close()` frees the handle, and returns an error matching
-  `rt.ErrBorrowed` while a call holds it; one no call holds, as soon after its return,
-  drops and frees in one crossing. A second `Close()` does nothing. A returned object waits
+  `Close()`; one no call holds, as soon after its return, drops and frees in one crossing.
+  A `Close()` meeting that crossing waits until Rust commits or refuses the drop, then
+  decides again: once refused, the object is open, so it fails too while the borrow
+  stands, and closes if it ended meanwhile. Rust runs none of the program's code before it
+  commits, so a `Drop` that calls back into Go finds it closed. Only a value's home runs
+  other code meanwhile, as it does before any call queued there: so a `Close()` from a
+  goroutine the home waits on blocks, as a call on that value from it does. Of any other
+  type, `Close()` frees the handle, and returns an error matching `rt.ErrBorrowed` while a
+  call holds it. A second `Close()` does nothing. A returned object waits
   in a nursery of the last 64 its P returned, where `Close()` frees it without the GC's
   registration (`runtime.AddCleanup` and its `Stop`), which costs more than the rest of a
   return and close. One never closed is registered once pushed out, by 64 later returns or
@@ -1311,7 +1384,8 @@ the library's own URI, mapped to the library by a build hook or by `--native-ass
   (`Position.group`). A type's other functions are static members. Two types whose
   names would match are kept apart by a number (`Cancelled2`), as a type's name holds no
   `_`, which Dart's lints refuse. A reserved word takes a trailing `_` (`Point.default_()`),
-  and any other member that clashes takes a trailing `_` (`foo_`) when that is free, else a number then a `_` (`default2_`); names that clash,
+  and any other member that clashes takes a trailing `_` (`foo_`) when that is free, else a number then a `_` (`default2_`),
+  in any order, as Kotlin's do: one spelled as its Rust name keeps it; names that clash,
   such as one the runtime declares or a data enum's variant class, are kept apart the same
   way. The glue's C names are `<prefix>_dart_`, with a `_` more for each C name of the
   export already there. The generated file passes `dart analyze --fatal-infos` with
@@ -1443,7 +1517,8 @@ the library's own URI, mapped to the library by a build hook or by `--native-ass
   into Dart meanwhile. Any other call runs on the isolate's thread, since nothing it waits
   on can call into Dart. A leaf, as Python keeps the GIL across, is a leaf call (`isLeaf`)
   to the C function on the isolate's thread, with no hop and no arena: a field read costs
-  13 ns, against 31, and against 2 us while Rust holds a closure. A call that holds only
+  13 ns, against 31, and against 2 us while Rust holds a closure, and `demand.start()` 16,
+  against 27. A call that holds only
   its receiver holds it with no arena either. An isolate may move between threads, so a
   value that is not `Send` is made on a home, a thread Rust owns, which runs each call on
   it.
@@ -1520,9 +1595,10 @@ packs the api fixture's with npm, installs it into a project of its own, type-ch
   function, and each one a crate's `.init_array` static runs when the module loads,
   through every call, `dyn` implementation, function pointer, static, and drop it can
   reach, std's included, and into C and whatever Rust the C calls back, so a new std needs
-  no change here: every crate builds with `-Zalways-encode-mir`, std's from the dev
-  shell's MIR sysroot or else `-Zbuild-std`, which doubles the export's peak memory, as
-  [measured](../bench/ffi/README.md#the-exports-build-cost); a native export reads no MIR.
+  no change here: every crate builds with `-Zalways-encode-mir`, as every export's does
+  for its [leaves](#python), std's from the dev shell's MIR sysroot or else
+  `-Zbuild-std`, which doubles the export's peak memory, as
+  [measured](../bench/ffi/README.md#the-exports-build-cost).
   A C function or static no linked library defines, which would fail the module's link, is
   refused the same way, as is a call into wasm-bindgen, whose imports on `wasm32-wasip1`
   compile to stubs that panic. `thread::Builder::spawn` and a socket's `connect` and `bind`
@@ -1541,7 +1617,9 @@ packs the api fixture's with npm, installs it into a project of its own, type-ch
   and `load`. Names are the C names without the prefix: a type in Pascal case, and a
   function in camel case, a constant's in upper case; a reserved word is exported as is
   from a local with a trailing `$`, so `Counter.new("c", 1)` and `Point.default()` work
-  through the module's namespace.
+  through the module's namespace. Names of one scope that camel case spells alike are kept
+  apart as Kotlin's are, in any order: functions `erase_` and `erase` are `erase_` and
+  `erase`, and fields `new_` and `new`, as no field takes a trailing `_`, are `new2` and `new`.
 - **Values**: a record is a plain object of its fields in camel case, positional ones `_0`,
   `_1`, and so on; an opaque value an `rt.Opaque`, its bytes, which only Rust makes. A plain
   enum is a union of its variants' names, and an enum with data a union of objects tagged
@@ -1648,6 +1726,7 @@ just ffi corpus-update  # take corpus/crates.txt afresh from crates.io's top cra
 just ffi protocol # run longer protocol scripts from more seeds through the C ABI and every binding, as the nightly does
 nix develop .#bench --command just ffi browsers  # api's TypeScript in headless Chromium, Firefox, and on Linux WebKit, lowering `using` three ways for WebKit, as the nightly runs it
 nix develop .#android --command just ffi android  # the Kotlin test, shrunk by R8, under CheckJNI on the Android device adb reaches
+nix develop .#android --command just ffi bench-android  # the benchmark's Kotlin rows on HotSpot and, shrunk by R8, on ART on the Android device adb reaches
 nix develop .#bench --command just ffi bench  # the binding benchmark: bench/ffi/README.md's cases from Rust, and through the export from C, C++, Kotlin, Python, Swift, Go, and Dart
 nix develop .#bench --command just ffi codspeed  # after bench-build, each single-threaded case once under CodSpeed's CPU simulation, as the CodSpeed workflow runs it
 nix develop .#sanitize --command just ffi sanitize  # api's C and C++ scripts under ASan with UBSan, TSan, and Valgrind, its Swift under TSan, its Go under the race detector and cgocheck2, its Python looped on a debug CPython, and its C ABI under Miri

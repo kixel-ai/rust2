@@ -17,6 +17,7 @@ mod step;
 #[path = "fixtures/transcript/mod.rs"]
 mod transcript;
 
+use std::collections::BTreeSet;
 use std::env::consts::EXE_SUFFIX;
 use std::ffi::OsString;
 use std::path::{Path, PathBuf};
@@ -173,6 +174,50 @@ fn transcript() -> &'static transcript::Transcript {
 	})
 }
 
+/// The api fixture's Python, C++, and web checks as the release builder takes them, into
+/// `RUST2_TRANSCRIPTS`: a directory each, `python`, `cpp`, and `web`, holding the test as
+/// `check.<ext>` beside its generated script. Only the export runs, not `api`'s builds.
+#[test]
+#[ignore = "writes outside the target: just ffi transcripts <dir>"]
+fn transcripts() {
+	let dir = PathBuf::from(std::env::var_os("RUST2_TRANSCRIPTS").expect("RUST2_TRANSCRIPTS names the directory"));
+	let out = scratch().join("transcripts").join("out");
+	// The export `api` makes, so each script is the one its test runs.
+	let output = export("api", &out, &[host(), WEB], &API_CARGO);
+	assert!(
+		output.status.success(),
+		"exporting failed:\n{}",
+		String::from_utf8_lossy(&output.stderr)
+	);
+	let t = transcript::Transcript::load(
+		&out.join("api.json"),
+		&manifest_dir().join("fixtures/api/examples/transcript.rs"),
+	);
+	let tests = manifest_dir().join("tests");
+	// The web script imports the test's hooks by its name, which is `check.ts` here.
+	let typescript = transcript::typescript::emit(&t);
+	let hooks = "import * as hook from \"./api.ts\";";
+	assert_eq!(
+		typescript.matches(hooks).count(),
+		1,
+		"the web script imports the hooks once"
+	);
+	let typescript = typescript.replace(hooks, "import * as hook from \"./check.ts\";");
+	for (language, check, file, script) in [
+		("python", "api.py", "transcript.py", transcript::python::emit(&t)),
+		("cpp", "api.cpp", "transcript.hpp", transcript::cpp::emit(&t)),
+		("web", "api.ts", "transcript.ts", typescript),
+	] {
+		let checks = dir.join(language);
+		if checks.exists() {
+			std::fs::remove_dir_all(&checks).unwrap();
+		}
+		let ext = Path::new(check).extension().unwrap();
+		step::copy(&tests.join(check), &checks.join("check").with_extension(ext));
+		step::write(&checks.join(file), script);
+	}
+}
+
 /// `contents` written as `file` in a scratch directory of `language`'s, which the
 /// language's test puts on its path.
 fn generated(language: &str, file: &str, contents: &str) -> PathBuf {
@@ -188,15 +233,18 @@ fn cpp_transcript() -> PathBuf {
 	generated("cpp", "transcript.hpp", &transcript::cpp::emit(transcript()))
 }
 
+/// The cargo args each export of the api fixture its tests build takes: a feature of the
+/// facade's that enables one in a crate it re-exports, which the C library must build with,
+/// and the dev profile its tests build, so its leaves are leaf calls in them.
+const API_CARGO: [&str; 4] = ["--profile", "dev", "--features", "doubled"];
+
 fn api() -> &'static Api {
 	static API: OnceLock<Api> = OnceLock::new();
 	API.get_or_init(|| {
 		let out = scratch().join("api").join("out");
-		// A feature of the facade's that enables one in a crate it re-exports, which the C
-		// library must build with.
 		let features = ["--features", "doubled"];
 		// One binding for the host and wasm32, which the web binding runs.
-		let output = export("api", &out, &[host(), WEB], &features);
+		let output = export("api", &out, &[host(), WEB], &API_CARGO);
 		assert!(
 			output.status.success(),
 			"exporting failed:\n{}",
@@ -790,13 +838,17 @@ const RESERVED_FROM_C: &[&str] = &[
 	"api_Status__debug",
 	"api_Status__eq",
 	"api___all__",
+	"api___all___",
 	"api__deprecated",
 	"by__",
 	"by___data",
 	"c_by__",
 	"c_out__out_",
+	"delete__",
 	"new__",
 	"out__out",
+	"work__",
+	"work___data",
 ];
 
 /// Clang's ownership and must-use checks: the whole script builds clean under them, and
@@ -1110,6 +1162,7 @@ fn api_kotlin() {
 		"java\n",
 		"plain Java calls the binding"
 	);
+	jvm_names_exist(api, &classes);
 
 	let kotlin_returns = run(&mut java(&[&classes], &["returns"]));
 	assert_eq!(
@@ -1146,6 +1199,38 @@ fn api_kotlin() {
 		stderr.contains("api.kt and the library are from different builds"),
 		"a mismatched contract printed {stderr}"
 	);
+
+	// A _Native from another build lacking the leaves `__contract` registers throws the
+	// JVM's NoSuchMethodError from its initializer, rather than aborting.
+	let lacking = scratch().join("api").join("kotlin-lacking");
+	let source = lacking.join("src").join("_Native.java");
+	step::write(
+		&source,
+		"package api;\n\npublic final class _Native {\n\tstatic {\n\t\tSystem.loadLibrary(\"api\");\n\t\t__contract();\n\t}\n\n\tstatic native long __contract();\n\n\tpublic static void main(String[] args) {}\n}\n",
+	);
+	run(Command::new("javac")
+		.arg("-d")
+		.arg(lacking.join("classes"))
+		.arg(&source));
+	let output = no_core(
+		Command::new("java")
+			.arg("-Xcheck:jni")
+			.arg(format!("-Djava.library.path={}", api.lib.display()))
+			.arg("-cp")
+			.arg(lacking.join("classes"))
+			.arg("api._Native"),
+	)
+	.output()
+	.unwrap();
+	failed(&output, "a _Native lacking its leaves");
+	let stderr = String::from_utf8_lossy(&output.stderr);
+	assert!(
+		output.status.code().is_some()
+			&& stderr.contains("java.lang.NoSuchMethodError")
+			&& stderr.contains("at api._Native.__contract(Native Method)"),
+		"a _Native lacking its leaves exited with {} and printed {stderr}",
+		output.status
+	);
 }
 
 /// The same script on Android: the classes, shrunk by R8 into an app's dex with only the
@@ -1172,7 +1257,7 @@ fn api_android() {
 		abi => panic!("the android shell's toolchain has no target for the device's ABI {abi}"),
 	};
 	let out = dir.join("out");
-	let output = export("api", &out, &[target, WEB], &["--features", "doubled"]);
+	let output = export("api", &out, &[target, WEB], &API_CARGO);
 	assert!(
 		output.status.success(),
 		"exporting for {target} failed:\n{}",
@@ -1280,6 +1365,20 @@ fn api_android() {
 		usage.lines().any(|line| line.starts_with("api.")),
 		"R8 stripped none of the generated Kotlin:\n{usage}"
 	);
+	// And keeps every leaf's `@FastNative`, which ART reads off the dex, and the method
+	// itself, which `__contract` registers.
+	let marked = std::fs::read_to_string(out.join("kotlin").join("api.kt"))
+		.unwrap()
+		.matches("@dalvik.annotation.optimization.FastNative\n")
+		.count();
+	assert!(marked > 0, "the api fixture has no leaf to mark");
+	let dump = run(Command::new(newest(&sdk.join("build-tools")).join("dexdump"))
+		.arg("-a")
+		.arg(dex.join("classes.dex")));
+	let kept = String::from_utf8_lossy(&dump.stdout)
+		.matches("VISIBILITY_BUILD Ldalvik/annotation/optimization/FastNative;")
+		.count();
+	assert_eq!(kept, marked, "R8 kept {kept} of the {marked} @FastNative methods");
 
 	run(Command::new(&adb)
 		.args(["shell", "rm", "-rf", DEVICE, "&&", "mkdir", "-p"])
@@ -1406,6 +1505,7 @@ fn kotlin_classes(api: &Api) -> PathBuf {
 		stamp: &step::stamp(&classes),
 		reads: &[
 			&api.out.join("kotlin").join("api.kt"),
+			&api.out.join("kotlin").join("FastNative.kt"),
 			&manifest_dir().join("tests").join("api.kt"),
 			&script,
 			&manifest_dir().join("tests").join("protocol.kt"),
@@ -1417,13 +1517,68 @@ fn kotlin_classes(api: &Api) -> PathBuf {
 	classes
 }
 
+/// Each JVM name the api fixture's lock records is a public method of its class, as javap
+/// reads `classes`, the compiled Kotlin: the class of the type the function is a member of,
+/// or the file's for one at the top level.
+fn jvm_names_exist(api: &Api, classes: &Path) {
+	let json: serde_json::Value =
+		serde_json::from_slice(&std::fs::read(api.out.join("api.json")).unwrap()).expect("the export's API");
+	let names = json["names"]["Kotlin"].as_object().expect("Kotlin's names");
+	let jvm: Vec<(String, &str)> = (names.iter())
+		.filter_map(|(key, jvm)| {
+			let (_, path) = key.strip_suffix(" / jvm")?.split_once(' ')?;
+			// The last `::` outside a generic method's arguments, as `api::Area::scaled<api::Point>`'s.
+			let mut depth = 0;
+			let at = (path.char_indices()).rfind(|&(k, c)| {
+				depth += match c {
+					'>' => 1,
+					'<' => -1,
+					_ => 0,
+				};
+				depth == 0 && path[k..].starts_with("::")
+			})?;
+			let owner = &path[..at.0];
+			let class = match names.get(&format!("type {owner}")) {
+				Some(class) => format!("api.{}", class.as_str().unwrap()),
+				None => "api.ApiKt".to_string(),
+			};
+			Some((class, jvm.as_str().unwrap()))
+		})
+		.collect();
+	assert!(jvm.len() > 100, "the lock records JVM names: {}", jvm.len());
+	let owners: BTreeSet<&str> = jvm.iter().map(|(class, _)| class.as_str()).collect();
+	let javap = run(Command::new("javap")
+		.arg("-public")
+		.arg("-cp")
+		.arg(classes)
+		.args(&owners));
+	let mut methods: BTreeSet<(String, String)> = BTreeSet::new();
+	let mut class = String::new();
+	for line in String::from_utf8_lossy(&javap.stdout).lines() {
+		let words: Vec<&str> = line.split(['(', ' ']).collect();
+		if let Some(at) = words.iter().position(|w| ["class", "interface"].contains(w)) {
+			class = words[at + 1].split('<').next().unwrap().to_string();
+		} else if let Some((head, _)) = line.split_once('(') {
+			methods.insert((class.clone(), head.rsplit(' ').next().unwrap().to_string()));
+		}
+	}
+	let missing: Vec<&(String, &str)> = (jvm.iter())
+		.filter(|(class, name)| !methods.contains(&(class.clone(), name.to_string())))
+		.collect();
+	assert!(
+		missing.is_empty(),
+		"JVM names the lock records that no class has: {missing:?}"
+	);
+}
+
 /// kotlinc compiling the generated Kotlin with `tests/api.kt`, the transcript `script`,
 /// and `tests/protocol.kt` into `dest`.
 fn kotlinc(out: &Path, script: &Path, dest: &Path) -> Command {
 	let mut cmd = Command::new("kotlinc");
 	cmd.args(["-Werror", "-cp"])
 		.arg(coroutines())
-		.arg(out.join("kotlin").join("api.kt"))
+		// The generated Kotlin, `api.kt` and `FastNative.kt`.
+		.arg(out.join("kotlin"))
 		.arg(manifest_dir().join("tests").join("api.kt"))
 		.arg(script)
 		.arg(manifest_dir().join("tests").join("protocol.kt"))
@@ -2714,10 +2869,11 @@ fn api_dart() {
 		writes: &[],
 	};
 	step.run(Command::new("dart").args(["analyze", "--fatal-infos"]).arg(&lint));
-	// What looks like a leaf but reaches user code is no leaf call. The script catches a
-	// hand-written `PartialEq`; a getter's drain it cannot, as a home drains each drop
-	// queued for it at once, apart from any call. Nor is one walking a length the caller
-	// picks, which would stall the isolate group's collector until it returns.
+	// What looks like a leaf but reaches user code, loops, or reads a static is no leaf
+	// call. The script catches a hand-written `PartialEq`, method, or `Deref`; a getter's
+	// drain it cannot, as a home drains each drop queued for it at once, apart from any
+	// call. Nor is one walking a length the caller picks, which would stall the isolate
+	// group's collector until it returns.
 	let code = std::fs::read_to_string(generated.join("api.dart")).unwrap();
 	let leaf = |symbol: &str| code.contains(&format!("(symbol: '{symbol}', isLeaf: true)"));
 	assert!(
@@ -2726,6 +2882,12 @@ fn api_dart() {
 			"api_Plain_hash",
 			"api_Plain_n_get",
 			"api_Plain_n_set",
+			"api_Plain_count",
+			"api_Plain_recount",
+			"api_Wrapped_n_get",
+			"api_Wrapped_n_set",
+			"api_Wrapped_count",
+			"api_Wrapped_recount",
 			"api_contract"
 		]
 		.into_iter()
@@ -2741,7 +2903,13 @@ fn api_dart() {
 			"api_Part_eq",
 			"api_Part_hash",
 			"api_Labeled_eq",
-			"api_Labeled_hash"
+			"api_Labeled_hash",
+			"api_Plain_steps",
+			"api_Buffer_blank",
+			"api_Plain_locals",
+			"api_Hooked_count",
+			"api_Guarded_n_get",
+			"api_Guarded_count"
 		]
 		.into_iter()
 		.all(|symbol| !leaf(symbol)),
@@ -3829,7 +3997,7 @@ fn lacks() {
 	let output = export("lacks", &out, &[WEB], &[]);
 	assert!(!output.status.success(), "exporting lacks succeeded");
 	// Each `module.name` a refusal names.
-	let named: std::collections::BTreeSet<String> = (errors(&output).iter())
+	let named: BTreeSet<String> = (errors(&output).iter())
 		.flat_map(|error| {
 			error
 				.split('`')
@@ -3864,7 +4032,7 @@ fn lacks() {
 	let binding: String = (std::fs::read_dir(out.join("web")).unwrap())
 		.map(|entry| std::fs::read_to_string(entry.unwrap().path()).unwrap())
 		.collect();
-	let mut lacking = std::collections::BTreeSet::new();
+	let mut lacking = BTreeSet::new();
 	for payload in wasmparser::Parser::new(0).parse_all(&wasm) {
 		if let wasmparser::Payload::ImportSection(section) = payload.unwrap() {
 			for import in section.into_imports() {
@@ -4201,12 +4369,17 @@ fn lock() {
 		("Kotlin", "smoothStep", "smoothStep_"),
 		("Swift", "smoothStep", "smoothStep_"),
 		("Dart", "smoothStep", "smoothStep_"),
-		("Python", "smooth_step", "smooth_step_"),
-		("Go", "SmoothStep", "SmoothStep_"),
 	] {
 		assert!(
 			stderr.contains(&format!("its {language} name `{old}` is now `{new}`")),
 			"missing member rename for {language}:\n{stderr}"
+		);
+	}
+	// Python's and Go's cases spell `smooth_step` alone as its Rust, so it keeps its name.
+	for (language, old) in [("Python", "smooth_step"), ("Go", "SmoothStep")] {
+		assert!(
+			!stderr.contains(&format!("its {language} name `{old}` is now")),
+			"a {language} name spelled as its Rust moved:\n{stderr}"
 		);
 	}
 
@@ -5398,6 +5571,227 @@ fn config_patched() {
 	);
 	// Built from here, where none of that config is read.
 	build_offline(&out, &root.join("glue"));
+}
+
+/// A leaf is proven against the profile the export checks, release unless its cargo args pick
+/// another, and a build under another makes no leaf call. A method that runs a hook only
+/// with debug assertions on is a leaf of a release check; built for dev, Python makes it as
+/// any other call, releasing the GIL, which the hook's thread needs. Kept, the call would wait
+/// on that thread for good, which the hook fails loud on instead. Every overflow asserts in
+/// the check, so arithmetic is no leaf even in release, where a build may still check it. A
+/// profile of cargo's config, which the glue does not carry, is an error.
+#[test]
+fn leaf_profile() {
+	let package = package(
+		"leaf_profile",
+		&[
+			(
+				"Cargo.toml",
+				"[package]\nname = \"leaf_profile\"\nversion = \"0.0.0\"\nedition = \"2024\"\n\n\
+				[profile.ship]\ninherits = \"release\"\n\n\
+				[profile.bench]\ndebug-assertions = true\n\n[workspace]\n",
+			),
+			(".cargo/config.toml", "[profile.configured]\ninherits = \"release\"\n"),
+			(
+				"src/lib.rs",
+				"use std::sync::Mutex;\n\n\
+				static HOOK: Mutex<Option<Box<dyn Fn() + Send>>> = Mutex::new(None);\n\n\
+				pub fn hook(f: impl Fn() + Send + 'static) {\n\t*HOOK.lock().unwrap() = Some(Box::new(f));\n}\n\n\
+				fn run_hook() {\n\
+				\tlet Some(f) = HOOK.lock().unwrap().take() else {\n\t\treturn;\n\t};\n\
+				\tlet (done, ran) = std::sync::mpsc::channel();\n\
+				\tstd::thread::spawn(move || {\n\t\tf();\n\t\tlet _ = done.send(f);\n\t});\n\
+				\tlet f = ran.recv_timeout(std::time::Duration::from_secs(30)).expect(\"the hook ran: the call kept the GIL\");\n\
+				\t*HOOK.lock().unwrap() = Some(f);\n}\n\n\
+				pub struct Counter {\n\tn: u64,\n}\n\n\
+				impl Counter {\n\
+				\tpub fn new(n: u64) -> Self {\n\t\tSelf { n }\n\t}\n\n\
+				\tpub fn debugged(&self) -> u64 {\n\t\t#[cfg(debug_assertions)]\n\t\trun_hook();\n\t\tself.n\n\t}\n\n\
+				\tpub fn released(&self) -> u64 {\n\t\t#[cfg(not(debug_assertions))]\n\t\trun_hook();\n\t\tself.n\n\t}\n\n\
+				\tpub fn next(&self) -> u64 {\n\t\tself.n + 1\n\t}\n}\n",
+			),
+		],
+	);
+	let out = package.join("out");
+	let export = |cargo: &[&str]| {
+		Command::new(env!("CARGO_BIN_EXE_rust2-ffi"))
+			.arg("--manifest-path")
+			.arg(package.join("Cargo.toml"))
+			.arg("--out")
+			.arg(&out)
+			.arg("--")
+			.args(cargo)
+			.env("CARGO_TARGET_DIR", package.join("build"))
+			.output()
+			.unwrap()
+	};
+	// Which of Counter's methods are leaves, and the profile they were proven under: its
+	// `PROFILE`, and the directory a build under it alone builds in.
+	let exported = |cargo: &[&str]| {
+		let output = export(cargo);
+		assert!(
+			output.status.success(),
+			"{cargo:?} failed:\n{}",
+			String::from_utf8_lossy(&output.stderr)
+		);
+		let api: serde_json::Value =
+			serde_json::from_str(&std::fs::read_to_string(out.join("api.json")).unwrap()).unwrap();
+		let api = &api["api"];
+		let methods = api["objects"][0]["methods"].as_array().unwrap();
+		let leaves: Vec<&str> = (methods.iter())
+			.filter(|m| m["leaf"] == true)
+			.map(|m| m["path"].as_array().unwrap().last().unwrap().as_str().unwrap())
+			.collect();
+		let profile = &api["profiles"][host()];
+		(
+			leaves.join(" "),
+			profile["root"].as_str().unwrap().to_string(),
+			profile["dir"].as_str().map(str::to_string),
+		)
+	};
+	let profiled =
+		|leaves: &str, root: &str, dir: Option<&str>| (leaves.to_string(), root.to_string(), dir.map(str::to_string));
+	// Its build of the Python extension under the profile `dir` names (`test` in `debug`), with `RUSTFLAGS`,
+	// cargo's `--config`s, and the environment `with` adds, which says whether its build
+	// script found the check's profile, and the Python calling a method with a hook set,
+	// which times out if the call kept the GIL.
+	let python = |check: &str, dir: &str, rustflags: &str, with: (&[&str], &[(&str, &str)]), name: &str| {
+		// Apart for each check, as cargo keeps the library of whichever unit it built last.
+		let target = package.join("glue").join(check);
+		let (profile, dir) = match dir {
+			"debug" => ("dev", "debug"),
+			"test" => ("test", "debug"),
+			dir => (dir, dir),
+		};
+		let built = run(cargo()
+			.args(["build", "--locked", "--message-format=json", "--manifest-path"])
+			.arg(out.join("Cargo.toml"))
+			.arg("--target-dir")
+			.arg(&target)
+			.args(["--profile", profile, "--features", "python"])
+			.args(with.0.iter().flat_map(|config| ["--config", config]))
+			.envs(with.1.iter().copied())
+			.env("RUSTFLAGS", format!("-D warnings {rustflags}")));
+		let lib = shared("leaf_profile");
+		step::copy(&target.join(dir).join(&lib), &out.join("python").join(&lib));
+		let proven = String::from_utf8_lossy(&built.stdout).lines().any(|line| {
+			let message: serde_json::Value = serde_json::from_str(line).unwrap();
+			message["reason"] == "build-script-executed"
+				&& (message["cfgs"].as_array().unwrap().iter())
+					.any(|cfg| cfg.as_str().unwrap().starts_with("rust2_ffi_proven"))
+		});
+		let script = format!(
+			"import threading\nimport leaf_profile as m\nran = []\nm.hook(lambda: ran.append(threading.get_ident()))\n\
+			assert m.Counter.new(3).{name}() == 3\nassert len(ran) == 1 and ran[0] != threading.get_ident(), ran\n"
+		);
+		run(
+			Command::new(std::env::var_os("PYTHON").unwrap_or_else(|| "python3".into()))
+				.args(["-P", "-c", &script])
+				.env("PYTHONPATH", out.join("python")),
+		);
+		proven
+	};
+	// `bench` sets its own debug assertions on top of `release`, in the directory they
+	// share, so a release check proves no build.
+	assert_eq!(exported(&[]), profiled("debugged", "release", None));
+	// A release flag in a group of short flags picks release too, and the export adds no
+	// second one for cargo to refuse.
+	assert_eq!(exported(&["-qr"]), profiled("debugged", "release", None));
+	assert!(
+		!python("release", "debug", "", (&[], &[]), "debugged"),
+		"a dev build ran the release check's leaves"
+	);
+	assert_eq!(
+		exported(&["--profile", "dev"]),
+		profiled("released", "debug", Some("debug"))
+	);
+	assert!(
+		python("dev", "debug", "", (&[], &[]), "debugged"),
+		"a dev build did not run the dev check's leaves"
+	);
+	// A build whose target cfgs, `DEBUG`, or profile variables are not the check's makes no
+	// leaf call, though it builds in the same directory: its build script runs again.
+	let api: serde_json::Value = serde_json::from_str(&std::fs::read_to_string(out.join("api.json")).unwrap()).unwrap();
+	let debug = api["api"]["profiles"][host()]["debug"].as_bool().unwrap();
+	let undebugged = format!("profile.dev.debug={}", !debug);
+	for (rustflags, with) in [
+		("--cfg rust2_extra --check-cfg cfg(rust2_extra)", (&[][..], &[][..])),
+		("", (&[undebugged.as_str()][..], &[][..])),
+		(
+			"",
+			(
+				&[][..],
+				&[("CARGO_PROFILE_DEV_BUILD_OVERRIDE_DEBUG_ASSERTIONS", "true")][..],
+			),
+		),
+	] {
+		assert!(
+			!python("dev", "debug", rustflags, with, "debugged"),
+			"a build with {rustflags:?} and {with:?} ran the check's leaves"
+		);
+	}
+	// `test` builds in `dev`'s directory, where the check never saw its variables apply.
+	assert!(
+		!python(
+			"dev",
+			"test",
+			"",
+			(&[], &[("CARGO_PROFILE_TEST_BUILD_OVERRIDE_DEBUG_ASSERTIONS", "true")]),
+			"debugged"
+		),
+		"a test build with its own build-override debug assertions ran the dev check's leaves"
+	);
+	assert!(
+		python("dev", "debug", "", (&[], &[]), "debugged"),
+		"a dev build did not run the dev check's leaves again"
+	);
+	// The nightly the export ran lists `cfg`s a stable rustc keeps back, so the check also
+	// records them as the nightly lists them acting as a stable release.
+	let stable = stable_rustc();
+	assert!(
+		python(
+			"dev-stable",
+			"debug",
+			"",
+			(&[], &[("RUSTC", stable.to_str().unwrap())]),
+			"debugged"
+		),
+		"a stable build did not run the dev check's leaves"
+	);
+	// Cargo defines `debug` itself, inheriting `dev`'s settings and directory.
+	assert_eq!(
+		exported(&["--profile", "debug"]),
+		profiled("released", "debug", Some("debug"))
+	);
+	// Debug assertions `RUSTFLAGS` turns off, which the build script may not see, still
+	// make no leaf call: `released` runs the hook, and would time out keeping the GIL.
+	python(
+		"dev-unasserted",
+		"debug",
+		"-C debug-assertions=off",
+		(&[], &[]),
+		"released",
+	);
+	assert_eq!(
+		exported(&["--profile", "ship"]),
+		profiled("debugged", "release", Some("ship"))
+	);
+	assert!(
+		python("ship", "ship", "", (&[], &[]), "released"),
+		"a build under the check's profile did not run its leaves"
+	);
+	assert!(
+		!python("ship", "release", "", (&[], &[]), "released"),
+		"a build under another profile of its `PROFILE` ran the check's leaves"
+	);
+	// The glue's manifest carries no profile cargo's config defines.
+	let output = export(&["--profile", "configured"]);
+	assert!(!output.status.success(), "a profile of cargo's config passed");
+	let stderr = String::from_utf8_lossy(&output.stderr);
+	assert!(
+		stderr.contains("no profile `configured` inherits from another here"),
+		"{stderr}"
+	);
 }
 
 /// The workspace's profiles reach the glue's build, with an override of a package the

@@ -503,6 +503,13 @@ impl Method {
 		format!("{}({}){results}", self.name, params.join(", "))
 	}
 
+	/// Whether go vet reports it, as [`vetted`] says, on a type that is an `error` or not.
+	fn vetted(&self, error: bool) -> bool {
+		let params: Vec<&str> = self.params.iter().map(|(_, ty)| ty.as_str()).collect();
+		let results: Vec<&str> = self.results.iter().map(String::as_str).collect();
+		vetted(&self.name, &params, &results, error)
+	}
+
 	fn write(&self) -> String {
 		let receiver = match &self.receiver {
 			Some(r) => format!("({r}) "),
@@ -685,7 +692,8 @@ impl<'a> Gen<'a> {
 			/*\n#cgo CFLAGS: -I${{SRCDIR}}\n{links}#include <stdlib.h>\n#include \"{p}.h\"\n\n\
 			extern void {go}_call(void *data);\nextern void {go}_release(void *data);\nextern bool {go}_poll(void *data, {p}_waker waker);\n\
 			extern bool {go}_read(void *data, uint8_t *buf, size_t len, size_t *n, {p}_buf *err);\n\
-			extern bool {go}_seek(void *data, int whence, int64_t offset, uint64_t *position, {p}_buf *err);\n\n\
+			extern bool {go}_seek(void *data, int whence, int64_t offset, uint64_t *position, {p}_buf *err);\n\
+			extern bool {p}_close_drain(const void *handle);\n\n\
 			static void {go}_bufs_free({p}_buf *bufs, size_t n) {{\n\tfor (size_t i = 0; i < n; i++) {{\n\t\t{p}_buf_free(bufs[i]);\n\t}}\n}}\n\n\
 			// The header's contract, read through C: cgo built by clang reads a uint64_t macro\n\
 			// with its top bit set as a negative constant.\n\
@@ -705,6 +713,9 @@ impl<'a> Gen<'a> {
 			func cBufsFree(bufs []cBuf) {{\n\tC.{go}_bufs_free(&bufs[0], C.size_t(len(bufs)))\n}}\n\n\
 			func cWakerWake(w cWaker) {{\n\tC.{go}_waker_wake(w)\n}}\n\n\
 			func cWakerDrop(w cWaker) {{\n\tC.{go}_waker_drop(w)\n}}\n\n\
+			// cCloseDrain runs what other threads left this thread, for a Close waiting on another's\n\
+			// undecided drop, given nil, or for one of raw refused: whether to try again.\n\
+			func cCloseDrain(raw unsafe.Pointer) bool {{\n\treturn bool(C.{p}_close_drain(raw))\n}}\n\n\
 			// Go packages and a library from different builds must not mix: checked when the\n\
 			// runtime loads, before any other call.\n\
 			func init() {{\n\tif C.{p}_contract() != 0x{contract:016x} || C.{go}_header_contract() != 0x{contract:016x} {{\n\t\tpanic(\"the Go of {p} and the library are from different builds\")\n\t}}\n\ttarget_ = uint64(C.{p}_target())\n}}\n\n\
@@ -901,18 +912,28 @@ impl<'a> Gen<'a> {
 		(stmts, value)
 	}
 
-	/// The C shim dropping the value of the object `c`'s handle, which Rust checks, then
-	/// freeing the handle if asked and the drop passed: a close in one crossing.
+	/// The C shim dropping the value of the object `c`'s handle, which Rust checks, then,
+	/// given the handle's state, freeing the handle if the drop passed: a close in one
+	/// crossing, which stores closed to the state as the drop commits, so a close waiting on
+	/// it returns before any `Drop` runs.
 	fn close_c(&mut self, c: &str) -> String {
-		let name = format!("{}GoClose_{}", self.abi.prefix, self.bare(c));
+		let p = &self.abi.prefix;
+		let name = format!("{p}GoClose_{}", self.bare(c));
 		let handle = Ty::Handle {
 			name: c.to_string(),
 			constant: false,
 		};
 		let decl = crate::c::decl(self.abi, &handle, "self");
 		let status = crate::c::decl(self.abi, &Ty::Status, "");
+		let committed = format!("{p}GoCommitted");
+		if self.shims.insert(committed.clone()) {
+			self.decls.push(format!(
+				"static void {committed}(void *state) {{\n\t__atomic_store_n((int64_t *)state, 1, __ATOMIC_RELEASE);\n}}\n"
+			));
+		}
 		self.decls.push(format!(
-			"static inline {status} {name}({decl}, int free) {{\n\t{status} r = 0;\n\t{c}_drop(self, &r);\n\tif (r == 0 && free) {{\n\t\t{c}_free(self);\n\t}}\n\treturn r;\n}}\n"
+			"extern void {c}_drop_signal({decl}, {status} *status, void (*commit)(void *), void *data);\n\
+			static inline {status} {name}({decl}, int64_t *state) {{\n\t{status} r = 0;\n\t{c}_drop_signal(self, &r, state ? {committed} : NULL, state);\n\tif (r == 0 && state) {{\n\t\t{c}_free(self);\n\t}}\n\treturn r;\n}}\n"
 		));
 		name
 	}
@@ -927,9 +948,9 @@ impl<'a> Gen<'a> {
 		pascal(self.bare(c))
 	}
 
-	/// The Go names of parameters, each [`local`], [`abi::distinct`].
+	/// The Go names of parameters, each [`local`], kept apart as [`abi::distinct`] keeps them.
 	fn locals(&self, params: &[Param]) -> Vec<String> {
-		abi::distinct(params.iter().map(|p| local(&p.name)))
+		abi::distinct(params, local, |_| false)
 	}
 
 	/// The package-level Go name `what` takes, `name` unless that is taken.
@@ -938,16 +959,10 @@ impl<'a> Gen<'a> {
 		abi::claim(&mut self.names, |name| rt && taken(name), name, what)
 	}
 
-	/// Check that no two members of the type `rust` share a Go name.
-	fn distinct(&mut self, rust: &str, members: &[String]) {
-		let mut seen = BTreeSet::new();
-		for member in members {
-			if !seen.insert(member) {
-				self.errors.push(format!(
-					"two members of `{rust}` are both `{member}` in Go, which rust2-ffi should keep apart"
-				));
-			}
-		}
+	/// Asserts that no two members of the type `rust` share a Go name, as
+	/// [`abi::assert_apart`] does.
+	fn distinct(&self, rust: &str, members: &[String]) {
+		abi::assert_apart(rust, "Go", members, |a, b| a == b);
 	}
 
 	/// The Go type of `ty`, as a value, a parameter, or a result.
@@ -1459,12 +1474,24 @@ impl<'a> Gen<'a> {
 		for i in (0..api.callbacks.len()).filter(|&i| mine(&api.callbacks[i].home)) {
 			self.callback(i);
 		}
-		for function in api.functions.iter().filter(|f| mine(&f.home)) {
-			let mut method = self.function(function, None, None);
-			method.name = self.claim(&method.name, format!("fn `{}`", function.path.join("::")));
+		// Named apart from each other as [`abi::named`] keeps a scope's, then from the rest.
+		let functions: Vec<&Function> = api.functions.iter().filter(|f| mine(&f.home)).collect();
+		let mut methods: Vec<Method> = functions.iter().map(|f| self.function(f, None, None)).collect();
+		let rust: Vec<String> = (functions.iter())
+			.map(|f| rest(&abi.prefix, &abi.export(f, None).on_home().named, &f.shown, &f.home).to_string())
+			.collect();
+		let rust: Vec<&str> = rust.iter().map(String::as_str).collect();
+		let spelled = methods.iter().map(|method| method.name.clone()).collect();
+		let rt = self.pkg == Packages::RT;
+		let own = |rust: &str, name: &str| abi::snake(name) == rust || name == rust.to_uppercase();
+		let free = |_: usize, name: &str| rt && taken(name) || self.names.contains_key(name);
+		let names = abi::named(&rust, spelled, own, free, abi::underscored);
+		for ((function, method), name) in functions.into_iter().zip(&mut methods).zip(names) {
+			method.name = self.claim(&name, format!("fn `{}`", function.path.join("::")));
 			crate::lock::function(&mut self.locked, function, &method.name);
 			self.top.push_str(&method.write());
 		}
+
 		self.moved();
 		self.errors_of();
 	}
@@ -2093,32 +2120,27 @@ impl<'a> Gen<'a> {
 		self.distinct(&rust, &members);
 	}
 
-	/// The Go names of a record's fields: each [`field_name`], with a trailing `_` while
-	/// a method its traits give it, which an interface requires by name, or an earlier
-	/// field takes it.
+	/// The Go names of a record's fields, kept apart from a method its traits give it, which
+	/// an interface requires by name, as [`field_names`] keeps them.
 	fn record_fields(&mut self, i: usize) -> Vec<String> {
 		let record = &self.abi.api.records[i];
-		let mut taken = self.trait_methods(&Type::Record(i), record.traits);
-		(record.fields.iter())
-			.map(|f| {
-				let name = unique(&mut taken, field_name(&f.name));
-				crate::lock::field(&mut self.locked, &record.shown, &f.name, &name);
-				name
-			})
-			.collect()
+		let taken = self.trait_methods(&Type::Record(i), record.traits);
+		let names = field_names(&record.fields, &taken);
+		for (f, name) in record.fields.iter().zip(&names) {
+			crate::lock::field(&mut self.locked, &record.shown, &f.name, name);
+		}
+		names
 	}
 
 	/// The Go names of a data enum's variant's fields, clear of the methods its traits add.
 	fn variant_fields(&mut self, i: usize, variant: &Variant) -> Vec<String> {
 		let e = &self.abi.api.enums[i];
-		let mut taken = self.trait_methods(&Type::Enum(i), e.traits);
-		(variant.fields.iter())
-			.map(|f| {
-				let name = unique(&mut taken, field_name(&f.name));
-				crate::lock::variant_field(&mut self.locked, &e.shown, &variant.name, &f.name, &name);
-				name
-			})
-			.collect()
+		let taken = self.trait_methods(&Type::Enum(i), e.traits);
+		let names = field_names(&variant.fields, &taken);
+		for (f, name) in variant.fields.iter().zip(&names) {
+			crate::lock::variant_field(&mut self.locked, &e.shown, &variant.name, &f.name, name);
+		}
+		names
 	}
 
 	/// The methods the traits `t` of the type `ty` add, which a field's name must clear.
@@ -2192,15 +2214,47 @@ impl<'a> Gen<'a> {
 		owner: &Ty,
 		fields: &[String],
 	) -> Vec<String> {
-		let (methods, statics) = self.members(ty, c, rust, traits, functions, owner);
+		let (mut methods, statics) = self.members(ty, c, rust, traits, functions, owner);
 		let mut members = Vec::new();
 		let mut taken: BTreeSet<String> = fields.iter().cloned().collect();
-		// Each method's final name and receiver, by its lock key, which a stream's adapter calls.
-		let mut named = BTreeMap::new();
-		for mut method in methods {
-			while !taken.insert(method.name.clone()) {
+		let error = self.errored(ty);
+		// What its traits make, and `Error`, keep their names, which an interface requires,
+		// before Rust's, which keep apart as one scope.
+		for method in methods.iter_mut().filter(|m| m.key.is_none()) {
+			while method.vetted(error) || !taken.insert(method.name.clone()) {
 				method.name.push('_');
 			}
+		}
+		let own: Vec<usize> = (0..methods.len()).filter(|&k| methods[k].key.is_some()).collect();
+		let rust: Vec<&str> = (own.iter())
+			.map(|&k| {
+				let key = methods[k].key.as_deref();
+				(functions.iter())
+					.find(|f| Some(crate::lock::function_key(f).as_str()) == key)
+					.expect("a method is of its type's functions")
+					.name()
+			})
+			.collect();
+		for &k in &own {
+			while methods[k].vetted(error) {
+				methods[k].name.push('_');
+			}
+		}
+		let spelled = own.iter().map(|&k| methods[k].name.clone()).collect();
+		let names = abi::named(
+			&rust,
+			spelled,
+			|rust, name| abi::snake(name) == rust,
+			|_, name| taken.contains(name),
+			abi::underscored,
+		);
+		for (k, name) in own.into_iter().zip(names) {
+			taken.insert(name.clone());
+			methods[k].name = name;
+		}
+		// Each method's final name and receiver, by its lock key, which a stream's adapter calls.
+		let mut named = BTreeMap::new();
+		for method in methods {
 			if let Some(key) = &method.key {
 				self.locked.insert(key.clone(), method.name.clone());
 				named.insert(key.clone(), (method.name.clone(), method.receiver.clone()));
@@ -2330,7 +2384,22 @@ impl<'a> Gen<'a> {
 		// An interface each variant's struct implements, sealed by a method of its own. Each
 		// method is a function of the interface, which each variant's forwards to.
 		let seal = format!("is_{c}");
-		let (methods, statics) = self.members(&ty, &c, &rust, e.traits, &e.methods, &Ty::Struct(c.clone()));
+		let (mut methods, statics) = self.members(&ty, &c, &rust, e.traits, &e.methods, &Ty::Struct(c.clone()));
+		// Each variant's struct declares its fields beside the methods it forwards, so a method
+		// takes a trailing `_` beside one, as a record's does beside its own.
+		let mut taken: BTreeSet<String> = (e.variants.iter())
+			.flat_map(|variant| self.variant_fields(i, variant))
+			.collect();
+		taken.insert(seal.clone());
+		let error = self.errored(&ty);
+		for method in &mut methods {
+			while method.vetted(error) || !taken.insert(method.name.clone()) {
+				method.name.push('_');
+			}
+			if let Some(key) = &method.key {
+				self.locked.insert(key.clone(), method.name.clone());
+			}
+		}
 		let mut interface = format!("\t{seal}()\n");
 		let mut shared = String::new();
 		for method in &methods {
@@ -2511,9 +2580,9 @@ impl<'a> Gen<'a> {
 		let (drop, dropping) = match self.abi.checked[i] {
 			true => (
 				format!(
-					"// drop_{c} drops the value of the handle p, which Rust checks, then frees p if free\n\
-					// and the drop passed.\n\
-					func drop_{c}(p unsafe.Pointer, free bool) error {{\n\tvar f C.int\n\tif free {{\n\t\tf = 1\n\t}}\n\treturn {status_}(int32(C.{shim}((*C.{c})(p), f)), \"{c}_drop\")\n}}\n\n",
+					"// drop_{c} drops the value of the handle p, which Rust checks, then, given its state,\n\
+					// frees p if the drop passed, storing closed to state once it can no longer fail.\n\
+					func drop_{c}(p, state unsafe.Pointer) error {{\n\treturn {status_}(int32(C.{shim}((*C.{c})(p), (*C.int64_t)(state))), \"{c}_drop\")\n}}\n\n",
 					shim = self.close_c(&c),
 					status_ = self.qualify(Packages::RT, "Status_"),
 				),
@@ -2546,17 +2615,46 @@ impl<'a> Gen<'a> {
 		let mut body = Vec::new();
 		let mut members = Vec::new();
 		let mut table = vec!["\tv.free = goRelease\n".to_string()];
-		for method in &callback.methods {
-			let member = pascal(method.name());
+		let signatures: Vec<(Vec<String>, Option<String>)> = (callback.methods.iter())
+			.map(|method| {
+				let types: Vec<String> = method.params.iter().map(|p| self.go_param(&p.ty)).collect();
+				let ret = match method.ok {
+					Type::Unit => None,
+					_ => Some(self.go(&method.ok)),
+				};
+				(types, ret)
+			})
+			.collect();
+		// An interface's method is vetted too, though never as an `error`'s.
+		let spelled = (callback.methods.iter().zip(&signatures))
+			.map(|(method, (types, ret))| {
+				let ps: Vec<&str> = types.iter().map(String::as_str).collect();
+				let rs: Vec<&str> = ret.iter().map(String::as_str).collect();
+				let mut member = pascal(method.name());
+				while vetted(&member, &ps, &rs, false) {
+					member.push('_');
+				}
+				member
+			})
+			.collect();
+		let methods: Vec<&str> = callback.methods.iter().map(|method| method.name()).collect();
+		let named = abi::named(
+			&methods,
+			spelled,
+			|rust, name| abi::snake(name) == rust,
+			|_, _| false,
+			abi::underscored,
+		);
+		for ((method, (types, ret)), member) in callback.methods.iter().zip(signatures).zip(named) {
 			crate::lock::function(&mut self.locked, method, &member);
 			members.push(member.clone());
 			let names = self.locals(&method.params);
-			let params: Vec<String> = (method.params.iter().zip(&names))
-				.map(|(p, name)| format!("{name} {}", self.go_param(&p.ty)))
+			let params: Vec<String> = (names.iter().zip(&types))
+				.map(|(name, ty)| format!("{name} {ty}"))
 				.collect();
-			let ret = match method.ok {
-				Type::Unit => String::new(),
-				_ => format!(" {}", self.go(&method.ok)),
+			let ret = match &ret {
+				None => String::new(),
+				Some(ret) => format!(" {ret}"),
 			};
 			body.push(format!(
 				"{}\t{member}({}){ret}",
@@ -3588,15 +3686,60 @@ fn c_int(int: Int) -> &'static str {
 	}
 }
 
-/// A field's Go name: in Pascal case, and `V0`, `V1`, ... for a positional one.
-/// `name`, with `_` appended until it is clear of `taken`, which then holds it.
-fn unique(taken: &mut BTreeSet<String>, mut name: String) -> String {
-	while !taken.insert(name.clone()) {
-		name.push('_');
-	}
-	name
+/// Whether go vet's `stdmethods` reports a method `name` of the Go types `params` and
+/// `results`: one named as a standard interface's but of another signature, as its
+/// `canonicalMethods` lists them. `Is`, `As`, and `Unwrap` are checked only on an `error`.
+fn vetted(name: &str, params: &[&str], results: &[&str], error: bool) -> bool {
+	// Each method's parameters and results; a `=` type must match for vet to check the rest.
+	let (want, got): (&[&str], &[&str]) = match name {
+		"As" if error => (&["any"], &["bool"]),
+		"Is" if error => (&["error"], &["bool"]),
+		"Unwrap" if error => {
+			return !(params.is_empty() && matches!(results, ["error"] | ["[]error"]));
+		}
+		"Format" => (&["=fmt.State", "rune"], &[]),
+		"GobDecode" => (&["[]byte"], &["error"]),
+		"GobEncode" => (&[], &["[]byte", "error"]),
+		"MarshalJSON" => (&[], &["[]byte", "error"]),
+		"MarshalXML" => (&["*xml.Encoder", "xml.StartElement"], &["error"]),
+		"ReadByte" => (&[], &["byte", "error"]),
+		"ReadFrom" => (&["=io.Reader"], &["int64", "error"]),
+		"ReadRune" => (&[], &["rune", "int", "error"]),
+		"Scan" => (&["=fmt.ScanState", "rune"], &["error"]),
+		"Seek" => (&["=int64", "int"], &["int64", "error"]),
+		"UnmarshalJSON" => (&["[]byte"], &["error"]),
+		"UnmarshalXML" => (&["*xml.Decoder", "xml.StartElement"], &["error"]),
+		"UnreadByte" | "UnreadRune" => (&[], &["error"]),
+		"WriteByte" => (&["byte"], &["error"]),
+		"WriteTo" if params.len() <= 1 => (&["=io.Writer"], &["int64", "error"]),
+		_ => return false,
+	};
+	let alike = |want: &[&str], have: &[&str], exact: bool| {
+		(want.iter().enumerate())
+			.filter(|(_, w)| !exact || w.starts_with('='))
+			.all(|(k, w)| have.get(k).is_some_and(|h| *h == w.trim_start_matches('=')))
+			&& (exact || have.len() <= want.len())
+	};
+	alike(want, params, true)
+		&& alike(got, results, true)
+		&& !(alike(want, params, false) && alike(got, results, false))
 }
 
+/// The Go names of `fields`, one scope's, each [`field_name`], kept apart from each other and
+/// from `taken` as [`abi::named`] keeps them.
+fn field_names(fields: &[crate::ir::Field], taken: &BTreeSet<String>) -> Vec<String> {
+	let rust: Vec<&str> = fields.iter().map(|f| f.name.as_str()).collect();
+	let spelled = rust.iter().map(|name| field_name(name)).collect();
+	abi::named(
+		&rust,
+		spelled,
+		|rust, name| abi::snake(name) == rust,
+		|_, name| taken.contains(name),
+		abi::underscored,
+	)
+}
+
+/// A field's Go name, in Pascal case: a positional one's is `V0`, `V1`, ...
 fn field_name(name: &str) -> String {
 	match name.starts_with(|c: char| c.is_ascii_digit()) {
 		true => format!("V{name}"),
@@ -3799,6 +3942,7 @@ fn package_names_are_locked() {
 		crates: vec!["lock_foobar".into()],
 		targets: vec!["host".into()],
 		links: Default::default(),
+		profiles: Default::default(),
 		reached: Vec::new(),
 	};
 	let base = api.clone();
@@ -3841,6 +3985,7 @@ fn links_each_target_go_builds_for() {
 			.filter(|t| **t != "wasm32-wasip1")
 			.map(|t| (t.to_string(), vec![format!("-l{}", &t[..3])]))
 			.collect(),
+		profiles: Default::default(),
 	};
 	let (lines, platform) = link(&Abi::new(&api, "lock")).unwrap();
 	// iOS also satisfies `darwin`; MSVC's library is none Go links; wasm32 runs no cgo.
@@ -3861,4 +4006,26 @@ fn links_each_target_go_builds_for() {
 			.unwrap_err()
 			.contains("aarch64-apple-darwin")
 	);
+}
+
+#[test]
+fn vet_reads_standard_methods_as_its_check_does() {
+	// untrusted's `Reader::read_byte`: Go's `byte` is spelled `uint8` here, which vet tells apart.
+	assert!(vetted("ReadByte", &[], &["uint8", "error"], false));
+	assert!(!vetted("ReadByte", &[], &["byte", "error"], false));
+	assert!(!vetted("UnreadByte", &[], &["error"], false));
+	// anyhow's `Error::is`, checked only on an `error`.
+	assert!(vetted("Is", &[], &["bool", "error"], true));
+	assert!(!vetted("Is", &[], &["bool", "error"], false));
+	assert!(!vetted("Is", &["error"], &["bool"], true));
+	assert!(vetted("Unwrap", &[], &["uint8"], true));
+	assert!(!vetted("Unwrap", &[], &["[]error"], true));
+	// A `=` type that differs leaves the rest unchecked.
+	assert!(!vetted("Seek", &["uint64"], &[], false));
+	assert!(vetted("Seek", &["int64"], &[], false));
+	assert!(!vetted("Format", &[], &[], false));
+	// `WriteTo` of more than one argument implements nothing.
+	assert!(!vetted("WriteTo", &["uint8", "uint8"], &[], false));
+	assert!(vetted("GobEncode", &["uint8"], &["[]byte", "error"], false));
+	assert!(!vetted("Read", &[], &[], false));
 }

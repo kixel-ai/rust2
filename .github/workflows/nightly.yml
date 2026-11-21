@@ -129,7 +129,7 @@ jobs:
       # channel, and the targets it lacks.
       - name: Install just
         if: runner.os != 'Linux'
-        uses: taiki-e/install-action@3a3daafd3b7f23b8f65d9f5ba2db203fb59b79e2 # v2.90.2
+        uses: taiki-e/install-action@cfdb7ed4ccc7c7dce37759eae89dc5674b469b39 # v2.90.3
         with:
           tool: just
 
@@ -329,7 +329,7 @@ jobs:
       # No Nix: its dev shell would replace the system compiler under test. The runner's
       # rustup installs rust-toolchain.toml's channel.
       - name: Install just
-        uses: taiki-e/install-action@3a3daafd3b7f23b8f65d9f5ba2db203fb59b79e2 # v2.90.2
+        uses: taiki-e/install-action@cfdb7ed4ccc7c7dce37759eae89dc5674b469b39 # v2.90.3
         with:
           tool: just
 
@@ -370,7 +370,7 @@ jobs:
   ffi-android:
     name: Export to Kotlin on Android
     runs-on: ubuntu-24.04
-    timeout-minutes: 60
+    timeout-minutes: 90
 
     steps:
       - name: Checkout
@@ -422,6 +422,35 @@ jobs:
           script: |
             test "$($ANDROID_HOME/platform-tools/adb shell getconf PAGE_SIZE | tr -d '\r')" = 16384
             nix develop .#android --command just ffi android
+
+      # The binding benchmark's Kotlin rows on ART beside HotSpot's, into the run's summary:
+      # no threshold fails the step. Four cores, for its threaded cases. Last, so a failed
+      # measurement can't skip a correctness gate above.
+      - name: Bench on API 35
+        uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2.38.0
+        with:
+          api-level: 35
+          arch: x86_64
+          cores: 4
+          script: nix develop .#android --command just ffi bench-android
+
+      - name: Summarize the bench
+        run: cat ffi/target/bench-android/report.md >> "$GITHUB_STEP_SUMMARY"
+
+      # The same on Android 9 with 2 GB, whose emulator has no swap: a bench that holds more
+      # than the device's memory hangs it here, where API 35 swaps to zram and only slows.
+      - name: Bench on API 28
+        timeout-minutes: 20
+        uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2.38.0
+        with:
+          api-level: 28
+          arch: x86_64
+          cores: 4
+          ram-size: 2048M
+          script: nix develop .#android --command just ffi bench-android 1
+
+      - name: Summarize the bench on API 28
+        run: cat ffi/target/bench-android/report.md >> "$GITHUB_STEP_SUMMARY"
 
   ffi-bench:
     name: Bench the bindings

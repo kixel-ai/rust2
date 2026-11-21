@@ -10,21 +10,43 @@ permissions:
   contents: read
 
 jobs:
+  # The api fixture's checks, each beside the script generated from its transcript, which the
+  # tree does not hold: the builder unpacks them over its checkout as api-checks/.
+  transcripts:
+    name: api fixture's checks
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: taiki-e/install-action@3a3daafd3b7f23b8f65d9f5ba2db203fb59b79e2 # v2.90.2
+        with:
+          tool: just
+      - run: just ffi transcripts generated/api-checks
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: api-checks
+          path: generated
+          if-no-files-found: error
+
   api:
     name: api fixture
+    needs: transcripts
     uses: ./.github/workflows/bindings.yml
     with:
       manifest-path: ffi/fixtures/api/Cargo.toml
       features: doubled
       example: transcript
-      python-check: ffi/tests/api.py
+      checks-artifact: api-checks
+      python-check: api-checks/python
       # The small crate, so the second build costs little: moq's stand-in leaves it to its release.
       reproduce: true
       # api.cpp rather than api.c, whose broken cases name items only wasm32 has.
-      c-check: ffi/tests/api.cpp
+      c-check: api-checks/cpp
       web-manifest-path: ffi/fixtures/api/Cargo.toml
       scope: kixel-ai
-      web-check: ffi/tests/api.ts
+      web-check: api-checks/web
       # A module path a proxy could serve. No go-check, as no swift-check: api.go needs the
       # wasm32 items this export lacks, so the consumer only loads the runtime.
       go-module: example.com/api

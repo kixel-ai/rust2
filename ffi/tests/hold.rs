@@ -3,12 +3,16 @@
 //! below: a call holds the handle so no close frees it meanwhile, through a slot of the
 //! runtime's table once calls contend, and a close that would free it claims it closed
 //! first, then turns each hold it finds in the table into a count, so the last to let go
-//! frees it. Every interleaving within a preemption bound: a hold reads the handle, which
-//! a free writes, so loom fails the model on any free a hold could race.
+//! frees it. A checked close meeting another's one-crossing drop waits until Rust commits or
+//! refuses that drop, which runs none of the program's code before the commit signals it,
+//! so a `Drop` that closes the value again, on any thread, never waits on itself.
+//! Every interleaving within a preemption bound, [`Atom`] making it so: a hold
+//! reads the handle, which a free writes, so loom fails the model on any free a hold could
+//! race. A [`Flaw`] makes the port wrong in one place, and `flaws_are_caught` has each fail.
 
 use loom::cell::UnsafeCell;
 use loom::sync::Arc;
-use loom::sync::atomic::Ordering::SeqCst;
+use loom::sync::atomic::Ordering::{Relaxed, SeqCst};
 use loom::sync::atomic::{AtomicUsize, fence};
 use loom::thread;
 
@@ -16,7 +20,7 @@ use loom::thread;
 const CLOSED: usize = 1;
 /// Set in the hold count once calls contended for it, after which they go to the table.
 const BIAS: usize = 2;
-/// Set beside [`CLOSED`] while an unchecked close decides, which may yet leave it open.
+/// Set beside [`CLOSED`] while a close decides, which may yet leave it open.
 const CLOSING: usize = 4;
 /// One hold in the count, past the bits above, so the count is below it only once no hold
 /// is left.
@@ -27,71 +31,273 @@ const REVOKED: usize = 1;
 /// clear for [`REVOKED`].
 const KEY: usize = 8;
 
+/// A sequentially consistent atomic that loom also explores every thread's access around.
+///
+/// loom's DPOR keeps one last access per atomic, which a thread's own load overwrites, so
+/// a load after another thread's never races the store or exchange that follows it, and
+/// that exchange never runs after the other thread's load and before its next access: a
+/// close never lands between a call's `load`, `compare_exchange`, and `fetch_sub` on the
+/// count. Each access here first takes a relaxed read-modify-write on one `gate` all the
+/// atomics share, which DPOR sees conflict with every other thread's, so it tries each
+/// order of the accesses within the preemption bound.
+struct Atom {
+	value: AtomicUsize,
+	gate: Arc<AtomicUsize>,
+}
+
+impl Atom {
+	fn new(value: usize, gate: &Arc<AtomicUsize>) -> Self {
+		Self {
+			value: AtomicUsize::new(value),
+			gate: gate.clone(),
+		}
+	}
+
+	fn step(&self) {
+		self.gate.fetch_add(0, Relaxed);
+	}
+
+	fn load(&self) -> usize {
+		self.step();
+		self.value.load(SeqCst)
+	}
+
+	fn store(&self, value: usize) {
+		self.step();
+		self.value.store(value, SeqCst);
+	}
+
+	fn swap(&self, value: usize) -> usize {
+		self.step();
+		self.value.swap(value, SeqCst)
+	}
+
+	fn compare_exchange(&self, current: usize, new: usize) -> Result<usize, usize> {
+		self.step();
+		self.value.compare_exchange(current, new, SeqCst, SeqCst)
+	}
+
+	fn fetch_add(&self, value: usize) -> usize {
+		self.step();
+		self.value.fetch_add(value, SeqCst)
+	}
+
+	fn fetch_sub(&self, value: usize) -> usize {
+		self.step();
+		self.value.fetch_sub(value, SeqCst)
+	}
+
+	fn fetch_or(&self, value: usize) -> usize {
+		self.step();
+		self.value.fetch_or(value, SeqCst)
+	}
+}
+
+/// A way the port can be made wrong, with the models that must each fail on it.
+macro_rules! flaws {
+	($($(#[$doc:meta])* $name:ident => [$($model:literal),+],)*) => {
+		#[derive(Clone, Copy, Debug, PartialEq)]
+		enum Flaw {
+			$($(#[$doc])* $name,)*
+		}
+
+		impl Flaw {
+			const ALL: &[Flaw] = &[$(Flaw::$name),*];
+
+			/// The models that must fail with the port flawed so.
+			fn caught(self) -> &'static [&'static str] {
+				match self {
+					$(Flaw::$name => &[$($model),+],)*
+				}
+			}
+		}
+	};
+}
+
+flaws! {
+	/// A call on the count does not look for a close.
+	HoldIgnoresClosed => ["abandon_while_bias_taken"],
+	/// A call in the table does not look again for a close that claimed it meanwhile.
+	HoldSkipsRecheck => ["abandon_against_biased_calls", "close_against_biased_call"],
+	/// A call in the table publishes its slot without the fence ordering it before that look.
+	HoldSkipsFence => ["abandon_against_biased_calls", "close_against_biased_call"],
+	/// A close frees a handle a call on the count holds.
+	CloseIgnoresCount => ["close_against_call"],
+	/// A close frees a handle a call in the table holds.
+	CloseIgnoresSlots => ["close_against_biased_call"],
+	/// A close claims the handle without the fence ordering it before its look at the table.
+	CloseSkipsFence => ["close_against_biased_call"],
+	/// A move claims the handle without the fence ordering it before its look at the table.
+	AbandonSkipsFence => ["abandon_against_biased_calls"],
+	/// A move does not turn the holds in the table into counts.
+	AbandonSkipsSlots => ["abandon_against_biased_calls"],
+	/// A checked close's one-crossing drop claims a handle calls hold.
+	DropFreeSkipsClaim => ["checked_close_against_calls"],
+	/// The last hold is let go of while the owner's remains.
+	ReleaseFreesEarly => ["calls_alone"],
+	/// A checked close meeting another's one-crossing drop returns at once, though Rust may
+	/// yet refuse that drop.
+	CloseSkipsCommitWait => ["checked_closes_refused", "checked_closes"],
+	/// Rust's drop runs the value's `Drop` without storing the handle closed first.
+	DropSkipsCommit => ["checked_close_from_drop"],
+	/// Rust's drop of a value a close claimed drains what other threads left its thread
+	/// before its check, as one unclaimed does.
+	ClaimedDrainsFirst => ["checked_close_from_drain", "checked_close_from_drain_joined"],
+	/// A checked close Rust refused does not drain what other threads left its thread and
+	/// try again.
+	RefusalSkipsDrain => ["checked_close_after_drain"],
+}
+
+/// Where a close runs code of the program's: the drain of what other threads left its
+/// thread, or the value's `Drop`, after its commit.
+#[derive(Clone, Copy, Debug, PartialEq)]
+enum Stage {
+	Drain,
+	Drop,
+}
+
+/// What a close runs at each [`Stage`]: at [`Stage::Drain`], whether it ran any.
+type Then<'a> = &'a dyn Fn(Stage) -> bool;
+
+/// No code of the program's, as on a thread no other leaves any to.
+fn none(_: Stage) -> bool {
+	false
+}
+
 /// A handle as a binding holds it, beside a table with a slot per column for its row.
 struct Hold {
-	state: AtomicUsize,
-	slots: Vec<AtomicUsize>,
+	state: Atom,
+	slots: Vec<Atom>,
 	/// What the handle points at: Rust's memory, which the free ends.
 	raw: UnsafeCell<u64>,
 	freed: AtomicUsize,
+	/// Whether Rust took the value to drop, as its borrow state's `TAKEN`.
+	taken: Atom,
+	/// Whether a borrow refuses its drop, which a drain may end.
+	borrowed: Atom,
+	/// How many times the value's `Drop` ran.
+	dropped: AtomicUsize,
+	flaw: Option<Flaw>,
 }
 
 impl Hold {
-	fn new(columns: usize, biased: bool) -> Arc<Self> {
+	fn new(columns: usize, biased: bool, flaw: Option<Flaw>) -> Arc<Self> {
+		let gate = Arc::new(AtomicUsize::new(0));
 		Arc::new(Self {
-			state: AtomicUsize::new(HELD | if biased { BIAS } else { 0 }),
-			slots: (0..columns).map(|_| AtomicUsize::new(0)).collect(),
+			state: Atom::new(HELD | if biased { BIAS } else { 0 }, &gate),
+			slots: (0..columns).map(|_| Atom::new(0, &gate)).collect(),
 			raw: UnsafeCell::new(7),
 			freed: AtomicUsize::new(0),
+			taken: Atom::new(0, &gate),
+			borrowed: Atom::new(0, &gate),
+			dropped: AtomicUsize::new(0),
+			flaw,
 		})
+	}
+
+	/// Rust's drop of the value, as `rt::Object::close` makes it: done once the value is
+	/// gone, refused while `refused` or [`Self::borrowed`] has a borrow stand, and otherwise
+	/// the value taken, then its `Drop`, `then` with [`Stage::Drop`]. Unclaimed, it drains
+	/// first, `then` with [`Stage::Drain`]; claimed, for a close in one crossing, it runs
+	/// none of the program's code until `commit`, the state stored closed, as the glue's
+	/// commit does, once it can no longer fail, and drains last. Whether it passed.
+	fn rust_drop(&self, refused: bool, claimed: bool, then: Then) -> bool {
+		let commit = || {
+			if claimed && !self.flawed(Flaw::DropSkipsCommit) {
+				self.state.store(CLOSED);
+			}
+		};
+		if !claimed || self.flawed(Flaw::ClaimedDrainsFirst) {
+			then(Stage::Drain);
+		}
+		if self.taken.load() != 0 {
+			commit();
+			return true;
+		}
+		if refused || self.borrowed.load() != 0 {
+			return false;
+		}
+		if self.taken.swap(1) != 0 {
+			commit();
+			return true;
+		}
+		commit();
+		self.dropped.fetch_add(1, SeqCst);
+		then(Stage::Drop);
+		if claimed {
+			then(Stage::Drain);
+		}
+		true
+	}
+
+	/// Whether the port is made wrong this way.
+	fn flawed(&self, flaw: Flaw) -> bool {
+		self.flaw == Some(flaw)
+	}
+
+	/// Order the access before it ahead of the one after: loom treats a sequentially
+	/// consistent access as acquire and release alone, so a fence stands for what Go's,
+	/// Kotlin's, and Swift's atomics order.
+	fn fence(&self, skipped: Flaw) {
+		if !self.flawed(skipped) {
+			fence(SeqCst);
+		}
 	}
 
 	/// Hold the handle from `column`: the slot it went to, if any, or `None` once closed.
 	fn hold(&self, column: usize) -> Option<Option<usize>> {
 		// The fast path each binding inlines: the count, while calls neither contend for it
 		// nor find it closed.
-		let n = self.state.load(SeqCst);
-		if n & (CLOSED | BIAS) == 0 && self.state.compare_exchange(n, n + HELD, SeqCst, SeqCst).is_ok() {
+		let n = self.state.load();
+		let closed = if self.flawed(Flaw::HoldIgnoresClosed) {
+			0
+		} else {
+			CLOSED
+		};
+		if n & (closed | BIAS) == 0 && self.state.compare_exchange(n, n + HELD).is_ok() {
 			return Some(None);
 		}
-		if self.state.load(SeqCst) & BIAS != 0 && self.slots[column].compare_exchange(0, KEY, SeqCst, SeqCst).is_ok() {
-			// Loom treats a sequentially consistent access as acquire and release alone,
-			// so a fence stands for what Go's, Kotlin's, and Swift's atomics order.
-			fence(SeqCst);
-			if self.state.load(SeqCst) & CLOSED == 0 {
+		if self.state.load() & BIAS != 0 && self.slots[column].compare_exchange(0, KEY).is_ok() {
+			self.fence(Flaw::HoldSkipsFence);
+			if self.flawed(Flaw::HoldSkipsRecheck) || self.state.load() & CLOSED == 0 {
 				return Some(Some(column));
 			}
 			// A close claimed it meanwhile, and may have counted this hold.
-			if self.slots[column].compare_exchange(KEY, 0, SeqCst, SeqCst).is_err() {
-				self.slots[column].store(0, SeqCst);
+			if self.slots[column].compare_exchange(KEY, 0).is_err() {
+				self.slots[column].store(0);
 				self.release(None);
 			}
 			return None;
 		}
-		let mut n = self.state.load(SeqCst);
+		let mut n = self.state.load();
 		loop {
 			if n & CLOSED != 0 {
 				return None;
 			}
-			match self.state.compare_exchange(n, n + HELD, SeqCst, SeqCst) {
+			match self.state.compare_exchange(n, n + HELD) {
 				Ok(_) => break,
 				Err(now) => n = now,
 			}
 		}
 		// The fast path failed on an open handle with no bias only as another call changed
 		// the count meanwhile: later ones go to the table.
-		self.state.fetch_or(BIAS, SeqCst);
+		self.state.fetch_or(BIAS);
 		Some(None)
 	}
 
 	/// Let go of a hold [`Self::hold`] took.
 	fn release(&self, slot: Option<usize>) {
 		if let Some(column) = slot
-			&& self.slots[column].swap(0, SeqCst) == KEY
+			&& self.slots[column].swap(0) == KEY
 		{
 			return;
 		}
-		if self.state.fetch_sub(HELD, SeqCst) - HELD < HELD {
+		let left = if self.flawed(Flaw::ReleaseFreesEarly) {
+			2 * HELD
+		} else {
+			HELD
+		};
+		if self.state.fetch_sub(HELD) - HELD < left {
 			self.free();
 		}
 	}
@@ -110,7 +316,7 @@ impl Hold {
 	/// handle once no hold is left.
 	fn abandon(&self) {
 		let n = loop {
-			let n = self.state.load(SeqCst);
+			let n = self.state.load();
 			if n & CLOSING != 0 {
 				thread::yield_now();
 				continue;
@@ -118,17 +324,17 @@ impl Hold {
 			if n & CLOSED != 0 {
 				return;
 			}
-			if self.state.compare_exchange(n, n | CLOSED, SeqCst, SeqCst).is_ok() {
+			if self.state.compare_exchange(n, n | CLOSED).is_ok() {
 				break n;
 			}
 		};
-		fence(SeqCst);
-		if n & BIAS != 0 {
+		self.fence(Flaw::AbandonSkipsFence);
+		if n & BIAS != 0 && !self.flawed(Flaw::AbandonSkipsSlots) {
 			for slot in &self.slots {
-				if slot.load(SeqCst) == KEY {
-					self.state.fetch_add(HELD, SeqCst);
-					if slot.compare_exchange(KEY, KEY | REVOKED, SeqCst, SeqCst).is_err() {
-						self.state.fetch_sub(HELD, SeqCst);
+				if slot.load() == KEY {
+					self.state.fetch_add(HELD);
+					if slot.compare_exchange(KEY, KEY | REVOKED).is_err() {
+						self.state.fetch_sub(HELD);
 					}
 				}
 			}
@@ -140,7 +346,7 @@ impl Hold {
 	/// closed, waiting out another close that is still deciding.
 	fn close(&self) -> Closed {
 		let n = loop {
-			let n = self.state.load(SeqCst);
+			let n = self.state.load();
 			if n & CLOSING != 0 {
 				thread::yield_now();
 				continue;
@@ -148,34 +354,81 @@ impl Hold {
 			if n & CLOSED != 0 {
 				return Closed::Already;
 			}
-			if n & !BIAS != HELD {
+			if n & !BIAS != HELD && !self.flawed(Flaw::CloseIgnoresCount) {
 				return Closed::Borrowed;
 			}
 			let claim = n | CLOSED | CLOSING;
-			if self.state.compare_exchange(n, claim, SeqCst, SeqCst).is_ok() {
+			if self.state.compare_exchange(n, claim).is_ok() {
 				break n;
 			}
 		};
-		fence(SeqCst);
-		if n & BIAS != 0 && self.slots.iter().any(|slot| slot.load(SeqCst) == KEY) {
-			self.state.fetch_sub(CLOSED | CLOSING, SeqCst);
+		self.fence(Flaw::CloseSkipsFence);
+		if n & BIAS != 0 && !self.flawed(Flaw::CloseIgnoresSlots) && self.slots.iter().any(|slot| slot.load() == KEY) {
+			self.state.fetch_sub(CLOSED | CLOSING);
 			return Closed::Borrowed;
 		}
-		self.state.store(CLOSED, SeqCst);
+		self.state.store(CLOSED);
 		self.free();
 		Closed::Now
 	}
 
-	/// No hold is left, and the handle was freed once, or not at all while still open.
+	/// Close a checked handle as Go's and Kotlin's do, with [`Self::rust_drop`]'s `refused`
+	/// and `then`. No call holding it, in one crossing: claimed closed so no call starts,
+	/// then the value dropped, which may reopen it, and the handle freed; reopened, it
+	/// drains, and tries again if that ran any. Else, unless closed, held for the drop
+	/// alone, then giving up the owner's hold. Meeting another close's crossing, it drains
+	/// and waits until Rust commits that drop or refuses it, then decides again. Whether it
+	/// closed it.
+	fn checked_close(&self, column: usize, refused: bool, then: Then) -> bool {
+		loop {
+			let held = match self.flawed(Flaw::DropFreeSkipsClaim) {
+				true => self.state.load() & !CLOSED,
+				false => HELD,
+			};
+			if self.state.compare_exchange(held, CLOSED | CLOSING).is_ok() {
+				if !self.rust_drop(refused, true, then) {
+					self.state.store(HELD);
+					if !self.flawed(Flaw::RefusalSkipsDrain) && then(Stage::Drain) {
+						continue;
+					}
+					return false;
+				}
+				self.free();
+				return true;
+			}
+			let n = self.state.load();
+			if n & CLOSING != 0 && !self.flawed(Flaw::CloseSkipsCommitWait) {
+				then(Stage::Drain);
+				thread::yield_now();
+				continue;
+			}
+			if n & CLOSED != 0 {
+				return true;
+			}
+			let Some(slot) = self.hold(column) else {
+				continue;
+			};
+			let passed = self.rust_drop(refused, false, then);
+			self.release(slot);
+			if passed {
+				self.abandon();
+			}
+			return passed;
+		}
+	}
+
+	/// No hold is left, and the handle was freed once, or not at all while still open, and
+	/// the value dropped at most once.
 	fn settled(&self, closed: bool) {
-		assert!(self.slots.iter().all(|slot| slot.load(SeqCst) == 0));
+		assert!(self.slots.iter().all(|slot| slot.load() == 0));
+		assert!(self.dropped.load(SeqCst) <= 1);
 		match closed {
 			true => {
-				assert_eq!(self.state.load(SeqCst) & !BIAS, CLOSED);
+				assert_eq!(self.state.load() & !BIAS, CLOSED);
 				assert_eq!(self.freed.load(SeqCst), 1);
 			}
 			false => {
-				assert_eq!(self.state.load(SeqCst) & !BIAS, HELD);
+				assert_eq!(self.state.load() & !BIAS, HELD);
 				assert_eq!(self.freed.load(SeqCst), 0);
 			}
 		}
@@ -211,108 +464,326 @@ fn call(hold: &Hold, column: usize) -> bool {
 	}
 }
 
-/// Two calls in the table and a move giving up the owner's hold: the free races no read.
-#[test]
-fn abandon_against_biased_calls() {
-	model(|| {
-		let hold = Hold::new(2, true);
-		let calls: Vec<_> = (0..2)
-			.map(|column| {
-				let hold = hold.clone();
-				thread::spawn(move || call(&hold, column))
-			})
-			.collect();
-		hold.abandon();
-		for c in calls {
-			c.join().unwrap();
+/// Each model, as a test of the port as it is and as a function of the flaw to make it fail.
+macro_rules! models {
+	($($(#[$doc:meta])* fn $name:ident($flaw:ident) $body:block)*) => {
+		mod models {
+			use super::*;
+			$(pub fn $name($flaw: Option<Flaw>) $body)*
+
+			/// Every model's name.
+			pub const NAMES: &[&str] = &[$(stringify!($name)),*];
+
+			/// The model of that name.
+			pub fn run(name: &str, flaw: Option<Flaw>) {
+				match name {
+					$(stringify!($name) => $name(flaw),)*
+					_ => panic!("no model {name}"),
+				}
+			}
 		}
-		hold.settled(true);
-	});
+		$($(#[$doc])* #[test] fn $name() { models::$name(None) })*
+	};
 }
 
-/// Calls on the count bias the handle once they meet, while a move frees it.
-#[test]
-fn abandon_while_bias_taken() {
-	model(|| {
-		let hold = Hold::new(2, false);
-		let other = hold.clone();
-		let calls = thread::spawn(move || {
-			call(&other, 1);
-			call(&other, 1)
+models! {
+	/// Two calls in the table and a move giving up the owner's hold: the free races no read.
+	fn abandon_against_biased_calls(flaw) {
+		model(move || {
+			let hold = Hold::new(2, true, flaw);
+			let calls: Vec<_> = (0..2)
+				.map(|column| {
+					let hold = hold.clone();
+					thread::spawn(move || call(&hold, column))
+				})
+				.collect();
+			hold.abandon();
+			for c in calls {
+				c.join().unwrap();
+			}
+			hold.settled(true);
 		});
-		call(&hold, 0);
-		hold.abandon();
-		calls.join().unwrap();
-		hold.settled(true);
-	});
+	}
+
+	/// Calls on the count bias the handle once they meet, while a move frees it.
+	fn abandon_while_bias_taken(flaw) {
+		model(move || {
+			let hold = Hold::new(2, false, flaw);
+			let other = hold.clone();
+			let calls = thread::spawn(move || {
+				call(&other, 1);
+				call(&other, 1)
+			});
+			call(&hold, 0);
+			hold.abandon();
+			calls.join().unwrap();
+			hold.settled(true);
+		});
+	}
+
+	/// Two calls sharing a column, one in the slot and one on the count, against a move.
+	fn abandon_against_shared_column(flaw) {
+		model(move || {
+			let hold = Hold::new(1, true, flaw);
+			let other = hold.clone();
+			let first = thread::spawn(move || call(&other, 0));
+			let second = call(&hold, 0);
+			hold.abandon();
+			first.join().unwrap();
+			let _ = second;
+			hold.settled(true);
+		});
+	}
+
+	/// An unchecked close refused while a call holds the handle, in the table or the count,
+	/// and freeing it otherwise, which no read races. A call that published its slot as the
+	/// close claimed the handle is refused too, as the close is, which tells it from one that
+	/// holds only by waiting out the call.
+	fn close_against_biased_call(flaw) {
+		model(move || {
+			let hold = Hold::new(2, true, flaw);
+			let other = hold.clone();
+			let held = thread::spawn(move || call(&other, 1));
+			let closed = hold.close();
+			held.join().unwrap();
+			if closed != Closed::Now {
+				assert_eq!(hold.close(), Closed::Now);
+			}
+			hold.settled(true);
+		});
+	}
+
+	/// Two unchecked closes against a call in the table: one that finds the handle closed
+	/// returns only once the other's close stands, never while it may yet be refused.
+	fn closes_against_biased_call(flaw) {
+		model(move || {
+			let hold = Hold::new(2, true, flaw);
+			let (other, call_hold) = (hold.clone(), hold.clone());
+			let held = thread::spawn(move || call(&call_hold, 1));
+			let first = thread::spawn(move || other.close());
+			let second = hold.close();
+			let first = first.join().unwrap();
+			held.join().unwrap();
+			let closes = [first, second];
+			if closes.contains(&Closed::Already) {
+				assert!(closes.contains(&Closed::Now));
+			}
+			if !closes.contains(&Closed::Now) {
+				assert_eq!(hold.close(), Closed::Now);
+			}
+			hold.settled(true);
+		});
+	}
+
+	/// A checked close against calls on the count, which bias it as they meet, and a GC giving
+	/// up the owner's hold: a call starting during the one-crossing drop finds it closed, and
+	/// the handle is freed once, which no read races.
+	fn checked_close_against_calls(flaw) {
+		model(move || {
+			let hold = Hold::new(2, false, flaw);
+			let (other, collector) = (hold.clone(), hold.clone());
+			let calls = thread::spawn(move || {
+				call(&other, 1);
+				call(&other, 1)
+			});
+			let collected = thread::spawn(move || collector.abandon());
+			assert!(hold.checked_close(0, false, &none));
+			calls.join().unwrap();
+			collected.join().unwrap();
+			hold.settled(true);
+		});
+	}
+
+	/// A checked close Rust refuses, against a call: it leaves the handle open, unfreed, and
+	/// usable, whichever path it took.
+	fn checked_close_refused(flaw) {
+		model(move || {
+			let hold = Hold::new(2, false, flaw);
+			let other = hold.clone();
+			let held = thread::spawn(move || call(&other, 1));
+			assert!(!hold.checked_close(0, true, &none));
+			held.join().unwrap();
+			assert!(call(&hold, 0));
+			hold.settled(false);
+		});
+	}
+
+	/// Calls that never meet a close leave the handle open and unfreed.
+	fn calls_alone(flaw) {
+		model(move || {
+			let hold = Hold::new(2, false, flaw);
+			let other = hold.clone();
+			let a = thread::spawn(move || call(&other, 1));
+			assert!(call(&hold, 0));
+			assert!(a.join().unwrap());
+			hold.settled(false);
+		});
+	}
+
+	/// An unchecked close against a call on the count: refused while it holds the handle, and
+	/// freeing it otherwise, which no read races.
+	fn close_against_call(flaw) {
+		model(move || {
+			let hold = Hold::new(1, false, flaw);
+			let other = hold.clone();
+			let held = thread::spawn(move || call(&other, 0));
+			let closed = hold.close();
+			held.join().unwrap();
+			if closed != Closed::Now {
+				assert_eq!(hold.close(), Closed::Now);
+			}
+			hold.settled(true);
+		});
+	}
+
+	/// Two checked closes Rust refuses: one meeting the other's crossing waits out its
+	/// refusal and is refused too, never reporting closed a handle left open.
+	fn checked_closes_refused(flaw) {
+		model(move || {
+			let hold = Hold::new(2, false, flaw);
+			let other = hold.clone();
+			let first = thread::spawn(move || other.checked_close(1, true, &none));
+			assert!(!hold.checked_close(0, true, &none));
+			assert!(!first.join().unwrap());
+			hold.settled(false);
+		});
+	}
+
+	/// Two checked closes Rust lets drop: each reports closed only once Rust took the value,
+	/// which drops once.
+	fn checked_closes(flaw) {
+		model(move || {
+			let hold = Hold::new(2, false, flaw);
+			let other = hold.clone();
+			let first = thread::spawn(move || {
+				let closed = other.checked_close(1, false, &none);
+				assert_eq!(other.taken.load(), 1);
+				closed
+			});
+			assert!(hold.checked_close(0, false, &none));
+			assert_eq!(hold.taken.load(), 1);
+			assert!(first.join().unwrap());
+			hold.settled(true);
+			assert_eq!(hold.dropped.load(SeqCst), 1);
+		});
+	}
+
+	/// A `Drop` that hands the close of its own value to another thread and joins it,
+	/// against a second close: neither waits on the crossing that runs the `Drop`, which loom
+	/// would report as a deadlock.
+	fn checked_close_from_drop(flaw) {
+		model(move || {
+			let hold = Hold::new(3, false, flaw);
+			let (other, inner) = (hold.clone(), hold.clone());
+			let second = thread::spawn(move || other.checked_close(1, false, &none));
+			let then = move |stage| {
+				if stage == Stage::Drop {
+					let inner = inner.clone();
+					let joined = thread::spawn(move || inner.checked_close(2, false, &none));
+					assert!(joined.join().unwrap());
+				}
+				false
+			};
+			assert!(hold.checked_close(0, false, &then));
+			assert!(second.join().unwrap());
+			hold.settled(true);
+			assert_eq!(hold.dropped.load(SeqCst), 1);
+		});
+	}
+
+	/// A `Drop` that a close's drain runs, of another value freed elsewhere, closes the value
+	/// again on that thread, against a second close: neither waits on the crossing that
+	/// drains, and the value drops once.
+	fn checked_close_from_drain(flaw) {
+		model(move || {
+			let hold = Hold::new(2, false, flaw);
+			let (other, inner) = (hold.clone(), hold.clone());
+			let second = thread::spawn(move || other.checked_close(1, false, &none));
+			let queued = std::cell::Cell::new(true);
+			let then = move |stage| {
+				let ran = stage == Stage::Drain && queued.replace(false);
+				if ran {
+					assert!(inner.checked_close(0, false, &none));
+				}
+				ran
+			};
+			assert!(hold.checked_close(0, false, &then));
+			assert!(second.join().unwrap());
+			hold.settled(true);
+			assert_eq!(hold.dropped.load(SeqCst), 1);
+		});
+	}
+
+	/// As [`checked_close_from_drain`], but the drained `Drop` hands the close to a thread
+	/// and joins it.
+	fn checked_close_from_drain_joined(flaw) {
+		model(move || {
+			let hold = Hold::new(3, false, flaw);
+			let (other, inner) = (hold.clone(), hold.clone());
+			let second = thread::spawn(move || other.checked_close(1, false, &none));
+			let queued = std::cell::Cell::new(true);
+			let then = move |stage| {
+				let ran = stage == Stage::Drain && queued.replace(false);
+				if ran {
+					let inner = inner.clone();
+					let joined = thread::spawn(move || inner.checked_close(2, false, &none));
+					assert!(joined.join().unwrap());
+				}
+				ran
+			};
+			assert!(hold.checked_close(0, false, &then));
+			assert!(second.join().unwrap());
+			hold.settled(true);
+			assert_eq!(hold.dropped.load(SeqCst), 1);
+		});
+	}
+
+	/// A close a borrow refuses, which a drop another thread left its thread ends: it
+	/// drains that drop and closes, as Rust's drop after it would, against a second close.
+	fn checked_close_after_drain(flaw) {
+		model(move || {
+			let hold = Hold::new(2, false, flaw);
+			hold.borrowed.store(1);
+			let (other, ended) = (hold.clone(), hold.clone());
+			let second = thread::spawn(move || other.checked_close(1, false, &none));
+			let queued = std::cell::Cell::new(true);
+			let then = move |stage| {
+				let ran = stage == Stage::Drain && queued.replace(false);
+				if ran {
+					ended.borrowed.store(0);
+				}
+				ran
+			};
+			let closed = hold.checked_close(0, false, &then);
+			// Joined first: a model failing with a thread not yet run aborts loom.
+			let _ = second.join().unwrap();
+			assert!(closed);
+			hold.settled(true);
+			assert_eq!(hold.dropped.load(SeqCst), 1);
+		});
+	}
 }
 
-/// Two calls sharing a column, one in the slot and one on the count, against a move.
+/// The models do not pass vacuously: each fails on the flaws it is there to catch.
 #[test]
-fn abandon_against_shared_column() {
-	model(|| {
-		let hold = Hold::new(1, true);
-		let other = hold.clone();
-		let first = thread::spawn(move || call(&other, 0));
-		let second = call(&hold, 0);
-		hold.abandon();
-		first.join().unwrap();
-		let _ = second;
-		hold.settled(true);
-	});
-}
-
-/// An unchecked close refused while a call holds the handle, in the table or the count,
-/// and freeing it otherwise, which no read races. A call that published its slot as the
-/// close claimed the handle is refused too, as the close is, which tells it from one that
-/// holds only by waiting out the call.
-#[test]
-fn close_against_biased_call() {
-	model(|| {
-		let hold = Hold::new(2, true);
-		let other = hold.clone();
-		let held = thread::spawn(move || call(&other, 1));
-		let closed = hold.close();
-		held.join().unwrap();
-		if closed != Closed::Now {
-			assert_eq!(hold.close(), Closed::Now);
+fn flaws_are_caught() {
+	// A name no model has would panic in `run`, which counts as caught.
+	for flaw in Flaw::ALL {
+		for name in flaw.caught() {
+			assert!(models::NAMES.contains(name), "{flaw:?} names no model {name}");
 		}
-		hold.settled(true);
-	});
-}
-
-/// Two unchecked closes against a call in the table: one that finds the handle closed
-/// returns only once the other's close stands, never while it may yet be refused.
-#[test]
-fn closes_against_biased_call() {
-	model(|| {
-		let hold = Hold::new(2, true);
-		let (other, call_hold) = (hold.clone(), hold.clone());
-		let held = thread::spawn(move || call(&call_hold, 1));
-		let first = thread::spawn(move || other.close());
-		let second = hold.close();
-		let first = first.join().unwrap();
-		held.join().unwrap();
-		let closes = [first, second];
-		if closes.contains(&Closed::Already) {
-			assert!(closes.contains(&Closed::Now));
-		}
-		if !closes.contains(&Closed::Now) {
-			assert_eq!(hold.close(), Closed::Now);
-		}
-		hold.settled(true);
-	});
-}
-
-/// Calls that never meet a close leave the handle open and unfreed.
-#[test]
-fn calls_alone() {
-	model(|| {
-		let hold = Hold::new(2, false);
-		let other = hold.clone();
-		let a = thread::spawn(move || call(&other, 1));
-		assert!(call(&hold, 0));
-		assert!(a.join().unwrap());
-		hold.settled(false);
-	});
+	}
+	let runs: Vec<_> = Flaw::ALL
+		.iter()
+		.flat_map(|&flaw| flaw.caught().iter().map(move |&name| (flaw, name)))
+		.map(|(flaw, name)| {
+			let run = std::thread::spawn(move || models::run(name, Some(flaw)));
+			(flaw, name, run)
+		})
+		.collect();
+	let missed: Vec<_> = runs
+		.into_iter()
+		.filter_map(|(flaw, name, run)| run.join().is_ok().then_some((flaw, name)))
+		.collect();
+	assert!(missed.is_empty(), "no failure from {missed:?}");
 }

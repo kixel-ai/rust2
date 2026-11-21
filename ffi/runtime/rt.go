@@ -6,7 +6,7 @@
 // cgo makes its own, in ffi_cgo.go; it reaches this through Go's types alone.
 
 // The holds a handle counts, one for its owner until closed and one per call, shifted
-// past a bit set once closed, one set while an unchecked Close decides, and one set once
+// past a bit set once closed, one set while a Close that may yet fail decides, and one set once
 // calls contended for them, after which they hold it in slots_: in one word, so a call
 // reads them all at once, and the count is below held_ only once no hold is left.
 const (
@@ -101,9 +101,10 @@ type Handle_ struct {
 	state atomic.Int64
 	// Nil for a handle Rust lends, which it frees itself.
 	free func(unsafe.Pointer)
-	// Non-nil for an owned one of a value Rust checks: it drops the value, then frees the
-	// handle too if asked and the drop passed.
-	drop func(raw unsafe.Pointer, free bool) error
+	// Non-nil for an owned one of a value Rust checks: it drops the value, then, given a
+	// state, frees the handle too if the drop passed, storing closed_ to the state once the
+	// drop can no longer fail.
+	drop func(raw, state unsafe.Pointer) error
 	name string
 	// The nursery an owned handle was returned into, and its slot there.
 	nursery *nursery_
@@ -117,7 +118,7 @@ type Handle_ struct {
 // drops the value of, or nil for one Rust does not check. The generated packages allocate
 // it with the object owning it, which each call holding it then keeps reachable: so once
 // the GC collects the object, no call holds the handle, and its cleanup frees it at once.
-func (h *Handle_) Init(raw unsafe.Pointer, free func(unsafe.Pointer), drop func(unsafe.Pointer, bool) error, name string) {
+func (h *Handle_) Init(raw unsafe.Pointer, free func(unsafe.Pointer), drop func(raw, state unsafe.Pointer) error, name string) {
 	h.raw, h.free, h.drop, h.name = raw, free, drop, name
 	h.state.Store(held_)
 }
@@ -327,31 +328,7 @@ func (h *Handle_) Unlist(s Slot_) {
 // Close closes h as Handle_ says; again, it does nothing.
 func (h *Handle_) Close() error {
 	if h.drop != nil {
-		// Held by no call, as soon after its return: claimed closed so none starts, then the
-		// value dropped and the handle freed in one crossing. A call meanwhile fails as
-		// closed, as one racing any Close may, and a Drop that calls back into Go finds it
-		// closed rather than waiting on itself.
-		if h.state.CompareAndSwap(held_, closed_|closing_) {
-			h.leave()
-			if err := h.drop(h.raw, true); err != nil {
-				h.own()
-				h.state.Store(held_)
-				return err
-			}
-			h.state.Store(closed_)
-			return nil
-		}
-		raw, s := h.Hold()
-		if raw == nil {
-			return nil
-		}
-		err := h.drop(raw, false)
-		h.Release(s)
-		if err != nil {
-			return err
-		}
-		h.Moved()
-		return nil
+		return h.closeChecked()
 	}
 	for {
 		n := h.state.Load()
@@ -385,6 +362,54 @@ func (h *Handle_) Close() error {
 	return nil
 }
 
+// closeChecked is Close of a handle whose value Rust checks.
+func (h *Handle_) closeChecked() error {
+	for {
+		// Held by no call, as soon after its return: claimed closed so none starts, then the
+		// value dropped and the handle freed in one crossing. A call meanwhile fails as
+		// closed, as one racing any Close may. A drop that passed stored closed_ itself.
+		if h.state.CompareAndSwap(held_, closed_|closing_) {
+			h.leave()
+			if err := h.drop(h.raw, unsafe.Pointer(&h.state)); err != nil {
+				h.own()
+				h.state.Store(held_)
+				// Rust refused before draining what other threads left this one, which
+				// may end the borrow that refused it: drained, it tries again.
+				if cCloseDrain(h.raw) {
+					continue
+				}
+				return err
+			}
+			return nil
+		}
+		n := h.state.Load()
+		// Another Close is deciding: wait for its outcome, which may leave h open. Rust
+		// clears closing_ once the drop can no longer fail, and runs none of the program's
+		// code on the deciding thread before then, so a Close a Drop makes, from any
+		// goroutine, finds h closed rather than waiting on itself. A home runs one queued
+		// there only as it drains, which the wait does, for a callback on that home.
+		if n&closing_ != 0 {
+			cCloseDrain(nil)
+			runtime.Gosched()
+			continue
+		}
+		if n&closed_ != 0 {
+			return nil
+		}
+		raw, s := h.Hold()
+		if raw == nil {
+			continue
+		}
+		err := h.drop(raw, nil)
+		h.Release(s)
+		if err != nil {
+			return err
+		}
+		h.Moved()
+		return nil
+	}
+}
+
 // listed is whether a call holds h in the table.
 func (h *Handle_) listed() bool {
 	if h.state.Load()&bias_ == 0 {
@@ -409,7 +434,7 @@ func (h *Handle_) Moved() {
 func (h *Handle_) abandon() {
 	for {
 		n := h.state.Load()
-		// An unchecked Close is deciding: wait for its outcome, which may leave h open.
+		// A Close is deciding: wait for its outcome, which may leave h open.
 		if n&closing_ != 0 {
 			runtime.Gosched()
 			continue

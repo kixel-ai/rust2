@@ -30,12 +30,16 @@ use rustc_data_structures::stable_hash::StableHasher;
 
 use crate::abi::{self, Abi, Ty, pascal};
 use crate::doc;
-use crate::ir::{Access, Family, Function, Int, Jni, Literal, Mutability, On, Opaque, Order, Param, Receiver, Type};
+use crate::ir::{
+	Access, Api, Family, Field, Function, Int, Jni, Literal, Mutability, On, Opaque, Order, Param, Receiver, Type,
+};
 
 const RUNTIME: &str = include_str!("../runtime/rt.kt");
 /// The runtime's public types, at the generated file's top level.
 const TYPES: &str = include_str!("../runtime/types.kt");
 pub(crate) const GLUE_RUNTIME: &str = include_str!("../runtime/jni.rs");
+/// `kotlin/FastNative.kt`, the annotation a leaf's native method takes, for a build without it.
+pub(crate) const FAST_NATIVE: &str = include_str!("../runtime/FastNative.kt");
 
 /// What the generator writes: the Kotlin file, the Rust module of JNI functions, and the
 /// R8 and ProGuard rules keeping what that module looks up by name.
@@ -73,6 +77,8 @@ pub(crate) fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<O
 		on: On::ALL,
 		slots: 0,
 		room: 0,
+		unwind: abi.space("unwind"),
+		fast: String::new(),
 	};
 	for name in g.classes.values() {
 		g.names.insert(name.clone(), "a type".to_string());
@@ -142,7 +148,15 @@ pub(crate) fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<O
 	}
 	// What the glue calls to read a reader, and to take the error a closure or reader threw.
 	let mut helpers = String::new();
-	let mut looked = vec!["__wake", "__free", "__poll", "__failed", "__refused", "__invalid"];
+	let mut looked = vec![
+		"__wake",
+		"__free",
+		"__poll",
+		"__failed",
+		"__refused",
+		"__invalid",
+		"__unwound",
+	];
 	if g.reads {
 		helpers.push_str(READS);
 		looked.extend(["__read", "__seek", "__io_error"]);
@@ -152,6 +166,14 @@ pub(crate) fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<O
 			helpers,
 			"\t/** This thread's slots a returned record's scalars cross in, read before its next call. */\n\t// A field, not a function, so no exported function's name can clash with it.\n\t@kotlin.jvm.JvmField val __slots = object : java.lang.ThreadLocal<kotlin.LongArray>() {{\n\t\t// Not `withInitial`, which Android lacks before API 26.\n\t\toverride fun initialValue() = kotlin.LongArray({n})\n\t}}\n\n",
 			n = g.slots
+		);
+	}
+	if !g.fast.is_empty() {
+		helpers.push_str("\t/** Whether the library runs the bodies its leaves were proven against, which a `@FastNative` call needs: else each is made as any other. */\n\tprivate val proven = __proven()\n\n\t@kotlin.jvm.JvmStatic external fun __proven(): Boolean\n\n");
+		let _ = write!(
+			g.glue,
+			"#[unsafe(no_mangle)]\npub extern \"system\" fn Java_{}__1Native__1_1proven(_: *mut JNIEnv, _: jclass) -> jboolean {{\n\tcrate::PROVEN as jboolean\n}}\n\n",
+			mangle(p)
 		);
 	}
 	if g.fails {
@@ -164,7 +186,7 @@ pub(crate) fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<O
 	}
 	let _ = write!(
 		kotlin,
-		"/** The runtime's [_Native.__Eq], by a name no class, field, or member of the binding takes, since\n * each is in Pascal or camel case. */\ninternal val _eq = _Native.__Eq\n\ninternal object _Native {{\n\tinit {{\n\t\tSystem.loadLibrary(\"{p}\")\n\t\t// Checked before any other call, which it readies the library for: a Kotlin file\n\t\t// and a library from different builds must not mix.\n\t\tkotlin.check(__contract().toULong() == {}) {{ \"{p}.kt and the library are from different builds\" }}\n\t}}\n\n\t@kotlin.jvm.JvmStatic external fun __contract(): Long\n\n\t@kotlin.jvm.JvmStatic external fun __target(): Int\n\n\t@kotlin.jvm.JvmStatic external fun __usize_max(): Long\n\n\t/** The index of the library's target among those this file serves. */\n\tprivate val target = __target()\n\n\t/** Throws unless the library's target is among those of [on], as the item [what] is. */\n\tfun check(on: ULong, what: String) {{\n\t\tif ((on shr target) and 1uL == 0uL) throw kotlin.UnsupportedOperationException(\"$what: it is not on this library's target\")\n\t}}\n\n\t@kotlin.jvm.JvmStatic external fun __waker_new(waker: Waker): Long\n\n\t@kotlin.jvm.JvmStatic external fun __waker_free(node: Long)\n\n\t@kotlin.jvm.JvmStatic external fun __waker_wake(raw: Long)\n\n\t@kotlin.jvm.JvmStatic external fun __waker_drop(raw: Long)\n\n\t@kotlin.jvm.JvmStatic external fun __bytes_get(lent: __Lent, owner: Long, index: Int): Byte\n\n\t@kotlin.jvm.JvmStatic external fun __bytes_copy(lent: __Lent, owner: Long, start: Int, len: Int, destination: ByteArray, at: Int)\n\n\t@kotlin.jvm.JvmStatic external fun __bytes_copy_direct(lent: __Lent, owner: Long, start: Int, len: Int, destination: java.nio.ByteBuffer, at: Int)\n\n\t@kotlin.jvm.JvmStatic external fun __bytes_free(owner: Long)\n\n\t@kotlin.jvm.JvmStatic private fun __wake(waker: Any) = (waker as Waker).wake()\n\n\t@kotlin.jvm.JvmStatic private fun __poll(pollable: Any, waker: Long): Boolean = (pollable as __Pollable).poll(waker)\n\n\t@kotlin.jvm.JvmStatic private fun __free(implementation: Any) {{\n\t\tif (implementation is AutoCloseable) implementation.close()\n\t}}\n\n\t/** The encoded error a native call raised, which its function throws as its exception. No stack trace: it is caught at once. */\n\tclass __Failed(@kotlin.jvm.JvmField val error: ByteArray) : kotlin.RuntimeException(null, null, false, false)\n\n\t@kotlin.jvm.JvmStatic private fun __failed(error: ByteArray): Throwable = __Failed(error)\n\n\t/** A call a failed run-time check refused, before it moved or changed anything. */\n\tclass __Refused(message: String) : kotlin.IllegalStateException(message)\n\n\t@kotlin.jvm.JvmStatic private fun __refused(message: String): Throwable = __Refused(message)\n\n\t/** A call refused before it moved or changed anything, as an argument holds a value its Rust type cannot. */\n\tclass __Invalid(message: String) : kotlin.IllegalArgumentException(message)\n\n\t@kotlin.jvm.JvmStatic private fun __invalid(message: String): Throwable = __Invalid(message)\n\n{helpers}{}{}}}\n",
+		"/** The runtime's [_Native.__Eq], by a name no class, field, or member of the binding takes, since\n * each is in Pascal or camel case. */\ninternal val _eq = _Native.__Eq\n\ninternal object _Native {{\n\tinit {{\n\t\tSystem.loadLibrary(\"{p}\")\n\t\t// Checked before any other call, which it readies the library for: a Kotlin file\n\t\t// and a library from different builds must not mix.\n\t\tkotlin.check(__contract().toULong() == {}) {{ \"{p}.kt and the library are from different builds\" }}\n\t}}\n\n\t@kotlin.jvm.JvmStatic external fun __contract(): Long\n\n\t@kotlin.jvm.JvmStatic external fun __target(): Int\n\n\t@kotlin.jvm.JvmStatic external fun __usize_max(): Long\n\n\t/** The index of the library's target among those this file serves. */\n\tprivate val target = __target()\n\n\t/** Throws unless the library's target is among those of [on], as the item [what] is. */\n\tfun check(on: ULong, what: String) {{\n\t\tif ((on shr target) and 1uL == 0uL) throw kotlin.UnsupportedOperationException(\"$what: it is not on this library's target\")\n\t}}\n\n\t@kotlin.jvm.JvmStatic external fun __waker_new(waker: Waker): Long\n\n\t@kotlin.jvm.JvmStatic external fun __waker_free(node: Long)\n\n\t@kotlin.jvm.JvmStatic external fun __waker_wake(raw: Long)\n\n\t@kotlin.jvm.JvmStatic external fun __waker_drop(raw: Long)\n\n\t@kotlin.jvm.JvmStatic external fun __bytes_get(lent: __Lent, owner: Long, index: Int): Byte\n\n\t@kotlin.jvm.JvmStatic external fun __bytes_copy(lent: __Lent, owner: Long, start: Int, len: Int, destination: ByteArray, at: Int)\n\n\t@kotlin.jvm.JvmStatic external fun __bytes_copy_direct(lent: __Lent, owner: Long, start: Int, len: Int, destination: java.nio.ByteBuffer, at: Int)\n\n\t@kotlin.jvm.JvmStatic external fun __bytes_free(owner: Long)\n\n\t@kotlin.jvm.JvmStatic external fun __close_drain(raw: Long): Boolean\n\n\t@kotlin.jvm.JvmStatic private fun __wake(waker: Any) = (waker as Waker).wake()\n\n\t@kotlin.jvm.JvmStatic private fun __poll(pollable: Any, waker: Long): Boolean = (pollable as __Pollable).poll(waker)\n\n\t@kotlin.jvm.JvmStatic private fun __free(implementation: Any) {{\n\t\tif (implementation is AutoCloseable) implementation.close()\n\t}}\n\n\t/** The encoded error a native call raised, which its function throws as its exception. No stack trace: it is caught at once. */\n\tclass __Failed(@kotlin.jvm.JvmField val error: ByteArray) : kotlin.RuntimeException(null, null, false, false)\n\n\t@kotlin.jvm.JvmStatic private fun __failed(error: ByteArray): Throwable = __Failed(error)\n\n\t/** A call a failed run-time check refused, before it moved or changed anything. */\n\tclass __Refused(message: String) : kotlin.IllegalStateException(message)\n\n\t@kotlin.jvm.JvmStatic private fun __refused(message: String): Throwable = __Refused(message)\n\n\t/** A call refused before it moved or changed anything, as an argument holds a value its Rust type cannot. */\n\tclass __Invalid(message: String) : kotlin.IllegalArgumentException(message)\n\n\t@kotlin.jvm.JvmStatic private fun __invalid(message: String): Throwable = __Invalid(message)\n\n\t/** A call a closure it reached refused, by returning a value its Rust type cannot hold, as [__Invalid] refuses an argument: the call ran, so what it moved is gone. */\n\tclass __Unwound(cause: Throwable) : kotlin.IllegalArgumentException(cause.message, cause)\n\n\t/** What a closure's [thrown] unwinds Rust with, to the native method below: none, which aborts, unless the binding refused a value. */\n\t@kotlin.jvm.JvmStatic private fun __unwound(thrown: Throwable): Throwable? = when (thrown) {{\n\t\tis __Unwound -> thrown\n\t\tis __Invalid -> __Unwound(thrown)\n\t\telse -> null\n\t}}\n\n{helpers}{}{}}}\n",
 		contract_literal(contract),
 		g.natives,
 		indent_by(RUNTIME, 1),
@@ -177,10 +199,13 @@ pub(crate) fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<O
 		use std::ffi::c_void;\n\
 		use rt::*;\n\n\
 		// No `JNI_OnLoad`, which the library may define for itself: _Native's first call notes\n\
-		// the JVM and the class.\n\
+		// the JVM and the class, and registers the leaves' native methods.\n\
 		#[unsafe(no_mangle)]\n\
 		pub unsafe extern \"system\" fn Java_{pkg}__1Native__1_1contract(env: *mut JNIEnv, class: jclass) -> jlong {{\n\
-		\tunsafe {{ rt::load(env, class) }};\n\
+		\tif !unsafe {{ rt::load(env, class, &[\n{fast}\t]) }} {{\n\
+		\t\t// The pending exception throws in place of the contract, which Kotlin never reads.\n\
+		\t\treturn 0;\n\
+		\t}}\n\
 		\t0x{contract:016x}u64 as jlong\n\
 		}}\n\n\
 		#[unsafe(no_mangle)]\n\
@@ -223,9 +248,14 @@ pub(crate) fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<O
 		pub unsafe extern \"system\" fn Java_{pkg}__1Native__1_1bytes_1free(_: *mut JNIEnv, _: jclass, owner: jlong) {{\n\
 		\tunsafe {{ rt::free_bytes(owner) }}\n\
 		}}\n\n\
+		#[unsafe(no_mangle)]\n\
+		pub extern \"system\" fn Java_{pkg}__1Native__1_1close_1drain(env: *mut JNIEnv, _: jclass, raw: jlong) -> jboolean {{\n\
+		\trt::close_drain(env, raw)\n\
+		}}\n\n\
 		{}",
 		g.glue,
 		pkg = mangle(p),
+		fast = g.fast,
 	);
 	// The VM binds _Native's native methods by its name and theirs, and the glue looks up
 	// each Kotlin function it calls by its own, which nothing in Kotlin calls.
@@ -240,6 +270,21 @@ pub(crate) fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<O
 		let _ = writeln!(rules, "\tstatic *** {name}(...);");
 	}
 	rules.push_str("}\n");
+	// A checked close's drop sets its handle's state by name.
+	if abi.checked.contains(&true) {
+		let _ = write!(
+			rules,
+			"\n-keepclassmembernames class {p}._Native$__Handle {{\n\tlong state;\n}}\n"
+		);
+	}
+	// ART reads `@FastNative` off the dex, and `__contract` registers each method it marks,
+	// so a shrinker keeps them, even those nothing calls.
+	if !g.fast.is_empty() {
+		let _ = write!(
+			rules,
+			"\n-keep @interface dalvik.annotation.optimization.FastNative\n\n-keepclassmembers class {p}._Native {{\n\t@dalvik.annotation.optimization.FastNative native <methods>;\n}}\n"
+		);
+	}
 	Ok(Output {
 		names: g.locked,
 		kotlin,
@@ -629,20 +674,43 @@ struct Gen<'a> {
 	/// The JVM parameter slots the function being written may still spend on a record's
 	/// scalars.
 	room: usize,
+	/// Where the glue names each C function's `C-unwind` body, which the native methods
+	/// call, so a closure's failed check unwinds to them.
+	unwind: String,
+	/// The leaves' native methods, as the `JNINativeMethod`s `__contract` registers.
+	fast: String,
 }
 
 impl<'a> Gen<'a> {
-	/// The Kotlin call `raw`, then `after`, which closes what it moved out, however it ended
-	/// unless a failed check refused it, or an argument held a value its Rust type cannot,
-	/// which throws `_Native.__Invalid` first: either moved nothing. It binds no name a parameter
-	/// `after` closes may take: its exception's is fresh, and its result is `_`.
-	fn moving(&mut self, raw: &str, after: &[String]) -> String {
+	/// The Kotlin call `call` makes of the native arguments `args`, then `after`, which closes
+	/// what it moved out, however it ended unless a failed check refused it, or an argument
+	/// held a value its Rust type cannot, which throws `_Native.__Invalid` first: either moved
+	/// nothing. Each argument is evaluated before, so one that throws, as an enum's variant
+	/// not on the library's target does, closes nothing either. It binds no name a parameter
+	/// `after` closes may take: each is fresh, and its result is `_`.
+	fn moving(&mut self, args: &[String], call: impl FnOnce(&str) -> String, after: &[String]) -> String {
 		let after = after.join("; ");
+		let mut vals = String::new();
+		let names: Vec<String> = args
+			.iter()
+			.map(|arg| match arg.chars().all(|c| c.is_alphanumeric() || c == '_') {
+				true => arg.clone(),
+				false => {
+					let x = self.fresh("x");
+					let _ = writeln!(vals, "\tval {x} = {arg}");
+					x
+				}
+			})
+			.collect();
 		let thrown = self.fresh("e");
-		format!(
+		let moving = format!(
 			"try {{\n{}\n}} catch ({thrown}: Throwable) {{\n\tif ({thrown} !is _Native.__Refused && {thrown} !is _Native.__Invalid) {{ {after} }}\n\tthrow {thrown}\n}}.also {{ _ -> {after} }}",
-			indent_by(raw, 1)
-		)
+			indent_by(&call(&names.join(", ")), 1)
+		);
+		match vals.is_empty() {
+			true => moving,
+			false => format!("run {{\n{vals}{}\n}}", indent_by(&moving, 1)),
+		}
 	}
 
 	fn fresh(&mut self, base: &str) -> String {
@@ -852,6 +920,12 @@ impl<'a> Gen<'a> {
 
 	/// Kotlin statements writing the Kotlin value `e` of type `ty` into the writer `w`.
 	fn write_value(&mut self, ty: &Type, w: &str, e: &str) -> String {
+		self.encode(ty, w, e, false)
+	}
+
+	/// [`Self::write_value`], marking in `w` each handle whose value the call takes if `moves`,
+	/// for `{w}.abandon()` to close those once it returns, not whatever `e` holds by then.
+	fn encode(&mut self, ty: &Type, w: &str, e: &str, moves: bool) -> String {
 		let abi = self.abi;
 		match ty {
 			Type::Bool => format!("{w}.bool({e})"),
@@ -877,36 +951,40 @@ impl<'a> Gen<'a> {
 			Type::List(..) if let Some(inner) = ty.block() => format!("{w}.block({})", block(inner).signed(e)),
 			Type::List(_, inner) => {
 				let (l, v) = (self.fresh("l"), self.fresh("v"));
-				let item = self.write_value(inner, w, &v);
+				let item = self.encode(inner, w, &v, moves);
 				format!("{e}.let {{ {l} -> {w}.i32({l}.size); for ({v} in {l}) {{ {item} }} }}")
 			}
 			Type::Option(inner) => match inner.base() {
+				Type::Object(_) if moves && moved(abi, inner) => format!("{w}.moved({e}?.handle)"),
 				Type::Object(_) => format!("{w}.handle({e}?.handle)"),
-				base if Abi::is_buf(base) => self.write_value(base, w, e),
+				base if Abi::is_buf(base) => self.encode(base, w, e, moves),
 				// None is a length of -1.
 				Type::List(..) => {
 					let v = self.fresh("v");
-					let some = self.write_value(inner, w, &v);
+					let some = self.encode(inner, w, &v, moves);
 					format!("{e}.let {{ {v} -> if ({v} == null) {w}.i32(-1) else {some} }}")
 				}
 				_ => {
 					let v = self.fresh("v");
-					let some = self.write_value(inner, w, &v);
+					let some = self.encode(inner, w, &v, moves);
 					format!("{e}.let {{ {v} -> if ({v} == null) {w}.bool(false) else {{ {w}.bool(true); {some} }} }}")
 				}
 			},
-			Type::Box(inner) | Type::Ref(_, inner) => self.write_value(inner, w, e),
+			Type::Box(inner) => self.encode(inner, w, e, moves),
+			// Borrowed, nothing in it moves.
+			Type::Ref(_, inner) => self.write_value(inner, w, e),
 			Type::Record(i) => format!("w_{}({w}, {e})", abi.record(*i)),
 			Type::Enum(i) => match abi.api.enums[*i].plain() {
 				true => format!("{w}.i32({e}.value)"),
 				false => format!("w_{}({w}, {e})", abi.enumeration(*i)),
 			},
+			Type::Object(_) if moves && moved(abi, ty) => format!("{w}.moved({e}.handle)"),
 			Type::Object(_) => format!("{w}.handle({e}.handle)"),
 			Type::Range(_) | Type::Bound(_) | Type::Bounds(_) => format!("w_{}({w}, {e})", abi.range(ty)),
 			Type::Tuple(elements) => {
 				let t = self.fresh("t");
 				let writes: Vec<String> = (elements.iter().enumerate())
-					.map(|(k, ty)| self.write_value(ty, w, &format!("{t}.{}", ordinal(k))))
+					.map(|(k, ty)| self.encode(ty, w, &format!("{t}.{}", ordinal(k)), moves))
 					.collect();
 				format!("{e}.let {{ {t} -> {} }}", writes.join("; "))
 			}
@@ -1270,13 +1348,14 @@ impl<'a> Gen<'a> {
 			}
 			Ty::U128 | Ty::Duration | Ty::SocketAddr(_) | Ty::IpAddr(_) | Ty::Struct(_) | Ty::In(_) => {
 				let w = self.fresh("w");
-				// Taken by value, each object in a list moves out, as one passed alone does.
-				if moved(abi, ty) {
-					let close = self.close(ty, e);
-					arg.after.push(close);
+				// Taken by value, each object in a list moves out, as one passed alone does: the
+				// writer closes those it encoded, as a callback may change the list meanwhile.
+				let moves = moved(abi, ty);
+				if moves {
+					arg.after.push(format!("{w}.abandon()"));
 				}
 				arg.open = Some(format!("_Native.__Writer().use {{ {w} ->"));
-				let value = self.write_value(ty, &w, e);
+				let value = self.encode(ty, &w, e, moves);
 				arg.inside.push(value);
 				// Then the arrays and text it names, which Rust copies from once.
 				arg.jni.push("jobjectArray");
@@ -1400,8 +1479,14 @@ impl<'a> Gen<'a> {
 			self.callback(i);
 		}
 		let mut top = Vec::new();
-		for function in &api.functions {
-			if let Some(code) = self.function(function, None, None, Place::Static, &[]) {
+		let functions: Vec<&Function> = api.functions.iter().collect();
+		let named = self.names(&functions, (None, None), Place::Static, |declared| {
+			let name = declared.split_once(' ').map_or(declared, |(_, name)| name);
+			taken(name) || self.names.contains_key(name)
+		});
+		let jvm = self.jvm_named(&api.functions, (None, None), &named, &[]);
+		for ((function, name), jvm) in api.functions.iter().zip(&named).zip(&jvm) {
+			if let Some(code) = self.function(function, (None, None), Place::Static, (name, jvm), &[]) {
 				top.push(code);
 			}
 		}
@@ -1501,6 +1586,7 @@ impl<'a> Gen<'a> {
 	fn traits(&mut self, ty: &Type, c: &str, t: crate::ir::Traits, body: &mut Vec<String>, statics: &mut Vec<String>) {
 		let class = self.qualified(c);
 		let bare = self.bare(c).to_string();
+		let u = format!("{}_{c}", self.unwind);
 		let object = matches!(ty, Type::Object(_));
 		let opaque = match ty {
 			Type::Record(i) => self.abi.api.records[*i].opaque,
@@ -1554,7 +1640,7 @@ impl<'a> Gen<'a> {
 				&params,
 				("jbyteArray", "ByteArray?"),
 				&checked(
-					&format!("crate::{c}_{suffix}({rust_self})"),
+					&format!("crate::{u}_{suffix}({rust_self})"),
 					&format!("{c}_{suffix}"),
 					"rt::owned(env, ret)",
 				),
@@ -1567,9 +1653,13 @@ impl<'a> Gen<'a> {
 			if !t.hash {
 				return "\t/** One for every value: Rust's `PartialEq` comes with no `Hash`. */\n\toverride fun hashCode(): kotlin.Int = 0\n".to_string();
 			}
-			let call = format!("crate::{c}_hash({rust_self})");
+			let call = format!("crate::{u}_hash({rust_self})");
 			let body = checked(&call, &format!("{c}_hash"), "ret as jlong");
-			g.native(&format!("{bare}_hash"), &params, ("jlong", "Long"), &body);
+			// Bounded too, so the collector never waits on a walk the value's size sets.
+			match object && g.abi.leaf_trait(ty, true) && t.leaf_sized {
+				true => g.leaf_native(&format!("{bare}_hash"), &params, ("jlong", "Long"), &body),
+				false => g.native(&format!("{bare}_hash"), &params, ("jlong", "Long"), &body),
+			}
 			format!(
 				"\t/** Rust's `Hash`, as `Long.hashCode` folds it. */\n\toverride fun hashCode(): kotlin.Int = {open}\n\t\t_Native.{bare}_hash({arg}).hashCode()\n\t}}\n"
 			)
@@ -1607,7 +1697,7 @@ impl<'a> Gen<'a> {
 				&[("jlong", "Long")],
 				("jlong", "Long"),
 				&checked(
-					&format!("crate::{c}_clone(p0 as usize as _)"),
+					&format!("crate::{u}_clone(p0 as usize as _)"),
 					&format!("{c}_clone"),
 					"ret as usize as jlong",
 				),
@@ -1628,7 +1718,7 @@ impl<'a> Gen<'a> {
 					(
 						vec![("jlong", "Long"); words.len()],
 						format!(
-							"crate::{c}_eq(&{}, &{})",
+							"crate::{u}_eq(&{}, &{})",
 							from_kotlin(&opaque, a),
 							from_kotlin(&opaque, b)
 						),
@@ -1639,7 +1729,7 @@ impl<'a> Gen<'a> {
 					let (this, other) = (self.write_value(ty, "w", "this"), self.write_value(ty, "w", "other"));
 					(
 						vec![("jbyteArray", "ByteArray"), ("jobjectArray", "kotlin.Array<Any?>?")],
-						"{ let b = rt::bytes(env, p0).unwrap_or_default(); let Some(mut r) = rt::Reader::new(env, &b, p1) else { return rt::raised() }; crate::{c}_eq(&r.get(), &r.get()) }".replace("{c}", c),
+						"{ let b = rt::bytes(env, p0).unwrap_or_default(); let Some(mut r) = rt::Reader::new(env, &b, p1) else { return rt::raised() }; crate::{u}_eq(&r.get(), &r.get()) }".replace("{u}", &u),
 						format!("_Native.__Writer().use {{ w -> {this}; {other}; _Native.{bare}_eq(w.finish(), w.refs()) }}"),
 					)
 				}
@@ -1651,16 +1741,16 @@ impl<'a> Gen<'a> {
 			));
 		}
 		if object && t.eq {
-			self.native(
-				&format!("{bare}_eq"),
-				&[("jlong", "Long"), ("jlong", "Long")],
-				("jboolean", "Boolean"),
-				&checked(
-					&format!("crate::{c}_eq(p0 as usize as _, p1 as usize as _)"),
-					&format!("{c}_eq"),
-					"ret",
-				),
+			let rust = checked(
+				&format!("crate::{u}_eq(p0 as usize as _, p1 as usize as _)"),
+				&format!("{c}_eq"),
+				"ret",
 			);
+			let params = [("jlong", "Long"), ("jlong", "Long")];
+			match self.abi.leaf_trait(ty, false) && t.leaf_sized {
+				true => self.leaf_native(&format!("{bare}_eq"), &params, ("jboolean", "Boolean"), &rust),
+				false => self.native(&format!("{bare}_eq"), &params, ("jboolean", "Boolean"), &rust),
+			}
 			let hash = hash_code(self);
 			body.push(format!(
 				"\toverride fun equals(other: kotlin.Any?): kotlin.Boolean =\n\t\tother is {class} && handle.hold {{ a -> other.handle.hold {{ b -> _Native.{bare}_eq(a, b) }} }}\n\n{hash}"
@@ -1678,14 +1768,14 @@ impl<'a> Gen<'a> {
 			let (params, call, kt): (Vec<(&str, &str)>, _, _) = match object {
 				true => (
 					vec![("jlong", "Long"); 2],
-					(String::new(), format!("crate::{c}_{suffix}(p0 as usize as _, p1 as usize as _)")),
+					(String::new(), format!("crate::{u}_{suffix}(p0 as usize as _, p1 as usize as _)")),
 					format!("handle.hold {{ a -> other.handle.hold {{ b -> _Native.{bare}_{suffix}(a, b) }} }}"),
 				),
 				false => (
 					vec![("jbyteArray", "ByteArray"), ("jobjectArray", "kotlin.Array<Any?>?")],
 					(
 						"let b = rt::bytes(env, p0).unwrap_or_default();\n\t\tlet Some(mut r) = rt::Reader::new(env, &b, p1) else {\n\t\t\treturn rt::raised();\n\t\t};\n\t\tlet (x, y) = (r.get(), r.get());\n\t\t".to_string(),
-						format!("crate::{c}_{suffix}(&x, &y)"),
+						format!("crate::{u}_{suffix}(&x, &y)"),
 					),
 					format!(
 						"_Native.__Writer().use {{ w -> {}; {}; _Native.{bare}_{suffix}(w.finish(), w.refs()) }}",
@@ -1717,19 +1807,19 @@ impl<'a> Gen<'a> {
 				Type::Object(_) => (
 					"jlong",
 					"Long",
-					format!("crate::{c}_default() as usize as jlong"),
+					format!("crate::{u}_default() as usize as jlong"),
 					format!("{class}(_Native.{bare}_default())"),
 				),
 				Type::Enum(i) if self.abi.api.enums[*i].plain() => (
 					"jint",
 					"Int",
-					format!("crate::{c}_default()"),
+					format!("crate::{u}_default()"),
 					format!("{class}.of(_Native.{bare}_default())"),
 				),
 				_ => (
 					"jbyteArray",
 					"ByteArray",
-					format!("let mut w = rt::Writer::default();\n\t\tw.put(crate::{c}_default());\n\t\tw.array(env)"),
+					format!("let mut w = rt::Writer::default();\n\t\tw.put(crate::{u}_default());\n\t\tw.array(env)"),
 					self.read_value(ty, &format!("_Native.__Reader(_Native.{bare}_default())")),
 				),
 			};
@@ -1748,13 +1838,11 @@ impl<'a> Gen<'a> {
 		let name = self.class(&c);
 		let rust = abi.api.rust(&record.path, &record.args);
 		let ty = Type::Record(i);
-		let fields: Vec<(String, String)> = record
-			.fields
-			.iter()
-			.map(|f| {
-				let field = field_name(&f.name);
-				crate::lock::field(&mut self.locked, &record.shown, &f.name, &field);
-				(field, self.kt(&f.ty))
+		let named = field_names(&record.fields);
+		let fields: Vec<(String, String)> = (record.fields.iter().zip(&named))
+			.map(|(f, field)| {
+				crate::lock::field(&mut self.locked, &record.shown, &f.name, field);
+				(field.clone(), self.kt(&f.ty))
 			})
 			.collect();
 		let mut body = Vec::new();
@@ -1765,7 +1853,24 @@ impl<'a> Gen<'a> {
 			members.extend(holders(&opaque).iter().map(|h| format!("val {h}")));
 		}
 		let owner = Ty::Struct(c.clone());
-		for method in &record.methods {
+		let (own_members, own_statics) = (names(&body), names(&statics));
+		let methods = self.methods_named(
+			&record.methods,
+			(Some(&owner), Some(&ty)),
+			|place, declared| match place {
+				Place::Member => members.iter().chain(&own_members).any(|m| m == declared),
+				Place::Static => own_statics.iter().any(|m| m == declared),
+			},
+		);
+		// A data class's `componentN`, which Kotlin declares for each field.
+		let components = (1..=fields.len()).map(|n| format!("component{n}"));
+		let jvm_taken: Vec<String> = (members.iter().map(|m| jvm_name(m)))
+			.chain(components)
+			.chain(jvm_names(&body))
+			.chain(jvm_names(&statics))
+			.collect();
+		let jvm = self.jvm_named(&record.methods, (Some(&owner), Some(&ty)), &methods, &jvm_taken);
+		for ((method, member), jvm) in record.methods.iter().zip(&methods).zip(&jvm) {
 			let place = match method.receiver {
 				Some(_) => Place::Member,
 				None => Place::Static,
@@ -1775,14 +1880,7 @@ impl<'a> Gen<'a> {
 				Place::Member => (members.iter().cloned()).chain(names(&body)).collect(),
 				Place::Static => names(&statics),
 			};
-			// A data class's `componentN`, which Kotlin declares for each field.
-			let components = (1..=fields.len()).map(|n| format!("component{n}"));
-			let jvm = (members.iter().map(|m| jvm_name(m)))
-				.chain(components)
-				.chain(jvm_names(&body))
-				.chain(jvm_names(&statics));
-			let taken = kept_apart(own, jvm);
-			if let Some(code) = self.function(method, Some(&owner), Some(&ty), place, &taken) {
+			if let Some(code) = self.function(method, (Some(&owner), Some(&ty)), place, (member, jvm), &own) {
 				match place {
 					Place::Member => body.push(code),
 					Place::Static => statics.push(indent(&code)),
@@ -1796,6 +1894,7 @@ impl<'a> Gen<'a> {
 		}
 		members.extend(body.iter().filter_map(|b| member_name(b)));
 		self.distinct(&rust, &members);
+		self.distinct(&rust, &names(&statics));
 		if !statics.is_empty() {
 			body.push(format!("\tcompanion object {{\n{}\t}}\n", statics.join("\n")));
 		}
@@ -1847,13 +1946,8 @@ impl<'a> Gen<'a> {
 			}
 		}
 		// The codec.
-		let writes: Vec<String> = record
-			.fields
-			.iter()
-			.map(|f| {
-				let e = format!("v.{}", field_name(&f.name));
-				self.write_value(&f.ty, "w", &e)
-			})
+		let writes: Vec<String> = (record.fields.iter().zip(&named))
+			.map(|(f, field)| self.write_value(&f.ty, "w", &format!("v.{field}")))
 			.collect();
 		let reads: Vec<String> = record.fields.iter().map(|f| self.read_value(&f.ty, "r")).collect();
 		let _ = write!(
@@ -1944,7 +2038,30 @@ impl<'a> Gen<'a> {
 		let mut statics = Vec::new();
 		self.traits(&ty, &c, e.traits, &mut body, &mut statics);
 		let owner = abi.ty(&ty);
-		for method in &e.methods {
+		let (own_members, own_statics) = (names(&body), names(&statics));
+		let methods = self.methods_named(&e.methods, (Some(&owner), Some(&ty)), |place, declared| match place {
+			Place::Member => own_members.iter().any(|m| m == declared),
+			Place::Static => own_statics.iter().any(|m| m == declared),
+		});
+		// What a Kotlin enum declares on the JVM: its own statics, and `Enum`'s final methods.
+		let synthesized = match e.plain() {
+			true => &[
+				"values",
+				"valueOf",
+				"getEntries",
+				"name",
+				"ordinal",
+				"compareTo",
+				"getDeclaringClass",
+			][..],
+			false => &[],
+		};
+		let jvm_taken: Vec<String> = (synthesized.iter().map(|s| s.to_string()))
+			.chain(jvm_names(&body))
+			.chain(jvm_names(&statics))
+			.collect();
+		let jvm = self.jvm_named(&e.methods, (Some(&owner), Some(&ty)), &methods, &jvm_taken);
+		for ((method, member), jvm) in e.methods.iter().zip(&methods).zip(&jvm) {
 			let place = match method.receiver {
 				Some(_) => Place::Member,
 				None => Place::Static,
@@ -1954,24 +2071,7 @@ impl<'a> Gen<'a> {
 				Place::Member => names(&body),
 				Place::Static => names(&statics),
 			};
-			// What a Kotlin enum declares on the JVM: its own statics, and `Enum`'s final methods.
-			let synthesized = match e.plain() {
-				true => &[
-					"values",
-					"valueOf",
-					"getEntries",
-					"name",
-					"ordinal",
-					"compareTo",
-					"getDeclaringClass",
-				][..],
-				false => &[],
-			};
-			let jvm = (synthesized.iter().map(|s| s.to_string()))
-				.chain(jvm_names(&body))
-				.chain(jvm_names(&statics));
-			let taken = kept_apart(own, jvm);
-			if let Some(code) = self.function(method, Some(&owner), Some(&ty), place, &taken) {
+			if let Some(code) = self.function(method, (Some(&owner), Some(&ty)), place, (member, jvm), &own) {
 				match place {
 					Place::Member => body.push(code),
 					Place::Static => statics.push(indent(&code)),
@@ -1984,9 +2084,9 @@ impl<'a> Gen<'a> {
 			members.push("val value".to_string());
 			self.distinct(&rust, &members);
 			// An entry the library's target lacks is refused as it crosses, when its value is read.
-			let entries: Vec<String> = (e.variants.iter())
-				.map(|v| {
-					let entry = abi::snake(&v.name).to_uppercase();
+			let names = variant_names(e);
+			let entries: Vec<String> = (e.variants.iter().zip(&names))
+				.map(|(v, entry)| {
 					crate::lock::variant(&mut self.locked, &e.shown, &v.name, &format!("{name}.{entry}"));
 					match abi.api.everywhere(v.on) {
 						true => format!("\t{entry}({}),", v.discriminant),
@@ -2003,10 +2103,8 @@ impl<'a> Gen<'a> {
 				true => "",
 				false => "open ",
 			};
-			let cases: Vec<String> = e
-				.variants
-				.iter()
-				.map(|v| format!("\t\t\t{} -> {}", v.discriminant, abi::snake(&v.name).to_uppercase()))
+			let cases: Vec<String> = (e.variants.iter().zip(&names))
+				.map(|(v, entry)| format!("\t\t\t{} -> {entry}", v.discriminant))
 				.collect();
 			statics.push(format!(
 				"\t\tinternal fun of(value: Int): {name} = when (value) {{\n{}\n\t\t\telse -> error(\"{c}: an invalid value\")\n\t\t}}\n",
@@ -2028,16 +2126,13 @@ impl<'a> Gen<'a> {
 		let mut reads = Vec::new();
 		let mut glue_reads = Vec::new();
 		let mut glue_writes = Vec::new();
-		for (n, variant) in e.variants.iter().enumerate() {
-			let vname = pascal(&variant.name);
+		for (n, (variant, vname)) in e.variants.iter().zip(variant_names(e)).enumerate() {
 			crate::lock::variant(&mut self.locked, &e.shown, &variant.name, &format!("{name}.{vname}"));
 			members.push(format!("class {vname}"));
-			let fields: Vec<String> = variant
-				.fields
-				.iter()
-				.map(|f| {
-					let field = field_name(&f.name);
-					crate::lock::variant_field(&mut self.locked, &e.shown, &variant.name, &f.name, &field);
+			let names = field_names(&variant.fields);
+			let fields: Vec<String> = (variant.fields.iter().zip(&names))
+				.map(|(f, field)| {
+					crate::lock::variant_field(&mut self.locked, &e.shown, &variant.name, &f.name, field);
 					format!("val {field}: {}", self.kt(&f.ty))
 				})
 				.collect();
@@ -2047,9 +2142,8 @@ impl<'a> Gen<'a> {
 				let on = variant.on.0 & abi.api.all().0;
 				write.insert(0, format!("_Native.check({on}uL, \"{c}.{}\")", variant.name));
 			}
-			for f in &variant.fields {
-				let e = format!("v.{}", field_name(&f.name));
-				write.push(self.write_value(&f.ty, "w", &e));
+			for (f, field) in variant.fields.iter().zip(&names) {
+				write.push(self.write_value(&f.ty, "w", &format!("v.{field}")));
 			}
 			let read: Vec<String> = variant.fields.iter().map(|f| self.read_value(&f.ty, "r")).collect();
 			match variant.fields.is_empty() {
@@ -2064,7 +2158,6 @@ impl<'a> Gen<'a> {
 				false => {
 					let body = match variant.fields.iter().any(|f| self.by_contents(&f.ty)) {
 						true => {
-							let names: Vec<String> = variant.fields.iter().map(|f| field_name(&f.name)).collect();
 							format!(" {{\n{}\t}}", indent(&Self::contents(&vname, &names)))
 						}
 						false => String::new(),
@@ -2098,6 +2191,7 @@ impl<'a> Gen<'a> {
 			}
 		}
 		self.distinct(&rust, &members);
+		self.distinct(&rust, &names(&statics));
 		if !statics.is_empty() {
 			body.push(format!("\tcompanion object {{\n{}\t}}\n", statics.join("\n")));
 		}
@@ -2129,6 +2223,7 @@ impl<'a> Gen<'a> {
 		let object = &abi.api.objects[i];
 		self.on = object.on;
 		let c = abi.object(i);
+		let u = format!("{}_{c}", self.unwind);
 		let name = self.class(&c);
 		let bare = self.bare(&c).to_string();
 		let rust = abi.api.rust(&object.path, &object.args);
@@ -2137,24 +2232,28 @@ impl<'a> Gen<'a> {
 			&format!("{bare}_free"),
 			&[("jlong", "Long")],
 			("()", "Unit"),
-			&format!("crate::{c}_free(p0 as usize as _)"),
+			&format!("crate::{u}_free(p0 as usize as _)"),
 		);
 		let mut body = vec![match abi.checked[i] {
 			true => {
 				self.native(
 					&format!("{bare}_drop"),
-					&[("jlong", "Long")],
+					&[("jlong", "Long"), ("jobject", "__Handle?")],
 					("()", "Unit"),
 					&format!(
-						"let mut status = 0;\n\t\tcrate::{c}_drop(p0 as usize as _, &mut status);\n\t\tif status != 0 {{\n\t\t\treturn rt::refuse(env, status, \"{c}_drop\");\n\t\t}}"
+						"let mut status = 0;\n\t\tlet closing = rt::Closing::{closing}(env, p1, || crate::{u}_free(p0 as usize as _));\n\t\tlet (commit, data) = closing.signal();\n\t\tcrate::{u}_drop_signal(p0 as usize as _, &mut status, commit, data);\n\t\tif status != 0 {{\n\t\t\treturn rt::refuse(env, status, \"{c}_drop\");\n\t\t}}",
+						closing = match object.send {
+							true => "here",
+							false => "anywhere",
+						}
 					),
 				);
 				format!(
-					"\tinternal val handle = _Native.__Handle(this, raw, if (lent) null else _Native.__Drop {{ _Native.{bare}_free(it) }}, \"{name}\", if (lent) null else _Native.__Close {{ _Native.{bare}_drop(it) }})\n\n\t/** Drop the value now, as Rust's drop does, and free the handle once no call holds it: a call after this throws, and one still borrowing the value makes this throw. */\n\toverride fun close() = handle.close()\n"
+					"\tinternal val handle = _Native.__Handle(this, raw, if (lent) null else _Native.__Drop {{ _Native.{bare}_free(it) }}, \"{name}\", if (lent) null else _Native.__Close {{ p, closing -> _Native.{bare}_drop(p, closing) }})\n\n\t/** Drop the value now, as Rust's drop does, and free the handle once no call holds it: a call after this throws, and one still borrowing the value makes this throw. */\n\toverride fun close() = handle.close(this)\n"
 				)
 			}
 			false => format!(
-				"\tinternal val handle = _Native.__Handle(this, raw, if (lent) null else _Native.__Drop {{ _Native.{bare}_free(it) }}, \"{name}\")\n\n\t/** Free the handle now: a call after this throws, and one still running makes this throw. */\n\toverride fun close() = handle.close()\n"
+				"\tinternal val handle = _Native.__Handle(this, raw, if (lent) null else _Native.__Drop {{ _Native.{bare}_free(it) }}, \"{name}\")\n\n\t/** Free the handle now: a call after this throws, and one still running makes this throw. */\n\toverride fun close() = handle.close(this)\n"
 			),
 		}];
 		let mut statics = Vec::new();
@@ -2163,7 +2262,18 @@ impl<'a> Gen<'a> {
 			name: c.clone(),
 			constant: false,
 		};
-		for method in &object.methods {
+		let (own_members, own_statics) = (names(&body), names(&statics));
+		let methods = self.methods_named(
+			&object.methods,
+			(Some(&owner), Some(&ty)),
+			|place, declared| match place {
+				Place::Member => own_members.iter().any(|m| m == declared),
+				Place::Static => own_statics.iter().any(|m| m == declared),
+			},
+		);
+		let jvm_taken: Vec<String> = jvm_names(&body).chain(jvm_names(&statics)).collect();
+		let jvm = self.jvm_named(&object.methods, (Some(&owner), Some(&ty)), &methods, &jvm_taken);
+		for ((method, member), jvm) in object.methods.iter().zip(&methods).zip(&jvm) {
 			let place = match method.receiver {
 				Some(_) => Place::Member,
 				None => Place::Static,
@@ -2173,8 +2283,7 @@ impl<'a> Gen<'a> {
 				Place::Member => names(&body),
 				Place::Static => names(&statics),
 			};
-			let taken = kept_apart(own, jvm_names(&body).chain(jvm_names(&statics)));
-			if let Some(code) = self.function(method, Some(&owner), Some(&ty), place, &taken) {
+			if let Some(code) = self.function(method, (Some(&owner), Some(&ty)), place, (member, jvm), &own) {
 				match place {
 					Place::Member => body.push(code),
 					Place::Static => statics.push(indent(&code)),
@@ -2196,9 +2305,8 @@ impl<'a> Gen<'a> {
 				&mut self.locked,
 			));
 		}
-		let mut members: Vec<String> = body.iter().filter_map(|b| member_name(b)).collect();
-		members.extend(statics.iter().filter_map(|s| member_name(s)));
-		self.distinct(&rust, &members);
+		self.distinct(&rust, &names(&body));
+		self.distinct(&rust, &names(&statics));
 		if !statics.is_empty() {
 			body.push(format!("\tcompanion object {{\n{}\t}}\n", statics.join("\n")));
 		}
@@ -2223,8 +2331,31 @@ impl<'a> Gen<'a> {
 		let mut body = Vec::new();
 		let mut table = vec!["free: Some(rt::free_callback)".to_string()];
 		let mut members = Vec::new();
-		for (n, method) in callback.methods.iter().enumerate() {
-			let member = member(&abi::snake(method.name()), &[]);
+		// Apart from what `Any` or `java.lang.Object` declares of its signature, since no
+		// `@JvmName` renames an interface's method, which is open.
+		let spelled = (callback.methods.iter())
+			.map(|method| {
+				let types: Vec<String> = method.params.iter().map(|p| self.kt_param(&p.ty)).collect();
+				let types: Vec<&str> = types.iter().map(String::as_str).collect();
+				let mut member = member(&abi::snake(method.name()), &[]).trim_matches('`').to_string();
+				while object_method(&member, &types)
+					|| (types.is_empty() && ["toString", "hashCode"].contains(&member.as_str()))
+				{
+					member.push('_');
+				}
+				member
+			})
+			.collect();
+		let methods: Vec<&str> = callback.methods.iter().map(|method| method.name()).collect();
+		let named = abi::named(
+			&methods,
+			spelled,
+			|rust, name| abi::snake(name) == rust,
+			|_, _| false,
+			abi::underscored,
+		);
+		for (n, (method, member)) in callback.methods.iter().zip(&named).enumerate() {
+			let member = kw(member);
 			crate::lock::function(&mut self.locked, method, &member);
 			members.push(format!("fun {member}"));
 			let params: Vec<String> = (method.params.iter().zip(locals(&method.params)))
@@ -2374,7 +2505,7 @@ impl<'a> Gen<'a> {
 			_ => unreachable!("a callback or closure returns no {c_ok:?}"),
 		};
 		let back = match thrown {
-			None => format!("rt::threw(env, \"{what}\");\n\t\t{back}"),
+			None => format!("rt::unwinds(env, \"{what}\");\n\t\t{back}"),
 			Some(_) => {
 				let err = outs.len() - 1;
 				let ok = match c_ok {
@@ -2389,9 +2520,14 @@ impl<'a> Gen<'a> {
 		let invoke = format!(
 			"let ret = unsafe {{ ((**env).v1_2.CallStatic{call_kind}MethodA)(env, rt::class(), id, args.as_ptr()) }};"
 		);
+		let types: Vec<&str> = rust_params
+			.iter()
+			.map(|p| p.split_once(": ").expect("a typed parameter").1)
+			.collect();
+		let types = types.join(", ");
 		let _ = write!(
 			self.glue,
-			"static M_{trampoline}: std::sync::OnceLock<usize> = std::sync::OnceLock::new();\n\nunsafe extern \"C\" fn {trampoline}({}) -> {rust_ret} {{\n\trt::upcall(\"{what}\", |env| {{\n\t\tlet id = rt::method(env, &M_{trampoline}, c\"{dispatcher}\", c\"{sig}\");\n\t\tlet args = [{}];\n\t\t{invoke}\n\t\tlet _ = &ret;\n\t\t{back}\n\t}})\n}}\n\n",
+			"static M_{trampoline}: std::sync::OnceLock<usize> = std::sync::OnceLock::new();\n\n/// Its `C-unwind` body as the C function the C ABI takes, which calls it as `C-unwind`.\n/// The body is scoped to the initializer, so no other trampoline's name can clash with it.\n#[allow(non_upper_case_globals, reason = \"named as the function\")]\nconst {trampoline}: unsafe extern \"C\" fn({types}) -> {rust_ret} = {{\n\tunsafe extern \"C-unwind\" fn body({}) -> {rust_ret} {{\n\t\trt::upcall(\"{what}\", |env| {{\n\t\t\tlet id = rt::method(env, &M_{trampoline}, c\"{dispatcher}\", c\"{sig}\");\n\t\t\tlet args = [{}];\n\t\t\t{invoke}\n\t\t\tlet _ = &ret;\n\t\t\t{back}\n\t\t}})\n\t}}\n\tunsafe {{ std::mem::transmute::<unsafe extern \"C-unwind\" fn({types}) -> {rust_ret}, _>(body) }}\n}};\n\n",
 			rust_params.join(", "),
 			jvalues.join(", ")
 		);
@@ -2450,21 +2586,37 @@ impl<'a> Gen<'a> {
 	}
 
 	fn native(&mut self, bare: &str, params: &[(&str, &str)], ret: (&str, &str), body: &str) {
+		self.declare(bare, params, ret, body, false);
+	}
+
+	/// [`Self::native`] for a leaf, as [`Abi::leaf`] proves: `@FastNative`, so ART keeps
+	/// the thread runnable across it rather than switching its state twice, which a call
+	/// that ends in a bounded number of steps and waits on no lock allows. ART binds such a
+	/// method by its name only from Android 12, so `__contract` registers it instead. Where
+	/// the library runs other bodies than the proof saw, a plain native method bound to the
+	/// same function makes the call.
+	fn leaf_native(&mut self, bare: &str, params: &[(&str, &str)], ret: (&str, &str), body: &str) {
+		self.declare(bare, params, ret, body, true);
+	}
+
+	fn declare(&mut self, bare: &str, params: &[(&str, &str)], ret: (&str, &str), body: &str, fast: bool) {
 		let kt: Vec<String> = params
 			.iter()
 			.enumerate()
 			.map(|(n, (_, k))| format!("p{n}: {k}"))
 			.collect();
-		// On a target its item is not on, the native method throws before it calls in.
+		// On a target its item is not on, the native method throws before it calls in. The
+		// methods a native declares beside its own name end in `$` and a suffix, which no C
+		// name has, so they never take another's name.
 		let api = self.abi.api;
 		let external = match api.everywhere(self.on) {
 			true => bare.to_string(),
 			false => {
-				let external = format!("{bare}__on");
+				let external = format!("{bare}$on");
 				let args: Vec<String> = (0..params.len()).map(|n| format!("p{n}")).collect();
 				let _ = write!(
 					self.natives,
-					"\t@kotlin.jvm.JvmStatic fun {bare}({}): {} {{\n\t\tcheck({}uL, \"{}_{bare}\")\n\t\treturn {external}({})\n\t}}\n\n",
+					"\t@kotlin.jvm.JvmStatic fun {bare}({}): {} {{\n\t\tcheck({}uL, \"{}_{bare}\")\n\t\treturn `{external}`({})\n\t}}\n\n",
 					kt.join(", "),
 					ret.1,
 					self.on.0 & api.all().0,
@@ -2475,9 +2627,24 @@ impl<'a> Gen<'a> {
 			}
 		};
 		let bare = external.as_str();
+		let plain = match fast {
+			true => {
+				let args: Vec<String> = (0..params.len()).map(|n| format!("p{n}")).collect();
+				let (kt, args) = (kt.join(", "), args.join(", "));
+				let _ = write!(
+					self.natives,
+					"\t@kotlin.jvm.JvmStatic fun {}({kt}): {ret} = if (proven) `{bare}$fast`({args}) else `{bare}$plain`({args})\n\n\t@dalvik.annotation.optimization.FastNative\n\t@kotlin.jvm.JvmStatic external fun `{bare}$fast`({kt}): {ret}\n\n",
+					tick(bare),
+					ret = ret.1
+				);
+				format!("{bare}$plain")
+			}
+			false => bare.to_string(),
+		};
 		let _ = write!(
 			self.natives,
-			"\t@kotlin.jvm.JvmStatic external fun {bare}({}): {}\n\n",
+			"\t@kotlin.jvm.JvmStatic external fun {}({}): {}\n\n",
+			tick(&plain),
 			kt.join(", "),
 			ret.1
 		);
@@ -2488,12 +2655,23 @@ impl<'a> Gen<'a> {
 			.collect();
 		let mut all = vec!["env: *mut JNIEnv".to_string(), "_: jclass".to_string()];
 		all.extend(rust);
+		let function = format!("Java_{}__1Native_{}", mangle(&self.abi.prefix), mangle(&plain));
+		if fast {
+			let jvm: String = params.iter().map(|(j, _)| descriptor(j)).collect();
+			let _ = writeln!(
+				self.fast,
+				"\t\tJNINativeMethod {{ name: c\"{bare}$fast\".as_ptr() as _, signature: c\"({jvm}){}\".as_ptr() as _, fnPtr: {function} as *mut c_void }},",
+				descriptor(ret.0)
+			);
+		}
+		let head = format!(
+			"#[unsafe(no_mangle)]\npub unsafe extern \"system\" fn {function}({}) -> {}",
+			all.join(", "),
+			ret.0
+		);
 		let _ = write!(
 			self.glue,
-			"#[unsafe(no_mangle)]\npub unsafe extern \"system\" fn Java_{}__1Native_{}({}) -> {} {{\n\tlet _ = env;\n\tunsafe {{\n\t\t{body}\n\t}}\n}}\n\n",
-			mangle(&self.abi.prefix),
-			mangle(bare),
-			all.join(", "),
+			"{head} {{\n\trt::entry(env, move || -> {} {{\n\t\tunsafe {{\n\t\t\t{body}\n\t\t}}\n\t}})\n}}\n\n",
 			ret.0
 		);
 	}
@@ -2535,16 +2713,12 @@ impl<'a> Gen<'a> {
 			doc::Target::Callback(i) => owner(doc::Owner::Callback(i)),
 			doc::Target::Variant(i, v) => {
 				let e = &abi.api.enums[i];
-				let name = &e.variants[v].name;
-				match e.plain() {
-					true => format!("{}.{}", owner(doc::Owner::Enum(i)), abi::snake(name).to_uppercase()),
-					false => format!("{}.{}", owner(doc::Owner::Enum(i)), pascal(name)),
-				}
+				format!("{}.{}", owner(doc::Owner::Enum(i)), variant_names(e).swap_remove(v))
 			}
 			doc::Target::Field(i, n) => format!(
 				"{}.{}",
 				owner(doc::Owner::Record(i)),
-				field_name(&abi.api.records[i].fields[n].name)
+				field_names(&abi.api.records[i].fields).swap_remove(n)
 			),
 			doc::Target::Constant(c) => self.locked.get(&format!("const {}", c.path.join("::")))?.clone(),
 			doc::Target::Function(of, f) => {
@@ -2574,31 +2748,191 @@ impl<'a> Gen<'a> {
 		name
 	}
 
-	/// Check that no two members of the type `rust` share a Kotlin name.
-	fn distinct(&mut self, rust: &str, members: &[String]) {
-		let mut seen = BTreeSet::new();
-		for member in members {
-			if !seen.insert(member) {
-				let name = member.split(' ').next_back().unwrap_or(member);
-				self.errors.push(format!(
-					"two members of `{rust}` are both `{name}` in Kotlin, which rust2-ffi should keep apart"
-				));
-			}
-		}
+	/// Asserts that no two members of the type `rust`, each by its kind and Kotlin name, are
+	/// one, as [`abi::assert_apart`] does.
+	fn distinct(&self, rust: &str, members: &[String]) {
+		abi::assert_apart(rust, "Kotlin", members, |a, b| a == b);
 	}
 
-	/// `function`'s Kotlin form, a member of `owner` (whose IR type is `owner_ty`) if it
-	/// has one, apart from the members `taken` names, with its native methods and glue.
+	/// The name each of a type's `methods` takes, of `owner` (whose IR type is `owner_ty`),
+	/// apart from the others of its place and from what `taken` holds of that place, as
+	/// [`Gen::names`] keeps them.
+	fn methods_named(
+		&self,
+		methods: &[Function],
+		owner: (Option<&Ty>, Option<&Type>),
+		taken: impl Fn(Place, &str) -> bool,
+	) -> Vec<String> {
+		let mut named = vec![String::new(); methods.len()];
+		for place in [Place::Member, Place::Static] {
+			let of: Vec<usize> = (0..methods.len())
+				.filter(|&k| (methods[k].receiver.is_some()) == (place == Place::Member))
+				.collect();
+			let functions: Vec<&Function> = of.iter().map(|&k| &methods[k]).collect();
+			for (k, name) in of
+				.into_iter()
+				.zip(self.names(&functions, owner, place, |d| taken(place, d)))
+			{
+				named[k] = name;
+			}
+		}
+		named
+	}
+
+	/// The JVM method each of a type's `methods`, Kotlin's `named`, compiles to, of `owner`
+	/// (whose IR type is `owner_ty`): apart across both places, since a companion's
+	/// `@JvmStatic` member shares the class's names, from the JVM methods `taken` names and
+	/// `java.lang.Object`'s, as [`abi::named`] keeps a scope's. So of Rust's `count(&self)`
+	/// and `count_()`, both Kotlin's `count`, the method keeps `count` on the JVM in either
+	/// order.
+	fn jvm_named(
+		&mut self,
+		methods: &[Function],
+		(owner, owner_ty): (Option<&Ty>, Option<&Type>),
+		named: &[String],
+		taken: &[String],
+	) -> Vec<String> {
+		let abi = self.abi;
+		let (mut rust, mut spelled, mut getters, mut types) = (Vec::new(), Vec::new(), Vec::new(), Vec::new());
+		for (method, member) in methods.iter().zip(named) {
+			let place = match method.receiver {
+				Some(_) => Place::Member,
+				None => Place::Static,
+			};
+			let (name, declared) = self.spelled(method, (owner, owner_ty), place);
+			let kind = declared.split_once(' ').map_or("fun", |(kind, _)| kind);
+			// The JVM types of the parameters `function_on` declares, which `object_method` reads.
+			let (back, export) = match (owner.zip(owner_ty)).and_then(|(o, ty)| abi.handed_back(method, o, ty)) {
+				Some((back, export, _)) => (Some(back), export),
+				None => (None, abi.export(method, owner)),
+			};
+			let function = back.as_ref().unwrap_or(method);
+			let params: Vec<String> = match export.future {
+				Some(_) => vec!["kotlin.coroutines.Continuation".to_string()],
+				None => (function.params.iter())
+					.filter(|p| p.ty != Type::Jni(Jni::Env))
+					// What the JVM passes, which `Object`'s methods are matched by.
+					.map(|p| match lowered(abi.api, &p.ty) {
+						Some(primitive) => primitive.to_string(),
+						None => self.kt_param(&p.ty),
+					})
+					.collect(),
+			};
+			rust.push(name);
+			spelled.push(jvm_name(&format!("{kind} {member}")));
+			getters.push(kind == "val");
+			types.push(params);
+		}
+		let rust: Vec<&str> = rust.iter().map(String::as_str).collect();
+		let own = |rust: &str, jvm: &str| jvm == rust || abi::snake(jvm) == rust;
+		let taken = |k: usize, jvm: &str| {
+			let params: Vec<&str> = types[k].iter().map(String::as_str).collect();
+			taken.iter().any(|t| t == jvm) || (!getters[k] && object_method(jvm, &params))
+		};
+		abi::named(&rust, spelled, own, taken, abi::underscored)
+	}
+
+	/// The name each of `functions` takes in `place` of `owner` (whose IR type is
+	/// `owner_ty`) if it has one, or at the top level, apart from each other and from what
+	/// `taken` holds of a declaration's kind and name, such as `fun of`, as [`abi::named`]
+	/// keeps a scope's.
+	fn names(
+		&self,
+		functions: &[&Function],
+		(owner, owner_ty): (Option<&Ty>, Option<&Type>),
+		place: Place,
+		taken: impl Fn(&str) -> bool,
+	) -> Vec<String> {
+		let (rust, spelled): (Vec<String>, Vec<String>) = (functions.iter())
+			.map(|function| self.spelled(function, (owner, owner_ty), place))
+			.unzip();
+		let rust: Vec<&str> = rust.iter().map(String::as_str).collect();
+		let unkind = |declared: &str| {
+			declared
+				.split_once(' ')
+				.map_or(declared.to_string(), |(_, name)| name.to_string())
+		};
+		// A constant's upper case reads back as it is, and each other's camel case in snake case.
+		let own = |rust: &str, declared: &str| {
+			let name = unkind(declared);
+			name == rust || abi::snake(&name) == rust
+		};
+		let quoted = |declared: &str| match declared.split_once(' ') {
+			Some((kind, name)) => taken(&format!("{kind} {}", kw(name))),
+			None => taken(declared),
+		};
+		(abi::named(&rust, spelled, own, |_, name| quoted(name), abi::underscored).iter())
+			.map(|declared| kw(&unkind(declared)))
+			.collect()
+	}
+
+	/// The declaration `function` makes in `place` of `owner` (whose IR type is `owner_ty`)
+	/// if it has one, before it keeps apart from any other: the Rust name it spells, and its
+	/// kind and Kotlin name, unquoted, such as `fun intoLabel`.
+	fn spelled(
+		&self,
+		function: &Function,
+		(owner, owner_ty): (Option<&Ty>, Option<&Type>),
+		place: Place,
+	) -> (String, String) {
+		let abi = self.abi;
+		let (back, export) = match (owner.zip(owner_ty)).and_then(|(owner, ty)| abi.handed_back(function, owner, ty)) {
+			Some((back, export, _)) => (Some(back), export),
+			None => (None, abi.export(function, owner)),
+		};
+		let function = back.as_ref().unwrap_or(function);
+		let owner_c = match owner {
+			Some(Ty::Struct(n) | Ty::Enum(n) | Ty::Handle { name: n, .. }) => Some(n.as_str()),
+			_ => None,
+		};
+		let own = owner_c.and_then(|o| export.named.strip_prefix(o)?.strip_prefix('_'));
+		let reserved: &[&str] = match owner_ty {
+			Some(Type::Object(_)) => &["close", "equals", "hashCode", "toString", "handle"],
+			Some(Type::Record(_)) => &["copy", "equals", "hashCode", "toString"],
+			// A plain enum is a Kotlin enum, which has its own.
+			Some(Type::Enum(i)) if abi.api.enums[*i].plain() => &[
+				"equals",
+				"hashCode",
+				"toString",
+				"of",
+				"value",
+				"name",
+				"ordinal",
+				"compareTo",
+			],
+			Some(_) => &["equals", "hashCode", "toString"],
+			None => &[],
+		};
+		// Named as Rust's path is, whatever C's clashes rename.
+		let rust = own.unwrap_or_else(|| self.bare(&export.named)).to_string();
+		let member = member(&rust, reserved);
+		let member = member.trim_matches('`');
+		let receiver = function.receiver.filter(|_| owner.is_some());
+		let property = matches!(
+			(function.access, place, receiver),
+			(Access::Field { .. }, Place::Member, _) | (Access::Const, _, None)
+		) && function.params.is_empty();
+		let declared = match (property, function.access) {
+			(true, Access::Const) => format!("val {}", member.to_uppercase()),
+			(true, _) => format!("val {member}"),
+			(false, _) => format!("fun {member}"),
+		};
+		(rust, declared)
+	}
+
+	/// `function`'s Kotlin form `member`, compiled to the JVM method `jvm`, of `owner` (whose
+	/// IR type is `owner_ty`) if it has one, apart from the members `taken` names, with its
+	/// native methods and glue.
 	fn function(
 		&mut self,
 		function: &Function,
-		owner: Option<&Ty>,
-		owner_ty: Option<&Type>,
+		owner: (Option<&Ty>, Option<&Type>),
 		place: Place,
+		(member, jvm): (&str, &str),
 		taken: &[String],
 	) -> Option<String> {
 		let on = std::mem::replace(&mut self.on, function.on);
-		let code = self.function_on(function, owner, owner_ty, place, taken);
+		let code = self.function_on(function, owner, place, (member, jvm), taken);
 		self.on = on;
 		code
 	}
@@ -2606,9 +2940,9 @@ impl<'a> Gen<'a> {
 	fn function_on(
 		&mut self,
 		function: &Function,
-		owner: Option<&Ty>,
-		owner_ty: Option<&Type>,
+		(owner, owner_ty): (Option<&Ty>, Option<&Type>),
 		place: Place,
+		(member, jvm): (&str, &str),
 		taken: &[String],
 	) -> Option<String> {
 		let abi = self.abi;
@@ -2632,35 +2966,6 @@ impl<'a> Gen<'a> {
 		);
 		let c_name = export.call.name.clone();
 		let bare = self.bare(&c_name).to_string();
-		let owner_c = match owner {
-			Some(Ty::Struct(n) | Ty::Enum(n) | Ty::Handle { name: n, .. }) => Some(n.clone()),
-			_ => None,
-		};
-		let own = match &owner_c {
-			Some(o) => export.named.strip_prefix(o.as_str()).and_then(|r| r.strip_prefix('_')),
-			None => None,
-		};
-		let reserved: &[&str] = match owner_ty {
-			Some(Type::Object(_)) => &["close", "equals", "hashCode", "toString", "handle"],
-			Some(Type::Record(_)) => &["copy", "equals", "hashCode", "toString"],
-			// A plain enum is a Kotlin enum, which has its own.
-			Some(Type::Enum(i)) if abi.api.enums[*i].plain() => &[
-				"equals",
-				"hashCode",
-				"toString",
-				"of",
-				"value",
-				"name",
-				"ordinal",
-				"compareTo",
-			],
-			Some(_) => &["equals", "hashCode", "toString"],
-			None => &[],
-		};
-		// Named as Rust's path is, whatever C's clashes rename.
-		let named = self.bare(&export.named).to_string();
-		let snake = own.unwrap_or(&named);
-		let member = member(snake, reserved);
 
 		let mut n = 0;
 		let mut args: Vec<Arg> = Vec::new();
@@ -2817,10 +3122,14 @@ impl<'a> Gen<'a> {
 				make,
 			}
 		});
-		// The native call, closing what it moves out once it returns.
+		// The native call, closing what it moves out however it ends, as a closure's failed
+		// check unwinding out of it ends it after Rust took them.
 		let call = match after.is_empty() {
 			true => format!("_Native.{bare}({})", exprs.join(", ")),
-			false => format!("_Native.{bare}({}).also {{ {} }}", exprs.join(", "), after.join("; ")),
+			false => {
+				let moving = self.moving(&exprs, |args| format!("_Native.{bare}({args})"), &after);
+				self.refused_first(&bare, moving)
+			}
 		};
 		// The value the function returns, or, returning nothing, its statement.
 		let value;
@@ -2832,11 +3141,17 @@ impl<'a> Gen<'a> {
 			(Some(_), Some(homed)) => homed.name,
 			_ => c_name.clone(),
 		};
+		let unwind = self.unwind.clone();
 		let rust_call = |outs: &[String]| {
 			let args: Vec<String> = rust_args.iter().chain(outs).chain(&status_arg).cloned().collect();
 			let call = match &handed {
-				Some(h) => h.call(&args),
-				None => format!("crate::{made}({})", args.join(", ")),
+				// Through the body a closure's failed check unwinds out of.
+				Some(h) => h.call(&args).replacen(
+					&format!("crate::{}(", h.name),
+					&format!("crate::{unwind}_{}(", h.name),
+					1,
+				),
+				None => format!("crate::{unwind}_{made}({})", args.join(", ")),
 			};
 			// An exception the Rust left pending, which the C function dropped its result
 			// for, is thrown once the native method returns with nothing else done.
@@ -2867,7 +3182,7 @@ impl<'a> Gen<'a> {
 			};
 			let _ = write!(
 				self.glue,
-				"unsafe fn jni_{}(f: *mut c_void, waker: crate::rt::Waker, w: &mut rt::Writer, ps: &mut i32) -> bool {{\n\tlet _ = (&w, &ps);\n\tunsafe {{\n\t{decl}\n\tlet ret = crate::{}(f as _, waker{}{ps});\n\tif ret == 0 {{\n\t\treturn false;\n\t}}\n\t{ok_set}{write}\n\ttrue\n\t}}\n}}\n\nunsafe fn jni_{}(f: *mut c_void) {{\n\tunsafe {{ crate::{}(f as _) }}\n}}\n\n",
+				"unsafe fn jni_{}(f: *mut c_void, waker: crate::rt::Waker, w: &mut rt::Writer, ps: &mut i32) -> bool {{\n\tlet _ = (&w, &ps);\n\tunsafe {{\n\t{decl}\n\tlet ret = crate::{unwind}_{}(f as _, waker{}{ps});\n\tif ret == 0 {{\n\t\treturn false;\n\t}}\n\t{ok_set}{write}\n\ttrue\n\t}}\n}}\n\nunsafe fn jni_{}(f: *mut c_void) {{\n\tunsafe {{ crate::{unwind}_{}(f as _) }}\n}}\n\n",
 				poll.name,
 				poll.name,
 				ptrs.iter().map(|p| format!(", {p}")).collect::<String>(),
@@ -2909,12 +3224,11 @@ impl<'a> Gen<'a> {
 				("()", "Unit"),
 				&format!("jni_{}(p0 as usize as _)", free.name),
 			);
-			let raw = format!("_Native.{bare}({})", exprs.join(", "));
 			let call = if after.is_empty() {
-				raw
+				format!("_Native.{bare}({})", exprs.join(", "))
 			} else {
 				{
-					let moving = self.moving(&raw, &after);
+					let moving = self.moving(&exprs, |args| format!("_Native.{bare}({args})"), &after);
 					self.refused_first(&bare, moving)
 				}
 			};
@@ -3003,12 +3317,11 @@ impl<'a> Gen<'a> {
 			};
 			let params = native_params.iter().map(|(j, k)| (*j, k.as_str())).collect::<Vec<_>>();
 			self.native(&bare, &params, ("jobject", "Any"), &format!("{}\n\t\t{decl}\n\t\tlet success = {success};{check}\n\t\t{error}\n\t\tlet args = [{}];\n\t\tstatic FACTORY: std::sync::OnceLock<usize> = std::sync::OnceLock::new();\n\t\tlet id = rt::method(env, &FACTORY, c\"{factory}\", c\"{sig}\");\n\t\t((**env).v1_2.CallStaticObjectMethodA)(env, rt::class(), id, args.as_ptr())", rust_pre.join("\n\t\t"), values.join(", ")));
-			let raw = format!("_Native.{bare}({})", exprs.join(", "));
 			let raw = if after.is_empty() {
-				raw
+				format!("_Native.{bare}({})", exprs.join(", "))
 			} else {
 				{
-					let moving = self.moving(&raw, &after);
+					let moving = self.moving(&exprs, |args| format!("_Native.{bare}({args})"), &after);
 					self.refused_first(&bare, moving)
 				}
 			};
@@ -3067,14 +3380,15 @@ impl<'a> Gen<'a> {
 			let r = self.fresh("r");
 			let e = self.read_value(err.as_ref().expect("a result's error"), &r);
 			let exception = exception.as_deref().expect("a result's exception");
-			let raw = format!("_Native.{bare}({})", exprs.join(", "));
-			let caught = format!(
-				"try {{\n\t{raw}\n}} catch (f: _Native.__Failed) {{\n\t_Native.__Reader(f.error).let {{ {r} -> throw {exception}({e}) }}\n}}"
-			);
+			let caught = |args: &str| {
+				format!(
+					"try {{\n\t_Native.{bare}({args})\n}} catch (f: _Native.__Failed) {{\n\t_Native.__Reader(f.error).let {{ {r} -> throw {exception}({e}) }}\n}}"
+				)
+			};
 			let caught = match after.is_empty() {
-				true => caught,
+				true => caught(&exprs.join(", ")),
 				false => {
-					let moving = self.moving(&caught, &after);
+					let moving = self.moving(&exprs, caught, &after);
 					self.refused_first(&bare, moving)
 				}
 			};
@@ -3134,11 +3448,43 @@ impl<'a> Gen<'a> {
 				params.push(("jobjectArray", "kotlin.Array<kotlin.Any>"));
 				arg
 			};
+			let call = rust_call(&ptrs);
+			let call = match written.is_empty() {
+				true => call,
+				// A closure's failed check unwinding out of the call writes back what Rust
+				// wrote before it, which the C function wrote back as it unwound, before it
+				// throws: a Kotlin caller catching it sees it, as a Rust one catching the
+				// panic would.
+				false => {
+					let unwound = format!("{bare}__unwound");
+					self.dispatchers.push(unwound.clone());
+					let reads: String = (written.iter())
+						.enumerate()
+						.map(|(k, (_, ty))| {
+							format!(
+								"\t\t(back!![{k}] as Mut<{}>).value = {}\n",
+								self.kt_param(ty),
+								self.read_value(ty, "r")
+							)
+						})
+						.collect();
+					let _ = write!(
+						self.natives,
+						"\t@kotlin.Suppress(\"UNCHECKED_CAST\")\n\t@kotlin.jvm.JvmStatic private fun {unwound}(buffer: java.nio.ByteBuffer, back: kotlin.Array<Any>?): Any? {{\n\t\tval r = __Reader(buffer)\n{reads}\t\treturn null\n\t}}\n\n"
+					);
+					let puts: String = (outs.iter().zip(&written))
+						.map(|((name, _), (_, ty))| format!("{}; ", put(ty, &format!("o_{name}.assume_init()"))))
+						.collect();
+					format!(
+						"match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {call})) {{\n\t\t\tOk(called) => called,\n\t\t\tErr(unwound) => {{\n\t\t\t\tlet mut w = rt::Writer::default();\n\t\t\t\t{puts}\n\t\t\t\tstatic UNWOUND: std::sync::OnceLock<usize> = std::sync::OnceLock::new();\n\t\t\t\tw.value(env, &UNWOUND, c\"{unwound}\", {back});\n\t\t\t\trt::threw(env, \"{unwound}\");\n\t\t\t\tstd::panic::resume_unwind(unwound)\n\t\t\t}}\n\t\t}}"
+					)
+				}
+			};
 			self.native(
 				&bare, &params, ("jobject", "Any?"),
 				&format!(
-					"{}\n\t\t{decl}\n\t\t{ret_set}{};{check}\n\t\tlet mut w = rt::Writer::default();\n\t\t{write}\n\t\tstatic FACTORY: std::sync::OnceLock<usize> = std::sync::OnceLock::new();\n\t\tw.value(env, &FACTORY, c\"{factory}\", {back})",
-					rust_pre.join("\n\t\t"), rust_call(&ptrs)),
+					"{}\n\t\t{decl}\n\t\t{ret_set}{call};{check}\n\t\tlet mut w = rt::Writer::default();\n\t\t{write}\n\t\tstatic FACTORY: std::sync::OnceLock<usize> = std::sync::OnceLock::new();\n\t\tw.value(env, &FACTORY, c\"{factory}\", {back})",
+					rust_pre.join("\n\t\t")),
 			);
 			let mut call_args = exprs.clone();
 			if !written.is_empty() {
@@ -3151,12 +3497,11 @@ impl<'a> Gen<'a> {
 						.join(", ")
 				));
 			}
-			let raw = format!("_Native.{bare}({})", call_args.join(", "));
 			let raw = if after.is_empty() {
-				raw
+				format!("_Native.{bare}({})", call_args.join(", "))
 			} else {
 				{
-					let moving = self.moving(&raw, &after);
+					let moving = self.moving(&call_args, |args| format!("_Native.{bare}({args})"), &after);
 					self.refused_first(&bare, moving)
 				}
 			};
@@ -3232,12 +3577,11 @@ impl<'a> Gen<'a> {
 			self.native(&bare, &params, ("jobject", "Any?"), &format!(
 				"{}\n\t\tlet ret = {};{check}\n\t\tlet mut w = rt::Writer::default();\n\t\t{};\n\t\tstatic FACTORY: std::sync::OnceLock<usize> = std::sync::OnceLock::new();\n\t\tw.value(env, &FACTORY, c\"{factory}\", std::ptr::null_mut())",
 				rust_pre.join("\n\t\t"), rust_call(&[]), put(&function.ok, "ret")));
-			let raw = format!("_Native.{bare}({})", exprs.join(", "));
 			let raw = if after.is_empty() {
-				raw
+				format!("_Native.{bare}({})", exprs.join(", "))
 			} else {
 				{
-					let moving = self.moving(&raw, &after);
+					let moving = self.moving(&exprs, |args| format!("_Native.{bare}({args})"), &after);
 					self.refused_first(&bare, moving)
 				}
 			};
@@ -3258,16 +3602,15 @@ impl<'a> Gen<'a> {
 				_ if returned.is_some() => "rt::new_block(env, ret)".to_string(),
 				_ => ret_expr(abi, &c_ret, &ok),
 			};
-			self.native(
-				&bare,
-				&params,
-				(jni, native),
-				&format!(
-					"{}\n\t\tlet ret = {};{check}\n\t\t{ret_expr}",
-					rust_pre.join("\n\t\t"),
-					rust_call(&[])
-				),
+			let body = format!(
+				"{}\n\t\tlet ret = {};{check}\n\t\t{ret_expr}",
+				rust_pre.join("\n\t\t"),
+				rust_call(&[])
 			);
+			match abi.leaf(function, owner_ty) {
+				true => self.leaf_native(&bare, &params, (jni, native), &body),
+				false => self.native(&bare, &params, (jni, native), &body),
+			}
 			value = match (&ok, &returned) {
 				(Type::Unit, _) => call,
 				(_, Some(b)) => b.unsigned(&call),
@@ -3340,19 +3683,16 @@ impl<'a> Gen<'a> {
 			(function.access, place, receiver),
 			(Access::Field { .. }, Place::Member, _) | (Access::Const, _, None)
 		) && function.params.is_empty();
-		let member = match function.access {
-			Access::Const if property => member.to_uppercase(),
-			_ => member,
-		};
 		let top = owner.is_none();
 		let kind = match property {
 			true => "val",
 			false => "fun",
 		};
 		let mut member = match top {
-			true => self.claim(&member, format!("fn `{}`", function.path.join("::"))),
-			false => member,
+			true => self.claim(member, format!("fn `{}`", function.path.join("::"))),
+			false => member.to_string(),
 		};
+
 		// A member its type declares already takes a trailing `_`.
 		while taken.contains(&format!("{kind} {member}")) {
 			member = format!("{}_", member.trim_matches('`'));
@@ -3379,17 +3719,28 @@ impl<'a> Gen<'a> {
 		if place == Place::Static && !top {
 			annotations.push_str("@kotlin.jvm.JvmStatic\n");
 		}
-		// A JVM method its class declares already, in either place, since a companion's
-		// `@JvmStatic` member shares the class's names, as a field's getter `getX` does,
-		// leaves the Kotlin name alone and takes a trailing `_` on the JVM.
+		// Kotlin mangles the JVM name of a function taking an inline class and of a member
+		// returning one, as `count-pVg5ArA`, which Java cannot name, so it is pinned. A value
+		// class's member compiles to such a static, which `@JvmName` cannot rename, so is not
+		// Java's to call.
+		let mangled = function.params.iter().any(|p| inline(abi.api, &p.ty))
+			|| (!top && inline(abi.api, &strip_refs(&function.ok)));
+		let value_member = place == Place::Member && owner_ty.is_some_and(|ty| inline(abi.api, ty));
+		// Nor is one taking an opaque value, which Java would pass as an unchecked `long`, so
+		// it is pinned apart from the others of its class to a name no Java identifier is.
+		let takes_opaque = function.params.iter().any(|p| opaque_value(abi.api, &p.ty));
 		let target = if getter { "get:" } else { "" };
-		let declared = jvm_name(&format!("{kind} {member}"));
-		let mut jvm = declared.clone();
-		while taken.contains(&format!("jvm {jvm}")) {
-			jvm.push('_');
-		}
-		if jvm != declared {
-			let _ = writeln!(annotations, "@{target}kotlin.jvm.JvmName(\"{jvm}\")");
+		if takes_opaque && !value_member {
+			let _ = writeln!(annotations, "@{target}kotlin.jvm.JvmName(\"{jvm}-opaque\")");
+		} else if !value_member {
+			// A JVM name [`Gen::jvm_named`] moved leaves the Kotlin name alone.
+			if mangled || jvm != jvm_name(&format!("{kind} {member}")) {
+				let _ = writeln!(annotations, "@{target}kotlin.jvm.JvmName(\"{jvm}\")");
+			}
+			// Java calls it by its JVM name, which the lock keeps beside the Kotlin one, so a
+			// member added beside it that moves it is a break even where it had none.
+			let key = format!("{} / jvm", crate::lock::function_key(function));
+			self.locked.insert(key, jvm.to_string());
 		}
 		if let Some(exception) = &exception {
 			let _ = writeln!(annotations, "@{target}kotlin.jvm.Throws({exception}::class)");
@@ -3400,33 +3751,6 @@ impl<'a> Gen<'a> {
 			docs(&text, function.deprecated.as_deref(), "")
 		);
 		Some(indent_by(&code, indent_level))
-	}
-
-	/// The Kotlin statement closing each handle the value `e` of type `ty` holds, once a
-	/// call moved their values out.
-	fn close(&mut self, ty: &Type, e: &str) -> String {
-		match ty {
-			Type::Option(inner) => {
-				let v = self.fresh("v");
-				let close = self.close(inner, &v);
-				format!("{e}?.let {{ {v} -> {close} }}")
-			}
-			Type::Box(inner) => self.close(inner, e),
-			Type::Tuple(elements) => {
-				let t = self.fresh("t");
-				let closes: Vec<String> = (elements.iter().enumerate())
-					.filter(|(_, ty)| moved(self.abi, ty))
-					.map(|(k, ty)| self.close(ty, &format!("{t}.{}", ordinal(k))))
-					.collect();
-				format!("{e}.let {{ {t} -> {} }}", closes.join("; "))
-			}
-			Type::List(_, inner) => {
-				let v = self.fresh("v");
-				let close = self.close(inner, &v);
-				format!("{e}.forEach {{ {v} -> {close} }}")
-			}
-			_ => format!("{e}.handle.abandon()"),
-		}
 	}
 
 	/// The glue's out values for `outs`, of a function returning `ok` or `err`, the
@@ -3513,8 +3837,9 @@ impl<'a> Gen<'a> {
 			return from_kotlin(&opaque, &words);
 		}
 		let mut fields = Vec::new();
-		for (k, field) in abi.api.records[i].fields.iter().enumerate() {
-			let e = format!("{e}.{}", field_name(&field.name));
+		let names = field_names(&abi.api.records[i].fields);
+		for (k, (field, name)) in abi.api.records[i].fields.iter().zip(&names).enumerate() {
+			let e = format!("{e}.{name}");
 			let value = match &field.ty {
 				Type::Record(j) => self.flat_in(*j, &e, (&mut *arg, &mut *n), (w, &mut *writes), r),
 				ty if scalar(abi, ty) => {
@@ -3899,6 +4224,48 @@ fn word(opaque: &Opaque) -> bool {
 	opaque.compared()
 }
 
+/// Whether Kotlin's type of a parameter or return of type `ty` is an inline class, nullable
+/// or not, which the JVM sees as its underlying type or a box.
+fn inline(api: &Api, ty: &Type) -> bool {
+	match ty {
+		Type::Option(inner) | Type::Box(inner) => inline(api, inner),
+		Type::Ref(_, inner) if !ty.written() => inline(api, inner),
+		Type::List(..) => ty.block().is_some_and(|elem| block(elem).kt.starts_with('U')),
+		_ => lowered(api, ty).is_some(),
+	}
+}
+
+/// The Kotlin type of the primitive the JVM passes for a parameter of type `ty`, where Kotlin's
+/// is an inline class over one, such as `kotlin.Long` for a `kotlin.ULong`.
+fn lowered(api: &Api, ty: &Type) -> Option<&'static str> {
+	match ty {
+		Type::Int(int) | Type::NonZero(int) if kt_int(*int).starts_with('U') => Some(match int {
+			Int::U8 => "kotlin.Byte",
+			Int::U16 => "kotlin.Short",
+			Int::U32 => "kotlin.Int",
+			_ => "kotlin.Long",
+		}),
+		Type::IpAddr(Family::V4) => Some("kotlin.Int"),
+		Type::SocketAddr(Family::V4) => Some("kotlin.Long"),
+		Type::Record(i) if api.records[*i].opaque.is_some_and(|o| word(&o)) => Some("kotlin.Long"),
+		Type::Box(inner) => lowered(api, inner),
+		// One Rust writes back is a `Mut`.
+		Type::Ref(_, inner) if !ty.written() => lowered(api, inner),
+		_ => None,
+	}
+}
+
+/// Whether a parameter of type `ty` takes an opaque value Kotlin holds in a value class,
+/// nullable or not.
+fn opaque_value(api: &Api, ty: &Type) -> bool {
+	match ty {
+		Type::Record(i) => api.records[*i].opaque.is_some_and(|o| word(&o)),
+		Type::Option(inner) | Type::Box(inner) => opaque_value(api, inner),
+		Type::Ref(_, inner) if !ty.written() => opaque_value(api, inner),
+		_ => false,
+	}
+}
+
 /// Whether `opaque` crosses JNI as one `long` wherever it crosses alone.
 fn one_word(opaque: &Opaque) -> bool {
 	opaque.words() == 1
@@ -4153,17 +4520,55 @@ fn camel(name: &str) -> String {
 	}
 }
 
-/// The Kotlin names of parameters, in camel case, [`abi::distinct`], and quoted if a
-/// keyword.
+/// The Kotlin names of parameters, in camel case, kept apart as [`abi::distinct`] keeps
+/// them, and quoted if a keyword.
 fn locals(params: &[Param]) -> Vec<String> {
-	(abi::distinct(params.iter().map(|p| camel(&p.name))).iter())
+	(abi::distinct(params, camel, |_| false).iter())
 		.map(|name| kw(name))
 		.collect()
 }
 
-/// A field's Kotlin name.
-fn field_name(name: &str) -> String {
-	kw(&camel(name))
+/// The Kotlin names of the variants of `e`, one scope's as [`abi::named`] keeps them apart: a
+/// plain enum's entries in upper snake case, and a data enum's classes in Pascal case.
+fn variant_names(e: &crate::ir::Enum) -> Vec<String> {
+	let rust: Vec<&str> = e.variants.iter().map(|v| v.name.as_str()).collect();
+	match e.plain() {
+		true => {
+			let spelled = rust.iter().map(|name| abi::snake(name).to_uppercase()).collect();
+			abi::named(
+				&rust,
+				spelled,
+				|rust, name| pascal(&name.to_lowercase()) == rust,
+				|_, _| false,
+				abi::underscored,
+			)
+		}
+		false => {
+			let spelled = rust.iter().map(|name| pascal(name)).collect();
+			abi::named(
+				&rust,
+				spelled,
+				|rust, name| name == rust,
+				|_, _| false,
+				abi::underscored,
+			)
+		}
+	}
+}
+
+/// The Kotlin names of `fields`, one scope's, in camel case as [`abi::named`] keeps them
+/// apart, and quoted where a keyword.
+fn field_names(fields: &[Field]) -> Vec<String> {
+	let rust: Vec<&str> = fields.iter().map(|f| f.name.as_str()).collect();
+	let spelled = rust.iter().map(|name| camel(name)).collect();
+	let names = abi::named(
+		&rust,
+		spelled,
+		|rust, name| abi::snake(name) == rust,
+		|_, _| false,
+		abi::underscored,
+	);
+	names.iter().map(|name| kw(name)).collect()
 }
 
 /// A member's Kotlin name: in camel case, quoted if a keyword, or with `_` appended if
@@ -4237,6 +4642,15 @@ fn kw(name: &str) -> String {
 }
 
 /// A native method's name mangled as JNI's symbols spell it.
+/// `name` as Kotlin source names it: in backticks when it holds a `$`, as the methods
+/// [`Gen::declare`] adds beside a native do.
+fn tick(name: &str) -> String {
+	match name.contains('$') {
+		true => format!("`{name}`"),
+		false => name.to_string(),
+	}
+}
+
 fn mangle(name: &str) -> String {
 	let mut out = String::new();
 	for c in name.chars() {
@@ -4264,6 +4678,17 @@ fn jvm_name(declared: &str) -> String {
 	let mut chars = name.chars();
 	let first: String = chars.next().map(|c| c.to_ascii_uppercase()).into_iter().collect();
 	format!("get{first}{}", chars.as_str())
+}
+
+/// Whether a JVM method `name` of the Kotlin parameter types `params` is one of
+/// `java.lang.Object`'s that Kotlin's `Any` hides: a final one, which no class may declare,
+/// or `finalize`, which one declared becomes the class's finalizer.
+fn object_method(name: &str, params: &[&str]) -> bool {
+	match name {
+		"getClass" | "notify" | "notifyAll" | "finalize" => params.is_empty(),
+		"wait" => matches!(params, [] | ["kotlin.Long"] | ["kotlin.Long", "kotlin.Int"]),
+		_ => false,
+	}
 }
 
 /// What a member keeps apart from: the Kotlin declarations of its own place, as

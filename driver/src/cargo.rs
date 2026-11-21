@@ -178,7 +178,19 @@ impl Check<'_> {
 			}
 			cmd
 		};
-		run_cargo(cargo("clean").arg("--quiet").args(resolution(self.args)))?;
+		// Show what it says only when it fails: `--quiet` would hide even its error.
+		let clean = cargo("clean")
+			.args(resolution(self.args))
+			.output()
+			.map_err(|err| format!("running cargo clean: {err}"))?;
+		if !clean.status.success() {
+			return Err(format!(
+				"cargo clean of {} failed ({}): {}",
+				target_dir.display(),
+				clean.status,
+				String::from_utf8_lossy(&clean.stderr).trim()
+			));
+		}
 		// Its own, since runs may share a target directory.
 		let ran = target_dir.join(format!("{}-{}.ran", self.tool, std::process::id()));
 		match std::fs::remove_file(&ran) {
@@ -226,24 +238,17 @@ fn cargo() -> Command {
 	Command::new(std::env::var_os("CARGO").unwrap_or_else(|| "cargo".into()))
 }
 
-fn run_cargo(cmd: &mut Command) -> Result<(), String> {
-	let status = cmd.status().map_err(|err| format!("running cargo: {err}"))?;
-	match status.success() {
-		true => Ok(()),
-		false => Err(format!("{cmd:?} failed")),
-	}
-}
-
 /// The cargo args that pick how the workspace resolves, which `cargo clean` resolves it
-/// by too: `--config`, and the lockfile and network flags.
+/// by too: `--config`, and the lockfile and network flags; and the profile, in whose
+/// directory alone it removes the package's artifacts.
 fn resolution(args: &[String]) -> Vec<&str> {
 	let mut picked = Vec::new();
 	let mut args = args.iter().map(String::as_str);
 	while let Some(arg) = args.next() {
 		match arg {
-			"--locked" | "--frozen" | "--offline" => picked.push(arg),
-			"--config" => picked.extend([Some(arg), args.next()].into_iter().flatten()),
-			_ if arg.starts_with("--config=") => picked.push(arg),
+			"--locked" | "--frozen" | "--offline" | "--release" | "-r" => picked.push(arg),
+			"--config" | "--profile" => picked.extend([Some(arg), args.next()].into_iter().flatten()),
+			_ if arg.starts_with("--config=") || arg.starts_with("--profile=") => picked.push(arg),
 			_ => {}
 		}
 	}

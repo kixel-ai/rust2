@@ -246,9 +246,12 @@ impl Future {
 		if polling.swap(true, Ordering::Acquire) {
 			fail(what, "a future is polled concurrently");
 		}
+		// Cleared however the poll ends, so a future a poll unwound out of, as a Kotlin
+		// closure's failed check unwinds, can still be freed.
+		let polled = Polling(polling);
 		// SAFETY: the flag makes this the only access, and `new` made the allocation.
 		let result = unsafe { ((*future).poll)(future, waker, outs, err, what) };
-		polling.store(false, Ordering::Release);
+		drop(polled);
 		result
 	}
 
@@ -275,9 +278,12 @@ impl Future {
 			drop: None,
 			data: std::ptr::null_mut(),
 		};
+		// A first poll that unwinds frees the future, which has no handle yet to free it by.
+		let unwinding = Unwinding(future);
 		// SAFETY: the caller's contract; the future was made on this thread, or one this
 		// call runs on.
 		let result = unsafe { Self::poll(future, none, outs, err, std::ptr::null_mut(), what) };
+		std::mem::forget(unwinding);
 		match result {
 			// SAFETY: the caller's contract.
 			PENDING => unsafe { handle.write(future) },
@@ -308,6 +314,25 @@ impl Future {
 		}
 		// SAFETY: the caller's contract.
 		unsafe { ((*future).drop)(future) };
+	}
+}
+
+/// A future's polling flag, cleared once dropped.
+struct Polling<'a>(&'a AtomicBool);
+
+impl Drop for Polling<'_> {
+	fn drop(&mut self) {
+		self.0.store(false, Ordering::Release);
+	}
+}
+
+/// A future its first poll is unwinding out of, freed once dropped.
+struct Unwinding(*mut Future);
+
+impl Drop for Unwinding {
+	fn drop(&mut self) {
+		// SAFETY: `Future::start`'s contract, and C never got the handle.
+		unsafe { Future::free(self.0) };
 	}
 }
 

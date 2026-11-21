@@ -15,7 +15,7 @@ use std::cell::Cell;
 use std::ffi::{CStr, c_void};
 use std::mem::MaybeUninit;
 use std::sync::OnceLock;
-use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 
 pub use jni_sys::*;
 
@@ -26,17 +26,30 @@ use crate::rt;
 static VM: OnceLock<usize> = OnceLock::new();
 static CLASS: OnceLock<usize> = OnceLock::new();
 
-/// Note the JVM and `class`, from its first native call, which its initializer makes. The
-/// library defines no `JNI_OnLoad`, so the crate it exports may define its own.
+/// Note the JVM and `class`, from its first native call, which its initializer makes, and
+/// register `natives` on it: the `@FastNative` methods, which ART binds by their names only
+/// from Android 12. The library defines no `JNI_OnLoad`, so the crate it exports may define
+/// its own.
+///
+/// Returns false, with the JVM's `NoSuchMethodError` pending, when `class` lacks one of
+/// `natives`: a Kotlin file from another build, or a shrinker dropping a method the rules
+/// keep. The caller returns at once, so the class's initializer throws it.
 ///
 /// # Safety
-/// `env` is this thread's, and `class` the native class.
-pub unsafe fn load(env: *mut JNIEnv, class: jclass) {
+/// `env` is this thread's, `class` the native class, and each of `natives` a function of
+/// the signature it names.
+pub unsafe fn load(env: *mut JNIEnv, class: jclass, natives: &[JNINativeMethod]) -> bool {
 	// SAFETY: `env` is this thread's, as the caller's contract says.
 	unsafe {
 		let mut vm: *mut JavaVM = std::ptr::null_mut();
 		if ((**env).v1_2.GetJavaVM)(env, &mut vm) != JNI_OK {
 			fail(env, "load", "the JVM is missing");
+		}
+		if !natives.is_empty() && ((**env).v1_2.RegisterNatives)(env, class, natives.as_ptr(), natives.len() as jint) != JNI_OK {
+			if !((**env).v1_2.ExceptionCheck)(env) {
+				fail(env, "load", "registering the native methods failed with no exception");
+			}
+			return false;
 		}
 		let _ = VM.set(vm as usize);
 		CLASS.get_or_init(|| ((**env).v1_2.NewGlobalRef)(env, class) as usize);
@@ -48,7 +61,23 @@ pub unsafe fn load(env: *mut JNIEnv, class: jclass) {
 			fail(env, "load", "the JVM does not support native return buffers");
 		}
 		((**env).v1_2.DeleteLocalRef)(env, buffer);
+		// HotSpot has no such class, which FindClass throws for.
+		let art = ((**env).v1_2.FindClass)(env, c"dalvik/system/VMRuntime".as_ptr());
+		match art.is_null() {
+			true => ((**env).v1_2.ExceptionClear)(env),
+			false => {
+				((**env).v1_2.DeleteLocalRef)(env, art);
+				ART.store(true, Ordering::Relaxed);
+				ARMED.store(true, Ordering::Relaxed);
+			}
+		}
 	}
+	// Looked up now, before a leaf can run: a `@FastNative` call refusing its borrow or an
+	// argument must not wait on another thread's lookup, which a collection pending on the
+	// leaf would stall.
+	method(env, &REFUSED, REFUSED_METHOD.0, REFUSED_METHOD.1);
+	method(env, &INVALID, INVALID_METHOD.0, INVALID_METHOD.1);
+	true
 }
 
 /// The class holding the Kotlin functions Rust calls.
@@ -76,19 +105,24 @@ impl Drop for Attached {
 /// This thread's JNI environment, attaching it as a daemon until it exits if the JVM
 /// does not know it, as a thread Rust spawned.
 pub fn env() -> *mut JNIEnv {
+	attach().unwrap_or_else(|| rt::fail("jni", "a thread cannot attach to the JVM"))
+}
+
+/// [`env`], or none where the JVM refuses to attach this thread, which JNI allows.
+fn attach() -> Option<*mut JNIEnv> {
 	let vm = *VM.get().expect("the library is loaded") as *mut JavaVM;
 	let mut env: *mut c_void = std::ptr::null_mut();
 	// SAFETY: `vm` is the JVM, which outlives every thread calling into it.
 	unsafe {
 		if ((**vm).v1_4.GetEnv)(vm, &mut env, JNI_VERSION_1_6) == JNI_OK {
-			return env.cast();
+			return Some(env.cast());
 		}
 		if ((**vm).v1_4.AttachCurrentThreadAsDaemon)(vm, &mut env, std::ptr::null_mut()) != JNI_OK {
-			rt::fail("jni", "a thread cannot attach to the JVM");
+			return None;
 		}
 	}
 	ATTACHED.with(|attached| attached.0.set(true));
-	env.cast()
+	Some(env.cast())
 }
 
 /// Whether the Rust a native method called left a Java exception pending, which the
@@ -111,6 +145,7 @@ pub fn fail(env: *mut JNIEnv, what: &str, msg: &str) -> ! {
 }
 
 static REFUSED: OnceLock<usize> = OnceLock::new();
+const REFUSED_METHOD: (&CStr, &CStr) = (c"__refused", c"(Ljava/lang/String;)Ljava/lang/Throwable;");
 
 /// Throw the `_Native.__Refused`, an `IllegalStateException`, a call of `what` raises once
 /// its check failed with `status`, returning a zeroed value Kotlin never reads, as JNI's
@@ -123,7 +158,7 @@ pub fn refuse<R>(env: *mut JNIEnv, status: i32, what: &str) -> R {
 		None => format!("{what}: an unknown status {status}"),
 	};
 	let message = std::ffi::CString::new(message).expect("no NUL in a message");
-	let id = method(env, &REFUSED, c"__refused", c"(Ljava/lang/String;)Ljava/lang/Throwable;");
+	let id = method(env, &REFUSED, REFUSED_METHOD.0, REFUSED_METHOD.1);
 	// SAFETY: `env` is this thread's, and `__refused` takes the message.
 	unsafe {
 		let text = ((**env).v1_2.NewStringUTF)(env, message.as_ptr());
@@ -141,13 +176,14 @@ pub fn refuse<R>(env: *mut JNIEnv, status: i32, what: &str) -> R {
 }
 
 static INVALID: OnceLock<usize> = OnceLock::new();
+const INVALID_METHOD: (&CStr, &CStr) = (c"__invalid", c"(Ljava/lang/String;)Ljava/lang/Throwable;");
 
 /// Throw the `_Native.__Invalid`, an `IllegalArgumentException`, an argument holding a
 /// value its Rust type cannot raises, which the native method then returns with, as
 /// [`raised`] does. Its own class tells Kotlin the call moved nothing.
 #[cold]
 fn invalid(env: *mut JNIEnv, message: &CStr) {
-	let id = method(env, &INVALID, c"__invalid", c"(Ljava/lang/String;)Ljava/lang/Throwable;");
+	let id = method(env, &INVALID, INVALID_METHOD.0, INVALID_METHOD.1);
 	// SAFETY: `env` is this thread's, and `__invalid` takes the message.
 	unsafe {
 		let text = ((**env).v1_2.NewStringUTF)(env, message.as_ptr());
@@ -171,18 +207,123 @@ pub fn raised<R>() -> R {
 }
 
 /// Run `f` calling into Kotlin on this thread, freeing the local references it makes, and
-/// abort if what it calls throws: Rust has nowhere to unwind it to.
+/// abort if what it calls throws, unless `f` unwinds it with [`unwinds`].
 pub fn upcall<R>(what: &str, f: impl FnOnce(*mut JNIEnv) -> R) -> R {
 	let env = env();
 	// SAFETY: `env` is this thread's.
+	if unsafe { ((**env).v1_2.PushLocalFrame)(env, 8) } != JNI_OK {
+		fail(env, what, "a call into Kotlin is out of memory");
+	}
+	// Popped however `f` ends, unwinding included.
+	UPCALLS.with(|n| n.set(n.get() + 1));
+	let frame = Frame(env);
+	let result = f(env);
+	threw(env, what);
+	drop(frame);
+	result
+}
+
+thread_local! {
+	/// How many [`upcall`]s this thread is in. On a thread Rust attached, a native method is
+	/// below a call into Kotlin only through an outer one, which called into Kotlin first.
+	static UPCALLS: Cell<u32> = const { Cell::new(0) };
+}
+
+/// The local frame an [`upcall`] pushed, popped once dropped.
+struct Frame(*mut JNIEnv);
+
+impl Drop for Frame {
+	fn drop(&mut self) {
+		UPCALLS.with(|n| n.set(n.get() - 1));
+		// SAFETY: the frame's thread pushed it, and no exception is pending: `threw`
+		// aborts on one, and `unwinds` clears what it unwinds with.
+		unsafe { ((**self.0).v1_2.PopLocalFrame)(self.0, std::ptr::null_mut()) };
+	}
+}
+
+/// Check the call into a closure or callback Kotlin implements: if Kotlin refused what it
+/// returned with `_Native.__Invalid`, as a value its Rust type cannot hold, or a call it
+/// made threw `_Native.__Unwound`, unwind the Rust frames between to the native method
+/// below, which throws `__Unwound` to the Kotlin call that reached the closure, as Rust's
+/// own closure panicking unwinds them. Anything else thrown aborts, as [`threw`] does.
+pub fn unwinds(env: *mut JNIEnv, what: &str) {
+	if pending(env) {
+		unwind(env, what);
+		fail(env, what, "a call into Kotlin threw");
+	}
+}
+
+static UNWOUND: OnceLock<usize> = OnceLock::new();
+
+/// Unwind with the `__Unwound` of the exception pending if it is the binding's `__Invalid`
+/// or `__Unwound`, aborting if no native method is below to throw it, as on a thread Rust
+/// attached that no outer [`upcall`] called into Kotlin on, or if a library built to abort
+/// on a panic cannot unwind. Any other stays pending.
+#[cold]
+fn unwind(env: *mut JNIEnv, what: &str) {
+	// SAFETY: `env` is this thread's, and an exception is pending.
 	unsafe {
-		if ((**env).v1_2.PushLocalFrame)(env, 8) != JNI_OK {
+		let thrown = ((**env).v1_2.ExceptionOccurred)(env);
+		((**env).v1_2.ExceptionClear)(env);
+		let id = method(env, &UNWOUND, c"__unwound", c"(Ljava/lang/Throwable;)Ljava/lang/Throwable;");
+		let args = [jvalue { l: thrown }];
+		let unwound = ((**env).v1_2.CallStaticObjectMethodA)(env, class(), id, args.as_ptr());
+		if ((**env).v1_2.ExceptionCheck)(env) {
+			fail(env, what, "a call into Kotlin threw");
+		}
+		if unwound.is_null() {
+			((**env).v1_2.Throw)(env, thrown);
+			return;
+		}
+		let below = !ATTACHED.with(|attached| attached.0.get()) || UPCALLS.with(Cell::get) > 1;
+		if cfg!(not(panic = "unwind")) || !below {
+			((**env).v1_2.Throw)(env, unwound);
+			fail(env, what, "a closure's value has no Rust type to be, and no Kotlin call to throw to");
+		}
+		let global = ((**env).v1_2.NewGlobalRef)(env, unwound);
+		if global.is_null() {
 			fail(env, what, "a call into Kotlin is out of memory");
 		}
-		let result = f(env);
-		threw(env, what);
-		((**env).v1_2.PopLocalFrame)(env, std::ptr::null_mut());
-		result
+		std::panic::resume_unwind(Box::new(Unwound(global)))
+	}
+}
+
+/// What a closure's failed check unwinds Rust with: a global reference to the
+/// `__Unwound` the native method below throws.
+struct Unwound(jobject);
+
+// SAFETY: a global reference is valid on every thread.
+unsafe impl Send for Unwound {}
+
+impl Drop for Unwound {
+	fn drop(&mut self) {
+		// SAFETY: made by `unwind`, and deleted once. A `catch_unwind` of Rust's own that
+		// took it drops it as Rust drops any panic it caught.
+		let env = env();
+		unsafe { ((**env).v1_2.DeleteGlobalRef)(env, self.0) };
+	}
+}
+
+/// Run a native method's glue `f`, throwing to Kotlin the exception a closure's failed
+/// check unwound with, as [`unwinds`] says. A Rust panic goes on, aborting at the native
+/// method's boundary.
+#[inline(always)]
+pub fn entry<R>(env: *mut JNIEnv, f: impl FnOnce() -> R) -> R {
+	match std::panic::catch_unwind(std::panic::AssertUnwindSafe(f)) {
+		Ok(result) => result,
+		Err(payload) => caught_unwind(env, payload),
+	}
+}
+
+#[cold]
+fn caught_unwind<R>(env: *mut JNIEnv, payload: Box<dyn std::any::Any + Send>) -> R {
+	match payload.downcast::<Unwound>() {
+		Ok(unwound) => {
+			// SAFETY: `env` is this thread's, and nothing is pending: `unwind` cleared it.
+			unsafe { ((**env).v1_2.Throw)(env, unwound.0) };
+			raised()
+		}
+		Err(panic) => std::panic::resume_unwind(panic),
 	}
 }
 
@@ -490,6 +631,20 @@ const LENT_MAX: usize = 64 << 20;
 /// The bytes lent to Kotlin and not yet freed.
 static LENT_BYTES: AtomicUsize = AtomicUsize::new(0);
 
+/// On ART, the lent bytes at which Rust asks the GC to collect, so it frees the `Bytes`
+/// no longer reached before [`LENT_MAX`] is: past that, ART puts each copy of 12 KiB or
+/// more in a mapping of its own, which costs several lends.
+const COLLECT_AT: usize = LENT_MAX / 2;
+
+/// Whether the JVM is ART, which [`load`] finds by its `dalvik.system.VMRuntime`. HotSpot
+/// copies into its young generation cheaply, and collects all at once when asked.
+static ART: AtomicBool = AtomicBool::new(false);
+
+/// Whether reaching [`COLLECT_AT`] asks ART to collect: cleared on asking, and set again
+/// once the lent bytes fall under half of it, so bytes a program keeps reachable
+/// never make it collect over and over.
+static ARMED: AtomicBool = AtomicBool::new(false);
+
 /// Whether `len` bytes cross lent rather than copied: longer than [`COPIED`], and within
 /// [`LENT_MAX`], which they then count against until freed. A call racing another past
 /// the limit may copy where it could have lent, never the reverse.
@@ -497,11 +652,60 @@ fn lends(len: usize) -> bool {
 	if len <= COPIED {
 		return false;
 	}
-	if LENT_BYTES.fetch_add(len, Ordering::Relaxed) + len <= LENT_MAX {
+	let lent = LENT_BYTES.fetch_add(len, Ordering::Relaxed) + len;
+	if lent <= LENT_MAX {
+		if lent >= COLLECT_AT && ARMED.load(Ordering::Relaxed) && ARMED.swap(false, Ordering::SeqCst) {
+			// A free since `lent` was read may have taken the bytes under half of
+			// `COLLECT_AT` and seen `ARMED` still set: `SeqCst` here and in [`unlend`]
+			// makes one side see the other, so that free's arming is never lost.
+			if LENT_BYTES.load(Ordering::SeqCst) < COLLECT_AT / 2 {
+				ARMED.store(true, Ordering::Relaxed);
+			} else {
+				collect();
+			}
+		}
 		return true;
 	}
-	LENT_BYTES.fetch_sub(len, Ordering::Relaxed);
+	unlend(len);
 	false
+}
+
+/// Take `len` bytes off [`LENT_BYTES`], a freed lend's or a refused one's, and on ART arm
+/// [`collect`] again once under half of [`COLLECT_AT`] are left.
+fn unlend(len: usize) {
+	let left = LENT_BYTES.fetch_sub(len, Ordering::SeqCst) - len;
+	if left < COLLECT_AT / 2 && ART.load(Ordering::Relaxed) && !ARMED.load(Ordering::SeqCst) {
+		ARMED.store(true, Ordering::Relaxed);
+	}
+}
+
+/// Ask the GC to collect, on a thread of its own, since a collection takes a while that
+/// the call lending bytes need not wait for. The request is only a hint: a thread that
+/// can't start, as when the process is out of them, or that the JVM won't attach, skips
+/// it, and the reads past the budget copy as they would without it until frees arm it
+/// again.
+fn collect() {
+	let _ = std::thread::Builder::new().name("rust2-ffi collect".into()).spawn(|| {
+		if attach().is_none() {
+			return;
+		}
+		upcall("collect", |env| {
+			// SAFETY: `env` is this thread's, and each name and signature is
+			// `java.lang.Runtime`'s, which every JVM has.
+			unsafe {
+				let class = ((**env).v1_2.FindClass)(env, c"java/lang/Runtime".as_ptr());
+				threw(env, "collect");
+				let get = ((**env).v1_2.GetStaticMethodID)(env, class, c"getRuntime".as_ptr(), c"()Ljava/lang/Runtime;".as_ptr());
+				threw(env, "collect");
+				let gc = ((**env).v1_2.GetMethodID)(env, class, c"gc".as_ptr(), c"()V".as_ptr());
+				threw(env, "collect");
+				let runtime = ((**env).v1_2.CallStaticObjectMethodA)(env, class, get, std::ptr::null());
+				threw(env, "collect");
+				// Not `System.gc()`, which ART skips unless finalization ran since its last call.
+				((**env).v1_2.CallVoidMethodA)(env, runtime, gc, std::ptr::null());
+			}
+		})
+	});
 }
 
 /// A buffer Rust returned or lent, as Kotlin's `_Native.owned` takes it: null for none, a
@@ -621,7 +825,7 @@ pub unsafe fn free_bytes(owner: jlong) {
 	let len = buf.len;
 	// SAFETY: the caller's contract.
 	unsafe { buf.free() };
-	LENT_BYTES.fetch_sub(len, Ordering::Relaxed);
+	unlend(len);
 }
 
 /// A buffer Rust returned as a `byte[]`, or null for none, freeing it.
@@ -660,13 +864,118 @@ pub fn slots(env: *mut JNIEnv, slots: jlongArray, values: &[i64]) {
 	unsafe { ((**env).v1_2.SetLongArrayRegion)(env, slots, 0, values.len() as jsize, values.as_ptr()) }
 }
 
+/// Kotlin's `__Handle` a close drops the value of in one crossing, or null for a close that
+/// frees nothing: a global reference for a value that is not `Send`, whose drop commits on
+/// its home. Once the drop commits, dropping this frees the native handle with `free`,
+/// however the drop then ends, as a `Drop` that unwinds would skip a free after it.
+pub struct Closing<F: FnOnce()> {
+	env: *mut JNIEnv,
+	handle: jobject,
+	global: bool,
+	committed: AtomicBool,
+	free: Option<F>,
+}
+
+static STATE: OnceLock<usize> = OnceLock::new();
+
+impl<F: FnOnce()> Closing<F> {
+	/// Of a value whose drop commits on this thread.
+	pub fn here(env: *mut JNIEnv, handle: jobject, free: F) -> Self {
+		Self {
+			env,
+			handle,
+			global: false,
+			committed: AtomicBool::new(false),
+			free: Some(free),
+		}
+	}
+
+	/// Of a value that is not `Send`, whose drop may commit on its home.
+	pub fn anywhere(env: *mut JNIEnv, handle: jobject, free: F) -> Self {
+		let handle = match handle.is_null() {
+			true => handle,
+			false => global(env, handle).cast(),
+		};
+		Self {
+			env,
+			handle,
+			global: true,
+			committed: AtomicBool::new(false),
+			free: Some(free),
+		}
+	}
+
+	/// What a drop's commit calls, with what, or nothing for a close that frees nothing.
+	pub fn signal(&self) -> (Option<unsafe extern "C" fn(*mut c_void)>, *mut c_void) {
+		match self.handle.is_null() {
+			true => (None, std::ptr::null_mut()),
+			false => (Some(Self::committed), std::ptr::from_ref(self).cast_mut().cast()),
+		}
+	}
+
+	/// Store the handle's state closed, no longer closing, once its drop can no longer fail:
+	/// so a close waiting on it returns, before any `Drop` runs.
+	///
+	/// # Safety
+	/// `data` is a live [`Closing`] [`Self::signal`] gave, on its thread unless global.
+	unsafe extern "C" fn committed(data: *mut c_void) {
+		// SAFETY: the caller's contract.
+		let closing = unsafe { &*data.cast::<Self>() };
+		let env = match closing.global {
+			true => env(),
+			false => closing.env,
+		};
+		let handle = closing.handle;
+		let id = *STATE.get_or_init(|| {
+			// SAFETY: `env` is this thread's, and `handle` a live `__Handle`.
+			unsafe {
+				let class = ((**env).v1_2.GetObjectClass)(env, handle);
+				let id = ((**env).v1_2.GetFieldID)(env, class, c"state".as_ptr(), c"J".as_ptr());
+				if id.is_null() {
+					fail(env, "jni", "a Kotlin field the library sets is missing");
+				}
+				((**env).v1_2.DeleteLocalRef)(env, class);
+				id as usize
+			}
+		}) as jfieldID;
+		// SAFETY: as above; `state` is a `long`, and 1 its `CLOSED`.
+		unsafe { ((**env).v1_2.SetLongField)(env, handle, id, 1) };
+		// Read once the drop returns or unwinds, after the home, if any, ran it.
+		closing.committed.store(true, Ordering::Release);
+	}
+}
+
+/// `rt::close_drain`, for Kotlin's close, raising what a `Drop` it runs unwinds with.
+pub fn close_drain(env: *mut JNIEnv, raw: jlong) -> jboolean {
+	entry(env, || rt::close_drain(raw as usize as _)).into()
+}
+
+impl<F: FnOnce()> Drop for Closing<F> {
+	fn drop(&mut self) {
+		if self.global && !self.handle.is_null() {
+			// SAFETY: `anywhere` made it on this thread, and it is deleted once.
+			unsafe { ((**self.env).v1_2.DeleteGlobalRef)(self.env, self.handle) };
+		}
+		if self.committed.load(Ordering::Acquire)
+			&& let Some(free) = self.free.take()
+		{
+			free();
+		}
+	}
+}
+
 /// A global reference to a Kotlin value, which Rust may hold on any thread.
 pub fn global(env: *mut JNIEnv, value: jobject) -> *mut c_void {
 	if value.is_null() {
 		rt::fail("jni", "a Kotlin value is null");
 	}
 	// SAFETY: `env` is this thread's, and `value` a live reference.
-	unsafe { ((**env).v1_2.NewGlobalRef)(env, value).cast() }
+	let global = unsafe { ((**env).v1_2.NewGlobalRef)(env, value) };
+	// Null only once the JVM ran out of memory, which no caller could recover from.
+	if global.is_null() {
+		fail(env, "jni", "the JVM made no global reference");
+	}
+	global.cast()
 }
 
 /// Delete a global reference [`global`] made, from any thread.
@@ -805,9 +1114,12 @@ pub unsafe fn start(
 		data: std::ptr::null_mut(),
 	};
 	let mut status = 0;
+	// A poll that unwinds frees what Kotlin has no handle yet to free.
+	let mut started = Started { future, free, node: std::ptr::null_mut() };
 	// SAFETY: the caller's contract.
 	let ready = unsafe { poll(future, none, &mut w, &mut status) };
 	if ready || status != 0 {
+		std::mem::forget(started);
 		// SAFETY: as above, and it finished, or is never polled again.
 		unsafe { free(future) };
 		return match status {
@@ -820,8 +1132,11 @@ pub unsafe fn start(
 	}
 	// Pending, so polled again with the waker it parks on, which replaces the first.
 	let node = node(env, signal);
+	started.node = node;
 	// SAFETY: as above, and `node` holds a reference for this.
-	if unsafe { poll(future, give(node), &mut w, &mut status) } {
+	let ready = unsafe { poll(future, give(node), &mut w, &mut status) };
+	std::mem::forget(started);
+	if ready {
 		// SAFETY: as above.
 		unsafe {
 			free(future);
@@ -834,6 +1149,25 @@ pub unsafe fn start(
 	w.put(future);
 	w.put(node.cast::<c_void>());
 	Some(w)
+}
+
+/// A future [`start`] polls, and the waker node made for it, if any, freed once dropped.
+struct Started {
+	future: *mut c_void,
+	free: unsafe fn(*mut c_void),
+	node: *mut Node,
+}
+
+impl Drop for Started {
+	fn drop(&mut self) {
+		// SAFETY: `start`'s contract; Kotlin got neither, so this is their only free.
+		unsafe {
+			(self.free)(self.future);
+			if !self.node.is_null() {
+				unref(self.node.cast());
+			}
+		}
+	}
 }
 
 /// Poll `future` again with `node`, whose reference Rust holds from the first poll that
@@ -938,8 +1272,12 @@ unsafe extern "C" fn seek_channel(data: *mut c_void, whence: std::ffi::c_int, of
 }
 
 /// The error of the exception a closure threw, cleared, if it is the binding's own
-/// exception of a `String`, as a closure returning a `Result` fails.
+/// exception of a `String`, as a closure returning a `Result` fails. A value its Rust type
+/// cannot hold unwinds, as [`unwinds`] says.
 pub fn thrown(env: *mut JNIEnv, what: &str) -> Option<Vec<u8>> {
+	if pending(env) {
+		unwind(env, what);
+	}
 	caught(env, what, &ERROR, c"__error")
 }
 
