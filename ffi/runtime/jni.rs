@@ -786,17 +786,35 @@ pub fn slots(env: *mut JNIEnv, slots: jlongArray, values: &[i64]) {
 	unsafe { ((**env).v1_2.SetLongArrayRegion)(env, slots, 0, values.len() as jsize, values.as_ptr()) }
 }
 
-/// Kotlin's `__Handle` a close drops the value of in one crossing, on this thread's `env`.
-#[derive(Clone, Copy)]
-pub struct Closing(pub *mut JNIEnv, pub jobject);
+/// Kotlin's `__Handle` a close drops the value of in one crossing, or null for a close that
+/// frees nothing: a global reference for a value that is not `Send`, whose drop commits on
+/// its home.
+pub struct Closing {
+	env: *mut JNIEnv,
+	handle: jobject,
+	global: bool,
+}
 
 static STATE: OnceLock<usize> = OnceLock::new();
 
 impl Closing {
-	/// What a drop's commit calls with what, for a handle, or nothing for null, a close
-	/// that frees nothing.
+	/// Of a value whose drop commits on this thread.
+	pub fn here(env: *mut JNIEnv, handle: jobject) -> Self {
+		Self { env, handle, global: false }
+	}
+
+	/// Of a value that is not `Send`, whose drop may commit on its home.
+	pub fn anywhere(env: *mut JNIEnv, handle: jobject) -> Self {
+		let handle = match handle.is_null() {
+			true => handle,
+			false => global(env, handle).cast(),
+		};
+		Self { env, handle, global: true }
+	}
+
+	/// What a drop's commit calls, with what, or nothing for a close that frees nothing.
 	pub fn signal(&self) -> (Option<unsafe extern "C" fn(*mut c_void)>, *mut c_void) {
-		match self.1.is_null() {
+		match self.handle.is_null() {
 			true => (None, std::ptr::null_mut()),
 			false => (Some(Self::committed), std::ptr::from_ref(self).cast_mut().cast()),
 		}
@@ -806,10 +824,15 @@ impl Closing {
 	/// so a close waiting on it returns, before any `Drop` runs.
 	///
 	/// # Safety
-	/// `data` is a [`Closing`] [`Self::signal`] gave, on its thread.
+	/// `data` is a live [`Closing`] [`Self::signal`] gave, on its thread unless global.
 	unsafe extern "C" fn committed(data: *mut c_void) {
 		// SAFETY: the caller's contract.
-		let Closing(env, handle) = unsafe { *data.cast::<Closing>() };
+		let closing = unsafe { &*data.cast::<Closing>() };
+		let env = match closing.global {
+			true => env(),
+			false => closing.env,
+		};
+		let handle = closing.handle;
 		let id = *STATE.get_or_init(|| {
 			// SAFETY: `env` is this thread's, and `handle` a live `__Handle`.
 			unsafe {
@@ -824,6 +847,15 @@ impl Closing {
 		}) as jfieldID;
 		// SAFETY: as above; `state` is a `long`, and 1 its `CLOSED`.
 		unsafe { ((**env).v1_2.SetLongField)(env, handle, id, 1) };
+	}
+}
+
+impl Drop for Closing {
+	fn drop(&mut self) {
+		if self.global && !self.handle.is_null() {
+			// SAFETY: `anywhere` made it on this thread, and it is deleted once.
+			unsafe { ((**self.env).v1_2.DeleteGlobalRef)(self.env, self.handle) };
+		}
 	}
 }
 

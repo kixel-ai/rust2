@@ -2057,7 +2057,7 @@ func (h *Handle_) Contend() (unsafe.Pointer, Slot_)
 func (h *Handle_) Count() unsafe.Pointer
 func (h *Handle_) End()
 func (h *Handle_) Hold() (unsafe.Pointer, Slot_)
-func (h *Handle_) Init(raw unsafe.Pointer, free func(unsafe.Pointer), drop func(unsafe.Pointer, bool) error, name string)
+func (h *Handle_) Init(raw unsafe.Pointer, free func(unsafe.Pointer), drop func(raw, state unsafe.Pointer) error, name string)
 func (h *Handle_) Moved()
 func (h *Handle_) Own()
 func (h *Handle_) Release(s Slot_)

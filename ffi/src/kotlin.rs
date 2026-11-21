@@ -2206,7 +2206,11 @@ impl<'a> Gen<'a> {
 					&[("jlong", "Long"), ("jobject", "__Handle?")],
 					("()", "Unit"),
 					&format!(
-						"let mut status = 0;\n\t\tlet closing = rt::Closing(env, p1);\n\t\tlet (commit, data) = closing.signal();\n\t\tcrate::{u}_drop_signal(p0 as usize as _, &mut status, commit, data);\n\t\tif status != 0 {{\n\t\t\treturn rt::refuse(env, status, \"{c}_drop\");\n\t\t}}\n\t\tif !p1.is_null() {{\n\t\t\tcrate::{u}_free(p0 as usize as _);\n\t\t}}"
+						"let mut status = 0;\n\t\tlet closing = rt::Closing::{closing}(env, p1);\n\t\tlet (commit, data) = closing.signal();\n\t\tcrate::{u}_drop_signal(p0 as usize as _, &mut status, commit, data);\n\t\tif status != 0 {{\n\t\t\treturn rt::refuse(env, status, \"{c}_drop\");\n\t\t}}\n\t\tif !p1.is_null() {{\n\t\t\tcrate::{u}_free(p0 as usize as _);\n\t\t}}",
+						closing = match object.send {
+							true => "here",
+							false => "anywhere",
+						}
 					),
 				);
 				format!(

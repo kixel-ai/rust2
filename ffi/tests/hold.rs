@@ -648,7 +648,10 @@ const CAUGHT: &[(Flaw, &[&str])] = &[
 	(Flaw::AbandonSkipsSlots, &["abandon_against_biased_calls"]),
 	(Flaw::DropFreeSkipsClaim, &["checked_close_against_calls"]),
 	(Flaw::ReleaseFreesEarly, &["calls_alone"]),
-	(Flaw::CloseSkipsCommitWait, &["checked_closes_refused", "checked_closes"]),
+	(
+		Flaw::CloseSkipsCommitWait,
+		&["checked_closes_refused", "checked_closes"],
+	),
 	(Flaw::DropSkipsCommit, &["checked_close_from_drop"]),
 ];
 

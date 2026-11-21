@@ -1646,16 +1646,26 @@ impl Gen<'_> {
 			self.export(format!(
 				"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {name}_free(this: *const ::std::ffi::c_void) {{\n\tunsafe {{ rt::Object::<{path}>::free(this) }}\n}}\n"
 			));
-			// The drop runs a value that is not `Send` on its home itself, after its check, so
-			// `commit` runs on the closing thread. `_drop_signal`, Go's and Kotlin's, which
-			// the header leaves out, calls `commit` with `data`, if any, once the drop can no
-			// longer fail.
+			// `_drop_signal`, Go's and Kotlin's, which the header leaves out, calls `commit`
+			// with `data`, if any, once the drop can no longer fail, before the value's `Drop`.
+			// A value that is not `Send` drops on its home, if it has one elsewhere.
 			if self.abi.checked[i] {
+				let away = match object.send {
+					true => String::new(),
+					false => {
+						let params = ["this", "status", "commit", "data"].map(String::from);
+						away(
+							&format!("{name}_drop_signal"),
+							&params,
+							&[(path.clone(), "this".to_string())],
+						)
+					}
+				};
 				self.export(format!(
 					"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {name}_drop(this: *const ::std::ffi::c_void, status: *mut i32) {{\n\tunsafe {{ {name}_drop_signal(this, status, None, ::std::ptr::null_mut()) }}\n}}\n"
 				));
 				self.export(format!(
-					"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {name}_drop_signal(this: *const ::std::ffi::c_void, status: *mut i32, commit: Option<unsafe extern \"C\" fn(*mut ::std::ffi::c_void)>, data: *mut ::std::ffi::c_void) {{\n\tlet w = \"{name}_drop\";\n\tlet commit = || {{\n\t\tif let Some(commit) = commit {{\n\t\t\tunsafe {{ commit(data) }}\n\t\t}}\n\t}};\n\tif let Err(s) = unsafe {{ rt::Object::<{path}>::close(this, w, commit) }} {{\n\t\tunsafe {{ rt::failed::<()>(status, s, w) }}\n\t}}\n}}\n"
+					"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {name}_drop_signal(this: *const ::std::ffi::c_void, status: *mut i32, commit: Option<unsafe extern \"C\" fn(*mut ::std::ffi::c_void)>, data: *mut ::std::ffi::c_void) {{\n\tlet w = \"{name}_drop\";\n\t{away}let commit = || {{\n\t\tif let Some(commit) = commit {{\n\t\t\tunsafe {{ commit(data) }}\n\t\t}}\n\t}};\n\tif let Err(s) = unsafe {{ rt::Object::<{path}>::close(this, w, commit) }} {{\n\t\tunsafe {{ rt::failed::<()>(status, s, w) }}\n\t}}\n}}\n"
 				));
 			}
 			if object.shared {
