@@ -1407,12 +1407,7 @@ impl<'a> Abi<'a> {
 			}
 			_ => false,
 		};
-		shape
-			&& function.leaf
-			&& !self.affine[*i]
-			&& !self.chained[*i]
-			&& function.err.is_none()
-			&& !function.future
+		shape && function.leaf && !self.affine[*i] && !self.chained[*i] && function.err.is_none() && !function.future
 	}
 
 	/// Whether `ty`'s `<T>_eq`, or with `hash` its `<T>_hash`, is a leaf, as [`Self::leaf`]
