@@ -3089,6 +3089,7 @@ impl<'tcx> Collector<'tcx> {
 							through: !assigned,
 							read: how,
 							unfrozen: self.unfrozen(ty),
+							copy: self.copies(site, ty),
 						},
 						instance: None,
 						home: Home::default(),
@@ -3128,10 +3129,17 @@ impl<'tcx> Collector<'tcx> {
 		if tcx.layout_of(input).is_ok_and(|layout| layout.align <= pack) {
 			return Read::Borrow;
 		}
-		match implements(tcx, ty, site.key.def_id, sym::Copy) {
+		match self.copies(site, ty) {
 			true => Read::Copy,
 			false => Read::Take,
 		}
+	}
+
+	/// Whether a field of type `ty` of the struct `site` is `Copy` on this target: another
+	/// target of the same field, which reads it by `Copy`, may not have it so.
+	fn copies(&self, site: &Site<'tcx>, ty: Ty<'tcx>) -> bool {
+		let ty = self.tcx.erase_and_anonymize_regions(ty);
+		implements(self.tcx, ty, site.key.def_id, sym::Copy)
 	}
 
 	/// Whether reading a field of type `ty` out unaligned, as `how` says, would race: a type

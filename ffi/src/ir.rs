@@ -616,6 +616,10 @@ pub(crate) enum Access {
 		/// way, as its struct's packing may differ between targets.
 		#[serde(default, skip_serializing_if = "std::ops::Not::not")]
 		unfrozen: bool,
+		/// Whether the field's type is `Copy` on its target, which `Copy` reads it by: a merge
+		/// reads it that way for a target that borrows it only where that target has it so.
+		#[serde(default, skip_serializing_if = "std::ops::Not::not")]
+		copy: bool,
 	},
 	/// It reads a constant that is not a `bool` or integer.
 	Const,
@@ -631,9 +635,10 @@ pub(crate) enum Access {
 ///
 /// A getter's value is the same through any mode that compiles, and the order is how far one
 /// reaches: `Take` reads any field on any layout, `Copy` any `Copy` one. The merge of two
-/// targets' getters of a field reads it the greater of theirs, unless that reads out unaligned
-/// what the other target holds an `UnsafeCell` in (`Access::Field`'s `unfrozen`), which is a
-/// difference between the targets.
+/// targets' getters of a field reads it the greater of theirs, but by `Take` rather than `Copy`
+/// where a target that borrows the field does not have it `Copy` (`Access::Field`'s `copy`),
+/// and not at all where that reads out unaligned what the other target holds an `UnsafeCell`
+/// in (`unfrozen`), which is a difference between the targets.
 #[derive(Clone, Copy, Default, PartialEq, Eq, PartialOrd, Ord, serde::Serialize, serde::Deserialize)]
 pub(crate) enum Read {
 	/// It borrows the field.

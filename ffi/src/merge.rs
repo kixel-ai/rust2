@@ -228,9 +228,13 @@ pub(crate) fn bare_function(f: &Function) -> Function {
 		// Merged apart, as a trait's leaves are.
 		f.leaf = false;
 		// Merged to the greatest, as a target's layout may decide it.
-		if let Access::Field { read, unfrozen, .. } = &mut f.access {
+		if let Access::Field {
+			read, unfrozen, copy, ..
+		} = &mut f.access
+		{
 			*read = Read::Borrow;
 			*unfrozen = false;
+			*copy = false;
 		}
 	})
 }
@@ -609,22 +613,31 @@ impl Merged {
 			// One getter serves a field on every target, though `repr(packed)` may make one
 			// target's layout need another read than the next's: it reads by the mode that
 			// accepts both, whose value is the same, unless that is an unaligned read of what
-			// a target holds an `UnsafeCell` in, which would race there.
+			// a target holds an `UnsafeCell` in, which would race there. A target that
+			// borrows a field that is not `Copy` there is not served by a `Copy` read, so
+			// that merges to `Take`.
 			let races = match (&mut ours[at].access, &function.access) {
 				(
 					Access::Field {
 						set,
 						read: ours,
 						unfrozen: ours_unfrozen,
+						copy: ours_copy,
 						..
 					},
 					Access::Field {
 						read: theirs,
 						unfrozen: theirs_unfrozen,
+						copy: theirs_copy,
 						..
 					},
 				) => {
-					let read = (*ours).max(*theirs);
+					let mut read = (*ours).max(*theirs);
+					if read == Read::Copy
+						&& ((*ours == Read::Borrow && !*ours_copy) || (*theirs == Read::Borrow && !*theirs_copy))
+					{
+						read = Read::Take;
+					}
 					// A setter assigns and never reads the field, so it cannot race.
 					let races = !*set
 						&& read == Read::Take
@@ -632,6 +645,7 @@ impl Merged {
 					if !races {
 						*ours = read;
 						*ours_unfrozen |= *theirs_unfrozen;
+						*ours_copy &= *theirs_copy;
 					}
 					races
 				}
@@ -1052,6 +1066,7 @@ mod tests {
 				through: false,
 				read,
 				unfrozen,
+				copy: read != Read::Take,
 			},
 			instance: None,
 			home: Home::default(),
@@ -1112,6 +1127,32 @@ mod tests {
 			assert_eq!((differs[0].first.0.as_str(), differs[0].second.0.as_str()), ("x", "y"));
 			assert_eq!(merged.records[0].methods.len(), 1);
 		}
+		// A target that borrows what is not `Copy` there is not served by a `Copy` read: the
+		// merge reads by `Take`, and it still reports a field the other target holds an atomic in.
+		let uncopied = |mut api: Api| {
+			if let Access::Field { copy, .. } = &mut api.records[0].methods[0].access {
+				*copy = false;
+			}
+			api
+		};
+		for (first, second) in [
+			(uncopied(api("x", Read::Borrow, false)), api("y", Read::Copy, false)),
+			(api("x", Read::Copy, false), uncopied(api("y", Read::Borrow, false))),
+		] {
+			let (merged, differs) = super::merge(vec![first, second]);
+			assert!(differs.is_empty());
+			assert!(matches!(
+				merged.records[0].methods[0].access,
+				Access::Field {
+					read: Read::Take,
+					copy: false,
+					..
+				}
+			));
+		}
+		let (merged, differs) = super::merge(vec![uncopied(api("x", Read::Borrow, true)), api("y", Read::Copy, false)]);
+		assert_eq!(differs.len(), 1);
+		assert_eq!(merged.records[0].methods.len(), 1);
 		// A setter never reads the field, so the same pair merges without a difference.
 		let setter = |mut api: Api| {
 			if let Access::Field { set, .. } = &mut api.records[0].methods[0].access {
