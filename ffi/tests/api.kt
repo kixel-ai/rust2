@@ -949,6 +949,20 @@ fun owned() {
 	val draft = ledger.edit()
 	val refused = runCatching { ledger.close() }.exceptionOrNull()
 	check(refused is IllegalStateException && refused.message == "api_Ledger_drop: a handle is already borrowed", "a close under a borrow throws: $refused")
+	// Two closes under the borrow both throw: one meeting the other's crossing waits out its
+	// refusal rather than report the object closed.
+	repeat(2000) {
+		val start = java.util.concurrent.CountDownLatch(1)
+		var late: Throwable? = null
+		val second = thread {
+			start.await()
+			late = runCatching { ledger.close() }.exceptionOrNull()
+		}
+		start.countDown()
+		val first = runCatching { ledger.close() }.exceptionOrNull()
+		second.join()
+		check(first is IllegalStateException && late is IllegalStateException, "racing closes under a borrow both throw: $first, $late")
+	}
 	draft.close()
 	check(ledger.published() == 0u, "a refused close leaves the object open")
 	ledger.close()

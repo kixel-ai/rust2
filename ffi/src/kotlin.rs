@@ -256,6 +256,13 @@ pub(crate) fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<O
 		let _ = writeln!(rules, "\tstatic *** {name}(...);");
 	}
 	rules.push_str("}\n");
+	// A checked close's drop sets its handle's state by name.
+	if abi.checked.contains(&true) {
+		let _ = write!(
+			rules,
+			"\n-keepclassmembernames class {p}._Native$__Handle {{\n\tlong state;\n}}\n"
+		);
+	}
 	// ART reads `@FastNative` off the dex, and `__contract` registers each method it marks,
 	// so a shrinker keeps them, even those nothing calls.
 	if !g.fast.is_empty() {
@@ -2196,14 +2203,14 @@ impl<'a> Gen<'a> {
 			true => {
 				self.native(
 					&format!("{bare}_drop"),
-					&[("jlong", "Long"), ("jboolean", "Boolean")],
+					&[("jlong", "Long"), ("jobject", "__Handle?")],
 					("()", "Unit"),
 					&format!(
-						"let mut status = 0;\n\t\tcrate::{u}_drop(p0 as usize as _, &mut status);\n\t\tif status != 0 {{\n\t\t\treturn rt::refuse(env, status, \"{c}_drop\");\n\t\t}}\n\t\tif p1 {{\n\t\t\tcrate::{u}_free(p0 as usize as _);\n\t\t}}"
+						"let mut status = 0;\n\t\tlet closing = rt::Closing(env, p1);\n\t\tlet (commit, data) = closing.signal();\n\t\tcrate::{u}_drop_signal(p0 as usize as _, &mut status, commit, data);\n\t\tif status != 0 {{\n\t\t\treturn rt::refuse(env, status, \"{c}_drop\");\n\t\t}}\n\t\tif !p1.is_null() {{\n\t\t\tcrate::{u}_free(p0 as usize as _);\n\t\t}}"
 					),
 				);
 				format!(
-					"\tinternal val handle = _Native.__Handle(this, raw, if (lent) null else _Native.__Drop {{ _Native.{bare}_free(it) }}, \"{name}\", if (lent) null else _Native.__Close {{ p, free -> _Native.{bare}_drop(p, free) }})\n\n\t/** Drop the value now, as Rust's drop does, and free the handle once no call holds it: a call after this throws, and one still borrowing the value makes this throw. */\n\toverride fun close() = handle.close(this)\n"
+					"\tinternal val handle = _Native.__Handle(this, raw, if (lent) null else _Native.__Drop {{ _Native.{bare}_free(it) }}, \"{name}\", if (lent) null else _Native.__Close {{ p, closing -> _Native.{bare}_drop(p, closing) }})\n\n\t/** Drop the value now, as Rust's drop does, and free the handle once no call holds it: a call after this throws, and one still borrowing the value makes this throw. */\n\toverride fun close() = handle.close(this)\n"
 				)
 			}
 			false => format!(

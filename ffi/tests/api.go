@@ -469,6 +469,27 @@ func checks() {
 			errors.Is(exclusive, rt.ErrBorrowed) && exclusive.Error() == "api_Ledger_published: a handle is borrowed exclusively",
 			fmt.Sprintf("a lent ledger refuses a read: %v", exclusive),
 		)
+		// Two closes under the draft's borrow both fail: one meeting the other's crossing
+		// waits out its refusal rather than report the ledger closed.
+		for range 2000 {
+			var ready, start sync.WaitGroup
+			ready.Add(1)
+			start.Add(1)
+			second := make(chan error)
+			go func() {
+				ready.Done()
+				start.Wait()
+				second <- ledger.Close()
+			}()
+			ready.Wait()
+			start.Done()
+			first := ledger.Close()
+			late := <-second
+			check(
+				errors.Is(first, rt.ErrBorrowed) && errors.Is(late, rt.ErrBorrowed),
+				fmt.Sprintf("racing closes under a borrow both fail: %v, %v", first, late),
+			)
+		}
 		check(draft.Close() == nil, "a draft closes")
 		check(must(ledger.Published()) == 0, "a closed draft frees its ledger")
 		check(ledger.Close() == nil, "a ledger closes")

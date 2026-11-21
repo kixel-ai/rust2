@@ -1677,12 +1677,14 @@ impl<'a> Abi<'a> {
 				Self::made(&item, &name),
 			);
 			if self.checked[i] {
-				self.claim(
-					format!("{name}_drop"),
-					what.clone(),
-					object.span,
-					Self::made(&item, &name),
-				);
+				for made in ["drop", "drop_signal"] {
+					self.claim(
+						format!("{name}_{made}"),
+						what.clone(),
+						object.span,
+						Self::made(&item, &name),
+					);
+				}
 			}
 			if object.shared {
 				self.claim(

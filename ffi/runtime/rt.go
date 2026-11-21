@@ -101,9 +101,10 @@ type Handle_ struct {
 	state atomic.Int64
 	// Nil for a handle Rust lends, which it frees itself.
 	free func(unsafe.Pointer)
-	// Non-nil for an owned one of a value Rust checks: it drops the value, then frees the
-	// handle too if asked and the drop passed.
-	drop func(raw unsafe.Pointer, free bool) error
+	// Non-nil for an owned one of a value Rust checks: it drops the value, then, given a
+	// state, frees the handle too if the drop passed, storing closed_ to the state once the
+	// drop can no longer fail.
+	drop func(raw, state unsafe.Pointer) error
 	name string
 	// The nursery an owned handle was returned into, and its slot there.
 	nursery *nursery_
@@ -117,7 +118,7 @@ type Handle_ struct {
 // drops the value of, or nil for one Rust does not check. The generated packages allocate
 // it with the object owning it, which each call holding it then keeps reachable: so once
 // the GC collects the object, no call holds the handle, and its cleanup frees it at once.
-func (h *Handle_) Init(raw unsafe.Pointer, free func(unsafe.Pointer), drop func(unsafe.Pointer, bool) error, name string) {
+func (h *Handle_) Init(raw unsafe.Pointer, free func(unsafe.Pointer), drop func(raw, state unsafe.Pointer) error, name string) {
 	h.raw, h.free, h.drop, h.name = raw, free, drop, name
 	h.state.Store(held_)
 }
@@ -327,31 +328,7 @@ func (h *Handle_) Unlist(s Slot_) {
 // Close closes h as Handle_ says; again, it does nothing.
 func (h *Handle_) Close() error {
 	if h.drop != nil {
-		// Held by no call, as soon after its return: claimed closed so none starts, then the
-		// value dropped and the handle freed in one crossing. A call meanwhile fails as
-		// closed, as one racing any Close may, and a Drop that calls back into Go finds it
-		// closed rather than waiting on itself.
-		if h.state.CompareAndSwap(held_, closed_|closing_) {
-			h.leave()
-			if err := h.drop(h.raw, true); err != nil {
-				h.own()
-				h.state.Store(held_)
-				return err
-			}
-			h.state.Store(closed_)
-			return nil
-		}
-		raw, s := h.Hold()
-		if raw == nil {
-			return nil
-		}
-		err := h.drop(raw, false)
-		h.Release(s)
-		if err != nil {
-			return err
-		}
-		h.Moved()
-		return nil
+		return h.closeChecked()
 	}
 	for {
 		n := h.state.Load()
@@ -383,6 +360,47 @@ func (h *Handle_) Close() error {
 		h.free(h.raw)
 	}
 	return nil
+}
+
+// closeChecked is Close of a handle whose value Rust checks.
+func (h *Handle_) closeChecked() error {
+	for {
+		// Held by no call, as soon after its return: claimed closed so none starts, then the
+		// value dropped and the handle freed in one crossing. A call meanwhile fails as
+		// closed, as one racing any Close may.
+		if h.state.CompareAndSwap(held_, closed_|closing_) {
+			h.leave()
+			if err := h.drop(h.raw, unsafe.Pointer(&h.state)); err != nil {
+				h.own()
+				h.state.Store(held_)
+				return err
+			}
+			h.state.Store(closed_)
+			return nil
+		}
+		n := h.state.Load()
+		// Another Close is deciding: wait for its outcome, which may leave h open. Rust
+		// clears closing_ once the drop can no longer fail, before any Drop runs, so a Close
+		// a Drop makes, from any goroutine, finds h closed rather than waiting on itself.
+		if n&closing_ != 0 {
+			runtime.Gosched()
+			continue
+		}
+		if n&closed_ != 0 {
+			return nil
+		}
+		raw, s := h.Hold()
+		if raw == nil {
+			continue
+		}
+		err := h.drop(raw, nil)
+		h.Release(s)
+		if err != nil {
+			return err
+		}
+		h.Moved()
+		return nil
+	}
 }
 
 // listed is whether a call holds h in the table.

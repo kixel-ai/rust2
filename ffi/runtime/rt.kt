@@ -599,33 +599,43 @@ class __Handle(
 
 	// [close] of a handle whose value Rust checks.
 	private fun closeChecked(drop: __Close) {
-		// Held by no call, as soon after its return: claimed closed so none starts, then the
-		// value dropped and the handle freed in one crossing. A call meanwhile throws as
-		// closed, as one racing any close may, and a close meanwhile, such as one a `Drop`
-		// calls back into Kotlin to make, from any thread, returns at once rather than wait
-		// on a drop that may wait on it.
-		if (STATE.compareAndSet(this, HELD, CLOSED or CLOSING)) {
-			try {
-				drop.close(raw, true)
-			} catch (e: Throwable) {
-				state = HELD
-				throw e
+		while (true) {
+			// Held by no call, as soon after its return: claimed closed so none starts, then
+			// the value dropped and the handle freed in one crossing. A call meanwhile throws
+			// as closed, as one racing any close may.
+			if (STATE.compareAndSet(this, HELD, CLOSED or CLOSING)) {
+				try {
+					drop.close(raw, this)
+				} catch (e: Throwable) {
+					state = HELD
+					throw e
+				}
+				cleanup?.stop()
+				state = CLOSED
+				return
 			}
-			cleanup?.stop()
-			state = CLOSED
-			return
+			val n = state
+			// Another close is deciding: wait for its outcome, which may leave it open. Rust
+			// clears CLOSING once the drop can no longer fail, before any `Drop` runs, so a
+			// close a `Drop` makes, from any thread, finds it closed rather than waiting on
+			// itself.
+			if (n and CLOSING != 0L) {
+				java.lang.Thread.yield()
+				continue
+			}
+			if (n and CLOSED != 0L) return
+			val slot = try {
+				hold()
+			} catch (_: IllegalStateException) {
+				continue
+			}
+			try {
+				drop.close(raw, null)
+			} finally {
+				release(slot)
+			}
+			return abandon()
 		}
-		val slot = try {
-			hold()
-		} catch (_: IllegalStateException) {
-			return
-		}
-		try {
-			drop.close(raw, false)
-		} finally {
-			release(slot)
-		}
-		abandon()
 	}
 
 	// Whether a call holds it in the table.
@@ -861,9 +871,12 @@ fun interface __Drop {
 	fun drop(raw: Long)
 }
 
-/** Drops the value of a raw handle, then frees the handle too if [free] and the drop passed. */
+/**
+ * Drops the value of a raw handle, then, given its [closing] handle, frees the handle too if
+ * the drop passed, storing that handle's state closed once the drop can no longer fail.
+ */
 fun interface __Close {
-	fun close(raw: Long, free: Boolean)
+	fun close(raw: Long, closing: __Handle?)
 }
 
 /**

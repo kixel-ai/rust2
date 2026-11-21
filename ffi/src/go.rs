@@ -908,18 +908,28 @@ impl<'a> Gen<'a> {
 		(stmts, value)
 	}
 
-	/// The C shim dropping the value of the object `c`'s handle, which Rust checks, then
-	/// freeing the handle if asked and the drop passed: a close in one crossing.
+	/// The C shim dropping the value of the object `c`'s handle, which Rust checks, then,
+	/// given the handle's state, freeing the handle if the drop passed: a close in one
+	/// crossing, which stores closed to the state as the drop commits, so a close waiting on
+	/// it returns before any `Drop` runs.
 	fn close_c(&mut self, c: &str) -> String {
-		let name = format!("{}GoClose_{}", self.abi.prefix, self.bare(c));
+		let p = &self.abi.prefix;
+		let name = format!("{p}GoClose_{}", self.bare(c));
 		let handle = Ty::Handle {
 			name: c.to_string(),
 			constant: false,
 		};
 		let decl = crate::c::decl(self.abi, &handle, "self");
 		let status = crate::c::decl(self.abi, &Ty::Status, "");
+		let committed = format!("{p}GoCommitted");
+		if self.shims.insert(committed.clone()) {
+			self.decls.push(format!(
+				"static void {committed}(void *state) {{\n\t__atomic_store_n((int64_t *)state, 1, __ATOMIC_SEQ_CST);\n}}\n"
+			));
+		}
 		self.decls.push(format!(
-			"static inline {status} {name}({decl}, int free) {{\n\t{status} r = 0;\n\t{c}_drop(self, &r);\n\tif (r == 0 && free) {{\n\t\t{c}_free(self);\n\t}}\n\treturn r;\n}}\n"
+			"extern void {c}_drop_signal({decl}, {status} *status, void (*commit)(void *), void *data);\n\
+			static inline {status} {name}({decl}, int64_t *state) {{\n\t{status} r = 0;\n\t{c}_drop_signal(self, &r, state ? {committed} : NULL, state);\n\tif (r == 0 && state) {{\n\t\t{c}_free(self);\n\t}}\n\treturn r;\n}}\n"
 		));
 		name
 	}
@@ -2534,9 +2544,9 @@ impl<'a> Gen<'a> {
 		let (drop, dropping) = match self.abi.checked[i] {
 			true => (
 				format!(
-					"// drop_{c} drops the value of the handle p, which Rust checks, then frees p if free\n\
-					// and the drop passed.\n\
-					func drop_{c}(p unsafe.Pointer, free bool) error {{\n\tvar f C.int\n\tif free {{\n\t\tf = 1\n\t}}\n\treturn {status_}(int32(C.{shim}((*C.{c})(p), f)), \"{c}_drop\")\n}}\n\n",
+					"// drop_{c} drops the value of the handle p, which Rust checks, then, given its state,\n\
+					// frees p if the drop passed, storing closed to state once it can no longer fail.\n\
+					func drop_{c}(p, state unsafe.Pointer) error {{\n\treturn {status_}(int32(C.{shim}((*C.{c})(p), (*C.int64_t)(state))), \"{c}_drop\")\n}}\n\n",
 					shim = self.close_c(&c),
 					status_ = self.qualify(Packages::RT, "Status_"),
 				),

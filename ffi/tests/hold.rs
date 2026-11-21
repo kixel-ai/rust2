@@ -9,7 +9,7 @@
 use loom::cell::UnsafeCell;
 use loom::sync::Arc;
 use loom::sync::atomic::Ordering::SeqCst;
-use loom::sync::atomic::{AtomicUsize, fence};
+use loom::sync::atomic::{AtomicBool, AtomicUsize, fence};
 use loom::thread;
 
 /// Set in the hold count once closed.
@@ -34,6 +34,10 @@ struct Hold {
 	/// What the handle points at: Rust's memory, which the free ends.
 	raw: UnsafeCell<u64>,
 	freed: AtomicUsize,
+	/// Whether Rust took the value to drop, as its borrow state's `TAKEN`.
+	taken: AtomicBool,
+	/// How many times the value's `Drop` ran.
+	dropped: AtomicUsize,
 }
 
 impl Hold {
@@ -43,7 +47,31 @@ impl Hold {
 			slots: (0..columns).map(|_| AtomicUsize::new(0)).collect(),
 			raw: UnsafeCell::new(7),
 			freed: AtomicUsize::new(0),
+			taken: AtomicBool::new(false),
+			dropped: AtomicUsize::new(0),
 		})
+	}
+
+	/// Rust's drop of the value, as `rt::Object::close` makes it: done once the value is
+	/// gone, refused while `refused` has a borrow stand, and otherwise the value taken, then,
+	/// for a close in one crossing, `signal`, the state stored closed, as the glue's commit
+	/// does, and then the value's `Drop`, `then`. Whether it passed.
+	fn rust_drop(&self, refused: bool, signal: bool, then: &dyn Fn()) -> bool {
+		if self.taken.load(SeqCst) {
+			return true;
+		}
+		if refused {
+			return false;
+		}
+		if self.taken.swap(true, SeqCst) {
+			return true;
+		}
+		if signal {
+			self.state.store(CLOSED, SeqCst);
+		}
+		self.dropped.fetch_add(1, SeqCst);
+		then();
+		true
 	}
 
 	/// Hold the handle from `column`: the slot it went to, if any, or `None` once closed.
@@ -166,47 +194,51 @@ impl Hold {
 		Closed::Now
 	}
 
-	/// Close a checked handle no call holds in one crossing, as Go's and Kotlin's do: claimed
-	/// closed so no call starts, then the value dropped, which `refused` has Rust refuse as
-	/// under a borrow, reopening it, and the handle freed. `None` while a hold or a close
-	/// stands, when the binding holds it for a drop alone and then gives up the owner's hold.
-	fn drop_free(&self, refused: bool) -> Option<bool> {
-		if self
-			.state
-			.compare_exchange(HELD, CLOSED | CLOSING, SeqCst, SeqCst)
-			.is_err()
-		{
-			return None;
+	/// Close a checked handle as Go's and Kotlin's do, with [`Self::rust_drop`]'s `refused`
+	/// and `then`. No call holding it, in one crossing: claimed closed so no call starts,
+	/// then the value dropped, which may reopen it, and the handle freed. Else, unless
+	/// closed, held for the drop alone, then giving up the owner's hold. Meeting another
+	/// close's crossing, it waits until Rust commits that drop or refuses it, then decides
+	/// again. Whether it closed it.
+	fn checked_close(&self, column: usize, refused: bool, then: &dyn Fn()) -> bool {
+		loop {
+			if self
+				.state
+				.compare_exchange(HELD, CLOSED | CLOSING, SeqCst, SeqCst)
+				.is_ok()
+			{
+				if !self.rust_drop(refused, true, then) {
+					self.state.store(HELD, SeqCst);
+					break false;
+				}
+				self.free();
+				self.state.store(CLOSED, SeqCst);
+				break true;
+			}
+			let n = self.state.load(SeqCst);
+			if n & CLOSING != 0 {
+				thread::yield_now();
+				continue;
+			}
+			if n & CLOSED != 0 {
+				break true;
+			}
+			let Some(slot) = self.hold(column) else {
+				continue;
+			};
+			let passed = self.rust_drop(refused, false, then);
+			self.release(slot);
+			if passed {
+				self.abandon();
+			}
+			break passed;
 		}
-		if refused {
-			self.state.store(HELD, SeqCst);
-			return Some(false);
-		}
-		self.free();
-		self.state.store(CLOSED, SeqCst);
-		Some(true)
-	}
-
-	/// Close a checked handle as a binding does: in one crossing if no call holds it, else
-	/// held for the drop, then giving up the owner's hold. Whether it closed it.
-	fn checked_close(&self, column: usize, refused: bool) -> bool {
-		if let Some(closed) = self.drop_free(refused) {
-			return closed;
-		}
-		let Some(slot) = self.hold(column) else {
-			return true;
-		};
-		self.release(slot);
-		if refused {
-			return false;
-		}
-		self.abandon();
-		true
 	}
 
 	/// No hold is left, and the handle was freed once, or not at all while still open.
 	fn settled(&self, closed: bool) {
 		assert!(self.slots.iter().all(|slot| slot.load(SeqCst) == 0));
+		assert!(self.dropped.load(SeqCst) <= 1);
 		match closed {
 			true => {
 				assert_eq!(self.state.load(SeqCst) & !BIAS, CLOSED);
@@ -360,7 +392,7 @@ fn checked_close_against_calls() {
 			call(&other, 1)
 		});
 		let collected = thread::spawn(move || collector.abandon());
-		assert!(hold.checked_close(0, false));
+		assert!(hold.checked_close(0, false, &|| {}));
 		calls.join().unwrap();
 		collected.join().unwrap();
 		hold.settled(true);
@@ -375,10 +407,65 @@ fn checked_close_refused() {
 		let hold = Hold::new(2, false);
 		let other = hold.clone();
 		let held = thread::spawn(move || call(&other, 1));
-		assert!(!hold.checked_close(0, true));
+		assert!(!hold.checked_close(0, true, &|| {}));
 		held.join().unwrap();
 		assert!(call(&hold, 0));
 		hold.settled(false);
+	});
+}
+
+/// Two checked closes Rust refuses: one meeting the other's crossing waits out its refusal
+/// and is refused too, never reporting closed a handle left open.
+#[test]
+fn checked_closes_refused() {
+	model(|| {
+		let hold = Hold::new(2, false);
+		let other = hold.clone();
+		let first = thread::spawn(move || other.checked_close(1, true, &|| {}));
+		assert!(!hold.checked_close(0, true, &|| {}));
+		assert!(!first.join().unwrap());
+		hold.settled(false);
+	});
+}
+
+/// Two checked closes Rust lets drop: each reports closed only once Rust took the value,
+/// which drops once.
+#[test]
+fn checked_closes() {
+	model(|| {
+		let hold = Hold::new(2, false);
+		let other = hold.clone();
+		let first = thread::spawn(move || {
+			let closed = other.checked_close(1, false, &|| {});
+			assert!(other.taken.load(SeqCst));
+			closed
+		});
+		assert!(hold.checked_close(0, false, &|| {}));
+		assert!(hold.taken.load(SeqCst));
+		assert!(first.join().unwrap());
+		hold.settled(true);
+		assert_eq!(hold.dropped.load(SeqCst), 1);
+	});
+}
+
+/// A `Drop` that hands the close of its own value to another thread and joins it, against
+/// a second close: neither waits on the crossing that runs the `Drop`, which loom would
+/// report as a deadlock or a spin past its bound.
+#[test]
+fn checked_close_from_drop() {
+	model(|| {
+		let hold = Hold::new(3, false);
+		let (other, inner) = (hold.clone(), hold.clone());
+		let second = thread::spawn(move || other.checked_close(1, false, &|| {}));
+		let then = move || {
+			let inner = inner.clone();
+			let joined = thread::spawn(move || inner.checked_close(2, false, &|| {}));
+			assert!(joined.join().unwrap());
+		};
+		assert!(hold.checked_close(0, false, &then));
+		assert!(second.join().unwrap());
+		hold.settled(true);
+		assert_eq!(hold.dropped.load(SeqCst), 1);
 	});
 }
 

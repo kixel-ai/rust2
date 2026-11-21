@@ -1646,22 +1646,16 @@ impl Gen<'_> {
 			self.export(format!(
 				"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {name}_free(this: *const ::std::ffi::c_void) {{\n\tunsafe {{ rt::Object::<{path}>::free(this) }}\n}}\n"
 			));
-			// A call on a value that is not `Send` runs on its home, if it has one elsewhere.
-			let away = |name: &str, params: &[&str]| match object.send {
-				true => String::new(),
-				false => {
-					let params: Vec<String> = params.iter().map(|p| p.to_string()).collect();
-					let this = params[0].split_once(": ").map_or("this", |(name, _)| name);
-					away(name, &params, &[(path.clone(), this.to_string())])
-				}
-			};
+			// The drop runs a value that is not `Send` on its home itself, after its check, so
+			// `commit` runs on the closing thread. `_drop_signal`, Go's and Kotlin's, which
+			// the header leaves out, calls `commit` with `data`, if any, once the drop can no
+			// longer fail.
 			if self.abi.checked[i] {
-				let away = away(
-					&format!("{name}_drop"),
-					&["this: *const ::std::ffi::c_void", "status: *mut i32"],
-				);
 				self.export(format!(
-					"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {name}_drop(this: *const ::std::ffi::c_void, status: *mut i32) {{\n\tlet w = \"{name}_drop\";\n\t{away}if let Err(s) = unsafe {{ rt::Object::<{path}>::close(this, w) }} {{\n\t\tunsafe {{ rt::failed::<()>(status, s, w) }}\n\t}}\n}}\n"
+					"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {name}_drop(this: *const ::std::ffi::c_void, status: *mut i32) {{\n\tunsafe {{ {name}_drop_signal(this, status, None, ::std::ptr::null_mut()) }}\n}}\n"
+				));
+				self.export(format!(
+					"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {name}_drop_signal(this: *const ::std::ffi::c_void, status: *mut i32, commit: Option<unsafe extern \"C\" fn(*mut ::std::ffi::c_void)>, data: *mut ::std::ffi::c_void) {{\n\tlet w = \"{name}_drop\";\n\tlet commit = || {{\n\t\tif let Some(commit) = commit {{\n\t\t\tunsafe {{ commit(data) }}\n\t\t}}\n\t}};\n\tif let Err(s) = unsafe {{ rt::Object::<{path}>::close(this, w, commit) }} {{\n\t\tunsafe {{ rt::failed::<()>(status, s, w) }}\n\t}}\n}}\n"
 				));
 			}
 			if object.shared {

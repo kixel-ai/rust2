@@ -1782,20 +1782,21 @@ impl<T> Object<T> {
 	/// binding's close does, so a later use fails as moved, as Rust refuses a use after a
 	/// drop. It fails, changing nothing, while a call or future borrows the value or a call
 	/// reserved it to move out, as Rust refuses a drop under a borrow, and does nothing once
-	/// the value is gone. A handle a
-	/// call returned lent from another's value only stops lending it; one lent to C for a
-	/// call fails, as Rust lent it. A value that is not `Send`, closed on another thread than
-	/// its own, drops there later, as a free does.
+	/// the value is gone. A handle a call returned lent from another's value only stops
+	/// lending it; one lent to C for a call fails, as Rust lent it. A value that is not
+	/// `Send` drops on its home, which this waits for, or, closed on another thread than its
+	/// own, there later, as a free does.
+	///
+	/// `commit` runs once the drop can no longer fail, on this thread, before any `Drop`
+	/// runs: so a binding's close that meets this one waits only for its check, never on a
+	/// `Drop` that may wait on that close.
 	///
 	/// # Safety
 	/// As [`Self::borrow`].
-	pub unsafe fn close(handle: *const c_void, what: &str) -> Result<(), Status> {
+	pub unsafe fn close(handle: *const c_void, what: &str, commit: impl FnOnce()) -> Result<(), Status> {
 		// SAFETY: the caller's contract.
 		let object = unsafe { Self::get(handle, what) };
 		let away = object.owner.as_ref().filter(|owner| !owner.is_here());
-		if away.is_none() {
-			object.own()?;
-		}
 		if !object.lent.is_null() && object.lender.is_none() {
 			return Err(Status::Lent);
 		}
@@ -1805,6 +1806,12 @@ impl<T> Object<T> {
 			Err(status) => return Err(status),
 		}
 		object.epoch.fetch_add(1, Ordering::Release);
+		commit();
+		if away.is_none() {
+			// On its own thread, if any, so this only drops what other threads freed of the
+			// thread's values: after `commit`, as it runs their `Drop`.
+			let _ = object.own();
+		}
 		if object.lent.is_null() {
 			// SAFETY: TAKEN excludes every other access to the loan.
 			let loan = unsafe { (*object.loan.get()).take() };
@@ -1813,8 +1820,14 @@ impl<T> Object<T> {
 					// SAFETY: as below; the value moves out to drop on its own thread, before
 					// the lend it holds is given back.
 					let value = unsafe { (*object.value.get()).assume_init_read() };
-					// SAFETY: the value is the owner's.
-					unsafe { Dropped::new((value, loan), owner.clone(), Unsent::<()>::named::<T>()) }.send();
+					match owner.away() {
+						// SAFETY: a home, which runs it while this waits.
+						true => unsafe { owner.run(move || drop((value, loan))) },
+						// SAFETY: the value is the owner's.
+						false => {
+							unsafe { Dropped::new((value, loan), owner.clone(), Unsent::<()>::named::<T>()) }.send();
+						}
+					}
 				}
 				None => {
 					// SAFETY: TAKEN excludes every other access, and `Drop` skips a taken value.

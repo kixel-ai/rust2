@@ -786,6 +786,47 @@ pub fn slots(env: *mut JNIEnv, slots: jlongArray, values: &[i64]) {
 	unsafe { ((**env).v1_2.SetLongArrayRegion)(env, slots, 0, values.len() as jsize, values.as_ptr()) }
 }
 
+/// Kotlin's `__Handle` a close drops the value of in one crossing, on this thread's `env`.
+#[derive(Clone, Copy)]
+pub struct Closing(pub *mut JNIEnv, pub jobject);
+
+static STATE: OnceLock<usize> = OnceLock::new();
+
+impl Closing {
+	/// What a drop's commit calls with what, for a handle, or nothing for null, a close
+	/// that frees nothing.
+	pub fn signal(&self) -> (Option<unsafe extern "C" fn(*mut c_void)>, *mut c_void) {
+		match self.1.is_null() {
+			true => (None, std::ptr::null_mut()),
+			false => (Some(Self::committed), std::ptr::from_ref(self).cast_mut().cast()),
+		}
+	}
+
+	/// Store the handle's state closed, no longer closing, once its drop can no longer fail:
+	/// so a close waiting on it returns, before any `Drop` runs.
+	///
+	/// # Safety
+	/// `data` is a [`Closing`] [`Self::signal`] gave, on its thread.
+	unsafe extern "C" fn committed(data: *mut c_void) {
+		// SAFETY: the caller's contract.
+		let Closing(env, handle) = unsafe { *data.cast::<Closing>() };
+		let id = *STATE.get_or_init(|| {
+			// SAFETY: `env` is this thread's, and `handle` a live `__Handle`.
+			unsafe {
+				let class = ((**env).v1_2.GetObjectClass)(env, handle);
+				let id = ((**env).v1_2.GetFieldID)(env, class, c"state".as_ptr(), c"J".as_ptr());
+				if id.is_null() {
+					fail(env, "jni", "a Kotlin field the library sets is missing");
+				}
+				((**env).v1_2.DeleteLocalRef)(env, class);
+				id as usize
+			}
+		}) as jfieldID;
+		// SAFETY: as above; `state` is a `long`, and 1 its `CLOSED`.
+		unsafe { ((**env).v1_2.SetLongField)(env, handle, id, 1) };
+	}
+}
+
 /// A global reference to a Kotlin value, which Rust may hold on any thread.
 pub fn global(env: *mut JNIEnv, value: jobject) -> *mut c_void {
 	if value.is_null() {
