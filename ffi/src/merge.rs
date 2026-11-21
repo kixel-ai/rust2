@@ -1150,7 +1150,10 @@ mod tests {
 				}
 			));
 		}
-		let (merged, differs) = super::merge(vec![uncopied(api("x", Read::Borrow, true)), api("y", Read::Copy, false)]);
+		let (merged, differs) = super::merge(vec![
+			uncopied(api("x", Read::Borrow, true)),
+			api("y", Read::Copy, false),
+		]);
 		assert_eq!(differs.len(), 1);
 		assert_eq!(merged.records[0].methods.len(), 1);
 		// A setter never reads the field, so the same pair merges without a difference.
