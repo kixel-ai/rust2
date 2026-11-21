@@ -1028,6 +1028,22 @@ public struct Local: ~Copyable {
 	@inlinable public func threadNumber() throws -> Swift.UInt64
 	@inlinable public func onOwnThread() throws -> Swift.Bool
 }
+public struct Wrapped: ~Copyable, @unchecked Sendable {
+	@inlinable public static func new(_ n: Swift.UInt64) -> Wrapped
+	@inlinable public var nGet: Swift.UInt64 { get }
+	@inlinable public mutating func nSet(_ value: Swift.UInt64) throws
+	@inlinable public var onGet: Swift.Bool { get }
+	@inlinable public mutating func onSet(_ value: Swift.Bool) throws
+	@inlinable public func count() throws -> Swift.UInt64
+	@inlinable public mutating func recount(_ n: Swift.UInt64) throws
+	@inlinable public func steps() throws -> Swift.UInt64
+	@inlinable public func locals() throws -> Swift.UInt32
+}
+public struct Buffer: ~Copyable, @unchecked Sendable {
+	@inlinable public static func new(_ len: Swift.UInt32) -> Buffer
+	@inlinable public mutating func blank() throws
+	@inlinable public func zeroed() throws -> Swift.Bool
+}
 public struct LocalWaiter: ~Copyable {
 	@inlinable public static func new(_ waker: @escaping @Sendable () -> Void) -> LocalWaiter
 	@inlinable nonisolated(nonsending) public static func pollReady(_ n: Swift.UInt32) async throws -> Swift.UInt32
@@ -1311,6 +1327,10 @@ public struct Plain: ~Copyable, @unchecked Sendable {
 	@inlinable public var onGet: Swift.Bool { get }
 	@inlinable public mutating func onSet(_ value: Swift.Bool) throws
 	@inlinable public static func new(_ n: Swift.UInt64, _ on: Swift.Bool) -> Plain
+	@inlinable public func count() throws -> Swift.UInt64
+	@inlinable public mutating func recount(_ n: Swift.UInt64) throws
+	@inlinable public func steps() throws -> Swift.UInt64
+	@inlinable public func locals() throws -> Swift.UInt32
 }
 public struct Labeled: ~Copyable, @unchecked Sendable {
 	@inlinable public var debugDescription: Swift.String { get }
@@ -1479,12 +1499,21 @@ public struct Pinned: ~Copyable {
 	@inlinable public static func new(_ value: Swift.UInt64) throws -> Pinned
 	@inlinable public func part() throws -> Part
 }
+public struct Guarded: ~Copyable, @unchecked Sendable {
+	@inlinable public static func new(_ n: Swift.UInt64) throws -> Guarded
+	@inlinable public func nGet() throws -> Swift.UInt64
+	@inlinable public func onGet() throws -> Swift.Bool
+	@inlinable public func count() throws -> Swift.UInt64
+	@inlinable public func steps() throws -> Swift.UInt64
+	@inlinable public func locals() throws -> Swift.UInt32
+}
 public struct Hooked: ~Copyable, @unchecked Sendable {
 	@inlinable public var debugDescription: Swift.String { get }
 	@inlinable public static func == (a: borrowing Hooked, b: borrowing Hooked) throws -> Swift.Bool
 	@inlinable public func nGet() throws -> Swift.UInt64
 	@inlinable public mutating func nSet(_ value: Swift.UInt64) throws
 	@inlinable public static func new(_ n: Swift.UInt64) throws -> Hooked
+	@inlinable public func count() throws -> Swift.UInt64
 }
 public struct Forged: ~Copyable, @unchecked Sendable {
 	@inlinable public var debugDescription: Swift.String { get }

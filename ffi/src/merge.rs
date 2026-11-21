@@ -208,6 +208,8 @@ pub(crate) fn bare_function(f: &Function) -> Function {
 		f.docs.clear();
 		f.deprecated = None;
 		f.on = On::ALL;
+		// Merged apart, as a trait's leaves are.
+		f.leaf = false;
 	})
 }
 
@@ -582,6 +584,7 @@ impl Merged {
 				self.differ(what, (ours[at].on, ours[at].span), (function.on, function.span));
 			}
 			ours[at].on.0 |= function.on.0;
+			ours[at].leaf &= function.leaf;
 			linked(&mut ours[at].docs, function.docs);
 		}
 		ours

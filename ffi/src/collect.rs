@@ -305,6 +305,8 @@ struct Collector<'tcx> {
 	/// Whether the type being mapped is only tried, as a candidate or before another rule,
 	/// whose failure reaches no type.
 	probing: std::cell::Cell<bool>,
+	/// The proofs of which calls are leaves.
+	leaves: crate::leaf::Leaves<'tcx>,
 	api: Api,
 }
 
@@ -463,6 +465,7 @@ pub(crate) fn collect<'tcx>(tcx: TyCtxt<'tcx>, facade: &Facade<'_>) -> Collected
 			barred: barred.to_vec(),
 			erring: Default::default(),
 			probing: Default::default(),
+			leaves: crate::leaf::Leaves::new(tcx),
 			api: Api {
 				records: Vec::new(),
 				enums: Vec::new(),
@@ -2149,6 +2152,7 @@ impl<'tcx> Collector<'tcx> {
 			lends: false,
 			lends_mut: false,
 			derefs: 0,
+			leaf: false,
 			ties: false,
 			access: Access::Parse,
 			instance: None,
@@ -2208,6 +2212,7 @@ impl<'tcx> Collector<'tcx> {
 						lends: false,
 						lends_mut: false,
 						derefs: 0,
+						leaf: false,
 						ties: false,
 						access: Access::Text,
 						instance: None,
@@ -2654,7 +2659,7 @@ impl<'tcx> Collector<'tcx> {
 						let self_ty = self.site_ty(&site);
 						let chain = self.derefs(self_ty);
 						if !chain.is_empty() {
-							chains.push((index, self.member_names(self_ty), chain));
+							chains.push((index, self_ty, self.member_names(self_ty), chain));
 						}
 						let shared = traits.clone && self.clone_shares(self.site_ty(&site), def_id);
 						let object = &mut self.api.objects[index];
@@ -2678,8 +2683,8 @@ impl<'tcx> Collector<'tcx> {
 				}
 			}
 		}
-		for (object, names, chain) in chains {
-			self.forward(object, names, chain, &records);
+		for (object, self_ty, names, chain) in chains {
+			self.forward(object, self_ty, names, chain, &records);
 		}
 	}
 
@@ -2755,10 +2760,12 @@ impl<'tcx> Collector<'tcx> {
 	/// Give object `object` the methods and field accessors of each type it derefs to, as
 	/// Rust's auto-deref reaches them: each one through `&self`, and through `&mut self` while
 	/// every `Deref` on the way is a `DerefMut`, unless a nearer type's member takes its name.
-	/// A target forwards what it exports itself, so its refusals hold here too.
+	/// A target forwards what it exports itself, so its refusals hold here too. A member is a
+	/// leaf where it is one on its type and each `Deref` on the way, from `self_ty`, is too.
 	fn forward(
 		&mut self,
 		object: usize,
+		self_ty: Ty<'tcx>,
 		mut names: (Vec<String>, Vec<String>),
 		chain: Vec<(Option<Key<'tcx>>, Ty<'tcx>, usize, bool)>,
 		records: &rustc_data_structures::fx::FxHashMap<usize, Site<'tcx>>,
@@ -2768,7 +2775,10 @@ impl<'tcx> Collector<'tcx> {
 			(o.path.clone(), o.shown.clone())
 		};
 		let mut all = Vec::new();
+		// The type each `Deref` on the way to this one derefs from.
+		let (mut from, mut froms) = (self_ty, Vec::new());
 		for (key, ty, derefs, mutable) in chain {
+			froms.push(from);
 			let decl = key.and_then(|key| self.decls.get(&key).cloned());
 			// A member of a deprecated type leaves its type's deprecation to the type, which
 			// the object reaching it does not carry: the member takes it on.
@@ -2808,6 +2818,9 @@ impl<'tcx> Collector<'tcx> {
 					_ => false,
 				})
 				.map(|mut m| {
+					// The glue reaches a `&mut self` member, a setter's too, through `DerefMut`.
+					let exclusive = m.receiver == Some(Receiver::Mut);
+					m.leaf &= froms.iter().all(|&ty| self.leaves.deref(ty, exclusive));
 					let name = |p: &Path| p.last().expect("a method has a name").clone();
 					m.path = [&path[..], &[name(&m.path)]].concat();
 					m.shown = [&shown[..], &[name(&m.shown)]].concat();
@@ -2817,6 +2830,7 @@ impl<'tcx> Collector<'tcx> {
 				})
 				.collect();
 			all.extend(forwarded);
+			from = ty;
 			let (methods, fields) = self.member_names(ty);
 			names.0.extend(methods);
 			names.1.extend(fields);
@@ -3019,6 +3033,12 @@ impl<'tcx> Collector<'tcx> {
 					GenericArgKind::Const(_) => true,
 				});
 			let ties = !independent && !self.lifetimes(ty).0.is_empty();
+			// A `Copy` value's read and write run no code.
+			let copied = !held.has_param()
+				&& tcx.type_is_copy_modulo_regions(
+					TypingEnv::fully_monomorphized(),
+					tcx.erase_and_anonymize_regions(held),
+				);
 			match mapped {
 				Ok((get, set)) => {
 					let accessor = |receiver, params, ok, set| Function {
@@ -3042,6 +3062,7 @@ impl<'tcx> Collector<'tcx> {
 						lends: false,
 						lends_mut: false,
 						derefs: 0,
+						leaf: copied,
 						ties,
 						access: Access::Field {
 							set,
@@ -4085,6 +4106,13 @@ impl<'tcx> Collector<'tcx> {
 				),
 			);
 		}
+		// Proven only where the rest of a leaf holds, which costs nothing to check.
+		let leaf = matches!(receiver, Some(Receiver::Ref | Receiver::Mut))
+			&& !future
+			&& err.is_none()
+			&& ok.as_ref().is_some_and(|ok| ok.scalar() || matches!(ok, Type::Unit))
+			&& params.iter().all(|p| p.ty.scalar())
+			&& self.leaves.call(def_id, args);
 		match (errs.is_empty(), ok) {
 			(true, Some(ok)) => Ok(Function {
 				path,
@@ -4107,6 +4135,7 @@ impl<'tcx> Collector<'tcx> {
 				lends,
 				lends_mut,
 				derefs: 0,
+				leaf,
 				ties,
 				access: Access::Call,
 				instance,
@@ -6028,6 +6057,7 @@ impl<'tcx> Collector<'tcx> {
 				lends: false,
 				lends_mut: false,
 				derefs: 0,
+				leaf: false,
 				ties: false,
 				access: Access::Const,
 				instance: None,

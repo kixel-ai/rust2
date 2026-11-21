@@ -17,7 +17,7 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-#define API_CONTRACT ((uint64_t)0xe381dfc89d46f06bULL)
+#define API_CONTRACT ((uint64_t)0x7dc26467f8de48a0ULL)
 uint64_t api_contract(void);
 uint32_t api_target(void);
 typedef int32_t api_status;
@@ -117,6 +117,8 @@ typedef struct api_Retired api_Retired;
 typedef struct api_Logger api_Logger;
 typedef struct api_Journal api_Journal;
 typedef struct api_Local api_Local;
+typedef struct api_Wrapped api_Wrapped;
+typedef struct api_Buffer api_Buffer;
 typedef struct api_LocalWaiter api_LocalWaiter;
 typedef struct api_Retry api_Retry;
 typedef struct api_Digest api_Digest;
@@ -179,6 +181,7 @@ typedef struct api_tls_Codec api_tls_Codec;
 typedef struct api_Spawned api_Spawned;
 typedef struct api_LogThread api_LogThread;
 typedef struct api_Pinned api_Pinned;
+typedef struct api_Guarded api_Guarded;
 typedef struct api_Hooked api_Hooked;
 typedef struct api_Forged api_Forged;
 typedef struct api_Part api_Part;
@@ -1719,6 +1722,22 @@ API_MUST_USE api_poll api_Local_poll_count_poll(api_Local_poll_count_future *fut
 void api_Local_poll_count_future_free(api_Local_poll_count_future *future);
 uint64_t api_Local_thread_number(const api_Local *self, api_status *status);
 bool api_Local_on_own_thread(const api_Local *self, api_status *status);
+void api_Wrapped_free(api_Wrapped *self);
+void api_Wrapped_drop(api_Wrapped *self, api_status *status);
+API_MUST_USE api_Wrapped *api_Wrapped_new(uint64_t n);
+uint64_t api_Wrapped_n_get(const api_Wrapped *self, api_status *status);
+void api_Wrapped_n_set(api_Wrapped *self, uint64_t value, api_status *status);
+bool api_Wrapped_on_get(const api_Wrapped *self, api_status *status);
+void api_Wrapped_on_set(api_Wrapped *self, bool value, api_status *status);
+uint64_t api_Wrapped_count(const api_Wrapped *self, api_status *status);
+void api_Wrapped_recount(api_Wrapped *self, uint64_t n, api_status *status);
+uint64_t api_Wrapped_steps(const api_Wrapped *self, api_status *status);
+uint32_t api_Wrapped_locals(const api_Wrapped *self, api_status *status);
+void api_Buffer_free(api_Buffer *self);
+void api_Buffer_drop(api_Buffer *self, api_status *status);
+API_MUST_USE api_Buffer *api_Buffer_new(uint32_t len);
+void api_Buffer_blank(api_Buffer *self, api_status *status);
+bool api_Buffer_zeroed(const api_Buffer *self, api_status *status);
 void api_LocalWaiter_free(api_LocalWaiter *self);
 void api_LocalWaiter_drop(api_LocalWaiter *self, api_status *status);
 API_MUST_USE api_LocalWaiter *api_LocalWaiter_new(api_waker waker_);
@@ -2048,6 +2067,10 @@ void api_Plain_n_set(api_Plain *self, uint64_t value, api_status *status);
 bool api_Plain_on_get(const api_Plain *self, api_status *status);
 void api_Plain_on_set(api_Plain *self, bool value, api_status *status);
 API_MUST_USE api_Plain *api_Plain_new(uint64_t n, bool on);
+uint64_t api_Plain_count(const api_Plain *self, api_status *status);
+void api_Plain_recount(api_Plain *self, uint64_t n, api_status *status);
+uint64_t api_Plain_steps(const api_Plain *self, api_status *status);
+uint32_t api_Plain_locals(const api_Plain *self, api_status *status);
 void api_Labeled_free(api_Labeled *self);
 bool api_Labeled_eq(const api_Labeled *a, const api_Labeled *b);
 uint64_t api_Labeled_hash(const api_Labeled *self);
@@ -2201,6 +2224,13 @@ void api_Pinned_value_set(api_Pinned *self, uint64_t value, api_status *status);
 API_MUST_USE api_Pinned *api_Pinned_new(uint64_t value);
 API_MUST_USE api_Pinned *api_Pinned_new_homed(uint64_t value);
 API_MUST_USE api_Part *api_Pinned_part(const api_Pinned *self, api_status *status);
+void api_Guarded_free(api_Guarded *self);
+API_MUST_USE api_Guarded *api_Guarded_new(uint64_t n);
+uint64_t api_Guarded_n_get(const api_Guarded *self);
+bool api_Guarded_on_get(const api_Guarded *self);
+uint64_t api_Guarded_count(const api_Guarded *self);
+uint64_t api_Guarded_steps(const api_Guarded *self);
+uint32_t api_Guarded_locals(const api_Guarded *self);
 void api_Hooked_free(api_Hooked *self);
 void api_Hooked_drop(api_Hooked *self, api_status *status);
 bool api_Hooked_eq(const api_Hooked *a, const api_Hooked *b, api_status *status);
@@ -2208,6 +2238,7 @@ API_MUST_USE api_buf api_Hooked_debug(const api_Hooked *self, api_status *status
 uint64_t api_Hooked_n_get(const api_Hooked *self, api_status *status);
 void api_Hooked_n_set(api_Hooked *self, uint64_t value, api_status *status);
 API_MUST_USE api_Hooked *api_Hooked_new(uint64_t n);
+uint64_t api_Hooked_count(const api_Hooked *self, api_status *status);
 void api_Forged_free(api_Forged *self);
 void api_Forged_drop(api_Forged *self, api_status *status);
 bool api_Forged_eq(const api_Forged *a, const api_Forged *b, api_status *status);

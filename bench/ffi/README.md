@@ -227,14 +227,14 @@ GIL, which dwarfs the handle's own contention.
 ## Leaf calls
 
 A leaf is a call the export proves runs no code but std's and the glue's, waits on no
-lock, and calls no binding: a primitive `pub` field of a `Send` object reached without a
-`Deref`, or a `PartialEq` or `Hash` derived down to primitives ([`Abi::leaf`](../../ffi/src/abi.rs)).
+lock, and calls no binding: a method or `pub` field of a `Send` object, taking and returning
+scalars, whose body and each `Deref`'s on the way its MIR proves so, or a `PartialEq` or
+`Hash` derived down to primitives ([`Abi::leaf`](../../ffi/src/abi.rs)).
 Python keeps the GIL across one, Dart makes it a leaf call (`isLeaf`) to the C function
 itself on the isolate's thread, with no serving thunk, no thread hop, and no `_Arena`, and
 Kotlin marks its native method `@FastNative` ([Kotlin on ART](#kotlin-on-art)).
-The benchmark's u64 getter, `demand.sequence()`, is a method, which the proof cannot see
-into, so the `field` case reads `track::Info::priority` instead; `group.sequence` is a
-field too, but reached through `group::Producer`'s `Deref`, which is user code.
+The `field` case reads `track::Info::priority`, a field; the u64 getter, `demand.start()`,
+a method returning one, is a leaf since the export reads its body ([below](#leaf-bodies)).
 
 Measured 2026-11-19 on **fedora**, an AMD Ryzen 9 9950X (16 cores, 32 threads), through
 `quest gate`, against moq `ffcb7cd9`. Before is rust2 `52070b3d` with this change's
@@ -272,7 +272,32 @@ within the spread of its rounds.
 Python's 37 ns is more than the 10 to 15 the per-language audit estimated for the GIL's
 round trip, as `rt::call` does more around it: it may look for the event loop running, and
 after the call drains what other threads freed and resumes what the call woke, all of which
-a leaf skips. A getter that is no leaf, such as `demand.sequence()`, still pays it.
+a leaf skips. A call that is no leaf, such as `track.is_closed()`, which takes moq's lock,
+still pays it.
+
+### Leaf bodies
+
+A method's body, and a `Deref`'s on the way to a member, is a leaf when its MIR
+([`leaf.rs`](../../ffi/src/leaf.rs)) calls only bodies proven the same way and core's
+intrinsics that only compute, drops nothing whose drop runs other code, has no loop, no
+recursion, no assertion, and no static. So `demand.start()` and `group::Producer`'s
+`start`, through its `Deref`, are leaves, as are 91 more of the stand-in's methods and
+accessors: Dart makes 348 of its calls leaf calls, against 255.
+
+Measured 2026-11-20 on **fedora**, through `quest gate`, against moq `1aa86d5e`: before is
+rust2 `8798a5d7`, after is this change, each program alternating before and after for 5
+rounds at a load average of 7 to 15; each cell is the median wall time in ns per call.
+
+| case | before | after |
+|---|---|---|
+| Python `getter` | 64.5 | 26.7 |
+| Python `shared:getter` | 1,790 | 119 |
+| Python `own:getter` | 1,779 | 113 |
+| Dart `getter` | 26.5 | 15.8 |
+
+The four threads no longer hand the GIL to each other on every call, which was most of
+their 1.8 us. Every other case of both languages moved within 4% either way, Python's
+`field` included, whose code is the same.
 
 ## Kotlin on ART
 
@@ -900,8 +925,27 @@ the refusal), 3 rounds each, alternating, at a load average of 24 to 31; medians
 The refusal adds about 11 CPU seconds, and its walk of the stand-in's 299,455 reachable
 instances takes 6.5 s of them. Wall time ranged 24 to 60 s and 39 to 69 s between rounds
 at this load, so its gap is rough; the walk's check runs after moq's crates, with nothing
-beside it. Peak memory doubles, steady across rounds. A native export reads no MIR and
-pays none of it.
+beside it. Peak memory doubles, steady across rounds.
+
+A native export reads MIR only for its [leaf bodies](#leaf-bodies), which every crate
+encodes for it with `-Zalways-encode-mir`, as `cargo check` encodes none. Measured
+2026-11-20 on **fedora** the same way, the stand-in's native export from an emptied target
+before (rust2 `8798a5d7`) and after this change, 10 rounds each, alternating, at a load
+average of 9 to 19; medians:
+
+| export | wall s | CPU s | peak RSS |
+|---|---|---|---|
+| before | 23.0 | 101.8 | 896 MiB |
+| after | 25.1 | 110.7 | 937 MiB |
+
+So leaves cost the export about 9 CPU seconds, 9%, and 5% of its peak memory, and the
+crates' metadata grows from 135 to 228 MB. The flag alone, measured apart at rust2
+`8798a5d7` in 7 rounds at a load of 12 to 25, added 8 CPU seconds and 44 MiB, so nearly
+all of it is the flag's: the proof walks only the bodies of methods whose signature a leaf
+could have. CPU time ranged 95 to 117 s and 104 to 134 s between rounds, so its gap is
+rough. Recording each crate's leaves in the driver as it compiles the crate would cost
+less, but needs a store of facts keyed by each crate's build beside cargo's own, which
+9 seconds does not repay.
 
 ### Lending returned bytes
 

@@ -108,6 +108,14 @@ export type BoxedU8 = {
 export declare function debug(self: BoxedU8): string;
 export declare function eq(a: BoxedU8, b: BoxedU8): boolean;
 
+// Buffer.ts
+import * as rt from "./rt.ts";
+export type Buffer = rt.Handle<"Buffer">;
+export declare function new$(len: number): Buffer;
+export declare function blank(self: Buffer): void;
+export declare function zeroed(self: Buffer): boolean;
+export { new$ as new };
+
 // Builtin.ts
 import * as rt from "./rt.ts";
 export type Builtin = {
@@ -1176,6 +1184,10 @@ export declare function nSet(self: Plain, value: rt.u64): void;
 export declare function onGet(self: Plain): boolean;
 export declare function onSet(self: Plain, value: boolean): void;
 export declare function new$(n: rt.u64, on: boolean): Plain;
+export declare function count(self: Plain): rt.u64;
+export declare function recount(self: Plain, n: rt.u64): void;
+export declare function steps(self: Plain): rt.u64;
+export declare function locals(self: Plain): number;
 export { new$ as new };
 
 // Platform.ts
@@ -1773,6 +1785,20 @@ export type WrapU32 = {
 export declare function debug(self: WrapU32): string;
 export declare function eq(a: WrapU32, b: WrapU32): boolean;
 
+// Wrapped.ts
+import * as rt from "./rt.ts";
+export type Wrapped = rt.Handle<"Wrapped">;
+export declare function new$(n: rt.u64): Wrapped;
+export declare function nGet(self: Wrapped): rt.u64;
+export declare function nSet(self: Wrapped, value: rt.u64): void;
+export declare function onGet(self: Wrapped): boolean;
+export declare function onSet(self: Wrapped, value: boolean): void;
+export declare function count(self: Wrapped): rt.u64;
+export declare function recount(self: Wrapped, n: rt.u64): void;
+export declare function steps(self: Wrapped): rt.u64;
+export declare function locals(self: Wrapped): number;
+export { new$ as new };
+
 // glue.ts
 import * as rt from "./rt.ts";
 import type { A } from "./A.ts";
@@ -1916,6 +1942,7 @@ export declare const k_Batch: rt.Kind;
 export declare const k_Batch_2: rt.Kind;
 export declare const k_Berth: rt.Kind;
 export declare const k_Board: rt.Kind;
+export declare const k_Buffer: rt.Kind;
 export declare const k_Channel: rt.Kind;
 export declare const k_Codecs: rt.Kind;
 export declare const k_Countdown: rt.Kind;
@@ -1977,6 +2004,7 @@ export declare const k_Url: rt.Kind;
 export declare const k_Verbosity: rt.Kind;
 export declare const k_Waiter: rt.Kind;
 export declare const k_Worker: rt.Kind;
+export declare const k_Wrapped: rt.Kind;
 export declare const k_c: rt.Kind;
 export declare const k_clash_Empty_string: rt.Kind;
 export declare const k_clash_Reader: rt.Kind;

@@ -784,6 +784,28 @@ class Local internal constructor(raw: Long, lent: Boolean = false) : AutoCloseab
 		@kotlin.jvm.JvmStatic fun new(): api.Local
 	}
 }
+class Wrapped internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
+	override fun close()
+	val nGet: kotlin.ULong
+	fun nSet(value: kotlin.ULong)
+	val onGet: kotlin.Boolean
+	fun onSet(value: kotlin.Boolean)
+	fun count(): kotlin.ULong
+	fun recount(n: kotlin.ULong)
+	fun steps(): kotlin.ULong
+	fun locals(): kotlin.UInt
+	companion object {
+		@kotlin.jvm.JvmStatic fun new(n: kotlin.ULong): api.Wrapped
+	}
+}
+class Buffer internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
+	override fun close()
+	fun blank()
+	fun zeroed(): kotlin.Boolean
+	companion object {
+		@kotlin.jvm.JvmStatic fun new(len: kotlin.UInt): api.Buffer
+	}
+}
 class LocalWaiter internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
 	companion object {
@@ -1165,6 +1187,10 @@ class Plain internal constructor(raw: Long, lent: Boolean = false) : AutoCloseab
 	fun nSet(value: kotlin.ULong)
 	val onGet: kotlin.Boolean
 	fun onSet(value: kotlin.Boolean)
+	fun count(): kotlin.ULong
+	fun recount(n: kotlin.ULong)
+	fun steps(): kotlin.ULong
+	fun locals(): kotlin.UInt
 	companion object {
 		@kotlin.jvm.JvmStatic fun new(n: kotlin.ULong, on: kotlin.Boolean): api.Plain
 	}
@@ -1382,6 +1408,17 @@ class Pinned internal constructor(raw: Long, lent: Boolean = false) : AutoClosea
 		@kotlin.jvm.JvmStatic fun new(value: kotlin.ULong): api.Pinned
 	}
 }
+class Guarded internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
+	override fun close()
+	val nGet: kotlin.ULong
+	val onGet: kotlin.Boolean
+	fun count(): kotlin.ULong
+	fun steps(): kotlin.ULong
+	fun locals(): kotlin.UInt
+	companion object {
+		@kotlin.jvm.JvmStatic fun new(n: kotlin.ULong): api.Guarded
+	}
+}
 class Hooked internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
 	fun debug(): kotlin.String
@@ -1389,6 +1426,7 @@ class Hooked internal constructor(raw: Long, lent: Boolean = false) : AutoClosea
 	override fun hashCode(): kotlin.Int
 	val nGet: kotlin.ULong
 	fun nSet(value: kotlin.ULong)
+	fun count(): kotlin.ULong
 	companion object {
 		@kotlin.jvm.JvmStatic fun new(n: kotlin.ULong): api.Hooked
 	}

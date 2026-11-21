@@ -2773,10 +2773,11 @@ fn api_dart() {
 		writes: &[],
 	};
 	step.run(Command::new("dart").args(["analyze", "--fatal-infos"]).arg(&lint));
-	// What looks like a leaf but reaches user code is no leaf call. The script catches a
-	// hand-written `PartialEq`; a getter's drain it cannot, as a home drains each drop
-	// queued for it at once, apart from any call. Nor is one walking a length the caller
-	// picks, which would stall the isolate group's collector until it returns.
+	// What looks like a leaf but reaches user code, loops, or reads a static is no leaf
+	// call. The script catches a hand-written `PartialEq`, method, or `Deref`; a getter's
+	// drain it cannot, as a home drains each drop queued for it at once, apart from any
+	// call. Nor is one walking a length the caller picks, which would stall the isolate
+	// group's collector until it returns.
 	let code = std::fs::read_to_string(generated.join("api.dart")).unwrap();
 	let leaf = |symbol: &str| code.contains(&format!("(symbol: '{symbol}', isLeaf: true)"));
 	assert!(
@@ -2785,6 +2786,12 @@ fn api_dart() {
 			"api_Plain_hash",
 			"api_Plain_n_get",
 			"api_Plain_n_set",
+			"api_Plain_count",
+			"api_Plain_recount",
+			"api_Wrapped_n_get",
+			"api_Wrapped_n_set",
+			"api_Wrapped_count",
+			"api_Wrapped_recount",
 			"api_contract"
 		]
 		.into_iter()
@@ -2800,7 +2807,13 @@ fn api_dart() {
 			"api_Part_eq",
 			"api_Part_hash",
 			"api_Labeled_eq",
-			"api_Labeled_hash"
+			"api_Labeled_hash",
+			"api_Plain_steps",
+			"api_Buffer_blank",
+			"api_Plain_locals",
+			"api_Hooked_count",
+			"api_Guarded_n_get",
+			"api_Guarded_count"
 		]
 		.into_iter()
 		.all(|symbol| !leaf(symbol)),

@@ -34,6 +34,7 @@ pub(crate) fn run(args: Vec<String>) -> ExitCode {
 		};
 	}
 	rust2_driver::rustc::run("rust2-ffi", args, |args, added| {
+		crate::leaf::flags(args, added);
 		crate::wasm::flags(args, added)?;
 		if let Some(walk) = crate::wasm::Walk::for_args(args)? {
 			return Ok(Some(Box::new(walk)));

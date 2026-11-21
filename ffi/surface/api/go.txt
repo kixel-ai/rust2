@@ -363,6 +363,13 @@ type BoxedU8 struct {
 func Keeps(log Log) BoxedU8
 func (self BoxedU8) Equal(other BoxedU8) bool
 func (self BoxedU8) GoString() string
+type Buffer struct {
+	Handle_ *p_rt.Handle_
+}
+func NewBuffer(len_ uint32) *Buffer
+func (self *Buffer) Blank() error
+func (self *Buffer) Close() error
+func (self *Buffer) Zeroed() (bool, error)
 type Builtin interface {
 	Equal(other Builtin) bool
 }
@@ -1001,6 +1008,16 @@ func (self *Gauge) Later(ctx context.Context) (uint64, error)
 func (self *Gauge) Level() (uint64, error)
 func (self *Gauge) Reaches(ctx context.Context, this uint64) (bool, error)
 func (self *Gauge) Set(level uint64) error
+type Guarded struct {
+	Handle_ *p_rt.Handle_
+}
+func NewGuarded(n uint64) (*Guarded, error)
+func (self *Guarded) Close() error
+func (self *Guarded) Count() (uint64, error)
+func (self *Guarded) Locals() (uint32, error)
+func (self *Guarded) NGet() (uint64, error)
+func (self *Guarded) OnGet() (bool, error)
+func (self *Guarded) Steps() (uint64, error)
 type Handle struct {
 	Handle_ *p_rt.Handle_
 }
@@ -1037,6 +1054,7 @@ type Hooked struct {
 }
 func NewHooked(n uint64) (*Hooked, error)
 func (self *Hooked) Close() error
+func (self *Hooked) Count() (uint64, error)
 func (self *Hooked) Equal(other *Hooked) (bool, error)
 func (self *Hooked) GoString() string
 func (self *Hooked) NGet() (uint64, error)
@@ -1489,12 +1507,16 @@ type Plain struct {
 }
 func NewPlain(n uint64, on bool) *Plain
 func (self *Plain) Close() error
+func (self *Plain) Count() (uint64, error)
 func (self *Plain) Equal(other *Plain) (bool, error)
 func (self *Plain) GoString() string
+func (self *Plain) Locals() (uint32, error)
 func (self *Plain) NGet() (uint64, error)
 func (self *Plain) NSet(value uint64) error
 func (self *Plain) OnGet() (bool, error)
 func (self *Plain) OnSet(value bool) error
+func (self *Plain) Recount(n uint64) error
+func (self *Plain) Steps() (uint64, error)
 type Platform interface {
 }
 func NewPlatform() Platform
@@ -1961,6 +1983,19 @@ type WrapU32 struct {
 }
 func (self WrapU32) Equal(other WrapU32) bool
 func (self WrapU32) GoString() string
+type Wrapped struct {
+	Handle_ *p_rt.Handle_
+}
+func NewWrapped(n uint64) *Wrapped
+func (self *Wrapped) Close() error
+func (self *Wrapped) Count() (uint64, error)
+func (self *Wrapped) Locals() (uint32, error)
+func (self *Wrapped) NGet() (uint64, error)
+func (self *Wrapped) NSet(value uint64) error
+func (self *Wrapped) OnGet() (bool, error)
+func (self *Wrapped) OnSet(value bool) error
+func (self *Wrapped) Recount(n uint64) error
+func (self *Wrapped) Steps() (uint64, error)
 
 package core // import "api/core"
 
