@@ -813,8 +813,8 @@ fn resolve_profile<'a>(
 	// Cargo refuses a cycle, which this bound stops at before cargo runs.
 	for _ in 0..=profiles.map_or(0, |p| p.len()) + 1 {
 		match name {
-			"dev" | "test" => return Ok(("debug", dir)),
-			"release" | "bench" => return Ok(("release", dir)),
+			"dev" => return Ok(("debug", dir)),
+			"release" => return Ok(("release", dir)),
 			_ => {}
 		}
 		let inherits = table(name).and_then(|p| p.get("inherits")).and_then(|i| i.as_str());
@@ -1177,6 +1177,14 @@ mod tests {
 				"[ship]\ninherits = \"debug\"",
 				Ok(("debug", Some("ship".to_string()))),
 			),
+			// `test` and `bench` follow an `inherits` of their own.
+			(
+				"ship",
+				"[ship]\ninherits = \"test\"\n[test]\ninherits = \"release\"",
+				Ok(("release", Some("ship".to_string()))),
+			),
+			("test", "[test]\ninherits = \"release\"", Ok(("release", None))),
+			("bench", "[bench]\ninherits = \"dev\"", Ok(("debug", None))),
 			("ship", "", Err(true)),
 			("ship", "[ship]\ninherits = \"ship\"", Err(false)),
 		] {
