@@ -2694,7 +2694,7 @@ fn dart_small_api_lints() {
 	);
 	step::write(
 		&lint.join("edge.dart"),
-		std::fs::read_to_string(out.join("dart").join("edge.dart")).unwrap(),
+		std::fs::read_to_string(out.join("dart/lib/edge.dart")).unwrap(),
 	);
 	let step = Step {
 		stamp: &dir.join("analyze.stamp"),
@@ -2712,7 +2712,7 @@ fn api_dart() {
 	let api = api();
 	let scripts = generated("dart", "transcript.dart", &transcript::dart::emit(transcript()));
 	let dir = scratch().join("api").join("dart");
-	let generated = api.out.join("dart");
+	let generated = api.out.join("dart/lib");
 	// The analyzer reads its options from the analyzed directory, so analyze a copy with them.
 	let lint = dir.join("lint");
 	step::write(
@@ -2857,7 +2857,7 @@ fn protocol_dart(api: &Api, dir: &Path) -> PathBuf {
 	dart_compile(
 		"api",
 		dir,
-		&api.out.join("dart"),
+		&api.out.join("dart/lib"),
 		&api.lib.join(PYTHON_LIB),
 		&manifest_dir().join("tests").join("protocol.dart"),
 		&[],
@@ -3515,8 +3515,10 @@ fn unreached_types() {
 		.arg(&staged)
 		.env("CARGO_TARGET_DIR", moved.join("build")));
 	let manifest = std::fs::read_to_string(moved.join("out/Cargo.toml")).unwrap();
+	// Relative to the export, or absolute where the scratch path holds a symlink.
+	let kio = format!("path = {:?}", moved.join("kio").display().to_string());
 	assert!(
-		manifest.contains(&format!("path = {:?}", moved.join("kio").display().to_string()))
+		(manifest.contains("path = \"../kio\"") || manifest.contains(&kio))
 			&& !manifest.contains(&format!("{:?}", package.join("kio").display().to_string())),
 		"{manifest}"
 	);

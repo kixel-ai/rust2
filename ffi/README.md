@@ -50,8 +50,8 @@ Beside the C header, `include/<prefix>.hpp` holds the same API in C++, over a he
 name. `python/<prefix>.py` holds it in Python, over a CPython
 extension the crate builds with `--features python`, `swift/<prefix>.swift` holds it in
 Swift, over the C header as a clang module, `go/` holds it in Go, a package per crate
-over the C ABI through cgo, and `dart/<prefix>.dart` holds it in Dart, over the C ABI through
-`dart:ffi` and what the crate builds with `--features dart`. When `wasm32-wasip1` is among
+over the C ABI through cgo, and `dart/` holds it as a Dart package, `lib/<prefix>.dart` over
+the C ABI through `dart:ffi` and what the crate builds with `--features dart`. When `wasm32-wasip1` is among
 the targets, `web/` holds it in TypeScript for the web, ES modules over the `.wasm` the
 crate builds with `--target wasm32-wasip1 --features web`.
 An export again rewrites only the files whose content changed, and removes from
@@ -471,6 +471,8 @@ Linux's exports, as the merge queue runs on, since a header names its targets.
   panic or a failed check that aborts goes to logcat as `rust2-ffi` and to bionic's abort
   message, which shows in the tombstone, `ApplicationExitInfo`, and Play vitals, since an
   app's stderr goes nowhere.
+- **Apple**: the build script links the library with room in its header for the longest
+  install name, as Dart and Flutter rename it to the path they bundle it at.
 - **Names** are the prefix, then the item's path from the facade's root, each segment in
   Rust's case, joined by `_`: `track::Producer::append_group` is
   `moq_track_Producer_append_group`, and moq-net's `session::Stats` and `Session::stats`
@@ -1302,10 +1304,18 @@ other than one in its own form, `module <path>` and `go 1.24`.
 
 ## Dart
 
-`<prefix>.dart` is the library `package:<prefix>/<prefix>.dart` over the C ABI through
-`dart:ffi`, tested on Dart 3.13. Each C function is an `@Native` external, which finds
-the shared library the crate builds with `--features dart` as the package's native asset:
-the library's own URI, mapped to the library by a build hook or by `--native-assets`.
+`dart/` is the package `<prefix>`, whose `lib/<prefix>.dart` is the library
+`package:<prefix>/<prefix>.dart` over the C ABI through `dart:ffi`, tested on Dart 3.13 and,
+as its `pubspec.yaml` says, taken by Dart 3.10 and later, whose build hooks are stable. Each
+C function is an `@Native` external, which finds the shared library the crate builds with
+`--features dart` as the package's native asset: the library's own URI, which the package's
+`hook/build.dart` maps to the library when an app depending on it builds or runs. In an
+export, the hook builds the crate beside the package, `../Cargo.toml`, with Cargo, on the
+target the app builds for, for the Android NDK of an app's Flutter build, and reruns when a
+source the build read changes, Cargo's dep-info says which. A release's adds
+`hook/release.json`, from which it downloads the library instead
+([Binding releases](release/README.md)). The prefix must name a Dart package, lowercase
+letters, digits, and `_` and no reserved word, or the export fails.
 
 - **Names** are the C names without the prefix: a type in Pascal case and a member in
   camel case, so `moq_track_Producer` is `TrackProducer`, and its method
