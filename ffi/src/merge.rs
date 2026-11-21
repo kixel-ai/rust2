@@ -1083,6 +1083,7 @@ mod tests {
 				constants: Vec::new(),
 				crates: vec!["f".into()],
 				reached: Vec::new(),
+				profiles: Default::default(),
 				targets: vec![target.into()],
 				links: Default::default(),
 			}
