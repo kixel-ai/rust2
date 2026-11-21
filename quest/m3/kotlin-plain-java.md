@@ -3,10 +3,10 @@
 ## Goal
 
 Plain Java, compiling against the generated Kotlin's classes, calls every function, reads
-every field, makes every value, and implements every callback interface a Kotlin caller
-can, apart from a value class's members,
-which Kotlin compiles to statics `@JvmName` cannot rename, so a Java caller of the Kotlin
-library never needs reflection or a Kotlin shim.
+every field, makes every value, boxes and unboxes every unsigned value, and implements every
+callback interface a Kotlin caller can, an opaque value's members and the functions taking
+one included, through types as checked as Kotlin's, so a Java caller of the Kotlin library
+never needs reflection or a Kotlin shim, and never passes Rust bits it could forge.
 
 ## Plan
 
@@ -42,6 +42,29 @@ remain, each checked with kotlinc 2.4 and javap on 2026-11-21:
   adapter class implementing `Log`, since a method whose only unsigned type is its return,
   `count(): UInt`, cannot share its Kotlin name with `count(): Int`, a conflicting
   overload; signed types in `Log` itself, which Kotlin's implementations would lose.
+- A nullable or generic unsigned value is a `kotlin.UInt` box on the JVM, as
+  `Berth.new(at: UInt?)` takes and `measured(f: () -> ULong)`'s closure returns, and Java
+  can neither make one nor read its bits: `kotlin.UInt`'s only constructor and accessor are
+  `box-impl(int)` and `unbox-impl()`. Recommended: the runtime gains an `Unsigned` object
+  of `@JvmStatic` functions pinned by `@JvmName`, `box(int): UInt?` and `bits(UInt?): int`
+  for each unsigned type, overloaded on the primitive, which a probe checked: Java's
+  `Unsigned.bits(at(Unsigned.box(-2)))` read `4294967295` back, and a Java lambda
+  returning `Unsigned.box(-2L)` passed to `measured` returned `u64::MAX`. Rejected: a
+  `Java` overload of each such function, which multiplies the surface.
+- An opaque value Kotlin holds in a value class reaches no Java caller: its members compile
+  to statics such as `number-impl(long)`, and since
+  [kixel-ai/rust2#945](https://github.com/kixel-ai/rust2/pull/945) a function taking one
+  has a JVM name no Java identifier is (`take-opaque`), as Java would pass bits Rust reads
+  unchecked, while one returning one hands Java its bare `long`. Recommended:
+  `@JvmExposeBoxed` (experimental in Kotlin 2.2 and on, opted into by the generated file
+  with `@OptIn(ExperimentalStdlibApi::class)`, which asks nothing of a consumer's build) on
+  each function taking or returning one and on each member of its class, so Java holds the
+  boxed class Rust made and calls `make()`, `v.next()`, and `take(V)` by name; a probe with
+  kotlinc 2.4.21 compiled and ran exactly that from Java. A function returning one then
+  returns the box, not the `long`. Rejected: a runtime handle type with a checked
+  conversion, which adds a class per opaque value for what the box already is; a
+  documented `long` contract, checked or not, which leaves type confusion between opaque
+  types.
 
 Prove each by a `Caller.java` call, and the callback by a Java class implementing one, as
 #945 does for a mangled function.

@@ -5173,6 +5173,18 @@ pub mod clash {
 		/// Nothing, named and typed as the method a JVM finalizer overrides.
 		pub fn finalize(&self) {}
 
+		/// The count plus `ticket`'s number, by a method taking an opaque value, which Kotlin
+		/// names as the static `take_`.
+		pub fn take(&self, ticket: crate::Ticket) -> u32 {
+			self.count.wrapping_add(ticket.number())
+		}
+
+		/// `ticket`'s number, by a static function taking an opaque value, which Kotlin names
+		/// as the method `take`.
+		pub fn take_(ticket: crate::Ticket) -> u32 {
+			ticket.number()
+		}
+
 		/// Seven, by a static function that camel case names as the method `count`.
 		pub fn count_() -> u32 {
 			7

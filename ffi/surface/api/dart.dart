@@ -1690,6 +1690,8 @@ final class ClashStore extends _Object {
 	int close_();
 	void wait();
 	void finalize();
+	int take(Ticket ticket);
+	static int take_(Ticket ticket);
 	static int count_();
 	int count();
 	factory ClashStore.open();

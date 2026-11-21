@@ -718,6 +718,8 @@ namespace api {
 		RUST2_FFI_CALLABLE ::std::uint32_t close() const;
 		RUST2_FFI_CALLABLE void wait() const;
 		RUST2_FFI_CALLABLE void finalize() const;
+		RUST2_FFI_CALLABLE ::std::uint32_t take(const ::api::Ticket &ticket) const;
+		static ::std::uint32_t take_(const ::api::Ticket &ticket);
 		static ::std::uint32_t count_();
 		RUST2_FFI_CALLABLE ::std::uint32_t count() const;
 		static ::api::clash_Store open_();

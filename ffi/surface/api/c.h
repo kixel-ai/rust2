@@ -17,7 +17,7 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-#define API_CONTRACT ((uint64_t)0x097978987abcd150ULL)
+#define API_CONTRACT ((uint64_t)0x43447afc7b8f8462ULL)
 uint64_t api_contract(void);
 uint32_t api_target(void);
 typedef int32_t api_status;
@@ -2249,6 +2249,8 @@ uint32_t api_clash_Store_free_(const api_clash_Store *self);
 uint32_t api_clash_Store_close(const api_clash_Store *self);
 void api_clash_Store_wait(const api_clash_Store *self);
 void api_clash_Store_finalize(const api_clash_Store *self);
+uint32_t api_clash_Store_take(const api_clash_Store *self, api_Ticket ticket);
+uint32_t api_clash_Store_take_(api_Ticket ticket);
 uint32_t api_clash_Store_count_(void);
 uint32_t api_clash_Store_count(const api_clash_Store *self);
 API_MUST_USE api_clash_Store *api_clash_Store_open_(void);

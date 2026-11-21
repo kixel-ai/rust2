@@ -393,12 +393,15 @@ export declare function toString_(self: ClashSpan): string;
 
 // ClashStore.ts
 import * as rt from "./rt.ts";
+import type { Ticket } from "./Ticket.ts";
 export type ClashStore = rt.Handle<"ClashStore">;
 export declare function new$(count: number): ClashStore;
 export declare function free(self: ClashStore): number;
 export declare function close(self: ClashStore): number;
 export declare function wait(self: ClashStore): void;
 export declare function finalize(self: ClashStore): void;
+export declare function take(self: ClashStore, ticket: Ticket): number;
+export declare function take_(ticket: Ticket): number;
 export declare function count_(): number;
 export declare function count(self: ClashStore): number;
 export declare function open_(): ClashStore;

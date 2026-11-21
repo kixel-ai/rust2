@@ -1502,6 +1502,8 @@ public struct ClashStore: ~Copyable, @unchecked Sendable {
 	@inlinable public func close() -> Swift.UInt32
 	@inlinable public func wait()
 	@inlinable public func finalize()
+	@inlinable public func take(_ ticket: Ticket) -> Swift.UInt32
+	@inlinable public static func take(_ ticket: Ticket) -> Swift.UInt32
 	@inlinable public static func count() -> Swift.UInt32
 	@inlinable public func count() -> Swift.UInt32
 	@inlinable public static func `open`() -> ClashStore

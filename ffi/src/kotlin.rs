@@ -3711,8 +3711,13 @@ impl<'a> Gen<'a> {
 		let mangled = function.params.iter().any(|p| inline(abi.api, &p.ty))
 			|| (!top && inline(abi.api, &strip_refs(&function.ok)));
 		let value_member = place == Place::Member && owner_ty.is_some_and(|ty| inline(abi.api, ty));
+		// Nor is one taking an opaque value, which Java would pass as an unchecked `long`, so
+		// it is pinned apart from the others of its class to a name no Java identifier is.
+		let takes_opaque = function.params.iter().any(|p| opaque_value(abi.api, &p.ty));
 		let target = if getter { "get:" } else { "" };
-		if !value_member {
+		if takes_opaque && !value_member {
+			let _ = writeln!(annotations, "@{target}kotlin.jvm.JvmName(\"{jvm}-opaque\")");
+		} else if !value_member {
 			// A JVM name [`Gen::jvm_named`] moved leaves the Kotlin name alone.
 			if mangled || jvm != jvm_name(&format!("{kind} {member}")) {
 				let _ = writeln!(annotations, "@{target}kotlin.jvm.JvmName(\"{jvm}\")");
@@ -4232,6 +4237,17 @@ fn lowered(api: &Api, ty: &Type) -> Option<&'static str> {
 		// One Rust writes back is a `Mut`.
 		Type::Ref(_, inner) if !ty.written() => lowered(api, inner),
 		_ => None,
+	}
+}
+
+/// Whether a parameter of type `ty` takes an opaque value Kotlin holds in a value class,
+/// nullable or not.
+fn opaque_value(api: &Api, ty: &Type) -> bool {
+	match ty {
+		Type::Record(i) => api.records[*i].opaque.is_some_and(|o| word(&o)),
+		Type::Option(inner) | Type::Box(inner) => opaque_value(api, inner),
+		Type::Ref(_, inner) if !ty.written() => opaque_value(api, inner),
+		_ => false,
 	}
 }
 

@@ -57,6 +57,7 @@ func ClashNested(a *p_rt.Tuple2[p_rt.Tuple2[uint8, uint16], uint32], b *p_rt.Tup
 func ClashRun(work2 func() uint8, work uint8) uint32
 func ClashSourceVtable_() unsafe.Pointer
 func ClashStoreCount() uint32
+func ClashStoreTake(ticket Ticket) uint32
 func ClashUnderscoredNext(underscored ClashUnderscored, change ClashChange) (ClashUnderscored, ClashChange)
 func ClashUnderscored_(underscored ClashUnderscored, op ClashOp, change ClashChange) uint32
 func ClashWaited(source ClashSource) uint8
@@ -774,6 +775,7 @@ func (self *ClashStore) Count() (uint32, error)
 func (self *ClashStore) Finalize() error
 func (self *ClashStore) Free() (uint32, error)
 func (self *ClashStore) Open() (uint32, error)
+func (self *ClashStore) Take(ticket Ticket) (uint32, error)
 func (self *ClashStore) Wait() error
 type ClashString struct {
 	V0 string

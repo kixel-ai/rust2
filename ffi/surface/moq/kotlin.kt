@@ -153,8 +153,8 @@ class Timestamp internal constructor() {
 	@kotlin.jvm.JvmName("value") fun value(): kotlin.ULong
 	@kotlin.jvm.JvmName("scale") fun scale(): moq.Timescale?
 	fun isZero(): kotlin.Boolean
-	@kotlin.jvm.JvmName("convert") @kotlin.jvm.Throws(TimeOverflowException::class) fun convert(newScale: moq.Timescale): moq.Timestamp
-	@kotlin.jvm.JvmName("asScale") @kotlin.jvm.Throws(TimeOverflowException::class) fun asScale(target: moq.Timescale): java.math.BigInteger
+	@kotlin.jvm.JvmName("convert-opaque") @kotlin.jvm.Throws(TimeOverflowException::class) fun convert(newScale: moq.Timescale): moq.Timestamp
+	@kotlin.jvm.JvmName("asScale-opaque") @kotlin.jvm.Throws(TimeOverflowException::class) fun asScale(target: moq.Timescale): java.math.BigInteger
 	@kotlin.jvm.JvmName("asSecs") @kotlin.jvm.Throws(TimeOverflowException::class) fun asSecs(): kotlin.ULong
 	@kotlin.jvm.Throws(TimeOverflowException::class) fun asMillis(): java.math.BigInteger
 	@kotlin.jvm.Throws(TimeOverflowException::class) fun asMicros(): java.math.BigInteger
@@ -163,7 +163,7 @@ class Timestamp internal constructor() {
 	@kotlin.jvm.Throws(TimeOverflowException::class) fun checkedSub(rhs: moq.Timestamp): moq.Timestamp
 	companion object {
 		@kotlin.jvm.JvmStatic val ZERO: moq.Timestamp
-		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("new") @kotlin.jvm.Throws(TimeOverflowException::class) fun new(value: kotlin.ULong, scale: moq.Timescale): moq.Timestamp
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("new-opaque") @kotlin.jvm.Throws(TimeOverflowException::class) fun new(value: kotlin.ULong, scale: moq.Timescale): moq.Timestamp
 		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("unscaled") fun unscaled(key: kotlin.ULong): moq.Timestamp
 		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("fromScale") @kotlin.jvm.Throws(TimeOverflowException::class) fun fromScale(value: kotlin.ULong, unitsPerSecond: kotlin.ULong): moq.Timestamp
 		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("fromSecs") @kotlin.jvm.Throws(TimeOverflowException::class) fun fromSecs(seconds: kotlin.ULong): moq.Timestamp
@@ -1490,7 +1490,7 @@ class DecodeError internal constructor(raw: Long, lent: Boolean = false) : AutoC
 class Driver internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
 	fun debug(): kotlin.String
-	@kotlin.jvm.JvmName("poll") @kotlin.jvm.Throws(ErrorException::class) fun poll(now: moq.ClockInstant, waiter: moq.Waiter): moq.ClockInstant?
+	@kotlin.jvm.JvmName("poll-opaque") @kotlin.jvm.Throws(ErrorException::class) fun poll(now: moq.ClockInstant, waiter: moq.Waiter): moq.ClockInstant?
 }
 class Instance internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable, kotlin.Comparable<Instance> {
 	override fun close()
@@ -1594,16 +1594,16 @@ class Server internal constructor(raw: Long, lent: Boolean = false) : AutoClosea
 	fun withSubscriber(subscribe: moq.OriginProducer): moq.Server
 	fun withAllocator(allocator: moq.BandwidthAllocator): moq.Server
 	fun withStats(stats: moq.StatsSession): moq.Server
-	@kotlin.jvm.JvmName("withLimits") fun withLimits(limits: moq.SessionLimits): moq.Server
+	@kotlin.jvm.JvmName("withLimits-opaque") fun withLimits(limits: moq.SessionLimits): moq.Server
 	fun withVersions(versions: moq.Versions): moq.Server
 	fun withImplementation(implementation: kotlin.String): moq.Server
 	fun withTimeout(timeout: moq.Duration?): moq.Server
-	@kotlin.jvm.JvmName("deadline") fun deadline(arrived: moq.ClockInstant): moq.ClockInstant?
+	@kotlin.jvm.JvmName("deadline-opaque") fun deadline(arrived: moq.ClockInstant): moq.ClockInstant?
 	@kotlin.jvm.JvmName("withReceiveWindow") fun withReceiveWindow(window: kotlin.ULong): moq.Server
-	@kotlin.jvm.JvmName("acceptMemorySession") @kotlin.jvm.Throws(ErrorException::class) suspend fun acceptMemorySession(now: moq.ClockInstant, session: moq.TransportMemorySession): kotlin.Pair<moq.Session, moq.Driver>
-	@kotlin.jvm.JvmName("acceptQmuxSession") @kotlin.jvm.Throws(ErrorException::class) suspend fun acceptQmuxSession(now: moq.ClockInstant, session: moq.QmuxSession): kotlin.Pair<moq.Session, moq.Driver>
-	@kotlin.jvm.JvmName("handshakeMemorySession") @kotlin.jvm.Throws(ErrorException::class) suspend fun handshakeMemorySession(now: moq.ClockInstant, session: moq.TransportMemorySession): moq.ServerHandshake
-	@kotlin.jvm.JvmName("handshakeQmuxSession") @kotlin.jvm.Throws(ErrorException::class) suspend fun handshakeQmuxSession(now: moq.ClockInstant, session: moq.QmuxSession): moq.ServerHandshake
+	@kotlin.jvm.JvmName("acceptMemorySession-opaque") @kotlin.jvm.Throws(ErrorException::class) suspend fun acceptMemorySession(now: moq.ClockInstant, session: moq.TransportMemorySession): kotlin.Pair<moq.Session, moq.Driver>
+	@kotlin.jvm.JvmName("acceptQmuxSession-opaque") @kotlin.jvm.Throws(ErrorException::class) suspend fun acceptQmuxSession(now: moq.ClockInstant, session: moq.QmuxSession): kotlin.Pair<moq.Session, moq.Driver>
+	@kotlin.jvm.JvmName("handshakeMemorySession-opaque") @kotlin.jvm.Throws(ErrorException::class) suspend fun handshakeMemorySession(now: moq.ClockInstant, session: moq.TransportMemorySession): moq.ServerHandshake
+	@kotlin.jvm.JvmName("handshakeQmuxSession-opaque") @kotlin.jvm.Throws(ErrorException::class) suspend fun handshakeQmuxSession(now: moq.ClockInstant, session: moq.QmuxSession): moq.ServerHandshake
 	companion object {
 		@kotlin.jvm.JvmStatic fun default(): moq.Server
 		@kotlin.jvm.JvmStatic fun new(): moq.Server
@@ -1636,7 +1636,7 @@ class Client internal constructor(raw: Long, lent: Boolean = false) : AutoClosea
 	fun withPublisherConsumer(publish: moq.OriginConsumer): moq.Client
 	fun withSubscriber(subscribe: moq.OriginProducer): moq.Client
 	fun withStats(stats: moq.StatsSession): moq.Client
-	@kotlin.jvm.JvmName("withLimits") fun withLimits(limits: moq.SessionLimits): moq.Client
+	@kotlin.jvm.JvmName("withLimits-opaque") fun withLimits(limits: moq.SessionLimits): moq.Client
 	fun withAllocator(allocator: moq.BandwidthAllocator): moq.Client
 	fun withViewers(viewers: moq.BandwidthViewers): moq.Client
 	fun withVersions(versions: moq.Versions): moq.Client
@@ -1645,10 +1645,10 @@ class Client internal constructor(raw: Long, lent: Boolean = false) : AutoClosea
 	fun withToken(token: moq.SetupToken): moq.Client
 	fun withAuth(auth: moq.AuthHandle): moq.Client
 	fun withImplementation(implementation: kotlin.String): moq.Client
-	@kotlin.jvm.JvmName("withCost") fun withCost(cost: moq.OriginCost): moq.Client
+	@kotlin.jvm.JvmName("withCost-opaque") fun withCost(cost: moq.OriginCost): moq.Client
 	@kotlin.jvm.JvmName("withPeerNode") fun withPeerNode(node: kotlin.ULong): moq.Client
-	@kotlin.jvm.JvmName("connectMemorySession") @kotlin.jvm.Throws(ErrorException::class) suspend fun connectMemorySession(now: moq.ClockInstant, session: moq.TransportMemorySession): kotlin.Pair<moq.Session, moq.Driver>
-	@kotlin.jvm.JvmName("connectQmuxSession") @kotlin.jvm.Throws(ErrorException::class) suspend fun connectQmuxSession(now: moq.ClockInstant, session: moq.QmuxSession): kotlin.Pair<moq.Session, moq.Driver>
+	@kotlin.jvm.JvmName("connectMemorySession-opaque") @kotlin.jvm.Throws(ErrorException::class) suspend fun connectMemorySession(now: moq.ClockInstant, session: moq.TransportMemorySession): kotlin.Pair<moq.Session, moq.Driver>
+	@kotlin.jvm.JvmName("connectQmuxSession-opaque") @kotlin.jvm.Throws(ErrorException::class) suspend fun connectQmuxSession(now: moq.ClockInstant, session: moq.QmuxSession): kotlin.Pair<moq.Session, moq.Driver>
 	companion object {
 		@kotlin.jvm.JvmStatic fun default(): moq.Client
 		@kotlin.jvm.JvmStatic fun new(): moq.Client
@@ -1720,7 +1720,7 @@ class ClockClock internal constructor(raw: Long, lent: Boolean = false) : AutoCl
 class ClockDeadline internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
 	fun debug(): kotlin.String
-	@kotlin.jvm.JvmName("set") fun set(at: moq.ClockInstant?)
+	@kotlin.jvm.JvmName("set-opaque") fun set(at: moq.ClockInstant?)
 	@kotlin.jvm.JvmName("deadline") fun deadline(): moq.ClockInstant?
 	suspend fun poll()
 	companion object {
@@ -1731,13 +1731,13 @@ class ClockDeadline internal constructor(raw: Long, lent: Boolean = false) : Aut
 class ClockDeadlines internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
 	fun clone(): moq.ClockDeadlines
-	@kotlin.jvm.JvmName("advance") fun advance(now: moq.ClockInstant)
+	@kotlin.jvm.JvmName("advance-opaque") fun advance(now: moq.ClockInstant)
 	@kotlin.jvm.JvmName("park") fun park(waiter: moq.Waiter): moq.ClockInstant?
 	@kotlin.jvm.JvmName("next") fun next(): moq.ClockInstant?
 	@kotlin.jvm.JvmName("now") fun now(): moq.ClockInstant
 	fun enter(): moq.ClockEntered
 	companion object {
-		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("new") fun new(now: moq.ClockInstant): moq.ClockDeadlines
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("new-opaque") fun new(now: moq.ClockInstant): moq.ClockDeadlines
 	}
 }
 class ClockEntered internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -1751,7 +1751,7 @@ class ClockManual internal constructor(raw: Long, lent: Boolean = false) : AutoC
 	@kotlin.jvm.JvmName("now") fun now(): moq.ClockInstant
 	@kotlin.jvm.JvmName("wall") fun wall(): moq.ClockWall
 	fun advance(duration: moq.Duration)
-	@kotlin.jvm.JvmName("stepWall") fun stepWall(wall: moq.ClockWall)
+	@kotlin.jvm.JvmName("stepWall-opaque") fun stepWall(wall: moq.ClockWall)
 	companion object {
 		@kotlin.jvm.JvmStatic fun default(): moq.ClockManual
 		@kotlin.jvm.JvmStatic @get:kotlin.jvm.JvmName("getWALLSTART") val WALLSTART: moq.ClockWall
@@ -1771,8 +1771,8 @@ class ClockWallMap internal constructor(raw: Long, lent: Boolean = false) : Auto
 	override fun close()
 	fun debug(): kotlin.String
 	fun clone(): moq.ClockWallMap
-	@kotlin.jvm.JvmName("sample") fun sample(now: moq.ClockInstant, wall: moq.ClockWall)
-	@kotlin.jvm.JvmName("map") fun map(at: moq.ClockWall): moq.ClockInstant?
+	@kotlin.jvm.JvmName("sample-opaque") fun sample(now: moq.ClockInstant, wall: moq.ClockWall)
+	@kotlin.jvm.JvmName("map-opaque") fun map(at: moq.ClockWall): moq.ClockInstant?
 	companion object {
 		@kotlin.jvm.JvmStatic fun default(): moq.ClockWallMap
 		@kotlin.jvm.JvmStatic val TOLERANCE: moq.Duration
@@ -1918,7 +1918,7 @@ class MuxClock internal constructor(raw: Long, lent: Boolean = false) : AutoClos
 	override fun equals(other: kotlin.Any?): kotlin.Boolean
 	override fun hashCode(): kotlin.Int
 	fun now(): moq.Timestamp
-	@kotlin.jvm.JvmName("capture") @kotlin.jvm.Throws(MuxErrorException::class) fun capture(at: moq.ClockInstant): moq.Timestamp
+	@kotlin.jvm.JvmName("capture-opaque") @kotlin.jvm.Throws(MuxErrorException::class) fun capture(at: moq.ClockInstant): moq.Timestamp
 	@kotlin.jvm.JvmName("timescale") fun timescale(): moq.Timescale
 	fun wall(): moq.HangCatalogClock?
 	@kotlin.jvm.JvmName("wallClock") @kotlin.jvm.Throws(MuxErrorException::class) fun wallClock(pts: moq.Timestamp): moq.ClockWall
@@ -1926,7 +1926,7 @@ class MuxClock internal constructor(raw: Long, lent: Boolean = false) : AutoClos
 		@kotlin.jvm.JvmStatic fun default(): moq.MuxClock
 		@kotlin.jvm.JvmStatic @get:kotlin.jvm.JvmName("getTIMESCALE") val TIMESCALE: moq.Timescale
 		@kotlin.jvm.JvmStatic fun new(): moq.MuxClock
-		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("at") @kotlin.jvm.Throws(MuxErrorException::class) fun at(epoch: moq.ClockInstant, wall: moq.ClockWall): moq.MuxClock
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("at-opaque") @kotlin.jvm.Throws(MuxErrorException::class) fun at(epoch: moq.ClockInstant, wall: moq.ClockWall): moq.MuxClock
 	}
 }
 class MuxIngest internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -1958,10 +1958,10 @@ class MuxPacer internal constructor(raw: Long, lent: Boolean = false) : AutoClos
 	override fun close()
 	fun withLead(lead: moq.Duration): moq.MuxPacer
 	fun withDelay(delay: moq.Duration): moq.MuxPacer
-	@kotlin.jvm.JvmName("pace") fun pace(ts: moq.Timestamp, now: moq.ClockInstant): moq.ClockInstant
+	@kotlin.jvm.JvmName("pace-opaque") fun pace(ts: moq.Timestamp, now: moq.ClockInstant): moq.ClockInstant
 	@kotlin.jvm.JvmName("due") fun due(ts: moq.Timestamp): moq.ClockInstant?
 	fun slack(): moq.Duration
-	@kotlin.jvm.JvmName("hurry") fun hurry(ts: moq.Timestamp, now: moq.ClockInstant): moq.ClockInstant
+	@kotlin.jvm.JvmName("hurry-opaque") fun hurry(ts: moq.Timestamp, now: moq.ClockInstant): moq.ClockInstant
 	companion object {
 		@kotlin.jvm.JvmStatic fun default(): moq.MuxPacer
 	}
@@ -2036,7 +2036,7 @@ class TokioClient internal constructor(raw: Long, lent: Boolean = false) : AutoC
 	fun withPublisherProducer(publish: moq.OriginProducer): moq.TokioClient
 	fun withPublisherConsumer(publish: moq.OriginConsumer): moq.TokioClient
 	fun withSubscriber(subscribe: moq.OriginProducer): moq.TokioClient
-	@kotlin.jvm.JvmName("withLimits") fun withLimits(limits: moq.SessionLimits): moq.TokioClient
+	@kotlin.jvm.JvmName("withLimits-opaque") fun withLimits(limits: moq.SessionLimits): moq.TokioClient
 	fun withStats(stats: moq.StatsSession): moq.TokioClient
 	@kotlin.jvm.JvmName("withCost") fun withCost(cost: kotlin.ULong): moq.TokioClient
 	@kotlin.jvm.JvmName("withPeerNode") fun withPeerNode(node: kotlin.ULong): moq.TokioClient
@@ -2142,7 +2142,7 @@ class AuthGrant internal constructor(raw: Long, lent: Boolean = false) : AutoClo
 	val subscribeGet: moq.Patterns
 	fun subscribeSet(value: moq.Patterns)
 	@get:kotlin.jvm.JvmName("getExpiresGet") val expiresGet: moq.ClockInstant?
-	@kotlin.jvm.JvmName("expiresSet") fun expiresSet(value: moq.ClockInstant?)
+	@kotlin.jvm.JvmName("expiresSet-opaque") fun expiresSet(value: moq.ClockInstant?)
 	companion object {
 		@kotlin.jvm.JvmStatic fun default(): moq.AuthGrant
 		@kotlin.jvm.JvmStatic fun all(): moq.AuthGrant
@@ -2294,7 +2294,7 @@ class ServerHandshake internal constructor(raw: Long, lent: Boolean = false) : A
 	fun withSubscriber(subscribe: moq.OriginProducer): moq.ServerHandshake
 	@kotlin.jvm.JvmName("withPeerNode") fun withPeerNode(node: kotlin.ULong): moq.ServerHandshake
 	fun withStats(stats: moq.StatsSession): moq.ServerHandshake
-	@kotlin.jvm.JvmName("withLimits") fun withLimits(limits: moq.SessionLimits): moq.ServerHandshake
+	@kotlin.jvm.JvmName("withLimits-opaque") fun withLimits(limits: moq.SessionLimits): moq.ServerHandshake
 	@kotlin.jvm.JvmName("withReceiveWindow") fun withReceiveWindow(window: kotlin.ULong): moq.ServerHandshake
 	suspend fun expired()
 	@kotlin.jvm.Throws(ErrorException::class) suspend fun ok(): kotlin.Pair<moq.Session, moq.Driver>
@@ -2324,7 +2324,7 @@ class SessionStats internal constructor(raw: Long, lent: Boolean = false) : Auto
 	val rttGet: moq.Duration?
 	fun rttSet(value: moq.Duration?)
 	@get:kotlin.jvm.JvmName("getEstimatedSendRateGet") val estimatedSendRateGet: moq.BandwidthRate?
-	@kotlin.jvm.JvmName("estimatedSendRateSet") fun estimatedSendRateSet(value: moq.BandwidthRate?)
+	@kotlin.jvm.JvmName("estimatedSendRateSet-opaque") fun estimatedSendRateSet(value: moq.BandwidthRate?)
 	@get:kotlin.jvm.JvmName("getBytesSentGet") val bytesSentGet: kotlin.ULong?
 	@kotlin.jvm.JvmName("bytesSentSet") fun bytesSentSet(value: kotlin.ULong?)
 	@get:kotlin.jvm.JvmName("getBytesReceivedGet") val bytesReceivedGet: kotlin.ULong?
@@ -2431,7 +2431,7 @@ class StatsRegistry internal constructor(raw: Long, lent: Boolean = false) : Aut
 	fun isEnabled(): kotlin.Boolean
 	fun tier(tier: moq.StatsTier): moq.StatsHandle
 	fun snapshot(): moq.StatsSnapshot
-	@kotlin.jvm.JvmName("report") fun report(report: moq.StatsReport, now: moq.ClockInstant)
+	@kotlin.jvm.JvmName("report-opaque") fun report(report: moq.StatsReport, now: moq.ClockInstant)
 	companion object {
 		@kotlin.jvm.JvmStatic fun default(): moq.StatsRegistry
 		@kotlin.jvm.JvmStatic fun new(config: moq.StatsConfig): moq.StatsRegistry
@@ -2512,7 +2512,7 @@ class TransportProbe internal constructor(raw: Long, lent: Boolean = false) : Au
 	fun debug(): kotlin.String
 	fun clone(): moq.TransportProbe
 	@kotlin.jvm.JvmName("target") fun target(): moq.BandwidthRate
-	@kotlin.jvm.JvmName("setTarget") fun setTarget(rate: moq.BandwidthRate)
+	@kotlin.jvm.JvmName("setTarget-opaque") fun setTarget(rate: moq.BandwidthRate)
 	companion object {
 		@kotlin.jvm.JvmStatic fun default(): moq.TransportProbe
 		@kotlin.jvm.JvmStatic fun new(): moq.TransportProbe
@@ -2540,13 +2540,13 @@ class BandwidthReservation internal constructor(raw: Long, lent: Boolean = false
 	override fun close()
 	@kotlin.jvm.JvmName("rate") fun rate(): moq.BandwidthRate?
 	fun consume(): moq.BandwidthConsumer
-	@kotlin.jvm.JvmName("update") fun update(max: moq.BandwidthRate)
+	@kotlin.jvm.JvmName("update-opaque") fun update(max: moq.BandwidthRate)
 }
 class BandwidthViewer internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
 	@kotlin.jvm.JvmName("rate") fun rate(): moq.BandwidthRate?
 	fun consume(): moq.BandwidthConsumer
-	@kotlin.jvm.JvmName("update") @kotlin.jvm.Throws(ErrorException::class) fun update(max: moq.BandwidthRate)
+	@kotlin.jvm.JvmName("update-opaque") @kotlin.jvm.Throws(ErrorException::class) fun update(max: moq.BandwidthRate)
 }
 class BandwidthCap internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
@@ -2555,19 +2555,19 @@ class BandwidthCap internal constructor(raw: Long, lent: Boolean = false) : Auto
 	override fun equals(other: kotlin.Any?): kotlin.Boolean
 	override fun hashCode(): kotlin.Int
 	@get:kotlin.jvm.JvmName("getRateGet") val rateGet: moq.BandwidthRate
-	@kotlin.jvm.JvmName("rateSet") fun rateSet(value: moq.BandwidthRate)
+	@kotlin.jvm.JvmName("rateSet-opaque") fun rateSet(value: moq.BandwidthRate)
 	val burstGet: moq.Duration
 	fun burstSet(value: moq.Duration)
 	fun withBurst(burst: moq.Duration): moq.BandwidthCap
 	companion object {
 		@kotlin.jvm.JvmStatic val DEFAULTBURST: moq.Duration
-		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("new") fun new(rate: moq.BandwidthRate): moq.BandwidthCap
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("new-opaque") fun new(rate: moq.BandwidthRate): moq.BandwidthCap
 	}
 }
 class BandwidthProducer internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
 	fun clone(): moq.BandwidthProducer
-	@kotlin.jvm.JvmName("set") @kotlin.jvm.Throws(ErrorException::class) fun set(bitrate: moq.BandwidthRate?)
+	@kotlin.jvm.JvmName("set-opaque") @kotlin.jvm.Throws(ErrorException::class) fun set(bitrate: moq.BandwidthRate?)
 	fun consume(): moq.BandwidthConsumer
 	fun weak(): moq.BandwidthWeak
 	fun demand(): moq.BandwidthDemand
@@ -2585,8 +2585,8 @@ class BandwidthAllocator internal constructor(raw: Long, lent: Boolean = false) 
 	override fun close()
 	fun debug(): kotlin.String
 	fun clone(): moq.BandwidthAllocator
-	@kotlin.jvm.JvmName("setTarget") fun setTarget(target: moq.BandwidthRate?)
-	@kotlin.jvm.JvmName("reserve") fun reserve(track: moq.TrackDemand, max: moq.BandwidthRate): moq.BandwidthReservation
+	@kotlin.jvm.JvmName("setTarget-opaque") fun setTarget(target: moq.BandwidthRate?)
+	@kotlin.jvm.JvmName("reserve-opaque") fun reserve(track: moq.TrackDemand, max: moq.BandwidthRate): moq.BandwidthReservation
 	companion object {
 		@kotlin.jvm.JvmStatic fun default(): moq.BandwidthAllocator
 		@kotlin.jvm.JvmStatic fun new(estimate: moq.BandwidthConsumer): moq.BandwidthAllocator
@@ -2597,8 +2597,8 @@ class BandwidthViewers internal constructor(raw: Long, lent: Boolean = false) : 
 	override fun close()
 	fun debug(): kotlin.String
 	fun clone(): moq.BandwidthViewers
-	@kotlin.jvm.JvmName("watch") @kotlin.jvm.Throws(ErrorException::class) fun watch(max: moq.BandwidthRate): moq.BandwidthViewer
-	@kotlin.jvm.JvmName("setTarget") @kotlin.jvm.Throws(ErrorException::class) fun setTarget(target: moq.BandwidthRate?)
+	@kotlin.jvm.JvmName("watch-opaque") @kotlin.jvm.Throws(ErrorException::class) fun watch(max: moq.BandwidthRate): moq.BandwidthViewer
+	@kotlin.jvm.JvmName("setTarget-opaque") @kotlin.jvm.Throws(ErrorException::class) fun setTarget(target: moq.BandwidthRate?)
 	companion object {
 		@kotlin.jvm.JvmStatic fun default(): moq.BandwidthViewers
 		@kotlin.jvm.JvmStatic @get:kotlin.jvm.JvmName("getMAXTARGET") val MAXTARGET: moq.BandwidthRate
@@ -2723,7 +2723,7 @@ class CachePool internal constructor(raw: Long, lent: Boolean = false) : AutoClo
 	@kotlin.jvm.JvmName("used") fun used(): kotlin.ULong
 	@kotlin.jvm.JvmName("resize") fun resize(capacity: kotlin.ULong?)
 	fun expiry(): moq.Duration?
-	@kotlin.jvm.JvmName("poll") fun poll(now: moq.ClockInstant, waiter: moq.Waiter): moq.ClockInstant?
+	@kotlin.jvm.JvmName("poll-opaque") fun poll(now: moq.ClockInstant, waiter: moq.Waiter): moq.ClockInstant?
 	fun downgrade(): moq.CachePoolWeak
 	companion object {
 		@kotlin.jvm.JvmStatic fun default(): moq.CachePool
@@ -2773,10 +2773,10 @@ class DatagramInfo internal constructor(raw: Long, lent: Boolean = false) : Auto
 	override fun equals(other: kotlin.Any?): kotlin.Boolean
 	override fun hashCode(): kotlin.Int
 	@get:kotlin.jvm.JvmName("getTimescaleGet") val timescaleGet: moq.Timescale?
-	@kotlin.jvm.JvmName("timescaleSet") fun timescaleSet(value: moq.Timescale?)
+	@kotlin.jvm.JvmName("timescaleSet-opaque") fun timescaleSet(value: moq.Timescale?)
 	val priorityGet: kotlin.Byte
 	fun prioritySet(value: kotlin.Byte)
-	@kotlin.jvm.JvmName("withTimescale") fun withTimescale(timescale: moq.Timescale?): moq.DatagramInfo
+	@kotlin.jvm.JvmName("withTimescale-opaque") fun withTimescale(timescale: moq.Timescale?): moq.DatagramInfo
 	fun withPriority(priority: kotlin.Byte): moq.DatagramInfo
 	@kotlin.jvm.Throws(ErrorException::class) fun rescale(timestamp: moq.Timestamp): moq.Timestamp
 	companion object {
@@ -2960,7 +2960,7 @@ class TrackInfo internal constructor(raw: Long, lent: Boolean = false) : AutoClo
 	override fun equals(other: kotlin.Any?): kotlin.Boolean
 	override fun hashCode(): kotlin.Int
 	@get:kotlin.jvm.JvmName("getTimescaleGet") val timescaleGet: moq.Timescale?
-	@kotlin.jvm.JvmName("timescaleSet") fun timescaleSet(value: moq.Timescale?)
+	@kotlin.jvm.JvmName("timescaleSet-opaque") fun timescaleSet(value: moq.Timescale?)
 	val maxAgeGet: moq.Duration?
 	fun maxAgeSet(value: moq.Duration?)
 	val priorityGet: kotlin.Byte
@@ -2969,7 +2969,7 @@ class TrackInfo internal constructor(raw: Long, lent: Boolean = false) : AutoClo
 	fun compressionSet(value: moq.TrackCompression)
 	val refreshGet: moq.TrackRefresh
 	fun refreshSet(value: moq.TrackRefresh)
-	@kotlin.jvm.JvmName("withTimescale") fun withTimescale(timescale: moq.Timescale?): moq.TrackInfo
+	@kotlin.jvm.JvmName("withTimescale-opaque") fun withTimescale(timescale: moq.Timescale?): moq.TrackInfo
 	fun withMaxAge(maxAge: moq.Duration?): moq.TrackInfo
 	fun withPriority(priority: kotlin.Byte): moq.TrackInfo
 	fun withCompression(compression: moq.TrackCompression): moq.TrackInfo
@@ -3085,7 +3085,7 @@ class OriginClaim internal constructor(raw: Long, lent: Boolean = false) : AutoC
 	@kotlin.jvm.Throws(ErrorException::class) fun announce()
 	fun withdraw()
 	fun isAnnounced(): kotlin.Boolean
-	@kotlin.jvm.JvmName("setCost") @kotlin.jvm.Throws(ErrorException::class) fun setCost(cost: moq.OriginCost)
+	@kotlin.jvm.JvmName("setCost-opaque") @kotlin.jvm.Throws(ErrorException::class) fun setCost(cost: moq.OriginCost)
 	@kotlin.jvm.Throws(ErrorException::class) fun setAuth(auth: moq.AuthCredential?)
 	suspend fun requested(): moq.OriginRequest?
 }
@@ -3126,14 +3126,14 @@ class OriginConsumer internal constructor(raw: Long, lent: Boolean = false) : Au
 }
 class OriginDriver internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
-	@kotlin.jvm.JvmName("poll") @kotlin.jvm.Throws(ErrorException::class) fun poll(now: moq.ClockInstant, waiter: moq.Waiter): moq.ClockInstant?
+	@kotlin.jvm.JvmName("poll-opaque") @kotlin.jvm.Throws(ErrorException::class) fun poll(now: moq.ClockInstant, waiter: moq.Waiter): moq.ClockInstant?
 }
 class OriginProducer internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
 	fun clone(): moq.OriginProducer
 	fun withStats(session: moq.StatsSession): moq.OriginProducer
 	fun withLink(link: moq.OriginLink): moq.OriginProducer
-	@kotlin.jvm.JvmName("withPriority") fun withPriority(priority: moq.OriginPriority): moq.OriginProducer
+	@kotlin.jvm.JvmName("withPriority-opaque") fun withPriority(priority: moq.OriginPriority): moq.OriginProducer
 	fun withProxy(proxy: kotlin.Boolean): moq.OriginProducer
 	fun config(): moq.OriginConfig
 	@kotlin.jvm.JvmName("node") fun node(): kotlin.ULong
@@ -3167,7 +3167,7 @@ class OriginRoute internal constructor(raw: Long, lent: Boolean = false) : AutoC
 	@kotlin.jvm.Throws(ErrorException::class) fun announce()
 	fun withdraw()
 	fun isAnnounced(): kotlin.Boolean
-	@kotlin.jvm.JvmName("setCost") @kotlin.jvm.Throws(ErrorException::class) fun setCost(cost: moq.OriginCost)
+	@kotlin.jvm.JvmName("setCost-opaque") @kotlin.jvm.Throws(ErrorException::class) fun setCost(cost: moq.OriginCost)
 	@kotlin.jvm.Throws(ErrorException::class) fun setAuth(auth: moq.AuthCredential?)
 }
 class OriginRouteInfo internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -3184,7 +3184,7 @@ class OriginRouteOptions internal constructor(raw: Long, lent: Boolean = false) 
 	override fun close()
 	fun debug(): kotlin.String
 	fun clone(): moq.OriginRouteOptions
-	@kotlin.jvm.JvmName("withCost") fun withCost(cost: moq.OriginCost): moq.OriginRouteOptions
+	@kotlin.jvm.JvmName("withCost-opaque") fun withCost(cost: moq.OriginCost): moq.OriginRouteOptions
 	fun withAuth(auth: moq.AuthCredential): moq.OriginRouteOptions
 	@kotlin.jvm.JvmName("withInstance") fun withInstance(instance: moq.Instance, epoch: kotlin.ULong): moq.OriginRouteOptions
 	companion object {
@@ -3342,9 +3342,9 @@ class HangEchoArrival internal constructor(raw: Long, lent: Boolean = false) : A
 	val timestampGet: moq.Timestamp
 	fun timestampSet(value: moq.Timestamp)
 	@get:kotlin.jvm.JvmName("getWallGet") val wallGet: moq.ClockWall
-	@kotlin.jvm.JvmName("wallSet") fun wallSet(value: moq.ClockWall)
+	@kotlin.jvm.JvmName("wallSet-opaque") fun wallSet(value: moq.ClockWall)
 	companion object {
-		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("new") fun new(timestamp: moq.Timestamp, wall: moq.ClockWall): moq.HangEchoArrival
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("new-opaque") fun new(timestamp: moq.Timestamp, wall: moq.ClockWall): moq.HangEchoArrival
 	}
 }
 class HangCatalogSkipped internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -4109,19 +4109,19 @@ class MuxCatalogTimebase internal constructor(raw: Long, lent: Boolean = false) 
 	override fun close()
 	fun clone(): moq.MuxCatalogTimebase
 	fun reserve(): moq.MuxCatalogReserved
-	@kotlin.jvm.JvmName("place") @kotlin.jvm.Throws(MuxErrorException::class) fun place(pts: moq.Timestamp, wall: moq.ClockWall)
+	@kotlin.jvm.JvmName("place-opaque") @kotlin.jvm.Throws(MuxErrorException::class) fun place(pts: moq.Timestamp, wall: moq.ClockWall)
 }
 class MuxCatalogTimebaseExtra internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
 	fun clone(): moq.MuxCatalogTimebaseExtra
 	fun reserve(): moq.MuxCatalogReservedExtra
-	@kotlin.jvm.JvmName("place") @kotlin.jvm.Throws(MuxErrorException::class) fun place(pts: moq.Timestamp, wall: moq.ClockWall)
+	@kotlin.jvm.JvmName("place-opaque") @kotlin.jvm.Throws(MuxErrorException::class) fun place(pts: moq.Timestamp, wall: moq.ClockWall)
 }
 class MuxCatalogTimebaseExt internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
 	fun clone(): moq.MuxCatalogTimebaseExt
 	fun reserve(): moq.MuxCatalogReservedExt
-	@kotlin.jvm.JvmName("place") @kotlin.jvm.Throws(MuxErrorException::class) fun place(pts: moq.Timestamp, wall: moq.ClockWall)
+	@kotlin.jvm.JvmName("place-opaque") @kotlin.jvm.Throws(MuxErrorException::class) fun place(pts: moq.Timestamp, wall: moq.ClockWall)
 }
 class MuxCatalogReserved internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
@@ -4748,7 +4748,7 @@ class MuxContainerProducerContainerAudioConfig internal constructor(raw: Long, l
 	fun withBuffer(duration: moq.Duration): moq.MuxContainerProducerContainerAudioConfig
 	fun withBandwidth(allocator: moq.BandwidthAllocator): moq.MuxContainerProducerContainerAudioConfig
 	@kotlin.jvm.JvmName("reportSkipped") fun reportSkipped(frames: kotlin.ULong)
-	@kotlin.jvm.JvmName("reportBitrate") fun reportBitrate(bitrate: moq.BandwidthRate)
+	@kotlin.jvm.JvmName("reportBitrate-opaque") fun reportBitrate(bitrate: moq.BandwidthRate)
 	fun track(): moq.TrackProducer
 	fun liveEdge(): moq.Timestamp?
 	@kotlin.jvm.Throws(MuxErrorException::class) fun write(frame: moq.MuxContainerFrame)
@@ -4790,7 +4790,7 @@ class MuxContainerProducerContainerBinaryConfig internal constructor(raw: Long, 
 	fun withBuffer(duration: moq.Duration): moq.MuxContainerProducerContainerBinaryConfig
 	fun withBandwidth(allocator: moq.BandwidthAllocator): moq.MuxContainerProducerContainerBinaryConfig
 	@kotlin.jvm.JvmName("reportSkipped") fun reportSkipped(frames: kotlin.ULong)
-	@kotlin.jvm.JvmName("reportBitrate") fun reportBitrate(bitrate: moq.BandwidthRate)
+	@kotlin.jvm.JvmName("reportBitrate-opaque") fun reportBitrate(bitrate: moq.BandwidthRate)
 	fun track(): moq.TrackProducer
 	fun liveEdge(): moq.Timestamp?
 	@kotlin.jvm.Throws(MuxErrorException::class) fun write(frame: moq.MuxContainerFrame)
@@ -4832,7 +4832,7 @@ class MuxContainerProducerContainerJsonConfig internal constructor(raw: Long, le
 	fun withBuffer(duration: moq.Duration): moq.MuxContainerProducerContainerJsonConfig
 	fun withBandwidth(allocator: moq.BandwidthAllocator): moq.MuxContainerProducerContainerJsonConfig
 	@kotlin.jvm.JvmName("reportSkipped") fun reportSkipped(frames: kotlin.ULong)
-	@kotlin.jvm.JvmName("reportBitrate") fun reportBitrate(bitrate: moq.BandwidthRate)
+	@kotlin.jvm.JvmName("reportBitrate-opaque") fun reportBitrate(bitrate: moq.BandwidthRate)
 	fun track(): moq.TrackProducer
 	fun liveEdge(): moq.Timestamp?
 	@kotlin.jvm.Throws(MuxErrorException::class) fun write(frame: moq.MuxContainerFrame)
@@ -4874,7 +4874,7 @@ class MuxContainerProducerContainerTextConfig internal constructor(raw: Long, le
 	fun withBuffer(duration: moq.Duration): moq.MuxContainerProducerContainerTextConfig
 	fun withBandwidth(allocator: moq.BandwidthAllocator): moq.MuxContainerProducerContainerTextConfig
 	@kotlin.jvm.JvmName("reportSkipped") fun reportSkipped(frames: kotlin.ULong)
-	@kotlin.jvm.JvmName("reportBitrate") fun reportBitrate(bitrate: moq.BandwidthRate)
+	@kotlin.jvm.JvmName("reportBitrate-opaque") fun reportBitrate(bitrate: moq.BandwidthRate)
 	fun track(): moq.TrackProducer
 	fun liveEdge(): moq.Timestamp?
 	@kotlin.jvm.Throws(MuxErrorException::class) fun write(frame: moq.MuxContainerFrame)
@@ -4916,7 +4916,7 @@ class MuxContainerProducerContainerVideoConfig internal constructor(raw: Long, l
 	fun withBuffer(duration: moq.Duration): moq.MuxContainerProducerContainerVideoConfig
 	fun withBandwidth(allocator: moq.BandwidthAllocator): moq.MuxContainerProducerContainerVideoConfig
 	@kotlin.jvm.JvmName("reportSkipped") fun reportSkipped(frames: kotlin.ULong)
-	@kotlin.jvm.JvmName("reportBitrate") fun reportBitrate(bitrate: moq.BandwidthRate)
+	@kotlin.jvm.JvmName("reportBitrate-opaque") fun reportBitrate(bitrate: moq.BandwidthRate)
 	fun track(): moq.TrackProducer
 	fun liveEdge(): moq.Timestamp?
 	@kotlin.jvm.Throws(MuxErrorException::class) fun write(frame: moq.MuxContainerFrame)
@@ -4958,7 +4958,7 @@ class MuxContainerProducerContainer internal constructor(raw: Long, lent: Boolea
 	fun withBuffer(duration: moq.Duration): moq.MuxContainerProducerContainer
 	fun withBandwidth(allocator: moq.BandwidthAllocator): moq.MuxContainerProducerContainer
 	@kotlin.jvm.JvmName("reportSkipped") fun reportSkipped(frames: kotlin.ULong)
-	@kotlin.jvm.JvmName("reportBitrate") fun reportBitrate(bitrate: moq.BandwidthRate)
+	@kotlin.jvm.JvmName("reportBitrate-opaque") fun reportBitrate(bitrate: moq.BandwidthRate)
 	fun track(): moq.TrackProducer
 	fun liveEdge(): moq.Timestamp?
 	@kotlin.jvm.Throws(MuxErrorException::class) fun write(frame: moq.MuxContainerFrame)
@@ -5003,7 +5003,7 @@ class MuxContainerProducerFmp4WireAudioConfig internal constructor(raw: Long, le
 	fun withBuffer(duration: moq.Duration): moq.MuxContainerProducerFmp4WireAudioConfig
 	fun withBandwidth(allocator: moq.BandwidthAllocator): moq.MuxContainerProducerFmp4WireAudioConfig
 	@kotlin.jvm.JvmName("reportSkipped") fun reportSkipped(frames: kotlin.ULong)
-	@kotlin.jvm.JvmName("reportBitrate") fun reportBitrate(bitrate: moq.BandwidthRate)
+	@kotlin.jvm.JvmName("reportBitrate-opaque") fun reportBitrate(bitrate: moq.BandwidthRate)
 	fun track(): moq.TrackProducer
 	fun liveEdge(): moq.Timestamp?
 	@kotlin.jvm.Throws(MuxErrorException::class) fun write(frame: moq.MuxContainerFrame)
@@ -5045,7 +5045,7 @@ class MuxContainerProducerFmp4WireBinaryConfig internal constructor(raw: Long, l
 	fun withBuffer(duration: moq.Duration): moq.MuxContainerProducerFmp4WireBinaryConfig
 	fun withBandwidth(allocator: moq.BandwidthAllocator): moq.MuxContainerProducerFmp4WireBinaryConfig
 	@kotlin.jvm.JvmName("reportSkipped") fun reportSkipped(frames: kotlin.ULong)
-	@kotlin.jvm.JvmName("reportBitrate") fun reportBitrate(bitrate: moq.BandwidthRate)
+	@kotlin.jvm.JvmName("reportBitrate-opaque") fun reportBitrate(bitrate: moq.BandwidthRate)
 	fun track(): moq.TrackProducer
 	fun liveEdge(): moq.Timestamp?
 	@kotlin.jvm.Throws(MuxErrorException::class) fun write(frame: moq.MuxContainerFrame)
@@ -5087,7 +5087,7 @@ class MuxContainerProducerFmp4WireJsonConfig internal constructor(raw: Long, len
 	fun withBuffer(duration: moq.Duration): moq.MuxContainerProducerFmp4WireJsonConfig
 	fun withBandwidth(allocator: moq.BandwidthAllocator): moq.MuxContainerProducerFmp4WireJsonConfig
 	@kotlin.jvm.JvmName("reportSkipped") fun reportSkipped(frames: kotlin.ULong)
-	@kotlin.jvm.JvmName("reportBitrate") fun reportBitrate(bitrate: moq.BandwidthRate)
+	@kotlin.jvm.JvmName("reportBitrate-opaque") fun reportBitrate(bitrate: moq.BandwidthRate)
 	fun track(): moq.TrackProducer
 	fun liveEdge(): moq.Timestamp?
 	@kotlin.jvm.Throws(MuxErrorException::class) fun write(frame: moq.MuxContainerFrame)
@@ -5129,7 +5129,7 @@ class MuxContainerProducerFmp4WireTextConfig internal constructor(raw: Long, len
 	fun withBuffer(duration: moq.Duration): moq.MuxContainerProducerFmp4WireTextConfig
 	fun withBandwidth(allocator: moq.BandwidthAllocator): moq.MuxContainerProducerFmp4WireTextConfig
 	@kotlin.jvm.JvmName("reportSkipped") fun reportSkipped(frames: kotlin.ULong)
-	@kotlin.jvm.JvmName("reportBitrate") fun reportBitrate(bitrate: moq.BandwidthRate)
+	@kotlin.jvm.JvmName("reportBitrate-opaque") fun reportBitrate(bitrate: moq.BandwidthRate)
 	fun track(): moq.TrackProducer
 	fun liveEdge(): moq.Timestamp?
 	@kotlin.jvm.Throws(MuxErrorException::class) fun write(frame: moq.MuxContainerFrame)
@@ -5171,7 +5171,7 @@ class MuxContainerProducerFmp4WireVideoConfig internal constructor(raw: Long, le
 	fun withBuffer(duration: moq.Duration): moq.MuxContainerProducerFmp4WireVideoConfig
 	fun withBandwidth(allocator: moq.BandwidthAllocator): moq.MuxContainerProducerFmp4WireVideoConfig
 	@kotlin.jvm.JvmName("reportSkipped") fun reportSkipped(frames: kotlin.ULong)
-	@kotlin.jvm.JvmName("reportBitrate") fun reportBitrate(bitrate: moq.BandwidthRate)
+	@kotlin.jvm.JvmName("reportBitrate-opaque") fun reportBitrate(bitrate: moq.BandwidthRate)
 	fun track(): moq.TrackProducer
 	fun liveEdge(): moq.Timestamp?
 	@kotlin.jvm.Throws(MuxErrorException::class) fun write(frame: moq.MuxContainerFrame)
@@ -5213,7 +5213,7 @@ class MuxContainerProducerFmp4Wire internal constructor(raw: Long, lent: Boolean
 	fun withBuffer(duration: moq.Duration): moq.MuxContainerProducerFmp4Wire
 	fun withBandwidth(allocator: moq.BandwidthAllocator): moq.MuxContainerProducerFmp4Wire
 	@kotlin.jvm.JvmName("reportSkipped") fun reportSkipped(frames: kotlin.ULong)
-	@kotlin.jvm.JvmName("reportBitrate") fun reportBitrate(bitrate: moq.BandwidthRate)
+	@kotlin.jvm.JvmName("reportBitrate-opaque") fun reportBitrate(bitrate: moq.BandwidthRate)
 	fun track(): moq.TrackProducer
 	fun liveEdge(): moq.Timestamp?
 	@kotlin.jvm.Throws(MuxErrorException::class) fun write(frame: moq.MuxContainerFrame)
@@ -5258,7 +5258,7 @@ class MuxContainerProducerLegacyWireAudioConfig internal constructor(raw: Long, 
 	fun withBuffer(duration: moq.Duration): moq.MuxContainerProducerLegacyWireAudioConfig
 	fun withBandwidth(allocator: moq.BandwidthAllocator): moq.MuxContainerProducerLegacyWireAudioConfig
 	@kotlin.jvm.JvmName("reportSkipped") fun reportSkipped(frames: kotlin.ULong)
-	@kotlin.jvm.JvmName("reportBitrate") fun reportBitrate(bitrate: moq.BandwidthRate)
+	@kotlin.jvm.JvmName("reportBitrate-opaque") fun reportBitrate(bitrate: moq.BandwidthRate)
 	fun track(): moq.TrackProducer
 	fun liveEdge(): moq.Timestamp?
 	@kotlin.jvm.Throws(MuxErrorException::class) fun write(frame: moq.MuxContainerFrame)
@@ -5300,7 +5300,7 @@ class MuxContainerProducerLegacyWireBinaryConfig internal constructor(raw: Long,
 	fun withBuffer(duration: moq.Duration): moq.MuxContainerProducerLegacyWireBinaryConfig
 	fun withBandwidth(allocator: moq.BandwidthAllocator): moq.MuxContainerProducerLegacyWireBinaryConfig
 	@kotlin.jvm.JvmName("reportSkipped") fun reportSkipped(frames: kotlin.ULong)
-	@kotlin.jvm.JvmName("reportBitrate") fun reportBitrate(bitrate: moq.BandwidthRate)
+	@kotlin.jvm.JvmName("reportBitrate-opaque") fun reportBitrate(bitrate: moq.BandwidthRate)
 	fun track(): moq.TrackProducer
 	fun liveEdge(): moq.Timestamp?
 	@kotlin.jvm.Throws(MuxErrorException::class) fun write(frame: moq.MuxContainerFrame)
@@ -5342,7 +5342,7 @@ class MuxContainerProducerLegacyWireJsonConfig internal constructor(raw: Long, l
 	fun withBuffer(duration: moq.Duration): moq.MuxContainerProducerLegacyWireJsonConfig
 	fun withBandwidth(allocator: moq.BandwidthAllocator): moq.MuxContainerProducerLegacyWireJsonConfig
 	@kotlin.jvm.JvmName("reportSkipped") fun reportSkipped(frames: kotlin.ULong)
-	@kotlin.jvm.JvmName("reportBitrate") fun reportBitrate(bitrate: moq.BandwidthRate)
+	@kotlin.jvm.JvmName("reportBitrate-opaque") fun reportBitrate(bitrate: moq.BandwidthRate)
 	fun track(): moq.TrackProducer
 	fun liveEdge(): moq.Timestamp?
 	@kotlin.jvm.Throws(MuxErrorException::class) fun write(frame: moq.MuxContainerFrame)
@@ -5384,7 +5384,7 @@ class MuxContainerProducerLegacyWireTextConfig internal constructor(raw: Long, l
 	fun withBuffer(duration: moq.Duration): moq.MuxContainerProducerLegacyWireTextConfig
 	fun withBandwidth(allocator: moq.BandwidthAllocator): moq.MuxContainerProducerLegacyWireTextConfig
 	@kotlin.jvm.JvmName("reportSkipped") fun reportSkipped(frames: kotlin.ULong)
-	@kotlin.jvm.JvmName("reportBitrate") fun reportBitrate(bitrate: moq.BandwidthRate)
+	@kotlin.jvm.JvmName("reportBitrate-opaque") fun reportBitrate(bitrate: moq.BandwidthRate)
 	fun track(): moq.TrackProducer
 	fun liveEdge(): moq.Timestamp?
 	@kotlin.jvm.Throws(MuxErrorException::class) fun write(frame: moq.MuxContainerFrame)
@@ -5426,7 +5426,7 @@ class MuxContainerProducerLegacyWireVideoConfig internal constructor(raw: Long, 
 	fun withBuffer(duration: moq.Duration): moq.MuxContainerProducerLegacyWireVideoConfig
 	fun withBandwidth(allocator: moq.BandwidthAllocator): moq.MuxContainerProducerLegacyWireVideoConfig
 	@kotlin.jvm.JvmName("reportSkipped") fun reportSkipped(frames: kotlin.ULong)
-	@kotlin.jvm.JvmName("reportBitrate") fun reportBitrate(bitrate: moq.BandwidthRate)
+	@kotlin.jvm.JvmName("reportBitrate-opaque") fun reportBitrate(bitrate: moq.BandwidthRate)
 	fun track(): moq.TrackProducer
 	fun liveEdge(): moq.Timestamp?
 	@kotlin.jvm.Throws(MuxErrorException::class) fun write(frame: moq.MuxContainerFrame)
@@ -5468,7 +5468,7 @@ class MuxContainerProducerLegacyWire internal constructor(raw: Long, lent: Boole
 	fun withBuffer(duration: moq.Duration): moq.MuxContainerProducerLegacyWire
 	fun withBandwidth(allocator: moq.BandwidthAllocator): moq.MuxContainerProducerLegacyWire
 	@kotlin.jvm.JvmName("reportSkipped") fun reportSkipped(frames: kotlin.ULong)
-	@kotlin.jvm.JvmName("reportBitrate") fun reportBitrate(bitrate: moq.BandwidthRate)
+	@kotlin.jvm.JvmName("reportBitrate-opaque") fun reportBitrate(bitrate: moq.BandwidthRate)
 	fun track(): moq.TrackProducer
 	fun liveEdge(): moq.Timestamp?
 	@kotlin.jvm.Throws(MuxErrorException::class) fun write(frame: moq.MuxContainerFrame)
@@ -5513,7 +5513,7 @@ class MuxContainerProducerLocWireAudioConfig internal constructor(raw: Long, len
 	fun withBuffer(duration: moq.Duration): moq.MuxContainerProducerLocWireAudioConfig
 	fun withBandwidth(allocator: moq.BandwidthAllocator): moq.MuxContainerProducerLocWireAudioConfig
 	@kotlin.jvm.JvmName("reportSkipped") fun reportSkipped(frames: kotlin.ULong)
-	@kotlin.jvm.JvmName("reportBitrate") fun reportBitrate(bitrate: moq.BandwidthRate)
+	@kotlin.jvm.JvmName("reportBitrate-opaque") fun reportBitrate(bitrate: moq.BandwidthRate)
 	fun track(): moq.TrackProducer
 	fun liveEdge(): moq.Timestamp?
 	@kotlin.jvm.Throws(MuxErrorException::class) fun write(frame: moq.MuxContainerFrame)
@@ -5555,7 +5555,7 @@ class MuxContainerProducerLocWireBinaryConfig internal constructor(raw: Long, le
 	fun withBuffer(duration: moq.Duration): moq.MuxContainerProducerLocWireBinaryConfig
 	fun withBandwidth(allocator: moq.BandwidthAllocator): moq.MuxContainerProducerLocWireBinaryConfig
 	@kotlin.jvm.JvmName("reportSkipped") fun reportSkipped(frames: kotlin.ULong)
-	@kotlin.jvm.JvmName("reportBitrate") fun reportBitrate(bitrate: moq.BandwidthRate)
+	@kotlin.jvm.JvmName("reportBitrate-opaque") fun reportBitrate(bitrate: moq.BandwidthRate)
 	fun track(): moq.TrackProducer
 	fun liveEdge(): moq.Timestamp?
 	@kotlin.jvm.Throws(MuxErrorException::class) fun write(frame: moq.MuxContainerFrame)
@@ -5597,7 +5597,7 @@ class MuxContainerProducerLocWireJsonConfig internal constructor(raw: Long, lent
 	fun withBuffer(duration: moq.Duration): moq.MuxContainerProducerLocWireJsonConfig
 	fun withBandwidth(allocator: moq.BandwidthAllocator): moq.MuxContainerProducerLocWireJsonConfig
 	@kotlin.jvm.JvmName("reportSkipped") fun reportSkipped(frames: kotlin.ULong)
-	@kotlin.jvm.JvmName("reportBitrate") fun reportBitrate(bitrate: moq.BandwidthRate)
+	@kotlin.jvm.JvmName("reportBitrate-opaque") fun reportBitrate(bitrate: moq.BandwidthRate)
 	fun track(): moq.TrackProducer
 	fun liveEdge(): moq.Timestamp?
 	@kotlin.jvm.Throws(MuxErrorException::class) fun write(frame: moq.MuxContainerFrame)
@@ -5639,7 +5639,7 @@ class MuxContainerProducerLocWireTextConfig internal constructor(raw: Long, lent
 	fun withBuffer(duration: moq.Duration): moq.MuxContainerProducerLocWireTextConfig
 	fun withBandwidth(allocator: moq.BandwidthAllocator): moq.MuxContainerProducerLocWireTextConfig
 	@kotlin.jvm.JvmName("reportSkipped") fun reportSkipped(frames: kotlin.ULong)
-	@kotlin.jvm.JvmName("reportBitrate") fun reportBitrate(bitrate: moq.BandwidthRate)
+	@kotlin.jvm.JvmName("reportBitrate-opaque") fun reportBitrate(bitrate: moq.BandwidthRate)
 	fun track(): moq.TrackProducer
 	fun liveEdge(): moq.Timestamp?
 	@kotlin.jvm.Throws(MuxErrorException::class) fun write(frame: moq.MuxContainerFrame)
@@ -5681,7 +5681,7 @@ class MuxContainerProducerLocWireVideoConfig internal constructor(raw: Long, len
 	fun withBuffer(duration: moq.Duration): moq.MuxContainerProducerLocWireVideoConfig
 	fun withBandwidth(allocator: moq.BandwidthAllocator): moq.MuxContainerProducerLocWireVideoConfig
 	@kotlin.jvm.JvmName("reportSkipped") fun reportSkipped(frames: kotlin.ULong)
-	@kotlin.jvm.JvmName("reportBitrate") fun reportBitrate(bitrate: moq.BandwidthRate)
+	@kotlin.jvm.JvmName("reportBitrate-opaque") fun reportBitrate(bitrate: moq.BandwidthRate)
 	fun track(): moq.TrackProducer
 	fun liveEdge(): moq.Timestamp?
 	@kotlin.jvm.Throws(MuxErrorException::class) fun write(frame: moq.MuxContainerFrame)
@@ -5723,7 +5723,7 @@ class MuxContainerProducerLocWire internal constructor(raw: Long, lent: Boolean 
 	fun withBuffer(duration: moq.Duration): moq.MuxContainerProducerLocWire
 	fun withBandwidth(allocator: moq.BandwidthAllocator): moq.MuxContainerProducerLocWire
 	@kotlin.jvm.JvmName("reportSkipped") fun reportSkipped(frames: kotlin.ULong)
-	@kotlin.jvm.JvmName("reportBitrate") fun reportBitrate(bitrate: moq.BandwidthRate)
+	@kotlin.jvm.JvmName("reportBitrate-opaque") fun reportBitrate(bitrate: moq.BandwidthRate)
 	fun track(): moq.TrackProducer
 	fun liveEdge(): moq.Timestamp?
 	@kotlin.jvm.Throws(MuxErrorException::class) fun write(frame: moq.MuxContainerFrame)
@@ -5955,13 +5955,13 @@ class MuxRatePolicy internal constructor(raw: Long, lent: Boolean = false) : Aut
 	override fun equals(other: kotlin.Any?): kotlin.Boolean
 	override fun hashCode(): kotlin.Int
 	@get:kotlin.jvm.JvmName("getMaxGet") val maxGet: moq.BandwidthRate
-	@kotlin.jvm.JvmName("maxSet") fun maxSet(value: moq.BandwidthRate)
+	@kotlin.jvm.JvmName("maxSet-opaque") fun maxSet(value: moq.BandwidthRate)
 	@get:kotlin.jvm.JvmName("getMinGet") val minGet: moq.BandwidthRate
-	@kotlin.jvm.JvmName("minSet") fun minSet(value: moq.BandwidthRate)
+	@kotlin.jvm.JvmName("minSet-opaque") fun minSet(value: moq.BandwidthRate)
 	@get:kotlin.jvm.JvmName("getLowerGet") val lowerGet: moq.BandwidthRate?
-	@kotlin.jvm.JvmName("lowerSet") fun lowerSet(value: moq.BandwidthRate?)
+	@kotlin.jvm.JvmName("lowerSet-opaque") fun lowerSet(value: moq.BandwidthRate?)
 	companion object {
-		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("new") fun new(max: moq.BandwidthRate): moq.MuxRatePolicy
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("new-opaque") fun new(max: moq.BandwidthRate): moq.MuxRatePolicy
 	}
 }
 class MuxRateControl internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -5970,7 +5970,7 @@ class MuxRateControl internal constructor(raw: Long, lent: Boolean = false) : Au
 	fun clone(): moq.MuxRateControl
 	fun target(): moq.MuxRateTarget
 	fun setProbed(probed: kotlin.Boolean)
-	@kotlin.jvm.JvmName("update") fun update(estimate: moq.BandwidthRate?, now: moq.ClockInstant): moq.MuxRateTarget?
+	@kotlin.jvm.JvmName("update-opaque") fun update(estimate: moq.BandwidthRate?, now: moq.ClockInstant): moq.MuxRateTarget?
 	companion object {
 		@kotlin.jvm.JvmStatic fun new(policy: moq.MuxRatePolicy): moq.MuxRateControl
 	}
@@ -6012,7 +6012,7 @@ class MuxSelectAudio internal constructor(raw: Long, lent: Boolean = false) : Au
 }
 class MuxSyncTrack internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
-	@kotlin.jvm.JvmName("received") fun received(timestamp: moq.Timestamp, now: moq.ClockInstant): kotlin.Boolean
+	@kotlin.jvm.JvmName("received-opaque") fun received(timestamp: moq.Timestamp, now: moq.ClockInstant): kotlin.Boolean
 	fun reset()
 	fun setTarget(target: moq.Duration): kotlin.Boolean
 	suspend fun delayChanged(seen: moq.Duration): moq.Duration
@@ -6042,10 +6042,10 @@ class MuxSyncConsumer internal constructor(raw: Long, lent: Boolean = false) : A
 	fun clone(): moq.MuxSyncConsumer
 	fun delay(): moq.Duration
 	@kotlin.jvm.JvmName("due") fun due(timestamp: moq.Timestamp): moq.ClockInstant?
-	@kotlin.jvm.JvmName("position") fun position(at: moq.ClockInstant): moq.Duration?
+	@kotlin.jvm.JvmName("position-opaque") fun position(at: moq.ClockInstant): moq.Duration?
 	fun schedule(): moq.MuxSyncSchedule
 	suspend fun changed(seen: moq.MuxSyncSchedule): moq.MuxSyncSchedule
-	@kotlin.jvm.JvmName("present") fun present(timestamps: kotlin.collections.List<moq.Timestamp>, now: moq.ClockInstant): kotlin.ULong?
+	@kotlin.jvm.JvmName("present-opaque") fun present(timestamps: kotlin.collections.List<moq.Timestamp>, now: moq.ClockInstant): kotlin.ULong?
 }
 class TokioTlsError internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
@@ -6324,7 +6324,7 @@ class TokioServerRequest internal constructor(raw: Long, lent: Boolean = false) 
 	fun withSubscriber(subscribe: moq.OriginProducer): moq.TokioServerRequest
 	@kotlin.jvm.JvmName("withPeerNode") fun withPeerNode(node: kotlin.ULong): moq.TokioServerRequest
 	fun withStats(stats: moq.StatsSession): moq.TokioServerRequest
-	@kotlin.jvm.JvmName("withLimits") fun withLimits(limits: moq.SessionLimits): moq.TokioServerRequest
+	@kotlin.jvm.JvmName("withLimits-opaque") fun withLimits(limits: moq.SessionLimits): moq.TokioServerRequest
 	fun quicLimits(): moq.MoqTokioServerQuicLimits?
 	@kotlin.jvm.Throws(StringException::class) fun withQuicLimits(limits: moq.MoqQuicLimits): moq.TokioServerRequest
 	suspend fun expired()
@@ -6584,7 +6584,7 @@ class MuxCodecH264Import internal constructor(raw: Long, lent: Boolean = false) 
 	@kotlin.jvm.Throws(MuxErrorException::class) fun discontinuity()
 	@kotlin.jvm.Throws(MuxErrorException::class) fun setEnabled(enabled: kotlin.Boolean)
 	@kotlin.jvm.JvmName("reportSkipped") fun reportSkipped(frames: kotlin.ULong)
-	@kotlin.jvm.JvmName("reportBitrate") fun reportBitrate(bitrate: moq.BandwidthRate)
+	@kotlin.jvm.JvmName("reportBitrate-opaque") fun reportBitrate(bitrate: moq.BandwidthRate)
 	@kotlin.jvm.JvmName("seek") @kotlin.jvm.Throws(MuxErrorException::class) fun seek(start: kotlin.ULong)
 	@kotlin.jvm.Throws(MuxErrorException::class) fun observeReorder(reorder: moq.Timestamp)
 	@kotlin.jvm.Throws(MuxErrorException::class) fun decode(frames: kotlin.collections.List<moq.MuxContainerFrame>)
@@ -6658,7 +6658,7 @@ class MuxCodecH265Import internal constructor(raw: Long, lent: Boolean = false) 
 	@kotlin.jvm.Throws(MuxErrorException::class) fun discontinuity()
 	@kotlin.jvm.Throws(MuxErrorException::class) fun setEnabled(enabled: kotlin.Boolean)
 	@kotlin.jvm.JvmName("reportSkipped") fun reportSkipped(frames: kotlin.ULong)
-	@kotlin.jvm.JvmName("reportBitrate") fun reportBitrate(bitrate: moq.BandwidthRate)
+	@kotlin.jvm.JvmName("reportBitrate-opaque") fun reportBitrate(bitrate: moq.BandwidthRate)
 	@kotlin.jvm.JvmName("seek") @kotlin.jvm.Throws(MuxErrorException::class) fun seek(start: kotlin.ULong)
 	@kotlin.jvm.Throws(MuxErrorException::class) fun observeReorder(reorder: moq.Timestamp)
 	@kotlin.jvm.Throws(MuxErrorException::class) fun decode(frames: kotlin.collections.List<moq.MuxContainerFrame>)
@@ -6887,7 +6887,7 @@ class MuxContainerFmp4FinishedExt internal constructor(raw: Long, lent: Boolean 
 class MuxContainerFmp4Muxer internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
 	@kotlin.jvm.JvmName("timescale") fun timescale(): moq.Timescale
-	@kotlin.jvm.JvmName("withTimescale") @kotlin.jvm.Throws(MuxErrorException::class) fun withTimescale(timescale: moq.Timescale): moq.MuxContainerFmp4Muxer
+	@kotlin.jvm.JvmName("withTimescale-opaque") @kotlin.jvm.Throws(MuxErrorException::class) fun withTimescale(timescale: moq.Timescale): moq.MuxContainerFmp4Muxer
 	@kotlin.jvm.Throws(MuxErrorException::class) suspend fun read(group: moq.GroupConsumer): kotlin.collections.List<moq.MuxContainerFrame>
 	@kotlin.jvm.Throws(MuxErrorException::class) fun pictureSize(keyframe: moq.MuxContainerFrame): kotlin.Pair<kotlin.UInt, kotlin.UInt>?
 	@kotlin.jvm.Throws(MuxErrorException::class) fun init(): moq.Bytes?
@@ -7679,7 +7679,7 @@ class MoqTokioConnectionObservation internal constructor(raw: Long, lent: Boolea
 	@get:kotlin.jvm.JvmName("getConnectsGet") val connectsGet: kotlin.ULong
 	@kotlin.jvm.JvmName("connectsSet") fun connectsSet(value: kotlin.ULong)
 	@get:kotlin.jvm.JvmName("getLastConnectedGet") val lastConnectedGet: moq.ClockInstant?
-	@kotlin.jvm.JvmName("lastConnectedSet") fun lastConnectedSet(value: moq.ClockInstant?)
+	@kotlin.jvm.JvmName("lastConnectedSet-opaque") fun lastConnectedSet(value: moq.ClockInstant?)
 	val phaseGet: moq.MoqTokioConnectionPhase
 	fun phaseSet(value: moq.MoqTokioConnectionPhase)
 }
@@ -8275,11 +8275,11 @@ fun clockSeed(): kotlin.ULong
 fun clockHostTime()
 suspend fun clockDrive(poll: (moq.ClockInstant, moq.Waiter) -> moq.ClockInstant?): kotlin.String
 fun clockInterval(period: moq.Duration): moq.ClockInterval
-@kotlin.jvm.JvmName("clockIntervalAt") fun clockIntervalAt(start: moq.ClockInstant, period: moq.Duration): moq.ClockInterval
+@kotlin.jvm.JvmName("clockIntervalAt-opaque") fun clockIntervalAt(start: moq.ClockInstant, period: moq.Duration): moq.ClockInterval
 suspend fun clockSleep(duration: moq.Duration)
-@kotlin.jvm.JvmName("clockSleepUntil") suspend fun clockSleepUntil(at: moq.ClockInstant)
+@kotlin.jvm.JvmName("clockSleepUntil-opaque") suspend fun clockSleepUntil(at: moq.ClockInstant)
 @kotlin.jvm.Throws(ClockElapsedException::class) suspend fun clockTimeout(duration: moq.Duration, future: suspend () -> kotlin.Unit)
-@kotlin.jvm.JvmName("clockTimeoutAt") @kotlin.jvm.Throws(ClockElapsedException::class) suspend fun clockTimeoutAt(deadline: moq.ClockInstant, future: suspend () -> kotlin.Unit)
+@kotlin.jvm.JvmName("clockTimeoutAt-opaque") @kotlin.jvm.Throws(ClockElapsedException::class) suspend fun clockTimeoutAt(deadline: moq.ClockInstant, future: suspend () -> kotlin.Unit)
 val SERVERDEFAULTTIMEOUT: moq.Duration
 suspend fun timeRunDriver(driver: moq.Driver): moq.Error
 suspend fun timeRunOriginDriver(driver: moq.OriginDriver): moq.Error
