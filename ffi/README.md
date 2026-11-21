@@ -674,7 +674,9 @@ the rest cross encoded.
   until it returns, so the handle is freed only once no call holds it; a call after
   `close()` throws. Of a checked type, `close()` drops the value through Rust's own
   `_drop`, as Rust's `drop` would, and throws instead while a call borrows the value, as
-  Rust refuses that drop, leaving the value to a later `close()`. Of any other type,
+  Rust refuses that drop, leaving the value to a later `close()`; one no call holds, as
+  soon after its return, takes the value through `_drop` and frees the handle in the same
+  crossing, and a `Drop` that calls back into Kotlin finds it closed. Of any other type,
   `close()` frees the handle, and throws while a call holds it. A returned object waits in
   a nursery of the last 64 its thread returned, where `close()` frees it without the GC's
   registration, a phantom reference linked into a list under a lock. One never closed is

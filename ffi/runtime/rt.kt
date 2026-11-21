@@ -485,7 +485,7 @@ class __Handle(
 	private val drop: __Close? = null,
 ) {
 	// The holds, one for the owner until closed and one per call, shifted past a bit set
-	// once closed, one set while an unchecked [close] decides, and one set once calls
+	// once closed, one set while a [close] that may yet fail decides, and one set once calls
 	// contended for them, after which they hold it in [SLOTS]: one word, so a call reads
 	// them all at once, and below [HELD] only once no hold is left.
 	@kotlin.concurrent.Volatile @kotlin.jvm.JvmField internal var state = HELD
@@ -509,7 +509,7 @@ class __Handle(
 	 * finds it closed and frees nothing: [CLOSED], claimed once, decides the one free.
 	 */
 	internal fun evict(owner: Any) {
-		// An unchecked close still deciding may leave it open.
+		// A close still deciding may leave it open.
 		if (state and (CLOSED or CLOSING) == CLOSED) return
 		cleanup = __Collected(owner, this)
 	}
@@ -563,20 +563,17 @@ class __Handle(
 		freed(STATE.addAndGet(this, -HELD))
 	}
 
-	/** Close it as [__Handle] says; again, it does nothing. */
-	fun close() {
+	/**
+	 * Close it as [__Handle] says, [owner] reachable until it returns, so a cleanup of the
+	 * owner never waits out a drop; again, it does nothing.
+	 */
+	fun close(owner: Any) {
 		if (drop != null) {
-			val slot = try {
-				hold()
-			} catch (_: IllegalStateException) {
-				return
-			}
 			try {
-				drop.close(raw)
+				return closeChecked(drop)
 			} finally {
-				release(slot)
+				__Keep.fence(owner)
 			}
-			return abandon()
 		}
 		while (true) {
 			val n = state
@@ -598,6 +595,37 @@ class __Handle(
 		}
 		state = CLOSED
 		freed(CLOSED)
+	}
+
+	// [close] of a handle whose value Rust checks.
+	private fun closeChecked(drop: __Close) {
+		// Held by no call, as soon after its return: claimed closed so none starts, then the
+		// value dropped and the handle freed in one crossing. A call meanwhile throws as
+		// closed, as one racing any close may, and a close meanwhile, such as one a `Drop`
+		// calls back into Kotlin to make, from any thread, returns at once rather than wait
+		// on a drop that may wait on it.
+		if (STATE.compareAndSet(this, HELD, CLOSED or CLOSING)) {
+			try {
+				drop.close(raw, true)
+			} catch (e: Throwable) {
+				state = HELD
+				throw e
+			}
+			cleanup?.stop()
+			state = CLOSED
+			return
+		}
+		val slot = try {
+			hold()
+		} catch (_: IllegalStateException) {
+			return
+		}
+		try {
+			drop.close(raw, false)
+		} finally {
+			release(slot)
+		}
+		abandon()
 	}
 
 	// Whether a call holds it in the table.
@@ -628,7 +656,7 @@ class __Handle(
 	fun abandon() {
 		while (true) {
 			val n = state
-			// An unchecked close is deciding: wait for its outcome, which may leave it open.
+			// A close is deciding: wait for its outcome, which may leave it open.
 			if (n and CLOSING != 0L) {
 				java.lang.Thread.yield()
 				continue
@@ -833,9 +861,9 @@ fun interface __Drop {
 	fun drop(raw: Long)
 }
 
-/** Drops the value of a raw handle, leaving the handle. */
+/** Drops the value of a raw handle, then frees the handle too if [free] and the drop passed. */
 fun interface __Close {
-	fun close(raw: Long)
+	fun close(raw: Long, free: Boolean)
 }
 
 /**

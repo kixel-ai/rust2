@@ -659,8 +659,12 @@ frame path:
    that finds its P's nursery. Since kixel-ai/rust2#880, each Kotlin thread holds one too, and
    a close no longer links and unlinks a phantom reference under a lock: Kotlin's object return
    fell from 124 to 118 ns median wall (from 112 to 94 at best) and from 56 to 38 on 4
-   threads at once. What it has left is mostly a checked close's two JNI crossings, its drop
-   and then its free ([TypeScript](#the-nursery) has the web's).
+   threads at once. Since kixel-ai/rust2#906, a checked close no call holds drops and frees in
+   one JNI crossing, as Go's and Dart's do: measured 2026-11-20 on **fedora** at a load
+   average of 11 to 30, 8 rounds alternating with main at `1fd44bdd`, Kotlin's object return
+   fell from 93 to 77 ns wall at best, and from 132 to 83 median, as half of main's rounds
+   ran at 169 to 199 and none of this one's past 92; and from 260 to 170 median CPU
+   ([TypeScript](#the-nursery) has the web's).
 3. **A woken read.** C's 427 ns is Rust's 329 plus a future's crossings. Kotlin's 1.6 us and
    Dart's 1.8 us add their event loops; Go's 5.1 us and Swift's 5.7 us wall (16.6 us CPU)
    are a goroutine or `Task` and a cross-thread wake per read, and Python's 6.9 us is

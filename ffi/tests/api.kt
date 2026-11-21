@@ -943,6 +943,43 @@ fun owned() {
 	check(dropped() == before + 1u, "closing again frees nothing")
 	check(runCatching { token.idGet }.exceptionOrNull()?.message == "Token is closed", "a call after close throws")
 
+	// A close no call holds drops and frees in one crossing: refused under a Rust borrow, it
+	// leaves the object open, and a close from inside its own drop finds it closed.
+	val ledger = Ledger.new()
+	val draft = ledger.edit()
+	val refused = runCatching { ledger.close() }.exceptionOrNull()
+	check(refused is IllegalStateException && refused.message == "api_Ledger_drop: a handle is already borrowed", "a close under a borrow throws: $refused")
+	draft.close()
+	check(ledger.published() == 0u, "a refused close leaves the object open")
+	ledger.close()
+	check(runCatching { ledger.published() }.exceptionOrNull()?.message == "Ledger is closed", "a close after a refused one closes")
+	lateinit var journal: Journal
+	var during: String? = null
+	var closes = 0
+	val nested = object : Log, AutoCloseable {
+		override fun log(level: UByte, line: String): Boolean = true
+
+		override fun close() {
+			closes++
+			during = runCatching { journal.write("x") }.exceptionOrNull()?.message
+			journal.close()
+		}
+	}
+	journal = Journal.new(nested)
+	journal.close()
+	check(closes == 1, "a close from inside its own drop closes nothing more")
+	check(during == "Journal is closed", "an object is closed in Kotlin while Rust drops it: $during")
+	// Closed again from another thread its drop waits on, which returns rather than wait.
+	lateinit var handed: Journal
+	val joined = object : Log, AutoCloseable {
+		override fun log(level: UByte, line: String): Boolean = true
+
+		override fun close() = thread { handed.close() }.join()
+	}
+	handed = Journal.new(joined)
+	handed.close()
+	check(runCatching { handed.write("x") }.exceptionOrNull()?.message == "Journal is closed", "a close its drop hands to another thread returns")
+
 	// The file serves wasm32 too: what only wasm32 has throws on the host's library.
 	check(platform() is Platform.Native && pointerBits(Platform.Native(64u)) == 64u, "the host is native")
 	check(isFamily(Family.NATIVE), "and of the native family")

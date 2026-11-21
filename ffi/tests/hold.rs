@@ -16,7 +16,7 @@ use loom::thread;
 const CLOSED: usize = 1;
 /// Set in the hold count once calls contended for it, after which they go to the table.
 const BIAS: usize = 2;
-/// Set beside [`CLOSED`] while an unchecked close decides, which may yet leave it open.
+/// Set beside [`CLOSED`] while a close decides, which may yet leave it open.
 const CLOSING: usize = 4;
 /// One hold in the count, past the bits above, so the count is below it only once no hold
 /// is left.
@@ -166,6 +166,44 @@ impl Hold {
 		Closed::Now
 	}
 
+	/// Close a checked handle no call holds in one crossing, as Go's and Kotlin's do: claimed
+	/// closed so no call starts, then the value dropped, which `refused` has Rust refuse as
+	/// under a borrow, reopening it, and the handle freed. `None` while a hold or a close
+	/// stands, when the binding holds it for a drop alone and then gives up the owner's hold.
+	fn drop_free(&self, refused: bool) -> Option<bool> {
+		if self
+			.state
+			.compare_exchange(HELD, CLOSED | CLOSING, SeqCst, SeqCst)
+			.is_err()
+		{
+			return None;
+		}
+		if refused {
+			self.state.store(HELD, SeqCst);
+			return Some(false);
+		}
+		self.free();
+		self.state.store(CLOSED, SeqCst);
+		Some(true)
+	}
+
+	/// Close a checked handle as a binding does: in one crossing if no call holds it, else
+	/// held for the drop, then giving up the owner's hold. Whether it closed it.
+	fn checked_close(&self, column: usize, refused: bool) -> bool {
+		if let Some(closed) = self.drop_free(refused) {
+			return closed;
+		}
+		let Some(slot) = self.hold(column) else {
+			return true;
+		};
+		self.release(slot);
+		if refused {
+			return false;
+		}
+		self.abandon();
+		true
+	}
+
 	/// No hold is left, and the handle was freed once, or not at all while still open.
 	fn settled(&self, closed: bool) {
 		assert!(self.slots.iter().all(|slot| slot.load(SeqCst) == 0));
@@ -301,6 +339,46 @@ fn closes_against_biased_call() {
 			assert_eq!(hold.close(), Closed::Now);
 		}
 		hold.settled(true);
+	});
+}
+
+/// A checked close against calls on the count, which bias it as they meet, and a GC giving
+/// up the owner's hold: a call starting during the one-crossing drop finds it closed, and
+/// the handle is freed once, which no read races.
+#[test]
+fn checked_close_against_calls() {
+	model(|| {
+		let hold = Hold::new(2, false);
+		let (other, collector) = (hold.clone(), hold.clone());
+		// A call already holding it, besides those starting: loom misses a close between a
+		// hold's load and its compare-and-swap, so the model holds one up front.
+		let running = hold.hold(1).unwrap();
+		let calls = thread::spawn(move || {
+			assert_eq!(other.read(), 7);
+			other.release(running);
+			call(&other, 1);
+			call(&other, 1)
+		});
+		let collected = thread::spawn(move || collector.abandon());
+		assert!(hold.checked_close(0, false));
+		calls.join().unwrap();
+		collected.join().unwrap();
+		hold.settled(true);
+	});
+}
+
+/// A checked close Rust refuses, against a call: it leaves the handle open, unfreed, and
+/// usable, whichever path it took.
+#[test]
+fn checked_close_refused() {
+	model(|| {
+		let hold = Hold::new(2, false);
+		let other = hold.clone();
+		let held = thread::spawn(move || call(&other, 1));
+		assert!(!hold.checked_close(0, true));
+		held.join().unwrap();
+		assert!(call(&hold, 0));
+		hold.settled(false);
 	});
 }
 
