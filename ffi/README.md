@@ -15,7 +15,8 @@ rust2-ffi (--out dir | --census dir | --api file) [--manifest-path Cargo.toml] [
 ```
 
 It runs `cargo check` on the package with itself as `RUSTC_WRAPPER`, for each `--target`
-or else the host, whatever cargo's config names, through
+or else the host, whatever cargo's config names, under the release profile unless the cargo
+args pick another, as a library ships, through
 the front end it shares with [rust2-ts](../ts/README.md) in [`driver/`](../driver). A build
 script's probe of the compiler through that wrapper, as `rustversion` and `autocfg` make,
 runs the `rustc` cargo resolved, the one the glue builds with, rather than the exporter's
@@ -239,7 +240,14 @@ item that target compiles works exactly, and no other does:
   another value, or a constant of another value, is refused at its span, with a note at the other's, naming both targets.
 
 The crate's build script sets `cfg(rust2_ffi_target = "<triple>")` for the target it
-builds for, which gates each item, and refuses a target it was not exported for.
+builds for, which gates each item, and refuses a target it was not exported for. It sets
+`cfg(rust2_ffi_proven)` only under the profile the check proved [leaves](#python) under,
+by the `PROFILE`, `OPT_LEVEL`, and debug assertions cargo tells it, and the crate's
+`PROVEN` also needs the check's panic strategy, which a build script cannot see. A build
+under another profile may run code the proof never saw, such as a body under
+`cfg(debug_assertions)`, so each binding makes every leaf as any other call instead:
+Python releases the GIL, Dart serves the isolate, and Kotlin calls a plain native method
+in place of the `@FastNative` one.
 `<prefix>_target()` returns the library's target as its index among the header's,
 listed in its comment, which each binding reads once when it loads.
 
@@ -838,7 +846,10 @@ returning only scalars, whose body and each `Deref`'s on the way the export prov
 their MIR, run no code but std's and the glue's in a bounded number of steps, or a
 `PartialEq` or `Hash` derived, or std's, down to primitives. A leaf waits on no lock and
 calls no Python, so it cannot deadlock on the GIL (`Abi::leaf` in `src/abi.rs` gives the
-argument, and `src/leaf.rs` the proof). So `demand.start()`, which returns a field, costs
+argument, and `src/leaf.rs` the proof). The proof reads the MIR of the profile the export
+checks, release by default, with every arithmetic overflow asserted, which a profile may
+turn off but a build script cannot see; a build under another profile releases the GIL
+across a leaf too ([Targets](#targets)). So `demand.start()`, which returns a field, costs
 27 ns, against 65 releasing the GIL, and 0.1 us on four threads at once, against 1.8
 ([the benchmark](../bench/ffi/README.md#leaf-calls)).
 Each function, method, and property but an `async def` is the extension's own, bound in

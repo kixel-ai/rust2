@@ -290,7 +290,7 @@ bench-run rounds="3":
     build() {
         rm -rf "$scratch"
         measure export env "$libpath=$sysroot/lib" target/release/rust2-ffi --manifest-path target/moq-ffi/Cargo.toml --out "$scratch/moq"
-        measure check cargo check --quiet --lib --manifest-path target/moq-ffi/Cargo.toml
+        measure check cargo check --quiet --release --lib --manifest-path target/moq-ffi/Cargo.toml
         measure generated cargo build --locked --quiet --release --manifest-path "$scratch/moq/Cargo.toml" --features kotlin,dart
         measure moq cargo build --quiet --release --lib --manifest-path target/moq-ffi/Cargo.toml
         rm -rf "$scratch"
