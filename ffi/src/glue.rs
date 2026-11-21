@@ -113,6 +113,80 @@ fn collection(c: Collection) -> String {
 	}
 }
 
+/// The Rust type of a C function taking its data, then `params`, and returning `ret`, of
+/// the ABI `abi`.
+fn fn_pointer(abi: &str, params: &[Ty], ret: &Ty) -> String {
+	let params: Vec<String> = std::iter::once("*mut ::std::ffi::c_void".to_string())
+		.chain(params.iter().map(rs))
+		.collect();
+	format!("unsafe extern \"{abi}\" fn({}) -> {}", params.join(", "), rs(ret))
+}
+
+const NO_MANGLE: &str = "#[unsafe(no_mangle)]\n";
+
+/// The macro [`unwinding`] writes each `unsafe` C function through.
+const EXPORT: &str = "/// A C function, which under `kotlin` calls its body as `C-unwind` by the first name, as the\n/// JNI glue calls it, so a Kotlin closure's failed check unwinds through it to the native\n/// method below: through this one, as C and every other binding call it, any unwinding\n/// aborts, as a panic does.\nmacro_rules! export {\n\t($unwind:ident $(#[$m:meta])* fn $name:ident($($p:ident: $t:ty),* $(,)?) $(-> $r:ty)? $body:block) => {\n\t\t#[cfg(not(feature = \"kotlin\"))]\n\t\t#[unsafe(no_mangle)]\n\t\t$(#[$m])*\n\t\tpub unsafe extern \"C\" fn $name($($p: $t),*) $(-> $r)? $body\n\n\t\t#[cfg(feature = \"kotlin\")]\n\t\t#[unsafe(no_mangle)]\n\t\tpub unsafe extern \"C\" fn $name($($p: $t),*) $(-> $r)? {\n\t\t\tunsafe { $unwind($($p),*) }\n\t\t}\n\n\t\t#[cfg(feature = \"kotlin\")]\n\t\t$(#[$m])*\n\t\tpub unsafe extern \"C-unwind\" fn $unwind($($p: $t),*) $(-> $r)? $body\n\t};\n}\n\n";
+
+/// `lib`, the crate's code, with each `unsafe` C function written through [`EXPORT`]'s
+/// macro, defined before the first, its body named in `space`, which no C name is or starts
+/// with and a `_`.
+fn unwinding(lib: &str, space: &str) -> String {
+	const FN: &str = "pub unsafe extern \"C\" fn ";
+	let mut out = String::with_capacity(lib.len() + EXPORT.len());
+	let mut defined = false;
+	let mut lines = lib.split_inclusive('\n').peekable();
+	while let Some(line) = lines.next() {
+		if line != NO_MANGLE {
+			out.push_str(line);
+			continue;
+		}
+		let mut attrs = Vec::new();
+		while let Some(attr) = lines.next_if(|l| l.starts_with("#[")) {
+			attrs.push(attr);
+		}
+		let Some(head) = lines.next_if(|l| l.starts_with(FN)) else {
+			out.push_str(line);
+			attrs.iter().for_each(|attr| out.push_str(attr));
+			continue;
+		};
+		if !defined {
+			out.push_str(EXPORT);
+			defined = true;
+		}
+		let head = &head[FN.len()..];
+		let name = &head[..head.find('(').expect("a C function's parameters")];
+		out.push_str(&format!("export! {{\n{space}_{name}\n"));
+		attrs.iter().for_each(|attr| out.push_str(attr));
+		out.push_str("fn ");
+		out.push_str(head);
+		// The body, to the brace closing it, the first line holding only one.
+		for body in lines.by_ref() {
+			out.push_str(body);
+			if body == "}\n" {
+				break;
+			}
+		}
+		out.push_str("}\n");
+	}
+	out
+}
+
+/// `let result = call;`, which under `kotlin`, if a closure's failed check unwinds out of it,
+/// first runs `after`, which ends what the call moved and writes back what it changed, so the
+/// Kotlin caller sees both, as a Rust caller catching the panic would.
+fn unwound(call: &str, after: &str) -> String {
+	match after.is_empty() {
+		true => format!("let result = {call};"),
+		false => format!(
+			"#[cfg(feature = \"kotlin\")]\n\tlet unwinding = rt::Unwinding::new(move || {{{}\n\t}});\n\tlet result = {call};\n\t#[cfg(feature = \"kotlin\")]\n\tunwinding.returned();",
+			after.replace("\n\t", "\n\t\t")
+		),
+	}
+}
+
+/// Why the glue calls a function C implements as `C-unwind`.
+const UNWINDING: &str = "// The same calling convention as C's, through which a Kotlin closure's failed check\n\t\t// unwinds back to the native method below.";
+
 /// The Rust spelling of a C type.
 pub(crate) fn rs(ty: &Ty) -> String {
 	match ty {
@@ -143,12 +217,7 @@ pub(crate) fn rs(ty: &Ty) -> String {
 		Ty::In(inner) => format!("*const {}", rs(inner)),
 		Ty::InOut(inner) => format!("*mut {}", rs(inner)),
 		Ty::Jni(_) => "*mut ::std::ffi::c_void".to_string(),
-		Ty::Fn(params, ret) => {
-			let params: Vec<String> = std::iter::once("*mut ::std::ffi::c_void".to_string())
-				.chain(params.iter().map(rs))
-				.collect();
-			format!("Option<unsafe extern \"C\" fn({}) -> {}>", params.join(", "), rs(ret))
-		}
+		Ty::Fn(params, ret) => format!("Option<{}>", fn_pointer("C", params, ret)),
 		Ty::Data => "*mut ::std::ffi::c_void".to_string(),
 	}
 }
@@ -441,10 +510,11 @@ impl Crate<'_> {
 			reserved: Cell::new(false),
 			web: web.is_some(),
 			variants: String::new(),
+			unwind: self.abi.space("unwind"),
 		};
 		generator.lib();
 		output.file(&out.join("Cargo.toml"), &manifest("0.0.0"));
-		output.file(&out.join("src/lib.rs"), &generator.out);
+		output.file(&out.join("src/lib.rs"), &unwinding(&generator.out, &generator.unwind));
 		output.file(&out.join("build.rs"), &build(&self.abi.api.targets));
 		output.file(&out.join("src/rt.rs"), RUNTIME);
 		output.file(&out.join("src/rt/android.rs"), ANDROID);
@@ -766,6 +836,9 @@ struct Gen<'a> {
 	web: bool,
 	/// The Python glue's functions telling which variant an object that is an enum holds.
 	variants: String,
+	/// Where each C function's `C-unwind` body is named under `kotlin`: no C name is it or
+	/// starts with it and a `_`.
+	unwind: String,
 }
 
 impl Gen<'_> {
@@ -797,8 +870,10 @@ impl Gen<'_> {
 		let head = &function[..at + function[at..].find(" {\n").expect("a C function's body")];
 		let name = &head[head.rfind(" fn ").expect("a C function") + 4..];
 		let name = &name[..name.find('(').expect("a C function's parameters")];
+		// The lint after `no_mangle`, which `unwinding` reads first.
+		let head = head.strip_prefix(NO_MANGLE).expect("an exported C function");
 		let stub = format!(
-			"#[cfg(not({cfg}))]\n#[allow(unused_variables, reason = \"a call fails before reading any\")]\n{head} {{\n\trt::fail(\"{name}\", \"it is not on this library's target\")\n}}\n"
+			"#[cfg(not({cfg}))]\n{NO_MANGLE}#[allow(unused_variables, reason = \"a call fails before reading any\")]\n{head} {{\n\trt::fail(\"{name}\", \"it is not on this library's target\")\n}}\n"
 		);
 		self.out.push_str(&format!("#[cfg({cfg})]\n"));
 		self.line(function);
@@ -1291,8 +1366,12 @@ impl Gen<'_> {
 			true => format!("rt::Kept::new({e}_data, {e}_free)"),
 			false => format!("rt::Data::new({e}_data)"),
 		};
+		let Ty::Fn(c_params, c_ret) = self.abi.closure(closure) else {
+			unreachable!("a closure is a C function")
+		};
+		let unwinding = fn_pointer("C-unwind", &c_params, &c_ret);
 		format!(
-			"{{\n\t\tlet f = {e}.unwrap_or_else(|| rt::fail(w, \"a function is null\"));\n\t\tlet data = {data};\n\t\tmove |{}| -> {ret} {{\n\t\t\t{outs}let result = {call};\n\t\t\t{lifted}\n\t\t}}\n\t}}",
+			"{{\n\t\tlet f = {e}.unwrap_or_else(|| rt::fail(w, \"a function is null\"));\n\t\t{UNWINDING}\n\t\tlet f = unsafe {{ ::std::mem::transmute::<_, {unwinding}>(f) }};\n\t\tlet data = {data};\n\t\tmove |{}| -> {ret} {{\n\t\t\t{outs}let result = {call};\n\t\t\t{lifted}\n\t\t}}\n\t}}",
 			typed.join(", "),
 		)
 	}
@@ -1749,7 +1828,7 @@ impl Gen<'_> {
 				self.new_object(i, &format!("<{path} as ::std::default::Default>::default()"))
 			));
 			if !send {
-				self.export(homed(&format!("{name}_default"), &[], handle, &[]));
+				self.export(homed(&format!("{name}_default"), &[], handle, &[], &self.unwind));
 			}
 		}
 	}
@@ -2275,6 +2354,7 @@ impl Gen<'_> {
 				"\tpub {member}: Option<unsafe extern \"C\" fn({}) -> {ret}>,",
 				c_params.join(", ")
 			);
+			let unwinding = format!("unsafe extern \"C-unwind\" fn({}) -> {ret}", c_params.join(", "));
 			let receiver = match method.receiver {
 				Some(Receiver::Mut) => "&mut self",
 				_ => "&self",
@@ -2296,7 +2376,7 @@ impl Gen<'_> {
 				.collect();
 			let _ = write!(
 				methods,
-				"\tfn {}({receiver}{}) -> {} {{\n\t\tlet w = \"{name}_vtable.{member}\";\n\t\tlet f = unsafe {{ (*self.0.vtable).{member} }}.unwrap_or_else(|| rt::fail(w, \"the function is null\"));\n\t\tlet result = unsafe {{ f({}) }};\n\t\t{}\n\t}}\n",
+				"\tfn {}({receiver}{}) -> {} {{\n\t\tlet w = \"{name}_vtable.{member}\";\n\t\tlet f = unsafe {{ (*self.0.vtable).{member} }}.unwrap_or_else(|| rt::fail(w, \"the function is null\"));\n\t\t{UNWINDING}\n\t\tlet f = unsafe {{ ::std::mem::transmute::<_, {unwinding}>(f) }};\n\t\tlet result = unsafe {{ f({}) }};\n\t\t{}\n\t}}\n",
 				ident(method_name),
 				params.iter().map(|p| format!(", {p}")).collect::<String>(),
 				self.rust(&method.ok),
@@ -2408,6 +2488,13 @@ impl Gen<'_> {
 				(list @ Type::List(Collection::Slice, _), Mutability::Not, false) if list.block().is_some() => {
 					(format!("let {local} = unsafe {{ {c}.items(w) }};"), local.to_string())
 				}
+				// Written back once the call returns, or as a closure's failed check unwinds out
+				// of it, through the pointer the call borrows it by once every check passed (see
+				// `pins`), reading it out once.
+				(inner, Mutability::Mut, false) if ty.written() => (
+					format!("let mut {local} = {};", self.lift(inner, c, "true")),
+					format!("unsafe {{ &mut **{local}_at }}"),
+				),
 				(inner, m, _) => {
 					let (binding, pass) = match m {
 						Mutability::Mut => ("let mut", format!("&mut {local}")),
@@ -2675,19 +2762,16 @@ impl Gen<'_> {
 					}
 					// Read through a pointer, so the caller keeps it, and for `&mut self`
 					// written back through it once the call returns.
-					let binding = match receiver {
-						Receiver::Mut => "let mut",
-						_ => "let",
+					let lifted = self.lift(value, "unsafe { *this }", "false");
+					let stmt = match receiver {
+						Receiver::Mut => format!("let mut a_self = {lifted};"),
+						_ => format!("let a_self = {lifted};"),
 					};
-					let made = (
-						String::new(),
-						format!("{binding} a_self = {};", self.lift(value, "unsafe { *this }", "false")),
-						String::new(),
-					);
-					sort(value, &made);
+					sort(value, &(String::new(), stmt, String::new()));
 					args.push(match receiver {
 						Receiver::Owned => "a_self".to_string(),
 						Receiver::Ref => "&a_self".to_string(),
+						Receiver::Mut if !function.future => "unsafe { &mut **a_self_at }".to_string(),
 						Receiver::Mut => "&mut a_self".to_string(),
 					});
 				}
@@ -2885,9 +2969,21 @@ impl Gen<'_> {
 		}
 		// Rust writes back what the call left in each value C passed for `&mut`, on every
 		// path, errors included, and in a value's `&mut self`, in place.
+		// Each value written back, taken from drop's reach only once every check passed, so a
+		// refused call drops it as any other argument.
+		let pin = |local: &str| {
+			format!(
+				"\n\tlet mut {local} = ::std::mem::ManuallyDrop::new({local});\n\tlet {local}_at = &raw mut {local};"
+			)
+		};
+		let mut pins = String::new();
 		let mut writes: String = match &receiver_ty {
 			Some(((_, value), Receiver::Mut)) if !matches!(value, Type::Object(_)) => {
-				format!("\n\tunsafe {{ this.write({}) }};", self.lower(value, "a_self"))
+				pins += &pin("a_self");
+				format!(
+					"\n\tlet a_self = ::std::mem::ManuallyDrop::into_inner(unsafe {{ a_self_at.read() }});\n\tunsafe {{ this.write({}) }};",
+					self.lower(value, "a_self")
+				)
 			}
 			_ => String::new(),
 		};
@@ -2898,8 +2994,9 @@ impl Gen<'_> {
 					unreachable!("a written parameter is `&mut`")
 				};
 				let out = Abi::written(function, &crate::abi::escape(&param.name));
+				pins += &pin(&format!("a{n}"));
 				format!(
-					"\n\tunsafe {{ rt::write::<{}>({out}.cast(), || {}) }};",
+					"\n\tlet a{n} = ::std::mem::ManuallyDrop::into_inner(unsafe {{ a{n}_at.read() }});\n\tunsafe {{ rt::write::<{}>({out}.cast(), || {}) }};",
 					rs(&self.abi.ty(inner)),
 					self.lower(inner, &format!("a{n}"))
 				)
@@ -3040,7 +3137,7 @@ impl Gen<'_> {
 				wrap(status, "*mut rt::Future", &make)
 			));
 			if export.homed {
-				self.export(homed(&name, &make_params, "*mut rt::Future", &unsent));
+				self.export(homed(&name, &make_params, "*mut rt::Future", &unsent, &self.unwind));
 			}
 			let poll_params: Vec<String> = poll.params[2..]
 				.iter()
@@ -3085,7 +3182,7 @@ impl Gen<'_> {
 				wrap(status, "i32", &started)
 			));
 			if export.homed {
-				self.export(homed(&start.name, &start_params, "i32", &unsent));
+				self.export(homed(&start.name, &start_params, "i32", &unsent, &self.unwind));
 			}
 			return;
 		}
@@ -3116,8 +3213,11 @@ impl Gen<'_> {
 		// A Java exception the call left pending is what Kotlin gets, as from any native
 		// method: nothing is written for Kotlin's glue to read, and the result drops with
 		// the exception taken, since a destructor may call into Kotlin, then throws it again.
+		// It returns past the writes, which take every pinned value back: the collector refuses
+		// a `&mut` value, `self` included, beside a JNI value, so there is none.
 		let pending = match function.jni() {
 			true => {
+				assert!(pins.is_empty(), "a JNI function writes nothing back");
 				let zero = match status {
 					Some(_) => "Ok(unsafe { ::std::mem::zeroed() })",
 					None => "unsafe { ::std::mem::zeroed() }",
@@ -3133,10 +3233,10 @@ impl Gen<'_> {
 			"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {name}({}) -> {ret} {{\n\tlet w = \"{name}\";\n\tlet _ = w;\n\t{}{}\n}}\n",
 			params.join(", "),
 			away(&name, &params),
-			wrap(status, &ret, &format!("{body}\n\tlet result = {call};{ended}{pending}{writes}\n\t{finish}"))
+			wrap(status, &ret, &format!("{body}{pins}\n\t{}{ended}{pending}{writes}\n\t{finish}", unwound(&call, &format!("{ended}{writes}"))))
 		));
 		if export.homed {
-			self.export(homed(&name, &params, &ret, &unsent));
+			self.export(homed(&name, &params, &ret, &unsent, &self.unwind));
 		}
 	}
 
@@ -3234,12 +3334,13 @@ fn away(name: &str, params: &[String], handles: &[(String, String)]) -> String {
 /// The twin of the C function `name` taking `params` and returning `ret`, which runs it on
 /// a home, a thread Rust owns, which the value that is not `Send` it makes stays on. When
 /// one of `handles`, each optional, is present, it runs where that value stays instead, as
-/// the function itself does.
-fn homed(name: &str, params: &[String], ret: &str, handles: &[(String, String)]) -> String {
+/// the function itself does, through its body named in `unwind` under `kotlin`, as the JNI
+/// glue calls this one's, so a Kotlin closure's failed check unwinds on to the native method.
+fn homed(name: &str, params: &[String], ret: &str, handles: &[(String, String)], unwind: &str) -> String {
 	let present = match handles.is_empty() {
 		true => String::new(),
 		false => format!(
-			"if {}.is_some() {{\n\t\treturn unsafe {{ {name}({}) }};\n\t}}\n\t",
+			"if {}.is_some() {{\n\t\t#[cfg(feature = \"kotlin\")]\n\t\tlet f = {unwind}_{name};\n\t\t#[cfg(not(feature = \"kotlin\"))]\n\t\tlet f = {name};\n\t\treturn unsafe {{ f({}) }};\n\t}}\n\t",
 			owner(handles),
 			names(params)
 		),
