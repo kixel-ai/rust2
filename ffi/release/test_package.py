@@ -3,6 +3,7 @@
 import importlib.util
 import json
 import os
+import plistlib
 from pathlib import Path
 import shutil
 import subprocess
@@ -669,6 +670,69 @@ class Swift(unittest.TestCase):
         self.assertIn('.linkedFramework("CoreFoundation", .when(platforms: [.macOS]))', settings)
         self.assertIn('.linkedLibrary("iconv")', settings)
 
+    def test_linker_settings_catalyst(self):
+        settings = package.linker_settings({
+            "macos": "-framework AppKit -lSystem",
+            "ios": "-framework UIKit -lSystem",
+            "maccatalyst": "-framework UIKit -lSystem",
+        })
+        self.assertIn('.linkedFramework("UIKit", .when(platforms: [.iOS, .macCatalyst]))', settings)
+        self.assertIn('.linkedLibrary("System")', settings)
+
+    def test_api_names(self):
+        self.assertEqual(package.api_name("_stat"), "stat")
+        self.assertEqual(package.api_name("_fstatat$INODE64"), "fstatat")
+        self.assertEqual(package.api_name("_OBJC_CLASS_$_NSUserDefaults"), "OBJC_CLASS_$_NSUserDefaults")
+
+    def test_required_apis(self):
+        imports = "_fstat$INODE64\n_NSFileSystemFreeSize\n_NSURLCreationDateKey\n_memcpy\n"
+        with mock.patch.object(package, "output", return_value=imports):
+            self.assertEqual(package.required_apis("probe.dylib"), {
+                "FileTimestamp": {"fstat", "NSURLCreationDateKey"},
+                "DiskSpace": {"NSFileSystemFreeSize"},
+            })
+        with self.assertRaises(SystemExit) as raised:
+            package.privacy_manifest("moq", {"DiskSpace": {"NSFileSystemFreeSize"}})
+        self.assertIn("NSFileSystemFreeSize", str(raised.exception))
+
+    def test_privacy_manifest_declares_reasons(self):
+        found = {"FileTimestamp": {"fstat", "stat"}, "SystemBootTime": {"mach_absolute_time"}}
+        plist = plistlib.loads(package.privacy_manifest("moq", found))
+        self.assertEqual(plist, {"NSPrivacyAccessedAPITypes": [
+            {"NSPrivacyAccessedAPIType": "NSPrivacyAccessedAPICategoryFileTimestamp",
+             "NSPrivacyAccessedAPITypeReasons": ["C617.1", "3B52.1"]},
+            {"NSPrivacyAccessedAPIType": "NSPrivacyAccessedAPICategorySystemBootTime",
+             "NSPrivacyAccessedAPITypeReasons": ["35F9.1"]},
+        ]})
+        self.assertEqual(plistlib.loads(package.privacy_manifest("moq", {})), {"NSPrivacyAccessedAPITypes": []})
+
+    def test_privacy_manifest_refuses_unknown_reasons(self):
+        for category, api in (("DiskSpace", "statfs"), ("FileTimestamp or DiskSpace", "getattrlist"),
+                              ("UserDefaults", "OBJC_CLASS_$_NSUserDefaults")):
+            with self.assertRaises(SystemExit, msg=category) as raised:
+                package.privacy_manifest("moq", {category: {api}, "FileTimestamp": {"stat"}})
+            self.assertIn(api, str(raised.exception))
+
+    def test_apple_profile(self):
+        with tempfile.TemporaryDirectory() as raw, mock.patch.dict(os.environ):
+            os.environ.pop("CARGO_PROFILE_RELEASE_DEBUG", None)
+            manifest = Path(raw) / "Cargo.toml"
+            manifest.write_text('[package]\nname = "x"\n')
+            self.assertEqual(package.apple_profile(manifest), {"CARGO_PROFILE_RELEASE_DEBUG": "line-tables-only"})
+            for level in ("false", "0", '"none"', '"line-directives-only"'):
+                manifest.write_text(f'[package]\nname = "x"\n\n[profile.release]\ndebug = {level}\n')
+                self.assertEqual(package.apple_profile(manifest), {"CARGO_PROFILE_RELEASE_DEBUG": "line-tables-only"}, level)
+            for level in ("true", "1", '"full"', '"line-tables-only"'):
+                manifest.write_text(f'[package]\nname = "x"\n\n[profile.release]\ndebug = {level}\n')
+                self.assertEqual(package.apple_profile(manifest), {}, level)
+            # The environment overrides the profile, as it does for cargo.
+            for level in ("0", "false", "none", "line-directives-only"):
+                os.environ["CARGO_PROFILE_RELEASE_DEBUG"] = level
+                self.assertEqual(package.apple_profile(manifest), {"CARGO_PROFILE_RELEASE_DEBUG": "line-tables-only"}, level)
+            for level in ("1", "2", "true", "limited", "full", "line-tables-only"):
+                os.environ["CARGO_PROFILE_RELEASE_DEBUG"] = level
+                self.assertEqual(package.apple_profile(manifest), {}, level)
+
     def test_unknown_linker_flags_fail(self):
         with self.assertRaises(SystemExit):
             package.linker_settings({"macos": "-Wl,-dead_strip"})
@@ -676,9 +740,10 @@ class Swift(unittest.TestCase):
     def test_manifest(self):
         text = package.package_swift("Moq", "1.7.5", ['.linkedLibrary("iconv")'],
                                      '.binaryTarget(name: "MoqFFI", url: "https://x/MoqFFI.xcframework.zip", checksum: "00")')
-        self.assertIn('platforms: [.macOS("13.0"), .iOS("16.0")]', text)
+        self.assertIn('platforms: [.macOS("13.0"), .iOS("16.0"), .macCatalyst("16.0")]', text)
+        self.assertIn('.target(name: "MoqPrivacy", resources: [.copy("PrivacyInfo.xcprivacy")])', text)
         self.assertIn('exact: "1.7.5"', text)
-        self.assertIn('dependencies: ["MoqFFI", .product(name: "BasicContainers", package: "swift-collections")]', text)
+        self.assertIn('dependencies: ["MoqFFI", "MoqPrivacy", .product(name: "BasicContainers", package: "swift-collections")]', text)
 
 
 class CArchive(unittest.TestCase):
@@ -807,6 +872,14 @@ class Sdist(unittest.TestCase):
         self.assertEqual(moved["dependencies"]["api_export"], {"package": "api", "path": "../sources/src/api", "features": ["x"]})
         self.assertEqual(moved["target"]["cfg(unix)"]["dependencies"]["tls"]["path"], "../sources/src/tls")
         self.assertEqual(moved["patch"]["crates-io"]["url"]["path"], "../sources/vendor/url")
+
+    def test_moves_each_path_once(self):
+        # One package's new path is another's old one, as relative keys can make: each path
+        # moves by its original value alone.
+        manifest = '[dependencies]\na = { path = "../a" }\nb = { path = "../sources/a" }\n'
+        moves = {"../a": "../sources/a", "../sources/a": "../sources/sources/a"}
+        moved = tomllib.loads(package.relocate(manifest, moves, strict=True))
+        self.assertEqual(moved["dependencies"], {"a": {"path": "../sources/a"}, "b": {"path": "../sources/sources/a"}})
 
     def test_refuses_a_path_no_package_lies_at(self):
         manifest = '[dependencies]\na = { path = "/src/a" }\nb = { path = "/elsewhere/b" }\n'
@@ -1073,6 +1146,39 @@ class Web(unittest.TestCase):
             check.write_text('import * as api from "./web/nested/index.ts";\n')
             with self.assertRaises(SystemExit):
                 package.check_program(check, "@moq/moq-ffi")
+
+    def test_check_directory_names_its_program(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            (Path(tmp) / "transcript.ts").write_text("")
+            with self.assertRaises(SystemExit):
+                package.check_program_in(tmp, ("check.ts",))
+            (Path(tmp) / "check.ts").write_text("")
+            self.assertEqual(package.check_program_in(tmp, ("check.ts",)), Path(tmp) / "check.ts")
+            (Path(tmp) / "check.c").write_text("")
+            (Path(tmp) / "check.cpp").write_text("")
+            with self.assertRaises(SystemExit):
+                package.check_program_in(tmp, ("check.c", "check.cpp"))
+
+    def test_python_check_imports_its_modules_alone(self):
+        # The check's directory is on the path, and only it: not the working directory, and
+        # not PYTHONPATH. The generated script reaches the check's functions as `__main__`.
+        with tempfile.TemporaryDirectory() as tmp:
+            check, elsewhere = Path(tmp) / "check", Path(tmp) / "elsewhere"
+            check.mkdir()
+            elsewhere.mkdir()
+            (elsewhere / "stray.py").write_text("")
+            (check / "check.py").write_text(
+                "import importlib.util\n"
+                "def hook():\n    return 'hooked'\n"
+                "assert importlib.util.find_spec('stray') is None\n"
+                "import transcript\ntranscript.script()\n")
+            (check / "transcript.py").write_text("import __main__ as local\ndef script():\n    print(local.hook())\n")
+            (Path(tmp) / "native.txt").write_bytes(b"hooked\n")
+            with mock.patch.dict(os.environ, {"PYTHONPATH": str(elsewhere)}):
+                package.consume_python(check, Path(tmp) / "native.txt", None)
+            (Path(tmp) / "native.txt").write_bytes(b"other\n")
+            with self.assertRaises(SystemExit):
+                package.consume_python(check, Path(tmp) / "native.txt", None)
 
 
 if __name__ == "__main__":

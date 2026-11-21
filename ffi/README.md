@@ -45,8 +45,9 @@ its source's URL.
 A `[replace]` from the source it replaces, which no `[patch]` can carry, is an error.
 Beside the C header, `include/<prefix>.hpp` holds the same API in C++, over a header per crate,
 `kotlin/<prefix>.kt` holds it in Kotlin, over JNI functions the crate builds with
-`--features kotlin`, and `kotlin/<prefix>.pro` the R8 and ProGuard rules keeping what
-those functions look up by name. `python/<prefix>.py` holds it in Python, over a CPython
+`--features kotlin`, beside `kotlin/FastNative.kt`, an annotation a build may need with it, and
+`kotlin/<prefix>.pro` the R8 and ProGuard rules keeping what those functions look up by
+name. `python/<prefix>.py` holds it in Python, over a CPython
 extension the crate builds with `--features python`, `swift/<prefix>.swift` holds it in
 Swift, over the C header as a clang module, `go/` holds it in Go, a package per crate
 over the C ABI through cgo, and `dart/<prefix>.dart` holds it in Dart, over the C ABI through
@@ -435,8 +436,8 @@ Linux's exports, as the merge queue runs on, since a header names its targets.
 - **Callbacks** are a struct of a table and its data. Rust calls `free` once it drops the
   implementation, and may call the others from any thread. A callback takes scalars and
   buffers lent for the call, and returns a scalar. Each method is its table's member by
-  its name, with `_` appended where C, C++, or Rust reads it as a keyword, where GNU
-  dialects predefine it as a macro (`i386`, `linux`, `unix`), where C and C++ reserve it
+  its name, with `_` appended where C, C++, or Rust reads it as a keyword, where a header
+  or GNU dialect defines it as a macro (`src/macros.txt`: `unix`, `EOF`), where C and C++ reserve it
   (`_Bool`, `__cplusplus`), where the ABI's own parameters take it (`data`, `out`, `err`,
   `future`, `waker`, `out0`, ...), where it ends in `_`, and for `free`, the table's own:
   `delete`, `free`, `type`, and `data` are `delete_`, `free_`, `type_`, and `data_`.
@@ -519,13 +520,13 @@ packages place it in.
 
 - **Names** are the C names without the prefix, in a namespace of it: `moq_track_Producer`
   is `moq::track_Producer`, and its method `moq_track_Producer_append_group` is
-  `moq::track_Producer::append_group`. A keyword, or a macro of a short list that GNU dialects predefine or the
-  C library's headers define (`unix`, `linux`, `i386`, as in moq-tokio's `tokio::unix_`,
-  and `errno`, `assert`, `offsetof`, `stdin`, `stdout`, and `stderr`, and each of them
-  followed by underscores, so `unix_` becomes `unix__`; any other macro, such as `EOF` or
-  `va_start`, is not escaped yet, see [ffi-apart](../quest/m1/ffi-apart.md)), takes a trailing `_` (`counter::new_`),
+  `moq::track_Producer::append_group`. A keyword, or a macro that a C or C++ system header
+  defines or a GNU dialect predefines, as `src/macros.txt` lists them (`unix`, `EOF`,
+  `errno`, as in moq-tokio's `tokio::unix_`), takes a trailing `_` (`counter::new_`),
   as does a member named as its class, one of its fields, or a member a trait gives it,
   and a parameter named as a member or as anything in the namespace, which it would hide.
+  A name already ending in `_` takes as many more as keep it apart and off every macro:
+  `unix_` becomes `unix__`.
   A name the escape leaves alone keeps it, and one escaped onto another's takes more `_`s
   until free: the values `Delete` and `Delete_` are `delete__` and `delete_`, in any order.
 - **Objects** are classes owning their handle through a `std::unique_ptr` whose deleter
@@ -641,7 +642,15 @@ packages place it in.
 
 `<prefix>.kt` is Kotlin for the JVM and Android over the crate's JNI functions, which
 `--features kotlin` builds into the same library, loaded by `System.loadLibrary`. It needs
-kotlinx-coroutines. Each value crosses JNI as a scalar, a handle as a `Long`, bytes passed
+kotlinx-coroutines. A leaf's native method, a primitive field read or write or a derived
+`equals` or `hashCode` the export proves waits on nothing and walks no value of a size the
+caller sets ([`Abi::leaf`](src/abi.rs)), takes ART's `@FastNative`, so ART keeps the thread runnable across the call;
+`_Native`'s first call registers each through `RegisterNatives`, since ART binds such a
+method by its name only from Android 12, and the rules keep each. `FastNative.kt`
+declares the annotation for a build whose classpath lacks it: the JVM, or an Android SDK
+below API 34, where it became public. An Android build against SDK 34 or later leaves the
+file out, as android.jar's own class serves, and so does every build after its first of
+two exports in one app, whose two copies D8 refuses as one class defined twice. Each value crosses JNI as a scalar, a handle as a `Long`, bytes passed
 in as a `ByteArray`, bytes returned as their owner, a block of numbers as its primitive
 array, and anything else encoded into a `ByteArray` as its C struct holds it. A record a
 call takes or returns directly, or in an `Option`, crosses as its scalars, a nested
@@ -665,7 +674,9 @@ the rest cross encoded.
   until it returns, so the handle is freed only once no call holds it; a call after
   `close()` throws. Of a checked type, `close()` drops the value through Rust's own
   `_drop`, as Rust's `drop` would, and throws instead while a call borrows the value, as
-  Rust refuses that drop, leaving the value to a later `close()`. Of any other type,
+  Rust refuses that drop, leaving the value to a later `close()`; one no call holds, as
+  soon after its return, takes the value through `_drop` and frees the handle in the same
+  crossing, and a `Drop` that calls back into Kotlin finds it closed. Of any other type,
   `close()` frees the handle, and throws while a call holds it. A returned object waits in
   a nursery of the last 64 its thread returned, where `close()` frees it without the GC's
   registration, a phantom reference linked into a list under a lock. One never closed is
@@ -1644,6 +1655,7 @@ just ffi corpus-update  # take corpus/crates.txt afresh from crates.io's top cra
 just ffi protocol # run longer protocol scripts from more seeds through the C ABI and every binding, as the nightly does
 nix develop .#bench --command just ffi browsers  # api's TypeScript in headless Chromium, Firefox, and on Linux WebKit, lowering `using` three ways for WebKit, as the nightly runs it
 nix develop .#android --command just ffi android  # the Kotlin test, shrunk by R8, under CheckJNI on the Android device adb reaches
+nix develop .#android --command just ffi bench-android  # the benchmark's Kotlin rows on HotSpot and, shrunk by R8, on ART on the Android device adb reaches
 nix develop .#bench --command just ffi bench  # the binding benchmark: bench/ffi/README.md's cases from Rust, and through the export from C, C++, Kotlin, Python, Swift, Go, and Dart
 nix develop .#bench --command just ffi codspeed  # after bench-build, each single-threaded case once under CodSpeed's CPU simulation, as the CodSpeed workflow runs it
 nix develop .#sanitize --command just ffi sanitize  # api's C and C++ scripts under ASan with UBSan, TSan, and Valgrind, its Swift under TSan, its Go under the race detector and cgocheck2, its Python looped on a debug CPython, and its C ABI under Miri

@@ -150,12 +150,22 @@ struct Reads: ~Copyable {
 	var micros: UInt64
 }
 
+/// A timed track named `name` on `broadcast`. It caches every group written to it until it is
+/// freed, as the broadcast's pool, which nothing polls, evicts none, so each case that writes
+/// groups writes them to a track of its own, freed once it ends: a round holds one case's
+/// frames at a time instead of every case's, about 2 GB.
+func createTrack(_ broadcast: borrowing BroadcastProducer, _ name: String) throws -> TrackProducer {
+	try broadcast.createTrack(name, TrackInfo.default().withTimescale(Timescale.MICRO))
+}
+
 /// Groups of 100 frames of `size` bytes written and each read back, its payload's first
 /// byte touched, in about 64 MiB and at least 300 frames: megabytes a wall and a CPU second.
-func throughput(_ track: TrackProducer, _ subscriber: inout TrackSubscriber, _ micros: inout UInt64, _ size: Int) async throws -> (Span, Int) {
+func throughput(_ broadcast: borrowing BroadcastProducer, _ micros: inout UInt64, _ size: Int) async throws -> (Span, Int) {
 	let count = min(max((64 << 20) / (size * frames), 3), 2000)
 	let frame = Bytes(Data(count: size))
 	let name = "throughput[\(size)]"
+	let track = try createTrack(broadcast, name)
+	var subscriber = try await track.consume().subscribe(nil)
 	var sum = 0
 	let start = begin()
 	for _ in 0..<count {
@@ -175,8 +185,9 @@ func throughput(_ track: TrackProducer, _ subscriber: inout TrackSubscriber, _ m
 
 func round(_ measured: Bool) throws -> ([(String, Span)], Int) {
 	var out: [(String, Span)] = []
-	let broadcast = try BroadcastInfo.new().produce()
-	let track = try broadcast.createTrack("bench", TrackInfo.default().withTimescale(Timescale.MICRO))
+	// Shared, so the async cases make their tracks on it from their closure.
+	let broadcast = Shared(try BroadcastInfo.new().produce())
+	let track = try createTrack(broadcast.value, "bench")
 	let frame = Bytes(Data(count: 100))
 	var sum = 0
 	// A group starts at its first frame's time, and a track's starts must increase, so
@@ -225,109 +236,127 @@ func round(_ measured: Bool) throws -> ([(String, Span)], Int) {
 	out.append(("object", end(start, "object")))
 
 	// Each frame stamped through a fresh timestamp, as a caller holding a u64 must.
-	start = begin()
-	for _ in 0..<groups {
-		var group = try track.appendGroup(Timestamp.fromMicros(micros))
-		for _ in 0..<frames {
-			let at = try Timestamp.fromMicros(micros)
-			micros += 1
-			try frame.withSpan { try group.writeFrame(at, $0) }
+	do {
+		let track = try createTrack(broadcast.value, "stamped")
+		start = begin()
+		for _ in 0..<groups {
+			var group = try track.appendGroup(Timestamp.fromMicros(micros))
+			for _ in 0..<frames {
+				let at = try Timestamp.fromMicros(micros)
+				micros += 1
+				try frame.withSpan { try group.writeFrame(at, $0) }
+			}
+			_ = try group.finish()
 		}
-		_ = try group.finish()
+		out.append(("stamped", end(start, "stamped")))
 	}
-	out.append(("stamped", end(start, "stamped")))
 
 	// The rest stamp a group's frames with its start, converted once a group.
-	start = begin()
-	for _ in 0..<groups {
-		let at = try Timestamp.fromMicros(micros)
-		micros += 1
-		var group = try track.appendGroup(at)
-		for _ in 0..<frames {
-			try frame.withSpan { try group.writeFrame(at, $0) }
+	do {
+		let track = try createTrack(broadcast.value, "write")
+		start = begin()
+		for _ in 0..<groups {
+			let at = try Timestamp.fromMicros(micros)
+			micros += 1
+			var group = try track.appendGroup(at)
+			for _ in 0..<frames {
+				try frame.withSpan { try group.writeFrame(at, $0) }
+			}
+			_ = try group.finish()
 		}
-		_ = try group.finish()
+		out.append(("write", end(start, "write")))
 	}
-	out.append(("write", end(start, "write")))
 
 	let base = micros
 	let reads = block {
 		var out: [(String, Span)] = []
 		var micros = base
-		var subscriber = try await track.consume().subscribe(nil)
 
 		// Each frame written, then read through an async func whose future is ready at its
 		// first poll, so it never suspends.
-		var start = begin()
+		var start: Span
 		var last: FrameFrame?
-		for _ in 0..<groups {
-			let at = try Timestamp.fromMicros(micros)
-			micros += 1
-			var group = try track.appendGroup(at)
-			var reader = try await subscriber.recvGroup()!
-			for _ in 0..<frames {
-				try frame.withSpan { try group.writeFrame(at, $0) }
-				last = try await reader.readFrame()!
+		do {
+			let track = try createTrack(broadcast.value, "ready")
+			var subscriber = try await track.consume().subscribe(nil)
+			start = begin()
+			for _ in 0..<groups {
+				let at = try Timestamp.fromMicros(micros)
+				micros += 1
+				var group = try track.appendGroup(at)
+				var reader = try await subscriber.recvGroup()!
+				for _ in 0..<frames {
+					try frame.withSpan { try group.writeFrame(at, $0) }
+					last = try await reader.readFrame()!
+				}
+				_ = try group.finish()
 			}
-			_ = try group.finish()
+			out.append(("ready", end(start, "ready")))
 		}
-		out.append(("ready", end(start, "ready")))
 
 		// Each read started in a task before its frame is written, which the yield lets
 		// suspend, and the write's wake resumes it on the global executor.
-		start = begin()
-		for _ in 0..<groups {
-			let at = try Timestamp.fromMicros(micros)
-			micros += 1
-			var group = try track.appendGroup(at)
-			var reader = try await subscriber.recvGroup()!
-			for _ in 0..<frames {
-				let pending = Task { _ = try await reader.readFrame()! }
-				await Task.yield()
-				try frame.withSpan { try group.writeFrame(at, $0) }
-				try await pending.value
+		do {
+			let track = try createTrack(broadcast.value, "woken")
+			var subscriber = try await track.consume().subscribe(nil)
+			start = begin()
+			for _ in 0..<groups {
+				let at = try Timestamp.fromMicros(micros)
+				micros += 1
+				var group = try track.appendGroup(at)
+				var reader = try await subscriber.recvGroup()!
+				for _ in 0..<frames {
+					let pending = Task { _ = try await reader.readFrame()! }
+					await Task.yield()
+					try frame.withSpan { try group.writeFrame(at, $0) }
+					try await pending.value
+				}
+				_ = try group.finish()
 			}
-			_ = try group.finish()
+			out.append(("woken", end(start, "woken")))
 		}
-		out.append(("woken", end(start, "woken")))
 
 		// A single writer task serves the calling reader for the whole case.
 		// Only one permit is outstanding. The write can race the first poll.
-		start = begin()
-		let (permits, send) = AsyncStream<Void>.makeStream()
-		// The writer task takes its groups' starts from a copy, which it cannot share.
-		let first = micros
-		micros += UInt64(groups)
-		let writer = Task {
-			var next = permits.makeAsyncIterator()
-			for g in 0..<groups {
-				let at = try Timestamp.fromMicros(first + UInt64(g))
-				var group = try track.appendGroup(at)
-				for _ in 0..<frames {
-					let permit: Void? = await next.next()
-					precondition(permit != nil)
-					try frame.withSpan { try group.writeFrame(at, $0) }
+		do {
+			let track = try createTrack(broadcast.value, "loop")
+			var subscriber = try await track.consume().subscribe(nil)
+			start = begin()
+			let (permits, send) = AsyncStream<Void>.makeStream()
+			// The writer task takes its groups' starts from a copy, which it cannot share.
+			let first = micros
+			micros += UInt64(groups)
+			let writer = Task {
+				var next = permits.makeAsyncIterator()
+				for g in 0..<groups {
+					let at = try Timestamp.fromMicros(first + UInt64(g))
+					var group = try track.appendGroup(at)
+					for _ in 0..<frames {
+						let permit: Void? = await next.next()
+						precondition(permit != nil)
+						try frame.withSpan { try group.writeFrame(at, $0) }
+					}
+					let consumed: Void? = await next.next()
+					precondition(consumed != nil)
+					_ = try group.finish()
 				}
-				let consumed: Void? = await next.next()
-				precondition(consumed != nil)
-				_ = try group.finish()
 			}
-		}
-		for _ in 0..<groups {
-			var reader = try await subscriber.recvGroup()!
-			for _ in 0..<frames {
+			for _ in 0..<groups {
+				var reader = try await subscriber.recvGroup()!
+				for _ in 0..<frames {
+					send.yield(())
+					_ = try await reader.readFrame()!
+				}
 				send.yield(())
-				_ = try await reader.readFrame()!
 			}
-			send.yield(())
+			send.finish()
+			try await writer.value
+			out.append(("loop", end(start, "loop")))
 		}
-		send.finish()
-		try await writer.value
-		out.append(("loop", end(start, "loop")))
 
 		var sum = 0
 		for size in sizes {
-			let (mbps, read) = try await throughput(track, &subscriber, &micros, size)
+			let (mbps, read) = try await throughput(broadcast.value, &micros, size)
 			out.append(("mbps:\(size)", mbps))
 			sum += read
 		}
@@ -340,7 +369,7 @@ func round(_ measured: Bool) throws -> ([(String, Span)], Int) {
 
 	// Drain one reader on its preferred executor until it suspends before every
 	// write. Unlike a yield on the global pool, an empty queue proves it parked.
-	let wakeTrack = try broadcast.createTrack("wake-loop", TrackInfo.default().withTimescale(Timescale.MICRO))
+	let wakeTrack = try createTrack(broadcast.value, "wake-loop")
 	let queue = Queue()
 	let consumed = Cell<Int>()
 	consumed.value = 0

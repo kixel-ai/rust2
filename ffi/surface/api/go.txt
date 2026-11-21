@@ -1,6 +1,7 @@
 package api // import "api/api"
 
 CONSTANTS
+const EOF int32 = -1
 const FAR int64 = 9223372036854775807
 const LIMIT uint64 = 1000
 const STEP uint64 = 1
@@ -28,6 +29,7 @@ func BoxedTuple(bytes p_rt.Bytes) p_rt.Bytes
 func Breadth(limits LimitsDuration) p_rt.Duration
 func BumpBoth(a *Tally, b *Tally) (uint32, error)
 func BumpEither(first *Local, second *Local) (uint32, error)
+func Bumped(n *uint32, f func() rune) rune
 func ByteLen(ctx context.Context, bytes p_rt.Bytes) (uint, error)
 func Capacities22(a *Batch2, b *Batch2) (uint, error)
 func Capacities24(a *Batch2, b *Batch) (uint, error)
@@ -44,6 +46,8 @@ func ClashAudioEncoderFinish_() uint8
 func ClashIgnore(arg0 uint8, arg1 uint8, arg2 uint8) uint8
 func ClashListed(java []uint32, kotlin *uint32) [][]uint32
 func ClashNested(a *p_rt.Tuple2[p_rt.Tuple2[uint8, uint16], uint32], b *p_rt.Tuple3[uint8, uint16, uint32]) uint32
+func ClashSourceVtable_() unsafe.Pointer
+func ClashWaited(source ClashSource) uint8
 func Coordinates(point *Point) int32
 func Corner(unit bool) (p_rt.Tuple2[uint32, uint32], error)
 func CornerLater(ctx context.Context) (p_rt.Tuple2[uint32, uint32], error)
@@ -125,6 +129,7 @@ func Least(sets [][]uint32) [][]uint32
 func Len(payload p_rt.Bytes) uint
 func LentBack(value p_rt.Bytes) p_rt.Bytes
 func Less(value uint32, value2 uint32) uint32
+func Lettered(f func() rune) rune
 func LevelLater(ctx context.Context, dial Dial) (uint64, error)
 func LocalLater(ctx context.Context, n uint32) (uint32, error)
 func LocalWaiterPollReady(ctx context.Context, n uint32) (uint32, error)
@@ -140,7 +145,9 @@ func MacrosStreamed(streams MacrosStreams, errno uint8) uint32
 func Made(n uint32, make_ func(uint32) string) string
 func Marked(apiMarked *Mark) (uint64, error)
 func MarkerY() int32
+func Measured(f func() uint) uint
 func Named(name string) (*string, error)
+func Negated(f func() int) int
 func NextChar(c rune) (*rune, error)
 func NextHop(hop *uint64) (*uint64, error)
 func NextIps(v4 p_rt.Ipv4Addr, v6 p_rt.Ipv6Addr) (p_rt.Ipv4Addr, p_rt.Ipv6Addr)
@@ -153,6 +160,7 @@ func Offset(by func() uint32, byData uint32) uint32
 func Offsetof(field uint8) uint8
 func OnFirstThread() bool
 func PRIMES() []uint32
+func Paired(f func() uint8, fUnwind func() uint8) uint8
 func Parents(paths []string) ([]*string, error)
 func ParseCert(text string) (uint32, error)
 func ParseLater(ctx context.Context, text string) (uint32, error)
@@ -224,6 +232,8 @@ func Spread(n uint64) *p_rt.Tuple4[uint8, int16, uint32, uint64]
 func Stored(receipt *Receipt) (uint32, error)
 func StoredText(stored string) (string, error)
 func Stray() string
+func StretchVtable_() unsafe.Pointer
+func Stretched(stretch Stretch) uint
 func SumAll(items []uint32) uint32
 func SumLists(a []int32, b *[]int32, c *[]int32) int32
 func SumU32(items []uint32) uint64
@@ -249,6 +259,7 @@ func Unescaped(text string) (string, error)
 func UnescapedLater(ctx context.Context, text string) (string, error)
 func UnescapedMaybe(ctx context.Context, text *string) (*string, error)
 func Unhook() error
+func Unwound() uint32
 func Unzeroed(bytes p_rt.Bytes) p_rt.Bytes
 func Verify(cert *p_tls.Cert) (uint32, error)
 func VisitChunks(payload p_rt.Bytes, size uint, visit func(*[]byte) uint64) []uint64
@@ -261,6 +272,7 @@ func WasmTake(counter *Counter) (uint64, error)
 func Watch(gauge *Gauge, watch func(*Gauge) uint64) (uint64, error)
 func WeighAllCounter(items []*Counter) (uint64, error)
 func WeighPoint(from Point) uint32
+func Wexitstatus(status int32) int32
 func Widen(range_ p_rt.RangeU64, by uint64) p_rt.RangeU64
 func Widths(n uint64) (uint8, int16, uint32, uint64)
 func Wind(whole PolarTurn, part Polar_Turn) uint32
@@ -512,6 +524,12 @@ type ClashEmptyString struct {
 func ClashEmpty() *ClashEmptyString
 func (self *ClashEmptyString) Close() error
 func (self *ClashEmptyString) IsEmpty() (bool, error)
+type ClashErrno struct {
+	Errno int32
+}
+func ClashErrnoNULL() ClashErrno
+func (self ClashErrno) Equal(other ClashErrno) bool
+func (self ClashErrno) GoString() string
 type ClashEscaped struct {
 	New uint8
 }
@@ -558,6 +576,23 @@ func (self ClashInt) Point() (*Point, error)
 func (self ClashInt) Reading(kotlin uint32) (Reading, error)
 func (self ClashInt) Stamp(kotlin uint64) (Stamp, error)
 func (self ClashInt) Tagged(ctx context.Context, tag string) (string, error)
+type ClashLevel int32
+const (
+	ClashLevelDefault ClashLevel = 0
+	ClashLevelDebug   ClashLevel = 1
+)
+func ClashLevelDefault_() ClashLevel
+func (self ClashLevel) Equal(other ClashLevel) bool
+func (self ClashLevel) GoString() string
+func (self ClashLevel) Index() uint8
+type ClashMalformed struct {
+	At uint8
+}
+func (self ClashMalformed) Equal(other ClashMalformed) bool
+func (self ClashMalformed) Error() string
+func (self ClashMalformed) GoString() string
+func (self ClashMalformed) Is_(at uint8) bool
+func (self ClashMalformed) String() string
 type ClashMoment struct {
 	V0 Moment
 }
@@ -623,6 +658,13 @@ func (self ClashPoint) Point() (*Point, error)
 func (self ClashPoint) Reading(kotlin uint32) (Reading, error)
 func (self ClashPoint) Stamp(kotlin uint64) (Stamp, error)
 func (self ClashPoint) Tagged(ctx context.Context, tag string) (string, error)
+type ClashReader struct {
+	Handle_ *p_rt.Handle_
+}
+func NewClashReader(bytes p_rt.Bytes) *ClashReader
+func (self *ClashReader) Close() error
+func (self *ClashReader) ReadByte_() (uint8, error)
+func (self *ClashReader) UnreadByte() error
 type ClashSeed struct {
 	Handle_ *p_rt.Handle_
 }
@@ -644,6 +686,10 @@ func (self ClashShape) Point() (*Point, error)
 func (self ClashShape) Reading(kotlin uint32) (Reading, error)
 func (self ClashShape) Stamp(kotlin uint64) (Stamp, error)
 func (self ClashShape) Tagged(ctx context.Context, tag string) (string, error)
+type ClashSource interface {
+	Wait()
+	ReadByte_() uint8
+}
 type ClashSpan struct {
 	Width uint32
 }
@@ -671,7 +717,9 @@ type ClashStore struct {
 func NewClashStore(count uint32) *ClashStore
 func (self *ClashStore) Close() error
 func (self *ClashStore) Close_() (uint32, error)
+func (self *ClashStore) Finalize() error
 func (self *ClashStore) Free() (uint32, error)
+func (self *ClashStore) Wait() error
 type ClashString struct {
 	V0 string
 }
@@ -685,6 +733,23 @@ func (self ClashString) Point() (*Point, error)
 func (self ClashString) Reading(kotlin uint32) (Reading, error)
 func (self ClashString) Stamp(kotlin uint64) (Stamp, error)
 func (self ClashString) Tagged(ctx context.Context, tag string) (string, error)
+type ClashTag interface {
+	GoString() string
+	Equal(other ClashTag) bool
+	Number_() uint32
+}
+type ClashTagApplication struct {
+	Number uint32
+}
+func (self ClashTagApplication) Equal(other ClashTag) bool
+func (self ClashTagApplication) GoString() string
+func (self ClashTagApplication) Number_() uint32
+type ClashTagPrivate struct {
+	Number uint32
+}
+func (self ClashTagPrivate) Equal(other ClashTag) bool
+func (self ClashTagPrivate) GoString() string
+func (self ClashTagPrivate) Number_() uint32
 type ClashTone struct {
 	Hz uint16
 }
@@ -1352,7 +1417,7 @@ type PairSizeU8 struct {
 	Left  p_dep.Size
 	Right uint8
 }
-func Tag(size p_dep.Size, tag uint8) PairSizeU8
+func Tag_(size p_dep.Size, tag uint8) PairSizeU8
 func (self PairSizeU8) Equal(other PairSizeU8) bool
 func (self PairSizeU8) GoString() string
 func (self PairSizeU8) Swap() PairU8Size
@@ -1748,12 +1813,22 @@ const (
 )
 func (self Status) Equal(other Status) bool
 func (self Status) GoString() string
+type Stretch interface {
+	Stretch() uint
+}
 type Tab struct {
 	Handle_ *p_rt.Handle_
 }
 func (self *Tab) Close() error
 func (self *Tab) LabelGet() (string, error)
 func (self *Tab) LedgerGet() (*Ledger, error)
+type Tag struct {
+	Handle_ *p_rt.Handle_
+}
+func NewTag() *Tag
+func TagDefault() *Tag
+func (self *Tag) Close() error
+func (self *Tag) Tagged(n *uint32, f func() rune) (string, error)
 type Tallies struct {
 	Handle_ *p_rt.Handle_
 }

@@ -85,13 +85,23 @@ def concurrent(calls):
 	return wall, cpu / len(calls)
 
 
-async def throughput(track, subscriber, micros, size):
+def create_track(broadcast, name):
+	"""A timed track named `name` on `broadcast`. It caches every group written to it until it
+	is freed, as the broadcast's pool, which nothing polls, evicts none, so each case that
+	writes groups writes them to a track of its own, freed once it ends: a round holds one
+	case's frames at a time instead of every case's, about 2 GB."""
+	return broadcast.create_track(name, moq.TrackInfo.default().with_timescale(moq.Timescale.MICRO))
+
+
+async def throughput(broadcast, micros, size):
 	"""Groups of 100 frames of `size` bytes written and each read back, its payload's first
 	byte touched, in about 64 MiB and at least 300 frames, each group starting at the next
 	of `micros`: megabytes a wall and a CPU second, and the next start."""
 	groups = min(max((64 << 20) // (size * FRAMES), 3), 2000)
 	frame = bytes(size)
-	name = f"throughput[{size}]".encode()
+	name = f"throughput[{size}]"
+	track = create_track(broadcast, name)
+	subscriber = await track.consume().subscribe(None)
 	total = 0
 	start = begin()
 	for _ in range(groups):
@@ -105,13 +115,13 @@ async def throughput(track, subscriber, micros, size):
 			with read.payload_get as payload:
 				total += payload[0]
 		group.finish()
-	wall, cpu = end(start, name, groups * FRAMES * size)
+	wall, cpu = end(start, name.encode(), groups * FRAMES * size)
 	return (1e3 / wall, 1e3 / cpu), micros
 
 
 def round(loop, measured):
 	broadcast = moq.BroadcastInfo.new().produce()
-	track = broadcast.create_track("bench", moq.TrackInfo.default().with_timescale(moq.Timescale.MICRO))
+	track = create_track(broadcast, "bench")
 	frame = bytes(100)
 	out = {}
 	# Each group's start, in microseconds: a track's appended starts strictly increase, so
@@ -166,6 +176,7 @@ def round(loop, measured):
 	del info
 
 	# Each frame stamped through a fresh timestamp, as a caller holding an int must.
+	track = create_track(broadcast, "stamped")
 	start = begin()
 	for _ in range(GROUPS):
 		group = track.append_group(moq.Timestamp.from_micros(micros))
@@ -176,6 +187,7 @@ def round(loop, measured):
 	out["stamped"] = end(start, b"stamped")
 
 	# Each group's frames written at its start, converted once a group.
+	track = create_track(broadcast, "write")
 	start = begin()
 	for _ in range(GROUPS):
 		at = moq.Timestamp.from_micros(micros)
@@ -185,13 +197,15 @@ def round(loop, measured):
 			group.write_frame(at, frame)
 		group.finish()
 	out["write"] = end(start, b"write")
+	del track
 
 	async def reads():
 		nonlocal micros
-		subscriber = await track.consume().subscribe(None)
 
 		# Each frame written, then read through an awaitable ready at its first poll, so it
 		# never suspends.
+		track = create_track(broadcast, "ready")
+		subscriber = await track.consume().subscribe(None)
 		last = None
 		start = begin()
 		for _ in range(GROUPS):
@@ -207,6 +221,8 @@ def round(loop, measured):
 
 		# Each read awaited before its frame is written, so it pends, and the write's wake
 		# resumes it through the loop.
+		track = create_track(broadcast, "woken")
+		subscriber = await track.consume().subscribe(None)
 		start = begin()
 		for _ in range(GROUPS):
 			at = moq.Timestamp.from_micros(micros)
@@ -222,6 +238,8 @@ def round(loop, measured):
 		out["woken"] = end(start, b"woken")
 
 		# One writer task, with one outstanding permit, for the whole reader loop.
+		track = create_track(broadcast, "loop")
+		subscriber = await track.consume().subscribe(None)
 		start = begin()
 		permits = asyncio.Queue(maxsize=1)
 
@@ -246,9 +264,10 @@ def round(loop, measured):
 			permits.put_nowait(None)
 		await writer
 		out["loop"] = end(start, b"loop")
+		del track, subscriber
 
 		for size in SIZES:
-			out[f"mbps:{size}"], micros = await throughput(track, subscriber, micros, size)
+			out[f"mbps:{size}"], micros = await throughput(broadcast, micros, size)
 		return last
 
 	last = loop.run_until_complete(reads())

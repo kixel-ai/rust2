@@ -41,13 +41,50 @@ from backend import seal, write_zip  # noqa: E402,F401
 GLIBC = "2.28"
 # The macOS a wheel loads on: the oldest Rust's aarch64-apple-darwin target supports.
 MACOS_WHEEL = "11.0"
-# The Swift package's floors: what the generated Swift's `Swift.Duration` needs.
-SWIFT_PLATFORMS = {"macos": "13.0", "ios": "16.0"}
+# The Swift package's floors: what the generated Swift's `Swift.Duration` needs. Mac
+# Catalyst counts in iOS versions, as its objects declare them.
+SWIFT_PLATFORMS = {"macos": "13.0", "ios": "16.0", "maccatalyst": "16.0"}
+# Each platform's name in a SwiftPM manifest.
+SWIFTPM_PLATFORMS = {"macos": "macOS", "ios": "iOS", "maccatalyst": "macCatalyst"}
 # Each Apple slice the Swift package ships, and the platform its minimum OS is checked on.
 APPLE_TARGETS = {
     "aarch64-apple-darwin": "macos",
     "aarch64-apple-ios": "ios",
     "aarch64-apple-ios-sim": "ios",
+    "aarch64-apple-ios-macabi": "maccatalyst",
+}
+# Each slice's SDK and clang target, at the floor, for the link that finds what it calls.
+APPLE_LINKS = {
+    "aarch64-apple-darwin": ("macosx", "arm64-apple-macos{}"),
+    "aarch64-apple-ios": ("iphoneos", "arm64-apple-ios{}"),
+    "aarch64-apple-ios-sim": ("iphonesimulator", "arm64-apple-ios{}-simulator"),
+    "aarch64-apple-ios-macabi": ("macosx", "arm64-apple-ios{}-macabi"),
+}
+# Apple's required-reason APIs a symbol names, by the privacy manifest category declaring them
+# (https://developer.apple.com/documentation/bundleresources/describing-use-of-required-reason-api).
+# `getattrlist` and its kin are in two categories, as what they read depends on their arguments.
+# Foundation's attribute keys are constants a caller imports, so the scan sees them too.
+REQUIRED_REASON_APIS = {
+    **dict.fromkeys(["stat", "fstat", "fstatat", "lstat", "NSFileCreationDate", "NSFileModificationDate",
+                     "NSURLContentModificationDateKey", "NSURLCreationDateKey"], "FileTimestamp"),
+    **dict.fromkeys(["getattrlist", "getattrlistbulk", "fgetattrlist", "getattrlistat"], "FileTimestamp or DiskSpace"),
+    **dict.fromkeys(["statfs", "statvfs", "fstatfs", "fstatvfs", "NSFileSystemFreeSize", "NSFileSystemSize",
+                     "NSURLVolumeAvailableCapacityKey", "NSURLVolumeAvailableCapacityForImportantUsageKey",
+                     "NSURLVolumeAvailableCapacityForOpportunisticUsageKey", "NSURLVolumeTotalCapacityKey"],
+                    "DiskSpace"),
+    "mach_absolute_time": "SystemBootTime",
+    "OBJC_CLASS_$_NSUserDefaults": "UserDefaults",
+    "OBJC_CLASS_$_UITextInputMode": "ActiveKeyboards",
+}
+# The reasons a library's own use of a category declares, where they hold for every library:
+# a sandboxed app, as the App Store requires, stats files in its containers (C617.1) or ones
+# the user granted it (3B52.1), and a clock read measures time within the app. A sandboxed
+# macOS app may also read a world-readable system path, such as /etc/localtime, which no
+# reason Apple defines covers, so no manifest can declare it; these two stand for the rest.
+# Another category's reason only the crate's author knows, so its call fails the build.
+REQUIRED_REASONS = {
+    "FileTimestamp": ["C617.1", "3B52.1"],
+    "SystemBootTime": ["35F9.1"],
 }
 # Every target a wheel and a C archive are built for, each of 8-byte pointers, as the CMake version file checks.
 WHEEL_TARGETS = [
@@ -341,9 +378,11 @@ def manifest_paths(value):
 def relocate(manifest, moves, strict=False):
     """A manifest with each local package's absolute path moved, as `moves` maps them, checked
     by reading it back: nothing else changed, and when `strict`, every `path` is one moved."""
+    # One pass, so a path already moved is never matched again by another package's key.
+    spelled = {f"path = {json.dumps(old, ensure_ascii=False)}": f"path = {json.dumps(new)}" for old, new in moves.items()}
     text = manifest
-    for old, new in moves.items():
-        text = text.replace(f"path = {json.dumps(old, ensure_ascii=False)}", f"path = {json.dumps(new)}")
+    if spelled:
+        text = re.sub("|".join(map(re.escape, spelled)), lambda m: spelled[m.group(0)], manifest)
 
     def moved(value):
         if isinstance(value, dict):
@@ -422,7 +461,17 @@ def sdist(info, manifest, export, out):
     for root in roots:
         at = place(root.parent)
         files[f"{at}/Cargo.toml"] = (relocate(workspace_manifest(root), moves(at)).encode(), False)
-    generated = relocate((export / "Cargo.toml").read_text(encoding="utf-8"), moves("binding"), strict=True)
+    # The generated manifest names each package relative to the export, where a relative path
+    # reads right, and absolute elsewhere.
+    binding = moves("binding")
+    for d in placed:
+        try:
+            binding[Path(os.path.relpath(d, export)).as_posix()] = binding[str(d)]
+        except ValueError:
+            # On another Windows drive than the export, no relative path reaches it; only the
+            # absolute one names it.
+            pass
+    generated = relocate((export / "Cargo.toml").read_text(encoding="utf-8"), binding, strict=True)
     files["binding/Cargo.toml"] = (generated.encode(), False)
     for path in [export / "Cargo.lock", export / "build.rs", export / "python" / f"{info['lib']}.py",
                  *sorted(p for p in (export / "src").rglob("*") if p.is_file())]:
@@ -486,19 +535,18 @@ def linker_settings(flags_by_platform):
             else:
                 raise SystemExit(f"unsupported native linker flag on {apple}: {flag}")
             seen.setdefault(setting, set()).add(apple)
-    swift = {"macos": ".macOS", "ios": ".iOS"}
     out = []
     for setting, platforms in seen.items():
         if platforms == set(flags_by_platform):
             out.append(setting + ")")
         else:
-            out.append(setting + ", .when(platforms: [" + ", ".join(swift[p] for p in sorted(platforms)) + "]))")
+            out.append(setting + ", .when(platforms: [" + ", ".join("." + SWIFTPM_PLATFORMS[p] for p in sorted(platforms)) + "]))")
     return out
 
 
 def package_swift(module, version, settings, binary):
     """The package manifest: the Swift source over the XCFramework, either by URL or by path."""
-    platforms = f'.macOS("{SWIFT_PLATFORMS["macos"]}"), .iOS("{SWIFT_PLATFORMS["ios"]}")'
+    platforms = ", ".join(f'.{SWIFTPM_PLATFORMS[p]}("{v}")' for p, v in SWIFT_PLATFORMS.items())
     links = "".join(f"\n                {s}," for s in settings)
     return f'''// swift-tools-version: 6.2
 // Generated by rust2-ffi's release builder.
@@ -511,9 +559,10 @@ let package = Package(
     dependencies: [.package(url: "{COLLECTIONS}", exact: "{version}")],
     targets: [
         {binary},
+        .target(name: "{module}Privacy", resources: [.copy("PrivacyInfo.xcprivacy")]),
         .target(
             name: "{module}",
-            dependencies: ["{module}FFI", .product(name: "BasicContainers", package: "swift-collections")],
+            dependencies: ["{module}FFI", "{module}Privacy", .product(name: "BasicContainers", package: "swift-collections")],
             linkerSettings: [{links}
             ]
         ),
@@ -532,6 +581,69 @@ def min_os(archive):
     if not versions:
         raise SystemExit(f"{archive} declares no minimum OS")
     return max(versions)
+
+
+def api_name(symbol):
+    """The C function or Objective-C class a Mach-O symbol names, without its `$INODE64`-style variant."""
+    name = symbol.removeprefix("_")
+    return name if name.startswith("OBJC_CLASS_$_") else name.split("$")[0]
+
+
+def required_apis(binary):
+    """Each required-reason API a linked Mach-O binary imports, by its category."""
+    found = {}
+    for symbol in output("nm", "--no-llvm-bc", "-u", "-j", binary).split():
+        category = REQUIRED_REASON_APIS.get(api_name(symbol))
+        if category:
+            found.setdefault(category, set()).add(api_name(symbol))
+    return found
+
+
+def privacy_manifest(lib, found):
+    """The PrivacyInfo.xcprivacy declaring the APIs found, or the build's failure for one no reason fits every library."""
+    unknown = {category: apis for category, apis in found.items() if category not in REQUIRED_REASONS}
+    if unknown:
+        calls = "; ".join(f"{', '.join(sorted(apis))} ({category})" for category, apis in sorted(unknown.items()))
+        raise SystemExit(f"{lib} calls Apple's required-reason APIs whose reason only its author knows: {calls}\n"
+                         "help: the App Store refuses an app calling them undeclared; remove the call, or the "
+                         "dependency making it, from what the C ABI reaches")
+    types = [{"NSPrivacyAccessedAPIType": f"NSPrivacyAccessedAPICategory{category}",
+              "NSPrivacyAccessedAPITypeReasons": REQUIRED_REASONS[category]} for category in sorted(found)]
+    return plistlib.dumps({"NSPrivacyAccessedAPITypes": types}, sort_keys=True)
+
+
+def probe_link(lib, static, target, native, work):
+    """`static` linked as an app links it: a dylib keeping only what the C ABI reaches, with its native libraries."""
+    sdk, clang_target = APPLE_LINKS[target]
+    names = work / "exported.txt"
+    names.write_text(f"_{lib}_*\n", encoding="utf-8")
+    probe = work / f"{target}.dylib"
+    run("xcrun", "--sdk", sdk, "clang", "-target", clang_target.format(SWIFT_PLATFORMS[APPLE_TARGETS[target]]),
+        "-dynamiclib", "-Wl,-dead_strip", f"-Wl,-exported_symbols_list,{names}", f"-Wl,-force_load,{static}",
+        *shlex.split(native), "-o", probe)
+    return probe
+
+
+def check_symbolicated(lib, probe):
+    """Fail unless a dSYM made from a link of the library, as an app's is, maps the C ABI to Rust source lines."""
+    dsym = probe.with_suffix(".dSYM")
+    run("dsymutil", probe, "-o", dsym)
+    symbols = [line.split() for line in output("nm", "--no-llvm-bc", "-gU", probe).splitlines()]
+    address, name = next((s[0], s[2]) for s in symbols if len(s) == 3 and s[2].startswith(f"_{lib}_"))
+    where = output("atos", "-o", dsym / "Contents/Resources/DWARF" / probe.name, "-arch", "arm64", f"0x{address}")
+    if not re.search(r"\.rs:[0-9]+\)", where):
+        raise SystemExit(f"{probe.name}'s dSYM names no Rust source line for {name}: {where.strip()}")
+
+
+def privacy_check(manifest, binary):
+    """Fail unless `manifest` declares every required-reason category `binary` imports."""
+    with open(manifest, "rb") as f:
+        declared = {t["NSPrivacyAccessedAPIType"].removeprefix("NSPrivacyAccessedAPICategory")
+                    for t in plistlib.load(f)["NSPrivacyAccessedAPITypes"]}
+    missing = {c: sorted(apis) for c, apis in required_apis(binary).items() if c not in declared}
+    if missing:
+        raise SystemExit(f"{binary} imports required-reason APIs {manifest} leaves undeclared: {missing}")
+    print(f"{binary} imports only what {manifest} declares: {sorted(declared)}")
 
 
 def sort_plist(path):
@@ -569,6 +681,20 @@ def swift(info, export, libs, natives, out):
         floor = tuple(int(x) for x in SWIFT_PLATFORMS[APPLE_TARGETS[target]].split("."))
         if min_os(path) > floor:
             raise SystemExit(f"{path} needs a newer OS than {SWIFT_PLATFORMS[APPLE_TARGETS[target]]}: build it with the deployment target set")
+    # What each slice calls once an app's link drops what the C ABI never reaches, as Apple's
+    # upload scan sees it, and the line tables the app's dSYM carries for its crash reports.
+    found = {}
+    with tempfile.TemporaryDirectory() as work:
+        for target, path in libs.items():
+            slice_dir = Path(work) / target
+            slice_dir.mkdir()
+            probe = probe_link(lib, path, target, Path(natives[target]).read_text(encoding="utf-8").strip(), slice_dir)
+            imports = required_apis(probe)
+            print(f"{target} imports required-reason APIs: {({c: sorted(a) for c, a in imports.items()})}", file=sys.stderr)
+            for category, apis in imports.items():
+                found.setdefault(category, set()).update(apis)
+            check_symbolicated(lib, probe)
+    privacy = privacy_manifest(lib, found)
     if out.exists():
         shutil.rmtree(out)
     headers = out / "headers"
@@ -603,10 +729,17 @@ def swift(info, export, libs, natives, out):
     if swift_sum != checksum:
         raise SystemExit(f"swift computes {swift_sum}, not {checksum}")
     (out / "checksum.txt").write_text(checksum + "\n", encoding="utf-8")
+    print(f"{archive.name}: {archive.stat().st_size} bytes", file=sys.stderr)
     package = out / "package"
     sources = package / "Sources" / module
     sources.mkdir(parents=True)
     shutil.copy(export / "swift" / f"{lib}.swift", sources)
+    # A static library holds no resources, so SwiftPM bundles the manifest into the app from a
+    # target of its own, whose generated `Bundle.module` accessor no exported name can shadow.
+    privacy_target = package / "Sources" / f"{module}Privacy"
+    privacy_target.mkdir()
+    (privacy_target / "PrivacyInfo.xcprivacy").write_bytes(privacy)
+    (privacy_target / "Privacy.swift").write_text(f"// Bundles {module}'s privacy manifest into the app.\n", encoding="utf-8")
     for path in licenses(info):
         shutil.copy(path, package)
     by_platform = {}
@@ -1088,12 +1221,20 @@ def pack(root, path, stamp):
     return path
 
 
+def check_program_in(check, names):
+    """The program of a check directory: the one file of `names` it holds, beside the files it reads."""
+    found = [Path(check) / name for name in names if (Path(check) / name).is_file()]
+    if len(found) != 1:
+        raise SystemExit(f"{check} must hold exactly one of {', '.join(names)}, beside the files it reads")
+    return found[0]
+
+
 def c_check(lib, check, work):
-    """The consumer's program: the caller's check, or else one that links a function of each header."""
+    """The consumer's program: the caller's check, its directory copied whole so that its
+    quoted includes resolve beside it, or else one that links a function of each header."""
     if check:
-        source = work / Path(check).name
-        shutil.copy(check, source)
-        return source
+        shutil.copytree(check, work / "check")
+        return check_program_in(work / "check", ("check.c", "check.cpp", "check.cc", "check.cxx"))
     source = work / "smoke.cpp"
     source.write_text(f'#include "{lib}.h"\n#include "{lib}.hpp"\n\n'
                       f"int main() {{\n\tvoid (*volatile fn)({lib}_buf) = {lib}_buf_free;\n"
@@ -1211,10 +1352,16 @@ def compare(native, actual, what):
 
 
 def consume_python(check, native, module):
-    """Run a check program, or else an import, on the installed wheel from an empty directory."""
-    program = [str(Path(check).resolve())] if check else ["-c", f"import {module}"]
-    with tempfile.TemporaryDirectory() as clean:
-        result = subprocess.run([sys.executable, "-I", "-X", "dev", "-W", "error", *program],
+    """Run a check program, or else an import, on the installed wheel from an empty directory.
+    The check's directory is copied apart, and it alone joins the path, where the check's own
+    modules are found: `-E -s` is `-I` but for that."""
+    with tempfile.TemporaryDirectory() as clean, tempfile.TemporaryDirectory() as scripts:
+        if check:
+            shutil.copytree(check, scripts, dirs_exist_ok=True)
+            program = [str(check_program_in(scripts, ("check.py",)))]
+        else:
+            program = ["-I", "-c", f"import {module}"]
+        result = subprocess.run([sys.executable, "-E", "-s", "-X", "dev", "-W", "error", *program],
                                 capture_output=True, cwd=clean)
     sys.stderr.buffer.write(result.stderr)
     if result.returncode:
@@ -1808,9 +1955,11 @@ def build(args):
                 c_archive(inside, args.manifest_path, through, target, out)
             if target in APPLE_TARGETS:
                 apple = APPLE_TARGETS[target]
+                # Mac Catalyst's floor is an iOS version, which rustc and cc read as iOS's.
                 name = "MACOSX_DEPLOYMENT_TARGET" if apple == "macos" else "IPHONEOS_DEPLOYMENT_TARGET"
                 library, native = staticlib(args.manifest_path, crate, lib, target,
-                                            env={**reproducible(inside, through, target), name: SWIFT_PLATFORMS[apple]})
+                                            env={**reproducible(inside, through, target), name: SWIFT_PLATFORMS[apple],
+                                                 **apple_profile(crate)})
                 static = out / "static" / target
                 static.mkdir(parents=True)
                 shutil.copy(library, static)
@@ -2039,6 +2188,17 @@ def web_package(info, web_dir, wasm, scope, out):
     return npm, jsr
 
 
+def apple_profile(manifest):
+    """The Apple slices' build with line tables at least, from which the app's dSYM symbolicates
+    a crash in Rust, keeping the level cargo would build at, from the environment or else the
+    crate's release profile, which the export carries, only when it holds them."""
+    with open(manifest, "rb") as f:
+        level = tomllib.load(f).get("profile", {}).get("release", {}).get("debug", False)
+    level = os.environ.get("CARGO_PROFILE_RELEASE_DEBUG", level)
+    lines = level is True or level in (1, 2, "1", "2", "true", "limited", "full", "line-tables-only")
+    return {} if lines else {"CARGO_PROFILE_RELEASE_DEBUG": "line-tables-only"}
+
+
 def web_profile(manifest):
     """The web module's build at `opt-level = "s"`, which a page downloads, unless the crate's
     release profile, which the export carries, chooses its own level."""
@@ -2085,7 +2245,7 @@ def web(args):
 
 
 def check_program(check, name):
-    """A check written beside an export, importing `./web/<module>.ts`, as it imports the package."""
+    """A check's module written beside an export, importing `./web/<module>.ts`, as it imports the package."""
     text = Path(check).read_text(encoding="utf-8")
     # Whitespace and comments, which may separate the keyword from its specifier.
     gap = r"(?:\s|/\*[\s\S]*?\*/|//[^\n]*\n)*"
@@ -2108,26 +2268,36 @@ def consume_web(dist, check, native):
     if len(tarballs) != 1:
         raise SystemExit(f"{dist} holds {len(tarballs)} npm tarballs")
     name = json.loads((dist / "npm" / "package.json").read_text(encoding="utf-8"))["name"]
-    program = check_program(check, name) if check else (
-        f"import * as binding from {json.dumps(name)};\n\nawait binding.load();\n")
+    if check:
+        check_program_in(check, ("check.ts",))
     expected = Path(native).read_bytes() if native and check else None
     with tempfile.TemporaryDirectory() as clean:
         clean = Path(clean)
+        # The check's directory whole, each TypeScript module in it importing the package;
+        # `check.ts` runs, reaching the rest by path. The project's own files then replace any
+        # it holds of the same names.
+        if check:
+            shutil.copytree(check, clean, dirs_exist_ok=True)
+            for module in clean.rglob("*.ts"):
+                module.write_text(check_program(module, name), encoding="utf-8")
+        else:
+            (clean / "check.ts").write_text(
+                f"import * as binding from {json.dumps(name)};\n\nawait binding.load();\n", encoding="utf-8")
         manifest = {"type": "module", "private": True, "dependencies": {name: f"file:{tarballs[0]}"},
                     "devDependencies": BUNDLERS}
         (clean / "package.json").write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
         run("npm", "install", "--no-audit", "--no-fund", "--ignore-scripts", cwd=clean, capture_output=True)
-        (clean / "check.ts").write_text(program, encoding="utf-8")
         # The bundles target the browser, whose `document` Vite's preload polyfill reads;
         # each runs on Node from where the bundler wrote it, a relative base reaching its module.
         (clean / "index.html").write_text('<!doctype html><script type="module" src="./check.ts"></script>\n', encoding="utf-8")
         (clean / "vite.config.js").write_text(
             'export default { base: "./", build: { target: "es2024", modulePreload: { polyfill: false } } };\n', encoding="utf-8")
-        run("node", "--no-warnings", "--input-type=module", "-e",
-            'import { stripTypeScriptTypes } from "node:module"; import { readFileSync, writeFileSync } from "node:fs";'
-            ' writeFileSync("check.js", stripTypeScriptTypes(readFileSync("check.ts", "utf8")));', cwd=clean)
+        # webpack reads the check's TypeScript through Node's own type stripping, as Node runs it.
+        (clean / "strip-types.cjs").write_text(
+            'module.exports = (source) => require("node:module").stripTypeScriptTypes(source);\n', encoding="utf-8")
         (clean / "webpack.config.js").write_text(
-            'export default { mode: "production", entry: "./check.js", target: ["web", "es2024"],'
+            'export default { mode: "production", entry: "./check.ts", target: ["web", "es2024"],'
+            r' module: { rules: [{ test: /\.ts$/, exclude: /node_modules/, loader: new URL("./strip-types.cjs", import.meta.url).pathname }] },'
             ' experiments: { outputModule: true },'
             ' output: { module: true, path: new URL("./webpack", import.meta.url).pathname, filename: "check.js" } };\n',
             encoding="utf-8")
@@ -2272,6 +2442,9 @@ def main():
     p.add_argument("--state", required=True, help="the swift.json `swift` wrote")
     p.add_argument("--package", required=True)
     p.add_argument("--framework", required=True)
+    p = sub.add_parser("privacy-check", help="fail unless a manifest declares each required-reason API a linked binary imports")
+    p.add_argument("--manifest", required=True, help="the PrivacyInfo.xcprivacy the app bundles")
+    p.add_argument("binary")
     p = sub.add_parser("go", help="write the Go module as a GOPROXY serves it")
     p.add_argument("--manifest-path", required=True)
     p.add_argument("--export", required=True)
@@ -2342,6 +2515,8 @@ def main():
         pairs = lambda items: dict(item.split("=", 1) for item in items)  # noqa: E731
         swift(info, args.export, pairs(args.lib), pairs(args.native), args.out)
         release_manifest(args.out, args.url)
+    elif args.command == "privacy-check":
+        privacy_check(args.manifest, args.binary)
     elif args.command == "swift-local":
         local_manifest(args.state, args.package, args.framework)
     elif args.command == "go":

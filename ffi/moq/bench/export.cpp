@@ -137,12 +137,26 @@ span concurrent(const T *const (&handles)[threads], F call, unsigned &sum) {
 	return {(end.wall - start.wall) / n, (end.cpu - start.cpu) / (static_cast<double>(n) * threads)};
 }
 
+// A timed track named `name` on `broadcast`. It caches every group written to it until it is
+// dropped, as the broadcast's pool, which nothing polls, evicts none, so each case that writes
+// groups writes them to a track of its own, dropped once it ends: a round holds one case's
+// frames at a time instead of every case's, about 2 GB.
+moq::track_Producer create_track(const moq::broadcast_Producer &broadcast, const std::string &name) {
+	return must(broadcast.create_track(name, moq::track_Info::default_().with_timescale(moq::Timescale::MICRO())), "create_track");
+}
+
+moq::track_Subscriber subscribe(const moq::track_Producer &track) {
+	return must(must(track.consume().subscribe(std::nullopt).poll(noop()), "subscribe"), "subscribe");
+}
+
 // Groups of 100 frames of `size` bytes written and each read back, its payload's first byte
 // touched, in about 64 MiB and at least 300 frames: megabytes a wall and a CPU second.
-span throughput(moq::track_Producer &track, moq::track_Subscriber &subscriber, std::uint64_t &micros, std::size_t size, unsigned &sum) {
+span throughput(const moq::broadcast_Producer &broadcast, std::uint64_t &micros, std::size_t size, unsigned &sum) {
 	std::size_t count = std::clamp<std::size_t>((64u << 20) / (size * frames), 3, 2000);
 	std::vector<std::uint8_t> payload(size);
 	std::string name = "throughput[" + std::to_string(size) + "]";
+	auto track = create_track(broadcast, name);
+	auto subscriber = subscribe(track);
 	auto start = begin();
 	for (std::size_t g = 0; g < count; g++) {
 		auto at = must(moq::Timestamp::from_micros(micros++), "from_micros");
@@ -161,8 +175,7 @@ span throughput(moq::track_Producer &track, moq::track_Subscriber &subscriber, s
 
 void round(bool print) {
 	moq::broadcast_Producer broadcast = moq::broadcast_Info::new_().produce();
-	moq::Timescale micro = moq::Timescale::MICRO();
-	auto track = must(broadcast.create_track("bench", moq::track_Info::default_().with_timescale(micro)), "create_track");
+	auto track = create_track(broadcast, "bench");
 
 	std::uint8_t bytes[100] = {0};
 	moq::view frame(bytes, sizeof bytes);
@@ -228,64 +241,80 @@ void round(bool print) {
 	span object = end(start, "object");
 
 	// Each frame stamped through a fresh timestamp, as a caller holding a u64 must.
-	start = begin();
-	for (int g = 0; g < groups; g++) {
-		auto group = must(track.append_group(must(moq::Timestamp::from_micros(micros), "from_micros")), "append_group");
-		for (int f = 0; f < frames; f++) {
-			auto at = must(moq::Timestamp::from_micros(micros++), "from_micros");
-			must(group.write_frame(at, frame), "write_frame");
+	span stamped;
+	{
+		auto track = create_track(broadcast, "stamped");
+		start = begin();
+		for (int g = 0; g < groups; g++) {
+			auto group = must(track.append_group(must(moq::Timestamp::from_micros(micros), "from_micros")), "append_group");
+			for (int f = 0; f < frames; f++) {
+				auto at = must(moq::Timestamp::from_micros(micros++), "from_micros");
+				must(group.write_frame(at, frame), "write_frame");
+			}
+			must(std::move(group).finish(), "finish");
 		}
-		must(std::move(group).finish(), "finish");
+		stamped = end(start, "stamped");
 	}
-	span stamped = end(start, "stamped");
 
 	// One timestamp per group, every frame of it stamped alike.
-	start = begin();
-	for (int g = 0; g < groups; g++) {
-		auto at = must(moq::Timestamp::from_micros(micros++), "from_micros");
-		auto group = must(track.append_group(at), "append_group");
-		for (int f = 0; f < frames; f++) {
-			must(group.write_frame(at, frame), "write_frame");
+	span write;
+	{
+		auto track = create_track(broadcast, "write");
+		start = begin();
+		for (int g = 0; g < groups; g++) {
+			auto at = must(moq::Timestamp::from_micros(micros++), "from_micros");
+			auto group = must(track.append_group(at), "append_group");
+			for (int f = 0; f < frames; f++) {
+				must(group.write_frame(at, frame), "write_frame");
+			}
+			must(std::move(group).finish(), "finish");
 		}
-		must(std::move(group).finish(), "finish");
+		write = end(start, "write");
 	}
-	span write = end(start, "write");
-
-	auto subscriber = must(must(track.consume().subscribe(std::nullopt).poll(noop()), "subscribe"), "subscribe");
 
 	// Each frame written, then read through a new future ready at its first poll.
 	std::optional<moq::frame_Frame> last;
-	start = begin();
-	for (int g = 0; g < groups; g++) {
-		auto at = must(moq::Timestamp::from_micros(micros++), "from_micros");
-		auto group = must(track.append_group(at), "append_group");
-		auto reader = ready(subscriber.recv_group(), "recv_group");
-		for (int f = 0; f < frames; f++) {
-			must(group.write_frame(at, frame), "write_frame");
-			last = ready(reader.read_frame(), "read_frame");
+	span read;
+	{
+		auto track = create_track(broadcast, "ready");
+		auto subscriber = subscribe(track);
+		start = begin();
+		for (int g = 0; g < groups; g++) {
+			auto at = must(moq::Timestamp::from_micros(micros++), "from_micros");
+			auto group = must(track.append_group(at), "append_group");
+			auto reader = ready(subscriber.recv_group(), "recv_group");
+			for (int f = 0; f < frames; f++) {
+				must(group.write_frame(at, frame), "write_frame");
+				last = ready(reader.read_frame(), "read_frame");
+			}
+			must(std::move(group).finish(), "finish");
 		}
-		must(std::move(group).finish(), "finish");
+		read = end(start, "ready");
 	}
-	span read = end(start, "ready");
 
 	// Each read polled before its frame is written, so it pends, then polled again.
-	start = begin();
-	for (int g = 0; g < groups; g++) {
-		auto at = must(moq::Timestamp::from_micros(micros++), "from_micros");
-		auto group = must(track.append_group(at), "append_group");
-		auto reader = ready(subscriber.recv_group(), "recv_group");
-		for (int f = 0; f < frames; f++) {
-			auto reading = reader.read_frame();
-			if (reading.poll(noop())) {
-				std::fprintf(stderr, "bench: woken read_frame ready\n");
-				std::exit(1);
+	span woken;
+	{
+		auto track = create_track(broadcast, "woken");
+		auto subscriber = subscribe(track);
+		start = begin();
+		for (int g = 0; g < groups; g++) {
+			auto at = must(moq::Timestamp::from_micros(micros++), "from_micros");
+			auto group = must(track.append_group(at), "append_group");
+			auto reader = ready(subscriber.recv_group(), "recv_group");
+			for (int f = 0; f < frames; f++) {
+				auto reading = reader.read_frame();
+				if (reading.poll(noop())) {
+					std::fprintf(stderr, "bench: woken read_frame ready\n");
+					std::exit(1);
+				}
+				must(group.write_frame(at, frame), "write_frame");
+				(void)must(must(must(reading.poll(noop()), "woken read_frame"), "woken read_frame"), "woken read_frame");
 			}
-			must(group.write_frame(at, frame), "write_frame");
-			(void)must(must(must(reading.poll(noop()), "woken read_frame"), "woken read_frame"), "woken read_frame");
+			must(std::move(group).finish(), "finish");
 		}
-		must(std::move(group).finish(), "finish");
+		woken = end(start, "woken");
 	}
-	span woken = end(start, "woken");
 
 	// The last frame's 100 bytes, owned without a copy, then freed.
 	start = begin();
@@ -296,7 +325,7 @@ void round(bool print) {
 
 	span mbps[std::size(sizes)];
 	for (std::size_t i = 0; i < std::size(sizes); i++) {
-		mbps[i] = throughput(track, subscriber, micros, sizes[i], sum);
+		mbps[i] = throughput(broadcast, micros, sizes[i], sum);
 	}
 	sink = sum;
 

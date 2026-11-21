@@ -6,6 +6,7 @@ stand-in `just ffi bench` exports, against BoltFFI's numbers below as targets.
 ```bash
 nix develop .#bench --command just ffi bench  # build, run 3 rounds, and write ffi/target/bench/report.md
 nix develop .#bench --command just ffi bench-run 5  # rerun what bench-build built, 5 rounds
+nix develop .#android --command just ffi bench-android  # the Kotlin rows on HotSpot and on the Android device adb reaches
 ```
 
 `ffi/moq/bench/export.*` time the same cases in each language, `export.rs` the floor
@@ -32,7 +33,7 @@ single-threaded case on every push to main and on each PR that can move one.
 | shared getter, own getter | the u64 getter the same way | none |
 | record return | `track.largest()`: an `Option` of two `u64`s, copied across | `track.info()`, a record |
 | object return | `track.info()`: a new handle, freed | none |
-| field | `info.priority`: an `i8` `pub` field read, which no user code reaches, so a leaf in C, Python, and Dart alone | none |
+| field | `info.priority`: an `i8` `pub` field read, which no user code reaches, so a leaf in C, Kotlin, Python, and Dart alone | none |
 | hop call, hop field | Dart's handle call and field read while Rust holds a closure of the isolate | none |
 | write | `group.write_frame(at, frame)` with one `Timestamp` a group and 100 B, copied into Rust | `write_frame` |
 | stamped write | the same with a new `Timestamp` per frame, as a caller holding a `u64` must | none |
@@ -80,6 +81,15 @@ consumed, checking the count on both sides. It has no writer task or permit hand
 must not be ranked against the managed `loop` row. C, C++, and Rust's existing `woken`
 cases already manually poll in one loop; they remain the native floor, without printing
 the same measurement twice under another name.
+
+Each case that writes groups writes them to a track of its own, created before its clock
+starts and freed after it stops. A track caches every group written to it until it is
+freed: a broadcast's pool evicts by its expiry only when something polls it, and nothing
+here does. Before, every case wrote to one track, so a round held all of its frames, about
+1.4 GB in C and Rust, and each later case ran on a heap that grew as it ran; now a round
+peaks near 290 MB there. Go and Swift peak at 1.1 and 1.2 GB, as their reads run on many
+threads, each with a glibc malloc arena that keeps what it freed: with
+`MALLOC_ARENA_MAX=1` they peak near 330 and 400 MB.
 
 ## CodSpeed
 
@@ -219,8 +229,9 @@ GIL, which dwarfs the handle's own contention.
 A leaf is a call the export proves runs no code but std's and the glue's, waits on no
 lock, and calls no binding: a primitive `pub` field of a `Send` object reached without a
 `Deref`, or a `PartialEq` or `Hash` derived down to primitives ([`Abi::leaf`](../../ffi/src/abi.rs)).
-Python keeps the GIL across one, and Dart makes it a leaf call (`isLeaf`) to the C function
-itself on the isolate's thread, with no serving thunk, no thread hop, and no `_Arena`.
+Python keeps the GIL across one, Dart makes it a leaf call (`isLeaf`) to the C function
+itself on the isolate's thread, with no serving thunk, no thread hop, and no `_Arena`, and
+Kotlin marks its native method `@FastNative` ([Kotlin on ART](#kotlin-on-art)).
 The benchmark's u64 getter, `demand.sequence()`, is a method, which the proof cannot see
 into, so the `field` case reads `track::Info::priority` instead; `group.sequence` is a
 field too, but reached through `group::Producer`'s `Deref`, which is user code.
@@ -262,6 +273,104 @@ Python's 37 ns is more than the 10 to 15 the per-language audit estimated for th
 round trip, as `rt::call` does more around it: it may look for the event loop running, and
 after the call drains what other threads freed and resumes what the call woke, all of which
 a leaf skips. A getter that is no leaf, such as `demand.sequence()`, still pays it.
+
+## Kotlin on ART
+
+`just ffi bench-android` runs `export.kt` on HotSpot on the host and, shrunk by R8 with the
+generated rules as an app is, on ART through `dalvikvm` on the Android device adb reaches,
+over a library cargo-ndk builds for it, round after round, into one report. Nightly runs it
+in the Android job, on its x86_64 API 35 emulator with 4 cores, into the run's summary; the
+other languages' rows run on arm64, so read Kotlin's on HotSpot beside ART's from this
+report alone. ART has no `java.lang.management`, so its CPU time is the kernel's tick count
+in `/proc/self/stat`, at HotSpot's own 10 ms resolution on Linux.
+
+Measured 2026-11-20 on **fedora**, an AMD Ryzen 9 9950X, through `quest gate`, against moq
+`1aa86d5e`, with this change, 3 rounds at a load of 6 to 8, on an Android 15 (API 35)
+x86_64 emulator with 4 cores under KVM. OpenJDK 21.0.13 with Kotlin 2.4.21, R8 8.6 from
+build-tools 35.0.0. Wall ns per call, the median; the CPU cells are coarse at this load's
+tick:
+
+| call | HotSpot | ART |
+|---|---|---|
+| handle call | 32 | 41 |
+| u64 getter | 23 | 32 |
+| field, a leaf | 23 | 25 |
+| record return | 56 | 129 |
+| object return | 97 | 230 |
+| write, 100 B | 224 | 382 |
+| ready read | 630 | 1,190 |
+| woken read | 1,761 | 3,751 |
+| `frame.payload`, 100 B | 64 | 143 |
+| throughput, 16 KiB frames | 9,268 MB/s | 652 MB/s |
+
+1. **A plain JNI call costs ART about 9 ns more than HotSpot.** The handle call and the
+   getter run the same Kotlin and the same Rust on both.
+2. **A leaf is `@FastNative`, which keeps ART's thread runnable across the call instead of
+   switching its state there and back.** Each leaf's native method takes it, as
+   `_Native.track_Info_priority_get` does, and `_Native`'s first call registers each through
+   `RegisterNatives` from the library's one exported `__contract`, since ART binds such a
+   method by its name only from Android 12. The annotation blocks the collector for the
+   call, so only a leaf takes it: a call that may wait on a lock, as `is_closed()` waits on
+   moq's, or call back into Kotlin, could stall every thread's collection behind it.
+3. **Throughput falls off from 16 KiB on ART alone**, near 650 MB/s against HotSpot's 6.7 to
+   9.3 GB/s, while 100 B and 1 KiB frames stay within 3x. These rounds kept every case's
+   frames on one track; a track per case ([below](#a-track-per-case)) raised both runtimes
+   but HotSpot more, so the gap stands. [ART's throughput](/quest/m1/ffi-speed/art-throughput.md)
+   finds why.
+
+The spike, 5 rounds of each side alternating on one emulator at a load of 12 to 29, wall ns,
+before (main) and after (`@FastNative` on leaves, registered):
+
+| case | API 35 before | API 35 after | API 30 before | API 30 after |
+|---|---|---|---|---|
+| field, a leaf | 34.1 | 25.8 | 43.5 | 28.1 |
+| handle call, no leaf | 40.3 | 43.6 | 80.3 | 80.8 |
+| u64 getter, no leaf | 32.6 | 33.8 | 43.2 | 43.4 |
+
+Marking the handle call and the getter too, by hand, on API 35 (3 rounds), cost 36.6 against
+41.1 and 25.7 against 34.2: the same few ns, which a call the proof cannot bound may not
+take. moq's export has 200 leaves, the api fixture's 17. Registration covers only those:
+registering all of moq's 6,455 native methods would scan the class's methods once each, and
+R8 strips the natives nothing calls, which `RegisterNatives` would then refuse, so the
+generated rules keep each `@FastNative` method instead. `kotlin/FastNative.kt` declares
+the annotation, which Android's SDK makes public only from API 34, for the JVM and older
+SDKs. Compiled as a program class, R8 keeps it on the methods only by the rule naming it;
+against android.jar's own class, R8 keeps it with no rule, so a build against SDK 34 or
+later leaves the file out, as one of two exports in an app must, since D8 refuses a class
+defined twice. Only leaves whose `eq` and `hash` walk no value of a caller's size are
+marked, as Dart's leaf calls are.
+
+`just ffi android` passes, with these rules, on API 24 (Android 7, which ignores the
+annotation), 28, 30, and 35.
+
+### A track per case
+
+Before this change, `export.kt` never finished on API 28: within 15 s its resident memory
+passed 1.7 GB under a 256 MB heap, and the emulator, with 2 GB and no swap, stopped
+answering adb for the 10 minutes it was given. The binding leaked nothing: the cases that
+make and free a million handles grew it by 3 MB in all, while each case writing a million
+100 B frames grew it by 270 to 300 MB, the frames its one track cached. HotSpot held the
+same, 2.1 GB at its peak, and API 35's emulator swapped it to zram. With each writing case
+on a track of its own ([above](#binding-benchmark)), the API 28 run peaks near 380 MB and
+finishes, and nightly runs it there with 2 GB, where a bench that outgrows the device
+hangs and the step's 20 minutes fail it.
+
+Measured 2026-11-20 on **desktop**, an Intel Core Ultra 7 270K Plus (24 cores), through
+`quest gate`, against moq `1aa86d5e`, on an Android 15 (API 35) x86_64 emulator with 4
+cores and 2.5 GB under KVM. Before is rust2 `cd40ee4d`, after is this change, 3 rounds
+each at a load of 26 to 28 before and 20 to 21 after; throughput in wall MB/s, the
+median:
+
+| frame | HotSpot before | HotSpot after | ART before | ART after |
+|---|---|---|---|---|
+| 100 B | 159 | 161 | 52 | 74 |
+| 1 KiB | 1,298 | 1,304 | 398 | 393 |
+| 16 KiB | 2,553 | 7,705 | 906 | 1,368 |
+| 64 KiB | 1,839 | 5,610 | 941 | 1,168 |
+| 1 MiB | 2,805 | 4,017 | 744 | 935 |
+
+The call rows moved within their rounds' spread; on ART, the 100 B write fell from 496
+to 404 ns and the ready read from 1,324 to 1,162.
 
 ## Swift's inlined calls
 
@@ -550,8 +659,12 @@ frame path:
    that finds its P's nursery. Since kixel-ai/rust2#880, each Kotlin thread holds one too, and
    a close no longer links and unlinks a phantom reference under a lock: Kotlin's object return
    fell from 124 to 118 ns median wall (from 112 to 94 at best) and from 56 to 38 on 4
-   threads at once. What it has left is mostly a checked close's two JNI crossings, its drop
-   and then its free ([TypeScript](#the-nursery) has the web's).
+   threads at once. Since kixel-ai/rust2#906, a checked close no call holds drops and frees in
+   one JNI crossing, as Go's and Dart's do: measured 2026-11-20 on **fedora** at a load
+   average of 11 to 30, 8 rounds alternating with main at `1fd44bdd`, Kotlin's object return
+   fell from 93 to 77 ns wall at best, and from 132 to 83 median, as half of main's rounds
+   ran at 169 to 199 and none of this one's past 92; and from 260 to 170 median CPU
+   ([TypeScript](#the-nursery) has the web's).
 3. **A woken read.** C's 427 ns is Rust's 329 plus a future's crossings. Kotlin's 1.6 us and
    Dart's 1.8 us add their event loops; Go's 5.1 us and Swift's 5.7 us wall (16.6 us CPU)
    are a goroutine or `Task` and a cross-thread wake per read, and Python's 6.9 us is

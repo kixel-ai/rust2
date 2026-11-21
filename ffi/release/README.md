@@ -64,6 +64,11 @@ TypeScript module importing the binding as `./web/<module>.ts` does beside an ex
 whose imports the consumer rewrites to the package's name. Its crate's version must be
 the release's. `features` and `example` apply to it when it is the crate's own; a web
 crate apart from it takes `web-features` and `web-example` instead.
+A `python-check`, `c-check`, or `web-check` may instead name a directory holding the program
+as `check.py`, `check.c` or `check.cpp`, or `check.ts`, beside the files it reads, which each
+consumer places beside it: a check that imports a module or includes a header of its own.
+A check its tests generate comes through `checks-artifact`, an artifact of the caller's run
+the builder unpacks over its checkout before reading the checks.
 
 ## What the builder does
 
@@ -109,15 +114,36 @@ crate apart from it takes `web-features` and `web-example` instead.
    deployment target it builds for, by default the target's oldest; and builds musl's
    library against a dynamic C runtime, as CPython links one, adding the flag to cargo's
    target rustflags, which cargo then reads in place of a config's `build.rustflags`.
-6. Swift: static libraries for macOS arm64 at macOS 13, and iOS arm64 and its simulator
-   at iOS 16, the floors of the generated Swift's `Swift.Duration`, each checked against
-   every object's declared minimum OS; one XCFramework of the three, zipped by the builder itself,
+6. Swift: static libraries for macOS arm64 at macOS 13, and iOS arm64, its simulator, and
+   Mac Catalyst arm64 at iOS 16, the floors of the generated Swift's `Swift.Duration`, each
+   checked against every object's declared minimum OS; one XCFramework of the four, zipped by the builder itself,
    its SHA-256 checked against `swift package compute-checksum`; and a `Package.swift`
    naming it at `https://github.com/<repo>/releases/download/<crate>-v<version>/<Module>FFI.xcframework.zip`.
    The package depends on swift-collections by the release tag at the exporter's pinned
    revision, since a package resolved by version cannot depend on a revision. Rust's
    native link libraries become linker settings, per platform where they differ; any
    other flag fails the build.
+
+   Each slice is linked as an app links it, keeping only what the C ABI reaches, and
+   `nm` lists the [required-reason APIs](https://developer.apple.com/documentation/bundleresources/describing-use-of-required-reason-api)
+   that link imports, which the App Store's upload scan refuses undeclared (ITMS-91053).
+   The package's `PrivacyInfo.xcprivacy` declares them, a resource of its own
+   `<Module>Privacy` target, which SwiftPM bundles into the app, since a static library holds
+   none: file metadata (`stat` and its kin, and Foundation's date keys such as
+   `NSURLCreationDateKey`) of the app's containers, `C617.1`, and of files
+   the user granted it, `3B52.1`; and the boot clock
+   (`mach_absolute_time`) for elapsed time, `35F9.1`. Disk space (`statfs` and its kin, and
+   keys such as `NSFileSystemFreeSize`), `getattrlist`, user defaults, and active keyboards have no reason
+   that fits every library, so a library reaching them fails the build. An Objective-C call
+   by selector, or to a class looked up at run time, imports no symbol, and the scan misses it.
+   A sandboxed macOS app may also stat a world-readable system path, such as `/etc/localtime`,
+   which no reason Apple defines covers, so neither these two nor a hand-written manifest
+   can declare it.
+
+   The slices carry line tables, `debug = "line-tables-only"` unless the crate's release
+   profile sets a level holding them: a static library has no dSYM of its own, and the app's dSYM is made
+   from the debug info of what it links, so a crash in Rust symbolicates to its source
+   line, which the build checks by `atos` on a dSYM of each slice's link.
 7. C and C++: an archive per wheel target, `<crate>-<version>-<target>.tar.gz`, or `.zip`
    on Windows, built like the wheels, Linux's against glibc 2.28 and macOS's at 11.0. It
    holds `include/` with both headers, the static and shared libraries, and three ways to
@@ -170,7 +196,8 @@ crate apart from it takes `web-features` and `web-example` instead.
     from an empty directory, and on Linux x64 checked by `mypy --strict` as installed; the
     sdist installed the same way, built by pip with rustup's Rust, in Alpine's musllinux, on
     Windows on arm64, and on Intel macOS; and the Swift package built by its own scheme for macOS, iOS,
-    and the iOS Simulator, then consumed by a new executable package that runs the check;
+    the iOS Simulator, and Mac Catalyst, then consumed by a new executable package that runs
+    the check, whose bundled privacy manifest must declare what the executable imports;
     and each C archive unpacked alone, built by a new CMake project through its CPS file and
     through its config package, and on Linux and macOS by pkg-config, linking each library,
     where a shared consumer must record the versioned name; and the Go module, unpacked from
@@ -193,7 +220,8 @@ crate apart from it takes `web-features` and `web-example` instead.
 
 rust2 runs it on every manual Check and nightly through
 [`bindings-test.yml`](/.github/workflows/bindings-test.yml): on the api fixture, whose
-wheels, C++ consumers, and web package must print its native transcript, and on moq's
+wheels, C++ consumers, and web package must print its native transcript through the checks
+`just ffi transcripts` writes, each test beside the script generated from it, and on moq's
 stand-in facade at the exporter's moq pin, through `moq/moq.py`, `moq/moq.swift`,
 `moq/moq.cpp`, and `moq/moq.go`, with its wasm32 stand-in as the web package.
 

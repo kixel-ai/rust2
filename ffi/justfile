@@ -53,6 +53,9 @@ corpus-update:
 protocol:
     cargo test --locked --test fixtures protocol_nightly -- --ignored
 
+# Write the api fixture's Python, C++, and web checks, each beside the script tests/fixtures/transcript generates, into <dir>/python, <dir>/cpp, and <dir>/web, the directories the release builder's check inputs take.
+transcripts dir:
+    out="$(cd {{ quote(invocation_directory()) }} && mkdir -p {{ quote(dir) }} && cd {{ quote(dir) }} && pwd)" && RUST2_TRANSCRIPTS="$out" cargo test --locked --test fixtures -- --ignored --exact transcripts
 # Run the api fixture's web test in headless Chromium, Firefox, and on Linux WebKit, in the bench shell, which carries them: nix develop .#bench.
 browsers:
     cargo test --locked --test fixtures -- --ignored --exact api_browsers
@@ -71,6 +74,10 @@ fix:
     cargo fmt --all
     cargo shear --fix
     cargo sort --workspace --no-format
+
+# Write src/macros.txt, the macros a C or C++ header may define, which a C or C++ name keeps apart from, from glibc's, musl's, and macOS's headers.
+macros:
+    src/macros.sh
 
 # Run the exporter: `just ffi run --manifest-path <Cargo.toml> --out <dir>`.
 run *args:
@@ -136,9 +143,76 @@ bench-build checkout="": (moq-export checkout) (moq-web checkout) ts-program cod
     {{ quote(just_executable()) }} dart-program bench-dart moq/bench/export.dart
     rm -rf target/bench-kt
     # moq's Kotlin outgrows the 512 MiB heap kotlinc's launcher defaults to.
-    JAVA_OPTS="-Xmx2g -Xms128M" kotlinc -Werror -cp "$KOTLINX_COROUTINES" "$out/kotlin/moq.kt" moq/bench/export.kt -d target/bench-kt
+    JAVA_OPTS="-Xmx2g -Xms128M" kotlinc -Werror -cp "$KOTLINX_COROUTINES" "$out/kotlin/moq.kt" "$out/kotlin/FastNative.kt" moq/bench/export.kt -d target/bench-kt
     {{ quote(just_executable()) }} swift-module -O
     swiftc -O -warnings-as-errors $({{ quote(just_executable()) }} swift-target 15) -I target/swift -I target/swift-collections/build -I "$out/swift" -I "$hooks" moq/bench/export.swift target/swift/libMoq.a -L target/swift-collections/build -lBasicContainers -lInternalCollectionsUtilities -lSpanPreview "$out/target/release/libmoq.a" "$hooks/libcodspeed.a" -lpthread -ldl -lm -o target/bench-export-swift
+
+# Measure the binding benchmark's Kotlin rows (bench/ffi/README.md) on HotSpot here and, shrunk by R8 as an app is, on ART on the Android device adb reaches, from the pinned moq revision or a checkout, in the Android shell (nix develop .#android) with ANDROID_HOME and ANDROID_NDK_HOME set. Its tables go to target/bench-android/report.md.
+bench-android rounds="3" checkout="":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    sdk=${ANDROID_HOME:?ANDROID_HOME names the Android SDK}
+    adb=$sdk/platform-tools/adb
+    newest() { find "$1" -mindepth 1 -maxdepth 1 | sort -V | tail -n 1; }
+    abi=$("$adb" shell getprop ro.product.cpu.abi | tr -d '\r')
+    case "$abi" in
+        arm64-v8a) target=aarch64-linux-android ;;
+        x86_64) target=x86_64-linux-android ;;
+        *) echo "bench-android: the Android shell's toolchain has no target for the device's ABI $abi" >&2; exit 1 ;;
+    esac
+    # The export merges the device's API, so its Kotlin and libraries serve both; the API
+    # stays staged in target/moq-api, as moq-api leaves it.
+    {{ quote(just_executable()) }} moq-api "$target" {{ quote(checkout) }}
+    {{ quote(just_executable()) }} moq-write {{ quote(checkout) }}
+    out=target/export/moq
+    dir=target/bench-android
+    rm -rf "$dir"
+    mkdir -p "$dir/dex"
+    cargo build --locked --quiet --release --manifest-path "$out/Cargo.toml" --features kotlin
+    cargo ndk --target "$abi" --platform 24 --output-dir "$dir/lib" build --locked --quiet --release --manifest-path "$out/Cargo.toml" --features kotlin
+    # One jar for both VMs, the Kotlin standard library inside, as R8 reads an app's.
+    JAVA_OPTS="-Xmx2g -Xms128M" kotlinc -Werror -cp "$KOTLINX_COROUTINES" "$out/kotlin/moq.kt" "$out/kotlin/FastNative.kt" moq/bench/export.kt -include-runtime -d "$dir/bench.jar"
+    (cd "$dir" && jar xf "$KOTLINX_COROUTINES" META-INF/com.android.tools/r8/coroutines.pro)
+    # HotSpot's CPU clock, which ART's run never reaches, is not in Android's library.
+    printf '%s\n' '-keep class ExportKt { public static void main(java.lang.String[]); }' '-dontwarn com.sun.management.**' '-dontwarn java.lang.management.**' '-dontwarn org.jetbrains.annotations.**' > "$dir/app.pro"
+    java -cp "$(newest "$sdk/build-tools")/lib/d8.jar" com.android.tools.r8.R8 --release --min-api 24 --lib "$(newest "$sdk/platforms")/android.jar" \
+        --pg-conf "$out/kotlin/moq.pro" --pg-conf "$dir/META-INF/com.android.tools/r8/coroutines.pro" --pg-conf "$dir/app.pro" \
+        --output "$dir/dex" "$dir/bench.jar" "$KOTLINX_COROUTINES"
+    device=/data/local/tmp/rust2-bench
+    "$adb" shell "rm -rf $device && mkdir -p $device/dalvik-cache"
+    "$adb" push --sync "$dir/dex/classes.dex" "$dir/lib/$abi/libmoq.so" "$device" > /dev/null
+    # As bench-run does: each program's lines prefixed by its language and round, and
+    # suffixed by the host's load average over the run.
+    raw=$dir/raw.tsv
+    : > "$raw"
+    load() {
+        if [ "{{ os() }}" = macos ]; then
+            sysctl -n vm.loadavg | awk '{ print $2 }'
+        else
+            awk '{ print $1 }' /proc/loadavg
+        fi
+    }
+    run() {
+        local lang=$1 before after
+        shift
+        before=$(load)
+        "$@" | tr -d '\r' > "$dir/run.tsv"
+        after=$(load)
+        awk -v lang="$lang" -v round="$r" -v loadavg="$(echo "$before $after" | awk '{ print ($1 + $2) / 2 }')" -F '\t' \
+            'NF == 3 { print lang "\t" round "\t" $1 "\t" $2 "\t" $3 "\t" loadavg; next } { print "bench-android: " lang ": unexpected line: " $0 > "/dev/stderr"; exit 1 }' \
+            "$dir/run.tsv" >> "$raw"
+    }
+    for r in $(seq {{ rounds }}); do
+        run kotlin java -Djava.library.path="$out/target/release" -cp "$dir/bench.jar:$KOTLINX_COROUTINES" ExportKt
+        # dalvikvm interprets on Android 9 unless told to JIT, as an app's runtime does.
+        run kotlin-art "$adb" shell "ANDROID_DATA=$device dalvikvm -Xusejit:true -Djava.library.path=$device -cp $device/classes.dex ExportKt"
+    done
+    {
+        printf '## Kotlin on HotSpot and ART\n\nART: Android %s (API %s), %s, %s cores.\n\n' \
+            "$("$adb" shell getprop ro.build.version.release | tr -d '\r')" "$("$adb" shell getprop ro.build.version.sdk | tr -d '\r')" "$abi" "$("$adb" shell grep -c ^processor /proc/cpuinfo | tr -d '\r')"
+        python3 -I ../bench/ffi/report.py "$raw"
+    } > "$dir/report.md"
+    cat "$dir/report.md"
 
 # Build moq/bench/codspeed.c over the bench shell's instrument-hooks into target/codspeed: a static library the compiled programs link, a shared one with the JNI functions that Kotlin, Python, and Dart load, the addon Node loads, and a module map Swift imports it by.
 [private]
@@ -282,7 +356,7 @@ moq checkout="": (moq-cpp checkout)
     target/moq-test
     # The Kotlin, on the JVM, through the JNI functions the kotlin feature builds.
     rm -rf target/moq-kt
-    JAVA_OPTS="-Xmx2g -Xms128M" kotlinc -Werror -cp "$KOTLINX_COROUTINES" "$out/kotlin/moq.kt" moq/moq.kt -d target/moq-kt
+    JAVA_OPTS="-Xmx2g -Xms128M" kotlinc -Werror -cp "$KOTLINX_COROUTINES" "$out/kotlin/moq.kt" "$out/kotlin/FastNative.kt" moq/moq.kt -d target/moq-kt
     kotlin -Djava.library.path="$out/target/release" -cp "target/moq-kt:$KOTLINX_COROUTINES" MoqKt
     # The Python, through the CPython extension the python feature builds, and its types
     # through mypy and pyright, as `api_py_types` checks the api fixture's.

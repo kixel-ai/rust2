@@ -684,6 +684,21 @@ public struct ClashBreak: Sendable, CustomDebugStringConvertible, Equatable {
 	@inlinable public static var SP: ClashBreak { get }
 	@inlinable public static var SP_: ClashBreak { get }
 }
+public struct ClashMalformed: Sendable, CustomStringConvertible, CustomDebugStringConvertible, Equatable {
+	public var at: Swift.UInt8
+	@inlinable public init(at: Swift.UInt8)
+	@inlinable public var description: Swift.String { get }
+	@inlinable public var debugDescription: Swift.String { get }
+	@inlinable public static func == (a: ClashMalformed, b: ClashMalformed) -> Swift.Bool
+	@inlinable public func `is`(_ at: Swift.UInt8) -> Swift.Bool
+}
+public struct ClashErrno: Sendable, CustomDebugStringConvertible, Equatable {
+	public var errno: Swift.Int32
+	@inlinable public init(errno: Swift.Int32)
+	@inlinable public var debugDescription: Swift.String { get }
+	@inlinable public static func == (a: ClashErrno, b: ClashErrno) -> Swift.Bool
+	@inlinable public static var NULL: ClashErrno { get }
+}
 public struct ClashEscaped: Sendable, CustomDebugStringConvertible, Equatable {
 	public var new: Swift.UInt8
 	@inlinable public init(new: Swift.UInt8)
@@ -842,6 +857,21 @@ public enum ClashCandidate: Sendable, CustomDebugStringConvertible, Equatable {
 	case match(Swift.UInt8)
 	@inlinable public var debugDescription: Swift.String { get }
 	@inlinable public static func == (a: ClashCandidate, b: ClashCandidate) -> Swift.Bool
+}
+public enum ClashLevel: Sendable, CustomDebugStringConvertible, Equatable {
+	case default_
+	case debug
+	@inlinable public var debugDescription: Swift.String { get }
+	@inlinable public static func == (a: ClashLevel, b: ClashLevel) -> Swift.Bool
+	@inlinable public static func `default`() -> ClashLevel
+	@inlinable public func index() -> Swift.UInt8
+}
+public enum ClashTag: Sendable, CustomDebugStringConvertible, Equatable {
+	case application(number: Swift.UInt32)
+	case `private`(number: Swift.UInt32)
+	@inlinable public var debugDescription: Swift.String { get }
+	@inlinable public static func == (a: ClashTag, b: ClashTag) -> Swift.Bool
+	@inlinable public func number() -> Swift.UInt32
 }
 public enum Level: Sendable, CustomStringConvertible, Hashable, Comparable {
 	case error
@@ -1086,6 +1116,11 @@ public struct Holder: ~Copyable, @unchecked Sendable {
 	@inlinable public static func new(_ level: Swift.UInt64) -> Holder
 	@available(*, deprecated, message: "use `Dial`, whose 'level' is \"the same\" at $0\nand past it") @inlinable public var levelGet: Swift.UInt64 { get }
 	@available(*, deprecated, message: "use `Dial`, whose 'level' is \"the same\" at $0\nand past it") @inlinable public func doubled() -> Swift.UInt64
+}
+public struct Tag: ~Copyable, @unchecked Sendable {
+	@inlinable public static func `default`() -> Tag
+	@inlinable public static func new() -> Tag
+	@inlinable public mutating func tagged(_ n: inout Swift.UInt32, _ f: @Sendable () -> Swift.Unicode.Scalar) throws -> Swift.String
 }
 public struct Area: ~Copyable, @unchecked Sendable {
 	@inlinable public var debugDescription: Swift.String { get }
@@ -1383,6 +1418,13 @@ public struct ClashStore: ~Copyable, @unchecked Sendable {
 	@inlinable public static func new(_ count: Swift.UInt32) -> ClashStore
 	@inlinable public func free() -> Swift.UInt32
 	@inlinable public func close() -> Swift.UInt32
+	@inlinable public func wait()
+	@inlinable public func finalize()
+}
+public struct ClashReader: ~Copyable, @unchecked Sendable {
+	@inlinable public static func new(_ bytes: Bytes) -> ClashReader
+	@inlinable public mutating func readByte() throws -> Swift.UInt8
+	@inlinable public mutating func unreadByte() throws
 }
 public struct TlsSession: ~Copyable, @unchecked Sendable {
 	@inlinable public func alpn() -> Swift.String
@@ -1476,6 +1518,13 @@ public protocol Undo: Sendable {
 	func free() -> Swift.UInt32
 	func type() -> Swift.UInt8
 }
+public protocol Stretch: Sendable {
+	func stretch() -> Swift.UInt
+}
+public protocol ClashSource: Sendable {
+	func wait()
+	func readByte() -> Swift.UInt8
+}
 public struct BoundsU64Error: Swift.Error, CustomStringConvertible {
 	public let error: BoundsU64
 	@inlinable public init(error: BoundsU64)
@@ -1491,11 +1540,13 @@ public struct VecClashToneError: Swift.Error, CustomStringConvertible {
 	@inlinable public init(error: [ClashTone])
 	@inlinable public var description: Swift.String { get }
 }
+extension ClashMalformed: Swift.Error {}
 extension Error: Swift.Error {}
 extension Fault: Swift.Error {}
 extension Refusal: Swift.Error {}
 public let LIMIT: Swift.UInt64
 public let FAR: Swift.Int64
+public let EOF: Swift.Int32
 public let URL: Swift.UInt64
 @available(*, deprecated, message: "pass a step to `Dial::turn`, whose `}` or `{` alone stays in the note") public let STEP: Swift.UInt64
 @inlinable public func hasText(_ note: Note) -> Swift.Bool
@@ -1738,6 +1789,7 @@ public let URL: Swift.UInt64
 @inlinable public func boothCount(_ booth: Booth) throws -> Swift.UInt64
 @inlinable public func page() throws -> Page
 @inlinable public func beats(_ beat: any Beat) throws -> Swift.UInt32
+@inlinable public func paired(_ f: @Sendable () -> Swift.UInt8, _ fUnwind: @Sendable () -> Swift.UInt8) -> Swift.UInt8
 @inlinable public func same(_ a: Swift.Double, _ b: Swift.Double) -> Swift.Int32
 @inlinable public func errno() -> Swift.Int32
 @inlinable public func assert(_ holds: Swift.Bool) -> Swift.Bool
@@ -1748,6 +1800,7 @@ public let URL: Swift.UInt64
 @inlinable public func describeNonZeros(_ nonZeros: NonZeros) -> Swift.String
 @inlinable public func nextHop(_ hop: NonZero<Swift.UInt64>?) -> NonZero<Swift.UInt64>?
 @inlinable public func fartherHop(_ hops: PairNonZeroU16) -> NonZero<Swift.UInt16>
+@inlinable public func wexitstatus(_ status: Swift.Int32) -> Swift.Int32
 @inlinable public func sameDuration(_ v: RustDuration) -> RustDuration
 @inlinable public func sameU64(_ v: Swift.UInt64) -> Swift.UInt64
 @inlinable public func sameUsize(_ v: Swift.UInt) -> Swift.UInt
@@ -1771,6 +1824,12 @@ public let URL: Swift.UInt64
 @available(*, deprecated, message: "read its `level`") @inlinable nonisolated(nonsending) public func levelLater(_ dial: Dial) async throws -> Swift.UInt64
 @inlinable public func turned(_ dial: Dial, _ turner: any Turner) throws -> Dial
 @inlinable public func undone(_ undo: any Undo, _ n: Swift.UInt32) -> Swift.UInt32
+@inlinable public func unwound() -> Swift.UInt32
+@inlinable public func measured(_ f: @Sendable () -> Swift.UInt) -> Swift.UInt
+@inlinable public func negated(_ f: @Sendable () -> Swift.Int) -> Swift.Int
+@inlinable public func lettered(_ f: @Sendable () -> Swift.Unicode.Scalar) -> Swift.Unicode.Scalar
+@inlinable public func bumped(_ n: inout Swift.UInt32, _ f: @Sendable () -> Swift.Unicode.Scalar) -> Swift.Unicode.Scalar
+@inlinable public func stretched(_ stretch: any Stretch) -> Swift.UInt
 @inlinable public func crowded(_ reading: Reading, _ a: Stamp, _ b: Stamp, _ n0: Swift.UInt64, _ n1: Swift.UInt64, _ n2: Swift.UInt64, _ n3: Swift.UInt64, _ n4: Swift.UInt64, _ n5: Swift.UInt64, _ n6: Swift.UInt64, _ n7: Swift.UInt64, _ n8: Swift.UInt64, _ n9: Swift.UInt64, _ n10: Swift.UInt64, _ n11: Swift.UInt64, _ n12: Swift.UInt64, _ n13: Swift.UInt64, _ n14: Swift.UInt64, _ n15: Swift.UInt64, _ n16: Swift.UInt64, _ n17: Swift.UInt64, _ n18: Swift.UInt64, _ n19: Swift.UInt64, _ n20: Swift.UInt64, _ n21: Swift.UInt64, _ n22: Swift.UInt64, _ n23: Swift.UInt64, _ n24: Swift.UInt64, _ n25: Swift.UInt64, _ n26: Swift.UInt64, _ n27: Swift.UInt64, _ n28: Swift.UInt64, _ n29: Swift.UInt64, _ n30: Swift.UInt64, _ n31: Swift.UInt64, _ n32: Swift.UInt64, _ n33: Swift.UInt64, _ n34: Swift.UInt64, _ n35: Swift.UInt64, _ n36: Swift.UInt64, _ n37: Swift.UInt64, _ n38: Swift.UInt64, _ n39: Swift.UInt64, _ n40: Swift.UInt64, _ n41: Swift.UInt64, _ n42: Swift.UInt64, _ n43: Swift.UInt64, _ n44: Swift.UInt64, _ n45: Swift.UInt64, _ n46: Swift.UInt64, _ n47: Swift.UInt64, _ n48: Swift.UInt64, _ n49: Swift.UInt64, _ n50: Swift.UInt64, _ n51: Swift.UInt64, _ n52: Swift.UInt64, _ n53: Swift.UInt64, _ n54: Swift.UInt64, _ n55: Swift.UInt64, _ n56: Swift.UInt64, _ n57: Swift.UInt64, _ n58: Swift.UInt64, _ n59: Swift.UInt64, _ n60: Swift.UInt64, _ n61: Swift.UInt64, _ n62: Swift.UInt64, _ n63: Swift.UInt64, _ n64: Swift.UInt64, _ n65: Swift.UInt64, _ n66: Swift.UInt64, _ n67: Swift.UInt64, _ n68: Swift.UInt64, _ n69: Swift.UInt64, _ n70: Swift.UInt64, _ n71: Swift.UInt64, _ n72: Swift.UInt64, _ n73: Swift.UInt64, _ n74: Swift.UInt64, _ n75: Swift.UInt64, _ n76: Swift.UInt64, _ n77: Swift.UInt64, _ n78: Swift.UInt64, _ n79: Swift.UInt64, _ n80: Swift.UInt64, _ n81: Swift.UInt64, _ n82: Swift.UInt64, _ n83: Swift.UInt64, _ n84: Swift.UInt64, _ n85: Swift.UInt64, _ n86: Swift.UInt64, _ n87: Swift.UInt64, _ n88: Swift.UInt64, _ n89: Swift.UInt64, _ n90: Swift.UInt64, _ n91: Swift.UInt64, _ n92: Swift.UInt64, _ n93: Swift.UInt64, _ n94: Swift.UInt64, _ n95: Swift.UInt64, _ n96: Swift.UInt64, _ n97: Swift.UInt64, _ n98: Swift.UInt64, _ n99: Swift.UInt64, _ n100: Swift.UInt64, _ n101: Swift.UInt64, _ n102: Swift.UInt64, _ n103: Swift.UInt64, _ n104: Swift.UInt64, _ n105: Swift.UInt64, _ n106: Swift.UInt64, _ n107: Swift.UInt64, _ n108: Swift.UInt64, _ n109: Swift.UInt64, _ n110: Swift.UInt64, _ n111: Swift.UInt64, _ n112: Swift.UInt64, _ n113: Swift.UInt64, _ n114: Swift.UInt64, _ n115: Swift.UInt64, _ n116: Swift.UInt64, _ n117: Swift.UInt64, _ n118: Swift.UInt64) -> Swift.UInt64
 @inlinable public func crammed(_ a: Moment, _ b: Moment, _ n0: Swift.UInt64, _ n1: Swift.UInt64, _ n2: Swift.UInt64, _ n3: Swift.UInt64, _ n4: Swift.UInt64, _ n5: Swift.UInt64, _ n6: Swift.UInt64, _ n7: Swift.UInt64, _ n8: Swift.UInt64, _ n9: Swift.UInt64, _ n10: Swift.UInt64, _ n11: Swift.UInt64, _ n12: Swift.UInt64, _ n13: Swift.UInt64, _ n14: Swift.UInt64, _ n15: Swift.UInt64, _ n16: Swift.UInt64, _ n17: Swift.UInt64, _ n18: Swift.UInt64, _ n19: Swift.UInt64, _ n20: Swift.UInt64, _ n21: Swift.UInt64, _ n22: Swift.UInt64, _ n23: Swift.UInt64, _ n24: Swift.UInt64, _ n25: Swift.UInt64, _ n26: Swift.UInt64, _ n27: Swift.UInt64, _ n28: Swift.UInt64, _ n29: Swift.UInt64, _ n30: Swift.UInt64, _ n31: Swift.UInt64, _ n32: Swift.UInt64, _ n33: Swift.UInt64, _ n34: Swift.UInt64, _ n35: Swift.UInt64, _ n36: Swift.UInt64, _ n37: Swift.UInt64, _ n38: Swift.UInt64, _ n39: Swift.UInt64, _ n40: Swift.UInt64, _ n41: Swift.UInt64, _ n42: Swift.UInt64, _ n43: Swift.UInt64, _ n44: Swift.UInt64, _ n45: Swift.UInt64, _ n46: Swift.UInt64, _ n47: Swift.UInt64, _ n48: Swift.UInt64, _ n49: Swift.UInt64, _ n50: Swift.UInt64, _ n51: Swift.UInt64, _ n52: Swift.UInt64, _ n53: Swift.UInt64, _ n54: Swift.UInt64, _ n55: Swift.UInt64, _ n56: Swift.UInt64, _ n57: Swift.UInt64, _ n58: Swift.UInt64, _ n59: Swift.UInt64, _ n60: Swift.UInt64, _ n61: Swift.UInt64, _ n62: Swift.UInt64, _ n63: Swift.UInt64, _ n64: Swift.UInt64, _ n65: Swift.UInt64, _ n66: Swift.UInt64, _ n67: Swift.UInt64, _ n68: Swift.UInt64, _ n69: Swift.UInt64, _ n70: Swift.UInt64, _ n71: Swift.UInt64, _ n72: Swift.UInt64, _ n73: Swift.UInt64, _ n74: Swift.UInt64, _ n75: Swift.UInt64, _ n76: Swift.UInt64, _ n77: Swift.UInt64, _ n78: Swift.UInt64, _ n79: Swift.UInt64, _ n80: Swift.UInt64, _ n81: Swift.UInt64, _ n82: Swift.UInt64, _ n83: Swift.UInt64, _ n84: Swift.UInt64, _ n85: Swift.UInt64, _ n86: Swift.UInt64, _ n87: Swift.UInt64, _ n88: Swift.UInt64, _ n89: Swift.UInt64, _ n90: Swift.UInt64, _ n91: Swift.UInt64, _ n92: Swift.UInt64, _ n93: Swift.UInt64, _ n94: Swift.UInt64, _ n95: Swift.UInt64, _ n96: Swift.UInt64, _ n97: Swift.UInt64, _ n98: Swift.UInt64, _ n99: Swift.UInt64, _ n100: Swift.UInt64, _ n101: Swift.UInt64, _ n102: Swift.UInt64, _ n103: Swift.UInt64, _ n104: Swift.UInt64, _ n105: Swift.UInt64, _ n106: Swift.UInt64, _ n107: Swift.UInt64, _ n108: Swift.UInt64, _ n109: Swift.UInt64, _ n110: Swift.UInt64, _ n111: Swift.UInt64, _ n112: Swift.UInt64, _ n113: Swift.UInt64, _ n114: Swift.UInt64, _ n115: Swift.UInt64, _ n116: Swift.UInt64, _ n117: Swift.UInt64, _ n118: Swift.UInt64, _ n119: Swift.UInt64, _ n120: Swift.UInt64, _ n121: Swift.UInt64, _ n122: Swift.UInt64, _ n123: Swift.UInt64) -> Swift.UInt64
 @inlinable public func jniOne() -> Swift.UInt32
@@ -1780,6 +1839,7 @@ public let URL: Swift.UInt64
 @inlinable public func clashCandidate(_ at: Swift.UInt8) -> ClashCandidate
 @inlinable public func clashIgnore(_ arg0: Swift.UInt8, _ arg1: Swift.UInt8, _ arg2: Swift.UInt8) -> Swift.UInt8
 @inlinable public func clashEmpty() -> ClashEmptyString
+@inlinable public func clashWaited(_ source: any ClashSource) -> Swift.UInt8
 @inlinable public func clashAudible(_ tone: ClashTone) throws -> ClashTone
 @inlinable public func clashNested(_ a: ((Swift.UInt8, Swift.UInt16), Swift.UInt32)?, _ b: (Swift.UInt8, Swift.UInt16, Swift.UInt32)?) -> Swift.UInt32
 @inlinable public func clashAudioEncoderFinish() -> Swift.UInt8
