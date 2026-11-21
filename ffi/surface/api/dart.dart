@@ -1268,6 +1268,10 @@ final class Journal extends _Object {
 	void redirect(Log sink);
 	bool write(String line);
 }
+final class Epilogue extends _Object {
+	factory Epilogue(Log sink, int id);
+	void redirect(Log sink);
+}
 final class Local extends _Object {
 	@override bool operator ==(Object other);
 	@override int get hashCode;

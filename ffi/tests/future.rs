@@ -266,13 +266,7 @@ fn polls_race() {
 	model(None, || {
 		let channel = Channel::default();
 		let inside = Arc::new(AtomicUsize::new(0));
-		let future = Future::new(
-			Overlap {
-				channel,
-				inside,
-			},
-			lower,
-		);
+		let future = Future::new(Overlap { channel, inside }, lower);
 		let (first, second) = (Arc::new(Counts::default()), Arc::new(Counts::default()));
 		let other = {
 			let handle = future as usize;
@@ -440,14 +434,26 @@ fn unsent_on_a_home() {
 fn flaws_are_caught() {
 	use rt::Flaw::*;
 	rt::flaws_are_caught(&[
-		(SwapsKeepFlag, &["polls_race", "unsent_polled_and_freed_elsewhere", "unsent_on_a_home"]),
+		(
+			SwapsKeepFlag,
+			&["polls_race", "unsent_polled_and_freed_elsewhere", "unsent_on_a_home"],
+		),
 		(
 			SwapsSeeSet,
-			&["polls_race", "wake_races_poll", "waker_replaced_while_woken", "free_races_wake", "start_then_poll"],
+			&[
+				"polls_race",
+				"wake_races_poll",
+				"waker_replaced_while_woken",
+				"free_races_wake",
+				"start_then_poll",
+			],
 		),
 		(LoadsClear, &["unsent_polled_and_freed_elsewhere", "unsent_on_a_home"]),
 		(LoadsSet, &["unsent_on_a_home"]),
 		(StoresSetSkipped, &["unsent_on_a_home"]),
-		(StoresClearSkipped, &["wake_races_poll", "waker_replaced_while_woken", "start_then_poll"]),
+		(
+			StoresClearSkipped,
+			&["wake_races_poll", "waker_replaced_while_woken", "start_then_poll"],
+		),
 	]);
 }

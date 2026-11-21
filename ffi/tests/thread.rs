@@ -305,14 +305,27 @@ fn flaws_are_caught() {
 	rt::flaws_are_caught(&[
 		(
 			SwapsKeepFlag,
-			&["free_elsewhere_drops_on_check", "wake_schedules_drain", "calls_on_a_home", "homes_call_each_other"],
+			&[
+				"free_elsewhere_drops_on_check",
+				"wake_schedules_drain",
+				"calls_on_a_home",
+				"homes_call_each_other",
+			],
 		),
 		(SwapsSeeSet, &["wake_schedules_drain"]),
 		(
 			LoadsClear,
-			&["free_elsewhere_drops_on_check", "wake_schedules_drain", "calls_on_a_home", "homes_call_each_other"],
+			&[
+				"free_elsewhere_drops_on_check",
+				"wake_schedules_drain",
+				"calls_on_a_home",
+				"homes_call_each_other",
+			],
 		),
-		(LoadsSet, &["wake_schedules_drain", "calls_on_a_home", "homes_call_each_other"]),
+		(
+			LoadsSet,
+			&["wake_schedules_drain", "calls_on_a_home", "homes_call_each_other"],
+		),
 		(StoresSetSkipped, &["calls_on_a_home", "homes_call_each_other"]),
 		(StoresClearSkipped, &["calls_on_a_home", "homes_call_each_other"]),
 	]);

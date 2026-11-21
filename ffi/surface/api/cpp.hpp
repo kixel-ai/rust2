@@ -195,6 +195,12 @@ namespace api {
 		RUST2_FFI_CALLABLE void redirect(::std::unique_ptr<::api::Log> sink);
 		RUST2_FFI_CALLABLE bool write(::api::input line) const;
 	};
+	class RUST2_FFI_CONSUMABLE Epilogue {
+		RUST2_FFI_UNCONSUMED Epilogue(Epilogue &&other RUST2_FFI_MOVED_FROM) noexcept = default;
+		Epilogue &operator=(Epilogue &&other) noexcept = default;
+		static ::api::Epilogue new_(::std::unique_ptr<::api::Log> sink, ::std::uint32_t id);
+		RUST2_FFI_CALLABLE void redirect(::std::unique_ptr<::api::Log> sink);
+	};
 	class RUST2_FFI_CONSUMABLE Local {
 		RUST2_FFI_UNCONSUMED Local(Local &&other RUST2_FFI_MOVED_FROM) noexcept = default;
 		Local &operator=(Local &&other) noexcept = default;
@@ -2427,6 +2433,7 @@ namespace api {
 	class Folio;
 	class Logger;
 	class Journal;
+	class Epilogue;
 	class Local;
 	class Wrapped;
 	class Buffer;
