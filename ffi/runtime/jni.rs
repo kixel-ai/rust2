@@ -654,8 +654,15 @@ fn lends(len: usize) -> bool {
 	}
 	let lent = LENT_BYTES.fetch_add(len, Ordering::Relaxed) + len;
 	if lent <= LENT_MAX {
-		if lent >= COLLECT_AT && ARMED.load(Ordering::Relaxed) && ARMED.swap(false, Ordering::Relaxed) {
-			collect();
+		if lent >= COLLECT_AT && ARMED.load(Ordering::Relaxed) && ARMED.swap(false, Ordering::SeqCst) {
+			// A free since `lent` was read may have taken the bytes under half of
+			// `COLLECT_AT` and seen `ARMED` still set: `SeqCst` here and in [`unlend`]
+			// makes one side see the other, so that free's arming is never lost.
+			if LENT_BYTES.load(Ordering::SeqCst) < COLLECT_AT / 2 {
+				ARMED.store(true, Ordering::Relaxed);
+			} else {
+				collect();
+			}
 		}
 		return true;
 	}
@@ -666,8 +673,8 @@ fn lends(len: usize) -> bool {
 /// Take `len` bytes off [`LENT_BYTES`], a freed lend's or a refused one's, and on ART arm
 /// [`collect`] again once under half of [`COLLECT_AT`] are left.
 fn unlend(len: usize) {
-	let left = LENT_BYTES.fetch_sub(len, Ordering::Relaxed) - len;
-	if left < COLLECT_AT / 2 && ART.load(Ordering::Relaxed) && !ARMED.load(Ordering::Relaxed) {
+	let left = LENT_BYTES.fetch_sub(len, Ordering::SeqCst) - len;
+	if left < COLLECT_AT / 2 && ART.load(Ordering::Relaxed) && !ARMED.load(Ordering::SeqCst) {
 		ARMED.store(true, Ordering::Relaxed);
 	}
 }
