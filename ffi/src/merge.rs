@@ -612,6 +612,7 @@ impl Merged {
 			let races = match (&mut ours[at].access, &function.access) {
 				(
 					Access::Field {
+						set,
 						read: ours,
 						unfrozen: ours_unfrozen,
 						..
@@ -623,7 +624,9 @@ impl Merged {
 					},
 				) => {
 					let read = (*ours).max(*theirs);
-					let races = read == Read::Take
+					// A setter assigns and never reads the field, so it cannot race.
+					let races = !*set
+						&& read == Read::Take
 						&& ((*ours != read && *ours_unfrozen) || (*theirs != read && *theirs_unfrozen));
 					if !races {
 						*ours = read;
@@ -1103,6 +1106,21 @@ mod tests {
 			let (merged, differs) = super::merge(vec![first, second]);
 			assert_eq!(differs.len(), 1);
 			assert_eq!((differs[0].first.0.as_str(), differs[0].second.0.as_str()), ("x", "y"));
+			assert_eq!(merged.records[0].methods.len(), 1);
+		}
+		// A setter never reads the field, so the same pair merges without a difference.
+		let setter = |mut api: Api| {
+			if let Access::Field { set, .. } = &mut api.records[0].methods[0].access {
+				*set = true;
+			}
+			api
+		};
+		for (first, second) in [
+			(api("x", Read::Borrow, true), api("y", Read::Take, true)),
+			(api("x", Read::Take, true), api("y", Read::Borrow, true)),
+		] {
+			let (merged, differs) = super::merge(vec![setter(first), setter(second)]);
+			assert!(differs.is_empty());
 			assert_eq!(merged.records[0].methods.len(), 1);
 		}
 	}
