@@ -517,9 +517,11 @@ def digest(export, lib):
     """A hash of the generated bindings, which every build host's export must agree on."""
     hasher = hashlib.sha256()
     export = Path(export)
-    headers = sorted(p for p in (export / "include").rglob("*") if p.is_file())
-    paths = [export / "python" / f"{lib}.py", *headers, *sorted((export / "swift").iterdir()),
-             *sorted(p for p in (export / "go").rglob("*") if p.is_file()), *sorted((export / "kotlin").iterdir())]
+    # In code point order on every host: Windows compares its paths ignoring case, which
+    # would put `FastNative.kt` after `api.kt` there alone.
+    def files(part):
+        return sorted((p for p in (export / part).rglob("*") if p.is_file()), key=lambda p: p.relative_to(export).as_posix())
+    paths = [export / "python" / f"{lib}.py", *files("include"), *files("swift"), *files("go"), *files("kotlin")]
     for path in paths:
         hasher.update(path.relative_to(export).as_posix().encode() + b"\0")
         # Exact bytes: each wheel ships its own host's module.
