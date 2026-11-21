@@ -599,43 +599,46 @@ class __Handle(
 
 	// [close] of a handle whose value Rust checks.
 	private fun closeChecked(drop: __Close) {
-		while (true) {
-			// Held by no call, as soon after its return: claimed closed so none starts, then
-			// the value dropped and the handle freed in one crossing. A call meanwhile throws
-			// as closed, as one racing any close may. A drop that passed stored CLOSED itself.
-			if (STATE.compareAndSet(this, HELD, CLOSED or CLOSING)) {
-				try {
-					drop.close(raw, this)
-				} catch (e: Throwable) {
-					// Reopened only if Rust refused the drop, before it committed.
-					STATE.compareAndSet(this, CLOSED or CLOSING, HELD)
-					throw e
-				}
-				cleanup?.stop()
-				return
-			}
-			val n = state
-			// Another close is deciding: wait for its outcome, which may leave it open. Rust
-			// clears CLOSING once the drop can no longer fail, before any `Drop` runs, so a
-			// close a `Drop` makes, from any thread, finds it closed rather than waiting on
-			// itself.
-			if (n and CLOSING != 0L) {
-				java.lang.Thread.yield()
-				continue
-			}
-			if (n and CLOSED != 0L) return
-			val slot = try {
-				hold()
-			} catch (_: IllegalStateException) {
-				continue
-			}
-			try {
-				drop.close(raw, null)
-			} finally {
-				release(slot)
-			}
-			return abandon()
+		// Held by no call, as soon after its return: claimed closed so none starts, then the
+		// value dropped and the handle freed in one crossing. A call meanwhile throws as
+		// closed, as one racing any close may. A drop that passed stored CLOSED itself.
+		while (!STATE.compareAndSet(this, HELD, CLOSED or CLOSING)) {
+			if (closeMet(drop)) return
 		}
+		try {
+			drop.close(raw, this)
+		} catch (e: Throwable) {
+			// Reopened only if Rust refused the drop, before it committed.
+			STATE.compareAndSet(this, CLOSED or CLOSING, HELD)
+			throw e
+		}
+		cleanup?.stop()
+	}
+
+	// [closeChecked] once a call holds it or another close is deciding: whether it is done,
+	// rather than to try the one crossing again.
+	private fun closeMet(drop: __Close): Boolean {
+		val n = state
+		// Another close is deciding: wait for its outcome, which may leave it open. Rust
+		// clears CLOSING once the drop can no longer fail, before any `Drop` runs, so a close
+		// a `Drop` makes, from any thread, finds it closed rather than waiting on itself.
+		if (n and CLOSING != 0L) {
+			java.lang.Thread.yield()
+			return false
+		}
+		if (n and CLOSED != 0L) return true
+		val slot = try {
+			hold()
+		} catch (_: IllegalStateException) {
+			return false
+		}
+		try {
+			drop.close(raw, null)
+		} finally {
+			release(slot)
+		}
+		abandon()
+		return true
 	}
 
 	// Whether a call holds it in the table.
