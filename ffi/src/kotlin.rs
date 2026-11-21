@@ -36,6 +36,8 @@ const RUNTIME: &str = include_str!("../runtime/rt.kt");
 /// The runtime's public types, at the generated file's top level.
 const TYPES: &str = include_str!("../runtime/types.kt");
 pub(crate) const GLUE_RUNTIME: &str = include_str!("../runtime/jni.rs");
+/// `kotlin/FastNative.kt`, the annotation a leaf's native method takes, for a build without it.
+pub(crate) const FAST_NATIVE: &str = include_str!("../runtime/FastNative.kt");
 
 /// What the generator writes: the Kotlin file, the Rust module of JNI functions, and the
 /// R8 and ProGuard rules keeping what that module looks up by name.
@@ -74,6 +76,7 @@ pub(crate) fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<O
 		slots: 0,
 		room: 0,
 		unwind: abi.space("unwind"),
+		fast: String::new(),
 	};
 	for name in g.classes.values() {
 		g.names.insert(name.clone(), "a type".to_string());
@@ -186,10 +189,13 @@ pub(crate) fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<O
 		use std::ffi::c_void;\n\
 		use rt::*;\n\n\
 		// No `JNI_OnLoad`, which the library may define for itself: _Native's first call notes\n\
-		// the JVM and the class.\n\
+		// the JVM and the class, and registers the leaves' native methods.\n\
 		#[unsafe(no_mangle)]\n\
 		pub unsafe extern \"system\" fn Java_{pkg}__1Native__1_1contract(env: *mut JNIEnv, class: jclass) -> jlong {{\n\
-		\tunsafe {{ rt::load(env, class) }};\n\
+		\tif !unsafe {{ rt::load(env, class, &[\n{fast}\t]) }} {{\n\
+		\t\t// The pending exception throws in place of the contract, which Kotlin never reads.\n\
+		\t\treturn 0;\n\
+		\t}}\n\
 		\t0x{contract:016x}u64 as jlong\n\
 		}}\n\n\
 		#[unsafe(no_mangle)]\n\
@@ -235,6 +241,7 @@ pub(crate) fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<O
 		{}",
 		g.glue,
 		pkg = mangle(p),
+		fast = g.fast,
 	);
 	// The VM binds _Native's native methods by its name and theirs, and the glue looks up
 	// each Kotlin function it calls by its own, which nothing in Kotlin calls.
@@ -249,6 +256,14 @@ pub(crate) fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<O
 		let _ = writeln!(rules, "\tstatic *** {name}(...);");
 	}
 	rules.push_str("}\n");
+	// ART reads `@FastNative` off the dex, and `__contract` registers each method it marks,
+	// so a shrinker keeps them, even those nothing calls.
+	if !g.fast.is_empty() {
+		let _ = write!(
+			rules,
+			"\n-keep @interface dalvik.annotation.optimization.FastNative\n\n-keepclassmembers class {p}._Native {{\n\t@dalvik.annotation.optimization.FastNative native <methods>;\n}}\n"
+		);
+	}
 	Ok(Output {
 		names: g.locked,
 		kotlin,
@@ -641,6 +656,8 @@ struct Gen<'a> {
 	/// Where the glue names each C function's `C-unwind` body, which the native methods
 	/// call, so a closure's failed check unwinds to them.
 	unwind: String,
+	/// The leaves' native methods, as the `JNINativeMethod`s `__contract` registers.
+	fast: String,
 }
 
 impl<'a> Gen<'a> {
@@ -1600,7 +1617,11 @@ impl<'a> Gen<'a> {
 			}
 			let call = format!("crate::{u}_hash({rust_self})");
 			let body = checked(&call, &format!("{c}_hash"), "ret as jlong");
-			g.native(&format!("{bare}_hash"), &params, ("jlong", "Long"), &body);
+			// Bounded too, so the collector never waits on a walk the value's size sets.
+			match object && g.abi.leaf_trait(ty, true) && t.leaf_sized {
+				true => g.leaf_native(&format!("{bare}_hash"), &params, ("jlong", "Long"), &body),
+				false => g.native(&format!("{bare}_hash"), &params, ("jlong", "Long"), &body),
+			}
 			format!(
 				"\t/** Rust's `Hash`, as `Long.hashCode` folds it. */\n\toverride fun hashCode(): kotlin.Int = {open}\n\t\t_Native.{bare}_hash({arg}).hashCode()\n\t}}\n"
 			)
@@ -1682,16 +1703,16 @@ impl<'a> Gen<'a> {
 			));
 		}
 		if object && t.eq {
-			self.native(
-				&format!("{bare}_eq"),
-				&[("jlong", "Long"), ("jlong", "Long")],
-				("jboolean", "Boolean"),
-				&checked(
-					&format!("crate::{u}_eq(p0 as usize as _, p1 as usize as _)"),
-					&format!("{c}_eq"),
-					"ret",
-				),
+			let rust = checked(
+				&format!("crate::{u}_eq(p0 as usize as _, p1 as usize as _)"),
+				&format!("{c}_eq"),
+				"ret",
 			);
+			let params = [("jlong", "Long"), ("jlong", "Long")];
+			match self.abi.leaf_trait(ty, false) && t.leaf_sized {
+				true => self.leaf_native(&format!("{bare}_eq"), &params, ("jboolean", "Boolean"), &rust),
+				false => self.native(&format!("{bare}_eq"), &params, ("jboolean", "Boolean"), &rust),
+			}
 			let hash = hash_code(self);
 			body.push(format!(
 				"\toverride fun equals(other: kotlin.Any?): kotlin.Boolean =\n\t\tother is {class} && handle.hold {{ a -> other.handle.hold {{ b -> _Native.{bare}_eq(a, b) }} }}\n\n{hash}"
@@ -2496,6 +2517,18 @@ impl<'a> Gen<'a> {
 	}
 
 	fn native(&mut self, bare: &str, params: &[(&str, &str)], ret: (&str, &str), body: &str) {
+		self.declare(bare, params, ret, body, false);
+	}
+
+	/// [`Self::native`] for a leaf, as [`Abi::leaf`] proves: `@FastNative`, so ART keeps
+	/// the thread runnable across it rather than switching its state twice, which a call
+	/// that ends in a bounded number of steps and waits on no lock allows. ART binds such a
+	/// method by its name only from Android 12, so `__contract` registers it instead.
+	fn leaf_native(&mut self, bare: &str, params: &[(&str, &str)], ret: (&str, &str), body: &str) {
+		self.declare(bare, params, ret, body, true);
+	}
+
+	fn declare(&mut self, bare: &str, params: &[(&str, &str)], ret: (&str, &str), body: &str, fast: bool) {
 		let kt: Vec<String> = params
 			.iter()
 			.enumerate()
@@ -2523,7 +2556,11 @@ impl<'a> Gen<'a> {
 		let bare = external.as_str();
 		let _ = write!(
 			self.natives,
-			"\t@kotlin.jvm.JvmStatic external fun {bare}({}): {}\n\n",
+			"{}\t@kotlin.jvm.JvmStatic external fun {bare}({}): {}\n\n",
+			match fast {
+				true => "\t@dalvik.annotation.optimization.FastNative\n",
+				false => "",
+			},
 			kt.join(", "),
 			ret.1
 		);
@@ -2534,10 +2571,22 @@ impl<'a> Gen<'a> {
 			.collect();
 		let mut all = vec!["env: *mut JNIEnv".to_string(), "_: jclass".to_string()];
 		all.extend(rust);
+		let function = format!("Java_{}__1Native_{}", mangle(&self.abi.prefix), mangle(bare));
+		// A registered function needs no symbol of its own.
+		let export = match fast {
+			true => {
+				let jvm: String = params.iter().map(|(j, _)| descriptor(j)).collect();
+				let _ = writeln!(
+					self.fast,
+					"\t\tJNINativeMethod {{ name: c\"{bare}\".as_ptr() as _, signature: c\"({jvm}){}\".as_ptr() as _, fnPtr: {function} as *mut c_void }},",
+					descriptor(ret.0)
+				);
+				""
+			}
+			false => "#[unsafe(no_mangle)]\npub ",
+		};
 		let head = format!(
-			"#[unsafe(no_mangle)]\npub unsafe extern \"system\" fn Java_{}__1Native_{}({}) -> {}",
-			mangle(&self.abi.prefix),
-			mangle(bare),
+			"{export}unsafe extern \"system\" fn {function}({}) -> {}",
 			all.join(", "),
 			ret.0
 		);
@@ -3347,16 +3396,15 @@ impl<'a> Gen<'a> {
 				_ if returned.is_some() => "rt::new_block(env, ret)".to_string(),
 				_ => ret_expr(abi, &c_ret, &ok),
 			};
-			self.native(
-				&bare,
-				&params,
-				(jni, native),
-				&format!(
-					"{}\n\t\tlet ret = {};{check}\n\t\t{ret_expr}",
-					rust_pre.join("\n\t\t"),
-					rust_call(&[])
-				),
+			let body = format!(
+				"{}\n\t\tlet ret = {};{check}\n\t\t{ret_expr}",
+				rust_pre.join("\n\t\t"),
+				rust_call(&[])
 			);
+			match abi.leaf(function, owner_ty) {
+				true => self.leaf_native(&bare, &params, (jni, native), &body),
+				false => self.native(&bare, &params, (jni, native), &body),
+			}
 			value = match (&ok, &returned) {
 				(Type::Unit, _) => call,
 				(_, Some(b)) => b.unsigned(&call),
