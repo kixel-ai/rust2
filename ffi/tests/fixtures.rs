@@ -173,6 +173,50 @@ fn transcript() -> &'static transcript::Transcript {
 	})
 }
 
+/// The api fixture's Python, C++, and web checks as the release builder takes them, into
+/// `RUST2_TRANSCRIPTS`: a directory each, `python`, `cpp`, and `web`, holding the test as
+/// `check.<ext>` beside its generated script. Only the export runs, not `api`'s builds.
+#[test]
+#[ignore = "writes outside the target: just ffi transcripts <dir>"]
+fn transcripts() {
+	let dir = PathBuf::from(std::env::var_os("RUST2_TRANSCRIPTS").expect("RUST2_TRANSCRIPTS names the directory"));
+	let out = scratch().join("transcripts").join("out");
+	// The export `api` makes, so each script is the one its test runs.
+	let output = export("api", &out, &[host(), WEB], &["--features", "doubled"]);
+	assert!(
+		output.status.success(),
+		"exporting failed:\n{}",
+		String::from_utf8_lossy(&output.stderr)
+	);
+	let t = transcript::Transcript::load(
+		&out.join("api.json"),
+		&manifest_dir().join("fixtures/api/examples/transcript.rs"),
+	);
+	let tests = manifest_dir().join("tests");
+	// The web script imports the test's hooks by its name, which is `check.ts` here.
+	let typescript = transcript::typescript::emit(&t);
+	let hooks = "import * as hook from \"./api.ts\";";
+	assert_eq!(
+		typescript.matches(hooks).count(),
+		1,
+		"the web script imports the hooks once"
+	);
+	let typescript = typescript.replace(hooks, "import * as hook from \"./check.ts\";");
+	for (language, check, file, script) in [
+		("python", "api.py", "transcript.py", transcript::python::emit(&t)),
+		("cpp", "api.cpp", "transcript.hpp", transcript::cpp::emit(&t)),
+		("web", "api.ts", "transcript.ts", typescript),
+	] {
+		let checks = dir.join(language);
+		if checks.exists() {
+			std::fs::remove_dir_all(&checks).unwrap();
+		}
+		let ext = Path::new(check).extension().unwrap();
+		step::copy(&tests.join(check), &checks.join("check").with_extension(ext));
+		step::write(&checks.join(file), script);
+	}
+}
+
 /// `contents` written as `file` in a scratch directory of `language`'s, which the
 /// language's test puts on its path.
 fn generated(language: &str, file: &str, contents: &str) -> PathBuf {

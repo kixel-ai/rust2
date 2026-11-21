@@ -328,9 +328,11 @@ def workspace_manifest(path):
 def relocate(manifest, moves, strict=False):
     """A manifest with each local package's absolute path moved, as `moves` maps them, checked
     by reading it back: nothing else changed, and when `strict`, every `path` is one moved."""
+    # One pass, so a path already moved is never matched again by another package's key.
+    spelled = {f"path = {json.dumps(old, ensure_ascii=False)}": f"path = {json.dumps(new)}" for old, new in moves.items()}
     text = manifest
-    for old, new in moves.items():
-        text = text.replace(f"path = {json.dumps(old, ensure_ascii=False)}", f"path = {json.dumps(new)}")
+    if spelled:
+        text = re.sub("|".join(map(re.escape, spelled)), lambda m: spelled[m.group(0)], manifest)
 
     def moved(value):
         if isinstance(value, dict):
@@ -423,7 +425,17 @@ def sdist(info, manifest, export, out):
     for root in roots:
         at = place(root.parent)
         files[f"{at}/Cargo.toml"] = (relocate(workspace_manifest(root), moves(at)).encode(), False)
-    generated = relocate((export / "Cargo.toml").read_text(encoding="utf-8"), moves("binding"), strict=True)
+    # The generated manifest names each package relative to the export, where a relative path
+    # reads right, and absolute elsewhere.
+    binding = moves("binding")
+    for d in placed:
+        try:
+            binding[Path(os.path.relpath(d, export)).as_posix()] = binding[str(d)]
+        except ValueError:
+            # On another Windows drive than the export, no relative path reaches it; only the
+            # absolute one names it.
+            pass
+    generated = relocate((export / "Cargo.toml").read_text(encoding="utf-8"), binding, strict=True)
     files["binding/Cargo.toml"] = (generated.encode(), False)
     for path in [export / "Cargo.lock", export / "build.rs", export / "python" / f"{info['lib']}.py",
                  *sorted(p for p in (export / "src").rglob("*") if p.is_file())]:
@@ -1089,12 +1101,20 @@ def pack(root, path, stamp):
     return path
 
 
+def check_program_in(check, names):
+    """The program of a check directory: the one file of `names` it holds, beside the files it reads."""
+    found = [Path(check) / name for name in names if (Path(check) / name).is_file()]
+    if len(found) != 1:
+        raise SystemExit(f"{check} must hold exactly one of {', '.join(names)}, beside the files it reads")
+    return found[0]
+
+
 def c_check(lib, check, work):
-    """The consumer's program: the caller's check, or else one that links a function of each header."""
+    """The consumer's program: the caller's check, its directory copied whole so that its
+    quoted includes resolve beside it, or else one that links a function of each header."""
     if check:
-        source = work / Path(check).name
-        shutil.copy(check, source)
-        return source
+        shutil.copytree(check, work / "check")
+        return check_program_in(work / "check", ("check.c", "check.cpp", "check.cc", "check.cxx"))
     source = work / "smoke.cpp"
     source.write_text(f'#include "{lib}.h"\n#include "{lib}.hpp"\n\n'
                       f"int main() {{\n\tvoid (*volatile fn)({lib}_buf) = {lib}_buf_free;\n"
@@ -1212,10 +1232,16 @@ def compare(native, actual, what):
 
 
 def consume_python(check, native, module):
-    """Run a check program, or else an import, on the installed wheel from an empty directory."""
-    program = [str(Path(check).resolve())] if check else ["-c", f"import {module}"]
-    with tempfile.TemporaryDirectory() as clean:
-        result = subprocess.run([sys.executable, "-I", "-X", "dev", "-W", "error", *program],
+    """Run a check program, or else an import, on the installed wheel from an empty directory.
+    The check's directory is copied apart, and it alone joins the path, where the check's own
+    modules are found: `-E -s` is `-I` but for that."""
+    with tempfile.TemporaryDirectory() as clean, tempfile.TemporaryDirectory() as scripts:
+        if check:
+            shutil.copytree(check, scripts, dirs_exist_ok=True)
+            program = [str(check_program_in(scripts, ("check.py",)))]
+        else:
+            program = ["-I", "-c", f"import {module}"]
+        result = subprocess.run([sys.executable, "-E", "-s", "-X", "dev", "-W", "error", *program],
                                 capture_output=True, cwd=clean)
     sys.stderr.buffer.write(result.stderr)
     if result.returncode:
@@ -2018,7 +2044,7 @@ def web(args):
 
 
 def check_program(check, name):
-    """A check written beside an export, importing `./web/<module>.ts`, as it imports the package."""
+    """A check's module written beside an export, importing `./web/<module>.ts`, as it imports the package."""
     text = Path(check).read_text(encoding="utf-8")
     # Whitespace and comments, which may separate the keyword from its specifier.
     gap = r"(?:\s|/\*[\s\S]*?\*/|//[^\n]*\n)*"
@@ -2041,26 +2067,36 @@ def consume_web(dist, check, native):
     if len(tarballs) != 1:
         raise SystemExit(f"{dist} holds {len(tarballs)} npm tarballs")
     name = json.loads((dist / "npm" / "package.json").read_text(encoding="utf-8"))["name"]
-    program = check_program(check, name) if check else (
-        f"import * as binding from {json.dumps(name)};\n\nawait binding.load();\n")
+    if check:
+        check_program_in(check, ("check.ts",))
     expected = Path(native).read_bytes() if native and check else None
     with tempfile.TemporaryDirectory() as clean:
         clean = Path(clean)
+        # The check's directory whole, each TypeScript module in it importing the package;
+        # `check.ts` runs, reaching the rest by path. The project's own files then replace any
+        # it holds of the same names.
+        if check:
+            shutil.copytree(check, clean, dirs_exist_ok=True)
+            for module in clean.rglob("*.ts"):
+                module.write_text(check_program(module, name), encoding="utf-8")
+        else:
+            (clean / "check.ts").write_text(
+                f"import * as binding from {json.dumps(name)};\n\nawait binding.load();\n", encoding="utf-8")
         manifest = {"type": "module", "private": True, "dependencies": {name: f"file:{tarballs[0]}"},
                     "devDependencies": BUNDLERS}
         (clean / "package.json").write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
         run("npm", "install", "--no-audit", "--no-fund", "--ignore-scripts", cwd=clean, capture_output=True)
-        (clean / "check.ts").write_text(program, encoding="utf-8")
         # The bundles target the browser, whose `document` Vite's preload polyfill reads;
         # each runs on Node from where the bundler wrote it, a relative base reaching its module.
         (clean / "index.html").write_text('<!doctype html><script type="module" src="./check.ts"></script>\n', encoding="utf-8")
         (clean / "vite.config.js").write_text(
             'export default { base: "./", build: { target: "es2024", modulePreload: { polyfill: false } } };\n', encoding="utf-8")
-        run("node", "--no-warnings", "--input-type=module", "-e",
-            'import { stripTypeScriptTypes } from "node:module"; import { readFileSync, writeFileSync } from "node:fs";'
-            ' writeFileSync("check.js", stripTypeScriptTypes(readFileSync("check.ts", "utf8")));', cwd=clean)
+        # webpack reads the check's TypeScript through Node's own type stripping, as Node runs it.
+        (clean / "strip-types.cjs").write_text(
+            'module.exports = (source) => require("node:module").stripTypeScriptTypes(source);\n', encoding="utf-8")
         (clean / "webpack.config.js").write_text(
-            'export default { mode: "production", entry: "./check.js", target: ["web", "es2024"],'
+            'export default { mode: "production", entry: "./check.ts", target: ["web", "es2024"],'
+            r' module: { rules: [{ test: /\.ts$/, exclude: /node_modules/, loader: new URL("./strip-types.cjs", import.meta.url).pathname }] },'
             ' experiments: { outputModule: true },'
             ' output: { module: true, path: new URL("./webpack", import.meta.url).pathname, filename: "check.js" } };\n',
             encoding="utf-8")

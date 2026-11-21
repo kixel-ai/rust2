@@ -748,6 +748,14 @@ class Sdist(unittest.TestCase):
         self.assertEqual(moved["target"]["cfg(unix)"]["dependencies"]["tls"]["path"], "../sources/src/tls")
         self.assertEqual(moved["patch"]["crates-io"]["url"]["path"], "../sources/vendor/url")
 
+    def test_moves_each_path_once(self):
+        # One package's new path is another's old one, as relative keys can make: each path
+        # moves by its original value alone.
+        manifest = '[dependencies]\na = { path = "../a" }\nb = { path = "../sources/a" }\n'
+        moves = {"../a": "../sources/a", "../sources/a": "../sources/sources/a"}
+        moved = tomllib.loads(package.relocate(manifest, moves, strict=True))
+        self.assertEqual(moved["dependencies"], {"a": {"path": "../sources/a"}, "b": {"path": "../sources/sources/a"}})
+
     def test_refuses_a_path_no_package_lies_at(self):
         manifest = '[dependencies]\na = { path = "/src/a" }\nb = { path = "/elsewhere/b" }\n'
         with self.assertRaises(SystemExit):
@@ -1006,6 +1014,39 @@ class Web(unittest.TestCase):
             check.write_text('import * as api from "./web/nested/index.ts";\n')
             with self.assertRaises(SystemExit):
                 package.check_program(check, "@moq/moq-ffi")
+
+    def test_check_directory_names_its_program(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            (Path(tmp) / "transcript.ts").write_text("")
+            with self.assertRaises(SystemExit):
+                package.check_program_in(tmp, ("check.ts",))
+            (Path(tmp) / "check.ts").write_text("")
+            self.assertEqual(package.check_program_in(tmp, ("check.ts",)), Path(tmp) / "check.ts")
+            (Path(tmp) / "check.c").write_text("")
+            (Path(tmp) / "check.cpp").write_text("")
+            with self.assertRaises(SystemExit):
+                package.check_program_in(tmp, ("check.c", "check.cpp"))
+
+    def test_python_check_imports_its_modules_alone(self):
+        # The check's directory is on the path, and only it: not the working directory, and
+        # not PYTHONPATH. The generated script reaches the check's functions as `__main__`.
+        with tempfile.TemporaryDirectory() as tmp:
+            check, elsewhere = Path(tmp) / "check", Path(tmp) / "elsewhere"
+            check.mkdir()
+            elsewhere.mkdir()
+            (elsewhere / "stray.py").write_text("")
+            (check / "check.py").write_text(
+                "import importlib.util\n"
+                "def hook():\n    return 'hooked'\n"
+                "assert importlib.util.find_spec('stray') is None\n"
+                "import transcript\ntranscript.script()\n")
+            (check / "transcript.py").write_text("import __main__ as local\ndef script():\n    print(local.hook())\n")
+            (Path(tmp) / "native.txt").write_bytes(b"hooked\n")
+            with mock.patch.dict(os.environ, {"PYTHONPATH": str(elsewhere)}):
+                package.consume_python(check, Path(tmp) / "native.txt", None)
+            (Path(tmp) / "native.txt").write_bytes(b"other\n")
+            with self.assertRaises(SystemExit):
+                package.consume_python(check, Path(tmp) / "native.txt", None)
 
 
 if __name__ == "__main__":
