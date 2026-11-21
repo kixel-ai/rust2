@@ -1454,8 +1454,9 @@ impl<'a> Gen<'a> {
 			let name = declared.split_once(' ').map_or(declared, |(_, name)| name);
 			taken(name) || self.names.contains_key(name)
 		});
-		for (function, name) in api.functions.iter().zip(&named) {
-			if let Some(code) = self.function(function, (None, None), Place::Static, name, &[]) {
+		let jvm = self.jvm_named(&api.functions, (None, None), &named, &[]);
+		for ((function, name), jvm) in api.functions.iter().zip(&named).zip(&jvm) {
+			if let Some(code) = self.function(function, (None, None), Place::Static, (name, jvm), &[]) {
 				top.push(code);
 			}
 		}
@@ -1831,7 +1832,15 @@ impl<'a> Gen<'a> {
 				Place::Static => own_statics.iter().any(|m| m == declared),
 			},
 		);
-		for (method, member) in record.methods.iter().zip(&methods) {
+		// A data class's `componentN`, which Kotlin declares for each field.
+		let components = (1..=fields.len()).map(|n| format!("component{n}"));
+		let jvm_taken: Vec<String> = (members.iter().map(|m| jvm_name(m)))
+			.chain(components)
+			.chain(jvm_names(&body))
+			.chain(jvm_names(&statics))
+			.collect();
+		let jvm = self.jvm_named(&record.methods, (Some(&owner), Some(&ty)), &methods, &jvm_taken);
+		for ((method, member), jvm) in record.methods.iter().zip(&methods).zip(&jvm) {
 			let place = match method.receiver {
 				Some(_) => Place::Member,
 				None => Place::Static,
@@ -1841,14 +1850,7 @@ impl<'a> Gen<'a> {
 				Place::Member => (members.iter().cloned()).chain(names(&body)).collect(),
 				Place::Static => names(&statics),
 			};
-			// A data class's `componentN`, which Kotlin declares for each field.
-			let components = (1..=fields.len()).map(|n| format!("component{n}"));
-			let jvm = (members.iter().map(|m| jvm_name(m)))
-				.chain(components)
-				.chain(jvm_names(&body))
-				.chain(jvm_names(&statics));
-			let taken = kept_apart(own, jvm);
-			if let Some(code) = self.function(method, (Some(&owner), Some(&ty)), place, member, &taken) {
+			if let Some(code) = self.function(method, (Some(&owner), Some(&ty)), place, (member, jvm), &own) {
 				match place {
 					Place::Member => body.push(code),
 					Place::Static => statics.push(indent(&code)),
@@ -2011,7 +2013,25 @@ impl<'a> Gen<'a> {
 			Place::Member => own_members.iter().any(|m| m == declared),
 			Place::Static => own_statics.iter().any(|m| m == declared),
 		});
-		for (method, member) in e.methods.iter().zip(&methods) {
+		// What a Kotlin enum declares on the JVM: its own statics, and `Enum`'s final methods.
+		let synthesized = match e.plain() {
+			true => &[
+				"values",
+				"valueOf",
+				"getEntries",
+				"name",
+				"ordinal",
+				"compareTo",
+				"getDeclaringClass",
+			][..],
+			false => &[],
+		};
+		let jvm_taken: Vec<String> = (synthesized.iter().map(|s| s.to_string()))
+			.chain(jvm_names(&body))
+			.chain(jvm_names(&statics))
+			.collect();
+		let jvm = self.jvm_named(&e.methods, (Some(&owner), Some(&ty)), &methods, &jvm_taken);
+		for ((method, member), jvm) in e.methods.iter().zip(&methods).zip(&jvm) {
 			let place = match method.receiver {
 				Some(_) => Place::Member,
 				None => Place::Static,
@@ -2021,24 +2041,7 @@ impl<'a> Gen<'a> {
 				Place::Member => names(&body),
 				Place::Static => names(&statics),
 			};
-			// What a Kotlin enum declares on the JVM: its own statics, and `Enum`'s final methods.
-			let synthesized = match e.plain() {
-				true => &[
-					"values",
-					"valueOf",
-					"getEntries",
-					"name",
-					"ordinal",
-					"compareTo",
-					"getDeclaringClass",
-				][..],
-				false => &[],
-			};
-			let jvm = (synthesized.iter().map(|s| s.to_string()))
-				.chain(jvm_names(&body))
-				.chain(jvm_names(&statics));
-			let taken = kept_apart(own, jvm);
-			if let Some(code) = self.function(method, (Some(&owner), Some(&ty)), place, member, &taken) {
+			if let Some(code) = self.function(method, (Some(&owner), Some(&ty)), place, (member, jvm), &own) {
 				match place {
 					Place::Member => body.push(code),
 					Place::Static => statics.push(indent(&code)),
@@ -2234,7 +2237,9 @@ impl<'a> Gen<'a> {
 				Place::Static => own_statics.iter().any(|m| m == declared),
 			},
 		);
-		for (method, member) in object.methods.iter().zip(&methods) {
+		let jvm_taken: Vec<String> = jvm_names(&body).chain(jvm_names(&statics)).collect();
+		let jvm = self.jvm_named(&object.methods, (Some(&owner), Some(&ty)), &methods, &jvm_taken);
+		for ((method, member), jvm) in object.methods.iter().zip(&methods).zip(&jvm) {
 			let place = match method.receiver {
 				Some(_) => Place::Member,
 				None => Place::Static,
@@ -2244,8 +2249,7 @@ impl<'a> Gen<'a> {
 				Place::Member => names(&body),
 				Place::Static => names(&statics),
 			};
-			let taken = kept_apart(own, jvm_names(&body).chain(jvm_names(&statics)));
-			if let Some(code) = self.function(method, (Some(&owner), Some(&ty)), place, member, &taken) {
+			if let Some(code) = self.function(method, (Some(&owner), Some(&ty)), place, (member, jvm), &own) {
 				match place {
 					Place::Member => body.push(code),
 					Place::Static => statics.push(indent(&code)),
@@ -2731,6 +2735,55 @@ impl<'a> Gen<'a> {
 		named
 	}
 
+	/// The JVM method each of a type's `methods`, Kotlin's `named`, compiles to, of `owner`
+	/// (whose IR type is `owner_ty`): apart across both places, since a companion's
+	/// `@JvmStatic` member shares the class's names, from the JVM methods `taken` names and
+	/// `java.lang.Object`'s, as [`abi::named`] keeps a scope's. So of Rust's `count(&self)`
+	/// and `count_()`, both Kotlin's `count`, the method keeps `count` on the JVM in either
+	/// order.
+	fn jvm_named(
+		&mut self,
+		methods: &[Function],
+		(owner, owner_ty): (Option<&Ty>, Option<&Type>),
+		named: &[String],
+		taken: &[String],
+	) -> Vec<String> {
+		let abi = self.abi;
+		let (mut rust, mut spelled, mut getters, mut types) = (Vec::new(), Vec::new(), Vec::new(), Vec::new());
+		for (method, member) in methods.iter().zip(named) {
+			let place = match method.receiver {
+				Some(_) => Place::Member,
+				None => Place::Static,
+			};
+			let (name, declared) = self.spelled(method, (owner, owner_ty), place);
+			let kind = declared.split_once(' ').map_or("fun", |(kind, _)| kind);
+			// The parameter types `function_on` declares, which `object_method` reads.
+			let (back, export) = match (owner.zip(owner_ty)).and_then(|(o, ty)| abi.handed_back(method, o, ty)) {
+				Some((back, export, _)) => (Some(back), export),
+				None => (None, abi.export(method, owner)),
+			};
+			let function = back.as_ref().unwrap_or(method);
+			let params: Vec<String> = match export.future {
+				Some(_) => vec!["kotlin.coroutines.Continuation".to_string()],
+				None => (function.params.iter())
+					.filter(|p| p.ty != Type::Jni(Jni::Env))
+					.map(|p| self.kt_param(&p.ty))
+					.collect(),
+			};
+			rust.push(name);
+			spelled.push(jvm_name(&format!("{kind} {member}")));
+			getters.push(kind == "val");
+			types.push(params);
+		}
+		let rust: Vec<&str> = rust.iter().map(String::as_str).collect();
+		let own = |rust: &str, jvm: &str| jvm == rust || abi::snake(jvm) == rust;
+		let taken = |k: usize, jvm: &str| {
+			let params: Vec<&str> = types[k].iter().map(String::as_str).collect();
+			taken.iter().any(|t| t == jvm) || (!getters[k] && object_method(jvm, &params))
+		};
+		abi::named(&rust, spelled, own, taken, abi::underscored)
+	}
+
 	/// The name each of `functions` takes in `place` of `owner` (whose IR type is
 	/// `owner_ty`) if it has one, or at the top level, apart from each other and from what
 	/// `taken` holds of a declaration's kind and name, such as `fun of`, as [`abi::named`]
@@ -2819,18 +2872,19 @@ impl<'a> Gen<'a> {
 		(rust, declared)
 	}
 
-	/// `function`'s Kotlin form `member`, of `owner` (whose IR type is `owner_ty`) if it has
-	/// one, apart from the members `taken` names, with its native methods and glue.
+	/// `function`'s Kotlin form `member`, compiled to the JVM method `jvm`, of `owner` (whose
+	/// IR type is `owner_ty`) if it has one, apart from the members `taken` names, with its
+	/// native methods and glue.
 	fn function(
 		&mut self,
 		function: &Function,
 		owner: (Option<&Ty>, Option<&Type>),
 		place: Place,
-		member: &str,
+		(member, jvm): (&str, &str),
 		taken: &[String],
 	) -> Option<String> {
 		let on = std::mem::replace(&mut self.on, function.on);
-		let code = self.function_on(function, owner, place, member, taken);
+		let code = self.function_on(function, owner, place, (member, jvm), taken);
 		self.on = on;
 		code
 	}
@@ -2840,7 +2894,7 @@ impl<'a> Gen<'a> {
 		function: &Function,
 		(owner, owner_ty): (Option<&Ty>, Option<&Type>),
 		place: Place,
-		member: &str,
+		(member, jvm): (&str, &str),
 		taken: &[String],
 	) -> Option<String> {
 		let abi = self.abi;
@@ -3617,27 +3671,16 @@ impl<'a> Gen<'a> {
 		if place == Place::Static && !top {
 			annotations.push_str("@kotlin.jvm.JvmStatic\n");
 		}
-		// A JVM method its class declares already, in either place, since a companion's
-		// `@JvmStatic` member shares the class's names, as a field's getter `getX` does,
-		// leaves the Kotlin name alone and takes a trailing `_` on the JVM.
+		// A JVM name [`Gen::jvm_named`] moved leaves the Kotlin name alone.
 		let target = if getter { "get:" } else { "" };
 		let declared = jvm_name(&format!("{kind} {member}"));
-		let mut jvm = declared.clone();
-		// A suspending function takes its continuation too, so clashes with none of `Object`'s.
-		let types: Vec<&str> = match export.future {
-			Some(_) => vec!["kotlin.coroutines.Continuation"],
-			None => (kt_params.iter()).filter_map(|p| Some(p.split_once(": ")?.1)).collect(),
-		};
-		while taken.contains(&format!("jvm {jvm}")) || (!getter && object_method(&jvm, &types)) {
-			jvm.push('_');
-		}
 		if jvm != declared {
 			let _ = writeln!(annotations, "@{target}kotlin.jvm.JvmName(\"{jvm}\")");
 		}
 		// Java calls it by its JVM name, which the lock keeps beside the Kotlin one, so a
 		// member added beside it that moves it is a break even where it had none.
 		let key = format!("{} / jvm", crate::lock::function_key(function));
-		self.locked.insert(key, jvm.clone());
+		self.locked.insert(key, jvm.to_string());
 		if let Some(exception) = &exception {
 			let _ = writeln!(annotations, "@{target}kotlin.jvm.Throws({exception}::class)");
 		}

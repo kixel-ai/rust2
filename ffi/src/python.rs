@@ -525,8 +525,6 @@ impl<'a> Gen<'a> {
 	/// defines `__x__` names, such as the module's own `__all__` and `__getattr__`, which
 	/// one takes a trailing `_` past.
 	fn claim(&mut self, name: &str, what: String) -> String {
-		let dunder =
-			|name: &str| name.len() > 4 && name.starts_with("__") && name.ends_with("__") && !name.ends_with("___");
 		abi::claim(&mut self.names, dunder, name, what)
 	}
 
@@ -892,7 +890,7 @@ impl<'a> Gen<'a> {
 			&rust,
 			spelled,
 			|rust, name| name == rust,
-			|_, name| self.names.contains_key(name),
+			|_, name| dunder(name) || self.names.contains_key(name),
 			abi::underscored,
 		);
 		for (function, member) in api.functions.iter().zip(&named) {
@@ -1699,12 +1697,18 @@ impl<'a> Gen<'a> {
 		self.register(&c, name.clone());
 		let mut body = Vec::new();
 		let mut table = vec!["free: Some(rt::free_callback)".to_string()];
-		let mut names: Vec<String> = Vec::new();
-		for (n, method) in callback.methods.iter().enumerate() {
-			// A name an earlier method took, its own takes a trailing `_` against.
-			let reserved: Vec<&str> = names.iter().map(String::as_str).collect();
-			let member = member(&abi::snake(method.name()), &reserved);
-			names.push(member.clone());
+		// One scope, kept apart as [`abi::named`] keeps it: beside Rust's `from_`, `from`, a
+		// keyword in Python, takes `from__`, in either order.
+		let rust_names: Vec<&str> = callback.methods.iter().map(|method| method.name()).collect();
+		let spelled = rust_names.iter().map(|name| member(&abi::snake(name), &[])).collect();
+		let named = abi::named(
+			&rust_names,
+			spelled,
+			|rust, name| name == rust,
+			|_, name| TAKEN.contains(&name),
+			abi::underscored,
+		);
+		for (n, (method, member)) in callback.methods.iter().zip(named).enumerate() {
 			crate::lock::function(&mut self.locked, method, &member);
 			let params: Vec<String> = std::iter::once("self".to_string())
 				.chain(
@@ -2558,6 +2562,12 @@ fn member(snake: &str, reserved: &[&str]) -> String {
 	name
 }
 
+/// Whether a module-level `name` is a `__x__` name Python defines, such as `__all__`, which
+/// one ending in `___` is not.
+fn dunder(name: &str) -> bool {
+	name.len() > 4 && name.starts_with("__") && name.ends_with("__") && !name.ends_with("___")
+}
+
 /// The class names of variants `names`, as Python spells them, `FooBar` for Rust's `FooBar`
 /// and `Foo_Bar` alike, kept apart as [`abi::named`] keeps a scope's.
 fn variant_classes(names: &[&str]) -> Vec<String> {
@@ -2617,18 +2627,19 @@ fn param_name(name: &str) -> String {
 	}
 }
 
-/// The Python names of `params`, each apart from the others: one that an earlier parameter's
-/// rename took, such as `_all_` after `_all`, gets another `_`.
-fn param_names<'a>(params: impl IntoIterator<Item = &'a Param>) -> Vec<String> {
-	let mut out: Vec<String> = Vec::new();
-	for param in params {
-		let mut name = param_name(&param.name);
-		while out.contains(&name) {
-			name.push('_');
-		}
-		out.push(name);
-	}
-	out
+/// The Python names of `params`, kept apart as [`abi::named`] keeps a scope's: beside Rust's
+/// `_all_`, which keeps its name, `_all`, which the runtime's `_all` renames to `_all_`, takes
+/// `_all__`, in either order.
+fn param_names(params: &[Param]) -> Vec<String> {
+	let rust: Vec<&str> = params.iter().map(|p| p.name.as_str()).collect();
+	let spelled = rust.iter().map(|name| param_name(name)).collect();
+	abi::named(
+		&rust,
+		spelled,
+		|rust, name| name == rust,
+		|_, _| false,
+		abi::underscored,
+	)
 }
 
 /// The name a member's code declares, for [`Gen::distinct`].
@@ -2860,7 +2871,8 @@ mod tests {
 		// `_any` is read only by `_load`, which has no parameter, so it keeps its name.
 		assert_eq!(param_name("_any"), "_any");
 		assert_eq!(param_name("_all"), "_all_");
-		assert_eq!(params(&["_all", "_all_"]), ["_all_", "_all__"]);
+		// Rust's `_all_` keeps its name in either order.
+		assert_eq!(params(&["_all", "_all_"]), ["_all__", "_all_"]);
 		assert_eq!(params(&["_all_", "_all"]), ["_all_", "_all__"]);
 		assert_eq!(params(&["a", "b"]), ["a", "b"]);
 	}

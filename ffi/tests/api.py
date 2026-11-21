@@ -53,7 +53,6 @@ class Eraser(api.ClashEraser):
 
 
 class Edits(api.Undo):
-
 	"""The Undo callback: each method returns its own digit."""
 
 	def delete(self, n):
@@ -1162,6 +1161,7 @@ def values():
 	check(api.clash_erased(Eraser()) == 123, "a callback's methods apart by a trailing underscore")
 	check(api.ClashEscaped(new=3).delete() == 3 and api.ClashEscaped(new=3).delete_(1, 2) == 213, "methods apart by a trailing underscore")
 	check(api.clash_erase_() == 2 and api.clash_erase() == 1, "functions apart by a trailing underscore")
+	check(api.ClashStore.open_().open() == 7, "a static function and a method apart by a trailing underscore")
 	print("values ok")
 
 
@@ -1367,15 +1367,17 @@ def idioms():
 
 	# `import *` reaches every export: a `pub fn _deprecated` too, which takes a trailing `_`
 	# beside the module's own `_deprecated`, as `pub fn __all__` does beside the name Python
-	# reserves, and each constant `__getattr__` makes; and no import: what the module binds
-	# without a leading `_` but its `__future__` import.
+	# reserves, past `pub fn __all___`, which keeps its own, and each constant `__getattr__`
+	# makes; and no import: what the module binds without a leading `_` but its `__future__`
+	# import.
 	star = {}
 	exec("from api import *", star)
 	del star["__builtins__"]
 	check(star["_deprecated_"](1) == 2, "a pub fn named with a leading underscore")
-	check(star["__all___"](1) == 3, "a pub fn named as a name Python reserves")
+	check(star["__all____"](1) == 3, "a pub fn named as a name Python reserves")
+	check(star["__all___"](1) == 4, "a pub fn named as the one Python reserves would take")
 	public = {name for name in vars(api) if not name.startswith("_")} - {"annotations"}
-	expected = public | {"_deprecated_", "__all___"} | set(api._consts)
+	expected = public | {"_deprecated_", "__all___", "__all____"} | set(api._consts)
 	check(set(star) == expected, f"import * reaches the exports: {sorted(set(star) ^ expected)}")
 	print("idioms ok")
 

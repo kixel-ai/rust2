@@ -400,6 +400,8 @@ export declare function wait(self: ClashStore): void;
 export declare function finalize(self: ClashStore): void;
 export declare function count_(): number;
 export declare function count(self: ClashStore): number;
+export declare function open_(): ClashStore;
+export declare function open(self: ClashStore): number;
 export { new$ as new };
 
 // ClashTag.ts
@@ -2540,6 +2542,7 @@ import type { ClashEmptyString } from "./ClashEmptyString.ts";
 import type { ClashEraser } from "./ClashEraser.ts";
 import type { ClashOp } from "./ClashOp.ts";
 import type { ClashSource } from "./ClashSource.ts";
+import type { ClashStore } from "./ClashStore.ts";
 import type { ClashTone } from "./ClashTone.ts";
 import type { ClashUnderscored } from "./ClashUnderscored.ts";
 import type { Clocked } from "./Clocked.ts";
@@ -2955,6 +2958,7 @@ export declare function unzeroed(bytes: Uint8Array | rt.Bytes): rt.Bytes;
 export declare function deprecated(note: number): number;
 export declare function deprecated_(note: number): number;
 export declare function all(note: number): number;
+export declare function all_(note: number): number;
 export declare function knob(dial: Dial): Knob;
 export declare function levelLater(dial: Dial): rt.Call<rt.u64>;
 export declare function turned(dial: Dial, turner: Turner): rt.Result<Dial, Error_>;
@@ -2981,6 +2985,9 @@ export declare function clashUnderscoredNext(underscored: ClashUnderscored, chan
 export declare function clashErased(eraser: ClashEraser): number;
 export declare function clashErase_(): number;
 export declare function clashErase(): number;
+export declare function clashLend_(store: ClashStore | undefined): number;
+export declare function clashLend(): number;
+export declare function clashRun(work2: () => number, work: number): number;
 export declare function clashAudible(tone: ClashTone): rt.Result<ClashTone, ClashTone[]>;
 export declare function clashNested(a: [[number, number], number] | undefined, b: [[number, number, number]] | undefined): number;
 export declare function clashAudioEncoderFinish(): number;

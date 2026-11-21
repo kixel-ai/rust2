@@ -2594,25 +2594,33 @@ impl<'a> Gen<'a> {
 		}
 	}
 
-	/// `function`'s Dart form and its member name, a member of `owner` (whose IR type is
-	/// `owner_ty`) if it has one.
 	/// The name each of `functions` takes as a member of `owner` (whose IR type is
 	/// `owner_ty`) if it has one, or at the top level, apart from each other and from what
-	/// `taken` holds for each, by its index, as [`abi::named`] keeps a scope's.
+	/// `taken` holds for each, by its index, as [`abi::named`] keeps a scope's. Two clash
+	/// only as [`collides`] reads them, so a named constructor keeps the name of an instance
+	/// method, as Dart allows.
 	fn names(
 		&self,
 		functions: &[&Function],
 		owner: (Option<&Ty>, Option<&Type>),
 		taken: impl Fn(usize, &str) -> bool,
 	) -> Vec<String> {
-		let (rust, spelled): (Vec<String>, Vec<String>) = (functions.iter())
-			.map(|function| {
-				let (rust, member, _) = self.declared(function, owner);
-				(rust, member)
-			})
-			.unzip();
+		let mut rust = Vec::new();
+		let mut spelled = Vec::new();
+		let mut kinds = Vec::new();
+		for function in functions {
+			let (name, member, kind) = self.declared(function, owner);
+			rust.push(name);
+			spelled.push(member);
+			kinds.push(kind);
+		}
 		let rust: Vec<&str> = rust.iter().map(String::as_str).collect();
-		abi::named(&rust, spelled, own, taken, alternative)
+		// An unnamed constructor clashes with none.
+		let clash = |k: usize, a: &str, j: usize, b: &str| match (kinds[k], kinds[j]) {
+			(Some(kk), Some(kj)) => collides(&format!("{kk}{a}"), &format!("{kj}{b}")),
+			_ => false,
+		};
+		abi::named_apart(&rust, spelled, own, taken, alternative, clash)
 	}
 
 	/// The declaration `function` makes as a member of `owner` (whose IR type is `owner_ty`)

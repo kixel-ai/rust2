@@ -1472,6 +1472,8 @@ public struct ClashStore: ~Copyable, @unchecked Sendable {
 	@inlinable public func finalize()
 	@inlinable public static func count() -> Swift.UInt32
 	@inlinable public func count() -> Swift.UInt32
+	@inlinable public static func `open`() -> ClashStore
+	@inlinable public func `open`() -> Swift.UInt32
 }
 public struct ClashReader: ~Copyable, @unchecked Sendable {
 	@inlinable public static func new(_ bytes: Bytes) -> ClashReader
@@ -1885,6 +1887,7 @@ public let URL: Swift.UInt64
 @inlinable public func deprecated(_ note: Swift.UInt8) -> Swift.UInt8
 @inlinable public func deprecated_(_ note: Swift.UInt8) -> Swift.UInt8
 @inlinable public func all(_ note: Swift.UInt8) -> Swift.UInt8
+@inlinable public func all_(_ note: Swift.UInt8) -> Swift.UInt8
 @available(*, deprecated) @inlinable public func knob(_ dial: Dial) -> Knob
 @available(*, deprecated, message: "read its `level`") @inlinable nonisolated(nonsending) public func levelLater(_ dial: Dial) async throws -> Swift.UInt64
 @inlinable public func turned(_ dial: Dial, _ turner: any Turner) throws -> Dial
@@ -1911,6 +1914,10 @@ public let URL: Swift.UInt64
 @inlinable public func clashErased(_ eraser: any ClashEraser) -> Swift.UInt32
 @inlinable public func clashErase_() -> Swift.UInt8
 @inlinable public func clashErase() -> Swift.UInt8
+@inlinable public func clashLend_() -> Swift.UInt32
+@inlinable public func clashLend_(store: borrowing ClashStore) -> Swift.UInt32
+@inlinable public func clashLend() -> Swift.UInt32
+@inlinable public func clashRun(_ work2: @Sendable () -> Swift.UInt8, _ work: Swift.UInt8) -> Swift.UInt32
 @inlinable public func clashAudible(_ tone: ClashTone) throws -> ClashTone
 @inlinable public func clashNested(_ a: ((Swift.UInt8, Swift.UInt16), Swift.UInt32)?, _ b: (Swift.UInt8, Swift.UInt16, Swift.UInt32)?) -> Swift.UInt32
 @inlinable public func clashAudioEncoderFinish() -> Swift.UInt8

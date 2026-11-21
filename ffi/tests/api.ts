@@ -536,7 +536,6 @@ function checks(): void {
 	check(ClashEscaped.delete({ new: 3 }) === 3 && ClashEscaped.delete_({ new: 3 }, 1, 2) === 213, "methods apart by a trailing underscore");
 	check(api.clashErase_() === 2 && api.clashErase() === 1, "functions apart by a trailing underscore");
 	print("checks ok");
-
 }
 
 /** The IPv6 address whose last 16 bits are `last`. */

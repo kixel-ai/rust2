@@ -11,6 +11,7 @@ FUNCTIONS
 func Admit(entry p_rt.Tuple4[*Counter, *Mark, Seat, Choice]) (uint64, error)
 func After(ctx context.Context, first func(context.Context), value uint32) (uint32, error)
 func All(note uint8) uint8
+func All_(note uint8) uint8
 func Alpn(config *p_tls.Config) (string, error)
 func AlpnLent(config *p_tls.Config) (string, error)
 func ApplyNonZeroU16(pair PairNonZeroU16, f func(uint16) uint32) (uint32, error)
@@ -49,8 +50,11 @@ func ClashErase_() uint8
 func ClashErased(eraser ClashEraser) uint32
 func ClashEraserVtable_() unsafe.Pointer
 func ClashIgnore(arg0 uint8, arg1 uint8, arg2 uint8) uint8
+func ClashLend() uint32
+func ClashLend_(store *ClashStore) (uint32, error)
 func ClashListed(java []uint32, kotlin *uint32) [][]uint32
 func ClashNested(a *p_rt.Tuple2[p_rt.Tuple2[uint8, uint16], uint32], b *p_rt.Tuple3[uint8, uint16, uint32]) uint32
+func ClashRun(work2 func() uint8, work uint8) uint32
 func ClashSourceVtable_() unsafe.Pointer
 func ClashStoreCount() uint32
 func ClashUnderscoredNext(underscored ClashUnderscored, change ClashChange) (ClashUnderscored, ClashChange)
@@ -761,12 +765,14 @@ func (self ClashStamp) Tagged(ctx context.Context, tag string) (string, error)
 type ClashStore struct {
 	Handle_ *p_rt.Handle_
 }
+func ClashStoreOpen() *ClashStore
 func NewClashStore(count uint32) *ClashStore
 func (self *ClashStore) Close() error
 func (self *ClashStore) Close_() (uint32, error)
 func (self *ClashStore) Count() (uint32, error)
 func (self *ClashStore) Finalize() error
 func (self *ClashStore) Free() (uint32, error)
+func (self *ClashStore) Open() (uint32, error)
 func (self *ClashStore) Wait() error
 type ClashString struct {
 	V0 string

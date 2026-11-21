@@ -1659,6 +1659,8 @@ final class ClashStore extends _Object {
 	void finalize();
 	static int count_();
 	int count();
+	factory ClashStore.open();
+	int open();
 }
 final class ClashReader extends _Object {
 	factory ClashReader(typed.Uint8List bytes);
@@ -2082,6 +2084,7 @@ typed.Uint8List unzeroed(typed.Uint8List bytes);
 int deprecated(int note);
 int deprecated_(int note);
 int all(int note);
+int all_(int note);
 @Deprecated('') Knob knob(Dial dial);
 @Deprecated('read its `level`') Cancelable<U64> levelLater(Dial dial);
 Dial turned(Dial dial, Turner turner);
@@ -2108,6 +2111,9 @@ int clashUnderscored(ClashUnderscored underscored, ClashOp op, ClashChange chang
 int clashErased(ClashEraser eraser);
 int clashErase_();
 int clashErase();
+int clashLend_(ClashStore? store);
+int clashLend();
+int clashRun(int Function() work2, int work);
 ClashTone clashAudible(ClashTone tone);
 int clashNested(((int, int), int)? a, ((int, int, int),)? b);
 int clashAudioEncoderFinish();

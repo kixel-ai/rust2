@@ -5105,6 +5105,16 @@ pub mod clash {
 		pub fn count(&self) -> u32 {
 			self.count
 		}
+
+		/// A store of five, by a constructor that camel case names as the method `open`.
+		pub fn open_() -> Store {
+			Store { count: 5 }
+		}
+
+		/// The count plus two, by a method that camel case names as the constructor `open_`.
+		pub fn open(&self) -> u32 {
+			self.count + 2
+		}
 	}
 
 	/// A level, whose values are named as the members `Debug` and `Default` give a type, as
@@ -5308,7 +5318,8 @@ pub mod clash {
 		(op as u32 + 1) * 1_000_000 + change * 10_000 + digits
 	}
 
-	/// The underscored record with each field one more, and the change with each swapped.
+	/// The underscored record with each field one more, wrapping past 255, and the change with
+	/// each swapped.
 	pub fn underscored_next(underscored: Underscored, change: Change) -> (Underscored, Change) {
 		let Underscored {
 			new_,
@@ -5317,10 +5328,10 @@ pub mod clash {
 			default,
 		} = underscored;
 		let next = Underscored {
-			new_: new_ + 1,
-			new: new + 1,
-			debug: debug + 1,
-			default: default + 1,
+			new_: new_.wrapping_add(1),
+			new: new.wrapping_add(1),
+			debug: debug.wrapping_add(1),
+			default: default.wrapping_add(1),
 		};
 		let change = match change {
 			Change::Set { new_, new } => Change::Set { new_: new, new: new_ },
@@ -5352,6 +5363,24 @@ pub mod clash {
 	/// One.
 	pub fn erase() -> u8 {
 		1
+	}
+
+	/// One more than the store's count, or none without one, by a name that differs only by
+	/// a trailing underscore from `lend`'s: Swift's overload leaving out `store` would be
+	/// `lend()` too.
+	pub fn lend_(store: Option<&Store>) -> u32 {
+		store.map_or(0, |store| store.count + 1)
+	}
+
+	/// Nine.
+	pub fn lend() -> u32 {
+		9
+	}
+
+	/// Ten times what `work_` returns, plus `work`, by parameters that differ only by a
+	/// trailing underscore, the closure's first.
+	pub fn run(work_: impl Fn() -> u8, work: u8) -> u32 {
+		u32::from(work_()) * 10 + u32::from(work)
 	}
 
 	/// The tone, or no tones where it is silent: an error Go names as `VecClashTone`'s variant.
@@ -5733,6 +5762,11 @@ pub fn _deprecated(note: u8) -> u8 {
 /// Two more than `note`, by a name Python reserves, as the module's own `__all__` is.
 pub fn __all__(note: u8) -> u8 {
 	note + 2
+}
+
+/// Three more than `note`, by the name Python would give `__all__`, which this one keeps.
+pub fn __all___(note: u8) -> u8 {
+	note + 3
 }
 
 /// A dial, whose docs carry each rustdoc form a binding renders as its own: links to a

@@ -877,8 +877,8 @@ static void checks(void) {
 	if (api_clash_underscored(underscored, API_CLASH_OP_DELETE, set) != 2561234 || api_clash_erase_() != 2 || api_clash_erase() != 1) {
 		tr_fail("names apart by trailing underscores");
 	}
-	/* A field named as errno.h's macro, escaped. */
 
+	/* A field named as errno.h's macro, escaped. */
 	api_clash_Errno none = api_clash_Errno_NULL();
 	if (none.errno_ != 0 || API_EOF != -1 || api_WEXITSTATUS(0x300) != 3) {
 		tr_fail("names of system macros");

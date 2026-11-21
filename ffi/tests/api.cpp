@@ -84,7 +84,6 @@ public:
 };
 
 // The Log callback: keeps even levels.
-
 class Print final : public api::Log {
 public:
 	bool log(std::uint8_t level, api::view line) const override {

@@ -379,7 +379,10 @@ fun checks() {
 	ClashStore.new(5u).use { store ->
 		check(store.count() == 5u && ClashStore.count() == 7u, "a static function and a method named alike")
 	}
-
+	// On the JVM, the method `open` keeps its name, and the static `open_` takes `open_`.
+	ClashStore.open().use { store ->
+		check(store.open() == 7u, "a static constructor and a method named alike")
+	}
 
 	// A record holding a value past a word crosses as its words, in and out, and a call
 	// with no slots left for one passes it encoded.

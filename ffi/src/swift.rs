@@ -1891,8 +1891,10 @@ impl<'a> Gen<'a> {
 
 	/// The name each of `functions` takes as a member of `owner` (whose IR type is
 	/// `owner_ty`) if it has one, or at the top level, apart from each other and from what
-	/// `taken` holds of a member's full name, with every argument, as [`abi::named`] keeps a
-	/// scope's.
+	/// `taken` holds of a member's full name, as [`abi::named`] keeps a scope's. Each is
+	/// apart in every overload [`Gen::function`] gives it, each of its own labels, so Rust's
+	/// `foo()` keeps `foo()` beside a `foo_(value: Option<&T>)` whose overload without
+	/// `value` would be `foo()` too.
 	fn names(
 		&self,
 		functions: &[&Function],
@@ -1900,24 +1902,51 @@ impl<'a> Gen<'a> {
 		owner_ty: Option<&Type>,
 		taken: impl Fn(&str) -> bool,
 	) -> Vec<String> {
-		let (rust, spelled): (Vec<String>, Vec<String>) = (functions.iter())
-			.map(|function| {
-				let export = self.abi.export(function, owner);
-				let (rust, member, is_static, var) = self.declared(function, owner, owner_ty, &export);
-				let labels = match var {
-					true => Vec::new(),
-					false => (function.params.iter().zip(locals(&function.params)))
-						.map(|(p, name)| match self.lent_option(&p.ty) {
-							true => unquote(&name),
-							false => "_".to_string(),
+		let (mut rust, mut spelled, mut forms) = (Vec::new(), Vec::new(), Vec::new());
+		for function in functions {
+			let export = self.abi.export(function, owner);
+			let (name, member, is_static, var) = self.declared(function, owner, owner_ty, &export);
+			let labels: Vec<(String, bool)> = match var {
+				true => Vec::new(),
+				false => (function.params.iter().zip(locals(&function.params)))
+					.map(|(p, name)| match self.lent_option(&p.ty) {
+						true => (unquote(&name), true),
+						false => ("_".to_string(), false),
+					})
+					.collect(),
+			};
+			let optional = labels.iter().filter(|(_, optional)| *optional).count();
+			// Each overload's labels, leaving out the optional ones its mask clears.
+			let overloads: Vec<Vec<String>> = (0..1usize << optional)
+				.map(|mask| {
+					let mut bit = 0;
+					(labels.iter())
+						.filter(|(_, optional)| {
+							bit += usize::from(*optional);
+							!*optional || mask & (1 << (bit - 1)) != 0
 						})
-						.collect(),
-				};
-				(rust, full(is_static, &member, labels))
-			})
-			.unzip();
+						.map(|(label, _)| label.clone())
+						.collect()
+				})
+				.collect();
+			rust.push(name);
+			spelled.push(full(is_static, &member, labels.into_iter().map(|(label, _)| label)));
+			forms.push((is_static, overloads));
+		}
 		let rust: Vec<&str> = rust.iter().map(String::as_str).collect();
-		(abi::named(&rust, spelled, own, |_, name| taken(name), abi::underscored).iter())
+		let fulls = |k: usize, name: &str| -> Vec<String> {
+			let (is_static, overloads) = &forms[k];
+			let name = unfull(name);
+			(overloads.iter())
+				.map(|labels| full(*is_static, &name, labels.iter().cloned()))
+				.collect()
+		};
+		let clash = |k: usize, a: &str, j: usize, b: &str| {
+			let theirs = fulls(j, b);
+			fulls(k, a).iter().any(|full| theirs.contains(full))
+		};
+		let taken = |k: usize, name: &str| fulls(k, name).iter().any(|full| taken(full));
+		(abi::named_apart(&rust, spelled, own, taken, abi::underscored, clash).iter())
 			.map(|full| kw(&unfull(full)))
 			.collect()
 	}

@@ -699,6 +699,8 @@ namespace api {
 		RUST2_FFI_CALLABLE void finalize() const;
 		static ::std::uint32_t count_();
 		RUST2_FFI_CALLABLE ::std::uint32_t count() const;
+		static ::api::clash_Store open_();
+		RUST2_FFI_CALLABLE ::std::uint32_t open() const;
 	};
 	class RUST2_FFI_CONSUMABLE clash_Reader {
 		RUST2_FFI_UNCONSUMED clash_Reader(clash_Reader &&other RUST2_FFI_MOVED_FROM) noexcept = default;
@@ -1936,6 +1938,7 @@ namespace api {
 	inline ::std::uint8_t deprecated(::std::uint8_t note);
 	inline ::std::uint8_t _deprecated(::std::uint8_t note);
 	inline ::std::uint8_t __all___(::std::uint8_t note);
+	inline ::std::uint8_t __all____(::std::uint8_t note);
 	[[deprecated]] inline ::api::Knob knob(const ::api::Dial &dial);
 	[[deprecated("read its `level`")]] inline ::api::level_later_future level_later(const ::api::Dial &dial);
 	inline ::api::result<::api::Dial, ::api::Error> turned(const ::api::Dial &dial, ::std::unique_ptr<::api::Turner> turner);
@@ -1962,6 +1965,9 @@ namespace api {
 	inline ::std::uint32_t clash_erased(::std::unique_ptr<::api::clash_Eraser> eraser);
 	inline ::std::uint8_t clash_erase_();
 	inline ::std::uint8_t clash_erase();
+	inline ::std::uint32_t clash_lend_(const ::api::clash_Store *store);
+	inline ::std::uint32_t clash_lend();
+	template <class F0> inline ::std::uint32_t clash_run(F0 &&work_, ::std::uint8_t work);
 	inline ::api::result<::api::clash_Tone, ::std::vector<::api::clash_Tone>> clash_audible(const ::api::clash_Tone &tone);
 	inline ::std::uint32_t clash_nested(const ::std::optional<::std::tuple<::std::tuple<::std::uint8_t, ::std::uint16_t>, ::std::uint32_t>> &a__, const ::std::optional<::std::tuple<::std::tuple<::std::uint8_t, ::std::uint16_t, ::std::uint32_t>>> &b_);
 	inline ::std::uint8_t clash_audio_encoder_finish();

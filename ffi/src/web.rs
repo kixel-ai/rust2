@@ -2771,8 +2771,6 @@ fn wrap(lines: &[String]) -> String {
 }
 
 impl Gen<'_> {
-	/// `function`'s TypeScript, a function of the module of its type `owner_ty` if it has
-	/// one, whose C type is `owner`, named apart from `taken`; none if not on the target.
 	/// The name each of `functions` takes as a member of `owner` (whose IR type is
 	/// `owner_ty`) if it has one, or at the top level, apart from each other and from what
 	/// `taken` holds, as [`abi::named`] keeps a scope's: a constant's in upper case, and each
@@ -2913,7 +2911,7 @@ impl Gen<'_> {
 		let receiving = receiver.is_some();
 		let names = abi::distinct(&function.params, param_name, |name| receiving && name == "self");
 		let mut writes = Vec::new();
-		for (k, (param, name)) in function.params.iter().zip(names).enumerate() {
+		for (k, (param, name)) in function.params.iter().zip(&names).enumerate() {
 			let (_, c) = c_params.next().expect("each parameter has its C one");
 			let a = format!("a{k}$");
 			// A value passed for `&mut`, in a place that takes what Rust writes back.
@@ -2955,7 +2953,7 @@ impl Gen<'_> {
 					if matches!(param.ty.base(), Type::Callback(..)) =>
 				{
 					let l = self.layout(c);
-					let put = self.put(param.ty.base(), &name, &a, false);
+					let put = self.put(param.ty.base(), name, &a, false);
 					gives.push(format!("const {a} = rt.alloc({}, {});\n{put}", l.size, l.align));
 					args.push(a);
 				}
@@ -2968,7 +2966,7 @@ impl Gen<'_> {
 					args.push(a);
 				}
 				(ty, c) => {
-					lines.push(self.pass(ty, c, &name, &a));
+					lines.push(self.pass(ty, c, name, &a));
 					// Rust takes `Bytes` by value: lent bytes become a second owner of its
 					// buffer once nothing left to lower can throw, so none is given in vain.
 					if matches!(ty, Type::Bytes) || matches!(ty, Type::Option(inner) if **inner == Type::Bytes) {
@@ -3113,8 +3111,7 @@ impl Gen<'_> {
 				"\n\nRust changes a copy of this value, which it returns first, as the call left it: this one never changes.",
 			);
 		}
-		for param in &function.params {
-			let name = param_name(&param.name);
+		for (param, name) in function.params.iter().zip(&names) {
 			if let Type::Closure(closure) = &param.ty {
 				text.push_str(&match closure.kept {
 					true => format!("\n\nRust keeps `{name}` until it drops it."),

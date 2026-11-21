@@ -1499,7 +1499,6 @@ func broken(which string) {
 	}
 }
 
-// cancelLog cancels its context at each line, and counts them.
 // eraser is a clash.Eraser, whose methods differ only by a trailing underscore.
 type eraser struct{}
 
@@ -1512,7 +1511,6 @@ func (eraser) Delete() uint8 {
 }
 
 // source is a clash.Source, reading 4 at once.
-
 type source struct{}
 
 func (source) Wait() {}
@@ -1521,6 +1519,7 @@ func (source) ReadByte_() uint8 {
 	return 4
 }
 
+// cancelLog cancels its context at each line, and counts them.
 type cancelLog struct {
 	cancel context.CancelFunc
 	lines  atomic.Int32

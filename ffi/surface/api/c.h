@@ -17,7 +17,7 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-#define API_CONTRACT ((uint64_t)0xa86c7e83af0f5460ULL)
+#define API_CONTRACT ((uint64_t)0x4b55241e4c51a5c9ULL)
 uint64_t api_contract(void);
 uint32_t api_target(void);
 typedef int32_t api_status;
@@ -2216,6 +2216,8 @@ void api_clash_Store_wait(const api_clash_Store *self);
 void api_clash_Store_finalize(const api_clash_Store *self);
 uint32_t api_clash_Store_count_(void);
 uint32_t api_clash_Store_count(const api_clash_Store *self);
+API_MUST_USE api_clash_Store *api_clash_Store_open_(void);
+uint32_t api_clash_Store_open(const api_clash_Store *self);
 void api_clash_Reader_free(api_clash_Reader *self);
 void api_clash_Reader_drop(api_clash_Reader *self, api_status *status);
 API_MUST_USE api_clash_Reader *api_clash_Reader_new(api_buf bytes);
@@ -2658,6 +2660,7 @@ API_MUST_USE api_buf api_unzeroed(api_buf bytes);
 uint8_t api_deprecated(uint8_t note);
 uint8_t api__deprecated(uint8_t note);
 uint8_t api___all__(uint8_t note);
+uint8_t api___all___(uint8_t note);
 api_Knob api_knob(api_Dial dial);
 typedef struct api_level_later_future api_level_later_future;
 API_MUST_USE api_level_later_future *api_level_later(api_Dial dial);
@@ -2688,6 +2691,9 @@ void api_clash_underscored_next(api_clash_Underscored underscored, api_clash_Cha
 uint32_t api_clash_erased(api_clash_Eraser eraser);
 uint8_t api_clash_erase_(void);
 uint8_t api_clash_erase(void);
+uint32_t api_clash_lend_(const api_clash_Store *store);
+uint32_t api_clash_lend(void);
+uint32_t api_clash_run(uint8_t (*work__)(void *data), void *work___data, uint8_t work);
 API_MUST_USE bool api_clash_audible(api_clash_Tone tone, api_clash_Tone *out, api_vec_clash_Tone *err);
 uint32_t api_clash_nested(api_option_tuple_tuple_u8_u16_u32 a, api_option_tuple_tuple_u8_u16_u32_ b);
 uint8_t api_clash_audio_encoder_finish(void);

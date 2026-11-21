@@ -468,6 +468,10 @@ func checks() {
 	check(clashDescribed(described) == 12 && described.description == "12", "fields named as a trait's members")
 	// A static function and a method named alike.
 	check(ClashStore.count() == 7 && ClashStore.new(5).count() == 5, "a static function and a method named alike")
+	check(ClashStore.open().open() == 7, "a static constructor and a method named alike")
+	// Rust's `lend()` keeps its name beside the overload of `lend_` that leaves out `store`.
+	let lent = ClashStore.new(3)
+	check(clashLend() == 9 && clashLend_() == 0 && clashLend_(store: lent) == 4, "an overload apart from a function by a trailing underscore")
 
 	// Rust's seconds are a u64, past Int64's.
 	let rustMax = try! RustDuration(secs: .max, nanos: 999_999_999)

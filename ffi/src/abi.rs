@@ -2085,11 +2085,10 @@ pub(crate) fn unique(names: Vec<String>, taken: impl Fn(&str) -> bool) -> Vec<St
 /// A language's names of `rust`, the names of one scope, kept apart from each other and from
 /// what `taken` names for each, by its index, whatever their order. `spelled` is each one's
 /// spelling in the language, and `own` whether a spelling reads back as its Rust name. One
-/// that does keeps it while
-/// neither `taken` nor another that does holds it, and every other, in Rust's order of
-/// names, takes the first of its `step`s that is free, as [`underscored`] counts them. So
-/// beside `new`, which keeps `new`, a `new_` that camel case spells `new` takes `new_`, and
-/// no order of the source moves either.
+/// that does keeps it while neither `taken` nor another that does holds it, and every other,
+/// in Rust's order of names, takes the first of its `step`s that is free, as [`underscored`]
+/// counts them. So beside `new`, which keeps `new`, a `new_` that camel case spells `new`
+/// takes `new_`, and no order of the source moves either.
 pub(crate) fn named(
 	rust: &[&str],
 	spelled: Vec<String>,
@@ -2097,28 +2096,38 @@ pub(crate) fn named(
 	taken: impl Fn(usize, &str) -> bool,
 	step: impl Fn(&str, usize) -> String,
 ) -> Vec<String> {
+	named_apart(rust, spelled, own, taken, step, |_, a, _, b| a == b)
+}
+
+/// [`named`]'s names, where two items clash only as `clash` reads them, each by its index and
+/// name, for a language whose items of one scope may share a name, such as Dart's named
+/// constructor and instance method, or Swift's overloads of different labels.
+pub(crate) fn named_apart(
+	rust: &[&str],
+	spelled: Vec<String>,
+	own: impl Fn(&str, &str) -> bool,
+	taken: impl Fn(usize, &str) -> bool,
+	step: impl Fn(&str, usize) -> String,
+	clash: impl Fn(usize, &str, usize, &str) -> bool,
+) -> Vec<String> {
 	let mut names = spelled.clone();
 	let owns: Vec<bool> = (0..rust.len()).map(|k| own(rust[k], &spelled[k])).collect();
-	let mut owners = BTreeMap::<&str, usize>::new();
-	for k in (0..rust.len()).filter(|&k| owns[k]) {
-		*owners.entry(&spelled[k]).or_default() += 1;
-	}
 	let kept: Vec<bool> = (0..rust.len())
-		.map(|k| owns[k] && owners[spelled[k].as_str()] == 1 && !taken(k, &spelled[k]))
+		.map(|k| {
+			let alone = (0..rust.len()).all(|j| j == k || !owns[j] || !clash(k, &spelled[k], j, &spelled[j]));
+			owns[k] && alone && !taken(k, &spelled[k])
+		})
 		.collect();
-	let mut held: std::collections::BTreeSet<String> = (0..rust.len())
-		.filter(|&k| kept[k])
-		.map(|k| spelled[k].clone())
-		.collect();
+	let mut held: Vec<usize> = (0..rust.len()).filter(|&k| kept[k]).collect();
 	let mut moved: Vec<usize> = (0..rust.len()).filter(|&k| !kept[k]).collect();
 	moved.sort_by_key(|&k| rust[k]);
 	for k in moved {
 		let mut n = 0;
-		while taken(k, &names[k]) || held.contains(&names[k]) {
+		while taken(k, &names[k]) || held.iter().any(|&j| clash(k, &names[k], j, &names[j])) {
 			n += 1;
 			names[k] = step(&spelled[k], n);
 		}
-		held.insert(names[k].clone());
+		held.push(k);
 	}
 	names
 }
@@ -2350,7 +2359,7 @@ pub(crate) fn dyn_wrap(form: Dyn, expr: &str) -> String {
 
 #[cfg(test)]
 mod tests {
-	use super::{apart, defined, distinct, escape, named, past_cycles, shortest, underscored, unique};
+	use super::{apart, defined, distinct, escape, named, named_apart, past_cycles, shortest, underscored, unique};
 
 	#[test]
 	fn escapes_keep_apart_from_every_macro() {
@@ -2452,6 +2461,31 @@ mod tests {
 			named(&["x", "x"], spelled, |_, _| true, |_, _| false, underscored),
 			["x", "x_"]
 		);
+	}
+
+	#[test]
+	fn named_apart_keeps_a_name_where_nothing_clashes() {
+		// Each item's space, as Dart's constructor and instance method are: 0 and 1 apart, 2 in both.
+		let names = |rust: &[&str], spaces: &[u8]| {
+			let spelled = rust.iter().map(|name| name.trim_end_matches('_').to_string()).collect();
+			let clash = |k: usize, a: &str, j: usize, b: &str| {
+				a == b && (spaces[k] == spaces[j] || spaces[k] == 2 || spaces[j] == 2)
+			};
+			named_apart(
+				rust,
+				spelled,
+				|rust, name| name == rust,
+				|_, _| false,
+				underscored,
+				clash,
+			)
+		};
+		// Apart, both keep `open`, in either order.
+		assert_eq!(names(&["open_", "open"], &[1, 0]), ["open", "open"]);
+		assert_eq!(names(&["open", "open_"], &[0, 1]), ["open", "open"]);
+		// One in both spaces clashes with each, and Rust's own keeps the name.
+		assert_eq!(names(&["open_", "open"], &[2, 0]), ["open_", "open"]);
+		assert_eq!(names(&["open", "open_"], &[1, 2]), ["open", "open_"]);
 	}
 
 	#[test]

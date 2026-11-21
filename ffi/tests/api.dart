@@ -98,7 +98,6 @@ final class Eraser extends api.ClashEraser {
 
 /// The Undo callback: each method returns its own digit.
 final class Edits extends api.Undo {
-
   @override
   int delete(int n) => n - 1;
 
@@ -484,6 +483,10 @@ void checks() {
     'methods apart by a trailing underscore',
   );
   check(api.clashErase_() == 2 && api.clashErase() == 1, 'functions apart by a trailing underscore');
+  // A named constructor keeps the name of an instance method, as Dart allows.
+  final opened = api.ClashStore.open();
+  check(opened.open() == 7, 'a named constructor and a method named alike');
+  opened.close();
   print('checks ok');
 }
 

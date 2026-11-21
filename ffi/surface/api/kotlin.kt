@@ -1343,10 +1343,12 @@ class ClashStore internal constructor(raw: Long, lent: Boolean = false) : AutoCl
 	fun close_(): kotlin.UInt
 	@kotlin.jvm.JvmName("wait_") fun wait()
 	@kotlin.jvm.JvmName("finalize_") fun finalize()
-	@kotlin.jvm.JvmName("count_") fun count(): kotlin.UInt
+	fun count(): kotlin.UInt
+	fun open(): kotlin.UInt
 	companion object {
 		@kotlin.jvm.JvmStatic fun new(count: kotlin.UInt): api.ClashStore
-		@kotlin.jvm.JvmStatic fun count(): kotlin.UInt
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("count_") fun count(): kotlin.UInt
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("open_") fun open(): api.ClashStore
 	}
 }
 class ClashReader internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -1811,6 +1813,7 @@ fun unzeroed(bytes: api.Bytes): api.Bytes
 fun deprecated(note: kotlin.UByte): kotlin.UByte
 fun deprecated_(note: kotlin.UByte): kotlin.UByte
 fun all(note: kotlin.UByte): kotlin.UByte
+fun all_(note: kotlin.UByte): kotlin.UByte
 @kotlin.Deprecated("") fun knob(dial: api.Dial): api.Knob
 @kotlin.Deprecated("read its `level`") suspend fun levelLater(dial: api.Dial): kotlin.ULong
 @kotlin.jvm.Throws(ErrorException::class) fun turned(dial: api.Dial, turner: api.Turner): api.Dial
@@ -1837,6 +1840,9 @@ fun clashUnderscoredNext(underscored: api.ClashUnderscored, change: api.ClashCha
 fun clashErased(eraser: api.ClashEraser): kotlin.UInt
 fun clashErase_(): kotlin.UByte
 fun clashErase(): kotlin.UByte
+fun clashLend_(store: api.ClashStore?): kotlin.UInt
+fun clashLend(): kotlin.UInt
+fun clashRun(work2: () -> kotlin.UByte, work: kotlin.UByte): kotlin.UInt
 @kotlin.jvm.Throws(kotlincollectionsListClashToneException::class) fun clashAudible(tone: api.ClashTone): api.ClashTone
 fun clashNested(a: kotlin.Pair<kotlin.Pair<kotlin.UByte, kotlin.UShort>, kotlin.UInt>?, b: api.Tuple1<kotlin.Triple<kotlin.UByte, kotlin.UShort, kotlin.UInt>>?): kotlin.UInt
 fun clashAudioEncoderFinish(): kotlin.UByte
