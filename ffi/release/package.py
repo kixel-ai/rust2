@@ -2623,6 +2623,11 @@ def consume_android(repo, check, native):
             '\t<uses-permission android:name="android.permission.INTERNET" />\n'
             f'\t<instrumentation android:name=".Check" android:targetPackage="{APP}" />\n</manifest>\n', encoding="utf-8")
         local = Path(repo).resolve().as_uri()
+        # The NDK the libraries were built with: without one, AGP packs them unstripped and
+        # hands Play no debug info.
+        ndk = os.environ.get("ANDROID_NDK_HOME")
+        if not ndk:
+            raise SystemExit("stripping the app's libraries needs the Android NDK: set ANDROID_NDK_HOME")
         (app / "settings.gradle.kts").write_text(f"""pluginManagement {{
 	repositories {{
 		google()
@@ -2655,6 +2660,7 @@ rootProject.name = "check"
 android {{
 	namespace = "{APP}"
 	compileSdk = {APP_SDK}
+	ndkPath = {json.dumps(str(Path(ndk).resolve()))}
 	defaultConfig {{
 		applicationId = "{APP}"
 		minSdk = {ANDROID_API}

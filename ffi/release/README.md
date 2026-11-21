@@ -239,6 +239,7 @@ the builder unpacks over its checkout before reading the checks.
     `CGO_LDFLAGS`, and run on Linux x64 and arm64, macOS on arm64 and x86_64, and Windows;
     and a new Gradle app, its Android Gradle Plugin's Kotlin compiling the check, depending
     on the AAR through its Maven repository as on Central, shrunk by R8 with the AAR's rules,
+    its libraries stripped by the NDK they were built with,
     whose bundle must hold each library's line tables for Play, run on an x86_64 emulator at
     API 35: an instrumentation in the app's own process and class loader runs the check, or
     loads the library, and reports its output and how the process ended, as a check may end
