@@ -1528,7 +1528,10 @@ fn jvm_names_exist(api: &Api, classes: &Path) {
 	let missing: Vec<&(String, &str)> = (jvm.iter())
 		.filter(|(class, name)| !methods.contains(&(class.clone(), name.to_string())))
 		.collect();
-	assert!(missing.is_empty(), "JVM names the lock records that no class has: {missing:?}");
+	assert!(
+		missing.is_empty(),
+		"JVM names the lock records that no class has: {missing:?}"
+	);
 }
 
 /// kotlinc compiling the generated Kotlin with `tests/api.kt`, the transcript `script`,
