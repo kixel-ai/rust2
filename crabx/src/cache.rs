@@ -60,7 +60,7 @@ impl Cache {
 			.cache_dir()
 			.join("crabx")
 			.join("v1")
-			.join(binstalk::TARGET)
+			.join(crate::TARGET)
 			.join(mode)
 			.join(spec.name.to_ascii_lowercase());
 		Ok(Self { root })

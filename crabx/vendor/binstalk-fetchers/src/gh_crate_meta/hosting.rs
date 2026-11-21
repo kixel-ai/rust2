@@ -13,7 +13,7 @@ pub enum RepositoryHost {
 	Unknown,
 }
 
-/// Make sure to update possible_dirs in `bins::infer_bin_dir_template`
+/// Make sure to update `binstalk_bins::possible_bin_dirs`
 /// if you modified FULL_FILENAMES or NOVERSION_FILENAMES.
 pub const FULL_FILENAMES: &[Template<'_>] = &[
 	template!("/{ name }-{ target }-v{ version }{ archive-suffix }"),
@@ -34,10 +34,12 @@ pub const NOVERSION_FILENAMES: &[Template<'_>] = &[
 const GITHUB_RELEASE_PATHS: &[Template<'_>] = &[
 	template!("{ repo }/releases/download/{ version }"),
 	template!("{ repo }/releases/download/v{ version }"),
-	template!("{ repo }/releases/download/{ name }-v{ version }"),
 	// %2F is escaped form of '/'
 	template!("{ repo }/releases/download/{ subcrate }%2F{ version }"),
 	template!("{ repo }/releases/download/{ subcrate }%2Fv{ version }"),
+	// Default tags of workspace release tools such as release-plz and cargo-release.
+	template!("{ repo }/releases/download/{ name }-v{ version }"),
+	template!("{ repo }/releases/download/{ name }-{ version }"),
 ];
 
 const GITLAB_RELEASE_PATHS: &[Template<'_>] = &[
@@ -50,13 +52,19 @@ const GITLAB_RELEASE_PATHS: &[Template<'_>] = &[
 
 const BITBUCKET_RELEASE_PATHS: &[Template<'_>] = &[template!("{ repo }/downloads")];
 
+// No `{ subcrate }` paths: `RepoInfo::detect_subcrate` never finds a subcrate
+// in a SourceForge URL, so they would always be filtered out.
 const SOURCEFORGE_RELEASE_PATHS: &[Template<'_>] = &[
-	template!("{ repo }/files/binaries/{  version }"),
+	template!("{ repo }/files/binaries/{ version }"),
 	template!("{ repo }/files/binaries/v{ version }"),
-	// %2F is escaped form of '/'
-	template!("{ repo }/files/binaries/{ subcrate }%2F{  version }"),
-	template!("{ repo }/files/binaries/{ subcrate }%2Fv{ version }"),
 ];
+
+/// Every filename is appended to every release path, followed by `suffix`.
+struct DefaultPkgUrls {
+	paths: &'static [Template<'static>],
+	filenames: &'static [&'static [Template<'static>]],
+	suffix: &'static str,
+}
 
 impl RepositoryHost {
 	pub fn guess_git_hosting_services(repo: &Url) -> Self {
@@ -72,34 +80,50 @@ impl RepositoryHost {
 		}
 	}
 
-	pub fn get_default_pkg_url_template(self) -> Option<impl Iterator<Item = Template<'static>> + Clone + 'static> {
+	/// The parts that make up the default `pkg-url` templates of this host.
+	///
+	/// SUPPORT.md documents these, see `tests::support_md`.
+	fn default_pkg_urls(self) -> Option<DefaultPkgUrls> {
 		use RepositoryHost::*;
 
-		match self {
-			GitHub => Some(apply_filenames_to_paths(
-				GITHUB_RELEASE_PATHS,
-				&[FULL_FILENAMES, NOVERSION_FILENAMES],
-				"",
-			)),
-			GitLab => Some(apply_filenames_to_paths(
-				GITLAB_RELEASE_PATHS,
-				&[FULL_FILENAMES, NOVERSION_FILENAMES],
-				"",
-			)),
-			BitBucket => Some(apply_filenames_to_paths(BITBUCKET_RELEASE_PATHS, &[FULL_FILENAMES], "")),
-			SourceForge => Some(apply_filenames_to_paths(
-				SOURCEFORGE_RELEASE_PATHS,
-				&[FULL_FILENAMES, NOVERSION_FILENAMES],
-				"/download",
-			)),
-			Codeberg => Some(apply_filenames_to_paths(
-				// Codeberg (Forgejo) has the same release paths as GitHub.
-				GITHUB_RELEASE_PATHS,
-				&[FULL_FILENAMES, NOVERSION_FILENAMES],
-				"",
-			)),
-			Unknown => None,
-		}
+		Some(match self {
+			GitHub => DefaultPkgUrls {
+				paths: GITHUB_RELEASE_PATHS,
+				filenames: &[FULL_FILENAMES, NOVERSION_FILENAMES],
+				suffix: "",
+			},
+			GitLab => DefaultPkgUrls {
+				paths: GITLAB_RELEASE_PATHS,
+				filenames: &[FULL_FILENAMES, NOVERSION_FILENAMES],
+				suffix: "",
+			},
+			BitBucket => DefaultPkgUrls {
+				paths: BITBUCKET_RELEASE_PATHS,
+				filenames: &[FULL_FILENAMES],
+				suffix: "",
+			},
+			SourceForge => DefaultPkgUrls {
+				paths: SOURCEFORGE_RELEASE_PATHS,
+				filenames: &[FULL_FILENAMES, NOVERSION_FILENAMES],
+				suffix: "/download",
+			},
+			// Codeberg (Forgejo) has the same release paths as GitHub.
+			Codeberg => DefaultPkgUrls {
+				paths: GITHUB_RELEASE_PATHS,
+				filenames: &[FULL_FILENAMES, NOVERSION_FILENAMES],
+				suffix: "",
+			},
+			Unknown => return None,
+		})
+	}
+
+	pub fn get_default_pkg_url_template(self) -> Option<impl Iterator<Item = Template<'static>> + Clone + 'static> {
+		let DefaultPkgUrls {
+			paths,
+			filenames,
+			suffix,
+		} = self.default_pkg_urls()?;
+		Some(apply_filenames_to_paths(paths, filenames, suffix))
 	}
 }
 
@@ -138,7 +162,7 @@ mod crabx_tests {
 			.filter(|template| !template.has_key("subcrate"))
 			.map(|template| template.render(&values).unwrap())
 			.collect();
-		for tag in ["0.14.0", "v0.14.0", "moq-cli-v0.14.0"] {
+		for tag in ["0.14.0", "v0.14.0", "moq-cli-v0.14.0", "moq-cli-0.14.0"] {
 			assert!(urls.contains(&format!(
 				"https://github.com/moq-dev/moq/releases/download/{tag}/moq-cli-x86_64-unknown-linux-gnu-v0.14.0.tar.gz"
 			)));

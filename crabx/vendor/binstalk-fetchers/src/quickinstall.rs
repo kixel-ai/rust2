@@ -120,7 +120,9 @@ impl QuickInstall {
 							pubkey: QUICKINSTALL_SIGN_KEY,
 							file: None,
 						};
-						SignatureVerifier::new(&config, &signature)
+						let verifier = SignatureVerifier::new(&config, &signature)?;
+						self.check_signed_file_name(&verifier)?;
+						Ok(verifier)
 					}
 					Err(err) => {
 						if self.signature_policy == SignaturePolicy::Require {
@@ -134,6 +136,30 @@ impl QuickInstall {
 				}
 			}
 		})
+	}
+
+	/// The signature only covers the file's contents, so a valid signature
+	/// for another crate, version or target would verify too. quickinstall
+	/// signs with `minisign -S`, which puts the file name in the trusted
+	/// comment, and that comment is covered by the signature: check it.
+	///
+	/// The comment is only authenticated once the download is verified,
+	/// which happens before the package is used.
+	fn check_signed_file_name(&self, verifier: &SignatureVerifier) -> Result<(), FetchError> {
+		let expected = format!("{}.tar.gz", self.package);
+		let signed = verifier.trusted_comment().and_then(signed_file_name);
+
+		if signed == Some(expected.as_str()) {
+			Ok(())
+		} else {
+			error!(
+				expected,
+				signed = signed.unwrap_or("<none>"),
+				"Signature is for a different file"
+			);
+			self.set_status(Status::InvalidSignature);
+			Err(FetchError::InvalidSignature)
+		}
 	}
 
 	fn get_status(&self) -> Status {
@@ -317,4 +343,12 @@ impl QuickInstall {
 
 		Ok(())
 	}
+}
+
+/// Returns the `file:` field of a trusted comment written by `minisign -S`,
+/// such as `timestamp:1757327413\tfile:ripgrep-14.1.1-x86_64-unknown-linux-gnu.tar.gz\thashed`.
+fn signed_file_name(trusted_comment: &str) -> Option<&str> {
+	trusted_comment
+		.split('\t')
+		.find_map(|field| field.strip_prefix("file:"))
 }
