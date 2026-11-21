@@ -748,6 +748,14 @@ class Sdist(unittest.TestCase):
         self.assertEqual(moved["target"]["cfg(unix)"]["dependencies"]["tls"]["path"], "../sources/src/tls")
         self.assertEqual(moved["patch"]["crates-io"]["url"]["path"], "../sources/vendor/url")
 
+    def test_moves_each_path_once(self):
+        # One package's new path is another's old one, as relative keys can make: each path
+        # moves by its original value alone.
+        manifest = '[dependencies]\na = { path = "../a" }\nb = { path = "../sources/a" }\n'
+        moves = {"../a": "../sources/a", "../sources/a": "../sources/sources/a"}
+        moved = tomllib.loads(package.relocate(manifest, moves, strict=True))
+        self.assertEqual(moved["dependencies"], {"a": {"path": "../sources/a"}, "b": {"path": "../sources/sources/a"}})
+
     def test_refuses_a_path_no_package_lies_at(self):
         manifest = '[dependencies]\na = { path = "/src/a" }\nb = { path = "/elsewhere/b" }\n'
         with self.assertRaises(SystemExit):
@@ -1033,10 +1041,10 @@ class Web(unittest.TestCase):
                 "assert importlib.util.find_spec('stray') is None\n"
                 "import transcript\ntranscript.script()\n")
             (check / "transcript.py").write_text("import __main__ as local\ndef script():\n    print(local.hook())\n")
-            (Path(tmp) / "native.txt").write_text("hooked\n")
+            (Path(tmp) / "native.txt").write_bytes(b"hooked\n")
             with mock.patch.dict(os.environ, {"PYTHONPATH": str(elsewhere)}):
                 package.consume_python(check, Path(tmp) / "native.txt", None)
-            (Path(tmp) / "native.txt").write_text("other\n")
+            (Path(tmp) / "native.txt").write_bytes(b"other\n")
             with self.assertRaises(SystemExit):
                 package.consume_python(check, Path(tmp) / "native.txt", None)
 

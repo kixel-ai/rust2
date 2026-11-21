@@ -328,9 +328,11 @@ def workspace_manifest(path):
 def relocate(manifest, moves, strict=False):
     """A manifest with each local package's absolute path moved, as `moves` maps them, checked
     by reading it back: nothing else changed, and when `strict`, every `path` is one moved."""
+    # One pass, so a path already moved is never matched again by another package's key.
+    spelled = {f"path = {json.dumps(old, ensure_ascii=False)}": f"path = {json.dumps(new)}" for old, new in moves.items()}
     text = manifest
-    for old, new in moves.items():
-        text = text.replace(f"path = {json.dumps(old, ensure_ascii=False)}", f"path = {json.dumps(new)}")
+    if spelled:
+        text = re.sub("|".join(map(re.escape, spelled)), lambda m: spelled[m.group(0)], manifest)
 
     def moved(value):
         if isinstance(value, dict):
@@ -426,7 +428,13 @@ def sdist(info, manifest, export, out):
     # The generated manifest names each package relative to the export, where a relative path
     # reads right, and absolute elsewhere.
     binding = moves("binding")
-    binding |= {Path(os.path.relpath(d, export)).as_posix(): binding[str(d)] for d in placed}
+    for d in placed:
+        try:
+            binding[Path(os.path.relpath(d, export)).as_posix()] = binding[str(d)]
+        except ValueError:
+            # On another Windows drive than the export, no relative path reaches it; only the
+            # absolute one names it.
+            pass
     generated = relocate((export / "Cargo.toml").read_text(encoding="utf-8"), binding, strict=True)
     files["binding/Cargo.toml"] = (generated.encode(), False)
     for path in [export / "Cargo.lock", export / "build.rs", export / "python" / f"{info['lib']}.py",
