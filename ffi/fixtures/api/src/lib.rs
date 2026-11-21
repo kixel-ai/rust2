@@ -5111,9 +5111,10 @@ pub mod clash {
 			Store { count: 5 }
 		}
 
-		/// The count plus two, by a method that camel case names as the constructor `open_`.
+		/// The count plus two, wrapping past `u32::MAX`, by a method that camel case names as
+		/// the constructor `open_`.
 		pub fn open(&self) -> u32 {
-			self.count + 2
+			self.count.wrapping_add(2)
 		}
 	}
 
@@ -5367,9 +5368,9 @@ pub mod clash {
 
 	/// One more than the store's count, or none without one, by a name that differs only by
 	/// a trailing underscore from `lend`'s: Swift's overload leaving out `store` would be
-	/// `lend()` too.
+	/// `lend()` too. The sum saturates at `u32::MAX`.
 	pub fn lend_(store: Option<&Store>) -> u32 {
-		store.map_or(0, |store| store.count + 1)
+		store.map_or(0, |store| store.count.saturating_add(1))
 	}
 
 	/// Nine.
@@ -5764,9 +5765,10 @@ pub fn __all__(note: u8) -> u8 {
 	note + 2
 }
 
-/// Three more than `note`, by the name Python would give `__all__`, which this one keeps.
+/// Three more than `note`, wrapping past 255, by the name Python would give `__all__`, which
+/// this one keeps.
 pub fn __all___(note: u8) -> u8 {
-	note + 3
+	note.wrapping_add(3)
 }
 
 /// A dial, whose docs carry each rustdoc form a binding renders as its own: links to a

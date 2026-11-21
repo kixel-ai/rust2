@@ -2085,10 +2085,10 @@ pub(crate) fn unique(names: Vec<String>, taken: impl Fn(&str) -> bool) -> Vec<St
 /// A language's names of `rust`, the names of one scope, kept apart from each other and from
 /// what `taken` names for each, by its index, whatever their order. `spelled` is each one's
 /// spelling in the language, and `own` whether a spelling reads back as its Rust name. One
-/// that does keeps it while neither `taken` nor another that does holds it, and every other,
-/// in Rust's order of names, takes the first of its `step`s that is free, as [`underscored`]
-/// counts them. So beside `new`, which keeps `new`, a `new_` that camel case spells `new`
-/// takes `new_`, and no order of the source moves either.
+/// that does keeps it while neither `taken` nor another that does and is not taken holds it,
+/// and every other, in Rust's order of names, takes the first of its `step`s that is free, as
+/// [`underscored`] counts them. So beside `new`, which keeps `new`, a `new_` that camel case
+/// spells `new` takes `new_`, and no order of the source moves either.
 pub(crate) fn named(
 	rust: &[&str],
 	spelled: Vec<String>,
@@ -2111,12 +2111,12 @@ pub(crate) fn named_apart(
 	clash: impl Fn(usize, &str, usize, &str) -> bool,
 ) -> Vec<String> {
 	let mut names = spelled.clone();
-	let owns: Vec<bool> = (0..rust.len()).map(|k| own(rust[k], &spelled[k])).collect();
+	// Those that could keep their spelling: one taken moves anyway, so it holds back no other.
+	let owns: Vec<bool> = (0..rust.len())
+		.map(|k| own(rust[k], &spelled[k]) && !taken(k, &spelled[k]))
+		.collect();
 	let kept: Vec<bool> = (0..rust.len())
-		.map(|k| {
-			let alone = (0..rust.len()).all(|j| j == k || !owns[j] || !clash(k, &spelled[k], j, &spelled[j]));
-			owns[k] && alone && !taken(k, &spelled[k])
-		})
+		.map(|k| owns[k] && (0..rust.len()).all(|j| j == k || !owns[j] || !clash(k, &spelled[k], j, &spelled[j])))
 		.collect();
 	let mut held: Vec<usize> = (0..rust.len()).filter(|&k| kept[k]).collect();
 	let mut moved: Vec<usize> = (0..rust.len()).filter(|&k| !kept[k]).collect();
@@ -2486,6 +2486,16 @@ mod tests {
 		// One in both spaces clashes with each, and Rust's own keeps the name.
 		assert_eq!(names(&["open_", "open"], &[2, 0]), ["open_", "open"]);
 		assert_eq!(names(&["open", "open_"], &[1, 2]), ["open", "open_"]);
+		// One whose spelling only it finds taken, as a Swift function's is where an enum case
+		// holds one of its overloads, moves, and leaves the spelling to the other that reads
+		// back as its Rust, not to `FOO_BAR`, which comes first in Rust's order.
+		let spelled = vec!["fooBar".to_string(); 3];
+		let clash = |_: usize, a: &str, _: usize, b: &str| a == b;
+		let taken = |k: usize, name: &str| k == 0 && name == "fooBar";
+		let own = |rust: &str, _: &str| rust != "FOO_BAR";
+		let rust = ["foo_bar", "fooBar", "FOO_BAR"];
+		let names = named_apart(&rust, spelled, own, taken, underscored, clash);
+		assert_eq!(names, ["fooBar__", "fooBar", "fooBar_"]);
 	}
 
 	#[test]

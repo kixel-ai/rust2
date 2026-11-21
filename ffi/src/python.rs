@@ -2585,12 +2585,26 @@ fn variant_classes(names: &[&str]) -> Vec<String> {
 /// [`abi::named`] keeps a scope's.
 fn values(e: &crate::ir::Enum) -> Vec<String> {
 	let rust: Vec<&str> = e.variants.iter().map(|v| v.name.as_str()).collect();
+	value_names(&rust)
+}
+
+/// [`values`] of the variants `rust`, clear of the names an `_enum.Enum`'s body makes no
+/// member of: it refuses a `_X_` name, skips a `__X__` one, and the class body mangles a `__X`
+/// one private.
+fn value_names(rust: &[&str]) -> Vec<String> {
 	let spelled = rust.iter().map(|name| abi::snake(name).to_uppercase()).collect();
+	// `enum`'s own `_is_sunder` and `_is_dunder`, and the compiler's mangling.
+	let between = |name: &str, ends: &str| {
+		let inner = name.strip_prefix(ends).and_then(|name| name.strip_suffix(ends));
+		inner.is_some_and(|inner| !inner.is_empty() && !inner.starts_with('_') && !inner.ends_with('_'))
+	};
+	let private = |name: &str| name.starts_with("__") && !name.ends_with("__");
+	let unmember = |name: &str| between(name, "_") || between(name, "__") || private(name);
 	abi::named(
-		&rust,
+		rust,
 		spelled,
 		|rust, name| pascal(&name.to_lowercase()) == rust,
-		|_, _| false,
+		|_, name| unmember(name),
 		abi::underscored,
 	)
 }
@@ -2817,7 +2831,7 @@ fn record_class(name: &str, bases: &str, docs: &str, fields: &[Slot], members: &
 
 #[cfg(test)]
 mod tests {
-	use super::{DEPRECATOR, IMPORTS, RUNTIME, TAKEN, member, param_name, param_names, variant_classes};
+	use super::{DEPRECATOR, IMPORTS, RUNTIME, TAKEN, member, param_name, param_names, value_names, variant_classes};
 	use crate::ir::{Param, Type};
 
 	/// Every alias the module imports, and every `_` name the runtime binds at module level,
@@ -2885,6 +2899,14 @@ mod tests {
 		);
 		// Pascal case spells `FooBar` as its Rust whichever comes first.
 		assert_eq!(variant_classes(&["Foo_Bar", "FooBar"]), ["FooBar_", "FooBar"]);
+	}
+
+	#[test]
+	fn values_are_members_of_an_enum() {
+		assert_eq!(
+			value_names(&["_Hidden_", "__Hidden__", "__Hidden", "___Shown__", "Plain"]),
+			["_HIDDEN__", "__HIDDEN____", "__HIDDEN___", "___SHOWN__", "PLAIN"]
+		);
 	}
 
 	#[test]
