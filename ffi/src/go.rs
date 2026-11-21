@@ -2100,32 +2100,27 @@ impl<'a> Gen<'a> {
 		self.distinct(&rust, &members);
 	}
 
-	/// The Go names of a record's fields: each [`field_name`], with a trailing `_` while
-	/// a method its traits give it, which an interface requires by name, or an earlier
-	/// field takes it.
+	/// The Go names of a record's fields, kept apart from a method its traits give it, which
+	/// an interface requires by name, as [`field_names`] keeps them.
 	fn record_fields(&mut self, i: usize) -> Vec<String> {
 		let record = &self.abi.api.records[i];
-		let mut taken = self.trait_methods(&Type::Record(i), record.traits);
-		(record.fields.iter())
-			.map(|f| {
-				let name = unique(&mut taken, field_name(&f.name));
-				crate::lock::field(&mut self.locked, &record.shown, &f.name, &name);
-				name
-			})
-			.collect()
+		let taken = self.trait_methods(&Type::Record(i), record.traits);
+		let names = field_names(&record.fields, &taken);
+		for (f, name) in record.fields.iter().zip(&names) {
+			crate::lock::field(&mut self.locked, &record.shown, &f.name, name);
+		}
+		names
 	}
 
 	/// The Go names of a data enum's variant's fields, clear of the methods its traits add.
 	fn variant_fields(&mut self, i: usize, variant: &Variant) -> Vec<String> {
 		let e = &self.abi.api.enums[i];
-		let mut taken = self.trait_methods(&Type::Enum(i), e.traits);
-		(variant.fields.iter())
-			.map(|f| {
-				let name = unique(&mut taken, field_name(&f.name));
-				crate::lock::variant_field(&mut self.locked, &e.shown, &variant.name, &f.name, &name);
-				name
-			})
-			.collect()
+		let taken = self.trait_methods(&Type::Enum(i), e.traits);
+		let names = field_names(&variant.fields, &taken);
+		for (f, name) in variant.fields.iter().zip(&names) {
+			crate::lock::variant_field(&mut self.locked, &e.shown, &variant.name, &f.name, name);
+		}
+		names
 	}
 
 	/// The methods the traits `t` of the type `ty` add, which a field's name must clear.
@@ -2199,16 +2194,41 @@ impl<'a> Gen<'a> {
 		owner: &Ty,
 		fields: &[String],
 	) -> Vec<String> {
-		let (methods, statics) = self.members(ty, c, rust, traits, functions, owner);
+		let (mut methods, statics) = self.members(ty, c, rust, traits, functions, owner);
 		let mut members = Vec::new();
 		let mut taken: BTreeSet<String> = fields.iter().cloned().collect();
-		// Each method's final name and receiver, by its lock key, which a stream's adapter calls.
-		let mut named = BTreeMap::new();
 		let error = self.errored(ty);
-		for mut method in methods {
+		// What its traits make, and `Error`, keep their names, which an interface requires,
+		// before Rust's, which keep apart as one scope.
+		for method in methods.iter_mut().filter(|m| m.key.is_none()) {
 			while method.vetted(error) || !taken.insert(method.name.clone()) {
 				method.name.push('_');
 			}
+		}
+		let own: Vec<usize> = (0..methods.len()).filter(|&k| methods[k].key.is_some()).collect();
+		let rust: Vec<&str> = (own.iter())
+			.map(|&k| {
+				let key = methods[k].key.as_deref();
+				(functions.iter())
+					.find(|f| Some(crate::lock::function_key(f).as_str()) == key)
+					.expect("a method is of its type's functions")
+					.name()
+			})
+			.collect();
+		for &k in &own {
+			while methods[k].vetted(error) {
+				methods[k].name.push('_');
+			}
+		}
+		let spelled = own.iter().map(|&k| methods[k].name.clone()).collect();
+		let names = abi::named(&rust, spelled, |rust, name| abi::snake(name) == rust, |_, name| taken.contains(name), abi::underscored);
+		for (k, name) in own.into_iter().zip(names) {
+			taken.insert(name.clone());
+			methods[k].name = name;
+		}
+		// Each method's final name and receiver, by its lock key, which a stream's adapter calls.
+		let mut named = BTreeMap::new();
+		for method in methods {
 			if let Some(key) = &method.key {
 				self.locked.insert(key.clone(), method.name.clone());
 				named.insert(key.clone(), (method.name.clone(), method.receiver.clone()));
@@ -2569,21 +2589,31 @@ impl<'a> Gen<'a> {
 		let mut body = Vec::new();
 		let mut members = Vec::new();
 		let mut table = vec!["\tv.free = goRelease\n".to_string()];
-		for method in &callback.methods {
-			let types: Vec<String> = method.params.iter().map(|p| self.go_param(&p.ty)).collect();
-			let ret = match method.ok {
-				Type::Unit => None,
-				_ => Some(self.go(&method.ok)),
-			};
-			// An interface's method is vetted too, though never as an `error`'s.
-			let (ps, rs): (Vec<&str>, Vec<&str>) = (
-				types.iter().map(String::as_str).collect(),
-				ret.iter().map(String::as_str).collect(),
-			);
-			let mut member = pascal(method.name());
-			while vetted(&member, &ps, &rs, false) {
-				member.push('_');
-			}
+		let signatures: Vec<(Vec<String>, Option<String>)> = (callback.methods.iter())
+			.map(|method| {
+				let types: Vec<String> = method.params.iter().map(|p| self.go_param(&p.ty)).collect();
+				let ret = match method.ok {
+					Type::Unit => None,
+					_ => Some(self.go(&method.ok)),
+				};
+				(types, ret)
+			})
+			.collect();
+		// An interface's method is vetted too, though never as an `error`'s.
+		let spelled = (callback.methods.iter().zip(&signatures))
+			.map(|(method, (types, ret))| {
+				let ps: Vec<&str> = types.iter().map(String::as_str).collect();
+				let rs: Vec<&str> = ret.iter().map(String::as_str).collect();
+				let mut member = pascal(method.name());
+				while vetted(&member, &ps, &rs, false) {
+					member.push('_');
+				}
+				member
+			})
+			.collect();
+		let methods: Vec<&str> = callback.methods.iter().map(|method| method.name()).collect();
+		let named = abi::named(&methods, spelled, |rust, name| abi::snake(name) == rust, |_, _| false, abi::underscored);
+		for ((method, (types, ret)), member) in callback.methods.iter().zip(signatures).zip(named) {
 			crate::lock::function(&mut self.locked, method, &member);
 			members.push(member.clone());
 			let names = self.locals(&method.params);
@@ -3663,15 +3693,17 @@ fn vetted(name: &str, params: &[&str], results: &[&str], error: bool) -> bool {
 		&& !(alike(want, params, false) && alike(got, results, false))
 }
 
-/// `name`, with `_` appended until it is clear of `taken`, which then holds it.
-fn unique(taken: &mut BTreeSet<String>, mut name: String) -> String {
-	while !taken.insert(name.clone()) {
-		name.push('_');
-	}
-	name
+/// The Go names of `fields`, one scope's, each [`field_name`], kept apart from each other and
+/// from `taken` as [`abi::named`] keeps them.
+fn field_names(fields: &[crate::ir::Field], taken: &BTreeSet<String>) -> Vec<String> {
+	let rust: Vec<&str> = fields.iter().map(|f| f.name.as_str()).collect();
+	let spelled = rust.iter().map(|name| field_name(name)).collect();
+	abi::named(&rust, spelled, |rust, name| abi::snake(name) == rust, |_, name| taken.contains(name), abi::underscored)
 }
 
+/// A field's Go name, in Pascal case: a positional one's is `V0`, `V1`, ...
 fn field_name(name: &str) -> String {
+
 	match name.starts_with(|c: char| c.is_ascii_digit()) {
 		true => format!("V{name}"),
 		false => pascal(name),

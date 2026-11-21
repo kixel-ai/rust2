@@ -2025,6 +2025,55 @@ pub(crate) fn unique(names: Vec<String>, taken: impl Fn(&str) -> bool) -> Vec<St
 		.collect()
 }
 
+/// A language's names of `rust`, the names of one scope, kept apart from each other and from
+/// what `taken` names for each, by its index, whatever their order. `spelled` is each one's
+/// spelling in the language, and `own` whether a spelling reads back as its Rust name. One
+/// that does keeps it while
+/// neither `taken` nor another that does holds it, and every other, in Rust's order of
+/// names, takes the first of its `step`s that is free, as [`underscored`] counts them. So
+/// beside `new`, which keeps `new`, a `new_` that camel case spells `new` takes `new_`, and
+/// no order of the source moves either.
+pub(crate) fn named(
+	rust: &[&str],
+	spelled: Vec<String>,
+	own: impl Fn(&str, &str) -> bool,
+	taken: impl Fn(usize, &str) -> bool,
+	step: impl Fn(&str, usize) -> String,
+) -> Vec<String> {
+	let mut names = spelled.clone();
+	let owns: Vec<bool> = (0..rust.len()).map(|k| own(rust[k], &spelled[k])).collect();
+	let mut owners = BTreeMap::<&str, usize>::new();
+	for k in (0..rust.len()).filter(|&k| owns[k]) {
+		*owners.entry(&spelled[k]).or_default() += 1;
+	}
+	let kept: Vec<bool> = (0..rust.len())
+		.map(|k| owns[k] && owners[spelled[k].as_str()] == 1 && !taken(k, &spelled[k]))
+		.collect();
+	let mut held: std::collections::BTreeSet<String> = (0..rust.len())
+		.filter(|&k| kept[k])
+		.map(|k| spelled[k].clone())
+		.collect();
+	let mut moved: Vec<usize> = (0..rust.len()).filter(|&k| !kept[k]).collect();
+	moved.sort_by_key(|&k| rust[k]);
+	for k in moved {
+		let mut n = 0;
+		while taken(k, &names[k]) || held.contains(&names[k]) {
+			n += 1;
+			names[k] = step(&spelled[k], n);
+		}
+		held.insert(names[k].clone());
+	}
+	names
+}
+
+/// The `n`th name to try in place of `name` where it is taken: `n` more trailing `_`s, after
+/// its name and before any `(` of argument labels.
+pub(crate) fn underscored(name: &str, n: usize) -> String {
+	let at = name.find('(').unwrap_or(name.len());
+	format!("{}{}{}", &name[..at], "_".repeat(n), &name[at..])
+}
+
+
 /// A language's names of parameters made distinct where Rust's differ only in what its
 /// case drops, such as underscores: a later one takes the lowest free number after it.
 pub(crate) fn distinct(names: impl IntoIterator<Item = String>) -> Vec<String> {

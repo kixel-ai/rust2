@@ -63,8 +63,14 @@ pub(crate) fn variants(
 
 /// Record the name a binding gives the field `field` of the record at `owner`.
 pub(crate) fn field(names: &mut BTreeMap<String, String>, owner: &[String], field: &str, name: &str) {
-	names.insert(format!("{} / field {field}", type_key(owner)), name.to_string());
+	names.insert(field_key(owner, field), name.to_string());
 }
+
+/// The key [`field`] records the name of the field `field` of the record at `owner` under.
+pub(crate) fn field_key(owner: &[String], field: &str) -> String {
+	format!("{} / field {field}", type_key(owner))
+}
+
 
 /// Record the name a binding gives the variant `variant` of the enum at `owner`.
 pub(crate) fn variant(names: &mut BTreeMap<String, String>, owner: &[String], variant: &str, name: &str) {

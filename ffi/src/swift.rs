@@ -823,8 +823,13 @@ impl<'a> Gen<'a> {
 		for i in 0..api.callbacks.len() {
 			self.callback(i);
 		}
-		for function in &api.functions {
-			for (code, _) in self.function(function, None, None, &[]) {
+		let functions: Vec<&Function> = api.functions.iter().collect();
+		let named = self.names(&functions, None, None, |full| {
+			let name = full.split('(').next().unwrap_or(full);
+			TAKEN.contains(&name) || self.names.contains_key(full)
+		});
+		for (function, name) in api.functions.iter().zip(&named) {
+			for (code, _) in self.function(function, (None, None), name, &[]) {
 				self.top.push_str(&code);
 				self.top.push('\n');
 			}
@@ -1136,8 +1141,10 @@ impl<'a> Gen<'a> {
 		body: &mut Vec<String>,
 		members: &mut Vec<String>,
 	) {
-		for method in methods {
-			for (code, member) in self.function(method, Some(owner), Some(ty), members) {
+		let methods_: Vec<&Function> = methods.iter().collect();
+		let named = self.names(&methods_, Some(owner), Some(ty), |full| members.iter().any(|m| m == full));
+		for (method, name) in methods.iter().zip(&named) {
+			for (code, member) in self.function(method, (Some(owner), Some(ty)), name, members) {
 				members.push(member);
 				body.push(indent(&code));
 			}
@@ -1155,8 +1162,8 @@ impl<'a> Gen<'a> {
 		if record.opaque.is_some() {
 			return self.opaque(i);
 		}
-		let fields: Vec<(String, String)> = (record.fields.iter())
-			.map(|f| (field_name(&f.name), self.sw(&f.ty)))
+		let fields: Vec<(String, String)> = (record.fields.iter().zip(field_names(&record.fields)))
+			.map(|(f, name)| (name, self.sw(&f.ty)))
 			.collect();
 		for (f, (name, _)) in record.fields.iter().zip(&fields) {
 			crate::lock::field(&mut self.locked, &record.shown, &f.name, &unquote(name));
@@ -1292,27 +1299,27 @@ impl<'a> Gen<'a> {
 		let mut cases = Vec::new();
 		let mut lifts = Vec::new();
 		let mut lowers = Vec::new();
-		for variant in &e.variants {
+		for (variant, case) in e.variants.iter().zip(case_names(e)) {
 			let snake = abi::snake(&variant.name);
-			let case = case_of(e.traits, &variant.name);
+			let names = field_names(&variant.fields);
 			crate::lock::variant(&mut self.locked, &e.shown, &variant.name, &unquote(&case));
 			if !variant.tuple {
-				for f in &variant.fields {
-					let label = unquote(&field_name(&f.name));
+				for (f, name) in variant.fields.iter().zip(&names) {
+					let label = unquote(name);
 					crate::lock::variant_field(&mut self.locked, &e.shown, &variant.name, &f.name, &label);
 				}
 			}
-			let labels = variant.fields.iter().map(|f| match variant.tuple {
+			let labels = names.iter().map(|name| match variant.tuple {
 				true => "_".to_string(),
-				false => unquote(&field_name(&f.name)),
+				false => unquote(name),
 			});
 			members.push(full(true, &case, labels));
 			let tag = format!("{upper}_{}", snake.to_uppercase());
 			let member = kw(&abi::escape(&snake));
-			let fields: Vec<String> = (variant.fields.iter())
-				.map(|f| match variant.tuple {
+			let fields: Vec<String> = (variant.fields.iter().zip(&names))
+				.map(|(f, name)| match variant.tuple {
 					true => self.sw(&f.ty),
-					false => format!("{}: {}", field_name(&f.name), self.sw(&f.ty)),
+					false => format!("{name}: {}", self.sw(&f.ty)),
 				})
 				.collect();
 			match fields.is_empty() {
@@ -1326,12 +1333,12 @@ impl<'a> Gen<'a> {
 				lowers.push(format!("\t\tcase .{case}:\n\t\t\t{refused}return {tag}"));
 				continue;
 			}
-			let lifted: Vec<String> = (variant.fields.iter())
-				.map(|f| {
+			let lifted: Vec<String> = (variant.fields.iter().zip(&names))
+				.map(|(f, name)| {
 					let value = self.lift(&f.ty, &format!("c.{member}.{}", kw(&abi::escape(&f.name))));
 					match variant.tuple {
 						true => value,
-						false => format!("{}: {value}", unquote(&field_name(&f.name))),
+						false => format!("{}: {value}", unquote(name)),
 					}
 				})
 				.collect();
@@ -1448,8 +1455,10 @@ impl<'a> Gen<'a> {
 			constant: false,
 		};
 		let mut streams = Vec::new();
-		for method in &object.methods {
-			for (code, member) in self.function(method, Some(&owner), Some(&ty), &members) {
+		let methods: Vec<&Function> = object.methods.iter().collect();
+		let named = self.names(&methods, Some(&owner), Some(&ty), |full| members.iter().any(|m| m == full));
+		for (method, name) in object.methods.iter().zip(&named) {
+			for (code, member) in self.function(method, (Some(&owner), Some(&ty)), name, &members) {
 				if method.stream().is_some() {
 					streams.push((method, member.clone()));
 				}
@@ -1875,15 +1884,108 @@ impl<'a> Gen<'a> {
 		}
 	}
 
-	/// `function`'s Swift forms and their member names, members of `owner` (whose IR type
-	/// is `owner_ty`) if it has one, apart from the members `taken` names: an overload for
-	/// each choice of passing or leaving out each `Option<&T>` of a struct, since an optional
-	/// holds a struct only by consuming it.
-	fn function(
-		&mut self,
+	/// The name each of `functions` takes as a member of `owner` (whose IR type is
+	/// `owner_ty`) if it has one, or at the top level, apart from each other and from what
+	/// `taken` holds of a member's full name, with every argument, as [`abi::named`] keeps a
+	/// scope's.
+	fn names(
+		&self,
+		functions: &[&Function],
+		owner: Option<&Ty>,
+		owner_ty: Option<&Type>,
+		taken: impl Fn(&str) -> bool,
+	) -> Vec<String> {
+		let (rust, spelled): (Vec<String>, Vec<String>) = (functions.iter())
+			.map(|function| {
+				let export = self.abi.export(function, owner);
+				let (rust, member, is_static, var) = self.declared(function, owner, owner_ty, &export);
+				let labels = match var {
+					true => Vec::new(),
+					false => (function.params.iter().zip(locals(&function.params)))
+						.map(|(p, name)| match self.lent_option(&p.ty) {
+							true => unquote(&name),
+							false => "_".to_string(),
+						})
+						.collect(),
+				};
+				(rust, full(is_static, &member, labels))
+			})
+			.unzip();
+		let rust: Vec<&str> = rust.iter().map(String::as_str).collect();
+		let name = |full: &str| {
+			let full = full.strip_prefix("static ").unwrap_or(full);
+			full.split('(').next().unwrap_or(full).to_string()
+		};
+		let own = |rust: &str, full: &str| {
+			let name = name(full);
+			name == rust || abi::snake(&name) == rust
+		};
+		(abi::named(&rust, spelled, own, |_, name| taken(name), abi::underscored).iter())
+			.map(|full| kw(&name(full)))
+			.collect()
+	}
+
+	/// The declaration `function` makes as a member of `owner` (whose IR type is `owner_ty`)
+	/// if it has one, exported as `export`, before it keeps apart from another: the Rust name
+	/// it spells, its Swift name, whether it is static, and whether it is a property, whose
+	/// name is a constant's in upper case.
+	fn declared(
+		&self,
 		function: &Function,
 		owner: Option<&Ty>,
 		owner_ty: Option<&Type>,
+		export: &abi::Export,
+	) -> (String, String, bool, bool) {
+		let abi = self.abi;
+		let own = match owner {
+			Some(Ty::Struct(o) | Ty::Enum(o) | Ty::Handle { name: o, .. }) => {
+				export.named.strip_prefix(o.as_str()).and_then(|r| r.strip_prefix('_'))
+			}
+			_ => None,
+		};
+		let reserved: &[&str] = match owner_ty {
+			Some(Type::Object(_)) => &["handle", "init", "deinit"],
+			Some(_) => &["init"],
+			None => &[],
+		};
+		// Named as Rust's path is, whatever C's clashes rename.
+		let rust = own.unwrap_or_else(|| self.bare(&export.named)).to_string();
+		let member = member(&rust, reserved);
+		let receiver = function.receiver.filter(|_| owner.is_some());
+		// A struct's method that consumes or writes back its value is `consuming` or `mutating`.
+		let unique = owner_ty.is_some_and(|ty| self.unique(ty));
+		let value = matches!(export.call.params.first(), Some((_, Ty::InOut(_))));
+		let mutates = match receiver {
+			Some(Receiver::Owned) => unique,
+			Some(Receiver::Mut) => unique || value,
+			_ => false,
+		};
+		let everywhere = abi.api.everywhere(function.on);
+		let throws = function.future || function.err.is_some() || export.call.status().is_some() || !everywhere;
+		// A field read stays a property though a check of its handle may fail, which throws
+		// from its getter, unless Swift cannot copy its value, whose getter cannot throw.
+		let getter = throws && !function.future && function.err.is_none() && everywhere && !self.unique(&function.ok);
+		let var = match (function.access, receiver) {
+			(Access::Field { set: false, .. }, Some(_)) => function.params.is_empty() && (!throws || getter) && !mutates,
+			(Access::Const, None) => function.params.is_empty() && !throws,
+			_ => false,
+		};
+		let member = match (var, function.access) {
+			(true, Access::Const) => member.trim_matches('`').to_uppercase(),
+			_ => member,
+		};
+		(rust, member, receiver.is_none() && owner.is_some(), var)
+	}
+
+	/// `function`'s Swift forms and their member names, members of `owner` (whose IR type
+	/// is `owner_ty`) if it has one, named `name` apart from the members `taken` names: an
+	/// overload for each choice of passing or leaving out each `Option<&T>` of a struct, since
+	/// an optional holds a struct only by consuming it.
+	fn function(
+		&mut self,
+		function: &Function,
+		(owner, owner_ty): (Option<&Ty>, Option<&Type>),
+		name: &str,
 		taken: &[String],
 	) -> Vec<(String, String)> {
 		let optional: Vec<usize> = (function.params.iter().enumerate())
@@ -1900,7 +2002,7 @@ impl<'a> Gen<'a> {
 					.filter(|(bit, _)| mask & (1 << bit) == 0)
 					.map(|(_, k)| *k)
 					.collect();
-				self.overload(function, owner, owner_ty, taken, &left)
+				self.overload(function, (owner, owner_ty), (name, taken), &left)
 			})
 			.collect()
 	}
@@ -1910,36 +2012,20 @@ impl<'a> Gen<'a> {
 		lent_option(&self.structs, ty)
 	}
 
-	/// One of `function`'s Swift forms, apart from the members `taken` names, leaving out
-	/// the optional borrowed parameters in `left`, which pass `None`.
+	/// One of `function`'s Swift forms, named `member` apart from the members `taken` names,
+	/// leaving out the optional borrowed parameters in `left`, which pass `None`.
 	fn overload(
 		&mut self,
 		function: &Function,
-		owner: Option<&Ty>,
-		owner_ty: Option<&Type>,
-		taken: &[String],
+		(owner, owner_ty): (Option<&Ty>, Option<&Type>),
+		(member, taken): (&str, &[String]),
 		left: &BTreeSet<usize>,
 	) -> (String, String) {
 		let abi = self.abi;
 		let export = abi.export(function, owner);
 		let c_name = export.call.name.clone();
-		let owner_c = match owner {
-			Some(Ty::Struct(n) | Ty::Enum(n) | Ty::Handle { name: n, .. }) => Some(n.clone()),
-			_ => None,
-		};
-		let own = match &owner_c {
-			Some(o) => export.named.strip_prefix(o.as_str()).and_then(|r| r.strip_prefix('_')),
-			None => None,
-		};
-		let reserved: &[&str] = match owner_ty {
-			Some(Type::Object(_)) => &["handle", "init", "deinit"],
-			Some(_) => &["init"],
-			None => &[],
-		};
-		// Named as Rust's path is, whatever C's clashes rename.
-		let named = self.bare(&export.named).to_string();
-		let snake = own.unwrap_or(&named);
-		let mut member = member(snake, reserved);
+		let (_, _, is_static, var) = self.declared(function, owner, owner_ty, &export);
+		let mut member = member.to_string();
 
 		let receiver = function.receiver.filter(|_| owner.is_some());
 		let object = matches!(owner, Some(Ty::Handle { .. })) && receiver.is_some();
@@ -2373,28 +2459,11 @@ impl<'a> Gen<'a> {
 			Type::Unit => String::new(),
 			_ => format!(" -> {}", self.sw(&ok)),
 		};
-		let is_static = receiver.is_none() && owner.is_some();
 		let stat = match is_static {
 			true => "static ",
 			false => "",
 		};
 		let body = body.join("\n");
-		let var = function.params.is_empty() && !throws;
-		// A field read stays a property though a check of its handle may fail, which throws
-		// from its getter, unless Swift cannot copy its value, whose getter cannot throw.
-		let getter = throws && !function.future && function.err.is_none() && everywhere && !self.unique(&function.ok);
-		let var = match (function.access, receiver) {
-			(Access::Field { set: false, .. }, Some(_)) => {
-				function.params.is_empty() && (!throws || getter) && mutation.is_empty()
-			}
-			(Access::Const, None) => {
-				if var {
-					member = member.trim_matches('`').to_uppercase();
-				}
-				var
-			}
-			_ => false,
-		};
 		let labels: Vec<String> = match var {
 			true => Vec::new(),
 			false => (params.iter())
@@ -2515,12 +2584,12 @@ impl<'a> Gen<'a> {
 			doc::Target::Variant(i, v) => format!(
 				"{}/{}",
 				owner(doc::Owner::Enum(i)),
-				unquote(&case_of(abi.api.enums[i].traits, &abi.api.enums[i].variants[v].name))
+				unquote(&case_names(&abi.api.enums[i]).swap_remove(v))
 			),
 			doc::Target::Field(i, n) => format!(
 				"{}/{}",
 				owner(doc::Owner::Record(i)),
-				unquote(&field_name(&abi.api.records[i].fields[n].name))
+				unquote(&field_names(&abi.api.records[i].fields).swap_remove(n))
 			),
 			doc::Target::Constant(c) => self.locked.get(&format!("const {}", c.path.join("::")))?.clone(),
 			doc::Target::Function(of, f) => {
@@ -2744,19 +2813,26 @@ fn camel(name: &str) -> String {
 	}
 }
 
-/// A variant's case: `init` would name the initializer, and `default`, with its traits `t`,
-/// `Default`'s static `default()`.
-fn case_of(t: crate::ir::Traits, variant: &str) -> String {
-	match t.default {
-		true => member(&abi::snake(variant), &["init", "default"]),
-		false => member(&abi::snake(variant), &["init"]),
-	}
+/// The cases of the enum `e`, one scope's, in camel case as [`abi::named`] keeps them apart,
+/// and quoted where a keyword: `init` would name the initializer, and `default`, where `e`
+/// has `Default`, its static `default()`.
+fn case_names(e: &crate::ir::Enum) -> Vec<String> {
+	let rust: Vec<&str> = e.variants.iter().map(|v| v.name.as_str()).collect();
+	let spelled = rust.iter().map(|name| camel(&abi::snake(name))).collect();
+	let taken = |name: &str| name == "init" || (e.traits.default && name == "default");
+	let names = abi::named(&rust, spelled, |rust, name| pascal(name) == rust, |_, name| taken(name), abi::underscored);
+	names.iter().map(|name| kw(name)).collect()
 }
 
-/// A field's Swift name: `init` would name the initializer.
-fn field_name(name: &str) -> String {
-	member(name, &["init"])
+/// The Swift names of `fields`, one scope's, in camel case as [`abi::named`] keeps them
+/// apart, and quoted where a keyword: `init` would name the initializer.
+fn field_names(fields: &[crate::ir::Field]) -> Vec<String> {
+	let rust: Vec<&str> = fields.iter().map(|f| f.name.as_str()).collect();
+	let spelled = rust.iter().map(|name| camel(name)).collect();
+	let names = abi::named(&rust, spelled, |rust, name| abi::snake(name) == rust, |_, name| name == "init", abi::underscored);
+	names.iter().map(|name| kw(name)).collect()
 }
+
 
 /// A member's Swift name: in camel case, quoted if a keyword, or with `_` appended if
 /// Swift gives every such type a member of that name.

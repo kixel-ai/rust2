@@ -5108,22 +5108,101 @@ pub mod clash {
 		}
 	}
 
-	/// A byte, whose methods `delete` and `delete_` C++ escapes alike, as `delete_`.
+	/// A byte, whose methods `delete_` and `delete` C++ escapes alike, as `delete_`, and the
+	/// rest name alike where their case drops the `_`.
 	#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 	pub struct Escaped {
 		pub new: u8,
 	}
 
 	impl Escaped {
-		/// `new`, by a method C++ escapes as `delete_`.
-		pub fn delete(&self) -> u8 {
-			self.new
-		}
-
 		/// `new` plus the arguments, by parameters C++ escapes alike.
 		pub fn delete_(&self, new: u8, new_: u8) -> u8 {
 			self.new + new * 10 + new_ * 100
 		}
+
+		/// `new`, by a method C++ escapes as `delete_`.
+		pub fn delete(&self) -> u8 {
+			self.new
+		}
+	}
+
+	/// Digits whose fields differ only by trailing underscores, which camel case drops, and
+	/// are named as the members `Debug` and `Default` give a type.
+	#[derive(Clone, Copy, Debug, Default, PartialEq)]
+	pub struct Underscored {
+		pub new_: u8,
+		pub new: u8,
+		pub debug: u8,
+		pub default: u8,
+	}
+
+	/// An edit, whose values differ only by a trailing underscore, which Swift's case drops.
+	#[allow(non_camel_case_types, reason = "the clash under test")]
+	#[derive(Clone, Copy, Debug, PartialEq)]
+	pub enum Op {
+		Delete_,
+		Delete,
+	}
+
+	/// A change, whose payload's fields differ only by a trailing underscore.
+	#[derive(Clone, Copy, Debug, PartialEq)]
+	pub enum Change {
+		Set { new_: u8, new: u8 },
+		Clear,
+	}
+
+	/// `underscored`'s fields as decimal digits, from `new_` up, after `op`'s and `change`'s,
+	/// to show each crossed to its own place.
+	pub fn underscored(underscored: Underscored, op: Op, change: Change) -> u32 {
+		let Underscored { new_, new, debug, default } = underscored;
+		let change = match change {
+			Change::Set { new_, new } => u32::from(new_) * 10 + u32::from(new),
+			Change::Clear => 0,
+		};
+		let digits = [new_, new, debug, default].iter().fold(0, |n, &d| n * 10 + u32::from(d));
+		(op as u32 + 1) * 1_000_000 + change * 10_000 + digits
+	}
+
+	/// The underscored record with each field one more, and the change with each swapped.
+	pub fn underscored_next(underscored: Underscored, change: Change) -> (Underscored, Change) {
+		let Underscored { new_, new, debug, default } = underscored;
+		let next = Underscored {
+			new_: new_ + 1,
+			new: new + 1,
+			debug: debug + 1,
+			default: default + 1,
+		};
+		let change = match change {
+			Change::Set { new_, new } => Change::Set { new_: new, new: new_ },
+			Change::Clear => Change::Clear,
+		};
+		(next, change)
+	}
+
+	/// An eraser, implemented in each binding, whose methods and parameters differ only by
+	/// trailing underscores.
+	pub trait Eraser {
+		/// The arguments as decimal digits.
+		fn delete_(&self, new_: u8, new: u8) -> u8;
+
+		/// One.
+		fn delete(&self) -> u8;
+	}
+
+	/// `eraser`'s `delete_(1, 2)`, then its `delete()`, as decimal digits.
+	pub fn erased(eraser: impl Eraser) -> u32 {
+		u32::from(eraser.delete_(1, 2)) * 10 + u32::from(eraser.delete())
+	}
+
+	/// Two, by a name that differs only by a trailing underscore from `erase`'s.
+	pub fn erase_() -> u8 {
+		2
+	}
+
+	/// One.
+	pub fn erase() -> u8 {
+		1
 	}
 
 	/// The tone, or no tones where it is silent: an error Go names as `VecClashTone`'s variant.
