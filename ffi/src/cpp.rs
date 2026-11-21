@@ -79,18 +79,27 @@ pub(crate) fn headers(abi: &Abi<'_>, packages: &str) -> Result<Output, String> {
 		names: BTreeMap::new(),
 		errors: Vec::new(),
 	};
-	// Every name the namespace declares: those of C's own, and each constant's, whose C name
-	// is in capitals.
-	let c: BTreeSet<String> = (abi.declared().into_iter())
+	// Every name the namespace declares, by its C name and spelled as its Rust: those of C's
+	// own, and each constant's, whose C name is in capitals, so a constant `a_b` and a
+	// function `a::b` stay two.
+	let declared: BTreeMap<String, String> = (abi.declared().into_iter())
 		.filter(|c| c.strip_prefix(p.as_str()).is_some_and(|rest| rest.starts_with('_')))
-		.map(str::to_string)
-		.chain(abi.api.constants.iter().map(|constant| abi.name(&constant.path)))
+		.map(|c| (c.to_string(), c[p.len() + 1..].to_string()))
+		.chain(abi.api.constants.iter().map(|constant| {
+			(
+				abi.constant(&constant.path),
+				abi.name(&constant.path)[p.len() + 1..].to_string(),
+			)
+		}))
 		.collect();
-	let rust: Vec<String> = c.iter().map(|c| c[p.len() + 1..].to_string()).collect();
+	let rust: Vec<String> = declared.values().cloned().collect();
 	let runtime: BTreeSet<String> = (runtime_names().map(str::to_string))
 		.chain(fixed_aliases(abi).into_iter().map(|(alias, _)| alias))
 		.collect();
-	h.names = c.into_iter().zip(named(&rust, |n| runtime.contains(n))).collect();
+	h.names = declared
+		.into_keys()
+		.zip(named(&rust, |n| runtime.contains(n)))
+		.collect();
 	// A C++ class is named by its C name alone.
 	let api = abi.api;
 	let classes = (0..api.records.len())
@@ -763,7 +772,7 @@ impl<'a> Header<'a> {
 		self.line("");
 		// The constants each crate's header defines, which a parameter named alike would hide.
 		for constant in &api.constants {
-			self.global(&self.name(&abi.name(&constant.path)));
+			self.global(&self.name(&abi.constant(&constant.path)));
 		}
 		self.line(format!("}} // namespace {ns}\n"));
 		self.line(format!("#endif // {guard}"));
@@ -816,7 +825,7 @@ impl<'a> Header<'a> {
 				Literal::Bool(_) => "bool",
 				Literal::Int(int, _) => cpp_int(int),
 			};
-			let name = self.name(&abi.name(&constant.path));
+			let name = self.name(&abi.constant(&constant.path));
 			self.locked
 				.insert(format!("const {}", constant.path.join("::")), name.clone());
 			self.line(format!(
@@ -2839,10 +2848,19 @@ mod tests {
 			enums: vec![],
 			objects: vec![],
 			callbacks: vec![],
-			functions: ["__all__", "all_", "all", "delete", "delete_", "__u128", "__duration"]
-				.map(function)
-				.to_vec(),
-			constants: ["__LIMIT", "LIMIT"]
+			functions: [
+				"__all__",
+				"all_",
+				"all",
+				"delete",
+				"delete_",
+				"__u128",
+				"__duration",
+				"a_b",
+			]
+			.map(function)
+			.to_vec(),
+			constants: ["__LIMIT", "LIMIT", "a_b"]
 				.map(|name| crate::ir::Constant {
 					path: vec!["ns".into(), name.into()],
 					home: crate::ir::Home {
@@ -2881,7 +2899,9 @@ mod tests {
 			assert!(text.contains(&defined), "{c} is not {cpp}:\n{text}");
 		}
 		// Constants, whose C names are in capitals, keep apart too.
-		for (cpp, c) in [("LIMIT_", "NS___LIMIT"), ("LIMIT", "NS_LIMIT")] {
+		// A constant and a function of one C++ spelling, though C's case keeps them apart.
+		assert!(text.contains("inline void a_b_() {\n\t::ns_a_b();"), "{text}");
+		for (cpp, c) in [("LIMIT_", "NS___LIMIT"), ("LIMIT", "NS_LIMIT"), ("a_b", "NS_A_B")] {
 			let defined = format!("inline constexpr bool {cpp} = {c};");
 			assert!(text.contains(&defined), "{c} is not {cpp}:\n{text}");
 		}

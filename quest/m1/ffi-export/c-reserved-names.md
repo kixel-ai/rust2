@@ -35,8 +35,7 @@ past a clash or a macro, steps along its stem's names `x`, `x_`, `x_2`, `x_3`, n
 `{name}_data`, C++'s `c_{name}_`, `{name}_debug`, `{name}_op`) keep apart without `__`.
 This changes C symbols only where a clash or a reserved Rust name made them, none of moq's.
 
-## Waiting
-
-- Maintainer: whether C symbols that hold `__` today, such as `api_Status__eq`, may be
-  renamed, a break for a C caller of a clashing name (recommended: yes, moq's symbols hold
-  none; the alternative leaves `-Wreserved-identifier` off for the C header in C++)
+Decided by the maintainer on 2026-11-21, picking [kixel-ai/rust2#929](https://github.com/kixel-ai/rust2/pull/929):
+C symbols that hold `__` today, such as `api_Status__eq`: ✅ renamed to the counted step,
+a break for a C caller of a clashing name, which moq's symbols are not (rejected: keeping
+C symbols stable, which leaves `-Wreserved-identifier` off for the C header in C++).
