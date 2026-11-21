@@ -750,8 +750,9 @@ struct CheckProfile {
 	/// or inherits from `release`, else `debug`.
 	root: &'static str,
 	/// The directory cargo builds it in, unless a build under another profile could share it
-	/// with other per-package overrides: `test` shares `dev`'s and `bench` `release`'s, and
-	/// either may override a package or the build scripts on top of the one it inherits.
+	/// with other settings: `test` shares `dev`'s and `bench` `release`'s, the same profile
+	/// unless the manifest sets any of its own, which a package override of the glue's may
+	/// hide from the glue's build script while every other crate compiles under it.
 	dir: Option<String>,
 }
 
@@ -772,11 +773,10 @@ fn check_profile(cargo: &[String], workspace: &Path) -> Result<CheckProfile, Str
 	let source = std::fs::read_to_string(&manifest).map_err(|err| format!("reading {}: {err}", manifest.display()))?;
 	let table: toml::Table = toml::from_str(&source).map_err(|err| format!("{}: {err}", manifest.display()))?;
 	let profiles = table.get("profile").and_then(|p| p.as_table());
-	// The profile of a shared directory that inherits the other's and may override more.
+	// Whether the profile of a shared directory that inherits the other's sets nothing more.
 	let child = |child: &str| {
 		let own = profiles.and_then(|p| p.get(child)).and_then(|p| p.as_table());
-		let overrides = own.is_some_and(|own| own.contains_key("package") || own.contains_key("build-override"));
-		!overrides
+		own.is_none_or(|own| own.is_empty())
 	};
 	let dir = match picked.as_str() {
 		"dev" | "test" => child("test").then(|| "debug".to_string()),

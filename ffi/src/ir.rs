@@ -46,7 +46,7 @@ pub(crate) struct Profile {
 	/// `OUT_DIR`: the profile's name, but `debug` for `dev` and `test` and `release` for
 	/// `release` and `bench`. Its per-package overrides, which a build script cannot see,
 	/// are then the check's, as the glue carries the workspace's profiles. `None` where the
-	/// other profile of that directory has overrides of its own, so no build is proven.
+	/// manifest sets `test` or `bench`, which share that directory, so no build is proven.
 	pub(crate) dir: Option<String>,
 	/// Cargo's `OPT_LEVEL`.
 	pub(crate) opt_level: String,

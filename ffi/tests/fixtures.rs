@@ -5491,7 +5491,7 @@ fn leaf_profile() {
 				"Cargo.toml",
 				"[package]\nname = \"leaf_profile\"\nversion = \"0.0.0\"\nedition = \"2024\"\n\n\
 				[profile.ship]\ninherits = \"release\"\n\n\
-				[profile.bench.package.leaf_profile]\nopt-level = 2\n\n[workspace]\n",
+				[profile.bench]\ndebug-assertions = true\n\n[workspace]\n",
 			),
 			(".cargo/config.toml", "[profile.configured]\ninherits = \"release\"\n"),
 			(
@@ -5589,8 +5589,8 @@ fn leaf_profile() {
 		);
 		proven
 	};
-	// `bench` overrides a package on top of `release`, in the directory they share, so a
-	// release check proves no build.
+	// `bench` sets its own debug assertions on top of `release`, in the directory they
+	// share, so a release check proves no build.
 	assert_eq!(exported(&[]), profiled("debugged", "release", None));
 	assert!(
 		!python("release", "debug", "", "debugged"),

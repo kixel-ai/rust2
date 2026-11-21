@@ -245,8 +245,8 @@ builds for, which gates each item, and refuses a target it was not exported for.
 by the `PROFILE`, `OPT_LEVEL`, and debug assertions cargo tells it and the profile's
 directory above its `OUT_DIR`, whose per-package overrides are then the check's, since
 the glue carries the workspace's profiles. `test` shares `dev`'s directory and `bench`
-`release`'s, so where `test` or `bench` overrides a package or the build scripts of its
-own, no build in that directory is proven. The crate's `PROVEN` also needs the check's panic
+`release`'s, so where the manifest sets anything of `test`'s or `bench`'s own, no build
+in that directory is proven. The crate's `PROVEN` also needs the check's panic
 strategy, which a build script cannot see, and its debug assertions, which `RUSTFLAGS`
 may set apart from the profile. A build
 under another profile may run code the proof never saw, such as a body under
