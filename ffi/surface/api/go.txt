@@ -964,6 +964,20 @@ type FiledReceipt struct {
 func (self *FiledReceipt) Clone() (*FiledReceipt, error)
 func (self *FiledReceipt) Close() error
 func (self *FiledReceipt) Count() (uint32, error)
+type Folio struct {
+	Handle_ *p_rt.Handle_
+}
+func NewFolio(page uint16, title string) (*Folio, error)
+func (self *Folio) Close() error
+func (self *Folio) HaspGet() (*Hasp, error)
+func (self *Folio) HaspSet(value *Hasp) error
+func (self *Folio) NoteGet() (*string, error)
+func (self *Folio) NoteSet(value *string) error
+func (self *Folio) PageGet() (uint16, error)
+func (self *Folio) PageSet(value uint16) error
+func (self *Folio) Seed() (uint8, error)
+func (self *Folio) TitleGet() (string, error)
+func (self *Folio) TitleSet(value string) error
 type Forged struct {
 	Handle_ *p_rt.Handle_
 }
@@ -1003,6 +1017,12 @@ func (self *Handle) Count() (uint32, error)
 type Hasher struct {
 	Seed uint8
 }
+type Hasp struct {
+	Handle_ *p_rt.Handle_
+}
+func HaspDefault() *Hasp
+func (self *Hasp) Close() error
+func (self *Hasp) Set() (bool, error)
 type Hits struct {
 	Bytes_ [2]uint64
 	Made_ bool
@@ -1607,6 +1627,22 @@ func (self *Registry) FirstGet() (*Counter, error)
 func (self *Registry) FirstSet(value *Counter) error
 func (self *Registry) Last() (*Counter, error)
 func (self *Registry) Push(counter *Counter) error
+type Regs struct {
+	Bytes_ [20]uint8
+	Made_ bool
+}
+func NewRegs(fcw uint16, wide uint64, at Point) Regs
+func (self Regs) AtGet() Point
+func (self *Regs) AtSet(value Point)
+func (self Regs) Equal(other Regs) bool
+func (self Regs) FcwGet() uint16
+func (self *Regs) FcwSet(value uint16)
+func (self Regs) GoString() string
+func (self Regs) Seed() uint8
+func (self Regs) TagGet() uint8
+func (self *Regs) TagSet(value uint8)
+func (self Regs) WideGet() uint64
+func (self *Regs) WideSet(value uint64)
 type Resolving struct {
 	Handle_ *p_rt.Handle_
 }

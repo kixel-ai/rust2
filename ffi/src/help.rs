@@ -133,6 +133,9 @@ pub(crate) fn of(construct: &str) -> Option<&'static str> {
 		"borrowed return that is not Clone" => {
 			"return an owned value or a `Clone` type, since a borrowed return crosses as a clone"
 		}
+		"lent unaligned field" => {
+			"make the field `Clone` or a type aligned to 1, or take `repr(packed)` off the struct, since rustc refuses a reference to an unaligned field and a handle cannot be lent from a copy"
+		}
 		"&mut of a slice" => {
 			"take `&[u8]` and return the changed `Vec<u8>`, or hold the buffer in an object; C lends no buffer mutably"
 		}

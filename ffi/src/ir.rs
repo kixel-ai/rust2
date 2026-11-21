@@ -577,6 +577,8 @@ pub(crate) enum Access {
 		set: bool,
 		#[serde(default, skip_serializing_if = "std::ops::Not::not")]
 		through: bool,
+		#[serde(default, skip_serializing_if = "Read::is_borrow")]
+		read: Read,
 	},
 	/// It reads a constant that is not a `bool` or integer.
 	Const,
@@ -585,6 +587,26 @@ pub(crate) enum Access {
 	Parse,
 	/// It writes its receiver as text, with `Display`: a foreign type exported as an object.
 	Text,
+}
+
+/// How a getter reads a field in Rust, which the field's struct decides: a `repr(packed)`
+/// one's field may lie unaligned, which rustc refuses a reference to.
+#[derive(Clone, Copy, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub(crate) enum Read {
+	/// It borrows the field.
+	#[default]
+	Borrow,
+	/// It copies the field out, as `Copy` allows of an unaligned one.
+	Copy,
+	/// It reads the field out unaligned into a `ManuallyDrop`, which never drops it: the
+	/// struct still owns and drops the original.
+	Take,
+}
+
+impl Read {
+	fn is_borrow(&self) -> bool {
+		*self == Self::Borrow
+	}
 }
 
 impl Function {

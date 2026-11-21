@@ -162,6 +162,20 @@ namespace api {
 		static ::api::Retired new_(::std::uint32_t from);
 		[[deprecated("count with `Countdown`")]] RUST2_FFI_CALLABLE ::api::Retired_next_future next();
 	};
+	class RUST2_FFI_CONSUMABLE Folio {
+		RUST2_FFI_UNCONSUMED Folio(Folio &&other RUST2_FFI_MOVED_FROM) noexcept = default;
+		Folio &operator=(Folio &&other) noexcept = default;
+		RUST2_FFI_CALLABLE ::std::uint16_t page_get() const;
+		RUST2_FFI_CALLABLE void page_set(::std::uint16_t value);
+		RUST2_FFI_CALLABLE ::api::buf title_get() const;
+		RUST2_FFI_CALLABLE void title_set(::api::input value);
+		RUST2_FFI_CALLABLE ::std::optional<::api::buf> note_get() const;
+		RUST2_FFI_CALLABLE void note_set(::std::optional<::api::input> value);
+		RUST2_FFI_CALLABLE ::api::Hasp hasp_get() const;
+		RUST2_FFI_CALLABLE void hasp_set(::api::Hasp value);
+		static ::api::Folio new_(::std::uint16_t page, ::api::input title);
+		RUST2_FFI_CALLABLE ::std::uint8_t seed() const;
+	};
 	class RUST2_FFI_CONSUMABLE Logger {
 		RUST2_FFI_UNCONSUMED Logger(Logger &&other RUST2_FFI_MOVED_FROM) noexcept = default;
 		Logger &operator=(Logger &&other) noexcept = default;
@@ -475,6 +489,12 @@ namespace api {
 		static ::api::Mark of(::std::uint64_t count);
 		RUST2_FFI_CALLABLE ::std::uint64_t count() const;
 		RUST2_FFI_CALLABLE void add(::std::uint64_t by);
+	};
+	class RUST2_FFI_CONSUMABLE Hasp {
+		RUST2_FFI_UNCONSUMED Hasp(Hasp &&other RUST2_FFI_MOVED_FROM) noexcept = default;
+		Hasp &operator=(Hasp &&other) noexcept = default;
+		static Hasp default_();
+		RUST2_FFI_CALLABLE bool set() const;
 	};
 	class RUST2_FFI_CONSUMABLE Message {
 		RUST2_FFI_UNCONSUMED Message(Message &&other RUST2_FFI_MOVED_FROM) noexcept = default;
@@ -947,6 +967,21 @@ namespace api {
 		static ::api::Hits of(::std::uint64_t hits, ::std::uint64_t misses);
 		void add(const ::api::Hits &other);
 		bool eq_(const ::api::Hits &other);
+	};
+	class Regs {
+		friend bool operator==(const Regs &a__, const Regs &b_);
+		friend bool operator!=(const Regs &a__, const Regs &b_);
+		::api::buf debug() const;
+		::std::uint16_t fcw_get() const;
+		void fcw_set(::std::uint16_t value);
+		::std::uint64_t wide_get() const;
+		void wide_set(::std::uint64_t value);
+		::api::Point at_get() const;
+		void at_set(const ::api::Point &value);
+		::std::uint8_t tag_get() const;
+		void tag_set(::std::uint8_t value);
+		static ::api::Regs new_(::std::uint16_t fcw, ::std::uint64_t wide, const ::api::Point &at);
+		::std::uint8_t seed() const;
 	};
 	class Extent {
 		friend bool operator==(const Extent &a__, const Extent &b_);
@@ -1448,6 +1483,7 @@ namespace api {
 	inline bool operator==(const Clocked &a__, const Clocked &b_);
 	inline bool operator==(const Rated &a__, const Rated &b_);
 	inline bool operator==(const Hits &a__, const Hits &b_);
+	inline bool operator==(const Regs &a__, const Regs &b_);
 	inline bool operator==(const Extent &a__, const Extent &b_);
 	inline bool operator==(const Pair_Size_u8 &a__, const Pair_Size_u8 &b_);
 	inline bool operator==(const Pair_non_zero_u16 &a__, const Pair_non_zero_u16 &b_);
@@ -2209,6 +2245,7 @@ namespace api {
 	class Rated;
 	class Score;
 	class Hits;
+	class Regs;
 	class Extent;
 	struct Pair_Size_u8;
 	struct Pair_non_zero_u16;
@@ -2271,6 +2308,7 @@ namespace api {
 	class Feed;
 	class Countdown;
 	class Retired;
+	class Folio;
 	class Logger;
 	class Journal;
 	class Local;
@@ -2303,6 +2341,7 @@ namespace api {
 	class Gap;
 	class Berth;
 	class Mark;
+	class Hasp;
 	class Message;
 	class Node;
 	class Tally;

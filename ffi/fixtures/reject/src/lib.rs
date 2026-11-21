@@ -1635,3 +1635,21 @@ impl<T> Rope<Knot<Tie<T>>> {
 	#[allow(dead_code, reason = "private, so no part of the API")]
 	fn private(&self) {}
 }
+
+/// A packed object whose field is not `Clone` and lies unaligned, so a getter has no copy to
+/// return and no aligned field to lend: the getter is refused, the setter kept.
+#[repr(C, packed)]
+pub struct Packed {
+	pub lone: Lone,
+	seed: u8,
+}
+
+pub fn packed() -> Packed {
+	Packed { lone: Lone(2), seed: 0 }
+}
+
+impl Packed {
+	pub fn seed(&self) -> u8 {
+		self.seed
+	}
+}

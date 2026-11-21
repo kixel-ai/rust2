@@ -2165,6 +2165,74 @@ impl Hits {
 	}
 }
 
+/// A packed value, as redox_syscall's `FloatRegisters` is: its fields lie unaligned, which
+/// rustc lets no reference point at, so a getter copies out its `u16`, `u64`, and record,
+/// and borrows the `u8`, which no packing misaligns.
+#[derive(Clone, Copy, Debug, PartialEq)]
+#[repr(C, packed)]
+pub struct Regs {
+	pub fcw: u16,
+	pub wide: u64,
+	pub at: Point,
+	pub tag: u8,
+	seed: u8,
+}
+
+impl Regs {
+	pub fn new(fcw: u16, wide: u64, at: Point) -> Self {
+		Self {
+			fcw,
+			wide,
+			at,
+			tag: 7,
+			seed: 1,
+		}
+	}
+
+	pub fn seed(&self) -> u8 {
+		self.seed
+	}
+}
+
+/// A packed object: its `String` and `Option` lie unaligned, so a getter clones what it
+/// reads out of the field without dropping the original, and its hasp, aligned to 1, is
+/// lent from the folio in place.
+#[repr(C, packed)]
+pub struct Folio {
+	pub page: u16,
+	pub title: String,
+	pub note: Option<String>,
+	pub hasp: Hasp,
+	seed: u8,
+}
+
+impl Folio {
+	pub fn new(page: u16, title: &str) -> Self {
+		Self {
+			page,
+			title: title.to_string(),
+			note: None,
+			hasp: Hasp::default(),
+			seed: 3,
+		}
+	}
+
+	pub fn seed(&self) -> u8 {
+		self.seed
+	}
+}
+
+/// A flag that is not `Clone` and one byte wide, so aligned wherever it lies.
+#[derive(Default)]
+pub struct Hasp(std::sync::atomic::AtomicBool);
+
+impl Hasp {
+	/// Sets the flag, returning whether it was set already.
+	pub fn set(&self) -> bool {
+		self.0.swap(true, std::sync::atomic::Ordering::Relaxed)
+	}
+}
+
 /// A span whose `pub` start sits beside a private length, which no record could hold.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Extent {
