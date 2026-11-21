@@ -1796,7 +1796,8 @@ impl<T> Object<T> {
 		// SAFETY: the caller's contract.
 		let object = unsafe { Self::get(handle, what) };
 		let away = object.owner.as_ref().filter(|owner| !owner.is_here());
-		let deciding = Deciding::enter(handle);
+		let deciding = Deciding::new(handle);
+		let decided = deciding.enter();
 		if away.is_none() {
 			object.own()?;
 		}
@@ -1806,14 +1807,14 @@ impl<T> Object<T> {
 		match object.borrow.take(&TABLE, TAKEN) {
 			Ok(()) => {}
 			Err(Status::Moved) => {
-				drop(deciding);
+				drop(decided);
 				commit();
 				return Ok(());
 			}
 			Err(status) => return Err(status),
 		}
 		object.epoch.fetch_add(1, Ordering::Release);
-		drop(deciding);
+		drop(decided);
 		commit();
 		if object.lent.is_null() {
 			// SAFETY: TAKEN excludes every other access to the loan.
@@ -1934,20 +1935,36 @@ impl<T> Object<Unsent<T>> {
 	}
 }
 
-thread_local!(static DECIDING: std::cell::Cell<*const c_void> = const { std::cell::Cell::new(std::ptr::null()) });
+/// A handle whose close this thread decides, on that close's stack, and the one it decides
+/// around it, if any, as a close's drain may run a `Drop` that closes another: what
+/// [`close_wait`] reads.
+struct Deciding {
+	handle: *const c_void,
+	outer: *const Deciding,
+}
 
-/// The handle whose close this thread decides, until it drops: what [`close_wait`] reads.
-struct Deciding(*const c_void);
+thread_local!(static DECIDING: std::cell::Cell<*const Deciding> = const { std::cell::Cell::new(std::ptr::null()) });
 
 impl Deciding {
-	fn enter(handle: *const c_void) -> Self {
-		Self(DECIDING.replace(handle))
+	fn new(handle: *const c_void) -> Self {
+		Self {
+			handle,
+			outer: DECIDING.get(),
+		}
+	}
+
+	/// This thread decides it until what this returns drops.
+	fn enter(&self) -> Decided<'_> {
+		DECIDING.set(self);
+		Decided(self)
 	}
 }
 
-impl Drop for Deciding {
+struct Decided<'a>(&'a Deciding);
+
+impl Drop for Decided<'_> {
 	fn drop(&mut self) {
-		DECIDING.set(self.0);
+		DECIDING.set(self.0.outer);
 	}
 }
 
@@ -1956,8 +1973,15 @@ impl Drop for Deciding {
 /// drop's drain runs closes the value again, so the wait would never end; else it runs
 /// what other threads left this thread, which may be that close, queued for its home.
 pub fn close_wait(handle: *const c_void) -> bool {
-	if DECIDING.get() == handle {
-		return true;
+	let mut at = DECIDING.get();
+	while !at.is_null() {
+		// SAFETY: each is on the stack of a close below this call on this thread, which
+		// unlinks it before it returns.
+		let close = unsafe { &*at };
+		if close.handle == handle {
+			return true;
+		}
+		at = close.outer;
 	}
 	Thread::drain_here();
 	false
