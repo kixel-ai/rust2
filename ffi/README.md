@@ -255,7 +255,8 @@ unstable `cfg` or target feature, so a stable build of a nightly's export is pro
 A `-C target-cpu`, `-C target-feature`, or `--cfg` the check did not have makes the build
 unproven. So does any `CARGO_PROFILE_<NAME>_OPT_LEVEL`, `_DEBUG`, `_DEBUG_ASSERTIONS`, or
 `_BUILD_OVERRIDE_DEBUG_ASSERTIONS` of the profile or one it inherits from, set apart from the
-check's environment, which would change another crate's build. The crate's `PROVEN` also needs the check's panic
+check's environment, which would change another crate's build, or of another profile that
+shares its directory (`bench` beside `release`, `test` and `debug` beside `dev`) set at all. The crate's `PROVEN` also needs the check's panic
 strategy, which a build script cannot see, and its debug assertions, which `RUSTFLAGS`
 may set apart from the profile. A package override or `build-override` that cargo's
 config files or a `--config` set, which a build script cannot see, is the one setting the

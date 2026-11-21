@@ -103,7 +103,18 @@ fn try_run(args: &[String]) -> Result<ExitCode, String> {
 	let baseline = own.baseline.unwrap_or_default();
 	// Where the wrapper writes each target's `cfg`s on cargo's query of it, which comes before
 	// cargo makes its target directory, and so outside it.
-	let queried = std::env::temp_dir().join(format!("rust2-ffi-cfgs-{}", std::process::id()));
+	// Private and unguessable, as the shared temp directory holds other users' files, and
+	// made afresh, so that no one else's can stand in for it.
+	let queried = std::env::temp_dir().join(format!(
+		"rust2-ffi-cfgs-{:016x}",
+		std::hash::BuildHasher::hash_one(&std::hash::RandomState::new(), std::process::id())
+	));
+	let mut private = std::fs::DirBuilder::new();
+	#[cfg(unix)]
+	std::os::unix::fs::DirBuilderExt::mode(&mut private, 0o700);
+	private
+		.create(&queried)
+		.map_err(|err| format!("creating {}: {err}", queried.display()))?;
 	// A target with a host checks std's MIR too, from the sysroot or else from source.
 	let cargo_args = |target: &str, args: Vec<String>| -> Result<Vec<String>, String> {
 		let build_std = crate::wasm::host(target).is_some() && crate::wasm::sysroot(target)?.is_none();
@@ -112,7 +123,8 @@ fn try_run(args: &[String]) -> Result<ExitCode, String> {
 			false => args,
 		})
 	};
-	let check = |target: &str, output: (&str, &std::ffi::OsStr), merge: &std::ffi::OsStr, baseline: &Path| {
+	// Each target's `cfg`s are written under its index, as a target may be a path.
+	let check = |index: usize, target: &str, output: (&str, &std::ffi::OsStr), merge: &std::ffi::OsStr, baseline: &Path| {
 		Check {
 			tool: "rust2-ffi",
 			manifest: &args.manifest,
@@ -139,7 +151,7 @@ fn try_run(args: &[String]) -> Result<ExitCode, String> {
 					profile.dir.as_deref().unwrap_or_default().as_ref(),
 				),
 				(config::env::PROFILE_VARS, vars.as_ref()),
-				(config::env::CFGS, queried.join(target).as_os_str()),
+				(config::env::CFGS, queried.join(index.to_string()).as_os_str()),
 				output,
 			],
 		}
@@ -150,18 +162,17 @@ fn try_run(args: &[String]) -> Result<ExitCode, String> {
 	let stage =
 		rust2_driver::cargo::target_dir("rust2-ffi", Some(&args.manifest))?.join(format!("api-{}", std::process::id()));
 	let run = || {
-		std::fs::create_dir_all(&queried).map_err(|err| format!("creating {}: {err}", queried.display()))?;
 		let mut merge = own.with.clone();
-		for target in rest {
+		for (index, target) in rest.iter().enumerate() {
 			let staged = crate::merge::staged(&stage, target);
-			let code = check(target, (config::env::API, staged.as_os_str()), "".as_ref(), "".as_ref())?;
+			let code = check(index, target, (config::env::API, staged.as_os_str()), "".as_ref(), "".as_ref())?;
 			if code != ExitCode::SUCCESS {
 				return Ok(code);
 			}
 			merge.push(staged);
 		}
 		let merge = std::env::join_paths(&merge).map_err(|err| format!("joining the paths to merge: {err}"))?;
-		check(last, (output.0, output.1.as_os_str()), &merge, &baseline)
+		check(rest.len(), last, (output.0, output.1.as_os_str()), &merge, &baseline)
 	};
 	let code = run();
 	for dir in [&stage, &queried] {
@@ -765,7 +776,8 @@ struct CheckProfile {
 	/// manifest sets any of its own, which a package override of the glue's may hide from the
 	/// glue's build script while every other crate compiles under it.
 	dir: Option<String>,
-	/// The `CARGO_PROFILE_*` variables that may change what a crate compiles under it.
+	/// The `CARGO_PROFILE_*` variables that may change what a crate compiles under it, or
+	/// under another profile that shares its directory.
 	vars: Vec<String>,
 }
 
@@ -809,8 +821,30 @@ fn check_profile(cargo: &[String], workspace: &Path) -> Result<CheckProfile, Str
 	let profiles = table.get("profile").and_then(|p| p.as_table());
 	let (root, dir, chain) =
 		resolve_profile(&picked, profiles).map_err(|err| format!("{}: {err}", manifest.display()))?;
-	let vars = profile_vars(&chain);
+	let (dir, vars) = shared_vars(dir, &chain, |var| std::env::var_os(var).is_some());
 	Ok(CheckProfile { args, root, dir, vars })
+}
+
+/// The [`CheckProfile::dir`] and [`CheckProfile::vars`] of a profile in `dir` that inherits
+/// from the profiles in `chain`, given which variables the export's environment `set`s. A
+/// shared directory proves a build under any profile in it, so its other profiles'
+/// variables are watched too, and must be unset in the build as in the check: a check whose
+/// environment sets one proves nothing.
+fn shared_vars(dir: Option<String>, chain: &[&str], set: impl Fn(&str) -> bool) -> (Option<String>, Vec<String>) {
+	let others: &[&str] = match dir.as_deref() {
+		Some("debug") => &["test", "debug"],
+		Some("release") => &["bench"],
+		_ => &[],
+	};
+	let others = profile_vars(others);
+	let dir = dir.filter(|_| !others.iter().any(|var| set(var)));
+	let mut vars = profile_vars(chain);
+	for var in others {
+		if !vars.contains(&var) {
+			vars.push(var);
+		}
+	}
+	(dir, vars)
 }
 
 /// The profile cargo's own `inherits` names where the manifest names none: `test`'s and
@@ -1174,6 +1208,24 @@ mod tests {
 			vars.contains(&"CARGO_PROFILE_DEV_BUILD_OVERRIDE_DEBUG_ASSERTIONS".to_string()),
 			"{vars:?}"
 		);
+	}
+
+	#[test]
+	fn watches_the_other_profiles_of_a_shared_directory() {
+		let release = Some("release".to_string());
+		let bench = "CARGO_PROFILE_BENCH_BUILD_OVERRIDE_DEBUG_ASSERTIONS";
+		let (dir, vars) = shared_vars(release.clone(), &["release"], |_| false);
+		assert_eq!(dir, release);
+		assert_eq!(vars.len(), 2 * PROFILE_KEYS.len());
+		assert!(vars.contains(&bench.to_string()), "{vars:?}");
+		// Watched once though the check's profile is the other one.
+		let (_, vars) = shared_vars(release.clone(), &["bench", "release"], |_| false);
+		assert_eq!(vars.len(), 2 * PROFILE_KEYS.len());
+		assert_eq!(shared_vars(release, &["release"], |var| var == bench).0, None);
+		let (_, vars) = shared_vars(Some("debug".to_string()), &["dev"], |_| false);
+		assert_eq!(vars.len(), 3 * PROFILE_KEYS.len());
+		let (_, vars) = shared_vars(Some("ship-it".to_string()), &["ship-it", "release"], |_| false);
+		assert_eq!(vars.len(), 2 * PROFILE_KEYS.len());
 	}
 
 	#[test]
