@@ -1,8 +1,8 @@
 # Binding releases
 
 A crate's [rust2-ffi](/ffi/README.md) export, released as Python wheels and an sdist, a Swift package,
-C and C++ archives, a Go module, and a web package on npm and JSR. Two halves, split where
-Cargo's knowledge ends:
+C and C++ archives, a Go module, an Android library on Maven Central, and a web package on
+npm and JSR. Two halves, split where Cargo's knowledge ends:
 
 - **The builder**, [`bindings.yml`](/.github/workflows/bindings.yml) over `package.py`,
   shared and read-only. It derives everything from Cargo metadata and the export: package
@@ -10,22 +10,23 @@ Cargo's knowledge ends:
   exporter gives the crate's library. It builds, repairs, and checks the packages in clean
   consumers, and publishes nothing.
 - **The release workflow**, the caller's own file, which `package.py init` writes once.
-  It holds what Cargo cannot establish: who may publish to PyPI, npm, and JSR, the scope
-  the web package is named under, where the XCFramework is hosted, which repository
-  SwiftPM resolves the package from, the Go module's path, and which tag releases.
+  It holds what Cargo cannot establish: who may publish to PyPI, npm, JSR, and Maven
+  Central, the scope the web package is named under, the Android library's groupId, where
+  the XCFramework is hosted, which repository SwiftPM resolves the package from, the Go
+  module's path, and which tag releases.
 
 ## Adopting it
 
 From a rust2 checkout at the commit to pin, in the repository holding the crate:
 
 ```sh
-python3 <rust2>/ffi/release/package.py init --manifest-path rs/moq-ffi/Cargo.toml --swift-mirror moq-dev/moq-swift-ffi --go-module moq.dev/moq-ffi --scope moq
+python3 <rust2>/ffi/release/package.py init --manifest-path rs/moq-ffi/Cargo.toml --swift-mirror moq-dev/moq-swift-ffi --go-module moq.dev/moq-ffi --scope moq --maven-group dev.moq
 ```
 
 It writes `.github/workflows/release-<crate>.yml`, calling the builder at that commit, and
 refuses to overwrite a different file. `--scope` ships the crate's web package as
-`@<scope>/<crate>`; without it, the lines that would are written commented out. Then,
-outside the repository:
+`@<scope>/<crate>`, and `--maven-group` its Android library as `<group>:<crate>`; without
+either, the lines that would are written commented out. Then, outside the repository:
 
 - register the workflow and the `pypi` environment as the PyPI project's trusted publisher;
 - create the mirror repository, install a GitHub App on it with contents write, and put its
@@ -43,6 +44,12 @@ outside the repository:
   `jsr` environments that only release tags may deploy to. npm's provenance needs Cargo's
   `repository` to be the publishing repository, which the release checks before any
   registry takes it.
+- for the Android library, verify the group's namespace on the
+  [Central Portal](https://central.sonatype.com), and make a `maven` environment that only
+  release tags may deploy to, holding a Portal user token as `MAVEN_CENTRAL_USERNAME` and
+  `MAVEN_CENTRAL_PASSWORD`, and an armored private OpenPGP key whose public half a key
+  server holds as `MAVEN_SIGNING_KEY`, with its passphrase, if any, as
+  `MAVEN_SIGNING_PASSPHRASE`. Central has no trusted publishing, so these are long-lived.
 
 Releasing is pushing `<crate>-v<version>`, the crate's version, which the release checks.
 Called without a tag, such as from a nightly, it runs everything up to publication.
@@ -55,18 +62,23 @@ A Cargo prerelease, such as `1.0.0-rc.1`, is a GitHub prerelease too.
 The builder takes the crate's `Cargo.toml`, the `go-module` path, which without it is the
 export's own `<prefix>` that no proxy serves, and optional inputs the caller's tests own:
 `features` to ship, an `example` whose stdout is native Rust's transcript, and the
-`python-check`, `swift-check`, `c-check`, and `go-check` programs that must print it through
-the installed packages, and `reproduce`, which builds everything twice, from two checkouts. Without a check, a consumer only imports the module, or links a
-function of each C and C++ header. A `c-check` is C or C++ by its extension. The web package
+`python-check`, `swift-check`, `c-check`, `go-check`, and `kotlin-check` programs that must
+print it through the installed packages, and `reproduce`, which builds everything twice, from
+two checkouts. Without a check, a consumer only imports the module, links a function of
+each C and C++ header, or loads the Android library. A `c-check` is C or C++ by its extension.
+The Android library takes `maven-group`, its groupId, which no Cargo fact proves the
+publisher holds; without it, the builder makes none. A `kotlin-check` is a Kotlin file
+whose `main` prints the transcript, importing the binding's package. The web package
 takes `web-manifest-path`, the package exported for `wasm32-wasip1`, often the crate's own,
 which no Cargo fact says builds for the web, and `scope`; and an optional `web-check`, a
 TypeScript module importing the binding as `./web/<module>.ts` does beside an export,
 whose imports the consumer rewrites to the package's name. Its crate's version must be
 the release's. `features` and `example` apply to it when it is the crate's own; a web
 crate apart from it takes `web-features` and `web-example` instead.
-A `python-check`, `c-check`, or `web-check` may instead name a directory holding the program
-as `check.py`, `check.c` or `check.cpp`, or `check.ts`, beside the files it reads, which each
-consumer places beside it: a check that imports a module or includes a header of its own.
+A `python-check`, `c-check`, `kotlin-check`, or `web-check` may instead name a directory
+holding the program as `check.py`, `check.c` or `check.cpp`, `check.kt`, or `check.ts`, beside
+the files it reads, which each consumer places beside it: a check that imports a module or
+includes a header of its own.
 A check its tests generate comes through `checks-artifact`, an artifact of the caller's run
 the builder unpacks over its checkout before reading the checks.
 
@@ -188,10 +200,31 @@ the builder unpacks over its checkout before reading the checks.
    limit, each platform's library moves to a module of its own, whose one package's `#cgo`
    line links it and which the runtime imports under that platform's build constraint, so
    `go get` downloads only the platform it builds for.
-9. The release's `api.json`, and `changes.md`, the items removed, changed, and added since
+9. Android: a library per ABI the AAR holds, `arm64-v8a`, `armeabi-v7a`, and `x86_64`,
+   built with `--features kotlin` by the NDK for API 24, moq's floor, each checked to align
+   its segments to the 16 KB pages Google Play requires of a 64-bit library from 2027-02-01,
+   and to need no library an Android 24 device lacks but the NDK's `libc++_shared.so`, which
+   then lies beside it. Each keeps its symbol table and line tables, `debug =
+   "line-tables-only"` unless the crate's release profile sets a level holding them, with any
+   `strip` the profile sets overridden: an app's build strips them from its APK and gives
+   them to Play, which symbolicates a crash in Rust to its source line.
+
+   With a `maven-group`, an AAR, `<crate>-<version>.aar`: those libraries in `jni/`, the
+   generated Kotlin compiled against API 35's `android.jar`, whose `@FastNative` serves, and
+   kotlinx-coroutines as `classes.jar`, for Kotlin 2.2 and JVM 1.8, so a consumer's Kotlin
+   2.1 reads its metadata, the generated R8 rules as `proguard.txt`, which each app that
+   shrinks it applies, and a manifest naming the floor and the namespace `<group>.<lib>`.
+   Beside it in a Maven repository, under `maven/`, as Central requires: a POM with the
+   crate's name, Cargo's description, homepage or else repository, each of its license's
+   alternatives, its authors or else its repository's owner, and source control, each a
+   field whose absence fails the build, and the Kotlin standard library and
+   kotlinx-coroutines as dependencies; a sources jar, a javadoc jar pointing at it, as the
+   KDoc an IDE shows is the sources'; a CycloneDX SBOM of the JNI build's crates; and each
+   file's MD5 and SHA-1. The caller's release signs each and uploads the bundle.
+10. The release's `api.json`, and `changes.md`, the items removed, changed, and added since
    the previous release's, by kind and Rust path; the caller's release publishes the first
    as an asset and the second as its notes.
-10. Consumers, with no checkout, Rust, or source path: each wheel installed with
+11. Consumers, with no checkout, Rust, or source path: each wheel installed with
     `--no-index --no-deps` into a fresh environment on its oldest CPython, run with `-I`
     from an empty directory, and on Linux x64 checked by `mypy --strict` as installed; the
     sdist installed the same way, built by pip with rustup's Rust, in Alpine's musllinux, on
@@ -202,9 +235,15 @@ the builder unpacks over its checkout before reading the checks.
     through its config package, and on Linux and macOS by pkg-config, linking each library,
     where a shared consumer must record the versioned name; and the Go module, unpacked from
     its zip into a new module that requires it, vetted, built with the newest Go and no
-    `CGO_LDFLAGS`, and run on Linux x64 and arm64, macOS on arm64 and x86_64, and Windows.
-    With an `example`, each must print native Rust's stdout byte for byte.
-11. Web: `web-manifest-path` exported for `wasm32-wasip1` alone, whose `web/` holds the
+    `CGO_LDFLAGS`, and run on Linux x64 and arm64, macOS on arm64 and x86_64, and Windows;
+    and a new Gradle app, its Android Gradle Plugin's Kotlin compiling the check, depending
+    on the AAR through its Maven repository as on Central, shrunk by R8 with the AAR's rules,
+    whose bundle must hold each library's line tables for Play, run on an x86_64 emulator at
+    API 35: an instrumentation in the app's own process and class loader runs the check, or
+    loads the library, and reports its output and how the process ended, as a check may end
+    it with `exitProcess`. With an `example`, each must print native Rust's stdout byte for
+    byte, the Android app the example's built for the emulator and run there.
+12. Web: `web-manifest-path` exported for `wasm32-wasip1` alone, whose `web/` holds the
     TypeScript, its JavaScript and declarations, and a `package.json`
     ([TypeScript (web)](/ffi/README.md#typescript-web)), and its module built at
     `opt-level = "s"` unless the crate's release profile sets a level, as a page downloads
@@ -223,7 +262,7 @@ rust2 runs it on every manual Check and nightly through
 wheels, C++ consumers, and web package must print its native transcript through the checks
 `just ffi transcripts` writes, each test beside the script generated from it, and on moq's
 stand-in facade at the exporter's moq pin, through `moq/moq.py`, `moq/moq.swift`,
-`moq/moq.cpp`, and `moq/moq.go`, with its wasm32 stand-in as the web package.
+`moq/moq.cpp`, `moq/moq.go`, and `moq/moq.kt`, with its wasm32 stand-in as the web package.
 
 ## Reproducible builds
 
@@ -257,8 +296,8 @@ holding exactly the files it would upload, and anyone with the commit can check 
   a Windows GNU import symbol's name is replaced by zeros.
 - **Checked.** The Swift job builds the XCFramework twice and fails unless both ZIPs match.
   With `reproduce: true`, every build host builds a second time, from a second checkout and
-  export a level deeper, and `package.py same` fails unless each wheel, static library, and C
-  archive, the Go module's included, matches byte for byte, and the web job builds its npm
+  export a level deeper, and `package.py same` fails unless each wheel, static library, C
+  archive, Android library, and Maven file, the Go module's included, matches byte for byte, and the web job builds its npm
   tarball from the second checkout too; rust2 turns it on for its api fixture. It doubles
   the build, so a large crate may leave it to a nightly.
 
@@ -267,8 +306,9 @@ the crates the binding links (normal dependencies, platform-neutral, with each r
 crate's checksum from `Cargo.lock`), which every wheel also carries in
 `.dist-info/sboms/` (PEP 770) and the build hosts must agree on. The caller's `attest` job
 runs on a tag, before anything is published, and gives every wheel, the XCFramework, the Go
-module's `.zip` and `.mod`, each C archive, and the npm tarball a build provenance
-attestation and an SBOM attestation (the tarball's from its own `sbom.cdx.json`), which
+module's `.zip` and `.mod`, each C archive, the AAR and its POM, and the npm tarball a build
+provenance attestation and an SBOM attestation (the tarball's from its own `sbom.cdx.json`,
+the AAR's from its CycloneDX file), which
 `gh attestation verify <file> --repo <owner>/<repo>` checks. Only that job holds `id-token` and `attestations`
 write; the builder stays read-only. PyPI's trusted publishing uploads its own PEP 740
 attestations for the wheels as well.
@@ -282,7 +322,6 @@ binding.
 
 | Destination | Builder work | What only the caller can say |
 | --- | --- | --- |
-| Maven Central | An AAR with classes.jar, JNI libraries per Android ABI and the generated R8 rules; POM, sources and javadoc jars | The verified groupId namespace, publisher authorization, and signing key |
 | pub.dev | The generated Dart library with a native-assets build hook and per-platform archives, pubspec, and license | Publisher authorization and the archives' download host |
 | NuGet | Needs a C# generator first: the managed assembly and RID-specific native assets | Package ID ownership, credentials, and target frameworks |
 

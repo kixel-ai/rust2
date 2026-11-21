@@ -11,6 +11,7 @@ import tarfile
 import tempfile
 import tomllib
 import unittest
+import xml.etree.ElementTree
 from unittest import mock
 import zipfile
 
@@ -26,7 +27,7 @@ def info(root, **overrides):
     base = {
         "name": "moq-ffi", "version": "0.4.12", "description": "Media over QUIC,\n bindings",
         "license": "MIT OR Apache-2.0", "license_file": None, "repository": "https://github.com/moq-dev/moq",
-        "homepage": None, "lib": "moq", "dir": str(root), "workspace": str(root), "examples": [],
+        "homepage": None, "authors": [], "lib": "moq", "dir": str(root), "workspace": str(root), "examples": [],
         "epoch": 1_700_000_000, "sbom": b"{}\n",
     }
     return {**base, **overrides}
@@ -46,6 +47,9 @@ def export(root, floor="311"):
     lines = "".join(f"#cgo {p.replace('_', ',')} LDFLAGS: ${{SRCDIR}}/libmoq_{p}.a -lgcc_s -lc\n"
                     for p in package.GO_TARGETS.values())
     (root / "go/rt/rt.go").write_text(f"package rt\n\n/*\n{lines}*/\nimport \"C\"\n")
+    (root / "kotlin").mkdir()
+    (root / "kotlin/moq.kt").write_text("package moq\n")
+    (root / "kotlin/moq.pro").write_text("-keep class moq._Native { *; }\n")
     return root
 
 
@@ -583,6 +587,9 @@ class Digest(unittest.TestCase):
             (second / "python/moq.py").write_bytes(b"PENDING = 0\n")
             (second / "go/rt/rt.go").write_text("package rt\n")
             self.assertNotEqual(package.digest(first, "moq"), package.digest(second, "moq"))
+            (second / "go/rt/rt.go").write_text((first / "go/rt/rt.go").read_text())
+            (second / "kotlin/moq.pro").write_text("")
+            self.assertNotEqual(package.digest(first, "moq"), package.digest(second, "moq"))
 
 
 class Go(unittest.TestCase):
@@ -713,25 +720,43 @@ class Swift(unittest.TestCase):
                 package.privacy_manifest("moq", {category: {api}, "FileTimestamp": {"stat"}})
             self.assertIn(api, str(raised.exception))
 
-    def test_apple_profile(self):
+    def test_line_tables(self):
+        lines = ["--config", 'profile.release.debug="line-tables-only"']
+        unstripped = ["--config", 'profile.release.strip="none"']
         with tempfile.TemporaryDirectory() as raw, mock.patch.dict(os.environ):
             os.environ.pop("CARGO_PROFILE_RELEASE_DEBUG", None)
+            os.environ.pop("CARGO_PROFILE_RELEASE_STRIP", None)
             manifest = Path(raw) / "Cargo.toml"
             manifest.write_text('[package]\nname = "x"\n')
-            self.assertEqual(package.apple_profile(manifest), {"CARGO_PROFILE_RELEASE_DEBUG": "line-tables-only"})
+            self.assertEqual(package.line_tables(manifest), lines)
             for level in ("false", "0", '"none"', '"line-directives-only"'):
                 manifest.write_text(f'[package]\nname = "x"\n\n[profile.release]\ndebug = {level}\n')
-                self.assertEqual(package.apple_profile(manifest), {"CARGO_PROFILE_RELEASE_DEBUG": "line-tables-only"}, level)
+                self.assertEqual(package.line_tables(manifest), lines, level)
             for level in ("true", "1", '"full"', '"line-tables-only"'):
                 manifest.write_text(f'[package]\nname = "x"\n\n[profile.release]\ndebug = {level}\n')
-                self.assertEqual(package.apple_profile(manifest), {}, level)
+                self.assertEqual(package.line_tables(manifest), [], level)
+            # A strip would drop them from a shared library, the profile's or a package's.
+            for strip in ("true", '"symbols"', '"debuginfo"'):
+                manifest.write_text(f'[package]\nname = "x"\n\n[profile.release]\ndebug = 1\nstrip = {strip}\n')
+                self.assertEqual(package.line_tables(manifest), unstripped, strip)
+            for strip in ("false", '"none"'):
+                manifest.write_text(f'[package]\nname = "x"\n\n[profile.release]\ndebug = 1\nstrip = {strip}\n')
+                self.assertEqual(package.line_tables(manifest), [], strip)
+            manifest.write_text('[package]\nname = "x"\n\n[profile.release]\ndebug = 1\n\n'
+                                '[profile.release.package.x-ffi]\nstrip = "debuginfo"\ndebug = 0\n\n'
+                                '[profile.release.package."*"]\nopt-level = 3\n')
+            self.assertEqual(package.line_tables(manifest), [
+                "--config", 'profile.release.package."x-ffi".debug="line-tables-only"',
+                "--config", 'profile.release.package."x-ffi".strip="none"'])
             # The environment overrides the profile, as it does for cargo.
             for level in ("0", "false", "none", "line-directives-only"):
                 os.environ["CARGO_PROFILE_RELEASE_DEBUG"] = level
-                self.assertEqual(package.apple_profile(manifest), {"CARGO_PROFILE_RELEASE_DEBUG": "line-tables-only"}, level)
+                self.assertEqual(package.line_tables(manifest)[:2], lines, level)
             for level in ("1", "2", "true", "limited", "full", "line-tables-only"):
                 os.environ["CARGO_PROFILE_RELEASE_DEBUG"] = level
-                self.assertEqual(package.apple_profile(manifest), {}, level)
+                self.assertNotIn(lines[1], package.line_tables(manifest), level)
+            os.environ["CARGO_PROFILE_RELEASE_STRIP"] = "symbols"
+            self.assertEqual(package.line_tables(manifest)[:2], unstripped)
 
     def test_unknown_linker_flags_fail(self):
         with self.assertRaises(SystemExit):
@@ -1042,6 +1067,67 @@ class Template(unittest.TestCase):
         self.assertIn("      # web-manifest-path: rs/moq-ffi/Cargo.toml\n", none)
         self.assertNotIn("\n      web-manifest-path:", none)
         self.assertNotRegex(none, r"@[A-Z_]+@")
+
+    def test_maven_lines_follow_the_group(self):
+        args = (info("/src"), "rs/moq-ffi/Cargo.toml", "a" * 40, "moq-dev/moq-swift-ffi", "moq.dev/moq-ffi")
+        shipped = package.template(*args, group="dev.moq")
+        self.assertIn("\n      maven-group: dev.moq\n", shipped)
+        self.assertIn("dev.moq:moq-ffi on Maven Central", shipped)
+        self.assertIn("name: moq-ffi-build-android", shipped)
+        none = package.template(*args)
+        self.assertIn("      # maven-group: <group>\n", none)
+        self.assertNotIn("\n      maven-group:", none)
+        self.assertNotRegex(none, r"@[A-Z_]+@")
+        for group in ["moq", "dev.moq/", "dev..moq"]:
+            with self.assertRaises(SystemExit):
+                package.template(*args, group=group)
+
+
+class Maven(unittest.TestCase):
+    def fields(self, **overrides):
+        text = package.pom(info("/src", **overrides), "dev.moq", "1.10.2")
+        root = xml.etree.ElementTree.fromstring(text)
+        ns = {"m": "http://maven.apache.org/POM/4.0.0"}
+        return root, ns
+
+    def test_pom_states_what_central_requires(self):
+        root, ns = self.fields(authors=["Luke Curley <kixelated@gmail.com>", "Someone"])
+        get = lambda path: [e.text for e in root.findall(path, ns)]  # noqa: E731
+        self.assertEqual(get("m:groupId") + get("m:artifactId") + get("m:version") + get("m:packaging"),
+                         ["dev.moq", "moq-ffi", "0.4.12", "aar"])
+        self.assertEqual(get("m:description"), ["Media over QUIC, bindings"])
+        # No homepage: the repository is the project's URL.
+        self.assertEqual(get("m:url"), ["https://github.com/moq-dev/moq"])
+        # Each alternative of an OR, any of which a user may choose, as Maven reads several.
+        self.assertEqual(get("m:licenses/m:license/m:name"), ["MIT", "Apache-2.0"])
+        self.assertEqual(get("m:licenses/m:license/m:url"),
+                         ["https://spdx.org/licenses/MIT.html", "https://spdx.org/licenses/Apache-2.0.html"])
+        self.assertEqual(get("m:developers/m:developer/m:name"), ["Luke Curley", "Someone"])
+        self.assertEqual(get("m:developers/m:developer/m:email"), ["kixelated@gmail.com"])
+        self.assertEqual(get("m:scm/m:connection"), ["scm:git:https://github.com/moq-dev/moq.git"])
+        self.assertEqual(get("m:dependencies/m:dependency/m:artifactId"), ["kotlin-stdlib", "kotlinx-coroutines-core"])
+        self.assertEqual(get("m:dependencies/m:dependency/m:version"), [f"{package.KOTLIN_API}.0", "1.10.2"])
+
+    def test_pom_derives_or_refuses_the_rest(self):
+        # No authors: the repository's owner, who publishes it.
+        root, ns = self.fields()
+        self.assertEqual([e.text for e in root.findall("m:developers/m:developer/m:url", ns)], ["https://github.com/moq-dev"])
+        # An expression more than a choice is one license, with no single URL.
+        root, ns = self.fields(license="MIT AND (Apache-2.0 OR BSD-3-Clause)")
+        self.assertEqual([e.text for e in root.findall("m:licenses/m:license/m:name", ns)], ["MIT AND (Apache-2.0 OR BSD-3-Clause)"])
+        self.assertEqual(root.findall("m:licenses/m:license/m:url", ns), [])
+        # Text is escaped.
+        root, ns = self.fields(description="a <b> & c")
+        self.assertEqual(root.find("m:description", ns).text, "a <b> & c")
+        for missing in ({"description": None}, {"repository": None}, {"license": None}, {"license": "MIT/Apache-2.0"},
+                        {"version": "1.0.0+build"}):
+            with self.assertRaises(SystemExit, msg=missing):
+                package.pom(info("/src", **missing), "dev.moq", "1.10.2")
+
+    def test_prerelease_orders_before_its_release(self):
+        self.assertEqual(package.maven_version("1.0.0-rc.1"), "1.0.0-rc.1")
+        with self.assertRaises(SystemExit):
+            package.maven_version("1.0.0-dev")
 
 
 def web_export(root, version="0.4.12"):
