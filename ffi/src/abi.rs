@@ -2285,7 +2285,7 @@ pub(crate) fn dyn_wrap(form: Dyn, expr: &str) -> String {
 
 #[cfg(test)]
 mod tests {
-	use super::{apart, defined, escape, shortest, unique};
+	use super::{apart, defined, escape, named, shortest, underscored, unique};
 
 	#[test]
 	fn escapes_keep_apart_from_every_macro() {
@@ -2353,6 +2353,36 @@ mod tests {
 		// A later alike one, or one taken, takes a `_`, past any that is another's own.
 		assert_eq!(names(&["A", "A", "A_"], &[]), ["A", "A__", "A_"]);
 		assert_eq!(names(&["String", "B"], &["String"]), ["String_", "B"]);
+	}
+
+	#[test]
+	fn named_keeps_names_apart_in_either_order() {
+		// Camel case, which drops a trailing `_`: a name reads back as its Rust if it is that
+		// Rust's own snake case.
+		let names = |rust: &[&str], taken: &[&str]| {
+			let spelled = rust.iter().map(|name| name.trim_end_matches('_').to_string()).collect();
+			let own = |rust: &str, name: &str| name == rust;
+			named(rust, spelled, own, |_, name| taken.contains(&name), underscored)
+		};
+		// The name spelled as Rust's keeps it, and the other recovers Rust's `_`, in either order.
+		assert_eq!(names(&["new_", "new"], &[]), ["new_", "new"]);
+		assert_eq!(names(&["new", "new_"], &[]), ["new", "new_"]);
+		// Those that move go in Rust's name order, whatever the scope's.
+		assert_eq!(names(&["a__", "a", "a_"], &[]), ["a__", "a", "a_"]);
+		// Where none is spelled as Rust's, the first in Rust's order takes the spelling.
+		assert_eq!(names(&["a__", "a_"], &[]), ["a_", "a"]);
+		// A name taken moves even where it is Rust's own.
+		assert_eq!(names(&["a_", "a"], &["a"]), ["a__", "a_"]);
+		// Two that read back alike as Rust's own both move, in the scope's order where Rust's
+		// names are alike too.
+		let spelled = vec!["x".to_string(), "x".to_string()];
+		assert_eq!(named(&["x", "x"], spelled, |_, _| true, |_, _| false, underscored), ["x", "x_"]);
+	}
+
+	#[test]
+	fn underscored_steps_before_labels() {
+		assert_eq!(underscored("delete", 1), "delete_");
+		assert_eq!(underscored("delete(_:_:)", 2), "delete__(_:_:)");
 	}
 
 	/// Each instance's arguments, each by its path's segments, whose forms are their

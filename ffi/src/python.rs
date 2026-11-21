@@ -2833,11 +2833,13 @@ mod tests {
 
 	#[test]
 	fn variant_classes_keep_apart() {
-		let names = ["FooBar", "Foo_Bar", "None", "Late"];
 		assert_eq!(
-			variant_classes(names.into_iter()),
+			variant_classes(&["FooBar", "Foo_Bar", "None", "Late"]),
 			["FooBar", "FooBar_", "None_", "Late"]
 		);
+		// Pascal case spells `FooBar` as its Rust whichever comes first.
+		assert_eq!(variant_classes(&["Foo_Bar", "FooBar"]), ["FooBar_", "FooBar"]);
+
 	}
 
 	#[test]
