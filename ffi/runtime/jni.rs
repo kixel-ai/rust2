@@ -15,7 +15,7 @@ use std::cell::Cell;
 use std::ffi::{CStr, c_void};
 use std::mem::MaybeUninit;
 use std::sync::OnceLock;
-use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 
 pub use jni_sys::*;
 
@@ -61,6 +61,16 @@ pub unsafe fn load(env: *mut JNIEnv, class: jclass, natives: &[JNINativeMethod])
 			fail(env, "load", "the JVM does not support native return buffers");
 		}
 		((**env).v1_2.DeleteLocalRef)(env, buffer);
+		// HotSpot has no such class, which FindClass throws for.
+		let art = ((**env).v1_2.FindClass)(env, c"dalvik/system/VMRuntime".as_ptr());
+		match art.is_null() {
+			true => ((**env).v1_2.ExceptionClear)(env),
+			false => {
+				((**env).v1_2.DeleteLocalRef)(env, art);
+				ART.store(true, Ordering::Relaxed);
+				ARMED.store(true, Ordering::Relaxed);
+			}
+		}
 	}
 	// Looked up now, before a leaf can run: a `@FastNative` call refusing its borrow or an
 	// argument must not wait on another thread's lookup, which a collection pending on the
@@ -511,6 +521,20 @@ const LENT_MAX: usize = 64 << 20;
 /// The bytes lent to Kotlin and not yet freed.
 static LENT_BYTES: AtomicUsize = AtomicUsize::new(0);
 
+/// On ART, the lent bytes at which Rust asks the GC to collect, so it frees the `Bytes`
+/// no longer reached before [`LENT_MAX`] is: past that, ART puts each copy of 12 KiB or
+/// more in a mapping of its own, which costs several lends.
+const COLLECT_AT: usize = LENT_MAX / 2;
+
+/// Whether the JVM is ART, which [`load`] finds by its `dalvik.system.VMRuntime`. HotSpot
+/// copies into its young generation cheaply, and collects all at once when asked.
+static ART: AtomicBool = AtomicBool::new(false);
+
+/// Whether reaching [`COLLECT_AT`] asks ART to collect: cleared on asking, and set again
+/// once frees bring the lent bytes under half of it, so bytes a program keeps reachable
+/// never make it collect over and over.
+static ARMED: AtomicBool = AtomicBool::new(false);
+
 /// Whether `len` bytes cross lent rather than copied: longer than [`COPIED`], and within
 /// [`LENT_MAX`], which they then count against until freed. A call racing another past
 /// the limit may copy where it could have lent, never the reverse.
@@ -518,11 +542,41 @@ fn lends(len: usize) -> bool {
 	if len <= COPIED {
 		return false;
 	}
-	if LENT_BYTES.fetch_add(len, Ordering::Relaxed) + len <= LENT_MAX {
+	let lent = LENT_BYTES.fetch_add(len, Ordering::Relaxed) + len;
+	if lent <= LENT_MAX {
+		if lent >= COLLECT_AT && ARMED.load(Ordering::Relaxed) && ARMED.swap(false, Ordering::Relaxed) {
+			collect();
+		}
 		return true;
 	}
 	LENT_BYTES.fetch_sub(len, Ordering::Relaxed);
 	false
+}
+
+/// Ask the GC to collect, on a thread of its own, since a collection takes a while that
+/// the call lending bytes need not wait for.
+fn collect() {
+	let spawned = std::thread::Builder::new().name("rust2-ffi collect".into()).spawn(|| {
+		upcall("collect", |env| {
+			// SAFETY: `env` is this thread's, and each name and signature is
+			// `java.lang.Runtime`'s, which every JVM has.
+			unsafe {
+				let class = ((**env).v1_2.FindClass)(env, c"java/lang/Runtime".as_ptr());
+				threw(env, "collect");
+				let get = ((**env).v1_2.GetStaticMethodID)(env, class, c"getRuntime".as_ptr(), c"()Ljava/lang/Runtime;".as_ptr());
+				threw(env, "collect");
+				let gc = ((**env).v1_2.GetMethodID)(env, class, c"gc".as_ptr(), c"()V".as_ptr());
+				threw(env, "collect");
+				let runtime = ((**env).v1_2.CallStaticObjectMethodA)(env, class, get, std::ptr::null());
+				threw(env, "collect");
+				// Not `System.gc()`, which ART skips unless finalization ran since its last call.
+				((**env).v1_2.CallVoidMethodA)(env, runtime, gc, std::ptr::null());
+			}
+		})
+	});
+	if spawned.is_err() {
+		rt::fail("jni", "the thread asking the GC to collect cannot start");
+	}
 }
 
 /// A buffer Rust returned or lent, as Kotlin's `_Native.owned` takes it: null for none, a
@@ -642,7 +696,10 @@ pub unsafe fn free_bytes(owner: jlong) {
 	let len = buf.len;
 	// SAFETY: the caller's contract.
 	unsafe { buf.free() };
-	LENT_BYTES.fetch_sub(len, Ordering::Relaxed);
+	let left = LENT_BYTES.fetch_sub(len, Ordering::Relaxed) - len;
+	if left < COLLECT_AT / 2 && ART.load(Ordering::Relaxed) && !ARMED.load(Ordering::Relaxed) {
+		ARMED.store(true, Ordering::Relaxed);
+	}
 }
 
 /// A buffer Rust returned as a `byte[]`, or null for none, freeing it.

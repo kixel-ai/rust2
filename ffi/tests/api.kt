@@ -920,6 +920,7 @@ fun owned() {
 	readings()
 	crowding()
 	budgeted()
+	nudged()
 	for (n in 1023..1025) {
 		val payload = ByteArray(n) { it.toByte() }
 		val packet = nextPacket(Packet(1u, Bytes(payload)))
@@ -1269,6 +1270,35 @@ fun budgeted() {
 	collected(before + 65u, "the GC frees bytes lent up to the budget")
 	lentAgain(before + 65u)
 	collected(before + 66u, "the GC frees bytes lent once the budget is free")
+}
+
+// On ART, Rust asks the GC to collect once half the budget is lent, so it frees the bytes
+// nothing reaches before the budget runs out, though Kotlin makes no garbage meanwhile.
+// HotSpot, which copies past the budget cheaply, is never asked.
+fun nudged() {
+	if (System.getProperty("java.vm.name") != "Dalvik") return
+	val before = dropped()
+	lentUnreached()
+	lentToHalf(before)
+	collected(before + 32u, "the GC frees the bytes that reached half the budget")
+}
+
+// 31 MiB of Rust's bytes lent, just under half the budget, none left reachable.
+@OwnFrame
+fun lentUnreached() {
+	repeat(31) { check(tokenBytes(5u, (1 shl 20).toUInt())[0] == 5.toByte(), "bytes lent under half the budget read") }
+}
+
+// One more MiB lent, reaching half the budget, held while ART frees the 31 before it.
+@OwnFrame
+fun lentToHalf(before: UInt) {
+	val held = tokenBytes(6u, (1 shl 20).toUInt())
+	val deadline = System.nanoTime() + 10.seconds.inWholeNanoseconds
+	while (dropped() < before + 31u) {
+		check(System.nanoTime() < deadline, "ART collects the bytes lent once half the budget is")
+		Thread.sleep(1)
+	}
+	check(held[0] == 6.toByte() && dropped() == before + 31u, "the bytes that reached half the budget stay lent")
 }
 
 // Bytes lent once the GC freed those that filled the budget, with Rust's drops still [freed].

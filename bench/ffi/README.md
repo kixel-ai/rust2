@@ -304,8 +304,9 @@ tick:
    call, so only a leaf takes it: a call that may wait on a lock, as `is_closed()` waits on
    moq's, or call back into Kotlin, could stall every thread's collection behind it.
 3. **Throughput falls off from 16 KiB on ART alone**, near 650 MB/s against HotSpot's 6.7 to
-   9.3 GB/s, while 100 B and 1 KiB frames stay within 3x.
-   [ART's throughput](/quest/m1/ffi-speed/art-throughput.md) finds why.
+   9.3 GB/s, while 100 B and 1 KiB frames stay within 3x: mostly the emulator's cost of
+   fresh memory, which C pays on it too, and partly copies past the lent budget, which
+   [ART's throughput](#arts-throughput) cuts.
 
 The spike, 5 rounds of each side alternating on one emulator at a load of 12 to 29, wall ns,
 before (main) and after (`@FastNative` on leaves, registered):
@@ -333,6 +334,46 @@ marked, as Dart's leaf calls are.
 annotation), 28, 30, and 35. On API 28, `export.kt` itself never finishes, with or without
 the annotation: within 100 s its native memory passes 1.5 GB under a 256 MB heap
 ([Kotlin on Android 9](/quest/m1/ffi-speed/android-9-memory.md)).
+
+### ART's throughput
+
+Profiled 2026-11-20 on **desktop**, an Intel Core Ultra 7 270K Plus, against moq `1aa86d5e`,
+on an Android 15 (API 35) x86_64 emulator with 4 cores and 2 GB under KVM, beside another
+agent's emulator at a load of 18 to 29, with `simpleperf` from NDK 30 as root. Each program
+ran the throughput case alone in a fresh process, 6 passes of about 64 MiB, and each cell is
+the median over 5 rounds of the median of its last 5 passes, every program alternating
+within a round (MB/s, the slowest and fastest round in brackets):
+
+| program | 16 KiB | 64 KiB | 1 MiB |
+|---|---|---|---|
+| C, `export.c`'s case through the same library | 1,973 (1,098 to 2,027) | 2,292 (2,205 to 2,304) | 2,131 (2,024 to 2,587) |
+| Kotlin, each frame read but not its payload | 1,407 (1,351 to 1,431) | 1,467 (1,443 to 1,882) | 1,235 (1,170 to 1,344) |
+| Kotlin, before | 878 (860 to 894) | 1,171 (1,071 to 1,230) | 1,006 (956 to 1,039) |
+| Kotlin, after | 1,259 (1,249 to 1,328) | 1,403 (1,381 to 1,783) | 1,212 (1,149 to 1,225) |
+
+1. **Fresh memory is most of the cost, in C too.** A track's default cache never evicts, so
+   each frame's copy into moq, `Bytes::copy_from_slice` in `write_frame`, lands in pages
+   the process never touched: 54% of C's samples and 62% of Kotlin's, after, are the page
+   fault, 21 and 44% the kernel zeroing the page. A C loop copying 16 KiB on the same
+   emulator moves 138 GB/s into a buffer it reuses and 61 GB/s into a fresh `malloc` freed
+   after, so its bandwidth is no limit, and HotSpot's host faults far more cheaply.
+2. **Before, reads past the lent budget copied into ART's large-object space.** At most
+   64 MiB are lent to Kotlin at once, and a program making little garbage of its own fills
+   that before ART collects the `Bytes` holding them, so later reads cross copied until it
+   does. ART puts each array of 12 KiB or more in its own mapping: in 5 other rounds at
+   16 KiB, a library always copying moved 509 MB/s, one always lending 1,374, and reading
+   no payload 1,437, so about a third of before's reads copied.
+3. **After, Rust asks ART to collect once 32 MiB are lent**, on a thread of its own, so the
+   collection frees them before the budget runs out. It asks again only once frees bring
+   them under 16 MiB, so bytes a program keeps reachable never make it collect over and
+   over. HotSpot is never asked: it copies into its young generation cheaply, and
+   collects everything at once when asked.
+
+In `export.kt`'s own run, 3 rounds of before and after alternating at a load of 21 to 29,
+64 KiB rose from 915 to 1,168 MB/s and 1 MiB from 836 to 915, and 16 KiB held at 916
+against 844, within its rounds' spread of 690 to 1,065. Each of its sizes moves 64 MiB once
+a round, so the 16 KiB pass starts with the budget empty and copies little before; the
+larger sizes start with the 16 KiB pass's bytes still lent.
 
 ## Swift's inlined calls
 
