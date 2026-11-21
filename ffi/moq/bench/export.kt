@@ -110,36 +110,48 @@ fun <T> concurrent(handles: List<T>, call: (T) -> Int): Span {
 	return per(start, N.toDouble()).let { Span(it.wall, it.cpu / THREADS) }
 }
 
+// A track named `name` on `broadcast`. It caches every group written to it until it closes,
+// as the broadcast's pool, which nothing polls, evicts none, so each case that writes groups
+// writes them to a track of its own, closed once it ends: a round holds one case's frames at
+// a time instead of every case's, about 2 GB.
+fun track(broadcast: BroadcastProducer, name: String) = broadcast.createTrack(name, TrackInfo.default().withTimescale(Timescale.MICRO))
+
+// [block] on a track of its own named `name` and a subscriber to it, closed once it returns.
+suspend fun <R> subscribed(broadcast: BroadcastProducer, name: String, block: suspend (TrackProducer, TrackSubscriber) -> R): R =
+	track(broadcast, name).use { track -> track.consume().use { it.subscribe(null) }.use { block(track, it) } }
+
 // Groups of 100 frames of `size` bytes written and each read back, its payload's first
 // byte touched, in about 64 MiB and at least 300 frames: megabytes a wall and a CPU second.
 // Each group starts at `next()`, the time its frames are written at.
-suspend fun throughput(track: TrackProducer, subscriber: TrackSubscriber, next: () -> Timestamp, size: Int): Span {
+suspend fun throughput(broadcast: BroadcastProducer, next: () -> Timestamp, size: Int): Span {
 	val groups = ((64 shl 20) / (size * FRAMES)).coerceIn(3, 2000)
 	val frame = Bytes(ByteArray(size))
 	val name = "throughput[$size]"
 	var sum = 0
-	val start = begin()
-	repeat(groups) {
-		val at = next()
-		track.appendGroup(at).use { group ->
-			subscriber.recvGroup()!!.use { reader ->
-				repeat(FRAMES) {
-					group.writeFrame(at, frame)
-					reader.readFrame()!!.use { read -> sum += read.payloadGet[0] }
+	return subscribed(broadcast, name) { track, subscriber ->
+		val start = begin()
+		repeat(groups) {
+			val at = next()
+			track.appendGroup(at).use { group ->
+				subscriber.recvGroup()!!.use { reader ->
+					repeat(FRAMES) {
+						group.writeFrame(at, frame)
+						reader.readFrame()!!.use { read -> sum += read.payloadGet[0] }
+					}
 				}
+				group.finish().close()
 			}
-			group.finish().close()
 		}
+		sink += sum
+		val ns = end(start, name, groups.toDouble() * FRAMES * size)
+		Span(1e3 / ns.wall, 1e3 / ns.cpu)
 	}
-	sink += sum
-	val ns = end(start, name, groups.toDouble() * FRAMES * size)
-	return Span(1e3 / ns.wall, 1e3 / ns.cpu)
 }
 
 fun round(measured: Boolean): Map<String, Span> {
 	val out = linkedMapOf<String, Span>()
 	val broadcast = BroadcastInfo.new().produce()
-	val track = broadcast.createTrack("bench", TrackInfo.default().withTimescale(Timescale.MICRO))
+	val track = track(broadcast, "bench")
 	val frame = Bytes(ByteArray(100))
 	var sum = 0
 	// A group's start is its key, so each appended group's must pass the last one's. The
@@ -206,98 +218,105 @@ fun round(measured: Boolean): Map<String, Span> {
 
 	// Each frame stamped through a fresh timestamp, as a caller holding a u64 must, its
 	// group starting at its first frame's.
-	start = begin()
-	repeat(GROUPS) {
-		track.appendGroup(Timestamp.fromMicros(micros)).use { group ->
-			repeat(FRAMES) {
-				group.writeFrame(Timestamp.fromMicros(micros++), frame)
+	track(broadcast, "stamped").use { track ->
+		start = begin()
+		repeat(GROUPS) {
+			track.appendGroup(Timestamp.fromMicros(micros)).use { group ->
+				repeat(FRAMES) {
+					group.writeFrame(Timestamp.fromMicros(micros++), frame)
+				}
+				group.finish().close()
 			}
-			group.finish().close()
 		}
+		out["stamped"] = end(start, "stamped")
 	}
-	out["stamped"] = end(start, "stamped")
 
-	start = begin()
-	repeat(GROUPS) {
-		val at = next()
-		track.appendGroup(at).use { group ->
-			repeat(FRAMES) { group.writeFrame(at, frame) }
-			group.finish().close()
+	track(broadcast, "write").use { track ->
+		start = begin()
+		repeat(GROUPS) {
+			val at = next()
+			track.appendGroup(at).use { group ->
+				repeat(FRAMES) { group.writeFrame(at, frame) }
+				group.finish().close()
+			}
 		}
+		out["write"] = end(start, "write")
 	}
-	out["write"] = end(start, "write")
 
 	var last: FrameFrame? = null
 	runBlocking {
-		val subscriber = track.consume().use { it.subscribe(null) }
-
 		// Each frame written, then read through a suspend fun whose future is ready at its
 		// first poll, so it never suspends.
-		var t0 = begin()
-		repeat(GROUPS) {
-			val at = next()
-			track.appendGroup(at).use { group ->
-				subscriber.recvGroup()!!.use { reader ->
-					repeat(FRAMES) {
-						group.writeFrame(at, frame)
-						last?.close()
-						last = reader.readFrame()!!
-					}
-				}
-				group.finish().close()
-			}
-		}
-		out["ready"] = end(t0, "ready")
-
-		// Each read started before its frame is written, so it suspends, and the write's wake
-		// resumes it through runBlocking's event loop.
-		t0 = begin()
-		repeat(GROUPS) {
-			val at = next()
-			track.appendGroup(at).use { group ->
-				subscriber.recvGroup()!!.use { reader ->
-					repeat(FRAMES) {
-						val pending = async(start = CoroutineStart.UNDISPATCHED) { reader.readFrame() }
-						group.writeFrame(at, frame)
-						pending.await()!!.close()
-					}
-				}
-				group.finish().close()
-			}
-		}
-		out["woken"] = end(t0, "woken")
-
-		// One writer coroutine and one reader, with at most one frame permitted.
-		t0 = begin()
-		val permits = Channel<Unit>()
-		val writer = launch {
+		subscribed(broadcast, "ready") { track, subscriber ->
+			val t0 = begin()
 			repeat(GROUPS) {
 				val at = next()
 				track.appendGroup(at).use { group ->
-					repeat(FRAMES) {
-						permits.receive()
-						group.writeFrame(at, frame)
+					subscriber.recvGroup()!!.use { reader ->
+						repeat(FRAMES) {
+							group.writeFrame(at, frame)
+							last?.close()
+							last = reader.readFrame()!!
+						}
 					}
-					permits.receive()
 					group.finish().close()
 				}
 			}
+			out["ready"] = end(t0, "ready")
 		}
-		repeat(GROUPS) {
-			subscriber.recvGroup()!!.use { reader ->
-				repeat(FRAMES) {
-					permits.send(Unit)
-					reader.readFrame()!!.close()
+
+		// Each read started before its frame is written, so it suspends, and the write's wake
+		// resumes it through runBlocking's event loop.
+		subscribed(broadcast, "woken") { track, subscriber ->
+			val t0 = begin()
+			repeat(GROUPS) {
+				val at = next()
+				track.appendGroup(at).use { group ->
+					subscriber.recvGroup()!!.use { reader ->
+						repeat(FRAMES) {
+							val pending = async(start = CoroutineStart.UNDISPATCHED) { reader.readFrame() }
+							group.writeFrame(at, frame)
+							pending.await()!!.close()
+						}
+					}
+					group.finish().close()
 				}
 			}
-			permits.send(Unit)
+			out["woken"] = end(t0, "woken")
 		}
-		writer.join()
-		permits.close()
-		out["loop"] = end(t0, "loop")
 
-		for (size in SIZES) out["mbps:$size"] = throughput(track, subscriber, next, size)
-		subscriber.close()
+		// One writer coroutine and one reader, with at most one frame permitted.
+		subscribed(broadcast, "loop") { track, subscriber ->
+			val t0 = begin()
+			val permits = Channel<Unit>()
+			val writer = launch {
+				repeat(GROUPS) {
+					val at = next()
+					track.appendGroup(at).use { group ->
+						repeat(FRAMES) {
+							permits.receive()
+							group.writeFrame(at, frame)
+						}
+						permits.receive()
+						group.finish().close()
+					}
+				}
+			}
+			repeat(GROUPS) {
+				subscriber.recvGroup()!!.use { reader ->
+					repeat(FRAMES) {
+						permits.send(Unit)
+						reader.readFrame()!!.close()
+					}
+				}
+				permits.send(Unit)
+			}
+			writer.join()
+			permits.close()
+			out["loop"] = end(t0, "loop")
+		}
+
+		for (size in SIZES) out["mbps:$size"] = throughput(broadcast, next, size)
 	}
 
 	// The last frame's 100 bytes, copied across, and one of them read.

@@ -3,6 +3,7 @@
 import importlib.util
 import json
 import os
+import plistlib
 from pathlib import Path
 import shutil
 import subprocess
@@ -358,6 +359,66 @@ class Reproducible(unittest.TestCase):
             self.assertTrue(flags[0].startswith("--remap-path-prefix="), flags)
             self.assertNotIn("-C", flags)
 
+    def test_both_spellings_of_a_linked_directory_are_remapped(self):
+        with tempfile.TemporaryDirectory() as tmp, mock.patch.dict(os.environ, {"CARGO_HOME": tmp + "/home"}):
+            os.environ.pop("CARGO_ENCODED_RUSTFLAGS", None)
+            real = Path(tmp).resolve() / "real"
+            (real / "export").mkdir(parents=True)
+            (Path(tmp) / "link").symlink_to(real, target_is_directory=True)
+            link = Path(tmp) / "link"
+            flags = package.reproducible(info(link), link / "export", "x86_64-unknown-linux-gnu")["CARGO_ENCODED_RUSTFLAGS"].split("\x1f")
+            for spelled in (link, real):
+                self.assertIn(f"--remap-path-prefix={spelled}=/source", flags)
+                self.assertIn(f"--remap-path-prefix={spelled / 'export'}=/export", flags)
+
+    def test_a_build_reaches_its_packages_through_the_link(self):
+        with tempfile.TemporaryDirectory() as tmp, mock.patch.dict(os.environ, {"CARGO_HOME": tmp + "/home"}):
+            root = Path(tmp).resolve()
+            crate, export = root / "checkout/source/crate", root / "checkout/export"
+            crate.mkdir(parents=True)
+            export.mkdir()
+            (export / "Cargo.toml").write_text('[dependencies]\ncrate = { path = "../source/crate" }\n')
+            (crate / "Cargo.toml").write_text('[package]\nname = "crate"\n')
+            (root / "checkout/source/Cargo.toml").write_text('[workspace]\nmembers = ["crate"]\n')
+            link = root / "link"
+            graph = ([crate], [root / "checkout/source/Cargo.toml"])
+            # Where cargo runs, and so where it reads its config from.
+            manifest = export / "Cargo.toml"
+            with mock.patch.object(package, "LINK", link), mock.patch.object(package, "local_packages", return_value=graph):
+                with package.linked(manifest, export) as spell:
+                    # The deepest directory holding the export, the crate, and its workspace root.
+                    self.assertEqual(link.resolve(), root / "checkout")
+                    self.assertEqual(spell(export), link / "export")
+                    self.assertEqual(spell(crate), link / "source/crate")
+                    # A second build while one holds the link would build the other's sources.
+                    with self.assertRaises(SystemExit), package.linked(manifest, export):
+                        pass
+                self.assertFalse(os.path.lexists(link))
+                self.assertTrue(export.is_dir())
+                # A package named by its absolute path would be two packages, by it and through the link.
+                (crate / "Cargo.toml").write_text(f'[package]\nname = "crate"\n\n[dependencies]\nother = {{ path = {json.dumps(str(root))} }}\n')
+                with package.linked(manifest, export) as spell:
+                    self.assertFalse(os.path.lexists(link))
+                    self.assertEqual(spell(export), export)
+                # So would one a cargo config names, which cargo joins from the config's real directory.
+                (crate / "Cargo.toml").write_text('[package]\nname = "crate"\n')
+                (root / "checkout/.cargo").mkdir()
+                for config in ('[patch.crates-io]\nother = { path = "source/other" }\n', 'paths = ["source/other"]\n'):
+                    (root / "checkout/.cargo/config.toml").write_text(config)
+                    with package.linked(manifest, export) as spell:
+                        self.assertFalse(os.path.lexists(link))
+                        self.assertEqual(spell(export), export)
+                (root / "checkout/.cargo/config.toml").write_text('[build]\nincremental = false\n')
+                with package.linked(manifest, export) as spell:
+                    self.assertEqual(spell(export), link / "export")
+
+    def test_a_relative_cargo_home_is_where_cargo_runs(self):
+        with tempfile.TemporaryDirectory() as tmp, mock.patch.dict(os.environ, {"CARGO_HOME": "home"}):
+            crate = Path(tmp).resolve() / "crate"
+            (crate / "home").mkdir(parents=True)
+            (crate / "home/config.toml").write_text('paths = ["other"]\n')
+            self.assertIn(crate / "home/config.toml", [found for found, _ in package.cargo_configs(crate)])
+
     def test_a_path_cc_would_split_fails(self):
         with tempfile.TemporaryDirectory() as tmp, mock.patch.dict(os.environ, {"CARGO_HOME": tmp + "/home"}):
             os.environ.pop("CARGO_ENCODED_RUSTFLAGS", None)
@@ -609,6 +670,69 @@ class Swift(unittest.TestCase):
         self.assertIn('.linkedFramework("CoreFoundation", .when(platforms: [.macOS]))', settings)
         self.assertIn('.linkedLibrary("iconv")', settings)
 
+    def test_linker_settings_catalyst(self):
+        settings = package.linker_settings({
+            "macos": "-framework AppKit -lSystem",
+            "ios": "-framework UIKit -lSystem",
+            "maccatalyst": "-framework UIKit -lSystem",
+        })
+        self.assertIn('.linkedFramework("UIKit", .when(platforms: [.iOS, .macCatalyst]))', settings)
+        self.assertIn('.linkedLibrary("System")', settings)
+
+    def test_api_names(self):
+        self.assertEqual(package.api_name("_stat"), "stat")
+        self.assertEqual(package.api_name("_fstatat$INODE64"), "fstatat")
+        self.assertEqual(package.api_name("_OBJC_CLASS_$_NSUserDefaults"), "OBJC_CLASS_$_NSUserDefaults")
+
+    def test_required_apis(self):
+        imports = "_fstat$INODE64\n_NSFileSystemFreeSize\n_NSURLCreationDateKey\n_memcpy\n"
+        with mock.patch.object(package, "output", return_value=imports):
+            self.assertEqual(package.required_apis("probe.dylib"), {
+                "FileTimestamp": {"fstat", "NSURLCreationDateKey"},
+                "DiskSpace": {"NSFileSystemFreeSize"},
+            })
+        with self.assertRaises(SystemExit) as raised:
+            package.privacy_manifest("moq", {"DiskSpace": {"NSFileSystemFreeSize"}})
+        self.assertIn("NSFileSystemFreeSize", str(raised.exception))
+
+    def test_privacy_manifest_declares_reasons(self):
+        found = {"FileTimestamp": {"fstat", "stat"}, "SystemBootTime": {"mach_absolute_time"}}
+        plist = plistlib.loads(package.privacy_manifest("moq", found))
+        self.assertEqual(plist, {"NSPrivacyAccessedAPITypes": [
+            {"NSPrivacyAccessedAPIType": "NSPrivacyAccessedAPICategoryFileTimestamp",
+             "NSPrivacyAccessedAPITypeReasons": ["C617.1", "3B52.1"]},
+            {"NSPrivacyAccessedAPIType": "NSPrivacyAccessedAPICategorySystemBootTime",
+             "NSPrivacyAccessedAPITypeReasons": ["35F9.1"]},
+        ]})
+        self.assertEqual(plistlib.loads(package.privacy_manifest("moq", {})), {"NSPrivacyAccessedAPITypes": []})
+
+    def test_privacy_manifest_refuses_unknown_reasons(self):
+        for category, api in (("DiskSpace", "statfs"), ("FileTimestamp or DiskSpace", "getattrlist"),
+                              ("UserDefaults", "OBJC_CLASS_$_NSUserDefaults")):
+            with self.assertRaises(SystemExit, msg=category) as raised:
+                package.privacy_manifest("moq", {category: {api}, "FileTimestamp": {"stat"}})
+            self.assertIn(api, str(raised.exception))
+
+    def test_apple_profile(self):
+        with tempfile.TemporaryDirectory() as raw, mock.patch.dict(os.environ):
+            os.environ.pop("CARGO_PROFILE_RELEASE_DEBUG", None)
+            manifest = Path(raw) / "Cargo.toml"
+            manifest.write_text('[package]\nname = "x"\n')
+            self.assertEqual(package.apple_profile(manifest), {"CARGO_PROFILE_RELEASE_DEBUG": "line-tables-only"})
+            for level in ("false", "0", '"none"', '"line-directives-only"'):
+                manifest.write_text(f'[package]\nname = "x"\n\n[profile.release]\ndebug = {level}\n')
+                self.assertEqual(package.apple_profile(manifest), {"CARGO_PROFILE_RELEASE_DEBUG": "line-tables-only"}, level)
+            for level in ("true", "1", '"full"', '"line-tables-only"'):
+                manifest.write_text(f'[package]\nname = "x"\n\n[profile.release]\ndebug = {level}\n')
+                self.assertEqual(package.apple_profile(manifest), {}, level)
+            # The environment overrides the profile, as it does for cargo.
+            for level in ("0", "false", "none", "line-directives-only"):
+                os.environ["CARGO_PROFILE_RELEASE_DEBUG"] = level
+                self.assertEqual(package.apple_profile(manifest), {"CARGO_PROFILE_RELEASE_DEBUG": "line-tables-only"}, level)
+            for level in ("1", "2", "true", "limited", "full", "line-tables-only"):
+                os.environ["CARGO_PROFILE_RELEASE_DEBUG"] = level
+                self.assertEqual(package.apple_profile(manifest), {}, level)
+
     def test_unknown_linker_flags_fail(self):
         with self.assertRaises(SystemExit):
             package.linker_settings({"macos": "-Wl,-dead_strip"})
@@ -616,9 +740,10 @@ class Swift(unittest.TestCase):
     def test_manifest(self):
         text = package.package_swift("Moq", "1.7.5", ['.linkedLibrary("iconv")'],
                                      '.binaryTarget(name: "MoqFFI", url: "https://x/MoqFFI.xcframework.zip", checksum: "00")')
-        self.assertIn('platforms: [.macOS("13.0"), .iOS("16.0")]', text)
+        self.assertIn('platforms: [.macOS("13.0"), .iOS("16.0"), .macCatalyst("16.0")]', text)
+        self.assertIn('.target(name: "MoqPrivacy", resources: [.copy("PrivacyInfo.xcprivacy")])', text)
         self.assertIn('exact: "1.7.5"', text)
-        self.assertIn('dependencies: ["MoqFFI", .product(name: "BasicContainers", package: "swift-collections")]', text)
+        self.assertIn('dependencies: ["MoqFFI", "MoqPrivacy", .product(name: "BasicContainers", package: "swift-collections")]', text)
 
 
 class CArchive(unittest.TestCase):
@@ -748,6 +873,14 @@ class Sdist(unittest.TestCase):
         self.assertEqual(moved["target"]["cfg(unix)"]["dependencies"]["tls"]["path"], "../sources/src/tls")
         self.assertEqual(moved["patch"]["crates-io"]["url"]["path"], "../sources/vendor/url")
 
+    def test_moves_each_path_once(self):
+        # One package's new path is another's old one, as relative keys can make: each path
+        # moves by its original value alone.
+        manifest = '[dependencies]\na = { path = "../a" }\nb = { path = "../sources/a" }\n'
+        moves = {"../a": "../sources/a", "../sources/a": "../sources/sources/a"}
+        moved = tomllib.loads(package.relocate(manifest, moves, strict=True))
+        self.assertEqual(moved["dependencies"], {"a": {"path": "../sources/a"}, "b": {"path": "../sources/sources/a"}})
+
     def test_refuses_a_path_no_package_lies_at(self):
         manifest = '[dependencies]\na = { path = "/src/a" }\nb = { path = "/elsewhere/b" }\n'
         with self.assertRaises(SystemExit):
@@ -755,6 +888,13 @@ class Sdist(unittest.TestCase):
         # A package's own manifest may name what its build never loads, such as a dev-dependency.
         moved = tomllib.loads(package.relocate(manifest, {"/src/a": "../a"}))
         self.assertEqual(moved["dependencies"], {"a": {"path": "../a"}, "b": {"path": "/elsewhere/b"}})
+
+    def test_a_dependency_named_path_is_searched(self):
+        manifest = ('[dependencies]\npath = { package = "helper", path = "/src/helper" }\n'
+                    '[target.x.dependencies]\nb = { path = "../b" }\n')
+        self.assertEqual(package.manifest_paths(tomllib.loads(manifest)), ["/src/helper", "../b"])
+        moved = tomllib.loads(package.relocate(manifest, {"/src/helper": "../helper", "../b": "../b"}, strict=True))
+        self.assertEqual(moved["dependencies"]["path"], {"package": "helper", "path": "../helper"})
 
     def test_refuses_a_path_spelled_otherwise(self):
         with self.assertRaises(SystemExit):
@@ -1006,6 +1146,39 @@ class Web(unittest.TestCase):
             check.write_text('import * as api from "./web/nested/index.ts";\n')
             with self.assertRaises(SystemExit):
                 package.check_program(check, "@moq/moq-ffi")
+
+    def test_check_directory_names_its_program(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            (Path(tmp) / "transcript.ts").write_text("")
+            with self.assertRaises(SystemExit):
+                package.check_program_in(tmp, ("check.ts",))
+            (Path(tmp) / "check.ts").write_text("")
+            self.assertEqual(package.check_program_in(tmp, ("check.ts",)), Path(tmp) / "check.ts")
+            (Path(tmp) / "check.c").write_text("")
+            (Path(tmp) / "check.cpp").write_text("")
+            with self.assertRaises(SystemExit):
+                package.check_program_in(tmp, ("check.c", "check.cpp"))
+
+    def test_python_check_imports_its_modules_alone(self):
+        # The check's directory is on the path, and only it: not the working directory, and
+        # not PYTHONPATH. The generated script reaches the check's functions as `__main__`.
+        with tempfile.TemporaryDirectory() as tmp:
+            check, elsewhere = Path(tmp) / "check", Path(tmp) / "elsewhere"
+            check.mkdir()
+            elsewhere.mkdir()
+            (elsewhere / "stray.py").write_text("")
+            (check / "check.py").write_text(
+                "import importlib.util\n"
+                "def hook():\n    return 'hooked'\n"
+                "assert importlib.util.find_spec('stray') is None\n"
+                "import transcript\ntranscript.script()\n")
+            (check / "transcript.py").write_text("import __main__ as local\ndef script():\n    print(local.hook())\n")
+            (Path(tmp) / "native.txt").write_bytes(b"hooked\n")
+            with mock.patch.dict(os.environ, {"PYTHONPATH": str(elsewhere)}):
+                package.consume_python(check, Path(tmp) / "native.txt", None)
+            (Path(tmp) / "native.txt").write_bytes(b"other\n")
+            with self.assertRaises(SystemExit):
+                package.consume_python(check, Path(tmp) / "native.txt", None)
 
 
 if __name__ == "__main__":

@@ -1389,9 +1389,18 @@ def leaf():
 	check(plain.n_get == 4 and plain.on_get, "a leaf getter reads what a leaf setter wrote")
 	check(plain == api.Plain.new(4, True) and plain != api.Plain.new(4, False), "a leaf equality")
 	check(hash(plain) == hash(api.Plain.new(4, True)), "a leaf hash")
+	plain.recount(5)
+	check(plain.count() == 5, "a leaf method reads what a leaf method wrote")
+	check(plain.steps() == 5, "a method that loops")
+	wrapped = api.Wrapped.new(3)
+	wrapped.n_set(4)
+	check(wrapped.n_get == 4 and wrapped.count() == 4, "a leaf through a Deref")
 	labeled = api.Labeled.new("a" * 100)
 	check(labeled == api.Labeled.new("a" * 100) and labeled != api.Labeled.new("b"), "a leaf equality over a string")
 	check(hash(labeled) == hash(api.Labeled.new("a" * 100)), "a leaf hash over a string")
+	buffer = api.Buffer.new(100)
+	buffer.blank()
+	check(buffer.zeroed(), "a fill the caller sized")
 
 	hooked = []
 	api.hook(lambda: hooked.append(threading.get_ident()))
@@ -1419,6 +1428,12 @@ def leaf():
 		thread.join()
 		count = len(hooked)
 		check(use() and len(hooked) == count + 1, "a use of a part that drains releases the GIL")
+	count = len(hooked)
+	check(api.Hooked.new(1).count() == 1 and len(hooked) == count + 1, "a hooked method")
+	check(hooked[-1] != threading.get_ident(), "a hooked method releases the GIL")
+	guarded = api.Guarded.new(2)
+	check(guarded.n_get == 2 and guarded.count() == 2, "a hooked Deref")
+	check(len(hooked) == count + 3, "a hooked Deref releases the GIL")
 	api.unhook()
 	del part
 	del pinned

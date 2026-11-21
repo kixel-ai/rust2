@@ -1258,11 +1258,22 @@ Future<void> leaf() async {
   check(plain.nGet == api.U64(4) && plain.onGet, 'a leaf getter reads what a leaf setter wrote');
   check(plain == api.Plain(api.U64(4), true) && plain != api.Plain(api.U64(4), false), 'a leaf equality');
   check(plain.hashCode == api.Plain(api.U64(4), true).hashCode, 'a leaf hash');
+  plain.recount(api.U64(5));
+  check(plain.count() == api.U64(5), 'a leaf method reads what a leaf method wrote');
+  check(plain.steps() == api.U64(5), 'a method that loops');
+  final wrapped = api.Wrapped(api.U64(3));
+  wrapped.nSet(api.U64(4));
+  check(wrapped.nGet == api.U64(4) && wrapped.count() == api.U64(4), 'a leaf through a Deref');
+  wrapped.close();
   // A walk of a string the caller sized, which a leaf call would make the collector wait on.
   final labeled = api.Labeled('a' * 100);
   check(labeled == api.Labeled('a' * 100) && labeled != api.Labeled('b'), 'a served equality over a string');
   check(labeled.hashCode == api.Labeled('a' * 100).hashCode, 'a served hash over a string');
   labeled.close();
+  final buffer = api.Buffer(100);
+  buffer.blank();
+  check(buffer.zeroed(), 'a fill the caller sized');
+  buffer.close();
   plain.close();
   throws<StateError>(() => plain.nGet, 'a leaf getter of a closed object throws');
 
@@ -1279,6 +1290,12 @@ Future<void> leaf() async {
   check(pinned.valueGet == api.U64(5), 'a getter of a value kept on its thread');
   pinned.close();
   check(hooked == 3, 'a drop on a home serves the isolate');
+  check(api.Hooked(api.U64(1)).count() == api.U64(1), 'a hooked method');
+  check(hooked == 4, 'a hooked method serves the isolate');
+  final guarded = api.Guarded(api.U64(2));
+  check(guarded.nGet == api.U64(2) && guarded.count() == api.U64(2), 'a hooked Deref');
+  check(hooked == 6, 'a hooked Deref serves the isolate');
+  guarded.close();
   api.unhook();
   print('leaf ok');
 }

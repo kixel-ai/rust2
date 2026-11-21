@@ -6,7 +6,7 @@
 // cgo makes its own, in ffi_cgo.go; it reaches this through Go's types alone.
 
 // The holds a handle counts, one for its owner until closed and one per call, shifted
-// past a bit set once closed, one set while an unchecked Close decides, and one set once
+// past a bit set once closed, one set while a Close that may yet fail decides, and one set once
 // calls contended for them, after which they hold it in slots_: in one word, so a call
 // reads them all at once, and the count is below held_ only once no hold is left.
 const (
@@ -409,7 +409,7 @@ func (h *Handle_) Moved() {
 func (h *Handle_) abandon() {
 	for {
 		n := h.state.Load()
-		// An unchecked Close is deciding: wait for its outcome, which may leave h open.
+		// A Close is deciding: wait for its outcome, which may leave h open.
 		if n&closing_ != 0 {
 			runtime.Gosched()
 			continue

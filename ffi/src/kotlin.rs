@@ -77,6 +77,7 @@ pub(crate) fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<O
 		on: On::ALL,
 		slots: 0,
 		room: 0,
+		unwind: abi.space("unwind"),
 		fast: String::new(),
 	};
 	for name in g.classes.values() {
@@ -147,7 +148,15 @@ pub(crate) fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<O
 	}
 	// What the glue calls to read a reader, and to take the error a closure or reader threw.
 	let mut helpers = String::new();
-	let mut looked = vec!["__wake", "__free", "__poll", "__failed", "__refused", "__invalid"];
+	let mut looked = vec![
+		"__wake",
+		"__free",
+		"__poll",
+		"__failed",
+		"__refused",
+		"__invalid",
+		"__unwound",
+	];
 	if g.reads {
 		helpers.push_str(READS);
 		looked.extend(["__read", "__seek", "__io_error"]);
@@ -169,7 +178,7 @@ pub(crate) fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<O
 	}
 	let _ = write!(
 		kotlin,
-		"/** The runtime's [_Native.__Eq], by a name no class, field, or member of the binding takes, since\n * each is in Pascal or camel case. */\ninternal val _eq = _Native.__Eq\n\ninternal object _Native {{\n\tinit {{\n\t\tSystem.loadLibrary(\"{p}\")\n\t\t// Checked before any other call, which it readies the library for: a Kotlin file\n\t\t// and a library from different builds must not mix.\n\t\tkotlin.check(__contract().toULong() == {}) {{ \"{p}.kt and the library are from different builds\" }}\n\t}}\n\n\t@kotlin.jvm.JvmStatic external fun __contract(): Long\n\n\t@kotlin.jvm.JvmStatic external fun __target(): Int\n\n\t@kotlin.jvm.JvmStatic external fun __usize_max(): Long\n\n\t/** The index of the library's target among those this file serves. */\n\tprivate val target = __target()\n\n\t/** Throws unless the library's target is among those of [on], as the item [what] is. */\n\tfun check(on: ULong, what: String) {{\n\t\tif ((on shr target) and 1uL == 0uL) throw kotlin.UnsupportedOperationException(\"$what: it is not on this library's target\")\n\t}}\n\n\t@kotlin.jvm.JvmStatic external fun __waker_new(waker: Waker): Long\n\n\t@kotlin.jvm.JvmStatic external fun __waker_free(node: Long)\n\n\t@kotlin.jvm.JvmStatic external fun __waker_wake(raw: Long)\n\n\t@kotlin.jvm.JvmStatic external fun __waker_drop(raw: Long)\n\n\t@kotlin.jvm.JvmStatic external fun __bytes_get(lent: __Lent, owner: Long, index: Int): Byte\n\n\t@kotlin.jvm.JvmStatic external fun __bytes_copy(lent: __Lent, owner: Long, start: Int, len: Int, destination: ByteArray, at: Int)\n\n\t@kotlin.jvm.JvmStatic external fun __bytes_copy_direct(lent: __Lent, owner: Long, start: Int, len: Int, destination: java.nio.ByteBuffer, at: Int)\n\n\t@kotlin.jvm.JvmStatic external fun __bytes_free(owner: Long)\n\n\t@kotlin.jvm.JvmStatic private fun __wake(waker: Any) = (waker as Waker).wake()\n\n\t@kotlin.jvm.JvmStatic private fun __poll(pollable: Any, waker: Long): Boolean = (pollable as __Pollable).poll(waker)\n\n\t@kotlin.jvm.JvmStatic private fun __free(implementation: Any) {{\n\t\tif (implementation is AutoCloseable) implementation.close()\n\t}}\n\n\t/** The encoded error a native call raised, which its function throws as its exception. No stack trace: it is caught at once. */\n\tclass __Failed(@kotlin.jvm.JvmField val error: ByteArray) : kotlin.RuntimeException(null, null, false, false)\n\n\t@kotlin.jvm.JvmStatic private fun __failed(error: ByteArray): Throwable = __Failed(error)\n\n\t/** A call a failed run-time check refused, before it moved or changed anything. */\n\tclass __Refused(message: String) : kotlin.IllegalStateException(message)\n\n\t@kotlin.jvm.JvmStatic private fun __refused(message: String): Throwable = __Refused(message)\n\n\t/** A call refused before it moved or changed anything, as an argument holds a value its Rust type cannot. */\n\tclass __Invalid(message: String) : kotlin.IllegalArgumentException(message)\n\n\t@kotlin.jvm.JvmStatic private fun __invalid(message: String): Throwable = __Invalid(message)\n\n{helpers}{}{}}}\n",
+		"/** The runtime's [_Native.__Eq], by a name no class, field, or member of the binding takes, since\n * each is in Pascal or camel case. */\ninternal val _eq = _Native.__Eq\n\ninternal object _Native {{\n\tinit {{\n\t\tSystem.loadLibrary(\"{p}\")\n\t\t// Checked before any other call, which it readies the library for: a Kotlin file\n\t\t// and a library from different builds must not mix.\n\t\tkotlin.check(__contract().toULong() == {}) {{ \"{p}.kt and the library are from different builds\" }}\n\t}}\n\n\t@kotlin.jvm.JvmStatic external fun __contract(): Long\n\n\t@kotlin.jvm.JvmStatic external fun __target(): Int\n\n\t@kotlin.jvm.JvmStatic external fun __usize_max(): Long\n\n\t/** The index of the library's target among those this file serves. */\n\tprivate val target = __target()\n\n\t/** Throws unless the library's target is among those of [on], as the item [what] is. */\n\tfun check(on: ULong, what: String) {{\n\t\tif ((on shr target) and 1uL == 0uL) throw kotlin.UnsupportedOperationException(\"$what: it is not on this library's target\")\n\t}}\n\n\t@kotlin.jvm.JvmStatic external fun __waker_new(waker: Waker): Long\n\n\t@kotlin.jvm.JvmStatic external fun __waker_free(node: Long)\n\n\t@kotlin.jvm.JvmStatic external fun __waker_wake(raw: Long)\n\n\t@kotlin.jvm.JvmStatic external fun __waker_drop(raw: Long)\n\n\t@kotlin.jvm.JvmStatic external fun __bytes_get(lent: __Lent, owner: Long, index: Int): Byte\n\n\t@kotlin.jvm.JvmStatic external fun __bytes_copy(lent: __Lent, owner: Long, start: Int, len: Int, destination: ByteArray, at: Int)\n\n\t@kotlin.jvm.JvmStatic external fun __bytes_copy_direct(lent: __Lent, owner: Long, start: Int, len: Int, destination: java.nio.ByteBuffer, at: Int)\n\n\t@kotlin.jvm.JvmStatic external fun __bytes_free(owner: Long)\n\n\t@kotlin.jvm.JvmStatic private fun __wake(waker: Any) = (waker as Waker).wake()\n\n\t@kotlin.jvm.JvmStatic private fun __poll(pollable: Any, waker: Long): Boolean = (pollable as __Pollable).poll(waker)\n\n\t@kotlin.jvm.JvmStatic private fun __free(implementation: Any) {{\n\t\tif (implementation is AutoCloseable) implementation.close()\n\t}}\n\n\t/** The encoded error a native call raised, which its function throws as its exception. No stack trace: it is caught at once. */\n\tclass __Failed(@kotlin.jvm.JvmField val error: ByteArray) : kotlin.RuntimeException(null, null, false, false)\n\n\t@kotlin.jvm.JvmStatic private fun __failed(error: ByteArray): Throwable = __Failed(error)\n\n\t/** A call a failed run-time check refused, before it moved or changed anything. */\n\tclass __Refused(message: String) : kotlin.IllegalStateException(message)\n\n\t@kotlin.jvm.JvmStatic private fun __refused(message: String): Throwable = __Refused(message)\n\n\t/** A call refused before it moved or changed anything, as an argument holds a value its Rust type cannot. */\n\tclass __Invalid(message: String) : kotlin.IllegalArgumentException(message)\n\n\t@kotlin.jvm.JvmStatic private fun __invalid(message: String): Throwable = __Invalid(message)\n\n\t/** A call a closure it reached refused, by returning a value its Rust type cannot hold, as [__Invalid] refuses an argument: the call ran, so what it moved is gone. */\n\tclass __Unwound(cause: Throwable) : kotlin.IllegalArgumentException(cause.message, cause)\n\n\t/** What a closure's [thrown] unwinds Rust with, to the native method below: none, which aborts, unless the binding refused a value. */\n\t@kotlin.jvm.JvmStatic private fun __unwound(thrown: Throwable): Throwable? = when (thrown) {{\n\t\tis __Unwound -> thrown\n\t\tis __Invalid -> __Unwound(thrown)\n\t\telse -> null\n\t}}\n\n{helpers}{}{}}}\n",
 		contract_literal(contract),
 		g.natives,
 		indent_by(RUNTIME, 1),
@@ -646,22 +655,43 @@ struct Gen<'a> {
 	/// The JVM parameter slots the function being written may still spend on a record's
 	/// scalars.
 	room: usize,
+	/// Where the glue names each C function's `C-unwind` body, which the native methods
+	/// call, so a closure's failed check unwinds to them.
+	unwind: String,
 	/// The leaves' native methods, as the `JNINativeMethod`s `__contract` registers.
 	fast: String,
 }
 
 impl<'a> Gen<'a> {
-	/// The Kotlin call `raw`, then `after`, which closes what it moved out, however it ended
-	/// unless a failed check refused it, or an argument held a value its Rust type cannot,
-	/// which throws `_Native.__Invalid` first: either moved nothing. It binds no name a parameter
-	/// `after` closes may take: its exception's is fresh, and its result is `_`.
-	fn moving(&mut self, raw: &str, after: &[String]) -> String {
+	/// The Kotlin call `call` makes of the native arguments `args`, then `after`, which closes
+	/// what it moved out, however it ended unless a failed check refused it, or an argument
+	/// held a value its Rust type cannot, which throws `_Native.__Invalid` first: either moved
+	/// nothing. Each argument is evaluated before, so one that throws, as an enum's variant
+	/// not on the library's target does, closes nothing either. It binds no name a parameter
+	/// `after` closes may take: each is fresh, and its result is `_`.
+	fn moving(&mut self, args: &[String], call: impl FnOnce(&str) -> String, after: &[String]) -> String {
 		let after = after.join("; ");
+		let mut vals = String::new();
+		let names: Vec<String> = args
+			.iter()
+			.map(|arg| match arg.chars().all(|c| c.is_alphanumeric() || c == '_') {
+				true => arg.clone(),
+				false => {
+					let x = self.fresh("x");
+					let _ = writeln!(vals, "\tval {x} = {arg}");
+					x
+				}
+			})
+			.collect();
 		let thrown = self.fresh("e");
-		format!(
+		let moving = format!(
 			"try {{\n{}\n}} catch ({thrown}: Throwable) {{\n\tif ({thrown} !is _Native.__Refused && {thrown} !is _Native.__Invalid) {{ {after} }}\n\tthrow {thrown}\n}}.also {{ _ -> {after} }}",
-			indent_by(raw, 1)
-		)
+			indent_by(&call(&names.join(", ")), 1)
+		);
+		match vals.is_empty() {
+			true => moving,
+			false => format!("run {{\n{vals}{}\n}}", indent_by(&moving, 1)),
+		}
 	}
 
 	fn fresh(&mut self, base: &str) -> String {
@@ -1525,6 +1555,7 @@ impl<'a> Gen<'a> {
 	fn traits(&mut self, ty: &Type, c: &str, t: crate::ir::Traits, body: &mut Vec<String>, statics: &mut Vec<String>) {
 		let class = self.qualified(c);
 		let bare = self.bare(c).to_string();
+		let u = format!("{}_{c}", self.unwind);
 		let object = matches!(ty, Type::Object(_));
 		let opaque = match ty {
 			Type::Record(i) => self.abi.api.records[*i].opaque,
@@ -1578,7 +1609,7 @@ impl<'a> Gen<'a> {
 				&params,
 				("jbyteArray", "ByteArray?"),
 				&checked(
-					&format!("crate::{c}_{suffix}({rust_self})"),
+					&format!("crate::{u}_{suffix}({rust_self})"),
 					&format!("{c}_{suffix}"),
 					"rt::owned(env, ret)",
 				),
@@ -1591,7 +1622,7 @@ impl<'a> Gen<'a> {
 			if !t.hash {
 				return "\t/** One for every value: Rust's `PartialEq` comes with no `Hash`. */\n\toverride fun hashCode(): kotlin.Int = 0\n".to_string();
 			}
-			let call = format!("crate::{c}_hash({rust_self})");
+			let call = format!("crate::{u}_hash({rust_self})");
 			let body = checked(&call, &format!("{c}_hash"), "ret as jlong");
 			// Bounded too, so the collector never waits on a walk the value's size sets.
 			match object && g.abi.leaf_trait(ty, true) && t.leaf_sized {
@@ -1635,7 +1666,7 @@ impl<'a> Gen<'a> {
 				&[("jlong", "Long")],
 				("jlong", "Long"),
 				&checked(
-					&format!("crate::{c}_clone(p0 as usize as _)"),
+					&format!("crate::{u}_clone(p0 as usize as _)"),
 					&format!("{c}_clone"),
 					"ret as usize as jlong",
 				),
@@ -1656,7 +1687,7 @@ impl<'a> Gen<'a> {
 					(
 						vec![("jlong", "Long"); words.len()],
 						format!(
-							"crate::{c}_eq(&{}, &{})",
+							"crate::{u}_eq(&{}, &{})",
 							from_kotlin(&opaque, a),
 							from_kotlin(&opaque, b)
 						),
@@ -1667,7 +1698,7 @@ impl<'a> Gen<'a> {
 					let (this, other) = (self.write_value(ty, "w", "this"), self.write_value(ty, "w", "other"));
 					(
 						vec![("jbyteArray", "ByteArray"), ("jobjectArray", "kotlin.Array<Any?>?")],
-						"{ let b = rt::bytes(env, p0).unwrap_or_default(); let Some(mut r) = rt::Reader::new(env, &b, p1) else { return rt::raised() }; crate::{c}_eq(&r.get(), &r.get()) }".replace("{c}", c),
+						"{ let b = rt::bytes(env, p0).unwrap_or_default(); let Some(mut r) = rt::Reader::new(env, &b, p1) else { return rt::raised() }; crate::{u}_eq(&r.get(), &r.get()) }".replace("{u}", &u),
 						format!("_Native.__Writer().use {{ w -> {this}; {other}; _Native.{bare}_eq(w.finish(), w.refs()) }}"),
 					)
 				}
@@ -1680,7 +1711,7 @@ impl<'a> Gen<'a> {
 		}
 		if object && t.eq {
 			let rust = checked(
-				&format!("crate::{c}_eq(p0 as usize as _, p1 as usize as _)"),
+				&format!("crate::{u}_eq(p0 as usize as _, p1 as usize as _)"),
 				&format!("{c}_eq"),
 				"ret",
 			);
@@ -1706,14 +1737,14 @@ impl<'a> Gen<'a> {
 			let (params, call, kt): (Vec<(&str, &str)>, _, _) = match object {
 				true => (
 					vec![("jlong", "Long"); 2],
-					(String::new(), format!("crate::{c}_{suffix}(p0 as usize as _, p1 as usize as _)")),
+					(String::new(), format!("crate::{u}_{suffix}(p0 as usize as _, p1 as usize as _)")),
 					format!("handle.hold {{ a -> other.handle.hold {{ b -> _Native.{bare}_{suffix}(a, b) }} }}"),
 				),
 				false => (
 					vec![("jbyteArray", "ByteArray"), ("jobjectArray", "kotlin.Array<Any?>?")],
 					(
 						"let b = rt::bytes(env, p0).unwrap_or_default();\n\t\tlet Some(mut r) = rt::Reader::new(env, &b, p1) else {\n\t\t\treturn rt::raised();\n\t\t};\n\t\tlet (x, y) = (r.get(), r.get());\n\t\t".to_string(),
-						format!("crate::{c}_{suffix}(&x, &y)"),
+						format!("crate::{u}_{suffix}(&x, &y)"),
 					),
 					format!(
 						"_Native.__Writer().use {{ w -> {}; {}; _Native.{bare}_{suffix}(w.finish(), w.refs()) }}",
@@ -1745,19 +1776,19 @@ impl<'a> Gen<'a> {
 				Type::Object(_) => (
 					"jlong",
 					"Long",
-					format!("crate::{c}_default() as usize as jlong"),
+					format!("crate::{u}_default() as usize as jlong"),
 					format!("{class}(_Native.{bare}_default())"),
 				),
 				Type::Enum(i) if self.abi.api.enums[*i].plain() => (
 					"jint",
 					"Int",
-					format!("crate::{c}_default()"),
+					format!("crate::{u}_default()"),
 					format!("{class}.of(_Native.{bare}_default())"),
 				),
 				_ => (
 					"jbyteArray",
 					"ByteArray",
-					format!("let mut w = rt::Writer::default();\n\t\tw.put(crate::{c}_default());\n\t\tw.array(env)"),
+					format!("let mut w = rt::Writer::default();\n\t\tw.put(crate::{u}_default());\n\t\tw.array(env)"),
 					self.read_value(ty, &format!("_Native.__Reader(_Native.{bare}_default())")),
 				),
 			};
@@ -2159,6 +2190,7 @@ impl<'a> Gen<'a> {
 		let object = &abi.api.objects[i];
 		self.on = object.on;
 		let c = abi.object(i);
+		let u = format!("{}_{c}", self.unwind);
 		let name = self.class(&c);
 		let bare = self.bare(&c).to_string();
 		let rust = abi.api.rust(&object.path, &object.args);
@@ -2167,24 +2199,24 @@ impl<'a> Gen<'a> {
 			&format!("{bare}_free"),
 			&[("jlong", "Long")],
 			("()", "Unit"),
-			&format!("crate::{c}_free(p0 as usize as _)"),
+			&format!("crate::{u}_free(p0 as usize as _)"),
 		);
 		let mut body = vec![match abi.checked[i] {
 			true => {
 				self.native(
 					&format!("{bare}_drop"),
-					&[("jlong", "Long")],
+					&[("jlong", "Long"), ("jboolean", "Boolean")],
 					("()", "Unit"),
 					&format!(
-						"let mut status = 0;\n\t\tcrate::{c}_drop(p0 as usize as _, &mut status);\n\t\tif status != 0 {{\n\t\t\treturn rt::refuse(env, status, \"{c}_drop\");\n\t\t}}"
+						"let mut status = 0;\n\t\tcrate::{u}_drop(p0 as usize as _, &mut status);\n\t\tif status != 0 {{\n\t\t\treturn rt::refuse(env, status, \"{c}_drop\");\n\t\t}}\n\t\tif p1 {{\n\t\t\tcrate::{u}_free(p0 as usize as _);\n\t\t}}"
 					),
 				);
 				format!(
-					"\tinternal val handle = _Native.__Handle(this, raw, if (lent) null else _Native.__Drop {{ _Native.{bare}_free(it) }}, \"{name}\", if (lent) null else _Native.__Close {{ _Native.{bare}_drop(it) }})\n\n\t/** Drop the value now, as Rust's drop does, and free the handle once no call holds it: a call after this throws, and one still borrowing the value makes this throw. */\n\toverride fun close() = handle.close()\n"
+					"\tinternal val handle = _Native.__Handle(this, raw, if (lent) null else _Native.__Drop {{ _Native.{bare}_free(it) }}, \"{name}\", if (lent) null else _Native.__Close {{ p, free -> _Native.{bare}_drop(p, free) }})\n\n\t/** Drop the value now, as Rust's drop does, and free the handle once no call holds it: a call after this throws, and one still borrowing the value makes this throw. */\n\toverride fun close() = handle.close(this)\n"
 				)
 			}
 			false => format!(
-				"\tinternal val handle = _Native.__Handle(this, raw, if (lent) null else _Native.__Drop {{ _Native.{bare}_free(it) }}, \"{name}\")\n\n\t/** Free the handle now: a call after this throws, and one still running makes this throw. */\n\toverride fun close() = handle.close()\n"
+				"\tinternal val handle = _Native.__Handle(this, raw, if (lent) null else _Native.__Drop {{ _Native.{bare}_free(it) }}, \"{name}\")\n\n\t/** Free the handle now: a call after this throws, and one still running makes this throw. */\n\toverride fun close() = handle.close(this)\n"
 			),
 		}];
 		let mut statics = Vec::new();
@@ -2435,7 +2467,7 @@ impl<'a> Gen<'a> {
 			_ => unreachable!("a callback or closure returns no {c_ok:?}"),
 		};
 		let back = match thrown {
-			None => format!("rt::threw(env, \"{what}\");\n\t\t{back}"),
+			None => format!("rt::unwinds(env, \"{what}\");\n\t\t{back}"),
 			Some(_) => {
 				let err = outs.len() - 1;
 				let ok = match c_ok {
@@ -2450,9 +2482,14 @@ impl<'a> Gen<'a> {
 		let invoke = format!(
 			"let ret = unsafe {{ ((**env).v1_2.CallStatic{call_kind}MethodA)(env, rt::class(), id, args.as_ptr()) }};"
 		);
+		let types: Vec<&str> = rust_params
+			.iter()
+			.map(|p| p.split_once(": ").expect("a typed parameter").1)
+			.collect();
+		let types = types.join(", ");
 		let _ = write!(
 			self.glue,
-			"static M_{trampoline}: std::sync::OnceLock<usize> = std::sync::OnceLock::new();\n\nunsafe extern \"C\" fn {trampoline}({}) -> {rust_ret} {{\n\trt::upcall(\"{what}\", |env| {{\n\t\tlet id = rt::method(env, &M_{trampoline}, c\"{dispatcher}\", c\"{sig}\");\n\t\tlet args = [{}];\n\t\t{invoke}\n\t\tlet _ = &ret;\n\t\t{back}\n\t}})\n}}\n\n",
+			"static M_{trampoline}: std::sync::OnceLock<usize> = std::sync::OnceLock::new();\n\n/// Its `C-unwind` body as the C function the C ABI takes, which calls it as `C-unwind`.\n/// The body is scoped to the initializer, so no other trampoline's name can clash with it.\n#[allow(non_upper_case_globals, reason = \"named as the function\")]\nconst {trampoline}: unsafe extern \"C\" fn({types}) -> {rust_ret} = {{\n\tunsafe extern \"C-unwind\" fn body({}) -> {rust_ret} {{\n\t\trt::upcall(\"{what}\", |env| {{\n\t\t\tlet id = rt::method(env, &M_{trampoline}, c\"{dispatcher}\", c\"{sig}\");\n\t\t\tlet args = [{}];\n\t\t\t{invoke}\n\t\t\tlet _ = &ret;\n\t\t\t{back}\n\t\t}})\n\t}}\n\tunsafe {{ std::mem::transmute::<unsafe extern \"C-unwind\" fn({types}) -> {rust_ret}, _>(body) }}\n}};\n\n",
 			rust_params.join(", "),
 			jvalues.join(", ")
 		);
@@ -2579,10 +2616,14 @@ impl<'a> Gen<'a> {
 			}
 			false => "#[unsafe(no_mangle)]\npub ",
 		};
+		let head = format!(
+			"{export}unsafe extern \"system\" fn {function}({}) -> {}",
+			all.join(", "),
+			ret.0
+		);
 		let _ = write!(
 			self.glue,
-			"{export}unsafe extern \"system\" fn {function}({}) -> {} {{\n\tlet _ = env;\n\tunsafe {{\n\t\t{body}\n\t}}\n}}\n\n",
-			all.join(", "),
+			"{head} {{\n\trt::entry(env, move || -> {} {{\n\t\tunsafe {{\n\t\t\t{body}\n\t\t}}\n\t}})\n}}\n\n",
 			ret.0
 		);
 	}
@@ -2979,10 +3020,14 @@ impl<'a> Gen<'a> {
 				make,
 			}
 		});
-		// The native call, closing what it moves out once it returns.
+		// The native call, closing what it moves out however it ends, as a closure's failed
+		// check unwinding out of it ends it after Rust took them.
 		let call = match after.is_empty() {
 			true => format!("_Native.{bare}({})", exprs.join(", ")),
-			false => format!("_Native.{bare}({}).also {{ {} }}", exprs.join(", "), after.join("; ")),
+			false => {
+				let moving = self.moving(&exprs, |args| format!("_Native.{bare}({args})"), &after);
+				self.refused_first(&bare, moving)
+			}
 		};
 		// The value the function returns, or, returning nothing, its statement.
 		let value;
@@ -2994,11 +3039,17 @@ impl<'a> Gen<'a> {
 			(Some(_), Some(homed)) => homed.name,
 			_ => c_name.clone(),
 		};
+		let unwind = self.unwind.clone();
 		let rust_call = |outs: &[String]| {
 			let args: Vec<String> = rust_args.iter().chain(outs).chain(&status_arg).cloned().collect();
 			let call = match &handed {
-				Some(h) => h.call(&args),
-				None => format!("crate::{made}({})", args.join(", ")),
+				// Through the body a closure's failed check unwinds out of.
+				Some(h) => h.call(&args).replacen(
+					&format!("crate::{}(", h.name),
+					&format!("crate::{unwind}_{}(", h.name),
+					1,
+				),
+				None => format!("crate::{unwind}_{made}({})", args.join(", ")),
 			};
 			// An exception the Rust left pending, which the C function dropped its result
 			// for, is thrown once the native method returns with nothing else done.
@@ -3029,7 +3080,7 @@ impl<'a> Gen<'a> {
 			};
 			let _ = write!(
 				self.glue,
-				"unsafe fn jni_{}(f: *mut c_void, waker: crate::rt::Waker, w: &mut rt::Writer, ps: &mut i32) -> bool {{\n\tlet _ = (&w, &ps);\n\tunsafe {{\n\t{decl}\n\tlet ret = crate::{}(f as _, waker{}{ps});\n\tif ret == 0 {{\n\t\treturn false;\n\t}}\n\t{ok_set}{write}\n\ttrue\n\t}}\n}}\n\nunsafe fn jni_{}(f: *mut c_void) {{\n\tunsafe {{ crate::{}(f as _) }}\n}}\n\n",
+				"unsafe fn jni_{}(f: *mut c_void, waker: crate::rt::Waker, w: &mut rt::Writer, ps: &mut i32) -> bool {{\n\tlet _ = (&w, &ps);\n\tunsafe {{\n\t{decl}\n\tlet ret = crate::{unwind}_{}(f as _, waker{}{ps});\n\tif ret == 0 {{\n\t\treturn false;\n\t}}\n\t{ok_set}{write}\n\ttrue\n\t}}\n}}\n\nunsafe fn jni_{}(f: *mut c_void) {{\n\tunsafe {{ crate::{unwind}_{}(f as _) }}\n}}\n\n",
 				poll.name,
 				poll.name,
 				ptrs.iter().map(|p| format!(", {p}")).collect::<String>(),
@@ -3071,12 +3122,11 @@ impl<'a> Gen<'a> {
 				("()", "Unit"),
 				&format!("jni_{}(p0 as usize as _)", free.name),
 			);
-			let raw = format!("_Native.{bare}({})", exprs.join(", "));
 			let call = if after.is_empty() {
-				raw
+				format!("_Native.{bare}({})", exprs.join(", "))
 			} else {
 				{
-					let moving = self.moving(&raw, &after);
+					let moving = self.moving(&exprs, |args| format!("_Native.{bare}({args})"), &after);
 					self.refused_first(&bare, moving)
 				}
 			};
@@ -3165,12 +3215,11 @@ impl<'a> Gen<'a> {
 			};
 			let params = native_params.iter().map(|(j, k)| (*j, k.as_str())).collect::<Vec<_>>();
 			self.native(&bare, &params, ("jobject", "Any"), &format!("{}\n\t\t{decl}\n\t\tlet success = {success};{check}\n\t\t{error}\n\t\tlet args = [{}];\n\t\tstatic FACTORY: std::sync::OnceLock<usize> = std::sync::OnceLock::new();\n\t\tlet id = rt::method(env, &FACTORY, c\"{factory}\", c\"{sig}\");\n\t\t((**env).v1_2.CallStaticObjectMethodA)(env, rt::class(), id, args.as_ptr())", rust_pre.join("\n\t\t"), values.join(", ")));
-			let raw = format!("_Native.{bare}({})", exprs.join(", "));
 			let raw = if after.is_empty() {
-				raw
+				format!("_Native.{bare}({})", exprs.join(", "))
 			} else {
 				{
-					let moving = self.moving(&raw, &after);
+					let moving = self.moving(&exprs, |args| format!("_Native.{bare}({args})"), &after);
 					self.refused_first(&bare, moving)
 				}
 			};
@@ -3229,14 +3278,15 @@ impl<'a> Gen<'a> {
 			let r = self.fresh("r");
 			let e = self.read_value(err.as_ref().expect("a result's error"), &r);
 			let exception = exception.as_deref().expect("a result's exception");
-			let raw = format!("_Native.{bare}({})", exprs.join(", "));
-			let caught = format!(
-				"try {{\n\t{raw}\n}} catch (f: _Native.__Failed) {{\n\t_Native.__Reader(f.error).let {{ {r} -> throw {exception}({e}) }}\n}}"
-			);
+			let caught = |args: &str| {
+				format!(
+					"try {{\n\t_Native.{bare}({args})\n}} catch (f: _Native.__Failed) {{\n\t_Native.__Reader(f.error).let {{ {r} -> throw {exception}({e}) }}\n}}"
+				)
+			};
 			let caught = match after.is_empty() {
-				true => caught,
+				true => caught(&exprs.join(", ")),
 				false => {
-					let moving = self.moving(&caught, &after);
+					let moving = self.moving(&exprs, caught, &after);
 					self.refused_first(&bare, moving)
 				}
 			};
@@ -3296,11 +3346,43 @@ impl<'a> Gen<'a> {
 				params.push(("jobjectArray", "kotlin.Array<kotlin.Any>"));
 				arg
 			};
+			let call = rust_call(&ptrs);
+			let call = match written.is_empty() {
+				true => call,
+				// A closure's failed check unwinding out of the call writes back what Rust
+				// wrote before it, which the C function wrote back as it unwound, before it
+				// throws: a Kotlin caller catching it sees it, as a Rust one catching the
+				// panic would.
+				false => {
+					let unwound = format!("{bare}__unwound");
+					self.dispatchers.push(unwound.clone());
+					let reads: String = (written.iter())
+						.enumerate()
+						.map(|(k, (_, ty))| {
+							format!(
+								"\t\t(back!![{k}] as Mut<{}>).value = {}\n",
+								self.kt_param(ty),
+								self.read_value(ty, "r")
+							)
+						})
+						.collect();
+					let _ = write!(
+						self.natives,
+						"\t@kotlin.Suppress(\"UNCHECKED_CAST\")\n\t@kotlin.jvm.JvmStatic private fun {unwound}(buffer: java.nio.ByteBuffer, back: kotlin.Array<Any>?): Any? {{\n\t\tval r = __Reader(buffer)\n{reads}\t\treturn null\n\t}}\n\n"
+					);
+					let puts: String = (outs.iter().zip(&written))
+						.map(|((name, _), (_, ty))| format!("{}; ", put(ty, &format!("o_{name}.assume_init()"))))
+						.collect();
+					format!(
+						"match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {call})) {{\n\t\t\tOk(called) => called,\n\t\t\tErr(unwound) => {{\n\t\t\t\tlet mut w = rt::Writer::default();\n\t\t\t\t{puts}\n\t\t\t\tstatic UNWOUND: std::sync::OnceLock<usize> = std::sync::OnceLock::new();\n\t\t\t\tw.value(env, &UNWOUND, c\"{unwound}\", {back});\n\t\t\t\trt::threw(env, \"{unwound}\");\n\t\t\t\tstd::panic::resume_unwind(unwound)\n\t\t\t}}\n\t\t}}"
+					)
+				}
+			};
 			self.native(
 				&bare, &params, ("jobject", "Any?"),
 				&format!(
-					"{}\n\t\t{decl}\n\t\t{ret_set}{};{check}\n\t\tlet mut w = rt::Writer::default();\n\t\t{write}\n\t\tstatic FACTORY: std::sync::OnceLock<usize> = std::sync::OnceLock::new();\n\t\tw.value(env, &FACTORY, c\"{factory}\", {back})",
-					rust_pre.join("\n\t\t"), rust_call(&ptrs)),
+					"{}\n\t\t{decl}\n\t\t{ret_set}{call};{check}\n\t\tlet mut w = rt::Writer::default();\n\t\t{write}\n\t\tstatic FACTORY: std::sync::OnceLock<usize> = std::sync::OnceLock::new();\n\t\tw.value(env, &FACTORY, c\"{factory}\", {back})",
+					rust_pre.join("\n\t\t")),
 			);
 			let mut call_args = exprs.clone();
 			if !written.is_empty() {
@@ -3313,12 +3395,11 @@ impl<'a> Gen<'a> {
 						.join(", ")
 				));
 			}
-			let raw = format!("_Native.{bare}({})", call_args.join(", "));
 			let raw = if after.is_empty() {
-				raw
+				format!("_Native.{bare}({})", call_args.join(", "))
 			} else {
 				{
-					let moving = self.moving(&raw, &after);
+					let moving = self.moving(&call_args, |args| format!("_Native.{bare}({args})"), &after);
 					self.refused_first(&bare, moving)
 				}
 			};
@@ -3394,12 +3475,11 @@ impl<'a> Gen<'a> {
 			self.native(&bare, &params, ("jobject", "Any?"), &format!(
 				"{}\n\t\tlet ret = {};{check}\n\t\tlet mut w = rt::Writer::default();\n\t\t{};\n\t\tstatic FACTORY: std::sync::OnceLock<usize> = std::sync::OnceLock::new();\n\t\tw.value(env, &FACTORY, c\"{factory}\", std::ptr::null_mut())",
 				rust_pre.join("\n\t\t"), rust_call(&[]), put(&function.ok, "ret")));
-			let raw = format!("_Native.{bare}({})", exprs.join(", "));
 			let raw = if after.is_empty() {
-				raw
+				format!("_Native.{bare}({})", exprs.join(", "))
 			} else {
 				{
-					let moving = self.moving(&raw, &after);
+					let moving = self.moving(&exprs, |args| format!("_Native.{bare}({args})"), &after);
 					self.refused_first(&bare, moving)
 				}
 			};

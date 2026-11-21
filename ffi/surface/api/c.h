@@ -17,7 +17,7 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-#define API_CONTRACT ((uint64_t)0x89b9befff8b52600ULL)
+#define API_CONTRACT ((uint64_t)0xa86c7e83af0f5460ULL)
 uint64_t api_contract(void);
 uint32_t api_target(void);
 typedef int32_t api_status;
@@ -117,6 +117,8 @@ typedef struct api_Retired api_Retired;
 typedef struct api_Logger api_Logger;
 typedef struct api_Journal api_Journal;
 typedef struct api_Local api_Local;
+typedef struct api_Wrapped api_Wrapped;
+typedef struct api_Buffer api_Buffer;
 typedef struct api_LocalWaiter api_LocalWaiter;
 typedef struct api_Retry api_Retry;
 typedef struct api_Digest api_Digest;
@@ -133,6 +135,7 @@ typedef struct api_Trail api_Trail;
 typedef struct api_Worker api_Worker;
 typedef struct api_Handle api_Handle;
 typedef struct api_Holder api_Holder;
+typedef struct api_Tag api_Tag;
 typedef struct api_Area api_Area;
 typedef struct api_Counter api_Counter;
 typedef struct api_Meter api_Meter;
@@ -178,6 +181,7 @@ typedef struct api_tls_Codec api_tls_Codec;
 typedef struct api_Spawned api_Spawned;
 typedef struct api_LogThread api_LogThread;
 typedef struct api_Pinned api_Pinned;
+typedef struct api_Guarded api_Guarded;
 typedef struct api_Hooked api_Hooked;
 typedef struct api_Forged api_Forged;
 typedef struct api_Part api_Part;
@@ -1230,6 +1234,14 @@ typedef struct api_Undo {
 	const api_Undo_vtable *vtable;
 	void *data;
 } api_Undo;
+typedef struct api_Stretch_vtable {
+	void (*free)(void *data);
+	size_t (*stretch)(void *data);
+} api_Stretch_vtable;
+typedef struct api_Stretch {
+	const api_Stretch_vtable *vtable;
+	void *data;
+} api_Stretch;
 typedef struct api_clash_Source_vtable {
 	void (*free)(void *data);
 	void (*wait)(void *data);
@@ -1760,6 +1772,22 @@ API_MUST_USE api_poll api_Local_poll_count_poll(api_Local_poll_count_future *fut
 void api_Local_poll_count_future_free(api_Local_poll_count_future *future);
 uint64_t api_Local_thread_number(const api_Local *self, api_status *status);
 bool api_Local_on_own_thread(const api_Local *self, api_status *status);
+void api_Wrapped_free(api_Wrapped *self);
+void api_Wrapped_drop(api_Wrapped *self, api_status *status);
+API_MUST_USE api_Wrapped *api_Wrapped_new(uint64_t n);
+uint64_t api_Wrapped_n_get(const api_Wrapped *self, api_status *status);
+void api_Wrapped_n_set(api_Wrapped *self, uint64_t value, api_status *status);
+bool api_Wrapped_on_get(const api_Wrapped *self, api_status *status);
+void api_Wrapped_on_set(api_Wrapped *self, bool value, api_status *status);
+uint64_t api_Wrapped_count(const api_Wrapped *self, api_status *status);
+void api_Wrapped_recount(api_Wrapped *self, uint64_t n, api_status *status);
+uint64_t api_Wrapped_steps(const api_Wrapped *self, api_status *status);
+uint32_t api_Wrapped_locals(const api_Wrapped *self, api_status *status);
+void api_Buffer_free(api_Buffer *self);
+void api_Buffer_drop(api_Buffer *self, api_status *status);
+API_MUST_USE api_Buffer *api_Buffer_new(uint32_t len);
+void api_Buffer_blank(api_Buffer *self, api_status *status);
+bool api_Buffer_zeroed(const api_Buffer *self, api_status *status);
 void api_LocalWaiter_free(api_LocalWaiter *self);
 void api_LocalWaiter_drop(api_LocalWaiter *self, api_status *status);
 API_MUST_USE api_LocalWaiter *api_LocalWaiter_new(api_waker waker_);
@@ -1855,6 +1883,11 @@ void api_Holder_free(api_Holder *self);
 API_MUST_USE api_Holder *api_Holder_new(uint64_t level);
 uint64_t api_Holder_level_get(const api_Holder *self);
 uint64_t api_Holder_doubled(const api_Holder *self);
+void api_Tag_free(api_Tag *self);
+void api_Tag_drop(api_Tag *self, api_status *status);
+API_MUST_USE api_Tag *api_Tag_default(void);
+API_MUST_USE api_Tag *api_Tag_new(void);
+API_MUST_USE api_buf api_Tag_tagged(api_Tag *self, uint32_t n, uint32_t (*f)(void *data), void *f_data, uint32_t *n_out, api_status *status);
 void api_Area_free(api_Area *self);
 bool api_Area_borrowed(const api_Area *self);
 API_MUST_USE api_Area *api_Area_clone(const api_Area *self);
@@ -2084,6 +2117,10 @@ void api_Plain_n_set(api_Plain *self, uint64_t value, api_status *status);
 bool api_Plain_on_get(const api_Plain *self, api_status *status);
 void api_Plain_on_set(api_Plain *self, bool value, api_status *status);
 API_MUST_USE api_Plain *api_Plain_new(uint64_t n, bool on);
+uint64_t api_Plain_count(const api_Plain *self, api_status *status);
+void api_Plain_recount(api_Plain *self, uint64_t n, api_status *status);
+uint64_t api_Plain_steps(const api_Plain *self, api_status *status);
+uint32_t api_Plain_locals(const api_Plain *self, api_status *status);
 void api_Labeled_free(api_Labeled *self);
 bool api_Labeled_eq(const api_Labeled *a, const api_Labeled *b);
 uint64_t api_Labeled_hash(const api_Labeled *self);
@@ -2239,6 +2276,13 @@ void api_Pinned_value_set(api_Pinned *self, uint64_t value, api_status *status);
 API_MUST_USE api_Pinned *api_Pinned_new(uint64_t value);
 API_MUST_USE api_Pinned *api_Pinned_new_homed(uint64_t value);
 API_MUST_USE api_Part *api_Pinned_part(const api_Pinned *self, api_status *status);
+void api_Guarded_free(api_Guarded *self);
+API_MUST_USE api_Guarded *api_Guarded_new(uint64_t n);
+uint64_t api_Guarded_n_get(const api_Guarded *self);
+bool api_Guarded_on_get(const api_Guarded *self);
+uint64_t api_Guarded_count(const api_Guarded *self);
+uint64_t api_Guarded_steps(const api_Guarded *self);
+uint32_t api_Guarded_locals(const api_Guarded *self);
 void api_Hooked_free(api_Hooked *self);
 void api_Hooked_drop(api_Hooked *self, api_status *status);
 bool api_Hooked_eq(const api_Hooked *a, const api_Hooked *b, api_status *status);
@@ -2246,6 +2290,7 @@ API_MUST_USE api_buf api_Hooked_debug(const api_Hooked *self, api_status *status
 uint64_t api_Hooked_n_get(const api_Hooked *self, api_status *status);
 void api_Hooked_n_set(api_Hooked *self, uint64_t value, api_status *status);
 API_MUST_USE api_Hooked *api_Hooked_new(uint64_t n);
+uint64_t api_Hooked_count(const api_Hooked *self, api_status *status);
 void api_Forged_free(api_Forged *self);
 void api_Forged_drop(api_Forged *self, api_status *status);
 bool api_Forged_eq(const api_Forged *a, const api_Forged *b, api_status *status);
@@ -2574,6 +2619,7 @@ void api_wasm_log(api_Log log);
 uint64_t api_booth_count(api_Booth booth, api_status *status);
 api_Page api_page(void);
 uint32_t api_beats(api_Beat beat);
+uint8_t api_paired(uint8_t (*f)(void *data), void *f_data, uint8_t (*f_unwind)(void *data), void *f_unwind_data);
 int32_t api_same(double a, double b);
 int32_t api_errno(void);
 bool api_assert(bool holds);
@@ -2620,6 +2666,12 @@ API_MUST_USE api_poll api_level_later_poll(api_level_later_future *future, api_w
 void api_level_later_future_free(api_level_later_future *future);
 API_MUST_USE bool api_turned(api_Dial dial, api_Turner turner, api_Dial *out, api_Error *err);
 uint32_t api_undone(api_Undo undo, uint32_t n);
+uint32_t api_unwound(void);
+size_t api_measured(size_t (*f)(void *data), void *f_data);
+ptrdiff_t api_negated(ptrdiff_t (*f)(void *data), void *f_data);
+uint32_t api_lettered(uint32_t (*f)(void *data), void *f_data);
+uint32_t api_bumped(uint32_t n, uint32_t (*f)(void *data), void *f_data, uint32_t *n_out);
+size_t api_stretched(api_Stretch stretch);
 uint64_t api_crowded(api_Reading reading, api_Stamp a, api_Stamp b, uint64_t n0, uint64_t n1, uint64_t n2, uint64_t n3, uint64_t n4, uint64_t n5, uint64_t n6, uint64_t n7, uint64_t n8, uint64_t n9, uint64_t n10, uint64_t n11, uint64_t n12, uint64_t n13, uint64_t n14, uint64_t n15, uint64_t n16, uint64_t n17, uint64_t n18, uint64_t n19, uint64_t n20, uint64_t n21, uint64_t n22, uint64_t n23, uint64_t n24, uint64_t n25, uint64_t n26, uint64_t n27, uint64_t n28, uint64_t n29, uint64_t n30, uint64_t n31, uint64_t n32, uint64_t n33, uint64_t n34, uint64_t n35, uint64_t n36, uint64_t n37, uint64_t n38, uint64_t n39, uint64_t n40, uint64_t n41, uint64_t n42, uint64_t n43, uint64_t n44, uint64_t n45, uint64_t n46, uint64_t n47, uint64_t n48, uint64_t n49, uint64_t n50, uint64_t n51, uint64_t n52, uint64_t n53, uint64_t n54, uint64_t n55, uint64_t n56, uint64_t n57, uint64_t n58, uint64_t n59, uint64_t n60, uint64_t n61, uint64_t n62, uint64_t n63, uint64_t n64, uint64_t n65, uint64_t n66, uint64_t n67, uint64_t n68, uint64_t n69, uint64_t n70, uint64_t n71, uint64_t n72, uint64_t n73, uint64_t n74, uint64_t n75, uint64_t n76, uint64_t n77, uint64_t n78, uint64_t n79, uint64_t n80, uint64_t n81, uint64_t n82, uint64_t n83, uint64_t n84, uint64_t n85, uint64_t n86, uint64_t n87, uint64_t n88, uint64_t n89, uint64_t n90, uint64_t n91, uint64_t n92, uint64_t n93, uint64_t n94, uint64_t n95, uint64_t n96, uint64_t n97, uint64_t n98, uint64_t n99, uint64_t n100, uint64_t n101, uint64_t n102, uint64_t n103, uint64_t n104, uint64_t n105, uint64_t n106, uint64_t n107, uint64_t n108, uint64_t n109, uint64_t n110, uint64_t n111, uint64_t n112, uint64_t n113, uint64_t n114, uint64_t n115, uint64_t n116, uint64_t n117, uint64_t n118);
 uint64_t api_crammed(api_Moment a, api_Moment b, uint64_t n0, uint64_t n1, uint64_t n2, uint64_t n3, uint64_t n4, uint64_t n5, uint64_t n6, uint64_t n7, uint64_t n8, uint64_t n9, uint64_t n10, uint64_t n11, uint64_t n12, uint64_t n13, uint64_t n14, uint64_t n15, uint64_t n16, uint64_t n17, uint64_t n18, uint64_t n19, uint64_t n20, uint64_t n21, uint64_t n22, uint64_t n23, uint64_t n24, uint64_t n25, uint64_t n26, uint64_t n27, uint64_t n28, uint64_t n29, uint64_t n30, uint64_t n31, uint64_t n32, uint64_t n33, uint64_t n34, uint64_t n35, uint64_t n36, uint64_t n37, uint64_t n38, uint64_t n39, uint64_t n40, uint64_t n41, uint64_t n42, uint64_t n43, uint64_t n44, uint64_t n45, uint64_t n46, uint64_t n47, uint64_t n48, uint64_t n49, uint64_t n50, uint64_t n51, uint64_t n52, uint64_t n53, uint64_t n54, uint64_t n55, uint64_t n56, uint64_t n57, uint64_t n58, uint64_t n59, uint64_t n60, uint64_t n61, uint64_t n62, uint64_t n63, uint64_t n64, uint64_t n65, uint64_t n66, uint64_t n67, uint64_t n68, uint64_t n69, uint64_t n70, uint64_t n71, uint64_t n72, uint64_t n73, uint64_t n74, uint64_t n75, uint64_t n76, uint64_t n77, uint64_t n78, uint64_t n79, uint64_t n80, uint64_t n81, uint64_t n82, uint64_t n83, uint64_t n84, uint64_t n85, uint64_t n86, uint64_t n87, uint64_t n88, uint64_t n89, uint64_t n90, uint64_t n91, uint64_t n92, uint64_t n93, uint64_t n94, uint64_t n95, uint64_t n96, uint64_t n97, uint64_t n98, uint64_t n99, uint64_t n100, uint64_t n101, uint64_t n102, uint64_t n103, uint64_t n104, uint64_t n105, uint64_t n106, uint64_t n107, uint64_t n108, uint64_t n109, uint64_t n110, uint64_t n111, uint64_t n112, uint64_t n113, uint64_t n114, uint64_t n115, uint64_t n116, uint64_t n117, uint64_t n118, uint64_t n119, uint64_t n120, uint64_t n121, uint64_t n122, uint64_t n123);
 uint32_t api_jni_one(void);

@@ -92,13 +92,33 @@ func check(err error) {
 // sink holds what the loops sum, so the compiler cannot drop the calls.
 var sink int
 
+// createTrack makes a timed track named name on broadcast. It caches every group written to
+// it until it closes, as the broadcast's pool, which nothing polls, evicts none, so each case
+// that writes groups writes them to a track of its own, closed once it ends: a round holds
+// one case's frames at a time instead of every case's, about 2 GB.
+func createTrack(broadcast *net.BroadcastProducer, name string) *net.TrackProducer {
+	micro := net.TimescaleMICRO()
+	return must(broadcast.CreateTrack(name, must(net.TrackInfoDefault().WithTimescale(&micro))))
+}
+
+// subscribe subscribes to track.
+func subscribe(ctx context.Context, track *net.TrackProducer) *net.TrackSubscriber {
+	consumer := must(track.Consume())
+	defer consumer.Close()
+	return must(consumer.Subscribe(ctx, nil))
+}
+
 // throughput writes groups of 100 frames of size bytes, reading each back and touching its
 // payload's first byte, in about 64 MiB and at least 300 frames: megabytes a wall and a
 // CPU second. Each group starts at the next of micros, which stamps its frames.
-func throughput(ctx context.Context, track *net.TrackProducer, subscriber *net.TrackSubscriber, micros *uint64, size int) span {
+func throughput(ctx context.Context, broadcast *net.BroadcastProducer, micros *uint64, size int) span {
 	count := min(max((64<<20)/(size*frames), 3), 2000)
 	frame := rt.NewBytes(make([]byte, size))
 	name := fmt.Sprintf("throughput[%d]", size)
+	track := createTrack(broadcast, name)
+	defer track.Close()
+	subscriber := subscribe(ctx, track)
+	defer subscriber.Close()
 	start := begin()
 	for range count {
 		at := must(net.TimestampFromMicros(*micros))
@@ -172,8 +192,7 @@ type result struct {
 func round(measured bool) []result {
 	var out []result
 	broadcast := must(net.NewBroadcastInfo().Produce())
-	micro := net.TimescaleMICRO()
-	track := must(broadcast.CreateTrack("bench", must(net.TrackInfoDefault().WithTimescale(&micro))))
+	track := createTrack(broadcast, "bench")
 	frame := rt.NewBytes(make([]byte, 100))
 
 	start := begin()
@@ -248,6 +267,8 @@ func round(measured bool) []result {
 	out = append(out, result{"object", end(start, "object", n)})
 
 	// Each frame stamped through a fresh timestamp, as a caller holding a u64 must.
+	track.Close()
+	track = createTrack(broadcast, "stamped")
 	start = begin()
 	for range groups {
 		group := must(track.AppendGroup(must(net.TimestampFromMicros(micros))))
@@ -259,6 +280,8 @@ func round(measured bool) []result {
 	}
 	out = append(out, result{"stamped", end(start, "stamped", n)})
 
+	track.Close()
+	track = createTrack(broadcast, "write")
 	start = begin()
 	for range groups {
 		at := must(net.TimestampFromMicros(micros))
@@ -272,12 +295,12 @@ func round(measured bool) []result {
 	out = append(out, result{"write", end(start, "write", n)})
 
 	ctx := context.Background()
-	consumer := must(track.Consume())
-	subscriber := must(consumer.Subscribe(ctx, nil))
-	consumer.Close()
 
 	// Each frame written, then read through a call whose future is ready at its first poll,
 	// so it never waits.
+	track.Close()
+	track = createTrack(broadcast, "ready")
+	subscriber := subscribe(ctx, track)
 	var last *net.FrameFrame
 	start = begin()
 	for range groups {
@@ -299,6 +322,10 @@ func round(measured bool) []result {
 
 	// Each read started on a goroutine before its frame is written, which the yield lets
 	// block, and the write's wake resumes it.
+	subscriber.Close()
+	track.Close()
+	track = createTrack(broadcast, "woken")
+	subscriber = subscribe(ctx, track)
 	start = begin()
 	read := make(chan *net.FrameFrame)
 	for range groups {
@@ -319,6 +346,10 @@ func round(measured bool) []result {
 
 	// One writer and the calling reader live for the whole case. Each write
 	// waits until the read has pended with its waker registered.
+	subscriber.Close()
+	track.Close()
+	track = createTrack(broadcast, "loop")
+	subscriber = subscribe(ctx, track)
 	start = begin()
 	permits := make(chan struct{})
 	pending := &pendingContext{Context: ctx, parked: permits}
@@ -350,11 +381,12 @@ func round(measured bool) []result {
 		panic("each loop read must pend exactly once")
 	}
 	out = append(out, result{"loop", end(start, "loop", n)})
+	subscriber.Close()
+	track.Close()
 
 	for _, size := range sizes {
-		out = append(out, result{fmt.Sprintf("mbps:%d", size), throughput(ctx, track, subscriber, &micros, size)})
+		out = append(out, result{fmt.Sprintf("mbps:%d", size), throughput(ctx, broadcast, &micros, size)})
 	}
-	subscriber.Close()
 
 	// The last frame's 100 bytes, as a Bytes, and one of them read.
 	start = begin()
@@ -363,7 +395,6 @@ func round(measured bool) []result {
 	}
 	out = append(out, result{"payload", end(start, "payload", n)})
 	last.Close()
-	track.Close()
 	broadcast.Close()
 	return out
 }
