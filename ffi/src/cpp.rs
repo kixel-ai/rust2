@@ -2234,7 +2234,7 @@ fn named(rust: &[String], taken: impl Fn(&str) -> bool) -> Vec<String> {
 	let mut moved: Vec<usize> = (0..rust.len()).filter(|&k| !kept[k]).collect();
 	moved.sort_by(|&a, &b| rust[a].cmp(&rust[b]));
 	for k in moved {
-		while taken(&names[k]) || held.contains(&names[k]) {
+		while taken(&names[k]) || held.contains(&names[k]) || abi::defined(&names[k]) {
 			names[k].push('_');
 		}
 		held.push(names[k].clone());
@@ -2252,7 +2252,7 @@ fn field_names(fields: &[crate::ir::Field]) -> Vec<String> {
 /// a name the header gives its own locals and members.
 fn parameter(rust: &str, taken: impl Fn(&str) -> bool) -> String {
 	let mut name = escape(rust);
-	while taken(&name) || generated(&name) {
+	while taken(&name) || generated(&name) || abi::defined(&name) {
 		name.push('_');
 	}
 	name
@@ -2440,8 +2440,8 @@ fn cpp_int(int: Int) -> &'static str {
 	}
 }
 
-/// A name C++ would read as a keyword or reserves for itself with `_` appended, and one
-/// starting with a digit with `_` prepended, as C's are.
+/// A name C++ would read as a keyword or a header's macro or reserves for itself with `_`
+/// appended, and one starting with a digit with `_` prepended, as C's are.
 pub(crate) fn escape(name: &str) -> String {
 	const KEYWORDS: &[&str] = &[
 		"alignas",
@@ -2541,13 +2541,23 @@ pub(crate) fn escape(name: &str) -> String {
 		"std",
 		"self",
 	];
-	// Each name of a macro and trailing `_`s takes another, so `unix` and `unix_` stay apart.
+	// A keyword takes one `_`, which makes no macro's name. Otherwise a macro's name, and
+	// each with trailing `_`s past it, takes one more, as [`abi::unmacroed`] counts them, so
+	// `unix` and `unix_` stay apart; 32-bit x86's GNU dialects predefine `i386`, which
+	// `macros.txt` lacks.
 	match name.chars().next() {
 		Some(c) if c.is_ascii_digit() => format!("_{name}"),
-		_ if KEYWORDS.contains(&name) || abi::MACROS.contains(&name.trim_end_matches('_')) || abi::reserved(name) => {
-			format!("{name}_")
+		_ if KEYWORDS.contains(&name) => format!("{name}_"),
+		_ => {
+			let stem = name.trim_end_matches('_');
+			let trailing = name.len() - stem.len();
+			// A reserved name, which the implementation may make a keyword such as `_Bool`,
+			// never keeps its own spelling, so its family counts from `stem_`.
+			match abi::reserved(name) {
+				true => abi::unmacroed(&format!("{stem}_"), trailing, |name| name == "i386"),
+				false => abi::unmacroed(stem, trailing, |name| name == "i386"),
+			}
 		}
-		_ => name.to_string(),
 	}
 }
 
@@ -2611,7 +2621,37 @@ mod tests {
 	}
 
 	#[test]
-	fn predefined_macros_escape_apart() {
+	fn macros_escape_apart() {
+		// What a system header defines, whether a constant, a function, or a field.
+		assert_eq!(escape("WEXITSTATUS"), "WEXITSTATUS_");
+		assert_eq!(escape("NULL"), "NULL_");
+		assert_eq!(escape("EOF__"), "EOF___");
+		assert_eq!(escape("errno"), "errno_");
+		assert_eq!(escape("h_addr"), "h_addr_");
+		// Reserved, but defined by glibc and exported by libc.
+		assert_eq!(escape("__WALL"), "__WALL_");
+		// Reserved, so counting from `__attribute_pure_`: apart from the macro
+		// `__attribute_pure__`, and from each other.
+		assert_eq!(escape("__attribute_pure"), "__attribute_pure_");
+		assert_eq!(escape("__attribute_pure_"), "__attribute_pure___");
+		assert_eq!(escape("__attribute_pure__"), "__attribute_pure____");
+		// Past both of a family's macros, `_STRING_H` and `_STRING_H_`.
+		assert_eq!(escape("_STRING_H"), "_STRING_H__");
+		assert_eq!(escape("_STRING_H_"), "_STRING_H___");
+		assert_eq!(crate::abi::escape("_STRING_H"), "_STRING_H__");
+		assert_eq!(crate::abi::escape("_STRING_H_"), "_STRING_H___");
+		assert_eq!(crate::abi::escape("bool"), "bool_");
+		assert_eq!(crate::abi::escape("bool_"), "bool__");
+		assert_eq!(crate::abi::escape("or__"), "or___");
+		assert_eq!(crate::abi::escape("out0"), "out0_");
+		assert_eq!(crate::abi::escape("out0_"), "out0__");
+		// Only C's `tgmath.h` defines `sin`, and only as a function-like macro.
+		assert_eq!(escape("sin"), "sin");
+		// A keyword C defines as a macro keeps its one escape, past which the rest move.
+		assert_eq!(escape("bool"), "bool_");
+		assert_eq!(escape("bool_"), "bool__");
+		// Predefined by GNU dialects.
+		assert_eq!(escape("i386"), "i386_");
 		assert_eq!(escape("unix"), "unix_");
 		assert_eq!(escape("unix_"), "unix__");
 		assert_eq!(escape("linux__"), "linux___");
@@ -2621,9 +2661,10 @@ mod tests {
 		assert_eq!(escape("offsetof_"), "offsetof__");
 		// A keyword keeps its single escape, so a field `type_` stays `type_`.
 		assert_eq!(escape("type_"), "type_");
-		// A reserved name always takes one more, `__GNUC__` being a macro itself.
+		// A reserved name never keeps its own spelling, so its family counts from `stem_`,
+		// past `__GNUC__`, a macro itself.
 		assert_eq!(escape("__cplusplus"), "__cplusplus_");
-		assert_eq!(escape("__GNUC__"), "__GNUC___");
+		assert_eq!(escape("__GNUC__"), "__GNUC____");
 		assert_eq!(escape("_Bool"), "_Bool_");
 		assert_eq!(escape("_bool"), "_bool");
 	}

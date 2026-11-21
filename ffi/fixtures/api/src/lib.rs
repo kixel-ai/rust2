@@ -4980,6 +4980,118 @@ pub mod clash {
 		pub fn close(&self) -> u32 {
 			self.count + 1
 		}
+
+		/// Nothing, named and typed as a final method of `java.lang.Object`, as parking_lot's
+		/// `Once::wait` is.
+		pub fn wait(&self) {}
+
+		/// Nothing, named and typed as the method a JVM finalizer overrides.
+		pub fn finalize(&self) {}
+	}
+
+	/// A level, whose values are named as the members `Debug` and `Default` give a type, as
+	/// log's `Level::Debug` and nu-ansi-term's `Color::Default` are.
+	#[derive(Clone, Copy, Debug, Default, PartialEq)]
+	pub enum Level {
+		#[default]
+		Default,
+		Debug,
+	}
+
+	impl Level {
+		/// Its place from one, by the name of what every Dart enum has, as petgraph's
+		/// `Direction::index` is.
+		pub fn index(self) -> u8 {
+			self as u8 + 1
+		}
+	}
+
+	/// A tag, whose variants' field `number` its method of that name reads, as der's `Tag`'s
+	/// are.
+	#[derive(Clone, Copy, Debug, PartialEq)]
+	pub enum Tag {
+		Application { number: u32 },
+		Private { number: u32 },
+	}
+
+	impl Tag {
+		/// The number, and whether it is private in the next decimal place.
+		pub fn number(&self) -> u32 {
+			match *self {
+				Tag::Application { number } => number,
+				Tag::Private { number } => number + 10,
+			}
+		}
+	}
+
+	/// Malformed input at an offset, an error whose `is` go vet reads as `errors.Is`, as
+	/// anyhow's `Error::is` is.
+	#[derive(Clone, Copy, Debug, PartialEq)]
+	pub struct Malformed {
+		pub at: u8,
+	}
+
+	impl Malformed {
+		/// Whether it is at `at`.
+		pub fn is(&self, at: u8) -> bool {
+			self.at == at
+		}
+	}
+
+	impl std::fmt::Display for Malformed {
+		fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+			write!(f, "malformed at {}", self.at)
+		}
+	}
+
+	/// Bytes read one at a time, whose methods go vet reads as `io.ByteScanner`'s, as
+	/// untrusted's `Reader::read_byte` is.
+	pub struct Reader {
+		bytes: Vec<u8>,
+		at: usize,
+	}
+
+	impl Reader {
+		pub fn new(bytes: Vec<u8>) -> Reader {
+			Reader { bytes, at: 0 }
+		}
+
+		/// The next byte, or the end as malformed: of another signature than vet's.
+		pub fn read_byte(&mut self) -> Result<u8, Malformed> {
+			let byte = *self.bytes.get(self.at).ok_or(Malformed { at: self.at as u8 })?;
+			self.at += 1;
+			Ok(byte)
+		}
+
+		/// Back a byte, or malformed at the start: of the signature vet's has.
+		pub fn unread_byte(&mut self) -> Result<(), Malformed> {
+			self.at = self.at.checked_sub(1).ok_or(Malformed { at: 0 })?;
+			Ok(())
+		}
+	}
+
+	/// What a caller waits on, whose methods are named as `java.lang.Object`'s final `wait`
+	/// and as `io.ByteReader`'s `ReadByte`.
+	pub trait Source {
+		fn wait(&self);
+		fn read_byte(&self) -> u8;
+	}
+
+	/// The byte `source` reads once it waited.
+	pub fn waited(source: impl Source) -> u8 {
+		source.wait();
+		source.read_byte()
+	}
+
+	/// An error number, in a field named as `errno.h`'s macro.
+	#[derive(Clone, Copy, Debug, PartialEq)]
+	pub struct Errno {
+		pub errno: i32,
+	}
+
+	impl Errno {
+		/// None, named as `stddef.h`'s macro, as wasm-bindgen's `JsValue::NULL` is.
+		pub const NULL: Errno = Errno { errno: 0 };
 	}
 
 	pub mod audio {
@@ -5094,6 +5206,15 @@ pub fn next_hop(hop: Option<NonZero<u64>>) -> Option<NonZero<u64>> {
 /// behind a `Box`.
 pub fn farther_hop(hops: Pair<NonZero<u16>>) -> Box<NonZero<u16>> {
 	Box::new(hops.left.max(hops.right))
+}
+
+/// The end of a stream, named as `stdio.h`'s macro, as libc's is.
+pub const EOF: i32 = -1;
+
+/// A wait status's exit code, named as `sys/wait.h`'s macro, as libc's is.
+#[allow(non_snake_case, reason = "the clash under test")]
+pub fn WEXITSTATUS(status: i32) -> i32 {
+	(status >> 8) & 0xff
 }
 
 /// A record named as C++'s `==` names its first argument, which must not hide it.

@@ -1157,6 +1157,38 @@ fn api_kotlin() {
 		stderr.contains("api.kt and the library are from different builds"),
 		"a mismatched contract printed {stderr}"
 	);
+
+	// A _Native from another build lacking the leaves `__contract` registers throws the
+	// JVM's NoSuchMethodError from its initializer, rather than aborting.
+	let lacking = scratch().join("api").join("kotlin-lacking");
+	let source = lacking.join("src").join("_Native.java");
+	step::write(
+		&source,
+		"package api;\n\npublic final class _Native {\n\tstatic {\n\t\tSystem.loadLibrary(\"api\");\n\t\t__contract();\n\t}\n\n\tstatic native long __contract();\n\n\tpublic static void main(String[] args) {}\n}\n",
+	);
+	run(Command::new("javac")
+		.arg("-d")
+		.arg(lacking.join("classes"))
+		.arg(&source));
+	let output = no_core(
+		Command::new("java")
+			.arg("-Xcheck:jni")
+			.arg(format!("-Djava.library.path={}", api.lib.display()))
+			.arg("-cp")
+			.arg(lacking.join("classes"))
+			.arg("api._Native"),
+	)
+	.output()
+	.unwrap();
+	failed(&output, "a _Native lacking its leaves");
+	let stderr = String::from_utf8_lossy(&output.stderr);
+	assert!(
+		output.status.code().is_some()
+			&& stderr.contains("java.lang.NoSuchMethodError")
+			&& stderr.contains("at api._Native.__contract(Native Method)"),
+		"a _Native lacking its leaves exited with {} and printed {stderr}",
+		output.status
+	);
 }
 
 /// The same script on Android: the classes, shrunk by R8 into an app's dex with only the
@@ -1291,6 +1323,20 @@ fn api_android() {
 		usage.lines().any(|line| line.starts_with("api.")),
 		"R8 stripped none of the generated Kotlin:\n{usage}"
 	);
+	// And keeps every leaf's `@FastNative`, which ART reads off the dex, and the method
+	// itself, which `__contract` registers.
+	let marked = std::fs::read_to_string(out.join("kotlin").join("api.kt"))
+		.unwrap()
+		.matches("@dalvik.annotation.optimization.FastNative\n")
+		.count();
+	assert!(marked > 0, "the api fixture has no leaf to mark");
+	let dump = run(Command::new(newest(&sdk.join("build-tools")).join("dexdump"))
+		.arg("-a")
+		.arg(dex.join("classes.dex")));
+	let kept = String::from_utf8_lossy(&dump.stdout)
+		.matches("VISIBILITY_BUILD Ldalvik/annotation/optimization/FastNative;")
+		.count();
+	assert_eq!(kept, marked, "R8 kept {kept} of the {marked} @FastNative methods");
 
 	run(Command::new(&adb)
 		.args(["shell", "rm", "-rf", DEVICE, "&&", "mkdir", "-p"])
@@ -1417,6 +1463,7 @@ fn kotlin_classes(api: &Api) -> PathBuf {
 		stamp: &step::stamp(&classes),
 		reads: &[
 			&api.out.join("kotlin").join("api.kt"),
+			&api.out.join("kotlin").join("FastNative.kt"),
 			&manifest_dir().join("tests").join("api.kt"),
 			&script,
 			&manifest_dir().join("tests").join("protocol.kt"),
@@ -1434,7 +1481,8 @@ fn kotlinc(out: &Path, script: &Path, dest: &Path) -> Command {
 	let mut cmd = Command::new("kotlinc");
 	cmd.args(["-Werror", "-cp"])
 		.arg(coroutines())
-		.arg(out.join("kotlin").join("api.kt"))
+		// The generated Kotlin, `api.kt` and `FastNative.kt`.
+		.arg(out.join("kotlin"))
 		.arg(manifest_dir().join("tests").join("api.kt"))
 		.arg(script)
 		.arg(manifest_dir().join("tests").join("protocol.kt"))
