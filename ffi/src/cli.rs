@@ -47,9 +47,10 @@ pub(crate) fn run(args: &[String]) -> ExitCode {
 
 fn try_run(args: &[String]) -> Result<ExitCode, String> {
 	let (own, args) = Own::parse(args)?;
-	let Some(args) = Args::parse_configless(&args, USAGE)? else {
+	let Some(mut args) = Args::parse_configless(&args, USAGE)? else {
 		return Ok(ExitCode::SUCCESS);
 	};
+	args.cargo = ungroup(&args.cargo);
 	let mut targets = own.targets;
 	if targets.is_empty() {
 		targets.push(rustc_session::config::host_tuple().to_string());
@@ -826,6 +827,54 @@ fn resolve_profile<'a>(
 	Err(format!("the profile `{name}` inherits from itself"))
 }
 
+/// The cargo args with each group of short flags, such as `-qr` or `-vFa`, apart, as
+/// `-q -r` and `-v -F a`, so that each reader of them finds the one it picks. A group with
+/// a letter cargo gives no short flag stays as it is, for cargo to refuse.
+fn ungroup(cargo: &[String]) -> Vec<String> {
+	let mut out = Vec::new();
+	let mut args = cargo.iter();
+	while let Some(arg) = args.next() {
+		if arg == "--" {
+			out.extend(std::iter::once(arg).chain(args).cloned());
+			break;
+		}
+		let group = arg
+			.strip_prefix('-')
+			.filter(|g| g.len() > 1 && g.starts_with(['q', 'v', 'r', 'h']));
+		let Some(group) = group else {
+			out.push(arg.clone());
+			continue;
+		};
+		let mut split = Vec::new();
+		let mut whole = true;
+		for (at, flag) in group.char_indices() {
+			match flag {
+				'q' | 'v' | 'r' | 'h' => split.push(format!("-{flag}")),
+				// A flag that takes a value takes the rest of the group.
+				'p' | 'j' | 'F' | 'Z' | 'C' => {
+					split.push(format!("-{flag}"));
+					let value = &group[at + 1..];
+					split.extend(
+						Some(value.strip_prefix('=').unwrap_or(value))
+							.filter(|v| !v.is_empty())
+							.map(str::to_string),
+					);
+					break;
+				}
+				_ => {
+					whole = false;
+					break;
+				}
+			}
+		}
+		match whole {
+			true => out.extend(split),
+			false => out.push(arg.clone()),
+		}
+	}
+	out
+}
+
 /// The cargo args that pick the profile: `--release`, `-r`, and `--profile`.
 fn profile_args(cargo: &[String]) -> Vec<String> {
 	let mut picked = Vec::new();
@@ -1062,6 +1111,22 @@ mod tests {
 		] {
 			let cargo: Vec<String> = cargo.iter().map(|s| s.to_string()).collect();
 			assert_eq!(profile_args(&cargo), want, "{cargo:?}");
+		}
+	}
+
+	#[test]
+	fn ungroups_short_flags() {
+		for (cargo, want) in [
+			(&["-qr", "--locked"][..], &["-q", "-r", "--locked"][..]),
+			(&["-vvFa,b"], &["-v", "-v", "-F", "a,b"]),
+			(&["-qF=a"], &["-q", "-F", "a"]),
+			(&["-qp", "foo"], &["-q", "-p", "foo"]),
+			(&["-r", "-Frelease", "-q"], &["-r", "-Frelease", "-q"]),
+			(&["-qx"], &["-qx"]),
+			(&["--", "-qr"], &["--", "-qr"]),
+		] {
+			let cargo: Vec<String> = cargo.iter().map(|s| s.to_string()).collect();
+			assert_eq!(ungroup(&cargo), want, "{cargo:?}");
 		}
 	}
 

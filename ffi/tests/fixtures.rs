@@ -5592,6 +5592,9 @@ fn leaf_profile() {
 	// `bench` sets its own debug assertions on top of `release`, in the directory they
 	// share, so a release check proves no build.
 	assert_eq!(exported(&[]), profiled("debugged", "release", None));
+	// A release flag in a group of short flags picks release too, and the export adds no
+	// second one for cargo to refuse.
+	assert_eq!(exported(&["-qr"]), profiled("debugged", "release", None));
 	assert!(
 		!python("release", "debug", "", "debugged"),
 		"a dev build ran the release check's leaves"
