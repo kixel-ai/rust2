@@ -21,8 +21,7 @@ abandon that snapshot: either an array the encoder fills beside `__Writer`'s `he
 the writer marking which held handles move. Avoid copying the collection per call. A
 regression test in `tests/api.kt` replaces an element of `more` from `Log.log`.
 
-## Waiting
-
-- Maintainer: keep this, or drop it since a Kotlin caller changing a read-only `List`
-  argument while the call runs is a misuse; recommended: keep, as abandoning a live handle
-  leaks its value and leaves the object unusable.
+The maintainer kept this on #922's merge pick
+([decision](https://github.com/kixel-ai/rust2/pull/922#issuecomment-7054292931)):
+✅ keep (rejected: drop it, treating a mid-call change to a read-only `List` argument as caller
+misuse), since abandoning a live handle leaks its value and leaves the object unusable.
