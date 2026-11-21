@@ -585,9 +585,9 @@ pub(crate) enum Access {
 		through: bool,
 		#[serde(default, skip_serializing_if = "Read::is_borrow")]
 		read: Read,
-		/// Whether the field of a `repr(packed)` struct holds an `UnsafeCell` inline, so that
-		/// reading it unaligned, as `Take` does, would race: no target where it does may merge
-		/// with one reading it that way.
+		/// Whether the field holds an `UnsafeCell` inline, so that reading it unaligned, as
+		/// `Take` does, would race: no target where it does may merge with one reading it that
+		/// way, as its struct's packing may differ between targets.
 		#[serde(default, skip_serializing_if = "std::ops::Not::not")]
 		unfrozen: bool,
 	},
