@@ -135,16 +135,50 @@ static void finish(moq_group_Producer *group) {
 	moq_group_Producer_free(group);
 }
 
+/* A timed track named `name` on `broadcast`. It caches every group written to it until it is
+ * freed, as the broadcast's pool, which nothing polls, evicts none, so each case that writes
+ * groups writes them to a track of its own, freed once it ends: a round holds one case's
+ * frames at a time instead of every case's, about 2 GB. */
+static moq_track_Producer *create_track(moq_broadcast_Producer *broadcast, const char *name) {
+	moq_option_Timescale micro = {.some = true, .value = moq_Timescale_MICRO()};
+	/* Builders take the handle's value, leaving the handle to free. */
+	moq_track_Info *defaults = moq_track_Info_default();
+	moq_track_Info *info = moq_track_Info_with_timescale(defaults, micro, NULL);
+	moq_track_Info_free(defaults);
+	moq_track_Producer *track = NULL;
+	moq_Error *err = NULL;
+	if (!moq_broadcast_Producer_create_track(broadcast, str(name), info, &track, &err, NULL)) {
+		fail("create_track");
+	}
+	moq_track_Info_free(info);
+	return track;
+}
+
+static moq_track_Subscriber *subscribe(moq_track_Producer *track) {
+	moq_track_Consumer *consumer = moq_track_Producer_consume(track, NULL);
+	moq_track_Consumer_subscribe_future *subscribing = moq_track_Consumer_subscribe(consumer, NULL, NULL);
+	moq_track_Subscriber *subscriber = NULL;
+	moq_Error *err = NULL;
+	if (moq_track_Consumer_subscribe_poll(subscribing, waker, &subscriber, &err) != MOQ_POLL_READY) {
+		fail("subscribe");
+	}
+	moq_track_Consumer_subscribe_future_free(subscribing);
+	moq_track_Consumer_free(consumer);
+	return subscriber;
+}
+
 /* Groups of 100 frames of `size` bytes written and each read back, its payload's first byte
  * touched, in about 64 MiB and at least 300 frames: megabytes a wall and a CPU second. Each
  * group starts at the next of `micros`, and its frames share that start. */
-static span throughput(moq_track_Producer *track, moq_track_Subscriber *subscriber, uint64_t *micros, size_t size, unsigned *sum) {
+static span throughput(moq_broadcast_Producer *broadcast, uint64_t *micros, size_t size, unsigned *sum) {
 	size_t groups = (64u << 20) / (size * FRAMES);
 	groups = groups < 3 ? 3 : groups > 2000 ? 2000 : groups;
 	uint8_t *payload = calloc(size, 1);
 	moq_buf frame = {.ptr = payload, .len = size};
 	char name[32];
 	snprintf(name, sizeof name, "throughput[%zu]", size);
+	moq_track_Producer *track = create_track(broadcast, name);
+	moq_track_Subscriber *subscriber = subscribe(track);
 	span start = begin();
 	for (size_t g = 0; g < groups; g++) {
 		moq_Timestamp at = stamp((*micros)++);
@@ -162,6 +196,8 @@ static span throughput(moq_track_Producer *track, moq_track_Subscriber *subscrib
 		moq_group_Consumer_free(reader);
 	}
 	span ns = end(start, (double)(groups * FRAMES * size), name);
+	moq_track_Subscriber_free(subscriber);
+	moq_track_Producer_free(track);
 	free(payload);
 	return (span){1e3 / ns.wall, 1e3 / ns.cpu};
 }
@@ -228,17 +264,8 @@ static void round_(int print) {
 	moq_broadcast_Info *binfo = moq_broadcast_Info_new();
 	moq_broadcast_Producer *broadcast = moq_broadcast_Info_produce(binfo, NULL);
 	moq_broadcast_Info_free(binfo);
-	moq_option_Timescale micro = {.some = true, .value = moq_Timescale_MICRO()};
-	/* Builders take the handle's value, leaving the handle to free. */
-	moq_track_Info *defaults = moq_track_Info_default();
-	moq_track_Info *info = moq_track_Info_with_timescale(defaults, micro, NULL);
-	moq_track_Info_free(defaults);
-	moq_track_Producer *track = NULL;
+	moq_track_Producer *track = create_track(broadcast, "bench");
 	moq_Error *err = NULL;
-	if (!moq_broadcast_Producer_create_track(broadcast, str("bench"), info, &track, &err, NULL)) {
-		fail("create_track");
-	}
-	moq_track_Info_free(info);
 
 	uint8_t payload[100] = {0};
 	moq_buf frame = {.ptr = payload, .len = sizeof payload};
@@ -308,43 +335,40 @@ static void round_(int print) {
 
 	/* Each frame stamped through a fresh timestamp, as a caller holding a u64 must, and each
 	 * group started at its first frame's. */
+	moq_track_Producer *stamping = create_track(broadcast, "stamped");
 	start = begin();
 	for (int g = 0; g < GROUPS; g++) {
-		moq_group_Producer *group = append_group(track, stamp(micros));
+		moq_group_Producer *group = append_group(stamping, stamp(micros));
 		for (int f = 0; f < FRAMES; f++) {
 			write_frame(group, stamp(micros++), frame);
 		}
 		finish(group);
 	}
 	span stamped = end(start, N, "stamped");
+	moq_track_Producer_free(stamping);
 
 	/* Every frame at its group's start, converted once per group. */
+	moq_track_Producer *writing = create_track(broadcast, "write");
 	start = begin();
 	for (int g = 0; g < GROUPS; g++) {
 		moq_Timestamp at = stamp(micros++);
-		moq_group_Producer *group = append_group(track, at);
+		moq_group_Producer *group = append_group(writing, at);
 		for (int f = 0; f < FRAMES; f++) {
 			write_frame(group, at, frame);
 		}
 		finish(group);
 	}
 	span write = end(start, N, "write");
-
-	moq_track_Consumer *consumer = moq_track_Producer_consume(track, NULL);
-	moq_track_Consumer_subscribe_future *subscribing = moq_track_Consumer_subscribe(consumer, NULL, NULL);
-	moq_track_Subscriber *subscriber = NULL;
-	if (moq_track_Consumer_subscribe_poll(subscribing, waker, &subscriber, &err) != MOQ_POLL_READY) {
-		fail("subscribe");
-	}
-	moq_track_Consumer_subscribe_future_free(subscribing);
-	moq_track_Consumer_free(consumer);
+	moq_track_Producer_free(writing);
 
 	/* Each frame written, then read through a new future ready at its first poll. */
+	moq_track_Producer *readying = create_track(broadcast, "ready");
+	moq_track_Subscriber *subscriber = subscribe(readying);
 	moq_frame_Frame *last = NULL;
 	start = begin();
 	for (int g = 0; g < GROUPS; g++) {
 		moq_Timestamp at = stamp(micros++);
-		moq_group_Producer *group = append_group(track, at);
+		moq_group_Producer *group = append_group(readying, at);
 		moq_group_Consumer *reader = recv_group(subscriber);
 		for (int f = 0; f < FRAMES; f++) {
 			write_frame(group, at, frame);
@@ -357,12 +381,16 @@ static void round_(int print) {
 		moq_group_Consumer_free(reader);
 	}
 	span ready = end(start, N, "ready");
+	moq_track_Subscriber_free(subscriber);
+	moq_track_Producer_free(readying);
 
 	/* Each read polled before its frame is written, so it pends, then polled again. */
+	moq_track_Producer *waking = create_track(broadcast, "woken");
+	subscriber = subscribe(waking);
 	start = begin();
 	for (int g = 0; g < GROUPS; g++) {
 		moq_Timestamp at = stamp(micros++);
-		moq_group_Producer *group = append_group(track, at);
+		moq_group_Producer *group = append_group(waking, at);
 		moq_group_Consumer *reader = recv_group(subscriber);
 		for (int f = 0; f < FRAMES; f++) {
 			moq_group_Consumer_read_frame_future *reading = moq_group_Consumer_read_frame(reader, NULL);
@@ -381,6 +409,8 @@ static void round_(int print) {
 		moq_group_Consumer_free(reader);
 	}
 	span woken = end(start, N, "woken");
+	moq_track_Subscriber_free(subscriber);
+	moq_track_Producer_free(waking);
 
 	/* The last frame's 100 bytes, owned without a copy, then freed. */
 	start = begin();
@@ -394,11 +424,10 @@ static void round_(int print) {
 
 	span mbps[sizeof sizes / sizeof sizes[0]];
 	for (size_t i = 0; i < sizeof sizes / sizeof sizes[0]; i++) {
-		mbps[i] = throughput(track, subscriber, &micros, sizes[i], &sum);
+		mbps[i] = throughput(broadcast, &micros, sizes[i], &sum);
 	}
 
 	sink = sum;
-	moq_track_Subscriber_free(subscriber);
 	moq_track_Producer_free(track);
 	moq_broadcast_Producer_free(broadcast);
 

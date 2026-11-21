@@ -82,6 +82,15 @@ must not be ranked against the managed `loop` row. C, C++, and Rust's existing `
 cases already manually poll in one loop; they remain the native floor, without printing
 the same measurement twice under another name.
 
+Each case that writes groups writes them to a track of its own, created before its clock
+starts and freed after it stops. A track caches every group written to it until it is
+freed: a broadcast's pool evicts by its expiry only when something polls it, and nothing
+here does. Before, every case wrote to one track, so a round held all of its frames, about
+1.4 GB in C and Rust, and each later case ran on a heap that grew as it ran; now a round
+peaks near 290 MB there. Go and Swift peak at 1.1 and 1.2 GB, as their reads run on many
+threads, each with a glibc malloc arena that keeps what it freed: with
+`MALLOC_ARENA_MAX=1` they peak near 330 and 400 MB.
+
 ## CodSpeed
 
 [CodSpeed](https://app.codspeed.io/kixel-ai/rust2) keeps main's history of each
@@ -304,8 +313,10 @@ tick:
    call, so only a leaf takes it: a call that may wait on a lock, as `is_closed()` waits on
    moq's, or call back into Kotlin, could stall every thread's collection behind it.
 3. **Throughput falls off from 16 KiB on ART alone**, near 650 MB/s against HotSpot's 6.7 to
-   9.3 GB/s, while 100 B and 1 KiB frames stay within 3x.
-   [ART's throughput](/quest/m1/ffi-speed/art-throughput.md) finds why.
+   9.3 GB/s, while 100 B and 1 KiB frames stay within 3x. These rounds kept every case's
+   frames on one track; a track per case ([below](#a-track-per-case)) raised both runtimes
+   but HotSpot more, so the gap stands. [ART's throughput](/quest/m1/ffi-speed/art-throughput.md)
+   finds why.
 
 The spike, 5 rounds of each side alternating on one emulator at a load of 12 to 29, wall ns,
 before (main) and after (`@FastNative` on leaves, registered):
@@ -330,9 +341,36 @@ defined twice. Only leaves whose `eq` and `hash` walk no value of a caller's siz
 marked, as Dart's leaf calls are.
 
 `just ffi android` passes, with these rules, on API 24 (Android 7, which ignores the
-annotation), 28, 30, and 35. On API 28, `export.kt` itself never finishes, with or without
-the annotation: within 100 s its native memory passes 1.5 GB under a 256 MB heap
-([Kotlin on Android 9](/quest/m1/ffi-speed/android-9-memory.md)).
+annotation), 28, 30, and 35.
+
+### A track per case
+
+Before this change, `export.kt` never finished on API 28: within 15 s its resident memory
+passed 1.7 GB under a 256 MB heap, and the emulator, with 2 GB and no swap, stopped
+answering adb for the 10 minutes it was given. The binding leaked nothing: the cases that
+make and free a million handles grew it by 3 MB in all, while each case writing a million
+100 B frames grew it by 270 to 300 MB, the frames its one track cached. HotSpot held the
+same, 2.1 GB at its peak, and API 35's emulator swapped it to zram. With each writing case
+on a track of its own ([above](#binding-benchmark)), the API 28 run peaks near 380 MB and
+finishes, and nightly runs it there with 2 GB, where a bench that outgrows the device
+hangs and the step's 20 minutes fail it.
+
+Measured 2026-11-20 on **desktop**, an Intel Core Ultra 7 270K Plus (24 cores), through
+`quest gate`, against moq `1aa86d5e`, on an Android 15 (API 35) x86_64 emulator with 4
+cores and 2.5 GB under KVM. Before is rust2 `cd40ee4d`, after is this change, 3 rounds
+each at a load of 26 to 28 before and 20 to 21 after; throughput in wall MB/s, the
+median:
+
+| frame | HotSpot before | HotSpot after | ART before | ART after |
+|---|---|---|---|---|
+| 100 B | 159 | 161 | 52 | 74 |
+| 1 KiB | 1,298 | 1,304 | 398 | 393 |
+| 16 KiB | 2,553 | 7,705 | 906 | 1,368 |
+| 64 KiB | 1,839 | 5,610 | 941 | 1,168 |
+| 1 MiB | 2,805 | 4,017 | 744 | 935 |
+
+The call rows moved within their rounds' spread; on ART, the 100 B write fell from 496
+to 404 ns and the ready read from 1,324 to 1,162.
 
 ## Swift's inlined calls
 
