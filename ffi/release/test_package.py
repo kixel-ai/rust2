@@ -624,6 +624,17 @@ class Swift(unittest.TestCase):
         self.assertEqual(package.api_name("_fstatat$INODE64"), "fstatat")
         self.assertEqual(package.api_name("_OBJC_CLASS_$_NSUserDefaults"), "OBJC_CLASS_$_NSUserDefaults")
 
+    def test_required_apis(self):
+        imports = "_fstat$INODE64\n_NSFileSystemFreeSize\n_NSURLCreationDateKey\n_memcpy\n"
+        with mock.patch.object(package, "output", return_value=imports):
+            self.assertEqual(package.required_apis("probe.dylib"), {
+                "FileTimestamp": {"fstat", "NSURLCreationDateKey"},
+                "DiskSpace": {"NSFileSystemFreeSize"},
+            })
+        with self.assertRaises(SystemExit) as raised:
+            package.privacy_manifest("moq", {"DiskSpace": {"NSFileSystemFreeSize"}})
+        self.assertIn("NSFileSystemFreeSize", str(raised.exception))
+
     def test_privacy_manifest_declares_reasons(self):
         found = {"FileTimestamp": {"fstat", "stat"}, "SystemBootTime": {"mach_absolute_time"}}
         plist = plistlib.loads(package.privacy_manifest("moq", found))
@@ -643,7 +654,8 @@ class Swift(unittest.TestCase):
             self.assertIn(api, str(raised.exception))
 
     def test_apple_profile(self):
-        with tempfile.TemporaryDirectory() as raw:
+        with tempfile.TemporaryDirectory() as raw, mock.patch.dict(os.environ):
+            os.environ.pop("CARGO_PROFILE_RELEASE_DEBUG", None)
             manifest = Path(raw) / "Cargo.toml"
             manifest.write_text('[package]\nname = "x"\n')
             self.assertEqual(package.apple_profile(manifest), {"CARGO_PROFILE_RELEASE_DEBUG": "line-tables-only"})
@@ -652,6 +664,13 @@ class Swift(unittest.TestCase):
                 self.assertEqual(package.apple_profile(manifest), {"CARGO_PROFILE_RELEASE_DEBUG": "line-tables-only"}, level)
             for level in ("true", "1", '"full"', '"line-tables-only"'):
                 manifest.write_text(f'[package]\nname = "x"\n\n[profile.release]\ndebug = {level}\n')
+                self.assertEqual(package.apple_profile(manifest), {}, level)
+            # The environment overrides the profile, as it does for cargo.
+            for level in ("0", "false", "none", "line-directives-only"):
+                os.environ["CARGO_PROFILE_RELEASE_DEBUG"] = level
+                self.assertEqual(package.apple_profile(manifest), {"CARGO_PROFILE_RELEASE_DEBUG": "line-tables-only"}, level)
+            for level in ("1", "2", "true", "limited", "full", "line-tables-only"):
+                os.environ["CARGO_PROFILE_RELEASE_DEBUG"] = level
                 self.assertEqual(package.apple_profile(manifest), {}, level)
 
     def test_unknown_linker_flags_fail(self):

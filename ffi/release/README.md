@@ -124,9 +124,11 @@ crate apart from it takes `web-features` and `web-example` instead.
    that link imports, which the App Store's upload scan refuses undeclared (ITMS-91053).
    The package's `PrivacyInfo.xcprivacy` declares them, a resource of its own
    `<Module>Privacy` target, which SwiftPM bundles into the app, since a static library holds
-   none: file metadata (`stat` and its kin) of the app's containers, `C617.1`, and of files
+   none: file metadata (`stat` and its kin, and Foundation's date keys such as
+   `NSURLCreationDateKey`) of the app's containers, `C617.1`, and of files
    the user granted it, `3B52.1`; and the boot clock
-   (`mach_absolute_time`) for elapsed time, `35F9.1`. Disk space, `getattrlist`, user defaults, and active keyboards have no reason
+   (`mach_absolute_time`) for elapsed time, `35F9.1`. Disk space (`statfs` and its kin, and
+   keys such as `NSFileSystemFreeSize`), `getattrlist`, user defaults, and active keyboards have no reason
    that fits every library, so a library reaching them fails the build. An Objective-C call
    by selector, or to a class looked up at run time, imports no symbol, and the scan misses it.
    A sandboxed macOS app may also stat a world-readable system path, such as `/etc/localtime`,

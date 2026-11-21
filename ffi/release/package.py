@@ -62,10 +62,15 @@ APPLE_LINKS = {
 # Apple's required-reason APIs a symbol names, by the privacy manifest category declaring them
 # (https://developer.apple.com/documentation/bundleresources/describing-use-of-required-reason-api).
 # `getattrlist` and its kin are in two categories, as what they read depends on their arguments.
+# Foundation's attribute keys are constants a caller imports, so the scan sees them too.
 REQUIRED_REASON_APIS = {
-    **dict.fromkeys(["stat", "fstat", "fstatat", "lstat"], "FileTimestamp"),
+    **dict.fromkeys(["stat", "fstat", "fstatat", "lstat", "NSFileCreationDate", "NSFileModificationDate",
+                     "NSURLContentModificationDateKey", "NSURLCreationDateKey"], "FileTimestamp"),
     **dict.fromkeys(["getattrlist", "getattrlistbulk", "fgetattrlist", "getattrlistat"], "FileTimestamp or DiskSpace"),
-    **dict.fromkeys(["statfs", "statvfs", "fstatfs", "fstatvfs"], "DiskSpace"),
+    **dict.fromkeys(["statfs", "statvfs", "fstatfs", "fstatvfs", "NSFileSystemFreeSize", "NSFileSystemSize",
+                     "NSURLVolumeAvailableCapacityKey", "NSURLVolumeAvailableCapacityForImportantUsageKey",
+                     "NSURLVolumeAvailableCapacityForOpportunisticUsageKey", "NSURLVolumeTotalCapacityKey"],
+                    "DiskSpace"),
     "mach_absolute_time": "SystemBootTime",
     "OBJC_CLASS_$_NSUserDefaults": "UserDefaults",
     "OBJC_CLASS_$_UITextInputMode": "ActiveKeyboards",
@@ -2094,11 +2099,12 @@ def web_package(info, web_dir, wasm, scope, out):
 
 def apple_profile(manifest):
     """The Apple slices' build with line tables at least, from which the app's dSYM symbolicates
-    a crash in Rust, keeping a level of the crate's release profile, which the export carries,
-    only when it holds them."""
+    a crash in Rust, keeping the level cargo would build at, from the environment or else the
+    crate's release profile, which the export carries, only when it holds them."""
     with open(manifest, "rb") as f:
         level = tomllib.load(f).get("profile", {}).get("release", {}).get("debug", False)
-    lines = level is True or level in (1, 2, "limited", "full", "line-tables-only")
+    level = os.environ.get("CARGO_PROFILE_RELEASE_DEBUG", level)
+    lines = level is True or level in (1, 2, "1", "2", "true", "limited", "full", "line-tables-only")
     return {} if lines else {"CARGO_PROFILE_RELEASE_DEBUG": "line-tables-only"}
 
 
