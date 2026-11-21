@@ -62,7 +62,9 @@ fn record_cfgs(args: &[String]) -> Result<(), String> {
 	let early = rustc_session::EarlyDiagCtxt::new(rustc_session::config::ErrorOutputType::default());
 	let expanded = rustc_driver::args::arg_expand_all(&early, &args[2..]);
 	let query = expanded.windows(2).any(|w| w[0] == "--crate-name" && w[1] == "___")
-		&& expanded.iter().any(|arg| arg == "--target" || arg.starts_with("--target="))
+		&& expanded
+			.iter()
+			.any(|arg| arg == "--target" || arg.starts_with("--target="))
 		&& expanded.iter().any(|arg| arg == "--print=cfg");
 	if !query {
 		return Ok(());
