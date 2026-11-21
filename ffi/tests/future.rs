@@ -2,9 +2,11 @@
 //! `runtime/rt/future.rs`, under loom: every interleaving of a wake from another thread
 //! against a poll, a change of waker, a start, and a free, and of a future that is not
 //! `Send` polled and freed from another thread, and those within a preemption bound of one
-//! made on a home. Each C waker
+//! made on a home, and of two polls of one future, one of which must be refused. Each C waker
 //! must be dropped once, never woken after, and woken whenever a poll pended before the
-//! value it waited for arrived; each future must drop once, on its own thread.
+//! value it waited for arrived; each future must drop once, on its own thread. Every access
+//! of the runtime's atomics is explored, `rt::AtomicBool` making it so, and
+//! `flaws_are_caught` has each model fail on the atomics made wrong.
 
 #[path = "loom/rt.rs"]
 mod rt;
@@ -220,6 +222,72 @@ fn waker_replaced_while_woken() {
 	});
 }
 
+/// A receive that never finishes, which fails the model if a poll of it starts before
+/// another's ends.
+struct Overlap {
+	channel: Channel,
+	inside: Arc<AtomicUsize>,
+}
+
+impl std::future::Future for Overlap {
+	type Output = u32;
+
+	fn poll(self: Pin<&mut Self>, _: &mut Context<'_>) -> Poll<u32> {
+		assert_eq!(self.inside.fetch_add(1, SeqCst), 0, "two polls at once");
+		// A lock, where loom may run the other poll.
+		drop(self.channel.lock().unwrap());
+		self.inside.fetch_sub(1, SeqCst);
+		Poll::Pending
+	}
+}
+
+/// Poll `future`, whether the runtime let the poll in: not if another was in the future.
+fn poll_admitted(future: *mut Future, waker: Waker) -> bool {
+	match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| poll(future, waker))) {
+		Ok(polled) => {
+			assert_eq!(polled, None, "a future that never finishes finished");
+			true
+		}
+		Err(panic) => {
+			let msg = panic.downcast_ref::<String>().map(String::as_str);
+			assert!(
+				msg.is_some_and(|msg| msg.ends_with("a future is polled concurrently")),
+				"a poll failed otherwise: {msg:?}"
+			);
+			false
+		}
+	}
+}
+
+/// Two threads poll one future at once: the runtime lets one through and refuses the other,
+/// or runs them one after the other, and never has both in the future's poll.
+#[test]
+fn polls_race() {
+	model(None, || {
+		let channel = Channel::default();
+		let inside = Arc::new(AtomicUsize::new(0));
+		let future = Future::new(
+			Overlap {
+				channel,
+				inside,
+			},
+			lower,
+		);
+		let (first, second) = (Arc::new(Counts::default()), Arc::new(Counts::default()));
+		let other = {
+			let handle = future as usize;
+			let second = second.clone();
+			// SAFETY: live until the free below, which follows the join.
+			thread::spawn(move || poll_admitted(handle as *mut Future, waker(&second)))
+		};
+		let mine = poll_admitted(future, waker(&first));
+		let theirs = other.join().unwrap();
+		assert!(mine || theirs, "both polls were refused");
+		// SAFETY: live, and no longer polled.
+		unsafe { Future::free(future) };
+	});
+}
+
 /// A free while a send on another thread wakes the pending poll's waker: the future drops
 /// once, and its waker once, never woken after.
 #[test]
@@ -365,4 +433,21 @@ fn unsent_on_a_home() {
 		assert_eq!(counts.drops.load(SeqCst), 1);
 		rt::os::stop();
 	});
+}
+
+/// The models each fail on the atomics made wrong, so they do not pass vacuously.
+#[test]
+fn flaws_are_caught() {
+	use rt::Flaw::*;
+	rt::flaws_are_caught(&[
+		(SwapsKeepFlag, &["polls_race", "unsent_polled_and_freed_elsewhere", "unsent_on_a_home"]),
+		(
+			SwapsSeeSet,
+			&["polls_race", "wake_races_poll", "waker_replaced_while_woken", "free_races_wake", "start_then_poll"],
+		),
+		(LoadsClear, &["unsent_polled_and_freed_elsewhere", "unsent_on_a_home"]),
+		(LoadsSet, &["unsent_on_a_home"]),
+		(StoresSetSkipped, &["unsent_on_a_home"]),
+		(StoresClearSkipped, &["wake_races_poll", "waker_replaced_while_woken", "start_then_poll"]),
+	]);
 }

@@ -1082,6 +1082,7 @@ fun owned() {
 	compared()
 	forwarded()
 	nursed()
+	ended()
 	unwinds()
 }
 
@@ -1209,6 +1210,34 @@ fun nursed() {
 @OwnFrame
 fun unclosedToken() {
 	Token.new(5u)
+}
+
+// A `Drop` that unwinds once the close committed, as the sink it logs a last line to fails a
+// check, which only a failure of Rust's unwinds out of a callback: the exception reaches the
+// caller, and the object is closed, its drop run and its token dropped once, with the GC
+// tracking its handle, whose cleanup the close must stop, or not.
+fun ended() {
+	for (tracked in listOf(false, true)) {
+		var lines = 0
+		val before = dropped()
+		val ending = Epilogue.new(object : Log {
+			override fun log(level: UByte, line: String): Boolean {
+				lines++
+				return lettered { 0xD800 } == 0
+			}
+		}, 7u)
+		// Later returns push it out of its nursery, which registers it with the GC.
+		if (tracked) fill()
+		val raised = runCatching { ending.close() }.exceptionOrNull()
+		check(raised is IllegalArgumentException && raised.message == "55296 is no Unicode scalar value, as a Rust char is", "a drop's exception reaches the close, tracked $tracked: $raised")
+		check(lines == 1 && dropped() == before + 1u, "a drop that unwound ran once and dropped its token, tracked $tracked: $lines, ${dropped() - before}")
+		val after = runCatching { ending.redirect(object : Log { override fun log(level: UByte, line: String) = true }) }.exceptionOrNull()
+		check(after?.message == "Epilogue is closed", "the object is closed, tracked $tracked: $after")
+		ending.close()
+		check(lines == 1, "a second close drops nothing again, tracked $tracked: $lines")
+		uncollected(before + 1u, "a collection drops nothing again, tracked $tracked")
+		check(lines == 1, "nor logs, tracked $tracked: $lines")
+	}
 }
 
 // Return a nursery's worth of objects, each closed, pushing out every earlier one.
