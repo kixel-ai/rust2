@@ -1,7 +1,9 @@
 use crate::{
 	cache::{self, Cache, Record},
 	cli::{Args, Spec},
-	fetchers::{Data, Fetcher, GhCrateMeta, QuickInstall, SignaturePolicy, TargetData, TargetDataErased},
+	fetchers::{
+		Data, Fetcher, GhCrateMeta, QuickInstall, SignaturePolicy, TargetArchOverride, TargetData, TargetDataErased,
+	},
 	target::TargetTriple,
 	trust,
 };
@@ -226,6 +228,11 @@ impl Package {
 		};
 		let version = self.version.to_string();
 		let install = stage.join("bin");
+		// `bin-dir` must spell `{ target-arch }` as the URL discovery found did.
+		let target_related_info = TargetArchOverride {
+			values: &fetcher.target_data().target_related_info,
+			target_arch: fetcher.resolved_target_arch(),
+		};
 		let data = bins::Data {
 			name: &self.name,
 			target: fetcher.target(),
@@ -234,7 +241,7 @@ impl Package {
 			meta: fetcher.target_meta(),
 			bin_path: &download,
 			install_path: &install,
-			target_related_info: &fetcher.target_data().target_related_info,
+			target_related_info: &target_related_info,
 		};
 		let bin_dir = layout(&data, &self.bins, discovery_name)?;
 		let template = leon::Template::parse(&bin_dir)?;
