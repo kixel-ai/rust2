@@ -17,7 +17,7 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-#define API_CONTRACT ((uint64_t)0xe381dfc89d46f06bULL)
+#define API_CONTRACT ((uint64_t)0x43447afc7b8f8462ULL)
 uint64_t api_contract(void);
 uint32_t api_target(void);
 typedef int32_t api_status;
@@ -114,9 +114,12 @@ typedef struct api_Waiter api_Waiter;
 typedef struct api_Feed api_Feed;
 typedef struct api_Countdown api_Countdown;
 typedef struct api_Retired api_Retired;
+typedef struct api_Folio api_Folio;
 typedef struct api_Logger api_Logger;
 typedef struct api_Journal api_Journal;
 typedef struct api_Local api_Local;
+typedef struct api_Wrapped api_Wrapped;
+typedef struct api_Buffer api_Buffer;
 typedef struct api_LocalWaiter api_LocalWaiter;
 typedef struct api_Retry api_Retry;
 typedef struct api_Digest api_Digest;
@@ -147,6 +150,7 @@ typedef struct api_Channel api_Channel;
 typedef struct api_Gap api_Gap;
 typedef struct api_Berth api_Berth;
 typedef struct api_Mark api_Mark;
+typedef struct api_Hasp api_Hasp;
 typedef struct api_Message api_Message;
 typedef struct api_Node api_Node;
 typedef struct api_Tally api_Tally;
@@ -179,6 +183,7 @@ typedef struct api_tls_Codec api_tls_Codec;
 typedef struct api_Spawned api_Spawned;
 typedef struct api_LogThread api_LogThread;
 typedef struct api_Pinned api_Pinned;
+typedef struct api_Guarded api_Guarded;
 typedef struct api_Hooked api_Hooked;
 typedef struct api_Forged api_Forged;
 typedef struct api_Part api_Part;
@@ -207,6 +212,10 @@ typedef enum api_clash_Level {
 	API_CLASH_LEVEL_DEFAULT = 0,
 	API_CLASH_LEVEL_DEBUG = 1,
 } api_clash_Level;
+typedef enum api_clash_Op {
+	API_CLASH_OP_DELETE_ = 0,
+	API_CLASH_OP_DELETE = 1,
+} api_clash_Op;
 typedef enum api_Level {
 	API_LEVEL_ERROR = 0,
 	API_LEVEL_WARN = 1,
@@ -726,6 +735,9 @@ typedef struct api_Rated {
 typedef struct api_Hits {
 	uint64_t opaque[2];
 } api_Hits;
+typedef struct api_Regs {
+	uint8_t opaque[20];
+} api_Regs;
 typedef struct api_Extent {
 	uint64_t opaque[2];
 } api_Extent;
@@ -886,12 +898,22 @@ typedef struct api_clash_Break {
 typedef struct api_clash_Malformed {
 	uint8_t at;
 } api_clash_Malformed;
+typedef struct api_clash_Described {
+	uint8_t description;
+	uint8_t debug_description;
+} api_clash_Described;
 typedef struct api_clash_Errno {
 	int32_t errno_;
 } api_clash_Errno;
 typedef struct api_clash_Escaped {
 	uint8_t new_;
 } api_clash_Escaped;
+typedef struct api_clash_Underscored {
+	uint8_t new__;
+	uint8_t new_;
+	uint8_t debug;
+	uint8_t default_;
+} api_clash_Underscored;
 typedef struct api_tls_policy_Lifetime {
 	uint32_t seconds;
 } api_tls_policy_Lifetime;
@@ -1160,6 +1182,20 @@ typedef struct api_clash_Tag {
 		api_clash_Tag_Private private_;
 	};
 } api_clash_Tag;
+typedef enum api_clash_Change_tag {
+	API_CLASH_CHANGE_SET = 0,
+	API_CLASH_CHANGE_CLEAR = 1,
+} api_clash_Change_tag;
+typedef struct api_clash_Change_Set {
+	uint8_t new__;
+	uint8_t new_;
+} api_clash_Change_Set;
+typedef struct api_clash_Change {
+	api_clash_Change_tag tag;
+	union {
+		api_clash_Change_Set set;
+	};
+} api_clash_Change;
 typedef struct api_Log_vtable {
 	void (*free)(void *data);
 	bool (*log)(void *data, uint8_t level, api_buf line);
@@ -1220,6 +1256,15 @@ typedef struct api_clash_Source {
 	const api_clash_Source_vtable *vtable;
 	void *data;
 } api_clash_Source;
+typedef struct api_clash_Eraser_vtable {
+	void (*free)(void *data);
+	uint8_t (*delete__)(void *data, uint8_t new__, uint8_t new_);
+	uint8_t (*delete_)(void *data);
+} api_clash_Eraser_vtable;
+typedef struct api_clash_Eraser {
+	const api_clash_Eraser_vtable *vtable;
+	void *data;
+} api_clash_Eraser;
 #define API_LIMIT ((uint64_t)1000ULL)
 #define API_FAR ((int64_t)9223372036854775807LL)
 #define API_EOF ((int32_t)-1)
@@ -1273,6 +1318,7 @@ bool api_Ticket_eq(const api_Ticket *a, const api_Ticket *b);
 API_MUST_USE api_buf api_Ticket_debug(const api_Ticket *self);
 api_Ticket api_Ticket_new(uint32_t number);
 uint32_t api_Ticket_number(const api_Ticket *self);
+void api_Ticket_wait(const api_Ticket *self);
 uint32_t api_Ticket_clones(void);
 void api_Seat_free(api_Seat *self);
 bool api_Seat_eq(const api_Seat *a, const api_Seat *b, api_status *status);
@@ -1332,6 +1378,18 @@ void api_Hits_misses_set(api_Hits *self, uint64_t value);
 api_Hits api_Hits_of(uint64_t hits, uint64_t misses);
 void api_Hits_add(api_Hits *self, api_Hits other);
 bool api_Hits_eq_(api_Hits *self, api_Hits other);
+bool api_Regs_eq(const api_Regs *a, const api_Regs *b);
+API_MUST_USE api_buf api_Regs_debug(const api_Regs *self);
+uint16_t api_Regs_fcw_get(const api_Regs *self);
+void api_Regs_fcw_set(api_Regs *self, uint16_t value);
+uint64_t api_Regs_wide_get(const api_Regs *self);
+void api_Regs_wide_set(api_Regs *self, uint64_t value);
+api_Point api_Regs_at_get(const api_Regs *self);
+void api_Regs_at_set(api_Regs *self, api_Point value);
+uint8_t api_Regs_tag_get(const api_Regs *self);
+void api_Regs_tag_set(api_Regs *self, uint8_t value);
+api_Regs api_Regs_new(uint16_t fcw, uint64_t wide, api_Point at);
+uint8_t api_Regs_seed(const api_Regs *self);
 bool api_Extent_eq(const api_Extent *a, const api_Extent *b);
 API_MUST_USE api_buf api_Extent_debug(const api_Extent *self);
 uint64_t api_Extent_start_get(const api_Extent *self);
@@ -1495,6 +1553,10 @@ bool api_clash_Malformed_eq(const api_clash_Malformed *a, const api_clash_Malfor
 API_MUST_USE api_buf api_clash_Malformed_to_string(const api_clash_Malformed *self);
 API_MUST_USE api_buf api_clash_Malformed_debug(const api_clash_Malformed *self);
 bool api_clash_Malformed_is(const api_clash_Malformed *self, uint8_t at);
+void api_clash_Described_free(api_clash_Described *self);
+bool api_clash_Described_eq(const api_clash_Described *a, const api_clash_Described *b);
+API_MUST_USE api_buf api_clash_Described_to_string(const api_clash_Described *self);
+API_MUST_USE api_buf api_clash_Described_debug(const api_clash_Described *self);
 void api_clash_Errno_free(api_clash_Errno *self);
 bool api_clash_Errno_eq(const api_clash_Errno *a, const api_clash_Errno *b);
 API_MUST_USE api_buf api_clash_Errno_debug(const api_clash_Errno *self);
@@ -1502,8 +1564,12 @@ api_clash_Errno api_clash_Errno_NULL(void);
 void api_clash_Escaped_free(api_clash_Escaped *self);
 bool api_clash_Escaped_eq(const api_clash_Escaped *a, const api_clash_Escaped *b);
 API_MUST_USE api_buf api_clash_Escaped_debug(const api_clash_Escaped *self);
-uint8_t api_clash_Escaped_delete(const api_clash_Escaped *self);
 uint8_t api_clash_Escaped_delete_(const api_clash_Escaped *self, uint8_t new_, uint8_t new__);
+uint8_t api_clash_Escaped_delete(const api_clash_Escaped *self);
+void api_clash_Underscored_free(api_clash_Underscored *self);
+bool api_clash_Underscored_eq(const api_clash_Underscored *a, const api_clash_Underscored *b);
+API_MUST_USE api_buf api_clash_Underscored_debug(const api_clash_Underscored *self);
+api_clash_Underscored api_clash_Underscored_default(void);
 void api_tls_policy_Lifetime_free(api_tls_policy_Lifetime *self);
 bool api_tls_policy_Lifetime_eq(const api_tls_policy_Lifetime *a, const api_tls_policy_Lifetime *b);
 API_MUST_USE api_buf api_tls_policy_Lifetime_debug(const api_tls_policy_Lifetime *self);
@@ -1584,6 +1650,11 @@ void api_clash_Tag_free(api_clash_Tag *self);
 bool api_clash_Tag_eq(const api_clash_Tag *a, const api_clash_Tag *b);
 API_MUST_USE api_buf api_clash_Tag_debug(const api_clash_Tag *self);
 uint32_t api_clash_Tag_number(const api_clash_Tag *self);
+bool api_clash_Op_eq(const api_clash_Op *a, const api_clash_Op *b);
+API_MUST_USE api_buf api_clash_Op_debug(const api_clash_Op *self);
+void api_clash_Change_free(api_clash_Change *self);
+bool api_clash_Change_eq(const api_clash_Change *a, const api_clash_Change *b);
+API_MUST_USE api_buf api_clash_Change_debug(const api_clash_Change *self);
 bool api_Level_eq(const api_Level *a, const api_Level *b);
 uint64_t api_Level_hash(const api_Level *self);
 int8_t api_Level_partial_cmp(const api_Level *a, const api_Level *b);
@@ -1687,6 +1758,19 @@ API_MUST_USE api_Retired_next_future *api_Retired_next(api_Retired *self, api_st
 API_MUST_USE api_poll api_Retired_next_start(api_Retired *self, api_option_u32 *out, api_Retired_next_future **future, api_status *status);
 API_MUST_USE api_poll api_Retired_next_poll(api_Retired_next_future *future, api_waker waker, api_option_u32 *out);
 void api_Retired_next_future_free(api_Retired_next_future *future);
+void api_Folio_free(api_Folio *self);
+void api_Folio_drop(api_Folio *self, api_status *status);
+uint16_t api_Folio_page_get(const api_Folio *self, api_status *status);
+void api_Folio_page_set(api_Folio *self, uint16_t value, api_status *status);
+API_MUST_USE api_buf api_Folio_title_get(const api_Folio *self, api_status *status);
+void api_Folio_title_set(api_Folio *self, api_buf value, api_status *status);
+API_MUST_USE api_buf api_Folio_note_get(const api_Folio *self, api_status *status);
+void api_Folio_note_set(api_Folio *self, api_buf value, api_status *status);
+API_MUST_USE api_Hasp *api_Folio_hasp_get(const api_Folio *self, api_status *status);
+void api_Folio_hasp_set(api_Folio *self, api_Hasp *value, api_status *status);
+API_MUST_USE api_Hasp *api_Folio_dock_get(const api_Folio *self, api_status *status);
+API_MUST_USE api_Folio *api_Folio_new(uint16_t page, api_buf title);
+uint8_t api_Folio_seed(const api_Folio *self, api_status *status);
 void api_Logger_free(api_Logger *self);
 API_MUST_USE api_Logger *api_Logger_new(api_Log sink);
 bool api_Logger_write(const api_Logger *self, api_buf line);
@@ -1719,6 +1803,22 @@ API_MUST_USE api_poll api_Local_poll_count_poll(api_Local_poll_count_future *fut
 void api_Local_poll_count_future_free(api_Local_poll_count_future *future);
 uint64_t api_Local_thread_number(const api_Local *self, api_status *status);
 bool api_Local_on_own_thread(const api_Local *self, api_status *status);
+void api_Wrapped_free(api_Wrapped *self);
+void api_Wrapped_drop(api_Wrapped *self, api_status *status);
+API_MUST_USE api_Wrapped *api_Wrapped_new(uint64_t n);
+uint64_t api_Wrapped_n_get(const api_Wrapped *self, api_status *status);
+void api_Wrapped_n_set(api_Wrapped *self, uint64_t value, api_status *status);
+bool api_Wrapped_on_get(const api_Wrapped *self, api_status *status);
+void api_Wrapped_on_set(api_Wrapped *self, bool value, api_status *status);
+uint64_t api_Wrapped_count(const api_Wrapped *self, api_status *status);
+void api_Wrapped_recount(api_Wrapped *self, uint64_t n, api_status *status);
+uint64_t api_Wrapped_steps(const api_Wrapped *self, api_status *status);
+uint32_t api_Wrapped_locals(const api_Wrapped *self, api_status *status);
+void api_Buffer_free(api_Buffer *self);
+void api_Buffer_drop(api_Buffer *self, api_status *status);
+API_MUST_USE api_Buffer *api_Buffer_new(uint32_t len);
+void api_Buffer_blank(api_Buffer *self, api_status *status);
+bool api_Buffer_zeroed(const api_Buffer *self, api_status *status);
 void api_LocalWaiter_free(api_LocalWaiter *self);
 void api_LocalWaiter_drop(api_LocalWaiter *self, api_status *status);
 API_MUST_USE api_LocalWaiter *api_LocalWaiter_new(api_waker waker_);
@@ -1999,6 +2099,10 @@ API_MUST_USE api_buf api_Mark_debug(const api_Mark *self, api_status *status);
 API_MUST_USE api_Mark *api_Mark_of(uint64_t count);
 uint64_t api_Mark_count(const api_Mark *self, api_status *status);
 void api_Mark_add(api_Mark *self, uint64_t by, api_status *status);
+void api_Hasp_free(api_Hasp *self);
+void api_Hasp_drop(api_Hasp *self, api_status *status);
+API_MUST_USE api_Hasp *api_Hasp_default(void);
+bool api_Hasp_set(const api_Hasp *self, api_status *status);
 void api_Message_free(api_Message *self);
 void api_Message_drop(api_Message *self, api_status *status);
 API_MUST_USE api_Message *api_Message_clone(const api_Message *self, api_status *status);
@@ -2048,6 +2152,10 @@ void api_Plain_n_set(api_Plain *self, uint64_t value, api_status *status);
 bool api_Plain_on_get(const api_Plain *self, api_status *status);
 void api_Plain_on_set(api_Plain *self, bool value, api_status *status);
 API_MUST_USE api_Plain *api_Plain_new(uint64_t n, bool on);
+uint64_t api_Plain_count(const api_Plain *self, api_status *status);
+void api_Plain_recount(api_Plain *self, uint64_t n, api_status *status);
+uint64_t api_Plain_steps(const api_Plain *self, api_status *status);
+uint32_t api_Plain_locals(const api_Plain *self, api_status *status);
 void api_Labeled_free(api_Labeled *self);
 bool api_Labeled_eq(const api_Labeled *a, const api_Labeled *b);
 uint64_t api_Labeled_hash(const api_Labeled *self);
@@ -2141,11 +2249,18 @@ uint32_t api_clash_Store_free_(const api_clash_Store *self);
 uint32_t api_clash_Store_close(const api_clash_Store *self);
 void api_clash_Store_wait(const api_clash_Store *self);
 void api_clash_Store_finalize(const api_clash_Store *self);
+uint32_t api_clash_Store_take(const api_clash_Store *self, api_Ticket ticket);
+uint32_t api_clash_Store_take_(api_Ticket ticket);
+uint32_t api_clash_Store_count_(void);
+uint32_t api_clash_Store_count(const api_clash_Store *self);
+API_MUST_USE api_clash_Store *api_clash_Store_open_(void);
+uint32_t api_clash_Store_open(const api_clash_Store *self);
 void api_clash_Reader_free(api_clash_Reader *self);
 void api_clash_Reader_drop(api_clash_Reader *self, api_status *status);
 API_MUST_USE api_clash_Reader *api_clash_Reader_new(api_buf bytes);
 API_MUST_USE bool api_clash_Reader_read_byte(api_clash_Reader *self, uint8_t *out, api_clash_Malformed *err, api_status *status);
 API_MUST_USE bool api_clash_Reader_unread_byte(api_clash_Reader *self, api_clash_Malformed *err, api_status *status);
+void api_clash_Reader_wait(const api_clash_Reader *self, uint64_t ms, api_status *status);
 void api_tls_Session_free(api_tls_Session *self);
 API_MUST_USE api_buf api_tls_Session_alpn(const api_tls_Session *self);
 api_tls_policy_Lifetime api_tls_Session_lifetime(const api_tls_Session *self);
@@ -2201,6 +2316,13 @@ void api_Pinned_value_set(api_Pinned *self, uint64_t value, api_status *status);
 API_MUST_USE api_Pinned *api_Pinned_new(uint64_t value);
 API_MUST_USE api_Pinned *api_Pinned_new_homed(uint64_t value);
 API_MUST_USE api_Part *api_Pinned_part(const api_Pinned *self, api_status *status);
+void api_Guarded_free(api_Guarded *self);
+API_MUST_USE api_Guarded *api_Guarded_new(uint64_t n);
+uint64_t api_Guarded_n_get(const api_Guarded *self);
+bool api_Guarded_on_get(const api_Guarded *self);
+uint64_t api_Guarded_count(const api_Guarded *self);
+uint64_t api_Guarded_steps(const api_Guarded *self);
+uint32_t api_Guarded_locals(const api_Guarded *self);
 void api_Hooked_free(api_Hooked *self);
 void api_Hooked_drop(api_Hooked *self, api_status *status);
 bool api_Hooked_eq(const api_Hooked *a, const api_Hooked *b, api_status *status);
@@ -2208,6 +2330,7 @@ API_MUST_USE api_buf api_Hooked_debug(const api_Hooked *self, api_status *status
 uint64_t api_Hooked_n_get(const api_Hooked *self, api_status *status);
 void api_Hooked_n_set(api_Hooked *self, uint64_t value, api_status *status);
 API_MUST_USE api_Hooked *api_Hooked_new(uint64_t n);
+uint64_t api_Hooked_count(const api_Hooked *self, api_status *status);
 void api_Forged_free(api_Forged *self);
 void api_Forged_drop(api_Forged *self, api_status *status);
 bool api_Forged_eq(const api_Forged *a, const api_Forged *b, api_status *status);
@@ -2575,6 +2698,7 @@ API_MUST_USE api_buf api_unzeroed(api_buf bytes);
 uint8_t api_deprecated(uint8_t note);
 uint8_t api__deprecated(uint8_t note);
 uint8_t api___all__(uint8_t note);
+uint8_t api___all___(uint8_t note);
 api_Knob api_knob(api_Dial dial);
 typedef struct api_level_later_future api_level_later_future;
 API_MUST_USE api_level_later_future *api_level_later(api_Dial dial);
@@ -2598,7 +2722,16 @@ API_MUST_USE api_clash_Any api_clash_any(api_buf type_url);
 api_clash_Candidate api_clash_candidate(uint8_t at);
 uint8_t api_clash_ignore(uint8_t arg0, uint8_t arg1, uint8_t arg2);
 API_MUST_USE api_clash_Empty_string *api_clash_empty(void);
+uint32_t api_clash_described(api_clash_Described described);
 uint8_t api_clash_waited(api_clash_Source source);
+uint32_t api_clash_underscored(api_clash_Underscored underscored, api_clash_Op op, api_clash_Change change);
+void api_clash_underscored_next(api_clash_Underscored underscored, api_clash_Change change, api_clash_Underscored *out0, api_clash_Change *out1);
+uint32_t api_clash_erased(api_clash_Eraser eraser);
+uint8_t api_clash_erase_(void);
+uint8_t api_clash_erase(void);
+uint32_t api_clash_lend_(const api_clash_Store *store);
+uint32_t api_clash_lend(void);
+uint32_t api_clash_run(uint8_t (*work__)(void *data), void *work___data, uint8_t work);
 API_MUST_USE bool api_clash_audible(api_clash_Tone tone, api_clash_Tone *out, api_vec_clash_Tone *err);
 uint32_t api_clash_nested(api_option_tuple_tuple_u8_u16_u32 a, api_option_tuple_tuple_u8_u16_u32_ b);
 uint8_t api_clash_audio_encoder_finish(void);

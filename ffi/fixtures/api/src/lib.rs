@@ -1431,6 +1431,10 @@ impl Ticket {
 		self.number
 	}
 
+	/// Named as `Object`'s final `wait()`, which Kotlin's value class member, a static of
+	/// another name on the JVM, keeps without `@JvmName`, which it cannot take.
+	pub fn wait(&self) {}
+
 	/// How many times any ticket's `Clone` ran.
 	pub fn clones() -> u32 {
 		TICKET_CLONES.load(std::sync::atomic::Ordering::Relaxed)
@@ -2165,6 +2169,79 @@ impl Hits {
 	}
 }
 
+/// A packed value, as redox_syscall's `FloatRegisters` is: its fields lie unaligned, which
+/// rustc lets no reference point at, so a getter copies out its `u16`, `u64`, and record,
+/// and borrows the `u8`, which no packing misaligns.
+#[derive(Clone, Copy, Debug, PartialEq)]
+#[repr(C, packed)]
+pub struct Regs {
+	pub fcw: u16,
+	pub wide: u64,
+	pub at: Point,
+	pub tag: u8,
+	seed: u8,
+}
+
+impl Regs {
+	pub fn new(fcw: u16, wide: u64, at: Point) -> Self {
+		Self {
+			fcw,
+			wide,
+			at,
+			tag: 7,
+			seed: 1,
+		}
+	}
+
+	pub fn seed(&self) -> u8 {
+		self.seed
+	}
+}
+
+/// A packed object: its `String` and `Option` lie unaligned, so a getter clones what it
+/// reads out of the field without dropping the original, its hasp, aligned to 1, is
+/// lent from the folio in place, and its dock is lent through the reference it holds, which
+/// is copied out.
+#[repr(C, packed)]
+pub struct Folio {
+	pub page: u16,
+	pub title: String,
+	pub note: Option<String>,
+	pub hasp: Hasp,
+	pub dock: &'static Hasp,
+	seed: u8,
+}
+
+static DOCK: Hasp = Hasp(std::sync::atomic::AtomicBool::new(false));
+
+impl Folio {
+	pub fn new(page: u16, title: &str) -> Self {
+		Self {
+			page,
+			title: title.to_string(),
+			note: None,
+			hasp: Hasp::default(),
+			dock: &DOCK,
+			seed: 3,
+		}
+	}
+
+	pub fn seed(&self) -> u8 {
+		self.seed
+	}
+}
+
+/// A flag that is not `Clone` and one byte wide, so aligned wherever it lies.
+#[derive(Default)]
+pub struct Hasp(std::sync::atomic::AtomicBool);
+
+impl Hasp {
+	/// Sets the flag, returning whether it was set already.
+	pub fn set(&self) -> bool {
+		self.0.swap(true, std::sync::atomic::Ordering::Relaxed)
+	}
+}
+
 /// A span whose `pub` start sits beside a private length, which no record could hold.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Extent {
@@ -2667,6 +2744,13 @@ impl Hooked {
 	pub fn new(n: u64) -> Self {
 		Self { n, gated: Gated(n) }
 	}
+
+	/// Its count, by a method that runs the hook first: no leaf call, though it returns
+	/// what a leaf would.
+	pub fn count(&self) -> u64 {
+		run_hook();
+		self.n
+	}
 }
 
 /// A value whose `PartialEq`, written by hand, claims to be derived, as a procedural
@@ -2752,6 +2836,76 @@ impl Plain {
 			pinned: (-1, 'p'),
 		}
 	}
+
+	/// Its count, by a method whose body only reads it: a leaf call.
+	pub fn count(&self) -> u64 {
+		self.n
+	}
+
+	/// Set its count, by a method whose body only writes it: a leaf call.
+	pub fn recount(&mut self, n: u64) {
+		self.n = n;
+	}
+
+	/// Count up to its count: a loop as long as the caller makes it, so no leaf call.
+	pub fn steps(&self) -> u64 {
+		let mut i = 0u64;
+		while i < self.n {
+			i = i.wrapping_add(1);
+		}
+		i
+	}
+
+	/// How many locals have dropped, a static's count: no leaf call.
+	pub fn locals(&self) -> u32 {
+		LOCALS.load(std::sync::atomic::Ordering::Relaxed)
+	}
+}
+
+/// A [`Plain`] behind a `Deref` and `DerefMut` that only borrow it, so its fields and
+/// methods are leaf calls through it too.
+pub struct Wrapped(Plain);
+
+impl Wrapped {
+	pub fn new(n: u64) -> Self {
+		Self(Plain::new(n, false))
+	}
+}
+
+impl std::ops::Deref for Wrapped {
+	type Target = Plain;
+
+	fn deref(&self) -> &Plain {
+		&self.0
+	}
+}
+
+impl std::ops::DerefMut for Wrapped {
+	fn deref_mut(&mut self) -> &mut Plain {
+		&mut self.0
+	}
+}
+
+/// A [`Plain`] behind a `Deref` that runs the hook, so nothing reached through it is a
+/// leaf call.
+#[cfg(not(target_arch = "wasm32"))]
+pub struct Guarded(Plain);
+
+#[cfg(not(target_arch = "wasm32"))]
+impl Guarded {
+	pub fn new(n: u64) -> Self {
+		Self(Plain::new(n, false))
+	}
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+impl std::ops::Deref for Guarded {
+	type Target = Plain;
+
+	fn deref(&self) -> &Plain {
+		run_hook();
+		&self.0
+	}
 }
 
 /// A value whose derived `PartialEq` and `Hash` reach no user code but walk a string as
@@ -2765,6 +2919,31 @@ pub struct Labeled {
 impl Labeled {
 	pub fn new(label: String) -> Self {
 		Self { label }
+	}
+}
+
+/// Bytes as many as the caller asks for.
+pub struct Buffer {
+	bytes: Vec<u8>,
+}
+
+impl Buffer {
+	/// A buffer of `len` ones.
+	pub fn new(len: u32) -> Self {
+		Self {
+			bytes: vec![1; len as usize],
+		}
+	}
+
+	/// Zero its bytes: a fill as long as the caller makes it, with no loop in its MIR, so no
+	/// leaf call.
+	pub fn blank(&mut self) {
+		self.bytes.fill(0);
+	}
+
+	/// Whether every byte is zero.
+	pub fn zeroed(&self) -> bool {
+		self.bytes.iter().all(|&b| b == 0)
 	}
 }
 
@@ -4993,6 +5172,39 @@ pub mod clash {
 
 		/// Nothing, named and typed as the method a JVM finalizer overrides.
 		pub fn finalize(&self) {}
+
+		/// The count plus `ticket`'s number, by a method taking an opaque value, which Kotlin
+		/// names as the static `take_`.
+		pub fn take(&self, ticket: crate::Ticket) -> u32 {
+			self.count.wrapping_add(ticket.number())
+		}
+
+		/// `ticket`'s number, by a static function taking an opaque value, which Kotlin names
+		/// as the method `take`.
+		pub fn take_(ticket: crate::Ticket) -> u32 {
+			ticket.number()
+		}
+
+		/// Seven, by a static function that camel case names as the method `count`.
+		pub fn count_() -> u32 {
+			7
+		}
+
+		/// The count, by a method that camel case names as the static `count_`.
+		pub fn count(&self) -> u32 {
+			self.count
+		}
+
+		/// A store of five, by a constructor that camel case names as the method `open`.
+		pub fn open_() -> Store {
+			Store { count: 5 }
+		}
+
+		/// The count plus two, wrapping past `u32::MAX`, by a method that camel case names as
+		/// the constructor `open_`.
+		pub fn open(&self) -> u32 {
+			self.count.wrapping_add(2)
+		}
 	}
 
 	/// A level, whose values are named as the members `Debug` and `Default` give a type, as
@@ -5050,6 +5262,25 @@ pub mod clash {
 		}
 	}
 
+	/// Digits whose fields are named as the members Swift's protocols for `Display` and `Debug`
+	/// give a type.
+	#[derive(Clone, Copy, Debug, PartialEq)]
+	pub struct Described {
+		pub description: u8,
+		pub debug_description: u8,
+	}
+
+	impl std::fmt::Display for Described {
+		fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+			write!(f, "{}{}", self.description, self.debug_description)
+		}
+	}
+
+	/// `described`'s fields as decimal digits, from `description` up.
+	pub fn described(described: Described) -> u32 {
+		u32::from(described.description) * 10 + u32::from(described.debug_description)
+	}
+
 	/// Bytes read one at a time, whose methods go vet reads as `io.ByteScanner`'s, as
 	/// untrusted's `Reader::read_byte` is.
 	pub struct Reader {
@@ -5073,6 +5304,11 @@ pub mod clash {
 		pub fn unread_byte(&mut self) -> Result<(), Malformed> {
 			self.at = self.at.checked_sub(1).ok_or(Malformed { at: 0 })?;
 			Ok(())
+		}
+
+		/// Nothing, typed on the JVM as `java.lang.Object`'s final `wait(long)`.
+		pub fn wait(&self, ms: u64) {
+			let _ = ms;
 		}
 	}
 
@@ -5114,22 +5350,132 @@ pub mod clash {
 		}
 	}
 
-	/// A byte, whose methods `delete` and `delete_` C++ escapes alike, as `delete_`.
+	/// A byte, whose methods `delete_` and `delete` C++ escapes alike, as `delete_`, and the
+	/// rest name alike where their case drops the `_`.
 	#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 	pub struct Escaped {
 		pub new: u8,
 	}
 
 	impl Escaped {
-		/// `new`, by a method C++ escapes as `delete_`.
-		pub fn delete(&self) -> u8 {
-			self.new
-		}
-
 		/// `new` plus the arguments, by parameters C++ escapes alike.
 		pub fn delete_(&self, new: u8, new_: u8) -> u8 {
 			self.new + new * 10 + new_ * 100
 		}
+
+		/// `new`, by a method C++ escapes as `delete_`.
+		pub fn delete(&self) -> u8 {
+			self.new
+		}
+	}
+
+	/// Digits whose fields differ only by trailing underscores, which camel case drops, and
+	/// are named as the members `Debug` and `Default` give a type.
+	#[derive(Clone, Copy, Debug, Default, PartialEq)]
+	pub struct Underscored {
+		pub new_: u8,
+		pub new: u8,
+		pub debug: u8,
+		pub default: u8,
+	}
+
+	/// An edit, whose values differ only by a trailing underscore, which Swift's case drops.
+	#[allow(non_camel_case_types, reason = "the clash under test")]
+	#[derive(Clone, Copy, Debug, PartialEq)]
+	pub enum Op {
+		Delete_,
+		Delete,
+	}
+
+	/// A change, whose payload's fields differ only by a trailing underscore.
+	#[derive(Clone, Copy, Debug, PartialEq)]
+	pub enum Change {
+		Set { new_: u8, new: u8 },
+		Clear,
+	}
+
+	/// `underscored`'s fields as decimal digits, from `new_` up, after `op`'s and `change`'s,
+	/// to show each crossed to its own place.
+	pub fn underscored(underscored: Underscored, op: Op, change: Change) -> u32 {
+		let Underscored {
+			new_,
+			new,
+			debug,
+			default,
+		} = underscored;
+		let change = match change {
+			Change::Set { new_, new } => u32::from(new_) * 10 + u32::from(new),
+			Change::Clear => 0,
+		};
+		let digits = [new_, new, debug, default]
+			.iter()
+			.fold(0, |n, &d| n * 10 + u32::from(d));
+		(op as u32 + 1) * 1_000_000 + change * 10_000 + digits
+	}
+
+	/// The underscored record with each field one more, wrapping past 255, and the change with
+	/// each swapped.
+	pub fn underscored_next(underscored: Underscored, change: Change) -> (Underscored, Change) {
+		let Underscored {
+			new_,
+			new,
+			debug,
+			default,
+		} = underscored;
+		let next = Underscored {
+			new_: new_.wrapping_add(1),
+			new: new.wrapping_add(1),
+			debug: debug.wrapping_add(1),
+			default: default.wrapping_add(1),
+		};
+		let change = match change {
+			Change::Set { new_, new } => Change::Set { new_: new, new: new_ },
+			Change::Clear => Change::Clear,
+		};
+		(next, change)
+	}
+
+	/// An eraser, implemented in each binding, whose methods and parameters differ only by
+	/// trailing underscores.
+	pub trait Eraser {
+		/// The arguments as decimal digits.
+		fn delete_(&self, new_: u8, new: u8) -> u8;
+
+		/// One.
+		fn delete(&self) -> u8;
+	}
+
+	/// `eraser`'s `delete_(1, 2)`, then its `delete()`, as decimal digits.
+	pub fn erased(eraser: impl Eraser) -> u32 {
+		u32::from(eraser.delete_(1, 2)) * 10 + u32::from(eraser.delete())
+	}
+
+	/// Two, by a name that differs only by a trailing underscore from `erase`'s.
+	pub fn erase_() -> u8 {
+		2
+	}
+
+	/// One.
+	pub fn erase() -> u8 {
+		1
+	}
+
+	/// One more than the store's count, or none without one, by a name that differs only by
+	/// a trailing underscore from `lend`'s: Swift's overload leaving out `store` would be
+	/// `lend()` too. The sum saturates at `u32::MAX`.
+	pub fn lend_(store: Option<&Store>) -> u32 {
+		store.map_or(0, |store| store.count.saturating_add(1))
+	}
+
+	/// Nine.
+	pub fn lend() -> u32 {
+		9
+	}
+
+	/// Ten times what `work_` returns, plus `work`, by parameters that differ only by a
+	/// trailing underscore, the closure's first.
+	pub fn run(work_: impl Fn() -> u8, work: u8) -> u32 {
+		u32::from(work_()) * 10 + u32::from(work)
 	}
 
 	/// The tone, or no tones where it is silent: an error Go names as `VecClashTone`'s variant.
@@ -5511,6 +5857,12 @@ pub fn _deprecated(note: u8) -> u8 {
 /// Two more than `note`, by a name Python reserves, as the module's own `__all__` is.
 pub fn __all__(note: u8) -> u8 {
 	note + 2
+}
+
+/// Three more than `note`, wrapping past 255, by the name Python would give `__all__`, which
+/// this one keeps.
+pub fn __all___(note: u8) -> u8 {
+	note.wrapping_add(3)
 }
 
 /// A dial, whose docs carry each rustdoc form a binding renders as its own: links to a

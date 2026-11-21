@@ -870,6 +870,14 @@ static api_buf unspelled(void) {
 
 /* What the transcript's output does not show: each check of the ABI's contract beyond it. */
 static void checks(void) {
+	/* Names that differ only by trailing underscores, which C keeps apart, each reaching its own
+	 * Rust. */
+	api_clash_Underscored underscored = {1, 2, 3, 4};
+	api_clash_Change set = {.tag = API_CLASH_CHANGE_SET, .set = {5, 6}};
+	if (api_clash_underscored(underscored, API_CLASH_OP_DELETE, set) != 2561234 || api_clash_erase_() != 2 || api_clash_erase() != 1) {
+		tr_fail("names apart by trailing underscores");
+	}
+
 	/* A field named as errno.h's macro, escaped. */
 	api_clash_Errno none = api_clash_Errno_NULL();
 	if (none.errno_ != 0 || API_EOF != -1 || api_WEXITSTATUS(0x300) != 3) {
@@ -1558,6 +1566,51 @@ static int statuses(void) {
 	}
 	api_Meter_free(first);
 	api_Meters_free(meters);
+
+	/* A packed object's fields are read and written where they lie unaligned: a `String` is
+	 * cloned from its field and the folio still drops the original, and its latch, which
+	 * no packing misaligns, is lent in place. */
+	status = 0;
+	api_Folio *folio = api_Folio_new(5, str("title"));
+	api_buf title = api_Folio_title_get(folio, &status);
+	if (status != 0 || title.len != 5 || memcmp(title.ptr, "title", 5) != 0) {
+		fprintf(stderr, "a packed folio's title is %.*s\n", (int)title.len, (const char *)title.ptr);
+		failed = 1;
+	}
+	api_buf_free(title);
+	api_Folio_title_set(folio, str("renamed"), &status);
+	api_Folio_note_set(folio, str("a note"), &status);
+	api_Folio_page_set(folio, 9, &status);
+	title = api_Folio_title_get(folio, &status);
+	api_buf note = api_Folio_note_get(folio, &status);
+	if (status != 0 || api_Folio_page_get(folio, &status) != 9 || api_Folio_seed(folio, &status) != 3 ||
+	    title.len != 7 || memcmp(title.ptr, "renamed", 7) != 0 || note.len != 6 ||
+	    memcmp(note.ptr, "a note", 6) != 0) {
+		fprintf(stderr, "a packed folio's fields read %.*s %.*s, status %d\n", (int)title.len,
+		        (const char *)title.ptr, (int)note.len, (const char *)note.ptr, status);
+		failed = 1;
+	}
+	api_buf_free(title);
+	api_buf_free(note);
+	api_Hasp *hasp = api_Folio_hasp_get(folio, &status);
+	api_Hasp *again = api_Folio_hasp_get(folio, &status);
+	bool first_set = api_Hasp_set(hasp, &status);
+	if (first_set || !api_Hasp_set(again, &status) || status != 0) {
+		fprintf(stderr, "a packed folio's hasp is not the one it holds, status %d\n", status);
+		failed = 1;
+	}
+	api_Hasp_free(hasp);
+	api_Hasp_free(again);
+	api_Hasp *dock = api_Folio_dock_get(folio, &status);
+	api_Hasp *docked = api_Folio_dock_get(folio, &status);
+	bool dock_first = api_Hasp_set(dock, &status);
+	if (dock_first || !api_Hasp_set(docked, &status) || status != 0) {
+		fprintf(stderr, "a packed folio's dock is not the one it points to, status %d\n", status);
+		failed = 1;
+	}
+	api_Hasp_free(dock);
+	api_Hasp_free(docked);
+	api_Folio_free(folio);
 
 	/* A counter moved in beside a dropped mark, alone or held in a record or an enum, is
 	 * refused before the move, so the counter is still there; once every mark is live,

@@ -97,7 +97,7 @@ surface *flags: (moq-write "") (standin "" "web")
         exit 1
     fi
     # The api fixture as its tests export it, with wasm32 for the web binding.
-    cargo run --locked --quiet -- --manifest-path fixtures/api/Cargo.toml --out target/surface/api --target x86_64-unknown-linux-gnu --target wasm32-wasip1 -- --features doubled
+    cargo run --locked --quiet -- --manifest-path fixtures/api/Cargo.toml --out target/surface/api --target x86_64-unknown-linux-gnu --target wasm32-wasip1 -- --profile dev --features doubled
     cargo run --locked --quiet -- --manifest-path target/moq-ffi-web/Cargo.toml --target wasm32-wasip1 --out target/surface/moq-web
     python3 -I surface/surface.py {{ flags }} target/surface/api surface/api
     python3 -I surface/surface.py {{ flags }} target/export/moq surface/moq
@@ -290,7 +290,7 @@ bench-run rounds="3":
     build() {
         rm -rf "$scratch"
         measure export env "$libpath=$sysroot/lib" target/release/rust2-ffi --manifest-path target/moq-ffi/Cargo.toml --out "$scratch/moq"
-        measure check cargo check --quiet --lib --manifest-path target/moq-ffi/Cargo.toml
+        measure check cargo check --quiet --release --lib --manifest-path target/moq-ffi/Cargo.toml
         measure generated cargo build --locked --quiet --release --manifest-path "$scratch/moq/Cargo.toml" --features kotlin,dart
         measure moq cargo build --quiet --release --lib --manifest-path target/moq-ffi/Cargo.toml
         rm -rf "$scratch"

@@ -65,4 +65,14 @@ pub(crate) mod env {
 	/// The dependency the glue would name each crate the facade builds with by, as a TOML
 	/// table from its library's crate name to its keys.
 	pub(crate) const CRATES: &str = "RUST2_FFI_CRATES";
+	/// The `PROFILE` cargo gives a build script of the check: `release` or `debug`.
+	pub(crate) const PROFILE: &str = "RUST2_FFI_PROFILE";
+	/// The directory cargo builds the check's profile in, or empty where a build under
+	/// another profile could share it.
+	pub(crate) const PROFILE_DIR: &str = "RUST2_FFI_PROFILE_DIR";
+	/// The `CARGO_PROFILE_*` variables that may change the check's profile, comma-separated.
+	pub(crate) const PROFILE_VARS: &str = "RUST2_FFI_PROFILE_VARS";
+	/// The file the wrapper writes the target's `cfg`s into, as cargo's rustc prints them
+	/// under the check's `RUSTFLAGS`, absolute.
+	pub(crate) const CFGS: &str = "RUST2_FFI_CFGS";
 }

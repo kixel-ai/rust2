@@ -270,6 +270,7 @@ public struct Ticket: Sendable, CustomDebugStringConvertible, Equatable {
 	@inlinable public static func == (a: Ticket, b: Ticket) -> Swift.Bool
 	@inlinable public static func new(_ number: Swift.UInt32) -> Ticket
 	@inlinable public func number() -> Swift.UInt32
+	@inlinable public func wait()
 	@inlinable public static func clones() -> Swift.UInt32
 }
 public struct Seat: Sendable {
@@ -360,6 +361,20 @@ public struct Hits: Sendable, CustomDebugStringConvertible, Equatable {
 	@inlinable public static func of(_ hits: Swift.UInt64, _ misses: Swift.UInt64) -> Hits
 	@inlinable public mutating func add(_ other: Hits)
 	@inlinable public mutating func eq(_ other: Hits) -> Swift.Bool
+}
+public struct Regs: Sendable, CustomDebugStringConvertible, Equatable {
+	@inlinable public var debugDescription: Swift.String { get }
+	@inlinable public static func == (a: Regs, b: Regs) -> Swift.Bool
+	@inlinable public var fcwGet: Swift.UInt16 { get }
+	@inlinable public mutating func fcwSet(_ value: Swift.UInt16)
+	@inlinable public var wideGet: Swift.UInt64 { get }
+	@inlinable public mutating func wideSet(_ value: Swift.UInt64)
+	@inlinable public var atGet: Point { get }
+	@inlinable public mutating func atSet(_ value: Point)
+	@inlinable public var tagGet: Swift.UInt8 { get }
+	@inlinable public mutating func tagSet(_ value: Swift.UInt8)
+	@inlinable public static func new(_ fcw: Swift.UInt16, _ wide: Swift.UInt64, _ at: Point) -> Regs
+	@inlinable public func seed() -> Swift.UInt8
 }
 public struct Extent: Sendable, CustomDebugStringConvertible, Equatable {
 	@inlinable public var debugDescription: Swift.String { get }
@@ -681,8 +696,8 @@ public struct ClashBreak: Sendable, CustomDebugStringConvertible, Equatable {
 	@inlinable public init(_ _0: Swift.UInt8)
 	@inlinable public var debugDescription: Swift.String { get }
 	@inlinable public static func == (a: ClashBreak, b: ClashBreak) -> Swift.Bool
-	@inlinable public static var SP: ClashBreak { get }
 	@inlinable public static var SP_: ClashBreak { get }
+	@inlinable public static var SP: ClashBreak { get }
 }
 public struct ClashMalformed: Sendable, CustomStringConvertible, CustomDebugStringConvertible, Equatable {
 	public var at: Swift.UInt8
@@ -691,6 +706,14 @@ public struct ClashMalformed: Sendable, CustomStringConvertible, CustomDebugStri
 	@inlinable public var debugDescription: Swift.String { get }
 	@inlinable public static func == (a: ClashMalformed, b: ClashMalformed) -> Swift.Bool
 	@inlinable public func `is`(_ at: Swift.UInt8) -> Swift.Bool
+}
+public struct ClashDescribed: Sendable, CustomStringConvertible, CustomDebugStringConvertible, Equatable {
+	public var description_: Swift.UInt8
+	public var debugDescription_: Swift.UInt8
+	@inlinable public init(description_: Swift.UInt8, debugDescription_: Swift.UInt8)
+	@inlinable public var description: Swift.String { get }
+	@inlinable public var debugDescription: Swift.String { get }
+	@inlinable public static func == (a: ClashDescribed, b: ClashDescribed) -> Swift.Bool
 }
 public struct ClashErrno: Sendable, CustomDebugStringConvertible, Equatable {
 	public var errno: Swift.Int32
@@ -704,8 +727,18 @@ public struct ClashEscaped: Sendable, CustomDebugStringConvertible, Equatable {
 	@inlinable public init(new: Swift.UInt8)
 	@inlinable public var debugDescription: Swift.String { get }
 	@inlinable public static func == (a: ClashEscaped, b: ClashEscaped) -> Swift.Bool
-	@inlinable public func delete() -> Swift.UInt8
 	@inlinable public func delete(_ new: Swift.UInt8, _ new2: Swift.UInt8) -> Swift.UInt8
+	@inlinable public func delete() -> Swift.UInt8
+}
+public struct ClashUnderscored: Sendable, CustomDebugStringConvertible, Equatable {
+	public var new_: Swift.UInt8
+	public var new: Swift.UInt8
+	public var debug: Swift.UInt8
+	public var `default`: Swift.UInt8
+	@inlinable public init(new_: Swift.UInt8, new: Swift.UInt8, debug: Swift.UInt8, `default`: Swift.UInt8)
+	@inlinable public var debugDescription: Swift.String { get }
+	@inlinable public static func == (a: ClashUnderscored, b: ClashUnderscored) -> Swift.Bool
+	@inlinable public static func `default`() -> ClashUnderscored
 }
 public struct TlsPolicyLifetime: Sendable, CustomDebugStringConvertible, Equatable {
 	public var seconds: Swift.UInt32
@@ -873,6 +906,18 @@ public enum ClashTag: Sendable, CustomDebugStringConvertible, Equatable {
 	@inlinable public static func == (a: ClashTag, b: ClashTag) -> Swift.Bool
 	@inlinable public func number() -> Swift.UInt32
 }
+public enum ClashOp: Sendable, CustomDebugStringConvertible, Equatable {
+	case delete_
+	case delete
+	@inlinable public var debugDescription: Swift.String { get }
+	@inlinable public static func == (a: ClashOp, b: ClashOp) -> Swift.Bool
+}
+public enum ClashChange: Sendable, CustomDebugStringConvertible, Equatable {
+	case set(new_: Swift.UInt8, new: Swift.UInt8)
+	case clear
+	@inlinable public var debugDescription: Swift.String { get }
+	@inlinable public static func == (a: ClashChange, b: ClashChange) -> Swift.Bool
+}
 public enum Level: Sendable, CustomStringConvertible, Hashable, Comparable {
 	case error
 	case warn
@@ -1005,6 +1050,19 @@ public struct Retired: ~Copyable, @unchecked Sendable {
 	@available(*, deprecated, message: "count with `Countdown`") @inlinable nonisolated(nonsending) public mutating func next() async throws -> Swift.UInt32?
 	@available(*, deprecated, message: "count with `Countdown`") @inlinable public consuming func stream() -> RetiredStream
 }
+public struct Folio: ~Copyable, @unchecked Sendable {
+	@inlinable public var pageGet: Swift.UInt16 { get }
+	@inlinable public mutating func pageSet(_ value: Swift.UInt16) throws
+	@inlinable public var titleGet: Swift.String { get }
+	@inlinable public mutating func titleSet(_ value: Swift.String) throws
+	@inlinable public var noteGet: Swift.String? { get }
+	@inlinable public mutating func noteSet(_ value: Swift.String?) throws
+	@inlinable public func haspGet() throws -> Hasp
+	@inlinable public mutating func haspSet(_ value: consuming Hasp) throws
+	@inlinable public func dockGet() throws -> Hasp
+	@inlinable public static func new(_ page: Swift.UInt16, _ title: Swift.String) -> Folio
+	@inlinable public func seed() throws -> Swift.UInt8
+}
 public struct Logger: ~Copyable, @unchecked Sendable {
 	@inlinable public static func new(_ sink: any Log) -> Logger
 	@inlinable public func write(_ line: Swift.String) -> Swift.Bool
@@ -1027,6 +1085,22 @@ public struct Local: ~Copyable {
 	@inlinable nonisolated(nonsending) public func pollCount() async throws -> Swift.UInt32
 	@inlinable public func threadNumber() throws -> Swift.UInt64
 	@inlinable public func onOwnThread() throws -> Swift.Bool
+}
+public struct Wrapped: ~Copyable, @unchecked Sendable {
+	@inlinable public static func new(_ n: Swift.UInt64) -> Wrapped
+	@inlinable public var nGet: Swift.UInt64 { get }
+	@inlinable public mutating func nSet(_ value: Swift.UInt64) throws
+	@inlinable public var onGet: Swift.Bool { get }
+	@inlinable public mutating func onSet(_ value: Swift.Bool) throws
+	@inlinable public func count() throws -> Swift.UInt64
+	@inlinable public mutating func recount(_ n: Swift.UInt64) throws
+	@inlinable public func steps() throws -> Swift.UInt64
+	@inlinable public func locals() throws -> Swift.UInt32
+}
+public struct Buffer: ~Copyable, @unchecked Sendable {
+	@inlinable public static func new(_ len: Swift.UInt32) -> Buffer
+	@inlinable public mutating func blank() throws
+	@inlinable public func zeroed() throws -> Swift.Bool
 }
 public struct LocalWaiter: ~Copyable {
 	@inlinable public static func new(_ waker: @escaping @Sendable () -> Void) -> LocalWaiter
@@ -1269,6 +1343,10 @@ public final class Mark: @unchecked Sendable {
 	@inlinable public func count() throws -> Swift.UInt64
 	@inlinable public func add(_ by: Swift.UInt64) throws
 }
+public struct Hasp: ~Copyable, @unchecked Sendable {
+	@inlinable public static func `default`() -> Hasp
+	@inlinable public func set() throws -> Swift.Bool
+}
 public struct Message: ~Copyable, @unchecked Sendable {
 	@inlinable public var debugDescription: Swift.String { get }
 	@inlinable public func clone() throws -> Message
@@ -1311,6 +1389,10 @@ public struct Plain: ~Copyable, @unchecked Sendable {
 	@inlinable public var onGet: Swift.Bool { get }
 	@inlinable public mutating func onSet(_ value: Swift.Bool) throws
 	@inlinable public static func new(_ n: Swift.UInt64, _ on: Swift.Bool) -> Plain
+	@inlinable public func count() throws -> Swift.UInt64
+	@inlinable public mutating func recount(_ n: Swift.UInt64) throws
+	@inlinable public func steps() throws -> Swift.UInt64
+	@inlinable public func locals() throws -> Swift.UInt32
 }
 public struct Labeled: ~Copyable, @unchecked Sendable {
 	@inlinable public var debugDescription: Swift.String { get }
@@ -1420,11 +1502,18 @@ public struct ClashStore: ~Copyable, @unchecked Sendable {
 	@inlinable public func close() -> Swift.UInt32
 	@inlinable public func wait()
 	@inlinable public func finalize()
+	@inlinable public func take(_ ticket: Ticket) -> Swift.UInt32
+	@inlinable public static func take(_ ticket: Ticket) -> Swift.UInt32
+	@inlinable public static func count() -> Swift.UInt32
+	@inlinable public func count() -> Swift.UInt32
+	@inlinable public static func `open`() -> ClashStore
+	@inlinable public func `open`() -> Swift.UInt32
 }
 public struct ClashReader: ~Copyable, @unchecked Sendable {
 	@inlinable public static func new(_ bytes: Bytes) -> ClashReader
 	@inlinable public mutating func readByte() throws -> Swift.UInt8
 	@inlinable public mutating func unreadByte() throws
+	@inlinable public func wait(_ ms: Swift.UInt64) throws
 }
 public struct TlsSession: ~Copyable, @unchecked Sendable {
 	@inlinable public func alpn() -> Swift.String
@@ -1479,12 +1568,21 @@ public struct Pinned: ~Copyable {
 	@inlinable public static func new(_ value: Swift.UInt64) throws -> Pinned
 	@inlinable public func part() throws -> Part
 }
+public struct Guarded: ~Copyable, @unchecked Sendable {
+	@inlinable public static func new(_ n: Swift.UInt64) throws -> Guarded
+	@inlinable public func nGet() throws -> Swift.UInt64
+	@inlinable public func onGet() throws -> Swift.Bool
+	@inlinable public func count() throws -> Swift.UInt64
+	@inlinable public func steps() throws -> Swift.UInt64
+	@inlinable public func locals() throws -> Swift.UInt32
+}
 public struct Hooked: ~Copyable, @unchecked Sendable {
 	@inlinable public var debugDescription: Swift.String { get }
 	@inlinable public static func == (a: borrowing Hooked, b: borrowing Hooked) throws -> Swift.Bool
 	@inlinable public func nGet() throws -> Swift.UInt64
 	@inlinable public mutating func nSet(_ value: Swift.UInt64) throws
 	@inlinable public static func new(_ n: Swift.UInt64) throws -> Hooked
+	@inlinable public func count() throws -> Swift.UInt64
 }
 public struct Forged: ~Copyable, @unchecked Sendable {
 	@inlinable public var debugDescription: Swift.String { get }
@@ -1524,6 +1622,10 @@ public protocol Stretch: Sendable {
 public protocol ClashSource: Sendable {
 	func wait()
 	func readByte() -> Swift.UInt8
+}
+public protocol ClashEraser: Sendable {
+	func delete(_ new2: Swift.UInt8, _ new: Swift.UInt8) -> Swift.UInt8
+	func delete() -> Swift.UInt8
 }
 public struct BoundsU64Error: Swift.Error, CustomStringConvertible {
 	public let error: BoundsU64
@@ -1820,6 +1922,7 @@ public let URL: Swift.UInt64
 @inlinable public func deprecated(_ note: Swift.UInt8) -> Swift.UInt8
 @inlinable public func deprecated_(_ note: Swift.UInt8) -> Swift.UInt8
 @inlinable public func all(_ note: Swift.UInt8) -> Swift.UInt8
+@inlinable public func all_(_ note: Swift.UInt8) -> Swift.UInt8
 @available(*, deprecated) @inlinable public func knob(_ dial: Dial) -> Knob
 @available(*, deprecated, message: "read its `level`") @inlinable nonisolated(nonsending) public func levelLater(_ dial: Dial) async throws -> Swift.UInt64
 @inlinable public func turned(_ dial: Dial, _ turner: any Turner) throws -> Dial
@@ -1839,7 +1942,17 @@ public let URL: Swift.UInt64
 @inlinable public func clashCandidate(_ at: Swift.UInt8) -> ClashCandidate
 @inlinable public func clashIgnore(_ arg0: Swift.UInt8, _ arg1: Swift.UInt8, _ arg2: Swift.UInt8) -> Swift.UInt8
 @inlinable public func clashEmpty() -> ClashEmptyString
+@inlinable public func clashDescribed(_ described: ClashDescribed) -> Swift.UInt32
 @inlinable public func clashWaited(_ source: any ClashSource) -> Swift.UInt8
+@inlinable public func clashUnderscored(_ underscored: ClashUnderscored, _ op: ClashOp, _ change: ClashChange) -> Swift.UInt32
+@inlinable public func clashUnderscoredNext(_ underscored: ClashUnderscored, _ change: ClashChange) -> (ClashUnderscored, ClashChange)
+@inlinable public func clashErased(_ eraser: any ClashEraser) -> Swift.UInt32
+@inlinable public func clashErase_() -> Swift.UInt8
+@inlinable public func clashErase() -> Swift.UInt8
+@inlinable public func clashLend_() -> Swift.UInt32
+@inlinable public func clashLend_(store: borrowing ClashStore) -> Swift.UInt32
+@inlinable public func clashLend() -> Swift.UInt32
+@inlinable public func clashRun(_ work2: @Sendable () -> Swift.UInt8, _ work: Swift.UInt8) -> Swift.UInt32
 @inlinable public func clashAudible(_ tone: ClashTone) throws -> ClashTone
 @inlinable public func clashNested(_ a: ((Swift.UInt8, Swift.UInt16), Swift.UInt32)?, _ b: (Swift.UInt8, Swift.UInt16, Swift.UInt32)?) -> Swift.UInt32
 @inlinable public func clashAudioEncoderFinish() -> Swift.UInt8

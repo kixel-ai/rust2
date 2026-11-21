@@ -359,6 +359,66 @@ class Reproducible(unittest.TestCase):
             self.assertTrue(flags[0].startswith("--remap-path-prefix="), flags)
             self.assertNotIn("-C", flags)
 
+    def test_both_spellings_of_a_linked_directory_are_remapped(self):
+        with tempfile.TemporaryDirectory() as tmp, mock.patch.dict(os.environ, {"CARGO_HOME": tmp + "/home"}):
+            os.environ.pop("CARGO_ENCODED_RUSTFLAGS", None)
+            real = Path(tmp).resolve() / "real"
+            (real / "export").mkdir(parents=True)
+            (Path(tmp) / "link").symlink_to(real, target_is_directory=True)
+            link = Path(tmp) / "link"
+            flags = package.reproducible(info(link), link / "export", "x86_64-unknown-linux-gnu")["CARGO_ENCODED_RUSTFLAGS"].split("\x1f")
+            for spelled in (link, real):
+                self.assertIn(f"--remap-path-prefix={spelled}=/source", flags)
+                self.assertIn(f"--remap-path-prefix={spelled / 'export'}=/export", flags)
+
+    def test_a_build_reaches_its_packages_through_the_link(self):
+        with tempfile.TemporaryDirectory() as tmp, mock.patch.dict(os.environ, {"CARGO_HOME": tmp + "/home"}):
+            root = Path(tmp).resolve()
+            crate, export = root / "checkout/source/crate", root / "checkout/export"
+            crate.mkdir(parents=True)
+            export.mkdir()
+            (export / "Cargo.toml").write_text('[dependencies]\ncrate = { path = "../source/crate" }\n')
+            (crate / "Cargo.toml").write_text('[package]\nname = "crate"\n')
+            (root / "checkout/source/Cargo.toml").write_text('[workspace]\nmembers = ["crate"]\n')
+            link = root / "link"
+            graph = ([crate], [root / "checkout/source/Cargo.toml"])
+            # Where cargo runs, and so where it reads its config from.
+            manifest = export / "Cargo.toml"
+            with mock.patch.object(package, "LINK", link), mock.patch.object(package, "local_packages", return_value=graph):
+                with package.linked(manifest, export) as spell:
+                    # The deepest directory holding the export, the crate, and its workspace root.
+                    self.assertEqual(link.resolve(), root / "checkout")
+                    self.assertEqual(spell(export), link / "export")
+                    self.assertEqual(spell(crate), link / "source/crate")
+                    # A second build while one holds the link would build the other's sources.
+                    with self.assertRaises(SystemExit), package.linked(manifest, export):
+                        pass
+                self.assertFalse(os.path.lexists(link))
+                self.assertTrue(export.is_dir())
+                # A package named by its absolute path would be two packages, by it and through the link.
+                (crate / "Cargo.toml").write_text(f'[package]\nname = "crate"\n\n[dependencies]\nother = {{ path = {json.dumps(str(root))} }}\n')
+                with package.linked(manifest, export) as spell:
+                    self.assertFalse(os.path.lexists(link))
+                    self.assertEqual(spell(export), export)
+                # So would one a cargo config names, which cargo joins from the config's real directory.
+                (crate / "Cargo.toml").write_text('[package]\nname = "crate"\n')
+                (root / "checkout/.cargo").mkdir()
+                for config in ('[patch.crates-io]\nother = { path = "source/other" }\n', 'paths = ["source/other"]\n'):
+                    (root / "checkout/.cargo/config.toml").write_text(config)
+                    with package.linked(manifest, export) as spell:
+                        self.assertFalse(os.path.lexists(link))
+                        self.assertEqual(spell(export), export)
+                (root / "checkout/.cargo/config.toml").write_text('[build]\nincremental = false\n')
+                with package.linked(manifest, export) as spell:
+                    self.assertEqual(spell(export), link / "export")
+
+    def test_a_relative_cargo_home_is_where_cargo_runs(self):
+        with tempfile.TemporaryDirectory() as tmp, mock.patch.dict(os.environ, {"CARGO_HOME": "home"}):
+            crate = Path(tmp).resolve() / "crate"
+            (crate / "home").mkdir(parents=True)
+            (crate / "home/config.toml").write_text('paths = ["other"]\n')
+            self.assertIn(crate / "home/config.toml", [found for found, _ in package.cargo_configs(crate)])
+
     def test_a_path_cc_would_split_fails(self):
         with tempfile.TemporaryDirectory() as tmp, mock.patch.dict(os.environ, {"CARGO_HOME": tmp + "/home"}):
             os.environ.pop("CARGO_ENCODED_RUSTFLAGS", None)
@@ -828,6 +888,13 @@ class Sdist(unittest.TestCase):
         # A package's own manifest may name what its build never loads, such as a dev-dependency.
         moved = tomllib.loads(package.relocate(manifest, {"/src/a": "../a"}))
         self.assertEqual(moved["dependencies"], {"a": {"path": "../a"}, "b": {"path": "/elsewhere/b"}})
+
+    def test_a_dependency_named_path_is_searched(self):
+        manifest = ('[dependencies]\npath = { package = "helper", path = "/src/helper" }\n'
+                    '[target.x.dependencies]\nb = { path = "../b" }\n')
+        self.assertEqual(package.manifest_paths(tomllib.loads(manifest)), ["/src/helper", "../b"])
+        moved = tomllib.loads(package.relocate(manifest, {"/src/helper": "../helper", "../b": "../b"}, strict=True))
+        self.assertEqual(moved["dependencies"]["path"], {"package": "helper", "path": "../helper"})
 
     def test_refuses_a_path_spelled_otherwise(self):
         with self.assertRaises(SystemExit):

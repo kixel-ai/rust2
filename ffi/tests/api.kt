@@ -356,6 +356,33 @@ fun checks() {
 		override fun readByte(): UByte = 4u
 	}
 	check(clashWaited(source) == 4.toUByte() && waits == 1, "an interface's method named as java.lang.Object's")
+	// Names that differ only by trailing underscores, each reaching its own Rust: a name Kotlin
+	// spells as Rust does keeps it, whichever comes first.
+	val underscored = ClashUnderscored(new_ = 1u, new = 2u, debug = 3u, default = 4u)
+	check(clashUnderscored(underscored, ClashOp.DELETE, ClashChange.Set(new_ = 5u, new = 6u)) == 2_561_234u, "names apart by trailing underscores cross")
+	check(
+		clashUnderscoredNext(underscored, ClashChange.Set(new_ = 5u, new = 6u)) ==
+			Pair(ClashUnderscored(new_ = 2u, new = 3u, debug = 4u, default = 5u), ClashChange.Set(new_ = 6u, new = 5u)),
+		"names apart by trailing underscores cross back",
+	)
+	val eraser = object : ClashEraser {
+		override fun delete_(new2: UByte, new: UByte): UByte = (new2.toInt() * 10 + new.toInt()).toUByte()
+
+		override fun delete(): UByte = 3u
+	}
+	check(clashErased(eraser) == 123u, "an interface's methods apart by a trailing underscore")
+	check(ClashEscaped(3u).delete() == 3.toUByte() && ClashEscaped(3u).delete_(1u, 2u) == 213.toUByte(), "methods apart by a trailing underscore")
+	check(clashErase_() == 2.toUByte() && clashErase() == 1.toUByte(), "functions apart by a trailing underscore")
+	// Rust's parameter `new` keeps `new`, wherever it is, so a named argument reaches it.
+	check(ClashEscaped(3u).delete_(new = 1u, new2 = 2u) == 213.toUByte(), "named arguments apart by a trailing underscore")
+	// A companion's function and an instance's method named alike, each in its own scope.
+	ClashStore.new(5u).use { store ->
+		check(store.count() == 5u && ClashStore.count() == 7u, "a static function and a method named alike")
+	}
+	// On the JVM, the method `open` keeps its name, and the static `open_` takes `open_`.
+	ClashStore.open().use { store ->
+		check(store.open() == 7u, "a static constructor and a method named alike")
+	}
 
 	// A record holding a value past a word crosses as its words, in and out, and a call
 	// with no slots left for one passes it encoded.
@@ -920,6 +947,7 @@ fun owned() {
 	readings()
 	crowding()
 	budgeted()
+	nudged()
 	for (n in 1023..1025) {
 		val payload = ByteArray(n) { it.toByte() }
 		val packet = nextPacket(Packet(1u, Bytes(payload)))
@@ -1065,6 +1093,31 @@ fun unwinds() {
 	Counter.new("zero", 0u).use { counter -> check(rejects { logCounts(failing, 0u, counter, more) }, "a callback's failed check unwinds a call that moved its arguments") }
 	val gone = runCatching { more[0].get() }.exceptionOrNull()
 	check(gone is IllegalStateException && gone.message == "Counter is closed", "what it moved is closed in Kotlin: $gone")
+	// A callback replacing what the call moved out of its list: the call closes what it took.
+	val taken = Counter.new("taken", 2u)
+	val placed = Counter.new("placed", 3u)
+	val changed = mutableListOf(taken)
+	val swapping = object : Log {
+		override fun log(level: UByte, line: String): Boolean {
+			changed[0] = placed
+			return true
+		}
+	}
+	Counter.new("zero", 0u).use { counter -> check(logCounts(swapping, 0u, counter, changed) == 2u, "a callback may change a list the call moved out of") }
+	check(runCatching { taken.get() }.exceptionOrNull()?.message == "Counter is closed", "what the call moved is closed")
+	check(placed.get().toUInt() == 3u, "what the callback put in its place stays open")
+	changed[0] = Counter.new("failing", 4u)
+	val replaced = changed[0]
+	val throwing = object : Log {
+		override fun log(level: UByte, line: String): Boolean {
+			changed[0] = placed
+			return lettered { 0xD800 } == 0
+		}
+	}
+	Counter.new("zero", 0u).use { counter -> check(rejects { logCounts(throwing, 0u, counter, changed) }, "a failing callback unwinds a call that moved its list") }
+	check(runCatching { replaced.get() }.exceptionOrNull()?.message == "Counter is closed", "what an unwound call moved is closed")
+	check(placed.get().toUInt() == 3u, "what the callback put in its place stays open after it unwinds")
+	placed.close()
 	val tag = Tag.new()
 	check(tag.tagged(bumps) { 'a'.code } == "a" && rejects { tag.tagged(bumps) { 0xD800 } } && bumps.value == 4u, "a borrowed result's call writes back too: ${bumps.value}")
 	check(tag.tagged(bumps) { 'b'.code } == "ab", "the receiver is whole after")
@@ -1367,6 +1420,34 @@ fun budgeted() {
 	collected(before + 65u, "the GC frees bytes lent up to the budget")
 	lentAgain(before + 65u)
 	collected(before + 66u, "the GC frees bytes lent once the budget is free")
+}
+
+// On ART, Rust asks the GC to collect once half the budget is lent, so it frees the bytes
+// nothing reaches before the budget runs out, though Kotlin makes no garbage meanwhile.
+// HotSpot, which copies past the budget cheaply, is never asked.
+fun nudged() {
+	if (System.getProperty("java.vm.name") != "Dalvik") return
+	val before = dropped()
+	// A MiB at a time, none left reachable, until 32 are outstanding: a collection of
+	// ART's own meanwhile only frees some sooner, and more are lent to reach half again.
+	var lent = 0u
+	val deadline = System.nanoTime() + 10.seconds.inWholeNanoseconds
+	while (dropped() < before + 32u) {
+		check(System.nanoTime() < deadline, "ART collects the bytes lent once half the budget is")
+		if (lent - (dropped() - before) < 32u) {
+			lentUnreached()
+			lent++
+		} else {
+			Thread.sleep(1)
+		}
+	}
+	collected(before + lent, "the GC frees the bytes lent to half the budget, each once")
+}
+
+// A MiB of Rust's bytes lent and read, none left reachable.
+@OwnFrame
+fun lentUnreached() {
+	check(tokenBytes(5u, (1 shl 20).toUInt())[0] == 5.toByte(), "bytes lent toward half the budget read")
 }
 
 // Bytes lent once the GC freed those that filled the budget, with Rust's drops still [freed].

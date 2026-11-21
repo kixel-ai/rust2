@@ -268,6 +268,7 @@ final class Ticket {
 	@override int get hashCode;
 	factory Ticket(int number);
 	int number();
+	void wait();
 	static int clones();
 }
 final class Seat {
@@ -369,6 +370,21 @@ final class Hits {
 	factory Hits.of(U64 hits, U64 misses);
 	Hits add(Hits other);
 	(Hits, bool) eq(Hits other);
+}
+final class Regs {
+	String debug();
+	@override bool operator ==(Object other);
+	@override int get hashCode;
+	int get fcwGet;
+	Regs fcwSet(int value);
+	U64 get wideGet;
+	Regs wideSet(U64 value);
+	Point get atGet;
+	Regs atSet(Point value);
+	int get tagGet;
+	Regs tagSet(int value);
+	factory Regs(int fcw, U64 wide, Point at);
+	int seed();
 }
 final class Extent {
 	String debug();
@@ -732,8 +748,8 @@ final class ClashBreak {
 	String debug();
 	@override bool operator ==(Object other);
 	@override int get hashCode;
-	static ClashBreak get sp;
 	static ClashBreak get sp_;
+	static ClashBreak get sp;
 }
 final class ClashMalformed implements Exception {
 	final int at;
@@ -743,6 +759,15 @@ final class ClashMalformed implements Exception {
 	@override bool operator ==(Object other);
 	@override int get hashCode;
 	bool is_(int at);
+}
+final class ClashDescribed {
+	final int description;
+	final int debugDescription;
+	const ClashDescribed({required this.description, required this.debugDescription});
+	@override String toString();
+	String debug();
+	@override bool operator ==(Object other);
+	@override int get hashCode;
 }
 final class ClashErrno {
 	final int errno;
@@ -758,8 +783,19 @@ final class ClashEscaped {
 	String debug();
 	@override bool operator ==(Object other);
 	@override int get hashCode;
+	int delete_(int new_2, int new_);
 	int delete();
-	int delete_(int new_, int new_2);
+}
+final class ClashUnderscored {
+	final int new_;
+	final int new2_;
+	final int debug_;
+	final int default_;
+	const ClashUnderscored({required this.new_, required this.new2_, required this.debug_, required this.default_});
+	String debug();
+	@override bool operator ==(Object other);
+	@override int get hashCode;
+	factory ClashUnderscored.default_();
 }
 final class TlsPolicyLifetime {
 	final int seconds;
@@ -1086,6 +1122,26 @@ final class ClashTagPrivate extends ClashTag {
 	final int number;
 	const ClashTagPrivate({required this.number});
 }
+enum ClashOp {
+	delete_(0),
+	delete(1),
+	const ClashOp(this._c);
+	String debug();
+}
+sealed class ClashChange {
+	const ClashChange();
+	String debug();
+	@override bool operator ==(Object other);
+	@override int get hashCode;
+}
+final class ClashChangeSet extends ClashChange {
+	final int new_;
+	final int new2_;
+	const ClashChangeSet({required this.new_, required this.new2_});
+}
+final class ClashChangeClear extends ClashChange {
+	const ClashChangeClear();
+}
 enum Level implements Comparable<Level> {
 	error(0),
 	warn(1),
@@ -1189,6 +1245,19 @@ final class Retired extends _Object {
 	@Deprecated('count with `Countdown`') Cancelable<int?> next();
 	@Deprecated('count with `Countdown`') dasync.Stream<int> asStream();
 }
+final class Folio extends _Object {
+	int get pageGet;
+	void pageSet(int value);
+	String get titleGet;
+	void titleSet(String value);
+	String? get noteGet;
+	void noteSet(String? value);
+	Hasp get haspGet;
+	void haspSet(Hasp value);
+	Hasp get dockGet;
+	factory Folio(int page, String title);
+	int seed();
+}
 final class Logger extends _Object {
 	factory Logger(Log sink);
 	bool write(String line);
@@ -1211,6 +1280,22 @@ final class Local extends _Object {
 	Cancelable<int> pollCount();
 	U64 threadNumber();
 	bool onOwnThread();
+}
+final class Wrapped extends _Object {
+	factory Wrapped(U64 n);
+	U64 get nGet;
+	void nSet(U64 value);
+	bool get onGet;
+	void onSet(bool value);
+	U64 count();
+	void recount(U64 n);
+	U64 steps();
+	int locals();
+}
+final class Buffer extends _Object {
+	factory Buffer(int len);
+	void blank();
+	bool zeroed();
 }
 final class LocalWaiter extends _Object {
 	factory LocalWaiter(void Function() waker);
@@ -1451,6 +1536,10 @@ final class Mark extends _Object {
 	U64 count();
 	void add(U64 by);
 }
+final class Hasp extends _Object {
+	factory Hasp.default_();
+	bool set();
+}
 final class Message extends _Object {
 	String debug();
 	Message clone();
@@ -1494,6 +1583,10 @@ final class Plain extends _Object {
 	bool get onGet;
 	void onSet(bool value);
 	factory Plain(U64 n, bool on);
+	U64 count();
+	void recount(U64 n);
+	U64 steps();
+	int locals();
 }
 final class Labeled extends _Object {
 	String debug();
@@ -1597,11 +1690,18 @@ final class ClashStore extends _Object {
 	int close_();
 	void wait();
 	void finalize();
+	int take(Ticket ticket);
+	static int take_(Ticket ticket);
+	static int count_();
+	int count();
+	factory ClashStore.open();
+	int open();
 }
 final class ClashReader extends _Object {
 	factory ClashReader(typed.Uint8List bytes);
 	int readByte();
 	void unreadByte();
+	void wait(U64 ms);
 }
 final class TlsSession extends _Object {
 	String alpn();
@@ -1663,6 +1763,14 @@ final class Pinned extends _Object {
 	factory Pinned(U64 value);
 	Part part();
 }
+final class Guarded extends _Object {
+	factory Guarded(U64 n);
+	U64 get nGet;
+	bool get onGet;
+	U64 count();
+	U64 steps();
+	int locals();
+}
 final class Hooked extends _Object {
 	String debug();
 	@override bool operator ==(Object other);
@@ -1670,6 +1778,7 @@ final class Hooked extends _Object {
 	U64 get nGet;
 	void nSet(U64 value);
 	factory Hooked(U64 n);
+	U64 count();
 }
 final class Forged extends _Object {
 	String debug();
@@ -1716,6 +1825,11 @@ abstract class Stretch {
 abstract class ClashSource {
 	void wait();
 	int readByte();
+	void close();
+}
+abstract class ClashEraser {
+	int delete_(int new_, int new_2);
+	int delete();
 	void close();
 }
 final class BoundsU64Exception implements Exception {
@@ -2006,6 +2120,7 @@ typed.Uint8List unzeroed(typed.Uint8List bytes);
 int deprecated(int note);
 int deprecated_(int note);
 int all(int note);
+int all_(int note);
 @Deprecated('') Knob knob(Dial dial);
 @Deprecated('read its `level`') Cancelable<U64> levelLater(Dial dial);
 Dial turned(Dial dial, Turner turner);
@@ -2025,7 +2140,16 @@ ClashAny clashAny(String typeUrl);
 ClashCandidate clashCandidate(int at);
 int clashIgnore(int arg0, int arg1, int arg2);
 ClashEmptyString clashEmpty();
+int clashDescribed(ClashDescribed described);
 int clashWaited(ClashSource source);
+int clashUnderscored(ClashUnderscored underscored, ClashOp op, ClashChange change);
+(ClashUnderscored, ClashChange) clashUnderscoredNext(ClashUnderscored underscored, ClashChange change);
+int clashErased(ClashEraser eraser);
+int clashErase_();
+int clashErase();
+int clashLend_(ClashStore? store);
+int clashLend();
+int clashRun(int Function() work2, int work);
 ClashTone clashAudible(ClashTone tone);
 int clashNested(((int, int), int)? a, ((int, int, int),)? b);
 int clashAudioEncoderFinish();

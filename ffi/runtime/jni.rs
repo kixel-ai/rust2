@@ -15,7 +15,7 @@ use std::cell::Cell;
 use std::ffi::{CStr, c_void};
 use std::mem::MaybeUninit;
 use std::sync::OnceLock;
-use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 
 pub use jni_sys::*;
 
@@ -61,6 +61,16 @@ pub unsafe fn load(env: *mut JNIEnv, class: jclass, natives: &[JNINativeMethod])
 			fail(env, "load", "the JVM does not support native return buffers");
 		}
 		((**env).v1_2.DeleteLocalRef)(env, buffer);
+		// HotSpot has no such class, which FindClass throws for.
+		let art = ((**env).v1_2.FindClass)(env, c"dalvik/system/VMRuntime".as_ptr());
+		match art.is_null() {
+			true => ((**env).v1_2.ExceptionClear)(env),
+			false => {
+				((**env).v1_2.DeleteLocalRef)(env, art);
+				ART.store(true, Ordering::Relaxed);
+				ARMED.store(true, Ordering::Relaxed);
+			}
+		}
 	}
 	// Looked up now, before a leaf can run: a `@FastNative` call refusing its borrow or an
 	// argument must not wait on another thread's lookup, which a collection pending on the
@@ -95,19 +105,24 @@ impl Drop for Attached {
 /// This thread's JNI environment, attaching it as a daemon until it exits if the JVM
 /// does not know it, as a thread Rust spawned.
 pub fn env() -> *mut JNIEnv {
+	attach().unwrap_or_else(|| rt::fail("jni", "a thread cannot attach to the JVM"))
+}
+
+/// [`env`], or none where the JVM refuses to attach this thread, which JNI allows.
+fn attach() -> Option<*mut JNIEnv> {
 	let vm = *VM.get().expect("the library is loaded") as *mut JavaVM;
 	let mut env: *mut c_void = std::ptr::null_mut();
 	// SAFETY: `vm` is the JVM, which outlives every thread calling into it.
 	unsafe {
 		if ((**vm).v1_4.GetEnv)(vm, &mut env, JNI_VERSION_1_6) == JNI_OK {
-			return env.cast();
+			return Some(env.cast());
 		}
 		if ((**vm).v1_4.AttachCurrentThreadAsDaemon)(vm, &mut env, std::ptr::null_mut()) != JNI_OK {
-			rt::fail("jni", "a thread cannot attach to the JVM");
+			return None;
 		}
 	}
 	ATTACHED.with(|attached| attached.0.set(true));
-	env.cast()
+	Some(env.cast())
 }
 
 /// Whether the Rust a native method called left a Java exception pending, which the
@@ -616,6 +631,20 @@ const LENT_MAX: usize = 64 << 20;
 /// The bytes lent to Kotlin and not yet freed.
 static LENT_BYTES: AtomicUsize = AtomicUsize::new(0);
 
+/// On ART, the lent bytes at which Rust asks the GC to collect, so it frees the `Bytes`
+/// no longer reached before [`LENT_MAX`] is: past that, ART puts each copy of 12 KiB or
+/// more in a mapping of its own, which costs several lends.
+const COLLECT_AT: usize = LENT_MAX / 2;
+
+/// Whether the JVM is ART, which [`load`] finds by its `dalvik.system.VMRuntime`. HotSpot
+/// copies into its young generation cheaply, and collects all at once when asked.
+static ART: AtomicBool = AtomicBool::new(false);
+
+/// Whether reaching [`COLLECT_AT`] asks ART to collect: cleared on asking, and set again
+/// once the lent bytes fall under half of it, so bytes a program keeps reachable
+/// never make it collect over and over.
+static ARMED: AtomicBool = AtomicBool::new(false);
+
 /// Whether `len` bytes cross lent rather than copied: longer than [`COPIED`], and within
 /// [`LENT_MAX`], which they then count against until freed. A call racing another past
 /// the limit may copy where it could have lent, never the reverse.
@@ -623,11 +652,60 @@ fn lends(len: usize) -> bool {
 	if len <= COPIED {
 		return false;
 	}
-	if LENT_BYTES.fetch_add(len, Ordering::Relaxed) + len <= LENT_MAX {
+	let lent = LENT_BYTES.fetch_add(len, Ordering::Relaxed) + len;
+	if lent <= LENT_MAX {
+		if lent >= COLLECT_AT && ARMED.load(Ordering::Relaxed) && ARMED.swap(false, Ordering::SeqCst) {
+			// A free since `lent` was read may have taken the bytes under half of
+			// `COLLECT_AT` and seen `ARMED` still set: `SeqCst` here and in [`unlend`]
+			// makes one side see the other, so that free's arming is never lost.
+			if LENT_BYTES.load(Ordering::SeqCst) < COLLECT_AT / 2 {
+				ARMED.store(true, Ordering::Relaxed);
+			} else {
+				collect();
+			}
+		}
 		return true;
 	}
-	LENT_BYTES.fetch_sub(len, Ordering::Relaxed);
+	unlend(len);
 	false
+}
+
+/// Take `len` bytes off [`LENT_BYTES`], a freed lend's or a refused one's, and on ART arm
+/// [`collect`] again once under half of [`COLLECT_AT`] are left.
+fn unlend(len: usize) {
+	let left = LENT_BYTES.fetch_sub(len, Ordering::SeqCst) - len;
+	if left < COLLECT_AT / 2 && ART.load(Ordering::Relaxed) && !ARMED.load(Ordering::SeqCst) {
+		ARMED.store(true, Ordering::Relaxed);
+	}
+}
+
+/// Ask the GC to collect, on a thread of its own, since a collection takes a while that
+/// the call lending bytes need not wait for. The request is only a hint: a thread that
+/// can't start, as when the process is out of them, or that the JVM won't attach, skips
+/// it, and the reads past the budget copy as they would without it until frees arm it
+/// again.
+fn collect() {
+	let _ = std::thread::Builder::new().name("rust2-ffi collect".into()).spawn(|| {
+		if attach().is_none() {
+			return;
+		}
+		upcall("collect", |env| {
+			// SAFETY: `env` is this thread's, and each name and signature is
+			// `java.lang.Runtime`'s, which every JVM has.
+			unsafe {
+				let class = ((**env).v1_2.FindClass)(env, c"java/lang/Runtime".as_ptr());
+				threw(env, "collect");
+				let get = ((**env).v1_2.GetStaticMethodID)(env, class, c"getRuntime".as_ptr(), c"()Ljava/lang/Runtime;".as_ptr());
+				threw(env, "collect");
+				let gc = ((**env).v1_2.GetMethodID)(env, class, c"gc".as_ptr(), c"()V".as_ptr());
+				threw(env, "collect");
+				let runtime = ((**env).v1_2.CallStaticObjectMethodA)(env, class, get, std::ptr::null());
+				threw(env, "collect");
+				// Not `System.gc()`, which ART skips unless finalization ran since its last call.
+				((**env).v1_2.CallVoidMethodA)(env, runtime, gc, std::ptr::null());
+			}
+		})
+	});
 }
 
 /// A buffer Rust returned or lent, as Kotlin's `_Native.owned` takes it: null for none, a
@@ -747,7 +825,7 @@ pub unsafe fn free_bytes(owner: jlong) {
 	let len = buf.len;
 	// SAFETY: the caller's contract.
 	unsafe { buf.free() };
-	LENT_BYTES.fetch_sub(len, Ordering::Relaxed);
+	unlend(len);
 }
 
 /// A buffer Rust returned as a `byte[]`, or null for none, freeing it.
