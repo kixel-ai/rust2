@@ -124,39 +124,40 @@ fn try_run(args: &[String]) -> Result<ExitCode, String> {
 		})
 	};
 	// Each target's `cfg`s are written under its index, as a target may be a path.
-	let check = |index: usize, target: &str, output: (&str, &std::ffi::OsStr), merge: &std::ffi::OsStr, baseline: &Path| {
-		Check {
-			tool: "rust2-ffi",
-			manifest: &args.manifest,
-			package: &facade.name,
-			root: None,
-			// Always named, so cargo's config never picks another: the exports are found on it.
-			target: Some(target),
-			args: &cargo_args(target, cargo.clone())?,
-			target_dir: None,
-			dir: None,
-			env: &[
-				// The wrapper's answer to cargo's query names the sysroot, which cargo would
-				// otherwise cache by the executables alone.
-				("CARGO_CACHE_RUSTC_INFO", "0".as_ref()),
-				(config::env::PACKAGE, line.as_ref()),
-				(config::env::PATCH, patch.as_ref()),
-				(config::env::CRATES, crates.as_ref()),
-				(config::env::MERGE, merge),
-				(config::env::BASELINE, baseline.as_os_str()),
-				(config::env::ROOTS, roots.as_ref()),
-				(config::env::PROFILE, profile.root.as_ref()),
-				(
-					config::env::PROFILE_DIR,
-					profile.dir.as_deref().unwrap_or_default().as_ref(),
-				),
-				(config::env::PROFILE_VARS, vars.as_ref()),
-				(config::env::CFGS, queried.join(index.to_string()).as_os_str()),
-				output,
-			],
-		}
-		.run()
-	};
+	let check =
+		|index: usize, target: &str, output: (&str, &std::ffi::OsStr), merge: &std::ffi::OsStr, baseline: &Path| {
+			Check {
+				tool: "rust2-ffi",
+				manifest: &args.manifest,
+				package: &facade.name,
+				root: None,
+				// Always named, so cargo's config never picks another: the exports are found on it.
+				target: Some(target),
+				args: &cargo_args(target, cargo.clone())?,
+				target_dir: None,
+				dir: None,
+				env: &[
+					// The wrapper's answer to cargo's query names the sysroot, which cargo would
+					// otherwise cache by the executables alone.
+					("CARGO_CACHE_RUSTC_INFO", "0".as_ref()),
+					(config::env::PACKAGE, line.as_ref()),
+					(config::env::PATCH, patch.as_ref()),
+					(config::env::CRATES, crates.as_ref()),
+					(config::env::MERGE, merge),
+					(config::env::BASELINE, baseline.as_os_str()),
+					(config::env::ROOTS, roots.as_ref()),
+					(config::env::PROFILE, profile.root.as_ref()),
+					(
+						config::env::PROFILE_DIR,
+						profile.dir.as_deref().unwrap_or_default().as_ref(),
+					),
+					(config::env::PROFILE_VARS, vars.as_ref()),
+					(config::env::CFGS, queried.join(index.to_string()).as_os_str()),
+					output,
+				],
+			}
+			.run()
+		};
 	let (last, rest) = targets.split_last().expect("a target");
 	// Each target but the last stages its API for the last one's check to merge.
 	let stage =
@@ -165,7 +166,13 @@ fn try_run(args: &[String]) -> Result<ExitCode, String> {
 		let mut merge = own.with.clone();
 		for (index, target) in rest.iter().enumerate() {
 			let staged = crate::merge::staged(&stage, target);
-			let code = check(index, target, (config::env::API, staged.as_os_str()), "".as_ref(), "".as_ref())?;
+			let code = check(
+				index,
+				target,
+				(config::env::API, staged.as_os_str()),
+				"".as_ref(),
+				"".as_ref(),
+			)?;
 			if code != ExitCode::SUCCESS {
 				return Ok(code);
 			}
