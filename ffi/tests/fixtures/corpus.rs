@@ -478,7 +478,8 @@ fn languages(lib: &str, out: &Path, dir: &Path, built: &Built) -> Result<(), (&'
 		Command::new("kotlinc")
 			.args(["-J-Xmx4g", "-Werror", "-cp"])
 			.arg(super::coroutines())
-			.arg(out.join("kotlin").join(format!("{lib}.kt")))
+			// The generated Kotlin, `{lib}.kt` and `FastNative.kt`.
+			.arg(out.join("kotlin"))
 			.arg("-d")
 			.arg(dir.join("kotlin")),
 	)?;
