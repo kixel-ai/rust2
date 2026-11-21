@@ -2859,14 +2859,21 @@ mod tests {
 	#[test]
 	fn a_namespace_escapes_as_a_name() {
 		let api = crate::ir::Api::of(vec![crate::ir::Function::bare("f")]);
-		for (lib, ns, c) in [("_class", "class_", "class_f"), ("unix", "unix_", "unix_f"), ("api", "api", "api_f")] {
+		for (lib, ns, c) in [
+			("_class", "class_", "class_f"),
+			("unix", "unix_", "unix_f"),
+			("api", "api", "api_f"),
+		] {
 			let rest = api.without_jni();
 			let abi = crate::abi::Abi::new(&api, lib);
 			let abi = abi.without_jni(&rest);
 			let output = super::headers(&abi, "ns").unwrap_or_else(|e| panic!("{e}"));
 			let text: String = output.files.iter().map(|(_, text)| text.as_str()).collect();
 			assert!(text.contains(&format!("namespace {ns} {{")), "{lib}:\n{text}");
-			assert!(text.contains(&format!("inline void f() {{\n\t::{c}();")), "{lib}:\n{text}");
+			assert!(
+				text.contains(&format!("inline void f() {{\n\t::{c}();")),
+				"{lib}:\n{text}"
+			);
 		}
 	}
 
