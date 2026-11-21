@@ -205,13 +205,19 @@ impl Thread {
 
 	/// Run what other threads queued for this thread, if any: what a [`Wake`] schedules.
 	pub fn drain_here() {
-		let _ = HERE.try_with(|here| {
-			if let Some(thread) = here.0.get()
-				&& thread.pending.load(Ordering::Acquire)
-			{
+		Self::drained_here();
+	}
+
+	/// [`Self::drain_here`], and whether it ran any.
+	pub fn drained_here() -> bool {
+		HERE.try_with(|here| match here.0.get() {
+			Some(thread) if thread.pending.load(Ordering::Acquire) => {
 				thread.drain();
+				true
 			}
-		});
+			_ => false,
+		})
+		.unwrap_or(false)
 	}
 
 	/// Whether this is its thread.

@@ -928,9 +928,9 @@ impl Closing {
 	}
 }
 
-/// `rt::close_wait`, for Kotlin's close waiting on another's undecided drop of `raw`.
-pub fn close_wait(raw: jlong) -> jboolean {
-	rt::close_wait(raw as usize as _).into()
+/// `rt::close_drain`, for Kotlin's close, raising what a `Drop` it runs unwinds with.
+pub fn close_drain(env: *mut JNIEnv, raw: jlong) -> jboolean {
+	entry(env, || rt::close_drain(raw as usize as _)).into()
 }
 
 impl Drop for Closing {
@@ -948,7 +948,12 @@ pub fn global(env: *mut JNIEnv, value: jobject) -> *mut c_void {
 		rt::fail("jni", "a Kotlin value is null");
 	}
 	// SAFETY: `env` is this thread's, and `value` a live reference.
-	unsafe { ((**env).v1_2.NewGlobalRef)(env, value).cast() }
+	let global = unsafe { ((**env).v1_2.NewGlobalRef)(env, value) };
+	// Null only once the JVM ran out of memory, which no caller could recover from.
+	if global.is_null() {
+		fail(env, "jni", "the JVM made no global reference");
+	}
+	global.cast()
 }
 
 /// Delete a global reference [`global`] made, from any thread.

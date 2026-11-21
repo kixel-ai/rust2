@@ -1714,9 +1714,9 @@ impl Gen<'_> {
 			"#[unsafe(no_mangle)]\npub extern \"C\" fn {p}_status_message(status: i32) -> *const ::std::ffi::c_char {{\n\trt::Status::text(status).as_ptr()\n}}\n"
 		));
 
-		// Go's, which the header leaves out, as `_drop_signal`.
+		// Go's and Kotlin's, which the header leaves out, as `_drop_signal`.
 		self.line(format!(
-			"#[unsafe(no_mangle)]\npub extern \"C\" fn {p}_close_wait(handle: *const ::std::ffi::c_void) -> bool {{\n\trt::close_wait(handle)\n}}\n"
+			"#[unsafe(no_mangle)]\npub extern \"C\" fn {p}_close_drain(handle: *const ::std::ffi::c_void) -> bool {{\n\trt::close_drain(handle)\n}}\n"
 		));
 		if api.unsent() {
 			self.line(format!(
@@ -1801,7 +1801,7 @@ impl Gen<'_> {
 					"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {name}_drop(this: *const ::std::ffi::c_void, status: *mut i32) {{\n\tunsafe {{ {name}_drop_signal(this, status, None, ::std::ptr::null_mut()) }}\n}}\n"
 				));
 				self.export(format!(
-					"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {name}_drop_signal(this: *const ::std::ffi::c_void, status: *mut i32, commit: Option<unsafe extern \"C\" fn(*mut ::std::ffi::c_void)>, data: *mut ::std::ffi::c_void) {{\n\tlet w = \"{name}_drop\";\n\t{away}let commit = || {{\n\t\tif let Some(commit) = commit {{\n\t\t\tunsafe {{ commit(data) }}\n\t\t}}\n\t}};\n\tif let Err(s) = unsafe {{ rt::Object::<{path}>::close(this, w, commit) }} {{\n\t\tunsafe {{ rt::failed::<()>(status, s, w) }}\n\t}}\n}}\n"
+					"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {name}_drop_signal(this: *const ::std::ffi::c_void, status: *mut i32, commit: Option<unsafe extern \"C\" fn(*mut ::std::ffi::c_void)>, data: *mut ::std::ffi::c_void) {{\n\tlet w = \"{name}_drop\";\n\t{away}let commit = commit.map(|commit| move || unsafe {{ commit(data) }});\n\tif let Err(s) = unsafe {{ rt::Object::<{path}>::close(this, w, commit) }} {{\n\t\tunsafe {{ rt::failed::<()>(status, s, w) }}\n\t}}\n}}\n"
 				));
 			}
 			if object.shared {

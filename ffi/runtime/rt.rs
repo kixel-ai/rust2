@@ -1786,36 +1786,50 @@ impl<T> Object<T> {
 	/// lending it; one lent to C for a call fails, as Rust lent it. A value that is not
 	/// `Send`, closed on another thread than its own, drops there later, as a free does.
 	///
-	/// `commit` runs unless this fails, once it no longer can, before the value's `Drop`: so
-	/// a binding's close that meets this one waits only for its check, never on a `Drop`
-	/// that may wait on that close.
+	/// A binding's close that claimed the handle closed, so that another close meeting it
+	/// waits for its outcome, passes `commit`, which runs unless this fails, once it no
+	/// longer can, before the value's `Drop`. Until then this runs none of the program's
+	/// code, not even the drops other threads left this thread: so no code the waiting
+	/// close may itself wait on, such as a `Drop` that hands it to a thread and joins that,
+	/// runs before it returns. Those drops run after the value's own. One that would have
+	/// let this pass runs only as the binding, refused, drains them and closes again, as
+	/// [`close_drain`] has it do.
 	///
 	/// # Safety
 	/// As [`Self::borrow`].
-	pub unsafe fn close(handle: *const c_void, what: &str, commit: impl FnOnce()) -> Result<(), Status> {
+	pub unsafe fn close(handle: *const c_void, what: &str, commit: Option<impl FnOnce()>) -> Result<(), Status> {
 		// SAFETY: the caller's contract.
 		let object = unsafe { Self::get(handle, what) };
 		let away = object.owner.as_ref().filter(|owner| !owner.is_here());
-		let deciding = Deciding::new(handle);
-		let decided = deciding.enter();
-		if away.is_none() {
+		// Off its own thread, a value that is not `Send` has nothing to drain here.
+		let (first, after) = (away.is_none() && commit.is_none(), away.is_none() && commit.is_some());
+		if first {
 			object.own()?;
 		}
+		// A drop other threads left this one may have ended the borrow that refuses it.
+		let refused = |status| {
+			if after && object.owner.is_some() {
+				SKIPPED.set(handle);
+			}
+			Err(status)
+		};
 		if !object.lent.is_null() && object.lender.is_none() {
-			return Err(Status::Lent);
+			return refused(Status::Lent);
 		}
 		match object.borrow.take(&TABLE, TAKEN) {
 			Ok(()) => {}
 			Err(Status::Moved) => {
-				drop(decided);
-				commit();
+				if let Some(commit) = commit {
+					commit();
+				}
 				return Ok(());
 			}
-			Err(status) => return Err(status),
+			Err(status) => return refused(status),
 		}
 		object.epoch.fetch_add(1, Ordering::Release);
-		drop(decided);
-		commit();
+		if let Some(commit) = commit {
+			commit();
+		}
 		if object.lent.is_null() {
 			// SAFETY: TAKEN excludes every other access to the loan.
 			let loan = unsafe { (*object.loan.get()).take() };
@@ -1833,6 +1847,11 @@ impl<T> Object<T> {
 					drop(loan);
 				}
 			}
+		}
+		if after {
+			// The drops the check skipped, after the value's own, so none that unwinds skips
+			// it.
+			let _ = object.own();
 		}
 		Ok(())
 	}
@@ -1935,56 +1954,20 @@ impl<T> Object<Unsent<T>> {
 	}
 }
 
-/// A handle whose close this thread decides, on that close's stack, and the one it decides
-/// around it, if any, as a close's drain may run a `Drop` that closes another: what
-/// [`close_wait`] reads.
-struct Deciding {
-	handle: *const c_void,
-	outer: *const Deciding,
+thread_local! {
+	/// The handle whose claimed close [`Object::close`] last refused on this thread without
+	/// draining it first, as one unclaimed would have.
+	static SKIPPED: std::cell::Cell<*const c_void> = const { std::cell::Cell::new(std::ptr::null()) };
 }
 
-thread_local!(static DECIDING: std::cell::Cell<*const Deciding> = const { std::cell::Cell::new(std::ptr::null()) });
-
-impl Deciding {
-	fn new(handle: *const c_void) -> Self {
-		Self {
-			handle,
-			outer: DECIDING.get(),
-		}
-	}
-
-	/// This thread decides it until what this returns drops.
-	fn enter(&self) -> Decided<'_> {
-		DECIDING.set(self);
-		Decided(self)
-	}
-}
-
-struct Decided<'a>(&'a Deciding);
-
-impl Drop for Decided<'_> {
-	fn drop(&mut self) {
-		DECIDING.set(self.0.outer);
-	}
-}
-
-/// What a binding's close does each turn it waits on another close's undecided drop of
-/// `handle`: whether this thread decides that drop, below the wait, as when a `Drop` the
-/// drop's drain runs closes the value again, so the wait would never end; else it runs
-/// what other threads left this thread, which may be that close, queued for its home.
-pub fn close_wait(handle: *const c_void) -> bool {
-	let mut at = DECIDING.get();
-	while !at.is_null() {
-		// SAFETY: each is on the stack of a close below this call on this thread, which
-		// unlinks it before it returns.
-		let close = unsafe { &*at };
-		if close.handle == handle {
-			return true;
-		}
-		at = close.outer;
-	}
-	Thread::drain_here();
-	false
+/// What a binding's close runs as it waits on another close's undecided drop, with a null
+/// `handle`, or once [`Object::close`] refused its own close of `handle`: what other
+/// threads left this thread, which may be the close it waits on, queued for its home, or
+/// a drop ending the borrow that refused it, which runs only if that refusal skipped the
+/// drain. Whether it ran any then, so the close tries again, as one that drained first
+/// would have passed or been refused after it.
+pub fn close_drain(handle: *const c_void) -> bool {
+	(handle.is_null() || SKIPPED.replace(std::ptr::null()) == handle) && Thread::drained_here()
 }
 
 impl<T> Object<T> {

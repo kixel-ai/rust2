@@ -373,21 +373,23 @@ func (h *Handle_) closeChecked() error {
 			if err := h.drop(h.raw, unsafe.Pointer(&h.state)); err != nil {
 				h.own()
 				h.state.Store(held_)
+				// Rust refused before draining what other threads left this one, which
+				// may end the borrow that refused it: drained, it tries again.
+				if cCloseDrain(h.raw) {
+					continue
+				}
 				return err
 			}
 			return nil
 		}
 		n := h.state.Load()
 		// Another Close is deciding: wait for its outcome, which may leave h open. Rust
-		// clears closing_ once the drop can no longer fail, before any Drop runs, so a Close
-		// a Drop makes, from any goroutine, finds h closed rather than waiting on itself.
-		// Before then, Rust runs a Drop only on the deciding thread, draining what other
-		// threads freed, where such a Close returns at once, or on a home, which the wait
-		// runs what is queued for.
+		// clears closing_ once the drop can no longer fail, and runs none of the program's
+		// code on the deciding thread before then, so a Close a Drop makes, from any
+		// goroutine, finds h closed rather than waiting on itself. A home runs one queued
+		// there only as it drains, which the wait does, for a callback on that home.
 		if n&closing_ != 0 {
-			if cCloseWait(h.raw) {
-				return nil
-			}
+			cCloseDrain(nil)
 			runtime.Gosched()
 			continue
 		}

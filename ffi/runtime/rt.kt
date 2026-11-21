@@ -625,17 +625,27 @@ class __Handle(
 		// Held by no call, as soon after its return: claimed closed so none starts, then the
 		// value dropped and the handle freed in one crossing. A call meanwhile throws as
 		// closed, as one racing any close may. A drop that passed stored CLOSED itself.
-		while (!STATE.compareAndSet(this, HELD, CLOSED or CLOSING)) {
-			if (closeMet(drop)) return
+		while (true) {
+			while (!STATE.compareAndSet(this, HELD, CLOSED or CLOSING)) {
+				if (closeMet(drop)) return
+			}
+			try {
+				drop.close(raw, this)
+			} catch (e: Throwable) {
+				// Rust refused the drop, before it committed: reopened. It refused before
+				// draining what other threads left this one, which may end the borrow that
+				// refused it: drained, it tries again.
+				if (STATE.compareAndSet(this, CLOSED or CLOSING, HELD)) {
+					if (__close_drain(raw)) continue
+					throw e
+				}
+				// Committed, then a `Drop` unwound past the free.
+				freed(CLOSED)
+				throw e
+			}
+			cleanup?.stop()
+			return
 		}
-		try {
-			drop.close(raw, this)
-		} catch (e: Throwable) {
-			// Reopened only if Rust refused the drop, before it committed.
-			STATE.compareAndSet(this, CLOSED or CLOSING, HELD)
-			throw e
-		}
-		cleanup?.stop()
 	}
 
 	// [closeChecked] once a call holds it or another close is deciding: whether it is done,
@@ -643,13 +653,12 @@ class __Handle(
 	private fun closeMet(drop: __Close): Boolean {
 		val n = state
 		// Another close is deciding: wait for its outcome, which may leave it open. Rust
-		// clears CLOSING once the drop can no longer fail, before any `Drop` runs, so a close
-		// a `Drop` makes, from any thread, finds it closed rather than waiting on itself.
-		// Before then, Rust runs a `Drop` only on the deciding thread, draining what other
-		// threads freed, where such a close returns at once, or on a home, which the wait
-		// runs what is queued for.
+		// clears CLOSING once the drop can no longer fail, and runs none of the program's
+		// code on the deciding thread before then, so a close a `Drop` makes, from any
+		// thread, finds it closed rather than waiting on itself. A home runs one queued
+		// there only as it drains, which the wait does, for a callback on that home.
 		if (n and CLOSING != 0L) {
-			if (__close_wait(raw)) return true
+			__close_drain(0L)
 			java.lang.Thread.yield()
 			return false
 		}
