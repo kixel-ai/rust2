@@ -1431,6 +1431,10 @@ impl Ticket {
 		self.number
 	}
 
+	/// Named as `Object`'s final `wait()`, which Kotlin's value class member, a static of
+	/// another name on the JVM, keeps without `@JvmName`, which it cannot take.
+	pub fn wait(&self) {}
+
 	/// How many times any ticket's `Clone` ran.
 	pub fn clones() -> u32 {
 		TICKET_CLONES.load(std::sync::atomic::Ordering::Relaxed)

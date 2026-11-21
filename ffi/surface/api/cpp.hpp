@@ -929,6 +929,7 @@ namespace api {
 		::api::buf debug() const;
 		static ::api::Ticket new_(::std::uint32_t number);
 		::std::uint32_t number() const;
+		void wait() const;
 		static ::std::uint32_t clones();
 	};
 	struct Seat {

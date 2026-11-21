@@ -1934,6 +1934,7 @@ func ReissueLent(ticket Ticket, swap func(Ticket) Ticket) Ticket
 func (self Ticket) Equal(other Ticket) bool
 func (self Ticket) GoString() string
 func (self Ticket) Number() uint32
+func (self Ticket) Wait()
 type Tier int32
 const (
 	TierLow              Tier = 0

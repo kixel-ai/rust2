@@ -17,7 +17,7 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-#define API_CONTRACT ((uint64_t)0xa4b13378f22571caULL)
+#define API_CONTRACT ((uint64_t)0xebb3a61bd95d0a85ULL)
 uint64_t api_contract(void);
 uint32_t api_target(void);
 typedef int32_t api_status;
@@ -1313,6 +1313,7 @@ bool api_Ticket_eq(const api_Ticket *a, const api_Ticket *b);
 API_MUST_USE api_buf api_Ticket_debug(const api_Ticket *self);
 api_Ticket api_Ticket_new(uint32_t number);
 uint32_t api_Ticket_number(const api_Ticket *self);
+void api_Ticket_wait(const api_Ticket *self);
 uint32_t api_Ticket_clones(void);
 void api_Seat_free(api_Seat *self);
 bool api_Seat_eq(const api_Seat *a, const api_Seat *b, api_status *status);

@@ -1652,6 +1652,7 @@ export declare function debug(self: Ticket): string;
 export declare function eq(a: Ticket, b: Ticket): boolean;
 export declare function new$(number: number): Ticket;
 export declare function number(self: Ticket): number;
+export declare function wait(self: Ticket): void;
 export declare function clones(): number;
 export { new$ as new };
 

@@ -31,7 +31,7 @@ use rustc_data_structures::stable_hash::StableHasher;
 use crate::abi::{self, Abi, Ty, pascal};
 use crate::doc;
 use crate::ir::{
-	Access, Family, Field, Function, Int, Jni, Literal, Mutability, On, Opaque, Order, Param, Receiver, Type,
+	Access, Api, Family, Field, Function, Int, Jni, Literal, Mutability, On, Opaque, Order, Param, Receiver, Type,
 };
 
 const RUNTIME: &str = include_str!("../runtime/rt.kt");
@@ -3700,16 +3700,26 @@ impl<'a> Gen<'a> {
 		if place == Place::Static && !top {
 			annotations.push_str("@kotlin.jvm.JvmStatic\n");
 		}
-		// A JVM name [`Gen::jvm_named`] moved leaves the Kotlin name alone.
+		// Kotlin mangles the JVM name of a function taking an inline class and of a member
+		// returning one, as `count-pVg5ArA`, which Java cannot name. A value class's member
+		// compiles to such a static, which `@JvmName` cannot rename, and an opaque value
+		// Java would pass as its bits, which Rust may not hold, so neither is Java's to call.
+		let inline_params: Vec<Inline> = (function.params.iter())
+			.filter_map(|p| inline(abi.api, &p.ty))
+			.collect();
+		let mangled = !inline_params.is_empty() || (!top && inline(abi.api, &strip_refs(&function.ok)).is_some());
+		let value_member = place == Place::Member && owner_ty.is_some_and(|ty| inline(abi.api, ty).is_some());
 		let target = if getter { "get:" } else { "" };
-		let declared = jvm_name(&format!("{kind} {member}"));
-		if jvm != declared {
-			let _ = writeln!(annotations, "@{target}kotlin.jvm.JvmName(\"{jvm}\")");
+		if !value_member && !inline_params.contains(&Inline::Opaque) {
+			// A JVM name [`Gen::jvm_named`] moved leaves the Kotlin name alone.
+			if mangled || jvm != jvm_name(&format!("{kind} {member}")) {
+				let _ = writeln!(annotations, "@{target}kotlin.jvm.JvmName(\"{jvm}\")");
+			}
+			// Java calls it by its JVM name, which the lock keeps beside the Kotlin one, so a
+			// member added beside it that moves it is a break even where it had none.
+			let key = format!("{} / jvm", crate::lock::function_key(function));
+			self.locked.insert(key, jvm.to_string());
 		}
-		// Java calls it by its JVM name, which the lock keeps beside the Kotlin one, so a
-		// member added beside it that moves it is a break even where it had none.
-		let key = format!("{} / jvm", crate::lock::function_key(function));
-		self.locked.insert(key, jvm.to_string());
 		if let Some(exception) = &exception {
 			let _ = writeln!(annotations, "@{target}kotlin.jvm.Throws({exception}::class)");
 		}
@@ -4190,6 +4200,30 @@ fn holders(opaque: &Opaque) -> Vec<String> {
 /// compares them.
 fn word(opaque: &Opaque) -> bool {
 	opaque.compared()
+}
+
+/// A Kotlin inline class, which the JVM sees as its underlying type.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Inline {
+	/// One every value of its underlying type is, such as `UInt` of an `Int`.
+	Total,
+	/// An opaque value's, which only Rust makes.
+	Opaque,
+}
+
+/// The inline class Kotlin's type of a parameter or return of type `ty` is, nullable or not,
+/// if any.
+fn inline(api: &Api, ty: &Type) -> Option<Inline> {
+	match ty {
+		Type::Int(int) | Type::NonZero(int) if kt_int(*int).starts_with('U') => Some(Inline::Total),
+		Type::List(..) if ty.block().is_some_and(|elem| block(elem).kt.starts_with('U')) => Some(Inline::Total),
+		Type::IpAddr(Family::V4) | Type::SocketAddr(Family::V4) => Some(Inline::Total),
+		Type::Record(i) if api.records[*i].opaque.is_some_and(|o| word(&o)) => Some(Inline::Opaque),
+		Type::Option(inner) | Type::Box(inner) => inline(api, inner),
+		// One Rust writes back is a `Mut`.
+		Type::Ref(_, inner) if !ty.written() => inline(api, inner),
+		_ => None,
+	}
 }
 
 /// Whether `opaque` crosses JNI as one `long` wherever it crosses alone.

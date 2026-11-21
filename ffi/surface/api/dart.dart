@@ -268,6 +268,7 @@ final class Ticket {
 	@override int get hashCode;
 	factory Ticket(int number);
 	int number();
+	void wait();
 	static int clones();
 }
 final class Seat {

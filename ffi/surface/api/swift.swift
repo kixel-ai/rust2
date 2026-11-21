@@ -270,6 +270,7 @@ public struct Ticket: Sendable, CustomDebugStringConvertible, Equatable {
 	@inlinable public static func == (a: Ticket, b: Ticket) -> Swift.Bool
 	@inlinable public static func new(_ number: Swift.UInt32) -> Ticket
 	@inlinable public func number() -> Swift.UInt32
+	@inlinable public func wait()
 	@inlinable public static func clones() -> Swift.UInt32
 }
 public struct Seat: Sendable {

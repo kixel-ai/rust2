@@ -1,9 +1,11 @@
 // Plain Java calling the api fixture's generated Kotlin, as tests/fixtures.rs compiles and
 // runs it: a companion's function on its class, a checked exception javac only lets a
-// `catch` take where the function declares it, and bytes through a direct ByteBuffer.
+// `catch` take where the function declares it, bytes through a direct ByteBuffer, and
+// functions of unsigned integers, whose names Kotlin would mangle, by their own names.
 
 import api.ApiKt;
 import api.Bytes;
+import api.Hits;
 import api.IpAddr;
 import api.Point;
 import api.Shape;
@@ -31,6 +33,10 @@ class Caller {
 		check(Point.getX_() == 0 && new Point(3, 4).getX() == 3, "a static apart from a field's getter takes a trailing _");
 		check(Shape.valueOf_("square") == Shape.SQUARE && Shape.valueOf("SQUARE") == Shape.SQUARE, "a static apart from an enum's valueOf takes a trailing _");
 		check(IpAddr.of(InetAddress.getByName("127.0.0.1")).toString().equals("127.0.0.1"), "the runtime's companion functions are static");
+
+		check(ApiKt.sameU64(-1L) == -1L && ApiKt.span(1, -1) == -2, "a top-level function takes and returns unsigned integers");
+		Hits hits = Hits.of(-1L, 2L).hitsSet(3L);
+		check(hits.getHitsGet() == 3L && hits.getMissesGet() == 2L, "a member takes and returns unsigned integers");
 
 		ByteBuffer frame = ByteBuffer.allocateDirect(5);
 		frame.put(new byte[] {1, 2, 3, 4, 5}).flip();
