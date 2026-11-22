@@ -15,12 +15,20 @@ rust2-ffi (--out dir | --census dir | --api file) [--manifest-path Cargo.toml] [
 nix run github:kixel-ai/rust2/<rev>#ffi -- --out ffi   # pinned to a revision, under the caller's cargo
 ```
 
-It runs `cargo check` on the package with itself as `RUSTC_WRAPPER`, for each `--target`
+It runs `cargo check` on the package for each `--target`
 or else the host, whatever cargo's config names, under the release profile unless the cargo
 args pick another, as a library ships, through
-the front end it shares with [rust2-ts](../ts/README.md) in [`driver/`](../driver). A build
-script's probe of the compiler through that wrapper, as `rustversion` and `autocfg` make,
-runs the `rustc` cargo resolved, the one the glue builds with, rather than the exporter's
+the front end it shares with [rust2-ts](../ts/README.md) in [`driver/`](../driver): with
+itself as `RUSTC_WORKSPACE_WRAPPER` for the workspace's own crates, and as `RUSTC` for every
+other crate, which it compiles as rustc would. So a compiler cache in `RUSTC_WRAPPER`, as
+mbx's Cargo shim sets, serves every crate the workspace does not own: each carries on its
+command line the target's rustflags, from wherever cargo reads them, then the export's own
+in `CARGO_ENCODED_RUSTFLAGS`, which cargo passes no build script or proc macro. Rustflags
+past 32,000 bytes, which no environment variable holds on every platform, fail the export:
+put them in an argfile, `@<path>`. A build
+script's probe of the compiler, as `rustversion` and `autocfg` make,
+runs the `rustc` cargo resolved, the one the glue builds with, with the target's rustflags
+but not the export's, rather than the exporter's
 nightly: an item a build script enables on nightly alone is exported only when that `rustc`
 is a nightly. The package is the facade: once rustc has checked its library, it walks every `pub` item
 reachable from the crate root, following `pub use` re-exports of other crates' items and

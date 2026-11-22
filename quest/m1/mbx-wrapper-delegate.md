@@ -33,5 +33,5 @@ numbers show a material cost (rejected: asking the maintainer with the numbers f
 
 ## Required
 
-- [Exports that mbx can cache](/quest/m0/ffi-export-cache.md) - makes every other crate
-  cacheable and measures what workspace members still cost
+- [Measure the cached export](/quest/m0/ffi-export-cache.md) - measures what workspace
+  members still cost once every other crate is cached
