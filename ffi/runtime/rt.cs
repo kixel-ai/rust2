@@ -144,7 +144,7 @@ internal static unsafe partial class Native
 		new InvalidOperationException(what + ": " + Marshal.PtrToStringAnsi((IntPtr)status_message(status)));
 
 	/// Whether the platform is Windows, whose paths are WTF-8.
-	internal static readonly bool Windows = RuntimeInformation.IsOSPlatform(OSPlatform.Windows);
+	internal static readonly bool Windows = global::System.Runtime.InteropServices.RuntimeInformation.IsOSPlatform(global::System.Runtime.InteropServices.OSPlatform.Windows);
 
 	/// Whether `b` is WTF-8: UTF-8 that may also hold a surrogate's code point, but never a
 	/// lead surrogate's right before a trail's, which a pair's own encoding spells.
