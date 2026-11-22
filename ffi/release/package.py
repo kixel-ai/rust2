@@ -18,6 +18,7 @@ import os
 from pathlib import Path
 import posixpath
 import plistlib
+import queue
 import re
 import shlex
 import shutil
@@ -112,6 +113,22 @@ GO_TARGETS = {
     "x86_64-pc-windows-gnu": "windows_amd64",
     "x86_64-linux-android": "android_amd64",
     "aarch64-linux-android": "android_arm64",
+}
+# Every target the Dart package ships a library for, by the oldest system it loads on, which
+# its hook checks an app's against: Flutter's own floors, Android API 24, iOS 13, and macOS
+# 10.15. Every arm64 Mac runs macOS 11, Rust's floor there, and Linux's and Windows' floors
+# are the wheels'.
+DART_TARGETS = {
+    "x86_64-unknown-linux-gnu": None,
+    "aarch64-unknown-linux-gnu": None,
+    "aarch64-apple-darwin": None,
+    "x86_64-apple-darwin": "10.15",
+    "aarch64-apple-ios": "13.0",
+    "aarch64-apple-ios-sim": "13.0",
+    "x86_64-pc-windows-msvc": None,
+    "aarch64-linux-android": "24",
+    "armv7-linux-androideabi": "24",
+    "x86_64-linux-android": "24",
 }
 # Every Android ABI the AAR holds a library of, by the target built for it.
 ANDROID_TARGETS = {
@@ -221,6 +238,7 @@ def facts(manifest):
         "repository": package.get("repository"),
         "homepage": package.get("homepage"),
         "authors": package.get("authors") or [],
+        "readme": package.get("readme"),
         "lib": library(package),
         "dir": str(path.parent),
         "workspace": meta["workspace_root"],
@@ -521,7 +539,8 @@ def digest(export, lib):
     # would put `FastNative.kt` after `api.kt` there alone.
     def files(part):
         return sorted((p for p in (export / part).rglob("*") if p.is_file()), key=lambda p: p.relative_to(export).as_posix())
-    paths = [export / "python" / f"{lib}.py", *files("include"), *files("swift"), *files("go"), *files("kotlin")]
+    paths = [export / "python" / f"{lib}.py", *files("include"), *files("swift"), *files("go"), *files("kotlin"),
+             *files("dart")]
     for path in paths:
         hasher.update(path.relative_to(export).as_posix().encode() + b"\0")
         # Exact bytes: each wheel ships its own host's module.
@@ -1404,8 +1423,8 @@ def exporter(manifest, features, *args):
     cargo = ["--", "--features", features] if features.strip() else []
     env = dict(os.environ)
     for target in (str(a) for a in args):
-        if target in ANDROID_TARGETS:
-            env.update(android_toolchain(target, ANDROID_API))
+        if target in DART_TARGETS and "android" in target:
+            env.update(android_toolchain(target, DART_TARGETS[target]))
     run("cargo", "run", "--locked", "--release", "--quiet", "--", "--manifest-path", manifest,
         *args, *cargo, cwd=ROOT / "ffi", env=env)
 
@@ -1796,10 +1815,10 @@ def tar_diff(one, two):
 
 
 def same(first, second):
-    """Fail unless two builds' wheels, sdist, static libraries, C archives, Android libraries, Maven repository, and npm tarball, the Go module's included, are the same bytes, naming what differs."""
+    """Fail unless two builds' wheels, sdist, static libraries, C archives, Dart libraries, Android libraries, Maven repository, and npm tarball, the Go module's included, are the same bytes, naming what differs."""
     found = {}
-    patterns = ("wheels/*.whl", "sdist/*.tar.gz", "static/*/*.a", "go/*.a", "c/*.tar.gz", "c/*.zip", "android/*/*.so",
-                "maven/**/*.*", "*.tgz")
+    patterns = ("wheels/*.whl", "sdist/*.tar.gz", "static/*/*.a", "go/*.a", "c/*.tar.gz", "c/*.zip", "dart/*",
+                "android/*/*.so", "maven/**/*.*", "*.tgz")
     for root in (Path(first), Path(second)):
         found[root] = {p.relative_to(root).as_posix(): p for pattern in patterns for p in root.glob(pattern) if p.is_file()}
     names = sorted(found[Path(first)])
@@ -1894,7 +1913,7 @@ def staticlib(manifest, crate, lib, target, env=None, config=()):
     # Its own target directory, since cargo does not rebuild for a changed deployment target.
     target_dir = crate.parent / ("target-swift" if target in APPLE_TARGETS else "target-go")
     # cargo-zigbuild links Linux against the glibc floor's symbols, whichever glibc the host has.
-    linux = target.endswith("-linux-gnu")
+    linux = target.endswith("linux-gnu")
     # Uncolored, so the note below reads as written whatever the caller's terminal.
     built = run(*(["cargo-zigbuild"] if linux else ["cargo"]), "rustc", "--color", "never", "--locked", "--release",
                 "--manifest-path", crate, "--target", f"{target}.{GLIBC}" if linux else target,
@@ -1958,7 +1977,7 @@ def go_library(args, export_dir, lib, target, library, native, out):
 
 
 def build(args):
-    """This host's wheels, C archives, Apple and Go static libraries, the export's sources, and native output."""
+    """This host's wheels, C archives, Apple and Go static libraries, Dart libraries, the export's sources, and native output."""
     info = facts(args.manifest_path)
     lib, export_dir, out = info["lib"], Path(args.export).resolve(), Path(args.out).resolve()
     out.mkdir(parents=True, exist_ok=True)
@@ -1969,7 +1988,7 @@ def build(args):
         through, inside = spell(export_dir), {**info, "workspace": str(spell(info["workspace"]))}
         crate = through / "Cargo.toml"
         for target in args.targets:
-            if not any(target in t for t in (WHEEL_TARGETS, APPLE_TARGETS, GO_TARGETS, ANDROID_TARGETS)):
+            if not any(target in t for t in (WHEEL_TARGETS, APPLE_TARGETS, GO_TARGETS, DART_TARGETS, ANDROID_TARGETS)):
                 raise SystemExit(f"no package ships {target}")
             run("rustup", "target", "add", target, cwd=Path(args.manifest_path).resolve().parent)
             if target in WHEEL_TARGETS:
@@ -2002,16 +2021,18 @@ def build(args):
                     go_library(args, through, lib, target, library, native, out)
             elif target in GO_TARGETS:
                 env = reproducible(inside, through, target)
-                # Android's at the AAR's API floor, through the NDK.
-                if target in ANDROID_TARGETS:
-                    env.update(android_toolchain(target, ANDROID_API))
+                # Android's at the Dart package's API floor, through the NDK.
+                if "android" in target:
+                    env.update(android_toolchain(target, DART_TARGETS[target]))
                 library, native = staticlib(args.manifest_path, crate, lib, target, env=env)
                 go_library(args, through, lib, target, library, native, out)
+            if target in DART_TARGETS:
+                dart_library(inside, args.manifest_path, through, target, out)
             if target in ANDROID_TARGETS:
                 android_library(inside, args.manifest_path, through, target, out)
     # The generated sources, for the Swift package, the Go module, and the hosts' agreement.
     # Text this writes is LF on every host, as the jobs reading it compare bytes.
-    for part in ("include", "swift", "python", "go", "kotlin"):
+    for part in ("include", "swift", "python", "go", "kotlin", "dart"):
         shutil.copytree(export_dir / part, out / "export" / part, dirs_exist_ok=True)
     shutil.copy(export_dir / "Cargo.toml", out / "export")
     shutil.copy(export_dir / "api.json", out / "export")
@@ -2159,6 +2180,384 @@ def consume_go(proxy, check, native):
         compare(Path(native).read_bytes(), result.stdout, "Go module")
 
 
+def dart_file(info, target):
+    """The release asset of `target`'s Dart library."""
+    return f"{info['name']}-{info['version']}-dart-{target}{Path(library_name(info['lib'], target)).suffix}"
+
+
+def dart_library(info, manifest, export_dir, target, out):
+    """`target`'s library for the Dart package, the C ABI with its Dart glue, built for the
+    oldest system its hook lets an app target."""
+    lib, floor = info["lib"], DART_TARGETS[target]
+    name = library_name(lib, target)
+    env = reproducible(info, export_dir, target, name)
+    if target.endswith("apple-darwin"):
+        env["MACOSX_DEPLOYMENT_TARGET"] = floor or MACOS_WHEEL
+    elif "apple-ios" in target:
+        env["IPHONEOS_DEPLOYMENT_TARGET"] = floor
+    elif "android" in target:
+        env.update(android_toolchain(target, floor))
+    # Linux's against the glibc floor, as the wheel's.
+    glibc = target.endswith("linux-gnu")
+    command = ["cargo-zigbuild", "rustc"] if glibc else ["cargo", "rustc"]
+    built = run(*command, "--color", "never", "--locked", "--release", "--manifest-path", export_dir / "Cargo.toml",
+                "--target", f"{target}.{GLIBC}" if glibc else target, "--target-dir", export_dir / "target-dart",
+                "--lib", "--crate-type", "cdylib", "--features", "dart", cwd=Path(manifest).resolve().parent,
+                env={**os.environ, **env}, capture_output=True, encoding="utf-8")
+    sys.stderr.write(built.stderr)
+    dest = out / "dart" / dart_file(info, target)
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copy(export_dir / "target-dart" / target / "release" / name, dest)
+    # The required-reason APIs the linked library imports, which `pub` declares for the app.
+    if "apple" in target:
+        privacy = out / "dart-privacy" / f"{target}.xcprivacy"
+        privacy.parent.mkdir(parents=True, exist_ok=True)
+        privacy.write_bytes(privacy_manifest(lib, required_apis(dest)))
+
+
+def readme(info):
+    """The crate's readme, as Cargo finds it, or else a line saying what the package is."""
+    if info["readme"]:
+        return (Path(info["dir"]) / info["readme"]).read_text(encoding="utf-8")
+    said = f"{' '.join(info['description'].split())}\n\n" if info["description"] else ""
+    return f"# {info['lib']}\n\n{said}The Dart binding of the Rust crate {info['name']}, generated by rust2-ffi.\n"
+
+
+def pub_package(info, export, libs, url, changes, privacy, out):
+    """The pub.dev package: the export's, its pubspec given Cargo's facts, with the license,
+    readme, and changelog pub asks for, hook/release.json naming each target's library
+    in `libs`, hosted at `url`, by size and SHA-256, and the privacy manifest of the Apple
+    libraries' manifests in `privacy`."""
+    out = Path(out)
+    if out.exists():
+        shutil.rmtree(out)
+    shutil.copytree(Path(export) / "dart", out)
+    pubspec = (out / "pubspec.yaml").read_text(encoding="utf-8")
+    version = re.search(r"^version: (.*)$", pubspec, re.M)
+    if version is None or version.group(1) != info["version"]:
+        raise SystemExit(f"the export's pubspec.yaml is not the crate's version {info['version']}")
+    # Cargo's facts beside what the export wrote, each a JSON string, which YAML reads alike.
+    said = [f"{key}: {json.dumps(info[key])}" for key in ("repository", "homepage") if info[key]]
+    if info["description"]:
+        pubspec = re.sub(r"^description: .*$", lambda _: f"description: {json.dumps(' '.join(info['description'].split()))}",
+                         pubspec, count=1, flags=re.M)
+    pubspec = pubspec.replace(version.group(0), "\n".join([version.group(0), *said]), 1)
+    (out / "pubspec.yaml").write_text(pubspec, newline="\n", encoding="utf-8")
+    libraries = {}
+    names = {dart_file(info, target): target for target in DART_TARGETS}
+    found = {path.name for path in Path(libs).iterdir()}
+    if found != set(names):
+        raise SystemExit(f"{libs} lacks {sorted(set(names) - found)} and holds {sorted(found - set(names))} beside the Dart libraries")
+    for name, target in names.items():
+        data = (Path(libs) / name).read_bytes()
+        libraries[target] = {"file": name, "size": len(data), "sha256": hashlib.sha256(data).hexdigest()}
+        if DART_TARGETS[target]:
+            libraries[target]["minimum"] = DART_TARGETS[target]
+    if not url.endswith("/"):
+        raise SystemExit(f"{url} is no directory: end it with /")
+    release = {"url": url, "libraries": dict(sorted(libraries.items()))}
+    (out / "hook" / "release.json").write_text(json.dumps(release, indent=2) + "\n", newline="\n", encoding="utf-8")
+    # pub takes a license from a file named LICENSE alone, so one holds each of the crate's,
+    # or else Cargo's SPDX expression.
+    texts = [path.read_text(encoding="utf-8").strip() for path in licenses(info)]
+    if not texts and info["license"]:
+        texts = [f"SPDX-License-Identifier: {info['license']}"]
+    if not texts:
+        raise SystemExit("pub.dev needs a license: set Cargo's license, or put a license file beside the manifest")
+    (out / "LICENSE").write_text("\n\n".join(texts) + "\n", newline="\n", encoding="utf-8")
+    (out / "README.md").write_text(readme(info), newline="\n", encoding="utf-8")
+    # Every Apple library's declarations, which an app on Apple's stores merges into its own
+    # manifest: Flutter wraps a code asset in a framework it generates, which carries none.
+    types = {}
+    for target in (t for t in DART_TARGETS if "apple" in t):
+        manifest = Path(privacy) / f"{target}.xcprivacy"
+        if not manifest.is_file():
+            raise SystemExit(f"{privacy} lacks {manifest.name}, the privacy manifest of {target}'s Dart library")
+        with open(manifest, "rb") as f:
+            for declared in plistlib.load(f)["NSPrivacyAccessedAPITypes"]:
+                types[declared["NSPrivacyAccessedAPIType"]] = declared
+    (out / "PrivacyInfo.xcprivacy").write_bytes(
+        plistlib.dumps({"NSPrivacyAccessedAPITypes": [types[t] for t in sorted(types)]}, sort_keys=True))
+    # This release's changes, under the version pub looks for.
+    notes = Path(changes).read_text(encoding="utf-8")
+    (out / "CHANGELOG.md").write_text(f"## {info['version']}\n\n" + re.sub(r"^(#+) ", r"#\1 ", notes, flags=re.M),
+                                      newline="\n", encoding="utf-8")
+
+
+def pub_name(package):
+    """The name of the package in `package`, as its pubspec says."""
+    found = re.search(r"^name: (\S+)$", (Path(package) / "pubspec.yaml").read_text(encoding="utf-8"), re.M)
+    if found is None:
+        raise SystemExit(f"{package}/pubspec.yaml names no package")
+    return found.group(1)
+
+
+class Served:
+    """A directory served over HTTP on the loopback interface, as a release's host would."""
+
+    def __init__(self, root):
+        import functools
+        import http.server
+        import threading
+        class Quiet(http.server.SimpleHTTPRequestHandler):
+            def log_message(self, *_):
+                pass
+
+        handler = functools.partial(Quiet, directory=str(root))
+        self.server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), handler)
+        self.url = f"http://127.0.0.1:{self.server.server_address[1]}/"
+        threading.Thread(target=self.server.serve_forever, daemon=True).start()
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *_):
+        self.server.shutdown()
+
+
+def local_package(package, dest, url):
+    """The package, its libraries named at `url` instead of the release's host."""
+    shutil.copytree(package, dest)
+    path = Path(dest) / "hook" / "release.json"
+    release = json.loads(path.read_text(encoding="utf-8"))
+    release["url"] = url
+    path.write_text(json.dumps(release, indent=2) + "\n", encoding="utf-8")
+    return Path(dest)
+
+
+def dart_main(lib, check):
+    """The consumer's program: the caller's check, or else one that calls the library's contract.
+    It calls rather than takes the address: Dart 3.14's AOT resolves no `Native.addressOf` of a
+    function naming its `assetId`, as this one must from outside the package."""
+    if check:
+        return Path(check).read_text(encoding="utf-8")
+    return (f"import 'dart:ffi';\n\n"
+            f"@Native<Uint64 Function()>(symbol: '{lib}_contract', assetId: 'package:{lib}/{lib}.dart', isLeaf: true)\n"
+            f"external int _contract();\n\n"
+            f"void main() {{\n  _contract();\n}}\n")
+
+
+def dart_app(work, name, package, lib):
+    """A new app depending on the package by path, as on a hosted one."""
+    app = Path(work) / name
+    (app / "bin").mkdir(parents=True)
+    (app / "pubspec.yaml").write_text(
+        f"name: {name}\npublish_to: none\n\nenvironment:\n  sdk: ^3.10.0\n\n"
+        f"dependencies:\n  {lib}:\n    path: {json.dumps(Path(package).resolve().as_posix())}\n", encoding="utf-8")
+    run("dart", "pub", "get", cwd=app, capture_output=True)
+    return app
+
+
+def consume_dart(package, libs, lib, check, native):
+    """New Dart apps depending on the package, its libraries served from the loopback as the
+    release hosts them: one served a library of other bytes, which its hook refuses, and one
+    that runs the check by `dart run` and from the bundle `dart build cli` makes."""
+    with tempfile.TemporaryDirectory() as raw:
+        work = Path(raw)
+        good, bad = work / "served", work / "tampered"
+        shutil.copytree(libs, good)
+        shutil.copytree(libs, bad)
+        for path in bad.iterdir():
+            data = bytearray(path.read_bytes())
+            data[len(data) // 2] ^= 1
+            path.write_bytes(bytes(data))
+        with Served(bad) as served:
+            app = dart_app(work, "tampered", local_package(package, work / "bad-package", served.url), lib)
+            (app / "bin" / "main.dart").write_text(dart_main(lib, None), encoding="utf-8")
+            result = subprocess.run(["dart", "run", "bin/main.dart"], cwd=app, capture_output=True, encoding="utf-8")
+            if result.returncode == 0 or "SHA-256" not in result.stdout + result.stderr:
+                sys.stderr.write(result.stdout + result.stderr)
+                raise SystemExit("the hook took a library of other bytes than the release names")
+        with Served(good) as served:
+            app = dart_app(work, "consumer", local_package(package, work / "package", served.url), lib)
+            (app / "bin" / "main.dart").write_text(dart_main(lib, check), encoding="utf-8")
+            run("dart", "build", "cli", "--target", "bin/main.dart", "--output", work / "build", cwd=app,
+                capture_output=True)
+            exe = work / "build" / "bundle" / "bin" / ("main.exe" if sys.platform == "win32" else "main")
+            run_dart(["dart", "run", "bin/main.dart"], app, check, native, "dart run")
+            run_dart([exe], work, check, native, "dart build cli")
+
+
+def run_dart(command, cwd, check, native, what):
+    """Run a Dart consumer, and compare what it prints with native Rust."""
+    result = subprocess.run([str(c) for c in command], cwd=cwd, capture_output=True)
+    sys.stderr.buffer.write(result.stderr)
+    if result.returncode:
+        raise SystemExit(f"{what} failed on the Dart package with status {result.returncode}")
+    # Dart 3.10's `dart run` says it runs the hooks on stdout, before the program does.
+    stdout = re.sub(rb"^(Running build hooks\.\.\.)+", b"", result.stdout)
+    if native and check:
+        compare(Path(native).read_bytes(), stdout, f"Dart package, {what}")
+    print(f"{what}: ok")
+
+
+def consume_source(export, check, native):
+    """A new Dart app depending on the export's own package, whose hook builds the exported
+    crate with Cargo, as in a checkout."""
+    package = Path(export).resolve() / "dart"
+    lib = pub_name(package)
+    with tempfile.TemporaryDirectory() as raw:
+        app = dart_app(raw, "consumer", package, lib)
+        (app / "bin" / "main.dart").write_text(dart_main(lib, check), encoding="utf-8")
+        run_dart(["dart", "run", "bin/main.dart"], app, check, native, "dart run from source")
+
+
+# The Flutter consumer's entry, which runs the check, collecting what it prints, then reports
+# it base64-encoded in short lines, as Android's log splits long ones, and how it ended, as an
+# app has no exit status.
+FLUTTER_MAIN = """import 'dart:async';
+import 'dart:convert';
+import 'dart:io' as io;
+import 'dart:math';
+
+import 'check.dart' as check;
+
+void main() {
+  final out = StringBuffer();
+  void report(String end) {
+    final data = base64.encode(utf8.encode(out.toString()));
+    Zone.root.print('rust2: start');
+    for (var i = 0; i < data.length; i += 800) {
+      Zone.root.print('rust2: ${data.substring(i, min(i + 800, data.length))}');
+    }
+    Zone.root.print('rust2: $end');
+  }
+
+  runZonedGuarded(
+    () async {
+      final Function run = check.main;
+      final result = run is Function(List<String>) ? run(<String>[]) : run();
+      if (result is Future) await result;
+      report('exit ${io.exitCode}');
+    },
+    (error, stack) => report('threw $error $stack'),
+    zoneSpecification: ZoneSpecification(print: (_, _, _, line) => out.writeln(line)),
+  );
+}
+"""
+
+
+class Flutter:
+    """`flutter run --machine` on an app: its events, from a thread reading them, and its commands."""
+
+    # Longer than flutter's longest quiet step, a cold Gradle build, so a stalled run fails
+    # saying so rather than at the job's limit.
+    SILENT = 15 * 60
+
+    def __init__(self, app, device):
+        import threading
+        self.process = subprocess.Popen(["flutter", "run", "--machine", "--debug", "-d", device], cwd=app, text=True,
+                                        encoding="utf-8", stdin=subprocess.PIPE, stdout=subprocess.PIPE)
+        self.events, self.app, self.started, self.ids = queue.Queue(), None, False, 0
+        threading.Thread(target=self.read, daemon=True).start()
+
+    def read(self):
+        for line in self.process.stdout:
+            line = line.strip()
+            try:
+                events = json.loads(line) if line.startswith("[{") else None
+            except json.JSONDecodeError:
+                events = None
+            if events is not None:
+                for event in events:
+                    # What flutter is doing, such as installing the app, so a stall says where.
+                    if event.get("event") in ("app.progress", "daemon.logMessage") and event["params"].get("message"):
+                        print(f"flutter: {event['params']['message']}", file=sys.stderr, flush=True)
+                    self.events.put(event)
+            elif line:
+                # Any other line, such as a desktop app's own output, which flutter passes through as is.
+                self.events.put({"event": "app.log", "params": {"log": line}})
+        self.events.put(None)
+
+    def next(self):
+        """The next event, failing once flutter exits or a command fails."""
+        try:
+            event = self.events.get(timeout=self.SILENT)
+        except queue.Empty:
+            raise SystemExit(f"flutter run said nothing for {self.SILENT // 60} minutes") from None
+        if event is None:
+            raise SystemExit("flutter run exited before the check did")
+        if "error" in event:
+            raise SystemExit(f"flutter run refused a command: {event['error']}")
+        params = event.get("params", {})
+        if event.get("event") == "app.start":
+            self.app = params["appId"]
+        elif event.get("event") == "app.started":
+            self.started = True
+        return event
+
+    def command(self, method, **params):
+        """Send a command once the app has started, as flutter takes none before."""
+        while not self.started:
+            self.next()
+        self.ids += 1
+        self.process.stdin.write(json.dumps([{"id": self.ids, "method": method, "params": {"appId": self.app, **params}}]) + "\n")
+        self.process.stdin.flush()
+
+    def output(self):
+        """What one run of the check printed, failing unless it exits 0."""
+        chunks = None
+        while True:
+            event = self.next()
+            if event.get("event") != "app.log":
+                continue
+            line = event["params"]["log"]
+            print(line, file=sys.stderr)
+            # After whatever prefix the device's log adds.
+            at = line.find("rust2: ")
+            if at < 0:
+                continue
+            said = line[at + len("rust2: "):]
+            if said == "start":
+                chunks = []
+            elif chunks is None:
+                continue
+            elif said.startswith("threw "):
+                raise SystemExit(f"the check threw in the Flutter app: {said}")
+            elif said.startswith("exit "):
+                if said != "exit 0":
+                    raise SystemExit(f"the check failed in the Flutter app: {said}")
+                return base64.b64decode("".join(chunks))
+            else:
+                chunks.append(said)
+
+
+def consume_flutter(package, libs, lib, check, native, platform, device):
+    """A new Flutter app depending on the package, its libraries served from the loopback as
+    the release hosts them, run on `device` in debug, then again after a hot restart, which
+    keeps the library and Rust's statics but not the isolate: each run prints the check's
+    output."""
+    with tempfile.TemporaryDirectory() as raw, Served(libs) as served:
+        work = Path(raw)
+        app = work / "consumer"
+        run("flutter", "create", "--platforms", platform, "--empty", "--project-name", "consumer", "--org", "dev.rust2",
+            app, capture_output=True)
+        run("flutter", "pub", "add", lib, "--path", local_package(package, work / "package", served.url), cwd=app,
+            capture_output=True)
+        (app / "lib" / "check.dart").write_text(dart_main(lib, check), encoding="utf-8")
+        (app / "lib" / "main.dart").write_text(FLUTTER_MAIN, encoding="utf-8")
+        flutter = Flutter(app, device)
+        try:
+            first = flutter.output()
+            flutter.command("app.restart", fullRestart=True, pause=False)
+            second = flutter.output()
+            flutter.command("app.stop")
+            flutter.process.stdin.close()
+            try:
+                status = flutter.process.wait(timeout=Flutter.SILENT)
+            except subprocess.TimeoutExpired:
+                raise SystemExit(f"flutter run went on {Flutter.SILENT // 60} minutes after the app stopped") from None
+        except BaseException:
+            flutter.process.kill()
+            raise
+        if status:
+            raise SystemExit(f"flutter run failed with status {status}")
+    for output, what in ((first, "Flutter app"), (second, "Flutter app after a hot restart")):
+        if native and check:
+            compare(Path(native).read_bytes(), output, what)
+        print(f"{what}: ok")
+
+
 def package_name(info, scope):
     """The web package's name on npm and JSR, `@<scope>/<crate>`, refusing what JSR cannot spell."""
     name = f"@{scope}/{info['name']}"
@@ -2245,11 +2644,13 @@ def android_toolchain(target, api):
     bin_dir = ndk_prebuilt() / "bin"
     # The NDK spells 32-bit Arm's compiler armv7a, where Rust's target is armv7.
     triple = "armv7a-linux-androideabi" if target.startswith("armv7") else target
-    clang = bin_dir / f"{triple}{api}-clang"
+    # Windows' NDK wraps each in a batch file.
+    cmd = ".cmd" if sys.platform == "win32" else ""
+    clang, clangxx = (bin_dir / f"{triple}{api}-{name}{cmd}" for name in ("clang", "clang++"))
     if not clang.is_file():
         raise SystemExit(f"the NDK has no {clang}")
     key = target.replace("-", "_")
-    return {f"CARGO_TARGET_{key.upper()}_LINKER": str(clang), f"CC_{key}": str(clang), f"CXX_{key}": f"{clang}++",
+    return {f"CARGO_TARGET_{key.upper()}_LINKER": str(clang), f"CC_{key}": str(clang), f"CXX_{key}": str(clangxx),
             f"AR_{key}": str(bin_dir / "llvm-ar")}
 
 
@@ -3061,6 +3462,28 @@ def main():
     p.add_argument("--archive", required=True)
     p.add_argument("--check")
     p.add_argument("--native")
+    p = sub.add_parser("pub", help="write the pub.dev package, naming each target's Dart library by its hash")
+    p.add_argument("--manifest-path", required=True)
+    p.add_argument("--export", required=True)
+    p.add_argument("--libs", required=True, help="a directory of every Dart target's library, as build names them")
+    p.add_argument("--url", required=True, help="where the release hosts the libraries, ending in /")
+    p.add_argument("--changes", required=True, help="the release's changes.md")
+    p.add_argument("--privacy", required=True, help="a directory of each Apple Dart library's privacy manifest, as build names them")
+    p.add_argument("--out", required=True)
+    for name, helptext in (("consume-dart", "run a check program, or a load, in new Dart apps on the package"),
+                           ("consume-flutter", "run a check program, or a load, in a new Flutter app, then after a hot restart")):
+        p = sub.add_parser(name, help=helptext)
+        p.add_argument("--package", required=True, help="the directory `pub` wrote")
+        p.add_argument("--libs", required=True, help="the libraries, served as the release hosts them")
+        p.add_argument("--check")
+        p.add_argument("--native")
+        if name == "consume-flutter":
+            p.add_argument("--platform", required=True, help="the platform `flutter create` makes the app for")
+            p.add_argument("--device", required=True, help="the device `flutter run` runs it on")
+    p = sub.add_parser("consume-source", help="run a check program, or a load, in a new Dart app on the export's own package")
+    p.add_argument("--export", required=True)
+    p.add_argument("--check")
+    p.add_argument("--native")
     p = sub.add_parser("compare", help="compare a consumer's output with native Rust's")
     p.add_argument("native")
     p.add_argument("actual")
@@ -3130,6 +3553,15 @@ def main():
         consume_python(args.check, args.native, args.module)
     elif args.command == "consume-c":
         consume_c(args.archive, args.check, args.native)
+    elif args.command == "pub":
+        pub_package(facts(args.manifest_path), args.export, args.libs, args.url, args.changes, args.privacy, args.out)
+    elif args.command == "consume-dart":
+        consume_dart(args.package, args.libs, pub_name(args.package), args.check, args.native)
+    elif args.command == "consume-source":
+        consume_source(args.export, args.check, args.native)
+    elif args.command == "consume-flutter":
+        consume_flutter(args.package, args.libs, pub_name(args.package), args.check, args.native, args.platform,
+                        args.device)
     elif args.command == "compare":
         compare(Path(args.native).read_bytes(), Path(args.actual).read_bytes(), "installed Swift package")
     elif args.command == "init":

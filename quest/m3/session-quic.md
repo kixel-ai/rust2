@@ -10,7 +10,7 @@ poll from its own event loop, as driving decided for the origin's
 ## Plan
 
 Decided with the maintainer on 2026-11-09, in the quest audit: ✅ m3, out of
-[the exporter epic](/quest/m1/ffi-export/README.md), which it would have held open until
+the exporter epic, which it would have held open until
 moq's m3 driver lands. Rejected: m2; a top-level m1 quest.
 
 Decided with the maintainer on 2026-10-27: the full-control path, after sessions on

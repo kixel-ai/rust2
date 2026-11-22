@@ -443,6 +443,11 @@ struct Eraser: ClashEraser {
 	func delete() -> UInt8 { 3 }
 }
 
+/// A count named with a trailing underscore in Rust, whose C names join no `__`.
+struct Count: ClashCount {
+	func next() -> UInt32 { 4 }
+}
+
 /// What the transcript's script says only in Rust, or Swift alone has: its own types'
 /// conversions, the errors and checks it throws, and its protocols.
 func checks() {
@@ -463,6 +468,15 @@ func checks() {
 	check(clashErased(Eraser()) == 123, "a protocol's methods apart by a trailing underscore")
 	check(ClashEscaped(new: 3).delete() == 3 && ClashEscaped(new: 3).delete(1, 2) == 213, "methods apart by a trailing underscore")
 	check(clashErase_() == 2 && clashErase() == 1, "functions apart by a trailing underscore")
+	// Items whose Rust names end in `_`, so every C name joined to them keeps one `_`.
+	let notch = ClashNotch.new(3)
+	check(notch.count() == 3 && notch.clone() == notch && ClashNotch.default() < notch, "a class named with a trailing underscore")
+	check(notch.description == "notch 3" && notch.debugDescription == "Notch_ { count: 3 }", "a class named with a trailing underscore prints")
+	check(clashNotches(2).count == 2, "a list of a class named with a trailing underscore")
+	check(clashShifted(1, .up(2)) == 3 && clashShifted(1, .down) == 0, "an enum named with a trailing underscore")
+	check(clashShifted(5, .tag(2)) == 3, "a variant named as the tag")
+	check(ClashShift.up(2).debugDescription == "Up(2)", "an enum named with a trailing underscore prints")
+	check(clashCounted(Count()) == 5, "a protocol named with a trailing underscore")
 	// Fields named as `Display`'s and `Debug`'s members, which take a trailing `_`.
 	let described = ClashDescribed(description_: 1, debugDescription_: 2)
 	check(clashDescribed(described) == 12 && described.description == "12", "fields named as a trait's members")

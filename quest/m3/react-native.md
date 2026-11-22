@@ -24,7 +24,7 @@ consumer asks ([m3](/quest/m3/README.md#plan)).
   2026-11-12 audit: [facebook/hermes#429](https://github.com/facebook/hermes/issues/429)
   is still open, and Hermes's default branch has no WebAssembly source in its VM. So the
   JSI module is the route.
-- It follows every generator's rules ([the exporter epic](/quest/m1/ffi-export/README.md)):
+- It follows every generator's rules ([every binding's](/ffi/README.md#every-binding)):
   the contract check at load, bulk payloads, native futures, a `ffi/moq/moq.*` run, and a
   column on [the binding benchmark](/bench/ffi/README.md).
 - Open: every other target runs its `tests/api.*` in the merge gate, and this Goal tests
@@ -36,6 +36,3 @@ consumer asks ([m3](/quest/m3/README.md#plan)).
 
 Public API: the generated module's TypeScript API.
 
-## Required
-
-- [Exporter](/quest/m1/ffi-export/README.md) - the C ABI, its lossless types, and its checks are settled before a new generator copies them

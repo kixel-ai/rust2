@@ -85,7 +85,7 @@ BINDINGS = [
 	("Python", ["python/moq.py"], ["src/python"]),
 	("Swift", ["swift"], []),
 	("Go", ["go"], []),
-	("Dart", ["dart/moq.dart"], ["src/dart"]),
+	("Dart", ["dart/lib/moq.dart"], ["src/dart"]),
 ]
 
 # The TypeScript, under the wasm32 stand-in's export, and the glue its module builds with.

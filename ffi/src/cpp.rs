@@ -1,8 +1,8 @@
 //! The C++ header: header-only classes over the C header's declarations, from C++17, with
 //! exceptions and RTTI on or off.
 //!
-//! Each name is its C name without the prefix, in a namespace of the prefix: `moq_track`
-//! is `moq::track`, and a method is its C name without its type's (`moq_track_close` is
+//! Each name is its C name without the prefix, in a namespace of the prefix, escaped as a
+//! name is: `moq_track` is `moq::track`, and a method is its C name without its type's (`moq_track_close` is
 //! `moq::track::close`). C names are unique, so these are too, once a keyword, or a member
 //! named as its class, a field, or a trait's member, takes a trailing `_`, a name C++
 //! reserves drops its `__`s (`__all__` is `all_`), and one an escape makes another's takes
@@ -68,7 +68,7 @@ pub(crate) fn headers(abi: &Abi<'_>, packages: &str) -> Result<Output, String> {
 	let mut h = Header {
 		locked: BTreeMap::new(),
 		abi,
-		ns: p.clone(),
+		ns: namespace(p),
 		krate: String::new(),
 		files: crate::go::packages(abi),
 		out: String::new(),
@@ -573,17 +573,17 @@ impl<'a> Header<'a> {
 			| Type::Bound(_)
 			| Type::Bounds(_) => e.to_string(),
 			Type::List(_, inner) if ty.block().is_some() => format!(
-				"{d}::lift_block<{}>({e}, &::{}_free)",
+				"{d}::lift_block<{}>({e}, &::{})",
 				self.owned(inner),
-				abi.list(inner)
+				abi::join(&abi.list(inner), "free")
 			),
 			Type::List(_, inner) => {
 				let c = format!("c{}_", lists(inner));
 				format!(
-					"{d}::lift_list<{}>({e}, [&](const auto &{c}) {{ return {}; }}, &::{}_free)",
+					"{d}::lift_list<{}>({e}, [&](const auto &{c}) {{ return {}; }}, &::{})",
 					self.owned(inner),
 					self.lift(inner, &c),
-					abi.list(inner)
+					abi::join(&abi.list(inner), "free")
 				)
 			}
 			Type::Option(inner) => {
@@ -1003,7 +1003,10 @@ impl<'a> Header<'a> {
 		let bare: Vec<String> = (methods.iter())
 			.map(|method| {
 				let call = self.abi.export(method, Some(owner)).call.name;
-				match call.strip_prefix(c.as_str()).and_then(|rest| rest.strip_prefix('_')) {
+				match call
+					.strip_prefix(crate::abi::stem(c))
+					.and_then(|rest| rest.strip_prefix('_'))
+				{
 					Some(rest) => rest.to_string(),
 					None => call[self.abi.prefix.len() + 1..].to_string(),
 				}
@@ -1089,6 +1092,7 @@ impl<'a> Header<'a> {
 		let abi = self.abi;
 		let object = &abi.api.objects[i];
 		let c = abi.object(i);
+		let c_ = crate::abi::stem(&c);
 		let name = self.name(&c);
 		let t = object.traits;
 		let text = format!("{}\n\n{}", abi.api.rust(&object.path, &object.args), object.docs);
@@ -1101,14 +1105,14 @@ impl<'a> Header<'a> {
 		// Copies share a handle only where no call tells that apart from a clone, but by an
 		// `Arc`'s or `Rc`'s count, which counts one for every copy.
 		let handle = match (object.shared, status.is_empty()) {
-			(true, true) => format!("{d}::shared<::{c}, &::{c}_free, &::{c}_clone, &::{c}_borrowed>"),
+			(true, true) => format!("{d}::shared<::{c}, &::{c_}_free, &::{c_}_clone, &::{c_}_borrowed>"),
 			(true, false) => {
 				self.line(format!(
-					"namespace detail {{\n\ninline ::{c} *{c}_clone(const ::{c} *raw) noexcept {{\n\treturn ::{c}_clone(raw, nullptr);\n}}\n\n}} // namespace detail\n"
+					"namespace detail {{\n\ninline ::{c} *{c_}_clone(const ::{c} *raw) noexcept {{\n\treturn ::{c_}_clone(raw, nullptr);\n}}\n\n}} // namespace detail\n"
 				));
-				format!("{d}::shared<::{c}, &::{c}_free, &{d}::{c}_clone, &::{c}_borrowed>")
+				format!("{d}::shared<::{c}, &::{c_}_free, &{d}::{c_}_clone, &::{c_}_borrowed>")
 			}
-			(false, _) => format!("{d}::unique<::{c}, &::{c}_free>"),
+			(false, _) => format!("{d}::unique<::{c}, &::{c_}_free>"),
 		};
 		let mut body = vec![
 			format!("\t{handle} raw_;\n"),
@@ -1131,14 +1135,14 @@ impl<'a> Header<'a> {
 				"\t/// Rust's `Clone`, a value of its own: copies sharing one value could be told apart\n\t/// from clones, so it does not copy.\n\tRUST2_FFI_CALLABLE {name} {clone}() const;"
 			));
 			self.def(format!(
-				"inline {name} {name}::{clone}() const {{\n\treturn {d}::access::wrap<{name}>(::{c}_clone(raw_.get(){status}));\n}}\n"
+				"inline {name} {name}::{clone}() const {{\n\treturn {d}::access::wrap<{name}>(::{c_}_clone(raw_.get(){status}));\n}}\n"
 			));
 			members.push(clone);
 		}
 		if t.eq {
 			let (a, b) = self.operands();
 			body.push(format!(
-				"\tfriend bool operator==(const {name} &{a}, const {name} &{b}) {{\n\t\treturn ::{c}_eq({a}.raw_.get(), {b}.raw_.get(){status});\n\t}}\n\tfriend bool operator!=(const {name} &{a}, const {name} &{b}) {{\n\t\treturn !({a} == {b});\n\t}}"
+				"\tfriend bool operator==(const {name} &{a}, const {name} &{b}) {{\n\t\treturn ::{c_}_eq({a}.raw_.get(), {b}.raw_.get(){status});\n\t}}\n\tfriend bool operator!=(const {name} &{a}, const {name} &{b}) {{\n\t\treturn !({a} == {b});\n\t}}"
 			));
 		}
 		if t.ord != Order::None {
@@ -1146,7 +1150,7 @@ impl<'a> Header<'a> {
 			let ops = self.orders(t.ord, &format!("const {name} &{a}, const {name} &{b}"), &|suffix| {
 				(
 					String::new(),
-					format!("::{c}_{suffix}({d}::access::raw({a}), {d}::access::raw({b}){status})"),
+					format!("::{c_}_{suffix}({d}::access::raw({a}), {d}::access::raw({b}){status})"),
 				)
 			});
 			// Friends, as `==` is, but for C++20's `<=>`: a class that differs between
@@ -1169,7 +1173,7 @@ impl<'a> Header<'a> {
 				"\t/// Rust's `Hash`, agreeing with `==`, as `std::hash` hashes it.\n\tRUST2_FFI_CALLABLE ::std::uint64_t {hash}() const;"
 			));
 			self.def(format!(
-				"inline ::std::uint64_t {name}::{hash}() const {{\n\treturn ::{c}_hash(raw_.get(){status});\n}}\n"
+				"inline ::std::uint64_t {name}::{hash}() const {{\n\treturn ::{c_}_hash(raw_.get(){status});\n}}\n"
 			));
 			members.push(hash.clone());
 			let q = format!("::{}::{name}", self.ns);
@@ -1216,6 +1220,7 @@ impl<'a> Header<'a> {
 		body: &mut Vec<String>,
 		members: &mut Vec<String>,
 	) {
+		let c_ = crate::abi::stem(c);
 		let name = &self.name(c);
 		let ns = self.ns.clone();
 		let d = self.d();
@@ -1240,7 +1245,7 @@ impl<'a> Header<'a> {
 			crate::lock::trait_member(&mut self.locked, shown, "Display", &member);
 			body.push(format!("\t{callable}::{ns}::buf {member}() const;"));
 			self.def(format!(
-				"inline ::{ns}::buf {name}::{member}() const {{\n{lower}\treturn {d}::access::adopt(::{c}_to_string({this}{status}));\n}}\n"
+				"inline ::{ns}::buf {name}::{member}() const {{\n{lower}\treturn {d}::access::adopt(::{c_}_to_string({this}{status}));\n}}\n"
 			));
 			members.push(member);
 		}
@@ -1249,7 +1254,7 @@ impl<'a> Header<'a> {
 			crate::lock::trait_member(&mut self.locked, shown, "Debug", &member);
 			body.push(format!("\t{callable}::{ns}::buf {member}() const;"));
 			self.def(format!(
-				"inline ::{ns}::buf {name}::{member}() const {{\n{lower}\treturn {d}::access::adopt(::{c}_debug({this}{status}));\n}}\n"
+				"inline ::{ns}::buf {name}::{member}() const {{\n{lower}\treturn {d}::access::adopt(::{c_}_debug({this}{status}));\n}}\n"
 			));
 			members.push(member);
 		}
@@ -1263,7 +1268,7 @@ impl<'a> Header<'a> {
 				false => format!("{d}::lift(c_ret_)"),
 			};
 			self.def(format!(
-				"inline {name} {name}::{member}() {{\n\tauto c_ret_ = ::{c}_default();\n\treturn {make};\n}}\n"
+				"inline {name} {name}::{member}() {{\n\tauto c_ret_ = ::{c_}_default();\n\treturn {make};\n}}\n"
 			));
 		}
 	}
@@ -1272,6 +1277,7 @@ impl<'a> Header<'a> {
 		let abi = self.abi;
 		let callback = &abi.api.callbacks[i];
 		let c = abi.callback(i);
+		let c_ = crate::abi::stem(&c);
 		let name = self.name(&c);
 		let text = format!(
 			"{}: implemented in C++. Rust deletes it once it drops the implementation, and may\ncall its methods from any thread.\n\n{}",
@@ -1345,7 +1351,7 @@ impl<'a> Header<'a> {
 			body.join("\n")
 		));
 		self.def(format!(
-			"namespace detail {{\n\ninline ::{c} lower(::std::unique_ptr<::{ns}::{name}> impl) {{\n\tif (!impl) {{\n\t\tfail(\"{c}: a null implementation\");\n\t}}\n\tstruct t {{\n{}\n\t}};\n\tstatic const ::{c}_vtable vtable = {{{}}};\n\treturn ::{c}{{&vtable, impl.release()}};\n}}\n\n}} // namespace detail\n",
+			"namespace detail {{\n\ninline ::{c} lower(::std::unique_ptr<::{ns}::{name}> impl) {{\n\tif (!impl) {{\n\t\tfail(\"{c}: a null implementation\");\n\t}}\n\tstruct t {{\n{}\n\t}};\n\tstatic const ::{c_}_vtable vtable = {{{}}};\n\treturn ::{c}{{&vtable, impl.release()}};\n}}\n\n}} // namespace detail\n",
 			trampolines.join("\n"),
 			table.join(", "),
 			ns = self.ns,
@@ -1369,6 +1375,7 @@ impl<'a> Header<'a> {
 			}
 			_ => return,
 		};
+		let c_ = crate::abi::stem(&c);
 		// Another crate's, which its header defines.
 		let home = match ty {
 			Type::Record(i) => &abi.api.records[*i].home,
@@ -1410,7 +1417,7 @@ impl<'a> Header<'a> {
 						"\tfriend bool operator==(const {name} &{a}, const {name} &{b});\n\tfriend bool operator!=(const {name} &{a}, const {name} &{b}) {{\n\t\treturn !({a} == {b});\n\t}}"
 					));
 					self.def(format!(
-						"inline bool operator==(const {name} &{a}, const {name} &{b}) {{\n{}\tauto c_a_ = {};\n\tauto c_b_ = {};\n\treturn ::{c}_eq(&c_a_, &c_b_{});\n}}\n",
+						"inline bool operator==(const {name} &{a}, const {name} &{b}) {{\n{}\tauto c_a_ = {};\n\tauto c_b_ = {};\n\treturn ::{c_}_eq(&c_a_, &c_b_{});\n}}\n",
 						self.scope([ty]),
 						self.lower(ty, &a),
 						self.lower(ty, &b),
@@ -1424,7 +1431,7 @@ impl<'a> Header<'a> {
 					let ops = self.orders(t.ord, &format!("const {name} &{a}, const {name} &{b}"), &|suffix| {
 						(
 							format!("{scope}\tauto c_a_ = {lower_a};\n\tauto c_b_ = {lower_b};\n"),
-							format!("::{c}_{suffix}(&c_a_, &c_b_{status})"),
+							format!("::{c_}_{suffix}(&c_a_, &c_b_{status})"),
 						)
 					});
 					// Declared friends, as `==` is, and defined after the class, but for C++20's
@@ -1508,6 +1515,7 @@ impl<'a> Header<'a> {
 		let abi = self.abi;
 		let e = &abi.api.enums[i];
 		let c = abi.enumeration(i);
+		let c_ = crate::abi::stem(&c);
 		let name = self.name(&c);
 		let ns = self.ns.clone();
 		let ty = Type::Enum(i);
@@ -1522,7 +1530,7 @@ impl<'a> Header<'a> {
 		if t.eq {
 			let (a_, b_) = (declare(&param, &a), declare(&param, &b));
 			self.def(format!(
-				"inline bool operator==({a_}, {b_}) {{\n{scope}\tauto c_a_ = {lower_a};\n\tauto c_b_ = {lower_b};\n\treturn ::{c}_eq(&c_a_, &c_b_{status});\n}}\n\ninline bool operator!=({a_}, {b_}) {{\n\treturn !({a} == {b});\n}}\n"
+				"inline bool operator==({a_}, {b_}) {{\n{scope}\tauto c_a_ = {lower_a};\n\tauto c_b_ = {lower_b};\n\treturn ::{c_}_eq(&c_a_, &c_b_{status});\n}}\n\ninline bool operator!=({a_}, {b_}) {{\n\treturn !({a} == {b});\n}}\n"
 			));
 		}
 		if t.ord != Order::None {
@@ -1530,7 +1538,7 @@ impl<'a> Header<'a> {
 			let ops = self.orders(t.ord, &format!("{a_}, {b_}"), &|suffix| {
 				(
 					format!("{scope}\tauto c_a_ = {lower_a};\n\tauto c_b_ = {lower_b};\n"),
-					format!("::{c}_{suffix}(&c_a_, &c_b_{status})"),
+					format!("::{c_}_{suffix}(&c_a_, &c_b_{status})"),
 				)
 			});
 			for op in ops {
@@ -1539,20 +1547,20 @@ impl<'a> Header<'a> {
 		}
 		for (on, key, trait_name) in [(t.display, "Display", "to_string"), (t.debug, "Debug", "debug")] {
 			if on {
-				let helper = self.name(&format!("{c}_{trait_name}"));
+				let helper = self.name(&format!("{c_}_{trait_name}"));
 				crate::lock::trait_member(&mut self.locked, &e.shown, key, &helper);
 				self.def(format!(
-					"inline ::{ns}::buf {helper}({}) {{\n{scope}\tauto c_self_ = {this};\n\treturn {d}::access::adopt(::{c}_{trait_name}(&c_self_{status}));\n}}\n",
+					"inline ::{ns}::buf {helper}({}) {{\n{scope}\tauto c_self_ = {this};\n\treturn {d}::access::adopt(::{c_}_{trait_name}(&c_self_{status}));\n}}\n",
 					declare(&param, "self"),
 					d = self.d()
 				));
 			}
 		}
 		if t.default {
-			let helper = self.name(&format!("{c}_default"));
+			let helper = self.name(&format!("{c_}_default"));
 			crate::lock::trait_member(&mut self.locked, &e.shown, "Default", &helper);
 			self.def(format!(
-				"inline {name} {helper}() {{\n\tauto c_ret_ = ::{c}_default();\n\treturn {lifted};\n}}\n"
+				"inline {name} {helper}() {{\n\tauto c_ret_ = ::{c_}_default();\n\treturn {lifted};\n}}\n"
 			));
 		}
 		let owner = abi.ty(&ty);
@@ -1643,9 +1651,9 @@ impl<'a> Header<'a> {
 			let mut lower = Vec::new();
 			let mut lift = Vec::new();
 			for (n, variant) in e.variants.iter().enumerate() {
-				let tag = format!("{upper}_{}", abi::snake(&variant.name).to_uppercase());
+				let tag = abi::join(&upper, &abi::snake(&variant.name).to_uppercase());
 				let payload = self.name(&abi::payload(&c, &variant.name));
-				let member = abi::escape(&abi::snake(&variant.name));
+				let member = abi::variant_member(&variant.name);
 				let mut set = vec![format!("c.tag = {tag};")];
 				let mut fields = Vec::new();
 				for (field, name) in variant.fields.iter().zip(field_names(&variant.fields)) {
@@ -2262,7 +2270,7 @@ fn apart(bare: &str, class: &str) -> String {
 
 /// The C++ names of `rust`, the names of one scope, kept apart from each other and from those
 /// `taken` holds or a header defines as a macro, by [`abi::named`]'s rule with C++'s
-/// [`stepped`]: a name escaping leaves as it is keeps it while `taken` lacks it, and every
+/// [`abi::stepped`]: a name escaping leaves as it is keeps it while `taken` lacks it, and every
 /// other, escaped, steps in Rust's order of names. So a field `new_` stays `new_` beside
 /// `new`, which becomes `new_2`, and no order of the source moves one.
 fn named(rust: &[String], taken: impl Fn(&str) -> bool) -> Vec<String> {
@@ -2274,7 +2282,7 @@ fn named(rust: &[String], taken: impl Fn(&str) -> bool) -> Vec<String> {
 		spelled,
 		own,
 		|_, name| taken(name) || abi::defined(name),
-		stepped,
+		abi::stepped,
 	)
 }
 
@@ -2284,7 +2292,7 @@ fn field_names(fields: &[crate::ir::Field]) -> Vec<String> {
 	named(&rust, |_| false)
 }
 
-/// The C++ name of the parameter `rust`, [`stepped`] further while `taken` holds it, a header
+/// The C++ name of the parameter `rust`, [`abi::stepped`] further while `taken` holds it, a header
 /// defines it as a macro, or it is a name the header gives its own locals and members.
 fn parameter(rust: &str, taken: impl Fn(&str) -> bool) -> String {
 	let escaped = escape(rust);
@@ -2292,21 +2300,9 @@ fn parameter(rust: &str, taken: impl Fn(&str) -> bool) -> String {
 	let mut n = 0;
 	while taken(&name) || generated(&name) || abi::defined(&name) {
 		n += 1;
-		name = stepped(&escaped, n);
+		name = abi::stepped(&escaped, n);
 	}
 	name
-}
-
-/// The `n`th name to try in place of `name` where it is taken. The names of a stem `x` count
-/// along `x`, `x_`, `x_2`, `x_3`, ..., from `name`'s place, so `delete` steps to `delete_`
-/// and `delete_` to `delete_2`: never `__`, which would make a name C++ reserves.
-fn stepped(name: &str, n: usize) -> String {
-	match (name.strip_suffix('_'), n) {
-		(_, 0) => name.to_string(),
-		(Some(stem), n) => format!("{stem}_{}", n + 1),
-		(None, 1) => format!("{name}_"),
-		(None, n) => format!("{name}_{n}"),
-	}
 }
 
 /// Whether the header names its own locals and members `name`: the arena `a_`, a handle's
@@ -2492,7 +2488,7 @@ fn cpp_int(int: Int) -> &'static str {
 }
 
 /// A name C++ would read as a keyword with `_` appended, one starting with a digit with `_`
-/// prepended, as C's are, and one a header defines as a macro [`stepped`] past it. One C++
+/// prepended, as C's are, and one a header defines as a macro [`abi::stepped`] past it. One C++
 /// reserves for the implementation, holding `__` or starting with `_` and a capital
 /// ([lex.name]), first drops its leading `_`s and keeps one `_` of each run, so `__all__` is
 /// `all_`: appending keeps a reserved name reserved.
@@ -2595,44 +2591,31 @@ pub(crate) fn escape(name: &str) -> String {
 		"std",
 		"self",
 	];
-	let mut unreserved = String::new();
-	let name = match reserved(name) {
-		true => {
-			for c in name.trim_start_matches('_').chars() {
-				if !(c == '_' && unreserved.ends_with('_')) {
-					unreserved.push(c);
-				}
-			}
-			// Rust's `__` alone, which a parameter may take.
-			if unreserved.is_empty() {
-				unreserved.push('_');
-			}
-			unreserved.as_str()
-		}
-		false => name,
+	// A C name of an item named only `_`s is its prefix and `_` alone, which leaves `_`.
+	let name = match abi::unreserved(name) {
+		name if name.is_empty() => "_".to_string(),
+		name => name,
 	};
-	match name.chars().next() {
-		Some(c) if c.is_ascii_digit() => format!("_{name}"),
+	match KEYWORDS.contains(&name.as_str()) {
 		// One `_`, which makes no macro's name.
-		_ if KEYWORDS.contains(&name) => format!("{name}_"),
-		_ => {
-			// Unreserved, a name ends in one `_` at most. The names of its stem that no macro
-			// holds keep their order, so `unix` and `unix_` stay apart as `unix_` and `unix_2`.
-			// 32-bit x86's GNU dialects predefine `i386`, which `macros.txt` lacks.
-			let stem = name.strip_suffix('_').unwrap_or(name);
-			let place = name.len() - stem.len();
-			let free = |name: &String| !(abi::defined(name) || name == "i386");
-			(0..)
-				.map(|n| stepped(stem, n))
-				.filter(free)
-				.nth(place)
-				.expect("a free name")
-		}
+		true => format!("{name}_"),
+		// The names of its stem that no macro holds keep their order, so `unix` and `unix_`
+		// stay apart as `unix_` and `unix_2`. 32-bit x86's GNU dialects predefine `i386`,
+		// which `macros.txt` lacks.
+		false => abi::escaped(&name, |stem| stem == "i386"),
 	}
+}
+
+/// The namespace of the library whose prefix is `prefix`: it escaped as a name is, since a
+/// library may be named as a keyword or a macro (`class`). C claims it as the runtime's, since
+/// the header's C declarations share the global scope, so no item's C name takes it.
+pub(crate) fn namespace(prefix: &str) -> String {
+	escape(prefix)
 }
 
 /// Whether C++ reserves `name` for the implementation in every scope: one holding `__`, or
 /// starting with `_` and a capital.
+#[cfg(test)]
 fn reserved(name: &str) -> bool {
 	name.contains("__") || abi::reserved(name)
 }
@@ -2726,14 +2709,14 @@ mod tests {
 			named(&["ABDAY".into(), "ABDAY_".into()], |n| n == "ABDAY_"),
 			["ABDAY", "ABDAY_8"]
 		);
-		// C's escapes, which take more `_`s, since C reserves no `__` past a name's start.
-		assert_eq!(crate::abi::escape("_STRING_H"), "_STRING_H__");
-		assert_eq!(crate::abi::escape("_STRING_H_"), "_STRING_H___");
+		// C's escapes, which keep each name apart with no scope to resolve them in, so a
+		// keyword's own with `_` steps past its escape.
 		assert_eq!(crate::abi::escape("bool"), "bool_");
-		assert_eq!(crate::abi::escape("bool_"), "bool__");
-		assert_eq!(crate::abi::escape("or__"), "or___");
-		assert_eq!(crate::abi::escape("out0"), "out0_");
-		assert_eq!(crate::abi::escape("out0_"), "out0__");
+		assert_eq!(crate::abi::escape("bool_"), "bool_2");
+		assert_eq!(escape("bool_"), "bool_2");
+		assert_eq!(crate::abi::escape("type_"), "type_");
+		assert_eq!(crate::abi::escape("new_"), "new_2");
+		assert_eq!(escape("new_"), "new_");
 	}
 
 	#[test]
@@ -2805,40 +2788,6 @@ mod tests {
 		}
 	}
 
-	/// A free function `name` of the crate `ns`, taking and returning nothing.
-	fn function(name: &str) -> crate::ir::Function {
-		crate::ir::Function {
-			path: vec!["ns".into(), name.into()],
-			shown: vec!["ns".into(), name.into()],
-			span: rustc_span::DUMMY_SP,
-			on: crate::ir::On::ALL,
-			docs: String::new(),
-			deprecated: None,
-			receiver: None,
-			params: vec![],
-			units: vec![],
-			ok: crate::ir::Type::Unit,
-			err: None,
-			future: false,
-			eager: false,
-			holds: false,
-			task: None,
-			send: true,
-			collect: false,
-			lends: false,
-			lends_mut: false,
-			leaf: false,
-			derefs: 0,
-			ties: false,
-			access: crate::ir::Access::Call,
-			instance: None,
-			home: crate::ir::Home {
-				krate: "ns".into(),
-				outside: 1,
-			},
-		}
-	}
-
 	/// Functions whose names escape alike stay apart in the namespace, as every language
 	/// but Kotlin exports them.
 	#[test]
@@ -2857,8 +2806,10 @@ mod tests {
 				"__u128",
 				"__duration",
 				"a_b",
+				"__",
+				"___",
 			]
-			.map(function)
+			.map(crate::ir::Function::bare)
 			.to_vec(),
 			constants: ["__LIMIT", "LIMIT", "a_b"]
 				.map(|name| crate::ir::Constant {
@@ -2885,15 +2836,19 @@ mod tests {
 		let abi = abi.without_jni(&rest);
 		let output = super::headers(&abi, "ns").unwrap_or_else(|e| panic!("{e}"));
 		let text: String = output.files.iter().map(|(_, text)| text.as_str()).collect();
+		// C unreserves each name already, stepping past Rust's own spelling.
 		for (cpp, c) in [
-			("all_2", "ns___all__"),
+			("all_2", "ns_all_2"),
 			("all_", "ns_all_"),
 			("all", "ns_all"),
 			("delete_2", "ns_delete"),
 			("delete_", "ns_delete_"),
-			// Past `rt.hpp`'s aliases.
-			("u128_", "ns___u128"),
-			("duration_", "ns___duration"),
+			// Past the runtime's.
+			("u128_", "ns_u128_"),
+			("duration_", "ns_duration_"),
+			// Names of only `_`s, whose C names are the prefix and `_`, then stepped.
+			("_", "ns_"),
+			("_2", "ns_2"),
 		] {
 			let defined = format!("inline void {cpp}() {{\n\t::{c}();");
 			assert!(text.contains(&defined), "{c} is not {cpp}:\n{text}");
@@ -2901,9 +2856,32 @@ mod tests {
 		// Constants, whose C names are in capitals, keep apart too.
 		// A constant and a function of one C++ spelling, though C's case keeps them apart.
 		assert!(text.contains("inline void a_b_() {\n\t::ns_a_b();"), "{text}");
-		for (cpp, c) in [("LIMIT_", "NS___LIMIT"), ("LIMIT", "NS_LIMIT"), ("a_b", "NS_A_B")] {
+		for (cpp, c) in [("LIMIT_", "NS_LIMIT_"), ("LIMIT", "NS_LIMIT"), ("a_b", "NS_A_B")] {
 			let defined = format!("inline constexpr bool {cpp} = {c};");
 			assert!(text.contains(&defined), "{c} is not {cpp}:\n{text}");
+		}
+	}
+
+	#[test]
+	fn a_namespace_escapes_as_a_name() {
+		for (lib, functions, ns, calls) in [
+			("_class", &["f"][..], "class_", &[("f", "class_f")][..]),
+			("unix", &["f"], "unix_", &[("f", "unix_f")]),
+			("api", &["f"], "api", &[("f", "api_f")]),
+			// The C function an item named only `_`s makes steps past it.
+			("_class", &["f", "__"], "class_", &[("f", "class_f"), ("_2", "class_2")]),
+		] {
+			let api = crate::ir::Api::of(functions.iter().map(|f| crate::ir::Function::bare(f)).collect());
+			let rest = api.without_jni();
+			let abi = crate::abi::Abi::new(&api, lib);
+			let abi = abi.without_jni(&rest);
+			let output = super::headers(&abi, "ns").unwrap_or_else(|e| panic!("{e}"));
+			let text: String = output.files.iter().map(|(_, text)| text.as_str()).collect();
+			assert!(text.contains(&format!("namespace {ns} {{")), "{lib}:\n{text}");
+			for (cpp, c) in calls {
+				let defined = format!("inline void {cpp}() {{\n\t::{c}();");
+				assert!(text.contains(&defined), "{lib}: {c} is not {cpp}:\n{text}");
+			}
 		}
 	}
 

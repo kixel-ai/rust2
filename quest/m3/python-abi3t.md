@@ -26,6 +26,3 @@ PEP 697 instead of embedding the object header, as `Handle` does
 
 Public API: the wheels released; the Python API is unchanged.
 
-## Required
-
-- [Exporter](/quest/m1/ffi-export/README.md) - the Python binding's API is settled before its runtime is rewritten

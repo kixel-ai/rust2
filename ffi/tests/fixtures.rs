@@ -828,30 +828,9 @@ int main() {}
 	);
 }
 
-/// The names the api fixture's headers declare that C++ reserves for the implementation,
-/// each made of a C name holding `__` or ending in `_`, which
-/// [the C header's quest](/quest/m1/ffi-export/c-reserved-names.md) removes.
-const RESERVED_FROM_C: &[&str] = &[
-	"API_STATUS__KEPT",
-	"API_STATUS__MOVED",
-	"api_Status__debug",
-	"api_Status__eq",
-	"api___all__",
-	"api___all___",
-	"api__deprecated",
-	"by__",
-	"by___data",
-	"c_by__",
-	"c_out__out_",
-	"delete__",
-	"new__",
-	"out__out",
-	"work__",
-	"work___data",
-];
-
-/// Clang's ownership and must-use checks: the whole script builds clean under them, and
-/// each case of `tests/api_strict.cpp` fails with its diagnostic. The dev shell's Clang 23,
+/// Clang's ownership, must-use, and reserved-name checks: the whole script builds clean
+/// under them, so neither header declares a name C or C++ reserves, and each case of
+/// `tests/api_strict.cpp` fails with its diagnostic. The dev shell's Clang 23,
 /// `RUST2_CLANG`, adds `-Wlifetime-safety`; Linux, where the merge gate runs, requires it,
 /// and elsewhere without it, as on the nightly's Apple Clang leg, the platform's `clang++`
 /// runs every check but that one.
@@ -871,8 +850,13 @@ fn cpp_strict(link: &Link) {
 	// What each case printed, kept apart from the others'; its object is not.
 	let clang = |src: &Path, case: u8| {
 		let mut cmd = Command::new(&compiler);
-		cmd.args(["-std=c++17", "-Wconsumed", "-Wdangling", "-Werror"]);
-		cmd.args(["-Wreserved-identifier", "-Wno-error=reserved-identifier"]);
+		cmd.args([
+			"-std=c++17",
+			"-Wconsumed",
+			"-Wdangling",
+			"-Wreserved-identifier",
+			"-Werror",
+		]);
 		if lifetimes {
 			cmd.arg("-Wlifetime-safety");
 		}
@@ -901,22 +885,9 @@ fn cpp_strict(link: &Link) {
 		}
 	};
 	let tests = manifest_dir().join("tests");
-	// Each name C++ reserves for the implementation that the headers declare is one the C
-	// header gives, or one C++ makes of it, until C's names keep clear of `__`.
-	let mut reserved = std::collections::BTreeSet::new();
 	for src in ["api.cpp", "api_strict.cpp"] {
-		let output = clang(&tests.join(src), 0);
-		let stderr = String::from_utf8_lossy(&output.stderr);
-		for line in stderr.lines().filter(|line| line.ends_with("[-Wreserved-identifier]")) {
-			let name = line.split('\'').nth(1).expect("a reserved identifier is quoted");
-			reserved.insert(name.to_string());
-		}
+		clang(&tests.join(src), 0);
 	}
-	assert_eq!(
-		reserved,
-		RESERVED_FROM_C.iter().map(|name| name.to_string()).collect(),
-		"the C++ headers declare other reserved names than /quest/m1/ffi-export/c-reserved-names.md lists"
-	);
 	for (case, message) in [
 		(
 			1,
@@ -2833,7 +2804,7 @@ fn dart_small_api_lints() {
 	);
 	step::write(
 		&lint.join("edge.dart"),
-		std::fs::read_to_string(out.join("dart").join("edge.dart")).unwrap(),
+		std::fs::read_to_string(out.join("dart/lib/edge.dart")).unwrap(),
 	);
 	let step = Step {
 		stamp: &dir.join("analyze.stamp"),
@@ -2851,7 +2822,7 @@ fn api_dart() {
 	let api = api();
 	let scripts = generated("dart", "transcript.dart", &transcript::dart::emit(transcript()));
 	let dir = scratch().join("api").join("dart");
-	let generated = api.out.join("dart");
+	let generated = api.out.join("dart/lib");
 	// The analyzer reads its options from the analyzed directory, so analyze a copy with them.
 	let lint = dir.join("lint");
 	step::write(
@@ -3009,7 +2980,7 @@ fn protocol_dart(api: &Api, dir: &Path) -> PathBuf {
 	dart_compile(
 		"api",
 		dir,
-		&api.out.join("dart"),
+		&api.out.join("dart/lib"),
 		&api.lib.join(PYTHON_LIB),
 		&manifest_dir().join("tests").join("protocol.dart"),
 		&[],

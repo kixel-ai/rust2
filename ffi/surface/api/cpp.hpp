@@ -21,7 +21,7 @@ namespace api {
 		circle = 1,
 		square = 4,
 	};
-	enum class Status_ {
+	enum class Status_2 {
 		moved = 0,
 		kept = 1,
 	};
@@ -739,6 +739,24 @@ namespace api {
 		RUST2_FFI_CALLABLE ::api::result<void, ::api::clash_Malformed> unread_byte();
 		RUST2_FFI_CALLABLE void wait(::std::uint64_t ms) const;
 	};
+	class RUST2_FFI_CONSUMABLE clash_Notch_ {
+		RUST2_FFI_UNCONSUMED clash_Notch_(clash_Notch_ &&other RUST2_FFI_MOVED_FROM) noexcept = default;
+		clash_Notch_ &operator=(clash_Notch_ &&other) noexcept = default;
+		RUST2_FFI_UNCONSUMED clash_Notch_(const clash_Notch_ &other) = default;
+		clash_Notch_ &operator=(const clash_Notch_ &other) = default;
+		friend bool operator==(const clash_Notch_ &a_2, const clash_Notch_ &b_);
+		friend bool operator!=(const clash_Notch_ &a_2, const clash_Notch_ &b_);
+		friend bool operator<(const clash_Notch_ &a_2, const clash_Notch_ &b_);
+		friend bool operator<=(const clash_Notch_ &a_2, const clash_Notch_ &b_);
+		friend bool operator>(const clash_Notch_ &a_2, const clash_Notch_ &b_);
+		friend bool operator>=(const clash_Notch_ &a_2, const clash_Notch_ &b_);
+		RUST2_FFI_CALLABLE ::std::uint64_t hash() const;
+		RUST2_FFI_CALLABLE ::api::buf to_string() const;
+		RUST2_FFI_CALLABLE ::api::buf debug() const;
+		static clash_Notch_ default_();
+		static ::api::clash_Notch_ new_(::std::uint32_t count);
+		RUST2_FFI_CALLABLE ::std::uint32_t count() const;
+	};
 	class RUST2_FFI_CONSUMABLE Spawned {
 		RUST2_FFI_UNCONSUMED Spawned(Spawned &&other RUST2_FFI_MOVED_FROM) noexcept = default;
 		Spawned &operator=(Spawned &&other) noexcept = default;
@@ -836,6 +854,10 @@ namespace api {
 		virtual ~clash_Eraser() = default;
 		virtual ::std::uint8_t delete_(::std::uint8_t new_, ::std::uint8_t new_2) const = 0;
 		virtual ::std::uint8_t delete_2() const = 0;
+	};
+	class clash_Count_ {
+		virtual ~clash_Count_() = default;
+		virtual ::std::uint32_t next() const = 0;
 	};
 	struct Parcel {
 		::api::Mark mark;
@@ -1551,11 +1573,22 @@ namespace api {
 	};
 	struct clash_Change_Clear {
 	};
+	struct clash_Shift_Up {
+		::std::uint8_t _0;
+	};
+	struct clash_Shift_Down {
+	};
+	struct clash_Shift_Tag {
+		::std::uint8_t _0;
+	};
 	#if defined(__cpp_lib_three_way_comparison)
 	inline ::std::partial_ordering operator<=>(const Quantity &a_2, const Quantity &b_);
 	#endif
 	#if defined(__cpp_lib_three_way_comparison)
 	inline ::std::weak_ordering operator<=>(const Pass &a_2, const Pass &b_);
+	#endif
+	#if defined(__cpp_lib_three_way_comparison)
+	inline ::std::weak_ordering operator<=>(const clash_Notch_ &a_2, const clash_Notch_ &b_);
 	#endif
 	inline bool operator==(const Stamp &a_2, const Stamp &b_);
 	inline bool operator==(const Point &a_2, const Point &b_);
@@ -1662,9 +1695,9 @@ namespace api {
 	inline bool operator!=(const ::api::Error &a_2, const ::api::Error &b_);
 	inline ::api::buf Error_to_string(const ::api::Error &self);
 	inline ::api::buf Error_debug(const ::api::Error &self);
-	inline bool operator==(::api::Status_ a_2, ::api::Status_ b_);
-	inline bool operator!=(::api::Status_ a_2, ::api::Status_ b_);
-	inline ::api::buf Status_debug(::api::Status_ self);
+	inline bool operator==(::api::Status_2 a_2, ::api::Status_2 b_);
+	inline bool operator!=(::api::Status_2 a_2, ::api::Status_2 b_);
+	inline ::api::buf Status_2_debug(::api::Status_2 self);
 	inline bool operator==(const ::api::Labelled &a_2, const ::api::Labelled &b_);
 	inline bool operator!=(const ::api::Labelled &a_2, const ::api::Labelled &b_);
 	inline ::api::buf Labelled_debug(const ::api::Labelled &self);
@@ -1717,6 +1750,9 @@ namespace api {
 	inline bool operator==(const ::api::clash_Change &a_2, const ::api::clash_Change &b_);
 	inline bool operator!=(const ::api::clash_Change &a_2, const ::api::clash_Change &b_);
 	inline ::api::buf clash_Change_debug(const ::api::clash_Change &self);
+	inline bool operator==(const ::api::clash_Shift_ &a_2, const ::api::clash_Shift_ &b_);
+	inline bool operator!=(const ::api::clash_Shift_ &a_2, const ::api::clash_Shift_ &b_);
+	inline ::api::buf clash_Shift_debug(const ::api::clash_Shift_ &self);
 	inline bool has_text(const ::api::Note &note);
 	inline ::std::uint64_t marked(const ::api::Mark &api_marked);
 	inline ::std::optional<::api::Reading> reading(::std::uint32_t n);
@@ -1775,7 +1811,7 @@ namespace api {
 	inline ::std::uint64_t choose(const ::api::Choice &choice);
 	inline ::std::uint64_t heft(const ::std::tuple<::api::Mark, ::api::view> &marked, const ::api::Parcel &lent, ::std::tuple<::api::Counter, ::api::view> moved);
 	inline ::api::result<::std::uint64_t, ::api::buf> spend(::api::Counter e, ::api::Counter it);
-	inline bool is_kept(::api::Status_ status);
+	inline bool is_kept(::api::Status_2 status);
 	template <class F0> inline ::api::result<void, ::api::buf> attempt(F0 &&check);
 	template <class F0> inline ::api::result<::std::tuple<::api::buf, ::std::uint64_t>, ::api::buf> tail(F0 &file, ::std::uint64_t len);
 	template <class F0> inline ::api::result<::std::uint64_t, ::api::buf> seek_to(F0 &file, ::std::uint64_t at);
@@ -1983,9 +2019,9 @@ namespace api {
 	inline ::api::unescaped_maybe_future unescaped_maybe(::std::optional<::api::input> text);
 	inline ::api::buf unzeroed(::api::input bytes);
 	inline ::std::uint8_t deprecated(::std::uint8_t note);
-	inline ::std::uint8_t _deprecated(::std::uint8_t note);
-	inline ::std::uint8_t all_(::std::uint8_t note);
+	inline ::std::uint8_t deprecated_(::std::uint8_t note);
 	inline ::std::uint8_t all_2(::std::uint8_t note);
+	inline ::std::uint8_t all_(::std::uint8_t note);
 	[[deprecated]] inline ::api::Knob knob(const ::api::Dial &dial);
 	[[deprecated("read its `level`")]] inline ::api::level_later_future level_later(const ::api::Dial &dial);
 	inline ::api::result<::api::Dial, ::api::Error> turned(const ::api::Dial &dial, ::std::unique_ptr<::api::Turner> turner);
@@ -2010,6 +2046,9 @@ namespace api {
 	inline ::std::uint32_t clash_underscored(const ::api::clash_Underscored &underscored, ::api::clash_Op op, const ::api::clash_Change &change);
 	inline ::std::tuple<::api::clash_Underscored, ::api::clash_Change> clash_underscored_next(const ::api::clash_Underscored &underscored, const ::api::clash_Change &change);
 	inline ::std::uint32_t clash_erased(::std::unique_ptr<::api::clash_Eraser> eraser);
+	inline ::std::vector<::api::clash_Notch_> clash_notches(::std::uint32_t n);
+	inline ::std::uint8_t clash_shifted(::std::uint8_t at, const ::api::clash_Shift_ &shift);
+	inline ::std::uint32_t clash_counted(::std::unique_ptr<::api::clash_Count_> count);
 	inline ::std::uint8_t clash_erase_();
 	inline ::std::uint8_t clash_erase();
 	inline ::std::uint32_t clash_lend_(const ::api::clash_Store *store);
@@ -2044,6 +2083,11 @@ namespace std {
 namespace std {
 	template <> struct hash<::api::Key> {
 		size_t operator()(const ::api::Key &value) const noexcept;
+	};
+}
+namespace std {
+	template <> struct hash<::api::clash_Notch_> {
+		size_t operator()(const ::api::clash_Notch_ &value) const noexcept;
 	};
 }
 namespace std {
@@ -2330,7 +2374,7 @@ namespace api {
 	using bounds_u64 = ::api_bounds_u64;
 	using range_u64 = ::api_range_u64;
 	enum class Shape;
-	enum class Status_;
+	enum class Status_2;
 	enum class Family;
 	enum class VecClashTone;
 	enum class Tier;
@@ -2488,6 +2532,7 @@ namespace api {
 	class clash_Empty_string;
 	class clash_Store;
 	class clash_Reader;
+	class clash_Notch_;
 	class tls_Session;
 	class Url;
 	class Json;
@@ -2512,6 +2557,7 @@ namespace api {
 	class Stretch;
 	class clash_Source;
 	class clash_Eraser;
+	class clash_Count_;
 	struct Choice_Empty;
 	struct Choice_Picked;
 	using Choice = ::std::variant<Choice_Empty, Choice_Picked>;
@@ -2574,6 +2620,10 @@ namespace api {
 	struct clash_Change_Set;
 	struct clash_Change_Clear;
 	using clash_Change = ::std::variant<clash_Change_Set, clash_Change_Clear>;
+	struct clash_Shift_Up;
+	struct clash_Shift_Down;
+	struct clash_Shift_Tag;
+	using clash_Shift_ = ::std::variant<clash_Shift_Up, clash_Shift_Down, clash_Shift_Tag>;
 	using Clash_after_future = ::api::future<detail::Clash_after_future_op>;
 	using Clash_tagged_future = ::api::future<detail::Clash_tagged_future_op>;
 	using Waiter_poll_future_future = ::api::future<detail::Waiter_poll_future_future_op>;

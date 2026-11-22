@@ -52,8 +52,10 @@ fn provens(api: &crate::ir::Api) -> Vec<(String, &crate::ir::Profile)> {
 /// The crate's build script, which refuses to build for a target but `api`'s, on which an
 /// item a target compiles would be missing, or one it leaves out left over, and tells the
 /// crate which it builds for, as the `cfg` [`CFG`], and whether its profile is the check's,
-/// as [`PROVEN`]. On Android, it aligns the library to 16 KB pages. On macOS, a CPython
-/// extension leaves Python's symbols for the interpreter that loads it to resolve.
+/// as [`PROVEN`]. On Android, it aligns the library to 16 KB pages. On Apple systems, it
+/// leaves room in the library's header for the longest install name a bundler may give it.
+/// On macOS, a CPython extension leaves Python's symbols for the interpreter that loads it
+/// to resolve.
 fn build(api: &crate::ir::Api) -> String {
 	let targets = &api.targets;
 	let list: Vec<String> = targets.iter().map(|t| format!("{t:?}")).collect();
@@ -161,6 +163,11 @@ fn build(api: &crate::ir::Api) -> String {
 		\t// Google Play rejects a 64-bit library that is not aligned to 16 KB.\n\
 		\tif std::env::var(\"CARGO_CFG_TARGET_OS\").is_ok_and(|os| os == \"android\") {{\n\
 		\t\tprintln!(\"cargo::rustc-link-arg-cdylib=-Wl,-z,max-page-size=16384\");\n\
+		\t}}\n\
+		\t// Dart and Flutter rename an Apple library to the path they bundle it at, which\n\
+		\t// install_name_tool fits only in the room its load commands leave.\n\
+		\tif std::env::var(\"CARGO_CFG_TARGET_VENDOR\").is_ok_and(|vendor| vendor == \"apple\") {{\n\
+		\t\tprintln!(\"cargo::rustc-link-arg-cdylib=-Wl,-headerpad_max_install_names\");\n\
 		\t}}\n\
 		\t#[cfg(feature = \"python\")]\n\
 		\tpyo3_build_config::add_extension_module_link_args();\n\
@@ -441,7 +448,7 @@ impl Crate<'_> {
 	/// `kotlin/<prefix>.kt`, whose JNI functions the crate's `kotlin` feature builds,
 	/// `python/<prefix>.py`, whose CPython extension its `python` feature builds,
 	/// `swift/<prefix>.swift` with the clang module it imports the header through, and
-	/// `go/<prefix>.go`, and `dart/<prefix>.dart`, whose glue its `dart` feature builds.
+	/// `go/<prefix>.go`, and the Dart package `dart/`, whose glue its `dart` feature builds.
 	pub(crate) fn generate(&self, out: &Path) -> Result<Output, String> {
 		// Cargo unifies in what the facade enables in its dependencies.
 		let facade = self.facade;
@@ -564,7 +571,7 @@ impl Crate<'_> {
 			kotlin = [\"dep:jni-sys\"]\n\
 			# The CPython extension python/{lib}.py loads.\n\
 			python = [\"dep:pyo3-ffi\", \"dep:pyo3-build-config\", \"dep:smallvec\"]\n\
-			# What dart/{lib}.dart calls that `dart:ffi` lacks.\n\
+			# What dart/lib/{lib}.dart calls that `dart:ffi` lacks.\n\
 			dart = []\n\
 			# What web/index.ts calls that the C ABI lacks, built for wasm32-wasip1.\n\
 			web = []\n\
@@ -661,7 +668,16 @@ impl Crate<'_> {
 		);
 		output.file(&out.join("src/dart/mod.rs"), &dart.glue);
 		output.file(&out.join("src/dart/runtime.rs"), crate::dart::GLUE_RUNTIME);
-		output.file(&out.join("dart").join(format!("{}.dart", self.abi.prefix)), &dart.dart);
+		let package = out.join("dart");
+		output.file(
+			&package.join("pubspec.yaml"),
+			&crate::dart::pubspec(facade, &self.abi.prefix)?,
+		);
+		output.file(
+			&package.join("lib").join(format!("{}.dart", self.abi.prefix)),
+			&dart.dart,
+		);
+		output.file(&package.join("hook").join("build.dart"), crate::dart::HOOK);
 		if let Some(web) = web {
 			output.file(&out.join("src/web/mod.rs"), &web.glue);
 			output.file(&out.join("src/web/runtime.rs"), crate::web::GLUE_RUNTIME);
@@ -1620,8 +1636,8 @@ impl Gen<'_> {
 			Type::List(_, inner) => {
 				let each = self.free(inner, "c").unwrap_or_default();
 				Some(format!(
-					"unsafe {{ {e}.free(\"{}_free\", |c| {{ let _ = c; {each} }}) }};",
-					self.abi.list(inner)
+					"unsafe {{ {e}.free(\"{}\", |c| {{ let _ = c; {each} }}) }};",
+					crate::abi::join(&self.abi.list(inner), "free")
 				))
 			}
 			Type::Option(inner) => match inner.base() {
@@ -1737,6 +1753,7 @@ impl Gen<'_> {
 			self.line(format!("pub type {name} = rt::{kind}<{}>;\n", int.rust()));
 		}
 		for (name, elem) in &self.abi.lists.clone() {
+			let stem = crate::abi::stem(name);
 			let c = rs(&self.abi.ty(elem));
 			self.line(format!("pub type {name} = rt::List<{c}>;\n"));
 			self.on = self.abi.on(elem);
@@ -1744,7 +1761,7 @@ impl Gen<'_> {
 				.free(&Type::List(Collection::Vec, Box::new(elem.clone())), "this")
 				.expect("an array is freed");
 			self.export(format!(
-				"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {name}_free(this: {name}) {{\n\t{free}\n}}\n"
+				"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {stem}_free(this: {name}) {{\n\t{free}\n}}\n"
 			));
 		}
 		for (name, n) in &self.abi.arrays {
@@ -1778,9 +1795,10 @@ impl Gen<'_> {
 		for (i, object) in api.objects.iter().enumerate() {
 			self.on = object.on;
 			let name = self.abi.object(i);
+			let stem = crate::abi::stem(&name);
 			let path = self.object_path(i);
 			self.export(format!(
-				"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {name}_free(this: *const ::std::ffi::c_void) {{\n\tunsafe {{ rt::Object::<{path}>::free(this) }}\n}}\n"
+				"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {stem}_free(this: *const ::std::ffi::c_void) {{\n\tunsafe {{ rt::Object::<{path}>::free(this) }}\n}}\n"
 			));
 			// `_drop_signal`, Go's and Kotlin's, which the header leaves out, calls `commit`
 			// with `data`, if any, once the drop can no longer fail, before the value's `Drop`.
@@ -1791,22 +1809,22 @@ impl Gen<'_> {
 					false => {
 						let params = ["this", "status", "commit", "data"].map(String::from);
 						away(
-							&format!("{name}_drop_signal"),
+							&format!("{stem}_drop_signal"),
 							&params,
 							&[(path.clone(), "this".to_string())],
 						)
 					}
 				};
 				self.export(format!(
-					"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {name}_drop(this: *const ::std::ffi::c_void, status: *mut i32) {{\n\tunsafe {{ {name}_drop_signal(this, status, None, ::std::ptr::null_mut()) }}\n}}\n"
+					"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {stem}_drop(this: *const ::std::ffi::c_void, status: *mut i32) {{\n\tunsafe {{ {stem}_drop_signal(this, status, None, ::std::ptr::null_mut()) }}\n}}\n"
 				));
 				self.export(format!(
-					"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {name}_drop_signal(this: *const ::std::ffi::c_void, status: *mut i32, commit: Option<unsafe extern \"C\" fn(*mut ::std::ffi::c_void)>, data: *mut ::std::ffi::c_void) {{\n\tlet w = \"{name}_drop\";\n\t{away}let commit = commit.map(|commit| move || unsafe {{ commit(data) }});\n\tif let Err(s) = unsafe {{ rt::Object::<{path}>::close(this, w, commit) }} {{\n\t\tunsafe {{ rt::failed::<()>(status, s, w) }}\n\t}}\n}}\n"
+					"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {stem}_drop_signal(this: *const ::std::ffi::c_void, status: *mut i32, commit: Option<unsafe extern \"C\" fn(*mut ::std::ffi::c_void)>, data: *mut ::std::ffi::c_void) {{\n\tlet w = \"{stem}_drop\";\n\t{away}let commit = commit.map(|commit| move || unsafe {{ commit(data) }});\n\tif let Err(s) = unsafe {{ rt::Object::<{path}>::close(this, w, commit) }} {{\n\t\tunsafe {{ rt::failed::<()>(status, s, w) }}\n\t}}\n}}\n"
 				));
 			}
 			if object.shared {
 				self.export(format!(
-					"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {name}_borrowed(this: *const ::std::ffi::c_void) -> bool {{\n\tunsafe {{ rt::Object::<{path}>::borrowed(this, \"{name}_borrowed\") }}\n}}\n"
+					"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {stem}_borrowed(this: *const ::std::ffi::c_void) -> bool {{\n\tunsafe {{ rt::Object::<{path}>::borrowed(this, \"{stem}_borrowed\") }}\n}}\n"
 				));
 			}
 			let borrow = self.shared(i);
@@ -1843,6 +1861,7 @@ impl Gen<'_> {
 	/// and `b` as `borrow` does, which takes `status` if a borrow can fail.
 	fn traits(&mut self, i: usize, traits: Traits, status: Option<&str>, borrow: &[String]) {
 		let name = self.abi.object(i);
+		let stem = crate::abi::stem(&name);
 		let holder = self.object_path(i);
 		let path = self.rust(&Type::Object(i));
 		let send = self.abi.api.objects[i].send;
@@ -1876,9 +1895,9 @@ impl Gen<'_> {
 				(false, _) => self.new_object(i, &clone),
 			};
 			let body = wrap(status, handle, &format!("let this = {this};\n\t{clone}"));
-			let away = away(&format!("{name}_clone"), &["this"]);
+			let away = away(&format!("{stem}_clone"), &["this"]);
 			self.export(format!(
-				"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {name}_clone(this: {handle}{param}) -> {handle} {{\n\tlet w = \"{name}_clone\";\n\t{away}{body}\n}}\n"
+				"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {stem}_clone(this: {handle}{param}) -> {handle} {{\n\tlet w = \"{stem}_clone\";\n\t{away}{body}\n}}\n"
 			));
 		}
 		if traits.eq {
@@ -1887,9 +1906,9 @@ impl Gen<'_> {
 				"bool",
 				&format!("let a = {a};\n\tlet b = {b};\n\t<{path} as ::std::cmp::PartialEq>::eq({deref}a, {deref}b)"),
 			);
-			let away = away(&format!("{name}_eq"), &["a", "b"]);
+			let away = away(&format!("{stem}_eq"), &["a", "b"]);
 			self.export(format!(
-				"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {name}_eq(a: {handle}, b: {handle}{param}) -> bool {{\n\tlet w = \"{name}_eq\";\n\t{away}{body}\n}}\n"
+				"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {stem}_eq(a: {handle}, b: {handle}{param}) -> bool {{\n\tlet w = \"{stem}_eq\";\n\t{away}{body}\n}}\n"
 			));
 		}
 		if traits.hash {
@@ -1898,9 +1917,9 @@ impl Gen<'_> {
 				"u64",
 				&format!("let this = {this};\n\trt::hash::<{path}>({deref}this)"),
 			);
-			let away = away(&format!("{name}_hash"), &["this"]);
+			let away = away(&format!("{stem}_hash"), &["this"]);
 			self.export(format!(
-				"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {name}_hash(this: {handle}{param}) -> u64 {{\n\tlet w = \"{name}_hash\";\n\t{away}{body}\n}}\n"
+				"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {stem}_hash(this: {handle}{param}) -> u64 {{\n\tlet w = \"{stem}_hash\";\n\t{away}{body}\n}}\n"
 			));
 		}
 		// Each comparison is the runtime's of the same name, which encodes Rust's `Ordering`.
@@ -1910,9 +1929,9 @@ impl Gen<'_> {
 				"i8",
 				&format!("let a = {a};\n\tlet b = {b};\n\trt::{suffix}::<{path}>({deref}a, {deref}b)"),
 			);
-			let away = away(&format!("{name}_{suffix}"), &["a", "b"]);
+			let away = away(&format!("{stem}_{suffix}"), &["a", "b"]);
 			self.export(format!(
-				"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {name}_{suffix}(a: {handle}, b: {handle}{param}) -> i8 {{\n\tlet w = \"{name}_{suffix}\";\n\t{away}{body}\n}}\n"
+				"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {stem}_{suffix}(a: {handle}, b: {handle}{param}) -> i8 {{\n\tlet w = \"{stem}_{suffix}\";\n\t{away}{body}\n}}\n"
 			));
 		}
 		if traits.display {
@@ -1921,9 +1940,9 @@ impl Gen<'_> {
 				"rt::Buf",
 				&format!("let this = {this};\n\trt::Buf::string(::std::string::ToString::to_string({deref}this))"),
 			);
-			let away = away(&format!("{name}_to_string"), &["this"]);
+			let away = away(&format!("{stem}_to_string"), &["this"]);
 			self.export(format!(
-				"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {name}_to_string(this: {handle}{param}) -> rt::Buf {{\n\tlet w = \"{name}_to_string\";\n\t{away}{body}\n}}\n"
+				"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {stem}_to_string(this: {handle}{param}) -> rt::Buf {{\n\tlet w = \"{stem}_to_string\";\n\t{away}{body}\n}}\n"
 			));
 		}
 		let variants = &self.abi.api.objects[i].variants;
@@ -1957,18 +1976,18 @@ impl Gen<'_> {
 				"rt::Buf",
 				&format!("let this = {this};\n\trt::Buf::string(format!(\"{{:?}}\", {deref}this))"),
 			);
-			let away = away(&format!("{name}_debug"), &["this"]);
+			let away = away(&format!("{stem}_debug"), &["this"]);
 			self.export(format!(
-				"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {name}_debug(this: {handle}{param}) -> rt::Buf {{\n\tlet w = \"{name}_debug\";\n\t{away}{body}\n}}\n"
+				"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {stem}_debug(this: {handle}{param}) -> rt::Buf {{\n\tlet w = \"{stem}_debug\";\n\t{away}{body}\n}}\n"
 			));
 		}
 		if traits.default {
 			self.export(format!(
-				"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {name}_default() -> {handle} {{\n\t{}\n}}\n",
+				"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {stem}_default() -> {handle} {{\n\t{}\n}}\n",
 				self.new_object(i, &format!("<{path} as ::std::default::Default>::default()"))
 			));
 			if !send {
-				self.export(homed(&format!("{name}_default"), &[], handle, &[], &self.unwind));
+				self.export(homed(&format!("{stem}_default"), &[], handle, &[], &self.unwind));
 			}
 		}
 	}
@@ -1976,6 +1995,7 @@ impl Gen<'_> {
 	/// The functions every value type has: its std traits, read through a pointer, and
 	/// `free`.
 	fn value_traits(&mut self, name: &str, path: &str, ty: &Type, traits: Traits) {
+		let stem = crate::abi::stem(name);
 		// One holding a handle a check of can fail returns the failure through a `status`.
 		let status = self.checks(ty).then_some("status");
 		self.checking.set(status.is_some());
@@ -1992,19 +2012,19 @@ impl Gen<'_> {
 				&format!("<{path} as ::std::cmp::PartialEq>::eq(&{lift_a}, &{lift_b})"),
 			);
 			self.export(format!(
-				"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {name}_eq(a: *const {c}, b: *const {c}{param}) -> bool {{\n\tlet w = \"{name}_eq\";\n\t{body}\n}}\n"
+				"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {stem}_eq(a: *const {c}, b: *const {c}{param}) -> bool {{\n\tlet w = \"{stem}_eq\";\n\t{body}\n}}\n"
 			));
 		}
 		if traits.hash {
 			let body = wrap(status, "u64", &format!("rt::hash::<{path}>(&{lift})"));
 			self.export(format!(
-				"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {name}_hash(this: *const {c}{param}) -> u64 {{\n\tlet w = \"{name}_hash\";\n\t{body}\n}}\n"
+				"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {stem}_hash(this: *const {c}{param}) -> u64 {{\n\tlet w = \"{stem}_hash\";\n\t{body}\n}}\n"
 			));
 		}
 		for (_, suffix) in crate::c::comparisons(traits.ord) {
 			let body = wrap(status, "i8", &format!("rt::{suffix}::<{path}>(&{lift_a}, &{lift_b})"));
 			self.export(format!(
-				"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {name}_{suffix}(a: *const {c}, b: *const {c}{param}) -> i8 {{\n\tlet w = \"{name}_{suffix}\";\n\t{body}\n}}\n"
+				"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {stem}_{suffix}(a: *const {c}, b: *const {c}{param}) -> i8 {{\n\tlet w = \"{stem}_{suffix}\";\n\t{body}\n}}\n"
 			));
 		}
 		if traits.display {
@@ -2014,7 +2034,7 @@ impl Gen<'_> {
 				&format!("rt::Buf::string(::std::string::ToString::to_string(&{lift}))"),
 			);
 			self.export(format!(
-				"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {name}_to_string(this: *const {c}{param}) -> rt::Buf {{\n\tlet w = \"{name}_to_string\";\n\t{body}\n}}\n"
+				"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {stem}_to_string(this: *const {c}{param}) -> rt::Buf {{\n\tlet w = \"{stem}_to_string\";\n\t{body}\n}}\n"
 			));
 		}
 		if traits.debug {
@@ -2024,12 +2044,12 @@ impl Gen<'_> {
 				&format!("rt::Buf::string(format!(\"{{:?}}\", &{lift}))"),
 			);
 			self.export(format!(
-				"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {name}_debug(this: *const {c}{param}) -> rt::Buf {{\n\tlet w = \"{name}_debug\";\n\t{body}\n}}\n"
+				"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {stem}_debug(this: *const {c}{param}) -> rt::Buf {{\n\tlet w = \"{stem}_debug\";\n\t{body}\n}}\n"
 			));
 		}
 		if traits.default {
 			self.export(format!(
-				"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {name}_default() -> {c} {{\n\t{}\n}}\n",
+				"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {stem}_default() -> {c} {{\n\t{}\n}}\n",
 				self.lower(ty, &format!("<{path} as ::std::default::Default>::default()"))
 			));
 		}
@@ -2038,7 +2058,7 @@ impl Gen<'_> {
 		if !matches!(self.abi.ty(ty), Ty::Enum(_)) && !opaque {
 			let free = self.free(ty, "unsafe { this.read() }").unwrap_or_default();
 			self.export(format!(
-				"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {name}_free(this: *mut {c}) {{\n\tif this.is_null() {{\n\t\treturn;\n\t}}\n\t{free}\n}}\n"
+				"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {stem}_free(this: *mut {c}) {{\n\tif this.is_null() {{\n\t\treturn;\n\t}}\n\t{free}\n}}\n"
 			));
 		}
 	}
@@ -2479,6 +2499,7 @@ impl Gen<'_> {
 		let callback = &self.abi.api.callbacks[i];
 		self.on = callback.on;
 		let name = self.abi.callback(i);
+		let stem = crate::abi::stem(&name);
 		let path = self.path(&callback.path);
 		let mut table = String::from("\tpub free: Option<unsafe extern \"C\" fn(*mut ::std::ffi::c_void)>,\n");
 		let mut methods = String::new();
@@ -2516,7 +2537,7 @@ impl Gen<'_> {
 				.collect();
 			let _ = write!(
 				methods,
-				"\tfn {}({receiver}{}) -> {} {{\n\t\tlet w = \"{name}_vtable.{member}\";\n\t\tlet f = unsafe {{ (*self.0.vtable).{member} }}.unwrap_or_else(|| rt::fail(w, \"the function is null\"));\n\t\t{UNWINDING}\n\t\tlet f = unsafe {{ ::std::mem::transmute::<_, {unwinding}>(f) }};\n\t\tlet result = unsafe {{ f({}) }};\n\t\t{}\n\t}}\n",
+				"\tfn {}({receiver}{}) -> {} {{\n\t\tlet w = \"{stem}_vtable.{member}\";\n\t\tlet f = unsafe {{ (*self.0.vtable).{member} }}.unwrap_or_else(|| rt::fail(w, \"the function is null\"));\n\t\t{UNWINDING}\n\t\tlet f = unsafe {{ ::std::mem::transmute::<_, {unwinding}>(f) }};\n\t\tlet result = unsafe {{ f({}) }};\n\t\t{}\n\t}}\n",
 				ident(method_name),
 				params.iter().map(|p| format!(", {p}")).collect::<String>(),
 				self.rust(&method.ok),
@@ -2524,9 +2545,9 @@ impl Gen<'_> {
 				self.lift(&method.ok, "result", "true"),
 			);
 		}
-		self.line(format!("#[repr(C)]\npub struct {name}_vtable {{\n{table}}}\n"));
+		self.line(format!("#[repr(C)]\npub struct {stem}_vtable {{\n{table}}}\n"));
 		self.line(format!(
-			"#[repr(C)]\n#[derive(Clone, Copy)]\npub struct {name} {{\n\tpub vtable: *const {name}_vtable,\n\tpub data: *mut ::std::ffi::c_void,\n}}\n"
+			"#[repr(C)]\n#[derive(Clone, Copy)]\npub struct {name} {{\n\tpub vtable: *const {stem}_vtable,\n\tpub data: *mut ::std::ffi::c_void,\n}}\n"
 		));
 		// Each item apart, as each takes the target's `#[cfg]`.
 		self.item(format!(
@@ -3489,6 +3510,7 @@ fn away(name: &str, params: &[String], handles: &[(String, String)]) -> String {
 /// the function itself does, through its body named in `unwind` under `kotlin`, as the JNI
 /// glue calls this one's, so a Kotlin closure's failed check unwinds on to the native method.
 fn homed(name: &str, params: &[String], ret: &str, handles: &[(String, String)], unwind: &str) -> String {
+	let stem = crate::abi::stem(name);
 	let present = match handles.is_empty() {
 		true => String::new(),
 		false => format!(
@@ -3498,7 +3520,7 @@ fn homed(name: &str, params: &[String], ret: &str, handles: &[(String, String)],
 		),
 	};
 	format!(
-		"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {name}_homed({}) -> {ret} {{\n\t{present}let home = rt::Thread::home();\n\tlet made = unsafe {{ home.run(move || {name}({})) }};\n\trt::Thread::release(home);\n\tmade\n}}\n",
+		"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {stem}_homed({}) -> {ret} {{\n\t{present}let home = rt::Thread::home();\n\tlet made = unsafe {{ home.run(move || {name}({})) }};\n\trt::Thread::release(home);\n\tmade\n}}\n",
 		params.join(", "),
 		names(params)
 	)

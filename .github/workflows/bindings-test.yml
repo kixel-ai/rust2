@@ -55,6 +55,8 @@ jobs:
       maven-group: ai.kixel
       # No swift-check: api.swift compiles against the fixture's own test export, of the host
       # and wasm32-wasip1, not this one's targets. Its transcript stays the exporter's tests'.
+      # Nor a dart-check: api.dart, as api.go, names wasm32 items this export lacks, so the
+      # Dart consumers resolve the library alone.
 
   moq:
     name: moq stand-in
@@ -71,3 +73,5 @@ jobs:
       go-check: ffi/moq/moq.go
       maven-group: ai.kixel
       kotlin-check: ffi/moq/moq.kt
+      # The export's package, `moq`, which moq.dart imports.
+      dart-check: ffi/moq/moq.dart
