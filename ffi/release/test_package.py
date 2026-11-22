@@ -1048,17 +1048,22 @@ class FlutterLog(unittest.TestCase):
 
     def output(self, *lines):
         log = object.__new__(package.Logcat)
-        log.lines, log.pid = queue.Queue(), None
+        log.lines, log.pid, log.vm_service = queue.Queue(), None, None
         for line in lines:
             log.lines.put(line)
         log.lines.put(None)
         with mock.patch("sys.stderr"):
-            return log.output()
+            output = log.output()
+            self.vm_service = log.vm_service
+            return output
 
-    START = ("--------- beginning of main", "I/flutter ( 4321): engine up", "I/flutter ( 4321): rust2: start")
+    START = ("--------- beginning of main",
+             "I/flutter ( 4321): The Dart VM service is listening on http://127.0.0.1:37635/Vfh1w_Ak2ZQ=/",
+             "I/flutter ( 4321): rust2: start")
 
     def test_decodes_the_check_output(self):
         self.assertEqual(self.output(*self.START, "I/flutter ( 4321): rust2: aGk=", "I/flutter ( 4321): rust2: exit 0"), b"hi")
+        self.assertEqual(self.vm_service, "http://127.0.0.1:37635/Vfh1w_Ak2ZQ=/")
 
     def test_fails_on_the_apps_crash(self):
         for line in ("F/libc    ( 4321): Fatal signal 6 (SIGABRT), code -6 in tid 4340 (1.ui)",

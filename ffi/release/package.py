@@ -2529,6 +2529,8 @@ class Logcat:
         self.lines = reader(self.process, lambda line: [line])
         # The app's process, known from its first line under Flutter's tag.
         self.pid = None
+        # Where the app's Dart VM service listens, from the engine's announcement.
+        self.vm_service = None
 
     def crashed(self, tag, pid, text):
         """Whether a crash tag's line is the consumer app's, rather than another process's: a
@@ -2551,6 +2553,8 @@ class Logcat:
                     raise SystemExit(f"the Flutter app crashed: {line}")
                 continue
             self.pid = self.pid or pid
+            if listening := re.match(r"The Dart VM service is listening on (http://\S+)", said):
+                self.vm_service = listening[1]
             if not said.startswith("rust2: "):
                 continue
             said = said[len("rust2: "):]
@@ -2571,9 +2575,12 @@ class Logcat:
 class Flutter:
     """`flutter attach --machine` to the running app: its events and its commands."""
 
-    def __init__(self, app, device):
-        self.process = subprocess.Popen(["flutter", "attach", "--machine", "-d", device], cwd=app, text=True,
-                                        encoding="utf-8", stdin=subprocess.PIPE, stdout=subprocess.PIPE)
+    def __init__(self, app, device, vm_service):
+        # Given the VM service, as attach otherwise looks for its announcement in the device's
+        # whole log, which the check's own output may have rotated out by now.
+        self.process = subprocess.Popen(["flutter", "attach", "--machine", "-d", device, "--debug-url", vm_service],
+                                        cwd=app, text=True, encoding="utf-8", stdin=subprocess.PIPE,
+                                        stdout=subprocess.PIPE)
         self.events = reader(self.process, self.event)
         self.app, self.started, self.ids = None, False, 0
 
@@ -2652,7 +2659,9 @@ def consume_flutter(package, libs, lib, check, native, device):
             if re.search(r"Error|Exception", started):
                 raise SystemExit(f"the Flutter app did not start: {started}")
             first = logcat.output()
-            flutter = Flutter(app, device)
+            if not logcat.vm_service:
+                raise SystemExit("the Flutter app never said where its Dart VM service listens")
+            flutter = Flutter(app, device, logcat.vm_service)
             flutter.command("app.restart", fullRestart=True, pause=False)
             # A refused restart fails here, rather than as the log's silence.
             flutter.reply()
