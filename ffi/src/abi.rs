@@ -446,7 +446,7 @@ pub(crate) struct Abi<'a> {
 	pub(crate) prefix: String,
 	/// Each generic item's instances, by whether it is a function and its C name, with
 	/// the suffix that names each by its arguments.
-	suffixes: std::cell::RefCell<HashMap<(bool, String), Suffixes>>,
+	suffixes: std::sync::RwLock<HashMap<(bool, String), Suffixes>>,
 	/// Each `Option<T>` struct by C name, with `T`.
 	pub(crate) options: BTreeMap<String, Type>,
 	/// Each range, bound, and pair of bounds struct by C name, with its type.
@@ -550,7 +550,7 @@ impl<'a> Abi<'a> {
 		Abi {
 			api,
 			prefix: self.prefix.clone(),
-			suffixes: self.suffixes.clone(),
+			suffixes: std::sync::RwLock::new(self.suffixes.read().expect("suffixes lock").clone()),
 			options: self.options.clone(),
 			ranges: self.ranges.clone(),
 			lists: self.lists.clone(),
@@ -845,7 +845,10 @@ impl<'a> Abi<'a> {
 			return name;
 		}
 		let key = (function, name);
-		if let Some(suffix) = self.suffixes.borrow().get(&key).and_then(|suffixes| suffixes.get(args)) {
+		if let Some(suffix) = (self.suffixes.read().expect("suffixes lock"))
+			.get(&key)
+			.and_then(|suffixes| suffixes.get(args))
+		{
 			return format!("{}_{suffix}", key.1);
 		}
 		let group = group();
@@ -854,7 +857,10 @@ impl<'a> Abi<'a> {
 			.collect();
 		let suffixes: Suffixes = group.into_iter().zip(shortest(&forms)).collect();
 		let suffix = suffixes[args].clone();
-		self.suffixes.borrow_mut().insert(key.clone(), suffixes);
+		self.suffixes
+			.write()
+			.expect("suffixes lock")
+			.insert(key.clone(), suffixes);
 		format!("{}_{suffix}", key.1)
 	}
 

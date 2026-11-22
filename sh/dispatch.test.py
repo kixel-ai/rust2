@@ -51,9 +51,9 @@ class SelectTests(unittest.TestCase):
         self.git("commit", "-qm", "change")
         return self.git("rev-parse", "HEAD")
 
-    def query(self, *base):
+    def query(self, *args):
         return subprocess.run(
-            ["bash", "sh/dispatch.sh", "ci", *base, "--query"],
+            ["bash", "sh/dispatch.sh", "ci", *args],
             cwd=self.repo,
             env=self.env,
             text=True,
@@ -61,7 +61,17 @@ class SelectTests(unittest.TestCase):
         )
 
     def select(self, *base):
-        result = self.query(*base)
+        result = self.query(*base, "--query")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        return result.stdout.split()
+
+    def select_ffi(self, *base):
+        result = self.query(*base, "--query-ffi")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        return result.stdout.split()
+
+    def select_ts(self, *base):
+        result = self.query(*base, "--query-ts")
         self.assertEqual(result.returncode, 0, result.stderr)
         return result.stdout.split()
 
@@ -85,17 +95,27 @@ class SelectTests(unittest.TestCase):
     def test_the_driver_selects_its_dependents(self):
         self.change("driver/src/lib.rs")
         self.assertEqual(self.select(), ["lint", "driver", "ffi", "ts"])
+        self.assertEqual(self.select_ffi(), ["all"])
+        self.assertEqual(self.select_ts(), ["all"])
 
     def test_the_shared_nightly_selects_each_project_on_it(self):
         self.change("ts/rust-toolchain.toml")
         self.assertEqual(self.select(), ["lint", "driver", "ffi", "ts"])
+        self.assertEqual(self.select_ffi(), ["all"])
+        self.assertEqual(self.select_ts(), ["all"])
 
     def test_a_go_diff_with_a_shared_input_still_selects_go(self):
         self.change("go/src/lib.rs", "flake.nix")
         self.assertEqual(self.select(), EVERYTHING)
 
     def test_lint_only_paths_select_only_the_lints(self):
-        for path in ("bench/ffi/run.sh", "README.md", ".claude/settings.json"):
+        for path in (
+            "bench/ffi/run.sh",
+            "README.md",
+            ".claude/settings.json",
+            ".github/workflows/nightly.yml",
+            ".github/crabx/test_pipeline.py",
+        ):
             with self.subTest(path=path):
                 self.change(path)
                 self.assertEqual(self.select(), ["lint"])
@@ -104,6 +124,8 @@ class SelectTests(unittest.TestCase):
     def test_empty_diff_keeps_the_lints(self):
         self.assertEqual(self.select(), ["lint"])
         self.assertEqual(self.select(""), ["lint"])
+        self.assertEqual(self.select_ffi(), [])
+        self.assertEqual(self.select_ts(), [])
 
     def test_shared_inputs_select_everything(self):
         for path in (
@@ -111,7 +133,6 @@ class SelectTests(unittest.TestCase):
             "flake.lock",
             "rust-toolchain.toml",
             "justfile",
-            ".github/workflows/nightly.yml",
             "sh/dispatch.sh",
             # An unmapped project runs everything until the map claims it.
             "next/src/lib.rs",
@@ -119,11 +140,52 @@ class SelectTests(unittest.TestCase):
             with self.subTest(path=path):
                 self.change(path)
                 self.assertEqual(self.select(), SHARED)
+                self.assertEqual(self.select_ffi(), ["all"])
+                self.assertEqual(self.select_ts(), ["all"])
                 self.git("checkout", "-q", ".")
+                self.git("clean", "-fdq")
+
+    def test_ffi_sub_scopes(self):
+        for paths, expected in (
+            (["ffi/src/kotlin.rs"], ["lang-kotlin"]),
+            (["ffi/runtime/jni.rs", "ffi/tests/Caller.java"], ["lang-kotlin"]),
+            (["ffi/src/cpp.rs", "ffi/surface/api/cpp.hpp"], ["lang-cpp"]),
+            (["ffi/src/web.rs", "ffi/src/js.rs"], ["lang-web"]),
+            (["ffi/src/kotlin.rs", "ffi/src/swift.rs"], ["lang-kotlin", "lang-swift"]),
+            (["ffi/tests/hold.rs"], ["loom-hold"]),
+            (["ffi/tests/loom/rt.rs"], ["loom-future", "loom-thread"]),
+            (["ffi/release/package.py"], ["release"]),
+            (["ffi/surface/surface.py"], ["surface-tool"]),
+            (["ffi/README.md"], ["docs"]),
+            (["ffi/src/c.rs"], ["all"]),
+            (["ffi/src/glue.rs"], ["all"]),
+            (["ffi/runtime/rt.rs"], ["all"]),
+            (["ffi/src/kotlin.rs", "ffi/src/abi.rs"], ["all"]),
+        ):
+            with self.subTest(paths=paths):
+                self.change(*paths)
+                self.assertEqual(self.select(), ["lint", "ffi"])
+                self.assertEqual(self.select_ffi(), expected)
+                self.git("clean", "-fdq")
+
+    def test_ts_sub_scopes(self):
+        for paths, expected in (
+            (["ts/fixtures/lang/ints/src/lib.rs"], ["lang-ints"]),
+            (["ts/fixtures/lang/ints/src/lib.rs", "ts/fixtures/lang/strs/src/lib.rs"], ["lang-ints", "lang-strs"]),
+            (["ts/README.md"], ["docs"]),
+            (["ts/fixtures/lang/harness.rs"], ["all"]),
+            (["ts/src/lib.rs"], ["all"]),
+        ):
+            with self.subTest(paths=paths):
+                self.change(*paths)
+                self.assertEqual(self.select(), ["lint", "ts"])
+                self.assertEqual(self.select_ts(), expected)
                 self.git("clean", "-fdq")
 
     def test_all_selects_everything(self):
         self.assertEqual(self.select("--all"), EVERYTHING)
+        self.assertEqual(self.select_ffi("--all"), ["all"])
+        self.assertEqual(self.select_ts("--all"), ["all"])
 
     def test_deletions_count(self):
         self.commit("ts/src/lib.rs")
@@ -151,12 +213,18 @@ class SelectTests(unittest.TestCase):
         self.assertEqual(self.select("HEAD"), ["lint"])
 
     def test_an_unknown_base_fails(self):
-        result = self.query("no-such-ref")
+        result = self.query("no-such-ref", "--query")
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("no-such-ref", result.stderr)
 
     def test_usage_errors(self):
-        for args in (["deploy"], ["ci", "origin/main", "--all"], ["ci", "a", "--query", "extra"]):
+        for args in (
+            ["deploy"],
+            ["ci", "origin/main", "--all"],
+            ["ci", "a", "--query", "extra"],
+            ["ci", "--query", "--only", "ffi"],
+            ["ci", "--only"],
+        ):
             with self.subTest(args=args):
                 result = subprocess.run(
                     ["bash", "sh/dispatch.sh", *args], cwd=self.repo, env=self.env, text=True, capture_output=True

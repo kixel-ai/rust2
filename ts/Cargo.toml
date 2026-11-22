@@ -55,6 +55,11 @@ toml = "1.1.8"
 [lints]
 workspace = true
 
+# Optimize dev builds at level 1 so translating moq-net and the fixture suite runs several
+# times faster while keeping debug assertions and fast incremental rebuilds.
+[profile.dev]
+opt-level = 1
+
 # The differential tests' native side: optimized, since V8 runs a debug build's wasm several
 # times slower, with dev's overflow checks and debug assertions, so its panics match the
 # translation's.

@@ -41,3 +41,8 @@ syn = { version = "3.0.10", default-features = false, features = ["clone-impls",
 
 [lints]
 workspace = true
+
+# Optimize dev builds at level 1 so `rust2-ffi` exports (`oxc`, leaf proving) and `loom`
+# DPOR runs are several times faster while keeping debug assertions and fast rebuilds.
+[profile.dev]
+opt-level = 1

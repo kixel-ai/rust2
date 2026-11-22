@@ -19,10 +19,11 @@ Have at least these sections:
 # Landing
 
 Queue the reviewed head with `quest merge <pr> --land <sha>`.
+`.github/workflows/ci.yml` runs diff-scoped checks and tests asynchronously on GitHub-hosted runners for every pull request.
 The queue's build lives in `.github/workflows/queue-build.yml`, which the merge group calls from `main`, so a PR's edit to it runs only after the PR lands.
 A PR the queue drops for a failed build or a conflict gets a Codex fixer, which requeues it or hands it back with a diagnosis.
 The admin bypass of `main`'s ruleset is for emergencies.
-`just ci` selects what the diff touches; `just gate` runs the full suite nightly.
+`just check` lints and compiles all test targets for changed modules; `just ci` selects and tests what the diff touches; `just gate` runs the full suite nightly.
 
 # Imported code
 

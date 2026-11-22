@@ -1,9 +1,22 @@
 name: Install Nix
 description: Install Nix for the flake's dev shell.
 
+inputs:
+  cache:
+    description: Cache non-upstream Nix store paths in GitHub Actions cache.
+    required: false
+    default: "false"
+
 runs:
   using: composite
   steps:
     - uses: DeterminateSystems/nix-installer-action@1d87d45818068401a10cf16bdc5f00b24994a83f # main
       with:
         determinate: false
+
+    - if: inputs.cache == 'true'
+      uses: DeterminateSystems/magic-nix-cache-action@84c0677f58dcedf3b91f8223ce36a9ea5b3c84b7 # v15
+      with:
+        use-gha-cache: true
+        use-flakehub: false
+        diagnostic-endpoint: ""

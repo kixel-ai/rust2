@@ -371,5 +371,43 @@ class Malformed(unittest.TestCase):
                 (surface.braced if lang in ("dart", "cpp") else lambda t, l: surface.indented(t, l))(text, lang)
 
 
+class Filtering(unittest.TestCase):
+    def test_only_skips_unrequested_surfaces(self):
+        import subprocess
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            export = root / "export"
+            (export / "include").mkdir(parents=True)
+            (export / "include" / "api.h").write_text("void api_f(void);\n", encoding="utf-8")
+            # A broken Kotlin file must not be parsed when only c.h is requested.
+            (export / "kotlin").mkdir()
+            (export / "kotlin" / "api.kt").write_text('fun f() = "unterminated\n', encoding="utf-8")
+
+            got = surface.files(export, {"c.h"})
+            self.assertEqual(set(got), {"c.h"})
+
+            out = root / "out"
+            out.mkdir()
+            (out / "c.h").write_text(got["c.h"], encoding="utf-8")
+            (out / "kotlin.kt").write_text("existing\n", encoding="utf-8")
+
+            # Without --partial, kotlin.kt is flagged as stale.
+            res = subprocess.run(
+                [sys.executable, "-I", str(Path(surface.__file__).resolve()), "--check", str(export), str(out), "c.h"],
+                capture_output=True, text=True,
+            )
+            self.assertNotEqual(res.returncode, 0)
+            self.assertIn("kotlin.kt: no language renders it", res.stdout)
+
+            # With --partial, kotlin.kt is ignored and c.h passes.
+            res = subprocess.run(
+                [sys.executable, "-I", str(Path(surface.__file__).resolve()), "--check", "--partial", str(export), str(out), "c.h"],
+                capture_output=True, text=True,
+            )
+            self.assertEqual(res.returncode, 0, res.stdout + res.stderr)
+
+
 if __name__ == "__main__":
     unittest.main()

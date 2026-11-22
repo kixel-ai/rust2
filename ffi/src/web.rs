@@ -333,18 +333,43 @@ pub(crate) fn generate(abi: &Abi<'_>, facade: &Package, contract: u64) -> Result
 			namespaces.insert(name.clone(), imports.replace(".ts\";", ".js\";"));
 		}
 	}
-	let mut emitted = Vec::new();
-	for (name, ts) in &files {
-		let (js, mut dts) = crate::js::emit(name, ts)?;
-		// Declarations keep no import only a doc names, which the links need.
-		if let Some(imports) = namespaces.get(name) {
-			let at = dts.find('\n').map_or(0, |at| at + 1);
-			dts.insert_str(at, imports);
+	let emit_chunk = |chunk: &[(String, String)]| -> Result<Vec<(String, String)>, String> {
+		let mut out = Vec::with_capacity(chunk.len() * 2);
+		for (name, ts) in chunk {
+			let (js, mut dts) = crate::js::emit(name, ts)?;
+			// Declarations keep no import only a doc names, which the links need.
+			if let Some(imports) = namespaces.get(name) {
+				let at = dts.find('\n').map_or(0, |at| at + 1);
+				dts.insert_str(at, imports);
+			}
+			let stem = name.strip_suffix(".ts").expect("each module is a .ts file");
+			out.push((format!("{stem}.js"), js));
+			out.push((format!("{stem}.d.ts"), dts));
 		}
-		let stem = name.strip_suffix(".ts").expect("each module is a .ts file");
-		emitted.push((format!("{stem}.js"), js));
-		emitted.push((format!("{stem}.d.ts"), dts));
-	}
+		Ok(out)
+	};
+	let workers = std::thread::available_parallelism()
+		.map_or(1, usize::from)
+		.min(files.len().max(1));
+	let emitted = if workers <= 1 || files.len() < 4 {
+		emit_chunk(&files)?
+	} else {
+		let chunk_size = files.len().div_ceil(workers);
+		let mut out = Vec::with_capacity(files.len() * 2);
+		for part in std::thread::scope(|scope| {
+			let handles: Vec<_> = files
+				.chunks(chunk_size)
+				.map(|chunk| scope.spawn(move || emit_chunk(chunk)))
+				.collect();
+			handles
+				.into_iter()
+				.map(|handle| handle.join().expect("web js emit thread"))
+				.collect::<Vec<_>>()
+		}) {
+			out.extend(part?);
+		}
+		out
+	};
 	files.extend(emitted);
 	files.push(("package.json".to_string(), package_json(facade, p)));
 	let glue = format!(

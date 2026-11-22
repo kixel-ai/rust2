@@ -15,7 +15,7 @@ Each project lives in its own top-level directory; the [quest tree](quest/README
 # Development
 
 PRs target `main`.
-Run `just ci` before every push.
+Before pushing, run `just check` (lints and compiles all targets including tests for changed modules) plus targeted tests for what you changed (e.g. `just ffi test <filter>`, `just ts test <filter>`, or `just test` when the diff is narrowly scoped). Do not run the full `just ci` locally before every push: GitHub Actions (`CI`) runs the full diff-scoped `just ci` asynchronously on every PR, and the merge queue runs it before landing. Run `just ffi surface` locally only when a change alters a rendered binding API and `ffi/surface/` snapshots need updating.
 Outside the dev shell, such as in Pullfrog's job, which puts the shell's tools on `PATH` but not its variables (`PKG_CONFIG_PATH`, `NIX_LDFLAGS`, ...), run `just` as `nix develop --command just ...`.
 
 Review rounds run one local reviewer, `quest review --harness codex`, or `--harness claude` when Codex changed the branch last. Pullfrog's review on the PR is the second reviewer, and its approval is what lands it.

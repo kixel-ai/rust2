@@ -725,81 +725,64 @@ fn api_cpp() {
 		generated: Some(cpp_transcript()),
 		..api.link()
 	};
-	for (standard, plain) in [(17, true), (20, false), (23, true)] {
-		let exe = scratch().join("api").join(format!("api-c++{standard}{EXE_SUFFIX}"));
-		cxx(
-			&link,
-			standard,
-			plain,
-			&manifest_dir().join("tests").join("api.cpp"),
-			&exe,
-		);
-		let cpp = run(&mut Command::new(&exe));
-		assert_eq!(
-			String::from_utf8_lossy(&cpp.stdout),
-			api.transcript,
-			"the C++{standard} transcript differs from the native one"
-		);
-		run(Command::new(&exe).arg("futures"));
-		run(Command::new(&exe).arg("lifetimes"));
-		run(Command::new(&exe).arg("checks"));
-		let rehomed = run(Command::new(&exe).arg("rehomed"));
-		assert_eq!(String::from_utf8_lossy(&rehomed.stdout), "scaled by 7\n");
-		for (case, message) in [
-			("moved", "api_Counter_get: a handle's value was moved out"),
-			("moved from", "api_Counter_get: a handle is null"),
-			("shared moved from", "api_Gauge_into_level: a handle is null"),
-			(
-				"shared moved out",
-				"api_Gauge_into_level: a handle's value was moved out",
-			),
-			("lent copied", "a lent object was copied past its call"),
-			("value", "value() of a result that holds an error"),
-			(
-				"finished",
-				"api_Channel_recv_poll: a future is polled after it finished",
-			),
-			(
-				"lent moved",
-				"api_Counter_into_label: a handle a call lent is borrowed exclusively or moved out",
-			),
-			("lent kept", "a lent object was moved out of"),
-			("overread", "api_tail: a reader read more than it was asked"),
-			("null view", "a view of null bytes has a length"),
-			("outlived", OUTLIVED),
-			("lent ledger", "api_Ledger_published: a handle is borrowed exclusively"),
-		] {
-			let output = Command::new(&exe).arg(case).output().unwrap();
-			failed(&output, &format!("C++{standard} {case}"));
-			let stderr = String::from_utf8_lossy(&output.stderr);
-			assert!(stderr.contains(message), "C++{standard} {case} printed {stderr}");
+	let api_src = manifest_dir().join("tests").join("api.cpp");
+	std::thread::scope(|scope| {
+		for (standard, plain) in [(17, true), (20, false), (23, true)] {
+			let link = &link;
+			let api_src = &api_src;
+			scope.spawn(move || {
+				let exe = scratch().join("api").join(format!("api-c++{standard}{EXE_SUFFIX}"));
+				cxx(link, standard, plain, api_src, &exe);
+				let cpp = run(&mut Command::new(&exe));
+				assert_eq!(
+					String::from_utf8_lossy(&cpp.stdout),
+					api.transcript,
+					"the C++{standard} transcript differs from the native one"
+				);
+				run(Command::new(&exe).arg("futures"));
+				run(Command::new(&exe).arg("lifetimes"));
+				run(Command::new(&exe).arg("checks"));
+				let rehomed = run(Command::new(&exe).arg("rehomed"));
+				assert_eq!(String::from_utf8_lossy(&rehomed.stdout), "scaled by 7\n");
+				for (case, message) in [
+					("moved", "api_Counter_get: a handle's value was moved out"),
+					("moved from", "api_Counter_get: a handle is null"),
+					("shared moved from", "api_Gauge_into_level: a handle is null"),
+					(
+						"shared moved out",
+						"api_Gauge_into_level: a handle's value was moved out",
+					),
+					("lent copied", "a lent object was copied past its call"),
+					("value", "value() of a result that holds an error"),
+					(
+						"finished",
+						"api_Channel_recv_poll: a future is polled after it finished",
+					),
+					(
+						"lent moved",
+						"api_Counter_into_label: a handle a call lent is borrowed exclusively or moved out",
+					),
+					("lent kept", "a lent object was moved out of"),
+					("overread", "api_tail: a reader read more than it was asked"),
+					("null view", "a view of null bytes has a length"),
+					("outlived", OUTLIVED),
+					("lent ledger", "api_Ledger_published: a handle is borrowed exclusively"),
+				] {
+					let output = Command::new(&exe).arg(case).output().unwrap();
+					failed(&output, &format!("C++{standard} {case}"));
+					let stderr = String::from_utf8_lossy(&output.stderr);
+					assert!(stderr.contains(message), "C++{standard} {case} printed {stderr}");
+				}
+			});
 		}
-	}
 
-	if !cfg!(target_env = "msvc") {
-		cpp_strict(&link);
-	}
-
-	// Each crate's header builds alone, needing only the headers it includes.
-	let headers = std::fs::read_dir(api.out.join("include").join("api")).unwrap();
-	let mut headers: Vec<String> = headers
-		.map(|entry| entry.unwrap().file_name().into_string().unwrap())
-		.collect();
-	headers.sort();
-	assert!(headers.len() > 2, "the api fixture has a header per crate: {headers:?}");
-	for header in headers {
-		let src = scratch().join("api").join(format!("alone-{header}.cpp"));
-		step::write(&src, format!("#include \"api/{header}\"\nint main() {{}}\n"));
-		let exe = scratch().join("api").join(format!("alone-{header}{EXE_SUFFIX}"));
-		cxx(&api.link(), 17, true, &src, &exe);
-	}
-
-	// A C++ program whose header names another contract than its library's aborts at load,
-	// non-dumpable from a constructor that runs before the header's check, as `broken` is.
-	let mismatched = scratch().join("api").join("contract.cpp");
-	step::write(
-		&mismatched,
-		r#"#ifdef __linux__
+		// A C++ program whose header names another contract than its library's aborts at load,
+		// non-dumpable from a constructor that runs before the header's check, as `broken` is.
+		scope.spawn(move || {
+			let mismatched = scratch().join("api").join("contract.cpp");
+			step::write(
+				&mismatched,
+				r#"#ifdef __linux__
 #include <cstdio>
 #include <cstdlib>
 #include <sys/prctl.h>
@@ -816,16 +799,42 @@ __attribute__((constructor(101))) static void nodump() {
 #include "api.hpp"
 int main() {}
 "#,
-	);
-	let contract = scratch().join("api").join(format!("contract{EXE_SUFFIX}"));
-	cxx(&api.link(), 17, false, &mismatched, &contract);
-	let output = Command::new(&contract).output().unwrap();
-	failed(&output, "a mismatched contract");
-	let stderr = String::from_utf8_lossy(&output.stderr);
-	assert!(
-		stderr.contains("api/rt.hpp and the library are from different builds"),
-		"a mismatched contract printed {stderr}"
-	);
+			);
+			let contract = scratch().join("api").join(format!("contract{EXE_SUFFIX}"));
+			cxx(&api.link(), 17, false, &mismatched, &contract);
+			let output = Command::new(&contract).output().unwrap();
+			failed(&output, "a mismatched contract");
+			let stderr = String::from_utf8_lossy(&output.stderr);
+			assert!(
+				stderr.contains("api/rt.hpp and the library are from different builds"),
+				"a mismatched contract printed {stderr}"
+			);
+		});
+	});
+}
+
+/// Each crate's C++ header builds alone, needing only the headers it includes.
+#[test]
+fn api_cpp_headers() {
+	let api = api();
+	let headers = std::fs::read_dir(api.out.join("include").join("api")).unwrap();
+	let mut headers: Vec<String> = headers
+		.map(|entry| entry.unwrap().file_name().into_string().unwrap())
+		.collect();
+	headers.sort();
+	assert!(headers.len() > 2, "the api fixture has a header per crate: {headers:?}");
+	let link = api.link();
+	std::thread::scope(|scope| {
+		for header in &headers {
+			let link = &link;
+			scope.spawn(move || {
+				let src = scratch().join("api").join(format!("alone-{header}.cpp"));
+				step::write(&src, format!("#include \"api/{header}\"\nint main() {{}}\n"));
+				let exe = scratch().join("api").join(format!("alone-{header}{EXE_SUFFIX}"));
+				cxx(link, 17, true, &src, &exe);
+			});
+		}
+	});
 }
 
 /// Clang's ownership, must-use, and reserved-name checks: the whole script builds clean
@@ -834,6 +843,19 @@ int main() {}
 /// `RUST2_CLANG`, adds `-Wlifetime-safety`; Linux, where the merge gate runs, requires it,
 /// and elsewhere without it, as on the nightly's Apple Clang leg, the platform's `clang++`
 /// runs every check but that one.
+#[test]
+fn api_cpp_strict() {
+	if cfg!(target_env = "msvc") {
+		return;
+	}
+	let api = api();
+	let link = Link {
+		generated: Some(cpp_transcript()),
+		..api.link()
+	};
+	cpp_strict(&link);
+}
+
 fn cpp_strict(link: &Link) {
 	let include = &link.include;
 	let generated = link
@@ -847,11 +869,15 @@ fn cpp_strict(link: &Link) {
 	);
 	let lifetimes = clang23.is_some();
 	let compiler = clang23.unwrap_or_else(|| "clang++".into());
-	// What each case printed, kept apart from the others'; its object is not.
+	// Syntax-only skips codegen while running every frontend warning check, and writes no
+	// object file so every case runs concurrently. Nix's clang wrapper still passes linker
+	// flags without `-c`, so silence `-Wunused-command-line-argument`.
 	let clang = |src: &Path, case: u8| {
 		let mut cmd = Command::new(&compiler);
 		cmd.args([
 			"-std=c++17",
+			"-fsyntax-only",
+			"-Wno-unused-command-line-argument",
 			"-Wconsumed",
 			"-Wdangling",
 			"-Wreserved-identifier",
@@ -860,15 +886,12 @@ fn cpp_strict(link: &Link) {
 		if lifetimes {
 			cmd.arg("-Wlifetime-safety");
 		}
-		cmd.arg("-c")
-			.arg("-I")
+		cmd.arg("-I")
 			.arg(include)
 			.arg("-I")
 			.arg(generated)
 			.arg(format!("-DCASE={case}"))
-			.arg(src)
-			.arg("-o")
-			.arg(scratch().join("api").join("strict.o"));
+			.arg(src);
 		let stamp = scratch()
 			.join("api")
 			.join("strict")
@@ -885,10 +908,7 @@ fn cpp_strict(link: &Link) {
 		}
 	};
 	let tests = manifest_dir().join("tests");
-	for src in ["api.cpp", "api_strict.cpp"] {
-		clang(&tests.join(src), 0);
-	}
-	for (case, message) in [
+	let cases: &[(u8, &str)] = &[
 		(
 			1,
 			"invalid invocation of method 'get' on object 'c' while it is in the 'consumed' state",
@@ -919,15 +939,27 @@ fn cpp_strict(link: &Link) {
 		),
 		(11, "ignoring return value of type 'result<"),
 		(12, "local variable 'bytes' does not live long enough"),
-	] {
-		if case == 12 && !lifetimes {
-			continue;
+	];
+	std::thread::scope(|scope| {
+		for src in ["api.cpp", "api_strict.cpp"] {
+			let path = tests.join(src);
+			scope.spawn(move || {
+				clang(&path, 0);
+			});
 		}
-		let output = clang(&tests.join("api_strict.cpp"), case);
-		assert!(!output.status.success(), "case {case} built");
-		let stderr = String::from_utf8_lossy(&output.stderr);
-		assert!(stderr.contains(message), "case {case} printed {stderr}");
-	}
+		for &(case, message) in cases {
+			if case == 12 && !lifetimes {
+				continue;
+			}
+			let path = tests.join("api_strict.cpp");
+			scope.spawn(move || {
+				let output = clang(&path, case);
+				assert!(!output.status.success(), "case {case} built");
+				let stderr = String::from_utf8_lossy(&output.stderr);
+				assert!(stderr.contains(message), "case {case} printed {stderr}");
+			});
+		}
+	});
 }
 
 /// What a program links of an export: its headers, its static library, and what that
@@ -3358,74 +3390,83 @@ fn api_go() {
 	// The transcript's script, generated beside it in its package.
 	step::write(&module.join("transcript.go"), transcript::go::emit(transcript()));
 	let export = module.join("export");
-	for (name, root) in [("vet-export", &export), ("vet", &module)] {
-		let step = Step {
-			stamp: &dir.join(format!("{name}.stamp")),
-			reads: &[&module],
-			writes: &[],
-		};
-		step.run(&mut go(root, &["vet", "./..."]));
-	}
-	let exe = dir.join(format!("api-test{EXE_SUFFIX}"));
-	go_build(api, &module, &exe);
-	let output = run(&mut Command::new(&exe));
-	assert_eq!(
-		String::from_utf8_lossy(&output.stdout),
-		api.transcript,
-		"the Go transcript differs from the native one"
-	);
-	run(Command::new(&exe).arg("futures"));
-	run(Command::new(&exe).arg("owned"));
-	run(Command::new(&exe).arg("closed"));
-	run(Command::new(&exe).arg("bytes"));
-	run(Command::new(&exe).arg("closures"));
-	run(Command::new(&exe).arg("checks"));
-	for (case, message) in [
-		(
-			"lent moved",
-			"api_Counter_into_label: a handle a call lent is borrowed exclusively or moved out",
-		),
-		("nil reader", "a nil io.ReadSeeker"),
-		("returned zero", "a zero Moment, which only Rust makes"),
-		("outlived", OUTLIVED),
-		("callback panicked", "a log failed"),
-		("target", "api_wasm_only: it is not on this library's target"),
-		("variant", "api_Platform.Wasm: it is not on this library's target"),
-		("plain variant", "api_Family.Wasm: it is not on this library's target"),
-	] {
-		let output = Command::new(&exe).arg(case).output().unwrap();
-		failed(&output, &format!("Go {case}"));
-		let stderr = String::from_utf8_lossy(&output.stderr);
-		assert!(stderr.contains(message), "Go {case} printed {stderr}");
-	}
-
-	// The same packages, with another contract than the library's in place of their own,
-	// refuse it when they load: in a module of their own, which leaves the test's as it was.
-	let contract = dir.join("contract");
-	go_layout(
-		api,
-		&contract,
-		"package main\n\nimport \"api/api\"\n\nfunc main() {\n\tapi.Dropped()\n}\n",
-	);
-	let runtime = contract.join("export").join("rt").join("rt.go");
-	let generated = std::fs::read_to_string(&runtime).unwrap();
-	let at = generated
-		.find("api_contract() != 0x")
-		.expect("the Go checks its contract")
-		+ "api_contract() != 0x".len();
-	let mut mismatched = generated.clone();
-	let digit = if &generated[at..at + 1] == "0" { "1" } else { "0" };
-	mismatched.replace_range(at..at + 1, digit);
-	step::write(&runtime, mismatched);
-	let exe = dir.join(format!("contract-test{EXE_SUFFIX}"));
-	go_build(api, &contract, &exe);
-	let output = Command::new(&exe).output().unwrap();
-	failed(&output, "a mismatched contract");
-	let stderr = String::from_utf8_lossy(&output.stderr);
-	assert!(
-		stderr.contains("the Go of api and the library are from different builds"),
-		"a mismatched contract printed {stderr}"
-	);
+	std::thread::scope(|scope| {
+		for (name, root) in [("vet-export", &export), ("vet", &module)] {
+			let dir = &dir;
+			let module = &module;
+			scope.spawn(move || {
+				let step = Step {
+					stamp: &dir.join(format!("{name}.stamp")),
+					reads: &[module],
+					writes: &[],
+				};
+				step.run(&mut go(root, &["vet", "./..."]));
+			});
+		}
+		scope.spawn(|| {
+			let exe = dir.join(format!("api-test{EXE_SUFFIX}"));
+			go_build(api, &module, &exe);
+			let output = run(&mut Command::new(&exe));
+			assert_eq!(
+				String::from_utf8_lossy(&output.stdout),
+				api.transcript,
+				"the Go transcript differs from the native one"
+			);
+			run(Command::new(&exe).arg("futures"));
+			run(Command::new(&exe).arg("owned"));
+			run(Command::new(&exe).arg("closed"));
+			run(Command::new(&exe).arg("bytes"));
+			run(Command::new(&exe).arg("closures"));
+			run(Command::new(&exe).arg("checks"));
+			for (case, message) in [
+				(
+					"lent moved",
+					"api_Counter_into_label: a handle a call lent is borrowed exclusively or moved out",
+				),
+				("nil reader", "a nil io.ReadSeeker"),
+				("returned zero", "a zero Moment, which only Rust makes"),
+				("outlived", OUTLIVED),
+				("callback panicked", "a log failed"),
+				("target", "api_wasm_only: it is not on this library's target"),
+				("variant", "api_Platform.Wasm: it is not on this library's target"),
+				("plain variant", "api_Family.Wasm: it is not on this library's target"),
+			] {
+				let output = Command::new(&exe).arg(case).output().unwrap();
+				failed(&output, &format!("Go {case}"));
+				let stderr = String::from_utf8_lossy(&output.stderr);
+				assert!(stderr.contains(message), "Go {case} printed {stderr}");
+			}
+		});
+		// The same packages, with another contract than the library's in place of their own,
+		// refuse it when they load: in a module of their own, which leaves the test's as it was.
+		scope.spawn(|| {
+			let contract = dir.join("contract");
+			go_layout(
+				api,
+				&contract,
+				"package main\n\nimport \"api/api\"\n\nfunc main() {\n\tapi.Dropped()\n}\n",
+			);
+			let runtime = contract.join("export").join("rt").join("rt.go");
+			let generated = std::fs::read_to_string(&runtime).unwrap();
+			let at = generated
+				.find("api_contract() != 0x")
+				.expect("the Go checks its contract")
+				+ "api_contract() != 0x".len();
+			let mut mismatched = generated.clone();
+			let digit = if &generated[at..at + 1] == "0" { "1" } else { "0" };
+			mismatched.replace_range(at..at + 1, digit);
+			step::write(&runtime, mismatched);
+			let exe = dir.join(format!("contract-test{EXE_SUFFIX}"));
+			go_build(api, &contract, &exe);
+			let output = Command::new(&exe).output().unwrap();
+			failed(&output, "a mismatched contract");
+			let stderr = String::from_utf8_lossy(&output.stderr);
+			assert!(
+				stderr.contains("the Go of api and the library are from different builds"),
+				"a mismatched contract printed {stderr}"
+			);
+		});
+	});
 }
 
 /// Lay out `module` as a Go module whose main package is `main`, requiring the export's

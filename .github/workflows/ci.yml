@@ -1,0 +1,253 @@
+name: CI
+
+# Async diff-scoped checks and tests for pull requests, sharded across free
+# GitHub-hosted x86_64 runners so local pushes only need `just check` plus
+# targeted tests. Read-only token: safe for fork and branch PRs alike.
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  select:
+    name: Select
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      small_modules: ${{ steps.select.outputs.small_modules }}
+      has_ffi: ${{ steps.select.outputs.has_ffi }}
+      ffi_full: ${{ steps.select.outputs.ffi_full }}
+      has_ts: ${{ steps.select.outputs.has_ts }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - id: select
+        env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+        run: |
+          modules=$(bash sh/dispatch.sh ci "$BASE" --query)
+          ffi_scopes=$(bash sh/dispatch.sh ci "$BASE" --query-ffi)
+          ts_scopes=$(bash sh/dispatch.sh ci "$BASE" --query-ts)
+          small=()
+          has_ffi=false
+          has_ts=false
+          while IFS= read -r m; do
+            case "$m" in
+              "") ;;
+              ffi) has_ffi=true ;;
+              ts) has_ts=true ;;
+              *) small+=("$m") ;;
+            esac
+          done <<<"$modules"
+          ffi_full=false
+          if [[ "$has_ffi" == true && "$ffi_scopes" == all ]]; then
+            ffi_full=true
+          fi
+          {
+            echo "small_modules=${small[*]}"
+            echo "has_ffi=$has_ffi"
+            echo "ffi_full=$ffi_full"
+            echo "has_ts=$has_ts"
+          } >> "$GITHUB_OUTPUT"
+          echo "Selected modules: ${modules//$'\n'/ }"
+          echo "FFI scopes: ${ffi_scopes//$'\n'/ }"
+          echo "TS scopes: ${ts_scopes//$'\n'/ }"
+
+  checks:
+    name: Checks & small modules
+    needs: select
+    if: needs.select.outputs.small_modules != ''
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      BASE: ${{ github.event.pull_request.base.sha }}
+      MODULES: ${{ needs.select.outputs.small_modules }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: ./.github/actions/nix
+        with:
+          cache: "true"
+      - uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5.1.0
+        with:
+          path: |
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            ~/.cargo/git/db
+            crabx/target/debug
+            driver/target/debug
+            go/target/debug
+          key: ci-small-${{ runner.os }}-${{ hashFiles('crabx/Cargo.lock', 'driver/Cargo.lock', 'go/Cargo.lock', 'ts/rust-toolchain.toml') }}-${{ github.sha }}
+          restore-keys: |
+            ci-small-${{ runner.os }}-${{ hashFiles('crabx/Cargo.lock', 'driver/Cargo.lock', 'go/Cargo.lock', 'ts/rust-toolchain.toml') }}-
+            ci-small-${{ runner.os }}-
+      - name: Run selected modules
+        run: |
+          nix develop --command bash -euo pipefail <<'EOF'
+          for m in $MODULES; do
+            sh/dispatch.sh ci "$BASE" --only "$m"
+          done
+          EOF
+
+  ffi-scoped:
+    name: FFI (scoped)
+    needs: select
+    if: needs.select.outputs.has_ffi == 'true' && needs.select.outputs.ffi_full != 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      BASE: ${{ github.event.pull_request.base.sha }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: ./.github/actions/nix
+        with:
+          cache: "true"
+      - uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5.1.0
+        with:
+          path: |
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            ~/.cargo/git/db
+            ffi/target/debug
+          key: ci-ffi-${{ runner.os }}-${{ hashFiles('ffi/Cargo.lock', 'ts/rust-toolchain.toml') }}-${{ github.sha }}
+          restore-keys: |
+            ci-ffi-${{ runner.os }}-${{ hashFiles('ffi/Cargo.lock', 'ts/rust-toolchain.toml') }}-
+            ci-ffi-${{ runner.os }}-
+      - name: Check and test scoped FFI
+        run: nix develop --command sh/dispatch.sh ci "$BASE" --only ffi
+
+  ffi-surface:
+    name: FFI (check, moq-c, surface)
+    needs: select
+    if: needs.select.outputs.ffi_full == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/nix
+        with:
+          cache: "true"
+      - uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5.1.0
+        with:
+          path: |
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            ~/.cargo/git/db
+            ffi/target/debug
+          key: ci-ffi-${{ runner.os }}-${{ hashFiles('ffi/Cargo.lock', 'ts/rust-toolchain.toml') }}-${{ github.sha }}
+          restore-keys: |
+            ci-ffi-${{ runner.os }}-${{ hashFiles('ffi/Cargo.lock', 'ts/rust-toolchain.toml') }}-
+            ci-ffi-${{ runner.os }}-
+      - name: Check FFI, moq-c, and surface
+        run: |
+          nix develop --command bash -euo pipefail -c '
+            just ffi check
+            python3 -I ffi/release/test_package.py
+            python3 -I ffi/surface/test_surface.py
+            just ffi::moq-c "" ffi::surface --check
+          '
+
+  ffi-test-core:
+    name: FFI (unit, loom, core fixtures)
+    needs: select
+    if: needs.select.outputs.ffi_full == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/nix
+        with:
+          cache: "true"
+      - uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5.1.0
+        with:
+          path: |
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            ~/.cargo/git/db
+            ffi/target/debug
+          key: ci-ffi-core-${{ runner.os }}-${{ hashFiles('ffi/Cargo.lock', 'ts/rust-toolchain.toml') }}-${{ github.sha }}
+          restore-keys: |
+            ci-ffi-core-${{ runner.os }}-${{ hashFiles('ffi/Cargo.lock', 'ts/rust-toolchain.toml') }}-
+            ci-ffi-${{ runner.os }}-${{ hashFiles('ffi/Cargo.lock', 'ts/rust-toolchain.toml') }}-
+            ci-ffi-${{ runner.os }}-
+      - name: Run unit, loom, and core fixture tests
+        run: |
+          nix develop --command bash -euo pipefail -c '
+            just ffi test --bins --test borrow --test future --test hold --test thread
+            just ffi test --test fixtures -- --skip api_go --skip api_cpp --skip api_kotlin --skip api_swift --skip api_dart
+          '
+
+  ffi-test-langs:
+    name: FFI (language fixtures)
+    needs: select
+    if: needs.select.outputs.ffi_full == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/nix
+        with:
+          cache: "true"
+      - uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5.1.0
+        with:
+          path: |
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            ~/.cargo/git/db
+            ffi/target/debug
+          key: ci-ffi-langs-${{ runner.os }}-${{ hashFiles('ffi/Cargo.lock', 'ts/rust-toolchain.toml') }}-${{ github.sha }}
+          restore-keys: |
+            ci-ffi-langs-${{ runner.os }}-${{ hashFiles('ffi/Cargo.lock', 'ts/rust-toolchain.toml') }}-
+            ci-ffi-${{ runner.os }}-${{ hashFiles('ffi/Cargo.lock', 'ts/rust-toolchain.toml') }}-
+            ci-ffi-${{ runner.os }}-
+      - name: Run language fixture tests
+        run: nix develop --command just ffi test --test fixtures -- api_go api_cpp api_kotlin api_swift api_dart
+
+  ts:
+    name: TS
+    needs: select
+    if: needs.select.outputs.has_ts == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      BASE: ${{ github.event.pull_request.base.sha }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: ./.github/actions/nix
+        with:
+          cache: "true"
+      - uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5.1.0
+        with:
+          path: |
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            ~/.cargo/git/db
+            ts/target/debug
+          key: ci-ts-${{ runner.os }}-${{ hashFiles('ts/Cargo.lock', 'ts/rust-toolchain.toml') }}-${{ github.sha }}
+          restore-keys: |
+            ci-ts-${{ runner.os }}-${{ hashFiles('ts/Cargo.lock', 'ts/rust-toolchain.toml') }}-
+            ci-ts-${{ runner.os }}-
+      - name: Check and test TS
+        run: nix develop --command sh/dispatch.sh ci "$BASE" --only ts

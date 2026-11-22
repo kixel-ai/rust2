@@ -1,11 +1,12 @@
 """The API an export renders in each language, as the surface files CI compares with.
 
-usage: surface.py [--check] <export> <dir> [<file>...]
+usage: surface.py [--check] [--partial] <export> <dir> [<file>...]
 
 Writes into <dir> one file per language the export generated, or only the files named: the
 declarations a caller of that language sees, without bodies, comments, or anything private,
 so a change to what a generator renders shows in the file's diff. With --check, it writes
-nothing and fails with the diff where <dir> differs.
+nothing and fails with the diff where <dir> differs. With --partial, existing files in
+<dir> outside the named <file>... are left untouched and not reported as stale.
 
 Each comes from the language's own tool where one reads source: Python's `ast` for the
 stub a type checker reads, `go doc -all` for Go, and `tsc` for the web binding's
@@ -14,6 +15,7 @@ outline of the generated source keeps each public declaration up to its body.
 """
 
 import ast
+from concurrent.futures import ThreadPoolExecutor
 import difflib
 import os
 import re
@@ -799,14 +801,20 @@ def stub(body, level, out, aliased):
 
 def go_doc(root):
     packages = sorted({p.parent for p in root.rglob("*.go")})
-    parts = []
-    for package in packages:
+    env = {**os.environ, "GOFLAGS": "-mod=mod", "GOWORK": "off"}
+
+    def doc(package):
         rel = package.relative_to(root).as_posix()
-        result = subprocess.run(["go", "doc", "-all", f"./{rel}"], cwd=root, capture_output=True, text=True,
-                                env={**os.environ, "GOFLAGS": "-mod=mod", "GOWORK": "off"})
+        result = subprocess.run(["go", "doc", "-all", f"./{rel}"], cwd=root, capture_output=True, text=True, env=env)
         if result.returncode != 0:
             raise Malformed(f"go doc ./{rel}: {result.stderr.strip()}")
-        parts.append(undocumented(result.stdout))
+        return undocumented(result.stdout)
+
+    if len(packages) <= 1:
+        parts = [doc(package) for package in packages]
+    else:
+        with ThreadPoolExecutor(max_workers=min(len(packages), os.cpu_count() or 4)) as pool:
+            parts = list(pool.map(doc, packages))
     return "".join(parts)
 
 
@@ -853,30 +861,38 @@ def web_declarations(root):
 # Each language's file, from the export's layout.
 
 
-def files(export):
-    """The surface files of `export`, by name."""
-    surfaces = {}
+def files(export, only=None):
+    """The surface files of `export`, by name; when `only` is given, render only those names."""
+    tasks = {}
+    want = lambda name: not only or name in only
     include = export / "include"
-    headers = sorted(include.glob("*.h"))
-    if headers:
-        surfaces["c.h"] = joined(headers, c_header, "/* {} */")
-    hpp = sorted(include.glob("*/*.hpp"))
-    if hpp:
-        surfaces["cpp.hpp"] = joined(hpp, lambda t: braced(t, "cpp"), "// {}")
-    for lang, glob, name, outline, label in [
-        ("kotlin", "kotlin/*.kt", "kotlin.kt", lambda t: indented(t, "kotlin"), "// {}"),
-        ("swift", "swift/*.swift", "swift.swift", lambda t: indented(t, "swift"), "// {}"),
-        ("dart", "dart/lib/*.dart", "dart.dart", lambda t: braced(t, "dart"), "// {}"),
-        ("python", "python/*.py", "python.pyi", python_stub, "# {}"),
+    if want("c.h"):
+        headers = sorted(include.glob("*.h"))
+        if headers:
+            tasks["c.h"] = lambda h=headers: joined(h, c_header, "/* {} */")
+    if want("cpp.hpp"):
+        hpp = sorted(include.glob("*/*.hpp"))
+        if hpp:
+            tasks["cpp.hpp"] = lambda h=hpp: joined(h, lambda t: braced(t, "cpp"), "// {}")
+    for glob, name, outline, label in [
+        ("kotlin/*.kt", "kotlin.kt", lambda t: indented(t, "kotlin"), "// {}"),
+        ("swift/*.swift", "swift.swift", lambda t: indented(t, "swift"), "// {}"),
+        ("dart/lib/*.dart", "dart.dart", lambda t: braced(t, "dart"), "// {}"),
+        ("python/*.py", "python.pyi", python_stub, "# {}"),
     ]:
-        sources = sorted(export.glob(glob))
-        if sources:
-            surfaces[name] = joined(sources, outline, label)
-    if (export / "go" / "go.mod").exists():
-        surfaces["go.txt"] = go_doc(export / "go")
-    if (export / "web").is_dir():
-        surfaces["web.d.ts"] = web_declarations(export / "web")
-    return surfaces
+        if want(name):
+            sources = sorted(export.glob(glob))
+            if sources:
+                tasks[name] = lambda s=sources, o=outline, l=label: joined(s, o, l)
+    if want("go.txt") and (export / "go" / "go.mod").exists():
+        tasks["go.txt"] = lambda: go_doc(export / "go")
+    if want("web.d.ts") and (export / "web").is_dir():
+        tasks["web.d.ts"] = lambda: web_declarations(export / "web")
+    if len(tasks) <= 1:
+        return {name: fn() for name, fn in tasks.items()}
+    with ThreadPoolExecutor(max_workers=len(tasks)) as pool:
+        futures = {name: pool.submit(fn) for name, fn in tasks.items()}
+        return {name: future.result() for name, future in futures.items()}
 
 
 def joined(sources, outline, label):
@@ -891,20 +907,20 @@ def joined(sources, outline, label):
 
 
 def main():
-    args = [a for a in sys.argv[1:] if a != "--check"]
+    flags = {"--check", "--partial"}
+    args = [a for a in sys.argv[1:] if a not in flags]
     check = "--check" in sys.argv[1:]
+    partial = "--partial" in sys.argv[1:]
     if len(args) < 2:
         raise SystemExit(__doc__.split("\n\n")[1])
     export, out, only = Path(args[0]), Path(args[1]), set(args[2:])
-    surfaces = files(export)
-    if only:
-        if only - set(surfaces):
-            raise SystemExit(f"{export} renders no {', '.join(sorted(only - set(surfaces)))}")
-        surfaces = {name: text for name, text in surfaces.items() if name in only}
+    surfaces = files(export, only or None)
+    if only and only - set(surfaces):
+        raise SystemExit(f"{export} renders no {', '.join(sorted(only - set(surfaces)))}")
     if not surfaces:
         raise SystemExit(f"{export} holds no binding")
     existing = {p.name for p in out.iterdir()} if out.is_dir() else set()
-    stale = sorted(existing - set(surfaces))
+    stale = [] if partial else sorted(existing - set(surfaces))
     if check:
         failed = False
         for name, text in sorted(surfaces.items()):

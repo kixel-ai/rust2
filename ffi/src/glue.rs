@@ -587,15 +587,34 @@ impl Crate<'_> {
 		// Only Kotlin passes a JNI value, so every other language exports the rest.
 		let rest = self.abi.api.without_jni();
 		let rest = self.abi.without_jni(&rest);
-		let (header, contract, c) = crate::c::header(&rest, &self.packages());
-		let cpp = crate::cpp::headers(&rest, &self.packages())?;
-		let kotlin = crate::kotlin::generate(self.abi, &self.packages(), contract)?;
-		let python = crate::python::generate(&rest, &self.packages(), contract)?;
-		let swift = crate::swift::generate(&rest, &self.packages(), contract)?;
+		let packages = self.packages();
+		let (header, contract, c) = crate::c::header(&rest, &packages);
 		let (module, go_mod) = go_module(out, &self.abi.prefix)?;
-		let go = crate::go::generate(&rest, &self.packages(), contract, &module)?;
-		let dart = crate::dart::generate(&rest, &self.packages(), contract)?;
-		let web = crate::web::generate(&rest, self.facade, contract)?;
+		let (cpp, kotlin, python, swift, go, dart, web) = std::thread::scope(|scope| {
+			let cpp = scope.spawn(|| crate::cpp::headers(&rest, &packages));
+			let kotlin = scope.spawn(|| crate::kotlin::generate(self.abi, &packages, contract));
+			let python = scope.spawn(|| crate::python::generate(&rest, &packages, contract));
+			let swift = scope.spawn(|| crate::swift::generate(&rest, &packages, contract));
+			let go = scope.spawn(|| crate::go::generate(&rest, &packages, contract, &module));
+			let dart = scope.spawn(|| crate::dart::generate(&rest, &packages, contract));
+			let web = crate::web::generate(&rest, self.facade, contract);
+			(
+				cpp.join().expect("cpp generator thread"),
+				kotlin.join().expect("kotlin generator thread"),
+				python.join().expect("python generator thread"),
+				swift.join().expect("swift generator thread"),
+				go.join().expect("go generator thread"),
+				dart.join().expect("dart generator thread"),
+				web,
+			)
+		});
+		let cpp = cpp?;
+		let kotlin = kotlin?;
+		let python = python?;
+		let swift = swift?;
+		let go = go?;
+		let dart = dart?;
+		let web = web?;
 		let mut names: std::collections::BTreeMap<String, std::collections::BTreeMap<String, String>> = [
 			("C", c),
 			("C++", cpp.names),
