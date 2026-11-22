@@ -29,8 +29,14 @@ python3 -I "$here/package.py" swift-local --state "$swift/swift.json" --package 
 )
 
 mkdir -p "$work/consumer/Sources/Check"
-if [[ -f "$apple/checks/main.swift" ]]; then
-    cp "$apple/checks/main.swift" "$work/consumer/Sources/Check/Check.swift"
+# A check is a directory holding it as check.swift beside the files of its own, which the
+# executable's target takes whole.
+if [[ -d "$apple/checks/swift" ]]; then
+    [[ -f "$apple/checks/swift/check.swift" ]] || {
+        echo "$apple/checks/swift holds no check.swift" >&2
+        exit 1
+    }
+    cp -R "$apple/checks/swift/." "$work/consumer/Sources/Check/"
 else
     printf 'import %s\n\n@main\nstruct Check {\n\tstatic func main() {}\n}\n' "$module" >"$work/consumer/Sources/Check/Check.swift"
 fi
@@ -71,7 +77,7 @@ if [[ -z "$manifests" || $(wc -l <<<"$manifests") -ne 1 ]]; then
 fi
 python3 -I "$here/package.py" privacy-check --manifest "$manifests" .build/release/Check
 # Only a check program prints the transcript; the stub prints nothing.
-if [[ -f "$apple/checks/main.swift" && -f "$apple/native.txt" ]]; then
+if [[ -d "$apple/checks/swift" && -f "$apple/native.txt" ]]; then
     python3 -I "$here/package.py" compare "$apple/native.txt" "$work/actual.txt"
 fi
 echo "installed Swift package: builds for macOS, iOS, the iOS Simulator, and Mac Catalyst, and its check passes"

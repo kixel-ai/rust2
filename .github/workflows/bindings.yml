@@ -25,7 +25,7 @@ on:
         default: ''
         type: string
       swift-check:
-        description: The main.swift of an executable run on the installed Swift package
+        description: The Swift file of an executable run on the installed Swift package, importing its module, or a directory holding it as check.swift beside the files of its own
         default: ''
         type: string
       reproduce:
@@ -61,7 +61,7 @@ on:
         default: ''
         type: string
       go-check:
-        description: The main.go of a program, importing the module's packages, run against it
+        description: The main.go of a program, importing the module's packages, run against it, or a directory holding it as check.go beside the files of its package
         default: ''
         type: string
       maven-group:
@@ -73,7 +73,7 @@ on:
         default: ''
         type: string
       dart-check:
-        description: The main.dart of a program, importing the package as package:<lib>/<lib>.dart, run by Dart and Flutter apps on it
+        description: The Dart program, whose main takes no arguments or a list of them, importing the package as package:<lib>/<lib>.dart, run by Dart and Flutter apps on it, or a directory holding it as check.dart beside the files it imports
         default: ''
         type: string
       checks-artifact:
@@ -447,8 +447,8 @@ jobs:
         with:
           name: ${{ inputs.checks-artifact }}
           path: source
-      # A Python or C check lands as a directory holding it as check.<ext>, whichever form the
-      # input takes: a file is copied into one, and a directory whole.
+      # A check lands as a directory holding it as check.<ext>, whichever form the input takes:
+      # a file is copied into one, and a directory whole.
       - name: Checks
         env:
           PYTHON_CHECK: ${{ inputs.python-check }}
@@ -463,12 +463,12 @@ jobs:
             if [[ -d "source/$1" ]]; then cp -R "source/$1" "$2"; else mkdir "$2" && cp "source/$1" "$2/$3"; fi
           }
           if [[ -n "$PYTHON_CHECK" ]]; then stage "$PYTHON_CHECK" dist/checks/python check.py; fi
-          if [[ -n "$SWIFT_CHECK" ]]; then cp "source/$SWIFT_CHECK" dist/checks/main.swift; fi
+          if [[ -n "$SWIFT_CHECK" ]]; then stage "$SWIFT_CHECK" dist/checks/swift check.swift; fi
           # A file's extension says whether it is C or C++.
           if [[ -n "$C_CHECK" ]]; then stage "$C_CHECK" dist/checks/c "check.${C_CHECK##*.}"; fi
-          if [[ -n "$GO_CHECK" ]]; then cp "source/$GO_CHECK" dist/checks/main.go; fi
+          if [[ -n "$GO_CHECK" ]]; then stage "$GO_CHECK" dist/checks/go check.go; fi
           if [[ -n "$KOTLIN_CHECK" ]]; then stage "$KOTLIN_CHECK" dist/checks/kotlin check.kt; fi
-          if [[ -n "$DART_CHECK" ]]; then cp "source/$DART_CHECK" dist/checks/main.dart; fi
+          if [[ -n "$DART_CHECK" ]]; then stage "$DART_CHECK" dist/checks/dart check.dart; fi
       # The export's own package, as a checkout depends on it: its hook builds the crate.
       - uses: dart-lang/setup-dart@2286a0c042b44434fe26d292bbce8d34f7ec662b # v1.8.2
         if: matrix.host == 'linux-x64'
@@ -478,7 +478,7 @@ jobs:
         if: matrix.host == 'linux-x64'
         run: |
           args=()
-          if [[ -f dist/checks/main.dart ]]; then args+=(--check dist/checks/main.dart); fi
+          if [[ -d dist/checks/dart ]]; then args+=(--check dist/checks/dart); fi
           if [[ -f dist/native.txt ]]; then args+=(--native dist/native.txt); fi
           python3 -I rust2/ffi/release/package.py consume-source --export export "${args[@]}"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -1046,7 +1046,7 @@ jobs:
       - name: Build and run
         run: |
           args=()
-          if [[ -f dist/checks/main.go ]]; then args+=(--check dist/checks/main.go); fi
+          if [[ -d dist/checks/go ]]; then args+=(--check dist/checks/go); fi
           if [[ -f dist/native.txt ]]; then args+=(--native dist/native.txt); fi
           python3 -I rust2/ffi/release/package.py consume-go --proxy proxy "${args[@]}"
 
@@ -1218,7 +1218,7 @@ jobs:
       - name: Run
         run: |
           args=()
-          if [[ -f dist/checks/main.dart ]]; then args+=(--check dist/checks/main.dart); fi
+          if [[ -d dist/checks/dart ]]; then args+=(--check dist/checks/dart); fi
           if [[ -f dist/native.txt ]]; then args+=(--native dist/native.txt); fi
           python3 -I rust2/ffi/release/package.py consume-dart --package pub/package --libs pub/libs "${args[@]}"
 
@@ -1257,7 +1257,7 @@ jobs:
       - name: Arguments
         run: |
           args="--package pub/package --libs pub/libs --platform android --device emulator-5554"
-          if [[ -f dist/checks/main.dart ]]; then args+=" --check dist/checks/main.dart"; fi
+          if [[ -d dist/checks/dart ]]; then args+=" --check dist/checks/dart"; fi
           if [[ -f dist/native.txt ]]; then args+=" --native dist/native.txt"; fi
           echo "ARGS=$args" >> "$GITHUB_ENV"
       # Flutter's oldest Android, the floor the hook checks the app's against.
