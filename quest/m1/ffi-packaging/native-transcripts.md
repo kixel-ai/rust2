@@ -9,6 +9,8 @@ native Rust's transcript byte for byte, as its Python, C++, and web consumers do
 
 ## Plan
 
+Decided with the maintainer on 2026-11-22, in the pick of [#915](https://github.com/kixel-ai/rust2/pull/915): ✅ kept, splitting each check's wasm32 cases into a file of their own (rejected: exporting the builder's api fixture for wasm32 too; dropping it).
+
 Found by [#915](https://github.com/kixel-ai/rust2/pull/915), which adds the Dart package
 and its `dart-check` input: #930 left `api.dart` to it, but each of the three checks names
 wasm32-only items (`targets()` in each, `api.wasmOnly()` and the like). The builder's api
