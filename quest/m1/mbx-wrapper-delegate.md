@@ -26,11 +26,10 @@ numbers: jdx/mr-boxington's
 proposals in Discussions, allows AI help if disclosed, and closes reports found only by
 reading the source. If mbx ships the hook, the driver adopts it here.
 
-## Waiting
-
-- Maintainer: approve posting the measured proposal as a Discussion on jdx/mr-boxington,
-  outside the orgs an agent may post to without asking. Recommended: approve once the
-  numbers are in. Check: the Discussion exists.
+Decided with the maintainer on 2026-11-22, in the pick of
+[kixel-ai/rust2#959](https://github.com/kixel-ai/rust2/pull/959): ✅ keep this quest
+(rejected: drop it), and ✅ its agent may post the Discussion, disclosing AI help, once the
+numbers show a material cost (rejected: asking the maintainer with the numbers first).
 
 ## Required
 
