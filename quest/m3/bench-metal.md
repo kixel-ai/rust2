@@ -12,14 +12,23 @@ measures two levers already in the pinned nightly that it does not yet: cargo's
 Decided with the maintainer on 2026-11-12, in the quest audit: ✅ in m3, with the other
 build-speed levers.
 
+Decided with the maintainer on 2026-11-22, in `/quest-plan` for the follow-up of
+[kixel-ai/dotfiles#227](https://github.com/kixel-ai/dotfiles/pull/227), which adds the
+`rust2-bench` runner on `nixos` that no queue build runs beside: ✅ the change that moves
+`bench.yml` onto `[self-hosted, rust2-bench]` adds a comment beside its `on:` saying it
+must never gain a `workflow_call` trigger, since the runner group admits `bench.yml`'s jobs
+whichever workflow calls it, so a caller could run its own checkout on the bench host
+(rejected: a CI check that fails on the trigger, which the same PR could delete; rejected:
+drop it).
+
 - `bench.yml` runs on hosted `ubuntu-24.04`, which exposes no performance counters, so
   instructions read `n/a` on every row, though `bench/build/README.md` calls them the
   signal on a busy machine.
 - On its 4 vCPUs the `--jobs-frontend=8` variant measured oversubscription (check +3.1%,
   build +5.1%, CPU +15.4%), not a verdict for a many-core host. Run it again with jobs
   matched to the cores.
-- The queue runner is the same host: schedule the benchmark so it never runs beside a
-  queue build, and say how.
+- The queue runner is the same host: the `rust2-bench` runner keeps queue builds off it
+  while a bench job runs, and admits only `bench.yml` dispatched at `main`.
 - `-Zprofile-hint-mostly-unused` alone changes nothing: it only allows the
   `hint-mostly-unused` profile setting, which the variant must also set, for the
   dependencies and not moq's own crates.
