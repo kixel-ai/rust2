@@ -175,7 +175,7 @@ jobs:
       - id: previous
         working-directory: source
         env:
-          GH_TOKEN: ${{ github.token }}
+          TOKEN: ${{ github.token }}
         run: python3 -I ../rust2/ffi/release/package.py previous --manifest-path "$MANIFEST" --repo "$GITHUB_REPOSITORY" --out ../previous >> "$GITHUB_OUTPUT"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: steps.previous.outputs.previous != ''
@@ -349,15 +349,21 @@ jobs:
         env:
           KOTLIN: 2.4.21
           KOTLIN_SHA256: 7cc140e76daf416a0424a5557f99afd7ca89ebd463ea1101261e3e01c33e75cd
+          # kotlin-compiler-$KOTLIN.zip's id: gh api repos/JetBrains/kotlin/releases/tags/v$KOTLIN
+          KOTLIN_ASSET: 621287401
+          # Anonymous release downloads share the runner's IP's limit and answer 429 under load;
+          # the API serves the same asset against the token's own limit.
+          TOKEN: ${{ github.token }}
           COROUTINES: 1.10.2
           COROUTINES_SHA256: 5ca175b38df331fd64155b35cd8cae1251fa9ee369709b36d42e0a288ccce3fd
         run: |
           "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "ndk;$NDK" "platforms;android-35" > /dev/null
           echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/$NDK" >> "$GITHUB_ENV"
           cd "$RUNNER_TEMP"
-          # Release downloads now and then answer 403; the checksums below make any retry safe.
-          get() { curl -sSfL --retry 5 --retry-all-errors -o "$1" "$2"; }
-          get kotlin.zip "https://github.com/JetBrains/kotlin/releases/download/v$KOTLIN/kotlin-compiler-$KOTLIN.zip"
+          # The checksums below make any retry safe. curl drops the token on the redirect off api.github.com.
+          get() { curl -sSfL --retry 5 --retry-all-errors -o "$@"; }
+          get kotlin.zip -H "Authorization: Bearer $TOKEN" -H "Accept: application/octet-stream" \
+            "https://api.github.com/repos/JetBrains/kotlin/releases/assets/$KOTLIN_ASSET"
           jar="kotlinx-coroutines-core-jvm-$COROUTINES.jar"
           get "$jar" "https://repo1.maven.org/maven2/org/jetbrains/kotlinx/kotlinx-coroutines-core-jvm/$COROUTINES/$jar"
           printf '%s  kotlin.zip\n%s  %s\n' "$KOTLIN_SHA256" "$COROUTINES_SHA256" "$jar" | sha256sum --check --strict
