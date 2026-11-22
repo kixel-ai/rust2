@@ -143,6 +143,9 @@ internal static unsafe partial class Native
 	internal static Exception Failure(int status, string what) =>
 		new InvalidOperationException(what + ": " + Marshal.PtrToStringAnsi((IntPtr)status_message(status)));
 
+	/// Runs what other threads left a closing handle, or this thread, given none: whether any ran.
+	internal static bool CloseDrain(IntPtr raw) => close_drain(raw) != 0;
+
 	/// Ends the process with `message`, as Rust's panic would: where no caller can take an
 	/// exception, such as a callback Rust made.
 	internal static void Abort(string message, Exception? error = null)
@@ -406,7 +409,7 @@ internal sealed unsafe class Arena : IDisposable
 {
 	List<MemoryHandle>? pins;
 	List<IntPtr>? allocs;
-	List<(RustObject, bool)>? holds;
+	List<(RustObject, int, bool)>? holds;
 	List<GCHandle>? handles;
 
 	internal void Add(MemoryHandle pin) => (pins ??= new List<MemoryHandle>()).Add(pin);
@@ -418,8 +421,8 @@ internal sealed unsafe class Arena : IDisposable
 	/// The handle of `o`, held until the call returns; `take` closes it then, as Rust took its value.
 	internal IntPtr Hold(RustObject o, bool take)
 	{
-		var raw = o.enter();
-		(holds ??= new List<(RustObject, bool)>()).Add((o, take));
+		var raw = o.enter(out var slot);
+		(holds ??= new List<(RustObject, int, bool)>()).Add((o, slot, take));
 		return raw;
 	}
 
@@ -461,9 +464,9 @@ internal sealed unsafe class Arena : IDisposable
 		}
 		if (holds != null)
 		{
-			foreach (var (o, take) in holds)
+			foreach (var (o, slot, take) in holds)
 			{
-				o.exit();
+				o.exit(slot);
 				if (take && Ran)
 				{
 					o.moved();
@@ -474,17 +477,47 @@ internal sealed unsafe class Arena : IDisposable
 }
 
 /// An object Rust owns behind a handle, which it frees once disposed and no call holds it,
-/// or once the garbage collector finds it unreachable.
+/// or once the garbage collector finds it unreachable. Each call holds the handle, so a
+/// dispose frees it only once no call does, and a call after it throws
+/// `ObjectDisposedException`. Dispose of one whose value Rust checks drops the value as
+/// Rust's own drop does, throwing while a call borrows it in Rust; of any other, it throws
+/// while a call holds it.
 public abstract unsafe class RustObject : IDisposable
 {
 	/// The handle, an `Arc` Rust made.
-	internal IntPtr raw;
+	internal readonly IntPtr raw;
 
-	/// Twice the calls holding the handle, plus one once it is closed.
-	int state;
+	/// The holds, one for the owner until closed and one per call, shifted past a bit set
+	/// once closed, one set while a dispose that may yet fail decides, and one set once calls
+	/// contended for them, after which they hold it in `slots`: one word, so a call reads them
+	/// all at once, and below `Held` only once no hold is left.
+	long state = Held;
+
+	/// What a slot holds for this handle, given once calls first contend for it, before
+	/// `Bias`: unique while the handle lives, unlike `raw`, which Rust reuses once freed.
+	long key;
 
 	/// Whether Rust lent the handle for one call, so C# never frees it.
 	readonly bool lent;
+
+	const long Closed = 1, Bias = 2, Closing = 4, Held = 8;
+
+	/// Set in a slot whose hold a close counted.
+	const long Revoked = 1;
+
+	// Once calls contend for a handle's count, each holds it in a slot of `slots` instead, so
+	// threads sharing a handle write nothing in common. A close that would free the handle
+	// claims it closed first, then counts each hold it finds there, which lets go through the
+	// count, so the last to let go frees it: ffi/tests/hold.rs models this. A cache line of
+	// rows to a column, which the thread picks, and a row per handle: two threads in one
+	// column, or two handles in one row on one thread, use the count. Two cache lines to a
+	// column, of which it uses one's worth, so a column shares no line with the next
+	// wherever the array starts.
+	const int RowBits = 3, ColumnBits = 8, Stride = 2 << RowBits;
+	static readonly long[] slots = new long[Stride << ColumnBits];
+
+	/// The last key given, in steps of two, so a key's low bit is clear for `Revoked`.
+	static long keys;
 
 	internal RustObject(IntPtr raw, bool lent = false)
 	{
@@ -499,75 +532,182 @@ public abstract unsafe class RustObject : IDisposable
 	/// Frees the handle.
 	internal abstract void free(IntPtr raw);
 
-	/// Drops the value now, as Rust's `drop` would, writing why it could not, for a type
-	/// whose checks can fail; else nothing, as the free drops it.
-	internal virtual void drop(IntPtr raw, int* status)
+	/// Whether Rust checks its value, which `drop` then drops.
+	internal virtual bool dropped => false;
+
+	/// Drops the value now, as Rust's `drop` would, writing why it could not to `status`;
+	/// given `commit`, Rust calls it with `state` once the drop can no longer fail.
+	internal virtual void drop(IntPtr raw, int* status, IntPtr commit, long* state)
 	{
 	}
 
-	/// The handle, held for a call until `exit`; throws once closed.
+	/// The handle, held for a call until `exit` takes `slot`; throws once closed.
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
-	internal IntPtr enter()
+	internal IntPtr enter(out int slot)
 	{
-		var s = Interlocked.Add(ref state, 2);
-		if ((s & 1) != 0)
+		var n = Volatile.Read(ref state);
+		if ((n & (Closed | Bias)) == 0 && Interlocked.CompareExchange(ref state, n + Held, n) == n)
 		{
-			exit();
-			throw new ObjectDisposedException(GetType().Name);
+			slot = -1;
+			return raw;
 		}
+		slot = contend();
 		return raw;
 	}
 
-	/// Ends a call's hold, freeing the handle if it closed meanwhile and this was the last.
-	[MethodImpl(MethodImplOptions.AggressiveInlining)]
-	internal void exit()
+	/// `enter` once calls contend for it: in the table, unless another handle or thread has
+	/// its slot, then in the count, after which later calls go to the table.
+	int contend()
 	{
-		if (Interlocked.Add(ref state, -2) == 1)
+		if ((Volatile.Read(ref state) & Bias) != 0)
 		{
-			Release();
+			var i = slot();
+			var k = Volatile.Read(ref key);
+			if (Interlocked.CompareExchange(ref slots[i], k, 0) == 0)
+			{
+				if ((Volatile.Read(ref state) & Closed) == 0)
+				{
+					return i;
+				}
+				// A close claimed it meanwhile, and may have counted this hold.
+				if (Interlocked.CompareExchange(ref slots[i], 0, k) != k)
+				{
+					Volatile.Write(ref slots[i], 0);
+					exit(-1);
+				}
+				throw new ObjectDisposedException(GetType().Name);
+			}
 		}
-	}
-
-	void Release()
-	{
-		// Only the last of a close and the calls that held it gets here, once.
-		var r = Interlocked.Exchange(ref raw, IntPtr.Zero);
-		if (r != IntPtr.Zero && !lent)
-		{
-			free(r);
-		}
-	}
-
-	/// Closes it once a call moved its value out, leaving the handle only to free.
-	internal void moved() => Close();
-
-	/// Ends a lent handle once the call Rust lent it for returns.
-	internal void end() => Close();
-
-	/// Whether it is closed.
-	public bool IsClosed => (Volatile.Read(ref state) & 1) != 0;
-
-	void Close()
-	{
-		var s = state;
 		while (true)
 		{
-			if ((s & 1) != 0)
+			var n = Volatile.Read(ref state);
+			if ((n & Closed) != 0)
 			{
-				return;
+				throw new ObjectDisposedException(GetType().Name);
 			}
-			var seen = Interlocked.CompareExchange(ref state, s | 1, s);
-			if (seen == s)
+			if (Interlocked.CompareExchange(ref state, n + Held, n) == n)
 			{
 				break;
 			}
-			s = seen;
+		}
+		if (Volatile.Read(ref key) == 0)
+		{
+			Interlocked.CompareExchange(ref key, Interlocked.Add(ref keys, 2), 0);
+		}
+		while (true)
+		{
+			var n = Volatile.Read(ref state);
+			if ((n & Bias) != 0 || Interlocked.CompareExchange(ref state, n | Bias, n) == n)
+			{
+				return -1;
+			}
+		}
+	}
+
+	/// This thread's slot of the table for this handle: a column of a cache line per thread,
+	/// and a row in it per handle.
+	int slot()
+	{
+		var column = (int)((uint)Environment.CurrentManagedThreadId * 0x9E3779B9u >> (32 - ColumnBits));
+		var row = (int)(((ulong)raw >> 4) * 0x9E3779B97F4A7C15UL >> (64 - RowBits));
+		return column * Stride + row;
+	}
+
+	/// Ends a call's hold, wherever `enter` put it, freeing the handle if it closed meanwhile
+	/// and this was the last.
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	internal void exit(int slot)
+	{
+		if (slot >= 0 && Interlocked.Exchange(ref slots[slot], 0) == Volatile.Read(ref key))
+		{
+			return;
+		}
+		freed(Interlocked.Add(ref state, -Held));
+	}
+
+	/// Frees it once no hold is left, which happens once.
+	void freed(long n)
+	{
+		if (n < Held && !lent)
+		{
+			free(raw);
+		}
+	}
+
+	/// Whether a call holds it in the table.
+	bool listed()
+	{
+		if ((Volatile.Read(ref state) & Bias) == 0)
+		{
+			return false;
+		}
+		var k = Volatile.Read(ref key);
+		for (var i = slot() % Stride; i < slots.Length; i += Stride)
+		{
+			if (Volatile.Read(ref slots[i]) == k)
+			{
+				return true;
+			}
+		}
+		return false;
+	}
+
+	/// Closes it once a call moved its value out, freeing the handle once no call holds it.
+	internal void moved() => abandon();
+
+	/// Ends a lent handle once the call Rust lent it for returns, which Rust frees next: a call
+	/// still holding it would reach the freed handle, so it aborts.
+	internal void end()
+	{
+		abandon();
+		if ((Volatile.Read(ref state) & ~Bias) != Closed)
+		{
+			Native.Abort(GetType().Name + ": a call still holds it when its lend ends", null);
+		}
+	}
+
+	/// Whether it is closed.
+	public bool IsClosed => (Volatile.Read(ref state) & Closed) != 0;
+
+	/// Gives up the owner's hold, freeing it once no call holds one.
+	void abandon()
+	{
+		while (true)
+		{
+			var n = Volatile.Read(ref state);
+			// A close is deciding: wait for its outcome, which may leave it open.
+			if ((n & Closing) != 0)
+			{
+				Thread.Yield();
+				continue;
+			}
+			if ((n & Closed) != 0)
+			{
+				return;
+			}
+			if (Interlocked.CompareExchange(ref state, n | Closed, n) == n)
+			{
+				break;
+			}
 		}
 		GC.SuppressFinalize(this);
-		if (s == 0)
+		// Claimed closed, so each call holding it in the table did so before: count them.
+		if ((Volatile.Read(ref state) & Bias) != 0)
 		{
-			Release();
+			var k = Volatile.Read(ref key);
+			for (var i = slot() % Stride; i < slots.Length; i += Stride)
+			{
+				if (Volatile.Read(ref slots[i]) == k)
+				{
+					Interlocked.Add(ref state, Held);
+					if (Interlocked.CompareExchange(ref slots[i], k | Revoked, k) != k)
+					{
+						Interlocked.Add(ref state, -Held);
+					}
+				}
+			}
 		}
+		exit(-1);
 	}
 
 	/// Drops its value through Rust's own `drop`, then frees its handle once no call holds
@@ -575,44 +715,143 @@ public abstract unsafe class RustObject : IDisposable
 	/// it open; a second dispose does nothing.
 	public void Dispose()
 	{
-		if (IsClosed)
+		if (lent)
 		{
+			abandon();
 			return;
 		}
-		if (!lent)
+		if (dropped)
 		{
-			int status = 0;
-			IntPtr r;
-			try
+			disposeChecked();
+			return;
+		}
+		while (true)
+		{
+			var n = Volatile.Read(ref state);
+			// Another dispose is deciding: wait for its outcome, which may leave it open.
+			if ((n & Closing) != 0)
 			{
-				r = enter();
+				Thread.Yield();
+				continue;
 			}
-			catch (ObjectDisposedException)
+			if ((n & Closed) != 0)
 			{
 				return;
 			}
-			try
+			if ((n & ~Bias) != Held)
 			{
-				drop(r, &status);
+				throw Borrowed();
 			}
-			finally
+			if (Interlocked.CompareExchange(ref state, n | Closed | Closing, n) == n)
 			{
-				exit();
-			}
-			if (status != 0)
-			{
-				throw Native.Failure(status, GetType().Name + ".Dispose");
+				break;
 			}
 		}
-		Close();
+		// Claimed closed, so a call holding it in the table after this finds it closed, and
+		// one before is in the table. A call that left the table finding it closed held
+		// nothing, so the count is still the owner's alone.
+		if (listed())
+		{
+			Interlocked.Add(ref state, -(Closed | Closing));
+			throw Borrowed();
+		}
+		Volatile.Write(ref state, Closed);
+		GC.SuppressFinalize(this);
+		freed(Closed);
+	}
+
+	Exception Borrowed() => new InvalidOperationException(GetType().Name + ".Dispose: a handle is already borrowed");
+
+	/// `Dispose` of a handle whose value Rust checks.
+	void disposeChecked()
+	{
+		while (true)
+		{
+			// Held by no call, as soon after its return: claimed closed so none starts, then
+			// the value dropped and the handle freed in one crossing. A call meanwhile throws
+			// as closed, as one racing any dispose may. A drop that passed stored `Closed`
+			// itself.
+			while (Interlocked.CompareExchange(ref state, Closed | Closing, Held) != Held)
+			{
+				if (disposeMet())
+				{
+					return;
+				}
+			}
+			int status = 0;
+			fixed (long* s = &state)
+			{
+				drop(raw, &status, Callbacks.Commit, s);
+			}
+			if (status == 0)
+			{
+				GC.SuppressFinalize(this);
+				free(raw);
+				return;
+			}
+			// Rust refused the drop, before it committed: reopened. It refused before
+			// draining what other threads left this one, which may end the borrow that
+			// refused it: drained, it tries again.
+			Volatile.Write(ref state, Held);
+			if (Native.CloseDrain(raw))
+			{
+				continue;
+			}
+			throw Native.Failure(status, GetType().Name + ".Dispose");
+		}
+	}
+
+	/// `disposeChecked` once a call holds it or another dispose is deciding: whether it is
+	/// done, rather than to try the one crossing again.
+	bool disposeMet()
+	{
+		var n = Volatile.Read(ref state);
+		// Another dispose is deciding: wait for its outcome, which may leave it open. Rust
+		// clears `Closing` once the drop can no longer fail, and runs none of the program's
+		// code on the deciding thread before then, so a dispose a `Drop` makes, from any
+		// thread, finds it closed rather than waiting on itself.
+		if ((n & Closing) != 0)
+		{
+			Native.CloseDrain(IntPtr.Zero);
+			Thread.Yield();
+			return false;
+		}
+		if ((n & Closed) != 0)
+		{
+			return true;
+		}
+		int slot;
+		IntPtr r;
+		try
+		{
+			r = enter(out slot);
+		}
+		catch (ObjectDisposedException)
+		{
+			return false;
+		}
+		int status = 0;
+		try
+		{
+			drop(r, &status, IntPtr.Zero, null);
+		}
+		finally
+		{
+			exit(slot);
+		}
+		if (status != 0)
+		{
+			throw Native.Failure(status, GetType().Name + ".Dispose");
+		}
+		abandon();
+		return true;
 	}
 
 	~RustObject()
 	{
-		var r = raw;
-		if (r != IntPtr.Zero && !lent)
+		if ((Volatile.Read(ref state) & Closed) == 0)
 		{
-			free(r);
+			free(raw);
 		}
 	}
 }
@@ -1500,7 +1739,7 @@ internal static unsafe partial class Callbacks
 #if UNITY_5_3_OR_NEWER
 	internal delegate void DataFn(void* data);
 	internal delegate byte FuturePollFn(void* data, Native.CWaker waker);
-	static readonly DataFn actionWake = ActionWakeImpl, actionDrop = ActionDropImpl, pendingWake = PendingWakeImpl, pendingDrop = PendingDropImpl, futureFree = FutureFreeImpl, release = ReleaseImpl;
+	static readonly DataFn actionWake = ActionWakeImpl, actionDrop = ActionDropImpl, pendingWake = PendingWakeImpl, pendingDrop = PendingDropImpl, futureFree = FutureFreeImpl, release = ReleaseImpl, commit = CommitImpl;
 	static readonly FuturePollFn futurePoll = FuturePollImpl;
 	internal static readonly IntPtr ActionWake = Marshal.GetFunctionPointerForDelegate(actionWake);
 	internal static readonly IntPtr ActionDrop = Marshal.GetFunctionPointerForDelegate(actionDrop);
@@ -1509,6 +1748,7 @@ internal static unsafe partial class Callbacks
 	internal static readonly IntPtr FuturePoll = Marshal.GetFunctionPointerForDelegate(futurePoll);
 	internal static readonly IntPtr FutureFree = Marshal.GetFunctionPointerForDelegate(futureFree);
 	internal static readonly IntPtr Release = Marshal.GetFunctionPointerForDelegate(release);
+	internal static readonly IntPtr Commit = Marshal.GetFunctionPointerForDelegate(commit);
 	internal delegate byte ReadFn(void* data, byte* buf, nuint len, nuint* n, Native.Buf* err);
 	internal delegate byte SeekFn(void* data, int whence, long offset, ulong* position, Native.Buf* err);
 	static readonly ReadFn readerRead = ReaderReadImpl;
@@ -1523,6 +1763,7 @@ internal static unsafe partial class Callbacks
 	internal static readonly IntPtr FuturePoll = (IntPtr)(delegate* unmanaged[Cdecl]<void*, Native.CWaker, byte>)&FuturePollImpl;
 	internal static readonly IntPtr FutureFree = (IntPtr)(delegate* unmanaged[Cdecl]<void*, void>)&FutureFreeImpl;
 	internal static readonly IntPtr Release = (IntPtr)(delegate* unmanaged[Cdecl]<void*, void>)&ReleaseImpl;
+	internal static readonly IntPtr Commit = (IntPtr)(delegate* unmanaged[Cdecl]<void*, void>)&CommitImpl;
 	internal static readonly IntPtr ReaderRead = (IntPtr)(delegate* unmanaged[Cdecl]<void*, byte*, nuint, nuint*, Native.Buf*, byte>)&ReaderReadImpl;
 	internal static readonly IntPtr ReaderSeek = (IntPtr)(delegate* unmanaged[Cdecl]<void*, int, long, ulong*, Native.Buf*, byte>)&ReaderSeekImpl;
 #endif
@@ -1614,6 +1855,15 @@ internal static unsafe partial class Callbacks
 	[UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvCdecl) })]
 #endif
 	static void ActionDropImpl(void* data) => Native.Release(data);
+
+/// Stores a disposing handle's state closed once Rust's drop can no longer fail, before
+	/// the value's `Drop` runs, so a dispose waiting on it returns.
+#if UNITY_5_3_OR_NEWER
+	[AOT.MonoPInvokeCallback(typeof(DataFn))]
+#else
+	[UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvCdecl) })]
+#endif
+	static void CommitImpl(void* data) => Volatile.Write(ref *(long*)data, 1);
 
 #if UNITY_5_3_OR_NEWER
 	[AOT.MonoPInvokeCallback(typeof(DataFn))]

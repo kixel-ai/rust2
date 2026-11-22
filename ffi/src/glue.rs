@@ -1737,7 +1737,7 @@ impl Gen<'_> {
 			"#[unsafe(no_mangle)]\npub extern \"C\" fn {p}_status_message(status: i32) -> *const ::std::ffi::c_char {{\n\trt::Status::text(status).as_ptr()\n}}\n"
 		));
 
-		// Go's and Kotlin's, which the header leaves out, as `_drop_signal`.
+		// Go's, Kotlin's, and C#'s, which the header leaves out, as `_drop_signal`.
 		self.line(format!(
 			"#[unsafe(no_mangle)]\npub extern \"C\" fn {p}_close_drain(handle: *const ::std::ffi::c_void) -> bool {{\n\trt::close_drain(handle)\n}}\n"
 		));
@@ -1807,7 +1807,7 @@ impl Gen<'_> {
 			self.export(format!(
 				"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {stem}_free(this: *const ::std::ffi::c_void) {{\n\tunsafe {{ rt::Object::<{path}>::free(this) }}\n}}\n"
 			));
-			// `_drop_signal`, Go's and Kotlin's, which the header leaves out, calls `commit`
+			// `_drop_signal`, Go's, Kotlin's, and C#'s, which the header leaves out, calls `commit`
 			// with `data`, if any, once the drop can no longer fail, before the value's `Drop`.
 			// A value that is not `Send` drops on its home, if it has one elsewhere.
 			if self.abi.checked[i] {

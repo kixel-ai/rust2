@@ -307,6 +307,7 @@ pub(crate) fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<O
 		("buf_copy", "Buf view", "Buf"),
 		("buf_clone", "Buf buf", "Buf"),
 		("status_message", "int status", "byte*"),
+		("close_drain", "IntPtr handle", "byte"),
 	] {
 		let _ = write!(
 			cs,
@@ -1462,8 +1463,8 @@ impl<'a> Gen<'a> {
 			match ty {
 				Type::Object(_) => {
 					opens.push((
-						format!("var h{k}_ = {e}.enter();\n\t\ttry\n\t\t{{\n"),
-						format!("\t\t}}\n\t\tfinally\n\t\t{{\n\t\t\t{e}.exit();\n\t\t}}\n"),
+						format!("var h{k}_ = {e}.enter(out var o{k}_);\n\t\ttry\n\t\t{{\n"),
+						format!("\t\t}}\n\t\tfinally\n\t\t{{\n\t\t\t{e}.exit(o{k}_);\n\t\t}}\n"),
 					));
 					args.push(format!("h{k}_"));
 				}
@@ -1895,11 +1896,21 @@ impl<'a> Gen<'a> {
 			"\tinternal {name}(IntPtr raw, bool lent = false) : base(raw, lent)\n\t{{\n\t}}\n\n\tinternal override void free(IntPtr raw) => Native.{free}(raw);\n\n"
 		);
 		if abi.checked[i] {
-			let drop = abi::join(&c_name, "drop");
-			self.declare_raw(&drop, &[("self", "IntPtr".to_string()), ("status", "int*".to_string())], "void");
+			// The header leaves `_drop_signal` out: C#'s dispose passes `commit`.
+			let drop = abi::join(&c_name, "drop_signal");
+			self.declare_raw(
+				&drop,
+				&[
+					("self", "IntPtr".to_string()),
+					("status", "int*".to_string()),
+					("commit", "IntPtr".to_string()),
+					("data", "long*".to_string()),
+				],
+				"void",
+			);
 			let _ = write!(
 				body,
-				"\tinternal override void drop(IntPtr raw, int* status) => Native.{drop}(raw, status);\n\n"
+				"\tinternal override bool dropped => true;\n\n\tinternal override void drop(IntPtr raw, int* status, IntPtr commit, long* state) => Native.{drop}(raw, status, commit, state);\n\n"
 			);
 		}
 		let traits = self.traits(&Type::Object(i), &owner, &mut members);
@@ -2249,14 +2260,14 @@ impl<'a> Gen<'a> {
 				match optional {
 					true => {
 						arg.opens.push((
-							format!("var {h} = {e}?.enter() ?? IntPtr.Zero;\n\t\ttry\n\t\t{{\n"),
-							format!("\t\t}}\n\t\tfinally\n\t\t{{\n\t\t\t{e}?.exit();\n\t\t}}\n"),
+							format!("var o{k}_ = -1;\n\t\tvar {h} = {e} != null ? {e}.enter(out o{k}_) : IntPtr.Zero;\n\t\ttry\n\t\t{{\n"),
+							format!("\t\t}}\n\t\tfinally\n\t\t{{\n\t\t\t{e}?.exit(o{k}_);\n\t\t}}\n"),
 						));
 					}
 					false => {
 						arg.opens.push((
-							format!("var {h} = {e}.enter();\n\t\ttry\n\t\t{{\n"),
-							format!("\t\t}}\n\t\tfinally\n\t\t{{\n\t\t\t{e}.exit();\n\t\t}}\n"),
+							format!("var {h} = {e}.enter(out var o{k}_);\n\t\ttry\n\t\t{{\n"),
+							format!("\t\t}}\n\t\tfinally\n\t\t{{\n\t\t\t{e}.exit(o{k}_);\n\t\t}}\n"),
 						));
 					}
 				}
@@ -2365,8 +2376,8 @@ impl<'a> Gen<'a> {
 			match c {
 				Ty::Handle { .. } => {
 					arg.opens.push((
-						"var h_ = enter();\n\t\ttry\n\t\t{\n".to_string(),
-						"\t\t}\n\t\tfinally\n\t\t{\n\t\t\texit();\n\t\t}\n".to_string(),
+						"var h_ = enter(out var o_);\n\t\ttry\n\t\t{\n".to_string(),
+						"\t\t}\n\t\tfinally\n\t\t{\n\t\t\texit(o_);\n\t\t}\n".to_string(),
 					));
 					arg.exprs.push("h_".to_string());
 					let copy = matches!(owner.ty, Type::Object(i) if abi.api.objects[i].copy);

@@ -447,6 +447,128 @@ static partial class Script
 		moved.IntoLabel(null);
 		Check(moved.IsClosed, "a call taking the value disposes the handle");
 		Throws<ObjectDisposedException>(() => moved.Get(), "a moved handle throws", e => e.ObjectName == "Counter");
+		Disposes();
+		Raced();
+	}
+
+	/// A dispose drops Rust's value at once, once, and Rust refuses it under a borrow.
+	static void Disposes()
+	{
+		var before = api.Lib.Dropped();
+		var token = api.Token.New(1);
+		token.Dispose();
+		Check(api.Lib.Dropped() == before + 1, "a dispose drops at once");
+		token.Dispose();
+		Check(api.Lib.Dropped() == before + 1, "a second dispose drops nothing");
+		// Refused under a Rust borrow, it leaves the object open.
+		var ledger = api.Ledger.New();
+		var draft = ledger.Edit();
+		const string borrowed = "Ledger.Dispose: a handle is already borrowed";
+		Throws<InvalidOperationException>(ledger.Dispose, "a dispose under a borrow throws", e => e.Message == borrowed);
+		// Two disposes under the borrow both throw: one meeting the other's crossing waits out
+		// its refusal rather than report the object disposed.
+		for (var k = 0; k < 2000; k++)
+		{
+			using var start = new ManualResetEventSlim();
+			Exception? late = null;
+			var second = new Thread(() =>
+			{
+				start.Wait();
+				late = Caught(ledger.Dispose);
+			});
+			second.Start();
+			start.Set();
+			var first = Caught(ledger.Dispose);
+			second.Join();
+			foreach (var thrown in new[] { first, late })
+			{
+				Check(thrown is InvalidOperationException && thrown.Message == borrowed, $"racing disposes under a borrow both throw as borrowed: {first}, {late}");
+			}
+		}
+		draft.Dispose();
+		Check(ledger.Published() == 0, "a refused dispose leaves the object open");
+		ledger.Dispose();
+		Throws<ObjectDisposedException>(() => ledger.Published(), "a dispose after a refused one disposes");
+	}
+
+	static Exception? Caught(Action f)
+	{
+		try
+		{
+			f();
+			return null;
+		}
+		catch (Exception e)
+		{
+			return e;
+		}
+	}
+
+	/// A dispose racing calls on other threads: a latch's calls only borrow it, so C# counts
+	/// them; a token's Rust checks.
+	static void Raced()
+	{
+		var before = api.Lib.Dropped();
+		var latch = api.Latch.Default();
+		latch.Set(5);
+		Race(latch, l => l.Get() == 5, "Latch.Dispose: a handle is already borrowed", null);
+		Race(api.Token.New(5), t => t.Id == 5, "Token.Dispose: a handle is already borrowed", "api_Token_id_get: a handle's value was moved out");
+		Check(api.Lib.Dropped() == before + 1, "a dispose racing calls drops Rust's value once");
+	}
+
+	/// Disposes `made` while 8 threads call `call` on it: each call runs on the live value or,
+	/// once it is disposed, throws `ObjectDisposedException` or, for a value Rust checks, its
+	/// moved check, met by a call that held the handle before; a dispose a running call beats
+	/// throws `borrowed`, as Rust refuses a drop under a borrow, and changes nothing, so the
+	/// next tries again.
+	static void Race<T>(T made, Func<T, bool> call, string borrowed, string? moved)
+		where T : api.RustObject
+	{
+		var ran = 0;
+		var failed = 0;
+		var callers = Enumerable.Range(0, 8).Select(_ => new Thread(() =>
+		{
+			while (true)
+			{
+				bool live;
+				try
+				{
+					live = call(made);
+				}
+				catch (ObjectDisposedException)
+				{
+					Interlocked.Increment(ref failed);
+					return;
+				}
+				catch (InvalidOperationException e) when (e.Message == moved)
+				{
+					Interlocked.Increment(ref failed);
+					return;
+				}
+				Check(live, "a call racing a dispose reads the live value");
+				Interlocked.Increment(ref ran);
+			}
+		})).ToList();
+		callers.ForEach(t => t.Start());
+		while (Volatile.Read(ref ran) < 100)
+		{
+			Thread.Yield();
+		}
+		while (true)
+		{
+			try
+			{
+				made.Dispose();
+				break;
+			}
+			catch (InvalidOperationException e)
+			{
+				Check(e.Message == borrowed, $"a dispose racing a call throws: {e.Message}");
+			}
+		}
+		callers.ForEach(t => t.Join());
+		Check(failed == 8, "every call after a dispose throws");
+		made.Dispose();
 	}
 
 	/// Futures: a cancel frees the Rust future and loses nothing, and a wake during a poll
@@ -487,6 +609,19 @@ static partial class Script
 			}
 			channel.Send(Utf8("kept"));
 			Check(_Text(await channel.Recv()) == "kept", "a recv of a cancelled token takes nothing");
+		}
+		// A dispose of a handle a pending call borrows throws, as Rust refuses a drop under a
+		// borrow, and changes nothing: the call ends as it would, and then the dispose passes.
+		{
+			var other = api.Channel.New();
+			var held = other.Recv();
+			var sender = other.Clone();
+			Throws<InvalidOperationException>(other.Dispose, "a dispose under a pending call throws", e => e.Message == "Channel.Dispose: a handle is already borrowed");
+			sender.Send(Utf8("held"));
+			Check(_Text(await held) == "held", "the pending call ends as it would");
+			other.Dispose();
+			Throws<ObjectDisposedException>(other.Clear, "a call after a dispose throws");
+			sender.Dispose();
 		}
 		// A send from another thread wakes the recv pending here, each time, racing its poll.
 		for (var k = 0; k < 200; k++)

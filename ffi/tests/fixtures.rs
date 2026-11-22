@@ -3355,9 +3355,7 @@ fn api_csharp() {
 	let binding = api.out.join("csharp").join("api.cs");
 	let exe = dir.join("api.dll");
 	csc(Dotnet::Net, &exe, &[&binding, &manifest_dir().join("tests/api.cs"), &script]);
-	let unity = dir.join("unity.cs");
-	step::write(&unity, UNITY_STUBS);
-	csc(Dotnet::Unity, &dir.join("unity.dll"), &[&binding, &unity]);
+	csc(Dotnet::Unity, &dir.join("unity.dll"), &[&binding, &manifest_dir().join("tests/unity.cs")]);
 	let ran = run(&mut csharp_run(&exe, &[]));
 	assert_eq!(
 		String::from_utf8_lossy(&ran.stdout),
@@ -3408,29 +3406,6 @@ fn api_csharp() {
 		"a mismatched contract printed {stderr}"
 	);
 }
-
-/// What Unity defines that the binding uses, so it compiles as Unity compiles it without
-/// Unity's assemblies.
-const UNITY_STUBS: &str = "namespace UnityEngine
-{
-	public enum RuntimeInitializeLoadType { SubsystemRegistration }
-
-	[System.AttributeUsage(System.AttributeTargets.Method)]
-	public sealed class RuntimeInitializeOnLoadMethodAttribute : System.Attribute
-	{
-		public RuntimeInitializeOnLoadMethodAttribute(RuntimeInitializeLoadType type) { }
-	}
-}
-
-namespace AOT
-{
-	[System.AttributeUsage(System.AttributeTargets.Method)]
-	public sealed class MonoPInvokeCallbackAttribute : System.Attribute
-	{
-		public MonoPInvokeCallbackAttribute(System.Type type) { }
-	}
-}
-";
 
 /// What a C# compile targets: .NET's own, or Unity's language level over .NET Standard 2.1.
 #[derive(Clone, Copy)]
