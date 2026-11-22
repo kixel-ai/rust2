@@ -31,9 +31,9 @@ Decided with the maintainer on 2026-11-09, in the quest audit:
   moq's browser route". Rejected: JS-only staying the goal, with rust2-wasm only a
   baseline; pausing rust2-ts until rust2-wasm is measured.
 - ✅ Web and WASI are separate targets. [The web target](/ffi/README.md#typescript-web) calls
-  web APIs directly, `performance.now` for its clock; [the WASI target](/quest/m3/wasi.md)
-  serves hosts with no JavaScript, in m3 as the other targets planned ahead of a consumer
-  are. Rejected: one module for both.
+  web APIs directly, `performance.now` for its clock; the WASI target would serve hosts
+  with no JavaScript, and [m3](/quest/m3/README.md#plan) records why none is planned.
+  Rejected: one module for both.
 - ✅ m2, with per-target export in m1, which landed in
   [#689](https://github.com/kixel-ai/rust2/pull/689) and
   [#700](https://github.com/kixel-ai/rust2/pull/700). Rejected: all of it in m1; all of it
