@@ -1,0 +1,95 @@
+## round 1 load 5.24
+# core module, wasm32-wasip1, the exporter's C ABI, wazero v1.12.0
+noop	15.4
+handle call	17.9
+u64 getter	11.0
+record return	11.8
+object return	38.4
+write 100 B	44.4
+payload 100 B	89.6
+payload 100 B lent	42.4
+ready read	48.0
+lent closure	53.4
+lent closure calling back	61.0
+payload 1024 B	185.3
+payload 1024 B lent	43.4
+payload 1048576 B	84309.4
+payload 1048576 B lent	62.3
+panic: true
+call after panic: <nil>
+## round 2 load 5.46
+# core module, wasm32-wasip1, the exporter's C ABI, wazero v1.12.0
+noop	15.2
+handle call	13.3
+u64 getter	11.2
+record return	12.0
+object return	38.8
+write 100 B	41.5
+payload 100 B	94.6
+payload 100 B lent	40.5
+ready read	47.9
+lent closure	53.6
+lent closure calling back	61.3
+payload 1024 B	183.2
+payload 1024 B lent	43.1
+payload 1048576 B	67952.2
+payload 1048576 B lent	64.0
+panic: true
+call after panic: <nil>
+## round 3 load 5.46
+# core module, wasm32-wasip1, the exporter's C ABI, wazero v1.12.0
+noop	15.2
+handle call	12.8
+u64 getter	11.0
+record return	11.6
+object return	38.7
+write 100 B	35.5
+payload 100 B	87.4
+payload 100 B lent	39.6
+ready read	48.0
+lent closure	53.6
+lent closure calling back	60.8
+payload 1024 B	184.2
+payload 1024 B lent	43.3
+payload 1048576 B	66963.3
+payload 1048576 B lent	62.4
+panic: true
+call after panic: <nil>
+## round 4 load 5.46
+# core module, wasm32-wasip1, the exporter's C ABI, wazero v1.12.0
+noop	15.2
+handle call	13.0
+u64 getter	11.0
+record return	12.2
+object return	38.4
+write 100 B	43.5
+payload 100 B	88.8
+payload 100 B lent	40.1
+ready read	47.8
+lent closure	53.8
+lent closure calling back	60.9
+payload 1024 B	182.5
+payload 1024 B lent	43.2
+payload 1048576 B	96885.5
+payload 1048576 B lent	48.0
+panic: true
+call after panic: <nil>
+## round 5 load 5.46
+# core module, wasm32-wasip1, the exporter's C ABI, wazero v1.12.0
+noop	15.2
+handle call	12.2
+u64 getter	11.9
+record return	11.4
+object return	38.0
+write 100 B	43.9
+payload 100 B	91.2
+payload 100 B lent	40.5
+ready read	47.9
+lent closure	53.4
+lent closure calling back	61.7
+payload 1024 B	177.8
+payload 1024 B lent	43.7
+payload 1048576 B	72277.6
+payload 1048576 B lent	62.4
+panic: true
+call after panic: <nil>
