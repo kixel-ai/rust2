@@ -1630,8 +1630,9 @@ Unity's IL2CPP each compile: tested on .NET 10, JIT and NativeAOT, and compiled 
 against .NET Standard 2.1, Unity's level, with `UNITY_5_3_OR_NEWER` defined. Its namespace
 is the prefix in Pascal case (`Moq`). Each C function is a blittable `DllImport` of the
 library `<prefix>`, so no marshalling stub runs; under Unity on iOS, which links the
-library statically, it is `__Internal`. A module initializer, or under Unity a
-`RuntimeInitializeOnLoadMethod`, checks the contract before any other call. A callback
+library statically, it is `__Internal`. A module initializer, or under Unity, which has none,
+`Native`'s static constructor, checks the contract before any other call, and a mismatch
+throws from every call after. A callback
 Rust calls into C# is an `UnmanagedCallersOnly` method's address on .NET, and under Unity,
 whose IL2CPP has none, a kept delegate's, whose method is `MonoPInvokeCallback`; one that
 throws aborts, naming the call. The runtime every file includes is

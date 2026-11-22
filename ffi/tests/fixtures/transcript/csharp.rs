@@ -137,9 +137,9 @@ static partial class Script
 	}
 
 	/// Bytes as Rust's `Debug` prints a list of them.
-	static string _Bytes(ReadOnlyMemory<byte> bytes) => "[" + string.Join(", ", bytes.ToArray()) + "]";
+	static string _Bytes(api.Bytes bytes) => "[" + string.Join(", ", bytes.ToArray()) + "]";
 
-	static bool _BytesEq(ReadOnlyMemory<byte> a, ReadOnlyMemory<byte> b) => a.Span.SequenceEqual(b.Span);
+	static bool _BytesEq(api.Bytes a, api.Bytes b) => a == b;
 
 	static string _List<T>(IEnumerable<T> items, Func<T, string> show) => "[" + string.Join(", ", items.Select(show)) + "]";
 
@@ -150,7 +150,7 @@ static partial class Script
 		where T : class => value is T v ? "Some(" + show(v) + ")" : "None";
 
 	/// Bytes as text, what is not UTF-8 replaced.
-	static string _Text(ReadOnlyMemory<byte> bytes) => System.Text.Encoding.UTF8.GetString(bytes.Span);
+	static string _Text(api.Bytes bytes) => System.Text.Encoding.UTF8.GetString(bytes.ToArray());
 
 	static Exception _None() => new InvalidOperationException("unwrap of None");
 "#;
@@ -330,7 +330,7 @@ impl Emitter<'_> {
 			Type::F64 => "double".to_string(),
 			Type::Char => "api.Scalar".to_string(),
 			Type::Str | Type::String => "api.Str".to_string(),
-			Type::Slice | Type::Vec | Type::Bytes => "ReadOnlyMemory<byte>".to_string(),
+			Type::Slice | Type::Vec | Type::Bytes => "api.Bytes".to_string(),
 			Type::Path | Type::PathBuf => "api.PathBuf".to_string(),
 			Type::U128 => "api.U128".to_string(),
 			Type::Duration => "api.Duration".to_string(),
@@ -659,7 +659,7 @@ impl Emitter<'_> {
 				};
 				match want {
 					Type::Array(n) => format!("new api.ArrayU8x{n}({array})"),
-					_ => format!("((ReadOnlyMemory<byte>){array})"),
+					_ => format!("((api.Bytes){array})"),
 				}
 			}
 			Kind::Duration(secs, nanos) => format!("new api.Duration({secs}UL, {nanos}U)"),

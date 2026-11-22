@@ -85,6 +85,9 @@ static class Bench
 	const int Threads = 4;
 	static readonly int[] Sizes = { 100, 1024, 16384, 65536, 1048576 };
 
+	/// The sizes `frame.payload` is read at, as TypeScript's.
+	static readonly int[] Payloads = { 16, 64, 100, 256, 1024, 4096, 16384, 65536, 262144, 1048576 };
+
 	/// What the loops sum, kept so the JIT cannot drop the calls.
 	static long sink;
 
@@ -200,13 +203,41 @@ static class Bench
 				{
 					group.WriteFrame(at, frame);
 					using var read = (await reader.ReadFrame())!;
-					sink += read.Payload.Span[0];
+					using var payload = read.Payload;
+					sink += payload.Span[0];
 				}
 			}
 			group.Finish().Dispose();
 		}
 		var ns = End(start, name, (double)count * Frames * size);
 		return new Span(1e3 / ns.Wall, 1e3 / ns.Cpu);
+	}
+
+	/// `frame.payload` of one frame of `size` bytes, read and disposed N times: up to 1 KiB
+	/// a copy, past it a lend of Rust's buffer.
+	static async Task<Span> Payload(BroadcastProducer broadcast, int size)
+	{
+		var name = $"payload[{size}]";
+		using var track = Track(broadcast, name);
+		using var subscriber = await Subscribe(track);
+		var at = GroupStart();
+		using var group = track.AppendGroup(at);
+		FrameFrame read;
+		using (var reader = (await subscriber.RecvGroup())!)
+		{
+			group.WriteFrame(at, new byte[size]);
+			read = (await reader.ReadFrame())!;
+		}
+		group.Finish().Dispose();
+		var start = Begin();
+		for (var i = 0; i < N; i++)
+		{
+			using var payload = read.Payload;
+			sink += payload.Span[0];
+		}
+		var ns = End(start, name);
+		read.Dispose();
+		return ns;
 	}
 
 	static async Task<Dictionary<string, Span>> Round(bool measured)
@@ -424,10 +455,15 @@ static class Bench
 		start = Begin();
 		for (var i = 0; i < N; i++)
 		{
-			sink += last!.Payload.Span[0];
+			using var payload = last!.Payload;
+			sink += payload.Span[0];
 		}
 		out_["payload"] = End(start, "payload");
 		last!.Dispose();
+		foreach (var size in Payloads)
+		{
+			out_[$"payload:{size}"] = await Payload(broadcast, size);
+		}
 		return out_;
 	}
 

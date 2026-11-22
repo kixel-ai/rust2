@@ -3392,11 +3392,11 @@ fn swiftc(module: &Path, macos: u8) -> Command {
 	cmd
 }
 
-/// The generated Go, vetted and built through cgo against the static library, runs
-/// `tests/api.cs` with the transcript as C#, compiled by Roslyn against .NET's reference
-/// assemblies and run by `dotnet`, prints the native transcript, then fails loud on each
-/// broken contract and on a library of another contract. The binding compiles at Unity's
-/// language level against .NET Standard 2.1 too, as IL2CPP takes it.
+/// The generated C# runs `tests/api.cs` with the transcript as C#, compiled by Roslyn
+/// against .NET's reference assemblies and run by `dotnet`, prints the native transcript,
+/// then fails loud on each broken contract and on a library of another contract. The binding
+/// compiles at Unity's language level against .NET Standard 2.1 too, as IL2CPP takes it, and
+/// its Unity half runs the same on CoreCLR.
 #[test]
 fn api_csharp() {
 	let api = api();
@@ -3414,14 +3414,24 @@ fn api_csharp() {
 		&dir.join("unity.dll"),
 		&[&binding, &manifest_dir().join("tests/unity.cs")],
 	);
-	let ran = run(&mut csharp_run(&exe, &[]));
-	assert_eq!(
-		String::from_utf8_lossy(&ran.stdout),
-		api.transcript,
-		"the C# transcript differs from the native one"
+	// Unity's half of the binding, its callbacks delegates and its contract checked in
+	// `Native`'s static constructor, run on CoreCLR.
+	let unity = dir.join("net-unity").join("api.dll");
+	csc(
+		Dotnet::NetUnity,
+		&unity,
+		&[&binding, &manifest_dir().join("tests/api.cs"), &script, &manifest_dir().join("tests/unity.cs")],
 	);
-	for case in ["checks", "futures"] {
-		run(&mut csharp_run(&exe, &[case]));
+	for exe in [&exe, &unity] {
+		let ran = run(&mut csharp_run(exe, &[]));
+		assert_eq!(
+			String::from_utf8_lossy(&ran.stdout),
+			api.transcript,
+			"the C# transcript differs from the native one"
+		);
+		for case in ["checks", "futures"] {
+			run(&mut csharp_run(exe, &[case]));
+		}
 	}
 	for (case, message) in [
 		(
@@ -3460,19 +3470,21 @@ fn api_csharp() {
 		&contract.join("main.cs"),
 		"static class Program\n{\n\tstatic void Main() => Api.Lib.Dropped();\n}\n",
 	);
-	let exe = contract.join("contract.dll");
-	csc(
-		Dotnet::Net,
-		&exe,
-		&[&contract.join("api.cs"), &contract.join("main.cs")],
-	);
-	let output = no_core(&mut csharp_run(&exe, &[])).output().unwrap();
-	failed(&output, "a mismatched contract");
-	let stderr = String::from_utf8_lossy(&output.stderr);
-	assert!(
-		stderr.contains("api.cs and the library are from different builds"),
-		"a mismatched contract printed {stderr}"
-	);
+	for (target, name) in [(Dotnet::Net, "net"), (Dotnet::NetUnity, "net-unity")] {
+		let exe = contract.join(name).join("contract.dll");
+		csc(
+			target,
+			&exe,
+			&[&contract.join("api.cs"), &contract.join("main.cs"), &manifest_dir().join("tests/unity.cs")],
+		);
+		let output = no_core(&mut csharp_run(&exe, &[])).output().unwrap();
+		failed(&output, &format!("a mismatched contract, {name}"));
+		let stderr = String::from_utf8_lossy(&output.stderr);
+		assert!(
+			stderr.contains("api.cs and the library are from different builds"),
+			"a mismatched contract, {name}, printed {stderr}"
+		);
+	}
 }
 
 /// The same C# compiled ahead of time by NativeAOT, with its trim and AOT analyzers' warnings
@@ -3533,6 +3545,9 @@ fn api_csharp_aot() {
 #[derive(Clone, Copy)]
 enum Dotnet {
 	Net,
+	/// A .NET program of Unity's code, `UNITY_5_3_OR_NEWER` defined, which runs the delegates
+	/// and static constructor IL2CPP takes on CoreCLR; `Unity` checks its language level.
+	NetUnity,
 	Unity,
 }
 
@@ -3542,13 +3557,13 @@ fn dotnet_root() -> PathBuf {
 	dotnet.parent().unwrap().to_path_buf()
 }
 
-/// `sources` compiled by Roslyn into `out`, warnings as errors, a program for `Net` and a
-/// library for `Unity`.
+/// `sources` compiled by Roslyn into `out`, warnings as errors, a program for `Net` and
+/// `NetUnity` and a library for `Unity`.
 fn csc(target: Dotnet, out: &Path, sources: &[&Path]) {
 	let root = dotnet_root();
 	let csc = newest(&root.join("sdk")).join("Roslyn/bincore/csc.dll");
 	let refs = match target {
-		Dotnet::Net => newest(&root.join("packs/Microsoft.NETCore.App.Ref")).join("ref/net10.0"),
+		Dotnet::Net | Dotnet::NetUnity => newest(&root.join("packs/Microsoft.NETCore.App.Ref")).join("ref/net10.0"),
 		Dotnet::Unity => {
 			PathBuf::from(std::env::var_os("NETSTANDARD_REF").expect("the dev shell sets NETSTANDARD_REF"))
 		}
@@ -3566,6 +3581,7 @@ fn csc(target: Dotnet, out: &Path, sources: &[&Path]) {
 	]);
 	match target {
 		Dotnet::Net => cmd.arg("-target:exe"),
+		Dotnet::NetUnity => cmd.args(["-target:exe", "-define:UNITY_5_3_OR_NEWER"]),
 		Dotnet::Unity => cmd.args(["-target:library", "-langversion:9", "-define:UNITY_5_3_OR_NEWER"]),
 	};
 	for dll in std::fs::read_dir(&refs).unwrap() {
@@ -3582,7 +3598,7 @@ fn csc(target: Dotnet, out: &Path, sources: &[&Path]) {
 		writes: &[out],
 	};
 	step.run(&mut cmd);
-	if let Dotnet::Net = target {
+	if let Dotnet::Net | Dotnet::NetUnity = target {
 		step::write(
 			&out.with_extension("runtimeconfig.json"),
 			r#"{"runtimeOptions":{"tfm":"net10.0","rollForward":"LatestPatch","framework":{"name":"Microsoft.NETCore.App","version":"10.0.0"},"configProperties":{"System.Globalization.Invariant":true}}}"#,

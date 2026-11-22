@@ -47,6 +47,7 @@ const TAKEN: &[&str] = &[
 	"Array",
 	"Bound",
 	"Buffer",
+	"Bytes",
 	"CallConvCdecl",
 	"Callbacks",
 	"CallingConvention",
@@ -82,6 +83,7 @@ const TAKEN: &[&str] = &[
 	"Ipv4Addr",
 	"Ipv6Addr",
 	"LayoutKind",
+	"Lease",
 	"Lib",
 	"List",
 	"ManualResetValueTaskSourceCore",
@@ -90,6 +92,8 @@ const TAKEN: &[&str] = &[
 	"Memory",
 	"MemoryExtensions",
 	"MemoryHandle",
+	"MemoryManager",
+	"MemoryMarshal",
 	"MethodImpl",
 	"MethodImplAttribute",
 	"MethodImplOptions",
@@ -324,14 +328,15 @@ pub(crate) fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<O
 		#if UNITY_IOS && !UNITY_EDITOR\n\tconst string Lib = \"{unity_lib}\";\n#else\n\tconst string Lib = \"{p}\";\n#endif\n\n\
 		\t/// The contract of the header this file was generated with.\n\
 		\tinternal const ulong Contract = 0x{contract:016x};\n\n\
-		\t/// Checks, before any other call, that the library is the one this file was generated with.\n\
+		\t/// Checks, before any other call, that the library is the one this file was generated with:\n\
+		\t/// under Unity, which has no module initializer, from this type's constructor, which runs\n\
+		\t/// before any use of it, and whose throw every later use rethrows.\n\
 		#if UNITY_5_3_OR_NEWER\n\
-		\t[UnityEngine.RuntimeInitializeOnLoadMethod(UnityEngine.RuntimeInitializeLoadType.SubsystemRegistration)]\n\
-		\tinternal static void Load()\n\
+		\tstatic Native() => Load();\n\n\
 		#else\n\
 		\t[ModuleInitializer]\n\
-		\tinternal static void Load()\n\
 		#endif\n\
+		\tinternal static void Load()\n\
 		\t{{\n\t\tif (contract() != Contract)\n\t\t{{\n\t\t\tthrow new InvalidOperationException(\"{p}.cs and the library are from different builds\");\n\t\t}}\n\t}}\n\n\
 		\tinternal static int HashBytes(ReadOnlySpan<byte> bytes)\n\t{{\n\t\tunchecked\n\t\t{{\n\t\t\tvar h = (int)2166136261;\n\t\t\tforeach (var b in bytes)\n\t\t\t{{\n\t\t\t\th = (h ^ b) * 16777619;\n\t\t\t}}\n\t\t\treturn h;\n\t\t}}\n\t}}\n\n"
 	);
@@ -528,7 +533,7 @@ impl<'a> Gen<'a> {
 			Type::F64 => "double".to_string(),
 			Type::Char => "Scalar".to_string(),
 			Type::Str | Type::String => "Str".to_string(),
-			Type::Slice | Type::Vec | Type::Bytes => "ReadOnlyMemory<byte>".to_string(),
+			Type::Slice | Type::Vec | Type::Bytes => "Bytes".to_string(),
 			Type::Path | Type::PathBuf => "PathBuf".to_string(),
 			Type::U128 => "U128".to_string(),
 			Type::Duration => "Duration".to_string(),
@@ -887,7 +892,7 @@ impl<'a> Gen<'a> {
 			Type::Array(n) => format!("new {}({e})", Abi::array_class(*n)),
 			Type::Str | Type::String => format!("Native.String({e})"),
 			Type::Path | Type::PathBuf => format!("Native.Path({e})"),
-			Type::Slice | Type::Vec | Type::Bytes => format!("Native.Bytes({e})"),
+			Type::Slice | Type::Vec | Type::Bytes => format!("Native.TakeBytes({e})"),
 			Type::Object(_) => format!("new {}({e})", self.cs(ty)),
 			Type::Box(inner) | Type::Ref(_, inner) => self.lift(inner, e),
 			Type::Waker => format!("new Waker({e})"),
@@ -917,7 +922,7 @@ impl<'a> Gen<'a> {
 		match ty {
 			Type::Str | Type::String => format!("new Str(Native.Copy({e}))"),
 			Type::Path | Type::PathBuf => format!("new PathBuf(Native.Copy({e}), true)"),
-			Type::Slice | Type::Vec | Type::Bytes => format!("(ReadOnlyMemory<byte>)Native.Copy({e})"),
+			Type::Slice | Type::Vec | Type::Bytes => format!("new Bytes(Native.Copy({e}))"),
 			Type::Option(inner) if Abi::is_buf(inner) => {
 				let lifted = self.lift_lent(inner, e);
 				format!("({e}.ptr == null ? null : ({}?){lifted})", self.cs(inner))
@@ -2233,7 +2238,7 @@ impl<'a> Gen<'a> {
 		let what = what.replace('"', "\\\"");
 		let _ = write!(
 			self.callbacks,
-			"#if UNITY_5_3_OR_NEWER\n\tinternal delegate {ret} {field}Fn({});\n\tstatic readonly {field}Fn {field}Keep = {field}Impl;\n\tinternal static readonly IntPtr {field} = Marshal.GetFunctionPointerForDelegate({field}Keep);\n\n\t[AOT.MonoPInvokeCallback(typeof({field}Fn))]\n#else\n\tinternal static readonly IntPtr {field} = (IntPtr)(delegate* unmanaged[Cdecl]<{}>)&{field}Impl;\n\n\t[UnmanagedCallersOnly(CallConvs = new[] {{ typeof(CallConvCdecl) }})]\n#endif\n\tstatic {ret} {field}Impl({})\n\t{{\n\t\ttry\n\t\t{{\n\t\t\t{body}\n\t\t}}\n\t\tcatch (Exception e)\n\t\t{{\n\t\t\tNative.Abort(\"{what}: a call into C# threw\", e);{fallback}\n\t\t}}\n\t}}\n\n",
+			"#if UNITY_5_3_OR_NEWER\n\t[UnmanagedFunctionPointer(CallingConvention.Cdecl)]\n\tinternal delegate {ret} {field}Fn({});\n\tstatic readonly {field}Fn {field}Keep = {field}Impl;\n\tinternal static readonly IntPtr {field} = Marshal.GetFunctionPointerForDelegate({field}Keep);\n\n\t[AOT.MonoPInvokeCallback(typeof({field}Fn))]\n#else\n\tinternal static readonly IntPtr {field} = (IntPtr)(delegate* unmanaged[Cdecl]<{}>)&{field}Impl;\n\n\t[UnmanagedCallersOnly(CallConvs = new[] {{ typeof(CallConvCdecl) }})]\n#endif\n\tstatic {ret} {field}Impl({})\n\t{{\n\t\ttry\n\t\t{{\n\t\t\t{body}\n\t\t}}\n\t\tcatch (Exception e)\n\t\t{{\n\t\t\tNative.Abort(\"{what}: a call into C# threw\", e);{fallback}\n\t\t}}\n\t}}\n\n",
 			params.join(", "),
 			sig.join(", "),
 			params.join(", ")

@@ -7,7 +7,9 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Buffers;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
@@ -148,7 +150,7 @@ static partial class Script
 		return out_.ToString();
 	}
 
-	static string Hex(ReadOnlyMemory<byte> bytes) => _Hex(bytes.Span);
+	static string Hex(api.Bytes bytes) => _Hex(bytes.Span);
 
 	static string Hex(api.ArrayU8x4 bytes) => _Hex(bytes.ToArray());
 
@@ -456,8 +458,71 @@ static partial class Script
 		utf8[0] = 0xff;
 		Check(text.ToString() == "a", "checked text keeps its bytes");
 		Disposes();
+		Lends();
 		Raced();
 	}
+
+	static bool IsLent(api.Bytes bytes) => MemoryMarshal.TryGetMemoryManager<byte, MemoryManager<byte>>(bytes.Memory, out _);
+
+	/// Bytes a call returns past 1 KiB lend Rust's buffer until disposed; fewer are copied.
+	static unsafe void Lends()
+	{
+		var big = new byte[1 << 20];
+		for (var i = 0; i < big.Length; i++)
+		{
+			big[i] = (byte)(i * 7);
+		}
+		Check(!IsLent(api.Lib.Prefixed(new byte[1024], null)), "up to 1 KiB returned are copied");
+		var lent = api.Lib.Prefixed(big, null);
+		Check(IsLent(lent), "past 1 KiB returned are lent");
+		Check(lent.Span.SequenceEqual(big) && lent.ToArray().AsSpan().SequenceEqual(big), "a lend reads Rust's bytes");
+		Check(lent == (api.Bytes)big && lent.GetHashCode() == ((api.Bytes)big).GetHashCode(), "a lend equals and hashes by its bytes");
+		// A lend passes back in place: at a call's top level, in a record, and sliced.
+		Check(api.Lib.Len(lent) == (nuint)big.Length, "a lend passes back");
+		var back = api.Lib.LentBack(ValueTuple.Create(lent)).Item1;
+		Check(back == lent, "a lend passes back in a record");
+		back.Dispose();
+		Check(api.Lib.LentBack(ValueTuple.Create((api.Bytes)lent.Memory.Slice(5, 3))).Item1 == new api.Bytes(big.AsMemory(5, 3)), "a slice of a lend passes back");
+		// A read after dispose throws, and a second dispose does nothing.
+		lent.Dispose();
+		lent.Dispose();
+		Throws<ObjectDisposedException>(() => _ = lent.Span.Length, "a disposed lend's view throws");
+		Throws<ObjectDisposedException>(() => lent.ToArray(), "a disposed lend's copy throws");
+		Throws<ObjectDisposedException>(() => api.Lib.LentBack(ValueTuple.Create(lent)), "a disposed lend passes no call");
+		// A pin holds the buffer past a dispose until it is unpinned.
+		var pinned = api.Lib.Prefixed(big, null);
+		var pin = pinned.Memory.Pin();
+		pinned.Dispose();
+		Throws<ObjectDisposedException>(() => pinned.Memory.Pin(), "a disposed lend pins no more");
+		Check(new ReadOnlySpan<byte>(pin.Pointer, big.Length).SequenceEqual(big), "a pin keeps a disposed lend's buffer");
+		pin.Dispose();
+		// The collector frees a lend no view was taken of, and leaves one that was: a view of
+		// 1 MiB, which the allocator unmaps once freed, reads after its owner is unreachable.
+		var view = Viewed(big);
+		for (var i = 0; i < 3; i++)
+		{
+			GC.Collect();
+			GC.WaitForPendingFinalizers();
+		}
+		Check(view.SequenceEqual(big), "a view outlives its lend's collection");
+		var before = Environment.WorkingSet;
+		for (var i = 0; i < 1000; i++)
+		{
+			Unviewed(big);
+			if (i % 100 == 0)
+			{
+				GC.Collect();
+				GC.WaitForPendingFinalizers();
+			}
+		}
+		Check(Environment.WorkingSet - before < 500L << 20, "the collector frees lends no view was taken of");
+	}
+
+	[MethodImpl(MethodImplOptions.NoInlining)]
+	static ReadOnlySpan<byte> Viewed(byte[] big) => api.Lib.Prefixed(big, null).Span;
+
+	[MethodImpl(MethodImplOptions.NoInlining)]
+	static void Unviewed(byte[] big) => Check(api.Lib.Prefixed(big, null).Length == big.Length, "a lend's length");
 
 	/// A dispose drops Rust's value at once, once, and Rust refuses it under a borrow.
 	static void Disposes()

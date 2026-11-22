@@ -226,18 +226,18 @@ internal static unsafe partial class Native
 	}
 
 	/// The empty view: a null pointer is `None`, so `Some` of no bytes points somewhere.
-	static readonly byte* empty = (byte*)Marshal.AllocHGlobal(1);
+	internal static readonly byte* Empty = (byte*)Marshal.AllocHGlobal(1);
 
 	/// A view of `bytes`, pinned by `pin`, which Rust reads during the call and never frees.
 	internal static Buf View(ReadOnlySpan<byte> bytes, byte* pinned) =>
-		new Buf { ptr = bytes.Length == 0 ? empty : pinned, len = (nuint)bytes.Length, owner = null };
+		new Buf { ptr = bytes.Length == 0 ? Empty : pinned, len = (nuint)bytes.Length, owner = null };
 
 	/// A view of `bytes`, which `arena` keeps pinned until the call returns.
 	internal static Buf View(ReadOnlyMemory<byte> bytes, Arena arena)
 	{
 		if (bytes.Length == 0)
 		{
-			return new Buf { ptr = empty, len = 0, owner = null };
+			return new Buf { ptr = Empty, len = 0, owner = null };
 		}
 		var pin = bytes.Pin();
 		arena.Add(pin);
@@ -247,8 +247,19 @@ internal static unsafe partial class Native
 	/// The null view, `None`.
 	internal static Buf None => default;
 
+	/// The bytes of `buf`, which Rust returned: lent in place, or copied and freed up to
+	/// `Bytes.Copied` of them.
+	internal static Bytes TakeBytes(Buf buf)
+	{
+		if (buf.len <= (nuint)Bytes.Copied)
+		{
+			return new Bytes(Take(buf));
+		}
+		return new Bytes(new Lease(buf).Memory);
+	}
+
 	/// The bytes of `buf`, which Rust returned: copied into C#'s memory, then freed.
-	internal static ReadOnlyMemory<byte> Bytes(Buf buf)
+	internal static byte[] Take(Buf buf)
 	{
 		var bytes = Copy(buf);
 		buf_free(buf);
@@ -273,19 +284,14 @@ internal static unsafe partial class Native
 	}
 
 	/// `Some` bytes of `buf`, or null for its null pointer.
-	// Typed, as a bare `null` would convert to the empty memory through `byte[]`.
-	internal static ReadOnlyMemory<byte>? OptionBytes(Buf buf) => buf.ptr == null ? (ReadOnlyMemory<byte>?)null : Bytes(buf);
+	// Typed, as a bare `null` would convert to the empty bytes through `byte[]`.
+	internal static Bytes? OptionBytes(Buf buf) => buf.ptr == null ? (Bytes?)null : TakeBytes(buf);
 
-	internal static Str String(Buf buf) => new Str(Bytes(buf));
+	internal static Str String(Buf buf) => new Str(Take(buf));
 
 	internal static Str? OptionString(Buf buf) => buf.ptr == null ? (Str?)null : String(buf);
 
-	internal static PathBuf Path(Buf buf)
-	{
-		var bytes = Copy(buf);
-		buf_free(buf);
-		return new PathBuf(bytes, true);
-	}
+	internal static PathBuf Path(Buf buf) => new PathBuf(Take(buf), true);
 
 	internal static PathBuf? OptionPath(Buf buf) => buf.ptr == null ? (PathBuf?)null : Path(buf);
 
@@ -401,7 +407,7 @@ internal static unsafe partial class Native
 	{
 		if (len == 0)
 		{
-			return (T*)empty;
+			return (T*)Empty;
 		}
 		var p = (T*)Marshal.AllocHGlobal(checked(len * sizeof(T)));
 		arena.Add(p);
@@ -503,6 +509,8 @@ internal sealed unsafe class Arena : IDisposable
 
 	/// A pinned pointer to `bytes`, or the empty one, for a view.
 	internal Native.Buf View(ReadOnlyMemory<byte> bytes) => Native.View(bytes, this);
+
+	internal Native.Buf View(Bytes bytes) => bytes.View(this);
 
 	internal Native.Buf View(Str text) => Native.View(text.Utf8, this);
 
@@ -1057,6 +1065,248 @@ public readonly struct PathBuf : IEquatable<PathBuf>
 	public override int GetHashCode() => Native.HashBytes(Bytes.Span);
 }
 
+/// Rust's bytes, a `Vec<u8>`, `&[u8]`, or `bytes::Bytes`. Those a call returns lend Rust's
+/// buffer with no copy, past `Copied` of them, until `Dispose()`, as `using` calls, frees it
+/// once no call reads it; a read after throws `ObjectDisposedException`. The collector frees
+/// one never disposed only if no `Span` or `Memory` of it was ever taken, since a view lives
+/// on where its owner looks unreachable: so dispose one that was viewed, and read no view
+/// taken before its dispose after it. C#'s own, `byte[]` or `ReadOnlyMemory<byte>`, convert
+/// with no copy, and `default` is empty.
+public readonly struct Bytes : IDisposable, IEquatable<Bytes>
+{
+	/// Up to this many bytes a call returns are copied into C#'s memory, which costs less
+	/// than a lend's finalizer.
+	internal const int Copied = 1024;
+
+	/// Its memory: C#'s, or a lend of Rust's buffer.
+	public ReadOnlyMemory<byte> Memory { get; }
+
+	/// The bytes `memory` holds, with no copy: the caller's to leave unchanged while Rust reads them.
+	public Bytes(ReadOnlyMemory<byte> memory)
+	{
+		Memory = memory;
+	}
+
+	public static implicit operator Bytes(byte[] bytes) => new Bytes(bytes);
+
+	public static implicit operator Bytes(ReadOnlyMemory<byte> memory) => new Bytes(memory);
+
+	public static implicit operator ReadOnlySpan<byte>(Bytes bytes) => bytes.Span;
+
+	/// How many bytes it holds.
+	public int Length => Memory.Length;
+
+	/// A view of its bytes, which lives no longer than its dispose.
+	public ReadOnlySpan<byte> Span => Memory.Span;
+
+	/// A copy of its bytes in a new array.
+	public byte[] ToArray()
+	{
+		var lease = Enter(out var bytes);
+		try
+		{
+			return bytes.ToArray();
+		}
+		finally
+		{
+			lease?.Exit();
+		}
+	}
+
+	/// Frees Rust's buffer once no call reads it, if it lends one; any read after throws.
+	public void Dispose()
+	{
+		if (MemoryMarshal.TryGetMemoryManager(Memory, out Lease? lease) && lease != null)
+		{
+			lease.Close();
+		}
+	}
+
+	/// Whether it holds the same bytes as `other`.
+	public bool Equals(Bytes other)
+	{
+		var a = Enter(out var x);
+		try
+		{
+			var b = other.Enter(out var y);
+			try
+			{
+				return x.SequenceEqual(y);
+			}
+			finally
+			{
+				b?.Exit();
+			}
+		}
+		finally
+		{
+			a?.Exit();
+		}
+	}
+
+	public override bool Equals(object? obj) => obj is Bytes other && Equals(other);
+
+	public override int GetHashCode()
+	{
+		var lease = Enter(out var bytes);
+		try
+		{
+			return Native.HashBytes(bytes);
+		}
+		finally
+		{
+			lease?.Exit();
+		}
+	}
+
+	public static bool operator ==(Bytes a, Bytes b) => a.Equals(b);
+
+	public static bool operator !=(Bytes a, Bytes b) => !a.Equals(b);
+
+	/// Its bytes, read with no view taken, and the lease to exit after, if it lends Rust's.
+	internal unsafe Lease? Enter(out ReadOnlySpan<byte> bytes)
+	{
+		// .NET Standard 2.1 marks no `lease` non-null on success, so test it.
+		if (!MemoryMarshal.TryGetMemoryManager(Memory, out Lease? lease, out var start, out var length) || lease == null)
+		{
+			bytes = Memory.Span;
+			return null;
+		}
+		lease.Enter();
+		bytes = lease.Read(start, length);
+		return lease;
+	}
+
+	/// A view of it for a call, which `arena` holds until the call returns.
+	internal unsafe Native.Buf View(Arena arena)
+	{
+		if (!MemoryMarshal.TryGetMemoryManager(Memory, out Lease? lease, out var start, out var length) || lease == null)
+		{
+			return Native.View(Memory, arena);
+		}
+		lease.Enter();
+		arena.Add(new MemoryHandle(lease.Pointer(start), default, lease));
+		return new Native.Buf { ptr = length == 0 ? Native.Empty : lease.Pointer(start), len = (nuint)length, owner = null };
+	}
+}
+
+/// A buffer Rust returned, which `Bytes` lends: freed once closed and no call reads it, or
+/// by the collector if no view of it was ever taken.
+internal sealed unsafe class Lease : MemoryManager<byte>
+{
+	const int Closed = 1;
+	const int Hold = 2;
+
+	readonly Native.Buf buf;
+
+	/// The calls reading it, times `Hold`, and whether it is closed.
+	int state;
+
+	/// Whether a view was taken, which may outlive what the collector sees reaching it.
+	volatile bool viewed;
+
+	internal Lease(Native.Buf buf)
+	{
+		this.buf = buf;
+	}
+
+	/// Its bytes from `start`, `length` of them, for a caller that holds it.
+	internal ReadOnlySpan<byte> Read(int start, int length) => new ReadOnlySpan<byte>(buf.ptr + start, length);
+
+	internal byte* Pointer(int start) => buf.ptr + start;
+
+	/// Holds it for a read, throwing once it is closed.
+	internal void Enter()
+	{
+		while (true)
+		{
+			var s = Volatile.Read(ref state);
+			if ((s & Closed) != 0)
+			{
+				throw new ObjectDisposedException(nameof(Bytes));
+			}
+			if (Interlocked.CompareExchange(ref state, s + Hold, s) == s)
+			{
+				return;
+			}
+		}
+	}
+
+	/// Ends a read, freeing the buffer if it was the last of a closed one.
+	internal void Exit()
+	{
+		if (Interlocked.Add(ref state, -Hold) == Closed)
+		{
+			Free();
+		}
+	}
+
+	/// Closes it, freeing the buffer once no read holds it.
+	internal void Close()
+	{
+		while (true)
+		{
+			var s = Volatile.Read(ref state);
+			if ((s & Closed) != 0)
+			{
+				return;
+			}
+			if (Interlocked.CompareExchange(ref state, s | Closed, s) == s)
+			{
+				if (s == 0)
+				{
+					Free();
+				}
+				return;
+			}
+		}
+	}
+
+	void Free()
+	{
+		GC.SuppressFinalize(this);
+		Native.buf_free(buf);
+	}
+
+	// The base's would call `GetSpan`, taking a view.
+	public override Memory<byte> Memory => CreateMemory(checked((int)buf.len));
+
+	public override Span<byte> GetSpan()
+	{
+		if ((Volatile.Read(ref state) & Closed) != 0)
+		{
+			throw new ObjectDisposedException(nameof(Bytes));
+		}
+		viewed = true;
+		return new Span<byte>(buf.ptr, (int)buf.len);
+	}
+
+	/// Holds it until `Unpin`, as a call reading it in place does.
+	public override MemoryHandle Pin(int index = 0)
+	{
+		if ((uint)index > buf.len)
+		{
+			throw new ArgumentOutOfRangeException(nameof(index));
+		}
+		Enter();
+		viewed = true;
+		return new MemoryHandle(buf.ptr + index, default, this);
+	}
+
+	public override void Unpin() => Exit();
+
+	// `Bytes.Dispose()` closes it; disposing it another way, as through `MemoryMarshal`, does too.
+	protected override void Dispose(bool disposing) => Close();
+
+	~Lease()
+	{
+		if (!viewed && (Volatile.Read(ref state) & Closed) == 0)
+		{
+			Native.buf_free(buf);
+		}
+	}
+}
+
 /// A Rust `char`: a Unicode scalar value, which C#'s `char` cannot hold past the BMP.
 public readonly struct Scalar : IEquatable<Scalar>, IComparable<Scalar>
 {
@@ -1493,15 +1743,36 @@ public sealed unsafe class Waker : IDisposable
 		}
 	}
 
-	/// The C waker of a second owner, for a call that takes one.
+	/// The C waker of a second owner, for a call that takes one: it holds the C waker as a
+	/// wake in progress does, until Rust drops it, so a dispose of this one leaves it valid.
 	internal Native.CWaker Lower()
 	{
-		if ((Volatile.Read(ref state) & 1) != 0)
+		int n;
+		do
 		{
-			throw new ObjectDisposedException(nameof(Waker));
+			n = Volatile.Read(ref state);
+			if ((n & 1) != 0)
+			{
+				throw new ObjectDisposedException(nameof(Waker));
+			}
 		}
-		var w = this;
-		return Native.Waker(() => w.Wake());
+		while (Interlocked.CompareExchange(ref state, n + 2, n) != n);
+		return new Native.CWaker { wake = Callbacks.PendingWake, drop = Callbacks.PendingDrop, data = Native.Give(new Owner(this)) };
+	}
+
+	/// A second owner Rust holds.
+	sealed class Owner : IWakeable
+	{
+		readonly Waker waker;
+
+		internal Owner(Waker waker)
+		{
+			this.waker = waker;
+		}
+
+		public void Wake() => Native.Wake(waker.waker);
+
+		public void Dropped() => waker.release();
 	}
 
 	public void Dispose()
@@ -1601,6 +1872,9 @@ internal static class Streams
 internal interface IWakeable
 {
 	void Wake();
+
+	/// Rust dropped the waker.
+	void Dropped();
 }
 
 /// A Rust future C# awaits as a `ValueTask`: polled again on the caller's
@@ -1669,6 +1943,10 @@ internal abstract unsafe class Pending<T> : IValueTaskSource<T>, IValueTaskSourc
 				registration.Dispose();
 			}
 		}
+	}
+
+	public void Dropped()
+	{
 	}
 
 	/// A wake from Rust, on any thread: polls again, after any poll running now.
@@ -1812,6 +2090,9 @@ internal sealed unsafe class ForeignFuture
 	Native.CWaker waker;
 	bool hasWaker;
 
+	/// Whether the task wakes the latest waker once it ends, which one continuation does.
+	bool watched;
+
 	internal ForeignFuture(Func<CancellationToken, Task> run)
 	{
 		this.run = run;
@@ -1833,6 +2114,11 @@ internal sealed unsafe class ForeignFuture
 				Check(task);
 				return true;
 			}
+			if (watched)
+			{
+				return false;
+			}
+			watched = true;
 		}
 		task.ContinueWith((_, s) => ((ForeignFuture)s!).Woken(), this, TaskScheduler.Default);
 		return false;
@@ -1849,11 +2135,13 @@ internal sealed unsafe class ForeignFuture
 		}
 	}
 
+	/// Aborts unless `task` ran to completion: one cancelled by a token of its own never
+	/// finished, so Rust may not take it as done.
 	static void Check(Task task)
 	{
-		if (task.IsFaulted)
+		if (task.Status != TaskStatus.RanToCompletion)
 		{
-			Native.Abort("a future C# implements threw", task.Exception);
+			Native.Abort("a future C# implements threw or was cancelled", task.Exception);
 		}
 	}
 
@@ -1877,7 +2165,9 @@ internal sealed unsafe class ForeignFuture
 internal static unsafe partial class Callbacks
 {
 #if UNITY_5_3_OR_NEWER
+	[UnmanagedFunctionPointer(CallingConvention.Cdecl)]
 	internal delegate void DataFn(void* data);
+	[UnmanagedFunctionPointer(CallingConvention.Cdecl)]
 	internal delegate byte FuturePollFn(void* data, Native.CWaker waker);
 	static readonly DataFn actionWake = ActionWakeImpl, actionDrop = ActionDropImpl, pendingWake = PendingWakeImpl, pendingDrop = PendingDropImpl, futureFree = FutureFreeImpl, release = ReleaseImpl, commit = CommitImpl;
 	static readonly FuturePollFn futurePoll = FuturePollImpl;
@@ -1889,7 +2179,9 @@ internal static unsafe partial class Callbacks
 	internal static readonly IntPtr FutureFree = Marshal.GetFunctionPointerForDelegate(futureFree);
 	internal static readonly IntPtr Release = Marshal.GetFunctionPointerForDelegate(release);
 	internal static readonly IntPtr Commit = Marshal.GetFunctionPointerForDelegate(commit);
+	[UnmanagedFunctionPointer(CallingConvention.Cdecl)]
 	internal delegate byte ReadFn(void* data, byte* buf, nuint len, nuint* n, Native.Buf* err);
+	[UnmanagedFunctionPointer(CallingConvention.Cdecl)]
 	internal delegate byte SeekFn(void* data, int whence, long offset, ulong* position, Native.Buf* err);
 	static readonly ReadFn readerRead = ReaderReadImpl;
 	static readonly SeekFn readerSeek = ReaderSeekImpl;
@@ -2039,7 +2331,19 @@ internal static unsafe partial class Callbacks
 #else
 	[UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvCdecl) })]
 #endif
-	static void PendingDropImpl(void* data) => Native.Release(data);
+	static void PendingDropImpl(void* data)
+	{
+		var target = (IWakeable)GCHandle.FromIntPtr((IntPtr)data).Target!;
+		Native.Release(data);
+		try
+		{
+			target.Dropped();
+		}
+		catch (Exception e)
+		{
+			Native.Abort("a waker's drop threw", e);
+		}
+	}
 
 #if UNITY_5_3_OR_NEWER
 	[AOT.MonoPInvokeCallback(typeof(FuturePollFn))]
