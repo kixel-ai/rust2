@@ -66,6 +66,8 @@ manifest, so exports that differ build apart in a target directory they share.
 It reads no config: the package is in the current directory unless `--manifest-path` says
 where, and an item the rules cannot export fails the export at its span. Nothing leaves an
 item out but the source itself: `#[doc(hidden)]`, or a `cfg` that leaves it out of a build.
+Hiding an item is no way past a refusal, since it takes the item out of the crate's API: an
+item C cannot take needs a new rule, or a signature C can.
 
 ## Rules
 
@@ -485,7 +487,10 @@ Linux's exports, as the merge queue runs on, since a header names its targets.
 - **The contract** is a hash of the header's declarations, its docs included: the header
   defines it as `<PREFIX>_CONTRACT`, and `<prefix>_contract()` returns it from the library
   built with the header. A binding checks the two match before any other call, so a header
-  and a library from different builds refuse to mix.
+  and a library from different builds refuse to mix. It covers the whole header rather than
+  each function, since a consumer links statically and a mismatch should fail loud. The
+  header asserts no layouts: mainstream ABIs agree on them, and [the API lock](#the-api-lock)
+  catches a layout change.
 - **Panics** abort, as an `extern "C"` function's do.
 - **Must-use returns**: a function returning a handle, a buffer, a waker, a value holding
   any of those or a `Vec`, such as a record with a `String` field, a poll, or a fallible
@@ -568,9 +573,16 @@ a binding added later, such as [m3's targets](../quest/m3/README.md), keeps the 
   thread of its own and no async runtime such as tokio: it holds one `kio::Waiter` per
   driver, made from its waker, since what a poll registers lives only as long as its
   waiter, polls on each wake and at the deadline the poll returns, and frees the driver to
-  cancel it. A cancelled call ends only that call, as in Rust, and leaves its object usable.
+  cancel it; in Go, that loop is a goroutine living as long as the driver. A cancelled
+  call ends only that call, as in Rust, and leaves its object usable.
 - It is measured, with its generated size raw and gzipped, on
   [the binding benchmark](../bench/ffi/README.md), whose `just ffi bench` covers it.
+
+Each generator spells its own lifting and lowering. One walker emitting instructions every
+generator implements, as wit-bindgen's `Bindgen` does, would have absorbed about 12 of the
+172 lines [kixel-ai/rust2#710](https://github.com/kixel-ai/rust2/pull/710) added to Go's
+generator ([the spike](https://github.com/kixel-ai/rust2/pull/924)): a rule's cost is each
+language's spelling, runtime, and tests.
 
 ## C++
 
@@ -716,7 +728,8 @@ packages place it in.
 
 `<prefix>.kt` is Kotlin for the JVM and Android over the crate's JNI functions, which
 `--features kotlin` builds into the same library, loaded by `System.loadLibrary`. It needs
-kotlinx-coroutines. A leaf's native method, a primitive field read or write or a derived
+kotlinx-coroutines. It is not Kotlin Multiplatform, since Swift has its own binding and
+Kotlin's Swift export is Alpha in 2.4. A leaf's native method, a primitive field read or write or a derived
 `equals` or `hashCode` the export proves waits on nothing and walks no value of a size the
 caller sets ([`Abi::leaf`](src/abi.rs)), takes ART's `@FastNative`, so ART keeps the thread runnable across the call;
 `_Native`'s first call registers each through `RegisterNatives`, since ART binds such a
@@ -924,8 +937,9 @@ the rest cross encoded.
 same library on the stable ABI, so one build loads in CPython 3.11 and later, but not in a
 free-threaded build (3.13t, 3.14t), which the module refuses at import with an `ImportError`. The module
 loads the library from beside itself: `lib<prefix>.so`, `lib<prefix>.dylib`, or
-`<prefix>.dll`. Its glue converts each Python value to the C value and calls the C ABI
-function in-process, so a call is one crossing, which releases the GIL while Rust runs,
+`<prefix>.dll`. Its glue, about 40 times as fast as `ctypes`, converts each Python value to
+the C value and calls the C ABI function in-process, so a call is one crossing, which
+releases the GIL while Rust runs,
 so Rust may call Python back from any thread meanwhile. A leaf keeps it: a `&self` or
 `&mut self` method, or a read or write of a `pub` field, of a `Send` object, taking and
 returning only scalars, whose body and each `Deref`'s on the way the export proves, from

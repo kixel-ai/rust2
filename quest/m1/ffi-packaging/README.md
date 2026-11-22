@@ -15,7 +15,7 @@ and `lib/<goos>_<goarch>/libmoq_ffi.a`, and the `moq_ffi` pub.dev package with a
 hand-written build hook.
 
 Decided with the maintainer on 2026-11-18: ✅ an epic in m1, one child per registry plus
-reproducible builds, beside [the exporter epic](/quest/m1/ffi-export/README.md) and not
+reproducible builds, beside the exporter epic and not
 holding moq's pin (rejected: m2; only the npm and C gaps).
 
 Each child follows the builder's split: the shared, read-only builder derives everything
