@@ -2511,13 +2511,17 @@ def take(lines, what):
 
 
 class Logcat:
-    """What the device logs under Flutter's tag, and any crash, from a cleared log."""
+    """What the device logs under Flutter's tag, and any crash, from now on."""
 
     def __init__(self, device):
-        adb("-s", device, "logcat", "-c")
+        # From the log's last line, as `flutter run` reads it: Android 7's emulator may refuse
+        # to clear its log.
+        last = adb("-s", device, "logcat", "-v", "time", "-t", "1", capture_output=True, encoding="utf-8").stdout
+        if not (since := re.search(r"^\d\d-\d\d \d\d:\d\d:\d\d\.\d{3}", last, re.M)):
+            raise SystemExit(f"the device's log holds no time to read it from: {last!r}")
         self.process = subprocess.Popen(
-            [adb_path(), "-s", device, "logcat", "-v", "tag", "-s", "flutter:I", "libc:F", "DEBUG:F", "AndroidRuntime:E"],
-            text=True, encoding="utf-8", errors="replace", stdout=subprocess.PIPE)
+            [adb_path(), "-s", device, "logcat", "-T", since[0], "-v", "tag", "-s", "flutter:I", "libc:F", "DEBUG:F",
+             "AndroidRuntime:E"], text=True, encoding="utf-8", errors="replace", stdout=subprocess.PIPE)
         self.lines = reader(self.process, lambda line: [line])
 
     def output(self):
