@@ -5512,6 +5512,8 @@ pub mod clash {
 	pub enum Shift_ {
 		Up(u8),
 		Down,
+		/// Down by its count, by a name whose C union member would be the tag's own.
+		Tag(u8),
 	}
 
 	/// `at` shifted, wrapping.
@@ -5519,6 +5521,7 @@ pub mod clash {
 		match shift {
 			Shift_::Up(by) => at.wrapping_add(by),
 			Shift_::Down => at.wrapping_sub(1),
+			Shift_::Tag(by) => at.wrapping_sub(by),
 		}
 	}
 

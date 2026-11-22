@@ -383,6 +383,7 @@ fun checks() {
 	check(notches.size == 2, "a list of a class named with a trailing underscore")
 	notches.forEach { it.close() }
 	check(clashShifted(1u, ClashShift.Up(2u)) == 3.toUByte() && clashShifted(1u, ClashShift.Down) == 0.toUByte(), "an enum named with a trailing underscore")
+	check(clashShifted(5u, ClashShift.Tag(2u)) == 3.toUByte(), "a variant named as the tag")
 	val count = object : ClashCount {
 		override fun next(): UInt = 4u
 	}

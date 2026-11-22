@@ -853,7 +853,7 @@ impl<'a> Gen<'a> {
 				);
 				members.push(format!(
 					"\texternal {payload_class} {};\n",
-					slot(&abi::escape(&abi::snake(&variant.name)))
+					slot(&abi::variant_member(&variant.name))
 				));
 			}
 			let _ = write!(
@@ -1362,7 +1362,7 @@ impl<'a> Gen<'a> {
 						let on = variant.on.0 & abi.api.all().0;
 						body.insert(0, format!("_on(0x{on:x}, '{c}.{}');", variant.name));
 					}
-					let member = abi::escape(&abi::snake(&variant.name));
+					let member = abi::variant_member(&variant.name);
 					for (field, name) in variant.fields.iter().zip(field_names(&variant.fields)) {
 						let e = format!("v.{name}");
 						let dst = format!("c.$u.{}.{}", slot(&member), slot(&abi::escape(&field.name)));
@@ -1503,7 +1503,7 @@ impl<'a> Gen<'a> {
 				let mut cases = Vec::new();
 				for (n, variant) in e.variants.iter().enumerate() {
 					let case = self.variant_class(&dt, &variant.name);
-					let member = abi::escape(&abi::snake(&variant.name));
+					let member = abi::variant_member(&variant.name);
 					let mut args = Vec::new();
 					for (field, name) in variant.fields.iter().zip(field_names(&variant.fields)) {
 						let value = self.lift(

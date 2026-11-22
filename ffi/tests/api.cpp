@@ -628,6 +628,8 @@ int checks() {
 		check(api::clash_shifted(1, api::clash_Shift_Up{2}) == 3 && api::clash_shifted(1, api::clash_Shift_Down{}) == 0,
 			"an enum named with a trailing underscore");
 		check(api::clash_Shift_debug(api::clash_Shift_Up{2}).str() == "Up(2)", "an enum named with a trailing underscore prints");
+		check(api::clash_shifted(5, api::clash_Shift_Tag{2}) == 3 && api::clash_Shift_debug(api::clash_Shift_Tag{2}).str() == "Tag(2)",
+			"a variant named as the tag");
 		check(api::clash_counted(std::make_unique<hook::Count>()) == 5, "a callback named with a trailing underscore");
 	}
 	// A name takes a copy of the caller's buffer, which is its own again after.

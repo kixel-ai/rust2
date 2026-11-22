@@ -477,6 +477,7 @@ func checks() {
 			n.Close()
 		}
 		check(api.ClashShifted(1, api.ClashShiftUp{V0: 2}) == 3 && api.ClashShifted(1, api.ClashShiftDown{}) == 0, "an enum named with a trailing underscore")
+		check(api.ClashShifted(5, api.ClashShiftTag{V0: 2}) == 3, "a variant named as the tag")
 		check(api.ClashCounted(notchCount{}) == 5, "an interface named with a trailing underscore")
 	}
 	// A path that is no UTF-8 is a Go string all the same.

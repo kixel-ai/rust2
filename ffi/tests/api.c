@@ -924,6 +924,10 @@ static void checks(void) {
 	if (api_clash_shifted(1, up) != 3 || api_clash_shifted(1, down) != 0 || !printed(api_clash_Shift_debug(&up), "Up(2)")) {
 		tr_fail("an enum named with a trailing underscore");
 	}
+	api_clash_Shift_ tagged = {.tag = API_CLASH_SHIFT_TAG, .tag_ = {2}};
+	if (api_clash_shifted(5, tagged) != 3 || !printed(api_clash_Shift_debug(&tagged), "Tag(2)")) {
+		tr_fail("a variant named as the tag");
+	}
 	if (api_clash_counted(Count()) != 5) {
 		tr_fail("a callback named with a trailing underscore");
 	}

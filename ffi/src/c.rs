@@ -95,7 +95,7 @@ impl Header<'_> {
 				if !v.fields.is_empty() {
 					let owner = crate::lock::type_key(&e.shown);
 					self.names
-						.insert(format!("{owner} / member {}", v.name), abi::escape(&snake));
+						.insert(format!("{owner} / member {}", v.name), abi::variant_member(&v.name));
 				}
 				for field in &v.fields {
 					let name = abi::escape(&field.name);
@@ -523,7 +523,7 @@ impl Header<'_> {
 				"typedef struct {payload} {{\n{}\n}} {payload};\n",
 				decls.join("\n")
 			));
-			members.push(format!("\t\t{payload} {};", abi::escape(&abi::snake(&variant.name))));
+			members.push(format!("\t\t{payload} {};", abi::variant_member(&variant.name)));
 		}
 		self.line(format!(
 			"typedef struct {name} {{\n\t{tag} tag;\n\tunion {{\n{}\n\t}};\n}} {name};\n",

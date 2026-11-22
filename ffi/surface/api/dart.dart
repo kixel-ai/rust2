@@ -1155,6 +1155,10 @@ final class ClashShiftUp extends ClashShift {
 final class ClashShiftDown extends ClashShift {
 	const ClashShiftDown();
 }
+final class ClashShiftTag extends ClashShift {
+	final int $0;
+	const ClashShiftTag(this.$0);
+}
 enum Level implements Comparable<Level> {
 	error(0),
 	warn(1),

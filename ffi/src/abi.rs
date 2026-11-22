@@ -693,7 +693,7 @@ impl<'a> Abi<'a> {
 			let rust = format!("enum `{}`", api.rust(&e.path, &e.args));
 			let members = (e.variants.iter())
 				.filter(|v| !v.fields.is_empty())
-				.map(|v| (escape(&snake(&v.name)), format!("variant `{}` of {rust}", v.name)));
+				.map(|v| (variant_member(&v.name), format!("variant `{}` of {rust}", v.name)));
 			scope(
 				std::iter::once(("tag".to_string(), format!("the tag of {rust}")))
 					.chain(members)
@@ -2525,6 +2525,13 @@ fn member_named(name: &str) -> String {
 	})
 }
 
+/// The member of a data enum's C union for its variant `name`, which C and each binding name
+/// alike: the variant's snake-case name, [`escape`]d, with `tag`, the enum's own member,
+/// escaped as C's keywords are, so a variant `Tag` is `tag_`.
+pub(crate) fn variant_member(name: &str) -> String {
+	escaped(&snake(name), |stem| stem == "tag" || keyword(stem))
+}
+
 /// What a callback parameter needs, by the form it takes.
 pub(crate) fn dyn_wrap(form: Dyn, expr: &str) -> String {
 	match form {
@@ -2586,6 +2593,12 @@ mod tests {
 		assert_eq!(method("type"), "type_");
 		assert_eq!(method("type_"), "type_2");
 		assert_eq!(method("delete"), "delete_");
+		// A union's member takes `tag`, the enum's own, as a keyword too.
+		let variant = super::variant_member;
+		assert_eq!(variant("Tag"), "tag_");
+		assert_eq!(variant("Tag_"), "tag_2");
+		assert_eq!(variant("Tags"), "tags");
+		assert_eq!(variant("New"), "new_");
 	}
 
 	#[test]

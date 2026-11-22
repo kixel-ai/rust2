@@ -507,6 +507,7 @@ void checks() {
     api.clashShifted(1, const api.ClashShiftUp(2)) == 3 && api.clashShifted(1, const api.ClashShiftDown()) == 0,
     'an enum named with a trailing underscore',
   );
+  check(api.clashShifted(5, const api.ClashShiftTag(2)) == 3, 'a variant named as the tag');
   check(api.clashCounted(Count()) == 5, 'a callback named with a trailing underscore');
   // A named constructor keeps the name of an instance method, as Dart allows.
   final opened = api.ClashStore.open();

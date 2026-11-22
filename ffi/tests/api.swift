@@ -474,6 +474,7 @@ func checks() {
 	check(notch.description == "notch 3" && notch.debugDescription == "Notch_ { count: 3 }", "a class named with a trailing underscore prints")
 	check(clashNotches(2).count == 2, "a list of a class named with a trailing underscore")
 	check(clashShifted(1, .up(2)) == 3 && clashShifted(1, .down) == 0, "an enum named with a trailing underscore")
+	check(clashShifted(5, .tag(2)) == 3, "a variant named as the tag")
 	check(ClashShift.up(2).debugDescription == "Up(2)", "an enum named with a trailing underscore prints")
 	check(clashCounted(Count()) == 5, "a protocol named with a trailing underscore")
 	// Fields named as `Display`'s and `Debug`'s members, which take a trailing `_`.

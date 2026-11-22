@@ -1311,7 +1311,7 @@ impl<'a> Gen<'a> {
 			});
 			members.push(full(true, &case, labels));
 			let tag = abi::join(&upper, &snake.to_uppercase());
-			let member = kw(&abi::escape(&snake));
+			let member = kw(&abi::variant_member(&variant.name));
 			let fields: Vec<String> = (variant.fields.iter().zip(&names))
 				.map(|(f, name)| match variant.tuple {
 					true => self.sw(&f.ty),

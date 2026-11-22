@@ -661,6 +661,7 @@ sealed class ClashChange {
 sealed class ClashShift {
 	data class Up(val _0: kotlin.UByte) : ClashShift()
 	data object Down : ClashShift()
+	data class Tag(val _0: kotlin.UByte) : ClashShift()
 	fun debug(): kotlin.String
 }
 enum class Level(internal val value: Int) {

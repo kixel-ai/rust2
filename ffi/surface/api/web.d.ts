@@ -401,6 +401,9 @@ export type ClashShift = {
     _0: number;
 } | {
     tag: "Down";
+} | {
+    tag: "Tag";
+    _0: number;
 };
 export declare function debug(self: ClashShift): string;
 export declare function eq(a: ClashShift, b: ClashShift): boolean;

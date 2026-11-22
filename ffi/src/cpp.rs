@@ -1653,7 +1653,7 @@ impl<'a> Header<'a> {
 			for (n, variant) in e.variants.iter().enumerate() {
 				let tag = abi::join(&upper, &abi::snake(&variant.name).to_uppercase());
 				let payload = self.name(&abi::payload(&c, &variant.name));
-				let member = abi::escape(&abi::snake(&variant.name));
+				let member = abi::variant_member(&variant.name);
 				let mut set = vec![format!("c.tag = {tag};")];
 				let mut fields = Vec::new();
 				for (field, name) in variant.fields.iter().zip(field_names(&variant.fields)) {

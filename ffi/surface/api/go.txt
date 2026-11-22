@@ -767,6 +767,11 @@ type ClashShiftDown struct {
 }
 func (self ClashShiftDown) Equal(other ClashShift) bool
 func (self ClashShiftDown) GoString() string
+type ClashShiftTag struct {
+	V0 uint8
+}
+func (self ClashShiftTag) Equal(other ClashShift) bool
+func (self ClashShiftTag) GoString() string
 type ClashShiftUp struct {
 	V0 uint8
 }

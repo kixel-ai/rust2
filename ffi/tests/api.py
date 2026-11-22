@@ -1175,6 +1175,7 @@ def values():
 	check(str(notch) == "notch 3" and repr(notch) == "Notch_ { count: 3 }", "a class named with a trailing underscore prints")
 	check(len(api.clash_notches(2)) == 2, "a list of a class named with a trailing underscore")
 	check(api.clash_shifted(1, api.ClashShift.Up(2)) == 3 and api.clash_shifted(1, api.ClashShift.Down()) == 0, "an enum named with a trailing underscore")
+	check(api.clash_shifted(5, api.ClashShift.Tag(2)) == 3, "a variant named as the tag")
 	check(api.clash_counted(Count()) == 5, "a callback named with a trailing underscore")
 	check(api.ClashStore.open_().open() == 7, "a static function and a method apart by a trailing underscore")
 	print("values ok")

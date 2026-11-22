@@ -17,7 +17,7 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-#define API_CONTRACT ((uint64_t)0x7d5e461fad3b77d3ULL)
+#define API_CONTRACT ((uint64_t)0x8cf6843b4d1d8840ULL)
 uint64_t api_contract(void);
 uint32_t api_target(void);
 typedef int32_t api_status;
@@ -1207,14 +1207,19 @@ typedef struct api_clash_Change {
 typedef enum api_clash_Shift_tag {
 	API_CLASH_SHIFT_UP = 0,
 	API_CLASH_SHIFT_DOWN = 1,
+	API_CLASH_SHIFT_TAG = 2,
 } api_clash_Shift_tag;
 typedef struct api_clash_Shift_Up {
 	uint8_t _0;
 } api_clash_Shift_Up;
+typedef struct api_clash_Shift_Tag {
+	uint8_t _0;
+} api_clash_Shift_Tag;
 typedef struct api_clash_Shift_ {
 	api_clash_Shift_tag tag;
 	union {
 		api_clash_Shift_Up up;
+		api_clash_Shift_Tag tag_;
 	};
 } api_clash_Shift_;
 typedef struct api_Log_vtable {

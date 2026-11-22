@@ -921,6 +921,7 @@ public enum ClashChange: Sendable, CustomDebugStringConvertible, Equatable {
 public enum ClashShift: Sendable, CustomDebugStringConvertible, Equatable {
 	case up(Swift.UInt8)
 	case down
+	case tag(Swift.UInt8)
 	@inlinable public var debugDescription: Swift.String { get }
 	@inlinable public static func == (a: ClashShift, b: ClashShift) -> Swift.Bool
 }

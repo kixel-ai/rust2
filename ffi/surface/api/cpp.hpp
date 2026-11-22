@@ -1578,6 +1578,9 @@ namespace api {
 	};
 	struct clash_Shift_Down {
 	};
+	struct clash_Shift_Tag {
+		::std::uint8_t _0;
+	};
 	#if defined(__cpp_lib_three_way_comparison)
 	inline ::std::partial_ordering operator<=>(const Quantity &a_2, const Quantity &b_);
 	#endif
@@ -2619,7 +2622,8 @@ namespace api {
 	using clash_Change = ::std::variant<clash_Change_Set, clash_Change_Clear>;
 	struct clash_Shift_Up;
 	struct clash_Shift_Down;
-	using clash_Shift_ = ::std::variant<clash_Shift_Up, clash_Shift_Down>;
+	struct clash_Shift_Tag;
+	using clash_Shift_ = ::std::variant<clash_Shift_Up, clash_Shift_Down, clash_Shift_Tag>;
 	using Clash_after_future = ::api::future<detail::Clash_after_future_op>;
 	using Clash_tagged_future = ::api::future<detail::Clash_tagged_future_op>;
 	using Waiter_poll_future_future = ::api::future<detail::Waiter_poll_future_future_op>;

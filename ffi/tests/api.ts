@@ -551,6 +551,7 @@ function checks(): void {
 		check(notches.length === 2, "a list of a class named with a trailing underscore");
 		notches.forEach(close);
 		check(api.clashShifted(1, { tag: "Up", _0: 2 }) === 3 && api.clashShifted(1, { tag: "Down" }) === 0, "an enum named with a trailing underscore");
+		check(api.clashShifted(5, { tag: "Tag", _0: 2 }) === 3, "a variant named as the tag");
 		check(ClashShift.debug({ tag: "Up", _0: 2 }) === "Up(2)", "an enum named with a trailing underscore prints");
 		check(api.clashCounted({ next: () => 4 }) === 5, "a callback named with a trailing underscore");
 	}
