@@ -12,6 +12,7 @@ what each refusal asks you to change.
 
 ```bash
 rust2-ffi (--out dir | --census dir | --api file) [--manifest-path Cargo.toml] [--target triple]... [--with file]... [--baseline api.json] [-- cargo args]
+nix run github:kixel-ai/rust2/<rev>#ffi -- --out ffi   # pinned to a revision, under the caller's cargo
 ```
 
 It runs `cargo check` on the package with itself as `RUSTC_WRAPPER`, for each `--target`
@@ -528,6 +529,27 @@ Linux's exports, as the merge queue runs on, since a header names its targets.
   name. A type instance's methods are named through it, and a function instance appends
   its arguments' names, a reference's by what it borrows and a const's by its value: the
   api fixture's `drain` is `api_drain_4` at `Batch` and `api_drain_2` at `Batch<2>`.
+
+## Every binding
+
+Each language's binding below generates the crate's own API in that language's idiom, and
+a binding added later, such as [m3's targets](../quest/m3/README.md), keeps the same rules:
+
+- It checks `<prefix>_contract()` against the contract it was generated with when it loads,
+  before any other call, and fails loud on a mismatch.
+- It keeps the C ABI's bulk and zero-copy payloads, with no per-byte loop on either side.
+- It wraps the C ABI's futures in the language's native future. Those futures take the
+  result in the poll that finishes them, so a cancel never loses a value, cost one crossing
+  when ready at once, and reuse a repeated waker. The native future latches a wake that
+  lands between `PENDING` and parking, proves no loss on cancel in a test that forces that
+  window, and picks a semantic for concurrent pollers.
+- It drives each `Driver`, such as moq's, from the language's own event loop, with no
+  thread of its own and no async runtime such as tokio: it holds one `kio::Waiter` per
+  driver, made from its waker, since what a poll registers lives only as long as its
+  waiter, polls on each wake and at the deadline the poll returns, and frees the driver to
+  cancel it. A cancelled call ends only that call, as in Rust, and leaves its object usable.
+- It is measured, with its generated size raw and gzipped, on
+  [the binding benchmark](../bench/ffi/README.md), whose `just ffi bench` covers it.
 
 ## C++
 

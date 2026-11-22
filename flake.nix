@@ -202,6 +202,41 @@
                 # The tests run cargo on a fixture workspace: `just driver test` runs them.
                 doCheck = false;
               };
+          # The exporter, on the drivers' nightly, run by cargo as rustc under the caller's
+          # cargo, whose rustc the glue builds with.
+          rust2-ffi =
+            (pkgs.makeRustPlatform {
+              cargo = tsToolchain;
+              rustc = tsToolchain;
+            }).buildRustPackage
+              {
+                pname = "rust2-ffi";
+                version = "0.0.0";
+                # With its fixtures, its workspace's members, and the front end it shares.
+                src = pkgs.lib.fileset.toSource {
+                  root = ./.;
+                  fileset = pkgs.lib.fileset.unions [
+                    ./ffi
+                    ./driver
+                  ];
+                };
+                buildAndTestSubdir = "ffi";
+                cargoRoot = "ffi";
+                cargoLock.lockFile = ./ffi/Cargo.lock;
+                cargoBuildFlags = [
+                  "--package"
+                  "rust2-ffi"
+                ];
+                RUSTFLAGS = "-C link-args=-Wl,-rpath,${tsToolchain}/lib";
+                nativeBuildInputs = [ pkgs.makeWrapper ];
+                # A wasm32-wasip1 export checks std's MIR from the sysroot, which a stable
+                # cargo could not build with -Zbuild-std.
+                postInstall = ''
+                  wrapProgram $out/bin/rust2-ffi --set-default RUST2_TS_SYSROOT ${rust2-ts-std}
+                '';
+                # The tests build every language's binding: `just ffi test` runs them.
+                doCheck = false;
+              };
           # rust2-ffi's generated async Kotlin needs coroutines on the
           # classpath; nixpkgs has no jar.
           kotlinx-coroutines = pkgs.fetchurl {
@@ -214,6 +249,7 @@
             quest = quest-cli;
             ts = rust2-ts;
             pub = rust2-pub;
+            ffi = rust2-ffi;
           }
           # ra-jit and its toolchain for the benchmark's ra-jit variants, which build it
           # only when they run: it compiles from source. ra-jit skips Intel macOS.

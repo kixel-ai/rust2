@@ -5,9 +5,11 @@
 moq can pin [rust2-ffi](/ffi/README.md) and switch its bindings to it: the exporter exports
 what moq's bindings need from moq's own crates, with no attributes, no config, and no
 hand-written wrapper beyond what the census shows is genuinely new API, in every language
-moq ships. It ends once every child has merged, the last of them
-[ship](/quest/m1/ffi-export/ship.md), which is what
-[moq's wait](https://github.com/moq-dev/moq/blob/main/quest/m3/rust2-exporter.md) checks.
+moq ships. It ends once every child has merged, which
+[moq's wait](https://github.com/moq-dev/moq/blob/main/quest/m3/rust2-exporter.md) checks by
+this file being gone. The flake's `ffi` package, the root README's list of generators, and
+the rules every generator follows, now in [ffi/README.md](/ffi/README.md#every-binding),
+shipped first; the child that lands last deletes this file.
 
 ## Plan
 
@@ -50,33 +52,17 @@ each generating the crate's own API in its language's idiom, as Kotlin does (dec
 the maintainer on 2026-11-01). Only Python skips the C ABI, since a CPython extension calls
 about 40 times faster than `ctypes`; the others call C natively.
 
-Every generator, the [targets m3 plans](/quest/m3/README.md) included:
-
-- checks `<prefix>_contract()` against the header's contract when it loads, before any
-  other call, and fails loud on a mismatch (done in all six);
-- keeps the C ABI's bulk and zero-copy payloads, with no per-byte loop on either side (done);
-- wraps the C ABI's futures in the language's native future (done). Those futures already
-  take the result in the poll that finishes them, so a cancel never loses a frame, cost one
-  crossing when ready at once, and reuse a repeated waker. The native future must latch a
-  wake that lands between `PENDING` and parking, prove no loss on cancel in a test that
-  forces that window, and pick a semantic for concurrent pollers. Decided with the
-  maintainer on 2026-10-27: async lands with each generator, not as its own quest.
-- drives each of moq's `Driver`s from the language's own event loop (done in all seven
-  `ffi/moq/moq.*`). Decided with the maintainer on 2026-10-27: the C ABI exports the poll,
-  with no generated thread and no moq-tokio helpers, which would tie bindings to tokio. A
-  binding holds one `kio::Waiter` per driver, made from its waker, since what a poll
-  registers lives only as long as its waiter; it polls on each wake and at the deadline the
-  poll returns, and frees the driver to cancel it. Decided with the maintainer on
-  2026-10-27, for Go: a cancel ends only that read and leaves the stream usable, as in
-  Rust, since a cancelled C ABI future loses nothing; moq's `go/wrapper/doc.go`, which ends
-  the stream, changes with the generator. Each driver runs on a goroutine that lives as
-  long as its object, and a call's `ctx` bounds only that call.
-- is measured, with its generated size raw and gzipped, on
-  [the binding benchmark](/bench/ffi/README.md), whose `just ffi bench` covers it.
+The rules every generator follows, the [targets m3 plans](/quest/m3/README.md) included,
+are in [ffi/README.md](/ffi/README.md#every-binding). Decided with the maintainer on
+2026-10-27: async lands with each generator, not as its own quest; the C ABI exports each
+driver's poll, with no generated thread and no moq-tokio helpers, which would tie bindings
+to tokio; and in Go, a cancel ends only that read and leaves the stream usable, with each
+driver on a goroutine that lives as long as its object, and a call's `ctx` bounding only
+that call.
 
 Decided with the maintainer on 2026-11-12, in the quest audit:
 
-- ✅ The epic's closing work is a child, [ship](/quest/m1/ffi-export/ship.md), which alone
+- ✅ The epic's closing work is a child, ship, which alone
   required the refusals epic, since finished. Rejected: the epic
   requiring it, as [#701](https://github.com/kixel-ai/rust2/pull/701) left it, since an
   epic's `Required` holds back every child, so none could start until moq's pin bump, which
