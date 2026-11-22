@@ -32,7 +32,9 @@ pub(crate) fn run(args: &[String]) -> Option<ExitCode> {
 	// Cargo passes the rustc to wrap, this executable by another spelling, to the
 	// workspace's wrapper alone.
 	let exe = std::fs::canonicalize(&exe).unwrap_or(exe);
-	let wrapped = args.get(1).is_some_and(|arg| std::fs::canonicalize(arg).is_ok_and(|arg| arg == exe));
+	let wrapped = args
+		.get(1)
+		.is_some_and(|arg| std::fs::canonicalize(arg).is_ok_and(|arg| arg == exe));
 	let mut args = args.to_vec();
 	if !wrapped {
 		args.insert(1, args[0].clone());
@@ -87,8 +89,13 @@ fn run_rustc(rustc: &Path, args: &[String]) -> ExitCode {
 
 /// The rustflags the export adds after the consumer's, as [`config::env::ADDED`] holds them.
 fn added() -> Result<Vec<String>, String> {
-	let added = std::env::var(config::env::ADDED).map_err(|_| format!("{} is unset or not UTF-8", config::env::ADDED))?;
-	Ok(added.split('\x1f').filter(|flag| !flag.is_empty()).map(str::to_string).collect())
+	let added =
+		std::env::var(config::env::ADDED).map_err(|_| format!("{} is unset or not UTF-8", config::env::ADDED))?;
+	Ok(added
+		.split('\x1f')
+		.filter(|flag| !flag.is_empty())
+		.map(str::to_string)
+		.collect())
 }
 
 /// `args` without the last run of them that is `added`: what they were before the export
@@ -127,11 +134,27 @@ fn record(args: &[String], dir: &Path) -> Result<ExitCode, String> {
 	let [_, rustc, rest @ ..] = args else {
 		return Err("ran as a wrapper with no rustc to wrap".to_string());
 	};
+	// Cargo passes args in an argfile once they overflow a command line, which no
+	// environment variable the check passes them on in holds either.
+	if let [argfile] = rest
+		&& argfile.starts_with('@')
+	{
+		return Err(format!(
+			"cargo passed rustc its args in an argfile, {argfile}: the target's rustflags are too long to pass on"
+		));
+	}
 	if rest.windows(2).any(|w| w[0] == "--crate-name" && w[1] == "___") {
 		// Cargo's query lists the target's rustflags between these two.
-		let start = (rest.iter().position(|arg| arg == "--print=file-names"))
-			.ok_or_else(|| format!("cargo's query of a target is not as rust2-ffi reads it: {}", rest.join(" ")))?;
-		let end = rest[start..].iter().position(|arg| arg == "--target").map(|at| start + at);
+		let start = (rest.iter().position(|arg| arg == "--print=file-names")).ok_or_else(|| {
+			format!(
+				"cargo's query of a target is not as rust2-ffi reads it: {}",
+				rest.join(" ")
+			)
+		})?;
+		let end = rest[start..]
+			.iter()
+			.position(|arg| arg == "--target")
+			.map(|at| start + at);
 		// The host's, which a check for a named target compiles build scripts and proc macros
 		// for, without its rustflags, has none.
 		if let Some(end) = end {
@@ -207,9 +230,13 @@ fn record_cfgs(args: &[String], rustc: &Path) -> Result<(), String> {
 		if stable {
 			cmd.env("RUSTC_BOOTSTRAP", "-1");
 		}
-		let output = cmd.output().map_err(|err| format!("running {}: {err}", rustc.display()))?;
+		let output = cmd
+			.output()
+			.map_err(|err| format!("running {}: {err}", rustc.display()))?;
 		match output.status.success() {
-			true => String::from_utf8(output.stdout).map_err(|_| format!("{} printed a non-UTF-8 cfg", rustc.display())),
+			true => {
+				String::from_utf8(output.stdout).map_err(|_| format!("{} printed a non-UTF-8 cfg", rustc.display()))
+			}
 			false => Err(format!(
 				"{} --print=cfg failed ({}): {}",
 				rustc.display(),
@@ -879,6 +906,21 @@ pub(crate) fn write(path: &Path, text: &str) -> Result<(), String> {
 
 #[cfg(test)]
 mod tests {
+	#[test]
+	fn strips_the_last_run_of_added_flags() {
+		let args = |args: &str| args.split_whitespace().map(str::to_string).collect::<Vec<_>>();
+		for (from, added, want) in [
+			("-a -x -y -b", "-x -y", "-a -b"),
+			// The consumer's own copy, before the export's, stays.
+			("-x -y -a -x -y", "-x -y", "-x -y -a"),
+			// Not a run: neither is the export's.
+			("-x -a -y", "-x -y", "-x -a -y"),
+			("-x -y", "", "-x -y"),
+		] {
+			assert_eq!(super::without(&args(from), &args(added)), args(want), "{from}");
+		}
+	}
+
 	#[test]
 	fn reads_cfgs_as_cargo_gives_them() {
 		let printed = "debug_assertions\nfeature=\"x\"\nfoo\nfoo=\"a,b\"\nfoo=\"x\"\npanic=\"unwind\"\n\

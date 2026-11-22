@@ -239,12 +239,24 @@ struct Rustflags {
 	added: String,
 }
 
+/// The most bytes of rustflags the check passes cargo, which every platform's environment
+/// holds in one variable.
+const ENV_MAX: usize = 32_000;
+
 impl Rustflags {
 	fn of(checked: &Checked, target: &str) -> Result<Self, String> {
 		let recorded = &checked.targets[target];
 		let mut added: Vec<String> = crate::leaf::FLAGS.map(str::to_string).to_vec();
 		added.extend(crate::wasm::flags(target)?);
 		let encoded = [recorded.flags.clone(), added.clone()].concat().join("\x1f");
+		// Windows holds at most 32,767 characters in one environment variable, and Linux
+		// 128 KiB.
+		if encoded.len() > ENV_MAX {
+			return Err(format!(
+				"{target}'s rustflags take {} bytes, more than the {ENV_MAX} rust2-ffi can pass cargo in CARGO_ENCODED_RUSTFLAGS: put most in an argfile, as `@<path>`",
+				encoded.len()
+			));
+		}
 		Ok(Self {
 			rustc: recorded.rustc.clone().into_os_string(),
 			encoded,
@@ -431,7 +443,11 @@ fn absolute(path: &str) -> Result<PathBuf, String> {
 
 /// The facade, the package of `manifest`, then the patches it resolved with, as
 /// [`config::env::PATCH`] has them.
-fn facade(manifest: &Path, targets: &[String], picks: &Picks<'_>) -> Result<(config::Package, String, Checked), String> {
+fn facade(
+	manifest: &Path,
+	targets: &[String],
+	picks: &Picks<'_>,
+) -> Result<(config::Package, String, Checked), String> {
 	// On each target, and the web binding's that the generated crate may be walked on, so
 	// cargo queries each through this executable, which records what it passes the target's
 	// crates: the consumer's rustflags, from wherever cargo reads them, which the check
@@ -458,8 +474,12 @@ fn facade(manifest: &Path, targets: &[String], picks: &Picks<'_>) -> Result<(con
 				false => PathBuf::from(target),
 			};
 			let path = crate::driver::Recorded::path(&record, &named.to_string_lossy());
-			let json = std::fs::read_to_string(&path)
-				.map_err(|err| format!("cargo never queried {target} through rust2-ffi ({}: {err})", path.display()))?;
+			let json = std::fs::read_to_string(&path).map_err(|err| {
+				format!(
+					"cargo never queried {target} through rust2-ffi ({}: {err})",
+					path.display()
+				)
+			})?;
 			let recorded = serde_json::from_str(&json).map_err(|err| format!("reading {}: {err}", path.display()))?;
 			Ok((target.clone(), recorded))
 		});
