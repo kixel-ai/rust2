@@ -2344,17 +2344,20 @@ pub fn emit(log: impl Log, lines: Vec<u8>) -> u32 {
 	lines.iter().filter(|&&n| log.log(n, &format!("line {n}"))).count() as u32
 }
 
-/// A sensor Rust reads, then stops by a method of its own named as a binding's closing is.
+/// A sensor Rust reads, then stops by a method of its own named as a binding's closing is,
+/// on a bus named as a keyword is.
 pub trait Sensor: Send + Sync {
 	/// The sensor's reading.
 	fn read(&self) -> u32;
+	/// The bus the sensor reads through.
+	fn interface(&self) -> u8;
 	/// Stops the sensor.
 	fn close(&self);
 }
 
-/// `sensor`'s reading, taken before stopping it.
+/// `sensor`'s reading offset by its bus, taken before stopping it.
 pub fn sensed(sensor: impl Sensor) -> u32 {
-	let read = sensor.read();
+	let read = sensor.read().wrapping_add(u32::from(sensor.interface()));
 	sensor.close();
 	read
 }

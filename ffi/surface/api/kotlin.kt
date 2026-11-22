@@ -1629,9 +1629,11 @@ interface Log {
 }
 interface Sensor {
 	fun read(): kotlin.UInt
+	fun `interface`(): kotlin.UByte
 	fun close()
 	interface Java {
 		fun read(): kotlin.Int
+		fun interface_(): kotlin.Byte
 		fun close()
 	}
 	companion object {
@@ -2074,6 +2076,6 @@ fun unhook()
 interface StartSeekable {
 	fun seekStart(offset: ULong): ULong
 	interface Java {
-		fun seekStart(offset: Long): Long
+		@kotlin.jvm.Throws(java.io.IOException::class) fun seekStart(offset: Long): Long
 	}
 }

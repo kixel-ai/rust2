@@ -316,7 +316,8 @@ interface StartSeekable {
 	 * from implementing it: each offset as a `Long`'s bits, unsigned.
 	 */
 	interface Java {
-		/** Move to [offset] from the start, returning the position. */
+		/** Move to [offset] from the start, returning the position, or fail with an `IOException`. */
+		@kotlin.jvm.Throws(java.io.IOException::class)
 		fun seekStart(offset: Long): Long
 	}
 }
@@ -2607,7 +2608,7 @@ impl<'a> Gen<'a> {
 		let rust: Vec<&str> = methods.iter().map(|method| method.name()).collect();
 		let javas = abi::named(
 			&rust,
-			named.iter().map(|n| n.trim_matches('`').to_string()).collect(),
+			named.to_vec(),
 			|rust, name| abi::snake(name) == rust,
 			|k, name| {
 				let params: Vec<&str> = types[k].0.iter().map(|(kt, _)| kt.as_str()).collect();
@@ -2655,8 +2656,9 @@ impl<'a> Gen<'a> {
 				_ => format!(": {}", self.kt(&method.ok)),
 			};
 			wrapped.push(format!(
-				"{}\t\t\toverride fun {member}({}){ret_kt} = {call}",
+				"{}\t\t\toverride fun {}({}){ret_kt} = {call}",
 				docs("", method.deprecated.as_deref(), "\t\t\t"),
+				kw(member),
 				kotlin.join(", ")
 			));
 		}

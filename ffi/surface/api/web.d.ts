@@ -1500,6 +1500,7 @@ export declare function count(self: Seat): rt.u64;
 // Sensor.ts
 export interface Sensor {
     read(): number;
+    interface$(): number;
     close$(): void;
     close?(): void;
 }
@@ -2565,6 +2566,7 @@ export declare const imports: {
     api_web_cb_Log_log: (data: number, p0: number, p1: number) => number;
     api_web_cb_Scan_scan: (data: number, p0: number, p1: number) => bigint;
     api_web_cb_Sensor_close: (data: number) => void;
+    api_web_cb_Sensor_interface: (data: number) => number;
     api_web_cb_Sensor_read: (data: number) => number;
     api_web_cb_Stretch_stretch: (data: number) => number;
     api_web_cb_Turner_by: (data: number) => bigint;

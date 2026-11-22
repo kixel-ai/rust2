@@ -1803,6 +1803,7 @@ func (self Seat) Equal(other Seat) (bool, error)
 func (self Seat) GoString() string
 type Sensor interface {
 	Read() uint32
+	Interface() uint8
 	Close()
 }
 type Shadowed struct {

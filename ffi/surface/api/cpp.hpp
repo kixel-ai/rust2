@@ -807,6 +807,7 @@ namespace api {
 	class Sensor {
 		virtual ~Sensor() = default;
 		virtual ::std::uint32_t read() const = 0;
+		virtual ::std::uint8_t interface() const = 0;
 		virtual void close() const = 0;
 	};
 	class Scan {

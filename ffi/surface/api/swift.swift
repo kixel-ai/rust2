@@ -1612,6 +1612,7 @@ public protocol Log: Sendable {
 }
 public protocol Sensor: Sendable {
 	func read() -> Swift.UInt32
+	func interface() -> Swift.UInt8
 	func close()
 }
 public protocol Scan: Sendable {

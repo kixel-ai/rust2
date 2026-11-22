@@ -17,7 +17,7 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-#define API_CONTRACT ((uint64_t)0x0046fe8ddb4e3cefULL)
+#define API_CONTRACT ((uint64_t)0x6541c1a533126913ULL)
 uint64_t api_contract(void);
 uint32_t api_target(void);
 typedef int32_t api_status;
@@ -1208,6 +1208,7 @@ typedef struct api_Log {
 typedef struct api_Sensor_vtable {
 	void (*free)(void *data);
 	uint32_t (*read)(void *data);
+	uint8_t (*interface)(void *data);
 	void (*close)(void *data);
 } api_Sensor_vtable;
 typedef struct api_Sensor {

@@ -32,6 +32,7 @@ import api.Ticket;
 import api.UIntException;
 import api.Unsigned;
 import api.Url;
+import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
@@ -119,9 +120,15 @@ class Caller {
 		check(ApiKt.emit(Log.of(levels), new Bytes(new byte[] {(byte) 200, 1})) == 1, "Java implements a callback interface of an unsigned integer");
 		check(levels.seen == 201 && levels.closed, "Rust passes the callback each unsigned integer's bits, and closes it as it drops it");
 		Dial dial = new Dial();
-		check(ApiKt.sensed(Sensor.of(dial)) == -1 && dial.stopped == 1, "Rust calls a callback's own close once, apart from closing it as it drops it");
+		check(ApiKt.sensed(Sensor.of(dial)) == -1 && dial.stopped == 1, "Rust calls a callback's own close once, apart from closing it as it drops it, and one named as a keyword");
 		try (Far far = new Far()) {
-			check(ApiKt.seekTo(far, -1L) == -1L && far.at == -1L, "Java implements StartSeekable");
+			check(ApiKt.seekTo(far, -1L) == -1L && far.at == -1L && far.sought == 1, "Java implements StartSeekable");
+			try {
+				ApiKt.seekTo(far, -2L);
+				throw new AssertionError("a seek StartSeekable refuses lands");
+			} catch (StringException e) {
+				check(e.getError().equals("past the end") && far.at == -1L && far.sought == 2, "StartSeekable fails a seek with an IOException");
+			}
 		}
 
 		ByteBuffer frame = ByteBuffer.allocateDirect(5);
@@ -154,13 +161,18 @@ class Caller {
 		}
 	}
 
-	/** A sensor reading the most a `u32` holds, counting how often Rust stops it. */
+	/** A sensor reading one below the most a `u32` holds on bus 1, counting how often Rust stops it. */
 	static final class Dial implements Sensor.Java {
 		int stopped;
 
 		@Override
 		public int read() {
-			return -1;
+			return -2;
+		}
+
+		@Override
+		public byte interface_() {
+			return 1;
 		}
 
 		@Override
@@ -169,12 +181,18 @@ class Caller {
 		}
 	}
 
-	/** An empty channel seeking from its start to any offset, as Rust's `SeekFrom::Start` does. */
+	/**
+	 * An empty channel seeking from its start to the most a `u64` holds but nothing else past
+	 * `Long.MAX_VALUE`, as Rust's `SeekFrom::Start` may, counting each such seek.
+	 */
 	static final class Far implements SeekableByteChannel, StartSeekable.Java {
 		long at;
+		int sought;
 
 		@Override
-		public long seekStart(long offset) {
+		public long seekStart(long offset) throws IOException {
+			sought++;
+			if (offset != -1L) throw new IOException("past the end");
 			at = offset;
 			return offset;
 		}
@@ -196,6 +214,7 @@ class Caller {
 
 		@Override
 		public SeekableByteChannel position(long position) {
+			if (position < 0) throw new IllegalArgumentException("a negative position");
 			at = position;
 			return this;
 		}

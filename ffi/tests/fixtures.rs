@@ -1659,24 +1659,43 @@ fn java_reaches(declared: &[(String, String, Vec<String>)]) {
 			continue;
 		}
 		let value = methods.iter().any(|m| m.contains(" box-impl("));
+		let name = |method: &str| method.split_once('(').unwrap().0.rsplit(' ').next().unwrap().to_string();
+		let java = |name: &str| {
+			name.chars().all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '$')
+				&& !name.starts_with(|c: char| c.is_ascii_digit())
+				&& !KEYWORDS.contains(&name)
+		};
+		// The names of the methods Java calls, each without the `_` that keeps it apart.
+		let called: BTreeSet<String> = (methods.iter())
+			.map(|m| name(m))
+			.filter(|name| java(name))
+			.map(|name| name.trim_end_matches('_').to_string())
+			.collect();
+		// Whether Java calls a twin of the Kotlin form `name`: a method of its name before the
+		// mangling, apart from any trailing `_`, or for a getter, its property's.
+		let twin = |name: &str| {
+			let base = name.split('-').next().unwrap().trim_end_matches('_');
+			let property = (base.strip_prefix("get"))
+				.filter(|rest| rest.starts_with(|c: char| c.is_ascii_uppercase()))
+				.map(|rest| rest[..1].to_ascii_lowercase() + &rest[1..]);
+			called.contains(base) || property.is_some_and(|property| called.contains(&property))
+		};
 		let mut made = false;
 		for method in methods {
-			let name = method.split_once('(').unwrap().0.rsplit(' ').next().unwrap();
+			let name = name(method);
+			let name = name.as_str();
 			if name == class {
 				made |= !method.ends_with("kotlin.jvm.internal.DefaultConstructorMarker);");
 				continue;
 			}
 			made |= method.contains(" static ") && method.contains(&format!(" {class} of("));
-			let java = name.chars().all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '$')
-				&& !name.starts_with(|c: char| c.is_ascii_digit())
-				&& !KEYWORDS.contains(&name);
+			let base = name.split('-').next().unwrap();
 			let kotlin = [
-				// A value class's own statics and members, which Java reaches through the
-				// statics of its companion.
-				value,
-				name.ends_with("-impl") || name.ends_with("-impl0"),
-				// A function Java reaches through its bridge.
-				name.ends_with("-kotlin"),
+				// A value class's box, and what it overrides of `Object`'s.
+				value && ["constructor", "box", "unbox", "equals", "hashCode", "toString"].contains(&base),
+				// A value class's member, a function Java reaches through its bridge, or a getter
+				// Kotlin mangles, which overrides one, so takes no `@JvmName`.
+				(name.ends_with("-impl") || name.ends_with("-kotlin") || name.starts_with("get") || value) && twin(name),
 				// What Kotlin declares of a data class.
 				name.starts_with("component") || name.starts_with("copy-"),
 				// A callback interface's method, which Java implements through `Java`.
@@ -1684,11 +1703,13 @@ fn java_reaches(declared: &[(String, String, Vec<String>)]) {
 				// The codecs.
 				class == "api.ApiKt" && (name.starts_with("w_") || name.starts_with("r_")),
 				name.contains('$'),
-				// The runtime's, which Java reads through a static.
-				["api.SocketAddr", "api.SocketAddrV6"].contains(&class.as_str()) && name.starts_with("getPort-"),
+				// The runtime's sealed interface, whose port Java reads through a static of each
+				// class implementing it.
+				class == "api.SocketAddr" && name.starts_with("getPort-"),
+				// The runtime's conversion to Kotlin's own value class.
 				class == "api.Duration" && name.starts_with("toKotlinDuration-"),
 			];
-			if !java && !kotlin.contains(&true) {
+			if !java(name) && !kotlin.contains(&true) {
 				unreachable.push(format!("{class}: {method}"));
 			}
 		}

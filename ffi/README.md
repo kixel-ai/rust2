@@ -837,7 +837,8 @@ the rest cross encoded.
   of its methods, each unsigned integer the signed one of its bits and an `Ipv4Addr` or
   `SocketAddrV4` its sealed interface, and `Log.of(java)` wraps one in the trait, closing
   it as Rust drops it if it is `AutoCloseable`. A data class's `copy` and `componentN`
-  of an inline class stay Kotlin's.
+  of an inline class, and `Duration`'s conversion to `kotlin.time.Duration`, itself an
+  inline class, stay Kotlin's.
 - **Closures** are function types, which Rust calls from any thread: one lent for a call
   only during the call, and one Rust keeps, as `Spawned.new` does, until it drops it,
   when it deletes its global reference and the GC may collect it. An object it lends is

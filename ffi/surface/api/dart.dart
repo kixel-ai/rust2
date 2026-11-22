@@ -1812,6 +1812,7 @@ abstract class Log {
 }
 abstract class Sensor {
 	int read();
+	int interface();
 	void close_();
 	void close();
 }

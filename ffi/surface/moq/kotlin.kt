@@ -8399,6 +8399,6 @@ fun muxCodecOpusPacketSamples(packet: moq.Bytes): kotlin.UInt?
 interface StartSeekable {
 	fun seekStart(offset: ULong): ULong
 	interface Java {
-		fun seekStart(offset: Long): Long
+		@kotlin.jvm.Throws(java.io.IOException::class) fun seekStart(offset: Long): Long
 	}
 }
