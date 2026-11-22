@@ -1773,7 +1773,11 @@ nix develop .#sanitize --command just ffi sanitize  # api's C and C++ scripts un
 The `api` fixture covers each rule once, and re-exports the `dep` fixture's types, which
 export into the same library. The fixture's binding serves the host and wasm32, whose
 items the host's library lacks, and each language's test checks that the host's items work
-and that wasm32's fail. Each language's script is written at test time by
+and that wasm32's fail. The release builder runs the Dart, Go, and Swift tests, as the
+Python, C++, and web ones, against its own export of every host and no wasm32, so each
+leaves what depends on its targets to `tests/targets.<ext>`, a program of its own the
+exporter's tests alone run: what only wasm32 has, which that export lacks by name, and what
+this binding's wasm32 makes fallible, which Go's signatures show. Each language's script is written at test time by
 `tests/fixtures/transcript` from the fixture's `examples/transcript.rs`, whose `main` is a
 typed subset of Rust checked against the export's `api.json`: an item it cannot resolve, or
 a construct a language's writer cannot spell, fails the test naming it. Each function the

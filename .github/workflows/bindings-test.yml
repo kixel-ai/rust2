@@ -1,6 +1,6 @@
 name: Binding packages test
 
-# bindings.yml on the api fixture, whose Python, C++, and web consumers must print native Rust's
+# bindings.yml on the api fixture, whose consumers in every language must print native Rust's
 # transcript byte for byte, and on moq's stand-in facade at the exporter's moq pin, its first consumer.
 # Read-only: nothing here publishes.
 on:
@@ -47,13 +47,12 @@ jobs:
       web-manifest-path: ffi/fixtures/api/Cargo.toml
       scope: kixel-ai
       web-check: api-checks/web
-      # A module path a proxy could serve. No go-check, as no swift-check: api.go needs the
-      # wasm32 items this export lacks, so the consumer only loads the runtime.
-      go-module: example.com/api
-      # No swift-check: api.swift compiles against the fixture's own test export, of the host
-      # and wasm32-wasip1, not this one's targets. Its transcript stays the exporter's tests'.
-      # Nor a dart-check: api.dart, as api.go, names wasm32 items this export lacks, so the
-      # Dart consumers resolve the library alone.
+      # Each check leaves out its targets file, which the exporter's tests run: what only wasm32
+      # has, and what that export makes fallible, as it serves wasm32 too.
+      # No go-module, whose path would rename the export's own module, `api`, which api.go imports.
+      go-check: api-checks/go
+      swift-check: api-checks/swift
+      dart-check: api-checks/dart
 
   moq:
     name: moq stand-in

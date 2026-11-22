@@ -132,9 +132,13 @@ func reversed(list []*tls.Codec) []*tls.Codec {
 	return list
 }
 
-// unspelled is a path no Rust string spells: on Unix, bytes that are not UTF-8.
+// unspelled is a path no Rust string spells: on Unix, bytes that are not UTF-8; on Windows, a
+// lone surrogate, as WTF-8.
 func unspelled() string {
-	return api.Stray()
+	if runtime.GOOS == "windows" {
+		return "\xed\xa0\x80"
+	}
+	return "\xff"
 }
 
 // socketHex is a socket address of any family as its IP's octets in hex, its port, and,
@@ -455,11 +459,6 @@ func checks() {
 		check(api.ClashEscaped{New: 3}.Delete() == 3 && api.ClashEscaped{New: 3}.Delete_(1, 2) == 213, "methods apart by a trailing underscore")
 		check(api.ClashErase_() == 2 && api.ClashErase() == 1, "functions apart by a trailing underscore")
 	}
-	// A path that is no UTF-8 is a Go string all the same.
-	check(api.Stray() == "\xff", "a path that is not UTF-8 crosses as its bytes")
-	var lent string
-	api.VisitStray(func(path string) { lent = path })
-	check(lent == "\xff", "a path Rust lends that is not UTF-8 crosses as its bytes")
 	// An error Rust returns only boxed is its type.
 	_, err := api.Refuse("why")
 	var refusal *api.Refusal
@@ -515,26 +514,6 @@ func checks() {
 	check(edges.Reversed().Some != nil && len(*edges.Reversed().Some) == 0, "an empty block in an option is Some")
 	edges.Some = &[]int32{1, 2}
 	check(list(*edges.Reversed().Some, number) == "[2, 1]", "a block in an option crosses whole")
-	// The packages serve wasm32 too: the traits of a type only wasm32 has fail on the host's
-	// library as its functions do.
-	{
-		nines := api.MarkOf(9)
-		_, err := api.PageDefault()
-		check(errors.Is(err, errors.ErrUnsupported), "a Default off the target is unsupported")
-		_, err = api.Page{Size: 1}.Equal(api.Page{Size: 1})
-		check(errors.Is(err, errors.ErrUnsupported), "an Equal off the target is unsupported")
-		booth := api.Booth{Mark: nines}
-		_, err = booth.Equal(booth)
-		check(errors.Is(err, errors.ErrUnsupported), "a checked Equal off the target is unsupported")
-		check(
-			booth.GoString() == "api_Booth_debug: it is not on this library's target",
-			"a GoString off the target reads as its error",
-		)
-		check(nines.Close() == nil, "a mark closes")
-	}
-	// A kept closure, called on another thread after the call that took it returned.
-	spawned := must(api.NewSpawned(func() uint32 { return 7 }))
-	check(must(spawned.Join()) == 7, "a kept closure runs on another thread")
 	checked()
 	fmt.Println("checks ok")
 }
@@ -625,14 +604,6 @@ func marked() (*[4]int, *atomic.Bool) {
 // closures checks what Rust keeps and releases, and readers' reads, seeks, and errors.
 func closures() {
 	ctx := context.Background()
-
-	// A kept closure Rust releases once it drops it, after its thread called it.
-	{
-		marker, freed := marked()
-		spawned := must(api.NewSpawned(func() uint32 { return uint32(marker[0]) + 1 }))
-		check(must(spawned.Join()) == 1, "a kept closure runs on Rust's thread")
-		released(freed, "Rust releases a kept closure it dropped")
-	}
 
 	// A kept closure the future holds until it is dropped, unfinished.
 	{
@@ -1499,15 +1470,6 @@ func broken(which string) {
 		})
 	case "callback panicked":
 		api.Emit(panicking{}, rt.NewBytes([]byte{1}))
-	// The packages serve wasm32 too, whose items the host's library lacks.
-	case "target":
-		_, err := api.WasmOnly()
-		check(errors.Is(err, errors.ErrUnsupported), "an item off the target is unsupported")
-		panic(err)
-	case "variant":
-		api.PointerBits(api.PlatformWasm{Bits: 32})
-	case "plain variant":
-		api.IsFamily(api.FamilyWasm)
 	case "nil reader":
 		api.Tail(nil, 1)
 	// A moment Go made, which Rust cannot read.

@@ -15,7 +15,7 @@ import 'dart:isolate';
 import 'dart:typed_data';
 
 import 'package:api/api.dart' as api;
-import 'package:transcript/transcript.dart' as transcript;
+import 'transcript.dart' as transcript;
 
 Uint8List bytes(List<int> values) => Uint8List.fromList(values);
 
@@ -879,34 +879,7 @@ Future<void> owned() async {
   unclosedLogger(log);
   fill();
   await collect(() => log.closes == 1, 'the garbage collector frees what an object it frees holds');
-  targets();
   print('owned ok');
-}
-
-/// `f` throws the UnsupportedError of `what`, which the library's target lacks.
-void lacks(void Function() f, String what) {
-  try {
-    f();
-  } on UnsupportedError catch (e) {
-    check(e.message == "$what: it is not on this library's target", '$what: $e');
-    return;
-  }
-  check(false, what);
-}
-
-/// The bindings serve wasm32 too, whose items the host's library lacks.
-void targets() {
-  check(api.pointerBits(api.platform()) == 64, "the host's variant crosses");
-  check(api.isFamily(api.Family.native), "the host's plain variant crosses");
-  lacks(() => api.wasmOnly(), 'api_wasm_only');
-  lacks(() => api.pointerBits(const api.PlatformWasm(bits: 32)), 'api_Platform.Wasm');
-  lacks(() => api.isFamily(api.Family.wasm), 'api_Family.Wasm');
-  lacks(() => api.Page.default_(), 'api_Page_default');
-  lacks(() => const api.Page(size: 1).debug(), 'api_Page_debug');
-  lacks(() => const api.Page(size: 1) == const api.Page(size: 2), 'api_Page_eq');
-  final booth = api.Booth(mark: api.Mark.of(api.U64(1)));
-  lacks(() => booth.debug(), 'api_Booth_debug');
-  lacks(() => booth == api.Booth(mark: booth.mark), 'api_Booth_eq');
 }
 
 /// Return a nursery's worth of objects, each closed, pushing out every earlier one.
@@ -973,8 +946,6 @@ void closedObjects() {
   closed(() => api.logCounts(spared, 0, open, [gone]), 'Counter', 'a moved object in a list after an implementation');
   check(spared.closes == 2, 'a call whose check throws drops the implementation it gave Rust');
   check(api.onFirstThread(), "a call after one that threw runs on the isolate's thread");
-  lacks(() => api.wasmLog(spared), 'api_wasm_log');
-  check(api.onFirstThread(), "a call after one this target lacks runs on the isolate's thread");
   check(api.logCounts(spared, 0, open, []) == 1, 'an implementation a call that threw gave none of');
   check(spared.lines == 1 && spared.closes == 3, 'an implementation given once is closed once');
 

@@ -87,31 +87,6 @@ func closed(_ function: String, _ body: () throws -> Void) {
 	}
 }
 
-/// Check that `body` throws the CheckError of `function`, which the library's target lacks.
-func lacks(_ function: String, _ body: () throws -> Void) {
-	do {
-		try body()
-		check(false, "\(function) throws off its target")
-	} catch let e as CheckError {
-		check(
-			e.function == function && e.message == "it is not on this library's target",
-			"\(function) threw \(e)"
-		)
-	} catch {
-		check(false, "\(function) threw \(error)")
-	}
-}
-
-/// The file serves wasm32 too: what only wasm32 has throws on the host's library, wherever
-/// Swift lets it.
-func targets() {
-	lacks("api_wasm_only") { _ = try wasmOnly() }
-	lacks("api_Page_default") { _ = try Page.default() }
-	let booth = Booth(mark: Mark.of(1))
-	lacks("api_Booth_debug") { _ = try booth.debugDescription }
-	lacks("api_Booth_eq") { _ = try booth == booth }
-}
-
 /// The refusal `refuse` throws for `reason`: a class, since Swift throws it.
 func refusal(_ reason: String) -> Refusal {
 	do {
@@ -399,7 +374,7 @@ func localLater(_ local: consuming Local) {
 
 /// A path no Rust string spells: bytes that are not UTF-8.
 func unspelled() -> PathBuf {
-	stray()
+	PathBuf(bytes: Bytes([0xff]))
 }
 
 /// A path's bytes in hex.
@@ -571,7 +546,6 @@ func checks() {
 	let debuggable: any CustomDebugStringConvertible = nonZeros()
 	check(debuggable.debugDescription == describeNonZeros(nonZeros()), "a record of NonZero is Debug")
 	lossless()
-	targets()
 	print("checks ok")
 }
 
@@ -1229,10 +1203,9 @@ func durations(_ rustMax: RustDuration) {
 func lossless() {
 	check(sameString("a\u{0}é\u{10ffff}") == "a\u{0}é\u{10ffff}", "text crosses")
 	// A path that is not UTF-8, which no String holds, keeps its bytes.
-	let strayPath = stray()
+	let strayPath = PathBuf(bytes: Bytes([0xff]))
 	check(strayPath.string == nil && PathBuf("a/é").string == "a/é", "a path's text is nil unless UTF-8")
 	check(samePath(strayPath) == strayPath, "a path that is not UTF-8 crosses back")
-	visitStray { path in check(path == strayPath, "a lent path that is not UTF-8 keeps its bytes") }
 	// Rust borrows a caller's span in place, and lends a closure each chunk of it in place.
 	lend("abcde") { whole in
 		let base = UInt64(UInt(bitPattern: whole.withUnsafeBufferPointer { $0.baseAddress }))
@@ -1300,12 +1273,6 @@ func broken(_ which: String) {
 		} catch {
 			check(false, "a failed check throws a CheckError")
 		}
-	// The file serves wasm32 too, whose items the host's library lacks, where Swift cannot
-	// throw.
-	case "variant":
-		_ = pointerBits(.wasm(bits: 32))
-	case "plain variant":
-		_ = isFamily(.wasm)
 	default:
 		check(false, "no case \(which)")
 	}
