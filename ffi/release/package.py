@@ -2916,10 +2916,12 @@ import java.lang.reflect.InvocationTargetException
 
 class Check : Instrumentation() {
 	private var step: String? = null
+	private var main: String? = null
 
 	override fun onCreate(arguments: Bundle?) {
 		super.onCreate(arguments)
 		step = arguments?.getString("step")
+		main = arguments?.getString("main")
 		start()
 	}
 
@@ -2970,17 +2972,36 @@ def adb(*args, **kwargs):
     return run(Path(sdk) / "platform-tools" / "adb", *args, **kwargs)
 
 
-def check_class(source):
-    """The class a Kotlin file's top-level `main` compiles into: its package's, named for the file
-    `check.kt` unless `@file:JvmName` names it."""
-    package = re.search(r"^\s*package\s+([\w.]+)", source, re.M)
-    name = re.search(r'^\s*@file:JvmName\("(\w+)"\)', source, re.M)
-    return ".".join([*([package[1]] if package else []), name[1] if name else "CheckKt"])
+def main_classes(listing, source):
+    """The classes `javap` lists in `listing` as compiled from the file `source` with a
+    `public static void main(String[])`, the entry point Kotlin compiles a top-level `main` into."""
+    found, compiled, name = set(), None, None
+    for line in listing.splitlines():
+        if heading := re.fullmatch(r'Compiled from "(.*)"', line):
+            compiled = heading[1]
+        elif declared := re.match(r"\S.*?\b(?:class|interface|enum|record) ([\w.$]+)", line):
+            name = declared[1]
+        elif re.fullmatch(r"\s+public static (?:final )?void main\(java\.lang\.String(?:\[\]|\.\.\.)\);", line):
+            if compiled == source:
+                found.add(name)
+        elif line == "}":
+            compiled = name = None
+    return sorted(found)
 
 
-def instrument(step):
-    """The consumer's instrumentation run with `step`, as `am instrument` reports its results."""
-    out = adb("shell", "am", "instrument", "-w", "-r", "-e", "step", step, f"{APP}/.Check",
+def javap():
+    """The JDK's javap, from the JDK Gradle runs on."""
+    home = os.environ.get("JAVA_HOME")
+    found = Path(home) / "bin" / "javap" if home else shutil.which("javap")
+    if not found or not Path(found).is_file():
+        raise SystemExit("finding the check's main needs the JDK's javap: set JAVA_HOME")
+    return found
+
+
+def instrument(step, *extra):
+    """The consumer's instrumentation run with `step` and the `-e` arguments `extra`, as `am
+    instrument` reports its results."""
+    out = adb("shell", "am", "instrument", "-w", "-r", "-e", "step", step, *extra, f"{APP}/.Check",
               capture_output=True, encoding="utf-8").stdout
     return dict(re.findall(r"^INSTRUMENTATION_RESULT: (\w+)=(.*?)\r?$", out, re.M))
 
@@ -3024,11 +3045,10 @@ def consume_android(repo, check, native):
                 shutil.copy(check, source / "check.kt")
             if not (source / "check.kt").is_file():
                 raise SystemExit(f"{check} holds no check.kt")
-            # Its main's class, which reflection reaches from the instrumentation's package
-            # whatever the check's, and which is kept, as an app keeps its entry points.
-            entry = check_class((source / "check.kt").read_text(encoding="utf-8"))
-            body = f'Class.forName("{entry}").getMethod("main", Array<String>::class.java).invoke(null, arrayOf<String>())'
-            keep = f"-keep class {entry} {{ public static void main(java.lang.String[]); }}\n"
+            # Its main, in whichever class the compiler names, which reflection reaches from
+            # the instrumentation's package and which is kept, as an app keeps its entry points.
+            body = 'Class.forName(main!!).getMethod("main", Array<String>::class.java).invoke(null, arrayOf<String>())'
+            keep = "-keepclasseswithmembers class * { public static void main(java.lang.String[]); }\n"
         else:
             # Loading the library checks its contract against the Kotlin's.
             body = f'Class.forName("{package}._Native")'
@@ -3113,8 +3133,18 @@ dependencies {{
         apks = list((app / "build" / "outputs" / "apk" / "release").glob("*.apk"))
         if len(apks) != 1:
             raise SystemExit(f"the consumer's build made no single APK: {apks}")
+        entry = []
+        if check:
+            # The class the compiler made check.kt's main a member of, whatever its package,
+            # @file:JvmName, or layout, among the app's own classes the build compiled.
+            classes = sorted(str(p) for p in (app / "build").rglob("*.class"))
+            listing = output(javap(), *classes) if classes else ""
+            mains = main_classes(listing, "check.kt")
+            if len(mains) != 1:
+                raise SystemExit(f"the consumer's build compiled no single main from check.kt: {mains}")
+            entry = ["-e", "main", mains[0]]
         adb("install", "-r", apks[0])
-    instrument("run")
+    instrument("run", *entry)
     report = instrument("report")
     if "status" not in report:
         raise SystemExit(f"the consumer's instrumentation reported no status: {report}")

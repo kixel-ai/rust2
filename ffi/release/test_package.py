@@ -760,10 +760,33 @@ class Swift(unittest.TestCase):
                 os.environ["CARGO_PROFILE_RELEASE_DEBUG"] = level
                 self.assertEqual(package.line_tables(manifest)[:4], root(name), level)
 
-    def test_check_class(self):
-        self.assertEqual(package.check_class("fun main() {}\n"), "CheckKt")
-        self.assertEqual(package.check_class("// A check.\npackage example.checks\n\nfun main() {}\n"), "example.checks.CheckKt")
-        self.assertEqual(package.check_class('@file:JvmName("Run")\npackage a\n\nfun main() {}\n'), "a.Run")
+    def test_main_classes(self):
+        # javap's listing of kotlinc's classes: a suspend main's bridge, a companion's main that
+        # is no entry point, a renamed file's vararg main, and another file's main.
+        listing = """Compiled from "check.kt"
+public final class x.Foo$Companion {
+  public final void main();
+}
+Compiled from "check.kt"
+public final class x.CheckKt {
+  public static final java.lang.Object main(kotlin.coroutines.Continuation<? super kotlin.Unit>);
+  public static void main(java.lang.String[]);
+}
+Compiled from "check.kt"
+public final class y.z.Named {
+  public static final void main(java.lang.String...);
+}
+Compiled from "other.kt"
+public final class OtherKt {
+  public static final void main(java.lang.String[]);
+}
+public final class rust2.check.Check extends android.app.Instrumentation {
+  public static void main(java.lang.String[]);
+}
+"""
+        self.assertEqual(package.main_classes(listing, "check.kt"), ["x.CheckKt", "y.z.Named"])
+        self.assertEqual(package.main_classes(listing, "other.kt"), ["OtherKt"])
+        self.assertEqual(package.main_classes(listing, "none.kt"), [])
 
     def test_unknown_linker_flags_fail(self):
         with self.assertRaises(SystemExit):

@@ -75,11 +75,12 @@ or C++ by its extension. A `dart-check` prints through `print`, which a Flutter 
 Android passes to its log, not through `stdout`. The Android library takes `maven-group`,
 its groupId, which no Cargo fact proves the publisher holds; without it, the builder makes
 none. It serves Android alone, so coordinates that already ship a JVM jar would lose it
-([maven-jvm](/quest/m1/ffi-packaging/maven-jvm.md)). A `kotlin-check` is a Kotlin file,
-in any package, whose top-level `main` prints the transcript, importing the binding's
-package. The web package
-takes `web-manifest-path`, the package exported for `wasm32-wasip1`, often the crate's own,
-which no Cargo fact says builds for the web, and `scope`; and an optional `web-check`, a
+([maven-jvm](/quest/m1/ffi-packaging/maven-jvm.md)). A `kotlin-check` is a Kotlin file
+whose top-level `main` prints the transcript, importing the binding's package; the consumer
+runs the class the compiler made that `main` a member of, whatever its package or
+`@file:JvmName`. The web package takes `web-manifest-path`, the package exported for
+`wasm32-wasip1`, often the crate's own, which no Cargo fact says builds for the web, and
+`scope`; and an optional `web-check`, a
 TypeScript module importing the binding as `./web/<module>.ts` does beside an export,
 whose imports the consumer rewrites to the package's name. Its crate's version must be
 the release's. `features` and `example` apply to it when it is the crate's own; a web
