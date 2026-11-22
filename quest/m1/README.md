@@ -10,7 +10,7 @@ builds its bindings with today.
 Decided with the maintainer on 2026-10-25, from the
 [spike](https://github.com/kixel-ai/rust2/pull/41): the [exporter](/ffi/README.md), which
 turns a crate's `pub` API into bindings with no attributes, replaces the UniFFI fork,
-whose feature quests are folded into the [exporter's](/quest/m1/ffi-export/README.md).
+whose feature quests were folded into the exporter's.
 
 Decided 2026-11-02 (maintainer, moq's /quest-unblock): the fork is not published to crates.io. moq skips it and switches straight to the exporter ([moq's switch](https://github.com/moq-dev/moq/blob/main/quest/m3/ffi-exporter.md)), so publishing would only commit permanent `rust2-*` names to code already slated for retirement. moq keeps its own pinned generator forks until the exporter is ready.
 
@@ -24,7 +24,7 @@ hold moq's pin open; the epic retired on 2026-11-16 once its children landed. Re
 
 Decided with the maintainer on 2026-11-18, in the per-language audit of the exporter's
 bindings and the translators: ✅ its findings join m1 where moq's switch uses them. Breaking
-changes are children of [the exporter epic](/quest/m1/ffi-export/README.md) and land as
+changes were children of the exporter epic and landed as
 soon as possible; the rest are the speed (landed), rule cost (landed), and
 [packaging](/quest/m1/ffi-packaging/README.md) epics, and the fixes and additions at this
 milestone's top. Rejected: packaging in m2.

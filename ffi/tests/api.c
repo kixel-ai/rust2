@@ -437,6 +437,28 @@ static api_Undo Edits(void) {
 	return (api_Undo){.vtable = &vtable};
 }
 
+/* A count named with a trailing underscore in Rust, whose C names join no `__`. */
+static uint32_t count_next(void *data) {
+	(void)data;
+	return 4;
+}
+
+static void count_free(void *data) {
+	(void)data;
+}
+
+static api_clash_Count_ Count(void) {
+	static const api_clash_Count_vtable vtable = {.free = count_free, .next = count_next};
+	return (api_clash_Count_){.vtable = &vtable};
+}
+
+/* Whether `buf` holds `text`, which it frees. */
+static bool printed(api_buf buf, const char *text) {
+	bool same = buf.len == strlen(text) && memcmp(buf.ptr, text, buf.len) == 0;
+	api_buf_free(buf);
+	return same;
+}
+
 /* A channel's futures, polled by hand. */
 static void channel(void) {
 	api_Channel *channel = api_Channel_new();
@@ -876,6 +898,38 @@ static void checks(void) {
 	api_clash_Change set = {.tag = API_CLASH_CHANGE_SET, .set = {5, 6}};
 	if (api_clash_underscored(underscored, API_CLASH_OP_DELETE, set) != 2561234 || api_clash_erase_() != 2 || api_clash_erase() != 1) {
 		tr_fail("names apart by trailing underscores");
+	}
+
+	/* Items whose Rust names end in `_`, so every C name joined to them keeps one `_`. */
+	api_clash_Notch_ *notch = api_clash_Notch_new(3);
+	api_clash_Notch_ *copy = api_clash_Notch_clone(notch);
+	api_clash_Notch_ *zero = api_clash_Notch_default();
+	if (api_clash_Notch_count(notch) != 3 || !api_clash_Notch_eq(copy, notch) || api_clash_Notch_hash(copy) != api_clash_Notch_hash(notch)
+		|| api_clash_Notch_cmp(zero, notch) >= 0) {
+		tr_fail("a class named with a trailing underscore");
+	}
+	if (!printed(api_clash_Notch_to_string(notch), "notch 3") || !printed(api_clash_Notch_debug(notch), "Notch_ { count: 3 }")) {
+		tr_fail("a class named with a trailing underscore prints");
+	}
+	api_clash_Notch_free(zero);
+	api_clash_Notch_free(copy);
+	api_clash_Notch_free(notch);
+	api_vec_clash_Notch_ notches = api_clash_notches(2);
+	if (notches.len != 2) {
+		tr_fail("a list of a class named with a trailing underscore");
+	}
+	api_vec_clash_Notch_free(notches);
+	api_clash_Shift_ up = {.tag = API_CLASH_SHIFT_UP, .up = {2}};
+	api_clash_Shift_ down = {.tag = API_CLASH_SHIFT_DOWN};
+	if (api_clash_shifted(1, up) != 3 || api_clash_shifted(1, down) != 0 || !printed(api_clash_Shift_debug(&up), "Up(2)")) {
+		tr_fail("an enum named with a trailing underscore");
+	}
+	api_clash_Shift_ tagged = {.tag = API_CLASH_SHIFT_TAG, .tag_ = {2}};
+	if (api_clash_shifted(5, tagged) != 3 || !printed(api_clash_Shift_debug(&tagged), "Tag(2)")) {
+		tr_fail("a variant named as the tag");
+	}
+	if (api_clash_counted(Count()) != 5) {
+		tr_fail("a callback named with a trailing underscore");
 	}
 
 	/* A field named as errno.h's macro, escaped. */

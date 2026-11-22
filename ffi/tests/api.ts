@@ -21,6 +21,8 @@ import * as Board from "./web/Board.ts";
 import * as Channel from "./web/Channel.ts";
 import type { ClashEraser } from "./web/ClashEraser.ts";
 import * as ClashEscaped from "./web/ClashEscaped.ts";
+import * as ClashNotch from "./web/ClashNotch.ts";
+import * as ClashShift from "./web/ClashShift.ts";
 import * as Counter from "./web/Counter.ts";
 import * as Countdown from "./web/Countdown.ts";
 import * as Digest from "./web/Digest.ts";
@@ -535,6 +537,24 @@ function checks(): void {
 	check(api.clashErased(new Eraser()) === 123, "a callback's methods apart by a trailing underscore");
 	check(ClashEscaped.delete({ new: 3 }) === 3 && ClashEscaped.delete_({ new: 3 }, 1, 2) === 213, "methods apart by a trailing underscore");
 	check(api.clashErase_() === 2 && api.clashErase() === 1, "functions apart by a trailing underscore");
+	// Items whose Rust names end in `_`, so every C name joined to them keeps one `_`.
+	{
+		using notch = ClashNotch.new$(3);
+		using copy = ClashNotch.clone(notch);
+		using zero = ClashNotch.default$();
+		check(
+			ClashNotch.count(notch) === 3 && ClashNotch.eq(copy, notch) && dec(ClashNotch.hash(copy)) === dec(ClashNotch.hash(notch)) && ClashNotch.cmp(zero, notch) < 0,
+			"a class named with a trailing underscore",
+		);
+		check(ClashNotch.toString(notch) === "notch 3" && ClashNotch.debug(notch) === "Notch_ { count: 3 }", "a class named with a trailing underscore prints");
+		const notches = api.clashNotches(2);
+		check(notches.length === 2, "a list of a class named with a trailing underscore");
+		notches.forEach(close);
+		check(api.clashShifted(1, { tag: "Up", _0: 2 }) === 3 && api.clashShifted(1, { tag: "Down" }) === 0, "an enum named with a trailing underscore");
+		check(api.clashShifted(5, { tag: "Tag", _0: 2 }) === 3, "a variant named as the tag");
+		check(ClashShift.debug({ tag: "Up", _0: 2 }) === "Up(2)", "an enum named with a trailing underscore prints");
+		check(api.clashCounted({ next: () => 4 }) === 5, "a callback named with a trailing underscore");
+	}
 	print("checks ok");
 }
 

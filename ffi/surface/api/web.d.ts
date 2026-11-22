@@ -296,6 +296,12 @@ export type ClashChange = {
 export declare function debug(self: ClashChange): string;
 export declare function eq(a: ClashChange, b: ClashChange): boolean;
 
+// ClashCount.ts
+export interface ClashCount {
+    next(): number;
+    close?(): void;
+}
+
 // ClashDescribed.ts
 export type ClashDescribed = {
     description: number;
@@ -351,6 +357,21 @@ export declare function debug(self: ClashMalformed): string;
 export declare function eq(a: ClashMalformed, b: ClashMalformed): boolean;
 export declare function is(self: ClashMalformed, at: number): boolean;
 
+// ClashNotch.ts
+import * as rt from "./rt.ts";
+export type ClashNotch = rt.Handle<"ClashNotch">;
+export declare function toString(self: ClashNotch): string;
+export declare function debug(self: ClashNotch): string;
+export declare function clone(self: ClashNotch): ClashNotch;
+export declare function eq(a: ClashNotch, b: ClashNotch): boolean;
+export declare function hash(self: ClashNotch): rt.u64;
+export declare function partialCmp(a: ClashNotch, b: ClashNotch): number | undefined;
+export declare function cmp(a: ClashNotch, b: ClashNotch): number;
+export declare function default$(): ClashNotch;
+export declare function new$(count: number): ClashNotch;
+export declare function count(self: ClashNotch): number;
+export { default$ as default, new$ as new };
+
 // ClashOp.ts
 export type ClashOp = "Delete_" | "Delete";
 export declare function debug(self: ClashOp): string;
@@ -373,6 +394,19 @@ export declare function default_(): ClashSeed;
 export declare function value(self: ClashSeed): number;
 export declare function bool(self: ClashSeed): boolean;
 export { default$ as default };
+
+// ClashShift.ts
+export type ClashShift = {
+    tag: "Up";
+    _0: number;
+} | {
+    tag: "Down";
+} | {
+    tag: "Tag";
+    _0: number;
+};
+export declare function debug(self: ClashShift): string;
+export declare function eq(a: ClashShift, b: ClashShift): boolean;
 
 // ClashSource.ts
 export interface ClashSource {
@@ -1934,7 +1968,9 @@ import type { ClashErrno } from "./ClashErrno.ts";
 import type { ClashEscaped } from "./ClashEscaped.ts";
 import type { ClashLevel } from "./ClashLevel.ts";
 import type { ClashMalformed } from "./ClashMalformed.ts";
+import type { ClashNotch } from "./ClashNotch.ts";
 import type { ClashOp } from "./ClashOp.ts";
+import type { ClashShift } from "./ClashShift.ts";
 import type { ClashSpan } from "./ClashSpan.ts";
 import type { ClashTag } from "./ClashTag.ts";
 import type { ClashTone } from "./ClashTone.ts";
@@ -2028,7 +2064,7 @@ import type { WrapU32 } from "./WrapU32.ts";
 export declare function e_Family(v: Family): number;
 export declare function e_Level(v: Level): number;
 export declare function e_Shape(v: Shape): number;
-export declare function e_Status_(v: Status): number;
+export declare function e_Status_2(v: Status): number;
 export declare function e_Tier(v: Tier): number;
 export declare function e_VecClashTone(v: VecClashTone): number;
 export declare function e_clash_Level(v: ClashLevel): number;
@@ -2130,6 +2166,7 @@ export declare const k_Worker: rt.Kind;
 export declare const k_Wrapped: rt.Kind;
 export declare const k_c: rt.Kind;
 export declare const k_clash_Empty_string: rt.Kind;
+export declare const k_clash_Notch_: rt.Kind;
 export declare const k_clash_Reader: rt.Kind;
 export declare const k_clash_Seed: rt.Kind;
 export declare const k_clash_Store: rt.Kind;
@@ -2307,6 +2344,7 @@ export declare function r_vec_Shape(p: number, o: boolean): Shape[];
 export declare function r_vec_Shape_2(p: number, o: boolean): Shape[];
 export declare function r_vec_Token(p: number, o: boolean): Token[];
 export declare function r_vec_bytes(p: number, o: boolean): Uint8Array[];
+export declare function r_vec_clash_Notch_(p: number, o: boolean): ClashNotch[];
 export declare function r_vec_clash_Tone(p: number, o: boolean): ClashTone[];
 export declare function r_vec_f32(p: number, o: boolean): Float32Array;
 export declare function r_vec_f64(p: number, o: boolean): Float64Array;
@@ -2368,6 +2406,7 @@ export declare function vt_Sensor(): number;
 export declare function vt_Stretch(): number;
 export declare function vt_Turner(): number;
 export declare function vt_Undo(): number;
+export declare function vt_clash_Count_(): number;
 export declare function vt_clash_Eraser(): number;
 export declare function vt_clash_Source(): number;
 export declare function w_Atlas(p: number, v: Atlas): void;
@@ -2478,6 +2517,7 @@ export declare function w_clash_Described(p: number, v: ClashDescribed): void;
 export declare function w_clash_Errno(p: number, v: ClashErrno): void;
 export declare function w_clash_Escaped(p: number, v: ClashEscaped): void;
 export declare function w_clash_Malformed(p: number, v: ClashMalformed): void;
+export declare function w_clash_Shift_(p: number, v: ClashShift): void;
 export declare function w_clash_Span(p: number, v: ClashSpan): void;
 export declare function w_clash_TONE(p: number, v: ClashTone_): void;
 export declare function w_clash_Tag(p: number, v: ClashTag): void;
@@ -2574,6 +2614,7 @@ export declare const imports: {
     api_web_cb_Undo_delete: (data: number, p0: number) => number;
     api_web_cb_Undo_free: (data: number) => number;
     api_web_cb_Undo_type: (data: number) => number;
+    api_web_cb_clash_Count__next: (data: number) => number;
     api_web_cb_clash_Eraser_delete: (data: number) => number;
     api_web_cb_clash_Eraser_delete_: (data: number, p0: number, p1: number) => number;
     api_web_cb_clash_Source_read_byte: (data: number) => number;
@@ -2614,10 +2655,13 @@ import type { Choice } from "./Choice.ts";
 import type { ClashAny } from "./ClashAny.ts";
 import type { ClashCandidate } from "./ClashCandidate.ts";
 import type { ClashChange } from "./ClashChange.ts";
+import type { ClashCount } from "./ClashCount.ts";
 import type { ClashDescribed } from "./ClashDescribed.ts";
 import type { ClashEmptyString } from "./ClashEmptyString.ts";
 import type { ClashEraser } from "./ClashEraser.ts";
+import type { ClashNotch } from "./ClashNotch.ts";
 import type { ClashOp } from "./ClashOp.ts";
+import type { ClashShift } from "./ClashShift.ts";
 import type { ClashSource } from "./ClashSource.ts";
 import type { ClashStore } from "./ClashStore.ts";
 import type { ClashTone } from "./ClashTone.ts";
@@ -3064,6 +3108,9 @@ export declare function clashWaited(source: ClashSource): number;
 export declare function clashUnderscored(underscored: ClashUnderscored, op: ClashOp, change: ClashChange): number;
 export declare function clashUnderscoredNext(underscored: ClashUnderscored, change: ClashChange): [ClashUnderscored, ClashChange];
 export declare function clashErased(eraser: ClashEraser): number;
+export declare function clashNotches(n: number): ClashNotch[];
+export declare function clashShifted(at: number, shift: ClashShift): number;
+export declare function clashCounted(count: ClashCount): number;
 export declare function clashErase_(): number;
 export declare function clashErase(): number;
 export declare function clashLend_(store: ClashStore | undefined): number;

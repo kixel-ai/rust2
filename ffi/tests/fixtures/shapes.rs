@@ -2523,7 +2523,7 @@ func failed[A, B any](f func(A) B, err error) B {
 /// a `try350` exception its `on` clause names go uncaught, which alone it catches.
 fn dart(built: &Built, calls: &[Call]) -> String {
 	let name = built.name();
-	let source = std::fs::read_to_string(built.out.join("dart").join(format!("{name}.dart"))).unwrap();
+	let source = std::fs::read_to_string(built.out.join("dart/lib").join(format!("{name}.dart"))).unwrap();
 	let mut sinks = String::new();
 	// Each sink's class, defined by its first call the driver runs.
 	let mut echoes = std::collections::BTreeSet::new();
@@ -2907,7 +2907,7 @@ fn round_trip(built: &Built, language: &str) {
 			let main = dir.join("main.dart");
 			step::write(&main, dart(built, calls));
 			let lib = built.lib.join(super::shared(&name));
-			let dill = super::dart_compile(&name, &dir, &built.out.join("dart"), &lib, &main, &[]);
+			let dill = super::dart_compile(&name, &dir, &built.out.join("dart/lib"), &lib, &main, &[]);
 			run(&mut super::dart_run(&dill, &[]))
 		}
 		"web" => {

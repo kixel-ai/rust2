@@ -23,8 +23,8 @@ Decided with the maintainer on 2026-11-09, in the quest audit:
   continuing as before; freezing the model's work too.
 - ✅ C# and Unity, a Node-API addon, React Native, and a WASI target are planned here
   before any consumer asks, since they are the targets a media SDK's users expect: LiveKit ships Python, Node,
-  Unity, and React Native over its Rust core. Each waits on
-  [the exporter epic](/quest/m1/ffi-export/README.md), so it copies the settled C ABI,
+  Unity, and React Native over its Rust core. Each waited on
+  the exporter epic, so it copies the settled C ABI,
   types, and checks. Rejected: none until a consumer asks. Not planned: Java without
   Kotlin (the JNI library serves it, and Android has no FFM API), Ruby, PHP, Elixir, Lua, and game engines.
 

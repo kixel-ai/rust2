@@ -750,6 +750,16 @@ sealed class ClashChange {
 	data object Clear : ClashChange()
 	fun debug(): kotlin.String
 }
+sealed class ClashShift {
+	data class Up(@get:kotlin.jvm.JvmName("get_0") val _0: kotlin.UByte) : ClashShift() {
+		companion object {}
+	}
+	data object Down : ClashShift()
+	data class Tag(@get:kotlin.jvm.JvmName("get_0") val _0: kotlin.UByte) : ClashShift() {
+		companion object {}
+	}
+	fun debug(): kotlin.String
+}
 enum class Level(internal val value: Int) {
 	ERROR(0),
 	WARN(1),
@@ -1502,6 +1512,21 @@ class ClashReader internal constructor(raw: Long, lent: Boolean = false) : AutoC
 		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("new_") fun new(bytes: api.Bytes): api.ClashReader
 	}
 }
+class ClashNotch internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable, kotlin.Comparable<ClashNotch> {
+	override fun close()
+	final override fun toString(): kotlin.String
+	fun debug(): kotlin.String
+	fun clone(): api.ClashNotch
+	override fun equals(other: kotlin.Any?): kotlin.Boolean
+	override fun hashCode(): kotlin.Int
+	fun partialCompareTo(other: api.ClashNotch): kotlin.Int?
+	override fun compareTo(other: api.ClashNotch): kotlin.Int
+	@kotlin.jvm.JvmName("count") fun count(): kotlin.UInt
+	companion object {
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("default_") fun default(): api.ClashNotch
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("new_") fun new(count: kotlin.UInt): api.ClashNotch
+	}
+}
 class TlsSession internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
 	fun alpn(): kotlin.String
@@ -1711,6 +1736,15 @@ interface ClashEraser {
 	}
 	companion object {
 		@kotlin.jvm.JvmStatic fun of(java: Java): ClashEraser
+	}
+}
+interface ClashCount {
+	fun next(): kotlin.UInt
+	interface Java {
+		fun next(): kotlin.Int
+	}
+	companion object {
+		@kotlin.jvm.JvmStatic fun of(java: Java): ClashCount
 	}
 }
 data class Tuple1<T1>(val first: T1) {
@@ -2058,6 +2092,9 @@ fun clashWaited(source: api.ClashSource): kotlin.UByte
 fun clashUnderscored(underscored: api.ClashUnderscored, op: api.ClashOp, change: api.ClashChange): kotlin.UInt
 fun clashUnderscoredNext(underscored: api.ClashUnderscored, change: api.ClashChange): kotlin.Pair<api.ClashUnderscored, api.ClashChange>
 fun clashErased(eraser: api.ClashEraser): kotlin.UInt
+@kotlin.jvm.JvmName("clashNotches") fun clashNotches(n: kotlin.UInt): kotlin.collections.List<api.ClashNotch>
+@kotlin.jvm.JvmName("clashShifted") fun clashShifted(at: kotlin.UByte, shift: api.ClashShift): kotlin.UByte
+fun clashCounted(count: api.ClashCount): kotlin.UInt
 fun clashErase_(): kotlin.UByte
 fun clashErase(): kotlin.UByte
 fun clashLend_(store: api.ClashStore?): kotlin.UInt

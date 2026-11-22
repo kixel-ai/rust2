@@ -12,6 +12,7 @@ what each refusal asks you to change.
 
 ```bash
 rust2-ffi (--out dir | --census dir | --api file) [--manifest-path Cargo.toml] [--target triple]... [--with file]... [--baseline api.json] [-- cargo args]
+nix run github:kixel-ai/rust2/<rev>#ffi -- --out ffi   # pinned to a revision, under the caller's cargo
 ```
 
 It runs `cargo check` on the package with itself as `RUSTC_WRAPPER`, for each `--target`
@@ -28,7 +29,9 @@ So a facade such as moq-ffi exports several crates into one library by re-export
 it ships; a type a signature names that no path from its root reaches exports by its
 public path in its own crate ([Rules](#rules)). The prefix of every C name
 is the library's crate name, Cargo's `[lib] name`, which defaults to the package's name in
-snake case. `--out` writes a crate of `extern "C"` functions over the facade, its runtime
+snake case, without its leading and trailing `_`s and keeping one `_` of each run, since C
+reserves every global name starting with `_` and C++ every name holding `__`; a name left
+starting with no letter, such as `__`, fails the export. `--out` writes a crate of `extern "C"` functions over the facade, its runtime
 beside it, and the header in `include/<prefix>.h`; `cargo build` on that crate makes a
 static and a shared library for those targets alone: its build script refuses another, on
 which an item the target compiles would be missing, or one it leaves out left over. So a
@@ -51,8 +54,8 @@ Beside the C header, `include/<prefix>.hpp` holds the same API in C++, over a he
 name. `python/<prefix>.py` holds it in Python, over a CPython
 extension the crate builds with `--features python`, `swift/<prefix>.swift` holds it in
 Swift, over the C header as a clang module, `go/` holds it in Go, a package per crate
-over the C ABI through cgo, and `dart/<prefix>.dart` holds it in Dart, over the C ABI through
-`dart:ffi` and what the crate builds with `--features dart`. When `wasm32-wasip1` is among
+over the C ABI through cgo, and `dart/` holds it as a Dart package, `lib/<prefix>.dart` over
+the C ABI through `dart:ffi` and what the crate builds with `--features dart`. When `wasm32-wasip1` is among
 the targets, `web/` holds it in TypeScript for the web, ES modules over the `.wasm` the
 crate builds with `--target wasm32-wasip1 --features web`.
 An export again rewrites only the files whose content changed, and removes from
@@ -63,6 +66,8 @@ manifest, so exports that differ build apart in a target directory they share.
 It reads no config: the package is in the current directory unless `--manifest-path` says
 where, and an item the rules cannot export fails the export at its span. Nothing leaves an
 item out but the source itself: `#[doc(hidden)]`, or a `cfg` that leaves it out of a build.
+Hiding an item is no way past a refusal, since it takes the item out of the crate's API: an
+item C cannot take needs a new rule, or a signature C can.
 
 ## Rules
 
@@ -461,11 +466,9 @@ Linux's exports, as the merge queue runs on, since a header names its targets.
 - **Callbacks** are a struct of a table and its data. Rust calls `free` once it drops the
   implementation, and may call the others from any thread. A callback takes scalars and
   buffers lent for the call, and returns a scalar. Each method is its table's member by
-  its name, with `_` appended where C, C++, or Rust reads it as a keyword, where a header
-  or GNU dialect defines it as a macro (`src/macros.txt`: `unix`, `EOF`), where C and C++ reserve it
-  (`_Bool`, `__cplusplus`), where the ABI's own parameters take it (`data`, `out`, `err`,
-  `future`, `waker`, `out0`, ...), where it ends in `_`, and for `free`, the table's own:
-  `delete`, `free`, `type`, and `data` are `delete_`, `free_`, `type_`, and `data_`.
+  its name, escaped as a field is, with Rust's keywords and `free`, the table's own, taken
+  as keywords too: `delete`, `delete_`, `free`, `type`, and `data` are `delete_`,
+  `delete_2`, `free_`, `type_`, and `data_`.
 - **Closures** are a function and its data, which Rust calls from any thread, one call
   at a time. One lent for a call Rust calls only during the call; one Rust keeps comes
   with a `free`, which Rust calls once it drops the closure, done or not, maybe before
@@ -484,7 +487,10 @@ Linux's exports, as the merge queue runs on, since a header names its targets.
 - **The contract** is a hash of the header's declarations, its docs included: the header
   defines it as `<PREFIX>_CONTRACT`, and `<prefix>_contract()` returns it from the library
   built with the header. A binding checks the two match before any other call, so a header
-  and a library from different builds refuse to mix.
+  and a library from different builds refuse to mix. It covers the whole header rather than
+  each function, since a consumer links statically and a mismatch should fail loud. The
+  header asserts no layouts: mainstream ABIs agree on them, and [the API lock](#the-api-lock)
+  catches a layout change.
 - **Panics** abort, as an `extern "C"` function's do.
 - **Must-use returns**: a function returning a handle, a buffer, a waker, a value holding
   any of those or a `Vec`, such as a record with a `String` field, a poll, or a fallible
@@ -496,6 +502,8 @@ Linux's exports, as the merge queue runs on, since a header names its targets.
   panic or a failed check that aborts goes to logcat as `rust2-ffi` and to bionic's abort
   message, which shows in the tombstone, `ApplicationExitInfo`, and Play vitals, since an
   app's stderr goes nowhere.
+- **Apple**: the build script links the library with room in its header for the longest
+  install name, as Dart and Flutter rename it to the path they bundle it at.
 - **Names** are the prefix, then the item's path from the facade's root, each segment in
   Rust's case, joined by `_`: `track::Producer::append_group` is
   `moq_track_Producer_append_group`, and moq-net's `session::Stats` and `Session::stats`
@@ -507,14 +515,33 @@ Linux's exports, as the merge queue runs on, since a header names its targets.
   `moq_tokio_Backoff_initial_get` and `moq_tokio_Backoff_initial_set` beside the method
   `moq_tokio_Backoff_initial`. An enum variant's
   payload is `<enum>_<Variant>`, and its tag and a constant are the name in upper case.
+  Every join keeps one `_` of each run, since C++ reserves every name holding `__`, so a
+  `pub fn _deprecated` is `moq_deprecated`, and a name made of one ending in `_` is made of
+  its stem: `moq_Foo_`'s `_free` is `moq_Foo_free`.
   Joining still loses where segments split, and the runtime shares the prefix, so every C
   name is registered, and only names that clash change. An item whose name matches another's,
   or one the runtime or a type's own functions take, such as a method `free` beside the
-  type's `_free`, takes a trailing `_`, as do the names made from it: `audio::encoder_finish`
-  and `audio_encoder::finish` are `moq_audio_encoder_finish` and `moq_audio_encoder_finish_`.
-  The runtime's names keep theirs first, then names made from an item, then items' own, each
-  by its kind and Rust path. A name depends on every item exported, so one an upstream
-  change adds can lengthen another's.
+  type's `_free`, steps along its name's `x_`, `x_2`, `x_3`, ..., as do the names made from
+  it: `audio::encoder_finish` and `audio_encoder::finish` are `moq_audio_encoder_finish` and
+  `moq_audio_encoder_finish_`. As `x_` makes the names `x` does, an item whose made name
+  clashed steps on: an enum `Status`, whose variant `Moved` would be the runtime's
+  `MOQ_STATUS_MOVED`, is `moq_Status_2`, with `MOQ_STATUS_2_MOVED`. The runtime's names keep
+  theirs first, then names made from an item, then items' own as Rust spells them, then
+  those a join or a step respelled, each by its kind and Rust path. A name depends on every
+  item exported, so one an upstream change adds can lengthen another's.
+
+  A field, a data enum's member, and a parameter are their Rust names, escaped where C or
+  C++ would misread one. A keyword, or a name the ABI's own parameters take (`data`, `out`,
+  `err`, `future`, `waker`, `out0`, ...), takes `_`, and one of them already ending in `_`
+  steps on to `_2`: `new` and `new_` are `new_` and `new_2`. A macro a C or C++ system
+  header defines or a GNU dialect predefines, as `src/macros.txt` lists them (`unix`,
+  `EOF`), moves to the next of its stem's names no macro holds, keeping their order: `unix`
+  is `unix_`, and `unix_` is `unix_2`. A name C or C++ reserves, one holding `__` or
+  starting with `_` and a capital, first drops its leading `_`s and keeps one `_` of each
+  run: serde's parameter `__deserializer` is `deserializer`. A parameter the ABI adds, such
+  as a closure's `<name>_data` or the `<name>_out` a `&mut` is written back through, steps
+  past every other. Two names of one scope that escape alike, as only a reserved one or one
+  ending in `_` and a number can beside another, fail the export.
 
   An instance is named by its generic item's name, then each argument but those at their
   defaults after the last that is not, so the instance at its defaults is named as the
@@ -528,6 +555,34 @@ Linux's exports, as the merge queue runs on, since a header names its targets.
   name. A type instance's methods are named through it, and a function instance appends
   its arguments' names, a reference's by what it borrows and a const's by its value: the
   api fixture's `drain` is `api_drain_4` at `Batch` and `api_drain_2` at `Batch<2>`.
+
+## Every binding
+
+Each language's binding below generates the crate's own API in that language's idiom, and
+a binding added later, such as [m3's targets](../quest/m3/README.md), keeps the same rules:
+
+- It checks `<prefix>_contract()` against the contract it was generated with when it loads,
+  before any other call, and fails loud on a mismatch.
+- It keeps the C ABI's bulk and zero-copy payloads, with no per-byte loop on either side.
+- It wraps the C ABI's futures in the language's native future. Those futures take the
+  result in the poll that finishes them, so a cancel never loses a value, cost one crossing
+  when ready at once, and reuse a repeated waker. The native future latches a wake that
+  lands between `PENDING` and parking, proves no loss on cancel in a test that forces that
+  window, and picks a semantic for concurrent pollers.
+- It drives each `Driver`, such as moq's, from the language's own event loop, with no
+  thread of its own and no async runtime such as tokio: it holds one `kio::Waiter` per
+  driver, made from its waker, since what a poll registers lives only as long as its
+  waiter, polls on each wake and at the deadline the poll returns, and frees the driver to
+  cancel it; in Go, that loop is a goroutine living as long as the driver. A cancelled
+  call ends only that call, as in Rust, and leaves its object usable.
+- It is measured, with its generated size raw and gzipped, on
+  [the binding benchmark](../bench/ffi/README.md), whose `just ffi bench` covers it.
+
+Each generator spells its own lifting and lowering. One walker emitting instructions every
+generator implements, as wit-bindgen's `Bindgen` does, would have absorbed about 12 of the
+172 lines [kixel-ai/rust2#710](https://github.com/kixel-ai/rust2/pull/710) added to Go's
+generator ([the spike](https://github.com/kixel-ai/rust2/pull/924)): a rule's cost is each
+language's spelling, runtime, and tests.
 
 ## C++
 
@@ -543,9 +598,11 @@ that crate's header defines it; and the headers of the crates its items name, ea
 it in Cargo's order, so none includes another in a cycle. An item's crate is the one Go's
 packages place it in.
 
-- **Names** are the C names without the prefix, in a namespace of it: `moq_track_Producer`
-  is `moq::track_Producer`, and its method `moq_track_Producer_append_group` is
-  `moq::track_Producer::append_group`. A keyword takes a trailing `_` (`counter::new_`),
+- **Names** are the C names without the prefix, in a namespace of it, escaped as a name
+  is (`class_` for a library `class`), which C claims as the runtime's names, since its
+  declarations share the global scope:
+  `moq_track_Producer` is `moq::track_Producer`, and its method
+  `moq_track_Producer_append_group` is `moq::track_Producer::append_group`. A keyword takes a trailing `_` (`counter::new_`),
   as does a member named as its class, one of its fields, or a member a trait gives it,
   and a parameter named as a member or as anything in the namespace, which it would hide.
   A name C++ reserves, one holding `__` or starting with `_` and a capital, first drops its
@@ -671,7 +728,8 @@ packages place it in.
 
 `<prefix>.kt` is Kotlin for the JVM and Android over the crate's JNI functions, which
 `--features kotlin` builds into the same library, loaded by `System.loadLibrary`. It needs
-kotlinx-coroutines. A leaf's native method, a primitive field read or write or a derived
+kotlinx-coroutines. It is not Kotlin Multiplatform, since Swift has its own binding and
+Kotlin's Swift export is Alpha in 2.4. A leaf's native method, a primitive field read or write or a derived
 `equals` or `hashCode` the export proves waits on nothing and walks no value of a size the
 caller sets ([`Abi::leaf`](src/abi.rs)), takes ART's `@FastNative`, so ART keeps the thread runnable across the call;
 `_Native`'s first call registers each through `RegisterNatives`, since ART binds such a
@@ -895,8 +953,9 @@ the rest cross encoded.
 same library on the stable ABI, so one build loads in CPython 3.11 and later, but not in a
 free-threaded build (3.13t, 3.14t), which the module refuses at import with an `ImportError`. The module
 loads the library from beside itself: `lib<prefix>.so`, `lib<prefix>.dylib`, or
-`<prefix>.dll`. Its glue converts each Python value to the C value and calls the C ABI
-function in-process, so a call is one crossing, which releases the GIL while Rust runs,
+`<prefix>.dll`. Its glue, about 40 times as fast as `ctypes`, converts each Python value to
+the C value and calls the C ABI function in-process, so a call is one crossing, which
+releases the GIL while Rust runs,
 so Rust may call Python back from any thread meanwhile. A leaf keeps it: a `&self` or
 `&mut self` method, or a read or write of a `pub` field, of a `Send` object, taking and
 returning only scalars, whose body and each `Deref`'s on the way the export proves, from
@@ -1386,10 +1445,24 @@ other than one in its own form, `module <path>` and `go 1.24`.
 
 ## Dart
 
-`<prefix>.dart` is the library `package:<prefix>/<prefix>.dart` over the C ABI through
-`dart:ffi`, tested on Dart 3.13. Each C function is an `@Native` external, which finds
-the shared library the crate builds with `--features dart` as the package's native asset:
-the library's own URI, mapped to the library by a build hook or by `--native-assets`.
+`dart/` is the package `<prefix>`, whose `lib/<prefix>.dart` is the library
+`package:<prefix>/<prefix>.dart` over the C ABI through `dart:ffi`, tested on Dart 3.13 and,
+as its `pubspec.yaml` says, taken by Dart 3.10 and later, whose build hooks are stable. Each
+C function is an `@Native` external, which finds the shared library the crate builds with
+`--features dart` as the package's native asset: the library's own URI, which the package's
+`hook/build.dart` maps to the library when an app depending on it builds or runs. In an
+export, the hook builds the crate beside the package, `../Cargo.toml`, with Cargo, on the
+target the app builds for, for the Android NDK of an app's Flutter build, and reruns when a
+source the build read changes, Cargo's dep-info says which, or a path package's manifest,
+its workspace's, or a Cargo config the build reads. Dart SDKs from before its hook runner
+passed `CARGO_*` and `RUSTUP_*` on give a hook neither home, so with rustup outside
+`~/.cargo` and `~/.rustup` a source build needs a toolchain's own `cargo` on `PATH`. It builds each Android API
+level and Apple deployment target in a target directory of its own, as Cargo rebuilds for
+no change in them. A release's adds `hook/release.json`, from which it downloads the
+library instead ([Binding releases](release/README.md)). The prefix must name a Dart
+package, lowercase letters, digits, and `_`, no word pub reserves, and none of the
+packages the hook resolves with (`hooks`, `code_assets`, `crypto`, and theirs), or the export
+fails.
 
 - **Names** are the C names without the prefix: a type in Pascal case and a member in
   camel case, so `moq_track_Producer` is `TrackProducer`, and its method

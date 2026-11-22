@@ -42,7 +42,7 @@ runtime such as Node or Bun calls Rust through [rust2-ffi](/ffi/README.md), so N
 Bun matter only as proxies for V8 and JavaScriptCore, and a speed call that splits them
 from the browsers goes to the browsers.
 
-The fork's feature quests folded into the [exporter](/quest/m1/ffi-export/README.md);
+The fork's feature quests folded into the [exporter](/ffi/README.md);
 [m1](/quest/m1/README.md#plan) records why.
 
 Decided with the maintainer on 2026-11-18, in the per-language audit: ✅ the translator

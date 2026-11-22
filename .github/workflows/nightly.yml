@@ -40,7 +40,7 @@ jobs:
         run: nix develop --command just gate
 
   ts:
-    name: TypeScript package
+    name: Packages
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 60
 
@@ -52,9 +52,9 @@ jobs:
 
       - uses: ./.github/actions/nix
 
-      # The package moq consumes as a flake input.
+      # The packages moq consumes as flake inputs.
       - name: Build
-        run: nix build .#ts
+        run: nix build .#ts .#ffi
 
       # The fixtures against std checked in their own target directories, as outside Nix,
       # whose snapshots hold the flake's sysroot to the same output.

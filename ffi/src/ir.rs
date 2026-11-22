@@ -1041,6 +1041,63 @@ fn yes() -> bool {
 }
 
 #[cfg(test)]
+impl Function {
+	/// A free function `name` of the crate `ns`, taking and returning nothing.
+	pub(crate) fn bare(name: &str) -> Self {
+		Function {
+			path: vec!["ns".into(), name.into()],
+			shown: vec!["ns".into(), name.into()],
+			span: rustc_span::DUMMY_SP,
+			on: On::ALL,
+			docs: String::new(),
+			deprecated: None,
+			receiver: None,
+			params: vec![],
+			units: vec![],
+			ok: Type::Unit,
+			err: None,
+			future: false,
+			eager: false,
+			holds: false,
+			task: None,
+			send: true,
+			collect: false,
+			lends: false,
+			lends_mut: false,
+			leaf: false,
+			derefs: 0,
+			ties: false,
+			access: Access::Call,
+			instance: None,
+			home: Home {
+				krate: "ns".into(),
+				outside: 1,
+			},
+		}
+	}
+}
+
+#[cfg(test)]
+impl Api {
+	/// The API of the crate `ns` of `functions` alone.
+	pub(crate) fn of(functions: Vec<Function>) -> Self {
+		Api {
+			records: vec![],
+			enums: vec![],
+			objects: vec![],
+			callbacks: vec![],
+			functions,
+			constants: vec![],
+			crates: vec!["ns".into()],
+			targets: vec!["host".into()],
+			links: Default::default(),
+			reached: Vec::new(),
+			profiles: Default::default(),
+		}
+	}
+}
+
+#[cfg(test)]
 mod tests {
 	use super::*;
 
