@@ -1256,7 +1256,7 @@ jobs:
           sudo udevadm trigger --name-match=kvm
       - name: Arguments
         run: |
-          args="--package pub/package --libs pub/libs --platform android --device emulator-5554"
+          args="--package pub/package --libs pub/libs --device emulator-5554"
           if [[ -f dist/checks/main.dart ]]; then args+=" --check dist/checks/main.dart"; fi
           if [[ -f dist/native.txt ]]; then args+=" --native dist/native.txt"; fi
           echo "ARGS=$args" >> "$GITHUB_ENV"

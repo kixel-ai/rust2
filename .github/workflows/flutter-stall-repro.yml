@@ -11,8 +11,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        mode: [stream, legacy, push]
-        n: [1, 2, 3, 4, 5, 6, 7]
+        name: [api-fixture, moq-ffi]
+        n: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
@@ -23,6 +23,19 @@ jobs:
             ffi/release
             .github/repro
           persist-credentials: false
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: ${{ matrix.name }}-pub
+          path: pub
+          run-id: 44993636561
+          github-token: ${{ github.token }}
+      - if: matrix.name == 'moq-ffi'
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: moq-ffi-build-linux-x64
+          path: dist
+          run-id: 44993636561
+          github-token: ${{ github.token }}
       - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
         with:
           channel: stable
@@ -33,15 +46,13 @@ jobs:
           sudo udevadm trigger --name-match=kvm
       - run: |
           mkdir out
-          flutter create --platforms android --org dev.rust2 --project-name app app
-          cd app && flutter build apk --debug --target-platform android-x64
       - uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2.38.0
         with:
           api-level: 24
           arch: x86_64
-          script: rust2/.github/repro/flutter-stall.sh ${{ matrix.mode }}
+          script: rust2/.github/repro/flutter-stall.sh
       - if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: repro-${{ matrix.mode }}-${{ matrix.n }}
+          name: repro-${{ matrix.name }}-${{ matrix.n }}
           path: out
