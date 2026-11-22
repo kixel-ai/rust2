@@ -3,7 +3,7 @@
 use std::path::Path;
 use std::process::ExitCode;
 
-use rust2_driver::cargo::{Args, Check, Output};
+use rust2_driver::cargo::{Args, Check, Output, Wrap};
 
 use crate::driver::env;
 
@@ -52,6 +52,7 @@ fn try_run(args: &[String]) -> Result<ExitCode, String> {
 			(env::OUT, out.as_os_str()),
 			("CARGO_UNSTABLE_PROFILE_RUSTFLAGS", "true".as_ref()),
 		],
+		wrap: Wrap::All,
 	}
 	.run()
 }
