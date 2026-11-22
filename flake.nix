@@ -346,9 +346,13 @@
             NETSTANDARD_REF = "${netstandard-ref}/ref/netstandard2.1";
             DOTNET_CLI_TELEMETRY_OPTOUT = "1";
             DOTNET_NOLOGO = "1";
-            # The free-threaded CPython the generated Python must refuse. By path, since its
-            # python3 would shadow the GIL build's on PATH.
-            PYTHON_FREE_THREADED = "${pkgs.python314FreeThreading}/bin/python3.14t";
+            # The CPythons the generated Python loads in or refuses beside the default 3.14: the
+            # free-threaded 3.14, which no stable ABI covers, and 3.15 with and without its GIL,
+            # which load the abi3t extension. By path, since each python3 would shadow the
+            # default's on PATH.
+            PYTHON_314T = "${pkgs.python314FreeThreading}/bin/python3.14t";
+            PYTHON_315T = "${pkgs.python315FreeThreading}/bin/python3.15t";
+            PYTHON_315 = "${pkgs.python315}/bin/python3.15";
             # mbx's target seeding creates the drivers' own target directories, such as
             # target/rust2-ffi, without the CACHEDIR.TAG cargo writes into each it creates, and
             # `cargo clean --target-dir` refuses a directory without one. It saves about 4% of a
@@ -398,13 +402,22 @@
           });
           # `just ffi sanitize` builds the glue with the nightly's sanitizers, linked by clang,
           # runs it under the nightly's Miri and Valgrind, and runs the Python on a debug build of
-          # the newest CPython, which nothing caches. llvm-symbolizer names a report's frames.
+          # the newest CPython and on a free-threaded one under ThreadSanitizer, which nothing
+          # caches. llvm-symbolizer names a report's frames.
           devShells.sanitize = self.devShells.${system}.clang.overrideAttrs (old: {
             nativeBuildInputs = old.nativeBuildInputs ++ [
               pkgs.llvm
               pkgs.valgrind
             ];
             RUST2_PYTHON_DEBUG = "${pkgs.python315.override { enableDebug = true; }}/bin/python3";
+            # Built by clang, whose ThreadSanitizer runtime the interpreter links and exports for
+            # the extension it loads; its own reports during the build fail nothing.
+            RUST2_PYTHON_TSAN = "${
+              (pkgs.python315FreeThreading.override { stdenv = pkgs.clangStdenv; }).overrideAttrs (old: {
+                configureFlags = old.configureFlags ++ [ "--with-thread-sanitizer" ];
+                TSAN_OPTIONS = "exitcode=0:report_bugs=0";
+              })
+            }/bin/python3.15t";
             RUST2_TS_TOOLCHAIN = tsToolchain.override {
               extensions =
                 (builtins.fromTOML (builtins.readFile ./ts/rust-toolchain.toml)).toolchain.components

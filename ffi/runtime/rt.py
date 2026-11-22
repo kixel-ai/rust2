@@ -8,8 +8,9 @@
 class _Future(_n.Future, _typing.Generic[_T]):
 	"""A Rust future its first poll left pending: awaiting it polls it on the running
 	event loop until it finishes. Cancelling the awaiting task frees it, which cancels it in
-	Rust and loses nothing, as does dropping it unawaited. Like a coroutine, it is awaited
-	once: a second `await` raises `RuntimeError`."""
+	Rust and loses nothing, as does dropping it unawaited, and closing it while awaited
+	makes the `await` raise `ValueError`. Like a coroutine, it is awaited once: a second
+	`await` raises `RuntimeError`."""
 
 	__slots__ = ()
 

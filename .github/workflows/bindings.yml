@@ -594,12 +594,15 @@ jobs:
           if-no-files-found: error
 
   # A fresh environment per wheel, on the oldest CPython its stable ABI claims, with no
-  # checkout, Rust, or source path: what a user's `pip install` gets.
+  # checkout, Rust, or source path: what a user's `pip install` gets. The `abi3t` wheel's is
+  # free-threaded, where `-W error` fails the check on the warning that the GIL turned on.
   python:
     needs: [facts, build, agree]
     strategy:
       fail-fast: false
       matrix:
+        abi: [abi3, abi3t]
+        host: [linux-x64, linux-arm64, apple-darwin, windows]
         include:
           - host: linux-x64
             os: ubuntu-24.04
@@ -628,21 +631,26 @@ jobs:
           path: dist
       - name: Python floor
         id: floor
+        env:
+          ABI: ${{ matrix.abi }}
         run: |
           shopt -s nullglob
-          wheels=(dist/wheels/*.whl)
-          [[ ${#wheels[@]} == 1 ]] || { echo "::error::expected one wheel, found ${wheels[*]}"; exit 1; }
+          wheels=(dist/wheels/*-"$ABI"-*.whl)
+          [[ ${#wheels[@]} == 1 ]] || { echo "::error::expected one $ABI wheel, found ${wheels[*]}"; exit 1; }
           tag=$(basename "${wheels[0]}" .whl | cut -d- -f3)
           [[ "$tag" =~ ^cp3([0-9]+)$ ]] || { echo "::error::no CPython floor in ${wheels[0]}"; exit 1; }
-          echo "version=3.${BASH_REMATCH[1]}" >> "$GITHUB_OUTPUT"
+          echo "version=3.${BASH_REMATCH[1]}$([[ $ABI == abi3t ]] && echo t)" >> "$GITHUB_OUTPUT"
+          echo "wheel=${wheels[0]}" >> "$GITHUB_OUTPUT"
       - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: ${{ steps.floor.outputs.version }}
       - name: Install and run
+        env:
+          WHEEL: ${{ steps.floor.outputs.wheel }}
         run: |
           python -m venv "$RUNNER_TEMP/env"
           if [[ "$RUNNER_OS" == Windows ]]; then py="$RUNNER_TEMP/env/Scripts/python.exe"; else py="$RUNNER_TEMP/env/bin/python"; fi
-          "$py" -m pip install --no-index --no-deps dist/wheels/*.whl
+          "$py" -m pip install --no-index --no-deps "$WHEEL"
           args=()
           if [[ -f dist/native.txt ]]; then args+=(--native dist/native.txt); fi
           if [[ -d dist/checks/python ]]; then
@@ -654,7 +662,7 @@ jobs:
       # The installed package as a caller's type checker finds it: through its py.typed, and
       # with no error under --strict. One host's, as the module is the same on each.
       - name: Type check
-        if: matrix.host == 'linux-x64'
+        if: matrix.host == 'linux-x64' && matrix.abi == 'abi3'
         run: |
           python -m venv "$RUNNER_TEMP/tools"
           "$RUNNER_TEMP/tools/bin/python" -m pip install -q mypy==2.4.1
@@ -705,8 +713,8 @@ jobs:
         id: floor
         run: |
           shopt -s nullglob
-          wheels=(dist/wheels/*.whl)
-          [[ ${#wheels[@]} == 1 ]] || { echo "::error::expected one wheel, found ${wheels[*]}"; exit 1; }
+          wheels=(dist/wheels/*-abi3-*.whl)
+          [[ ${#wheels[@]} == 1 ]] || { echo "::error::expected one abi3 wheel, found ${wheels[*]}"; exit 1; }
           tag=$(basename "${wheels[0]}" .whl | cut -d- -f3)
           [[ "$tag" =~ ^cp3([0-9]+)$ ]] || { echo "::error::no CPython floor in ${wheels[0]}"; exit 1; }
           echo "version=3.${BASH_REMATCH[1]}" >> "$GITHUB_OUTPUT"
@@ -1256,7 +1264,7 @@ jobs:
           sudo udevadm trigger --name-match=kvm
       - name: Arguments
         run: |
-          args="--package pub/package --libs pub/libs --platform android --device emulator-5554"
+          args="--package pub/package --libs pub/libs --device emulator-5554"
           if [[ -d dist/checks/dart ]]; then args+=" --check dist/checks/dart"; fi
           if [[ -f dist/native.txt ]]; then args+=" --native dist/native.txt"; fi
           echo "ARGS=$args" >> "$GITHUB_ENV"
