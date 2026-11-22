@@ -646,6 +646,16 @@ def futures():
 		pass
 	check(text(loop.run_until_complete(asyncio.wait_for(channel.recv(), HANG))) == "once", "the send landed once")
 
+	# Closed while a task awaits it parked, a future ends the await, rather than leave it
+	# waiting for a wake that never comes.
+	waiting = api._n.Channel_recv(channel)
+	check(isinstance(waiting, api._Future), "an empty channel's receive pends")
+	task = loop.create_task(wait(waiting))
+	step(loop)
+	waiting.close()
+	until(loop, task.done)
+	check(isinstance(task.exception(), ValueError), "a future closed while awaited ends the await")
+
 	# Python run while a closing future is freed, as by its drop's callback, finds it ended.
 	class Polls(api.Log):
 		def log(self, level, line):

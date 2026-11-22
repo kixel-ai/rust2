@@ -1020,7 +1020,10 @@ caller imports it with no ignores.
   returns the value as the call left it, `x = x.add(o)`, and beside Rust's own return, a
   `tuple`, with each element of a tuple Rust returns, `x, n = x.take()`.
 - **Bytes** passed in are any buffer, `bytes | bytearray | memoryview`: `bytes` is read in
-  place, and others, which Python may change while Rust reads, are copied. Bytes Rust
+  place, and others, which Python may change while Rust reads, are copied, under
+  `abi3t` inside the exporter's critical section, which a `bytearray`'s writes take. A
+  writer that takes no lock, such as an `array.array`'s or a `memoryview`'s item
+  assignment, needs the caller's own lock, as `bytes(x)` does. Bytes Rust
   returns, or a record holds, are a read-only `memoryview` lending Rust's buffer until it
   and its views are released. Those Rust lends a closure or trait method are copied into
   `bytes`. Strings are `str`, `u128` an `int`, a float a `float`, whose 64 bits hold an

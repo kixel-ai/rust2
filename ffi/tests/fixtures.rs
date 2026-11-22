@@ -2140,12 +2140,14 @@ fn api_free_threaded() {
 		&abi3,
 		"ImportError: _api: incompatible with free-threaded CPython",
 	);
-	// The loader refuses the first `abi3t` symbol a CPython before 3.15 lacks.
-	refused(
-		&interpreter("PYTHON", "python3"),
-		abi3t(),
-		"libapi.so: undefined symbol: Py",
-	);
+	// The loader refuses the first `abi3t` symbol a CPython before 3.15 lacks, or on Windows
+	// the free-threaded `python3t.dll` the library links.
+	let missing = match (cfg!(windows), cfg!(target_os = "macos")) {
+		(true, _) => "ImportError: DLL load failed while importing".to_string(),
+		(_, true) => "symbol not found in flat namespace '_Py".to_string(),
+		_ => format!("{PYTHON_LIB}: undefined symbol: Py"),
+	};
+	refused(&interpreter("PYTHON", "python3"), abi3t(), &missing);
 
 	// The suffixes of the platforms this host is not, appended on the GIL build before 3.15,
 	// which loads from beside the module whatever its list holds.

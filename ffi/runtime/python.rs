@@ -599,19 +599,25 @@ pub fn ty(index: usize) -> *mut PyObject {
 }
 
 /// `_register(*classes)`: note the classes the glue makes values of, and set the glue's
-/// members on them.
+/// members on them, in the main interpreter alone: a legacy subinterpreter before 3.15
+/// shares the module `PyInit_` made, and its classes would replace the process's.
 unsafe extern "C" fn register(_: *mut PyObject, args: *mut *mut PyObject, nargs: Py_ssize_t) -> *mut PyObject {
-	// SAFETY: Python's call.
-	let args = unsafe { std::slice::from_raw_parts(args, nargs as usize) };
-	let registry = Registry {
-		// SAFETY: each argument a live class.
-		types: args.iter().map(|&class| unsafe { Obj::borrowed(class) }).collect(),
-		members: args.iter().map(|_| OnceLock::new()).collect(),
-	};
-	REGISTRY.store(Box::into_raw(Box::new(registry)), Ordering::Release);
 	wrap(|| {
+		// SAFETY: the thread is attached; the main interpreter's ID is 0.
+		if unsafe { PyInterpreterState_GetID(PyInterpreterState_Get()) } != 0 {
+			// SAFETY: a static exception type.
+			return raise(unsafe { PyExc_ImportError }, "the module loads only in the main interpreter");
+		}
+		// SAFETY: Python's call.
+		let args = unsafe { std::slice::from_raw_parts(args, nargs as usize) };
+		let registry: &'static Registry = Box::leak(Box::new(Registry {
+			// SAFETY: each argument a live class.
+			types: args.iter().map(|&class| unsafe { Obj::borrowed(class) }).collect(),
+			members: args.iter().map(|_| OnceLock::new()).collect(),
+		}));
+		REGISTRY.store(std::ptr::from_ref(registry).cast_mut(), Ordering::Release);
 		// SAFETY: the thread is attached, and each member's index one `_register` was passed.
-		unsafe { install() }?;
+		unsafe { install(registry) }?;
 		none()
 	})
 }
@@ -621,9 +627,11 @@ fn mutable<T>(def: &T) -> *mut T {
 	(def as *const T).cast_mut()
 }
 
-/// Set each of the glue's members on its class: a method as a method descriptor, which
-/// CPython calls without binding it, as it does a builtin type's.
-unsafe fn install() -> R<()> {
+/// Set each of the glue's members on its class in `registry`, which another load may
+/// replace meanwhile: a method as a method descriptor, which CPython calls without binding
+/// it, as it does a builtin type's.
+unsafe fn install(registry: &Registry) -> R<()> {
+	let ty = |index: usize| registry.types[index].ptr();
 	let install = INSTALL.get().expect("set as the module loaded");
 	// SAFETY: the glue's table, which Python reads for the process's life; a descriptor
 	// takes its entry's address, which it only reads.
@@ -936,7 +944,6 @@ pub fn bytes_in(obj: *mut PyObject, s: &mut Scope, take: bool) -> R<rt::Buf> {
 		}
 		// SAFETY: `Py_buffer` is plain data, which the call fills. Its format, which a
 		// `memoryview` passes on, marks Rust's bytes.
-		let exporter = exporter(obj)?;
 		let mut view: Py_buffer = std::mem::zeroed();
 		if PyObject_GetBuffer(obj, &mut view, PyBUF_FORMAT | PyBUF_ND) != 0 {
 			return Err(Raised);
@@ -961,6 +968,13 @@ pub fn bytes_in(obj: *mut PyObject, s: &mut Scope, take: bool) -> R<rt::Buf> {
 				rt::Buf { ptr, len, ..shared }
 			}
 			(false, _) => {
+				let exporter = match exporter(obj) {
+					Ok(exporter) => exporter,
+					Err(err) => {
+						PyBuffer_Release(&mut view);
+						return Err(err);
+					}
+				};
 				let mut copy = Vec::with_capacity(len);
 				snapshot(&exporter, ptr, copy.as_mut_ptr(), len);
 				copy.set_len(len);
@@ -1147,8 +1161,9 @@ unsafe fn exporter(obj: *mut PyObject) -> R<Exporter> {
 /// Copy `len` bytes at `src`, of a buffer `exporter` exports, to `dst`, as another thread
 /// may write them meanwhile without a GIL: inside the exporter's critical section, which a
 /// free-threaded CPython's `bytearray` takes to write, and through no Rust reference, which
-/// would claim the bytes unchanged. A writer that takes no lock, such as a `memoryview`'s
-/// item assignment, tears the copy as it tears CPython's own, such as `bytes(view)`.
+/// would claim the bytes unchanged. A writer that takes no lock, such as an `array.array`'s
+/// or a `memoryview`'s item assignment, tears the copy as it tears CPython's own, such as
+/// `bytes(view)`.
 ///
 /// # Safety
 /// The thread is attached, and `src` is `len` bytes of a buffer `exporter` exports.
@@ -1750,12 +1765,14 @@ static VALUE: Key = Key::new(c"value");
 /// The members of the plain enum registered at `index`, with their discriminants: read
 /// once, though threads that race may each read them.
 fn members(index: usize) -> R<&'static [(i64, Obj)]> {
-	let cell = &registry().members[index];
+	// One registry for both the class and its cell, as another load may replace it.
+	let registry = registry();
+	let cell = &registry.members[index];
 	if cell.get().is_none() {
 		let mut members = Vec::new();
 		// SAFETY: the thread is attached, and an `Enum` class iterates its members.
 		unsafe {
-			let iter = Obj::new(PyObject_GetIter(ty(index)))?;
+			let iter = Obj::new(PyObject_GetIter(registry.types[index].ptr()))?;
 			loop {
 				let member = PyIter_Next(iter.ptr());
 				if member.is_null() {
@@ -2111,20 +2128,22 @@ fn handle(raw: *const c_void, index: usize, free: Option<unsafe extern "C" fn(*c
 pub fn hold(obj: *mut PyObject, index: usize, s: &mut Scope) -> R<*const c_void> {
 	check(obj, index)?;
 	// SAFETY: an object of a class that subclasses `Object`, whose index, handle, and
-	// free change only as it is made and freed.
+	// free change only as it is made and freed. Each field is read through the pointer, as
+	// `weakref` may write the weak list beside them meanwhile.
 	unsafe {
-		let handle = &*handle_of(obj);
-		if handle.index != index {
+		let handle = handle_of(obj);
+		if (*handle).index != index {
 			return expected(obj, index);
 		}
-		if handle.free.is_some() {
-			return Ok(handle.raw);
+		let raw = (*handle).raw;
+		if (*handle).free.is_some() {
+			return Ok(raw);
 		}
-		if !handle.lend.hold() {
+		if !(*handle).lend.hold() {
 			return value_error(&format!("{} is closed", type_name(ty(index))));
 		}
 		s.held.push(Obj::borrowed(obj));
-		Ok(handle.raw)
+		Ok(raw)
 	}
 }
 
@@ -2163,8 +2182,8 @@ unsafe fn end(obj: *mut PyObject) {
 unsafe extern "C" fn handle_dealloc(obj: *mut PyObject) {
 	// SAFETY: Python deallocates an `Object` once, and nothing holds it.
 	unsafe {
+		clear_weak(obj);
 		let handle = handle_of(obj);
-		clear_weak(obj, (*handle).weaklist);
 		if let Some(free) = (*handle).free.take() {
 			let raw = std::mem::replace(&mut (*handle).raw, null());
 			call(|| free(raw));
@@ -2176,21 +2195,20 @@ unsafe extern "C" fn handle_dealloc(obj: *mut PyObject) {
 unsafe extern "C" fn value_dealloc(obj: *mut PyObject) {
 	// SAFETY: Python deallocates a `Value` once.
 	unsafe {
-		clear_weak(obj, (*value_head(obj)).weaklist);
+		clear_weak(obj);
 		dealloc(obj);
 	}
 }
 
 /// Clear the weak references to `obj`, as its dealloc must: Python's `subtype_dealloc`
-/// leaves them to it, for a class of `Object` or `Value` is not tracked by the collector.
+/// leaves them to the base declaring the list. CPython reads the list, not Rust, as a
+/// weak reference dying on another thread may write it meanwhile.
 ///
 /// # Safety
-/// `obj` is being deallocated, and `weaklist` is its list.
-unsafe fn clear_weak(obj: *mut PyObject, weaklist: *mut PyObject) {
-	if !weaklist.is_null() {
-		// SAFETY: the caller's contract.
-		unsafe { PyObject_ClearWeakRefs(obj) };
-	}
+/// `obj`, an `Object` or `Value`, is being deallocated.
+unsafe fn clear_weak(obj: *mut PyObject) {
+	// SAFETY: the caller's contract.
+	unsafe { PyObject_ClearWeakRefs(obj) };
 }
 
 /// The members of a type whose objects hold a list of weak references at `offset`, from
@@ -2986,14 +3004,17 @@ impl Polled {
 
 impl Ending {
 	/// Free the C future, cancelling it unless it finished, wake it for good, so a wake Rust
-	/// makes after queues nothing, and let go of its holds.
+	/// makes after queues nothing, and let go of its holds. A parked one is queued, as a
+	/// wake would, so an `await` of it resumes to find it ended.
 	fn finish(self) {
 		if let Some((free, raw)) = self.free {
 			// SAFETY: the future, which ended, is freed once.
 			call(|| unsafe { free(raw) });
 		}
-		if let Some(node) = self.node {
-			node.enter(WOKEN);
+		if let Some(node) = self.node
+			&& node.enter(WOKEN) == PARKED
+		{
+			node.queue.push(node.token);
 		}
 		for held in self.held {
 			// SAFETY: a handle the call held, which the future held since.
