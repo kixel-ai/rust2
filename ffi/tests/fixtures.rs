@@ -3667,8 +3667,10 @@ fn unreached_types() {
 		.arg(&staged)
 		.env("CARGO_TARGET_DIR", moved.join("build")));
 	let manifest = std::fs::read_to_string(moved.join("out/Cargo.toml")).unwrap();
+	// Relative to the export, or absolute where the scratch path holds a symlink.
+	let kio = format!("path = {:?}", moved.join("kio").display().to_string());
 	assert!(
-		manifest.contains(&format!("path = {:?}", moved.join("kio").display().to_string()))
+		(manifest.contains("path = \"../kio\"") || manifest.contains(&kio))
 			&& !manifest.contains(&format!("{:?}", package.join("kio").display().to_string())),
 		"{manifest}"
 	);
