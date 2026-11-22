@@ -1930,7 +1930,8 @@ fn python_abi3t(name: &str, args: &[&str], rustflags: &str) -> PathBuf {
 /// `cmd` without the sysconfig data a Nix shell names for its own CPython, which another
 /// version, or a free-threaded build, has none of.
 fn sysconfig_free(mut cmd: Command) -> Command {
-	cmd.env_remove("_PYTHON_SYSCONFIGDATA_NAME").env_remove("_PYTHON_HOST_PLATFORM");
+	cmd.env_remove("_PYTHON_SYSCONFIGDATA_NAME")
+		.env_remove("_PYTHON_HOST_PLATFORM");
 	cmd
 }
 
@@ -2029,7 +2030,9 @@ fn python_checks(interpreter: &std::ffi::OsStr, dir: &Path, env: &[(&str, &str)]
 		api.transcript,
 		"the Python transcript differs from the native one"
 	);
-	for case in ["futures", "owned", "values", "calls", "checks", "leaf", "idioms", "threads"] {
+	for case in [
+		"futures", "owned", "values", "calls", "checks", "leaf", "idioms", "threads",
+	] {
 		run(&mut python(dir, &[case]));
 	}
 	for (case, message) in [
@@ -2102,7 +2105,9 @@ fn api_free_threaded() {
 		// `-P` keeps the working directory off the path; PYTHONPATH replaces the dev shell's,
 		// which names the GIL build's packages. An inherited `PYTHON_GIL=1` would turn the GIL
 		// on in a free-threaded build.
-		cmd.args(["-P", "-c", code]).env("PYTHONPATH", dir).env_remove("PYTHON_GIL");
+		cmd.args(["-P", "-c", code])
+			.env("PYTHONPATH", dir)
+			.env_remove("PYTHON_GIL");
 		cmd.output().unwrap_or_else(|err| panic!("running {cmd:?}: {err}"))
 	};
 	let refused = |python: &std::ffi::OsStr, dir: &Path, message: &str| {
@@ -2110,13 +2115,13 @@ fn api_free_threaded() {
 		// Exit 1 is an uncaught exception, where a crash has no code.
 		assert_eq!(output.status.code(), Some(1), "importing under {python:?}: {output:?}");
 		let stderr = String::from_utf8_lossy(&output.stderr);
-		assert!(
-			stderr.contains(message),
-			"importing under {python:?} printed {stderr}"
-		);
+		assert!(stderr.contains(message), "importing under {python:?} printed {stderr}");
 	};
 	let abi3 = api().out.join("python");
-	for python in [interpreter("PYTHON_314T", "python3.14t"), interpreter("PYTHON_315T", "python3.15t")] {
+	for python in [
+		interpreter("PYTHON_314T", "python3.14t"),
+		interpreter("PYTHON_315T", "python3.15t"),
+	] {
 		// A GIL build would pass for the refusal's test, so check the interpreter first.
 		let build = probe(&python, &abi3, "import sys; sys.exit(sys._is_gil_enabled())");
 		assert!(
@@ -2136,7 +2141,11 @@ fn api_free_threaded() {
 		"ImportError: _api: incompatible with free-threaded CPython",
 	);
 	// The loader refuses the first `abi3t` symbol a CPython before 3.15 lacks.
-	refused(&interpreter("PYTHON", "python3"), abi3t(), "libapi.so: undefined symbol: Py");
+	refused(
+		&interpreter("PYTHON", "python3"),
+		abi3t(),
+		"libapi.so: undefined symbol: Py",
+	);
 
 	// The suffixes of the platforms this host is not, appended on the GIL build before 3.15,
 	// which loads from beside the module whatever its list holds.
