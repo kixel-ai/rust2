@@ -3420,7 +3420,12 @@ fn api_csharp() {
 	csc(
 		Dotnet::NetUnity,
 		&unity,
-		&[&binding, &manifest_dir().join("tests/api.cs"), &script, &manifest_dir().join("tests/unity.cs")],
+		&[
+			&binding,
+			&manifest_dir().join("tests/api.cs"),
+			&script,
+			&manifest_dir().join("tests/unity.cs"),
+		],
 	);
 	for exe in [&exe, &unity] {
 		let ran = run(&mut csharp_run(exe, &[]));
@@ -3476,7 +3481,11 @@ fn api_csharp() {
 		csc(
 			target,
 			&exe,
-			&[&contract.join("api.cs"), &contract.join("main.cs"), &manifest_dir().join("tests/unity.cs")],
+			&[
+				&contract.join("api.cs"),
+				&contract.join("main.cs"),
+				&manifest_dir().join("tests/unity.cs"),
+			],
 		);
 		let output = no_core(&mut csharp_run(&exe, &[])).output().unwrap();
 		failed(&output, &format!("a mismatched contract, {name}"));
@@ -3501,7 +3510,11 @@ fn api_csharp_aot() {
 	let tests = manifest_dir().join("tests/api.cs");
 	// Copied beside the project, so no character of the checkout's path reaches its XML.
 	let mut compile = String::new();
-	for (source, name) in [(&binding, "binding.cs"), (&tests, "tests.cs"), (&script, "transcript.cs")] {
+	for (source, name) in [
+		(&binding, "binding.cs"),
+		(&tests, "tests.cs"),
+		(&script, "transcript.cs"),
+	] {
 		step::write(&dir.join(name), std::fs::read(source).unwrap());
 		compile.push_str(&format!("    <Compile Include=\"{name}\" />\n"));
 	}
