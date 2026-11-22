@@ -2510,8 +2510,12 @@ def take(lines, what):
     return item
 
 
+# The consumer app's package, and so its process's name.
+FLUTTER_APP = "dev.rust2.consumer"
+
+
 class Logcat:
-    """What the device logs under Flutter's tag, and any crash, from now on."""
+    """What the device logs under Flutter's tag, and any crash of the consumer app, from now on."""
 
     def __init__(self, device):
         # From the log's last line, as `flutter run` reads it: Android 7's emulator may refuse
@@ -2520,9 +2524,18 @@ class Logcat:
         if not (since := re.search(r"^\d\d-\d\d \d\d:\d\d:\d\d\.\d{3}", last, re.M)):
             raise SystemExit(f"the device's log holds no time to read it from: {last!r}")
         self.process = subprocess.Popen(
-            [adb_path(), "-s", device, "logcat", "-T", since[0], "-v", "tag", "-s", "flutter:I", "libc:F", "DEBUG:F",
+            [adb_path(), "-s", device, "logcat", "-T", since[0], "-v", "brief", "-s", "flutter:I", "libc:F", "DEBUG:F",
              "AndroidRuntime:E"], text=True, encoding="utf-8", errors="replace", stdout=subprocess.PIPE)
         self.lines = reader(self.process, lambda line: [line])
+        # The app's process, known from its first line under Flutter's tag.
+        self.pid = None
+
+    def crashed(self, tag, pid, text):
+        """Whether a crash tag's line is the consumer app's, rather than another process's: a
+        fatal signal, such as a Rust panic's abort, in the app's process, debuggerd's dump
+        naming it, or an uncaught Java exception in it."""
+        return ((tag == "F/libc" and pid == self.pid) or (tag == "F/DEBUG" and f">>> {FLUTTER_APP} <<<" in text)
+                or (tag == "E/AndroidRuntime" and text.startswith(f"Process: {FLUTTER_APP},")))
 
     def output(self):
         """What one run of the check printed, failing unless it exits 0."""
@@ -2530,15 +2543,17 @@ class Logcat:
         while True:
             line = take(self.lines, "the device's log")
             print(line, file=sys.stderr)
-            if not line.startswith("I/flutter"):
-                # A fatal signal, such as a Rust panic's abort, or an uncaught Java exception.
-                if line.startswith(("F/", "E/AndroidRuntime: FATAL")):
+            if not (entry := re.match(r"([A-Z]/[^(]*?)\s*\(\s*(\d+)\): (.*)", line)):
+                continue
+            tag, pid, said = entry[1], int(entry[2]), entry[3]
+            if tag != "I/flutter":
+                if self.crashed(tag, pid, said):
                     raise SystemExit(f"the Flutter app crashed: {line}")
                 continue
-            at = line.find("rust2: ")
-            if at < 0:
+            self.pid = self.pid or pid
+            if not said.startswith("rust2: "):
                 continue
-            said = line[at + len("rust2: "):]
+            said = said[len("rust2: "):]
             if said == "start":
                 chunks = []
             elif chunks is None:
@@ -2590,6 +2605,14 @@ class Flutter:
             self.started = True
         return event
 
+    def reply(self):
+        """The reply to the last command, failing unless it succeeded."""
+        while (event := self.next()).get("id") != self.ids:
+            pass
+        if (result := event.get("result")) and result.get("code"):
+            raise SystemExit(f"flutter attach failed a command: {result}")
+        return event
+
     def command(self, method, **params):
         """Send a command once flutter has attached, as it takes none before."""
         while not self.started:
@@ -2619,18 +2642,20 @@ def consume_flutter(package, libs, lib, check, native, device):
         run("flutter", "build", "apk", "--debug", "--target-platform", FLUTTER_TARGETS[abi], cwd=app)
         # Installed here rather than by `flutter run`, whose streamed install, adb's default
         # from Android 7, hangs at random on Android 7's emulator; pushing it never has.
-        adb("-s", device, "install", "--no-streaming", app / "build" / "app" / "outputs" / "flutter-apk" / "app-debug.apk",
+        adb("-s", device, "install", "-r", "--no-streaming", app / "build" / "app" / "outputs" / "flutter-apk" / "app-debug.apk",
             capture_output=True)
         logcat, flutter = Logcat(device), None
         try:
             # `am start` exits 0 whether or not it starts the app.
-            started = adb("-s", device, "shell", "am", "start", "-n", "dev.rust2.consumer/.MainActivity",
+            started = adb("-s", device, "shell", "am", "start", "-n", f"{FLUTTER_APP}/.MainActivity",
                           capture_output=True, encoding="utf-8").stdout
             if re.search(r"Error|Exception", started):
                 raise SystemExit(f"the Flutter app did not start: {started}")
             first = logcat.output()
             flutter = Flutter(app, device)
             flutter.command("app.restart", fullRestart=True, pause=False)
+            # A refused restart fails here, rather than as the log's silence.
+            flutter.reply()
             second = logcat.output()
             flutter.command("app.stop")
             flutter.process.stdin.close()
