@@ -1299,6 +1299,9 @@ internal sealed unsafe class Lease : MemoryManager<byte>
 	// `Bytes.Dispose()` closes it; disposing it another way, as through `MemoryMarshal`, does too.
 	protected override void Dispose(bool disposing) => Close();
 
+	// CA2015 warns that a finalizer may free memory a `Span` still reads: this one frees only
+	// a lease no view of was ever taken.
+#pragma warning disable CA2015
 	~Lease()
 	{
 		if (!viewed && (Volatile.Read(ref state) & Closed) == 0)
@@ -1306,6 +1309,7 @@ internal sealed unsafe class Lease : MemoryManager<byte>
 			Native.buf_free(buf);
 		}
 	}
+#pragma warning restore CA2015
 }
 
 /// A Rust `char`: a Unicode scalar value, which C#'s `char` cannot hold past the BMP.
