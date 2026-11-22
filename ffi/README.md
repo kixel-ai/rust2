@@ -1661,7 +1661,8 @@ throws aborts, naming the call. The runtime every file includes is
   of it, `Span` or `Memory`, was ever taken, since a view can outlive what the collector
   sees reaching its owner: so dispose one viewed, and read no view taken before a dispose
   after it, as with any `IMemoryOwner`. `byte[]` and `ReadOnlyMemory<byte>` convert to
-  `Bytes` with no copy, `Bytes` to `ReadOnlySpan<byte>`, and `default` is empty. A `Bytes`
+  `Bytes` with no copy, and `default` is empty; a call taking a span takes a lend's as
+  `bytes.Span`, a view the caller keeps undisposed until the call returns. A `Bytes`
   equals and hashes by its contents, wherever each keeps them. Those Rust lends a closure
   or trait method are copied. A record is a struct; a plain enum a C# enum, whose methods and
   traits are extension methods of `<Enum>Extensions`; an enum with data an abstract class

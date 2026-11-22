@@ -127,12 +127,15 @@ const TAKEN: &[&str] = &[
 	"System",
 	"Task",
 	"TaskScheduler",
+	"TaskStatus",
 	"Thread",
 	"ThreadPool",
 	"TimeSpan",
 	"U128",
 	"UnmanagedCallersOnly",
 	"UnmanagedCallersOnlyAttribute",
+	"UnmanagedFunctionPointer",
+	"UnmanagedFunctionPointerAttribute",
 	"ValueTask",
 	"ValueTaskSourceOnCompletedFlags",
 	"ValueTaskSourceStatus",
@@ -2216,7 +2219,7 @@ impl<'a> Gen<'a> {
 		match ty {
 			Type::Str | Type::String => format!("Native.Owned({e}.Utf8.Span)"),
 			Type::PathBuf | Type::Path => format!("Native.Owned({e}.Bytes.Span)"),
-			Type::Vec | Type::Bytes | Type::Slice => format!("Native.Owned({e}.Span)"),
+			Type::Vec | Type::Bytes | Type::Slice => format!("Native.OwnedBytes({e})"),
 			Type::Option(inner) if Abi::is_buf(inner) => {
 				let v = self.fresh("v");
 				let some = self.returned(inner, &v);
@@ -2634,12 +2637,15 @@ impl<'a> Gen<'a> {
 					arg.exprs.push(v);
 					(arg, needs)
 				}
-				// A property's `value` is of its own type, `ReadOnlyMemory<byte>` for bytes.
+				// A property's `value` is of its own type, `Bytes` for bytes, which the arena
+				// holds for the call, taking no view of it.
 				false
 					if self.accessor(function, owner)
 						&& matches!(param.ty.base(), Type::Slice | Type::Vec | Type::Bytes) =>
 				{
-					self.arg(&param.ty, c, &format!("{local}.Span"), k)
+					let mut arg = Arg::default();
+					arg.exprs.push(self.lower(param.ty.base(), local));
+					(arg, true)
 				}
 				false => self.arg(&param.ty, c, local, k),
 			};

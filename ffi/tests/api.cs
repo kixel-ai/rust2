@@ -485,7 +485,7 @@ static partial class Script
 		Check(lent.Span.SequenceEqual(big) && lent.ToArray().AsSpan().SequenceEqual(big), "a lend reads Rust's bytes");
 		Check(lent == (api.Bytes)big && lent.GetHashCode() == ((api.Bytes)big).GetHashCode(), "a lend equals and hashes by its bytes");
 		// A lend passes back in place: at a call's top level, in a record, and sliced.
-		Check(api.Lib.Len(lent) == (nuint)big.Length, "a lend passes back");
+		Check(api.Lib.Len(lent.Span) == (nuint)big.Length, "a lend passes back");
 		var back = api.Lib.LentBack(ValueTuple.Create(lent)).Item1;
 		Check(back == lent, "a lend passes back in a record");
 		back.Dispose();

@@ -307,6 +307,21 @@ internal static unsafe partial class Native
 		}
 	}
 
+	/// A buffer Rust owns, holding a copy of `bytes`, read with no view taken, so the
+	/// collector still frees a lend no one viewed.
+	internal static Buf OwnedBytes(Bytes bytes)
+	{
+		var lease = bytes.Enter(out var span);
+		try
+		{
+			return Owned(span);
+		}
+		finally
+		{
+			lease?.Exit();
+		}
+	}
+
 	/// A buffer Rust owns, holding `text`'s message: what a failed callback hands Rust.
 	internal static Buf Message(string text) => Owned(System.Text.Encoding.UTF8.GetBytes(text));
 
@@ -1071,7 +1086,7 @@ public readonly struct PathBuf : IEquatable<PathBuf>
 /// one never disposed only if no `Span` or `Memory` of it was ever taken, since a view lives
 /// on where its owner looks unreachable: so dispose one that was viewed, and read no view
 /// taken before its dispose after it. C#'s own, `byte[]` or `ReadOnlyMemory<byte>`, convert
-/// with no copy, and `default` is empty.
+/// with no copy, and `default` is empty. No conversion takes a view: `Span` does, in sight.
 public readonly struct Bytes : IDisposable, IEquatable<Bytes>
 {
 	/// Up to this many bytes a call returns are copied into C#'s memory, which costs less
@@ -1092,12 +1107,11 @@ public readonly struct Bytes : IDisposable, IEquatable<Bytes>
 
 	public static implicit operator Bytes(ReadOnlyMemory<byte> memory) => new Bytes(memory);
 
-	public static implicit operator ReadOnlySpan<byte>(Bytes bytes) => bytes.Span;
-
 	/// How many bytes it holds.
 	public int Length => Memory.Length;
 
-	/// A view of its bytes, which lives no longer than its dispose.
+	/// A view of its bytes, valid until its dispose: so a call it is passed to as a span
+	/// reads it only while the caller disposes it after the call.
 	public ReadOnlySpan<byte> Span => Memory.Span;
 
 	/// A copy of its bytes in a new array.
