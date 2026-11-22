@@ -1,10 +1,13 @@
 #![cfg_attr(docsrs, feature(doc_cfg))]
 
-use std::{path::Path, sync::Arc, time::Duration};
+use std::{borrow::Cow, path::Path, sync::Arc, time::Duration};
 
 use binstalk_downloader::{download::DownloadError, remote::Error as RemoteError};
 use binstalk_git_repo_api::gh_api_client::{GhApiError, GhRepo, RepoInfo as GhRepoInfo};
-use binstalk_types::cargo_toml_binstall::{SigningAlgorithm, Strategy};
+use binstalk_types::{
+	cargo_toml_binstall::{SigningAlgorithm, Strategy},
+	crate_info::PkgUrlHint,
+};
 use thiserror::Error as ThisError;
 use tokio::{sync::OnceCell, task::JoinError, time::sleep};
 pub use url::ParseError as UrlParseError;
@@ -26,6 +29,21 @@ mod futures_resolver;
 use gh_crate_meta::hosting::RepositoryHost;
 
 static DEFAULT_GH_API_RETRY_DURATION: Duration = Duration::from_secs(1);
+
+/// Longest GitHub API rate-limit wait worth sleeping through.
+///
+/// A primary rate limit resets at most hourly, far beyond
+/// `--maximum-resolution-timeout`, so sleeping through it only stalls the
+/// resolution until it is timed out. Short waits, e.g. a secondary rate
+/// limit's `Retry-After`, are still honoured.
+const MAX_GH_API_RATE_LIMIT_WAIT: Duration = Duration::from_secs(5);
+
+/// How long to sleep before retrying a rate-limited GitHub API call, or `None`
+/// if the wait is too long and the caller should give up on the API instead.
+fn gh_api_rate_limit_wait(retry_after: Option<Duration>) -> Option<Duration> {
+	let wait = retry_after.unwrap_or(DEFAULT_GH_API_RETRY_DURATION);
+	(wait <= MAX_GH_API_RATE_LIMIT_WAIT).then_some(wait)
+}
 
 #[derive(Debug, ThisError)]
 #[error("Invalid pkg-url {pkg_url} for {crate_name}@{version} on {target}: {reason}")]
@@ -147,6 +165,39 @@ pub trait Fetcher: Send + Sync {
 	fn target(&self) -> &str;
 
 	fn target_data(&self) -> &Arc<TargetDataErased>;
+
+	/// The name `{ target-arch }` was rendered as in the found package's
+	/// URL, if [`Fetcher::find`] picked an alias rather than the name from
+	/// [`TargetData::target_related_info`].
+	///
+	/// Templates rendered for the found package, such as `bin-dir`, should
+	/// use it too, see [`TargetArchOverride`].
+	fn resolved_target_arch(&self) -> Option<&str> {
+		None
+	}
+
+	/// How [`Fetcher::find`] found the package, worth trying first next time,
+	/// see [`Data::with_pkg_url_hint`].
+	fn pkg_url_hint(&self) -> Option<PkgUrlHint> {
+		None
+	}
+}
+
+/// [`leon::Values`] that gives `target-arch` from
+/// [`Fetcher::resolved_target_arch`] when it is set, and everything else
+/// from `values`.
+pub struct TargetArchOverride<'a> {
+	pub values: &'a dyn leon::Values,
+	pub target_arch: Option<&'a str>,
+}
+
+impl leon::Values for TargetArchOverride<'_> {
+	fn get_value<'s>(&'s self, key: &str) -> Option<Cow<'s, str>> {
+		match (key, self.target_arch) {
+			("target-arch", Some(target_arch)) => Some(Cow::Borrowed(target_arch)),
+			_ => self.values.get_value(key),
+		}
+	}
 }
 
 #[derive(Clone, Debug)]
@@ -177,6 +228,8 @@ pub struct Data {
 	version: CompactString,
 	repo: Option<String>,
 	repo_info: OnceCell<Option<RepoInfo>>,
+	/// The target the hint was found for, and the hint.
+	pkg_url_hint: Option<(CompactString, PkgUrlHint)>,
 }
 
 impl Data {
@@ -186,7 +239,26 @@ impl Data {
 			version,
 			repo,
 			repo_info: OnceCell::new(),
+			pkg_url_hint: None,
 		}
+	}
+
+	/// Have fetchers try how a previous version was found on `target` first,
+	/// before probing everything else.
+	///
+	/// It is ignored unless it was found with this [`Data`]'s name.
+	pub fn with_pkg_url_hint(mut self, target: CompactString, hint: PkgUrlHint) -> Self {
+		if hint.name == self.name {
+			self.pkg_url_hint = Some((target, hint));
+		}
+		self
+	}
+
+	fn pkg_url_hint(&self, target: &str) -> Option<&PkgUrlHint> {
+		self.pkg_url_hint
+			.as_ref()
+			.filter(|(hint_target, _)| hint_target == target)
+			.map(|(_, hint)| hint)
 	}
 
 	#[instrument(skip(client))]
@@ -196,9 +268,10 @@ impl Data {
 				match client.get_repo_info(gh_repo).await {
 					Ok(Some(gh_repo_info)) => break Ok(gh_repo_info),
 					Ok(None) => break Err(GhApiError::NotFound),
-					Err(GhApiError::RateLimit { retry_after }) => {
-						sleep(retry_after.unwrap_or(DEFAULT_GH_API_RETRY_DURATION)).await
-					}
+					Err(GhApiError::RateLimit { retry_after }) => match gh_api_rate_limit_wait(retry_after) {
+						Some(wait) => sleep(wait).await,
+						None => break Err(GhApiError::RateLimit { retry_after }),
+					},
 					Err(err) => break Err(err),
 				}
 			}
