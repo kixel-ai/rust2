@@ -52,8 +52,10 @@ fn provens(api: &crate::ir::Api) -> Vec<(String, &crate::ir::Profile)> {
 /// The crate's build script, which refuses to build for a target but `api`'s, on which an
 /// item a target compiles would be missing, or one it leaves out left over, and tells the
 /// crate which it builds for, as the `cfg` [`CFG`], and whether its profile is the check's,
-/// as [`PROVEN`]. On Android, it aligns the library to 16 KB pages. On macOS, a CPython
-/// extension leaves Python's symbols for the interpreter that loads it to resolve.
+/// as [`PROVEN`]. On Android, it aligns the library to 16 KB pages. On Apple systems, it
+/// leaves room in the library's header for the longest install name a bundler may give it.
+/// On macOS, a CPython extension leaves Python's symbols for the interpreter that loads it
+/// to resolve.
 fn build(api: &crate::ir::Api) -> String {
 	let targets = &api.targets;
 	let list: Vec<String> = targets.iter().map(|t| format!("{t:?}")).collect();
@@ -161,6 +163,11 @@ fn build(api: &crate::ir::Api) -> String {
 		\t// Google Play rejects a 64-bit library that is not aligned to 16 KB.\n\
 		\tif std::env::var(\"CARGO_CFG_TARGET_OS\").is_ok_and(|os| os == \"android\") {{\n\
 		\t\tprintln!(\"cargo::rustc-link-arg-cdylib=-Wl,-z,max-page-size=16384\");\n\
+		\t}}\n\
+		\t// Dart and Flutter rename an Apple library to the path they bundle it at, which\n\
+		\t// install_name_tool fits only in the room its load commands leave.\n\
+		\tif std::env::var(\"CARGO_CFG_TARGET_VENDOR\").is_ok_and(|vendor| vendor == \"apple\") {{\n\
+		\t\tprintln!(\"cargo::rustc-link-arg-cdylib=-Wl,-headerpad_max_install_names\");\n\
 		\t}}\n\
 		\t#[cfg(feature = \"python\")]\n\
 		\tpyo3_build_config::add_extension_module_link_args();\n\
@@ -441,7 +448,7 @@ impl Crate<'_> {
 	/// `kotlin/<prefix>.kt`, whose JNI functions the crate's `kotlin` feature builds,
 	/// `python/<prefix>.py`, whose CPython extension its `python` feature builds,
 	/// `swift/<prefix>.swift` with the clang module it imports the header through, and
-	/// `go/<prefix>.go`, and `dart/<prefix>.dart`, whose glue its `dart` feature builds.
+	/// `go/<prefix>.go`, and the Dart package `dart/`, whose glue its `dart` feature builds.
 	pub(crate) fn generate(&self, out: &Path) -> Result<Output, String> {
 		// Cargo unifies in what the facade enables in its dependencies.
 		let facade = self.facade;
@@ -564,7 +571,7 @@ impl Crate<'_> {
 			kotlin = [\"dep:jni-sys\"]\n\
 			# The CPython extension python/{lib}.py loads.\n\
 			python = [\"dep:pyo3-ffi\", \"dep:pyo3-build-config\", \"dep:smallvec\"]\n\
-			# What dart/{lib}.dart calls that `dart:ffi` lacks.\n\
+			# What dart/lib/{lib}.dart calls that `dart:ffi` lacks.\n\
 			dart = []\n\
 			# What web/index.ts calls that the C ABI lacks, built for wasm32-wasip1.\n\
 			web = []\n\
@@ -661,7 +668,16 @@ impl Crate<'_> {
 		);
 		output.file(&out.join("src/dart/mod.rs"), &dart.glue);
 		output.file(&out.join("src/dart/runtime.rs"), crate::dart::GLUE_RUNTIME);
-		output.file(&out.join("dart").join(format!("{}.dart", self.abi.prefix)), &dart.dart);
+		let package = out.join("dart");
+		output.file(
+			&package.join("pubspec.yaml"),
+			&crate::dart::pubspec(facade, &self.abi.prefix)?,
+		);
+		output.file(
+			&package.join("lib").join(format!("{}.dart", self.abi.prefix)),
+			&dart.dart,
+		);
+		output.file(&package.join("hook").join("build.dart"), crate::dart::HOOK);
 		if let Some(web) = web {
 			output.file(&out.join("src/web/mod.rs"), &web.glue);
 			output.file(&out.join("src/web/runtime.rs"), crate::web::GLUE_RUNTIME);

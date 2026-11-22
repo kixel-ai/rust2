@@ -516,7 +516,7 @@ fn languages(lib: &str, out: &Path, dir: &Path, built: &Built) -> Result<(), (&'
 		format!("import 'package:{lib}/{lib}.dart';\n\nvoid main() {{}}\n"),
 	);
 	let shared = built.lib.join(super::shared(lib));
-	let (mut kernel, _) = super::dart_kernel(lib, &dart, &out.join("dart"), &shared, &main, &[]);
+	let (mut kernel, _) = super::dart_kernel(lib, &dart, &out.join("dart/lib"), &shared, &main, &[]);
 	checked("Dart", &mut kernel)?;
 	Ok(())
 }

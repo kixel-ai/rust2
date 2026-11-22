@@ -12,6 +12,7 @@ what each refusal asks you to change.
 
 ```bash
 rust2-ffi (--out dir | --census dir | --api file) [--manifest-path Cargo.toml] [--target triple]... [--with file]... [--baseline api.json] [-- cargo args]
+nix run github:kixel-ai/rust2/<rev>#ffi -- --out ffi   # pinned to a revision, under the caller's cargo
 ```
 
 It runs `cargo check` on the package with itself as `RUSTC_WRAPPER`, for each `--target`
@@ -53,8 +54,8 @@ Beside the C header, `include/<prefix>.hpp` holds the same API in C++, over a he
 name. `python/<prefix>.py` holds it in Python, over a CPython
 extension the crate builds with `--features python`, `swift/<prefix>.swift` holds it in
 Swift, over the C header as a clang module, `go/` holds it in Go, a package per crate
-over the C ABI through cgo, and `dart/<prefix>.dart` holds it in Dart, over the C ABI through
-`dart:ffi` and what the crate builds with `--features dart`. When `wasm32-wasip1` is among
+over the C ABI through cgo, and `dart/` holds it as a Dart package, `lib/<prefix>.dart` over
+the C ABI through `dart:ffi` and what the crate builds with `--features dart`. When `wasm32-wasip1` is among
 the targets, `web/` holds it in TypeScript for the web, ES modules over the `.wasm` the
 crate builds with `--target wasm32-wasip1 --features web`.
 An export again rewrites only the files whose content changed, and removes from
@@ -496,6 +497,8 @@ Linux's exports, as the merge queue runs on, since a header names its targets.
   panic or a failed check that aborts goes to logcat as `rust2-ffi` and to bionic's abort
   message, which shows in the tombstone, `ApplicationExitInfo`, and Play vitals, since an
   app's stderr goes nowhere.
+- **Apple**: the build script links the library with room in its header for the longest
+  install name, as Dart and Flutter rename it to the path they bundle it at.
 - **Names** are the prefix, then the item's path from the facade's root, each segment in
   Rust's case, joined by `_`: `track::Producer::append_group` is
   `moq_track_Producer_append_group`, and moq-net's `session::Stats` and `Session::stats`
@@ -547,6 +550,27 @@ Linux's exports, as the merge queue runs on, since a header names its targets.
   name. A type instance's methods are named through it, and a function instance appends
   its arguments' names, a reference's by what it borrows and a const's by its value: the
   api fixture's `drain` is `api_drain_4` at `Batch` and `api_drain_2` at `Batch<2>`.
+
+## Every binding
+
+Each language's binding below generates the crate's own API in that language's idiom, and
+a binding added later, such as [m3's targets](../quest/m3/README.md), keeps the same rules:
+
+- It checks `<prefix>_contract()` against the contract it was generated with when it loads,
+  before any other call, and fails loud on a mismatch.
+- It keeps the C ABI's bulk and zero-copy payloads, with no per-byte loop on either side.
+- It wraps the C ABI's futures in the language's native future. Those futures take the
+  result in the poll that finishes them, so a cancel never loses a value, cost one crossing
+  when ready at once, and reuse a repeated waker. The native future latches a wake that
+  lands between `PENDING` and parking, proves no loss on cancel in a test that forces that
+  window, and picks a semantic for concurrent pollers.
+- It drives each `Driver`, such as moq's, from the language's own event loop, with no
+  thread of its own and no async runtime such as tokio: it holds one `kio::Waiter` per
+  driver, made from its waker, since what a poll registers lives only as long as its
+  waiter, polls on each wake and at the deadline the poll returns, and frees the driver to
+  cancel it. A cancelled call ends only that call, as in Rust, and leaves its object usable.
+- It is measured, with its generated size raw and gzipped, on
+  [the binding benchmark](../bench/ffi/README.md), whose `just ffi bench` covers it.
 
 ## C++
 
@@ -1391,10 +1415,24 @@ other than one in its own form, `module <path>` and `go 1.24`.
 
 ## Dart
 
-`<prefix>.dart` is the library `package:<prefix>/<prefix>.dart` over the C ABI through
-`dart:ffi`, tested on Dart 3.13. Each C function is an `@Native` external, which finds
-the shared library the crate builds with `--features dart` as the package's native asset:
-the library's own URI, mapped to the library by a build hook or by `--native-assets`.
+`dart/` is the package `<prefix>`, whose `lib/<prefix>.dart` is the library
+`package:<prefix>/<prefix>.dart` over the C ABI through `dart:ffi`, tested on Dart 3.13 and,
+as its `pubspec.yaml` says, taken by Dart 3.10 and later, whose build hooks are stable. Each
+C function is an `@Native` external, which finds the shared library the crate builds with
+`--features dart` as the package's native asset: the library's own URI, which the package's
+`hook/build.dart` maps to the library when an app depending on it builds or runs. In an
+export, the hook builds the crate beside the package, `../Cargo.toml`, with Cargo, on the
+target the app builds for, for the Android NDK of an app's Flutter build, and reruns when a
+source the build read changes, Cargo's dep-info says which, or a path package's manifest,
+its workspace's, or a Cargo config the build reads. Dart SDKs from before its hook runner
+passed `CARGO_*` and `RUSTUP_*` on give a hook neither home, so with rustup outside
+`~/.cargo` and `~/.rustup` a source build needs a toolchain's own `cargo` on `PATH`. It builds each Android API
+level and Apple deployment target in a target directory of its own, as Cargo rebuilds for
+no change in them. A release's adds `hook/release.json`, from which it downloads the
+library instead ([Binding releases](release/README.md)). The prefix must name a Dart
+package, lowercase letters, digits, and `_`, no word pub reserves, and none of the
+packages the hook resolves with (`hooks`, `code_assets`, `crypto`, and theirs), or the export
+fails.
 
 - **Names** are the C names without the prefix: a type in Pascal case and a member in
   camel case, so `moq_track_Producer` is `TrackProducer`, and its method

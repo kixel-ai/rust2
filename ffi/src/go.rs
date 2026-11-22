@@ -262,6 +262,11 @@ fn link(abi: &Abi<'_>) -> Result<(String, String), String> {
 		let not = not.map(|os| format!(",!{os}")).unwrap_or_default();
 		let mut flags = vec![format!("${{SRCDIR}}/lib{p}_{goos}_{goarch}.a")];
 		flags.extend(libs.iter().cloned());
+		// Then the glue's own, which rustc lists after its dependencies', dropping one that
+		// repeats the last: on Android, the log its abort writes to (`runtime/rt/android.rs`).
+		if goos == "android" && flags.last().map(String::as_str) != Some("-llog") {
+			flags.push("-llog".to_string());
+		}
 		let _ = writeln!(lines, "#cgo {goos}{not},{goarch} LDFLAGS: {}", flags.join(" "));
 		let not = not.replace(",!", " && !");
 		constraints.push(format!("{goos}{not} && {goarch}"));
@@ -3973,7 +3978,9 @@ fn links_each_target_go_builds_for() {
 	let targets = [
 		"aarch64-apple-darwin",
 		"aarch64-apple-ios",
+		"aarch64-linux-android",
 		"wasm32-wasip1",
+		"x86_64-linux-android",
 		"x86_64-pc-windows-gnu",
 		"x86_64-pc-windows-msvc",
 	];
@@ -3990,19 +3997,25 @@ fn links_each_target_go_builds_for() {
 		links: (targets.iter())
 			.filter(|t| **t != "wasm32-wasip1")
 			.map(|t| (t.to_string(), vec![format!("-l{}", &t[..3])]))
+			.chain([("x86_64-linux-android".to_string(), vec!["-ldl".into(), "-llog".into()])])
 			.collect(),
 		profiles: Default::default(),
 	};
 	let (lines, platform) = link(&Abi::new(&api, "lock")).unwrap();
 	// iOS also satisfies `darwin`; MSVC's library is none Go links; wasm32 runs no cgo.
+	// Android's ends with the glue's log, which rustc does not repeat.
 	assert_eq!(
 		lines,
 		"#cgo darwin,!ios,arm64 LDFLAGS: ${SRCDIR}/liblock_darwin_arm64.a -laar\n\
 		#cgo ios,arm64 LDFLAGS: ${SRCDIR}/liblock_ios_arm64.a -laar\n\
+		#cgo android,amd64 LDFLAGS: ${SRCDIR}/liblock_android_amd64.a -ldl -llog\n\
+		#cgo android,arm64 LDFLAGS: ${SRCDIR}/liblock_android_arm64.a -laar -llog\n\
 		#cgo windows,amd64 LDFLAGS: ${SRCDIR}/liblock_windows_amd64.a -lx86\n"
 	);
 	assert!(
-		platform.contains("//go:build !(darwin && !ios && arm64 || ios && arm64 || windows && amd64)\n"),
+		platform.contains(
+			"//go:build !(darwin && !ios && arm64 || ios && arm64 || android && amd64 || android && arm64 || windows && amd64)\n"
+		),
 		"{platform}"
 	);
 	let mut stale = api.clone();

@@ -4,6 +4,7 @@ description = "Each construct rust2-ffi exports, driven from C by tests/api.c"
 version = "0.0.0"
 edition = "2024"
 license = "MIT OR Apache-2.0"
+repository = "https://github.com/kixel-ai/rust2"
 publish = false
 
 # Named apart from the package: the export's prefix, which the export must follow.
