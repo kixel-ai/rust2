@@ -5,7 +5,7 @@
 [rust2-ffi](/ffi/README.md) writes `csharp/<prefix>.cs`, the crate's API in C# over the C
 ABI, which runs under .NET (NativeAOT included) and under Unity's IL2CPP on iOS and
 Android. It follows every generator's rules
-([the exporter epic](/quest/m1/ffi-export/README.md)), the `api` fixture's script runs
+([every binding's](/ffi/README.md#every-binding)), the `api` fixture's script runs
 through it with a transcript matching native Rust's, and it is on
 [the binding benchmark](/bench/ffi/README.md).
 
@@ -31,6 +31,3 @@ consumer asks ([m3](/quest/m3/README.md#plan)); moq ships no C# today.
 
 Public API: the generated C# API.
 
-## Required
-
-- [Exporter](/quest/m1/ffi-export/README.md) - the C ABI, its lossless types, and its checks are settled before a new generator copies them

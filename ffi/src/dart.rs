@@ -837,6 +837,7 @@ impl<'a> Gen<'a> {
 			Ty::Struct(name) => name.clone(),
 			other => unreachable!("{other:?} is no struct"),
 		};
+		let name_ = crate::abi::stem(&name);
 		if (0..abi.api.callbacks.len()).any(|i| abi.callback(i) == name) {
 			return "_Callback".to_string();
 		}
@@ -921,7 +922,7 @@ impl<'a> Gen<'a> {
 				);
 				members.push(format!(
 					"\texternal {payload_class} {};\n",
-					slot(&abi::escape(&abi::snake(&variant.name)))
+					slot(&abi::variant_member(&variant.name))
 				));
 			}
 			let _ = write!(
@@ -931,7 +932,7 @@ impl<'a> Gen<'a> {
 			);
 			let decls = format!(
 				"{}\texternal {union} $u;\n",
-				self.field(&Ty::Enum(format!("{name}_tag")), "tag")
+				self.field(&Ty::Enum(format!("{name_}_tag")), "tag")
 			);
 			self.layouts.insert(name.clone(), Layout::Enum(payloads));
 			self.structs.insert(
@@ -1215,6 +1216,7 @@ impl<'a> Gen<'a> {
 	/// a checked value, the one dropping it then freeing it if asked; the last two serve the
 	/// isolate meanwhile and take back the garbage collector's hold if it took one.
 	fn owned(&mut self, c: &str, handle: &Ty, checked: bool) -> Owned {
+		let c_ = crate::abi::stem(c);
 		let bare = self.bare(c);
 		let space = &self.space;
 		let own = format!("{space}_own_{bare}");
@@ -1222,7 +1224,7 @@ impl<'a> Gen<'a> {
 		let raw = rs(handle);
 		let _ = write!(
 			self.glue,
-			"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {own}(object: *mut c_void, raw: *mut c_void) -> *mut c_void {{\n\t// The garbage collector's free runs with no isolate to serve.\n\tunsafe extern \"C\" fn finalize(_: *mut c_void, raw: *mut c_void) {{\n\t\tunsafe {{ crate::{c}_free(raw.cast()) }}\n\t}}\n\tunsafe {{ runtime::own(object, raw, finalize) }}\n}}\n\n"
+			"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {own}(object: *mut c_void, raw: *mut c_void) -> *mut c_void {{\n\t// The garbage collector's free runs with no isolate to serve.\n\tunsafe extern \"C\" fn finalize(_: *mut c_void, raw: *mut c_void) {{\n\t\tunsafe {{ crate::{c_}_free(raw.cast()) }}\n\t}}\n\tunsafe {{ runtime::own(object, raw, finalize) }}\n}}\n\n"
 		);
 		self.natives.insert(
 			own.clone(),
@@ -1235,14 +1237,14 @@ impl<'a> Gen<'a> {
 		self.natives.insert(
 			freeing.clone(),
 			format!(
-				"@ffi.Native<ffi.Void Function(ffi.Pointer<ffi.Void>)>(symbol: '{c}_free')\nexternal void {freeing_}(ffi.Pointer<ffi.Void> p0);\n\n"
+				"@ffi.Native<ffi.Void Function(ffi.Pointer<ffi.Void>)>(symbol: '{c_}_free')\nexternal void {freeing_}(ffi.Pointer<ffi.Void> p0);\n\n"
 			),
 		);
 		let free = format!("{space}_free_{bare}");
 		let free_ = private(&free);
 		let _ = write!(
 			self.glue,
-			"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {free}(home: *const c_void, own: *mut c_void, object: *mut c_void, raw: {raw}) {{\n\tif !own.is_null() {{\n\t\tunsafe {{ runtime::disown(own, object) }};\n\t}}\n\tlet home = unsafe {{ &*home.cast::<runtime::Home>() }};\n\tunsafe {{ home.serve(move || crate::{c}_free(raw)) }}\n}}\n\n"
+			"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {free}(home: *const c_void, own: *mut c_void, object: *mut c_void, raw: {raw}) {{\n\tif !own.is_null() {{\n\t\tunsafe {{ runtime::disown(own, object) }};\n\t}}\n\tlet home = unsafe {{ &*home.cast::<runtime::Home>() }};\n\tunsafe {{ home.serve(move || crate::{c_}_free(raw)) }}\n}}\n\n"
 		);
 		self.natives.insert(
 			free.clone(),
@@ -1257,7 +1259,7 @@ impl<'a> Gen<'a> {
 			// served call's does.
 			let _ = write!(
 				self.glue,
-				"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {close}(home: *const c_void, own: *mut c_void, object: *mut c_void, raw: {raw}, free: bool, out: *mut i32) {{\n\tlet home = unsafe {{ &*home.cast::<runtime::Home>() }};\n\tlet status = unsafe {{\n\t\thome.serve(move || {{\n\t\t\tlet mut status = 0;\n\t\t\tcrate::{c}_drop(raw, &raw mut status);\n\t\t\tif status == 0 && free {{\n\t\t\t\tcrate::{c}_free(raw);\n\t\t\t}}\n\t\t\tstatus\n\t\t}})\n\t}};\n\tif status != 0 {{\n\t\tunsafe {{ *out = status }};\n\t}} else if free && !own.is_null() {{\n\t\tunsafe {{ runtime::disown(own, object) }};\n\t}}\n}}\n\n"
+				"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {close}(home: *const c_void, own: *mut c_void, object: *mut c_void, raw: {raw}, free: bool, out: *mut i32) {{\n\tlet home = unsafe {{ &*home.cast::<runtime::Home>() }};\n\tlet status = unsafe {{\n\t\thome.serve(move || {{\n\t\t\tlet mut status = 0;\n\t\t\tcrate::{c_}_drop(raw, &raw mut status);\n\t\t\tif status == 0 && free {{\n\t\t\t\tcrate::{c_}_free(raw);\n\t\t\t}}\n\t\t\tstatus\n\t\t}})\n\t}};\n\tif status != 0 {{\n\t\tunsafe {{ *out = status }};\n\t}} else if free && !own.is_null() {{\n\t\tunsafe {{ runtime::disown(own, object) }};\n\t}}\n}}\n\n"
 			);
 			self.natives.insert(
 				close.clone(),
@@ -1429,7 +1431,7 @@ impl<'a> Gen<'a> {
 						let on = variant.on.0 & abi.api.all().0;
 						body.insert(0, format!("_on(0x{on:x}, '{c}.{}');", variant.name));
 					}
-					let member = abi::escape(&abi::snake(&variant.name));
+					let member = abi::variant_member(&variant.name);
 					for (field, name) in variant.fields.iter().zip(field_names(&variant.fields)) {
 						let e = format!("v.{name}");
 						let dst = format!("c.$u.{}.{}", slot(&member), slot(&abi::escape(&field.name)));
@@ -1515,6 +1517,7 @@ impl<'a> Gen<'a> {
 	/// The function reading a Dart value of type `ty` out of the C struct `c`, owning what
 	/// it holds.
 	fn reader(&mut self, c: &str, ty: &Type) -> String {
+		let c_ = crate::abi::stem(c);
 		if let Some(name) = self.readers.get(ty) {
 			return name.clone();
 		}
@@ -1569,7 +1572,7 @@ impl<'a> Gen<'a> {
 				let mut cases = Vec::new();
 				for (n, variant) in e.variants.iter().enumerate() {
 					let case = self.variant_class(&dt, &variant.name);
-					let member = abi::escape(&abi::snake(&variant.name));
+					let member = abi::variant_member(&variant.name);
 					let mut args = Vec::new();
 					for (field, name) in variant.fields.iter().zip(field_names(&variant.fields)) {
 						let value = self.lift(
@@ -1600,7 +1603,7 @@ impl<'a> Gen<'a> {
 			Type::List(..) if let Some(block) = ty.block() => {
 				let class = self.struct_class(&Ty::Struct(c.to_string()));
 				let list = typed_list(block);
-				let free = self.native_fn(&format!("{c}_free"), vec![Ty::Struct(c.to_string())], Ty::Void);
+				let free = self.native_fn(&format!("{c_}_free"), vec![Ty::Struct(c.to_string())], Ty::Void);
 				let cast = match block {
 					Type::Int(Int::U64) => " as List<U64>",
 					_ => "",
@@ -1620,7 +1623,7 @@ impl<'a> Gen<'a> {
 			Type::List(_, elem) => {
 				let class = self.struct_class(&Ty::Struct(c.to_string()));
 				let item = self.lift(elem, "p[i]");
-				let free = self.native_fn(&format!("{c}_free"), vec![Ty::Struct(c.to_string())], Ty::Void);
+				let free = self.native_fn(&format!("{c_}_free"), vec![Ty::Struct(c.to_string())], Ty::Void);
 				let elem_dt = self.dt(elem);
 				return self.finish_reader(
 					name,
@@ -1878,6 +1881,7 @@ impl<'a> Gen<'a> {
 	/// `debug()`, `PartialEq` `==` and with `Hash` `hashCode`, `Default` a constructor
 	/// `default_()`, and `Clone` an object's `clone()`.
 	fn traits(&mut self, ty: &Type, c: &str, t: crate::ir::Traits, body: &mut Vec<String>, members: &mut Vec<String>) {
+		let c_ = crate::abi::stem(c);
 		let name = self.dt(ty);
 		let object = matches!(ty, Type::Object(_));
 		let c_ty = self.abi.ty(ty);
@@ -1942,7 +1946,7 @@ impl<'a> Gen<'a> {
 		if t.display {
 			member(self, "Display", "toString");
 			members.push("toString".to_string());
-			let what = format!("{c}_to_string");
+			let what = format!("{c_}_to_string");
 			let f = self.served_fn(&what, params(vec![recv.clone()]), Ty::Buf);
 			let (pre, arg) = this(self, "this");
 			let call = arena(
@@ -1957,7 +1961,7 @@ impl<'a> Gen<'a> {
 		if t.debug {
 			member(self, "Debug", "debug");
 			members.push("debug".to_string());
-			let what = format!("{c}_debug");
+			let what = format!("{c_}_debug");
 			let f = self.served_fn(&what, params(vec![recv.clone()]), Ty::Buf);
 			let (pre, arg) = this(self, "this");
 			let call = arena(
@@ -1974,7 +1978,7 @@ impl<'a> Gen<'a> {
 		if object && t.clone {
 			member(self, "Clone", "clone");
 			members.push("clone".to_string());
-			let what = format!("{c}_clone");
+			let what = format!("{c_}_clone");
 			let f = self.served_fn(&what, params(vec![recv.clone()]), recv.clone());
 			let call = arena(
 				false,
@@ -1988,7 +1992,7 @@ impl<'a> Gen<'a> {
 		let plain = matches!(ty, Type::Enum(i) if self.abi.api.enums[*i].plain());
 		if t.eq && !plain {
 			members.push("hashCode".to_string());
-			let what = format!("{c}_eq");
+			let what = format!("{c_}_eq");
 			let sig = Sig {
 				name: what.clone(),
 				params: params(vec![recv.clone(), recv.clone()])
@@ -2029,7 +2033,7 @@ impl<'a> Gen<'a> {
 			// Equal values hash alike only by Rust's own `Hash`, which a type without one lacks.
 			if t.hash {
 				member(self, "Hash", "hashCode");
-				let what = format!("{c}_hash");
+				let what = format!("{c_}_hash");
 				let sig = Sig {
 					name: what.clone(),
 					params: params(vec![recv.clone()])
@@ -2063,7 +2067,7 @@ impl<'a> Gen<'a> {
 		// Rust's `partial_cmp`, -1, 0, 1, or 2 when unordered, behind `partialCompareTo` and
 		// `<` and its kin, as Rust's are; with `Ord`, its `cmp` as `Comparable`'s `compareTo`.
 		for &(_, suffix) in crate::c::comparisons(t.ord) {
-			let what = format!("{c}_{suffix}");
+			let what = format!("{c_}_{suffix}");
 			let f = self.served_fn(&what, params(vec![recv.clone(), recv.clone()]), Ty::Int(Int::I8));
 			let (pa, a) = this(self, "this");
 			let (pb, b) = this(self, "other");
@@ -2108,7 +2112,7 @@ impl<'a> Gen<'a> {
 				Type::Object(i) if !self.abi.api.objects[*i].send => "_homed",
 				_ => "",
 			};
-			let f = self.served_fn(&format!("{c}_default{homed}"), vec![], ret);
+			let f = self.served_fn(&format!("{c_}_default{homed}"), vec![], ret);
 			let value = match object {
 				true => format!("{name}._({f}(_n.home))"),
 				false => self.lift(ty, &format!("{f}(_n.home)")),
@@ -2351,6 +2355,7 @@ impl<'a> Gen<'a> {
 		let object = &abi.api.objects[i];
 		self.on = object.on;
 		let c = abi.object(i);
+		let c_ = crate::abi::stem(&c);
 		let name = self.class(&c);
 		let rust = abi.api.rust(&object.path, &object.args);
 		let ty = Type::Object(i);
@@ -2369,7 +2374,7 @@ impl<'a> Gen<'a> {
 		} = self.owned(&c, &owner, checked);
 		let close = match close {
 			Some(close) => format!(
-				"\n\t@override\n\tvoid _close(bool free) {{\n\t\tfinal s_ = _n.status;\n\t\t{close}(_n.home, _own, this, _raw, free, s_);\n\t\t_status(s_.value, '{c}_drop');\n\t}}\n"
+				"\n\t@override\n\tvoid _close(bool free) {{\n\t\tfinal s_ = _n.status;\n\t\t{close}(_n.home, _own, this, _raw, free, s_);\n\t\t_status(s_.value, '{c_}_drop');\n\t}}\n"
 			),
 			None => String::new(),
 		};
@@ -2444,6 +2449,7 @@ impl<'a> Gen<'a> {
 	/// thread, the relay in the glue that reaches it, and the tables that hold both, which only
 	/// a callback given to Rust needs.
 	fn callback_tables(&mut self, c: &str) {
+		let c_ = crate::abi::stem(c);
 		let abi = self.abi;
 		let i = (0..abi.api.callbacks.len())
 			.find(|&i| abi.callback(i) == c)
@@ -2503,7 +2509,7 @@ impl<'a> Gen<'a> {
 			);
 			let _ = write!(
 				self.glue,
-				"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {relay}(data: *mut c_void{}) -> {} {{\n\tlet relay = unsafe {{ &*data.cast::<runtime::Relay>() }};\n\tlet table = unsafe {{ &*relay.f.cast::<crate::{c}_vtable>() }};\n\tlet f = table.{m}.unwrap_or_else(|| rt::fail(\"{c}_vtable.{m}\", \"the function is null\"));{cast}\n\t{called}\n}}\n\n",
+				"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {relay}(data: *mut c_void{}) -> {} {{\n\tlet relay = unsafe {{ &*data.cast::<runtime::Relay>() }};\n\tlet table = unsafe {{ &*relay.f.cast::<crate::{c_}_vtable>() }};\n\tlet f = table.{m}.unwrap_or_else(|| rt::fail(\"{c_}_vtable.{m}\", \"the function is null\"));{cast}\n\t{called}\n}}\n\n",
 				decls.concat(),
 				rs(&ret),
 				m = abi::member(method),

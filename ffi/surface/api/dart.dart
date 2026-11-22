@@ -1142,6 +1142,23 @@ final class ClashChangeSet extends ClashChange {
 final class ClashChangeClear extends ClashChange {
 	const ClashChangeClear();
 }
+sealed class ClashShift {
+	const ClashShift();
+	String debug();
+	@override bool operator ==(Object other);
+	@override int get hashCode;
+}
+final class ClashShiftUp extends ClashShift {
+	final int $0;
+	const ClashShiftUp(this.$0);
+}
+final class ClashShiftDown extends ClashShift {
+	const ClashShiftDown();
+}
+final class ClashShiftTag extends ClashShift {
+	final int $0;
+	const ClashShiftTag(this.$0);
+}
 enum Level implements Comparable<Level> {
 	error(0),
 	warn(1),
@@ -1707,6 +1724,22 @@ final class ClashReader extends _Object {
 	void unreadByte();
 	void wait(U64 ms);
 }
+final class ClashNotch extends _Object implements Comparable<ClashNotch> {
+	@override String toString();
+	String debug();
+	ClashNotch clone();
+	@override bool operator ==(Object other);
+	@override int get hashCode;
+	int? partialCompareTo(ClashNotch other);
+	bool operator <(ClashNotch other);
+	bool operator <=(ClashNotch other);
+	bool operator >(ClashNotch other);
+	bool operator >=(ClashNotch other);
+	@override int compareTo(ClashNotch other);
+	factory ClashNotch.default_();
+	factory ClashNotch(int count);
+	int count();
+}
 final class TlsSession extends _Object {
 	String alpn();
 	TlsPolicyLifetime lifetime();
@@ -1834,6 +1867,10 @@ abstract class ClashSource {
 abstract class ClashEraser {
 	int delete_(int new_, int new_2);
 	int delete();
+	void close();
+}
+abstract class ClashCount {
+	int next();
 	void close();
 }
 final class BoundsU64Exception implements Exception {
@@ -2149,6 +2186,9 @@ int clashWaited(ClashSource source);
 int clashUnderscored(ClashUnderscored underscored, ClashOp op, ClashChange change);
 (ClashUnderscored, ClashChange) clashUnderscoredNext(ClashUnderscored underscored, ClashChange change);
 int clashErased(ClashEraser eraser);
+List<ClashNotch> clashNotches(int n);
+int clashShifted(int at, ClashShift shift);
+int clashCounted(ClashCount count);
 int clashErase_();
 int clashErase();
 int clashLend_(ClashStore? store);

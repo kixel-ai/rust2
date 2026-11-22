@@ -39,6 +39,3 @@ consumer asks ([m3](/quest/m3/README.md#plan)).
 
 Public API: the generated TypeScript API and the `node` feature, if it lands.
 
-## Required
-
-- [Exporter](/quest/m1/ffi-export/README.md) - the C ABI, its lossless types, and its checks are settled before a new generator copies them

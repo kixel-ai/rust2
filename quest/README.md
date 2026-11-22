@@ -21,7 +21,7 @@ Decided with the maintainer on 2026-11-09, in the quest audit, the goal: one Rus
 base callable from any language or framework, with no manual wrappers or annotations.
 Speed ranks above API ergonomics, Rust's correctness is kept wherever the target can hold
 it, and what is unsupported fails the export, not the run. The
-[exporter](/quest/m1/ffi-export/README.md) is the product, WebAssembly its browser
+[exporter](/ffi/README.md) is the product, WebAssembly its browser
 target, the translator an experiment against that, and build speed a side track that
 keeps only what costs nothing.
 

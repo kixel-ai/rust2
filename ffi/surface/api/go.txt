@@ -44,6 +44,8 @@ func Choose(choice Choice) (uint64, error)
 func Chunks(bytes p_rt.Bytes, size uint) []p_rt.Bytes
 func ClashAudioEncoderFinish() uint8
 func ClashAudioEncoderFinish_() uint8
+func ClashCountVtable_() unsafe.Pointer
+func ClashCounted(count ClashCount) uint32
 func ClashDescribed_(described ClashDescribed) uint32
 func ClashErase() uint8
 func ClashErase_() uint8
@@ -55,6 +57,7 @@ func ClashLend_(store *ClashStore) (uint32, error)
 func ClashListed(java []uint32, kotlin *uint32) [][]uint32
 func ClashNested(a *p_rt.Tuple2[p_rt.Tuple2[uint8, uint16], uint32], b *p_rt.Tuple3[uint8, uint16, uint32]) uint32
 func ClashRun(work2 func() uint8, work uint8) uint32
+func ClashShifted(at uint8, shift ClashShift) uint8
 func ClashSourceVtable_() unsafe.Pointer
 func ClashStoreCount() uint32
 func ClashStoreTake(ticket Ticket) uint32
@@ -539,6 +542,9 @@ type ClashChangeSet struct {
 }
 func (self ClashChangeSet) Equal(other ClashChange) bool
 func (self ClashChangeSet) GoString() string
+type ClashCount interface {
+	Next() uint32
+}
 type ClashDescribed struct {
 	Description      uint8
 	DebugDescription uint8
@@ -676,6 +682,20 @@ func (self ClashNative) Point() (*Point, error)
 func (self ClashNative) Reading(kotlin uint32) (Reading, error)
 func (self ClashNative) Stamp(kotlin uint64) (Stamp, error)
 func (self ClashNative) Tagged(ctx context.Context, tag string) (string, error)
+type ClashNotch struct {
+	Handle_ *p_rt.Handle_
+}
+func ClashNotchDefault() *ClashNotch
+func ClashNotches(n uint32) []*ClashNotch
+func NewClashNotch(count uint32) *ClashNotch
+func (self *ClashNotch) Clone() (*ClashNotch, error)
+func (self *ClashNotch) Close() error
+func (self *ClashNotch) Compare(other *ClashNotch) (int, error)
+func (self *ClashNotch) Count() (uint32, error)
+func (self *ClashNotch) Equal(other *ClashNotch) (bool, error)
+func (self *ClashNotch) GoString() string
+func (self *ClashNotch) PartialCompare(other *ClashNotch) (int, bool, error)
+func (self *ClashNotch) String() string
 type ClashOp int32
 const (
 	ClashOpDelete_ ClashOp = 0
@@ -739,6 +759,24 @@ func (self ClashShape) Point() (*Point, error)
 func (self ClashShape) Reading(kotlin uint32) (Reading, error)
 func (self ClashShape) Stamp(kotlin uint64) (Stamp, error)
 func (self ClashShape) Tagged(ctx context.Context, tag string) (string, error)
+type ClashShift interface {
+	GoString() string
+	Equal(other ClashShift) bool
+}
+type ClashShiftDown struct {
+}
+func (self ClashShiftDown) Equal(other ClashShift) bool
+func (self ClashShiftDown) GoString() string
+type ClashShiftTag struct {
+	V0 uint8
+}
+func (self ClashShiftTag) Equal(other ClashShift) bool
+func (self ClashShiftTag) GoString() string
+type ClashShiftUp struct {
+	V0 uint8
+}
+func (self ClashShiftUp) Equal(other ClashShift) bool
+func (self ClashShiftUp) GoString() string
 type ClashSource interface {
 	Wait()
 	ReadByte_() uint8

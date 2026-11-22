@@ -1136,16 +1136,17 @@ impl<'a> Gen<'a> {
 	fn kind(&mut self, i: usize) -> String {
 		let abi = self.abi;
 		let c = abi.object(i);
+		let c_ = crate::abi::stem(&c);
 		let name = format!("k_{}", self.bare(&c));
 		if !self.helpers.contains_key(&name) {
 			let class = self.class(&c);
 			let drop = match abi.checked[i] {
-				true => format!(", drop: \"{c}_drop\""),
+				true => format!(", drop: \"{c_}_drop\""),
 				false => String::new(),
 			};
 			self.helpers.insert(
 				name.clone(),
-				format!("export const {name}: rt.Kind = {{ name: \"{class}\", free: \"{c}_free\"{drop} }};\n\n"),
+				format!("export const {name}: rt.Kind = {{ name: \"{class}\", free: \"{c_}_free\"{drop} }};\n\n"),
 			);
 		}
 		format!("g.{name}")
@@ -1245,6 +1246,7 @@ impl<'a> Gen<'a> {
 	}
 
 	fn read_body(&mut self, ty: &Type, c: &str) -> String {
+		let c_ = crate::abi::stem(c);
 		let abi = self.abi;
 		let offsets = |g: &Self| match g.shape(c) {
 			Shape::Fields(fields) => g.place(&fields).1,
@@ -1309,7 +1311,7 @@ impl<'a> Gen<'a> {
 				let array = typed_array(block);
 				let size = self.layout(&abi.ty(block)).size;
 				format!(
-					"const d = rt.dv();\n\tconst ptr = d.getUint32(p, true);\n\tconst len = d.getUint32(p + 4, true);\n\tconst out = new {array}(rt.mem().buffer.slice(ptr, ptr + len * {size}));\n\tif (o) rt.w.{c}_free(p);\n\treturn out;"
+					"const d = rt.dv();\n\tconst ptr = d.getUint32(p, true);\n\tconst len = d.getUint32(p + 4, true);\n\tconst out = new {array}(rt.mem().buffer.slice(ptr, ptr + len * {size}));\n\tif (o) rt.w.{c_}_free(p);\n\treturn out;"
 				)
 			}
 			Type::List(_, elem) => {
@@ -1320,7 +1322,7 @@ impl<'a> Gen<'a> {
 				let item = self.get_o(elem, &format!("ptr + i * {stride}"));
 				let t = self.tt(elem);
 				format!(
-					"const d = rt.dv();\n\tconst ptr = d.getUint32(p, true);\n\tconst len = d.getUint32(p + 4, true);\n\tconst out: ({t})[] = [];\n\tfor (let i = 0; i < len; i++) out.push({item});\n\tif (o) {{\n\t\trt.dv().setUint32(p + 4, 0, true);\n\t\trt.w.{c}_free(p);\n\t}}\n\treturn out;"
+					"const d = rt.dv();\n\tconst ptr = d.getUint32(p, true);\n\tconst len = d.getUint32(p + 4, true);\n\tconst out: ({t})[] = [];\n\tfor (let i = 0; i < len; i++) out.push({item});\n\tif (o) {{\n\t\trt.dv().setUint32(p + 4, 0, true);\n\t\trt.w.{c_}_free(p);\n\t}}\n\treturn out;"
 				)
 			}
 			Type::Tuple(elements) => {
@@ -1990,6 +1992,7 @@ impl Gen<'_> {
 	fn vtable(&mut self, i: usize) -> String {
 		let abi = self.abi;
 		let c = abi.callback(i);
+		let c_ = crate::abi::stem(&c);
 		let bare = self.bare(&c).to_string();
 		let local = format!("vt_{bare}");
 		if self.helpers.contains_key(&local) {
@@ -2041,7 +2044,7 @@ impl Gen<'_> {
 		}
 		let _ = write!(
 			self.rust,
-			"static {}: crate::{c}_vtable = crate::{c}_vtable {{\n\t{},\n}};\n\n#[unsafe(no_mangle)]\npub extern \"C\" fn {space}_vtable_{bare}() -> *const crate::{c}_vtable {{\n\t&{}\n}}\n\n",
+			"static {}: crate::{c_}_vtable = crate::{c_}_vtable {{\n\t{},\n}};\n\n#[unsafe(no_mangle)]\npub extern \"C\" fn {space}_vtable_{bare}() -> *const crate::{c_}_vtable {{\n\t&{}\n}}\n\n",
 			format!("VTABLE_{bare}").to_uppercase(),
 			fields.join(",\n\t"),
 			format!("VTABLE_{bare}").to_uppercase(),
@@ -2575,6 +2578,7 @@ impl Gen<'_> {
 	/// `Debug` `debug`, `Clone` an object's `clone`, `PartialEq` `eq`, with `Hash` `hash`,
 	/// and `Default` `default`.
 	fn traits(&mut self, ty: &Type, c: &str, t: crate::ir::Traits, taken: &mut BTreeSet<String>) {
+		let c_ = crate::abi::stem(c);
 		let abi = self.abi;
 		let name = self.tt(ty);
 		let object = matches!(ty, Type::Object(_));
@@ -2590,7 +2594,7 @@ impl Gen<'_> {
 		// The signature of the trait's C function `what`, taking `params`, then a status if
 		// its receiver's handles are checked.
 		let sig = |what: &str, params: &[&Ty], ret: Ty, status: bool| Sig {
-			name: format!("{c}_{what}"),
+			name: format!("{c_}_{what}"),
 			params: (params.iter().map(|ty| (String::new(), (*ty).clone())))
 				.chain(status.then(|| ("status".to_string(), Ty::Out(Box::new(Ty::Status)))))
 				.collect(),
