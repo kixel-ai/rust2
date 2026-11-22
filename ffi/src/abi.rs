@@ -2278,7 +2278,8 @@ pub(crate) fn escape(name: &str) -> String {
 	escaped(name, keyword)
 }
 
-/// Whether C or C++ reads `name` as a keyword, or C names a generated parameter so.
+/// Whether C or C++ reads `name` as a keyword, or C names a generated parameter so, or it
+/// is the empty stem of `_`, which Rust, Swift, Go and Dart read as a wildcard, not a name.
 fn keyword(name: &str) -> bool {
 	const KEYWORDS: &[&str] = &[
 		"auto",
@@ -2387,7 +2388,7 @@ fn keyword(name: &str) -> bool {
 	let out = name
 		.strip_prefix("out")
 		.is_some_and(|n| !n.is_empty() && n.chars().all(|c| c.is_ascii_digit()));
-	out || KEYWORDS.contains(&name)
+	out || name.is_empty() || KEYWORDS.contains(&name)
 }
 
 /// `name` as C and C++ leave it to programs, past what `keyword` names and every macro a
@@ -2416,7 +2417,8 @@ pub(crate) fn escaped(name: &str, keyword: impl Fn(&str) -> bool) -> String {
 /// `name` as C and C++ leave it to programs: one C++ reserves for the implementation,
 /// holding `__` or starting with `_` and a capital ([lex.name]), drops its leading `_`s and
 /// keeps one `_` of each run, so `__all__` is `all_`: appending keeps a reserved name
-/// reserved. Rust's `__` alone, which a parameter may take, is `_`.
+/// reserved. Rust's `__` alone, which a parameter may take, is `_`, which [`escape`] steps on
+/// to `_2`.
 pub(crate) fn unreserved(name: &str) -> String {
 	if !(name.contains("__") || reserved(name)) {
 		return name.to_string();
@@ -2609,7 +2611,11 @@ mod tests {
 		assert_eq!(escape("__cplusplus"), "cplusplus");
 		assert_eq!(escape("__cplusplus_"), "cplusplus_");
 		assert_eq!(escape("a__b"), "a_b");
-		assert_eq!(escape("__"), "_");
+		// `_` alone is a wildcard to Rust's glue and most bindings, so it steps on.
+		assert_eq!(escape("__"), "_2");
+		assert_eq!(escape("___"), "_2");
+		assert_eq!(super::member_named("__"), "_2");
+		assert_eq!(super::variant_member("__"), "_2");
 		assert_eq!(escape("__1"), "_1");
 		// Unreserved, it escapes as any other name, keywords and macros included.
 		assert_eq!(escape("__new"), "new_");
@@ -2622,7 +2628,7 @@ mod tests {
 	}
 
 	/// Every identifier of up to five of `_`, `a`, `A`, `1`, and the keywords' and macros' with
-	/// trailing `_`s, escapes to a name neither C nor C++ reserves or defines; and two escape
+	/// trailing `_`s, escapes to a name neither C nor C++ reserves or defines, nor `_`; and two escape
 	/// alike only where one is reserved or ends in `_` and a number, which a scope refuses.
 	#[test]
 	fn no_escape_is_reserved() {
@@ -2640,7 +2646,7 @@ mod tests {
 		let mut by: std::collections::BTreeMap<String, String> = std::collections::BTreeMap::new();
 		for name in &all {
 			let e = escape(name);
-			assert!(!reserved(&e) && !defined(&e), "{name} escapes to {e}");
+			assert!(!reserved(&e) && !defined(&e) && e != "_", "{name} escapes to {e}");
 			let numbered = |name: &str| name.rsplit_once('_').is_some_and(|(_, n)| n.parse::<u32>().is_ok());
 			let plain = |name: &str| !reserved(name) && !numbered(name);
 			if let Some(other) = by.insert(e.clone(), name.clone()) {
