@@ -1,8 +1,8 @@
 # Binding releases
 
 A crate's [rust2-ffi](/ffi/README.md) export, released as Python wheels and an sdist, a Swift package,
-C and C++ archives, a Go module, an Android library on Maven Central, a Dart package on
-pub.dev, and a web package on npm and JSR. Two halves, split where Cargo's knowledge ends:
+C and C++ archives, a Go module, a Kotlin library for desktop JVMs and Android on Maven
+Central, a Dart package on pub.dev, and a web package on npm and JSR. Two halves, split where Cargo's knowledge ends:
 
 - **The builder**, [`bindings.yml`](/.github/workflows/bindings.yml) over `package.py`,
   shared and read-only. It derives everything from Cargo metadata and the export: package
@@ -11,7 +11,7 @@ pub.dev, and a web package on npm and JSR. Two halves, split where Cargo's knowl
   consumers, and publishes nothing.
 - **The release workflow**, the caller's own file, which `package.py init` writes once.
   It holds what Cargo cannot establish: who may publish to PyPI, pub.dev, npm, JSR, and
-  Maven Central, the scope the web package is named under, the Android library's groupId,
+  Maven Central, the scope the web package is named under, the Kotlin library's groupId,
   where the XCFramework and the Dart libraries are hosted, which repository SwiftPM resolves
   the package from, the Go module's path, and which tag releases.
 
@@ -25,7 +25,7 @@ python3 <rust2>/ffi/release/package.py init --manifest-path rs/moq-ffi/Cargo.tom
 
 It writes `.github/workflows/release-<crate>.yml`, calling the builder at that commit, and
 refuses to overwrite a different file. `--scope` ships the crate's web package as
-`@<scope>/<crate>`, and `--maven-group` its Android library as `<group>:<crate>`; without
+`@<scope>/<crate>`, and `--maven-group` its Kotlin library as `<group>:<crate>`; without
 either, the lines that would are written commented out. Then, outside the repository:
 
 - register the workflow and the `pypi` environment as the PyPI project's trusted publisher;
@@ -49,7 +49,7 @@ either, the lines that would are written commented out. Then, outside the reposi
   `jsr` environments that only release tags may deploy to. npm's provenance needs Cargo's
   `repository` to be the publishing repository, which the release checks before any
   registry takes it.
-- for the Android library, verify the group's namespace on the
+- for the Kotlin library, verify the group's namespace on the
   [Central Portal](https://central.sonatype.com), and make a `maven` environment that only
   release tags may deploy to, holding a Portal user token as `MAVEN_CENTRAL_USERNAME` and
   `MAVEN_CENTRAL_PASSWORD`, and an armored private OpenPGP key whose public half a key
@@ -70,15 +70,13 @@ export's own `<prefix>` that no proxy serves, and optional inputs the caller's t
 `python-check`, `swift-check`, `c-check`, `go-check`, `kotlin-check`, and `dart-check`
 programs that must print it through the installed packages, and `reproduce`, which builds
 everything twice, from two checkouts. Without a check, a consumer only imports the module,
-links a function of each C and C++ header, or loads the Android library. A `c-check` is C
+links a function of each C and C++ header, or loads the Kotlin library. A `c-check` is C
 or C++ by its extension. A `dart-check` prints through `print`, which a Flutter app on
-Android passes to its log, not through `stdout`. The Android library takes `maven-group`,
+Android passes to its log, not through `stdout`. The Kotlin library takes `maven-group`,
 its groupId, which no Cargo fact proves the publisher holds; without it, the builder makes
-none. It serves Android alone, so coordinates that already ship a JVM jar would lose it
-([maven-jvm](/quest/m1/ffi-packaging/maven-jvm.md)). A `kotlin-check` is a Kotlin file
-whose top-level `main` prints the transcript, importing the binding's package; the consumer
-runs the class the compiler made that `main` a member of, whatever its package or
-`@file:JvmName`. The web package takes `web-manifest-path`, the package exported for
+none. A `kotlin-check` is a Kotlin file whose top-level `main` prints the transcript,
+importing the binding's package; each consumer runs the class the compiler made that `main`
+a member of, whatever its package or `@file:JvmName`. The web package takes `web-manifest-path`, the package exported for
 `wasm32-wasip1`, often the crate's own, which no Cargo fact says builds for the web, and
 `scope`; and an optional `web-check`, a
 TypeScript module importing the binding as `./web/<module>.ts` does beside an export,
@@ -233,8 +231,9 @@ the builder unpacks over its checkout before reading the checks.
    into its own manifest, as Flutter wraps a code asset in a framework it generates, which
    carries none. `dart pub publish --dry-run` must find no warning, and the analyzer no
    issue with the lints pub.dev scores by.
-10. Android: a library per ABI the AAR holds, `arm64-v8a`, `armeabi-v7a`, and `x86_64`,
-    built with `--features kotlin` by the NDK for API 24, moq's floor, each checked to align
+10. Kotlin, with a `maven-group`: a library per desktop target, the wheels', built with
+    `--features kotlin` as the wheels are, and a library per ABI the AAR holds, `arm64-v8a`,
+    `armeabi-v7a`, and `x86_64`, built with `--features kotlin` by the NDK for API 24, moq's floor, each checked to align
     its segments to the 16 KB pages Google Play requires of a 64-bit library from 2027-02-01,
     and to need no library an Android 24 device lacks, the NDK's `libc++_shared.so` included,
     which an AAR cannot ship, as an app holding another AAR's copy packs only one. Each keeps its symbol table and line tables, `debug =
@@ -242,14 +241,22 @@ the builder unpacks over its checkout before reading the checks.
     holding them, over any level or `strip` a `.cargo/config.toml` or the profile sets: an app's build strips them from its APK and gives
     them to Play, which symbolicates a crash in Rust to its source line.
 
-    With a `maven-group`, an AAR, `<crate>-<version>.aar`: those libraries in `jni/`, the
-    generated Kotlin compiled against API 35's `android.jar`, whose `@FastNative` serves, and
-    kotlinx-coroutines as `classes.jar`, for Kotlin 2.2 and JVM 1.8, so a consumer's Kotlin
-    2.1 reads its metadata, the generated R8 rules as `proguard.txt`, which each app that
+    The generated Kotlin is compiled once, against API 35's `android.jar`, whose `@FastNative`
+    serves, and kotlinx-coroutines, for Kotlin 2.2 and JVM 1.8, so a consumer's Kotlin 2.1
+    reads its metadata. A desktop JVM runs the same classes, which name no Android API, and
+    never loads `@FastNative`, an annotation only ART reads.
+    The jar, `<crate>-<version>.jar`, holds the classes and each desktop library at
+    `<lib>/native/<target>/`, beside the index `<lib>/<lib>.natives` naming them, from which
+    the binding loads its host's ([Kotlin](/ffi/README.md#kotlin)). The AAR,
+    `<crate>-<version>.aar`, holds the Android libraries in `jni/`, the classes as
+    `classes.jar`, the generated R8 rules as `proguard.txt`, which each app that
     shrinks it applies, and a manifest naming the floor and the namespace `<group>.<lib>`,
     spelled as the Java package the Android Gradle Plugin requires (`io.7mind` as `io._7mind`).
-    Beside it in a Maven repository, under `maven/`, as Central requires: a POM with the
-    crate's name, Cargo's description, homepage or else repository, each of its license's
+    Beside them in a Maven repository, `<crate>-maven`, as Central requires: one POM, whose
+    packaging is the jar, so Maven, which reads no Gradle metadata, resolves the jar; Gradle
+    module metadata (`.module`) choosing the AAR for Android and the jar for the JVM, by the
+    attributes Kotlin Multiplatform publishes them with, so an app names one dependency
+    either way; the POM with the crate's name, Cargo's description, homepage or else repository, each of its license's
     alternatives, its authors or else its repository's owner, and source control, each a
     field whose absence fails the build, and the Kotlin standard library and
     kotlinx-coroutines as dependencies; a sources jar, a javadoc jar pointing at it, as the
@@ -276,8 +283,11 @@ the builder unpacks over its checkout before reading the checks.
     hook served a library of other bytes refused it; and in a new Flutter app on an Android
     emulator at API 24, run in debug, then again after a hot restart, which keeps the library
     and Rust's statics but not the isolate;
+    and a new Gradle JVM app, Kotlin's Gradle plugin compiling the check, depending on the
+    library through its Maven repository as on Central, which must resolve the jar, run with
+    the classpath Gradle resolved on Linux x64 and arm64, macOS on arm64, and Windows;
     and a new Gradle app, its Android Gradle Plugin's Kotlin compiling the check, depending
-    on the AAR through its Maven repository as on Central, shrunk by R8 with the AAR's rules,
+    on the library through its Maven repository as on Central, which resolves the AAR, shrunk by R8 with the AAR's rules,
     its libraries stripped by the NDK they were built with,
     whose bundle must hold each library's line tables for Play, run on an x86_64 emulator at
     API 35: an instrumentation in the app's own process and class loader runs the check, or
@@ -342,8 +352,9 @@ holding exactly the files it would upload, and anyone with the commit can check 
 - **Checked.** The Swift job builds the XCFramework twice and fails unless both ZIPs match.
   With `reproduce: true`, every build host builds a second time, from a second checkout and
   export a level deeper, and `package.py same` fails unless each wheel, static library, C
-  archive, Dart library, Android library, and Maven file, the Go module's included, matches
-  byte for byte, and the web job builds its npm tarball from the second checkout too; rust2
+  archive, Dart library, and Kotlin library, the Go module's included, matches byte for
+  byte; the Maven job builds its repository a second time from a copy of the export a level
+  deeper, which must match too, and the web job builds its npm tarball from the second checkout; rust2
   turns it on for its api fixture. It doubles the build, so a large crate may leave it to a
   nightly.
 
@@ -352,9 +363,9 @@ the crates the binding links (normal dependencies, platform-neutral, with each r
 crate's checksum from `Cargo.lock`), which every wheel also carries in
 `.dist-info/sboms/` (PEP 770) and the build hosts must agree on. The caller's `attest` job
 runs on a tag, before anything is published, and gives every wheel, the XCFramework, the Go
-module's `.zip` and `.mod`, each C archive, each Dart library, the AAR and its POM, and the
+module's `.zip` and `.mod`, each C archive, each Dart library, the jar, the AAR, their POM and Gradle metadata, and the
 npm tarball a build provenance attestation and an SBOM attestation (the tarball's from its
-own `sbom.cdx.json`, the AAR's from its CycloneDX file), which
+own `sbom.cdx.json`, the Kotlin library's from its CycloneDX file), which
 `gh attestation verify <file> --repo <owner>/<repo>` checks. Only that job holds `id-token` and `attestations`
 write; the builder stays read-only. PyPI's trusted publishing uploads its own PEP 740
 attestations for the wheels as well.

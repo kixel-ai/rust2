@@ -8,7 +8,7 @@ name: Release @NAME@ bindings
 #
 # - Attestations: a build provenance attestation and an SBOM attestation for every wheel, the
 #   sdist, the XCFramework, the Go module's .zip and .mod, each C archive, each Dart library,
-#   the AAR and its POM, and the npm tarball, from this repository's GitHub, checked with
+#   the jar, the AAR, their POM and Gradle metadata, and the npm tarball, from this repository's GitHub, checked with
 #   `gh attestation verify`.
 # - PyPI: the project @NAME@'s wheels and sdist, through the trusted publisher this
 #   repository registers there for this workflow and the `pypi` environment.
@@ -23,7 +23,8 @@ name: Release @NAME@ bindings
 # - npm and JSR: the web package, when the build makes one, through the trusted publisher
 #   npm registers for this workflow and the `npm` environment, and JSR's link to this
 #   repository, each with provenance.
-# - Maven Central: the Android library, when the build makes one, signed with the key and
+# - Maven Central: the Kotlin binding, a jar for desktop JVMs and an AAR for Android under
+#   one POM, when the build makes it, signed with the key and
 #   uploaded with the Central Portal user token in the `maven` environment's secrets, as
 #   Central has no trusted publishing.
 #
@@ -123,6 +124,11 @@ jobs:
         with:
           name: @NAME@-web
           path: artifacts/web
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        if: needs.build.outputs.maven == 'true'
+        with:
+          name: @NAME@-maven
+          path: artifacts/maven
       - uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
         with:
           subject-path: |
@@ -132,8 +138,10 @@ jobs:
             artifacts/go/**/@v/*.zip
             artifacts/go/**/@v/*.mod
             artifacts/c/*
+            artifacts/maven/**/*.jar
             artifacts/maven/**/*.aar
             artifacts/maven/**/*.pom
+            artifacts/maven/**/*.module
             artifacts/dart/*
             artifacts/web/*.tgz
       - uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
@@ -153,8 +161,8 @@ jobs:
         with:
           subject-path: artifacts/web/*.tgz
           sbom-path: artifacts/web/sbom.cdx.json
-      # The AAR's own, of the crates its JNI build links, which Central serves beside it.
-      - name: Android SBOM
+      # The Kotlin binding's own, of the crates its JNI build links, which Central serves beside it.
+      - name: Kotlin SBOM
         id: maven
         if: needs.build.outputs.maven == 'true'
         run: echo "sbom=$(find artifacts/maven -name '*-cyclonedx.json')" >> "$GITHUB_OUTPUT"
@@ -162,8 +170,10 @@ jobs:
         if: needs.build.outputs.maven == 'true'
         with:
           subject-path: |
+            artifacts/maven/**/*.jar
             artifacts/maven/**/*.aar
             artifacts/maven/**/*.pom
+            artifacts/maven/**/*.module
           sbom-path: ${{ steps.maven.outputs.sbom }}
 
   pypi:
@@ -415,7 +425,7 @@ jobs:
         working-directory: web/jsr
         run: npx --yes jsr@0.14.3 publish
 
-  # The Android library's bundle, each file signed, which the Central Portal validates and
+  # The Kotlin binding's bundle, each file signed, which the Central Portal validates and
   # publishes. A rerun uploads nothing once Central has published the version, and fails on
   # a file it serves with other bytes; one whose upload still publishes fails until it is done.
   maven:
@@ -427,10 +437,10 @@ jobs:
     steps:
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
-          name: @NAME@-build-android
-          path: dist
+          name: @NAME@-maven
+          path: maven
       - name: Publish
-        working-directory: dist/maven
+        working-directory: maven
         env:
           USERNAME: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
           PASSWORD: ${{ secrets.MAVEN_CENTRAL_PASSWORD }}

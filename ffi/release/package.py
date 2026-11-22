@@ -1,4 +1,4 @@
-"""Build and check the Python wheels, Swift package, C archives, Go module, Android library, and web package of a crate's rust2-ffi export.
+"""Build and check the Python wheels, Swift package, C archives, Go module, Kotlin jar and Android library, and web package of a crate's rust2-ffi export.
 
 bindings.yml runs each step on the host it needs; release.yml is the caller `init` writes.
 Every fact about the package comes from Cargo metadata or the export, so nothing here
@@ -136,17 +136,20 @@ ANDROID_TARGETS = {
     "armv7-linux-androideabi": "armeabi-v7a",
     "x86_64-linux-android": "x86_64",
 }
+# Every target the desktop jar bundles a library for, which its Kotlin loads on that host:
+# the wheels', as moq's jar ships.
+JVM_TARGETS = WHEEL_TARGETS
 # The ABI the AAR's consumer runs on, in the emulator GitHub's x64 runners run at speed.
 ANDROID_EMULATOR = "x86_64-linux-android"
 # The oldest Android the AAR loads on: moq's floor, which the exporter's nightly emulator runs.
 ANDROID_API = 24
-# The SDK the AAR's classes compile against: 34 or later, whose android.jar holds the
-# @FastNative the generated Kotlin names, so the AAR leaves FastNative.kt out.
+# The SDK the classes of the AAR and the jar compile against: 34 or later, whose android.jar
+# holds the @FastNative the generated Kotlin names, so the build leaves FastNative.kt out.
 ANDROID_COMPILE_SDK = 35
-# The Kotlin the AAR's classes are written for: the oldest kotlinc 2.4 does not deprecate,
+# The Kotlin the classes are written for: the oldest kotlinc 2.4 does not deprecate,
 # whose metadata a consumer's Kotlin 2.1 or later reads, and the standard library they need.
 KOTLIN_API = "2.2"
-# The bytecode the AAR's classes hold, which every D8 reads and no consumer's JVM target is below.
+# The bytecode the classes hold, which every D8 reads and no consumer's JVM target is below.
 JVM_TARGET = "1.8"
 # What a Maven groupId may be: dotted segments, as Central's namespaces are.
 MAVEN_GROUP = re.compile(r"[A-Za-z0-9_-]+(\.[A-Za-z0-9_-]+)+")
@@ -1823,7 +1826,7 @@ def same(first, second):
     """Fail unless two builds' wheels, sdist, static libraries, C archives, Dart libraries, Android libraries, Maven repository, and npm tarball, the Go module's included, are the same bytes, naming what differs."""
     found = {}
     patterns = ("wheels/*.whl", "sdist/*.tar.gz", "static/*/*.a", "go/*.a", "c/*.tar.gz", "c/*.zip", "dart/*",
-                "android/*/*.so", "maven/**/*.*", "*.tgz")
+                "android/*/*.so", "jvm/*/*", "maven/**/*.*", "*.tgz")
     for root in (Path(first), Path(second)):
         found[root] = {p.relative_to(root).as_posix(): p for pattern in patterns for p in root.glob(pattern) if p.is_file()}
     names = sorted(found[Path(first)])
@@ -1982,7 +1985,8 @@ def go_library(args, export_dir, lib, target, library, native, out):
 
 
 def build(args):
-    """This host's wheels, C archives, Apple and Go static libraries, Dart libraries, the export's sources, and native output."""
+    """This host's wheels, C archives, Apple and Go static libraries, Dart libraries, with
+    `kotlin` the Kotlin binding's desktop and Android libraries, the export's sources, and native output."""
     info = facts(args.manifest_path)
     lib, export_dir, out = info["lib"], Path(args.export).resolve(), Path(args.out).resolve()
     out.mkdir(parents=True, exist_ok=True)
@@ -2033,8 +2037,13 @@ def build(args):
                 go_library(args, through, lib, target, library, native, out)
             if target in DART_TARGETS:
                 dart_library(inside, args.manifest_path, through, target, out)
-            if target in ANDROID_TARGETS:
+            if args.kotlin and target in JVM_TARGETS:
+                jvm_library(inside, args.manifest_path, through, target, out)
+            if args.kotlin and target in ANDROID_TARGETS:
                 android_library(inside, args.manifest_path, through, target, out)
+        # The crates the Kotlin binding's libraries link, which Maven serves beside them.
+        if args.kotlin and any(t in JVM_TARGETS or t in ANDROID_TARGETS for t in args.targets):
+            (out / "kotlin.cdx.json").write_bytes(sbom(info, export_dir / "Cargo.toml", "kotlin"))
     # The generated sources, for the Swift package, the Go module, and the hosts' agreement.
     # Text this writes is LF on every host, as the jobs reading it compare bytes.
     for part in ("include", "swift", "python", "go", "kotlin", "dart"):
@@ -2710,6 +2719,22 @@ def android_library(info, manifest, export_dir, target, out):
     shutil.copy(library, dest)
 
 
+def jvm_library(info, manifest, export_dir, target, out):
+    """`target`'s library for the desktop jar, the C ABI with its JNI glue, built as the wheels'
+    are: Linux's against the glibc floor, macOS's at the wheels' floor."""
+    env = reproducible(info, export_dir, target)
+    if "apple" in target:
+        env["MACOSX_DEPLOYMENT_TARGET"] = MACOS_WHEEL
+    linux = "linux" in target
+    built = cargo(manifest, *(["zigbuild"] if linux else ["build"]), "--locked", "--release",
+                  "--manifest-path", export_dir / "Cargo.toml", "--target", f"{target}.{GLIBC}" if linux else target,
+                  "--target-dir", export_dir / "target-jvm", "--features", "kotlin", env=env)
+    sys.stderr.write(built.stderr)
+    dest = out / "jvm" / target
+    dest.mkdir(parents=True)
+    shutil.copy(export_dir / "target-jvm" / target / "release" / library_name(info["lib"], target), dest)
+
+
 def android_example(info, args, out):
     """The example built for the emulator, where its output is native Rust's on Android."""
     if args.example not in info["examples"]:
@@ -2798,31 +2823,38 @@ def xml_escape(text):
     return text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
 
 
+def maven_dependencies(coroutines):
+    """The libraries the binding's classes need, as `(group, artifact, version)`."""
+    return [("org.jetbrains.kotlin", "kotlin-stdlib", f"{KOTLIN_API}.0"),
+            ("org.jetbrains.kotlinx", "kotlinx-coroutines-core", coroutines)]
+
+
 def pom(info, group, coroutines):
     """The POM Maven Central requires: coordinates, name, description, URL, licenses,
-    developers, and source control, each from Cargo, and the libraries the classes need."""
+    developers, and source control, each from Cargo, and the libraries the classes need. Its
+    packaging is the jar, which Maven, reading no Gradle metadata, resolves on any JVM."""
     if not info["description"]:
         raise SystemExit("Maven Central requires a description: set Cargo's description")
     if not info["repository"]:
         raise SystemExit("Maven Central requires the source's repository: set Cargo's repository")
     repository = info["repository"].removesuffix("/")
     git = repository if repository.endswith(".git") else f"{repository}.git"
-    dependencies = [("org.jetbrains.kotlin", "kotlin-stdlib", f"{KOTLIN_API}.0"),
-                    ("org.jetbrains.kotlinx", "kotlinx-coroutines-core", coroutines)]
     fields = [
         ("modelVersion", "4.0.0"), ("groupId", group), ("artifactId", info["name"]),
-        ("version", maven_version(info["version"])), ("packaging", "aar"), ("name", info["name"]),
+        ("version", maven_version(info["version"])), ("packaging", "jar"), ("name", info["name"]),
         ("description", " ".join(info["description"].split())), ("url", info["homepage"] or repository),
         ("licenses", [("license", [("name", name), *([("url", url)] if url else [])]) for name, url in maven_licenses(info)]),
         ("developers", [("developer", list(d.items())) for d in maven_developers(info)]),
         ("scm", [("url", repository), ("connection", f"scm:git:{git}"), ("developerConnection", f"scm:git:{git}")]),
         # Compile scope: the binding's API names their types.
         ("dependencies", [("dependency", [("groupId", g), ("artifactId", a), ("version", v), ("scope", "compile")])
-                          for g, a, v in dependencies]),
+                          for g, a, v in maven_dependencies(coroutines)]),
     ]
     return ('<?xml version="1.0" encoding="UTF-8"?>\n'
             '<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" '
             'xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">\n'
+            # What tells Gradle to read the .module beside it, which chooses the AAR on Android.
+            "\t<!-- do_not_remove: published-with-gradle-metadata -->\n"
             + "".join(xml(tag, value) for tag, value in fields) + "</project>\n")
 
 
@@ -2834,18 +2866,20 @@ def android_manifest(namespace):
             f'\t<uses-sdk android:minSdkVersion="{ANDROID_API}" />\n</manifest>\n')
 
 
-def kotlin_classes(lib, export, module, stamp):
+def kotlin_classes(lib, export, module):
     """The export's Kotlin compiled as an Android library's is, against android.jar and
-    kotlinx-coroutines, as a jar, and the coroutines' version, which the POM requires."""
+    kotlinx-coroutines, as a jar's entries, and the coroutines' version, which the POM requires.
+    A desktop JVM runs the same classes: they name no Android API, and `@FastNative`, which
+    android.jar alone holds, is an annotation the JVM never loads."""
     sdk = os.environ.get("ANDROID_HOME")
     if not sdk:
-        raise SystemExit("compiling the AAR's classes needs the Android SDK: set ANDROID_HOME")
+        raise SystemExit("compiling the Kotlin binding's classes needs the Android SDK: set ANDROID_HOME")
     android_jar = Path(sdk) / "platforms" / f"android-{ANDROID_COMPILE_SDK}" / "android.jar"
     if not android_jar.is_file():
         raise SystemExit(f"{android_jar} is missing: install platforms;android-{ANDROID_COMPILE_SDK}")
     coroutines = os.environ.get("KOTLINX_COROUTINES")
     if not coroutines:
-        raise SystemExit("compiling the AAR's classes needs kotlinx-coroutines-core-jvm's jar: set KOTLINX_COROUTINES")
+        raise SystemExit("compiling the Kotlin binding's classes needs kotlinx-coroutines-core-jvm's jar: set KOTLINX_COROUTINES")
     with zipfile.ZipFile(coroutines) as jar:
         version = jar.read("META-INF/kotlinx_coroutines_core.version").decode().strip()
     with tempfile.TemporaryDirectory() as raw:
@@ -2856,34 +2890,74 @@ def kotlin_classes(lib, export, module, stamp):
             "-jvm-target", JVM_TARGET, "-module-name", module, "-cp", os.pathsep.join([str(android_jar), coroutines]),
             Path(export) / "kotlin" / f"{lib}.kt", "-d", classes, env={**os.environ, "JAVA_OPTS": "-Xmx2g -Xms128M"})
         files = sorted(p for p in classes.rglob("*") if p.is_file())
-        entries = [(p.relative_to(classes).as_posix(), p.read_bytes(), 0o644) for p in files]
-    jar = io.BytesIO()
-    write_zip(jar, entries, stamp)
-    return jar.getvalue(), version
+        return [(p.relative_to(classes).as_posix(), p.read_bytes(), 0o644) for p in files], version
+
+
+def gradle_module(group, artifact, version, dependencies, files):
+    """The Gradle module metadata naming each variant's file: the AAR for Android and the jar
+    for the JVM, by the attributes Kotlin Multiplatform publishes them with, which AGP's and
+    Kotlin's builds ask for, and the sources and javadoc for either."""
+    def file(name):
+        data = files[name]
+        return {"name": name, "url": name, "size": len(data),
+                **{algorithm: hashlib.new(algorithm, data).hexdigest() for algorithm in ("sha512", "sha256", "sha1", "md5")}}
+    requires = [{"group": g, "module": a, "version": {"requires": v}} for g, a, v in dependencies]
+    name = f"{artifact}-{version}"
+    variants = []
+    for platform, environment, kotlin, elements, binary in (
+            ("android", "android", "androidJvm", {}, f"{name}.aar"),
+            ("jvm", "standard-jvm", "jvm", {"org.gradle.libraryelements": "jar"}, f"{name}.jar")):
+        for usage in ("api", "runtime"):
+            variants.append({"name": f"{platform}{usage.capitalize()}Elements", "attributes": {
+                "org.gradle.category": "library", "org.gradle.jvm.environment": environment, **elements,
+                "org.gradle.usage": f"java-{usage}", "org.jetbrains.kotlin.platform.type": kotlin,
+            }, "dependencies": requires, "files": [file(binary)]})
+    for docs in ("sources", "javadoc"):
+        variants.append({"name": f"{docs}Elements", "attributes": {
+            "org.gradle.category": "documentation", "org.gradle.dependency.bundling": "external",
+            "org.gradle.docstype": docs, "org.gradle.usage": "java-runtime",
+        }, "files": [file(f"{name}-{docs}.jar")]})
+    module = {"formatVersion": "1.1",
+              "component": {"group": group, "module": artifact, "version": version,
+                            "attributes": {"org.gradle.status": "release"}},
+              "variants": variants}
+    return (json.dumps(module, indent=2) + "\n").encode()
 
 
 def maven(args):
-    """The AAR and the files Maven Central requires beside it, laid out as a Maven repository:
-    the POM, sources and javadoc jars, the CycloneDX SBOM, and each file's MD5 and SHA-1."""
+    """The jar and the AAR, and the files Maven Central requires beside them, laid out as a
+    Maven repository: the POM, the Gradle metadata choosing between the two, sources and
+    javadoc jars, the CycloneDX SBOM, and each file's MD5 and SHA-1."""
     info = facts(args.manifest_path)
     group, lib, stamp = args.group, info["lib"], info["epoch"]
     if not MAVEN_GROUP.fullmatch(group):
         raise SystemExit(f"the Maven group must be a dotted namespace, such as dev.example, not {group!r}")
     export, libs = Path(args.export).resolve(), Path(args.libs).resolve()
     artifact, version = info["name"], maven_version(info["version"])
-    missing = sorted(abi for abi in ANDROID_TARGETS.values() if not (libs / abi / f"lib{lib}.so").is_file())
+    missing = sorted([f"android/{abi}" for abi in ANDROID_TARGETS.values() if not (libs / "android" / abi / f"lib{lib}.so").is_file()]
+                     + [f"jvm/{t}" for t in JVM_TARGETS if not (libs / "jvm" / t / library_name(lib, t)).is_file()])
     if missing:
-        raise SystemExit(f"{libs} holds no library for {missing}: the AAR ships every ABI")
+        raise SystemExit(f"{libs} holds no library for {missing}: the jar and the AAR ship every target")
     # The POM's facts first, as a missing one fails before the slow compile.
     pom(info, group, "")
-    classes, coroutines = kotlin_classes(lib, export, f"{group}.{artifact}", stamp)
+    classes, coroutines = kotlin_classes(lib, export, f"{group}.{artifact}")
+    natives = [n for n, _, _ in classes if n.endswith("/_Native.class")]
+    if len(natives) != 1:
+        raise SystemExit(f"the compiled Kotlin holds no single _Native: {natives}")
+    package = natives[0].removesuffix("/_Native.class")
     namespace = java_package(f"{group}.{lib}")
+    classes_jar = io.BytesIO()
+    write_zip(classes_jar, classes, stamp)
     aar = [("AndroidManifest.xml", android_manifest(namespace).encode(), 0o644), ("R.txt", b"", 0o644),
-           ("classes.jar", classes, 0o644),
+           ("classes.jar", classes_jar.getvalue(), 0o644),
            *((f"jni/{abi}/{p.name}", p.read_bytes(), 0o755)
-             for abi in sorted(ANDROID_TARGETS.values()) for p in sorted((libs / abi).iterdir())),
+             for abi in sorted(ANDROID_TARGETS.values()) for p in sorted((libs / "android" / abi).iterdir())),
            # R8 reads an AAR's proguard.txt as the consumer rules of each app that shrinks it.
            ("proguard.txt", (export / "kotlin" / f"{lib}.pro").read_bytes(), 0o644)]
+    # The index the binding's loader reads beside _Native, naming each target's library, and the libraries.
+    bundled = [(t, library_name(lib, t)) for t in sorted(JVM_TARGETS)]
+    jar = [*classes, (f"{package}/{lib}.natives", "".join(f"{t} {f}\n" for t, f in bundled).encode(), 0o644),
+           *((f"{package}/native/{t}/{f}", (libs / "jvm" / t / f).read_bytes(), 0o755) for t, f in bundled)]
     kotlin = (export / "kotlin" / f"{lib}.kt").read_bytes()
     readme = (f"# {artifact} {version}\n\nThe API's documentation is the KDoc in {artifact}-{version}-sources.jar,\n"
               "which an IDE shows beside the classes.\n").encode()
@@ -2893,12 +2967,14 @@ def maven(args):
     base.mkdir(parents=True)
     name = f"{artifact}-{version}"
     files = {f"{name}.pom": pom(info, group, coroutines).encode(),
-             f"{name}-cyclonedx.json": sbom(info, export / "Cargo.toml", "kotlin")}
-    for file, entries in ((f"{name}.aar", aar), (f"{name}-sources.jar", [(f"{lib}/{lib}.kt", kotlin, 0o644)]),
+             f"{name}-cyclonedx.json": Path(args.sbom).read_bytes()}
+    for file, entries in ((f"{name}.jar", jar), (f"{name}.aar", aar),
+                          (f"{name}-sources.jar", [(f"{lib}/{lib}.kt", kotlin, 0o644)]),
                           (f"{name}-javadoc.jar", [("README.md", readme, 0o644)])):
         sink = io.BytesIO()
         write_zip(sink, entries, stamp)
         files[file] = sink.getvalue()
+    files[f"{name}.module"] = gradle_module(group, artifact, version, maven_dependencies(coroutines), files)
     for file, data in sorted(files.items()):
         (base / file).write_bytes(data)
         for algorithm in ("md5", "sha1"):
@@ -3005,13 +3081,14 @@ def main_classes(listing, source):
     return sorted(found)
 
 
-def javap():
-    """The JDK's javap, from the JDK Gradle runs on."""
+def jdk(tool):
+    """The JDK's `tool`, from the JDK Gradle runs on."""
     home = os.environ.get("JAVA_HOME")
-    found = Path(home) / "bin" / "javap" if home else shutil.which("javap")
+    exe = f"{tool}.exe" if sys.platform == "win32" else tool
+    found = Path(home) / "bin" / exe if home else shutil.which(tool)
     if not found or not Path(found).is_file():
-        raise SystemExit("finding the check's main needs the JDK's javap: set JAVA_HOME")
-    return found
+        raise SystemExit(f"the consumer needs the JDK's {tool}: set JAVA_HOME")
+    return Path(found)
 
 
 def instrument(step, *extra):
@@ -3022,6 +3099,30 @@ def instrument(step, *extra):
     return dict(re.findall(r"^INSTRUMENTATION_RESULT: (\w+)=(.*?)\r?$", out, re.M))
 
 
+def kotlin_check(check, source):
+    """The Kotlin check `check`, a file or a directory holding check.kt, as an app's sources in `source`."""
+    check = Path(check)
+    if check.is_dir():
+        # Sources alone: the Android app has no file beside them to read at run time.
+        if other := sorted(str(p.relative_to(check)) for p in check.rglob("*") if p.is_file() and p.suffix != ".kt"):
+            raise SystemExit(f"{check} holds files other than Kotlin sources, which the app cannot read: {other}")
+        shutil.copytree(check, source, dirs_exist_ok=True)
+    else:
+        shutil.copy(check, source / "check.kt")
+    if not (source / "check.kt").is_file():
+        raise SystemExit(f"{check} holds no check.kt")
+
+
+def maven_coordinates(repo):
+    """The group, artifact, and version of the one release in the Maven repository `repo`, and its directory."""
+    poms = list(Path(repo).rglob("*.pom"))
+    if len(poms) != 1:
+        raise SystemExit(f"expected one POM in {repo}, found {poms}")
+    version_dir = poms[0].parent
+    group = ".".join(version_dir.parent.parent.relative_to(Path(repo)).parts)
+    return group, version_dir.parent.name, version_dir.name, version_dir
+
+
 def consume_android(repo, check, native):
     """A new Gradle app depending on the AAR from the Maven repository `repo`, as an app
     resolves it from Central, shrunk by R8 with its consumer rules and run on the device adb
@@ -3029,12 +3130,7 @@ def consume_android(repo, check, native):
     `native`, the example built for the device, the check prints what it prints there."""
     if native and not check:
         raise SystemExit("an example's output is compared with a check's: give a check with it")
-    poms = list(Path(repo).rglob("*.pom"))
-    if len(poms) != 1:
-        raise SystemExit(f"expected one POM in {repo}, found {poms}")
-    version_dir = poms[0].parent
-    version, artifact, group = version_dir.name, version_dir.parent.name, \
-        ".".join(version_dir.parent.parent.relative_to(Path(repo)).parts)
+    group, artifact, version, version_dir = maven_coordinates(repo)
     with zipfile.ZipFile(version_dir / f"{artifact}-{version}.aar") as aar:
         with zipfile.ZipFile(io.BytesIO(aar.read("classes.jar"))) as jar:
             natives = [n for n in jar.namelist() if n.endswith("/_Native.class")]
@@ -3051,16 +3147,7 @@ def consume_android(repo, check, native):
         source = app / "src" / "main" / "kotlin"
         (source / "rust2" / "check").mkdir(parents=True)
         if check:
-            check = Path(check)
-            if check.is_dir():
-                # Sources alone: the app has no file beside them to read at run time.
-                if other := sorted(str(p.relative_to(check)) for p in check.rglob("*") if p.is_file() and p.suffix != ".kt"):
-                    raise SystemExit(f"{check} holds files other than Kotlin sources, which the app cannot read: {other}")
-                shutil.copytree(check, source, dirs_exist_ok=True)
-            else:
-                shutil.copy(check, source / "check.kt")
-            if not (source / "check.kt").is_file():
-                raise SystemExit(f"{check} holds no check.kt")
+            kotlin_check(check, source)
             # Its main, in whichever class the compiler names, which reflection reaches from
             # the instrumentation's package and which is kept, as an app keeps its entry points.
             body = 'Class.forName(main!!).getMethod("main", Array<String>::class.java).invoke(null, arrayOf<String>())'
@@ -3154,7 +3241,7 @@ dependencies {{
             # The class the compiler made check.kt's main a member of, whatever its package,
             # @file:JvmName, or layout, among the app's own classes the build compiled.
             classes = sorted(str(p) for p in (app / "build").rglob("*.class"))
-            listing = output(javap(), *classes) if classes else ""
+            listing = output(jdk("javap"), *classes) if classes else ""
             mains = main_classes(listing, "check.kt")
             if len(mains) != 1:
                 raise SystemExit(f"the consumer's build compiled no single main from check.kt: {mains}")
@@ -3189,6 +3276,91 @@ def android_native(example, aar, abi):
     result = adb("shell", "-T", f"cd {device} && chmod 755 example && LD_LIBRARY_PATH={device} ./example",
                  capture_output=True)
     return result.stdout
+
+
+# The consumer's Kotlin Gradle plugin: the kotlinc the classes are compiled with.
+KOTLIN_GRADLE = "2.4.21"
+
+
+def consume_jvm(repo, check, native):
+    """A new Gradle JVM app depending on the release from the Maven repository `repo`, as an
+    app resolves it from Central, which must choose the jar, run with the classpath Gradle
+    resolved: the check program, or else a load of this host's library. With `native`,
+    native Rust's output here, the check prints exactly that."""
+    if native and not check:
+        raise SystemExit("an example's output is compared with a check's: give a check with it")
+    group, artifact, version, version_dir = maven_coordinates(repo)
+    with zipfile.ZipFile(version_dir / f"{artifact}-{version}.jar") as jar:
+        natives = [n for n in jar.namelist() if n.endswith("/_Native.class")]
+    if len(natives) != 1:
+        raise SystemExit(f"the jar holds no single _Native: {natives}")
+    package = natives[0].removesuffix("/_Native.class").replace("/", ".")
+    gradle = shutil.which("gradle")
+    if not gradle:
+        raise SystemExit("the JVM consumer needs Gradle on PATH")
+    with tempfile.TemporaryDirectory() as raw:
+        app = Path(raw)
+        source = app / "src" / "main" / "kotlin"
+        source.mkdir(parents=True)
+        if check:
+            kotlin_check(check, source)
+        else:
+            # Loading the library checks its contract against the Kotlin's.
+            (source / "check.kt").write_text(f'fun main() {{\n\tClass.forName("{package}._Native")\n}}\n', encoding="utf-8")
+        (app / "settings.gradle.kts").write_text(f"""pluginManagement {{
+	repositories {{
+		gradlePluginPortal()
+		mavenCentral()
+	}}
+}}
+
+dependencyResolutionManagement {{
+	repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+	repositories {{
+		// The release's repository serves its group alone, as Central would.
+		exclusiveContent {{
+			forRepository {{ maven({json.dumps(Path(repo).resolve().as_uri())}) }}
+			filter {{ includeGroup("{group}") }}
+		}}
+		mavenCentral()
+	}}
+}}
+
+rootProject.name = "check"
+""", encoding="utf-8")
+        (app / "build.gradle.kts").write_text(f"""plugins {{
+	kotlin("jvm") version "{KOTLIN_GRADLE}"
+}}
+
+dependencies {{
+	implementation("{group}:{artifact}:{version}")
+}}
+
+// The classpath the app runs with, as `run` would pass it.
+val runtime: FileCollection = configurations.runtimeClasspath.get()
+val listing = layout.buildDirectory.file("classpath.txt")
+tasks.register("classpath") {{
+	inputs.files(runtime)
+	outputs.file(listing)
+	doLast {{ listing.get().asFile.writeText(runtime.joinToString("\\n")) }}
+}}
+""", encoding="utf-8")
+        run(gradle, "--no-daemon", "--console", "plain", "--stacktrace", "classes", "classpath", cwd=app)
+        classpath = (app / "build" / "classpath.txt").read_text(encoding="utf-8").splitlines()
+        names = sorted(Path(p).name for p in classpath)
+        if f"{artifact}-{version}.jar" not in names or any(n.endswith(".aar") for n in names):
+            raise SystemExit(f"Gradle resolved {group}:{artifact} on the JVM to {names}, not its jar")
+        compiled = app / "build" / "classes" / "kotlin" / "main"
+        mains = main_classes(output(jdk("javap"), *sorted(str(p) for p in compiled.rglob("*.class"))), "check.kt")
+        if len(mains) != 1:
+            raise SystemExit(f"the consumer's build compiled no single main from check.kt: {mains}")
+        result = subprocess.run([jdk("java"), "-cp", os.pathsep.join([str(compiled), *classpath]), mains[0]],
+                                capture_output=True, cwd=app)
+    sys.stderr.buffer.write(result.stderr)
+    if result.returncode:
+        raise SystemExit(f"{check or 'the load'} failed in the JVM app with status {result.returncode}")
+    if native:
+        compare(Path(native).read_bytes(), result.stdout, "JVM app")
 
 
 def line_tables(manifest):
@@ -3375,10 +3547,10 @@ def template(info, manifest, rust2, mirror, go_module, scope=None, group=None):
     if group:
         if not MAVEN_GROUP.fullmatch(group):
             raise SystemExit(f"the Maven group must be a dotted namespace, such as dev.example, not {group!r}")
-        maven = (f"{indent}# The Android library, {group}:{info['name']} on Maven Central: delete this line to ship none.\n"
+        maven = (f"{indent}# The Kotlin binding for desktop JVMs and Android, {group}:{info['name']} on Maven Central: delete this line to ship none.\n"
                  f"{indent}maven-group: {group}")
     else:
-        maven = (f"{indent}# The Android library on Maven Central, <group>:{info['name']}, under a namespace you hold there:\n"
+        maven = (f"{indent}# The Kotlin binding for desktop JVMs and Android on Maven Central, <group>:{info['name']}, under a namespace you hold there:\n"
                  f"{indent}# maven-group: <group>")
     values = {
         "GO_MODULE": go_module,
@@ -3424,7 +3596,7 @@ def main():
     p.add_argument("--manifest-path", required=True)
     for name, helptext in (("api", "stage each target's API on this host"),
                            ("export", "export the binding of every staged target"),
-                           ("build", "build this host's wheels, C archives, and Apple, Go, and Android libraries")):
+                           ("build", "build this host's wheels, C archives, and Apple, Go, Dart, and Kotlin libraries")):
         p = sub.add_parser(name, help=helptext)
         p.add_argument("--manifest-path", required=True)
         p.add_argument("--features", default="")
@@ -3437,6 +3609,7 @@ def main():
         if name == "build":
             p.add_argument("--export", required=True)
             p.add_argument("--example", default="")
+            p.add_argument("--kotlin", action="store_true", help="build the Kotlin binding's libraries, for the desktop jar and the AAR")
     p = sub.add_parser("sdist", help="write the sdist of the export's crate and the local packages it builds with")
     p.add_argument("--manifest-path", required=True)
     p.add_argument("--export", required=True)
@@ -3489,16 +3662,21 @@ def main():
     p.add_argument("--proxy", required=True, help="the directory `go` wrote")
     p.add_argument("--check")
     p.add_argument("--native")
-    p = sub.add_parser("maven", help="write the AAR, its POM, and the files Maven Central requires beside them as a Maven repository")
+    p = sub.add_parser("maven", help="write the jar, the AAR, and the files Maven Central requires beside them as a Maven repository")
     p.add_argument("--manifest-path", required=True)
     p.add_argument("--export", required=True)
-    p.add_argument("--libs", required=True, help="a directory of each Android ABI's libraries, as build names them")
+    p.add_argument("--libs", required=True, help="a directory holding android/ and jvm/, each target's libraries as build names them")
+    p.add_argument("--sbom", required=True, help="the kotlin.cdx.json build wrote")
     p.add_argument("--group", required=True, help="the groupId, a namespace the publisher holds on Central")
     p.add_argument("--out", required=True)
     p = sub.add_parser("consume-android", help="run a check program, or a load, in a Gradle app on the AAR, on the device adb reaches")
     p.add_argument("--repo", required=True, help="the Maven repository `maven` wrote")
     p.add_argument("--check", help="a Kotlin file, or a directory holding it as check.kt beside the files it reads")
     p.add_argument("--native", help="a directory holding the example built for the device, whose output the check must print, beside the libraries it needs")
+    p = sub.add_parser("consume-jvm", help="run a check program, or a load, in a Gradle JVM app on the jar")
+    p.add_argument("--repo", required=True, help="the Maven repository `maven` wrote")
+    p.add_argument("--check", help="a Kotlin file, or a directory holding it as check.kt beside the files it reads")
+    p.add_argument("--native", help="native Rust's output on this host, which the check must print")
     p = sub.add_parser("consume-python", help="run a check program, or an import, on the installed wheel")
     group = p.add_mutually_exclusive_group(required=True)
     group.add_argument("--check")
@@ -3541,7 +3719,7 @@ def main():
                    help="the Go module's path, which a proxy you run serves, /vN suffix included")
     p.add_argument("--rust2", help="the rust2 commit to pin; this checkout's by default")
     p.add_argument("--scope", help="the npm and JSR scope of the crate's web package, without its @; without it, none ships")
-    p.add_argument("--maven-group", help="the Maven groupId of the crate's Android library, a namespace you hold on Central; without it, none ships")
+    p.add_argument("--maven-group", help="the Maven groupId of the crate's Kotlin binding, a namespace you hold on Central; without it, none ships")
     args = parser.parse_args()
     # winapi links MinGW import libraries of its own, from cargo's registry, where nothing
     # linking the Go module's static library finds them: the system's serve every check and
@@ -3595,6 +3773,8 @@ def main():
         print(maven(args))
     elif args.command == "consume-android":
         consume_android(args.repo, args.check, args.native)
+    elif args.command == "consume-jvm":
+        consume_jvm(args.repo, args.check, args.native)
     elif args.command == "consume-python":
         consume_python(args.check, args.native, args.module)
     elif args.command == "consume-c":
