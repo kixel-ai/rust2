@@ -1500,7 +1500,11 @@ fn bundled_library(api: &Api, classpath: &[&Path]) {
 	}
 	std::fs::create_dir_all(bundled.join("api").join("native").join(host())).unwrap();
 	std::fs::create_dir_all(&temp).unwrap();
-	std::fs::copy(api.lib.join(&file), bundled.join("api").join("native").join(host()).join(&file)).unwrap();
+	std::fs::copy(
+		api.lib.join(&file),
+		bundled.join("api").join("native").join(host()).join(&file),
+	)
+	.unwrap();
 	let caller = |index: String| {
 		std::fs::write(bundled.join("api").join("api.natives"), index).unwrap();
 		Command::new("java")
@@ -1520,7 +1524,10 @@ fn bundled_library(api: &Api, classpath: &[&Path]) {
 	// Windows keeps a loaded library's file: its directory stays, marked for a later load to sweep.
 	let left: Vec<_> = std::fs::read_dir(&temp).unwrap().map(|e| e.unwrap().path()).collect();
 	match cfg!(windows) {
-		true => assert!(left.len() == 1 && left[0].join("stale").is_file(), "one stale copy: {left:?}"),
+		true => assert!(
+			left.len() == 1 && left[0].join("stale").is_file(),
+			"one stale copy: {left:?}"
+		),
 		false => assert!(left.is_empty(), "the loaded copy is gone: {left:?}"),
 	}
 	let refused = caller(format!("riscv64gc-unknown-linux-gnu {file}\n"));
