@@ -389,13 +389,13 @@ internal static unsafe partial class Native
 	internal static CForeignFuture Future(Func<CancellationToken, Task> run) =>
 		new CForeignFuture { poll = Callbacks.FuturePoll, free = Callbacks.FutureFree, data = Give(new ForeignFuture(run)) };
 
-	/// The C reader of `stream`, lent for one call, whose data the caller releases after it.
-	internal static CForeignReader Reader(Stream stream) =>
+	/// The C reader of `reader`, lent for one call, whose data the caller releases after it.
+	internal static CForeignReader Reader(ISeekableReader reader) =>
 		new CForeignReader
 		{
 			read = Callbacks.ReaderRead,
 			seek = Callbacks.ReaderSeek,
-			data = Give(stream ?? throw new ArgumentNullException(nameof(stream))),
+			data = Give(reader ?? throw new ArgumentNullException(nameof(reader))),
 		};
 }
 
@@ -1155,6 +1155,46 @@ public abstract class RustException : Exception
 	}
 }
 
+/// Bytes Rust reads and seeks, as its `Read + Seek`: lent for the call it is passed to, which
+/// Rust calls only during that call, from any thread. An `IOException` either method throws
+/// reaches Rust as an `io::Error` of its message; anything else it throws aborts.
+public interface ISeekableReader
+{
+	/// Reads up to `buffer.Length` bytes into `buffer`, returning how many: 0 only at the end.
+	int Read(Span<byte> buffer);
+
+	/// Moves to `offset` from `origin`, returning the position from the start. From
+	/// `SeekOrigin.Begin`, `offset` holds a `u64`'s 64 bits, so one past `long.MaxValue` is negative.
+	ulong Seek(long offset, SeekOrigin origin);
+}
+
+/// A `Stream` as Rust reads and seeks it, which must be readable and seekable.
+public sealed class SeekableStream : ISeekableReader
+{
+	readonly Stream stream;
+
+	public SeekableStream(Stream stream)
+	{
+		if (!stream.CanRead || !stream.CanSeek)
+		{
+			throw new ArgumentException("Rust reads and seeks the stream, which must allow both", nameof(stream));
+		}
+		this.stream = stream;
+	}
+
+	public int Read(Span<byte> buffer) => stream.Read(buffer);
+
+	public ulong Seek(long offset, SeekOrigin origin)
+	{
+		// A `u64` past `long.MaxValue`, which no `Stream` takes.
+		if (origin == SeekOrigin.Begin && offset < 0)
+		{
+			throw new IOException("a seek past the largest position a Stream takes");
+		}
+		return (ulong)stream.Seek(offset, origin);
+	}
+}
+
 /// Each item of a Rust stream, as C# iterates one, by its `next`.
 internal static class Streams
 {
@@ -1498,7 +1538,12 @@ internal static unsafe partial class Callbacks
 		try
 		{
 			var span = new Span<byte>(buf, (int)Math.Min(len, (nuint)int.MaxValue));
-			*n = (nuint)Native.Held<Stream>(data).Read(span);
+			var read = Native.Held<ISeekableReader>(data).Read(span);
+			if (read < 0 || read > span.Length)
+			{
+				throw new InvalidOperationException("a read of " + span.Length + " bytes returned " + read);
+			}
+			*n = (nuint)read;
 			return 1;
 		}
 		catch (IOException e)
@@ -1508,7 +1553,7 @@ internal static unsafe partial class Callbacks
 		}
 		catch (Exception e)
 		{
-			Native.Abort("a Stream's Read threw", e);
+			Native.Abort("a reader's read: a call into C# threw", e);
 			return 0;
 		}
 	}
@@ -1524,18 +1569,13 @@ internal static unsafe partial class Callbacks
 	{
 		try
 		{
-			var stream = Native.Held<Stream>(data);
-			if (whence == 0 && offset < 0)
-			{
-				throw new IOException("a Stream seeks to at most long.MaxValue, not " + (ulong)offset);
-			}
 			var origin = whence switch
 			{
 				0 => SeekOrigin.Begin,
 				1 => SeekOrigin.Current,
 				_ => SeekOrigin.End,
 			};
-			*position = (ulong)stream.Seek(offset, origin);
+			*position = Native.Held<ISeekableReader>(data).Seek(offset, origin);
 			return 1;
 		}
 		catch (IOException e)
@@ -1545,7 +1585,7 @@ internal static unsafe partial class Callbacks
 		}
 		catch (Exception e)
 		{
-			Native.Abort("a Stream's Seek threw", e);
+			Native.Abort("a reader's seek: a call into C# threw", e);
 			return 0;
 		}
 	}

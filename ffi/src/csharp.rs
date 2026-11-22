@@ -84,6 +84,8 @@ const TAKEN: &[&str] = &[
 	"SocketAddrV6",
 	"Span",
 	"Str",
+	"ISeekableReader",
+	"SeekableStream",
 	"Stream",
 	"Streams",
 	"String",
@@ -331,22 +333,51 @@ pub(crate) fn namespace(prefix: &str) -> String {
 	pascal(prefix)
 }
 
-/// `code` with no run of blank lines, nor one before a closing brace.
+/// `code` indented by its braces, each on a line of its own as the generator writes them,
+/// and a `switch`'s `case` bodies under it, with no run of blank lines, nor one before a
+/// closing brace.
 fn tidy(code: &str) -> String {
 	let mut out = String::with_capacity(code.len());
 	let mut blank = false;
-	let lines: Vec<&str> = code.lines().collect();
+	let lines: Vec<&str> = code.lines().map(str::trim).collect();
+	// Each open brace's depth, and whether a `case` label indents what follows it.
+	let mut depth = 0usize;
+	let mut cases: Vec<bool> = Vec::new();
 	for (k, line) in lines.iter().enumerate() {
-		let empty = line.trim().is_empty();
-		if empty {
-			let next = lines.get(k + 1).map_or("", |l| l.trim());
-			if blank || next.starts_with('}') {
-				continue;
+		if line.is_empty() {
+			let next = lines.get(k + 1).copied().unwrap_or("");
+			if !blank && !next.starts_with('}') && k > 0 {
+				out.push('\n');
+			}
+			blank = true;
+			continue;
+		}
+		blank = false;
+		let label = line.starts_with("case ") && line.ends_with(':') || *line == "default:";
+		if line.starts_with('}') || label {
+			if cases.last() == Some(&true) {
+				cases.pop();
+				cases.push(false);
+				depth -= 1;
 			}
 		}
-		blank = empty;
-		out.push_str(if empty { "" } else { line });
+		if line.starts_with('}') {
+			cases.pop();
+			depth = depth.saturating_sub(1);
+		}
+		if !line.starts_with('#') {
+			out.push_str(&"\t".repeat(depth));
+		}
+		out.push_str(line);
 		out.push('\n');
+		if label {
+			*cases.last_mut().expect("a case in a switch") = true;
+			depth += 1;
+		}
+		if line.ends_with('{') && !line.starts_with("///") && !line.starts_with("//") {
+			cases.push(false);
+			depth += 1;
+		}
 	}
 	out
 }
@@ -401,8 +432,6 @@ struct Gen<'a> {
 struct Owner {
 	ty: Type,
 	c: Ty,
-	/// The C# class or struct holding its members.
-	class: String,
 	/// Whether its members are extension methods of a plain enum.
 	extension: bool,
 }
@@ -467,7 +496,7 @@ impl<'a> Gen<'a> {
 			Type::List(_, inner) => format!("{}[]", self.cs(inner)),
 			Type::Waker => "Waker".to_string(),
 			Type::Future => "Func<CancellationToken, Task>".to_string(),
-			Type::Reader => "Stream".to_string(),
+			Type::Reader => "ISeekableReader".to_string(),
 			Type::Option(inner) => {
 				if matches!(inner.base(), Type::Option(_)) {
 					let inner = self.cs(inner.base());
@@ -1128,7 +1157,6 @@ impl<'a> Gen<'a> {
 			let owner = Owner {
 				ty: Type::Enum(i),
 				c: Ty::Struct(abi.enumeration(i)),
-				class: name.clone(),
 				extension: false,
 			};
 			let refs: Vec<&Function> = e.methods.iter().collect();
@@ -1210,16 +1238,25 @@ impl<'a> Gen<'a> {
 	}
 
 	/// The names of `functions`, members of one scope, kept apart from each other and from `taken`.
+	/// A field's getter and setter, each a property's accessor, share its field's name.
 	fn names(&self, functions: &[&Function], owner: Option<&Owner>, taken: &[String]) -> Vec<String> {
-		let rust: Vec<String> = functions.iter().map(|f| self.rust_name(f, owner)).collect();
+		let accessors: Vec<bool> = functions.iter().map(|f| self.accessor(f, owner)).collect();
+		let rust: Vec<String> = (functions.iter().zip(&accessors))
+			.map(|(f, &accessor)| match accessor {
+				true => f.name().to_string(),
+				false => self.rust_name(f, owner),
+			})
+			.collect();
 		let spelled: Vec<String> = (functions.iter().zip(&rust)).map(|(f, r)| Self::spell(f, r)).collect();
 		let rust: Vec<&str> = rust.iter().map(String::as_str).collect();
-		abi::named(
+		let field = |k: usize| accessors[k].then(|| functions[k].name());
+		abi::named_apart(
 			&rust,
 			spelled,
 			|rust, name| pascal(rust) == name || rust == name,
 			|_, name| taken.iter().any(|t| t == name),
 			abi::underscored,
+			|k, a, j, b| a == b && (field(k).is_none() || field(k) != field(j)),
 		)
 	}
 
@@ -1389,7 +1426,7 @@ impl<'a> Gen<'a> {
 			ty => abi.value_status(ty),
 		};
 		let plain = matches!(ty, Type::Enum(i) if abi.api.enums[*i].plain());
-		let arena = !plain && self.arena(ty);
+		let arena = !plain && !matches!(ty, Type::Object(_)) && self.arena(ty);
 		let mut opens: Vec<(String, String)> = Vec::new();
 		let mut args = Vec::new();
 		for (k, e) in operands.iter().enumerate() {
@@ -1615,14 +1652,36 @@ impl<'a> Gen<'a> {
 		out
 	}
 
-	/// The members of `functions`, of `owner`.
+	/// The members of `functions`, of `owner`: a field's getter and setter one property.
 	fn methods(&mut self, functions: &[Function], owner: &Owner, members: &mut Vec<String>) -> String {
 		let refs: Vec<&Function> = functions.iter().collect();
 		let names = self.names(&refs, Some(owner), members);
 		let mut out = String::new();
-		for (function, name) in functions.iter().zip(names) {
+		for (k, (function, name)) in functions.iter().zip(&names).enumerate() {
 			members.push(name.clone());
-			out.push_str(&self.function(function, Some(owner), &name));
+			if !self.accessor(function, Some(owner)) {
+				out.push_str(&self.function(function, Some(owner), name));
+				continue;
+			}
+			let set = matches!(function.access, Access::Field { set: true, .. });
+			// The other accessor of its field, which the property holds too.
+			let pair = (functions.iter().zip(&names).enumerate()).find(|(j, (f, n))| {
+				*j != k && *n == name && self.accessor(f, Some(owner)) && f.name() == function.name()
+			});
+			if set && pair.is_some() {
+				continue;
+			}
+			let member = self.member(function, Some(owner), name);
+			let other = pair.map(|(_, (f, _))| self.member(f, Some(owner), name));
+			let (get, set) = match set {
+				true => (None, Some(&member)),
+				false => (Some(&member), other.as_ref()),
+			};
+			let property = Member {
+				docs: get.or(set).map(|m| m.docs.clone()).unwrap_or_default(),
+				..member.clone()
+			};
+			out.push_str(&property.property(get.map(|m| &m.body[..]), set.map(|m| &m.body[..])));
 		}
 		out
 	}
@@ -1635,7 +1694,6 @@ impl<'a> Gen<'a> {
 		let owner = Owner {
 			ty: Type::Record(i),
 			c: Ty::Struct(c_name.clone()),
-			class: name.clone(),
 			extension: false,
 		};
 		self.c_struct(&owner.c);
@@ -1727,7 +1785,6 @@ impl<'a> Gen<'a> {
 			let owner = Owner {
 				ty: Type::Enum(i),
 				c: Ty::Enum(c_name.clone()),
-				class: class.clone(),
 				extension: true,
 			};
 			self.helper(&Type::Enum(i));
@@ -1743,7 +1800,6 @@ impl<'a> Gen<'a> {
 		let owner = Owner {
 			ty: Type::Enum(i),
 			c: Ty::Struct(c_name.clone()),
-			class: name.clone(),
 			extension: false,
 		};
 		self.c_struct(&owner.c);
@@ -1799,12 +1855,12 @@ impl<'a> Gen<'a> {
 				name: c_name.clone(),
 				constant: false,
 			},
-			class: name.clone(),
 			extension: false,
 		};
 		let free = abi::join(&c_name, "free");
 		self.declare_raw(&free, &[("self", "IntPtr".to_string())], "void");
 		let mut members = self.base_members(&owner.ty, &name);
+		crate::lock::trait_member(&mut self.locked, &object.shown, "Drop", "Dispose");
 		let mut body = format!(
 			"\tinternal {name}(IntPtr raw, bool lent = false) : base(raw, lent)\n\t{{\n\t}}\n\n\tinternal override void Free(IntPtr raw) => Native.{free}(raw);\n\n"
 		);
@@ -2212,6 +2268,31 @@ impl<'a> Gen<'a> {
 
 	/// `function`'s C# member, named `name`, a member of `owner` if it has one.
 	fn function(&mut self, function: &Function, owner: Option<&Owner>, name: &str) -> String {
+		let member = self.member(function, owner, name);
+		let property = function.access == Access::Const && function.params.is_empty() && !function.future;
+		match property {
+			true => member.property(Some(&member.body), None),
+			false => member.method(),
+		}
+	}
+
+	/// Whether `function`, of `owner`, is a field's getter or setter C# writes as a property.
+	fn accessor(&self, function: &Function, owner: Option<&Owner>) -> bool {
+		let Access::Field { set, .. } = function.access else {
+			return false;
+		};
+		let Some(owner) = owner else { return false };
+		let value = matches!(owner.c, Ty::Struct(_));
+		!function.future
+			&& !owner.extension
+			&& match set {
+				true => function.params.len() == 1,
+				false => function.params.is_empty() && !(value && function.receiver == Some(Receiver::Mut)),
+			}
+	}
+
+	/// `function`'s C# member, named `name`, a member of `owner` if it has one: its parts.
+	fn member(&mut self, function: &Function, owner: Option<&Owner>, name: &str) -> Member {
 		let abi = self.abi;
 		let mut export = abi.export(function, owner.map(|o| &o.c));
 		// A future that is not `Send` made from none lives on a home, so a continuation on any
@@ -2290,11 +2371,11 @@ impl<'a> Gen<'a> {
 			args.push(arg);
 		}
 		// The parameters' C# names, apart from each other and the call's own locals, which end in `_`.
-		let locals = abi::distinct(
-			&function.params,
-			|n| param_name(n),
-			|n| n == "cancellationToken",
-		);
+		let locals = match self.accessor(function, owner) {
+			// A property's setter takes its value as `value`.
+			true => vec!["value".to_string(); function.params.len()],
+			false => abi::distinct(&function.params, |n| param_name(n), |n| n == "cancellationToken"),
+		};
 		let mut params = Vec::new();
 		let mut written = Vec::new();
 		for (k, (param, local)) in function.params.iter().zip(&locals).enumerate() {
@@ -2325,6 +2406,10 @@ impl<'a> Gen<'a> {
 					arg.opens.push((format!("{take}var {v} = {lowered};\n"), String::new()));
 					arg.exprs.push(v);
 					(arg, needs)
+				}
+				// A property's `value` is of its own type, `ReadOnlyMemory<byte>` for bytes.
+				false if self.accessor(function, owner) && matches!(param.ty.base(), Type::Slice | Type::Vec | Type::Bytes) => {
+					self.arg(&param.ty, c, &format!("{local}.Span"), k)
 				}
 				false => self.arg(&param.ty, c, local, k),
 			};
@@ -2514,27 +2599,18 @@ impl<'a> Gen<'a> {
 			};
 			all_params.insert(0, format!("this {r}{} self", self.cs(&o.ty)));
 		}
-		// A field's getter of no argument is a property.
-		let property = matches!(function.access, Access::Field { set: false, .. })
-			&& function.params.is_empty()
-			&& !function.future
-			&& !owner.is_some_and(|o| o.extension)
-			&& !matches!(owner.map(|o| &o.c), Some(Ty::Struct(_)) if receiver == Some(Receiver::Mut))
-			|| (function.access == Access::Const && function.params.is_empty() && !function.future);
-		let unsafe_ = "";
-		let head = match property {
-			true => format!("\t{modifiers}{unsafe_}{ret_cs} {name}\n\t{{\n\t\tget\n\t\t{{\n"),
-			false => format!("\t{modifiers}{unsafe_}{ret_cs} {name}({})\n\t{{\n", all_params.join(", ")),
-		};
-		let body = match property {
-			true => indent(&body) + "\t\t}\n",
-			false => body,
-		};
 		let mut text = crate::doc::sections(&function.docs).body;
 		if function.future {
 			text.push_str("\n\nCancelling the token frees the future, which cancels it in Rust and loses nothing.");
 		}
-		format!("{}{head}{body}\t}}\n\n", docs(&text, "\t"))
+		Member {
+			docs: docs(&text, "\t"),
+			modifiers: modifiers.to_string(),
+			ret: ret_cs,
+			name: name.to_string(),
+			params: all_params,
+			body,
+		}
 	}
 
 	/// The declaration of the local a call writes its out value `name`, of C type `ty`, to.
@@ -2617,6 +2693,48 @@ impl<'a> Gen<'a> {
 			future.free.name,
 		);
 		class
+	}
+}
+
+/// A member's parts, which a method or a property's accessors write.
+#[derive(Clone)]
+struct Member {
+	docs: String,
+	modifiers: String,
+	ret: String,
+	name: String,
+	params: Vec<String>,
+	body: String,
+}
+
+impl Member {
+	fn method(&self) -> String {
+		format!(
+			"{}\t{}{} {}({})\n\t{{\n{}\t}}\n\n",
+			self.docs,
+			self.modifiers,
+			self.ret,
+			self.name,
+			self.params.join(", "),
+			self.body
+		)
+	}
+
+	/// A property of a getter's body, a setter's, or both.
+	fn property(&self, get: Option<&str>, set: Option<&str>) -> String {
+		let ret = match get {
+			Some(_) => &self.ret,
+			// A setter's own return is `void`: the property's type is its value's.
+			None => self.params[0].rsplit_once(' ').map_or("", |(ty, _)| ty),
+		};
+		let mut out = format!("{}\t{}{ret} {}\n\t{{\n", self.docs, self.modifiers, self.name);
+		for (accessor, body) in [("get", get), ("set", set)] {
+			if let Some(body) = body {
+				let _ = write!(out, "\t\t{accessor}\n\t\t{{\n{body}\t\t}}\n");
+			}
+		}
+		out.push_str("\t}\n\n");
+		out
 	}
 }
 
@@ -2724,14 +2842,6 @@ fn docs(text: &str, indent: &str) -> String {
 	out
 }
 
-fn indent(code: &str) -> String {
-	code.lines()
-		.map(|l| match l.is_empty() {
-			true => "\n".to_string(),
-			false => format!("\t{l}\n"),
-		})
-		.collect()
-}
 
 #[allow(dead_code)]
 fn _unused(_: Collection, _: Mutability) {}
