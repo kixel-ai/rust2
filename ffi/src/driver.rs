@@ -163,12 +163,10 @@ fn record(args: &[String], dir: &Path) -> Result<ExitCode, String> {
 			};
 			let path = Recorded::path(dir);
 			let json = serde_json::to_string(&recorded).expect("paths and strings serialize");
-			// Made afresh: a second target's query would leave the record ambiguous.
-			std::fs::File::options()
-				.write(true)
-				.create_new(true)
-				.open(&path)
-				.and_then(|mut file| std::io::Write::write_all(&mut file, json.as_bytes()))
+			// Cargo queries the target again once its `cfg`s select more rustflags, until they
+			// settle, so its last query holds what it compiles with. Filtered to one target, it
+			// queries no other with `--target`.
+			std::fs::write(&path, json)
 				.map_err(|err| format!("recording cargo's query of a target in {}: {err}", path.display()))?;
 		}
 	}

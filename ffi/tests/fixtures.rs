@@ -4723,6 +4723,12 @@ fn cached() {
 				[dependencies]\ndep = { path = \"../cached_dep\" }\n\n[workspace]\n",
 			),
 			("src/lib.rs", "pub use dep::one;\n"),
+			// Cargo queries the target once without these, which it reads only from the
+			// target's `cfg`s, and again with them.
+			(
+				".cargo/config.toml",
+				"[target.'cfg(all())']\nrustflags = [\"--cfg\", \"consumer\"]\n",
+			),
 		],
 	);
 	write_all(
@@ -4760,9 +4766,7 @@ fn cached() {
 	}
 	let _ = std::fs::remove_file(&log);
 	let _ = std::fs::remove_dir_all(package.join("build"));
-	run(census(&package.join("Cargo.toml"), &[])
-		.env("CARGO", &cargo)
-		.env("RUSTFLAGS", "--cfg consumer"));
+	run(census(&package.join("Cargo.toml"), &[]).env("CARGO", &cargo));
 	let log = std::fs::read_to_string(&log).unwrap();
 	let compiled = |krate: &str| {
 		let line = log
@@ -4782,7 +4786,9 @@ fn cached() {
 		"-Coverflow-checks=on",
 		"-Zmir-opt-level=1",
 	];
-	assert!(dep.windows(flags.len()).any(|run| run == flags), "{log}");
+	for krate in [&dep, &facade] {
+		assert!(krate.windows(flags.len()).any(|run| run == flags), "{log}");
+	}
 }
 
 /// A census of the package whose manifest is `manifest` with these cargo args, to run.
