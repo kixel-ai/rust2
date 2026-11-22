@@ -2720,19 +2720,21 @@ def android_library(info, manifest, export_dir, target, out):
 
 
 def jvm_library(info, manifest, export_dir, target, out):
-    """`target`'s library for the desktop jar, the C ABI with its JNI glue, built as the wheels'
-    are: Linux's against the glibc floor, macOS's at the wheels' floor."""
+    """`target`'s library for the desktop jar, the C ABI with its JNI glue, built as the wheel's
+    is: Linux's against the glibc floor, macOS's at the wheels' floor. In the wheel's target
+    directory, with its flags, so cargo rebuilds only the generated crate, not every
+    dependency; the wheel, built first, has taken its library from there already."""
     env = reproducible(info, export_dir, target)
     if "apple" in target:
         env["MACOSX_DEPLOYMENT_TARGET"] = MACOS_WHEEL
     linux = "linux" in target
     built = cargo(manifest, *(["zigbuild"] if linux else ["build"]), "--locked", "--release",
                   "--manifest-path", export_dir / "Cargo.toml", "--target", f"{target}.{GLIBC}" if linux else target,
-                  "--target-dir", export_dir / "target-jvm", "--features", "kotlin", env=env)
+                  "--target-dir", export_dir / "target-python", "--features", "kotlin", env=env)
     sys.stderr.write(built.stderr)
     dest = out / "jvm" / target
     dest.mkdir(parents=True)
-    shutil.copy(export_dir / "target-jvm" / target / "release" / library_name(info["lib"], target), dest)
+    shutil.copy(export_dir / "target-python" / target / "release" / library_name(info["lib"], target), dest)
 
 
 def android_example(info, args, out):
