@@ -448,7 +448,8 @@ impl Crate<'_> {
 	/// `kotlin/<prefix>.kt`, whose JNI functions the crate's `kotlin` feature builds,
 	/// `python/<prefix>.py`, whose CPython extension its `python` feature builds,
 	/// `swift/<prefix>.swift` with the clang module it imports the header through, and
-	/// `go/<prefix>.go`, and the Dart package `dart/`, whose glue its `dart` feature builds.
+	/// `go/<prefix>.go`, the Dart package `dart/`, whose glue its `dart` feature builds, and
+	/// `csharp/<prefix>.cs`.
 	pub(crate) fn generate(&self, out: &Path) -> Result<Output, String> {
 		// Cargo unifies in what the facade enables in its dependencies.
 		let facade = self.facade;
@@ -595,6 +596,7 @@ impl Crate<'_> {
 		let (module, go_mod) = go_module(out, &self.abi.prefix)?;
 		let go = crate::go::generate(&rest, &self.packages(), contract, &module)?;
 		let dart = crate::dart::generate(&rest, &self.packages(), contract)?;
+		let csharp = crate::csharp::generate(&rest, &self.packages(), contract)?;
 		let web = crate::web::generate(&rest, self.facade, contract)?;
 		let mut names: std::collections::BTreeMap<String, std::collections::BTreeMap<String, String>> = [
 			("C", c),
@@ -604,6 +606,7 @@ impl Crate<'_> {
 			("Swift", swift.names),
 			("Go", go.names),
 			("Dart", dart.names),
+			("C#", csharp.names),
 		]
 		.into_iter()
 		.map(|(language, names)| (language.to_string(), names))
@@ -678,6 +681,10 @@ impl Crate<'_> {
 			&dart.dart,
 		);
 		output.file(&package.join("hook").join("build.dart"), crate::dart::HOOK);
+		output.file(
+			&out.join("csharp").join(format!("{}.cs", self.abi.prefix)),
+			&csharp.csharp,
+		);
 		if let Some(web) = web {
 			output.file(&out.join("src/web/mod.rs"), &web.glue);
 			output.file(&out.join("src/web/runtime.rs"), crate::web::GLUE_RUNTIME);
