@@ -174,8 +174,8 @@ fn transcript() -> &'static transcript::Transcript {
 	})
 }
 
-/// The api fixture's Python, C++, and web checks as the release builder takes them, into
-/// `RUST2_TRANSCRIPTS`: a directory each, `python`, `cpp`, and `web`, holding the test as
+/// The api fixture's checks as the release builder takes them, into `RUST2_TRANSCRIPTS`: a
+/// directory each, `python`, `cpp`, `web`, `dart`, `go`, and `swift`, holding the test as
 /// `check.<ext>` beside its generated script. Only the export runs, not `api`'s builds.
 #[test]
 #[ignore = "writes outside the target: just ffi transcripts <dir>"]
@@ -207,6 +207,9 @@ fn transcripts() {
 		("python", "api.py", "transcript.py", transcript::python::emit(&t)),
 		("cpp", "api.cpp", "transcript.hpp", transcript::cpp::emit(&t)),
 		("web", "api.ts", "transcript.ts", typescript),
+		("dart", "api.dart", "transcript.dart", transcript::dart::emit(&t)),
+		("go", "api.go", "transcript.go", transcript::go::emit(&t)),
+		("swift", "api.swift", "transcript.swift", transcript::swift::emit(&t)),
 	] {
 		let checks = dir.join(language);
 		if checks.exists() {
@@ -2222,6 +2225,37 @@ fn api_swift() {
 	run(Command::new(&exe).arg("futures"));
 	run(Command::new(&exe).arg("owned"));
 	run(Command::new(&exe).arg("shared"));
+	// What only wasm32 has, a program of its own, which the test leaves out so that it
+	// compiles against the release builder's export, which has no wasm32.
+	let targets_test = manifest_dir().join("tests").join("targets.swift");
+	let targets = dir.join("targets-test");
+	let step = Step {
+		stamp: &step::stamp(&targets),
+		reads: &[
+			&targets_test,
+			&nodump,
+			&module,
+			&include,
+			&built,
+			&swiftmodule,
+			&lib,
+			&api.staticlib(),
+		],
+		writes: &[&targets],
+	};
+	step.run(
+		swiftc(&module, 15)
+			.args(["-parse-as-library", "-I"])
+			.arg(&dir)
+			.arg(&targets_test)
+			.arg(&lib)
+			.args(&collections)
+			.arg(api.staticlib())
+			.args(&api.native)
+			.arg("-o")
+			.arg(&targets),
+	);
+	run(&mut Command::new(&targets));
 	// Each in a build of its own, since the first error stops the rest; move checking runs
 	// on SIL, which type-checking alone skips.
 	for (case, message) in [
@@ -2253,12 +2287,20 @@ fn api_swift() {
 		let stderr = String::from_utf8_lossy(&output.stderr);
 		assert!(stderr.contains(message), "Swift {case} printed {stderr}");
 	}
-	for (case, message) in [
-		("outlived", OUTLIVED),
-		("variant", "api_Platform.Wasm: it is not on this library's target"),
-		("plain variant", "api_Family.Wasm: it is not on this library's target"),
+	for (program, case, message) in [
+		(&exe, "outlived", OUTLIVED),
+		(
+			&targets,
+			"variant",
+			"api_Platform.Wasm: it is not on this library's target",
+		),
+		(
+			&targets,
+			"plain variant",
+			"api_Family.Wasm: it is not on this library's target",
+		),
 	] {
-		let output = Command::new(&exe).arg(case).output().unwrap();
+		let output = Command::new(program).arg(case).output().unwrap();
 		failed(&output, &format!("Swift {case}"));
 		let stderr = String::from_utf8_lossy(&output.stderr);
 		assert!(stderr.contains(message), "Swift {case} printed {stderr}");
@@ -2998,7 +3040,6 @@ fn dart_small_api_lints() {
 #[test]
 fn api_dart() {
 	let api = api();
-	let scripts = generated("dart", "transcript.dart", &transcript::dart::emit(transcript()));
 	let dir = scratch().join("api").join("dart");
 	let generated = api.out.join("dart/lib");
 	// The analyzer reads its options from the analyzed directory, so analyze a copy with them.
@@ -3064,28 +3105,37 @@ fn api_dart() {
 		"a call reaching user code or walking a caller's length is no leaf call"
 	);
 	let lib = api.lib.join(PYTHON_LIB);
-	// The entry beside the script imports the test as a package, as the script does, so
-	// both name the one library.
-	let main = scripts.join("main.dart");
+	// The test and its script, as the release builder takes them, and an entry beside them
+	// that imports the test, as the script does, so both name the one library.
+	let checks = dir.join("checks");
+	step::copy(
+		&manifest_dir().join("tests").join("api.dart"),
+		&checks.join("check.dart"),
+	);
+	step::write(&checks.join("transcript.dart"), transcript::dart::emit(transcript()));
+	let main = checks.join("main.dart");
 	step::write(
 		&main,
-		"import 'package:api_test/api.dart' as test;\n\nFuture<void> main(List<String> args) => test.main(args);\n",
+		"import 'check.dart' as test;\n\nFuture<void> main(List<String> args) => test.main(args);\n",
 	);
-	let tests = manifest_dir().join("tests");
-	let exe = dart_compile(
-		"api",
-		&dir,
-		&generated,
-		&lib,
-		&main,
-		&[("api_test", &tests), ("transcript", &scripts)],
-	);
+	let exe = dart_compile("api", &dir, &generated, &lib, &main, &[("checks", &checks)]);
 	let dart = run(&mut dart_run(&exe, &[]));
 	assert_eq!(
 		String::from_utf8_lossy(&dart.stdout),
 		api.transcript,
 		"the Dart transcript differs from the native one"
 	);
+	// What only wasm32 has, a program of its own, which the test leaves out so that it
+	// compiles against the release builder's export, which has no wasm32.
+	let targets = dart_compile(
+		"api",
+		&dir,
+		&generated,
+		&lib,
+		&manifest_dir().join("tests").join("targets.dart"),
+		&[],
+	);
+	run(&mut dart_run(&targets, &[]));
 	for case in ["checks", "futures", "owned", "closed", "bytes", "bounds", "leaf"] {
 		run(&mut dart_run(&exe, &[case]));
 	}
@@ -3574,6 +3624,12 @@ fn api_go() {
 	);
 	// The transcript's script, generated beside it in its package.
 	step::write(&module.join("transcript.go"), transcript::go::emit(transcript()));
+	// What only wasm32 has, a program of its own, which the test leaves out so that it
+	// compiles against the release builder's export, which has no wasm32.
+	step::copy(
+		&manifest_dir().join("tests").join("targets.go"),
+		&module.join("targets").join("main.go"),
+	);
 	let export = module.join("export");
 	for (name, root) in [("vet-export", &export), ("vet", &module)] {
 		let step = Step {
@@ -3606,11 +3662,26 @@ fn api_go() {
 		("returned zero", "a zero Moment, which only Rust makes"),
 		("outlived", OUTLIVED),
 		("callback panicked", "a log failed"),
+	] {
+		let output = Command::new(&exe).arg(case).output().unwrap();
+		failed(&output, &format!("Go {case}"));
+		let stderr = String::from_utf8_lossy(&output.stderr);
+		assert!(stderr.contains(message), "Go {case} printed {stderr}");
+	}
+	let targets = dir.join(format!("targets-test{EXE_SUFFIX}"));
+	let step = Step {
+		stamp: &step::stamp(&targets),
+		reads: &[&module, &api.staticlib()],
+		writes: &[&targets],
+	};
+	step.run(go(&module, &["build", "-o"]).arg(&targets).arg("./targets"));
+	run(&mut Command::new(&targets));
+	for (case, message) in [
 		("target", "api_wasm_only: it is not on this library's target"),
 		("variant", "api_Platform.Wasm: it is not on this library's target"),
 		("plain variant", "api_Family.Wasm: it is not on this library's target"),
 	] {
-		let output = Command::new(&exe).arg(case).output().unwrap();
+		let output = Command::new(&targets).arg(case).output().unwrap();
 		failed(&output, &format!("Go {case}"));
 		let stderr = String::from_utf8_lossy(&output.stderr);
 		assert!(stderr.contains(message), "Go {case} printed {stderr}");
@@ -4896,26 +4967,122 @@ fn no_std_links() {
 	assert_eq!(links, api().native);
 }
 
-/// rustc's arguments in an argfile, as cargo passes them once they overflow a command line:
-/// on Windows, moq-ffi's many `-L`s do. One argument past every platform's limit forces it,
-/// and starts with `@`, which inside an argfile rustc reads as itself, not another file.
+/// rustc's arguments in an argfile, as a consumer's rustflags name one: inside it, an
+/// argument starting with `@` is itself, not another file. Rustflags too long for the
+/// environment the check passes them on in, which cargo passes rustc in an argfile of its
+/// own, fail the export.
 #[test]
 fn argfile() {
 	let package = package("argfile", &[]);
-	let value = format!("@{}=/", "a".repeat(1 << 21));
-	write_all(
-		&package,
-		&[(
-			".cargo/config.toml",
-			&format!("build.rustflags = [\"--remap-path-prefix\", \"{value}\"]\n"),
-		)],
-	);
+	let argfile = package.join("flags");
+	std::fs::write(&argfile, "--remap-path-prefix\n@a=/\n").unwrap();
+	let config = |flags: &str| [(".cargo/config.toml", format!("build.rustflags = [{flags:?}]\n"))];
+	let [(path, text)] = config(&format!("@{}", argfile.display()));
+	write_all(&package, &[(path, &text)]);
 	let output = census(&package.join("Cargo.toml"), &[]).output().unwrap();
 	assert!(
 		output.status.success(),
 		"the census failed:\n{}",
 		String::from_utf8_lossy(&output.stderr)
 	);
+	// Past what one environment variable holds on Windows, and past what cargo passes rustc
+	// without an argfile on any platform. Windows's command line holds no more than its
+	// variable, so there cargo's argfile comes first.
+	let too_long = "rustflags are too long to pass on";
+	for (len, error) in [
+		(1 << 16, if cfg!(windows) { too_long } else { "rustflags take" }),
+		(1 << 21, too_long),
+	] {
+		let [(path, text)] = config(&format!("--cfg=a{}", "a".repeat(len)));
+		write_all(&package, &[(path, &text)]);
+		let output = census(&package.join("Cargo.toml"), &[]).output().unwrap();
+		let stderr = String::from_utf8_lossy(&output.stderr);
+		assert!(!output.status.success() && stderr.contains(error), "{stderr}");
+	}
+}
+
+/// A compiler cache in cargo's `RUSTC_WRAPPER`, as mbx's Cargo shim sets one, wraps every
+/// crate: the workspace's own through the exporter's wrapper, and every other crate with
+/// the exporter as rustc, the consumer's rustflags and then the export's on its command
+/// line, which the cache keys it by.
+#[cfg(unix)]
+#[test]
+fn cached() {
+	let package = package(
+		"cached",
+		&[
+			(
+				"Cargo.toml",
+				"[package]\nname = \"cached\"\nversion = \"0.0.0\"\nedition = \"2024\"\n\n\
+				[dependencies]\ndep = { path = \"../cached_dep\" }\n\n[workspace]\n",
+			),
+			("src/lib.rs", "pub use dep::one;\n"),
+			// Cargo queries the target once without these, which it reads only from the
+			// target's `cfg`s, and again with them.
+			(
+				".cargo/config.toml",
+				"[target.'cfg(all())']\nrustflags = [\"--cfg\", \"consumer\"]\n",
+			),
+		],
+	);
+	write_all(
+		&package.with_file_name("cached_dep"),
+		&[
+			(
+				"Cargo.toml",
+				"[package]\nname = \"dep\"\nversion = \"0.0.0\"\nedition = \"2024\"\n",
+			),
+			("src/lib.rs", "pub fn one() -> u32 {\n\t1\n}\n"),
+		],
+	);
+	let log = package.join("wrapped.log");
+	let wrapper = package.join("wrapper.sh");
+	let cargo = package.join("cargo.sh");
+	write_all(
+		&package,
+		&[
+			(
+				"wrapper.sh",
+				&format!("#!/bin/sh\nprintf '%s\\n' \"$*\" >> '{}'\nexec \"$@\"\n", log.display()),
+			),
+			(
+				"cargo.sh",
+				&format!(
+					"#!/bin/sh\nRUSTC_WRAPPER='{}' exec '{}' \"$@\"\n",
+					wrapper.display(),
+					std::env::var("CARGO").unwrap()
+				),
+			),
+		],
+	);
+	for script in [&wrapper, &cargo] {
+		std::fs::set_permissions(script, std::os::unix::fs::PermissionsExt::from_mode(0o755)).unwrap();
+	}
+	let _ = std::fs::remove_file(&log);
+	let _ = std::fs::remove_dir_all(package.join("build"));
+	run(census(&package.join("Cargo.toml"), &[]).env("CARGO", &cargo));
+	let log = std::fs::read_to_string(&log).unwrap();
+	let compiled = |krate: &str| {
+		let line = log
+			.lines()
+			.find(|line| line.contains(&format!("--crate-name {krate} ")));
+		let line = line.unwrap_or_else(|| panic!("{krate} was not compiled through the cache:\n{log}"));
+		line.split(' ').map(str::to_string).collect::<Vec<_>>()
+	};
+	let (dep, facade) = (compiled("dep"), compiled("cached"));
+	// Cargo passes its rustc to the workspace's wrapper alone.
+	assert_ne!(dep[0], facade[0], "{log}");
+	assert_eq!(dep[0], facade[1], "{log}");
+	let flags = [
+		"--cfg",
+		"consumer",
+		"-Zalways-encode-mir",
+		"-Coverflow-checks=on",
+		"-Zmir-opt-level=1",
+	];
+	for krate in [&dep, &facade] {
+		assert!(krate.windows(flags.len()).any(|run| run == flags), "{log}");
+	}
 }
 
 /// A census of the package whose manifest is `manifest` with these cargo args, to run.

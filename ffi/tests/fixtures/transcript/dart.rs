@@ -1,5 +1,5 @@
 //! The transcript as Dart: a library whose `script()` runs it through the generated Dart,
-//! calling `tests/api.dart`'s own functions, which it imports as `package:api_test/api.dart`.
+//! calling `tests/api.dart`'s own functions, which it imports as `check.dart`, the file beside it.
 
 use std::fmt::Write;
 
@@ -17,7 +17,7 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:api/api.dart' as api;
-import 'package:api_test/api.dart' as local;
+import 'check.dart' as local;
 
 /// A string as Rust's `Debug` prints it.
 String _quoted(String s) {

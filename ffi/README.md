@@ -15,12 +15,20 @@ rust2-ffi (--out dir | --census dir | --api file) [--manifest-path Cargo.toml] [
 nix run github:kixel-ai/rust2/<rev>#ffi -- --out ffi   # pinned to a revision, under the caller's cargo
 ```
 
-It runs `cargo check` on the package with itself as `RUSTC_WRAPPER`, for each `--target`
+It runs `cargo check` on the package for each `--target`
 or else the host, whatever cargo's config names, under the release profile unless the cargo
 args pick another, as a library ships, through
-the front end it shares with [rust2-ts](../ts/README.md) in [`driver/`](../driver). A build
-script's probe of the compiler through that wrapper, as `rustversion` and `autocfg` make,
-runs the `rustc` cargo resolved, the one the glue builds with, rather than the exporter's
+the front end it shares with [rust2-ts](../ts/README.md) in [`driver/`](../driver): with
+itself as `RUSTC_WORKSPACE_WRAPPER` for the workspace's own crates, and as `RUSTC` for every
+other crate, which it compiles as rustc would. So a compiler cache in `RUSTC_WRAPPER`, as
+mbx's Cargo shim sets, serves every crate the workspace does not own: each carries on its
+command line the target's rustflags, from wherever cargo reads them, then the export's own
+in `CARGO_ENCODED_RUSTFLAGS`, which cargo passes no build script or proc macro. Rustflags
+past 32,000 bytes, which no environment variable holds on every platform, fail the export:
+put them in an argfile, `@<path>`. A build
+script's probe of the compiler, as `rustversion` and `autocfg` make,
+runs the `rustc` cargo resolved, the one the glue builds with, with the target's rustflags
+but not the export's, rather than the exporter's
 nightly: an item a build script enables on nightly alone is exported only when that `rustc`
 is a nightly. The package is the facade: once rustc has checked its library, it walks every `pub` item
 reachable from the crate root, following `pub use` re-exports of other crates' items and
@@ -1877,7 +1885,13 @@ nix develop .#sanitize --command just ffi sanitize  # api's C and C++ scripts un
 The `api` fixture covers each rule once, and re-exports the `dep` fixture's types, which
 export into the same library. The fixture's binding serves the host and wasm32, whose
 items the host's library lacks, and each language's test checks that the host's items work
-and that wasm32's fail. Each language's script is written at test time by
+and that wasm32's fail. The release builder runs the Dart, Go, and Swift tests, as the
+Python, C++, and web ones, against its own export of every host and no wasm32, so each
+leaves what depends on its targets to `tests/targets.<ext>`, a program of its own the
+exporter's tests alone run: what one export's target lacks, such as wasm32's items in the
+tests' export and `stray` and `visit_stray`, which the builder's Windows target lacks, and
+what wasm32 makes fallible in the tests' export, such as `Spawned`, which Go's and Swift's
+signatures show. Each language's script is written at test time by
 `tests/fixtures/transcript` from the fixture's `examples/transcript.rs`, whose `main` is a
 typed subset of Rust checked against the export's `api.json`: an item it cannot resolve, or
 a construct a language's writer cannot spell, fails the test naming it. Each function the

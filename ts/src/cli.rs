@@ -3,7 +3,7 @@
 use std::path::Path;
 use std::process::ExitCode;
 
-use rust2_driver::cargo::{Args, Check, Output};
+use rust2_driver::cargo::{Args, Check, Output, Wrap};
 
 use crate::browser;
 use crate::config::{self, Config};
@@ -71,6 +71,7 @@ fn try_run(args: &[String]) -> Result<ExitCode, String> {
 		env: &env,
 		target_dir: None,
 		dir: None,
+		wrap: Wrap::All,
 	}
 	.run()
 }

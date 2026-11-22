@@ -75,4 +75,13 @@ pub(crate) mod env {
 	/// The file the wrapper writes the target's `cfg`s into, as cargo's rustc prints them
 	/// under the check's `RUSTFLAGS`, absolute.
 	pub(crate) const CFGS: &str = "RUST2_FFI_CFGS";
+	/// The rustc cargo resolved, which a build script's probe runs, absolute or as cargo
+	/// found it: set wherever cargo runs this binary as rustc.
+	pub(crate) const RUSTC: &str = "RUST2_FFI_RUSTC";
+	/// The rustflags the export adds after the consumer's, separated by `0x1f` as cargo's
+	/// `CARGO_ENCODED_RUSTFLAGS` are.
+	pub(crate) const ADDED: &str = "RUST2_FFI_ADDED";
+	/// The directory to record what cargo passes each target's crates into, as
+	/// [`crate::driver::Recorded`], set for the `cargo metadata` that finds them.
+	pub(crate) const RECORD: &str = "RUST2_FFI_RECORD";
 }

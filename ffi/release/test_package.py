@@ -1402,6 +1402,30 @@ class Web(unittest.TestCase):
             with self.assertRaises(SystemExit):
                 package.check_program_in(tmp, ("check.c", "check.cpp"))
 
+    def test_dart_check_lands_whole_beside_its_entry(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp = Path(tmp)
+            check, bin_ = tmp / "check", tmp / "bin"
+            check.mkdir()
+            bin_.mkdir()
+            (check / "transcript.dart").write_text("")
+            with self.assertRaises(SystemExit):
+                package.dart_check("moq", check, bin_)
+            (check / "check.dart").write_text("void main() {}\n")
+            package.dart_check("moq", check, bin_)
+            self.assertEqual(sorted(p.name for p in bin_.iterdir()), ["check.dart", "transcript.dart"])
+            # The entry is the consumer's own.
+            (check / "main.dart").write_text("")
+            with self.assertRaises(SystemExit):
+                package.dart_check("moq", check, tmp / "other")
+
+    def test_dart_without_a_check_calls_the_contract(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            package.dart_check("moq", None, Path(tmp))
+            program = (Path(tmp) / "check.dart").read_text()
+            self.assertIn("symbol: 'moq_contract'", program)
+            self.assertIn("package:moq/moq.dart", program)
+
     def test_python_check_imports_its_modules_alone(self):
         # The check's directory is on the path, and only it: not the working directory, and
         # not PYTHONPATH. The generated script reaches the check's functions as `__main__`.
