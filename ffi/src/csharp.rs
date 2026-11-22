@@ -204,6 +204,10 @@ const OBJECT_MEMBERS: &[&str] = &[
 	"Marshal",
 ];
 
+/// The instance methods `System.Enum` declares besides `object`'s, which a plain enum's
+/// extension method of the same name never reaches.
+const ENUM_MEMBERS: &[&str] = &["CompareTo", "HasFlag", "GetTypeCode"];
+
 /// The C# for `abi`, whose header's contract is `contract`, or why it cannot be written.
 pub(crate) fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Output, String> {
 	let ranges: BTreeSet<String> = (abi.ranges.keys())
@@ -1187,16 +1191,21 @@ impl<'a> Gen<'a> {
 		if traits.clone && matches!(ty, Type::Object(_)) {
 			members.push("Clone".to_string());
 		}
+		if let (Type::Enum(i), true) = (ty, plain) {
+			members.extend(self.variant_names[*i].iter().cloned());
+			members.extend(ENUM_MEMBERS.iter().map(|s| s.to_string()));
+		}
+		let named = |base: &str| self.trait_name(ty, base);
 		match traits.ord {
 			crate::ir::Order::None => {}
-			crate::ir::Order::Partial => members.push("PartialCompareTo".to_string()),
-			crate::ir::Order::Total => members.extend(["PartialCompareTo".to_string(), "CompareTo".to_string()]),
+			crate::ir::Order::Partial => members.push(named("PartialCompareTo")),
+			crate::ir::Order::Total => members.extend([named("PartialCompareTo"), named("CompareTo")]),
 		}
 		if traits.display && plain {
-			members.push("Display".to_string());
+			members.push(named("Display"));
 		}
 		if traits.debug {
-			members.push("Debug".to_string());
+			members.push(named("Debug"));
 		}
 		if traits.default {
 			members.push("Default".to_string());
@@ -1207,6 +1216,25 @@ impl<'a> Gen<'a> {
 			members.push("GetAsyncEnumerator".to_string());
 		}
 		members
+	}
+
+	/// The name of `ty`'s std trait member `base`. A plain enum's is an extension method,
+	/// which C# finds only where no member of the enum's has its name, so it takes Rust's
+	/// shorter names, apart from its variants and `System.Enum`'s `CompareTo(object)`.
+	fn trait_name(&self, ty: &Type, base: &str) -> String {
+		let Type::Enum(i) = ty else { return base.to_string() };
+		if !self.abi.api.enums[*i].plain() {
+			return base.to_string();
+		}
+		let mut name = match base {
+			"PartialCompareTo" => "PartialCmp".to_string(),
+			"CompareTo" => "Cmp".to_string(),
+			base => base.to_string(),
+		};
+		while self.variant_names[*i].contains(&name) || ENUM_MEMBERS.contains(&name.as_str()) {
+			name.push('_');
+		}
+		name
 	}
 
 	/// The Rust name `function` spells, a member of `owner` if it has one: its C name past
@@ -1569,18 +1597,18 @@ impl<'a> Gen<'a> {
 			let f = abi::join(&c_name, suffix);
 			declare(self, &f, &[("a", ptr.clone()), ("b", ptr.clone())], "sbyte");
 			let (name, helper) = match *t {
-				"PartialOrd" => ("PartialCompareTo", "partialCmp_"),
-				_ => ("CompareTo", "cmp_"),
+				"PartialOrd" => (self.trait_name(ty, "PartialCompareTo"), "partialCmp_"),
+				_ => (self.trait_name(ty, "CompareTo"), "cmp_"),
 			};
-			members.push(name.to_string());
-			crate::lock::trait_member(&mut self.locked, &shown, t, name);
+			members.push(name.clone());
+			crate::lock::trait_member(&mut self.locked, &shown, t, &name);
 			let body = self.trait_body(ty, &f, &["a", "b"], "sbyte", "r_");
 			let _ = write!(out, "\tstatic int {helper}({cs} a, {cs} b)\n{body}\n\n");
 			match (*t, owner.extension) {
 				("PartialOrd", true) => {
 					let _ = write!(
 						out,
-						"\t/// Rust's `PartialOrd`: -1, 0, 1, or null where the two are unordered.\n\tpublic static int? PartialCompareTo(this {cs} self, {cs} other)\n\t{{\n\t\tvar r_ = partialCmp_(self, other);\n\t\treturn r_ == 2 ? null : r_;\n\t}}\n\n"
+						"\t/// Rust's `PartialOrd`: -1, 0, 1, or null where the two are unordered.\n\tpublic static int? {name}(this {cs} self, {cs} other)\n\t{{\n\t\tvar r_ = partialCmp_(self, other);\n\t\treturn r_ == 2 ? null : r_;\n\t}}\n\n"
 					);
 				}
 				("PartialOrd", false) => {
@@ -1598,7 +1626,7 @@ impl<'a> Gen<'a> {
 				(_, true) => {
 					let _ = write!(
 						out,
-						"\t/// Rust's `Ord`: -1, 0, or 1.\n\tpublic static int CompareTo(this {cs} self, {cs} other) => cmp_(self, other);\n\n"
+						"\t/// Rust's `Ord`: -1, 0, or 1.\n\tpublic static int {name}(this {cs} self, {cs} other) => cmp_(self, other);\n\n"
 					);
 				}
 				(_, false) => {
@@ -1613,14 +1641,14 @@ impl<'a> Gen<'a> {
 			let f = abi::join(&c_name, "to_string");
 			declare(self, &f, &[("self", ptr.clone())], "Native.Buf");
 			let name = match plain {
-				true => "Display",
-				false => "ToString",
+				true => self.trait_name(ty, "Display"),
+				false => "ToString".to_string(),
 			};
-			members.push(name.to_string());
-			crate::lock::trait_member(&mut self.locked, &shown, "Display", name);
+			members.push(name.clone());
+			crate::lock::trait_member(&mut self.locked, &shown, "Display", &name);
 			let body = self.trait_body(ty, &f, &[this], "Native.Buf", "Native.String(r_).ToString()");
 			let head = match plain {
-				true => head(name, "string"),
+				true => head(&name, "string"),
 				false => "\tpublic override string ToString()".to_string(),
 			};
 			let _ = write!(out, "\t/// Its text, as Rust's `Display`.\n{head}\n{body}\n\n");
@@ -1628,10 +1656,11 @@ impl<'a> Gen<'a> {
 		if traits.debug {
 			let f = abi::join(&c_name, "debug");
 			declare(self, &f, &[("self", ptr.clone())], "Native.Buf");
-			members.push("Debug".to_string());
-			crate::lock::trait_member(&mut self.locked, &shown, "Debug", "Debug");
+			let name = self.trait_name(ty, "Debug");
+			members.push(name.clone());
+			crate::lock::trait_member(&mut self.locked, &shown, "Debug", &name);
 			let body = self.trait_body(ty, &f, &[this], "Native.Buf", "Native.String(r_).ToString()");
-			let _ = write!(out, "\t/// Its text, as Rust's `Debug`.\n{}\n{body}\n\n", head("Debug", "string"));
+			let _ = write!(out, "\t/// Its text, as Rust's `Debug`.\n{}\n{body}\n\n", head(&name, "string"));
 		}
 		if traits.default {
 			let f = abi::join(&c_name, "default");

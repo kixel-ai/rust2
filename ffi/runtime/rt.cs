@@ -200,7 +200,8 @@ internal static unsafe partial class Native
 	}
 
 	/// `Some` bytes of `buf`, or null for its null pointer.
-	internal static ReadOnlyMemory<byte>? OptionBytes(Buf buf) => buf.ptr == null ? null : Bytes(buf);
+	// Typed, as a bare `null` would convert to the empty memory through `byte[]`.
+	internal static ReadOnlyMemory<byte>? OptionBytes(Buf buf) => buf.ptr == null ? (ReadOnlyMemory<byte>?)null : Bytes(buf);
 
 	internal static Str String(Buf buf) => new Str(Bytes(buf));
 

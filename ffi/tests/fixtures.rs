@@ -3343,6 +3343,162 @@ fn swiftc(module: &Path, macos: u8) -> Command {
 }
 
 /// The generated Go, vetted and built through cgo against the static library, runs
+/// `tests/api.cs` with the transcript as C#, compiled by Roslyn against .NET's reference
+/// assemblies and run by `dotnet`, prints the native transcript, then fails loud on each
+/// broken contract and on a library of another contract. The binding compiles at Unity's
+/// language level against .NET Standard 2.1 too, as IL2CPP takes it.
+#[test]
+fn api_csharp() {
+	let api = api();
+	let dir = scratch().join("api").join("csharp");
+	let script = generated("csharp", "Transcript.cs", &transcript::csharp::emit(transcript())).join("Transcript.cs");
+	let binding = api.out.join("csharp").join("api.cs");
+	let exe = dir.join("api.dll");
+	csc(Dotnet::Net, &exe, &[&binding, &manifest_dir().join("tests/api.cs"), &script]);
+	let unity = dir.join("unity.cs");
+	step::write(&unity, UNITY_STUBS);
+	csc(Dotnet::Unity, &dir.join("unity.dll"), &[&binding, &unity]);
+	let ran = run(&mut csharp_run(&exe, &[]));
+	assert_eq!(
+		String::from_utf8_lossy(&ran.stdout),
+		api.transcript,
+		"the C# transcript differs from the native one"
+	);
+	for case in ["checks", "futures"] {
+		run(&mut csharp_run(&exe, &[case]));
+	}
+	for (case, message) in [
+		("moved", "System.ObjectDisposedException: Cannot access a disposed object.\nObject name: 'Counter'."),
+		("lent kept", "System.ObjectDisposedException: Cannot access a disposed object.\nObject name: 'Counter'."),
+		(
+			"lent moved",
+			"api_Counter_into_label: a handle a call lent is borrowed exclusively or moved out",
+		),
+		("callback threw", "api::Log::log: a call into C# threw"),
+		("closure threw", "a closure: a call into C# threw"),
+		("reader threw", "a reader's seek: a call into C# threw"),
+		("outlived", OUTLIVED),
+	] {
+		let output = no_core(&mut csharp_run(&exe, &[case])).output().unwrap();
+		failed(&output, &format!("C# {case}"));
+		let stderr = String::from_utf8_lossy(&output.stderr);
+		assert!(stderr.contains(message), "C# {case} printed {stderr}");
+	}
+
+	// The same C#, with another contract than the library's in place of its own, refuses it
+	// at its first call.
+	let source = std::fs::read_to_string(&binding).unwrap();
+	let at = source.find("Contract = 0x").expect("the C# checks its contract") + "Contract = 0x".len();
+	let mut mismatched = source.clone();
+	let digit = if &source[at..at + 1] == "0" { "1" } else { "0" };
+	mismatched.replace_range(at..at + 1, digit);
+	let contract = dir.join("contract");
+	step::write(&contract.join("api.cs"), mismatched);
+	step::write(
+		&contract.join("main.cs"),
+		"static class Program\n{\n\tstatic void Main() => Api.Lib.Dropped();\n}\n",
+	);
+	let exe = contract.join("contract.dll");
+	csc(Dotnet::Net, &exe, &[&contract.join("api.cs"), &contract.join("main.cs")]);
+	let output = no_core(&mut csharp_run(&exe, &[])).output().unwrap();
+	failed(&output, "a mismatched contract");
+	let stderr = String::from_utf8_lossy(&output.stderr);
+	assert!(
+		stderr.contains("api.cs and the library are from different builds"),
+		"a mismatched contract printed {stderr}"
+	);
+}
+
+/// What Unity defines that the binding uses, so it compiles as Unity compiles it without
+/// Unity's assemblies.
+const UNITY_STUBS: &str = "namespace UnityEngine
+{
+	public enum RuntimeInitializeLoadType { SubsystemRegistration }
+
+	[System.AttributeUsage(System.AttributeTargets.Method)]
+	public sealed class RuntimeInitializeOnLoadMethodAttribute : System.Attribute
+	{
+		public RuntimeInitializeOnLoadMethodAttribute(RuntimeInitializeLoadType type) { }
+	}
+}
+
+namespace AOT
+{
+	[System.AttributeUsage(System.AttributeTargets.Method)]
+	public sealed class MonoPInvokeCallbackAttribute : System.Attribute
+	{
+		public MonoPInvokeCallbackAttribute(System.Type type) { }
+	}
+}
+";
+
+/// What a C# compile targets: .NET's own, or Unity's language level over .NET Standard 2.1.
+#[derive(Clone, Copy)]
+enum Dotnet {
+	Net,
+	Unity,
+}
+
+/// The .NET SDK's root, beside its `dotnet`.
+fn dotnet_root() -> PathBuf {
+	let dotnet = std::fs::canonicalize(which("dotnet")).unwrap();
+	dotnet.parent().unwrap().to_path_buf()
+}
+
+/// `sources` compiled by Roslyn into `out`, warnings as errors, a program for `Net` and a
+/// library for `Unity`.
+fn csc(target: Dotnet, out: &Path, sources: &[&Path]) {
+	let root = dotnet_root();
+	let csc = newest(&root.join("sdk")).join("Roslyn/bincore/csc.dll");
+	let refs = match target {
+		Dotnet::Net => newest(&root.join("packs/Microsoft.NETCore.App.Ref")).join("ref/net10.0"),
+		Dotnet::Unity => PathBuf::from(std::env::var_os("NETSTANDARD_REF").expect("the dev shell sets NETSTANDARD_REF")),
+	};
+	let mut cmd = Command::new("dotnet");
+	cmd.arg("exec")
+		.arg(csc)
+		.args(["-nologo", "-noconfig", "-nostdlib", "-unsafe", "-nullable:enable", "-warnaserror", "-optimize"]);
+	match target {
+		Dotnet::Net => cmd.arg("-target:exe"),
+		Dotnet::Unity => cmd.args(["-target:library", "-langversion:9", "-define:UNITY_5_3_OR_NEWER"]),
+	};
+	for dll in std::fs::read_dir(&refs).unwrap() {
+		let dll = dll.unwrap().path();
+		if dll.extension().is_some_and(|e| e == "dll") {
+			cmd.arg(format!("-r:{}", dll.display()));
+		}
+	}
+	cmd.arg(format!("-out:{}", out.display())).args(sources);
+	std::fs::create_dir_all(out.parent().unwrap()).unwrap();
+	let step = Step {
+		stamp: &out.with_extension("stamp"),
+		reads: sources,
+		writes: &[out],
+	};
+	step.run(&mut cmd);
+	if let Dotnet::Net = target {
+		step::write(
+			&out.with_extension("runtimeconfig.json"),
+			r#"{"runtimeOptions":{"tfm":"net10.0","rollForward":"LatestPatch","framework":{"name":"Microsoft.NETCore.App","version":"10.0.0"},"configProperties":{"System.Globalization.Invariant":true}}}"#,
+		);
+	}
+}
+
+/// `exe`, a program `csc` built, run by `dotnet` with `args`, loading the api fixture's library.
+fn csharp_run(exe: &Path, args: &[&str]) -> Command {
+	let mut cmd = Command::new("dotnet");
+	cmd.arg(exe).args(args).env("DOTNET_CLI_TELEMETRY_OPTOUT", "1");
+	let var = match (cfg!(windows), cfg!(target_os = "macos")) {
+		(true, _) => "PATH",
+		(_, true) => "DYLD_LIBRARY_PATH",
+		_ => "LD_LIBRARY_PATH",
+	};
+	let mut paths = vec![api().lib.clone()];
+	paths.extend(std::env::var_os(var).iter().flat_map(std::env::split_paths));
+	cmd.env(var, std::env::join_paths(paths).unwrap());
+	cmd
+}
+
 /// `tests/api.go`'s script, its futures, and what closing and the GC free, then fails loud
 /// on each broken contract and on a library of another contract.
 #[test]
