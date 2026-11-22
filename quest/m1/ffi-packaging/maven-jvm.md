@@ -18,12 +18,8 @@ jar: the runtime extracts the host's library from the jar's resources to a file 
 before the contract check, as JNA's and UniFFI's loaders do. The jar's libraries are the
 wheels' targets, built with `--features kotlin` on each build host.
 
-Recommended: one set of coordinates, with Gradle module metadata (`.module`) naming the AAR
+Decided on 2026-11-22, in the pick of [#950](https://github.com/kixel-ai/rust2/pull/950), on the coordinator's recommendation while the maintainer was away under their standing merge permission: ✅ one set of coordinates (rejected: a separate `<crate>-jvm` artifact, which makes each app name its platform's).
+
+One set of coordinates, with Gradle module metadata (`.module`) naming the AAR
 for Android and the jar for the JVM, as moq's publication does, so an app keeps one
 dependency; Maven, which reads no `.module`, gets the jar through the POM's packaging.
-
-## Waiting
-
-- Maintainer: one set of coordinates with Gradle module metadata choosing the AAR or the jar
-  (recommended: moq's users keep the one dependency they have today), or a separate
-  `<crate>-jvm` artifact (simpler, no `.module`, but each app names its platform's).
