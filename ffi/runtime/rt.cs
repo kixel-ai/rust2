@@ -1298,13 +1298,13 @@ internal sealed unsafe class Lease : MemoryManager<byte>
 			throw new ObjectDisposedException(nameof(Bytes));
 		}
 		viewed = true;
-		return new Span<byte>(buf.ptr, (int)buf.len);
+		return new Span<byte>(buf.ptr, checked((int)buf.len));
 	}
 
 	/// Holds it until `Unpin`, as a call reading it in place does.
 	public override MemoryHandle Pin(int index = 0)
 	{
-		if ((uint)index > buf.len)
+		if (unchecked((uint)index) > buf.len)
 		{
 			throw new ArgumentOutOfRangeException(nameof(index));
 		}

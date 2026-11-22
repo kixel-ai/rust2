@@ -1692,6 +1692,10 @@ throws aborts, naming the call. The runtime every file includes is
   that pends, not one ready at once. A wake polls again on the caller's
   `SynchronizationContext`, or the thread pool without one, never inline in Rust's wake. A
   stream is `IAsyncEnumerable`.
+- **Threads**: a value that is not `Send` throws when used on another thread than the one
+  that made it, as Kotlin's does. A future that is not `Send` made from none lives on a home,
+  so a wake on any thread polls it; one a value's method makes stays on that value's thread,
+  so awaiting it with no `SynchronizationContext` to return there throws once it pends.
 
 ## IR
 

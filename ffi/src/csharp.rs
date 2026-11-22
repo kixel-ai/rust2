@@ -1552,7 +1552,7 @@ impl<'a> Gen<'a> {
 			self.types,
 			"/// A Rust `[u8; {n}]`: exactly {n} bytes, held inline.\npublic unsafe struct {name} : IEquatable<{name}>\n{{\n\tinternal Native.{c} c_;\n\n\tinternal {name}(Native.{c} c)\n\t{{\n\t\tc_ = c;\n\t}}\n\n\
 			\t/// A copy of `bytes`, throwing an `ArgumentException` unless it holds exactly {n}.\n\tpublic {name}(ReadOnlySpan<byte> bytes)\n\t{{\n\t\tif (bytes.Length != {n})\n\t\t{{\n\t\t\tthrow new ArgumentException(\"a [u8; {n}] holds exactly {n} bytes\", nameof(bytes));\n\t\t}}\n\t\tc_ = default;\n\t\tfixed (byte* p = c_.items)\n\t\t{{\n\t\t\tbytes.CopyTo(new Span<byte>(p, {n}));\n\t\t}}\n\t}}\n\n\
-			\tpublic byte this[int index]\n\t{{\n\t\tget\n\t\t{{\n\t\t\tif ((uint)index >= {n})\n\t\t\t{{\n\t\t\t\tthrow new IndexOutOfRangeException();\n\t\t\t}}\n\t\t\treturn c_.items[index];\n\t\t}}\n\t}}\n\n\
+			\tpublic byte this[int index]\n\t{{\n\t\tget\n\t\t{{\n\t\t\tif (unchecked((uint)index) >= {n})\n\t\t\t{{\n\t\t\t\tthrow new IndexOutOfRangeException();\n\t\t\t}}\n\t\t\treturn c_.items[index];\n\t\t}}\n\t}}\n\n\
 			\tpublic int Length => {n};\n\n\
 			\tpublic byte[] ToArray()\n\t{{\n\t\tvar bytes = new byte[{n}];\n\t\tfor (var k = 0; k < {n}; k++)\n\t\t{{\n\t\t\tbytes[k] = c_.items[k];\n\t\t}}\n\t\treturn bytes;\n\t}}\n\n\
 			\tpublic bool Equals({name} other) => ToArray().AsSpan().SequenceEqual(other.ToArray());\n\n\tpublic override bool Equals(object? obj) => obj is {name} other && Equals(other);\n\n\tpublic override int GetHashCode() => Native.HashBytes(ToArray());\n}}\n\n"
@@ -1715,7 +1715,7 @@ impl<'a> Gen<'a> {
 					let h = abi::join(&c_name, "hash");
 					declare(self, &h, &[("self", ptr.clone())], "ulong");
 					crate::lock::trait_member(&mut self.locked, &shown, "Hash", "GetHashCode");
-					self.trait_body(ty, &h, &["this"], "ulong", "(int)(r_ ^ (r_ >> 32))")
+					self.trait_body(ty, &h, &["this"], "ulong", "unchecked((int)(r_ ^ (r_ >> 32)))")
 				}
 				// No hash C# computes agrees with Rust's `==`.
 				false => "\t\t=> 0;".to_string(),

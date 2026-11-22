@@ -459,6 +459,11 @@ static partial class Script
 		{
 			Check(pass.CompareTo(null) > 0 && pass.CompareTo(pass) == 0, "an object orders after null");
 		}
+		// Rust's 64-bit hash folds to C#'s 32 bits even in a checked build, as a key.
+		using (api.Plain a = api.Plain.New(7, true), b = api.Plain.New(7, true))
+		{
+			Check(new HashSet<api.Plain> { a }.Contains(b), "an object hashes as Rust does");
+		}
 		// Bytes checked as text are the converted copy, which the caller's later change leaves.
 		var utf8 = new byte[] { (byte)'a' };
 		var text = api.Str.FromUtf8(utf8);
