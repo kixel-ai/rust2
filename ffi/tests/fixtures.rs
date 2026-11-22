@@ -4694,10 +4694,12 @@ fn argfile() {
 		String::from_utf8_lossy(&output.stderr)
 	);
 	// Past what one environment variable holds on Windows, and past what cargo passes rustc
-	// without an argfile on any platform.
+	// without an argfile on any platform. Windows's command line holds no more than its
+	// variable, so there cargo's argfile comes first.
+	let too_long = "rustflags are too long to pass on";
 	for (len, error) in [
-		(1 << 16, "rustflags take"),
-		(1 << 21, "rustflags are too long to pass on"),
+		(1 << 16, if cfg!(windows) { too_long } else { "rustflags take" }),
+		(1 << 21, too_long),
 	] {
 		let [(path, text)] = config(&format!("--cfg=a{}", "a".repeat(len)));
 		write_all(&package, &[(path, &text)]);
