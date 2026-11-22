@@ -915,6 +915,13 @@ class Journal internal constructor(raw: Long, lent: Boolean = false) : AutoClose
 		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("new_") fun new(sink: api.Log): api.Journal
 	}
 }
+class Epilogue internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
+	override fun close()
+	fun redirect(sink: api.Log)
+	companion object {
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("new_") fun new(sink: api.Log, id: kotlin.UInt): api.Epilogue
+	}
+}
 class Local internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
 	override fun equals(other: kotlin.Any?): kotlin.Boolean

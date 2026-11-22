@@ -2467,6 +2467,34 @@ impl Journal {
 	}
 }
 
+/// A checked value that logs a last line to its sink as it drops, which a foreign
+/// implementation may fail by throwing: a drop that unwinds, after a binding's close
+/// committed it, and still drops its token.
+pub struct Epilogue {
+	sink: Box<dyn Log>,
+	_token: Token,
+}
+
+impl Epilogue {
+	pub fn new(sink: Box<dyn Log>, id: u32) -> Self {
+		Self {
+			sink,
+			_token: Token::new(id),
+		}
+	}
+
+	/// Log to `sink` from now on, which a drop's last line then goes to.
+	pub fn redirect(&mut self, sink: Box<dyn Log>) {
+		self.sink = sink;
+	}
+}
+
+impl Drop for Epilogue {
+	fn drop(&mut self) {
+		self.sink.log(0, "closed");
+	}
+}
+
 #[cfg(not(target_arch = "wasm32"))]
 /// A thread logging a line to a foreign implementation, which [`LogThread::join`] waits on.
 pub struct LogThread {
