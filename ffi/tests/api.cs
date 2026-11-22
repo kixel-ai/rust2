@@ -447,6 +447,14 @@ static partial class Script
 		moved.IntoLabel(null);
 		Check(moved.IsClosed, "a call taking the value disposes the handle");
 		Throws<ObjectDisposedException>(() => moved.Get(), "a moved handle throws", e => e.ObjectName == "Counter");
+		// A value's zero bits are a value Rust holds.
+		Check(default(api.NonZeroU64).Value == 1 && api.Lib.NextHop(default(api.NonZeroU64))?.Value == 2, "a default NonZero is one");
+		Check(default(api.IpAddr).V4?.Bits == 0 && default(api.SocketAddr).V4?.Port == 0, "a default address is IPv4's unspecified one");
+		// Bytes checked as text are the converted copy, which the caller's later change leaves.
+		var utf8 = new byte[] { (byte)'a' };
+		var text = api.Str.FromUtf8(utf8);
+		utf8[0] = 0xff;
+		Check(text.ToString() == "a", "checked text keeps its bytes");
 		Disposes();
 		Raced();
 	}

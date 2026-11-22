@@ -35,61 +35,90 @@ pub(crate) struct Output {
 }
 
 /// The runtime's names and the standard library's the generated code names unqualified,
-/// which an exported type would shadow inside the namespace.
+/// which an exported type would shadow inside the namespace: of the framework's, each that
+/// the api fixture's and moq's assemblies reference, by their metadata, and the attributes'
+/// short names.
 const TAKEN: &[&str] = &[
 	"Action",
 	"Arena",
 	"ArgumentException",
+	"ArgumentNullException",
+	"ArgumentOutOfRangeException",
 	"Array",
 	"Bound",
 	"Buffer",
+	"CallConvCdecl",
 	"Callbacks",
+	"CallingConvention",
 	"CancellationToken",
+	"CancellationTokenRegistration",
+	"CancellationTokenSource",
 	"Console",
+	"DllImport",
+	"DllImportAttribute",
 	"Duration",
 	"Environment",
 	"Exception",
+	"FieldOffset",
+	"FieldOffsetAttribute",
+	"ForeignFuture",
+	"FormatException",
 	"Func",
 	"GC",
 	"GCHandle",
+	"IAsyncEnumerable",
+	"IAsyncEnumerator",
+	"IComparable",
 	"IDisposable",
 	"IEquatable",
-	"IComparable",
+	"IOException",
+	"ISeekableReader",
+	"IValueTaskSource",
+	"IWakeable",
 	"IntPtr",
 	"Interlocked",
 	"InvalidOperationException",
 	"IpAddr",
 	"Ipv4Addr",
 	"Ipv6Addr",
+	"LayoutKind",
 	"Lib",
 	"List",
+	"ManualResetValueTaskSourceCore",
 	"Marshal",
 	"Math",
 	"Memory",
-	"MemoryHandle",
 	"MemoryExtensions",
+	"MemoryHandle",
+	"MethodImpl",
+	"MethodImplAttribute",
 	"MethodImplOptions",
+	"ModuleInitializer",
+	"ModuleInitializerAttribute",
 	"Native",
 	"Object",
 	"ObjectDisposedException",
+	"OperationCanceledException",
 	"PathBuf",
 	"Pending",
-	"ForeignFuture",
+	"PlatformNotSupportedException",
 	"ReadOnlyMemory",
 	"ReadOnlySpan",
 	"RustException",
 	"RustObject",
 	"Scalar",
+	"SeekOrigin",
+	"SeekableStream",
 	"SocketAddr",
 	"SocketAddrV4",
 	"SocketAddrV6",
 	"Span",
 	"Str",
-	"ISeekableReader",
-	"SeekableStream",
 	"Stream",
 	"Streams",
 	"String",
+	"StructLayout",
+	"StructLayoutAttribute",
 	"SynchronizationContext",
 	"System",
 	"Task",
@@ -98,11 +127,14 @@ const TAKEN: &[&str] = &[
 	"ThreadPool",
 	"TimeSpan",
 	"U128",
+	"UnmanagedCallersOnly",
+	"UnmanagedCallersOnlyAttribute",
 	"ValueTask",
+	"ValueTaskSourceOnCompletedFlags",
+	"ValueTaskSourceStatus",
 	"ValueTuple",
 	"Volatile",
 	"Waker",
-	"IWakeable",
 ];
 
 /// C#'s keywords, which a parameter or field takes with `@`.
@@ -242,6 +274,7 @@ pub(crate) fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<O
 		vtables: BTreeSet::new(),
 		fresh: 0,
 		errors: Default::default(),
+		nonzero_named: Default::default(),
 		top: BTreeMap::new(),
 		record_fields: Vec::new(),
 		variant_names: Vec::new(),
@@ -418,6 +451,8 @@ struct Gen<'a> {
 	vtables: BTreeSet<String>,
 	fresh: usize,
 	errors: std::cell::RefCell<Vec<String>>,
+	/// Each `NonZero` a C# type names, which `write` defines once it wrote the rest.
+	nonzero_named: std::cell::RefCell<Vec<Int>>,
 	/// The namespace's names, with what claimed each.
 	top: BTreeMap<String, String>,
 	/// Each record's fields' C# names.
@@ -485,7 +520,10 @@ impl<'a> Gen<'a> {
 			Type::Unit => "void".to_string(),
 			Type::Bool => "bool".to_string(),
 			Type::Int(int) => cs_int(*int).to_string(),
-			Type::NonZero(int) => nonzero_name(*int),
+			Type::NonZero(int) => {
+				self.nonzero_named.borrow_mut().push(*int);
+				nonzero_name(*int)
+			}
 			Type::F32 => "float".to_string(),
 			Type::F64 => "double".to_string(),
 			Type::Char => "Scalar".to_string(),
@@ -789,6 +827,8 @@ impl<'a> Gen<'a> {
 			Type::Str | Type::String | Type::Path | Type::PathBuf | Type::Slice | Type::Vec | Type::Bytes => {
 				format!("a_.View({e})")
 			}
+			// Rust copies a `Copy` value out of its handle, which stays the caller's.
+			Type::Object(i) if abi.api.objects[*i].copy => format!("a_.Hold({e}, false)"),
 			Type::Object(_) => format!("a_.Hold({e}, a_.Take)"),
 			Type::Box(inner) | Type::Ref(_, inner) => self.lower(inner, e),
 			Type::Option(inner) if Abi::nullable(inner) => {
@@ -876,7 +916,7 @@ impl<'a> Gen<'a> {
 	fn lift_lent(&mut self, ty: &Type, e: &str) -> String {
 		match ty {
 			Type::Str | Type::String => format!("new Str(Native.Copy({e}))"),
-			Type::Path | Type::PathBuf => format!("new PathBuf(Native.Copy({e}))"),
+			Type::Path | Type::PathBuf => format!("new PathBuf(Native.Copy({e}), true)"),
 			Type::Slice | Type::Vec | Type::Bytes => format!("(ReadOnlyMemory<byte>)Native.Copy({e})"),
 			Type::Option(inner) if Abi::is_buf(inner) => {
 				let lifted = self.lift_lent(inner, e);
@@ -903,16 +943,28 @@ impl<'a> Gen<'a> {
 		let (lower, lift) = match ty {
 			Type::Enum(i) if abi.api.enums[*i].plain() => {
 				let e = &abi.api.enums[*i];
-				let cases: Vec<String> = (e.variants.iter())
-					.map(|v| format!("{cs}.{}", self.variant_name(*i, &v.name)))
-					.collect();
+				// A variant the library's target lacks is refused as it crosses.
+				let mut cases = String::new();
+				let mut everywhere = Vec::new();
+				for v in &e.variants {
+					let case = format!("\t\t\tcase {cs}.{}:\n", self.variant_name(*i, &v.name));
+					match abi.api.everywhere(v.on) {
+						true => everywhere.push(case),
+						false => {
+							let _ = write!(
+								cases,
+								"{case}\t\t\t\tNative.On({}, \"{name}.{}\");\n\t\t\t\treturn (int)v;\n",
+								v.on.0 & abi.api.all().0,
+								v.name
+							);
+						}
+					}
+				}
+				if !everywhere.is_empty() {
+					cases = format!("{}\t\t\t\treturn (int)v;\n{cases}", everywhere.concat());
+				}
 				let lower = format!(
-					"\tinternal static int Lower_{name}({cs} v)\n\t{{\n\t\tswitch (v)\n\t\t{{\n{}\n\t\t\t\treturn (int)v;\n\t\t\tdefault:\n\t\t\t\tthrow new ArgumentException(\"{cs} holds no variant of \" + (int)v);\n\t\t}}\n\t}}\n\n",
-					cases
-						.iter()
-						.map(|c| format!("\t\t\tcase {c}:"))
-						.collect::<Vec<_>>()
-						.join("\n")
+					"\tinternal static int Lower_{name}({cs} v)\n\t{{\n\t\tswitch (v)\n\t\t{{\n{cases}\t\t\tdefault:\n\t\t\t\tthrow new ArgumentException(\"{cs} holds no variant of \" + (int)v);\n\t\t}}\n\t}}\n\n"
 				);
 				let _ = write!(self.natives, "{lower}");
 				return;
@@ -1016,8 +1068,17 @@ impl<'a> Gen<'a> {
 						));
 						gets.push(self.lift(&f.ty, &format!("c.u.{member}.{c_field}")));
 					}
+					// A variant the library's target lacks is refused as it crosses.
+					let on = match abi.api.everywhere(variant.on) {
+						true => String::new(),
+						false => format!(
+							"\t\t\t\tNative.On({}, \"{name}.{}\");\n",
+							variant.on.0 & abi.api.all().0,
+							variant.name
+						),
+					};
 					lower_cases.push(format!(
-						"\t\t\tcase {class} x:\n\t\t\t\tc.tag = {tag};\n{}\t\t\t\treturn c;",
+						"\t\t\tcase {class} x:\n{on}\t\t\t\tc.tag = {tag};\n{}\t\t\t\treturn c;",
 						sets.iter().map(|s| format!("\t\t\t\t{s}\n")).collect::<String>()
 					));
 					lift_cases.push(format!("\t\t\tcase {tag}: return new {class}({});", gets.join(", ")));
@@ -1089,11 +1150,13 @@ impl<'a> Gen<'a> {
 		let t = cs_int(int);
 		let _ = write!(
 			self.types,
-			"/// A Rust `NonZero<{rust}>`: a `{t}` that is never zero, which the constructor checks.\npublic readonly struct {name} : IEquatable<{name}>, IComparable<{name}>\n{{\n\
-			\tpublic {t} Value {{ get; }}\n\n\
+			"/// A Rust `NonZero<{rust}>`: a `{t}` that is never zero, which the constructor checks, and\n/// which `default` is one of.\npublic readonly struct {name} : IEquatable<{name}>, IComparable<{name}>\n{{\n\
+			\t/// One less than the value, so the struct's zero bits are one.\n\
+			\treadonly {t} less;\n\n\
+			\tpublic {t} Value => unchecked(({t})(less + 1));\n\n\
 			\t/// `value`, throwing an `ArgumentOutOfRangeException` for zero.\n\
-			\tpublic {name}({t} value)\n\t{{\n\t\tif (value == 0)\n\t\t{{\n\t\t\tthrow new ArgumentOutOfRangeException(nameof(value), \"zero is no NonZero\");\n\t\t}}\n\t\tValue = value;\n\t}}\n\n\
-			\tinternal {name}({t} value, bool unchecked_)\n\t{{\n\t\tValue = value;\n\t}}\n\n\
+			\tpublic {name}({t} value)\n\t{{\n\t\tif (value == 0)\n\t\t{{\n\t\t\tthrow new ArgumentOutOfRangeException(nameof(value), \"zero is no NonZero\");\n\t\t}}\n\t\tless = unchecked(({t})(value - 1));\n\t}}\n\n\
+			\tinternal {name}({t} value, bool unchecked_)\n\t{{\n\t\tless = unchecked(({t})(value - 1));\n\t}}\n\n\
 			\tpublic static explicit operator {name}({t} value) => new {name}(value);\n\n\
 			\tpublic static implicit operator {t}({name} value) => value.Value;\n\n\
 			\tpublic override string ToString() => Value.ToString();\n\n\
@@ -1336,21 +1399,34 @@ impl<'a> Gen<'a> {
 		for i in 0..api.callbacks.len() {
 			self.callback(i);
 		}
-		// Free functions and constants, as `Lib`'s members.
-		let mut taken: Vec<String> = Vec::new();
+		// Free functions and constants, as `Lib`'s members, none named as `Lib` itself.
+		let mut taken: Vec<String> = vec!["Lib".to_string()];
 		for constant in &api.constants {
-			let name = constant.path.last().cloned().unwrap_or_default();
+			// Its C name without the prefix, which keeps two modules' constants apart.
+			let name = abi.constant(&constant.path)[abi.prefix.len() + 1..].to_string();
 			let (ty, value) = match constant.value {
 				Literal::Bool(b) => ("bool".to_string(), b.to_string()),
 				Literal::Int(int, v) => (cs_int(int).to_string(), int_literal(int, v)),
 			};
+			// C# takes a native-sized `const` only within 32 bits, on every platform.
+			let wide = |int, v: i128| match int {
+				Int::Usize => u32::try_from(v).is_err(),
+				Int::Isize => i32::try_from(v).is_err(),
+				_ => false,
+			};
 			let key = format!("const {}", constant.path.join("::"));
 			self.locked.insert(key, name.clone());
-			let _ = write!(
-				self.lib,
-				"{}\tpublic const {ty} {name} = {value};\n\n",
-				docs(&constant.docs, "\t")
-			);
+			let declaration = match constant.value {
+				Literal::Int(int, v) if wide(int, v) => {
+					let wide = match int {
+						Int::Usize => "ulong",
+						_ => "long",
+					};
+					format!("static readonly {ty} {name} = checked(({ty})({wide}){v});")
+				}
+				_ => format!("const {ty} {name} = {value};"),
+			};
+			let _ = write!(self.lib, "{}\tpublic {declaration}\n\n", docs(&constant.docs, "\t"));
 			taken.push(name);
 		}
 		let functions: Vec<&Function> = api.functions.iter().collect();
@@ -1367,6 +1443,10 @@ impl<'a> Gen<'a> {
 				self.types,
 				"/// What a Rust call throws for an error of `{cs}`, which `Error` holds.\npublic sealed class {name} : RustException\n{{\n\tpublic {cs} Error {{ get; }}\n\n\tpublic {name}({cs} error) : base({message})\n\t{{\n\t\tError = error;\n\t}}\n}}\n\n"
 			);
+		}
+		// Each `NonZero` named, by a parameter alone too.
+		for int in self.nonzero_named.take() {
+			self.nonzero(int);
 		}
 	}
 
@@ -1468,6 +1548,7 @@ impl<'a> Gen<'a> {
 	/// each passed behind a pointer, which returns the raw `ret` and then `finish` of it, `r_`.
 	fn trait_body(&mut self, ty: &Type, f: &str, operands: &[&str], ret: &str, finish: &str) -> String {
 		let abi = self.abi;
+		let guard = self.on_guard(ty, f);
 		let status = match ty {
 			Type::Object(i) => abi.traits_status(*i),
 			ty => abi.value_status(ty),
@@ -1511,7 +1592,7 @@ impl<'a> Gen<'a> {
 				"\t\tvar a_ = new Arena();\n\t\ttry\n\t\t{{\n\t\t\ta_.Take = false;\n{code}\t\t}}\n\t\tfinally\n\t\t{{\n\t\t\ta_.Dispose();\n\t\t}}\n"
 			);
 		}
-		let mut body = format!("\t{{\n\t\t{ret} r_;\n");
+		let mut body = format!("\t{{\n{guard}\t\t{ret} r_;\n");
 		if status {
 			body.push_str("\t\tint s_ = 0;\n");
 		}
@@ -1521,6 +1602,22 @@ impl<'a> Gen<'a> {
 		}
 		let _ = write!(body, "\t\treturn {finish};\n\t}}");
 		body
+	}
+
+	/// The check refusing a call of `f`, a C function of the type `ty`, where the library's
+	/// target lacks the type, as a statement of a body; none where every target has it.
+	fn on_guard(&self, ty: &Type, f: &str) -> String {
+		let api = self.abi.api;
+		let on = match ty {
+			Type::Record(i) => api.records[*i].on,
+			Type::Enum(i) => api.enums[*i].on,
+			Type::Object(i) => api.objects[*i].on,
+			_ => return String::new(),
+		};
+		match api.everywhere(on) {
+			true => String::new(),
+			false => format!("\t\tNative.On({}, \"{f}\");\n", on.0 & api.all().0),
+		}
 	}
 
 	/// The std trait members of a type, as C# spells them, each among the type's base
@@ -1588,7 +1685,8 @@ impl<'a> Gen<'a> {
 			let body = self.trait_body(ty, &f, &["this", "other"], "byte", "r_ != 0");
 			let check = match nullable {
 				"?" => {
-					"\t\tif (other is null)\n\t\t{\n\t\t\treturn false;\n\t\t}\n\t\tif (ReferenceEquals(this, other))\n\t\t{\n\t\t\treturn true;\n\t\t}\n"
+					// No shortcut for itself: Rust's `==` decides, as a NaN it holds is unequal.
+					"\t\tif (other is null)\n\t\t{\n\t\t\treturn false;\n\t\t}\n"
 				}
 				_ => "",
 			};
@@ -1709,9 +1807,10 @@ impl<'a> Gen<'a> {
 			members.push("Default".to_string());
 			crate::lock::trait_member(&mut self.locked, &shown, "Default", "Default");
 			let lifted = self.lift(ty, &format!("Native.{f}()"));
+			let guard = self.on_guard(ty, &f);
 			let _ = write!(
 				out,
-				"\t/// Its default, as Rust's `Default`.\n\tpublic static {cs} Default() => {lifted};\n\n"
+				"\t/// Its default, as Rust's `Default`.\n\tpublic static {cs} Default()\n\t{{\n{guard}\t\treturn {lifted};\n\t}}\n\n"
 			);
 		}
 		out

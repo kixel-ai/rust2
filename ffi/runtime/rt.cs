@@ -143,6 +143,76 @@ internal static unsafe partial class Native
 	internal static Exception Failure(int status, string what) =>
 		new InvalidOperationException(what + ": " + Marshal.PtrToStringAnsi((IntPtr)status_message(status)));
 
+	/// Whether the platform is Windows, whose paths are WTF-8.
+	internal static readonly bool Windows = RuntimeInformation.IsOSPlatform(OSPlatform.Windows);
+
+	/// Whether `b` is WTF-8: UTF-8 that may also hold a surrogate's code point, but never a
+	/// lead surrogate's right before a trail's, which a pair's own encoding spells.
+	internal static bool IsWtf8(ReadOnlySpan<byte> b)
+	{
+		var lead = false;
+		var i = 0;
+		while (i < b.Length)
+		{
+			var c = b[i];
+			if (c < 0x80)
+			{
+				lead = false;
+				i++;
+				continue;
+			}
+			int n;
+			byte lo = 0x80, hi = 0xBF;
+			if (c >= 0xC2 && c <= 0xDF)
+			{
+				n = 1;
+			}
+			else if (c >= 0xE0 && c <= 0xEF)
+			{
+				n = 2;
+				if (c == 0xE0)
+				{
+					lo = 0xA0;
+				}
+			}
+			else if (c >= 0xF0 && c <= 0xF4)
+			{
+				n = 3;
+				if (c == 0xF0)
+				{
+					lo = 0x90;
+				}
+				else if (c == 0xF4)
+				{
+					hi = 0x8F;
+				}
+			}
+			else
+			{
+				return false;
+			}
+			if (b.Length - i <= n || b[i + 1] < lo || b[i + 1] > hi)
+			{
+				return false;
+			}
+			for (var k = 2; k <= n; k++)
+			{
+				if ((b[i + k] & 0xC0) != 0x80)
+				{
+					return false;
+				}
+			}
+			var trail = c == 0xED && b[i + 1] >= 0xB0;
+			if (lead && trail)
+			{
+				return false;
+			}
+			lead = c == 0xED && b[i + 1] >= 0xA0 && b[i + 1] <= 0xAF;
+			i += n + 1;
+		}
+		return true;
+	}
+
 	/// Runs what other threads left a closing handle, or this thread, given none: whether any ran.
 	internal static bool CloseDrain(IntPtr raw) => close_drain(raw) != 0;
 
@@ -210,7 +280,12 @@ internal static unsafe partial class Native
 
 	internal static Str? OptionString(Buf buf) => buf.ptr == null ? (Str?)null : String(buf);
 
-	internal static PathBuf Path(Buf buf) => new PathBuf(Bytes(buf));
+	internal static PathBuf Path(Buf buf)
+	{
+		var bytes = Copy(buf);
+		buf_free(buf);
+		return new PathBuf(bytes, true);
+	}
 
 	internal static PathBuf? OptionPath(Buf buf) => buf.ptr == null ? (PathBuf?)null : Path(buf);
 
@@ -889,18 +964,20 @@ public readonly struct Str : IEquatable<Str>, IComparable<Str>
 		}
 	}
 
-	/// The text of `utf8`, throwing an `ArgumentException` unless it is UTF-8.
-	public static Str FromUtf8(ReadOnlyMemory<byte> utf8)
+	/// The text of `utf8`, copied, so a later change to the caller's bytes cannot unmake it,
+	/// throwing an `ArgumentException` unless it is UTF-8.
+	public static Str FromUtf8(ReadOnlySpan<byte> utf8)
 	{
+		var copy = utf8.ToArray();
 		try
 		{
-			strict.GetCharCount(utf8.Span);
+			strict.GetCharCount(copy);
 		}
 		catch (System.Text.DecoderFallbackException e)
 		{
 			throw new ArgumentException("bytes that are not UTF-8 are no Rust text", nameof(utf8), e);
 		}
-		return new Str(utf8);
+		return new Str(copy);
 	}
 
 	public static implicit operator Str(string text) => From(text);
@@ -931,7 +1008,20 @@ public readonly struct PathBuf : IEquatable<PathBuf>
 	/// Its bytes as the OS holds them.
 	public ReadOnlyMemory<byte> Bytes { get; }
 
-	public PathBuf(ReadOnlyMemory<byte> bytes)
+	/// The path of `bytes`, copied, so a later change to the caller's bytes cannot unmake it:
+	/// on Windows, throwing an `ArgumentException` unless they are WTF-8.
+	public PathBuf(ReadOnlySpan<byte> bytes)
+	{
+		var copy = bytes.ToArray();
+		if (Native.Windows && !Native.IsWtf8(copy))
+		{
+			throw new ArgumentException("bytes that are not WTF-8 are no Windows path", nameof(bytes));
+		}
+		Bytes = copy;
+	}
+
+	/// Rust's bytes of a path, as they are.
+	internal PathBuf(byte[] bytes, bool unchecked_)
 	{
 		Bytes = bytes;
 	}
@@ -1212,19 +1302,26 @@ public readonly struct Ipv6Addr : IEquatable<Ipv6Addr>
 /// An IP address of either family, as Rust's `IpAddr`: exactly one of `V4` and `V6`.
 public readonly struct IpAddr : IEquatable<IpAddr>
 {
-	public Ipv4Addr? V4 { get; }
-	public Ipv6Addr? V6 { get; }
+	// One family at a time, so `default` is 0.0.0.0, as Rust holds no address of neither.
+	readonly Ipv4Addr v4;
+	readonly Ipv6Addr v6;
+	readonly bool isV6;
+
+	public Ipv4Addr? V4 => isV6 ? null : v4;
+	public Ipv6Addr? V6 => isV6 ? v6 : null;
 
 	public IpAddr(Ipv4Addr v4)
 	{
-		V4 = v4;
-		V6 = null;
+		this.v4 = v4;
+		v6 = default;
+		isV6 = false;
 	}
 
 	public IpAddr(Ipv6Addr v6)
 	{
-		V4 = null;
-		V6 = v6;
+		v4 = default;
+		this.v6 = v6;
+		isV6 = true;
 	}
 
 	public static implicit operator IpAddr(Ipv4Addr v4) => new IpAddr(v4);
@@ -1290,33 +1387,42 @@ public readonly struct SocketAddrV6 : IEquatable<SocketAddrV6>
 /// A socket address of either family, as Rust's `SocketAddr`: exactly one of `V4` and `V6`.
 public readonly struct SocketAddr : IEquatable<SocketAddr>
 {
-	public SocketAddrV4? V4 { get; }
-	public SocketAddrV6? V6 { get; }
+	// One family at a time, so `default` is 0.0.0.0:0, as Rust holds no address of neither.
+	readonly SocketAddrV4 v4;
+	readonly SocketAddrV6 v6;
+	readonly bool isV6;
+
+	public SocketAddrV4? V4 => isV6 ? null : v4;
+	public SocketAddrV6? V6 => isV6 ? v6 : null;
 
 	public SocketAddr(SocketAddrV4 v4)
 	{
-		V4 = v4;
-		V6 = null;
+		this.v4 = v4;
+		v6 = default;
+		isV6 = false;
 	}
 
 	public SocketAddr(SocketAddrV6 v6)
 	{
-		V4 = null;
-		V6 = v6;
+		v4 = default;
+		this.v6 = v6;
+		isV6 = true;
 	}
 
 	/// `ip` at `port`, with no flow label or scope for IPv6, as Rust's `SocketAddr::new`.
 	public SocketAddr(IpAddr ip, ushort port)
 	{
-		if (ip.V6 is Ipv6Addr v6)
+		if (ip.V6 is Ipv6Addr ip6)
 		{
-			V4 = null;
-			V6 = new SocketAddrV6(v6, port);
+			v4 = default;
+			v6 = new SocketAddrV6(ip6, port);
+			isV6 = true;
 		}
 		else
 		{
-			V4 = new SocketAddrV4(ip.V4!.Value, port);
-			V6 = null;
+			v4 = new SocketAddrV4(ip.V4!.Value, port);
+			v6 = default;
+			isV6 = false;
 		}
 	}
 
@@ -1341,7 +1447,13 @@ public readonly struct SocketAddr : IEquatable<SocketAddr>
 public sealed unsafe class Waker : IDisposable
 {
 	Native.CWaker waker;
-	int dropped;
+
+	/// Two per `Wake` in progress, plus one once disposed: the last of them to end drops the
+	/// C waker, so a dispose racing a wake never frees what the wake reads.
+	int state;
+
+	/// Set once the C waker dropped.
+	int freed;
 
 	internal Waker(Native.CWaker waker)
 	{
@@ -1350,17 +1462,41 @@ public sealed unsafe class Waker : IDisposable
 
 	public void Wake()
 	{
-		if (Volatile.Read(ref dropped) != 0)
+		if ((Interlocked.Add(ref state, 2) & 1) != 0)
 		{
+			release();
 			throw new ObjectDisposedException(nameof(Waker));
 		}
-		Native.Wake(waker);
+		try
+		{
+			Native.Wake(waker);
+		}
+		finally
+		{
+			release();
+		}
+	}
+
+	void release()
+	{
+		if (Interlocked.Add(ref state, -2) == 1)
+		{
+			drop();
+		}
+	}
+
+	void drop()
+	{
+		if (Interlocked.Exchange(ref freed, 1) == 0)
+		{
+			Native.Drop(waker);
+		}
 	}
 
 	/// The C waker of a second owner, for a call that takes one.
 	internal Native.CWaker Lower()
 	{
-		if (Volatile.Read(ref dropped) != 0)
+		if ((Volatile.Read(ref state) & 1) != 0)
 		{
 			throw new ObjectDisposedException(nameof(Waker));
 		}
@@ -1370,20 +1506,24 @@ public sealed unsafe class Waker : IDisposable
 
 	public void Dispose()
 	{
-		if (Interlocked.Exchange(ref dropped, 1) == 0)
+		int n;
+		do
 		{
-			GC.SuppressFinalize(this);
-			Native.Drop(waker);
+			n = Volatile.Read(ref state);
+			if ((n & 1) != 0)
+			{
+				return;
+			}
+		}
+		while (Interlocked.CompareExchange(ref state, n | 1, n) != n);
+		GC.SuppressFinalize(this);
+		if (n == 0)
+		{
+			drop();
 		}
 	}
 
-	~Waker()
-	{
-		if (Interlocked.Exchange(ref dropped, 1) == 0)
-		{
-			Native.Drop(waker);
-		}
-	}
+	~Waker() => drop();
 }
 
 /// What a call of a Rust function throws for a `Result`'s error: `Error` holds it, and the
@@ -1521,7 +1661,7 @@ internal abstract unsafe class Pending<T> : IValueTaskSource<T>, IValueTaskSourc
 			lock (gate)
 			{
 				cancel = registration;
-				finished = future == IntPtr.Zero;
+				finished = this.future == IntPtr.Zero;
 			}
 			// A future that finished meanwhile listens no more.
 			if (finished)
