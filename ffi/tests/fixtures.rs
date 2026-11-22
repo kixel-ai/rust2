@@ -3354,8 +3354,16 @@ fn api_csharp() {
 	let script = generated("csharp", "Transcript.cs", &transcript::csharp::emit(transcript())).join("Transcript.cs");
 	let binding = api.out.join("csharp").join("api.cs");
 	let exe = dir.join("api.dll");
-	csc(Dotnet::Net, &exe, &[&binding, &manifest_dir().join("tests/api.cs"), &script]);
-	csc(Dotnet::Unity, &dir.join("unity.dll"), &[&binding, &manifest_dir().join("tests/unity.cs")]);
+	csc(
+		Dotnet::Net,
+		&exe,
+		&[&binding, &manifest_dir().join("tests/api.cs"), &script],
+	);
+	csc(
+		Dotnet::Unity,
+		&dir.join("unity.dll"),
+		&[&binding, &manifest_dir().join("tests/unity.cs")],
+	);
 	let ran = run(&mut csharp_run(&exe, &[]));
 	assert_eq!(
 		String::from_utf8_lossy(&ran.stdout),
@@ -3366,8 +3374,14 @@ fn api_csharp() {
 		run(&mut csharp_run(&exe, &[case]));
 	}
 	for (case, message) in [
-		("moved", "System.ObjectDisposedException: Cannot access a disposed object.\nObject name: 'Counter'."),
-		("lent kept", "System.ObjectDisposedException: Cannot access a disposed object.\nObject name: 'Counter'."),
+		(
+			"moved",
+			"System.ObjectDisposedException: Cannot access a disposed object.\nObject name: 'Counter'.",
+		),
+		(
+			"lent kept",
+			"System.ObjectDisposedException: Cannot access a disposed object.\nObject name: 'Counter'.",
+		),
 		(
 			"lent moved",
 			"api_Counter_into_label: a handle a call lent is borrowed exclusively or moved out",
@@ -3397,7 +3411,11 @@ fn api_csharp() {
 		"static class Program\n{\n\tstatic void Main() => Api.Lib.Dropped();\n}\n",
 	);
 	let exe = contract.join("contract.dll");
-	csc(Dotnet::Net, &exe, &[&contract.join("api.cs"), &contract.join("main.cs")]);
+	csc(
+		Dotnet::Net,
+		&exe,
+		&[&contract.join("api.cs"), &contract.join("main.cs")],
+	);
 	let output = no_core(&mut csharp_run(&exe, &[])).output().unwrap();
 	failed(&output, "a mismatched contract");
 	let stderr = String::from_utf8_lossy(&output.stderr);
@@ -3481,12 +3499,21 @@ fn csc(target: Dotnet, out: &Path, sources: &[&Path]) {
 	let csc = newest(&root.join("sdk")).join("Roslyn/bincore/csc.dll");
 	let refs = match target {
 		Dotnet::Net => newest(&root.join("packs/Microsoft.NETCore.App.Ref")).join("ref/net10.0"),
-		Dotnet::Unity => PathBuf::from(std::env::var_os("NETSTANDARD_REF").expect("the dev shell sets NETSTANDARD_REF")),
+		Dotnet::Unity => {
+			PathBuf::from(std::env::var_os("NETSTANDARD_REF").expect("the dev shell sets NETSTANDARD_REF"))
+		}
 	};
 	let mut cmd = Command::new("dotnet");
-	cmd.arg("exec")
-		.arg(csc)
-		.args(["-nologo", "-noconfig", "-nostdlib", "-unsafe", "-nullable:enable", "-warnaserror", "-warn:9999", "-optimize"]);
+	cmd.arg("exec").arg(csc).args([
+		"-nologo",
+		"-noconfig",
+		"-nostdlib",
+		"-unsafe",
+		"-nullable:enable",
+		"-warnaserror",
+		"-warn:9999",
+		"-optimize",
+	]);
 	match target {
 		Dotnet::Net => cmd.arg("-target:exe"),
 		Dotnet::Unity => cmd.args(["-target:library", "-langversion:9", "-define:UNITY_5_3_OR_NEWER"]),

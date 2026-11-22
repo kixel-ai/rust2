@@ -24,7 +24,7 @@ use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::fmt::Write;
 
 use crate::abi::{self, Abi, Sig, Ty, pascal};
-use crate::ir::{Access, Closure, Collection, Family, Function, Int, Literal, Mutability, Receiver, Type};
+use crate::ir::{Access, Closure, Family, Function, Int, Literal, Receiver, Type};
 
 const RUNTIME: &str = include_str!("../runtime/rt.cs");
 
@@ -361,12 +361,10 @@ fn tidy(code: &str) -> String {
 		}
 		blank = false;
 		let label = line.starts_with("case ") && line.ends_with(':') || *line == "default:";
-		if line.starts_with('}') || label {
-			if cases.last() == Some(&true) {
-				cases.pop();
-				cases.push(false);
-				depth -= 1;
-			}
+		if (line.starts_with('}') || label) && cases.last() == Some(&true) {
+			cases.pop();
+			cases.push(false);
+			depth -= 1;
 		}
 		if line.starts_with('}') {
 			cases.pop();
@@ -460,7 +458,10 @@ impl<'a> Gen<'a> {
 
 	/// The C# name of the exported type of C name `c`.
 	fn class(&self, c: &str) -> String {
-		self.classes.get(c).cloned().unwrap_or_else(|| pascal(&c[self.abi.prefix.len() + 1..]))
+		self.classes
+			.get(c)
+			.cloned()
+			.unwrap_or_else(|| pascal(&c[self.abi.prefix.len() + 1..]))
 	}
 
 	// ------------------------------------------------------------------------------------
@@ -507,7 +508,8 @@ impl<'a> Gen<'a> {
 			Type::Option(inner) => {
 				if matches!(inner.base(), Type::Option(_)) {
 					let inner = self.cs(inner.base());
-					(self.errors.borrow_mut()).push(format!("`Option<Option<{inner}>>` has no C# form, which has one null"));
+					(self.errors.borrow_mut())
+						.push(format!("`Option<Option<{inner}>>` has no C# form, which has one null"));
 				}
 				format!("{}?", self.cs(inner))
 			}
@@ -695,7 +697,11 @@ impl<'a> Gen<'a> {
 				for f in &record.fields {
 					let ty = abi.ty(&f.ty);
 					self.c_struct(&ty);
-					fields.push(format!("public {} {};", self.raw(&ty), field_name(&abi::escape(&f.name))));
+					fields.push(format!(
+						"public {} {};",
+						self.raw(&ty),
+						field_name(&abi::escape(&f.name))
+					));
 				}
 			}
 		} else if let Some(i) = (0..abi.api.enums.len()).find(|&i| &abi.enumeration(i) == name) {
@@ -709,7 +715,11 @@ impl<'a> Gen<'a> {
 				for f in &variant.fields {
 					let ty = abi.ty(&f.ty);
 					self.c_struct(&ty);
-					decls.push(format!("\t\tpublic {} {};", self.raw(&ty), field_name(&abi::escape(&f.name))));
+					decls.push(format!(
+						"\t\tpublic {} {};",
+						self.raw(&ty),
+						field_name(&abi::escape(&f.name))
+					));
 				}
 				let _ = write!(
 					extra,
@@ -898,7 +908,11 @@ impl<'a> Gen<'a> {
 					.collect();
 				let lower = format!(
 					"\tinternal static int Lower_{name}({cs} v)\n\t{{\n\t\tswitch (v)\n\t\t{{\n{}\n\t\t\t\treturn (int)v;\n\t\t\tdefault:\n\t\t\t\tthrow new ArgumentException(\"{cs} holds no variant of \" + (int)v);\n\t\t}}\n\t}}\n\n",
-					cases.iter().map(|c| format!("\t\t\tcase {c}:")).collect::<Vec<_>>().join("\n")
+					cases
+						.iter()
+						.map(|c| format!("\t\t\tcase {c}:"))
+						.collect::<Vec<_>>()
+						.join("\n")
 				);
 				let _ = write!(self.natives, "{lower}");
 				return;
@@ -918,19 +932,14 @@ impl<'a> Gen<'a> {
 					1 => format!("new {cs}({})", lifts[0]),
 					_ => format!("({})", lifts.join(", ")),
 				};
-				(
-					format!("new {name} {{ {} }}", lowers.join(", ")),
-					lift,
-				)
+				(format!("new {name} {{ {} }}", lowers.join(", ")), lift)
 			}
 			Type::Option(inner) => {
 				let v = "x";
 				let lowered = self.lower(inner, v);
 				let lifted = self.lift(inner, "c.value");
 				(
-					format!(
-						"v is {{}} {v} ? new {name} {{ some = 1, value = {lowered} }} : default"
-					),
+					format!("v is {{}} {v} ? new {name} {{ some = 1, value = {lowered} }} : default"),
 					format!("c.some != 0 ? ({cs}){lifted} : null"),
 				)
 			}
@@ -969,10 +978,7 @@ impl<'a> Gen<'a> {
 			Type::Record(i) => {
 				let record = &abi.api.records[*i];
 				if record.opaque.is_some() {
-					(
-						"v.c_".to_string(),
-						format!("new {cs}(c)"),
-					)
+					("v.c_".to_string(), format!("new {cs}(c)"))
 				} else {
 					let fields = record.fields.clone();
 					let mut lowers = Vec::new();
@@ -1111,7 +1117,9 @@ impl<'a> Gen<'a> {
 
 	/// The C# name of the field `field` of record `i`.
 	fn field_member(&self, i: usize, field: &str) -> String {
-		let k = (self.abi.api.records[i].fields.iter()).position(|f| f.name == field).expect("a field");
+		let k = (self.abi.api.records[i].fields.iter())
+			.position(|f| f.name == field)
+			.expect("a field");
 		self.record_fields[i][k].clone()
 	}
 
@@ -1119,7 +1127,11 @@ impl<'a> Gen<'a> {
 	fn variant_field(&self, i: usize, variant: &str, field: &str) -> String {
 		let e = &self.abi.api.enums[i];
 		let v = e.variants.iter().position(|v| v.name == variant).expect("a variant");
-		let k = e.variants[v].fields.iter().position(|f| f.name == field).expect("a field");
+		let k = e.variants[v]
+			.fields
+			.iter()
+			.position(|f| f.name == field)
+			.expect("a field");
 		self.variant_fields[i][v][k].clone()
 	}
 
@@ -1139,14 +1151,13 @@ impl<'a> Gen<'a> {
 				abi::underscored,
 			)
 		};
-		for i in 0..api.records.len() {
+		for (i, record) in api.records.iter().enumerate() {
 			let name = self.class(&abi.record(i));
 			let taken = self.base_members(&Type::Record(i), &name);
-			let rust = api.records[i].fields.iter().map(|f| f.name.as_str()).collect();
+			let rust = record.fields.iter().map(|f| f.name.as_str()).collect();
 			self.record_fields.push(apart(rust, &taken));
 		}
-		for i in 0..api.enums.len() {
-			let e = &api.enums[i];
+		for (i, e) in api.enums.iter().enumerate() {
 			let name = self.class(&abi.enumeration(i));
 			let rust: Vec<&str> = e.variants.iter().map(|v| v.name.as_str()).collect();
 			if e.plain() {
@@ -1158,7 +1169,11 @@ impl<'a> Gen<'a> {
 			// there: the runtime's and the standard library's take a trailing `_` instead,
 			// and an exported type's is written by its full name.
 			let mut taken = self.base_members(&Type::Enum(i), &name);
-			let reserved: Vec<String> = taken.iter().cloned().chain(TAKEN.iter().map(|s| s.to_string())).collect();
+			let reserved: Vec<String> = taken
+				.iter()
+				.cloned()
+				.chain(TAKEN.iter().map(|s| s.to_string()))
+				.collect();
 			let variants = apart(rust, &reserved);
 			taken.extend(variants.iter().cloned());
 			let owner = Owner {
@@ -1471,7 +1486,10 @@ impl<'a> Gen<'a> {
 					args.push(format!("h{k}_"));
 				}
 				Type::Enum(i) if plain => {
-					opens.push((format!("var c{k}_ = Native.Lower_{}({e});\n", abi.enumeration(*i)), String::new()));
+					opens.push((
+						format!("var c{k}_ = Native.Lower_{}({e});\n", abi.enumeration(*i)),
+						String::new(),
+					));
 					args.push(format!("&c{k}_"));
 				}
 				ty => {
@@ -1557,7 +1575,10 @@ impl<'a> Gen<'a> {
 			members.push("Clone".to_string());
 			crate::lock::trait_member(&mut self.locked, &shown, "Clone", "Clone");
 			let body = self.trait_body(ty, &f, &["this"], "IntPtr", &format!("new {cs}(r_)"));
-			let _ = write!(out, "\t/// A clone of its value, as Rust's `Clone`.\n\tpublic {cs} Clone()\n{body}\n\n");
+			let _ = write!(
+				out,
+				"\t/// A clone of its value, as Rust's `Clone`.\n\tpublic {cs} Clone()\n{body}\n\n"
+			);
 		}
 		// A plain enum's `==` is C#'s own, by its value.
 		if traits.eq && !plain {
@@ -1566,7 +1587,9 @@ impl<'a> Gen<'a> {
 			crate::lock::trait_member(&mut self.locked, &shown, "PartialEq", "Equals");
 			let body = self.trait_body(ty, &f, &["this", "other"], "byte", "r_ != 0");
 			let check = match nullable {
-				"?" => "\t\tif (other is null)\n\t\t{\n\t\t\treturn false;\n\t\t}\n\t\tif (ReferenceEquals(this, other))\n\t\t{\n\t\t\treturn true;\n\t\t}\n",
+				"?" => {
+					"\t\tif (other is null)\n\t\t{\n\t\t\treturn false;\n\t\t}\n\t\tif (ReferenceEquals(this, other))\n\t\t{\n\t\t\treturn true;\n\t\t}\n"
+				}
 				_ => "",
 			};
 			let body = body.replacen("\t{\n", &format!("\t{{\n{check}"), 1);
@@ -1620,7 +1643,12 @@ impl<'a> Gen<'a> {
 						out,
 						"\t/// Rust's `PartialOrd`: -1, 0, 1, or null where the two are unordered.\n\tpublic int? PartialCompareTo({cs} other)\n\t{{\n\t\tvar r_ = partialCmp_(this, other);\n\t\treturn r_ == 2 ? null : r_;\n\t}}\n\n"
 					);
-					for (op, test) in [("<", "r_ == -1"), ("<=", "r_ == -1 || r_ == 0"), (">", "r_ == 1"), (">=", "r_ == 1 || r_ == 0")] {
+					for (op, test) in [
+						("<", "r_ == -1"),
+						("<=", "r_ == -1 || r_ == 0"),
+						(">", "r_ == 1"),
+						(">=", "r_ == 1 || r_ == 0"),
+					] {
 						let _ = write!(
 							out,
 							"\tpublic static bool operator {op}({cs} a, {cs} b)\n\t{{\n\t\tvar r_ = partialCmp_(a, b);\n\t\treturn {test};\n\t}}\n\n"
@@ -1664,7 +1692,11 @@ impl<'a> Gen<'a> {
 			members.push(name.clone());
 			crate::lock::trait_member(&mut self.locked, &shown, "Debug", &name);
 			let body = self.trait_body(ty, &f, &[this], "Native.Buf", "Native.String(r_).ToString()");
-			let _ = write!(out, "\t/// Its text, as Rust's `Debug`.\n{}\n{body}\n\n", head(&name, "string"));
+			let _ = write!(
+				out,
+				"\t/// Its text, as Rust's `Debug`.\n{}\n{body}\n\n",
+				head(&name, "string")
+			);
 		}
 		if traits.default {
 			let f = abi::join(&c_name, "default");
@@ -1745,7 +1777,7 @@ impl<'a> Gen<'a> {
 				let member = self.field_member(i, &f.name);
 				crate::lock::field(&mut self.locked, &record.shown, &f.name, &member);
 				members.push(member.clone());
-				let _ = write!(body, "{}\tpublic {} {member};\n", docs(&f.docs, "\t"), self.cs(&f.ty));
+				let _ = writeln!(body, "{}\tpublic {} {member};", docs(&f.docs, "\t"), self.cs(&f.ty));
 				params.push(format!("{} {param}", self.cs(&f.ty)));
 				sets.push(format!("\t\tthis.{member} = {param};"));
 			}
@@ -1849,7 +1881,7 @@ impl<'a> Gen<'a> {
 			for (f, param) in v.fields.iter().zip(names) {
 				let member = self.variant_field(i, &v.name, &f.name);
 				crate::lock::variant_field(&mut self.locked, &e.shown, &v.name, &f.name, &member);
-				let _ = write!(fields, "\t\tpublic {} {member};\n", self.cs(&f.ty));
+				let _ = writeln!(fields, "\t\tpublic {} {member};", self.cs(&f.ty));
 				params.push(format!("{} {param}", self.cs(&f.ty)));
 				sets.push(format!("\t\t\tthis.{member} = {param};"));
 			}
@@ -1925,7 +1957,11 @@ impl<'a> Gen<'a> {
 		if let Some(next) = object.methods.iter().find(|f| f.stream().is_some()) {
 			let item = next.stream().expect("a stream").clone();
 			let item_cs = self.cs(&item);
-			let at = object.methods.iter().position(|f| std::ptr::eq(f, next)).expect("found");
+			let at = object
+				.methods
+				.iter()
+				.position(|f| std::ptr::eq(f, next))
+				.expect("found");
 			let next_name = &names[at];
 			let each = match self.is_value(&item) {
 				true => "Structs",
@@ -1954,7 +1990,9 @@ impl<'a> Gen<'a> {
 	/// Whether C# holds a value of `ty` as a value type, whose option is a `Nullable`.
 	fn is_value(&self, ty: &Type) -> bool {
 		match ty {
-			Type::Object(_) | Type::List(..) | Type::Callback(..) | Type::Closure(_) | Type::Future | Type::Reader => false,
+			Type::Object(_) | Type::List(..) | Type::Callback(..) | Type::Closure(_) | Type::Future | Type::Reader => {
+				false
+			}
 			Type::Waker => false,
 			Type::Enum(i) => self.abi.api.enums[*i].plain(),
 			Type::Box(inner) | Type::Ref(_, inner) => self.is_value(inner),
@@ -2050,7 +2088,12 @@ impl<'a> Gen<'a> {
 		let _ = write!(
 			self.natives,
 			"\t/// `{iface}`'s table of C functions, which every implementation shares.\n\tstatic readonly IntPtr {table} = Table_{c_name}();\n\n\tstatic IntPtr Table_{c_name}()\n\t{{\n\t\tvar t = (IntPtr*)Marshal.AllocHGlobal({n} * sizeof(IntPtr));\n{}\n\t\treturn (IntPtr)t;\n\t}}\n\n\tinternal static {c_name} Lower_{c_name}({iface} v) => new {c_name} {{ vtable = {table}, data = Give(v ?? throw new ArgumentNullException(nameof(v))) }};\n\n",
-			slots.iter().enumerate().map(|(k, s)| format!("\t\tt[{k}] = {s};")).collect::<Vec<_>>().join("\n"),
+			slots
+				.iter()
+				.enumerate()
+				.map(|(k, s)| format!("\t\tt[{k}] = {s};"))
+				.collect::<Vec<_>>()
+				.join("\n"),
 			n = slots.len()
 		);
 	}
@@ -2078,7 +2121,10 @@ impl<'a> Gen<'a> {
 	/// Writes a trampoline: a static method Rust calls through `Callbacks.<field>`, which
 	/// aborts on any exception, as a callback has no caller to throw to.
 	fn trampoline(&mut self, field: &str, params: &[String], ret: &str, body: &str, what: &str) {
-		let types: Vec<String> = params.iter().map(|p| p.rsplit_once(' ').expect("typed").0.to_string()).collect();
+		let types: Vec<String> = params
+			.iter()
+			.map(|p| p.rsplit_once(' ').expect("typed").0.to_string())
+			.collect();
 		let mut sig = types.clone();
 		sig.push(ret.to_string());
 		let fallback = match ret {
@@ -2197,13 +2243,17 @@ impl<'a> Gen<'a> {
 				arg.exprs.push(format!("Callbacks.{field}"));
 				match closure.kept {
 					true => {
-						arg.exprs.push(format!("Native.Give({e} ?? throw new ArgumentNullException(nameof({e})))"));
+						arg.exprs.push(format!(
+							"Native.Give({e} ?? throw new ArgumentNullException(nameof({e})))"
+						));
 						arg.exprs.push("Callbacks.Release".to_string());
 					}
 					false => {
 						let g = format!("g{k}_");
 						arg.opens.push((
-							format!("var {g} = GCHandle.Alloc({e} ?? throw new ArgumentNullException(nameof({e})));\n\t\ttry\n\t\t{{\n"),
+							format!(
+								"var {g} = GCHandle.Alloc({e} ?? throw new ArgumentNullException(nameof({e})));\n\t\ttry\n\t\t{{\n"
+							),
 							format!("\t\t}}\n\t\tfinally\n\t\t{{\n\t\t\t{g}.Free();\n\t\t}}\n"),
 						));
 						arg.exprs.push(format!("(void*)GCHandle.ToIntPtr({g})"));
@@ -2221,11 +2271,15 @@ impl<'a> Gen<'a> {
 				(arg, false)
 			}
 			(Type::Waker, _) => {
-				arg.exprs.push(format!("Native.Waker({e} ?? throw new ArgumentNullException(nameof({e})))"));
+				arg.exprs.push(format!(
+					"Native.Waker({e} ?? throw new ArgumentNullException(nameof({e})))"
+				));
 				(arg, false)
 			}
 			(Type::Future, _) => {
-				arg.exprs.push(format!("Native.Future({e} ?? throw new ArgumentNullException(nameof({e})))"));
+				arg.exprs.push(format!(
+					"Native.Future({e} ?? throw new ArgumentNullException(nameof({e})))"
+				));
 				(arg, false)
 			}
 			(Type::Callback(i, _), _) => {
@@ -2241,7 +2295,8 @@ impl<'a> Gen<'a> {
 					Type::Path | Type::PathBuf => format!("{e}.Bytes.Span"),
 					_ => e.to_string(),
 				};
-				arg.opens.push((format!("fixed (byte* {b} = {span})\n\t\t{{\n"), "\t\t}\n".to_string()));
+				arg.opens
+					.push((format!("fixed (byte* {b} = {span})\n\t\t{{\n"), "\t\t}\n".to_string()));
 				arg.exprs.push(format!("Native.View({span}, {b})"));
 				(arg, false)
 			}
@@ -2250,19 +2305,26 @@ impl<'a> Gen<'a> {
 				let Type::List(_, elem) = ty.base() else { unreachable!() };
 				let raw = self.raw_of(elem);
 				let b = format!("b{k}_");
-				arg.opens.push((format!("fixed ({raw}* {b} = {e})\n\t\t{{\n"), "\t\t}\n".to_string()));
+				arg.opens
+					.push((format!("fixed ({raw}* {b} = {e})\n\t\t{{\n"), "\t\t}\n".to_string()));
 				self.c_struct(&Ty::Struct(list.clone()));
-				arg.exprs.push(format!("new Native.{list} {{ ptr = {b}, len = (nuint){e}.Length }}"));
+				arg.exprs
+					.push(format!("new Native.{list} {{ ptr = {b}, len = (nuint){e}.Length }}"));
 				(arg, false)
 			}
 			// An object at the top level is held for the call, and closed once its value moved.
-			(ty, Ty::Handle { .. }) if matches!(ty.base(), Type::Object(_)) || matches!(ty, Type::Option(inner) if matches!(inner.base(), Type::Object(_))) => {
+			(ty, Ty::Handle { .. })
+				if matches!(ty.base(), Type::Object(_))
+					|| matches!(ty, Type::Option(inner) if matches!(inner.base(), Type::Object(_))) =>
+			{
 				let h = format!("h{k}_");
 				let optional = matches!(ty, Type::Option(_));
 				match optional {
 					true => {
 						arg.opens.push((
-							format!("var o{k}_ = -1;\n\t\tvar {h} = {e} != null ? {e}.enter(out o{k}_) : IntPtr.Zero;\n\t\ttry\n\t\t{{\n"),
+							format!(
+								"var o{k}_ = -1;\n\t\tvar {h} = {e} != null ? {e}.enter(out o{k}_) : IntPtr.Zero;\n\t\ttry\n\t\t{{\n"
+							),
 							format!("\t\t}}\n\t\tfinally\n\t\t{{\n\t\t\t{e}?.exit(o{k}_);\n\t\t}}\n"),
 						));
 					}
@@ -2400,7 +2462,8 @@ impl<'a> Gen<'a> {
 						true => format!("a_.Take = {};\n\t\t", receiver == Receiver::Owned),
 						false => String::new(),
 					};
-					arg.opens.push((format!("{take}var c_self_ = {lowered};\n"), String::new()));
+					arg.opens
+						.push((format!("{take}var c_self_ = {lowered};\n"), String::new()));
 					arg.exprs.push("&c_self_".to_string());
 					if matches!(c, Ty::InOut(_)) {
 						let lifted = match &owner.ty {
@@ -2417,7 +2480,7 @@ impl<'a> Gen<'a> {
 		let locals = match self.accessor(function, owner) {
 			// A property's setter takes its value as `value`.
 			true => vec!["value".to_string(); function.params.len()],
-			false => abi::distinct(&function.params, |n| param_name(n), |n| n == "cancellationToken"),
+			false => abi::distinct(&function.params, param_name, |n| n == "cancellationToken"),
 		};
 		let mut params = Vec::new();
 		let mut written = Vec::new();
@@ -2451,7 +2514,10 @@ impl<'a> Gen<'a> {
 					(arg, needs)
 				}
 				// A property's `value` is of its own type, `ReadOnlyMemory<byte>` for bytes.
-				false if self.accessor(function, owner) && matches!(param.ty.base(), Type::Slice | Type::Vec | Type::Bytes) => {
+				false
+					if self.accessor(function, owner)
+						&& matches!(param.ty.base(), Type::Slice | Type::Vec | Type::Bytes) =>
+				{
 					self.arg(&param.ty, c, &format!("{local}.Span"), k)
 				}
 				false => self.arg(&param.ty, c, local, k),
@@ -2473,7 +2539,10 @@ impl<'a> Gen<'a> {
 		let mut written_outs = Vec::new();
 		for (param, local) in &written {
 			let out = Abi::written(function, &abi::escape(&param.name));
-			let (_, ty) = outs.iter().find(|(n, _)| *n == out).expect("a written parameter has its out");
+			let (_, ty) = outs
+				.iter()
+				.find(|(n, _)| *n == out)
+				.expect("a written parameter has its out");
 			decls.push(self.out_decl(&out, ty));
 			let lifted = self.lift(param.ty.base(), &format!("o_{out}"));
 			writebacks.push(format!("{local} = {lifted};"));
@@ -2851,7 +2920,13 @@ fn param_name(name: &str) -> String {
 fn ctor_params<'f>(fields: impl Iterator<Item = &'f str>) -> Vec<String> {
 	let rust: Vec<&str> = fields.collect();
 	let spelled = rust.iter().map(|r| param_name(r)).collect();
-	abi::named(&rust, spelled, |rust, name| param_name(rust) == name, |_, _| false, abi::numbered)
+	abi::named(
+		&rust,
+		spelled,
+		|rust, name| param_name(rust) == name,
+		|_, _| false,
+		abi::numbered,
+	)
 }
 
 /// A field's or member's C# name: Pascal case.
@@ -2884,7 +2959,3 @@ fn docs(text: &str, indent: &str) -> String {
 	let _ = writeln!(out, "{indent}/// </summary>");
 	out
 }
-
-
-#[allow(dead_code)]
-fn _unused(_: Collection, _: Mutability) {}

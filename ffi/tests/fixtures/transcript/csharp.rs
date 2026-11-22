@@ -157,11 +157,7 @@ static partial class Script
 
 /// The C# file of `t`'s script.
 pub(crate) fn emit(t: &Transcript) -> String {
-	let mut e = Emitter {
-		t,
-		depth: 2,
-		fresh: 0,
-	};
+	let mut e = Emitter { t, depth: 2, fresh: 0 };
 	let body = e.steps(&t.steps);
 	format!("{PRELUDE}\n\tpublic static void Transcript()\n\t{{\n{body}\t}}\n}}\n")
 }
@@ -174,13 +170,85 @@ struct Emitter<'t> {
 
 /// C#'s keywords, which a local takes with `@`.
 const KEYWORDS: &[&str] = &[
-	"abstract", "as", "base", "bool", "break", "byte", "case", "catch", "char", "checked", "class", "const", "continue",
-	"decimal", "default", "delegate", "do", "double", "else", "enum", "event", "explicit", "extern", "false",
-	"finally", "fixed", "float", "for", "foreach", "goto", "if", "implicit", "in", "int", "interface", "internal",
-	"is", "lock", "long", "namespace", "new", "null", "object", "operator", "out", "override", "params", "private",
-	"protected", "public", "readonly", "ref", "return", "sbyte", "sealed", "short", "sizeof", "stackalloc", "static",
-	"string", "struct", "switch", "this", "throw", "true", "try", "typeof", "uint", "ulong", "unchecked", "unsafe",
-	"ushort", "using", "virtual", "void", "volatile", "while", "var", "value",
+	"abstract",
+	"as",
+	"base",
+	"bool",
+	"break",
+	"byte",
+	"case",
+	"catch",
+	"char",
+	"checked",
+	"class",
+	"const",
+	"continue",
+	"decimal",
+	"default",
+	"delegate",
+	"do",
+	"double",
+	"else",
+	"enum",
+	"event",
+	"explicit",
+	"extern",
+	"false",
+	"finally",
+	"fixed",
+	"float",
+	"for",
+	"foreach",
+	"goto",
+	"if",
+	"implicit",
+	"in",
+	"int",
+	"interface",
+	"internal",
+	"is",
+	"lock",
+	"long",
+	"namespace",
+	"new",
+	"null",
+	"object",
+	"operator",
+	"out",
+	"override",
+	"params",
+	"private",
+	"protected",
+	"public",
+	"readonly",
+	"ref",
+	"return",
+	"sbyte",
+	"sealed",
+	"short",
+	"sizeof",
+	"stackalloc",
+	"static",
+	"string",
+	"struct",
+	"switch",
+	"this",
+	"throw",
+	"true",
+	"try",
+	"typeof",
+	"uint",
+	"ulong",
+	"unchecked",
+	"unsafe",
+	"ushort",
+	"using",
+	"virtual",
+	"void",
+	"volatile",
+	"while",
+	"var",
+	"value",
 ];
 
 /// A local's name in C#: a keyword with `@`, and the namespace's alias apart.
@@ -275,7 +343,9 @@ impl Emitter<'_> {
 			Type::Reader => "api.ISeekableReader".to_string(),
 			Type::Option(inner) => format!("{}?", self.cs(inner)),
 			Type::Box(inner) | Type::Ref(_, inner) => self.cs(inner),
-			ty @ (Type::Record(_) | Type::Enum(_) | Type::Object(_)) => format!("api.{}", self.t.type_name(LANGUAGE, ty)),
+			ty @ (Type::Record(_) | Type::Enum(_) | Type::Object(_)) => {
+				format!("api.{}", self.t.type_name(LANGUAGE, ty))
+			}
 			Type::Range(int) => format!("api.Range{}", pascal(int.rust())),
 			Type::Bound(int) => format!("api.Bound{}", pascal(int.rust())),
 			Type::Bounds(int) => format!("api.Bounds{}", pascal(int.rust())),
@@ -306,7 +376,9 @@ impl Emitter<'_> {
 	/// Whether C# holds a value of `ty` as a value type, whose option is a `Nullable`.
 	fn is_value(&self, ty: &Type) -> bool {
 		match ty {
-			Type::Object(_) | Type::List(..) | Type::Callback(..) | Type::Closure(_) | Type::Future | Type::Reader => false,
+			Type::Object(_) | Type::List(..) | Type::Callback(..) | Type::Closure(_) | Type::Future | Type::Reader => {
+				false
+			}
 			Type::Waker => false,
 			Type::Enum(i) => self.t.api.enums[*i].variants.iter().all(|v| v.fields.is_empty()),
 			Type::Box(inner) | Type::Ref(_, inner) => self.is_value(inner),
@@ -533,7 +605,10 @@ impl Emitter<'_> {
 					.collect();
 				let tail = if parts.len() == 1 { ",)" } else { ")" };
 				let tuple = self.cs(unref(ty).base());
-				format!("((Func<{tuple}, string>)({x} => $\"({}{tail}\"))({v})", parts.join(", "))
+				format!(
+					"((Func<{tuple}, string>)({x} => $\"({}{tail}\"))({v})",
+					parts.join(", ")
+				)
 			}
 			Type::Bound(_) => format!("{v}.ToString()"),
 			Type::Range(_) => format!("$\"{{{v}.Start}}..{{{v}.End}}\""),
