@@ -47,8 +47,9 @@ jobs:
       web-manifest-path: ffi/fixtures/api/Cargo.toml
       scope: kixel-ai
       web-check: api-checks/web
-      # Each check leaves out its targets file, which the exporter's tests run: what only wasm32
-      # has, and what that export makes fallible, as it serves wasm32 too.
+      # Each check leaves out its targets file, which the exporter's tests run: what a target of
+      # either export lacks (wasm32's items there, `stray` on this export's Windows), and what
+      # the tests' export makes fallible, as it serves wasm32 too.
       # No go-module, whose path would rename the export's own module, `api`, which api.go imports.
       go-check: api-checks/go
       swift-check: api-checks/swift

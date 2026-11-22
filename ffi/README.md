@@ -1827,8 +1827,10 @@ items the host's library lacks, and each language's test checks that the host's 
 and that wasm32's fail. The release builder runs the Dart, Go, and Swift tests, as the
 Python, C++, and web ones, against its own export of every host and no wasm32, so each
 leaves what depends on its targets to `tests/targets.<ext>`, a program of its own the
-exporter's tests alone run: what only wasm32 has, which that export lacks by name, and what
-this binding's wasm32 makes fallible, which Go's signatures show. Each language's script is written at test time by
+exporter's tests alone run: what one export's target lacks, such as wasm32's items in the
+tests' export and `stray` and `visit_stray`, which the builder's Windows target lacks, and
+what wasm32 makes fallible in the tests' export, such as `Spawned`, which Go's and Swift's
+signatures show. Each language's script is written at test time by
 `tests/fixtures/transcript` from the fixture's `examples/transcript.rs`, whose `main` is a
 typed subset of Rust checked against the export's `api.json`: an item it cannot resolve, or
 a construct a language's writer cannot spell, fails the test naming it. Each function the
