@@ -1674,20 +1674,32 @@ fn java_reaches(declared: &[(String, String, Vec<String>)]) {
 				&& !name.starts_with(|c: char| c.is_ascii_digit())
 				&& !KEYWORDS.contains(&name)
 		};
-		// The names of the methods Java calls, each without the `_` that keeps it apart.
-		let called: BTreeSet<String> = (methods.iter())
-			.map(|m| name(m))
-			.filter(|name| java(name))
-			.map(|name| name.trim_end_matches('_').to_string())
+		// The methods Java calls, each by its name and whether it is static.
+		let called: BTreeSet<(String, bool)> = (methods.iter())
+			.map(|m| (name(m), m.contains(" static ")))
+			.filter(|(name, _)| java(name))
 			.collect();
-		// Whether Java calls a twin of the Kotlin form `name`: a method of its name before the
-		// mangling, apart from any trailing `_`, or for a getter, its property's.
-		let twin = |name: &str| {
-			let base = name.split('-').next().unwrap().trim_end_matches('_');
+		// Whether Java calls a twin of `method`, the Kotlin form `name`. One the generator pins
+		// as `name-kotlin` has a bridge of the same kind named `name`, but `default`'s, which
+		// Java reserves, is `default_`. A value class's member, which Kotlin mangles itself, has
+		// a bridge named as it is before the mangling, or with the `_`s that keep it apart from
+		// another method of its class, or for a getter, as its property is.
+		let twin = |method: &str, name: &str| {
+			if let Some(base) = name.strip_suffix("-kotlin") {
+				let base = if base == "default" { "default_" } else { base };
+				return called.contains(&(base.to_string(), method.contains(" static ")));
+			}
+			let base = name.split('-').next().unwrap();
 			let property = (base.strip_prefix("get"))
 				.filter(|rest| rest.starts_with(|c: char| c.is_ascii_uppercase()))
 				.map(|rest| rest[..1].to_ascii_lowercase() + &rest[1..]);
-			called.contains(base) || property.is_some_and(|property| called.contains(&property))
+			let apart = |called: &str, base: &str| {
+				called
+					.strip_prefix(base)
+					.is_some_and(|rest| rest.chars().all(|c| c == '_'))
+			};
+			(called.iter())
+				.any(|(called, _)| apart(called, base) || property.as_ref().is_some_and(|p| apart(called, p)))
 		};
 		let mut made = false;
 		for method in methods {
@@ -1705,7 +1717,7 @@ fn java_reaches(declared: &[(String, String, Vec<String>)]) {
 				// A value class's member, a function Java reaches through its bridge, or a getter
 				// Kotlin mangles, which overrides one, so takes no `@JvmName`.
 				(name.ends_with("-impl") || name.ends_with("-kotlin") || name.starts_with("get") || value)
-					&& twin(name),
+					&& twin(method, name),
 				// What Kotlin declares of a data class.
 				name.starts_with("component") || name.starts_with("copy-"),
 				// A callback interface's method, which Java implements through `Java`.
