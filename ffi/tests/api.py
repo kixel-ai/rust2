@@ -1528,7 +1528,8 @@ def threads():
 				check(api.Point(k, 1).offset(1, 1) == api.Point(k + 1, 2), "a record")
 				check(data(api.boxed_tuple(bytes([k]))[0]) == bytes([k]), "bytes Rust returned")
 				shared[:] = bytes([k]) * len(shared)
-				check(len(set(data(api.boxed_tuple(shared)[0]))) == 1, "a bytearray another thread rewrites crosses whole")
+				for passed in [shared, memoryview(shared), memoryview(memoryview(shared))]:
+					check(len(set(data(api.boxed_tuple(passed)[0]))) == 1, "a bytearray another thread rewrites crosses whole")
 			asyncio.run(wakes(api.Channel.new()))
 			check(api.Spawned.new(lambda: k).join() == k, "a kept closure called on another thread")
 		except BaseException as e:

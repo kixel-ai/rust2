@@ -936,6 +936,7 @@ pub fn bytes_in(obj: *mut PyObject, s: &mut Scope, take: bool) -> R<rt::Buf> {
 		}
 		// SAFETY: `Py_buffer` is plain data, which the call fills. Its format, which a
 		// `memoryview` passes on, marks Rust's bytes.
+		let exporter = exporter(obj)?;
 		let mut view: Py_buffer = std::mem::zeroed();
 		if PyObject_GetBuffer(obj, &mut view, PyBUF_FORMAT | PyBUF_ND) != 0 {
 			return Err(Raised);
@@ -961,7 +962,7 @@ pub fn bytes_in(obj: *mut PyObject, s: &mut Scope, take: bool) -> R<rt::Buf> {
 			}
 			(false, _) => {
 				let mut copy = Vec::with_capacity(len);
-				snapshot(obj, ptr, copy.as_mut_ptr(), len);
+				snapshot(&exporter, ptr, copy.as_mut_ptr(), len);
 				copy.set_len(len);
 				match take {
 					true => {
@@ -1075,6 +1076,7 @@ pub fn block_in<T: Number>(obj: *mut PyObject, s: &mut Scope) -> R<rt::List<T>> 
 	// SAFETY: the thread is attached, and `obj` is live.
 	unsafe {
 		// SAFETY: `Py_buffer` is plain data, which the call fills.
+		let exporter = exporter(obj)?;
 		let mut view: Py_buffer = std::mem::zeroed();
 		if PyObject_GetBuffer(obj, &mut view, PyBUF_C_CONTIGUOUS | PyBUF_FORMAT) != 0 {
 			return Err(Raised);
@@ -1096,7 +1098,7 @@ pub fn block_in<T: Number>(obj: *mut PyObject, s: &mut Scope) -> R<rt::List<T>> 
 		let len = view.len as usize / size_of::<T>();
 		let mut items = Vec::<T>::with_capacity(len);
 		// A byte copy, as the buffer need not be aligned for `T`.
-		snapshot(obj, view.buf.cast_const().cast(), items.as_mut_ptr().cast(), len * size_of::<T>());
+		snapshot(&exporter, view.buf.cast_const().cast(), items.as_mut_ptr().cast(), len * size_of::<T>());
 		items.set_len(len);
 		PyBuffer_Release(&mut view);
 		let items = Box::new(items);
@@ -1110,26 +1112,59 @@ pub fn block_in<T: Number>(obj: *mut PyObject, s: &mut Scope) -> R<rt::List<T>> 
 	}
 }
 
-/// Copy `len` bytes of `obj`'s buffer at `src` to `dst`, as another thread may write them
-/// meanwhile without a GIL: inside `obj`'s critical section, which a free-threaded CPython's
-/// `bytearray` takes to write, and through no Rust reference, which would claim the bytes
-/// unchanged. A writer that takes no lock, such as a `memoryview`, tears the copy as it
-/// tears CPython's own, such as `bytes(view)`.
+/// What a buffer copy locks: under `abi3t` the object whose critical section its writers
+/// take, nothing where the GIL keeps them out.
+#[cfg(feature = "python-abi3t")]
+type Exporter = Obj;
+#[cfg(not(feature = "python-abi3t"))]
+type Exporter = ();
+
+/// The [`Exporter`] of `obj`'s buffer: `obj`, or a `memoryview`'s own exporter, whose bytes
+/// it shares and whose writes, such as a `bytearray`'s, lock that one.
 ///
 /// # Safety
-/// The thread is attached, and `src` is `len` bytes of a buffer `obj` exports.
-unsafe fn snapshot(obj: *mut PyObject, src: *const u8, dst: *mut u8, len: usize) {
+/// The thread is attached, and `obj` is live.
+unsafe fn exporter(obj: *mut PyObject) -> R<Exporter> {
+	#[cfg(feature = "python-abi3t")]
+	// SAFETY: the caller's contract.
+	unsafe {
+		if PyMemoryView_Check(obj) == 0 {
+			return Ok(Obj::borrowed(obj));
+		}
+		let base = Obj::new(PyObject_GetAttrString(obj, c"obj".as_ptr()))?;
+		Ok(match is_none(base.ptr()) {
+			true => Obj::borrowed(obj),
+			false => base,
+		})
+	}
+	#[cfg(not(feature = "python-abi3t"))]
+	{
+		let _ = obj;
+		Ok(())
+	}
+}
+
+/// Copy `len` bytes at `src`, of a buffer `exporter` exports, to `dst`, as another thread
+/// may write them meanwhile without a GIL: inside the exporter's critical section, which a
+/// free-threaded CPython's `bytearray` takes to write, and through no Rust reference, which
+/// would claim the bytes unchanged. A writer that takes no lock, such as a `memoryview`'s
+/// item assignment, tears the copy as it tears CPython's own, such as `bytes(view)`.
+///
+/// # Safety
+/// The thread is attached, and `src` is `len` bytes of a buffer `exporter` exports.
+unsafe fn snapshot(exporter: &Exporter, src: *const u8, dst: *mut u8, len: usize) {
 	#[cfg(feature = "python-abi3t")]
 	// SAFETY: the caller's contract; the section ends before the thread detaches.
 	unsafe {
 		let mut section = std::mem::MaybeUninit::<PyCriticalSection>::uninit();
-		PyCriticalSection_Begin(section.as_mut_ptr(), obj);
+		PyCriticalSection_Begin(section.as_mut_ptr(), exporter.ptr());
 		std::ptr::copy_nonoverlapping(src, dst, len);
 		PyCriticalSection_End(section.as_mut_ptr());
 	}
 	#[cfg(not(feature = "python-abi3t"))]
 	// SAFETY: the caller's contract; the GIL keeps every Python writer out.
 	unsafe {
+		let () = *exporter;
 		std::ptr::copy_nonoverlapping(src, dst, len);
 	}
 }
