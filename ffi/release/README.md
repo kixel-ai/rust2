@@ -246,7 +246,8 @@ the builder unpacks over its checkout before reading the checks.
     generated Kotlin compiled against API 35's `android.jar`, whose `@FastNative` serves, and
     kotlinx-coroutines as `classes.jar`, for Kotlin 2.2 and JVM 1.8, so a consumer's Kotlin
     2.1 reads its metadata, the generated R8 rules as `proguard.txt`, which each app that
-    shrinks it applies, and a manifest naming the floor and the namespace `<group>.<lib>`.
+    shrinks it applies, and a manifest naming the floor and the namespace `<group>.<lib>`,
+    spelled as the Java package the Android Gradle Plugin requires (`io.7mind` as `io._7mind`).
     Beside it in a Maven repository, under `maven/`, as Central requires: a POM with the
     crate's name, Cargo's description, homepage or else repository, each of its license's
     alternatives, its authors or else its repository's owner, and source control, each a

@@ -150,6 +150,11 @@ KOTLIN_API = "2.2"
 JVM_TARGET = "1.8"
 # What a Maven groupId may be: dotted segments, as Central's namespaces are.
 MAVEN_GROUP = re.compile(r"[A-Za-z0-9_-]+(\.[A-Za-z0-9_-]+)+")
+# The words Java reserves, which no segment of a package name may be.
+JAVA_RESERVED = frozenset("""abstract assert boolean break byte case catch char class const continue default do double
+else enum extends false final finally float for goto if implements import instanceof int interface long native new
+null package private protected public return short static strictfp super switch synchronized this throw throws
+transient true try void volatile while _""".split())
 # What the go command refuses to extract: a module zip, or its files, over 500 MiB, and a
 # go.mod over 16 MiB (golang.org/x/mod/zip's MaxZipFile and MaxGoMod).
 GO_ZIP_MAX = 500 << 20
@@ -2731,6 +2736,17 @@ def android_example(info, args, out):
         shutil.copy(android_sysroot(ANDROID_EMULATOR) / needed, dest)
 
 
+def java_package(name):
+    """The dotted `name` as a Java package, which the Android Gradle Plugin requires an AAR's
+    namespace to be, spelled as the Java Language Specification's 6.1 advises: a hyphen as an
+    underscore, a reserved word followed by one, and a segment no identifier starts with
+    preceded by one."""
+    def segment(part):
+        part = part.replace("-", "_")
+        return f"{part}_" if part in JAVA_RESERVED else f"_{part}" if part[0].isdigit() else part
+    return ".".join(segment(p) for p in name.split("."))
+
+
 def maven_version(version):
     """Cargo's version as Maven's, which orders a prerelease before its release as Cargo does,
     refusing build metadata, which Maven would order as a later release."""
@@ -2861,7 +2877,7 @@ def maven(args):
     # The POM's facts first, as a missing one fails before the slow compile.
     pom(info, group, "")
     classes, coroutines = kotlin_classes(lib, export, f"{group}.{artifact}", stamp)
-    namespace = f"{group}.{lib}".replace("-", "_")
+    namespace = java_package(f"{group}.{lib}")
     aar = [("AndroidManifest.xml", android_manifest(namespace).encode(), 0o644), ("R.txt", b"", 0o644),
            ("classes.jar", classes, 0o644),
            *((f"jni/{abi}/{p.name}", p.read_bytes(), 0o755)

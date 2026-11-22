@@ -760,6 +760,11 @@ class Swift(unittest.TestCase):
                 os.environ["CARGO_PROFILE_RELEASE_DEBUG"] = level
                 self.assertEqual(package.line_tables(manifest)[:4], root(name), level)
 
+    def test_java_package(self):
+        self.assertEqual(package.java_package("dev.moq.moq"), "dev.moq.moq")
+        self.assertEqual(package.java_package("io.7mind.my-lib"), "io._7mind.my_lib")
+        self.assertEqual(package.java_package("com.int.new"), "com.int_.new_")
+
     def test_main_classes(self):
         # javap's listing of kotlinc's classes: a suspend main's bridge, a companion's main that
         # is no entry point, a renamed file's vararg main, and another file's main.
