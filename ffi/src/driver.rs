@@ -18,33 +18,159 @@ use crate::config;
 use crate::ir::{self, Api};
 use crate::{census, collect, glue, merge};
 
-/// Run as rustc, with `args` as cargo passed them: the wrapped rustc's path first.
-pub(crate) fn run(args: Vec<String>) -> ExitCode {
+/// Run as cargo's rustc or its wrapper, as the environment the CLI gives cargo says, with
+/// `args` as cargo passed them; `None` when neither is set, as the CLI was run.
+pub(crate) fn run(args: &[String]) -> Option<ExitCode> {
+	if let Some(dir) = std::env::var_os(config::env::RECORD) {
+		return Some(fail_loud(record(args, Path::new(&dir))));
+	}
+	let rustc = PathBuf::from(std::env::var_os(config::env::RUSTC)?);
+	let exe = match std::env::current_exe() {
+		Ok(exe) => exe,
+		Err(err) => return Some(fail_loud(Err(format!("finding this executable: {err}")))),
+	};
+	// Cargo passes the rustc to wrap, this executable by another spelling, to the
+	// workspace's wrapper alone.
+	let exe = std::fs::canonicalize(&exe).unwrap_or(exe);
+	let wrapped = args
+		.get(1)
+		.is_some_and(|arg| std::fs::canonicalize(arg).is_ok_and(|arg| arg == exe));
+	let mut args = args.to_vec();
+	if !wrapped {
+		args.insert(1, args[0].clone());
+	}
+	Some(compile(args, &rustc, wrapped))
+}
+
+fn fail_loud(code: Result<ExitCode, String>) -> ExitCode {
+	code.unwrap_or_else(|err| {
+		eprintln!("rust2-ffi: {err}");
+		ExitCode::FAILURE
+	})
+}
+
+/// Compile as rustc, with `args` as cargo passed them to its wrapper: the wrapped rustc's
+/// path first. Only the workspace's own crates, which cargo `wrapped`, may be the facade or
+/// the generated crate whose compilation writes the export: a cache serves the others.
+fn compile(args: Vec<String>, rustc: &Path, wrapped: bool) -> ExitCode {
 	// A build script's probe of the compiler, as `rustversion` and `autocfg` make, runs the
 	// rustc cargo resolved, the one the glue builds with, rather than this nightly, so the
-	// check exports no item a nightly probe enables that the glue's build then lacks. Cargo
-	// sets `CARGO_CFG_*` for build scripts alone, and the CLI runs cargo without them.
+	// check exports no item a nightly probe enables that the glue's build then lacks. It
+	// takes the check's rustflags without the export's own, as that build would. Cargo sets
+	// `CARGO_CFG_*` for build scripts alone, and the CLI runs cargo without them.
 	if std::env::var_os("CARGO_CFG_TARGET_ARCH").is_some() {
-		return match Command::new(&args[1]).args(&args[2..]).status() {
-			Ok(status) => ExitCode::from(status.code().and_then(|code| u8::try_from(code).ok()).unwrap_or(1)),
-			Err(err) => {
-				eprintln!("rust2-ffi: running {}: {err}", args[1]);
-				ExitCode::FAILURE
-			}
-		};
+		return fail_loud(added().map(|added| run_rustc(rustc, &without(&args[2..], &added))));
 	}
-	if let Err(err) = record_cfgs(&args) {
+	if wrapped && let Err(err) = record_cfgs(&args, rustc) {
 		eprintln!("rust2-ffi: {err}");
 		return ExitCode::FAILURE;
 	}
-	rust2_driver::rustc::run("rust2-ffi", args, |args, added| {
-		crate::leaf::flags(args, added);
-		crate::wasm::flags(args, added)?;
+	rust2_driver::rustc::run("rust2-ffi", args, |args, _| {
+		if !wrapped {
+			return Ok(None);
+		}
 		if let Some(walk) = crate::wasm::Walk::for_args(args)? {
 			return Ok(Some(Box::new(walk)));
 		}
 		Ok(Export::for_args(args)?.map(|job| Box::new(job) as rust2_driver::rustc::Job))
 	})
+}
+
+/// Run `rustc` with `args`, exiting as it does.
+fn run_rustc(rustc: &Path, args: &[String]) -> ExitCode {
+	match Command::new(rustc).args(args).status() {
+		Ok(status) => ExitCode::from(status.code().and_then(|code| u8::try_from(code).ok()).unwrap_or(1)),
+		Err(err) => {
+			eprintln!("rust2-ffi: running {}: {err}", rustc.display());
+			ExitCode::FAILURE
+		}
+	}
+}
+
+/// The rustflags the export adds after the consumer's, as [`config::env::ADDED`] holds them.
+fn added() -> Result<Vec<String>, String> {
+	let added =
+		std::env::var(config::env::ADDED).map_err(|_| format!("{} is unset or not UTF-8", config::env::ADDED))?;
+	Ok(added
+		.split('\x1f')
+		.filter(|flag| !flag.is_empty())
+		.map(str::to_string)
+		.collect())
+}
+
+/// `args` without the last run of them that is `added`: what they were before the export
+/// added its rustflags after the consumer's.
+fn without(args: &[String], added: &[String]) -> Vec<String> {
+	let at = (!added.is_empty())
+		.then(|| args.windows(added.len()).rposition(|run| run == added))
+		.flatten();
+	match at {
+		Some(at) => [&args[..at], &args[at + added.len()..]].concat(),
+		None => args.to_vec(),
+	}
+}
+
+/// What cargo passes the crates of one target, as its query of that target shows it.
+#[derive(Clone, serde::Serialize, serde::Deserialize)]
+pub(crate) struct Recorded {
+	/// The rustc cargo resolved, which the glue builds with.
+	pub(crate) rustc: PathBuf,
+	/// The consumer's rustflags for the target, from wherever cargo read them.
+	pub(crate) flags: Vec<String>,
+}
+
+impl Recorded {
+	/// The file in `dir` [`record`] writes into.
+	pub(crate) fn path(dir: &Path) -> PathBuf {
+		dir.join("target.json")
+	}
+}
+
+/// As the workspace's wrapper for a `cargo metadata` of one target the export checks, on
+/// cargo's query of that target, record what it passes the target's crates into `dir`; then
+/// run the rustc cargo wraps as it asked.
+fn record(args: &[String], dir: &Path) -> Result<ExitCode, String> {
+	let [_, rustc, rest @ ..] = args else {
+		return Err("ran as a wrapper with no rustc to wrap".to_string());
+	};
+	// Cargo passes args in an argfile once they overflow a command line, which no
+	// environment variable the check passes them on in holds either.
+	if let [argfile] = rest
+		&& argfile.starts_with('@')
+	{
+		return Err(format!(
+			"cargo passed rustc its args in an argfile, {argfile}: the target's rustflags are too long to pass on"
+		));
+	}
+	if rest.windows(2).any(|w| w[0] == "--crate-name" && w[1] == "___") {
+		// Cargo's query lists the target's rustflags between these two.
+		let start = (rest.iter().position(|arg| arg == "--print=file-names")).ok_or_else(|| {
+			format!(
+				"cargo's query of a target is not as rust2-ffi reads it: {}",
+				rest.join(" ")
+			)
+		})?;
+		let end = rest[start..]
+			.iter()
+			.position(|arg| arg == "--target")
+			.map(|at| start + at);
+		// The host's, which a check for a named target compiles build scripts and proc macros
+		// for, without its rustflags, has none.
+		if let Some(end) = end {
+			let recorded = Recorded {
+				rustc: rustc.into(),
+				flags: rest[start + 1..end].to_vec(),
+			};
+			let path = Recorded::path(dir);
+			let json = serde_json::to_string(&recorded).expect("paths and strings serialize");
+			// Cargo queries the target again once its `cfg`s select more rustflags, until they
+			// settle, so its last query holds what it compiles with. Filtered to one target, it
+			// queries no other with `--target`.
+			std::fs::write(&path, json)
+				.map_err(|err| format!("recording cargo's query of a target in {}: {err}", path.display()))?;
+		}
+	}
+	Ok(run_rustc(Path::new(rustc), rest))
 }
 
 /// What the wrapper finds in cargo's query of the target, which carries the check's
@@ -63,14 +189,14 @@ struct Queried {
 /// prints them acting as a stable release, which keeps unstable `cfg`s back, as a stable
 /// build of the glue does whatever rustc exported it. The query names the target, and the
 /// crate `___`.
-fn record_cfgs(args: &[String]) -> Result<(), String> {
+fn record_cfgs(args: &[String], rustc: &Path) -> Result<(), String> {
 	let Some(path) = std::env::var_os(config::env::CFGS) else {
 		return Ok(());
 	};
 	// Cargo passes the args in an argfile once they overflow a command line, as many
 	// `RUSTFLAGS` may.
 	let early = rustc_session::EarlyDiagCtxt::new(rustc_session::config::ErrorOutputType::default());
-	let expanded = rustc_driver::args::arg_expand_all(&early, &args[2..]);
+	let expanded = without(&rustc_driver::args::arg_expand_all(&early, &args[2..]), &added()?);
 	let query = expanded.windows(2).any(|w| w[0] == "--crate-name" && w[1] == "___")
 		&& expanded
 			.iter()
@@ -101,17 +227,21 @@ fn record_cfgs(args: &[String]) -> Result<(), String> {
 	// with them is a nightly's.
 	let nightly = asked.iter().any(|arg| arg.starts_with("-Z"));
 	let print = |stable: bool| {
-		let mut rustc = Command::new(&args[1]);
-		rustc.arg(&at).stdin(std::process::Stdio::null());
+		let mut cmd = Command::new(rustc);
+		cmd.arg(&at).stdin(std::process::Stdio::null());
 		if stable {
-			rustc.env("RUSTC_BOOTSTRAP", "-1");
+			cmd.env("RUSTC_BOOTSTRAP", "-1");
 		}
-		let output = rustc.output().map_err(|err| format!("running {}: {err}", args[1]))?;
+		let output = cmd
+			.output()
+			.map_err(|err| format!("running {}: {err}", rustc.display()))?;
 		match output.status.success() {
-			true => String::from_utf8(output.stdout).map_err(|_| format!("{} printed a non-UTF-8 cfg", args[1])),
+			true => {
+				String::from_utf8(output.stdout).map_err(|_| format!("{} printed a non-UTF-8 cfg", rustc.display()))
+			}
 			false => Err(format!(
 				"{} --print=cfg failed ({}): {}",
-				args[1],
+				rustc.display(),
 				output.status,
 				String::from_utf8_lossy(&output.stderr).trim()
 			)),
@@ -778,6 +908,21 @@ pub(crate) fn write(path: &Path, text: &str) -> Result<(), String> {
 
 #[cfg(test)]
 mod tests {
+	#[test]
+	fn strips_the_last_run_of_added_flags() {
+		let args = |args: &str| args.split_whitespace().map(str::to_string).collect::<Vec<_>>();
+		for (from, added, want) in [
+			("-a -x -y -b", "-x -y", "-a -b"),
+			// The consumer's own copy, before the export's, stays.
+			("-x -y -a -x -y", "-x -y", "-x -y -a"),
+			// Not a run: neither is the export's.
+			("-x -a -y", "-x -y", "-x -a -y"),
+			("-x -y", "", "-x -y"),
+		] {
+			assert_eq!(super::without(&args(from), &args(added)), args(want), "{from}");
+		}
+	}
+
 	#[test]
 	fn reads_cfgs_as_cargo_gives_them() {
 		let printed = "debug_assertions\nfeature=\"x\"\nfoo\nfoo=\"a,b\"\nfoo=\"x\"\npanic=\"unwind\"\n\

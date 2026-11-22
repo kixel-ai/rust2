@@ -1021,6 +1021,30 @@ which keeps what each body does. The stand-in's API is the same under both profi
 two more of its methods are leaves, `hang::Extra`'s `len` and `is_empty`, whose
 `indexmap` makes a `debug_assert_eq!` a release build compiles out.
 
+### The export's cache
+
+The export wraps only the workspace's own crates, so a compiler cache in cargo's
+`RUSTC_WRAPPER` serves the rest ([how](../../ffi/README.md)). mbx 1.30 caches a compilation
+only when it models every flag on its command line, and it models none of the export's
+`-Zalways-encode-mir`, `-Zmir-opt-level=1`, and the web target's `-Zinline-mir=no`
+("rustc flag is not modeled by the cache adapter"), so it serves the build scripts and
+proc macros alone, which take no target rustflags. Measured 2026-11-22 on **desktop**, the
+stand-in's native export by a dev build of rust2-ffi, as the merge queue's `cargo run`
+runs it, from an emptied target through mbx, at a load average of about 19; the after
+rounds follow one that stored the host units:
+
+| export | rounds | wall s | CPU s | mbx |
+|---|---|---|---|---|
+| before (`4cdfa151`) | 4 | 126 to 137 | 201 to 221 | none looked up |
+| after | 3 | 118 to 139 | 170 to 198 | 107 hits, 226 bypassed |
+| after, flags modeled | 2 | 132 to 142 | 125 to 136 | 332 hits, 1 bypassed |
+| after, flags modeled, release rust2-ffi | 2 | 19 to 32 | 23 to 27 | 332 hits, 1 bypassed |
+
+The last two rounds of each stand in for an mbx that models the flags, with only the
+modeled `-Coverflow-checks=on` added: every crate but the facade is then served. That
+leaves the facade's own check, which a dev build of rust2-ffi takes about two minutes on
+one thread to analyze and generate, and a release build under 20 seconds.
+
 ### Lending returned bytes
 
 Bytes a call returns are an [`rt.Bytes`](../../ffi/README.md#typescript-web): up to 64 B a copy, and

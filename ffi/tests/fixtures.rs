@@ -4746,26 +4746,122 @@ fn no_std_links() {
 	assert_eq!(links, api().native);
 }
 
-/// rustc's arguments in an argfile, as cargo passes them once they overflow a command line:
-/// on Windows, moq-ffi's many `-L`s do. One argument past every platform's limit forces it,
-/// and starts with `@`, which inside an argfile rustc reads as itself, not another file.
+/// rustc's arguments in an argfile, as a consumer's rustflags name one: inside it, an
+/// argument starting with `@` is itself, not another file. Rustflags too long for the
+/// environment the check passes them on in, which cargo passes rustc in an argfile of its
+/// own, fail the export.
 #[test]
 fn argfile() {
 	let package = package("argfile", &[]);
-	let value = format!("@{}=/", "a".repeat(1 << 21));
-	write_all(
-		&package,
-		&[(
-			".cargo/config.toml",
-			&format!("build.rustflags = [\"--remap-path-prefix\", \"{value}\"]\n"),
-		)],
-	);
+	let argfile = package.join("flags");
+	std::fs::write(&argfile, "--remap-path-prefix\n@a=/\n").unwrap();
+	let config = |flags: &str| [(".cargo/config.toml", format!("build.rustflags = [{flags:?}]\n"))];
+	let [(path, text)] = config(&format!("@{}", argfile.display()));
+	write_all(&package, &[(path, &text)]);
 	let output = census(&package.join("Cargo.toml"), &[]).output().unwrap();
 	assert!(
 		output.status.success(),
 		"the census failed:\n{}",
 		String::from_utf8_lossy(&output.stderr)
 	);
+	// Past what one environment variable holds on Windows, and past what cargo passes rustc
+	// without an argfile on any platform. Windows's command line holds no more than its
+	// variable, so there cargo's argfile comes first.
+	let too_long = "rustflags are too long to pass on";
+	for (len, error) in [
+		(1 << 16, if cfg!(windows) { too_long } else { "rustflags take" }),
+		(1 << 21, too_long),
+	] {
+		let [(path, text)] = config(&format!("--cfg=a{}", "a".repeat(len)));
+		write_all(&package, &[(path, &text)]);
+		let output = census(&package.join("Cargo.toml"), &[]).output().unwrap();
+		let stderr = String::from_utf8_lossy(&output.stderr);
+		assert!(!output.status.success() && stderr.contains(error), "{stderr}");
+	}
+}
+
+/// A compiler cache in cargo's `RUSTC_WRAPPER`, as mbx's Cargo shim sets one, wraps every
+/// crate: the workspace's own through the exporter's wrapper, and every other crate with
+/// the exporter as rustc, the consumer's rustflags and then the export's on its command
+/// line, which the cache keys it by.
+#[cfg(unix)]
+#[test]
+fn cached() {
+	let package = package(
+		"cached",
+		&[
+			(
+				"Cargo.toml",
+				"[package]\nname = \"cached\"\nversion = \"0.0.0\"\nedition = \"2024\"\n\n\
+				[dependencies]\ndep = { path = \"../cached_dep\" }\n\n[workspace]\n",
+			),
+			("src/lib.rs", "pub use dep::one;\n"),
+			// Cargo queries the target once without these, which it reads only from the
+			// target's `cfg`s, and again with them.
+			(
+				".cargo/config.toml",
+				"[target.'cfg(all())']\nrustflags = [\"--cfg\", \"consumer\"]\n",
+			),
+		],
+	);
+	write_all(
+		&package.with_file_name("cached_dep"),
+		&[
+			(
+				"Cargo.toml",
+				"[package]\nname = \"dep\"\nversion = \"0.0.0\"\nedition = \"2024\"\n",
+			),
+			("src/lib.rs", "pub fn one() -> u32 {\n\t1\n}\n"),
+		],
+	);
+	let log = package.join("wrapped.log");
+	let wrapper = package.join("wrapper.sh");
+	let cargo = package.join("cargo.sh");
+	write_all(
+		&package,
+		&[
+			(
+				"wrapper.sh",
+				&format!("#!/bin/sh\nprintf '%s\\n' \"$*\" >> '{}'\nexec \"$@\"\n", log.display()),
+			),
+			(
+				"cargo.sh",
+				&format!(
+					"#!/bin/sh\nRUSTC_WRAPPER='{}' exec '{}' \"$@\"\n",
+					wrapper.display(),
+					std::env::var("CARGO").unwrap()
+				),
+			),
+		],
+	);
+	for script in [&wrapper, &cargo] {
+		std::fs::set_permissions(script, std::os::unix::fs::PermissionsExt::from_mode(0o755)).unwrap();
+	}
+	let _ = std::fs::remove_file(&log);
+	let _ = std::fs::remove_dir_all(package.join("build"));
+	run(census(&package.join("Cargo.toml"), &[]).env("CARGO", &cargo));
+	let log = std::fs::read_to_string(&log).unwrap();
+	let compiled = |krate: &str| {
+		let line = log
+			.lines()
+			.find(|line| line.contains(&format!("--crate-name {krate} ")));
+		let line = line.unwrap_or_else(|| panic!("{krate} was not compiled through the cache:\n{log}"));
+		line.split(' ').map(str::to_string).collect::<Vec<_>>()
+	};
+	let (dep, facade) = (compiled("dep"), compiled("cached"));
+	// Cargo passes its rustc to the workspace's wrapper alone.
+	assert_ne!(dep[0], facade[0], "{log}");
+	assert_eq!(dep[0], facade[1], "{log}");
+	let flags = [
+		"--cfg",
+		"consumer",
+		"-Zalways-encode-mir",
+		"-Coverflow-checks=on",
+		"-Zmir-opt-level=1",
+	];
+	for krate in [&dep, &facade] {
+		assert!(krate.windows(flags.len()).any(|run| run == flags), "{log}");
+	}
 }
 
 /// A census of the package whose manifest is `manifest` with these cargo args, to run.

@@ -4,7 +4,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 use std::process::{Command, ExitCode};
 
-use rust2_driver::cargo::{Args, Check, Output};
+use rust2_driver::cargo::{Args, Check, Output, Wrap};
 
 use crate::config;
 
@@ -81,7 +81,7 @@ fn try_run(args: &[String]) -> Result<ExitCode, String> {
 	}
 	let dir = args.manifest.parent().expect("a manifest path has a parent");
 	let picks = Picks::parse(&args.cargo, dir)?;
-	let (facade, patch, checked) = facade(&args.manifest, &targets[0], &picks)?;
+	let (facade, patch, checked) = facade(&args.manifest, &targets, &picks)?;
 	let crates = crates(&checked.metadata, &checked.top)?;
 	let profile = check_profile(&args.cargo, &checked.metadata.workspace_root)?;
 	// The check's cargo args, with `--release` first where they pick no profile, so as not to
@@ -103,18 +103,7 @@ fn try_run(args: &[String]) -> Result<ExitCode, String> {
 	let baseline = own.baseline.unwrap_or_default();
 	// Where the wrapper writes each target's `cfg`s on cargo's query of it, which comes before
 	// cargo makes its target directory, and so outside it.
-	// Private and unguessable, as the shared temp directory holds other users' files, and
-	// made afresh, so that no one else's can stand in for it.
-	let queried = std::env::temp_dir().join(format!(
-		"rust2-ffi-cfgs-{:016x}",
-		std::hash::BuildHasher::hash_one(&std::hash::RandomState::new(), std::process::id())
-	));
-	let mut private = std::fs::DirBuilder::new();
-	#[cfg(unix)]
-	std::os::unix::fs::DirBuilderExt::mode(&mut private, 0o700);
-	private
-		.create(&queried)
-		.map_err(|err| format!("creating {}: {err}", queried.display()))?;
+	let queried = private_dir("cfgs")?;
 	// A target with a host checks std's MIR too, from the sysroot or else from source.
 	let cargo_args = |target: &str, args: Vec<String>| -> Result<Vec<String>, String> {
 		let build_std = crate::wasm::host(target).is_some() && crate::wasm::sysroot(target)?.is_none();
@@ -126,6 +115,8 @@ fn try_run(args: &[String]) -> Result<ExitCode, String> {
 	// Each target's `cfg`s are written under its index, as a target may be a path.
 	let check =
 		|index: usize, target: &str, output: (&str, &std::ffi::OsStr), merge: &std::ffi::OsStr, baseline: &Path| {
+			let rustflags = Rustflags::of(&checked.targets[target], target)?;
+			let [flags, rustc, added] = rustflags.env();
 			Check {
 				tool: "rust2-ffi",
 				manifest: &args.manifest,
@@ -136,10 +127,14 @@ fn try_run(args: &[String]) -> Result<ExitCode, String> {
 				args: &cargo_args(target, cargo.clone())?,
 				target_dir: None,
 				dir: None,
+				wrap: Wrap::Workspace,
 				env: &[
-					// The wrapper's answer to cargo's query names the sysroot, which cargo would
-					// otherwise cache by the executables alone.
+					// The wrapper writes the target's `cfg`s on cargo's query of it, which cargo
+					// would otherwise answer from its cache.
 					("CARGO_CACHE_RUSTC_INFO", "0".as_ref()),
+					flags,
+					rustc,
+					added,
 					(config::env::PACKAGE, line.as_ref()),
 					(config::env::PATCH, patch.as_ref()),
 					(config::env::CRATES, crates.as_ref()),
@@ -211,6 +206,12 @@ fn try_run(args: &[String]) -> Result<ExitCode, String> {
 	let mut cargo = picks.resolving().args();
 	cargo.extend(profile.args);
 	cargo.extend(["--features".to_string(), "web".to_string()]);
+	let walked = match checked.targets.get(crate::web::TARGET) {
+		Some(recorded) => recorded.clone(),
+		None => on_target(&args.manifest, crate::web::TARGET, &picks)?.1,
+	};
+	let rustflags = Rustflags::of(&walked, crate::web::TARGET)?;
+	let [flags, rustc, added] = rustflags.env();
 	Check {
 		tool: "rust2-ffi",
 		manifest: &output.1.join("Cargo.toml"),
@@ -220,13 +221,76 @@ fn try_run(args: &[String]) -> Result<ExitCode, String> {
 		args: &cargo_args(crate::web::TARGET, cargo)?,
 		target_dir: Some(&target_dir),
 		dir: Some(picks.dir),
+		wrap: Wrap::Workspace,
 		env: &[
-			("CARGO_CACHE_RUSTC_INFO", "0".as_ref()),
+			flags,
+			rustc,
+			added,
 			(crate::wasm::env::PACKAGE, glue.as_ref()),
 			(crate::wasm::env::OWN, own.as_ref()),
 		],
 	}
 	.run()
+}
+
+/// The environment cargo checks `target`'s crates in: as rustc, the executable compiles every
+/// crate the workspace does not own, which a cache in cargo's `RUSTC_WRAPPER` serves, so each
+/// sees every flag on its command line: the consumer's rustflags for the target, and the
+/// export's after them, which cargo passes no build script or proc macro.
+struct Rustflags {
+	rustc: std::ffi::OsString,
+	encoded: String,
+	added: String,
+}
+
+/// The most bytes of rustflags the check passes cargo, which every platform's environment
+/// holds in one variable.
+const ENV_MAX: usize = 32_000;
+
+impl Rustflags {
+	fn of(recorded: &crate::driver::Recorded, target: &str) -> Result<Self, String> {
+		let mut added: Vec<String> = crate::leaf::FLAGS.map(str::to_string).to_vec();
+		added.extend(crate::wasm::flags(target)?);
+		let encoded = [recorded.flags.clone(), added.clone()].concat().join("\x1f");
+		// Windows holds at most 32,767 characters in one environment variable, and Linux
+		// 128 KiB.
+		if encoded.len() > ENV_MAX {
+			return Err(format!(
+				"{target}'s rustflags take {} bytes, more than the {ENV_MAX} rust2-ffi can pass cargo in CARGO_ENCODED_RUSTFLAGS: put most in an argfile, as `@<path>`",
+				encoded.len()
+			));
+		}
+		Ok(Self {
+			rustc: recorded.rustc.clone().into_os_string(),
+			encoded,
+			added: added.join("\x1f"),
+		})
+	}
+
+	fn env(&self) -> [(&'static str, &std::ffi::OsStr); 3] {
+		[
+			("CARGO_ENCODED_RUSTFLAGS", self.encoded.as_ref()),
+			(config::env::RUSTC, &self.rustc),
+			(config::env::ADDED, self.added.as_ref()),
+		]
+	}
+}
+
+/// A new directory in the temp directory, named for `what`: private and unguessable, as the
+/// shared temp directory holds other users' files, and made afresh, so that no one else's
+/// can stand in for it.
+fn private_dir(what: &str) -> Result<PathBuf, String> {
+	let dir = std::env::temp_dir().join(format!(
+		"rust2-ffi-{what}-{:016x}",
+		std::hash::BuildHasher::hash_one(&std::hash::RandomState::new(), std::process::id())
+	));
+	let mut private = std::fs::DirBuilder::new();
+	#[cfg(unix)]
+	std::os::unix::fs::DirBuilderExt::mode(&mut private, 0o700);
+	private
+		.create(&dir)
+		.map_err(|err| format!("creating {}: {err}", dir.display()))?;
+	Ok(dir)
 }
 
 /// Write the generated crate's lockfile: the check's, with what the crate adds of its own
@@ -243,6 +307,7 @@ fn lock(checked: &Checked, out: &Path, picks: &Picks<'_>) -> Result<(), String> 
 	let output = run_cargo(
 		&out.join("Cargo.toml"),
 		&["metadata", "--format-version", "1"],
+		&[],
 		&picks.resolving(),
 	)?;
 	// Resolved as before, the lockfile keeps its mtime, as every unchanged file of the
@@ -307,6 +372,8 @@ struct Checked {
 	metadata: Metadata,
 	/// The facade's package id.
 	top: String,
+	/// What cargo passes each target's crates, by the target as the check names it.
+	targets: BTreeMap<String, crate::driver::Recorded>,
 }
 
 /// The args rust2-ffi takes beyond the shared parser's.
@@ -379,13 +446,19 @@ fn absolute(path: &str) -> Result<PathBuf, String> {
 
 /// The facade, the package of `manifest`, then the patches it resolved with, as
 /// [`config::env::PATCH`] has them.
-fn facade(manifest: &Path, target: &str, picks: &Picks<'_>) -> Result<(config::Package, String, Checked), String> {
-	// On the target, so the resolved dependencies are the ones the check passes rustc.
-	let output = run_cargo(
-		manifest,
-		&["metadata", "--format-version", "1", "--filter-platform", target],
-		picks,
-	)?;
+fn facade(
+	manifest: &Path,
+	targets: &[String],
+	picks: &Picks<'_>,
+) -> Result<(config::Package, String, Checked), String> {
+	// On the first target, which records what cargo passes its crates; each other's then.
+	let (output, first) = on_target(manifest, &targets[0], picks)?;
+	let mut recorded = BTreeMap::from([(targets[0].clone(), first)]);
+	for target in &targets[1..] {
+		if !recorded.contains_key(target) {
+			recorded.insert(target.clone(), on_target(manifest, target, picks)?.1);
+		}
+	}
 	let metadata: Metadata = serde_json::from_slice(&output).map_err(|err| format!("reading cargo metadata: {err}"))?;
 	let canonical =
 		std::fs::canonicalize(manifest).map_err(|err| format!("resolving {}: {err}", manifest.display()))?;
@@ -408,12 +481,13 @@ fn facade(manifest: &Path, target: &str, picks: &Picks<'_>) -> Result<(config::P
 		features: Vec::new(),
 	};
 	// Every platform's dependencies, which cargo resolves wherever the glue builds.
-	let output = run_cargo(manifest, &["metadata", "--format-version", "1"], picks)?;
+	let output = run_cargo(manifest, &["metadata", "--format-version", "1"], &[], picks)?;
 	let resolved: Metadata = serde_json::from_slice(&output).map_err(|err| format!("reading cargo metadata: {err}"))?;
 	let patch = overrides(&resolved, top)?;
 	let checked = Checked {
 		metadata: resolved,
 		top: top.id.clone(),
+		targets: recorded,
 	};
 	Ok((facade, patch, checked))
 }
@@ -753,11 +827,48 @@ fn patch_key(source: &str) -> Result<String, String> {
 	Err(format!("a patch of {source}, which the export's library cannot patch"))
 }
 
+/// `cargo metadata` of `manifest` filtered to `target`, and what cargo passes that target's
+/// crates, which this executable records as cargo's workspace wrapper on cargo's query of the
+/// target: the consumer's rustflags, from wherever cargo reads them, which the check passes on
+/// with the export's own after them, and the rustc cargo resolved. One target a run, as cargo
+/// names it to rustc, which may not be as the export names it, such as a relative path.
+fn on_target(manifest: &Path, target: &str, picks: &Picks<'_>) -> Result<(Vec<u8>, crate::driver::Recorded), String> {
+	let exe = std::env::current_exe().map_err(|err| format!("finding this executable: {err}"))?;
+	let record = private_dir("record")?;
+	let env = [
+		("RUSTC_WORKSPACE_WRAPPER", exe.as_os_str()),
+		("RUSTC_WRAPPER", "".as_ref()),
+		// Cargo would otherwise answer a query it has made before from its cache.
+		("CARGO_CACHE_RUSTC_INFO", "0".as_ref()),
+		(config::env::RECORD, record.as_os_str()),
+	];
+	let subcommand = ["metadata", "--format-version", "1", "--filter-platform", target];
+	let output = run_cargo(manifest, &subcommand, &env, picks).and_then(|output| {
+		let path = crate::driver::Recorded::path(&record);
+		let json = std::fs::read_to_string(&path).map_err(|err| {
+			format!(
+				"cargo never queried {target} through rust2-ffi ({}: {err})",
+				path.display()
+			)
+		})?;
+		let recorded = serde_json::from_str(&json).map_err(|err| format!("reading {}: {err}", path.display()))?;
+		Ok((output, recorded))
+	});
+	std::fs::remove_dir_all(&record).map_err(|err| format!("removing {}: {err}", record.display()))?;
+	output
+}
+
 /// What a cargo subcommand prints for a package, run as the check resolves: from the
 /// facade's directory, where cargo reads its config, with the check's picks.
-fn run_cargo(manifest: &Path, subcommand: &[&str], picks: &Picks<'_>) -> Result<Vec<u8>, String> {
+fn run_cargo(
+	manifest: &Path,
+	subcommand: &[&str],
+	env: &[(&str, &std::ffi::OsStr)],
+	picks: &Picks<'_>,
+) -> Result<Vec<u8>, String> {
 	let output = Command::new(std::env::var_os("CARGO").unwrap_or_else(|| "cargo".into()))
 		.current_dir(picks.dir)
+		.envs(env.iter().copied())
 		.args(subcommand)
 		.arg("--manifest-path")
 		.arg(manifest)
