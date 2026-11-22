@@ -1046,24 +1046,39 @@ class PubPackage(unittest.TestCase):
 class FlutterLog(unittest.TestCase):
     """What the Flutter consumer reads from the device's log, in logcat's brief format."""
 
-    def output(self, *lines):
+    def log(self, *lines):
         log = object.__new__(package.Logcat)
         log.lines, log.pid, log.vm_service = queue.Queue(), None, None
         for line in lines:
             log.lines.put(line)
         log.lines.put(None)
-        with mock.patch("sys.stderr"):
-            output = log.output()
-            self.vm_service = log.vm_service
-            return output
+        return log
 
-    START = ("--------- beginning of main",
-             "I/flutter ( 4321): The Dart VM service is listening on http://127.0.0.1:37635/Vfh1w_Ak2ZQ=/",
-             "I/flutter ( 4321): rust2: start")
+    def output(self, *lines):
+        with mock.patch("sys.stderr"):
+            return self.log(*lines).output()
+
+    START = ("--------- beginning of main", "I/flutter ( 4321): engine up", "I/flutter ( 4321): rust2: start")
+    LISTENING = "I/flutter ( 4321): The Dart VM service is listening on http://127.0.0.1:37635/Vfh1w_Ak2ZQ=/"
 
     def test_decodes_the_check_output(self):
         self.assertEqual(self.output(*self.START, "I/flutter ( 4321): rust2: aGk=", "I/flutter ( 4321): rust2: exit 0"), b"hi")
-        self.assertEqual(self.vm_service, "http://127.0.0.1:37635/Vfh1w_Ak2ZQ=/")
+
+    def test_finds_the_vm_service_before_or_after_the_check(self):
+        url = "http://127.0.0.1:37635/Vfh1w_Ak2ZQ=/"
+        for lines in ((self.LISTENING, *self.START, "I/flutter ( 4321): rust2: exit 0"),
+                      (*self.START, "I/flutter ( 4321): rust2: exit 0", self.LISTENING)):
+            with self.subTest(lines), mock.patch("sys.stderr"):
+                log = self.log(*lines)
+                self.assertEqual(log.output(), b"")
+                self.assertEqual(log.listening(), url)
+
+    def test_fails_on_a_crash_before_the_vm_service(self):
+        with mock.patch("sys.stderr"), self.assertRaisesRegex(SystemExit, "crashed"):
+            log = self.log(*self.START, "I/flutter ( 4321): rust2: exit 0",
+                           "F/libc    ( 4321): Fatal signal 6 (SIGABRT), code -6 in tid 4340 (1.ui)")
+            log.output()
+            log.listening()
 
     def test_fails_on_the_apps_crash(self):
         for line in ("F/libc    ( 4321): Fatal signal 6 (SIGABRT), code -6 in tid 4340 (1.ui)",

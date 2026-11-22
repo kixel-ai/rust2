@@ -2539,9 +2539,8 @@ class Logcat:
         return ((tag == "F/libc" and pid == self.pid) or (tag == "F/DEBUG" and f">>> {FLUTTER_APP} <<<" in text)
                 or (tag == "E/AndroidRuntime" and text.startswith(f"Process: {FLUTTER_APP},")))
 
-    def output(self):
-        """What one run of the check printed, failing unless it exits 0."""
-        chunks = None
+    def said(self):
+        """The next line the app logs under Flutter's tag, failing on its crash."""
         while True:
             line = take(self.lines, "the device's log")
             print(line, file=sys.stderr)
@@ -2555,6 +2554,20 @@ class Logcat:
             self.pid = self.pid or pid
             if listening := re.match(r"The Dart VM service is listening on (http://\S+)", said):
                 self.vm_service = listening[1]
+            return said
+
+    def listening(self):
+        """Where the app's Dart VM service listens, which a debug build may announce only
+        after a quick check has run."""
+        while not self.vm_service:
+            self.said()
+        return self.vm_service
+
+    def output(self):
+        """What one run of the check printed, failing unless it exits 0."""
+        chunks = None
+        while True:
+            said = self.said()
             if not said.startswith("rust2: "):
                 continue
             said = said[len("rust2: "):]
@@ -2659,9 +2672,7 @@ def consume_flutter(package, libs, lib, check, native, device):
             if re.search(r"Error|Exception", started):
                 raise SystemExit(f"the Flutter app did not start: {started}")
             first = logcat.output()
-            if not logcat.vm_service:
-                raise SystemExit("the Flutter app never said where its Dart VM service listens")
-            flutter = Flutter(app, device, logcat.vm_service)
+            flutter = Flutter(app, device, logcat.listening())
             flutter.command("app.restart", fullRestart=True, pause=False)
             # A refused restart fails here, rather than as the log's silence.
             flutter.reply()
