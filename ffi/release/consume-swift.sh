@@ -32,7 +32,10 @@ mkdir -p "$work/consumer/Sources/Check"
 # A check is a directory holding it as check.swift beside the files of its own, which the
 # executable's target takes whole.
 if [[ -d "$apple/checks/swift" ]]; then
-    [[ -f "$apple/checks/swift/check.swift" ]] || { echo "$apple/checks/swift holds no check.swift" >&2; exit 1; }
+    [[ -f "$apple/checks/swift/check.swift" ]] || {
+        echo "$apple/checks/swift holds no check.swift" >&2
+        exit 1
+    }
     cp -R "$apple/checks/swift/." "$work/consumer/Sources/Check/"
 else
     printf 'import %s\n\n@main\nstruct Check {\n\tstatic func main() {}\n}\n' "$module" >"$work/consumer/Sources/Check/Check.swift"
