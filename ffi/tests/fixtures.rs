@@ -1489,8 +1489,8 @@ fn kotlin_classes(api: &Api) -> PathBuf {
 }
 
 /// The classes on `classpath` load the library a desktop jar bundles, as the release's jar
-/// does, with no library path, leaving no copy behind where the system lets it go, and
-/// refuse a jar bundling none for this host.
+/// does, with no library path, leaving no copy behind where the system lets it go, nor of a
+/// copy that fails to load, and refuse a jar bundling none for this host.
 fn bundled_library(api: &Api, classpath: &[&Path]) {
 	let file = format!("{}api{}", std::env::consts::DLL_PREFIX, std::env::consts::DLL_SUFFIX);
 	let bundled = scratch().join("api").join("bundled");
@@ -1530,6 +1530,18 @@ fn bundled_library(api: &Api, classpath: &[&Path]) {
 		),
 		false => assert!(left.is_empty(), "the loaded copy is gone: {left:?}"),
 	}
+	std::fs::write(
+		bundled.join("api").join("native").join(host()).join("broken"),
+		b"not a library",
+	)
+	.unwrap();
+	let broken = caller(format!("{} broken\n", host()));
+	let after: Vec<_> = std::fs::read_dir(&temp).unwrap().map(|e| e.unwrap().path()).collect();
+	assert!(
+		!broken.status.success() && after == left,
+		"a copy that fails to load is gone: {after:?}, {}",
+		String::from_utf8_lossy(&broken.stderr)
+	);
 	let refused = caller(format!("riscv64gc-unknown-linux-gnu {file}\n"));
 	let stderr = String::from_utf8_lossy(&refused.stderr);
 	assert!(

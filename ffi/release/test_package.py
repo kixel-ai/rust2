@@ -220,6 +220,16 @@ class Wheel(unittest.TestCase):
                     dst.writestr(name, src.read(name))
             package.check_wheel(repaired)
 
+    def test_vendored_libraries_are_each_tools(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            wheel = Path(tmp) / "repaired.whl"
+            # Where auditwheel and delvewheel, then delocate, put the libraries they copy in.
+            with zipfile.ZipFile(wheel, "w") as archive:
+                for name in ("moq/libmoq.so", "moq_ffi.libs/", "moq_ffi.libs/libssl-1a2b.so.3",
+                             "moq/.dylibs/libz.1.dylib", "moq_ffi-0.4.12.dist-info/RECORD"):
+                    archive.writestr(name, b"")
+            self.assertEqual(package.vendored(wheel), ["libssl-1a2b.so.3", "libz.1.dylib"])
+
     def test_a_tampered_record_fails(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)

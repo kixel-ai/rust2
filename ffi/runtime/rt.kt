@@ -408,7 +408,9 @@ class __Reader(private val b: java.nio.ByteBuffer) {
  * since the JVM loads only a file.
  */
 private fun __load(name: String) {
-	val index = _Native::class.java.getResourceAsStream("$name.natives")
+	// ART names itself Dalvik; an APK bundles no index, and looking for one would index its
+	// resources on the class loader's first lookup.
+	val index = if (System.getProperty("java.vm.name") == "Dalvik") null else _Native::class.java.getResourceAsStream("$name.natives")
 	if (index == null) {
 		System.loadLibrary(name)
 		return
@@ -424,8 +426,15 @@ private fun __load(name: String) {
 		?: throw java.lang.UnsatisfiedLinkError("this jar's index names native/$host/$file, which it lacks")
 	val dir = java.nio.file.Files.createTempDirectory("rust2-$name-")
 	val path = dir.resolve(file)
-	library.use { java.nio.file.Files.copy(it, path) }
-	System.load(path.toString())
+	try {
+		library.use { java.nio.file.Files.copy(it, path) }
+		System.load(path.toString())
+	} catch (e: Throwable) {
+		// A library that failed to load is not mapped, so even Windows lets it go.
+		path.toFile().delete()
+		dir.toFile().delete()
+		throw e
+	}
 	// The file can go once loaded, as its mapping stays, except where the system refuses, as
 	// Windows does while the process runs: there the directory is marked stale, and each such
 	// load sweeps the stale directories whose process ended, whose files it can delete.

@@ -361,6 +361,14 @@ def repair(wheel, target, out, stamp):
     return repaired[0]
 
 
+def vendored(wheel):
+    """The shared libraries a repair tool copied into `wheel` beside its own, which each puts in a
+    `.libs` or `.dylibs` directory."""
+    with zipfile.ZipFile(wheel) as archive:
+        return sorted(Path(n).name for n in archive.namelist()
+                      if not n.endswith("/") and any(d.endswith((".libs", ".dylibs")) for d in Path(n).parts[:-1]))
+
+
 def check_wheel(path):
     """Fail unless RECORD covers every file with its true size and hash, as pip checks it."""
     with zipfile.ZipFile(path) as archive:
@@ -2012,7 +2020,10 @@ def build(args):
                 sys.stderr.write(built.stderr)
                 library = through / "target-python" / target / "release" / library_name(lib, target)
                 with tempfile.TemporaryDirectory() as raw:
-                    repair(write_wheel(inside, through, library, target, raw), target, out / "wheels", inside["epoch"])
+                    wheel = repair(write_wheel(inside, through, library, target, raw), target, out / "wheels", inside["epoch"])
+                if args.kotlin and target in JVM_TARGETS and (bundled := vendored(wheel)):
+                    raise SystemExit(f"{lib} links {bundled} on {target}, which the wheel bundles but the desktop jar cannot: "
+                                     "its loader loads one library")
                 c_archive(inside, args.manifest_path, through, target, out)
             if target in APPLE_TARGETS:
                 apple = APPLE_TARGETS[target]
@@ -3362,7 +3373,9 @@ tasks.register("classpath") {{
     if result.returncode:
         raise SystemExit(f"{check or 'the load'} failed in the JVM app with status {result.returncode}")
     if native:
-        compare(Path(native).read_bytes(), result.stdout, "JVM app")
+        # Kotlin's println ends a line with the platform's separator, Rust's with LF.
+        actual = result.stdout.replace(b"\r\n", b"\n") if sys.platform == "win32" else result.stdout
+        compare(Path(native).read_bytes(), actual, "JVM app")
 
 
 def line_tables(manifest):
