@@ -2584,9 +2584,10 @@ def consume_flutter(package, libs, lib, check, native, device):
             capture_output=True)
         logcat, flutter = Logcat(device), None
         try:
-            started = adb("-s", device, "shell", "am", "start", "-W", "-n", "dev.rust2.consumer/.MainActivity",
+            # `am start` exits 0 whether or not it starts the app.
+            started = adb("-s", device, "shell", "am", "start", "-n", "dev.rust2.consumer/.MainActivity",
                           capture_output=True, encoding="utf-8").stdout
-            if "Status: ok" not in started:
+            if re.search(r"Error|Exception", started):
                 raise SystemExit(f"the Flutter app did not start: {started}")
             first = logcat.output()
             flutter = Flutter(app, device)
