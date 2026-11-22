@@ -65,11 +65,11 @@ on:
         default: ''
         type: string
       maven-group:
-        description: The Maven groupId the Android library is published under, a namespace the publisher holds on Maven Central; without it, no Android library
+        description: The Maven groupId the Android library is published under, a namespace the publisher holds on Maven Central; without it, no AAR is packaged or checked, though the Android leg still builds the Go module's Android archives
         default: ''
         type: string
       kotlin-check:
-        description: A Kotlin program, importing the binding's package, run by a Gradle app on the Android library, or a directory holding it as check.kt beside the files it reads
+        description: A Kotlin program, importing the binding's package, run by a Gradle app on the Android library, or a directory holding it as check.kt beside the Kotlin sources it uses
         default: ''
         type: string
       checks-artifact:
@@ -392,7 +392,8 @@ jobs:
       - name: Build
         env:
           TARGETS: ${{ matrix.targets }}
-          EXAMPLE: ${{ inputs.example }}
+          # Android's example only serves a kotlin-check's comparison in the consumer.
+          EXAMPLE: ${{ (matrix.host != 'android' || inputs.maven-group != '' && inputs.kotlin-check != '') && inputs.example || '' }}
         run: |
           read -ra targets <<< "$TARGETS"
           python -I rust2/ffi/release/package.py build --manifest-path "source/$MANIFEST" --features "$FEATURES" --export export --out dist --example "$EXAMPLE" "${targets[@]}"
@@ -1070,7 +1071,7 @@ jobs:
         run: |
           args=(--repo dist/maven)
           if [[ -d dist/checks/kotlin ]]; then args+=(--check dist/checks/kotlin); fi
-          if [[ -f dist/android/example ]]; then args+=(--native dist/android/example); fi
+          if [[ -d dist/android-example ]]; then args+=(--native dist/android-example); fi
           echo "ARGS=${args[*]}" >> "$GITHUB_ENV"
       - uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2.38.0
         with:

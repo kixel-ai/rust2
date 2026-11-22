@@ -2261,13 +2261,21 @@ def android_sysroot(target):
     return ndk_prebuilt() / "sysroot" / "usr" / "lib" / triple
 
 
-def android_needs(library, target):
-    """What `library` needs in the AAR beside it, the NDK's shared C++ runtime or nothing, once
-    it is checked to align every segment to the 16 KB pages Google Play requires of a 64-bit
-    library from 2027-02-01, to hold the line tables Play symbolicates a crash by, and to need
-    no library a device at the AAR's floor lacks."""
+def android_runtime(binary, target):
+    """The libraries `binary` needs beyond what a device at the AAR's floor holds, as names."""
+    needed = json.loads(output(ndk_prebuilt() / "bin" / "llvm-readobj", "--elf-output-style=JSON", "--needed-libs",
+                               binary))[0]["NeededLibraries"]
+    system = {p.name for p in (android_sysroot(target) / str(ANDROID_API)).glob("*.so")}
+    return [n for n in needed if n not in system]
+
+
+def android_check(library, target):
+    """Fail unless `library` aligns every segment to the 16 KB pages Google Play requires of a
+    64-bit library from 2027-02-01, holds the line tables Play symbolicates a crash by, and
+    needs no library a device at the AAR's floor lacks. The NDK's shared C++ runtime is one,
+    which an AAR cannot ship: an app holding another AAR's copy packs only one of the two."""
     found = json.loads(output(ndk_prebuilt() / "bin" / "llvm-readobj", "--elf-output-style=JSON", "--program-headers",
-                              "--section-headers", "--needed-libs", library))[0]
+                              "--section-headers", library))[0]
     segments = [h["ProgramHeader"] for h in found["ProgramHeaders"]]
     loads = [s["Alignment"] for s in segments if s["Type"]["Name"] == "PT_LOAD"]
     if not loads or min(loads) < 16384:
@@ -2275,21 +2283,12 @@ def android_needs(library, target):
     sections = {s["Section"]["Name"]["Name"] for s in found["Sections"]}
     if ".debug_line" not in sections:
         raise SystemExit(f"{library} holds no line tables, which a crash in it symbolicates by")
-    sysroot = android_sysroot(target)
-    system = {p.name for p in (sysroot / str(ANDROID_API)).glob("*.so")}
-    bundled = []
-    for needed in found["NeededLibraries"]:
-        if needed in system:
-            continue
-        if needed != "libc++_shared.so":
-            raise SystemExit(f"{library} needs {needed}, which neither an Android {ANDROID_API} device nor the NDK holds")
-        bundled.append(sysroot / needed)
-    return bundled
+    if missing := android_runtime(library, target):
+        raise SystemExit(f"{library} needs {missing}, which an Android {ANDROID_API} device lacks and an AAR cannot ship")
 
 
 def android_library(info, manifest, export_dir, target, out):
-    """`target`'s library for the AAR, the C ABI with its JNI glue, built for its floor, with
-    the C++ runtime it needs. It keeps its line tables: an app's build strips them, and gives
+    """`target`'s library for the AAR, the C ABI with its JNI glue, built for its floor. It keeps its line tables: an app's build strips them, and gives
     them to Play, which symbolicates a crash in Rust with them."""
     lib, crate = info["lib"], export_dir / "Cargo.toml"
     env = {**reproducible(info, export_dir, target), **android_toolchain(target, ANDROID_API)}
@@ -2299,10 +2298,10 @@ def android_library(info, manifest, export_dir, target, out):
                 env={**os.environ, **env}, capture_output=True, encoding="utf-8")
     sys.stderr.write(built.stderr)
     library = export_dir / "target-android" / target / "release" / f"lib{lib}.so"
+    android_check(library, target)
     dest = out / "android" / ANDROID_TARGETS[target]
     dest.mkdir(parents=True)
-    for path in [library, *android_needs(library, target)]:
-        shutil.copy(path, dest)
+    shutil.copy(library, dest)
 
 
 def android_example(info, args, out):
@@ -2320,10 +2319,15 @@ def android_example(info, args, out):
              if m.get("reason") == "compiler-artifact" and m.get("executable") and "example" in m["target"]["kind"]]
     if len(found) != 1:
         raise SystemExit(f"cargo built no single example {args.example}: {found}")
-    # Named apart from the library, which the consumer runs it beside.
-    dest = out / "android" / "example"
-    dest.parent.mkdir(parents=True, exist_ok=True)
-    shutil.copy(found[0], dest)
+    # Named apart from the library, which the consumer runs it beside, with the NDK's C++
+    # runtime should a dev-dependency need it, which no device holds.
+    dest = out / "android-example"
+    dest.mkdir(parents=True)
+    shutil.copy(found[0], dest / "example")
+    for needed in android_runtime(found[0], ANDROID_EMULATOR):
+        if needed != "libc++_shared.so":
+            raise SystemExit(f"example {args.example} needs {needed}, which neither an Android {ANDROID_API} device nor the NDK holds")
+        shutil.copy(android_sysroot(ANDROID_EMULATOR) / needed, dest)
 
 
 def maven_version(version):
@@ -2565,6 +2569,14 @@ def adb(*args, **kwargs):
     return run(Path(sdk) / "platform-tools" / "adb", *args, **kwargs)
 
 
+def check_class(source):
+    """The class a Kotlin file's top-level `main` compiles into: its package's, named for the file
+    `check.kt` unless `@file:JvmName` names it."""
+    package = re.search(r"^\s*package\s+([\w.]+)", source, re.M)
+    name = re.search(r'^\s*@file:JvmName\("(\w+)"\)', source, re.M)
+    return ".".join([*([package[1]] if package else []), name[1] if name else "CheckKt"])
+
+
 def instrument(step):
     """The consumer's instrumentation run with `step`, as `am instrument` reports its results."""
     out = adb("shell", "am", "instrument", "-w", "-r", "-e", "step", step, f"{APP}/.Check",
@@ -2577,6 +2589,8 @@ def consume_android(repo, check, native):
     resolves it from Central, shrunk by R8 with its consumer rules and run on the device adb
     reaches: the check program, or else a load of the library, in the app's own process. With
     `native`, the example built for the device, the check prints what it prints there."""
+    if native and not check:
+        raise SystemExit("an example's output is compared with a check's: give a check with it")
     poms = list(Path(repo).rglob("*.pom"))
     if len(poms) != 1:
         raise SystemExit(f"expected one POM in {repo}, found {poms}")
@@ -2586,8 +2600,7 @@ def consume_android(repo, check, native):
     with zipfile.ZipFile(version_dir / f"{artifact}-{version}.aar") as aar:
         with zipfile.ZipFile(io.BytesIO(aar.read("classes.jar"))) as jar:
             natives = [n for n in jar.namelist() if n.endswith("/_Native.class")]
-        # The crate's libraries, apart from the NDK's C++ runtime, which holds no debug info.
-        libraries = [n for n in aar.namelist() if n.startswith("jni/") and not n.endswith("/libc++_shared.so")]
+        libraries = [n for n in aar.namelist() if n.startswith("jni/")]
     abis = {n.split("/")[1] for n in libraries}
     if len(natives) != 1:
         raise SystemExit(f"the AAR's classes hold no single _Native: {natives}")
@@ -2600,17 +2613,21 @@ def consume_android(repo, check, native):
         source = app / "src" / "main" / "kotlin"
         (source / "rust2" / "check").mkdir(parents=True)
         if check:
-            # The check's own package, the default one, which reflection reaches from the
-            # instrumentation's; its main is kept, as an app keeps its entry points.
             check = Path(check)
             if check.is_dir():
+                # Sources alone: the app has no file beside them to read at run time.
+                if other := sorted(str(p.relative_to(check)) for p in check.rglob("*") if p.is_file() and p.suffix != ".kt"):
+                    raise SystemExit(f"{check} holds files other than Kotlin sources, which the app cannot read: {other}")
                 shutil.copytree(check, source, dirs_exist_ok=True)
             else:
                 shutil.copy(check, source / "check.kt")
             if not (source / "check.kt").is_file():
                 raise SystemExit(f"{check} holds no check.kt")
-            body = 'Class.forName("CheckKt").getMethod("main", Array<String>::class.java).invoke(null, arrayOf<String>())'
-            keep = "-keep class CheckKt { public static void main(java.lang.String[]); }\n"
+            # Its main's class, which reflection reaches from the instrumentation's package
+            # whatever the check's, and which is kept, as an app keeps its entry points.
+            entry = check_class((source / "check.kt").read_text(encoding="utf-8"))
+            body = f'Class.forName("{entry}").getMethod("main", Array<String>::class.java).invoke(null, arrayOf<String>())'
+            keep = f"-keep class {entry} {{ public static void main(java.lang.String[]); }}\n"
         else:
             # Loading the library checks its contract against the Kotlin's.
             body = f'Class.forName("{package}._Native")'
@@ -2704,22 +2721,21 @@ dependencies {{
     sys.stderr.buffer.write(err)
     if report["status"] != "0":
         raise SystemExit(f"{check or 'the load'} failed in the Android app: {report['status']}")
-    if native and check:
+    if native:
         compare(android_native(native, version_dir / f"{artifact}-{version}.aar", abi), out, "Android app")
 
 
 def android_native(example, aar, abi):
-    """The example's output on the device, run beside the AAR's libraries for its ABI, which
-    hold the C++ runtime it may need."""
+    """The output on the device of the example in the directory `example`, beside the libraries
+    it needs, run beside the AAR's libraries for its ABI."""
     device = "/data/local/tmp/rust2-example"
     with tempfile.TemporaryDirectory() as raw:
         staged = Path(raw) / "example"
-        staged.mkdir()
+        shutil.copytree(example, staged)
         with zipfile.ZipFile(aar) as z:
             for name in z.namelist():
                 if name.startswith(f"jni/{abi}/"):
                     (staged / posixpath.basename(name)).write_bytes(z.read(name))
-        shutil.copy(example, staged / "example")
         adb("shell", "rm", "-rf", device)
         adb("push", staged, device, capture_output=True)
     # No terminal, which would end each line with a carriage return.
@@ -2732,23 +2748,34 @@ def line_tables(manifest):
     """An app's native build with line tables at least, from which a crash in Rust symbolicates:
     the Apple slices', whose app's dSYM holds them, and Android's, whose app's build strips
     them for Play. As cargo's `--config` arguments, which take precedence over the crate's
-    release profile, which the export carries, and the environment: line tables wherever the
-    profile or one of its packages' sets a level without them, the profile by default, and no
-    strip, which a static library ignores and a shared one would lose them to."""
+    release profile, which the export carries, the environment, and any `.cargo/config.toml`,
+    which this cannot read: the profile's level pinned, `line-tables-only` unless the profile or
+    environment sets one holding them, which it keeps, and no strip, which a static library
+    ignores and a shared one would lose them to. A package's override of either is overridden
+    likewise where the profile sets one."""
     with open(manifest, "rb") as f:
         release = tomllib.load(f).get("profile", {}).get("release", {})
     root = {**release, **{key: os.environ[f"CARGO_PROFILE_RELEASE_{key.upper()}"] for key in ("debug", "strip")
                           if f"CARGO_PROFILE_RELEASE_{key.upper()}" in os.environ}}
-    tables = [("profile.release", root, False),
-              *((f"profile.release.package.{json.dumps(name)}", table, None) for name, table in release.get("package", {}).items())]
-    config = []
-    for key, table, default in tables:
-        level = table.get("debug", default)
-        if level is not None and not (level is True or level in (1, 2, "1", "2", "true", "limited", "full", "line-tables-only")):
+    config = ["--config", f'profile.release.debug="{symbolicating(root.get("debug")) or "line-tables-only"}"',
+              "--config", 'profile.release.strip="none"']
+    for name, table in release.get("package", {}).items():
+        key = f"profile.release.package.{json.dumps(name)}"
+        if "debug" in table and not symbolicating(table["debug"]):
             config += ["--config", f'{key}.debug="line-tables-only"']
         if table.get("strip", "none") not in (False, "false", "none"):
             config += ["--config", f'{key}.strip="none"']
     return config
+
+
+def symbolicating(level):
+    """Cargo's name for a debug level, as a profile or the environment spells it, that holds
+    line tables, or None for one that holds none."""
+    if level is True or level in (2, "2", "true", "full"):
+        return "full"
+    if level in (1, "1", "limited"):
+        return "limited"
+    return level if level == "line-tables-only" else None
 
 
 def web_profile(manifest):
@@ -3024,7 +3051,7 @@ def main():
     p = sub.add_parser("consume-android", help="run a check program, or a load, in a Gradle app on the AAR, on the device adb reaches")
     p.add_argument("--repo", required=True, help="the Maven repository `maven` wrote")
     p.add_argument("--check", help="a Kotlin file, or a directory holding it as check.kt beside the files it reads")
-    p.add_argument("--native", help="the example built for the device, whose output the check must print")
+    p.add_argument("--native", help="a directory holding the example built for the device, whose output the check must print, beside the libraries it needs")
     p = sub.add_parser("consume-python", help="run a check program, or an import, on the installed wheel")
     group = p.add_mutually_exclusive_group(required=True)
     group.add_argument("--check")

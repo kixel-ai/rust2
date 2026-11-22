@@ -67,8 +67,10 @@ print it through the installed packages, and `reproduce`, which builds everythin
 two checkouts. Without a check, a consumer only imports the module, links a function of
 each C and C++ header, or loads the Android library. A `c-check` is C or C++ by its extension.
 The Android library takes `maven-group`, its groupId, which no Cargo fact proves the
-publisher holds; without it, the builder makes none. A `kotlin-check` is a Kotlin file
-whose `main` prints the transcript, importing the binding's package. The web package
+publisher holds; without it, the builder makes none. It serves Android alone, so
+coordinates that already ship a JVM jar would lose it ([maven-jvm](/quest/m1/ffi-packaging/maven-jvm.md)).
+A `kotlin-check` is a Kotlin file, in any package, whose top-level `main` prints the
+transcript, importing the binding's package. The web package
 takes `web-manifest-path`, the package exported for `wasm32-wasip1`, often the crate's own,
 which no Cargo fact says builds for the web, and `scope`; and an optional `web-check`, a
 TypeScript module importing the binding as `./web/<module>.ts` does beside an export,
@@ -78,7 +80,8 @@ crate apart from it takes `web-features` and `web-example` instead.
 A `python-check`, `c-check`, `kotlin-check`, or `web-check` may instead name a directory
 holding the program as `check.py`, `check.c` or `check.cpp`, `check.kt`, or `check.ts`, beside
 the files it reads, which each consumer places beside it: a check that imports a module or
-includes a header of its own.
+includes a header of its own. A Kotlin check's directory holds Kotlin sources alone, as the
+Android app it runs in reads no file beside it.
 A check its tests generate comes through `checks-artifact`, an artifact of the caller's run
 the builder unpacks over its checkout before reading the checks.
 
@@ -204,10 +207,10 @@ the builder unpacks over its checkout before reading the checks.
 9. Android: a library per ABI the AAR holds, `arm64-v8a`, `armeabi-v7a`, and `x86_64`,
    built with `--features kotlin` by the NDK for API 24, moq's floor, each checked to align
    its segments to the 16 KB pages Google Play requires of a 64-bit library from 2027-02-01,
-   and to need no library an Android 24 device lacks but the NDK's `libc++_shared.so`, which
-   then lies beside it. Each keeps its symbol table and line tables, `debug =
-   "line-tables-only"` unless the crate's release profile sets a level holding them, with any
-   `strip` the profile sets overridden: an app's build strips them from its APK and gives
+   and to need no library an Android 24 device lacks, the NDK's `libc++_shared.so` included,
+   which an AAR cannot ship, as an app holding another AAR's copy packs only one. Each keeps its symbol table and line tables, `debug =
+   "line-tables-only"` unless the crate's release profile or the environment sets a level
+   holding them, over any level or `strip` a `.cargo/config.toml` or the profile sets: an app's build strips them from its APK and gives
    them to Play, which symbolicates a crash in Rust to its source line.
 
    With a `maven-group`, an AAR, `<crate>-<version>.aar`: those libraries in `jni/`, the
@@ -244,7 +247,8 @@ the builder unpacks over its checkout before reading the checks.
     API 35: an instrumentation in the app's own process and class loader runs the check, or
     loads the library, and reports its output and how the process ended, as a check may end
     it with `exitProcess`. With an `example`, each must print native Rust's stdout byte for
-    byte, the Android app the example's built for the emulator and run there.
+    byte, the Android app the example's built for the emulator and run there, which is built
+    only for a `kotlin-check` to match.
 12. Web: `web-manifest-path` exported for `wasm32-wasip1` alone, whose `web/` holds the
     TypeScript, its JavaScript and declarations, and a `package.json`
     ([TypeScript (web)](/ffi/README.md#typescript-web)), and its module built at

@@ -722,42 +722,47 @@ class Swift(unittest.TestCase):
             self.assertIn(api, str(raised.exception))
 
     def test_line_tables(self):
-        lines = ["--config", 'profile.release.debug="line-tables-only"']
-        unstripped = ["--config", 'profile.release.strip="none"']
+        def root(level):
+            return ["--config", f'profile.release.debug="{level}"', "--config", 'profile.release.strip="none"']
         with tempfile.TemporaryDirectory() as raw, mock.patch.dict(os.environ):
             os.environ.pop("CARGO_PROFILE_RELEASE_DEBUG", None)
             os.environ.pop("CARGO_PROFILE_RELEASE_STRIP", None)
             manifest = Path(raw) / "Cargo.toml"
             manifest.write_text('[package]\nname = "x"\n')
-            self.assertEqual(package.line_tables(manifest), lines)
+            # Pinned even then, over a level a .cargo/config.toml may set.
+            self.assertEqual(package.line_tables(manifest), root("line-tables-only"))
             for level in ("false", "0", '"none"', '"line-directives-only"'):
                 manifest.write_text(f'[package]\nname = "x"\n\n[profile.release]\ndebug = {level}\n')
-                self.assertEqual(package.line_tables(manifest), lines, level)
-            for level in ("true", "1", '"full"', '"line-tables-only"'):
+                self.assertEqual(package.line_tables(manifest), root("line-tables-only"), level)
+            # A level holding them is kept, as cargo names it.
+            for level, name in (("true", "full"), ("2", "full"), ('"full"', "full"), ("1", "limited"),
+                                ('"limited"', "limited"), ('"line-tables-only"', "line-tables-only")):
                 manifest.write_text(f'[package]\nname = "x"\n\n[profile.release]\ndebug = {level}\n')
-                self.assertEqual(package.line_tables(manifest), [], level)
-            # A strip would drop them from a shared library, the profile's or a package's.
-            for strip in ("true", '"symbols"', '"debuginfo"'):
+                self.assertEqual(package.line_tables(manifest), root(name), level)
+            for strip in ("true", '"symbols"', '"debuginfo"', "false", '"none"'):
                 manifest.write_text(f'[package]\nname = "x"\n\n[profile.release]\ndebug = 1\nstrip = {strip}\n')
-                self.assertEqual(package.line_tables(manifest), unstripped, strip)
-            for strip in ("false", '"none"'):
-                manifest.write_text(f'[package]\nname = "x"\n\n[profile.release]\ndebug = 1\nstrip = {strip}\n')
-                self.assertEqual(package.line_tables(manifest), [], strip)
+                self.assertEqual(package.line_tables(manifest), root("limited"), strip)
+            # A package's strip would drop them from a shared library too.
             manifest.write_text('[package]\nname = "x"\n\n[profile.release]\ndebug = 1\n\n'
                                 '[profile.release.package.x-ffi]\nstrip = "debuginfo"\ndebug = 0\n\n'
-                                '[profile.release.package."*"]\nopt-level = 3\n')
+                                '[profile.release.package."*"]\nopt-level = 3\ndebug = 2\n')
             self.assertEqual(package.line_tables(manifest), [
+                *root("limited"),
                 "--config", 'profile.release.package."x-ffi".debug="line-tables-only"',
                 "--config", 'profile.release.package."x-ffi".strip="none"'])
             # The environment overrides the profile, as it does for cargo.
             for level in ("0", "false", "none", "line-directives-only"):
                 os.environ["CARGO_PROFILE_RELEASE_DEBUG"] = level
-                self.assertEqual(package.line_tables(manifest)[:2], lines, level)
-            for level in ("1", "2", "true", "limited", "full", "line-tables-only"):
+                self.assertEqual(package.line_tables(manifest)[:4], root("line-tables-only"), level)
+            for level, name in (("1", "limited"), ("2", "full"), ("true", "full"), ("limited", "limited"),
+                                ("full", "full"), ("line-tables-only", "line-tables-only")):
                 os.environ["CARGO_PROFILE_RELEASE_DEBUG"] = level
-                self.assertNotIn(lines[1], package.line_tables(manifest), level)
-            os.environ["CARGO_PROFILE_RELEASE_STRIP"] = "symbols"
-            self.assertEqual(package.line_tables(manifest)[:2], unstripped)
+                self.assertEqual(package.line_tables(manifest)[:4], root(name), level)
+
+    def test_check_class(self):
+        self.assertEqual(package.check_class("fun main() {}\n"), "CheckKt")
+        self.assertEqual(package.check_class("// A check.\npackage example.checks\n\nfun main() {}\n"), "example.checks.CheckKt")
+        self.assertEqual(package.check_class('@file:JvmName("Run")\npackage a\n\nfun main() {}\n'), "a.Run")
 
     def test_unknown_linker_flags_fail(self):
         with self.assertRaises(SystemExit):
