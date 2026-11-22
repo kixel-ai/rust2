@@ -1075,8 +1075,9 @@ public readonly struct PathBuf : IEquatable<PathBuf>
 public readonly struct Bytes : IDisposable, IEquatable<Bytes>
 {
 	/// Up to this many bytes a call returns are copied into C#'s memory, which costs less
-	/// than a lend's finalizer.
-	internal const int Copied = 1024;
+	/// than a lend, a finalizable object: 77 ns to read one of any size, against a copy's
+	/// 66 at 256 bytes and 111 at 1 KiB.
+	internal const int Copied = 512;
 
 	/// Its memory: C#'s, or a lend of Rust's buffer.
 	public ReadOnlyMemory<byte> Memory { get; }

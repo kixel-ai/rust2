@@ -471,7 +471,7 @@ static partial class Script
 
 	static bool IsLent(api.Bytes bytes) => MemoryMarshal.TryGetMemoryManager<byte, MemoryManager<byte>>(bytes.Memory, out _);
 
-	/// Bytes a call returns past 1 KiB lend Rust's buffer until disposed; fewer are copied.
+	/// Bytes a call returns past 512 lend Rust's buffer until disposed; fewer are copied.
 	static unsafe void Lends()
 	{
 		var big = new byte[1 << 20];
@@ -479,9 +479,9 @@ static partial class Script
 		{
 			big[i] = (byte)(i * 7);
 		}
-		Check(!IsLent(api.Lib.Prefixed(new byte[1024], null)), "up to 1 KiB returned are copied");
+		Check(!IsLent(api.Lib.Prefixed(new byte[512], null)) && IsLent(api.Lib.Prefixed(new byte[513], null)), "up to 512 bytes returned are copied");
 		var lent = api.Lib.Prefixed(big, null);
-		Check(IsLent(lent), "past 1 KiB returned are lent");
+		Check(IsLent(lent), "past 512 bytes returned are lent");
 		Check(lent.Span.SequenceEqual(big) && lent.ToArray().AsSpan().SequenceEqual(big), "a lend reads Rust's bytes");
 		Check(lent == (api.Bytes)big && lent.GetHashCode() == ((api.Bytes)big).GetHashCode(), "a lend equals and hashes by its bytes");
 		// A lend passes back in place: at a call's top level, in a record, and sliced.

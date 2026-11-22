@@ -1091,37 +1091,43 @@ a returned slice that keeps a larger buffer whole; it copies past either.
 ## C#
 
 Measured 2026-11-22 on **desktop** (Intel Core Ultra 7 270K Plus, 24 threads) at rust2
-`cbe455f9`, moq `1aa86d5e`, .NET 10.0.14 on CoreCLR's tiered JIT, beside C from the same
-export, in turn for 3 rounds at a load of 27 to 29 from other agents' builds, so read the
-C# column against C's from the same runs, not against the tables above. CPU time, ns per
-call, and MB per CPU second for throughput:
+`34d46770` with returned bytes lent past 512, moq `1aa86d5e`, .NET 10.0.14 on CoreCLR's
+tiered JIT, beside C from the same export, in turn for 3 rounds at a load of 30 from other
+agents' builds, so read the C# column against C's from the same runs, not against the
+tables above. CPU time, ns per call, and MB per CPU second for throughput:
 
 | case | C | C# |
 |---|---|---|
-| `track.is_closed()`, a handle call | 17.5 | 34.0 |
-| `demand.start()`, a u64 getter | 10.0 | 20.4 |
-| the getter on 4 threads, one shared handle | 10.7 | 23.5 |
-| the getter on 4 threads, a clone each | 10.2 | 20.7 |
-| `track.largest()`, a record return | 28.5 | 75.5 |
-| `track.info()`, an object return | 37.4 | 118 |
-| `info.priority`, a field | 10.1 | 23.1 |
-| `group.write_frame(at, frame)`, 100 B | 151 | 187 |
-| the same, with a new `Timestamp` each | 163 | 274 |
-| a 100 B frame written and read, ready | 283 | 427 |
-| the same, read after a wake | 444 | 2,678 |
-| `frame.payload`, 100 B | 20.4 | 61.3 |
-| throughput, 100 B frames | 331 | 195 |
-| throughput, 1 KiB | 2,560 | 1,289 |
-| throughput, 1 MiB | 10,422 | 1,832 |
+| `track.is_closed()`, a handle call | 16 | 34 |
+| `demand.start()`, a u64 getter | 8.4 | 22 |
+| the getter on 4 threads, one shared handle | 11 | 24 |
+| the getter on 4 threads, a clone each | 9.3 | 21 |
+| `track.largest()`, a record return | 28 | 71 |
+| `track.info()`, an object return | 35 | 115 |
+| `info.priority`, a field | 8.8 | 24 |
+| `group.write_frame(at, frame)`, 100 B | 164 | 175 |
+| the same, with a new `Timestamp` each | 178 | 261 |
+| a 100 B frame written and read, ready | 303 | 422 |
+| the same, read after a wake | 444 | 5,159 |
+| `frame.payload`, 100 B | 26 | 64 |
+| throughput, 100 B frames | 307 | 188 |
+| throughput, 1 KiB | 2,564 | 1,408 |
+| throughput, 64 KiB | 7,869 | 5,447 |
+| throughput, 1 MiB | 7,841 | 6,198 |
+
+`frame.payload` by size, C# alone, ns per call: 16 B 47, 64 B 54, 100 B 56, 256 B 79,
+1 KiB 81, 4 KiB 88, 64 KiB 87, 1 MiB 85. Past 512 bytes it lends Rust's buffer, so a read
+costs the same at any size; at 1 KiB, a copy measured 111. Before the lend, a copy into a
+managed array from the large object heap, 1 MiB frames ran at 1,832 MB/s against C's
+10,422. What separates 1 MiB from C now is the write: per frame, `write_frame` took 240 µs
+at 1 MiB against 5 at 64 KiB, Rust allocating its copy of the frame in fresh pages, while
+the read stayed under 0.4 µs.
 
 A call holds its handle as Kotlin's and Go's do ([Concurrent calls](#concurrent-calls)).
 Before it did, with a count of its own on each object that every call wrote, 4 threads
 sharing one handle cost 208 ns a getter, against 37 on a clone each, at a load of 22. A
 woken read awaits a `ValueTask` whose wake posts its next poll to the thread pool, never
-running it inside Rust's wake, so a pool thread's handoff dominates it. Returned bytes are
-copied into a managed array, as no view of Rust's buffer stays safe once the GC finds its
-owner unreachable while a `Span` of it lives; the 1 MiB rows are that copy and the large
-object heap it allocates from.
+running it inside Rust's wake, so a pool thread's handoff dominates it.
 
 ## Consumer release profile
 

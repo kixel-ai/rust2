@@ -1653,11 +1653,11 @@ throws aborts, naming the call. The runtime every file includes is
   `IpAddr`, `SocketAddr`, and their V4 and V6 forms, `[u8; N]` as a struct `ArrayU8xN`, and a
   1-tuple as `ValueTuple<T>`. Bytes in are a `ReadOnlySpan<byte>` Rust reads in place,
   pinned for the call. Bytes out, and bytes a value holds, are the runtime's `Bytes`, a
-  disposable struct over a `ReadOnlyMemory<byte>`: past 1 KiB, those Rust returns lend
+  disposable struct over a `ReadOnlyMemory<byte>`: past 512 bytes, those Rust returns lend
   its buffer in place through a `MemoryManager<byte>` until `Dispose()`, as `using`
   calls, frees it once no call reading it in place, nor pin, holds it, after which a read
-  throws `ObjectDisposedException`; up to 1 KiB are copied into C#'s memory, which costs
-  less than a lend's finalizer. The collector frees a lend never disposed only if no view
+  throws `ObjectDisposedException`; up to 512 are copied into C#'s memory, which costs
+  less than a lend, a finalizable object. The collector frees a lend never disposed only if no view
   of it, `Span` or `Memory`, was ever taken, since a view can outlive what the collector
   sees reaching its owner: so dispose one viewed, and read no view taken before a dispose
   after it, as with any `IMemoryOwner`. `byte[]` and `ReadOnlyMemory<byte>` convert to
