@@ -144,6 +144,23 @@ pub struct Check<'a> {
 	/// Where cargo runs, which it reads its config and a `--config` path from, absolute, if
 	/// not the package's directory: another package's, whose config this check then shares.
 	pub dir: Option<&'a Path>,
+	/// Which crates cargo compiles through this executable.
+	pub wrap: Wrap,
+}
+
+/// Which crates cargo compiles through the driver.
+pub enum Wrap {
+	/// Every crate, as cargo's `RUSTC_WRAPPER`.
+	All,
+	/// The workspace's own crates, as cargo's `RUSTC_WORKSPACE_WRAPPER`, and every other crate
+	/// with this executable as cargo's `RUSTC`, which it compiles as rustc would: a cache in
+	/// cargo's `RUSTC_WRAPPER`, such as mbx's, then serves those, and runs the wrapper for
+	/// the workspace's own, whose compilation writes the driver's output. The executable
+	/// tells the two apart by whether cargo passes it itself as the rustc to wrap.
+	///
+	/// `RUSTC` spells the executable's path apart from the wrapper's, as mbx 1.30 tells a
+	/// workspace crate by cargo passing its wrapper the wrapper's own path as rustc's.
+	Workspace,
 }
 
 impl Check<'_> {
@@ -166,6 +183,15 @@ impl Check<'_> {
 					cmd.env_remove(key);
 				}
 			}
+			match self.wrap {
+				Wrap::All => cmd.env("RUSTC_WRAPPER", &exe),
+				// An empty wrapper is none, whatever cargo's config names, so only a cache that
+				// sets its own, as mbx's does, wraps rustc.
+				Wrap::Workspace => cmd
+					.env("RUSTC", rustc(&exe))
+					.env("RUSTC_WORKSPACE_WRAPPER", &exe)
+					.env("RUSTC_WRAPPER", ""),
+			};
 			cmd.arg(subcommand)
 				.arg("--manifest-path")
 				.arg(self.root.unwrap_or(self.manifest))
@@ -202,7 +228,6 @@ impl Check<'_> {
 		let status = cargo("check")
 			.arg("--lib")
 			.args(self.args)
-			.env("RUSTC_WRAPPER", &exe)
 			.env(crate::rustc::RAN, &ran)
 			.status()
 			.map_err(|err| format!("running cargo: {err}"))?;
@@ -217,6 +242,15 @@ impl Check<'_> {
 		}
 		Ok(ExitCode::SUCCESS)
 	}
+}
+
+/// `exe`'s path spelled through its directory's `.`, as [`Wrap::Workspace`] names it cargo's
+/// rustc.
+fn rustc(exe: &Path) -> PathBuf {
+	let (Some(dir), Some(name)) = (exe.parent(), exe.file_name()) else {
+		return exe.to_path_buf();
+	};
+	dir.join(".").join(name)
 }
 
 /// Where `tool` builds, absolute: `CARGO_TARGET_DIR`, or its own directory in the target

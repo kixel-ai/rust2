@@ -270,9 +270,9 @@ def pascal(name):
     return "".join(part[:1].upper() + part[1:] for part in name.split("_") if part)
 
 
-def python_floor(export):
-    """The oldest CPython the export's stable-ABI extension loads in, from its glue's pyo3 feature."""
-    return backend.python_floor((Path(export) / "Cargo.toml").read_text(encoding="utf-8"))
+def python_floor(export, abi="abi3"):
+    """The oldest CPython the export's extension on the stable ABI `abi` loads in, from its glue's pyo3 feature."""
+    return backend.python_floor((Path(export) / "Cargo.toml").read_text(encoding="utf-8"), abi)
 
 
 def licenses(info):
@@ -332,10 +332,12 @@ def wheel_platform(target):
 library_name = backend.library_name
 
 
-def write_wheel(info, export, library, target, out):
-    """An unrepaired wheel holding the generated module as a typed package beside its library."""
-    lib, floor = info["lib"], python_floor(export)
-    return backend.write_wheel(out, metadata(info, floor), f"cp3{floor}-abi3-{wheel_platform(target)}", lib,
+def write_wheel(info, export, library, target, out, abi):
+    """An unrepaired wheel holding the generated module as a typed package beside its library on the stable ABI `abi`."""
+    # Every wheel's metadata is the sdist's, as a resolver reads one wheel's for all; the tag
+    # alone narrows where an `abi3t` wheel installs.
+    lib, tag = info["lib"], f"cp3{python_floor(export, abi)}-{abi}-{wheel_platform(target)}"
+    return backend.write_wheel(out, metadata(info, python_floor(export)), tag, lib,
                                (Path(export) / "python" / f"{lib}.py").read_bytes(), Path(library).read_bytes(),
                                target, {path.name: path.read_bytes() for path in licenses(info)}, info["epoch"],
                                info["sbom"])
@@ -2012,18 +2014,25 @@ def build(args):
                 env = reproducible(inside, through, target)
                 if "apple" in target:
                     env["MACOSX_DEPLOYMENT_TARGET"] = MACOS_WHEEL
+                # pyo3 builds each stable ABI without asking a CPython, which the host may lack.
+                env.pop("PYO3_PYTHON", None)
+                env["PYO3_NO_PYTHON"] = "1"
                 linux = "linux" in target
-                # cargo-zigbuild links Linux against the glibc floor's symbols, whichever glibc the host has.
-                built = cargo(args.manifest_path, *(["zigbuild"] if linux else ["build"]), "--locked", "--release",
-                              "--manifest-path", crate, "--target", f"{target}.{GLIBC}" if linux else target,
-                              "--target-dir", through / "target-python", "--features", "python", env=env)
-                sys.stderr.write(built.stderr)
-                library = through / "target-python" / target / "release" / library_name(lib, target)
-                with tempfile.TemporaryDirectory() as raw:
-                    wheel = repair(write_wheel(inside, through, library, target, raw), target, out / "wheels", inside["epoch"])
-                if args.kotlin and target in JVM_TARGETS and (bundled := vendored(wheel)):
-                    raise SystemExit(f"{lib} links {bundled} on {target}, which the wheel bundles but the desktop jar cannot: "
-                                     "its loader loads one library")
+                for abi, feature in backend.FEATURES.items():
+                    # cargo-zigbuild links Linux against the glibc floor's symbols, whichever glibc the host has.
+                    built = cargo(args.manifest_path, *(["zigbuild"] if linux else ["build"]), "--locked", "--release",
+                                  "--manifest-path", crate, "--target", f"{target}.{GLIBC}" if linux else target,
+                                  "--target-dir", through / f"target-{feature}", "--features", feature, env=env)
+                    sys.stderr.write(built.stderr)
+                    library = through / f"target-{feature}" / target / "release" / library_name(lib, target)
+                    with tempfile.TemporaryDirectory() as raw, tempfile.TemporaryDirectory() as fixed:
+                        wheel = repair(write_wheel(inside, through, library, target, raw, abi), target, fixed,
+                                       inside["epoch"])
+                        if args.kotlin and target in JVM_TARGETS and (bundled := vendored(wheel)):
+                            raise SystemExit(f"{lib} links {bundled} on {target}, which the wheel bundles but the desktop "
+                                             "jar cannot: its loader loads one library")
+                        (out / "wheels").mkdir(parents=True, exist_ok=True)
+                        shutil.move(wheel, out / "wheels" / wheel.name)
                 c_archive(inside, args.manifest_path, through, target, out)
             if target in APPLE_TARGETS:
                 apple = APPLE_TARGETS[target]
@@ -2176,7 +2185,8 @@ def zip_root(name):
 
 def consume_go(proxy, check, native):
     """Build and run a check program, or else an import of the runtime, against the module
-    unpacked from its zip, in a new module of its own: no checkout, Rust, or CGO_LDFLAGS."""
+    unpacked from its zip, in a new module of its own: no checkout, Rust, or CGO_LDFLAGS.
+    The check's directory is the program's package, `check.go` beside the files it reads."""
     zips = list(Path(proxy).rglob("*.zip"))
     if len(zips) != 1:
         raise SystemExit(f"expected one module zip in {proxy}, found {zips}")
@@ -2187,17 +2197,21 @@ def consume_go(proxy, check, native):
         z.extractall(work / "mod")
         consumer = work / "consumer"
         consumer.mkdir()
+        if check:
+            check_program_in(check, ("check.go",))
+            shutil.copytree(check, consumer, dirs_exist_ok=True)
+        else:
+            (consumer / "main.go").write_text(f'package main\n\nimport _ "{module}/rt"\n\nfunc main() {{}}\n', encoding="utf-8")
+        # After the check's files, which hold no module of their own.
         (consumer / "go.mod").write_text(
             f"module consumer\n\ngo 1.24\n\nrequire {module} {version}\n\nreplace {module} => ../mod/{prefix}\n",
             encoding="utf-8")
-        main = Path(check).read_text(encoding="utf-8") if check else f'package main\n\nimport _ "{module}/rt"\n\nfunc main() {{}}\n'
-        (consumer / "main.go").write_text(main, encoding="utf-8")
         env = {k: v for k, v in os.environ.items() if not k.startswith("CGO_") or k == "CGO_ENABLED"}
         env.update(CGO_ENABLED="1", GOFLAGS="-mod=mod", GOPROXY="off", GOTOOLCHAIN="local", GOWORK="off")
         run("go", "vet", f"{module}/...", ".", cwd=consumer, env=env)
         exe = consumer / ("check.exe" if sys.platform == "win32" else "check")
         run("go", "build", "-o", exe, ".", cwd=consumer, env=env)
-        result = subprocess.run([exe], capture_output=True, cwd=work)
+        result = subprocess.run([exe], capture_output=True, cwd=consumer)
     sys.stderr.buffer.write(result.stderr)
     if result.returncode:
         raise SystemExit(f"{check or 'the import'} failed on the Go module with status {result.returncode}")
@@ -2350,16 +2364,41 @@ def local_package(package, dest, url):
     return Path(dest)
 
 
-def dart_main(lib, check):
-    """The consumer's program: the caller's check, or else one that calls the library's contract.
-    It calls rather than takes the address: Dart 3.14's AOT resolves no `Native.addressOf` of a
-    function naming its `assetId`, as this one must from outside the package."""
+# The entry of a Dart check, beside it: it runs the check's `main`, which takes the arguments or
+# none, as the Flutter app's does.
+DART_MAIN = """import 'check.dart' as check;
+
+Future<void> main(List<String> args) async {
+  final Function run = check.main;
+  final result = run is Function(List<String>) ? run(args) : run();
+  if (result is Future) await result;
+}
+"""
+
+
+def dart_check(lib, check, where):
+    """Place the consumer's program in `where` as check.dart: the caller's check directory
+    whole, its `check.dart` beside the files it imports, or else a program that calls the
+    library's contract. It calls rather than takes the address: Dart 3.14's AOT resolves no
+    `Native.addressOf` of a function naming its `assetId`, as this one must from outside the package."""
+    where = Path(where)
     if check:
-        return Path(check).read_text(encoding="utf-8")
-    return (f"import 'dart:ffi';\n\n"
-            f"@Native<Uint64 Function()>(symbol: '{lib}_contract', assetId: 'package:{lib}/{lib}.dart', isLeaf: true)\n"
-            f"external int _contract();\n\n"
-            f"void main() {{\n  _contract();\n}}\n")
+        check_program_in(check, ("check.dart",))
+        if (Path(check) / "main.dart").exists():
+            raise SystemExit(f"{check} holds a main.dart, which the consumer writes beside check.dart")
+        shutil.copytree(check, where, dirs_exist_ok=True)
+        return
+    (where / "check.dart").write_text(
+        f"import 'dart:ffi';\n\n"
+        f"@Native<Uint64 Function()>(symbol: '{lib}_contract', assetId: 'package:{lib}/{lib}.dart', isLeaf: true)\n"
+        f"external int _contract();\n\n"
+        f"void main() {{\n  _contract();\n}}\n", encoding="utf-8")
+
+
+def dart_entry(lib, check, app):
+    """The app's `bin/` holding the check and the entry that runs it."""
+    dart_check(lib, check, app / "bin")
+    (app / "bin" / "main.dart").write_text(DART_MAIN, encoding="utf-8")
 
 
 def dart_app(work, name, package, lib):
@@ -2388,14 +2427,14 @@ def consume_dart(package, libs, lib, check, native):
             path.write_bytes(bytes(data))
         with Served(bad) as served:
             app = dart_app(work, "tampered", local_package(package, work / "bad-package", served.url), lib)
-            (app / "bin" / "main.dart").write_text(dart_main(lib, None), encoding="utf-8")
+            dart_entry(lib, None, app)
             result = subprocess.run(["dart", "run", "bin/main.dart"], cwd=app, capture_output=True, encoding="utf-8")
             if result.returncode == 0 or "SHA-256" not in result.stdout + result.stderr:
                 sys.stderr.write(result.stdout + result.stderr)
                 raise SystemExit("the hook took a library of other bytes than the release names")
         with Served(good) as served:
             app = dart_app(work, "consumer", local_package(package, work / "package", served.url), lib)
-            (app / "bin" / "main.dart").write_text(dart_main(lib, check), encoding="utf-8")
+            dart_entry(lib, check, app)
             run("dart", "build", "cli", "--target", "bin/main.dart", "--output", work / "build", cwd=app,
                 capture_output=True)
             exe = work / "build" / "bundle" / "bin" / ("main.exe" if sys.platform == "win32" else "main")
@@ -2411,6 +2450,10 @@ def run_dart(command, cwd, check, native, what):
         raise SystemExit(f"{what} failed on the Dart package with status {result.returncode}")
     # Dart 3.10's `dart run` says it runs the hooks on stdout, before the program does.
     stdout = re.sub(rb"^(Running build hooks\.\.\.)+", b"", result.stdout)
+    # `print` writes through the C runtime's text mode, which ends each line in CRLF on Windows,
+    # where Rust's `println!` ends it in LF; the transcript holds no CR of its own.
+    if sys.platform == "win32":
+        stdout = stdout.replace(b"\r\n", b"\n")
     if native and check:
         compare(Path(native).read_bytes(), stdout, f"Dart package, {what}")
     print(f"{what}: ok")
@@ -2423,7 +2466,7 @@ def consume_source(export, check, native):
     lib = pub_name(package)
     with tempfile.TemporaryDirectory() as raw:
         app = dart_app(raw, "consumer", package, lib)
-        (app / "bin" / "main.dart").write_text(dart_main(lib, check), encoding="utf-8")
+        dart_entry(lib, check, app)
         run_dart(["dart", "run", "bin/main.dart"], app, check, native, "dart run from source")
 
 
@@ -2462,77 +2505,101 @@ void main() {
 """
 
 
-class Flutter:
-    """`flutter run --machine` on an app: its events, from a thread reading them, and its commands."""
+# Silence longer than any quiet step a sound run has once the app is built, such as attach's
+# first compile or the check itself, so a stalled run fails saying so rather than at the job's limit.
+SILENT = 15 * 60
 
-    # Longer than flutter's longest quiet step, a cold Gradle build, so a stalled run fails
-    # saying so rather than at the job's limit.
-    SILENT = 15 * 60
+# The `--target-platform` Flutter builds for a device's ABI.
+FLUTTER_TARGETS = {"arm64-v8a": "android-arm64", "armeabi-v7a": "android-arm", "x86_64": "android-x64"}
 
-    def __init__(self, app, device):
-        import threading
-        self.process = subprocess.Popen(["flutter", "run", "--machine", "--debug", "-d", device], cwd=app, text=True,
-                                        encoding="utf-8", stdin=subprocess.PIPE, stdout=subprocess.PIPE)
-        self.events, self.app, self.started, self.ids = queue.Queue(), None, False, 0
-        threading.Thread(target=self.read, daemon=True).start()
 
-    def read(self):
-        for line in self.process.stdout:
-            line = line.strip()
-            try:
-                events = json.loads(line) if line.startswith("[{") else None
-            except json.JSONDecodeError:
-                events = None
-            if events is not None:
-                for event in events:
-                    # What flutter is doing, such as installing the app, so a stall says where.
-                    if event.get("event") in ("app.progress", "daemon.logMessage") and event["params"].get("message"):
-                        print(f"flutter: {event['params']['message']}", file=sys.stderr, flush=True)
-                    self.events.put(event)
-            elif line:
-                # Any other line, such as a desktop app's own output, which flutter passes through as is.
-                self.events.put({"event": "app.log", "params": {"log": line}})
-        self.events.put(None)
+def reader(process, handle):
+    """A queue of the items `handle` makes of each of `process`'s output lines, from a thread
+    reading them, ending in None once it closes."""
+    import threading
+    lines = queue.Queue()
 
-    def next(self):
-        """The next event, failing once flutter exits or a command fails."""
-        try:
-            event = self.events.get(timeout=self.SILENT)
-        except queue.Empty:
-            raise SystemExit(f"flutter run said nothing for {self.SILENT // 60} minutes") from None
-        if event is None:
-            raise SystemExit("flutter run exited before the check did")
-        if "error" in event:
-            raise SystemExit(f"flutter run refused a command: {event['error']}")
-        params = event.get("params", {})
-        if event.get("event") == "app.start":
-            self.app = params["appId"]
-        elif event.get("event") == "app.started":
-            self.started = True
-        return event
+    def read():
+        for line in process.stdout:
+            for item in handle(line.rstrip("\r\n")):
+                lines.put(item)
+        lines.put(None)
+    threading.Thread(target=read, daemon=True).start()
+    return lines
 
-    def command(self, method, **params):
-        """Send a command once the app has started, as flutter takes none before."""
-        while not self.started:
-            self.next()
-        self.ids += 1
-        self.process.stdin.write(json.dumps([{"id": self.ids, "method": method, "params": {"appId": self.app, **params}}]) + "\n")
-        self.process.stdin.flush()
+
+def take(lines, what):
+    """The next item from a `reader` queue, failing once `what` closes or falls silent."""
+    try:
+        item = lines.get(timeout=SILENT)
+    except queue.Empty:
+        raise SystemExit(f"{what} said nothing for {SILENT // 60} minutes") from None
+    if item is None:
+        raise SystemExit(f"{what} ended before the check did")
+    return item
+
+
+# The consumer app's package, and so its process's name.
+FLUTTER_APP = "dev.rust2.consumer"
+
+
+class Logcat:
+    """What the device logs under Flutter's tag, and any crash of the consumer app, from now on."""
+
+    def __init__(self, device):
+        # From the log's last line, as `flutter run` reads it: Android 7's emulator may refuse
+        # to clear its log.
+        last = adb("-s", device, "logcat", "-v", "time", "-t", "1", capture_output=True, encoding="utf-8").stdout
+        if not (since := re.search(r"^\d\d-\d\d \d\d:\d\d:\d\d\.\d{3}", last, re.M)):
+            raise SystemExit(f"the device's log holds no time to read it from: {last!r}")
+        self.process = subprocess.Popen(
+            [adb_path(), "-s", device, "logcat", "-T", since[0], "-v", "brief", "-s", "flutter:I", "libc:F", "DEBUG:F",
+             "AndroidRuntime:E"], text=True, encoding="utf-8", errors="replace", stdout=subprocess.PIPE)
+        self.lines = reader(self.process, lambda line: [line])
+        # The app's process, known from its first line under Flutter's tag.
+        self.pid = None
+        # Where the app's Dart VM service listens, from the engine's announcement.
+        self.vm_service = None
+
+    def crashed(self, tag, pid, text):
+        """Whether a crash tag's line is the consumer app's, rather than another process's: a
+        fatal signal, such as a Rust panic's abort, in the app's process, debuggerd's dump
+        naming it, or an uncaught Java exception in it."""
+        return ((tag == "F/libc" and pid == self.pid) or (tag == "F/DEBUG" and f">>> {FLUTTER_APP} <<<" in text)
+                or (tag == "E/AndroidRuntime" and text.startswith(f"Process: {FLUTTER_APP},")))
+
+    def said(self):
+        """The next line the app logs under Flutter's tag, failing on its crash."""
+        while True:
+            line = take(self.lines, "the device's log")
+            print(line, file=sys.stderr)
+            if not (entry := re.match(r"([A-Z]/[^(]*?)\s*\(\s*(\d+)\): (.*)", line)):
+                continue
+            tag, pid, said = entry[1], int(entry[2]), entry[3]
+            if tag != "I/flutter":
+                if self.crashed(tag, pid, said):
+                    raise SystemExit(f"the Flutter app crashed: {line}")
+                continue
+            self.pid = self.pid or pid
+            if listening := re.match(r"The Dart VM service is listening on (http://\S+)", said):
+                self.vm_service = listening[1]
+            return said
+
+    def listening(self):
+        """Where the app's Dart VM service listens, which a debug build may announce only
+        after a quick check has run."""
+        while not self.vm_service:
+            self.said()
+        return self.vm_service
 
     def output(self):
         """What one run of the check printed, failing unless it exits 0."""
         chunks = None
         while True:
-            event = self.next()
-            if event.get("event") != "app.log":
+            said = self.said()
+            if not said.startswith("rust2: "):
                 continue
-            line = event["params"]["log"]
-            print(line, file=sys.stderr)
-            # After whatever prefix the device's log adds.
-            at = line.find("rust2: ")
-            if at < 0:
-                continue
-            said = line[at + len("rust2: "):]
+            said = said[len("rust2: "):]
             if said == "start":
                 chunks = []
             elif chunks is None:
@@ -2547,36 +2614,112 @@ class Flutter:
                 chunks.append(said)
 
 
-def consume_flutter(package, libs, lib, check, native, platform, device):
+class Flutter:
+    """`flutter attach --machine` to the running app: its events and its commands."""
+
+    def __init__(self, app, device, vm_service):
+        # Given the VM service, as attach otherwise looks for its announcement in the device's
+        # whole log, which the check's own output may have rotated out by now.
+        self.process = subprocess.Popen(["flutter", "attach", "--machine", "-d", device, "--debug-url", vm_service],
+                                        cwd=app, text=True, encoding="utf-8", stdin=subprocess.PIPE,
+                                        stdout=subprocess.PIPE)
+        self.events = reader(self.process, self.event)
+        self.app, self.started, self.ids = None, False, 0
+
+    @staticmethod
+    def event(line):
+        try:
+            events = json.loads(line) if line.startswith("[{") else None
+        except json.JSONDecodeError:
+            events = None
+        if events is None:
+            if line:
+                print(line, file=sys.stderr)
+            return []
+        for event in events:
+            # What flutter is doing, such as compiling, so a stall says where.
+            if event.get("event") in ("app.progress", "daemon.logMessage") and event["params"].get("message"):
+                print(f"flutter: {event['params']['message']}", file=sys.stderr, flush=True)
+        return events
+
+    def next(self):
+        """The next event, failing once flutter exits or a command fails."""
+        event = take(self.events, "flutter attach")
+        if "error" in event:
+            raise SystemExit(f"flutter attach refused a command: {event['error']}")
+        params = event.get("params", {})
+        if event.get("event") == "app.start":
+            self.app = params["appId"]
+        elif event.get("event") == "app.started":
+            self.started = True
+        return event
+
+    def reply(self):
+        """The reply to the last command, failing unless it succeeded."""
+        while (event := self.next()).get("id") != self.ids:
+            pass
+        if (result := event.get("result")) and result.get("code"):
+            raise SystemExit(f"flutter attach failed a command: {result}")
+        return event
+
+    def command(self, method, **params):
+        """Send a command once flutter has attached, as it takes none before."""
+        while not self.started:
+            self.next()
+        self.ids += 1
+        self.process.stdin.write(json.dumps([{"id": self.ids, "method": method, "params": {"appId": self.app, **params}}]) + "\n")
+        self.process.stdin.flush()
+
+
+def consume_flutter(package, libs, lib, check, native, device):
     """A new Flutter app depending on the package, its libraries served from the loopback as
-    the release hosts them, run on `device` in debug, then again after a hot restart, which
-    keeps the library and Rust's statics but not the isolate: each run prints the check's
-    output."""
+    the release hosts them, run in debug on the Android `device`, then again after a hot
+    restart, which keeps the library and Rust's statics but not the isolate: each run prints
+    the check's output."""
+    abi = adb("-s", device, "shell", "getprop", "ro.product.cpu.abi", capture_output=True, encoding="utf-8").stdout.strip()
+    if abi not in FLUTTER_TARGETS:
+        raise SystemExit(f"Flutter builds for no Android ABI {abi}, only {sorted(FLUTTER_TARGETS)}")
     with tempfile.TemporaryDirectory() as raw, Served(libs) as served:
         work = Path(raw)
         app = work / "consumer"
-        run("flutter", "create", "--platforms", platform, "--empty", "--project-name", "consumer", "--org", "dev.rust2",
+        run("flutter", "create", "--platforms", "android", "--empty", "--project-name", "consumer", "--org", "dev.rust2",
             app, capture_output=True)
         run("flutter", "pub", "add", lib, "--path", local_package(package, work / "package", served.url), cwd=app,
             capture_output=True)
-        (app / "lib" / "check.dart").write_text(dart_main(lib, check), encoding="utf-8")
+        dart_check(lib, check, app / "lib")
         (app / "lib" / "main.dart").write_text(FLUTTER_MAIN, encoding="utf-8")
-        flutter = Flutter(app, device)
+        run("flutter", "build", "apk", "--debug", "--target-platform", FLUTTER_TARGETS[abi], cwd=app)
+        # Installed here rather than by `flutter run`, whose streamed install, adb's default
+        # from Android 7, hangs at random on Android 7's emulator; pushing it never has.
+        adb("-s", device, "install", "-r", "--no-streaming", app / "build" / "app" / "outputs" / "flutter-apk" / "app-debug.apk",
+            capture_output=True)
+        logcat, flutter = Logcat(device), None
         try:
-            first = flutter.output()
+            # `am start` exits 0 whether or not it starts the app.
+            started = adb("-s", device, "shell", "am", "start", "-n", f"{FLUTTER_APP}/.MainActivity",
+                          capture_output=True, encoding="utf-8").stdout
+            if re.search(r"Error|Exception", started):
+                raise SystemExit(f"the Flutter app did not start: {started}")
+            first = logcat.output()
+            flutter = Flutter(app, device, logcat.listening())
             flutter.command("app.restart", fullRestart=True, pause=False)
-            second = flutter.output()
+            # A refused restart fails here, rather than as the log's silence.
+            flutter.reply()
+            second = logcat.output()
             flutter.command("app.stop")
             flutter.process.stdin.close()
             try:
-                status = flutter.process.wait(timeout=Flutter.SILENT)
+                status = flutter.process.wait(timeout=SILENT)
             except subprocess.TimeoutExpired:
-                raise SystemExit(f"flutter run went on {Flutter.SILENT // 60} minutes after the app stopped") from None
+                raise SystemExit(f"flutter attach went on {SILENT // 60} minutes after the app stopped") from None
         except BaseException:
-            flutter.process.kill()
+            if flutter:
+                flutter.process.kill()
             raise
+        finally:
+            logcat.process.kill()
         if status:
-            raise SystemExit(f"flutter run failed with status {status}")
+            raise SystemExit(f"flutter attach failed with status {status}")
     for output, what in ((first, "Flutter app"), (second, "Flutter app after a hot restart")):
         if native and check:
             compare(Path(native).read_bytes(), output, what)
@@ -3069,12 +3212,17 @@ class Check : Instrumentation() {
 """
 
 
-def adb(*args, **kwargs):
-    """The SDK's adb, on the one device it reaches."""
+def adb_path():
+    """The SDK's adb."""
     sdk = os.environ.get("ANDROID_HOME")
     if not sdk:
         raise SystemExit("the Android consumer needs the SDK: set ANDROID_HOME")
-    return run(Path(sdk) / "platform-tools" / "adb", *args, **kwargs)
+    return Path(sdk) / "platform-tools" / "adb"
+
+
+def adb(*args, **kwargs):
+    """The SDK's adb, on the one device it reaches unless `-s` names one."""
+    return run(adb_path(), *args, **kwargs)
 
 
 def main_classes(listing, source):
@@ -3717,8 +3865,7 @@ def main():
         p.add_argument("--check")
         p.add_argument("--native")
         if name == "consume-flutter":
-            p.add_argument("--platform", required=True, help="the platform `flutter create` makes the app for")
-            p.add_argument("--device", required=True, help="the device `flutter run` runs it on")
+            p.add_argument("--device", required=True, help="the Android device adb runs it on")
     p = sub.add_parser("consume-source", help="run a check program, or a load, in a new Dart app on the export's own package")
     p.add_argument("--export", required=True)
     p.add_argument("--check")
@@ -3801,8 +3948,7 @@ def main():
     elif args.command == "consume-source":
         consume_source(args.export, args.check, args.native)
     elif args.command == "consume-flutter":
-        consume_flutter(args.package, args.libs, pub_name(args.package), args.check, args.native, args.platform,
-                        args.device)
+        consume_flutter(args.package, args.libs, pub_name(args.package), args.check, args.native, args.device)
     elif args.command == "compare":
         compare(Path(args.native).read_bytes(), Path(args.actual).read_bytes(), "installed Swift package")
     elif args.command == "init":

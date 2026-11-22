@@ -28,6 +28,18 @@ Decided with the maintainer on 2026-11-09, in the quest audit:
   types, and checks. Rejected: none until a consumer asks. Not planned: Java without
   Kotlin (the JNI library serves it, and Android has no FFM API), Ruby, PHP, Elixir, Lua, and game engines.
 
+The WASI report ([kixel-ai/rust2#967](https://github.com/kixel-ai/rust2/pull/967), 2026-11-22)
+dropped the WASI target. A WASI host should load the exporter's C ABI as a wasm32-wasip1
+core module: the api fixture's C script runs that way under wasmtime, matching native Rust,
+and calls of the binding benchmark's shapes cost 8 to 48 ns from wasmtime or wazero, with
+returned bytes lent at any size. Calls into a component cost 13 to 21 times as much, copy
+every byte, and lose the C ABI's rules: an imported closure cannot take the library's own
+objects, a failed check traps and locks the whole store, a cancelled future can lose its
+value, and NaN payloads may change. Of the runtimes a host language embeds, only Rust's
+wasmtime and JavaScript's jco run p3 components. A core module still needs a binding per
+host language over its runtime, as the web target's is over JavaScript, so none is planned
+until a host asks for one; [the pure-Go epic](/quest/m4/go/README.md) weighs Go's.
+
 Decided with the maintainer on 2026-11-12, in the quest audit:
 
 - ✅ [TPDE](/quest/m3/tpde.md) moves here from m4: it is an upstream build-speed lever the
@@ -105,7 +117,7 @@ storage did ([#635](https://github.com/kixel-ai/rust2/pull/635)); and a second, 
 memory model for values whose address is reinterpreted, without a consumer.
 
 Decided with the maintainer on 2026-11-18, in the per-language audit: ✅
-[free-threaded CPython through abi3t](/quest/m3/python-abi3t.md) waits here with no
+free-threaded CPython through abi3t went here with no
 consumer, after m1's refusal fixes the crash; the translator's
 [fuzzing](/quest/m3/ts-fuzz.md) and [random MIR programs](/quest/m3/ts-rustlantis.md) wait
 on the gate. Dropped: rust2-go's checked multiply through `bits.Mul64`, too small for a

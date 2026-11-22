@@ -596,11 +596,14 @@ fn main() {
 	println!("wrapped {}", api::kept(api::Wrap { value: 4u32 }));
 	println!("keeps {}", api::keeps(Print).value);
 
-	// Its Drop runs when its last reference goes, not before.
+	// Its Drop runs when its last reference goes, not before. The count is the library's, which
+	// outlives a run of the script that a Flutter app's hot restart repeats, so only the drops
+	// since this point are printed.
+	let before = api::dropped();
 	let token = api::Token::new(7);
-	println!("token {} dropped {}", token.id, api::dropped());
+	println!("token {} dropped {}", token.id, api::dropped() - before);
 	drop(token);
-	println!("dropped {}", api::dropped());
+	println!("dropped {}", api::dropped() - before);
 
 	// A field and the method of its name, each its own member.
 	let mut retry = api::Retry::new(Some(5));

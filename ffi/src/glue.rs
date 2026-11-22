@@ -169,8 +169,23 @@ fn build(api: &crate::ir::Api) -> String {
 		\tif std::env::var(\"CARGO_CFG_TARGET_VENDOR\").is_ok_and(|vendor| vendor == \"apple\") {{\n\
 		\t\tprintln!(\"cargo::rustc-link-arg-cdylib=-Wl,-headerpad_max_install_names\");\n\
 		\t}}\n\
-		\t#[cfg(feature = \"python\")]\n\
-		\tpyo3_build_config::add_extension_module_link_args();\n\
+		\t// pyo3 targets the ABI of the interpreter it finds, whatever the feature asks for, such\n\
+		\t// as a version's own for a 3.14 when `abi3t` needs a 3.15, which would load nowhere else.\n\
+		\t#[cfg(any(feature = \"python\", feature = \"python-abi3t\"))]\n\
+		\t{{\n\
+		\t\tlet (want, python) = match cfg!(feature = \"python-abi3t\") {{\n\
+		\t\t\ttrue => (\"abi3t\", \"a CPython 3.15 or later\"),\n\
+		\t\t\tfalse => (\"abi3\", \"a CPython with a GIL\"),\n\
+		\t\t}};\n\
+		\t\tlet abi = pyo3_build_config::get().target_abi();\n\
+		\t\tlet got = abi.kind().to_string();\n\
+		\t\tassert!(\n\
+		\t\t\tgot == want,\n\
+		\t\t\t\"the Python extension builds on {{want}}, but pyo3 targets {{got}} for the CPython {{}} it found: set PYO3_PYTHON to {{python}}, or PYO3_NO_PYTHON=1 to build without one\",\n\
+		\t\t\tabi.version(),\n\
+		\t\t);\n\
+		\t\tpyo3_build_config::add_extension_module_link_args();\n\
+		\t}}\n\
 		}}\n",
 		list.replace('"', "\\\""),
 		provens(api)
@@ -560,7 +575,7 @@ impl Crate<'_> {
 			[dependencies]\n\
 			{dependencies}\
 			jni-sys = {{ version = \"0.4\", optional = true }}\n\
-			pyo3-ffi = {{ version = \"0.30\", optional = true, features = [\"abi3-py311\", \"extension-module\"] }}\n\
+			pyo3-ffi = {{ version = \"0.30\", optional = true, features = [\"extension-module\"] }}\n\
 			smallvec = {{ version = \"1.16\", optional = true }}\n\
 			\n\
 			[build-dependencies]\n\
@@ -569,8 +584,11 @@ impl Crate<'_> {
 			[features]\n\
 			# The JNI functions kotlin/{lib}.kt calls.\n\
 			kotlin = [\"dep:jni-sys\"]\n\
-			# The CPython extension python/{lib}.py loads.\n\
-			python = [\"dep:pyo3-ffi\", \"dep:pyo3-build-config\", \"dep:smallvec\"]\n\
+			# The CPython extension python/{lib}.py loads, on the stable ABI: every CPython from 3.11\n\
+			# with a GIL loads it.\n\
+			python = [\"dep:pyo3-ffi\", \"pyo3-ffi/abi3-py311\", \"dep:pyo3-build-config\", \"dep:smallvec\"]\n\
+			# The same extension on abi3t (PEP 803): every CPython from 3.15 loads it, free-threaded or not.\n\
+			python-abi3t = [\"dep:pyo3-ffi\", \"pyo3-ffi/abi3t-py315\", \"dep:pyo3-build-config\", \"dep:smallvec\"]\n\
 			# What dart/lib/{lib}.dart calls that `dart:ffi` lacks.\n\
 			dart = []\n\
 			# What web/index.ts calls that the C ABI lacks, built for wasm32-wasip1.\n\
@@ -1681,7 +1699,7 @@ impl Gen<'_> {
 		self.line("#![allow(unreachable_code, reason = \"a call returning an uninhabited type never returns\")]\n");
 		self.line("mod rt;\n");
 		self.line("#[cfg(feature = \"kotlin\")]\nmod jni;\n");
-		self.line("#[cfg(feature = \"python\")]\nmod python;\n");
+		self.line("#[cfg(any(feature = \"python\", feature = \"python-abi3t\"))]\nmod python;\n");
 		self.line("#[cfg(feature = \"dart\")]\nmod dart;\n");
 		if self.web {
 			self.line("#[cfg(all(feature = \"web\", target_arch = \"wasm32\"))]\nmod web;\n");
@@ -1852,7 +1870,7 @@ impl Gen<'_> {
 		if !self.variants.is_empty() {
 			let variants = crate::kotlin::indent_by(&std::mem::take(&mut self.variants), 1);
 			self.line(format!(
-				"/// Which variant each object that is an enum holds, for the Python glue, which raises an\n/// error's own subclass by it.\n#[cfg(feature = \"python\")]\npub(crate) mod variant {{\n\tuse super::*;\n\n{variants}}}\n"
+				"/// Which variant each object that is an enum holds, for the Python glue, which raises an\n/// error's own subclass by it.\n#[cfg(any(feature = \"python\", feature = \"python-abi3t\"))]\npub(crate) mod variant {{\n\tuse super::*;\n\n{variants}}}\n"
 			));
 		}
 	}

@@ -35,7 +35,13 @@ Decided with the maintainer on 2026-11-07, settling
   stays moq's Go route. This epic and its children don't start until one does; each
   child's `Waiting` item holds it. When one does, first weigh running moq compiled to
   WASM inside Go on a pure-Go runtime such as [wazero](https://wazero.io) (no cgo, a
-  plain `go get`; unmeasured for moq-net's I/O) against finishing this translation.
+  plain `go get`) against finishing this translation. The WASI report
+  ([kixel-ai/rust2#967](https://github.com/kixel-ai/rust2/pull/967)) measured wazero
+  1.12 calling the exporter's C ABI in a wasm32-wasip1 core module: 11 to 48 ns a call,
+  returned bytes lent in 40 to 62 ns at any size, and a closure Go implements in 54 ns.
+  wazero runs no components, and WASI p1 cannot open a socket, so moq-net's QUIC would
+  take its UDP datagrams from Go through its API. The Go binding over wazero would be a
+  generator of its own, as the web target's is over JavaScript.
   Rejected: splitting [coverage](/quest/m4/go/coverage.md) into a quest per construct
   now; deleting `go/`, whose translator and measurements are kept.
 

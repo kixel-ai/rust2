@@ -15,12 +15,20 @@ rust2-ffi (--out dir | --census dir | --api file) [--manifest-path Cargo.toml] [
 nix run github:kixel-ai/rust2/<rev>#ffi -- --out ffi   # pinned to a revision, under the caller's cargo
 ```
 
-It runs `cargo check` on the package with itself as `RUSTC_WRAPPER`, for each `--target`
+It runs `cargo check` on the package for each `--target`
 or else the host, whatever cargo's config names, under the release profile unless the cargo
 args pick another, as a library ships, through
-the front end it shares with [rust2-ts](../ts/README.md) in [`driver/`](../driver). A build
-script's probe of the compiler through that wrapper, as `rustversion` and `autocfg` make,
-runs the `rustc` cargo resolved, the one the glue builds with, rather than the exporter's
+the front end it shares with [rust2-ts](../ts/README.md) in [`driver/`](../driver): with
+itself as `RUSTC_WORKSPACE_WRAPPER` for the workspace's own crates, and as `RUSTC` for every
+other crate, which it compiles as rustc would. So a compiler cache in `RUSTC_WRAPPER`, as
+mbx's Cargo shim sets, serves every crate the workspace does not own: each carries on its
+command line the target's rustflags, from wherever cargo reads them, then the export's own
+in `CARGO_ENCODED_RUSTFLAGS`, which cargo passes no build script or proc macro. Rustflags
+past 32,000 bytes, which no environment variable holds on every platform, fail the export:
+put them in an argfile, `@<path>`. A build
+script's probe of the compiler, as `rustversion` and `autocfg` make,
+runs the `rustc` cargo resolved, the one the glue builds with, with the target's rustflags
+but not the export's, rather than the exporter's
 nightly: an item a build script enables on nightly alone is exported only when that `rustc`
 is a nightly. The package is the facade: once rustc has checked its library, it walks every `pub` item
 reachable from the crate root, following `pub use` re-exports of other crates' items and
@@ -954,8 +962,14 @@ the rest cross encoded.
 ## Python
 
 `<prefix>.py` is Python over a CPython extension that `--features python` builds into the
-same library on the stable ABI, so one build loads in CPython 3.11 and later, but not in a
-free-threaded build (3.13t, 3.14t), which the module refuses at import with an `ImportError`. The module
+same library on the stable ABI, so one build loads in CPython 3.11 and later with a GIL.
+`--features python-abi3t` builds it on PEP 803's `abi3t` instead, which loads in CPython 3.15
+and later, free-threaded or not, and declares that it runs without the GIL, so importing it
+in a free-threaded build leaves the GIL off; its state is atomics, locks no Python call runs
+under, and per-object data CPython places (PEP 697). Each exports PEP 793's
+`PyModExport_<prefix>`, and the `abi3` build `PyInit_<prefix>` as well. A free-threaded
+build refuses the `abi3` one at import with an `ImportError`: CPython itself from 3.15, and
+the module before, where no `abi3t` exists (3.13t, 3.14t). The module
 loads the library from beside itself: `lib<prefix>.so`, `lib<prefix>.dylib`, or
 `<prefix>.dll`. Its glue, about 40 times as fast as `ctypes`, converts each Python value to
 the C value and calls the C ABI function in-process, so a call is one crossing, which
@@ -1018,7 +1032,10 @@ caller imports it with no ignores.
   returns the value as the call left it, `x = x.add(o)`, and beside Rust's own return, a
   `tuple`, with each element of a tuple Rust returns, `x, n = x.take()`.
 - **Bytes** passed in are any buffer, `bytes | bytearray | memoryview`: `bytes` is read in
-  place, and others, which Python may change while Rust reads, are copied. Bytes Rust
+  place, and others, which Python may change while Rust reads, are copied, under
+  `abi3t` inside the exporter's critical section, which a `bytearray`'s writes take. A
+  writer that takes no lock, such as an `array.array`'s or a `memoryview`'s item
+  assignment, needs the caller's own lock, as `bytes(x)` does. Bytes Rust
   returns, or a record holds, are a read-only `memoryview` lending Rust's buffer until it
   and its views are released. Those Rust lends a closure or trait method are copied into
   `bytes`. Strings are `str`, `u128` an `int`, a float a `float`, whose 64 bits hold an
@@ -1828,7 +1845,13 @@ nix develop .#sanitize --command just ffi sanitize  # api's C and C++ scripts un
 The `api` fixture covers each rule once, and re-exports the `dep` fixture's types, which
 export into the same library. The fixture's binding serves the host and wasm32, whose
 items the host's library lacks, and each language's test checks that the host's items work
-and that wasm32's fail. Each language's script is written at test time by
+and that wasm32's fail. The release builder runs the Dart, Go, and Swift tests, as the
+Python, C++, and web ones, against its own export of every host and no wasm32, so each
+leaves what depends on its targets to `tests/targets.<ext>`, a program of its own the
+exporter's tests alone run: what one export's target lacks, such as wasm32's items in the
+tests' export and `stray` and `visit_stray`, which the builder's Windows target lacks, and
+what wasm32 makes fallible in the tests' export, such as `Spawned`, which Go's and Swift's
+signatures show. Each language's script is written at test time by
 `tests/fixtures/transcript` from the fixture's `examples/transcript.rs`, whose `main` is a
 typed subset of Rust checked against the export's `api.json`: an item it cannot resolve, or
 a construct a language's writer cannot spell, fails the test naming it. Each function the
@@ -1860,8 +1883,13 @@ API 35, and at API 35 on an image whose kernel pages by 16 KB, and on a 32-bit x
 `tests/api.py` runs the script through the Python, in CPython's development mode with
 warnings as errors, checks its futures the same way, what frees an object or bytes nobody
 closed, and the values Python's types bound, and breaks each runtime check, which must raise or
-abort with its message; the Python with another contract must refuse the library. `api_free_threaded` imports it under
-nixpkgs' free-threaded CPython, which the dev shell names in `PYTHON_FREE_THREADED`, and checks the `ImportError`.
+abort with its message; the Python with another contract must refuse the library. Its
+`threads` case races eight threads through first use, borrows, moves, futures, and
+callbacks. `api_abi3t` runs those checks through the `abi3t` library under free-threaded
+CPython 3.15, asserting the GIL stays off, and the transcript through both libraries under
+CPython 3.15 with a GIL. `api_free_threaded` checks each refusal: the `abi3` library under
+free-threaded 3.14 and 3.15, and the `abi3t` one under the GIL's 3.14. The dev shell names
+the interpreters in `PYTHON_314T`, `PYTHON_315T`, and `PYTHON_315`.
 `api_py_types` checks the Python with mypy and pyright, both strict, at CPython 3.11, as
 `just ffi moq` checks moq's.
 `tests/api.swift` runs the script through the Swift, built as a module in Swift 6's

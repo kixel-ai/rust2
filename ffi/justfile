@@ -53,9 +53,10 @@ corpus-update:
 protocol:
     cargo test --locked --test fixtures protocol_nightly -- --ignored
 
-# Write the api fixture's Python, C++, and web checks, each beside the script tests/fixtures/transcript generates, into <dir>/python, <dir>/cpp, and <dir>/web, the directories the release builder's check inputs take.
+# Write the api fixture's checks, each beside the script tests/fixtures/transcript generates, into <dir>/python, <dir>/cpp, <dir>/web, <dir>/dart, <dir>/go, and <dir>/swift, the directories the release builder's check inputs take.
 transcripts dir:
     out="$(cd {{ quote(invocation_directory()) }} && mkdir -p {{ quote(dir) }} && cd {{ quote(dir) }} && pwd)" && RUST2_TRANSCRIPTS="$out" cargo test --locked --test fixtures -- --ignored --exact transcripts
+
 # Run the api fixture's web test in headless Chromium, Firefox, and on Linux WebKit, in the bench shell, which carries them: nix develop .#bench.
 browsers:
     cargo test --locked --test fixtures -- --ignored --exact api_browsers
@@ -64,9 +65,9 @@ browsers:
 android:
     cargo test --locked --test fixtures -- --ignored --exact api_android
 
-# Run the api fixture's C and C++ scripts under AddressSanitizer with UndefinedBehaviorSanitizer, ThreadSanitizer, and Valgrind, its Swift script under ThreadSanitizer, its Go script under Go's race detector and cgocheck2, its Python script looped on a debug CPython, and its glue's C ABI under Miri, in the sanitize shell: nix develop .#sanitize.
+# Run the api fixture's C and C++ scripts under AddressSanitizer with UndefinedBehaviorSanitizer, ThreadSanitizer, and Valgrind, its Swift script under ThreadSanitizer, its Go script under Go's race detector and cgocheck2, its Python script looped on a debug CPython and threaded on a free-threaded one under ThreadSanitizer, and its glue's C ABI under Miri, in the sanitize shell: nix develop .#sanitize.
 sanitize:
-    cargo test --locked --test fixtures -- --ignored --exact api_asan api_tsan api_valgrind api_swift_tsan api_go_checked api_python_debug api_miri
+    cargo test --locked --test fixtures -- --ignored --exact api_asan api_tsan api_valgrind api_swift_tsan api_go_checked api_python_debug api_python_tsan api_miri
 
 # Apply formatters without changing program behavior.
 fix:

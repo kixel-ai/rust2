@@ -1,9 +1,9 @@
 //! rust2-ffi: export a crate's `pub` API as a C ABI and header, with no attributes.
 //!
 //! The binary is two programs, as rust2-ts is. Run directly, it is the CLI: it runs
-//! cargo on the configured package with itself as `RUSTC_WRAPPER`. Run by cargo as that
-//! wrapper, it is rustc, which collects the configured library's API after type checking
-//! and writes the export.
+//! cargo on the configured package with itself as cargo's rustc and the workspace's
+//! wrapper. Run by cargo, it is rustc, which collects the configured library's API after
+//! type checking and writes the export.
 
 #![feature(rustc_private)]
 
@@ -57,8 +57,8 @@ use std::process::ExitCode;
 
 fn main() -> ExitCode {
 	let args: Vec<String> = std::env::args().collect();
-	if rust2_driver::rustc::wrapped(&args) {
-		return driver::run(args);
+	if let Some(code) = driver::run(&args) {
+		return code;
 	}
 	cli::run(&args[1..])
 }

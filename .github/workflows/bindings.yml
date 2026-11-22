@@ -25,7 +25,7 @@ on:
         default: ''
         type: string
       swift-check:
-        description: The main.swift of an executable run on the installed Swift package
+        description: The Swift file of an executable run on the installed Swift package, importing its module, or a directory holding it as check.swift beside the files of its own
         default: ''
         type: string
       reproduce:
@@ -61,7 +61,7 @@ on:
         default: ''
         type: string
       go-check:
-        description: The main.go of a program, importing the module's packages, run against it
+        description: The main.go of a program, importing the module's packages, run against it, or a directory holding it as check.go beside the files of its package
         default: ''
         type: string
       maven-group:
@@ -73,7 +73,7 @@ on:
         default: ''
         type: string
       dart-check:
-        description: The main.dart of a program, importing the package as package:<lib>/<lib>.dart, run by Dart and Flutter apps on it
+        description: The Dart program, whose main takes no arguments or a list of them, importing the package as package:<lib>/<lib>.dart, run by Dart and Flutter apps on it, or a directory holding it as check.dart beside the files it imports
         default: ''
         type: string
       checks-artifact:
@@ -428,8 +428,8 @@ jobs:
         with:
           name: ${{ inputs.checks-artifact }}
           path: source
-      # A Python or C check lands as a directory holding it as check.<ext>, whichever form the
-      # input takes: a file is copied into one, and a directory whole.
+      # A check lands as a directory holding it as check.<ext>, whichever form the input takes:
+      # a file is copied into one, and a directory whole.
       - name: Checks
         env:
           PYTHON_CHECK: ${{ inputs.python-check }}
@@ -444,12 +444,12 @@ jobs:
             if [[ -d "source/$1" ]]; then cp -R "source/$1" "$2"; else mkdir "$2" && cp "source/$1" "$2/$3"; fi
           }
           if [[ -n "$PYTHON_CHECK" ]]; then stage "$PYTHON_CHECK" dist/checks/python check.py; fi
-          if [[ -n "$SWIFT_CHECK" ]]; then cp "source/$SWIFT_CHECK" dist/checks/main.swift; fi
+          if [[ -n "$SWIFT_CHECK" ]]; then stage "$SWIFT_CHECK" dist/checks/swift check.swift; fi
           # A file's extension says whether it is C or C++.
           if [[ -n "$C_CHECK" ]]; then stage "$C_CHECK" dist/checks/c "check.${C_CHECK##*.}"; fi
-          if [[ -n "$GO_CHECK" ]]; then cp "source/$GO_CHECK" dist/checks/main.go; fi
+          if [[ -n "$GO_CHECK" ]]; then stage "$GO_CHECK" dist/checks/go check.go; fi
           if [[ -n "$KOTLIN_CHECK" ]]; then stage "$KOTLIN_CHECK" dist/checks/kotlin check.kt; fi
-          if [[ -n "$DART_CHECK" ]]; then cp "source/$DART_CHECK" dist/checks/main.dart; fi
+          if [[ -n "$DART_CHECK" ]]; then stage "$DART_CHECK" dist/checks/dart check.dart; fi
       # The export's own package, as a checkout depends on it: its hook builds the crate.
       - uses: dart-lang/setup-dart@2286a0c042b44434fe26d292bbce8d34f7ec662b # v1.8.2
         if: matrix.host == 'linux-x64'
@@ -459,7 +459,7 @@ jobs:
         if: matrix.host == 'linux-x64'
         run: |
           args=()
-          if [[ -f dist/checks/main.dart ]]; then args+=(--check dist/checks/main.dart); fi
+          if [[ -d dist/checks/dart ]]; then args+=(--check dist/checks/dart); fi
           if [[ -f dist/native.txt ]]; then args+=(--native dist/native.txt); fi
           python3 -I rust2/ffi/release/package.py consume-source --export export "${args[@]}"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -575,12 +575,15 @@ jobs:
           if-no-files-found: error
 
   # A fresh environment per wheel, on the oldest CPython its stable ABI claims, with no
-  # checkout, Rust, or source path: what a user's `pip install` gets.
+  # checkout, Rust, or source path: what a user's `pip install` gets. The `abi3t` wheel's is
+  # free-threaded, where `-W error` fails the check on the warning that the GIL turned on.
   python:
     needs: [facts, build, agree]
     strategy:
       fail-fast: false
       matrix:
+        abi: [abi3, abi3t]
+        host: [linux-x64, linux-arm64, apple-darwin, windows]
         include:
           - host: linux-x64
             os: ubuntu-24.04
@@ -609,21 +612,26 @@ jobs:
           path: dist
       - name: Python floor
         id: floor
+        env:
+          ABI: ${{ matrix.abi }}
         run: |
           shopt -s nullglob
-          wheels=(dist/wheels/*.whl)
-          [[ ${#wheels[@]} == 1 ]] || { echo "::error::expected one wheel, found ${wheels[*]}"; exit 1; }
+          wheels=(dist/wheels/*-"$ABI"-*.whl)
+          [[ ${#wheels[@]} == 1 ]] || { echo "::error::expected one $ABI wheel, found ${wheels[*]}"; exit 1; }
           tag=$(basename "${wheels[0]}" .whl | cut -d- -f3)
           [[ "$tag" =~ ^cp3([0-9]+)$ ]] || { echo "::error::no CPython floor in ${wheels[0]}"; exit 1; }
-          echo "version=3.${BASH_REMATCH[1]}" >> "$GITHUB_OUTPUT"
+          echo "version=3.${BASH_REMATCH[1]}$([[ $ABI == abi3t ]] && echo t)" >> "$GITHUB_OUTPUT"
+          echo "wheel=${wheels[0]}" >> "$GITHUB_OUTPUT"
       - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: ${{ steps.floor.outputs.version }}
       - name: Install and run
+        env:
+          WHEEL: ${{ steps.floor.outputs.wheel }}
         run: |
           python -m venv "$RUNNER_TEMP/env"
           if [[ "$RUNNER_OS" == Windows ]]; then py="$RUNNER_TEMP/env/Scripts/python.exe"; else py="$RUNNER_TEMP/env/bin/python"; fi
-          "$py" -m pip install --no-index --no-deps dist/wheels/*.whl
+          "$py" -m pip install --no-index --no-deps "$WHEEL"
           args=()
           if [[ -f dist/native.txt ]]; then args+=(--native dist/native.txt); fi
           if [[ -d dist/checks/python ]]; then
@@ -635,7 +643,7 @@ jobs:
       # The installed package as a caller's type checker finds it: through its py.typed, and
       # with no error under --strict. One host's, as the module is the same on each.
       - name: Type check
-        if: matrix.host == 'linux-x64'
+        if: matrix.host == 'linux-x64' && matrix.abi == 'abi3'
         run: |
           python -m venv "$RUNNER_TEMP/tools"
           "$RUNNER_TEMP/tools/bin/python" -m pip install -q mypy==2.4.1
@@ -686,8 +694,8 @@ jobs:
         id: floor
         run: |
           shopt -s nullglob
-          wheels=(dist/wheels/*.whl)
-          [[ ${#wheels[@]} == 1 ]] || { echo "::error::expected one wheel, found ${wheels[*]}"; exit 1; }
+          wheels=(dist/wheels/*-abi3-*.whl)
+          [[ ${#wheels[@]} == 1 ]] || { echo "::error::expected one abi3 wheel, found ${wheels[*]}"; exit 1; }
           tag=$(basename "${wheels[0]}" .whl | cut -d- -f3)
           [[ "$tag" =~ ^cp3([0-9]+)$ ]] || { echo "::error::no CPython floor in ${wheels[0]}"; exit 1; }
           echo "version=3.${BASH_REMATCH[1]}" >> "$GITHUB_OUTPUT"
@@ -1027,7 +1035,7 @@ jobs:
       - name: Build and run
         run: |
           args=()
-          if [[ -f dist/checks/main.go ]]; then args+=(--check dist/checks/main.go); fi
+          if [[ -d dist/checks/go ]]; then args+=(--check dist/checks/go); fi
           if [[ -f dist/native.txt ]]; then args+=(--native dist/native.txt); fi
           python3 -I rust2/ffi/release/package.py consume-go --proxy proxy "${args[@]}"
 
@@ -1335,7 +1343,7 @@ jobs:
       - name: Run
         run: |
           args=()
-          if [[ -f dist/checks/main.dart ]]; then args+=(--check dist/checks/main.dart); fi
+          if [[ -d dist/checks/dart ]]; then args+=(--check dist/checks/dart); fi
           if [[ -f dist/native.txt ]]; then args+=(--native dist/native.txt); fi
           python3 -I rust2/ffi/release/package.py consume-dart --package pub/package --libs pub/libs "${args[@]}"
 
@@ -1373,8 +1381,8 @@ jobs:
           sudo udevadm trigger --name-match=kvm
       - name: Arguments
         run: |
-          args="--package pub/package --libs pub/libs --platform android --device emulator-5554"
-          if [[ -f dist/checks/main.dart ]]; then args+=" --check dist/checks/main.dart"; fi
+          args="--package pub/package --libs pub/libs --device emulator-5554"
+          if [[ -d dist/checks/dart ]]; then args+=" --check dist/checks/dart"; fi
           if [[ -f dist/native.txt ]]; then args+=" --native dist/native.txt"; fi
           echo "ARGS=$args" >> "$GITHUB_ENV"
       # Flutter's oldest Android, the floor the hook checks the app's against.

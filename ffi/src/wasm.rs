@@ -61,7 +61,7 @@ pub fn host(target: &str) -> Option<&'static Host> {
 }
 
 /// The rustc flags of every crate compiled for a target with a host, beside the MIR
-/// [`crate::leaf::flags`] has every crate encode: each call where the source makes it, as
+/// [`crate::leaf::FLAGS`] has every crate encode: each call where the source makes it, as
 /// inlining would not keep it.
 const MIR: [&str; 1] = ["-Zinline-mir=no"];
 
@@ -105,24 +105,18 @@ pub fn sysroot(target: &str) -> Result<Option<String>, String> {
 /// The variable naming [`sysroot`]: rust2-ts's, whose sysroot holds these targets' std too.
 const SYSROOT: &str = "RUST2_TS_SYSROOT";
 
-/// Add to rustc's `args` what a crate for a target with a host compiles with: its MIR, and
-/// std's from [`sysroot`]. Cargo's query of the compiler, whose answer it hashes into every
-/// unit's fingerprint, names the flags and the sysroot, so a target directory keeps
-/// nothing compiled without them.
-pub fn flags(args: &[String], added: &mut Vec<String>) -> Result<(), String> {
-	if args[1..] == ["-vV"] {
-		let sysroot = sysroot_dir()?;
-		println!("rust2-ffi-mir: {} {}", MIR.join(" "), sysroot.as_deref().unwrap_or(STD));
-	}
-	// The target's crates only: build scripts and proc macros run on the host, with its std.
-	let target = args.windows(2).find(|w| w[0] == "--target" && host(&w[1]).is_some());
-	if let Some([_, target]) = target {
-		added.extend(MIR.map(str::to_string));
+/// What each crate for `target` adds to rustc's flags if the target has a host: its MIR, and
+/// std's from [`sysroot`]. Build scripts and proc macros run on the host, with its std, and
+/// cargo passes them none of a target's rustflags.
+pub fn flags(target: &str) -> Result<Vec<String>, String> {
+	let mut flags = Vec::new();
+	if host(target).is_some() {
+		flags.extend(MIR.map(str::to_string));
 		if let Some(sysroot) = sysroot(target)? {
-			added.extend(["--sysroot".to_string(), sysroot]);
+			flags.extend(["--sysroot".to_string(), sysroot]);
 		}
 	}
-	Ok(())
+	Ok(flags)
 }
 
 /// What the CLI hands the wrapper for the check of the generated crate: its package, and

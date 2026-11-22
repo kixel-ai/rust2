@@ -83,11 +83,13 @@ TypeScript module importing the binding as `./web/<module>.ts` does beside an ex
 whose imports the consumer rewrites to the package's name. Its crate's version must be
 the release's. `features` and `example` apply to it when it is the crate's own; a web
 crate apart from it takes `web-features` and `web-example` instead.
-A `python-check`, `c-check`, `kotlin-check`, or `web-check` may instead name a directory
-holding the program as `check.py`, `check.c` or `check.cpp`, `check.kt`, or `check.ts`, beside
-the files it reads, which each consumer places beside it: a check that imports a module or
-includes a header of its own. A Kotlin check's directory holds Kotlin sources alone, as the
-Android app it runs in reads no file beside it.
+Every check may instead name a directory holding the program as `check.py`, `check.c` or
+`check.cpp`, `check.kt`, `check.ts`, `check.swift`, `check.go`, or `check.dart`, beside the files it
+reads, which each consumer places beside it: a check that imports a module, includes a header, or
+calls a function of files of its own. A Dart check's `main` takes no arguments or a list of
+them, a Go check's directory is its package, built beside the consumer's own `go.mod`, and a
+Kotlin check's directory holds Kotlin sources alone, as the Android app it runs in reads no file
+beside it.
 A check its tests generate comes through `checks-artifact`, an artifact of the caller's run
 the builder unpacks over its checkout before reading the checks.
 
@@ -111,8 +113,14 @@ the builder unpacks over its checkout before reading the checks.
 4. Builds each target with the crate's own toolchain, as rustup resolves it from the
    crate's directory; only the export runs on rust2's nightly. Android's targets build, and
    stage their APIs, on Linux through the NDK Flutter defaults to, r28.
-5. Python: a `cp311-abi3` wheel per target, the oldest CPython the generated extension's
-   stable ABI loads in, holding the module as `<lib>/__init__.py` beside its library and
+5. Python: two wheels per target, built without asking a CPython (`PYO3_NO_PYTHON`): a
+   `cp311-abi3` one, the oldest CPython the generated extension's stable ABI loads in, and
+   a `cp315-abi3t` one for free-threaded CPython 3.15 and later (PEP 803), which leaves the
+   GIL off. The `abi3t` one is tagged for free-threaded builds alone, where `abi3.abi3t`
+   would move GIL builds from 3.15 onto it, whose Windows library links the free-threaded
+   build's `python3t.dll`.
+   Both carry the same metadata, `Requires-Python: >=3.11`, as a resolver reads one wheel's
+   for all. Each holds the module as `<lib>/__init__.py` beside its library and
    PEP 561's `py.typed`, so mypy and pyright check a caller against it, with PEP 639 license
    metadata and a complete hashed RECORD. Each is repaired by its platform's
    standard tool, which claims the portable tag or fails: auditwheel for
@@ -131,7 +139,8 @@ the builder unpacks over its checkout before reading the checks.
    its `[workspace]` table alone. A `rust-toolchain.toml` pins the channel rustup resolves
    from the crate's directory, without its components. The backend builds for
    `CARGO_BUILD_TARGET`, or else rustc's host, passed as `--target` over a cargo config's
-   `build.target`; refuses a target the export lacks, and one whose architecture differs from the Python's, as an emulated x86_64
+   `build.target`; builds the `abi3t` extension on a free-threaded CPython, refusing one
+   before 3.15, and the `abi3` one otherwise; refuses a target the export lacks, and one whose architecture differs from the Python's, as an emulated x86_64
    Python on arm64 would build; tags the wheel as pip names its platform, macOS's at the
    deployment target it builds for, by default the target's oldest; and builds musl's
    library against a dynamic C runtime, as CPython links one, adding the flag to cargo's
@@ -314,8 +323,9 @@ the builder unpacks over its checkout before reading the checks.
 
 rust2 runs it on every manual Check and nightly through
 [`bindings-test.yml`](/.github/workflows/bindings-test.yml): on the api fixture, whose
-wheels, C++ consumers, and web package must print its native transcript through the checks
-`just ffi transcripts` writes, each test beside the script generated from it, and on moq's
+wheels, C++ consumers, web package, Go module, Swift package, and Dart package must print
+its native transcript through the checks `just ffi transcripts` writes, each test beside the
+script generated from it, and on moq's
 stand-in facade at the exporter's moq pin, through `moq/moq.py`, `moq/moq.swift`,
 `moq/moq.cpp`, `moq/moq.go`, `moq/moq.kt`, and `moq/moq.dart`, with its wasm32 stand-in as the web package.
 
