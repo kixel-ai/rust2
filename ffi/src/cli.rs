@@ -115,7 +115,7 @@ fn try_run(args: &[String]) -> Result<ExitCode, String> {
 	// Each target's `cfg`s are written under its index, as a target may be a path.
 	let check =
 		|index: usize, target: &str, output: (&str, &std::ffi::OsStr), merge: &std::ffi::OsStr, baseline: &Path| {
-			let rustflags = Rustflags::of(&checked, target)?;
+			let rustflags = Rustflags::of(&checked.targets[target], target)?;
 			let [flags, rustc, added] = rustflags.env();
 			Check {
 				tool: "rust2-ffi",
@@ -206,7 +206,11 @@ fn try_run(args: &[String]) -> Result<ExitCode, String> {
 	let mut cargo = picks.resolving().args();
 	cargo.extend(profile.args);
 	cargo.extend(["--features".to_string(), "web".to_string()]);
-	let rustflags = Rustflags::of(&checked, crate::web::TARGET)?;
+	let walked = match checked.targets.get(crate::web::TARGET) {
+		Some(recorded) => recorded.clone(),
+		None => on_target(&args.manifest, crate::web::TARGET, &picks)?.1,
+	};
+	let rustflags = Rustflags::of(&walked, crate::web::TARGET)?;
 	let [flags, rustc, added] = rustflags.env();
 	Check {
 		tool: "rust2-ffi",
@@ -244,8 +248,7 @@ struct Rustflags {
 const ENV_MAX: usize = 32_000;
 
 impl Rustflags {
-	fn of(checked: &Checked, target: &str) -> Result<Self, String> {
-		let recorded = &checked.targets[target];
+	fn of(recorded: &crate::driver::Recorded, target: &str) -> Result<Self, String> {
 		let mut added: Vec<String> = crate::leaf::FLAGS.map(str::to_string).to_vec();
 		added.extend(crate::wasm::flags(target)?);
 		let encoded = [recorded.flags.clone(), added.clone()].concat().join("\x1f");
@@ -448,45 +451,14 @@ fn facade(
 	targets: &[String],
 	picks: &Picks<'_>,
 ) -> Result<(config::Package, String, Checked), String> {
-	// On each target, and the web binding's that the generated crate may be walked on, so
-	// cargo queries each through this executable, which records what it passes the target's
-	// crates: the consumer's rustflags, from wherever cargo reads them, which the check
-	// passes on with the export's own after them.
-	let exe = std::env::current_exe().map_err(|err| format!("finding this executable: {err}"))?;
-	let mut platforms = vec!["metadata", "--format-version", "1"];
-	let walked = crate::web::TARGET.to_string();
-	for target in targets.iter().chain([&walked]) {
-		platforms.extend(["--filter-platform", target]);
+	// On the first target, which records what cargo passes its crates; each other's then.
+	let (output, first) = on_target(manifest, &targets[0], picks)?;
+	let mut recorded = BTreeMap::from([(targets[0].clone(), first)]);
+	for target in &targets[1..] {
+		if !recorded.contains_key(target) {
+			recorded.insert(target.clone(), on_target(manifest, target, picks)?.1);
+		}
 	}
-	let record = private_dir("record")?;
-	let env = [
-		("RUSTC_WORKSPACE_WRAPPER", exe.as_os_str()),
-		("RUSTC_WRAPPER", "".as_ref()),
-		// Cargo would otherwise answer a query it has made before from its cache.
-		("CARGO_CACHE_RUSTC_INFO", "0".as_ref()),
-		(config::env::RECORD, record.as_os_str()),
-	];
-	let output = run_cargo(manifest, &platforms, &env, picks).and_then(|output| {
-		let recorded = targets.iter().chain([&walked]).map(|target| {
-			// Cargo names a target's file by its full path.
-			let named = match target.ends_with(".json") {
-				true => std::fs::canonicalize(target).map_err(|err| format!("resolving {target}: {err}"))?,
-				false => PathBuf::from(target),
-			};
-			let path = crate::driver::Recorded::path(&record, &named.to_string_lossy());
-			let json = std::fs::read_to_string(&path).map_err(|err| {
-				format!(
-					"cargo never queried {target} through rust2-ffi ({}: {err})",
-					path.display()
-				)
-			})?;
-			let recorded = serde_json::from_str(&json).map_err(|err| format!("reading {}: {err}", path.display()))?;
-			Ok((target.clone(), recorded))
-		});
-		Ok((output, recorded.collect::<Result<BTreeMap<_, _>, String>>()?))
-	});
-	std::fs::remove_dir_all(&record).map_err(|err| format!("removing {}: {err}", record.display()))?;
-	let (output, recorded) = output?;
 	let metadata: Metadata = serde_json::from_slice(&output).map_err(|err| format!("reading cargo metadata: {err}"))?;
 	let canonical =
 		std::fs::canonicalize(manifest).map_err(|err| format!("resolving {}: {err}", manifest.display()))?;
@@ -853,6 +825,37 @@ fn patch_key(source: &str) -> Result<String, String> {
 		return Ok(url.split(['?', '#']).next().unwrap_or(url).to_string());
 	}
 	Err(format!("a patch of {source}, which the export's library cannot patch"))
+}
+
+/// `cargo metadata` of `manifest` filtered to `target`, and what cargo passes that target's
+/// crates, which this executable records as cargo's workspace wrapper on cargo's query of the
+/// target: the consumer's rustflags, from wherever cargo reads them, which the check passes on
+/// with the export's own after them, and the rustc cargo resolved. One target a run, as cargo
+/// names it to rustc, which may not be as the export names it, such as a relative path.
+fn on_target(manifest: &Path, target: &str, picks: &Picks<'_>) -> Result<(Vec<u8>, crate::driver::Recorded), String> {
+	let exe = std::env::current_exe().map_err(|err| format!("finding this executable: {err}"))?;
+	let record = private_dir("record")?;
+	let env = [
+		("RUSTC_WORKSPACE_WRAPPER", exe.as_os_str()),
+		("RUSTC_WRAPPER", "".as_ref()),
+		// Cargo would otherwise answer a query it has made before from its cache.
+		("CARGO_CACHE_RUSTC_INFO", "0".as_ref()),
+		(config::env::RECORD, record.as_os_str()),
+	];
+	let subcommand = ["metadata", "--format-version", "1", "--filter-platform", target];
+	let output = run_cargo(manifest, &subcommand, &env, picks).and_then(|output| {
+		let path = crate::driver::Recorded::path(&record);
+		let json = std::fs::read_to_string(&path).map_err(|err| {
+			format!(
+				"cargo never queried {target} through rust2-ffi ({}: {err})",
+				path.display()
+			)
+		})?;
+		let recorded = serde_json::from_str(&json).map_err(|err| format!("reading {}: {err}", path.display()))?;
+		Ok((output, recorded))
+	});
+	std::fs::remove_dir_all(&record).map_err(|err| format!("removing {}: {err}", record.display()))?;
+	output
 }
 
 /// What a cargo subcommand prints for a package, run as the check resolves: from the

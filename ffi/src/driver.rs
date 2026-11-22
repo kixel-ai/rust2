@@ -111,7 +111,7 @@ fn without(args: &[String], added: &[String]) -> Vec<String> {
 }
 
 /// What cargo passes the crates of one target, as its query of that target shows it.
-#[derive(serde::Serialize, serde::Deserialize)]
+#[derive(Clone, serde::Serialize, serde::Deserialize)]
 pub(crate) struct Recorded {
 	/// The rustc cargo resolved, which the glue builds with.
 	pub(crate) rustc: PathBuf,
@@ -120,15 +120,14 @@ pub(crate) struct Recorded {
 }
 
 impl Recorded {
-	/// The file in `dir` [`record`] writes `target`'s into.
-	pub(crate) fn path(dir: &Path, target: &str) -> PathBuf {
-		let name: String = target.bytes().map(|b| format!("{b:02x}")).collect();
-		dir.join(format!("{name}.json"))
+	/// The file in `dir` [`record`] writes into.
+	pub(crate) fn path(dir: &Path) -> PathBuf {
+		dir.join("target.json")
 	}
 }
 
-/// As the workspace's wrapper for a `cargo metadata` of each target the export checks, on
-/// cargo's query of a target, record what it passes that target's crates into `dir`; then
+/// As the workspace's wrapper for a `cargo metadata` of one target the export checks, on
+/// cargo's query of that target, record what it passes the target's crates into `dir`; then
 /// run the rustc cargo wraps as it asked.
 fn record(args: &[String], dir: &Path) -> Result<ExitCode, String> {
 	let [_, rustc, rest @ ..] = args else {
@@ -158,14 +157,19 @@ fn record(args: &[String], dir: &Path) -> Result<ExitCode, String> {
 		// The host's, which a check for a named target compiles build scripts and proc macros
 		// for, without its rustflags, has none.
 		if let Some(end) = end {
-			let target = rest.get(end + 1).ok_or("cargo's query of a target names none")?;
 			let recorded = Recorded {
 				rustc: rustc.into(),
 				flags: rest[start + 1..end].to_vec(),
 			};
-			let path = Recorded::path(dir, target);
+			let path = Recorded::path(dir);
 			let json = serde_json::to_string(&recorded).expect("paths and strings serialize");
-			std::fs::write(&path, json).map_err(|err| format!("writing {}: {err}", path.display()))?;
+			// Made afresh: a second target's query would leave the record ambiguous.
+			std::fs::File::options()
+				.write(true)
+				.create_new(true)
+				.open(&path)
+				.and_then(|mut file| std::io::Write::write_all(&mut file, json.as_bytes()))
+				.map_err(|err| format!("recording cargo's query of a target in {}: {err}", path.display()))?;
 		}
 	}
 	Ok(run_rustc(Path::new(rustc), rest))
