@@ -1,15 +1,24 @@
 #!/usr/bin/env bash
-# Temporary: one consume-flutter run with flutter -v, logcat, and a process dump if it stalls.
+# Temporary: install a Flutter debug APK repeatedly on the API 24 emulator, one adb mode per job.
 set -u
+mode=$1
+adb version | head -2
 adb -s emulator-5554 logcat -v time > out/logcat.txt 2>&1 &
-python3 -I rust2/ffi/release/package.py consume-flutter --package pub/package --libs pub/libs --platform android --device emulator-5554 > out/flutter.txt 2>&1 &
-pid=$!
-for _ in $(seq 1 600); do
-  if ! kill -0 $pid 2>/dev/null; then wait $pid; status=$?; echo "status $status"; tail -5 out/flutter.txt; exit $status; fi
-  sleep 1
+apk=app/build/app/outputs/flutter-apk/app-debug.apk
+ls -l $apk
+for i in 1 2 3 4 5 6; do
+  adb -s emulator-5554 uninstall dev.rust2.app > /dev/null 2>&1
+  adb -s emulator-5554 shell rm -f /data/local/tmp/app.apk
+  start=$(date +%s)
+  case $mode in
+    stream) timeout 180 adb -s emulator-5554 install -t -r $apk ;;
+    legacy) timeout 180 adb -s emulator-5554 install --no-streaming -t -r $apk ;;
+    push) timeout 180 adb -s emulator-5554 push $apk /data/local/tmp/app.apk ;;
+  esac
+  status=$?
+  echo "RESULT mode=$mode try=$i status=$status seconds=$(( $(date +%s) - start ))"
+  if [ $status = 124 ]; then
+    { ps -ef --forest | grep -v '\[' ; adb -s emulator-5554 shell ps; } > out/hang-$i.txt 2>&1
+  fi
 done
-echo STALLED
-{ ps -ef --forest; echo; adb -s emulator-5554 shell ps; echo; adb -s emulator-5554 shell dumpsys package dev.rust2.consumer | head -40; echo; adb -s emulator-5554 shell dumpsys activity activities | head -60; } > out/stall.txt 2>&1
-tail -40 out/flutter.txt
-kill $pid
-exit 1
+exit 0
