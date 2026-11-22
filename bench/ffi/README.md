@@ -52,19 +52,20 @@ each equals its single-thread row. A clone is a new handle over the same Rust va
 both cases share moq's own state and differ only in the binding's: the gap between them is
 what a binding's run-time checks cost under contention. The handle call also takes moq's
 read lock, which all four threads share in both cases; the getter takes none. C, C++,
-Kotlin, Swift, and Python use OS threads, and Go goroutines. Dart has no number: an
+Kotlin, Swift, Python, and C# use OS threads, and Go goroutines. Dart has no number: an
 isolate cannot receive another's object, so no two threads ever borrow one handle.
 TypeScript has none either: the module runs on the one JavaScript thread that loaded it.
 
 A woken read starts its read the language's own way: by polling in C, C++, and Rust; a
 `Task` and a yield in Swift and Python; a goroutine and a yield in Go; an undispatched
-coroutine in Kotlin; an eager call in Dart; and in TypeScript, a promise made before the
+coroutine in Kotlin; an eager call in Dart; a `ValueTask` made before the write in C#,
+whose wake polls it again on the thread pool; and in TypeScript, a promise made before the
 write, which polls once and pends. So it measures a task's start and its
 wake, and in Swift, Python, and Go, a read the scheduler had not yet started is ready
 instead of woken.
 
 The `loop` case removes task creation per frame: one reader loops over all groups and
-one writer supplies them. Kotlin, Python, Dart, Swift, and TypeScript include a permit handoff per
+one writer supplies them. Kotlin, Python, Dart, Swift, C#, and TypeScript include a permit handoff per
 frame and an acknowledgement before advancing groups, bounding queued work. Swift runs
 on its default global pool. Its writer can race the read's first poll, so this is a
 streaming workload, not an isolated measurement of every read suspending.
@@ -136,6 +137,7 @@ build, the largest move of any case between two runs:
 | Go | 362% (`stamped`), 330% (`record`), 84% (`loop`) | leaves: its collector and scheduler run inside each case, and its preemption signal crashes Callgrind unless `GODEBUG=asyncpreemptoff=1` |
 | Kotlin | 172% (`call`), 108% (`getter`) | leaves: without the warm-up, the JIT's and collector's threads compile and collect inside each case, and the JVM's C2 code crashes under Valgrind unless its implicit null checks are off |
 | Dart | does not run | leaves: the VM maps its code at an address hint off a page boundary, which Valgrind refuses |
+| C# | not measured | leaves until a pair of runs holds: CoreCLR's tiered JIT and collector run on their own threads |
 | TypeScript (Node) | 2.6% (`ready`), every other case under 2.3% | joins, with V8's flags below |
 
 Node joined on 2026-11-16, measured on **fedora** the same way, Node 24.22.2. With V8's
@@ -1061,6 +1063,41 @@ million were still held at the loop's end, and each cost 628 ns against a dispos
 275. So `rt.Bytes` lends only while lent bytes stay under a quarter of the memory, and
 while the memory has grown by no more than a third since none were lent, which bounds
 a returned slice that keeps a larger buffer whole; it copies past either.
+
+## C#
+
+Measured 2026-11-22 on **desktop** (Intel Core Ultra 7 270K Plus, 24 threads) at rust2
+`cbe455f9`, moq `1aa86d5e`, .NET 10.0.14 on CoreCLR's tiered JIT, beside C from the same
+export, in turn for 3 rounds at a load of 27 to 29 from other agents' builds, so read the
+C# column against C's from the same runs, not against the tables above. CPU time, ns per
+call, and MB per CPU second for throughput:
+
+| case | C | C# |
+|---|---|---|
+| `track.is_closed()`, a handle call | 17.5 | 34.0 |
+| `demand.start()`, a u64 getter | 10.0 | 20.4 |
+| the getter on 4 threads, one shared handle | 10.7 | 23.5 |
+| the getter on 4 threads, a clone each | 10.2 | 20.7 |
+| `track.largest()`, a record return | 28.5 | 75.5 |
+| `track.info()`, an object return | 37.4 | 118 |
+| `info.priority`, a field | 10.1 | 23.1 |
+| `group.write_frame(at, frame)`, 100 B | 151 | 187 |
+| the same, with a new `Timestamp` each | 163 | 274 |
+| a 100 B frame written and read, ready | 283 | 427 |
+| the same, read after a wake | 444 | 2,678 |
+| `frame.payload`, 100 B | 20.4 | 61.3 |
+| throughput, 100 B frames | 331 | 195 |
+| throughput, 1 KiB | 2,560 | 1,289 |
+| throughput, 1 MiB | 10,422 | 1,832 |
+
+A call holds its handle as Kotlin's and Go's do ([Concurrent calls](#concurrent-calls)).
+Before it did, with a count of its own on each object that every call wrote, 4 threads
+sharing one handle cost 208 ns a getter, against 37 on a clone each, at a load of 22. A
+woken read awaits a `ValueTask` whose wake posts its next poll to the thread pool, never
+running it inside Rust's wake, so a pool thread's handoff dominates it. Returned bytes are
+copied into a managed array, as no view of Rust's buffer stays safe once the GC finds its
+owner unreachable while a `Span` of it lives; the 1 MiB rows are that copy and the large
+object heap it allocates from.
 
 ## Consumer release profile
 

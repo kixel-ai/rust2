@@ -56,6 +56,10 @@ protocol:
 # Write the api fixture's Python, C++, and web checks, each beside the script tests/fixtures/transcript generates, into <dir>/python, <dir>/cpp, and <dir>/web, the directories the release builder's check inputs take.
 transcripts dir:
     out="$(cd {{ quote(invocation_directory()) }} && mkdir -p {{ quote(dir) }} && cd {{ quote(dir) }} && pwd)" && RUST2_TRANSCRIPTS="$out" cargo test --locked --test fixtures -- --ignored --exact transcripts
+# Compile the api fixture's C# ahead of time with NativeAOT and run its test, as the nightly does.
+aot:
+    cargo test --locked --test fixtures -- --ignored --exact api_csharp_aot
+
 # Run the api fixture's web test in headless Chromium, Firefox, and on Linux WebKit, in the bench shell, which carries them: nix develop .#bench.
 browsers:
     cargo test --locked --test fixtures -- --ignored --exact api_browsers

@@ -3407,6 +3407,60 @@ fn api_csharp() {
 	);
 }
 
+/// The same C# compiled ahead of time by NativeAOT, with its trim and AOT analyzers' warnings
+/// as errors, prints the native transcript and passes its checks: `dotnet publish`, from the
+/// packs the SDK carries, so it needs no network.
+#[test]
+#[ignore = "slow: just ffi aot"]
+fn api_csharp_aot() {
+	let api = api();
+	let dir = scratch().join("api").join("csharp-aot");
+	let script = generated("csharp", "Transcript.cs", &transcript::csharp::emit(transcript())).join("Transcript.cs");
+	let binding = api.out.join("csharp").join("api.cs");
+	let tests = manifest_dir().join("tests/api.cs");
+	let compile: String = [&binding, &tests, &script]
+		.iter()
+		.map(|f| format!("    <Compile Include=\"{}\" />\n", f.display()))
+		.collect();
+	step::write(
+		&dir.join("api.csproj"),
+		format!(
+			"<Project Sdk=\"Microsoft.NET.Sdk\">\n  <PropertyGroup>\n    <OutputType>Exe</OutputType>\n    <TargetFramework>net10.0</TargetFramework>\n    <Nullable>enable</Nullable>\n    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>\n    <PublishAot>true</PublishAot>\n    <InvariantGlobalization>true</InvariantGlobalization>\n    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>\n    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>\n  </PropertyGroup>\n  <ItemGroup>\n{compile}  </ItemGroup>\n</Project>\n"
+		),
+	);
+	let rid = match (std::env::consts::OS, std::env::consts::ARCH) {
+		("linux", "x86_64") => "linux-x64",
+		("linux", "aarch64") => "linux-arm64",
+		("macos", "x86_64") => "osx-x64",
+		("macos", "aarch64") => "osx-arm64",
+		(os, arch) => panic!("no NativeAOT runtime identifier for {arch} {os}"),
+	};
+	let out = dir.join("out");
+	run(Command::new("dotnet")
+		.args(["publish", "--nologo", "-c", "Release", "-r", rid, "-o"])
+		.arg(&out)
+		.arg(dir.join("api.csproj"))
+		.env("DOTNET_CLI_HOME", dir.join("home"))
+		.env("NUGET_PACKAGES", dir.join("packages"))
+		.env("DOTNET_CLI_TELEMETRY_OPTOUT", "1")
+		.env("DOTNET_NOLOGO", "1"));
+	let exe = out.join("api");
+	let native = |args: &[&str]| {
+		let mut cmd = Command::new(&exe);
+		cmd.args(args);
+		with_api_lib(&mut cmd);
+		run(&mut cmd)
+	};
+	assert_eq!(
+		String::from_utf8_lossy(&native(&[]).stdout),
+		api.transcript,
+		"the NativeAOT C# transcript differs from the native one"
+	);
+	for case in ["checks", "futures"] {
+		native(&[case]);
+	}
+}
+
 /// What a C# compile targets: .NET's own, or Unity's language level over .NET Standard 2.1.
 #[derive(Clone, Copy)]
 enum Dotnet {
@@ -3463,6 +3517,12 @@ fn csc(target: Dotnet, out: &Path, sources: &[&Path]) {
 fn csharp_run(exe: &Path, args: &[&str]) -> Command {
 	let mut cmd = Command::new("dotnet");
 	cmd.arg(exe).args(args).env("DOTNET_CLI_TELEMETRY_OPTOUT", "1");
+	with_api_lib(&mut cmd);
+	cmd
+}
+
+/// `cmd` finding the api fixture's library where the platform's loader looks.
+fn with_api_lib(cmd: &mut Command) {
 	let var = match (cfg!(windows), cfg!(target_os = "macos")) {
 		(true, _) => "PATH",
 		(_, true) => "DYLD_LIBRARY_PATH",
@@ -3471,7 +3531,6 @@ fn csharp_run(exe: &Path, args: &[&str]) -> Command {
 	let mut paths = vec![api().lib.clone()];
 	paths.extend(std::env::var_os(var).iter().flat_map(std::env::split_paths));
 	cmd.env(var, std::env::join_paths(paths).unwrap());
-	cmd
 }
 
 /// `tests/api.go`'s script, its futures, and what closing and the GC free, then fails loud
