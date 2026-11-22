@@ -132,6 +132,7 @@ const TAKEN: &[&str] = &[
 	"ThreadPool",
 	"TimeSpan",
 	"U128",
+	"UInt128",
 	"UnmanagedCallersOnly",
 	"UnmanagedCallersOnlyAttribute",
 	"UnmanagedFunctionPointer",
@@ -1474,10 +1475,12 @@ impl<'a> Gen<'a> {
 			_ => None,
 		};
 		let plain = matches!(ty.base(), Type::Enum(i) if api.enums[*i].plain());
+		// By the names the plan gave the trait members, which a variant's may have moved.
+		let base = ty.base().clone();
 		match traits {
-			Some(t) if t.display && plain => format!("{e}.Display()"),
+			Some(t) if t.display && plain => format!("{e}.{}()", self.trait_name(&base, "Display")),
 			Some(t) if t.display => format!("{e}.ToString()"),
-			Some(t) if t.debug => format!("{e}.Debug()"),
+			Some(t) if t.debug => format!("{e}.{}()", self.trait_name(&base, "Debug")),
 			_ if matches!(ty.base(), Type::List(..)) => format!("\"[\" + string.Join(\", \", {e}) + \"]\""),
 			_ => format!("{e}.ToString() ?? \"\""),
 		}

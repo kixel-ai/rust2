@@ -338,7 +338,7 @@ internal static unsafe partial class Native
 		var c = default(CIpv4Addr);
 		for (var k = 0; k < 4; k++)
 		{
-			c.octets[k] = (byte)(a.Bits >> (24 - 8 * k));
+			c.octets[k] = unchecked((byte)(a.Bits >> (24 - 8 * k)));
 		}
 		return c;
 	}
@@ -706,8 +706,8 @@ public abstract unsafe class RustObject : IDisposable
 	/// and a row in it per handle.
 	int slot()
 	{
-		var column = (int)((uint)Environment.CurrentManagedThreadId * 0x9E3779B9u >> (32 - ColumnBits));
-		var row = (int)(((ulong)raw >> 4) * 0x9E3779B97F4A7C15UL >> (64 - RowBits));
+		var column = unchecked((int)((uint)Environment.CurrentManagedThreadId * 0x9E3779B9u >> (32 - ColumnBits)));
+		var row = unchecked((int)(((ulong)raw >> 4) * 0x9E3779B97F4A7C15UL >> (64 - RowBits)));
 		return column * Stride + row;
 	}
 
@@ -1395,7 +1395,7 @@ public readonly struct U128 : IEquatable<U128>, IComparable<U128>
 #if NET7_0_OR_GREATER
 	public static implicit operator UInt128(U128 v) => new UInt128(v.High, v.Low);
 
-	public static implicit operator U128(UInt128 v) => new U128((ulong)(v >> 64), (ulong)v);
+	public static implicit operator U128(UInt128 v) => new U128((ulong)(v >> 64), unchecked((ulong)v));
 #endif
 
 	/// Its hex digits, zero-padded to `width`.
@@ -1485,7 +1485,7 @@ public readonly struct Ipv4Addr : IEquatable<Ipv4Addr>
 	}
 
 	/// Its 4 octets, in network order.
-	public byte[] Octets() => new[] { (byte)(Bits >> 24), (byte)(Bits >> 16), (byte)(Bits >> 8), (byte)Bits };
+	public byte[] Octets() => unchecked(new[] { (byte)(Bits >> 24), (byte)(Bits >> 16), (byte)(Bits >> 8), (byte)Bits });
 
 	/// It as an `IPAddress`.
 	public System.Net.IPAddress ToIPAddress() => new System.Net.IPAddress(Octets());
@@ -1507,7 +1507,7 @@ public readonly struct Ipv4Addr : IEquatable<Ipv4Addr>
 
 	public override bool Equals(object? obj) => obj is Ipv4Addr other && Equals(other);
 
-	public override int GetHashCode() => (int)Bits;
+	public override int GetHashCode() => unchecked((int)Bits);
 }
 
 /// An IPv6 address, as Rust's `Ipv6Addr` holds it.
@@ -1533,7 +1533,7 @@ public readonly struct Ipv6Addr : IEquatable<Ipv6Addr>
 	}
 
 	/// Its `k`th octet.
-	public byte this[int k] => (byte)((k < 8 ? high : low) >> (56 - 8 * (k % 8)));
+	public byte this[int k] => unchecked((byte)((k < 8 ? high : low) >> (56 - 8 * (k % 8))));
 
 	/// Its 16 octets, in network order.
 	public byte[] Octets()
@@ -1945,6 +1945,13 @@ internal abstract unsafe class Pending<T> : IValueTaskSource<T>, IValueTaskSourc
 		core.RunContinuationsAsynchronously = true;
 		context = SynchronizationContext.Current;
 		waker = new Native.CWaker { wake = Callbacks.PendingWake, drop = Callbacks.PendingDrop, data = Native.Give(this) };
+		// A token cancelled before the call cancels a future that pended, before any poll
+		// more could finish it.
+		if (token.IsCancellationRequested)
+		{
+			Cancel(token);
+			return;
+		}
 		// Rust's first poll took no waker, so this one polls again at once, with one.
 		Run();
 		if (token.CanBeCanceled)
