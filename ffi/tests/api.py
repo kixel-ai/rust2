@@ -1356,6 +1356,12 @@ def idioms():
 		check(ref() is value, f"{value!r} is weakly referenced")
 		del value
 		check(ref() is None and gone == [ref], "a weak reference dies with its referent")
+	# An opaque value's item count, which CPython keeps beside its header, counts its bytes,
+	# whatever its weak references.
+	stamp = api.Stamp.from_millis(5)
+	size = sys.getsizeof(stamp)
+	ref = weakref.ref(stamp)
+	check(sys.getsizeof(stamp) == size > type(stamp).__basicsize__, "a value's size counts its bytes alone")
 
 	# A record is a dataclass to `dataclasses`, `copy`, and `match`, as `@dataclass` made it.
 	# A subclass's fields are its record's, read first through either, and a dataclass may
@@ -1485,6 +1491,8 @@ def threads():
 	added = [0] * n
 	refused = [0] * n
 	failures = []
+	# A buffer every thread rewrites whole while others copy it into calls.
+	shared = bytearray(4096)
 
 	async def wakes(channel):
 		# Each payload sent from another thread while the receive waits.
@@ -1519,6 +1527,8 @@ def threads():
 				check(own.get() == k and api.only(own)[0].get() == k, "an object moved through a call")
 				check(api.Point(k, 1).offset(1, 1) == api.Point(k + 1, 2), "a record")
 				check(data(api.boxed_tuple(bytes([k]))[0]) == bytes([k]), "bytes Rust returned")
+				shared[:] = bytes([k]) * len(shared)
+				check(len(set(data(api.boxed_tuple(shared)[0]))) == 1, "a bytearray another thread rewrites crosses whole")
 			asyncio.run(wakes(api.Channel.new()))
 			check(api.Spawned.new(lambda: k).join() == k, "a kept closure called on another thread")
 		except BaseException as e:

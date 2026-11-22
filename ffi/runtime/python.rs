@@ -960,10 +960,9 @@ pub fn bytes_in(obj: *mut PyObject, s: &mut Scope, take: bool) -> R<rt::Buf> {
 				rt::Buf { ptr, len, ..shared }
 			}
 			(false, _) => {
-				let copy = match len {
-					0 => Vec::new(),
-					len => std::slice::from_raw_parts(ptr, len).to_vec(),
-				};
+				let mut copy = Vec::with_capacity(len);
+				snapshot(obj, ptr, copy.as_mut_ptr(), len);
+				copy.set_len(len);
 				match take {
 					true => {
 						let owned = rt::Buf::vec(copy);
@@ -1097,7 +1096,7 @@ pub fn block_in<T: Number>(obj: *mut PyObject, s: &mut Scope) -> R<rt::List<T>> 
 		let len = view.len as usize / size_of::<T>();
 		let mut items = Vec::<T>::with_capacity(len);
 		// A byte copy, as the buffer need not be aligned for `T`.
-		std::ptr::copy_nonoverlapping(view.buf.cast_const().cast::<u8>(), items.as_mut_ptr().cast::<u8>(), len * size_of::<T>());
+		snapshot(obj, view.buf.cast_const().cast(), items.as_mut_ptr().cast(), len * size_of::<T>());
 		items.set_len(len);
 		PyBuffer_Release(&mut view);
 		let items = Box::new(items);
@@ -1108,6 +1107,30 @@ pub fn block_in<T: Number>(obj: *mut PyObject, s: &mut Scope) -> R<rt::List<T>> 
 		};
 		s.arrays.push(items);
 		Ok(list)
+	}
+}
+
+/// Copy `len` bytes of `obj`'s buffer at `src` to `dst`, as another thread may write them
+/// meanwhile without a GIL: inside `obj`'s critical section, which a free-threaded CPython's
+/// `bytearray` takes to write, and through no Rust reference, which would claim the bytes
+/// unchanged. A writer that takes no lock, such as a `memoryview`, tears the copy as it
+/// tears CPython's own, such as `bytes(view)`.
+///
+/// # Safety
+/// The thread is attached, and `src` is `len` bytes of a buffer `obj` exports.
+unsafe fn snapshot(obj: *mut PyObject, src: *const u8, dst: *mut u8, len: usize) {
+	#[cfg(feature = "python-abi3t")]
+	// SAFETY: the caller's contract; the section ends before the thread detaches.
+	unsafe {
+		let mut section = std::mem::MaybeUninit::<PyCriticalSection>::uninit();
+		PyCriticalSection_Begin(section.as_mut_ptr(), obj);
+		std::ptr::copy_nonoverlapping(src, dst, len);
+		PyCriticalSection_End(section.as_mut_ptr());
+	}
+	#[cfg(not(feature = "python-abi3t"))]
+	// SAFETY: the caller's contract; the GIL keeps every Python writer out.
+	unsafe {
+		std::ptr::copy_nonoverlapping(src, dst, len);
 	}
 }
 
@@ -1244,7 +1267,7 @@ unsafe fn value_head(obj: *mut PyObject) -> *mut ValueHead {
 	#[cfg(feature = "python-abi3t")]
 	// SAFETY: the caller's contract.
 	unsafe {
-		data(obj, &VALUE_BASE)
+		data::<u8>(obj, &VALUE_BASE).byte_add(VALUE_DATA).cast()
 	}
 }
 
@@ -2179,11 +2202,13 @@ const DATA: usize = std::mem::offset_of!(Embedded<PyObject, Handle>, data);
 #[cfg(feature = "python-abi3t")]
 const DATA: usize = 0;
 
-/// [`DATA`] of `Value`, whose header varies in size by its items.
+/// [`DATA`] of `Value`, whose header varies in size by its items. Under `abi3t` its data
+/// starts where the interpreter puts it, past `object`'s header, where a variable-size
+/// object keeps its item count, `ob_size`, which the data leaves room for.
 #[cfg(not(feature = "python-abi3t"))]
 const VALUE_DATA: usize = std::mem::offset_of!(Embedded<PyVarObject, ValueHead>, data);
 #[cfg(feature = "python-abi3t")]
-const VALUE_DATA: usize = 0;
+const VALUE_DATA: usize = size_of::<Py_ssize_t>();
 
 /// The flag a member's offset within the type's data takes: none where the data's place is
 /// fixed.
@@ -3292,12 +3317,22 @@ fn module_name(module: *mut PyObject) -> String {
 
 /// A slot of the module `PyModExport_` describes (PEP 793), as CPython 3.15 lays one out.
 #[repr(C)]
-pub struct Slot {
+struct Slot {
 	id: u16,
 	flags: u16,
 	reserved: u32,
-	value: *mut c_void,
+	value: SlotValue,
 }
+
+/// A slot's value, whose C union also holds a 64-bit integer, which widens it past a
+/// pointer on a 32-bit target.
+#[repr(C)]
+union SlotValue {
+	ptr: *mut c_void,
+	_wide: u64,
+}
+
+const _: () = assert!(size_of::<Slot>() == 16, "CPython's PySlot is 16 bytes on every target");
 
 /// The slots' IDs and flags, from CPython 3.15, which every later version keeps.
 const MOD_ABI: u16 = 109;
@@ -3356,7 +3391,7 @@ impl Export {
 				id,
 				flags,
 				reserved: 0,
-				value,
+				value: SlotValue { ptr: value },
 			}
 		}
 		Self([
@@ -3533,7 +3568,7 @@ const fn value_size() -> c_int {
 	#[cfg(not(feature = "python-abi3t"))]
 	return (VALUE_DATA + size_of::<ValueHead>()) as c_int;
 	#[cfg(feature = "python-abi3t")]
-	return basicsize::<ValueHead>();
+	return -((VALUE_DATA + size_of::<ValueHead>()) as c_int);
 }
 
 /// The flag that puts a `Value`'s bytes at its end, which a type whose data the
