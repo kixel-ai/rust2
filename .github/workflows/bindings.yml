@@ -360,8 +360,9 @@ jobs:
           "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "ndk;$NDK" "platforms;android-35" > /dev/null
           echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/$NDK" >> "$GITHUB_ENV"
           cd "$RUNNER_TEMP"
-          # The checksums below make any retry safe. curl drops the token on the redirect off api.github.com.
-          get() { curl -sSfL --retry 5 --retry-all-errors -o "$@"; }
+          # The checksums below make any retry safe. curl drops the token on the redirect off
+          # api.github.com, and names the host that answered, since a redirect may be what fails.
+          get() { curl -sSfL --retry 5 --retry-all-errors -w '%{stderr}%{http_code} %{url_effective}\n' -o "$@"; }
           get kotlin.zip -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/octet-stream" \
             "https://api.github.com/repos/JetBrains/kotlin/releases/assets/$KOTLIN_ASSET"
           jar="kotlinx-coroutines-core-jvm-$COROUTINES.jar"
