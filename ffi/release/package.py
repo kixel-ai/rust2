@@ -267,9 +267,9 @@ def pascal(name):
     return "".join(part[:1].upper() + part[1:] for part in name.split("_") if part)
 
 
-def python_floor(export):
-    """The oldest CPython the export's stable-ABI extension loads in, from its glue's pyo3 feature."""
-    return backend.python_floor((Path(export) / "Cargo.toml").read_text(encoding="utf-8"))
+def python_floor(export, abi="abi3"):
+    """The oldest CPython the export's extension on the stable ABI `abi` loads in, from its glue's pyo3 feature."""
+    return backend.python_floor((Path(export) / "Cargo.toml").read_text(encoding="utf-8"), abi)
 
 
 def licenses(info):
@@ -329,10 +329,12 @@ def wheel_platform(target):
 library_name = backend.library_name
 
 
-def write_wheel(info, export, library, target, out):
-    """An unrepaired wheel holding the generated module as a typed package beside its library."""
-    lib, floor = info["lib"], python_floor(export)
-    return backend.write_wheel(out, metadata(info, floor), f"cp3{floor}-abi3-{wheel_platform(target)}", lib,
+def write_wheel(info, export, library, target, out, abi):
+    """An unrepaired wheel holding the generated module as a typed package beside its library on the stable ABI `abi`."""
+    # Every wheel's metadata is the sdist's, as a resolver reads one wheel's for all; the tag
+    # alone narrows where an `abi3t` wheel installs.
+    lib, tag = info["lib"], f"cp3{python_floor(export, abi)}-{abi}-{wheel_platform(target)}"
+    return backend.write_wheel(out, metadata(info, python_floor(export)), tag, lib,
                                (Path(export) / "python" / f"{lib}.py").read_bytes(), Path(library).read_bytes(),
                                target, {path.name: path.read_bytes() for path in licenses(info)}, info["epoch"],
                                info["sbom"])
@@ -2000,15 +2002,22 @@ def build(args):
                 env = reproducible(inside, through, target)
                 if "apple" in target:
                     env["MACOSX_DEPLOYMENT_TARGET"] = MACOS_WHEEL
+                # pyo3 builds each stable ABI without asking a CPython, which the host may lack.
+                env.pop("PYO3_PYTHON", None)
+                env["PYO3_NO_PYTHON"] = "1"
                 linux = "linux" in target
-                # cargo-zigbuild links Linux against the glibc floor's symbols, whichever glibc the host has.
-                built = cargo(args.manifest_path, *(["zigbuild"] if linux else ["build"]), "--locked", "--release",
-                              "--manifest-path", crate, "--target", f"{target}.{GLIBC}" if linux else target,
-                              "--target-dir", through / "target-python", "--features", "python", env=env)
-                sys.stderr.write(built.stderr)
-                library = through / "target-python" / target / "release" / library_name(lib, target)
-                with tempfile.TemporaryDirectory() as raw:
-                    repair(write_wheel(inside, through, library, target, raw), target, out / "wheels", inside["epoch"])
+                for abi, feature in backend.FEATURES.items():
+                    # cargo-zigbuild links Linux against the glibc floor's symbols, whichever glibc the host has.
+                    built = cargo(args.manifest_path, *(["zigbuild"] if linux else ["build"]), "--locked", "--release",
+                                  "--manifest-path", crate, "--target", f"{target}.{GLIBC}" if linux else target,
+                                  "--target-dir", through / f"target-{feature}", "--features", feature, env=env)
+                    sys.stderr.write(built.stderr)
+                    library = through / f"target-{feature}" / target / "release" / library_name(lib, target)
+                    with tempfile.TemporaryDirectory() as raw, tempfile.TemporaryDirectory() as fixed:
+                        wheel = repair(write_wheel(inside, through, library, target, raw, abi), target, fixed,
+                                       inside["epoch"])
+                        (out / "wheels").mkdir(parents=True, exist_ok=True)
+                        shutil.move(wheel, out / "wheels" / wheel.name)
                 c_archive(inside, args.manifest_path, through, target, out)
             if target in APPLE_TARGETS:
                 apple = APPLE_TARGETS[target]

@@ -45,11 +45,16 @@ def library_name(lib, target):
     return f"lib{lib}.dylib" if "apple" in target else f"lib{lib}.so"
 
 
-def python_floor(manifest):
-    """The oldest CPython the generated crate's stable-ABI extension loads in, from its pyo3 feature."""
-    found = set(re.findall(r'"abi3-py3([0-9]+)"', manifest))
+# Each stable ABI a wheel claims, by the generated crate's feature that builds its extension:
+# `abi3` for CPython with a GIL, and PEP 803's `abi3t` for a free-threaded one.
+FEATURES = {"abi3": "python", "abi3t": "python-abi3t"}
+
+
+def python_floor(manifest, abi="abi3"):
+    """The oldest CPython the generated crate's extension on the stable ABI `abi` loads in, from its pyo3 feature."""
+    found = set(re.findall(rf'"pyo3-ffi/{abi}-py3([0-9]+)"', manifest))
     if len(found) != 1:
-        raise SystemExit(f"the generated Cargo.toml names no single abi3 floor: {sorted(found)}")
+        raise SystemExit(f"the generated Cargo.toml names no single {abi} floor: {sorted(found)}")
     return int(found.pop())
 
 
@@ -216,9 +221,15 @@ def build_wheel(wheel_directory, config_settings=None, metadata_directory=None):
         raise SystemExit(f"this package builds for the targets it was exported for, {', '.join(exported)}, "
                          f"not {target}: set CARGO_BUILD_TARGET to one that runs here")
     check_arch(target)
-    tag = f"cp3{python_floor(manifest)}-abi3-{platform_tag(target, env)}"
+    # A free-threaded CPython loads only an `abi3t` extension, which it has from 3.15.
+    abi = "abi3t" if sysconfig.get_config_var("Py_GIL_DISABLED") else "abi3"
+    floor = python_floor(manifest, abi)
+    if sys.version_info < (3, floor):
+        raise SystemExit(f"this package's {abi} extension loads in CPython 3.{floor} and later, not this "
+                         f"{sys.version_info.major}.{sys.version_info.minor}")
+    tag = f"cp3{floor}-{abi}-{platform_tag(target, env)}"
     built = subprocess.run(["cargo", "rustc", "--locked", "--release", "--lib", "--crate-type", "cdylib",
-                            "--features", "python", "--message-format", "json-render-diagnostics",
+                            "--features", FEATURES[abi], "--message-format", "json-render-diagnostics",
                             # The target checked above, whatever a cargo config's build.target says.
                             "--target", target, *dynamic_crt(target, env)],
                            cwd=crate, env=env, stdout=subprocess.PIPE, text=True)

@@ -200,6 +200,10 @@ def unspelled():
 	return api.stray()
 
 
+# How long a wait may take before the run calls it a hang, enough for ThreadSanitizer's slowdown.
+HANG = 60
+
+
 def check(ok, what):
 	if not ok:
 		print(f"failed: {what}", file=sys.stderr)
@@ -218,7 +222,29 @@ def until(loop, done):
 		while not done():
 			await asyncio.sleep(0)
 
-	loop.run_until_complete(asyncio.wait_for(wait(), 5))
+	loop.run_until_complete(asyncio.wait_for(wait(), HANG))
+
+
+def free_elsewhere(held, then=None):
+	"""Free what `held` holds on another thread, which then calls `then`. A free-threaded
+	CPython hands the last reference another thread drops back to the object's maker to free,
+	unless that thread's own reference outlived the maker's, as the copy's here does."""
+	took, dropped = threading.Event(), threading.Event()
+
+	def free():
+		mine = list(held)
+		took.set()
+		dropped.wait()
+		mine.clear()
+		if then is not None:
+			then()
+
+	thread = threading.Thread(target=free)
+	thread.start()
+	took.wait()
+	held.clear()
+	dropped.set()
+	thread.join()
 
 
 
@@ -401,7 +427,7 @@ async def streamed():
 		pass
 	channel.send(b"kept")
 	check(got == [], "a cancelled iteration took nothing")
-	payload = await asyncio.wait_for(feed.next(), 5)
+	payload = await asyncio.wait_for(feed.next(), HANG)
 	check(payload is not None and text(payload) == "kept", "a cancelled iteration loses nothing")
 	check(aiter(feed) is feed, "a stream iterates itself")
 
@@ -487,7 +513,7 @@ def futures():
 	async def threaded():
 		sender = threading.Thread(target=lambda: channel.send(b"blocked"))
 		sender.start()
-		payload = await asyncio.wait_for(channel.recv(), 5)
+		payload = await asyncio.wait_for(channel.recv(), HANG)
 		sender.join()
 		check(text(payload) == "blocked", "recv returns the payload another thread sent")
 
@@ -507,12 +533,12 @@ def futures():
 	check(got is None, "recv waits for a send")
 	channel.send(b"then")
 	check(got is None, "recv never polls inside the wake")
-	loop.run_until_complete(asyncio.wait_for(task, 5))
+	loop.run_until_complete(asyncio.wait_for(task, HANG))
 	check(got == "then", "recv resumes with the payload")
 
 	# A wake that lands while the future polls, before it returns pending, is kept: the
 	# future polls again rather than waiting for a wake that already happened.
-	check(loop.run_until_complete(asyncio.wait_for(api.yielded(7), 5)) == 7, "a wake during the poll polls again")
+	check(loop.run_until_complete(asyncio.wait_for(api.yielded(7), HANG)) == 7, "a wake during the poll polls again")
 	check(loop.run_until_complete(api.corner_later()) == (1, 1), "a future's borrowed tuple returns whole")
 	# A future's error borrowing its argument crosses as its message, as `parse_cert`'s does.
 	check(loop.run_until_complete(api.parse_later("cert")) == 4, "a future with a borrowing error returns Ok")
@@ -550,9 +576,7 @@ def futures():
 	before = api.locals_dropped()
 	held = [local]
 	del local
-	thread = threading.Thread(target=held.clear)
-	thread.start()
-	thread.join()
+	free_elsewhere(held)
 	check(api.locals_dropped() == before, "a local freed elsewhere waits for its thread")
 	check(shared.bump() == 4 and api.locals_dropped() == before + 1, "a local freed elsewhere drops on its thread")
 
@@ -562,9 +586,7 @@ def futures():
 	# runs gives the thread its wake.
 	early = [api.Local.new()]
 	before = api.locals_dropped()
-	thread = threading.Thread(target=early.clear)
-	thread.start()
-	thread.join()
+	free_elsewhere(early)
 	check(api.locals_dropped() == before, "a local freed elsewhere with no wake waits")
 
 	async def idle() -> None:
@@ -575,15 +597,8 @@ def futures():
 		check(api.locals_dropped() == before + 1, "a drop queued before its thread's wake drains once it is set")
 		before += 1
 		freed = loop.create_future()
-
-		def free() -> None:
-			held.clear()
-			loop.call_soon_threadsafe(freed.set_result, None)
-
-		thread = threading.Thread(target=free)
-		thread.start()
+		free_elsewhere(held, lambda: loop.call_soon_threadsafe(freed.set_result, None))
 		await freed
-		thread.join()
 		check(api.locals_dropped() == before + 1, "a local freed elsewhere drops on its idle loop")
 
 	loop.run_until_complete(idle())
@@ -603,7 +618,7 @@ def futures():
 	task.cancel()
 	until(loop, task.done)
 	check(not called and task.cancelled(), "a cancelled receive never resumes")
-	payload = loop.run_until_complete(asyncio.wait_for(channel.recv(), 5))
+	payload = loop.run_until_complete(asyncio.wait_for(channel.recv(), HANG))
 	check(text(payload) == "kept", "a cancelled receive loses nothing")
 
 	# An object whose last reference goes while a call awaits on it is freed once the
@@ -614,7 +629,7 @@ def futures():
 	step(loop)
 	del other
 	sender.send(b"held")
-	got = loop.run_until_complete(asyncio.wait_for(task, 5))
+	got = loop.run_until_complete(asyncio.wait_for(task, HANG))
 	check(text(got) == "held", "the call awaiting on an object holds it")
 
 	# An awaitable from Rust is awaited once, as a coroutine is.
@@ -623,13 +638,13 @@ def futures():
 	async def wait(awaitable):
 		return await awaitable
 
-	loop.run_until_complete(asyncio.wait_for(wait(later), 5))
+	loop.run_until_complete(asyncio.wait_for(wait(later), HANG))
 	try:
 		loop.run_until_complete(wait(later))
 		check(False, "a second await raises")
 	except RuntimeError:
 		pass
-	check(text(loop.run_until_complete(asyncio.wait_for(channel.recv(), 5))) == "once", "the send landed once")
+	check(text(loop.run_until_complete(asyncio.wait_for(channel.recv(), HANG))) == "once", "the send landed once")
 
 	# Python run while a closing future is freed, as by its drop's callback, finds it ended.
 	class Polls(api.Log):
@@ -656,11 +671,11 @@ def futures():
 	sender.join()
 	until(loop, lambda: wakes)
 	check(wakes == [threading.get_ident()], "a waker calls back on its loop's thread")
-	loop.run_until_complete(asyncio.wait_for(on_loop(), 5))
-	loop.run_until_complete(asyncio.wait_for(foreign(), 5))
-	loop.run_until_complete(asyncio.wait_for(polled(), 5))
-	loop.run_until_complete(asyncio.wait_for(kept(), 5))
-	loop.run_until_complete(asyncio.wait_for(streamed(), 5))
+	loop.run_until_complete(asyncio.wait_for(on_loop(), HANG))
+	loop.run_until_complete(asyncio.wait_for(foreign(), HANG))
+	loop.run_until_complete(asyncio.wait_for(polled(), HANG))
+	loop.run_until_complete(asyncio.wait_for(kept(), HANG))
+	loop.run_until_complete(asyncio.wait_for(streamed(), HANG))
 	loop.close()
 	reading()
 	print("futures ok")
@@ -1437,19 +1452,13 @@ def leaf():
 	# A getter of a value kept on its thread, after another thread freed one of its values:
 	# the getter first drops that one, whose drop runs the hook.
 	pinned = api.Pinned.new(5)
-	freed = [api.Pinned.new(6)]
-	thread = threading.Thread(target=freed.clear)
-	thread.start()
-	thread.join()
+	free_elsewhere([api.Pinned.new(6)])
 	check(len(hooked) == 2, "a value freed elsewhere waits for its thread")
 	check(pinned.value_get == 5 and len(hooked) == 3, "a getter that drains releases the GIL")
 	# A `Send` part it lends, whose getter and equality borrow it too, so drain the same.
 	part = pinned.part()
 	for use in [lambda: part.value_get == 5, lambda: part == part]:
-		freed = [api.Pinned.new(6)]
-		thread = threading.Thread(target=freed.clear)
-		thread.start()
-		thread.join()
+		free_elsewhere([api.Pinned.new(6)])
 		count = len(hooked)
 		check(use() and len(hooked) == count + 1, "a use of a part that drains releases the GIL")
 	count = len(hooked)
@@ -1482,7 +1491,7 @@ def threads():
 		for i in range(10):
 			sender = threading.Thread(target=channel.send, args=(bytes([i]),))
 			sender.start()
-			got = await asyncio.wait_for(channel.recv(), 5)
+			got = await asyncio.wait_for(channel.recv(), HANG)
 			sender.join()
 			check(data(got) == bytes([i]), "a receive gets what another thread sent")
 

@@ -1885,7 +1885,7 @@ const PYTHON_LIB: &str = match (cfg!(windows), cfg!(target_os = "macos")) {
 /// contract it fails loud on.
 #[test]
 fn api_python() {
-	python_checks(&std::env::var_os("PYTHON").unwrap_or_else(|| "python3".into()), &api().out.join("python"));
+	python_checks(&interpreter("PYTHON", "python3"), &api().out.join("python"), &[]);
 }
 
 /// The CPython the environment variable `var` names, which the dev shell sets by path, as
@@ -1894,26 +1894,37 @@ fn interpreter(var: &str, default: &str) -> std::ffi::OsString {
 	std::env::var_os(var).unwrap_or_else(|| default.into())
 }
 
-/// The api fixture's Python beside its extension built with `python-abi3t`, on `abi3t`,
-/// whose build looks for no other CPython than `PYTHON_315T`, the free-threaded 3.15.
+/// The api fixture's Python beside its extension built with `python-abi3t`, on `abi3t`.
 fn abi3t() -> &'static Path {
 	static DIR: OnceLock<PathBuf> = OnceLock::new();
-	DIR.get_or_init(|| {
-		let api = api();
-		let target = scratch().join("api").join("glue-abi3t");
-		run(sysconfig_free(cargo())
-			.args(["build", "--quiet", "--locked", "--manifest-path"])
-			.arg(api.out.join("Cargo.toml"))
-			.arg("--target-dir")
-			.arg(&target)
-			.args(["--features", "python-abi3t"])
-			.env("RUSTFLAGS", "-D warnings")
-			.env("PYO3_PYTHON", interpreter("PYTHON_315T", "python3.15t")));
-		let dir = scratch().join("api").join("python-abi3t");
-		step::copy(&target.join("debug").join(PYTHON_LIB), &dir.join(PYTHON_LIB));
-		step::copy(&api.out.join("python").join("api.py"), &dir.join("api.py"));
-		dir
-	})
+	DIR.get_or_init(|| python_abi3t("python-abi3t", &[], ""))
+}
+
+/// The api fixture's Python in `scratch/api/<name>`, beside its extension built on `abi3t`
+/// with cargo's `args` and `rustflags`.
+fn python_abi3t(name: &str, args: &[&str], rustflags: &str) -> PathBuf {
+	let api = api();
+	let target = scratch().join("api").join(format!("glue-{name}"));
+	run(sysconfig_free(cargo())
+		.args(["build", "--quiet", "--locked", "--features", "python-abi3t"])
+		.args(args)
+		.arg("--manifest-path")
+		.arg(api.out.join("Cargo.toml"))
+		.arg("--target-dir")
+		.arg(&target)
+		.env("RUSTFLAGS", format!("-D warnings {rustflags}"))
+		// As the release builds it, with no CPython to ask.
+		.env_remove("PYO3_PYTHON")
+		.env("PYO3_NO_PYTHON", "1"));
+	// A `--target` puts the build under the target's directory.
+	let built = match args.iter().position(|arg| *arg == "--target") {
+		Some(at) => target.join(args[at + 1]),
+		None => target,
+	};
+	let dir = scratch().join("api").join(name);
+	step::copy(&built.join("debug").join(PYTHON_LIB), &dir.join(PYTHON_LIB));
+	step::copy(&api.out.join("python").join("api.py"), &dir.join("api.py"));
+	dir
 }
 
 /// `cmd` without the sysconfig data a Nix shell names for its own CPython, which another
@@ -1930,7 +1941,7 @@ fn sysconfig_free(mut cmd: Command) -> Command {
 #[test]
 fn api_abi3t() {
 	let dir = abi3t();
-	python_checks(&interpreter("PYTHON_315T", "python3.15t"), dir);
+	python_checks(&interpreter("PYTHON_315T", "python3.15t"), dir, &[]);
 	for dir in [dir, &api().out.join("python")] {
 		let output = run(sysconfig_free(Command::new(interpreter("PYTHON_315", "python3.15")))
 			.args(["-P", "-X", "dev", "-W", "error"])
@@ -1953,7 +1964,7 @@ fn api_abi3t() {
 fn api_python_debug() {
 	let interpreter = std::env::var_os("RUST2_PYTHON_DEBUG")
 		.expect("RUST2_PYTHON_DEBUG names a debug CPython: run this in the sanitize shell");
-	python_checks(&interpreter, &api().out.join("python"));
+	python_checks(&interpreter, &api().out.join("python"), &[]);
 	let output = run(Command::new(&interpreter)
 		.args(["-P", "-X", "dev", "-W", "error"])
 		.arg(manifest_dir().join("tests").join("api.py"))
@@ -1969,14 +1980,36 @@ fn api_python_debug() {
 	);
 }
 
+/// `api_python`'s checks, threads included, through the `abi3t` library built under
+/// ThreadSanitizer, on the free-threaded CPython 3.15 built under it that `RUST2_PYTHON_TSAN`
+/// names, where the GIL serializes nothing: a race in the runtime fails the run.
+#[test]
+#[ignore = "needs a ThreadSanitizer CPython, which builds from source: just ffi sanitize"]
+fn api_python_tsan() {
+	let interpreter = std::env::var_os("RUST2_PYTHON_TSAN")
+		.expect("RUST2_PYTHON_TSAN names a ThreadSanitizer CPython: run this in the sanitize shell");
+	// As `sanitized_glue` builds it, for the same reason.
+	let outline = if cfg!(target_arch = "aarch64") {
+		" -Ctarget-feature=-outline-atomics"
+	} else {
+		""
+	};
+	let dir = python_abi3t(
+		"python-tsan",
+		&["-Zbuild-std", "--target", host()],
+		&format!("-Zsanitizer=thread{outline}"),
+	);
+	python_checks(&interpreter, &dir, &[("TSAN_OPTIONS", "halt_on_error=1")]);
+}
+
 /// The directory of the Python script generated from the transcript, which `tests/api.py`
 /// imports.
 fn python_transcript() -> PathBuf {
 	generated("python", "transcript.py", &transcript::python::emit(transcript()))
 }
 
-/// `api_python`'s checks, run by `interpreter` on the module and library in `dir`.
-fn python_checks(interpreter: &std::ffi::OsStr, dir: &Path) {
+/// `api_python`'s checks, run by `interpreter` with `env` on the module and library in `dir`.
+fn python_checks(interpreter: &std::ffi::OsStr, dir: &Path, env: &[(&str, &str)]) {
 	let api = api();
 	let scripts = python_transcript();
 	let python = |dir: &Path, args: &[&str]| {
@@ -1986,7 +2019,8 @@ fn python_checks(interpreter: &std::ffi::OsStr, dir: &Path) {
 		cmd.args(["-P", "-X", "dev", "-W", "error"])
 			.arg(manifest_dir().join("tests").join("api.py"))
 			.args(args)
-			.env("PYTHONPATH", std::env::join_paths([dir, &scripts]).unwrap());
+			.env("PYTHONPATH", std::env::join_paths([dir, &scripts]).unwrap())
+			.envs(env.iter().copied());
 		cmd
 	};
 	let py = run(&mut python(dir, &[]));
@@ -2034,7 +2068,7 @@ fn python_checks(interpreter: &std::ffi::OsStr, dir: &Path) {
 
 	// The same Python, with another contract than the library's in place of its own,
 	// refuses to load it.
-	let mismatched = scratch().join("api").join("python-mismatched");
+	let mismatched = dir.with_file_name(format!("{}-mismatched", dir.file_name().unwrap().display()));
 	step::copy(&dir.join(PYTHON_LIB), &mismatched.join(PYTHON_LIB));
 	let source = std::fs::read_to_string(dir.join("api.py")).unwrap();
 	let at = source
@@ -2059,8 +2093,8 @@ fn python_checks(interpreter: &std::ffi::OsStr, dir: &Path) {
 /// A CPython refuses a library it cannot run with an `ImportError`, where loading it by its
 /// path would crash: a free-threaded one before 3.15, `PYTHON_314T`, any, which `api.py`
 /// refuses, as no stable ABI covers it; the free-threaded 3.15, `PYTHON_315T`, the `abi3`
-/// library, whose declared ABI it checks; and one before 3.15 the `abi3t` library, which has
-/// no `PyInit_` for it.
+/// library, whose declared ABI it checks; and one before 3.15 the `abi3t` library, whose
+/// symbols it lacks.
 #[test]
 fn api_free_threaded() {
 	let probe = |python: &std::ffi::OsStr, dir: &Path, code: &str| {

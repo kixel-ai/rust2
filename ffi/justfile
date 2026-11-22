@@ -64,9 +64,9 @@ browsers:
 android:
     cargo test --locked --test fixtures -- --ignored --exact api_android
 
-# Run the api fixture's C and C++ scripts under AddressSanitizer with UndefinedBehaviorSanitizer, ThreadSanitizer, and Valgrind, its Swift script under ThreadSanitizer, its Go script under Go's race detector and cgocheck2, its Python script looped on a debug CPython, and its glue's C ABI under Miri, in the sanitize shell: nix develop .#sanitize.
+# Run the api fixture's C and C++ scripts under AddressSanitizer with UndefinedBehaviorSanitizer, ThreadSanitizer, and Valgrind, its Swift script under ThreadSanitizer, its Go script under Go's race detector and cgocheck2, its Python script looped on a debug CPython and threaded on a free-threaded one under ThreadSanitizer, and its glue's C ABI under Miri, in the sanitize shell: nix develop .#sanitize.
 sanitize:
-    cargo test --locked --test fixtures -- --ignored --exact api_asan api_tsan api_valgrind api_swift_tsan api_go_checked api_python_debug api_miri
+    cargo test --locked --test fixtures -- --ignored --exact api_asan api_tsan api_valgrind api_swift_tsan api_go_checked api_python_debug api_python_tsan api_miri
 
 # Apply formatters without changing program behavior.
 fix:
