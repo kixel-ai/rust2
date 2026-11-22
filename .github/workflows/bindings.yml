@@ -366,7 +366,9 @@ jobs:
           get kotlin.zip -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/octet-stream" \
             "https://api.github.com/repos/JetBrains/kotlin/releases/assets/$KOTLIN_ASSET"
           jar="kotlinx-coroutines-core-jvm-$COROUTINES.jar"
-          get "$jar" "https://repo1.maven.org/maven2/org/jetbrains/kotlinx/kotlinx-coroutines-core-jvm/$COROUTINES/$jar"
+          # Google's mirror of Maven Central: repo1.maven.org blocks some runners' IPs for hours,
+          # answering 404 or 429 with a retry-after no retry outlasts.
+          get "$jar" "https://maven-central.storage-download.googleapis.com/maven2/org/jetbrains/kotlinx/kotlinx-coroutines-core-jvm/$COROUTINES/$jar"
           printf '%s  kotlin.zip\n%s  %s\n' "$KOTLIN_SHA256" "$COROUTINES_SHA256" "$jar" | sha256sum --check --strict
           unzip -q kotlin.zip
           echo "$RUNNER_TEMP/kotlinc/bin" >> "$GITHUB_PATH"
