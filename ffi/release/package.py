@@ -2406,6 +2406,10 @@ def run_dart(command, cwd, check, native, what):
         raise SystemExit(f"{what} failed on the Dart package with status {result.returncode}")
     # Dart 3.10's `dart run` says it runs the hooks on stdout, before the program does.
     stdout = re.sub(rb"^(Running build hooks\.\.\.)+", b"", result.stdout)
+    # `print` writes through the C runtime's text mode, which ends each line in CRLF on Windows,
+    # where Rust's `println!` ends it in LF; the transcript holds no CR of its own.
+    if sys.platform == "win32":
+        stdout = stdout.replace(b"\r\n", b"\n")
     if native and check:
         compare(Path(native).read_bytes(), stdout, f"Dart package, {what}")
     print(f"{what}: ok")
