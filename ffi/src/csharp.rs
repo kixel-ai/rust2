@@ -233,14 +233,11 @@ const OBJECT_MEMBERS: &[&str] = &[
 	"Finalize",
 	"MemberwiseClone",
 	"ReferenceEquals",
-	// What generated code names in an expression, where a member of the name would shadow it.
-	"Native",
-	"Callbacks",
-	"IntPtr",
-	"GCHandle",
-	"Task",
-	"Marshal",
 ];
+
+/// What generated code names in an expression, where a member of the name, `Lib`'s too,
+/// would shadow it.
+const QUALIFIERS: &[&str] = &["Native", "Callbacks", "IntPtr", "GCHandle", "Task", "Marshal"];
 
 /// The instance methods `System.Enum` declares besides `object`'s, which a plain enum's
 /// extension method of the same name never reaches.
@@ -488,6 +485,11 @@ struct Arg {
 	opens: Vec<(String, String)>,
 	exprs: Vec<String>,
 	after: Vec<String>,
+	/// Checks that throw before the call allocates anything.
+	checks: Vec<String>,
+	/// Locals of data the call hands Rust, made after every other argument, so nothing
+	/// that throws runs between one and the call that takes it.
+	gives: Vec<String>,
 }
 
 impl<'a> Gen<'a> {
@@ -1266,7 +1268,7 @@ impl<'a> Gen<'a> {
 	/// name, which no member may take, and its std traits'.
 	fn base_members(&self, ty: &Type, name: &str) -> Vec<String> {
 		let api = self.abi.api;
-		let mut members: Vec<String> = OBJECT_MEMBERS.iter().map(|s| s.to_string()).collect();
+		let mut members: Vec<String> = OBJECT_MEMBERS.iter().chain(QUALIFIERS).map(|s| s.to_string()).collect();
 		members.push(name.to_string());
 		let (traits, plain) = match ty {
 			Type::Record(i) => (api.records[*i].traits, false),
@@ -1404,8 +1406,10 @@ impl<'a> Gen<'a> {
 		for i in 0..api.callbacks.len() {
 			self.callback(i);
 		}
-		// Free functions and constants, as `Lib`'s members, none named as `Lib` itself.
-		let mut taken: Vec<String> = vec!["Lib".to_string()];
+		// Free functions and constants, as `Lib`'s members, none named as `Lib` itself or a
+		// type its bodies name.
+		let mut taken: Vec<String> = QUALIFIERS.iter().map(|s| s.to_string()).collect();
+		taken.push("Lib".to_string());
 		for constant in &api.constants {
 			// Its C name without the prefix, which keeps two modules' constants apart.
 			let name = abi.constant(&constant.path)[abi.prefix.len() + 1..].to_string();
@@ -1765,9 +1769,13 @@ impl<'a> Gen<'a> {
 					);
 				}
 				(_, false) => {
+					let compare = match nullable {
+						"?" => "other is null ? 1 : cmp_(this, other)",
+						_ => "cmp_(this, other)",
+					};
 					let _ = write!(
 						out,
-						"\t/// Rust's `Ord`: -1, 0, or 1.\n\tpublic int CompareTo({cs}{nullable} other) => cmp_(this, other!);\n\n"
+						"\t/// Rust's `Ord`: -1, 0, or 1, and 1 against null, which `IComparable` orders first.\n\tpublic int CompareTo({cs}{nullable} other) => {compare};\n\n"
 					);
 				}
 			}
@@ -2118,7 +2126,7 @@ impl<'a> Gen<'a> {
 			&rust_refs,
 			spelled,
 			|rust, name| pascal(rust) == name,
-			|_, name| OBJECT_MEMBERS.contains(&name),
+			|_, name| OBJECT_MEMBERS.contains(&name) || QUALIFIERS.contains(&name),
 			abi::underscored,
 		);
 		for (method, mname) in callback.methods.iter().zip(&names) {
@@ -2161,7 +2169,7 @@ impl<'a> Gen<'a> {
 			&rust_refs,
 			spelled,
 			|rust, name| pascal(rust) == name,
-			|_, name| OBJECT_MEMBERS.contains(&name),
+			|_, name| OBJECT_MEMBERS.contains(&name) || QUALIFIERS.contains(&name),
 			abi::underscored,
 		);
 		let mut slots = vec!["Callbacks.Release".to_string()];
@@ -2347,9 +2355,10 @@ impl<'a> Gen<'a> {
 				arg.exprs.push(format!("Callbacks.{field}"));
 				match closure.kept {
 					true => {
-						arg.exprs.push(format!(
-							"Native.Give({e} ?? throw new ArgumentNullException(nameof({e})))"
-						));
+						let d = format!("d{k}_");
+						arg.checks.push(null_check(e));
+						arg.gives.push(format!("var {d} = Native.Give({e});"));
+						arg.exprs.push(d);
 						arg.exprs.push("Callbacks.Release".to_string());
 					}
 					false => {
@@ -2374,21 +2383,20 @@ impl<'a> Gen<'a> {
 				arg.exprs.push(r);
 				(arg, false)
 			}
-			(Type::Waker, _) => {
-				arg.exprs.push(format!(
-					"Native.Waker({e} ?? throw new ArgumentNullException(nameof({e})))"
-				));
-				(arg, false)
-			}
-			(Type::Future, _) => {
-				arg.exprs.push(format!(
-					"Native.Future({e} ?? throw new ArgumentNullException(nameof({e})))"
-				));
-				(arg, false)
-			}
-			(Type::Callback(i, _), _) => {
-				self.vtable(*i);
-				arg.exprs.push(format!("Native.Lower_{}({e})", abi.callback(*i)));
+			(Type::Waker | Type::Future | Type::Callback(..), _) => {
+				let give = match ty {
+					Type::Waker => format!("Native.Waker({e})"),
+					Type::Future => format!("Native.Future({e})"),
+					Type::Callback(i, _) => {
+						self.vtable(*i);
+						format!("Native.Lower_{}({e})", abi.callback(*i))
+					}
+					_ => unreachable!(),
+				};
+				let d = format!("d{k}_");
+				arg.checks.push(null_check(e));
+				arg.gives.push(format!("var {d} = {give};"));
+				arg.exprs.push(d);
 				(arg, false)
 			}
 			// Bytes or text at the top level are a view of C#'s memory, pinned for the call.
@@ -2534,8 +2542,15 @@ impl<'a> Gen<'a> {
 		let mut args: Vec<Arg> = Vec::new();
 		let mut c_params = export.call.params.iter();
 		let mut post: Vec<String> = Vec::new();
+		// A data enum is a class, whose `this` no method assigns: one Rust replaces through
+		// `&mut self` is static, taking the caller's variable by `ref`.
+		let replaced = receiver == Some(Receiver::Mut)
+			&& owner.is_some_and(|o| matches!(o.ty, Type::Enum(i) if !abi.api.enums[i].plain()))
+			&& matches!(export.call.params.first(), Some((_, Ty::InOut(_))));
+		let is_static = is_static || replaced;
 		let this = match owner {
 			Some(o) if o.extension => "self",
+			_ if replaced => "self",
 			_ => "this",
 		};
 		if let (Some(receiver), Some(owner)) = (receiver, owner) {
@@ -2584,7 +2599,9 @@ impl<'a> Gen<'a> {
 		let locals = match self.accessor(function, owner) {
 			// A property's setter takes its value as `value`.
 			true => vec!["value".to_string(); function.params.len()],
-			false => abi::distinct(&function.params, param_name, |n| n == "cancellationToken"),
+			false => abi::distinct(&function.params, param_name, |n| {
+				n == "cancellationToken" || this == "self" && n == "self"
+			}),
 		};
 		let mut params = Vec::new();
 		let mut written = Vec::new();
@@ -2760,6 +2777,13 @@ impl<'a> Gen<'a> {
 				}
 			}
 		}
+		// Whether the call took what it moves, before a write back that may throw, so the
+		// arena closes what Rust took either way.
+		if arena && status {
+			inner.push("a_.Ran = s_ == 0;".to_string());
+		} else if arena {
+			inner.push("a_.Ran = true;".to_string());
+		}
 		// What Rust wrote back through a value's `&mut self`, while its C copy is in scope.
 		for line in &post {
 			inner.push(match status {
@@ -2767,14 +2791,11 @@ impl<'a> Gen<'a> {
 				false => line.clone(),
 			});
 		}
-		if arena && status {
-			inner.push("a_.Ran = s_ == 0;".to_string());
-		} else if arena {
-			inner.push("a_.Ran = true;".to_string());
-		}
 
-		// Nest the call in each argument's opens, the first outermost.
-		let mut code = inner.iter().map(|l| format!("\t\t{l}\n")).collect::<String>();
+		// Nest the call in each argument's opens, the first outermost, with the data it gives
+		// Rust made last, after every open that may throw.
+		let gives = args.iter().flat_map(|a| a.gives.iter());
+		let mut code = gives.chain(&inner).map(|l| format!("\t\t{l}\n")).collect::<String>();
 		for arg in args.iter().rev() {
 			for (open, close) in arg.opens.iter().rev() {
 				code = format!("\t\t{open}{code}{close}");
@@ -2786,7 +2807,8 @@ impl<'a> Gen<'a> {
 			);
 		}
 		let mut body = String::new();
-		for line in pre.iter().chain(&decls) {
+		let checks = args.iter().flat_map(|a| a.checks.iter());
+		for line in checks.chain(&pre).chain(&decls) {
 			let _ = writeln!(body, "\t\t{line}");
 		}
 		body.push_str(&code);
@@ -2814,6 +2836,11 @@ impl<'a> Gen<'a> {
 				_ => "",
 			};
 			all_params.insert(0, format!("this {r}{} self", self.cs(&o.ty)));
+		}
+		if let Some(o) = owner
+			&& replaced
+		{
+			all_params.insert(0, format!("ref {} self", self.cs(&o.ty)));
 		}
 		let mut text = crate::doc::sections(&function.docs).body;
 		if function.future {
@@ -3031,6 +3058,11 @@ fn ctor_params<'f>(fields: impl Iterator<Item = &'f str>) -> Vec<String> {
 		|_, _| false,
 		abi::numbered,
 	)
+}
+
+/// A statement throwing `ArgumentNullException` where `e` is null.
+fn null_check(e: &str) -> String {
+	format!("if ({e} == null)\n\t\t{{\n\t\t\tthrow new ArgumentNullException(nameof({e}));\n\t\t}}")
 }
 
 /// A field's or member's C# name: Pascal case.

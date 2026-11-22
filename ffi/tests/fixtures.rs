@@ -3453,7 +3453,8 @@ fn api_csharp() {
 	] {
 		let output = no_core(&mut csharp_run(&exe, &[case])).output().unwrap();
 		failed(&output, &format!("C# {case}"));
-		let stderr = String::from_utf8_lossy(&output.stderr);
+		// An exception's message breaks its lines as the platform does.
+		let stderr = String::from_utf8_lossy(&output.stderr).replace("\r\n", "\n");
 		assert!(stderr.contains(message), "C# {case} printed {stderr}");
 	}
 
@@ -3498,10 +3499,12 @@ fn api_csharp_aot() {
 	let script = generated("csharp", "Transcript.cs", &transcript::csharp::emit(transcript())).join("Transcript.cs");
 	let binding = api.out.join("csharp").join("api.cs");
 	let tests = manifest_dir().join("tests/api.cs");
-	let compile: String = [&binding, &tests, &script]
-		.iter()
-		.map(|f| format!("    <Compile Include=\"{}\" />\n", f.display()))
-		.collect();
+	// Copied beside the project, so no character of the checkout's path reaches its XML.
+	let mut compile = String::new();
+	for (source, name) in [(&binding, "binding.cs"), (&tests, "tests.cs"), (&script, "transcript.cs")] {
+		step::write(&dir.join(name), std::fs::read(source).unwrap());
+		compile.push_str(&format!("    <Compile Include=\"{name}\" />\n"));
+	}
 	step::write(
 		&dir.join("api.csproj"),
 		format!(

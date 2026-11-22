@@ -1652,9 +1652,18 @@ throws aborts, naming the call. The runtime every file includes is
   each `NonZero` as a struct of its own (`NonZeroU16`), a path as `PathBuf`, an address as the runtime's
   `IpAddr`, `SocketAddr`, and their V4 and V6 forms, `[u8; N]` as a struct `ArrayU8xN`, and a
   1-tuple as `ValueTuple<T>`. Bytes in are a `ReadOnlySpan<byte>` Rust reads in place,
-  pinned for the call; bytes out are a `ReadOnlyMemory<byte>` copied from Rust's, which
-  frees its buffer at once, since no view of memory the GC cannot see stays safe once its
-  owner is unreachable. A record is a struct; a plain enum a C# enum, whose methods and
+  pinned for the call. Bytes out, and bytes a value holds, are the runtime's `Bytes`, a
+  disposable struct over a `ReadOnlyMemory<byte>`: past 1 KiB, those Rust returns lend
+  its buffer in place through a `MemoryManager<byte>` until `Dispose()`, as `using`
+  calls, frees it once no call reading it in place, nor pin, holds it, after which a read
+  throws `ObjectDisposedException`; up to 1 KiB are copied into C#'s memory, which costs
+  less than a lend's finalizer. The collector frees a lend never disposed only if no view
+  of it, `Span` or `Memory`, was ever taken, since a view can outlive what the collector
+  sees reaching its owner: so dispose one viewed, and read no view taken before a dispose
+  after it, as with any `IMemoryOwner`. `byte[]` and `ReadOnlyMemory<byte>` convert to
+  `Bytes` with no copy, `Bytes` to `ReadOnlySpan<byte>`, and `default` is empty. A `Bytes`
+  equals and hashes by its contents, wherever each keeps them. Those Rust lends a closure
+  or trait method are copied. A record is a struct; a plain enum a C# enum, whose methods and
   traits are extension methods of `<Enum>Extensions`; an enum with data an abstract class
   with a sealed class per variant; an error a thrown `<Error>Exception`, a `RustException`.
 - **Objects** are sealed classes deriving `RustObject`, `IDisposable`, which own a handle

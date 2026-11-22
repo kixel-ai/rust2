@@ -509,8 +509,12 @@ csharp kind out +sources:
         *) echo "csharp: no kind {{ kind }}" >&2; exit 1 ;;
     esac
     mkdir -p "$(dirname {{ quote(out) }})"
+    references=()
+    for dll in "$refs"/*.dll; do
+        references+=("-r:$dll")
+    done
     dotnet exec "$csc" -nologo -noconfig -nostdlib -unsafe -nullable:enable -warnaserror -optimize "${flags[@]}" \
-        $(printf -- '-r:%s ' "$refs"/*.dll) -out:{{ quote(out) }} {{ sources }}
+        "${references[@]}" -out:{{ quote(out) }} {{ sources }}
     if [ "{{ kind }}" = exe ]; then
         printf '%s\n' '{"runtimeOptions": {"tfm": "net10.0", "rollForward": "LatestPatch", "framework": {"name": "Microsoft.NETCore.App", "version": "10.0.0"}, "configProperties": {"System.Globalization.Invariant": true}}}' > "{{ without_extension(out) }}.runtimeconfig.json"
     fi

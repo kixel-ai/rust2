@@ -81,6 +81,8 @@ static partial class Script
 	static int Main(string[] args)
 	{
 		Console.OutputEncoding = new UTF8Encoding(false);
+		// Rust's `println!` ends a line with LF alone, on Windows too.
+		Console.Out.NewLine = "\n";
 		switch (args)
 		{
 			case []:
@@ -452,6 +454,11 @@ static partial class Script
 		// A value's zero bits are a value Rust holds.
 		Check(default(api.NonZeroU64).Value == 1 && api.Lib.NextHop(default(api.NonZeroU64))?.Value == 2, "a default NonZero is one");
 		Check(default(api.IpAddr).V4?.Bits == 0 && default(api.SocketAddr).V4?.Port == 0, "a default address is IPv4's unspecified one");
+		// An ordered object orders null first, as `IComparable` asks.
+		using (var pass = api.Pass.New(1))
+		{
+			Check(pass.CompareTo(null) > 0 && pass.CompareTo(pass) == 0, "an object orders after null");
+		}
 		// Bytes checked as text are the converted copy, which the caller's later change leaves.
 		var utf8 = new byte[] { (byte)'a' };
 		var text = api.Str.FromUtf8(utf8);

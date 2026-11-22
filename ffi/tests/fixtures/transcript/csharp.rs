@@ -392,7 +392,7 @@ impl Emitter<'_> {
 				let v = self.expr(value, out);
 				match pat {
 					Pat::Ignore(_) => {
-						let v = self.dropped(&v, &value.ty);
+						let v = disposed(value, &v).unwrap_or_else(|| self.dropped(&v, &value.ty));
 						self.line(out, &v)
 					}
 					pat => self.bind(pat, &v, &value.ty, out),
@@ -404,7 +404,7 @@ impl Emitter<'_> {
 			}
 			Step::Do(value) => {
 				let v = self.expr(value, out);
-				let v = self.dropped(&v, &value.ty);
+				let v = disposed(value, &v).unwrap_or_else(|| self.dropped(&v, &value.ty));
 				self.line(out, &v);
 			}
 			Step::Drop(name) => {
@@ -1098,9 +1098,36 @@ fn pat_type(pat: &Pat) -> Type {
 	}
 }
 
-/// Whether C# takes `v` alone as a statement: a call, an assignment, or a `new`.
+/// The statement disposing `v`, a handle a call made that the script drops at once, as
+/// Rust drops it there.
+fn disposed(value: &Expr, v: &str) -> Option<String> {
+	if !matches!(value.kind, Kind::Call(..)) {
+		return None;
+	}
+	match &value.ty {
+		Type::Object(_) => Some(format!("{v}.Dispose();")),
+		Type::Option(inner) if matches!(**inner, Type::Object(_)) => Some(format!("{v}?.Dispose();")),
+		_ => None,
+	}
+}
+
+/// Whether C# takes `v` alone as a statement: a call, an assignment, or a `new`, read
+/// outside its string literals.
 fn statement(v: &str) -> bool {
-	v.ends_with(')') && !v.starts_with('(') || v.contains(" = ")
+	let mut code = String::new();
+	let mut quoted = false;
+	let mut chars = v.chars();
+	while let Some(c) = chars.next() {
+		match (quoted, c) {
+			(true, '\\') => {
+				chars.next();
+			}
+			(_, '"') => quoted = !quoted,
+			(false, c) => code.push(c),
+			(true, _) => {}
+		}
+	}
+	code.ends_with(')') && !code.starts_with('(') || code.contains(" = ")
 }
 
 /// Whether a parameter of `ty` is a value Rust writes back through, a `ref` in C#.
@@ -1200,6 +1227,10 @@ fn escape(s: &str) -> String {
 			'\t' => out.push_str("\\t"),
 			'\r' => out.push_str("\\r"),
 			'\0' => out.push_str("\\0"),
+			// A line break C# reads as one in a regular literal.
+			'\u{85}' | '\u{2028}' | '\u{2029}' => {
+				let _ = write!(out, "\\u{:04x}", c as u32);
+			}
 			c if (c as u32) < 0x20 || c as u32 == 0x7f => {
 				let _ = write!(out, "\\u{:04x}", c as u32);
 			}
