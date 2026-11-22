@@ -4,6 +4,7 @@ import importlib.util
 import json
 import os
 import plistlib
+import queue
 from pathlib import Path
 import shutil
 import subprocess
@@ -1040,6 +1041,62 @@ class PubPackage(unittest.TestCase):
             self.make(facts, url=self.URL.rstrip("/"))
         with self.assertRaises(SystemExit):
             self.make(info(tmp, version="0.4.13"))
+
+
+class FlutterLog(unittest.TestCase):
+    """What the Flutter consumer reads from the device's log, in logcat's brief format."""
+
+    def log(self, *lines):
+        log = object.__new__(package.Logcat)
+        log.lines, log.pid, log.vm_service = queue.Queue(), None, None
+        for line in lines:
+            log.lines.put(line)
+        log.lines.put(None)
+        return log
+
+    def output(self, *lines):
+        with mock.patch("sys.stderr"):
+            return self.log(*lines).output()
+
+    START = ("--------- beginning of main", "I/flutter ( 4321): engine up", "I/flutter ( 4321): rust2: start")
+    LISTENING = "I/flutter ( 4321): The Dart VM service is listening on http://127.0.0.1:37635/Vfh1w_Ak2ZQ=/"
+
+    def test_decodes_the_check_output(self):
+        self.assertEqual(self.output(*self.START, "I/flutter ( 4321): rust2: aGk=", "I/flutter ( 4321): rust2: exit 0"), b"hi")
+
+    def test_finds_the_vm_service_before_or_after_the_check(self):
+        url = "http://127.0.0.1:37635/Vfh1w_Ak2ZQ=/"
+        for lines in ((self.LISTENING, *self.START, "I/flutter ( 4321): rust2: exit 0"),
+                      (*self.START, "I/flutter ( 4321): rust2: exit 0", self.LISTENING)):
+            with self.subTest(lines), mock.patch("sys.stderr"):
+                log = self.log(*lines)
+                self.assertEqual(log.output(), b"")
+                self.assertEqual(log.listening(), url)
+
+    def test_fails_on_a_crash_before_the_vm_service(self):
+        with mock.patch("sys.stderr"), self.assertRaisesRegex(SystemExit, "crashed"):
+            log = self.log(*self.START, "I/flutter ( 4321): rust2: exit 0",
+                           "F/libc    ( 4321): Fatal signal 6 (SIGABRT), code -6 in tid 4340 (1.ui)")
+            log.output()
+            log.listening()
+
+    def test_fails_on_the_apps_crash(self):
+        for line in ("F/libc    ( 4321): Fatal signal 6 (SIGABRT), code -6 in tid 4340 (1.ui)",
+                     "F/DEBUG   (  999): pid: 4321, tid: 4340, name: 1.ui  >>> dev.rust2.consumer <<<",
+                     "E/AndroidRuntime( 4321): Process: dev.rust2.consumer, PID: 4321"):
+            with self.subTest(line), self.assertRaisesRegex(SystemExit, "crashed"):
+                self.output(*self.START, line)
+
+    def test_ignores_another_process_crash(self):
+        self.assertEqual(self.output(
+            *self.START, "F/libc    (  777): Fatal signal 11 (SIGSEGV)",
+            "F/DEBUG   (  999): pid: 777, tid: 777, name: foo  >>> com.android.phone <<<",
+            "E/AndroidRuntime(  777): Process: com.android.phone, PID: 777",
+            "I/flutter ( 4321): rust2: exit 0"), b"")
+
+    def test_fails_on_a_nonzero_exit(self):
+        with self.assertRaisesRegex(SystemExit, "exit 1"):
+            self.output(*self.START, "I/flutter ( 4321): rust2: exit 1")
 
 
 class Sdist(unittest.TestCase):
