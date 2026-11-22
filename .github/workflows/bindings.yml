@@ -1,7 +1,7 @@
 name: Binding packages
 
 # The shared, read-only builder of a crate's rust2-ffi Python wheels, Swift package, C archives,
-# Go module, and web package, which a release workflow ffi/release/package.py's `init` writes
+# Go module, pub.dev package, and web package, which a release workflow ffi/release/package.py's `init` writes
 # calls at a pinned rust2 commit.
 # It publishes nothing and holds no credentials: the caller's own jobs publish what it
 # uploads, once its consumers pass. See ffi/release/README.md.
@@ -64,6 +64,10 @@ on:
         description: The main.go of a program, importing the module's packages, run against it
         default: ''
         type: string
+      dart-check:
+        description: The main.dart of a program, importing the package as package:<lib>/<lib>.dart, run by Dart and Flutter apps on it
+        default: ''
+        type: string
       checks-artifact:
         description: An artifact of the caller's run unpacked over its checkout before the checks are read, for checks it generates
         default: ''
@@ -89,6 +93,8 @@ env:
   CARGO_TERM_COLOR: always
   MANIFEST: ${{ inputs.manifest-path }}
   FEATURES: ${{ inputs.features }}
+  # The NDK the Android libraries build with: Flutter's default.
+  NDK: 28.2.13676358
 
 jobs:
   facts:
@@ -190,6 +196,10 @@ jobs:
           - host: windows
             os: windows-latest
             targets: x86_64-pc-windows-msvc x86_64-pc-windows-gnu aarch64-pc-windows-msvc
+          # The Dart package's and the Go module's Android libraries, through the NDK.
+          - host: android
+            os: ubuntu-24.04
+            targets: aarch64-linux-android armv7-linux-androideabi x86_64-linux-android
     runs-on: ${{ matrix.os }}
     timeout-minutes: 60
     defaults:
@@ -217,6 +227,11 @@ jobs:
         if: needs.facts.outputs.fixture == 'true'
         working-directory: source
         run: just ffi standin
+      - name: Android NDK
+        if: matrix.host == 'android'
+        run: |
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "ndk;$NDK" > /dev/null
+          echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/$NDK" >> "$GITHUB_ENV"
       # musl-gcc, which a build script's cc compiles musl's C with.
       - if: runner.os == 'Linux'
         run: sudo apt-get update -q && sudo apt-get install -yq musl-tools
@@ -267,14 +282,17 @@ jobs:
           - host: apple-catalyst
             os: macos-26
             targets: aarch64-apple-ios-macabi
-          # Intel macOS's Go library, which the export's Go links once its API is merged, and
-          # its native output; named apart from apple-*, the Swift package's slices.
+          # Intel macOS's Go and Dart libraries, which the export's Go links once its API is
+          # merged, and its native output; named apart from apple-*, the Swift package's slices.
           - host: darwin-x64
             os: macos-15-intel
             targets: x86_64-apple-darwin
           - host: windows
             os: windows-latest
             targets: x86_64-pc-windows-msvc x86_64-pc-windows-gnu
+          - host: android
+            os: ubuntu-24.04
+            targets: aarch64-linux-android armv7-linux-androideabi x86_64-linux-android
     runs-on: ${{ matrix.os }}
     timeout-minutes: 90
     defaults:
@@ -312,6 +330,11 @@ jobs:
             macOS) python -m pip install delocate==0.13.0 ;;
             Windows) python -m pip install delvewheel==1.13.2 ;;
           esac
+      - name: Android NDK
+        if: matrix.host == 'android'
+        run: |
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "ndk;$NDK" > /dev/null
+          echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/$NDK" >> "$GITHUB_ENV"
       - name: Exporter
         working-directory: rust2/ffi
         env:
@@ -392,6 +415,7 @@ jobs:
           SWIFT_CHECK: ${{ inputs.swift-check }}
           C_CHECK: ${{ inputs.c-check }}
           GO_CHECK: ${{ inputs.go-check }}
+          DART_CHECK: ${{ inputs.dart-check }}
         run: |
           mkdir -p dist/checks
           stage() {
@@ -402,6 +426,19 @@ jobs:
           # A file's extension says whether it is C or C++.
           if [[ -n "$C_CHECK" ]]; then stage "$C_CHECK" dist/checks/c "check.${C_CHECK##*.}"; fi
           if [[ -n "$GO_CHECK" ]]; then cp "source/$GO_CHECK" dist/checks/main.go; fi
+          if [[ -n "$DART_CHECK" ]]; then cp "source/$DART_CHECK" dist/checks/main.dart; fi
+      # The export's own package, as a checkout depends on it: its hook builds the crate.
+      - uses: dart-lang/setup-dart@2286a0c042b44434fe26d292bbce8d34f7ec662b # v1.8.2
+        if: matrix.host == 'linux-x64'
+        with:
+          sdk: stable
+      - name: Dart from source
+        if: matrix.host == 'linux-x64'
+        run: |
+          args=()
+          if [[ -f dist/checks/main.dart ]]; then args+=(--check dist/checks/main.dart); fi
+          if [[ -f dist/native.txt ]]; then args+=(--native dist/native.txt); fi
+          python3 -I rust2/ffi/release/package.py consume-source --export export "${args[@]}"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: ${{ needs.facts.outputs.name }}-build-${{ matrix.host }}
@@ -970,3 +1007,173 @@ jobs:
           if [[ -f dist/checks/main.go ]]; then args+=(--check dist/checks/main.go); fi
           if [[ -f dist/native.txt ]]; then args+=(--native dist/native.txt); fi
           python3 -I rust2/ffi/release/package.py consume-go --proxy proxy "${args[@]}"
+
+  # The pub.dev package: the export's, its hook/release.json naming each target's library on
+  # the release by size and SHA-256, the Apple libraries' privacy manifest for an app to merge,
+  # and what pub asks of a package beside, which pub checks as publishing would, and the
+  # analyzer with the lints pub.dev scores it by.
+  pub:
+    needs: [facts, build, agree, changes]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          path: source
+          persist-credentials: false
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ${{ needs.facts.outputs.rust2 }}
+          ref: ${{ needs.facts.outputs.rust2-sha }}
+          path: rust2
+          sparse-checkout: |
+            ffi/release
+            ffi/tests/dart_lints.yaml
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+      - uses: taiki-e/install-action@3a3daafd3b7f23b8f65d9f5ba2db203fb59b79e2 # v2.90.2
+        if: needs.facts.outputs.fixture == 'true'
+        with:
+          tool: just
+      - name: Stand-in
+        if: needs.facts.outputs.fixture == 'true'
+        working-directory: source
+        run: just ffi standin
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: ${{ needs.facts.outputs.name }}-build-*
+          path: builds
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: ${{ needs.facts.outputs.name }}-release
+          path: release
+      - uses: dart-lang/setup-dart@2286a0c042b44434fe26d292bbce8d34f7ec662b # v1.8.2
+        with:
+          sdk: stable
+      - name: Package
+        env:
+          NAME: ${{ needs.facts.outputs.name }}
+          URL: https://github.com/${{ github.repository }}/releases/download/${{ needs.facts.outputs.tag }}/
+        run: |
+          mkdir -p pub/libs privacy
+          cp builds/*/dart/* pub/libs/
+          cp builds/*/dart-privacy/* privacy/
+          cd source
+          python3 -I ../rust2/ffi/release/package.py pub --manifest-path "$MANIFEST" --export "../builds/$NAME-build-linux-x64/export" --libs ../pub/libs --url "$URL" --changes ../release/changes.md --privacy ../privacy --out ../pub/package
+      # Each in a copy, as resolving writes into the package.
+      - name: Check
+        run: |
+          cp -R pub/package publish
+          (cd publish && dart pub publish --dry-run)
+          cp -R pub/package lint
+          cp rust2/ffi/tests/dart_lints.yaml lint/analysis_options.yaml
+          (cd lint && dart pub get && dart analyze --fatal-infos .)
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: ${{ needs.facts.outputs.name }}-pub
+          path: pub
+          if-no-files-found: error
+
+  # New Dart apps depending on the package, its libraries served from the loopback as the
+  # release hosts them: one its hook refuses a library of other bytes, and one run by `dart
+  # run` and from `dart build cli`'s bundle, on the newest Dart and on 3.10, the oldest the
+  # package takes.
+  dart-consumer:
+    needs: [facts, pub]
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - host: linux-x64
+            os: ubuntu-24.04
+            sdk: stable
+          - host: linux-x64
+            os: ubuntu-24.04
+            sdk: 3.10.0
+          - host: linux-arm64
+            os: ubuntu-24.04-arm
+            sdk: stable
+          - host: apple-darwin
+            os: macos-26
+            sdk: stable
+          - host: darwin-x64
+            os: macos-15-intel
+            sdk: stable
+          - host: windows
+            os: windows-latest
+            sdk: stable
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ${{ needs.facts.outputs.rust2 }}
+          ref: ${{ needs.facts.outputs.rust2-sha }}
+          path: rust2
+          sparse-checkout: ffi/release
+          persist-credentials: false
+      - uses: dart-lang/setup-dart@2286a0c042b44434fe26d292bbce8d34f7ec662b # v1.8.2
+        with:
+          sdk: ${{ matrix.sdk }}
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: ${{ needs.facts.outputs.name }}-pub
+          path: pub
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: ${{ needs.facts.outputs.name }}-build-${{ matrix.host }}
+          path: dist
+      - name: Run
+        run: |
+          args=()
+          if [[ -f dist/checks/main.dart ]]; then args+=(--check dist/checks/main.dart); fi
+          if [[ -f dist/native.txt ]]; then args+=(--native dist/native.txt); fi
+          python3 -I rust2/ffi/release/package.py consume-dart --package pub/package --libs pub/libs "${args[@]}"
+
+  # A new Flutter app depending on the package, its libraries served from the loopback,
+  # run on an x86_64 Android emulator, which this runner's KVM runs at speed, then again
+  # after a hot restart, which keeps the library and Rust's statics but not the isolate.
+  flutter-consumer:
+    needs: [facts, pub]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ${{ needs.facts.outputs.rust2 }}
+          ref: ${{ needs.facts.outputs.rust2-sha }}
+          path: rust2
+          sparse-checkout: ffi/release
+          persist-credentials: false
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: ${{ needs.facts.outputs.name }}-pub
+          path: pub
+      # The check and native Rust's output, as Linux on x86_64 printed it.
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: ${{ needs.facts.outputs.name }}-build-linux-x64
+          path: dist
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
+        with:
+          channel: stable
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Arguments
+        run: |
+          args="--package pub/package --libs pub/libs --platform android --device emulator-5554"
+          if [[ -f dist/checks/main.dart ]]; then args+=" --check dist/checks/main.dart"; fi
+          if [[ -f dist/native.txt ]]; then args+=" --native dist/native.txt"; fi
+          echo "ARGS=$args" >> "$GITHUB_ENV"
+      # Flutter's oldest Android, the floor the hook checks the app's against.
+      - uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2.38.0
+        with:
+          api-level: 24
+          arch: x86_64
+          script: python3 -I rust2/ffi/release/package.py consume-flutter $ARGS
