@@ -280,10 +280,17 @@ final class Seat {
 	@override int get hashCode;
 	U64 count();
 }
-final class Stamp {
+final class Stamp implements Exception, Comparable<Stamp> {
 	String debug();
 	@override bool operator ==(Object other);
 	@override int get hashCode;
+	int? partialCompareTo(Stamp other);
+	bool operator <(Stamp other);
+	bool operator <=(Stamp other);
+	bool operator >(Stamp other);
+	bool operator >=(Stamp other);
+	@override int compareTo(Stamp other);
+	factory Stamp.default_();
 	factory Stamp.fromMillis(U64 millis);
 	U64 secs();
 	Stamp whole();
@@ -1836,6 +1843,12 @@ abstract class Log {
 	bool log(int level, String line);
 	void close();
 }
+abstract class Sensor {
+	int read();
+	int interface();
+	void close_();
+	void close();
+}
 abstract class Scan {
 	U64 scan(typed.Uint8List payload, typed.Uint8List? rest);
 	void close();
@@ -1881,6 +1894,11 @@ final class BoundsU64Exception implements Exception {
 final class StringException implements Exception {
 	final String error;
 	const StringException(this.error);
+	@override String toString();
+}
+final class U32Exception implements Exception {
+	final int error;
+	const U32Exception(this.error);
 	@override String toString();
 }
 final class VecClashToneException implements Exception {
@@ -1959,12 +1977,15 @@ Cancelable<int?> halved(int n);
 Cancelable<int> yielded(int value);
 Cancelable<int> after(Future<void> first, int value);
 Cancelable<void> within(int polls, Future<void> future);
+Stamp past(Stamp at, Stamp deadline);
+int odd(int n);
 Moment momentAt(U64 ticks, U64 rate);
 Stamp stampAt(U64 millis);
 Moment shifted(Moment moment, Moment Function(Moment) shift);
 int jvmSum(JvmField field, JvmStatic method, OptIn opt);
 Clocked clockedAfter(Clocked clocked, U64 ticks);
 int emit(Log log, typed.Uint8List lines);
+int sensed(Sensor sensor);
 Cancelable<int> counted(int n, void Function(int) count);
 int filter(typed.Uint8List lines, bool Function(int, String) keep);
 Cancelable<bool> logLater(Log log);

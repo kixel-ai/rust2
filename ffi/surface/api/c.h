@@ -17,7 +17,7 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-#define API_CONTRACT ((uint64_t)0x8cf6843b4d1d8840ULL)
+#define API_CONTRACT ((uint64_t)0x3cf0d773a45556acULL)
 uint64_t api_contract(void);
 uint32_t api_target(void);
 typedef int32_t api_status;
@@ -1230,6 +1230,16 @@ typedef struct api_Log {
 	const api_Log_vtable *vtable;
 	void *data;
 } api_Log;
+typedef struct api_Sensor_vtable {
+	void (*free)(void *data);
+	uint32_t (*read)(void *data);
+	uint8_t (*interface)(void *data);
+	void (*close)(void *data);
+} api_Sensor_vtable;
+typedef struct api_Sensor {
+	const api_Sensor_vtable *vtable;
+	void *data;
+} api_Sensor;
 typedef struct api_Scan_vtable {
 	void (*free)(void *data);
 	uint64_t (*scan)(void *data, api_buf payload, api_buf rest);
@@ -1359,7 +1369,10 @@ bool api_Seat_eq(const api_Seat *a, const api_Seat *b, api_status *status);
 API_MUST_USE api_buf api_Seat_debug(const api_Seat *self, api_status *status);
 uint64_t api_Seat_count(const api_Seat *self, api_status *status);
 bool api_Stamp_eq(const api_Stamp *a, const api_Stamp *b);
+int8_t api_Stamp_partial_cmp(const api_Stamp *a, const api_Stamp *b);
+int8_t api_Stamp_cmp(const api_Stamp *a, const api_Stamp *b);
 API_MUST_USE api_buf api_Stamp_debug(const api_Stamp *self);
+api_Stamp api_Stamp_default(void);
 api_Stamp api_Stamp_from_millis(uint64_t millis);
 uint64_t api_Stamp_secs(const api_Stamp *self);
 api_Stamp api_Stamp_whole(const api_Stamp *self);
@@ -2496,12 +2509,15 @@ API_MUST_USE api_within_future *api_within(uint32_t polls, api_foreign_future fu
 API_MUST_USE api_poll api_within_start(uint32_t polls, api_foreign_future future_, api_Error *err, api_within_future **future);
 API_MUST_USE api_poll api_within_poll(api_within_future *future, api_waker waker, api_Error *err);
 void api_within_future_free(api_within_future *future);
+API_MUST_USE bool api_past(api_Stamp at, api_Stamp deadline, api_Stamp *out, api_Stamp *err);
+API_MUST_USE bool api_odd(uint32_t n, uint32_t *out, uint32_t *err);
 API_MUST_USE bool api_moment_at(uint64_t ticks, uint64_t rate, api_Moment *out, api_buf *err);
 API_MUST_USE bool api_stamp_at(uint64_t millis, api_Stamp *out, api_buf *err);
 api_Moment api_shifted(api_Moment moment, api_Moment (*shift)(void *data, api_Moment), void *shift_data);
 uint32_t api_jvm_sum(api_JvmField field, api_JvmStatic method, api_OptIn opt);
 api_Clocked api_clocked_after(api_Clocked clocked, uint64_t ticks);
 uint32_t api_emit(api_Log log, api_buf lines);
+uint32_t api_sensed(api_Sensor sensor);
 typedef struct api_counted_future api_counted_future;
 API_MUST_USE api_counted_future *api_counted(uint32_t n, void (*count)(void *data, uint32_t), void *count_data);
 API_MUST_USE api_poll api_counted_start(uint32_t n, void (*count)(void *data, uint32_t), void *count_data, uint32_t *out, api_Error *err, api_counted_future **future);

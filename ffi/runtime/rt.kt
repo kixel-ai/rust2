@@ -905,6 +905,15 @@ class __Returned(raw: Long) : Waker, AutoCloseable {
 	override fun close() = handle.abandon()
 }
 
+/**
+ * A callback's implementation wrapping another, as a `Java` interface's `of` does, which Rust
+ * closes in its place as it drops this, where it is `AutoCloseable`. The wrapper is never
+ * `AutoCloseable` itself, so a callback's own method `close()` stays the callback's.
+ */
+interface __Wraps {
+	val __wrapped: Any
+}
+
 /** Frees a raw handle: a `fun interface`, so the handle crosses unboxed. */
 fun interface __Drop {
 	fun drop(raw: Long)

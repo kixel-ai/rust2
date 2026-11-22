@@ -1516,28 +1516,206 @@ fn jvm_names_exist(api: &Api, classes: &Path) {
 		})
 		.collect();
 	assert!(jvm.len() > 100, "the lock records JVM names: {}", jvm.len());
-	let owners: BTreeSet<&str> = jvm.iter().map(|(class, _)| class.as_str()).collect();
-	let javap = run(Command::new("javap")
-		.arg("-public")
-		.arg("-cp")
-		.arg(classes)
-		.args(&owners));
-	let mut methods: BTreeSet<(String, String)> = BTreeSet::new();
-	let mut class = String::new();
+	// Every class the generated Kotlin declares, but an anonymous one, such as a lambda's.
+	let all: Vec<String> = (std::fs::read_dir(classes.join("api")).unwrap())
+		.filter_map(|entry| {
+			let file = entry.unwrap().file_name().into_string().unwrap();
+			let class = file.strip_suffix(".class")?;
+			let anonymous = (class.split('$').skip(1)).any(|part| part.starts_with(|c: char| c.is_ascii_digit()));
+			(!anonymous).then(|| format!("api.{class}"))
+		})
+		.collect();
+	let javap = run(Command::new("javap").arg("-public").arg("-cp").arg(classes).args(&all));
+	// Each class, by its header, and the public methods and constructors javap lists of it.
+	let mut declared: Vec<(String, String, Vec<String>)> = Vec::new();
 	for line in String::from_utf8_lossy(&javap.stdout).lines() {
 		let words: Vec<&str> = line.split(['(', ' ']).collect();
 		if let Some(at) = words.iter().position(|w| ["class", "interface"].contains(w)) {
-			class = words[at + 1].split('<').next().unwrap().to_string();
-		} else if let Some((head, _)) = line.split_once('(') {
-			methods.insert((class.clone(), head.rsplit(' ').next().unwrap().to_string()));
+			let class = words[at + 1].split('<').next().unwrap().to_string();
+			declared.push((class, line.to_string(), Vec::new()));
+		} else if line.contains('(') {
+			declared.last_mut().unwrap().2.push(line.trim().to_string());
 		}
 	}
+	let name = |method: &str| {
+		method
+			.split_once('(')
+			.unwrap()
+			.0
+			.rsplit(' ')
+			.next()
+			.unwrap()
+			.to_string()
+	};
+	let methods: BTreeSet<(String, String)> = (declared.iter())
+		.flat_map(|(class, _, methods)| methods.iter().map(|m| (class.clone(), name(m))))
+		.collect();
 	let missing: Vec<&(String, &str)> = (jvm.iter())
 		.filter(|(class, name)| !methods.contains(&(class.clone(), name.to_string())))
 		.collect();
 	assert!(
 		missing.is_empty(),
 		"JVM names the lock records that no class has: {missing:?}"
+	);
+	java_reaches(&declared);
+}
+
+/// No public method of the api fixture's compiled Kotlin, each class of `declared` by its
+/// header and its methods as javap lists them, is one only Kotlin calls, but its own form of
+/// one plain Java reaches otherwise: Java names no method that is a keyword or no
+/// identifier, such as Kotlin's mangled `count-pVg5ArA`, and calls no constructor taking a
+/// `DefaultConstructorMarker`, which Kotlin makes of one taking an inline class.
+fn java_reaches(declared: &[(String, String, Vec<String>)]) {
+	const KEYWORDS: &[&str] = &[
+		"_",
+		"abstract",
+		"assert",
+		"boolean",
+		"break",
+		"byte",
+		"case",
+		"catch",
+		"char",
+		"class",
+		"const",
+		"continue",
+		"default",
+		"do",
+		"double",
+		"else",
+		"enum",
+		"extends",
+		"false",
+		"final",
+		"finally",
+		"float",
+		"for",
+		"goto",
+		"if",
+		"implements",
+		"import",
+		"instanceof",
+		"int",
+		"interface",
+		"long",
+		"native",
+		"new",
+		"null",
+		"package",
+		"private",
+		"protected",
+		"public",
+		"return",
+		"short",
+		"static",
+		"strictfp",
+		"super",
+		"switch",
+		"synchronized",
+		"this",
+		"throw",
+		"throws",
+		"transient",
+		"true",
+		"try",
+		"void",
+		"volatile",
+		"while",
+	];
+	let classes: BTreeSet<&str> = declared.iter().map(|(class, ..)| class.as_str()).collect();
+	let mut unreachable = Vec::new();
+	for (class, header, methods) in declared {
+		// The runtime's internals, which only the generated code calls.
+		if class.starts_with("api._Native") {
+			continue;
+		}
+		let value = methods.iter().any(|m| m.contains(" box-impl("));
+		let name = |method: &str| {
+			method
+				.split_once('(')
+				.unwrap()
+				.0
+				.rsplit(' ')
+				.next()
+				.unwrap()
+				.to_string()
+		};
+		let java = |name: &str| {
+			name.chars().all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '$')
+				&& !name.starts_with(|c: char| c.is_ascii_digit())
+				&& !KEYWORDS.contains(&name)
+		};
+		// The methods Java calls, each by its name and whether it is static.
+		let called: BTreeSet<(String, bool)> = (methods.iter())
+			.map(|m| (name(m), m.contains(" static ")))
+			.filter(|(name, _)| java(name))
+			.collect();
+		// Whether Java calls a twin of `method`, the Kotlin form `name`. One the generator pins
+		// as `name-kotlin` has a bridge of the same kind named `name`, but `default`'s, which
+		// Java reserves, is `default_`. A value class's member, which Kotlin mangles itself, has
+		// a bridge named as it is before the mangling, or with the `_`s that keep it apart from
+		// another method of its class, or for a getter, as its property is.
+		let twin = |method: &str, name: &str| {
+			if let Some(base) = name.strip_suffix("-kotlin") {
+				let base = if base == "default" { "default_" } else { base };
+				return called.contains(&(base.to_string(), method.contains(" static ")));
+			}
+			let base = name.split('-').next().unwrap();
+			let property = (base.strip_prefix("get"))
+				.filter(|rest| rest.starts_with(|c: char| c.is_ascii_uppercase()))
+				.map(|rest| rest[..1].to_ascii_lowercase() + &rest[1..]);
+			let apart = |called: &str, base: &str| {
+				called
+					.strip_prefix(base)
+					.is_some_and(|rest| rest.chars().all(|c| c == '_'))
+			};
+			(called.iter())
+				.any(|(called, _)| apart(called, base) || property.as_ref().is_some_and(|p| apart(called, p)))
+		};
+		let mut made = false;
+		for method in methods {
+			let name = name(method);
+			let name = name.as_str();
+			if name == class {
+				made |= !method.ends_with("kotlin.jvm.internal.DefaultConstructorMarker);");
+				continue;
+			}
+			made |= method.contains(" static ") && method.contains(&format!(" {class} of("));
+			let base = name.split('-').next().unwrap();
+			let kotlin = [
+				// A value class's box, and what it overrides of `Object`'s.
+				value && ["constructor", "box", "unbox", "equals", "hashCode", "toString"].contains(&base),
+				// A value class's member, a function Java reaches through its bridge, or a getter
+				// Kotlin mangles, which overrides one, so takes no `@JvmName`.
+				(name.ends_with("-impl") || name.ends_with("-kotlin") || name.starts_with("get") || value)
+					&& twin(method, name),
+				// What Kotlin declares of a data class.
+				name.starts_with("component") || name.starts_with("copy-"),
+				// A callback interface's method, which Java implements through `Java`.
+				method.contains(" abstract ") && classes.contains(format!("{class}$Java").as_str()),
+				// The codecs.
+				class == "api.ApiKt" && (name.starts_with("w_") || name.starts_with("r_")),
+				name.contains('$'),
+				// The runtime's sealed interface, whose port Java reads through a static of each
+				// class implementing it.
+				class == "api.SocketAddr" && name.starts_with("getPort-"),
+				// The runtime's conversion to Kotlin's own value class.
+				class == "api.Duration" && name.starts_with("toKotlinDuration-"),
+			];
+			if !java(name) && !kotlin.contains(&true) {
+				unreachable.push(format!("{class}: {method}"));
+			}
+		}
+		// A data class or an exception Java makes.
+		let data = methods.iter().any(|m| m.contains(" copy(") || m.contains(" copy-"));
+		if (data || header.contains(" extends java.lang.Exception")) && !made {
+			unreachable.push(format!("{class}: no constructor"));
+		}
+	}
+	assert!(
+		unreachable.is_empty(),
+		"what plain Java cannot call:\n{}",
+		unreachable.join("\n")
 	);
 }
 

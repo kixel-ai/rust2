@@ -3,13 +3,65 @@
 // checked conversions to and from the idiomatic type that throw `IllegalArgumentException`
 // for a value the other cannot hold. Every free function is qualified, as an export may
 // take its name.
+//
+// Plain Java reaches each as Kotlin does: a getter Kotlin would mangle for an unsigned
+// integer is pinned to its own name, and the internal statics named `*-java`, public on the
+// JVM, stand in for what Java cannot call, a constructor taking an unsigned integer or a
+// value class's member. Java holds a value class as its class.
+
+/**
+ * Plain Java's conversions between each unsigned integer, boxed, as a nullable or generic
+ * one crosses the JVM, and the signed primitive of its bits, which Java has no other way to
+ * make or read.
+ */
+object Unsigned {
+	/** The `UByte` of [bits]. */
+	@kotlin.jvm.JvmStatic
+	@kotlin.jvm.JvmName("box")
+	fun box(bits: Byte): UByte? = bits.toUByte()
+
+	/** The `UShort` of [bits]. */
+	@kotlin.jvm.JvmStatic
+	@kotlin.jvm.JvmName("box")
+	fun box(bits: Short): UShort? = bits.toUShort()
+
+	/** The `UInt` of [bits]. */
+	@kotlin.jvm.JvmStatic
+	@kotlin.jvm.JvmName("box")
+	fun box(bits: Int): UInt? = bits.toUInt()
+
+	/** The `ULong` of [bits]. */
+	@kotlin.jvm.JvmStatic
+	@kotlin.jvm.JvmName("box")
+	fun box(bits: Long): ULong? = bits.toULong()
+
+	/** [value]'s bits, throwing `NullPointerException` for null. */
+	@kotlin.jvm.JvmStatic
+	@kotlin.jvm.JvmName("bits")
+	fun bits(value: UByte?): Byte = value!!.toByte()
+
+	/** [value]'s bits, throwing `NullPointerException` for null. */
+	@kotlin.jvm.JvmStatic
+	@kotlin.jvm.JvmName("bits")
+	fun bits(value: UShort?): Short = value!!.toShort()
+
+	/** [value]'s bits, throwing `NullPointerException` for null. */
+	@kotlin.jvm.JvmStatic
+	@kotlin.jvm.JvmName("bits")
+	fun bits(value: UInt?): Int = value!!.toInt()
+
+	/** [value]'s bits, throwing `NullPointerException` for null. */
+	@kotlin.jvm.JvmStatic
+	@kotlin.jvm.JvmName("bits")
+	fun bits(value: ULong?): Long = value!!.toLong()
+}
 
 /**
  * A Rust `Duration`: whole seconds, any `u64`, and nanoseconds below one second, so it holds
  * every Rust duration exactly, where a `kotlin.time.Duration` past about 146 years drops
  * what is below a millisecond and one past `Long.MAX_VALUE` seconds is infinite.
  */
-class Duration(val secs: ULong, val nanos: UInt = 0u) : kotlin.Comparable<Duration> {
+class Duration(@get:kotlin.jvm.JvmName("getSecs") val secs: ULong, @get:kotlin.jvm.JvmName("getNanos") val nanos: UInt = 0u) : kotlin.Comparable<Duration> {
 	init {
 		kotlin.require(nanos < NANOS) { "$nanos nanoseconds is not below a second" }
 	}
@@ -49,6 +101,11 @@ class Duration(val secs: ULong, val nanos: UInt = 0u) : kotlin.Comparable<Durati
 		/** The longest, as Rust's `Duration::MAX`. */
 		val MAX = Duration(ULong.MAX_VALUE, NANOS - 1u)
 
+		/** Java's constructor. */
+		@kotlin.jvm.JvmStatic
+		@kotlin.jvm.JvmName("of")
+		internal fun `of-java`(secs: ULong, nanos: UInt): Duration = Duration(secs, nanos)
+
 		private fun seconds(duration: kotlin.time.Duration): ULong {
 			kotlin.require(duration.isFinite() && !duration.isNegative()) { "$duration has no Rust Duration" }
 			return duration.inWholeSeconds.toULong()
@@ -87,6 +144,33 @@ value class Ipv4Addr(val bits: UInt) : IpAddr {
 
 	/** As Rust prints it: `127.0.0.1`. */
 	override fun toString(): String = octets().joinToString(".") { (it.toInt() and 0xff).toString() }
+
+	internal companion object {
+		/** Java's constructor of the address of [bits]. */
+		@kotlin.jvm.JvmStatic
+		@kotlin.jvm.JvmName("of")
+		fun `of-java`(bits: UInt): Ipv4Addr? = Ipv4Addr(bits)
+
+		/** Java's constructor of the address of [octets], which throws `IllegalArgumentException` unless there are 4. */
+		@kotlin.jvm.JvmStatic
+		@kotlin.jvm.JvmName("of")
+		fun `of-java`(octets: ByteArray): Ipv4Addr? = Ipv4Addr(octets)
+
+		/** Java's constructor of the address of [a].[b].[c].[d]. */
+		@kotlin.jvm.JvmStatic
+		@kotlin.jvm.JvmName("of")
+		fun `of-java`(a: UByte, b: UByte, c: UByte, d: UByte): Ipv4Addr? = Ipv4Addr(a, b, c, d)
+
+		/** [address]'s bits, as Java reads them. */
+		@kotlin.jvm.JvmStatic
+		@kotlin.jvm.JvmName("bits")
+		fun `bits-java`(address: Ipv4Addr?): UInt = address!!.bits
+
+		/** [address]'s octets, as Java reads them. */
+		@kotlin.jvm.JvmStatic
+		@kotlin.jvm.JvmName("octets")
+		fun `octets-java`(address: Ipv4Addr?): ByteArray = address!!.octets()
+	}
 }
 
 /** A Rust `Ipv6Addr`: its 16 octets. */
@@ -165,10 +249,37 @@ value class SocketAddrV4 private constructor(private val bits: Long) : SocketAdd
 
 	/** As Rust prints it: `127.0.0.1:443`. */
 	override fun toString(): String = "$ip:$port"
+
+	internal companion object {
+		/** Java's constructor of [ip] and [port]. */
+		@kotlin.jvm.JvmStatic
+		@kotlin.jvm.JvmName("of")
+		fun `of-java`(ip: Ipv4Addr?, port: UShort): SocketAddrV4? = SocketAddrV4(ip!!, port)
+
+		/** Java's constructor of [address], throwing `IllegalArgumentException` unless it is resolved and IPv4. */
+		@kotlin.jvm.JvmStatic
+		@kotlin.jvm.JvmName("of")
+		fun `of-java`(address: java.net.InetSocketAddress): SocketAddrV4? = SocketAddrV4(address)
+
+		/** [address]'s address, as Java reads it. */
+		@kotlin.jvm.JvmStatic
+		@kotlin.jvm.JvmName("ip")
+		fun `ip-java`(address: SocketAddrV4?): Ipv4Addr? = address!!.ip
+
+		/** [address]'s port, as Java reads it. */
+		@kotlin.jvm.JvmStatic
+		@kotlin.jvm.JvmName("port")
+		fun `port-java`(address: SocketAddrV4?): UShort = address!!.port
+	}
 }
 
 /** A Rust `SocketAddrV6`: an [Ipv6Addr], a port, a flow label, and a scope, which Java keeps no flow label of. */
-class SocketAddrV6(val ip: Ipv6Addr, override val port: UShort, val flowinfo: UInt = 0u, val scopeId: UInt = 0u) : SocketAddr {
+class SocketAddrV6(
+	val ip: Ipv6Addr,
+	override val port: UShort,
+	@get:kotlin.jvm.JvmName("getFlowinfo") val flowinfo: UInt = 0u,
+	@get:kotlin.jvm.JvmName("getScopeId") val scopeId: UInt = 0u,
+) : SocketAddr {
 	/** [address], with no flow label, throwing `IllegalArgumentException` unless it is resolved and IPv6. */
 	constructor(address: java.net.InetSocketAddress) : this(
 		(_resolved(address) as? java.net.Inet6Address ?: throw kotlin.IllegalArgumentException("$address is not IPv6")).let { Ipv6Addr(it.address) },
@@ -195,6 +306,18 @@ class SocketAddrV6(val ip: Ipv6Addr, override val port: UShort, val flowinfo: UI
 
 	/** As Rust prints it: `[::1%3]:443`, its scope shown unless 0, its flow label never. */
 	override fun toString(): String = if (scopeId == 0u) "[$ip]:$port" else "[$ip%$scopeId]:$port"
+
+	internal companion object {
+		/** Java's constructor of each field. */
+		@kotlin.jvm.JvmStatic
+		@kotlin.jvm.JvmName("of")
+		fun `of-java`(ip: Ipv6Addr, port: UShort, flowinfo: UInt, scopeId: UInt): SocketAddrV6 = SocketAddrV6(ip, port, flowinfo, scopeId)
+
+		/** [address]'s port, as Java reads it: Kotlin mangles the getter, which overrides [SocketAddr]'s, so takes no `@JvmName`. */
+		@kotlin.jvm.JvmStatic
+		@kotlin.jvm.JvmName("port")
+		fun `port-java`(address: SocketAddrV6): UShort = address.port
+	}
 }
 
 /**

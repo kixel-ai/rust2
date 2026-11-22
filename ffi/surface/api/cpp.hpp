@@ -822,6 +822,12 @@ namespace api {
 		virtual ~Log() = default;
 		virtual bool log(::std::uint8_t level, ::api::view line) const = 0;
 	};
+	class Sensor {
+		virtual ~Sensor() = default;
+		virtual ::std::uint32_t read() const = 0;
+		virtual ::std::uint8_t interface() const = 0;
+		virtual void close() const = 0;
+	};
 	class Scan {
 		virtual ~Scan() = default;
 		virtual ::std::uint64_t scan(::api::view payload, ::std::optional<::api::view> rest) const = 0;
@@ -881,7 +887,12 @@ namespace api {
 	class Stamp {
 		friend bool operator==(const Stamp &a_2, const Stamp &b_);
 		friend bool operator!=(const Stamp &a_2, const Stamp &b_);
+		friend bool operator<(const Stamp &a_2, const Stamp &b_);
+		friend bool operator<=(const Stamp &a_2, const Stamp &b_);
+		friend bool operator>(const Stamp &a_2, const Stamp &b_);
+		friend bool operator>=(const Stamp &a_2, const Stamp &b_);
 		::api::buf debug() const;
+		static Stamp default_();
 		static ::api::Stamp from_millis(::std::uint64_t millis);
 		::std::uint64_t secs() const;
 		::api::Stamp whole() const;
@@ -1591,6 +1602,13 @@ namespace api {
 	inline ::std::weak_ordering operator<=>(const clash_Notch_ &a_2, const clash_Notch_ &b_);
 	#endif
 	inline bool operator==(const Stamp &a_2, const Stamp &b_);
+	inline bool operator<(const Stamp &a_2, const Stamp &b_);
+	inline bool operator<=(const Stamp &a_2, const Stamp &b_);
+	inline bool operator>(const Stamp &a_2, const Stamp &b_);
+	inline bool operator>=(const Stamp &a_2, const Stamp &b_);
+	#if defined(__cpp_lib_three_way_comparison)
+	inline ::std::weak_ordering operator<=>(const Stamp &a_2, const Stamp &b_);
+	#endif
 	inline bool operator==(const Point &a_2, const Point &b_);
 	inline bool operator==(const Label &a_2, const Label &b_);
 	inline bool operator==(const Note &a_2, const Note &b_);
@@ -1819,12 +1837,15 @@ namespace api {
 	inline ::api::yielded_future yielded(::std::uint32_t value);
 	template <class F0> inline ::api::after_future after(F0 first, ::std::uint32_t value);
 	template <class F0> inline ::api::within_future within(::std::uint32_t polls, F0 future_);
+	inline ::api::result<::api::Stamp, ::api::Stamp> past(const ::api::Stamp &at, const ::api::Stamp &deadline);
+	inline ::api::result<::std::uint32_t, ::std::uint32_t> odd(::std::uint32_t n);
 	inline ::api::result<::api::Moment, ::api::buf> moment_at(::std::uint64_t ticks, ::std::uint64_t rate);
 	inline ::api::result<::api::Stamp, ::api::buf> stamp_at(::std::uint64_t millis);
 	template <class F0> inline ::api::Moment shifted(const ::api::Moment &moment, F0 &&shift);
 	inline ::std::uint32_t jvm_sum(const ::api::JvmField &field, const ::api::JvmStatic &method, const ::api::OptIn &opt);
 	inline ::api::Clocked clocked_after(const ::api::Clocked &clocked, ::std::uint64_t ticks);
 	inline ::std::uint32_t emit(::std::unique_ptr<::api::Log> log, ::api::input lines);
+	inline ::std::uint32_t sensed(::std::unique_ptr<::api::Sensor> sensor);
 	template <class F0> inline ::api::counted_future counted(::std::uint32_t n, F0 &&count);
 	template <class F0> inline ::std::uint32_t filter(::api::input lines, F0 &&keep);
 	inline ::api::log_later_future log_later(::std::unique_ptr<::api::Log> log);
@@ -2550,6 +2571,7 @@ namespace api {
 	class Forged;
 	class Part;
 	class Log;
+	class Sensor;
 	class Scan;
 	class Beat;
 	class Turner;

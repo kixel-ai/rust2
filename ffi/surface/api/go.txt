@@ -171,6 +171,7 @@ func Nexts(v4 p_rt.SocketAddrV4, v6 p_rt.SocketAddrV6) (p_rt.SocketAddrV4, p_rt.
 func Now() *p_std.Instant
 func Nudge(point *Point, by int32)
 func NudgeBy(point *Point, refusal *Refusal) error
+func Odd(n uint32) (uint32, error)
 func OfferedLen(alpns []p_rt.Bytes) uint
 func Offset(by func() uint32, byData uint32) uint32
 func Offsetof(field uint8) uint8
@@ -237,6 +238,8 @@ func SeedsPointPolarPoint(from PolarPoint) uint64
 func SeedsPointSize(from p_dep.Size) uint64
 func SeedsPointWrapU32(from WrapU32) uint64
 func SeekTo(file io.ReadSeeker, at uint64) (uint64, error)
+func Sensed(sensor Sensor) uint32
+func SensorVtable_() unsafe.Pointer
 func Sentence(words *[]string) (string, error)
 func Shift(by func() uint32, cBy uint32) uint32
 func Since(later *p_std.Instant, earlier *p_std.Instant) (p_rt.Duration, error)
@@ -1836,6 +1839,11 @@ func NewSeat(mark *Mark, row uint32) (Seat, error)
 func (self Seat) Count() (uint64, error)
 func (self Seat) Equal(other Seat) (bool, error)
 func (self Seat) GoString() string
+type Sensor interface {
+	Read() uint32
+	Interface() uint8
+	Close()
+}
 type Shadowed struct {
 	Other []int32
 	A     uint8
@@ -1951,11 +1959,16 @@ type Stamp struct {
 	Bytes_ [1]uint64
 	Made_ bool
 }
+func Past(at Stamp, deadline Stamp) (Stamp, error)
 func StampAt(millis uint64) (Stamp, error)
+func StampDefault() Stamp
 func StampFromMillis(millis uint64) Stamp
+func (self Stamp) Compare(other Stamp) int
 func (self Stamp) Equal(other Stamp) bool
+func (self Stamp) Error() string
 func (self Stamp) GoString() string
 func (self Stamp) Later(other_ Stamp) bool
+func (self Stamp) PartialCompare(other Stamp) (int, bool)
 func (self Stamp) Secs() uint64
 func (self Stamp) Whole() Stamp
 type Stamped struct {
@@ -2310,6 +2323,10 @@ type U128 struct {
 }
 func U128Of(v *big.Int) (U128, error)
 func (v U128) Big() *big.Int
+type U32Error struct {
+	Value uint32
+}
+func (e U32Error) Error() string
 
 package serdejson // import "api/serdejson"
 
