@@ -53,6 +53,9 @@ jobs:
       go-check: api-checks/go
       swift-check: api-checks/swift
       dart-check: api-checks/dart
+      # A namespace no release publishes to. No kotlin-check: api.kt names wasm32 items this
+      # export lacks, so the consumer only loads the library.
+      maven-group: ai.kixel
 
   moq:
     name: moq stand-in
@@ -67,5 +70,7 @@ jobs:
       scope: kixel-ai
       # Under the export's own module, `moq`, which moq.go imports.
       go-check: ffi/moq/moq.go
+      maven-group: ai.kixel
+      kotlin-check: ffi/moq/moq.kt
       # The export's package, `moq`, which moq.dart imports.
       dart-check: ffi/moq/moq.dart

@@ -15,15 +15,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "67753fa0e5e56fa79255f125be5bb94b2f3570537bd1c66e9b146858f53cd298"
 
 [[package]]
-name = "aho-corasick"
-version = "1.1.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c982642fa9e8606056828ee9a8505737230110bb1099153c79efe865c59d12ba"
-dependencies = [
- "memchr",
-]
-
-[[package]]
 name = "alloc-no-stdlib"
 version = "3.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -157,14 +148,14 @@ dependencies = [
 
 [[package]]
 name = "atomic-file-install"
-version = "1.0.14"
+version = "1.0.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c15dfb831ba8e4c09f50ff360dc207b011ce37e39c3f5dc05140c4af25d55eff"
+checksum = "1e8760d619fdc8910d86d028a9710028d10415c627d6e529f0b125ab7bd3b56f"
 dependencies = [
  "reflink-copy",
  "tempfile",
  "tracing",
- "windows",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -229,9 +220,9 @@ checksum = "2af50177e190e07a26ab74f8b1efbfe2ef87da2116221318cb1c2e82baf7de06"
 
 [[package]]
 name = "binstalk"
-version = "0.30.0"
+version = "0.31.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "894e6d6e6c012bfa01356d80d587ec6d6e6b39a41d7bd18d59c227f44ea7a0cd"
+checksum = "1a77aed09c2f683f6cbcf8a2b809fdf141453264053897137dd4ff04d959f1bb"
 dependencies = [
  "binstalk-bins",
  "binstalk-downloader",
@@ -261,13 +252,14 @@ dependencies = [
 
 [[package]]
 name = "binstalk-bins"
-version = "0.7.0"
+version = "0.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2c08b2c2fcf3352e638416f688c27eb31f295018141560ccd5f4b013db131a33"
+checksum = "36ae8686f519904133e0cf8964a68dd34b48dbfe77f0979a073718b570e580ca"
 dependencies = [
  "atomic-file-install",
  "binstalk-types",
  "compact_str",
+ "itertools",
  "leon",
  "miette",
  "normalize-path",
@@ -277,9 +269,9 @@ dependencies = [
 
 [[package]]
 name = "binstalk-downloader"
-version = "0.14.1"
+version = "0.14.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "eba1ee6dc67bf300cf12bfc77def8744fe207c6fa5a56ec07a2c689510a32293"
+checksum = "fff82bf53454a1c42a9eabede491519bda5719ab6c4afbeb2cdb8a11d42a51f8"
 dependencies = [
  "astral-tokio-tar",
  "async-compression",
@@ -288,10 +280,8 @@ dependencies = [
  "binstall-tar",
  "bytes",
  "bzip2",
- "cfg-if",
  "compact_str",
  "flate2",
- "futures-io",
  "futures-util",
  "hickory-resolver",
  "httpdate",
@@ -313,9 +303,9 @@ dependencies = [
 
 [[package]]
 name = "binstalk-fetchers"
-version = "0.10.53"
+version = "0.10.54"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "552d40308911aa21aeb76df724e7a88372170758110734e6fbbd2c02d80a163f"
+checksum = "1a4240e3ad3b3418ab90e488f8ccec9c4e044b95f782c198630182da3f55cbd3"
 dependencies = [
  "async-trait",
  "binstalk-downloader",
@@ -329,7 +319,6 @@ dependencies = [
  "leon-macros",
  "miette",
  "minisign-verify",
- "once_cell",
  "strum",
  "thiserror 2.0.21",
  "tokio",
@@ -339,9 +328,9 @@ dependencies = [
 
 [[package]]
 name = "binstalk-git-repo-api"
-version = "0.5.53"
+version = "0.5.54"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "79b7fbf1388c766bee53630ff2627b0dee06d78c4115ccdac6ad5b2ddc6cc962"
+checksum = "51cc94cc4b57b89acc023c3ae3c4d62373496cea728f62590ba396b70dff481f"
 dependencies = [
  "binstalk-downloader",
  "compact_str",
@@ -358,9 +347,9 @@ dependencies = [
 
 [[package]]
 name = "binstalk-registry"
-version = "0.12.13"
+version = "0.13.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e5fc832c1cd0f53bed4b1f02aac7b9bde72ecccd2776b4ab16866eb973d93a85"
+checksum = "bff3ba30138f23335356ee73837b8e651355664a80e5a0ee5e4ffdf310051543"
 dependencies = [
  "async-trait",
  "base16",
@@ -368,6 +357,7 @@ dependencies = [
  "binstalk-types",
  "cargo-toml-workspace",
  "compact_str",
+ "jiff 1.0.2",
  "leon",
  "miette",
  "normalize-path",
@@ -386,15 +376,14 @@ dependencies = [
 
 [[package]]
 name = "binstalk-types"
-version = "0.10.8"
+version = "0.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "90dba658ed65f9b68281e5e4aa3806c66f8379b336e3ac7c65baea5fcf2868b9"
+checksum = "f9a4a0531f598b408b4db18e66ee9e512a9f7e301d2ac6075762c89f1dae0620"
 dependencies = [
  "cargo-platform",
  "compact_str",
  "indexmap",
  "maybe-owned",
- "once_cell",
  "semver",
  "serde",
  "strum",
@@ -459,9 +448,9 @@ dependencies = [
 
 [[package]]
 name = "bstr"
-version = "1.13.1"
+version = "1.14.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6bb31b46c14244e20ee9984b11bf5c992b91fb6939fea616e3512c8baecdbe5f"
+checksum = "a680398c10c7bc0488067c4612226ea905a85f607134b69f3068d505d58c4214"
 dependencies = [
  "memchr",
  "regex-automata",
@@ -524,13 +513,13 @@ dependencies = [
 
 [[package]]
 name = "cargo-toml-workspace"
-version = "7.0.11"
+version = "7.0.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "394d59d0647f9d07f6a6e29836db67e54119e67e6589ab6d8da487d3e7decb86"
+checksum = "1d387707c57b38b56074bd8ed1be5a0a434826c13d7d3ab66b8d56c810fa864e"
 dependencies = [
  "cargo_toml",
  "compact_str",
- "globwalker",
+ "glob",
  "serde",
  "thiserror 2.0.21",
  "tracing",
@@ -821,7 +810,6 @@ dependencies = [
  "libc",
  "miette",
  "minisign-verify",
- "once_cell",
  "percent-encoding",
  "reqwest",
  "semver",
@@ -1077,13 +1065,15 @@ dependencies = [
 
 [[package]]
 name = "detect-targets"
-version = "0.1.97"
+version = "0.1.98"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9eecd6925821b59661c64a555f93c5ec4bee858ad4b0680cea248e53c6b14424"
+checksum = "3f0a88e4d619d81ec9c20b4f7f7f098a35164d8d91fe7516ff894826d00fd3c1"
 dependencies = [
- "cfg-if",
  "guess_host_triple",
+ "rustix",
+ "tempfile",
  "tokio",
+ "tokio-util",
  "tracing",
  "windows-sys 0.61.2",
 ]
@@ -1608,7 +1598,7 @@ dependencies = [
  "bstr",
  "gix-error",
  "itoa",
- "jiff",
+ "jiff 0.2.43",
 ]
 
 [[package]]
@@ -2336,30 +2326,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e4eba85ea1d0a966a983acd07deee566e67395d2d96b6fb39e62b5a833f1eb0b"
 
 [[package]]
-name = "globset"
-version = "0.4.21"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f98b0d85522dc0a824cfebbc9594ff4a9b289c568bea0370319dfbdf20ccdd2d"
-dependencies = [
- "aho-corasick",
- "bstr",
- "log",
- "regex-automata",
- "regex-syntax",
-]
-
-[[package]]
-name = "globwalker"
-version = "0.9.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b8898f8c437d25f5c413f1d08ac4dda7973253df8dfd80e23403a7883d6796ba"
-dependencies = [
- "bitflags 2.13.2",
- "ignore",
- "walkdir",
-]
-
-[[package]]
 name = "guess_host_triple"
 version = "0.1.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2484,6 +2450,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c480823ed7c2c5d0f09c41020cb6b7c28029ce60ec42dc942158dcf22f8e0a4d"
 dependencies = [
  "async-trait",
+ "aws-lc-rs",
  "bitflags 2.13.2",
  "bytes",
  "cfg-if",
@@ -2504,7 +2471,6 @@ dependencies = [
  "pin-project-lite",
  "quinn",
  "rand",
- "ring",
  "rustls",
  "rustls-pki-types",
  "thiserror 2.0.21",
@@ -2522,6 +2488,7 @@ version = "0.26.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "12b92608f679a6fa515dd1d15c1ff89443026e391200a2c840c7afcba482893d"
 dependencies = [
+ "aws-lc-rs",
  "bitflags 2.13.2",
  "data-encoding",
  "idna",
@@ -2801,22 +2768,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "ignore"
-version = "0.4.34"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "484be5657551d7868d67587df967fb4fcbe9d266a761cc855aaa148fda0b3cc7"
-dependencies = [
- "crossbeam-deque",
- "globset",
- "log",
- "memchr",
- "regex-automata",
- "same-file",
- "walkdir",
- "winapi-util",
-]
-
-[[package]]
 name = "indexmap"
 version = "2.14.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2887,14 +2838,28 @@ version = "0.2.43"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "26699905cc795a23e3949585cc7ba3ee8ade090872a27e4316304a777297894a"
 dependencies = [
- "jiff-core",
- "jiff-static",
+ "jiff-core 0.1.5",
+ "jiff-static 0.2.43",
  "jiff-tzdb-platform",
  "log",
  "portable-atomic",
  "portable-atomic-util",
  "serde_core",
  "windows-link",
+]
+
+[[package]]
+name = "jiff"
+version = "1.0.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c5e77cbfb9fff4798e283c2d69dff39fc2c45e7da017e5ce95b654e46ea41236"
+dependencies = [
+ "jiff-core 1.0.1",
+ "jiff-static 1.0.2",
+ "log",
+ "portable-atomic",
+ "portable-atomic-util",
+ "serde_core",
 ]
 
 [[package]]
@@ -2907,15 +2872,36 @@ dependencies = [
 ]
 
 [[package]]
+name = "jiff-core"
+version = "1.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b6b46a105a9874634dd96231021526bf24ca04955a5998c59a9c7666e634b7b8"
+dependencies = [
+ "log",
+]
+
+[[package]]
 name = "jiff-static"
 version = "0.2.43"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4b4ff49b2887190c760b86207b55cdcaabbdecaf7a0660d68aa2ed6f652abf0a"
 dependencies = [
- "jiff-core",
+ "jiff-core 0.1.5",
  "proc-macro2",
  "quote",
  "syn 2.0.119",
+]
+
+[[package]]
+name = "jiff-static"
+version = "1.0.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e9067a0b23e5be3147d56b2dcf652b18e6b1364caca93fb157653b6fbcab23a9"
+dependencies = [
+ "jiff-core 1.0.1",
+ "proc-macro2",
+ "quote",
+ "syn 3.0.10",
 ]
 
 [[package]]
@@ -3292,9 +3278,9 @@ checksum = "9737e026353e5cd0736f98eddae28665118eb6f6600902a7f50db585621fecb6"
 
 [[package]]
 name = "normalize-path"
-version = "0.2.2"
+version = "0.2.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a0769f77950d14beb4fe8e0707b7c7cc6ea39110e9289e2c2346a7bb4ee5af74"
+checksum = "6e857aae9abb198222e6111f38464b2c4e2466b5d55f80f5334ced249148d5e1"
 
 [[package]]
 name = "num-conv"
@@ -3738,20 +3724,9 @@ dependencies = [
 
 [[package]]
 name = "regex-automata"
-version = "0.4.18"
+version = "0.4.19"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ad8553b9b26413251cbf30e620595c7a41b3887f03da04579c0e6b0d6a06b4b2"
-dependencies = [
- "aho-corasick",
- "memchr",
- "regex-syntax",
-]
-
-[[package]]
-name = "regex-syntax"
-version = "0.8.11"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d6f6ff9a378485b298a5286656da665ba74413d36db0979633275d2e708145d4"
+checksum = "41d60ef07df457506a0a1a2073112eb4aae5733dbd2813c3da77d1b0fd441158"
 
 [[package]]
 name = "reqwest"
@@ -3855,7 +3830,6 @@ dependencies = [
  "aws-lc-rs",
  "log",
  "once_cell",
- "ring",
  "rustls-pki-types",
  "rustls-webpki",
  "subtle",
@@ -4121,7 +4095,7 @@ version = "0.16.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "98819125d96663ca27bc1b4fa06673da03de760f6b4d24596efd175e66ac3857"
 dependencies = [
- "jiff",
+ "jiff 0.2.43",
  "sigstore-types",
  "thiserror 2.0.21",
 ]
@@ -4136,7 +4110,7 @@ dependencies = [
  "const-oid 0.9.6",
  "der",
  "futures-io",
- "jiff",
+ "jiff 0.2.43",
  "rustls-pki-types",
  "sigstore-types",
  "spki",
@@ -4163,7 +4137,7 @@ checksum = "9abc878eed02e46c130bf5c2a48633144eb0a95ec93d47124bf51b931cf20e1f"
 dependencies = [
  "base64 0.23.1",
  "hex",
- "jiff",
+ "jiff 0.2.43",
  "serde",
  "serde_json",
  "sigstore-merkle",
@@ -4178,7 +4152,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6111e00e097bb764b6fe9e6205bce3d582c3594512450ee69837753f759c55e2"
 dependencies = [
  "directories",
- "jiff",
+ "jiff 0.2.43",
  "serde",
  "serde_json",
  "sigstore-crypto",
@@ -4198,7 +4172,7 @@ dependencies = [
  "const-oid 0.9.6",
  "der",
  "hex",
- "jiff",
+ "jiff 0.2.43",
  "rustls-pki-types",
  "rustls-webpki",
  "sigstore-crypto",
@@ -4216,7 +4190,7 @@ checksum = "0ef81a8257fcb3873e1e85f29d33d642f962c9faa7d69a05ac2c754dcd460301"
 dependencies = [
  "glob",
  "hex",
- "jiff",
+ "jiff 0.2.43",
  "reqwest",
  "serde",
  "serde_json",
@@ -4236,7 +4210,7 @@ checksum = "b4f0e9a87bcaf654b5d3b8540eaf78040cae72eb59157bb1765f56684fb0e3e9"
 dependencies = [
  "base64 0.23.1",
  "hex",
- "jiff",
+ "jiff 0.2.43",
  "pem",
  "serde",
  "serde_json",
@@ -4253,7 +4227,7 @@ dependencies = [
  "const-oid 0.9.6",
  "futures-io",
  "hex",
- "jiff",
+ "jiff 0.2.43",
  "rustls-pki-types",
  "rustls-webpki",
  "serde",
@@ -4645,6 +4619,7 @@ dependencies = [
  "bytes",
  "futures-core",
  "futures-sink",
+ "futures-util",
  "libc",
  "pin-project-lite",
  "tokio",

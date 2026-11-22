@@ -17,7 +17,17 @@ class Bytes private constructor(private val array: ByteArray?, private val direc
 	override fun equals(other: Any?): Boolean
 	override fun hashCode(): Int
 }
-class Duration(val secs: ULong, val nanos: UInt = 0u) : kotlin.Comparable<Duration> {
+object Unsigned {
+	@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("box") fun box(bits: Byte): UByte?
+	@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("box") fun box(bits: Short): UShort?
+	@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("box") fun box(bits: Int): UInt?
+	@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("box") fun box(bits: Long): ULong?
+	@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("bits") fun bits(value: UByte?): Byte
+	@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("bits") fun bits(value: UShort?): Short
+	@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("bits") fun bits(value: UInt?): Int
+	@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("bits") fun bits(value: ULong?): Long
+}
+class Duration(@get:kotlin.jvm.JvmName("getSecs") val secs: ULong, @get:kotlin.jvm.JvmName("getNanos") val nanos: UInt = 0u) : kotlin.Comparable<Duration> {
 	constructor(duration: kotlin.time.Duration)
 	fun toKotlinDuration(): kotlin.time.Duration
 	override fun compareTo(other: Duration): Int
@@ -66,7 +76,7 @@ sealed interface SocketAddr {
 	override fun toInetSocketAddress(): java.net.InetSocketAddress
 	override fun toString(): String
 }
-class SocketAddrV6(val ip: Ipv6Addr, override val port: UShort, val flowinfo: UInt = 0u, val scopeId: UInt = 0u) : SocketAddr {
+class SocketAddrV6(val ip: Ipv6Addr, override val port: UShort, @get:kotlin.jvm.JvmName("getFlowinfo") val flowinfo: UInt = 0u, @get:kotlin.jvm.JvmName("getScopeId") val scopeId: UInt = 0u) : SocketAddr {
 	constructor(address: java.net.InetSocketAddress)
 	override fun toInetSocketAddress(): java.net.InetSocketAddress
 	override fun equals(other: Any?): Boolean
@@ -89,9 +99,13 @@ enum class Bound {
 	INCLUDED,
 	EXCLUDED,
 }
-data class BoundU64(val kind: Bound, val value: ULong)
+data class BoundU64(val kind: Bound, @get:kotlin.jvm.JvmName("getValue") val value: ULong) {
+	companion object {}
+}
 data class BoundsU64(val start: BoundU64, val end: BoundU64)
-data class RangeU64(val start: ULong, val end: ULong)
+data class RangeU64(@get:kotlin.jvm.JvmName("getStart") val start: ULong, @get:kotlin.jvm.JvmName("getEnd") val end: ULong) {
+	companion object {}
+}
 class ArrayU8x16(bytes: ByteArray) {
 	operator fun get(index: Int): Byte
 	fun toByteArray(): ByteArray
@@ -130,6 +144,7 @@ class ArrayU8x6(bytes: ByteArray) {
 @kotlin.jvm.JvmInline value class TimeOverflow internal constructor(internal val bits: Long) {
 	final override fun toString(): kotlin.String
 	fun debug(): kotlin.String
+	companion object {}
 }
 @kotlin.jvm.JvmInline value class Timescale internal constructor(internal val bits: Long) : kotlin.Comparable<Timescale> {
 	final override fun toString(): kotlin.String
@@ -138,11 +153,11 @@ class ArrayU8x6(bytes: ByteArray) {
 	override fun compareTo(other: moq.Timescale): kotlin.Int
 	fun asU64(): kotlin.ULong
 	companion object {
-		@kotlin.jvm.JvmStatic @get:kotlin.jvm.JvmName("getSECOND") val SECOND: moq.Timescale
-		@kotlin.jvm.JvmStatic @get:kotlin.jvm.JvmName("getMILLI") val MILLI: moq.Timescale
-		@kotlin.jvm.JvmStatic @get:kotlin.jvm.JvmName("getMICRO") val MICRO: moq.Timescale
-		@kotlin.jvm.JvmStatic @get:kotlin.jvm.JvmName("getNANO") val NANO: moq.Timescale
-		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("new") @kotlin.jvm.Throws(TimeOverflowException::class) fun new(unitsPerSecond: kotlin.ULong): moq.Timescale
+		@kotlin.jvm.JvmStatic @get:kotlin.jvm.JvmName("getSECOND-kotlin") val SECOND: moq.Timescale
+		@kotlin.jvm.JvmStatic @get:kotlin.jvm.JvmName("getMILLI-kotlin") val MILLI: moq.Timescale
+		@kotlin.jvm.JvmStatic @get:kotlin.jvm.JvmName("getMICRO-kotlin") val MICRO: moq.Timescale
+		@kotlin.jvm.JvmStatic @get:kotlin.jvm.JvmName("getNANO-kotlin") val NANO: moq.Timescale
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("new_-kotlin") @kotlin.jvm.Throws(TimeOverflowException::class) fun new(unitsPerSecond: kotlin.ULong): moq.Timescale
 	}
 }
 class Timestamp internal constructor() {
@@ -153,8 +168,8 @@ class Timestamp internal constructor() {
 	@kotlin.jvm.JvmName("value") fun value(): kotlin.ULong
 	@kotlin.jvm.JvmName("scale") fun scale(): moq.Timescale?
 	fun isZero(): kotlin.Boolean
-	@kotlin.jvm.JvmName("convert-opaque") @kotlin.jvm.Throws(TimeOverflowException::class) fun convert(newScale: moq.Timescale): moq.Timestamp
-	@kotlin.jvm.JvmName("asScale-opaque") @kotlin.jvm.Throws(TimeOverflowException::class) fun asScale(target: moq.Timescale): java.math.BigInteger
+	@kotlin.jvm.JvmName("convert-kotlin") @kotlin.jvm.Throws(TimeOverflowException::class) fun convert(newScale: moq.Timescale): moq.Timestamp
+	@kotlin.jvm.JvmName("asScale-kotlin") @kotlin.jvm.Throws(TimeOverflowException::class) fun asScale(target: moq.Timescale): java.math.BigInteger
 	@kotlin.jvm.JvmName("asSecs") @kotlin.jvm.Throws(TimeOverflowException::class) fun asSecs(): kotlin.ULong
 	@kotlin.jvm.Throws(TimeOverflowException::class) fun asMillis(): java.math.BigInteger
 	@kotlin.jvm.Throws(TimeOverflowException::class) fun asMicros(): java.math.BigInteger
@@ -163,7 +178,7 @@ class Timestamp internal constructor() {
 	@kotlin.jvm.Throws(TimeOverflowException::class) fun checkedSub(rhs: moq.Timestamp): moq.Timestamp
 	companion object {
 		@kotlin.jvm.JvmStatic val ZERO: moq.Timestamp
-		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("new-opaque") @kotlin.jvm.Throws(TimeOverflowException::class) fun new(value: kotlin.ULong, scale: moq.Timescale): moq.Timestamp
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("new_-kotlin") @kotlin.jvm.Throws(TimeOverflowException::class) fun new(value: kotlin.ULong, scale: moq.Timescale): moq.Timestamp
 		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("unscaled") fun unscaled(key: kotlin.ULong): moq.Timestamp
 		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("fromScale") @kotlin.jvm.Throws(TimeOverflowException::class) fun fromScale(value: kotlin.ULong, unitsPerSecond: kotlin.ULong): moq.Timestamp
 		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("fromSecs") @kotlin.jvm.Throws(TimeOverflowException::class) fun fromSecs(seconds: kotlin.ULong): moq.Timestamp
@@ -186,14 +201,15 @@ class Timestamp internal constructor() {
 	fun saturatingSub(duration: moq.Duration): moq.ClockInstant
 	fun intoStd(): moq.Instant
 	companion object {
-		@kotlin.jvm.JvmStatic @get:kotlin.jvm.JvmName("getZERO") val ZERO: moq.ClockInstant
-		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("now") fun now(): moq.ClockInstant
-		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("fromStd") fun fromStd(at: moq.Instant): moq.ClockInstant
+		@kotlin.jvm.JvmStatic @get:kotlin.jvm.JvmName("getZERO-kotlin") val ZERO: moq.ClockInstant
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("now-kotlin") fun now(): moq.ClockInstant
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("fromStd-kotlin") fun fromStd(at: moq.Instant): moq.ClockInstant
 	}
 }
 @kotlin.jvm.JvmInline value class ClockElapsed internal constructor(internal val bits: Long) {
 	final override fun toString(): kotlin.String
 	fun debug(): kotlin.String
+	companion object {}
 }
 @kotlin.jvm.JvmInline value class ClockWall internal constructor(internal val bits: Long) : kotlin.Comparable<ClockWall> {
 	fun debug(): kotlin.String
@@ -205,20 +221,21 @@ class Timestamp internal constructor() {
 	fun saturatingAdd(duration: moq.Duration): moq.ClockWall
 	fun checkedSub(duration: moq.Duration): moq.ClockWall?
 	companion object {
-		@kotlin.jvm.JvmStatic @get:kotlin.jvm.JvmName("getUNIXEPOCH") val UNIXEPOCH: moq.ClockWall
-		@kotlin.jvm.JvmStatic @get:kotlin.jvm.JvmName("getMOQEPOCH") val MOQEPOCH: moq.ClockWall
-		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("now") fun now(): moq.ClockWall
+		@kotlin.jvm.JvmStatic @get:kotlin.jvm.JvmName("getUNIXEPOCH-kotlin") val UNIXEPOCH: moq.ClockWall
+		@kotlin.jvm.JvmStatic @get:kotlin.jvm.JvmName("getMOQEPOCH-kotlin") val MOQEPOCH: moq.ClockWall
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("now-kotlin") fun now(): moq.ClockWall
 	}
 }
-data class SetupToken(val kind: kotlin.ULong, val value: moq.Bytes) {
+data class SetupToken(@get:kotlin.jvm.JvmName("getKind") val kind: kotlin.ULong, val value: moq.Bytes) {
 	fun debug(): kotlin.String
+	companion object {}
 }
 @kotlin.jvm.JvmInline value class SessionLimits internal constructor(internal val bits: Long) {
 	fun debug(): kotlin.String
 	val announcesGet: kotlin.ULong
 	fun announcesSet(value: kotlin.ULong): moq.SessionLimits
 	companion object {
-		@kotlin.jvm.JvmStatic fun default(): moq.SessionLimits
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("default-kotlin") fun default(): moq.SessionLimits
 	}
 }
 class StatsContent internal constructor() {
@@ -232,7 +249,7 @@ class StatsContent internal constructor() {
 	@get:kotlin.jvm.JvmName("getGroupsGet") val groupsGet: kotlin.ULong
 	@kotlin.jvm.JvmName("groupsSet") fun groupsSet(value: kotlin.ULong): moq.StatsContent
 	companion object {
-		@kotlin.jvm.JvmStatic fun default(): moq.StatsContent
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("default_") fun default(): moq.StatsContent
 	}
 }
 class StatsTraffic internal constructor() {
@@ -272,7 +289,7 @@ class StatsTraffic internal constructor() {
 	@kotlin.jvm.JvmName("activeSubscriptions") fun activeSubscriptions(): kotlin.ULong
 	fun isIdle(): kotlin.Boolean
 	companion object {
-		@kotlin.jvm.JvmStatic fun default(): moq.StatsTraffic
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("default_") fun default(): moq.StatsTraffic
 	}
 }
 class StatsPresence internal constructor() {
@@ -308,7 +325,7 @@ class StatsPresence internal constructor() {
 	fun add(other: moq.StatsPresence): moq.StatsPresence
 	@kotlin.jvm.JvmName("active") fun active(): kotlin.ULong
 	companion object {
-		@kotlin.jvm.JvmStatic fun default(): moq.StatsPresence
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("default_") fun default(): moq.StatsPresence
 	}
 }
 class StatsActivity internal constructor() {
@@ -320,7 +337,7 @@ class StatsActivity internal constructor() {
 	@get:kotlin.jvm.JvmName("getActiveGet") val activeGet: kotlin.ULong
 	@kotlin.jvm.JvmName("activeSet") fun activeSet(value: kotlin.ULong): moq.StatsActivity
 	companion object {
-		@kotlin.jvm.JvmStatic fun default(): moq.StatsActivity
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("default_") fun default(): moq.StatsActivity
 	}
 }
 class StatsTotals internal constructor() {
@@ -336,7 +353,7 @@ class StatsTotals internal constructor() {
 	@get:kotlin.jvm.JvmName("getRxMessagesGet") val rxMessagesGet: kotlin.ULong
 	@kotlin.jvm.JvmName("rxMessagesSet") fun rxMessagesSet(value: kotlin.ULong): moq.StatsTotals
 	companion object {
-		@kotlin.jvm.JvmStatic fun default(): moq.StatsTotals
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("default_") fun default(): moq.StatsTotals
 	}
 }
 class StatsFailures internal constructor() {
@@ -355,7 +372,7 @@ class StatsFailures internal constructor() {
 	fun add(other: moq.StatsFailures): moq.StatsFailures
 	fun regressed(previous: moq.StatsFailures): kotlin.Boolean
 	companion object {
-		@kotlin.jvm.JvmStatic fun default(): moq.StatsFailures
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("default_") fun default(): moq.StatsFailures
 	}
 }
 class StatsRefusals internal constructor() {
@@ -378,7 +395,7 @@ class StatsRefusals internal constructor() {
 	fun add(other: moq.StatsRefusals): moq.StatsRefusals
 	fun regressed(previous: moq.StatsRefusals): kotlin.Boolean
 	companion object {
-		@kotlin.jvm.JvmStatic fun default(): moq.StatsRefusals
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("default_") fun default(): moq.StatsRefusals
 	}
 }
 class StatsRouteCloses internal constructor() {
@@ -404,7 +421,7 @@ class StatsRouteCloses internal constructor() {
 	fun add(other: moq.StatsRouteCloses): moq.StatsRouteCloses
 	fun regressed(previous: moq.StatsRouteCloses): kotlin.Boolean
 	companion object {
-		@kotlin.jvm.JvmStatic fun default(): moq.StatsRouteCloses
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("default_") fun default(): moq.StatsRouteCloses
 	}
 }
 class StatsRouteRefusals internal constructor() {
@@ -422,7 +439,7 @@ class StatsRouteRefusals internal constructor() {
 	fun add(other: moq.StatsRouteRefusals): moq.StatsRouteRefusals
 	fun regressed(previous: moq.StatsRouteRefusals): kotlin.Boolean
 	companion object {
-		@kotlin.jvm.JvmStatic fun default(): moq.StatsRouteRefusals
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("default_") fun default(): moq.StatsRouteRefusals
 	}
 }
 class StatsRoutes internal constructor() {
@@ -444,7 +461,7 @@ class StatsRoutes internal constructor() {
 	fun add(other: moq.StatsRoutes): moq.StatsRoutes
 	fun regressed(previous: moq.StatsRoutes): kotlin.Boolean
 	companion object {
-		@kotlin.jvm.JvmStatic fun default(): moq.StatsRoutes
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("default_") fun default(): moq.StatsRoutes
 	}
 }
 class StatsWithdrawals internal constructor() {
@@ -460,7 +477,7 @@ class StatsWithdrawals internal constructor() {
 	fun add(other: moq.StatsWithdrawals): moq.StatsWithdrawals
 	fun regressed(previous: moq.StatsWithdrawals): kotlin.Boolean
 	companion object {
-		@kotlin.jvm.JvmStatic fun default(): moq.StatsWithdrawals
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("default_") fun default(): moq.StatsWithdrawals
 	}
 }
 class TransportReceiveWindow internal constructor() {
@@ -472,7 +489,7 @@ class TransportReceiveWindow internal constructor() {
 	@get:kotlin.jvm.JvmName("getStreamGet") val streamGet: kotlin.ULong
 	@kotlin.jvm.JvmName("streamSet") fun streamSet(value: kotlin.ULong): moq.TransportReceiveWindow
 	companion object {
-		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("new") fun new(connection: kotlin.ULong?, stream: kotlin.ULong): moq.TransportReceiveWindow
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("new_") fun new(connection: kotlin.ULong?, stream: kotlin.ULong): moq.TransportReceiveWindow
 	}
 }
 class TransportLimits internal constructor() {
@@ -482,7 +499,7 @@ class TransportLimits internal constructor() {
 	@get:kotlin.jvm.JvmName("getReceiveWindowGet") val receiveWindowGet: kotlin.ULong?
 	@kotlin.jvm.JvmName("receiveWindowSet") fun receiveWindowSet(value: kotlin.ULong?): moq.TransportLimits
 	companion object {
-		@kotlin.jvm.JvmStatic fun default(): moq.TransportLimits
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("default_") fun default(): moq.TransportLimits
 	}
 }
 @kotlin.jvm.JvmInline value class BandwidthRate internal constructor(internal val bits: Long) : kotlin.Comparable<BandwidthRate> {
@@ -493,30 +510,33 @@ class TransportLimits internal constructor() {
 	fun scaled(factor: kotlin.Double): moq.BandwidthRate
 	fun absDiff(other: moq.BandwidthRate): moq.BandwidthRate
 	companion object {
-		@kotlin.jvm.JvmStatic fun default(): moq.BandwidthRate
-		@kotlin.jvm.JvmStatic @get:kotlin.jvm.JvmName("getZERO") val ZERO: moq.BandwidthRate
-		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("fromBps") fun fromBps(bps: kotlin.ULong): moq.BandwidthRate
-		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("fromKbps") fun fromKbps(kbps: kotlin.ULong): moq.BandwidthRate
-		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("fromMbps") fun fromMbps(mbps: kotlin.ULong): moq.BandwidthRate
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("default-kotlin") fun default(): moq.BandwidthRate
+		@kotlin.jvm.JvmStatic @get:kotlin.jvm.JvmName("getZERO-kotlin") val ZERO: moq.BandwidthRate
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("fromBps-kotlin") fun fromBps(bps: kotlin.ULong): moq.BandwidthRate
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("fromKbps-kotlin") fun fromKbps(kbps: kotlin.ULong): moq.BandwidthRate
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("fromMbps-kotlin") fun fromMbps(mbps: kotlin.ULong): moq.BandwidthRate
 	}
 }
-data class DatagramDatagram(val sequence: kotlin.ULong, val timestamp: moq.Timestamp, val payload: moq.Bytes) {
+data class DatagramDatagram(@get:kotlin.jvm.JvmName("getSequence") val sequence: kotlin.ULong, val timestamp: moq.Timestamp, val payload: moq.Bytes) {
 	fun debug(): kotlin.String
+	companion object {}
 }
-data class FrameInfo(val size: kotlin.ULong, val timestamp: moq.Timestamp) {
+data class FrameInfo(@get:kotlin.jvm.JvmName("getSize") val size: kotlin.ULong, val timestamp: moq.Timestamp) {
 	fun debug(): kotlin.String
+	companion object {}
 }
-data class GroupInfo(val start: kotlin.ULong) : kotlin.Comparable<GroupInfo> {
+data class GroupInfo(@get:kotlin.jvm.JvmName("getStart") val start: kotlin.ULong) : kotlin.Comparable<GroupInfo> {
 	fun debug(): kotlin.String
 	fun partialCompareTo(other: moq.GroupInfo): kotlin.Int?
 	override fun compareTo(other: moq.GroupInfo): kotlin.Int
+	companion object {}
 }
 data class TrackDelay(val min: moq.Duration?, val max: moq.Duration?) {
 	fun debug(): kotlin.String
 	fun withMin(min: moq.Duration?): moq.TrackDelay
 	fun withMax(max: moq.Duration?): moq.TrackDelay
 	companion object {
-		@kotlin.jvm.JvmStatic fun default(): moq.TrackDelay
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("default_") fun default(): moq.TrackDelay
 	}
 }
 class TrackPosition internal constructor() : kotlin.Comparable<TrackPosition> {
@@ -530,8 +550,8 @@ class TrackPosition internal constructor() : kotlin.Comparable<TrackPosition> {
 	@get:kotlin.jvm.JvmName("getFrameGet") val frameGet: kotlin.ULong
 	@kotlin.jvm.JvmName("frameSet") fun frameSet(value: kotlin.ULong): moq.TrackPosition
 	companion object {
-		@kotlin.jvm.JvmStatic fun default(): moq.TrackPosition
-		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("new") fun new(group: kotlin.ULong, frame: kotlin.ULong): moq.TrackPosition
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("default_") fun default(): moq.TrackPosition
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("new_") fun new(group: kotlin.ULong, frame: kotlin.ULong): moq.TrackPosition
 		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("group") fun group(group: kotlin.ULong): moq.TrackPosition
 	}
 }
@@ -550,8 +570,8 @@ data class TrackRange(val start: moq.TrackAnchor, val end: moq.TrackAnchor?) : k
 	override fun compareTo(other: moq.OriginCost): kotlin.Int
 	fun value(): kotlin.ULong
 	companion object {
-		@kotlin.jvm.JvmStatic fun default(): moq.OriginCost
-		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("new") fun new(cost: kotlin.ULong): moq.OriginCost
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("default-kotlin") fun default(): moq.OriginCost
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("new_-kotlin") fun new(cost: kotlin.ULong): moq.OriginCost
 	}
 }
 @kotlin.jvm.JvmInline value class OriginPriority internal constructor(internal val bits: Long) : kotlin.Comparable<OriginPriority> {
@@ -560,13 +580,14 @@ data class TrackRange(val start: moq.TrackAnchor, val end: moq.TrackAnchor?) : k
 	override fun compareTo(other: moq.OriginPriority): kotlin.Int
 	fun value(): kotlin.Byte
 	companion object {
-		@kotlin.jvm.JvmStatic fun default(): moq.OriginPriority
-		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("new") fun new(priority: kotlin.Byte): moq.OriginPriority
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("default-kotlin") fun default(): moq.OriginPriority
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("new_-kotlin") fun new(priority: kotlin.Byte): moq.OriginPriority
 	}
 }
-data class HangCatalogAac(val profile: kotlin.UByte) {
+data class HangCatalogAac(@get:kotlin.jvm.JvmName("getProfile") val profile: kotlin.UByte) {
 	final override fun toString(): kotlin.String
 	fun debug(): kotlin.String
+	companion object {}
 }
 class HangCatalogClock internal constructor() {
 	fun debug(): kotlin.String
@@ -574,9 +595,9 @@ class HangCatalogClock internal constructor() {
 	override fun hashCode(): kotlin.Int
 	val wallGet: moq.Timestamp
 	fun wallSet(value: moq.Timestamp): moq.HangCatalogClock
-	@kotlin.jvm.JvmName("wallClock") @kotlin.jvm.Throws(HangErrorException::class) fun wallClock(pts: moq.Timestamp): moq.ClockWall
+	@kotlin.jvm.JvmName("wallClock-kotlin") @kotlin.jvm.Throws(HangErrorException::class) fun wallClock(pts: moq.Timestamp): moq.ClockWall
 	companion object {
-		@kotlin.jvm.JvmStatic @kotlin.jvm.Throws(HangErrorException::class) fun new(wall: moq.Timestamp): moq.HangCatalogClock
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("new_") @kotlin.jvm.Throws(HangErrorException::class) fun new(wall: moq.Timestamp): moq.HangCatalogClock
 	}
 }
 @kotlin.jvm.JvmInline value class HangCatalogPriorities internal constructor(internal val bits: Long) {
@@ -589,12 +610,13 @@ class HangCatalogClock internal constructor() {
 	fun audioSet(value: kotlin.Byte): moq.HangCatalogPriorities
 	val videoGet: kotlin.Byte
 	fun videoSet(value: kotlin.Byte): moq.HangCatalogPriorities
+	companion object {}
 }
-data class HangCatalogAv1(val profile: kotlin.UByte, val level: kotlin.UByte, val tier: kotlin.Int, val bitdepth: kotlin.UByte, val monoChrome: kotlin.Boolean, val chromaSubsamplingX: kotlin.Boolean, val chromaSubsamplingY: kotlin.Boolean, val chromaSamplePosition: kotlin.UByte, val colorPrimaries: kotlin.UByte, val transferCharacteristics: kotlin.UByte, val matrixCoefficients: kotlin.UByte, val fullRange: kotlin.Boolean) {
+data class HangCatalogAv1(@get:kotlin.jvm.JvmName("getProfile") val profile: kotlin.UByte, @get:kotlin.jvm.JvmName("getLevel") val level: kotlin.UByte, val tier: kotlin.Int, @get:kotlin.jvm.JvmName("getBitdepth") val bitdepth: kotlin.UByte, val monoChrome: kotlin.Boolean, val chromaSubsamplingX: kotlin.Boolean, val chromaSubsamplingY: kotlin.Boolean, @get:kotlin.jvm.JvmName("getChromaSamplePosition") val chromaSamplePosition: kotlin.UByte, @get:kotlin.jvm.JvmName("getColorPrimaries") val colorPrimaries: kotlin.UByte, @get:kotlin.jvm.JvmName("getTransferCharacteristics") val transferCharacteristics: kotlin.UByte, @get:kotlin.jvm.JvmName("getMatrixCoefficients") val matrixCoefficients: kotlin.UByte, val fullRange: kotlin.Boolean) {
 	final override fun toString(): kotlin.String
 	fun debug(): kotlin.String
 	companion object {
-		@kotlin.jvm.JvmStatic fun default(): moq.HangCatalogAv1
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("default_") fun default(): moq.HangCatalogAv1
 		@kotlin.jvm.JvmStatic val PREFIX: kotlin.String
 	}
 }
@@ -608,26 +630,30 @@ data class HangCatalogChromaticity(val x: kotlin.Double, val y: kotlin.Double) {
 	override fun equals(other: kotlin.Any?): kotlin.Boolean
 	override fun hashCode(): kotlin.Int
 }
-data class HangCatalogContentLight(val maxCll: kotlin.UShort, val maxFall: kotlin.UShort) {
+data class HangCatalogContentLight(@get:kotlin.jvm.JvmName("getMaxCll") val maxCll: kotlin.UShort, @get:kotlin.jvm.JvmName("getMaxFall") val maxFall: kotlin.UShort) {
 	fun debug(): kotlin.String
+	companion object {}
 }
-data class HangCatalogH264(val inline: kotlin.Boolean, val profile: kotlin.UByte, val constraints: kotlin.UByte, val level: kotlin.UByte) {
+data class HangCatalogH264(val inline: kotlin.Boolean, @get:kotlin.jvm.JvmName("getProfile") val profile: kotlin.UByte, @get:kotlin.jvm.JvmName("getConstraints") val constraints: kotlin.UByte, @get:kotlin.jvm.JvmName("getLevel") val level: kotlin.UByte) {
 	final override fun toString(): kotlin.String
 	fun debug(): kotlin.String
+	companion object {}
 }
-data class HangCatalogH265(val inBand: kotlin.Boolean, val profileSpace: kotlin.UByte, val profileIdc: kotlin.UByte, val profileCompatibilityFlags: ArrayU8x4, val tierFlag: kotlin.Boolean, val levelIdc: kotlin.UByte, val constraintFlags: ArrayU8x6) {
+data class HangCatalogH265(val inBand: kotlin.Boolean, @get:kotlin.jvm.JvmName("getProfileSpace") val profileSpace: kotlin.UByte, @get:kotlin.jvm.JvmName("getProfileIdc") val profileIdc: kotlin.UByte, val profileCompatibilityFlags: ArrayU8x4, val tierFlag: kotlin.Boolean, @get:kotlin.jvm.JvmName("getLevelIdc") val levelIdc: kotlin.UByte, val constraintFlags: ArrayU8x6) {
 	final override fun toString(): kotlin.String
 	fun debug(): kotlin.String
+	companion object {}
 }
-data class HangCatalogVp9(val profile: kotlin.UByte, val level: kotlin.UByte, val bitDepth: kotlin.UByte, val chromaSubsampling: kotlin.UByte, val colorPrimaries: kotlin.UByte, val transferCharacteristics: kotlin.UByte, val matrixCoefficients: kotlin.UByte, val fullRange: kotlin.Boolean) {
+data class HangCatalogVp9(@get:kotlin.jvm.JvmName("getProfile") val profile: kotlin.UByte, @get:kotlin.jvm.JvmName("getLevel") val level: kotlin.UByte, @get:kotlin.jvm.JvmName("getBitDepth") val bitDepth: kotlin.UByte, @get:kotlin.jvm.JvmName("getChromaSubsampling") val chromaSubsampling: kotlin.UByte, @get:kotlin.jvm.JvmName("getColorPrimaries") val colorPrimaries: kotlin.UByte, @get:kotlin.jvm.JvmName("getTransferCharacteristics") val transferCharacteristics: kotlin.UByte, @get:kotlin.jvm.JvmName("getMatrixCoefficients") val matrixCoefficients: kotlin.UByte, val fullRange: kotlin.Boolean) {
 	final override fun toString(): kotlin.String
 	fun debug(): kotlin.String
 	companion object {
-		@kotlin.jvm.JvmStatic fun default(): moq.HangCatalogVp9
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("default_") fun default(): moq.HangCatalogVp9
 	}
 }
-data class HangCatalogDisplay(val width: kotlin.UInt, val height: kotlin.UInt) {
+data class HangCatalogDisplay(@get:kotlin.jvm.JvmName("getWidth") val width: kotlin.UInt, @get:kotlin.jvm.JvmName("getHeight") val height: kotlin.UInt) {
 	fun debug(): kotlin.String
+	companion object {}
 }
 data class HangContainerFrame(val timestamp: moq.Timestamp, val payload: moq.Bytes) {
 	fun debug(): kotlin.String
@@ -652,11 +678,11 @@ data class MuxContainerPlayout(val delay: moq.TrackDelay, val warmup: moq.Durati
 	fun consumerLegacyWire(track: moq.TrackSubscriber, format: moq.MuxContainerLegacyWire): moq.MuxContainerConsumerLegacyWire
 	fun consumerLocWire(track: moq.TrackSubscriber, format: moq.MuxContainerLocWire): moq.MuxContainerConsumerLocWire
 	companion object {
-		@kotlin.jvm.JvmStatic fun default(): moq.MuxContainerPlayout
-		@kotlin.jvm.JvmStatic fun new(delay: moq.TrackDelay, warmup: moq.Duration): moq.MuxContainerPlayout
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("default_") fun default(): moq.MuxContainerPlayout
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("new_") fun new(delay: moq.TrackDelay, warmup: moq.Duration): moq.MuxContainerPlayout
 	}
 }
-data class MuxCodecFlacConfig(val minBlockSize: kotlin.UShort, val maxBlockSize: kotlin.UShort, val minFrameSize: kotlin.UInt, val maxFrameSize: kotlin.UInt, val sampleRate: kotlin.UInt, val channelCount: kotlin.UInt, val bitsPerSample: kotlin.UInt, val totalSamples: kotlin.ULong, val md5: ArrayU8x16) {
+data class MuxCodecFlacConfig(@get:kotlin.jvm.JvmName("getMinBlockSize") val minBlockSize: kotlin.UShort, @get:kotlin.jvm.JvmName("getMaxBlockSize") val maxBlockSize: kotlin.UShort, @get:kotlin.jvm.JvmName("getMinFrameSize") val minFrameSize: kotlin.UInt, @get:kotlin.jvm.JvmName("getMaxFrameSize") val maxFrameSize: kotlin.UInt, @get:kotlin.jvm.JvmName("getSampleRate") val sampleRate: kotlin.UInt, @get:kotlin.jvm.JvmName("getChannelCount") val channelCount: kotlin.UInt, @get:kotlin.jvm.JvmName("getBitsPerSample") val bitsPerSample: kotlin.UInt, @get:kotlin.jvm.JvmName("getTotalSamples") val totalSamples: kotlin.ULong, val md5: ArrayU8x16) {
 	fun debug(): kotlin.String
 	fun encodeStreamInfo(): moq.Bytes
 	fun description(): moq.Bytes
@@ -665,16 +691,17 @@ data class MuxCodecFlacConfig(val minBlockSize: kotlin.UShort, val maxBlockSize:
 		@kotlin.jvm.JvmStatic @kotlin.jvm.Throws(MuxCodecFlacErrorException::class) fun parse(buf: moq.Mut<moq.Bytes>): moq.MuxCodecFlacConfig
 	}
 }
-data class MuxCodecH264Sps(val profile: kotlin.UByte, val constraints: kotlin.UByte, val level: kotlin.UByte, val codedWidth: kotlin.UInt, val codedHeight: kotlin.UInt) {
+data class MuxCodecH264Sps(@get:kotlin.jvm.JvmName("getProfile") val profile: kotlin.UByte, @get:kotlin.jvm.JvmName("getConstraints") val constraints: kotlin.UByte, @get:kotlin.jvm.JvmName("getLevel") val level: kotlin.UByte, @get:kotlin.jvm.JvmName("getCodedWidth") val codedWidth: kotlin.UInt, @get:kotlin.jvm.JvmName("getCodedHeight") val codedHeight: kotlin.UInt) {
 	fun debug(): kotlin.String
 	companion object {
 		@kotlin.jvm.JvmStatic @kotlin.jvm.Throws(MuxCodecH264ErrorException::class) fun parse(nal: moq.Bytes): moq.MuxCodecH264Sps
 	}
 }
-data class MuxCodecH265VideoSignal(val primaries: kotlin.UByte, val transfer: kotlin.UByte, val matrix: kotlin.UByte, val fullRange: kotlin.Boolean) {
+data class MuxCodecH265VideoSignal(@get:kotlin.jvm.JvmName("getPrimaries") val primaries: kotlin.UByte, @get:kotlin.jvm.JvmName("getTransfer") val transfer: kotlin.UByte, @get:kotlin.jvm.JvmName("getMatrix") val matrix: kotlin.UByte, val fullRange: kotlin.Boolean) {
 	fun debug(): kotlin.String
+	companion object {}
 }
-data class MuxCodecMp3Config(val sampleRate: kotlin.UInt, val channelCount: kotlin.UInt) {
+data class MuxCodecMp3Config(@get:kotlin.jvm.JvmName("getSampleRate") val sampleRate: kotlin.UInt, @get:kotlin.jvm.JvmName("getChannelCount") val channelCount: kotlin.UInt) {
 	companion object {
 		@kotlin.jvm.JvmStatic @kotlin.jvm.Throws(MuxCodecMp3ErrorException::class) fun parse(data: moq.Bytes): moq.MuxCodecMp3Config
 	}
@@ -693,11 +720,13 @@ data class MuxContainerFmp4Fragment(val data: moq.Bytes, val independent: kotlin
 }
 data class MuxContainerLegacyWire(val _0: moq.MuxContainerKind)
 data class MuxContainerLocWire(val _0: moq.MuxContainerKind)
-data class MuxContainerTsDescriptor(val tag: kotlin.UByte, val data: moq.Bytes) {
+data class MuxContainerTsDescriptor(@get:kotlin.jvm.JvmName("getTag") val tag: kotlin.UByte, val data: moq.Bytes) {
 	fun debug(): kotlin.String
+	companion object {}
 }
-data class RustlsClientTicketRequest(val newSessionCount: kotlin.UByte, val resumptionCount: kotlin.UByte) {
+data class RustlsClientTicketRequest(@get:kotlin.jvm.JvmName("getNewSessionCount") val newSessionCount: kotlin.UByte, @get:kotlin.jvm.JvmName("getResumptionCount") val resumptionCount: kotlin.UByte) {
 	fun debug(): kotlin.String
+	companion object {}
 }
 data class RustlsCryptoHpkeHpkePublicKey(val _0: moq.Bytes) {
 	fun debug(): kotlin.String
@@ -733,8 +762,12 @@ sealed class SessionError {
 	data object Timeout : SessionError()
 	data object Version : SessionError()
 	data object MalformedAuthToken : SessionError()
-	data class App(val _0: kotlin.UShort) : SessionError()
-	data class Unknown(val _0: kotlin.UInt) : SessionError()
+	data class App(@get:kotlin.jvm.JvmName("get_0") val _0: kotlin.UShort) : SessionError() {
+		companion object {}
+	}
+	data class Unknown(@get:kotlin.jvm.JvmName("get_0") val _0: kotlin.UInt) : SessionError() {
+		companion object {}
+	}
 	data object Unsupported : SessionError()
 	final override fun toString(): kotlin.String
 	fun debug(): kotlin.String
@@ -761,8 +794,12 @@ sealed class StreamError {
 	data object GroupTooLarge : StreamError()
 	data object TimestampMismatch : StreamError()
 	data object Unauthorized : StreamError()
-	data class App(val _0: kotlin.UShort) : StreamError()
-	data class Unknown(val _0: kotlin.UInt) : StreamError()
+	data class App(@get:kotlin.jvm.JvmName("get_0") val _0: kotlin.UShort) : StreamError() {
+		companion object {}
+	}
+	data class Unknown(@get:kotlin.jvm.JvmName("get_0") val _0: kotlin.UInt) : StreamError() {
+		companion object {}
+	}
 	final override fun toString(): kotlin.String
 	fun debug(): kotlin.String
 	@kotlin.jvm.JvmName("toCode") fun toCode(): kotlin.UInt
@@ -797,7 +834,7 @@ enum class ClockMissedTickBehavior(internal val value: Int) {
 	SKIP(2);
 	fun debug(): kotlin.String
 	companion object {
-		@kotlin.jvm.JvmStatic fun default(): moq.ClockMissedTickBehavior
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("default_") fun default(): moq.ClockMissedTickBehavior
 	}
 }
 enum class TokioConnectError(internal val value: Int) {
@@ -813,7 +850,7 @@ enum class TokioRestart(internal val value: Int) {
 	HANDOFF(1);
 	fun debug(): kotlin.String
 	companion object {
-		@kotlin.jvm.JvmStatic fun default(): moq.TokioRestart
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("default_") fun default(): moq.TokioRestart
 	}
 }
 enum class TokioStatus(internal val value: Int) {
@@ -871,7 +908,7 @@ enum class ReconnectRedirect(internal val value: Int) {
 	IGNORE(2);
 	fun debug(): kotlin.String
 	companion object {
-		@kotlin.jvm.JvmStatic fun default(): moq.ReconnectRedirect
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("default_") fun default(): moq.ReconnectRedirect
 	}
 }
 enum class StatsRole(internal val value: Int) {
@@ -971,7 +1008,7 @@ enum class TransportCloseKind(internal val value: Int) {
 	EVICTED(3);
 	fun debug(): kotlin.String
 	companion object {
-		@kotlin.jvm.JvmStatic fun default(): moq.TransportCloseKind
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("default_") fun default(): moq.TransportCloseKind
 	}
 }
 enum class BroadcastKind(internal val value: Int) {
@@ -985,13 +1022,17 @@ enum class TrackCompression(internal val value: Int) {
 	DEFLATE(1);
 	fun debug(): kotlin.String
 	companion object {
-		@kotlin.jvm.JvmStatic fun default(): moq.TrackCompression
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("default_") fun default(): moq.TrackCompression
 	}
 }
 sealed class TrackAnchor : kotlin.Comparable<TrackAnchor> {
-	data class Relative(val _0: kotlin.ULong) : TrackAnchor()
+	data class Relative(@get:kotlin.jvm.JvmName("get_0") val _0: kotlin.ULong) : TrackAnchor() {
+		companion object {}
+	}
 	data object Oldest : TrackAnchor()
-	data class Time(val _0: kotlin.ULong) : TrackAnchor()
+	data class Time(@get:kotlin.jvm.JvmName("get_0") val _0: kotlin.ULong) : TrackAnchor() {
+		companion object {}
+	}
 	fun debug(): kotlin.String
 	fun partialCompareTo(other: moq.TrackAnchor): kotlin.Int?
 	override fun compareTo(other: moq.TrackAnchor): kotlin.Int
@@ -1001,7 +1042,7 @@ enum class TrackOrder(internal val value: Int) {
 	DESCENDING(1);
 	fun debug(): kotlin.String
 	companion object {
-		@kotlin.jvm.JvmStatic fun default(): moq.TrackOrder
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("default_") fun default(): moq.TrackOrder
 	}
 }
 enum class OriginLink(internal val value: Int) {
@@ -1010,7 +1051,7 @@ enum class OriginLink(internal val value: Int) {
 	UPSTREAM(2);
 	fun debug(): kotlin.String
 	companion object {
-		@kotlin.jvm.JvmStatic fun default(): moq.OriginLink
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("default_") fun default(): moq.OriginLink
 	}
 }
 enum class OriginRouteKind(internal val value: Int) {
@@ -1069,7 +1110,7 @@ sealed class HangCatalogTextFormat {
 	final override fun toString(): kotlin.String
 	fun debug(): kotlin.String
 	companion object {
-		@kotlin.jvm.JvmStatic fun default(): moq.HangCatalogTextFormat
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("default_") fun default(): moq.HangCatalogTextFormat
 	}
 }
 sealed class HangCatalogTextRole {
@@ -1079,7 +1120,7 @@ sealed class HangCatalogTextRole {
 	final override fun toString(): kotlin.String
 	fun debug(): kotlin.String
 	companion object {
-		@kotlin.jvm.JvmStatic fun default(): moq.HangCatalogTextRole
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("default_") fun default(): moq.HangCatalogTextRole
 	}
 }
 sealed class HangCatalogVideoCodec {
@@ -1123,7 +1164,7 @@ enum class MuxCatalogCatalogFormat(internal val value: Int) {
 	fun debug(): kotlin.String
 	fun extension(): kotlin.String
 	companion object {
-		@kotlin.jvm.JvmStatic fun default(): moq.MuxCatalogCatalogFormat
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("default_") fun default(): moq.MuxCatalogCatalogFormat
 		@kotlin.jvm.JvmStatic val DEFAULT: moq.MuxCatalogCatalogFormat
 		@kotlin.jvm.JvmStatic fun detect(name: kotlin.String): moq.MuxCatalogCatalogFormat?
 	}
@@ -1136,15 +1177,25 @@ enum class MuxContainerKind(internal val value: Int) {
 	companion object {}
 }
 sealed class MuxContainerRead {
-	data class Frame(val group: kotlin.ULong, val frame: moq.MuxContainerFrame) : MuxContainerRead()
+	data class Frame(@get:kotlin.jvm.JvmName("getGroup") val group: kotlin.ULong, val frame: moq.MuxContainerFrame) : MuxContainerRead() {
+		companion object {}
+	}
 	data class Gap(val timestamp: moq.Timestamp, val duration: moq.Timestamp) : MuxContainerRead()
-	data class End(val group: kotlin.ULong, val end: moq.Timestamp) : MuxContainerRead()
+	data class End(@get:kotlin.jvm.JvmName("getGroup") val group: kotlin.ULong, val end: moq.Timestamp) : MuxContainerRead() {
+		companion object {}
+	}
 	fun debug(): kotlin.String
 }
 sealed class MuxContainerReorderError {
-	data class Depth(val reorder: kotlin.UByte, val max: kotlin.UInt, val codec: kotlin.String) : MuxContainerReorderError()
-	data class Deepened(val declared: kotlin.UByte, val reorder: kotlin.UByte) : MuxContainerReorderError()
-	data class Reordered(val _0: kotlin.ULong) : MuxContainerReorderError()
+	data class Depth(@get:kotlin.jvm.JvmName("getReorder") val reorder: kotlin.UByte, @get:kotlin.jvm.JvmName("getMax") val max: kotlin.UInt, val codec: kotlin.String) : MuxContainerReorderError() {
+		companion object {}
+	}
+	data class Deepened(@get:kotlin.jvm.JvmName("getDeclared") val declared: kotlin.UByte, @get:kotlin.jvm.JvmName("getReorder") val reorder: kotlin.UByte) : MuxContainerReorderError() {
+		companion object {}
+	}
+	data class Reordered(@get:kotlin.jvm.JvmName("get_0") val _0: kotlin.ULong) : MuxContainerReorderError() {
+		companion object {}
+	}
 	data object Presentation : MuxContainerReorderError()
 	data object Tie : MuxContainerReorderError()
 	data object Undrained : MuxContainerReorderError()
@@ -1198,21 +1249,31 @@ enum class MuxImportVideoFormat(internal val value: Int) {
 	companion object {}
 }
 sealed class MuxRateTarget {
-	data class Enabled(val _0: moq.BandwidthRate) : MuxRateTarget()
+	data class Enabled(@get:kotlin.jvm.JvmName("get_0-kotlin") val _0: moq.BandwidthRate) : MuxRateTarget() {
+		companion object {}
+	}
 	data object Disabled : MuxRateTarget()
 	fun debug(): kotlin.String
 }
 sealed class TokioListenBind {
 	data class Addr(val _0: moq.SocketAddr) : TokioListenBind()
-	data class Host(val _0: kotlin.String, val _1: kotlin.UShort) : TokioListenBind()
+	data class Host(val _0: kotlin.String, @get:kotlin.jvm.JvmName("get_1") val _1: kotlin.UShort) : TokioListenBind() {
+		companion object {}
+	}
 	final override fun toString(): kotlin.String
 	fun debug(): kotlin.String
 	@kotlin.jvm.Throws(StringException::class) fun resolve(): moq.SocketAddr
 }
 sealed class TransportMemoryError {
-	data class Session(val code: kotlin.UInt, val reason: kotlin.String) : TransportMemoryError()
-	data class Reset(val _0: kotlin.UInt) : TransportMemoryError()
-	data class Stopped(val _0: kotlin.UInt) : TransportMemoryError()
+	data class Session(@get:kotlin.jvm.JvmName("getCode") val code: kotlin.UInt, val reason: kotlin.String) : TransportMemoryError() {
+		companion object {}
+	}
+	data class Reset(@get:kotlin.jvm.JvmName("get_0") val _0: kotlin.UInt) : TransportMemoryError() {
+		companion object {}
+	}
+	data class Stopped(@get:kotlin.jvm.JvmName("get_0") val _0: kotlin.UInt) : TransportMemoryError() {
+		companion object {}
+	}
 	data object Closed : TransportMemoryError()
 	final override fun toString(): kotlin.String
 	fun debug(): kotlin.String
@@ -1270,11 +1331,17 @@ enum class MuxCodecMp3Error(internal val value: Int) {
 sealed class MuxCodecOpusError {
 	data object HeadTooShort : MuxCodecOpusError()
 	data object InvalidSignature : MuxCodecOpusError()
-	data class UnsupportedVersion(val _0: kotlin.UByte) : MuxCodecOpusError()
-	data class UnsupportedChannelCount(val _0: kotlin.UInt) : MuxCodecOpusError()
+	data class UnsupportedVersion(@get:kotlin.jvm.JvmName("get_0") val _0: kotlin.UByte) : MuxCodecOpusError() {
+		companion object {}
+	}
+	data class UnsupportedChannelCount(@get:kotlin.jvm.JvmName("get_0") val _0: kotlin.UInt) : MuxCodecOpusError() {
+		companion object {}
+	}
 	data object MappingTableTooShort : MuxCodecOpusError()
 	data object InvalidMappingTable : MuxCodecOpusError()
-	data class UnsupportedMappingFamily(val _0: kotlin.UByte) : MuxCodecOpusError()
+	data class UnsupportedMappingFamily(@get:kotlin.jvm.JvmName("get_0") val _0: kotlin.UByte) : MuxCodecOpusError() {
+		companion object {}
+	}
 	final override fun toString(): kotlin.String
 	fun debug(): kotlin.String
 }
@@ -1309,13 +1376,15 @@ enum class MuxContainerTsFraming(internal val value: Int) {
 	SECTION(0);
 	fun debug(): kotlin.String
 	companion object {
-		@kotlin.jvm.JvmStatic fun default(): moq.MuxContainerTsFraming
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("default_") fun default(): moq.MuxContainerTsFraming
 	}
 }
 sealed class MuxContainerTsStep {
 	data class Rewind(val by: moq.Duration, val flagged: kotlin.Boolean) : MuxContainerTsStep()
 	data class Leap(val by: moq.Duration) : MuxContainerTsStep()
-	data class Identity(val transportStreamId: kotlin.UShort, val programNumber: kotlin.UShort) : MuxContainerTsStep()
+	data class Identity(@get:kotlin.jvm.JvmName("getTransportStreamId") val transportStreamId: kotlin.UShort, @get:kotlin.jvm.JvmName("getProgramNumber") val programNumber: kotlin.UShort) : MuxContainerTsStep() {
+		companion object {}
+	}
 	final override fun toString(): kotlin.String
 	fun debug(): kotlin.String
 }
@@ -1325,10 +1394,18 @@ sealed class MuxCodecAacAdtsError {
 	data object SampleRate : MuxCodecAacAdtsError()
 	data object FrameLength : MuxCodecAacAdtsError()
 	data object PacketLength : MuxCodecAacAdtsError()
-	data class ObjectType(val _0: kotlin.UByte) : MuxCodecAacAdtsError()
-	data class Rate(val _0: kotlin.UInt) : MuxCodecAacAdtsError()
-	data class ChannelConfig(val _0: kotlin.UByte) : MuxCodecAacAdtsError()
-	data class TooLarge(val _0: kotlin.ULong) : MuxCodecAacAdtsError()
+	data class ObjectType(@get:kotlin.jvm.JvmName("get_0") val _0: kotlin.UByte) : MuxCodecAacAdtsError() {
+		companion object {}
+	}
+	data class Rate(@get:kotlin.jvm.JvmName("get_0") val _0: kotlin.UInt) : MuxCodecAacAdtsError() {
+		companion object {}
+	}
+	data class ChannelConfig(@get:kotlin.jvm.JvmName("get_0") val _0: kotlin.UByte) : MuxCodecAacAdtsError() {
+		companion object {}
+	}
+	data class TooLarge(@get:kotlin.jvm.JvmName("get_0") val _0: kotlin.ULong) : MuxCodecAacAdtsError() {
+		companion object {}
+	}
 	final override fun toString(): kotlin.String
 	fun debug(): kotlin.String
 }
@@ -1338,7 +1415,7 @@ enum class MuxContainerTsStatsClass(internal val value: Int) {
 	DATA(0);
 	fun debug(): kotlin.String
 	companion object {
-		@kotlin.jvm.JvmStatic fun default(): moq.MuxContainerTsStatsClass
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("default_") fun default(): moq.MuxContainerTsStatsClass
 	}
 }
 enum class MoqTokioQuicCongestionControl(internal val value: Int) {
@@ -1347,7 +1424,7 @@ enum class MoqTokioQuicCongestionControl(internal val value: Int) {
 	UNLIMITED(2);
 	fun debug(): kotlin.String
 	companion object {
-		@kotlin.jvm.JvmStatic fun default(): moq.MoqTokioQuicCongestionControl
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("default_") fun default(): moq.MoqTokioQuicCongestionControl
 	}
 }
 enum class MoqTokioAcceptFailure(internal val value: Int) {
@@ -1367,12 +1444,14 @@ enum class MoqTokioRedirect(internal val value: Int) {
 	IGNORE(2);
 	fun debug(): kotlin.String
 	companion object {
-		@kotlin.jvm.JvmStatic fun default(): moq.MoqTokioRedirect
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("default_") fun default(): moq.MoqTokioRedirect
 	}
 }
 sealed class MoqQuicRate {
 	data object Unlimited : MoqQuicRate()
-	data class BytesPerSecond(val _0: kotlin.ULong) : MoqQuicRate()
+	data class BytesPerSecond(@get:kotlin.jvm.JvmName("get_0") val _0: kotlin.ULong) : MoqQuicRate() {
+		companion object {}
+	}
 	fun debug(): kotlin.String
 }
 sealed class MoqTokioConnectError {
@@ -1392,7 +1471,9 @@ sealed class RustlsProtocolVersion {
 	data object DtlSv10 : RustlsProtocolVersion()
 	data object DtlSv12 : RustlsProtocolVersion()
 	data object DtlSv13 : RustlsProtocolVersion()
-	data class Unknown(val _0: kotlin.UShort) : RustlsProtocolVersion()
+	data class Unknown(@get:kotlin.jvm.JvmName("get_0") val _0: kotlin.UShort) : RustlsProtocolVersion() {
+		companion object {}
+	}
 	fun debug(): kotlin.String
 	fun toArray(): ArrayU8x2
 	fun asStr(): kotlin.String?
@@ -1452,8 +1533,8 @@ class Park internal constructor(raw: Long, lent: Boolean = false) : AutoCloseabl
 	fun clone(): moq.Park
 	fun hold(cx: moq.Waker): moq.Waiter
 	companion object {
-		@kotlin.jvm.JvmStatic fun default(): moq.Park
-		@kotlin.jvm.JvmStatic fun new(waiter: moq.Waiter): moq.Park
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("default_") fun default(): moq.Park
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("new_") fun new(waiter: moq.Waiter): moq.Park
 	}
 }
 class Waiter internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -1464,7 +1545,7 @@ class Waiter internal constructor(raw: Long, lent: Boolean = false) : AutoClosea
 	fun context(): moq.Waker
 	fun batch(poll: () -> kotlin.String): kotlin.String
 	companion object {
-		@kotlin.jvm.JvmStatic fun new(waker: moq.Waker): moq.Waiter
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("new_") fun new(waker: moq.Waker): moq.Waiter
 		@kotlin.jvm.JvmStatic fun noop(): moq.Waiter
 		@kotlin.jvm.JvmStatic suspend fun pollFuture(future: suspend () -> kotlin.Unit)
 	}
@@ -1477,8 +1558,8 @@ class WaiterList internal constructor(raw: Long, lent: Boolean = false) : AutoCl
 	fun isEmpty(): kotlin.Boolean
 	fun wake()
 	companion object {
-		@kotlin.jvm.JvmStatic fun default(): moq.WaiterList
-		@kotlin.jvm.JvmStatic fun new(): moq.WaiterList
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("default_") fun default(): moq.WaiterList
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("new_") fun new(): moq.WaiterList
 	}
 }
 class DecodeError internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -1490,7 +1571,7 @@ class DecodeError internal constructor(raw: Long, lent: Boolean = false) : AutoC
 class Driver internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
 	fun debug(): kotlin.String
-	@kotlin.jvm.JvmName("poll-opaque") @kotlin.jvm.Throws(ErrorException::class) fun poll(now: moq.ClockInstant, waiter: moq.Waiter): moq.ClockInstant?
+	@kotlin.jvm.JvmName("poll-kotlin") @kotlin.jvm.Throws(ErrorException::class) fun poll(now: moq.ClockInstant, waiter: moq.Waiter): moq.ClockInstant?
 }
 class Instance internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable, kotlin.Comparable<Instance> {
 	override fun close()
@@ -1527,8 +1608,8 @@ class Path internal constructor(raw: Long, lent: Boolean = false) : AutoCloseabl
 	fun tryResolve(rel: moq.PathRelative): moq.Path?
 	fun relative(base: moq.Path): moq.PathRelative?
 	companion object {
-		@kotlin.jvm.JvmStatic fun default(): moq.Path
-		@kotlin.jvm.JvmStatic @kotlin.jvm.Throws(PathErrorException::class) fun new(s: kotlin.String): moq.Path
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("default_") fun default(): moq.Path
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("new_") @kotlin.jvm.Throws(PathErrorException::class) fun new(s: kotlin.String): moq.Path
 		@kotlin.jvm.JvmStatic fun fromStatic(s: kotlin.String): moq.Path
 		@kotlin.jvm.JvmStatic fun empty(): moq.Path
 	}
@@ -1557,8 +1638,8 @@ class Pattern internal constructor(raw: Long, lent: Boolean = false) : AutoClose
 	fun captures(matched: moq.Pattern): kotlin.collections.List<moq.Pattern>?
 	@kotlin.jvm.Throws(InvalidPatternException::class) fun rooted(root: kotlin.String): moq.Pattern
 	companion object {
-		@kotlin.jvm.JvmStatic fun default(): moq.Pattern
-		@kotlin.jvm.JvmStatic @kotlin.jvm.Throws(InvalidPatternException::class) fun new(segments: kotlin.collections.List<moq.Segment>): moq.Pattern
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("default_") fun default(): moq.Pattern
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("new_") @kotlin.jvm.Throws(InvalidPatternException::class) fun new(segments: kotlin.collections.List<moq.Segment>): moq.Pattern
 		@kotlin.jvm.JvmStatic fun all(): moq.Pattern
 		@kotlin.jvm.JvmStatic @kotlin.jvm.Throws(InvalidPatternException::class) fun literal(path: kotlin.String): moq.Pattern
 		@kotlin.jvm.JvmStatic @kotlin.jvm.Throws(InvalidPatternException::class) fun subtree(path: kotlin.String): moq.Pattern
@@ -1582,8 +1663,8 @@ class Patterns internal constructor(raw: Long, lent: Boolean = false) : AutoClos
 	@kotlin.jvm.JvmName("len") fun len(): kotlin.ULong
 	fun isEmpty(): kotlin.Boolean
 	companion object {
-		@kotlin.jvm.JvmStatic fun default(): moq.Patterns
-		@kotlin.jvm.JvmStatic fun new(): moq.Patterns
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("default_") fun default(): moq.Patterns
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("new_") fun new(): moq.Patterns
 	}
 }
 class Server internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -1594,19 +1675,19 @@ class Server internal constructor(raw: Long, lent: Boolean = false) : AutoClosea
 	fun withSubscriber(subscribe: moq.OriginProducer): moq.Server
 	fun withAllocator(allocator: moq.BandwidthAllocator): moq.Server
 	fun withStats(stats: moq.StatsSession): moq.Server
-	@kotlin.jvm.JvmName("withLimits-opaque") fun withLimits(limits: moq.SessionLimits): moq.Server
+	@kotlin.jvm.JvmName("withLimits-kotlin") fun withLimits(limits: moq.SessionLimits): moq.Server
 	fun withVersions(versions: moq.Versions): moq.Server
 	fun withImplementation(implementation: kotlin.String): moq.Server
 	fun withTimeout(timeout: moq.Duration?): moq.Server
-	@kotlin.jvm.JvmName("deadline-opaque") fun deadline(arrived: moq.ClockInstant): moq.ClockInstant?
+	@kotlin.jvm.JvmName("deadline-kotlin") fun deadline(arrived: moq.ClockInstant): moq.ClockInstant?
 	@kotlin.jvm.JvmName("withReceiveWindow") fun withReceiveWindow(window: kotlin.ULong): moq.Server
-	@kotlin.jvm.JvmName("acceptMemorySession-opaque") @kotlin.jvm.Throws(ErrorException::class) suspend fun acceptMemorySession(now: moq.ClockInstant, session: moq.TransportMemorySession): kotlin.Pair<moq.Session, moq.Driver>
-	@kotlin.jvm.JvmName("acceptQmuxSession-opaque") @kotlin.jvm.Throws(ErrorException::class) suspend fun acceptQmuxSession(now: moq.ClockInstant, session: moq.QmuxSession): kotlin.Pair<moq.Session, moq.Driver>
-	@kotlin.jvm.JvmName("handshakeMemorySession-opaque") @kotlin.jvm.Throws(ErrorException::class) suspend fun handshakeMemorySession(now: moq.ClockInstant, session: moq.TransportMemorySession): moq.ServerHandshake
-	@kotlin.jvm.JvmName("handshakeQmuxSession-opaque") @kotlin.jvm.Throws(ErrorException::class) suspend fun handshakeQmuxSession(now: moq.ClockInstant, session: moq.QmuxSession): moq.ServerHandshake
+	@kotlin.jvm.JvmName("acceptMemorySession-kotlin") @kotlin.jvm.Throws(ErrorException::class) suspend fun acceptMemorySession(now: moq.ClockInstant, session: moq.TransportMemorySession): kotlin.Pair<moq.Session, moq.Driver>
+	@kotlin.jvm.JvmName("acceptQmuxSession-kotlin") @kotlin.jvm.Throws(ErrorException::class) suspend fun acceptQmuxSession(now: moq.ClockInstant, session: moq.QmuxSession): kotlin.Pair<moq.Session, moq.Driver>
+	@kotlin.jvm.JvmName("handshakeMemorySession-kotlin") @kotlin.jvm.Throws(ErrorException::class) suspend fun handshakeMemorySession(now: moq.ClockInstant, session: moq.TransportMemorySession): moq.ServerHandshake
+	@kotlin.jvm.JvmName("handshakeQmuxSession-kotlin") @kotlin.jvm.Throws(ErrorException::class) suspend fun handshakeQmuxSession(now: moq.ClockInstant, session: moq.QmuxSession): moq.ServerHandshake
 	companion object {
-		@kotlin.jvm.JvmStatic fun default(): moq.Server
-		@kotlin.jvm.JvmStatic fun new(): moq.Server
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("default_") fun default(): moq.Server
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("new_") fun new(): moq.Server
 	}
 }
 class Session internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -1636,7 +1717,7 @@ class Client internal constructor(raw: Long, lent: Boolean = false) : AutoClosea
 	fun withPublisherConsumer(publish: moq.OriginConsumer): moq.Client
 	fun withSubscriber(subscribe: moq.OriginProducer): moq.Client
 	fun withStats(stats: moq.StatsSession): moq.Client
-	@kotlin.jvm.JvmName("withLimits-opaque") fun withLimits(limits: moq.SessionLimits): moq.Client
+	@kotlin.jvm.JvmName("withLimits-kotlin") fun withLimits(limits: moq.SessionLimits): moq.Client
 	fun withAllocator(allocator: moq.BandwidthAllocator): moq.Client
 	fun withViewers(viewers: moq.BandwidthViewers): moq.Client
 	fun withVersions(versions: moq.Versions): moq.Client
@@ -1645,13 +1726,13 @@ class Client internal constructor(raw: Long, lent: Boolean = false) : AutoClosea
 	fun withToken(token: moq.SetupToken): moq.Client
 	fun withAuth(auth: moq.AuthHandle): moq.Client
 	fun withImplementation(implementation: kotlin.String): moq.Client
-	@kotlin.jvm.JvmName("withCost-opaque") fun withCost(cost: moq.OriginCost): moq.Client
+	@kotlin.jvm.JvmName("withCost-kotlin") fun withCost(cost: moq.OriginCost): moq.Client
 	@kotlin.jvm.JvmName("withPeerNode") fun withPeerNode(node: kotlin.ULong): moq.Client
-	@kotlin.jvm.JvmName("connectMemorySession-opaque") @kotlin.jvm.Throws(ErrorException::class) suspend fun connectMemorySession(now: moq.ClockInstant, session: moq.TransportMemorySession): kotlin.Pair<moq.Session, moq.Driver>
-	@kotlin.jvm.JvmName("connectQmuxSession-opaque") @kotlin.jvm.Throws(ErrorException::class) suspend fun connectQmuxSession(now: moq.ClockInstant, session: moq.QmuxSession): kotlin.Pair<moq.Session, moq.Driver>
+	@kotlin.jvm.JvmName("connectMemorySession-kotlin") @kotlin.jvm.Throws(ErrorException::class) suspend fun connectMemorySession(now: moq.ClockInstant, session: moq.TransportMemorySession): kotlin.Pair<moq.Session, moq.Driver>
+	@kotlin.jvm.JvmName("connectQmuxSession-kotlin") @kotlin.jvm.Throws(ErrorException::class) suspend fun connectQmuxSession(now: moq.ClockInstant, session: moq.QmuxSession): kotlin.Pair<moq.Session, moq.Driver>
 	companion object {
-		@kotlin.jvm.JvmStatic fun default(): moq.Client
-		@kotlin.jvm.JvmStatic fun new(): moq.Client
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("default_") fun default(): moq.Client
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("new_") fun new(): moq.Client
 	}
 }
 class Error internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -1692,7 +1773,7 @@ class Versions internal constructor(raw: Long, lent: Boolean = false) : AutoClos
 	fun contains(version: moq.Version): kotlin.Boolean
 	fun iter(): kotlin.collections.List<moq.Version>
 	companion object {
-		@kotlin.jvm.JvmStatic fun default(): moq.Versions
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("default_") fun default(): moq.Versions
 		@kotlin.jvm.JvmStatic fun all(): moq.Versions
 	}
 }
@@ -1711,8 +1792,8 @@ class ClockClock internal constructor(raw: Long, lent: Boolean = false) : AutoCl
 	fun clone(): moq.ClockClock
 	override fun equals(other: kotlin.Any?): kotlin.Boolean
 	override fun hashCode(): kotlin.Int
-	@kotlin.jvm.JvmName("now") fun now(): moq.ClockInstant
-	@kotlin.jvm.JvmName("wall") fun wall(): moq.ClockWall
+	@kotlin.jvm.JvmName("now-kotlin") fun now(): moq.ClockInstant
+	@kotlin.jvm.JvmName("wall-kotlin") fun wall(): moq.ClockWall
 	companion object {
 		@kotlin.jvm.JvmStatic fun current(): moq.ClockClock
 	}
@@ -1720,24 +1801,24 @@ class ClockClock internal constructor(raw: Long, lent: Boolean = false) : AutoCl
 class ClockDeadline internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
 	fun debug(): kotlin.String
-	@kotlin.jvm.JvmName("set-opaque") fun set(at: moq.ClockInstant?)
+	@kotlin.jvm.JvmName("set") fun set(at: moq.ClockInstant?)
 	@kotlin.jvm.JvmName("deadline") fun deadline(): moq.ClockInstant?
 	suspend fun poll()
 	companion object {
-		@kotlin.jvm.JvmStatic fun new(deadlines: moq.ClockDeadlines): moq.ClockDeadline
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("new_") fun new(deadlines: moq.ClockDeadlines): moq.ClockDeadline
 		@kotlin.jvm.JvmStatic fun after(deadlines: moq.ClockDeadlines, duration: moq.Duration): moq.ClockDeadline
 	}
 }
 class ClockDeadlines internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
 	fun clone(): moq.ClockDeadlines
-	@kotlin.jvm.JvmName("advance-opaque") fun advance(now: moq.ClockInstant)
+	@kotlin.jvm.JvmName("advance-kotlin") fun advance(now: moq.ClockInstant)
 	@kotlin.jvm.JvmName("park") fun park(waiter: moq.Waiter): moq.ClockInstant?
 	@kotlin.jvm.JvmName("next") fun next(): moq.ClockInstant?
-	@kotlin.jvm.JvmName("now") fun now(): moq.ClockInstant
+	@kotlin.jvm.JvmName("now-kotlin") fun now(): moq.ClockInstant
 	fun enter(): moq.ClockEntered
 	companion object {
-		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("new-opaque") fun new(now: moq.ClockInstant): moq.ClockDeadlines
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("new_-kotlin") fun new(now: moq.ClockInstant): moq.ClockDeadlines
 	}
 }
 class ClockEntered internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -1748,14 +1829,14 @@ class ClockManual internal constructor(raw: Long, lent: Boolean = false) : AutoC
 	override fun close()
 	fun debug(): kotlin.String
 	fun clone(): moq.ClockManual
-	@kotlin.jvm.JvmName("now") fun now(): moq.ClockInstant
-	@kotlin.jvm.JvmName("wall") fun wall(): moq.ClockWall
+	@kotlin.jvm.JvmName("now-kotlin") fun now(): moq.ClockInstant
+	@kotlin.jvm.JvmName("wall-kotlin") fun wall(): moq.ClockWall
 	fun advance(duration: moq.Duration)
-	@kotlin.jvm.JvmName("stepWall-opaque") fun stepWall(wall: moq.ClockWall)
+	@kotlin.jvm.JvmName("stepWall-kotlin") fun stepWall(wall: moq.ClockWall)
 	companion object {
-		@kotlin.jvm.JvmStatic fun default(): moq.ClockManual
-		@kotlin.jvm.JvmStatic @get:kotlin.jvm.JvmName("getWALLSTART") val WALLSTART: moq.ClockWall
-		@kotlin.jvm.JvmStatic fun new(): moq.ClockManual
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("default_") fun default(): moq.ClockManual
+		@kotlin.jvm.JvmStatic @get:kotlin.jvm.JvmName("getWALLSTART-kotlin") val WALLSTART: moq.ClockWall
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("new_") fun new(): moq.ClockManual
 	}
 }
 class ClockRng internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -1763,7 +1844,7 @@ class ClockRng internal constructor(raw: Long, lent: Boolean = false) : AutoClos
 }
 class ClockInterval internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
-	@kotlin.jvm.JvmName("tick") suspend fun tick(): moq.ClockInstant
+	@kotlin.jvm.JvmName("tick-kotlin") suspend fun tick(): moq.ClockInstant
 	fun setMissedTickBehavior(missed: moq.ClockMissedTickBehavior)
 	fun period(): moq.Duration
 }
@@ -1771,10 +1852,10 @@ class ClockWallMap internal constructor(raw: Long, lent: Boolean = false) : Auto
 	override fun close()
 	fun debug(): kotlin.String
 	fun clone(): moq.ClockWallMap
-	@kotlin.jvm.JvmName("sample-opaque") fun sample(now: moq.ClockInstant, wall: moq.ClockWall)
-	@kotlin.jvm.JvmName("map-opaque") fun map(at: moq.ClockWall): moq.ClockInstant?
+	@kotlin.jvm.JvmName("sample-kotlin") fun sample(now: moq.ClockInstant, wall: moq.ClockWall)
+	@kotlin.jvm.JvmName("map-kotlin") fun map(at: moq.ClockWall): moq.ClockInstant?
 	companion object {
-		@kotlin.jvm.JvmStatic fun default(): moq.ClockWallMap
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("default_") fun default(): moq.ClockWallMap
 		@kotlin.jvm.JvmStatic val TOLERANCE: moq.Duration
 	}
 }
@@ -1784,7 +1865,7 @@ class CoopBudget internal constructor(raw: Long, lent: Boolean = false) : AutoCl
 	fun clone(): moq.CoopBudget
 	suspend fun pollYield()
 	companion object {
-		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("new") fun new(passes: kotlin.UInt): moq.CoopBudget
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("new_") fun new(passes: kotlin.UInt): moq.CoopBudget
 	}
 }
 class HangCatalog internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -1819,7 +1900,7 @@ class HangCatalog internal constructor(raw: Long, lent: Boolean = false) : AutoC
 	@kotlin.jvm.Throws(HangErrorException::class) fun toVec(): moq.Bytes
 	@kotlin.jvm.Throws(HangErrorException::class) fun toWriter(writer: moq.Bytes)
 	companion object {
-		@kotlin.jvm.JvmStatic fun default(): moq.HangCatalog
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("default_") fun default(): moq.HangCatalog
 		@kotlin.jvm.JvmStatic val DEFAULTNAME: kotlin.String
 		@kotlin.jvm.JvmStatic fun defaultTrackInfo(): moq.TrackInfo
 		@kotlin.jvm.JvmStatic fun defaultSubscription(): moq.TrackSubscription
@@ -1861,7 +1942,7 @@ class HangCatalogExtra internal constructor(raw: Long, lent: Boolean = false) : 
 	@kotlin.jvm.Throws(HangErrorException::class) fun toVec(): moq.Bytes
 	@kotlin.jvm.Throws(HangErrorException::class) fun toWriter(writer: moq.Bytes)
 	companion object {
-		@kotlin.jvm.JvmStatic fun default(): moq.HangCatalogExtra
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("default_") fun default(): moq.HangCatalogExtra
 		@kotlin.jvm.JvmStatic @kotlin.jvm.Throws(HangErrorException::class) fun fromSlice(v: moq.Bytes): moq.HangCatalogExtra
 		@kotlin.jvm.JvmStatic @kotlin.jvm.Throws(HangErrorException::class) fun fromReader(reader: moq.Bytes): moq.HangCatalogExtra
 	}
@@ -1900,7 +1981,7 @@ class HangCatalogExt internal constructor(raw: Long, lent: Boolean = false) : Au
 	@kotlin.jvm.Throws(HangErrorException::class) fun toVec(): moq.Bytes
 	@kotlin.jvm.Throws(HangErrorException::class) fun toWriter(writer: moq.Bytes)
 	companion object {
-		@kotlin.jvm.JvmStatic fun default(): moq.HangCatalogExt
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("default_") fun default(): moq.HangCatalogExt
 		@kotlin.jvm.JvmStatic @kotlin.jvm.Throws(HangErrorException::class) fun fromSlice(v: moq.Bytes): moq.HangCatalogExt
 		@kotlin.jvm.JvmStatic @kotlin.jvm.Throws(HangErrorException::class) fun fromReader(reader: moq.Bytes): moq.HangCatalogExt
 	}
@@ -1918,15 +1999,15 @@ class MuxClock internal constructor(raw: Long, lent: Boolean = false) : AutoClos
 	override fun equals(other: kotlin.Any?): kotlin.Boolean
 	override fun hashCode(): kotlin.Int
 	fun now(): moq.Timestamp
-	@kotlin.jvm.JvmName("capture-opaque") @kotlin.jvm.Throws(MuxErrorException::class) fun capture(at: moq.ClockInstant): moq.Timestamp
-	@kotlin.jvm.JvmName("timescale") fun timescale(): moq.Timescale
+	@kotlin.jvm.JvmName("capture-kotlin") @kotlin.jvm.Throws(MuxErrorException::class) fun capture(at: moq.ClockInstant): moq.Timestamp
+	@kotlin.jvm.JvmName("timescale-kotlin") fun timescale(): moq.Timescale
 	fun wall(): moq.HangCatalogClock?
-	@kotlin.jvm.JvmName("wallClock") @kotlin.jvm.Throws(MuxErrorException::class) fun wallClock(pts: moq.Timestamp): moq.ClockWall
+	@kotlin.jvm.JvmName("wallClock-kotlin") @kotlin.jvm.Throws(MuxErrorException::class) fun wallClock(pts: moq.Timestamp): moq.ClockWall
 	companion object {
-		@kotlin.jvm.JvmStatic fun default(): moq.MuxClock
-		@kotlin.jvm.JvmStatic @get:kotlin.jvm.JvmName("getTIMESCALE") val TIMESCALE: moq.Timescale
-		@kotlin.jvm.JvmStatic fun new(): moq.MuxClock
-		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("at-opaque") @kotlin.jvm.Throws(MuxErrorException::class) fun at(epoch: moq.ClockInstant, wall: moq.ClockWall): moq.MuxClock
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("default_") fun default(): moq.MuxClock
+		@kotlin.jvm.JvmStatic @get:kotlin.jvm.JvmName("getTIMESCALE-kotlin") val TIMESCALE: moq.Timescale
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("new_") fun new(): moq.MuxClock
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("at-kotlin") @kotlin.jvm.Throws(MuxErrorException::class) fun at(epoch: moq.ClockInstant, wall: moq.ClockWall): moq.MuxClock
 	}
 }
 class MuxIngest internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -1943,7 +2024,7 @@ class MuxIngest internal constructor(raw: Long, lent: Boolean = false) : AutoClo
 	fun rateSet(value: moq.BandwidthLimit?)
 	fun catalog(): moq.MuxCatalogConfig
 	companion object {
-		@kotlin.jvm.JvmStatic fun default(): moq.MuxIngest
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("default_") fun default(): moq.MuxIngest
 	}
 }
 class MuxLingerUnit internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -1951,26 +2032,26 @@ class MuxLingerUnit internal constructor(raw: Long, lent: Boolean = false) : Aut
 	suspend fun wait()
 	companion object {
 		@kotlin.jvm.JvmStatic val DEFAULT: moq.Duration
-		@kotlin.jvm.JvmStatic fun new(broadcasts: kotlin.collections.List<moq.BroadcastProducer>, duration: moq.Duration): moq.MuxLingerUnit
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("new_") fun new(broadcasts: kotlin.collections.List<moq.BroadcastProducer>, duration: moq.Duration): moq.MuxLingerUnit
 	}
 }
 class MuxPacer internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
 	fun withLead(lead: moq.Duration): moq.MuxPacer
 	fun withDelay(delay: moq.Duration): moq.MuxPacer
-	@kotlin.jvm.JvmName("pace-opaque") fun pace(ts: moq.Timestamp, now: moq.ClockInstant): moq.ClockInstant
+	@kotlin.jvm.JvmName("pace-kotlin") fun pace(ts: moq.Timestamp, now: moq.ClockInstant): moq.ClockInstant
 	@kotlin.jvm.JvmName("due") fun due(ts: moq.Timestamp): moq.ClockInstant?
 	fun slack(): moq.Duration
-	@kotlin.jvm.JvmName("hurry-opaque") fun hurry(ts: moq.Timestamp, now: moq.ClockInstant): moq.ClockInstant
+	@kotlin.jvm.JvmName("hurry-kotlin") fun hurry(ts: moq.Timestamp, now: moq.ClockInstant): moq.ClockInstant
 	companion object {
-		@kotlin.jvm.JvmStatic fun default(): moq.MuxPacer
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("default_") fun default(): moq.MuxPacer
 	}
 }
 class MuxBinding internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
 	@kotlin.jvm.Throws(MuxErrorException::class) suspend fun broadcast(): moq.BroadcastConsumer
 	companion object {
-		@kotlin.jvm.JvmStatic fun new(broadcast: moq.BroadcastConsumer): moq.MuxBinding
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("new_") fun new(broadcast: moq.BroadcastConsumer): moq.MuxBinding
 	}
 }
 class MuxSource internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -1987,7 +2068,7 @@ class MuxSource internal constructor(raw: Long, lent: Boolean = false) : AutoClo
 	@kotlin.jvm.Throws(MuxErrorException::class) suspend fun subscribeTrack(rel: moq.PathRelative?, instance: moq.Instance?, name: kotlin.String): moq.TrackSubscriber
 	@kotlin.jvm.Throws(MuxErrorException::class) fun follow(rel: moq.PathRelative?, instance: moq.Instance?): moq.MuxFollowInstances
 	companion object {
-		@kotlin.jvm.JvmStatic fun new(origin: moq.OriginConsumer, broadcast: moq.BroadcastConsumer): moq.MuxSource
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("new_") fun new(origin: moq.OriginConsumer, broadcast: moq.BroadcastConsumer): moq.MuxSource
 	}
 }
 class MuxError internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -2006,7 +2087,7 @@ class TokioDuration internal constructor(raw: Long, lent: Boolean = false) : Aut
 	fun partialCompareTo(other: moq.TokioDuration): kotlin.Int?
 	override fun compareTo(other: moq.TokioDuration): kotlin.Int
 	companion object {
-		@kotlin.jvm.JvmStatic fun default(): moq.TokioDuration
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("default_") fun default(): moq.TokioDuration
 	}
 }
 class TokioBackoff internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -2027,7 +2108,7 @@ class TokioBackoff internal constructor(raw: Long, lent: Boolean = false) : Auto
 	fun max(): moq.Duration?
 	fun timeout(): moq.Duration?
 	companion object {
-		@kotlin.jvm.JvmStatic fun default(): moq.TokioBackoff
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("default_") fun default(): moq.TokioBackoff
 	}
 }
 class TokioClient internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -2036,7 +2117,7 @@ class TokioClient internal constructor(raw: Long, lent: Boolean = false) : AutoC
 	fun withPublisherProducer(publish: moq.OriginProducer): moq.TokioClient
 	fun withPublisherConsumer(publish: moq.OriginConsumer): moq.TokioClient
 	fun withSubscriber(subscribe: moq.OriginProducer): moq.TokioClient
-	@kotlin.jvm.JvmName("withLimits-opaque") fun withLimits(limits: moq.SessionLimits): moq.TokioClient
+	@kotlin.jvm.JvmName("withLimits-kotlin") fun withLimits(limits: moq.SessionLimits): moq.TokioClient
 	fun withStats(stats: moq.StatsSession): moq.TokioClient
 	@kotlin.jvm.JvmName("withCost") fun withCost(cost: kotlin.ULong): moq.TokioClient
 	@kotlin.jvm.JvmName("withPeerNode") fun withPeerNode(node: kotlin.ULong): moq.TokioClient
@@ -2048,7 +2129,7 @@ class TokioClient internal constructor(raw: Long, lent: Boolean = false) : AutoC
 	fun publish(origin: moq.OriginConsumer): moq.TokioConnection?
 	fun consume(origin: moq.OriginProducer): moq.TokioConnection?
 	companion object {
-		@kotlin.jvm.JvmStatic @kotlin.jvm.Throws(TokioErrorException::class) fun new(config: moq.TokioClientConfig): moq.TokioClient
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("new_") @kotlin.jvm.Throws(TokioErrorException::class) fun new(config: moq.TokioClientConfig): moq.TokioClient
 	}
 }
 class TokioConnection internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -2090,8 +2171,8 @@ class TokioLog internal constructor(raw: Long, lent: Boolean = false) : AutoClos
 	fun level(): moq.Level?
 	@kotlin.jvm.Throws(TokioErrorException::class) fun init()
 	companion object {
-		@kotlin.jvm.JvmStatic fun default(): moq.TokioLog
-		@kotlin.jvm.JvmStatic fun new(level: moq.Level): moq.TokioLog
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("default_") fun default(): moq.TokioLog
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("new_") fun new(level: moq.Level): moq.TokioLog
 	}
 }
 class TokioServer internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -2105,7 +2186,7 @@ class TokioServer internal constructor(raw: Long, lent: Boolean = false) : AutoC
 	@kotlin.jvm.Throws(TokioErrorException::class) fun localAddr(): moq.SocketAddr
 	fun websocketLocalAddr(): moq.SocketAddr?
 	companion object {
-		@kotlin.jvm.JvmStatic @kotlin.jvm.Throws(TokioErrorException::class) fun new(config: moq.TokioServerConfig): moq.TokioServer
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("new_") @kotlin.jvm.Throws(TokioErrorException::class) fun new(config: moq.TokioServerConfig): moq.TokioServer
 	}
 }
 class AuthWatch internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -2142,9 +2223,9 @@ class AuthGrant internal constructor(raw: Long, lent: Boolean = false) : AutoClo
 	val subscribeGet: moq.Patterns
 	fun subscribeSet(value: moq.Patterns)
 	@get:kotlin.jvm.JvmName("getExpiresGet") val expiresGet: moq.ClockInstant?
-	@kotlin.jvm.JvmName("expiresSet-opaque") fun expiresSet(value: moq.ClockInstant?)
+	@kotlin.jvm.JvmName("expiresSet") fun expiresSet(value: moq.ClockInstant?)
 	companion object {
-		@kotlin.jvm.JvmStatic fun default(): moq.AuthGrant
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("default_") fun default(): moq.AuthGrant
 		@kotlin.jvm.JvmStatic fun all(): moq.AuthGrant
 	}
 }
@@ -2156,8 +2237,8 @@ class AuthHandle internal constructor(raw: Long, lent: Boolean = false) : AutoCl
 	fun authorize(grant: moq.AuthGrant)
 	fun abort(err: moq.Error)
 	companion object {
-		@kotlin.jvm.JvmStatic fun default(): moq.AuthHandle
-		@kotlin.jvm.JvmStatic fun new(): moq.AuthHandle
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("default_") fun default(): moq.AuthHandle
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("new_") fun new(): moq.AuthHandle
 	}
 }
 class AuthCredential internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -2185,7 +2266,7 @@ class AuthTokens internal constructor(raw: Long, lent: Boolean = false) : AutoCl
 	fun set(tokens: kotlin.collections.List<moq.AuthToken>)
 	@kotlin.jvm.Throws(ErrorException::class) suspend fun answered()
 	companion object {
-		@kotlin.jvm.JvmStatic fun new(tokens: kotlin.collections.List<moq.AuthToken>): moq.AuthTokens
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("new_") fun new(tokens: kotlin.collections.List<moq.AuthToken>): moq.AuthTokens
 	}
 }
 class GoawayGoaway internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -2198,8 +2279,8 @@ class GoawayGoaway internal constructor(raw: Long, lent: Boolean = false) : Auto
 	fun uri(): kotlin.String
 	fun timeout(): moq.Duration?
 	companion object {
-		@kotlin.jvm.JvmStatic fun default(): moq.GoawayGoaway
-		@kotlin.jvm.JvmStatic fun new(): moq.GoawayGoaway
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("default_") fun default(): moq.GoawayGoaway
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("new_") fun new(): moq.GoawayGoaway
 		@kotlin.jvm.JvmStatic fun redirect(uri: kotlin.String): moq.GoawayGoaway
 	}
 }
@@ -2219,8 +2300,8 @@ class PathRelative internal constructor(raw: Long, lent: Boolean = false) : Auto
 	fun isEmpty(): kotlin.Boolean
 	@kotlin.jvm.JvmName("len") fun len(): kotlin.ULong
 	companion object {
-		@kotlin.jvm.JvmStatic fun default(): moq.PathRelative
-		@kotlin.jvm.JvmStatic @kotlin.jvm.Throws(PathErrorException::class) fun new(s: kotlin.String): moq.PathRelative
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("default_") fun default(): moq.PathRelative
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("new_") @kotlin.jvm.Throws(PathErrorException::class) fun new(s: kotlin.String): moq.PathRelative
 		@kotlin.jvm.JvmStatic fun empty(): moq.PathRelative
 	}
 }
@@ -2241,7 +2322,7 @@ class ReconnectBackoff internal constructor(raw: Long, lent: Boolean = false) : 
 	val timeoutGet: moq.Duration?
 	fun timeoutSet(value: moq.Duration?)
 	companion object {
-		@kotlin.jvm.JvmStatic fun default(): moq.ReconnectBackoff
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("default_") fun default(): moq.ReconnectBackoff
 	}
 }
 class ReconnectHandover internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -2255,7 +2336,7 @@ class ReconnectHandover internal constructor(raw: Long, lent: Boolean = false) :
 	val handoverGet: moq.Duration
 	fun handoverSet(value: moq.Duration)
 	companion object {
-		@kotlin.jvm.JvmStatic fun default(): moq.ReconnectHandover
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("default_") fun default(): moq.ReconnectHandover
 	}
 }
 class ReconnectConfig internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -2277,7 +2358,7 @@ class ReconnectConfig internal constructor(raw: Long, lent: Boolean = false) : A
 	val pinnedGet: kotlin.Boolean
 	fun pinnedSet(value: kotlin.Boolean)
 	companion object {
-		@kotlin.jvm.JvmStatic fun default(): moq.ReconnectConfig
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("default_") fun default(): moq.ReconnectConfig
 	}
 }
 class ServerHandshake internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -2294,7 +2375,7 @@ class ServerHandshake internal constructor(raw: Long, lent: Boolean = false) : A
 	fun withSubscriber(subscribe: moq.OriginProducer): moq.ServerHandshake
 	@kotlin.jvm.JvmName("withPeerNode") fun withPeerNode(node: kotlin.ULong): moq.ServerHandshake
 	fun withStats(stats: moq.StatsSession): moq.ServerHandshake
-	@kotlin.jvm.JvmName("withLimits-opaque") fun withLimits(limits: moq.SessionLimits): moq.ServerHandshake
+	@kotlin.jvm.JvmName("withLimits-kotlin") fun withLimits(limits: moq.SessionLimits): moq.ServerHandshake
 	@kotlin.jvm.JvmName("withReceiveWindow") fun withReceiveWindow(window: kotlin.ULong): moq.ServerHandshake
 	suspend fun expired()
 	@kotlin.jvm.Throws(ErrorException::class) suspend fun ok(): kotlin.Pair<moq.Session, moq.Driver>
@@ -2306,9 +2387,9 @@ class ServerAdmission internal constructor(raw: Long, lent: Boolean = false) : A
 	fun clone(): moq.ServerAdmission
 	fun enter(): moq.ServerAdmitted?
 	fun drain()
-	@kotlin.jvm.JvmName("close_") suspend fun close_(): moq.ClockInstant
+	@kotlin.jvm.JvmName("close_-kotlin") suspend fun close_(): moq.ClockInstant
 	companion object {
-		@kotlin.jvm.JvmStatic fun default(): moq.ServerAdmission
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("default_") fun default(): moq.ServerAdmission
 	}
 }
 class ServerAdmitted internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -2324,7 +2405,7 @@ class SessionStats internal constructor(raw: Long, lent: Boolean = false) : Auto
 	val rttGet: moq.Duration?
 	fun rttSet(value: moq.Duration?)
 	@get:kotlin.jvm.JvmName("getEstimatedSendRateGet") val estimatedSendRateGet: moq.BandwidthRate?
-	@kotlin.jvm.JvmName("estimatedSendRateSet-opaque") fun estimatedSendRateSet(value: moq.BandwidthRate?)
+	@kotlin.jvm.JvmName("estimatedSendRateSet") fun estimatedSendRateSet(value: moq.BandwidthRate?)
 	@get:kotlin.jvm.JvmName("getBytesSentGet") val bytesSentGet: kotlin.ULong?
 	@kotlin.jvm.JvmName("bytesSentSet") fun bytesSentSet(value: kotlin.ULong?)
 	@get:kotlin.jvm.JvmName("getBytesReceivedGet") val bytesReceivedGet: kotlin.ULong?
@@ -2342,7 +2423,7 @@ class SessionStats internal constructor(raw: Long, lent: Boolean = false) : Auto
 	@get:kotlin.jvm.JvmName("getDatagramsUnroutedGet") val datagramsUnroutedGet: kotlin.ULong?
 	@kotlin.jvm.JvmName("datagramsUnroutedSet") fun datagramsUnroutedSet(value: kotlin.ULong?)
 	companion object {
-		@kotlin.jvm.JvmStatic fun default(): moq.SessionStats
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("default_") fun default(): moq.SessionStats
 	}
 }
 class StatsTier internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -2355,8 +2436,8 @@ class StatsTier internal constructor(raw: Long, lent: Boolean = false) : AutoClo
 	fun label(): moq.Path
 	fun asStr(): kotlin.String
 	companion object {
-		@kotlin.jvm.JvmStatic fun default(): moq.StatsTier
-		@kotlin.jvm.JvmStatic fun new(label: moq.Path): moq.StatsTier
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("default_") fun default(): moq.StatsTier
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("new_") fun new(label: moq.Path): moq.StatsTier
 	}
 }
 class StatsSnapshot internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -2370,7 +2451,7 @@ class StatsSnapshot internal constructor(raw: Long, lent: Boolean = false) : Aut
 	fun sessions(): kotlin.collections.List<kotlin.Pair<moq.StatsTier, moq.StatsPresence>>
 	fun activity(): kotlin.collections.List<kotlin.Pair<moq.StatsTier, moq.StatsActivity>>
 	companion object {
-		@kotlin.jvm.JvmStatic fun default(): moq.StatsSnapshot
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("default_") fun default(): moq.StatsSnapshot
 	}
 }
 class StatsReport internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -2382,7 +2463,7 @@ class StatsReport internal constructor(raw: Long, lent: Boolean = false) : AutoC
 	val sessionsGet: kotlin.collections.List<moq.StatsSessionEntry>
 	fun sessionsSet(value: kotlin.collections.List<moq.StatsSessionEntry>)
 	companion object {
-		@kotlin.jvm.JvmStatic fun default(): moq.StatsReport
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("default_") fun default(): moq.StatsReport
 	}
 }
 class StatsTrafficEntry internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -2421,8 +2502,8 @@ class StatsConfig internal constructor(raw: Long, lent: Boolean = false) : AutoC
 	fun excludeSet(value: moq.Patterns)
 	fun withExclude(pattern: moq.Pattern): moq.StatsConfig
 	companion object {
-		@kotlin.jvm.JvmStatic fun default(): moq.StatsConfig
-		@kotlin.jvm.JvmStatic fun new(): moq.StatsConfig
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("default_") fun default(): moq.StatsConfig
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("new_") fun new(): moq.StatsConfig
 	}
 }
 class StatsRegistry internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -2431,10 +2512,10 @@ class StatsRegistry internal constructor(raw: Long, lent: Boolean = false) : Aut
 	fun isEnabled(): kotlin.Boolean
 	fun tier(tier: moq.StatsTier): moq.StatsHandle
 	fun snapshot(): moq.StatsSnapshot
-	@kotlin.jvm.JvmName("report-opaque") fun report(report: moq.StatsReport, now: moq.ClockInstant)
+	@kotlin.jvm.JvmName("report-kotlin") fun report(report: moq.StatsReport, now: moq.ClockInstant)
 	companion object {
-		@kotlin.jvm.JvmStatic fun default(): moq.StatsRegistry
-		@kotlin.jvm.JvmStatic fun new(config: moq.StatsConfig): moq.StatsRegistry
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("default_") fun default(): moq.StatsRegistry
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("new_") fun new(config: moq.StatsConfig): moq.StatsRegistry
 		@kotlin.jvm.JvmStatic fun disabled(): moq.StatsRegistry
 	}
 }
@@ -2445,7 +2526,7 @@ class StatsHandle internal constructor(raw: Long, lent: Boolean = false) : AutoC
 	fun session(session: moq.StatsSessionInfo): moq.StatsSession
 	fun request(label: moq.Path): moq.StatsSession
 	companion object {
-		@kotlin.jvm.JvmStatic fun default(): moq.StatsHandle
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("default_") fun default(): moq.StatsHandle
 	}
 }
 class StatsRefusal internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -2457,7 +2538,7 @@ class StatsRefusal internal constructor(raw: Long, lent: Boolean = false) : Auto
 	val reasonGet: moq.StatsRefusalKind
 	fun reasonSet(value: moq.StatsRefusalKind)
 	companion object {
-		@kotlin.jvm.JvmStatic fun new(label: moq.Path, reason: moq.StatsRefusalKind): moq.StatsRefusal
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("new_") fun new(label: moq.Path, reason: moq.StatsRefusalKind): moq.StatsRefusal
 	}
 }
 class StatsSessionInfo internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -2467,13 +2548,13 @@ class StatsSessionInfo internal constructor(raw: Long, lent: Boolean = false) : 
 	val labelGet: moq.Path
 	fun labelSet(value: moq.Path)
 	companion object {
-		@kotlin.jvm.JvmStatic fun new(label: moq.Path): moq.StatsSessionInfo
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("new_") fun new(label: moq.Path): moq.StatsSessionInfo
 	}
 }
 class StatsWire internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
 	companion object {
-		@kotlin.jvm.JvmStatic fun default(): moq.StatsWire
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("default_") fun default(): moq.StatsWire
 	}
 }
 class StatsSession internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -2482,7 +2563,7 @@ class StatsSession internal constructor(raw: Long, lent: Boolean = false) : Auto
 	fun wire(counters: moq.TransportWire): moq.StatsWire
 	fun retag(tier: moq.StatsTier, label: moq.Path)
 	companion object {
-		@kotlin.jvm.JvmStatic fun default(): moq.StatsSession
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("default_") fun default(): moq.StatsSession
 	}
 }
 class StatsBill internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -2491,7 +2572,7 @@ class StatsBill internal constructor(raw: Long, lent: Boolean = false) : AutoClo
 	fun clone(): moq.StatsBill
 	@kotlin.jvm.JvmName("deliver") fun deliver(bytes: kotlin.ULong)
 	companion object {
-		@kotlin.jvm.JvmStatic fun default(): moq.StatsBill
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("default_") fun default(): moq.StatsBill
 	}
 }
 class TransportWire internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -2503,19 +2584,19 @@ class TransportWire internal constructor(raw: Long, lent: Boolean = false) : Aut
 	@kotlin.jvm.JvmName("setSentBytes") fun setSentBytes(total: kotlin.ULong)
 	@kotlin.jvm.JvmName("setReceivedBytes") fun setReceivedBytes(total: kotlin.ULong)
 	companion object {
-		@kotlin.jvm.JvmStatic fun default(): moq.TransportWire
-		@kotlin.jvm.JvmStatic fun new(): moq.TransportWire
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("default_") fun default(): moq.TransportWire
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("new_") fun new(): moq.TransportWire
 	}
 }
 class TransportProbe internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
 	fun debug(): kotlin.String
 	fun clone(): moq.TransportProbe
-	@kotlin.jvm.JvmName("target") fun target(): moq.BandwidthRate
-	@kotlin.jvm.JvmName("setTarget-opaque") fun setTarget(rate: moq.BandwidthRate)
+	@kotlin.jvm.JvmName("target-kotlin") fun target(): moq.BandwidthRate
+	@kotlin.jvm.JvmName("setTarget-kotlin") fun setTarget(rate: moq.BandwidthRate)
 	companion object {
-		@kotlin.jvm.JvmStatic fun default(): moq.TransportProbe
-		@kotlin.jvm.JvmStatic fun new(): moq.TransportProbe
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("default_") fun default(): moq.TransportProbe
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("new_") fun new(): moq.TransportProbe
 	}
 }
 class BandwidthLimit internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -2526,8 +2607,8 @@ class BandwidthLimit internal constructor(raw: Long, lent: Boolean = false) : Au
 	fun get(): moq.BandwidthCap?
 	suspend fun changed(): moq.BandwidthCap?
 	companion object {
-		@kotlin.jvm.JvmStatic fun default(): moq.BandwidthLimit
-		@kotlin.jvm.JvmStatic fun new(cap: moq.BandwidthCap?): moq.BandwidthLimit
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("default_") fun default(): moq.BandwidthLimit
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("new_") fun new(cap: moq.BandwidthCap?): moq.BandwidthLimit
 	}
 }
 class BandwidthDemand internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -2540,13 +2621,13 @@ class BandwidthReservation internal constructor(raw: Long, lent: Boolean = false
 	override fun close()
 	@kotlin.jvm.JvmName("rate") fun rate(): moq.BandwidthRate?
 	fun consume(): moq.BandwidthConsumer
-	@kotlin.jvm.JvmName("update-opaque") fun update(max: moq.BandwidthRate)
+	@kotlin.jvm.JvmName("update-kotlin") fun update(max: moq.BandwidthRate)
 }
 class BandwidthViewer internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
 	@kotlin.jvm.JvmName("rate") fun rate(): moq.BandwidthRate?
 	fun consume(): moq.BandwidthConsumer
-	@kotlin.jvm.JvmName("update-opaque") @kotlin.jvm.Throws(ErrorException::class) fun update(max: moq.BandwidthRate)
+	@kotlin.jvm.JvmName("update-kotlin") @kotlin.jvm.Throws(ErrorException::class) fun update(max: moq.BandwidthRate)
 }
 class BandwidthCap internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
@@ -2554,26 +2635,26 @@ class BandwidthCap internal constructor(raw: Long, lent: Boolean = false) : Auto
 	fun clone(): moq.BandwidthCap
 	override fun equals(other: kotlin.Any?): kotlin.Boolean
 	override fun hashCode(): kotlin.Int
-	@get:kotlin.jvm.JvmName("getRateGet") val rateGet: moq.BandwidthRate
-	@kotlin.jvm.JvmName("rateSet-opaque") fun rateSet(value: moq.BandwidthRate)
+	@get:kotlin.jvm.JvmName("getRateGet-kotlin") val rateGet: moq.BandwidthRate
+	@kotlin.jvm.JvmName("rateSet-kotlin") fun rateSet(value: moq.BandwidthRate)
 	val burstGet: moq.Duration
 	fun burstSet(value: moq.Duration)
 	fun withBurst(burst: moq.Duration): moq.BandwidthCap
 	companion object {
 		@kotlin.jvm.JvmStatic val DEFAULTBURST: moq.Duration
-		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("new-opaque") fun new(rate: moq.BandwidthRate): moq.BandwidthCap
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("new_-kotlin") fun new(rate: moq.BandwidthRate): moq.BandwidthCap
 	}
 }
 class BandwidthProducer internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
 	fun clone(): moq.BandwidthProducer
-	@kotlin.jvm.JvmName("set-opaque") @kotlin.jvm.Throws(ErrorException::class) fun set(bitrate: moq.BandwidthRate?)
+	@kotlin.jvm.JvmName("set") @kotlin.jvm.Throws(ErrorException::class) fun set(bitrate: moq.BandwidthRate?)
 	fun consume(): moq.BandwidthConsumer
 	fun weak(): moq.BandwidthWeak
 	fun demand(): moq.BandwidthDemand
 	companion object {
-		@kotlin.jvm.JvmStatic fun default(): moq.BandwidthProducer
-		@kotlin.jvm.JvmStatic fun new(): moq.BandwidthProducer
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("default_") fun default(): moq.BandwidthProducer
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("new_") fun new(): moq.BandwidthProducer
 	}
 }
 class BandwidthWeak internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -2585,11 +2666,11 @@ class BandwidthAllocator internal constructor(raw: Long, lent: Boolean = false) 
 	override fun close()
 	fun debug(): kotlin.String
 	fun clone(): moq.BandwidthAllocator
-	@kotlin.jvm.JvmName("setTarget-opaque") fun setTarget(target: moq.BandwidthRate?)
-	@kotlin.jvm.JvmName("reserve-opaque") fun reserve(track: moq.TrackDemand, max: moq.BandwidthRate): moq.BandwidthReservation
+	@kotlin.jvm.JvmName("setTarget") fun setTarget(target: moq.BandwidthRate?)
+	@kotlin.jvm.JvmName("reserve-kotlin") fun reserve(track: moq.TrackDemand, max: moq.BandwidthRate): moq.BandwidthReservation
 	companion object {
-		@kotlin.jvm.JvmStatic fun default(): moq.BandwidthAllocator
-		@kotlin.jvm.JvmStatic fun new(estimate: moq.BandwidthConsumer): moq.BandwidthAllocator
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("default_") fun default(): moq.BandwidthAllocator
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("new_") fun new(estimate: moq.BandwidthConsumer): moq.BandwidthAllocator
 		@kotlin.jvm.JvmStatic fun unlimited(): moq.BandwidthAllocator
 	}
 }
@@ -2597,12 +2678,12 @@ class BandwidthViewers internal constructor(raw: Long, lent: Boolean = false) : 
 	override fun close()
 	fun debug(): kotlin.String
 	fun clone(): moq.BandwidthViewers
-	@kotlin.jvm.JvmName("watch-opaque") @kotlin.jvm.Throws(ErrorException::class) fun watch(max: moq.BandwidthRate): moq.BandwidthViewer
-	@kotlin.jvm.JvmName("setTarget-opaque") @kotlin.jvm.Throws(ErrorException::class) fun setTarget(target: moq.BandwidthRate?)
+	@kotlin.jvm.JvmName("watch-kotlin") @kotlin.jvm.Throws(ErrorException::class) fun watch(max: moq.BandwidthRate): moq.BandwidthViewer
+	@kotlin.jvm.JvmName("setTarget") @kotlin.jvm.Throws(ErrorException::class) fun setTarget(target: moq.BandwidthRate?)
 	companion object {
-		@kotlin.jvm.JvmStatic fun default(): moq.BandwidthViewers
-		@kotlin.jvm.JvmStatic @get:kotlin.jvm.JvmName("getMAXTARGET") val MAXTARGET: moq.BandwidthRate
-		@kotlin.jvm.JvmStatic fun new(estimate: moq.BandwidthWeak): moq.BandwidthViewers
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("default_") fun default(): moq.BandwidthViewers
+		@kotlin.jvm.JvmStatic @get:kotlin.jvm.JvmName("getMAXTARGET-kotlin") val MAXTARGET: moq.BandwidthRate
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("new_") fun new(estimate: moq.BandwidthWeak): moq.BandwidthViewers
 	}
 }
 class BandwidthConsumer internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -2648,8 +2729,8 @@ class BroadcastInfo internal constructor(raw: Long, lent: Boolean = false) : Aut
 	fun instanceSet(value: moq.Instance?)
 	fun produce(): moq.BroadcastProducer
 	companion object {
-		@kotlin.jvm.JvmStatic fun default(): moq.BroadcastInfo
-		@kotlin.jvm.JvmStatic fun new(): moq.BroadcastInfo
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("default_") fun default(): moq.BroadcastInfo
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("new_") fun new(): moq.BroadcastInfo
 	}
 }
 class BroadcastProducer internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -2668,7 +2749,7 @@ class BroadcastProducer internal constructor(raw: Long, lent: Boolean = false) :
 	fun close_()
 	fun isClone(other: moq.BroadcastProducer): kotlin.Boolean
 	companion object {
-		@kotlin.jvm.JvmStatic fun new(info: moq.BroadcastInfo): moq.BroadcastProducer
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("new_") fun new(info: moq.BroadcastInfo): moq.BroadcastProducer
 	}
 }
 class BroadcastRequests internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -2712,7 +2793,7 @@ class CacheConfig internal constructor(raw: Long, lent: Boolean = false) : AutoC
 	@kotlin.jvm.JvmName("withCapacity") fun withCapacity(capacity: kotlin.ULong?): moq.CacheConfig
 	fun withExpiry(expiry: moq.Duration?): moq.CacheConfig
 	companion object {
-		@kotlin.jvm.JvmStatic fun default(): moq.CacheConfig
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("default_") fun default(): moq.CacheConfig
 	}
 }
 class CachePool internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -2723,11 +2804,11 @@ class CachePool internal constructor(raw: Long, lent: Boolean = false) : AutoClo
 	@kotlin.jvm.JvmName("used") fun used(): kotlin.ULong
 	@kotlin.jvm.JvmName("resize") fun resize(capacity: kotlin.ULong?)
 	fun expiry(): moq.Duration?
-	@kotlin.jvm.JvmName("poll-opaque") fun poll(now: moq.ClockInstant, waiter: moq.Waiter): moq.ClockInstant?
+	@kotlin.jvm.JvmName("poll-kotlin") fun poll(now: moq.ClockInstant, waiter: moq.Waiter): moq.ClockInstant?
 	fun downgrade(): moq.CachePoolWeak
 	companion object {
-		@kotlin.jvm.JvmStatic fun default(): moq.CachePool
-		@kotlin.jvm.JvmStatic fun new(config: moq.CacheConfig): moq.CachePool
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("default_") fun default(): moq.CachePool
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("new_") fun new(config: moq.CacheConfig): moq.CachePool
 		@kotlin.jvm.JvmStatic fun unbounded(): moq.CachePool
 	}
 }
@@ -2773,14 +2854,14 @@ class DatagramInfo internal constructor(raw: Long, lent: Boolean = false) : Auto
 	override fun equals(other: kotlin.Any?): kotlin.Boolean
 	override fun hashCode(): kotlin.Int
 	@get:kotlin.jvm.JvmName("getTimescaleGet") val timescaleGet: moq.Timescale?
-	@kotlin.jvm.JvmName("timescaleSet-opaque") fun timescaleSet(value: moq.Timescale?)
+	@kotlin.jvm.JvmName("timescaleSet") fun timescaleSet(value: moq.Timescale?)
 	val priorityGet: kotlin.Byte
 	fun prioritySet(value: kotlin.Byte)
-	@kotlin.jvm.JvmName("withTimescale-opaque") fun withTimescale(timescale: moq.Timescale?): moq.DatagramInfo
+	@kotlin.jvm.JvmName("withTimescale") fun withTimescale(timescale: moq.Timescale?): moq.DatagramInfo
 	fun withPriority(priority: kotlin.Byte): moq.DatagramInfo
 	@kotlin.jvm.Throws(ErrorException::class) fun rescale(timestamp: moq.Timestamp): moq.Timestamp
 	companion object {
-		@kotlin.jvm.JvmStatic fun default(): moq.DatagramInfo
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("default_") fun default(): moq.DatagramInfo
 	}
 }
 class FrameProducer internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -2801,9 +2882,9 @@ class FrameFrame internal constructor(raw: Long, lent: Boolean = false) : AutoCl
 	fun timestampSet(value: moq.Timestamp)
 	val payloadGet: moq.Bytes
 	fun payloadSet(value: moq.Bytes)
-	@kotlin.jvm.JvmName("arrived") fun arrived(): moq.ClockInstant
+	@kotlin.jvm.JvmName("arrived-kotlin") fun arrived(): moq.ClockInstant
 	companion object {
-		@kotlin.jvm.JvmStatic fun new(timestamp: moq.Timestamp, payload: moq.Bytes): moq.FrameFrame
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("new_") fun new(timestamp: moq.Timestamp, payload: moq.Bytes): moq.FrameFrame
 	}
 }
 class FrameConsumer internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -2849,7 +2930,7 @@ class GroupConsumer internal constructor(raw: Long, lent: Boolean = false) : Aut
 	override fun close()
 	fun clone(): moq.GroupConsumer
 	@kotlin.jvm.JvmName("timescale") fun timescale(): moq.Timescale?
-	@kotlin.jvm.JvmName("arrived") fun arrived(): moq.ClockInstant
+	@kotlin.jvm.JvmName("arrived-kotlin") fun arrived(): moq.ClockInstant
 	@kotlin.jvm.JvmName("index") fun index(): kotlin.ULong
 	fun withRange(frames: moq.BoundsU64): moq.GroupConsumer
 	@kotlin.jvm.JvmName("skipTo") fun skipTo(index: kotlin.ULong)
@@ -2871,7 +2952,7 @@ class GroupFetch internal constructor(raw: Long, lent: Boolean = false) : AutoCl
 	fun withPriority(priority: kotlin.Byte): moq.GroupFetch
 	fun withMaxDelay(maxDelay: moq.Duration): moq.GroupFetch
 	companion object {
-		@kotlin.jvm.JvmStatic fun default(): moq.GroupFetch
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("default_") fun default(): moq.GroupFetch
 	}
 }
 class TrackFinished internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -2960,7 +3041,7 @@ class TrackInfo internal constructor(raw: Long, lent: Boolean = false) : AutoClo
 	override fun equals(other: kotlin.Any?): kotlin.Boolean
 	override fun hashCode(): kotlin.Int
 	@get:kotlin.jvm.JvmName("getTimescaleGet") val timescaleGet: moq.Timescale?
-	@kotlin.jvm.JvmName("timescaleSet-opaque") fun timescaleSet(value: moq.Timescale?)
+	@kotlin.jvm.JvmName("timescaleSet") fun timescaleSet(value: moq.Timescale?)
 	val maxAgeGet: moq.Duration?
 	fun maxAgeSet(value: moq.Duration?)
 	val priorityGet: kotlin.Byte
@@ -2969,7 +3050,7 @@ class TrackInfo internal constructor(raw: Long, lent: Boolean = false) : AutoClo
 	fun compressionSet(value: moq.TrackCompression)
 	val refreshGet: moq.TrackRefresh
 	fun refreshSet(value: moq.TrackRefresh)
-	@kotlin.jvm.JvmName("withTimescale-opaque") fun withTimescale(timescale: moq.Timescale?): moq.TrackInfo
+	@kotlin.jvm.JvmName("withTimescale") fun withTimescale(timescale: moq.Timescale?): moq.TrackInfo
 	fun withMaxAge(maxAge: moq.Duration?): moq.TrackInfo
 	fun withPriority(priority: kotlin.Byte): moq.TrackInfo
 	fun withCompression(compression: moq.TrackCompression): moq.TrackInfo
@@ -2977,7 +3058,7 @@ class TrackInfo internal constructor(raw: Long, lent: Boolean = false) : AutoClo
 	@kotlin.jvm.Throws(ErrorException::class) fun rescale(timestamp: moq.Timestamp): moq.Timestamp
 	@kotlin.jvm.JvmName("rescaleIn") @kotlin.jvm.Throws(ErrorException::class) fun rescaleIn(timestamp: moq.Timestamp, key: kotlin.ULong): moq.Timestamp
 	companion object {
-		@kotlin.jvm.JvmStatic fun default(): moq.TrackInfo
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("default_") fun default(): moq.TrackInfo
 	}
 }
 class TrackRefresh internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -2993,7 +3074,7 @@ class TrackRefresh internal constructor(raw: Long, lent: Boolean = false) : Auto
 	@kotlin.jvm.JvmName("withRatio") fun withRatio(ratio: kotlin.UInt?): moq.TrackRefresh
 	fun withInterval(interval: moq.Duration?): moq.TrackRefresh
 	companion object {
-		@kotlin.jvm.JvmStatic fun default(): moq.TrackRefresh
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("default_") fun default(): moq.TrackRefresh
 	}
 }
 class TrackProducer internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -3068,7 +3149,7 @@ class TrackSubscription internal constructor(raw: Long, lent: Boolean = false) :
 	fun withRanges(ranges: kotlin.collections.List<moq.TrackRange>): moq.TrackSubscription
 	fun withOrder(order: moq.TrackOrder): moq.TrackSubscription
 	companion object {
-		@kotlin.jvm.JvmStatic fun default(): moq.TrackSubscription
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("default_") fun default(): moq.TrackSubscription
 	}
 }
 class TrackFill internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -3085,7 +3166,7 @@ class OriginClaim internal constructor(raw: Long, lent: Boolean = false) : AutoC
 	@kotlin.jvm.Throws(ErrorException::class) fun announce()
 	fun withdraw()
 	fun isAnnounced(): kotlin.Boolean
-	@kotlin.jvm.JvmName("setCost-opaque") @kotlin.jvm.Throws(ErrorException::class) fun setCost(cost: moq.OriginCost)
+	@kotlin.jvm.JvmName("setCost-kotlin") @kotlin.jvm.Throws(ErrorException::class) fun setCost(cost: moq.OriginCost)
 	@kotlin.jvm.Throws(ErrorException::class) fun setAuth(auth: moq.AuthCredential?)
 	suspend fun requested(): moq.OriginRequest?
 }
@@ -3102,8 +3183,8 @@ class OriginConfig internal constructor(raw: Long, lent: Boolean = false) : Auto
 	val cacheDurationGet: moq.Duration?
 	fun cacheDurationSet(value: moq.Duration?)
 	companion object {
-		@kotlin.jvm.JvmStatic fun default(): moq.OriginConfig
-		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("new") fun new(node: kotlin.ULong): moq.OriginConfig
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("default_") fun default(): moq.OriginConfig
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("new_") fun new(node: kotlin.ULong): moq.OriginConfig
 	}
 }
 class OriginConsumer internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -3126,14 +3207,14 @@ class OriginConsumer internal constructor(raw: Long, lent: Boolean = false) : Au
 }
 class OriginDriver internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
-	@kotlin.jvm.JvmName("poll-opaque") @kotlin.jvm.Throws(ErrorException::class) fun poll(now: moq.ClockInstant, waiter: moq.Waiter): moq.ClockInstant?
+	@kotlin.jvm.JvmName("poll-kotlin") @kotlin.jvm.Throws(ErrorException::class) fun poll(now: moq.ClockInstant, waiter: moq.Waiter): moq.ClockInstant?
 }
 class OriginProducer internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
 	fun clone(): moq.OriginProducer
 	fun withStats(session: moq.StatsSession): moq.OriginProducer
 	fun withLink(link: moq.OriginLink): moq.OriginProducer
-	@kotlin.jvm.JvmName("withPriority-opaque") fun withPriority(priority: moq.OriginPriority): moq.OriginProducer
+	@kotlin.jvm.JvmName("withPriority-kotlin") fun withPriority(priority: moq.OriginPriority): moq.OriginProducer
 	fun withProxy(proxy: kotlin.Boolean): moq.OriginProducer
 	fun config(): moq.OriginConfig
 	@kotlin.jvm.JvmName("node") fun node(): kotlin.ULong
@@ -3148,7 +3229,7 @@ class OriginProducer internal constructor(raw: Long, lent: Boolean = false) : Au
 	fun allowed(): moq.Patterns
 	@kotlin.jvm.Throws(ErrorException::class) fun absolute(path: kotlin.String): moq.Path
 	companion object {
-		@kotlin.jvm.JvmStatic fun new(config: moq.OriginConfig): kotlin.Pair<moq.OriginProducer, moq.OriginDriver>
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("new_") fun new(config: moq.OriginConfig): kotlin.Pair<moq.OriginProducer, moq.OriginDriver>
 	}
 }
 class OriginRequest internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -3167,7 +3248,7 @@ class OriginRoute internal constructor(raw: Long, lent: Boolean = false) : AutoC
 	@kotlin.jvm.Throws(ErrorException::class) fun announce()
 	fun withdraw()
 	fun isAnnounced(): kotlin.Boolean
-	@kotlin.jvm.JvmName("setCost-opaque") @kotlin.jvm.Throws(ErrorException::class) fun setCost(cost: moq.OriginCost)
+	@kotlin.jvm.JvmName("setCost-kotlin") @kotlin.jvm.Throws(ErrorException::class) fun setCost(cost: moq.OriginCost)
 	@kotlin.jvm.Throws(ErrorException::class) fun setAuth(auth: moq.AuthCredential?)
 }
 class OriginRouteInfo internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -3177,18 +3258,18 @@ class OriginRouteInfo internal constructor(raw: Long, lent: Boolean = false) : A
 	override fun equals(other: kotlin.Any?): kotlin.Boolean
 	override fun hashCode(): kotlin.Int
 	fun instance(): moq.Instance
-	@kotlin.jvm.JvmName("cost") fun cost(): moq.OriginCost
+	@kotlin.jvm.JvmName("cost-kotlin") fun cost(): moq.OriginCost
 	fun available(): kotlin.Boolean
 }
 class OriginRouteOptions internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
 	fun debug(): kotlin.String
 	fun clone(): moq.OriginRouteOptions
-	@kotlin.jvm.JvmName("withCost-opaque") fun withCost(cost: moq.OriginCost): moq.OriginRouteOptions
+	@kotlin.jvm.JvmName("withCost-kotlin") fun withCost(cost: moq.OriginCost): moq.OriginRouteOptions
 	fun withAuth(auth: moq.AuthCredential): moq.OriginRouteOptions
 	@kotlin.jvm.JvmName("withInstance") fun withInstance(instance: moq.Instance, epoch: kotlin.ULong): moq.OriginRouteOptions
 	companion object {
-		@kotlin.jvm.JvmStatic fun default(): moq.OriginRouteOptions
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("default_") fun default(): moq.OriginRouteOptions
 		@kotlin.jvm.JvmStatic fun hidden(): moq.OriginRouteOptions
 	}
 }
@@ -3248,7 +3329,7 @@ class HangStatsSnapshot internal constructor(raw: Long, lent: Boolean = false) :
 	val renditionsGet: kotlin.collections.List<kotlin.Pair<kotlin.String, moq.HangStatsRendition>>
 	fun renditionsSet(value: kotlin.collections.List<kotlin.Pair<kotlin.String, moq.HangStatsRendition>>)
 	companion object {
-		@kotlin.jvm.JvmStatic fun default(): moq.HangStatsSnapshot
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("default_") fun default(): moq.HangStatsSnapshot
 	}
 }
 class HangStatsRendition internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -3268,7 +3349,7 @@ class HangStatsRendition internal constructor(raw: Long, lent: Boolean = false) 
 	@get:kotlin.jvm.JvmName("getBitrateGet") val bitrateGet: kotlin.ULong?
 	@kotlin.jvm.JvmName("bitrateSet") fun bitrateSet(value: kotlin.ULong?)
 	companion object {
-		@kotlin.jvm.JvmStatic fun default(): moq.HangStatsRendition
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("default_") fun default(): moq.HangStatsRendition
 	}
 }
 class HangStatsTransport internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -3288,7 +3369,7 @@ class HangStatsTransport internal constructor(raw: Long, lent: Boolean = false) 
 	val ageGet: moq.Duration?
 	fun ageSet(value: moq.Duration?)
 	companion object {
-		@kotlin.jvm.JvmStatic fun default(): moq.HangStatsTransport
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("default_") fun default(): moq.HangStatsTransport
 	}
 }
 class HangEchoSnapshot internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -3302,7 +3383,7 @@ class HangEchoSnapshot internal constructor(raw: Long, lent: Boolean = false) : 
 	val renditionsGet: kotlin.collections.List<kotlin.Pair<kotlin.String, moq.HangEchoRendition>>
 	fun renditionsSet(value: kotlin.collections.List<kotlin.Pair<kotlin.String, moq.HangEchoRendition>>)
 	companion object {
-		@kotlin.jvm.JvmStatic fun default(): moq.HangEchoSnapshot
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("default_") fun default(): moq.HangEchoSnapshot
 	}
 }
 class HangEchoRendition internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -3330,7 +3411,7 @@ class HangEchoRendition internal constructor(raw: Long, lent: Boolean = false) :
 	val arrivalGet: moq.HangEchoArrival?
 	fun arrivalSet(value: moq.HangEchoArrival?)
 	companion object {
-		@kotlin.jvm.JvmStatic fun default(): moq.HangEchoRendition
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("default_") fun default(): moq.HangEchoRendition
 	}
 }
 class HangEchoArrival internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -3341,10 +3422,10 @@ class HangEchoArrival internal constructor(raw: Long, lent: Boolean = false) : A
 	override fun hashCode(): kotlin.Int
 	val timestampGet: moq.Timestamp
 	fun timestampSet(value: moq.Timestamp)
-	@get:kotlin.jvm.JvmName("getWallGet") val wallGet: moq.ClockWall
-	@kotlin.jvm.JvmName("wallSet-opaque") fun wallSet(value: moq.ClockWall)
+	@get:kotlin.jvm.JvmName("getWallGet-kotlin") val wallGet: moq.ClockWall
+	@kotlin.jvm.JvmName("wallSet-kotlin") fun wallSet(value: moq.ClockWall)
 	companion object {
-		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("new-opaque") fun new(timestamp: moq.Timestamp, wall: moq.ClockWall): moq.HangEchoArrival
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("new_-kotlin") fun new(timestamp: moq.Timestamp, wall: moq.ClockWall): moq.HangEchoArrival
 	}
 }
 class HangCatalogSkipped internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -3368,14 +3449,14 @@ class HangCatalogSkipped internal constructor(raw: Long, lent: Boolean = false) 
 	fun isEmpty(): kotlin.Boolean
 	@kotlin.jvm.JvmName("version") fun version(): kotlin.ULong?
 	companion object {
-		@kotlin.jvm.JvmStatic fun default(): moq.HangCatalogSkipped
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("default_") fun default(): moq.HangCatalogSkipped
 	}
 }
 class HangCatalogConsumer internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
 	@kotlin.jvm.Throws(HangErrorException::class) suspend fun pollNext(): moq.MoqJsonTimedCatalog?
 	companion object {
-		@kotlin.jvm.JvmStatic fun new(track: moq.TrackConsumer, delay: moq.Duration): moq.HangCatalogConsumer
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("new_") fun new(track: moq.TrackConsumer, delay: moq.Duration): moq.HangCatalogConsumer
 	}
 }
 class HangCatalogAudio internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -3392,7 +3473,7 @@ class HangCatalogAudio internal constructor(raw: Long, lent: Boolean = false) : 
 	fun enabled(): kotlin.collections.List<kotlin.Pair<kotlin.String, moq.HangCatalogAudioConfig>>
 	fun ranked(): kotlin.collections.List<kotlin.Pair<kotlin.String, moq.HangCatalogAudioConfig>>
 	companion object {
-		@kotlin.jvm.JvmStatic fun default(): moq.HangCatalogAudio
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("default_") fun default(): moq.HangCatalogAudio
 	}
 }
 class HangCatalogAudioConfig internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -3433,7 +3514,7 @@ class HangCatalogAudioConfig internal constructor(raw: Long, lent: Boolean = fal
 	fun delaySet(value: moq.Duration?)
 	fun sameIdentity(other: moq.HangCatalogAudioConfig): kotlin.Boolean
 	companion object {
-		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("new") fun new(codec: moq.HangCatalogAudioCodec, sampleRate: kotlin.UInt, channelCount: kotlin.UInt): moq.HangCatalogAudioConfig
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("new_") fun new(codec: moq.HangCatalogAudioCodec, sampleRate: kotlin.UInt, channelCount: kotlin.UInt): moq.HangCatalogAudioConfig
 	}
 }
 class HangCatalogBinary internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -3448,7 +3529,7 @@ class HangCatalogBinary internal constructor(raw: Long, lent: Boolean = false) :
 	fun remove(name: kotlin.String): moq.HangCatalogBinaryConfig?
 	fun isEmpty(): kotlin.Boolean
 	companion object {
-		@kotlin.jvm.JvmStatic fun default(): moq.HangCatalogBinary
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("default_") fun default(): moq.HangCatalogBinary
 	}
 }
 class HangCatalogBinaryConfig internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -3476,7 +3557,7 @@ class HangCatalogBinaryConfig internal constructor(raw: Long, lent: Boolean = fa
 	val extraGet: kotlin.collections.List<kotlin.Pair<kotlin.String, moq.Json>>
 	fun extraSet(value: kotlin.collections.List<kotlin.Pair<kotlin.String, moq.Json>>)
 	companion object {
-		@kotlin.jvm.JvmStatic fun new(mode: moq.HangCatalogMode): moq.HangCatalogBinaryConfig
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("new_") fun new(mode: moq.HangCatalogMode): moq.HangCatalogBinaryConfig
 	}
 }
 class HangCatalogContainer internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -3486,7 +3567,7 @@ class HangCatalogContainer internal constructor(raw: Long, lent: Boolean = false
 	override fun equals(other: kotlin.Any?): kotlin.Boolean
 	override fun hashCode(): kotlin.Int
 	companion object {
-		@kotlin.jvm.JvmStatic fun default(): moq.HangCatalogContainer
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("default_") fun default(): moq.HangCatalogContainer
 	}
 }
 class HangCatalogEcho internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -3498,7 +3579,7 @@ class HangCatalogEcho internal constructor(raw: Long, lent: Boolean = false) : A
 	val pathGet: moq.PathRelative
 	fun pathSet(value: moq.PathRelative)
 	companion object {
-		@kotlin.jvm.JvmStatic fun new(path: moq.PathRelative): moq.HangCatalogEcho
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("new_") fun new(path: moq.PathRelative): moq.HangCatalogEcho
 	}
 }
 class HangCatalogInclude internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -3512,7 +3593,7 @@ class HangCatalogInclude internal constructor(raw: Long, lent: Boolean = false) 
 	val instanceGet: moq.Instance?
 	fun instanceSet(value: moq.Instance?)
 	companion object {
-		@kotlin.jvm.JvmStatic fun new(broadcast: moq.PathRelative): moq.HangCatalogInclude
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("new_") fun new(broadcast: moq.PathRelative): moq.HangCatalogInclude
 	}
 }
 class HangCatalogJson internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -3527,7 +3608,7 @@ class HangCatalogJson internal constructor(raw: Long, lent: Boolean = false) : A
 	fun remove(name: kotlin.String): moq.HangCatalogJsonConfig?
 	fun isEmpty(): kotlin.Boolean
 	companion object {
-		@kotlin.jvm.JvmStatic fun default(): moq.HangCatalogJson
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("default_") fun default(): moq.HangCatalogJson
 	}
 }
 class HangCatalogJsonConfig internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -3555,7 +3636,7 @@ class HangCatalogJsonConfig internal constructor(raw: Long, lent: Boolean = fals
 	val extraGet: kotlin.collections.List<kotlin.Pair<kotlin.String, moq.Json>>
 	fun extraSet(value: kotlin.collections.List<kotlin.Pair<kotlin.String, moq.Json>>)
 	companion object {
-		@kotlin.jvm.JvmStatic fun new(mode: moq.HangCatalogMode): moq.HangCatalogJsonConfig
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("new_") fun new(mode: moq.HangCatalogMode): moq.HangCatalogJsonConfig
 	}
 }
 class HangCatalogStats internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -3567,7 +3648,7 @@ class HangCatalogStats internal constructor(raw: Long, lent: Boolean = false) : 
 	val trackGet: kotlin.String
 	fun trackSet(value: kotlin.String)
 	companion object {
-		@kotlin.jvm.JvmStatic fun new(track: kotlin.String): moq.HangCatalogStats
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("new_") fun new(track: kotlin.String): moq.HangCatalogStats
 	}
 }
 class HangCatalogText internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -3582,7 +3663,7 @@ class HangCatalogText internal constructor(raw: Long, lent: Boolean = false) : A
 	fun remove(name: kotlin.String): moq.HangCatalogTextConfig?
 	fun isEmpty(): kotlin.Boolean
 	companion object {
-		@kotlin.jvm.JvmStatic fun default(): moq.HangCatalogText
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("default_") fun default(): moq.HangCatalogText
 	}
 }
 class HangCatalogTextConfig internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -3612,7 +3693,7 @@ class HangCatalogTextConfig internal constructor(raw: Long, lent: Boolean = fals
 	val delayGet: moq.Duration?
 	fun delaySet(value: moq.Duration?)
 	companion object {
-		@kotlin.jvm.JvmStatic fun new(format: moq.HangCatalogTextFormat): moq.HangCatalogTextConfig
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("new_") fun new(format: moq.HangCatalogTextFormat): moq.HangCatalogTextConfig
 	}
 }
 class HangCatalogTimeline internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -3627,7 +3708,7 @@ class HangCatalogTimeline internal constructor(raw: Long, lent: Boolean = false)
 	fun intervalSet(value: moq.Duration?)
 	fun isEmpty(): kotlin.Boolean
 	companion object {
-		@kotlin.jvm.JvmStatic fun default(): moq.HangCatalogTimeline
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("default_") fun default(): moq.HangCatalogTimeline
 	}
 }
 class HangCatalogColor internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -3649,7 +3730,7 @@ class HangCatalogColor internal constructor(raw: Long, lent: Boolean = false) : 
 	val contentLightGet: moq.HangCatalogContentLight?
 	fun contentLightSet(value: moq.HangCatalogContentLight?)
 	companion object {
-		@kotlin.jvm.JvmStatic fun default(): moq.HangCatalogColor
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("default_") fun default(): moq.HangCatalogColor
 	}
 }
 class HangCatalogProjection internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -3659,7 +3740,7 @@ class HangCatalogProjection internal constructor(raw: Long, lent: Boolean = fals
 	override fun equals(other: kotlin.Any?): kotlin.Boolean
 	override fun hashCode(): kotlin.Int
 	companion object {
-		@kotlin.jvm.JvmStatic fun default(): moq.HangCatalogProjection
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("default_") fun default(): moq.HangCatalogProjection
 	}
 }
 class HangCatalogVideo internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -3683,7 +3764,7 @@ class HangCatalogVideo internal constructor(raw: Long, lent: Boolean = false) : 
 	fun ranked(): kotlin.collections.List<kotlin.Pair<kotlin.String, moq.HangCatalogVideoConfig>>
 	@kotlin.jvm.Throws(HangErrorException::class) fun setProperties(properties: moq.HangCatalogVideoProperties)
 	companion object {
-		@kotlin.jvm.JvmStatic fun default(): moq.HangCatalogVideo
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("default_") fun default(): moq.HangCatalogVideo
 	}
 }
 class HangCatalogVideoProperties internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -3699,7 +3780,7 @@ class HangCatalogVideoProperties internal constructor(raw: Long, lent: Boolean =
 	val flipGet: kotlin.Boolean?
 	fun flipSet(value: kotlin.Boolean?)
 	companion object {
-		@kotlin.jvm.JvmStatic fun default(): moq.HangCatalogVideoProperties
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("default_") fun default(): moq.HangCatalogVideoProperties
 	}
 }
 class HangCatalogVideoConfig internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -3756,25 +3837,25 @@ class HangCatalogVideoConfig internal constructor(raw: Long, lent: Boolean = fal
 	fun delaySet(value: moq.Duration?)
 	fun sameIdentity(other: moq.HangCatalogVideoConfig): kotlin.Boolean
 	companion object {
-		@kotlin.jvm.JvmStatic fun new(codec: moq.HangCatalogVideoCodec): moq.HangCatalogVideoConfig
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("new_") fun new(codec: moq.HangCatalogVideoCodec): moq.HangCatalogVideoConfig
 	}
 }
 class MuxCatalogConsumer internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
 	companion object {
-		@kotlin.jvm.JvmStatic @kotlin.jvm.Throws(MuxErrorException::class) suspend fun new(broadcast: moq.BroadcastConsumer, format: moq.MuxCatalogCatalogFormat): moq.MuxCatalogConsumer
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("new_") @kotlin.jvm.Throws(MuxErrorException::class) suspend fun new(broadcast: moq.BroadcastConsumer, format: moq.MuxCatalogCatalogFormat): moq.MuxCatalogConsumer
 	}
 }
 class MuxCatalogConsumerExtra internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
 	companion object {
-		@kotlin.jvm.JvmStatic @kotlin.jvm.Throws(MuxErrorException::class) suspend fun new(broadcast: moq.BroadcastConsumer, format: moq.MuxCatalogCatalogFormat): moq.MuxCatalogConsumerExtra
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("new_") @kotlin.jvm.Throws(MuxErrorException::class) suspend fun new(broadcast: moq.BroadcastConsumer, format: moq.MuxCatalogCatalogFormat): moq.MuxCatalogConsumerExtra
 	}
 }
 class MuxCatalogConsumerExt internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
 	companion object {
-		@kotlin.jvm.JvmStatic @kotlin.jvm.Throws(MuxErrorException::class) suspend fun new(broadcast: moq.BroadcastConsumer, format: moq.MuxCatalogCatalogFormat): moq.MuxCatalogConsumerExt
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("new_") @kotlin.jvm.Throws(MuxErrorException::class) suspend fun new(broadcast: moq.BroadcastConsumer, format: moq.MuxCatalogCatalogFormat): moq.MuxCatalogConsumerExt
 	}
 }
 class MuxCatalogEstimate internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -3796,7 +3877,7 @@ class MuxCatalogEstimate internal constructor(raw: Long, lent: Boolean = false) 
 	fun withDelay(delay: moq.Duration?): moq.MuxCatalogEstimate
 	fun withFramerate(framerate: kotlin.Double?): moq.MuxCatalogEstimate
 	companion object {
-		@kotlin.jvm.JvmStatic fun default(): moq.MuxCatalogEstimate
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("default_") fun default(): moq.MuxCatalogEstimate
 	}
 }
 class MuxCatalogConfig internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -3809,7 +3890,7 @@ class MuxCatalogConfig internal constructor(raw: Long, lent: Boolean = false) : 
 	fun withMaxAge(maxAge: moq.Duration?): moq.MuxCatalogConfig
 	fun withBandwidth(bandwidth: moq.BandwidthAllocator): moq.MuxCatalogConfig
 	companion object {
-		@kotlin.jvm.JvmStatic fun default(): moq.MuxCatalogConfig
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("default_") fun default(): moq.MuxCatalogConfig
 	}
 }
 class MuxCatalogConfigExtra internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -3982,7 +4063,7 @@ class MuxCatalogProducer internal constructor(raw: Long, lent: Boolean = false) 
 	fun abort(err: moq.Error)
 	@kotlin.jvm.Throws(MuxErrorException::class) fun finish()
 	companion object {
-		@kotlin.jvm.JvmStatic @kotlin.jvm.Throws(MuxErrorException::class) fun new(broadcast: moq.BroadcastProducer, config: moq.MuxCatalogConfig): moq.MuxCatalogProducer
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("new_") @kotlin.jvm.Throws(MuxErrorException::class) fun new(broadcast: moq.BroadcastProducer, config: moq.MuxCatalogConfig): moq.MuxCatalogProducer
 	}
 }
 class MuxCatalogProducerExtra internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -4042,7 +4123,7 @@ class MuxCatalogProducerExtra internal constructor(raw: Long, lent: Boolean = fa
 	fun abort(err: moq.Error)
 	@kotlin.jvm.Throws(MuxErrorException::class) fun finish()
 	companion object {
-		@kotlin.jvm.JvmStatic @kotlin.jvm.Throws(MuxErrorException::class) fun new(broadcast: moq.BroadcastProducer, config: moq.MuxCatalogConfigExtra): moq.MuxCatalogProducerExtra
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("new_") @kotlin.jvm.Throws(MuxErrorException::class) fun new(broadcast: moq.BroadcastProducer, config: moq.MuxCatalogConfigExtra): moq.MuxCatalogProducerExtra
 	}
 }
 class MuxCatalogProducerExt internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -4102,26 +4183,26 @@ class MuxCatalogProducerExt internal constructor(raw: Long, lent: Boolean = fals
 	fun abort(err: moq.Error)
 	@kotlin.jvm.Throws(MuxErrorException::class) fun finish()
 	companion object {
-		@kotlin.jvm.JvmStatic @kotlin.jvm.Throws(MuxErrorException::class) fun new(broadcast: moq.BroadcastProducer, config: moq.MuxCatalogConfigExt): moq.MuxCatalogProducerExt
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("new_") @kotlin.jvm.Throws(MuxErrorException::class) fun new(broadcast: moq.BroadcastProducer, config: moq.MuxCatalogConfigExt): moq.MuxCatalogProducerExt
 	}
 }
 class MuxCatalogTimebase internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
 	fun clone(): moq.MuxCatalogTimebase
 	fun reserve(): moq.MuxCatalogReserved
-	@kotlin.jvm.JvmName("place-opaque") @kotlin.jvm.Throws(MuxErrorException::class) fun place(pts: moq.Timestamp, wall: moq.ClockWall)
+	@kotlin.jvm.JvmName("place-kotlin") @kotlin.jvm.Throws(MuxErrorException::class) fun place(pts: moq.Timestamp, wall: moq.ClockWall)
 }
 class MuxCatalogTimebaseExtra internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
 	fun clone(): moq.MuxCatalogTimebaseExtra
 	fun reserve(): moq.MuxCatalogReservedExtra
-	@kotlin.jvm.JvmName("place-opaque") @kotlin.jvm.Throws(MuxErrorException::class) fun place(pts: moq.Timestamp, wall: moq.ClockWall)
+	@kotlin.jvm.JvmName("place-kotlin") @kotlin.jvm.Throws(MuxErrorException::class) fun place(pts: moq.Timestamp, wall: moq.ClockWall)
 }
 class MuxCatalogTimebaseExt internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
 	fun clone(): moq.MuxCatalogTimebaseExt
 	fun reserve(): moq.MuxCatalogReservedExt
-	@kotlin.jvm.JvmName("place-opaque") @kotlin.jvm.Throws(MuxErrorException::class) fun place(pts: moq.Timestamp, wall: moq.ClockWall)
+	@kotlin.jvm.JvmName("place-kotlin") @kotlin.jvm.Throws(MuxErrorException::class) fun place(pts: moq.Timestamp, wall: moq.ClockWall)
 }
 class MuxCatalogReserved internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
@@ -4276,7 +4357,7 @@ class MuxCatalogVideoHint internal constructor(raw: Long, lent: Boolean = false)
 	fun preferenceSet(value: kotlin.Int)
 	fun apply(config: moq.HangCatalogVideoConfig)
 	companion object {
-		@kotlin.jvm.JvmStatic fun default(): moq.MuxCatalogVideoHint
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("default_") fun default(): moq.MuxCatalogVideoHint
 	}
 }
 class MuxContainerConsumerContainer internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -4288,7 +4369,7 @@ class MuxContainerConsumerContainer internal constructor(raw: Long, lent: Boolea
 	fun setDelay(delay: moq.TrackDelay)
 	fun setPlayhead(playhead: moq.MuxSyncConsumer)
 	companion object {
-		@kotlin.jvm.JvmStatic fun new(track: moq.TrackSubscriber, format: moq.MuxCatalogHangContainer): moq.MuxContainerConsumerContainer
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("new_") fun new(track: moq.TrackSubscriber, format: moq.MuxCatalogHangContainer): moq.MuxContainerConsumerContainer
 	}
 }
 class MuxContainerConsumerFmp4Wire internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -4300,7 +4381,7 @@ class MuxContainerConsumerFmp4Wire internal constructor(raw: Long, lent: Boolean
 	fun setDelay(delay: moq.TrackDelay)
 	fun setPlayhead(playhead: moq.MuxSyncConsumer)
 	companion object {
-		@kotlin.jvm.JvmStatic fun new(track: moq.TrackSubscriber, format: moq.MuxContainerFmp4Wire): moq.MuxContainerConsumerFmp4Wire
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("new_") fun new(track: moq.TrackSubscriber, format: moq.MuxContainerFmp4Wire): moq.MuxContainerConsumerFmp4Wire
 	}
 }
 class MuxContainerConsumerLegacyWire internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -4312,7 +4393,7 @@ class MuxContainerConsumerLegacyWire internal constructor(raw: Long, lent: Boole
 	fun setDelay(delay: moq.TrackDelay)
 	fun setPlayhead(playhead: moq.MuxSyncConsumer)
 	companion object {
-		@kotlin.jvm.JvmStatic fun new(track: moq.TrackSubscriber, format: moq.MuxContainerLegacyWire): moq.MuxContainerConsumerLegacyWire
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("new_") fun new(track: moq.TrackSubscriber, format: moq.MuxContainerLegacyWire): moq.MuxContainerConsumerLegacyWire
 	}
 }
 class MuxContainerConsumerLocWire internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -4324,7 +4405,7 @@ class MuxContainerConsumerLocWire internal constructor(raw: Long, lent: Boolean 
 	fun setDelay(delay: moq.TrackDelay)
 	fun setPlayhead(playhead: moq.MuxSyncConsumer)
 	companion object {
-		@kotlin.jvm.JvmStatic fun new(track: moq.TrackSubscriber, format: moq.MuxContainerLocWire): moq.MuxContainerConsumerLocWire
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("new_") fun new(track: moq.TrackSubscriber, format: moq.MuxContainerLocWire): moq.MuxContainerConsumerLocWire
 	}
 }
 class MuxContainerGroupConsumerContainer internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -4332,7 +4413,7 @@ class MuxContainerGroupConsumerContainer internal constructor(raw: Long, lent: B
 	@kotlin.jvm.JvmName("start") fun start(): kotlin.ULong
 	@kotlin.jvm.Throws(MuxErrorException::class) suspend fun read(): moq.MuxContainerFrame?
 	companion object {
-		@kotlin.jvm.JvmStatic fun new(group: moq.GroupConsumer, format: moq.MuxCatalogHangContainer): moq.MuxContainerGroupConsumerContainer
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("new_") fun new(group: moq.GroupConsumer, format: moq.MuxCatalogHangContainer): moq.MuxContainerGroupConsumerContainer
 	}
 }
 class MuxContainerGroupConsumerFmp4Wire internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -4340,7 +4421,7 @@ class MuxContainerGroupConsumerFmp4Wire internal constructor(raw: Long, lent: Bo
 	@kotlin.jvm.JvmName("start") fun start(): kotlin.ULong
 	@kotlin.jvm.Throws(MuxContainerFmp4ErrorException::class) suspend fun read(): moq.MuxContainerFrame?
 	companion object {
-		@kotlin.jvm.JvmStatic fun new(group: moq.GroupConsumer, format: moq.MuxContainerFmp4Wire): moq.MuxContainerGroupConsumerFmp4Wire
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("new_") fun new(group: moq.GroupConsumer, format: moq.MuxContainerFmp4Wire): moq.MuxContainerGroupConsumerFmp4Wire
 	}
 }
 class MuxContainerGroupConsumerLegacyWire internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -4348,7 +4429,7 @@ class MuxContainerGroupConsumerLegacyWire internal constructor(raw: Long, lent: 
 	@kotlin.jvm.JvmName("start") fun start(): kotlin.ULong
 	@kotlin.jvm.Throws(MuxErrorException::class) suspend fun read(): moq.MuxContainerFrame?
 	companion object {
-		@kotlin.jvm.JvmStatic fun new(group: moq.GroupConsumer, format: moq.MuxContainerLegacyWire): moq.MuxContainerGroupConsumerLegacyWire
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("new_") fun new(group: moq.GroupConsumer, format: moq.MuxContainerLegacyWire): moq.MuxContainerGroupConsumerLegacyWire
 	}
 }
 class MuxContainerGroupConsumerLocWire internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -4356,7 +4437,7 @@ class MuxContainerGroupConsumerLocWire internal constructor(raw: Long, lent: Boo
 	@kotlin.jvm.JvmName("start") fun start(): kotlin.ULong
 	@kotlin.jvm.Throws(MuxErrorException::class) suspend fun read(): moq.MuxContainerFrame?
 	companion object {
-		@kotlin.jvm.JvmStatic fun new(group: moq.GroupConsumer, format: moq.MuxContainerLocWire): moq.MuxContainerGroupConsumerLocWire
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("new_") fun new(group: moq.GroupConsumer, format: moq.MuxContainerLocWire): moq.MuxContainerGroupConsumerLocWire
 	}
 }
 class MuxContainerFinishedContainerAudioConfig internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -4748,7 +4829,7 @@ class MuxContainerProducerContainerAudioConfig internal constructor(raw: Long, l
 	fun withBuffer(duration: moq.Duration): moq.MuxContainerProducerContainerAudioConfig
 	fun withBandwidth(allocator: moq.BandwidthAllocator): moq.MuxContainerProducerContainerAudioConfig
 	@kotlin.jvm.JvmName("reportSkipped") fun reportSkipped(frames: kotlin.ULong)
-	@kotlin.jvm.JvmName("reportBitrate-opaque") fun reportBitrate(bitrate: moq.BandwidthRate)
+	@kotlin.jvm.JvmName("reportBitrate-kotlin") fun reportBitrate(bitrate: moq.BandwidthRate)
 	fun track(): moq.TrackProducer
 	fun liveEdge(): moq.Timestamp?
 	@kotlin.jvm.Throws(MuxErrorException::class) fun write(frame: moq.MuxContainerFrame)
@@ -4790,7 +4871,7 @@ class MuxContainerProducerContainerBinaryConfig internal constructor(raw: Long, 
 	fun withBuffer(duration: moq.Duration): moq.MuxContainerProducerContainerBinaryConfig
 	fun withBandwidth(allocator: moq.BandwidthAllocator): moq.MuxContainerProducerContainerBinaryConfig
 	@kotlin.jvm.JvmName("reportSkipped") fun reportSkipped(frames: kotlin.ULong)
-	@kotlin.jvm.JvmName("reportBitrate-opaque") fun reportBitrate(bitrate: moq.BandwidthRate)
+	@kotlin.jvm.JvmName("reportBitrate-kotlin") fun reportBitrate(bitrate: moq.BandwidthRate)
 	fun track(): moq.TrackProducer
 	fun liveEdge(): moq.Timestamp?
 	@kotlin.jvm.Throws(MuxErrorException::class) fun write(frame: moq.MuxContainerFrame)
@@ -4832,7 +4913,7 @@ class MuxContainerProducerContainerJsonConfig internal constructor(raw: Long, le
 	fun withBuffer(duration: moq.Duration): moq.MuxContainerProducerContainerJsonConfig
 	fun withBandwidth(allocator: moq.BandwidthAllocator): moq.MuxContainerProducerContainerJsonConfig
 	@kotlin.jvm.JvmName("reportSkipped") fun reportSkipped(frames: kotlin.ULong)
-	@kotlin.jvm.JvmName("reportBitrate-opaque") fun reportBitrate(bitrate: moq.BandwidthRate)
+	@kotlin.jvm.JvmName("reportBitrate-kotlin") fun reportBitrate(bitrate: moq.BandwidthRate)
 	fun track(): moq.TrackProducer
 	fun liveEdge(): moq.Timestamp?
 	@kotlin.jvm.Throws(MuxErrorException::class) fun write(frame: moq.MuxContainerFrame)
@@ -4874,7 +4955,7 @@ class MuxContainerProducerContainerTextConfig internal constructor(raw: Long, le
 	fun withBuffer(duration: moq.Duration): moq.MuxContainerProducerContainerTextConfig
 	fun withBandwidth(allocator: moq.BandwidthAllocator): moq.MuxContainerProducerContainerTextConfig
 	@kotlin.jvm.JvmName("reportSkipped") fun reportSkipped(frames: kotlin.ULong)
-	@kotlin.jvm.JvmName("reportBitrate-opaque") fun reportBitrate(bitrate: moq.BandwidthRate)
+	@kotlin.jvm.JvmName("reportBitrate-kotlin") fun reportBitrate(bitrate: moq.BandwidthRate)
 	fun track(): moq.TrackProducer
 	fun liveEdge(): moq.Timestamp?
 	@kotlin.jvm.Throws(MuxErrorException::class) fun write(frame: moq.MuxContainerFrame)
@@ -4916,7 +4997,7 @@ class MuxContainerProducerContainerVideoConfig internal constructor(raw: Long, l
 	fun withBuffer(duration: moq.Duration): moq.MuxContainerProducerContainerVideoConfig
 	fun withBandwidth(allocator: moq.BandwidthAllocator): moq.MuxContainerProducerContainerVideoConfig
 	@kotlin.jvm.JvmName("reportSkipped") fun reportSkipped(frames: kotlin.ULong)
-	@kotlin.jvm.JvmName("reportBitrate-opaque") fun reportBitrate(bitrate: moq.BandwidthRate)
+	@kotlin.jvm.JvmName("reportBitrate-kotlin") fun reportBitrate(bitrate: moq.BandwidthRate)
 	fun track(): moq.TrackProducer
 	fun liveEdge(): moq.Timestamp?
 	@kotlin.jvm.Throws(MuxErrorException::class) fun write(frame: moq.MuxContainerFrame)
@@ -4958,7 +5039,7 @@ class MuxContainerProducerContainer internal constructor(raw: Long, lent: Boolea
 	fun withBuffer(duration: moq.Duration): moq.MuxContainerProducerContainer
 	fun withBandwidth(allocator: moq.BandwidthAllocator): moq.MuxContainerProducerContainer
 	@kotlin.jvm.JvmName("reportSkipped") fun reportSkipped(frames: kotlin.ULong)
-	@kotlin.jvm.JvmName("reportBitrate-opaque") fun reportBitrate(bitrate: moq.BandwidthRate)
+	@kotlin.jvm.JvmName("reportBitrate-kotlin") fun reportBitrate(bitrate: moq.BandwidthRate)
 	fun track(): moq.TrackProducer
 	fun liveEdge(): moq.Timestamp?
 	@kotlin.jvm.Throws(MuxErrorException::class) fun write(frame: moq.MuxContainerFrame)
@@ -4985,7 +5066,7 @@ class MuxContainerProducerContainer internal constructor(raw: Long, lent: Boolea
 	fun subscription(): moq.TrackSubscription?
 	fun requests(): moq.TrackRequests
 	companion object {
-		@kotlin.jvm.JvmStatic fun new(track: moq.TrackProducer, container: moq.MuxCatalogHangContainer): moq.MuxContainerProducerContainer
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("new_") fun new(track: moq.TrackProducer, container: moq.MuxCatalogHangContainer): moq.MuxContainerProducerContainer
 	}
 }
 class MuxContainerProducerFmp4WireAudioConfig internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -5003,7 +5084,7 @@ class MuxContainerProducerFmp4WireAudioConfig internal constructor(raw: Long, le
 	fun withBuffer(duration: moq.Duration): moq.MuxContainerProducerFmp4WireAudioConfig
 	fun withBandwidth(allocator: moq.BandwidthAllocator): moq.MuxContainerProducerFmp4WireAudioConfig
 	@kotlin.jvm.JvmName("reportSkipped") fun reportSkipped(frames: kotlin.ULong)
-	@kotlin.jvm.JvmName("reportBitrate-opaque") fun reportBitrate(bitrate: moq.BandwidthRate)
+	@kotlin.jvm.JvmName("reportBitrate-kotlin") fun reportBitrate(bitrate: moq.BandwidthRate)
 	fun track(): moq.TrackProducer
 	fun liveEdge(): moq.Timestamp?
 	@kotlin.jvm.Throws(MuxErrorException::class) fun write(frame: moq.MuxContainerFrame)
@@ -5045,7 +5126,7 @@ class MuxContainerProducerFmp4WireBinaryConfig internal constructor(raw: Long, l
 	fun withBuffer(duration: moq.Duration): moq.MuxContainerProducerFmp4WireBinaryConfig
 	fun withBandwidth(allocator: moq.BandwidthAllocator): moq.MuxContainerProducerFmp4WireBinaryConfig
 	@kotlin.jvm.JvmName("reportSkipped") fun reportSkipped(frames: kotlin.ULong)
-	@kotlin.jvm.JvmName("reportBitrate-opaque") fun reportBitrate(bitrate: moq.BandwidthRate)
+	@kotlin.jvm.JvmName("reportBitrate-kotlin") fun reportBitrate(bitrate: moq.BandwidthRate)
 	fun track(): moq.TrackProducer
 	fun liveEdge(): moq.Timestamp?
 	@kotlin.jvm.Throws(MuxErrorException::class) fun write(frame: moq.MuxContainerFrame)
@@ -5087,7 +5168,7 @@ class MuxContainerProducerFmp4WireJsonConfig internal constructor(raw: Long, len
 	fun withBuffer(duration: moq.Duration): moq.MuxContainerProducerFmp4WireJsonConfig
 	fun withBandwidth(allocator: moq.BandwidthAllocator): moq.MuxContainerProducerFmp4WireJsonConfig
 	@kotlin.jvm.JvmName("reportSkipped") fun reportSkipped(frames: kotlin.ULong)
-	@kotlin.jvm.JvmName("reportBitrate-opaque") fun reportBitrate(bitrate: moq.BandwidthRate)
+	@kotlin.jvm.JvmName("reportBitrate-kotlin") fun reportBitrate(bitrate: moq.BandwidthRate)
 	fun track(): moq.TrackProducer
 	fun liveEdge(): moq.Timestamp?
 	@kotlin.jvm.Throws(MuxErrorException::class) fun write(frame: moq.MuxContainerFrame)
@@ -5129,7 +5210,7 @@ class MuxContainerProducerFmp4WireTextConfig internal constructor(raw: Long, len
 	fun withBuffer(duration: moq.Duration): moq.MuxContainerProducerFmp4WireTextConfig
 	fun withBandwidth(allocator: moq.BandwidthAllocator): moq.MuxContainerProducerFmp4WireTextConfig
 	@kotlin.jvm.JvmName("reportSkipped") fun reportSkipped(frames: kotlin.ULong)
-	@kotlin.jvm.JvmName("reportBitrate-opaque") fun reportBitrate(bitrate: moq.BandwidthRate)
+	@kotlin.jvm.JvmName("reportBitrate-kotlin") fun reportBitrate(bitrate: moq.BandwidthRate)
 	fun track(): moq.TrackProducer
 	fun liveEdge(): moq.Timestamp?
 	@kotlin.jvm.Throws(MuxErrorException::class) fun write(frame: moq.MuxContainerFrame)
@@ -5171,7 +5252,7 @@ class MuxContainerProducerFmp4WireVideoConfig internal constructor(raw: Long, le
 	fun withBuffer(duration: moq.Duration): moq.MuxContainerProducerFmp4WireVideoConfig
 	fun withBandwidth(allocator: moq.BandwidthAllocator): moq.MuxContainerProducerFmp4WireVideoConfig
 	@kotlin.jvm.JvmName("reportSkipped") fun reportSkipped(frames: kotlin.ULong)
-	@kotlin.jvm.JvmName("reportBitrate-opaque") fun reportBitrate(bitrate: moq.BandwidthRate)
+	@kotlin.jvm.JvmName("reportBitrate-kotlin") fun reportBitrate(bitrate: moq.BandwidthRate)
 	fun track(): moq.TrackProducer
 	fun liveEdge(): moq.Timestamp?
 	@kotlin.jvm.Throws(MuxErrorException::class) fun write(frame: moq.MuxContainerFrame)
@@ -5213,7 +5294,7 @@ class MuxContainerProducerFmp4Wire internal constructor(raw: Long, lent: Boolean
 	fun withBuffer(duration: moq.Duration): moq.MuxContainerProducerFmp4Wire
 	fun withBandwidth(allocator: moq.BandwidthAllocator): moq.MuxContainerProducerFmp4Wire
 	@kotlin.jvm.JvmName("reportSkipped") fun reportSkipped(frames: kotlin.ULong)
-	@kotlin.jvm.JvmName("reportBitrate-opaque") fun reportBitrate(bitrate: moq.BandwidthRate)
+	@kotlin.jvm.JvmName("reportBitrate-kotlin") fun reportBitrate(bitrate: moq.BandwidthRate)
 	fun track(): moq.TrackProducer
 	fun liveEdge(): moq.Timestamp?
 	@kotlin.jvm.Throws(MuxErrorException::class) fun write(frame: moq.MuxContainerFrame)
@@ -5240,7 +5321,7 @@ class MuxContainerProducerFmp4Wire internal constructor(raw: Long, lent: Boolean
 	fun subscription(): moq.TrackSubscription?
 	fun requests(): moq.TrackRequests
 	companion object {
-		@kotlin.jvm.JvmStatic fun new(track: moq.TrackProducer, container: moq.MuxContainerFmp4Wire): moq.MuxContainerProducerFmp4Wire
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("new_") fun new(track: moq.TrackProducer, container: moq.MuxContainerFmp4Wire): moq.MuxContainerProducerFmp4Wire
 	}
 }
 class MuxContainerProducerLegacyWireAudioConfig internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -5258,7 +5339,7 @@ class MuxContainerProducerLegacyWireAudioConfig internal constructor(raw: Long, 
 	fun withBuffer(duration: moq.Duration): moq.MuxContainerProducerLegacyWireAudioConfig
 	fun withBandwidth(allocator: moq.BandwidthAllocator): moq.MuxContainerProducerLegacyWireAudioConfig
 	@kotlin.jvm.JvmName("reportSkipped") fun reportSkipped(frames: kotlin.ULong)
-	@kotlin.jvm.JvmName("reportBitrate-opaque") fun reportBitrate(bitrate: moq.BandwidthRate)
+	@kotlin.jvm.JvmName("reportBitrate-kotlin") fun reportBitrate(bitrate: moq.BandwidthRate)
 	fun track(): moq.TrackProducer
 	fun liveEdge(): moq.Timestamp?
 	@kotlin.jvm.Throws(MuxErrorException::class) fun write(frame: moq.MuxContainerFrame)
@@ -5300,7 +5381,7 @@ class MuxContainerProducerLegacyWireBinaryConfig internal constructor(raw: Long,
 	fun withBuffer(duration: moq.Duration): moq.MuxContainerProducerLegacyWireBinaryConfig
 	fun withBandwidth(allocator: moq.BandwidthAllocator): moq.MuxContainerProducerLegacyWireBinaryConfig
 	@kotlin.jvm.JvmName("reportSkipped") fun reportSkipped(frames: kotlin.ULong)
-	@kotlin.jvm.JvmName("reportBitrate-opaque") fun reportBitrate(bitrate: moq.BandwidthRate)
+	@kotlin.jvm.JvmName("reportBitrate-kotlin") fun reportBitrate(bitrate: moq.BandwidthRate)
 	fun track(): moq.TrackProducer
 	fun liveEdge(): moq.Timestamp?
 	@kotlin.jvm.Throws(MuxErrorException::class) fun write(frame: moq.MuxContainerFrame)
@@ -5342,7 +5423,7 @@ class MuxContainerProducerLegacyWireJsonConfig internal constructor(raw: Long, l
 	fun withBuffer(duration: moq.Duration): moq.MuxContainerProducerLegacyWireJsonConfig
 	fun withBandwidth(allocator: moq.BandwidthAllocator): moq.MuxContainerProducerLegacyWireJsonConfig
 	@kotlin.jvm.JvmName("reportSkipped") fun reportSkipped(frames: kotlin.ULong)
-	@kotlin.jvm.JvmName("reportBitrate-opaque") fun reportBitrate(bitrate: moq.BandwidthRate)
+	@kotlin.jvm.JvmName("reportBitrate-kotlin") fun reportBitrate(bitrate: moq.BandwidthRate)
 	fun track(): moq.TrackProducer
 	fun liveEdge(): moq.Timestamp?
 	@kotlin.jvm.Throws(MuxErrorException::class) fun write(frame: moq.MuxContainerFrame)
@@ -5384,7 +5465,7 @@ class MuxContainerProducerLegacyWireTextConfig internal constructor(raw: Long, l
 	fun withBuffer(duration: moq.Duration): moq.MuxContainerProducerLegacyWireTextConfig
 	fun withBandwidth(allocator: moq.BandwidthAllocator): moq.MuxContainerProducerLegacyWireTextConfig
 	@kotlin.jvm.JvmName("reportSkipped") fun reportSkipped(frames: kotlin.ULong)
-	@kotlin.jvm.JvmName("reportBitrate-opaque") fun reportBitrate(bitrate: moq.BandwidthRate)
+	@kotlin.jvm.JvmName("reportBitrate-kotlin") fun reportBitrate(bitrate: moq.BandwidthRate)
 	fun track(): moq.TrackProducer
 	fun liveEdge(): moq.Timestamp?
 	@kotlin.jvm.Throws(MuxErrorException::class) fun write(frame: moq.MuxContainerFrame)
@@ -5426,7 +5507,7 @@ class MuxContainerProducerLegacyWireVideoConfig internal constructor(raw: Long, 
 	fun withBuffer(duration: moq.Duration): moq.MuxContainerProducerLegacyWireVideoConfig
 	fun withBandwidth(allocator: moq.BandwidthAllocator): moq.MuxContainerProducerLegacyWireVideoConfig
 	@kotlin.jvm.JvmName("reportSkipped") fun reportSkipped(frames: kotlin.ULong)
-	@kotlin.jvm.JvmName("reportBitrate-opaque") fun reportBitrate(bitrate: moq.BandwidthRate)
+	@kotlin.jvm.JvmName("reportBitrate-kotlin") fun reportBitrate(bitrate: moq.BandwidthRate)
 	fun track(): moq.TrackProducer
 	fun liveEdge(): moq.Timestamp?
 	@kotlin.jvm.Throws(MuxErrorException::class) fun write(frame: moq.MuxContainerFrame)
@@ -5468,7 +5549,7 @@ class MuxContainerProducerLegacyWire internal constructor(raw: Long, lent: Boole
 	fun withBuffer(duration: moq.Duration): moq.MuxContainerProducerLegacyWire
 	fun withBandwidth(allocator: moq.BandwidthAllocator): moq.MuxContainerProducerLegacyWire
 	@kotlin.jvm.JvmName("reportSkipped") fun reportSkipped(frames: kotlin.ULong)
-	@kotlin.jvm.JvmName("reportBitrate-opaque") fun reportBitrate(bitrate: moq.BandwidthRate)
+	@kotlin.jvm.JvmName("reportBitrate-kotlin") fun reportBitrate(bitrate: moq.BandwidthRate)
 	fun track(): moq.TrackProducer
 	fun liveEdge(): moq.Timestamp?
 	@kotlin.jvm.Throws(MuxErrorException::class) fun write(frame: moq.MuxContainerFrame)
@@ -5495,7 +5576,7 @@ class MuxContainerProducerLegacyWire internal constructor(raw: Long, lent: Boole
 	fun subscription(): moq.TrackSubscription?
 	fun requests(): moq.TrackRequests
 	companion object {
-		@kotlin.jvm.JvmStatic fun new(track: moq.TrackProducer, container: moq.MuxContainerLegacyWire): moq.MuxContainerProducerLegacyWire
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("new_") fun new(track: moq.TrackProducer, container: moq.MuxContainerLegacyWire): moq.MuxContainerProducerLegacyWire
 	}
 }
 class MuxContainerProducerLocWireAudioConfig internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -5513,7 +5594,7 @@ class MuxContainerProducerLocWireAudioConfig internal constructor(raw: Long, len
 	fun withBuffer(duration: moq.Duration): moq.MuxContainerProducerLocWireAudioConfig
 	fun withBandwidth(allocator: moq.BandwidthAllocator): moq.MuxContainerProducerLocWireAudioConfig
 	@kotlin.jvm.JvmName("reportSkipped") fun reportSkipped(frames: kotlin.ULong)
-	@kotlin.jvm.JvmName("reportBitrate-opaque") fun reportBitrate(bitrate: moq.BandwidthRate)
+	@kotlin.jvm.JvmName("reportBitrate-kotlin") fun reportBitrate(bitrate: moq.BandwidthRate)
 	fun track(): moq.TrackProducer
 	fun liveEdge(): moq.Timestamp?
 	@kotlin.jvm.Throws(MuxErrorException::class) fun write(frame: moq.MuxContainerFrame)
@@ -5555,7 +5636,7 @@ class MuxContainerProducerLocWireBinaryConfig internal constructor(raw: Long, le
 	fun withBuffer(duration: moq.Duration): moq.MuxContainerProducerLocWireBinaryConfig
 	fun withBandwidth(allocator: moq.BandwidthAllocator): moq.MuxContainerProducerLocWireBinaryConfig
 	@kotlin.jvm.JvmName("reportSkipped") fun reportSkipped(frames: kotlin.ULong)
-	@kotlin.jvm.JvmName("reportBitrate-opaque") fun reportBitrate(bitrate: moq.BandwidthRate)
+	@kotlin.jvm.JvmName("reportBitrate-kotlin") fun reportBitrate(bitrate: moq.BandwidthRate)
 	fun track(): moq.TrackProducer
 	fun liveEdge(): moq.Timestamp?
 	@kotlin.jvm.Throws(MuxErrorException::class) fun write(frame: moq.MuxContainerFrame)
@@ -5597,7 +5678,7 @@ class MuxContainerProducerLocWireJsonConfig internal constructor(raw: Long, lent
 	fun withBuffer(duration: moq.Duration): moq.MuxContainerProducerLocWireJsonConfig
 	fun withBandwidth(allocator: moq.BandwidthAllocator): moq.MuxContainerProducerLocWireJsonConfig
 	@kotlin.jvm.JvmName("reportSkipped") fun reportSkipped(frames: kotlin.ULong)
-	@kotlin.jvm.JvmName("reportBitrate-opaque") fun reportBitrate(bitrate: moq.BandwidthRate)
+	@kotlin.jvm.JvmName("reportBitrate-kotlin") fun reportBitrate(bitrate: moq.BandwidthRate)
 	fun track(): moq.TrackProducer
 	fun liveEdge(): moq.Timestamp?
 	@kotlin.jvm.Throws(MuxErrorException::class) fun write(frame: moq.MuxContainerFrame)
@@ -5639,7 +5720,7 @@ class MuxContainerProducerLocWireTextConfig internal constructor(raw: Long, lent
 	fun withBuffer(duration: moq.Duration): moq.MuxContainerProducerLocWireTextConfig
 	fun withBandwidth(allocator: moq.BandwidthAllocator): moq.MuxContainerProducerLocWireTextConfig
 	@kotlin.jvm.JvmName("reportSkipped") fun reportSkipped(frames: kotlin.ULong)
-	@kotlin.jvm.JvmName("reportBitrate-opaque") fun reportBitrate(bitrate: moq.BandwidthRate)
+	@kotlin.jvm.JvmName("reportBitrate-kotlin") fun reportBitrate(bitrate: moq.BandwidthRate)
 	fun track(): moq.TrackProducer
 	fun liveEdge(): moq.Timestamp?
 	@kotlin.jvm.Throws(MuxErrorException::class) fun write(frame: moq.MuxContainerFrame)
@@ -5681,7 +5762,7 @@ class MuxContainerProducerLocWireVideoConfig internal constructor(raw: Long, len
 	fun withBuffer(duration: moq.Duration): moq.MuxContainerProducerLocWireVideoConfig
 	fun withBandwidth(allocator: moq.BandwidthAllocator): moq.MuxContainerProducerLocWireVideoConfig
 	@kotlin.jvm.JvmName("reportSkipped") fun reportSkipped(frames: kotlin.ULong)
-	@kotlin.jvm.JvmName("reportBitrate-opaque") fun reportBitrate(bitrate: moq.BandwidthRate)
+	@kotlin.jvm.JvmName("reportBitrate-kotlin") fun reportBitrate(bitrate: moq.BandwidthRate)
 	fun track(): moq.TrackProducer
 	fun liveEdge(): moq.Timestamp?
 	@kotlin.jvm.Throws(MuxErrorException::class) fun write(frame: moq.MuxContainerFrame)
@@ -5723,7 +5804,7 @@ class MuxContainerProducerLocWire internal constructor(raw: Long, lent: Boolean 
 	fun withBuffer(duration: moq.Duration): moq.MuxContainerProducerLocWire
 	fun withBandwidth(allocator: moq.BandwidthAllocator): moq.MuxContainerProducerLocWire
 	@kotlin.jvm.JvmName("reportSkipped") fun reportSkipped(frames: kotlin.ULong)
-	@kotlin.jvm.JvmName("reportBitrate-opaque") fun reportBitrate(bitrate: moq.BandwidthRate)
+	@kotlin.jvm.JvmName("reportBitrate-kotlin") fun reportBitrate(bitrate: moq.BandwidthRate)
 	fun track(): moq.TrackProducer
 	fun liveEdge(): moq.Timestamp?
 	@kotlin.jvm.Throws(MuxErrorException::class) fun write(frame: moq.MuxContainerFrame)
@@ -5750,7 +5831,7 @@ class MuxContainerProducerLocWire internal constructor(raw: Long, lent: Boolean 
 	fun subscription(): moq.TrackSubscription?
 	fun requests(): moq.TrackRequests
 	companion object {
-		@kotlin.jvm.JvmStatic fun new(track: moq.TrackProducer, container: moq.MuxContainerLocWire): moq.MuxContainerProducerLocWire
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("new_") fun new(track: moq.TrackProducer, container: moq.MuxContainerLocWire): moq.MuxContainerProducerLocWire
 	}
 }
 class MuxFollowInstances internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -5766,7 +5847,7 @@ class MuxImportContainer internal constructor(raw: Long, lent: Boolean = false) 
 	@kotlin.jvm.Throws(MuxErrorException::class) fun cut()
 	@kotlin.jvm.JvmName("seek") @kotlin.jvm.Throws(MuxErrorException::class) fun seek(start: kotlin.ULong)
 	companion object {
-		@kotlin.jvm.JvmStatic @kotlin.jvm.Throws(MuxErrorException::class) fun new(broadcast: moq.BroadcastProducer, reserved: moq.MuxCatalogReserved, init: moq.MuxImportContainerInit): moq.MuxImportContainer
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("new_") @kotlin.jvm.Throws(MuxErrorException::class) fun new(broadcast: moq.BroadcastProducer, reserved: moq.MuxCatalogReserved, init: moq.MuxImportContainerInit): moq.MuxImportContainer
 	}
 }
 class MuxImportContainerExtra internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -5777,7 +5858,7 @@ class MuxImportContainerExtra internal constructor(raw: Long, lent: Boolean = fa
 	@kotlin.jvm.Throws(MuxErrorException::class) fun cut()
 	@kotlin.jvm.JvmName("seek") @kotlin.jvm.Throws(MuxErrorException::class) fun seek(start: kotlin.ULong)
 	companion object {
-		@kotlin.jvm.JvmStatic @kotlin.jvm.Throws(MuxErrorException::class) fun new(broadcast: moq.BroadcastProducer, reserved: moq.MuxCatalogReservedExtra, init: moq.MuxImportContainerInit): moq.MuxImportContainerExtra
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("new_") @kotlin.jvm.Throws(MuxErrorException::class) fun new(broadcast: moq.BroadcastProducer, reserved: moq.MuxCatalogReservedExtra, init: moq.MuxImportContainerInit): moq.MuxImportContainerExtra
 	}
 }
 class MuxImportContainerExt internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -5788,7 +5869,7 @@ class MuxImportContainerExt internal constructor(raw: Long, lent: Boolean = fals
 	@kotlin.jvm.Throws(MuxErrorException::class) fun cut()
 	@kotlin.jvm.JvmName("seek") @kotlin.jvm.Throws(MuxErrorException::class) fun seek(start: kotlin.ULong)
 	companion object {
-		@kotlin.jvm.JvmStatic @kotlin.jvm.Throws(MuxErrorException::class) fun new(broadcast: moq.BroadcastProducer, reserved: moq.MuxCatalogReservedExt, init: moq.MuxImportContainerInit): moq.MuxImportContainerExt
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("new_") @kotlin.jvm.Throws(MuxErrorException::class) fun new(broadcast: moq.BroadcastProducer, reserved: moq.MuxCatalogReservedExt, init: moq.MuxImportContainerInit): moq.MuxImportContainerExt
 	}
 }
 class MuxImportAudioInit internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -5808,7 +5889,7 @@ class MuxImportAudioInit internal constructor(raw: Long, lent: Boolean = false) 
 	@get:kotlin.jvm.JvmName("getBitrateGet") val bitrateGet: kotlin.ULong?
 	@kotlin.jvm.JvmName("bitrateSet") fun bitrateSet(value: kotlin.ULong?)
 	companion object {
-		@kotlin.jvm.JvmStatic fun new(format: moq.MuxImportAudioFormat, data: moq.Bytes): moq.MuxImportAudioInit
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("new_") fun new(format: moq.MuxImportAudioFormat, data: moq.Bytes): moq.MuxImportAudioInit
 	}
 }
 class MuxImportContainerInit internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -5822,7 +5903,7 @@ class MuxImportContainerInit internal constructor(raw: Long, lent: Boolean = fal
 	val dataGet: moq.Bytes
 	fun dataSet(value: moq.Bytes)
 	companion object {
-		@kotlin.jvm.JvmStatic fun new(format: moq.MuxImportContainerFormat, data: moq.Bytes): moq.MuxImportContainerInit
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("new_") fun new(format: moq.MuxImportContainerFormat, data: moq.Bytes): moq.MuxImportContainerInit
 	}
 }
 class MuxImportVideoInit internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -5842,7 +5923,7 @@ class MuxImportVideoInit internal constructor(raw: Long, lent: Boolean = false) 
 	val priorityGet: kotlin.Byte
 	fun prioritySet(value: kotlin.Byte)
 	companion object {
-		@kotlin.jvm.JvmStatic fun new(format: moq.MuxImportVideoFormat, data: moq.Bytes): moq.MuxImportVideoInit
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("new_") fun new(format: moq.MuxImportVideoFormat, data: moq.Bytes): moq.MuxImportVideoInit
 	}
 }
 class MuxImportTrack internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -5923,7 +6004,7 @@ class MuxJsonConfig internal constructor(raw: Long, lent: Boolean = false) : Aut
 	fun schemaSet(value: kotlin.String?)
 	fun withSchema(schema: kotlin.String): moq.MuxJsonConfig
 	companion object {
-		@kotlin.jvm.JvmStatic fun default(): moq.MuxJsonConfig
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("default_") fun default(): moq.MuxJsonConfig
 	}
 }
 class MuxJsonOptions internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -5934,7 +6015,7 @@ class MuxJsonOptions internal constructor(raw: Long, lent: Boolean = false) : Au
 	fun deltasSet(value: kotlin.Boolean)
 	fun withDeltas(deltas: kotlin.Boolean): moq.MuxJsonOptions
 	companion object {
-		@kotlin.jvm.JvmStatic fun default(): moq.MuxJsonOptions
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("default_") fun default(): moq.MuxJsonOptions
 	}
 }
 class MuxRateGrant internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -5945,7 +6026,7 @@ class MuxRateGrant internal constructor(raw: Long, lent: Boolean = false) : Auto
 	@kotlin.jvm.Throws(ErrorException::class) suspend fun next(): moq.MuxRateTarget
 	fun failed()
 	companion object {
-		@kotlin.jvm.JvmStatic fun new(grant: moq.BandwidthConsumer, policy: moq.MuxRatePolicy): moq.MuxRateGrant
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("new_") fun new(grant: moq.BandwidthConsumer, policy: moq.MuxRatePolicy): moq.MuxRateGrant
 	}
 }
 class MuxRatePolicy internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -5954,14 +6035,14 @@ class MuxRatePolicy internal constructor(raw: Long, lent: Boolean = false) : Aut
 	fun clone(): moq.MuxRatePolicy
 	override fun equals(other: kotlin.Any?): kotlin.Boolean
 	override fun hashCode(): kotlin.Int
-	@get:kotlin.jvm.JvmName("getMaxGet") val maxGet: moq.BandwidthRate
-	@kotlin.jvm.JvmName("maxSet-opaque") fun maxSet(value: moq.BandwidthRate)
-	@get:kotlin.jvm.JvmName("getMinGet") val minGet: moq.BandwidthRate
-	@kotlin.jvm.JvmName("minSet-opaque") fun minSet(value: moq.BandwidthRate)
+	@get:kotlin.jvm.JvmName("getMaxGet-kotlin") val maxGet: moq.BandwidthRate
+	@kotlin.jvm.JvmName("maxSet-kotlin") fun maxSet(value: moq.BandwidthRate)
+	@get:kotlin.jvm.JvmName("getMinGet-kotlin") val minGet: moq.BandwidthRate
+	@kotlin.jvm.JvmName("minSet-kotlin") fun minSet(value: moq.BandwidthRate)
 	@get:kotlin.jvm.JvmName("getLowerGet") val lowerGet: moq.BandwidthRate?
-	@kotlin.jvm.JvmName("lowerSet-opaque") fun lowerSet(value: moq.BandwidthRate?)
+	@kotlin.jvm.JvmName("lowerSet") fun lowerSet(value: moq.BandwidthRate?)
 	companion object {
-		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("new-opaque") fun new(max: moq.BandwidthRate): moq.MuxRatePolicy
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("new_-kotlin") fun new(max: moq.BandwidthRate): moq.MuxRatePolicy
 	}
 }
 class MuxRateControl internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -5970,9 +6051,9 @@ class MuxRateControl internal constructor(raw: Long, lent: Boolean = false) : Au
 	fun clone(): moq.MuxRateControl
 	fun target(): moq.MuxRateTarget
 	fun setProbed(probed: kotlin.Boolean)
-	@kotlin.jvm.JvmName("update-opaque") fun update(estimate: moq.BandwidthRate?, now: moq.ClockInstant): moq.MuxRateTarget?
+	@kotlin.jvm.JvmName("update-kotlin") fun update(estimate: moq.BandwidthRate?, now: moq.ClockInstant): moq.MuxRateTarget?
 	companion object {
-		@kotlin.jvm.JvmStatic fun new(policy: moq.MuxRatePolicy): moq.MuxRateControl
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("new_") fun new(policy: moq.MuxRatePolicy): moq.MuxRateControl
 	}
 }
 class MuxSelectBroadcast internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -5987,7 +6068,7 @@ class MuxSelectBroadcast internal constructor(raw: Long, lent: Boolean = false) 
 	fun retainExt(catalog: moq.HangCatalogExt)
 	fun retainUnit(catalog: moq.HangCatalog)
 	companion object {
-		@kotlin.jvm.JvmStatic fun default(): moq.MuxSelectBroadcast
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("default_") fun default(): moq.MuxSelectBroadcast
 	}
 }
 class MuxSelectVideo internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -5997,7 +6078,7 @@ class MuxSelectVideo internal constructor(raw: Long, lent: Boolean = false) : Au
 	fun name(name: kotlin.String): moq.MuxSelectVideo
 	fun codec(codec: moq.HangCatalogVideoCodecKind): moq.MuxSelectVideo
 	companion object {
-		@kotlin.jvm.JvmStatic fun default(): moq.MuxSelectVideo
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("default_") fun default(): moq.MuxSelectVideo
 	}
 }
 class MuxSelectAudio internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -6007,12 +6088,12 @@ class MuxSelectAudio internal constructor(raw: Long, lent: Boolean = false) : Au
 	fun name(name: kotlin.String): moq.MuxSelectAudio
 	fun codec(codec: moq.HangCatalogAudioCodecKind): moq.MuxSelectAudio
 	companion object {
-		@kotlin.jvm.JvmStatic fun default(): moq.MuxSelectAudio
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("default_") fun default(): moq.MuxSelectAudio
 	}
 }
 class MuxSyncTrack internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
-	@kotlin.jvm.JvmName("received-opaque") fun received(timestamp: moq.Timestamp, now: moq.ClockInstant): kotlin.Boolean
+	@kotlin.jvm.JvmName("received-kotlin") fun received(timestamp: moq.Timestamp, now: moq.ClockInstant): kotlin.Boolean
 	fun reset()
 	fun setTarget(target: moq.Duration): kotlin.Boolean
 	suspend fun delayChanged(seen: moq.Duration): moq.Duration
@@ -6034,7 +6115,7 @@ class MuxSyncProducer internal constructor(raw: Long, lent: Boolean = false) : A
 	fun track(kind: moq.MuxContainerKind): moq.MuxSyncTrack
 	@kotlin.jvm.JvmName("due") fun due(timestamp: moq.Timestamp): moq.ClockInstant?
 	companion object {
-		@kotlin.jvm.JvmStatic fun new(delay: moq.Duration): moq.MuxSyncProducer
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("new_") fun new(delay: moq.Duration): moq.MuxSyncProducer
 	}
 }
 class MuxSyncConsumer internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -6042,10 +6123,10 @@ class MuxSyncConsumer internal constructor(raw: Long, lent: Boolean = false) : A
 	fun clone(): moq.MuxSyncConsumer
 	fun delay(): moq.Duration
 	@kotlin.jvm.JvmName("due") fun due(timestamp: moq.Timestamp): moq.ClockInstant?
-	@kotlin.jvm.JvmName("position-opaque") fun position(at: moq.ClockInstant): moq.Duration?
+	@kotlin.jvm.JvmName("position-kotlin") fun position(at: moq.ClockInstant): moq.Duration?
 	fun schedule(): moq.MuxSyncSchedule
 	suspend fun changed(seen: moq.MuxSyncSchedule): moq.MuxSyncSchedule
-	@kotlin.jvm.JvmName("present-opaque") fun present(timestamps: kotlin.collections.List<moq.Timestamp>, now: moq.ClockInstant): kotlin.ULong?
+	@kotlin.jvm.JvmName("present-kotlin") fun present(timestamps: kotlin.collections.List<moq.Timestamp>, now: moq.ClockInstant): kotlin.ULong?
 }
 class TokioTlsError internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
@@ -6084,7 +6165,7 @@ class TokioTlsConnect internal constructor(raw: Long, lent: Boolean = false) : A
 	fun deprecated(): moq.MoqTokioCliDeprecated
 	@kotlin.jvm.Throws(TokioTlsErrorException::class) fun build(): moq.RustlsClientConfig
 	companion object {
-		@kotlin.jvm.JvmStatic fun default(): moq.TokioTlsConnect
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("default_") fun default(): moq.TokioTlsConnect
 	}
 }
 class TokioTlsListen internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -6106,7 +6187,7 @@ class TokioTlsListen internal constructor(raw: Long, lent: Boolean = false) : Au
 	@kotlin.jvm.Throws(TokioTlsErrorException::class) fun loadRoots(): moq.RustlsRootCertStore
 	@kotlin.jvm.Throws(TokioTlsErrorException::class) fun serverConfig(alpn: kotlin.collections.List<moq.Bytes>): moq.RustlsServerConfig
 	companion object {
-		@kotlin.jvm.JvmStatic fun default(): moq.TokioTlsListen
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("default_") fun default(): moq.TokioTlsListen
 	}
 }
 class TokioTlsServe internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -6154,7 +6235,7 @@ class TokioClientConfig internal constructor(raw: Long, lent: Boolean = false) :
 	fun quicSet(value: moq.TokioQuicConfig)
 	@kotlin.jvm.Throws(TokioErrorException::class) fun init(): moq.TokioClient
 	companion object {
-		@kotlin.jvm.JvmStatic fun default(): moq.TokioClientConfig
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("default_") fun default(): moq.TokioClientConfig
 	}
 }
 class TokioConnectConfig internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -6190,7 +6271,7 @@ class TokioConnectConfig internal constructor(raw: Long, lent: Boolean = false) 
 	fun versions(): moq.Versions
 	fun resolve(): moq.MoqTokioConnectResolved
 	companion object {
-		@kotlin.jvm.JvmStatic fun default(): moq.TokioConnectConfig
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("default_") fun default(): moq.TokioConnectConfig
 	}
 }
 class TokioConnectionMonitor internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -6241,7 +6322,7 @@ class TokioListenConfig internal constructor(raw: Long, lent: Boolean = false) :
 	fun hasExplicitBind(): kotlin.Boolean
 	fun servesQuic(): kotlin.Boolean
 	companion object {
-		@kotlin.jvm.JvmStatic fun default(): moq.TokioListenConfig
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("default_") fun default(): moq.TokioListenConfig
 	}
 }
 class TokioQuicConfig internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -6274,7 +6355,7 @@ class TokioQuicConfig internal constructor(raw: Long, lent: Boolean = false) : A
 	@kotlin.jvm.Throws(TokioErrorException::class) fun validate()
 	fun resolve(): moq.MoqTokioQuicResolved
 	companion object {
-		@kotlin.jvm.JvmStatic fun default(): moq.TokioQuicConfig
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("default_") fun default(): moq.TokioQuicConfig
 	}
 }
 class TokioServerConfig internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -6302,7 +6383,7 @@ class TokioServerConfig internal constructor(raw: Long, lent: Boolean = false) :
 	@kotlin.jvm.Throws(TokioErrorException::class) fun init(): moq.TokioServer
 	@kotlin.jvm.Throws(TokioErrorException::class) fun initStreams(): moq.TokioServer
 	companion object {
-		@kotlin.jvm.JvmStatic fun default(): moq.TokioServerConfig
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("default_") fun default(): moq.TokioServerConfig
 	}
 }
 class TokioServerListener internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -6324,7 +6405,7 @@ class TokioServerRequest internal constructor(raw: Long, lent: Boolean = false) 
 	fun withSubscriber(subscribe: moq.OriginProducer): moq.TokioServerRequest
 	@kotlin.jvm.JvmName("withPeerNode") fun withPeerNode(node: kotlin.ULong): moq.TokioServerRequest
 	fun withStats(stats: moq.StatsSession): moq.TokioServerRequest
-	@kotlin.jvm.JvmName("withLimits-opaque") fun withLimits(limits: moq.SessionLimits): moq.TokioServerRequest
+	@kotlin.jvm.JvmName("withLimits-kotlin") fun withLimits(limits: moq.SessionLimits): moq.TokioServerRequest
 	fun quicLimits(): moq.MoqTokioServerQuicLimits?
 	@kotlin.jvm.Throws(StringException::class) fun withQuicLimits(limits: moq.MoqQuicLimits): moq.TokioServerRequest
 	suspend fun expired()
@@ -6361,7 +6442,7 @@ class TransportMemoryConfig internal constructor(raw: Long, lent: Boolean = fals
 	val latencyGet: moq.Duration
 	fun latencySet(value: moq.Duration)
 	companion object {
-		@kotlin.jvm.JvmStatic fun default(): moq.TransportMemoryConfig
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("default_") fun default(): moq.TransportMemoryConfig
 	}
 }
 class TransportMemorySession internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -6380,7 +6461,7 @@ class MuxCatalogHangConsumer internal constructor(raw: Long, lent: Boolean = fal
 	@kotlin.jvm.Throws(MuxErrorException::class) suspend fun next(): moq.HangCatalog?
 	fun asFlow(): kotlinx.coroutines.flow.Flow<moq.HangCatalog>
 	companion object {
-		@kotlin.jvm.JvmStatic fun new(track: moq.TrackConsumer): moq.MuxCatalogHangConsumer
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("new_") fun new(track: moq.TrackConsumer): moq.MuxCatalogHangConsumer
 	}
 }
 class MuxCatalogHangConsumerExtra internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -6388,7 +6469,7 @@ class MuxCatalogHangConsumerExtra internal constructor(raw: Long, lent: Boolean 
 	@kotlin.jvm.Throws(MuxErrorException::class) suspend fun next(): moq.HangCatalogExtra?
 	fun asFlow(): kotlinx.coroutines.flow.Flow<moq.HangCatalogExtra>
 	companion object {
-		@kotlin.jvm.JvmStatic fun new(track: moq.TrackConsumer): moq.MuxCatalogHangConsumerExtra
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("new_") fun new(track: moq.TrackConsumer): moq.MuxCatalogHangConsumerExtra
 	}
 }
 class MuxCatalogHangConsumerExt internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -6396,13 +6477,13 @@ class MuxCatalogHangConsumerExt internal constructor(raw: Long, lent: Boolean = 
 	@kotlin.jvm.Throws(MuxErrorException::class) suspend fun next(): moq.HangCatalogExt?
 	fun asFlow(): kotlinx.coroutines.flow.Flow<moq.HangCatalogExt>
 	companion object {
-		@kotlin.jvm.JvmStatic fun new(track: moq.TrackConsumer): moq.MuxCatalogHangConsumerExt
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("new_") fun new(track: moq.TrackConsumer): moq.MuxCatalogHangConsumerExt
 	}
 }
 class MuxCatalogHangContainer internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
 	companion object {
-		@kotlin.jvm.JvmStatic @kotlin.jvm.Throws(MuxErrorException::class) fun new(container: moq.HangCatalogContainer, kind: moq.MuxContainerKind): moq.MuxCatalogHangContainer
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("new_") @kotlin.jvm.Throws(MuxErrorException::class) fun new(container: moq.HangCatalogContainer, kind: moq.MuxContainerKind): moq.MuxCatalogHangContainer
 	}
 }
 class MuxCatalogHangExtra internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -6418,7 +6499,7 @@ class MuxCatalogHangExtra internal constructor(raw: Long, lent: Boolean = false)
 	@kotlin.jvm.Throws(MuxErrorException::class) fun set(name: kotlin.String, value: moq.Json)
 	fun remove(name: kotlin.String): moq.Json?
 	companion object {
-		@kotlin.jvm.JvmStatic fun default(): moq.MuxCatalogHangExtra
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("default_") fun default(): moq.MuxCatalogHangExtra
 	}
 }
 class MuxCatalogMsfConsumer internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -6426,7 +6507,7 @@ class MuxCatalogMsfConsumer internal constructor(raw: Long, lent: Boolean = fals
 	@kotlin.jvm.Throws(MuxErrorException::class) suspend fun next(): moq.HangCatalog?
 	fun asFlow(): kotlinx.coroutines.flow.Flow<moq.HangCatalog>
 	companion object {
-		@kotlin.jvm.JvmStatic fun new(track: moq.TrackSubscriber): moq.MuxCatalogMsfConsumer
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("new_") fun new(track: moq.TrackSubscriber): moq.MuxCatalogMsfConsumer
 	}
 }
 class MuxCatalogMsfConsumerExtra internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -6434,7 +6515,7 @@ class MuxCatalogMsfConsumerExtra internal constructor(raw: Long, lent: Boolean =
 	@kotlin.jvm.Throws(MuxErrorException::class) suspend fun next(): moq.HangCatalogExtra?
 	fun asFlow(): kotlinx.coroutines.flow.Flow<moq.HangCatalogExtra>
 	companion object {
-		@kotlin.jvm.JvmStatic fun new(track: moq.TrackSubscriber): moq.MuxCatalogMsfConsumerExtra
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("new_") fun new(track: moq.TrackSubscriber): moq.MuxCatalogMsfConsumerExtra
 	}
 }
 class MuxCatalogMsfConsumerExt internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -6442,7 +6523,7 @@ class MuxCatalogMsfConsumerExt internal constructor(raw: Long, lent: Boolean = f
 	@kotlin.jvm.Throws(MuxErrorException::class) suspend fun next(): moq.HangCatalogExt?
 	fun asFlow(): kotlinx.coroutines.flow.Flow<moq.HangCatalogExt>
 	companion object {
-		@kotlin.jvm.JvmStatic fun new(track: moq.TrackSubscriber): moq.MuxCatalogMsfConsumerExt
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("new_") fun new(track: moq.TrackSubscriber): moq.MuxCatalogMsfConsumerExt
 	}
 }
 class MuxCodecAacConfig internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -6455,7 +6536,7 @@ class MuxCodecAacConfig internal constructor(raw: Long, lent: Boolean = false) :
 	@kotlin.jvm.JvmName("channelCountSet") fun channelCountSet(value: kotlin.UInt)
 	@kotlin.jvm.Throws(MuxCodecAacErrorException::class) fun encode(): moq.Bytes
 	companion object {
-		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("new") fun new(profile: kotlin.UByte, sampleRate: kotlin.UInt, channelCount: kotlin.UInt): moq.MuxCodecAacConfig
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("new_") fun new(profile: kotlin.UByte, sampleRate: kotlin.UInt, channelCount: kotlin.UInt): moq.MuxCodecAacConfig
 		@kotlin.jvm.JvmStatic @kotlin.jvm.Throws(MuxCodecAacErrorException::class) fun parse(buf: moq.Mut<moq.Bytes>): moq.MuxCodecAacConfig
 	}
 }
@@ -6512,8 +6593,8 @@ class MuxCodecAv1Split internal constructor(raw: Long, lent: Boolean = false) : 
 	@kotlin.jvm.Throws(MuxErrorException::class) fun flush(pts: moq.Timestamp?): kotlin.collections.List<moq.MuxContainerFrame>
 	fun reset()
 	companion object {
-		@kotlin.jvm.JvmStatic fun default(): moq.MuxCodecAv1Split
-		@kotlin.jvm.JvmStatic fun new(): moq.MuxCodecAv1Split
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("default_") fun default(): moq.MuxCodecAv1Split
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("new_") fun new(): moq.MuxCodecAv1Split
 	}
 }
 class MuxCodecFlacImport internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -6537,8 +6618,8 @@ class MuxCodecH264Avc1 internal constructor(raw: Long, lent: Boolean = false) : 
 	fun avcc(): moq.Bytes?
 	@kotlin.jvm.Throws(MuxCodecH264ErrorException::class) fun transform(payload: moq.Bytes): moq.Bytes?
 	companion object {
-		@kotlin.jvm.JvmStatic fun default(): moq.MuxCodecH264Avc1
-		@kotlin.jvm.JvmStatic fun new(): moq.MuxCodecH264Avc1
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("default_") fun default(): moq.MuxCodecH264Avc1
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("new_") fun new(): moq.MuxCodecH264Avc1
 	}
 }
 class MuxCodecH264Error internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -6584,7 +6665,7 @@ class MuxCodecH264Import internal constructor(raw: Long, lent: Boolean = false) 
 	@kotlin.jvm.Throws(MuxErrorException::class) fun discontinuity()
 	@kotlin.jvm.Throws(MuxErrorException::class) fun setEnabled(enabled: kotlin.Boolean)
 	@kotlin.jvm.JvmName("reportSkipped") fun reportSkipped(frames: kotlin.ULong)
-	@kotlin.jvm.JvmName("reportBitrate-opaque") fun reportBitrate(bitrate: moq.BandwidthRate)
+	@kotlin.jvm.JvmName("reportBitrate-kotlin") fun reportBitrate(bitrate: moq.BandwidthRate)
 	@kotlin.jvm.JvmName("seek") @kotlin.jvm.Throws(MuxErrorException::class) fun seek(start: kotlin.ULong)
 	@kotlin.jvm.Throws(MuxErrorException::class) fun observeReorder(reorder: moq.Timestamp)
 	@kotlin.jvm.Throws(MuxErrorException::class) fun decode(frames: kotlin.collections.List<moq.MuxContainerFrame>)
@@ -6600,8 +6681,8 @@ class MuxCodecH264Split internal constructor(raw: Long, lent: Boolean = false) :
 	@kotlin.jvm.Throws(MuxErrorException::class) fun flush(pts: moq.Timestamp?): kotlin.collections.List<moq.MuxContainerFrame>
 	fun reset()
 	companion object {
-		@kotlin.jvm.JvmStatic fun default(): moq.MuxCodecH264Split
-		@kotlin.jvm.JvmStatic fun new(): moq.MuxCodecH264Split
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("default_") fun default(): moq.MuxCodecH264Split
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("new_") fun new(): moq.MuxCodecH264Split
 	}
 }
 class MuxCodecH265Hvc1 internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -6609,8 +6690,8 @@ class MuxCodecH265Hvc1 internal constructor(raw: Long, lent: Boolean = false) : 
 	fun hvcc(): moq.Bytes?
 	@kotlin.jvm.Throws(MuxCodecH265ErrorException::class) fun transform(payload: moq.Bytes): moq.Bytes?
 	companion object {
-		@kotlin.jvm.JvmStatic fun default(): moq.MuxCodecH265Hvc1
-		@kotlin.jvm.JvmStatic fun new(): moq.MuxCodecH265Hvc1
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("default_") fun default(): moq.MuxCodecH265Hvc1
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("new_") fun new(): moq.MuxCodecH265Hvc1
 	}
 }
 class MuxCodecH265Error internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -6658,7 +6739,7 @@ class MuxCodecH265Import internal constructor(raw: Long, lent: Boolean = false) 
 	@kotlin.jvm.Throws(MuxErrorException::class) fun discontinuity()
 	@kotlin.jvm.Throws(MuxErrorException::class) fun setEnabled(enabled: kotlin.Boolean)
 	@kotlin.jvm.JvmName("reportSkipped") fun reportSkipped(frames: kotlin.ULong)
-	@kotlin.jvm.JvmName("reportBitrate-opaque") fun reportBitrate(bitrate: moq.BandwidthRate)
+	@kotlin.jvm.JvmName("reportBitrate-kotlin") fun reportBitrate(bitrate: moq.BandwidthRate)
 	@kotlin.jvm.JvmName("seek") @kotlin.jvm.Throws(MuxErrorException::class) fun seek(start: kotlin.ULong)
 	@kotlin.jvm.Throws(MuxErrorException::class) fun observeReorder(reorder: moq.Timestamp)
 	@kotlin.jvm.Throws(MuxErrorException::class) fun decode(frames: kotlin.collections.List<moq.MuxContainerFrame>)
@@ -6674,8 +6755,8 @@ class MuxCodecH265Split internal constructor(raw: Long, lent: Boolean = false) :
 	@kotlin.jvm.Throws(MuxErrorException::class) fun flush(pts: moq.Timestamp?): kotlin.collections.List<moq.MuxContainerFrame>
 	fun reset()
 	companion object {
-		@kotlin.jvm.JvmStatic fun default(): moq.MuxCodecH265Split
-		@kotlin.jvm.JvmStatic fun new(): moq.MuxCodecH265Split
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("default_") fun default(): moq.MuxCodecH265Split
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("new_") fun new(): moq.MuxCodecH265Split
 	}
 }
 class MuxCodecMp3Import internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -6713,7 +6794,7 @@ class MuxCodecOpusConfig internal constructor(raw: Long, lent: Boolean = false) 
 	@kotlin.jvm.JvmName("withPreSkip") fun withPreSkip(preSkip: kotlin.UShort): moq.MuxCodecOpusConfig
 	@kotlin.jvm.Throws(MuxCodecOpusErrorException::class) fun encode(): moq.Bytes
 	companion object {
-		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("new") fun new(sampleRate: kotlin.UInt, channelCount: kotlin.UInt): moq.MuxCodecOpusConfig
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("new_") fun new(sampleRate: kotlin.UInt, channelCount: kotlin.UInt): moq.MuxCodecOpusConfig
 		@kotlin.jvm.JvmStatic @kotlin.jvm.Throws(MuxCodecOpusErrorException::class) fun parse(buf: moq.Mut<moq.Bytes>): moq.MuxCodecOpusConfig
 	}
 }
@@ -6778,7 +6859,7 @@ class MuxContainerFlvImport internal constructor(raw: Long, lent: Boolean = fals
 	@kotlin.jvm.Throws(MuxErrorException::class) fun finish(): moq.MuxContainerFlvFinished
 	fun abort(err: moq.Error)
 	companion object {
-		@kotlin.jvm.JvmStatic fun new(broadcast: moq.BroadcastProducer, reserved: moq.MuxCatalogReserved): moq.MuxContainerFlvImport
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("new_") fun new(broadcast: moq.BroadcastProducer, reserved: moq.MuxCatalogReserved): moq.MuxContainerFlvImport
 	}
 }
 class MuxContainerFlvImportExtra internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -6789,7 +6870,7 @@ class MuxContainerFlvImportExtra internal constructor(raw: Long, lent: Boolean =
 	@kotlin.jvm.Throws(MuxErrorException::class) fun finish(): moq.MuxContainerFlvFinishedExtra
 	fun abort(err: moq.Error)
 	companion object {
-		@kotlin.jvm.JvmStatic fun new(broadcast: moq.BroadcastProducer, reserved: moq.MuxCatalogReservedExtra): moq.MuxContainerFlvImportExtra
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("new_") fun new(broadcast: moq.BroadcastProducer, reserved: moq.MuxCatalogReservedExtra): moq.MuxContainerFlvImportExtra
 	}
 }
 class MuxContainerFlvImportExt internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -6800,7 +6881,7 @@ class MuxContainerFlvImportExt internal constructor(raw: Long, lent: Boolean = f
 	@kotlin.jvm.Throws(MuxErrorException::class) fun finish(): moq.MuxContainerFlvFinishedExt
 	fun abort(err: moq.Error)
 	companion object {
-		@kotlin.jvm.JvmStatic fun new(broadcast: moq.BroadcastProducer, reserved: moq.MuxCatalogReservedExt): moq.MuxContainerFlvImportExt
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("new_") fun new(broadcast: moq.BroadcastProducer, reserved: moq.MuxCatalogReservedExt): moq.MuxContainerFlvImportExt
 	}
 }
 class MuxContainerFlvFinished internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -6839,7 +6920,7 @@ class MuxContainerFmp4Import internal constructor(raw: Long, lent: Boolean = fal
 	@kotlin.jvm.Throws(MuxErrorException::class) fun rejoin()
 	@kotlin.jvm.Throws(MuxErrorException::class) fun discontinuity()
 	companion object {
-		@kotlin.jvm.JvmStatic fun new(broadcast: moq.BroadcastProducer, reserved: moq.MuxCatalogReserved): moq.MuxContainerFmp4Import
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("new_") fun new(broadcast: moq.BroadcastProducer, reserved: moq.MuxCatalogReserved): moq.MuxContainerFmp4Import
 	}
 }
 class MuxContainerFmp4ImportExtra internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -6854,7 +6935,7 @@ class MuxContainerFmp4ImportExtra internal constructor(raw: Long, lent: Boolean 
 	@kotlin.jvm.Throws(MuxErrorException::class) fun rejoin()
 	@kotlin.jvm.Throws(MuxErrorException::class) fun discontinuity()
 	companion object {
-		@kotlin.jvm.JvmStatic fun new(broadcast: moq.BroadcastProducer, reserved: moq.MuxCatalogReservedExtra): moq.MuxContainerFmp4ImportExtra
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("new_") fun new(broadcast: moq.BroadcastProducer, reserved: moq.MuxCatalogReservedExtra): moq.MuxContainerFmp4ImportExtra
 	}
 }
 class MuxContainerFmp4ImportExt internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -6869,7 +6950,7 @@ class MuxContainerFmp4ImportExt internal constructor(raw: Long, lent: Boolean = 
 	@kotlin.jvm.Throws(MuxErrorException::class) fun rejoin()
 	@kotlin.jvm.Throws(MuxErrorException::class) fun discontinuity()
 	companion object {
-		@kotlin.jvm.JvmStatic fun new(broadcast: moq.BroadcastProducer, reserved: moq.MuxCatalogReservedExt): moq.MuxContainerFmp4ImportExt
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("new_") fun new(broadcast: moq.BroadcastProducer, reserved: moq.MuxCatalogReservedExt): moq.MuxContainerFmp4ImportExt
 	}
 }
 class MuxContainerFmp4Finished internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -6886,8 +6967,8 @@ class MuxContainerFmp4FinishedExt internal constructor(raw: Long, lent: Boolean 
 }
 class MuxContainerFmp4Muxer internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
-	@kotlin.jvm.JvmName("timescale") fun timescale(): moq.Timescale
-	@kotlin.jvm.JvmName("withTimescale-opaque") @kotlin.jvm.Throws(MuxErrorException::class) fun withTimescale(timescale: moq.Timescale): moq.MuxContainerFmp4Muxer
+	@kotlin.jvm.JvmName("timescale-kotlin") fun timescale(): moq.Timescale
+	@kotlin.jvm.JvmName("withTimescale-kotlin") @kotlin.jvm.Throws(MuxErrorException::class) fun withTimescale(timescale: moq.Timescale): moq.MuxContainerFmp4Muxer
 	@kotlin.jvm.Throws(MuxErrorException::class) suspend fun read(group: moq.GroupConsumer): kotlin.collections.List<moq.MuxContainerFrame>
 	@kotlin.jvm.Throws(MuxErrorException::class) fun pictureSize(keyframe: moq.MuxContainerFrame): kotlin.Pair<kotlin.UInt, kotlin.UInt>?
 	@kotlin.jvm.Throws(MuxErrorException::class) fun init(): moq.Bytes?
@@ -6905,7 +6986,7 @@ class MuxContainerLegacyAudio internal constructor(raw: Long, lent: Boolean = fa
 	override fun hashCode(): kotlin.Int
 	fun duration(payload: moq.Bytes): moq.Timestamp?
 	companion object {
-		@kotlin.jvm.JvmStatic fun new(config: moq.HangCatalogAudioConfig): moq.MuxContainerLegacyAudio?
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("new_") fun new(config: moq.HangCatalogAudioConfig): moq.MuxContainerLegacyAudio?
 	}
 }
 class MuxContainerMkvImport internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -6916,7 +6997,7 @@ class MuxContainerMkvImport internal constructor(raw: Long, lent: Boolean = fals
 	@kotlin.jvm.Throws(MuxErrorException::class) fun finish(): moq.MuxContainerMkvFinished
 	fun abort(err: moq.Error)
 	companion object {
-		@kotlin.jvm.JvmStatic fun new(broadcast: moq.BroadcastProducer, reserved: moq.MuxCatalogReserved): moq.MuxContainerMkvImport
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("new_") fun new(broadcast: moq.BroadcastProducer, reserved: moq.MuxCatalogReserved): moq.MuxContainerMkvImport
 	}
 }
 class MuxContainerMkvImportExtra internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -6927,7 +7008,7 @@ class MuxContainerMkvImportExtra internal constructor(raw: Long, lent: Boolean =
 	@kotlin.jvm.Throws(MuxErrorException::class) fun finish(): moq.MuxContainerMkvFinishedExtra
 	fun abort(err: moq.Error)
 	companion object {
-		@kotlin.jvm.JvmStatic fun new(broadcast: moq.BroadcastProducer, reserved: moq.MuxCatalogReservedExtra): moq.MuxContainerMkvImportExtra
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("new_") fun new(broadcast: moq.BroadcastProducer, reserved: moq.MuxCatalogReservedExtra): moq.MuxContainerMkvImportExtra
 	}
 }
 class MuxContainerMkvImportExt internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -6938,7 +7019,7 @@ class MuxContainerMkvImportExt internal constructor(raw: Long, lent: Boolean = f
 	@kotlin.jvm.Throws(MuxErrorException::class) fun finish(): moq.MuxContainerMkvFinishedExt
 	fun abort(err: moq.Error)
 	companion object {
-		@kotlin.jvm.JvmStatic fun new(broadcast: moq.BroadcastProducer, reserved: moq.MuxCatalogReservedExt): moq.MuxContainerMkvImportExt
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("new_") fun new(broadcast: moq.BroadcastProducer, reserved: moq.MuxCatalogReservedExt): moq.MuxContainerMkvImportExt
 	}
 }
 class MuxContainerMkvFinished internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -6967,7 +7048,7 @@ class MuxContainerTsExt internal constructor(raw: Long, lent: Boolean = false) :
 	val mpegtsGet: moq.MuxContainerTsMpegts
 	fun mpegtsSet(value: moq.MuxContainerTsMpegts)
 	companion object {
-		@kotlin.jvm.JvmStatic fun default(): moq.MuxContainerTsExt
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("default_") fun default(): moq.MuxContainerTsExt
 	}
 }
 class MuxContainerTsMpegts internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -6990,7 +7071,7 @@ class MuxContainerTsMpegts internal constructor(raw: Long, lent: Boolean = false
 	fun passthroughSet(value: moq.MuxContainerTsPassthroughTrack?)
 	fun isEmpty(): kotlin.Boolean
 	companion object {
-		@kotlin.jvm.JvmStatic fun default(): moq.MuxContainerTsMpegts
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("default_") fun default(): moq.MuxContainerTsMpegts
 		@kotlin.jvm.JvmStatic @kotlin.jvm.Throws(StringException::class) fun deserialize(deserializer: moq.Json): moq.MuxContainerTsMpegts
 	}
 }
@@ -7005,7 +7086,7 @@ class MuxContainerTsPassthroughTrack internal constructor(raw: Long, lent: Boole
 	val randomAccessGet: kotlin.Boolean
 	fun randomAccessSet(value: kotlin.Boolean)
 	companion object {
-		@kotlin.jvm.JvmStatic fun new(track: kotlin.String): moq.MuxContainerTsPassthroughTrack
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("new_") fun new(track: kotlin.String): moq.MuxContainerTsPassthroughTrack
 	}
 }
 class MuxContainerTsPesPacket internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -7017,8 +7098,8 @@ class MuxContainerTsPesPacket internal constructor(raw: Long, lent: Boolean = fa
 	@get:kotlin.jvm.JvmName("getStreamTypeGet") val streamTypeGet: kotlin.UByte
 	@kotlin.jvm.JvmName("streamTypeSet") fun streamTypeSet(value: kotlin.UByte)
 	companion object {
-		@kotlin.jvm.JvmStatic fun default(): moq.MuxContainerTsPesPacket
-		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("new") fun new(streamType: kotlin.UByte): moq.MuxContainerTsPesPacket
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("default_") fun default(): moq.MuxContainerTsPesPacket
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("new_") fun new(streamType: kotlin.UByte): moq.MuxContainerTsPesPacket
 	}
 }
 class MuxContainerTsProgram internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -7034,7 +7115,7 @@ class MuxContainerTsProgram internal constructor(raw: Long, lent: Boolean = fals
 	@get:kotlin.jvm.JvmName("getPmtPidGet") val pmtPidGet: kotlin.UShort
 	@kotlin.jvm.JvmName("pmtPidSet") fun pmtPidSet(value: kotlin.UShort)
 	companion object {
-		@kotlin.jvm.JvmStatic fun default(): moq.MuxContainerTsProgram
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("default_") fun default(): moq.MuxContainerTsProgram
 	}
 }
 class MuxContainerTsSiEntry internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -7048,7 +7129,7 @@ class MuxContainerTsSiEntry internal constructor(raw: Long, lent: Boolean = fals
 	val intervalGet: moq.Duration?
 	fun intervalSet(value: moq.Duration?)
 	companion object {
-		@kotlin.jvm.JvmStatic fun default(): moq.MuxContainerTsSiEntry
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("default_") fun default(): moq.MuxContainerTsSiEntry
 	}
 }
 class MuxContainerTsTrack internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -7066,8 +7147,8 @@ class MuxContainerTsTrack internal constructor(raw: Long, lent: Boolean = false)
 	val pesPacketGet: moq.MuxContainerTsPesPacket?
 	fun pesPacketSet(value: moq.MuxContainerTsPesPacket?)
 	companion object {
-		@kotlin.jvm.JvmStatic fun default(): moq.MuxContainerTsTrack
-		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("new") fun new(pid: kotlin.UShort): moq.MuxContainerTsTrack
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("default_") fun default(): moq.MuxContainerTsTrack
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("new_") fun new(pid: kotlin.UShort): moq.MuxContainerTsTrack
 	}
 }
 class MuxContainerTsVerbatim internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -7081,8 +7162,8 @@ class MuxContainerTsVerbatim internal constructor(raw: Long, lent: Boolean = fal
 	val framingGet: moq.MuxContainerTsFraming
 	fun framingSet(value: moq.MuxContainerTsFraming)
 	companion object {
-		@kotlin.jvm.JvmStatic fun default(): moq.MuxContainerTsVerbatim
-		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("new") fun new(streamType: kotlin.UByte, framing: moq.MuxContainerTsFraming): moq.MuxContainerTsVerbatim
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("default_") fun default(): moq.MuxContainerTsVerbatim
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("new_") fun new(streamType: kotlin.UByte, framing: moq.MuxContainerTsFraming): moq.MuxContainerTsVerbatim
 	}
 }
 class MuxContainerTsError internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -7100,7 +7181,7 @@ class MuxContainerTsExportConsumerExtra internal constructor(raw: Long, lent: Bo
 	@kotlin.jvm.Throws(MuxErrorException::class) fun follow(broadcast: moq.BroadcastConsumer, catalog: moq.MuxCatalogConsumerExtra): moq.MuxContainerTsExportConsumerExtra
 	fun asFlow(): kotlinx.coroutines.flow.Flow<moq.MuxContainerFrame>
 	companion object {
-		@kotlin.jvm.JvmStatic fun new(source: moq.MuxSource, catalog: moq.MuxCatalogConsumerExtra, delay: moq.Duration): moq.MuxContainerTsExportConsumerExtra
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("new_") fun new(source: moq.MuxSource, catalog: moq.MuxCatalogConsumerExtra, delay: moq.Duration): moq.MuxContainerTsExportConsumerExtra
 	}
 }
 class MuxContainerTsExportConsumerExt internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -7112,7 +7193,7 @@ class MuxContainerTsExportConsumerExt internal constructor(raw: Long, lent: Bool
 	@kotlin.jvm.Throws(MuxErrorException::class) fun follow(broadcast: moq.BroadcastConsumer, catalog: moq.MuxCatalogConsumerExt): moq.MuxContainerTsExportConsumerExt
 	fun asFlow(): kotlinx.coroutines.flow.Flow<moq.MuxContainerFrame>
 	companion object {
-		@kotlin.jvm.JvmStatic fun new(source: moq.MuxSource, catalog: moq.MuxCatalogConsumerExt, delay: moq.Duration): moq.MuxContainerTsExportConsumerExt
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("new_") fun new(source: moq.MuxSource, catalog: moq.MuxCatalogConsumerExt, delay: moq.Duration): moq.MuxContainerTsExportConsumerExt
 	}
 }
 class MuxContainerTsExportConsumer internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -7124,7 +7205,7 @@ class MuxContainerTsExportConsumer internal constructor(raw: Long, lent: Boolean
 	@kotlin.jvm.Throws(MuxErrorException::class) fun follow(broadcast: moq.BroadcastConsumer, catalog: moq.MuxCatalogConsumer): moq.MuxContainerTsExportConsumer
 	fun asFlow(): kotlinx.coroutines.flow.Flow<moq.MuxContainerFrame>
 	companion object {
-		@kotlin.jvm.JvmStatic fun new(source: moq.MuxSource, catalog: moq.MuxCatalogConsumer, delay: moq.Duration): moq.MuxContainerTsExportConsumer
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("new_") fun new(source: moq.MuxSource, catalog: moq.MuxCatalogConsumer, delay: moq.Duration): moq.MuxContainerTsExportConsumer
 	}
 }
 class MuxContainerTsFollower internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -7135,7 +7216,7 @@ class MuxContainerTsFollower internal constructor(raw: Long, lent: Boolean = fal
 	@kotlin.jvm.Throws(MuxErrorException::class) suspend fun next(): moq.MuxContainerFrame?
 	fun asFlow(): kotlinx.coroutines.flow.Flow<moq.MuxContainerFrame>
 	companion object {
-		@kotlin.jvm.JvmStatic @kotlin.jvm.Throws(MuxErrorException::class) fun new(export: moq.MuxContainerTsExportConsumer): moq.MuxContainerTsFollower
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("new_") @kotlin.jvm.Throws(MuxErrorException::class) fun new(export: moq.MuxContainerTsExportConsumer): moq.MuxContainerTsFollower
 	}
 }
 class MuxContainerTsFollowerExtra internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -7146,7 +7227,7 @@ class MuxContainerTsFollowerExtra internal constructor(raw: Long, lent: Boolean 
 	@kotlin.jvm.Throws(MuxErrorException::class) suspend fun next(): moq.MuxContainerFrame?
 	fun asFlow(): kotlinx.coroutines.flow.Flow<moq.MuxContainerFrame>
 	companion object {
-		@kotlin.jvm.JvmStatic @kotlin.jvm.Throws(MuxErrorException::class) fun new(export: moq.MuxContainerTsExportConsumerExtra): moq.MuxContainerTsFollowerExtra
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("new_") @kotlin.jvm.Throws(MuxErrorException::class) fun new(export: moq.MuxContainerTsExportConsumerExtra): moq.MuxContainerTsFollowerExtra
 	}
 }
 class MuxContainerTsFollowerExt internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -7157,7 +7238,7 @@ class MuxContainerTsFollowerExt internal constructor(raw: Long, lent: Boolean = 
 	@kotlin.jvm.Throws(MuxErrorException::class) suspend fun next(): moq.MuxContainerFrame?
 	fun asFlow(): kotlinx.coroutines.flow.Flow<moq.MuxContainerFrame>
 	companion object {
-		@kotlin.jvm.JvmStatic @kotlin.jvm.Throws(MuxErrorException::class) fun new(export: moq.MuxContainerTsExportConsumerExt): moq.MuxContainerTsFollowerExt
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("new_") @kotlin.jvm.Throws(MuxErrorException::class) fun new(export: moq.MuxContainerTsExportConsumerExt): moq.MuxContainerTsFollowerExt
 	}
 }
 class MuxContainerTsPassthrough internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -7168,7 +7249,7 @@ class MuxContainerTsPassthrough internal constructor(raw: Long, lent: Boolean = 
 	@kotlin.jvm.Throws(MuxErrorException::class) fun finish(): moq.MuxContainerTsPassthroughFinished
 	fun abort(err: moq.Error)
 	companion object {
-		@kotlin.jvm.JvmStatic @kotlin.jvm.Throws(MuxErrorException::class) fun new(broadcast: moq.BroadcastProducer, reserved: moq.MuxCatalogReservedExt): moq.MuxContainerTsPassthrough
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("new_") @kotlin.jvm.Throws(MuxErrorException::class) fun new(broadcast: moq.BroadcastProducer, reserved: moq.MuxCatalogReservedExt): moq.MuxContainerTsPassthrough
 	}
 }
 class MuxContainerTsPassthroughUnit internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -7179,7 +7260,7 @@ class MuxContainerTsPassthroughUnit internal constructor(raw: Long, lent: Boolea
 	@kotlin.jvm.Throws(MuxErrorException::class) fun finish(): moq.MuxContainerTsPassthroughFinishedUnit
 	fun abort(err: moq.Error)
 	companion object {
-		@kotlin.jvm.JvmStatic @kotlin.jvm.Throws(MuxErrorException::class) fun new(broadcast: moq.BroadcastProducer, reserved: moq.MuxCatalogReserved): moq.MuxContainerTsPassthroughUnit
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("new_") @kotlin.jvm.Throws(MuxErrorException::class) fun new(broadcast: moq.BroadcastProducer, reserved: moq.MuxCatalogReserved): moq.MuxContainerTsPassthroughUnit
 	}
 }
 class MuxContainerTsPassthroughExtra internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -7190,7 +7271,7 @@ class MuxContainerTsPassthroughExtra internal constructor(raw: Long, lent: Boole
 	@kotlin.jvm.Throws(MuxErrorException::class) fun finish(): moq.MuxContainerTsPassthroughFinishedExtra
 	fun abort(err: moq.Error)
 	companion object {
-		@kotlin.jvm.JvmStatic @kotlin.jvm.Throws(MuxErrorException::class) fun new(broadcast: moq.BroadcastProducer, reserved: moq.MuxCatalogReservedExtra): moq.MuxContainerTsPassthroughExtra
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("new_") @kotlin.jvm.Throws(MuxErrorException::class) fun new(broadcast: moq.BroadcastProducer, reserved: moq.MuxCatalogReservedExtra): moq.MuxContainerTsPassthroughExtra
 	}
 }
 class MuxContainerTsPrograms internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -7200,7 +7281,7 @@ class MuxContainerTsPrograms internal constructor(raw: Long, lent: Boolean = fal
 	@kotlin.jvm.Throws(MuxContainerTsErrorException::class) fun finish(): moq.MuxContainerTsProgramsFinished
 	fun abort(err: moq.Error)
 	companion object {
-		@kotlin.jvm.JvmStatic fun new(origin: moq.OriginProducer, name: moq.Path, config: moq.MuxCatalogConfig): moq.MuxContainerTsPrograms
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("new_") fun new(origin: moq.OriginProducer, name: moq.Path, config: moq.MuxCatalogConfig): moq.MuxContainerTsPrograms
 	}
 }
 class MuxContainerTsRelease internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -7212,7 +7293,7 @@ class MuxContainerTsRelease internal constructor(raw: Long, lent: Boolean = fals
 	@kotlin.jvm.Throws(MuxErrorException::class) suspend fun next(): moq.MuxContainerFrame?
 	fun asFlow(): kotlinx.coroutines.flow.Flow<moq.MuxContainerFrame>
 	companion object {
-		@kotlin.jvm.JvmStatic @kotlin.jvm.Throws(MuxErrorException::class) suspend fun new(source: moq.MuxSource, catalogFormat: moq.MuxCatalogCatalogFormat, delay: moq.Duration): moq.MuxContainerTsRelease
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("new_") @kotlin.jvm.Throws(MuxErrorException::class) suspend fun new(source: moq.MuxSource, catalogFormat: moq.MuxCatalogCatalogFormat, delay: moq.Duration): moq.MuxContainerTsRelease
 	}
 }
 class MuxContainerTsRepublish internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -7226,7 +7307,7 @@ class MuxContainerTsRepublish internal constructor(raw: Long, lent: Boolean = fa
 	@kotlin.jvm.Throws(MuxContainerTsErrorException::class) fun finish(): moq.MuxContainerTsRepublishFinished
 	fun abort(err: moq.Error)
 	companion object {
-		@kotlin.jvm.JvmStatic @kotlin.jvm.Throws(MuxContainerTsErrorException::class) fun new(origin: moq.OriginProducer, name: moq.Path, instance: moq.Instance, config: moq.MuxCatalogConfig): moq.MuxContainerTsRepublish
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("new_") @kotlin.jvm.Throws(MuxContainerTsErrorException::class) fun new(origin: moq.OriginProducer, name: moq.Path, instance: moq.Instance, config: moq.MuxCatalogConfig): moq.MuxContainerTsRepublish
 	}
 }
 class MuxContainerTsRepublished internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -7248,7 +7329,7 @@ class MuxContainerTsImport internal constructor(raw: Long, lent: Boolean = false
 	fun stats(): moq.MuxContainerTsStatsSnapshot
 	fun abort(err: moq.Error)
 	companion object {
-		@kotlin.jvm.JvmStatic fun new(broadcast: moq.BroadcastProducer, reserved: moq.MuxCatalogReserved): moq.MuxContainerTsImport
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("new_") fun new(broadcast: moq.BroadcastProducer, reserved: moq.MuxCatalogReserved): moq.MuxContainerTsImport
 	}
 }
 class MuxContainerTsImportExtra internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -7261,7 +7342,7 @@ class MuxContainerTsImportExtra internal constructor(raw: Long, lent: Boolean = 
 	fun stats(): moq.MuxContainerTsStatsSnapshot
 	fun abort(err: moq.Error)
 	companion object {
-		@kotlin.jvm.JvmStatic fun new(broadcast: moq.BroadcastProducer, reserved: moq.MuxCatalogReservedExtra): moq.MuxContainerTsImportExtra
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("new_") fun new(broadcast: moq.BroadcastProducer, reserved: moq.MuxCatalogReservedExtra): moq.MuxContainerTsImportExtra
 	}
 }
 class MuxContainerTsImportExt internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -7274,7 +7355,7 @@ class MuxContainerTsImportExt internal constructor(raw: Long, lent: Boolean = fa
 	fun stats(): moq.MuxContainerTsStatsSnapshot
 	fun abort(err: moq.Error)
 	companion object {
-		@kotlin.jvm.JvmStatic fun new(broadcast: moq.BroadcastProducer, reserved: moq.MuxCatalogReservedExt): moq.MuxContainerTsImportExt
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("new_") fun new(broadcast: moq.BroadcastProducer, reserved: moq.MuxCatalogReservedExt): moq.MuxContainerTsImportExt
 	}
 }
 class MuxContainerTsFinished internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -7364,7 +7445,7 @@ class MuxContainerTsStatsReport internal constructor(raw: Long, lent: Boolean = 
 	val releaseGet: moq.MuxContainerTsStatsRelease?
 	fun releaseSet(value: moq.MuxContainerTsStatsRelease?)
 	companion object {
-		@kotlin.jvm.JvmStatic fun default(): moq.MuxContainerTsStatsReport
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("default_") fun default(): moq.MuxContainerTsStatsReport
 	}
 }
 class MuxContainerTsStatsSnapshot internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -7397,7 +7478,7 @@ class MuxContainerTsStatsSnapshot internal constructor(raw: Long, lent: Boolean 
 	@kotlin.jvm.JvmName("ptsErrorSet") fun ptsErrorSet(value: kotlin.ULong)
 	fun isEmpty(): kotlin.Boolean
 	companion object {
-		@kotlin.jvm.JvmStatic fun default(): moq.MuxContainerTsStatsSnapshot
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("default_") fun default(): moq.MuxContainerTsStatsSnapshot
 	}
 }
 class MuxContainerTsStatsStream internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -7433,7 +7514,7 @@ class MuxContainerTsStatsStream internal constructor(raw: Long, lent: Boolean = 
 	@get:kotlin.jvm.JvmName("getPtsErrorGet") val ptsErrorGet: kotlin.ULong
 	@kotlin.jvm.JvmName("ptsErrorSet") fun ptsErrorSet(value: kotlin.ULong)
 	companion object {
-		@kotlin.jvm.JvmStatic fun default(): moq.MuxContainerTsStatsStream
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("default_") fun default(): moq.MuxContainerTsStatsStream
 	}
 }
 class MuxContainerTsStatsExport internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -7447,7 +7528,7 @@ class MuxContainerTsStatsExport internal constructor(raw: Long, lent: Boolean = 
 	val releaseGet: moq.MuxContainerTsStatsRelease
 	fun releaseSet(value: moq.MuxContainerTsStatsRelease)
 	companion object {
-		@kotlin.jvm.JvmStatic fun default(): moq.MuxContainerTsStatsExport
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("default_") fun default(): moq.MuxContainerTsStatsExport
 	}
 }
 class MuxContainerTsStatsRelease internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -7471,7 +7552,7 @@ class MuxContainerTsStatsRelease internal constructor(raw: Long, lent: Boolean =
 	@get:kotlin.jvm.JvmName("getOutOfToleranceGet") val outOfToleranceGet: kotlin.ULong
 	@kotlin.jvm.JvmName("outOfToleranceSet") fun outOfToleranceSet(value: kotlin.ULong)
 	companion object {
-		@kotlin.jvm.JvmStatic fun default(): moq.MuxContainerTsStatsRelease
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("default_") fun default(): moq.MuxContainerTsStatsRelease
 	}
 }
 class MuxContainerTsStatsLog internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -7479,7 +7560,7 @@ class MuxContainerTsStatsLog internal constructor(raw: Long, lent: Boolean = fal
 	fun sample(latest: moq.MuxContainerTsStatsSnapshot)
 	fun finish(latest: moq.MuxContainerTsStatsSnapshot)
 	companion object {
-		@kotlin.jvm.JvmStatic fun default(): moq.MuxContainerTsStatsLog
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("default_") fun default(): moq.MuxContainerTsStatsLog
 		@kotlin.jvm.JvmStatic val INTERVAL: moq.Duration
 	}
 }
@@ -7492,7 +7573,7 @@ class MoqTokioAddrs internal constructor(raw: Long, lent: Boolean = false) : Aut
 	fun or(addr: moq.MoqTokioConnectAddr): moq.MoqTokioAddrs
 	fun asSlice(): kotlin.collections.List<moq.MoqTokioConnectAddr>
 	companion object {
-		@kotlin.jvm.JvmStatic fun new(addr: moq.MoqTokioConnectAddr): moq.MoqTokioAddrs
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("new_") fun new(addr: moq.MoqTokioConnectAddr): moq.MoqTokioAddrs
 		@kotlin.jvm.JvmStatic fun collect(urls: kotlin.collections.List<moq.MoqTokioConnectAddr>): moq.MoqTokioAddrs?
 	}
 }
@@ -7508,7 +7589,7 @@ class MoqTokioCliDeprecated internal constructor(raw: Long, lent: Boolean = fals
 	fun removed(old: kotlin.String, env: kotlin.String?, note: kotlin.String)
 	fun toml(old: kotlin.String, new: kotlin.String, note: kotlin.String?)
 	companion object {
-		@kotlin.jvm.JvmStatic fun default(): moq.MoqTokioCliDeprecated
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("default_") fun default(): moq.MoqTokioCliDeprecated
 	}
 }
 class MoqTokioCliBound internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -7537,7 +7618,7 @@ class MoqTokioAcceptHealth internal constructor(raw: Long, lent: Boolean = false
 	@kotlin.jvm.JvmName("failures") fun failures(failure: moq.MoqTokioAcceptFailure): kotlin.ULong
 	fun stalled(): moq.Duration?
 	companion object {
-		@kotlin.jvm.JvmStatic fun new(listener: kotlin.String): moq.MoqTokioAcceptHealth
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("new_") fun new(listener: kotlin.String): moq.MoqTokioAcceptHealth
 	}
 }
 class MoqJsonTimedCatalog internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -7551,7 +7632,7 @@ class MoqJsonTimedCatalog internal constructor(raw: Long, lent: Boolean = false)
 	val atGet: moq.Timestamp
 	fun atSet(value: moq.Timestamp)
 	companion object {
-		@kotlin.jvm.JvmStatic fun new(value: moq.HangCatalog, at: moq.Timestamp): moq.MoqJsonTimedCatalog
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("new_") fun new(value: moq.HangCatalog, at: moq.Timestamp): moq.MoqJsonTimedCatalog
 	}
 }
 class MoqJsonTimedJson internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -7565,7 +7646,7 @@ class MoqJsonTimedJson internal constructor(raw: Long, lent: Boolean = false) : 
 	val atGet: moq.Timestamp
 	fun atSet(value: moq.Timestamp)
 	companion object {
-		@kotlin.jvm.JvmStatic fun new(value: moq.Json, at: moq.Timestamp): moq.MoqJsonTimedJson
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("new_") fun new(value: moq.Json, at: moq.Timestamp): moq.MoqJsonTimedJson
 	}
 }
 class RustlsClientConfig internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -7654,7 +7735,7 @@ class MoqTokioConnectionHandover internal constructor(raw: Long, lent: Boolean =
 	val handoverGet: moq.TokioDuration?
 	fun handoverSet(value: moq.TokioDuration?)
 	companion object {
-		@kotlin.jvm.JvmStatic fun default(): moq.MoqTokioConnectionHandover
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("default_") fun default(): moq.MoqTokioConnectionHandover
 	}
 }
 class MoqTokioWebsocketConfig internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -7667,7 +7748,7 @@ class MoqTokioWebsocketConfig internal constructor(raw: Long, lent: Boolean = fa
 	fun delaySet(value: moq.TokioDuration?)
 	fun resolve(): moq.MoqTokioWebsocketResolved
 	companion object {
-		@kotlin.jvm.JvmStatic fun default(): moq.MoqTokioWebsocketConfig
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("default_") fun default(): moq.MoqTokioWebsocketConfig
 	}
 }
 class MoqTokioConnectionObservation internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -7679,7 +7760,7 @@ class MoqTokioConnectionObservation internal constructor(raw: Long, lent: Boolea
 	@get:kotlin.jvm.JvmName("getConnectsGet") val connectsGet: kotlin.ULong
 	@kotlin.jvm.JvmName("connectsSet") fun connectsSet(value: kotlin.ULong)
 	@get:kotlin.jvm.JvmName("getLastConnectedGet") val lastConnectedGet: moq.ClockInstant?
-	@kotlin.jvm.JvmName("lastConnectedSet-opaque") fun lastConnectedSet(value: moq.ClockInstant?)
+	@kotlin.jvm.JvmName("lastConnectedSet") fun lastConnectedSet(value: moq.ClockInstant?)
 	val phaseGet: moq.MoqTokioConnectionPhase
 	fun phaseSet(value: moq.MoqTokioConnectionPhase)
 }
@@ -7722,7 +7803,7 @@ class MoqTokioTcpConfig internal constructor(raw: Long, lent: Boolean = false) :
 	val tlsGet: kotlin.Boolean?
 	fun tlsSet(value: kotlin.Boolean?)
 	companion object {
-		@kotlin.jvm.JvmStatic fun default(): moq.MoqTokioTcpConfig
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("default_") fun default(): moq.MoqTokioTcpConfig
 	}
 }
 class MoqTokioUnixConfig internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -7734,7 +7815,7 @@ class MoqTokioUnixConfig internal constructor(raw: Long, lent: Boolean = false) 
 	val allowGet: moq.MoqTokioUnixAllow
 	fun allowSet(value: moq.MoqTokioUnixAllow)
 	companion object {
-		@kotlin.jvm.JvmStatic fun default(): moq.MoqTokioUnixConfig
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("default_") fun default(): moq.MoqTokioUnixConfig
 	}
 }
 class MoqTokioListenLoadBalancer internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -7748,7 +7829,7 @@ class MoqTokioListenLoadBalancer internal constructor(raw: Long, lent: Boolean =
 	val forwardGet: moq.MoqTokioListenForward
 	fun forwardSet(value: moq.MoqTokioListenForward)
 	companion object {
-		@kotlin.jvm.JvmStatic fun default(): moq.MoqTokioListenLoadBalancer
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("default_") fun default(): moq.MoqTokioListenLoadBalancer
 	}
 }
 class MoqTokioListenReset internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -7758,7 +7839,7 @@ class MoqTokioListenReset internal constructor(raw: Long, lent: Boolean = false)
 	val secretGet: moq.PathBuf?
 	fun secretSet(value: moq.PathBuf?)
 	companion object {
-		@kotlin.jvm.JvmStatic fun default(): moq.MoqTokioListenReset
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("default_") fun default(): moq.MoqTokioListenReset
 	}
 }
 class MoqTokioQuicResolved internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -7790,7 +7871,7 @@ class MoqTokioQuicResolved internal constructor(raw: Long, lent: Boolean = false
 	fun keepAliveInterval(): moq.Duration
 	fun limits(): moq.MoqQuicLimits
 	companion object {
-		@kotlin.jvm.JvmStatic fun default(): moq.MoqTokioQuicResolved
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("default_") fun default(): moq.MoqTokioQuicResolved
 	}
 }
 class MoqTokioWebsocketListener internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -7811,14 +7892,14 @@ class MoqTokioQuicDemuxDemux internal constructor(raw: Long, lent: Boolean = fal
 	fun counters(): moq.MoqSockDemuxCounters
 	fun webrtc(): moq.MoqTokioQuicDemuxWebRtc
 	companion object {
-		@kotlin.jvm.JvmStatic fun default(): moq.MoqTokioQuicDemuxDemux
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("default_") fun default(): moq.MoqTokioQuicDemuxDemux
 	}
 }
 class MoqTokioServerStreams internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
 	fun debug(): kotlin.String
 	companion object {
-		@kotlin.jvm.JvmStatic fun default(): moq.MoqTokioServerStreams
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("default_") fun default(): moq.MoqTokioServerStreams
 	}
 }
 class MoqTokioServerQuicLimits internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -7847,7 +7928,7 @@ class MoqQuicLimits internal constructor(raw: Long, lent: Boolean = false) : Aut
 	fun sendRateSet(value: moq.MoqQuicRate?)
 	@kotlin.jvm.Throws(StringException::class) fun validate()
 	companion object {
-		@kotlin.jvm.JvmStatic fun default(): moq.MoqQuicLimits
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("default_") fun default(): moq.MoqQuicLimits
 	}
 }
 class MoqTokioConnectAddr internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -7859,7 +7940,7 @@ class MoqTokioConnectAddr internal constructor(raw: Long, lent: Boolean = false)
 	fun url(): moq.Url
 	fun addresses(): kotlin.collections.List<moq.SocketAddr>?
 	companion object {
-		@kotlin.jvm.JvmStatic fun new(url: moq.Url): moq.MoqTokioConnectAddr
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("new_") fun new(url: moq.Url): moq.MoqTokioConnectAddr
 		@kotlin.jvm.JvmStatic @kotlin.jvm.Throws(MoqTokioConnectErrorException::class) fun pinned(url: moq.Url, addrs: kotlin.collections.List<moq.SocketAddr>): moq.MoqTokioConnectAddr
 	}
 }
@@ -7900,7 +7981,7 @@ class MoqTokioListenForward internal constructor(raw: Long, lent: Boolean = fals
 	val peersGet: moq.PathBuf?
 	fun peersSet(value: moq.PathBuf?)
 	companion object {
-		@kotlin.jvm.JvmStatic fun default(): moq.MoqTokioListenForward
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("default_") fun default(): moq.MoqTokioListenForward
 	}
 }
 class RustlsClientDangerDangerousClientConfig internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -7914,7 +7995,7 @@ class RustlsClientResumption internal constructor(raw: Long, lent: Boolean = fal
 	fun clone(): moq.RustlsClientResumption
 	fun tls12Resumption(tls12: moq.RustlsClientTls12Resumption): moq.RustlsClientResumption
 	companion object {
-		@kotlin.jvm.JvmStatic fun default(): moq.RustlsClientResumption
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("default_") fun default(): moq.RustlsClientResumption
 		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("inMemorySessions") fun inMemorySessions(num: kotlin.ULong): moq.RustlsClientResumption
 		@kotlin.jvm.JvmStatic fun disabled(): moq.RustlsClientResumption
 	}
@@ -7947,7 +8028,7 @@ class MoqTokioUnixAllow internal constructor(raw: Long, lent: Boolean = false) :
 	val pidGet: kotlin.IntArray
 	fun pidSet(value: kotlin.IntArray)
 	companion object {
-		@kotlin.jvm.JvmStatic fun default(): moq.MoqTokioUnixAllow
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("default_") fun default(): moq.MoqTokioUnixAllow
 	}
 }
 class MoqTokioWebsocketError internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -7972,7 +8053,7 @@ class MoqSockDemuxCounters internal constructor(raw: Long, lent: Boolean = false
 	fun discard(reason: moq.MoqSockDemuxDiscard)
 	@kotlin.jvm.JvmName("get") fun get(reason: moq.MoqSockDemuxDiscard): kotlin.ULong
 	companion object {
-		@kotlin.jvm.JvmStatic fun default(): moq.MoqSockDemuxCounters
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("default_") fun default(): moq.MoqSockDemuxCounters
 	}
 }
 class MoqTokioQuicDemuxWebRtc internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -8066,8 +8147,9 @@ class RustlsCryptoProvider internal constructor(raw: Long, lent: Boolean = false
 	fun clone(): moq.RustlsCryptoProvider
 }
 interface TransportMetrics {}
-class ClockElapsedException(val error: moq.ClockElapsed) : Exception() {
+class ClockElapsedException(@get:kotlin.jvm.JvmName("getError-kotlin") val error: moq.ClockElapsed) : Exception() {
 	override val message: String
+	companion object {}
 }
 class DecodeErrorException(val error: moq.DecodeError) : Exception() {
 	override val message: String
@@ -8243,8 +8325,9 @@ class PathErrorException(val error: moq.PathError) : Exception() {
 class StringException(val error: kotlin.String) : Exception() {
 	override val message: String
 }
-class TimeOverflowException(val error: moq.TimeOverflow) : Exception() {
+class TimeOverflowException(@get:kotlin.jvm.JvmName("getError-kotlin") val error: moq.TimeOverflow) : Exception() {
 	override val message: String
+	companion object {}
 }
 class TokioErrorException(val error: moq.TokioError) : Exception() {
 	override val message: String
@@ -8267,19 +8350,19 @@ val IMPLEMENTATION: kotlin.String
 val ALPNS: kotlin.collections.List<kotlin.String>
 fun escape(content: kotlin.String): kotlin.String
 fun unescape(segment: kotlin.String): kotlin.String
-fun clockNow(): moq.ClockInstant
-fun clockWall(): moq.ClockWall
+@kotlin.jvm.JvmName("clockNow-kotlin") fun clockNow(): moq.ClockInstant
+@kotlin.jvm.JvmName("clockWall-kotlin") fun clockWall(): moq.ClockWall
 fun clockOrigin(): kotlin.Pair<moq.ClockInstant, moq.ClockWall>
 fun clockRng(): moq.ClockRng
 fun clockSeed(): kotlin.ULong
 fun clockHostTime()
 suspend fun clockDrive(poll: (moq.ClockInstant, moq.Waiter) -> moq.ClockInstant?): kotlin.String
 fun clockInterval(period: moq.Duration): moq.ClockInterval
-@kotlin.jvm.JvmName("clockIntervalAt-opaque") fun clockIntervalAt(start: moq.ClockInstant, period: moq.Duration): moq.ClockInterval
+@kotlin.jvm.JvmName("clockIntervalAt-kotlin") fun clockIntervalAt(start: moq.ClockInstant, period: moq.Duration): moq.ClockInterval
 suspend fun clockSleep(duration: moq.Duration)
-@kotlin.jvm.JvmName("clockSleepUntil-opaque") suspend fun clockSleepUntil(at: moq.ClockInstant)
+@kotlin.jvm.JvmName("clockSleepUntil-kotlin") suspend fun clockSleepUntil(at: moq.ClockInstant)
 @kotlin.jvm.Throws(ClockElapsedException::class) suspend fun clockTimeout(duration: moq.Duration, future: suspend () -> kotlin.Unit)
-@kotlin.jvm.JvmName("clockTimeoutAt-opaque") @kotlin.jvm.Throws(ClockElapsedException::class) suspend fun clockTimeoutAt(deadline: moq.ClockInstant, future: suspend () -> kotlin.Unit)
+@kotlin.jvm.JvmName("clockTimeoutAt-kotlin") @kotlin.jvm.Throws(ClockElapsedException::class) suspend fun clockTimeoutAt(deadline: moq.ClockInstant, future: suspend () -> kotlin.Unit)
 val SERVERDEFAULTTIMEOUT: moq.Duration
 suspend fun timeRunDriver(driver: moq.Driver): moq.Error
 suspend fun timeRunOriginDriver(driver: moq.OriginDriver): moq.Error
@@ -8289,9 +8372,9 @@ val CACHEDEFAULTEXPIRY: moq.Duration
 val HANGECHOSUFFIX: kotlin.String
 val HANGECHOTRACK: kotlin.String
 fun hangEchoIsEcho(path: moq.Path): kotlin.Boolean
-val HANGCATALOGPRIORITY: moq.HangCatalogPriorities
+@get:kotlin.jvm.JvmName("getHANGCATALOGPRIORITY-kotlin") val HANGCATALOGPRIORITY: moq.HangCatalogPriorities
 val HANGCONTAINERMAXAGE: moq.Duration
-val HANGCONTAINERTIMESCALE: moq.Timescale
+@get:kotlin.jvm.JvmName("getHANGCONTAINERTIMESCALE-kotlin") val HANGCONTAINERTIMESCALE: moq.Timescale
 fun hangContainerTrackInfo(priority: kotlin.Byte): moq.TrackInfo
 val MUXCONTAINERDELAYMAX: moq.Duration
 val MUXRATERETRY: moq.Duration
@@ -8315,4 +8398,7 @@ fun muxCodecOpusPacketSamples(packet: moq.Bytes): kotlin.UInt?
 @kotlin.jvm.Throws(MuxErrorException::class) fun muxContainerMp4Repair(file: java.nio.channels.SeekableByteChannel): moq.MuxContainerMp4Finish?
 interface StartSeekable {
 	fun seekStart(offset: ULong): ULong
+	interface Java {
+		@kotlin.jvm.Throws(java.io.IOException::class) fun seekStart(offset: Long): Long
+	}
 }

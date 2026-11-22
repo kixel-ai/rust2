@@ -1531,6 +1531,14 @@ export declare function debug(self: Seat): string;
 export declare function eq(a: Seat, b: Seat): boolean;
 export declare function count(self: Seat): rt.u64;
 
+// Sensor.ts
+export interface Sensor {
+    read(): number;
+    interface$(): number;
+    close$(): void;
+    close?(): void;
+}
+
 // Shadowed.ts
 export type Shadowed = {
     other: Int32Array;
@@ -1662,10 +1670,14 @@ import * as rt from "./rt.ts";
 export type Stamp = rt.Opaque<"Stamp">;
 export declare function debug(self: Stamp): string;
 export declare function eq(a: Stamp, b: Stamp): boolean;
+export declare function partialCmp(a: Stamp, b: Stamp): number | undefined;
+export declare function cmp(a: Stamp, b: Stamp): number;
+export declare function default$(): Stamp;
 export declare function fromMillis(millis: rt.u64): Stamp;
 export declare function secs(self: Stamp): rt.u64;
 export declare function whole(self: Stamp): Stamp;
 export declare function later(self: Stamp, other: Stamp): boolean;
+export { default$ as default };
 
 // Stamped.ts
 import * as rt from "./rt.ts";
@@ -2390,6 +2402,7 @@ export declare function t_option_Moment(p: number, v: Moment | undefined): void;
 export declare function vt_Beat(): number;
 export declare function vt_Log(): number;
 export declare function vt_Scan(): number;
+export declare function vt_Sensor(): number;
 export declare function vt_Stretch(): number;
 export declare function vt_Turner(): number;
 export declare function vt_Undo(): number;
@@ -2592,6 +2605,9 @@ export declare const imports: {
     api_web_cb_Beat_beat: (data: number) => number;
     api_web_cb_Log_log: (data: number, p0: number, p1: number) => number;
     api_web_cb_Scan_scan: (data: number, p0: number, p1: number) => bigint;
+    api_web_cb_Sensor_close: (data: number) => void;
+    api_web_cb_Sensor_interface: (data: number) => number;
+    api_web_cb_Sensor_read: (data: number) => number;
     api_web_cb_Stretch_stretch: (data: number) => number;
     api_web_cb_Turner_by: (data: number) => bigint;
     api_web_cb_Turner_once: (data: number) => bigint;
@@ -2698,6 +2714,7 @@ import type { Refusal } from "./Refusal.ts";
 import type { RightLeftU8 } from "./RightLeftU8.ts";
 import type { Scan } from "./Scan.ts";
 import type { Seat } from "./Seat.ts";
+import type { Sensor } from "./Sensor.ts";
 import type { Shape } from "./Shape.ts";
 import type { Size } from "./Size.ts";
 import type { SlotU32 } from "./SlotU32.ts";
@@ -2861,12 +2878,15 @@ export declare function halved(n: number): rt.Call<number | undefined>;
 export declare function yielded(value: number): rt.Call<number>;
 export declare function after(first: Promise<unknown>, value: number): rt.Call<number>;
 export declare function within(polls: number, future: Promise<unknown>): rt.Call<rt.Result<undefined, Error_>>;
+export declare function past(at: Stamp, deadline: Stamp): rt.Result<Stamp, Stamp>;
+export declare function odd(n: number): rt.Result<number, number>;
 export declare function momentAt(ticks: rt.u64, rate: rt.u64): rt.Result<Moment, string>;
 export declare function stampAt(millis: rt.u64): rt.Result<Stamp, string>;
 export declare function shifted(moment: Moment, shift: (a0: Moment) => Moment): Moment;
 export declare function jvmSum(field: JvmField, method: JvmStatic, opt: OptIn): number;
 export declare function clockedAfter(clocked: Clocked, ticks: rt.u64): Clocked;
 export declare function emit(log: Log, lines: Uint8Array | rt.Bytes): number;
+export declare function sensed(sensor: Sensor): number;
 export declare function counted(n: number, count: (a0: number) => void): rt.Call<rt.Result<number, Error_>>;
 export declare function filter(lines: Uint8Array | rt.Bytes, keep: (a0: number, a1: string) => boolean): number;
 export declare function logLater(log: Log): rt.Call<boolean>;

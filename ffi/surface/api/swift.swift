@@ -281,9 +281,14 @@ public struct Seat: Sendable {
 	@inlinable public static func == (a: Seat, b: Seat) throws -> Swift.Bool
 	@inlinable public func count() throws -> Swift.UInt64
 }
-public struct Stamp: Sendable, CustomDebugStringConvertible, Equatable {
+public struct Stamp: Sendable, CustomDebugStringConvertible, Equatable, Comparable {
 	@inlinable public var debugDescription: Swift.String { get }
 	@inlinable public static func == (a: Stamp, b: Stamp) -> Swift.Bool
+	@inlinable public static func < (a: Stamp, b: Stamp) -> Swift.Bool
+	@inlinable public static func <= (a: Stamp, b: Stamp) -> Swift.Bool
+	@inlinable public static func > (a: Stamp, b: Stamp) -> Swift.Bool
+	@inlinable public static func >= (a: Stamp, b: Stamp) -> Swift.Bool
+	@inlinable public static func `default`() -> Stamp
 	@inlinable public static func fromMillis(_ millis: Swift.UInt64) -> Stamp
 	@inlinable public func secs() -> Swift.UInt64
 	@inlinable public func whole() -> Stamp
@@ -1629,6 +1634,11 @@ public struct Part: ~Copyable, @unchecked Sendable {
 public protocol Log: Sendable {
 	func log(_ level: Swift.UInt8, _ line: Swift.String) -> Swift.Bool
 }
+public protocol Sensor: Sendable {
+	func read() -> Swift.UInt32
+	func interface() -> Swift.UInt8
+	func close()
+}
 public protocol Scan: Sendable {
 	func scan(_ payload: Swift.Span<Swift.UInt8>, _ rest: Swift.Span<Swift.UInt8>?) -> Swift.UInt64
 }
@@ -1668,6 +1678,11 @@ public struct StringError: Swift.Error, CustomStringConvertible {
 	@inlinable public init(error: Swift.String)
 	@inlinable public var description: Swift.String { get }
 }
+public struct U32Error: Swift.Error, CustomStringConvertible {
+	public let error: Swift.UInt32
+	@inlinable public init(error: Swift.UInt32)
+	@inlinable public var description: Swift.String { get }
+}
 public struct VecClashToneError: Swift.Error, CustomStringConvertible {
 	public let error: [ClashTone]
 	@inlinable public init(error: [ClashTone])
@@ -1677,6 +1692,7 @@ extension ClashMalformed: Swift.Error {}
 extension Error: Swift.Error {}
 extension Fault: Swift.Error {}
 extension Refusal: Swift.Error {}
+extension Stamp: Swift.Error {}
 public let LIMIT: Swift.UInt64
 public let FAR: Swift.Int64
 public let EOF: Swift.Int32
@@ -1748,12 +1764,15 @@ public let URL: Swift.UInt64
 @inlinable nonisolated(nonsending) public func yielded(_ value: Swift.UInt32) async throws -> Swift.UInt32
 @inlinable nonisolated(nonsending) public func after(_ first: @escaping @Sendable () async -> Void, _ value: Swift.UInt32) async throws -> Swift.UInt32
 @inlinable nonisolated(nonsending) public func within(_ polls: Swift.UInt32, _ future: @escaping @Sendable () async -> Void) async throws
+@inlinable public func past(_ at: Stamp, _ deadline: Stamp) throws -> Stamp
+@inlinable public func odd(_ n: Swift.UInt32) throws -> Swift.UInt32
 @inlinable public func momentAt(_ ticks: Swift.UInt64, _ rate: Swift.UInt64) throws -> Moment
 @inlinable public func stampAt(_ millis: Swift.UInt64) throws -> Stamp
 @inlinable public func shifted(_ moment: Moment, _ shift: @Sendable (Moment) -> Moment) -> Moment
 @inlinable public func jvmSum(_ field: JvmField, _ method: JvmStatic, _ opt: OptIn) -> Swift.UInt32
 @inlinable public func clockedAfter(_ clocked: Clocked, _ ticks: Swift.UInt64) -> Clocked
 @inlinable public func emit(_ log: any Log, _ lines: Bytes) -> Swift.UInt32
+@inlinable public func sensed(_ sensor: any Sensor) -> Swift.UInt32
 @inlinable nonisolated(nonsending) public func counted(_ n: Swift.UInt32, _ count: @Sendable (Swift.UInt32) -> Void) async throws -> Swift.UInt32
 @inlinable public func filter(_ lines: Bytes, _ keep: @Sendable (Swift.UInt8, Swift.String) -> Swift.Bool) -> Swift.UInt32
 @inlinable nonisolated(nonsending) public func logLater(_ log: any Log) async throws -> Swift.Bool

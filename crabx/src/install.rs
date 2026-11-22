@@ -1,7 +1,9 @@
 use crate::{
 	cache::{self, Cache, Record},
 	cli::{Args, Spec},
-	fetchers::{Data, Fetcher, GhCrateMeta, QuickInstall, SignaturePolicy, TargetData, TargetDataErased},
+	fetchers::{
+		Data, Fetcher, GhCrateMeta, QuickInstall, SignaturePolicy, TargetArchOverride, TargetData, TargetDataErased,
+	},
 	target::TargetTriple,
 	trust,
 };
@@ -227,6 +229,11 @@ impl Package {
 		};
 		let version = self.version.to_string();
 		let install = stage.join("bin");
+		// `bin-dir` must spell `{ target-arch }` as the URL discovery found did.
+		let target_related_info = TargetArchOverride {
+			values: &fetcher.target_data().target_related_info,
+			target_arch: fetcher.resolved_target_arch(),
+		};
 		let data = bins::Data {
 			name: &self.name,
 			target: fetcher.target(),
@@ -235,14 +242,21 @@ impl Package {
 			meta: fetcher.target_meta(),
 			bin_path: &download,
 			install_path: &install,
-			target_related_info: &fetcher.target_data().target_related_info,
+			target_related_info: &target_related_info,
 		};
 		let bin_dir = layout(&data, &self.bins, discovery_name)?;
 		let template = leon::Template::parse(&bin_dir)?;
 		let mut files = Vec::new();
 		let mut sources = BTreeSet::new();
 		for (name, required) in &self.bins {
-			let file = BinFile::new(&data, name, &template, true)?;
+			let file = BinFile::new(
+				&data,
+				name,
+				&template,
+				&mut |p| extracted.get_dir(p).is_some(),
+				true,
+				&[],
+			)?;
 			if !extracted.has_file(&file.archive_source_path) {
 				ensure!(
 					!required,
@@ -302,7 +316,14 @@ fn layout(data: &bins::Data<'_>, binaries: &[(String, bool)], discovery_name: &s
 		let mut found = false;
 		let mut complete = true;
 		for (name, required) in binaries {
-			let file = BinFile::new(data, name, &template, true)?;
+			let file = BinFile::new(
+				data,
+				name,
+				&template,
+				&mut |p| data.bin_path.join(p).is_dir(),
+				true,
+				&[],
+			)?;
 			let exists = file.source.is_file();
 			found |= exists;
 			complete &= exists || !required;
@@ -465,7 +486,16 @@ mod tests {
 		let source = |data: &bins::Data<'_>| {
 			let chosen = layout(data, &binaries, "moq").unwrap();
 			let template = leon::Template::parse(&chosen).unwrap();
-			BinFile::new(data, "moq", &template, true).unwrap().source
+			BinFile::new(
+				data,
+				"moq",
+				&template,
+				&mut |p| data.bin_path.join(p).is_dir(),
+				true,
+				&[],
+			)
+			.unwrap()
+			.source
 		};
 		assert_eq!(source(&data), nested.join(&name));
 		// A direct executable wins even when the archive also has a bin directory.
