@@ -2156,7 +2156,8 @@ def zip_root(name):
 
 def consume_go(proxy, check, native):
     """Build and run a check program, or else an import of the runtime, against the module
-    unpacked from its zip, in a new module of its own: no checkout, Rust, or CGO_LDFLAGS."""
+    unpacked from its zip, in a new module of its own: no checkout, Rust, or CGO_LDFLAGS.
+    The check's directory is the program's package, `check.go` beside the files it reads."""
     zips = list(Path(proxy).rglob("*.zip"))
     if len(zips) != 1:
         raise SystemExit(f"expected one module zip in {proxy}, found {zips}")
@@ -2167,17 +2168,21 @@ def consume_go(proxy, check, native):
         z.extractall(work / "mod")
         consumer = work / "consumer"
         consumer.mkdir()
+        if check:
+            check_program_in(check, ("check.go",))
+            shutil.copytree(check, consumer, dirs_exist_ok=True)
+        else:
+            (consumer / "main.go").write_text(f'package main\n\nimport _ "{module}/rt"\n\nfunc main() {{}}\n', encoding="utf-8")
+        # After the check's files, which hold no module of their own.
         (consumer / "go.mod").write_text(
             f"module consumer\n\ngo 1.24\n\nrequire {module} {version}\n\nreplace {module} => ../mod/{prefix}\n",
             encoding="utf-8")
-        main = Path(check).read_text(encoding="utf-8") if check else f'package main\n\nimport _ "{module}/rt"\n\nfunc main() {{}}\n'
-        (consumer / "main.go").write_text(main, encoding="utf-8")
         env = {k: v for k, v in os.environ.items() if not k.startswith("CGO_") or k == "CGO_ENABLED"}
         env.update(CGO_ENABLED="1", GOFLAGS="-mod=mod", GOPROXY="off", GOTOOLCHAIN="local", GOWORK="off")
         run("go", "vet", f"{module}/...", ".", cwd=consumer, env=env)
         exe = consumer / ("check.exe" if sys.platform == "win32" else "check")
         run("go", "build", "-o", exe, ".", cwd=consumer, env=env)
-        result = subprocess.run([exe], capture_output=True, cwd=work)
+        result = subprocess.run([exe], capture_output=True, cwd=consumer)
     sys.stderr.buffer.write(result.stderr)
     if result.returncode:
         raise SystemExit(f"{check or 'the import'} failed on the Go module with status {result.returncode}")
@@ -2330,16 +2335,41 @@ def local_package(package, dest, url):
     return Path(dest)
 
 
-def dart_main(lib, check):
-    """The consumer's program: the caller's check, or else one that calls the library's contract.
-    It calls rather than takes the address: Dart 3.14's AOT resolves no `Native.addressOf` of a
-    function naming its `assetId`, as this one must from outside the package."""
+# The entry of a Dart check, beside it: it runs the check's `main`, which takes the arguments or
+# none, as the Flutter app's does.
+DART_MAIN = """import 'check.dart' as check;
+
+Future<void> main(List<String> args) async {
+  final Function run = check.main;
+  final result = run is Function(List<String>) ? run(args) : run();
+  if (result is Future) await result;
+}
+"""
+
+
+def dart_check(lib, check, where):
+    """Place the consumer's program in `where` as check.dart: the caller's check directory
+    whole, its `check.dart` beside the files it imports, or else a program that calls the
+    library's contract. It calls rather than takes the address: Dart 3.14's AOT resolves no
+    `Native.addressOf` of a function naming its `assetId`, as this one must from outside the package."""
+    where = Path(where)
     if check:
-        return Path(check).read_text(encoding="utf-8")
-    return (f"import 'dart:ffi';\n\n"
-            f"@Native<Uint64 Function()>(symbol: '{lib}_contract', assetId: 'package:{lib}/{lib}.dart', isLeaf: true)\n"
-            f"external int _contract();\n\n"
-            f"void main() {{\n  _contract();\n}}\n")
+        check_program_in(check, ("check.dart",))
+        if (Path(check) / "main.dart").exists():
+            raise SystemExit(f"{check} holds a main.dart, which the consumer writes beside check.dart")
+        shutil.copytree(check, where, dirs_exist_ok=True)
+        return
+    (where / "check.dart").write_text(
+        f"import 'dart:ffi';\n\n"
+        f"@Native<Uint64 Function()>(symbol: '{lib}_contract', assetId: 'package:{lib}/{lib}.dart', isLeaf: true)\n"
+        f"external int _contract();\n\n"
+        f"void main() {{\n  _contract();\n}}\n", encoding="utf-8")
+
+
+def dart_entry(lib, check, app):
+    """The app's `bin/` holding the check and the entry that runs it."""
+    dart_check(lib, check, app / "bin")
+    (app / "bin" / "main.dart").write_text(DART_MAIN, encoding="utf-8")
 
 
 def dart_app(work, name, package, lib):
@@ -2368,14 +2398,14 @@ def consume_dart(package, libs, lib, check, native):
             path.write_bytes(bytes(data))
         with Served(bad) as served:
             app = dart_app(work, "tampered", local_package(package, work / "bad-package", served.url), lib)
-            (app / "bin" / "main.dart").write_text(dart_main(lib, None), encoding="utf-8")
+            dart_entry(lib, None, app)
             result = subprocess.run(["dart", "run", "bin/main.dart"], cwd=app, capture_output=True, encoding="utf-8")
             if result.returncode == 0 or "SHA-256" not in result.stdout + result.stderr:
                 sys.stderr.write(result.stdout + result.stderr)
                 raise SystemExit("the hook took a library of other bytes than the release names")
         with Served(good) as served:
             app = dart_app(work, "consumer", local_package(package, work / "package", served.url), lib)
-            (app / "bin" / "main.dart").write_text(dart_main(lib, check), encoding="utf-8")
+            dart_entry(lib, check, app)
             run("dart", "build", "cli", "--target", "bin/main.dart", "--output", work / "build", cwd=app,
                 capture_output=True)
             exe = work / "build" / "bundle" / "bin" / ("main.exe" if sys.platform == "win32" else "main")
@@ -2391,6 +2421,10 @@ def run_dart(command, cwd, check, native, what):
         raise SystemExit(f"{what} failed on the Dart package with status {result.returncode}")
     # Dart 3.10's `dart run` says it runs the hooks on stdout, before the program does.
     stdout = re.sub(rb"^(Running build hooks\.\.\.)+", b"", result.stdout)
+    # `print` writes through the C runtime's text mode, which ends each line in CRLF on Windows,
+    # where Rust's `println!` ends it in LF; the transcript holds no CR of its own.
+    if sys.platform == "win32":
+        stdout = stdout.replace(b"\r\n", b"\n")
     if native and check:
         compare(Path(native).read_bytes(), stdout, f"Dart package, {what}")
     print(f"{what}: ok")
@@ -2403,7 +2437,7 @@ def consume_source(export, check, native):
     lib = pub_name(package)
     with tempfile.TemporaryDirectory() as raw:
         app = dart_app(raw, "consumer", package, lib)
-        (app / "bin" / "main.dart").write_text(dart_main(lib, check), encoding="utf-8")
+        dart_entry(lib, check, app)
         run_dart(["dart", "run", "bin/main.dart"], app, check, native, "dart run from source")
 
 
@@ -2575,11 +2609,11 @@ def consume_flutter(package, libs, lib, check, native, device):
             app, capture_output=True)
         run("flutter", "pub", "add", lib, "--path", local_package(package, work / "package", served.url), cwd=app,
             capture_output=True)
-        (app / "lib" / "check.dart").write_text(dart_main(lib, check), encoding="utf-8")
+        dart_check(lib, check, app / "lib")
         (app / "lib" / "main.dart").write_text(FLUTTER_MAIN, encoding="utf-8")
         run("flutter", "build", "apk", "--debug", "--target-platform", FLUTTER_TARGETS[abi], cwd=app)
-        # Installed here rather than by `flutter run`, whose streamed install, adb's default on
-        # Android 7 to 10, hangs at random on Android 7's emulator; pushing it never does.
+        # Installed here rather than by `flutter run`, whose streamed install, adb's default
+        # from Android 7, hangs at random on Android 7's emulator; pushing it never has.
         adb("-s", device, "install", "--no-streaming", app / "build" / "app" / "outputs" / "flutter-apk" / "app-debug.apk",
             capture_output=True)
         logcat, flutter = Logcat(device), None

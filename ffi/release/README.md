@@ -85,11 +85,13 @@ TypeScript module importing the binding as `./web/<module>.ts` does beside an ex
 whose imports the consumer rewrites to the package's name. Its crate's version must be
 the release's. `features` and `example` apply to it when it is the crate's own; a web
 crate apart from it takes `web-features` and `web-example` instead.
-A `python-check`, `c-check`, `kotlin-check`, or `web-check` may instead name a directory
-holding the program as `check.py`, `check.c` or `check.cpp`, `check.kt`, or `check.ts`, beside
-the files it reads, which each consumer places beside it: a check that imports a module or
-includes a header of its own. A Kotlin check's directory holds Kotlin sources alone, as the
-Android app it runs in reads no file beside it.
+Every check may instead name a directory holding the program as `check.py`, `check.c` or
+`check.cpp`, `check.kt`, `check.ts`, `check.swift`, `check.go`, or `check.dart`, beside the files it
+reads, which each consumer places beside it: a check that imports a module, includes a header, or
+calls a function of files of its own. A Dart check's `main` takes no arguments or a list of
+them, a Go check's directory is its package, built beside the consumer's own `go.mod`, and a
+Kotlin check's directory holds Kotlin sources alone, as the Android app it runs in reads no file
+beside it.
 A check its tests generate comes through `checks-artifact`, an artifact of the caller's run
 the builder unpacks over its checkout before reading the checks.
 
@@ -304,8 +306,9 @@ the builder unpacks over its checkout before reading the checks.
 
 rust2 runs it on every manual Check and nightly through
 [`bindings-test.yml`](/.github/workflows/bindings-test.yml): on the api fixture, whose
-wheels, C++ consumers, and web package must print its native transcript through the checks
-`just ffi transcripts` writes, each test beside the script generated from it, and on moq's
+wheels, C++ consumers, web package, Go module, Swift package, and Dart package must print
+its native transcript through the checks `just ffi transcripts` writes, each test beside the
+script generated from it, and on moq's
 stand-in facade at the exporter's moq pin, through `moq/moq.py`, `moq/moq.swift`,
 `moq/moq.cpp`, `moq/moq.go`, `moq/moq.kt`, and `moq/moq.dart`, with its wasm32 stand-in as the web package.
 

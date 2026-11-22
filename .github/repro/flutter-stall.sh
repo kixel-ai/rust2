@@ -2,7 +2,7 @@
 # Temporary: one consume-flutter run, with a process dump if it stalls.
 set -u
 args=(--package pub/package --libs pub/libs --device emulator-5554)
-if [[ -f dist/checks/main.dart ]]; then args+=(--check dist/checks/main.dart); fi
+if [[ -f dist/checks/main.dart ]]; then mkdir -p dist/checks/dart; cp dist/checks/main.dart dist/checks/dart/check.dart; args+=(--check dist/checks/dart); fi
 if [[ -f dist/native.txt ]]; then args+=(--native dist/native.txt); fi
 echo "args ${args[*]}"
 python3 -I rust2/ffi/release/package.py consume-flutter "${args[@]}" > out/flutter.txt 2>&1 &
