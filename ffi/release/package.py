@@ -2182,7 +2182,7 @@ def consume_go(proxy, check, native):
         run("go", "vet", f"{module}/...", ".", cwd=consumer, env=env)
         exe = consumer / ("check.exe" if sys.platform == "win32" else "check")
         run("go", "build", "-o", exe, ".", cwd=consumer, env=env)
-        result = subprocess.run([exe], capture_output=True, cwd=work)
+        result = subprocess.run([exe], capture_output=True, cwd=consumer)
     sys.stderr.buffer.write(result.stderr)
     if result.returncode:
         raise SystemExit(f"{check or 'the import'} failed on the Go module with status {result.returncode}")
