@@ -1,6 +1,7 @@
 //! Python over the C ABI, through a CPython extension: `python/<prefix>.py`, and the
 //! extension functions it calls, which the crate builds with its `python` feature on
-//! CPython's stable ABI, so one build loads in every CPython from 3.11.
+//! CPython's stable ABI, so one build loads in every CPython from 3.11 with a GIL, or with
+//! `python-abi3t` on `abi3t`, so one loads in every CPython from 3.15, free-threaded or not.
 //!
 //! Each name is its C name without the prefix, as Python spells it: `moq_track_producer`
 //! is `moq.TrackProducer`, and its method `moq_track_producer_append_group` is
@@ -295,14 +296,18 @@ pub(crate) fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<O
 		\timport importlib.util\n\
 		\timport os\n\
 		\timport re\n\n\
-		\t# Loading by path skips the filename tag that keeps a GIL build's library out of a\n\
-		\t# free-threaded interpreter, which the stable ABI does not cover and which would crash.\n\
-		\t# Its extension suffixes carry the tag (`314t`, or `314td` on a POSIX debug build, after `_d` on a Windows one),\n\
-		\t# where sysconfig's `Py_GIL_DISABLED` follows an overridden sysconfig data file, as a\n\
-		\t# Nix shell sets.\n\
-		\tif _any(re.match(r\"(?:_d)?\\.(?:cpython-|cp)\\d+td?[-.]\", s) for s in importlib.machinery.EXTENSION_SUFFIXES):\n\
+		\t# Loading by path skips the filename tag that keeps a library out of an interpreter whose\n\
+		\t# ABI it lacks. From 3.15, CPython checks the ABI the library declares instead (PEP 793),\n\
+		\t# so a free-threaded one loads an `abi3t` library and refuses one for the GIL alone; an\n\
+		\t# older free-threaded one has no stable ABI, and would crash in either. Its extension\n\
+		\t# suffixes carry the tag (`314t`, or `314td` on a POSIX debug build, after `_d` on a\n\
+		\t# Windows one), where sysconfig's `Py_GIL_DISABLED` follows an overridden sysconfig data\n\
+		\t# file, as a Nix shell sets.\n\
+		\tif _sys.version_info < (3, 15) and _any(\n\
+		\t\tre.match(r\"(?:_d)?\\.(?:cpython-|cp)\\d+td?[-.]\", s) for s in importlib.machinery.EXTENSION_SUFFIXES\n\
+		\t):\n\
 		\t\traise _ImportError(\n\
-		\t\t\t\"{p}.py loads a library for CPython's GIL build, which a free-threaded CPython cannot use: \"\n\
+		\t\t\t\"{p}.py loads a library for CPython's stable ABI, which a free-threaded CPython has from 3.15: \"\n\
 		\t\t\tf\"{{_sys.implementation.name}} {{_sys.version.partition(' ')[0]}}, free-threaded\"\n\
 		\t\t)\n\n\
 		\tname = {{\"win32\": \"{p}.dll\", \"darwin\": \"lib{p}.dylib\"}}.get(_sys.platform, \"lib{p}.so\")\n\
@@ -352,32 +357,25 @@ pub(crate) fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<O
 		\trt::wrap(|| rt::uint_out(0x{contract:016x}))\n\
 		}}\n\n\
 		{}\
-		static METHODS: rt::Methods<{}> = rt::Methods(std::cell::UnsafeCell::new([\n\
+		static METHODS: rt::Methods<{}> = rt::Methods::new([\n\
 		\trt::method(c\"contract\", f_contract),\n\
 		{}\
 		\trt::END,\n\
-		]));\n\n\
-		static MEMBERS: rt::Gil<[rt::Member; {}]> = rt::Gil::new([\n\
+		]);\n\n\
+		static MEMBERS: rt::Table<rt::Member, {members}> = rt::Table::new([\n\
 		{}\
 		]);\n\n\
-		static MODULE: rt::Gil<PyModuleDef> = rt::Gil::new(PyModuleDef {{\n\
-		\tm_base: PyModuleDef_HEAD_INIT,\n\
-		\tm_name: c\"_{p}\".as_ptr(),\n\
-		\tm_doc: std::ptr::null(),\n\
-		\tm_size: -1,\n\
-		\tm_methods: std::ptr::null_mut(),\n\
-		\tm_slots: std::ptr::null_mut(),\n\
-		\tm_traverse: None,\n\
-		\tm_clear: None,\n\
-		\tm_free: None,\n\
-		}});\n\n\
+		static EXPORT: rt::Export = rt::Export::new(c\"_{p}\", METHODS.ptr());\n\n\
+		/// The module, as CPython from 3.15 loads it (PEP 793).\n\
+		#[unsafe(no_mangle)]\n\
+		pub unsafe extern \"C\" fn PyModExport__{p}() -> *mut std::ffi::c_void {{\n\
+		\tunsafe {{ rt::export(&EXPORT, MEMBERS.ptr(), {members}) }}\n\
+		}}\n\n\
+		/// The module, as CPython before 3.15 loads it, which `abi3t` has no layout for.\n\
+		#[cfg(not(feature = \"python-abi3t\"))]\n\
 		#[unsafe(no_mangle)]\n\
 		pub unsafe extern \"C\" fn PyInit__{p}() -> *mut PyObject {{\n\
-		\tunsafe {{\n\
-		\t\tlet def = MODULE.get();\n\
-		\t\tdef.m_methods = METHODS.ptr();\n\
-		\t\trt::module(def, MEMBERS.get())\n\
-		\t}}\n\
+		\tunsafe {{ rt::init(c\"_{p}\", METHODS.ptr(), MEMBERS.ptr(), {members}) }}\n\
 		}}\n",
 		{
 			let keys: String = g
@@ -389,8 +387,8 @@ pub(crate) fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<O
 		},
 		g.table.len() + 2,
 		g.table.iter().map(|t| format!("\t{t},\n")).collect::<String>(),
-		g.members.len(),
 		g.members.iter().map(|m| format!("\t{m},\n")).collect::<String>(),
+		members = g.members.len(),
 	);
 	let glue = doc::links(&glue, abi.api, render);
 	Ok(Output {

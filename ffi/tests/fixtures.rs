@@ -1885,7 +1885,64 @@ const PYTHON_LIB: &str = match (cfg!(windows), cfg!(target_os = "macos")) {
 /// contract it fails loud on.
 #[test]
 fn api_python() {
-	python_checks(&std::env::var_os("PYTHON").unwrap_or_else(|| "python3".into()));
+	python_checks(&std::env::var_os("PYTHON").unwrap_or_else(|| "python3".into()), &api().out.join("python"));
+}
+
+/// The CPython the environment variable `var` names, which the dev shell sets by path, as
+/// each version's `python3` would shadow another's on `PATH`, or else `default`.
+fn interpreter(var: &str, default: &str) -> std::ffi::OsString {
+	std::env::var_os(var).unwrap_or_else(|| default.into())
+}
+
+/// The api fixture's Python beside its extension built with `python-abi3t`, on `abi3t`,
+/// whose build looks for no other CPython than `PYTHON_315T`, the free-threaded 3.15.
+fn abi3t() -> &'static Path {
+	static DIR: OnceLock<PathBuf> = OnceLock::new();
+	DIR.get_or_init(|| {
+		let api = api();
+		let target = scratch().join("api").join("glue-abi3t");
+		run(sysconfig_free(cargo())
+			.args(["build", "--quiet", "--locked", "--manifest-path"])
+			.arg(api.out.join("Cargo.toml"))
+			.arg("--target-dir")
+			.arg(&target)
+			.args(["--features", "python-abi3t"])
+			.env("RUSTFLAGS", "-D warnings")
+			.env("PYO3_PYTHON", interpreter("PYTHON_315T", "python3.15t")));
+		let dir = scratch().join("api").join("python-abi3t");
+		step::copy(&target.join("debug").join(PYTHON_LIB), &dir.join(PYTHON_LIB));
+		step::copy(&api.out.join("python").join("api.py"), &dir.join("api.py"));
+		dir
+	})
+}
+
+/// `cmd` without the sysconfig data a Nix shell names for its own CPython, which another
+/// version, or a free-threaded build, has none of.
+fn sysconfig_free(mut cmd: Command) -> Command {
+	cmd.env_remove("_PYTHON_SYSCONFIGDATA_NAME").env_remove("_PYTHON_HOST_PLATFORM");
+	cmd
+}
+
+/// `api_python`'s checks through the extension built on `abi3t`, threads included, on the
+/// free-threaded CPython 3.15 `PYTHON_315T` names, with the GIL off; then the transcript on
+/// the GIL's CPython 3.15, `PYTHON_315`, through that library, which serves it too, and
+/// through the `abi3` one, which it loads by the same export.
+#[test]
+fn api_abi3t() {
+	let dir = abi3t();
+	python_checks(&interpreter("PYTHON_315T", "python3.15t"), dir);
+	for dir in [dir, &api().out.join("python")] {
+		let output = run(sysconfig_free(Command::new(interpreter("PYTHON_315", "python3.15")))
+			.args(["-P", "-X", "dev", "-W", "error"])
+			.arg(manifest_dir().join("tests").join("api.py"))
+			.env("PYTHONPATH", std::env::join_paths([dir, &python_transcript()]).unwrap()));
+		assert_eq!(
+			String::from_utf8_lossy(&output.stdout),
+			api().transcript,
+			"the Python transcript from {} on CPython 3.15 differs from the native one",
+			dir.display()
+		);
+	}
 }
 
 /// `api_python`'s checks on a debug build of the newest CPython, which asserts what a
@@ -1896,7 +1953,7 @@ fn api_python() {
 fn api_python_debug() {
 	let interpreter = std::env::var_os("RUST2_PYTHON_DEBUG")
 		.expect("RUST2_PYTHON_DEBUG names a debug CPython: run this in the sanitize shell");
-	python_checks(&interpreter);
+	python_checks(&interpreter, &api().out.join("python"));
 	let output = run(Command::new(&interpreter)
 		.args(["-P", "-X", "dev", "-W", "error"])
 		.arg(manifest_dir().join("tests").join("api.py"))
@@ -1918,12 +1975,12 @@ fn python_transcript() -> PathBuf {
 	generated("python", "transcript.py", &transcript::python::emit(transcript()))
 }
 
-/// `api_python`'s checks, run by `interpreter`.
-fn python_checks(interpreter: &std::ffi::OsStr) {
+/// `api_python`'s checks, run by `interpreter` on the module and library in `dir`.
+fn python_checks(interpreter: &std::ffi::OsStr, dir: &Path) {
 	let api = api();
 	let scripts = python_transcript();
 	let python = |dir: &Path, args: &[&str]| {
-		let mut cmd = Command::new(interpreter);
+		let mut cmd = sysconfig_free(Command::new(interpreter));
 		// `-P` keeps `tests/` off the path, where `api.py` is this script; dev mode and
 		// warnings as errors fail on what the runtime only warns of.
 		cmd.args(["-P", "-X", "dev", "-W", "error"])
@@ -1932,15 +1989,14 @@ fn python_checks(interpreter: &std::ffi::OsStr) {
 			.env("PYTHONPATH", std::env::join_paths([dir, &scripts]).unwrap());
 		cmd
 	};
-	let dir = api.out.join("python");
-	let py = run(&mut python(&dir, &[]));
+	let py = run(&mut python(dir, &[]));
 	assert_eq!(
 		String::from_utf8_lossy(&py.stdout),
 		api.transcript,
 		"the Python transcript differs from the native one"
 	);
-	for case in ["futures", "owned", "values", "calls", "checks", "leaf", "idioms"] {
-		run(&mut python(&dir, &[case]));
+	for case in ["futures", "owned", "values", "calls", "checks", "leaf", "idioms", "threads"] {
+		run(&mut python(dir, &[case]));
 	}
 	for (case, message) in [
 		("moved", "ValueError: api_Counter_get: a handle's value was moved out"),
@@ -1970,7 +2026,7 @@ fn python_checks(interpreter: &std::ffi::OsStr) {
 		("returned", "api_made: a call into Python raised"),
 		("reader kept", "read: a reader kept a view of its buffer past the read"),
 	] {
-		let output = python(&dir, &[case]).output().unwrap();
+		let output = python(dir, &[case]).output().unwrap();
 		failed(&output, &format!("Python {case}"));
 		let stderr = String::from_utf8_lossy(&output.stderr);
 		assert!(stderr.contains(message), "Python {case} printed {stderr}");
@@ -2000,65 +2056,76 @@ fn python_checks(interpreter: &std::ffi::OsStr) {
 	);
 }
 
-/// A free-threaded CPython refuses the module with an `ImportError`: the library is for the
-/// GIL's ABI, which it would load through its explicit path and crash in. `PYTHON_FREE_THREADED`
-/// or `python3.14t` is the interpreter, which the dev shell provides.
+/// A CPython refuses a library it cannot run with an `ImportError`, where loading it by its
+/// path would crash: a free-threaded one before 3.15, `PYTHON_314T`, any, which `api.py`
+/// refuses, as no stable ABI covers it; the free-threaded 3.15, `PYTHON_315T`, the `abi3`
+/// library, whose declared ABI it checks; and one before 3.15 the `abi3t` library, which has
+/// no `PyInit_` for it.
 #[test]
 fn api_free_threaded() {
-	let python = std::env::var_os("PYTHON_FREE_THREADED").unwrap_or_else(|| "python3.14t".into());
-	let dir = api().out.join("python");
-	let probe = |code: &str| {
-		let mut cmd = Command::new(&python);
+	let probe = |python: &std::ffi::OsStr, dir: &Path, code: &str| {
+		let mut cmd = sysconfig_free(Command::new(python));
 		// `-P` keeps the working directory off the path; PYTHONPATH replaces the dev shell's,
-		// which names the GIL build's packages. `-X gil=0` beats an inherited `PYTHON_GIL=1`,
-		// which would turn the GIL on in a free-threaded build.
-		cmd.args(["-X", "gil=0", "-P", "-c", code]).env("PYTHONPATH", &dir);
+		// which names the GIL build's packages. An inherited `PYTHON_GIL=1` would turn the GIL
+		// on in a free-threaded build.
+		cmd.args(["-P", "-c", code]).env("PYTHONPATH", dir).env_remove("PYTHON_GIL");
 		cmd.output().unwrap_or_else(|err| panic!("running {cmd:?}: {err}"))
 	};
-	// A GIL build would pass for the refusal's test, so check the interpreter first.
-	let build = probe("import sys; sys.exit(sys._is_gil_enabled())");
-	assert!(
-		build.status.success(),
-		"{python:?} is not a free-threaded CPython: {}",
-		String::from_utf8_lossy(&build.stderr)
+	let refused = |python: &std::ffi::OsStr, dir: &Path, message: &str| {
+		let output = probe(python, dir, "import api");
+		// Exit 1 is an uncaught exception, where a crash has no code.
+		assert_eq!(output.status.code(), Some(1), "importing under {python:?}: {output:?}");
+		let stderr = String::from_utf8_lossy(&output.stderr);
+		assert!(
+			stderr.contains(message),
+			"importing under {python:?} printed {stderr}"
+		);
+	};
+	let abi3 = api().out.join("python");
+	for python in [interpreter("PYTHON_314T", "python3.14t"), interpreter("PYTHON_315T", "python3.15t")] {
+		// A GIL build would pass for the refusal's test, so check the interpreter first.
+		let build = probe(&python, &abi3, "import sys; sys.exit(sys._is_gil_enabled())");
+		assert!(
+			build.status.success(),
+			"{python:?} is not a free-threaded CPython: {}",
+			String::from_utf8_lossy(&build.stderr)
+		);
+	}
+	refused(
+		&interpreter("PYTHON_314T", "python3.14t"),
+		&abi3,
+		"ImportError: api.py loads a library for CPython's stable ABI, which a free-threaded CPython has from 3.15",
 	);
-	let output = probe("import api");
-	// Exit 1 is an uncaught exception, where a crash has no code.
-	assert_eq!(
-		output.status.code(),
-		Some(1),
-		"importing under a free-threaded CPython: {output:?}"
+	refused(
+		&interpreter("PYTHON_315T", "python3.15t"),
+		&abi3,
+		"ImportError: _api: incompatible with free-threaded CPython",
 	);
-	let stderr = String::from_utf8_lossy(&output.stderr);
-	assert!(
-		stderr.contains(
-			"ImportError: api.py loads a library for CPython's GIL build, which a free-threaded CPython cannot use"
-		),
-		"importing under a free-threaded CPython printed {stderr}"
-	);
+	// The loader refuses the first `abi3t` symbol a CPython before 3.15 lacks.
+	refused(&interpreter("PYTHON", "python3"), abi3t(), "libapi.so: undefined symbol: Py");
 
-	// The suffixes of the platforms this host is not, appended on the GIL build, which
-	// loads from beside the module whatever its list holds.
+	// The suffixes of the platforms this host is not, appended on the GIL build before 3.15,
+	// which loads from beside the module whatever its list holds.
 	let gil = |suffix: &str| {
-		let mut cmd = Command::new(std::env::var_os("PYTHON").unwrap_or_else(|| "python3".into()));
+		let mut cmd = sysconfig_free(Command::new(interpreter("PYTHON", "python3")));
 		cmd.args(["-P", "-c"])
 			.arg(format!(
 				"import importlib.machinery as m; m.EXTENSION_SUFFIXES.append('{suffix}'); import api"
 			))
-			.env("PYTHONPATH", &dir);
+			.env("PYTHONPATH", &abi3);
 		cmd.output().unwrap_or_else(|err| panic!("running {cmd:?}: {err}"))
 	};
 	for suffix in [
 		".cp314t-win_amd64.pyd",
 		"_d.cp314t-win_amd64.pyd",
 		".cpython-313t-darwin.so",
-		".cpython-315t-aarch64-linux-gnu.so",
+		".cpython-314t-aarch64-linux-gnu.so",
 		".cpython-314td-x86_64-linux-gnu.so",
 	] {
 		let output = gil(suffix);
 		assert_eq!(output.status.code(), Some(1), "{suffix} was not refused: {output:?}");
 		assert!(
-			String::from_utf8_lossy(&output.stderr).contains("a free-threaded CPython cannot use"),
+			String::from_utf8_lossy(&output.stderr).contains("which a free-threaded CPython has from 3.15"),
 			"{suffix} printed {output:?}"
 		);
 	}

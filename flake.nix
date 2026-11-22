@@ -333,9 +333,13 @@
             # compiler on PATH has.
             RUST2_CLANG = "${pkgs.llvmPackages_23.clang}/bin/clang++";
             KOTLINX_COROUTINES = "${kotlinx-coroutines}";
-            # The free-threaded CPython the generated Python must refuse. By path, since its
-            # python3 would shadow the GIL build's on PATH.
-            PYTHON_FREE_THREADED = "${pkgs.python314FreeThreading}/bin/python3.14t";
+            # The CPythons the generated Python loads in or refuses beside the default 3.14: the
+            # free-threaded 3.14, which no stable ABI covers, and 3.15 with and without its GIL,
+            # which load the abi3t extension. By path, since each python3 would shadow the
+            # default's on PATH.
+            PYTHON_314T = "${pkgs.python314FreeThreading}/bin/python3.14t";
+            PYTHON_315T = "${pkgs.python315FreeThreading}/bin/python3.15t";
+            PYTHON_315 = "${pkgs.python315}/bin/python3.15";
             # mbx's target seeding creates the drivers' own target directories, such as
             # target/rust2-ffi, without the CACHEDIR.TAG cargo writes into each it creates, and
             # `cargo clean --target-dir` refuses a directory without one. It saves about 4% of a

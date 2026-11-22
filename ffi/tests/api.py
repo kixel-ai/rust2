@@ -20,10 +20,16 @@ import math
 import os
 import struct
 import sys
+import sysconfig
 import threading
 import weakref
 
 import api
+
+# A free-threaded CPython runs the module with the GIL off: one that turned it back on to
+# import it would run every thread of `threads` one at a time.
+if sysconfig.get_config_var("Py_GIL_DISABLED"):
+	assert not sys._is_gil_enabled(), "importing api turned the GIL on"
 
 # The transcript's lines end and encode as Rust's do, which Windows' text mode and code
 # page would turn into CRLF and the locale's encoding.
@@ -1458,6 +1464,69 @@ def leaf():
 	print("leaf ok")
 
 
+def threads():
+	"""The runtime's shared state used from many threads at once, which a free-threaded
+	CPython runs in parallel: each first use, an object's calls, its borrows, values made and
+	freed, and futures on a loop per thread."""
+	# Fewer rounds than a counter holds, `api::LIMIT`.
+	n, rounds = 8, 100
+	start = threading.Barrier(n)
+	meter = api.Meter.default()
+	counter = api.Counter.new("shared", 0)
+	added = [0] * n
+	refused = [0] * n
+	failures = []
+
+	async def wakes(channel):
+		# Each payload sent from another thread while the receive waits.
+		for i in range(10):
+			sender = threading.Thread(target=channel.send, args=(bytes([i]),))
+			sender.start()
+			got = await asyncio.wait_for(channel.recv(), 5)
+			sender.join()
+			check(data(got) == bytes([i]), "a receive gets what another thread sent")
+
+	def run(k):
+		try:
+			start.wait()
+			# First uses race: interned names, an enum's members, and the runtime's types.
+			check([shape for _, shape, _ in api.rows([api.Point(1, 1), api.Point(1, 2)])] == [api.Shape.SQUARE, api.Shape.CIRCLE], "an enum's members")
+			for _ in range(rounds):
+				# A leaf on a shared object, which no call detaches from.
+				meter.add(1)
+				# Borrows of one object, which Rust refuses while an exclusive one runs, and an
+				# exclusive one while any other does.
+				try:
+					check(counter.name() == "shared", "a shared borrow")
+				except RuntimeError as e:
+					check(str(e) == "api_Counter_name: a handle is borrowed exclusively", repr(e))
+				try:
+					counter.add(1)
+					added[k] += 1
+				except RuntimeError as e:
+					check(str(e) == "api_Counter_add: a handle is already borrowed", repr(e))
+					refused[k] += 1
+				own = api.Counter.new(f"own{k}", k)
+				check(own.get() == k and api.only(own)[0].get() == k, "an object moved through a call")
+				check(api.Point(k, 1).offset(1, 1) == api.Point(k + 1, 2), "a record")
+				check(data(api.boxed_tuple(bytes([k]))[0]) == bytes([k]), "bytes Rust returned")
+			asyncio.run(wakes(api.Channel.new()))
+			check(api.Spawned.new(lambda: k).join() == k, "a kept closure called on another thread")
+		except BaseException as e:
+			failures.append(e)
+			raise
+
+	workers = [threading.Thread(target=run, args=(k,)) for k in range(n)]
+	for worker in workers:
+		worker.start()
+	for worker in workers:
+		worker.join()
+	check(not failures, f"every thread finished: {failures!r}")
+	check(meter.count() == n * rounds, "a leaf loses no update")
+	check(counter.get() == sum(added) and sum(added) + sum(refused) == n * rounds, "each exclusive borrow either ran or was refused")
+	print("threads ok")
+
+
 def broken(which):
 	"""Each breaks a contract, which must fail with a message naming it."""
 	if sys.platform == "linux":
@@ -1602,5 +1671,7 @@ match sys.argv[1:]:
 		leaf()
 	case ["idioms"]:
 		idioms()
+	case ["threads"]:
+		threads()
 	case [which]:
 		broken(which)
