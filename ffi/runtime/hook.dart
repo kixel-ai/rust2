@@ -91,7 +91,8 @@ Future<File> _download(BuildInput input, CodeConfig code, File release, String t
     const stalled = Duration(seconds: 60);
     await for (final chunk in response.timeout(
       stalled,
-      onTimeout: (_) => throw TimeoutException('$url sent nothing for ${stalled.inSeconds}s', stalled),
+      // Through the sink: a throw here is an uncaught zone error, which skips the `finally`.
+      onTimeout: (sink) => sink.addError(TimeoutException('$url sent nothing for ${stalled.inSeconds}s', stalled)),
     )) {
       bytes.add(chunk);
       if (bytes.length > size) throw StateError('$url is longer than the $size bytes the release names');
