@@ -1659,7 +1659,16 @@ fn java_reaches(declared: &[(String, String, Vec<String>)]) {
 			continue;
 		}
 		let value = methods.iter().any(|m| m.contains(" box-impl("));
-		let name = |method: &str| method.split_once('(').unwrap().0.rsplit(' ').next().unwrap().to_string();
+		let name = |method: &str| {
+			method
+				.split_once('(')
+				.unwrap()
+				.0
+				.rsplit(' ')
+				.next()
+				.unwrap()
+				.to_string()
+		};
 		let java = |name: &str| {
 			name.chars().all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '$')
 				&& !name.starts_with(|c: char| c.is_ascii_digit())
@@ -1695,7 +1704,8 @@ fn java_reaches(declared: &[(String, String, Vec<String>)]) {
 				value && ["constructor", "box", "unbox", "equals", "hashCode", "toString"].contains(&base),
 				// A value class's member, a function Java reaches through its bridge, or a getter
 				// Kotlin mangles, which overrides one, so takes no `@JvmName`.
-				(name.ends_with("-impl") || name.ends_with("-kotlin") || name.starts_with("get") || value) && twin(name),
+				(name.ends_with("-impl") || name.ends_with("-kotlin") || name.starts_with("get") || value)
+					&& twin(name),
 				// What Kotlin declares of a data class.
 				name.starts_with("component") || name.starts_with("copy-"),
 				// A callback interface's method, which Java implements through `Java`.
