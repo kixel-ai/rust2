@@ -477,7 +477,7 @@ static partial class Script
 		var big = new byte[1 << 20];
 		for (var i = 0; i < big.Length; i++)
 		{
-			big[i] = (byte)(i * 7);
+			big[i] = unchecked((byte)(i * 7));
 		}
 		Check(!IsLent(api.Lib.Prefixed(new byte[512], null)) && IsLent(api.Lib.Prefixed(new byte[513], null)), "up to 512 bytes returned are copied");
 		var lent = api.Lib.Prefixed(big, null);

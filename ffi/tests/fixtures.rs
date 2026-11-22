@@ -3675,6 +3675,7 @@ enum Dotnet {
 	Net,
 	/// A .NET program of Unity's code, `UNITY_5_3_OR_NEWER` defined, which runs the delegates
 	/// and static constructor IL2CPP takes on CoreCLR; `Unity` checks its language level.
+	/// Its arithmetic is checked, as a consumer's build may make it.
 	NetUnity,
 	Unity,
 }
@@ -3709,7 +3710,7 @@ fn csc(target: Dotnet, out: &Path, sources: &[&Path]) {
 	]);
 	match target {
 		Dotnet::Net => cmd.arg("-target:exe"),
-		Dotnet::NetUnity => cmd.args(["-target:exe", "-define:UNITY_5_3_OR_NEWER"]),
+		Dotnet::NetUnity => cmd.args(["-target:exe", "-define:UNITY_5_3_OR_NEWER", "-checked"]),
 		Dotnet::Unity => cmd.args(["-target:library", "-langversion:9", "-define:UNITY_5_3_OR_NEWER"]),
 	};
 	for dll in std::fs::read_dir(&refs).unwrap() {
