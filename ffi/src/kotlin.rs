@@ -1584,9 +1584,11 @@ impl<'a> Gen<'a> {
 	/// `clone` and `equals` for an object. `this_c` is the C name, and `object` whether
 	/// it holds a handle.
 	fn traits(&mut self, ty: &Type, c: &str, t: crate::ir::Traits, body: &mut Vec<String>, statics: &mut Vec<String>) {
+		let c_ = crate::abi::stem(c);
 		let class = self.qualified(c);
 		let bare = self.bare(c).to_string();
 		let u = format!("{}_{c}", self.unwind);
+		let u_ = crate::abi::stem(&u);
 		let object = matches!(ty, Type::Object(_));
 		let opaque = match ty {
 			Type::Record(i) => self.abi.api.records[*i].opaque,
@@ -1640,8 +1642,8 @@ impl<'a> Gen<'a> {
 				&params,
 				("jbyteArray", "ByteArray?"),
 				&checked(
-					&format!("crate::{u}_{suffix}({rust_self})"),
-					&format!("{c}_{suffix}"),
+					&format!("crate::{u_}_{suffix}({rust_self})"),
+					&format!("{c_}_{suffix}"),
 					"rt::owned(env, ret)",
 				),
 			);
@@ -1653,8 +1655,8 @@ impl<'a> Gen<'a> {
 			if !t.hash {
 				return "\t/** One for every value: Rust's `PartialEq` comes with no `Hash`. */\n\toverride fun hashCode(): kotlin.Int = 0\n".to_string();
 			}
-			let call = format!("crate::{u}_hash({rust_self})");
-			let body = checked(&call, &format!("{c}_hash"), "ret as jlong");
+			let call = format!("crate::{u_}_hash({rust_self})");
+			let body = checked(&call, &format!("{c_}_hash"), "ret as jlong");
 			// Bounded too, so the collector never waits on a walk the value's size sets.
 			match object && g.abi.leaf_trait(ty, true) && t.leaf_sized {
 				true => g.leaf_native(&format!("{bare}_hash"), &params, ("jlong", "Long"), &body),
@@ -1697,8 +1699,8 @@ impl<'a> Gen<'a> {
 				&[("jlong", "Long")],
 				("jlong", "Long"),
 				&checked(
-					&format!("crate::{u}_clone(p0 as usize as _)"),
-					&format!("{c}_clone"),
+					&format!("crate::{u_}_clone(p0 as usize as _)"),
+					&format!("{c_}_clone"),
 					"ret as usize as jlong",
 				),
 			);
@@ -1718,7 +1720,7 @@ impl<'a> Gen<'a> {
 					(
 						vec![("jlong", "Long"); words.len()],
 						format!(
-							"crate::{u}_eq(&{}, &{})",
+							"crate::{u_}_eq(&{}, &{})",
 							from_kotlin(&opaque, a),
 							from_kotlin(&opaque, b)
 						),
@@ -1729,7 +1731,7 @@ impl<'a> Gen<'a> {
 					let (this, other) = (self.write_value(ty, "w", "this"), self.write_value(ty, "w", "other"));
 					(
 						vec![("jbyteArray", "ByteArray"), ("jobjectArray", "kotlin.Array<Any?>?")],
-						"{ let b = rt::bytes(env, p0).unwrap_or_default(); let Some(mut r) = rt::Reader::new(env, &b, p1) else { return rt::raised() }; crate::{u}_eq(&r.get(), &r.get()) }".replace("{u}", &u),
+						"{ let b = rt::bytes(env, p0).unwrap_or_default(); let Some(mut r) = rt::Reader::new(env, &b, p1) else { return rt::raised() }; crate::{u_}_eq(&r.get(), &r.get()) }".replace("{u_}", u_),
 						format!("_Native.__Writer().use {{ w -> {this}; {other}; _Native.{bare}_eq(w.finish(), w.refs()) }}"),
 					)
 				}
@@ -1742,8 +1744,8 @@ impl<'a> Gen<'a> {
 		}
 		if object && t.eq {
 			let rust = checked(
-				&format!("crate::{u}_eq(p0 as usize as _, p1 as usize as _)"),
-				&format!("{c}_eq"),
+				&format!("crate::{u_}_eq(p0 as usize as _, p1 as usize as _)"),
+				&format!("{c_}_eq"),
 				"ret",
 			);
 			let params = [("jlong", "Long"), ("jlong", "Long")];
@@ -1768,14 +1770,14 @@ impl<'a> Gen<'a> {
 			let (params, call, kt): (Vec<(&str, &str)>, _, _) = match object {
 				true => (
 					vec![("jlong", "Long"); 2],
-					(String::new(), format!("crate::{u}_{suffix}(p0 as usize as _, p1 as usize as _)")),
+					(String::new(), format!("crate::{u_}_{suffix}(p0 as usize as _, p1 as usize as _)")),
 					format!("handle.hold {{ a -> other.handle.hold {{ b -> _Native.{bare}_{suffix}(a, b) }} }}"),
 				),
 				false => (
 					vec![("jbyteArray", "ByteArray"), ("jobjectArray", "kotlin.Array<Any?>?")],
 					(
 						"let b = rt::bytes(env, p0).unwrap_or_default();\n\t\tlet Some(mut r) = rt::Reader::new(env, &b, p1) else {\n\t\t\treturn rt::raised();\n\t\t};\n\t\tlet (x, y) = (r.get(), r.get());\n\t\t".to_string(),
-						format!("crate::{u}_{suffix}(&x, &y)"),
+						format!("crate::{u_}_{suffix}(&x, &y)"),
 					),
 					format!(
 						"_Native.__Writer().use {{ w -> {}; {}; _Native.{bare}_{suffix}(w.finish(), w.refs()) }}",
@@ -1787,7 +1789,7 @@ impl<'a> Gen<'a> {
 			let (pre, call) = call;
 			let rust = match status {
 				true => format!(
-					"{pre}let mut status = 0;\n\t\tlet ret = {}, &mut status);\n\t\tif status != 0 {{\n\t\t\treturn rt::refuse(env, status, \"{c}_{suffix}\");\n\t\t}}\n\t\tret as jint",
+					"{pre}let mut status = 0;\n\t\tlet ret = {}, &mut status);\n\t\tif status != 0 {{\n\t\t\treturn rt::refuse(env, status, \"{c_}_{suffix}\");\n\t\t}}\n\t\tret as jint",
 					call.strip_suffix(')').expect("a call")
 				),
 				false => format!("{pre}let ret = {call};\n\t\tret as jint"),
@@ -1807,19 +1809,19 @@ impl<'a> Gen<'a> {
 				Type::Object(_) => (
 					"jlong",
 					"Long",
-					format!("crate::{u}_default() as usize as jlong"),
+					format!("crate::{u_}_default() as usize as jlong"),
 					format!("{class}(_Native.{bare}_default())"),
 				),
 				Type::Enum(i) if self.abi.api.enums[*i].plain() => (
 					"jint",
 					"Int",
-					format!("crate::{u}_default()"),
+					format!("crate::{u_}_default()"),
 					format!("{class}.of(_Native.{bare}_default())"),
 				),
 				_ => (
 					"jbyteArray",
 					"ByteArray",
-					format!("let mut w = rt::Writer::default();\n\t\tw.put(crate::{u}_default());\n\t\tw.array(env)"),
+					format!("let mut w = rt::Writer::default();\n\t\tw.put(crate::{u_}_default());\n\t\tw.array(env)"),
 					self.read_value(ty, &format!("_Native.__Reader(_Native.{bare}_default())")),
 				),
 			};
@@ -2223,7 +2225,9 @@ impl<'a> Gen<'a> {
 		let object = &abi.api.objects[i];
 		self.on = object.on;
 		let c = abi.object(i);
+		let c_ = crate::abi::stem(&c);
 		let u = format!("{}_{c}", self.unwind);
+		let u_ = crate::abi::stem(&u);
 		let name = self.class(&c);
 		let bare = self.bare(&c).to_string();
 		let rust = abi.api.rust(&object.path, &object.args);
@@ -2232,7 +2236,7 @@ impl<'a> Gen<'a> {
 			&format!("{bare}_free"),
 			&[("jlong", "Long")],
 			("()", "Unit"),
-			&format!("crate::{u}_free(p0 as usize as _)"),
+			&format!("crate::{u_}_free(p0 as usize as _)"),
 		);
 		let mut body = vec![match abi.checked[i] {
 			true => {
@@ -2241,7 +2245,7 @@ impl<'a> Gen<'a> {
 					&[("jlong", "Long"), ("jobject", "__Handle?")],
 					("()", "Unit"),
 					&format!(
-						"let mut status = 0;\n\t\tlet closing = rt::Closing::{closing}(env, p1, || crate::{u}_free(p0 as usize as _));\n\t\tlet (commit, data) = closing.signal();\n\t\tcrate::{u}_drop_signal(p0 as usize as _, &mut status, commit, data);\n\t\tif status != 0 {{\n\t\t\treturn rt::refuse(env, status, \"{c}_drop\");\n\t\t}}",
+						"let mut status = 0;\n\t\tlet closing = rt::Closing::{closing}(env, p1, || crate::{u_}_free(p0 as usize as _));\n\t\tlet (commit, data) = closing.signal();\n\t\tcrate::{u_}_drop_signal(p0 as usize as _, &mut status, commit, data);\n\t\tif status != 0 {{\n\t\t\treturn rt::refuse(env, status, \"{c_}_drop\");\n\t\t}}",
 						closing = match object.send {
 							true => "here",
 							false => "anywhere",
@@ -2325,6 +2329,7 @@ impl<'a> Gen<'a> {
 		let callback = &abi.api.callbacks[i];
 		self.on = callback.on;
 		let c = abi.callback(i);
+		let c_ = crate::abi::stem(&c);
 		let name = self.class(&c);
 		let bare = self.bare(&c).to_string();
 		let rust = callback.path.join("::");
@@ -2403,7 +2408,7 @@ impl<'a> Gen<'a> {
 		);
 		let _ = write!(
 			self.glue,
-			"static VTABLE_{c}: crate::{c}_vtable = crate::{c}_vtable {{ {} }};\n\n",
+			"static VTABLE_{c}: crate::{c_}_vtable = crate::{c_}_vtable {{ {} }};\n\n",
 			table.join(", ")
 		);
 	}

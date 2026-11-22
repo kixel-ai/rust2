@@ -17,7 +17,7 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-#define MOQ_CONTRACT ((uint64_t)0x77bee5e297e546daULL)
+#define MOQ_CONTRACT ((uint64_t)0x32cfeda7ef10ebe5ULL)
 uint64_t moq_contract(void);
 uint32_t moq_target(void);
 typedef int32_t moq_status;
@@ -8446,7 +8446,7 @@ moq_option_u64 moq_mux_container_ts_Mpegts_mux_rate_get(const moq_mux_container_
 void moq_mux_container_ts_Mpegts_mux_rate_set(moq_mux_container_ts_Mpegts *self, moq_option_u64 value, moq_status *status);
 MOQ_MUST_USE moq_mux_container_ts_PassthroughTrack *moq_mux_container_ts_Mpegts_passthrough_get(const moq_mux_container_ts_Mpegts *self, moq_status *status);
 void moq_mux_container_ts_Mpegts_passthrough_set(moq_mux_container_ts_Mpegts *self, moq_mux_container_ts_PassthroughTrack *value, moq_status *status);
-MOQ_MUST_USE bool moq_mux_container_ts_Mpegts_deserialize(moq_Json *__deserializer_, moq_mux_container_ts_Mpegts **out, moq_buf *err, moq_status *status);
+MOQ_MUST_USE bool moq_mux_container_ts_Mpegts_deserialize(moq_Json *deserializer, moq_mux_container_ts_Mpegts **out, moq_buf *err, moq_status *status);
 bool moq_mux_container_ts_Mpegts_is_empty(const moq_mux_container_ts_Mpegts *self, moq_status *status);
 void moq_mux_container_ts_PassthroughTrack_free(moq_mux_container_ts_PassthroughTrack *self);
 void moq_mux_container_ts_PassthroughTrack_drop(moq_mux_container_ts_PassthroughTrack *self, moq_status *status);
@@ -9408,7 +9408,7 @@ MOQ_MUST_USE bool moq_mux_codec_aac_config(moq_buf init, moq_hang_catalog_AudioC
 MOQ_MUST_USE moq_buf moq_mux_codec_annexb_START_CODE(void);
 MOQ_MUST_USE bool moq_mux_codec_annexb_from_length_prefixed(moq_buf payload, size_t length_size, moq_buf prefix, moq_buf *out, moq_mux_codec_annexb_Error **err);
 MOQ_MUST_USE moq_buf moq_mux_codec_annexb_build_prefix(moq_vec_bytes nals);
-MOQ_MUST_USE bool moq_mux_codec_annexb_length_prefixed_to_annexb(moq_buf data_, size_t length_size, moq_buf out_, moq_buf *out__out, moq_mux_codec_annexb_Error **err);
+MOQ_MUST_USE bool moq_mux_codec_annexb_length_prefixed_to_annexb(moq_buf data_, size_t length_size, moq_buf out_, moq_buf *out_out, moq_mux_codec_annexb_Error **err);
 MOQ_MUST_USE bool moq_mux_codec_annexb_after_start_code(moq_buf b, moq_option_usize *out, moq_mux_codec_annexb_Error **err);
 moq_option_tuple_usize_usize moq_mux_codec_annexb_find_start_code(moq_buf b);
 MOQ_MUST_USE bool moq_mux_codec_flac_config(moq_buf init, moq_hang_catalog_AudioConfig **out, moq_mux_Error **err);

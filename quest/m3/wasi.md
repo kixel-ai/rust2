@@ -42,10 +42,6 @@ hosts that are WASI runtimes. Planned in m3 before a consumer asks, as
 
 Public API: the name of the WASI target and what it writes, if it lands.
 
-## Required
-
-- [Exporter](/quest/m1/ffi-export/README.md) - the C ABI, its lossless types, and its checks are settled before a new target copies them
-
 ## Related
 
 - [moq in pure Go](/quest/m4/go/README.md) - parked until a consumer needs pure Go, and to weigh a WASI runtime first when one does

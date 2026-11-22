@@ -918,6 +918,13 @@ public enum ClashChange: Sendable, CustomDebugStringConvertible, Equatable {
 	@inlinable public var debugDescription: Swift.String { get }
 	@inlinable public static func == (a: ClashChange, b: ClashChange) -> Swift.Bool
 }
+public enum ClashShift: Sendable, CustomDebugStringConvertible, Equatable {
+	case up(Swift.UInt8)
+	case down
+	case tag(Swift.UInt8)
+	@inlinable public var debugDescription: Swift.String { get }
+	@inlinable public static func == (a: ClashShift, b: ClashShift) -> Swift.Bool
+}
 public enum Level: Sendable, CustomStringConvertible, Hashable, Comparable {
 	case error
 	case warn
@@ -1519,6 +1526,23 @@ public struct ClashReader: ~Copyable, @unchecked Sendable {
 	@inlinable public mutating func unreadByte() throws
 	@inlinable public func wait(_ ms: Swift.UInt64) throws
 }
+public struct ClashNotch: ~Copyable, @unchecked Sendable {
+	@inlinable public var description: Swift.String { get }
+	@inlinable public var debugDescription: Swift.String { get }
+	@inlinable public func clone() -> ClashNotch
+	@inlinable public static func == (a: borrowing ClashNotch, b: borrowing ClashNotch) -> Swift.Bool
+	@inlinable public static func < (a: borrowing ClashNotch, b: borrowing ClashNotch) -> Swift.Bool
+	@inlinable public static func <= (a: borrowing ClashNotch, b: borrowing ClashNotch) -> Swift.Bool
+	@inlinable public static func > (a: borrowing ClashNotch, b: borrowing ClashNotch) -> Swift.Bool
+	@inlinable public static func >= (a: borrowing ClashNotch, b: borrowing ClashNotch) -> Swift.Bool
+	@inlinable public func hash(into hasher: inout Swift.Hasher)
+	@inlinable public static func `default`() -> ClashNotch
+	@inlinable public static func new(_ count: Swift.UInt32) -> ClashNotch
+	@inlinable public func count() -> Swift.UInt32
+}
+#if compiler(>=6.4)
+extension ClashNotch: Hashable {}
+#endif
 public struct TlsSession: ~Copyable, @unchecked Sendable {
 	@inlinable public func alpn() -> Swift.String
 	@inlinable public func lifetime() -> TlsPolicyLifetime
@@ -1630,6 +1654,9 @@ public protocol ClashSource: Sendable {
 public protocol ClashEraser: Sendable {
 	func delete(_ new2: Swift.UInt8, _ new: Swift.UInt8) -> Swift.UInt8
 	func delete() -> Swift.UInt8
+}
+public protocol ClashCount: Sendable {
+	func next() -> Swift.UInt32
 }
 public struct BoundsU64Error: Swift.Error, CustomStringConvertible {
 	public let error: BoundsU64
@@ -1951,6 +1978,9 @@ public let URL: Swift.UInt64
 @inlinable public func clashUnderscored(_ underscored: ClashUnderscored, _ op: ClashOp, _ change: ClashChange) -> Swift.UInt32
 @inlinable public func clashUnderscoredNext(_ underscored: ClashUnderscored, _ change: ClashChange) -> (ClashUnderscored, ClashChange)
 @inlinable public func clashErased(_ eraser: any ClashEraser) -> Swift.UInt32
+@inlinable public func clashNotches(_ n: Swift.UInt32) -> UniqueArray<ClashNotch>
+@inlinable public func clashShifted(_ at: Swift.UInt8, _ shift: ClashShift) -> Swift.UInt8
+@inlinable public func clashCounted(_ count: any ClashCount) -> Swift.UInt32
 @inlinable public func clashErase_() -> Swift.UInt8
 @inlinable public func clashErase() -> Swift.UInt8
 @inlinable public func clashLend_() -> Swift.UInt32

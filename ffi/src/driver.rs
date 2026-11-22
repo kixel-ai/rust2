@@ -349,6 +349,13 @@ impl Callbacks for Export {
 		if tcx.dcx().has_errors().is_some() {
 			return Compilation::Stop;
 		}
+		if crate::abi::prefix(&self.facade.lib).is_none() {
+			let lib = &self.facade.lib;
+			tcx.dcx().err(format!(
+				"rust2-ffi: the library `{lib}` names no C prefix: without its leading `_`s, its name starts with no letter"
+			));
+			return Compilation::Stop;
+		}
 		let facade = collect::Facade {
 			root: self.facade.root(),
 			package: &self.facade.name,

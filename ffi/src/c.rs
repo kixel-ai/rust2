@@ -90,12 +90,12 @@ impl Header<'_> {
 			let upper = abi.enumeration(i).to_uppercase();
 			for v in &e.variants {
 				let snake = abi::snake(&v.name);
-				let constant = format!("{upper}_{}", snake.to_uppercase());
+				let constant = abi::join(&upper, &snake.to_uppercase());
 				crate::lock::variant(&mut self.names, &e.shown, &v.name, &constant);
 				if !v.fields.is_empty() {
 					let owner = crate::lock::type_key(&e.shown);
 					self.names
-						.insert(format!("{owner} / member {}", v.name), abi::escape(&snake));
+						.insert(format!("{owner} / member {}", v.name), abi::variant_member(&v.name));
 				}
 				for field in &v.fields {
 					let name = abi::escape(&field.name);
@@ -205,7 +205,13 @@ impl Header<'_> {
 			let variants: Vec<String> = e
 				.variants
 				.iter()
-				.map(|v| format!("\t{upper}_{} = {},", abi::snake(&v.name).to_uppercase(), v.discriminant))
+				.map(|v| {
+					format!(
+						"\t{} = {},",
+						abi::join(&upper, &abi::snake(&v.name).to_uppercase()),
+						v.discriminant
+					)
+				})
 				.collect();
 			self.line(format!(
 				"{}typedef enum {name} {{\n{}\n}} {name};\n",
@@ -268,8 +274,9 @@ impl Header<'_> {
 				callback.path.join("::"),
 				deprecation(&callback.docs, callback.deprecated.as_deref())
 			);
+			let vtable = abi::join(&name, "vtable");
 			self.line(format!(
-				"{}typedef struct {name}_vtable {{\n{}\n}} {name}_vtable;\n\ntypedef struct {name} {{\n\tconst {name}_vtable *vtable;\n\tvoid *data;\n}} {name};\n",
+				"{}typedef struct {vtable} {{\n{}\n}} {vtable};\n\ntypedef struct {name} {{\n\tconst {vtable} *vtable;\n\tvoid *data;\n}} {name};\n",
 				comment(docs.trim(), ""),
 				table.join("\n")
 			));
@@ -332,10 +339,13 @@ impl Header<'_> {
 					)
 					.trim_end(),
 				);
-				self.line(format!("void {name}_drop({name} *self, {p}_status *status);"));
+				self.line(format!(
+					"void {}({name} *self, {p}_status *status);",
+					abi::join(&name, "drop")
+				));
 			}
 			if object.shared {
-				self.line(format!("bool {name}_borrowed(const {name} *self);"));
+				self.line(format!("bool {}(const {name} *self);", abi::join(&name, "borrowed")));
 			}
 			let t = object.traits;
 			let status = match abi.traits_status(i) {
@@ -372,7 +382,8 @@ impl Header<'_> {
 				let default = self.member(&ty, "Default", &name, "default");
 				self.line(format!("{upper}_MUST_USE {name} *{default}(void);"));
 				if !object.send {
-					self.line(format!("{upper}_MUST_USE {name} *{name}_default_homed(void);"));
+					let homed = abi::join(&name, "default_homed");
+					self.line(format!("{upper}_MUST_USE {name} *{homed}(void);"));
 				}
 			}
 			let owner = Ty::Handle {
@@ -423,8 +434,9 @@ impl Header<'_> {
 				Ty::Handle { name, .. } => format!("{name} *const *ptr"),
 				elem => self.decl(&Ty::In(Box::new(elem)), "ptr"),
 			};
+			let free = abi::join(name, "free");
 			self.line(format!(
-				"/** A Vec. Passed in, an array Rust reads during the call and never frees. Returned,\n * an array to free once with {name}_free, which frees its first len elements too:\n * set len to 0 first to keep them. A null ptr is None. */\ntypedef struct {name} {{\n\t{ptr};\n\tsize_t len;\n\tvoid *owner;\n}} {name};\n\nvoid {name}_free({name} vec);\n"
+				"/** A Vec. Passed in, an array Rust reads during the call and never frees. Returned,\n * an array to free once with {free}, which frees its first len elements too:\n * set len to 0 first to keep them. A null ptr is None. */\ntypedef struct {name} {{\n\t{ptr};\n\tsize_t len;\n\tvoid *owner;\n}} {name};\n\nvoid {free}({name} vec);\n"
 			));
 			return;
 		}
@@ -490,12 +502,10 @@ impl Header<'_> {
 			.variants
 			.iter()
 			.enumerate()
-			.map(|(n, v)| format!("\t{upper}_{} = {n},", abi::snake(&v.name).to_uppercase()))
+			.map(|(n, v)| format!("\t{} = {n},", abi::join(&upper, &abi::snake(&v.name).to_uppercase())))
 			.collect();
-		self.line(format!(
-			"typedef enum {name}_tag {{\n{}\n}} {name}_tag;\n",
-			tags.join("\n")
-		));
+		let tag = abi::join(name, "tag");
+		self.line(format!("typedef enum {tag} {{\n{}\n}} {tag};\n", tags.join("\n")));
 		let mut members = Vec::new();
 		for variant in e.variants.iter().filter(|v| !v.fields.is_empty()) {
 			let payload = abi::payload(name, &variant.name);
@@ -513,10 +523,10 @@ impl Header<'_> {
 				"typedef struct {payload} {{\n{}\n}} {payload};\n",
 				decls.join("\n")
 			));
-			members.push(format!("\t\t{payload} {};", abi::escape(&abi::snake(&variant.name))));
+			members.push(format!("\t\t{payload} {};", abi::variant_member(&variant.name)));
 		}
 		self.line(format!(
-			"typedef struct {name} {{\n\t{name}_tag tag;\n\tunion {{\n{}\n\t}};\n}} {name};\n",
+			"typedef struct {name} {{\n\t{tag} tag;\n\tunion {{\n{}\n\t}};\n}} {name};\n",
 			members.join("\n")
 		));
 	}
@@ -570,7 +580,7 @@ impl Header<'_> {
 	/// The C name of the function `name`'s type `ty` exports for the std trait `t`, by its
 	/// suffix, which [`crate::abi::Abi`] claimed, recorded as its member.
 	fn member(&mut self, ty: &Type, t: &str, name: &str, suffix: &str) -> String {
-		let member = format!("{name}_{suffix}");
+		let member = abi::join(name, suffix);
 		crate::lock::trait_member(&mut self.names, self.abi.api.shown(ty), t, &member);
 		member
 	}
@@ -767,7 +777,9 @@ fn link(abi: &Abi<'_>, target: crate::doc::Target<'_>) -> String {
 		Target::Field(i, n) => format!("{}.{}", abi.record(i), abi::escape(&api.records[i].fields[n].name)),
 		Target::Constant(c) => abi.constant(&c.path),
 		// A callback's method is its table's member.
-		Target::Function(Some(Owner::Callback(i)), f) => format!("{}_vtable.{}", abi.callback(i), abi::member(f)),
+		Target::Function(Some(Owner::Callback(i)), f) => {
+			format!("{}.{}", abi::join(&abi.callback(i), "vtable"), abi::member(f))
+		}
 		Target::Function(of, f) => format!("{}()", abi.export(f, of.map(owner).as_ref()).call.name),
 	}
 }
