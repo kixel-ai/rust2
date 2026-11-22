@@ -43,7 +43,8 @@ def export(root, floor="311"):
     (root / "python/moq.py").write_text("PENDING = 0\n")
     (root / "include/moq.h").write_text("int moq_contract(void);\n")
     (root / "swift/moq.swift").write_text("import MoqFFI\n")
-    (root / "Cargo.toml").write_text(f'pyo3-ffi = {{ features = ["abi3-py{floor}", "extension-module"] }}\n')
+    (root / "Cargo.toml").write_text(f'[features]\npython = ["pyo3-ffi/abi3-py{floor}"]\n'
+                                     'python-abi3t = ["pyo3-ffi/abi3t-py315"]\n')
     (root / "go/rt").mkdir(parents=True)
     (root / "go/go.mod").write_text("module moq.dev/moq-ffi\n\ngo 1.24\n")
     lines = "".join(f"#cgo {p.replace('_', ',')} LDFLAGS: ${{SRCDIR}}/libmoq_{p}.a -lgcc_s -lc\n"
@@ -187,7 +188,7 @@ class Wheel(unittest.TestCase):
             library.write_bytes(b"\x7fELF")
             out = root / "out"
             out.mkdir()
-            wheel = package.write_wheel(info(root), built, library, "x86_64-unknown-linux-gnu", out)
+            wheel = package.write_wheel(info(root), built, library, "x86_64-unknown-linux-gnu", out, "abi3")
             self.assertEqual(wheel.name, "moq_ffi-0.4.12-cp311-abi3-linux_x86_64.whl")
             package.check_wheel(wheel)
             with zipfile.ZipFile(wheel) as archive:
@@ -202,6 +203,19 @@ class Wheel(unittest.TestCase):
             self.assertIn("License-Expression: MIT OR Apache-2.0\n", meta)
             self.assertIn("Project-URL: Repository, https://github.com/moq-dev/moq\n", meta)
 
+    def test_a_free_threaded_wheel_has_the_same_metadata(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            library = root / "libmoq.so"
+            library.write_bytes(b"\x7fELF")
+            wheel = package.write_wheel(info(root), export(root / "export"), library, "x86_64-unknown-linux-gnu",
+                                        root, "abi3t")
+            self.assertEqual(wheel.name, "moq_ffi-0.4.12-cp315-abi3t-linux_x86_64.whl")
+            with zipfile.ZipFile(wheel) as archive:
+                self.assertIn("Requires-Python: >=3.11\n", archive.read("moq_ffi-0.4.12.dist-info/METADATA").decode())
+                self.assertIn("Tag: cp315-abi3t-linux_x86_64\n",
+                              archive.read("moq_ffi-0.4.12.dist-info/WHEEL").decode())
+
     def test_refuses_a_legacy_license(self):
         with self.assertRaises(SystemExit):
             package.metadata(info("/src", license="MIT/Apache-2.0"), 11)
@@ -211,7 +225,7 @@ class Wheel(unittest.TestCase):
             root = Path(tmp)
             library = root / "libmoq.dylib"
             library.write_bytes(b"\xcf\xfa\xed\xfe")
-            wheel = package.write_wheel(info(root), export(root / "export"), library, "aarch64-apple-darwin", root)
+            wheel = package.write_wheel(info(root), export(root / "export"), library, "aarch64-apple-darwin", root, "abi3")
             repaired = root / "repaired.whl"
             # As delocate and auditwheel rewrite a wheel: each directory listed before its files.
             with zipfile.ZipFile(wheel) as src, zipfile.ZipFile(repaired, "w") as dst:
@@ -226,7 +240,7 @@ class Wheel(unittest.TestCase):
             root = Path(tmp)
             library = root / "moq.dll"
             library.write_bytes(b"MZ")
-            wheel = package.write_wheel(info(root), export(root / "export"), library, "x86_64-pc-windows-msvc", root)
+            wheel = package.write_wheel(info(root), export(root / "export"), library, "x86_64-pc-windows-msvc", root, "abi3")
             tampered = root / "tampered.whl"
             with zipfile.ZipFile(wheel) as src, zipfile.ZipFile(tampered, "w") as dst:
                 for name in src.namelist():
@@ -237,7 +251,9 @@ class Wheel(unittest.TestCase):
 
     def test_floor_comes_from_the_glue(self):
         with tempfile.TemporaryDirectory() as tmp:
-            self.assertEqual(package.python_floor(export(Path(tmp), "312")), 12)
+            built = export(Path(tmp), "312")
+            self.assertEqual(package.python_floor(built), 12)
+            self.assertEqual(package.python_floor(built, "abi3t"), 15)
 
 
 class Reproducible(unittest.TestCase):
@@ -248,7 +264,7 @@ class Reproducible(unittest.TestCase):
         library.write_bytes(b"\x7fELF")
         for path in (library, built / "python/moq.py"):
             os.utime(path, (touch.get("time", 0), touch.get("time", 0)))
-        return package.write_wheel(info(root), built, library, "x86_64-unknown-linux-gnu", root)
+        return package.write_wheel(info(root), built, library, "x86_64-unknown-linux-gnu", root, "abi3")
 
     def test_wheel_bytes_ignore_when_and_where(self):
         with tempfile.TemporaryDirectory() as a, tempfile.TemporaryDirectory() as b:
