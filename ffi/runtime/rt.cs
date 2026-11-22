@@ -418,7 +418,7 @@ internal sealed unsafe class Arena : IDisposable
 	/// The handle of `o`, held until the call returns; `take` closes it then, as Rust took its value.
 	internal IntPtr Hold(RustObject o, bool take)
 	{
-		var raw = o.Enter();
+		var raw = o.enter();
 		(holds ??= new List<(RustObject, bool)>()).Add((o, take));
 		return raw;
 	}
@@ -463,10 +463,10 @@ internal sealed unsafe class Arena : IDisposable
 		{
 			foreach (var (o, take) in holds)
 			{
-				o.Exit();
+				o.exit();
 				if (take && Ran)
 				{
-					o.Moved();
+					o.moved();
 				}
 			}
 		}
@@ -497,22 +497,22 @@ public abstract unsafe class RustObject : IDisposable
 	}
 
 	/// Frees the handle.
-	internal abstract void Free(IntPtr raw);
+	internal abstract void free(IntPtr raw);
 
 	/// Drops the value now, as Rust's `drop` would, writing why it could not, for a type
 	/// whose checks can fail; else nothing, as the free drops it.
-	internal virtual void Drop(IntPtr raw, int* status)
+	internal virtual void drop(IntPtr raw, int* status)
 	{
 	}
 
-	/// The handle, held for a call until `Exit`; throws once closed.
+	/// The handle, held for a call until `exit`; throws once closed.
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
-	internal IntPtr Enter()
+	internal IntPtr enter()
 	{
 		var s = Interlocked.Add(ref state, 2);
 		if ((s & 1) != 0)
 		{
-			Exit();
+			exit();
 			throw new ObjectDisposedException(GetType().Name);
 		}
 		return raw;
@@ -520,7 +520,7 @@ public abstract unsafe class RustObject : IDisposable
 
 	/// Ends a call's hold, freeing the handle if it closed meanwhile and this was the last.
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
-	internal void Exit()
+	internal void exit()
 	{
 		if (Interlocked.Add(ref state, -2) == 1)
 		{
@@ -534,15 +534,15 @@ public abstract unsafe class RustObject : IDisposable
 		var r = Interlocked.Exchange(ref raw, IntPtr.Zero);
 		if (r != IntPtr.Zero && !lent)
 		{
-			Free(r);
+			free(r);
 		}
 	}
 
 	/// Closes it once a call moved its value out, leaving the handle only to free.
-	internal void Moved() => Close();
+	internal void moved() => Close();
 
 	/// Ends a lent handle once the call Rust lent it for returns.
-	internal void End() => Close();
+	internal void end() => Close();
 
 	/// Whether it is closed.
 	public bool IsClosed => (Volatile.Read(ref state) & 1) != 0;
@@ -585,7 +585,7 @@ public abstract unsafe class RustObject : IDisposable
 			IntPtr r;
 			try
 			{
-				r = Enter();
+				r = enter();
 			}
 			catch (ObjectDisposedException)
 			{
@@ -593,11 +593,11 @@ public abstract unsafe class RustObject : IDisposable
 			}
 			try
 			{
-				Drop(r, &status);
+				drop(r, &status);
 			}
 			finally
 			{
-				Exit();
+				exit();
 			}
 			if (status != 0)
 			{
@@ -612,7 +612,7 @@ public abstract unsafe class RustObject : IDisposable
 		var r = raw;
 		if (r != IntPtr.Zero && !lent)
 		{
-			Free(r);
+			free(r);
 		}
 	}
 }

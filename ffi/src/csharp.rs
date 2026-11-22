@@ -1381,8 +1381,10 @@ impl<'a> Gen<'a> {
 			ty => pascal(&self.abi.spell(ty)),
 		};
 		let mut name = format!("{spelled}Exception");
+		// One class per type C# holds the error as, so `&str`'s and `String`'s share one.
+		let native = self.cs(&ty);
 		while let Some(held) = self.exceptions.get(&name) {
-			if *held == ty {
+			if self.cs(held) == native {
 				break;
 			}
 			name.push('_');
@@ -1390,7 +1392,6 @@ impl<'a> Gen<'a> {
 		if !self.exceptions.contains_key(&name) {
 			name = self.claim(&name, format!("the exception of {}", self.abi.spell(&ty)));
 			self.exceptions.insert(name.clone(), ty.clone());
-			let native = self.cs(&ty);
 			crate::lock::exception(&mut self.locked, self.abi, &ty, &native, &name);
 		}
 		name
@@ -1461,8 +1462,8 @@ impl<'a> Gen<'a> {
 			match ty {
 				Type::Object(_) => {
 					opens.push((
-						format!("var h{k}_ = {e}.Enter();\n\t\ttry\n\t\t{{\n"),
-						format!("\t\t}}\n\t\tfinally\n\t\t{{\n\t\t\t{e}.Exit();\n\t\t}}\n"),
+						format!("var h{k}_ = {e}.enter();\n\t\ttry\n\t\t{{\n"),
+						format!("\t\t}}\n\t\tfinally\n\t\t{{\n\t\t\t{e}.exit();\n\t\t}}\n"),
 					));
 					args.push(format!("h{k}_"));
 				}
@@ -1891,14 +1892,14 @@ impl<'a> Gen<'a> {
 		let mut members = self.base_members(&owner.ty, &name);
 		crate::lock::trait_member(&mut self.locked, &object.shown, "Drop", "Dispose");
 		let mut body = format!(
-			"\tinternal {name}(IntPtr raw, bool lent = false) : base(raw, lent)\n\t{{\n\t}}\n\n\tinternal override void Free(IntPtr raw) => Native.{free}(raw);\n\n"
+			"\tinternal {name}(IntPtr raw, bool lent = false) : base(raw, lent)\n\t{{\n\t}}\n\n\tinternal override void free(IntPtr raw) => Native.{free}(raw);\n\n"
 		);
 		if abi.checked[i] {
 			let drop = abi::join(&c_name, "drop");
 			self.declare_raw(&drop, &[("self", "IntPtr".to_string()), ("status", "int*".to_string())], "void");
 			let _ = write!(
 				body,
-				"\tinternal override void Drop(IntPtr raw, int* status) => Native.{drop}(raw, status);\n\n"
+				"\tinternal override void drop(IntPtr raw, int* status) => Native.{drop}(raw, status);\n\n"
 			);
 		}
 		let traits = self.traits(&Type::Object(i), &owner, &mut members);
@@ -2104,7 +2105,7 @@ impl<'a> Gen<'a> {
 			match ty {
 				Type::Ref(_, inner) if matches!(**inner, Type::Object(_)) => {
 					pre.push(format!("var l{k} = new {}(p{k}, true);", self.cs(inner)));
-					ends.push(format!("l{k}.End();"));
+					ends.push(format!("l{k}.end();"));
 					args.push(format!("l{k}"));
 				}
 				ty => args.push(self.lift_lent(ty, &format!("p{k}"))),
@@ -2248,22 +2249,22 @@ impl<'a> Gen<'a> {
 				match optional {
 					true => {
 						arg.opens.push((
-							format!("var {h} = {e}?.Enter() ?? IntPtr.Zero;\n\t\ttry\n\t\t{{\n"),
-							format!("\t\t}}\n\t\tfinally\n\t\t{{\n\t\t\t{e}?.Exit();\n\t\t}}\n"),
+							format!("var {h} = {e}?.enter() ?? IntPtr.Zero;\n\t\ttry\n\t\t{{\n"),
+							format!("\t\t}}\n\t\tfinally\n\t\t{{\n\t\t\t{e}?.exit();\n\t\t}}\n"),
 						));
 					}
 					false => {
 						arg.opens.push((
-							format!("var {h} = {e}.Enter();\n\t\ttry\n\t\t{{\n"),
-							format!("\t\t}}\n\t\tfinally\n\t\t{{\n\t\t\t{e}.Exit();\n\t\t}}\n"),
+							format!("var {h} = {e}.enter();\n\t\ttry\n\t\t{{\n"),
+							format!("\t\t}}\n\t\tfinally\n\t\t{{\n\t\t\t{e}.exit();\n\t\t}}\n"),
 						));
 					}
 				}
 				arg.exprs.push(h);
 				if self.moved(ty) {
 					arg.after.push(match optional {
-						true => format!("{e}?.Moved();"),
-						false => format!("{e}.Moved();"),
+						true => format!("{e}?.moved();"),
+						false => format!("{e}.moved();"),
 					});
 				}
 				(arg, false)
@@ -2364,13 +2365,13 @@ impl<'a> Gen<'a> {
 			match c {
 				Ty::Handle { .. } => {
 					arg.opens.push((
-						"var h_ = Enter();\n\t\ttry\n\t\t{\n".to_string(),
-						"\t\t}\n\t\tfinally\n\t\t{\n\t\t\tExit();\n\t\t}\n".to_string(),
+						"var h_ = enter();\n\t\ttry\n\t\t{\n".to_string(),
+						"\t\t}\n\t\tfinally\n\t\t{\n\t\t\texit();\n\t\t}\n".to_string(),
 					));
 					arg.exprs.push("h_".to_string());
 					let copy = matches!(owner.ty, Type::Object(i) if abi.api.objects[i].copy);
 					if receiver == Receiver::Owned && !copy {
-						arg.after.push("Moved();".to_string());
+						arg.after.push("moved();".to_string());
 					}
 				}
 				_ => {

@@ -1,6 +1,8 @@
 // The api fixture driven from C#: the transcript, which `fixtures.rs` generates as the
 // other half of `Script`, then what only C# says, each a case of its own.
 #nullable enable
+// `api` aliases the namespace as Rust spells the crate.
+#pragma warning disable CS8981
 
 using System;
 using System.Collections.Generic;

@@ -13,6 +13,8 @@ const PRELUDE: &str = r#"// Generated from fixtures/api/examples/transcript.rs b
 #nullable enable
 // Rust compares a value to itself, to show `PartialEq` is reflexive.
 #pragma warning disable CS1718
+// `api` aliases the namespace as Rust spells the crate.
+#pragma warning disable CS8981
 
 using System;
 using System.Collections.Generic;

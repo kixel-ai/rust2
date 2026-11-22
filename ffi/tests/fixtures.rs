@@ -3457,7 +3457,7 @@ fn csc(target: Dotnet, out: &Path, sources: &[&Path]) {
 	let mut cmd = Command::new("dotnet");
 	cmd.arg("exec")
 		.arg(csc)
-		.args(["-nologo", "-noconfig", "-nostdlib", "-unsafe", "-nullable:enable", "-warnaserror", "-optimize"]);
+		.args(["-nologo", "-noconfig", "-nostdlib", "-unsafe", "-nullable:enable", "-warnaserror", "-warn:9999", "-optimize"]);
 	match target {
 		Dotnet::Net => cmd.arg("-target:exe"),
 		Dotnet::Unity => cmd.args(["-target:library", "-langversion:9", "-define:UNITY_5_3_OR_NEWER"]),
@@ -4470,7 +4470,7 @@ fn lock() {
 	let baseline = dir.join("base").join("api.json");
 	let before = std::fs::read(&baseline).unwrap();
 	let json: serde_json::Value = serde_json::from_slice(&before).unwrap();
-	for language in ["C++", "Kotlin", "Swift", "Dart", "Python", "Go"] {
+	for language in ["C++", "Kotlin", "Swift", "Dart", "Python", "Go", "C#"] {
 		assert!(
 			json["names"][language]["const lock::DEPTH"].is_string(),
 			"{language} constant name missing"
@@ -4665,6 +4665,7 @@ fn lock() {
 		("Go", "GraphicsEncoder_Finish"),
 		("Dart", "GraphicsEncoderFinish2"),
 		("Python", "GraphicsEncoder_Finish"),
+		("C#", "GraphicsEncoder_Finish"),
 	] {
 		assert!(
 			stderr.contains(&format!("its {language} name `GraphicsEncoderFinish` is now `{new}`")),
@@ -4675,6 +4676,7 @@ fn lock() {
 		("Kotlin", "smoothStep", "smoothStep_"),
 		("Swift", "smoothStep", "smoothStep_"),
 		("Dart", "smoothStep", "smoothStep_"),
+		("C#", "SmoothStep", "SmoothStep_"),
 	] {
 		assert!(
 			stderr.contains(&format!("its {language} name `{old}` is now `{new}`")),
@@ -4715,6 +4717,8 @@ fn lock() {
 		assert!(stderr.contains(text), "missing {text}:\n{stderr}");
 	}
 	assert!(!stderr.contains("its C name"), "a C name changed:\n{stderr}");
+	// C# names the added record apart from the exception class, which keeps its name.
+	assert!(!stderr.contains("its C# name"), "a C# name changed:\n{stderr}");
 	let defaults = locked("defaults");
 	assert!(!defaults.status.success(), "a Go Default rename passed the lock");
 	let stderr = String::from_utf8_lossy(&defaults.stderr);
