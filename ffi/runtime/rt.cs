@@ -116,8 +116,13 @@ internal static unsafe partial class Native
 	internal const int PollReady = 1;
 	internal const int PollError = 2;
 
-	/// The library's target, as its index among those this file serves.
+	/// The library's target, as its index among those this file serves: under Unity, read
+	/// in `Native`'s constructor, after the contract check, since every initializer runs before it.
+#if UNITY_5_3_OR_NEWER
+	internal static readonly int Target;
+#else
 	internal static readonly int Target = (int)target();
+#endif
 
 	/// Throws unless the library's target is among those of `on`, as the item `what` is.
 	internal static void On(ulong on, string what)

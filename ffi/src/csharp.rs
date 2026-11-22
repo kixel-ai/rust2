@@ -333,7 +333,7 @@ pub(crate) fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<O
 		\t/// under Unity, which has no module initializer, from this type's constructor, which runs\n\
 		\t/// before any use of it, and whose throw every later use rethrows.\n\
 		#if UNITY_5_3_OR_NEWER\n\
-		\tstatic Native() => Load();\n\n\
+		\tstatic Native()\n\t{{\n\t\tLoad();\n\t\tTarget = (int)target();\n\t}}\n\n\
 		#else\n\
 		\t[ModuleInitializer]\n\
 		#endif\n\

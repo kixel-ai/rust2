@@ -213,7 +213,7 @@ static class Bench
 		return new Span(1e3 / ns.Wall, 1e3 / ns.Cpu);
 	}
 
-	/// `frame.payload` of one frame of `size` bytes, read and disposed N times: up to 1 KiB
+	/// `frame.payload` of one frame of `size` bytes, read and disposed N times: up to 512 bytes
 	/// a copy, past it a lend of Rust's buffer.
 	static async Task<Span> Payload(BroadcastProducer broadcast, int size)
 	{
