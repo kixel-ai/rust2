@@ -2569,7 +2569,8 @@ class Flutter:
         except json.JSONDecodeError:
             events = None
         if events is None:
-            print(line, file=sys.stderr)
+            if line:
+                print(line, file=sys.stderr)
             return []
         for event in events:
             # What flutter is doing, such as compiling, so a stall says where.
