@@ -349,17 +349,26 @@ jobs:
         env:
           KOTLIN: 2.4.21
           KOTLIN_SHA256: 7cc140e76daf416a0424a5557f99afd7ca89ebd463ea1101261e3e01c33e75cd
+          # kotlin-compiler-$KOTLIN.zip's id: gh api repos/JetBrains/kotlin/releases/tags/v$KOTLIN
+          KOTLIN_ASSET: 621287401
+          # Anonymous release downloads share the runner's IP's limit and answer 429 under load;
+          # the API serves the same asset against the token's own limit.
+          GH_TOKEN: ${{ github.token }}
           COROUTINES: 1.10.2
           COROUTINES_SHA256: 5ca175b38df331fd64155b35cd8cae1251fa9ee369709b36d42e0a288ccce3fd
         run: |
           "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "ndk;$NDK" "platforms;android-35" > /dev/null
           echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/$NDK" >> "$GITHUB_ENV"
           cd "$RUNNER_TEMP"
-          # Release downloads now and then answer 403; the checksums below make any retry safe.
-          get() { curl -sSfL --retry 5 --retry-all-errors -o "$1" "$2"; }
-          get kotlin.zip "https://github.com/JetBrains/kotlin/releases/download/v$KOTLIN/kotlin-compiler-$KOTLIN.zip"
+          # The checksums below make any retry safe. curl drops the token on the redirect off
+          # api.github.com, and names the host that answered, since a redirect may be what fails.
+          get() { curl -sSfL --retry 5 --retry-all-errors -w '%{stderr}%{http_code} %{url_effective}\n' -o "$@"; }
+          get kotlin.zip -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/octet-stream" \
+            "https://api.github.com/repos/JetBrains/kotlin/releases/assets/$KOTLIN_ASSET"
           jar="kotlinx-coroutines-core-jvm-$COROUTINES.jar"
-          get "$jar" "https://repo1.maven.org/maven2/org/jetbrains/kotlinx/kotlinx-coroutines-core-jvm/$COROUTINES/$jar"
+          # Google's mirror of Maven Central: repo1.maven.org blocks some runners' IPs for hours,
+          # answering 404 or 429 with a retry-after no retry outlasts.
+          get "$jar" "https://maven-central.storage-download.googleapis.com/maven2/org/jetbrains/kotlinx/kotlinx-coroutines-core-jvm/$COROUTINES/$jar"
           printf '%s  kotlin.zip\n%s  %s\n' "$KOTLIN_SHA256" "$COROUTINES_SHA256" "$jar" | sha256sum --check --strict
           unzip -q kotlin.zip
           echo "$RUNNER_TEMP/kotlinc/bin" >> "$GITHUB_PATH"
