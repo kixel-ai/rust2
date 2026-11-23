@@ -61,34 +61,57 @@ export class Owned<P> implements Handle {
 	}
 }
 
-/** Bytes over a view that only this object reaches, so none outlives the buffer it views. */
-export class Lent implements Bytes {
-	#view: Uint8Array | undefined;
-	readonly #free: (() => void) | undefined;
+/** How a route reads and frees bytes Rust lends, by their address. */
+export interface Lender<P> {
+	at(ptr: P, i: number): number;
+	copy(ptr: P, into: Uint8Array): void;
+	free(ptr: P, len: number, owner: P): void;
+}
 
-	constructor(view: Uint8Array, free: (() => void) | undefined) {
-		this.#view = view;
-		this.#free = free;
-	}
+/**
+ * Bytes Rust returned: a copy of up to 64, or past that Rust's buffer, read in place through
+ * the route at each read, as the web binding's `rt.Bytes` reads linear memory, so no view of
+ * Rust's buffer reaches a caller.
+ */
+export class RustBytes<P> implements Bytes {
+	readonly length: number;
+	#copy: Uint8Array | undefined;
+	#ptr: P | undefined;
+	readonly #owner: P | undefined;
+	readonly #lender: Lender<P> | undefined;
+	#closed = false;
 
-	get length(): number {
-		return this.#open().length;
+	constructor(length: number, copy: Uint8Array | undefined, ptr: P | undefined, owner: P | undefined, lender: Lender<P> | undefined) {
+		this.length = length;
+		this.#copy = copy;
+		this.#ptr = ptr;
+		this.#owner = owner;
+		this.#lender = lender;
 	}
 
 	at(i: number): number | undefined {
-		return this.#open()[i];
+		if (this.#closed) throw new Error("Bytes is closed");
+		if (!(i >= 0 && i < this.length)) return undefined;
+		const copy = this.#copy;
+		return copy !== undefined ? copy[i] : this.#lender!.at(this.#ptr!, i);
 	}
 
-	#open(): Uint8Array {
-		const view = this.#view;
-		if (view === undefined) throw new Error("Bytes is closed");
-		return view;
+	/** The bytes, copied into a `Uint8Array`. */
+	slice(): Uint8Array {
+		if (this.#closed) throw new Error("Bytes is closed");
+		const copy = this.#copy;
+		if (copy !== undefined) return copy.slice();
+		const out = new Uint8Array(this.length);
+		this.#lender!.copy(this.#ptr!, out);
+		return out;
 	}
 
 	[Symbol.dispose](): void {
-		if (this.#view === undefined) return;
-		this.#view = undefined;
-		this.#free?.();
+		if (this.#closed) return;
+		this.#closed = true;
+		this.#copy = undefined;
+		if (this.#ptr !== undefined) this.#lender!.free(this.#ptr, this.length, this.#owner!);
+		this.#ptr = undefined;
 	}
 }
 

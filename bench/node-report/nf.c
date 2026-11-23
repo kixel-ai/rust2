@@ -26,11 +26,24 @@ bool nf_group_Producer_write_frame(moq_group_Producer *self, const moq_Timestamp
 	return moq_group_Producer_write_frame(self, *at, *data, err, status);
 }
 
-void nf_frame_Frame_payload_get(const moq_frame_Frame *self, moq_buf *out, moq_status *status) {
-	*out = moq_frame_Frame_payload_get(self, status);
+/* A payload's bytes: up to 64 copied to `copy` and freed, as the web binding holds them,
+ * past it written to `out`, lent until `nf_buf_free`. Returns their length. */
+size_t nf_frame_Frame_payload_get(const moq_frame_Frame *self, moq_buf *out, uint8_t *copy, moq_status *status) {
+	moq_buf buf = moq_frame_Frame_payload_get(self, status);
+	if (buf.len <= 64) {
+		memcpy(copy, buf.ptr, buf.len);
+		moq_buf_free(buf);
+	} else {
+		*out = buf;
+	}
+	return buf.len;
 }
 
-void nf_buf_free(const moq_buf *buf) { moq_buf_free(*buf); }
+uint8_t nf_byte_at(const uint8_t *ptr, uint32_t i) { return ptr[i]; }
+
+void nf_buf_copy(const uint8_t *ptr, uint8_t *into, size_t len) { memcpy(into, ptr, len); }
+
+void nf_buf_free(const uint8_t *ptr, size_t len, void *owner) { moq_buf_free((moq_buf){.ptr = ptr, .len = len, .owner = owner}); }
 
 moq_poll nf_group_Consumer_read_frame_poll(moq_group_Consumer_read_frame_future *future, const moq_waker *waker, moq_frame_Frame **out, moq_Error **err) {
 	return moq_group_Consumer_read_frame_poll(future, *waker, out, err);

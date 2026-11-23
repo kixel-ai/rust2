@@ -19,6 +19,11 @@ static pthread_t main_thread;
 static napi_ref wake_fn;
 static napi_threadsafe_function wake_tsfn;
 
+/* Scratch the JavaScript views, as nf.c's: opaque values at AT, a copy of up to 64 bytes at
+ * COPY, and a lent buffer's address and owner as doubles at LENT. */
+static uint8_t *scratch;
+enum { AT = 0, COPY = 64, LENT = 128 };
+
 #define CHECK(call)                                                                                                   \
 	do {                                                                                                          \
 		if ((call) != napi_ok) {                                                                              \
@@ -73,23 +78,6 @@ static napi_value err_or(napi_env env, const char *fn, moq_Error *err) {
 	napi_value argv[n > 0 ? n : 1];                                                                               \
 	napi_get_cb_info(env, cb, &argc, argv, NULL, NULL)
 
-/* An opaque value's bytes, copied out of a 16-byte typed array. */
-static void opaque_arg(napi_env env, napi_value v, void *out, size_t len) {
-	void *data;
-	size_t n;
-	napi_get_typedarray_info(env, v, NULL, &n, &data, NULL, NULL);
-	memcpy(out, data, len);
-}
-
-static napi_value opaque(napi_env env, const void *bytes, size_t len) {
-	void *data;
-	napi_value ab, out;
-	napi_create_arraybuffer(env, len, &data, &ab);
-	memcpy(data, bytes, len);
-	napi_create_typedarray(env, napi_uint8_array, len, ab, 0, &out);
-	return out;
-}
-
 static napi_value is_closed(napi_env env, napi_callback_info cb) {
 	ARGS(1);
 	moq_status st = 0;
@@ -114,7 +102,8 @@ static napi_value largest(napi_env env, napi_callback_info cb) {
 	moq_status st = 0;
 	moq_option_track_Position r = moq_track_Producer_largest(ptr_arg(env, argv[0]), &st);
 	if (failed(env, "moq_track_Producer_largest", st)) return NULL;
-	return r.some ? opaque(env, &r.value, sizeof r.value) : undef(env);
+	memcpy(scratch + AT, &r.value, sizeof r.value);
+	return boolean(env, r.some);
 }
 
 static napi_value info(napi_env env, napi_callback_info cb) {
@@ -145,16 +134,15 @@ static napi_value from_micros(napi_env env, napi_callback_info cb) {
 	ARGS(1);
 	int64_t micros;
 	napi_get_value_int64(env, argv[0], &micros);
-	moq_Timestamp at;
 	moq_TimeOverflow overflow;
-	if (!moq_Timestamp_from_micros((uint64_t)micros, &at, &overflow)) return err_or(env, "from_micros", NULL);
-	return opaque(env, &at, sizeof at);
+	if (!moq_Timestamp_from_micros((uint64_t)micros, (moq_Timestamp *)(scratch + AT), &overflow)) return err_or(env, "from_micros", NULL);
+	return undef(env);
 }
 
 static napi_value append_group(napi_env env, napi_callback_info cb) {
-	ARGS(2);
+	ARGS(1);
 	moq_Timestamp at;
-	opaque_arg(env, argv[1], &at, sizeof at);
+	memcpy(&at, scratch + AT, sizeof at);
 	moq_group_Producer *out = NULL;
 	moq_Error *err = NULL;
 	moq_status st = 0;
@@ -165,12 +153,12 @@ static napi_value append_group(napi_env env, napi_callback_info cb) {
 }
 
 static napi_value write_frame(napi_env env, napi_callback_info cb) {
-	ARGS(3);
+	ARGS(2);
 	moq_Timestamp at;
-	opaque_arg(env, argv[1], &at, sizeof at);
+	memcpy(&at, scratch + AT, sizeof at);
 	void *data;
 	size_t len;
-	napi_get_typedarray_info(env, argv[2], NULL, &len, &data, NULL, NULL);
+	napi_get_typedarray_info(env, argv[1], NULL, &len, &data, NULL, NULL);
 	moq_Error *err = NULL;
 	moq_status st = 0;
 	bool ok = moq_group_Producer_write_frame(ptr_arg(env, argv[0]), at, (moq_buf){.ptr = data, .len = len}, &err, &st);
@@ -224,39 +212,46 @@ static napi_value consume(napi_env env, napi_callback_info cb) {
 	return ptr(env, r);
 }
 
-/* Bytes Rust returned: a copy up to 64 bytes, as the web binding holds, and past it a view
- * of Rust's buffer, which `bytes_free` detaches, so its deleter frees the buffer. */
-static void bytes_deleter(napi_env env, void *data, void *hint) {
-	moq_buf *buf = hint;
-	moq_buf_free(*buf);
-	free(buf);
-}
-
+/* Bytes Rust returned: up to 64 copied to COPY and freed, as the web binding holds them,
+ * and past it lent, its address and owner at LENT, read through `byte_at` and `buf_copy`
+ * until `buf_free`. Returns their length. */
 static napi_value payload(napi_env env, napi_callback_info cb) {
 	ARGS(1);
 	moq_status st = 0;
 	moq_buf buf = moq_frame_Frame_payload_get(ptr_arg(env, argv[0]), &st);
 	if (failed(env, "moq_frame_Frame_payload_get", st)) return NULL;
-	napi_value ab, out;
 	if (buf.len <= 64) {
-		void *data;
-		napi_create_arraybuffer(env, buf.len, &data, &ab);
-		memcpy(data, buf.ptr, buf.len);
+		memcpy(scratch + COPY, buf.ptr, buf.len);
 		moq_buf_free(buf);
 	} else {
-		moq_buf *hint = malloc(sizeof *hint);
-		*hint = buf;
-		CHECK(napi_create_external_arraybuffer(env, (void *)buf.ptr, buf.len, bytes_deleter, hint, &ab));
+		double lent[2] = {(double)(uintptr_t)buf.ptr, (double)(uintptr_t)buf.owner};
+		memcpy(scratch + LENT, lent, sizeof lent);
 	}
-	napi_create_typedarray(env, napi_uint8_array, buf.len, ab, 0, &out);
-	return out;
+	return num(env, (double)buf.len);
 }
 
-static napi_value bytes_free(napi_env env, napi_callback_info cb) {
-	ARGS(1);
-	napi_value ab;
-	napi_get_typedarray_info(env, argv[0], NULL, NULL, NULL, &ab, NULL);
-	CHECK(napi_detach_arraybuffer(env, ab));
+static napi_value byte_at(napi_env env, napi_callback_info cb) {
+	ARGS(2);
+	uint32_t i;
+	napi_get_value_uint32(env, argv[1], &i);
+	return num(env, ((const uint8_t *)ptr_arg(env, argv[0]))[i]);
+}
+
+/* Copies a lent buffer's bytes into a typed array of its length. */
+static napi_value buf_copy(napi_env env, napi_callback_info cb) {
+	ARGS(2);
+	void *data;
+	size_t len;
+	napi_get_typedarray_info(env, argv[1], NULL, &len, &data, NULL, NULL);
+	memcpy(data, ptr_arg(env, argv[0]), len);
+	return undef(env);
+}
+
+static napi_value buf_free(napi_env env, napi_callback_info cb) {
+	ARGS(3);
+	double len;
+	napi_get_value_double(env, argv[1], &len);
+	moq_buf_free((moq_buf){.ptr = ptr_arg(env, argv[0]), .len = (size_t)len, .owner = ptr_arg(env, argv[2])});
 	return undef(env);
 }
 
@@ -350,6 +345,14 @@ FREE(finished_free, moq_group_Finished_free)
 FREE(reader_free, moq_group_Consumer_free)
 FREE(frame_free, moq_frame_Frame_free)
 
+static napi_value set_scratch(napi_env env, napi_callback_info cb) {
+	ARGS(1);
+	void *data;
+	CHECK(napi_get_typedarray_info(env, argv[0], NULL, NULL, &data, NULL, NULL));
+	scratch = data;
+	return undef(env);
+}
+
 static napi_value set_wake(napi_env env, napi_callback_info cb) {
 	ARGS(1);
 	CHECK(napi_create_reference(env, argv[0], 1, &wake_fn));
@@ -369,7 +372,7 @@ NAPI_MODULE_INIT() {
 	napi_property_descriptor d[] = {
 		F(is_closed), F(demand_start), F(largest), F(info), F(priority), F(demand), F(from_micros),
 		F(append_group), F(write_frame), F(finish), F(create_track), F(broadcast), F(consume),
-		F(payload), F(bytes_free), F(read_frame), F(read_frame_poll), F(recv_group), F(recv_group_poll),
+		F(payload), F(byte_at), F(buf_copy), F(buf_free), F(set_scratch), F(read_frame), F(read_frame_poll), F(recv_group), F(recv_group_poll),
 		F(subscribe), F(subscribe_poll), F(broadcast_free), F(track_free), F(consumer_free),
 		F(subscriber_free), F(info_free), F(demand_free), F(group_free), F(finished_free), F(reader_free),
 		F(frame_free), F(set_wake),

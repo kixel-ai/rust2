@@ -3,7 +3,7 @@
 // slots go through nf.c's scratch, viewed as typed arrays, as the web binding's stack in
 // linear memory; a handle is its address, a bigint, as node:ffi gives every pointer.
 
-import { Lent, OK, Owned, pend, wake, type Handle, type Result, type Route } from "./route.ts";
+import { OK, Owned, RustBytes, pend, wake, type Handle, type Lender, type Result, type Route } from "./route.ts";
 
 type Ffi = {
 	DynamicLibrary: new (path: string) => {
@@ -58,8 +58,10 @@ export function load(dir: string): Route {
 		nf_track_Producer_largest: { arguments: [P, P, P], return: "bool" },
 		nf_track_Producer_append_group: { arguments: [P, P, P, P, P], return: "bool" },
 		nf_group_Producer_write_frame: { arguments: [P, P, P, P, P], return: "bool" },
-		nf_frame_Frame_payload_get: { arguments: [P, P, P] },
-		nf_buf_free: { arguments: [P] },
+		nf_frame_Frame_payload_get: { arguments: [P, P, P, P], return: "uint64" },
+		nf_byte_at: { arguments: [P, "uint32"], return: "uint8" },
+		nf_buf_copy: { arguments: [P, "buffer", "uint64"] },
+		nf_buf_free: { arguments: [P, "uint64", P] },
 		nf_group_Consumer_read_frame_poll: { arguments: [P, P, P, P], return: "int32" },
 		nf_track_Subscriber_recv_group_poll: { arguments: [P, P, P, P], return: "int32" },
 		nf_track_Consumer_subscribe_poll: { arguments: [P, P, P, P], return: "int32" },
@@ -72,10 +74,10 @@ export function load(dir: string): Route {
 	const buf = ffi.toArrayBuffer(base, 1 << 16, false);
 	const view = new DataView(buf);
 	const u8 = new Uint8Array(buf);
-	const STATUS = 0, OUT = 8, ERR = 16, FUTURE = 24, AT = 32, ARG = 48, BUF = 80, WAKER = 112, OPTION = 144, OVERFLOW = 176, NAME = 1024;
+	const STATUS = 0, OUT = 8, ERR = 16, FUTURE = 24, AT = 32, ARG = 48, BUF = 80, WAKER = 112, OPTION = 144, OVERFLOW = 176, COPY = 192, NAME = 1024;
 	const status = base + BigInt(STATUS), out = base + BigInt(OUT), err = base + BigInt(ERR), future = base + BigInt(FUTURE);
 	const at_ = base + BigInt(AT), arg = base + BigInt(ARG), bufp = base + BigInt(BUF), waker = base + BigInt(WAKER);
-	const option = base + BigInt(OPTION), overflow = base + BigInt(OVERFLOW), name_ = base + BigInt(NAME);
+	const option = base + BigInt(OPTION), overflow = base + BigInt(OVERFLOW), copy_ = base + BigInt(COPY), name_ = base + BigInt(NAME);
 
 	view.setBigUint64(WAKER, moq.registerCallback({ arguments: [P] }, (data: bigint) => wake(Number(data))), true);
 	view.setBigUint64(WAKER + 8, moq.registerCallback({ arguments: [P] }, () => {}), true);
@@ -112,6 +114,11 @@ export function load(dir: string): Route {
 	const reader = (r: bigint) => own(r, c.moq_group_Consumer_free!, "GroupConsumer");
 	const subscriber = (s: bigint) => own(s, c.moq_track_Subscriber_free!, "TrackSubscriber");
 	const encoder = new TextEncoder();
+	const lender: Lender<bigint> = {
+		at: t.nf_byte_at!,
+		copy: (ptr, into) => t.nf_buf_copy!(ptr, into, into.length),
+		free: t.nf_buf_free!,
+	};
 
 	return {
 		broadcast: () => {
@@ -222,21 +229,11 @@ export function load(dir: string): Route {
 			return future_(ptrAt(FUTURE), t.nf_group_Consumer_read_frame_poll!, c.moq_group_Consumer_read_frame_future_free!, frame);
 		},
 		payload: (h) => {
-			t.nf_frame_Frame_payload_get!(p(h), bufp, status);
+			const len = Number(t.nf_frame_Frame_payload_get!(p(h), bufp, copy_, status));
 			check("moq_frame_Frame_payload_get");
-			const ptr = ptrAt(BUF), len = Number(ptrAt(BUF + 8));
-			if (len <= 64) {
-				const copy = new Uint8Array(ffi.toArrayBuffer(ptr, len, true));
-				t.nf_buf_free!(bufp);
-				return new Lent(copy, undefined);
-			}
-			const owner = ptrAt(BUF + 16);
-			return new Lent(new Uint8Array(ffi.toArrayBuffer(ptr, len, false)), () => {
-				view.setBigUint64(ARG, ptr, true);
-				view.setBigUint64(ARG + 8, BigInt(len), true);
-				view.setBigUint64(ARG + 16, owner, true);
-				t.nf_buf_free!(arg);
-			});
+			return len <= 64
+				? new RustBytes<bigint>(len, u8.slice(COPY, COPY + len), undefined, undefined, undefined)
+				: new RustBytes(len, undefined, ptrAt(BUF), ptrAt(BUF + 16), lender);
 		},
 	};
 }
