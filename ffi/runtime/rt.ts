@@ -779,7 +779,6 @@ export function u128Put(p: number, v: u128): void {
 	for (let i = 0; i < 4; i++) d.setUint32(p + 4 * i, words[i], true);
 }
 
-// #region shared
 // Text and bytes.
 
 const encoder = new TextEncoder();
@@ -792,7 +791,6 @@ export function encoded(text: string): Uint8Array {
 	if (!text.isWellFormed()) throw new RangeError("a string holds a lone surrogate, which no Rust string does");
 	return encoder.encode(text);
 }
-// #endregion shared
 
 /** Write a view of `text`'s UTF-8 on the stack into the buffer at `dst`. */
 export function putStr(dst: number, text: string): void {

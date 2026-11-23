@@ -32,7 +32,7 @@ struct world {
 	post_t post;
 	::std::atomic<bool> alive{true};
 	jsi::Object kit;
-	jsi::Function pending, bytes, uint8, range, type, error, encode;
+	jsi::Function pending, bytes, uint8, range, type, error;
 	jsi::Value none, handle, waker;
 	// Calls into Rust under way on the JavaScript thread.
 	int depth = 0;
@@ -41,7 +41,7 @@ struct world {
 	    : rt(&rt), js(::std::this_thread::get_id()), post(::std::move(post)), kit(::std::move(kit)),
 	      pending(fn(rt, "pending")), bytes(fn(rt, "bytes")), uint8(fn(rt, "Uint8Array")),
 	      range(fn(rt, "RangeError")), type(fn(rt, "TypeError")), error(fn(rt, "Error")),
-	      encode(fn(rt, "encodeFailed")), none(this->kit.getProperty(rt, "None")),
+	      none(this->kit.getProperty(rt, "None")),
 	      handle(this->kit.getProperty(rt, "Handle")), waker(this->kit.getProperty(rt, "Waker")) {}
 
 	jsi::Function fn(jsi::Runtime &rt, const char *name) {
