@@ -151,9 +151,6 @@ ANDROID_COMPILE_SDK = 35
 KOTLIN_API = "2.2"
 # The bytecode the classes hold, which every D8 reads and no consumer's JVM target is below.
 JVM_TARGET = "1.8"
-# Google's mirror of Maven Central, which the Gradle consumers resolve from: repo1.maven.org
-# blocks some runners' IPs for hours, answering 404 or 429 with a retry-after no retry outlasts.
-CENTRAL = 'maven("https://maven-central.storage-download.googleapis.com/maven2/")'
 # What a Maven groupId may be: dotted segments, as Central's namespaces are.
 MAVEN_GROUP = re.compile(r"[A-Za-z0-9_-]+(\.[A-Za-z0-9_-]+)+")
 # The words Java reserves, which no segment of a package name may be.
@@ -3336,7 +3333,7 @@ def consume_android(repo, check, native):
         (app / "settings.gradle.kts").write_text(f"""pluginManagement {{
 	repositories {{
 		google()
-		{CENTRAL}
+		mavenCentral()
 	}}
 }}
 
@@ -3349,7 +3346,7 @@ dependencyResolutionManagement {{
 			filter {{ includeGroup("{group}") }}
 		}}
 		google()
-		{CENTRAL}
+		mavenCentral()
 	}}
 }}
 
@@ -3473,7 +3470,7 @@ def consume_jvm(repo, check, native):
             (source / "check.kt").write_text(f'fun main() {{\n\tClass.forName("{package}._Native")\n}}\n', encoding="utf-8")
         (app / "settings.gradle.kts").write_text(f"""pluginManagement {{
 	repositories {{
-		{CENTRAL}
+		mavenCentral()
 	}}
 }}
 
@@ -3485,7 +3482,7 @@ dependencyResolutionManagement {{
 			forRepository {{ maven({json.dumps(Path(repo).resolve().as_uri())}) }}
 			filter {{ includeGroup("{group}") }}
 		}}
-		{CENTRAL}
+		mavenCentral()
 	}}
 }}
 
