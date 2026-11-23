@@ -353,6 +353,15 @@ inline jsi::Value err(jsi::Runtime &rt, jsi::Value e) {
 	return o;
 }
 
+// An array of `items`, as a tuple crosses.
+template <class... V>
+jsi::Value array(jsi::Runtime &rt, V &&...items) {
+	jsi::Array out(rt, sizeof...(items));
+	::std::size_t i = 0;
+	(out.setValueAtIndex(rt, i++, ::std::forward<V>(items)), ...);
+	return out;
+}
+
 // `v` as an array, or a TypeError.
 inline jsi::Array arr(jsi::Runtime &rt, const jsi::Value &v) {
 	if (!v.isObject() || !v.getObject(rt).isArray(rt)) {

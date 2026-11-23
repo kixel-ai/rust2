@@ -1151,7 +1151,7 @@ impl Gen<'_> {
 				let lifted: Vec<String> = (elements.iter().enumerate())
 					.map(|(n, e)| self.lift(&strip_refs(e), &format!("o_out{n}"), true))
 					.collect();
-				format!("r::array(rt, {{{}}})", lifted.join(", "))
+				format!("r::array(rt, {})", lifted.join(", "))
 			}
 			_ => self.returned(ok, "o_out"),
 		}

@@ -44,6 +44,7 @@ mod go;
 mod help;
 mod ir;
 mod js;
+mod jsi;
 mod kotlin;
 mod leaf;
 mod lock;

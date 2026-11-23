@@ -614,6 +614,11 @@ impl Crate<'_> {
 		let go = crate::go::generate(&rest, &self.packages(), contract, &module)?;
 		let dart = crate::dart::generate(&rest, &self.packages(), contract)?;
 		let web = crate::web::generate(&rest, self.facade, contract)?;
+		let react_native = crate::web::react_native(&rest, self.facade, contract)?;
+		let jsi = match &react_native {
+			Some(_) => Some(crate::jsi::generate(&rest, &self.packages(), crate::web::native_mask(&rest))?),
+			None => None,
+		};
 		let mut names: std::collections::BTreeMap<String, std::collections::BTreeMap<String, String>> = [
 			("C", c),
 			("C++", cpp.names),
@@ -629,6 +634,9 @@ impl Crate<'_> {
 		if let Some(web) = &web {
 			names.insert("TypeScript".to_string(), web.names.clone());
 		}
+		if let Some(react_native) = &react_native {
+			names.insert("React Native".to_string(), react_native.names.clone());
+		}
 		let mut output = Output {
 			names,
 			files: Vec::new(),
@@ -637,6 +645,7 @@ impl Crate<'_> {
 				out.join("go"),
 				out.join("web"),
 				out.join("src").join("web"),
+				out.join("react-native"),
 			],
 		};
 		let mut generator = Gen {
@@ -701,6 +710,15 @@ impl Crate<'_> {
 			output.file(&out.join("src/web/runtime.rs"), crate::web::GLUE_RUNTIME);
 			for (path, text) in &web.files {
 				output.file(&out.join("web").join(path), text);
+			}
+		}
+		if let (Some(react_native), Some(jsi)) = (react_native, jsi) {
+			let dir = out.join("react-native");
+			for (path, text) in &react_native.files {
+				output.file(&dir.join(path), text);
+			}
+			for (path, text) in &jsi {
+				output.file(&dir.join("cpp").join(path), text);
 			}
 		}
 		let swift_dir = out.join("swift");

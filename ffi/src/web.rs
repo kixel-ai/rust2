@@ -38,6 +38,7 @@ use crate::ir::{Access, Closure, Family, Function, Int, Literal, Type};
 use crate::kotlin::strip_refs;
 
 const RUNTIME: &str = include_str!("../runtime/rt.ts");
+const RN_RUNTIME: &str = include_str!("../runtime/rt.rn.ts");
 
 /// The Rust runtime the crate's `web` feature builds.
 pub(crate) const GLUE_RUNTIME: &str = include_str!("../runtime/web.rs");
@@ -198,13 +199,32 @@ pub(crate) fn generate(abi: &Abi<'_>, facade: &Package, contract: u64) -> Result
 /// the JSI module [`crate::jsi`] writes, serving every target but wasm32's; or none if the
 /// API serves no other.
 pub(crate) fn react_native(abi: &Abi<'_>, facade: &Package, contract: u64) -> Result<Option<Output>, String> {
-	let mask = (abi.api.targets.iter().enumerate())
-		.filter(|(_, target)| !target.starts_with("wasm32"))
-		.fold(0u64, |mask, (i, _)| mask | 1 << i);
+	let mask = native_mask(abi);
 	if mask == 0 {
 		return Ok(None);
 	}
 	emit(abi, facade, contract, mask, true).map(Some)
+}
+
+/// The targets React Native's binding serves, one bit each: every one but wasm32's.
+pub(crate) fn native_mask(abi: &Abi<'_>) -> u64 {
+	(abi.api.targets.iter().enumerate())
+		.filter(|(_, target)| !target.starts_with("wasm32"))
+		.fold(0u64, |mask, (i, _)| mask | 1 << i)
+}
+
+/// React Native's runtime: its own, with each region of the web's marked shared in place
+/// of its `// #shared` line.
+fn rn_runtime() -> String {
+	let mut shared = String::new();
+	let mut rest = RUNTIME;
+	while let Some(at) = rest.find("// #region shared\n") {
+		let body = &rest[at + "// #region shared\n".len()..];
+		let end = body.find("// #endregion shared\n").expect("rt.ts closes each shared region");
+		shared.push_str(&body[..end]);
+		rest = &body[end..];
+	}
+	RN_RUNTIME.replacen("// #shared\n", &shared, 1)
 }
 
 /// Each exported type's name, by its C name.
@@ -253,7 +273,7 @@ fn emit(abi: &Abi<'_>, facade: &Package, contract: u64, mask: u64, jsi: bool) ->
 	let space = g.space.clone();
 	let mut files = Vec::new();
 	let runtime = match jsi {
-		true => format!("{}\n{}", RN_RUNTIME, shared_runtime()),
+		true => rn_runtime(),
 		false => RUNTIME.to_string(),
 	};
 	files.push(("rt.ts".to_string(), runtime));
