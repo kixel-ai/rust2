@@ -1278,6 +1278,60 @@ function grown(): void {
 	check(api.dropped() === before && held.at(0) === 4, "lent bytes shared after memory grew");
 	close(held);
 	check(api.dropped() === before + 1, "lent bytes disposed after memory grew free Rust's buffer");
+	// A call reads each value it lowers once, before the memory it writes it to: a getter
+	// that grows memory leaves the write whole, Rust takes as many elements as the length it
+	// was given room for, and what was checked is what Rust reads.
+	const second = Counter.new("second", 7);
+	let lengths = 0;
+	const lengthening = new Proxy([Counter.new("first", 6), second], {
+		get(target, key, receiver) {
+			if (key !== "length") return Reflect.get(target, key, receiver);
+			grow();
+			return ++lengths;
+		},
+	});
+	check(rt.u64ToBig(api.worth(lengthening, [])) === 6n && lengths === 1, "a list's length read once as memory grows");
+	close(second);
+	const corner = {
+		get x() {
+			grow();
+			return 2;
+		},
+		get y() {
+			grow();
+			return 3;
+		},
+	};
+	const [row] = api.rows([corner]);
+	check(row![2].x === 2 && row![2].y === 3, "a record's fields read as memory grows");
+	let reads = 0;
+	const nanos = {
+		secs: 1,
+		get nanos() {
+			grow();
+			return reads++ === 0 ? 5 : 1e10;
+		},
+	};
+	check(api.sameDuration(nanos).nanos === 5 && reads === 1, "a Duration's nanoseconds checked are those written");
+	let tags = 0;
+	const family = {
+		get tag() {
+			grow();
+			return tags++ === 0 ? "V6" : "V4";
+		},
+		_0: { octets: ipv6(1) },
+	} as rt.IpAddr;
+	check(api.sameIpAddr(family).tag === "V6" && tags === 1, "an address's family read once");
+	const socket = {
+		ip: { octets: ipv6(1) },
+		get port() {
+			grow();
+			return 80;
+		},
+		flowinfo: 0,
+		scopeId: 0,
+	};
+	check(api.sameSocketAddrV6(socket).port === 80, "a port read as memory grows");
 	print("grown ok");
 }
 
