@@ -1,9 +1,11 @@
-// The app tests/fixtures.rs runs the api fixture's check in, launched with the case in the
-// intent's `case` extra: each line it prints is logged as `rust2| <line>`, what it writes to
-// stderr as `rust2! <text>`, and its exit as `rust2| exit <code>`.
-import { AppRegistry } from "react-native";
+// The app tests/fixtures.rs runs the api fixture's check in, launched with the case in Android's
+// intent's `case` extra, or the `-case` argument iOS puts in `NSUserDefaults`: each line it
+// prints is logged as `rust2| <line>`, what it writes to stderr as `rust2! <text>`, and its exit
+// as `rust2| exit <code>`.
+import { AppRegistry, Platform, Settings } from "react-native";
 
-function Check({ case: which }) {
+function Check({ case: given }) {
+	const which = Platform.OS === "ios" ? Settings.get("case") : given;
 	// The transcript's `console.log` and api.ts's `print` alike, apart from React Native's own.
 	const log = console.log;
 	console.log = (...args) => log(`rust2| ${args.join(" ")}`);

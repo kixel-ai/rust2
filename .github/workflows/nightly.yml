@@ -452,6 +452,65 @@ jobs:
       - name: Summarize the bench on API 28
         run: cat ffi/target/bench-android/report.md >> "$GITHUB_STEP_SUMMARY"
 
+  # The api fixture's React Native package in a new app, built for release as a store build
+  # is, on an emulator and a simulator: the transcript must be native Rust's on each.
+  ffi-react-native-android:
+    name: React Native on Android
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: ./.github/actions/nix
+
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: API 35
+        uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2.38.0
+        with:
+          api-level: 35
+          arch: x86_64
+          script: nix develop .#android --command just ffi react-native-android
+
+  ffi-react-native-ios:
+    name: React Native on iOS
+    runs-on: macos-latest
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # No Nix, as the C++ job: Xcode's toolchain builds the app. The runner's rustup
+      # installs rust-toolchain.toml's channel, and the simulator's target.
+      - name: Install just
+        uses: taiki-e/install-action@cfdb7ed4ccc7c7dce37759eae89dc5674b469b39 # v2.90.3
+        with:
+          tool: just
+
+      - name: Target
+        working-directory: ffi
+        run: rustup target add aarch64-apple-ios-sim
+
+      - name: Simulator
+        run: |
+          udid=$(xcrun simctl list devices available --json | jq -r '[.devices[][] | select(.name | startswith("iPhone"))][0].udid')
+          xcrun simctl boot "$udid"
+          xcrun simctl bootstatus "$udid"
+
+      - name: Test
+        run: just ffi react-native-ios
+
   ffi-bench:
     name: Bench the bindings
     runs-on: ubuntu-24.04-arm
@@ -542,7 +601,7 @@ jobs:
   # schedule, which runs main, gets the write token: a dispatch can run any branch.
   report:
     name: Report
-    needs: [bindings, gate, ts, bench, ffi-api, ffi, ffi-shapes, ffi-corpus, ffi-web, ffi-sanitize, ffi-cpp, ffi-android, ffi-bench, census]
+    needs: [bindings, gate, ts, bench, ffi-api, ffi, ffi-shapes, ffi-corpus, ffi-web, ffi-sanitize, ffi-cpp, ffi-android, ffi-react-native-android, ffi-react-native-ios, ffi-bench, census]
     if: ${{ !cancelled() && github.event_name == 'schedule' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 5

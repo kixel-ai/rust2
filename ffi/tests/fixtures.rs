@@ -3174,7 +3174,7 @@ fn api_react_native_host() {
 	}
 }
 
-/// The React Native release the Android test's app is made with.
+/// The React Native release the device tests' app is made with.
 const REACT_NATIVE: &str = "0.88.1";
 
 /// The api fixture's React Native package in a new React Native app, built for release, on
@@ -3198,16 +3198,18 @@ fn api_react_native_android() {
 		"x86_64" => "x86_64-linux-android",
 		abi => panic!("the test runs on a 64-bit Android ABI, not {abi}"),
 	};
-	let out = dir.join("out");
-	let _ = std::fs::remove_dir_all(&out);
-	let output = export("api", &out, &[target], &API_CARGO);
-	assert!(
-		output.status.success(),
-		"exporting for {target} failed:\n{}",
-		String::from_utf8_lossy(&output.stderr)
-	);
+	let out = react_native_export(&dir, target);
 	let ndk = |cmd: &mut Command| {
-		cmd.args(["ndk", "--target", &abi, "--platform", "24", "build", "--quiet", "--locked"]);
+		cmd.args([
+			"ndk",
+			"--target",
+			&abi,
+			"--platform",
+			"24",
+			"build",
+			"--quiet",
+			"--locked",
+		]);
 	};
 	let mut glue = cargo();
 	ndk(&mut glue);
@@ -3215,7 +3217,7 @@ fn api_react_native_android() {
 	let mut script = cargo();
 	ndk(&mut script);
 	run(script
-		.args(["--package", "api-fixture", "--example", "transcript", "--features", "doubled", "--target-dir"])
+		.args(TRANSCRIPT)
 		.arg(dir.join("transcript"))
 		.current_dir(manifest_dir()));
 	run(Command::new(&adb).args(["shell", "rm", "-rf", DEVICE, "&&", "mkdir", "-p", DEVICE]));
@@ -3226,48 +3228,22 @@ fn api_react_native_android() {
 	let native = run(Command::new(&adb).args(["shell", &format!("{DEVICE}/transcript")]));
 	let native = String::from_utf8_lossy(&native.stdout).into_owned();
 
-	// The package, its library beside the sources the app's build compiles.
 	let package = out.join("react-native");
 	step::copy(
 		&dir.join("glue").join(target).join("debug").join("libapi.a"),
 		&package.join("libs/android").join(&abi).join("libapi.a"),
 	);
-	let packed = run(Command::new("npm")
-		.args(["pack", "--silent", "--pack-destination"])
-		.arg(&dir)
-		.arg(&package));
-	let tarball = dir.join(String::from_utf8_lossy(&packed.stdout).trim());
-	let app = dir.join("Consumer");
-	if !app.exists() {
-		run(Command::new("npx")
-			.args(["--yes", "@react-native-community/cli@21.0.0", "init", "Consumer", "--version", REACT_NATIVE])
-			.args(["--skip-git-init", "--install-pods", "false", "--package-name", "dev.rust2.consumer"])
-			.current_dir(&dir));
-	}
-	run(Command::new("npm")
-		.args(["install", "--silent", "@babel/plugin-transform-explicit-resource-management@^7"])
-		.arg(&tarball)
-		.current_dir(&app));
-	let files = manifest_dir().join("tests").join("react-native-app");
-	step::copy(&files.join("index.js"), &app.join("index.js"));
-	step::copy(&files.join("babel.config.js"), &app.join("babel.config.js"));
+	let app = react_native_app(&dir, &package);
 	step::copy(
-		&files.join("MainActivity.kt"),
+		&manifest_dir().join("tests/react-native-app/MainActivity.kt"),
 		&app.join("android/app/src/main/java/dev/rust2/consumer/MainActivity.kt"),
 	);
-	let check = app.join("check");
-	let imported = |ts: &str| package_imports(ts, "api-fixture");
-	step::write(
-		&check.join("transcript.ts"),
-		imported(&transcript::typescript::emit(transcript(), transcript::typescript::Binding::ReactNative)),
-	);
-	step::write(&check.join("api.ts"), imported(&react_native_check()));
-	step::write(
-		&check.join("entry.ts"),
-		imported(&std::fs::read_to_string(manifest_dir().join("tests").join("react-native.ts")).unwrap()),
-	);
 	run(Command::new(app.join("android").join("gradlew"))
-		.args(["assembleRelease", "--quiet", &format!("-PreactNativeArchitectures={abi}")])
+		.args([
+			"assembleRelease",
+			"--quiet",
+			&format!("-PreactNativeArchitectures={abi}"),
+		])
 		.current_dir(app.join("android")));
 	run(Command::new(&adb)
 		.args(["install", "-r", "--no-streaming"])
@@ -3275,11 +3251,20 @@ fn api_react_native_android() {
 
 	// Each case in an app of its own, read from the log as it arrives, bounded by the
 	// device-side timeout.
-	let case = |case: Option<&str>| -> Ran {
+	react_native_cases(&native, &abi, |case| {
 		run(Command::new(&adb).args(["shell", "am", "force-stop", "dev.rust2.consumer"]));
 		run(Command::new(&adb).args(["logcat", "-c"]));
-		let mut reader = Command::new(&adb)
-			.args(["shell", "timeout", "300", "logcat", "-s", "ReactNativeJS:V", "-v", "raw"])
+		let reader = Command::new(&adb)
+			.args([
+				"shell",
+				"timeout",
+				"300",
+				"logcat",
+				"-s",
+				"ReactNativeJS:V",
+				"-v",
+				"raw",
+			])
 			.stdout(std::process::Stdio::piped())
 			.spawn()
 			.unwrap();
@@ -3289,33 +3274,243 @@ fn api_react_native_android() {
 			start.args(["--es", "case", &format!("'{case}'")]);
 		}
 		run(&mut start);
-		let (mut stdout, mut stderr, mut code) = (String::new(), String::new(), None);
-		for line in std::io::BufRead::lines(std::io::BufReader::new(reader.stdout.take().unwrap())) {
-			let line = line.unwrap();
-			if let Some(exit) = line.strip_prefix("rust2| exit ") {
-				code = exit.trim().parse::<i32>().ok();
-				break;
-			} else if let Some(text) = line.strip_prefix("rust2| ") {
-				stdout.push_str(text);
-				stdout.push('\n');
-			} else if let Some(text) = line.strip_prefix("rust2! ") {
-				stderr.push_str(text);
-				stderr.push('\n');
-			}
-		}
-		let _ = reader.kill();
-		Ran {
-			ok: code == Some(0),
-			stdout,
-			stderr,
-		}
+		react_native_log(reader)
+	});
+}
+
+/// `api_react_native_android`'s check on the iOS simulator booted, of the host's
+/// architecture: the package's XCFramework holds the library built for it, which CocoaPods
+/// vendors, and its podspec's `+load` registers the TurboModule.
+#[test]
+#[ignore = "needs macOS, Xcode, CocoaPods, a booted iOS simulator, Node, and the network: just ffi react-native-ios"]
+fn api_react_native_ios() {
+	let (target, arch) = match std::env::consts::ARCH {
+		"aarch64" => ("aarch64-apple-ios-sim", "arm64"),
+		"x86_64" => ("x86_64-apple-ios", "x86_64"),
+		arch => panic!("no iOS simulator runs on {arch}"),
 	};
-	let transcript = case(None);
+	let dir = scratch().join("api").join("react-native-ios");
+	let out = react_native_export(&dir, target);
+	run(cargo()
+		.args(["build", "--quiet", "--locked", "--target", target, "--target-dir"])
+		.arg(dir.join("glue"))
+		.current_dir(&out));
+	run(cargo()
+		.args(["build", "--target", target])
+		.args(TRANSCRIPT)
+		.arg(dir.join("transcript"))
+		.current_dir(manifest_dir()));
+	let simctl = || {
+		let mut cmd = Command::new("xcrun");
+		cmd.arg("simctl");
+		cmd
+	};
+	let native = run(simctl()
+		.args(["spawn", "booted"])
+		.arg(dir.join("transcript").join(target).join("debug/examples/transcript")));
+	let native = String::from_utf8_lossy(&native.stdout).into_owned();
+
+	let package = out.join("react-native");
+	let framework = package.join("libs/ios/api.xcframework");
+	let _ = std::fs::remove_dir_all(&framework);
+	run(Command::new("xcodebuild")
+		.args(["-create-xcframework", "-library"])
+		.arg(dir.join("glue").join(target).join("debug").join("libapi.a"))
+		.arg("-output")
+		.arg(&framework));
+	let app = react_native_app(&dir, &package);
+	let ios = app.join("ios");
+	run(Command::new("pod").args(["install", "--silent"]).current_dir(&ios));
+	let built = dir.join("xcode");
+	run(Command::new("xcodebuild")
+		.args([
+			"-workspace",
+			"Consumer.xcworkspace",
+			"-scheme",
+			"Consumer",
+			"-configuration",
+			"Release",
+		])
+		.args([
+			"-sdk",
+			"iphonesimulator",
+			"-quiet",
+			&format!("ARCHS={arch}"),
+			"-derivedDataPath",
+		])
+		.arg(&built)
+		.arg("build")
+		.current_dir(&ios));
+	run(simctl()
+		.args(["install", "booted"])
+		.arg(built.join("Build/Products/Release-iphonesimulator/Consumer.app")));
+
+	// The case as a launch argument, which iOS puts in the app's `NSUserDefaults` for
+	// `index.js` to read; the log streamed from before the launch, ended by Perl's alarm.
+	react_native_cases(&native, target, |case| {
+		let mut reader = Command::new("perl")
+			.args([
+				"-e",
+				"alarm shift; exec @ARGV",
+				"300",
+				"xcrun",
+				"simctl",
+				"spawn",
+				"booted",
+				"log",
+				"stream",
+			])
+			.args(["--level", "info", "--style", "compact", "--predicate"])
+			.arg("subsystem == \"com.facebook.react.log\" AND category == \"javascript\"")
+			.stdout(std::process::Stdio::piped())
+			.spawn()
+			.unwrap();
+		let mut lines = std::io::BufRead::lines(std::io::BufReader::new(reader.stdout.take().unwrap()));
+		// Its header, printed once the stream reads the log.
+		while !lines
+			.next()
+			.expect("the log stream starts")
+			.unwrap()
+			.starts_with("Timestamp")
+		{}
+		let mut launch = simctl();
+		launch.args(["launch", "--terminate-running-process", "booted", "dev.rust2.consumer"]);
+		if let Some(case) = case {
+			launch.args(["-case", case]);
+		}
+		run(&mut launch);
+		let ran = react_native_lines(lines);
+		let _ = reader.kill();
+		let _ = reader.wait();
+		ran
+	});
+}
+
+/// What builds the api fixture's transcript example, up to its target dir.
+const TRANSCRIPT: [&str; 7] = [
+	"--package",
+	"api-fixture",
+	"--example",
+	"transcript",
+	"--features",
+	"doubled",
+	"--target-dir",
+];
+
+/// The api fixture exported for `target` to `dir/out`.
+fn react_native_export(dir: &Path, target: &str) -> PathBuf {
+	let out = dir.join("out");
+	let _ = std::fs::remove_dir_all(&out);
+	let output = export("api", &out, &[target], &API_CARGO);
+	assert!(
+		output.status.success(),
+		"exporting for {target} failed:\n{}",
+		String::from_utf8_lossy(&output.stderr)
+	);
+	out
+}
+
+/// A new React Native app in `dir`, depending on the packed `package`, which runs
+/// `tests/react-native.ts` and its checks over the package.
+fn react_native_app(dir: &Path, package: &Path) -> PathBuf {
+	let packed = run(Command::new("npm")
+		.args(["pack", "--silent", "--pack-destination"])
+		.arg(dir)
+		.arg(package));
+	let tarball = dir.join(String::from_utf8_lossy(&packed.stdout).trim());
+	let app = dir.join("Consumer");
+	if !app.exists() {
+		run(Command::new("npx")
+			.args([
+				"--yes",
+				"@react-native-community/cli@21.0.0",
+				"init",
+				"Consumer",
+				"--version",
+				REACT_NATIVE,
+			])
+			.args([
+				"--skip-git-init",
+				"--install-pods",
+				"false",
+				"--package-name",
+				"dev.rust2.consumer",
+			])
+			.current_dir(dir));
+	}
+	run(Command::new("npm")
+		.args([
+			"install",
+			"--silent",
+			"@babel/plugin-transform-explicit-resource-management@^7",
+		])
+		.arg(&tarball)
+		.current_dir(&app));
+	let files = manifest_dir().join("tests").join("react-native-app");
+	step::copy(&files.join("index.js"), &app.join("index.js"));
+	step::copy(&files.join("babel.config.js"), &app.join("babel.config.js"));
+	let check = app.join("check");
+	let imported = |ts: &str| package_imports(ts, "api-fixture");
+	step::write(
+		&check.join("transcript.ts"),
+		imported(&transcript::typescript::emit(
+			transcript(),
+			transcript::typescript::Binding::ReactNative,
+		)),
+	);
+	step::write(&check.join("api.ts"), imported(&react_native_check()));
+	step::write(
+		&check.join("entry.ts"),
+		imported(&std::fs::read_to_string(manifest_dir().join("tests").join("react-native.ts")).unwrap()),
+	);
+	app
+}
+
+/// The app's transcript, launched by `launch`, must be native Rust's on `on`, and each case
+/// must pass.
+fn react_native_cases(native: &str, on: &str, mut launch: impl FnMut(Option<&str>) -> Ran) {
+	let transcript = launch(None);
 	assert!(transcript.ok, "the app's transcript failed:\n{}", transcript.stderr);
-	assert_eq!(transcript.stdout, native, "the app's transcript differs from native Rust's on {abi}");
+	assert_eq!(
+		transcript.stdout, native,
+		"the app's transcript differs from native Rust's on {on}"
+	);
 	for name in REACT_NATIVE_CASES {
-		let ran = case(Some(name));
+		let ran = launch(Some(name));
 		assert!(ran.ok, "the app's {name} failed:\n{}{}", ran.stdout, ran.stderr);
+	}
+}
+
+/// What the app logged through `reader`'s output, to its exit.
+fn react_native_log(mut reader: std::process::Child) -> Ran {
+	let lines = std::io::BufRead::lines(std::io::BufReader::new(reader.stdout.take().unwrap()));
+	let ran = react_native_lines(lines);
+	let _ = reader.kill();
+	let _ = reader.wait();
+	ran
+}
+
+/// The app's run, of the log lines `index.js` marks, to the one that says it exited.
+fn react_native_lines(lines: impl Iterator<Item = std::io::Result<String>>) -> Ran {
+	let (mut stdout, mut stderr, mut code) = (String::new(), String::new(), None);
+	for line in lines {
+		let line = line.unwrap();
+		let marked = |mark: &str| line.find(mark).map(|at| &line[at + mark.len()..]);
+		if let Some(exit) = marked("rust2| exit ") {
+			code = exit.trim().parse::<i32>().ok();
+			break;
+		} else if let Some(text) = marked("rust2| ") {
+			stdout.push_str(text);
+			stdout.push('\n');
+		} else if let Some(text) = marked("rust2! ") {
+			stderr.push_str(text);
+			stderr.push('\n');
+		}
+	}
+	Ran {
+		ok: code == Some(0),
+		stdout,
+		stderr,
 	}
 }
 

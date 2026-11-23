@@ -65,7 +65,8 @@ Swift, over the C header as a clang module, `go/` holds it in Go, a package per 
 over the C ABI through cgo, and `dart/` holds it as a Dart package, `lib/<prefix>.dart` over
 the C ABI through `dart:ffi` and what the crate builds with `--features dart`. When `wasm32-wasip1` is among
 the targets, `web/` holds it in TypeScript for the web, ES modules over the `.wasm` the
-crate builds with `--target wasm32-wasip1 --features web`.
+crate builds with `--target wasm32-wasip1 --features web`. When any other target is,
+`react-native/` holds it for React Native, the web's TypeScript over a JSI module in C++.
 An export again rewrites only the files whose content changed, and removes from
 `include/<prefix>/`, `go/`, and `web/` only what it no longer writes, so a build of an unchanged
 export stays fresh. The crate's version, `0.0.0+<hash>`, hashes its Rust sources and
@@ -1816,6 +1817,41 @@ packs the api fixture's with npm, installs it into a project of its own, type-ch
 - **Threads**: none. wasm32 runs Rust on JavaScript's one thread, with no shared memory and
   no atomics, so no check of a value that is not `Send` or `Sync` can fail.
 
+## React Native
+
+`react-native/` is an npm package of the web's TypeScript API over a JSI module, so one
+application's code calls either: each function forwards to a host function of
+`cpp/<prefix>_jsi.cpp`, which converts JavaScript's values to the C header's, calls the C
+function, and converts what it returns, with the web binding's checks and errors, and no
+bridge serialization. It serves every target but wasm32's, whose Hermes runs no
+WebAssembly ([facebook/hermes#429](https://github.com/facebook/hermes/issues/429)). The
+module calls the C ABI rather than the C++ header, since JSI's conversions already do what
+the header's wrappers would, and it needs only `jsi.h`.
+
+- **The package** is a pure C++ TurboModule, `Rust2<Prefix>`, of the codegen spec in
+  `specs/`, which `package.json`'s `codegenConfig` names: Android's autolinking builds it
+  from `android/CMakeLists.txt`, which `react-native.config.cjs` names, with
+  `libs/android/<abi>/lib<prefix>.a`, and iOS's CocoaPods from `Rust2<Prefix>.podspec`,
+  with `libs/ios/<prefix>.xcframework`, whose `+load` registers the module. The app builds
+  the Rust library into `libs/` for each ABI it ships. `load()` installs the module
+  through `TurboModuleRegistry`, or from `globalThis.__rust2_<prefix>` where a host
+  without React Native installed it, then checks the contract and target as the web's
+  does.
+- **Values** are the web's, but for `usize` and `isize`, which are `rt.u64` and `rt.i64`,
+  since one package serves 64-bit targets as well as 32-bit ones, where a value past 32 bits
+  fails as it crosses in. An `rt.Bytes` past 64 bytes is an `ArrayBuffer` over Rust's own
+  buffer, which disposing or the collector frees, and passed back crosses in place, as the
+  web's does; text crosses through the module, as Hermes has no `TextDecoder`.
+- **Threads**: JavaScript runs on React Native's JS thread alone, while Rust calls a trait,
+  closure, waker, or reader from any. Such a call from another thread posts to the
+  TurboModule's `CallInvoker` and waits; a call into Rust on the JS thread frees the
+  runtime meanwhile, so a callback Rust makes from another thread while that call blocks
+  runs there at once, rather than deadlocking. A wake polls on a posted job, never inside
+  the wake, and a drop the collector makes while JavaScript runs is posted too.
+- **Bundling**: React Native's Babel preset compiles modules sloppy and lacks `using`;
+  the binding needs neither, but a caller's `using` needs
+  `@babel/plugin-transform-explicit-resource-management` in its `babel.config.js`.
+
 ## Tests
 
 ```bash
@@ -1832,6 +1868,9 @@ just ffi corpus-update  # take corpus/crates.txt afresh from crates.io's top cra
 just ffi protocol # run longer protocol scripts from more seeds through the C ABI and every binding, as the nightly does
 nix develop .#bench --command just ffi browsers  # api's TypeScript in headless Chromium, Firefox, and on Linux WebKit, lowering `using` three ways for WebKit, as the nightly runs it
 nix develop .#android --command just ffi android  # the Kotlin test, shrunk by R8, under CheckJNI on the Android device adb reaches
+RUST2_HERMES=<dir> just ffi react-native-host  # api's script and cases through the React Native binding on Hermes off a device, against a Hermes checkout built in <dir>/build
+nix develop .#android --command just ffi react-native-android  # the same through the React Native package in a new app, built for release, on the 64-bit Android device adb reaches
+just ffi react-native-ios  # the same on the booted iOS simulator, on macOS with Xcode and CocoaPods
 nix develop .#android --command just ffi bench-android  # the benchmark's Kotlin rows on HotSpot and, shrunk by R8, on ART on the Android device adb reaches
 nix develop .#bench --command just ffi bench  # the binding benchmark: bench/ffi/README.md's cases from Rust, and through the export from C, C++, Kotlin, Python, Swift, Go, and Dart
 nix develop .#bench --command just ffi codspeed  # after bench-build, each single-threaded case once under CodSpeed's CPU simulation, as the CodSpeed workflow runs it
@@ -1876,6 +1915,13 @@ failed check and a panic reach logcat and bionic's abort message, which the tomb
 Nightly runs it on an x86_64 emulator at API 24, the oldest moq's Android library supports, at
 API 35, and at API 35 on an image whose kernel pages by 16 KB, and on a 32-bit x86 one at API
 24, as moq's armv7 build is 32-bit.
+`tests/react-native.ts` runs `tests/api.ts`'s script and its cases through the React Native
+binding on Hermes: `just ffi react-native-host` in `tests/rn_host.cpp`, an event loop of its
+own installing the module as a host does, where the transcript must be native Rust's and
+each contract it breaks must abort with its message; and nightly, in a new React Native
+app depending on the package as `npm pack` makes it, built for release, on an x86_64
+emulator at API 35 and on an iOS simulator, where the transcript must be native Rust's on
+that device. Nothing in the merge gate runs it, since nixpkgs packages no Hermes.
 `tests/api.py` runs the script through the Python, in CPython's development mode with
 warnings as errors, checks its futures the same way, what frees an object or bytes nobody
 closed, and the values Python's types bound, and breaks each runtime check, which must raise or
