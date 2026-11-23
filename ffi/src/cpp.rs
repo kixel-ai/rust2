@@ -436,11 +436,11 @@ impl<'a> Header<'a> {
 	}
 
 	/// The status a record's or enum's trait function takes, if a handle in it is checked:
-	/// null, so a failed check aborts, as each other call of C++'s does.
-	fn value_status(&self, ty: &Type) -> &'static str {
+	/// the runtime's, as each other call of C++'s passes.
+	fn value_status(&self, ty: &Type) -> String {
 		match self.abi.value_status(ty) {
-			true => ", nullptr",
-			false => "",
+			true => format!(", {}::status()", self.d()),
+			false => String::new(),
 		}
 	}
 
@@ -1099,8 +1099,8 @@ impl<'a> Header<'a> {
 		let d = self.d();
 		// A failed check of a trait's borrow aborts with its message, as C++ throws nothing.
 		let status = match abi.traits_status(i) {
-			true => ", nullptr",
-			false => "",
+			true => format!(", {d}::status()"),
+			false => String::new(),
 		};
 		// Copies share a handle only where no call tells that apart from a clone, but by an
 		// `Arc`'s or `Rc`'s count, which counts one for every copy.
@@ -1181,7 +1181,7 @@ impl<'a> Header<'a> {
 				"namespace std {{\ntemplate <>\nstruct hash<{q}> {{\n\tsize_t operator()(const {q} &value) const noexcept {{\n\t\treturn static_cast<size_t>(value.{hash}());\n\t}}\n}};\n}} // namespace std\n\n"
 			));
 		}
-		self.traits(&object.shown, &c, t, Ok(status), &mut body, &mut members);
+		self.traits(&object.shown, &c, t, Ok(&status), &mut body, &mut members);
 		let owner = Ty::Handle {
 			name: c.clone(),
 			constant: false,
@@ -1225,7 +1225,7 @@ impl<'a> Header<'a> {
 		let ns = self.ns.clone();
 		let d = self.d();
 		let (value, status) = match of {
-			Ok(status) => (None, status),
+			Ok(status) => (None, status.to_string()),
 			Err(ty) => (Some(ty), self.value_status(ty)),
 		};
 		let object = value.is_none();
@@ -1959,7 +1959,7 @@ impl<'a> Header<'a> {
 		}
 		// A failed check aborts with its message, as C++ throws nothing.
 		if export.call.status().is_some() {
-			args.push("nullptr".to_string());
+			args.push(format!("{d}::status()"));
 		}
 		let call = format!("::{}({})", export.call.name, args.join(", "));
 		let mut body = prelude;
@@ -2196,7 +2196,7 @@ impl<'a> Header<'a> {
 		// A poll on another thread than a future's that is not `Send` aborts, as C++ throws
 		// nothing.
 		if poll.status().is_some() {
-			args.push("nullptr".to_string());
+			args.push(format!("{}::status()", self.d()));
 		}
 		let upper = abi.prefix.to_uppercase();
 		let mut cases = vec![format!("\t\tcase {upper}_POLL_READY:\n\t\t\t{ok}\n\t\t\tbreak;")];
