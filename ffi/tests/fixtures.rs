@@ -5011,6 +5011,8 @@ fn go(module: &Path, args: &[&str]) -> Command {
 fn reexport() {
 	let package = package("reexport", &[]);
 	let out = package.join("out");
+	// Without an earlier run's, such as the library it planted in libs/, which no export removes.
+	let _ = std::fs::remove_dir_all(&out);
 	let export = || {
 		run(Command::new(env!("CARGO_BIN_EXE_rust2-ffi"))
 			.arg("--manifest-path")
