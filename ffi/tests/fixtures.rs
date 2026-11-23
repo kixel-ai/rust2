@@ -3348,23 +3348,30 @@ fn api_react_native_ios() {
 	// The case as a launch argument, which iOS puts in the app's `NSUserDefaults` for
 	// `index.js` to read; the log streamed from before the launch, ended by Perl's alarm,
 	// through a terminal of `script`'s, as `log stream` buffers what it writes to a pipe.
+	// `script` ends at its input's end, so that input stays open until the case's does.
 	react_native_cases(&native, target, |case| {
 		let mut reader = Command::new("perl")
 			.args(["-e", "alarm shift; exec @ARGV", "300", "script", "-q", "/dev/null"])
 			.args(["xcrun", "simctl", "spawn", "booted", "log", "stream"])
 			.args(["--level", "info", "--style", "compact", "--predicate"])
 			.arg("subsystem == \"com.facebook.react.log\" AND category == \"javascript\"")
+			.stdin(std::process::Stdio::piped())
 			.stdout(std::process::Stdio::piped())
 			.spawn()
 			.unwrap();
+		let input = reader.stdin.take();
 		let mut lines = std::io::BufRead::lines(std::io::BufReader::new(reader.stdout.take().unwrap()));
 		// Its header, printed once the stream reads the log.
-		while !lines
-			.next()
-			.expect("the log stream starts")
-			.unwrap()
-			.starts_with("Timestamp")
-		{}
+		let mut before = String::new();
+		loop {
+			let line = lines.next().map(Result::unwrap);
+			let line = line.unwrap_or_else(|| panic!("the log stream ended before its header:\n{before}"));
+			if line.contains("Timestamp") {
+				break;
+			}
+			before.push_str(&line);
+			before.push('\n');
+		}
 		let mut launch = simctl();
 		launch.args(["launch", "--terminate-running-process", "booted", "dev.rust2.consumer"]);
 		if let Some(case) = case {
@@ -3372,6 +3379,7 @@ fn api_react_native_ios() {
 		}
 		run(&mut launch);
 		let ran = react_native_lines(lines);
+		drop(input);
 		let _ = reader.kill();
 		let _ = reader.wait();
 		ran
@@ -3496,8 +3504,9 @@ fn react_native_lines(lines: impl Iterator<Item = std::io::Result<String>>) -> R
 		} else if let Some(text) = marked("rust2| ") {
 			stdout.push_str(text);
 			stdout.push('\n');
-		} else if let Some(text) = marked("rust2! ") {
-			stderr.push_str(text);
+		} else {
+			// What the app wrote to stderr, then React Native's own lines, for a failure to show.
+			stderr.push_str(marked("rust2! ").unwrap_or(line));
 			stderr.push('\n');
 		}
 	}
