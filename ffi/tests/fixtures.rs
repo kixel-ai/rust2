@@ -3379,12 +3379,31 @@ fn api_react_native_ios() {
 			launch.args(["-case", case]);
 		}
 		run(&mut launch);
-		let ran = react_native_lines(lines);
+		let ran = react_native_lines(lines.map(|line| line.map(|line| octal_unescaped(&line))));
 		drop(input);
 		let _ = reader.kill();
 		let _ = reader.wait();
 		ran
 	});
+}
+
+/// `line` as the app logged it, from `log`'s spelling, which writes each backslash as `\134`,
+/// so that every backslash it shows starts three octal digits.
+fn octal_unescaped(line: &str) -> String {
+	let mut bytes = Vec::with_capacity(line.len());
+	let mut rest = line.as_bytes();
+	while let Some((&b, tail)) = rest.split_first() {
+		if b == b'\\' {
+			let digits = tail.get(..3).and_then(|d| std::str::from_utf8(d).ok());
+			let byte = digits.and_then(|d| u8::from_str_radix(d, 8).ok());
+			bytes.push(byte.unwrap_or_else(|| panic!("log's escape is three octal digits: {line}")));
+			rest = &tail[3..];
+		} else {
+			bytes.push(b);
+			rest = tail;
+		}
+	}
+	String::from_utf8(bytes).expect("the app logs UTF-8")
 }
 
 /// What builds the api fixture's transcript example, up to its target dir.
