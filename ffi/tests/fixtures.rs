@@ -1135,6 +1135,7 @@ fn api_kotlin() {
 		"java\n",
 		"plain Java calls the binding"
 	);
+	bundled_library(api, &[callers.as_path(), classes.as_path(), stdlib.as_path()]);
 	jvm_names_exist(api, &classes);
 
 	let kotlin_returns = run(&mut java(&[&classes], &["returns"]));
@@ -1488,6 +1489,71 @@ fn kotlin_classes(api: &Api) -> PathBuf {
 	}
 	.run(&mut kotlinc(&api.out, &script, &classes));
 	classes
+}
+
+/// The classes on `classpath` load the library a desktop jar bundles, as the release's jar
+/// does, with no library path and a relative temporary directory, leaving no copy behind
+/// where the system lets it go, nor of a copy that fails to load, and refuse a jar bundling
+/// none for this host.
+fn bundled_library(api: &Api, classpath: &[&Path]) {
+	let file = format!("{}api{}", std::env::consts::DLL_PREFIX, std::env::consts::DLL_SUFFIX);
+	let bundled = scratch().join("api").join("bundled");
+	let temp = scratch().join("api").join("bundled-temp");
+	for dir in [&bundled, &temp] {
+		let _ = std::fs::remove_dir_all(dir);
+	}
+	std::fs::create_dir_all(bundled.join("api").join("native").join(host())).unwrap();
+	std::fs::create_dir_all(&temp).unwrap();
+	std::fs::copy(
+		api.lib.join(&file),
+		bundled.join("api").join("native").join(host()).join(&file),
+	)
+	.unwrap();
+	let caller = |index: String| {
+		std::fs::write(bundled.join("api").join("api.natives"), index).unwrap();
+		// A relative temporary directory, which the loader must make absolute for System.load.
+		Command::new("java")
+			.current_dir(scratch().join("api"))
+			.arg("-Djava.io.tmpdir=bundled-temp")
+			.arg("-cp")
+			.arg(std::env::join_paths([bundled.as_path()].iter().chain(classpath)).unwrap())
+			.arg("Caller")
+			.output()
+			.expect("java runs")
+	};
+	let loaded = caller(format!("aarch64-apple-darwin lib.dylib\n{} {file}\n", host()));
+	assert!(
+		loaded.status.success() && loaded.stdout == b"java\n",
+		"the bundled library loads: {}",
+		String::from_utf8_lossy(&loaded.stderr)
+	);
+	// Windows keeps a loaded library's file: its directory stays, marked for a later load to sweep.
+	let left: Vec<_> = std::fs::read_dir(&temp).unwrap().map(|e| e.unwrap().path()).collect();
+	match cfg!(windows) {
+		true => assert!(
+			left.len() == 1 && left[0].join("stale").is_file(),
+			"one stale copy: {left:?}"
+		),
+		false => assert!(left.is_empty(), "the loaded copy is gone: {left:?}"),
+	}
+	std::fs::write(
+		bundled.join("api").join("native").join(host()).join("broken"),
+		b"not a library",
+	)
+	.unwrap();
+	let broken = caller(format!("{} broken\n", host()));
+	let after: Vec<_> = std::fs::read_dir(&temp).unwrap().map(|e| e.unwrap().path()).collect();
+	assert!(
+		!broken.status.success() && after == left,
+		"a copy that fails to load is gone: {after:?}, {}",
+		String::from_utf8_lossy(&broken.stderr)
+	);
+	let refused = caller(format!("riscv64gc-unknown-linux-gnu {file}\n"));
+	let stderr = String::from_utf8_lossy(&refused.stderr);
+	assert!(
+		!refused.status.success() && stderr.contains(&format!("not this host's {}", host())),
+		"a jar without this host's library refuses it: {stderr}"
+	);
 }
 
 /// Each JVM name the api fixture's lock records is a public method of its class, as javap

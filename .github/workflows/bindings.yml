@@ -65,11 +65,11 @@ on:
         default: ''
         type: string
       maven-group:
-        description: The Maven groupId the Android library is published under, a namespace the publisher holds on Maven Central; without it, no AAR is packaged or checked, though the Android leg still builds the Go module's Android archives
+        description: The Maven groupId the Kotlin binding, a jar for desktop JVMs and an AAR for Android, is published under, a namespace the publisher holds on Maven Central; without it, neither is built or checked, though the Android leg still builds the Go module's Android archives
         default: ''
         type: string
       kotlin-check:
-        description: A Kotlin program, importing the binding's package, run by a Gradle app on the Android library, or a directory holding it as check.kt beside the Kotlin sources it uses
+        description: A Kotlin program, importing the binding's package, run by Gradle apps on the jar and the Android library, or a directory holding it as check.kt beside the Kotlin sources it uses
         default: ''
         type: string
       dart-check:
@@ -94,7 +94,7 @@ on:
         description: Whether the build made the web package, <name>-web
         value: ${{ inputs.web-manifest-path != '' }}
       maven:
-        description: Whether the build made the Android library, the Maven repository under maven/ in <name>-build-android
+        description: Whether the build made the Kotlin binding's Maven repository, <name>-maven
         value: ${{ inputs.maven-group != '' }}
 
 permissions:
@@ -301,7 +301,7 @@ jobs:
           - host: windows
             os: windows-latest
             targets: x86_64-pc-windows-msvc x86_64-pc-windows-gnu
-          # The AAR's and the Dart package's libraries, the AAR's classes, and the Maven repository.
+          # The AAR's and the Dart package's libraries.
           - host: android
             os: ubuntu-24.04
             targets: aarch64-linux-android armv7-linux-androideabi x86_64-linux-android
@@ -342,37 +342,12 @@ jobs:
             macOS) python -m pip install delocate==0.13.0 ;;
             Windows) python -m pip install delvewheel==1.13.2 ;;
           esac
-      # The NDK the libraries build with, and what compiles the AAR's classes: the SDK's
-      # android.jar, kotlinc, and kotlinx-coroutines, each pinned.
-      - name: Android tools
+      # The NDK the libraries build with.
+      - name: Android NDK
         if: matrix.host == 'android'
-        env:
-          KOTLIN: 2.4.21
-          KOTLIN_SHA256: 7cc140e76daf416a0424a5557f99afd7ca89ebd463ea1101261e3e01c33e75cd
-          # kotlin-compiler-$KOTLIN.zip's id: gh api repos/JetBrains/kotlin/releases/tags/v$KOTLIN
-          KOTLIN_ASSET: 621287401
-          # Anonymous release downloads share the runner's IP's limit and answer 429 under load;
-          # the API serves the same asset against the token's own limit.
-          GH_TOKEN: ${{ github.token }}
-          COROUTINES: 1.10.2
-          COROUTINES_SHA256: 5ca175b38df331fd64155b35cd8cae1251fa9ee369709b36d42e0a288ccce3fd
         run: |
-          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "ndk;$NDK" "platforms;android-35" > /dev/null
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "ndk;$NDK" > /dev/null
           echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/$NDK" >> "$GITHUB_ENV"
-          cd "$RUNNER_TEMP"
-          # The checksums below make any retry safe. curl drops the token on the redirect off
-          # api.github.com, and names the host that answered, since a redirect may be what fails.
-          get() { curl -sSfL --retry 5 --retry-all-errors -w '%{stderr}%{http_code} %{url_effective}\n' -o "$@"; }
-          get kotlin.zip -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/octet-stream" \
-            "https://api.github.com/repos/JetBrains/kotlin/releases/assets/$KOTLIN_ASSET"
-          jar="kotlinx-coroutines-core-jvm-$COROUTINES.jar"
-          # Google's mirror of Maven Central: repo1.maven.org blocks some runners' IPs for hours,
-          # answering 404 or 429 with a retry-after no retry outlasts.
-          get "$jar" "https://maven-central.storage-download.googleapis.com/maven2/org/jetbrains/kotlinx/kotlinx-coroutines-core-jvm/$COROUTINES/$jar"
-          printf '%s  kotlin.zip\n%s  %s\n' "$KOTLIN_SHA256" "$COROUTINES_SHA256" "$jar" | sha256sum --check --strict
-          unzip -q kotlin.zip
-          echo "$RUNNER_TEMP/kotlinc/bin" >> "$GITHUB_PATH"
-          echo "KOTLINX_COROUTINES=$RUNNER_TEMP/$jar" >> "$GITHUB_ENV"
       - name: Exporter
         working-directory: rust2/ffi
         env:
@@ -407,19 +382,17 @@ jobs:
           TARGETS: ${{ matrix.targets }}
           # Android's example only serves a kotlin-check's comparison in the consumer.
           EXAMPLE: ${{ (matrix.host != 'android' || inputs.maven-group != '' && inputs.kotlin-check != '') && inputs.example || '' }}
+          GROUP: ${{ inputs.maven-group }}
         run: |
           read -ra targets <<< "$TARGETS"
-          python -I rust2/ffi/release/package.py build --manifest-path "source/$MANIFEST" --features "$FEATURES" --export export --out dist --example "$EXAMPLE" "${targets[@]}"
+          # The Kotlin binding's libraries, for the jar and the AAR, only for a Maven release.
+          kotlin=()
+          if [[ -n "$GROUP" ]]; then kotlin=(--kotlin); fi
+          python -I rust2/ffi/release/package.py build --manifest-path "source/$MANIFEST" --features "$FEATURES" --export export --out dist --example "$EXAMPLE" "${kotlin[@]}" "${targets[@]}"
       # One host's: the sources are the same on every host, as `agree` checks their binding.
       - name: Source distribution
         if: matrix.host == 'linux-x64'
         run: python3 -I rust2/ffi/release/package.py sdist --manifest-path "source/$MANIFEST" --export export --out dist
-      # The AAR, its POM, and the files Maven Central requires, laid out as a Maven repository.
-      - name: Maven
-        if: matrix.host == 'android' && inputs.maven-group != ''
-        env:
-          GROUP: ${{ inputs.maven-group }}
-        run: python3 -I rust2/ffi/release/package.py maven --manifest-path "source/$MANIFEST" --export export --libs dist/android --group "$GROUP" --out dist/maven
       # The build again, as anyone with the commit makes it: the same packages byte for byte,
       # from a second checkout and export a level deeper, beside each other as the first are.
       # It doubles the job's time.
@@ -442,13 +415,12 @@ jobs:
           GROUP: ${{ inputs.maven-group }}
         run: |
           read -ra targets <<< "$TARGETS"
+          kotlin=()
+          if [[ -n "$GROUP" ]]; then kotlin=(--kotlin); fi
           python3 -I ../rust2/ffi/release/package.py export --manifest-path "source/$MANIFEST" --features "$FEATURES" --api ../api --go-module "$GO_MODULE" --out export "${targets[@]}"
-          python -I ../rust2/ffi/release/package.py build --manifest-path "source/$MANIFEST" --features "$FEATURES" --export export --out dist "${targets[@]}"
+          python -I ../rust2/ffi/release/package.py build --manifest-path "source/$MANIFEST" --features "$FEATURES" --export export --out dist "${kotlin[@]}" "${targets[@]}"
           if [[ "$HOST" == linux-x64 ]]; then
             python3 -I ../rust2/ffi/release/package.py sdist --manifest-path "source/$MANIFEST" --export export --out dist
-          fi
-          if [[ "$HOST" == android && -n "$GROUP" ]]; then
-            python3 -I ../rust2/ffi/release/package.py maven --manifest-path "source/$MANIFEST" --export export --libs dist/android --group "$GROUP" --out dist/maven
           fi
           python3 -I ../rust2/ffi/release/package.py same ../dist dist
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
@@ -1067,12 +1039,153 @@ jobs:
           if [[ -f dist/native.txt ]]; then args+=(--native dist/native.txt); fi
           python3 -I rust2/ffi/release/package.py consume-go --proxy proxy "${args[@]}"
 
+  # The Kotlin binding as a Maven repository, as Central serves it: the jar, bundling each
+  # desktop target's library, and the AAR, of the same classes compiled once, under one POM,
+  # whose Gradle metadata gives Android the AAR. Built twice when asked, from a second copy
+  # of the export, as a rebuild must make the same bytes.
+  maven:
+    needs: [facts, build, agree]
+    if: inputs.maven-group != ''
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          path: source
+          persist-credentials: false
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ${{ needs.facts.outputs.rust2 }}
+          ref: ${{ needs.facts.outputs.rust2-sha }}
+          path: rust2
+          sparse-checkout: ffi/release
+          persist-credentials: false
+      - uses: taiki-e/install-action@cfdb7ed4ccc7c7dce37759eae89dc5674b469b39 # v2.90.3
+        if: needs.facts.outputs.fixture == 'true'
+        with:
+          tool: just
+      - name: Stand-in
+        if: needs.facts.outputs.fixture == 'true'
+        working-directory: source
+        run: just ffi standin
+      # What compiles the classes: the SDK's android.jar, kotlinc, and kotlinx-coroutines, each pinned.
+      - name: Kotlin tools
+        env:
+          KOTLIN: 2.4.21
+          KOTLIN_SHA256: 7cc140e76daf416a0424a5557f99afd7ca89ebd463ea1101261e3e01c33e75cd
+          # kotlin-compiler-$KOTLIN.zip's id: gh api repos/JetBrains/kotlin/releases/tags/v$KOTLIN
+          KOTLIN_ASSET: 621287401
+          # Anonymous release downloads share the runner's IP's limit and answer 429 under load;
+          # the API serves the same asset against the token's own limit.
+          GH_TOKEN: ${{ github.token }}
+          COROUTINES: 1.10.2
+          COROUTINES_SHA256: 5ca175b38df331fd64155b35cd8cae1251fa9ee369709b36d42e0a288ccce3fd
+        run: |
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "platforms;android-35" > /dev/null
+          cd "$RUNNER_TEMP"
+          # The checksums below make any retry safe. curl drops the token on the redirect off
+          # api.github.com, and names the host that answered, since a redirect may be what fails.
+          get() { curl -sSfL --retry 5 --retry-all-errors -w '%{stderr}%{http_code} %{url_effective}\n' -o "$@"; }
+          get kotlin.zip -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/octet-stream" \
+            "https://api.github.com/repos/JetBrains/kotlin/releases/assets/$KOTLIN_ASSET"
+          jar="kotlinx-coroutines-core-jvm-$COROUTINES.jar"
+          # Google's mirror of Maven Central: repo1.maven.org blocks some runners' IPs for hours,
+          # answering 404 or 429 with a retry-after no retry outlasts.
+          get "$jar" "https://maven-central.storage-download.googleapis.com/maven2/org/jetbrains/kotlinx/kotlinx-coroutines-core-jvm/$COROUTINES/$jar"
+          printf '%s  kotlin.zip\n%s  %s\n' "$KOTLIN_SHA256" "$COROUTINES_SHA256" "$jar" | sha256sum --check --strict
+          unzip -q kotlin.zip
+          echo "$RUNNER_TEMP/kotlinc/bin" >> "$GITHUB_PATH"
+          echo "KOTLINX_COROUTINES=$RUNNER_TEMP/$jar" >> "$GITHUB_ENV"
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: ${{ needs.facts.outputs.name }}-build-*
+          path: builds
+      - name: Repository
+        env:
+          NAME: ${{ needs.facts.outputs.name }}
+          GROUP: ${{ inputs.maven-group }}
+          REPRODUCE: ${{ inputs.reproduce }}
+        run: |
+          mkdir -p libs/jvm
+          cp -R "builds/$NAME-build-android/android" libs/
+          cp -R builds/*/jvm/* libs/jvm/
+          maven() {
+            (cd source && python3 -I ../rust2/ffi/release/package.py maven --manifest-path "$MANIFEST" --export "$1" --libs ../libs --sbom "../builds/$NAME-build-android/kotlin.cdx.json" --group "$GROUP" --out "$2")
+          }
+          maven "../builds/$NAME-build-linux-x64/export" ../dist/maven
+          if [[ "$REPRODUCE" == true ]]; then
+            mkdir -p again/deeper
+            cp -R "builds/$NAME-build-linux-x64/export" again/deeper/
+            maven ../again/deeper/export ../again/dist/maven
+            python3 -I rust2/ffi/release/package.py same dist again/dist
+          fi
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: ${{ needs.facts.outputs.name }}-maven
+          path: dist/maven
+          if-no-files-found: error
+
+  # A new Gradle JVM app whose only library from the release is the jar, which Gradle must
+  # choose over the AAR, resolved from the Maven repository as Central serves it and run on
+  # each desktop target the jar bundles a library for.
+  jvm:
+    needs: [facts, maven]
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - host: linux-x64
+            os: ubuntu-24.04
+          - host: linux-arm64
+            os: ubuntu-24.04-arm
+          - host: apple-darwin
+            os: macos-26
+          - host: windows
+            os: windows-latest
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ${{ needs.facts.outputs.rust2 }}
+          ref: ${{ needs.facts.outputs.rust2-sha }}
+          path: rust2
+          sparse-checkout: ffi/release
+          persist-credentials: false
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: ${{ needs.facts.outputs.name }}-maven
+          path: maven
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: ${{ needs.facts.outputs.name }}-build-${{ matrix.host }}
+          path: dist
+      - uses: actions/setup-java@d1374f8ac74474200d16ef8ecee22c7ae7a51880 # v6.3.0
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: gradle/actions/setup-gradle@8da46b539cd8fe6ab27ca75128919a18d757604c # v6.4.1
+        with:
+          gradle-version: 9.9.2
+          cache-disabled: true
+      - name: Build and run
+        run: |
+          args=(--repo maven)
+          if [[ -d dist/checks/kotlin ]]; then
+            args+=(--check dist/checks/kotlin)
+            if [[ -f dist/native.txt ]]; then args+=(--native dist/native.txt); fi
+          fi
+          python3 -I rust2/ffi/release/package.py consume-jvm "${args[@]}"
+
   # A new Gradle app whose only library from the release is the AAR, resolved from its Maven
   # repository as Central serves it: shrunk by R8 with the AAR's consumer rules, bundled with
   # the line tables Play symbolicates by, and run on an Android emulator, whose x86_64 this
   # runner's KVM runs at speed, at an API level that records how a check's process exited.
   android:
-    needs: [facts, build, agree]
+    needs: [facts, build, maven]
     if: inputs.maven-group != ''
     runs-on: ubuntu-24.04
     timeout-minutes: 45
@@ -1088,6 +1201,10 @@ jobs:
         with:
           name: ${{ needs.facts.outputs.name }}-build-android
           path: dist
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: ${{ needs.facts.outputs.name }}-maven
+          path: maven
       - uses: gradle/actions/setup-gradle@8da46b539cd8fe6ab27ca75128919a18d757604c # v6.4.1
         with:
           gradle-version: 9.9.2
@@ -1104,7 +1221,7 @@ jobs:
           sudo udevadm trigger --name-match=kvm
       - name: Arguments
         run: |
-          args=(--repo dist/maven)
+          args=(--repo maven)
           if [[ -d dist/checks/kotlin ]]; then args+=(--check dist/checks/kotlin); fi
           if [[ -d dist/android-example ]]; then args+=(--native dist/android-example); fi
           echo "ARGS=${args[*]}" >> "$GITHUB_ENV"
