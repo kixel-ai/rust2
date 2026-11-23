@@ -1616,17 +1616,17 @@ enum Shape {
 }
 
 /// Whether `ty` is bytes, which a call returns as an `rt.Bytes`.
-fn lends(ty: &Type) -> bool {
+pub(crate) fn lends(ty: &Type) -> bool {
 	matches!(ty, Type::Slice | Type::Vec | Type::Bytes)
 }
 
 /// Whether a value of `ty` can be `undefined`, so its `Option` keeps `None` apart as `rt.None`.
-fn undefinable(ty: &Type) -> bool {
+pub(crate) fn undefinable(ty: &Type) -> bool {
 	matches!(ty.base(), Type::Unit | Type::Option(_))
 }
 
 /// The typed array holding a block's elements exactly.
-fn typed_array(elem: &Type) -> &'static str {
+pub(crate) fn typed_array(elem: &Type) -> &'static str {
 	match elem {
 		Type::Int(Int::U8) => "Uint8Array",
 		Type::Int(Int::U16) => "Uint16Array",
@@ -1676,7 +1676,7 @@ fn field_name(name: &str) -> String {
 /// The names of a record's fields, each a field's, kept apart as [`abi::named`] keeps them,
 /// by an [`abi::numbered`] step: `foo` and `foo_`, both `foo` in camel case, are `foo` and
 /// `foo2` in either order.
-fn field_names(fields: &[crate::ir::Field]) -> Vec<String> {
+pub(crate) fn field_names(fields: &[crate::ir::Field]) -> Vec<String> {
 	let rust: Vec<&str> = fields.iter().map(|f| f.name.as_str()).collect();
 	let spelled = rust.iter().map(|name| field_name(name)).collect();
 	abi::named(
@@ -1690,7 +1690,7 @@ fn field_names(fields: &[crate::ir::Field]) -> Vec<String> {
 
 /// The names of a data enum variant's fields: a record's, but `tag$` for one named `tag`,
 /// which names the variant.
-fn variant_fields(fields: &[crate::ir::Field]) -> Vec<String> {
+pub(crate) fn variant_fields(fields: &[crate::ir::Field]) -> Vec<String> {
 	let rust: Vec<&str> = fields.iter().map(|f| f.name.as_str()).collect();
 	let spelled = (rust.iter())
 		.map(|name| match field_name(name) {
