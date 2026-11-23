@@ -1056,15 +1056,16 @@ inline void release(remote *r) {
 
 // Run `job` for Rust: on the JavaScript thread, which takes the runtime from the call into
 // Rust it waits in; or from another thread, posted to the JavaScript thread, or run on this
-// one once a call into Rust frees the runtime, whichever comes first.
+// one once a call into Rust frees the runtime, whichever comes first. Nothing, where the
+// runtime is gone before the job runs.
 template <class T>
-T on_js(const ::std::shared_ptr<world> &w, const char *what, ::std::function<T(jsi::Runtime &)> job) {
+::std::optional<T> try_js(const ::std::shared_ptr<world> &w, ::std::function<T(jsi::Runtime &)> &job) {
 	auto take = [&]() -> T {
 		given back{*w};
 		return job(*w->rt);
 	};
 	if (!w->alive.load(::std::memory_order_acquire)) {
-		fail(::std::string(what) + ": called after its JavaScript runtime was gone");
+		return ::std::nullopt;
 	}
 	if (running == w.get()) {
 		// This thread runs this runtime's JavaScript already.
@@ -1101,7 +1102,7 @@ T on_js(const ::std::shared_ptr<world> &w, const char *what, ::std::function<T(j
 	::std::unique_lock<::std::mutex> lock(w->m);
 	w->cv.wait(lock, [&] { return s->done || w->free || !w->alive.load(::std::memory_order_relaxed); });
 	if (!s->done && !w->alive.load(::std::memory_order_relaxed) && !s->taken.exchange(true)) {
-		fail(::std::string(what) + ": its JavaScript runtime was gone before the call ran");
+		return ::std::nullopt;
 	}
 	if (!s->done && !s->taken.exchange(true)) {
 		taken(*w);
@@ -1110,6 +1111,26 @@ T on_js(const ::std::shared_ptr<world> &w, const char *what, ::std::function<T(j
 	}
 	w->cv.wait(lock, [&] { return s->done; });
 	return ::std::move(*s->out);
+}
+
+// `try_js`, which a call needs the result of: a runtime gone aborts.
+template <class T>
+T on_js(const ::std::shared_ptr<world> &w, const char *what, ::std::function<T(jsi::Runtime &)> job) {
+	::std::optional<T> v = try_js<T>(w, job);
+	if (!v.has_value()) {
+		fail(::std::string(what) + ": its JavaScript runtime was gone");
+	}
+	return ::std::move(*v);
+}
+
+// `try_js` for a drop, which leaks what it would release once the runtime is gone, as a
+// drop has nothing to return.
+inline void drop_on_js(const ::std::shared_ptr<world> &w, ::std::function<void(jsi::Runtime &)> job) {
+	::std::function<bool(jsi::Runtime &)> run = [&](jsi::Runtime &rt) {
+		job(rt);
+		return true;
+	};
+	try_js<bool>(w, run);
 }
 
 // What a call into JavaScript `what` does for Rust: what it throws aborts, as Rust has
@@ -1353,15 +1374,11 @@ inline void foreign_free(void *data) {
 		release(p);
 		release(t);
 	};
-	// Unless this thread runs JavaScript now, as a collection's drop does, or it is gone.
-	auto home = p->w;
-	if (running != nullptr || !home->alive.load(::std::memory_order_acquire)) {
-		post(home, cancel);
+	// Unless this thread runs JavaScript now, as a collection's drop does.
+	if (running != nullptr) {
+		post(p->w, cancel);
 	} else {
-		on_js<bool>(home, "a future's drop", [&](jsi::Runtime &rt) {
-			cancel(rt);
-			return true;
-		});
+		drop_on_js(p->w, cancel);
 	}
 }
 
@@ -1476,14 +1493,10 @@ inline void trait_free(void *data) {
 		delete r;
 	};
 	// At the drop, as Rust's own runs, unless this thread runs JavaScript now.
-	if (running != nullptr || !r->w->alive.load(::std::memory_order_acquire)) {
+	if (running != nullptr) {
 		post(r->w, close);
 	} else {
-		auto w = r->w;
-		on_js<bool>(w, "a drop", [&](jsi::Runtime &rt) {
-			close(rt);
-			return true;
-		});
+		drop_on_js(r->w, close);
 	}
 }
 
