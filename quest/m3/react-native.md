@@ -5,7 +5,8 @@
 [rust2-ffi](/ffi/README.md) writes a React Native module for the crate: TypeScript over a
 JSI module in C++ that calls the generated C++ header, so a call from Hermes reaches Rust
 with no bridge serialization, on iOS and Android. The `api` fixture's script runs through
-it on an Android emulator and an iOS simulator, nightly.
+it on an Android emulator and an iOS simulator, nightly only: no merge-gate test runs it,
+since nixpkgs packages no Hermes for a host-side one.
 
 ## Plan
 
@@ -27,10 +28,9 @@ consumer asks ([m3](/quest/m3/README.md#plan)).
 - It follows every generator's rules ([every binding's](/ffi/README.md#every-binding)):
   the contract check at load, bulk payloads, native futures, a `ffi/moq/moq.*` run, and a
   column on [the binding benchmark](/bench/ffi/README.md).
-- Open: every other target runs its `tests/api.*` in the merge gate, and this Goal tests
-  only nightly, on an emulator and a simulator. A host-side test needs Hermes in the
-  flake, which nixpkgs does not package. Recommended: accept nightly only, and say so in
-  the Goal. The maintainer confirms before this starts.
+- Decided with the maintainer on 2026-11-22: ✅ test nightly only, on an emulator and a
+  simulator, and say so in the Goal, since nixpkgs does not package Hermes for a
+  host-side gate test. Rejected: a gate test, which needs Hermes in the flake.
 - The generated API is the one [the gate](/quest/m2/wasm/README.md) settled on
   2026-11-12: a module of functions per type, not classes.
 
