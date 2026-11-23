@@ -3361,12 +3361,13 @@ fn api_react_native_ios() {
 			.unwrap();
 		let input = reader.stdin.take();
 		let mut lines = std::io::BufRead::lines(std::io::BufReader::new(reader.stdout.take().unwrap()));
-		// Its header, printed once the stream reads the log.
+		// The line it prints as it starts reading the log, a second or more before the app's
+		// first: a launch that beat it would fail the transcript, not pass.
 		let mut before = String::new();
 		loop {
 			let line = lines.next().map(Result::unwrap);
-			let line = line.unwrap_or_else(|| panic!("the log stream ended before its header:\n{before}"));
-			if line.contains("Timestamp") {
+			let line = line.unwrap_or_else(|| panic!("the log stream ended before it started:\n{before}"));
+			if line.starts_with("Filtering the log data") {
 				break;
 			}
 			before.push_str(&line);
