@@ -831,8 +831,7 @@ impl Gen<'_> {
 	fn items(&mut self) {
 		let abi = self.abi;
 		let api = abi.api;
-		for i in 0..api.records.len() {
-			let record = &api.records[i];
+		for (i, record) in api.records.iter().enumerate() {
 			if !self.here(record.on) {
 				continue;
 			}
@@ -843,8 +842,7 @@ impl Gen<'_> {
 				self.function(method, Some((&Ty::Struct(c.clone()), &ty)));
 			}
 		}
-		for i in 0..api.enums.len() {
-			let e = &api.enums[i];
+		for (i, e) in api.enums.iter().enumerate() {
 			if !self.here(e.on) {
 				continue;
 			}
@@ -856,8 +854,7 @@ impl Gen<'_> {
 				self.function(method, Some((&owner, &ty)));
 			}
 		}
-		for i in 0..api.objects.len() {
-			let object = &api.objects[i];
+		for (i, object) in api.objects.iter().enumerate() {
 			if !self.here(object.on) {
 				continue;
 			}
