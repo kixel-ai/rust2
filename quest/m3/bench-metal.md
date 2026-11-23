@@ -21,6 +21,13 @@ whichever workflow calls it, so a caller could run its own checkout on the bench
 (rejected: a CI check that fails on the trigger, which the same PR could delete; rejected:
 drop it).
 
+Decided with the maintainer on 2026-11-23 in
+[kixel-ai/rust2#764](https://github.com/kixel-ai/rust2/pull/764#issuecomment-7112509978):
+✅ split setup from measurements (rejected: deferring the setup PR; loosening the
+runner's main-only trust). Land the workflow and variant setup first; keep this
+quest open for a later measurement and report PR from a `bench.yml` dispatch at
+`main`. The runner provisioning wait cleared with dotfiles PR 227.
+
 The variants and runner wiring are implemented. Remaining work runs after the
 workflow lands at `main`, the only ref the runner group admits:
 
@@ -39,12 +46,3 @@ Public API: none.
 ## Hosts
 
 - linux - the `nixos` runner's performance counters
-
-## Waiting
-
-- kixelated/nixos: provision benchmark execution on `nixos` with host-wide exclusion
-  from queue builds. The current queue runners are isolated containers, and the
-  `rust2-queue` runner group admits only `queue-build.yml` at `main`, so changing
-  `bench.yml` alone cannot admit it. Recommend a trusted manual benchmark entry
-  point coordinated with every queue on the host, with perf counters exposed;
-  verify no queue build can start during a benchmark before collecting results.
