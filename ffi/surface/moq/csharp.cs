@@ -2596,7 +2596,7 @@ namespace Moq {
 		public HangCatalogBinary Binary { get; set; }
 		public HangCatalogStats? Stats { get; set; }
 		public HangCatalogEcho? Echo { get; set; }
-		public (Str, HangCatalogInclude)[] Include;
+		public (Str, HangCatalogInclude)[] Include { get; set; }
 		public HangCatalogSkipped Skipped { get; set; }
 		public static Str DEFAULT_NAME { get; }
 		public static TrackInfo DefaultTrackInfo();
@@ -2626,7 +2626,7 @@ namespace Moq {
 		public HangCatalogBinary Binary { get; set; }
 		public HangCatalogStats? Stats { get; set; }
 		public HangCatalogEcho? Echo { get; set; }
-		public (Str, HangCatalogInclude)[] Include;
+		public (Str, HangCatalogInclude)[] Include { get; set; }
 		public MuxCatalogHangExtra Ext { get; set; }
 		public HangCatalogSkipped Skipped { get; set; }
 		public void CheckRenditions();
@@ -2654,7 +2654,7 @@ namespace Moq {
 		public HangCatalogBinary Binary { get; set; }
 		public HangCatalogStats? Stats { get; set; }
 		public HangCatalogEcho? Echo { get; set; }
-		public (Str, HangCatalogInclude)[] Include;
+		public (Str, HangCatalogInclude)[] Include { get; set; }
 		public MuxContainerTsExt Ext { get; set; }
 		public HangCatalogSkipped Skipped { get; set; }
 		public void CheckRenditions();
@@ -3779,7 +3779,7 @@ namespace Moq {
 		public string Debug();
 		public static HangStatsSnapshot Default();
 		public HangStatsTransport Transport { get; set; }
-		public (Str, HangStatsRendition)[] Renditions;
+		public (Str, HangStatsRendition)[] Renditions { get; set; }
 	}
 	public sealed unsafe partial class HangStatsRendition : RustObject, IEquatable<HangStatsRendition> {
 		public HangStatsRendition Clone();
@@ -3821,7 +3821,7 @@ namespace Moq {
 		public string Debug();
 		public static HangEchoSnapshot Default();
 		public HangStatsTransport Transport { get; set; }
-		public (Str, HangEchoRendition)[] Renditions;
+		public (Str, HangEchoRendition)[] Renditions { get; set; }
 	}
 	public sealed unsafe partial class HangEchoRendition : RustObject, IEquatable<HangEchoRendition> {
 		public HangEchoRendition Clone();
@@ -3863,12 +3863,12 @@ namespace Moq {
 		public static bool operator !=(HangCatalogSkipped? a, HangCatalogSkipped? b);
 		public string Debug();
 		public static HangCatalogSkipped Default();
-		public (Str, ulong)[] Video;
-		public (Str, ulong)[] Audio;
-		public (Str, ulong)[] Text;
-		public (Str, ulong)[] Json;
-		public (Str, ulong)[] Binary;
-		public (Str, ulong)[] Include;
+		public (Str, ulong)[] Video { get; set; }
+		public (Str, ulong)[] Audio { get; set; }
+		public (Str, ulong)[] Text { get; set; }
+		public (Str, ulong)[] Json { get; set; }
+		public (Str, ulong)[] Binary { get; set; }
+		public (Str, ulong)[] Include { get; set; }
 		public bool IsEmpty();
 		public ulong? Version();
 	}
@@ -3885,7 +3885,7 @@ namespace Moq {
 		public static bool operator !=(HangCatalogAudio? a, HangCatalogAudio? b);
 		public string Debug();
 		public static HangCatalogAudio Default();
-		public (Str, HangCatalogAudioConfig)[] Renditions;
+		public (Str, HangCatalogAudioConfig)[] Renditions { get; set; }
 		public void Insert(Str name, HangCatalogAudioConfig config);
 		public HangCatalogAudioConfig? Remove(Str name);
 		public bool IsEmpty();
@@ -3927,7 +3927,7 @@ namespace Moq {
 		public static bool operator !=(HangCatalogBinary? a, HangCatalogBinary? b);
 		public string Debug();
 		public static HangCatalogBinary Default();
-		public (Str, HangCatalogBinaryConfig)[] Tracks;
+		public (Str, HangCatalogBinaryConfig)[] Tracks { get; set; }
 		public void Insert(Str name, HangCatalogBinaryConfig config);
 		public HangCatalogBinaryConfig? Remove(Str name);
 		public bool IsEmpty();
@@ -3948,7 +3948,7 @@ namespace Moq {
 		public ulong? Bitrate { get; set; }
 		public Duration? Jitter { get; set; }
 		public Duration? Delay { get; set; }
-		public (Str, Json)[] Extra;
+		public (Str, Json)[] Extra { get; set; }
 		public static HangCatalogBinaryConfig New(HangCatalogMode mode);
 	}
 	public sealed unsafe partial class HangCatalogContainer : RustObject, IEquatable<HangCatalogContainer> {
@@ -3993,7 +3993,7 @@ namespace Moq {
 		public static bool operator !=(HangCatalogJson? a, HangCatalogJson? b);
 		public string Debug();
 		public static HangCatalogJson Default();
-		public (Str, HangCatalogJsonConfig)[] Tracks;
+		public (Str, HangCatalogJsonConfig)[] Tracks { get; set; }
 		public void Insert(Str name, HangCatalogJsonConfig config);
 		public HangCatalogJsonConfig? Remove(Str name);
 		public bool IsEmpty();
@@ -4014,7 +4014,7 @@ namespace Moq {
 		public ulong? Bitrate { get; set; }
 		public Duration? Jitter { get; set; }
 		public Duration? Delay { get; set; }
-		public (Str, Json)[] Extra;
+		public (Str, Json)[] Extra { get; set; }
 		public static HangCatalogJsonConfig New(HangCatalogMode mode);
 	}
 	public sealed unsafe partial class HangCatalogStats : RustObject, IEquatable<HangCatalogStats> {
@@ -4037,7 +4037,7 @@ namespace Moq {
 		public static bool operator !=(HangCatalogText? a, HangCatalogText? b);
 		public string Debug();
 		public static HangCatalogText Default();
-		public (Str, HangCatalogTextConfig)[] Renditions;
+		public (Str, HangCatalogTextConfig)[] Renditions { get; set; }
 		public void Insert(Str name, HangCatalogTextConfig config);
 		public HangCatalogTextConfig? Remove(Str name);
 		public bool IsEmpty();
@@ -4110,7 +4110,7 @@ namespace Moq {
 		public static bool operator !=(HangCatalogVideo? a, HangCatalogVideo? b);
 		public string Debug();
 		public static HangCatalogVideo Default();
-		public (Str, HangCatalogVideoConfig)[] Renditions;
+		public (Str, HangCatalogVideoConfig)[] Renditions { get; set; }
 		public HangCatalogDisplay? Display { get; set; }
 		public double? Rotation { get; set; }
 		public bool? Flip { get; set; }
@@ -4233,7 +4233,7 @@ namespace Moq {
 		public HangCatalogBinary Binary { get; set; }
 		public HangCatalogStats? Stats { get; set; }
 		public HangCatalogEcho? Echo { get; set; }
-		public (Str, HangCatalogInclude)[] Include;
+		public (Str, HangCatalogInclude)[] Include { get; set; }
 		public HangCatalogSkipped Skipped { get; set; }
 		public void CheckRenditions();
 		public HangCatalog WithoutExt();
@@ -4253,7 +4253,7 @@ namespace Moq {
 		public HangCatalogBinary Binary { get; set; }
 		public HangCatalogStats? Stats { get; set; }
 		public HangCatalogEcho? Echo { get; set; }
-		public (Str, HangCatalogInclude)[] Include;
+		public (Str, HangCatalogInclude)[] Include { get; set; }
 		public MuxCatalogHangExtra Ext { get; set; }
 		public HangCatalogSkipped Skipped { get; set; }
 		public void CheckRenditions();
@@ -4272,7 +4272,7 @@ namespace Moq {
 		public HangCatalogBinary Binary { get; set; }
 		public HangCatalogStats? Stats { get; set; }
 		public HangCatalogEcho? Echo { get; set; }
-		public (Str, HangCatalogInclude)[] Include;
+		public (Str, HangCatalogInclude)[] Include { get; set; }
 		public MuxContainerTsExt Ext { get; set; }
 		public HangCatalogSkipped Skipped { get; set; }
 		public void CheckRenditions();
@@ -4886,7 +4886,7 @@ namespace Moq {
 		public ulong? Bitrate { get; set; }
 		public Duration? Jitter { get; set; }
 		public Duration? Delay { get; set; }
-		public (Str, Json)[] Extra;
+		public (Str, Json)[] Extra { get; set; }
 	}
 	public sealed unsafe partial class MuxContainerGuardJsonConfig : RustObject {
 		public void Commit();
@@ -4898,7 +4898,7 @@ namespace Moq {
 		public ulong? Bitrate { get; set; }
 		public Duration? Jitter { get; set; }
 		public Duration? Delay { get; set; }
-		public (Str, Json)[] Extra;
+		public (Str, Json)[] Extra { get; set; }
 	}
 	public sealed unsafe partial class MuxContainerGuardTextConfig : RustObject {
 		public void Commit();
@@ -6843,10 +6843,10 @@ namespace Moq {
 		public static bool operator !=(MuxContainerTsMpegts? a, MuxContainerTsMpegts? b);
 		public string Debug();
 		public static MuxContainerTsMpegts Default();
-		public (Str, MuxContainerTsTrack)[] Tracks;
+		public (Str, MuxContainerTsTrack)[] Tracks { get; set; }
 		public MuxContainerTsDescriptor[] ProgramDescriptors { get; set; }
 		public MuxContainerTsProgram? Program { get; set; }
-		public (ushort, (byte, MuxContainerTsSiEntry)[])[] Si;
+		public (ushort, (byte, MuxContainerTsSiEntry)[])[] Si { get; set; }
 		public ulong? MuxRate { get; set; }
 		public MuxContainerTsPassthroughTrack? Passthrough { get; set; }
 		public static MuxContainerTsMpegts Deserialize(Json deserializer);
@@ -7150,7 +7150,7 @@ namespace Moq {
 		public static bool operator !=(MuxContainerTsStatsSnapshot? a, MuxContainerTsStatsSnapshot? b);
 		public string Debug();
 		public static MuxContainerTsStatsSnapshot Default();
-		public (ushort, MuxContainerTsStatsStream)[] Streams_;
+		public (ushort, MuxContainerTsStatsStream)[] Streams_ { get; set; }
 		public ulong CrcError { get; set; }
 		public ulong TsSyncLoss { get; set; }
 		public ulong SyncByteError { get; set; }
@@ -7195,7 +7195,7 @@ namespace Moq {
 		public static bool operator !=(MuxContainerTsStatsExport? a, MuxContainerTsStatsExport? b);
 		public string Debug();
 		public static MuxContainerTsStatsExport Default();
-		public (ushort, MuxContainerTsStatsStream)[] Streams_;
+		public (ushort, MuxContainerTsStatsStream)[] Streams_ { get; set; }
 		public MuxContainerTsStatsRelease Release { get; set; }
 	}
 	public sealed unsafe partial class MuxContainerTsStatsRelease : RustObject, IEquatable<MuxContainerTsStatsRelease> {

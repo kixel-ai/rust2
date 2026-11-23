@@ -401,7 +401,7 @@ class Braced:
                 end = init + 1
             line = squash(header[:end])
             # A property, by its accessors: a body of them, or an expression body's getter.
-            if first(hmask[:end], re.compile(r"\(")) is None and kind not in ("enum",):
+            if not cs_parameters(hmask[:end]) and kind not in ("enum",):
                 if body is not None:
                     accessors = [a for v, a in re.findall(r"(?:^|[;}\s])((?:\w+\s+)?)(get|set|init)\b", body)
                                  if v.strip() not in ("private", "internal")]
@@ -462,6 +462,13 @@ def cs_unmodified(head):
     """A C# declaration's head without its attributes and modifiers."""
     head = cs_attributed(head)
     return head[CSHARP_MODIFIERS.match(head).end():]
+
+
+def cs_parameters(hmask):
+    """Whether a C# member's header has a parameter list: a `(` at depth zero right after its
+    name or operator, where a tuple type's follows a space."""
+    top = set(depth0(hmask))
+    return any(c == "(" and k in top and k > 0 and not hmask[k - 1].isspace() for k, c in enumerate(hmask))
 
 
 def cs_visible(head):
@@ -967,7 +974,8 @@ def main():
     if not surfaces:
         raise SystemExit(f"{export} holds no binding")
     existing = {p.name for p in out.iterdir()} if out.is_dir() else set()
-    stale = sorted(existing - set(surfaces))
+    # Files named leave the others alone, which another export may render.
+    stale = [] if only else sorted(existing - set(surfaces))
     if check:
         failed = False
         for name, text in sorted(surfaces.items()):

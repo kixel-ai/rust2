@@ -337,6 +337,9 @@ namespace Api
 		public ulong Start;
 		public bool Closed => raw == IntPtr.Zero;
 		public string Name { get; }
+		public (uint, uint) Pair { get; set; }
+		public (uint, uint)? Spare => null;
+		public (uint, uint) Split(uint at) => (at, at);
 		public Meter Last
 		{
 			get
@@ -392,6 +395,9 @@ namespace Api
             "\t\tpublic ulong Start;",
             "\t\tpublic bool Closed { get; }",
             "\t\tpublic string Name { get; }",
+            "\t\tpublic (uint, uint) Pair { get; set; }",
+            "\t\tpublic (uint, uint)? Spare { get; }",
+            "\t\tpublic (uint, uint) Split(uint at);",
             "\t\tpublic Meter Last { get; }",
             "\t\tpublic byte this[int k] { get; }",
             "\t\tpublic static bool operator ==(Counter? a, Counter? b);",
