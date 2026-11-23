@@ -3260,7 +3260,11 @@ fn api_react_native_host() {
 	// What the first runtime still holds as it goes is left alone, even what calls into
 	// JavaScript as it drops.
 	let held = hermes(&["--reload", "bundle.js", "collected"], "collected reload");
-	assert!(held.ok, "Hermes's collected reload failed:\n{}{}", held.stdout, held.stderr);
+	assert!(
+		held.ok,
+		"Hermes's collected reload failed:\n{}{}",
+		held.stdout, held.stderr
+	);
 	assert!(reload.ok, "Hermes's reload failed:\n{}", reload.stderr);
 	assert_eq!(
 		reload.stdout,

@@ -1536,7 +1536,10 @@ impl Gen<'_> {
 			let callee = match member.is_ascii() {
 				true => format!("self_.getPropertyAsFunction(rt, {}).callWithThis", lit(&member)),
 				// `getPropertyAsFunction` takes no `PropNameID`.
-				false => format!("self_.getProperty(rt, {}).asObject(rt).asFunction(rt).callWithThis", prop(&member)),
+				false => format!(
+					"self_.getProperty(rt, {}).asObject(rt).asFunction(rt).callWithThis",
+					prop(&member)
+				),
 			};
 			let call = self.invoke_js(&callee, Some("self_"), &args);
 			lines.push(call);
