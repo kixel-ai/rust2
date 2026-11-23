@@ -92,15 +92,20 @@ async function foreign(): Promise<void> {
 }
 
 /**
- * Lent bytes' `slice` reads Rust's buffer through no method a caller can replace, so none
- * sees a view of it that outlives a dispose, and bounds `Uint8Array`'s `slice` would.
+ * Bytes' `slice` reads Rust's buffer through nothing a caller can replace, so no caller's
+ * code sees a view of it or frees it under the read, and bounds it as `Uint8Array`'s
+ * `slice` would.
  */
 async function sliced(): Promise<void> {
 	const channel = Channel.new();
 	const sent = new Uint8Array(100).map((_, i) => i);
-	Channel.send(channel, sent);
-	// Past 64 bytes, Rust's own buffer, lent.
-	const lent = await Channel.recv(channel);
+	const recv = async (length: number) => {
+		Channel.send(channel, sent.subarray(0, length));
+		return Channel.recv(channel);
+	};
+	// Past 64 bytes, Rust's own buffer, lent; up to it, a copy.
+	const lent = await recv(100);
+	const copied = await recv(10);
 	const typed = Object.getPrototypeOf(Uint8Array.prototype);
 	const slice = typed.slice;
 	const set = typed.set;
@@ -110,13 +115,15 @@ async function sliced(): Promise<void> {
 	typed.slice = reached;
 	typed.set = reached;
 	try {
-		const bounds = [undefined, 0, 1, 99, 100, 101, -1, -100, -101, 2.7, -2.7, NaN, Infinity, -Infinity];
-		for (const start of bounds) {
-			for (const end of bounds) {
-				const got = lent.slice(start, end);
-				const want = Reflect.apply(slice, sent, [start, end]) as Uint8Array;
-				if (got.length !== want.length || got.some((b, i) => b !== want[i])) {
-					throw new Error(`slice(${start}, ${end}) read [${got}], not [${want}]`);
+		const bounds = [undefined, 0, 1, 9, 10, 11, 99, 100, 101, -1, -10, -100, -101, 2.7, -2.7, NaN, Infinity, -Infinity];
+		for (const [bytes, length] of [[lent, 100], [copied, 10]] as const) {
+			for (const start of bounds) {
+				for (const end of bounds) {
+					const got = bytes.slice(start, end);
+					const want = Reflect.apply(slice, sent.subarray(0, length), [start, end]) as Uint8Array;
+					if (got.length !== want.length || got.some((b, i) => b !== want[i])) {
+						throw new Error(`${length} bytes' slice(${start}, ${end}) read [${got}], not [${want}]`);
+					}
 				}
 			}
 		}
@@ -125,6 +132,52 @@ async function sliced(): Promise<void> {
 		typed.set = set;
 	}
 	lent[Symbol.dispose]();
+	copied[Symbol.dispose]();
+
+	// Each step a slice could take that a caller can replace disposes the bytes when reached:
+	// the slice then fails as closed, never reading what was freed under it.
+	const length = Object.getOwnPropertyDescriptor(typed, "length")!;
+	const hooks: [string, (dispose: () => void) => () => void][] = [
+		...(["max", "min", "trunc"] as const).map((key): [string, (dispose: () => void) => () => void] => [
+			`Math.${key}`,
+			(dispose) => {
+				const original = Math[key];
+				Math[key] = (...args: number[]) => (dispose(), original(...args));
+				return () => void (Math[key] = original);
+			},
+		]),
+		[
+			"a typed array's length",
+			(dispose) => {
+				Object.defineProperty(typed, "length", {
+					configurable: true,
+					get(this: Uint8Array) {
+						dispose();
+						return Reflect.apply(length.get!, this, []);
+					},
+				});
+				return () => Object.defineProperty(typed, "length", length);
+			},
+		],
+	];
+	for (const [what, hook] of hooks) {
+		for (const [start, end] of [[0, 80], [-80, undefined]]) {
+			const bytes = await recv(100);
+			let disposed = false;
+			const restore = hook(() => {
+				if (!disposed) bytes[Symbol.dispose]();
+				disposed = true;
+			});
+			try {
+				bytes.slice(start, end);
+				if (disposed) throw new Error(`${what} disposed bytes that slice(${start}, ${end}) then read`);
+			} catch (e) {
+				if (!disposed || !(e instanceof Error) || e.message !== "Bytes is closed") throw e;
+			} finally {
+				restore();
+			}
+		}
+	}
 	channel[Symbol.dispose]();
 }
 

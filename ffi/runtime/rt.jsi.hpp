@@ -1578,6 +1578,27 @@ inline void natives(jsi::Runtime &rt, jsi::Object &n) {
 		}
 		return jsi::Value::undefined();
 	});
+	// A copy of the bytes from `from` up to `to`, checked open and read at once, so no
+	// JavaScript runs between: `slice`'s, whose bounds it clamped.
+	fn("$bytesSlice", 3, [](jsi::Runtime &rt, const jsi::Value &, const jsi::Value *a, ::std::size_t n) {
+		auto b = state_of<bytes_cell>(rt, arg(a, n, 0), "Bytes of Rust's buffer");
+		if (b->closed) {
+			error(rt, "Bytes is closed");
+		}
+		auto bound = [&](const jsi::Value &v) {
+			double d = v.isNumber() ? v.getNumber() : -1;
+			if (!(d >= 0 && d <= static_cast<double>(b->buf.len) && d == ::std::floor(d))) {
+				type(rt, shown(rt, v) + " is no bound of the bytes");
+			}
+			return static_cast<::std::size_t>(d);
+		};
+		::std::size_t from = bound(arg(a, n, 1));
+		::std::size_t to = bound(arg(a, n, 2));
+		if (to < from) {
+			type(rt, "a slice ends before it starts");
+		}
+		return W(rt).uint8.callAsConstructor(rt, copied(rt, b->buf.ptr + from, to - from));
+	});
 	fn("$wake", 1, [](jsi::Runtime &rt, const jsi::Value &, const jsi::Value *a, ::std::size_t n) {
 		auto w = state_of<waker_cell>(rt, arg(a, n, 0), "Waker");
 		if (w->dropped) {

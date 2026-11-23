@@ -1915,7 +1915,8 @@ the header's wrappers would, and it needs only `jsi.h`.
   fails as it crosses in. A constant only some of the package's targets have fails the
   export, naming the targets that lack it, since its value compiles into the one package. An `rt.Bytes` past 64 bytes is an `ArrayBuffer` over Rust's own
   buffer, which disposing or the collector frees, and passed back crosses in place, as the
-  web's does. A typed array a call takes is copied, as the web's is, since JavaScript on
+  web's does; its `slice` copies through the module, so no JavaScript runs between the
+  check that it is open and the read. A typed array a call takes is copied, as the web's is, since JavaScript on
   another thread, or a closure the call runs, may write it while Rust reads; text crosses
   through the module, as Hermes has no `TextDecoder`.
 - **Threads**: JavaScript runs on React Native's JS thread alone, while Rust calls a trait,

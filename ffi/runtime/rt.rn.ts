@@ -50,9 +50,8 @@ export class Handle<T extends string = string> {
 }
 
 // Before the class, whose static initializer sets them as it is defined.
-// Taken at load, before any caller's code can replace them.
+// Taken at load, before any caller's code can replace it.
 const U8 = Uint8Array;
-const set = Uint8Array.prototype.set;
 
 /** A `slice` bound: `v` as an integer, from the end of `length` where negative, or `missing`. */
 function clamp(v: number | undefined, missing: number, length: number): number {
@@ -77,11 +76,9 @@ export class Bytes {
 	#view: Uint8Array | undefined;
 	readonly #length: number;
 	readonly #lent: boolean;
-	readonly #buffer: ArrayBuffer;
 
 	private constructor(key: symbol, buffer: ArrayBuffer, lent: boolean) {
 		if (key !== Bytes.#minting) throw new TypeError("only Rust makes bytes it returned");
-		this.#buffer = buffer;
 		this.#view = new Uint8Array(buffer);
 		this.#length = buffer.byteLength;
 		this.#lent = lent;
@@ -110,12 +107,17 @@ export class Bytes {
 	slice(start?: number, end?: number): Uint8Array<ArrayBuffer> {
 		// Converted first, as `at`'s index is.
 		const from = clamp(start, 0, this.#length);
-		const to = clamp(end, this.#length, this.#length);
-		this.#open();
-		// Copied with the intrinsics taken at load, through no `Symbol.species` or method a
-		// caller can replace, so no JavaScript runs while Rust's buffer is read or sees it.
-		const out = new U8(Math.max(to - from, 0));
-		if (out.length > 0) set.call(out, new U8(this.#buffer, from, out.length));
+		let to = clamp(end, this.#length, this.#length);
+		if (to < from) to = from;
+		// Rust's buffer is checked open and copied in one native call, so no JavaScript a
+		// caller replaced, such as a getter or `Math`'s, runs between and frees it.
+		if (this.#lent) return n.$bytesSlice(this, from, to) as Uint8Array<ArrayBuffer>;
+		// A copy, of at most 64 bytes, read by index alone, which runs no JavaScript, so no
+		// caller's code sees the view.
+		const view = this.#open();
+		const count = to - from;
+		const out = new U8(count);
+		for (let i = 0; i < count; i++) out[i] = view[from + i];
 		return out;
 	}
 
