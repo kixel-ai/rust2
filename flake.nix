@@ -278,6 +278,14 @@
             url = "https://repo1.maven.org/maven2/org/jetbrains/kotlinx/kotlinx-coroutines-core-jvm/1.10.2/kotlinx-coroutines-core-jvm-1.10.2.jar";
             hash = "sha256-XKF1s43zMf1kFVs1zYyuElH6nuNpcJs21C4KKIzM4/0=";
           };
+          # .NET Standard 2.1's reference assemblies, the API Unity's scripts compile
+          # against, which rust2-ffi's generated C# also builds for; the SDK has none.
+          netstandard-ref = pkgs.fetchzip {
+            url = "https://www.nuget.org/api/v2/package/NETStandard.Library.Ref/2.1.0";
+            extension = "zip";
+            stripRoot = false;
+            hash = "sha256-YD1IlzeVfK3aHwO9IyiCGnlh/yNIgfoEeezPBLOWV6M=";
+          };
         in
         {
           packages = {
@@ -360,6 +368,8 @@
               # rust2-go's tests build and run its output against native Rust.
               go
               dart
+              # ... and compile its C# with Roslyn and run it on .NET, NativeAOT included.
+              dotnet-sdk_10
             ];
             # ... and its generated Swift, unless nixpkgs marks the compiler broken on this system.
             # The `swift` wrapper doesn't copy its compiler's `broken`, so ask the compiler.
@@ -370,6 +380,9 @@
             # compiler on PATH has.
             RUST2_CLANG = "${pkgs.llvmPackages_23.clang}/bin/clang++";
             KOTLINX_COROUTINES = "${kotlinx-coroutines}";
+            NETSTANDARD_REF = "${netstandard-ref}/ref/netstandard2.1";
+            DOTNET_CLI_TELEMETRY_OPTOUT = "1";
+            DOTNET_NOLOGO = "1";
             # The CPythons the generated Python loads in or refuses beside the default 3.14: the
             # free-threaded 3.14, which no stable ABI covers, and 3.15 with and without its GIL,
             # which load the abi3t extension. By path, since each python3 would shadow the

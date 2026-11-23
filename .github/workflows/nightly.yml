@@ -191,6 +191,11 @@ jobs:
       - name: Export
         run: nix develop --command just ffi moq
 
+      # The api fixture's C# compiled ahead of time, as NativeAOT ships it; the gate runs it
+      # on the JIT.
+      - name: C# NativeAOT
+        run: nix develop --command just ffi aot
+
       # Longer random protocol scripts through the C ABI and each binding, against the
       # model of what each step returns; the gate runs fewer.
       - name: Protocol

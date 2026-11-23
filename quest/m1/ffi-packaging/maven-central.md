@@ -1,4 +1,4 @@
-# [S] The first Android library Maven Central accepts
+# [S] The first Kotlin library Maven Central accepts
 
 ## Goal
 
@@ -10,7 +10,8 @@ javadoc jars, which no run has yet shown, as it needs a publisher's credentials.
 
 Found by [#950](https://github.com/kixel-ai/rust2/pull/950), which builds the AAR and its
 Maven repository, checks them in a Gradle app on the emulator, and adds the release's `maven`
-job that signs and uploads them (`ffi/release/release.yml`).
+job that signs and uploads them (`ffi/release/release.yml`). The repository now holds the
+desktop jar and its Gradle metadata beside the AAR, which the validation covers too.
 
 Check without publishing: upload the signed bundle with `publishingType=USER_MANAGED`, wait
 for `VALIDATED` from `POST /api/v1/publisher/status`, and drop it with
@@ -28,7 +29,3 @@ publishes `dev.moq:moq-ffi` with a Portal token and signing key, over the stand-
   `release-kt-ffi.yml` uses serve). No agent can: the token and key are the publisher's,
   and Central has no trusted publishing to stand in for them. Check:
   `gh api repos/moq-dev/moq/environments/maven/secrets --jq '[.secrets[].name]'` lists the four.
-
-## Related
-
-- [The JVM library](/quest/m1/ffi-packaging/maven-jvm.md) - publishes beside the AAR under the same coordinates

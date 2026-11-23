@@ -62,8 +62,9 @@ Beside the C header, `include/<prefix>.hpp` holds the same API in C++, over a he
 name. `python/<prefix>.py` holds it in Python, over a CPython
 extension the crate builds with `--features python`, `swift/<prefix>.swift` holds it in
 Swift, over the C header as a clang module, `go/` holds it in Go, a package per crate
-over the C ABI through cgo, and `dart/` holds it as a Dart package, `lib/<prefix>.dart` over
-the C ABI through `dart:ffi` and what the crate builds with `--features dart`. When `wasm32-wasip1` is among
+over the C ABI through cgo, `dart/` holds it as a Dart package, `lib/<prefix>.dart` over
+the C ABI through `dart:ffi` and what the crate builds with `--features dart`, and
+`csharp/<prefix>.cs` holds it in C#, over the C ABI. When `wasm32-wasip1` is among
 the targets, `web/` holds it in TypeScript for the web, ES modules over the `.wasm` the
 crate builds with `--target wasm32-wasip1 --features web`. When any other target is,
 `react-native/` holds it for React Native, the web's TypeScript over a JSI module in C++.
@@ -736,7 +737,11 @@ packages place it in.
 ## Kotlin
 
 `<prefix>.kt` is Kotlin for the JVM and Android over the crate's JNI functions, which
-`--features kotlin` builds into the same library, loaded by `System.loadLibrary`. It needs
+`--features kotlin` builds into the same library, loaded by `System.loadLibrary`, or on a
+desktop JVM from a jar bundling it: when the class path holds `<prefix>/<prefix>.natives`,
+whose lines name a Rust target and a library file, the host's `<prefix>/native/<target>/<file>`
+is copied to a private directory under `java.io.tmpdir`, which must allow executing it, and loaded from there, and a host it lacks fails
+the load naming the targets it has. It needs
 kotlinx-coroutines. It is not Kotlin Multiplatform, since Swift has its own binding and
 Kotlin's Swift export is Alpha in 2.4. A leaf's native method, a primitive field read or write or a derived
 `equals` or `hashCode` the export proves waits on nothing and walks no value of a size the
@@ -1632,6 +1637,71 @@ fails.
 - **The contract** is checked at the first call, before any other: a Dart file and a
   library from different builds throw a `StateError`.
 
+## C#
+
+`csharp/<prefix>.cs` is one C# file over the C ABI, which .NET, NativeAOT included, and
+Unity's IL2CPP each compile: tested on .NET 10, JIT and NativeAOT, and compiled at C# 9
+against .NET Standard 2.1, Unity's level, with `UNITY_5_3_OR_NEWER` defined. Its namespace
+is the prefix in Pascal case (`Moq`). Each C function is a blittable `DllImport` of the
+library `<prefix>`, so no marshalling stub runs; under Unity on iOS, which links the
+library statically, it is `__Internal`. `Native`'s static constructor checks the contract before any other call, at the first
+call rather than at load, so a `DllImportResolver` set first finds the library, and a
+mismatch throws from every call after. A callback
+Rust calls into C# is an `UnmanagedCallersOnly` method's address on .NET, and under Unity,
+whose IL2CPP has none, a kept delegate's, whose method is `MonoPInvokeCallback`; one that
+throws aborts, naming the call. The runtime every file includes is
+[`runtime/rt.cs`](runtime/rt.cs).
+
+- **Names** are the C names without the prefix, in Pascal case: `moq_track_Producer` is
+  `TrackProducer`, its method `moq_track_Producer_append_group` is
+  `TrackProducer.AppendGroup`, and a field a property. A free function or constant is a
+  static member of the static class `Lib`, a constant a `const` where C# has the literal. A
+  name a C# keyword takes gains `@`; one the runtime or the standard library takes, or a
+  member of the class's base, as `RustObject.IsClosed` or an enum's `CompareTo`, gains a
+  trailing `_`, as two items whose names would match are kept apart as Go's are.
+- **Values** cross losslessly: an integer as its C# integer, `u128` as the runtime's
+  `U128`, `char` as `Scalar`, text as `Str`, its UTF-8, which converts
+  from a `string` implicitly, throwing `ArgumentException` on a lone surrogate, and back
+  with `ToString()`, `Duration` as the runtime's `Duration`, with `TimeSpan` conversions,
+  each `NonZero` as a struct of its own (`NonZeroU16`), a path as `PathBuf`, an address as the runtime's
+  `IpAddr`, `SocketAddr`, and their V4 and V6 forms, `[u8; N]` as a struct `ArrayU8xN`, and a
+  1-tuple as `ValueTuple<T>`. Bytes in are a `ReadOnlySpan<byte>` Rust reads in place,
+  pinned for the call. Bytes out, and bytes a value holds, are the runtime's `Bytes`, a
+  disposable struct over a `ReadOnlyMemory<byte>`: past 512 bytes, those Rust returns lend
+  its buffer in place through a `MemoryManager<byte>` until `Dispose()`, as `using`
+  calls, frees it once no call reading it in place, nor pin, holds it, after which a read
+  throws `ObjectDisposedException`; up to 512 are copied into C#'s memory, which costs
+  less than a lend, a finalizable object. The collector frees a lend never disposed only if no view
+  of it, `Span` or `Memory`, was ever taken, since a view can outlive what the collector
+  sees reaching its owner: so dispose one viewed, and read no view taken before a dispose
+  after it, as with any `IMemoryOwner`. `byte[]` and `ReadOnlyMemory<byte>` convert to
+  `Bytes` with no copy, and `default` is empty; a call taking a span takes a lend's as
+  `bytes.Span`, a view the caller keeps undisposed until the call returns. A `Bytes`
+  equals and hashes by its contents, wherever each keeps them. Those Rust lends a closure
+  or trait method are copied. A record is a struct; a plain enum a C# enum, whose methods and
+  traits are extension methods of `<Enum>Extensions`; an enum with data an abstract class
+  with a sealed class per variant; an error a thrown `<Error>Exception`, a `RustException`.
+- **Objects** are sealed classes deriving `RustObject`, `IDisposable`, which own a handle
+  and free it once disposed and no call holds it, or once the GC finds them unreachable. A
+  call holds the handle as Kotlin's and Go's do, in a table of slots once calls contend
+  for it, so threads sharing one write nothing in common, as `tests/hold.rs` models. A call after
+  `Dispose()` throws `ObjectDisposedException` naming the type. `Dispose()` of a value Rust
+  checks drops it through `_drop_signal`, refused with `InvalidOperationException` while a
+  call borrows it, as Rust refuses that drop; of any other, refused while a call holds it.
+  A call taking the receiver or an argument by value disposes it.
+- **Traits** a caller implements are interfaces under their Rust names; a closure is a
+  `Func` or `Action`; a reader `ISeekableReader`, which `SeekableStream` makes of any
+  `Stream`.
+- **Futures** are `ValueTask`s, each taking an optional `CancellationToken`, which frees the
+  Rust future and throws `OperationCanceledException`; a token already cancelled cancels one
+  that pends, not one ready at once. A wake polls again on the caller's
+  `SynchronizationContext`, or the thread pool without one, never inline in Rust's wake. A
+  stream is `IAsyncEnumerable`.
+- **Threads**: a value that is not `Send` throws when used on another thread than the one
+  that made it, as Kotlin's does. A future that is not `Send` made from none lives on a home,
+  so a wake on any thread polls it; one a value's method makes stays on that value's thread,
+  so awaiting it with no `SynchronizationContext` to return there throws once it pends.
+
 ## IR
 
 [`src/ir.rs`](src/ir.rs) is the API as each generator reads it, with no language decided:
@@ -1641,8 +1711,8 @@ its Rust path, its span, and its docs. A type is in the exact form Rust takes or
 borrow where Rust borrows. [`src/abi.rs`](src/abi.rs) decides the C ABI from it once,
 names and signatures, so [`src/c.rs`](src/c.rs), [`src/cpp.rs`](src/cpp.rs),
 [`src/kotlin.rs`](src/kotlin.rs), [`src/python.rs`](src/python.rs),
-[`src/swift.rs`](src/swift.rs), [`src/go.rs`](src/go.rs), [`src/dart.rs`](src/dart.rs), and
-[`src/glue.rs`](src/glue.rs)
+[`src/swift.rs`](src/swift.rs), [`src/go.rs`](src/go.rs), [`src/dart.rs`](src/dart.rs),
+[`src/csharp.rs`](src/csharp.rs), and [`src/glue.rs`](src/glue.rs)
 agree; the runtime the glue includes is [`runtime/rt.rs`](runtime/rt.rs), the one the C++
 header includes [`runtime/rt.hpp`](runtime/rt.hpp), the ones Kotlin and its JNI glue
 include [`runtime/rt.kt`](runtime/rt.kt) and [`runtime/jni.rs`](runtime/jni.rs), the ones
@@ -1651,7 +1721,8 @@ Python and its extension include [`runtime/rt.py`](runtime/rt.py),
 the one the Swift includes [`runtime/rt.swift`](runtime/rt.swift), the ones the Go's
 runtime package and each crate's include [`runtime/rt.go`](runtime/rt.go) and
 [`runtime/ffi_cgo.go`](runtime/ffi_cgo.go), and the ones the Dart and its glue include
-[`runtime/rt.dart`](runtime/rt.dart) and [`runtime/dart.rs`](runtime/dart.rs).
+[`runtime/rt.dart`](runtime/rt.dart) and [`runtime/dart.rs`](runtime/dart.rs), and the
+one the C# includes [`runtime/rt.cs`](runtime/rt.cs).
 
 ## Census
 
@@ -1855,25 +1926,26 @@ the header's wrappers would, and it needs only `jsi.h`.
 ## Tests
 
 ```bash
-just ffi test     # export the fixtures, build them, and drive api from C, C++, Kotlin, Python, Swift, Go, Dart, and TypeScript on Node, Deno, and Bun
-just ffi moq      # export moq's crates at the pinned revision, build them, and run moq/moq.c, moq/moq.cpp, moq/moq.kt, moq/moq.py, moq/moq.swift, moq/moq.go, moq/moq.dart, and moq/moq.ts
+just ffi test     # export the fixtures, build them, and drive api from C, C++, Kotlin, Python, Swift, Go, Dart, C#, and TypeScript on Node, Deno, and Bun
+just ffi moq      # export moq's crates at the pinned revision, build them, and run moq/moq.c, moq/moq.cpp, moq/moq.kt, moq/moq.py, moq/moq.swift, moq/moq.go, moq/moq.dart, and moq/moq.ts, and compile moq's C# for .NET and Unity
 just ffi moq-c    # the same export, built in debug, running only moq/moq.c: `just ci`'s check on moq
 just ffi moq-cpp  # the same export, running only moq/moq.cpp
 just ffi moq-swift  # the same export, running only moq/moq.swift
 just ffi moq-react-native  # the same export, running only moq/moq.ts through the React Native binding on Hermes
 just ffi moq-api <target>  # stage moq's API on another target into target/moq-api, which the exports above merge
 just ffi census   # census each into target/census
-just ffi shapes   # round-trip every sampled type shape in every language, as the nightly does
+just ffi shapes   # round-trip every sampled type shape in every language but C#, as the nightly does
 just ffi corpus   # census, export, and bind each crate of corpus/crates.txt through a facade, as the nightly does; it runs their build scripts
 just ffi corpus-update  # take corpus/crates.txt afresh from crates.io's top crates, and resolve corpus/Cargo.lock
-just ffi protocol # run longer protocol scripts from more seeds through the C ABI and every binding, as the nightly does
+just ffi protocol # run longer protocol scripts from more seeds through the C ABI and every binding but C#, as the nightly does
+just ffi aot      # api's C# compiled ahead of time by NativeAOT, as the nightly runs it
 nix develop .#bench --command just ffi browsers  # api's TypeScript in headless Chromium, Firefox, and on Linux WebKit, lowering `using` three ways for WebKit, as the nightly runs it
 nix develop .#android --command just ffi android  # the Kotlin test, shrunk by R8, under CheckJNI on the Android device adb reaches
 just ffi react-native-host  # api's script and cases through the React Native binding on Hermes off a device, the flake's `hermes`, which nix builds from source on first use
 nix develop .#android --command just ffi react-native-android  # the same through the React Native package in a new app, built for release, on the 64-bit Android device adb reaches
 just ffi react-native-ios  # the same on the booted iOS simulator, on macOS with Xcode and CocoaPods
 nix develop .#android --command just ffi bench-android  # the benchmark's Kotlin rows on HotSpot and, shrunk by R8, on ART on the Android device adb reaches
-nix develop .#bench --command just ffi bench  # the binding benchmark: bench/ffi/README.md's cases from Rust, and through the export from C, C++, Kotlin, Python, Swift, Go, Dart, and React Native on Hermes
+nix develop .#bench --command just ffi bench  # the binding benchmark: bench/ffi/README.md's cases from Rust, and through the export from C, C++, Kotlin, Python, Swift, Go, Dart, C#, and React Native on Hermes
 nix develop .#bench --command just ffi codspeed  # after bench-build, each single-threaded case once under CodSpeed's CPU simulation, as the CodSpeed workflow runs it
 nix develop .#sanitize --command just ffi sanitize  # api's C and C++ scripts under ASan with UBSan, TSan, and Valgrind, its Swift under TSan, its Go under the race detector and cgocheck2, its Python looped on a debug CPython, and its C ABI under Miri
 ```
@@ -1950,7 +2022,17 @@ never closed once 64 later returns push it out of its nursery, that each object 
 goroutines' returns, closes, and drops is freed once, and that each kind of call meeting a closed object, including one racing
 `Close`, returns `rt.ErrClosed`, and breaks
 each runtime check, which must panic with its message; a runtime package from another
-build must fail its contract check. The `target` test exports a package for the host, for wasm32, and for both into one
+build must fail its contract check. `tests/api.cs` runs the script through the C# on .NET, built with warnings as errors, then
+compiles the binding again at C# 9 against .NET Standard 2.1 with `UNITY_5_3_OR_NEWER`
+and `tests/unity.cs`, stubs of the Unity attributes it names. It checks its futures the
+same way, plus a token cancelled before the call and a send from another thread, that a
+call after `Dispose()` throws, that `Dispose()` drops at once, once, and under a Rust
+borrow throws and leaves the object open, from two threads at once too, that calls racing
+`Dispose()` on 8 threads read live values or throw, and breaks each runtime check, which
+must throw or abort with its message; a binding with another contract must refuse the
+library. `just ffi aot`, run nightly, publishes the same with NativeAOT, its trim and AOT
+analyzers' warnings as errors, and runs the transcript and checks again.
+The `target` test exports a package for the host, for wasm32, and for both into one
 binding, which builds for each, and staged with `--api` and `--with`; a build for a target
 not exported fails, and items that differ between the two are refused, naming both.
 The shape tests (`tests/fixtures/shapes.rs`) sample value types from the IR's `Type`, each

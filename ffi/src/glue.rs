@@ -463,7 +463,8 @@ impl Crate<'_> {
 	/// `kotlin/<prefix>.kt`, whose JNI functions the crate's `kotlin` feature builds,
 	/// `python/<prefix>.py`, whose CPython extension its `python` feature builds,
 	/// `swift/<prefix>.swift` with the clang module it imports the header through, and
-	/// `go/<prefix>.go`, and the Dart package `dart/`, whose glue its `dart` feature builds.
+	/// `go/<prefix>.go`, the Dart package `dart/`, whose glue its `dart` feature builds, and
+	/// `csharp/<prefix>.cs`.
 	pub(crate) fn generate(&self, out: &Path) -> Result<Output, String> {
 		// Cargo unifies in what the facade enables in its dependencies.
 		let facade = self.facade;
@@ -613,6 +614,7 @@ impl Crate<'_> {
 		let (module, go_mod) = go_module(out, &self.abi.prefix)?;
 		let go = crate::go::generate(&rest, &self.packages(), contract, &module)?;
 		let dart = crate::dart::generate(&rest, &self.packages(), contract)?;
+		let csharp = crate::csharp::generate(&rest, &self.packages(), contract)?;
 		let web = crate::web::generate(&rest, self.facade, contract)?;
 		let react_native = crate::web::react_native(&rest, self.facade, contract)?;
 		let jsi = match &react_native {
@@ -631,6 +633,7 @@ impl Crate<'_> {
 			("Swift", swift.names),
 			("Go", go.names),
 			("Dart", dart.names),
+			("C#", csharp.names),
 		]
 		.into_iter()
 		.map(|(language, names)| (language.to_string(), names))
@@ -709,6 +712,10 @@ impl Crate<'_> {
 			&dart.dart,
 		);
 		output.file(&package.join("hook").join("build.dart"), crate::dart::HOOK);
+		output.file(
+			&out.join("csharp").join(format!("{}.cs", self.abi.prefix)),
+			&csharp.csharp,
+		);
 		if let Some(web) = web {
 			output.file(&out.join("src/web/mod.rs"), &web.glue);
 			output.file(&out.join("src/web/runtime.rs"), crate::web::GLUE_RUNTIME);
@@ -1772,7 +1779,7 @@ impl Gen<'_> {
 			"#[unsafe(no_mangle)]\npub extern \"C\" fn {p}_status_message(status: i32) -> *const ::std::ffi::c_char {{\n\trt::Status::text(status).as_ptr()\n}}\n"
 		));
 
-		// Go's and Kotlin's, which the header leaves out, as `_drop_signal`.
+		// Go's, Kotlin's, and C#'s, which the header leaves out, as `_drop_signal`.
 		self.line(format!(
 			"#[unsafe(no_mangle)]\npub extern \"C\" fn {p}_close_drain(handle: *const ::std::ffi::c_void) -> bool {{\n\trt::close_drain(handle)\n}}\n"
 		));
@@ -1842,7 +1849,7 @@ impl Gen<'_> {
 			self.export(format!(
 				"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {stem}_free(this: *const ::std::ffi::c_void) {{\n\tunsafe {{ rt::Object::<{path}>::free(this) }}\n}}\n"
 			));
-			// `_drop_signal`, Go's and Kotlin's, which the header leaves out, calls `commit`
+			// `_drop_signal`, Go's, Kotlin's, and C#'s, which the header leaves out, calls `commit`
 			// with `data`, if any, once the drop can no longer fail, before the value's `Drop`.
 			// A value that is not `Send` drops on its home, if it has one elsewhere.
 			if self.abi.checked[i] {

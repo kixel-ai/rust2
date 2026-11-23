@@ -28,6 +28,7 @@ LANGS = [
 	("swift", "Swift"),
 	("go", "Go"),
 	("dart", "Dart"),
+	("csharp", "C#"),
 	("ts-node", "TS (Node)"),
 	("ts-chromium", "TS (Chromium)"),
 	("ts-firefox", "TS (Firefox)"),
@@ -100,6 +101,7 @@ BINDINGS = [
 	("Swift", ["swift"], None, []),
 	("Go", ["go"], None, []),
 	("Dart", ["dart/lib/moq.dart"], None, ["src/dart"]),
+	("C#", ["csharp/moq.cs"], None, []),
 	# Its TypeScript and JSI module, and the TurboModule's package around them.
 	("React Native", ["react-native"], written, []),
 ]
