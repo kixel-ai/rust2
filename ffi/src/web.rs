@@ -678,6 +678,9 @@ impl<'a> Gen<'a> {
 			Type::Bool => "boolean".to_string(),
 			Type::Int(Int::U64) | Type::NonZero(Int::U64) => "rt.u64".to_string(),
 			Type::Int(Int::I64) | Type::NonZero(Int::I64) => "rt.i64".to_string(),
+			// React Native's targets hold a `usize` of 64 bits, past a safe integer.
+			Type::Int(Int::Usize) | Type::NonZero(Int::Usize) if self.jsi => "rt.u64".to_string(),
+			Type::Int(Int::Isize) | Type::NonZero(Int::Isize) if self.jsi => "rt.i64".to_string(),
 			Type::F32 => "rt.f32".to_string(),
 			Type::F64 => "rt.f64".to_string(),
 			Type::Int(_) | Type::NonZero(_) | Type::Char => "number".to_string(),
@@ -2278,7 +2281,7 @@ fn constant_local(name: &str) -> String {
 
 /// The names of a trait's methods, one scope's, in camel case as [`abi::named`] keeps them
 /// apart, each with `$` appended if a reserved word or `close`.
-fn method_names(methods: &[Function]) -> Vec<String> {
+pub(crate) fn method_names(methods: &[Function]) -> Vec<String> {
 	// `close` is the hook Rust calls once it drops an implementation.
 	let escape = |name: &str| match RESERVED.contains(&name) || name == "close" {
 		true => format!("{name}$"),

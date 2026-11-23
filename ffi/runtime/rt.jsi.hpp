@@ -321,6 +321,61 @@ inline bool bool_(jsi::Runtime &rt, const jsi::Value &v) {
 	return v.getBool();
 }
 
+// A `usize`, which past a 32-bit target's range throws.
+inline ::std::size_t usize(jsi::Runtime &rt, const jsi::Value &v) {
+	::std::uint64_t u = u64(rt, v);
+	if (u > SIZE_MAX) {
+		range(rt, ::std::to_string(u) + " is no usize");
+	}
+	return static_cast<::std::size_t>(u);
+}
+
+inline ::std::ptrdiff_t isize(jsi::Runtime &rt, const jsi::Value &v) {
+	::std::int64_t i = i64(rt, v);
+	if (i > PTRDIFF_MAX || i < PTRDIFF_MIN) {
+		range(rt, ::std::to_string(i) + " is no isize");
+	}
+	return static_cast<::std::ptrdiff_t>(i);
+}
+
+// Rust's `Result`, as `rt.Ok` and `rt.Err` make it.
+inline jsi::Value ok(jsi::Runtime &rt, jsi::Value v) {
+	jsi::Object o(rt);
+	o.setProperty(rt, "ok", true);
+	o.setProperty(rt, "value", v);
+	return o;
+}
+
+inline jsi::Value err(jsi::Runtime &rt, jsi::Value e) {
+	jsi::Object o(rt);
+	o.setProperty(rt, "ok", false);
+	o.setProperty(rt, "error", e);
+	return o;
+}
+
+// `v` as an array, or a TypeError.
+inline jsi::Array arr(jsi::Runtime &rt, const jsi::Value &v) {
+	if (!v.isObject() || !v.getObject(rt).isArray(rt)) {
+		type(rt, shown(rt, v) + " is no array");
+	}
+	return v.getObject(rt).getArray(rt);
+}
+
+// A tagged object's tag, or a TypeError naming what it should be.
+inline ::std::string tag_of(jsi::Runtime &rt, const jsi::Value &v, const char *what) {
+	jsi::Value t = obj(rt, v, what).getProperty(rt, "tag");
+	return t.isString() ? t.getString(rt).utf8(rt) : ::std::string();
+}
+
+// A string's text, or a TypeError naming what it should be.
+inline ::std::string text(jsi::Runtime &rt, const jsi::Value &v) {
+	return v.isString() ? v.getString(rt).utf8(rt) : ::std::string();
+}
+
+inline jsi::Value ascii(jsi::Runtime &rt, const char *s) {
+	return jsi::String::createFromAscii(rt, s);
+}
+
 // Handles.
 
 // What an object type's handles do: its name, and its free and, if Rust checks it, drop.
