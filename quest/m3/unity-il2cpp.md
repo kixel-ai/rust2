@@ -27,7 +27,3 @@ stub attributes (`ffi/tests/unity.cs`), and running that half of it on CoreCLR.
   GameCI's secrets for the license's kind: `UNITY_LICENSE`, `UNITY_EMAIL`, and
   `UNITY_PASSWORD` for a Personal license, or `UNITY_SERIAL`, `UNITY_EMAIL`, and
   `UNITY_PASSWORD` for a Pro one.
-
-## Related
-
-- [C# in the shapes, protocol, and corpus tests](/quest/m3/csharp-tests.md)
