@@ -428,7 +428,8 @@ fn bind(lib: &str, out: &Path) -> Result<Built, (&'static str, Output)> {
 
 /// Build each language's binding of the export at `out`: C and C++ programs including its
 /// headers, compiled but not linked, since a library may call what this host lacks; the Kotlin compiled; the Python imported;
-/// the Swift type-checked; the Go vetted; and the Dart compiled to a kernel.
+/// the Swift type-checked; the Go vetted; the Dart compiled to a kernel; and the C# compiled for
+/// .NET and as Unity compiles it.
 fn languages(lib: &str, out: &Path, dir: &Path, built: &Built) -> Result<(), (&'static str, Output)> {
 	let checked = |stage: &'static str, cmd: &mut Command| {
 		let output = super::output(cmd);
@@ -518,6 +519,19 @@ fn languages(lib: &str, out: &Path, dir: &Path, built: &Built) -> Result<(), (&'
 	let shared = built.lib.join(super::shared(lib));
 	let (mut kernel, _) = super::dart_kernel(lib, &dart, &out.join("dart/lib"), &shared, &main, &[]);
 	checked("Dart", &mut kernel)?;
+	let csharp = out.join("csharp").join(format!("{lib}.cs"));
+	checked(
+		"C#",
+		&mut super::csc_command(super::Dotnet::Library, &dir.join("csharp").join(format!("{lib}.dll")), &[&csharp]),
+	)?;
+	checked(
+		"C# for Unity",
+		&mut super::csc_command(
+			super::Dotnet::Unity,
+			&dir.join("csharp-unity").join(format!("{lib}.dll")),
+			&[&csharp, &manifest_dir().join("tests/unity.cs")],
+		),
+	)?;
 	Ok(())
 }
 

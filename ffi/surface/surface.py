@@ -9,7 +9,7 @@ nothing and fails with the diff where <dir> differs.
 
 Each comes from the language's own tool where one reads source: Python's `ast` for the
 stub a type checker reads, `go doc -all` for Go, and `tsc` for the web binding's
-declarations. C, C++, Kotlin, Swift, and Dart have none that runs without a build, so an
+declarations. C, C++, Kotlin, Swift, Dart, and C# have none that runs without a build, so an
 outline of the generated source keeps each public declaration up to its body.
 """
 
@@ -64,7 +64,7 @@ def scan(text, i, lang, code, masked, close):
             blank(code, i, end)
             blank(masked, i, end)
             i = end
-        elif c == '"' or (c == "'" and lang in ("dart", "cpp", "c", "kotlin")):
+        elif c == '"' or (c == "'" and lang in ("dart", "cpp", "c", "kotlin", "csharp")):
             i = string(text, i, lang, code, masked)
         elif close is not None and c == close and depth == 0:
             return i
@@ -101,6 +101,8 @@ def string(text, i, lang, code, masked):
     """Scan the string literal at `i`, masking its contents; return the offset past it."""
     if lang in ("c", "cpp") and i > 0 and (text[i - 1].isalnum() or text[i - 1] == "_") and text[i - 1] == "R":
         raise Malformed("a C++ raw string")
+    if lang == "csharp" and i > 0 and text[i - 1] == "@" or text.startswith('"""', i) and lang == "csharp":
+        raise Malformed("a C# verbatim or raw string")
     quote = text[i]
     raw = lang == "dart" and i > 0 and text[i - 1] == "r"
     triple = lang in ("kotlin", "swift", "dart") and text.startswith(quote * 3, i)
@@ -216,6 +218,12 @@ CPP_TYPE = re.compile(r"^(?:template\s*<.*?>\s*)?(class|struct|union|enum|namesp
 DART_TYPE = re.compile(
     r"^(?:@\S+\s+)*(?:(?:abstract|sealed|final|base|interface|mixin)\s+)*(class|mixin|enum|extension)\b")
 ACCESS = re.compile(r"^(public|private|protected)$")
+# A C# declaration's attributes, then its modifiers, then a type's keyword.
+CSHARP_ATTRIBUTES = re.compile(r"^(?:\[[^\]]*\]\s*)*")
+CSHARP_MODIFIERS = re.compile(
+    r"^(?:(?:public|internal|private|protected|static|sealed|abstract|unsafe|partial|readonly|ref|new|file|"
+    r"override|virtual|extern|const|implicit|explicit|async|volatile)\s+)*")
+CSHARP_TYPE = re.compile(r"(class|struct|interface|enum|namespace|record)\b")
 ATTRIBUTE = re.compile(r"\[\[.*?\]\]|\b[A-Z][A-Z0-9_]*\([^()]*\)")
 
 
@@ -265,7 +273,10 @@ class Braced:
                         j += 1
                         continue
                     break
-                self.emit(level, squash(code[i:j].replace("\\\n", " ")))
+                line = squash(code[i:j].replace("\\\n", " "))
+                # A C# warning's pragma is no API.
+                if not (self.lang == "csharp" and line.startswith("#pragma")):
+                    self.emit(level, line)
                 i = hs = j
                 continue
             if c in "([" or c == "{" and depth > 0:
@@ -301,7 +312,7 @@ class Braced:
                         i = hs = i + 1
                     continue
                 if public or self.friend(hmask):
-                    self.declaration(header, hmask, level, kind)
+                    self.declaration(header, hmask, level, kind, masked[i + 1:j])
                 i = hs = j + 1
                 continue
             elif c in "}":
@@ -328,6 +339,9 @@ class Braced:
     def nested(self, hmask):
         """The kind of scope a `{` after `hmask` opens, or None for a body."""
         head = squash(hmask)
+        if self.lang == "csharp":
+            m = CSHARP_TYPE.match(cs_unmodified(head))
+            return m and m.group(1)
         if self.lang == "cpp":
             if head.startswith('extern "') or head == "extern _":
                 return "namespace"
@@ -343,7 +357,11 @@ class Braced:
 
     def typed(self, header, hmask, kind, i, j, level):
         head = squash(header)
-        if self.lang == "cpp":
+        if self.lang == "csharp":
+            if kind != "namespace" and not cs_visible(head):
+                return
+            public = True
+        elif self.lang == "cpp":
             if kind == "namespace" and re.search(r"\b(detail|)$", head.split("{")[0]):
                 if re.fullmatch(r"namespace(\s+\w+)*\s+detail|namespace", head):
                     return
@@ -368,9 +386,34 @@ class Braced:
         self.scope(start, j, level + 1, kind, public)
         self.emit(level, "};" if self.lang == "cpp" and kind != "namespace" else "}")
 
-    def declaration(self, header, hmask, level, kind):
+    def declaration(self, header, hmask, level, kind, body=None):
         head = squash(header)
         if not head:
+            return
+        if self.lang == "csharp":
+            if head.startswith("using ") or kind != "interface" and not cs_visible(head):
+                return
+            cut = assignment(hmask)
+            end = len(header) if cut is None or re.search(r"\bconst\b", cs_attributed(head)) else cut
+            init = first(hmask[:end], re.compile(r"\)\s*:"))
+            if init is not None:
+                # A constructor's `: base(...)` or `: this(...)`.
+                end = init + 1
+            line = squash(header[:end])
+            # A property, by its accessors: a body of them, or an expression body's getter.
+            if first(hmask[:end], re.compile(r"\(")) is None and kind not in ("enum",):
+                if body is not None:
+                    accessors = [a for v, a in re.findall(r"(?:^|[;}\s])((?:\w+\s+)?)(get|set|init)\b", body)
+                                 if v.strip() not in ("private", "internal")]
+                    if not accessors:
+                        raise Malformed(f"a C# body that is no type, method, or property: {line[:80]}")
+                    line += " { " + " ".join(a + ";" for a in accessors) + " }"
+                    self.emit(level, line)
+                    return
+                if cut is not None and hmask[cut:cut + 2] == "=>":
+                    self.emit(level, line + " { get; }")
+                    return
+            self.emit(level, line + ";")
             return
         if self.lang == "cpp":
             if (friended(hmask) and not self.friend(hmask)) or head.startswith("static_assert"):
@@ -408,6 +451,25 @@ class Braced:
 
     def emit(self, level, line):
         self.out.append("\t" * level + line)
+
+
+def cs_attributed(head):
+    """A C# declaration's head without its attributes."""
+    return head[CSHARP_ATTRIBUTES.match(head).end():]
+
+
+def cs_unmodified(head):
+    """A C# declaration's head without its attributes and modifiers."""
+    head = cs_attributed(head)
+    return head[CSHARP_MODIFIERS.match(head).end():]
+
+
+def cs_visible(head):
+    """Whether a C# declaration's modifiers make it visible outside its assembly."""
+    head = cs_attributed(head)
+    modifiers = head[:CSHARP_MODIFIERS.match(head).end()]
+    # `private protected` reaches only subclasses in its own assembly.
+    return re.search(r"\b(public|protected)\b", modifiers) is not None and re.search(r"\bprivate\b", modifiers) is None
 
 
 def qualified(hmask):
@@ -868,6 +930,7 @@ def files(export):
         ("swift", "swift/*.swift", "swift.swift", lambda t: indented(t, "swift"), "// {}"),
         ("dart", "dart/lib/*.dart", "dart.dart", lambda t: braced(t, "dart"), "// {}"),
         ("python", "python/*.py", "python.pyi", python_stub, "# {}"),
+        ("csharp", "csharp/*.cs", "csharp.cs", lambda t: braced(t, "csharp"), "// {}"),
     ]:
         sources = sorted(export.glob(glob))
         if sources:

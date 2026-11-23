@@ -3810,6 +3810,8 @@ enum Dotnet {
 	/// and static constructor IL2CPP takes on CoreCLR; `Unity` checks its language level.
 	/// Its arithmetic is checked, as a consumer's build may make it.
 	NetUnity,
+	/// A .NET library, which needs no `Main`.
+	Library,
 	Unity,
 }
 
@@ -3820,12 +3822,30 @@ fn dotnet_root() -> PathBuf {
 }
 
 /// `sources` compiled by Roslyn into `out`, warnings as errors, a program for `Net` and
-/// `NetUnity` and a library for `Unity`.
+/// `NetUnity` and a library for `Library` and `Unity`.
 fn csc(target: Dotnet, out: &Path, sources: &[&Path]) {
+	let step = Step {
+		stamp: &out.with_extension("stamp"),
+		reads: sources,
+		writes: &[out],
+	};
+	step.run(&mut csc_command(target, out, sources));
+	if let Dotnet::Net | Dotnet::NetUnity = target {
+		step::write(
+			&out.with_extension("runtimeconfig.json"),
+			r#"{"runtimeOptions":{"tfm":"net10.0","rollForward":"LatestPatch","framework":{"name":"Microsoft.NETCore.App","version":"10.0.0"},"configProperties":{"System.Globalization.Invariant":true}}}"#,
+		);
+	}
+}
+
+/// The Roslyn command [`csc`] runs, for a caller that takes its failure.
+fn csc_command(target: Dotnet, out: &Path, sources: &[&Path]) -> Command {
 	let root = dotnet_root();
 	let csc = newest(&root.join("sdk")).join("Roslyn/bincore/csc.dll");
 	let refs = match target {
-		Dotnet::Net | Dotnet::NetUnity => newest(&root.join("packs/Microsoft.NETCore.App.Ref")).join("ref/net10.0"),
+		Dotnet::Net | Dotnet::NetUnity | Dotnet::Library => {
+			newest(&root.join("packs/Microsoft.NETCore.App.Ref")).join("ref/net10.0")
+		}
 		Dotnet::Unity => {
 			PathBuf::from(std::env::var_os("NETSTANDARD_REF").expect("the dev shell sets NETSTANDARD_REF"))
 		}
@@ -3843,6 +3863,7 @@ fn csc(target: Dotnet, out: &Path, sources: &[&Path]) {
 	]);
 	match target {
 		Dotnet::Net => cmd.arg("-target:exe"),
+		Dotnet::Library => cmd.arg("-target:library"),
 		Dotnet::NetUnity => cmd.args(["-target:exe", "-define:UNITY_5_3_OR_NEWER", "-checked"]),
 		Dotnet::Unity => cmd.args(["-target:library", "-langversion:9", "-define:UNITY_5_3_OR_NEWER"]),
 	};
@@ -3858,18 +3879,7 @@ fn csc(target: Dotnet, out: &Path, sources: &[&Path]) {
 		.arg(format!("-doc:{}", out.with_extension("xml").display()))
 		.args(sources);
 	std::fs::create_dir_all(out.parent().unwrap()).unwrap();
-	let step = Step {
-		stamp: &out.with_extension("stamp"),
-		reads: sources,
-		writes: &[out],
-	};
-	step.run(&mut cmd);
-	if let Dotnet::Net | Dotnet::NetUnity = target {
-		step::write(
-			&out.with_extension("runtimeconfig.json"),
-			r#"{"runtimeOptions":{"tfm":"net10.0","rollForward":"LatestPatch","framework":{"name":"Microsoft.NETCore.App","version":"10.0.0"},"configProperties":{"System.Globalization.Invariant":true}}}"#,
-		);
-	}
+	cmd
 }
 
 /// `exe`, a program `csc` built, run by `dotnet` with `args`, loading the api fixture's library.
