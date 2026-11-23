@@ -28,6 +28,11 @@ the outcome was judged on speed where every route runs a workload, and on capabi
 the web target refuses the crate at export. Rejected: the addon landing only where it beats
 both others on speed alone.
 
+Decided with the maintainer on 2026-11-22
+([kixel-ai/rust2#970](https://github.com/kixel-ai/rust2/pull/970#issuecomment-7089673616)):
+✅ the report landed alone, and the quest's next PR builds the generator (rejected: holding
+the report's PR open until the generator lands in it).
+
 The report, measured 2026-11-22 on **desktop** (24 cores), through `quest gate`, Node
 26.13.1, 5 rounds alternating the routes at a load of 20 to 29, bench/ffi's cases on moq's
 stand-in; median wall ns per call. The harness is in
