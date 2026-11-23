@@ -5,7 +5,7 @@
 # NODE pointing at a Node 26 binary.
 set -euo pipefail
 rounds=${1:-5}
-dir=${2:-.tmp/node-report}
+dir=$(realpath -m "${2:-.tmp/node-report}")
 node=${NODE:?NODE must name a Node 26 binary}
 out=$PWD/ffi/target/export/moq
 inc=$(dirname "$(dirname "$(readlink -f "$node")")")/include/node
