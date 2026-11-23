@@ -34,8 +34,6 @@ struct world {
 	jsi::Object kit;
 	jsi::Function pending, bytes, uint8, range, type, error;
 	jsi::Value none, handle, waker;
-	// Calls into Rust under way on the JavaScript thread.
-	int depth = 0;
 	// Whether the runtime is free for a thread to take: the JavaScript thread holds it but
 	// while it waits in a call into Rust.
 	::std::mutex m;
@@ -66,6 +64,51 @@ inline ::std::shared_ptr<world> &current() {
 inline world &W() {
 	return *current();
 }
+
+// Whether this thread runs JavaScript now, outside any call into Rust: a drop Rust makes
+// meanwhile, as the garbage collector's sweep may, posts what it calls of JavaScript.
+inline thread_local bool in_js = false;
+
+// Who runs JavaScript, which one thread does at a time: the JavaScript thread, but while
+// it waits in a call into Rust, which frees the runtime for a call Rust makes into
+// JavaScript from any thread meanwhile, as a lent closure may be called on another thread
+// until its call returns.
+
+// Run the call into Rust `f` with the runtime freed, taking it back once `f` returns.
+template <class F>
+decltype(auto) unlocked(F &&f) {
+	world &w = W();
+	{
+		::std::lock_guard<::std::mutex> lock(w.m);
+		w.free = true;
+	}
+	w.cv.notify_all();
+	struct relock {
+		world &w;
+		bool was;
+		~relock() {
+			::std::unique_lock<::std::mutex> lock(w.m);
+			w.cv.wait(lock, [&] { return w.free; });
+			w.free = false;
+			in_js = was;
+		}
+	} back{w, ::std::exchange(in_js, false)};
+	return f();
+}
+
+// Give back the runtime this thread took.
+struct given {
+	world &w;
+	bool was = ::std::exchange(in_js, true);
+	~given() {
+		in_js = was;
+		{
+			::std::lock_guard<::std::mutex> lock(w.m);
+			w.free = true;
+		}
+		w.cv.notify_all();
+	}
+};
 
 // Errors.
 
@@ -421,7 +464,7 @@ struct cell : jsi::NativeState {
 	void release() {
 		if (--h == 0 && owned && !freed) {
 			freed = true;
-			k->free(p);
+			unlocked([&] { k->free(p); });
 		}
 	}
 };
@@ -551,13 +594,10 @@ struct frame {
 	::std::deque<jsi::Value> keep;
 	::std::vector<::std::shared_ptr<cell>> lent;
 
-	explicit frame(jsi::Runtime &rt) : rt(rt) {
-		W().depth++;
-	}
+	explicit frame(jsi::Runtime &rt) : rt(rt) {}
 	frame(const frame &) = delete;
 	frame &operator=(const frame &) = delete;
 	~frame() {
-		W().depth--;
 		for (auto &c : held) {
 			c->release();
 		}
@@ -676,9 +716,11 @@ struct frame {
 		jsi::ArrayBuffer ab = o.getPropertyAsObject(rt, "buffer").getArrayBuffer(rt);
 		auto offset = static_cast<::std::size_t>(o.getProperty(rt, "byteOffset").getNumber());
 		auto len = static_cast<::std::size_t>(o.getProperty(rt, "byteLength").getNumber());
-		const ::std::uint8_t *ptr = ab.data(rt) + offset;
 		keep.emplace_back(rt, v);
-		return c_buf{ptr, len, nullptr};
+		// An empty array's buffer may have no data, and a null pointer is C's `None`: an
+		// empty one points at bytes aligned for any item, as Rust's empty slice does.
+		alignas(16) static const ::std::uint8_t empty[16] = {};
+		return c_buf{len == 0 ? empty : ab.data(rt) + offset, len, nullptr};
 	}
 
 	// The `[u8; N]` of a `Uint8Array` of exactly `n` bytes, written to `out`.
@@ -864,43 +906,6 @@ inline void release(remote *r) {
 	post(w, [r](jsi::Runtime &) { delete r; });
 }
 
-// Who runs JavaScript, which one thread does at a time: the JavaScript thread, but while
-// it waits in a call into Rust, which frees the runtime for a call Rust makes into
-// JavaScript from any thread meanwhile, as a lent closure may be called on another thread
-// until its call returns.
-
-// Run the call into Rust `f` with the runtime freed, taking it back once `f` returns.
-template <class F>
-decltype(auto) unlocked(F &&f) {
-	world &w = W();
-	{
-		::std::lock_guard<::std::mutex> lock(w.m);
-		w.free = true;
-	}
-	w.cv.notify_all();
-	struct relock {
-		world &w;
-		~relock() {
-			::std::unique_lock<::std::mutex> lock(w.m);
-			w.cv.wait(lock, [&] { return w.free; });
-			w.free = false;
-		}
-	} back{w};
-	return f();
-}
-
-// Give back the runtime this thread took.
-struct given {
-	world &w;
-	~given() {
-		{
-			::std::lock_guard<::std::mutex> lock(w.m);
-			w.free = true;
-		}
-		w.cv.notify_all();
-	}
-};
-
 // Run `job` for Rust: on the JavaScript thread, which takes the runtime from the call into
 // Rust it waits in; or from another thread, posted to the JavaScript thread, or run on this
 // one once a call into Rust frees the runtime, whichever comes first.
@@ -910,6 +915,10 @@ T on_js(const ::std::shared_ptr<world> &w, const char *what, ::std::function<T(j
 		given back{*w};
 		return job(*w->rt);
 	};
+	if (in_js) {
+		// This thread runs JavaScript already.
+		return job(*w->rt);
+	}
 	if (w->here()) {
 		{
 			::std::unique_lock<::std::mutex> lock(w->m);
@@ -1213,8 +1222,7 @@ inline c_foreign_reader reader_of(frame &f, const jsi::Value &v) {
 // later on the JavaScript thread.
 inline void trait_free(void *data) {
 	auto *r = static_cast<remote *>(data);
-	auto w = r->w;
-	post(w, [r](jsi::Runtime &rt) {
+	auto close = [r](jsi::Runtime &rt) {
 		try {
 			jsi::Object o = r->v.getObject(rt);
 			jsi::Value close = o.getProperty(rt, "close");
@@ -1225,7 +1233,17 @@ inline void trait_free(void *data) {
 			fail(::std::string("a drop: a call into JavaScript threw ") + e.getStack());
 		}
 		delete r;
-	});
+	};
+	// At the drop, as Rust's own runs, unless this thread runs JavaScript now.
+	if (in_js || !r->w->alive.load(::std::memory_order_acquire)) {
+		post(r->w, close);
+	} else {
+		auto w = r->w;
+		on_js<bool>(w, "a drop", [&](jsi::Runtime &rt) {
+			close(rt);
+			return true;
+		});
+	}
 }
 
 // A closure JavaScript gave Rust to keep, freed once Rust drops it.
@@ -1291,7 +1309,7 @@ struct pending final : node {
 
 	void finish() {
 		if (f != nullptr) {
-			free_(::std::exchange(f, nullptr));
+			unlocked([&] { free_(::std::exchange(f, nullptr)); });
 		}
 	}
 
@@ -1339,7 +1357,7 @@ struct drainer final : node {
 	::std::shared_ptr<world> w;
 	explicit drainer(::std::shared_ptr<world> w) : w(::std::move(w)) {}
 	void wake() override {
-		post(w, [](jsi::Runtime &) { c_thread_drain(); });
+		post(w, [](jsi::Runtime &) { unlocked([] { c_thread_drain(); }); });
 	}
 };
 
@@ -1350,6 +1368,7 @@ inline void install(jsi::Runtime &rt, post_t post, jsi::Object kit) {
 		old->alive.store(false, ::std::memory_order_release);
 	}
 	current() = ::std::make_shared<world>(rt, ::std::move(post), ::std::move(kit));
+	in_js = true;
 	if (c_drains) {
 		auto *d = new drainer(current());
 		c_thread_wake(lend(d));
@@ -1369,7 +1388,7 @@ inline void natives(jsi::Runtime &rt, jsi::Object &n) {
 		}
 		if (c->owned && c->k->drop != nullptr) {
 			::std::int32_t s = 0;
-			c->k->drop(c->p, &s);
+			unlocked([&] { c->k->drop(c->p, &s); });
 			status(rt, s, c->k->name);
 		} else if (c->h != 1) {
 			error(rt, ::std::string(c->k->name) + ": a handle is already borrowed");
@@ -1397,11 +1416,12 @@ inline void natives(jsi::Runtime &rt, jsi::Object &n) {
 		if (w->dropped) {
 			error(rt, "Waker is closed");
 		}
-		w->w.wake(w->w.data);
+		unlocked([&] { w->w.wake(w->w.data); });
 		return jsi::Value::undefined();
 	});
 	fn("$wakerDrop", 1, [](jsi::Runtime &rt, const jsi::Value &, const jsi::Value *a, ::std::size_t n) {
-		arg(a, n, 0).getObject(rt).getNativeState<waker_cell>(rt)->drop();
+		auto w = arg(a, n, 0).getObject(rt).getNativeState<waker_cell>(rt);
+		unlocked([&] { w->drop(); });
 		return jsi::Value::undefined();
 	});
 	fn("$encode", 1, [](jsi::Runtime &rt, const jsi::Value &, const jsi::Value *a, ::std::size_t n) {

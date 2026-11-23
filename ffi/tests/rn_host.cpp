@@ -33,10 +33,6 @@ std::mutex mutex;
 std::condition_variable cv;
 std::vector<job_t> jobs;
 
-struct timer {
-	std::chrono::steady_clock::time_point at;
-	std::shared_ptr<jsi::Function> f;
-};
 std::multimap<std::chrono::steady_clock::time_point, std::pair<double, std::shared_ptr<jsi::Function>>> timers;
 double next_timer = 1;
 
@@ -126,7 +122,6 @@ int main(int argc, char **argv) {
 	global.setProperty(rt, RUST2_GLOBAL, RUST2_PREFIX_NS::installer(rt, post));
 	// Decoding through the module's own lossy decoder, which `rt.ts` installs.
 	fn(rt, global, "__decode", 1, [](jsi::Runtime &rt, const jsi::Value &, const jsi::Value *a, size_t n) {
-		jsi::Object kit(rt);
 		jsi::ArrayBuffer ab = a[0].getObject(rt).getPropertyAsObject(rt, "buffer").getArrayBuffer(rt);
 		auto off = static_cast<size_t>(a[0].getObject(rt).getProperty(rt, "byteOffset").getNumber());
 		auto len = static_cast<size_t>(a[0].getObject(rt).getProperty(rt, "byteLength").getNumber());
@@ -166,7 +161,8 @@ int main(int argc, char **argv) {
 			run([&] { job(rt); });
 			run([&] { rt.drainMicrotasks(); });
 		}
-		while (exit_code < 0 && !timers.empty() && timers.begin()->first <= std::chrono::steady_clock::now()) {
+		// One timer a turn, so a timer that sets another never starves what was posted.
+		if (exit_code < 0 && !timers.empty() && timers.begin()->first <= std::chrono::steady_clock::now()) {
 			auto f = timers.begin()->second.second;
 			timers.erase(timers.begin());
 			run([&] { f->call(rt); });
