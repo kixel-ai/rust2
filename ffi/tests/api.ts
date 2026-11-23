@@ -1065,9 +1065,14 @@ export async function lent(): Promise<void> {
 	check(api.dropped() === ++before, "bytes disposed during a call are freed once it returns");
 	// A Bytes' length is its own: no caller's write or definition changes what Rust reads.
 	const fixed = api.tokenBytes(11, 100);
-	throws(() => {
+	// A write throws in strict code, and does nothing in sloppy code, as React Native's Babel
+	// preset compiles a module.
+	try {
 		(fixed as { length: number }).length = 1 << 20;
-	}, TypeError, "a Bytes' length is read-only");
+	} catch (e) {
+		check(e instanceof TypeError, "a write to a Bytes' length throws a TypeError");
+	}
+	check(fixed.length === 100, "a Bytes' length is read-only");
 	Object.defineProperty(fixed, "length", { value: 1 << 20 });
 	check(api.len(fixed) === 100 && fixed.slice().length === 100, "a Bytes' length shadowed reaches no read");
 	close(fixed);

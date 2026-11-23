@@ -105,10 +105,11 @@ export class Bytes {
 		if (this.#lent) n.$bytesFree(this);
 	}
 
-	static {
+	// A field's initializer, not a static block, which React Native's Babel preset refuses.
+	static #minting = (() => {
 		bytesMade = (buffer, lent) => new Bytes(minting, buffer, lent);
 		bytesCopy = (b) => (#view in b && !b.#lent ? b.#open() : undefined);
-	}
+	})();
 }
 
 let bytesMade: (buffer: ArrayBuffer, lent: boolean) => Bytes;

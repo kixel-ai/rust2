@@ -3101,14 +3101,13 @@ fn api_react_native_host() {
 		&dir.join("react-native-stub.ts"),
 		"export const TurboModuleRegistry = {\n\tgetEnforcing(name: string): never {\n\t\tthrow new Error(`no TurboModule ${name} off React Native`);\n\t},\n};\nexport type TurboModule = object;\n",
 	);
-	// Hermes takes a script, not modules, and lacks async generators. Strict, as Metro's
-	// modules are.
+	// Hermes takes a script, not modules, and lacks async generators. Sloppy, as React
+	// Native's Babel preset compiles a module.
 	run(Command::new("esbuild")
 		.args([
 			"entry.ts",
 			"--bundle",
 			"--format=iife",
-			"--banner:js=\"use strict\";",
 			"--target=es2020",
 			"--supported:async-generator=false",
 			"--alias:react-native=./react-native-stub.ts",
