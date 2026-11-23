@@ -80,12 +80,13 @@ and the commit after it deletes it.
 
 What the generator copies from the report's addon:
 
-- A handle crosses as its address in a number, and the TypeScript wraps it in an object
-  that `[Symbol.dispose]` frees, as the web target's `rt.Handle`. A number holds an
-  address exactly below 2^53, which a default 64-bit user space stays under: Linux maps
-  above 47 bits on x86-64 (56-bit with 5-level paging) or 48 on arm64 (52-bit) only for an
-  `mmap` hint that asks. The addon still checks each address it hands out against 2^53 and
-  aborts above it, one compare, rather than assume no allocator passes such a hint. A `napi_external` per object return cost 89 ns more.
+- A handle crosses as an index into the addon's table of addresses, in a number, and the
+  TypeScript wraps it in an object that `[Symbol.dispose]` frees, as the web target's
+  `rt.Handle`. The report crossed the raw address, exact only below 2^53: Linux maps above
+  47 bits on x86-64 (56-bit with 5-level paging) or 48 on arm64 (52-bit) for an `mmap`
+  hint that asks, so an allocator passing one would hand out a valid handle a number
+  cannot hold. The generator measures the table's load against the report's 26.7 ns
+  handle call. A `napi_external` per object return cost 89 ns more.
 - Never a JavaScript object made in C per call: Node-API's `napi_create_arraybuffer` and
   its typed array cost 0.4 to 0.7 µs. An opaque value, a record's bytes, and a copy of up
   to 64 bytes go through a scratch buffer the TypeScript views, as the web target's stack
