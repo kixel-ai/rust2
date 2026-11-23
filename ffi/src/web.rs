@@ -220,7 +220,9 @@ fn rn_runtime() -> String {
 	let mut rest = RUNTIME;
 	while let Some(at) = rest.find("// #region shared\n") {
 		let body = &rest[at + "// #region shared\n".len()..];
-		let end = body.find("// #endregion shared\n").expect("rt.ts closes each shared region");
+		let end = body
+			.find("// #endregion shared\n")
+			.expect("rt.ts closes each shared region");
 		shared.push_str(&body[..end]);
 		rest = &body[end..];
 	}
@@ -338,11 +340,12 @@ fn emit(abi: &Abi<'_>, facade: &Package, contract: u64, mask: u64, jsi: bool) ->
 			module = crate::jsi::module(p),
 		);
 	} else {
-	let _ = write!(
-		out,
-		"\n/**\n * Compile and instantiate the module `cargo build --target {TARGET} --features web` made of\n * the crate this binding was generated with, from `source`, before any other call: its\n * bytes, a `Response` such as `fetch` gives, a compiled `WebAssembly.Module`, or its URL.\n * By default it is `{p}.wasm` beside this module, as the package holds it, whose URL Vite\n * and webpack follow into the bundle. A runtime with source phase imports passes\n * `import source module from \"<package>/{p}.wasm\"`.\n */\nexport function load(source: rt.Source = new URL(\"./{p}.wasm\", import.meta.url)): Promise<void> {{\n\treturn rt.load(source, {{ prefix: \"{p}\", space: \"{space}\", file: \"index.ts\", contract: 0x{contract:016x}n, target: {}, imports: g.imports }});\n}}\n\n{}",
-		mask.trailing_zeros(), index.body
-	);
+		let _ = write!(
+			out,
+			"\n/**\n * Compile and instantiate the module `cargo build --target {TARGET} --features web` made of\n * the crate this binding was generated with, from `source`, before any other call: its\n * bytes, a `Response` such as `fetch` gives, a compiled `WebAssembly.Module`, or its URL.\n * By default it is `{p}.wasm` beside this module, as the package holds it, whose URL Vite\n * and webpack follow into the bundle. A runtime with source phase imports passes\n * `import source module from \"<package>/{p}.wasm\"`.\n */\nexport function load(source: rt.Source = new URL(\"./{p}.wasm\", import.meta.url)): Promise<void> {{\n\treturn rt.load(source, {{ prefix: \"{p}\", space: \"{space}\", file: \"index.ts\", contract: 0x{contract:016x}n, target: {}, imports: g.imports }});\n}}\n\n{}",
+			mask.trailing_zeros(),
+			index.body
+		);
 	}
 	files.push(("index.ts".to_string(), trim(out)));
 	for (name, module) in std::mem::take(&mut g.modules) {
@@ -455,9 +458,11 @@ fn package_json(facade: &Package, lib: &str, jsi: bool) -> String {
 	let module = |path: &str| format!("{{ \"types\": \"./{path}.d.ts\", \"default\": \"./{path}.js\" }}");
 	if jsi {
 		// Metro resolves `exports`, and the native sources build in the app: the JSI module
-		// through the podspec on iOS and `android/` on Android.
+		// through the podspec on iOS and `android/` on Android, with the TurboModule of the
+		// codegen spec `specs/` holds, and the Rust library built for each in `libs/`.
+		let turbo = crate::jsi::module(lib);
 		return format!(
-			"{{\n\t\"name\": {},\n\t\"version\": {},\n\t\"description\": {},\n\t\"type\": \"module\",\n\t\"sideEffects\": false,\n\t\"exports\": {{\n\t\t\".\": {},\n\t\t\"./*\": {}\n\t}},\n\t\"files\": [\"*.js\", \"*.d.ts\", \"cpp\", \"android\", \"*.podspec\"]\n}}\n",
+			"{{\n\t\"name\": {},\n\t\"version\": {},\n\t\"description\": {},\n\t\"type\": \"module\",\n\t\"sideEffects\": false,\n\t\"exports\": {{\n\t\t\".\": {},\n\t\t\"./*\": {}\n\t}},\n\t\"files\": [\"*.js\", \"*.d.ts\", \"cpp\", \"include\", \"specs\", \"ios\", \"android\", \"libs\", \"*.podspec\", \"react-native.config.cjs\"],\n\t\"codegenConfig\": {{\n\t\t\"name\": \"{turbo}Spec\",\n\t\t\"type\": \"modules\",\n\t\t\"jsSrcsDir\": \"specs\"\n\t}}\n}}\n",
 			json(&facade.name),
 			json(&facade.version),
 			json(&format!(
@@ -2715,25 +2720,31 @@ impl Gen<'_> {
 		// takes the trait's parameters.
 		let bare = self.bare(c_).to_string();
 		let forward = move |what: &str, args: &str| format!("rt.n.{bare}_{what}({args})");
-		let mut emit =
-			|g: &mut Self, t: &str, member: &str, doc: &str, params: &str, ret_t: &str, body: Vec<String>, fwd: String| {
-				crate::lock::trait_member(&mut g.locked, abi.api.shown(ty), t, member);
-				taken.insert(member.to_string());
-				let (local, rename) = match RESERVED.contains(&member) {
-					true => (format!("{member}$"), true),
-					false => (member.to_string(), false),
-				};
-				let body = match g.jsi {
-					true => indent(&fwd),
-					false => indent(&wrap(&body)),
-				};
-				let code = format!("/** {doc} */\nexport function {local}({params}): {ret_t} {{\n{body}\n}}\n\n");
-				let module = g.out();
-				module.body.push_str(&code);
-				if rename {
-					module.renames.insert(local, member.to_string());
-				}
+		let mut emit = |g: &mut Self,
+		                t: &str,
+		                member: &str,
+		                doc: &str,
+		                params: &str,
+		                ret_t: &str,
+		                body: Vec<String>,
+		                fwd: String| {
+			crate::lock::trait_member(&mut g.locked, abi.api.shown(ty), t, member);
+			taken.insert(member.to_string());
+			let (local, rename) = match RESERVED.contains(&member) {
+				true => (format!("{member}$"), true),
+				false => (member.to_string(), false),
 			};
+			let body = match g.jsi {
+				true => indent(&fwd),
+				false => indent(&wrap(&body)),
+			};
+			let code = format!("/** {doc} */\nexport function {local}({params}): {ret_t} {{\n{body}\n}}\n\n");
+			let module = g.out();
+			module.body.push_str(&code);
+			if rename {
+				module.renames.insert(local, member.to_string());
+			}
+		};
 		let text = |g: &mut Self, what: &str| -> Vec<String> {
 			let mut lines = vec![this(g, "self", "a$")];
 			let ret = g.invoke(
@@ -2863,7 +2874,16 @@ impl Gen<'_> {
 					forward("partial_cmp", "a, b")
 				),
 			};
-			emit(self, t, member, doc, &format!("a: {name}, b: {name}"), ret_t, lines, fwd);
+			emit(
+				self,
+				t,
+				member,
+				doc,
+				&format!("a: {name}, b: {name}"),
+				ret_t,
+				lines,
+				fwd,
+			);
 		}
 		if t.default {
 			let ret_c = match object {

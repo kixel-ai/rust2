@@ -3092,7 +3092,10 @@ fn api_react_native_host() {
 		transcript::typescript::emit(transcript(), transcript::typescript::Binding::ReactNative),
 	);
 	step::write(&dir.join("api.ts"), react_native_check());
-	step::copy(&manifest_dir().join("tests").join("react-native.ts"), &dir.join("entry.ts"));
+	step::copy(
+		&manifest_dir().join("tests").join("react-native.ts"),
+		&dir.join("entry.ts"),
+	);
 	// What `load` reaches of React Native only where no host installed the module.
 	step::write(
 		&dir.join("react-native-stub.ts"),
@@ -3116,12 +3119,25 @@ fn api_react_native_host() {
 	let host = dir.join("rn-host");
 	let cpp = dir.join("react-native").join("cpp");
 	let mut cmd = Command::new(std::env::var_os("CXX").unwrap_or_else(|| "c++".into()));
-	cmd.args(["-std=c++17", "-g", "-Wall", "-Wextra", "-Werror", "-DRUST2_PREFIX_NS=rust2_api", "-DRUST2_GLOBAL=\"__rust2_api\""])
-		.arg("-I")
-		.arg(api.out.join("include"))
-		.arg("-I")
-		.arg(&cpp);
-	for include in [hermes.join("API"), hermes.join("API/jsi"), hermes.join("public"), hermes.join("include")] {
+	cmd.args([
+		"-std=c++17",
+		"-g",
+		"-Wall",
+		"-Wextra",
+		"-Werror",
+		"-DRUST2_PREFIX_NS=rust2_api",
+		"-DRUST2_GLOBAL=\"__rust2_api\"",
+	])
+	.arg("-I")
+	.arg(api.out.join("include"))
+	.arg("-I")
+	.arg(&cpp);
+	for include in [
+		hermes.join("API"),
+		hermes.join("API/jsi"),
+		hermes.join("public"),
+		hermes.join("include"),
+	] {
 		cmd.arg("-isystem").arg(include);
 	}
 	cmd.arg("-isystem")

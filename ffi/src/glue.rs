@@ -616,7 +616,11 @@ impl Crate<'_> {
 		let web = crate::web::generate(&rest, self.facade, contract)?;
 		let react_native = crate::web::react_native(&rest, self.facade, contract)?;
 		let jsi = match &react_native {
-			Some(_) => Some(crate::jsi::generate(&rest, &self.packages(), crate::web::native_mask(&rest))?),
+			Some(_) => Some(crate::jsi::generate(
+				&rest,
+				&self.packages(),
+				crate::web::native_mask(&rest),
+			)?),
 			None => None,
 		};
 		let mut names: std::collections::BTreeMap<String, std::collections::BTreeMap<String, String>> = [
@@ -718,8 +722,10 @@ impl Crate<'_> {
 				output.file(&dir.join(path), text);
 			}
 			for (path, text) in &jsi {
-				output.file(&dir.join("cpp").join(path), text);
+				output.file(&dir.join(path), text);
 			}
+			// The C header the module calls, which the package's native builds include.
+			output.file(&dir.join("include").join(format!("{}.h", self.abi.prefix)), &header);
 		}
 		let swift_dir = out.join("swift");
 		output.file(&swift_dir.join(format!("{}.swift", self.abi.prefix)), &swift.swift);
