@@ -3230,13 +3230,10 @@ def consume_android(repo, check, native):
         ndk = os.environ.get("ANDROID_NDK_HOME")
         if not ndk:
             raise SystemExit("stripping the app's libraries needs the Android NDK: set ANDROID_NDK_HOME")
-        # Google's mirror of Maven Central: repo1.maven.org blocks some runners' IPs for hours,
-        # answering 404 or 429 with a retry-after no retry outlasts.
-        central = 'maven("https://maven-central.storage-download.googleapis.com/maven2/")'
         (app / "settings.gradle.kts").write_text(f"""pluginManagement {{
 	repositories {{
 		google()
-		{central}
+		mavenCentral()
 	}}
 }}
 
@@ -3249,7 +3246,7 @@ dependencyResolutionManagement {{
 			filter {{ includeGroup("{group}") }}
 		}}
 		google()
-		{central}
+		mavenCentral()
 	}}
 }}
 

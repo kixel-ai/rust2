@@ -1092,6 +1092,9 @@ jobs:
         with:
           gradle-version: 9.9.2
           cache-disabled: true
+      # Every Gradle build of the job fetches Central's artifacts from Google's mirror.
+      - name: Maven Central mirror
+        run: install -D -m 644 rust2/ffi/release/central.init.gradle.kts "${GRADLE_USER_HOME:-$HOME/.gradle}/init.d/central.init.gradle.kts"
       # The NDK the libraries were built with, whose llvm-strip the app's build strips them with.
       - name: Android NDK
         run: |
@@ -1266,6 +1269,9 @@ jobs:
       - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
         with:
           channel: stable
+      # Every Gradle build of the job fetches Central's artifacts from Google's mirror.
+      - name: Maven Central mirror
+        run: install -D -m 644 rust2/ffi/release/central.init.gradle.kts "${GRADLE_USER_HOME:-$HOME/.gradle}/init.d/central.init.gradle.kts"
       - name: Enable KVM
         run: |
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
