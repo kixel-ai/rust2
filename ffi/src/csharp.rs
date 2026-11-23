@@ -1467,7 +1467,8 @@ impl<'a> Gen<'a> {
 			let message = self.message(&err, "error");
 			let _ = write!(
 				self.types,
-				"/// What a Rust call throws for an error of `{cs}`, which `Error` holds.\npublic sealed class {name} : RustException\n{{\n\tpublic {cs} Error {{ get; }}\n\n\tpublic {name}({cs} error) : base({message})\n\t{{\n\t\tError = error;\n\t}}\n}}\n\n"
+				"/// What a Rust call throws for an error of `{}`, which `Error` holds.\npublic sealed class {name} : RustException\n{{\n\tpublic {cs} Error {{ get; }}\n\n\tpublic {name}({cs} error) : base({message})\n\t{{\n\t\tError = error;\n\t}}\n}}\n\n",
+				xml(&cs)
 			);
 		}
 		// Each `NonZero` named, by a parameter alone too.
@@ -1495,6 +1496,8 @@ impl<'a> Gen<'a> {
 			Some(t) if t.display => format!("{e}.ToString()"),
 			Some(t) if t.debug => format!("{e}.{}()", self.trait_name(&base, "Debug")),
 			_ if matches!(ty.base(), Type::List(..)) => format!("\"[\" + string.Join(\", \", {e}) + \"]\""),
+			// `None` is a null.
+			_ if matches!(ty.base(), Type::Option(_)) => format!("{e}?.ToString() ?? \"\""),
 			_ => format!("{e}.ToString() ?? \"\""),
 		}
 	}
@@ -1502,9 +1505,10 @@ impl<'a> Gen<'a> {
 	/// The exception class an error of `ty` throws as.
 	fn exception(&mut self, ty: &Type) -> String {
 		let ty = crate::kotlin::strip_refs(ty);
+		// By the C name's key, an identifier where Rust's spelling of a tuple is none.
 		let spelled = match &ty {
 			Type::Str | Type::String => "String".to_string(),
-			ty => pascal(&self.abi.spell(ty)),
+			ty => pascal(&self.abi.key(ty)),
 		};
 		let mut name = format!("{spelled}Exception");
 		// One class per type C# holds the error as, so `&str`'s and `String`'s share one.
@@ -3095,13 +3099,18 @@ fn member_name(name: &str) -> String {
 	}
 }
 
+/// `text` escaped for an XML doc comment.
+fn xml(text: &str) -> String {
+	text.replace('&', "&amp;").replace('<', "&lt;").replace('>', "&gt;")
+}
+
 /// Doc comments of `text`, indented by `indent`.
 fn docs(text: &str, indent: &str) -> String {
 	let text = text.trim();
 	if text.is_empty() {
 		return String::new();
 	}
-	let escaped = text.replace('&', "&amp;").replace('<', "&lt;").replace('>', "&gt;");
+	let escaped = xml(text);
 	let mut out = format!("{indent}/// <summary>\n");
 	for line in escaped.lines() {
 		let line = line.trim_end();

@@ -3706,6 +3706,40 @@ fn api_csharp() {
 		.env("DOTNET_CLI_TELEMETRY_OPTOUT", "1"));
 }
 
+/// The protocol scripts through the api fixture's C#, `tests/protocol.cs`, on .NET.
+#[test]
+fn api_csharp_protocol() {
+	csharp_protocol(
+		"scripts",
+		&protocol::scripts(0, PROTOCOL_SEEDS, PROTOCOL_STEPS, protocol::Profile::CSHARP),
+	);
+}
+
+/// Longer C# protocol scripts from other seeds, as the nightly runs them.
+#[test]
+#[ignore = "slow: just ffi protocol"]
+fn api_csharp_protocol_nightly() {
+	csharp_protocol(
+		"nightly",
+		&protocol::scripts(PROTOCOL_SEEDS, 5000, 400, protocol::Profile::CSHARP),
+	);
+}
+
+fn csharp_protocol(dir: &str, scripts: &[protocol::Script]) {
+	let api = api();
+	let built = scratch().join("api").join("csharp-protocol");
+	let exe = built.join("protocol.dll");
+	csc(
+		Dotnet::Net,
+		&exe,
+		&[
+			&api.out.join("csharp").join("api.cs"),
+			&manifest_dir().join("tests/protocol.cs"),
+		],
+	);
+	protocol::check_all(&built.join(dir), scripts, || csharp_run(&exe, &[]));
+}
+
 /// The same C# compiled ahead of time by NativeAOT, with its trim and AOT analyzers' warnings
 /// as errors, prints the native transcript and passes its checks: `dotnet publish`, from the
 /// packs the SDK carries, so it needs no network.
@@ -3840,20 +3874,30 @@ fn csc(target: Dotnet, out: &Path, sources: &[&Path]) {
 
 /// `exe`, a program `csc` built, run by `dotnet` with `args`, loading the api fixture's library.
 fn csharp_run(exe: &Path, args: &[&str]) -> Command {
+	dotnet_run(exe, args, &api().lib)
+}
+
+/// `exe`, a program `csc` built, run by `dotnet` with `args`, loading libraries from `lib`.
+fn dotnet_run(exe: &Path, args: &[&str], lib: &Path) -> Command {
 	let mut cmd = Command::new("dotnet");
 	cmd.arg(exe).args(args).env("DOTNET_CLI_TELEMETRY_OPTOUT", "1");
-	with_api_lib(&mut cmd);
+	with_lib(&mut cmd, lib);
 	cmd
 }
 
 /// `cmd` finding the api fixture's library where the platform's loader looks.
 fn with_api_lib(cmd: &mut Command) {
+	with_lib(cmd, &api().lib);
+}
+
+/// `cmd` finding the libraries in `lib` where the platform's loader looks.
+fn with_lib(cmd: &mut Command, lib: &Path) {
 	let var = match (cfg!(windows), cfg!(target_os = "macos")) {
 		(true, _) => "PATH",
 		(_, true) => "DYLD_LIBRARY_PATH",
 		_ => "LD_LIBRARY_PATH",
 	};
-	let mut paths = vec![api().lib.clone()];
+	let mut paths = vec![lib.to_path_buf()];
 	paths.extend(std::env::var_os(var).iter().flat_map(std::env::split_paths));
 	cmd.env(var, std::env::join_paths(paths).unwrap());
 }

@@ -2518,6 +2518,197 @@ func failed[A, B any](f func(A) B, err error) B {
 
 ";
 
+/// The C# driver, on .NET: each shape's calls an `async` method of their own, awaited in
+/// turn by `Main`. A `Vec<u8>` or `&[u8]` parameter takes a `ReadOnlySpan<byte>`, which the
+/// `Bytes` Rust returns reads as its `Span`.
+fn csharp(built: &Built, calls: &[Call]) -> String {
+	let name = built.name();
+	let source = std::fs::read_to_string(built.out.join("csharp").join(format!("{name}.cs"))).unwrap();
+	// The declaration of `member` in the class `class`: its return type and its parameters'
+	// types, split at the commas outside brackets.
+	let declared = |class: &str, member: &str| -> (String, Vec<String>) {
+		let body = [" ", "\n"]
+			.iter()
+			.find_map(|after| source.split_once(&format!(" class {class}{after}")))
+			.unwrap_or_else(|| panic!("the C# declares {class}"))
+			.1;
+		let line = (body.lines())
+			.map(str::trim)
+			.find(|line| line.starts_with("public ") && line.contains(&format!(" {member}(")))
+			.unwrap_or_else(|| panic!("the C# declares {class}.{member}"));
+		let (head, params) = line.split_once(&format!(" {member}(")).unwrap();
+		// The return type may hold spaces, as a tuple's does: all past the modifiers.
+		let ret = head.trim_start_matches("public ").trim_start_matches("static ").to_string();
+		let params = params.strip_suffix(')').unwrap();
+		let (mut split, mut depth) = (vec![String::new()], 0);
+		for c in params.chars() {
+			match c {
+				'(' | '<' | '[' => depth += 1,
+				')' | '>' | ']' => depth -= 1,
+				',' if depth == 0 => {
+					split.push(String::new());
+					continue;
+				}
+				_ => {}
+			}
+			split.last_mut().unwrap().push(c);
+		}
+		let types = (split.iter())
+			.filter(|p| !p.trim().is_empty())
+			.map(|p| {
+				let p = p.trim().split(" = ").next().unwrap();
+				p[..p.rfind(' ').unwrap()].to_string()
+			})
+			.collect();
+		(ret, types)
+	};
+	let lib = |member: &str| declared("Lib", member);
+	// `value`, of type `ty`, as a parameter of type `param` takes it.
+	let pass = |value: String, ty: &str, param: &str| match (ty, param.trim_start_matches("ref ")) {
+		("Bytes", "ReadOnlySpan<byte>") => format!("({value}).Span"),
+		_ => value,
+	};
+	// The type of a `Func<A, B>`'s parameter.
+	let func_arg = |param: &str| -> String {
+		let inner = &param["Func<".len()..param.len() - 1];
+		let (mut depth, mut end) = (0, inner.len());
+		for (i, c) in inner.char_indices() {
+			match c {
+				'(' | '<' | '[' => depth += 1,
+				')' | '>' | ']' => depth -= 1,
+				',' if depth == 0 => {
+					end = i;
+					break;
+				}
+				_ => {}
+			}
+		}
+		inner[..end].to_string()
+	};
+	// Each exception a `Result`'s error is thrown as, by the type of its `Error`.
+	let thrown: std::collections::HashMap<String, String> = (source.split("public sealed class ").skip(1))
+		.filter_map(|class| {
+			let (name, rest) = class.split_once(" : RustException")?;
+			let error = rest.lines().nth(2)?.trim().strip_prefix("public ")?.strip_suffix(" Error { get; }")?;
+			Some((error.to_string(), name.to_string()))
+		})
+		.collect();
+	let mut sinks = String::new();
+	let mut echoes = std::collections::BTreeSet::new();
+	let shapes = by_shape(calls, |call| {
+		let Call { n, seed, .. } = call;
+		let other = call.other();
+		let label = call.label();
+		let (made, _) = lib(&format!("Make{n}"));
+		let (_, digest) = lib(&format!("Digest{n}"));
+		// The digest of `value`, of type `ty`.
+		let digest = |value: String, ty: &str| format!("Lib.Digest{n}({})", pass(value, ty, &digest[0]));
+		let make = |seed: u64, param: &str| pass(format!("Lib.Make{n}({seed})"), &made, param);
+		let value = match call.kind {
+			Kind::Echo => {
+				let (echoed, params) = lib(&format!("Echo{n}"));
+				digest(format!("Lib.Echo{n}({})", make(seed, &params[0])), &echoed)
+			}
+			Kind::Lent | Kind::Peek => {
+				let item = if call.kind == Kind::Lent { "Lent" } else { "Peek" };
+				let (_, params) = lib(&format!("{item}{n}"));
+				let arg = func_arg(&params[1]);
+				format!("Lib.{item}{n}({seed}, v => {})", digest("v".into(), &arg))
+			}
+			Kind::Made => format!("Lib.Made{n}({seed}, s => Lib.Make{n}(s))"),
+			Kind::Later => {
+				let (later, params) = lib(&format!("Later{n}"));
+				let output = later
+					.strip_prefix("ValueTask<")
+					.and_then(|t| t.strip_suffix('>'))
+					.unwrap_or_else(|| panic!("Later{n} returns a ValueTask<T>, not {later}"));
+				return format!(
+					"\t\t{{\n\t\t\tvar v = await Lib.Later{n}({});\n\t\t\tConsole.WriteLine($\"{label} {{{}}}\");\n\t\t}}",
+					make(seed, &params[0]),
+					digest("v".into(), output)
+				);
+			}
+			Kind::Try => {
+				let (tried, _) = lib(&format!("Try{n}"));
+				let class = thrown.get(&tried).unwrap_or_else(|| panic!("no exception holds a {tried}"));
+				return format!(
+					"\t\ttry\n\t\t{{\n\t\t\tvar v = Lib.Try{n}({seed});\n\t\t\tConsole.WriteLine($\"{label} ok {{{}}}\");\n\t\t}}\n\
+					\t\tcatch ({class} e)\n\t\t{{\n\t\t\tConsole.WriteLine($\"{label} err {{{}}}\");\n\t\t}}",
+					digest("v".into(), &tried),
+					digest("e.Error".into(), &tried)
+				);
+			}
+			// A value is passed by `ref`, which Rust writes back; an object is borrowed.
+			Kind::Swap => {
+				let (_, params) = lib(&format!("Swap{n}"));
+				let by = if params[0].starts_with("ref ") { "ref " } else { "" };
+				let ty = params[0].trim_start_matches("ref ");
+				return format!(
+					"\t\t{{\n\t\t\t{ty} v = Lib.Make{n}({seed});\n\t\t\tvar d = Lib.Swap{n}({by}v, {other});\n\
+					\t\t\tConsole.WriteLine($\"{label} {{d}} {{{}}}\");\n\t\t}}",
+					digest("v".into(), ty)
+				);
+			}
+			Kind::Pair => {
+				let (_, params) = lib(&format!("Pair{n}"));
+				format!("Lib.Pair{n}({}, {seed}, {})", make(seed, &params[0]), make(other, &params[2]))
+			}
+			Kind::Maybe => match seed % 2 {
+				0 => format!("Lib.Maybe{n}(null)"),
+				_ => {
+					let (_, params) = lib(&format!("Maybe{n}"));
+					format!("Lib.Maybe{n}({})", make(seed, &params[0]))
+				}
+			},
+			Kind::Held => {
+				let holder = format!("Holder{n}");
+				let (_, new) = declared(&holder, "New");
+				let (swapped, swap) = declared(&holder, "Swap");
+				let (inner, _) = declared(&holder, "IntoInner");
+				return format!(
+					"\t\tusing (var h = {holder}.New({}))\n\t\t{{\n\t\t\tvar old = h.Swap({});\n\t\t\tvar d = h.Digest();\n\
+					\t\t\tvar inner = h.IntoInner();\n\t\t\tConsole.WriteLine($\"{label} {{{}}} {{d}} {{{}}}\");\n\t\t}}",
+					make(seed, &new[0]),
+					make(other, &swap[0]),
+					digest("old".into(), &swapped),
+					digest("inner".into(), &inner)
+				);
+			}
+			Kind::Sink => {
+				if echoes.insert(n) {
+					let interface = source
+						.split(&format!("\tpublic interface Sink{n}\n\t{{\n"))
+						.nth(1)
+						.expect("the C# declares the sink");
+					let echo = interface.lines().next().unwrap().trim().trim_end_matches(';');
+					let _ = writeln!(
+						sinks,
+						"sealed class Echo{n} : Sink{n}\n{{\n\tpublic {echo}\n\t{{\n\t\tConsole.WriteLine(\"echoed\");\n\t\treturn v;\n\t}}\n}}\n"
+					);
+				}
+				format!("Lib.Sink{n}({seed}, new Echo{n}())")
+			}
+		};
+		format!("\t\tConsole.WriteLine($\"{label} {{{value}}}\");")
+	});
+	// The namespace is the crate's name in Pascal case, and a shape with no future awaits
+	// nothing.
+	let namespace = name[..1].to_uppercase() + &name[1..];
+	let mut out = format!(
+		"#nullable enable\n#pragma warning disable CS1998\n\nusing System;\nusing System.Threading.Tasks;\nusing {namespace};\n\n\
+		{sinks}static class Program\n{{\n"
+	);
+	for (n, lines) in &shapes {
+		let _ = writeln!(out, "\tstatic async Task Shape{n}()\n\t{{\n{lines}\t}}\n");
+	}
+	out.push_str("\tstatic async Task Main()\n\t{\n");
+	for (n, _) in &shapes {
+		let _ = writeln!(out, "\t\tawait Shape{n}();");
+	}
+	out.push_str("\t}\n}\n");
+	out
+}
+
 /// The Dart driver, which prints each digest, a `U64`, unsigned. Each shape's calls are
 /// a function of their own: in one `main` of the nightly set's 37,000 lines, the VM let
 /// a `try350` exception its `on` clause names go uncaught, which alone it catches.
@@ -2910,6 +3101,20 @@ fn round_trip(built: &Built, language: &str) {
 			let dill = super::dart_compile(&name, &dir, &built.out.join("dart/lib"), &lib, &main, &[]);
 			run(&mut super::dart_run(&dill, &[]))
 		}
+		"csharp" => {
+			let main = dir.join("main.cs");
+			step::write(&main, csharp(built, calls));
+			let binding = built.out.join("csharp").join(format!("{name}.cs"));
+			// As Unity's code, on CoreCLR: its callbacks delegates and its arithmetic checked.
+			let unity = dir.join("net-unity").join("shapes.dll");
+			let stubs = manifest_dir().join("tests/unity.cs");
+			super::csc(super::Dotnet::NetUnity, &unity, &[&binding, &main, &stubs]);
+			let ran = run(&mut super::dotnet_run(&unity, &[], &built.lib));
+			built.check("C# as Unity's", &expected, &ran);
+			let net = dir.join("net").join("shapes.dll");
+			super::csc(super::Dotnet::Net, &net, &[&binding, &main]);
+			run(&mut super::dotnet_run(&net, &[], &built.lib))
+		}
 		"web" => {
 			let (module, _) = built.web();
 			let main = dir.join("main.ts");
@@ -2981,4 +3186,4 @@ macro_rules! languages {
 	};
 }
 
-languages!(c, cpp, kotlin, python, swift, go, dart, web);
+languages!(c, cpp, kotlin, python, swift, go, dart, csharp, web);
