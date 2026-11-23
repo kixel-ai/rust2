@@ -3346,20 +3346,12 @@ fn api_react_native_ios() {
 		.arg(built.join("Build/Products/Release-iphonesimulator/Consumer.app")));
 
 	// The case as a launch argument, which iOS puts in the app's `NSUserDefaults` for
-	// `index.js` to read; the log streamed from before the launch, ended by Perl's alarm.
+	// `index.js` to read; the log streamed from before the launch, ended by Perl's alarm,
+	// through a terminal of `script`'s, as `log stream` buffers what it writes to a pipe.
 	react_native_cases(&native, target, |case| {
 		let mut reader = Command::new("perl")
-			.args([
-				"-e",
-				"alarm shift; exec @ARGV",
-				"300",
-				"xcrun",
-				"simctl",
-				"spawn",
-				"booted",
-				"log",
-				"stream",
-			])
+			.args(["-e", "alarm shift; exec @ARGV", "300", "script", "-q", "/dev/null"])
+			.args(["xcrun", "simctl", "spawn", "booted", "log", "stream"])
 			.args(["--level", "info", "--style", "compact", "--predicate"])
 			.arg("subsystem == \"com.facebook.react.log\" AND category == \"javascript\"")
 			.stdout(std::process::Stdio::piped())
@@ -3495,6 +3487,8 @@ fn react_native_lines(lines: impl Iterator<Item = std::io::Result<String>>) -> R
 	let (mut stdout, mut stderr, mut code) = (String::new(), String::new(), None);
 	for line in lines {
 		let line = line.unwrap();
+		// A terminal's line ends in `\r\n`.
+		let line = line.strip_suffix('\r').unwrap_or(&line);
 		let marked = |mark: &str| line.find(mark).map(|at| &line[at + mark.len()..]);
 		if let Some(exit) = marked("rust2| exit ") {
 			code = exit.trim().parse::<i32>().ok();
