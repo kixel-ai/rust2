@@ -1047,6 +1047,32 @@ modeled `-Coverflow-checks=on` added: every crate but the facade is then served.
 leaves the facade's own check, which a dev build of rust2-ffi takes about two minutes on
 one thread to analyze and generate, and a release build under 20 seconds.
 
+Which build of rust2-ffi serves the queue was measured the same day on **desktop** at a load
+average of 16 to 34, the stand-in's export alone and then the queue's whole `ffi` test phase
+(`just test` since `origin/main`: the surface check, `moq-c`, and `cargo test`, through
+`quest gate`). Cold removes `ffi/target`; warm touches `ffi/src/main.rs`, so rust2-ffi
+rebuilds and nothing else does. Each is one run, so a gap under about 20 percent is noise.
+
+| rust2-ffi's dev profile | export alone | build | `just test`, cold | `just test`, warm |
+|---|---|---|---|---|
+| unoptimized | 138 s | | 574 s | 350 s |
+| `opt-level = 1`, rust2-ffi | 82 s | 26 s | | |
+| `opt-level = 1`, and rust2-driver | 90 s | 28 s | | |
+| `opt-level = 3`, rust2-driver alone | 111 s | 18 s | | |
+| `opt-level = 3`, rust2-ffi alone | 26 s | 36 s | 620 s | 203 s |
+| `opt-level = 3`, both | 20 s | 37 s | 460 s | 164 s |
+| `--release` in the recipes | | | failed, see below | 413 s |
+
+The facade's check and the generator are rust2-ffi's own code, and rust2-driver's share is
+small, so `opt-level = 1` recovers only 40 percent of the export's time and 3 recovers
+nearly all of a release build's. CPU time agrees with the wall time: cold 1,481 s of user
+time unoptimized against 1,159 s at 3 for both, and warm 452 against 252. Optimizing the
+dependencies too is what `--release` adds, and it also builds the test crates and their
+dependencies in release, so its warm run, which built them, took longer than the
+unoptimized build. Its cold run stopped at an mbx lockfile collision between moq's
+checkout and the copy mbx kept of it, which the other variants did not meet, and was not
+repeated.
+
 ### Lending returned bytes
 
 Bytes a call returns are an [`rt.Bytes`](../../ffi/README.md#typescript-web): up to 64 B a copy, and
