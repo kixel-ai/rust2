@@ -353,6 +353,11 @@ namespace Api
 		}
 
 		public byte this[int k] => k == 0 ? (byte)1 : (byte)0;
+		public ValueTuple<(uint, uint)> Nested { get { return default; } }
+		public int Guarded { get { int set = 1; return set; } protected set { } }
+		public int Derived { get; private protected set; }
+		public int Either { protected internal get; internal set; }
+		[Obsolete("a]")] public void Old() { }
 
 		public static bool operator ==(Counter? a, Counter? b) => a is null ? b is null : a.Equals(b);
 
@@ -400,6 +405,11 @@ namespace Api
             "\t\tpublic (uint, uint) Split(uint at);",
             "\t\tpublic Meter Last { get; }",
             "\t\tpublic byte this[int k] { get; }",
+            "\t\tpublic ValueTuple<(uint, uint)> Nested { get; }",
+            "\t\tpublic int Guarded { get; protected set; }",
+            "\t\tpublic int Derived { get; }",
+            "\t\tpublic int Either { protected internal get; }",
+            '\t\t[Obsolete("a]")] public void Old();',
             "\t\tpublic static bool operator ==(Counter? a, Counter? b);",
             "\t\tpublic ulong Get(ulong by = 0);",
             "\t\tpublic enum Kind : byte {",
@@ -477,6 +487,8 @@ class Malformed(unittest.TestCase):
             ("namespace api {\nint f();\n", "cpp"),
             ("int f(int a;\n", "cpp"),
             ('namespace Api\n{\n\tpublic const string S = @"a";\n}\n', "csharp"),
+            ('namespace Api\n{\n\tpublic const string S = $@"a";\n}\n', "csharp"),
+            ('namespace Api\n{\n\tpublic const string S = @$"a";\n}\n', "csharp"),
         ]:
             with self.subTest(text=text), self.assertRaises(surface.Malformed):
                 (surface.braced if lang in ("dart", "cpp", "csharp") else lambda t, l: surface.indented(t, l))(text, lang)

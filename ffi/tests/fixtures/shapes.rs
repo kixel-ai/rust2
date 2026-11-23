@@ -2588,19 +2588,6 @@ fn csharp(built: &Built, calls: &[Call]) -> String {
 		}
 		inner[..end].to_string()
 	};
-	// Each exception a `Result`'s error is thrown as, by the type of its `Error`.
-	let thrown: std::collections::HashMap<String, String> = (source.split("public sealed class ").skip(1))
-		.filter_map(|class| {
-			let (name, rest) = class.split_once(" : RustException")?;
-			let error = rest
-				.lines()
-				.nth(2)?
-				.trim()
-				.strip_prefix("public ")?
-				.strip_suffix(" Error { get; }")?;
-			Some((error.to_string(), name.to_string()))
-		})
-		.collect();
 	let mut sinks = String::new();
 	let mut echoes = std::collections::BTreeSet::new();
 	let shapes = by_shape(calls, |call| {
@@ -2638,9 +2625,13 @@ fn csharp(built: &Built, calls: &[Call]) -> String {
 			}
 			Kind::Try => {
 				let (tried, _) = lib(&format!("Try{n}"));
-				let class = thrown
-					.get(&tried)
-					.unwrap_or_else(|| panic!("no exception holds a {tried}"));
+				// The class `Try{n}` throws: two error types, such as `Vec<u8>` and `Bytes`, may
+				// share one C# type.
+				let at = source.find(&format!(" Try{n}(ulong seed)\n")).unwrap();
+				let body = &source[at..at + source[at..].find("\n\t\t}\n").unwrap()];
+				let thrown = body.split_once("if (r_ == 0)").expect("Try_N fails").1;
+				let thrown = thrown.split_once("throw new ").expect("Try_N throws").1;
+				let class = &thrown[..thrown.find('(').unwrap()];
 				return format!(
 					"\t\ttry\n\t\t{{\n\t\t\tvar v = Lib.Try{n}({seed});\n\t\t\tConsole.WriteLine($\"{label} ok {{{}}}\");\n\t\t}}\n\
 					\t\tcatch ({class} e)\n\t\t{{\n\t\t\tConsole.WriteLine($\"{label} err {{{}}}\");\n\t\t}}",

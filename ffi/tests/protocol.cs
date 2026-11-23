@@ -229,11 +229,13 @@ static class Protocol
 			}
 			finally
 			{
+				// Joined on failure too, since `jobs` is disposed next; a worker still in it
+				// would throw over the step's own exception.
 				jobs.CompleteAdding();
-			}
-			if (!worker.Join(TimeSpan.FromMinutes(1)))
-			{
-				throw new InvalidOperationException("the worker never exited");
+				if (!worker.Join(TimeSpan.FromMinutes(1)))
+				{
+					Environment.FailFast("the worker never exited");
+				}
 			}
 			return out_.ToString();
 		}

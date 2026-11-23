@@ -101,7 +101,7 @@ def string(text, i, lang, code, masked):
     """Scan the string literal at `i`, masking its contents; return the offset past it."""
     if lang in ("c", "cpp") and i > 0 and (text[i - 1].isalnum() or text[i - 1] == "_") and text[i - 1] == "R":
         raise Malformed("a C++ raw string")
-    if lang == "csharp" and i > 0 and text[i - 1] == "@" or text.startswith('"""', i) and lang == "csharp":
+    if lang == "csharp" and (text[max(i - 1, 0):i] == "@" or text[max(i - 2, 0):i] == "@$" or text.startswith('"""', i)):
         raise Malformed("a C# verbatim or raw string")
     quote = text[i]
     raw = lang == "dart" and i > 0 and text[i - 1] == "r"
@@ -218,8 +218,7 @@ CPP_TYPE = re.compile(r"^(?:template\s*<.*?>\s*)?(class|struct|union|enum|namesp
 DART_TYPE = re.compile(
     r"^(?:@\S+\s+)*(?:(?:abstract|sealed|final|base|interface|mixin)\s+)*(class|mixin|enum|extension)\b")
 ACCESS = re.compile(r"^(public|private|protected)$")
-# A C# declaration's attributes, then its modifiers, then a type's keyword.
-CSHARP_ATTRIBUTES = re.compile(r"^(?:\[[^\]]*\]\s*)*")
+# A C# declaration's modifiers, after its attributes, then a type's keyword.
 CSHARP_MODIFIERS = re.compile(
     r"^(?:(?:public|internal|private|protected|static|sealed|abstract|unsafe|partial|readonly|ref|new|file|"
     r"override|virtual|extern|const|implicit|explicit|async|volatile)\s+)*")
@@ -358,7 +357,7 @@ class Braced:
     def typed(self, header, hmask, kind, i, j, level):
         head = squash(header)
         if self.lang == "csharp":
-            if kind != "namespace" and not cs_visible(head):
+            if kind != "namespace" and not cs_visible(squash(hmask)):
                 return
             public = True
         elif self.lang == "cpp":
@@ -391,10 +390,10 @@ class Braced:
         if not head:
             return
         if self.lang == "csharp":
-            if head.startswith("using ") or kind != "interface" and not cs_visible(head):
+            if head.startswith("using ") or kind != "interface" and not cs_visible(squash(hmask)):
                 return
             cut = assignment(hmask)
-            end = len(header) if cut is None or re.search(r"\bconst\b", cs_attributed(head)) else cut
+            end = len(header) if cut is None or re.search(r"\bconst\b", cs_attributed(squash(hmask))) else cut
             init = first(hmask[:end], re.compile(r"\)\s*:"))
             if init is not None:
                 # A constructor's `: base(...)` or `: this(...)`.
@@ -403,8 +402,13 @@ class Braced:
             # A property, by its accessors: a body of them, or an expression body's getter.
             if not cs_parameters(hmask[:end]) and kind not in ("enum",):
                 if body is not None:
-                    accessors = [a for v, a in re.findall(r"(?:^|[;}\s])((?:\w+\s+)?)(get|set|init)\b", body)
-                                 if v.strip() not in ("private", "internal")]
+                    # Its accessors, at its body's depth zero, each with the modifiers that keep it
+                    # visible outside the assembly.
+                    top = set(depth0(body))
+                    flat = "".join(c if k in top else " " for k, c in enumerate(body))
+                    accessors = [" ".join(v.split() + [a]) for v, a in re.findall(
+                        r"(?:^|[;}\]\s])((?:(?:public|private|protected|internal)\s+)*)(get|set|init)\s*(?=[;{]|=>)", flat)
+                        if "private" not in v.split() and v.split() != ["internal"]]
                     if not accessors:
                         raise Malformed(f"a C# body that is no type, method, or property: {line[:80]}")
                     line += " { " + " ".join(a + ";" for a in accessors) + " }"
@@ -454,8 +458,20 @@ class Braced:
 
 
 def cs_attributed(head):
-    """A C# declaration's head without its attributes."""
-    return head[CSHARP_ATTRIBUTES.match(head).end():]
+    """A C# declaration's masked head without its attributes, each to its balanced `]`."""
+    i = 0
+    while head.startswith("[", i):
+        depth = 0
+        for k in range(i, len(head)):
+            depth += {"[": 1, "]": -1}.get(head[k], 0)
+            if depth == 0:
+                break
+        else:
+            raise Malformed(f"an unclosed C# attribute: {head[:80]}")
+        i = k + 1
+        while i < len(head) and head[i].isspace():
+            i += 1
+    return head[i:]
 
 
 def cs_unmodified(head):
@@ -466,9 +482,11 @@ def cs_unmodified(head):
 
 def cs_parameters(hmask):
     """Whether a C# member's header has a parameter list: a `(` at depth zero right after its
-    name or operator, where a tuple type's follows a space."""
+    name, type parameters, or operator, where a tuple type's follows a space, `<`, or `,`."""
     top = set(depth0(hmask))
-    return any(c == "(" and k in top and k > 0 and not hmask[k - 1].isspace() for k, c in enumerate(hmask))
+    return any(c == "(" and k in top and k > 0 and (
+        hmask[k - 1].isalnum() or hmask[k - 1] in "_>" or re.search(r"\boperator\s*\S+$", hmask[:k]))
+        for k, c in enumerate(hmask))
 
 
 def cs_visible(head):
@@ -923,15 +941,15 @@ def web_declarations(root):
 
 
 def files(export):
-    """The surface files of `export`, by name."""
+    """The surface files of `export`, by name, each rendered when called."""
     surfaces = {}
     include = export / "include"
     headers = sorted(include.glob("*.h"))
     if headers:
-        surfaces["c.h"] = joined(headers, c_header, "/* {} */")
+        surfaces["c.h"] = lambda: joined(headers, c_header, "/* {} */")
     hpp = sorted(include.glob("*/*.hpp"))
     if hpp:
-        surfaces["cpp.hpp"] = joined(hpp, lambda t: braced(t, "cpp"), "// {}")
+        surfaces["cpp.hpp"] = lambda: joined(hpp, lambda t: braced(t, "cpp"), "// {}")
     for lang, glob, name, outline, label in [
         ("kotlin", "kotlin/*.kt", "kotlin.kt", lambda t: indented(t, "kotlin"), "// {}"),
         ("swift", "swift/*.swift", "swift.swift", lambda t: indented(t, "swift"), "// {}"),
@@ -941,11 +959,11 @@ def files(export):
     ]:
         sources = sorted(export.glob(glob))
         if sources:
-            surfaces[name] = joined(sources, outline, label)
+            surfaces[name] = lambda sources=sources, outline=outline, label=label: joined(sources, outline, label)
     if (export / "go" / "go.mod").exists():
-        surfaces["go.txt"] = go_doc(export / "go")
+        surfaces["go.txt"] = lambda: go_doc(export / "go")
     if (export / "web").is_dir():
-        surfaces["web.d.ts"] = web_declarations(export / "web")
+        surfaces["web.d.ts"] = lambda: web_declarations(export / "web")
     return surfaces
 
 
@@ -970,9 +988,11 @@ def main():
     if only:
         if only - set(surfaces):
             raise SystemExit(f"{export} renders no {', '.join(sorted(only - set(surfaces)))}")
-        surfaces = {name: text for name, text in surfaces.items() if name in only}
+        surfaces = {name: render for name, render in surfaces.items() if name in only}
     if not surfaces:
         raise SystemExit(f"{export} holds no binding")
+    # Only the files asked for render, so another's malformed source fails no check of these.
+    surfaces = {name: render() for name, render in surfaces.items()}
     existing = {p.name for p in out.iterdir()} if out.is_dir() else set()
     # Files named leave the others alone, which another export may render.
     stale = [] if only else sorted(existing - set(surfaces))

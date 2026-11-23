@@ -1320,9 +1320,9 @@ fn api_android() {
 	std::fs::create_dir_all(&dex).unwrap();
 	run(Command::new("java")
 		.arg("-cp")
-		.arg(newest(&sdk.join("build-tools")).join("lib").join("d8.jar"))
+		.arg(newest(&sdk.join("build-tools"), "lib/d8.jar"))
 		.args(["com.android.tools.r8.R8", "--release", "--min-api", "24", "--lib"])
-		.arg(newest(&sdk.join("platforms")).join("android.jar"))
+		.arg(newest(&sdk.join("platforms"), "android.jar"))
 		.arg("--pg-conf")
 		.arg(out.join("kotlin").join("api.pro"))
 		.arg("--pg-conf")
@@ -1346,7 +1346,7 @@ fn api_android() {
 		.matches("@dalvik.annotation.optimization.FastNative\n")
 		.count();
 	assert!(marked > 0, "the api fixture has no leaf to mark");
-	let dump = run(Command::new(newest(&sdk.join("build-tools")).join("dexdump"))
+	let dump = run(Command::new(newest(&sdk.join("build-tools"), "dexdump"))
 		.arg("-a")
 		.arg(dex.join("classes.dex")));
 	let kept = String::from_utf8_lossy(&dump.stdout)
@@ -1830,10 +1830,11 @@ fn coroutines() -> OsString {
 		.expect("KOTLINX_COROUTINES names kotlinx-coroutines' jar: run this in the dev shell")
 }
 
-/// The entry of `dir` of the highest version, as the SDK names its build tools and platforms.
-fn newest(dir: &Path) -> PathBuf {
-	let version = |path: &PathBuf| -> Vec<u32> {
-		let name = path.file_name().unwrap().to_string_lossy().into_owned();
+/// `path` in the entry of `dir` of the highest version that holds it, as the SDK names its
+/// build tools and platforms: a newer entry may lack it, as a .NET 11 pack lacks `net10.0`.
+fn newest(dir: &Path, path: &str) -> PathBuf {
+	let version = |entry: &PathBuf| -> Vec<u32> {
+		let name = entry.file_name().unwrap().to_string_lossy().into_owned();
 		name.split(|c: char| !c.is_ascii_digit())
 			.filter_map(|n| n.parse().ok())
 			.collect()
@@ -1841,8 +1842,10 @@ fn newest(dir: &Path) -> PathBuf {
 	std::fs::read_dir(dir)
 		.unwrap_or_else(|err| panic!("reading {}: {err}", dir.display()))
 		.map(|entry| entry.unwrap().path())
+		.filter(|entry| entry.join(path).exists())
 		.max_by_key(version)
-		.unwrap_or_else(|| panic!("{} is empty", dir.display()))
+		.unwrap_or_else(|| panic!("no entry of {} holds {path}", dir.display()))
+		.join(path)
 }
 
 /// `tests/api.kt`'s script, run by `vm` with each argument list, prints the native
@@ -3727,8 +3730,10 @@ fn api_csharp_protocol_nightly() {
 
 fn csharp_protocol(dir: &str, scripts: &[protocol::Script]) {
 	let api = api();
-	let built = scratch().join("api").join("csharp-protocol");
+	// Each variant builds its own, so the gate and the nightly run together share no file.
+	let built = scratch().join("api").join("csharp-protocol").join(dir);
 	let exe = built.join("protocol.dll");
+	std::fs::create_dir_all(&built).unwrap();
 	csc(
 		Dotnet::Net,
 		&exe,
@@ -3737,7 +3742,7 @@ fn csharp_protocol(dir: &str, scripts: &[protocol::Script]) {
 			&manifest_dir().join("tests/protocol.cs"),
 		],
 	);
-	protocol::check_all(&built.join(dir), scripts, || csharp_run(&exe, &[]));
+	protocol::check_all(&built.join("scripts"), scripts, || csharp_run(&exe, &[]));
 }
 
 /// The same C# compiled ahead of time by NativeAOT, with its trim and AOT analyzers' warnings
@@ -3841,10 +3846,10 @@ fn csc(target: Dotnet, out: &Path, sources: &[&Path]) {
 /// The Roslyn command [`csc`] runs, for a caller that takes its failure.
 fn csc_command(target: Dotnet, out: &Path, sources: &[&Path]) -> Command {
 	let root = dotnet_root();
-	let csc = newest(&root.join("sdk")).join("Roslyn/bincore/csc.dll");
+	let csc = newest(&root.join("sdk"), "Roslyn/bincore/csc.dll");
 	let refs = match target {
 		Dotnet::Net | Dotnet::NetUnity | Dotnet::Library => {
-			newest(&root.join("packs/Microsoft.NETCore.App.Ref")).join("ref/net10.0")
+			newest(&root.join("packs/Microsoft.NETCore.App.Ref"), "ref/net10.0")
 		}
 		Dotnet::Unity => {
 			PathBuf::from(std::env::var_os("NETSTANDARD_REF").expect("the dev shell sets NETSTANDARD_REF"))
