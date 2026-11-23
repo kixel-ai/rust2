@@ -36,6 +36,11 @@ struct world {
 	jsi::Value none, handle, waker;
 	// Calls into Rust under way on the JavaScript thread.
 	int depth = 0;
+	// Whether the runtime is free for a thread to take: the JavaScript thread holds it but
+	// while it waits in a call into Rust.
+	::std::mutex m;
+	::std::condition_variable cv;
+	bool free = false;
 
 	world(jsi::Runtime &rt, post_t post, jsi::Object kit)
 	    : rt(&rt), js(::std::this_thread::get_id()), post(::std::move(post)), kit(::std::move(kit)),
@@ -852,44 +857,99 @@ inline void post(const ::std::shared_ptr<world> &w, ::std::function<void(jsi::Ru
 	}
 }
 
-// Free `r` on its thread: now if this is it, else posted, or leaked if its runtime is gone.
+// Free `r` on its thread, later, as a drop may run inside the garbage collector's sweep;
+// in a runtime since gone, leaked.
 inline void release(remote *r) {
-	if (r->w->here()) {
-		delete r;
-		return;
-	}
-	if (!r->w->alive.load(::std::memory_order_acquire)) {
-		return;
-	}
 	auto w = r->w;
-	w->post([r](jsi::Runtime &) { delete r; });
+	post(w, [r](jsi::Runtime &) { delete r; });
 }
 
-// Run `job` on `w`'s JavaScript thread, now if this is it, else posted and waited for: a
-// call Rust makes from another thread while the JavaScript thread waits on that thread in
-// a call into Rust deadlocks.
+// Who runs JavaScript, which one thread does at a time: the JavaScript thread, but while
+// it waits in a call into Rust, which frees the runtime for a call Rust makes into
+// JavaScript from any thread meanwhile, as a lent closure may be called on another thread
+// until its call returns.
+
+// Run the call into Rust `f` with the runtime freed, taking it back once `f` returns.
+template <class F>
+decltype(auto) unlocked(F &&f) {
+	world &w = W();
+	{
+		::std::lock_guard<::std::mutex> lock(w.m);
+		w.free = true;
+	}
+	w.cv.notify_all();
+	struct relock {
+		world &w;
+		~relock() {
+			::std::unique_lock<::std::mutex> lock(w.m);
+			w.cv.wait(lock, [&] { return w.free; });
+			w.free = false;
+		}
+	} back{w};
+	return f();
+}
+
+// Give back the runtime this thread took.
+struct given {
+	world &w;
+	~given() {
+		{
+			::std::lock_guard<::std::mutex> lock(w.m);
+			w.free = true;
+		}
+		w.cv.notify_all();
+	}
+};
+
+// Run `job` for Rust: on the JavaScript thread, which takes the runtime from the call into
+// Rust it waits in; or from another thread, posted to the JavaScript thread, or run on this
+// one once a call into Rust frees the runtime, whichever comes first.
 template <class T>
 T on_js(const ::std::shared_ptr<world> &w, const char *what, ::std::function<T(jsi::Runtime &)> job) {
-	if (w->here()) {
+	auto take = [&]() -> T {
+		given back{*w};
 		return job(*w->rt);
+	};
+	if (w->here()) {
+		{
+			::std::unique_lock<::std::mutex> lock(w->m);
+			w->cv.wait(lock, [&] { return w->free; });
+			w->free = false;
+		}
+		return take();
 	}
 	if (!w->alive.load(::std::memory_order_acquire)) {
 		fail(::std::string(what) + ": called after its JavaScript runtime was gone");
 	}
-	::std::mutex m;
-	::std::condition_variable cv;
-	bool done = false;
-	::std::optional<T> out;
-	w->post([&](jsi::Runtime &rt) {
-		T v = job(rt);
-		::std::lock_guard<::std::mutex> lock(m);
-		out.emplace(::std::move(v));
-		done = true;
-		cv.notify_one();
+	struct state {
+		::std::atomic<bool> taken{false};
+		bool done = false;
+		::std::optional<T> out;
+	};
+	auto s = ::std::make_shared<state>();
+	auto *f = &job;
+	w->post([s, f, w](jsi::Runtime &rt) {
+		// Run here only if the other thread still waits for it, which then keeps `f` alive.
+		if (s->taken.exchange(true)) {
+			return;
+		}
+		T v = (*f)(rt);
+		{
+			::std::lock_guard<::std::mutex> lock(w->m);
+			s->out.emplace(::std::move(v));
+			s->done = true;
+		}
+		w->cv.notify_all();
 	});
-	::std::unique_lock<::std::mutex> lock(m);
-	cv.wait(lock, [&] { return done; });
-	return ::std::move(*out);
+	::std::unique_lock<::std::mutex> lock(w->m);
+	w->cv.wait(lock, [&] { return s->done || w->free; });
+	if (!s->done && !s->taken.exchange(true)) {
+		w->free = false;
+		lock.unlock();
+		return take();
+	}
+	w->cv.wait(lock, [&] { return s->done; });
+	return ::std::move(*s->out);
 }
 
 // What a call into JavaScript `what` does for Rust: what it throws aborts, as Rust has
@@ -1149,14 +1209,12 @@ inline c_foreign_reader reader_of(frame &f, const jsi::Value &v) {
 	return c_foreign_reader{&reader_read, &reader_seek, r};
 }
 
-// An implementation of a trait JavaScript gave Rust, closed with `close` once Rust drops it.
+// An implementation of a trait JavaScript gave Rust, closed with `close` once Rust drops it,
+// later on the JavaScript thread.
 inline void trait_free(void *data) {
 	auto *r = static_cast<remote *>(data);
 	auto w = r->w;
-	if (!w->alive.load(::std::memory_order_acquire)) {
-		return;
-	}
-	auto job = [r](jsi::Runtime &rt) {
+	post(w, [r](jsi::Runtime &rt) {
 		try {
 			jsi::Object o = r->v.getObject(rt);
 			jsi::Value close = o.getProperty(rt, "close");
@@ -1167,12 +1225,7 @@ inline void trait_free(void *data) {
 			fail(::std::string("a drop: a call into JavaScript threw ") + e.getStack());
 		}
 		delete r;
-	};
-	if (w->here()) {
-		job(*w->rt);
-	} else {
-		w->post(job);
-	}
+	});
 }
 
 // A closure JavaScript gave Rust to keep, freed once Rust drops it.

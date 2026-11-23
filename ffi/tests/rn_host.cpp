@@ -78,7 +78,7 @@ int main(int argc, char **argv) {
 	std::stringstream src;
 	src << in.rdbuf();
 
-	auto config = hermes::vm::RuntimeConfig::Builder().withMicrotaskQueue(true).withES6Promise(true).build();
+	auto config = hermes::vm::RuntimeConfig::Builder().withMicrotaskQueue(true).build();
 	std::unique_ptr<facebook::hermes::HermesRuntime> runtime = facebook::hermes::makeHermesRuntime(config);
 	jsi::Runtime &rt = *runtime;
 	jsi::Object global = rt.global();

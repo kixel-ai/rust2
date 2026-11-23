@@ -1027,7 +1027,7 @@ impl Gen<'_> {
 				p.push("::std::int32_t s_ = 0;".to_string());
 				pargs.push("&s_".to_string());
 			}
-			p.push(format!("auto st_ = ::{}({});", poll.name, pargs.join(", ")));
+			p.push(format!("auto st_ = r::unlocked([&] {{ return ::{}({}); }});", poll.name, pargs.join(", ")));
 			if poll_status {
 				p.push(format!("r::status(rt, s_, {});", lit(&poll.name)));
 			}
@@ -1050,7 +1050,7 @@ impl Gen<'_> {
 				lines.push("::std::int32_t s_ = 0;".to_string());
 				call.args.push("&s_".to_string());
 			}
-			lines.push(format!("auto st_ = ::{}({});", start.name, call.args.join(", ")));
+			lines.push(format!("auto st_ = r::unlocked([&] {{ return ::{}({}); }});", start.name, call.args.join(", ")));
 			if start.status().is_some() {
 				lines.push(format!("r::status(rt, s_, {});", lit(&start.name)));
 			}
@@ -1076,8 +1076,8 @@ impl Gen<'_> {
 			}
 			let invoke = format!("::{c_name}({})", call.args.join(", "));
 			match export.call.ret {
-				Ty::Void => lines.push(format!("{invoke};")),
-				_ => lines.push(format!("auto r_ = {invoke};")),
+				Ty::Void => lines.push(format!("r::unlocked([&] {{ {invoke}; }});")),
+				_ => lines.push(format!("auto r_ = r::unlocked([&] {{ return {invoke}; }});")),
 			}
 			if status {
 				lines.push(format!("r::status(rt, s_, {});", lit(&c_name)));
@@ -1196,7 +1196,7 @@ impl Gen<'_> {
 				lines.push("::std::int32_t s_ = 0;".to_string());
 				args.push("&s_".to_string());
 			}
-			lines.push(format!("auto r_ = ::{c_}_{member}({});", args.join(", ")));
+			lines.push(format!("auto r_ = r::unlocked([&] {{ return ::{c_}_{member}({}); }});", args.join(", ")));
 			if has_status {
 				lines.push(format!("r::status(rt, s_, {});", lit(&format!("{c_}_{member}"))));
 			}
