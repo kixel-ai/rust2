@@ -3664,6 +3664,7 @@ fn go_module_resolves_missing_parent() {
 		names: Default::default(),
 		files: vec![],
 		stale: vec![output.join("go")],
+		spared: vec![],
 	};
 	assert!(generated.check_baseline(&baseline).is_ok());
 	assert!(!root.join("new").exists());
@@ -3720,6 +3721,7 @@ fn rewrite_keeps_unchanged_files() {
 			.map(|(path, text)| (root.join(path), text.to_string()))
 			.collect(),
 		stale: vec![go.clone()],
+		spared: vec![],
 	};
 	let first = [
 		("Cargo.toml", "a"),
