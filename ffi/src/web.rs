@@ -1074,29 +1074,25 @@ impl<'a> Gen<'a> {
 	}
 
 	/// Statements writing the value `e` of type `ty` at the address `p`: bytes and text as a
-	/// view of a copy on the stack, unless `take`, where Rust takes a buffer of its own.
+	/// view of a copy on the stack, unless `take`, where Rust takes a buffer of its own. Each
+	/// reads `e` once, as an argument of the runtime's writer, so a getter that grows memory
+	/// runs before the view the value is written through is taken.
 	fn put(&mut self, ty: &Type, e: &str, p: &str, take: bool) -> String {
 		let abi = self.abi;
 		match ty {
 			Type::Unit => String::new(),
-			Type::Bool => format!("rt.dv().setUint8({p}, {e} ? 1 : 0);"),
+			Type::Bool => format!("rt.put8({p}, {e} ? 1 : 0);"),
 			Type::F32 => format!("rt.f32Put({p}, {e});"),
 			Type::F64 => format!("rt.f64Put({p}, {e});"),
 			Type::Int(_) | Type::NonZero(_) | Type::Char => {
-				let (set, lowered) = match ty {
-					Type::Int(Int::U64) | Type::NonZero(Int::U64) => {
-						return format!("rt.u64Put({p}, {});", self.checked(ty, e));
-					}
-					Type::Int(Int::I64) | Type::NonZero(Int::I64) => {
-						return format!("rt.i64Put({p}, {});", self.checked(ty, e));
-					}
-					Type::Int(int) | Type::NonZero(int) => (int_view(*int), self.checked(ty, e)),
-					_ => ("Uint32", self.checked(ty, e)),
+				let put = match ty {
+					Type::Int(Int::U64) | Type::NonZero(Int::U64) => "u64Put",
+					Type::Int(Int::I64) | Type::NonZero(Int::I64) => "i64Put",
+					Type::Int(Int::U8 | Int::I8) | Type::NonZero(Int::U8 | Int::I8) => "put8",
+					Type::Int(Int::U16 | Int::I16) | Type::NonZero(Int::U16 | Int::I16) => "put16",
+					_ => "put32",
 				};
-				match set {
-					"Uint8" | "Int8" => format!("rt.dv().set{set}({p}, {lowered});"),
-					_ => format!("rt.dv().set{set}({p}, {lowered}, true);"),
-				}
+				format!("rt.{put}({p}, {});", self.checked(ty, e))
 			}
 			Type::U128 => format!("rt.u128Put({p}, {e});"),
 			Type::Str | Type::String => match take {
@@ -1109,17 +1105,15 @@ impl<'a> Gen<'a> {
 			},
 			Type::Path | Type::PathBuf => format!("rt.putBytes({p}, {e}.bytes);"),
 			Type::Duration => format!("rt.durationPut({p}, {e});"),
-			Type::Array(n) => format!("rt.mem().set(rt.array({e}, {n}), {p});"),
+			Type::Array(n) => format!("rt.arrayPut({p}, {e}, {n});"),
 			Type::SocketAddr(Family::Any) => format!("rt.socketPut({p}, {e});"),
 			Type::SocketAddr(Family::V4) => format!("rt.socketV4Put({p}, {e});"),
 			Type::SocketAddr(Family::V6) => format!("rt.socketV6Put({p}, {e});"),
 			Type::IpAddr(Family::Any) => format!("rt.ipPut({p}, {e});"),
 			Type::IpAddr(Family::V4) => format!("rt.ipv4Put({p}, {e});"),
 			Type::IpAddr(Family::V6) => format!("rt.ipv6Put({p}, {e});"),
-			Type::Object(_) => format!("rt.dv().setUint32({p}, rt.hold({e}), true);"),
-			Type::Option(inner) if matches!(inner.base(), Type::Object(_)) => {
-				format!("rt.dv().setUint32({p}, rt.holdOr({e}), true);")
-			}
+			Type::Object(_) => format!("rt.put32({p}, rt.hold({e}));"),
+			Type::Option(inner) if matches!(inner.base(), Type::Object(_)) => format!("rt.put32({p}, rt.holdOr({e}));"),
 			Type::Option(inner) if Abi::is_buf(inner) || matches!(inner.base(), Type::List(..)) => {
 				let some = self.put(inner.base(), e, p, take);
 				match matches!(inner.base(), Type::List(..)) {
@@ -1133,13 +1127,11 @@ impl<'a> Gen<'a> {
 			Type::Box(inner) | Type::Ref(_, inner) => self.put(inner, e, p, take),
 			Type::Enum(i) if abi.api.enums[*i].plain() => {
 				let lower = self.enum_lower(*i);
-				format!("rt.dv().setInt32({p}, {lower}({e}), true);")
+				format!("rt.put32({p}, {lower}({e}));")
 			}
 			Type::Callback(i, _) => {
 				let vtable = self.vtable(*i);
-				format!(
-					"rt.dv().setUint32({p}, {vtable}(), true);\nrt.dv().setUint32({p} + 4, rt.give({e}, () => {e}.close?.()), true);"
-				)
+				format!("rt.callbackPut({p}, {vtable}(), {e});")
 			}
 			Type::Waker => format!("rt.wakerOf({p}, {e});"),
 			Type::Future => format!("rt.futureOf({p}, {e});"),
@@ -1585,10 +1577,11 @@ impl<'a> Gen<'a> {
 				));
 				String::new()
 			}
+			// A list's length read once: a getter may change it, or grow memory, each time.
 			Type::List(..) if let Some(block) = ty.block() => {
 				let size = self.layout(&abi.ty(block)).size;
 				format!(
-					"const d = rt.dv();\nif (v === undefined) {{\n\td.setUint32(p, 0, true);\n\td.setUint32(p + 4, 0, true);\n\td.setUint32(p + 8, 0, true);\n\treturn;\n}}\nconst ptr = rt.alloc(Math.max(v.length * {size}, 1), {size});\nrt.mem().set(new Uint8Array(v.buffer, v.byteOffset, v.length * {size}), ptr);\nconst e = rt.dv();\ne.setUint32(p, ptr, true);\ne.setUint32(p + 4, v.length, true);\ne.setUint32(p + 8, 0, true);"
+					"if (v === undefined) {{\n\tconst d = rt.dv();\n\td.setUint32(p, 0, true);\n\td.setUint32(p + 4, 0, true);\n\td.setUint32(p + 8, 0, true);\n\treturn;\n}}\nconst n = v.length;\nconst src = new Uint8Array(v.buffer, v.byteOffset, n * {size});\nconst ptr = rt.alloc(Math.max(n * {size}, 1), {size});\nrt.mem().set(src, ptr);\nconst d = rt.dv();\nd.setUint32(p, ptr, true);\nd.setUint32(p + 4, n, true);\nd.setUint32(p + 8, 0, true);"
 				)
 			}
 			Type::List(_, elem) => {
@@ -1598,7 +1591,7 @@ impl<'a> Gen<'a> {
 				let item = self.put(elem, "x", &format!("ptr + i * {stride}"), false);
 				let item = format!("const x = v[i];\n{item}");
 				format!(
-					"if (v === undefined) {{\n\tconst d = rt.dv();\n\td.setUint32(p, 0, true);\n\td.setUint32(p + 4, 0, true);\n\td.setUint32(p + 8, 0, true);\n\treturn;\n}}\nconst ptr = rt.alloc(Math.max(v.length * {stride}, 1), {});\nfor (let i = 0; i < v.length; i++) {{\n{}\n}}\nconst d = rt.dv();\nd.setUint32(p, ptr, true);\nd.setUint32(p + 4, v.length, true);\nd.setUint32(p + 8, 0, true);",
+					"if (v === undefined) {{\n\tconst d = rt.dv();\n\td.setUint32(p, 0, true);\n\td.setUint32(p + 4, 0, true);\n\td.setUint32(p + 8, 0, true);\n\treturn;\n}}\nconst n = v.length;\nconst ptr = rt.alloc(Math.max(n * {stride}, 1), {});\nfor (let i = 0; i < n; i++) {{\n{}\n}}\nconst d = rt.dv();\nd.setUint32(p, ptr, true);\nd.setUint32(p + 4, n, true);\nd.setUint32(p + 8, 0, true);",
 					l.align,
 					indent(&item)
 				)
@@ -1672,19 +1665,6 @@ pub(crate) fn typed_array(elem: &Type) -> &'static str {
 		Type::F32 => "Float32Array",
 		Type::F64 => "Float64Array",
 		other => unreachable!("{other:?} is no block"),
-	}
-}
-
-/// The `DataView` accessor of an integer no wider than 32 bits.
-fn int_view(int: Int) -> &'static str {
-	match int {
-		Int::U8 => "Uint8",
-		Int::I8 => "Int8",
-		Int::U16 => "Uint16",
-		Int::I16 => "Int16",
-		Int::U32 | Int::Usize => "Uint32",
-		Int::I32 | Int::Isize => "Int32",
-		Int::U64 | Int::I64 => unreachable!("a u64 is two words"),
 	}
 }
 

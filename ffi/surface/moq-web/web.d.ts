@@ -10722,6 +10722,9 @@ export declare class Handle<T extends string = string> {
 export declare function hold(handle: Handle): number;
 export declare function holdOr(handle: Handle | undefined): number;
 export declare function lentHandle<T extends string>(p: number, k: Kind): Handle<T>;
+export declare function put8(p: number, v: number): void;
+export declare function put16(p: number, v: number): void;
+export declare function put32(p: number, v: number): void;
 export declare function int(v: number, min: number, max: number, what: string): number;
 export declare function nonZero<T extends number | u64 | i64>(v: T): T;
 export declare function f32Number(v: f32): number;
@@ -10773,7 +10776,7 @@ export declare function returnedBytes(p: number): Bytes;
 export declare function str(p: number): string;
 export declare function copied(dst: number, text: string, message?: boolean): void;
 export declare function copiedBytes(dst: number, data: Uint8Array): void;
-export declare function array(data: Uint8Array, n: number): Uint8Array;
+export declare function arrayPut(p: number, data: Uint8Array, n: number): void;
 export declare function pathBytes(path: PathBuf): Uint8Array;
 export declare function durationGet(p: number): Duration;
 export declare function durationPut(p: number, v: Duration): void;
@@ -10790,6 +10793,9 @@ export declare function socketV6Put(p: number, v: SocketAddrV6): void;
 export declare function socketGet(p: number): SocketAddr;
 export declare function socketPut(p: number, v: SocketAddr): void;
 export declare function give(value: unknown, drop?: () => void): number;
+export declare function callbackPut(p: number, vtable: number, value: {
+    close?(): void;
+}): void;
 export declare function lend(value: unknown): number;
 export declare function find<T>(t: number): T;
 export declare const fn: {

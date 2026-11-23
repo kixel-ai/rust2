@@ -530,6 +530,24 @@ export function lentHandle<T extends string>(p: number, k: Kind): Handle<T> {
 	return new Handle<T>(p, k, false);
 }
 
+// A write the generated code makes of a value it reads: the value is an argument, so a getter
+// it runs, which may grow memory, runs before the view it is written through is taken.
+
+/** Write the low byte of `v` at `p`, of either sign. */
+export function put8(p: number, v: number): void {
+	dv().setUint8(p, v);
+}
+
+/** Write the low 16 bits of `v` at `p`, of either sign. */
+export function put16(p: number, v: number): void {
+	dv().setUint16(p, v, true);
+}
+
+/** Write the low 32 bits of `v` at `p`, of either sign. */
+export function put32(p: number, v: number): void {
+	dv().setUint32(p, v, true);
+}
+
 // #region shared
 // Integers.
 
@@ -586,10 +604,12 @@ export function u64Halves(v: u64): [number, number] {
 		if (!Number.isSafeInteger(v) || v < 0) throw new RangeError(`${v} is no u64`);
 		return [Math.floor(v / TWO32), v % TWO32];
 	}
-	if (!(v.hi >= 0x200000 && v.hi <= 0xffffffff && Number.isInteger(v.hi) && v.lo >>> 0 === v.lo)) {
+	// Each read once, so a getter's value is the one checked.
+	const { hi, lo } = v;
+	if (!(hi >= 0x200000 && hi <= 0xffffffff && Number.isInteger(hi) && lo >>> 0 === lo)) {
 		throw new RangeError(`${JSON.stringify(v)} is no u64 in its one form`);
 	}
-	return [v.hi, v.lo];
+	return [hi, lo];
 }
 
 /** An `i64`'s halves, `[hi, lo]`, `hi` an int32 and `lo` a uint32: one out of range throws. */
@@ -599,11 +619,12 @@ export function i64Halves(v: i64): [number, number] {
 		const hi = Math.floor(v / TWO32);
 		return [hi | 0, v - hi * TWO32];
 	}
-	const safe = v.hi >= -0x200000 && v.hi < 0x200000 && Number.isSafeInteger(v.hi * TWO32 + v.lo);
-	if (safe || v.hi !== (v.hi | 0) || v.lo >>> 0 !== v.lo) {
+	const { hi, lo } = v;
+	const safe = hi >= -0x200000 && hi < 0x200000 && Number.isSafeInteger(hi * TWO32 + lo);
+	if (safe || hi !== (hi | 0) || lo >>> 0 !== lo) {
 		throw new RangeError(`${JSON.stringify(v)} is no i64 in its one form`);
 	}
-	return [v.hi, v.lo];
+	return [hi, lo];
 }
 
 /** A `u64` as the `bigint` a wasm `i64` takes. */
@@ -775,7 +796,8 @@ export function u128Put(p: number, v: u128): void {
 		words = [v % TWO32, Math.floor(v / TWO32), 0, 0];
 	} else {
 		words = [v.lo, v.w1, v.w2, v.hi];
-		const one = words.every((x) => x >>> 0 === x) && (v.hi !== 0 || v.w2 !== 0 || v.w1 >= 0x200000);
+		const [, w1, w2, hi] = words;
+		const one = words.every((x) => x >>> 0 === x) && (hi !== 0 || w2 !== 0 || w1! >= 0x200000);
 		if (!one) throw new RangeError(`${JSON.stringify(v)} is no u128 in its one form`);
 	}
 	const d = dv();
@@ -1090,10 +1112,10 @@ export function copiedBytes(dst: number, data: Uint8Array): void {
 	top = m;
 }
 
-/** `bytes`, which throws unless it holds exactly `n`. */
-export function array(data: Uint8Array, n: number): Uint8Array {
+/** Write the `[u8; n]` `data` at `p`, which throws unless it holds exactly `n` bytes. */
+export function arrayPut(p: number, data: Uint8Array, n: number): void {
 	if (data.length !== n) throw new RangeError(`${data.length} bytes are no [u8; ${n}]`);
-	return data;
+	mem().set(data, p);
 }
 
 /** A path's bytes, which may be any on wasm32, as on Unix. */
@@ -1110,9 +1132,9 @@ export function durationGet(p: number): Duration {
 
 /** Write the `Duration` `v` at `p`: nanoseconds of a second or more throw. */
 export function durationPut(p: number, v: Duration): void {
-	int(v.nanos, 0, 999999999, "Duration's nanoseconds");
+	const nanos = int(v.nanos, 0, 999999999, "Duration's nanoseconds");
 	u64Put(p, v.secs);
-	dv().setUint32(p + 8, v.nanos, true);
+	put32(p + 8, nanos);
 }
 
 function octets(p: number, n: number): Uint8Array {
@@ -1145,10 +1167,11 @@ export function ipGet(p: number): IpAddr {
 }
 
 export function ipPut(p: number, v: IpAddr): void {
-	dv().setUint8(p, v.tag === "V6" ? 1 : 0);
-	if (v.tag === "V6") ipv6Put(p + 1, v._0);
-	else if (v.tag === "V4") ipv4Put(p + 1, v._0);
+	const { tag, _0 } = v;
+	if (tag === "V6") ipv6Put(p + 1, _0);
+	else if (tag === "V4") ipv4Put(p + 1, _0);
 	else throw new RangeError("an IpAddr is V4 or V6");
+	put8(p, tag === "V6" ? 1 : 0);
 }
 
 export function socketV4Get(p: number): SocketAddrV4 {
@@ -1157,7 +1180,7 @@ export function socketV4Get(p: number): SocketAddrV4 {
 
 export function socketV4Put(p: number, v: SocketAddrV4): void {
 	ipv4Put(p, v.ip);
-	dv().setUint16(p + 4, int(v.port, 0, 0xffff, "port"), true);
+	put16(p + 4, int(v.port, 0, 0xffff, "port"));
 }
 
 export function socketV6Get(p: number): SocketAddrV6 {
@@ -1172,10 +1195,13 @@ export function socketV6Get(p: number): SocketAddrV6 {
 
 export function socketV6Put(p: number, v: SocketAddrV6): void {
 	ipv6Put(p, v.ip);
+	const port = int(v.port, 0, 0xffff, "port");
+	const flowinfo = int(v.flowinfo, 0, 0xffffffff, "flow label");
+	const scope = int(v.scopeId, 0, 0xffffffff, "scope");
 	const d = dv();
-	d.setUint16(p + 16, int(v.port, 0, 0xffff, "port"), true);
-	d.setUint32(p + 20, int(v.flowinfo, 0, 0xffffffff, "flow label"), true);
-	d.setUint32(p + 24, int(v.scopeId, 0, 0xffffffff, "scope"), true);
+	d.setUint16(p + 16, port, true);
+	d.setUint32(p + 20, flowinfo, true);
+	d.setUint32(p + 24, scope, true);
 }
 
 export function socketGet(p: number): SocketAddr {
@@ -1183,10 +1209,11 @@ export function socketGet(p: number): SocketAddr {
 }
 
 export function socketPut(p: number, v: SocketAddr): void {
-	dv().setUint8(p, v.tag === "V6" ? 1 : 0);
-	if (v.tag === "V6") socketV6Put(p + 4, v._0);
-	else if (v.tag === "V4") socketV4Put(p + 4, v._0);
+	const { tag, _0 } = v;
+	if (tag === "V6") socketV6Put(p + 4, _0);
+	else if (tag === "V4") socketV4Put(p + 4, _0);
 	else throw new RangeError("a SocketAddr is V4 or V6");
+	put8(p, tag === "V6" ? 1 : 0);
 }
 
 // What JavaScript implements for Rust, each found by its token.
@@ -1202,6 +1229,15 @@ export function give(value: unknown, drop?: () => void): number {
 	tokens.set(t, value);
 	if (drop) drops.set(t, drop);
 	return t;
+}
+
+/** Write at `p` the implementation `value` of a callback interface, which Rust calls through
+ * `vtable` and closes once it drops it. */
+export function callbackPut(p: number, vtable: number, value: { close?(): void }): void {
+	const t = give(value, () => value.close?.());
+	const d = dv();
+	d.setUint32(p, vtable, true);
+	d.setUint32(p + 4, t, true);
 }
 
 /** A token for `value`, forgotten once the running call returns. */

@@ -2935,7 +2935,6 @@ fn web_protocol(runtime: &str, name: &str, first: u64, count: u64, steps: usize)
 /// memory grows, and fails loud on each contract it breaks; a binding of another contract
 /// refuses the module.
 #[test]
-#[ignore = "flaky: quest/m0/flaky/rust2-ffi-api-web.md"]
 fn api_web() {
 	for runtime in ["node", "deno", "bun"] {
 		web_checks(runtime, &WEB_CASES, &mut |case| {
