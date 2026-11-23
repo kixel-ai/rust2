@@ -6,6 +6,7 @@
 import * as api from "./react-native/index.ts";
 import * as check from "./api.ts";
 import * as Channel from "./react-native/Channel.ts";
+import * as Epilogue from "./react-native/Epilogue.ts";
 import * as rt from "./react-native/rt.ts";
 import * as Spawned from "./react-native/Spawned.ts";
 import { TurboModuleRegistry } from "react-native";
@@ -281,6 +282,69 @@ async function replaced(): Promise<void> {
 	channel[Symbol.dispose]();
 }
 
+/**
+ * A call given back to Rust as a future is cancelled as Rust drops it, as the web's is: a
+ * receive whose wait timed out takes nothing sent after it.
+ */
+async function cancelled(): Promise<void> {
+	const channel = Channel.new();
+	const recv = Channel.recv(channel);
+	const timed = await api.within(0, recv);
+	if (timed.ok) throw new Error("a receive on an empty channel finished");
+	Channel.send(channel, Uint8Array.of(7));
+	const outcome = await recv.then(
+		() => "received",
+		(e: unknown) => (e instanceof rt.Cancelled ? "cancelled" : e),
+	);
+	if (outcome !== "cancelled") throw new Error(`a timed-out receive ended ${String(outcome)}`);
+	const got = await Channel.recv(channel);
+	if (got.length !== 1 || got.at(0) !== 7) throw new Error("what was sent after a timed-out receive was lost");
+	got[Symbol.dispose]();
+	channel[Symbol.dispose]();
+}
+
+/**
+ * A waker that JavaScript its own wake runs disposes is dropped in Rust once that wake
+ * returns, not under it, which still borrows it.
+ */
+function woken(): void {
+	const events: string[] = [];
+	let waker: rt.Waker | undefined;
+	waker = api.logWaker({
+		log(level: number): boolean {
+			events.push(`log ${level}`);
+			if (level === 1) {
+				waker![Symbol.dispose]();
+				events.push("disposed");
+			}
+			return true;
+		},
+	});
+	waker.wake();
+	events.push("returned");
+	const seen = events.join(", ");
+	if (seen !== "log 1, disposed, log 0, returned") throw new Error(`a waker disposed in its wake: ${seen}`);
+}
+
+/**
+ * A value the collector frees is dropped on a posted job, so a drop that calls into
+ * JavaScript runs outside the collection. One still held as the runtime goes is leaked, as
+ * no JavaScript is left to call: the host runs this twice with `--reload`.
+ */
+async function collected(): Promise<void> {
+	const lines: string[] = [];
+	const log = {
+		log(_level: number, line: string): boolean {
+			lines.push(line);
+			return true;
+		},
+	};
+	(() => Epilogue.new$(log, 1))();
+	await check.collect(() => lines.length > 0, "the collector drops an epilogue nobody disposed");
+	if (lines.join(", ") !== "closed") throw new Error(`a collected epilogue logged ${lines.join(", ")}`);
+	(globalThis as { kept?: unknown }).kept = Epilogue.new$(log, 2);
+}
+
 /** What installs the module: the host's global off a device, else the TurboModule. */
 function installer(): { install(kit: object): boolean } {
 	const global = (globalThis as Record<string, unknown>).__rust2_api as { install(kit: object): boolean } | undefined;
@@ -312,6 +376,7 @@ function forged(): void {
 		i64Halves: () => [2 ** 40, 0],
 		f64Bits: () => [1, 2, 3],
 		Uint8Array,
+		typedArrays: {},
 		RangeError,
 		TypeError,
 		Error,
@@ -352,6 +417,9 @@ const cases: Record<string, () => void | Promise<void>> = {
 	written,
 	refused,
 	replaced,
+	cancelled,
+	woken,
+	collected,
 	reinstalled,
 	futures: check.futures,
 	owned: check.owned,

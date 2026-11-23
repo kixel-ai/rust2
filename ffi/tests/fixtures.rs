@@ -3169,13 +3169,14 @@ fn api_react_native_host() {
 		"export const TurboModuleRegistry = {\n\tgetEnforcing(name: string): never {\n\t\tthrow new Error(`no TurboModule ${name} off React Native`);\n\t},\n};\nexport type TurboModule = object;\n",
 	);
 	// Hermes takes a script, not modules, and lacks async generators. Sloppy, as React
-	// Native's Babel preset compiles a module.
+	// Native's Babel preset compiles a module, and with classes and private fields as Hermes
+	// runs them, as `rn-program` bundles moq's.
 	run(Command::new("esbuild")
 		.args([
 			"entry.ts",
 			"--bundle",
 			"--format=iife",
-			"--target=es2020",
+			"--target=es2022",
 			"--supported:async-generator=false",
 			"--alias:react-native=./react-native-stub.ts",
 			"--log-level=error",
@@ -3256,6 +3257,10 @@ fn api_react_native_host() {
 	// A reload: the runtime destroyed with what the module holds of it, and the module
 	// installed again in a new one.
 	let reload = hermes(&["--reload", "bundle.js"], "reload");
+	// What the first runtime still holds as it goes is left alone, even what calls into
+	// JavaScript as it drops.
+	let held = hermes(&["--reload", "bundle.js", "collected"], "collected reload");
+	assert!(held.ok, "Hermes's collected reload failed:\n{}{}", held.stdout, held.stderr);
 	assert!(reload.ok, "Hermes's reload failed:\n{}", reload.stderr);
 	assert_eq!(
 		reload.stdout,
@@ -3652,7 +3657,7 @@ fn package_imports(ts: &str, package: &str) -> String {
 
 /// The cases React Native runs after its transcript: `tests/react-native.ts`'s own, and
 /// `tests/api.ts`'s but `grown`'s memory and a load's, which are WebAssembly's.
-const REACT_NATIVE_CASES: [&str; 17] = [
+const REACT_NATIVE_CASES: [&str; 20] = [
 	"typed",
 	"word",
 	"interleaved",
@@ -3662,6 +3667,9 @@ const REACT_NATIVE_CASES: [&str; 17] = [
 	"written",
 	"refused",
 	"replaced",
+	"cancelled",
+	"woken",
+	"collected",
 	"reinstalled",
 	"forged",
 	"futures",

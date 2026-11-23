@@ -27,14 +27,14 @@ using post_t = ::std::function<void(::std::function<void(jsi::Runtime &)>)>;
 // is destroyed, while its heap still is, since a jsi value freed after would touch freed
 // memory.
 struct values {
-	jsi::Object kit;
+	jsi::Object kit, arrays;
 	jsi::Function pending, bytes, uint8, range, type, error, typed_tag, int_, char_, u64_halves, i64_halves,
 	    u128_words, f32_bits, f64_bits, bytes_copy, opaque_made, opaque_bytes, is_cancelled, cancel_call, cancelled,
 	    ready;
 	jsi::Value none, handle, waker;
 
 	values(jsi::Runtime &rt, jsi::Object k)
-	    : kit(::std::move(k)), pending(fn(rt, "pending")), bytes(fn(rt, "bytes")), uint8(fn(rt, "Uint8Array")),
+	    : kit(::std::move(k)), arrays(kit.getPropertyAsObject(rt, "typedArrays")), pending(fn(rt, "pending")), bytes(fn(rt, "bytes")), uint8(fn(rt, "Uint8Array")),
 	      range(fn(rt, "RangeError")), type(fn(rt, "TypeError")), error(fn(rt, "Error")), typed_tag(fn(rt, "typedTag")),
 	      int_(fn(rt, "int")), char_(fn(rt, "char")), u64_halves(fn(rt, "u64Halves")), i64_halves(fn(rt, "i64Halves")),
 	      u128_words(fn(rt, "u128Words")), f32_bits(fn(rt, "f32Bits")), f64_bits(fn(rt, "f64Bits")),
@@ -176,6 +176,15 @@ struct given {
 		w.cv.notify_all();
 	}
 };
+
+// Run `drop`, a drop of Rust's that the collector made, on a posted job: a collection runs
+// inside JavaScript, which a drop calling into JavaScript must not reenter. Once the runtime
+// is gone it is leaked, as nothing of JavaScript is left to run it with.
+inline void collected(const ::std::shared_ptr<world> &w, ::std::function<void()> drop) {
+	if (w->alive.load(::std::memory_order_acquire)) {
+		w->post([drop = ::std::move(drop)](jsi::Runtime &rt) { unlocked(rt, drop); });
+	}
+}
 
 // Errors.
 
@@ -531,6 +540,7 @@ struct kind {
 // the calls holding it, and is freed once disposed and no call holds it, or once the
 // garbage collector finds it unreachable if never disposed.
 struct cell : jsi::NativeState {
+	::std::shared_ptr<world> home;
 	void *p;
 	const kind *k;
 	::std::uint32_t h = 1;
@@ -538,11 +548,12 @@ struct cell : jsi::NativeState {
 	bool owned;
 	bool freed = false;
 
-	cell(void *p, const kind *k, bool owned) : p(p), k(k), owned(owned) {}
+	cell(::std::shared_ptr<world> home, void *p, const kind *k, bool owned)
+	    : home(::std::move(home)), p(p), k(k), owned(owned) {}
 
 	~cell() override {
 		if (owned && !freed) {
-			k->free(p);
+			collected(home, [p = p, k = k] { k->free(p); });
 		}
 	}
 
@@ -557,7 +568,7 @@ struct cell : jsi::NativeState {
 // A new handle of `k` to `p`: owned, or else lent for a call into JavaScript.
 inline jsi::Value made(jsi::Runtime &rt, void *p, const kind &k, bool owned) {
 	jsi::Object o = jsi::Object::create(rt, W(rt).handle);
-	o.setNativeState(rt, ::std::make_shared<cell>(p, &k, owned));
+	o.setNativeState(rt, ::std::make_shared<cell>(of(rt), p, &k, owned));
 	return o;
 }
 
@@ -584,15 +595,16 @@ inline ::std::shared_ptr<cell> cell_of(jsi::Runtime &rt, const jsi::Value &v, co
 
 // Bytes a call returned, the state of an `rt.Bytes`: Rust's buffer, lent in place.
 struct bytes_cell : jsi::NativeState {
+	::std::shared_ptr<world> home;
 	c_buf buf;
 	::std::uint32_t h = 1;
 	bool closed = false;
 
-	explicit bytes_cell(c_buf buf) : buf(buf) {}
+	bytes_cell(::std::shared_ptr<world> home, c_buf buf) : home(::std::move(home)), buf(buf) {}
 
 	~bytes_cell() override {
 		if (buf.owner != nullptr) {
-			c_buf_free(buf);
+			collected(home, [buf = buf] { c_buf_free(buf); });
 		}
 	}
 
@@ -601,21 +613,6 @@ struct bytes_cell : jsi::NativeState {
 			c_buf_free(buf);
 			buf.owner = nullptr;
 		}
-	}
-};
-
-// The view an `ArrayBuffer` of returned bytes reads, which the cell frees.
-struct view final : jsi::MutableBuffer {
-	::std::uint8_t *ptr;
-	::std::size_t len;
-	::std::shared_ptr<void> keep;
-	view(::std::uint8_t *ptr, ::std::size_t len, ::std::shared_ptr<void> keep)
-	    : ptr(ptr), len(len), keep(::std::move(keep)) {}
-	::std::size_t size() const override {
-		return len;
-	}
-	::std::uint8_t *data() override {
-		return ptr;
 	}
 };
 
@@ -648,10 +645,12 @@ inline jsi::Value u8s(jsi::Runtime &rt, c_buf buf, bool own) {
 // The typed array `ctor` names of a copy of `len` elements of `size` bytes at `ptr`.
 inline jsi::Value typed(jsi::Runtime &rt, const char *ctor, const void *ptr, ::std::size_t len, ::std::size_t size) {
 	jsi::ArrayBuffer ab = copied(rt, static_cast<const ::std::uint8_t *>(ptr), len * size);
-	return rt.global().getPropertyAsFunction(rt, ctor).callAsConstructor(rt, ab);
+	return W(rt).arrays.getPropertyAsFunction(rt, ctor).callAsConstructor(rt, ab);
 }
 
 // The bytes Rust returned: lent past 64 bytes, else copied and freed, as an `rt.Bytes`.
+// Lent, they are no `ArrayBuffer`, which JavaScript could keep past their free: the module
+// reads them, through the state of the `rt.Bytes`.
 inline jsi::Value returned(jsi::Runtime &rt, c_buf buf) {
 	if (buf.len <= 64 || buf.owner == nullptr) {
 		jsi::ArrayBuffer ab = copied(rt, buf.ptr, buf.len);
@@ -660,10 +659,8 @@ inline jsi::Value returned(jsi::Runtime &rt, c_buf buf) {
 		}
 		return W(rt).bytes.call(rt, ab, false, static_cast<double>(buf.len));
 	}
-	auto state = ::std::make_shared<bytes_cell>(buf);
-	auto *ptr = const_cast<::std::uint8_t *>(buf.ptr);
-	jsi::ArrayBuffer ab(rt, ::std::make_shared<view>(ptr, buf.len, state));
-	jsi::Object b = obj(rt, W(rt).bytes.call(rt, ab, true, static_cast<double>(buf.len)), "Bytes");
+	auto state = ::std::make_shared<bytes_cell>(of(rt), buf);
+	jsi::Object b = obj(rt, W(rt).bytes.call(rt, jsi::Value::undefined(), true, static_cast<double>(buf.len)), "Bytes");
 	b.setNativeState(rt, state);
 	return b;
 }
@@ -1066,6 +1063,9 @@ T on_js(const ::std::shared_ptr<world> &w, const char *what, ::std::function<T(j
 		given back{*w};
 		return job(*w->rt);
 	};
+	if (!w->alive.load(::std::memory_order_acquire)) {
+		fail(::std::string(what) + ": called after its JavaScript runtime was gone");
+	}
 	if (running == w.get()) {
 		// This thread runs this runtime's JavaScript already.
 		return job(*w->rt);
@@ -1077,9 +1077,6 @@ T on_js(const ::std::shared_ptr<world> &w, const char *what, ::std::function<T(j
 			taken(*w);
 		}
 		return take();
-	}
-	if (!w->alive.load(::std::memory_order_acquire)) {
-		fail(::std::string(what) + ": called after its JavaScript runtime was gone");
 	}
 	struct state {
 		::std::atomic<bool> taken{false};
@@ -1197,19 +1194,39 @@ inline c_waker waker_of(jsi::Runtime &rt, const jsi::Value &v) {
 	return lend(new js_waker(new remote(rt, v)));
 }
 
-// A waker Rust returned, the state of an `rt.Waker`.
+// A waker Rust returned, the state of an `rt.Waker`: disposed, and dropped in Rust once no
+// wake of it runs, as JavaScript a wake calls may dispose it.
 struct waker_cell : jsi::NativeState {
+	::std::shared_ptr<world> home;
 	c_waker w;
+	bool closed = false;
 	bool dropped = false;
-	explicit waker_cell(c_waker w) : w(w) {}
+	::std::uint32_t waking = 0;
+	waker_cell(::std::shared_ptr<world> home, c_waker w) : home(::std::move(home)), w(w) {}
 	~waker_cell() override {
-		drop();
+		if (!dropped && w.drop != nullptr) {
+			collected(home, [w = w] { w.drop(w.data); });
+		}
 	}
-	void drop() {
-		if (!dropped) {
+	void wake(jsi::Runtime &rt) {
+		if (closed) {
+			error(rt, "Waker is closed");
+		}
+		waking++;
+		unlocked(rt, [&] { w.wake(w.data); });
+		waking--;
+		settle(rt);
+	}
+	void dispose(jsi::Runtime &rt) {
+		closed = true;
+		settle(rt);
+	}
+	// Drop Rust's waker once disposed and no wake runs.
+	void settle(jsi::Runtime &rt) {
+		if (closed && waking == 0 && !dropped) {
 			dropped = true;
 			if (w.drop != nullptr) {
-				w.drop(w.data);
+				unlocked(rt, [&] { w.drop(w.data); });
 			}
 		}
 	}
@@ -1217,7 +1234,7 @@ struct waker_cell : jsi::NativeState {
 
 inline jsi::Value of_waker(jsi::Runtime &rt, c_waker w) {
 	jsi::Object o = jsi::Object::create(rt, W(rt).waker);
-	o.setNativeState(rt, ::std::make_shared<waker_cell>(w));
+	o.setNativeState(rt, ::std::make_shared<waker_cell>(of(rt), w));
 	return o;
 }
 
@@ -1278,6 +1295,10 @@ inline bool foreign_poll(void *data, c_waker w) {
 	}
 	if (subscribe) {
 		post(self->promise->w, [self](jsi::Runtime &rt) {
+			// Dropped by Rust since, and cancelled: nothing waits for it.
+			if (self->over()) {
+				return;
+			}
 			// Settled, or cancelled if the promise is a call into Rust, whose `Cancelled` it
 			// stands for; any other rejection aborts.
 			auto then = jsi::Function::createFromHostFunction(
@@ -1320,12 +1341,28 @@ inline void foreign_free(void *data) {
 		w.drop(w.data);
 	}
 	remote *p = self->promise, *t = self->then;
-	// A call into Rust given back is cancelled once Rust drops it.
-	post(p->w, [p, t](jsi::Runtime &rt) {
-		W(rt).cancel_call.call(rt, jsi::Value(rt, p->v));
-		delete p;
-		delete t;
-	});
+	// A call into Rust given back is cancelled once Rust drops it, at the drop, as the web's
+	// is: cancelled later, its own poll, already posted, could take what it waited for.
+	auto cancel = [p, t](jsi::Runtime &rt) {
+		try {
+			W(rt).cancel_call.call(rt, jsi::Value(rt, p->v));
+		} catch (const jsi::JSError &e) {
+			fail(::std::string("a future's drop: a call into JavaScript threw ") + e.getStack());
+		}
+		// Later, after a subscription its first poll posted, which reads them.
+		release(p);
+		release(t);
+	};
+	// Unless this thread runs JavaScript now, as a collection's drop does, or it is gone.
+	auto home = p->w;
+	if (running != nullptr || !home->alive.load(::std::memory_order_acquire)) {
+		post(home, cancel);
+	} else {
+		on_js<bool>(home, "a future's drop", [&](jsi::Runtime &rt) {
+			cancel(rt);
+			return true;
+		});
+	}
 }
 
 // A thenable whose `then` is a function, checked here rather than at Rust's first poll,
@@ -1476,10 +1513,13 @@ struct pending final : node {
 
 	pending(jsi::Runtime &rt, void *f, void (*free)(void *)) : w(of(rt)), f(f), free_(free) {}
 	// Once nothing can poll it: its promise collected, and Rust's waker dropped, which may be
-	// on any thread, even once its runtime is gone. A promise never settled leaves its
+	// on any thread, even once its runtime is gone. On the JavaScript thread, as the collector
+	// drops it, its future is freed on a posted job. A promise never settled leaves its
 	// functions to free on the JavaScript thread, which `post` leaks once the runtime is gone.
 	~pending() override {
-		if (f != nullptr) {
+		if (f != nullptr && w->here()) {
+			collected(w, [free = free_, f = f] { free(f); });
+		} else if (f != nullptr) {
 			free_(f);
 		}
 		if (resolve.has_value()) {
@@ -1637,6 +1677,19 @@ inline void natives(jsi::Runtime &rt, jsi::Object &n) {
 		}
 		return jsi::Value::undefined();
 	});
+	// The byte at `i`, checked open and in bounds: `at`'s, whose index it converted.
+	fn("$bytesAt", 2, [](jsi::Runtime &rt, const jsi::Value &, const jsi::Value *a, ::std::size_t n) {
+		auto b = state_of<bytes_cell>(rt, arg(a, n, 0), "Bytes of Rust's buffer");
+		if (b->closed) {
+			error(rt, "Bytes is closed");
+		}
+		const jsi::Value &v = arg(a, n, 1);
+		double d = v.isNumber() ? v.getNumber() : -1;
+		if (!(d >= 0 && d < static_cast<double>(b->buf.len) && d == ::std::floor(d))) {
+			type(rt, shown(rt, v) + " is no index of the bytes");
+		}
+		return jsi::Value(static_cast<double>(b->buf.ptr[static_cast<::std::size_t>(d)]));
+	});
 	// A copy of the bytes from `from` up to `to`, checked open and read at once, so no
 	// JavaScript runs between: `slice`'s, whose bounds it clamped.
 	fn("$bytesSlice", 3, [](jsi::Runtime &rt, const jsi::Value &, const jsi::Value *a, ::std::size_t n) {
@@ -1659,16 +1712,11 @@ inline void natives(jsi::Runtime &rt, jsi::Object &n) {
 		return W(rt).uint8.callAsConstructor(rt, copied(rt, b->buf.ptr + from, to - from));
 	});
 	fn("$wake", 1, [](jsi::Runtime &rt, const jsi::Value &, const jsi::Value *a, ::std::size_t n) {
-		auto w = state_of<waker_cell>(rt, arg(a, n, 0), "Waker");
-		if (w->dropped) {
-			error(rt, "Waker is closed");
-		}
-		unlocked(rt, [&] { w->w.wake(w->w.data); });
+		state_of<waker_cell>(rt, arg(a, n, 0), "Waker")->wake(rt);
 		return jsi::Value::undefined();
 	});
 	fn("$wakerDrop", 1, [](jsi::Runtime &rt, const jsi::Value &, const jsi::Value *a, ::std::size_t n) {
-		auto w = state_of<waker_cell>(rt, arg(a, n, 0), "Waker");
-		unlocked(rt, [&] { w->drop(); });
+		state_of<waker_cell>(rt, arg(a, n, 0), "Waker")->dispose(rt);
 		return jsi::Value::undefined();
 	});
 	fn("$encode", 1, [](jsi::Runtime &rt, const jsi::Value &, const jsi::Value *a, ::std::size_t n) {

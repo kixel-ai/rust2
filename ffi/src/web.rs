@@ -276,7 +276,11 @@ fn emit(abi: &Abi<'_>, facade: &Package, contract: u64, mask: u64, jsi: bool) ->
 	let mut files = Vec::new();
 	let runtime = match jsi {
 		true => rn_runtime(),
-		false => RUNTIME.to_string(),
+		// Without the marks of the regions React Native's shares, which mean nothing to it.
+		false => (RUNTIME.lines())
+			.filter(|line| !matches!(*line, "// #region shared" | "// #endregion shared"))
+			.map(|line| format!("{line}\n"))
+			.collect(),
 	};
 	files.push(("rt.ts".to_string(), runtime));
 	// The glue's helpers, which the modules import whole.
@@ -449,6 +453,10 @@ fn emit(abi: &Abi<'_>, facade: &Package, contract: u64, mask: u64, jsi: bool) ->
 	})
 }
 
+/// The React Native release the JSI module is tested against, the oldest its package takes,
+/// as the module needs recent JSI, such as runtime data, and no older release is tested.
+const REACT_NATIVE: &str = "0.88.1";
+
 /// The npm package the binding is, named and versioned as the facade: each module by its
 /// name, the runtime's types as `<package>/rt`, and the module `cargo build` makes, which
 /// the package holds beside them.
@@ -462,7 +470,7 @@ fn package_json(facade: &Package, lib: &str, jsi: bool) -> String {
 		// codegen spec `specs/` holds, and the Rust library built for each in `libs/`.
 		let turbo = crate::jsi::module(lib);
 		return format!(
-			"{{\n\t\"name\": {},\n\t\"version\": {},\n\t\"description\": {},\n\t\"type\": \"module\",\n\t\"sideEffects\": false,\n\t\"exports\": {{\n\t\t\".\": {},\n\t\t\"./*\": {}\n\t}},\n\t\"files\": [\"*.js\", \"*.d.ts\", \"cpp\", \"include\", \"specs\", \"ios\", \"android\", \"libs\", \"*.podspec\", \"react-native.config.cjs\"],\n\t\"codegenConfig\": {{\n\t\t\"name\": \"{turbo}Spec\",\n\t\t\"type\": \"modules\",\n\t\t\"jsSrcsDir\": \"specs\"\n\t}}\n}}\n",
+			"{{\n\t\"name\": {},\n\t\"version\": {},\n\t\"description\": {},\n\t\"type\": \"module\",\n\t\"sideEffects\": false,\n\t\"exports\": {{\n\t\t\".\": {},\n\t\t\"./*\": {}\n\t}},\n\t\"files\": [\"*.js\", \"*.d.ts\", \"cpp\", \"include\", \"specs\", \"ios\", \"android\", \"libs\", \"*.podspec\", \"react-native.config.cjs\"],\n\t\"peerDependencies\": {{\n\t\t\"react-native\": \">={REACT_NATIVE}\"\n\t}},\n\t\"codegenConfig\": {{\n\t\t\"name\": \"{turbo}Spec\",\n\t\t\"type\": \"modules\",\n\t\t\"jsSrcsDir\": \"specs\"\n\t}}\n}}\n",
 			json(&facade.name),
 			json(&facade.version),
 			json(&format!(

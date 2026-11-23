@@ -734,7 +734,7 @@ export async function futures(): Promise<void> {
 let gc: (() => void) | undefined;
 
 /** Run the garbage collector until `done()`, failing past a deadline. */
-async function collect(done: () => boolean, what: string): Promise<void> {
+export async function collect(done: () => boolean, what: string): Promise<void> {
 	if (gc === undefined) {
 		const own = (globalThis as { gc?: () => void }).gc;
 		const bun = (globalThis as { Bun?: { gc(force: boolean): void } }).Bun;
@@ -1103,13 +1103,13 @@ export async function lent(): Promise<void> {
 	}
 	// A Bytes' length is its own: no caller's write or definition changes what Rust reads.
 	const fixed = api.tokenBytes(11, 100);
-	// A write throws in strict code, and does nothing in sloppy code, as React Native's Babel
-	// preset compiles a module.
-	try {
+	// A write throws in the web's strict modules, and does nothing in React Native's, which its
+	// Babel preset compiles sloppy.
+	const write = () => {
 		(fixed as { length: number }).length = 1 << 20;
-	} catch (e) {
-		check(e instanceof TypeError, "a write to a Bytes' length throws a TypeError");
-	}
+	};
+	if (engineRead) write();
+	else throws(write, TypeError, "a Bytes' length is read-only");
 	check(fixed.length === 100, "a Bytes' length is read-only");
 	Object.defineProperty(fixed, "length", { value: 1 << 20 });
 	check(api.len(fixed) === 100 && fixed.slice().length === 100, "a Bytes' length shadowed reaches no read");

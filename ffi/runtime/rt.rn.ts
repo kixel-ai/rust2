@@ -60,7 +60,7 @@ function clamp(v: number | undefined, missing: number, length: number): number {
 	return i < 0 ? Math.max(length + i, 0) : Math.min(i, length);
 }
 
-let bytesMade: (buffer: ArrayBuffer, lent: boolean, length: number) => Bytes;
+let bytesMade: (buffer: ArrayBuffer | undefined, lent: boolean, length: number) => Bytes;
 let bytesCopy: (b: object) => Uint8Array | undefined;
 
 /**
@@ -71,18 +71,19 @@ let bytesCopy: (b: object) => Uint8Array | undefined;
  * read after disposing throws.
  */
 export class Bytes {
-	// A view of Rust's buffer, or of a copy, private so no caller's write reaches what Rust
-	// reads.
+	// A copy's view, private so no caller's write reaches what Rust reads. Rust's own buffer
+	// has none: React Native's Babel preset makes private fields properties any caller can
+	// find, and a view found would outlive the buffer's free, so the module reads it.
 	#view: Uint8Array | undefined;
 	readonly #length: number;
 	readonly #lent: boolean;
+	#closed = false;
 
-	// Its length is the JSI module's, and its view `U8`'s, as a global `Uint8Array` or a
-	// `byteLength` getter a caller replaced would see Rust's buffer, and could keep it past
-	// its free.
-	private constructor(key: symbol, buffer: ArrayBuffer, lent: boolean, length: number) {
+	// Its length is the JSI module's, and its view `U8`'s, so no global or getter a caller
+	// replaced runs as it is made.
+	private constructor(key: symbol, buffer: ArrayBuffer | undefined, lent: boolean, length: number) {
 		if (key !== Bytes.#minting) throw new TypeError("only Rust makes bytes it returned");
-		this.#view = new U8(buffer);
+		this.#view = buffer === undefined ? undefined : new U8(buffer);
 		this.#length = length;
 		this.#lent = lent;
 	}
@@ -92,18 +93,19 @@ export class Bytes {
 		return this.#length;
 	}
 
-	#open(): Uint8Array {
-		if (this.#view === undefined) throw new Error("Bytes is closed");
-		return this.#view;
+	#open(): void {
+		if (this.#closed) throw new Error("Bytes is closed");
 	}
 
 	/** The byte at `index`, from the end where it is negative, as `Uint8Array`'s `at`. */
 	at(index: number): number | undefined {
 		// Converted first, so a `valueOf` that disposes these bytes finds them closed.
 		let i = Math.trunc(index) || 0;
-		const view = this.#open();
+		this.#open();
 		if (i < 0) i += this.#length;
-		return i < 0 || i >= this.#length ? undefined : view[i];
+		if (i < 0 || i >= this.#length) return undefined;
+		// Rust's buffer is checked open and bounded by the module itself.
+		return this.#lent ? (n.$bytesAt(this, i) as number) : this.#view![i];
 	}
 
 	/** A copy of the bytes from `start` up to `end`, as `Uint8Array`'s `slice`. */
@@ -117,7 +119,8 @@ export class Bytes {
 		if (this.#lent) return n.$bytesSlice(this, from, to) as Uint8Array<ArrayBuffer>;
 		// A copy, of at most 64 bytes, read by index alone, which runs no JavaScript, so no
 		// caller's code sees the view.
-		const view = this.#open();
+		this.#open();
+		const view = this.#view!;
 		const count = to - from;
 		const out = new U8(count);
 		for (let i = 0; i < count; i++) out[i] = view[from + i];
@@ -131,7 +134,8 @@ export class Bytes {
 
 	/** Free Rust's buffer, once no call views it; again, it does nothing. */
 	[Symbol.dispose](): void {
-		if (this.#view === undefined) return;
+		if (this.#closed) return;
+		this.#closed = true;
 		this.#view = undefined;
 		if (this.#lent) n.$bytesFree(this);
 	}
@@ -140,7 +144,11 @@ export class Bytes {
 	// Babel preset refuses.
 	static #minting = (() => {
 		bytesMade = (buffer, lent, length) => new Bytes(minting, buffer, lent, length);
-		bytesCopy = (b) => (#view in b && !b.#lent ? b.#open() : undefined);
+		bytesCopy = (b) => {
+			if (!(#view in b) || b.#lent) return undefined;
+			b.#open();
+			return b.#view;
+		};
 		return minting;
 	})();
 }
@@ -247,10 +255,24 @@ const kit = {
 	Handle: Handle.prototype,
 	Waker: Wakes.prototype,
 	Uint8Array,
+	// Each typed array a call returns a copy as, taken at load rather than from the global a
+	// caller may replace.
+	typedArrays: {
+		Uint8Array,
+		Int8Array,
+		Uint16Array,
+		Int16Array,
+		Uint32Array,
+		Int32Array,
+		BigUint64Array,
+		BigInt64Array,
+		Float32Array,
+		Float64Array,
+	},
 	RangeError,
 	TypeError,
 	Error,
-	bytes: (buffer: ArrayBuffer, lent: boolean, length: number) => bytesMade(buffer, lent, length),
+	bytes: (buffer: ArrayBuffer | undefined, lent: boolean, length: number) => bytesMade(buffer, lent, length),
 	bytesCopy: (v: unknown) => (typeof v === "object" && v !== null ? bytesCopy(v) : undefined),
 	opaqueMade,
 	opaqueBytes: (v: unknown) => {

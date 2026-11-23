@@ -138,7 +138,8 @@ pub(crate) fn generate(abi: &Abi<'_>, packages: &str, mask: u64) -> Result<Vec<(
 		\tjsi::Object n = r::W(rt).kit.getPropertyAsObject(rt, \"natives\");\n\
 		\tr::natives(rt, n);\n\
 		\tauto fn = [&](const char *name, unsigned argc, jsi::Value (*f)(jsi::Runtime &, const jsi::Value &, const jsi::Value *, ::std::size_t)) {{\n\
-		\t\tn.setProperty(rt, name, jsi::Function::createFromHostFunction(rt, jsi::PropNameID::forAscii(rt, name), argc, f));\n\
+		\t\tjsi::PropNameID id = jsi::PropNameID::forUtf8(rt, name);\n\
+		\t\tn.setProperty(rt, id, jsi::Function::createFromHostFunction(rt, id, argc, f));\n\
 		\t}};\n\
 		\tfn(\"contract\", 0, [](jsi::Runtime &rt, const jsi::Value &, const jsi::Value *, ::std::size_t) -> jsi::Value {{\n\
 		\t\treturn jsi::BigInt::fromUint64(rt, ::{p}_contract());\n\
@@ -322,6 +323,22 @@ fn lit(s: &str) -> String {
 	serde_json::Value::from(s).to_string()
 }
 
+/// The property name `s`, a Rust name: a literal JSI reads as ASCII, unless it is not.
+fn prop(s: &str) -> String {
+	match s.is_ascii() {
+		true => lit(s),
+		false => format!("jsi::PropNameID::forUtf8(rt, {})", lit(s)),
+	}
+}
+
+/// The JavaScript string `s`, a Rust name: ASCII where it is, which JSI makes fastest.
+fn text(s: &str) -> String {
+	match s.is_ascii() {
+		true => format!("r::ascii(rt, {})", lit(s)),
+		false => format!("jsi::String::createFromUtf8(rt, {})", lit(s)),
+	}
+}
+
 impl<'a> Gen<'a> {
 	fn bare<'n>(&self, c: &'n str) -> &'n str {
 		&c[self.abi.prefix.len() + 1..]
@@ -503,7 +520,7 @@ impl<'a> Gen<'a> {
 			let e = &abi.api.enums[i];
 			let cases: Vec<String> = (e.variants.iter())
 				.filter(|v| self.here(v.on))
-				.map(|v| format!("\tcase {}:\n\t\treturn r::ascii(rt, {});", v.discriminant, lit(&v.name)))
+				.map(|v| format!("\tcase {}:\n\t\treturn {};", v.discriminant, text(&v.name)))
 				.collect();
 			let proto = format!("jsi::Value {name}(jsi::Runtime &rt, {c} v)");
 			self.define(
@@ -598,7 +615,7 @@ impl<'a> Gen<'a> {
 				let mut lines = vec!["jsi::Object out(rt);".to_string()];
 				for (f, name) in record.fields.iter().zip(field_names(&record.fields)) {
 					let value = self.lift_o(&f.ty, &format!("v.{}", abi::escape(&f.name)));
-					lines.push(format!("out.setProperty(rt, {}, {value});", lit(&name)));
+					lines.push(format!("out.setProperty(rt, {}, {value});", prop(&name)));
 				}
 				lines.push("return out;".to_string());
 				lines.join("\n")
@@ -612,12 +629,12 @@ impl<'a> Gen<'a> {
 					}
 					let mut lines = vec![
 						"jsi::Object out(rt);".to_string(),
-						format!("out.setProperty(rt, \"tag\", r::ascii(rt, {}));", lit(&variant.name)),
+						format!("out.setProperty(rt, \"tag\", {});", text(&variant.name)),
 					];
 					let member = abi::variant_member(&variant.name);
 					for (f, name) in variant.fields.iter().zip(variant_fields(&variant.fields)) {
 						let value = self.lift_o(&f.ty, &format!("v.{member}.{}", abi::escape(&f.name)));
-						lines.push(format!("out.setProperty(rt, {}, {value});", lit(&name)));
+						lines.push(format!("out.setProperty(rt, {}, {value});", prop(&name)));
 					}
 					lines.push("return out;".to_string());
 					cases.push(format!("case {n}: {{\n{}\n}}", indent(&lines.join("\n"))));
@@ -750,18 +767,17 @@ impl<'a> Gen<'a> {
 				let c = abi.object(*i);
 				format!("{out} = static_cast<{c} *>(f.hold_or({v}, {kind}));")
 			}
-			Type::Option(inner) if Abi::is_buf(inner) => {
-				let some = self.lower(inner.base(), v, out, take);
+			// `v` read once, as it may be a getter, and held by reference, which keeps a temporary
+			// alive. Nothing nests these two, so one name serves.
+			Type::Option(inner) if Abi::is_buf(inner) || matches!(inner.base(), Type::List(..)) => {
+				let none = match Abi::is_buf(inner) {
+					true => "c_buf{}",
+					false => "{}",
+				};
+				let some = self.lower(inner.base(), "opt_", out, take);
 				format!(
-					"if (({v}).isUndefined()) {{\n\t{out} = c_buf{{}};\n}} else {{\n{}\n}}",
-					indent(&some)
-				)
-			}
-			Type::Option(inner) if matches!(inner.base(), Type::List(..)) => {
-				let some = self.lower(inner.base(), v, out, take);
-				format!(
-					"if (({v}).isUndefined()) {{\n\t{out} = {{}};\n}} else {{\n{}\n}}",
-					indent(&some)
+					"{{\n\tconst jsi::Value &opt_ = {v};\n\tif (opt_.isUndefined()) {{\n\t\t{out} = {none};\n\t}} else {{\n{}\n\t}}\n}}",
+					indent(&indent(&some))
 				)
 			}
 			Type::Box(inner) | Type::Ref(_, inner) => self.lower(inner, v, out, take),
@@ -838,7 +854,7 @@ impl<'a> Gen<'a> {
 				let mut lines = vec![format!("jsi::Object o = r::obj(rt, v, {});", lit(&class(c)))];
 				for (f, name) in record.fields.iter().zip(field_names(&record.fields)) {
 					let field = format!("out.{}", abi::escape(&f.name));
-					lines.push(self.lower(&f.ty, &format!("o.getProperty(rt, {})", lit(&name)), &field, take));
+					lines.push(self.lower(&f.ty, &format!("o.getProperty(rt, {})", prop(&name)), &field, take));
 				}
 				lines.join("\n")
 			}
@@ -861,7 +877,7 @@ impl<'a> Gen<'a> {
 					}
 					for (f, name) in variant.fields.iter().zip(variant_fields(&variant.fields)) {
 						let field = format!("out.{member}.{}", abi::escape(&f.name));
-						body.push(self.lower(&f.ty, &format!("o.getProperty(rt, {})", lit(&name)), &field, take));
+						body.push(self.lower(&f.ty, &format!("o.getProperty(rt, {})", prop(&name)), &field, take));
 					}
 					body.push("return;".to_string());
 					lines.push(format!(
@@ -1517,7 +1533,11 @@ impl Gen<'_> {
 			let args: Vec<String> = (method.params.iter().enumerate())
 				.map(|(n, p)| self.incoming(&p.ty, &format!("p{n}")))
 				.collect();
-			let callee = format!("self_.getPropertyAsFunction(rt, {}).callWithThis", lit(&member));
+			let callee = match member.is_ascii() {
+				true => format!("self_.getPropertyAsFunction(rt, {}).callWithThis", lit(&member)),
+				// `getPropertyAsFunction` takes no `PropNameID`.
+				false => format!("self_.getProperty(rt, {}).asObject(rt).asFunction(rt).callWithThis", prop(&member)),
+			};
 			let call = self.invoke_js(&callee, Some("self_"), &args);
 			lines.push(call);
 			lines.push(self.outgoing(&method.ok, &ret, "v_"));
