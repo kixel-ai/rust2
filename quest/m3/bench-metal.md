@@ -21,23 +21,18 @@ whichever workflow calls it, so a caller could run its own checkout on the bench
 (rejected: a CI check that fails on the trigger, which the same PR could delete; rejected:
 drop it).
 
-- `bench.yml` runs on hosted `ubuntu-24.04`, which exposes no performance counters, so
-  instructions read `n/a` on every row, though `bench/build/README.md` calls them the
-  signal on a busy machine.
-- On its 4 vCPUs the `--jobs-frontend=8` variant measured oversubscription (check +3.1%,
-  build +5.1%, CPU +15.4%), not a verdict for a many-core host. Run it again with jobs
-  matched to the cores.
-- The queue runner is the same host: the `rust2-bench` runner keeps queue builds off it
-  while a bench job runs, and admits only `bench.yml` dispatched at `main`.
-- `-Zprofile-hint-mostly-unused` alone changes nothing: it only allows the
-  `hint-mostly-unused` profile setting, which the variant must also set, for the
-  dependencies and not moq's own crates.
-- The `mostly-unused` and `embed-metadata` variants are now in
-  [corpus.toml](/bench/build/corpus.toml); run both against nightly on bare metal. The audit
-  diffed `rustc -Z help` between the 2026-10-22 pin and the 2026-11-12 nightly and found
-  no new build-speed flag, so no pin bump is needed for these.
-- Build speed keeps only what costs nothing: a lever that wins is a line for moq's
-  `.cargo/config.toml`, reported in the README, not a tool.
+The variants and runner wiring are implemented. Remaining work runs after the
+workflow lands at `main`, the only ref the runner group admits:
+
+- Dispatch `bench.yml` at `main` and publish its bare-metal reference report in
+  `bench/build/README.md`, including retired instructions and A/A noise controls.
+- Compare `jobs-frontend=32` against nightly on the 32-CPU host.
+- Measure `mostly-unused` and `embed-metadata` against nightly alongside the other
+  levers. Keep the existing toolchain pin.
+- Report which winning, cost-free settings moq should use in `.cargo/config.toml`.
+  Make no recommendation until the measurements support it.
+- Verify the real runner dispatch obtains the host lease and counts instructions.
+  The runner hook excludes queue builds and land fixers for the whole job.
 
 Public API: none.
 

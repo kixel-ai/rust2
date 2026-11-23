@@ -3,106 +3,23 @@ name: Bench
 permissions:
   contents: read
 
+# Never add workflow_call: the runner group trusts this workflow even when called
+# by another workflow. Only dispatch the trusted main revision.
 on:
   workflow_dispatch:
-  # A change to the benchmark or its toolchains reports its numbers before it merges.
-  pull_request:
-    paths:
-      - bench/build/**
-      - "!bench/build/**/*.md"
-      - .github/workflows/bench.yml
-      - flake.nix
-      - flake.lock
-      - rust-toolchain.toml
 
 concurrency:
   group: bench-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  # A push benches only if it changes what the bench runs since the PR's last benched
-  # head, or since the PR's base while it has none. Path filters cannot tell which output
-  # a flake change touches, so it counts only if a flake output the bench runs has a new
-  # derivation.
-  changed:
-    name: Changed
-    if: github.event_name == 'pull_request'
-    runs-on: ubuntu-24.04
-    timeout-minutes: 15
-    permissions:
-      contents: read
-      # Finds the PR's last benched run.
-      actions: read
-    outputs:
-      bench: ${{ steps.diff.outputs.bench }}
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-          # The merge commit and its parents, the base and the PR's head.
-          fetch-depth: 2
-
-      - uses: ./.github/actions/nix
-
-      - name: Diff
-        id: diff
-        env:
-          GH_TOKEN: ${{ github.token }}
-          HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
-          HEAD_REF: ${{ github.event.pull_request.head.ref }}
-          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-        run: |
-          # The head of the PR's newest run whose bench jobs ran and passed.
-          runs=$(gh api --method GET "repos/$GITHUB_REPOSITORY/actions/workflows/bench.yml/runs" \
-            -f event=pull_request -f status=success -f branch="$HEAD_REF" -F per_page=100 \
-            --jq '.workflow_runs[] | select(.head_repository.full_name == env.HEAD_REPO) | "\(.id) \(.head_sha)"')
-          benched=
-          while read -r id sha; do
-            [ -n "$id" ] || continue
-            ran=$(gh api --method GET "repos/$GITHUB_REPOSITORY/actions/runs/$id/jobs" -f filter=latest \
-              --jq 'any(.jobs[]; (.name | startswith("Bench (")) and .conclusion == "success")')
-            if [ "$ran" = true ]; then
-              benched=$sha
-              break
-            fi
-          done <<<"$runs"
-          if [ -n "$benched" ]; then
-            # The pushes since the last bench, which leave out the base's own changes.
-            git fetch --no-tags --depth=1 origin "$benched"
-            from=$benched to=$HEAD_SHA
-          else
-            from=HEAD^ to=HEAD
-          fi
-          echo "Comparing $from to $to"
-          # The trigger's paths, less the flake's.
-          if ! git diff --quiet "$from" "$to" -- bench/build .github/workflows/bench.yml ':!*.md'; then
-            echo "bench=true" >>"$GITHUB_OUTPUT"
-            exit 0
-          fi
-          drvs() { # rev
-            local rev drv output
-            rev=$(git rev-parse "$1")
-            for output in devShells.x86_64-linux.build-bench packages.x86_64-linux.bench-ra-jit; do
-              drv=$(nix eval --raw "git+file://$PWD?shallow=1&rev=$rev#$output.drvPath")
-              echo "$output $drv"
-            done
-          }
-          drvs "$from" >"$RUNNER_TEMP/from"
-          drvs "$to" >"$RUNNER_TEMP/to"
-          cat "$RUNNER_TEMP/to"
-          if diff "$RUNNER_TEMP/from" "$RUNNER_TEMP/to"; then changed=false; else changed=true; fi
-          echo "bench=$changed" >>"$GITHUB_OUTPUT"
-
   bench:
     name: Bench (${{ matrix.name }})
-    needs: changed
-    # Only the changed job's verdict skips the bench: a dispatch skips that
-    # job, and its failure runs the bench rather than quietly skipping it.
-    if: ${{ !cancelled() && needs.changed.outputs.bench != 'false' }}
-    # x86_64 Linux is where rustc links with LLD by default.
-    runs-on: ubuntu-24.04
+    if: github.ref == 'refs/heads/main'
+    # The job hook holds a host lease that excludes queue builds and land fixers.
+    runs-on:
+      group: rust2-bench
+      labels: rust2-bench
     timeout-minutes: 330
     strategy:
       fail-fast: false
@@ -112,7 +29,7 @@ jobs:
           - name: moq stable
             args: --corpus moq --variant baseline --variant mold --variant wild --variant control --no-attribute
           - name: moq nightly
-            args: --corpus moq --variant nightly --variant jobs-frontend --variant cranelift --variant cache-proc-macros --variant nightly-control
+            args: --corpus moq --variant nightly --variant jobs-frontend --variant cranelift --variant cache-proc-macros --variant mostly-unused --variant embed-metadata --variant nightly-control
           - name: moq ra-jit
             args: --corpus moq --variant ra-jit-baseline --variant ra-jit --no-attribute
 
@@ -123,10 +40,6 @@ jobs:
           persist-credentials: false
 
       - uses: ./.github/actions/nix
-
-      # Ubuntu hides performance counters from users; hyperfine reads instructions from them.
-      - name: Allow perf counters
-        run: sudo sysctl -w kernel.perf_event_paranoid=2
 
       - name: Bench
         run: nix develop .#build-bench --command just bench ${{ matrix.args }} --out bench-results
