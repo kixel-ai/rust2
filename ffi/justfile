@@ -67,7 +67,7 @@ browsers:
 
 # Run the api fixture's script and cases through its React Native binding on Hermes off a device, the flake's, which nix builds on first use.
 react-native-host:
-    RUST2_HERMES=$(nix build --no-link --print-out-paths ..#hermes) cargo test --locked --test fixtures -- --ignored --exact api_react_native_host
+    hermes=$(nix build --no-link --print-out-paths ..#hermes) && RUST2_HERMES="$hermes" cargo test --locked --test fixtures -- --ignored --exact api_react_native_host
 
 # Run the api fixture's script and cases through its React Native package in a new React Native app, built for release, on the 64-bit Android device adb reaches, in the Android shell (nix develop .#android) with ANDROID_HOME and ANDROID_NDK_HOME set, Node, and the network.
 react-native-android:

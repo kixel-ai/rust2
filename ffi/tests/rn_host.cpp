@@ -2,9 +2,10 @@
 // the JSI module installed as `globalThis.__rust2_<prefix>`, an event loop that runs what
 // the module posts and `setTimeout`'s timers, `performance.now` as React Native's, and
 // `print`, `process`, and `TextDecoder` stand-ins, `process.cpuUsage` among them as Node's.
-// It runs one bundled script, exiting with its `process.exit` code, or 1 if it throws or
-// leaves a promise rejected, then destroys the runtime, as a reload does. With `--reload`
-// first, it runs the script again in a new runtime once the first exits cleanly.
+// It runs one bundled script, exiting with its `process.exit` code, or 1 if it throws, never
+// exits, or leaves a promise rejected that Hermes's tracker reports, as React Native's does,
+// then destroys the runtime, as a reload does. With `--reload` first, it runs the script
+// again in a new runtime once the first exits cleanly.
 //
 // Build it with the module's `cpp/<prefix>_jsi.cpp`, defining RUST2_PREFIX_NS as its
 // namespace, RUST2_GLOBAL as its global, and RUST2_HEADER as its header's name.
@@ -44,6 +45,7 @@ std::multimap<std::chrono::steady_clock::time_point, std::pair<double, std::shar
 double next_timer = 1;
 
 int exit_code = -1;
+bool rejected = false;
 
 void post(job_t job) {
 	std::unique_lock<std::mutex> lock(mutex);
@@ -70,17 +72,27 @@ globalThis.process = {
 };
 globalThis.performance = { now: __now };
 globalThis.console = { log: (...a) => print(a.join(" ")), error: (...a) => __eprint(a.join(" ") + "\n") };
-// UTF-8 as WHATWG's decoder reads it, replacing what is not.
+// UTF-8 as WHATWG's decoder reads it, but where it is malformed, which no test decodes, a
+// URIError rather than a replacement.
 globalThis.TextDecoder = class TextDecoder {
-	decode(bytes) { return __decode(bytes === undefined ? new Uint8Array(0) : new Uint8Array(bytes.buffer ?? bytes, bytes.byteOffset ?? 0, bytes.byteLength)); }
+	decode(bytes) {
+		const b = bytes === undefined ? new Uint8Array(0) : ArrayBuffer.isView(bytes) ? new Uint8Array(bytes.buffer, bytes.byteOffset, bytes.byteLength) : new Uint8Array(bytes);
+		let escaped = "";
+		for (const x of b) escaped += (x < 16 ? "%0" : "%") + x.toString(16);
+		return decodeURIComponent(escaped);
+	}
 };
-globalThis.__rejected = [];
+HermesInternal.enablePromiseRejectionTracker({
+	allRejections: true,
+	onUnhandled: (id, e) => __rejected(e instanceof Error ? (e.stack ?? e.message) : String(e)),
+});
 )";
 
 // Run `src` in a new runtime with `args` as its arguments, then destroy the runtime, with
 // what it posted and its timers first: the exit code of the script.
 int run(const std::string &name, const std::string &src, const std::vector<std::string> &args) {
 	exit_code = -1;
+	rejected = false;
 	next_timer = 1;
 	{
 		std::lock_guard<std::mutex> lock(mutex);
@@ -146,15 +158,13 @@ int run(const std::string &name, const std::string &src, const std::vector<std::
 			}
 			return jsi::Value::undefined();
 		});
-		global.setProperty(rt, RUST2_GLOBAL, RUST2_PREFIX_NS::installer(rt, post));
-		// Decoding through the module's own lossy decoder, which `rt.ts` installs.
-		fn(rt, global, "__decode", 1, [](jsi::Runtime &rt, const jsi::Value &, const jsi::Value *a, size_t) {
-			jsi::ArrayBuffer ab = a[0].getObject(rt).getPropertyAsObject(rt, "buffer").getArrayBuffer(rt);
-			auto off = static_cast<size_t>(a[0].getObject(rt).getProperty(rt, "byteOffset").getNumber());
-			auto len = static_cast<size_t>(a[0].getObject(rt).getProperty(rt, "byteLength").getNumber());
-			// Lossless for the UTF-8 a test decodes.
-			return jsi::Value(jsi::String::createFromUtf8(rt, ab.data(rt) + off, len));
+		fn(rt, global, "__rejected", 1, [](jsi::Runtime &rt, const jsi::Value &, const jsi::Value *a, size_t n) {
+			std::string s = n > 0 ? a[0].toString(rt).utf8(rt) : "";
+			std::fprintf(stderr, "unhandled rejection: %s\n", s.c_str());
+			rejected = true;
+			return jsi::Value::undefined();
 		});
+		global.setProperty(rt, RUST2_GLOBAL, RUST2_PREFIX_NS::installer(rt, post));
 
 		auto guard = [&](const std::function<void()> &f) {
 			try {
@@ -211,7 +221,11 @@ int run(const std::string &name, const std::string &src, const std::vector<std::
 		timers.clear();
 	}
 	runtime.reset();
-	return exit_code < 0 ? 0 : exit_code;
+	if (exit_code < 0) {
+		std::fprintf(stderr, "%s: the script never exited, with nothing left to run for 10 s\n", name.c_str());
+		return 1;
+	}
+	return rejected && exit_code == 0 ? 1 : exit_code;
 }
 
 } // namespace

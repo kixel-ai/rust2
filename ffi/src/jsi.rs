@@ -134,7 +134,7 @@ pub(crate) fn generate(abi: &Abi<'_>, packages: &str, mask: u64) -> Result<Vec<(
 		out,
 		"void install(jsi::Runtime &rt, ::std::function<void(::std::function<void(jsi::Runtime &)>)> post, jsi::Object kit) {{\n\
 		\tr::install(rt, ::std::move(post), ::std::move(kit));\n\
-		\tjsi::Object n = r::W().kit.getPropertyAsObject(rt, \"natives\");\n\
+		\tjsi::Object n = r::W(rt).kit.getPropertyAsObject(rt, \"natives\");\n\
 		\tr::natives(rt, n);\n\
 		\tauto fn = [&](const char *name, unsigned argc, jsi::Value (*f)(jsi::Runtime &, const jsi::Value &, const jsi::Value *, ::std::size_t)) {{\n\
 		\t\tn.setProperty(rt, name, jsi::Function::createFromHostFunction(rt, jsi::PropNameID::forAscii(rt, name), argc, f));\n\
@@ -150,6 +150,9 @@ pub(crate) fn generate(abi: &Abi<'_>, packages: &str, mask: u64) -> Result<Vec<(
 		\tjsi::Object o(rt);\n\
 		\to.setProperty(rt, \"install\", jsi::Function::createFromHostFunction(rt, jsi::PropNameID::forAscii(rt, \"install\"), 1,\n\
 		\t\t[post](jsi::Runtime &rt, const jsi::Value &, const jsi::Value *a, ::std::size_t n) -> jsi::Value {{\n\
+		\t\t\tif (!r::arg(a, n, 0).isObject()) {{\n\
+		\t\t\t\tthrow jsi::JSError(rt, \"install takes the kit of the binding's runtime\");\n\
+		\t\t\t}}\n\
 		\t\t\tinstall(rt, post, r::arg(a, n, 0).getObject(rt));\n\
 		\t\t\treturn true;\n\
 		\t\t}}));\n\
@@ -626,7 +629,7 @@ impl<'a> Gen<'a> {
 			Type::Option(inner) => {
 				let value = self.lift_o(inner, "v.value");
 				let none = match undefinable(inner) {
-					true => "jsi::Value(rt, r::W().none)",
+					true => "jsi::Value(rt, r::W(rt).none)",
 					false => "jsi::Value::undefined()",
 				};
 				format!("return v.some ? {value} : {none};")
@@ -1150,7 +1153,7 @@ impl Gen<'_> {
 				pargs.push("&s_".to_string());
 			}
 			p.push(format!(
-				"auto st_ = r::unlocked([&] {{ return ::{}({}); }});",
+				"auto st_ = r::unlocked(rt, [&] {{ return ::{}({}); }});",
 				poll.name,
 				pargs.join(", ")
 			));
@@ -1177,7 +1180,7 @@ impl Gen<'_> {
 				call.args.push("&s_".to_string());
 			}
 			lines.push(format!(
-				"auto st_ = r::unlocked([&] {{ return ::{}({}); }});",
+				"auto st_ = r::unlocked(rt, [&] {{ return ::{}({}); }});",
 				start.name,
 				call.args.join(", ")
 			));
@@ -1206,8 +1209,8 @@ impl Gen<'_> {
 			}
 			let invoke = format!("::{c_name}({})", call.args.join(", "));
 			match export.call.ret {
-				Ty::Void => lines.push(format!("r::unlocked([&] {{ {invoke}; }});")),
-				_ => lines.push(format!("auto r_ = r::unlocked([&] {{ return {invoke}; }});")),
+				Ty::Void => lines.push(format!("r::unlocked(rt, [&] {{ {invoke}; }});")),
+				_ => lines.push(format!("auto r_ = r::unlocked(rt, [&] {{ return {invoke}; }});")),
 			}
 			if status {
 				lines.push(format!("r::status(rt, s_, {});", lit(&c_name)));
@@ -1329,7 +1332,7 @@ impl Gen<'_> {
 				args.push("&s_".to_string());
 			}
 			lines.push(format!(
-				"auto r_ = r::unlocked([&] {{ return ::{c_}_{member}({}); }});",
+				"auto r_ = r::unlocked(rt, [&] {{ return ::{c_}_{member}({}); }});",
 				args.join(", ")
 			));
 			if has_status {
