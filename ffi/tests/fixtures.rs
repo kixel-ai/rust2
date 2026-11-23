@@ -195,7 +195,7 @@ fn transcripts() {
 	);
 	let tests = manifest_dir().join("tests");
 	// The web script imports the test's hooks by its name, which is `check.ts` here.
-	let typescript = transcript::typescript::emit(&t);
+	let typescript = transcript::typescript::emit(&t, transcript::typescript::Binding::Web);
 	let hooks = "import * as hook from \"./api.ts\";";
 	assert_eq!(
 		typescript.matches(hooks).count(),
@@ -2700,7 +2700,7 @@ fn web() -> &'static Web {
 		let scripts = generated(
 			"typescript",
 			"transcript.ts",
-			&transcript::typescript::emit(transcript()),
+			&transcript::typescript::emit(transcript(), transcript::typescript::Binding::Web),
 		);
 		step::copy(&scripts.join("transcript.ts"), &dir.join("transcript.ts"));
 		step::copy(
@@ -2983,7 +2983,7 @@ fn api_web_package() {
 	let transcript = generated(
 		"typescript",
 		"transcript.ts",
-		&transcript::typescript::emit(transcript()),
+		&transcript::typescript::emit(transcript(), transcript::typescript::Binding::Web),
 	);
 	for file in [
 		manifest_dir().join("tests").join("api.ts"),
@@ -3072,6 +3072,107 @@ fn api_browsers() {
 			runs.remove(case).unwrap_or_else(|| panic!("{browser} ran no {case}"))
 		});
 	}
+}
+
+/// The api fixture's React Native binding on Hermes off a device: `tests/rn_host.cpp`, a
+/// host installing the JSI module as React Native's TurboModule does, runs `tests/api.ts`'s
+/// script, bundled from the generated TypeScript, and each case a runtime without
+/// WebAssembly runs. `RUST2_HERMES` names a Hermes checkout built into its `build` at the
+/// tag React Native's release pins, whose library finds ICU on the loader's path.
+#[test]
+#[ignore = "needs Hermes: RUST2_HERMES=<checkout> just ffi react-native-host"]
+fn api_react_native_host() {
+	let hermes = PathBuf::from(std::env::var_os("RUST2_HERMES").expect("RUST2_HERMES names a built Hermes checkout"));
+	let build = hermes.join("build");
+	let api = api();
+	let dir = scratch().join("api").join("react-native");
+	step::mirror(&api.out.join("react-native"), &dir.join("react-native"));
+	step::write(
+		&dir.join("transcript.ts"),
+		transcript::typescript::emit(transcript(), transcript::typescript::Binding::ReactNative),
+	);
+	step::write(&dir.join("api.ts"), react_native_check());
+	step::copy(&manifest_dir().join("tests").join("react-native.ts"), &dir.join("entry.ts"));
+	// What `load` reaches of React Native only where no host installed the module.
+	step::write(
+		&dir.join("react-native-stub.ts"),
+		"export const TurboModuleRegistry = {\n\tgetEnforcing(name: string): never {\n\t\tthrow new Error(`no TurboModule ${name} off React Native`);\n\t},\n};\nexport type TurboModule = object;\n",
+	);
+	// Hermes takes a script, not modules, and lacks async generators. Strict, as Metro's
+	// modules are.
+	run(Command::new("esbuild")
+		.args([
+			"entry.ts",
+			"--bundle",
+			"--format=iife",
+			"--banner:js=\"use strict\";",
+			"--target=es2020",
+			"--supported:async-generator=false",
+			"--alias:react-native=./react-native-stub.ts",
+			"--log-level=error",
+			"--outfile=bundle.js",
+		])
+		.current_dir(&dir));
+	let host = dir.join("rn-host");
+	let cpp = dir.join("react-native").join("cpp");
+	let mut cmd = Command::new(std::env::var_os("CXX").unwrap_or_else(|| "c++".into()));
+	cmd.args(["-std=c++17", "-g", "-Wall", "-Wextra", "-Werror", "-DRUST2_PREFIX_NS=rust2_api", "-DRUST2_GLOBAL=\"__rust2_api\""])
+		.arg("-I")
+		.arg(api.out.join("include"))
+		.arg("-I")
+		.arg(&cpp);
+	for include in [hermes.join("API"), hermes.join("API/jsi"), hermes.join("public"), hermes.join("include")] {
+		cmd.arg("-isystem").arg(include);
+	}
+	cmd.arg("-isystem")
+		.arg(build.join("lib/config"))
+		.arg(cpp.join("api_jsi.cpp"))
+		.arg(manifest_dir().join("tests").join("rn_host.cpp"))
+		.arg("-o")
+		.arg(&host)
+		.arg(build.join("lib").join(shared("hermesvm")))
+		.arg(build.join("jsi").join("libjsi.a"))
+		.arg(api.staticlib())
+		.args(&api.native)
+		.arg(format!("-Wl,-rpath,{}", build.join("lib").display()));
+	run(&mut cmd);
+	let script = |case: Option<&str>| -> Ran {
+		output(Command::new(&host).arg("bundle.js").args(case).current_dir(&dir)).into()
+	};
+	let transcript = script(None);
+	assert!(transcript.ok, "Hermes's transcript failed:\n{}", transcript.stderr);
+	assert_eq!(
+		transcript.stdout, api.transcript,
+		"Hermes's transcript differs from native Rust's"
+	);
+	for case in REACT_NATIVE_CASES {
+		let run = script(Some(case));
+		assert!(run.ok, "Hermes's {case} failed:\n{}{}", run.stdout, run.stderr);
+	}
+	// Each fails with the web's message, but a panic, which aborts rather than trapping, so
+	// `later poll trapped` gets no further.
+	for (case, message) in WEB_BROKEN {
+		let run = script(Some(case));
+		assert!(!run.ok, "Hermes's {case} did not fail");
+		assert!(run.stderr.contains(message), "Hermes's {case} printed {}", run.stderr);
+	}
+}
+
+/// The cases of `tests/api.ts` React Native runs, after its transcript: `grown`'s memory and
+/// a load's are WebAssembly's.
+const REACT_NATIVE_CASES: [&str; 6] = ["futures", "owned", "closed", "bytes", "bounds", "checks"];
+
+/// `tests/api.ts` importing the React Native binding, its cases exported for
+/// `tests/react-native.ts`, which loads the binding as its `main` does the web's.
+fn react_native_check() -> String {
+	let check = std::fs::read_to_string(manifest_dir().join("tests").join("api.ts")).unwrap();
+	let check = check.replace("\"./web/", "\"./react-native/");
+	let glue = "import * as g from \"./react-native/glue.ts\";\n";
+	assert_eq!(check.matches(glue).count(), 1, "api.ts imports the web's glue once");
+	let check = check.replace(glue, "");
+	let main = "\nasync function main(): Promise<void> {";
+	let at = check.find(main).expect("api.ts has its main");
+	check[..=at].to_string()
 }
 
 /// What `tsc` checks a web binding and its caller with: strict, with no name unused, on the

@@ -403,12 +403,13 @@ impl<'a> Gen<'a> {
 				true => format!("[](void *p, ::std::int32_t *s) {{ ::{c_}_drop(static_cast<{c} *>(p), s); }}"),
 				false => "nullptr".to_string(),
 			};
-						self.define(
+			self.define(
 				&name,
 				format!("extern const r::kind {name}"),
 				format!(
-					"const r::kind {name}{{{}, [](void *p) {{ ::{c_}_free(static_cast<{c} *>(p)); }}, {drop}}};\n\n",
-					lit(&class)
+					"const r::kind {name}{{{}, [](void *p) {{ ::{c_}_free(static_cast<{c} *>(p)); }}, {drop}, {}}};\n\n",
+					lit(&class),
+					lit(&format!("{c_}_drop")),
 				),
 			);
 		}
@@ -486,7 +487,7 @@ impl<'a> Gen<'a> {
 		self.define(
 			&name,
 			proto.clone(),
-			format!("// A `{}`.\n{proto} {{\n\t(void)o;\n{}\n}}\n\n", abi.spell(ty), indent(&body)),
+			format!("// A `{}`.\n{proto} {{\n\t(void)rt;\n\t(void)o;\n{}\n}}\n\n", abi.spell(ty), indent(&body)),
 		);
 		name
 	}
@@ -710,7 +711,7 @@ impl<'a> Gen<'a> {
 			&name,
 			proto.clone(),
 			format!(
-				"// Write the `{}` `v`.\n{proto} {{\n\t(void)f;\n{}\n}}\n\n",
+				"// Write the `{}` `v`.\n{proto} {{\n\t(void)rt;\n\t(void)f;\n{}\n}}\n\n",
 				abi.spell(ty),
 				indent(&body)
 			),
@@ -986,7 +987,7 @@ impl Gen<'_> {
 						true => {
 							call.lines.push(self.lower(ty, &v, &a, false));
 							call.gives.push(format!(
-								"if ({a}.ptr != nullptr) {{\n\t{a} = f.view({v}, true);\n}}"
+								"{a} = f.give({a});"
 							));
 						}
 						false => call.lines.push(self.lower(ty, &v, &a, false)),

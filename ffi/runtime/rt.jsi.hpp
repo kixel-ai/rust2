@@ -440,6 +440,8 @@ struct kind {
 	const char *name;
 	void (*free)(void *);
 	void (*drop)(void *, ::std::int32_t *);
+	// The C function `drop` calls, which a failed status names.
+	const char *dropping;
 };
 
 // A handle to a Rust object, held by the JavaScript object it is the state of: it counts
@@ -680,9 +682,8 @@ struct frame {
 	}
 
 	// A view of the bytes of a `Uint8Array`, or of an `rt.Bytes` a call returned, held until
-	// the call returns. Where `shared`, an `rt.Bytes` of Rust's buffer passes a second owner
-	// of it, which Rust takes.
-	c_buf view(const jsi::Value &v, bool shared = false) {
+	// the call returns.
+	c_buf view(const jsi::Value &v) {
 		if (v.isObject()) {
 			jsi::Object o = v.getObject(rt);
 			if (o.hasNativeState<bytes_cell>(rt)) {
@@ -692,7 +693,7 @@ struct frame {
 				}
 				b->h++;
 				bytes.push_back(b);
-				return shared ? c_buf_clone(b->buf) : c_buf{b->buf.ptr, b->buf.len, nullptr};
+				return c_buf{b->buf.ptr, b->buf.len, nullptr};
 			}
 			jsi::Value copy = call(rt, "bytesCopy", jsi::Value(rt, v));
 			if (!copy.isUndefined()) {
@@ -704,6 +705,18 @@ struct frame {
 			}
 		}
 		type(rt, shown(rt, v) + " is no Uint8Array");
+	}
+
+	// What Rust takes by value of the bytes `view` made: of an `rt.Bytes` of Rust's buffer,
+	// a second owner of it, even once disposed meanwhile, which only frees the first; of
+	// others, the view, which Rust copies.
+	c_buf give(c_buf viewed) {
+		for (auto &b : bytes) {
+			if (viewed.ptr != nullptr && b->buf.ptr == viewed.ptr && b->buf.len == viewed.len) {
+				return c_buf_clone(b->buf);
+			}
+		}
+		return viewed;
 	}
 
 	// The bytes a typed array `v`, of the constructor `ctor`, views, held until the call
@@ -748,7 +761,7 @@ inline void opaque_put(frame &f, const jsi::Value &v, void *p, ::std::size_t n) 
 	jsi::Value bytes = call(f.rt, "opaqueBytes", jsi::Value(f.rt, v));
 	c_buf b = f.array(bytes, "Uint8Array");
 	if (b.len != n) {
-		fail("an opaque value of another size");
+		range(f.rt, "a value Rust made is no other's");
 	}
 	::std::memcpy(p, b.ptr, n);
 }
@@ -1082,12 +1095,20 @@ struct foreign {
 			done = true;
 			w = ::std::exchange(this->w, c_waker{});
 		}
-		if (w.wake != nullptr) {
-			w.wake(w.data);
-		}
-		if (w.drop != nullptr) {
-			w.drop(w.data);
-		}
+		unlocked([&] {
+			if (w.wake != nullptr) {
+				w.wake(w.data);
+			}
+			if (w.drop != nullptr) {
+				w.drop(w.data);
+			}
+		});
+	}
+
+	// Whether it settled, or Rust dropped it.
+	bool over() {
+		::std::lock_guard<::std::mutex> lock(m);
+		return done;
 	}
 };
 
@@ -1121,7 +1142,8 @@ inline bool foreign_poll(void *data, c_waker w) {
 			auto caught = jsi::Function::createFromHostFunction(
 			    rt, jsi::PropNameID::forAscii(rt, "rejected"), 1,
 			    [self](jsi::Runtime &rt, const jsi::Value &, const jsi::Value *a, ::std::size_t n) {
-				    if (n > 0 && call(rt, "isCancelled", jsi::Value(rt, a[0])).getBool()) {
+				    // Once Rust dropped it, nothing waits for what it settles to.
+				    if (self->over() || (n > 0 && call(rt, "isCancelled", jsi::Value(rt, a[0])).getBool())) {
 					    self->settle();
 					    return jsi::Value::undefined();
 				    }
@@ -1167,7 +1189,7 @@ inline c_foreign_future future_of(jsi::Runtime &rt, const jsi::Value &v) {
 }
 
 // A reader JavaScript lends Rust for a call, read from any thread.
-inline bool reader_error(jsi::Runtime &rt, const jsi::JSError &e, c_buf *err) {
+inline bool reader_error(const jsi::JSError &e, c_buf *err) {
 	::std::string m = e.getMessage();
 	*err = c_buf_copy(c_buf{reinterpret_cast<const ::std::uint8_t *>(m.data()), m.size(), nullptr});
 	return false;
@@ -1182,14 +1204,15 @@ inline bool reader_read(void *data, ::std::uint8_t *buf, ::std::size_t len, ::st
 			jsi::Object reader = r->v.getObject(rt);
 			got = reader.getPropertyAsFunction(rt, "read").callWithThis(rt, reader, chunk);
 		} catch (const jsi::JSError &e) {
-			return reader_error(rt, e, err);
+			return reader_error(e, err);
 		}
 		double g = got.isNumber() ? got.getNumber() : -1;
 		if (integral(g) && g > 0 && g <= static_cast<double>(len)) {
 			jsi::ArrayBuffer ab = chunk.getPropertyAsObject(rt, "buffer").getArrayBuffer(rt);
 			::std::memcpy(buf, ab.data(rt), static_cast<::std::size_t>(g));
 		}
-		*n = integral(g) && g >= 0 && g <= 4294967295.0 ? static_cast<::std::size_t>(g) : 0xffffffff;
+		// Past `len`, which Rust refuses, where it is no count.
+		*n = integral(g) && g >= 0 && g <= static_cast<double>(len) ? static_cast<::std::size_t>(g) : SIZE_MAX;
 		return true;
 	});
 }
@@ -1204,7 +1227,7 @@ inline bool reader_seek(void *data, int whence, ::std::int64_t offset, ::std::ui
 			jsi::Object reader = r->v.getObject(rt);
 			got = reader.getPropertyAsFunction(rt, "seek").callWithThis(rt, reader, at, jsi::String::createFromAscii(rt, from));
 		} catch (const jsi::JSError &e) {
-			return reader_error(rt, e, err);
+			return reader_error(e, err);
 		}
 		*position = u64(rt, got);
 		return true;
@@ -1271,6 +1294,12 @@ struct pending final : node {
 	bool cancelled = false;
 
 	pending(void *f, void (*free)(void *)) : w(current()), f(f), free_(free) {}
+	// Once nothing can poll it: its promise collected, and Rust's waker dropped.
+	~pending() override {
+		if (f != nullptr) {
+			free_(f);
+		}
+	}
 
 	void wake() override {
 		if (queued.exchange(true, ::std::memory_order_acq_rel)) {
@@ -1297,14 +1326,23 @@ struct pending final : node {
 			polling = false;
 			finish();
 			reject->call(rt, e.value());
+			settled();
 			return;
 		}
 		polling = false;
 		if (done) {
 			finish();
+			settled();
 		} else if (cancelled) {
 			cancel(rt);
 		}
+	}
+
+	// Its promise's functions go once it settled, which hold its promise, whose `cancel`
+	// holds this.
+	void settled() {
+		resolve.reset();
+		reject.reset();
 	}
 
 	void finish() {
@@ -1316,6 +1354,7 @@ struct pending final : node {
 	void cancel(jsi::Runtime &rt) {
 		finish();
 		reject->call(rt, call(rt, "cancelled"));
+		settled();
 	}
 };
 
@@ -1325,9 +1364,13 @@ inline jsi::Value pend(jsi::Runtime &rt, void *f, void (*free)(void *),
                        ::std::function<bool(jsi::Runtime &, void *, c_waker, jsi::Function &, jsi::Function &)> poll) {
 	auto *p = new pending(f, free);
 	p->poll_ = ::std::move(poll);
+	// The promise's `cancel` holds a reference, for a call however late.
+	p->ref();
+	::std::shared_ptr<pending> held(p, [](pending *p) { p->unref(); });
 	auto cancel = jsi::Function::createFromHostFunction(
 	    rt, jsi::PropNameID::forAscii(rt, "cancel"), 0,
-	    [p](jsi::Runtime &rt, const jsi::Value &, const jsi::Value *, ::std::size_t) {
+	    [held](jsi::Runtime &rt, const jsi::Value &, const jsi::Value *, ::std::size_t) {
+		    pending *p = held.get();
 		    if (p->f != nullptr && !p->cancelled) {
 			    p->cancelled = true;
 			    if (!p->polling) {
@@ -1389,7 +1432,7 @@ inline void natives(jsi::Runtime &rt, jsi::Object &n) {
 		if (c->owned && c->k->drop != nullptr) {
 			::std::int32_t s = 0;
 			unlocked([&] { c->k->drop(c->p, &s); });
-			status(rt, s, c->k->name);
+			status(rt, s, c->k->dropping);
 		} else if (c->h != 1) {
 			error(rt, ::std::string(c->k->name) + ": a handle is already borrowed");
 		}

@@ -2,6 +2,8 @@
 // it: the web binding's types and integer helpers, then handles, bytes, and futures over
 // the JSI module the app's library holds, which converts each value itself.
 
+import { TurboModuleRegistry, type TurboModule } from "react-native";
+
 // #shared
 
 // The JSI module.
@@ -178,10 +180,7 @@ export function load(m: Module): Promise<void> {
 	loaded ??= (async () => {
 		const g = globalThis as Record<string, unknown>;
 		let installer = g[m.global] as Installer | undefined;
-		if (installer === undefined) {
-			const { TurboModuleRegistry } = await import("react-native");
-			installer = TurboModuleRegistry.getEnforcing<Installer & import("react-native").TurboModule>(m.module);
-		}
+		installer ??= TurboModuleRegistry.getEnforcing<Installer & TurboModule>(m.module);
 		const natives: Record<string, (...args: unknown[]) => unknown> = {};
 		installer.install({ ...kit, natives });
 		const contract = natives.contract() as bigint;
@@ -195,7 +194,11 @@ export function load(m: Module): Promise<void> {
 			throw new Error(`${m.file}: the library's target, ${target}, is none this binding serves`);
 		}
 		n = natives;
-	})();
+	})().catch((e: unknown) => {
+		// A load that failed leaves the next free to try again.
+		loaded = undefined;
+		throw e;
+	});
 	return loaded;
 }
 
@@ -213,7 +216,7 @@ const kit = {
 	opaqueMade,
 	opaqueBytes: (v: unknown) => {
 		const bytes = typeof v === "object" && v !== null ? bytesOf(v as Opaque) : undefined;
-		if (bytes === undefined) throw new TypeError(`${String(v)} is no value Rust made`);
+		if (bytes === undefined) throw new RangeError("a value Rust made is no other's");
 		return bytes;
 	},
 	int,

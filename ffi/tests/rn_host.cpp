@@ -121,7 +121,7 @@ int main(int argc, char **argv) {
 	});
 	global.setProperty(rt, RUST2_GLOBAL, RUST2_PREFIX_NS::installer(rt, post));
 	// Decoding through the module's own lossy decoder, which `rt.ts` installs.
-	fn(rt, global, "__decode", 1, [](jsi::Runtime &rt, const jsi::Value &, const jsi::Value *a, size_t n) {
+	fn(rt, global, "__decode", 1, [](jsi::Runtime &rt, const jsi::Value &, const jsi::Value *a, size_t) {
 		jsi::ArrayBuffer ab = a[0].getObject(rt).getPropertyAsObject(rt, "buffer").getArrayBuffer(rt);
 		auto off = static_cast<size_t>(a[0].getObject(rt).getProperty(rt, "byteOffset").getNumber());
 		auto len = static_cast<size_t>(a[0].getObject(rt).getProperty(rt, "byteLength").getNumber());
