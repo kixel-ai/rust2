@@ -37,6 +37,7 @@ pub(crate) fn generate(abi: &Abi<'_>, packages: &str, mask: u64) -> Result<Vec<(
 	let mut g = Gen {
 		abi,
 		mask,
+		classes: crate::web::classes(abi),
 		protos: Vec::new(),
 		defs: BTreeMap::new(),
 		order: Vec::new(),
@@ -210,6 +211,8 @@ struct Gen<'a> {
 	abi: &'a Abi<'a>,
 	/// The API's targets the module serves, one bit each.
 	mask: u64,
+	/// Each exported type's TypeScript name, by its C name.
+	classes: HashMap<String, String>,
 	/// Each helper's declaration, so any defines in any order.
 	protos: Vec<String>,
 	/// Each helper's definition, by name, in `order`.
@@ -244,6 +247,10 @@ fn lit(s: &str) -> String {
 impl<'a> Gen<'a> {
 	fn bare<'n>(&self, c: &'n str) -> &'n str {
 		&c[self.abi.prefix.len() + 1..]
+	}
+
+	fn class(&self, c: &str) -> String {
+		self.classes.get(c).cloned().unwrap_or_else(|| pascal(self.bare(c)))
 	}
 
 	fn here(&self, on: crate::ir::On) -> bool {
@@ -391,13 +398,12 @@ impl<'a> Gen<'a> {
 		let c_ = crate::abi::stem(&c);
 		let name = format!("k_{}", self.bare(&c));
 		if !self.defs.contains_key(&name) {
-			let class = pascal(self.bare(&c));
+			let class = self.class(&c);
 			let drop = match abi.checked[i] {
 				true => format!("[](void *p, ::std::int32_t *s) {{ ::{c_}_drop(static_cast<{c} *>(p), s); }}"),
 				false => "nullptr".to_string(),
 			};
-			let class = crate::web::class_of(abi, &c).unwrap_or(class);
-			self.define(
+						self.define(
 				&name,
 				format!("extern const r::kind {name}"),
 				format!(
@@ -440,7 +446,7 @@ impl<'a> Gen<'a> {
 		let name = format!("l_{}", self.bare(&c));
 		if !self.defs.contains_key(&name) {
 			let e = &abi.api.enums[i];
-			let t = crate::web::class_of(abi, &c).unwrap_or_else(|| pascal(self.bare(&c)));
+			let t = self.class(&c);
 			let cases: Vec<String> = (e.variants.iter())
 				.filter(|v| self.here(v.on))
 				.map(|v| format!("\tif (s == {}) {{\n\t\treturn static_cast<{c}>({});\n\t}}", lit(&v.name), v.discriminant))
@@ -664,7 +670,7 @@ impl<'a> Gen<'a> {
 			}
 			Type::Callback(i, _) => {
 				let vtable = self.vtable(*i);
-				let name = crate::web::class_of(abi, &abi.callback(*i)).unwrap_or_default();
+				let name = self.class(&abi.callback(*i));
 				format!("{out} = {{&{vtable}, new r::remote(rt, r::obj(rt, {v}, {}))}};", lit(&name))
 			}
 			Type::Waker => format!("{out} = r::waker_of(rt, {v});"),
@@ -714,7 +720,7 @@ impl<'a> Gen<'a> {
 
 	fn write_body(&mut self, ty: &Type, c: &str, take: bool) -> String {
 		let abi = self.abi;
-		let class = |c: &str| crate::web::class_of(abi, c).unwrap_or_else(|| pascal(&c[abi.prefix.len() + 1..]));
+		let class = |c: &str| self.class(c);
 		match ty {
 			Type::Record(i) if abi.api.records[*i].opaque.is_some() => "r::opaque_put(f, v, &out, sizeof out);".to_string(),
 			Type::Record(i) => {

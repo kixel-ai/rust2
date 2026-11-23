@@ -207,6 +207,15 @@ pub(crate) fn react_native(abi: &Abi<'_>, facade: &Package, contract: u64) -> Re
 	emit(abi, facade, contract, mask, true).map(Some)
 }
 
+/// Each exported type's name, by its C name.
+pub(crate) fn classes(abi: &Abi<'_>) -> HashMap<String, String> {
+	let ranges: BTreeSet<String> = (abi.ranges.keys())
+		.map(|c| pascal(&c[abi.prefix.len() + 1..]))
+		.collect();
+	let taken = |name: &str| TAKEN.contains(&name) || ranges.contains(name);
+	abi.classes(|_| (String::new(), 0), taken)
+}
+
 /// The targets of `mask`, by their indices among the API's.
 fn indices(mask: u64) -> Vec<String> {
 	(0..64).filter(|i| mask >> i & 1 == 1).map(|i| i.to_string()).collect()
@@ -215,16 +224,12 @@ fn indices(mask: u64) -> Vec<String> {
 /// The TypeScript serving the targets of `mask`, React Native's where `jsi`.
 fn emit(abi: &Abi<'_>, facade: &Package, contract: u64, mask: u64, jsi: bool) -> Result<Output, String> {
 	let packages = &facade.name;
-	let ranges: BTreeSet<String> = (abi.ranges.keys())
-		.map(|c| pascal(&c[abi.prefix.len() + 1..]))
-		.collect();
-	let taken = |name: &str| TAKEN.contains(&name) || ranges.contains(name);
 	let mut g = Gen {
 		abi,
 		mask,
 		jsi,
 		space: abi.space("web"),
-		classes: abi.classes(|_| (String::new(), 0), taken),
+		classes: classes(abi),
 		module: String::new(),
 		modules: BTreeMap::new(),
 		helpers: BTreeMap::new(),
