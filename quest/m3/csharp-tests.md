@@ -15,6 +15,8 @@ export by `just ffi moq`; and the C# outline in `ffi/surface/`.
   adds seconds, not a restore.
 - The surface outline is the generated file's public declarations, as Kotlin's and
   Swift's are, through `ffi/surface/surface.py`.
+- Drop "but C#" from the `just ffi shapes` and `just ffi protocol` lines of
+  [the tests section](/ffi/README.md#tests).
 
 ## Related
 

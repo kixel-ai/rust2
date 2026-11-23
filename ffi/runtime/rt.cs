@@ -6,7 +6,7 @@
 /// The C ABI's shared structs and the runtime's own helpers, beside the export's functions.
 internal static unsafe partial class Native
 {
-	/// `<prefix>_buf`: bytes Rust owns, or a view of the caller's.
+	/// `&lt;prefix&gt;_buf`: bytes Rust owns, or a view of the caller's.
 	[StructLayout(LayoutKind.Sequential)]
 	internal struct Buf
 	{
@@ -15,7 +15,7 @@ internal static unsafe partial class Native
 		public void* owner;
 	}
 
-	/// `<prefix>_waker`.
+	/// `&lt;prefix&gt;_waker`.
 	[StructLayout(LayoutKind.Sequential)]
 	internal struct CWaker
 	{
@@ -24,7 +24,7 @@ internal static unsafe partial class Native
 		public void* data;
 	}
 
-	/// `<prefix>_foreign_future`: a future C# implements.
+	/// `&lt;prefix&gt;_foreign_future`: a future C# implements.
 	[StructLayout(LayoutKind.Sequential)]
 	internal struct CForeignFuture
 	{
@@ -33,7 +33,7 @@ internal static unsafe partial class Native
 		public void* data;
 	}
 
-	/// `<prefix>_foreign_reader`: a stream C# lends Rust for a call.
+	/// `&lt;prefix&gt;_foreign_reader`: a stream C# lends Rust for a call.
 	[StructLayout(LayoutKind.Sequential)]
 	internal struct CForeignReader
 	{
@@ -116,13 +116,9 @@ internal static unsafe partial class Native
 	internal const int PollReady = 1;
 	internal const int PollError = 2;
 
-	/// The library's target, as its index among those this file serves: under Unity, read
-	/// in `Native`'s constructor, after the contract check, since every initializer runs before it.
-#if UNITY_5_3_OR_NEWER
+	/// The library's target, as its index among those this file serves, which `Native`'s
+	/// constructor reads after the contract check, since every field initializer runs before it.
 	internal static readonly int Target;
-#else
-	internal static readonly int Target = (int)target();
-#endif
 
 	/// Throws unless the library's target is among those of `on`, as the item `what` is.
 	internal static void On(ulong on, string what)
@@ -146,7 +142,7 @@ internal static unsafe partial class Native
 	/// The error a failed check throws: out of line, so each call that checks stays small.
 	[MethodImpl(MethodImplOptions.NoInlining)]
 	internal static Exception Failure(int status, string what) =>
-		new InvalidOperationException(what + ": " + Marshal.PtrToStringAnsi((IntPtr)status_message(status)));
+		new InvalidOperationException(what + ": " + Marshal.PtrToStringUTF8((IntPtr)status_message(status)));
 
 	/// Whether the platform is Windows, whose paths are WTF-8.
 	internal static readonly bool Windows = global::System.Runtime.InteropServices.RuntimeInformation.IsOSPlatform(global::System.Runtime.InteropServices.OSPlatform.Windows);
@@ -1085,12 +1081,12 @@ public readonly struct PathBuf : IEquatable<PathBuf>
 	public override int GetHashCode() => Native.HashBytes(Bytes.Span);
 }
 
-/// Rust's bytes, a `Vec<u8>`, `&[u8]`, or `bytes::Bytes`. Those a call returns lend Rust's
+/// Rust's bytes, a `Vec&lt;u8&gt;`, `&amp;[u8]`, or `bytes::Bytes`. Those a call returns lend Rust's
 /// buffer with no copy, past `Copied` of them, until `Dispose()`, as `using` calls, frees it
 /// once no call reads it; a read after throws `ObjectDisposedException`. The collector frees
 /// one never disposed only if no `Span` or `Memory` of it was ever taken, since a view lives
 /// on where its owner looks unreachable: so dispose one that was viewed, and read no view
-/// taken before its dispose after it. C#'s own, `byte[]` or `ReadOnlyMemory<byte>`, convert
+/// taken before its dispose after it. C#'s own, `byte[]` or `ReadOnlyMemory&lt;byte&gt;`, convert
 /// with no copy, and `default` is empty. No conversion takes a view: `Span` does, in sight.
 public readonly struct Bytes : IDisposable, IEquatable<Bytes>
 {
@@ -1924,6 +1920,13 @@ internal abstract unsafe class Pending<T> : IValueTaskSource<T>, IValueTaskSourc
 	CancellationTokenRegistration cancel;
 	readonly object gate = new object();
 
+	/// Whether Rust is polling the future now, under the gate.
+	bool polling;
+
+	/// 1 once the token is cancelled, which `cancelled` is.
+	int cancelling;
+	CancellationToken cancelled;
+
 	/// Polls the C future once with `waker`, writing its output or error on `READY` or `ERROR`.
 	protected abstract int Poll(IntPtr future, Native.CWaker waker, out T value, out Exception? error);
 
@@ -1957,23 +1960,18 @@ internal abstract unsafe class Pending<T> : IValueTaskSource<T>, IValueTaskSourc
 			Cancel(token);
 			return;
 		}
-		// Rust's first poll took no waker, so this one polls again at once, with one.
-		Run();
+		// Listening before the first poll, so a cancel from another thread stops even a
+		// future that wakes itself in every poll.
 		if (token.CanBeCanceled)
 		{
 			var registration = token.Register(s => ((Pending<T>)s!).Cancel(token), this);
-			bool finished;
 			lock (gate)
 			{
 				cancel = registration;
-				finished = this.future == IntPtr.Zero;
-			}
-			// A future that finished meanwhile listens no more.
-			if (finished)
-			{
-				registration.Dispose();
 			}
 		}
+		// Rust's first poll took no waker, so this one polls again at once, with one.
+		Run();
 	}
 
 	public void Dropped()
@@ -2022,53 +2020,79 @@ internal abstract unsafe class Pending<T> : IValueTaskSource<T>, IValueTaskSourc
 	void Run()
 	{
 		CancellationTokenRegistration? done = null;
+		bool again;
 		lock (gate)
 		{
-			while (true)
-			{
-				if (future == IntPtr.Zero)
-				{
-					return;
-				}
-				Volatile.Write(ref state, Polling);
-				int poll;
-				T value;
-				Exception? error;
-				given = true;
-				try
-				{
-					poll = Poll(future, waker, out value, out error);
-				}
-				catch (Exception e)
-				{
-					done = Finish();
-					core.SetException(e);
-					break;
-				}
-				if (poll == Native.PollPending)
-				{
-					// A wake during the poll polls again, as it may have come before Rust
-					// registered the waker.
-					if (Interlocked.CompareExchange(ref state, Idle, Polling) == Polling)
-					{
-						return;
-					}
-					continue;
-				}
-				done = Finish();
-				if (poll == Native.PollReady)
-				{
-					core.SetResult(value);
-				}
-				else
-				{
-					core.SetException(error!);
-				}
-				break;
-			}
+			again = Step(ref done);
 		}
 		// Outside the gate, as disposing waits for a cancel running now, which takes it.
 		done?.Dispose();
+		Cancelled();
+		if (again)
+		{
+			Schedule();
+		}
+	}
+
+	/// Polls the future under the gate while it is live and woken during its poll, setting
+	/// `done` to the cancel to stop once it finished, and returning whether to poll again on
+	/// a later turn of the caller's context.
+	bool Step(ref CancellationTokenRegistration? done)
+	{
+		while (future != IntPtr.Zero)
+		{
+			Volatile.Write(ref state, Polling);
+			int poll;
+			T value;
+			Exception? error;
+			given = true;
+			// A cancel while Rust polls, from a callback on this thread or on Rust's home,
+			// leaves the future to this poll rather than freeing it under Rust or waiting on
+			// the gate.
+			polling = true;
+			try
+			{
+				poll = Poll(future, waker, out value, out error);
+			}
+			catch (Exception e)
+			{
+				polling = false;
+				done = Finish();
+				core.SetException(e);
+				return false;
+			}
+			polling = false;
+			if (poll == Native.PollPending)
+			{
+				// A wake during the poll polls again, as it may have come before Rust
+				// registered the waker, unless a cancel came, which `Run` carries out once it
+				// lets go. With a context, on a later turn of it, which keeps its thread and
+				// lets its other work run between a future's polls; without one, here, as
+				// a future that is not `Send` stays on this thread.
+				if (Interlocked.CompareExchange(ref state, Idle, Polling) == Polling
+					|| Interlocked.CompareExchange(ref cancelling, 0, 0) == 1)
+				{
+					return false;
+				}
+				if (context != null)
+				{
+					Volatile.Write(ref state, Scheduled);
+					return true;
+				}
+				continue;
+			}
+			done = Finish();
+			if (poll == Native.PollReady)
+			{
+				core.SetResult(value);
+			}
+			else
+			{
+				core.SetException(error!);
+			}
+			return false;
+		}
+		return false;
 	}
 
 	/// Frees the finished future, which drops the waker, returning the cancel to stop.
@@ -2084,9 +2108,22 @@ internal abstract unsafe class Pending<T> : IValueTaskSource<T>, IValueTaskSourc
 	/// Frees the future unless it finished, which cancels it in Rust and loses nothing.
 	void Cancel(CancellationToken token)
 	{
-		lock (gate)
+		cancelled = token;
+		Interlocked.Exchange(ref cancelling, 1);
+		Cancelled();
+	}
+
+	/// Carries out a cancel once no poll runs, never waiting for one: whoever holds the gate
+	/// calls this again once it lets go, and the fenced read here pairs with `Cancel`'s write.
+	void Cancelled()
+	{
+		if (Interlocked.CompareExchange(ref cancelling, 0, 0) == 0 || !Monitor.TryEnter(gate))
 		{
-			if (future == IntPtr.Zero)
+			return;
+		}
+		try
+		{
+			if (polling || future == IntPtr.Zero)
 			{
 				return;
 			}
@@ -2098,7 +2135,11 @@ internal abstract unsafe class Pending<T> : IValueTaskSource<T>, IValueTaskSourc
 			{
 				Native.Release(waker.data);
 			}
-			core.SetException(new OperationCanceledException(token));
+			core.SetException(new OperationCanceledException(cancelled));
+		}
+		finally
+		{
+			Monitor.Exit(gate);
 		}
 	}
 

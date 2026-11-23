@@ -52,6 +52,39 @@ sealed class CountLog : api.Log
 	}
 }
 
+/// A context that runs what is posted to it on its one thread, in order, as a UI's does.
+sealed class Loop : SynchronizationContext
+{
+	readonly Queue<(SendOrPostCallback, object?)> posted = new Queue<(SendOrPostCallback, object?)>();
+
+	public override void Post(SendOrPostCallback d, object? state)
+	{
+		lock (posted)
+		{
+			posted.Enqueue((d, state));
+		}
+	}
+
+	/// Runs `start` under this context on this thread, then what it posts until none is left.
+	public void Run(Action start)
+	{
+		SetSynchronizationContext(this);
+		start();
+		while (true)
+		{
+			(SendOrPostCallback, object?) next;
+			lock (posted)
+			{
+				if (!posted.TryDequeue(out next))
+				{
+					return;
+				}
+			}
+			next.Item1(next.Item2);
+		}
+	}
+}
+
 /// A reader whose reads fail, and each seek lands at 0.
 sealed class Broken : api.ISeekableReader
 {
@@ -454,6 +487,8 @@ static partial class Script
 		// A value's zero bits are a value Rust holds.
 		Check(default(api.NonZeroU64).Value == 1 && api.Lib.NextHop(default(api.NonZeroU64))?.Value == 2, "a default NonZero is one");
 		Check(default(api.IpAddr).V4?.Bits == 0 && default(api.SocketAddr).V4?.Port == 0, "a default address is IPv4's unspecified one");
+		// An opaque value's zero bits may not be one, so only Rust makes it.
+		Throws<InvalidOperationException>(() => default(api.Moment).Millis(), "a default opaque value throws", e => e.Message == "a default Moment, which only Rust makes");
 		// An ordered object orders null first, as `IComparable` asks.
 		using (var pass = api.Pass.New(1))
 		{
@@ -677,6 +712,104 @@ static partial class Script
 		}
 		channel.Send(Utf8("after cancel"));
 		Check(_Text(await channel.Recv()) == "after cancel", "a cancelled recv loses nothing");
+		var start = api.Moment.New(0, 1000) ?? throw _None();
+		// A cancel from another thread stops a future that wakes itself in every poll, which
+		// polls again at once on the thread that made it.
+		using (var cancel = new CancellationTokenSource())
+		{
+			var spins = 0;
+			var spinning = api.Lib.Drive(
+				start,
+				(now, waiter) =>
+				{
+					if (Interlocked.Increment(ref spins) == 100)
+					{
+						ThreadPool.QueueUserWorkItem(_ => cancel.Cancel());
+					}
+					using (var waker = waiter.Waker())
+					{
+						waker.Wake();
+					}
+					return null;
+				},
+				cancel.Token
+			);
+			try
+			{
+				await spinning.AsTask().WaitAsync(TimeSpan.FromSeconds(10));
+				Check(false, "a future that wakes itself throws once cancelled");
+			}
+			catch (OperationCanceledException)
+			{
+			}
+		}
+		// On a context of one thread, as a UI's, a future that wakes itself in every poll polls
+		// again on a later turn of it, so the call returns and work posted to it runs between.
+		{
+			var loop = new Loop();
+			Task? spun = null;
+			var polls = 0;
+			var thread = new Thread(() => loop.Run(() =>
+			{
+				var cancel = new CancellationTokenSource();
+				spun = api.Lib.Drive(
+					start,
+					(now, waiter) =>
+					{
+						polls++;
+						using (var waker = waiter.Waker())
+						{
+							waker.Wake();
+						}
+						return null;
+					},
+					cancel.Token
+				).AsTask();
+				loop.Post(_ => cancel.Cancel(), null);
+			}));
+			thread.Start();
+			Check(thread.Join(TimeSpan.FromSeconds(10)), "a future that wakes itself yields to its context");
+			Until(() => spun!.IsCompleted, "a future that wakes itself ends once cancelled on its context");
+			Check(spun!.IsCanceled && polls >= 2, "work posted to its context cancels a future that wakes itself");
+		}
+		// A cancel from inside a poll, on the thread polling, frees the future only once Rust's
+		// poll returns.
+		using (var cancel = new CancellationTokenSource())
+		{
+			api.Waker? kept = null;
+			var polls = 0;
+			var cancelling = api.Lib.Drive(
+				start,
+				(now, waiter) =>
+				{
+					switch (++polls)
+					{
+						case 1:
+							break;
+						case 2:
+							kept = waiter.Waker();
+							break;
+						default:
+							cancel.Cancel();
+							break;
+					}
+					return null;
+				},
+				cancel.Token
+			);
+			kept!.Wake();
+			try
+			{
+				await cancelling.AsTask().WaitAsync(TimeSpan.FromSeconds(10));
+				Check(false, "a future cancelled in its poll throws");
+			}
+			catch (OperationCanceledException)
+			{
+			}
+			Check(polls == 3, "a future cancelled in its poll polls no more");
+			kept.Wake();
+			kept.Dispose();
+		}
 		// A token cancelled before the call cancels a future that pends, and not one ready at once.
 		using (var cancelled = new CancellationTokenSource())
 		{

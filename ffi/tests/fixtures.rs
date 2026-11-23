@@ -3584,9 +3584,17 @@ fn api_csharp() {
 	mismatched.replace_range(at..at + 1, digit);
 	let contract = dir.join("contract");
 	step::write(&contract.join("api.cs"), mismatched);
+	// Non-dumpable before the check fails, as `Fail` in `tests/api.cs` is. PR_SET_DUMPABLE is 4.
 	step::write(
 		&contract.join("main.cs"),
-		"static class Program\n{\n\tstatic void Main() => Api.Lib.Dropped();\n}\n",
+		"using System;\nusing System.Runtime.InteropServices;\n\n\
+		static class Program\n{\n\
+		\t[DllImport(\"libc\", EntryPoint = \"prctl\")]\n\
+		\tstatic extern int Prctl(int option, ulong a, ulong b, ulong c, ulong d);\n\n\
+		\tstatic void Main()\n\t{\n\
+		\t\tif (OperatingSystem.IsLinux() && Prctl(4, 0, 0, 0, 0) != 0)\n\t\t{\n\
+		\t\t\tConsole.Error.WriteLine(\"prctl\");\n\t\t\tEnvironment.Exit(1);\n\t\t}\n\
+		\t\tApi.Lib.Dropped();\n\t}\n}\n",
 	);
 	for (target, name) in [(Dotnet::Net, "net"), (Dotnet::NetUnity, "net-unity")] {
 		let exe = contract.join(name).join("contract.dll");
@@ -3607,6 +3615,29 @@ fn api_csharp() {
 			"a mismatched contract, {name}, printed {stderr}"
 		);
 	}
+
+	// A program that finds the library only through a `DllImportResolver` it sets in `Main`
+	// calls it, as the contract check runs at the first call, not at load.
+	let resolved = dir.join("resolved");
+	step::write(
+		&resolved.join("main.cs"),
+		"using System;\nusing System.Runtime.InteropServices;\n\n\
+		static class Program\n{\n\
+		\tstatic void Main(string[] args)\n\t{\n\
+		\t\tNativeLibrary.SetDllImportResolver(typeof(Program).Assembly, (name, _, _) => name == \"api\" ? NativeLibrary.Load(args[0]) : IntPtr.Zero);\n\
+		\t\tApi.Lib.Dropped();\n\t}\n}\n",
+	);
+	let exe = resolved.join("resolved.dll");
+	csc(Dotnet::Net, &exe, &[&binding, &resolved.join("main.cs")]);
+	let lib = api.lib.join(format!(
+		"{}api{}",
+		std::env::consts::DLL_PREFIX,
+		std::env::consts::DLL_SUFFIX
+	));
+	run(Command::new("dotnet")
+		.arg(&exe)
+		.arg(&lib)
+		.env("DOTNET_CLI_TELEMETRY_OPTOUT", "1"));
 }
 
 /// The same C# compiled ahead of time by NativeAOT, with its trim and AOT analyzers' warnings
@@ -3620,7 +3651,9 @@ fn api_csharp_aot() {
 	let script = generated("csharp", "Transcript.cs", &transcript::csharp::emit(transcript())).join("Transcript.cs");
 	let binding = api.out.join("csharp").join("api.cs");
 	let tests = manifest_dir().join("tests/api.cs");
-	// Copied beside the project, so no character of the checkout's path reaches its XML.
+	// Copied beside the project, so no character of the checkout's path reaches its XML. Its
+	// restore takes the ILCompiler from the SDK's own packs, and with no audit, which asks
+	// nuget.org, it needs no network.
 	let mut compile = String::new();
 	for (source, name) in [
 		(&binding, "binding.cs"),
@@ -3633,7 +3666,7 @@ fn api_csharp_aot() {
 	step::write(
 		&dir.join("api.csproj"),
 		format!(
-			"<Project Sdk=\"Microsoft.NET.Sdk\">\n  <PropertyGroup>\n    <OutputType>Exe</OutputType>\n    <TargetFramework>net10.0</TargetFramework>\n    <Nullable>enable</Nullable>\n    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>\n    <PublishAot>true</PublishAot>\n    <InvariantGlobalization>true</InvariantGlobalization>\n    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>\n    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>\n  </PropertyGroup>\n  <ItemGroup>\n{compile}  </ItemGroup>\n</Project>\n"
+			"<Project Sdk=\"Microsoft.NET.Sdk\">\n  <PropertyGroup>\n    <OutputType>Exe</OutputType>\n    <TargetFramework>net10.0</TargetFramework>\n    <Nullable>enable</Nullable>\n    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>\n    <PublishAot>true</PublishAot>\n    <InvariantGlobalization>true</InvariantGlobalization>\n    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>\n    <NuGetAudit>false</NuGetAudit>\n    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>\n  </PropertyGroup>\n  <ItemGroup>\n{compile}  </ItemGroup>\n</Project>\n"
 		),
 	);
 	let rid = match (std::env::consts::OS, std::env::consts::ARCH) {
@@ -3719,7 +3752,11 @@ fn csc(target: Dotnet, out: &Path, sources: &[&Path]) {
 			cmd.arg(format!("-r:{}", dll.display()));
 		}
 	}
-	cmd.arg(format!("-out:{}", out.display())).args(sources);
+	// Writing the XML docs checks every doc comment is well-formed, as a consumer's
+	// `GenerateDocumentationFile` with warnings as errors does.
+	cmd.arg(format!("-out:{}", out.display()))
+		.arg(format!("-doc:{}", out.with_extension("xml").display()))
+		.args(sources);
 	std::fs::create_dir_all(out.parent().unwrap()).unwrap();
 	let step = Step {
 		stamp: &out.with_extension("stamp"),
@@ -3755,6 +3792,7 @@ fn with_api_lib(cmd: &mut Command) {
 	cmd.env(var, std::env::join_paths(paths).unwrap());
 }
 
+/// The generated Go, vetted and built through cgo against the static library, runs
 /// `tests/api.go`'s script, its futures, and what closing and the GC free, then fails loud
 /// on each broken contract and on a library of another contract.
 #[test]

@@ -10,10 +10,10 @@
 //! once disposed and no call holds it, or by the garbage collector; a record a struct; a
 //! plain enum a C# enum, whose functions are extension methods of `<Enum>Extensions`; an
 //! enum with data an abstract class of a sealed class per variant; a tuple a `ValueTuple`;
-//! a trait an interface; a closure a `Func` or `Action`; a reader a `Stream`; a future a
-//! `ValueTask`; an error a thrown `<E>Exception`. The runtime they share,
-//! [`runtime/rt.cs`](../runtime/rt.cs), holds the handles, text, bytes, and std values,
-//! and the source each future completes from.
+//! a trait an interface; a closure a `Func` or `Action`; a reader an `ISeekableReader`,
+//! which `SeekableStream` makes of a `Stream`; a future a `ValueTask`; an error a thrown
+//! `<E>Exception`. The runtime they share, [`runtime/rt.cs`](../runtime/rt.cs), holds the
+//! handles, text, bytes, and std values, and the source each future completes from.
 //!
 //! A callback Rust calls into C# is an `UnmanagedCallersOnly` method's address on .NET,
 //! and under Unity (`UNITY_5_3_OR_NEWER`), whose IL2CPP has none, a delegate's, kept alive,
@@ -241,7 +241,15 @@ const OBJECT_MEMBERS: &[&str] = &[
 
 /// What generated code names in an expression, where a member of the name, `Lib`'s too,
 /// would shadow it.
-const QUALIFIERS: &[&str] = &["Native", "Callbacks", "IntPtr", "GCHandle", "Task", "Marshal"];
+const QUALIFIERS: &[&str] = &[
+	"Native",
+	"Callbacks",
+	"IntPtr",
+	"GCHandle",
+	"Task",
+	"Marshal",
+	"Streams",
+];
 
 /// The instance methods `System.Enum` declares besides `object`'s, which a plain enum's
 /// extension method of the same name never reaches.
@@ -329,16 +337,13 @@ pub(crate) fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<O
 		#if UNITY_IOS && !UNITY_EDITOR\n\tconst string Lib = \"{unity_lib}\";\n#else\n\tconst string Lib = \"{p}\";\n#endif\n\n\
 		\t/// The contract of the header this file was generated with.\n\
 		\tinternal const ulong Contract = 0x{contract:016x};\n\n\
-		\t/// Checks, before any other call, that the library is the one this file was generated with:\n\
-		\t/// under Unity, which has no module initializer, from this type's constructor, which runs\n\
-		\t/// before any use of it, and whose throw every later use rethrows.\n\
-		#if UNITY_5_3_OR_NEWER\n\
-		\tstatic Native()\n\t{{\n\t\tLoad();\n\t\tTarget = (int)target();\n\t}}\n\n\
-		#else\n\
-		\t[ModuleInitializer]\n\
-		#endif\n\
-		\tinternal static void Load()\n\
-		\t{{\n\t\tif (contract() != Contract)\n\t\t{{\n\t\t\tthrow new InvalidOperationException(\"{p}.cs and the library are from different builds\");\n\t\t}}\n\t}}\n\n\
+		\t/// Checks, before any other call, that the library is the one this file was generated with,\n\
+		\t/// then reads its target: at the first use, not at load, so a `DllImportResolver` the\n\
+		\t/// program sets first finds the library, and under Unity, which has no module initializer.\n\
+		\t/// A mismatch throws from every use after.\n\
+		\tstatic Native()\n\t{{\n\
+		\t\tif (contract() != Contract)\n\t\t{{\n\t\t\tthrow new InvalidOperationException(\"{p}.cs and the library are from different builds\");\n\t\t}}\n\
+		\t\tTarget = (int)target();\n\t}}\n\n\
 		\tinternal static int HashBytes(ReadOnlySpan<byte> bytes)\n\t{{\n\t\tunchecked\n\t\t{{\n\t\t\tvar h = (int)2166136261;\n\t\t\tforeach (var b in bytes)\n\t\t\t{{\n\t\t\t\th = (h ^ b) * 16777619;\n\t\t\t}}\n\t\t\treturn h;\n\t\t}}\n\t}}\n\n"
 	);
 	for (name, params, ret) in [
@@ -1041,7 +1046,13 @@ impl<'a> Gen<'a> {
 			Type::Record(i) => {
 				let record = &abi.api.records[*i];
 				if record.opaque.is_some() {
-					("v.c_".to_string(), format!("new {cs}(c)"))
+					let local = self.class(&abi.record(*i));
+					(
+						format!(
+							"(v.made_ ? v.c_ : throw new InvalidOperationException(\"a default {local}, which only Rust makes\"))"
+						),
+						format!("new {cs}(c)"),
+					)
 				} else {
 					let fields = record.fields.clone();
 					let mut lowers = Vec::new();
@@ -1161,7 +1172,7 @@ impl<'a> Gen<'a> {
 		let t = cs_int(int);
 		let _ = write!(
 			self.types,
-			"/// A Rust `NonZero<{rust}>`: a `{t}` that is never zero, which the constructor checks, and\n/// which `default` is one of.\npublic readonly struct {name} : IEquatable<{name}>, IComparable<{name}>\n{{\n\
+			"/// A Rust `NonZero&lt;{rust}&gt;`: a `{t}` that is never zero, which the constructor checks, and\n/// which `default` is one of.\npublic readonly struct {name} : IEquatable<{name}>, IComparable<{name}>\n{{\n\
 			\t/// One less than the value, so the struct's zero bits are one.\n\
 			\treadonly {t} less;\n\n\
 			\tpublic {t} Value => unchecked(({t})(less + 1));\n\n\
@@ -1435,7 +1446,9 @@ impl<'a> Gen<'a> {
 						Int::Usize => "ulong",
 						_ => "long",
 					};
-					format!("static readonly {ty} {name} = checked(({ty})({wide}){v});")
+					// A property, so on a 32-bit runtime only its own read throws, not `Lib`'s
+					// initializer, which every member of `Lib` would then rethrow.
+					format!("static {ty} {name} => checked(({ty})({wide}){v});")
 				}
 				_ => format!("const {ty} {name} = {value};"),
 			};
@@ -1517,7 +1530,7 @@ impl<'a> Gen<'a> {
 			Type::Range(int) => {
 				let t = cs_int(*int);
 				format!(
-					"/// A Rust `Range<{rust}>`: from `Start`, up to but not including `End`.\npublic struct {name} : IEquatable<{name}>\n{{\n\tpublic {t} Start;\n\tpublic {t} End;\n\n\tpublic {name}({t} start, {t} end)\n\t{{\n\t\tStart = start;\n\t\tEnd = end;\n\t}}\n\n\tpublic bool Equals({name} other) => Start == other.Start && End == other.End;\n\n\tpublic override bool Equals(object? obj) => obj is {name} other && Equals(other);\n\n\tpublic override int GetHashCode() => (Start, End).GetHashCode();\n}}\n\n",
+					"/// A Rust `Range&lt;{rust}&gt;`: from `Start`, up to but not including `End`.\npublic struct {name} : IEquatable<{name}>\n{{\n\tpublic {t} Start;\n\tpublic {t} End;\n\n\tpublic {name}({t} start, {t} end)\n\t{{\n\t\tStart = start;\n\t\tEnd = end;\n\t}}\n\n\tpublic bool Equals({name} other) => Start == other.Start && End == other.End;\n\n\tpublic override bool Equals(object? obj) => obj is {name} other && Equals(other);\n\n\tpublic override int GetHashCode() => (Start, End).GetHashCode();\n}}\n\n",
 					rust = int.rust()
 				)
 			}
@@ -1528,14 +1541,14 @@ impl<'a> Gen<'a> {
 					self.types.push_str("/// What a range's bound does: nothing, include its value, or exclude it.\npublic enum Bound\n{\n\tUnbounded = 0,\n\tIncluded = 1,\n\tExcluded = 2,\n}\n\n");
 				}
 				format!(
-					"/// A Rust `Bound<{rust}>`: its kind, and the value it includes or excludes.\npublic struct {name} : IEquatable<{name}>\n{{\n\tpublic Bound Kind;\n\tpublic {t} Value;\n\n\tpublic {name}(Bound kind, {t} value = 0)\n\t{{\n\t\tKind = kind;\n\t\tValue = kind == Bound.Unbounded ? ({t})0 : value;\n\t}}\n\n\tpublic static {name} Unbounded => new {name}(Bound.Unbounded);\n\n\tpublic static {name} Included({t} value) => new {name}(Bound.Included, value);\n\n\tpublic static {name} Excluded({t} value) => new {name}(Bound.Excluded, value);\n\n\tpublic bool Equals({name} other) => Kind == other.Kind && Value == other.Value;\n\n\tpublic override bool Equals(object? obj) => obj is {name} other && Equals(other);\n\n\tpublic override int GetHashCode() => (Kind, Value).GetHashCode();\n\n\tpublic override string ToString() => Kind switch {{ Bound.Included => \"Included(\" + Value + \")\", Bound.Excluded => \"Excluded(\" + Value + \")\", _ => \"Unbounded\" }};\n}}\n\n",
+					"/// A Rust `Bound&lt;{rust}&gt;`: its kind, and the value it includes or excludes.\npublic struct {name} : IEquatable<{name}>\n{{\n\tpublic Bound Kind;\n\tpublic {t} Value;\n\n\tpublic {name}(Bound kind, {t} value = 0)\n\t{{\n\t\tKind = kind;\n\t\tValue = kind == Bound.Unbounded ? ({t})0 : value;\n\t}}\n\n\tpublic static {name} Unbounded => new {name}(Bound.Unbounded);\n\n\tpublic static {name} Included({t} value) => new {name}(Bound.Included, value);\n\n\tpublic static {name} Excluded({t} value) => new {name}(Bound.Excluded, value);\n\n\tpublic bool Equals({name} other) => Kind == other.Kind && Value == other.Value;\n\n\tpublic override bool Equals(object? obj) => obj is {name} other && Equals(other);\n\n\tpublic override int GetHashCode() => (Kind, Value).GetHashCode();\n\n\tpublic override string ToString() => Kind switch {{ Bound.Included => \"Included(\" + Value + \")\", Bound.Excluded => \"Excluded(\" + Value + \")\", _ => \"Unbounded\" }};\n}}\n\n",
 					rust = int.rust()
 				)
 			}
 			Type::Bounds(int) => {
 				let bound = pascal(&abi.range(&Type::Bound(*int))[abi.prefix.len() + 1..]);
 				format!(
-					"/// A Rust `RangeBounds<{rust}>`: its start and end bounds.\npublic struct {name} : IEquatable<{name}>\n{{\n\tpublic {bound} Start;\n\tpublic {bound} End;\n\n\tpublic {name}({bound} start, {bound} end)\n\t{{\n\t\tStart = start;\n\t\tEnd = end;\n\t}}\n\n\tpublic bool Equals({name} other) => Start.Equals(other.Start) && End.Equals(other.End);\n\n\tpublic override bool Equals(object? obj) => obj is {name} other && Equals(other);\n\n\tpublic override int GetHashCode() => (Start, End).GetHashCode();\n}}\n\n",
+					"/// A Rust `RangeBounds&lt;{rust}&gt;`: its start and end bounds.\npublic struct {name} : IEquatable<{name}>\n{{\n\tpublic {bound} Start;\n\tpublic {bound} End;\n\n\tpublic {name}({bound} start, {bound} end)\n\t{{\n\t\tStart = start;\n\t\tEnd = end;\n\t}}\n\n\tpublic bool Equals({name} other) => Start.Equals(other.Start) && End.Equals(other.End);\n\n\tpublic override bool Equals(object? obj) => obj is {name} other && Equals(other);\n\n\tpublic override int GetHashCode() => (Start, End).GetHashCode();\n}}\n\n",
 					rust = int.rust()
 				)
 			}
@@ -1885,7 +1898,7 @@ impl<'a> Gen<'a> {
 		if record.opaque.is_some() {
 			let _ = write!(
 				body,
-				"\tinternal Native.{c_name} c_;\n\n\tinternal {name}(Native.{c_name} c)\n\t{{\n\t\tc_ = c;\n\t}}\n\n"
+				"\tinternal Native.{c_name} c_;\n\n\t/// Whether Rust made it, rather than it being C#'s `default`, whose bytes Rust may not hold.\n\tinternal bool made_;\n\n\tinternal {name}(Native.{c_name} c)\n\t{{\n\t\tc_ = c;\n\t\tmade_ = true;\n\t}}\n\n"
 			);
 		} else {
 			let mut params = Vec::new();

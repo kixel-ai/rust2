@@ -1639,9 +1639,9 @@ Unity's IL2CPP each compile: tested on .NET 10, JIT and NativeAOT, and compiled 
 against .NET Standard 2.1, Unity's level, with `UNITY_5_3_OR_NEWER` defined. Its namespace
 is the prefix in Pascal case (`Moq`). Each C function is a blittable `DllImport` of the
 library `<prefix>`, so no marshalling stub runs; under Unity on iOS, which links the
-library statically, it is `__Internal`. A module initializer, or under Unity, which has none,
-`Native`'s static constructor, checks the contract before any other call, and a mismatch
-throws from every call after. A callback
+library statically, it is `__Internal`. `Native`'s static constructor checks the contract before any other call, at the first
+call rather than at load, so a `DllImportResolver` set first finds the library, and a
+mismatch throws from every call after. A callback
 Rust calls into C# is an `UnmanagedCallersOnly` method's address on .NET, and under Unity,
 whose IL2CPP has none, a kept delegate's, whose method is `MonoPInvokeCallback`; one that
 throws aborts, naming the call. The runtime every file includes is
@@ -1893,10 +1893,10 @@ just ffi moq-cpp  # the same export, running only moq/moq.cpp
 just ffi moq-swift  # the same export, running only moq/moq.swift
 just ffi moq-api <target>  # stage moq's API on another target into target/moq-api, which the exports above merge
 just ffi census   # census each into target/census
-just ffi shapes   # round-trip every sampled type shape in every language, as the nightly does
+just ffi shapes   # round-trip every sampled type shape in every language but C#, as the nightly does
 just ffi corpus   # census, export, and bind each crate of corpus/crates.txt through a facade, as the nightly does; it runs their build scripts
 just ffi corpus-update  # take corpus/crates.txt afresh from crates.io's top crates, and resolve corpus/Cargo.lock
-just ffi protocol # run longer protocol scripts from more seeds through the C ABI and every binding, as the nightly does
+just ffi protocol # run longer protocol scripts from more seeds through the C ABI and every binding but C#, as the nightly does
 just ffi aot      # api's C# compiled ahead of time by NativeAOT, as the nightly runs it
 nix develop .#bench --command just ffi browsers  # api's TypeScript in headless Chromium, Firefox, and on Linux WebKit, lowering `using` three ways for WebKit, as the nightly runs it
 nix develop .#android --command just ffi android  # the Kotlin test, shrunk by R8, under CheckJNI on the Android device adb reaches

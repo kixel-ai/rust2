@@ -547,7 +547,7 @@ def digest(export, lib):
     def files(part):
         return sorted((p for p in (export / part).rglob("*") if p.is_file()), key=lambda p: p.relative_to(export).as_posix())
     paths = [export / "python" / f"{lib}.py", *files("include"), *files("swift"), *files("go"), *files("kotlin"),
-             *files("dart")]
+             *files("dart"), *files("csharp")]
     for path in paths:
         hasher.update(path.relative_to(export).as_posix().encode() + b"\0")
         # Exact bytes: each wheel ships its own host's module.
@@ -2046,7 +2046,7 @@ def build(args):
                 android_library(inside, args.manifest_path, through, target, out)
     # The generated sources, for the Swift package, the Go module, and the hosts' agreement.
     # Text this writes is LF on every host, as the jobs reading it compare bytes.
-    for part in ("include", "swift", "python", "go", "kotlin", "dart"):
+    for part in ("include", "swift", "python", "go", "kotlin", "dart", "csharp"):
         shutil.copytree(export_dir / part, out / "export" / part, dirs_exist_ok=True)
     shutil.copy(export_dir / "Cargo.toml", out / "export")
     shutil.copy(export_dir / "api.json", out / "export")
