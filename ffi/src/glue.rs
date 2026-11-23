@@ -381,6 +381,9 @@ pub(crate) struct Output {
 	/// Directories the export owns, where an earlier export may have written files for
 	/// crates or packages this one has not.
 	stale: Vec<PathBuf>,
+	/// Directories inside those that the export never writes and leaves as they are: React
+	/// Native's `libs/`, which the app builds its Rust libraries into.
+	spared: Vec<PathBuf>,
 }
 
 impl Output {
@@ -415,7 +418,7 @@ impl Output {
 				Ok(meta) if meta.is_symlink() => {
 					std::fs::remove_file(dir).map_err(|err| format!("removing {}: {err}", dir.display()))?
 				}
-				Ok(_) => prune(dir, &files)?,
+				Ok(_) => prune(dir, &files, &self.spared)?,
 				Err(err) if err.kind() == std::io::ErrorKind::NotFound => {}
 				Err(err) => return Err(format!("reading {}: {err}", dir.display())),
 			}
@@ -428,7 +431,7 @@ impl Output {
 }
 
 /// Remove what `dir` holds that is not one of `keep`, and each directory that leaves empty.
-fn prune(dir: &Path, keep: &HashSet<&Path>) -> Result<(), String> {
+fn prune(dir: &Path, keep: &HashSet<&Path>, spared: &[PathBuf]) -> Result<(), String> {
 	let entries = std::fs::read_dir(dir).map_err(|err| format!("reading {}: {err}", dir.display()))?;
 	for entry in entries {
 		let entry = entry.map_err(|err| format!("reading {}: {err}", dir.display()))?;
@@ -437,7 +440,9 @@ fn prune(dir: &Path, keep: &HashSet<&Path>) -> Result<(), String> {
 			.file_type()
 			.map_err(|err| format!("reading {}: {err}", path.display()))?;
 		if kind.is_dir() {
-			prune(&path, keep)?;
+			if !spared.contains(&path) {
+				prune(&path, keep, spared)?;
+			}
 		} else if !keep.contains(path.as_path()) {
 			std::fs::remove_file(&path).map_err(|err| format!("removing {}: {err}", path.display()))?;
 		}
@@ -654,6 +659,7 @@ impl Crate<'_> {
 				out.join("src").join("web"),
 				out.join("react-native"),
 			],
+			spared: vec![out.join("react-native").join("libs")],
 		};
 		let mut generator = Gen {
 			abi: self.abi,

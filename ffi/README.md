@@ -69,7 +69,8 @@ the targets, `web/` holds it in TypeScript for the web, ES modules over the `.wa
 crate builds with `--target wasm32-wasip1 --features web`. When any other target is,
 `react-native/` holds it for React Native, the web's TypeScript over a JSI module in C++.
 An export again rewrites only the files whose content changed, and removes from
-`include/<prefix>/`, `go/`, and `web/` only what it no longer writes, so a build of an unchanged
+`include/<prefix>/`, `go/`, `web/`, and `react-native/` but its `libs/`, which the app builds
+into, only what it no longer writes, so a build of an unchanged
 export stays fresh. The crate's version, `0.0.0+<hash>`, hashes its Rust sources and
 manifest, so exports that differ build apart in a target directory they share.
 
@@ -1907,12 +1908,15 @@ the header's wrappers would, and it needs only `jsi.h`.
   the Rust library into `libs/` for each ABI it ships. `load()` installs the module
   through `TurboModuleRegistry`, or from `globalThis.__rust2_<prefix>` where a host
   without React Native installed it, then checks the contract and target as the web's
-  does.
+  does. The module installs once in a runtime, and checks each value its runtime's helpers
+  return, so no JavaScript that installs it first with a kit of its own reaches memory.
 - **Values** are the web's, but for `usize` and `isize`, which are `rt.u64` and `rt.i64`,
   since one package serves 64-bit targets as well as 32-bit ones, where a value past 32 bits
   fails as it crosses in. An `rt.Bytes` past 64 bytes is an `ArrayBuffer` over Rust's own
   buffer, which disposing or the collector frees, and passed back crosses in place, as the
-  web's does; text crosses through the module, as Hermes has no `TextDecoder`.
+  web's does. A typed array a call takes is copied, as the web's is, since JavaScript on
+  another thread, or a closure the call runs, may write it while Rust reads; text crosses
+  through the module, as Hermes has no `TextDecoder`.
 - **Threads**: JavaScript runs on React Native's JS thread alone, while Rust calls a trait,
   closure, waker, or reader from any. Such a call from another thread posts to the
   TurboModule's `CallInvoker` and waits; a call into Rust on the JS thread frees the

@@ -973,8 +973,9 @@ export class Bytes {
 
 	/** The byte at `index`, from the end where it is negative, as `Uint8Array`'s `at`. */
 	at(index: number): number | undefined {
-		if (this.#closed) throw new Error("Bytes is closed");
+		// Converted first, so a `valueOf` that disposes these bytes finds them closed.
 		let i = Math.trunc(index) || 0;
+		if (this.#closed) throw new Error("Bytes is closed");
 		if (i < 0) i += this.#length;
 		if (i < 0 || i >= this.#length) return undefined;
 		return this.#copy !== undefined ? this.#copy[i] : mem()[this.#ptr + i];
@@ -982,9 +983,12 @@ export class Bytes {
 
 	/** A copy of the bytes from `start` up to `end`, as `Uint8Array`'s `slice`. */
 	slice(start?: number, end?: number): Uint8Array<ArrayBuffer> {
+		// Converted first, as `at`'s index is.
+		const from = start === undefined ? undefined : +start;
+		const to = end === undefined ? undefined : +end;
 		if (this.#closed) throw new Error("Bytes is closed");
 		const all = this.#copy ?? mem().subarray(this.#ptr, this.#ptr + this.#length);
-		return all.slice(start, end) as Uint8Array<ArrayBuffer>;
+		return all.slice(from, to) as Uint8Array<ArrayBuffer>;
 	}
 
 	/** Each byte in turn, each read as `at` reads it. */

@@ -3632,12 +3632,15 @@ fn package_imports(ts: &str, package: &str) -> String {
 
 /// The cases React Native runs after its transcript: `tests/react-native.ts`'s own, and
 /// `tests/api.ts`'s but `grown`'s memory and a load's, which are WebAssembly's.
-const REACT_NATIVE_CASES: [&str; 11] = [
+const REACT_NATIVE_CASES: [&str; 14] = [
 	"typed",
 	"word",
 	"interleaved",
 	"foreign",
 	"faked",
+	"written",
+	"reinstalled",
+	"forged",
 	"futures",
 	"owned",
 	"closed",
@@ -5003,7 +5006,7 @@ fn go(module: &Path, args: &[&str]) -> Command {
 
 /// Exporting an unchanged crate again moves no file's mtime, the lockfile's included, so a
 /// build of the export stays fresh, and drops a file it no longer writes from a directory
-/// it owns.
+/// it owns, but none from React Native's `libs/`, which the app builds into.
 #[test]
 fn reexport() {
 	let package = package("reexport", &[]);
@@ -5039,8 +5042,13 @@ fn reexport() {
 	}
 	let stray = out.join("go").join("stray").join("stray.go");
 	step::write(&stray, "package stray\n");
+	let built = out.join("react-native").join("libs").join("android").join("arm64-v8a").join("libreexport.a");
+	step::write(&built, "!<arch>\n");
 	export();
-	assert_eq!(files(&out), written, "the second export wrote other files");
+	let mut kept = written.clone();
+	kept.push(built);
+	kept.sort();
+	assert_eq!(files(&out), kept, "the second export wrote other files, or removed what the app built into libs/");
 	for file in &written {
 		let mtime = std::fs::metadata(file).unwrap().modified().unwrap();
 		assert_eq!(mtime, past, "the second export rewrote {}", file.display());

@@ -86,15 +86,19 @@ export class Bytes {
 
 	/** The byte at `index`, from the end where it is negative, as `Uint8Array`'s `at`. */
 	at(index: number): number | undefined {
-		const view = this.#open();
+		// Converted first, so a `valueOf` that disposes these bytes finds them closed.
 		let i = Math.trunc(index) || 0;
+		const view = this.#open();
 		if (i < 0) i += this.#length;
 		return i < 0 || i >= this.#length ? undefined : view[i];
 	}
 
 	/** A copy of the bytes from `start` up to `end`, as `Uint8Array`'s `slice`. */
 	slice(start?: number, end?: number): Uint8Array<ArrayBuffer> {
-		return this.#open().slice(start, end) as Uint8Array<ArrayBuffer>;
+		// Converted first, as `at`'s index is.
+		const from = start === undefined ? undefined : +start;
+		const to = end === undefined ? undefined : +end;
+		return this.#open().slice(from, to) as Uint8Array<ArrayBuffer>;
 	}
 
 	/** Each byte in turn, each read as `at` reads it. */
@@ -174,6 +178,8 @@ export type Module = {
 type Installer = { install(kit: object): boolean };
 
 let loaded: Promise<void> | undefined;
+/** The natives this runtime's module was installed with, once, which a load tried again reuses. */
+let installed: Record<string, (...args: unknown[]) => unknown> | undefined;
 
 /**
  * Install the JSI module into this runtime, from `globalThis[global]` if a host installed
@@ -182,11 +188,15 @@ let loaded: Promise<void> | undefined;
  */
 export function load(m: Module): Promise<void> {
 	loaded ??= (async () => {
-		const g = globalThis as Record<string, unknown>;
-		let installer = g[m.global] as Installer | undefined;
-		installer ??= TurboModuleRegistry.getEnforcing<Installer & TurboModule>(m.module);
-		const natives: Record<string, (...args: unknown[]) => unknown> = {};
-		installer.install({ ...kit, natives });
+		let natives = installed;
+		if (natives === undefined) {
+			const g = globalThis as Record<string, unknown>;
+			let installer = g[m.global] as Installer | undefined;
+			installer ??= TurboModuleRegistry.getEnforcing<Installer & TurboModule>(m.module);
+			natives = {};
+			installer.install({ ...kit, natives });
+			installed = natives;
+		}
 		const contract = natives.contract() as bigint;
 		if (contract !== m.contract) {
 			throw new Error(

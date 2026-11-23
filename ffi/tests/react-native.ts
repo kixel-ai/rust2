@@ -8,6 +8,7 @@ import * as check from "./api.ts";
 import * as Channel from "./react-native/Channel.ts";
 import * as rt from "./react-native/rt.ts";
 import * as Spawned from "./react-native/Spawned.ts";
+import { TurboModuleRegistry } from "react-native";
 
 declare const process: { argv: string[]; exit(code: number): never; stderr: { write(text: string): boolean } };
 
@@ -117,6 +118,73 @@ function faked(): void {
 	if (read !== "1 2 3 4 5 6 7 8") throw new Error(`a faked buffer read ${read}`);
 }
 
+/**
+ * A typed array a call takes is Rust's own while it runs: a closure the call runs writes
+ * the caller's array, never what Rust reads, as Rust holds it as a slice no one writes.
+ */
+function written(): void {
+	const payload = Uint8Array.of(1, 2, 3);
+	const seen = api.visitChunks(payload, 1, (chunk) => {
+		payload[2] = 9;
+		return chunk?.[0] ?? 0;
+	});
+	if (Array.from(seen).join(" ") !== "1 2 3 0") throw new Error(`a write during the call reached Rust: ${seen.join(" ")}`);
+}
+
+/** What installs the module: the host's global off a device, else the TurboModule. */
+function installer(): { install(kit: object): boolean } {
+	const global = (globalThis as Record<string, unknown>).__rust2_api as { install(kit: object): boolean } | undefined;
+	return global ?? TurboModuleRegistry.getEnforcing<{ install(kit: object): boolean } & object>("Rust2Api");
+}
+
+/** The module installs once in a runtime: again, with any kit, it throws. */
+function reinstalled(): void {
+	try {
+		installer().install({ natives: {} });
+	} catch (e) {
+		if (e instanceof Error && e.message.includes("installed in this runtime already")) return;
+		throw e;
+	}
+	throw new Error("the module installed twice");
+}
+
+/**
+ * A kit forged before the binding loads, whose helpers return what the module cannot read,
+ * makes each call that reads one throw a TypeError, rather than read it as what it should be.
+ */
+function forged(): void {
+	const natives: Record<string, (...args: unknown[]) => unknown> = {};
+	const no = () => 0;
+	installer().install({
+		...Object.fromEntries(["pending", "bytes", "typedTag", "int", "char", "u128Words", "f32Bits", "bytesCopy", "opaqueMade", "opaqueBytes", "isCancelled", "cancelCall", "cancelled", "ready"].map((k) => [k, no])),
+		u64Halves: () => 0,
+		i64Halves: () => [2 ** 40, 0],
+		f64Bits: () => [1, 2, 3],
+		Uint8Array,
+		RangeError,
+		TypeError,
+		Error,
+		None: undefined,
+		Handle: {},
+		Waker: {},
+		natives,
+	});
+	const cases: [string, () => unknown][] = [
+		["a u64's halves as a number", () => natives.same_u64({ hi: 1, lo: 0 })],
+		["an i64's high half past 32 bits", () => natives.same_isize({ hi: -1, lo: 0 })],
+		["an f64's three halves", () => natives.same({ hi: 0x7ff00000, lo: 1 }, 0)],
+	];
+	for (const [what, f] of cases) {
+		try {
+			f();
+		} catch (e) {
+			if (e instanceof TypeError) continue;
+			throw e;
+		}
+		throw new Error(`${what} passed`);
+	}
+}
+
 /** A 64-bit target's `usize` constant crosses whole, as its parameters do. */
 function word(): void {
 	if (rt.u64ToBig(api.WORD) !== 0xffffffffffffffffn) throw new Error(`usize::MAX is ${String(api.WORD)}`);
@@ -128,6 +196,8 @@ const cases: Record<string, () => void | Promise<void>> = {
 	interleaved,
 	foreign,
 	faked,
+	written,
+	reinstalled,
 	futures: check.futures,
 	owned: check.owned,
 	closed: check.closedObjects,
@@ -137,8 +207,10 @@ const cases: Record<string, () => void | Promise<void>> = {
 };
 
 async function main(): Promise<void> {
-	await api.load();
 	const which = process.argv[2];
+	// Before the binding loads, which it then refuses to.
+	if (which === "forged") return forged();
+	await api.load();
 	if (which === undefined) return check.script();
 	return (cases[which] ?? (() => check.broken(which)))();
 }

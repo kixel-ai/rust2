@@ -61,6 +61,7 @@ pub(crate) fn generate(abi: &Abi<'_>, packages: &str, mask: u64) -> Result<Vec<(
 		#include \"{p}.h\"\n#include \"{p}_jsi.h\"\n\n"
 	);
 	for include in [
+		"array",
 		"atomic",
 		"cmath",
 		"condition_variable",

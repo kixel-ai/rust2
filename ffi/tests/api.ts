@@ -1040,6 +1040,14 @@ export async function lent(): Promise<void> {
 		closed(() => big.slice(), "Bytes", "disposed lent bytes refuse a read");
 		closed(() => api.len(big), "Bytes", "disposed lent bytes refuse a call");
 	}
+	// Disposed while a read converts its index, lent bytes refuse the read rather than read
+	// what Rust freed.
+	for (const read of [(b: rt.Bytes, i: number) => b.at(i), (b: rt.Bytes, i: number) => b.slice(i)]) {
+		const disposing = api.tokenBytes(7, 100);
+		const index = { valueOf: () => (close(disposing), 0) } as unknown as number;
+		closed(() => read(disposing, index), "Bytes", "lent bytes disposed as a read's index converts refuse it");
+		check(api.dropped() === ++before, "lent bytes disposed as a read's index converts are freed");
+	}
 	// Passed back, lent bytes cross in place: viewed for a call, or a second owner of Rust's
 	// buffer for one that keeps them, so the buffer outlives the bytes disposed after.
 	const sent = api.tokenBytes(5, 65537);

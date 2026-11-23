@@ -28,13 +28,20 @@ using post_t = ::std::function<void(::std::function<void(jsi::Runtime &)>)>;
 // memory.
 struct values {
 	jsi::Object kit;
-	jsi::Function pending, bytes, uint8, range, type, error, typed_tag;
+	jsi::Function pending, bytes, uint8, range, type, error, typed_tag, int_, char_, u64_halves, i64_halves,
+	    u128_words, f32_bits, f64_bits, bytes_copy, opaque_made, opaque_bytes, is_cancelled, cancel_call, cancelled,
+	    ready;
 	jsi::Value none, handle, waker;
 
 	values(jsi::Runtime &rt, jsi::Object k)
 	    : kit(::std::move(k)), pending(fn(rt, "pending")), bytes(fn(rt, "bytes")), uint8(fn(rt, "Uint8Array")),
 	      range(fn(rt, "RangeError")), type(fn(rt, "TypeError")), error(fn(rt, "Error")), typed_tag(fn(rt, "typedTag")),
-	      none(kit.getProperty(rt, "None")), handle(kit.getProperty(rt, "Handle")), waker(kit.getProperty(rt, "Waker")) {}
+	      int_(fn(rt, "int")), char_(fn(rt, "char")), u64_halves(fn(rt, "u64Halves")), i64_halves(fn(rt, "i64Halves")),
+	      u128_words(fn(rt, "u128Words")), f32_bits(fn(rt, "f32Bits")), f64_bits(fn(rt, "f64Bits")),
+	      bytes_copy(fn(rt, "bytesCopy")), opaque_made(fn(rt, "opaqueMade")), opaque_bytes(fn(rt, "opaqueBytes")),
+	      is_cancelled(fn(rt, "isCancelled")), cancel_call(fn(rt, "cancelCall")), cancelled(fn(rt, "cancelled")),
+	      ready(fn(rt, "ready")), none(kit.getProperty(rt, "None")), handle(kit.getProperty(rt, "Handle")),
+	      waker(kit.getProperty(rt, "Waker")) {}
 
 	jsi::Function fn(jsi::Runtime &rt, const char *name) {
 		return kit.getPropertyAsFunction(rt, name);
@@ -75,7 +82,12 @@ struct teardown {
 	teardown(const teardown &) = delete;
 	teardown &operator=(const teardown &) = delete;
 	~teardown() {
-		w->alive.store(false, ::std::memory_order_release);
+		{
+			::std::lock_guard<::std::mutex> lock(w->m);
+			w->alive.store(false, ::std::memory_order_release);
+		}
+		// A thread waiting for the runtime to run a call into JavaScript never gets it now.
+		w->cv.notify_all();
 		w->v.reset();
 	}
 };
@@ -106,9 +118,10 @@ inline values &W(jsi::Runtime &rt) {
 	return *of(rt)->v;
 }
 
-// Whether this thread runs JavaScript now, outside any call into Rust: a drop Rust makes
-// meanwhile, as the garbage collector's sweep may, posts what it calls of JavaScript.
-inline thread_local bool in_js = false;
+// The world whose JavaScript this thread runs now, outside any call into Rust, or null: a
+// drop Rust makes meanwhile, as the garbage collector's sweep may, posts what it calls of
+// JavaScript.
+inline thread_local world *running = nullptr;
 
 // Who runs JavaScript, which one thread does at a time: the JavaScript thread, but while
 // it waits in a call into Rust, which frees the runtime for a call Rust makes into
@@ -132,14 +145,14 @@ decltype(auto) unlocked(jsi::Runtime &rt, F &&f) {
 	struct relock {
 		world &w;
 		::std::size_t at;
-		bool was;
+		world *was;
 		~relock() {
 			::std::unique_lock<::std::mutex> lock(w.m);
 			w.cv.wait(lock, [&] { return w.free && w.depth == at; });
 			w.free = false;
-			in_js = was;
+			running = was;
 		}
-	} back{w, at, ::std::exchange(in_js, false)};
+	} back{w, at, ::std::exchange(running, nullptr)};
 	return f();
 }
 
@@ -152,9 +165,9 @@ inline void taken(world &w) {
 // Give back the runtime this thread took.
 struct given {
 	world &w;
-	bool was = ::std::exchange(in_js, true);
+	world *was = ::std::exchange(running, &w);
 	~given() {
-		in_js = was;
+		running = was;
 		{
 			::std::lock_guard<::std::mutex> lock(w.m);
 			w.depth--;
@@ -224,12 +237,6 @@ inline ::std::string shown(jsi::Runtime &rt, const jsi::Value &v) {
 	return v.toString(rt).utf8(rt);
 }
 
-// A helper of `rt.ts` by its name, called with `args`.
-template <class... A>
-jsi::Value call(jsi::Runtime &rt, const char *name, A &&...args) {
-	return W(rt).fn(rt, name).call(rt, ::std::forward<A>(args)...);
-}
-
 // `v` as an object, or a TypeError naming `what` it should be.
 inline jsi::Object obj(jsi::Runtime &rt, const jsi::Value &v, const char *what) {
 	if (!v.isObject()) {
@@ -257,7 +264,7 @@ T int_(jsi::Runtime &rt, const jsi::Value &v, double min, double max, const char
 			return static_cast<T>(d);
 		}
 	}
-	call(rt, "int", jsi::Value(rt, v), min, max, what);
+	W(rt).int_.call(rt, jsi::Value(rt, v), min, max, what);
 	fail("rt.int passed what the JSI module refused");
 }
 
@@ -276,16 +283,34 @@ inline ::std::uint32_t char_(jsi::Runtime &rt, const jsi::Value &v) {
 			return static_cast<::std::uint32_t>(d);
 		}
 	}
-	call(rt, "char", jsi::Value(rt, v));
+	W(rt).char_.call(rt, jsi::Value(rt, v));
 	fail("rt.char passed what the JSI module refused");
 }
 
 constexpr double safe = 9007199254740991.0;
 
-// The halves `rt.ts`'s `name` checks and returns of `v`.
-inline ::std::pair<double, double> halves(jsi::Runtime &rt, const char *name, const jsi::Value &v) {
-	jsi::Array a = call(rt, name, jsi::Value(rt, v)).getObject(rt).getArray(rt);
-	return {a.getValueAtIndex(rt, 0).getNumber(), a.getValueAtIndex(rt, 1).getNumber()};
+// What a helper of `rt.ts` returned as a 32-bit word, from `lo` up: checked, since whatever
+// JavaScript calls `install` gives the kit, and JSI checks no value's type but in a debug build.
+inline double word(jsi::Runtime &rt, const jsi::Value &v, double lo = 0) {
+	if (!v.isNumber() || !integral(v.getNumber()) || v.getNumber() < lo || v.getNumber() > lo + 4294967295.0) {
+		type(rt, "the binding's runtime returned " + shown(rt, v) + " for a 32-bit word");
+	}
+	return v.getNumber();
+}
+
+// The `n` words `helper` checks and returns of `v`, the first from `first` up.
+template <::std::size_t n>
+::std::array<double, n> words(jsi::Runtime &rt, jsi::Function &helper, const jsi::Value &v, double first = 0) {
+	jsi::Value got = helper.call(rt, jsi::Value(rt, v));
+	if (!got.isObject() || !got.getObject(rt).isArray(rt) || got.getObject(rt).getArray(rt).size(rt) != n) {
+		type(rt, "the binding's runtime returned " + shown(rt, got) + " for " + ::std::to_string(n) + " words");
+	}
+	jsi::Array a = got.getObject(rt).getArray(rt);
+	::std::array<double, n> out;
+	for (::std::size_t i = 0; i < n; i++) {
+		out[i] = word(rt, a.getValueAtIndex(rt, i), i == 0 ? first : 0);
+	}
+	return out;
 }
 
 inline ::std::uint64_t u64(jsi::Runtime &rt, const jsi::Value &v) {
@@ -295,7 +320,7 @@ inline ::std::uint64_t u64(jsi::Runtime &rt, const jsi::Value &v) {
 			return static_cast<::std::uint64_t>(d);
 		}
 	}
-	auto [hi, lo] = halves(rt, "u64Halves", v);
+	auto [hi, lo] = words<2>(rt, W(rt).u64_halves, v);
 	return static_cast<::std::uint64_t>(hi) << 32 | static_cast<::std::uint64_t>(lo);
 }
 
@@ -306,7 +331,7 @@ inline ::std::int64_t i64(jsi::Runtime &rt, const jsi::Value &v) {
 			return static_cast<::std::int64_t>(d);
 		}
 	}
-	auto [hi, lo] = halves(rt, "i64Halves", v);
+	auto [hi, lo] = words<2>(rt, W(rt).i64_halves, v, -2147483648.0);
 	auto bits = static_cast<::std::uint64_t>(static_cast<::std::int64_t>(hi)) << 32 | static_cast<::std::uint64_t>(lo);
 	return static_cast<::std::int64_t>(bits);
 }
@@ -317,10 +342,6 @@ inline jsi::Value limbs(jsi::Runtime &rt, ::std::initializer_list<::std::pair<co
 		o.setProperty(rt, name, static_cast<double>(word));
 	}
 	return o;
-}
-
-inline jsi::Value u64(jsi::Runtime &, ::std::uint64_t v) {
-	return static_cast<double>(v);
 }
 
 inline jsi::Value of_u64(jsi::Runtime &rt, ::std::uint64_t v) {
@@ -347,10 +368,10 @@ inline c_u128 u128(jsi::Runtime &rt, const jsi::Value &v) {
 			return c_u128{static_cast<::std::uint64_t>(d), 0};
 		}
 	}
-	jsi::Array a = call(rt, "u128Words", jsi::Value(rt, v)).getObject(rt).getArray(rt);
+	auto a = words<4>(rt, W(rt).u128_words, v);
 	::std::uint64_t w[4];
 	for (::std::size_t i = 0; i < 4; i++) {
-		w[i] = static_cast<::std::uint64_t>(a.getValueAtIndex(rt, i).getNumber());
+		w[i] = static_cast<::std::uint64_t>(a[i]);
 	}
 	return c_u128{w[1] << 32 | w[0], w[3] << 32 | w[2]};
 }
@@ -375,7 +396,7 @@ inline float f32(jsi::Runtime &rt, const jsi::Value &v) {
 			return static_cast<float>(d);
 		}
 	}
-	auto bits = static_cast<::std::uint32_t>(call(rt, "f32Bits", jsi::Value(rt, v)).getNumber());
+	auto bits = static_cast<::std::uint32_t>(word(rt, W(rt).f32_bits.call(rt, jsi::Value(rt, v))));
 	float f;
 	::std::memcpy(&f, &bits, 4);
 	return f;
@@ -397,7 +418,7 @@ inline double f64(jsi::Runtime &rt, const jsi::Value &v) {
 	if (v.isNumber() && v.getNumber() == v.getNumber()) {
 		return v.getNumber();
 	}
-	auto [hi, lo] = halves(rt, "f64Bits", v);
+	auto [hi, lo] = words<2>(rt, W(rt).f64_bits, v);
 	::std::uint64_t bits = static_cast<::std::uint64_t>(hi) << 32 | static_cast<::std::uint64_t>(lo);
 	double d;
 	::std::memcpy(&d, &bits, 8);
@@ -462,6 +483,14 @@ jsi::Value array(jsi::Runtime &rt, V &&...items) {
 	::std::size_t i = 0;
 	(out.setValueAtIndex(rt, i++, ::std::forward<V>(items)), ...);
 	return out;
+}
+
+// `v` as a function, or a TypeError.
+inline jsi::Function function(jsi::Runtime &rt, const jsi::Value &v) {
+	if (!v.isObject() || !v.getObject(rt).isFunction(rt)) {
+		type(rt, shown(rt, v) + " is no function");
+	}
+	return v.getObject(rt).getFunction(rt);
 }
 
 // `v` as an array, or a TypeError.
@@ -634,7 +663,7 @@ inline jsi::Value returned(jsi::Runtime &rt, c_buf buf) {
 	auto state = ::std::make_shared<bytes_cell>(buf);
 	auto *ptr = const_cast<::std::uint8_t *>(buf.ptr);
 	jsi::ArrayBuffer ab(rt, ::std::make_shared<view>(ptr, buf.len, state));
-	jsi::Object b = W(rt).bytes.call(rt, ab, true).getObject(rt);
+	jsi::Object b = obj(rt, W(rt).bytes.call(rt, ab, true), "Bytes");
 	b.setNativeState(rt, state);
 	return b;
 }
@@ -656,7 +685,6 @@ struct frame {
 	::std::vector<::std::shared_ptr<void>> mem;
 	::std::vector<::std::shared_ptr<cell>> held;
 	::std::vector<::std::shared_ptr<bytes_cell>> bytes;
-	::std::deque<jsi::Value> keep;
 	::std::vector<::std::shared_ptr<cell>> lent;
 
 	explicit frame(jsi::Runtime &rt) : rt(rt) {}
@@ -758,7 +786,7 @@ struct frame {
 				bytes.push_back(b);
 				return c_buf{b->buf.ptr, b->buf.len, nullptr};
 			}
-			jsi::Value copy = call(rt, "bytesCopy", jsi::Value(rt, v));
+			jsi::Value copy = W(rt).bytes_copy.call(rt, jsi::Value(rt, v));
 			if (!copy.isUndefined()) {
 				// A copy `rt.Bytes` holds.
 				return array(copy, "Uint8Array");
@@ -782,8 +810,8 @@ struct frame {
 		return viewed;
 	}
 
-	// The bytes a typed array `v`, of the constructor `ctor`, views, held until the call
-	// returns. Its kind, buffer, offset, and length are the engine's own, which no property
+	// A copy of the bytes a typed array `v`, of the constructor `ctor`, views, held until the
+	// call returns. Its kind, buffer, offset, and length are the engine's own, which no property
 	// or prototype a caller sets can change: a `Uint8Array`'s through JSI, and another
 	// kind's from `%TypedArray%.prototype`'s own `Symbol.toStringTag` getter.
 	c_buf array(const jsi::Value &v, const char *ctor) {
@@ -803,11 +831,22 @@ struct frame {
 		if (offset > size || len > size - offset) {
 			range(rt, ::std::string(ctor) + " is outside its buffer");
 		}
-		keep.emplace_back(rt, v);
 		// An empty array's buffer may have no data, and a null pointer is C's `None`: an
 		// empty one points at bytes aligned for any item, as Rust's empty slice does.
 		alignas(16) static const ::std::uint8_t empty[16] = {};
-		return c_buf{len == 0 ? empty : ab.data(rt) + offset, len, nullptr};
+		if (len == 0) {
+			return c_buf{empty, 0, nullptr};
+		}
+		// A copy, as the web's is: Rust holds the array as a slice no one writes while it
+		// does, but JavaScript a closure the call runs, or another thread the call frees the
+		// runtime for, may write the array meanwhile.
+		struct alignas(16) block {
+			::std::uint8_t b[16];
+		};
+		auto p = ::std::shared_ptr<block[]>(new block[(len + 15) / 16]);
+		::std::memcpy(p.get(), ab.data(rt) + offset, len);
+		mem.push_back(p);
+		return c_buf{reinterpret_cast<const ::std::uint8_t *>(p.get()), len, nullptr};
 	}
 
 	// The `[u8; N]` of a `Uint8Array` of exactly `n` bytes, written to `out`.
@@ -828,11 +867,11 @@ inline c_buf owned_bytes(frame &f, const jsi::Value &v) {
 // Opaque values.
 
 inline jsi::Value opaque(jsi::Runtime &rt, const void *p, ::std::size_t n) {
-	return call(rt, "opaqueMade", W(rt).uint8.callAsConstructor(rt, copied(rt, static_cast<const ::std::uint8_t *>(p), n)));
+	return W(rt).opaque_made.call(rt, W(rt).uint8.callAsConstructor(rt, copied(rt, static_cast<const ::std::uint8_t *>(p), n)));
 }
 
 inline void opaque_put(frame &f, const jsi::Value &v, void *p, ::std::size_t n) {
-	jsi::Value bytes = call(f.rt, "opaqueBytes", jsi::Value(f.rt, v));
+	jsi::Value bytes = W(f.rt).opaque_bytes.call(f.rt, jsi::Value(f.rt, v));
 	c_buf b = f.array(bytes, "Uint8Array");
 	if (b.len != n) {
 		range(f.rt, "a value Rust made is no other's");
@@ -1002,8 +1041,8 @@ T on_js(const ::std::shared_ptr<world> &w, const char *what, ::std::function<T(j
 		given back{*w};
 		return job(*w->rt);
 	};
-	if (in_js) {
-		// This thread runs JavaScript already.
+	if (running == w.get()) {
+		// This thread runs this runtime's JavaScript already.
 		return job(*w->rt);
 	}
 	if (w->here()) {
@@ -1038,7 +1077,10 @@ T on_js(const ::std::shared_ptr<world> &w, const char *what, ::std::function<T(j
 		w->cv.notify_all();
 	});
 	::std::unique_lock<::std::mutex> lock(w->m);
-	w->cv.wait(lock, [&] { return s->done || w->free; });
+	w->cv.wait(lock, [&] { return s->done || w->free || !w->alive.load(::std::memory_order_relaxed); });
+	if (!s->done && !w->alive.load(::std::memory_order_relaxed) && !s->taken.exchange(true)) {
+		fail(::std::string(what) + ": its JavaScript runtime was gone before the call ran");
+	}
 	if (!s->done && !s->taken.exchange(true)) {
 		taken(*w);
 		lock.unlock();
@@ -1217,7 +1259,7 @@ inline bool foreign_poll(void *data, c_waker w) {
 			    rt, jsi::PropNameID::forAscii(rt, "rejected"), 1,
 			    [self](jsi::Runtime &rt, const jsi::Value &, const jsi::Value *a, ::std::size_t n) {
 				    // Once Rust dropped it, nothing waits for what it settles to.
-				    if (self->over() || (n > 0 && call(rt, "isCancelled", jsi::Value(rt, a[0])).getBool())) {
+				    if (self->over() || (n > 0 && bool_(rt, W(rt).is_cancelled.call(rt, jsi::Value(rt, a[0]))))) {
 					    self->settle(rt);
 					    return jsi::Value::undefined();
 				    }
@@ -1249,7 +1291,7 @@ inline void foreign_free(void *data) {
 	remote *p = self->promise;
 	// A call into Rust given back is cancelled once Rust drops it.
 	post(p->w, [p](jsi::Runtime &rt) {
-		call(rt, "cancelCall", jsi::Value(rt, p->v));
+		W(rt).cancel_call.call(rt, jsi::Value(rt, p->v));
 		delete p;
 	});
 }
@@ -1276,7 +1318,7 @@ inline bool reader_read(void *data, ::std::uint8_t *buf, ::std::size_t len, ::st
 		// chunk's properties, which `read` may redefine, nor its `ArrayBuffer`, which `read` may
 		// detach, says where they are.
 		auto into = ::std::make_shared<copy>(nullptr, len);
-		jsi::Object chunk = W(rt).uint8.callAsConstructor(rt, jsi::ArrayBuffer(rt, into)).getObject(rt);
+		jsi::Object chunk = obj(rt, W(rt).uint8.callAsConstructor(rt, jsi::ArrayBuffer(rt, into)), "Uint8Array");
 		jsi::Value got;
 		try {
 			jsi::Object reader = r->v.getObject(rt);
@@ -1335,7 +1377,7 @@ inline void trait_free(void *data) {
 		delete r;
 	};
 	// At the drop, as Rust's own runs, unless this thread runs JavaScript now.
-	if (in_js || !r->w->alive.load(::std::memory_order_acquire)) {
+	if (running != nullptr || !r->w->alive.load(::std::memory_order_acquire)) {
 		post(r->w, close);
 	} else {
 		auto w = r->w;
@@ -1436,7 +1478,7 @@ struct pending final : node {
 
 	void cancel(jsi::Runtime &rt) {
 		finish(rt);
-		reject->call(rt, call(rt, "cancelled"));
+		reject->call(rt, W(rt).cancelled.call(rt));
 		settled();
 	}
 };
@@ -1462,9 +1504,9 @@ inline jsi::Value pend(jsi::Runtime &rt, void *f, void (*free)(void *),
 		    }
 		    return jsi::Value::undefined();
 	    });
-	jsi::Array made = W(rt).pending.call(rt, cancel).getObject(rt).getArray(rt);
-	p->resolve.emplace(made.getValueAtIndex(rt, 1).getObject(rt).asFunction(rt));
-	p->reject.emplace(made.getValueAtIndex(rt, 2).getObject(rt).asFunction(rt));
+	jsi::Array made = arr(rt, W(rt).pending.call(rt, cancel));
+	p->resolve.emplace(function(rt, made.getValueAtIndex(rt, 1)));
+	p->reject.emplace(function(rt, made.getValueAtIndex(rt, 2)));
 	jsi::Value promise = made.getValueAtIndex(rt, 0);
 	// Rust holds a reference once polled; the module's own goes now.
 	p->wake();
@@ -1474,7 +1516,7 @@ inline jsi::Value pend(jsi::Runtime &rt, void *f, void (*free)(void *),
 
 // The `Call` of a future ready at its start.
 inline jsi::Value ready(jsi::Runtime &rt, jsi::Value v) {
-	return call(rt, "ready", v);
+	return W(rt).ready.call(rt, v);
 }
 
 // A value that is not `Send`, freed on another thread, drops on its own: the JavaScript
@@ -1487,12 +1529,17 @@ struct drainer final : node {
 	}
 };
 
-// Install the runtime into `rt`, whose `kit` is what `rt.ts` gives it, replacing any
-// runtime installed in it before. `rt` holds its world until it is destroyed.
+// Install the runtime into `rt`, whose `kit` is what `rt.ts` gives it. `rt` holds its world
+// until it is destroyed.
 inline void install(jsi::Runtime &rt, post_t post, jsi::Object kit) {
+	// Once only, so what Rust holds of the world stays the runtime's, and no kit but the first,
+	// the binding's own, which `load` installs before any call, reaches the module.
+	if (rt.getRuntimeData(key()) != nullptr) {
+		throw jsi::JSError(rt, "the JSI module is installed in this runtime already");
+	}
 	auto w = ::std::make_shared<world>(rt, ::std::move(post), ::std::move(kit));
 	rt.setRuntimeData(key(), ::std::make_shared<teardown>(w));
-	in_js = true;
+	running = w.get();
 	if (c_drains) {
 		auto *d = new drainer(w);
 		c_thread_wake(lend(d));
