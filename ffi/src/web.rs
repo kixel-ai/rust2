@@ -2331,10 +2331,18 @@ impl Gen<'_> {
 		self.names.insert("load".to_string(), "the binding's load".to_string());
 		self.module = "index".to_string();
 		for constant in &api.constants {
-			// React Native's one package serves each of its targets, so a constant only some
-			// have, whose value differs by target, is left out, as a build for a target
-			// without it leaves it out.
-			if !self.here(constant.on) || (self.jsi && constant.on.0 & self.mask != self.mask) {
+			if !self.here(constant.on) {
+				continue;
+			}
+			// React Native's one package serves each of its targets, and a constant compiles
+			// into its TypeScript, so one only some have, or whose value differs by target,
+			// has no form there yet.
+			if self.jsi && constant.on.0 & self.mask != self.mask {
+				self.errors.push(format!(
+					"const `{}` is missing on the React Native target(s) {}, so the one package serving every target has no form for it yet, which rust2-ffi should give it",
+					constant.path.join("::"),
+					api.named(crate::ir::On(self.mask & !constant.on.0)).join(", "),
+				));
 				continue;
 			}
 			let name = abi::snake(self.bare(&abi.name(&constant.path))).to_uppercase();
@@ -3363,6 +3371,50 @@ mod tests {
 	fn field_names_distinct() {
 		assert_eq!(variant_fields(&fields(&["tag", "tag_name"])), ["tag$", "tagName"]);
 		assert_eq!(field_names(&fields(&["tag", "foo", "foo_"])), ["tag", "foo", "foo2"]);
+	}
+
+	/// React Native's package refuses a constant some of its targets lack, naming them, and
+	/// keeps one they all have.
+	#[test]
+	fn react_native_constant_on_some_targets() {
+		let constant = |name: &str, on: u64| crate::ir::Constant {
+			path: vec!["ns".into(), name.into()],
+			home: crate::ir::Home {
+				krate: "ns".into(),
+				outside: 1,
+			},
+			span: rustc_span::DUMMY_SP,
+			on: crate::ir::On(on),
+			docs: String::new(),
+			deprecated: None,
+			value: Literal::Bool(true),
+		};
+		let mut api = crate::ir::Api::of(vec![]);
+		api.targets = [
+			"aarch64-linux-android",
+			"armv7-linux-androideabi",
+			"wasm32-unknown-unknown",
+		]
+		.map(String::from)
+		.to_vec();
+		let facade = Package {
+			name: "ns".into(),
+			lib: "ns".into(),
+			version: "0.1.0".into(),
+			dir: Default::default(),
+			features: vec![],
+		};
+		// On both native targets, though not the web's, which the package does not serve.
+		api.constants = vec![constant("BOTH", 0b011)];
+		let abi = Abi::new(&api, "ns");
+		assert!(react_native(&abi, &facade, 0).is_ok());
+		api.constants.push(constant("WIDE", 0b101));
+		let abi = Abi::new(&api, "ns");
+		let error = react_native(&abi, &facade, 0).err().expect("WIDE is refused");
+		assert!(
+			error.contains("const `ns::WIDE`") && error.contains("target(s) armv7-linux-androideabi,"),
+			"{error}"
+		);
 	}
 
 	/// A constant named `URL` keeps clear of the global `load` constructs.

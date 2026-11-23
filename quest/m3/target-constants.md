@@ -17,9 +17,10 @@ that lacks it.
   - Go writes `const WORD uint = 18446744073709551615`, which no 32-bit `GOARCH` compiles,
     and Swift a `UInt` literal no ILP32 target such as watchOS's `arm64_32` does.
   - C's `#define API_WORD ((size_t)18446744073709551615ULL)` truncates on a 32-bit target.
-  - React Native's one package, which serves 64-bit and 32-bit ABIs at once, leaves out a
-    constant only some of its targets have, so `api.WORD` is missing from a package that
-    serves armv7.
+  - React Native's one package, which serves 64-bit and 32-bit ABIs at once, fails the
+    export on a constant only some of its targets have, so an export that serves armv7
+    fails on `api::WORD`. A TypeScript `export const` cannot throw on reading, so its
+    run-time form needs another shape, such as `T | undefined` from the target's value.
   - C#'s property already throws on a 32-bit runtime, through `checked`.
 - Compile-time bindings, such as C's `#if`, Go's build constraints, and Swift's `#if arch`,
   gate the constant by the targets in `on`. Run-time ones, such as React Native and C#,

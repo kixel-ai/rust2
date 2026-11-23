@@ -50,6 +50,17 @@ export class Handle<T extends string = string> {
 }
 
 // Before the class, whose static initializer sets them as it is defined.
+// Taken at load, before any caller's code can replace them.
+const U8 = Uint8Array;
+const set = Uint8Array.prototype.set;
+
+/** A `slice` bound: `v` as an integer, from the end of `length` where negative, or `missing`. */
+function clamp(v: number | undefined, missing: number, length: number): number {
+	if (v === undefined) return missing;
+	const i = Math.trunc(+v) || 0;
+	return i < 0 ? Math.max(length + i, 0) : Math.min(i, length);
+}
+
 let bytesMade: (buffer: ArrayBuffer, lent: boolean) => Bytes;
 let bytesCopy: (b: object) => Uint8Array | undefined;
 
@@ -66,13 +77,11 @@ export class Bytes {
 	#view: Uint8Array | undefined;
 	readonly #length: number;
 	readonly #lent: boolean;
-	// Reads under way, which may run JavaScript that disposes these bytes: the free waits for
-	// them, so none reads what Rust freed.
-	#reading = 0;
-	#freeing = false;
+	readonly #buffer: ArrayBuffer;
 
 	private constructor(key: symbol, buffer: ArrayBuffer, lent: boolean) {
 		if (key !== Bytes.#minting) throw new TypeError("only Rust makes bytes it returned");
+		this.#buffer = buffer;
 		this.#view = new Uint8Array(buffer);
 		this.#length = buffer.byteLength;
 		this.#lent = lent;
@@ -100,16 +109,14 @@ export class Bytes {
 	/** A copy of the bytes from `start` up to `end`, as `Uint8Array`'s `slice`. */
 	slice(start?: number, end?: number): Uint8Array<ArrayBuffer> {
 		// Converted first, as `at`'s index is.
-		const from = start === undefined ? undefined : +start;
-		const to = end === undefined ? undefined : +end;
-		const view = this.#open();
-		// `slice` makes its result through `Symbol.species`, which may run any JavaScript.
-		this.#reading++;
-		try {
-			return view.slice(from, to) as Uint8Array<ArrayBuffer>;
-		} finally {
-			if (--this.#reading === 0 && this.#freeing) n.$bytesFree(this);
-		}
+		const from = clamp(start, 0, this.#length);
+		const to = clamp(end, this.#length, this.#length);
+		this.#open();
+		// Copied with the intrinsics taken at load, through no `Symbol.species` or method a
+		// caller can replace, so no JavaScript runs while Rust's buffer is read or sees it.
+		const out = new U8(Math.max(to - from, 0));
+		if (out.length > 0) set.call(out, new U8(this.#buffer, from, out.length));
+		return out;
 	}
 
 	/** Each byte in turn, each read as `at` reads it. */
@@ -121,9 +128,7 @@ export class Bytes {
 	[Symbol.dispose](): void {
 		if (this.#view === undefined) return;
 		this.#view = undefined;
-		if (!this.#lent) return;
-		if (this.#reading === 0) n.$bytesFree(this);
-		else this.#freeing = true;
+		if (this.#lent) n.$bytesFree(this);
 	}
 
 	// The key, whose initializer hands out the makers: not a static block, which React Native's

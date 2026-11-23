@@ -92,6 +92,43 @@ async function foreign(): Promise<void> {
 }
 
 /**
+ * Lent bytes' `slice` reads Rust's buffer through no method a caller can replace, so none
+ * sees a view of it that outlives a dispose, and bounds `Uint8Array`'s `slice` would.
+ */
+async function sliced(): Promise<void> {
+	const channel = Channel.new();
+	const sent = new Uint8Array(100).map((_, i) => i);
+	Channel.send(channel, sent);
+	// Past 64 bytes, Rust's own buffer, lent.
+	const lent = await Channel.recv(channel);
+	const typed = Object.getPrototypeOf(Uint8Array.prototype);
+	const slice = typed.slice;
+	const set = typed.set;
+	const reached = function (this: Uint8Array): never {
+		throw new Error(`a replaced method reached a view of ${this.length} bytes`);
+	};
+	typed.slice = reached;
+	typed.set = reached;
+	try {
+		const bounds = [undefined, 0, 1, 99, 100, 101, -1, -100, -101, 2.7, -2.7, NaN, Infinity, -Infinity];
+		for (const start of bounds) {
+			for (const end of bounds) {
+				const got = lent.slice(start, end);
+				const want = Reflect.apply(slice, sent, [start, end]) as Uint8Array;
+				if (got.length !== want.length || got.some((b, i) => b !== want[i])) {
+					throw new Error(`slice(${start}, ${end}) read [${got}], not [${want}]`);
+				}
+			}
+		}
+	} finally {
+		typed.slice = slice;
+		typed.set = set;
+	}
+	lent[Symbol.dispose]();
+	channel[Symbol.dispose]();
+}
+
+/**
  * A reader's read crosses as the bytes it wrote into its chunk, whatever the chunk's
  * properties claim once it returns: a `buffer` redefined to other bytes is never read.
  */
@@ -197,6 +234,7 @@ const cases: Record<string, () => void | Promise<void>> = {
 	word,
 	interleaved,
 	foreign,
+	sliced,
 	faked,
 	written,
 	reinstalled,
