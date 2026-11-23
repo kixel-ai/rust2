@@ -235,6 +235,16 @@ class Wheel(unittest.TestCase):
                     dst.writestr(name, src.read(name))
             package.check_wheel(repaired)
 
+    def test_vendored_libraries_are_each_tools(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            wheel = Path(tmp) / "repaired.whl"
+            # Where auditwheel and delvewheel, then delocate, put the libraries they copy in.
+            with zipfile.ZipFile(wheel, "w") as archive:
+                for name in ("moq/libmoq.so", "moq_ffi.libs/", "moq_ffi.libs/libssl-1a2b.so.3",
+                             "moq/.dylibs/libz.1.dylib", "moq_ffi-0.4.12.dist-info/RECORD"):
+                    archive.writestr(name, b"")
+            self.assertEqual(package.vendored(wheel), ["libssl-1a2b.so.3", "libz.1.dylib"])
+
     def test_a_tampered_record_fails(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
@@ -1303,7 +1313,7 @@ class Template(unittest.TestCase):
         shipped = package.template(*args, group="dev.moq")
         self.assertIn("\n      maven-group: dev.moq\n", shipped)
         self.assertIn("dev.moq:moq-ffi on Maven Central", shipped)
-        self.assertIn("name: moq-ffi-build-android", shipped)
+        self.assertIn("name: moq-ffi-maven", shipped)
         none = package.template(*args)
         self.assertIn("      # maven-group: <group>\n", none)
         self.assertNotIn("\n      maven-group:", none)
@@ -1324,7 +1334,9 @@ class Maven(unittest.TestCase):
         root, ns = self.fields(authors=["Luke Curley <kixelated@gmail.com>", "Someone"])
         get = lambda path: [e.text for e in root.findall(path, ns)]  # noqa: E731
         self.assertEqual(get("m:groupId") + get("m:artifactId") + get("m:version") + get("m:packaging"),
-                         ["dev.moq", "moq-ffi", "0.4.12", "aar"])
+                         ["dev.moq", "moq-ffi", "0.4.12", "jar"])
+        # Gradle reads the .module, which gives Android the AAR, only when the POM says it has one.
+        self.assertIn("<!-- do_not_remove: published-with-gradle-metadata -->", package.pom(info("/src"), "dev.moq", "1.10.2"))
         self.assertEqual(get("m:description"), ["Media over QUIC, bindings"])
         # No homepage: the repository is the project's URL.
         self.assertEqual(get("m:url"), ["https://github.com/moq-dev/moq"])
@@ -1353,6 +1365,24 @@ class Maven(unittest.TestCase):
                         {"version": "1.0.0+build"}):
             with self.assertRaises(SystemExit, msg=missing):
                 package.pom(info("/src", **missing), "dev.moq", "1.10.2")
+
+    def test_module_gives_android_the_aar_and_the_jvm_the_jar(self):
+        files = {f"moq-ffi-0.4.12{suffix}": suffix.encode() for suffix in (".jar", ".aar", "-sources.jar", "-javadoc.jar")}
+        module = json.loads(package.gradle_module("dev.moq", "moq-ffi", "0.4.12", package.maven_dependencies("1.10.2"), files))
+        self.assertEqual(module["component"], {"group": "dev.moq", "module": "moq-ffi", "version": "0.4.12",
+                                               "attributes": {"org.gradle.status": "release"}})
+        attribute = lambda v, *names: next(v["attributes"][n] for n in names if n in v["attributes"])  # noqa: E731
+        chosen = {(attribute(v, "org.gradle.jvm.environment", "org.gradle.docstype"), v["attributes"]["org.gradle.usage"]):
+                  v["files"][0]["name"] for v in module["variants"]}
+        self.assertEqual(chosen, {("android", "java-api"): "moq-ffi-0.4.12.aar", ("android", "java-runtime"): "moq-ffi-0.4.12.aar",
+                                  ("standard-jvm", "java-api"): "moq-ffi-0.4.12.jar", ("standard-jvm", "java-runtime"): "moq-ffi-0.4.12.jar",
+                                  ("sources", "java-runtime"): "moq-ffi-0.4.12-sources.jar",
+                                  ("javadoc", "java-runtime"): "moq-ffi-0.4.12-javadoc.jar"})
+        jar = next(v for v in module["variants"] if v["name"] == "jvmRuntimeElements")
+        self.assertEqual(jar["files"][0]["size"], 4)
+        self.assertEqual(jar["files"][0]["sha256"], package.hashlib.sha256(b".jar").hexdigest())
+        self.assertEqual([d["module"] for d in jar["dependencies"]], ["kotlin-stdlib", "kotlinx-coroutines-core"])
+        self.assertEqual(jar["attributes"]["org.jetbrains.kotlin.platform.type"], "jvm")
 
     def test_prerelease_orders_before_its_release(self):
         self.assertEqual(package.maven_version("1.0.0-rc.1"), "1.0.0-rc.1")

@@ -1135,6 +1135,7 @@ fn api_kotlin() {
 		"java\n",
 		"plain Java calls the binding"
 	);
+	bundled_library(api, &[callers.as_path(), classes.as_path(), stdlib.as_path()]);
 	jvm_names_exist(api, &classes);
 
 	let kotlin_returns = run(&mut java(&[&classes], &["returns"]));
@@ -1488,6 +1489,71 @@ fn kotlin_classes(api: &Api) -> PathBuf {
 	}
 	.run(&mut kotlinc(&api.out, &script, &classes));
 	classes
+}
+
+/// The classes on `classpath` load the library a desktop jar bundles, as the release's jar
+/// does, with no library path and a relative temporary directory, leaving no copy behind
+/// where the system lets it go, nor of a copy that fails to load, and refuse a jar bundling
+/// none for this host.
+fn bundled_library(api: &Api, classpath: &[&Path]) {
+	let file = format!("{}api{}", std::env::consts::DLL_PREFIX, std::env::consts::DLL_SUFFIX);
+	let bundled = scratch().join("api").join("bundled");
+	let temp = scratch().join("api").join("bundled-temp");
+	for dir in [&bundled, &temp] {
+		let _ = std::fs::remove_dir_all(dir);
+	}
+	std::fs::create_dir_all(bundled.join("api").join("native").join(host())).unwrap();
+	std::fs::create_dir_all(&temp).unwrap();
+	std::fs::copy(
+		api.lib.join(&file),
+		bundled.join("api").join("native").join(host()).join(&file),
+	)
+	.unwrap();
+	let caller = |index: String| {
+		std::fs::write(bundled.join("api").join("api.natives"), index).unwrap();
+		// A relative temporary directory, which the loader must make absolute for System.load.
+		Command::new("java")
+			.current_dir(scratch().join("api"))
+			.arg("-Djava.io.tmpdir=bundled-temp")
+			.arg("-cp")
+			.arg(std::env::join_paths([bundled.as_path()].iter().chain(classpath)).unwrap())
+			.arg("Caller")
+			.output()
+			.expect("java runs")
+	};
+	let loaded = caller(format!("aarch64-apple-darwin lib.dylib\n{} {file}\n", host()));
+	assert!(
+		loaded.status.success() && loaded.stdout == b"java\n",
+		"the bundled library loads: {}",
+		String::from_utf8_lossy(&loaded.stderr)
+	);
+	// Windows keeps a loaded library's file: its directory stays, marked for a later load to sweep.
+	let left: Vec<_> = std::fs::read_dir(&temp).unwrap().map(|e| e.unwrap().path()).collect();
+	match cfg!(windows) {
+		true => assert!(
+			left.len() == 1 && left[0].join("stale").is_file(),
+			"one stale copy: {left:?}"
+		),
+		false => assert!(left.is_empty(), "the loaded copy is gone: {left:?}"),
+	}
+	std::fs::write(
+		bundled.join("api").join("native").join(host()).join("broken"),
+		b"not a library",
+	)
+	.unwrap();
+	let broken = caller(format!("{} broken\n", host()));
+	let after: Vec<_> = std::fs::read_dir(&temp).unwrap().map(|e| e.unwrap().path()).collect();
+	assert!(
+		!broken.status.success() && after == left,
+		"a copy that fails to load is gone: {after:?}, {}",
+		String::from_utf8_lossy(&broken.stderr)
+	);
+	let refused = caller(format!("riscv64gc-unknown-linux-gnu {file}\n"));
+	let stderr = String::from_utf8_lossy(&refused.stderr);
+	assert!(
+		!refused.status.success() && stderr.contains(&format!("not this host's {}", host())),
+		"a jar without this host's library refuses it: {stderr}"
+	);
 }
 
 /// Each JVM name the api fixture's lock records is a public method of its class, as javap
@@ -3504,6 +3570,294 @@ fn swiftc(module: &Path, macos: u8) -> Command {
 	cmd
 }
 
+/// The generated C# runs `tests/api.cs` with the transcript as C#, compiled by Roslyn
+/// against .NET's reference assemblies and run by `dotnet`, prints the native transcript,
+/// then fails loud on each broken contract and on a library of another contract. The binding
+/// compiles at Unity's language level against .NET Standard 2.1 too, as IL2CPP takes it, and
+/// its Unity half runs the same on CoreCLR.
+#[test]
+fn api_csharp() {
+	let api = api();
+	let dir = scratch().join("api").join("csharp");
+	let script = generated("csharp", "Transcript.cs", &transcript::csharp::emit(transcript())).join("Transcript.cs");
+	let binding = api.out.join("csharp").join("api.cs");
+	let exe = dir.join("api.dll");
+	csc(
+		Dotnet::Net,
+		&exe,
+		&[&binding, &manifest_dir().join("tests/api.cs"), &script],
+	);
+	csc(
+		Dotnet::Unity,
+		&dir.join("unity.dll"),
+		&[&binding, &manifest_dir().join("tests/unity.cs")],
+	);
+	// Unity's half of the binding, its callbacks delegates and its contract checked in
+	// `Native`'s static constructor, run on CoreCLR.
+	let unity = dir.join("net-unity").join("api.dll");
+	csc(
+		Dotnet::NetUnity,
+		&unity,
+		&[
+			&binding,
+			&manifest_dir().join("tests/api.cs"),
+			&script,
+			&manifest_dir().join("tests/unity.cs"),
+		],
+	);
+	for exe in [&exe, &unity] {
+		let ran = run(&mut csharp_run(exe, &[]));
+		assert_eq!(
+			String::from_utf8_lossy(&ran.stdout),
+			api.transcript,
+			"the C# transcript differs from the native one"
+		);
+		for case in ["checks", "futures"] {
+			run(&mut csharp_run(exe, &[case]));
+		}
+	}
+	for (case, message) in [
+		(
+			"moved",
+			"System.ObjectDisposedException: Cannot access a disposed object.\nObject name: 'Counter'.",
+		),
+		(
+			"lent kept",
+			"System.ObjectDisposedException: Cannot access a disposed object.\nObject name: 'Counter'.",
+		),
+		(
+			"lent moved",
+			"api_Counter_into_label: a handle a call lent is borrowed exclusively or moved out",
+		),
+		("callback threw", "api::Log::log: a call into C# threw"),
+		("closure threw", "a closure: a call into C# threw"),
+		("reader threw", "a reader's seek: a call into C# threw"),
+		("outlived", OUTLIVED),
+	] {
+		let output = no_core(&mut csharp_run(&exe, &[case])).output().unwrap();
+		failed(&output, &format!("C# {case}"));
+		// An exception's message breaks its lines as the platform does.
+		let stderr = String::from_utf8_lossy(&output.stderr).replace("\r\n", "\n");
+		assert!(stderr.contains(message), "C# {case} printed {stderr}");
+	}
+
+	// The same C#, with another contract than the library's in place of its own, refuses it
+	// at its first call.
+	let source = std::fs::read_to_string(&binding).unwrap();
+	let at = source.find("Contract = 0x").expect("the C# checks its contract") + "Contract = 0x".len();
+	let mut mismatched = source.clone();
+	let digit = if &source[at..at + 1] == "0" { "1" } else { "0" };
+	mismatched.replace_range(at..at + 1, digit);
+	let contract = dir.join("contract");
+	step::write(&contract.join("api.cs"), mismatched);
+	// Non-dumpable before the check fails, as `Fail` in `tests/api.cs` is. PR_SET_DUMPABLE is 4.
+	step::write(
+		&contract.join("main.cs"),
+		"using System;\nusing System.Runtime.InteropServices;\n\n\
+		static class Program\n{\n\
+		\t[DllImport(\"libc\", EntryPoint = \"prctl\")]\n\
+		\tstatic extern int Prctl(int option, ulong a, ulong b, ulong c, ulong d);\n\n\
+		\tstatic void Main()\n\t{\n\
+		\t\tif (OperatingSystem.IsLinux() && Prctl(4, 0, 0, 0, 0) != 0)\n\t\t{\n\
+		\t\t\tConsole.Error.WriteLine(\"prctl\");\n\t\t\tEnvironment.Exit(1);\n\t\t}\n\
+		\t\tApi.Lib.Dropped();\n\t}\n}\n",
+	);
+	for (target, name) in [(Dotnet::Net, "net"), (Dotnet::NetUnity, "net-unity")] {
+		let exe = contract.join(name).join("contract.dll");
+		csc(
+			target,
+			&exe,
+			&[
+				&contract.join("api.cs"),
+				&contract.join("main.cs"),
+				&manifest_dir().join("tests/unity.cs"),
+			],
+		);
+		let output = no_core(&mut csharp_run(&exe, &[])).output().unwrap();
+		failed(&output, &format!("a mismatched contract, {name}"));
+		let stderr = String::from_utf8_lossy(&output.stderr);
+		assert!(
+			stderr.contains("api.cs and the library are from different builds"),
+			"a mismatched contract, {name}, printed {stderr}"
+		);
+	}
+
+	// A program that finds the library only through a `DllImportResolver` it sets in `Main`
+	// calls it, as the contract check runs at the first call, not at load.
+	let resolved = dir.join("resolved");
+	step::write(
+		&resolved.join("main.cs"),
+		"using System;\nusing System.Runtime.InteropServices;\n\n\
+		static class Program\n{\n\
+		\tstatic void Main(string[] args)\n\t{\n\
+		\t\tNativeLibrary.SetDllImportResolver(typeof(Program).Assembly, (name, _, _) => name == \"api\" ? NativeLibrary.Load(args[0]) : IntPtr.Zero);\n\
+		\t\tApi.Lib.Dropped();\n\t}\n}\n",
+	);
+	let exe = resolved.join("resolved.dll");
+	csc(Dotnet::Net, &exe, &[&binding, &resolved.join("main.cs")]);
+	let lib = api.lib.join(format!(
+		"{}api{}",
+		std::env::consts::DLL_PREFIX,
+		std::env::consts::DLL_SUFFIX
+	));
+	run(Command::new("dotnet")
+		.arg(&exe)
+		.arg(&lib)
+		.env("DOTNET_CLI_TELEMETRY_OPTOUT", "1"));
+}
+
+/// The same C# compiled ahead of time by NativeAOT, with its trim and AOT analyzers' warnings
+/// as errors, prints the native transcript and passes its checks: `dotnet publish`, from the
+/// packs the SDK carries, so it needs no network.
+#[test]
+#[ignore = "slow: just ffi aot"]
+fn api_csharp_aot() {
+	let api = api();
+	let dir = scratch().join("api").join("csharp-aot");
+	let script = generated("csharp", "Transcript.cs", &transcript::csharp::emit(transcript())).join("Transcript.cs");
+	let binding = api.out.join("csharp").join("api.cs");
+	let tests = manifest_dir().join("tests/api.cs");
+	// Copied beside the project, so no character of the checkout's path reaches its XML. Its
+	// restore takes the ILCompiler from the SDK's own packs, and with no audit, which asks
+	// nuget.org, it needs no network.
+	let mut compile = String::new();
+	for (source, name) in [
+		(&binding, "binding.cs"),
+		(&tests, "tests.cs"),
+		(&script, "transcript.cs"),
+	] {
+		step::write(&dir.join(name), std::fs::read(source).unwrap());
+		compile.push_str(&format!("    <Compile Include=\"{name}\" />\n"));
+	}
+	step::write(
+		&dir.join("api.csproj"),
+		format!(
+			"<Project Sdk=\"Microsoft.NET.Sdk\">\n  <PropertyGroup>\n    <OutputType>Exe</OutputType>\n    <TargetFramework>net10.0</TargetFramework>\n    <Nullable>enable</Nullable>\n    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>\n    <PublishAot>true</PublishAot>\n    <InvariantGlobalization>true</InvariantGlobalization>\n    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>\n    <NuGetAudit>false</NuGetAudit>\n    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>\n  </PropertyGroup>\n  <ItemGroup>\n{compile}  </ItemGroup>\n</Project>\n"
+		),
+	);
+	let rid = match (std::env::consts::OS, std::env::consts::ARCH) {
+		("linux", "x86_64") => "linux-x64",
+		("linux", "aarch64") => "linux-arm64",
+		("macos", "x86_64") => "osx-x64",
+		("macos", "aarch64") => "osx-arm64",
+		(os, arch) => panic!("no NativeAOT runtime identifier for {arch} {os}"),
+	};
+	let out = dir.join("out");
+	run(Command::new("dotnet")
+		.args(["publish", "--nologo", "-c", "Release", "-r", rid, "-o"])
+		.arg(&out)
+		.arg(dir.join("api.csproj"))
+		.env("DOTNET_CLI_HOME", dir.join("home"))
+		.env("NUGET_PACKAGES", dir.join("packages"))
+		.env("DOTNET_CLI_TELEMETRY_OPTOUT", "1")
+		.env("DOTNET_NOLOGO", "1"));
+	let exe = out.join("api");
+	let native = |args: &[&str]| {
+		let mut cmd = Command::new(&exe);
+		cmd.args(args);
+		with_api_lib(&mut cmd);
+		run(&mut cmd)
+	};
+	assert_eq!(
+		String::from_utf8_lossy(&native(&[]).stdout),
+		api.transcript,
+		"the NativeAOT C# transcript differs from the native one"
+	);
+	for case in ["checks", "futures"] {
+		native(&[case]);
+	}
+}
+
+/// What a C# compile targets: .NET's own, or Unity's language level over .NET Standard 2.1.
+#[derive(Clone, Copy)]
+enum Dotnet {
+	Net,
+	/// A .NET program of Unity's code, `UNITY_5_3_OR_NEWER` defined, which runs the delegates
+	/// and static constructor IL2CPP takes on CoreCLR; `Unity` checks its language level.
+	/// Its arithmetic is checked, as a consumer's build may make it.
+	NetUnity,
+	Unity,
+}
+
+/// The .NET SDK's root, beside its `dotnet`.
+fn dotnet_root() -> PathBuf {
+	let dotnet = std::fs::canonicalize(which("dotnet")).unwrap();
+	dotnet.parent().unwrap().to_path_buf()
+}
+
+/// `sources` compiled by Roslyn into `out`, warnings as errors, a program for `Net` and
+/// `NetUnity` and a library for `Unity`.
+fn csc(target: Dotnet, out: &Path, sources: &[&Path]) {
+	let root = dotnet_root();
+	let csc = newest(&root.join("sdk")).join("Roslyn/bincore/csc.dll");
+	let refs = match target {
+		Dotnet::Net | Dotnet::NetUnity => newest(&root.join("packs/Microsoft.NETCore.App.Ref")).join("ref/net10.0"),
+		Dotnet::Unity => {
+			PathBuf::from(std::env::var_os("NETSTANDARD_REF").expect("the dev shell sets NETSTANDARD_REF"))
+		}
+	};
+	let mut cmd = Command::new("dotnet");
+	cmd.arg("exec").arg(csc).args([
+		"-nologo",
+		"-noconfig",
+		"-nostdlib",
+		"-unsafe",
+		"-nullable:enable",
+		"-warnaserror",
+		"-warn:9999",
+		"-optimize",
+	]);
+	match target {
+		Dotnet::Net => cmd.arg("-target:exe"),
+		Dotnet::NetUnity => cmd.args(["-target:exe", "-define:UNITY_5_3_OR_NEWER", "-checked"]),
+		Dotnet::Unity => cmd.args(["-target:library", "-langversion:9", "-define:UNITY_5_3_OR_NEWER"]),
+	};
+	for dll in std::fs::read_dir(&refs).unwrap() {
+		let dll = dll.unwrap().path();
+		if dll.extension().is_some_and(|e| e == "dll") {
+			cmd.arg(format!("-r:{}", dll.display()));
+		}
+	}
+	// Writing the XML docs checks every doc comment is well-formed, as a consumer's
+	// `GenerateDocumentationFile` with warnings as errors does.
+	cmd.arg(format!("-out:{}", out.display()))
+		.arg(format!("-doc:{}", out.with_extension("xml").display()))
+		.args(sources);
+	std::fs::create_dir_all(out.parent().unwrap()).unwrap();
+	let step = Step {
+		stamp: &out.with_extension("stamp"),
+		reads: sources,
+		writes: &[out],
+	};
+	step.run(&mut cmd);
+	if let Dotnet::Net | Dotnet::NetUnity = target {
+		step::write(
+			&out.with_extension("runtimeconfig.json"),
+			r#"{"runtimeOptions":{"tfm":"net10.0","rollForward":"LatestPatch","framework":{"name":"Microsoft.NETCore.App","version":"10.0.0"},"configProperties":{"System.Globalization.Invariant":true}}}"#,
+		);
+	}
+}
+
+/// `exe`, a program `csc` built, run by `dotnet` with `args`, loading the api fixture's library.
+fn csharp_run(exe: &Path, args: &[&str]) -> Command {
+	let mut cmd = Command::new("dotnet");
+	cmd.arg(exe).args(args).env("DOTNET_CLI_TELEMETRY_OPTOUT", "1");
+	with_api_lib(&mut cmd);
+	cmd
+}
+
+/// `cmd` finding the api fixture's library where the platform's loader looks.
+fn with_api_lib(cmd: &mut Command) {
+	let var = match (cfg!(windows), cfg!(target_os = "macos")) {
+		(true, _) => "PATH",
+		(_, true) => "DYLD_LIBRARY_PATH",
+		_ => "LD_LIBRARY_PATH",
+	};
+	let mut paths = vec![api().lib.clone()];
+	paths.extend(std::env::var_os(var).iter().flat_map(std::env::split_paths));
+	cmd.env(var, std::env::join_paths(paths).unwrap());
+}
+
 /// The generated Go, vetted and built through cgo against the static library, runs
 /// `tests/api.go`'s script, its futures, and what closing and the GC free, then fails loud
 /// on each broken contract and on a library of another contract.
@@ -4497,7 +4851,7 @@ fn lock() {
 	let baseline = dir.join("base").join("api.json");
 	let before = std::fs::read(&baseline).unwrap();
 	let json: serde_json::Value = serde_json::from_slice(&before).unwrap();
-	for language in ["C++", "Kotlin", "Swift", "Dart", "Python", "Go"] {
+	for language in ["C++", "Kotlin", "Swift", "Dart", "Python", "Go", "C#"] {
 		assert!(
 			json["names"][language]["const lock::DEPTH"].is_string(),
 			"{language} constant name missing"
@@ -4692,6 +5046,7 @@ fn lock() {
 		("Go", "GraphicsEncoder_Finish"),
 		("Dart", "GraphicsEncoderFinish2"),
 		("Python", "GraphicsEncoder_Finish"),
+		("C#", "GraphicsEncoder_Finish"),
 	] {
 		assert!(
 			stderr.contains(&format!("its {language} name `GraphicsEncoderFinish` is now `{new}`")),
@@ -4702,6 +5057,7 @@ fn lock() {
 		("Kotlin", "smoothStep", "smoothStep_"),
 		("Swift", "smoothStep", "smoothStep_"),
 		("Dart", "smoothStep", "smoothStep_"),
+		("C#", "SmoothStep", "SmoothStep_"),
 	] {
 		assert!(
 			stderr.contains(&format!("its {language} name `{old}` is now `{new}`")),
@@ -4742,6 +5098,8 @@ fn lock() {
 		assert!(stderr.contains(text), "missing {text}:\n{stderr}");
 	}
 	assert!(!stderr.contains("its C name"), "a C name changed:\n{stderr}");
+	// C# names the added record apart from the exception class, which keeps its name.
+	assert!(!stderr.contains("its C# name"), "a C# name changed:\n{stderr}");
 	let defaults = locked("defaults");
 	assert!(!defaults.status.success(), "a Go Default rename passed the lock");
 	let stderr = String::from_utf8_lossy(&defaults.stderr);

@@ -18,9 +18,9 @@ moq_rev := "1aa86d5e6d091848cb1848c702a911099706b1a4"
 swift_collections_rev := "f96b909e1a9e469620bc5037c1e24e00153f376f"
 
 # The binding benchmark's programs, each a language, as bench-program runs them.
-bench_langs := "rust c cpp moq-c kotlin python swift go dart ts-node ts-chromium ts-firefox"
+bench_langs := "rust c cpp moq-c kotlin python swift go dart csharp ts-node ts-chromium ts-firefox"
 
-# Those whose cases CodSpeed counts the same on every run of one commit: bench/ffi/README.md's CodSpeed section says why Swift, Kotlin, Go, and Dart do not.
+# Those whose cases CodSpeed counts the same on every run of one commit: bench/ffi/README.md's CodSpeed section says why Swift, Kotlin, Go, Dart, and C# do not.
 codspeed_langs := "rust c cpp moq-c python ts-node"
 
 default:
@@ -56,6 +56,10 @@ protocol:
 # Write the api fixture's checks, each beside the script tests/fixtures/transcript generates, into <dir>/python, <dir>/cpp, <dir>/web, <dir>/dart, <dir>/go, and <dir>/swift, the directories the release builder's check inputs take.
 transcripts dir:
     out="$(cd {{ quote(invocation_directory()) }} && mkdir -p {{ quote(dir) }} && cd {{ quote(dir) }} && pwd)" && RUST2_TRANSCRIPTS="$out" cargo test --locked --test fixtures -- --ignored --exact transcripts
+
+# Compile the api fixture's C# ahead of time with NativeAOT and run its test, as the nightly does.
+aot:
+    cargo test --locked --test fixtures -- --ignored --exact api_csharp_aot
 
 # Run the api fixture's web test in headless Chromium, Firefox, and on Linux WebKit, in the bench shell, which carries them: nix develop .#bench.
 browsers:
@@ -112,7 +116,7 @@ census checkout="": (standin checkout)
 # Measure the binding benchmark (bench/ffi/README.md) from the pinned moq revision or a checkout, in the bench shell: nix develop .#bench. Its tables go to target/bench/report.md.
 bench checkout="": (bench-build checkout) bench-run
 
-# Build the binding benchmark's programs: Rust's floor, C, C++, Kotlin, Python, Swift, Go, and Dart through the export, TypeScript through the wasm32 stand-in's, and C through moq's hand-written rs/libmoq.
+# Build the binding benchmark's programs: Rust's floor, C, C++, Kotlin, Python, Swift, Go, Dart, and C# through the export, TypeScript through the wasm32 stand-in's, and C through moq's hand-written rs/libmoq.
 bench-build checkout="": (moq-export checkout) (moq-web checkout) ts-program codspeed-hooks
     #!/usr/bin/env bash
     set -euo pipefail
@@ -142,6 +146,7 @@ bench-build checkout="": (moq-export checkout) (moq-web checkout) ts-program cod
     export CGO_CPPFLAGS="-I$hooks" CGO_LDFLAGS="$hooks/libcodspeed.a" GOFLAGS=-buildvcs=false
     (cd target/bench-go && go build -o bench .)
     {{ quote(just_executable()) }} dart-program bench-dart moq/bench/export.dart
+    {{ quote(just_executable()) }} csharp exe target/bench-csharp/bench.dll "$out/csharp/moq.cs" moq/bench/export.cs
     rm -rf target/bench-kt
     # moq's Kotlin outgrows the 512 MiB heap kotlinc's launcher defaults to.
     JAVA_OPTS="-Xmx2g -Xms128M" kotlinc -Werror -cp "$KOTLINX_COROUTINES" "$out/kotlin/moq.kt" "$out/kotlin/FastNative.kt" moq/bench/export.kt -d target/bench-kt
@@ -336,6 +341,7 @@ bench-program lang:
         swift) exec target/bench-export-swift ;;
         go) exec target/bench-go/bench ;;
         dart) exec dart target/bench-dart/main.dill "$hooks" ;;
+        csharp) LD_LIBRARY_PATH="$out/target/release" DYLD_LIBRARY_PATH="$out/target/release" exec dotnet target/bench-csharp/bench.dll "$hooks" ;;
         ts-node)
             # Under CodSpeed, V8 runs on this thread alone and collects on a schedule its
             # allocations set, not time, and export.ts collects before each case, so its counts
@@ -347,7 +353,7 @@ bench-program lang:
         *) echo "bench-program: no language {{ lang }}" >&2; exit 1 ;;
     esac
 
-# Export moq's crates' C ABI, build it, and run moq/moq.c, moq/moq.cpp, moq/moq.kt, moq/moq.py, moq/moq.swift, moq/moq.go, and moq/moq.dart against it, from the pinned moq revision or a checkout.
+# Export moq's crates' C ABI, build it, and run moq/moq.c, moq/moq.cpp, moq/moq.kt, moq/moq.py, moq/moq.swift, moq/moq.go, and moq/moq.dart against it, and compile its C# for .NET and Unity, from the pinned moq revision or a checkout.
 moq checkout="": (moq-cpp checkout)
     #!/usr/bin/env bash
     set -euo pipefail
@@ -373,6 +379,9 @@ moq checkout="": (moq-cpp checkout)
     # The Dart, through the shared library the dart feature builds.
     {{ quote(just_executable()) }} dart-program moq-dart moq/moq.dart
     dart --enable-asserts target/moq-dart/main.dill
+    # The C#, compiled as .NET 10 compiles it, and as Unity does, against .NET Standard 2.1.
+    {{ quote(just_executable()) }} csharp library target/moq-csharp/moq.dll "$out/csharp/moq.cs"
+    {{ quote(just_executable()) }} csharp unity target/moq-csharp/unity.dll "$out/csharp/moq.cs" tests/unity.cs
 
 # Export and build moq's crates' C ABI as `just ffi moq` does, and run only moq/moq.cpp against it, built by $CXX or the platform's compiler: MSVC's on Windows, from a developer environment.
 moq-cpp checkout="": (moq-export checkout)
@@ -482,6 +491,33 @@ ts-program:
         '"allowImportingTsExtensions": true, "verbatimModuleSyntax": true, "erasableSyntaxOnly": true, "skipLibCheck": true, "types": []},' \
         '"include": ["export.ts", "web/*.ts"], "exclude": ["web/*.d.ts"]}' > "$dir/tsconfig.json"
     tsc -p "$dir"
+
+# Compile C# <sources> into <out> with Roslyn, warnings as errors: as .NET 10 compiles an `exe`, which `dotnet <out>` runs, or a `library`, or as Unity compiles one, at C# 9 against .NET Standard 2.1, the dev shell's NETSTANDARD_REF.
+[private]
+csharp kind out +sources:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    dotnet=$(dirname "$(realpath "$(command -v dotnet)")")
+    csc=$(ls -d "$dotnet"/sdk/*/Roslyn/bincore/csc.dll | sort -V | tail -n 1)
+    case "{{ kind }}" in
+        exe | library)
+            refs=$(ls -d "$dotnet"/packs/Microsoft.NETCore.App.Ref/*/ref/net10.0 | sort -V | tail -n 1)
+            flags=(-target:{{ kind }} -warn:9999) ;;
+        unity)
+            refs=${NETSTANDARD_REF:?NETSTANDARD_REF is unset: run this in the dev shell}
+            flags=(-target:library -langversion:9 -define:UNITY_5_3_OR_NEWER) ;;
+        *) echo "csharp: no kind {{ kind }}" >&2; exit 1 ;;
+    esac
+    mkdir -p "$(dirname {{ quote(out) }})"
+    references=()
+    for dll in "$refs"/*.dll; do
+        references+=("-r:$dll")
+    done
+    dotnet exec "$csc" -nologo -noconfig -nostdlib -unsafe -nullable:enable -warnaserror -optimize "${flags[@]}" \
+        "${references[@]}" -out:{{ quote(out) }} {{ sources }}
+    if [ "{{ kind }}" = exe ]; then
+        printf '%s\n' '{"runtimeOptions": {"tfm": "net10.0", "rollForward": "LatestPatch", "framework": {"name": "Microsoft.NETCore.App", "version": "10.0.0"}, "configProperties": {"System.Globalization.Invariant": true}}}' > "{{ without_extension(out) }}.runtimeconfig.json"
+    fi
 
 # Lay out target/<dir> as a Dart program whose main is <main>, importing the export's Dart as package:moq/moq.dart, whose native asset is the shared library, as a package's build hook would bundle it, which `dart compile` has no flag for; analyze it, and compile it into target/<dir>/main.dill.
 [private]

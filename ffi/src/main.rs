@@ -36,6 +36,7 @@ mod cli;
 mod collect;
 mod config;
 mod cpp;
+mod csharp;
 mod dart;
 mod doc;
 mod driver;
