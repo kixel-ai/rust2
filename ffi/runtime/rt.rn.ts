@@ -64,7 +64,7 @@ export class Bytes {
 	readonly #lent: boolean;
 
 	private constructor(key: symbol, buffer: ArrayBuffer, lent: boolean) {
-		if (key !== minting) throw new TypeError("only Rust makes bytes it returned");
+		if (key !== Bytes.#minting) throw new TypeError("only Rust makes bytes it returned");
 		this.#view = new Uint8Array(buffer);
 		this.#length = buffer.byteLength;
 		this.#lent = lent;
@@ -105,10 +105,12 @@ export class Bytes {
 		if (this.#lent) n.$bytesFree(this);
 	}
 
-	// A field's initializer, not a static block, which React Native's Babel preset refuses.
+	// The key, whose initializer hands out the makers: not a static block, which React Native's
+	// Babel preset refuses.
 	static #minting = (() => {
 		bytesMade = (buffer, lent) => new Bytes(minting, buffer, lent);
 		bytesCopy = (b) => (#view in b && !b.#lent ? b.#open() : undefined);
+		return minting;
 	})();
 }
 

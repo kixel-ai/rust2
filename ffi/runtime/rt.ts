@@ -94,13 +94,15 @@ export class Opaque<T extends string = string> {
 	// as a zero `NonZero`.
 	readonly #bytes: Uint8Array;
 	private constructor(bytes: Uint8Array, key: symbol) {
-		if (key !== minting) throw new TypeError("only Rust makes an opaque value");
+		if (key !== Opaque.#minting) throw new TypeError("only Rust makes an opaque value");
 		this.#bytes = bytes;
 	}
-	// A field's initializer, not a static block, which React Native's Babel preset refuses.
+	// The key, whose initializer hands out the makers: not a static block, which React Native's
+	// Babel preset refuses.
 	static #minting = (() => {
 		made = (bytes) => new Opaque(bytes, minting);
 		bytesOf = (v) => (#bytes in v ? v.#bytes : undefined);
+		return minting;
 	})();
 }
 

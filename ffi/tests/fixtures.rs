@@ -20,6 +20,7 @@ mod transcript;
 use std::collections::BTreeSet;
 use std::env::consts::EXE_SUFFIX;
 use std::ffi::OsString;
+use std::fmt::Write as _;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output};
 use std::sync::OnceLock;
@@ -3171,6 +3172,167 @@ fn api_react_native_host() {
 		assert!(!run.ok, "Hermes's {case} did not fail");
 		assert!(run.stderr.contains(message), "Hermes's {case} printed {}", run.stderr);
 	}
+}
+
+/// The React Native release the Android test's app is made with.
+const REACT_NATIVE: &str = "0.88.1";
+
+/// The api fixture's React Native package in a new React Native app, built for release, on
+/// the 64-bit Android device adb reaches: the package as `npm pack` makes it of the export,
+/// with the library the NDK builds for the device's ABI in its `libs/`, autolinked as an
+/// app's dependency is. Launched once with each case, the app logs what `tests/api.ts`'s
+/// script prints, which must be what native Rust prints there, and passes each case React
+/// Native runs; one breaking a contract aborts the app, as `api_react_native_host` checks.
+#[test]
+#[ignore = "needs the Android SDK and NDK, cargo-ndk, Node, the network, and a device: just ffi react-native-android"]
+fn api_react_native_android() {
+	const DEVICE: &str = "/data/local/tmp/rust2-ffi";
+	let sdk = PathBuf::from(std::env::var_os("ANDROID_HOME").expect("ANDROID_HOME names the Android SDK"));
+	let adb = sdk.join("platform-tools").join("adb");
+	let dir = scratch().join("api").join("react-native-android");
+	let abi = run(Command::new(&adb).args(["shell", "getprop", "ro.product.cpu.abi"]));
+	let abi = String::from_utf8_lossy(&abi.stdout).trim().to_string();
+	// 64-bit, whose `usize` the transcript's React Native script spells as wide.
+	let target = match abi.as_str() {
+		"arm64-v8a" => "aarch64-linux-android",
+		"x86_64" => "x86_64-linux-android",
+		abi => panic!("the test runs on a 64-bit Android ABI, not {abi}"),
+	};
+	let out = dir.join("out");
+	let _ = std::fs::remove_dir_all(&out);
+	let output = export("api", &out, &[target], &API_CARGO);
+	assert!(
+		output.status.success(),
+		"exporting for {target} failed:\n{}",
+		String::from_utf8_lossy(&output.stderr)
+	);
+	let ndk = |cmd: &mut Command| {
+		cmd.args(["ndk", "--target", &abi, "--platform", "24", "build", "--quiet", "--locked"]);
+	};
+	let mut glue = cargo();
+	ndk(&mut glue);
+	run(glue.arg("--target-dir").arg(dir.join("glue")).current_dir(&out));
+	let mut script = cargo();
+	ndk(&mut script);
+	run(script
+		.args(["--package", "api-fixture", "--example", "transcript", "--features", "doubled", "--target-dir"])
+		.arg(dir.join("transcript"))
+		.current_dir(manifest_dir()));
+	run(Command::new(&adb).args(["shell", "rm", "-rf", DEVICE, "&&", "mkdir", "-p", DEVICE]));
+	run(Command::new(&adb)
+		.arg("push")
+		.arg(dir.join("transcript").join(target).join("debug/examples/transcript"))
+		.arg(DEVICE));
+	let native = run(Command::new(&adb).args(["shell", &format!("{DEVICE}/transcript")]));
+	let native = String::from_utf8_lossy(&native.stdout).into_owned();
+
+	// The package, its library beside the sources the app's build compiles.
+	let package = out.join("react-native");
+	step::copy(
+		&dir.join("glue").join(target).join("debug").join("libapi.a"),
+		&package.join("libs/android").join(&abi).join("libapi.a"),
+	);
+	let packed = run(Command::new("npm")
+		.args(["pack", "--silent", "--pack-destination"])
+		.arg(&dir)
+		.arg(&package));
+	let tarball = dir.join(String::from_utf8_lossy(&packed.stdout).trim());
+	let app = dir.join("Consumer");
+	if !app.exists() {
+		run(Command::new("npx")
+			.args(["--yes", "@react-native-community/cli@21.0.0", "init", "Consumer", "--version", REACT_NATIVE])
+			.args(["--skip-git-init", "--install-pods", "false", "--package-name", "dev.rust2.consumer"])
+			.current_dir(&dir));
+	}
+	run(Command::new("npm")
+		.args(["install", "--silent", "@babel/plugin-transform-explicit-resource-management@^7"])
+		.arg(&tarball)
+		.current_dir(&app));
+	let files = manifest_dir().join("tests").join("react-native-app");
+	step::copy(&files.join("index.js"), &app.join("index.js"));
+	step::copy(&files.join("babel.config.js"), &app.join("babel.config.js"));
+	step::copy(
+		&files.join("MainActivity.kt"),
+		&app.join("android/app/src/main/java/dev/rust2/consumer/MainActivity.kt"),
+	);
+	let check = app.join("check");
+	let imported = |ts: &str| package_imports(ts, "api-fixture");
+	step::write(
+		&check.join("transcript.ts"),
+		imported(&transcript::typescript::emit(transcript(), transcript::typescript::Binding::ReactNative)),
+	);
+	step::write(&check.join("api.ts"), imported(&react_native_check()));
+	step::write(
+		&check.join("entry.ts"),
+		imported(&std::fs::read_to_string(manifest_dir().join("tests").join("react-native.ts")).unwrap()),
+	);
+	run(Command::new(app.join("android").join("gradlew"))
+		.args(["assembleRelease", "--quiet", &format!("-PreactNativeArchitectures={abi}")])
+		.current_dir(app.join("android")));
+	run(Command::new(&adb)
+		.args(["install", "-r", "--no-streaming"])
+		.arg(app.join("android/app/build/outputs/apk/release/app-release.apk")));
+
+	// Each case in an app of its own, read from the log as it arrives, bounded by the
+	// device-side timeout.
+	let case = |case: Option<&str>| -> Ran {
+		run(Command::new(&adb).args(["shell", "am", "force-stop", "dev.rust2.consumer"]));
+		run(Command::new(&adb).args(["logcat", "-c"]));
+		let mut reader = Command::new(&adb)
+			.args(["shell", "timeout", "300", "logcat", "-s", "ReactNativeJS:V", "-v", "raw"])
+			.stdout(std::process::Stdio::piped())
+			.spawn()
+			.unwrap();
+		let mut start = Command::new(&adb);
+		start.args(["shell", "am", "start", "-n", "dev.rust2.consumer/.MainActivity"]);
+		if let Some(case) = case {
+			start.args(["--es", "case", &format!("'{case}'")]);
+		}
+		run(&mut start);
+		let (mut stdout, mut stderr, mut code) = (String::new(), String::new(), None);
+		for line in std::io::BufRead::lines(std::io::BufReader::new(reader.stdout.take().unwrap())) {
+			let line = line.unwrap();
+			if let Some(exit) = line.strip_prefix("rust2| exit ") {
+				code = exit.trim().parse::<i32>().ok();
+				break;
+			} else if let Some(text) = line.strip_prefix("rust2| ") {
+				stdout.push_str(text);
+				stdout.push('\n');
+			} else if let Some(text) = line.strip_prefix("rust2! ") {
+				stderr.push_str(text);
+				stderr.push('\n');
+			}
+		}
+		let _ = reader.kill();
+		Ran {
+			ok: code == Some(0),
+			stdout,
+			stderr,
+		}
+	};
+	let transcript = case(None);
+	assert!(transcript.ok, "the app's transcript failed:\n{}", transcript.stderr);
+	assert_eq!(transcript.stdout, native, "the app's transcript differs from native Rust's on {abi}");
+	for name in REACT_NATIVE_CASES {
+		let ran = case(Some(name));
+		assert!(ran.ok, "the app's {name} failed:\n{}{}", ran.stdout, ran.stderr);
+	}
+}
+
+/// `ts` importing the package `package` where it imports the binding beside it.
+fn package_imports(ts: &str, package: &str) -> String {
+	let ts = ts.replace("\"./react-native/index.ts\"", &format!("\"{package}\""));
+	let mut out = String::new();
+	let mut rest = ts.as_str();
+	while let Some(at) = rest.find("\"./react-native/") {
+		out.push_str(&rest[..at]);
+		let module = &rest[at + "\"./react-native/".len()..];
+		let end = module.find(".ts\"").expect("an import of the binding ends in .ts");
+		let _ = write!(out, "\"{package}/{}\"", &module[..end]);
+		rest = &module[end + ".ts\"".len()..];
+	}
+	out.push_str(rest);
+	out
 }
 
 /// The cases of `tests/api.ts` React Native runs, after its transcript: `grown`'s memory and
