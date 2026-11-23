@@ -1892,7 +1892,7 @@ packs the api fixture's with npm, installs it into a project of its own, type-ch
 
 ```bash
 just ffi test     # export the fixtures, build them, and drive api from C, C++, Kotlin, Python, Swift, Go, Dart, C#, and TypeScript on Node, Deno, and Bun
-just ffi moq      # export moq's crates at the pinned revision, build them, and run moq/moq.c, moq/moq.cpp, moq/moq.kt, moq/moq.py, moq/moq.swift, moq/moq.go, and moq/moq.dart, and compile moq's C# for .NET and Unity
+just ffi moq      # export moq's crates at the pinned revision, build them, and run moq/moq.c, moq/moq.cpp, moq/moq.kt, moq/moq.py, moq/moq.swift, moq/moq.go, moq/moq.dart, and moq/moq.cs, and compile moq's C# for Unity
 just ffi moq-c    # the same export, built in debug, running only moq/moq.c: `just ci`'s check on moq
 just ffi moq-cpp  # the same export, running only moq/moq.cpp
 just ffi moq-swift  # the same export, running only moq/moq.swift
@@ -2085,9 +2085,11 @@ RTTI, as OBS builds it, serving on an executor's thread and blocking on each rea
 `moq/moq.py` through the Python, running the origin's driver and the server as asyncio
 tasks and awaiting each read, `moq/moq.swift` through the Swift, serving in a task and
 awaiting each read, `moq/moq.go` through the Go, running the origin's driver on a
-goroutine of its own and serving on another, each read blocking under a context, and
+goroutine of its own and serving on another, each read blocking under a context,
 `moq/moq.dart` through the Dart, polling the origin's driver from the isolate's event loop
-on each wake and at its deadline's `Timer`, and awaiting each read.
+on each wake and at its deadline's `Timer`, and awaiting each read, and `moq/moq.cs` through
+the C# on .NET, each local read polled again on a `SynchronizationContext` the script drains
+and the session's on the thread pool, serving under a token it cancels.
 
 The C++ builds take `CXX`, or `c++`, with every warning an error and `-Wshadow`, which
 stands in for MSVC's warnings that a name hides another. On Windows they take MSVC's `cl`

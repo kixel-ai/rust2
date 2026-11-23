@@ -353,7 +353,7 @@ bench-program lang:
         *) echo "bench-program: no language {{ lang }}" >&2; exit 1 ;;
     esac
 
-# Export moq's crates' C ABI, build it, and run moq/moq.c, moq/moq.cpp, moq/moq.kt, moq/moq.py, moq/moq.swift, moq/moq.go, and moq/moq.dart against it, and compile its C# for .NET and Unity, from the pinned moq revision or a checkout.
+# Export moq's crates' C ABI, build it, and run moq/moq.c, moq/moq.cpp, moq/moq.kt, moq/moq.py, moq/moq.swift, moq/moq.go, moq/moq.dart, and moq/moq.cs against it, and compile its C# for Unity, from the pinned moq revision or a checkout.
 moq checkout="": (moq-cpp checkout)
     #!/usr/bin/env bash
     set -euo pipefail
@@ -379,8 +379,10 @@ moq checkout="": (moq-cpp checkout)
     # The Dart, through the shared library the dart feature builds.
     {{ quote(just_executable()) }} dart-program moq-dart moq/moq.dart
     dart --enable-asserts target/moq-dart/main.dill
-    # The C#, compiled as .NET 10 compiles it, and as Unity does, against .NET Standard 2.1.
-    {{ quote(just_executable()) }} csharp library target/moq-csharp/moq.dll "$out/csharp/moq.cs"
+    # The C#, run on .NET 10 through the shared library, and compiled as Unity does, against
+    # .NET Standard 2.1.
+    {{ quote(just_executable()) }} csharp exe target/moq-csharp/moq.dll "$out/csharp/moq.cs" moq/moq.cs
+    LD_LIBRARY_PATH="$out/target/release" DYLD_LIBRARY_PATH="$out/target/release" dotnet target/moq-csharp/moq.dll
     {{ quote(just_executable()) }} csharp unity target/moq-csharp/unity.dll "$out/csharp/moq.cs" tests/unity.cs
 
 # Export and build moq's crates' C ABI as `just ffi moq` does, and run only moq/moq.cpp against it, built by $CXX or the platform's compiler: MSVC's on Windows, from a developer environment.
@@ -492,7 +494,7 @@ ts-program:
         '"include": ["export.ts", "web/*.ts"], "exclude": ["web/*.d.ts"]}' > "$dir/tsconfig.json"
     tsc -p "$dir"
 
-# Compile C# <sources> into <out> with Roslyn, warnings as errors: as .NET 10 compiles an `exe`, which `dotnet <out>` runs, or a `library`, or as Unity compiles one, at C# 9 against .NET Standard 2.1, the dev shell's NETSTANDARD_REF.
+# Compile C# <sources> into <out> with Roslyn, warnings as errors and every doc comment well-formed: as .NET 10 compiles an `exe`, which `dotnet <out>` runs, or a `library`, or as Unity compiles one, at C# 9 against .NET Standard 2.1, the dev shell's NETSTANDARD_REF.
 [private]
 csharp kind out +sources:
     #!/usr/bin/env bash
@@ -514,7 +516,7 @@ csharp kind out +sources:
         references+=("-r:$dll")
     done
     dotnet exec "$csc" -nologo -noconfig -nostdlib -unsafe -nullable:enable -warnaserror -optimize "${flags[@]}" \
-        "${references[@]}" -out:{{ quote(out) }} {{ sources }}
+        "${references[@]}" -out:{{ quote(out) }} -doc:{{ quote(without_extension(out) + ".xml") }} {{ sources }}
     if [ "{{ kind }}" = exe ]; then
         printf '%s\n' '{"runtimeOptions": {"tfm": "net10.0", "rollForward": "LatestPatch", "framework": {"name": "Microsoft.NETCore.App", "version": "10.0.0"}, "configProperties": {"System.Globalization.Invariant": true}}}' > "{{ without_extension(out) }}.runtimeconfig.json"
     fi
