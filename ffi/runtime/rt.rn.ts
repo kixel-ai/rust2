@@ -71,9 +71,10 @@ let bytesCopy: (b: object) => Uint8Array | undefined;
  * read after disposing throws.
  */
 export class Bytes {
-	// A copy's view, private so no caller's write reaches what Rust reads. Rust's own buffer
-	// has none: React Native's Babel preset makes private fields properties any caller can
-	// find, and a view found would outlive the buffer's free, so the module reads it.
+	// A copy's view, which the module copies again as a call reads it, so a write to it,
+	// which reflection can reach, touches no memory of Rust's. Rust's own buffer has none:
+	// React Native's Babel preset makes private fields properties any caller can find, and a
+	// view found would outlive the buffer's free, so the module reads it.
 	#view: Uint8Array | undefined;
 	readonly #length: number;
 	readonly #lent: boolean;

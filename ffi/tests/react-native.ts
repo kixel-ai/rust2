@@ -227,18 +227,21 @@ function written(): void {
  * one that is not callable, or a thenable whose `then` is not, throws a TypeError there,
  * rather than abort once Rust calls or polls it.
  */
-async function refused(): Promise<void> {
+function refused(): void {
 	const cases: [string, () => unknown][] = [
 		["an object kept as a closure", () => api.hook({} as unknown as () => void)],
 		["a thenable whose then is no function", () => api.after({ then: 1 } as unknown as Promise<unknown>, 1)],
 	];
 	for (const [what, f] of cases) {
+		let made: unknown;
 		try {
-			await f();
+			made = f();
 		} catch (e) {
 			if (e instanceof TypeError) continue;
 			throw e;
 		}
+		// Thrown as the call converts it, not rejected later.
+		if (made instanceof Promise) made.catch(() => {});
 		throw new Error(`${what} passed`);
 	}
 }
