@@ -813,3 +813,553 @@ impl<'a> Gen<'a> {
 		}
 	}
 }
+
+/// How a host function's arguments are lowered: statements before the call, and what
+/// Rust takes once nothing left to lower can throw, so none is given in vain.
+#[derive(Default)]
+struct Call {
+	lines: Vec<String>,
+	gives: Vec<String>,
+	args: Vec<String>,
+	writes: Vec<String>,
+	/// The outs written back to a `&mut` parameter's place.
+	written: Vec<String>,
+}
+
+impl Gen<'_> {
+	fn items(&mut self) {
+		let abi = self.abi;
+		let api = abi.api;
+		for i in 0..api.records.len() {
+			let record = &api.records[i];
+			if !self.here(record.on) {
+				continue;
+			}
+			let c = abi.record(i);
+			let ty = Type::Record(i);
+			self.traits(&ty, &c, record.traits, record.on);
+			for method in &record.methods {
+				self.function(method, Some((&Ty::Struct(c.clone()), &ty)));
+			}
+		}
+		for i in 0..api.enums.len() {
+			let e = &api.enums[i];
+			if !self.here(e.on) {
+				continue;
+			}
+			let c = abi.enumeration(i);
+			let ty = Type::Enum(i);
+			self.traits(&ty, &c, e.traits, e.on);
+			let owner = abi.ty(&ty);
+			for method in &e.methods {
+				self.function(method, Some((&owner, &ty)));
+			}
+		}
+		for i in 0..api.objects.len() {
+			let object = &api.objects[i];
+			if !self.here(object.on) {
+				continue;
+			}
+			let c = abi.object(i);
+			let ty = Type::Object(i);
+			self.traits(&ty, &c, object.traits, object.on);
+			let owner = Ty::Handle {
+				name: c.clone(),
+				constant: false,
+			};
+			for method in &object.methods {
+				self.function(method, Some((&owner, &ty)));
+			}
+		}
+		for function in &api.functions {
+			self.function(function, None);
+		}
+	}
+
+	/// Define the host function `name`, taking `argc` arguments, of `body`.
+	fn host(&mut self, name: &str, argc: usize, body: &str) {
+		let f = format!("f_{name}");
+		let proto = format!("jsi::Value {f}(jsi::Runtime &rt, const jsi::Value &, const jsi::Value *a, ::std::size_t n)");
+		self.define(
+			&f,
+			proto.clone(),
+			format!("{proto} {{\n\t(void)a;\n\t(void)n;\n{}\n}}\n\n", indent(body)),
+		);
+		self.fns.push((name.to_string(), argc));
+	}
+
+	/// The statements lowering the receiver `v` of C type `c`, of type `ty`, as `self_`,
+	/// into `call`.
+	fn receiver(&mut self, ty: &Type, c: &Ty, v: &str, call: &mut Call) {
+		match c {
+			Ty::Handle { name, constant } => {
+				let Type::Object(i) = ty else { unreachable!("a handle's type is an object") };
+				let kind = self.kind(*i);
+				let q = if *constant { "const " } else { "" };
+				call.lines.push(format!("auto *self_ = static_cast<{q}{name} *>(f.hold({v}, {kind}));"));
+				call.args.push("self_".to_string());
+			}
+			Ty::In(inner) | Ty::InOut(inner) => {
+				call.lines.push(format!("{}{{}};", self.decl(inner, "self_")));
+				call.lines.push(self.lower(ty, v, "self_", false));
+				call.args.push("&self_".to_string());
+			}
+			other => unreachable!("a receiver is {other:?}"),
+		}
+	}
+
+	/// `function`'s host function, a method of `owner` if it has one.
+	fn function(&mut self, function: &Function, owner: Option<(&Ty, &Type)>) {
+		let abi = self.abi;
+		if !self.here(function.on) {
+			return;
+		}
+		let export = abi.export(function, owner.map(|(o, _)| o));
+		let handed = owner.and_then(|(o, t)| abi.handed_back(function, o, t)).is_some();
+		let c_name = export.call.name.clone();
+		let name = self.bare(&c_name).to_string();
+		let mut call = Call::default();
+		call.lines.push(self.lacks(function.on, &function.path.join("::")));
+		call.lines.push("r::frame f(rt);".to_string());
+		let receiver = function.receiver.filter(|_| owner.is_some());
+		let mut c_params = export.call.params.iter();
+		let mut k = 0;
+		if receiver.is_some() {
+			let (_, c) = c_params.next().expect("a method has its receiver");
+			let (_, ty) = owner.expect("a method has its type");
+			self.receiver(ty, c, "r::arg(a, n, 0)", &mut call);
+			k = 1;
+		}
+		for (j, param) in function.params.iter().enumerate() {
+			let (_, c) = c_params.next().expect("each parameter has its C one");
+			let v = format!("r::arg(a, n, {k})");
+			k += 1;
+			let a = format!("a{j}");
+			if param.ty.written() {
+				let inner = param.ty.base();
+				call.lines.push(format!("jsi::Object place{j} = r::obj(rt, {v}, \"Place\");"));
+				call.lines.push(format!("{}{{}};", self.decl(c, &a)));
+				call.lines.push(self.lower(inner, &format!("place{j}.getProperty(rt, \"v\")"), &a, false));
+				call.args.push(a);
+				let out = Abi::written(function, &abi::escape(&param.name));
+				let read = self.lift(inner, &format!("o_{out}"), true);
+				call.writes.push(format!("place{j}.setProperty(rt, \"v\", {read});"));
+				call.written.push(out);
+				continue;
+			}
+			match (&param.ty, c) {
+				(Type::Closure(closure), Ty::Fn(..)) => {
+					c_params.next().expect("a closure has its data");
+					let t = self.closure(&param.ty, closure);
+					let check = format!("r::obj(rt, {v}, \"function\")");
+					call.args.push(t);
+					if closure.kept {
+						c_params.next().expect("a kept closure has its free");
+						call.gives.push(format!("void *{a} = new r::remote(rt, {check});"));
+						call.args.push(a);
+						call.args.push("&r::closure_free".to_string());
+					} else {
+						call.lines.push(format!(
+							"auto {a}r = ::std::make_shared<r::remote>(rt, {check});\nf.mem.push_back({a}r);\nvoid *{a} = {a}r.get();"
+						));
+						call.args.push(a);
+					}
+				}
+				(Type::Callback(..), c) | (Type::Box(_), c @ Ty::Struct(_))
+					if matches!(param.ty.base(), Type::Callback(..)) =>
+				{
+					call.gives.push(format!("{}{{}};", self.decl(c, &a)));
+					call.gives.push(self.lower(param.ty.base(), &v, &a, false));
+					call.args.push(a);
+				}
+				(Type::Waker | Type::Future, c) => {
+					call.gives.push(format!("{}{{}};", self.decl(c, &a)));
+					call.gives.push(self.lower(&param.ty, &v, &a, false));
+					call.args.push(a);
+				}
+				(ty, c) => {
+					call.lines.push(format!("{}{{}};", self.decl(c, &a)));
+					// Rust takes `Bytes` by value: an `rt.Bytes` passes a second owner of its
+					// buffer, once nothing left to lower can throw.
+					let owned = matches!(ty, Type::Bytes) || matches!(ty, Type::Option(inner) if **inner == Type::Bytes);
+					match owned {
+						true => {
+							call.lines.push(self.lower(ty, &v, &a, false));
+							call.gives.push(format!(
+								"if ({a}.ptr != nullptr) {{\n\t{a} = f.view({v}, true);\n}}"
+							));
+						}
+						false => call.lines.push(self.lower(ty, &v, &a, false)),
+					}
+					call.args.push(a);
+				}
+			}
+		}
+		let argc = k;
+		let rest: Vec<(String, Ty)> = c_params.cloned().collect();
+		let ok = strip_refs(&function.ok);
+		let err = function.err.as_ref().map(strip_refs);
+		let mut lines = std::mem::take(&mut call.lines);
+		lines.extend(std::mem::take(&mut call.gives));
+		let status = export.call.status().is_some();
+		if let Some(abi::Future { handle, start, poll, free }) = &export.future {
+			let poll_outs: Vec<(String, Ty)> = (poll.params[2..].iter())
+				.filter(|(_, ty)| !abi::is_status(ty))
+				.cloned()
+				.collect();
+			let outs_decl: Vec<String> = poll_outs.iter().map(|(n, ty)| self.out_decl(n, ty)).collect();
+			let ready = match &ok {
+				Type::Unit => "jsi::Value::undefined()".to_string(),
+				_ => self.lift_outs(&function.ok, &ok),
+			};
+			let ready = match &err {
+				Some(_) => format!("r::ok(rt, {ready})"),
+				None => ready,
+			};
+			let failed = err.as_ref().map(|err| format!("r::err(rt, {})", self.lift(err, "o_err", true)));
+			// The poll, which completes the future.
+			let mut p = vec!["r::frame f(rt);".to_string()];
+			p.extend(outs_decl.iter().cloned());
+			let mut pargs = vec![format!("static_cast<{handle} *>(p)"), "w".to_string()];
+			pargs.extend(poll_outs.iter().map(|(n, _)| format!("&o_{n}")));
+			let poll_status = poll.status().is_some();
+			if poll_status {
+				p.push("::std::int32_t s_ = 0;".to_string());
+				pargs.push("&s_".to_string());
+			}
+			p.push(format!("auto st_ = ::{}({});", poll.name, pargs.join(", ")));
+			if poll_status {
+				p.push(format!("r::status(rt, s_, {});", lit(&poll.name)));
+			}
+			let mut cases = vec![format!("case 1:\n\tresolve.call(rt, {ready});\n\treturn true;")];
+			if let Some(failed) = &failed {
+				cases.push(format!("case 2:\n\tresolve.call(rt, {failed});\n\treturn true;"));
+			}
+			cases.push("default:\n\treturn false;".to_string());
+			p.push(format!("switch (static_cast<int>(st_)) {{\n{}\n}}", cases.join("\n")));
+			let poll_fn = format!(
+				"[](jsi::Runtime &rt, void *p, c_waker w, jsi::Function &resolve, jsi::Function &) -> bool {{\n{}\n}}",
+				indent(&p.join("\n"))
+			);
+			// The call and its first poll in one.
+			lines.extend(outs_decl);
+			call.args.extend(poll_outs.iter().map(|(n, _)| format!("&o_{n}")));
+			lines.push(format!("{handle} *fut_ = nullptr;"));
+			call.args.push("&fut_".to_string());
+			if start.status().is_some() {
+				lines.push("::std::int32_t s_ = 0;".to_string());
+				call.args.push("&s_".to_string());
+			}
+			lines.push(format!("auto st_ = ::{}({});", start.name, call.args.join(", ")));
+			if start.status().is_some() {
+				lines.push(format!("r::status(rt, s_, {});", lit(&start.name)));
+			}
+			let mut cases = vec![format!("case 1:\n\treturn r::ready(rt, {ready});")];
+			if let Some(failed) = &failed {
+				cases.push(format!("case 2:\n\treturn r::ready(rt, {failed});"));
+			}
+			cases.push(format!(
+				"default:\n\treturn r::pend(rt, fut_, [](void *p) {{ ::{}(static_cast<{handle} *>(p)); }},\n{});",
+				free.name,
+				indent(&indent(&poll_fn))
+			));
+			lines.push(format!("switch (static_cast<int>(st_)) {{\n{}\n}}", cases.join("\n")));
+		} else {
+			let outs: Vec<(String, Ty)> = rest.iter().filter(|(_, ty)| !abi::is_status(ty)).cloned().collect();
+			for (n, ty) in &outs {
+				lines.push(self.out_decl(n, ty));
+				call.args.push(format!("&o_{n}"));
+			}
+			if status {
+				lines.push("::std::int32_t s_ = 0;".to_string());
+				call.args.push("&s_".to_string());
+			}
+			let invoke = format!("::{c_name}({})", call.args.join(", "));
+			match export.call.ret {
+				Ty::Void => lines.push(format!("{invoke};")),
+				_ => lines.push(format!("auto r_ = {invoke};")),
+			}
+			if status {
+				lines.push(format!("r::status(rt, s_, {});", lit(&c_name)));
+			}
+			lines.extend(std::mem::take(&mut call.writes));
+			if handed {
+				// A value's `&mut self`: the value as the call left it, before what it returns.
+				let (_, owner_ty) = owner.expect("a method has its type");
+				let this = self.lift(owner_ty, "self_", true);
+				let returned: Vec<String> = match &function.ok {
+					Type::Unit => Vec::new(),
+					Type::Tuple(elements) => {
+						let elems: Vec<&(String, Ty)> =
+							outs.iter().filter(|(n, _)| !call.written.contains(n)).collect();
+						(elements.iter().zip(elems))
+							.map(|(e, (n, _))| self.lift(&strip_refs(e), &format!("o_{n}"), true))
+							.collect()
+					}
+					ok => vec![self.lift(&strip_refs(ok), "r_", true)],
+				};
+				match returned.is_empty() {
+					true => lines.push(format!("return {this};")),
+					false => {
+						let mut items = vec![this];
+						items.extend(returned);
+						lines.push(format!("jsi::Array out_(rt, {});", items.len()));
+						for (n, item) in items.iter().enumerate() {
+							lines.push(format!("out_.setValueAtIndex(rt, {n}, {item});"));
+						}
+						lines.push("return out_;".to_string());
+					}
+				}
+			} else {
+				match &err {
+					Some(err) => {
+						let value = match &ok {
+							Type::Unit => "jsi::Value::undefined()".to_string(),
+							_ => self.lift_outs(&function.ok, &ok),
+						};
+						let error = self.lift(err, "o_err", true);
+						lines.push(format!("if (r_) {{\n\treturn r::ok(rt, {value});\n}}\nreturn r::err(rt, {error});"));
+					}
+					None if ok == Type::Unit => lines.push("return jsi::Value::undefined();".to_string()),
+					None if outs.len() > call.written.len() => {
+						let value = self.lift_outs(&function.ok, &ok);
+						lines.push(format!("return {value};"));
+					}
+					None => {
+						let value = self.returned(&ok, "r_");
+						lines.push(format!("return {value};"));
+					}
+				}
+			}
+		}
+		let body: Vec<String> = lines.into_iter().filter(|l| !l.is_empty()).collect();
+		self.host(&name, argc, &body.join("\n"));
+	}
+
+	/// The local the call writes the out `name` of C type `ty` to.
+	fn out_decl(&self, name: &str, ty: &Ty) -> String {
+		let Ty::Out(inner) = ty else {
+			unreachable!("an out parameter is a pointer")
+		};
+		format!("{}{{}};", self.decl(inner, &format!("o_{name}")))
+	}
+
+	/// The value of a call's outs, which return `ok`, or each element of a tuple.
+	fn lift_outs(&mut self, declared: &Type, ok: &Type) -> String {
+		match declared {
+			Type::Tuple(elements) => {
+				let lifted: Vec<String> = (elements.iter().enumerate())
+					.map(|(n, e)| self.lift(&strip_refs(e), &format!("o_out{n}"), true))
+					.collect();
+				format!("r::array(rt, {{{}}})", lifted.join(", "))
+			}
+			_ => self.returned(ok, "o_out"),
+		}
+	}
+
+	/// The host functions of a type's std traits, each `<type>_<what>` as React Native's
+	/// TypeScript forwards to.
+	fn traits(&mut self, ty: &Type, c: &str, t: crate::ir::Traits, on: crate::ir::On) {
+		let abi = self.abi;
+		let c_ = crate::abi::stem(c).to_string();
+		let bare = self.bare(&c_).to_string();
+		let object = matches!(ty, Type::Object(_));
+		let status = abi.traits_status_of(ty);
+		let what = abi.spell(ty);
+		// The statements lowering argument `k` as the receiver `local`.
+		let this = |g: &mut Self, k: usize, local: &str| -> String {
+			let v = format!("r::arg(a, n, {k})");
+			match ty {
+				Type::Object(i) => {
+					let kind = g.kind(*i);
+					format!("auto *{local} = static_cast<const {c} *>(f.hold({v}, {kind}));")
+				}
+				_ => {
+					let decl = g.decl(&abi.ty(ty), local);
+					format!("{decl}{{}};\n{}", g.lower(ty, &v, local, false))
+				}
+			}
+		};
+		let arg = |local: &str| match object {
+			true => local.to_string(),
+			false => format!("&{local}"),
+		};
+		let mut emit = |g: &mut Self, member: &str, receivers: usize, ret: &dyn Fn(&mut Self) -> String| {
+			let mut lines = vec![g.lacks(on, &what), "r::frame f(rt);".to_string()];
+			let mut args = Vec::new();
+			for (k, local) in ["a_", "b_"].iter().take(receivers).enumerate() {
+				lines.push(this(g, k, local));
+				args.push(arg(local));
+			}
+			let has_status = status && member != "default";
+			if has_status {
+				lines.push("::std::int32_t s_ = 0;".to_string());
+				args.push("&s_".to_string());
+			}
+			lines.push(format!("auto r_ = ::{c_}_{member}({});", args.join(", ")));
+			if has_status {
+				lines.push(format!("r::status(rt, s_, {});", lit(&format!("{c_}_{member}"))));
+			}
+			lines.push(format!("return {};", ret(g)));
+			let body: Vec<String> = lines.into_iter().filter(|l| !l.is_empty()).collect();
+			g.host(&format!("{bare}_{member}"), receivers, &body.join("\n"));
+		};
+		if t.display {
+			emit(self, "to_string", 1, &|_| "r::str(rt, r_, true)".to_string());
+		}
+		if t.debug {
+			emit(self, "debug", 1, &|_| "r::str(rt, r_, true)".to_string());
+		}
+		if object && t.clone {
+			emit(self, "clone", 1, &|g| g.lift(ty, "r_", true));
+		}
+		let plain = matches!(ty, Type::Enum(i) if abi.api.enums[*i].plain());
+		if t.eq && !plain {
+			emit(self, "eq", 2, &|_| "jsi::Value(static_cast<bool>(r_))".to_string());
+			if t.hash {
+				emit(self, "hash", 1, &|_| "r::of_u64(rt, r_)".to_string());
+			}
+		}
+		for &(_, suffix) in crate::c::comparisons(t.ord) {
+			emit(self, suffix, 2, &|_| "jsi::Value(static_cast<double>(r_))".to_string());
+		}
+		if t.default {
+			emit(self, "default", 0, &|g| g.lift(ty, "r_", true));
+		}
+	}
+
+	/// The trampoline of the closure type `ty`, which calls the JavaScript function its data
+	/// holds.
+	fn closure(&mut self, ty: &Type, closure: &Closure) -> String {
+		if let Some(t) = self.closures.iter().position(|t| t == ty) {
+			return format!("c{t}");
+		}
+		self.closures.push(ty.clone());
+		let t = self.closures.len() - 1;
+		let name = format!("c{t}");
+		let abi = self.abi;
+		let Ty::Fn(c_params, c_ret) = abi.closure(closure) else {
+			unreachable!("a closure is a function")
+		};
+		let decls: Vec<String> = std::iter::once("void *data".to_string())
+			.chain(c_params.iter().enumerate().map(|(n, ty)| self.decl(ty, &format!("p{n}"))))
+			.collect();
+		let ret_c = self.decl(&c_ret, "");
+		let mut lines = vec!["r::frame f(rt);".to_string()];
+		let args: Vec<String> = (closure.params.iter().enumerate())
+			.map(|(n, p)| self.incoming(p, &format!("p{n}")))
+			.collect();
+		lines.push(self.invoke_js("r::found(rt, data).asFunction(rt).call", &args));
+		let back = match &closure.err {
+			None => self.outgoing(&closure.ok, &c_ret, "v_"),
+			Some(err) => {
+				let at = closure.params.len();
+				let err_at = c_params.len() - 1;
+				let mut ok = String::new();
+				if closure.ok != Type::Unit {
+					ok = format!("{}\n", self.lower(&closure.ok, "res_.getProperty(rt, \"value\")", &format!("*p{at}"), true));
+				}
+				let error = self.lower(err, "res_.getProperty(rt, \"error\")", &format!("*p{err_at}"), true);
+				format!(
+					"jsi::Object res_ = r::obj(rt, v_, \"Result\");\nif (r::bool_(rt, res_.getProperty(rt, \"ok\"))) {{\n{}\n}}\n{error}\nreturn false;",
+					indent(&format!("{ok}return true;"))
+				)
+			}
+		};
+		lines.push(back);
+		let proto = format!("{ret_c} {name}({})", decls.join(", "));
+		let body = self.trampoline(&c_ret, "a closure", &lines.join("\n"));
+		self.define(&name, proto.clone(), format!("{proto} {{\n{}\n}}\n\n", indent(&body)));
+		name
+	}
+
+	/// Statements calling the JavaScript function `callee`, as `callee(rt, args, n)`, into
+	/// `v_`.
+	fn invoke_js(&self, callee: &str, args: &[String]) -> String {
+		match args.is_empty() {
+			true => format!("jsi::Value v_ = {callee}(rt, static_cast<const jsi::Value *>(nullptr), 0);"),
+			false => format!(
+				"jsi::Value xs_[] = {{{}}};\njsi::Value v_ = {callee}(rt, static_cast<const jsi::Value *>(xs_), {});",
+				args.join(", "),
+				args.len()
+			),
+		}
+	}
+
+	/// The body of a C function JavaScript implements, running `body` on the JavaScript
+	/// thread for the value `data` holds.
+	fn trampoline(&self, c_ret: &Ty, what: &str, body: &str) -> String {
+		let (t, after) = match c_ret {
+			Ty::Void => ("bool".to_string(), "\n\treturn true;"),
+			ret => (self.decl(ret, ""), ""),
+		};
+		let call = format!(
+			"r::out<{t}>(static_cast<r::remote *>(data)->w, {}, [&](jsi::Runtime &rt) -> {t} {{\n{}{after}\n}})",
+			lit(what),
+			indent(body)
+		);
+		match c_ret {
+			Ty::Void => format!("(void){call};"),
+			_ => format!("return {call};"),
+		}
+	}
+
+	/// Statements returning `e` of type `ty` from a call into JavaScript, as the C type `c`,
+	/// which Rust then owns.
+	fn outgoing(&mut self, ty: &Type, c: &Ty, e: &str) -> String {
+		if matches!(ty.base(), Type::Object(_)) {
+			self.errors.push(format!(
+				"`{}` returned from JavaScript to Rust has no React Native form yet, which rust2-ffi should give it",
+				self.abi.spell(ty)
+			));
+			return String::new();
+		}
+		match c {
+			Ty::Void => String::new(),
+			c => format!("{}{{}};\n{}\nreturn out_;", self.decl(c, "out_"), self.lower(ty, e, "out_", true)),
+		}
+	}
+
+	/// The table of the trait `i`, whose methods JavaScript implements.
+	fn vtable(&mut self, i: usize) -> String {
+		let abi = self.abi;
+		let c = abi.callback(i);
+		let bare = self.bare(&c).to_string();
+		let name = format!("vt_{bare}");
+		if self.defs.contains_key(&name) {
+			return name;
+		}
+		self.defs.insert(name.clone(), String::new());
+		let callback = &abi.api.callbacks[i];
+		let rust = callback.path.join("::");
+		let mut fields = vec!["&r::trait_free".to_string()];
+		for (k, (method, member)) in callback.methods.iter().zip(method_names(&callback.methods)).enumerate() {
+			let m = format!("m_{bare}_{k}");
+			let params: Vec<Ty> = method.params.iter().map(|p| abi.ty(&p.ty)).collect();
+			let ret = abi.ty(&method.ok);
+			let decls: Vec<String> = std::iter::once("void *data".to_string())
+				.chain(params.iter().enumerate().map(|(n, ty)| self.decl(ty, &format!("p{n}"))))
+				.collect();
+			let mut lines = vec!["r::frame f(rt);".to_string(), "jsi::Object self_ = r::found(rt, data);".to_string()];
+			let args: Vec<String> = (method.params.iter().enumerate())
+				.map(|(n, p)| self.incoming(&p.ty, &format!("p{n}")))
+				.collect();
+			let callee = format!("self_.getPropertyAsFunction(rt, {}).callWithThis", lit(&member));
+			let call = self.invoke_js(&callee, &args).replace("(rt, static_cast", "(rt, self_, static_cast");
+			lines.push(call);
+			lines.push(self.outgoing(&method.ok, &ret, "v_"));
+			let proto = format!("{} {m}({})", self.decl(&ret, ""), decls.join(", "));
+			let body = self.trampoline(&ret, &format!("{rust}::{}", method.name()), &lines.join("\n"));
+			self.define(&m, proto.clone(), format!("{proto} {{\n{}\n}}\n\n", indent(&body)));
+			fields.push(format!("&{m}"));
+		}
+		let vt = abi::join(&c, "vtable");
+		self.defs.remove(&name);
+		self.define(
+			&name,
+			format!("extern const {vt} {name}"),
+			format!("const {vt} {name} = {{\n\t{},\n}};\n\n", fields.join(",\n\t")),
+		);
+		name
+	}
+}
