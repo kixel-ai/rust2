@@ -30,27 +30,6 @@
 
 namespace detail {
 
-// The status of this thread's failed check: a call reporting checks, as React Native's JSI
-// module makes to raise them as JavaScript's errors, sets `reported` and reads `status`
-// after it, and finds a zeroed value returned; any other call passes no status, so Rust
-// aborts with the check's message. A flag rather than a macro, so every translation unit
-// defines the header's functions alike.
-struct checks {
-	::std::int32_t status = 0;
-	bool reported = false;
-};
-
-inline checks &checked() noexcept {
-	static thread_local checks c;
-	return c;
-}
-
-// The status a checked call passes.
-inline ::std::int32_t *status() noexcept {
-	checks &c = checked();
-	return c.reported ? &c.status : nullptr;
-}
-
 [[noreturn]] inline void fail(const char *what) noexcept {
 	::std::fputs(what, stderr);
 	::std::fputc('\n', stderr);
