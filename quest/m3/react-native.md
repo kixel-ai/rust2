@@ -3,8 +3,8 @@
 ## Goal
 
 [rust2-ffi](/ffi/README.md) writes a React Native module for the crate: TypeScript over a
-JSI module in C++ that calls the generated C++ header, so a call from Hermes reaches Rust
-with no bridge serialization, on iOS and Android. The `api` fixture's script runs through
+JSI module in C++ that calls the C ABI, so a call from Hermes reaches Rust with no bridge
+serialization, on iOS and Android. The `api` fixture's script runs through
 it on an Android emulator and an iOS simulator, nightly only: no merge-gate test runs it,
 since nixpkgs packages no Hermes for a host-side one.
 
