@@ -40,6 +40,13 @@ wasmtime and JavaScript's jco run p3 components. A core module still needs a bin
 host language over its runtime, as the web target's is over JavaScript, so none is planned
 until a host asks for one; [the pure-Go epic](/quest/m4/go/README.md) weighs Go's.
 
+The Node report ([kixel-ai/rust2#970](https://github.com/kixel-ai/rust2/pull/970), 2026-11-22)
+kept [the Node-API addon](/quest/m3/node.md) and dropped a thin file over `node:ffi`. On
+bench/ffi's cases from Node 26, the addon was fastest on every case, against the web target
+and `node:ffi`, and it alone takes a call into JavaScript from Rust's own thread, which
+moq-tokio's every wake is and the web target cannot build. `node:ffi` aborts on one, has
+no struct type, and was slower than the web target on every per-call case.
+
 Decided with the maintainer on 2026-11-12, in the quest audit:
 
 - ✅ [TPDE](/quest/m3/tpde.md) moves here from m4: it is an upstream build-speed lever the
