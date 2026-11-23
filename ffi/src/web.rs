@@ -2331,7 +2331,10 @@ impl Gen<'_> {
 		self.names.insert("load".to_string(), "the binding's load".to_string());
 		self.module = "index".to_string();
 		for constant in &api.constants {
-			if !self.here(constant.on) {
+			// React Native's one package serves each of its targets, so a constant only some
+			// have, whose value differs by target, is left out, as a build for a target
+			// without it leaves it out.
+			if !self.here(constant.on) || (self.jsi && constant.on.0 & self.mask != self.mask) {
 				continue;
 			}
 			let name = abi::snake(self.bare(&abi.name(&constant.path))).to_uppercase();

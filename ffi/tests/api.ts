@@ -1048,6 +1048,28 @@ export async function lent(): Promise<void> {
 		closed(() => read(disposing, index), "Bytes", "lent bytes disposed as a read's index converts refuse it");
 		check(api.dropped() === ++before, "lent bytes disposed as a read's index converts are freed");
 	}
+	// Disposed as `slice` makes its result through `Symbol.species`, lent bytes stay Rust's
+	// until it returns, and are freed then.
+	const sliced = api.tokenBytes(8, 100);
+	let freedEarly = false;
+	Object.defineProperty(Uint8Array, Symbol.species, {
+		configurable: true,
+		get: () => {
+			close(sliced);
+			freedEarly ||= api.dropped() !== before;
+			return Uint8Array;
+		},
+	});
+	let copied: Uint8Array;
+	try {
+		copied = sliced.slice();
+	} finally {
+		delete (Uint8Array as unknown as Record<symbol, unknown>)[Symbol.species];
+	}
+	check(!freedEarly && copied.length === 100 && copied.every((b) => b === 8), "lent bytes disposed as a slice makes its result read whole");
+	// Where the engine's `slice` reads no `Symbol.species`, as Hermes's does not, only here.
+	close(sliced);
+	check(api.dropped() === ++before, "lent bytes disposed as a slice makes its result are freed once it returns");
 	// Passed back, lent bytes cross in place: viewed for a call, or a second owner of Rust's
 	// buffer for one that keeps them, so the buffer outlives the bytes disposed after.
 	const sent = api.tokenBytes(5, 65537);

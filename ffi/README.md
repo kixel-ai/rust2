@@ -1912,7 +1912,8 @@ the header's wrappers would, and it needs only `jsi.h`.
   return, so no JavaScript that installs it first with a kit of its own reaches memory.
 - **Values** are the web's, but for `usize` and `isize`, which are `rt.u64` and `rt.i64`,
   since one package serves 64-bit targets as well as 32-bit ones, where a value past 32 bits
-  fails as it crosses in. An `rt.Bytes` past 64 bytes is an `ArrayBuffer` over Rust's own
+  fails as it crosses in. For the same reason, a constant only some of the package's targets
+  have is left out. An `rt.Bytes` past 64 bytes is an `ArrayBuffer` over Rust's own
   buffer, which disposing or the collector frees, and passed back crosses in place, as the
   web's does. A typed array a call takes is copied, as the web's is, since JavaScript on
   another thread, or a closure the call runs, may write it while Rust reads; text crosses

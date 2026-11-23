@@ -987,8 +987,15 @@ export class Bytes {
 		const from = start === undefined ? undefined : +start;
 		const to = end === undefined ? undefined : +end;
 		if (this.#closed) throw new Error("Bytes is closed");
-		const all = this.#copy ?? mem().subarray(this.#ptr, this.#ptr + this.#length);
-		return all.slice(from, to) as Uint8Array<ArrayBuffer>;
+		// `subarray` and `slice` make their results through `Symbol.species`, which may run
+		// any JavaScript: a hold keeps Rust's buffer until they return.
+		this.#h++;
+		try {
+			const all = this.#copy ?? mem().subarray(this.#ptr, this.#ptr + this.#length);
+			return all.slice(from, to) as Uint8Array<ArrayBuffer>;
+		} finally {
+			this.#release();
+		}
 	}
 
 	/** Each byte in turn, each read as `at` reads it. */

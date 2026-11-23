@@ -815,7 +815,10 @@ struct frame {
 	// or prototype a caller sets can change: a `Uint8Array`'s through JSI, and another
 	// kind's from `%TypedArray%.prototype`'s own `Symbol.toStringTag` getter.
 	c_buf array(const jsi::Value &v, const char *ctor) {
-		bool is = v.isObject();
+		// The engine's own check that it is a typed array, as the kit `install` took may be
+		// another's than the binding's: another kind's name alone comes from the kit, which
+		// read wrong reads the array's own bytes as other items.
+		bool is = v.isObject() && v.getObject(rt).isTypedArray(rt);
 		if (is && ::std::strcmp(ctor, "Uint8Array") == 0) {
 			is = v.getObject(rt).isUint8Array(rt);
 		} else if (is) {

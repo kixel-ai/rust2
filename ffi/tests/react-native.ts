@@ -156,7 +156,8 @@ function forged(): void {
 	const natives: Record<string, (...args: unknown[]) => unknown> = {};
 	const no = () => 0;
 	installer().install({
-		...Object.fromEntries(["pending", "bytes", "typedTag", "int", "char", "u128Words", "f32Bits", "bytesCopy", "opaqueMade", "opaqueBytes", "isCancelled", "cancelCall", "cancelled", "ready"].map((k) => [k, no])),
+		...Object.fromEntries(["pending", "bytes", "int", "char", "u128Words", "f32Bits", "bytesCopy", "opaqueMade", "opaqueBytes", "isCancelled", "cancelCall", "cancelled", "ready"].map((k) => [k, no])),
+		typedTag: () => "Int32Array",
 		u64Halves: () => 0,
 		i64Halves: () => [2 ** 40, 0],
 		f64Bits: () => [1, 2, 3],
@@ -173,6 +174,7 @@ function forged(): void {
 		["a u64's halves as a number", () => natives.same_u64({ hi: 1, lo: 0 })],
 		["an i64's high half past 32 bits", () => natives.same_isize({ hi: -1, lo: 0 })],
 		["an f64's three halves", () => natives.same({ hi: 0x7ff00000, lo: 1 }, 0)],
+		["an object its kit calls an Int32Array", () => natives.sum_lists({}, undefined, undefined)],
 	];
 	for (const [what, f] of cases) {
 		try {

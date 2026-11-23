@@ -66,6 +66,10 @@ export class Bytes {
 	#view: Uint8Array | undefined;
 	readonly #length: number;
 	readonly #lent: boolean;
+	// Reads under way, which may run JavaScript that disposes these bytes: the free waits for
+	// them, so none reads what Rust freed.
+	#reading = 0;
+	#freeing = false;
 
 	private constructor(key: symbol, buffer: ArrayBuffer, lent: boolean) {
 		if (key !== Bytes.#minting) throw new TypeError("only Rust makes bytes it returned");
@@ -98,7 +102,14 @@ export class Bytes {
 		// Converted first, as `at`'s index is.
 		const from = start === undefined ? undefined : +start;
 		const to = end === undefined ? undefined : +end;
-		return this.#open().slice(from, to) as Uint8Array<ArrayBuffer>;
+		const view = this.#open();
+		// `slice` makes its result through `Symbol.species`, which may run any JavaScript.
+		this.#reading++;
+		try {
+			return view.slice(from, to) as Uint8Array<ArrayBuffer>;
+		} finally {
+			if (--this.#reading === 0 && this.#freeing) n.$bytesFree(this);
+		}
 	}
 
 	/** Each byte in turn, each read as `at` reads it. */
@@ -110,7 +121,9 @@ export class Bytes {
 	[Symbol.dispose](): void {
 		if (this.#view === undefined) return;
 		this.#view = undefined;
-		if (this.#lent) n.$bytesFree(this);
+		if (!this.#lent) return;
+		if (this.#reading === 0) n.$bytesFree(this);
+		else this.#freeing = true;
 	}
 
 	// The key, whose initializer hands out the makers: not a static block, which React Native's
