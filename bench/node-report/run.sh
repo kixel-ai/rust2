@@ -24,6 +24,6 @@ for round in $(seq "$rounds"); do
 			*) "$node" --no-warnings "$dir/node.ts" "$route" "$dir" > "$dir/run.tsv" ;;
 		esac
 		load=$(cut -d' ' -f1 /proc/loadavg)
-		awk -v route="$route" -v round="$round" -v load="$load" -F'\t' 'NF == 3 { print route "\t" round "\t" $1 "\t" $2 "\t" $3 "\t" load }' "$dir/run.tsv" >> "$dir/rounds.tsv"
+		awk -v route="$route" -v round="$round" -v avg="$load" -F'\t' 'NF == 3 { print route "\t" round "\t" $1 "\t" $2 "\t" $3 "\t" avg }' "$dir/run.tsv" >> "$dir/rounds.tsv"
 	done
 done
