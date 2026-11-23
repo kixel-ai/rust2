@@ -3633,7 +3633,17 @@ fn package_imports(ts: &str, package: &str) -> String {
 /// The cases React Native runs after its transcript: `tests/react-native.ts`'s own, and
 /// `tests/api.ts`'s but `grown`'s memory and a load's, which are WebAssembly's.
 const REACT_NATIVE_CASES: [&str; 11] = [
-	"typed", "word", "interleaved", "foreign", "faked", "futures", "owned", "closed", "bytes", "bounds", "checks",
+	"typed",
+	"word",
+	"interleaved",
+	"foreign",
+	"faked",
+	"futures",
+	"owned",
+	"closed",
+	"bytes",
+	"bounds",
+	"checks",
 ];
 
 /// `tests/api.ts` importing the React Native binding, its cases exported for
