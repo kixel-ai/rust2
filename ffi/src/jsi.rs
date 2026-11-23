@@ -15,7 +15,7 @@
 use std::collections::{BTreeMap, HashMap};
 use std::fmt::Write;
 
-use crate::abi::{self, Abi, Sig, Ty, pascal};
+use crate::abi::{self, Abi, Ty, pascal};
 use crate::ir::{Closure, Family, Function, Int, Type};
 use crate::kotlin::strip_refs;
 use crate::web::{field_names, lends, method_names, undefinable, variant_fields};
@@ -132,8 +132,8 @@ pub(crate) fn generate(abi: &Abi<'_>, packages: &str, mask: u64) -> Result<Vec<(
 	let _ = write!(
 		out,
 		"void install(jsi::Runtime &rt, ::std::function<void(::std::function<void(jsi::Runtime &)>)> post, jsi::Object kit) {{\n\
-		\tr::install(rt, ::std::move(post), kit.getPropertyAsObject(rt, \"natives\"));\n\
-		\tjsi::Object n = r::W().kit;\n\
+		\tr::install(rt, ::std::move(post), ::std::move(kit));\n\
+		\tjsi::Object n = r::W().kit.getPropertyAsObject(rt, \"natives\");\n\
 		\tr::natives(rt, n);\n\
 		\tauto fn = [&](const char *name, unsigned argc, jsi::Value (*f)(jsi::Runtime &, const jsi::Value &, const jsi::Value *, ::std::size_t)) {{\n\
 		\t\tn.setProperty(rt, name, jsi::Function::createFromHostFunction(rt, jsi::PropNameID::forAscii(rt, name), argc, f));\n\
@@ -1184,7 +1184,7 @@ impl Gen<'_> {
 			true => local.to_string(),
 			false => format!("&{local}"),
 		};
-		let mut emit = |g: &mut Self, member: &str, receivers: usize, ret: &dyn Fn(&mut Self) -> String| {
+		let emit = |g: &mut Self, member: &str, receivers: usize, ret: &dyn Fn(&mut Self) -> String| {
 			let mut lines = vec![g.lacks(on, &what), "r::frame f(rt);".to_string()];
 			let mut args = Vec::new();
 			for (k, local) in ["a_", "b_"].iter().take(receivers).enumerate() {
@@ -1277,9 +1277,9 @@ impl Gen<'_> {
 	/// `v_`.
 	fn invoke_js(&self, callee: &str, args: &[String]) -> String {
 		match args.is_empty() {
-			true => format!("jsi::Value v_ = {callee}(rt, static_cast<const jsi::Value *>(nullptr), 0);"),
+			true => format!("jsi::Value v_ = {callee}(rt, static_cast<const jsi::Value *>(nullptr), ::std::size_t{{0}});"),
 			false => format!(
-				"jsi::Value xs_[] = {{{}}};\njsi::Value v_ = {callee}(rt, static_cast<const jsi::Value *>(xs_), {});",
+				"jsi::Value xs_[] = {{{}}};\njsi::Value v_ = {callee}(rt, static_cast<const jsi::Value *>(xs_), ::std::size_t{{{}}});",
 				args.join(", "),
 				args.len()
 			),
