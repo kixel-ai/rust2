@@ -1917,8 +1917,12 @@ the header's wrappers would, and it needs only `jsi.h`.
   closure, waker, or reader from any. Such a call from another thread posts to the
   TurboModule's `CallInvoker` and waits; a call into Rust on the JS thread frees the
   runtime meanwhile, so a callback Rust makes from another thread while that call blocks
-  runs there at once, rather than deadlocking. A wake polls on a posted job, never inside
-  the wake, and a drop the collector makes while JavaScript runs is posted too.
+  runs there at once, rather than deadlocking. Such a callback runs on top of the call it
+  took the runtime from, as a nested call does: that call takes the runtime back only once
+  the callback returned, even if the callback waits in a call into Rust of its own. A wake
+  polls on a posted job, never inside the wake, and a drop the collector makes while
+  JavaScript runs is posted too. The module keeps what it holds of each runtime apart, so
+  two may be alive at once, and leaks rather than frees what Rust still holds of one gone.
 - **Bundling**: React Native's Babel preset compiles modules sloppy and lacks `using`;
   the binding needs neither, but a caller's `using` needs
   `@babel/plugin-transform-explicit-resource-management` in its `babel.config.js`.
