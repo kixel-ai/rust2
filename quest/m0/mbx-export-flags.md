@@ -17,14 +17,15 @@ on request in [jdx/mr-boxington#565](https://github.com/jdx/mr-boxington/issues/
 Each of the three changes what rustc writes, so the ask is to key the action on it, not
 drop it.
 
-Recommended: one issue, as #565 was, with the reproduction: a two-crate workspace checked
-twice from an emptied target with `CARGO_ENCODED_RUSTFLAGS=-Zalways-encode-mir`, and the
-bypass `mbx explain` prints, disclosing AI help as mbx's
-[CONTRIBUTING](https://github.com/jdx/mr-boxington/blob/main/CONTRIBUTING.md) asks. Once a
-release models them, bump the pin and show `mbx explain` serving the stand-in's crates on
-a second export.
+Asked in [jdx/mr-boxington#1003](https://github.com/jdx/mr-boxington/issues/1003),
+posted on 2026-11-22 with the maintainer's approval, whose reproduction on mbx 1.30.0 shows
+each of the three bypassing both crates of a two-crate workspace that the cache serves
+without them. Once a release models them, bump the pin and show `mbx explain` serving the
+stand-in's crates on a second export.
 
 ## Waiting
 
-- Maintainer: approve posting the issue on jdx/mr-boxington, outside the orgs agents post
-  in unasked (recommended: post it). An agent drafts and posts it once approved.
+- [jdx/mr-boxington#1003](https://github.com/jdx/mr-boxington/issues/1003): a release
+  whose rustc cache adapter keys `-Zalways-encode-mir`, `-Zmir-opt-level`, and
+  `-Zinline-mir` instead of bypassing them; check that `mbx explain` on it no longer lists
+  them under `unknown-flag`
