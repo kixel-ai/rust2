@@ -221,6 +221,66 @@ function written(): void {
 	if (Array.from(seen).join(" ") !== "1 2 3 0") throw new Error(`a write during the call reached Rust: ${seen.join(" ")}`);
 }
 
+/**
+ * A closure Rust keeps and a promise Rust polls later are checked as the call converts them:
+ * one that is not callable, or a thenable whose `then` is not, throws a TypeError there,
+ * rather than abort once Rust calls or polls it.
+ */
+async function refused(): Promise<void> {
+	const cases: [string, () => unknown][] = [
+		["an object kept as a closure", () => api.hook({} as unknown as () => void)],
+		["a thenable whose then is no function", () => api.after({ then: 1 } as unknown as Promise<unknown>, 1)],
+	];
+	for (const [what, f] of cases) {
+		try {
+			await f();
+		} catch (e) {
+			if (e instanceof TypeError) continue;
+			throw e;
+		}
+		throw new Error(`${what} passed`);
+	}
+}
+
+/**
+ * Bytes lent from Rust's buffer are made with no JavaScript a caller replaced: a global
+ * `Uint8Array` or an `ArrayBuffer` `byteLength` getter never sees Rust's buffer, so nothing
+ * keeps a view of it past its free.
+ */
+async function replaced(): Promise<void> {
+	const channel = Channel.new();
+	Channel.send(channel, new Uint8Array(100));
+	const seen: unknown[] = [];
+	const g = globalThis as { Uint8Array: Uint8ArrayConstructor };
+	const was = g.Uint8Array;
+	const length = Object.getOwnPropertyDescriptor(ArrayBuffer.prototype, "byteLength")!;
+	g.Uint8Array = new Proxy(was, {
+		construct(target, args) {
+			seen.push(args[0]);
+			return Reflect.construct(target, args);
+		},
+	});
+	Object.defineProperty(ArrayBuffer.prototype, "byteLength", {
+		configurable: true,
+		get(this: ArrayBuffer) {
+			seen.push(this);
+			return length.get!.call(this);
+		},
+	});
+	let lent: rt.Bytes;
+	try {
+		// Past 64 bytes, Rust's own buffer, lent.
+		lent = await Channel.recv(channel);
+	} finally {
+		g.Uint8Array = was;
+		Object.defineProperty(ArrayBuffer.prototype, "byteLength", length);
+	}
+	if (seen.length !== 0) throw new Error(`a replaced global saw ${seen.length} values as Rust's bytes were made`);
+	if (lent.length !== 100 || lent.at(99) !== 0) throw new Error(`lent bytes read ${lent.length}`);
+	lent[Symbol.dispose]();
+	channel[Symbol.dispose]();
+}
+
 /** What installs the module: the host's global off a device, else the TurboModule. */
 function installer(): { install(kit: object): boolean } {
 	const global = (globalThis as Record<string, unknown>).__rust2_api as { install(kit: object): boolean } | undefined;
@@ -290,6 +350,8 @@ const cases: Record<string, () => void | Promise<void>> = {
 	sliced,
 	faked,
 	written,
+	refused,
+	replaced,
 	reinstalled,
 	futures: check.futures,
 	owned: check.owned,

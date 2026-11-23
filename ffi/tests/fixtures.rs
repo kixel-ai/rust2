@@ -3219,8 +3219,29 @@ fn api_react_native_host() {
 		.args(&api.native)
 		.arg(format!("-Wl,-rpath,{}", build.join("lib").display()));
 	run(&mut cmd);
+	// Each run is bounded here, as one stuck in JavaScript never reaches the host's own check
+	// that nothing is left to run.
+	let hermes = |args: &[&str], what: &str| -> Ran {
+		let out = output(
+			Command::new("timeout")
+				.args(["--kill-after=10", "300"])
+				.arg(&host)
+				.args(args)
+				.current_dir(&dir),
+		);
+		let ran = Ran::from(out.clone());
+		assert!(
+			!matches!(out.status.code(), Some(124 | 137)),
+			"Hermes's {what} ran past 300 s:\n{}{}",
+			ran.stdout,
+			ran.stderr
+		);
+		ran
+	};
 	let script = |case: Option<&str>| -> Ran {
-		output(Command::new(&host).arg("bundle.js").args(case).current_dir(&dir)).into()
+		let mut args = vec!["bundle.js"];
+		args.extend(case);
+		hermes(&args, case.unwrap_or("transcript"))
 	};
 	let transcript = script(None);
 	assert!(transcript.ok, "Hermes's transcript failed:\n{}", transcript.stderr);
@@ -3234,7 +3255,7 @@ fn api_react_native_host() {
 	}
 	// A reload: the runtime destroyed with what the module holds of it, and the module
 	// installed again in a new one.
-	let reload: Ran = output(Command::new(&host).args(["--reload", "bundle.js"]).current_dir(&dir)).into();
+	let reload = hermes(&["--reload", "bundle.js"], "reload");
 	assert!(reload.ok, "Hermes's reload failed:\n{}", reload.stderr);
 	assert_eq!(
 		reload.stdout,
@@ -3631,7 +3652,7 @@ fn package_imports(ts: &str, package: &str) -> String {
 
 /// The cases React Native runs after its transcript: `tests/react-native.ts`'s own, and
 /// `tests/api.ts`'s but `grown`'s memory and a load's, which are WebAssembly's.
-const REACT_NATIVE_CASES: [&str; 15] = [
+const REACT_NATIVE_CASES: [&str; 17] = [
 	"typed",
 	"word",
 	"interleaved",
@@ -3639,6 +3660,8 @@ const REACT_NATIVE_CASES: [&str; 15] = [
 	"sliced",
 	"faked",
 	"written",
+	"refused",
+	"replaced",
 	"reinstalled",
 	"forged",
 	"futures",

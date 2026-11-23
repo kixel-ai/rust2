@@ -60,7 +60,7 @@ function clamp(v: number | undefined, missing: number, length: number): number {
 	return i < 0 ? Math.max(length + i, 0) : Math.min(i, length);
 }
 
-let bytesMade: (buffer: ArrayBuffer, lent: boolean) => Bytes;
+let bytesMade: (buffer: ArrayBuffer, lent: boolean, length: number) => Bytes;
 let bytesCopy: (b: object) => Uint8Array | undefined;
 
 /**
@@ -77,10 +77,13 @@ export class Bytes {
 	readonly #length: number;
 	readonly #lent: boolean;
 
-	private constructor(key: symbol, buffer: ArrayBuffer, lent: boolean) {
+	// Its length is the JSI module's, and its view `U8`'s, as a global `Uint8Array` or a
+	// `byteLength` getter a caller replaced would see Rust's buffer, and could keep it past
+	// its free.
+	private constructor(key: symbol, buffer: ArrayBuffer, lent: boolean, length: number) {
 		if (key !== Bytes.#minting) throw new TypeError("only Rust makes bytes it returned");
-		this.#view = new Uint8Array(buffer);
-		this.#length = buffer.byteLength;
+		this.#view = new U8(buffer);
+		this.#length = length;
 		this.#lent = lent;
 	}
 
@@ -136,7 +139,7 @@ export class Bytes {
 	// The key, whose initializer hands out the makers: not a static block, which React Native's
 	// Babel preset refuses.
 	static #minting = (() => {
-		bytesMade = (buffer, lent) => new Bytes(minting, buffer, lent);
+		bytesMade = (buffer, lent, length) => new Bytes(minting, buffer, lent, length);
 		bytesCopy = (b) => (#view in b && !b.#lent ? b.#open() : undefined);
 		return minting;
 	})();
@@ -247,7 +250,7 @@ const kit = {
 	RangeError,
 	TypeError,
 	Error,
-	bytes: (buffer: ArrayBuffer, lent: boolean) => bytesMade(buffer, lent),
+	bytes: (buffer: ArrayBuffer, lent: boolean, length: number) => bytesMade(buffer, lent, length),
 	bytesCopy: (v: unknown) => (typeof v === "object" && v !== null ? bytesCopy(v) : undefined),
 	opaqueMade,
 	opaqueBytes: (v: unknown) => {

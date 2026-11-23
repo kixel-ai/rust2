@@ -658,12 +658,12 @@ inline jsi::Value returned(jsi::Runtime &rt, c_buf buf) {
 		if (buf.owner != nullptr) {
 			c_buf_free(buf);
 		}
-		return W(rt).bytes.call(rt, ab, false);
+		return W(rt).bytes.call(rt, ab, false, static_cast<double>(buf.len));
 	}
 	auto state = ::std::make_shared<bytes_cell>(buf);
 	auto *ptr = const_cast<::std::uint8_t *>(buf.ptr);
 	jsi::ArrayBuffer ab(rt, ::std::make_shared<view>(ptr, buf.len, state));
-	jsi::Object b = obj(rt, W(rt).bytes.call(rt, ab, true), "Bytes");
+	jsi::Object b = obj(rt, W(rt).bytes.call(rt, ab, true, static_cast<double>(buf.len)), "Bytes");
 	b.setNativeState(rt, state);
 	return b;
 }
@@ -677,6 +677,8 @@ inline jsi::Value str(jsi::Runtime &rt, c_buf buf, bool own) {
 	return s;
 }
 
+struct remote;
+
 // What a call holds until it returns: copies of text, arrays it lowered, and the handles
 // and bytes it holds.
 struct frame {
@@ -686,11 +688,17 @@ struct frame {
 	::std::vector<::std::shared_ptr<cell>> held;
 	::std::vector<::std::shared_ptr<bytes_cell>> bytes;
 	::std::vector<::std::shared_ptr<cell>> lent;
+	// How to take back each value the call gives Rust, run if a later argument throws
+	// before Rust took them.
+	::std::vector<::std::function<void()>> staged;
 
 	explicit frame(jsi::Runtime &rt) : rt(rt) {}
 	frame(const frame &) = delete;
 	frame &operator=(const frame &) = delete;
 	~frame() {
+		for (auto u = staged.rbegin(); u != staged.rend(); ++u) {
+			(*u)();
+		}
 		for (auto &c : held) {
 			c->release(rt);
 		}
@@ -804,10 +812,24 @@ struct frame {
 	c_buf give(c_buf viewed) {
 		for (auto &b : bytes) {
 			if (viewed.ptr != nullptr && b->buf.ptr == viewed.ptr && b->buf.len == viewed.len) {
-				return c_buf_clone(b->buf);
+				c_buf owner = c_buf_clone(b->buf);
+				staged.emplace_back([owner] { c_buf_free(owner); });
+				return owner;
 			}
 		}
 		return viewed;
+	}
+
+	// A JavaScript value Rust keeps once the call is made.
+	remote *keep(const jsi::Value &v);
+	// The waker of the function `v`, which Rust drops once the call is made.
+	c_waker waker(const jsi::Value &v);
+	// The future of the promise `v`, which Rust frees once the call is made.
+	c_foreign_future future(const jsi::Value &v);
+
+	// Rust took what the call gave it: the call is made.
+	void passed() {
+		staged.clear();
 	}
 
 	// A copy of the bytes a typed array `v`, of the constructor `ctor`, views, held until the
@@ -1142,6 +1164,13 @@ inline c_waker give(node *n) {
 	return lend(n);
 }
 
+// A new reference to `n` for a posted job, released once the job is destroyed, whether it
+// ran or `post` discarded it with its runtime gone.
+inline ::std::shared_ptr<node> held(node *n) {
+	n->ref();
+	return ::std::shared_ptr<node>(n, [](node *n) { n->unref(); });
+}
+
 // A function JavaScript gave as a waker: each wake calls it on a microtask of its thread.
 struct js_waker final : node {
 	remote *f;
@@ -1151,14 +1180,12 @@ struct js_waker final : node {
 	}
 	void wake() override {
 		remote *f = this->f;
-		ref();
-		post(f->w, [this, f](jsi::Runtime &rt) {
+		post(f->w, [self = held(this), f](jsi::Runtime &rt) {
 			try {
 				f->v.getObject(rt).asFunction(rt).call(rt);
 			} catch (const jsi::JSError &e) {
 				fail(::std::string("a waker: a call into JavaScript threw ") + e.getStack());
 			}
-			unref();
 		});
 	}
 };
@@ -1201,8 +1228,9 @@ struct foreign {
 	bool done = false;
 	bool subscribed = false;
 	c_waker w{};
-	remote *promise;
-	explicit foreign(remote *promise) : promise(promise) {}
+	// The promise, and its `then` as the conversion read it.
+	remote *promise, *then;
+	foreign(remote *promise, remote *then) : promise(promise), then(then) {}
 
 	void settle(jsi::Runtime &rt) {
 		c_waker w{};
@@ -1269,7 +1297,7 @@ inline bool foreign_poll(void *data, c_waker w) {
 				    fail("a future given to Rust: it rejected with " + (n > 0 ? shown(rt, a[0]) : ::std::string("nothing")));
 			    });
 			jsi::Object p = self->promise->v.getObject(rt);
-			p.getPropertyAsFunction(rt, "then").callWithThis(rt, p, then, caught);
+			self->then->v.getObject(rt).asFunction(rt).callWithThis(rt, p, then, caught);
 		});
 	}
 	{
@@ -1291,20 +1319,51 @@ inline void foreign_free(void *data) {
 	if (w.drop != nullptr) {
 		w.drop(w.data);
 	}
-	remote *p = self->promise;
+	remote *p = self->promise, *t = self->then;
 	// A call into Rust given back is cancelled once Rust drops it.
-	post(p->w, [p](jsi::Runtime &rt) {
+	post(p->w, [p, t](jsi::Runtime &rt) {
 		W(rt).cancel_call.call(rt, jsi::Value(rt, p->v));
 		delete p;
+		delete t;
 	});
 }
 
+// A thenable whose `then` is a function, checked here rather than at Rust's first poll,
+// which runs later on a posted job.
 inline c_foreign_future future_of(jsi::Runtime &rt, const jsi::Value &v) {
-	if (!v.isObject() || !v.getObject(rt).hasProperty(rt, "then")) {
+	jsi::Value then = v.isObject() ? v.getObject(rt).getProperty(rt, "then") : jsi::Value::undefined();
+	if (!then.isObject() || !then.getObject(rt).isFunction(rt)) {
 		type(rt, shown(rt, v) + " is no Promise");
 	}
-	auto *f = new ::std::shared_ptr<foreign>(::std::make_shared<foreign>(new remote(rt, v)));
+	auto *f = new ::std::shared_ptr<foreign>(::std::make_shared<foreign>(new remote(rt, v), new remote(rt, then)));
 	return c_foreign_future{&foreign_poll, &foreign_free, f};
+}
+
+// Free `future` on the JavaScript thread before Rust took it, as a call whose later
+// argument threw never made it: nothing polled it, so nothing was subscribed or cancelled.
+inline void future_discard(c_foreign_future future) {
+	auto *f = static_cast<::std::shared_ptr<foreign> *>(future.data);
+	delete (*f)->promise;
+	delete (*f)->then;
+	delete f;
+}
+
+inline remote *frame::keep(const jsi::Value &v) {
+	auto *r = new remote(rt, v);
+	staged.emplace_back([r] { delete r; });
+	return r;
+}
+
+inline c_waker frame::waker(const jsi::Value &v) {
+	c_waker w = waker_of(rt, v);
+	staged.emplace_back([w] { w.drop(w.data); });
+	return w;
+}
+
+inline c_foreign_future frame::future(const jsi::Value &v) {
+	c_foreign_future fut = future_of(rt, v);
+	staged.emplace_back([fut] { future_discard(fut); });
+	return fut;
 }
 
 // A reader JavaScript lends Rust for a call, read from any thread.
@@ -1433,13 +1492,11 @@ struct pending final : node {
 		if (queued.exchange(true, ::std::memory_order_acq_rel)) {
 			return;
 		}
-		ref();
-		post(w, [this](jsi::Runtime &rt) {
+		post(w, [this, self = held(this)](jsi::Runtime &rt) {
 			queued.store(false, ::std::memory_order_release);
 			if (f != nullptr && !polling) {
 				step(rt);
 			}
-			unref();
 		});
 	}
 
@@ -1473,9 +1530,11 @@ struct pending final : node {
 		reject.reset();
 	}
 
+	// `f` is detached while this thread holds the runtime, so a `cancel` from a thread that
+	// takes it during the free finds it gone.
 	void finish(jsi::Runtime &rt) {
-		if (f != nullptr) {
-			unlocked(rt, [&] { free_(::std::exchange(f, nullptr)); });
+		if (void *g = ::std::exchange(f, nullptr)) {
+			unlocked(rt, [&] { free_(g); });
 		}
 	}
 

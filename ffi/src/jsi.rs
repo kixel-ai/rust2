@@ -769,14 +769,7 @@ impl<'a> Gen<'a> {
 				let lower = self.enum_lower(*i);
 				format!("{out} = {lower}(rt, {v});")
 			}
-			Type::Callback(i, _) => {
-				let vtable = self.vtable(*i);
-				let name = self.class(&abi.callback(*i));
-				format!(
-					"{out} = {{&{vtable}, new r::remote(rt, r::obj(rt, {v}, {}))}};",
-					lit(&name)
-				)
-			}
+			Type::Callback(i, _) => format!("{out} = {};", self.callback(*i, v, false)),
 			Type::Waker => format!("{out} = r::waker_of(rt, {v});"),
 			Type::Future => format!("{out} = r::future_of(rt, {v});"),
 			Type::Reader => format!("{out} = r::reader_of(f, {v});"),
@@ -792,6 +785,17 @@ impl<'a> Gen<'a> {
 				format!("{w}(rt, f, {v}, {out});")
 			}
 			other => unreachable!("{other:?} is never lowered"),
+		}
+	}
+
+	/// The C value of the implementation `v` of the trait `i`, staged in the call's frame
+	/// where `staged`.
+	fn callback(&mut self, i: usize, v: &str, staged: bool) -> String {
+		let vtable = self.vtable(i);
+		let check = format!("r::obj(rt, {v}, {})", lit(&self.class(&self.abi.callback(i))));
+		match staged {
+			true => format!("{{&{vtable}, f.keep({check})}}"),
+			false => format!("{{&{vtable}, new r::remote(rt, {check})}}"),
 		}
 	}
 
@@ -1070,11 +1074,12 @@ impl Gen<'_> {
 				(Type::Closure(closure), Ty::Fn(..)) => {
 					c_params.next().expect("a closure has its data");
 					let t = self.closure(&param.ty, closure);
-					let check = format!("r::obj(rt, {v}, \"function\")");
+					// Callable now, as Rust may call it only after the call returns.
+					let check = format!("r::function(rt, {v})");
 					call.args.push(t);
 					if closure.kept {
 						c_params.next().expect("a kept closure has its free");
-						call.gives.push(format!("void *{a} = new r::remote(rt, {check});"));
+						call.gives.push(format!("void *{a} = f.keep({check});"));
 						call.args.push(a);
 						call.args.push("&r::closure_free".to_string());
 					} else {
@@ -1087,13 +1092,19 @@ impl Gen<'_> {
 				(Type::Callback(..), c) | (Type::Box(_), c @ Ty::Struct(_))
 					if matches!(param.ty.base(), Type::Callback(..)) =>
 				{
-					call.gives.push(format!("{}{{}};", self.decl(c, &a)));
-					call.gives.push(self.lower(param.ty.base(), &v, &a, false));
+					let Type::Callback(i, _) = param.ty.base() else {
+						unreachable!("matched a callback")
+					};
+					let value = self.callback(*i, &v, true);
+					call.gives.push(format!("{} = {value};", self.decl(c, &a)));
 					call.args.push(a);
 				}
-				(Type::Waker | Type::Future, c) => {
-					call.gives.push(format!("{}{{}};", self.decl(c, &a)));
-					call.gives.push(self.lower(&param.ty, &v, &a, false));
+				(Type::Waker, c) => {
+					call.gives.push(format!("{} = f.waker({v});", self.decl(c, &a)));
+					call.args.push(a);
+				}
+				(Type::Future, c) => {
+					call.gives.push(format!("{} = f.future({v});", self.decl(c, &a)));
 					call.args.push(a);
 				}
 				(ty, c) => {
@@ -1118,7 +1129,12 @@ impl Gen<'_> {
 		let ok = strip_refs(&function.ok);
 		let err = function.err.as_ref().map(strip_refs);
 		let mut lines = std::mem::take(&mut call.lines);
-		lines.extend(std::mem::take(&mut call.gives));
+		// What the call gives Rust is staged in the frame until each argument is converted,
+		// then Rust's: nothing between here and the call throws.
+		if !call.gives.is_empty() {
+			lines.extend(std::mem::take(&mut call.gives));
+			lines.push("f.passed();".to_string());
+		}
 		let status = export.call.status().is_some();
 		if let Some(abi::Future {
 			handle,
@@ -1393,7 +1409,7 @@ impl Gen<'_> {
 		let args: Vec<String> = (closure.params.iter().enumerate())
 			.map(|(n, p)| self.incoming(p, &format!("p{n}")))
 			.collect();
-		lines.push(self.invoke_js("r::found(rt, data).asFunction(rt).call", &args));
+		lines.push(self.invoke_js("r::found(rt, data).asFunction(rt).call", None, &args));
 		let back = match &closure.err {
 			None => self.outgoing(&closure.ok, &c_ret, "v_"),
 			Some(err) => {
@@ -1420,15 +1436,16 @@ impl Gen<'_> {
 		name
 	}
 
-	/// Statements calling the JavaScript function `callee`, as `callee(rt, args, n)`, into
-	/// `v_`.
-	fn invoke_js(&self, callee: &str, args: &[String]) -> String {
+	/// Statements calling the JavaScript function `callee`, as `callee(rt, this, args, n)`
+	/// with `this` where it has one, into `v_`.
+	fn invoke_js(&self, callee: &str, this: Option<&str>, args: &[String]) -> String {
+		let this = this.map(|this| format!("{this}, ")).unwrap_or_default();
 		match args.is_empty() {
-			true => {
-				format!("jsi::Value v_ = {callee}(rt, static_cast<const jsi::Value *>(nullptr), ::std::size_t{{0}});")
-			}
+			true => format!(
+				"jsi::Value v_ = {callee}(rt, {this}static_cast<const jsi::Value *>(nullptr), ::std::size_t{{0}});"
+			),
 			false => format!(
-				"jsi::Value xs_[] = {{{}}};\njsi::Value v_ = {callee}(rt, static_cast<const jsi::Value *>(xs_), ::std::size_t{{{}}});",
+				"jsi::Value xs_[] = {{{}}};\njsi::Value v_ = {callee}(rt, {this}static_cast<const jsi::Value *>(xs_), ::std::size_t{{{}}});",
 				args.join(", "),
 				args.len()
 			),
@@ -1501,9 +1518,7 @@ impl Gen<'_> {
 				.map(|(n, p)| self.incoming(&p.ty, &format!("p{n}")))
 				.collect();
 			let callee = format!("self_.getPropertyAsFunction(rt, {}).callWithThis", lit(&member));
-			let call = self
-				.invoke_js(&callee, &args)
-				.replace("(rt, static_cast", "(rt, self_, static_cast");
+			let call = self.invoke_js(&callee, Some("self_"), &args);
 			lines.push(call);
 			lines.push(self.outgoing(&method.ok, &ret, "v_"));
 			let proto = format!("{} {m}({})", self.decl(&ret, ""), decls.join(", "));
