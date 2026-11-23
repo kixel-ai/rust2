@@ -8,6 +8,7 @@
 #define NAPI_VERSION 9
 #include <node_api.h>
 #include <pthread.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
