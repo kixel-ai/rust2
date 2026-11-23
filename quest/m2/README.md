@@ -4,7 +4,7 @@
 
 Research work with a named consumer that is not waiting on it yet: rust2-wasm, moq's
 browser route, and the TypeScript translator that has to beat it. crabx's quests moved
-with it to [kixel-ai/crabx](https://github.com/kixel-ai/crabx).
+to [kixel-ai/crabx](https://github.com/kixel-ai/crabx).
 
 ## Plan
 
