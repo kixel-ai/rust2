@@ -3,6 +3,7 @@
 // past 32 bits, futures as promises, what JavaScript implements for Rust, and the web APIs
 // that stand in for what the module's std imports.
 
+// #region shared
 // `Symbol.dispose` where the engine lacks it, as stable Safari does: the registry's symbol,
 // which esbuild's `using` helper falls back to too, though TypeScript's throws without one.
 // It runs before any class below keys a method on it.
@@ -107,16 +108,6 @@ export function opaqueMade(bytes: Uint8Array): Opaque {
 	return made(bytes);
 }
 
-/**
- * Copy an opaque value's bytes into memory at `p`, throwing unless it is one Rust made, of
- * `n` bytes. It returns nothing, so the bytes never reach a caller to change.
- */
-export function opaquePut(v: Opaque, n: number, p: number): void {
-	const bytes = bytesOf(v);
-	if (bytes === undefined || bytes.length !== n) throw new RangeError("a value Rust made is no other's");
-	mem().set(bytes, p);
-}
-
 /** Rust's `Duration`: whole seconds, and the nanoseconds below one. */
 export type Duration = { readonly secs: u64; readonly nanos: number };
 
@@ -186,6 +177,17 @@ export class Cancelled extends Error {
 
 /** A waker Rust returned: `wake` wakes its task through Rust, and disposing it drops it. */
 export type Waker = { wake(): void; [Symbol.dispose](): void };
+// #endregion shared
+
+/**
+ * Copy an opaque value's bytes into memory at `p`, throwing unless it is one Rust made, of
+ * `n` bytes. It returns nothing, so the bytes never reach a caller to change.
+ */
+export function opaquePut(v: Opaque, n: number, p: number): void {
+	const bytes = bytesOf(v);
+	if (bytes === undefined || bytes.length !== n) throw new RangeError("a value Rust made is no other's");
+	mem().set(bytes, p);
+}
 
 /** The module's exports, which generated code calls by their C names. */
 type Exports = Record<string, any>;
@@ -525,6 +527,7 @@ export function lentHandle<T extends string>(p: number, k: Kind): Handle<T> {
 	return new Handle<T>(p, k, false);
 }
 
+// #region shared
 // Integers.
 
 const TWO32 = 4294967296;
@@ -543,6 +546,126 @@ export function nonZero<T extends number | u64 | i64>(v: T): T {
 	if (v === 0) throw new RangeError("a NonZero is zero");
 	return v;
 }
+
+/** An `f32` as a number: a NaN of its own bits as `NaN`, which loses them. */
+export function f32Number(v: f32): number {
+	return typeof v === "number" ? v : NaN;
+}
+
+/** An `f64` as a number: a NaN of its own bits as `NaN`, which loses them. */
+export function f64Number(v: f64): number {
+	return typeof v === "number" ? v : NaN;
+}
+
+/** A `char`: a Unicode scalar value. */
+export function char(v: number): number {
+	if (Number.isInteger(v) && v >= 0 && v <= 0x10ffff && (v < 0xd800 || v > 0xdfff)) return v;
+	throw new RangeError(`${v} is no char`);
+}
+
+/** The `u64` of its halves, each a uint32. */
+export function u64Of(hi: number, lo: number): u64 {
+	return hi < 0x200000 ? hi * TWO32 + lo : ({ hi, lo } as U64Limbs);
+}
+
+/** The `i64` of its halves, `hi` an int32 and `lo` a uint32. */
+export function i64Of(hi: number, lo: number): i64 {
+	if (hi >= -0x200000 && hi < 0x200000) {
+		const v = hi * TWO32 + lo;
+		if (Number.isSafeInteger(v)) return v;
+	}
+	return { hi, lo } as I64Limbs;
+}
+
+/** A `u64`'s halves, `[hi, lo]`, each a uint32: one out of range throws. */
+export function u64Halves(v: u64): [number, number] {
+	if (typeof v === "number") {
+		if (!Number.isSafeInteger(v) || v < 0) throw new RangeError(`${v} is no u64`);
+		return [Math.floor(v / TWO32), v % TWO32];
+	}
+	if (!(v.hi >= 0x200000 && v.hi <= 0xffffffff && Number.isInteger(v.hi) && v.lo >>> 0 === v.lo)) {
+		throw new RangeError(`${JSON.stringify(v)} is no u64 in its one form`);
+	}
+	return [v.hi, v.lo];
+}
+
+/** An `i64`'s halves, `[hi, lo]`, `hi` an int32 and `lo` a uint32: one out of range throws. */
+export function i64Halves(v: i64): [number, number] {
+	if (typeof v === "number") {
+		if (!Number.isSafeInteger(v)) throw new RangeError(`${v} is no i64`);
+		const hi = Math.floor(v / TWO32);
+		return [hi | 0, v - hi * TWO32];
+	}
+	const safe = v.hi >= -0x200000 && v.hi < 0x200000 && Number.isSafeInteger(v.hi * TWO32 + v.lo);
+	if (safe || v.hi !== (v.hi | 0) || v.lo >>> 0 !== v.lo) {
+		throw new RangeError(`${JSON.stringify(v)} is no i64 in its one form`);
+	}
+	return [v.hi, v.lo];
+}
+
+/** A `u64` as the `bigint` a wasm `i64` takes. */
+export function u64Big(v: u64): bigint {
+	if (typeof v === "number" && Number.isSafeInteger(v) && v >= 0) return BigInt(v);
+	const [hi, lo] = u64Halves(v);
+	return BigInt.asIntN(64, (BigInt(hi) << 32n) | BigInt(lo));
+}
+
+/** An `i64` as the `bigint` a wasm `i64` takes. */
+export function i64Big(v: i64): bigint {
+	if (typeof v === "number" && Number.isSafeInteger(v)) return BigInt(v);
+	const [hi, lo] = i64Halves(v);
+	return (BigInt(hi) << 32n) | BigInt(lo);
+}
+
+/** The `u64` of what a wasm `i64` returned. */
+export function u64OfBig(v: bigint): u64 {
+	const u = BigInt.asUintN(64, v);
+	return u <= 0x1fffffffffffffn ? Number(u) : u64Of(Number(u >> 32n), Number(u & 0xffffffffn));
+}
+
+/** The `i64` of what a wasm `i64` returned. */
+export function i64OfBig(v: bigint): i64 {
+	return v >= -0x1fffffffffffffn && v <= 0x1fffffffffffffn
+		? Number(v)
+		: i64Of(Number(v >> 32n), Number(BigInt.asUintN(32, v)));
+}
+
+/** A `u64` as a `bigint`, for printing or arithmetic. */
+export function u64ToBig(v: u64): bigint {
+	return BigInt.asUintN(64, u64Big(v));
+}
+
+/** An `i64` as a `bigint`. */
+export function i64ToBig(v: i64): bigint {
+	return i64Big(v);
+}
+
+/** A `u128` as a `bigint`. */
+export function u128ToBig(v: u128): bigint {
+	if (typeof v === "number") return BigInt(v);
+	return (BigInt(v.hi) << 96n) | (BigInt(v.w2) << 64n) | (BigInt(v.w1) << 32n) | BigInt(v.lo);
+}
+
+/** The `u64` of a `bigint`, which throws outside its range. */
+export function u64FromBig(v: bigint): u64 {
+	if (v < 0n || v > 0xffffffffffffffffn) throw new RangeError(`${v} is no u64`);
+	return u64OfBig(v);
+}
+
+/** The `i64` of a `bigint`, which throws outside its range. */
+export function i64FromBig(v: bigint): i64 {
+	if (v < -0x8000000000000000n || v > 0x7fffffffffffffffn) throw new RangeError(`${v} is no i64`);
+	return i64OfBig(v);
+}
+
+/** The `u128` of a `bigint`, which throws outside its range. */
+export function u128FromBig(v: bigint): u128 {
+	if (v < 0n || v >> 128n !== 0n) throw new RangeError(`${v} is no u128`);
+	if (v <= 0x1fffffffffffffn) return Number(v);
+	const word = (n: bigint) => Number(BigInt.asUintN(32, v >> n));
+	return { hi: word(96n), w2: word(64n), w1: word(32n), lo: word(0n) } as U128Limbs;
+}
+// #endregion shared
 
 /** The `f32` at `p`: a NaN by its bits, which no number read through a float keeps. */
 export function f32Get(p: number): f32 {
@@ -602,62 +725,6 @@ export function f64Put(p: number, v: f64): void {
 	d.setUint32(p + 4, hi, true);
 }
 
-/** An `f32` as a number: a NaN of its own bits as `NaN`, which loses them. */
-export function f32Number(v: f32): number {
-	return typeof v === "number" ? v : NaN;
-}
-
-/** An `f64` as a number: a NaN of its own bits as `NaN`, which loses them. */
-export function f64Number(v: f64): number {
-	return typeof v === "number" ? v : NaN;
-}
-
-/** A `char`: a Unicode scalar value. */
-export function char(v: number): number {
-	if (Number.isInteger(v) && v >= 0 && v <= 0x10ffff && (v < 0xd800 || v > 0xdfff)) return v;
-	throw new RangeError(`${v} is no char`);
-}
-
-/** The `u64` of its halves, each a uint32. */
-export function u64Of(hi: number, lo: number): u64 {
-	return hi < 0x200000 ? hi * TWO32 + lo : ({ hi, lo } as U64Limbs);
-}
-
-/** The `i64` of its halves, `hi` an int32 and `lo` a uint32. */
-export function i64Of(hi: number, lo: number): i64 {
-	if (hi >= -0x200000 && hi < 0x200000) {
-		const v = hi * TWO32 + lo;
-		if (Number.isSafeInteger(v)) return v;
-	}
-	return { hi, lo } as I64Limbs;
-}
-
-/** A `u64`'s halves, `[hi, lo]`, each a uint32: one out of range throws. */
-export function u64Halves(v: u64): [number, number] {
-	if (typeof v === "number") {
-		if (!Number.isSafeInteger(v) || v < 0) throw new RangeError(`${v} is no u64`);
-		return [Math.floor(v / TWO32), v % TWO32];
-	}
-	if (!(v.hi >= 0x200000 && v.hi <= 0xffffffff && Number.isInteger(v.hi) && v.lo >>> 0 === v.lo)) {
-		throw new RangeError(`${JSON.stringify(v)} is no u64 in its one form`);
-	}
-	return [v.hi, v.lo];
-}
-
-/** An `i64`'s halves, `[hi, lo]`, `hi` an int32 and `lo` a uint32: one out of range throws. */
-export function i64Halves(v: i64): [number, number] {
-	if (typeof v === "number") {
-		if (!Number.isSafeInteger(v)) throw new RangeError(`${v} is no i64`);
-		const hi = Math.floor(v / TWO32);
-		return [hi | 0, v - hi * TWO32];
-	}
-	const safe = v.hi >= -0x200000 && v.hi < 0x200000 && Number.isSafeInteger(v.hi * TWO32 + v.lo);
-	if (safe || v.hi !== (v.hi | 0) || v.lo >>> 0 !== v.lo) {
-		throw new RangeError(`${JSON.stringify(v)} is no i64 in its one form`);
-	}
-	return [v.hi, v.lo];
-}
-
 /** The `u64` at `p`. */
 export function u64Get(p: number): u64 {
 	const d = dv();
@@ -686,33 +753,6 @@ export function i64Put(p: number, v: i64): void {
 	d.setInt32(p + 4, hi, true);
 }
 
-/** A `u64` as the `bigint` a wasm `i64` takes. */
-export function u64Big(v: u64): bigint {
-	if (typeof v === "number" && Number.isSafeInteger(v) && v >= 0) return BigInt(v);
-	const [hi, lo] = u64Halves(v);
-	return BigInt.asIntN(64, (BigInt(hi) << 32n) | BigInt(lo));
-}
-
-/** An `i64` as the `bigint` a wasm `i64` takes. */
-export function i64Big(v: i64): bigint {
-	if (typeof v === "number" && Number.isSafeInteger(v)) return BigInt(v);
-	const [hi, lo] = i64Halves(v);
-	return (BigInt(hi) << 32n) | BigInt(lo);
-}
-
-/** The `u64` of what a wasm `i64` returned. */
-export function u64OfBig(v: bigint): u64 {
-	const u = BigInt.asUintN(64, v);
-	return u <= 0x1fffffffffffffn ? Number(u) : u64Of(Number(u >> 32n), Number(u & 0xffffffffn));
-}
-
-/** The `i64` of what a wasm `i64` returned. */
-export function i64OfBig(v: bigint): i64 {
-	return v >= -0x1fffffffffffffn && v <= 0x1fffffffffffffn
-		? Number(v)
-		: i64Of(Number(v >> 32n), Number(BigInt.asUintN(32, v)));
-}
-
 /** The `u128` at `p`, as its low then high 64 bits. */
 export function u128Get(p: number): u128 {
 	const d = dv();
@@ -739,42 +779,7 @@ export function u128Put(p: number, v: u128): void {
 	for (let i = 0; i < 4; i++) d.setUint32(p + 4 * i, words[i], true);
 }
 
-/** A `u64` as a `bigint`, for printing or arithmetic. */
-export function u64ToBig(v: u64): bigint {
-	return BigInt.asUintN(64, u64Big(v));
-}
-
-/** An `i64` as a `bigint`. */
-export function i64ToBig(v: i64): bigint {
-	return i64Big(v);
-}
-
-/** A `u128` as a `bigint`. */
-export function u128ToBig(v: u128): bigint {
-	if (typeof v === "number") return BigInt(v);
-	return (BigInt(v.hi) << 96n) | (BigInt(v.w2) << 64n) | (BigInt(v.w1) << 32n) | BigInt(v.lo);
-}
-
-/** The `u64` of a `bigint`, which throws outside its range. */
-export function u64FromBig(v: bigint): u64 {
-	if (v < 0n || v > 0xffffffffffffffffn) throw new RangeError(`${v} is no u64`);
-	return u64OfBig(v);
-}
-
-/** The `i64` of a `bigint`, which throws outside its range. */
-export function i64FromBig(v: bigint): i64 {
-	if (v < -0x8000000000000000n || v > 0x7fffffffffffffffn) throw new RangeError(`${v} is no i64`);
-	return i64OfBig(v);
-}
-
-/** The `u128` of a `bigint`, which throws outside its range. */
-export function u128FromBig(v: bigint): u128 {
-	if (v < 0n || v >> 128n !== 0n) throw new RangeError(`${v} is no u128`);
-	if (v <= 0x1fffffffffffffn) return Number(v);
-	const word = (n: bigint) => Number(BigInt.asUintN(32, v >> n));
-	return { hi: word(96n), w2: word(64n), w1: word(32n), lo: word(0n) } as U128Limbs;
-}
-
+// #region shared
 // Text and bytes.
 
 const encoder = new TextEncoder();
@@ -787,6 +792,7 @@ export function encoded(text: string): Uint8Array {
 	if (!text.isWellFormed()) throw new RangeError("a string holds a lone surrogate, which no Rust string does");
 	return encoder.encode(text);
 }
+// #endregion shared
 
 /** Write a view of `text`'s UTF-8 on the stack into the buffer at `dst`. */
 export function putStr(dst: number, text: string): void {
@@ -1533,6 +1539,7 @@ export function failed<T>(error: unknown): Call<T> {
 	return promise;
 }
 
+// #region shared
 /** A stream's items, as `for await` takes them, by a name no export's can hide. */
 export type Stream<T> = AsyncIterableIterator<T>;
 
@@ -1616,6 +1623,7 @@ class Values<T> implements AsyncIterableIterator<T> {
 		return this;
 	}
 }
+// #endregion shared
 
 // The module, and the web APIs its std imports.
 
