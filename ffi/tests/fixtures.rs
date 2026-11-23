@@ -5790,11 +5790,8 @@ fn channel() {
 
 /// A stable rustc from PATH, as the repository's root resolves it: the dev shell puts the
 /// root's stable toolchain on PATH behind the exporter's nightly, and rustup picks it from
-/// the root's `rust-toolchain.toml` unless the environment names another.
-///
-/// That root is 1.100 for crabx's binstalk, so in the dev shell these checks prove the glue
-/// on 1.100 rather than moq's 1.98.1, until crabx moves to kixel-ai/crabx and the root
-/// returns to 1.98.1. Elsewhere, a standalone stable rustc earlier on PATH wins instead.
+/// the root's `rust-toolchain.toml` unless the environment names another. Elsewhere, a
+/// standalone stable rustc earlier on PATH wins instead.
 fn stable_rustc() -> PathBuf {
 	let root = manifest_dir().parent().unwrap().to_path_buf();
 	let path = std::env::var_os("PATH").unwrap_or_default();

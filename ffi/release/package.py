@@ -38,7 +38,7 @@ ROOT = HERE.parents[1]
 sys.path.insert(0, str(HERE))
 import backend  # noqa: E402
 from backend import seal, write_zip  # noqa: E402,F401
-# The wheel's Linux floor: glibc 2.28 (RHEL 8, Debian 10), crabx's, and moq's manylinux_2_28.
+# The wheel's Linux floor: glibc 2.28 (RHEL 8, Debian 10), moq's manylinux_2_28.
 GLIBC = "2.28"
 # The macOS a wheel loads on: the oldest Rust's aarch64-apple-darwin target supports.
 MACOS_WHEEL = "11.0"
