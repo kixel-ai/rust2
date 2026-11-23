@@ -381,6 +381,9 @@ pub(crate) struct Output {
 	/// Directories the export owns, where an earlier export may have written files for
 	/// crates or packages this one has not.
 	stale: Vec<PathBuf>,
+	/// Directories inside those that the export never writes and leaves as they are: React
+	/// Native's `libs/`, which the app builds its Rust libraries into.
+	spared: Vec<PathBuf>,
 }
 
 impl Output {
@@ -415,7 +418,7 @@ impl Output {
 				Ok(meta) if meta.is_symlink() => {
 					std::fs::remove_file(dir).map_err(|err| format!("removing {}: {err}", dir.display()))?
 				}
-				Ok(_) => prune(dir, &files)?,
+				Ok(_) => prune(dir, &files, &self.spared)?,
 				Err(err) if err.kind() == std::io::ErrorKind::NotFound => {}
 				Err(err) => return Err(format!("reading {}: {err}", dir.display())),
 			}
@@ -428,7 +431,7 @@ impl Output {
 }
 
 /// Remove what `dir` holds that is not one of `keep`, and each directory that leaves empty.
-fn prune(dir: &Path, keep: &HashSet<&Path>) -> Result<(), String> {
+fn prune(dir: &Path, keep: &HashSet<&Path>, spared: &[PathBuf]) -> Result<(), String> {
 	let entries = std::fs::read_dir(dir).map_err(|err| format!("reading {}: {err}", dir.display()))?;
 	for entry in entries {
 		let entry = entry.map_err(|err| format!("reading {}: {err}", dir.display()))?;
@@ -437,7 +440,9 @@ fn prune(dir: &Path, keep: &HashSet<&Path>) -> Result<(), String> {
 			.file_type()
 			.map_err(|err| format!("reading {}: {err}", path.display()))?;
 		if kind.is_dir() {
-			prune(&path, keep)?;
+			if !spared.contains(&path) {
+				prune(&path, keep, spared)?;
+			}
 		} else if !keep.contains(path.as_path()) {
 			std::fs::remove_file(&path).map_err(|err| format!("removing {}: {err}", path.display()))?;
 		}
@@ -616,6 +621,15 @@ impl Crate<'_> {
 		let dart = crate::dart::generate(&rest, &self.packages(), contract)?;
 		let csharp = crate::csharp::generate(&rest, &self.packages(), contract)?;
 		let web = crate::web::generate(&rest, self.facade, contract)?;
+		let react_native = crate::web::react_native(&rest, self.facade, contract)?;
+		let jsi = match &react_native {
+			Some(_) => Some(crate::jsi::generate(
+				&rest,
+				&self.packages(),
+				crate::web::native_mask(&rest),
+			)?),
+			None => None,
+		};
 		let mut names: std::collections::BTreeMap<String, std::collections::BTreeMap<String, String>> = [
 			("C", c),
 			("C++", cpp.names),
@@ -632,6 +646,9 @@ impl Crate<'_> {
 		if let Some(web) = &web {
 			names.insert("TypeScript".to_string(), web.names.clone());
 		}
+		if let Some(react_native) = &react_native {
+			names.insert("React Native".to_string(), react_native.names.clone());
+		}
 		let mut output = Output {
 			names,
 			files: Vec::new(),
@@ -640,7 +657,9 @@ impl Crate<'_> {
 				out.join("go"),
 				out.join("web"),
 				out.join("src").join("web"),
+				out.join("react-native"),
 			],
+			spared: vec![out.join("react-native").join("libs")],
 		};
 		let mut generator = Gen {
 			abi: self.abi,
@@ -709,6 +728,17 @@ impl Crate<'_> {
 			for (path, text) in &web.files {
 				output.file(&out.join("web").join(path), text);
 			}
+		}
+		if let (Some(react_native), Some(jsi)) = (react_native, jsi) {
+			let dir = out.join("react-native");
+			for (path, text) in &react_native.files {
+				output.file(&dir.join(path), text);
+			}
+			for (path, text) in &jsi {
+				output.file(&dir.join(path), text);
+			}
+			// The C header the module calls, which the package's native builds include.
+			output.file(&dir.join("include").join(format!("{}.h", self.abi.prefix)), &header);
 		}
 		let swift_dir = out.join("swift");
 		output.file(&swift_dir.join(format!("{}.swift", self.abi.prefix)), &swift.swift);
@@ -3634,6 +3664,7 @@ fn go_module_resolves_missing_parent() {
 		names: Default::default(),
 		files: vec![],
 		stale: vec![output.join("go")],
+		spared: vec![],
 	};
 	assert!(generated.check_baseline(&baseline).is_ok());
 	assert!(!root.join("new").exists());
@@ -3690,6 +3721,7 @@ fn rewrite_keeps_unchanged_files() {
 			.map(|(path, text)| (root.join(path), text.to_string()))
 			.collect(),
 		stale: vec![go.clone()],
+		spared: vec![],
 	};
 	let first = [
 		("Cargo.toml", "a"),
