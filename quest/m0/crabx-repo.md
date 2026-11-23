@@ -27,7 +27,8 @@ Recommendations, the maintainer's to change in review:
   the installers. rust2's `.github/crabx/` becomes `pipeline/`. Its quests become the new
   repository's quest tree: the epic README's Goal and decisions go to its root README,
   first publish goes to its m0, and [the GitHub App](/quest/m3/crabx-app.md) goes to a
-  later milestone. Nothing in rust2 is waiting on them.
+  later milestone. Nothing in rust2 is waiting on them. The moved first publish drops its
+  `Required` entry and its Plan's link to this quest, which stays in rust2.
 - The history is `git filter-repo` over every path crabx has had: `crabx/`,
   `.github/crabx/`, the `crabx*.yml`, `installers.yml`, and `release.yml` workflows,
   `quest/m2/crabx/`, and `quest/m3/crabx-app.md`, renamed to the new layout. Rewrite bare
@@ -45,8 +46,8 @@ Recommendations, the maintainer's to change in review:
   signer (`src/trust.rs`), `release.py`'s `REPO`, the installers' download URLs,
   `Cargo.toml`'s `repository`, the pipeline's User-Agent and caller check, and the tests
   that pin them.
-- The trust check accepts only `kixel-ai/crabx`'s pipeline as a signer, no longer
-  rust2's. No other repository calls rust2's pipeline (a GitHub code search finds only
+- The trust check's pipeline signer becomes `kixel-ai/crabx`'s, no longer rust2's; it
+  still accepts the expected repository's own workflows too. No other repository calls rust2's pipeline (a GitHub code search finds only
   rust2), and no crabx release was ever attested. Leave rust2's `pipeline-v1.0.0` tag in
   place: nothing calls it, and deleting it gains nothing.
 - The new repository gets the `github-pages`, `crates-io`, and `npm` environments, which
@@ -75,8 +76,10 @@ Validation:
   `kixel-ai/crabx`.
 - The pipeline's fixture dispatch passes the `gh attestation verify` above.
 - crabx's trust test accepts the crabx signer and refuses rust2's.
-- In rust2's dev shell, `rustc -V` prints 1.98.1, the `channel_stable` fixture runs on it,
-  and `git grep -i crabx` finds only the quest tree's pointer.
+- In rust2's dev shell, the stable rustc that `stable_rustc()` in `ffi/tests/fixtures.rs`
+  selects prints 1.98.1, and the `channel_stable` fixture runs on it.
+- In rust2, `git grep -il crabx` lists only `ffi/release/README.md` and the three quest
+  READMEs' pointers.
 
 ## Waiting
 
