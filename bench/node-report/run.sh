@@ -18,9 +18,11 @@ cp "$here"/*.ts "$dir/"
 wasm=ffi/target/export/moq-web/target/wasm32-wasip1/release/moq.wasm
 : > "$dir/rounds.tsv"
 for round in $(seq "$rounds"); do
-	for route in wasm nf napi; do
+	for route in wasm wasm-tf nf napi; do
 		case $route in
 			wasm) "$node" --no-warnings ffi/target/bench-ts/export.ts "$wasm" > "$dir/run.tsv" ;;
+			# The module compiled by TurboFan up front, so no case runs before its tier-up.
+			wasm-tf) "$node" --no-warnings --no-liftoff ffi/target/bench-ts/export.ts "$wasm" > "$dir/run.tsv" ;;
 			*) "$node" --no-warnings "$dir/node.ts" "$route" "$dir" > "$dir/run.tsv" ;;
 		esac
 		load=$(cut -d' ' -f1 /proc/loadavg)

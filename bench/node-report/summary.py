@@ -12,7 +12,7 @@ for line in open(sys.argv[1]):
     cells[case, route].append(float(wall))
     loads.append(float(load))
 cases = list(dict.fromkeys(case for case, _ in cells))
-routes = ["wasm", "nf", "napi"]
+routes = ["wasm", "wasm-tf", "nf", "napi"]
 print(f"{len(cells[cases[0], routes[0]])} rounds, load {min(loads):.1f} to {max(loads):.1f}")
 print("| case | " + " | ".join(routes) + " |")
 print("|---" * (len(routes) + 1) + "|")
