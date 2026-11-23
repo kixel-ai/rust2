@@ -1793,6 +1793,7 @@ const val FAR: Long
 const val EOF: Int
 const val URL: ULong
 @kotlin.Deprecated("pass a step to `Dial::turn`, whose `}` or `{` alone stays in the note") const val STEP: ULong
+const val WORD: ULong
 fun hasText(note: api.Note): kotlin.Boolean
 fun marked(apiMarked: api.Mark): kotlin.ULong
 @kotlin.jvm.JvmName("reading") fun reading(n: kotlin.UInt): api.Reading?

@@ -32,10 +32,11 @@ LANGS = [
 	("ts-node", "TS (Node)"),
 	("ts-chromium", "TS (Chromium)"),
 	("ts-firefox", "TS (Firefox)"),
+	("react-native", "React Native (Hermes)"),
 ]
 
 # The TypeScript programs, which run Rust on one JavaScript thread.
-TS = ["ts-node", "ts-chromium", "ts-firefox"]
+TS = ["ts-node", "ts-chromium", "ts-firefox", "react-native"]
 
 CALLS = [
 	("call", "`track.is_closed()`, a handle call"),
@@ -78,20 +79,35 @@ SIZES = [100, 1024, 16384, 65536, 1048576]
 LABELS = {16: "16 B", 64: "64 B", 100: "100 B", 256: "256 B", 1024: "1 KiB", 4096: "4 KiB", 16384: "16 KiB"}
 LABELS |= {65536: "64 KiB", 262144: "256 KiB", 1048576: "1 MiB"}
 
-# Each binding's generated files, and its Rust glue in the export's crate, under the export.
+def typescript(path):
+	"""A TypeScript module the web binding writes, not its JavaScript or declarations."""
+	return path.endswith(".ts") and not path.endswith(".d.ts")
+
+
+def written(path):
+	"""A file of React Native's package its generator writes, not the JavaScript and
+	declarations of its TypeScript, which the web's leave out too, or the copy of the C
+	header its native builds include, which C's row counts."""
+	return not (path.endswith(".js") or path.endswith(".d.ts") or "/react-native/include/" in path)
+
+
+# Each binding's generated files, which of them it counts, and its Rust glue in the
+# export's crate, under the export.
 BINDINGS = [
-	("C", ["include/moq.h"], ["src/lib.rs", "src/rt.rs"]),
-	("C++", ["include/moq.hpp", "include/moq"], []),
-	("Kotlin", ["kotlin/moq.kt", "kotlin/moq.pro"], ["src/jni"]),
-	("Python", ["python/moq.py"], ["src/python"]),
-	("Swift", ["swift"], []),
-	("Go", ["go"], []),
-	("Dart", ["dart/lib/moq.dart"], ["src/dart"]),
-	("C#", ["csharp/moq.cs"], []),
+	("C", ["include/moq.h"], None, ["src/lib.rs", "src/rt.rs"]),
+	("C++", ["include/moq.hpp", "include/moq"], None, []),
+	("Kotlin", ["kotlin/moq.kt", "kotlin/moq.pro"], None, ["src/jni"]),
+	("Python", ["python/moq.py"], None, ["src/python"]),
+	("Swift", ["swift"], None, []),
+	("Go", ["go"], None, []),
+	("Dart", ["dart/lib/moq.dart"], None, ["src/dart"]),
+	("C#", ["csharp/moq.cs"], None, []),
+	# Its TypeScript and JSI module, and the TurboModule's package around them.
+	("React Native", ["react-native"], written, []),
 ]
 
 # The TypeScript, under the wasm32 stand-in's export, and the glue its module builds with.
-WEB_BINDING = ("TypeScript", ["web"], ["src/lib.rs", "src/rt.rs", "src/web"])
+WEB_BINDING = ("TypeScript", ["web"], typescript, ["src/lib.rs", "src/rt.rs", "src/web"])
 
 # Brotli at its densest, as a host precompresses what it serves; Python's standard library
 # lacks it, so Node's.
@@ -106,7 +122,7 @@ WASM = ("`moq.wasm`, the wasm32 stand-in's module, with the web glue", "target/w
 SHARED = "dylib" if sys.platform == "darwin" else "so"
 
 LIBRARIES = [
-	("`libmoq.a`, the C ABI that C, C++, Swift, and Go link", "target/release/libmoq.a"),
+	("`libmoq.a`, the C ABI that C, C++, Swift, Go, and React Native link", "target/release/libmoq.a"),
 	(f"`libmoq.{SHARED}`, with the Kotlin and Dart glue", f"target/release/libmoq.{SHARED}"),
 	(f"`python/libmoq.{SHARED}`, the CPython extension", f"python/libmoq.{SHARED}"),
 ]
@@ -137,11 +153,6 @@ def size(paths):
 		raw += len(data)
 		zipped += len(gzip.compress(data, compresslevel=6, mtime=0))
 	return raw, zipped
-
-
-def typescript(path):
-	"""A TypeScript module the web binding writes, not its JavaScript or declarations."""
-	return path.endswith(".ts") and not path.endswith(".d.ts")
 
 
 def compressed(data):
@@ -275,8 +286,8 @@ def main(raw_path, build_path=None, export=None, web=None, caller=None):
 
 	print("### Size\n")
 	rows = []
-	for root, (name, generated, glue) in [(export, b) for b in BINDINGS] + [(web, WEB_BINDING)]:
-		ours = [p for p in files(root, generated) if root != web or typescript(p)]
+	for root, (name, generated, counted, glue) in [(export, b) for b in BINDINGS] + [(web, WEB_BINDING)]:
+		ours = [p for p in files(root, generated) if counted is None or counted(p)]
 		raw, zipped = size(ours)
 		glue_raw, glue_zipped = size(files(root, glue))
 		count = len(ours)

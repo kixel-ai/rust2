@@ -66,9 +66,11 @@ over the C ABI through cgo, `dart/` holds it as a Dart package, `lib/<prefix>.da
 the C ABI through `dart:ffi` and what the crate builds with `--features dart`, and
 `csharp/<prefix>.cs` holds it in C#, over the C ABI. When `wasm32-wasip1` is among
 the targets, `web/` holds it in TypeScript for the web, ES modules over the `.wasm` the
-crate builds with `--target wasm32-wasip1 --features web`.
+crate builds with `--target wasm32-wasip1 --features web`. When any other target is,
+`react-native/` holds it for React Native, the web's TypeScript over a JSI module in C++.
 An export again rewrites only the files whose content changed, and removes from
-`include/<prefix>/`, `go/`, and `web/` only what it no longer writes, so a build of an unchanged
+`include/<prefix>/`, `go/`, `web/`, and `react-native/` but its `libs/`, which the app builds
+into, only what it no longer writes, so a build of an unchanged
 export stays fresh. The crate's version, `0.0.0+<hash>`, hashes its Rust sources and
 manifest, so exports that differ build apart in a target directory they share.
 
@@ -1887,14 +1889,59 @@ packs the api fixture's with npm, installs it into a project of its own, type-ch
 - **Threads**: none. wasm32 runs Rust on JavaScript's one thread, with no shared memory and
   no atomics, so no check of a value that is not `Send` or `Sync` can fail.
 
+## React Native
+
+`react-native/` is an npm package of the web's TypeScript API over a JSI module, so one
+application's code calls either: each function forwards to a host function of
+`cpp/<prefix>_jsi.cpp`, which converts JavaScript's values to the C header's, calls the C
+function, and converts what it returns, with the web binding's checks and errors, and no
+bridge serialization. It serves every target but wasm32's, whose Hermes runs no
+WebAssembly ([facebook/hermes#429](https://github.com/facebook/hermes/issues/429)). The
+module calls the C ABI rather than the C++ header, since JSI's conversions already do what
+the header's wrappers would, and it needs only `jsi.h`.
+
+- **The package** is a pure C++ TurboModule, `Rust2<Prefix>`, of the codegen spec in
+  `specs/`, which `package.json`'s `codegenConfig` names: Android's autolinking builds it
+  from `android/CMakeLists.txt`, which `react-native.config.cjs` names, with
+  `libs/android/<abi>/lib<prefix>.a`, and iOS's CocoaPods from `Rust2<Prefix>.podspec`,
+  with `libs/ios/<prefix>.xcframework`, whose `+load` registers the module. The app builds
+  the Rust library into `libs/` for each ABI it ships. `load()` installs the module
+  through `TurboModuleRegistry`, or from `globalThis.__rust2_<prefix>` where a host
+  without React Native installed it, then checks the contract and target as the web's
+  does. The module installs once in a runtime, and checks each value its runtime's helpers
+  return, so no JavaScript that installs it first with a kit of its own reaches memory.
+- **Values** are the web's, but for `usize` and `isize`, which are `rt.u64` and `rt.i64`,
+  since one package serves 64-bit targets as well as 32-bit ones, where a value past 32 bits
+  fails as it crosses in. A constant only some of the package's targets have fails the
+  export, naming the targets that lack it, since its value compiles into the one package. An `rt.Bytes` past 64 bytes is an `ArrayBuffer` over Rust's own
+  buffer, which disposing or the collector frees, and passed back crosses in place, as the
+  web's does; its `slice` copies through the module, so no JavaScript runs between the
+  check that it is open and the read. A typed array a call takes is copied, as the web's is, since JavaScript on
+  another thread, or a closure the call runs, may write it while Rust reads; text crosses
+  through the module, as Hermes has no `TextDecoder`.
+- **Threads**: JavaScript runs on React Native's JS thread alone, while Rust calls a trait,
+  closure, waker, or reader from any. Such a call from another thread posts to the
+  TurboModule's `CallInvoker` and waits; a call into Rust on the JS thread frees the
+  runtime meanwhile, so a callback Rust makes from another thread while that call blocks
+  runs there at once, rather than deadlocking. Such a callback runs on top of the call it
+  took the runtime from, as a nested call does: that call takes the runtime back only once
+  the callback returned, even if the callback waits in a call into Rust of its own. A wake
+  polls on a posted job, never inside the wake, and a drop the collector makes while
+  JavaScript runs is posted too. The module keeps what it holds of each runtime apart, so
+  two may be alive at once, and leaks rather than frees what Rust still holds of one gone.
+- **Bundling**: React Native's Babel preset compiles modules sloppy and lacks `using`;
+  the binding needs neither, but a caller's `using` needs
+  `@babel/plugin-transform-explicit-resource-management` in its `babel.config.js`.
+
 ## Tests
 
 ```bash
 just ffi test     # export the fixtures, build them, and drive api from C, C++, Kotlin, Python, Swift, Go, Dart, C#, and TypeScript on Node, Deno, and Bun
-just ffi moq      # export moq's crates at the pinned revision, build them, and run moq/moq.c, moq/moq.cpp, moq/moq.kt, moq/moq.py, moq/moq.swift, moq/moq.go, and moq/moq.dart, and compile moq's C# for .NET and Unity
+just ffi moq      # export moq's crates at the pinned revision, build them, and run moq/moq.c, moq/moq.cpp, moq/moq.kt, moq/moq.py, moq/moq.swift, moq/moq.go, moq/moq.dart, and moq/moq.ts, and compile moq's C# for .NET and Unity
 just ffi moq-c    # the same export, built in debug, running only moq/moq.c: `just ci`'s check on moq
 just ffi moq-cpp  # the same export, running only moq/moq.cpp
 just ffi moq-swift  # the same export, running only moq/moq.swift
+just ffi moq-react-native  # the same export, running only moq/moq.ts through the React Native binding on Hermes
 just ffi moq-api <target>  # stage moq's API on another target into target/moq-api, which the exports above merge
 just ffi census   # census each into target/census
 just ffi shapes   # round-trip every sampled type shape in every language but C#, as the nightly does
@@ -1904,8 +1951,11 @@ just ffi protocol # run longer protocol scripts from more seeds through the C AB
 just ffi aot      # api's C# compiled ahead of time by NativeAOT, as the nightly runs it
 nix develop .#bench --command just ffi browsers  # api's TypeScript in headless Chromium, Firefox, and on Linux WebKit, lowering `using` three ways for WebKit, as the nightly runs it
 nix develop .#android --command just ffi android  # the Kotlin test, shrunk by R8, under CheckJNI on the Android device adb reaches
+just ffi react-native-host  # api's script and cases through the React Native binding on Hermes off a device, the flake's `hermes`, which nix builds from source on first use
+nix develop .#android --command just ffi react-native-android  # the same through the React Native package in a new app, built for release, on the 64-bit Android device adb reaches
+just ffi react-native-ios  # the same on the booted iOS simulator, on macOS with Xcode and CocoaPods
 nix develop .#android --command just ffi bench-android  # the benchmark's Kotlin rows on HotSpot and, shrunk by R8, on ART on the Android device adb reaches
-nix develop .#bench --command just ffi bench  # the binding benchmark: bench/ffi/README.md's cases from Rust, and through the export from C, C++, Kotlin, Python, Swift, Go, Dart, and C#
+nix develop .#bench --command just ffi bench  # the binding benchmark: bench/ffi/README.md's cases from Rust, and through the export from C, C++, Kotlin, Python, Swift, Go, Dart, C#, and React Native on Hermes
 nix develop .#bench --command just ffi codspeed  # after bench-build, each single-threaded case once under CodSpeed's CPU simulation, as the CodSpeed workflow runs it
 nix develop .#sanitize --command just ffi sanitize  # api's C and C++ scripts under ASan with UBSan, TSan, and Valgrind, its Swift under TSan, its Go under the race detector and cgocheck2, its Python looped on a debug CPython, and its C ABI under Miri
 ```
@@ -1948,6 +1998,14 @@ failed check and a panic reach logcat and bionic's abort message, which the tomb
 Nightly runs it on an x86_64 emulator at API 24, the oldest moq's Android library supports, at
 API 35, and at API 35 on an image whose kernel pages by 16 KB, and on a 32-bit x86 one at API
 24, as moq's armv7 build is 32-bit.
+`tests/react-native.ts` runs `tests/api.ts`'s script and its cases through the React Native
+binding on Hermes: `just ffi react-native-host` in `tests/rn_host.cpp`, an event loop of its
+own installing the module as a host does, where the transcript must be native Rust's and
+each contract it breaks must abort with its message; and in a new React Native app
+depending on the package as `npm pack` makes it, built for release, on an x86_64 emulator
+at API 35 and on an iOS simulator, where the transcript must be native Rust's on that
+device. Nightly runs all three. Nothing in the merge gate runs them, since nixpkgs packages
+no Hermes and the flake's compiles from source.
 `tests/api.py` runs the script through the Python, in CPython's development mode with
 warnings as errors, checks its futures the same way, what frees an object or bytes nobody
 closed, and the values Python's types bound, and breaks each runtime check, which must raise or
@@ -2085,7 +2143,10 @@ tasks and awaiting each read, `moq/moq.swift` through the Swift, serving in a ta
 awaiting each read, `moq/moq.go` through the Go, running the origin's driver on a
 goroutine of its own and serving on another, each read blocking under a context, and
 `moq/moq.dart` through the Dart, polling the origin's driver from the isolate's event loop
-on each wake and at its deadline's `Timer`, and awaiting each read.
+on each wake and at its deadline's `Timer`, and awaiting each read, and `moq/moq.ts`
+through the React Native binding on Hermes off a device, in `tests/rn_host.cpp`'s event
+loop, polling the origin's driver from it on each wake and at its deadline's `setTimeout`,
+and awaiting each read, whose wakes from moq-tokio's threads post to that loop.
 
 The C++ builds take `CXX`, or `c++`, with every warning an error and `-Wshadow`, which
 stands in for MSVC's warnings that a name hides another. On Windows they take MSVC's `cl`
