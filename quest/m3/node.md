@@ -49,14 +49,16 @@ and the commit after it deletes it.
 | stamped write | 301 | 494 | 219 |
 | ready read | 527 | 915 | 402 |
 | woken read | 1,230 | 2,370 | 1,095 |
-| payload, 100 B, lent | 117 | 322 | 61 |
+| payload, 100 B, lent | 124 | 322 | 61 |
 | payload, 1 MiB, lent | 126 | 312 | 67 |
 | throughput, 100 B, MB/s | 128 | 79 | 219 |
 | throughput, 64 KiB, MB/s | 10,902 | 10,518 | 11,986 |
 
-- **Speed**: the addon is fastest on every case. Only 1 MiB frames' throughput trailed
-  (3.4 GB/s against the web target's 5.9), and only because glibc gives freed memory back and
-  faults it in again, which wasm's linear memory never does: with
+- **Speed**: the addon is fastest on every per-call case. Throughput trailed at 64 KiB frames
+  only against the web target under `--no-liftoff` (11,986 MB/s against 12,050, within
+  round-to-round noise), and at 1 MiB frames (3.4 GB/s against the web target's 5.9) only
+  because glibc gives freed memory back and faults it in again, which wasm's linear memory
+  never does: with
   `MALLOC_TRIM_THRESHOLD_` and `MALLOC_MMAP_THRESHOLD_` set to keep it, both native routes
   reach 13.7 to 14.2 GB/s against the web target's 5.9 to 11.4.
 - **Capability**: the web target refuses moq-tokio, moq's native QUIC (it builds for no
@@ -78,9 +80,12 @@ and the commit after it deletes it.
 
 What the generator copies from the report's addon:
 
-- A handle crosses as its address in a number, exact in every 64-bit platform's 48-bit
-  user space, and the TypeScript wraps it in an object that `[Symbol.dispose]` frees, as
-  the web target's `rt.Handle`. A `napi_external` per object return cost 89 ns more.
+- A handle crosses as its address in a number, and the TypeScript wraps it in an object
+  that `[Symbol.dispose]` frees, as the web target's `rt.Handle`. A number holds an
+  address exactly below 2^53, which a default 64-bit user space stays under: Linux maps
+  above 47 bits on x86-64 (56-bit with 5-level paging) or 48 on arm64 (52-bit) only for an
+  `mmap` hint that asks. The addon still checks each address it hands out against 2^53 and
+  aborts above it, one compare, rather than assume no allocator passes such a hint. A `napi_external` per object return cost 89 ns more.
 - Never a JavaScript object made in C per call: Node-API's `napi_create_arraybuffer` and
   its typed array cost 0.4 to 0.7 µs. An opaque value, a record's bytes, and a copy of up
   to 64 bytes go through a scratch buffer the TypeScript views, as the web target's stack

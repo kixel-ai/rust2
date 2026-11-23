@@ -42,8 +42,8 @@ until a host asks for one; [the pure-Go epic](/quest/m4/go/README.md) weighs Go'
 
 The Node report ([kixel-ai/rust2#970](https://github.com/kixel-ai/rust2/pull/970), 2026-11-22)
 kept [the Node-API addon](/quest/m3/node.md) and dropped a thin file over `node:ffi`. On
-bench/ffi's cases from Node 26, the addon was fastest on every case, against the web target
-and `node:ffi`, and it alone takes a call into JavaScript from Rust's own thread, which
+bench/ffi's cases from Node 26, the addon was fastest on every per-call case, against the
+web target and `node:ffi`, and it alone takes a call into JavaScript from Rust's own thread, which
 moq-tokio's every wake is and the web target cannot build. `node:ffi` aborts on one, has
 no struct type, and was slower than the web target on every per-call case.
 
