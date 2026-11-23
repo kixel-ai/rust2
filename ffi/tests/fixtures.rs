@@ -3079,9 +3079,9 @@ fn api_browsers() {
 /// host installing the JSI module as React Native's TurboModule does, runs `tests/api.ts`'s
 /// script, bundled from the generated TypeScript, and each case a runtime without
 /// WebAssembly runs. `RUST2_HERMES` names a Hermes checkout built into its `build` at the
-/// tag React Native's release pins, whose library finds ICU on the loader's path.
+/// tag React Native's release pins, as the flake's `hermes` lays one out.
 #[test]
-#[ignore = "needs Hermes: RUST2_HERMES=<checkout> just ffi react-native-host"]
+#[ignore = "needs Hermes: just ffi react-native-host"]
 fn api_react_native_host() {
 	let hermes = PathBuf::from(std::env::var_os("RUST2_HERMES").expect("RUST2_HERMES names a built Hermes checkout"));
 	let build = hermes.join("build");
@@ -3127,6 +3127,7 @@ fn api_react_native_host() {
 		"-Werror",
 		"-DRUST2_PREFIX_NS=rust2_api",
 		"-DRUST2_GLOBAL=\"__rust2_api\"",
+		"-DRUST2_HEADER=\"api_jsi.h\"",
 	])
 	.arg("-I")
 	.arg(api.out.join("include"))

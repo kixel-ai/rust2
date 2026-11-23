@@ -49,6 +49,10 @@ export class Handle<T extends string = string> {
 	}
 }
 
+// Before the class, whose static initializer sets them as it is defined.
+let bytesMade: (buffer: ArrayBuffer, lent: boolean) => Bytes;
+let bytesCopy: (b: object) => Uint8Array | undefined;
+
 /**
  * Bytes a call returns. `slice()` copies them into a `Uint8Array`, `at(i)` reads one, and
  * passed to a call that reads them or takes a `Bytes`, they cross with no copy. Past 64
@@ -113,9 +117,6 @@ export class Bytes {
 		return minting;
 	})();
 }
-
-let bytesMade: (buffer: ArrayBuffer, lent: boolean) => Bytes;
-let bytesCopy: (b: object) => Uint8Array | undefined;
 
 /** A waker Rust returned, which the JSI module makes. */
 class Wakes {

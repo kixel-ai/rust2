@@ -166,7 +166,9 @@ jobs:
     name: Export moq-net to C
     needs: ffi-api
     runs-on: ubuntu-24.04-arm
-    timeout-minutes: 60
+    # The export takes about 37 minutes, its protocol scripts 11, and moq/moq.ts builds
+    # Hermes from source first.
+    timeout-minutes: 120
 
     steps:
       - name: Checkout
@@ -452,6 +454,24 @@ jobs:
       - name: Summarize the bench on API 28
         run: cat ffi/target/bench-android/report.md >> "$GITHUB_STEP_SUMMARY"
 
+  # The api fixture's React Native binding on Hermes off a device, the flake's, which builds
+  # from source: the transcript must be native Rust's, and each broken contract must abort.
+  ffi-react-native-host:
+    name: React Native on Hermes
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: ./.github/actions/nix
+
+      - name: Test
+        run: nix develop --command just ffi react-native-host
+
   # The api fixture's React Native package in a new app, built for release as a store build
   # is, on an emulator and a simulator: the transcript must be native Rust's on each.
   ffi-react-native-android:
@@ -514,7 +534,9 @@ jobs:
   ffi-bench:
     name: Bench the bindings
     runs-on: ubuntu-24.04-arm
-    timeout-minutes: 90
+    # Main's runs reached 90 minutes still benching, before React Native's column builds
+    # Hermes from source.
+    timeout-minutes: 180
 
     steps:
       - name: Checkout

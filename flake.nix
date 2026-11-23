@@ -72,6 +72,41 @@
               export __EGL_VENDOR_LIBRARY_DIRS=${pkgs.mesa}/share/glvnd/egl_vendor.d
               exec ${browsers.passthru.entries.${webkit}}/minibrowser-wpe/MiniBrowser --headless "$@"
             '';
+          # Hermes at the tag React Native 0.88.1 pins, built for the host, which nixpkgs
+          # doesn't package: the engine the React Native binding runs on off a device, in its
+          # test, moq run, and benchmark column. Laid out as a checkout built into its
+          # `build`, as RUST2_HERMES names one.
+          hermes = pkgs.stdenv.mkDerivation {
+            pname = "hermes";
+            version = "260318099.0.5";
+            src = pkgs.fetchFromGitHub {
+              owner = "facebook";
+              repo = "hermes";
+              tag = "hermes-v260318099.0.5";
+              hash = "sha256-OJb3UDHxvoN9euDgpsWb+OO8VSLzxq6CLZw4Vr942hk=";
+            };
+            nativeBuildInputs = with pkgs; [
+              cmake
+              ninja
+              python3
+            ];
+            buildInputs = [ pkgs.icu ];
+            cmakeFlags = [
+              "-DCMAKE_BUILD_TYPE=Release"
+              "-DHERMES_ENABLE_TEST_SUITE=OFF"
+            ];
+            ninjaFlags = [
+              "hermesvm"
+              "jsi"
+            ];
+            installPhase = ''
+              mkdir -p $out/build/lib $out/build/jsi
+              cp -r ../API ../public ../include $out/
+              cp -r lib/config $out/build/lib/
+              cp lib/libhermesvm${pkgs.stdenv.hostPlatform.extensions.sharedLibrary} $out/build/lib/
+              cp jsi/libjsi.a $out/build/jsi/
+            '';
+          };
           # The benchmark's nightly levers (--jobs-frontend, cranelift, self-profile).
           # Bumping the date is a benchmark corpus change: numbers before and
           # after it do not compare.
@@ -250,6 +285,8 @@
             ts = rust2-ts;
             pub = rust2-pub;
             ffi = rust2-ffi;
+            # Built only when a recipe running on it asks: it compiles from source.
+            inherit hermes;
           }
           # ra-jit and its toolchain for the benchmark's ra-jit variants, which build it
           # only when they run: it compiles from source. ra-jit skips Intel macOS.

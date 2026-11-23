@@ -1856,10 +1856,11 @@ the header's wrappers would, and it needs only `jsi.h`.
 
 ```bash
 just ffi test     # export the fixtures, build them, and drive api from C, C++, Kotlin, Python, Swift, Go, Dart, and TypeScript on Node, Deno, and Bun
-just ffi moq      # export moq's crates at the pinned revision, build them, and run moq/moq.c, moq/moq.cpp, moq/moq.kt, moq/moq.py, moq/moq.swift, moq/moq.go, and moq/moq.dart
+just ffi moq      # export moq's crates at the pinned revision, build them, and run moq/moq.c, moq/moq.cpp, moq/moq.kt, moq/moq.py, moq/moq.swift, moq/moq.go, moq/moq.dart, and moq/moq.ts
 just ffi moq-c    # the same export, built in debug, running only moq/moq.c: `just ci`'s check on moq
 just ffi moq-cpp  # the same export, running only moq/moq.cpp
 just ffi moq-swift  # the same export, running only moq/moq.swift
+just ffi moq-react-native  # the same export, running only moq/moq.ts through the React Native binding on Hermes
 just ffi moq-api <target>  # stage moq's API on another target into target/moq-api, which the exports above merge
 just ffi census   # census each into target/census
 just ffi shapes   # round-trip every sampled type shape in every language, as the nightly does
@@ -1868,11 +1869,11 @@ just ffi corpus-update  # take corpus/crates.txt afresh from crates.io's top cra
 just ffi protocol # run longer protocol scripts from more seeds through the C ABI and every binding, as the nightly does
 nix develop .#bench --command just ffi browsers  # api's TypeScript in headless Chromium, Firefox, and on Linux WebKit, lowering `using` three ways for WebKit, as the nightly runs it
 nix develop .#android --command just ffi android  # the Kotlin test, shrunk by R8, under CheckJNI on the Android device adb reaches
-RUST2_HERMES=<dir> just ffi react-native-host  # api's script and cases through the React Native binding on Hermes off a device, against a Hermes checkout built in <dir>/build
+just ffi react-native-host  # api's script and cases through the React Native binding on Hermes off a device, the flake's `hermes`, which nix builds from source on first use
 nix develop .#android --command just ffi react-native-android  # the same through the React Native package in a new app, built for release, on the 64-bit Android device adb reaches
 just ffi react-native-ios  # the same on the booted iOS simulator, on macOS with Xcode and CocoaPods
 nix develop .#android --command just ffi bench-android  # the benchmark's Kotlin rows on HotSpot and, shrunk by R8, on ART on the Android device adb reaches
-nix develop .#bench --command just ffi bench  # the binding benchmark: bench/ffi/README.md's cases from Rust, and through the export from C, C++, Kotlin, Python, Swift, Go, and Dart
+nix develop .#bench --command just ffi bench  # the binding benchmark: bench/ffi/README.md's cases from Rust, and through the export from C, C++, Kotlin, Python, Swift, Go, Dart, and React Native on Hermes
 nix develop .#bench --command just ffi codspeed  # after bench-build, each single-threaded case once under CodSpeed's CPU simulation, as the CodSpeed workflow runs it
 nix develop .#sanitize --command just ffi sanitize  # api's C and C++ scripts under ASan with UBSan, TSan, and Valgrind, its Swift under TSan, its Go under the race detector and cgocheck2, its Python looped on a debug CPython, and its C ABI under Miri
 ```
@@ -1918,10 +1919,11 @@ API 35, and at API 35 on an image whose kernel pages by 16 KB, and on a 32-bit x
 `tests/react-native.ts` runs `tests/api.ts`'s script and its cases through the React Native
 binding on Hermes: `just ffi react-native-host` in `tests/rn_host.cpp`, an event loop of its
 own installing the module as a host does, where the transcript must be native Rust's and
-each contract it breaks must abort with its message; and nightly, in a new React Native
-app depending on the package as `npm pack` makes it, built for release, on an x86_64
-emulator at API 35 and on an iOS simulator, where the transcript must be native Rust's on
-that device. Nothing in the merge gate runs it, since nixpkgs packages no Hermes.
+each contract it breaks must abort with its message; and in a new React Native app
+depending on the package as `npm pack` makes it, built for release, on an x86_64 emulator
+at API 35 and on an iOS simulator, where the transcript must be native Rust's on that
+device. Nightly runs all three. Nothing in the merge gate runs them, since nixpkgs packages
+no Hermes and the flake's compiles from source.
 `tests/api.py` runs the script through the Python, in CPython's development mode with
 warnings as errors, checks its futures the same way, what frees an object or bytes nobody
 closed, and the values Python's types bound, and breaks each runtime check, which must raise or
@@ -2049,7 +2051,10 @@ tasks and awaiting each read, `moq/moq.swift` through the Swift, serving in a ta
 awaiting each read, `moq/moq.go` through the Go, running the origin's driver on a
 goroutine of its own and serving on another, each read blocking under a context, and
 `moq/moq.dart` through the Dart, polling the origin's driver from the isolate's event loop
-on each wake and at its deadline's `Timer`, and awaiting each read.
+on each wake and at its deadline's `Timer`, and awaiting each read, and `moq/moq.ts`
+through the React Native binding on Hermes off a device, in `tests/rn_host.cpp`'s event
+loop, polling the origin's driver from it on each wake and at its deadline's `setTimeout`,
+and awaiting each read, whose wakes from moq-tokio's threads post to that loop.
 
 The C++ builds take `CXX`, or `c++`, with every warning an error and `-Wshadow`, which
 stands in for MSVC's warnings that a name hides another. On Windows they take MSVC's `cl`

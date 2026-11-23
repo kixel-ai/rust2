@@ -1,11 +1,12 @@
 // A host for React Native's binding off a device: Hermes, as React Native runs it, with
 // the JSI module installed as `globalThis.__rust2_<prefix>`, an event loop that runs what
-// the module posts and `setTimeout`'s timers, and `print`, `process`, and `TextDecoder`
-// stand-ins. It runs one bundled script, exiting with its `process.exit` code, or 1 if it
-// throws or leaves a promise rejected.
+// the module posts and `setTimeout`'s timers, `performance.now` as React Native's, and
+// `print`, `process`, and `TextDecoder` stand-ins, `process.cpuUsage` among them as Node's.
+// It runs one bundled script, exiting with its `process.exit` code, or 1 if it throws or
+// leaves a promise rejected.
 //
 // Build it with the module's `cpp/<prefix>_jsi.cpp`, defining RUST2_PREFIX_NS as its
-// namespace and RUST2_GLOBAL as its global.
+// namespace, RUST2_GLOBAL as its global, and RUST2_HEADER as its header's name.
 
 #include <chrono>
 #include <condition_variable>
@@ -19,10 +20,12 @@
 #include <string>
 #include <vector>
 
+#include <sys/resource.h>
+
 #include <hermes/hermes.h>
 #include <jsi/jsi.h>
 
-#include "api_jsi.h"
+#include RUST2_HEADER
 
 namespace jsi = facebook::jsi;
 using job_t = std::function<void(jsi::Runtime &)>;
@@ -54,7 +57,9 @@ globalThis.process = {
 	env: {},
 	exit(code) { __exit(code); throw new Error("__exited"); },
 	stderr: { write(text) { __eprint(text); return true; } },
+	cpuUsage: __cpu,
 };
+globalThis.performance = { now: __now };
 globalThis.console = { log: (...a) => print(a.join(" ")), error: (...a) => __eprint(a.join(" ") + "\n") };
 // UTF-8 as WHATWG's decoder reads it, replacing what is not.
 globalThis.TextDecoder = class TextDecoder {
@@ -101,6 +106,20 @@ int main(int argc, char **argv) {
 			exit_code = n > 0 && a[0].isNumber() ? static_cast<int>(a[0].getNumber()) : 0;
 		}
 		return jsi::Value::undefined();
+	});
+	fn(rt, global, "__now", 0, [](jsi::Runtime &, const jsi::Value &, const jsi::Value *, size_t) {
+		auto since = std::chrono::steady_clock::now().time_since_epoch();
+		return jsi::Value(std::chrono::duration<double, std::milli>(since).count());
+	});
+	// The process's CPU time in microseconds, every thread's, as Node's `process.cpuUsage`.
+	fn(rt, global, "__cpu", 0, [](jsi::Runtime &rt, const jsi::Value &, const jsi::Value *, size_t) {
+		rusage usage{};
+		getrusage(RUSAGE_SELF, &usage);
+		auto micros = [](const timeval &t) { return static_cast<double>(t.tv_sec) * 1e6 + static_cast<double>(t.tv_usec); };
+		jsi::Object out(rt);
+		out.setProperty(rt, "user", micros(usage.ru_utime));
+		out.setProperty(rt, "system", micros(usage.ru_stime));
+		return out;
 	});
 	fn(rt, global, "setTimeout", 2, [](jsi::Runtime &rt, const jsi::Value &, const jsi::Value *a, size_t n) {
 		auto f = std::make_shared<jsi::Function>(a[0].getObject(rt).getFunction(rt));
