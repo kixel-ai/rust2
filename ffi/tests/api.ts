@@ -1015,6 +1015,9 @@ async function closedCall(f: () => Promise<unknown>, type: string, what: string)
  * Rust's buffer, freed once disposed and no call views it, or by the garbage collector, and
  * passed back to Rust they share it. Either reads the same, and refuses a read once disposed. */
 export async function lent(): Promise<void> {
+	// React Native's binding reads a typed array as its engine holds it, so it takes no Proxy
+	// of one, whose reads no getter sees during a call; the web's reads its `length`.
+	const engineRead = api.platform().tag === "Native";
 	let before = api.dropped();
 	const small = api.tokenBytes(1, 64);
 	check(api.dropped() === ++before, "64 bytes are copied and Rust's freed at the call");
@@ -1055,14 +1058,19 @@ export async function lent(): Promise<void> {
 	const viewed = api.tokenBytes(6, 100);
 	const prefix = new Proxy(enc("ab"), {
 		get(target, key) {
-			// The web's binding reads its length, and React Native's its byteLength.
-			if (key === "length" || key === "byteLength") close(viewed);
+			if (key === "length") close(viewed);
 			return Reflect.get(target, key);
 		},
 	});
-	const joined = api.prefixed(viewed, prefix).slice();
-	check(joined.length === 102 && text(joined.subarray(0, 2)) === "ab" && joined.subarray(2).every((b) => b === 6), "bytes a call views read whole");
-	check(api.dropped() === ++before, "bytes disposed during a call are freed once it returns");
+	if (engineRead) {
+		throws(() => api.prefixed(viewed, prefix), TypeError, "a Proxy of a Uint8Array");
+		close(viewed);
+		check(api.dropped() === ++before, "bytes lent to a call that fails are freed once disposed");
+	} else {
+		const joined = api.prefixed(viewed, prefix).slice();
+		check(joined.length === 102 && text(joined.subarray(0, 2)) === "ab" && joined.subarray(2).every((b) => b === 6), "bytes a call views read whole");
+		check(api.dropped() === ++before, "bytes disposed during a call are freed once it returns");
+	}
 	// A Bytes' length is its own: no caller's write or definition changes what Rust reads.
 	const fixed = api.tokenBytes(11, 100);
 	// A write throws in strict code, and does nothing in sloppy code, as React Native's Babel
@@ -1082,13 +1090,19 @@ export async function lent(): Promise<void> {
 	const given = api.tokenBytes(10, 100);
 	const high = new Proxy(enc("bc"), {
 		get(target, key) {
-			if (key === "length" || key === "byteLength") close(given);
+			if (key === "length") close(given);
 			return Reflect.get(target, key);
 		},
 	});
-	const limits = api.byteLimits(given, high);
-	check(limits.low.length === 100 && limits.low.every((b) => b === 10) && text(limits.high) === "bc", "bytes given and disposed during a call read whole");
-	check(api.dropped() === ++before, "bytes given and disposed during a call are freed once Rust drops them");
+	if (engineRead) {
+		throws(() => api.byteLimits(given, high), TypeError, "a Proxy of a Uint8Array given");
+		close(given);
+		check(api.dropped() === ++before, "bytes given to a call that fails are freed once disposed");
+	} else {
+		const limits = api.byteLimits(given, high);
+		check(limits.low.length === 100 && limits.low.every((b) => b === 10) && text(limits.high) === "bc", "bytes given and disposed during a call read whole");
+		check(api.dropped() === ++before, "bytes given and disposed during a call are freed once Rust drops them");
+	}
 	// Bytes a call returned pass as an optional borrowed argument too.
 	const optional = api.tokenBytes(8, 100);
 	const suffixed = api.prefixed(enc("cd"), optional).slice();
@@ -1220,6 +1234,21 @@ export function bounds(): void {
 	check(back.bytes.length === 1 && back.bytes[0] === 0xff, "a path that is not UTF-8");
 	check(rt.pathText(back) === "�", "a path's text replaces what is not UTF-8");
 	check(rt.pathText(rt.pathFrom("a/é")) === "a/é", "a UTF-8 path as text");
+	// Each invalid lead or broken sequence is replaced as Rust's `from_utf8_lossy` does: by
+	// one U+FFFD for its longest valid prefix, never consuming the byte after it.
+	for (const [path, text] of [
+		[bytes(0xc0, 0x80, 0x61), "\ufffd\ufffda"],
+		[bytes(0xc1, 0xbf, 0x61), "\ufffd\ufffda"],
+		[bytes(0xf5, 0x80, 0x80, 0x80, 0x61), "\ufffd\ufffd\ufffd\ufffda"],
+		[bytes(0xf7, 0xbf, 0xbf, 0xbf, 0x61), "\ufffd\ufffd\ufffd\ufffda"],
+		[bytes(0xe0, 0x80, 0x80, 0x61), "\ufffd\ufffd\ufffda"],
+		[bytes(0xed, 0xa0, 0x80, 0x61), "\ufffd\ufffd\ufffda"],
+		[bytes(0xf4, 0x90, 0x80, 0x80, 0x61), "\ufffd\ufffd\ufffd\ufffda"],
+		[bytes(0xe2, 0x82, 0x61), "\ufffda"],
+		[bytes(0xf0, 0x9f, 0x98, 0x80), "\u{1f600}"],
+	] as const) {
+		check(rt.pathText({ bytes: path }) === text, `a path of ${[...path]} as text`);
+	}
 
 	// An address is its family's octets, and a port, flow label, and scope their ranges.
 	throws(() => api.sameIpAddr({ tag: "V4", _0: { octets: bytes(1, 2, 3) } }), RangeError, "three octets");

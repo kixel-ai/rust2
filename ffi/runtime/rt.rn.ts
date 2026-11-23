@@ -209,6 +209,8 @@ export function load(m: Module): Promise<void> {
 /** What the JSI module calls of this runtime. */
 const kit = {
 	None,
+	// A typed array's kind as the engine holds it, or undefined for any other value.
+	typedTag: Object.getOwnPropertyDescriptor(Object.getPrototypeOf(Uint8Array.prototype), Symbol.toStringTag)!.get!,
 	Handle: Handle.prototype,
 	Waker: Wakes.prototype,
 	Uint8Array,

@@ -2343,7 +2343,13 @@ impl Gen<'_> {
 			);
 			self.locked
 				.insert(format!("const {}", constant.path.join("::")), name.clone());
-			let value = match constant.value {
+			// React Native's targets hold a `usize` of 64 bits, as `tt` types one.
+			let literal = match constant.value {
+				Literal::Int(Int::Usize, v) if self.jsi => Literal::Int(Int::U64, v),
+				Literal::Int(Int::Isize, v) if self.jsi => Literal::Int(Int::I64, v),
+				literal => literal,
+			};
+			let value = match literal {
 				Literal::Bool(b) => b.to_string(),
 				// Past a safe integer, the type's constructor of its halves, by the type and
 				// not the sign: `i64::MAX` is an `rt.i64`.
@@ -2356,7 +2362,7 @@ impl Gen<'_> {
 				}
 				Literal::Int(_, v) => v.to_string(),
 			};
-			let ty = match constant.value {
+			let ty = match literal {
 				Literal::Bool(_) => "boolean",
 				Literal::Int(Int::U64, _) => "rt.u64",
 				Literal::Int(Int::I64, _) => "rt.i64",

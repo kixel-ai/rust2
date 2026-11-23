@@ -522,11 +522,17 @@ impl<'a> Gen<'a> {
 		if !self.defs.contains_key(&name) {
 			let e = &abi.api.enums[i];
 			let t = self.class(&c);
+			let path = e.path.join("::");
 			let cases: Vec<String> = (e.variants.iter())
 				.filter(|v| self.here(v.on))
 				.map(|v| {
+					let lacks = self.lacks(v.on, &format!("{path}::{}", v.name));
+					let lacks = match lacks.is_empty() {
+						true => lacks,
+						false => format!("\t\t{lacks}"),
+					};
 					format!(
-						"\tif (s == {}) {{\n\t\treturn static_cast<{c}>({});\n\t}}",
+						"\tif (s == {}) {{\n{lacks}\t\treturn static_cast<{c}>({});\n\t}}",
 						lit(&v.name),
 						v.discriminant
 					)
@@ -841,6 +847,10 @@ impl<'a> Gen<'a> {
 					}
 					let member = abi::variant_member(&variant.name);
 					let mut body = vec![format!("out.tag = static_cast<decltype(out.tag)>({n});")];
+					let lacks = self.lacks(variant.on, &format!("{}::{}", e.path.join("::"), variant.name));
+					if !lacks.is_empty() {
+						body.insert(0, lacks.trim_end().to_string());
+					}
 					for (f, name) in variant.fields.iter().zip(variant_fields(&variant.fields)) {
 						let field = format!("out.{member}.{}", abi::escape(&f.name));
 						body.push(self.lower(&f.ty, &format!("o.getProperty(rt, {})", lit(&name)), &field, take));

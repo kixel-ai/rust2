@@ -3166,6 +3166,15 @@ fn api_react_native_host() {
 		let run = script(Some(case));
 		assert!(run.ok, "Hermes's {case} failed:\n{}{}", run.stdout, run.stderr);
 	}
+	// A reload: the runtime destroyed with what the module holds of it, and the module
+	// installed again in a new one.
+	let reload: Ran = output(Command::new(&host).args(["--reload", "bundle.js"]).current_dir(&dir)).into();
+	assert!(reload.ok, "Hermes's reload failed:\n{}", reload.stderr);
+	assert_eq!(
+		reload.stdout,
+		api.transcript.repeat(2),
+		"Hermes's reload differs from native Rust's transcript twice"
+	);
 	// Each fails with the web's message, but a panic, which aborts rather than trapping, so
 	// `later poll trapped` gets no further.
 	for (case, message) in WEB_BROKEN {
@@ -3554,9 +3563,11 @@ fn package_imports(ts: &str, package: &str) -> String {
 	out
 }
 
-/// The cases of `tests/api.ts` React Native runs, after its transcript: `grown`'s memory and
-/// a load's are WebAssembly's.
-const REACT_NATIVE_CASES: [&str; 6] = ["futures", "owned", "closed", "bytes", "bounds", "checks"];
+/// The cases React Native runs after its transcript: `tests/react-native.ts`'s `typed` and
+/// `word`, and `tests/api.ts`'s but `grown`'s memory and a load's, which are WebAssembly's.
+const REACT_NATIVE_CASES: [&str; 8] = [
+	"typed", "word", "futures", "owned", "closed", "bytes", "bounds", "checks",
+];
 
 /// `tests/api.ts` importing the React Native binding, its cases exported for
 /// `tests/react-native.ts`, which loads the binding as its `main` does the web's.

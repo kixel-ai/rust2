@@ -6,6 +6,7 @@ const FAR int64 = 9223372036854775807
 const LIMIT uint64 = 1000
 const STEP uint64 = 1
 const URL uint64 = 1000
+const WORD uint = 18446744073709551615
 
 FUNCTIONS
 func Admit(entry p_rt.Tuple4[*Counter, *Mark, Seat, Choice]) (uint64, error)

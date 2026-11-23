@@ -23,17 +23,33 @@ using post_t = ::std::function<void(::std::function<void(jsi::Runtime &)>)>;
 	::std::abort();
 }
 
-// The runtime the module is installed in, and what `rt.ts` gave it. A reload installs the
-// module into a new runtime, so what Rust still holds of an old one checks `alive`, and
-// leaks its jsi values rather than touch a runtime that may be gone.
+// What `rt.ts` gave the module, which are values of its runtime: released as that runtime
+// is destroyed, while its heap still is, since a jsi value freed after would touch freed
+// memory.
+struct values {
+	jsi::Object kit;
+	jsi::Function pending, bytes, uint8, range, type, error, typed_tag;
+	jsi::Value none, handle, waker;
+
+	values(jsi::Runtime &rt, jsi::Object k)
+	    : kit(::std::move(k)), pending(fn(rt, "pending")), bytes(fn(rt, "bytes")), uint8(fn(rt, "Uint8Array")),
+	      range(fn(rt, "RangeError")), type(fn(rt, "TypeError")), error(fn(rt, "Error")), typed_tag(fn(rt, "typedTag")),
+	      none(kit.getProperty(rt, "None")), handle(kit.getProperty(rt, "Handle")), waker(kit.getProperty(rt, "Waker")) {}
+
+	jsi::Function fn(jsi::Runtime &rt, const char *name) {
+		return kit.getPropertyAsFunction(rt, name);
+	}
+};
+
+// The runtime the module is installed in. A reload installs the module into a new one, and
+// the old one's teardown marks it gone, so what Rust still holds of it checks `alive`, and
+// leaks its jsi values rather than touch a runtime that is gone.
 struct world {
 	jsi::Runtime *rt;
 	::std::thread::id js;
 	post_t post;
 	::std::atomic<bool> alive{true};
-	jsi::Object kit;
-	jsi::Function pending, bytes, uint8, range, type, error;
-	jsi::Value none, handle, waker;
+	::std::unique_ptr<values> v;
 	// Whether the runtime is free for a thread to take: the JavaScript thread holds it but
 	// while it waits in a call into Rust.
 	::std::mutex m;
@@ -41,28 +57,23 @@ struct world {
 	bool free = false;
 
 	world(jsi::Runtime &rt, post_t post, jsi::Object kit)
-	    : rt(&rt), js(::std::this_thread::get_id()), post(::std::move(post)), kit(::std::move(kit)),
-	      pending(fn(rt, "pending")), bytes(fn(rt, "bytes")), uint8(fn(rt, "Uint8Array")),
-	      range(fn(rt, "RangeError")), type(fn(rt, "TypeError")), error(fn(rt, "Error")),
-	      none(this->kit.getProperty(rt, "None")),
-	      handle(this->kit.getProperty(rt, "Handle")), waker(this->kit.getProperty(rt, "Waker")) {}
-
-	jsi::Function fn(jsi::Runtime &rt, const char *name) {
-		return kit.getPropertyAsFunction(rt, name);
-	}
+	    : rt(&rt), js(::std::this_thread::get_id()), post(::std::move(post)),
+	      v(::std::make_unique<values>(rt, ::std::move(kit))) {}
 
 	bool here() const {
 		return ::std::this_thread::get_id() == js;
 	}
 };
 
+// The world of the runtime the module was last installed in. Never destroyed, since a
+// static's destructor would run after the runtime's, at exit.
 inline ::std::shared_ptr<world> &current() {
-	static ::std::shared_ptr<world> w;
-	return w;
+	static auto *w = new ::std::shared_ptr<world>();
+	return *w;
 }
 
-inline world &W() {
-	return *current();
+inline values &W() {
+	return *current()->v;
 }
 
 // Whether this thread runs JavaScript now, outside any call into Rust: a drop Rust makes
@@ -77,7 +88,7 @@ inline thread_local bool in_js = false;
 // Run the call into Rust `f` with the runtime freed, taking it back once `f` returns.
 template <class F>
 decltype(auto) unlocked(F &&f) {
-	world &w = W();
+	world &w = *current();
 	{
 		::std::lock_guard<::std::mutex> lock(w.m);
 		w.free = true;
@@ -720,15 +731,26 @@ struct frame {
 	}
 
 	// The bytes a typed array `v`, of the constructor `ctor`, views, held until the call
-	// returns.
+	// returns. Its kind, buffer, offset, and length are the engine's own, which no property
+	// or prototype a caller sets can change: a `Uint8Array`'s through JSI, and another
+	// kind's from `%TypedArray%.prototype`'s own `Symbol.toStringTag` getter.
 	c_buf array(const jsi::Value &v, const char *ctor) {
-		if (!v.isObject() || !v.getObject(rt).instanceOf(rt, rt.global().getPropertyAsFunction(rt, ctor))) {
+		bool is = v.isObject();
+		if (is && ::std::strcmp(ctor, "Uint8Array") == 0) {
+			is = v.getObject(rt).isUint8Array(rt);
+		} else if (is) {
+			jsi::Value tag = W().typed_tag.callWithThis(rt, v.getObject(rt));
+			is = tag.isString() && tag.getString(rt).utf8(rt) == ctor;
+		}
+		if (!is) {
 			type(rt, shown(rt, v) + " is no " + ctor);
 		}
-		jsi::Object o = v.getObject(rt);
-		jsi::ArrayBuffer ab = o.getPropertyAsObject(rt, "buffer").getArrayBuffer(rt);
-		auto offset = static_cast<::std::size_t>(o.getProperty(rt, "byteOffset").getNumber());
-		auto len = static_cast<::std::size_t>(o.getProperty(rt, "byteLength").getNumber());
+		jsi::TypedArray ta = v.getObject(rt).getTypedArray(rt);
+		jsi::ArrayBuffer ab = ta.buffer(rt);
+		::std::size_t offset = ta.byteOffset(rt), len = ta.byteLength(rt), size = ab.size(rt);
+		if (offset > size || len > size - offset) {
+			range(rt, ::std::string(ctor) + " is outside its buffer");
+		}
 		keep.emplace_back(rt, v);
 		// An empty array's buffer may have no data, and a null pointer is C's `None`: an
 		// empty one points at bytes aligned for any item, as Rust's empty slice does.
@@ -1405,12 +1427,24 @@ struct drainer final : node {
 };
 
 // Install the runtime into `rt`, whose `kit` is what `rt.ts` gives it, replacing any
-// runtime installed before.
+// runtime installed before. `rt` holds its world until it is destroyed, which then marks it
+// gone and releases its values while it still can: the key is this module's own, by an
+// address no other module's copy of this runtime shares.
 inline void install(jsi::Runtime &rt, post_t post, jsi::Object kit) {
-	if (auto &old = current()) {
-		old->alive.store(false, ::std::memory_order_release);
-	}
-	current() = ::std::make_shared<world>(rt, ::std::move(post), ::std::move(kit));
+	auto w = ::std::make_shared<world>(rt, ::std::move(post), ::std::move(kit));
+	struct teardown {
+		::std::shared_ptr<world> w;
+		explicit teardown(::std::shared_ptr<world> w) : w(::std::move(w)) {}
+		teardown(const teardown &) = delete;
+		teardown &operator=(const teardown &) = delete;
+		~teardown() {
+			w->alive.store(false, ::std::memory_order_release);
+			w->v.reset();
+		}
+	};
+	auto key = static_cast<::std::uint64_t>(reinterpret_cast<::std::uintptr_t>(&current));
+	rt.setRuntimeData(jsi::UUID(0x72757374, 0x0032, 0x4a53, 0x4900, key & 0xffffffffffffULL), ::std::make_shared<teardown>(w));
+	current() = w;
 	in_js = true;
 	if (c_drains) {
 		auto *d = new drainer(current());
@@ -1479,7 +1513,9 @@ inline void natives(jsi::Runtime &rt, jsi::Object &n) {
 		::std::string s;
 		for (::std::size_t i = 0; i < b.len;) {
 			::std::uint8_t c = b.ptr[i];
-			::std::size_t len = c < 0x80 ? 1 : (c >> 5) == 6 ? 2 : (c >> 4) == 14 ? 3 : (c >> 3) == 30 ? 4 : 0;
+			// A lead that starts only overlong or out-of-range sequences, 0xc0, 0xc1, and from
+			// 0xf5, is invalid alone, never consuming what follows.
+			::std::size_t len = c < 0x80 ? 1 : c < 0xc2 ? 0 : c < 0xe0 ? 2 : c < 0xf0 ? 3 : c < 0xf5 ? 4 : 0;
 			bool valid = len != 0 && i + len <= b.len;
 			::std::uint32_t cp = len == 1 ? c : len == 2 ? c & 0x1f : len == 3 ? c & 0x0f : c & 0x07;
 			for (::std::size_t k = 1; valid && k < len; k++) {

@@ -1698,6 +1698,7 @@ public let FAR: Swift.Int64
 public let EOF: Swift.Int32
 public let URL: Swift.UInt64
 @available(*, deprecated, message: "pass a step to `Dial::turn`, whose `}` or `{` alone stays in the note") public let STEP: Swift.UInt64
+public let WORD: Swift.UInt
 @inlinable public func hasText(_ note: Note) -> Swift.Bool
 @inlinable public func marked(_ apiMarked: Mark) throws -> Swift.UInt64
 @inlinable public func reading(_ n: Swift.UInt32) -> Reading?

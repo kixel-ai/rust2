@@ -623,7 +623,7 @@ jobs:
   # schedule, which runs main, gets the write token: a dispatch can run any branch.
   report:
     name: Report
-    needs: [bindings, gate, ts, bench, ffi-api, ffi, ffi-shapes, ffi-corpus, ffi-web, ffi-sanitize, ffi-cpp, ffi-android, ffi-react-native-android, ffi-react-native-ios, ffi-bench, census]
+    needs: [bindings, gate, ts, bench, ffi-api, ffi, ffi-shapes, ffi-corpus, ffi-web, ffi-sanitize, ffi-cpp, ffi-android, ffi-react-native-host, ffi-react-native-android, ffi-react-native-ios, ffi-bench, census]
     if: ${{ !cancelled() && github.event_name == 'schedule' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 5

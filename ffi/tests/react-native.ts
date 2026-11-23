@@ -5,10 +5,39 @@
 
 import * as api from "./react-native/index.ts";
 import * as check from "./api.ts";
+import * as rt from "./react-native/rt.ts";
 
 declare const process: { argv: string[]; exit(code: number): never; stderr: { write(text: string): boolean } };
 
+/**
+ * A typed array crosses as the engine holds it, whatever its own properties or prototype
+ * claim: a shadowed length reads no further than its bytes, and another kind relabeled is
+ * refused, since the JSI module reads its memory as the kind it claims.
+ */
+function typed(): void {
+	const shadowed = Uint8Array.of(0x61);
+	Object.defineProperties(shadowed, { byteLength: { value: 4096 }, byteOffset: { value: 8 }, length: { value: 4096 } });
+	const read = api.prefixed(shadowed, undefined).slice();
+	if (read.length !== 1 || read[0] !== 0x61) throw new Error(`a shadowed length read ${read.length} bytes`);
+	const relabeled = new Int8Array(3);
+	Object.setPrototypeOf(relabeled, Int32Array.prototype);
+	try {
+		api.sumLists(relabeled as unknown as Int32Array, undefined, undefined);
+	} catch (e) {
+		if (e instanceof TypeError) return;
+		throw e;
+	}
+	throw new Error("a relabeled typed array crossed");
+}
+
+/** A 64-bit target's `usize` constant crosses whole, as its parameters do. */
+function word(): void {
+	if (rt.u64ToBig(api.WORD) !== 0xffffffffffffffffn) throw new Error(`usize::MAX is ${String(api.WORD)}`);
+}
+
 const cases: Record<string, () => void | Promise<void>> = {
+	typed,
+	word,
 	futures: check.futures,
 	owned: check.owned,
 	closed: check.closedObjects,
