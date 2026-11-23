@@ -424,7 +424,8 @@ private fun __load(name: String) {
 		?: throw java.lang.UnsatisfiedLinkError("this jar bundles $name for ${bundled.keys.sorted()}, not this host's $host")
 	val library = _Native::class.java.getResourceAsStream("native/$host/$file")
 		?: throw java.lang.UnsatisfiedLinkError("this jar's index names native/$host/$file, which it lacks")
-	val dir = java.nio.file.Files.createTempDirectory("rust2-$name-")
+	// Absolute, as System.load takes only an absolute path, and java.io.tmpdir may be relative.
+	val dir = java.nio.file.Files.createTempDirectory("rust2-$name-").toAbsolutePath()
 	val path = dir.resolve(file)
 	try {
 		library.use { java.nio.file.Files.copy(it, path) }

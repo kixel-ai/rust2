@@ -1492,8 +1492,9 @@ fn kotlin_classes(api: &Api) -> PathBuf {
 }
 
 /// The classes on `classpath` load the library a desktop jar bundles, as the release's jar
-/// does, with no library path, leaving no copy behind where the system lets it go, nor of a
-/// copy that fails to load, and refuse a jar bundling none for this host.
+/// does, with no library path and a relative temporary directory, leaving no copy behind
+/// where the system lets it go, nor of a copy that fails to load, and refuse a jar bundling
+/// none for this host.
 fn bundled_library(api: &Api, classpath: &[&Path]) {
 	let file = format!("{}api{}", std::env::consts::DLL_PREFIX, std::env::consts::DLL_SUFFIX);
 	let bundled = scratch().join("api").join("bundled");
@@ -1510,8 +1511,10 @@ fn bundled_library(api: &Api, classpath: &[&Path]) {
 	.unwrap();
 	let caller = |index: String| {
 		std::fs::write(bundled.join("api").join("api.natives"), index).unwrap();
+		// A relative temporary directory, which the loader must make absolute for System.load.
 		Command::new("java")
-			.arg(format!("-Djava.io.tmpdir={}", temp.display()))
+			.current_dir(scratch().join("api"))
+			.arg("-Djava.io.tmpdir=bundled-temp")
 			.arg("-cp")
 			.arg(std::env::join_paths([bundled.as_path()].iter().chain(classpath)).unwrap())
 			.arg("Caller")

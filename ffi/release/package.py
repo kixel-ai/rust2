@@ -1836,10 +1836,10 @@ def tar_diff(one, two):
 
 
 def same(first, second):
-    """Fail unless two builds' wheels, sdist, static libraries, C archives, Dart libraries, Android libraries, Maven repository, and npm tarball, the Go module's included, are the same bytes, naming what differs."""
+    """Fail unless two builds' wheels, sdist, static libraries, C archives, Dart libraries, Android and desktop JVM libraries, SBOMs, Maven repository, and npm tarball, the Go module's included, are the same bytes, naming what differs."""
     found = {}
     patterns = ("wheels/*.whl", "sdist/*.tar.gz", "static/*/*.a", "go/*.a", "c/*.tar.gz", "c/*.zip", "dart/*",
-                "android/*/*.so", "jvm/*/*", "maven/**/*.*", "*.tgz")
+                "android/*/*.so", "jvm/*/*", "maven/**/*.*", "*.tgz", "*.cdx.json")
     for root in (Path(first), Path(second)):
         found[root] = {p.relative_to(root).as_posix(): p for pattern in patterns for p in root.glob(pattern) if p.is_file()}
     names = sorted(found[Path(first)])

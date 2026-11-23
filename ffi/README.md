@@ -738,7 +738,7 @@ packages place it in.
 `--features kotlin` builds into the same library, loaded by `System.loadLibrary`, or on a
 desktop JVM from a jar bundling it: when the class path holds `<prefix>/<prefix>.natives`,
 whose lines name a Rust target and a library file, the host's `<prefix>/native/<target>/<file>`
-is copied to a private temporary directory and loaded from there, and a host it lacks fails
+is copied to a private directory under `java.io.tmpdir`, which must allow executing it, and loaded from there, and a host it lacks fails
 the load naming the targets it has. It needs
 kotlinx-coroutines. It is not Kotlin Multiplatform, since Swift has its own binding and
 Kotlin's Swift export is Alpha in 2.4. A leaf's native method, a primitive field read or write or a derived

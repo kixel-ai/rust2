@@ -254,7 +254,8 @@ the builder unpacks over its checkout before reading the checks.
     serves, and kotlinx-coroutines, for Kotlin 2.2 and JVM 1.8, so a consumer's Kotlin 2.1
     reads its metadata. A desktop JVM runs the same classes, which name no Android API, and
     never loads `@FastNative`, an annotation only ART reads.
-    The jar, `<crate>-<version>.jar`, holds the classes and each desktop library at
+    The jar, `<crate>-<version>.jar`, holds the classes and each wheel target's desktop library
+    (glibc Linux on x86_64 and aarch64, macOS on arm64, Windows on x86_64) at
     `<lib>/native/<target>/`, beside the index `<lib>/<lib>.natives` naming them, from which
     the binding loads its host's ([Kotlin](/ffi/README.md#kotlin)). The AAR,
     `<crate>-<version>.aar`, holds the Android libraries in `jni/`, the classes as
