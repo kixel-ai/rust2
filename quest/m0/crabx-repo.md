@@ -19,6 +19,12 @@ new repository; an interim crabx-only toolchain). The reason: binstalk 0.31 need
 1.100, which moved rust2's root toolchain off moq's 1.98.1. The doc comment on
 `stable_rustc()` in `ffi/tests/fixtures.rs` names this gap.
 
+Decided 2026-11-23 (maintainer, /quest-run), in
+[#974](https://github.com/kixel-ai/rust2/pull/974#issuecomment-7111543984): ✅ keep this
+quest (rejected: dropping it), and ✅ m0 (rejected: m2 under
+[the crabx epic](/quest/m2/crabx/README.md)), since rust2's stable-channel checks test
+Rust 1.100 instead of moq's 1.98.1 until the move lands.
+
 Recommendations, the maintainer's to change in review:
 
 - [First publish](/quest/m2/crabx/first-publish.md) waits for the move, so the
@@ -80,12 +86,3 @@ Validation:
   selects prints 1.98.1, and the `channel_stable` fixture runs on it.
 - In rust2, `git grep -il crabx` lists only `ffi/release/README.md` and the three quest
   READMEs' pointers.
-
-## Waiting
-
-- Maintainer: confirm the milestone. Recommended: m0, which holds urgent fixes to what a
-  consumer already depends on. moq depends on the stable-glue checks, and they test 1.100
-  instead of its 1.98.1 until this lands. The alternative is a child of
-  [the crabx epic](/quest/m2/crabx/README.md) in m2, which would rank it with crabx's
-  research, behind m1's exporter work, and leave the gap open longer. Done when this file
-  sits in the chosen milestone and this item is removed.
