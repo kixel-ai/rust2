@@ -5042,13 +5042,22 @@ fn reexport() {
 	}
 	let stray = out.join("go").join("stray").join("stray.go");
 	step::write(&stray, "package stray\n");
-	let built = out.join("react-native").join("libs").join("android").join("arm64-v8a").join("libreexport.a");
+	let built = out
+		.join("react-native")
+		.join("libs")
+		.join("android")
+		.join("arm64-v8a")
+		.join("libreexport.a");
 	step::write(&built, "!<arch>\n");
 	export();
 	let mut kept = written.clone();
 	kept.push(built);
 	kept.sort();
-	assert_eq!(files(&out), kept, "the second export wrote other files, or removed what the app built into libs/");
+	assert_eq!(
+		files(&out),
+		kept,
+		"the second export wrote other files, or removed what the app built into libs/"
+	);
 	for file in &written {
 		let mtime = std::fs::metadata(file).unwrap().modified().unwrap();
 		assert_eq!(mtime, past, "the second export rewrote {}", file.display());
