@@ -522,7 +522,11 @@ fn languages(lib: &str, out: &Path, dir: &Path, built: &Built) -> Result<(), (&'
 	let csharp = out.join("csharp").join(format!("{lib}.cs"));
 	checked(
 		"C#",
-		&mut super::csc_command(super::Dotnet::Library, &dir.join("csharp").join(format!("{lib}.dll")), &[&csharp]),
+		&mut super::csc_command(
+			super::Dotnet::Library,
+			&dir.join("csharp").join(format!("{lib}.dll")),
+			&[&csharp],
+		),
 	)?;
 	checked(
 		"C# for Unity",

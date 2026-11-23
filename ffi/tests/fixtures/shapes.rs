@@ -2538,7 +2538,10 @@ fn csharp(built: &Built, calls: &[Call]) -> String {
 			.unwrap_or_else(|| panic!("the C# declares {class}.{member}"));
 		let (head, params) = line.split_once(&format!(" {member}(")).unwrap();
 		// The return type may hold spaces, as a tuple's does: all past the modifiers.
-		let ret = head.trim_start_matches("public ").trim_start_matches("static ").to_string();
+		let ret = head
+			.trim_start_matches("public ")
+			.trim_start_matches("static ")
+			.to_string();
 		let params = params.strip_suffix(')').unwrap();
 		let (mut split, mut depth) = (vec![String::new()], 0);
 		for c in params.chars() {
@@ -2589,7 +2592,12 @@ fn csharp(built: &Built, calls: &[Call]) -> String {
 	let thrown: std::collections::HashMap<String, String> = (source.split("public sealed class ").skip(1))
 		.filter_map(|class| {
 			let (name, rest) = class.split_once(" : RustException")?;
-			let error = rest.lines().nth(2)?.trim().strip_prefix("public ")?.strip_suffix(" Error { get; }")?;
+			let error = rest
+				.lines()
+				.nth(2)?
+				.trim()
+				.strip_prefix("public ")?
+				.strip_suffix(" Error { get; }")?;
 			Some((error.to_string(), name.to_string()))
 		})
 		.collect();
@@ -2630,7 +2638,9 @@ fn csharp(built: &Built, calls: &[Call]) -> String {
 			}
 			Kind::Try => {
 				let (tried, _) = lib(&format!("Try{n}"));
-				let class = thrown.get(&tried).unwrap_or_else(|| panic!("no exception holds a {tried}"));
+				let class = thrown
+					.get(&tried)
+					.unwrap_or_else(|| panic!("no exception holds a {tried}"));
 				return format!(
 					"\t\ttry\n\t\t{{\n\t\t\tvar v = Lib.Try{n}({seed});\n\t\t\tConsole.WriteLine($\"{label} ok {{{}}}\");\n\t\t}}\n\
 					\t\tcatch ({class} e)\n\t\t{{\n\t\t\tConsole.WriteLine($\"{label} err {{{}}}\");\n\t\t}}",
@@ -2651,7 +2661,11 @@ fn csharp(built: &Built, calls: &[Call]) -> String {
 			}
 			Kind::Pair => {
 				let (_, params) = lib(&format!("Pair{n}"));
-				format!("Lib.Pair{n}({}, {seed}, {})", make(seed, &params[0]), make(other, &params[2]))
+				format!(
+					"Lib.Pair{n}({}, {seed}, {})",
+					make(seed, &params[0]),
+					make(other, &params[2])
+				)
 			}
 			Kind::Maybe => match seed % 2 {
 				0 => format!("Lib.Maybe{n}(null)"),
