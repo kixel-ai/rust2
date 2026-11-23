@@ -28,6 +28,7 @@ LANGS = [
 	("swift", "Swift"),
 	("go", "Go"),
 	("dart", "Dart"),
+	("csharp", "C#"),
 	("ts-node", "TS (Node)"),
 	("ts-chromium", "TS (Chromium)"),
 	("ts-firefox", "TS (Firefox)"),
@@ -86,6 +87,7 @@ BINDINGS = [
 	("Swift", ["swift"], []),
 	("Go", ["go"], []),
 	("Dart", ["dart/lib/moq.dart"], ["src/dart"]),
+	("C#", ["csharp/moq.cs"], []),
 ]
 
 # The TypeScript, under the wasm32 stand-in's export, and the glue its module builds with.
