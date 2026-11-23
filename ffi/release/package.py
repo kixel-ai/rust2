@@ -3473,7 +3473,6 @@ def consume_jvm(repo, check, native):
             (source / "check.kt").write_text(f'fun main() {{\n\tClass.forName("{package}._Native")\n}}\n', encoding="utf-8")
         (app / "settings.gradle.kts").write_text(f"""pluginManagement {{
 	repositories {{
-		gradlePluginPortal()
 		{CENTRAL}
 	}}
 }}
