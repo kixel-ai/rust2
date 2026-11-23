@@ -599,6 +599,8 @@ impl Crate<'_> {
 			dart = []\n\
 			# What web/index.ts calls that the C ABI lacks, built for wasm32-wasip1.\n\
 			web = []\n\
+			# The Node-API addon node/index.ts loads, as node/{lib}.node.\n\
+			node = []\n\
 			\n\
 			{targeted}\
 			[workspace]\n\
@@ -622,6 +624,7 @@ impl Crate<'_> {
 		let csharp = crate::csharp::generate(&rest, &self.packages(), contract)?;
 		let web = crate::web::generate(&rest, self.facade, contract)?;
 		let react_native = crate::web::react_native(&rest, self.facade, contract)?;
+		let node = crate::web::node(&rest, self.facade, contract)?;
 		let jsi = match &react_native {
 			Some(_) => Some(crate::jsi::generate(
 				&rest,
@@ -649,6 +652,9 @@ impl Crate<'_> {
 		if let Some(react_native) = &react_native {
 			names.insert("React Native".to_string(), react_native.names.clone());
 		}
+		if let Some(node) = &node {
+			names.insert("Node".to_string(), node.names.clone());
+		}
 		let mut output = Output {
 			names,
 			files: Vec::new(),
@@ -658,6 +664,8 @@ impl Crate<'_> {
 				out.join("web"),
 				out.join("src").join("web"),
 				out.join("react-native"),
+				out.join("node"),
+				out.join("src").join("node"),
 			],
 			spared: vec![out.join("react-native").join("libs")],
 		};
@@ -673,6 +681,7 @@ impl Crate<'_> {
 			checking: Cell::new(false),
 			reserved: Cell::new(false),
 			web: web.is_some(),
+			node: node.is_some(),
 			variants: String::new(),
 			unwind: self.abi.space("unwind"),
 		};
@@ -727,6 +736,13 @@ impl Crate<'_> {
 			output.file(&out.join("src/web/runtime.rs"), crate::web::GLUE_RUNTIME);
 			for (path, text) in &web.files {
 				output.file(&out.join("web").join(path), text);
+			}
+		}
+		if let Some(node) = node {
+			output.file(&out.join("src/node/mod.rs"), &node.glue);
+			output.file(&out.join("src/node/runtime.rs"), crate::node::GLUE_RUNTIME);
+			for (path, text) in &node.files {
+				output.file(&out.join("node").join(path), text);
 			}
 		}
 		if let (Some(react_native), Some(jsi)) = (react_native, jsi) {
@@ -1022,6 +1038,8 @@ struct Gen<'a> {
 	reserved: Cell<bool>,
 	/// Whether the API serves the web, whose glue the crate's `web` feature builds.
 	web: bool,
+	/// Whether the API serves Node, whose addon the crate's `node` feature builds.
+	node: bool,
 	/// The Python glue's functions telling which variant an object that is an enum holds.
 	variants: String,
 	/// Where each C function's `C-unwind` body is named under `kotlin`: no C name is it or
@@ -1740,6 +1758,9 @@ impl Gen<'_> {
 		self.line("#[cfg(feature = \"dart\")]\nmod dart;\n");
 		if self.web {
 			self.line("#[cfg(all(feature = \"web\", target_arch = \"wasm32\"))]\nmod web;\n");
+		}
+		if self.node {
+			self.line("#[cfg(feature = \"node\")]\nmod node;\n");
 		}
 		// The facade may export nothing, which cargo would call unused.
 		self.line(format!("use {} as _;\n", self.dependency));

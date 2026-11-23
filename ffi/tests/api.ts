@@ -1017,7 +1017,8 @@ async function closedCall(f: () => Promise<unknown>, type: string, what: string)
 export async function lent(): Promise<void> {
 	// React Native's binding reads a typed array as its engine holds it, so it takes no Proxy
 	// of one, whose reads no getter sees during a call; the web's reads its `length`.
-	const engineRead = api.platform().tag === "Native";
+	// React Native's module reads a typed array itself, as the engine holds it, through its runtime's natives.
+	const engineRead = "n" in rt;
 	let before = api.dropped();
 	const small = api.tokenBytes(1, 64);
 	check(api.dropped() === ++before, "64 bytes are copied and Rust's freed at the call");

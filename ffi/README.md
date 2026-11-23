@@ -67,9 +67,11 @@ the C ABI through `dart:ffi` and what the crate builds with `--features dart`, a
 `csharp/<prefix>.cs` holds it in C#, over the C ABI. When `wasm32-wasip1` is among
 the targets, `web/` holds it in TypeScript for the web, ES modules over the `.wasm` the
 crate builds with `--target wasm32-wasip1 --features web`. When any other target is,
-`react-native/` holds it for React Native, the web's TypeScript over a JSI module in C++.
+`react-native/` holds it for React Native, the web's TypeScript over a JSI module in C++,
+and when any 64-bit little-endian target is, `node/` holds it for Node, Bun, and Deno, the
+web's TypeScript over a Node-API addon the crate builds with `--features node`.
 An export again rewrites only the files whose content changed, and removes from
-`include/<prefix>/`, `go/`, `web/`, and `react-native/` but its `libs/`, which the app builds
+`include/<prefix>/`, `go/`, `web/`, `node/`, and `react-native/` but its `libs/`, which the app builds
 into, only what it no longer writes, so a build of an unchanged
 export stays fresh. The crate's version, `0.0.0+<hash>`, hashes its Rust sources and
 manifest, so exports that differ build apart in a target directory they share.
@@ -1932,6 +1934,33 @@ the header's wrappers would, and it needs only `jsi.h`.
 - **Bundling**: React Native's Babel preset compiles modules sloppy and lacks `using`;
   the binding needs neither, but a caller's `using` needs
   `@babel/plugin-transform-explicit-resource-management` in its `babel.config.js`.
+
+## Node
+
+`node/` is an npm package of the web's TypeScript API over a Node-API addon, which Node,
+Bun, and Deno load: the library the crate builds with `--features node`, as
+`node/<prefix>.node`, finds Node-API in the process that loads it rather than linking it,
+so the same library serves every other language too. It serves each 64-bit little-endian
+target but wasm32's, whose layouts its TypeScript reads.
+
+- **Calls**: each C function is a native function of the addon, whose arguments are numbers,
+  `bigint`s, and offsets, never a JavaScript object made per call. A value lowers into the
+  addon's scratch memory, one reservation as large as wasm32's memory, committed as the
+  stack reaches it and viewed by one `ArrayBuffer`, as the web's lowers into the module's
+  memory, but at the native C ABI's layouts. A handle crosses as its index in the addon's
+  table of addresses, which its free or the collector frees.
+- **Values** are React Native's: `usize` and `isize` are `rt.u64` and `rt.i64`, and a
+  constant only some targets have fails the export. A function only some targets have
+  throws, naming it, on the others. An `rt.Bytes` past 64 bytes is Rust's own buffer,
+  which `at` and `slice` read through the addon, so no view of it reaches JavaScript; the
+  addon tells the collector of the bytes lent.
+- **Threads**: JavaScript runs on its own thread alone, while Rust calls a trait, closure,
+  waker, or reader from any. Such a call from another thread waits in a queue, as Dart's
+  does: the event loop runs it, through a thread-safe function, and so does a call from
+  JavaScript waiting in Rust, which runs on a worker thread while JavaScript holds a token
+  Rust may call from another thread. A wake and a drop from another thread queue the same
+  way without waiting. A call into Rust that pends keeps the event loop alive. One
+  environment at a time loads the addon: a worker's load while another holds it throws.
 
 ## Tests
 
