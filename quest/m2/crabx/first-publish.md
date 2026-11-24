@@ -19,8 +19,14 @@ fix it.
 The maintainer chose to keep this quest rather than fold its steps into the PR that added
 release.yml ([#826](https://github.com/kixel-ai/rust2/pull/826)).
 
-The installers are served at `crabx.kixel.ai` by GitHub Pages from this repository:
-`.github/workflows/installers.yml` deploys `crabx/install.sh` and `crabx/install.ps1`
+Decided by the maintainer on 2026-11-22, in
+[#948](https://github.com/kixel-ai/rust2/pull/948#issuecomment-7074616370): ✅ this waits
+for [the move to `kixel-ai/crabx`](/quest/m0/crabx-repo.md), so both registries trust that
+repository's `release.yml` from the first version. The steps below already name it and its
+root layout; the move carries this quest into its quest tree.
+
+The installers are served at `crabx.kixel.ai` by GitHub Pages:
+`.github/workflows/installers.yml` deploys `install.sh` and `install.ps1`
 whenever main changes them. kixel.ai's DNS is on Cloudflare, so the record points the
 subdomain at GitHub; a Cloudflare redirect to the raw files was rejected because it lives
 outside the repository and serves whatever path layout main happens to have.
@@ -31,7 +37,7 @@ Cloudflare has the challenge TXT record and the `crabx` CNAME to `kixel-ai.githu
 only; and only `main` may deploy to the `github-pages`, `crates-io`, and `npm` environments.
 The installers deployed and HTTPS is enforced, so `curl -fsSL https://crabx.kixel.ai/install.sh`
 prints the installer. GitHub issued the certificate only after the custom domain was removed
-and set again.
+and set again. The move redoes the Pages and environment steps in `kixel-ai/crabx`.
 
 ## Waiting
 
@@ -46,26 +52,31 @@ and set again.
   crates.io token. Check `https://crates.io/crates/crabx`.
 
   ```sh
-  git -C <rust2> switch --detach origin/main && cd <rust2>/crabx
+  git -C <crabx> switch --detach origin/main && cd <crabx>
   cargo publish --locked
   ```
 
 - Maintainer: on crates.io, crabx → Settings → Trusted Publishing → add GitHub with owner
-  `kixel-ai`, repository `rust2`, workflow `release.yml`, environment `crates-io`. After
+  `kixel-ai`, repository `crabx`, workflow `release.yml`, environment `crates-io`. After
   release.yml first publishes a version, turn on "Require trusted publishing". An agent
   can't: it needs the crate owner's session.
-- Maintainer: once `gh workflow run release.yml -R kixel-ai/rust2` has attached all six
-  archives to `crabx-v0.1.0` (`gh release view crabx-v0.1.0 -R kixel-ai/rust2`), publish
+- Maintainer: once `gh workflow run release.yml -R kixel-ai/crabx` has attached all six
+  archives to `crabx-v0.1.0` (`gh release view crabx-v0.1.0 -R kixel-ai/crabx`), publish
   the npm packages, which verifies each archive's attestation first, then trust the
   workflow for each (npm 11.15.0 or later). An agent can't: both need the maintainer's npm
   login and 2FA. Check `npx crabx --version` prints `crabx 0.1.0`.
 
   ```sh
   npm login
-  GH_TOKEN=$(gh auth token) python3 crabx/release.py publish 0.1.0
+  GH_TOKEN=$(gh auth token) python3 release.py publish 0.1.0
   for p in crabx @crabx/linux-x64-gnu @crabx/linux-arm64-gnu @crabx/darwin-x64 \
     @crabx/darwin-arm64 @crabx/win32-x64 @crabx/win32-arm64; do
-    npm trust github "$p" --file release.yml --repo kixel-ai/rust2 --env npm --allow-publish --yes
+    npm trust github "$p" --file release.yml --repo kixel-ai/crabx --env npm --allow-publish --yes
     sleep 2
   done
   ```
+
+## Required
+
+- [Move to kixel-ai/crabx](/quest/m0/crabx-repo.md) - the repository the registries trust
+  to publish crabx

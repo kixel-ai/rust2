@@ -18,7 +18,7 @@ moq_rev := "1aa86d5e6d091848cb1848c702a911099706b1a4"
 swift_collections_rev := "f96b909e1a9e469620bc5037c1e24e00153f376f"
 
 # The binding benchmark's programs, each a language, as bench-program runs them.
-bench_langs := "rust c cpp moq-c kotlin python swift go dart csharp ts-node ts-chromium ts-firefox"
+bench_langs := "rust c cpp moq-c kotlin python swift go dart csharp ts-node ts-chromium ts-firefox react-native"
 
 # Those whose cases CodSpeed counts the same on every run of one commit: bench/ffi/README.md's CodSpeed section says why Swift, Kotlin, Go, Dart, and C# do not.
 codspeed_langs := "rust c cpp moq-c python ts-node"
@@ -64,6 +64,18 @@ aot:
 # Run the api fixture's web test in headless Chromium, Firefox, and on Linux WebKit, in the bench shell, which carries them: nix develop .#bench.
 browsers:
     cargo test --locked --test fixtures -- --ignored --exact api_browsers
+
+# Run the api fixture's script and cases through its React Native binding on Hermes off a device, the flake's, which nix builds on first use.
+react-native-host:
+    hermes=$(nix build --no-link --print-out-paths ..#hermes) && RUST2_HERMES="$hermes" cargo test --locked --test fixtures -- --ignored --exact api_react_native_host
+
+# Run the api fixture's script and cases through its React Native package in a new React Native app, built for release, on the 64-bit Android device adb reaches, in the Android shell (nix develop .#android) with ANDROID_HOME and ANDROID_NDK_HOME set, Node, and the network.
+react-native-android:
+    cargo test --locked --test fixtures -- --ignored --exact api_react_native_android
+
+# The same on the booted iOS simulator of the host's architecture, on macOS with Xcode, CocoaPods, and the simulator's Rust target.
+react-native-ios:
+    cargo test --locked --test fixtures -- --ignored --exact api_react_native_ios
 
 # Shrink the api fixture's Kotlin with R8 and its generated rules, and run its test under CheckJNI on the Android device adb reaches, in the Android shell (nix develop .#android) with ANDROID_HOME and ANDROID_NDK_HOME set.
 android:
@@ -114,9 +126,9 @@ census checkout="": (standin checkout)
     cargo run --locked --quiet -- --manifest-path target/moq-ffi/Cargo.toml --census target/census
 
 # Measure the binding benchmark (bench/ffi/README.md) from the pinned moq revision or a checkout, in the bench shell: nix develop .#bench. Its tables go to target/bench/report.md.
-bench checkout="": (bench-build checkout) bench-run
+bench checkout="": (bench-build checkout) rn-bench bench-run
 
-# Build the binding benchmark's programs: Rust's floor, C, C++, Kotlin, Python, Swift, Go, Dart, and C# through the export, TypeScript through the wasm32 stand-in's, and C through moq's hand-written rs/libmoq.
+# Build the binding benchmark's programs: Rust's floor, C, C++, Kotlin, Python, Swift, Go, Dart, and C# through the export, TypeScript through the wasm32 stand-in's, and C through moq's hand-written rs/libmoq. React Native's, which builds Hermes, is rn-bench's, which `bench` runs after it, so CodSpeed's run of this builds no Hermes.
 bench-build checkout="": (moq-export checkout) (moq-web checkout) ts-program codspeed-hooks
     #!/usr/bin/env bash
     set -euo pipefail
@@ -247,7 +259,7 @@ codspeed-hooks:
     cp moq/bench/codspeed.h "$dir/"
     printf 'module CodSpeed {\n    header "codspeed.h"\n    export *\n}\n' > "$dir/module.modulemap"
 
-# Run what bench-build built: each program `rounds` times into target/bench/raw.tsv, and the export and its crate's build, beside moq's, each round into target/bench/build.tsv, with the 1-minute load average over each run, and their medians and the export's sizes into target/bench/report.md.
+# Run what bench-build and rn-bench built: each program `rounds` times into target/bench/raw.tsv, and the export and its crate's build, beside moq's, each round into target/bench/build.tsv, with the 1-minute load average over each run, and their medians and the export's sizes into target/bench/report.md.
 bench-run rounds="3":
     #!/usr/bin/env bash
     set -euo pipefail
@@ -319,7 +331,7 @@ codspeed:
         {{ quote(just_executable()) }} bench-program "$lang"
     done
 
-# Run what bench-build built for one of bench_langs.
+# Run what bench-build or rn-bench built for one of bench_langs.
 [private]
 bench-program lang:
     #!/usr/bin/env bash
@@ -350,10 +362,11 @@ bench-program lang:
             [ -z "${RUST2_CODSPEED:-}" ] || flags=(--expose-gc --predictable --predictable-gc-schedule --single-threaded --v8-pool-size=0)
             exec node ${flags[@]+"${flags[@]}"} target/bench-ts/export.ts "$wasm" "$PWD/target/codspeed/codspeed.node" ;;
         ts-chromium | ts-firefox) exec bun target/bench-ts/browser.ts "${lang#ts-}" "$wasm" "target/bench-browser/${lang#ts-}" ;;
+        react-native) exec target/bench-rn/host target/bench-rn/bundle.js ;;
         *) echo "bench-program: no language {{ lang }}" >&2; exit 1 ;;
     esac
 
-# Export moq's crates' C ABI, build it, and run moq/moq.c, moq/moq.cpp, moq/moq.kt, moq/moq.py, moq/moq.swift, moq/moq.go, moq/moq.dart, and moq/moq.cs against it, and compile its C# for Unity, from the pinned moq revision or a checkout.
+# Export moq's crates' C ABI, build it, and run moq/moq.c, moq/moq.cpp, moq/moq.kt, moq/moq.py, moq/moq.swift, moq/moq.go, moq/moq.dart, moq/moq.cs, and moq/moq.ts against it, and compile its C# for Unity, from the pinned moq revision or a checkout.
 moq checkout="": (moq-cpp checkout)
     #!/usr/bin/env bash
     set -euo pipefail
@@ -384,6 +397,15 @@ moq checkout="": (moq-cpp checkout)
     {{ quote(just_executable()) }} csharp exe target/moq-csharp/moq.dll "$out/csharp/moq.cs" moq/moq.cs
     LD_LIBRARY_PATH="$out/target/release" DYLD_LIBRARY_PATH="$out/target/release" dotnet target/moq-csharp/moq.dll
     {{ quote(just_executable()) }} csharp unity target/moq-csharp/unity.dll "$out/csharp/moq.cs" tests/unity.cs
+    {{ quote(just_executable()) }} moq-react-native-run
+
+# Export and build moq's crates' C ABI as `just ffi moq` does, and run only moq/moq.ts against it, through the React Native binding on Hermes off a device.
+moq-react-native checkout="": (moq-export checkout) moq-react-native-run
+
+# Run moq/moq.ts through the React Native binding on Hermes off a device.
+[private]
+moq-react-native-run: (rn-program "moq-rn" "moq/moq.ts")
+    target/moq-rn/host target/moq-rn/bundle.js
 
 # Export and build moq's crates' C ABI as `just ffi moq` does, and run only moq/moq.cpp against it, built by $CXX or the platform's compiler: MSVC's on Windows, from a developer environment.
 moq-cpp checkout="": (moq-export checkout)
@@ -493,6 +515,74 @@ ts-program:
         '"allowImportingTsExtensions": true, "verbatimModuleSyntax": true, "erasableSyntaxOnly": true, "skipLibCheck": true, "types": []},' \
         '"include": ["export.ts", "web/*.ts"], "exclude": ["web/*.d.ts"]}' > "$dir/tsconfig.json"
     tsc -p "$dir"
+
+# Lay out target/bench-rn as export.ts over the React Native binding bench-build exported, on Hermes off a device: its modules React Native's, and its load the JSI module's, which takes no module, since the host installed it.
+[private]
+rn-bench:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    src=target/bench-rn-src
+    mkdir -p "$src"
+    sed -e 's|"\./web/|"./react-native/|' -e '/^const { readFileSync } = /d' \
+        -e 's|^await api\.load(readFileSync(process\.argv\[2\]!));$|await api.load();|' moq/bench/export.ts > "$src/export.ts"
+    grep -qx 'await api.load();' "$src/export.ts" || { echo "rn-bench: moq/bench/export.ts no longer loads its module as this rewrites it" >&2; exit 1; }
+    {{ quote(just_executable()) }} rn-program bench-rn "$src/export.ts"
+
+# Lay out target/<dir> as React Native's run of <script> on Hermes off a device, the flake's, which nix builds on first use: the script, checked with tsc over target/export/moq's React Native binding as a caller imports it, bundled into one script as Hermes runs it, its top-level await in an async function that exits as Node does, and tests/rn_host.cpp built over the binding's JSI module and moq's library.
+[private]
+rn-program dir script:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    hermes=$(nix build --no-link --print-out-paths ..#hermes)
+    out=target/export/moq
+    dir=target/{{ dir }}
+    rm -rf "$dir"
+    mkdir -p "$dir"
+    cp -r "$out/react-native" "$dir/react-native"
+    cp {{ script }} "$dir/main.ts"
+    # What `load` reaches of React Native only where no host installed the module.
+    printf '%s\n' 'export const TurboModuleRegistry = {' \
+        '	getEnforcing<T>(name: string): T {' \
+        '		throw new Error(`no TurboModule ${name} off React Native`);' \
+        '	},' \
+        '};' \
+        'export type TurboModule = object;' > "$dir/react-native-stub.ts"
+    printf '%s\n' '{"compilerOptions": {"strict": true, "noEmit": true, "noUnusedLocals": true, "noUnusedParameters": true,' \
+        '"target": "es2024", "lib": ["es2024", "esnext.disposable", "dom"], "module": "esnext", "moduleResolution": "bundler",' \
+        '"allowImportingTsExtensions": true, "verbatimModuleSyntax": true, "erasableSyntaxOnly": true, "skipLibCheck": true, "types": [],' \
+        '"paths": {"react-native": ["./react-native-stub.ts"]}},' \
+        '"include": ["main.ts", "react-native/*.ts"], "exclude": ["react-native/*.d.ts"]}' > "$dir/tsconfig.json"
+    tsc -p "$dir"
+    # Hermes takes a script, not modules, and lacks async generators. Sloppy, as React
+    # Native's Babel preset compiles a module. Classes and their private fields stay as
+    # Hermes runs them, close to the preset's loose properties: esbuild's lowering of a
+    # private field into a WeakMap would cost every call more than either.
+    (cd "$dir" && esbuild main.ts --bundle --format=esm --target=es2022 --supported:async-generator=false \
+        --define:import.meta.url=undefined --alias:react-native=./react-native-stub.ts \
+        --log-level=error --outfile=module.js)
+    {
+        printf '(async () => {\n'
+        cat "$dir/module.js"
+        # The host's `process.exit` throws `__exited` to stop the script, having exited already.
+        printf '%s\n' '})().then(' \
+            '	() => process.exit(0),' \
+            '	(e) => {' \
+            '		if (e instanceof Error && e.message === "__exited") return;' \
+            '		process.stderr.write(`uncaught: ${e instanceof Error ? (e.stack ?? e.message) : String(e)}\n`);' \
+            '		process.exit(1);' \
+            '	},' \
+            ');'
+    } > "$dir/bundle.js"
+    case "{{ os() }}" in
+        macos) hermesvm=libhermesvm.dylib ;;
+        *) hermesvm=libhermesvm.so ;;
+    esac
+    read -ra native < target/moq-native
+    c++ -std=c++17 -O2 -Wall -Wextra -Werror -DRUST2_PREFIX_NS=rust2_moq -DRUST2_GLOBAL='"__rust2_moq"' -DRUST2_HEADER='"moq_jsi.h"' \
+        -I "$out/include" -I "$dir/react-native/cpp" -isystem "$hermes/API" -isystem "$hermes/API/jsi" -isystem "$hermes/public" \
+        -isystem "$hermes/include" -isystem "$hermes/build/lib/config" "$dir/react-native/cpp/moq_jsi.cpp" tests/rn_host.cpp \
+        -o "$dir/host" "$hermes/build/lib/$hermesvm" "$hermes/build/jsi/libjsi.a" "$out/target/release/libmoq.a" "${native[@]}" \
+        -Wl,-rpath,"$hermes/build/lib"
 
 # Compile C# <sources> into <out> with Roslyn, warnings as errors and every doc comment well-formed: as .NET 10 compiles an `exe`, which `dotnet <out>` runs, or a `library`, or as Unity compiles one, at C# 9 against .NET Standard 2.1, the dev shell's NETSTANDARD_REF.
 [private]

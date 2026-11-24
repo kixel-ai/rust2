@@ -17,7 +17,7 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-#define API_CONTRACT ((uint64_t)0x3cf0d773a45556acULL)
+#define API_CONTRACT ((uint64_t)0x66223956c3ae2fe4ULL)
 uint64_t api_contract(void);
 uint32_t api_target(void);
 typedef int32_t api_status;
@@ -1314,6 +1314,7 @@ typedef struct api_clash_Count_ {
 #define API_EOF ((int32_t)-1)
 #define API_URL ((uint64_t)1000ULL)
 #define API_STEP ((uint64_t)1ULL)
+#define API_WORD ((size_t)18446744073709551615ULL)
 void api_Parcel_free(api_Parcel *self);
 void api_Weighted_free(api_Weighted *self);
 uint64_t api_Weighted_total(const api_Weighted *self);

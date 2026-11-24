@@ -1447,8 +1447,9 @@ impl<'a> Gen<'a> {
 						_ => "long",
 					};
 					// A property, so on a 32-bit runtime only its own read throws, not `Lib`'s
-					// initializer, which every member of `Lib` would then rethrow.
-					format!("static {ty} {name} => checked(({ty})({wide}){v});")
+					// initializer, which every member of `Lib` would then rethrow. Through a
+					// local, since Roslyn refuses to convert the constant itself.
+					format!("static {ty} {name} {{ get {{ {wide} v = {v}; return checked(({ty})v); }} }}")
 				}
 				_ => format!("const {ty} {name} = {value};"),
 			};

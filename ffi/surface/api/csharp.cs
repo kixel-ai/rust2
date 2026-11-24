@@ -2320,6 +2320,7 @@ namespace Api {
 		public const int EOF = -1;
 		public const ulong URL = 1000U;
 		public const ulong STEP = 1U;
+		public static nuint WORD { get; }
 		public static bool HasText(Note note);
 		public static ulong Marked(Mark apiMarked);
 		public static Reading? Reading(uint n);
