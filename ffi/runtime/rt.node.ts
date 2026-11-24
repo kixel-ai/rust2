@@ -193,8 +193,21 @@ export function mirror(p: number, n: number, align: number): number {
 	return at;
 }
 
+/** An array the generated code reads a list's block into: a typed array, which `$into` takes, never a `DataView`. */
+type Block =
+	| Uint8Array
+	| Int8Array
+	| Uint16Array
+	| Int16Array
+	| Uint32Array
+	| Int32Array
+	| BigUint64Array
+	| BigInt64Array
+	| Float32Array
+	| Float64Array;
+
 /** Copy into `out` the bytes the pointer at `p` points to, as many as it holds. */
-export function readInto(p: number, out: ArrayBufferView): void {
+export function readInto(p: number, out: Block): void {
 	if (out.byteLength > 0) w.$into(out, addrGet(p));
 }
 

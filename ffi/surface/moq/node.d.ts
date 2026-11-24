@@ -12353,7 +12353,8 @@ export declare function values<T>(next: () => Call<unknown>, none: unknown, fall
 export declare function on(mask: bigint, name: string): void;
 export declare function lenAt(p: number): number;
 export declare function mirror(p: number, n: number, align: number): number;
-export declare function readInto(p: number, out: ArrayBufferView): void;
+type Block = Uint8Array | Int8Array | Uint16Array | Int16Array | Uint32Array | Int32Array | BigUint64Array | BigInt64Array | Float32Array | Float64Array;
+export declare function readInto(p: number, out: Block): void;
 export declare function putList(p: number, at: number, n: number): void;
 export declare function handleAt(p: number): number;
 export declare function putHandle(p: number, h: number): void;

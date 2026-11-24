@@ -965,15 +965,27 @@ impl Home {
 			done: done.clone(),
 			acting,
 		});
+		// Once `run` returns, run only what was queued by then, which `done`, set under the
+		// queue's lock, counts: such as a free its call made, which Rust ran before it
+		// returned. What is queued later the event loop was told of, so a steady producer
+		// can't hold this thread.
 		let mut tasks = self.lock();
 		loop {
-			if let Some(task) = tasks.pop_front() {
+			if done.load(Ordering::Acquire) {
+				let queued = tasks.len();
+				drop(tasks);
+				for _ in 0..queued {
+					let task = self.lock().pop_front();
+					let Some(task) = task else { break };
+					// SAFETY: the caller's contract.
+					unsafe { self.run(task) };
+				}
+				break;
+			} else if let Some(task) = tasks.pop_front() {
 				drop(tasks);
 				// SAFETY: the caller's contract.
 				unsafe { self.run(task) };
 				tasks = self.lock();
-			} else if done.load(Ordering::Acquire) {
-				break;
 			} else {
 				tasks = self.ready.wait(tasks).unwrap_or_else(|e| e.into_inner());
 			}
@@ -1205,7 +1217,10 @@ unsafe extern "C" fn on_loop(env: Env, _: Value, _: *mut c_void, _: *mut c_void)
 			HOME.exit();
 			return;
 		}
-		loop {
+		// Only the tasks queued by now: each queued after `told` cleared tells the event loop
+		// again, so a steady producer can't hold this turn.
+		let queued = HOME.lock().len();
+		for _ in 0..queued {
 			let task = HOME.lock().pop_front();
 			let Some(task) = task else { break };
 			HOME.run(task);
@@ -1340,6 +1355,16 @@ unsafe extern "C" fn native_init(env: Env, info: Info) -> Value {
 		// Node caches a module's exports, so a second copy of the binding, such as its `.js`
 		// beside its `.ts`, reaches the same addon without registering it again: its imports
 		// would replace those the first's tokens name.
+		// A V8 build with its sandbox, such as Electron's, refuses memory outside its cage: the
+		// load fails before it takes anything, so it throws rather than aborts.
+		let mut memory = null_mut();
+		let status =
+			(api().create_external_arraybuffer)(env, base() as *mut c_void, SCRATCH, null(), null_mut(), &mut memory);
+		if status != 0 {
+			let message = c"the runtime refuses an external ArrayBuffer, as a V8 sandbox does: the addon needs one";
+			(api().throw_error)(env, null(), message.as_ptr());
+			return null_mut();
+		}
 		if INITIALIZED.swap(true, Ordering::AcqRel) {
 			let message = c"the addon is loaded already, by another copy of its binding: import one copy";
 			(api().throw_error)(env, null(), message.as_ptr());
@@ -1355,11 +1380,6 @@ unsafe extern "C" fn native_init(env: Env, info: Info) -> Value {
 			}
 			imports.push(r);
 		}
-		let mut memory = null_mut();
-		ok(
-			(api().create_external_arraybuffer)(env, base() as *mut c_void, SCRATCH, null(), null_mut(), &mut memory),
-			"the scratch memory's ArrayBuffer",
-		);
 		memory
 	}
 }
