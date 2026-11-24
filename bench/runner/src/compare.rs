@@ -24,14 +24,18 @@ pub fn compare(base: &str, options: &Options) -> Result<(), String> {
 		tree.display()
 	);
 	let mut base = options.clone();
-	let real = top.canonicalize().map_err(|e| format!("cannot resolve {}: {e}", top.display()))?;
+	let real = top
+		.canonicalize()
+		.map_err(|e| format!("cannot resolve {}: {e}", top.display()))?;
 	base.cargo = rebase(&options.cargo, &real, &tree)?;
 	// A wanted benchmark may be new at the head or gone from it, but must be on one side.
 	let before = measure(&tree.join(&prefix), &base, false)?;
 	eprintln!("rust2-bench: counting the working tree");
 	let after = measure(Path::new("."), options, false)?;
 	if let Some(wanted) = &options.benchmarks {
-		missing(wanted, |name| before.counts.contains_key(name) || after.counts.contains_key(name))?;
+		missing(wanted, |name| {
+			before.counts.contains_key(name) || after.counts.contains_key(name)
+		})?;
 	}
 	if before.counts.is_empty() && after.counts.is_empty() {
 		return Err("no benchmark ran".to_owned());
@@ -68,9 +72,9 @@ fn rebase(args: &[String], top: &Path, tree: &Path) -> Result<Vec<String>, Strin
 			let canonical = Path::new(path)
 				.canonicalize()
 				.map_err(|e| format!("cannot resolve {path}: {e}"))?;
-			let relative = canonical
-				.strip_prefix(top)
-				.map_err(|_| format!("--manifest-path {path} is outside the repository, so compare would count it twice"))?;
+			let relative = canonical.strip_prefix(top).map_err(|_| {
+				format!("--manifest-path {path} is outside the repository, so compare would count it twice")
+			})?;
 			tree.join(relative)
 				.to_str()
 				.ok_or("the base's worktree path is not UTF-8")?
@@ -163,14 +167,28 @@ mod tests {
 		let tree = Path::new("/base");
 		let args = |list: &[&str]| list.iter().map(|s| (*s).to_owned()).collect::<Vec<_>>();
 		let rebased = rebase(
-			&args(&["--manifest-path", manifest, "--locked", "--", "--manifest-path", manifest]),
+			&args(&[
+				"--manifest-path",
+				manifest,
+				"--locked",
+				"--",
+				"--manifest-path",
+				manifest,
+			]),
 			&top,
 			tree,
 		)
 		.unwrap();
 		assert_eq!(
 			rebased,
-			args(&["--manifest-path", "/base/Cargo.toml", "--locked", "--", "--manifest-path", manifest])
+			args(&[
+				"--manifest-path",
+				"/base/Cargo.toml",
+				"--locked",
+				"--",
+				"--manifest-path",
+				manifest
+			])
 		);
 		let equals = format!("--manifest-path={manifest}");
 		assert_eq!(
