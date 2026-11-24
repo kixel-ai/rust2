@@ -237,8 +237,9 @@ type Process = {
 
 /**
  * Load the addon at `path`, a URL or a path from the working directory, checking it is the
- * build `glue` was generated with, for a target it serves, before any call. Its runtime
- * serves one at a time: a worker's load while another holds it throws.
+ * build `glue` was generated with, for a target it serves, before any call. The first
+ * environment to load it keeps it for the process's life: any other's load throws, even
+ * once the first has exited.
  */
 export async function load(path: string | URL, glue: Glue): Promise<void> {
 	if (loading || loaded) throw new Error(`${glue.file}: the addon is loaded already`);

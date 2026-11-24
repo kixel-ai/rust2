@@ -1266,11 +1266,12 @@ export function bounds(): void {
 		throws(() => api.sameDuration({ secs: 0, nanos }), RangeError, `${nanos} nanoseconds`);
 	}
 
-	// A path is its bytes, which a string may not hold.
-	const stray = { bytes: bytes(0xff) };
+	// A path is its bytes, which a string may not hold: here WTF-8's lone surrogate, not
+	// UTF-8, which a Unix, WASI, and Windows path each hold.
+	const stray = { bytes: bytes(0xed, 0xa0, 0x80) };
 	const back = api.samePath(stray);
-	check(back.bytes.length === 1 && back.bytes[0] === 0xff, "a path that is not UTF-8");
-	check(rt.pathText(back) === "�", "a path's text replaces what is not UTF-8");
+	check(back.bytes.length === 3 && [...back.bytes].every((b, i) => b === stray.bytes[i]), "a path that is not UTF-8");
+	check(rt.pathText(back) === "\ufffd\ufffd\ufffd", "a path's text replaces what is not UTF-8");
 	check(rt.pathText(rt.pathFrom("a/é")) === "a/é", "a UTF-8 path as text");
 	// Each invalid lead or broken sequence is replaced as Rust's `from_utf8_lossy` does: by
 	// one U+FFFD for its longest valid prefix, never consuming the byte after it.

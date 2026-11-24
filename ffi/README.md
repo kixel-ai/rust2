@@ -1964,8 +1964,9 @@ target but wasm32's, whose layouts its TypeScript reads.
   does: the event loop runs it, through a thread-safe function, and so does a call from
   JavaScript waiting in Rust, which runs on a worker thread while JavaScript holds a token
   Rust may call from another thread. A wake and a drop from another thread queue the same
-  way without waiting. A call into Rust that pends keeps the event loop alive. One
-  environment at a time loads the addon: a worker's load while another holds it throws.
+  way without waiting. A call into Rust that pends keeps the event loop alive. The first
+  environment to load the addon keeps it for the process's life: any other's load, such as
+  a worker's, throws, even once the first has exited.
 
 ## Tests
 

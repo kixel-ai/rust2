@@ -381,8 +381,9 @@ pub(crate) struct Output {
 	/// Directories the export owns, where an earlier export may have written files for
 	/// crates or packages this one has not.
 	stale: Vec<PathBuf>,
-	/// Directories inside those that the export never writes and leaves as they are: React
-	/// Native's `libs/`, which the app builds its Rust libraries into.
+	/// Paths inside those that the export never writes and leaves as they are: React
+	/// Native's `libs/`, which the app builds its Rust libraries into, and Node's addon,
+	/// which the consumer stages beside its package.
 	spared: Vec<PathBuf>,
 }
 
@@ -443,7 +444,7 @@ fn prune(dir: &Path, keep: &HashSet<&Path>, spared: &[PathBuf]) -> Result<(), St
 			if !spared.contains(&path) {
 				prune(&path, keep, spared)?;
 			}
-		} else if !keep.contains(path.as_path()) {
+		} else if !keep.contains(path.as_path()) && !spared.contains(&path) {
 			std::fs::remove_file(&path).map_err(|err| format!("removing {}: {err}", path.display()))?;
 		}
 	}
@@ -667,7 +668,10 @@ impl Crate<'_> {
 				out.join("node"),
 				out.join("src").join("node"),
 			],
-			spared: vec![out.join("react-native").join("libs")],
+			spared: vec![
+				out.join("react-native").join("libs"),
+				out.join("node").join(format!("{}.node", self.abi.prefix)),
+			],
 		};
 		let mut generator = Gen {
 			abi: self.abi,
@@ -3745,7 +3749,7 @@ fn rewrite_keeps_unchanged_files() {
 			.map(|(path, text)| (root.join(path), text.to_string()))
 			.collect(),
 		stale: vec![go.clone()],
-		spared: vec![],
+		spared: vec![go.join("staged.node")],
 	};
 	let first = [
 		("Cargo.toml", "a"),
@@ -3755,6 +3759,7 @@ fn rewrite_keeps_unchanged_files() {
 	];
 	output(&first).write().unwrap();
 	std::fs::write(root.join("go/rt/stray.go"), "stray").unwrap();
+	std::fs::write(go.join("staged.node"), "staged").unwrap();
 	std::fs::write(root.join("kept.txt"), "kept").unwrap();
 	// Set in the past, so a rewrite would move it.
 	let past = std::time::SystemTime::UNIX_EPOCH + std::time::Duration::from_secs(1 << 30);
@@ -3777,6 +3782,11 @@ fn rewrite_keeps_unchanged_files() {
 		root.join("kept.txt").exists(),
 		"a file outside the export's directories went"
 	);
+	assert!(
+		go.join("staged.node").exists(),
+		"a spared file the consumer staged went"
+	);
+	std::fs::remove_file(go.join("staged.node")).unwrap();
 	output(&[("Cargo.toml", "b")]).write().unwrap();
 	assert_eq!(std::fs::read_to_string(root.join("Cargo.toml")).unwrap(), "b");
 	assert!(!go.exists(), "the export's emptied directory stays");

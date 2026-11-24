@@ -21,6 +21,14 @@ fixture's transcript and cases on Node, Bun, and Deno.
   `rt.leave`, costs both about 35 to 50 ns, and Node-API's crossing alone is what the
   addon adds. The addon's column on [the benchmark](/bench/ffi/README.md#node-api) has
   the per-case cost.
+- A call while JavaScript holds a token Rust may call through from another thread, as
+  moq's session always does through `Waiter.new$`'s closure, costs about 2.5 µs, not 43 ns
+  ([measured](/bench/ffi/README.md#node-api) 2026-11-24): `serve_run` hands each such call
+  to its worker and serves the queue until it returns. The goal holds then too, so a call
+  that cannot reach JavaScript from another thread must run on JavaScript's thread, or the
+  handoff must cost about the bare crossing. Find which, such as a generator-known set of
+  calls that take no closure and wait on nothing JavaScript serves, or a worker that spins
+  briefly before it parks, and measure it on `just ffi moq-node`'s session.
 - [React Native's binding](/ffi/README.md) is the model: its TypeScript calls `rt.n.<fn>`
   and its JSI module lowers, holds, and checks. Here a native function would read a
   handle's borrow state from the addon's table, which already holds each handle, rather

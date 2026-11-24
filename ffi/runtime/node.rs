@@ -8,8 +8,9 @@
 //! an implementation there, waits in a queue for that thread to run: from its event loop,
 //! which a thread-safe function tells of each, or, while it waits in a call from
 //! JavaScript, from that wait. A call waits so only while JavaScript holds a token Rust
-//! may call through from another thread: then it runs on a worker thread. One environment
-//! at a time loads the addon, as the table and the scratch memory are its.
+//! may call through from another thread: then it runs on a worker thread. The first
+//! environment to load the addon keeps it for the process's life, as the table and the
+//! scratch memory are its: any other's load throws, even once the first has exited.
 
 use std::cell::{Cell, UnsafeCell};
 use std::collections::VecDeque;
@@ -241,10 +242,33 @@ fn reserve() -> usize {
 		unsafe extern "C" {
 			fn mmap(at: *mut c_void, len: usize, prot: i32, flags: i32, fd: i32, offset: i64) -> *mut c_void;
 		}
-		#[cfg(any(target_os = "linux", target_os = "android"))]
+		// `MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE`, numbered per kernel and, on Linux, per
+		// architecture; the BSDs and macOS reserve lazily without it.
+		#[cfg(all(
+			any(target_os = "linux", target_os = "android"),
+			not(any(target_arch = "mips64", target_arch = "mips64r6", target_arch = "powerpc64"))
+		))]
 		const FLAGS: i32 = 0x02 | 0x20 | 0x4000;
-		#[cfg(not(any(target_os = "linux", target_os = "android")))]
+		#[cfg(all(target_os = "linux", target_arch = "powerpc64"))]
+		const FLAGS: i32 = 0x02 | 0x20 | 0x40;
+		#[cfg(all(any(target_os = "linux", target_os = "android"), any(target_arch = "mips64", target_arch = "mips64r6")))]
+		const FLAGS: i32 = 0x02 | 0x800 | 0x400;
+		#[cfg(any(target_os = "illumos", target_os = "solaris"))]
+		const FLAGS: i32 = 0x02 | 0x100 | 0x40;
+		#[cfg(any(target_vendor = "apple", target_os = "freebsd", target_os = "netbsd", target_os = "openbsd", target_os = "dragonfly"))]
 		const FLAGS: i32 = 0x0002 | 0x1000;
+		#[cfg(not(any(
+			target_os = "linux",
+			target_os = "android",
+			target_os = "illumos",
+			target_os = "solaris",
+			target_vendor = "apple",
+			target_os = "freebsd",
+			target_os = "netbsd",
+			target_os = "openbsd",
+			target_os = "dragonfly",
+		)))]
+		compile_error!("the node feature knows no anonymous mmap flags for this target's kernel");
 		// SAFETY: a new anonymous mapping, inaccessible until committed.
 		let at = unsafe { mmap(null_mut(), SCRATCH, 0, FLAGS, -1, 0) };
 		if at as isize == -1 {
@@ -1461,7 +1485,8 @@ static EXTERNS: OnceLock<&'static [&'static CStr]> = OnceLock::new();
 static REGISTERED: AtomicBool = AtomicBool::new(false);
 
 /// Register the addon in `env`: the natives and `calls` on `exports`, and the names of the
-/// glue's imports, `externs`. A second environment, as a worker's, is refused.
+/// glue's imports, `externs`. Any later environment, as a worker's, is refused, even
+/// once the first has exited.
 ///
 /// # Safety
 /// Node-API's module registration, on JavaScript's thread.
@@ -1473,7 +1498,7 @@ pub unsafe fn register(env: Env, exports: Value, calls: &[(&CStr, Callback)], ex
 			(api.throw_error)(
 				env,
 				null(),
-				c"the addon is loaded in another environment already: one at a time loads it, so a worker's load is refused".as_ptr(),
+				c"the addon is loaded in another environment already: the first to load it keeps it for the process's life".as_ptr(),
 			)
 		};
 		return null_mut();

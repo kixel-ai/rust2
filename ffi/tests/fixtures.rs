@@ -3782,8 +3782,9 @@ const REACT_NATIVE_CASES: [&str; 19] = [
 /// web's glue or its `main`, its cases exported for a script loading the binding as its
 /// `main` does the web's, such as `tests/react-native.ts`.
 fn binding_check(dir: &str) -> String {
+	// A Windows checkout's line endings, which the rewrites below match as LF.
 	let check = std::fs::read_to_string(manifest_dir().join("tests").join("api.ts")).unwrap();
-	let check = check.replace("\"./web/", &format!("\"./{dir}/"));
+	let check = check.replace("\r\n", "\n").replace("\"./web/", &format!("\"./{dir}/"));
 	let glue = format!("import * as g from \"./{dir}/glue.ts\";\n");
 	assert_eq!(check.matches(&glue).count(), 1, "api.ts imports the web's glue once");
 	let check = check.replace(&glue, "");

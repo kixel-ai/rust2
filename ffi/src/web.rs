@@ -252,9 +252,25 @@ pub(crate) fn node_mask(abi: &Abi<'_>) -> u64 {
 }
 
 /// Whether the target triple `target` has 64-bit pointers and is little-endian, by its
-/// architecture's family, less the ABIs of 32-bit pointers on a 64-bit one.
+/// architecture's family, less the ABIs of 32-bit pointers on a 64-bit one, on a kernel whose
+/// scratch reservation the addon knows.
 fn node_target(target: &str) -> bool {
-	let arch = target.split('-').next().unwrap_or_default();
+	let mut parts = target.split('-');
+	let arch = parts.next().unwrap_or_default();
+	let kernel = [
+		"linux",
+		"apple",
+		"windows",
+		"freebsd",
+		"netbsd",
+		"openbsd",
+		"dragonfly",
+		"illumos",
+		"solaris",
+	];
+	if !parts.any(|part| kernel.contains(&part)) {
+		return false;
+	}
 	let narrow = target.ends_with("x32") || target.contains("ilp32") || arch == "arm64_32";
 	let wide = arch.starts_with("x86_64")
 		|| (arch.starts_with("aarch64") && !arch.ends_with("_be"))
@@ -3764,6 +3780,11 @@ mod tests {
 			"powerpc64le-unknown-linux-gnu",
 			"mips64el-unknown-linux-gnuabi64",
 			"mipsisa64r6el-unknown-linux-gnuabi64",
+			"aarch64-linux-android",
+			"x86_64-pc-windows-msvc",
+			"x86_64-unknown-freebsd",
+			"x86_64-unknown-illumos",
+			"x86_64-pc-solaris",
 		] {
 			assert!(node_target(served), "{served}");
 		}
@@ -3778,6 +3799,10 @@ mod tests {
 			"powerpc64-unknown-linux-gnu",
 			"s390x-unknown-linux-gnu",
 			"mips64-unknown-linux-gnuabi64",
+			"x86_64-unknown-haiku",
+			"x86_64-unknown-uefi",
+			"x86_64-fortanix-unknown-sgx",
+			"aarch64-unknown-fuchsia",
 		] {
 			assert!(!node_target(refused), "{refused}");
 		}

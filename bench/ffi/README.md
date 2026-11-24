@@ -1281,6 +1281,15 @@ the two land within 10%, and the addon moves more bytes up to 64 KiB. A wake cal
 into JavaScript through `napi_call_function`, where the module calls an import, which costs
 the woken read 0.7 µs more.
 
+Every number here is a call made while JavaScript holds no token Rust may call through
+from another thread, as `export.ts` holds none. While it holds one, as moq's session does
+through `Waiter.new$`'s closure, every call runs on the addon's worker thread while
+JavaScript's serves what Rust queues, a handoff and a wait each way. On the api fixture's
+release addon, a leaf call (`dropped()`) took 43 ns without a token and 2,400 to 2,560 ns
+of wall time, 1,980 to 2,060 ns of CPU, while a `Logger` held one: 3 rounds of 2 million
+calls on **fedora** at a load average of 27, 2026-11-24. Dart's binding waits the same way.
+[Node's lowering](/quest/m3/node-lowering.md) owns the cost.
+
 `frame.payload` up to 64 bytes copies through the scratch memory, one native call of
 numbers alone, 237 to 259 ns; a copy into a new `Uint8Array`, a call reading the array's
 place, cost about 560 in an earlier run. Past them it lends Rust's buffer, 275 to 357 ns at
