@@ -1,67 +1,40 @@
-# [S] The build benchmark on bare metal, with a dependency hint
+# [XS] The build benchmark on bare metal, with a verdict on mold and wild
 
 ## Goal
 
-[The build-speed benchmark](/bench/build/README.md)'s reference report comes from the
-bare-metal `nixos` runner, so its "instructions vs base" column holds numbers, and it
-measures Cargo's `hint-mostly-unused` profile setting on dependencies.
+[The build-speed benchmark](/bench/build/README.md) settles whether the mold and wild
+linkers cut wall time on moq's `check`, `build`, and edits, from a run on the bare-metal
+`nixos` runner that no other work shares.
 
 ## Plan
 
-Decided with the maintainer on 2026-11-12, in the quest audit: ✅ in m3, with the other
-build-speed levers.
+The 2026-11-24 dispatch at `main`
+([run 45450542634](https://github.com/kixel-ai/rust2/actions/runs/45450542634)) filled the
+instructions column, measured `mostly-unused` (worse), and repeated the other levers; its
+report is in the README. Its `moq stable` job, the only one with mold and wild, ran on a
+loaded host: its CPU time per instruction was 1.8 times the nightly job's, and its
+baseline `edit-hub` had a 4.95 s standard deviation. Instructions cannot judge a parallel
+linker, so the verdict needs wall time from a quiet host.
 
-Decided with the maintainer on 2026-11-22, in `/quest-plan` for the follow-up of
-[kixel-ai/dotfiles#227](https://github.com/kixel-ai/dotfiles/pull/227), which adds the
-`rust2-bench` runner on `nixos` that no queue build runs beside: ✅ the change that moves
-`bench.yml` onto `[self-hosted, rust2-bench]` adds a comment beside its `on:` saying it
-must never gain a `workflow_call` trigger, since the runner group admits `bench.yml`'s jobs
-whichever workflow calls it, so a caller could run its own checkout on the bench host
-(rejected: a CI check that fails on the trigger, which the same PR could delete; rejected:
-drop it).
-
-Decided with the maintainer on 2026-11-23 in
-[kixel-ai/rust2#764](https://github.com/kixel-ai/rust2/pull/764#issuecomment-7112509978):
-✅ split setup from measurements (rejected: deferring the setup PR; loosening the
-runner's main-only trust). Land the workflow and variant setup first; keep this
-quest open for a later measurement and report PR from a `bench.yml` dispatch at
-`main`. The runner provisioning wait cleared with dotfiles PR 227.
-
-Decided 2026-11-23 (maintainer, /quest-run): ✅ drop the `embed-metadata` variant
-(rejected: replacing it with a Cargo-configured `unstable.embed-metadata=true`
-opt-out comparison). Nightly Cargo already defaults to `-Zembed-metadata=no`
-since rust-lang/cargo#17267, before the 2026-10-22 pin; moq has nothing to adopt.
-`mostly-unused` stays.
-
-The variants and runner wiring are implemented, and the first dispatch at `main`
-([run 45323643680](https://github.com/kixel-ai/rust2/actions/runs/45323643680)) is
-published in `bench/build/README.md`: the host lease held for each job, the `jobs-frontend=32`
-and `mostly-unused` comparisons, and the A/A controls. Its instructions column read
-`n/a`: hyperfine 2 reads no counters under `--shell`, which the harness used (the runner's
-counters work), and the harness now runs bash as the benchmarked program instead.
-Its wall-time noise was 5 to 9% RMS on the controls, above the hosted runners' 1.3 to 1.9%.
-
-Decided 2026-11-24 on `/quest-run`'s recommendation while the maintainer was away, not
-the maintainer's decision: ✅ land the `--shell none` fix and the wall and CPU report now
-(rejected: holding the PR until instruction counts exist); ✅ don't recommend
-`jobs-frontend` for moq's CI, which is shared and CPU-bound, at most an opt-in for local
-development, and revisit it with the instruction counts (rejected: recommending it in moq's
-`.cargo/config.toml`); ✅ investigate the wall noise only if wall time still matters after
-the instruction rerun (rejected: investigating now).
-
-Remaining, after that change lands at `main`:
-
-- Dispatch `bench.yml` at `main` again and check that every row of the new report, except ra-jit's
-  (the daemon's counters are not inherited, so they read `n/a`), holds instructions. Replace the README's reference table with it, its noise from the controls'
-  instructions, and the mold and wild comparison the first run could not settle.
-- If the controls' wall time is still as noisy, find what shares the host that the lease
-  does not exclude (the CARLA demo, agent sessions, the Nix daemon) and either exclude it
-  from the lease or say it in the README.
-- Report which winning, cost-free settings moq should use in `.cargo/config.toml`.
-  Make no recommendation until the instructions support it; `jobs-frontend=32` is the only
-  lever outside the first run's noise, and it trades CPU time for wall time.
+- Dispatch `bench.yml` at `main` while no agent session, `pullfrog-*` container, or landing
+  check runs on `nixos` (the ci-lease excludes the queue containers, land fixers, and the
+  Nix daemon only), and check that the stable job's baseline `check` takes about 137 CPU-s
+  for 438G instructions, as the nightly job's did. Replace the README's stable rows, and
+  say wild's `edit-hub` gain (-37.7% and -17.8% wall in two noisy runs) with its noise from
+  the controls.
+- If wild or mold wins outside the controls' wall noise, report it as a line for moq's
+  `.cargo/config.toml`; no other lever is cost-free and clear of the noise.
 
 Public API: none.
+
+## Waiting
+
+- Maintainer: how to get a quiet host for the stable job, which waits 1 to 2 hours for the
+  lease and runs 2 hours more. Options: (a) pause agent work on `nixos` for a dispatch;
+  (b) extend the ci-lease in dotfiles to freeze or exclude agent sessions and the
+  `pullfrog-*` containers while a bench job holds it; (c) drop the verdict, since moq's CI
+  runs on aarch64 and the instructions show no linker gain. Recommendation: (a), since
+  (b) stalls every agent whenever a bench runs and (c) leaves wild's two hints open.
 
 ## Hosts
 

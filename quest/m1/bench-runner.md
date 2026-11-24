@@ -36,4 +36,4 @@ Public API: a new CLI. Wire: none.
 
 ## Related
 
-- [The build-speed benchmark on bare metal](/quest/m3/bench-metal.md) - also counts instructions, through perf counters on the `nixos` runner
+- [The build-speed benchmark on bare metal](/quest/m3/bench-metal.md) - what remains of it, a verdict on mold and wild from a quiet `nixos` runner
