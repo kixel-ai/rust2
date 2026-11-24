@@ -892,7 +892,9 @@ impl<'a> Gen<'a> {
 			// One only some targets have is read from the library, which raises on any other,
 			// as a function would.
 			if !api.everywhere(constant.on) {
-				let bare = self.bare(&abi.constant(&constant.path)).to_string();
+				// Apart from every function's glue, which the C prefix's case alone kept apart:
+				// no C name's first segment is `const`, a C keyword.
+				let bare = format!("const__{}", self.bare(&abi.constant(&constant.path)));
 				let (ty, body) = match constant.value {
 					Literal::Bool(b) => ("_bool", format!("rt::bool_out({b})")),
 					Literal::Int(Int::U64 | Int::Usize, v) => ("_int", format!("rt::uint_out({v})")),
