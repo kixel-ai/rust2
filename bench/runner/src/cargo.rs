@@ -35,7 +35,7 @@ pub fn jobs(dir: &Path, args: &[String]) -> Result<Vec<Job>, String> {
 	if targets.is_empty() {
 		return Err("cargo built no benchmark target".to_owned());
 	}
-	let libraries = library_path(dir, &targets, linked)?;
+	let libraries = library_path(&targets, linked)?;
 	// Every target lists its benchmarks at once: each runs them natively, far faster than
 	// under Valgrind.
 	let listed = std::thread::scope(|scope| {
@@ -247,10 +247,11 @@ fn manifest_path(args: &[String]) -> Option<&str> {
 }
 
 /// The `LD_LIBRARY_PATH` Cargo gives what it runs, so a target finds the shared libraries its
-/// build made: the build scripts' link search paths in the target directory, each target's
-/// output and deps directories, and the sysroot's, for `-Cprefer-dynamic`, before the
-/// environment's own.
-fn library_path(dir: &Path, targets: &[Target], linked: Vec<PathBuf>) -> Result<OsString, String> {
+/// build made: the build scripts' link search paths in the target directory and each target's
+/// output and deps directories, before the environment's own. Cargo's sysroot entry, which only
+/// `-Cprefer-dynamic` needs, is left out: finding it means resolving the compiler Cargo's
+/// configuration selects, and without it such a target fails loud with the loader's error.
+fn library_path(targets: &[Target], linked: Vec<PathBuf>) -> Result<OsString, String> {
 	let mut paths = linked;
 	for target in targets {
 		let deps = target
@@ -260,18 +261,6 @@ fn library_path(dir: &Path, targets: &[Target], linked: Vec<PathBuf>) -> Result<
 		paths.push(deps.to_owned());
 		paths.extend(deps.parent().map(Path::to_owned));
 	}
-	let rustc = std::env::var_os("RUSTC").unwrap_or_else(|| "rustc".into());
-	let out = Command::new(&rustc)
-		.args(["--print", "target-libdir"])
-		.current_dir(dir)
-		.stderr(Stdio::inherit())
-		.output()
-		.map_err(|e| format!("cannot run rustc: {e}"))?;
-	if !out.status.success() {
-		return Err(format!("rustc --print target-libdir failed ({})", out.status));
-	}
-	let sysroot = String::from_utf8(out.stdout).map_err(|_| "rustc printed a library path not UTF-8")?;
-	paths.push(PathBuf::from(sysroot.trim()));
 	let mut seen = BTreeSet::new();
 	paths.retain(|path| seen.insert(path.clone()));
 	if let Some(existing) = std::env::var_os("LD_LIBRARY_PATH") {
