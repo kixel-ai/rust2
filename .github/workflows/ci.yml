@@ -1,0 +1,29 @@
+name: CI
+
+# Every pull request into main gets build.yml's run of what its diff selects,
+# so its author sees the queue's result before picking it; nothing requires
+# it, since the queue builds each group again. A push to main runs it too,
+# which is the only run that saves the build cache the others restore.
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+# No secrets, and a read-only token: a pull request's branch may hold anyone's
+# workflow edits.
+permissions:
+  contents: read
+
+# A new push supersedes a pull request's run, and a newer main's cache
+# supersedes an older one's.
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: CI
+    uses: ./.github/workflows/build.yml
+    with:
+      run: true
