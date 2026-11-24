@@ -9,7 +9,7 @@ import unittest
 from pathlib import Path
 
 DISPATCH = Path(__file__).with_name("dispatch.sh").resolve()
-EVERYTHING = ["lint", "quest", "sh", "driver", "ffi", "go", "ts"]
+EVERYTHING = ["lint", "quest", "sh", "release", "driver", "ffi", "go", "ts"]
 # A shared input runs everything but the parked go, which only `just gate` and
 # its own diff select.
 SHARED = [m for m in EVERYTHING if m != "go"]
@@ -67,13 +67,17 @@ class SelectTests(unittest.TestCase):
 
     def test_projects_select_themselves_and_the_lints(self):
         for paths, expected in (
-            (["ts/src/lib.rs"], ["lint", "ts"]),
-            (["ffi/src/lib.rs"], ["lint", "ffi"]),
-            (["go/src/lib.rs"], ["lint", "go"]),
-            (["ts/fixtures/codec/src/lib.rs"], ["lint", "ts"]),
+            (["ts/src/lib.rs"], ["lint", "quest", "ts"]),
+            (["ffi/src/lib.rs"], ["lint", "quest", "ffi"]),
+            (["go/src/lib.rs"], ["lint", "quest", "go"]),
+            (["ts/fixtures/codec/src/lib.rs"], ["lint", "quest", "ts"]),
             (["quest/m0/example.md"], ["lint", "quest"]),
-            (["sh/dispatch.test.py"], ["lint", "sh"]),
-            (["ts/src/lib.rs", "ffi/src/lib.rs"], ["lint", "ffi", "ts"]),
+            (["sh/dispatch.test.py"], ["lint", "quest", "sh"]),
+            (["sh/coverage.test.py"], ["lint", "quest", "sh"]),
+            # The release builder's scripts are their own module, apart from the exporter's.
+            (["ffi/release/package.py"], ["lint", "quest", "release"]),
+            (["ffi/release/package.py", "ffi/src/lib.rs"], ["lint", "quest", "release", "ffi"]),
+            (["ts/src/lib.rs", "ffi/src/lib.rs"], ["lint", "quest", "ffi", "ts"]),
         ):
             with self.subTest(paths=paths):
                 self.change(*paths)
@@ -82,26 +86,71 @@ class SelectTests(unittest.TestCase):
 
     def test_the_driver_selects_its_dependents(self):
         self.change("driver/src/lib.rs")
-        self.assertEqual(self.select(), ["lint", "driver", "ffi", "ts"])
+        self.assertEqual(self.select(), ["lint", "quest", "driver", "ffi", "ts"])
 
     def test_the_shared_nightly_selects_each_project_on_it(self):
         self.change("ts/rust-toolchain.toml")
-        self.assertEqual(self.select(), ["lint", "driver", "ffi", "ts"])
+        self.assertEqual(self.select(), ["lint", "quest", "driver", "ffi", "ts"])
 
     def test_a_go_diff_with_a_shared_input_still_selects_go(self):
         self.change("go/src/lib.rs", "flake.nix")
         self.assertEqual(self.select(), EVERYTHING)
 
     def test_lint_only_paths_select_only_the_lints(self):
-        for path in ("bench/ffi/run.sh", "README.md", ".claude/settings.json"):
+        for path in (
+            "bench/ffi/run.sh",
+            "README.md",
+            ".claude/settings.json",
+            # A project's prose, which no build or test reads.
+            "ffi/FACADE.md",
+            "ffi/release/README.md",
+        ):
             with self.subTest(path=path):
                 self.change(path)
-                self.assertEqual(self.select(), ["lint"])
+                self.assertEqual(self.select(), ["lint", "quest"])
                 self.git("clean", "-fdq")
 
+    def test_other_prose_in_a_project_still_selects_it(self):
+        for path, expected in (
+            # A fixture's expected output is Markdown its test compares with.
+            ("ts/fixtures/census/census.md", ["lint", "quest", "ts"]),
+            # Cargo looks for a crate's README.
+            ("ffi/README.md", ["lint", "quest", "ffi"]),
+            ("driver/pub/README.md", ["lint", "quest", "driver", "ffi", "ts"]),
+        ):
+            with self.subTest(path=path):
+                self.change(path)
+                self.assertEqual(self.select(), expected)
+                self.git("clean", "-fdq")
+
+    def test_what_loading_the_justfiles_reads_selects_each_module_running_just(self):
+        for path in ("ffi/justfile", "ts/justfile", "driver/justfile", "ts/fixtures/model/Cargo.toml"):
+            with self.subTest(path=path):
+                self.change(path)
+                self.assertEqual(self.select(), ["lint", "quest", "driver", "ffi", "ts"])
+                self.git("clean", "-fdq")
+        # The parked go's own still selects it.
+        self.change("go/justfile")
+        self.assertEqual(self.select(), ["lint", "quest", "driver", "ffi", "go", "ts"])
+
+    def test_paths_on_stdin_select_without_git(self):
+        for paths, expected in (
+            ("ffi/release/package.py\n", ["lint", "quest", "release"]),
+            ("ffi/FACADE.md\n", ["lint", "quest"]),
+            ("flake.nix\nffi/FACADE.md\n", SHARED),
+            ("", ["lint", "quest"]),
+        ):
+            with self.subTest(paths=paths):
+                result = subprocess.run(
+                    ["bash", "sh/dispatch.sh", "ci", "--paths", "--query"],
+                    cwd=self.repo, env=self.env, input=paths, text=True, capture_output=True,
+                )
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertEqual(result.stdout.split(), expected)
+
     def test_empty_diff_keeps_the_lints(self):
-        self.assertEqual(self.select(), ["lint"])
-        self.assertEqual(self.select(""), ["lint"])
+        self.assertEqual(self.select(), ["lint", "quest"])
+        self.assertEqual(self.select(""), ["lint", "quest"])
 
     def test_shared_inputs_select_everything(self):
         for path in (
@@ -111,6 +160,8 @@ class SelectTests(unittest.TestCase):
             "justfile",
             ".github/workflows/nightly.yml",
             "sh/dispatch.sh",
+            ".gitignore",
+            ".gitattributes",
             # An unmapped project runs everything until the map claims it.
             "next/src/lib.rs",
         ):
@@ -139,7 +190,7 @@ class SelectTests(unittest.TestCase):
         self.commit("ts/src/lib.rs")
         self.git("update-ref", "refs/remotes/origin/main", "HEAD")
         (self.repo / "ts/src/lib.rs").unlink()
-        self.assertEqual(self.select(), ["lint", "ts"])
+        self.assertEqual(self.select(), ["lint", "quest", "ts"])
 
     def test_base_changes_since_the_branch_do_not_count(self):
         branch = self.git("rev-parse", "HEAD")
@@ -147,18 +198,18 @@ class SelectTests(unittest.TestCase):
         self.git("update-ref", "refs/remotes/origin/main", "HEAD")
         self.git("checkout", "-q", "-b", "work", branch)
         self.commit("ts/src/lib.rs")
-        self.assertEqual(self.select(), ["lint", "ts"])
+        self.assertEqual(self.select(), ["lint", "quest", "ts"])
 
     def test_land_gate_base_comes_before_origin_main(self):
         base = self.git("rev-parse", "HEAD")
         self.commit("ts/src/lib.rs")
         # The gate's clone has no remote; origin/main standing at HEAD selects nothing.
         self.git("update-ref", "refs/remotes/origin/main", "HEAD")
-        self.assertEqual(self.select(), ["lint"])
+        self.assertEqual(self.select(), ["lint", "quest"])
         self.env["QUEST_LAND_BASE"] = base
-        self.assertEqual(self.select(), ["lint", "ts"])
+        self.assertEqual(self.select(), ["lint", "quest", "ts"])
         # An explicit base still wins.
-        self.assertEqual(self.select("HEAD"), ["lint"])
+        self.assertEqual(self.select("HEAD"), ["lint", "quest"])
 
     def test_an_unknown_base_fails(self):
         result = self.query("no-such-ref")

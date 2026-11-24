@@ -828,12 +828,17 @@ impl<'a> Header<'a> {
 			let name = self.name(&abi.constant(&constant.path));
 			self.locked
 				.insert(format!("const {}", constant.path.join("::")), name.clone());
-			self.line(format!(
+			let declared = format!(
 				"{}{}inline constexpr {ty} {name} = {};",
 				docs(&constant.docs, ""),
 				prefixed(constant.deprecated.as_deref()),
 				abi.constant(&constant.path)
-			));
+			);
+			// Where the C header defines it.
+			match crate::c::gate(abi, constant.on) {
+				crate::gate::Gate::If(condition) => self.line(format!("#if {condition}\n{declared}\n#endif")),
+				_ => self.line(declared),
+			}
 		}
 		if !constants.is_empty() {
 			self.line("");
@@ -2333,13 +2338,13 @@ fn lists(ty: &Type) -> usize {
 
 /// The enum named `c` in C.
 fn enumeration(abi: &Abi<'_>, c: &str) -> Type {
-	let i = (0..abi.api.enums.len()).find(|&i| abi.enumeration(i) == c);
+	let i = abi.enum_named(c);
 	Type::Enum(i.expect("a free method's owner is an enum"))
 }
 
 /// The record named `c` in C.
 fn record(abi: &Abi<'_>, c: &str) -> Type {
-	let i = (0..abi.api.records.len()).find(|&i| abi.record(i) == c);
+	let i = abi.record_named(c);
 	Type::Record(i.expect("a member method's value is a record"))
 }
 
@@ -2356,7 +2361,7 @@ fn moves(abi: &Abi<'_>, ty: &Type) -> bool {
 
 /// Whether the object named `c` in C is `Copy`.
 fn copy(abi: &Abi<'_>, c: &str) -> bool {
-	(0..abi.api.objects.len()).any(|i| abi.api.objects[i].copy && abi.object(i) == c)
+	(abi.types_named(c).iter()).any(|ty| matches!(ty, Type::Object(i) if abi.api.objects[*i].copy))
 }
 
 /// `ty` returned: a borrow is returned as a clone, so owned.

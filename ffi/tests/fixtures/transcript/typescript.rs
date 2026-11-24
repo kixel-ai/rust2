@@ -179,7 +179,7 @@ export function _free(kept = 0): void {
 pub(crate) fn emit(t: &Transcript, binding: Binding) -> String {
 	let mut e = Emitter {
 		t,
-		p64: binding == Binding::ReactNative,
+		p64: binding != Binding::Web,
 		depth: 1,
 		mutated: Vec::new(),
 		fresh: 0,
@@ -195,6 +195,7 @@ pub(crate) fn emit(t: &Transcript, binding: Binding) -> String {
 	let dir = match binding {
 		Binding::Web => "web",
 		Binding::ReactNative => "react-native",
+		Binding::Node => "node",
 	};
 	let mut out = format!(
 		"// Generated from fixtures/api/examples/transcript.rs by tests/fixtures/transcript.\n\n\
@@ -241,6 +242,8 @@ pub(crate) enum Binding {
 	Web,
 	/// React Native's, for 64-bit targets, whose pointer-sized integers are `rt.u64` and `rt.i64`.
 	ReactNative,
+	/// Node's, for 64-bit targets as React Native's.
+	Node,
 }
 
 struct Emitter<'t> {

@@ -17,7 +17,7 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-#define API_CONTRACT ((uint64_t)0x66223956c3ae2fe4ULL)
+#define API_CONTRACT ((uint64_t)0x2ce525b4769861deULL)
 uint64_t api_contract(void);
 uint32_t api_target(void);
 typedef int32_t api_status;
@@ -1311,10 +1311,15 @@ typedef struct api_clash_Count_ {
 } api_clash_Count_;
 #define API_LIMIT ((uint64_t)1000ULL)
 #define API_FAR ((int64_t)9223372036854775807LL)
+#if UINTPTR_MAX == 0xFFFFFFFFu
+#define API_WASM_PAGE ((uint32_t)65536U)
+#endif
 #define API_EOF ((int32_t)-1)
 #define API_URL ((uint64_t)1000ULL)
 #define API_STEP ((uint64_t)1ULL)
+#if UINTPTR_MAX == 0xFFFFFFFFFFFFFFFFu
 #define API_WORD ((size_t)18446744073709551615ULL)
+#endif
 void api_Parcel_free(api_Parcel *self);
 void api_Weighted_free(api_Weighted *self);
 uint64_t api_Weighted_total(const api_Weighted *self);

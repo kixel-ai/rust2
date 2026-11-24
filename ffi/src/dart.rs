@@ -221,8 +221,9 @@ pub(crate) fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<O
 	};
 	let on_fn = match checks {
 		true => format!(
-			"/// The index of the library's target among those this file serves.\n\
-			final int _target = {target_fn}();\n\n\
+			"/// The index of the library's target among those this file serves, read once [_n] has checked\n\
+			/// the library's contract.\n\
+			final int _target = () {{\n\t_n.check();\n\treturn {target_fn}();\n}}();\n\n\
 			/// Throws unless the library's target is among those of [on], as the item [what] is.\n\
 			void _on(int on, String what) {{\n\tif ((on >>> _target) & 1 == 0) {{\n\t\tthrow UnsupportedError(\"$what: it is not on this library's target\");\n\t}}\n}}\n\n"
 		),
@@ -682,12 +683,8 @@ impl<'a> Gen<'a> {
 			.chain(self.structs.values())
 			.map(String::as_str)
 			.collect();
-		// Counted in one pass, as a pass per class would read the code once per class.
-		let counted = member_calls(&code);
-		let calls = |name: &str, ctor: &str| {
-			assert!(name.chars().all(ident), "Dart class `{name}` is no identifier");
-			counted.get(&(name, ctor)).copied().unwrap_or(0)
-		};
+		let counts = constructor_calls(&code);
+		let calls = |name: &str, ctor: &str| counts.get(&(name, ctor)).copied().unwrap_or(0);
 		for (name, (of, write)) in std::mem::take(&mut self.arrays) {
 			if calls(&name, "_of") == 0 {
 				self.types = self.types.replace(&of, "");
@@ -889,7 +886,7 @@ impl<'a> Gen<'a> {
 			for (n, element) in elements.iter().enumerate() {
 				fields.push((format!("${n}"), abi.ty(element)));
 			}
-		} else if let Some(i) = (0..abi.api.records.len()).find(|&i| abi.record(i) == name) {
+		} else if let Some(i) = abi.record_named(&name) {
 			if let Some(opaque) = &abi.api.records[i].opaque {
 				let code = format!(
 					"final class {class} extends ffi.Struct {{\n\t@ffi.Array({})\n\texternal ffi.Array<ffi.Uint{}> $opaque;\n}}\n\n",
@@ -902,7 +899,7 @@ impl<'a> Gen<'a> {
 			for field in &abi.api.records[i].fields {
 				fields.push((abi::escape(&field.name), abi.ty(&field.ty)));
 			}
-		} else if let Some(i) = (0..abi.api.enums.len()).find(|&i| abi.enumeration(i) == name) {
+		} else if let Some(i) = abi.enum_named(&name) {
 			let e = &abi.api.enums[i];
 			let mut extra = String::new();
 			let union = private_type(&format!("{name}_u"));
@@ -1788,9 +1785,25 @@ impl<'a> Gen<'a> {
 				Literal::Int(Int::U64 | Int::Usize, v) => format!("U64.fromBits({})", int_literal(v)),
 				Literal::Int(_, v) => int_literal(v),
 			};
+			// One only some targets have throws on any other, as a function would.
+			let declared = match api.everywhere(constant.on) {
+				true => format!("const {name} = {value};"),
+				false => {
+					let ty = match constant.value {
+						Literal::Bool(_) => "bool",
+						Literal::Int(Int::U64 | Int::Usize, _) => "U64",
+						Literal::Int(..) => "int",
+					};
+					format!(
+						"{ty} get {name} {{\n\t_on(0x{:x}, '{}');\n\treturn {value};\n}}",
+						constant.on.0 & api.all().0,
+						abi.constant(&constant.path)
+					)
+				}
+			};
 			let _ = write!(
 				self.top,
-				"{}const {name} = {value};\n\n",
+				"{}{declared}\n\n",
 				docs(&constant.docs, constant.deprecated.as_deref(), "")
 			);
 		}
@@ -3590,32 +3603,25 @@ fn private_type(c: &str) -> String {
 /// How many times `code` has `call`, which is no end of a longer name.
 fn calls(code: &str, call: &str) -> usize {
 	(code.match_indices(call))
-		.filter(|(at, _)| !code[..*at].ends_with(ident))
+		.filter(|(at, _)| !code[..*at].ends_with(|c: char| c.is_alphanumeric() || c == '_' || c == '$'))
 		.count()
 }
 
-/// How many times `code` calls each `name.member(`, by name and member, as [`calls`] counts
-/// one: each name and member is the whole identifier before its `.` and its `(`.
-fn member_calls(code: &str) -> HashMap<(&str, &str), usize> {
-	let mut counted = HashMap::new();
-	for (paren, _) in code.match_indices('(') {
-		let before = &code[..paren];
-		let dot = before.trim_end_matches(ident);
-		let Some(owner) = dot.strip_suffix('.') else {
-			continue;
-		};
-		let start = owner.trim_end_matches(ident).len();
-		let (name, member) = (&owner[start..], &before[dot.len()..]);
-		if !name.is_empty() && !member.is_empty() {
-			*counted.entry((name, member)).or_default() += 1;
+/// How often `code` calls each `Name.ctor(`, by name and constructor, as [`calls`] counts one:
+/// in one pass, since a binding's every class asks.
+fn constructor_calls(code: &str) -> HashMap<(&str, &str), usize> {
+	let word = |c: char| c.is_alphanumeric() || c == '_' || c == '$';
+	let mut counts = HashMap::new();
+	for (dot, _) in code.match_indices('.') {
+		let name = &code[..dot];
+		let name = &name[name.trim_end_matches(word).len()..];
+		let rest = &code[dot + 1..];
+		let ctor = &rest[..rest.len() - rest.trim_start_matches(word).len()];
+		if rest[ctor.len()..].starts_with('(') {
+			*counts.entry((name, ctor)).or_default() += 1;
 		}
 	}
-	counted
-}
-
-/// Whether `c` may be part of a Dart identifier.
-fn ident(c: char) -> bool {
-	c.is_alphanumeric() || c == '_' || c == '$'
+	counts
 }
 
 /// The local a call's out pointer `name` lands in.
@@ -3884,30 +3890,6 @@ fn indent(code: &str) -> String {
 mod tests {
 	use super::*;
 
-	/// The one pass counts each call as a search for it would: not where a longer name or
-	/// member holds it, and where a qualifier or another call's `(` comes before it.
-	#[test]
-	fn member_calls_count_as_calls_does() {
-		let code = "A._(1); xA._(2); A._lent(3); A.__(4); p.A._(5); f(A._(6)); A$1._of(); A._of (); _B._(A._lent());";
-		let counted = member_calls(code);
-		for (name, member) in [
-			("A", "_"),
-			("A", "_lent"),
-			("A", "__"),
-			("A$1", "_of"),
-			("A", "_of"),
-			("_B", "_"),
-			("xA", "_"),
-		] {
-			let call = format!("{name}.{member}(");
-			assert_eq!(
-				counted.get(&(name, member)).copied().unwrap_or(0),
-				calls(code, &call),
-				"{call}"
-			);
-		}
-	}
-
 	/// A package takes the names pub takes, Dart identifiers it reserves for code included,
 	/// and no other.
 	#[test]
@@ -3929,6 +3911,29 @@ mod tests {
 		] {
 			assert!(package_name(name).is_err(), "{name}");
 		}
+	}
+
+	/// One pass counts each constructor's calls as [`calls`] counts one: a longer name or a
+	/// `$` before it is another name, and a constructor's call needs its `(`.
+	#[test]
+	fn constructor_calls_count_as_calls() {
+		let code = "Foo._(a); xFoo._(b); $Foo._(c); Foo._lent(d); Foo._ (e); ä.Foo._(f); Foo._of(g)._(h)";
+		let counts = constructor_calls(code);
+		for (name, ctor) in [
+			("Foo", "_"),
+			("Foo", "_lent"),
+			("Foo", "_of"),
+			("xFoo", "_"),
+			("Bar", "_"),
+		] {
+			let expected = calls(code, &format!("{name}.{ctor}("));
+			assert_eq!(
+				counts.get(&(name, ctor)).copied().unwrap_or(0),
+				expected,
+				"{name}.{ctor}"
+			);
+		}
+		assert_eq!(counts[&("Foo", "_")], 2);
 	}
 
 	/// Every type the runtime names unqualified is its own or [`TAKEN`], so no exported

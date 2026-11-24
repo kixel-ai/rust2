@@ -798,11 +798,22 @@ impl<'a> Gen<'a> {
 				Literal::Bool(b) => ("Swift.Bool".to_string(), b.to_string()),
 				Literal::Int(int, v) => (sw_int(int).to_string(), v.to_string()),
 			};
-			let _ = write!(
-				self.top,
-				"{}public let {name}: {ty} = {value}\n\n",
+			let declared = format!(
+				"{}public let {name}: {ty} = {value}\n",
 				docs(&constant.docs, constant.deprecated.as_deref(), "")
 			);
+			// Only where it compiles for a target that has it: elsewhere its value may be
+			// past its type's, as a 64-bit `usize`'s is past a 32-bit `UInt`'s.
+			let gate = crate::gate::gate(api, crate::gate::Lang::Swift, constant.on);
+			match gate.expect("the export refuses a constant Swift cannot gate") {
+				crate::gate::Gate::If(condition) => {
+					let _ = write!(self.top, "#if {condition}\n{declared}#endif\n\n");
+				}
+				crate::gate::Gate::Everywhere => {
+					let _ = writeln!(self.top, "{declared}");
+				}
+				crate::gate::Gate::Nowhere => unreachable!("Swift serves every target"),
+			}
 		}
 		for i in 0..api.records.len() {
 			self.record(i);

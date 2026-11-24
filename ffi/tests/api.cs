@@ -472,6 +472,9 @@ static partial class Script
 	/// handles used past their life.
 	static void Checks()
 	{
+		// A constant only some targets have is read on those, and throws on any other.
+		Check(api.Lib.WORD == nuint.MaxValue, "a 64-bit host has WORD");
+		Throws<PlatformNotSupportedException>(() => _ = api.Lib.WASM_PAGE, "a constant only wasm32 has throws on the host", e => e.Message == "API_WASM_PAGE: it is not on this library's target");
 		// A disposed handle throws C#'s own exception, naming its type.
 		var counter = api.Counter.New("c", 1);
 		counter.Dispose();

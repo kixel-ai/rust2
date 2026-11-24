@@ -838,8 +838,10 @@ function unclosedWaker(wake: () => void): void {
 }
 
 /** The binding's target's items are each here: wasm32's for the web, a native target's
- * for React Native, whose binding serves those alone. */
+ * for React Native and Node, whose bindings serve those alone. */
 function targets(): void {
+	const labelled = api.sameLabelled({ tag: "Tagged", tag$: 7 });
+	check(Labelled.debug(labelled) === "Tagged { tag: 7 }", "a variant's field named `tag` crosses as Rust reads it");
 	const platform = api.platform();
 	if (platform.tag === "Native") {
 		check(platform._0 === 64 && api.pointerBits(platform) === 64, "a 64-bit target's variant crosses");
@@ -847,18 +849,19 @@ function targets(): void {
 		check(api.isFamily("Native"), "a native target's plain variant crosses");
 		return;
 	}
+	// #region wasm32, which Node's check cuts, as its binding serves native targets alone
 	check(api.pointerBits(platform) === 32, "wasm32's variant crosses");
 	check(api.placement().tag === "Anywhere", "a variant wasm32 lacks is left out with its record");
-	const labelled = api.sameLabelled({ tag: "Tagged", tag$: 7 });
-	check(Labelled.debug(labelled) === "Tagged { tag: 7 }", "a variant's field named `tag` crosses as Rust reads it");
 	check(api.pointerBits({ tag: "Native", _0: 64 }) === 64, "the native variant crosses too");
 	check(api.isFamily("Wasm") && !api.isFamily("Native"), "wasm32's plain variant crosses");
 	check(api.wasmOnly() === 32, "an item only wasm32 has");
+	check(api.WASM_PAGE === 65536, "a constant only wasm32 has");
 	const taken = api.wasmTake(Counter.new("t", 5));
 	check(taken.ok && taken.value === 5, "an item only wasm32 has takes a counter");
 	const log = new CountLog();
 	api.wasmLog(log);
 	check(log.lines === 1 && log.closes === 1, "an item only wasm32 has takes an implementation");
+	// #endregion wasm32
 }
 
 /** Each call taking a closed object throws, however it was closed, and moves nothing. */
@@ -1016,8 +1019,9 @@ async function closedCall(f: () => Promise<unknown>, type: string, what: string)
  * passed back to Rust they share it. Either reads the same, and refuses a read once disposed. */
 export async function lent(): Promise<void> {
 	// React Native's Babel preset compiles its modules sloppy, where a write to a getter does
-	// nothing; the web's are strict, where it throws.
-	const sloppy = api.platform().tag === "Native";
+	// nothing; the web's and Node's are strict, where it throws. Only its runtime has natives
+	// of its own.
+	const sloppy = "n" in rt;
 	// The most bytes a copy holds, which Hermes copies as cheaply as it lends.
 	const most = sloppy ? 4096 : 64;
 	const lends = 2 * most;
@@ -1085,6 +1089,21 @@ export async function lent(): Promise<void> {
 	check(got.length === 65537 && got.at(0) === 5 && got.at(-1) === 5, "lent bytes sent read back");
 	close(got);
 	check(api.dropped() === ++before, "the last owner of lent bytes frees them");
+	// `slice` takes its indices as a Uint8Array's: truncated, from the end where negative,
+	// clamped to the bytes, and empty where they cross.
+	const pattern = Uint8Array.from({ length: lends }, (_, i) => i);
+	Channel.send(channel, pattern);
+	// Past the most a copy holds, lent.
+	const patterned = await within(Channel.recv(channel), "a receive of a pattern");
+	for (const [from, to] of [
+		[undefined, undefined], [10, 20], [-10, undefined], [-2 * lends, 5], [lends - 10, 2 * lends], [30, 10],
+		[NaN, 3], [2.9, 7.1], [-Infinity, Infinity], [Infinity, undefined], [-1, -1], [0, 5 - lends],
+	] as const) {
+		const want = pattern.slice(from, to);
+		const got = patterned.slice(from, to);
+		check(got.length === want.length && got.every((b, i) => b === want[i]), `lent bytes slice(${from}, ${to}) as a Uint8Array's`);
+	}
+	close(patterned);
 	close(channel);
 	// A later argument's getters never run, so a Proxy that would dispose bytes the call
 	// already views is refused, and the call's hold on them is let go.
@@ -1248,11 +1267,12 @@ export function bounds(): void {
 		throws(() => api.sameDuration({ secs: 0, nanos }), RangeError, `${nanos} nanoseconds`);
 	}
 
-	// A path is its bytes, which a string may not hold.
-	const stray = { bytes: bytes(0xff) };
+	// A path is its bytes, which a string may not hold: here WTF-8's lone surrogate, not
+	// UTF-8, which a Unix, WASI, and Windows path each hold.
+	const stray = { bytes: bytes(0xed, 0xa0, 0x80) };
 	const back = api.samePath(stray);
-	check(back.bytes.length === 1 && back.bytes[0] === 0xff, "a path that is not UTF-8");
-	check(rt.pathText(back) === "�", "a path's text replaces what is not UTF-8");
+	check(back.bytes.length === 3 && [...back.bytes].every((b, i) => b === stray.bytes[i]), "a path that is not UTF-8");
+	check(rt.pathText(back) === "\ufffd\ufffd\ufffd", "a path's text replaces what is not UTF-8");
 	check(rt.pathText(rt.pathFrom("a/é")) === "a/é", "a UTF-8 path as text");
 	// Each invalid lead or broken sequence is replaced as Rust's `from_utf8_lossy` does: by
 	// one U+FFFD for its longest valid prefix, never consuming the byte after it.

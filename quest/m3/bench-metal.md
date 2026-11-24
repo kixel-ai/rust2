@@ -33,18 +33,33 @@ opt-out comparison). Nightly Cargo already defaults to `-Zembed-metadata=no`
 since rust-lang/cargo#17267, before the 2026-10-22 pin; moq has nothing to adopt.
 `mostly-unused` stays.
 
-The variants and runner wiring are implemented. Remaining work runs after the
-workflow lands at `main`, the only ref the runner group admits:
+The variants and runner wiring are implemented, and the first dispatch at `main`
+([run 45323643680](https://github.com/kixel-ai/rust2/actions/runs/45323643680)) is
+published in `bench/build/README.md`: the host lease held for each job, the `jobs-frontend=32`
+and `mostly-unused` comparisons, and the A/A controls. Its instructions column read
+`n/a`: hyperfine 2 reads no counters under `--shell`, which the harness used (the runner's
+counters work), and the harness now runs bash as the benchmarked program instead.
+Its wall-time noise was 5 to 9% RMS on the controls, above the hosted runners' 1.3 to 1.9%.
 
-- Dispatch `bench.yml` at `main` and publish its bare-metal reference report in
-  `bench/build/README.md`, including retired instructions and A/A noise controls.
-- Compare `jobs-frontend=32` against nightly on the 32-CPU host.
-- Measure `mostly-unused` against nightly alongside the other levers. Keep the
-  existing toolchain pin.
+Decided 2026-11-24 on `/quest-run`'s recommendation while the maintainer was away, not
+the maintainer's decision: ✅ land the `--shell none` fix and the wall and CPU report now
+(rejected: holding the PR until instruction counts exist); ✅ don't recommend
+`jobs-frontend` for moq's CI, which is shared and CPU-bound, at most an opt-in for local
+development, and revisit it with the instruction counts (rejected: recommending it in moq's
+`.cargo/config.toml`); ✅ investigate the wall noise only if wall time still matters after
+the instruction rerun (rejected: investigating now).
+
+Remaining, after that change lands at `main`:
+
+- Dispatch `bench.yml` at `main` again and check that every row of the new report, except ra-jit's
+  (the daemon's counters are not inherited, so they read `n/a`), holds instructions. Replace the README's reference table with it, its noise from the controls'
+  instructions, and the mold and wild comparison the first run could not settle.
+- If the controls' wall time is still as noisy, find what shares the host that the lease
+  does not exclude (the CARLA demo, agent sessions, the Nix daemon) and either exclude it
+  from the lease or say it in the README.
 - Report which winning, cost-free settings moq should use in `.cargo/config.toml`.
-  Make no recommendation until the measurements support it.
-- Verify the real runner dispatch obtains the host lease and counts instructions.
-  The runner hook excludes queue builds and land fixers for the whole job.
+  Make no recommendation until the instructions support it; `jobs-frontend=32` is the only
+  lever outside the first run's noise, and it trades CPU time for wall time.
 
 Public API: none.
 

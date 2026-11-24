@@ -42,11 +42,15 @@ host language over its runtime, as the web target's is over JavaScript, so none 
 until a host asks for one; [the pure-Go epic](/quest/m4/go/README.md) weighs Go's.
 
 The Node report ([kixel-ai/rust2#970](https://github.com/kixel-ai/rust2/pull/970), 2026-11-22)
-kept [the Node-API addon](/quest/m3/node.md) and dropped a thin file over `node:ffi`. On
+kept the Node-API addon and dropped a thin file over `node:ffi`. On
 bench/ffi's cases from Node 26, the addon was fastest on every per-call case, against the
 web target and `node:ffi`, and it alone takes a call into JavaScript from Rust's own thread, which
 moq-tokio's every wake is and the web target cannot build. `node:ffi` aborts on one, has
 no struct type, and was slower than the web target on every per-call case.
+The generated addon ([the binding](/ffi/README.md#node)) runs moq's script, its QUIC session
+included, on Node, Bun, and Deno. It costs 19 to 56 ns more than the web target per leaf call,
+since each runs the web's generated TypeScript per call, which costs more than the bare
+crossing does. [Lowering each call in the addon](/quest/m3/node-lowering.md) removes that.
 
 Decided with the maintainer on 2026-11-12, in the quest audit:
 

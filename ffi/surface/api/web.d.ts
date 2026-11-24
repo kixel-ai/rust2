@@ -2738,6 +2738,7 @@ import type { WrapU32 } from "./WrapU32.ts";
 export declare function load(source?: rt.Source): Promise<void>;
 export declare const LIMIT: rt.u64;
 export declare const FAR: rt.i64;
+export declare const WASM_PAGE: number;
 export declare const EOF: number;
 export declare const URL$: rt.u64;
 export declare const STEP: rt.u64;
@@ -3239,6 +3240,7 @@ type Exports = Record<string, any>;
 export declare let w: Exports;
 export declare function dv(): DataView;
 export declare function mem(): Uint8Array<ArrayBuffer>;
+export type Addr = number;
 export declare const s: {
     d: number;
 };
@@ -3345,18 +3347,18 @@ export declare function socketV6Put(p: number, v: SocketAddrV6): void;
 export declare function socketGet(p: number): SocketAddr;
 export declare function socketPut(p: number, v: SocketAddr): void;
 export declare function give(value: unknown, drop?: () => void): number;
-export declare function callbackPut(p: number, vtable: number, value: {
+export declare function callbackPut(p: number, vtable: Addr, value: {
     close?(): void;
 }): void;
 export declare function lend(value: unknown): number;
 export declare function find<T>(t: number): T;
 export declare const fn: {
-    wake: number;
-    wakerDrop: number;
-    free: number;
-    poll: number;
-    read: number;
-    seek: number;
+    wake: Addr;
+    wakerDrop: Addr;
+    free: Addr;
+    poll: Addr;
+    read: Addr;
+    seek: Addr;
 };
 export declare function out<T>(what: string, f: () => T): T;
 export declare function wakerOf(dst: number, wake: () => void): void;
