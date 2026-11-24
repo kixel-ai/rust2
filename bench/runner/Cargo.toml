@@ -18,6 +18,7 @@ allow_attributes_without_reason = "warn"
 
 [dependencies]
 serde_json = "1.0.154"
+toml = "1.1.8"
 
 [lints]
 workspace = true

@@ -19,9 +19,11 @@ rust2-bench fingerprint
 In a Cargo workspace, its benchmark targets, written with CodSpeed's compatibility crates
 (`codspeed-criterion-compat` 6). It builds them once with `--cfg codspeed`, as `cargo codspeed
 build` does, passing any arguments after `--` to `cargo build`, such as `-p moq-net --bench
-varint`. The cfg joins `RUSTFLAGS` when the environment sets them, else a config's
-`build.rustflags`; a config's `target.<triple>.rustflags`, which replace `build.rustflags`,
-drop it, and the run fails as below. Each target lists its benchmarks by running once natively, then each benchmark runs
+varint`. Cargo takes rustflags from one source and ignores the rest, so the cfg
+joins `RUSTFLAGS` or `CARGO_ENCODED_RUSTFLAGS` when the environment sets them, and is
+otherwise the only flags. A Cargo config that sets its own, `build.rustflags` or a
+`target.*.rustflags` in a config file, the environment, or a `--config`, fails the run
+before anything builds: set `RUSTFLAGS` to the flags the build needs instead. Each target lists its benchmarks by running once natively, then each benchmark runs
 alone in its own Valgrind process, through the crates' `CODSPEED_ISOLATED_BENCHMARK`. A
 target that runs no benchmark through the crates fails the run: leave it out with `--bench`.
 

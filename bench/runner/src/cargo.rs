@@ -100,6 +100,62 @@ fn workspace_root(dir: &Path, args: &[String]) -> Result<PathBuf, String> {
 		.to_owned())
 }
 
+/// Where Cargo's configuration sets rustflags, if anywhere: its environment, a `--config`
+/// among `args`, or a config file it reads from `dir` up, or from Cargo's home.
+fn configured_rustflags(dir: &Path, args: &[String]) -> Result<Option<String>, String> {
+	for (key, _) in std::env::vars_os() {
+		let key = key.to_string_lossy();
+		if key == "CARGO_BUILD_RUSTFLAGS" || (key.starts_with("CARGO_TARGET_") && key.ends_with("_RUSTFLAGS")) {
+			return Ok(Some(format!("the environment's {key}")));
+		}
+	}
+	let mut args = args.iter();
+	while let Some(arg) = args.next() {
+		let config = if arg == "--config" {
+			args.next().map(String::as_str)
+		} else {
+			arg.strip_prefix("--config=")
+		};
+		if let Some(config) = config {
+			let text = if Path::new(config).is_file() {
+				std::fs::read_to_string(config).map_err(|e| format!("cannot read {config}: {e}"))?
+			} else {
+				config.to_owned()
+			};
+			if text.contains("rustflags") {
+				return Ok(Some(format!("--config {config}")));
+			}
+		}
+	}
+	let dir = dir
+		.canonicalize()
+		.map_err(|e| format!("cannot resolve {}: {e}", dir.display()))?;
+	let home = std::env::var_os("CARGO_HOME")
+		.map(PathBuf::from)
+		.or_else(|| std::env::var_os("HOME").map(|home| Path::new(&home).join(".cargo")));
+	let dirs = dir.ancestors().map(|dir| dir.join(".cargo")).chain(home);
+	for cargo in dirs {
+		for name in ["config.toml", "config"] {
+			let path = cargo.join(name);
+			let Ok(text) = std::fs::read_to_string(&path) else {
+				continue;
+			};
+			let config: toml::Table = text
+				.parse()
+				.map_err(|e| format!("cannot parse {}: {e}", path.display()))?;
+			let build = config.get("build").and_then(|build| build.get("rustflags")).is_some();
+			let target = config
+				.get("target")
+				.and_then(toml::Value::as_table)
+				.is_some_and(|targets| targets.values().any(|target| target.get("rustflags").is_some()));
+			if build || target {
+				return Ok(Some(path.display().to_string()));
+			}
+		}
+	}
+	Ok(None)
+}
+
 /// The manifest `cargo build` args select, when they name one.
 fn manifest_path(args: &[String]) -> Option<&str> {
 	let mut args = args.iter();
@@ -131,8 +187,9 @@ fn build(dir: &Path, args: &[String]) -> Result<Vec<Target>, String> {
 		cargo.arg("--benches");
 	}
 	cargo.args(args).current_dir(dir).stdout(Stdio::piped());
-	// The cfg joins the flags the caller's environment sets, or else a config's
-	// `build.rustflags`, whose arrays a `--config` entry extends rather than replaces.
+	// Cargo takes one source of rustflags and ignores the rest, so the cfg joins the flags the
+	// environment sets, or else is the only flags there are: a config that sets its own is
+	// refused before anything builds, rather than one source silently replacing another.
 	if let Ok(flags) = std::env::var("CARGO_ENCODED_RUSTFLAGS") {
 		let flags = if flags.is_empty() {
 			CFG.to_owned()
@@ -143,7 +200,13 @@ fn build(dir: &Path, args: &[String]) -> Result<Vec<Target>, String> {
 	} else if let Ok(flags) = std::env::var("RUSTFLAGS") {
 		cargo.env("RUSTFLAGS", format!("{flags} {CFG}"));
 	} else {
-		cargo.args(["--config", &format!("build.rustflags=[\"{CFG}\"]")]);
+		if let Some(source) = configured_rustflags(dir, args)? {
+			return Err(format!(
+				"{source} sets rustflags, which the cfg CodSpeed's crates take would replace or be replaced by: \
+				 set RUSTFLAGS to the flags the build needs, and rust2-bench adds the cfg to them"
+			));
+		}
+		cargo.env("CARGO_ENCODED_RUSTFLAGS", CFG);
 	}
 	eprintln!("rust2-bench: building benchmarks in {}", dir.display());
 	let mut child = cargo.spawn().map_err(|e| format!("cannot run cargo: {e}"))?;
@@ -230,6 +293,40 @@ mod tests {
 	fn lists_each_checked_benchmark() {
 		let out = "Harness: codspeed-criterion-compat v6.0.0\nChecked: benches/a.rs::g::f[1]\nSkipping: benches/a.rs::c (CodSpeed doesn't support custom iterations)\nChecked: benches/a.rs::g::h\n";
 		assert_eq!(checked(out), ["benches/a.rs::g::f[1]", "benches/a.rs::g::h"]);
+	}
+
+	#[test]
+	fn finds_rustflags_a_config_file_sets() {
+		let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("target/configured-rustflags");
+		let inner = root.join("ws/crate");
+		std::fs::create_dir_all(&inner).unwrap();
+		std::fs::create_dir_all(root.join(".cargo")).unwrap();
+		let config = root.join(".cargo/config.toml");
+		for (text, sets) in [
+			("[build]\nrustflags = \"--cfg=foo\"\n", true),
+			("[build]\nrustflags = [\"--cfg=foo\"]\n", true),
+			(
+				"[target.x86_64-unknown-linux-gnu]\nrustflags = [\"-Ctarget-cpu=native\"]\n",
+				true,
+			),
+			("[target.'cfg(unix)']\nrustflags = []\n", true),
+			("[build]\njobs = 4\n", false),
+		] {
+			std::fs::write(&config, text).unwrap();
+			// Found through the canonical path, as target/ may be a link.
+			let config = config.canonicalize().unwrap();
+			let found = configured_rustflags(&inner, &[]).unwrap();
+			// Cargo's home may set its own, which this host's tests cannot rule out.
+			if sets {
+				assert_eq!(found.as_deref(), Some(config.to_str().unwrap()), "{text}");
+			} else {
+				assert_ne!(found.as_deref(), Some(config.to_str().unwrap()), "{text}");
+			}
+		}
+		let args = |list: &[&str]| list.iter().map(|s| (*s).to_owned()).collect::<Vec<_>>();
+		std::fs::remove_file(&config).unwrap();
+		let found = configured_rustflags(&inner, &args(&["--config", "build.rustflags=['-Cdebuginfo=2']"])).unwrap();
+		assert_eq!(found.as_deref(), Some("--config build.rustflags=['-Cdebuginfo=2']"));
 	}
 
 	#[test]
