@@ -1013,7 +1013,7 @@ async function closedCall(f: () => Promise<unknown>, type: string, what: string)
 	check(false, what);
 }
 
-/** Bytes a call returns up to 64 are a copy, Rust's freed at the call; past that they lend
+/** Bytes a call returns up to 64, or 4 KiB on React Native, are a copy, Rust's freed at the call; past that they lend
  * Rust's buffer, freed once disposed and no call views it, or by the garbage collector, and
  * passed back to Rust they share it. Either reads the same, and refuses a read once disposed. */
 export async function lent(): Promise<void> {
@@ -1021,13 +1021,16 @@ export async function lent(): Promise<void> {
 	// nothing; the web's and Node's are strict, where it throws. Only its runtime has natives
 	// of its own.
 	const sloppy = "n" in rt;
+	// The most bytes a copy holds, which Hermes copies as cheaply as it lends.
+	const most = sloppy ? 4096 : 64;
+	const lends = 2 * most;
 	let before = api.dropped();
-	const small = api.tokenBytes(1, 64);
-	check(api.dropped() === ++before, "64 bytes are copied and Rust's freed at the call");
-	check(small.length === 64 && [...small].every((b) => b === 1), "copied bytes read back");
+	const small = api.tokenBytes(1, most);
+	check(api.dropped() === ++before, `${most} bytes are copied and Rust's freed at the call`);
+	check(small.length === most && [...small].every((b) => b === 1), "copied bytes read back");
 	close(small);
 	closed(() => small.at(0), "Bytes", "disposed copied bytes refuse a read");
-	for (const n of [65, 65537]) {
+	for (const n of [most + 1, 65537]) {
 		const big = api.tokenBytes(2, n);
 		check(api.dropped() === before, `${n} bytes lend Rust's buffer`);
 		const copy = big.slice();
@@ -1046,14 +1049,14 @@ export async function lent(): Promise<void> {
 	// Disposed while a read converts its index, lent bytes refuse the read rather than read
 	// what Rust freed.
 	for (const read of [(b: rt.Bytes, i: number) => b.at(i), (b: rt.Bytes, i: number) => b.slice(i)]) {
-		const disposing = api.tokenBytes(7, 100);
+		const disposing = api.tokenBytes(7, lends);
 		const index = { valueOf: () => (close(disposing), 0) } as unknown as number;
 		closed(() => read(disposing, index), "Bytes", "lent bytes disposed as a read's index converts refuse it");
 		check(api.dropped() === ++before, "lent bytes disposed as a read's index converts are freed");
 	}
 	// Disposed as `slice` makes its result through `Symbol.species`, lent bytes stay Rust's
 	// until it returns, and are freed then.
-	const sliced = api.tokenBytes(8, 100);
+	const sliced = api.tokenBytes(8, lends);
 	let freedEarly = false;
 	Object.defineProperty(Uint8Array, Symbol.species, {
 		configurable: true,
@@ -1069,7 +1072,7 @@ export async function lent(): Promise<void> {
 	} finally {
 		delete (Uint8Array as unknown as Record<symbol, unknown>)[Symbol.species];
 	}
-	check(!freedEarly && copied.length === 100 && copied.every((b) => b === 8), "lent bytes disposed as a slice makes its result read whole");
+	check(!freedEarly && copied.length === lends && copied.every((b) => b === 8), "lent bytes disposed as a slice makes its result read whole");
 	// Where the engine's `slice` reads no `Symbol.species`, as Hermes's does not, only here.
 	close(sliced);
 	check(api.dropped() === ++before, "lent bytes disposed as a slice makes its result are freed once it returns");
@@ -1087,13 +1090,13 @@ export async function lent(): Promise<void> {
 	check(api.dropped() === ++before, "the last owner of lent bytes frees them");
 	// `slice` takes its indices as a Uint8Array's: truncated, from the end where negative,
 	// clamped to the bytes, and empty where they cross.
-	const pattern = Uint8Array.from({ length: 100 }, (_, i) => i);
+	const pattern = Uint8Array.from({ length: lends }, (_, i) => i);
 	Channel.send(channel, pattern);
-	// Past 64 bytes, lent.
+	// Past the most a copy holds, lent.
 	const patterned = await within(Channel.recv(channel), "a receive of a pattern");
 	for (const [from, to] of [
-		[undefined, undefined], [10, 20], [-10, undefined], [-200, 5], [90, 200], [30, 10],
-		[NaN, 3], [2.9, 7.1], [-Infinity, Infinity], [Infinity, undefined], [-1, -1], [0, -95],
+		[undefined, undefined], [10, 20], [-10, undefined], [-2 * lends, 5], [lends - 10, 2 * lends], [30, 10],
+		[NaN, 3], [2.9, 7.1], [-Infinity, Infinity], [Infinity, undefined], [-1, -1], [0, 5 - lends],
 	] as const) {
 		const want = pattern.slice(from, to);
 		const got = patterned.slice(from, to);
@@ -1103,7 +1106,7 @@ export async function lent(): Promise<void> {
 	close(channel);
 	// A later argument's getters never run, so a Proxy that would dispose bytes the call
 	// already views is refused, and the call's hold on them is let go.
-	const viewed = api.tokenBytes(6, 100);
+	const viewed = api.tokenBytes(6, lends);
 	const prefix = new Proxy(enc("ab"), {
 		get(target, key) {
 			if (key === "length") close(viewed);
@@ -1115,19 +1118,19 @@ export async function lent(): Promise<void> {
 	close(viewed);
 	check(api.dropped() === ++before, "bytes lent to a call that fails are freed once disposed");
 	// A Bytes' length is its own: no caller's write or definition changes what Rust reads.
-	const fixed = api.tokenBytes(11, 100);
+	const fixed = api.tokenBytes(11, lends);
 	const write = () => {
 		(fixed as { length: number }).length = 1 << 20;
 	};
 	if (sloppy) write();
 	else throws(write, TypeError, "a Bytes' length is read-only");
-	check(fixed.length === 100, "a Bytes' length is read-only");
+	check(fixed.length === lends, "a Bytes' length is read-only");
 	Object.defineProperty(fixed, "length", { value: 1 << 20 });
-	check(api.len(fixed) === 100 && fixed.slice().length === 100, "a Bytes' length shadowed reaches no read");
+	check(api.len(fixed) === lends && fixed.slice().length === lends, "a Bytes' length shadowed reaches no read");
 	close(fixed);
 	check(api.dropped() === ++before, "bytes whose length was shadowed are freed whole");
 	// Nor are bytes a call takes by value, which Rust would get a second owner of.
-	const given = api.tokenBytes(10, 100);
+	const given = api.tokenBytes(10, lends);
 	const high = new Proxy(enc("bc"), {
 		get(target, key) {
 			if (key === "length") close(given);
@@ -1139,24 +1142,24 @@ export async function lent(): Promise<void> {
 	close(given);
 	check(api.dropped() === ++before, "bytes given to a call that fails are freed once disposed");
 	// Bytes a call returned pass as an optional borrowed argument too.
-	const optional = api.tokenBytes(8, 100);
+	const optional = api.tokenBytes(8, lends);
 	const suffixed = api.prefixed(enc("cd"), optional).slice();
-	check(suffixed.length === 102 && suffixed.subarray(0, 100).every((b) => b === 8) && text(suffixed.subarray(100)) === "cd", "returned bytes pass as an optional argument");
+	check(suffixed.length === lends + 2 && suffixed.subarray(0, lends).every((b) => b === 8) && text(suffixed.subarray(lends)) === "cd", "returned bytes pass as an optional argument");
 	close(optional);
 	check(api.dropped() === ++before, "returned bytes passed as an optional argument stay the caller's");
 	// The garbage collector frees lent bytes nobody disposed, left in the nursery with no
 	// return after them, or pushed out by later ones.
-	unclosedBytes();
+	unclosedBytes(lends);
 	await collect(() => api.dropped() > before, "the garbage collector frees lent bytes nobody disposed");
 	await settle();
 	check(api.dropped() === ++before, "the garbage collector frees lent bytes once");
-	unclosedBytes();
+	unclosedBytes(lends);
 	fill();
 	await collect(() => api.dropped() > before, "the garbage collector frees lent bytes later returns pushed out");
 	await settle();
 	check(api.dropped() === ++before, "the garbage collector frees lent bytes pushed out once");
 	// Disposed after later returns pushed them out undisposed, which registered them.
-	disposedLateBytes();
+	disposedLateBytes(lends);
 	check(api.dropped() === ++before, "disposing lent bytes pushed out of the nursery frees them at once");
 	await settle();
 	check(api.dropped() === before, "the garbage collector frees nothing disposed after a push out");
@@ -1198,15 +1201,15 @@ function memoryLending(): void {
 }
 
 /** Lent bytes disposed once later returns pushed them out, which nothing reaches after. */
-function disposedLateBytes(): void {
-	const pushed = api.tokenBytes(2, 100);
+function disposedLateBytes(length: number): void {
+	const pushed = api.tokenBytes(2, length);
 	fill();
 	close(pushed);
 }
 
 /** Lent bytes, left for the garbage collector. */
-function unclosedBytes(): void {
-	api.tokenBytes(8, 1000);
+function unclosedBytes(length: number): void {
+	api.tokenBytes(8, length);
 }
 
 /** Values at the edges of what Rust takes and returns, and each value Rust's type lacks,

@@ -81,7 +81,7 @@ scenarios = ["check", "build", "edit-leaf", "edit-hub", "test-build", "test-run"
 name = "jobs-frontend"
 base = "nightly"
 toolchain = "nightly"
-rustflags = "-Z unstable-options --jobs-frontend=8"
+rustflags = "-Z unstable-options --jobs-frontend=32"
 
 # rind, moq's crypto, builds with LLVM: its naked_asm! takes sym operands, which
 # Cranelift cannot compile yet (rust-lang/rustc_codegen_cranelift#1620). A profile
@@ -98,6 +98,13 @@ name = "cache-proc-macros"
 base = "nightly"
 toolchain = "nightly"
 rustflags = "-Z cache-proc-macros"
+
+# Cargo's wildcard package override selects non-workspace dependencies only.
+[[variant]]
+name = "mostly-unused"
+base = "nightly"
+toolchain = "nightly"
+config = ["unstable.profile-hint-mostly-unused=true", 'profile.dev.package."*".hint-mostly-unused=true']
 
 [[variant]]
 name = "nightly-control"
