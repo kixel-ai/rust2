@@ -3086,6 +3086,99 @@ fn api_web_package() {
 	}
 }
 
+/// The api fixture's Node binding, `node/`, beside the addon the crate's `node` feature
+/// builds as `node/api.node`, which `load` finds by default: `tests/node.ts` runs
+/// `tests/api.ts`'s script and cases through it.
+fn node_dir() -> &'static Path {
+	static BUILT: OnceLock<PathBuf> = OnceLock::new();
+	BUILT.get_or_init(|| {
+		let api = api();
+		let dir = scratch().join("api").join("node");
+		let target = scratch().join("api").join("glue-node");
+		run(cargo()
+			.args(["build", "--quiet", "--locked", "--manifest-path"])
+			.arg(api.out.join("Cargo.toml"))
+			.arg("--target-dir")
+			.arg(&target)
+			.args(["--features", "node"])
+			.env("RUSTFLAGS", "-D warnings"));
+		step::mirror(&api.out.join("node"), &dir.join("node"));
+		step::mirror(&api.out.join("node"), &dir.join("copy"));
+		// The library cargo builds, which Node loads by its name.
+		step::copy(
+			&target.join("debug").join(PYTHON_LIB),
+			&dir.join("node").join("api.node"),
+		);
+		step::write(&dir.join("api.ts"), node_check());
+		step::copy(&manifest_dir().join("tests").join("node.ts"), &dir.join("node.ts"));
+		step::write(
+			&dir.join("transcript.ts"),
+			transcript::typescript::emit(transcript(), transcript::typescript::Binding::Node),
+		);
+		let tsconfig = TSCONFIG
+			.replace("\"protocol.ts\", \"web/*.ts\"", "\"node.ts\", \"node/*.ts\"")
+			.replace("web/*.d.ts", "node/*.d.ts");
+		step::write(&dir.join("tsconfig.json"), tsconfig);
+		run(Command::new("tsc").arg("-p").arg(&dir));
+		dir
+	})
+}
+
+/// `tests/api.ts` importing Node's binding, its cases exported for `tests/node.ts`, which
+/// loads the binding as its `main` does the web's, without its region of wasm32's items,
+/// which tsc would find missing from a binding of native targets alone.
+fn node_check() -> String {
+	let check = binding_check("node");
+	let start = check.find("\t// #region wasm32").expect("api.ts has wasm32's region");
+	let end = "\t// #endregion wasm32\n";
+	let stop = check.find(end).expect("api.ts ends wasm32's region") + end.len();
+	format!("{}{}", &check[..start], &check[stop..])
+}
+
+/// The cases of `tests/node.ts` that must pass, after its transcript: `threads`, then
+/// `tests/api.ts`'s but `grown`, as the addon's memory never grows.
+const NODE_CASES: [&str; 7] = ["threads", "futures", "owned", "closed", "bytes", "bounds", "checks"];
+
+/// The api fixture's Node binding runs `tests/node.ts` on Node, Deno, and Bun, over the
+/// addon the crate's `node` feature builds: it prints what native Rust prints, then passes
+/// each case and fails each broken one with its message, as the web's does.
+#[test]
+fn api_node() {
+	let dir = node_dir();
+	for runtime in ["node", "deno", "bun"] {
+		let ran = |case: Option<&str>| -> Ran {
+			let mut cmd = Command::new(runtime);
+			if runtime == "deno" {
+				cmd.args(["run", "--allow-read", "--allow-env", "--allow-ffi"])
+					.env("DENO_DIR", scratch().join("deno"))
+					.env("DENO_NO_UPDATE_CHECK", "1")
+					.env("NO_COLOR", "1");
+			}
+			output(cmd.arg("node.ts").args(case).current_dir(dir)).into()
+		};
+		let transcript = ran(None);
+		assert!(transcript.ok, "{runtime}'s transcript failed:\n{}", transcript.stderr);
+		assert_eq!(
+			transcript.stdout,
+			api().transcript,
+			"{runtime}'s transcript differs from native Rust's"
+		);
+		for case in NODE_CASES {
+			let run = ran(Some(case));
+			assert!(run.ok, "{runtime}'s {case} failed:\n{}{}", run.stdout, run.stderr);
+		}
+		for (case, message) in WEB_BROKEN {
+			let run = ran(Some(case));
+			assert!(!run.ok, "{runtime}'s {case} did not fail");
+			assert!(
+				run.stderr.contains(message),
+				"{runtime}'s {case} printed {}",
+				run.stderr
+			);
+		}
+	}
+}
+
 /// `api_web`'s checks in headless Chromium, Firefox, and WebKit, which only the bench shell
 /// carries, WebKit on Linux alone, where nixpkgs builds it: `tests/browser.ts` bundles the
 /// script and runs each case in a frame of its own.
@@ -3161,7 +3254,7 @@ fn api_react_native_host() {
 		&dir.join("transcript.ts"),
 		transcript::typescript::emit(transcript(), transcript::typescript::Binding::ReactNative),
 	);
-	step::write(&dir.join("api.ts"), react_native_check());
+	step::write(&dir.join("api.ts"), binding_check("react-native"));
 	step::copy(
 		&manifest_dir().join("tests").join("react-native.ts"),
 		&dir.join("entry.ts"),
@@ -3587,7 +3680,7 @@ fn react_native_app(dir: &Path, package: &Path) -> PathBuf {
 			transcript::typescript::Binding::ReactNative,
 		)),
 	);
-	step::write(&check.join("api.ts"), imported(&react_native_check()));
+	step::write(&check.join("api.ts"), imported(&binding_check("react-native")));
 	step::write(
 		&check.join("entry.ts"),
 		imported(&std::fs::read_to_string(manifest_dir().join("tests").join("react-native.ts")).unwrap()),
@@ -3686,14 +3779,16 @@ const REACT_NATIVE_CASES: [&str; 19] = [
 	"checks",
 ];
 
-/// `tests/api.ts` importing the React Native binding, its cases exported for
-/// `tests/react-native.ts`, which loads the binding as its `main` does the web's.
-fn react_native_check() -> String {
+/// `tests/api.ts` importing the binding in `dir` beside it instead of the web's, without the
+/// web's glue or its `main`, its cases exported for a script loading the binding as its
+/// `main` does the web's, such as `tests/react-native.ts`.
+fn binding_check(dir: &str) -> String {
+	// A Windows checkout's line endings, which the rewrites below match as LF.
 	let check = std::fs::read_to_string(manifest_dir().join("tests").join("api.ts")).unwrap();
-	let check = check.replace("\"./web/", "\"./react-native/");
-	let glue = "import * as g from \"./react-native/glue.ts\";\n";
-	assert_eq!(check.matches(glue).count(), 1, "api.ts imports the web's glue once");
-	let check = check.replace(glue, "");
+	let check = check.replace("\r\n", "\n").replace("\"./web/", &format!("\"./{dir}/"));
+	let glue = format!("import * as g from \"./{dir}/glue.ts\";\n");
+	assert_eq!(check.matches(&glue).count(), 1, "api.ts imports the web's glue once");
+	let check = check.replace(&glue, "");
 	let main = "\nasync function main(): Promise<void> {";
 	let at = check.find(main).expect("api.ts has its main");
 	check[..=at].to_string()
