@@ -129,12 +129,12 @@ fn configured_rustflags(dir: &Path, args: &[String]) -> Result<Option<String>, S
 		// Cargo reads a relative path from its own directory, which is `dir`.
 		let path = dir.join(config);
 		let found = if path.is_file() {
-			config_file(&path)?
+			config_file(&path, &mut Vec::new())?
 		} else {
 			let table: toml::Table = config
 				.parse()
 				.map_err(|e| format!("cannot parse --config {config}: {e}"))?;
-			config_table(&table, &dir, &format!("--config {config}"))?
+			config_table(&table, &dir, &format!("--config {config}"), &mut Vec::new())?
 		};
 		if found.is_some() {
 			return Ok(found);
@@ -148,7 +148,7 @@ fn configured_rustflags(dir: &Path, args: &[String]) -> Result<Option<String>, S
 		for name in ["config.toml", "config"] {
 			let path = cargo.join(name);
 			if path.is_file()
-				&& let Some(found) = config_file(&path)?
+				&& let Some(found) = config_file(&path, &mut Vec::new())?
 			{
 				return Ok(Some(found));
 			}
@@ -158,18 +158,33 @@ fn configured_rustflags(dir: &Path, args: &[String]) -> Result<Option<String>, S
 }
 
 /// Where the config file at `path`, or one it includes, sets rustflags, if anywhere.
-fn config_file(path: &Path) -> Result<Option<String>, String> {
+/// `including` holds the files whose includes led here, so a cycle fails instead of recursing.
+fn config_file(path: &Path, including: &mut Vec<PathBuf>) -> Result<Option<String>, String> {
+	let canonical = path
+		.canonicalize()
+		.map_err(|e| format!("cannot resolve {}: {e}", path.display()))?;
+	if including.contains(&canonical) {
+		return Err(format!("{} includes itself", path.display()));
+	}
 	let text = std::fs::read_to_string(path).map_err(|e| format!("cannot read {}: {e}", path.display()))?;
 	let table: toml::Table = text
 		.parse()
 		.map_err(|e| format!("cannot parse {}: {e}", path.display()))?;
 	let base = path.parent().expect("a config file has a directory");
-	config_table(&table, base, &path.display().to_string())
+	including.push(canonical);
+	let found = config_table(&table, base, &path.display().to_string(), including);
+	including.pop();
+	found
 }
 
 /// Where one config table, from `source`, sets rustflags, if anywhere, reading the files it
 /// includes relative to `base`.
-fn config_table(table: &toml::Table, base: &Path, source: &str) -> Result<Option<String>, String> {
+fn config_table(
+	table: &toml::Table,
+	base: &Path,
+	source: &str,
+	including: &mut Vec<PathBuf>,
+) -> Result<Option<String>, String> {
 	let build = table.get("build").and_then(|build| build.get("rustflags")).is_some();
 	let target = table
 		.get("target")
@@ -196,7 +211,7 @@ fn config_table(table: &toml::Table, base: &Path, source: &str) -> Result<Option
 		let path = base.join(path);
 		// An optional include may be absent; Cargo itself fails a required one.
 		if path.is_file()
-			&& let Some(found) = config_file(&path)?
+			&& let Some(found) = config_file(&path, including)?
 		{
 			return Ok(Some(found));
 		}
@@ -398,6 +413,12 @@ mod tests {
 		assert_eq!(found, flags);
 		std::fs::remove_file(inner.join("extra.toml")).unwrap();
 		std::fs::remove_file(&flags).unwrap();
+
+		// An include cycle is refused rather than followed forever.
+		std::fs::write(&config, "include = \"config.toml\"\n").unwrap();
+		let err = configured_rustflags(&inner, &[]).unwrap_err();
+		assert!(err.ends_with("includes itself"), "{err}");
+		std::fs::remove_file(&config).unwrap();
 	}
 
 	#[test]
