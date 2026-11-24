@@ -1,10 +1,11 @@
 #!/usr/bin/env bash
 # Run `just check`, `just test`, or `just ci` over the modules the branch changed
 # since BASE: the queue's explicit argument, the fixer's QUEST_LAND_BASE, or origin/main.
-# --all runs every module. --query prints the selected modules instead.
+# --all runs every module, and --only=MODULE,... the named ones, as a CI job given its
+# share of a selection does. --query prints the selected modules instead.
 set -euo pipefail
 
-usage="usage: sh/dispatch.sh check|test|ci [BASE|--all] [--query]"
+usage="usage: sh/dispatch.sh check|test|ci [BASE|--all|--only=MODULE,...] [--query]"
 action=${1:-}
 base=${2:-}
 query=${3:-}
@@ -35,7 +36,7 @@ declare -A scope=(
     [go]='^go/'
     [ts]='^(ts|driver)/'
 )
-# Cheapest first, so a lint fails before the builds start.
+# Cheapest first, so within one run a lint fails before the builds start.
 modules=(lint quest sh driver ffi go ts)
 
 # Paths that only the repository-wide lints read.
@@ -44,6 +45,22 @@ lints='^(bench/|\.agents/|\.claude/|\.codex/|[^/]+\.md$|LICENSE-|\.(editorconfig
 selected=()
 if [[ "$base" == --all ]]; then
     selected=("${modules[@]}")
+elif [[ "$base" == --only=* ]]; then
+    only=${base#--only=}
+    if [[ ! "$only" =~ ^[a-z]+(,[a-z]+)*$ ]]; then
+        echo "error: --only takes a comma-separated list of: ${modules[*]}" >&2
+        exit 2
+    fi
+    for module in ${only//,/ }; do
+        if [[ -z "${scope[$module]+set}" ]]; then
+            echo "error: no module named '$module'; the modules are ${modules[*]}" >&2
+            exit 2
+        fi
+    done
+    # The map's order, so a lint in the list still runs before its builds.
+    for module in "${modules[@]}"; do
+        [[ ",$only," != *",$module,"* ]] || selected+=("$module")
+    done
 else
     base=${base:-${QUEST_LAND_BASE:-origin/main}}
     merge_base=$(git merge-base "$base" HEAD) || {
@@ -108,7 +125,7 @@ check_ts() { just ts check; }
 test_sh() { python3 -I sh/dispatch.test.py; }
 test_driver() { just driver test; }
 # moq's export at the pin, cut down to C, and every binding's rendered API, which the
-# surface files lock on x86_64 Linux, the queue's host, before the slower test build.
+# surface files lock on x86_64 Linux, the queue's runners, before the slower test build.
 test_ffi() {
     python3 -I ffi/release/test_package.py
     python3 -I ffi/surface/test_surface.py
@@ -128,7 +145,7 @@ test_ts() {
     just ts test
 }
 
-# Every check runs before any test, so a lint fails before the test builds.
+# Every check runs before any test, so within one run a lint fails before the test builds.
 case "$action" in
     check | test) phases=("$action") ;;
     ci) phases=(check test) ;;

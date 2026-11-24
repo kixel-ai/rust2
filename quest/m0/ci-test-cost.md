@@ -8,8 +8,9 @@ what the PR reports, and no diff skips a test that the code it changes runs unde
 
 ## Plan
 
-Planned from [#960](https://github.com/kixel-ai/rust2/pull/960), alongside
-[hosted CI](/quest/m0/ci-hosted.md). Decided 2026-11-23 (maintainer, /quest-run): ✅ split
+Planned from [#960](https://github.com/kixel-ai/rust2/pull/960), alongside hosted CI,
+which [#991](https://github.com/kixel-ai/rust2/pull/991) did; its PR body has each hosted
+job's measured time, the baseline here. Decided 2026-11-23 (maintainer, /quest-run): ✅ split
 #960 into quests (rejected: taking it over as one PR; leaving it). Each item is worth its
 place only where a benchmark against [#971](https://github.com/kixel-ai/rust2/pull/971)'s
 optimized exporter shows a gain; drop one that shows none and say so.
@@ -39,10 +40,5 @@ Decided 2026-11-23 (maintainer, /quest-run): ✅ keep this quest (rejected: drop
 
 Decided 2026-11-23 (maintainer, /quest-run): ✅ switch AGENTS.md's pre-push rule from
 `just ci` to `just check` plus the tests a change touches, as #960 proposed, only once
-[hosted CI](/quest/m0/ci-hosted.md)'s remote PR CI runs reliably (rejected: switching now;
-keeping `just ci` for good). Until then `just ci` is the only full check a PR gets before
-the queue.
-
-## Related
-
-- [Hosted CI](/quest/m0/ci-hosted.md) - the rest of #960
+the PR CI #991 added, `CI / Build` on GitHub-hosted runners, runs reliably (rejected:
+switching now; keeping `just ci` for good). Until then `just ci` stays the pre-push rule.
