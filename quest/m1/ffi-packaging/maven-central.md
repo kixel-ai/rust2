@@ -28,23 +28,25 @@ moq's stand-in builds it under `dev.moq`, so its `moq-ffi-maven` artifact,
 `dev.moq:moq-ffi:0.0.0` at the exporter's moq pin, is the bundle Central validates.
 
 moq's **Central check** workflow (`.github/workflows/central-check.yml`, through
-`just gh central-check`) takes a kixel-ai/rust2 run ID, refuses a fork's commit, downloads
-its `moq-ffi-maven`, and runs `central.sh validate` from the run's own commit in the
-`publish` environment. It runs only on `release`, the one ref the environment admits that
-publishes nothing by being pushed; GitHub offers a dispatch only for a workflow on the
-default branch, so [moq-dev/moq#9519](https://github.com/moq-dev/moq/pull/9519) lands it on
-`main` and [moq-dev/moq#9520](https://github.com/moq-dev/moq/pull/9520) on `release`. Never
-push a `moq-ffi-v*` tag for it: that starts moq's real release of every `moq-ffi` package.
+`just gh central-check`) takes the ID of a finished kixel-ai/rust2 run on rust2's `main`,
+refusing any other so only reviewed code sees the signing key, downloads its
+`moq-ffi-maven`, and runs `central.sh validate` from that run's commit in the `publish`
+environment. It runs only on `release`, the one ref the environment admits that publishes
+nothing by being pushed; GitHub offers a dispatch only for a workflow on the default branch,
+so [moq-dev/moq#9519](https://github.com/moq-dev/moq/pull/9519) lands it on `main` and
+[moq-dev/moq#9520](https://github.com/moq-dev/moq/pull/9520) on `release`. Never push a
+`moq-ffi-v*` tag for it: that starts moq's real release of every `moq-ffi` package.
 
 Once both land, dispatch it, which `publish` lets an agent do as it requires no reviewer:
 `gh workflow run central-check.yml -R moq-dev/moq --ref release -f run=<id>`, with `<id>` a
-successful kixel-ai/rust2 Check or Nightly run whose commit holds `central.sh`. A failed
-validation is a builder fix here. Delete moq's workflow once moq releases its Kotlin library
-through rust2's builder.
+finished Nightly, or a dispatched Check, on rust2's `main` since
+[#990](https://github.com/kixel-ai/rust2/pull/990) landed `central.sh` and the `dev.moq`
+stand-in. A failed validation is a builder fix here. Delete moq's workflow once moq releases
+its Kotlin library through rust2's builder.
 
 ## Waiting
 
 - Maintainer: approve landing [moq-dev/moq#9519](https://github.com/moq-dev/moq/pull/9519)
   into `main` and then [moq-dev/moq#9520](https://github.com/moq-dev/moq/pull/9520) into
   `release`, which moq lands only with the maintainer's go-ahead. Check:
-  `gh api repos/moq-dev/moq/contents/.github/workflows/central-check.yml?ref=release` succeeds.
+  `gh api 'repos/moq-dev/moq/contents/.github/workflows/central-check.yml?ref=release'` succeeds.
