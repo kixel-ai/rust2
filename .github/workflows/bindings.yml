@@ -306,7 +306,8 @@ jobs:
             os: ubuntu-24.04
             targets: aarch64-linux-android armv7-linux-androideabi x86_64-linux-android
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 90
+    # The slowest legs, Windows and the Apple macOS slice, take 80 to 90 minutes, so the cap leaves them room to finish.
+    timeout-minutes: 150
     defaults:
       run:
         shell: bash

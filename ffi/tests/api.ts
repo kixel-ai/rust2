@@ -279,7 +279,7 @@ class Far implements rt.Reader {
 
 /** The transcript, through the TypeScript tests/fixtures/transcript writes from it, which
  * calls the functions below that transcript.rs defines. */
-async function script(): Promise<void> {
+export async function script(): Promise<void> {
 	await transcript.script();
 }
 
@@ -509,7 +509,7 @@ export function numbers(what: string, n: Numbers.Numbers): void {
 }
 
 /** What the transcript's script says only in Rust: the binding's own errors. */
-function checks(): void {
+export function checks(): void {
 	check(`${rt.i64ToBig(api.FAR)}` === "9223372036854775807", "a constant past a safe integer keeps its type");
 	// Only Rust makes an opaque value: a caller's throws, and so does a lookalike passed in.
 	const Forged = rt.Opaque as unknown as new (bytes: Uint8Array) => Moment.Moment;
@@ -568,7 +568,7 @@ function ipv6(last: number): Uint8Array {
 
 /** The futures' semantics beyond the transcript, each checked by an assertion. wasm32 has no
  * threads, so none of the native script's from another thread is here. */
-async function futures(): Promise<void> {
+export async function futures(): Promise<void> {
 	const channel = Channel.new();
 
 	// A wake that lands while the future polls, before it returns pending, as each of
@@ -729,14 +729,18 @@ async function futures(): Promise<void> {
 	print("futures ok");
 }
 
-/** The garbage collector: Bun's own, else V8's, which a flag exposes. */
+/** The garbage collector: a global one, as Hermes and a browser with V8's flag have, Bun's
+ * own, else V8's, which a flag exposes. */
 let gc: (() => void) | undefined;
 
 /** Run the garbage collector until `done()`, failing past a deadline. */
-async function collect(done: () => boolean, what: string): Promise<void> {
+export async function collect(done: () => boolean, what: string): Promise<void> {
 	if (gc === undefined) {
+		const own = (globalThis as { gc?: () => void }).gc;
 		const bun = (globalThis as { Bun?: { gc(force: boolean): void } }).Bun;
-		if (bun !== undefined) {
+		if (own !== undefined) {
+			gc = own;
+		} else if (bun !== undefined) {
 			gc = () => bun.gc(true);
 		} else {
 			process.getBuiltinModule("node:v8").setFlagsFromString("--expose-gc");
@@ -762,7 +766,7 @@ async function settle(): Promise<void> {
 
 /** What frees an object nobody disposed: disposing at once, or the garbage collector once it
  * is unreachable, and only what disposing did not free already. */
-async function owned(): Promise<void> {
+export async function owned(): Promise<void> {
 	for (let n = 65535; n <= 65537; n++) {
 		const payload = new Uint8Array(n).map((_, i) => i % 256);
 		const packet = api.nextPacket({ seq: 1, payload });
@@ -833,9 +837,17 @@ function unclosedWaker(wake: () => void): void {
 	Waiter.waker(Waiter.new(wake));
 }
 
-/** The binding serves wasm32 alone, whose items are each here. */
+/** The binding's target's items are each here: wasm32's for the web, a native target's
+ * for React Native, whose binding serves those alone. */
 function targets(): void {
-	check(api.pointerBits(api.platform()) === 32, "wasm32's variant crosses");
+	const platform = api.platform();
+	if (platform.tag === "Native") {
+		check(platform._0 === 64 && api.pointerBits(platform) === 64, "a 64-bit target's variant crosses");
+		check(api.placement().tag === "Anywhere", "a variant only a native target has is kept with its record");
+		check(api.isFamily("Native"), "a native target's plain variant crosses");
+		return;
+	}
+	check(api.pointerBits(platform) === 32, "wasm32's variant crosses");
 	check(api.placement().tag === "Anywhere", "a variant wasm32 lacks is left out with its record");
 	const labelled = api.sameLabelled({ tag: "Tagged", tag$: 7 });
 	check(Labelled.debug(labelled) === "Tagged { tag: 7 }", "a variant's field named `tag` crosses as Rust reads it");
@@ -850,7 +862,7 @@ function targets(): void {
 }
 
 /** Each call taking a closed object throws, however it was closed, and moves nothing. */
-async function closedObjects(): Promise<void> {
+export async function closedObjects(): Promise<void> {
 	const c = Counter.new("c", 1);
 	close(c);
 	closed(() => Counter.get(c), "Counter", "a method of a disposed object");
@@ -999,17 +1011,23 @@ async function closedCall(f: () => Promise<unknown>, type: string, what: string)
 	check(false, what);
 }
 
-/** Bytes a call returns up to 64 are a copy, Rust's freed at the call; past that they lend
+/** Bytes a call returns up to 64, or 4 KiB on React Native, are a copy, Rust's freed at the call; past that they lend
  * Rust's buffer, freed once disposed and no call views it, or by the garbage collector, and
  * passed back to Rust they share it. Either reads the same, and refuses a read once disposed. */
-async function lent(): Promise<void> {
+export async function lent(): Promise<void> {
+	// React Native's Babel preset compiles its modules sloppy, where a write to a getter does
+	// nothing; the web's are strict, where it throws.
+	const sloppy = api.platform().tag === "Native";
+	// The most bytes a copy holds, which Hermes copies as cheaply as it lends.
+	const most = sloppy ? 4096 : 64;
+	const lends = 2 * most;
 	let before = api.dropped();
-	const small = api.tokenBytes(1, 64);
-	check(api.dropped() === ++before, "64 bytes are copied and Rust's freed at the call");
-	check(small.length === 64 && [...small].every((b) => b === 1), "copied bytes read back");
+	const small = api.tokenBytes(1, most);
+	check(api.dropped() === ++before, `${most} bytes are copied and Rust's freed at the call`);
+	check(small.length === most && [...small].every((b) => b === 1), "copied bytes read back");
 	close(small);
 	closed(() => small.at(0), "Bytes", "disposed copied bytes refuse a read");
-	for (const n of [65, 65537]) {
+	for (const n of [most + 1, 65537]) {
 		const big = api.tokenBytes(2, n);
 		check(api.dropped() === before, `${n} bytes lend Rust's buffer`);
 		const copy = big.slice();
@@ -1025,6 +1043,36 @@ async function lent(): Promise<void> {
 		closed(() => big.slice(), "Bytes", "disposed lent bytes refuse a read");
 		closed(() => api.len(big), "Bytes", "disposed lent bytes refuse a call");
 	}
+	// Disposed while a read converts its index, lent bytes refuse the read rather than read
+	// what Rust freed.
+	for (const read of [(b: rt.Bytes, i: number) => b.at(i), (b: rt.Bytes, i: number) => b.slice(i)]) {
+		const disposing = api.tokenBytes(7, lends);
+		const index = { valueOf: () => (close(disposing), 0) } as unknown as number;
+		closed(() => read(disposing, index), "Bytes", "lent bytes disposed as a read's index converts refuse it");
+		check(api.dropped() === ++before, "lent bytes disposed as a read's index converts are freed");
+	}
+	// Disposed as `slice` makes its result through `Symbol.species`, lent bytes stay Rust's
+	// until it returns, and are freed then.
+	const sliced = api.tokenBytes(8, lends);
+	let freedEarly = false;
+	Object.defineProperty(Uint8Array, Symbol.species, {
+		configurable: true,
+		get: () => {
+			close(sliced);
+			freedEarly ||= api.dropped() !== before;
+			return Uint8Array;
+		},
+	});
+	let copied: Uint8Array;
+	try {
+		copied = sliced.slice();
+	} finally {
+		delete (Uint8Array as unknown as Record<symbol, unknown>)[Symbol.species];
+	}
+	check(!freedEarly && copied.length === lends && copied.every((b) => b === 8), "lent bytes disposed as a slice makes its result read whole");
+	// Where the engine's `slice` reads no `Symbol.species`, as Hermes's does not, only here.
+	close(sliced);
+	check(api.dropped() === ++before, "lent bytes disposed as a slice makes its result are freed once it returns");
 	// Passed back, lent bytes cross in place: viewed for a call, or a second owner of Rust's
 	// buffer for one that keeps them, so the buffer outlives the bytes disposed after.
 	const sent = api.tokenBytes(5, 65537);
@@ -1038,61 +1086,73 @@ async function lent(): Promise<void> {
 	close(got);
 	check(api.dropped() === ++before, "the last owner of lent bytes frees them");
 	close(channel);
-	// Disposed while a later argument lowers, lent bytes stay Rust's for the call it is in,
-	// and are freed once it returns.
-	const viewed = api.tokenBytes(6, 100);
+	// A later argument's getters never run, so a Proxy that would dispose bytes the call
+	// already views is refused, and the call's hold on them is let go.
+	const viewed = api.tokenBytes(6, lends);
 	const prefix = new Proxy(enc("ab"), {
 		get(target, key) {
 			if (key === "length") close(viewed);
 			return Reflect.get(target, key);
 		},
 	});
-	const joined = api.prefixed(viewed, prefix).slice();
-	check(joined.length === 102 && text(joined.subarray(0, 2)) === "ab" && joined.subarray(2).every((b) => b === 6), "bytes a call views read whole");
-	check(api.dropped() === ++before, "bytes disposed during a call are freed once it returns");
+	throws(() => api.prefixed(viewed, prefix), TypeError, "a Proxy of a Uint8Array");
+	check(viewed.at(0) === 6 && api.dropped() === before, "bytes a refused call viewed stay the caller's");
+	close(viewed);
+	check(api.dropped() === ++before, "bytes lent to a call that fails are freed once disposed");
 	// A Bytes' length is its own: no caller's write or definition changes what Rust reads.
-	const fixed = api.tokenBytes(11, 100);
-	throws(() => {
+	const fixed = api.tokenBytes(11, lends);
+	const write = () => {
 		(fixed as { length: number }).length = 1 << 20;
-	}, TypeError, "a Bytes' length is read-only");
+	};
+	if (sloppy) write();
+	else throws(write, TypeError, "a Bytes' length is read-only");
+	check(fixed.length === lends, "a Bytes' length is read-only");
 	Object.defineProperty(fixed, "length", { value: 1 << 20 });
-	check(api.len(fixed) === 100 && fixed.slice().length === 100, "a Bytes' length shadowed reaches no read");
+	check(api.len(fixed) === lends && fixed.slice().length === lends, "a Bytes' length shadowed reaches no read");
 	close(fixed);
 	check(api.dropped() === ++before, "bytes whose length was shadowed are freed whole");
-	// Bytes a call takes by value, which Rust gets a second owner of, disposed while a later
-	// argument lowers, read whole and are freed once Rust drops them.
-	const given = api.tokenBytes(10, 100);
+	// Nor are bytes a call takes by value, which Rust would get a second owner of.
+	const given = api.tokenBytes(10, lends);
 	const high = new Proxy(enc("bc"), {
 		get(target, key) {
 			if (key === "length") close(given);
 			return Reflect.get(target, key);
 		},
 	});
-	const limits = api.byteLimits(given, high);
-	check(limits.low.length === 100 && limits.low.every((b) => b === 10) && text(limits.high) === "bc", "bytes given and disposed during a call read whole");
-	check(api.dropped() === ++before, "bytes given and disposed during a call are freed once Rust drops them");
+	throws(() => api.byteLimits(given, high), TypeError, "a Proxy of a Uint8Array given");
+	check(given.at(0) === 10 && api.dropped() === before, "bytes a refused call would take stay the caller's");
+	close(given);
+	check(api.dropped() === ++before, "bytes given to a call that fails are freed once disposed");
 	// Bytes a call returned pass as an optional borrowed argument too.
-	const optional = api.tokenBytes(8, 100);
+	const optional = api.tokenBytes(8, lends);
 	const suffixed = api.prefixed(enc("cd"), optional).slice();
-	check(suffixed.length === 102 && suffixed.subarray(0, 100).every((b) => b === 8) && text(suffixed.subarray(100)) === "cd", "returned bytes pass as an optional argument");
+	check(suffixed.length === lends + 2 && suffixed.subarray(0, lends).every((b) => b === 8) && text(suffixed.subarray(lends)) === "cd", "returned bytes pass as an optional argument");
 	close(optional);
 	check(api.dropped() === ++before, "returned bytes passed as an optional argument stay the caller's");
 	// The garbage collector frees lent bytes nobody disposed, left in the nursery with no
 	// return after them, or pushed out by later ones.
-	unclosedBytes();
+	unclosedBytes(lends);
 	await collect(() => api.dropped() > before, "the garbage collector frees lent bytes nobody disposed");
 	await settle();
 	check(api.dropped() === ++before, "the garbage collector frees lent bytes once");
-	unclosedBytes();
+	unclosedBytes(lends);
 	fill();
 	await collect(() => api.dropped() > before, "the garbage collector frees lent bytes later returns pushed out");
 	await settle();
 	check(api.dropped() === ++before, "the garbage collector frees lent bytes pushed out once");
 	// Disposed after later returns pushed them out undisposed, which registered them.
-	disposedLateBytes();
+	disposedLateBytes(lends);
 	check(api.dropped() === ++before, "disposing lent bytes pushed out of the nursery frees them at once");
 	await settle();
 	check(api.dropped() === before, "the garbage collector frees nothing disposed after a push out");
+	// Only wasm32's memory bounds what is lent: a native target's buffers are the
+	// allocator's, whose size the garbage collector is told.
+	if (api.platform().tag !== "Native") memoryLending();
+	print("bytes ok");
+}
+
+/** What wasm32's memory bounds of what is lent. */
+function memoryLending(): void {
 	// Past a quarter of memory lent and not yet freed, bytes are copied, so bytes nobody
 	// disposed, which the collector frees only once its own heap prompts it, grow memory by
 	// no more than a third.
@@ -1104,7 +1164,7 @@ async function lent(): Promise<void> {
 		check(kept.length < 1000, "lent bytes copy past a quarter of memory");
 	}
 	check((kept.length - 1) << 20 <= rt.mem().buffer.byteLength / 4, "at most a quarter of memory is lent");
-	before = api.dropped();
+	let before = api.dropped();
 	for (const b of kept) close(b);
 	check(api.dropped() === before + kept.length - 1, "disposing frees each lent");
 	// A slice keeps its whole buffer, which its length does not show, so lending also stops
@@ -1120,24 +1180,23 @@ async function lent(): Promise<void> {
 	before = api.dropped();
 	for (const b of slices) close(b);
 	check(api.dropped() === before + slices.length - 1, "disposing frees each slice lent");
-	print("bytes ok");
 }
 
 /** Lent bytes disposed once later returns pushed them out, which nothing reaches after. */
-function disposedLateBytes(): void {
-	const pushed = api.tokenBytes(2, 100);
+function disposedLateBytes(length: number): void {
+	const pushed = api.tokenBytes(2, length);
 	fill();
 	close(pushed);
 }
 
 /** Lent bytes, left for the garbage collector. */
-function unclosedBytes(): void {
-	api.tokenBytes(8, 1000);
+function unclosedBytes(length: number): void {
+	api.tokenBytes(8, length);
 }
 
 /** Values at the edges of what Rust takes and returns, and each value Rust's type lacks,
  * which throws the language's own error rather than reaching Rust. */
-function bounds(): void {
+export function bounds(): void {
 	// A char is a Unicode scalar value: a surrogate, or a number past one, is none.
 	check(api.nextChar(0x61) === 0x62 && api.nextChar(0x1f600) === 0x1f601, "a char");
 	for (const c of [0xd800, 0xdfff, 0x110000, -1, 1.5]) throws(() => api.nextChar(c), RangeError, `${c} is no char`);
@@ -1166,8 +1225,15 @@ function bounds(): void {
 	throws(() => rt.u64FromBig(-1n), RangeError, "a negative bigint for a u64");
 	throws(() => rt.i64FromBig(1n << 63n), RangeError, "a bigint past i64");
 	check(rt.i64ToBig(rt.i64FromBig(-(1n << 63n))) === -(1n << 63n), "i64::MIN as its limbs");
-	for (const v of [-1, 2 ** 32]) throws(() => api.sameUsize(v), RangeError, `${v} is no usize`);
-	for (const v of [-(2 ** 31) - 1, 2 ** 31]) throws(() => api.sameIsize(v), RangeError, `${v} is no isize`);
+	if (api.platform().tag === "Native") {
+		// A 64-bit target's are a u64's and an i64's, as wide.
+		check(api.sameUsize(2 ** 32) === 2 ** 32 && api.sameIsize(-(2 ** 31) - 1) === -(2 ** 31) - 1, "past 32 bits");
+		throws(() => api.sameUsize(-1), RangeError, "-1 is no usize");
+		throws(() => api.sameIsize(2 ** 53), RangeError, `${2 ** 53} is no isize`);
+	} else {
+		for (const v of [-1, 2 ** 32]) throws(() => api.sameUsize(v), RangeError, `${v} is no usize`);
+		for (const v of [-(2 ** 31) - 1, 2 ** 31]) throws(() => api.sameIsize(v), RangeError, `${v} is no isize`);
+	}
 	throws(() => Point.offset({ x: 2 ** 31, y: 0 }, 0, 0), RangeError, "a field past i32");
 	throws(() => api.greet("x", "Triangle" as Shape.Shape), RangeError, "no variant of a plain enum");
 	throws(() => api.describe({ tag: "Gone" } as unknown as Event.Event), RangeError, "no variant of a data enum");
@@ -1188,6 +1254,21 @@ function bounds(): void {
 	check(back.bytes.length === 1 && back.bytes[0] === 0xff, "a path that is not UTF-8");
 	check(rt.pathText(back) === "�", "a path's text replaces what is not UTF-8");
 	check(rt.pathText(rt.pathFrom("a/é")) === "a/é", "a UTF-8 path as text");
+	// Each invalid lead or broken sequence is replaced as Rust's `from_utf8_lossy` does: by
+	// one U+FFFD for its longest valid prefix, never consuming the byte after it.
+	for (const [path, text] of [
+		[bytes(0xc0, 0x80, 0x61), "\ufffd\ufffda"],
+		[bytes(0xc1, 0xbf, 0x61), "\ufffd\ufffda"],
+		[bytes(0xf5, 0x80, 0x80, 0x80, 0x61), "\ufffd\ufffd\ufffd\ufffda"],
+		[bytes(0xf7, 0xbf, 0xbf, 0xbf, 0x61), "\ufffd\ufffd\ufffd\ufffda"],
+		[bytes(0xe0, 0x80, 0x80, 0x61), "\ufffd\ufffd\ufffda"],
+		[bytes(0xed, 0xa0, 0x80, 0x61), "\ufffd\ufffd\ufffda"],
+		[bytes(0xf4, 0x90, 0x80, 0x80, 0x61), "\ufffd\ufffd\ufffd\ufffda"],
+		[bytes(0xe2, 0x82, 0x61), "\ufffda"],
+		[bytes(0xf0, 0x9f, 0x98, 0x80), "\u{1f600}"],
+	] as const) {
+		check(rt.pathText({ bytes: path }) === text, `a path of ${[...path]} as text`);
+	}
 
 	// An address is its family's octets, and a port, flow label, and scope their ranges.
 	throws(() => api.sameIpAddr({ tag: "V4", _0: { octets: bytes(1, 2, 3) } }), RangeError, "three octets");
@@ -1198,6 +1279,43 @@ function bounds(): void {
 	throws(() => api.sameSocketAddrV6(v6(65536, 0, 0)), RangeError, "a port past u16");
 	throws(() => api.sameSocketAddrV6(v6(1, 0, -1)), RangeError, "a negative scope");
 	throws(() => api.sameSocketAddrV6(v6(1, 2 ** 32, 0)), RangeError, "a flow label past u32");
+
+	// A typed array crosses as the engine keeps it: no `length`, `byteLength`, `byteOffset`,
+	// `buffer`, or tag its class or the caller defines changes what Rust reads, or makes a
+	// call write past what it allocated, and another kind relabeled, or a Proxy, is refused.
+	const lying = <T extends object>(base: new (n: number) => T) => {
+		const Liar = class extends (base as new (n: number) => object) {};
+		for (const key of ["length", "byteLength", "byteOffset"]) Object.defineProperty(Liar.prototype, key, { get: () => 4 });
+		Object.defineProperty(Liar.prototype, "buffer", { get: () => new ArrayBuffer(64) });
+		Object.defineProperty(Liar.prototype, Symbol.toStringTag, { get: () => "Int32Array" });
+		return (...values: number[]) => {
+			const v = new Liar(values.length) as T & { [i: number]: number };
+			values.forEach((x, i) => (v[i] = x));
+			return v;
+		};
+	};
+	const liarBytes = lying(Uint8Array);
+	const many = liarBytes(...new Array<number>(64).fill(3));
+	check(api.len(many) === 64, "a lying subclass's bytes cross whole");
+	const read = api.prefixed(many, undefined).slice();
+	check(read.length === 64 && read.every((b) => b === 3), "a lying subclass's bytes read back");
+	const masked = Digest.new();
+	check(hex(Digest.flipped(masked, liarBytes(1, 2, 3, 4))) === "01020304", "a lying subclass of 4 bytes is a [u8; 4]");
+	throws(() => Digest.flipped(masked, many), RangeError, "a lying subclass of 64 bytes is no [u8; 4]");
+	close(masked);
+	check(ipHex(api.sameIpAddr({ tag: "V4", _0: { octets: liarBytes(1, 2, 3, 4) } })) === "01020304", "a lying subclass's octets");
+	throws(() => api.sameIpAddr({ tag: "V4", _0: { octets: many } }), RangeError, "a lying subclass of 64 octets");
+	check(api.sumLists(lying(Int32Array)(1, 2, 3, 4, 5), undefined, undefined) === 15, "a lying block list crosses whole");
+	const shadowed = Uint8Array.of(0x61);
+	Object.defineProperties(shadowed, { byteLength: { value: 4096 }, byteOffset: { value: 8 }, length: { value: 4096 } });
+	const own = api.prefixed(shadowed, undefined).slice();
+	check(own.length === 1 && own[0] === 0x61, "own properties shadowing a typed array's reach no read");
+	throws(() => api.sumLists(liarBytes(1, 2, 3, 4) as unknown as Int32Array, undefined, undefined), TypeError, "a Uint8Array tagged Int32Array");
+	const relabeled = new Int8Array(4);
+	Object.setPrototypeOf(relabeled, Int32Array.prototype);
+	throws(() => api.sumLists(relabeled as unknown as Int32Array, undefined, undefined), TypeError, "an Int8Array relabeled Int32Array");
+	throws(() => Digest.flipped(Digest.new(), new Proxy(bytes(1, 2, 3, 4), {})), TypeError, "a Proxy of a [u8; 4]");
+	throws(() => api.sumLists(new Proxy(Int32Array.of(1), {}), undefined, undefined), TypeError, "a Proxy of a block list");
 
 	// A key hashes by Rust's Hash, so its hash keys a Set.
 	const hashes = new Set(["a", "a", "b"].map((n) => dec(Key.hash(Key.new(n)))));
@@ -1239,7 +1357,7 @@ function grow(): void {
 
 /** What a callback or closure is lent, bytes or text, reads the same once it grows memory,
  * and what it returns or writes lands. */
-function grown(): void {
+export function grown(): void {
 	let lines = 0;
 	const log = new CountLog((line) => {
 		grow();
@@ -1358,7 +1476,7 @@ class Overreader implements rt.Reader {
 }
 
 /** Each breaks a contract, which must fail with a message naming it. */
-async function broken(which: string): Promise<void> {
+export async function broken(which: string): Promise<void> {
 	switch (which) {
 		case "moved": {
 			const c = Counter.new("c", 0);

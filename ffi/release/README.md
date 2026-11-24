@@ -50,11 +50,14 @@ either, the lines that would are written commented out. Then, outside the reposi
   `repository` to be the publishing repository, which the release checks before any
   registry takes it.
 - for the Kotlin library, verify the group's namespace on the
-  [Central Portal](https://central.sonatype.com), and make a `maven` environment that only
+  [Central Portal](https://central.sonatype.com), and make a `publish` environment that only
   release tags may deploy to, holding a Portal user token as `MAVEN_CENTRAL_USERNAME` and
-  `MAVEN_CENTRAL_PASSWORD`, and an armored private OpenPGP key whose public half a key
-  server holds as `MAVEN_SIGNING_KEY`, with its passphrase, if any, as
-  `MAVEN_SIGNING_PASSPHRASE`. Central has no trusted publishing, so these are long-lived.
+  `MAVEN_CENTRAL_PASSWORD`, and an ASCII-armored private OpenPGP key whose public half a key
+  server holds as `SIGNING_KEY`, with its passphrase, if any, as `SIGNING_PASSWORD`. Central
+  has no trusted publishing, so these are long-lived. Before the first tag,
+  `<rust2>/ffi/release/central.sh validate <repository>`, given the build's `<crate>-maven` artifact
+  and the same secrets, the Portal token as `USERNAME` and `PASSWORD`, has the Portal
+  validate the signed bundle and drops it unpublished.
 
 Releasing is pushing `<crate>-v<version>`, the crate's version, which the release checks.
 Called without a tag, such as from a nightly, it runs everything up to publication.
@@ -125,7 +128,7 @@ the builder unpacks over its checkout before reading the checks.
    metadata and a complete hashed RECORD. Each is repaired by its platform's
    standard tool, which claims the portable tag or fails: auditwheel for
    `manylinux_2_28` on x86_64 and aarch64 (built by cargo-zigbuild against glibc 2.28, as
-   [crabx](/crabx/README.md) builds), delocate for `macosx_11_0_arm64`, and delvewheel for
+   [crabx's pipeline](https://github.com/kixel-ai/crabx/blob/main/pipeline/README.md) builds), delocate for `macosx_11_0_arm64`, and delvewheel for
    `win_amd64`.
 
    And an sdist, `<name>-<version>.tar.gz`, from which pip builds the same wheel on any

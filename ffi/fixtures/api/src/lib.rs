@@ -18,6 +18,10 @@ pub const LIMIT: u64 = 1000;
 /// The largest `i64`, past what a binding's float holds exactly.
 pub const FAR: i64 = i64::MAX;
 
+/// The largest `usize` of a 64-bit target, past what a binding's float holds exactly.
+#[cfg(target_pointer_width = "64")]
+pub const WORD: usize = usize::MAX;
+
 /// A point: a record, since every field is `pub`. Its docs reach the header, where a
 /// comment such as `/* this */` must not close the header's own.
 #[derive(Clone, Copy, Debug, PartialEq, Default)]

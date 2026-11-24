@@ -9,7 +9,7 @@ import unittest
 from pathlib import Path
 
 DISPATCH = Path(__file__).with_name("dispatch.sh").resolve()
-EVERYTHING = ["lint", "quest", "sh", "crabx", "driver", "ffi", "go", "ts"]
+EVERYTHING = ["lint", "quest", "sh", "driver", "ffi", "go", "ts"]
 # A shared input runs everything but the parked go, which only `just gate` and
 # its own diff select.
 SHARED = [m for m in EVERYTHING if m != "go"]
@@ -73,8 +73,6 @@ class SelectTests(unittest.TestCase):
             (["ts/fixtures/codec/src/lib.rs"], ["lint", "ts"]),
             (["quest/m0/example.md"], ["lint", "quest"]),
             (["sh/dispatch.test.py"], ["lint", "sh"]),
-            (["crabx/src/main.rs"], ["lint", "crabx"]),
-            (["crabx/vendor/binstalk-fetchers/src/lib.rs"], ["lint", "crabx"]),
             (["ts/src/lib.rs", "ffi/src/lib.rs"], ["lint", "ffi", "ts"]),
         ):
             with self.subTest(paths=paths):
@@ -124,6 +122,18 @@ class SelectTests(unittest.TestCase):
 
     def test_all_selects_everything(self):
         self.assertEqual(self.select("--all"), EVERYTHING)
+
+    def test_only_selects_the_named_modules_in_the_map_order(self):
+        # The diff is ignored: a CI job runs exactly its share of a selection.
+        self.change("flake.nix")
+        self.assertEqual(self.select("--only=ts,lint,ts"), ["lint", "ts"])
+        self.assertEqual(self.select("--only=go"), ["go"])
+
+    def test_only_refuses_an_unknown_or_empty_module(self):
+        for arg in ("--only=", "--only=lint,", "--only=lint,docs", "--only=lint ts"):
+            with self.subTest(arg=arg):
+                result = self.query(arg)
+                self.assertEqual(result.returncode, 2, result.stderr)
 
     def test_deletions_count(self):
         self.commit("ts/src/lib.rs")

@@ -51,6 +51,7 @@ namespace api {
 	inline constexpr ::std::int32_t EOF_ = API_EOF;
 	inline constexpr ::std::uint64_t URL = API_URL;
 	[[deprecated("pass a step to `Dial::turn`, whose `}` or `{` alone stays in the note")]] inline constexpr ::std::uint64_t STEP = API_STEP;
+	inline constexpr ::std::size_t WORD = API_WORD;
 	class RUST2_FFI_CONSUMABLE Board {
 		RUST2_FFI_UNCONSUMED Board(Board &&other RUST2_FFI_MOVED_FROM) noexcept = default;
 		Board &operator=(Board &&other) noexcept = default;

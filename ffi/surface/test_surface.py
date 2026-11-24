@@ -304,6 +304,130 @@ final class Duration implements Comparable<Duration> {
         ])
 
 
+class CSharp(unittest.TestCase):
+    def outline(self, text):
+        return lines(surface.braced(text, "csharp"))
+
+    def test_visibility_bodies_and_accessors(self):
+        source = """
+#nullable enable
+#pragma warning disable CS1591
+namespace Api
+{
+	using System;
+
+	/// <summary>Docs.</summary>
+	[StructLayout(LayoutKind.Sequential)]
+	public sealed unsafe partial class Counter : RustObject, IEquatable<Counter>
+	{
+		internal Counter(IntPtr raw) : base(raw)
+		{
+		}
+
+		public Counter(ulong start) : this(Native.make(start))
+		{
+		}
+
+		private protected Counter() : base(IntPtr.Zero)
+		{
+		}
+
+		public const ulong Max = 10;
+		public static readonly Counter Zero = new Counter(0);
+		public ulong Start;
+		public bool Closed => raw == IntPtr.Zero;
+		public string Name { get; }
+		public (uint, uint) Pair { get; set; }
+		public (uint, uint)? Spare => null;
+		public (uint, uint) Split(uint at) => (at, at);
+		public Meter Last
+		{
+			get
+			{
+				return new Meter("{");
+			}
+			private set
+			{
+				var c = '"';
+			}
+		}
+
+		public byte this[int k] => k == 0 ? (byte)1 : (byte)0;
+		public ValueTuple<(uint, uint)> Nested { get { return default; } }
+		public int Guarded { get { int set = 1; return set; } protected set { } }
+		public int Derived { get; private protected set; }
+		public int Aliased { get => set; }
+		public int Arrow { get => set; set => set = value; }
+		public int Either { protected internal get; internal set; }
+		[Obsolete("a]")] public void Old() { }
+
+		public static bool operator ==(Counter? a, Counter? b) => a is null ? b is null : a.Equals(b);
+
+		public ulong Get(ulong by = 0)
+		{
+			return $"{by}" == "}" ? 1UL : 0UL;
+		}
+
+		internal void Hidden()
+		{
+		}
+
+		public enum Kind : byte
+		{
+			A = 0,
+			B = 1,
+		}
+	}
+
+	public interface Log
+	{
+		void Log(Str line);
+	}
+
+	internal static class Native
+	{
+		public static void Leaked()
+		{
+		}
+	}
+}
+"""
+        self.assertEqual(self.outline(source), [
+            "#nullable enable",
+            "namespace Api {",
+            "\t[StructLayout(LayoutKind.Sequential)] public sealed unsafe partial class Counter : RustObject, IEquatable<Counter> {",
+            "\t\tpublic Counter(ulong start);",
+            "\t\tpublic const ulong Max = 10;",
+            "\t\tpublic static readonly Counter Zero;",
+            "\t\tpublic ulong Start;",
+            "\t\tpublic bool Closed { get; }",
+            "\t\tpublic string Name { get; }",
+            "\t\tpublic (uint, uint) Pair { get; set; }",
+            "\t\tpublic (uint, uint)? Spare { get; }",
+            "\t\tpublic (uint, uint) Split(uint at);",
+            "\t\tpublic Meter Last { get; }",
+            "\t\tpublic byte this[int k] { get; }",
+            "\t\tpublic ValueTuple<(uint, uint)> Nested { get; }",
+            "\t\tpublic int Guarded { get; protected set; }",
+            "\t\tpublic int Derived { get; }",
+            "\t\tpublic int Aliased { get; }",
+            "\t\tpublic int Arrow { get; set; }",
+            "\t\tpublic int Either { protected internal get; }",
+            '\t\t[Obsolete("a]")] public void Old();',
+            "\t\tpublic static bool operator ==(Counter? a, Counter? b);",
+            "\t\tpublic ulong Get(ulong by = 0);",
+            "\t\tpublic enum Kind : byte {",
+            "\t\t\tA = 0,",
+            "\t\t\tB = 1,",
+            "\t\t}",
+            "\t}",
+            "\tpublic interface Log {",
+            "\t\tvoid Log(Str line);",
+            "\t}",
+            "}",
+        ])
+
+
 class C(unittest.TestCase):
     def test_comments_go_strings_stay(self):
         source = '/* Docs. */\n#define API_NAME "/* not a comment */"\n\n// Line.\nvoid api_f(void); /* trailing */\n'
@@ -366,9 +490,12 @@ class Malformed(unittest.TestCase):
             ("class A {\n", "dart"),
             ("namespace api {\nint f();\n", "cpp"),
             ("int f(int a;\n", "cpp"),
+            ('namespace Api\n{\n\tpublic const string S = @"a";\n}\n', "csharp"),
+            ('namespace Api\n{\n\tpublic const string S = $@"a";\n}\n', "csharp"),
+            ('namespace Api\n{\n\tpublic const string S = @$"a";\n}\n', "csharp"),
         ]:
             with self.subTest(text=text), self.assertRaises(surface.Malformed):
-                (surface.braced if lang in ("dart", "cpp") else lambda t, l: surface.indented(t, l))(text, lang)
+                (surface.braced if lang in ("dart", "cpp", "csharp") else lambda t, l: surface.indented(t, l))(text, lang)
 
 
 if __name__ == "__main__":

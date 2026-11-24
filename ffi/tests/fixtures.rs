@@ -20,6 +20,7 @@ mod transcript;
 use std::collections::BTreeSet;
 use std::env::consts::EXE_SUFFIX;
 use std::ffi::OsString;
+use std::fmt::Write as _;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output};
 use std::sync::OnceLock;
@@ -195,7 +196,7 @@ fn transcripts() {
 	);
 	let tests = manifest_dir().join("tests");
 	// The web script imports the test's hooks by its name, which is `check.ts` here.
-	let typescript = transcript::typescript::emit(&t);
+	let typescript = transcript::typescript::emit(&t, transcript::typescript::Binding::Web);
 	let hooks = "import * as hook from \"./api.ts\";";
 	assert_eq!(
 		typescript.matches(hooks).count(),
@@ -1320,9 +1321,9 @@ fn api_android() {
 	std::fs::create_dir_all(&dex).unwrap();
 	run(Command::new("java")
 		.arg("-cp")
-		.arg(newest(&sdk.join("build-tools")).join("lib").join("d8.jar"))
+		.arg(newest(&sdk.join("build-tools"), "lib/d8.jar"))
 		.args(["com.android.tools.r8.R8", "--release", "--min-api", "24", "--lib"])
-		.arg(newest(&sdk.join("platforms")).join("android.jar"))
+		.arg(newest(&sdk.join("platforms"), "android.jar"))
 		.arg("--pg-conf")
 		.arg(out.join("kotlin").join("api.pro"))
 		.arg("--pg-conf")
@@ -1346,7 +1347,7 @@ fn api_android() {
 		.matches("@dalvik.annotation.optimization.FastNative\n")
 		.count();
 	assert!(marked > 0, "the api fixture has no leaf to mark");
-	let dump = run(Command::new(newest(&sdk.join("build-tools")).join("dexdump"))
+	let dump = run(Command::new(newest(&sdk.join("build-tools"), "dexdump"))
 		.arg("-a")
 		.arg(dex.join("classes.dex")));
 	let kept = String::from_utf8_lossy(&dump.stdout)
@@ -1830,10 +1831,11 @@ fn coroutines() -> OsString {
 		.expect("KOTLINX_COROUTINES names kotlinx-coroutines' jar: run this in the dev shell")
 }
 
-/// The entry of `dir` of the highest version, as the SDK names its build tools and platforms.
-fn newest(dir: &Path) -> PathBuf {
-	let version = |path: &PathBuf| -> Vec<u32> {
-		let name = path.file_name().unwrap().to_string_lossy().into_owned();
+/// `path` in the entry of `dir` of the highest version that holds it, as the SDK names its
+/// build tools and platforms: a newer entry may lack it, as a .NET 11 pack lacks `net10.0`.
+fn newest(dir: &Path, path: &str) -> PathBuf {
+	let version = |entry: &PathBuf| -> Vec<u32> {
+		let name = entry.file_name().unwrap().to_string_lossy().into_owned();
 		name.split(|c: char| !c.is_ascii_digit())
 			.filter_map(|n| n.parse().ok())
 			.collect()
@@ -1841,8 +1843,10 @@ fn newest(dir: &Path) -> PathBuf {
 	std::fs::read_dir(dir)
 		.unwrap_or_else(|err| panic!("reading {}: {err}", dir.display()))
 		.map(|entry| entry.unwrap().path())
+		.filter(|entry| entry.join(path).exists())
 		.max_by_key(version)
-		.unwrap_or_else(|| panic!("{} is empty", dir.display()))
+		.unwrap_or_else(|| panic!("no entry of {} holds {path}", dir.display()))
+		.join(path)
 }
 
 /// `tests/api.kt`'s script, run by `vm` with each argument list, prints the native
@@ -2766,7 +2770,7 @@ fn web() -> &'static Web {
 		let scripts = generated(
 			"typescript",
 			"transcript.ts",
-			&transcript::typescript::emit(transcript()),
+			&transcript::typescript::emit(transcript(), transcript::typescript::Binding::Web),
 		);
 		step::copy(&scripts.join("transcript.ts"), &dir.join("transcript.ts"));
 		step::copy(
@@ -3049,7 +3053,7 @@ fn api_web_package() {
 	let transcript = generated(
 		"typescript",
 		"transcript.ts",
-		&transcript::typescript::emit(transcript()),
+		&transcript::typescript::emit(transcript(), transcript::typescript::Binding::Web),
 	);
 	for file in [
 		manifest_dir().join("tests").join("api.ts"),
@@ -3138,6 +3142,561 @@ fn api_browsers() {
 			runs.remove(case).unwrap_or_else(|| panic!("{browser} ran no {case}"))
 		});
 	}
+}
+
+/// The api fixture's React Native binding on Hermes off a device: `tests/rn_host.cpp`, a
+/// host installing the JSI module as React Native's TurboModule does, runs `tests/api.ts`'s
+/// script, bundled from the generated TypeScript, and each case a runtime without
+/// WebAssembly runs. `RUST2_HERMES` names a Hermes checkout built into its `build` at the
+/// tag React Native's release pins, as the flake's `hermes` lays one out.
+#[test]
+#[ignore = "needs Hermes: just ffi react-native-host"]
+fn api_react_native_host() {
+	let hermes = PathBuf::from(std::env::var_os("RUST2_HERMES").expect("RUST2_HERMES names a built Hermes checkout"));
+	let build = hermes.join("build");
+	let api = api();
+	let dir = scratch().join("api").join("react-native");
+	step::mirror(&api.out.join("react-native"), &dir.join("react-native"));
+	step::write(
+		&dir.join("transcript.ts"),
+		transcript::typescript::emit(transcript(), transcript::typescript::Binding::ReactNative),
+	);
+	step::write(&dir.join("api.ts"), react_native_check());
+	step::copy(
+		&manifest_dir().join("tests").join("react-native.ts"),
+		&dir.join("entry.ts"),
+	);
+	// What `load` reaches of React Native only where no host installed the module.
+	step::write(
+		&dir.join("react-native-stub.ts"),
+		"export const TurboModuleRegistry = {\n\tgetEnforcing(name: string): never {\n\t\tthrow new Error(`no TurboModule ${name} off React Native`);\n\t},\n};\nexport type TurboModule = object;\n",
+	);
+	// Hermes takes a script, not modules, and lacks async generators. Sloppy, as React
+	// Native's Babel preset compiles a module, and with classes and private fields as Hermes
+	// runs them, as `rn-program` bundles moq's.
+	run(Command::new("esbuild")
+		.args([
+			"entry.ts",
+			"--bundle",
+			"--format=iife",
+			"--target=es2022",
+			"--supported:async-generator=false",
+			"--alias:react-native=./react-native-stub.ts",
+			"--log-level=error",
+			"--outfile=bundle.js",
+		])
+		.current_dir(&dir));
+	let host = dir.join("rn-host");
+	let cpp = dir.join("react-native").join("cpp");
+	let mut cmd = Command::new(std::env::var_os("CXX").unwrap_or_else(|| "c++".into()));
+	cmd.args([
+		"-std=c++17",
+		"-g",
+		"-Wall",
+		"-Wextra",
+		"-Werror",
+		"-DRUST2_PREFIX_NS=rust2_api",
+		"-DRUST2_GLOBAL=\"__rust2_api\"",
+		"-DRUST2_HEADER=\"api_jsi.h\"",
+	])
+	.arg("-I")
+	.arg(api.out.join("include"))
+	.arg("-I")
+	.arg(&cpp);
+	for include in [
+		hermes.join("API"),
+		hermes.join("API/jsi"),
+		hermes.join("public"),
+		hermes.join("include"),
+	] {
+		cmd.arg("-isystem").arg(include);
+	}
+	cmd.arg("-isystem")
+		.arg(build.join("lib/config"))
+		.arg(cpp.join("api_jsi.cpp"))
+		.arg(manifest_dir().join("tests").join("rn_host.cpp"))
+		.arg("-o")
+		.arg(&host)
+		.arg(build.join("lib").join(shared("hermesvm")))
+		.arg(build.join("jsi").join("libjsi.a"))
+		.arg(api.staticlib())
+		.args(&api.native)
+		.arg(format!("-Wl,-rpath,{}", build.join("lib").display()));
+	run(&mut cmd);
+	// Each run is bounded here, as one stuck in JavaScript never reaches the host's own check
+	// that nothing is left to run.
+	let hermes = |args: &[&str], what: &str| -> Ran {
+		let out = output(
+			Command::new("timeout")
+				.args(["--kill-after=10", "300"])
+				.arg(&host)
+				.args(args)
+				.current_dir(&dir),
+		);
+		let ran = Ran::from(out.clone());
+		assert!(
+			!matches!(out.status.code(), Some(124 | 137)),
+			"Hermes's {what} ran past 300 s:\n{}{}",
+			ran.stdout,
+			ran.stderr
+		);
+		ran
+	};
+	let script = |case: Option<&str>| -> Ran {
+		let mut args = vec!["bundle.js"];
+		args.extend(case);
+		hermes(&args, case.unwrap_or("transcript"))
+	};
+	let transcript = script(None);
+	assert!(transcript.ok, "Hermes's transcript failed:\n{}", transcript.stderr);
+	assert_eq!(
+		transcript.stdout, api.transcript,
+		"Hermes's transcript differs from native Rust's"
+	);
+	for case in REACT_NATIVE_CASES {
+		let run = script(Some(case));
+		assert!(run.ok, "Hermes's {case} failed:\n{}{}", run.stdout, run.stderr);
+	}
+	// A reload: the runtime destroyed with what the module holds of it, and the module
+	// installed again in a new one.
+	let reload = hermes(&["--reload", "bundle.js"], "reload");
+	// What the first runtime still holds as it goes is left alone, even what calls into
+	// JavaScript as it drops.
+	let held = hermes(&["--reload", "bundle.js", "collected"], "collected reload");
+	assert!(
+		held.ok,
+		"Hermes's collected reload failed:\n{}{}",
+		held.stdout, held.stderr
+	);
+	assert!(reload.ok, "Hermes's reload failed:\n{}", reload.stderr);
+	assert_eq!(
+		reload.stdout,
+		api.transcript.repeat(2),
+		"Hermes's reload differs from native Rust's transcript twice"
+	);
+	// Each fails with the web's message, but a panic, which aborts rather than trapping, so
+	// `later poll trapped` gets no further.
+	for (case, message) in WEB_BROKEN {
+		let run = script(Some(case));
+		assert!(!run.ok, "Hermes's {case} did not fail");
+		assert!(run.stderr.contains(message), "Hermes's {case} printed {}", run.stderr);
+	}
+}
+
+/// The React Native release the device tests' app is made with.
+const REACT_NATIVE: &str = "0.88.1";
+
+/// The api fixture's React Native package in a new React Native app, built for release, on
+/// the 64-bit Android device adb reaches: the package as `npm pack` makes it of the export,
+/// with the library the NDK builds for the device's ABI in its `libs/`, autolinked as an
+/// app's dependency is. Launched once with each case, the app logs what `tests/api.ts`'s
+/// script prints, which must be what native Rust prints there, and passes each case React
+/// Native runs; one breaking a contract aborts the app, as `api_react_native_host` checks.
+#[test]
+#[ignore = "needs the Android SDK and NDK, cargo-ndk, Node, the network, and a device: just ffi react-native-android"]
+fn api_react_native_android() {
+	const DEVICE: &str = "/data/local/tmp/rust2-ffi";
+	let sdk = PathBuf::from(std::env::var_os("ANDROID_HOME").expect("ANDROID_HOME names the Android SDK"));
+	let adb = sdk.join("platform-tools").join("adb");
+	let dir = scratch().join("api").join("react-native-android");
+	let abi = run(Command::new(&adb).args(["shell", "getprop", "ro.product.cpu.abi"]));
+	let abi = String::from_utf8_lossy(&abi.stdout).trim().to_string();
+	// 64-bit, whose `usize` the transcript's React Native script spells as wide.
+	let target = match abi.as_str() {
+		"arm64-v8a" => "aarch64-linux-android",
+		"x86_64" => "x86_64-linux-android",
+		abi => panic!("the test runs on a 64-bit Android ABI, not {abi}"),
+	};
+	let out = react_native_export(&dir, target);
+	let ndk = |cmd: &mut Command| {
+		cmd.args([
+			"ndk",
+			"--target",
+			&abi,
+			"--platform",
+			"24",
+			"build",
+			"--quiet",
+			"--locked",
+		]);
+	};
+	let mut glue = cargo();
+	ndk(&mut glue);
+	run(glue.arg("--target-dir").arg(dir.join("glue")).current_dir(&out));
+	let mut script = cargo();
+	ndk(&mut script);
+	run(script
+		.args(TRANSCRIPT)
+		.arg(dir.join("transcript"))
+		.current_dir(manifest_dir()));
+	run(Command::new(&adb).args(["shell", "rm", "-rf", DEVICE, "&&", "mkdir", "-p", DEVICE]));
+	run(Command::new(&adb)
+		.arg("push")
+		.arg(dir.join("transcript").join(target).join("debug/examples/transcript"))
+		.arg(DEVICE));
+	let native = run(Command::new(&adb).args(["shell", &format!("{DEVICE}/transcript")]));
+	let native = String::from_utf8_lossy(&native.stdout).into_owned();
+
+	let package = out.join("react-native");
+	step::copy(
+		&dir.join("glue").join(target).join("debug").join("libapi.a"),
+		&package.join("libs/android").join(&abi).join("libapi.a"),
+	);
+	let app = react_native_app(&dir, &package);
+	step::copy(
+		&manifest_dir().join("tests/react-native-app/MainActivity.kt"),
+		&app.join("android/app/src/main/java/dev/rust2/consumer/MainActivity.kt"),
+	);
+	run(Command::new(app.join("android").join("gradlew"))
+		.args([
+			"assembleRelease",
+			"--quiet",
+			&format!("-PreactNativeArchitectures={abi}"),
+		])
+		.current_dir(app.join("android")));
+	run(Command::new(&adb)
+		.args(["install", "-r", "--no-streaming"])
+		.arg(app.join("android/app/build/outputs/apk/release/app-release.apk")));
+
+	// Each case in an app of its own, read from the log as it arrives, bounded by the
+	// device-side timeout.
+	react_native_cases(&native, &abi, |case| {
+		run(Command::new(&adb).args(["shell", "am", "force-stop", "dev.rust2.consumer"]));
+		run(Command::new(&adb).args(["logcat", "-c"]));
+		let reader = Command::new(&adb)
+			.args([
+				"shell",
+				"timeout",
+				"300",
+				"logcat",
+				"-s",
+				"ReactNativeJS:V",
+				"-v",
+				"raw",
+			])
+			.stdout(std::process::Stdio::piped())
+			.spawn()
+			.unwrap();
+		let mut start = Command::new(&adb);
+		start.args(["shell", "am", "start", "-n", "dev.rust2.consumer/.MainActivity"]);
+		if let Some(case) = case {
+			start.args(["--es", "case", &format!("'{case}'")]);
+		}
+		run(&mut start);
+		react_native_log(reader)
+	});
+}
+
+/// `api_react_native_android`'s check on the iOS simulator booted, of the host's
+/// architecture: the package's XCFramework holds the library built for it, which CocoaPods
+/// vendors, and its podspec's `+load` registers the TurboModule.
+#[test]
+#[ignore = "needs macOS, Xcode, CocoaPods, a booted iOS simulator, Node, and the network: just ffi react-native-ios"]
+fn api_react_native_ios() {
+	let (target, arch) = match std::env::consts::ARCH {
+		"aarch64" => ("aarch64-apple-ios-sim", "arm64"),
+		"x86_64" => ("x86_64-apple-ios", "x86_64"),
+		arch => panic!("no iOS simulator runs on {arch}"),
+	};
+	let dir = scratch().join("api").join("react-native-ios");
+	let out = react_native_export(&dir, target);
+	run(cargo()
+		.args(["build", "--quiet", "--locked", "--target", target, "--target-dir"])
+		.arg(dir.join("glue"))
+		.current_dir(&out));
+	run(cargo()
+		.args(["build", "--target", target])
+		.args(TRANSCRIPT)
+		.arg(dir.join("transcript"))
+		.current_dir(manifest_dir()));
+	let simctl = || {
+		let mut cmd = Command::new("xcrun");
+		cmd.arg("simctl");
+		cmd
+	};
+	let native = run(simctl()
+		.args(["spawn", "booted"])
+		.arg(dir.join("transcript").join(target).join("debug/examples/transcript")));
+	let native = String::from_utf8_lossy(&native.stdout).into_owned();
+
+	let package = out.join("react-native");
+	let framework = package.join("libs/ios/api.xcframework");
+	let _ = std::fs::remove_dir_all(&framework);
+	run(Command::new("xcodebuild")
+		.args(["-create-xcframework", "-library"])
+		.arg(dir.join("glue").join(target).join("debug").join("libapi.a"))
+		.arg("-output")
+		.arg(&framework));
+	let app = react_native_app(&dir, &package);
+	let ios = app.join("ios");
+	run(Command::new("pod").args(["install", "--silent"]).current_dir(&ios));
+	let built = dir.join("xcode");
+	run(Command::new("xcodebuild")
+		.args([
+			"-workspace",
+			"Consumer.xcworkspace",
+			"-scheme",
+			"Consumer",
+			"-configuration",
+			"Release",
+		])
+		.args([
+			"-sdk",
+			"iphonesimulator",
+			"-quiet",
+			&format!("ARCHS={arch}"),
+			"-derivedDataPath",
+		])
+		.arg(&built)
+		.arg("build")
+		.current_dir(&ios));
+	run(simctl()
+		.args(["install", "booted"])
+		.arg(built.join("Build/Products/Release-iphonesimulator/Consumer.app")));
+
+	// The case as a launch argument, which iOS puts in the app's `NSUserDefaults` for
+	// `index.js` to read; the log streamed from before the launch, ended by Perl's alarm,
+	// through a terminal of `script`'s, as `log stream` buffers what it writes to a pipe.
+	// `script` ends at its input's end, so that input stays open until the case's does.
+	react_native_cases(&native, target, |case| {
+		let mut reader = Command::new("perl")
+			.args(["-e", "alarm shift; exec @ARGV", "300", "script", "-q", "/dev/null"])
+			.args(["xcrun", "simctl", "spawn", "booted", "log", "stream"])
+			.args(["--level", "info", "--style", "compact", "--predicate"])
+			.arg("subsystem == \"com.facebook.react.log\" AND category == \"javascript\"")
+			.stdin(std::process::Stdio::piped())
+			.stdout(std::process::Stdio::piped())
+			.spawn()
+			.unwrap();
+		let input = reader.stdin.take();
+		let mut lines = std::io::BufRead::lines(std::io::BufReader::new(reader.stdout.take().unwrap()));
+		// The line it prints as it starts reading the log, a second or more before the app's
+		// first: a launch that beat it would fail the transcript, not pass.
+		let mut before = String::new();
+		loop {
+			let line = lines.next().map(Result::unwrap);
+			let line = line.unwrap_or_else(|| panic!("the log stream ended before it started:\n{before}"));
+			if line.starts_with("Filtering the log data") {
+				break;
+			}
+			before.push_str(&line);
+			before.push('\n');
+		}
+		let mut launch = simctl();
+		launch.args(["launch", "--terminate-running-process", "booted", "dev.rust2.consumer"]);
+		if let Some(case) = case {
+			launch.args(["-case", case]);
+		}
+		run(&mut launch);
+		let ran = react_native_lines(lines.map(|line| line.map(|line| octal_unescaped(&line))));
+		drop(input);
+		let _ = reader.kill();
+		let _ = reader.wait();
+		ran
+	});
+}
+
+/// `line` as the app logged it, from `log`'s spelling, which writes each backslash as `\134`,
+/// so that every backslash it shows starts three octal digits.
+fn octal_unescaped(line: &str) -> String {
+	let mut bytes = Vec::with_capacity(line.len());
+	let mut rest = line.as_bytes();
+	while let Some((&b, tail)) = rest.split_first() {
+		if b == b'\\' {
+			let digits = tail.get(..3).and_then(|d| std::str::from_utf8(d).ok());
+			let byte = digits.and_then(|d| u8::from_str_radix(d, 8).ok());
+			bytes.push(byte.unwrap_or_else(|| panic!("log's escape is three octal digits: {line}")));
+			rest = &tail[3..];
+		} else {
+			bytes.push(b);
+			rest = tail;
+		}
+	}
+	String::from_utf8(bytes).expect("the app logs UTF-8")
+}
+
+/// What builds the api fixture's transcript example, up to its target dir.
+const TRANSCRIPT: [&str; 7] = [
+	"--package",
+	"api-fixture",
+	"--example",
+	"transcript",
+	"--features",
+	"doubled",
+	"--target-dir",
+];
+
+/// The api fixture exported for `target` to `dir/out`.
+fn react_native_export(dir: &Path, target: &str) -> PathBuf {
+	let out = dir.join("out");
+	let _ = std::fs::remove_dir_all(&out);
+	let output = export("api", &out, &[target], &API_CARGO);
+	assert!(
+		output.status.success(),
+		"exporting for {target} failed:\n{}",
+		String::from_utf8_lossy(&output.stderr)
+	);
+	out
+}
+
+/// A new React Native app in `dir`, depending on the packed `package`, which runs
+/// `tests/react-native.ts` and its checks over the package.
+fn react_native_app(dir: &Path, package: &Path) -> PathBuf {
+	let packed = run(Command::new("npm")
+		.args(["pack", "--silent", "--pack-destination"])
+		.arg(dir)
+		.arg(package));
+	let tarball = dir.join(String::from_utf8_lossy(&packed.stdout).trim());
+	let app = dir.join("Consumer");
+	if !app.exists() {
+		run(Command::new("npx")
+			.args([
+				"--yes",
+				"@react-native-community/cli@21.0.0",
+				"init",
+				"Consumer",
+				"--version",
+				REACT_NATIVE,
+			])
+			.args([
+				"--skip-git-init",
+				"--install-pods",
+				"false",
+				"--package-name",
+				"dev.rust2.consumer",
+			])
+			.current_dir(dir));
+	}
+	run(Command::new("npm")
+		.args([
+			"install",
+			"--silent",
+			"@babel/plugin-transform-explicit-resource-management@^7",
+		])
+		.arg(&tarball)
+		.current_dir(&app));
+	let files = manifest_dir().join("tests").join("react-native-app");
+	step::copy(&files.join("index.js"), &app.join("index.js"));
+	step::copy(&files.join("babel.config.js"), &app.join("babel.config.js"));
+	let check = app.join("check");
+	let imported = |ts: &str| package_imports(ts, "api-fixture");
+	step::write(
+		&check.join("transcript.ts"),
+		imported(&transcript::typescript::emit(
+			transcript(),
+			transcript::typescript::Binding::ReactNative,
+		)),
+	);
+	step::write(&check.join("api.ts"), imported(&react_native_check()));
+	step::write(
+		&check.join("entry.ts"),
+		imported(&std::fs::read_to_string(manifest_dir().join("tests").join("react-native.ts")).unwrap()),
+	);
+	app
+}
+
+/// The app's transcript, launched by `launch`, must be native Rust's on `on`, and each case
+/// must pass.
+fn react_native_cases(native: &str, on: &str, mut launch: impl FnMut(Option<&str>) -> Ran) {
+	let transcript = launch(None);
+	assert!(transcript.ok, "the app's transcript failed:\n{}", transcript.stderr);
+	assert_eq!(
+		transcript.stdout, native,
+		"the app's transcript differs from native Rust's on {on}"
+	);
+	for name in REACT_NATIVE_CASES {
+		let ran = launch(Some(name));
+		assert!(ran.ok, "the app's {name} failed:\n{}{}", ran.stdout, ran.stderr);
+	}
+}
+
+/// What the app logged through `reader`'s output, to its exit.
+fn react_native_log(mut reader: std::process::Child) -> Ran {
+	let lines = std::io::BufRead::lines(std::io::BufReader::new(reader.stdout.take().unwrap()));
+	let ran = react_native_lines(lines);
+	let _ = reader.kill();
+	let _ = reader.wait();
+	ran
+}
+
+/// The app's run, of the log lines `index.js` marks, to the one that says it exited.
+fn react_native_lines(lines: impl Iterator<Item = std::io::Result<String>>) -> Ran {
+	let (mut stdout, mut stderr, mut code) = (String::new(), String::new(), None);
+	for line in lines {
+		let line = line.unwrap();
+		// A terminal's line ends in `\r\n`.
+		let line = line.strip_suffix('\r').unwrap_or(&line);
+		let marked = |mark: &str| line.find(mark).map(|at| &line[at + mark.len()..]);
+		if let Some(exit) = marked("rust2| exit ") {
+			code = exit.trim().parse::<i32>().ok();
+			break;
+		} else if let Some(text) = marked("rust2| ") {
+			stdout.push_str(text);
+			stdout.push('\n');
+		} else {
+			// What the app wrote to stderr, then React Native's own lines, for a failure to show.
+			stderr.push_str(marked("rust2! ").unwrap_or(line));
+			stderr.push('\n');
+		}
+	}
+	Ran {
+		ok: code == Some(0),
+		stdout,
+		stderr,
+	}
+}
+
+/// `ts` importing the package `package` where it imports the binding beside it.
+fn package_imports(ts: &str, package: &str) -> String {
+	let ts = ts.replace("\"./react-native/index.ts\"", &format!("\"{package}\""));
+	let mut out = String::new();
+	let mut rest = ts.as_str();
+	while let Some(at) = rest.find("\"./react-native/") {
+		out.push_str(&rest[..at]);
+		let module = &rest[at + "\"./react-native/".len()..];
+		let end = module.find(".ts\"").expect("an import of the binding ends in .ts");
+		let _ = write!(out, "\"{package}/{}\"", &module[..end]);
+		rest = &module[end + ".ts\"".len()..];
+	}
+	out.push_str(rest);
+	out
+}
+
+/// The cases React Native runs after its transcript: `tests/react-native.ts`'s own, and
+/// `tests/api.ts`'s but `grown`'s memory and a load's, which are WebAssembly's.
+const REACT_NATIVE_CASES: [&str; 19] = [
+	"word",
+	"interleaved",
+	"foreign",
+	"sliced",
+	"faked",
+	"written",
+	"refused",
+	"replaced",
+	"cancelled",
+	"woken",
+	"collected",
+	"reinstalled",
+	"forged",
+	"futures",
+	"owned",
+	"closed",
+	"bytes",
+	"bounds",
+	"checks",
+];
+
+/// `tests/api.ts` importing the React Native binding, its cases exported for
+/// `tests/react-native.ts`, which loads the binding as its `main` does the web's.
+fn react_native_check() -> String {
+	let check = std::fs::read_to_string(manifest_dir().join("tests").join("api.ts")).unwrap();
+	let check = check.replace("\"./web/", "\"./react-native/");
+	let glue = "import * as g from \"./react-native/glue.ts\";\n";
+	assert_eq!(check.matches(glue).count(), 1, "api.ts imports the web's glue once");
+	let check = check.replace(glue, "");
+	let main = "\nasync function main(): Promise<void> {";
+	let at = check.find(main).expect("api.ts has its main");
+	check[..=at].to_string()
 }
 
 /// What `tsc` checks a web binding and its caller with: strict, with no name unused, on the
@@ -3706,6 +4265,42 @@ fn api_csharp() {
 		.env("DOTNET_CLI_TELEMETRY_OPTOUT", "1"));
 }
 
+/// The protocol scripts through the api fixture's C#, `tests/protocol.cs`, on .NET.
+#[test]
+fn api_csharp_protocol() {
+	csharp_protocol(
+		"scripts",
+		&protocol::scripts(0, PROTOCOL_SEEDS, PROTOCOL_STEPS, protocol::Profile::CSHARP),
+	);
+}
+
+/// Longer C# protocol scripts from other seeds, as the nightly runs them.
+#[test]
+#[ignore = "slow: just ffi protocol"]
+fn api_csharp_protocol_nightly() {
+	csharp_protocol(
+		"nightly",
+		&protocol::scripts(PROTOCOL_SEEDS, 5000, 400, protocol::Profile::CSHARP),
+	);
+}
+
+fn csharp_protocol(dir: &str, scripts: &[protocol::Script]) {
+	let api = api();
+	// Each variant builds its own, so the gate and the nightly run together share no file.
+	let built = scratch().join("api").join("csharp-protocol").join(dir);
+	let exe = built.join("protocol.dll");
+	std::fs::create_dir_all(&built).unwrap();
+	csc(
+		Dotnet::Net,
+		&exe,
+		&[
+			&api.out.join("csharp").join("api.cs"),
+			&manifest_dir().join("tests/protocol.cs"),
+		],
+	);
+	protocol::check_all(&built.join("scripts"), scripts, || csharp_run(&exe, &[]));
+}
+
 /// The same C# compiled ahead of time by NativeAOT, with its trim and AOT analyzers' warnings
 /// as errors, prints the native transcript and passes its checks: `dotnet publish`, from the
 /// packs the SDK carries, so it needs no network.
@@ -3776,6 +4371,8 @@ enum Dotnet {
 	/// and static constructor IL2CPP takes on CoreCLR; `Unity` checks its language level.
 	/// Its arithmetic is checked, as a consumer's build may make it.
 	NetUnity,
+	/// A .NET library, which needs no `Main`.
+	Library,
 	Unity,
 }
 
@@ -3786,12 +4383,30 @@ fn dotnet_root() -> PathBuf {
 }
 
 /// `sources` compiled by Roslyn into `out`, warnings as errors, a program for `Net` and
-/// `NetUnity` and a library for `Unity`.
+/// `NetUnity` and a library for `Library` and `Unity`.
 fn csc(target: Dotnet, out: &Path, sources: &[&Path]) {
+	let step = Step {
+		stamp: &out.with_extension("stamp"),
+		reads: sources,
+		writes: &[out],
+	};
+	step.run(&mut csc_command(target, out, sources));
+	if let Dotnet::Net | Dotnet::NetUnity = target {
+		step::write(
+			&out.with_extension("runtimeconfig.json"),
+			r#"{"runtimeOptions":{"tfm":"net10.0","rollForward":"LatestPatch","framework":{"name":"Microsoft.NETCore.App","version":"10.0.0"},"configProperties":{"System.Globalization.Invariant":true}}}"#,
+		);
+	}
+}
+
+/// The Roslyn command [`csc`] runs, for a caller that takes its failure.
+fn csc_command(target: Dotnet, out: &Path, sources: &[&Path]) -> Command {
 	let root = dotnet_root();
-	let csc = newest(&root.join("sdk")).join("Roslyn/bincore/csc.dll");
+	let csc = newest(&root.join("sdk"), "Roslyn/bincore/csc.dll");
 	let refs = match target {
-		Dotnet::Net | Dotnet::NetUnity => newest(&root.join("packs/Microsoft.NETCore.App.Ref")).join("ref/net10.0"),
+		Dotnet::Net | Dotnet::NetUnity | Dotnet::Library => {
+			newest(&root.join("packs/Microsoft.NETCore.App.Ref"), "ref/net10.0")
+		}
 		Dotnet::Unity => {
 			PathBuf::from(std::env::var_os("NETSTANDARD_REF").expect("the dev shell sets NETSTANDARD_REF"))
 		}
@@ -3809,6 +4424,7 @@ fn csc(target: Dotnet, out: &Path, sources: &[&Path]) {
 	]);
 	match target {
 		Dotnet::Net => cmd.arg("-target:exe"),
+		Dotnet::Library => cmd.arg("-target:library"),
 		Dotnet::NetUnity => cmd.args(["-target:exe", "-define:UNITY_5_3_OR_NEWER", "-checked"]),
 		Dotnet::Unity => cmd.args(["-target:library", "-langversion:9", "-define:UNITY_5_3_OR_NEWER"]),
 	};
@@ -3824,36 +4440,35 @@ fn csc(target: Dotnet, out: &Path, sources: &[&Path]) {
 		.arg(format!("-doc:{}", out.with_extension("xml").display()))
 		.args(sources);
 	std::fs::create_dir_all(out.parent().unwrap()).unwrap();
-	let step = Step {
-		stamp: &out.with_extension("stamp"),
-		reads: sources,
-		writes: &[out],
-	};
-	step.run(&mut cmd);
-	if let Dotnet::Net | Dotnet::NetUnity = target {
-		step::write(
-			&out.with_extension("runtimeconfig.json"),
-			r#"{"runtimeOptions":{"tfm":"net10.0","rollForward":"LatestPatch","framework":{"name":"Microsoft.NETCore.App","version":"10.0.0"},"configProperties":{"System.Globalization.Invariant":true}}}"#,
-		);
-	}
+	cmd
 }
 
 /// `exe`, a program `csc` built, run by `dotnet` with `args`, loading the api fixture's library.
 fn csharp_run(exe: &Path, args: &[&str]) -> Command {
+	dotnet_run(exe, args, &api().lib)
+}
+
+/// `exe`, a program `csc` built, run by `dotnet` with `args`, loading libraries from `lib`.
+fn dotnet_run(exe: &Path, args: &[&str], lib: &Path) -> Command {
 	let mut cmd = Command::new("dotnet");
 	cmd.arg(exe).args(args).env("DOTNET_CLI_TELEMETRY_OPTOUT", "1");
-	with_api_lib(&mut cmd);
+	with_lib(&mut cmd, lib);
 	cmd
 }
 
 /// `cmd` finding the api fixture's library where the platform's loader looks.
 fn with_api_lib(cmd: &mut Command) {
+	with_lib(cmd, &api().lib);
+}
+
+/// `cmd` finding the libraries in `lib` where the platform's loader looks.
+fn with_lib(cmd: &mut Command, lib: &Path) {
 	let var = match (cfg!(windows), cfg!(target_os = "macos")) {
 		(true, _) => "PATH",
 		(_, true) => "DYLD_LIBRARY_PATH",
 		_ => "LD_LIBRARY_PATH",
 	};
-	let mut paths = vec![api().lib.clone()];
+	let mut paths = vec![lib.to_path_buf()];
 	paths.extend(std::env::var_os(var).iter().flat_map(std::env::split_paths));
 	cmd.env(var, std::env::join_paths(paths).unwrap());
 }
@@ -4484,11 +5099,13 @@ fn go(module: &Path, args: &[&str]) -> Command {
 
 /// Exporting an unchanged crate again moves no file's mtime, the lockfile's included, so a
 /// build of the export stays fresh, and drops a file it no longer writes from a directory
-/// it owns.
+/// it owns, but none from React Native's `libs/`, which the app builds into.
 #[test]
 fn reexport() {
 	let package = package("reexport", &[]);
 	let out = package.join("out");
+	// Without an earlier run's, such as the library it planted in libs/, which no export removes.
+	let _ = std::fs::remove_dir_all(&out);
 	let export = || {
 		run(Command::new(env!("CARGO_BIN_EXE_rust2-ffi"))
 			.arg("--manifest-path")
@@ -4520,8 +5137,22 @@ fn reexport() {
 	}
 	let stray = out.join("go").join("stray").join("stray.go");
 	step::write(&stray, "package stray\n");
+	let built = out
+		.join("react-native")
+		.join("libs")
+		.join("android")
+		.join("arm64-v8a")
+		.join("libreexport.a");
+	step::write(&built, "!<arch>\n");
 	export();
-	assert_eq!(files(&out), written, "the second export wrote other files");
+	let mut kept = written.clone();
+	kept.push(built);
+	kept.sort();
+	assert_eq!(
+		files(&out),
+		kept,
+		"the second export wrote other files, or removed what the app built into libs/"
+	);
 	for file in &written {
 		let mtime = std::fs::metadata(file).unwrap().modified().unwrap();
 		assert_eq!(mtime, past, "the second export rewrote {}", file.display());
@@ -5790,11 +6421,8 @@ fn channel() {
 
 /// A stable rustc from PATH, as the repository's root resolves it: the dev shell puts the
 /// root's stable toolchain on PATH behind the exporter's nightly, and rustup picks it from
-/// the root's `rust-toolchain.toml` unless the environment names another.
-///
-/// That root is 1.100 for crabx's binstalk, so in the dev shell these checks prove the glue
-/// on 1.100 rather than moq's 1.98.1, until crabx moves to kixel-ai/crabx and the root
-/// returns to 1.98.1. Elsewhere, a standalone stable rustc earlier on PATH wins instead.
+/// the root's `rust-toolchain.toml` unless the environment names another. Elsewhere, a
+/// standalone stable rustc earlier on PATH wins instead.
 fn stable_rustc() -> PathBuf {
 	let root = manifest_dir().parent().unwrap().to_path_buf();
 	let path = std::env::var_os("PATH").unwrap_or_default();

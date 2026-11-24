@@ -181,6 +181,13 @@ impl Profile {
 		..Self::C
 	};
 
+	/// C#'s on .NET, Kotlin's: `Dispose()` drops and closes, as a move out closes, and the GC
+	/// frees in its own time, with no drain, as a value freed elsewhere drops at its thread's
+	/// next check; a call's `ValueTask` runs the fixture's futures to their end in place, so
+	/// each is awaited in the step after its call, a future made from no value that is not
+	/// `Send` on a home.
+	pub const CSHARP: Self = Self::KOTLIN;
+
 	/// Dart's: one isolate, whose thread may change, so every value that is not `Send` is
 	/// on a home and a second thread has no meaning; the event loop polls every pending
 	/// future as one is awaited, so one pends at a time.

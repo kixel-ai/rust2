@@ -5,7 +5,7 @@ stand-in `just ffi bench` exports, against BoltFFI's numbers below as targets.
 
 ```bash
 nix develop .#bench --command just ffi bench  # build, run 3 rounds, and write ffi/target/bench/report.md
-nix develop .#bench --command just ffi bench-run 5  # rerun what bench-build built, 5 rounds
+nix develop .#bench --command just ffi bench-run 5  # rerun what `bench` built, 5 rounds
 nix develop .#android --command just ffi bench-android  # the Kotlin rows on HotSpot and on the Android device adb reaches
 ```
 
@@ -13,7 +13,8 @@ nix develop .#android --command just ffi bench-android  # the Kotlin rows on Hot
 on the stand-in's API from Rust, and `moq-c.c` moq's hand-written rs/libmoq, which
 has only the stamped write. `export.ts` runs on Node and, through `browser.ts`, in
 headless Chromium and Firefox, over a wasm32-wasip1 build of the stand-in
-([TypeScript](#typescript)). Each program runs its cases twice and prints the second,
+([TypeScript](#typescript)), and on Hermes through the React Native binding of the export
+([React Native](#react-native)). Each program runs its cases twice and prints the second,
 so a JIT has warmed up, in wall time and in the process's CPU time on every thread.
 `just ffi bench-run` runs each program once a round, records the 1-minute load average
 over each run, and [`report.py`](report.py) prints each case's median over the rounds
@@ -54,7 +55,8 @@ what a binding's run-time checks cost under contention. The handle call also tak
 read lock, which all four threads share in both cases; the getter takes none. C, C++,
 Kotlin, Swift, Python, and C# use OS threads, and Go goroutines. Dart has no number: an
 isolate cannot receive another's object, so no two threads ever borrow one handle.
-TypeScript has none either: the module runs on the one JavaScript thread that loaded it.
+TypeScript and React Native have none either: the module runs on the one JavaScript thread
+that loaded it.
 
 A woken read starts its read the language's own way: by polling in C, C++, and Rust; a
 `Task` and a yield in Swift and Python; a goroutine and a yield in Go; an undispatched
@@ -1154,6 +1156,90 @@ Before it did, with a count of its own on each object that every call wrote, 4 t
 sharing one handle cost 208 ns a getter, against 37 on a clone each, at a load of 22. A
 woken read awaits a `ValueTask` whose wake posts its next poll to the thread pool, never
 running it inside Rust's wake, so a pool thread's handoff dominates it.
+
+## React Native
+
+`just ffi rn-bench`, which `just ffi bench` runs, takes `export.ts` over the export's React
+Native binding on Hermes off a device: the TurboModule's JSI module and moq's library in
+`ffi/tests/rn_host.cpp`, an event loop that runs what the module posts, as React Native's JS
+thread does, on the flake's Hermes, built from source at the tag React Native 0.88.1 pins.
+The script is bundled by esbuild, sloppy, with async generators lowered, as React Native's
+Babel preset does, but classes and their private fields kept, as Hermes V1 runs them.
+The preset lowers a private field to a property under a unique key (its `loose` mode),
+which esbuild cannot; esbuild would lower one into a `WeakMap`, which cost a record return
+1,112 ns of CPU and an object return 979 in one run, against 530 and 753 kept. The host
+gives `process.cpuUsage` from `getrusage`, so its CPU columns count every thread, Hermes's
+collector's included.
+
+Measured 2026-11-23 on **desktop**, an Intel Core Ultra 7 270K Plus (24 threads), at rust2
+`4731dbb2` plus this harness, moq `1aa86d5e`, 3 rounds at a load average of 7 to 18, with C
+and Node from the same rounds for scale: Node runs the wasm32 stand-in's web binding, as
+[TypeScript](#typescript) does. Hermes `260318099.0.5`, Node 24.22.2, GCC 16.2.0, the export's
+default `release` profile. CPU ns per call:
+
+| call | C | Node | React Native (Hermes) |
+|---|---|---|---|
+| `track.is_closed()`, a handle call | 18 | 49 | 205 |
+| `demand.start()`, a u64 getter | 10 | 43 | 196 |
+| `track.largest()`, a record return | 28 | 63 | 572 |
+| `track.info()`, an object return | 35 | 110 | 857 |
+| `group.write_frame(at, frame)`, 100 B | 171 | 202 | 1,358 |
+| the same, with a new `Timestamp` each | 177 | 301 | 2,232 |
+| a 100 B frame written and read, ready | 285 | 569 | 3,315 |
+| the same, read after a wake | 421 | 1,429 | 6,155 |
+| one reader and writer, with their handoff |  | 1,535 | 6,886 |
+| `frame.payload`, 100 B | 20 | 136 | 2,213 |
+
+| frame, MB per CPU second | C | Node | React Native (Hermes) |
+|---|---|---|---|
+| 100 B | 329 | 116 | 16 |
+| 1 KiB | 2,675 | 1,260 | 148 |
+| 16 KiB | 10,303 | 7,388 | 1,927 |
+| 64 KiB | 13,242 | 6,429 | 2,598 |
+| 1 MiB | 26,220 | 4,958 | 3,693 |
+
+Hermes interprets the script, as React Native runs it, so a call costs 4 to 10 times
+Node's: the handle call, a
+JSI host function's dispatch, its argument's check, and the C call, is 205 ns, and each
+value a call makes in JavaScript, a record's object or a handle, adds hundreds more. A wake
+posts the read's next poll to the event loop, as a wake from another thread would, which
+costs the woken read 2.8 µs over the ready one.
+
+`frame.payload` copies the bytes up to 4 KiB, and past them lends Rust's buffer, whose
+native state frees it, with an `at` and a dispose that are each a host call. Measured
+2026-11-23 on **fedora**, an AMD Ryzen 9 9950X (32 threads), at rust2 `779cf315` plus this
+change, moq `1aa86d5e`, 3 rounds at a load average of 6 to 18, by the host built with the
+module forced to copy every size, and to lend every size, wall ns per call: the benchmark's
+`frame.payload` with a byte read, then the same with `slice()` in its place, then with the
+bytes written back to Rust in a frame, as a relay does.
+
+| bytes | read a byte, copy / lend | `slice()`, copy / lend | written back, copy / lend |
+|---|---|---|---|
+| 256 B | 784 / 1,089 | 1,032 / 1,529 | 1,968 / 2,320 |
+| 1 KiB | 875 / 1,095 | 1,255 / 1,606 | 1,956 / 1,924 |
+| 2 KiB | 952 / 1,107 | 1,147 / 2,264 | 2,225 / 2,071 |
+| 4 KiB | 1,057 / 1,050 | 1,342 / 1,967 | 2,616 / 2,361 |
+| 8 KiB | 1,426 / 1,359 | 1,510 / 2,268 | 3,342 / 2,809 |
+| 16 KiB | 1,977 / 996 | 1,621 / 2,920 | 4,640 / 3,377 |
+
+A read of a byte breaks even at 4 KiB in wall time, and in CPU time between 8 and 16 KiB,
+since the lend's CPU counts the collector finalizing its native state: 1,052 against 1,212
+ns at 4 KiB. A copy's `slice()` is one `set` in the engine, still the cheaper at 16 KiB; a
+loop by index, as it was, took 78 µs at 4 KiB. A copy written back costs Rust a second copy,
+so a relay's lend pays from 2 KiB, by 10% at 4 KiB. The threshold is 4 KiB, where the byte
+read the benchmark times breaks even. Past it a lend saves the copy, 150 µs at 1 MiB, where
+each copy's allocation faults its pages in. The benchmark's own 100 B `frame.payload`, lent in the table above, is a copy
+since: 723 ns of wall time and 721 of CPU in the same rounds, against 930 and 1,037 lent.
+
+The binding's generated files, as [Size](#size) counts them, at the same revision, beside
+C's header of the same export (2,483 KiB raw, 315 KiB gzipped):
+
+| React Native | files | raw | gzip |
+|---|---|---|---|
+| the TypeScript, as the web's | 582 | 2,747 KiB | 842 KiB |
+| the JSI module and TurboModule, C++ | 4 | 4,666 KiB | 270 KiB |
+| the package's podspec, CMake list, iOS loader, and manifests | 5 | 3 KiB | 2 KiB |
+| all | 591 | 7,416 KiB | 1,113 KiB |
 
 ## Consumer release profile
 
