@@ -407,6 +407,7 @@ fn emit(abi: &Abi<'_>, facade: &Package, contract: u64, mask: u64, mode: Mode) -
 		frees: BTreeSet::new(),
 		kind_frees: Vec::new(),
 		framed: true,
+		holding: false,
 		classes: classes(abi),
 		module: String::new(),
 		modules: BTreeMap::new(),
@@ -756,6 +757,10 @@ struct Gen<'a> {
 	/// For Node: whether the call [`Gen::invoke`] wrote last lowers or lifts any value
 	/// through the scratch memory, so its body runs in a frame of the stack.
 	framed: bool,
+	/// For Node: whether the arguments lowering are a call's whose lowering may run
+	/// JavaScript and gives before the addon converts them: each handle is held and each
+	/// 64-bit integer checked first, so the addon's conversion cannot fail after a give.
+	holding: bool,
 	/// The namespace of the glue's C names, apart from the export's.
 	space: String,
 	/// Each exported type's name, by its C name.
@@ -1477,9 +1482,16 @@ impl<'a> Gen<'a> {
 		match ty {
 			Type::Bool => format!("({e} ? 1 : 0)"),
 			// Node's addon converts these itself.
-			Type::Int(Int::U64 | Int::I64) | Type::NonZero(Int::U64 | Int::I64) if self.node => self.checked(ty, e),
-			Type::Object(_) if self.node => format!("{e}.p"),
-			Type::Option(inner) if self.node && matches!(inner.base(), Type::Object(_)) => format!("({e}?.p ?? 0)"),
+			Type::Int(int @ (Int::U64 | Int::I64)) | Type::NonZero(int @ (Int::U64 | Int::I64)) if self.node => {
+				match self.holding {
+					true => format!("rt.{}Plain({})", int.rust(), self.checked(ty, e)),
+					false => self.checked(ty, e),
+				}
+			}
+			Type::Object(_) if self.node && !self.holding => format!("{e}.p"),
+			Type::Option(inner) if self.node && !self.holding && matches!(inner.base(), Type::Object(_)) => {
+				format!("({e}?.p ?? 0)")
+			}
 			Type::Int(Int::U64) | Type::NonZero(Int::U64) => format!("rt.u64Big({})", self.checked(ty, e)),
 			Type::Int(Int::I64) | Type::NonZero(Int::I64) => format!("rt.i64Big({})", self.checked(ty, e)),
 			Type::Int(_) | Type::NonZero(_) | Type::Char => self.checked(ty, e),
@@ -2211,12 +2223,7 @@ impl Gen<'_> {
 		}
 		let params: Vec<Ty> = sig.params.iter().map(|(_, ty)| ty.clone()).collect();
 		// Node's call of numbers and handles alone takes nothing of the stack.
-		let scalar = |c: Cross| matches!(c, Cross::Number | Cross::Wide | Cross::Handle);
-		self.framed = !self.node
-			|| !(params.iter())
-				.filter(|ty| !abi::is_status(ty))
-				.all(|ty| scalar(self.cross(ty)))
-			|| !(*ret == Ty::Void || scalar(self.cross(ret)));
+		self.framed = self.framed(sig);
 		// A wasm call's trap leaves `s.d` raised; a native call cannot trap.
 		let (count, uncount) = match self.node {
 			true => ("", ""),
@@ -2261,6 +2268,25 @@ impl Gen<'_> {
 			lines.push(format!("rt.status(s$, \"{name}\");"));
 		}
 		ret
+	}
+
+	/// Whether a call of `sig` runs in a frame of the stack: any but Node's call of numbers
+	/// and handles alone.
+	fn framed(&self, sig: &Sig) -> bool {
+		!self.node || self.lowers(sig) || !(sig.ret == Ty::Void || Self::scalar_cross(self.cross(&sig.ret)))
+	}
+
+	/// Whether a call of `sig` takes anything but numbers and handles, whose lowering may run
+	/// JavaScript or give Rust a value.
+	fn lowers(&self, sig: &Sig) -> bool {
+		!(sig.params.iter())
+			.filter(|(_, ty)| !abi::is_status(ty))
+			.all(|(_, ty)| Self::scalar_cross(self.cross(ty)))
+	}
+
+	/// Whether a value crossing as `c` crosses as itself, a number or a handle's index.
+	fn scalar_cross(c: Cross) -> bool {
+		matches!(c, Cross::Number | Cross::Wide | Cross::Handle)
 	}
 
 	/// The value of type `ty` a call returned as `ret`, which the caller owns.
@@ -3510,6 +3536,7 @@ impl Gen<'_> {
 		};
 
 		let receiver = function.receiver.filter(|_| owner.is_some());
+		self.holding = self.node && self.lowers(export.future.as_ref().map_or(&export.call, |f| &f.start));
 		let mut params = Vec::new();
 		let mut lines = Vec::new();
 		let mut gives = Vec::new();
@@ -3618,6 +3645,7 @@ impl Gen<'_> {
 		}
 		let outs: Vec<(String, Ty)> = c_params.filter(|(_, ty)| !abi::is_status(ty)).cloned().collect();
 		lines.extend(gives);
+		self.holding = false;
 
 		let ok = strip_refs(&function.ok);
 		let err = function.err.as_ref().map(strip_refs);

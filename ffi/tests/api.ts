@@ -989,6 +989,17 @@ export async function closedObjects(): Promise<void> {
 	check(log.closes === 1, "a dispose after the call frees it");
 	close(logger);
 	check(log.closes === 1, "disposing it again frees nothing");
+	// Disposed again from the close its own free calls, it frees nothing more.
+	let reentered: Logger.Logger | undefined;
+	const reentrant = new (class extends CountLog {
+		override close(): void {
+			super.close();
+			close(reentered!);
+		}
+	})();
+	reentered = Logger.new(reentrant);
+	close(reentered);
+	check(reentrant.closes === 1, "a dispose from the free it ran frees nothing more");
 	closed(() => Logger.write(logger!, "x"), "Logger", "a call after the dispose");
 	print("closed ok");
 }

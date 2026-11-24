@@ -10,6 +10,7 @@ import * as copy from "./copy/index.ts";
 import * as check from "./api.ts";
 import * as rt from "./node/rt.ts";
 import * as Channel from "./node/Channel.ts";
+import * as Counter from "./node/Counter.ts";
 import type { Log } from "./node/Log.ts";
 import * as Logger from "./node/Logger.ts";
 import * as LogThread from "./node/LogThread.ts";
@@ -74,6 +75,42 @@ const text = (data: Uint8Array | rt.Bytes) => new TextDecoder().decode(data.slic
  * a wake, and a drop, from either.
  */
 async function threads(): Promise<void> {
+	// A call refused before it reached Rust gives Rust no implementation, so none keeps a
+	// token and the next call runs on JavaScript's thread, as the first did.
+	ok(api.onFirstThread(), "the first call runs on JavaScript's thread");
+	const disposed = Counter.new$("c", 0);
+	disposed[Symbol.dispose]();
+	let refused = false;
+	try {
+		api.logCounts(new CountLog(), 0, disposed, []);
+	} catch {
+		refused = true;
+	}
+	ok(refused, "a call of a disposed object throws");
+	ok(api.onFirstThread(), "a call after a refused one runs on JavaScript's thread");
+
+	// The addon holds a call's handles before it converts the rest, which may run
+	// JavaScript: a getter of a `u64`'s limbs that disposes the receiver and makes another
+	// object leaves the call its own receiver, whose value was moved out, not the new one.
+	const victim = Counter.new$("victim", 1);
+	let replacement: Counter.Counter | undefined;
+	const limbs = {
+		get hi(): number {
+			victim[Symbol.dispose]();
+			replacement = Counter.new$("replacement", 100);
+			return 0x200000;
+		},
+		lo: 0,
+	} as unknown as rt.u64;
+	let moved = "";
+	try {
+		Counter.offset(victim, limbs, 0);
+	} catch (e) {
+		moved = (e as Error).message;
+	}
+	ok(moved === "api_Counter_offset: a handle's value was moved out", `a receiver disposed while held: ${moved}`);
+	ok(Counter.get(replacement!) === 100, "the object made meanwhile is untouched");
+
 	// A kept closure, called on another thread after the call that took it returned.
 	const spawned = Spawned.new$(() => 7);
 	ok(Spawned.join(spawned) === 7, "a kept closure runs on another thread");

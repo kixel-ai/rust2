@@ -3317,6 +3317,8 @@ export declare class Handle<T extends string = string> {
     release(): void;
     [Symbol.dispose](): void;
 }
+export declare function hold(handle: Handle): number;
+export declare function holdOr(handle: Handle | undefined): number;
 export declare function lentHandle<T extends string>(p: number, k: Kind): Handle<T>;
 export declare function put8(p: number, v: number): void;
 export declare function put16(p: number, v: number): void;
@@ -3420,6 +3422,8 @@ type Block = Uint8Array | Int8Array | Uint16Array | Int16Array | Uint32Array | I
 export declare function readInto(p: number, out: Block): void;
 export declare function putList(p: number, at: number, n: number): void;
 export declare function handleAt(p: number): number;
+export declare function u64Plain(v: u64): u64;
+export declare function i64Plain(v: i64): i64;
 export declare function putHandle(p: number, h: Handle | undefined): void;
 export type Glue = {
     readonly prefix: string;

@@ -518,14 +518,16 @@ pub unsafe fn forget(i: u32) -> *const c_void {
 }
 
 /// A handle a call holds, released once it drops.
-pub struct Hold(u32);
+pub struct Hold {
+	i: u32,
+	p: *const c_void,
+}
 
 impl Hold {
-	/// The handle's address.
+	/// The handle's address, read as it was held, so a worker the call runs on reads no table.
 	#[inline]
 	pub fn p(&self) -> *const c_void {
-		// SAFETY: on JavaScript's thread, as each call from it is.
-		unsafe { address(self.0) }
+		self.p
 	}
 }
 
@@ -533,7 +535,7 @@ impl Drop for Hold {
 	#[inline]
 	fn drop(&mut self) {
 		// SAFETY: on JavaScript's thread, which a stub drops its holds on before it throws.
-		unsafe { release(self.0) }
+		unsafe { release(self.i) }
 	}
 }
 
@@ -600,16 +602,6 @@ impl<const N: usize> Cx<N> {
 		}
 	}
 
-	/// Argument `n`, a handle's index, as its address.
-	///
-	/// # Safety
-	/// On JavaScript's thread, as every call from it is.
-	#[inline]
-	pub unsafe fn handle(&self, n: usize) -> *const c_void {
-		// SAFETY: the caller's contract.
-		unsafe { address(self.int(n) as u32) }
-	}
-
 	/// Argument `n`, a handle's index, held until the [`Hold`] drops; a closed one throws,
 	/// naming its type, `what`.
 	///
@@ -625,8 +617,8 @@ impl<const N: usize> Cx<N> {
 			return Err(());
 		}
 		// SAFETY: the caller's contract.
-		unsafe { hold(i as u32) };
-		Ok(Hold(i as u32))
+		let p = unsafe { hold(i as u32) };
+		Ok(Hold { i: i as u32, p })
 	}
 
 	/// Argument `n`, an `rt.u64`: a safe integer, or else what `rt.ts`'s `u64Big` makes of
@@ -1856,7 +1848,18 @@ unsafe extern "C" fn native_put(env: Env, info: Info) -> Value {
 	}
 }
 
-/// `$release(i)`: release the hold `$put` took of index `i`.
+/// `$hold(i)`: hold index `i` until `$release(i)`, as a call whose lowering may run
+/// JavaScript does before it.
+unsafe extern "C" fn native_hold(env: Env, info: Info) -> Value {
+	// SAFETY: a call from JavaScript.
+	unsafe {
+		let cx = Cx::<1>::new(env, info);
+		hold(cx.int(0) as u32);
+		cx.undefined()
+	}
+}
+
+/// `$release(i)`: release the hold `$put` or `$hold` took of index `i`.
 unsafe extern "C" fn native_release(env: Env, info: Info) -> Value {
 	// SAFETY: a call from JavaScript.
 	unsafe {
@@ -1982,7 +1985,7 @@ pub unsafe fn register(
 	commit(0, CHUNK);
 	// SAFETY: on JavaScript's thread, before any call.
 	unsafe { SCRATCH_STATE.get().low = CHUNK };
-	let natives: [(&CStr, Callback); 14] = [
+	let natives: [(&CStr, Callback); 15] = [
 		(c"$init", native_init),
 		(c"$base", native_base),
 		(c"$fns", native_fns),
@@ -1993,6 +1996,7 @@ pub unsafe fn register(
 		(c"$byte", native_byte),
 		(c"$handle", native_handle),
 		(c"$put", native_put),
+		(c"$hold", native_hold),
 		(c"$release", native_release),
 		(c"$close", native_close),
 		(c"$external", native_external),

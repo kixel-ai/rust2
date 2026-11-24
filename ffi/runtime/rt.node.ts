@@ -194,26 +194,46 @@ export class Handle<T extends string = string> {
 		this.n = REGISTERED;
 	}
 
-	/** Release the hold [putHandle] took for a call. */
+	/** Release the hold [hold] or [putHandle] took for a call. */
 	release(): void {
 		w.$release(this.i);
 	}
 
 	/** Close it as `Handle` says; again, it does nothing. */
 	[Symbol.dispose](): void {
-		if (this.p === CLOSED) return;
+		const p = this.p;
+		if (p === CLOSED) return;
 		// Dropped, so a call that still holds it fails Rust's check, and none can hold it
 		// again: it is freed with its last hold.
 		const checked = this.owned && this.k.drop !== undefined;
-		if (checked) w[this.k.drop!](this.p);
-		if (!w.$close(this.p, this.owned ? this.k.free : 0, checked)) {
+		if (checked) w[this.k.drop!](p);
+		// Closed before the free, which may call JavaScript that disposes it again.
+		this.p = CLOSED;
+		if (!w.$close(p, this.owned ? this.k.free : 0, checked)) {
+			this.p = p;
 			throw new Error(`${this.k.name}: a handle is already borrowed`);
 		}
-		this.p = CLOSED;
 		if (this.n >= 0) nursery[this.n] = undefined;
 		else if (this.n === REGISTERED) collected.unregister(this);
 		this.n = UNREGISTERED;
 	}
+}
+
+/**
+ * `handle`'s index, held until the running call returns, as a call whose lowering may run
+ * JavaScript holds each before: a closed one throws.
+ */
+export function hold(handle: Handle): number {
+	const p = handle.p;
+	if (p === CLOSED) throw new Error(`${handle.k.name} is closed`);
+	w.$hold(p);
+	held.push(handle);
+	return p;
+}
+
+/** [hold] of a handle, or 0 for none. */
+export function holdOr(handle: Handle | undefined): number {
+	return handle === undefined ? 0 : hold(handle);
 }
 // #endregion node handles
 
@@ -305,6 +325,19 @@ export function putList(p: number, at: number, n: number): void {
 /** The index of the handle at `p`, which the addon's table holds until it is freed. */
 export function handleAt(p: number): number {
 	return w.$handle(p);
+}
+
+/**
+ * `v`, checked, its limbs copied: a call that gives a value lowers each `u64` so, as the
+ * addon's conversion after the give then cannot throw, nor a getter change what it reads.
+ */
+export function u64Plain(v: u64): u64 {
+	return typeof v === "number" && Number.isSafeInteger(v) && v >= 0 ? v : u64Of(...u64Halves(v));
+}
+
+/** [u64Plain] of an `i64`. */
+export function i64Plain(v: i64): i64 {
+	return typeof v === "number" && Number.isSafeInteger(v) ? v : i64Of(...i64Halves(v));
 }
 
 /** Write at `p` the handle `h`, or null for none, held until the running call returns: a closed one throws. */
