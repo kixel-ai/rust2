@@ -187,8 +187,8 @@ pub(crate) enum Cross {
 	Big,
 	/// An `rt.u64` or `rt.i64`: a number while a safe integer, its limbs past that.
 	Wide,
-	/// A handle or a future's, by its index in the addon's table of addresses, which a call
-	/// holds: a closed handle's index is -1.
+	/// A handle or a future's, by its id in the addon's table of addresses, which a call
+	/// holds: a closed handle's id is -1.
 	Handle,
 	/// The data of what JavaScript implements: its token, a number.
 	Token,
@@ -215,6 +215,8 @@ pub(crate) struct NodeSig {
 	pub(crate) ret: (Ty, Cross),
 	/// The type each handle parameter is of, by name, which its error once closed names.
 	pub(crate) names: Vec<String>,
+	/// Whether it waits on nothing JavaScript serves, so the addon runs it at once.
+	pub(crate) direct: bool,
 }
 
 /// A C type's size and alignment on wasm32.
@@ -1251,6 +1253,7 @@ impl<'a> Gen<'a> {
 			params: params.iter().map(|ty| (ty.clone(), self.cross(ty))).collect(),
 			ret: (ret.clone(), self.cross(ret)),
 			names,
+			direct: false,
 		};
 		self.calls.insert(name.to_string(), sig);
 	}
@@ -2422,6 +2425,7 @@ impl Gen<'_> {
 				params: params.iter().map(|ty| (ty.clone(), self.cross(ty))).collect(),
 				ret: (ret.clone(), self.cross(ret)),
 				names: vec![String::new(); params.len()],
+				direct: false,
 			};
 			self.externs.insert(name.to_string(), sig);
 			return name.to_string();
@@ -2542,6 +2546,11 @@ impl Gen<'_> {
 	fn index_fn(&mut self, local: &str, export: &str, ret: Ty) -> String {
 		if !self.helpers.contains_key(local) {
 			self.called(export, &[], &ret);
+			// A static's address, which Node's addon reads at once, serving no JavaScript, as
+			// a call that gives a value may read it after its handles.
+			if let Some(sig) = self.calls.get_mut(export) {
+				sig.direct = true;
+			}
 			// Node's is the function's address, a `bigint`.
 			let (t, zero) = match self.node {
 				true => ("bigint", "0n"),

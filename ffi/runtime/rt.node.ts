@@ -4,7 +4,7 @@
 // addon lends, its scratch memory, as they lower into the module's, but at the native C
 // ABI's layouts, whose pointers and `usize` are 64 bits. A pointer the TypeScript reads is
 // Rust's, which only the addon's natives read through. Each native function of the C ABI
-// holds its handles' indices, throws the status it fails a check with, and converts its
+// holds its handles by their ids, throws the status it fails a check with, and converts its
 // integers, so a call of numbers and handles alone is one call of it.
 
 // #region node live
@@ -150,7 +150,7 @@ export type Kind = {
 	readonly drop?: string;
 };
 
-/** The index of a closed handle, which each native function refuses as closed. */
+/** The id of a closed handle, which each native function refuses as closed. */
 const CLOSED = -1;
 
 /** The handles the garbage collector closes, of each that left the nursery undisposed. */
@@ -159,17 +159,18 @@ const collected = new FinalizationRegistry<[number, number]>(([i, free]) => {
 });
 
 /**
- * A handle to a Rust object, by its index in the addon's table, which counts the calls
- * holding it. An owned one of a value Rust checks is Rust's to account: disposing it drops
+ * A handle to a Rust object, by its id in the addon's table, which counts the calls holding
+ * it: its slot's index and generation, so an id read before the handle closed is refused,
+ * never another object's. An owned one of a value Rust checks is Rust's to account: disposing it drops
  * the value as Rust's own drop does, failing while a call borrows it, so a call after it
  * throws. Any other throws if disposed while a call holds it. Either is freed once closed
  * and no call holds it, by the addon, or once the garbage collector finds it unreachable,
- * if it was never disposed. A lent one's free forgets its index alone.
+ * if it was never disposed. A lent one's free forgets its id alone.
  */
 export class Handle<T extends string = string> {
-	/** The index each call passes, which the addon holds for the call: [CLOSED] once closed. */
+	/** The id each call passes, which the addon holds for the call: [CLOSED] once closed. */
 	p: number;
-	/** Its index, which outlives its close until the last call holding it returns. */
+	/** Its id, which outlives its close until the last call holding it returns. */
 	readonly i: number;
 	readonly k: Kind;
 	readonly owned: boolean;
@@ -220,8 +221,9 @@ export class Handle<T extends string = string> {
 }
 
 /**
- * `handle`'s index, for a call that reads it once nothing left to lower can run
- * JavaScript, so it stays this handle's until the addon holds it: a closed one throws.
+ * `handle`'s id, for a call that reads it once nothing left to lower can run JavaScript, so
+ * it is still open when the addon holds it and no value the call gives is given in vain: a
+ * closed one throws.
  */
 export function open(handle: Handle): number {
 	const p = handle.p;
@@ -320,7 +322,7 @@ export function putList(p: number, at: number, n: number): void {
 	lenPut(p + 2 * WORD, 0);
 }
 
-/** The index of the handle at `p`, which the addon's table holds until it is freed. */
+/** The id of the handle at `p`, which the addon's table holds until it is freed. */
 export function handleAt(p: number): number {
 	return w.$handle(p);
 }
@@ -341,8 +343,7 @@ export function i64Plain(v: i64): i64 {
 /** Write at `p` the handle `h`, or null for none, held until the running call returns: a closed one throws. */
 export function putHandle(p: number, h: Handle | undefined): void {
 	if (h === undefined) return addrPut(p, NULL);
-	if (h.p === CLOSED) throw new Error(`${h.k.name} is closed`);
-	w.$put(p, h.p);
+	if (!w.$put(p, h.p)) throw new Error(`${h.k.name} is closed`);
 	held.push(h);
 }
 // #endregion node natives

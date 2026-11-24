@@ -111,6 +111,33 @@ async function threads(): Promise<void> {
 	ok(moved === "api_Counter_offset: a handle's value was moved out", `a receiver disposed while held: ${moved}`);
 	ok(Counter.get(replacement!) === 100, "the object made meanwhile is untouched");
 
+	// A handle's id read before a reentrant call disposed it, and another object took its
+	// slot, is refused once the addon reads it, never taken for the other object: what any
+	// JavaScript between a call's read of an id and the addon's hold would pass.
+	const stale = Counter.new$("stale", 1);
+	const id = stale.p;
+	let taker: Counter.Counter | undefined;
+	const reentrant = Logger.new(
+		new (class extends CountLog {
+			override log(level: number, line: string): boolean {
+				stale[Symbol.dispose]();
+				taker = Counter.new$("taker", 100);
+				return super.log(level, line);
+			}
+		})(),
+	);
+	Logger.write(reentrant, "dispose");
+	reentrant[Symbol.dispose]();
+	ok(taker!.p % 2 ** 32 === id % 2 ** 32, "the new object took the disposed one's slot");
+	let stalled = "";
+	try {
+		rt.w.api_Counter_get(id);
+	} catch (e) {
+		stalled = (e as Error).message;
+	}
+	ok(stalled === "Counter is closed", `a stale id: ${stalled}`);
+	ok(Counter.get(taker!) === 100, "the object that took its slot is untouched");
+
 	// A kept closure, called on another thread after the call that took it returned.
 	const spawned = Spawned.new$(() => 7);
 	ok(Spawned.join(spawned) === 7, "a kept closure runs on another thread");
