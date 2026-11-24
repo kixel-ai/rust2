@@ -682,7 +682,12 @@ impl<'a> Gen<'a> {
 			.chain(self.structs.values())
 			.map(String::as_str)
 			.collect();
-		let calls = |name: &str, ctor: &str| calls(&code, &format!("{name}.{ctor}("));
+		// Counted in one pass, as a pass per class would read the code once per class.
+		let counted = member_calls(&code);
+		let calls = |name: &str, ctor: &str| {
+			assert!(name.chars().all(ident), "Dart class `{name}` is no identifier");
+			counted.get(&(name, ctor)).copied().unwrap_or(0)
+		};
 		for (name, (of, write)) in std::mem::take(&mut self.arrays) {
 			if calls(&name, "_of") == 0 {
 				self.types = self.types.replace(&of, "");
@@ -3585,8 +3590,32 @@ fn private_type(c: &str) -> String {
 /// How many times `code` has `call`, which is no end of a longer name.
 fn calls(code: &str, call: &str) -> usize {
 	(code.match_indices(call))
-		.filter(|(at, _)| !code[..*at].ends_with(|c: char| c.is_alphanumeric() || c == '_' || c == '$'))
+		.filter(|(at, _)| !code[..*at].ends_with(ident))
 		.count()
+}
+
+/// How many times `code` calls each `name.member(`, by name and member, as [`calls`] counts
+/// one: each name and member is the whole identifier before its `.` and its `(`.
+fn member_calls(code: &str) -> HashMap<(&str, &str), usize> {
+	let mut counted = HashMap::new();
+	for (paren, _) in code.match_indices('(') {
+		let before = &code[..paren];
+		let dot = before.trim_end_matches(ident);
+		let Some(owner) = dot.strip_suffix('.') else {
+			continue;
+		};
+		let start = owner.trim_end_matches(ident).len();
+		let (name, member) = (&owner[start..], &before[dot.len()..]);
+		if !name.is_empty() && !member.is_empty() {
+			*counted.entry((name, member)).or_default() += 1;
+		}
+	}
+	counted
+}
+
+/// Whether `c` may be part of a Dart identifier.
+fn ident(c: char) -> bool {
+	c.is_alphanumeric() || c == '_' || c == '$'
 }
 
 /// The local a call's out pointer `name` lands in.
@@ -3854,6 +3883,18 @@ fn indent(code: &str) -> String {
 #[cfg(test)]
 mod tests {
 	use super::*;
+
+	/// The one pass counts each call as a search for it would: not where a longer name or
+	/// member holds it, and where a qualifier or another call's `(` comes before it.
+	#[test]
+	fn member_calls_count_as_calls_does() {
+		let code = "A._(1); xA._(2); A._lent(3); A.__(4); p.A._(5); f(A._(6)); A$1._of(); A._of (); _B._(A._lent());";
+		let counted = member_calls(code);
+		for (name, member) in [("A", "_"), ("A", "_lent"), ("A", "__"), ("A$1", "_of"), ("A", "_of"), ("_B", "_"), ("xA", "_")] {
+			let call = format!("{name}.{member}(");
+			assert_eq!(counted.get(&(name, member)).copied().unwrap_or(0), calls(code, &call), "{call}");
+		}
+	}
 
 	/// A package takes the names pub takes, Dart identifiers it reserves for code included,
 	/// and no other.

@@ -175,6 +175,11 @@ ZIP_EPOCH = backend.ZIP_EPOCH
 # cargo hashes a path package outside the generated crate's workspace, the facade, by one path,
 # and dlltool names a Windows GNU library's import symbols after one target directory, from any checkout.
 LINK = Path("C:/rust2-ffi") if sys.platform == "win32" else Path("/tmp/rust2-ffi")
+# The target directory of a wheel target's builds made with the wheels' floor and flags:
+# both wheels', the Dart and JVM libraries', and off Apple the C library's. They share every
+# dependency, so cargo builds those once and then each its generated crate, which a build
+# relinks, under its features, after the one before has taken its library.
+WHEELS_DIR = "target-python"
 # The target the web binding serves, whose module the npm and JSR packages hold.
 WEB_TARGET = "wasm32-wasip1"
 # JSR's cap on a version's files, unpacked.
@@ -1207,12 +1212,15 @@ def c_archive(info, manifest, export_dir, target, out):
         link_args = ["-C", f"link-arg=-Wl,-install_name,@rpath/{soname}"]
     env = {**reproducible(info, export_dir, target, soname), **({"MACOSX_DEPLOYMENT_TARGET": MACOS_WHEEL} if apple else {})}
     # The C library alone, as the Swift package's: the glue's language features add symbols
-    # a C program cannot resolve. Its own target directory, since its link arguments differ.
+    # a C program cannot resolve. Its link arguments, after `--`, reach only the generated
+    # crate, but on Apple its install name is in the flags every crate builds with, so it
+    # builds apart from the wheels there.
     # cargo-zigbuild's own `rustc`, as Cargo knows only its `zigbuild`, from the package's
     # directory for its toolchain.
     command = ["cargo-zigbuild", "rustc"] if linux else ["cargo", "rustc"]
+    target_dir = export_dir / ("target-c" if apple else WHEELS_DIR)
     built = run(*command, "--color", "never", "--locked", "--release", "--manifest-path", export_dir / "Cargo.toml",
-                "--target", f"{target}.{GLIBC}" if linux else target, "--target-dir", export_dir / "target-c",
+                "--target", f"{target}.{GLIBC}" if linux else target, "--target-dir", target_dir,
                 "--lib", "--crate-type", "staticlib,cdylib", "--", "--print=native-static-libs", *link_args,
                 cwd=Path(manifest).resolve().parent, env={**os.environ, **env}, capture_output=True, encoding="utf-8")
     sys.stderr.write(built.stderr)
@@ -1220,7 +1228,7 @@ def c_archive(info, manifest, export_dir, target, out):
     if len(notes) != 1:
         raise SystemExit(f"rustc reported no native libraries for {target}")
     natives = native_libs(notes[0].strip(), target)
-    release = export_dir / "target-c" / target / "release"
+    release = target_dir / target / "release"
     name = f"{info['name']}-{version}-{target}"
     with tempfile.TemporaryDirectory() as raw:
         raw = Path(raw)
@@ -2022,9 +2030,9 @@ def build(args):
                     # cargo-zigbuild links Linux against the glibc floor's symbols, whichever glibc the host has.
                     built = cargo(args.manifest_path, *(["zigbuild"] if linux else ["build"]), "--locked", "--release",
                                   "--manifest-path", crate, "--target", f"{target}.{GLIBC}" if linux else target,
-                                  "--target-dir", through / f"target-{feature}", "--features", feature, env=env)
+                                  "--target-dir", through / WHEELS_DIR, "--features", feature, env=env)
                     sys.stderr.write(built.stderr)
-                    library = through / f"target-{feature}" / target / "release" / library_name(lib, target)
+                    library = through / WHEELS_DIR / target / "release" / library_name(lib, target)
                     with tempfile.TemporaryDirectory() as raw, tempfile.TemporaryDirectory() as fixed:
                         wheel = repair(write_wheel(inside, through, library, target, raw, abi), target, fixed,
                                        inside["epoch"])
@@ -2239,14 +2247,16 @@ def dart_library(info, manifest, export_dir, target, out):
     # Linux's against the glibc floor, as the wheel's.
     glibc = target.endswith("linux-gnu")
     command = ["cargo-zigbuild", "rustc"] if glibc else ["cargo", "rustc"]
+    # A wheel target's at the wheels' floor is built with their flags.
+    target_dir = export_dir / (WHEELS_DIR if target in WHEEL_TARGETS and floor is None else "target-dart")
     built = run(*command, "--color", "never", "--locked", "--release", "--manifest-path", export_dir / "Cargo.toml",
-                "--target", f"{target}.{GLIBC}" if glibc else target, "--target-dir", export_dir / "target-dart",
+                "--target", f"{target}.{GLIBC}" if glibc else target, "--target-dir", target_dir,
                 "--lib", "--crate-type", "cdylib", "--features", "dart", cwd=Path(manifest).resolve().parent,
                 env={**os.environ, **env}, capture_output=True, encoding="utf-8")
     sys.stderr.write(built.stderr)
     dest = out / "dart" / dart_file(info, target)
     dest.parent.mkdir(parents=True, exist_ok=True)
-    shutil.copy(export_dir / "target-dart" / target / "release" / name, dest)
+    shutil.copy(target_dir / target / "release" / name, dest)
     # The required-reason APIs the linked library imports, which `pub` declares for the app.
     if "apple" in target:
         privacy = out / "dart-privacy" / f"{target}.xcprivacy"
@@ -2875,20 +2885,18 @@ def android_library(info, manifest, export_dir, target, out):
 
 def jvm_library(info, manifest, export_dir, target, out):
     """`target`'s library for the desktop jar, the C ABI with its JNI glue, built as the wheel's
-    is: Linux's against the glibc floor, macOS's at the wheels' floor. In the wheel's target
-    directory, with its flags, so cargo rebuilds only the generated crate, not every
-    dependency; the wheel, built first, has taken its library from there already."""
+    is: Linux's against the glibc floor, macOS's at the wheels' floor, in WHEELS_DIR."""
     env = reproducible(info, export_dir, target)
     if "apple" in target:
         env["MACOSX_DEPLOYMENT_TARGET"] = MACOS_WHEEL
     linux = "linux" in target
     built = cargo(manifest, *(["zigbuild"] if linux else ["build"]), "--locked", "--release",
                   "--manifest-path", export_dir / "Cargo.toml", "--target", f"{target}.{GLIBC}" if linux else target,
-                  "--target-dir", export_dir / "target-python", "--features", "kotlin", env=env)
+                  "--target-dir", export_dir / WHEELS_DIR, "--features", "kotlin", env=env)
     sys.stderr.write(built.stderr)
     dest = out / "jvm" / target
     dest.mkdir(parents=True)
-    shutil.copy(export_dir / "target-python" / target / "release" / library_name(info["lib"], target), dest)
+    shutil.copy(export_dir / WHEELS_DIR / target / "release" / library_name(info["lib"], target), dest)
 
 
 def android_example(info, args, out):

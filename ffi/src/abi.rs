@@ -447,6 +447,12 @@ pub(crate) struct Abi<'a> {
 	/// Each generic item's instances, by whether it is a function and its C name, with
 	/// the suffix that names each by its arguments.
 	suffixes: std::cell::RefCell<HashMap<(bool, String), Suffixes>>,
+	/// Each record's, enum's, and object's C name once made, which every language's export
+	/// of every function asks for again, and a type's methods each search its handle for.
+	types: std::cell::RefCell<HashMap<Item, String>>,
+	/// The records, enums, and objects by C name, in that order, which a method's owner
+	/// names its type by.
+	owners: std::cell::RefCell<Option<HashMap<String, Vec<Type>>>>,
 	/// Each `Option<T>` struct by C name, with `T`.
 	pub(crate) options: BTreeMap<String, Type>,
 	/// Each range, bound, and pair of bounds struct by C name, with its type.
@@ -481,6 +487,8 @@ impl<'a> Abi<'a> {
 			api,
 			prefix: prefix(lib).expect("the driver refuses a library that names no prefix"),
 			suffixes: Default::default(),
+			types: Default::default(),
+			owners: Default::default(),
 			options: BTreeMap::new(),
 			ranges: BTreeMap::new(),
 			lists: BTreeMap::new(),
@@ -551,6 +559,8 @@ impl<'a> Abi<'a> {
 			api,
 			prefix: self.prefix.clone(),
 			suffixes: self.suffixes.clone(),
+			types: self.types.clone(),
+			owners: self.owners.clone(),
 			options: self.options.clone(),
 			ranges: self.ranges.clone(),
 			lists: self.lists.clone(),
@@ -647,6 +657,9 @@ impl<'a> Abi<'a> {
 		}
 		let renamed = !renames.is_empty();
 		self.renames.extend(renames);
+		// The names made before, which a rename may change.
+		self.types.get_mut().clear();
+		*self.owners.get_mut() = None;
 		renamed
 	}
 
@@ -783,15 +796,60 @@ impl<'a> Abi<'a> {
 	}
 
 	pub(crate) fn record(&self, i: usize) -> String {
-		self.renamed(Item::Record(i), || self.unrenamed(&Item::Record(i)))
+		self.type_name(Item::Record(i))
 	}
 
 	pub(crate) fn enumeration(&self, i: usize) -> String {
-		self.renamed(Item::Enum(i), || self.unrenamed(&Item::Enum(i)))
+		self.type_name(Item::Enum(i))
 	}
 
 	pub(crate) fn object(&self, i: usize) -> String {
-		self.renamed(Item::Object(i), || self.unrenamed(&Item::Object(i)))
+		self.type_name(Item::Object(i))
+	}
+
+	/// The C name of the type `item`, made once per round of renames.
+	fn type_name(&self, item: Item) -> String {
+		if let Some(name) = self.types.borrow().get(&item) {
+			return name.clone();
+		}
+		// Not borrowed while made: an instance's name asks for its arguments'.
+		let name = self.renamed(item.clone(), || self.unrenamed(&item));
+		self.types.borrow_mut().insert(item, name.clone());
+		name
+	}
+
+	/// The records, enums, and objects whose C name is `name`, in that order.
+	fn named(&self, name: &str) -> Vec<Type> {
+		if self.owners.borrow().is_none() {
+			let api = self.api;
+			let records = (0..api.records.len()).map(|i| (self.record(i), Type::Record(i)));
+			let enums = (0..api.enums.len()).map(|i| (self.enumeration(i), Type::Enum(i)));
+			let objects = (0..api.objects.len()).map(|i| (self.object(i), Type::Object(i)));
+			let mut owners: HashMap<String, Vec<Type>> = HashMap::new();
+			for (name, ty) in records.chain(enums).chain(objects) {
+				owners.entry(name).or_default().push(ty);
+			}
+			*self.owners.borrow_mut() = Some(owners);
+		}
+		(self.owners.borrow().as_ref().expect("made above").get(name)).map_or_else(Vec::new, Vec::clone)
+	}
+
+	/// The objects whose C name is `name`, a handle's.
+	fn objects_named(&self, name: &str) -> impl Iterator<Item = usize> {
+		self.named(name).into_iter().filter_map(|ty| match ty {
+			Type::Object(i) => Some(i),
+			_ => None,
+		})
+	}
+
+	/// The record or enum whose C type is `owner`, a value's.
+	fn value_named(&self, owner: &Ty) -> Option<Type> {
+		let (Ty::Struct(name) | Ty::Enum(name)) = owner else {
+			return None;
+		};
+		(self.named(name).into_iter())
+			.filter(|ty| !matches!(ty, Type::Object(_)))
+			.find(|ty| &self.ty(ty) == owner)
 	}
 
 	/// The C name of the type `item` as no clash renames it.
@@ -1259,9 +1317,7 @@ impl<'a> Abi<'a> {
 				Ty::Handle { name, .. } => Ty::Handle {
 					name: name.clone(),
 					constant: receiver == Receiver::Ref
-						|| (receiver == Receiver::Owned
-							&& (0..self.api.objects.len())
-								.any(|i| self.api.objects[i].copy && &self.object(i) == name)),
+						|| (receiver == Receiver::Owned && self.objects_named(name).any(|i| self.api.objects[i].copy)),
 				},
 				// A value's receiver is read through a pointer, and written back in place for
 				// `&mut self`.
@@ -1408,17 +1464,8 @@ impl<'a> Abi<'a> {
 		let makes =
 			(function.future && !function.send) || unsent(&function.ok) || function.err.as_ref().is_some_and(unsent);
 		let receiver = match (function.receiver, owner) {
-			(Some(_), Some(Ty::Handle { name, .. })) => {
-				(0..self.api.objects.len()).any(|i| &self.object(i) == name && !self.api.objects[i].send)
-			}
-			(Some(_), Some(owner)) => {
-				let records = (0..self.api.records.len()).map(Type::Record);
-				let enums = (0..self.api.enums.len()).map(Type::Enum);
-				records
-					.chain(enums)
-					.find(|ty| &self.ty(ty) == owner)
-					.is_some_and(|ty| unsent(&ty))
-			}
+			(Some(_), Some(Ty::Handle { name, .. })) => self.objects_named(name).any(|i| !self.api.objects[i].send),
+			(Some(_), Some(owner)) => self.value_named(owner).is_some_and(|ty| unsent(&ty)),
 			_ => false,
 		};
 		// A handle that may be absent leaves the call to a home when it is: the twin runs it
@@ -1441,14 +1488,10 @@ impl<'a> Abi<'a> {
 		let mut handles = Vec::new();
 		let mut seen = Vec::new();
 		match (function.receiver, owner) {
-			(Some(_), Some(Ty::Handle { name, .. })) => {
-				handles.extend((0..self.api.objects.len()).find(|&i| &self.object(i) == name))
-			}
+			(Some(_), Some(Ty::Handle { name, .. })) => handles.extend(self.objects_named(name).next()),
 			// A record's or enum's receiver lifts each handle it holds.
 			(Some(_), Some(owner)) => {
-				let records = (0..self.api.records.len()).map(Type::Record);
-				let enums = (0..self.api.enums.len()).map(Type::Enum);
-				if let Some(ty) = records.chain(enums).find(|ty| &self.ty(ty) == owner) {
+				if let Some(ty) = self.value_named(owner) {
 					self.api.handles(&ty, &mut handles, &mut seen);
 				}
 			}
