@@ -15,6 +15,7 @@ build, so an outline of the generated source keeps each public declaration up to
 
 import ast
 import difflib
+import multiprocessing
 import os
 import re
 import subprocess
@@ -992,6 +993,30 @@ def joined(sources, outline, label):
     return "\n".join(parts)
 
 
+# The renders of the running `rendered`, which a forked worker inherits rather than pickles.
+RENDERS = {}
+
+
+def render(name):
+    """`name`'s surface, or the error that stopped it."""
+    try:
+        return RENDERS[name](), None
+    except SystemExit as err:
+        return None, err.code
+
+
+def rendered(renders):
+    """Each surface of `renders`, rendered at once, since each is a few CPU-bound seconds."""
+    RENDERS.update(renders)
+    width = min(len(renders), os.cpu_count() or 1)
+    with multiprocessing.get_context("fork").Pool(width) as pool:
+        results = dict(zip(renders, pool.map(render, renders)))
+    for name, (_, err) in sorted(results.items()):
+        if err is not None:
+            raise SystemExit(err)
+    return {name: text for name, (text, _) in results.items()}
+
+
 def main():
     args = [a for a in sys.argv[1:] if a != "--check"]
     check = "--check" in sys.argv[1:]
@@ -1006,7 +1031,7 @@ def main():
     if not surfaces:
         raise SystemExit(f"{export} holds no binding")
     # Only the files asked for render, so another's malformed source fails no check of these.
-    surfaces = {name: render() for name, render in surfaces.items()}
+    surfaces = rendered(surfaces)
     existing = {p.name for p in out.iterdir()} if out.is_dir() else set()
     # Files named leave the others alone, which another export may render.
     stale = [] if only else sorted(existing - set(surfaces))
