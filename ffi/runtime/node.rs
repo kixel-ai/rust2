@@ -406,9 +406,9 @@ static FREES: OnceLock<&'static [unsafe fn(*const c_void)]> = OnceLock::new();
 /// # Safety
 /// On JavaScript's thread.
 #[inline]
-unsafe fn index(p: *const c_void) -> f64 {
+unsafe fn index(p: *const c_void) -> i64 {
 	if p.is_null() {
-		return 0.0;
+		return 0;
 	}
 	// SAFETY: the caller's contract.
 	let table = unsafe { TABLE.get() };
@@ -425,7 +425,7 @@ unsafe fn index(p: *const c_void) -> f64 {
 	let slot = &mut table.slots[i as usize];
 	slot.p = p;
 	slot.closing = OPEN;
-	(u64::from(slot.generation) << 32 | u64::from(i)) as f64
+	i64::from(slot.generation) << 32 | i64::from(i)
 }
 
 /// The index of the slot `id` names, if it holds that id's handle still: not for a closed
@@ -434,13 +434,13 @@ unsafe fn index(p: *const c_void) -> f64 {
 /// # Safety
 /// On JavaScript's thread.
 #[inline]
-unsafe fn find(id: f64) -> Option<u32> {
-	let bits = id as u64;
-	let (i, generation) = (bits as u32, (bits >> 32) as u32);
+unsafe fn find(id: i64) -> Option<u32> {
+	// A negative id's generation is past every slot's.
+	let (i, generation) = (id as u32, (id >> 32) as u32);
 	// SAFETY: the caller's contract.
 	let table = unsafe { TABLE.get() };
 	match table.slots.get(i as usize) {
-		Some(slot) if bits as f64 == id && slot.generation == generation && !slot.p.is_null() => Some(i),
+		Some(slot) if slot.generation == generation && !slot.p.is_null() => Some(i),
 		_ => None,
 	}
 }
@@ -451,7 +451,7 @@ unsafe fn find(id: f64) -> Option<u32> {
 /// # Safety
 /// On JavaScript's thread.
 #[inline]
-unsafe fn slot(id: f64) -> (u32, &'static mut Slot) {
+unsafe fn slot(id: i64) -> (u32, &'static mut Slot) {
 	// SAFETY: the caller's contract.
 	match unsafe { find(id) } {
 		// SAFETY: as above, and `find` found it.
@@ -465,8 +465,8 @@ unsafe fn slot(id: f64) -> (u32, &'static mut Slot) {
 /// # Safety
 /// On JavaScript's thread.
 #[inline]
-unsafe fn address(id: f64) -> *const c_void {
-	if id == 0.0 {
+unsafe fn address(id: i64) -> *const c_void {
+	if id == 0 {
 		return null();
 	}
 	// SAFETY: the caller's contract.
@@ -479,8 +479,8 @@ unsafe fn address(id: f64) -> *const c_void {
 /// # Safety
 /// On JavaScript's thread.
 #[inline]
-unsafe fn hold(id: f64) -> Option<(u32, *const c_void)> {
-	if id == 0.0 {
+unsafe fn hold(id: i64) -> Option<(u32, *const c_void)> {
+	if id == 0 {
 		return Some((0, null()));
 	}
 	// SAFETY: the caller's contract.
@@ -640,7 +640,7 @@ impl<const N: usize> Cx<N> {
 	#[inline]
 	pub unsafe fn hold(&self, n: usize, what: &str) -> Result<Hold, ()> {
 		// SAFETY: the caller's contract.
-		match unsafe { hold(self.number_at(n)) } {
+		match unsafe { hold(self.id(n)) } {
 			Some((i, p)) => Ok(Hold { i, p }),
 			None => {
 				self.throw(&format!("{what} is closed"));
@@ -649,13 +649,14 @@ impl<const N: usize> Cx<N> {
 		}
 	}
 
-	/// Argument `n`, a number.
+	/// Argument `n`, a handle's id: read as a double, as an id past a small integer's range
+	/// is one, which reading it as an integer would take a slower way to.
 	#[inline]
-	fn number_at(&self, n: usize) -> f64 {
+	fn id(&self, n: usize) -> i64 {
 		let mut v = 0.0;
 		// SAFETY: a value of this call.
-		ok(unsafe { (api().get_value_double)(self.env, self.argv[n], &mut v) }, "a number");
-		v
+		ok(unsafe { (api().get_value_double)(self.env, self.argv[n], &mut v) }, "a handle's id");
+		v as i64
 	}
 
 	/// Argument `n`, an `rt.u64`: a safe integer, or else what `rt.ts`'s `u64Big` makes of
@@ -770,8 +771,8 @@ impl<const N: usize> Cx<N> {
 	/// On JavaScript's thread.
 	#[inline]
 	pub unsafe fn freed(&self, n: usize) -> *const c_void {
-		let id = self.number_at(n);
-		if id == 0.0 {
+		let id = self.id(n);
+		if id == 0 {
 			return null();
 		}
 		// SAFETY: the caller's contract.
@@ -825,7 +826,7 @@ impl<const N: usize> Cx<N> {
 	#[inline]
 	pub unsafe fn indexed(&self, p: *const c_void) -> Value {
 		// SAFETY: the caller's contract.
-		self.number(unsafe { index(p) })
+		self.number(unsafe { index(p) } as f64)
 	}
 
 	/// Argument `n`, a typed array: its bytes.
@@ -975,7 +976,7 @@ impl Out {
 	/// The id of a new slot of the handle `p`.
 	pub fn handle(&self, p: *const c_void) -> Value {
 		// SAFETY: on JavaScript's thread, as an `Out` is.
-		self.number(unsafe { index(p) })
+		self.number(unsafe { index(p) } as f64)
 	}
 
 	/// The offset of a place for a `T`, holding a copy of what `src` points to where `copy`,
@@ -1120,11 +1121,8 @@ impl Out {
 	/// What JavaScript returned, a handle's id, as its address: the addon aborts for a closed
 	/// one, as Rust takes no error from it.
 	pub fn address(&self, v: Value) -> *const c_void {
-		let mut id = 0.0;
-		// SAFETY: a value of this call.
-		ok(unsafe { (api().get_value_double)(self.env, v, &mut id) }, "a handle's id");
 		// SAFETY: on JavaScript's thread.
-		unsafe { address(id) }
+		unsafe { address(Cx { env: self.env, argv: [v] }.id(0)) }
 	}
 }
 
@@ -1889,7 +1887,7 @@ unsafe extern "C" fn native_put(env: Env, info: Info) -> Value {
 	// SAFETY: a call from JavaScript, whose place holds a handle.
 	unsafe {
 		let cx = Cx::<2>::new(env, info);
-		let Some((_, p)) = hold(cx.number_at(1)) else {
+		let Some((_, p)) = hold(cx.id(1)) else {
 			return cx.boolean(false);
 		};
 		*cx.at(0).cast::<*const c_void>() = p;
@@ -1902,7 +1900,7 @@ unsafe extern "C" fn native_release(env: Env, info: Info) -> Value {
 	// SAFETY: a call from JavaScript.
 	unsafe {
 		let cx = Cx::<1>::new(env, info);
-		release(slot(cx.number_at(0)).0);
+		release(slot(cx.id(0)).0);
 		cx.undefined()
 	}
 }
@@ -1914,7 +1912,7 @@ unsafe extern "C" fn native_close(env: Env, info: Info) -> Value {
 	// SAFETY: a call from JavaScript.
 	unsafe {
 		let cx = Cx::<3>::new(env, info);
-		let (i, slot) = slot(cx.number_at(0));
+		let (i, slot) = slot(cx.id(0));
 		let free = cx.int(1) as u32;
 		let mut force = false;
 		ok((api().get_value_bool)(env, cx.argv[2], &mut force), "a boolean");
