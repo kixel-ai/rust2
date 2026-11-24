@@ -2,7 +2,8 @@
 
 A crate's [rust2-ffi](/ffi/README.md) export, released as Python wheels and an sdist, a Swift package,
 C and C++ archives, a Go module, a Kotlin library for desktop JVMs and Android on Maven
-Central, a Dart package on pub.dev, and a web package on npm and JSR. Two halves, split where Cargo's knowledge ends:
+Central, a Dart package on pub.dev, a web package on npm and JSR, and a React Native package
+on npm. Two halves, split where Cargo's knowledge ends:
 
 - **The builder**, [`bindings.yml`](/.github/workflows/bindings.yml) over `package.py`,
   shared and read-only. It derives everything from Cargo metadata and the export: package
@@ -11,7 +12,7 @@ Central, a Dart package on pub.dev, and a web package on npm and JSR. Two halves
   consumers, and publishes nothing.
 - **The release workflow**, the caller's own file, which `package.py init` writes once.
   It holds what Cargo cannot establish: who may publish to PyPI, pub.dev, npm, JSR, and
-  Maven Central, the scope the web package is named under, the Kotlin library's groupId,
+  Maven Central, the scope the web and React Native packages are named under, the Kotlin library's groupId,
   where the XCFramework and the Dart libraries are hosted, which repository SwiftPM resolves
   the package from, the Go module's path, and which tag releases.
 
@@ -25,7 +26,9 @@ python3 <rust2>/ffi/release/package.py init --manifest-path rs/moq-ffi/Cargo.tom
 
 It writes `.github/workflows/release-<crate>.yml`, calling the builder at that commit, and
 refuses to overwrite a different file. `--scope` ships the crate's web package as
-`@<scope>/<crate>`, and `--maven-group` its Kotlin library as `<group>:<crate>`; without
+`@<scope>/<crate>` and its React Native package as `@<scope>/<crate>-rn`, since one npm name
+cannot hold both a wasm32 module and a TurboModule, and `--maven-group` its Kotlin library as
+`<group>:<crate>`; without
 either, the lines that would are written commented out. Then, outside the repository:
 
 - register the workflow and the `pypi` environment as the PyPI project's trusted publisher;
@@ -49,6 +52,9 @@ either, the lines that would are written commented out. Then, outside the reposi
   `jsr` environments that only release tags may deploy to. npm's provenance needs Cargo's
   `repository` to be the publishing repository, which the release checks before any
   registry takes it.
+- for the React Native package, likewise publish its first version by hand, the
+  `<crate>-react-native` artifact's tarball, then register the same workflow and `npm`
+  environment as its trusted publisher.
 - for the Kotlin library, verify the group's namespace on the
   [Central Portal](https://central.sonatype.com), and make a `publish` environment that only
   release tags may deploy to, holding a Portal user token as `MAVEN_CENTRAL_USERNAME` and
@@ -70,8 +76,8 @@ A Cargo prerelease, such as `1.0.0-rc.1`, is a GitHub prerelease too.
 The builder takes the crate's `Cargo.toml`, the `go-module` path, which without it is the
 export's own `<prefix>` that no proxy serves, and optional inputs the caller's tests own:
 `features` to ship, an `example` whose stdout is native Rust's transcript, and the
-`python-check`, `swift-check`, `c-check`, `go-check`, `kotlin-check`, and `dart-check`
-programs that must print it through the installed packages, and `reproduce`, which builds
+`python-check`, `swift-check`, `c-check`, `go-check`, `kotlin-check`, `dart-check`, and
+`react-native-check` programs that must print it through the installed packages, and `reproduce`, which builds
 everything twice, from two checkouts. Without a check, a consumer only imports the module,
 links a function of each C and C++ header, or loads the Kotlin library. A `c-check` is C
 or C++ by its extension. A `dart-check` prints through `print`, which a Flutter app on
@@ -85,7 +91,11 @@ a member of, whatever its package or `@file:JvmName`. The web package takes `web
 TypeScript module importing the binding as `./web/<module>.ts` does beside an export,
 whose imports the consumer rewrites to the package's name. Its crate's version must be
 the release's. `features` and `example` apply to it when it is the crate's own; a web
-crate apart from it takes `web-features` and `web-example` instead.
+crate apart from it takes `web-features` and `web-example` instead. The React Native
+package takes `scope` alone, and a `react-native-check` is a TypeScript module importing
+the binding as `./react-native/<module>.ts` does beside an export, whose top-level await
+the consumer runs, and which prints through `console.log` and may end through
+`process.exit`.
 Every check may instead name a directory holding the program as `check.py`, `check.c` or
 `check.cpp`, `check.kt`, `check.ts`, `check.swift`, `check.go`, or `check.dart`, beside the files it
 reads, which each consumer places beside it: a check that imports a module, includes a header, or
@@ -115,7 +125,8 @@ the builder unpacks over its checkout before reading the checks.
    same binding.
 4. Builds each target with the crate's own toolchain, as rustup resolves it from the
    crate's directory; only the export runs on rust2's nightly. Android's targets build, and
-   stage their APIs, on Linux through the NDK Flutter defaults to, r28.
+   stage their APIs, on Linux through the NDK Flutter defaults to, r28: with a `scope`,
+   React Native's fourth, x86 (`i686-linux-android`), too.
 5. Python: two wheels per target, built without asking a CPython (`PYO3_NO_PYTHON`): a
    `cp311-abi3` one, the oldest CPython the generated extension's stable ABI loads in, and
    a `cp315-abi3t` one for free-threaded CPython 3.15 and later (PEP 803), which leaves the
@@ -148,9 +159,10 @@ the builder unpacks over its checkout before reading the checks.
    deployment target it builds for, by default the target's oldest; and builds musl's
    library against a dynamic C runtime, as CPython links one, adding the flag to cargo's
    target rustflags, which cargo then reads in place of a config's `build.rustflags`.
-6. Swift: static libraries for macOS arm64 at macOS 13, and iOS arm64, its simulator, and
-   Mac Catalyst arm64 at iOS 16, the floors of the generated Swift's `Swift.Duration`, each
-   checked against every object's declared minimum OS; one XCFramework of the four, zipped by the builder itself,
+6. Swift: static libraries for macOS arm64 at macOS 13 and Mac Catalyst arm64 at iOS 16,
+   the floors of the generated Swift's `Swift.Duration`, and iOS arm64 and its simulator at
+   React Native's 15.1, below the package's 16, as React Native's package takes them too,
+   each checked against every object's declared minimum OS; one XCFramework of the four, zipped by the builder itself,
    its SHA-256 checked against `swift package compute-checksum`; and a `Package.swift`
    naming it at `https://github.com/<repo>/releases/download/<crate>-v<version>/<Module>FFI.xcframework.zip`.
    The package depends on swift-collections by the release tag at the exporter's pinned
@@ -324,6 +336,29 @@ the builder unpacks over its checkout before reading the checks.
     bundled by Vite and by webpack into a browser's script that Node runs, each finding the
     module where `load` looks by default; and `deno publish --dry-run` checks the JSR
     package, its types against Deno's included.
+14. React Native, with a `scope`: the export's `react-native/`
+    ([React Native](/ffi/README.md#react-native)), with the libraries its app builds link:
+    a static library of the C ABI for each ABI React Native's template builds, `arm64-v8a`,
+    `armeabi-v7a`, `x86`, and `x86_64`, at API 24, its floor, and an XCFramework of the
+    Swift package's iOS device and simulator libraries, at its iOS floor, 15.1. Each is
+    stripped of debug info and LTO bitcode, as the Go module's: an unlinked library's DWARF
+    is most of its bytes, and with it moq's tarball would be about 400 MB, twice what npm
+    takes, so a crash in Rust symbolicates to the function. `android/CMakeLists.txt`
+    links the system libraries rustc names beside the module's own, and the podspec links
+    its frameworks and libraries and bundles `ios/PrivacyInfo.xcprivacy`, which declares
+    the required-reason APIs a link of the iOS libraries imports, as step 6 finds them,
+    failing on the same categories, since a static library holds no resources. The slices
+    of each platform must link the same libraries. The XCFramework is made twice, which
+    must be the same bytes. The npm package, `@<scope>/<crate>-rn`, takes Cargo's
+    description, license, and URLs, and is packed by `npm pack`; its SBOM is the C ABI's
+    crates'. A new app at React Native 0.88.1, the package's floor, made by the community
+    CLI's `init`, installs the tarball, as an app would; esbuild bundles the
+    `react-native-check`, or else a `load()`, leaving its imports of React Native and the
+    package to Metro, and it runs as the app starts, logging what it printed. It is built
+    for release for each of the four ABIs and run on an x86_64 emulator at API 35, and
+    built for release for an iOS device and for the simulator and run on a simulator. With
+    an `example`, each must print native Rust's stdout byte for byte, the example's built
+    for the emulator and the simulator and run there.
 
 rust2 runs it on every manual Check and nightly through
 [`bindings-test.yml`](/.github/workflows/bindings-test.yml): on the api fixture, whose
@@ -331,7 +366,8 @@ wheels, C++ consumers, web package, Go module, Swift package, and Dart package m
 its native transcript through the checks `just ffi transcripts` writes, each test beside the
 script generated from it, and on moq's
 stand-in facade at the exporter's moq pin, through `moq/moq.py`, `moq/moq.swift`,
-`moq/moq.cpp`, `moq/moq.go`, `moq/moq.kt`, and `moq/moq.dart`, with its wasm32 stand-in as the web package.
+`moq/moq.cpp`, `moq/moq.go`, `moq/moq.kt`, `moq/moq.dart`, and through React Native's
+package `moq/moq.ts`, with its wasm32 stand-in as the web package.
 
 ## Reproducible builds
 
@@ -368,7 +404,8 @@ holding exactly the files it would upload, and anyone with the commit can check 
   export a level deeper, and `package.py same` fails unless each wheel, static library, C
   archive, Dart library, and Kotlin library, the Go module's included, matches byte for
   byte; the Maven job builds its repository a second time from a copy of the export a level
-  deeper, which must match too, and the web job builds its npm tarball from the second checkout; rust2
+  deeper, which must match too, the web job builds its npm tarball from the second checkout,
+  and the React Native job packs its tarball again; rust2
   turns it on for its api fixture. It doubles the build and shares the same 120-minute
   build-job cap as ordinary runs, including in nightlies. Use it only when both builds
   fit that cap; slow legs of a large crate can be cancelled before comparison.
@@ -379,7 +416,7 @@ crate's checksum from `Cargo.lock`), which every wheel also carries in
 `.dist-info/sboms/` (PEP 770) and the build hosts must agree on. The caller's `attest` job
 runs on a tag, before anything is published, and gives every wheel, the XCFramework, the Go
 module's `.zip` and `.mod`, each C archive, each Dart library, the jar, the AAR, their POM and Gradle metadata, and the
-npm tarball a build provenance attestation and an SBOM attestation (the tarball's from its
+npm tarballs a build provenance attestation and an SBOM attestation (each tarball's from its
 own `sbom.cdx.json`, the Kotlin library's from its CycloneDX file), which
 `gh attestation verify <file> --repo <owner>/<repo>` checks. Only that job holds `id-token` and `attestations`
 write; the builder stays read-only. PyPI's trusted publishing uploads its own PEP 740

@@ -1,0 +1,31 @@
+#!/usr/bin/env just --justfile
+#
+# The benchmark runner, invoked from the repo root as `just runner <recipe>`. Its crate is its
+# own workspace on the repo's stable toolchain.
+
+set shell := ["bash", "-euo", "pipefail", "-c"]
+
+default:
+    @just --list
+
+# Lint and format-check the runner.
+check:
+    cargo clippy --locked --all-targets -- -D warnings
+    cargo fmt --all --check
+    cargo shear
+    cargo sort --workspace --check --no-format
+
+# Run its tests, which count under the dev shell's Valgrind.
+test *args:
+    cargo test --locked {{ args }}
+
+# Apply formatters without changing program behavior.
+fix:
+    cargo clippy --locked --fix --allow-staged --allow-dirty --all-targets
+    cargo fmt --all
+    cargo shear --fix
+    cargo sort --workspace --no-format
+
+# Run the runner: `just runner run run --out metrics.json`.
+run *args:
+    cargo run --locked --quiet --release -- {{ args }}
