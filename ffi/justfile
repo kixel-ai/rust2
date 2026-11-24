@@ -322,7 +322,7 @@ bench-run rounds="3":
     python3 -I ../bench/ffi/report.py "$raw" "$builds" "$out" target/export/moq-web target/bench-ts/export.ts > target/bench/report.md
     cat target/bench/report.md
 
-# Count each case of count_langs' programs in instructions with rust2-bench, from the bench shell, building them first: `just ffi count run --out metrics.json` for Kixel Quest's metrics.json, `just ffi count compare main` for each case's change from a commit. The Valgrind workflow's run.
+# Count each case of count_langs' programs in instructions with rust2-bench, from the bench shell, building them first: `just ffi count run --out metrics.json` for Kixel Quest's metrics.json, `just ffi count compare main` for each case's change from a commit; a path it takes is relative to ffi/. The Valgrind workflow's run.
 [positional-arguments]
 count *args:
     #!/usr/bin/env bash
