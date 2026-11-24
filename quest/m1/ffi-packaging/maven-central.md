@@ -49,8 +49,14 @@ moq-dev/moq#9520 into `release` (rejected: holding them). Both landed on 2026-11
 
 ## Waiting
 
-- kixel-ai/rust2: a Nightly, or a dispatched Check, finishes on `main` after
-  [#990](https://github.com/kixel-ai/rust2/pull/990) lands. Check:
-  `gh run list -R kixel-ai/rust2 --branch main --status success` lists one newer than #990's
-  merge. Then an agent dispatches `central-check.yml` on moq's `release` with that run's ID,
-  as above.
+- kixel-ai/rust2: a Check, or a Nightly, finishes on `main` with its `moq-ffi-maven` artifact.
+  None has since [#990](https://github.com/kixel-ai/rust2/pull/990): the stand-in's Windows and
+  `apple-darwin` build legs ran past the job's 90-minute cap
+  ([Check 45378844915](https://github.com/kixel-ai/rust2/actions/runs/45378844915)), which
+  [#1000](https://github.com/kixel-ai/rust2/pull/1000) raises to 150. Check: after it lands,
+  `gh workflow run check.yml -R kixel-ai/rust2 --ref main`, then
+  `gh api repos/kixel-ai/rust2/actions/runs/<id>/artifacts --jq '[.artifacts[].name]'` lists
+  `moq-ffi-maven`. Then an agent dispatches `central-check.yml` on moq's `release` with that
+  run's ID, as above. The api fixture's builds fail on `main` until
+  [#993](https://github.com/kixel-ai/rust2/pull/993) lands, which leaves the run red but does
+  not stop the stand-in's `maven` job.
