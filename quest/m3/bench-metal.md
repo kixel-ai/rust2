@@ -41,6 +41,14 @@ and `mostly-unused` comparisons, and the A/A controls. Its instructions column r
 counters work), and the harness now runs bash as the benchmarked program instead.
 Its wall-time noise was 5 to 9% RMS on the controls, above the hosted runners' 1.3 to 1.9%.
 
+Decided 2026-11-24 on `/quest-run`'s recommendation while the maintainer was away, not
+the maintainer's decision: ✅ land the `--shell none` fix and the wall and CPU report now
+(rejected: holding the PR until instruction counts exist); ✅ don't recommend
+`jobs-frontend` for moq's CI, which is shared and CPU-bound, at most an opt-in for local
+development, and revisit it with the instruction counts (rejected: recommending it in moq's
+`.cargo/config.toml`); ✅ investigate the wall noise only if wall time still matters after
+the instruction rerun (rejected: investigating now).
+
 Remaining, after that change lands at `main`:
 
 - Dispatch `bench.yml` at `main` again and check that every row of the new report holds
