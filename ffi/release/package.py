@@ -3994,14 +3994,16 @@ AppRegistry.registerComponent("Consumer", () => Check);
 
 # Bundles the check, `check/check.ts`, into `check/bundle.js`, its top-level await in an async
 # function, as Metro takes no top-level await: each import of React Native or the package, named
-# by the first argument, is left to Metro, through the map `check/imports.js` requires.
+# by the first argument, is left to Metro, through the map `check/imports.js` requires. The entry
+# imports the check rather than being it, so nothing the check exports stays an `export`, which
+# the function could not hold.
 RN_BUNDLE = r"""import * as esbuild from "esbuild";
 import { writeFileSync } from "node:fs";
 
 const name = process.argv[2];
 const imported = new Set(["react-native", name]);
 const result = await esbuild.build({
-	entryPoints: ["check/check.ts"],
+	stdin: { contents: 'import "./check.ts";', resolveDir: "check", sourcefile: "entry.ts", loader: "ts" },
 	bundle: true,
 	write: false,
 	format: "esm",
