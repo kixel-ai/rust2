@@ -15,6 +15,10 @@ runners, runs reliably (rejected: switching now; keeping `just ci` for good).
 switch out: by then the hosted record was a few hours long, with one merge group, and the
 `ffi` job's time ranged from 17 to 34 minutes.
 
+Decided 2026-11-24 (maintainer, afk, via /quest-run): ✅ wait for a week of hosted
+history before switching, as the 2026-12-01 date schedules (rejected: switching on
+#998's few hours of history).
+
 - Judge reliability from `gh run list --workflow ci.yml` over PRs and merge groups since
   #991 landed: every failure must trace to the change under test, none to the runner,
   the cache, or a timeout.
