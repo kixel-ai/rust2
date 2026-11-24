@@ -20,6 +20,7 @@ use std::panic::AssertUnwindSafe;
 use std::ptr::{null, null_mut};
 use std::sync::atomic::{AtomicBool, AtomicPtr, AtomicUsize, Ordering};
 use std::sync::{Arc, Condvar, Mutex, MutexGuard, OnceLock};
+use std::time::{Duration, Instant};
 
 use crate::rt;
 
@@ -1123,6 +1124,13 @@ struct Home {
 	tsfn: AtomicPtr<c_void>,
 	/// Held across a call of `tsfn` and while it is nulled, so no call reaches it freed.
 	telling: Mutex<()>,
+	/// How many tasks were ever queued, and taken, each changed under the queue's lock, which
+	/// JavaScript's thread reads as it spins.
+	pushed: AtomicUsize,
+	popped: AtomicUsize,
+	/// Whether JavaScript's thread waits on `ready`, set under the queue's lock: else it
+	/// spins, and nothing need wake it.
+	parked: AtomicBool,
 }
 
 static HOME: Home = Home {
@@ -1132,7 +1140,33 @@ static HOME: Home = Home {
 	exited: AtomicBool::new(false),
 	tsfn: AtomicPtr::new(null_mut()),
 	telling: Mutex::new(()),
+	pushed: AtomicUsize::new(0),
+	popped: AtomicUsize::new(0),
+	parked: AtomicBool::new(false),
 };
+
+/// How long a worker spins for its next call, and JavaScript's thread for its call's end
+/// or a task, before parking: a handoff between spinning threads costs a tenth of one
+/// through a park, so a run of calls keeps both awake, while an idle one parks within this.
+const SPIN: Duration = Duration::from_micros(20);
+
+/// Spin while `f` returns none, until [`SPIN`] passed since the last time it was `Some`.
+#[inline]
+fn spin<T>(mut f: impl FnMut() -> Option<T>) -> Option<T> {
+	let start = Instant::now();
+	let mut spins = 0u32;
+	loop {
+		if let Some(v) = f() {
+			return Some(v);
+		}
+		spins = spins.wrapping_add(1);
+		// The clock costs a few dozen spins, so it is read once in 64.
+		if spins % 64 == 0 && start.elapsed() >= SPIN {
+			return None;
+		}
+		std::hint::spin_loop();
+	}
+}
 
 impl Home {
 	fn lock(&self) -> MutexGuard<'_, VecDeque<Task>> {
@@ -1142,8 +1176,15 @@ impl Home {
 	/// Queue `task` for a wait in a call from JavaScript to run, and tell the event loop to
 	/// run it if none does first, returning whether JavaScript is alive to.
 	fn push(&self, task: Task) -> bool {
-		self.lock().push_back(task);
-		self.ready.notify_all();
+		let parked = {
+			let mut tasks = self.lock();
+			tasks.push_back(task);
+			self.pushed.fetch_add(1, Ordering::SeqCst);
+			self.parked.load(Ordering::Relaxed)
+		};
+		if parked {
+			self.ready.notify_all();
+		}
 		// After the task is queued, so either this sees an exit or the exit's abandon sees
 		// the task.
 		if self.exited.load(Ordering::SeqCst) {
@@ -1171,9 +1212,23 @@ impl Home {
 		self.abandon();
 	}
 
+	/// The task first in the queue, if any.
+	fn pop(&self) -> Option<Task> {
+		let mut tasks = self.lock();
+		let task = tasks.pop_front();
+		if task.is_some() {
+			self.popped.fetch_add(1, Ordering::Release);
+		}
+		task
+	}
+
 	/// Drop each queued task unrun, a call's waiter told it was abandoned.
 	fn abandon(&self) {
-		let tasks = std::mem::take(&mut *self.lock());
+		let tasks = {
+			let mut tasks = self.lock();
+			self.popped.fetch_add(tasks.len(), Ordering::Release);
+			std::mem::take(&mut *tasks)
+		};
 		for task in tasks {
 			if let Task::Call(job) = task {
 				job.finish();
@@ -1245,36 +1300,45 @@ impl Home {
 	/// On JavaScript's thread, and `run` makes only calls through the C ABI.
 	#[inline(never)]
 	unsafe fn serve_relays(&'static self, run: Run) {
-		let acting = rt::thread();
-		let done = Arc::new(AtomicBool::new(false));
-		Worker::lend(Lent {
+		let done = AtomicUsize::new(0);
+		let lent = Lent {
 			run,
-			done: done.clone(),
-			acting,
-		});
-		// Once `run` returns, run only what was queued by then, which `done`, set under the
-		// queue's lock, counts: such as a free its call made, which Rust ran before it
-		// returned. What is queued later the event loop was told of, so a steady producer
-		// can't hold this thread.
-		let mut tasks = self.lock();
+			done: &raw const done,
+			acting: rt::thread(),
+		};
+		// SAFETY: the caller's contract; this waits below until the worker is done with `lent`.
+		unsafe { Worker::lend(&raw const lent) };
+		// Once `run` returns, run only what was queued by then, which `done` counts: such as a
+		// free its call made, which Rust ran before it returned. What is queued later the
+		// event loop was told of, so a steady producer can't hold this thread.
+		let queued = || self.pushed.load(Ordering::Acquire) != self.popped.load(Ordering::Acquire);
 		loop {
-			if done.load(Ordering::Acquire) {
-				let queued = tasks.len();
-				drop(tasks);
-				for _ in 0..queued {
-					let task = self.lock().pop_front();
-					let Some(task) = task else { break };
+			let woke = spin(|| (done.load(Ordering::Acquire) != 0 || queued()).then_some(()));
+			let end = done.load(Ordering::Acquire);
+			if end != 0 {
+				while self.popped.load(Ordering::Acquire) < end - 1 {
+					let Some(task) = self.pop() else { break };
 					// SAFETY: the caller's contract.
 					unsafe { self.run(task) };
 				}
+				// SAFETY: on JavaScript's thread, whose nested calls each ended by now.
+				unsafe { WORKERS.get().depth -= 1 };
 				break;
-			} else if let Some(task) = tasks.pop_front() {
-				drop(tasks);
+			}
+			if let Some(task) = self.pop() {
 				// SAFETY: the caller's contract.
 				unsafe { self.run(task) };
-				tasks = self.lock();
-			} else {
-				tasks = self.ready.wait(tasks).unwrap_or_else(|e| e.into_inner());
+				continue;
+			}
+			if woke.is_none() {
+				let mut tasks = self.lock();
+				// Against the worker's store of `done` and load of `parked`, so one sees the other's.
+				self.parked.store(true, Ordering::SeqCst);
+				if done.load(Ordering::SeqCst) == 0 && tasks.is_empty() {
+					tasks = self.ready.wait(tasks).unwrap_or_else(|e| e.into_inner());
+				}
+				self.parked.store(false, Ordering::Relaxed);
+				drop(tasks);
 			}
 		}
 	}
@@ -1339,52 +1403,89 @@ fn drains() {
 	}
 }
 
-/// The workers parked for a call to run: a spawn per call costs about three times a
-/// handoff to one.
-static IDLE: Mutex<Vec<Arc<Worker>>> = Mutex::new(Vec::new());
+/// The workers, one for each depth of the calls JavaScript's thread waits on, which nest:
+/// a spawn per call costs about three times a handoff to one.
+static WORKERS: Js<Workers> = Js(UnsafeCell::new(Workers {
+	all: Vec::new(),
+	depth: 0,
+}));
+
+struct Workers {
+	all: Vec<Arc<Worker>>,
+	/// How many calls JavaScript's thread waits on.
+	depth: usize,
+}
 
 /// A thread that runs a call from JavaScript while JavaScript's thread serves.
 struct Worker {
-	call: Mutex<Option<Lent>>,
+	/// The call lent to it, which its lender keeps alive until the call's done, or null.
+	call: AtomicPtr<Lent>,
+	/// Whether it waits on `ready`, under `lock`: else it spins, and nothing need wake it.
+	parked: AtomicBool,
+	lock: Mutex<()>,
 	ready: Condvar,
 }
 
 /// A call lent to a worker, which acts as `acting` while `run` runs, and tells JavaScript's
-/// thread once `run` returned by setting `done`.
+/// thread once `run` returned by setting `done` to 1 more than how many tasks were queued.
 struct Lent {
 	run: Run,
-	done: Arc<AtomicBool>,
+	done: *const AtomicUsize,
 	acting: usize,
 }
 
 impl Worker {
-	/// Run `call` on an idle worker, or a new one if none is.
-	fn lend(call: Lent) {
-		let idle = IDLE.lock().unwrap_or_else(|e| e.into_inner()).pop();
-		let worker = idle.unwrap_or_else(|| {
+	/// Run `call` on the worker of the depth of the calls JavaScript's thread waits on, or a
+	/// new one.
+	///
+	/// # Safety
+	/// On JavaScript's thread, which waits until `call` is done before it returns.
+	unsafe fn lend(call: *const Lent) {
+		// SAFETY: the caller's contract.
+		let workers = unsafe { WORKERS.get() };
+		if workers.depth == workers.all.len() {
 			let worker = Arc::new(Worker {
-				call: Mutex::new(None),
+				call: AtomicPtr::new(null_mut()),
+				parked: AtomicBool::new(false),
+				lock: Mutex::new(()),
 				ready: Condvar::new(),
 			});
 			let parked = worker.clone();
 			std::thread::spawn(move || parked.park());
-			worker
-		});
-		*worker.call.lock().unwrap_or_else(|e| e.into_inner()) = Some(call);
-		worker.ready.notify_one();
+			workers.all.push(worker);
+		}
+		let worker = &workers.all[workers.depth];
+		workers.depth += 1;
+		// Against `next`'s store of `parked` and load of `call`, so one of them sees the other's.
+		worker.call.store(call.cast_mut(), Ordering::SeqCst);
+		if worker.parked.load(Ordering::SeqCst) {
+			let _lock = worker.lock.lock().unwrap_or_else(|e| e.into_inner());
+			worker.ready.notify_one();
+		}
+	}
+
+	/// The next call lent, spinning for it a while before parking.
+	fn next(&self) -> *const Lent {
+		let take = || Some(self.call.swap(null_mut(), Ordering::SeqCst)).filter(|call| !call.is_null());
+		if let Some(call) = spin(take) {
+			return call;
+		}
+		let mut lock = self.lock.lock().unwrap_or_else(|e| e.into_inner());
+		self.parked.store(true, Ordering::SeqCst);
+		loop {
+			if let Some(call) = take() {
+				self.parked.store(false, Ordering::Relaxed);
+				return call;
+			}
+			lock = self.ready.wait(lock).unwrap_or_else(|e| e.into_inner());
+		}
 	}
 
 	/// Run each call lent to this worker, idle between them.
 	fn park(self: Arc<Self>) {
 		loop {
-			let mut call = self.call.lock().unwrap_or_else(|e| e.into_inner());
-			let Lent { run, done, acting } = loop {
-				match call.take() {
-					Some(lent) => break lent,
-					None => call = self.ready.wait(call).unwrap_or_else(|e| e.into_inner()),
-				}
-			};
-			drop(call);
+			// SAFETY: its lender waits until `done`, which this sets last.
+			let Lent { run, done, acting } = unsafe { self.next().read() };
 			ACTING.set(acting);
 			// A panic here would leave JavaScript's thread waiting forever, so it aborts, as
 			// one through the C ABI would.
@@ -1393,11 +1494,13 @@ impl Worker {
 				rt::fail("node", "a call from JavaScript panicked");
 			}
 			ACTING.set(0);
-			let tasks = HOME.lock();
-			done.store(true, Ordering::Release);
-			drop(tasks);
-			HOME.ready.notify_all();
-			IDLE.lock().unwrap_or_else(|e| e.into_inner()).push(self.clone());
+			// SAFETY: the lender is alive until this, after which this touches none of it.
+			unsafe { (*done).store(HOME.pushed.load(Ordering::SeqCst) + 1, Ordering::SeqCst) };
+			if HOME.parked.load(Ordering::SeqCst) {
+				// Under the lock its wait holds until it waits, so this wakes it.
+				let _tasks = HOME.lock();
+				HOME.ready.notify_all();
+			}
 		}
 	}
 }
@@ -1508,8 +1611,7 @@ unsafe extern "C" fn on_loop(env: Env, _: Value, _: *mut c_void, _: *mut c_void)
 		// again, so a steady producer can't hold this turn.
 		let queued = HOME.lock().len();
 		for _ in 0..queued {
-			let task = HOME.lock().pop_front();
-			let Some(task) = task else { break };
+			let Some(task) = HOME.pop() else { break };
 			HOME.run(task);
 		}
 		let leaving = out.int32(-1);
