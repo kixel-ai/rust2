@@ -1466,8 +1466,14 @@ impl<'a> Gen<'a> {
 				"impl Wire for crate::{c} {{\n\tfn read(r: &mut Reader<'_>) -> Self {{\n\t\tSelf {{ items: r.get() }}\n\t}}\n\n\tfn write(self, w: &mut Writer) {{\n\t\tw.put(self.items);\n\t}}\n}}\n\n"
 			);
 		}
+		// The JVM getter of each constant only some targets have, which no top-level
+		// function's JVM name may take.
+		let mut getters = Vec::new();
 		for constant in &api.constants {
 			let name = self.bare(&abi.name(&constant.path)).to_uppercase();
+			if !api.everywhere(constant.on) {
+				getters.push(jvm_name(&format!("val {name}")));
+			}
 			self.locked
 				.insert(format!("const {}", constant.path.join("::")), name.clone());
 			let (ty, value) = match constant.value {
@@ -1507,7 +1513,7 @@ impl<'a> Gen<'a> {
 			let name = declared.split_once(' ').map_or(declared, |(_, name)| name);
 			taken(name) || self.names.contains_key(name)
 		});
-		let jvm = self.jvm_named(&api.functions, (None, None), &named, &[]);
+		let jvm = self.jvm_named(&api.functions, (None, None), &named, &getters);
 		for ((function, name), jvm) in api.functions.iter().zip(&named).zip(&jvm) {
 			if let Some((code, bridge)) = self.function(function, (None, None), Place::Static, (name, jvm), &[]) {
 				top.push(code);
@@ -5243,6 +5249,31 @@ mod tests {
 			"\t\t/** Doc. */\n\t\t@get:kotlin.jvm.JvmName(\"getZ_\")\n\t\tval z: Int\n".to_string(),
 		];
 		assert_eq!(super::jvm_names(&code).collect::<Vec<_>>(), ["foo", "foo_", "getZ_"]);
+	}
+
+	/// A constant only some targets have is a property whose JVM getter, `getX`, a function
+	/// named alike keeps clear of.
+	#[test]
+	fn gated_constant_getter_is_taken() {
+		let mut api = crate::ir::Api::of(vec![crate::ir::Function::bare("get_x")]);
+		api.targets = vec!["a".into(), "b".into()];
+		api.constants = vec![crate::ir::Constant {
+			path: vec!["ns".into(), "X".into()],
+			home: crate::ir::Home {
+				krate: "ns".into(),
+				outside: 1,
+			},
+			span: rustc_span::DUMMY_SP,
+			on: crate::ir::On(0b01),
+			docs: String::new(),
+			deprecated: None,
+			value: crate::ir::Literal::Bool(true),
+		}];
+		let kotlin = super::generate(&crate::abi::Abi::new(&api, "ns"), "ns", 0)
+			.unwrap()
+			.kotlin;
+		assert!(kotlin.contains("val X: Boolean\n\tget() {"), "{kotlin}");
+		assert!(kotlin.contains("@kotlin.jvm.JvmName(\"getX_\")\nfun getX("), "{kotlin}");
 	}
 
 	/// The writeback array is a parameter of its own, which an out pointer's zero slots

@@ -836,6 +836,20 @@ fn changed(base: &Index<'_>, now: &Index<'_>, maps: &Maps, ours: &Item<'_>, thei
 			} else if bare(c) != bare(d) {
 				changes.push("how it exports".to_string());
 			}
+			// A binding serving several targets declares one only some have in another form,
+			// such as React Native's function for an `export const`, and a compiled one only
+			// where it compiles for one of them.
+			match (base.api.everywhere(c.on), now.api.everywhere(d.on)) {
+				(true, false) => changes.push(format!(
+					"it is now only on {}, so a binding declares it only there or reads it through a check, as a getter or function",
+					now.api.named(d.on).join(", ")
+				)),
+				(false, true) => changes.push(
+					"it is now on every target, so a binding that read it through a check, as a getter or function, declares it a constant"
+						.to_string(),
+				),
+				_ => {}
+			}
 		}
 		_ => changes.push("it is another kind of item".to_string()),
 	}
@@ -975,6 +989,39 @@ mod tests {
 			opaque: None,
 			sizes: Default::default(),
 		}
+	}
+
+	/// A constant that was on every target and is now only on some, as when an export adds a
+	/// target lacking it, breaks, as a binding then declares it in another form; so does the
+	/// reverse.
+	#[test]
+	fn constant_on_some_targets_breaks() {
+		let mut base = api();
+		base.targets = vec!["a".into()];
+		base.constants = vec![Constant {
+			path: vec!["lock".into(), "WORD".into()],
+			home: Home {
+				krate: "lock".into(),
+				outside: 1,
+			},
+			span: DUMMY_SP,
+			on: On::ALL,
+			docs: String::new(),
+			deprecated: None,
+			value: Literal::Int(Int::Usize, 1),
+		}];
+		let mut now = base.clone();
+		now.targets.push("b".into());
+		assert!(breaks(&base, &now, "lock").is_empty(), "a target with it passes");
+		now.constants[0].on = On(0b01);
+		let whats = |found: Vec<Break>| found.into_iter().map(|b| b.what).collect::<Vec<_>>();
+		let found = whats(breaks(&base, &now, "lock"));
+		assert!(found.iter().any(|w| w.contains("it is now only on a,")), "{found:?}");
+		let found = whats(breaks(&now, &base, "lock"));
+		assert!(
+			found.iter().any(|w| w.contains("it is now on every target")),
+			"{found:?}"
+		);
 	}
 
 	#[test]

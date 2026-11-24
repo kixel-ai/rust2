@@ -310,7 +310,7 @@ API breaks the one in `file`, with an error at each item that names how:
 - an item removed, or no longer on one of the baseline's targets, and a target the baseline
   serves that the export does not;
 - a function's receiver, parameter, return, error, or asyncness changed, a constant's type
-  changed, a trait method added or changed, or a trait impl such as `Clone` dropped;
+  changed or whether it is on every target, which changes how a binding declares it, a trait method added or changed, or a trait impl such as `Clone` dropped;
 - a record's or variant's field added, removed, moved, or of another type, a variant
   removed or of another value or, in an enum with fields, at another place, which is its C
   tag, one added to an enum another crate matches exhaustively, and an enum gaining its
