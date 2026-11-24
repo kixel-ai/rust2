@@ -29,7 +29,7 @@ struct Target {
 /// Builds the benchmark targets of the workspace in `dir`, passing `args` to `cargo build`,
 /// and lists the benchmarks each runs as a job, one benchmark a process.
 pub fn jobs(dir: &Path, args: &[String]) -> Result<Vec<Job>, String> {
-	let root = workspace_root(dir)?;
+	let root = workspace_root(dir, args)?;
 	let targets = build(dir, args)?;
 	if targets.is_empty() {
 		return Err("cargo built no benchmark target".to_owned());
@@ -52,7 +52,8 @@ pub fn jobs(dir: &Path, args: &[String]) -> Result<Vec<Job>, String> {
 		let names = names?;
 		if names.is_empty() {
 			return Err(format!(
-				"benchmark target {} ran no benchmark through CodSpeed's compatibility crates: leave it out with cargo's --bench",
+				"benchmark target {} ran no benchmark through CodSpeed's compatibility crates, built with --cfg=codspeed \
+				 (which a config's target rustflags would drop): leave it out with cargo's --bench",
 				target.name
 			));
 		}
@@ -77,9 +78,13 @@ pub fn jobs(dir: &Path, args: &[String]) -> Result<Vec<Job>, String> {
 
 /// The root of the workspace in `dir`, which CodSpeed's crates name each benchmark's file
 /// relative to.
-fn workspace_root(dir: &Path) -> Result<PathBuf, String> {
-	let out = Command::new("cargo")
-		.args(["locate-project", "--workspace", "--message-format", "plain"])
+fn workspace_root(dir: &Path, args: &[String]) -> Result<PathBuf, String> {
+	let mut cargo = Command::new("cargo");
+	cargo.args(["locate-project", "--workspace", "--message-format", "plain"]);
+	if let Some(manifest) = manifest_path(args) {
+		cargo.args(["--manifest-path", manifest]);
+	}
+	let out = cargo
 		.current_dir(dir)
 		.stderr(Stdio::inherit())
 		.output()
@@ -93,6 +98,23 @@ fn workspace_root(dir: &Path) -> Result<PathBuf, String> {
 		.parent()
 		.ok_or("cargo located a manifest with no directory")?
 		.to_owned())
+}
+
+/// The manifest `cargo build` args select, when they name one.
+fn manifest_path(args: &[String]) -> Option<&str> {
+	let mut args = args.iter();
+	while let Some(arg) = args.next() {
+		if arg == "--" {
+			break;
+		}
+		if arg == "--manifest-path" {
+			return args.next().map(String::as_str);
+		}
+		if let Some(path) = arg.strip_prefix("--manifest-path=") {
+			return Some(path);
+		}
+	}
+	None
 }
 
 /// Builds every benchmark target with CodSpeed's cfg, as `cargo codspeed build` does.
@@ -109,8 +131,8 @@ fn build(dir: &Path, args: &[String]) -> Result<Vec<Target>, String> {
 		cargo.arg("--benches");
 	}
 	cargo.args(args).current_dir(dir).stdout(Stdio::piped());
-	// RUSTFLAGS would replace the rustflags a cargo config sets, so the cfg goes in its own
-	// config entry unless the caller set them.
+	// The cfg joins the flags the caller's environment sets, or else a config's
+	// `build.rustflags`, whose arrays a `--config` entry extends rather than replaces.
 	if let Ok(flags) = std::env::var("CARGO_ENCODED_RUSTFLAGS") {
 		let flags = if flags.is_empty() {
 			CFG.to_owned()
@@ -121,7 +143,7 @@ fn build(dir: &Path, args: &[String]) -> Result<Vec<Target>, String> {
 	} else if let Ok(flags) = std::env::var("RUSTFLAGS") {
 		cargo.env("RUSTFLAGS", format!("{flags} {CFG}"));
 	} else {
-		cargo.args(["--config", &format!("target.'cfg(all())'.rustflags=[\"{CFG}\"]")]);
+		cargo.args(["--config", &format!("build.rustflags=[\"{CFG}\"]")]);
 	}
 	eprintln!("rust2-bench: building benchmarks in {}", dir.display());
 	let mut child = cargo.spawn().map_err(|e| format!("cannot run cargo: {e}"))?;
@@ -208,6 +230,20 @@ mod tests {
 	fn lists_each_checked_benchmark() {
 		let out = "Harness: codspeed-criterion-compat v6.0.0\nChecked: benches/a.rs::g::f[1]\nSkipping: benches/a.rs::c (CodSpeed doesn't support custom iterations)\nChecked: benches/a.rs::g::h\n";
 		assert_eq!(checked(out), ["benches/a.rs::g::f[1]", "benches/a.rs::g::h"]);
+	}
+
+	#[test]
+	fn finds_the_manifest_the_build_args_select() {
+		let args = |list: &[&str]| list.iter().map(|s| (*s).to_owned()).collect::<Vec<_>>();
+		assert_eq!(
+			manifest_path(&args(&["-p", "a", "--manifest-path", "x/Cargo.toml"])),
+			Some("x/Cargo.toml")
+		);
+		assert_eq!(
+			manifest_path(&args(&["--manifest-path=y/Cargo.toml"])),
+			Some("y/Cargo.toml")
+		);
+		assert_eq!(manifest_path(&args(&["--bench", "v"])), None);
 	}
 
 	#[test]

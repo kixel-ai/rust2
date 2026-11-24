@@ -2,7 +2,8 @@
 //! counts, which brackets each benchmark with Callgrind's client requests as CodSpeed's
 //! instrument hooks do.
 
-#![cfg(target_arch = "x86_64")]
+// Valgrind, and the fingerprint, are x86_64 Linux's here.
+#![cfg(all(target_os = "linux", target_arch = "x86_64"))]
 
 use std::path::Path;
 use std::process::{Command, Output};
