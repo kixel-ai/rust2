@@ -1585,11 +1585,12 @@ impl<'a> Gen<'a> {
 				));
 				String::new()
 			}
-			// A list's length read once: a getter may change it, or grow memory, each time.
+			// Read as the engine keeps it, so no getter changes the bytes or kind Rust reads.
 			Type::List(..) if let Some(block) = ty.block() => {
+				let array = typed_array(block);
 				let size = self.layout(&abi.ty(block)).size;
 				format!(
-					"if (v === undefined) {{\n\tconst d = rt.dv();\n\td.setUint32(p, 0, true);\n\td.setUint32(p + 4, 0, true);\n\td.setUint32(p + 8, 0, true);\n\treturn;\n}}\nconst n = v.length;\nconst src = new Uint8Array(v.buffer, v.byteOffset, n * {size});\nconst ptr = rt.alloc(Math.max(n * {size}, 1), {size});\nrt.mem().set(src, ptr);\nconst d = rt.dv();\nd.setUint32(p, ptr, true);\nd.setUint32(p + 4, n, true);\nd.setUint32(p + 8, 0, true);"
+					"if (v === undefined) {{\n\tconst d = rt.dv();\n\td.setUint32(p, 0, true);\n\td.setUint32(p + 4, 0, true);\n\td.setUint32(p + 8, 0, true);\n\treturn;\n}}\nconst src = rt.typedBytes(v, \"{array}\", {size});\nconst n = src.length / {size};\nconst ptr = rt.alloc(Math.max(n * {size}, 1), {size});\nrt.mem().set(src, ptr);\nconst d = rt.dv();\nd.setUint32(p, ptr, true);\nd.setUint32(p + 4, n, true);\nd.setUint32(p + 8, 0, true);"
 				)
 			}
 			Type::List(_, elem) => {
