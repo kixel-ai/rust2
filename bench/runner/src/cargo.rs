@@ -101,7 +101,8 @@ fn workspace_root(dir: &Path, args: &[String]) -> Result<PathBuf, String> {
 }
 
 /// Where Cargo's configuration sets rustflags, if anywhere: its environment, a `--config`
-/// among `args`, or a config file it reads from `dir` up, or from Cargo's home.
+/// among `args`, or a config file it reads from `dir` up, or from Cargo's home, following
+/// each file's `include`s.
 fn configured_rustflags(dir: &Path, args: &[String]) -> Result<Option<String>, String> {
 	for (key, _) in std::env::vars_os() {
 		let key = key.to_string_lossy();
@@ -109,27 +110,36 @@ fn configured_rustflags(dir: &Path, args: &[String]) -> Result<Option<String>, S
 			return Ok(Some(format!("the environment's {key}")));
 		}
 	}
+	let dir = dir
+		.canonicalize()
+		.map_err(|e| format!("cannot resolve {}: {e}", dir.display()))?;
 	let mut args = args.iter();
 	while let Some(arg) = args.next() {
+		if arg == "--" {
+			break;
+		}
 		let config = if arg == "--config" {
 			args.next().map(String::as_str)
 		} else {
 			arg.strip_prefix("--config=")
 		};
-		if let Some(config) = config {
-			let text = if Path::new(config).is_file() {
-				std::fs::read_to_string(config).map_err(|e| format!("cannot read {config}: {e}"))?
-			} else {
-				config.to_owned()
-			};
-			if text.contains("rustflags") {
-				return Ok(Some(format!("--config {config}")));
-			}
+		let Some(config) = config else {
+			continue;
+		};
+		// Cargo reads a relative path from its own directory, which is `dir`.
+		let path = dir.join(config);
+		let found = if path.is_file() {
+			config_file(&path)?
+		} else {
+			let table: toml::Table = config
+				.parse()
+				.map_err(|e| format!("cannot parse --config {config}: {e}"))?;
+			config_table(&table, &dir, &format!("--config {config}"))?
+		};
+		if found.is_some() {
+			return Ok(found);
 		}
 	}
-	let dir = dir
-		.canonicalize()
-		.map_err(|e| format!("cannot resolve {}: {e}", dir.display()))?;
 	let home = std::env::var_os("CARGO_HOME")
 		.map(PathBuf::from)
 		.or_else(|| std::env::var_os("HOME").map(|home| Path::new(&home).join(".cargo")));
@@ -137,20 +147,58 @@ fn configured_rustflags(dir: &Path, args: &[String]) -> Result<Option<String>, S
 	for cargo in dirs {
 		for name in ["config.toml", "config"] {
 			let path = cargo.join(name);
-			let Ok(text) = std::fs::read_to_string(&path) else {
-				continue;
-			};
-			let config: toml::Table = text
-				.parse()
-				.map_err(|e| format!("cannot parse {}: {e}", path.display()))?;
-			let build = config.get("build").and_then(|build| build.get("rustflags")).is_some();
-			let target = config
-				.get("target")
-				.and_then(toml::Value::as_table)
-				.is_some_and(|targets| targets.values().any(|target| target.get("rustflags").is_some()));
-			if build || target {
-				return Ok(Some(path.display().to_string()));
+			if path.is_file()
+				&& let Some(found) = config_file(&path)?
+			{
+				return Ok(Some(found));
 			}
+		}
+	}
+	Ok(None)
+}
+
+/// Where the config file at `path`, or one it includes, sets rustflags, if anywhere.
+fn config_file(path: &Path) -> Result<Option<String>, String> {
+	let text = std::fs::read_to_string(path).map_err(|e| format!("cannot read {}: {e}", path.display()))?;
+	let table: toml::Table = text
+		.parse()
+		.map_err(|e| format!("cannot parse {}: {e}", path.display()))?;
+	let base = path.parent().expect("a config file has a directory");
+	config_table(&table, base, &path.display().to_string())
+}
+
+/// Where one config table, from `source`, sets rustflags, if anywhere, reading the files it
+/// includes relative to `base`.
+fn config_table(table: &toml::Table, base: &Path, source: &str) -> Result<Option<String>, String> {
+	let build = table.get("build").and_then(|build| build.get("rustflags")).is_some();
+	let target = table
+		.get("target")
+		.and_then(toml::Value::as_table)
+		.is_some_and(|targets| targets.values().any(|target| target.get("rustflags").is_some()));
+	if build || target {
+		return Ok(Some(source.to_owned()));
+	}
+	// `include` is a path, or an array of paths or of tables with a `path`.
+	let includes = match table.get("include") {
+		None => Vec::new(),
+		Some(toml::Value::Array(items)) => items.iter().collect(),
+		Some(item) => vec![item],
+	};
+	for item in includes {
+		let path = match item {
+			toml::Value::String(path) => path,
+			toml::Value::Table(item) => item
+				.get("path")
+				.and_then(toml::Value::as_str)
+				.ok_or_else(|| format!("{source} includes a table without a path"))?,
+			_ => return Err(format!("{source} includes something not a path")),
+		};
+		let path = base.join(path);
+		// An optional include may be absent; Cargo itself fails a required one.
+		if path.is_file()
+			&& let Some(found) = config_file(&path)?
+		{
+			return Ok(Some(found));
 		}
 	}
 	Ok(None)
@@ -327,6 +375,29 @@ mod tests {
 		std::fs::remove_file(&config).unwrap();
 		let found = configured_rustflags(&inner, &args(&["--config", "build.rustflags=['-Cdebuginfo=2']"])).unwrap();
 		assert_eq!(found.as_deref(), Some("--config build.rustflags=['-Cdebuginfo=2']"));
+
+		// An include, in each of its forms, read relative to the including file.
+		let flags = root.join(".cargo/flags.toml");
+		std::fs::write(&flags, "[build]\nrustflags = [\"--cfg=foo\"]\n").unwrap();
+		let flags = flags.canonicalize().unwrap();
+		for text in [
+			"include = \"flags.toml\"\n",
+			"include = [\"absent.toml\", \"flags.toml\"]\n",
+			"include = [{ path = \"flags.toml\", optional = true }]\n",
+		] {
+			std::fs::write(&config, text).unwrap();
+			let found = configured_rustflags(&inner, &[]).unwrap();
+			assert_eq!(found.as_deref(), Some(flags.to_str().unwrap()), "{text}");
+		}
+		std::fs::remove_file(&config).unwrap();
+
+		// A relative --config file is the build directory's, not the runner's.
+		std::fs::write(inner.join("extra.toml"), "include = \"../../.cargo/flags.toml\"\n").unwrap();
+		let found = configured_rustflags(&inner, &args(&["--config", "extra.toml"])).unwrap();
+		let found = Path::new(&found.unwrap()).canonicalize().unwrap();
+		assert_eq!(found, flags);
+		std::fs::remove_file(inner.join("extra.toml")).unwrap();
+		std::fs::remove_file(&flags).unwrap();
 	}
 
 	#[test]

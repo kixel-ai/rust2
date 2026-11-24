@@ -22,9 +22,9 @@ build` does, passing any arguments after `--` to `cargo build`, such as `-p moq-
 varint`. Cargo takes rustflags from one source and ignores the rest, so the cfg
 joins `RUSTFLAGS` or `CARGO_ENCODED_RUSTFLAGS` when the environment sets them, and is
 otherwise the only flags. A Cargo config that sets its own, `build.rustflags` or a
-`target.*.rustflags` in a config file, the environment, or a `--config`, fails the run
-before anything builds: set `RUSTFLAGS` to the flags the build needs instead. Each target lists its benchmarks by running once natively, then each benchmark runs
-alone in its own Valgrind process, through the crates' `CODSPEED_ISOLATED_BENCHMARK`. A
+`target.*.rustflags` in a config file or one it includes, the environment, or a `--config`,
+fails the run before anything builds: set `RUSTFLAGS` to the flags the build needs instead.
+Each target lists its benchmarks by running once natively, then each benchmark runs alone in its own Valgrind process, through the crates' `CODSPEED_ISOLATED_BENCHMARK`. A
 target that runs no benchmark through the crates fails the run: leave it out with `--bench`.
 
 Elsewhere, the programs `--program` names, each a shell command whose program brackets its
