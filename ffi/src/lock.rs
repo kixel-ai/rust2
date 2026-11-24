@@ -1045,7 +1045,6 @@ mod tests {
 		);
 		// Not on wasm32, which React Native does not serve, so it is a constant there until
 		// a native target lacking it is added.
-		let mut base = base;
 		base.targets = vec!["aarch64-linux-android".into(), "wasm32-unknown-unknown".into()];
 		base.constants[0].on = On(0b01);
 		let mut now = base.clone();
