@@ -75,3 +75,5 @@ jobs:
       kotlin-check: ffi/moq/moq.kt
       # The export's package, `moq`, which moq.dart imports.
       dart-check: ffi/moq/moq.dart
+      # moq.ts's script through React Native's package, in apps on Android and iOS.
+      react-native-check: ffi/moq/moq.ts

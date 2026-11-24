@@ -4112,8 +4112,8 @@ def rn_ios(app, native):
     build = ["xcodebuild", "-workspace", "Consumer.xcworkspace", "-scheme", "Consumer", "-configuration", "Release",
              "-quiet", "-derivedDataPath", built]
     # The package's simulator slice is arm64's alone, as the Swift package's is.
-    run(*build, "-sdk", "iphonesimulator", "ARCHS=arm64", "build", cwd=ios)
-    run(*build, "-sdk", "iphoneos", "CODE_SIGNING_ALLOWED=NO", "build", cwd=ios)
+    run(*build, "-destination", "generic/platform=iOS Simulator", "ARCHS=arm64", "build", cwd=ios)
+    run(*build, "-destination", "generic/platform=iOS", "CODE_SIGNING_ALLOWED=NO", "build", cwd=ios)
     devices = json.loads(output("xcrun", "simctl", "list", "devices", "available", "--json"))["devices"]
     phones = [d for runtime, found in sorted(devices.items()) if "iOS" in runtime for d in found if "iPhone" in d["name"]]
     if not phones:
