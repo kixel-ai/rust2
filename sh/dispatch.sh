@@ -33,10 +33,11 @@ declare -A scope=(
     # (the driver, ts's toolchain and codec fixture) reach it in the nightly's
     # `just gate`, whose failure issue reports a break.
     [go]='^go/'
+    [runner]='^bench/runner/'
     [ts]='^(ts|driver)/'
 )
 # Cheapest first, so a lint fails before the builds start.
-modules=(lint quest sh driver ffi go ts)
+modules=(lint quest sh runner driver ffi go ts)
 
 # Paths that only the repository-wide lints read.
 lints='^(bench/|\.agents/|\.claude/|\.codex/|[^/]+\.md$|LICENSE-|\.(editorconfig|gitattributes|gitignore|taplo\.toml)$)'
@@ -101,11 +102,13 @@ check_lint() {
     nixfmt --check flake.nix
 }
 check_quest() { quest check; }
+check_runner() { just runner check; }
 check_driver() { just driver check; }
 check_ffi() { just ffi check; }
 check_go() { just go check; }
 check_ts() { just ts check; }
 test_sh() { python3 -I sh/dispatch.test.py; }
+test_runner() { just runner test; }
 test_driver() { just driver test; }
 # moq's export at the pin, cut down to C, and every binding's rendered API, which the
 # surface files lock on x86_64 Linux, the queue's host, before the slower test build.

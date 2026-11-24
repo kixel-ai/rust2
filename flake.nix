@@ -24,7 +24,7 @@
       inputs.flake-utils.follows = "flake-utils";
     };
     # CodSpeed's instrument-hooks, which the binding benchmark's programs call around each
-    # case its CPU simulation counts.
+    # case rust2-bench counts.
     instrument-hooks = {
       url = "github:CodSpeedHQ/instrument-hooks/8fd5b878499f819561b33219cdafaa6f8c28b4e4";
       flake = false;
@@ -272,6 +272,38 @@
                 # The tests build every language's binding: `just ffi test` runs them.
                 doCheck = false;
               };
+          # The Valgrind rust2-bench counts under. Another can count differently, so a nixpkgs
+          # bump that moves it fails here, and moves only by editing the version, a visible
+          # change; its version also starts new series through each count's fingerprint.
+          valgrind =
+            pkgs.lib.throwIfNot (pkgs.valgrind.version == "3.27.1")
+              "nixpkgs moved Valgrind to ${pkgs.valgrind.version}: bump the version flake.nix pins for rust2-bench"
+              pkgs.valgrind;
+          # The benchmark runner, on the repo's stable toolchain, with its Valgrind.
+          rust2-bench =
+            (pkgs.makeRustPlatform {
+              cargo = toolchain;
+              rustc = toolchain;
+            }).buildRustPackage
+              {
+                pname = "rust2-bench";
+                version = "0.0.0";
+                src = pkgs.lib.fileset.toSource {
+                  root = ./bench/runner;
+                  fileset = pkgs.lib.fileset.unions [
+                    ./bench/runner/Cargo.toml
+                    ./bench/runner/Cargo.lock
+                    ./bench/runner/src
+                  ];
+                };
+                cargoLock.lockFile = ./bench/runner/Cargo.lock;
+                nativeBuildInputs = [ pkgs.makeWrapper ];
+                postInstall = ''
+                  wrapProgram $out/bin/rust2-bench --prefix PATH : ${valgrind}/bin
+                '';
+                # The tests run Valgrind: `just runner test` runs them.
+                doCheck = false;
+              };
           # rust2-ffi's generated async Kotlin needs coroutines on the
           # classpath; nixpkgs has no jar.
           kotlinx-coroutines = pkgs.fetchurl {
@@ -295,6 +327,10 @@
             ffi = rust2-ffi;
             # Built only when a recipe running on it asks: it compiles from source.
             inherit hermes;
+          }
+          # Valgrind's counts are Linux's.
+          // pkgs.lib.optionalAttrs pkgs.stdenv.hostPlatform.isLinux {
+            bench = rust2-bench;
           }
           # ra-jit and its toolchain for the benchmark's ra-jit variants, which build it
           # only when they run: it compiles from source. ra-jit skips Intel macOS.
@@ -373,7 +409,10 @@
             ];
             # ... and its generated Swift, unless nixpkgs marks the compiler broken on this system.
             # The `swift` wrapper doesn't copy its compiler's `broken`, so ask the compiler.
-            nativeBuildInputs = pkgs.lib.optional (!pkgs.swift.swiftc.meta.broken) pkgs.swift;
+            nativeBuildInputs =
+              pkgs.lib.optional (!pkgs.swift.swiftc.meta.broken) pkgs.swift
+              # rust2-bench's tests count under its Valgrind.
+              ++ pkgs.lib.optional pkgs.stdenv.hostPlatform.isLinux valgrind;
             RUST2_TS_TOOLCHAIN = tsToolchain;
             RUST2_TS_SYSROOT = rust2-ts-std;
             # rust2-ffi's strict C++ build needs Clang 23's `-Wlifetime-safety`, which no
@@ -427,10 +466,14 @@
                 pkgs.firefox
                 pkgs.binaryen
               ]
-              ++ pkgs.lib.optional pkgs.stdenv.hostPlatform.isLinux webkit-headless;
+              ++ pkgs.lib.optionals pkgs.stdenv.hostPlatform.isLinux [
+                webkit-headless
+                # `just ffi count` counts the programs' instructions with it.
+                rust2-bench
+              ];
             # `just ffi bench` builds moq's rs/libmoq, whose VAAPI bindings run bindgen.
             LIBCLANG_PATH = "${pkgs.llvmPackages.libclang.lib}/lib";
-            # ... and its programs over instrument-hooks, for CodSpeed.
+            # ... and its programs over CodSpeed's instrument-hooks, which rust2-bench reads.
             CODSPEED_INSTRUMENT_HOOKS = "${instrument-hooks}";
           });
           # Clang beside the default shell's GCC, which the nightly builds the exporter's C++ with.
