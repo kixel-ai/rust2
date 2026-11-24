@@ -3,7 +3,19 @@
 // of rt.ts, and so the generated TypeScript, is the web's: values lower into memory the
 // addon lends, its scratch memory, as they lower into the module's, but at the native C
 // ABI's layouts, whose pointers and `usize` are 64 bits. A pointer the TypeScript reads is
-// Rust's, which only the addon's natives read through.
+// Rust's, which only the addon's natives read through. Each native function of the C ABI
+// holds its handles' indices, throws the status it fails a check with, and converts its
+// integers, so a call of numbers and handles alone is one call of it.
+
+// #region node live
+/**
+ * Whether Rust may run: no call aborted. A call into the addon cannot trap, as a module's
+ * can, since a panic there aborts the process, so `s.d` counts nothing here.
+ */
+function live(): boolean {
+	return aborted === undefined;
+}
+// #endregion node live
 
 // #region node memory
 /** The scratch memory: one reservation, which never moves, so its views never detach. */
@@ -128,10 +140,81 @@ export function alloc(size: number, align: number): number {
 // #endregion node alloc
 
 // #region node handles
-/** Whether a handle Rust lends is freed too, through [FORGET]: its index in the addon's table. */
-const FORGETS = true;
-/** What frees a lent handle's index. */
-const FORGET = "$forget";
+/**
+ * What each object type's handles do: its name, its free's index among the addon's, and its
+ * drop, if Rust checks it.
+ */
+export type Kind = {
+	readonly name: string;
+	readonly free: number;
+	readonly drop?: string;
+};
+
+/** The index of a closed handle, which each native function refuses as closed. */
+const CLOSED = -1;
+
+/** The handles the garbage collector closes, of each that left the nursery undisposed. */
+const collected = new FinalizationRegistry<[number, number]>(([i, free]) => {
+	w.$close(i, free, true);
+});
+
+/**
+ * A handle to a Rust object, by its index in the addon's table, which counts the calls
+ * holding it. An owned one of a value Rust checks is Rust's to account: disposing it drops
+ * the value as Rust's own drop does, failing while a call borrows it, so a call after it
+ * throws. Any other throws if disposed while a call holds it. Either is freed once closed
+ * and no call holds it, by the addon, or once the garbage collector finds it unreachable,
+ * if it was never disposed. A lent one's free forgets its index alone.
+ */
+export class Handle<T extends string = string> {
+	/** The index each call passes, which the addon holds for the call: [CLOSED] once closed. */
+	p: number;
+	/** Its index, which outlives its close until the last call holding it returns. */
+	readonly i: number;
+	readonly k: Kind;
+	readonly owned: boolean;
+	/** Its slot in the nursery, or whether it registered once it left. */
+	n: number;
+
+	constructor(p: number, k: Kind, owned: boolean) {
+		this.p = p;
+		this.i = p;
+		this.k = k;
+		this.owned = owned;
+		this.n = nurse(this);
+	}
+
+	/** Leave the nursery, registering unless closed. */
+	evict(): void {
+		if (this.p === CLOSED) {
+			this.n = UNREGISTERED;
+			return;
+		}
+		collected.register(this, [this.i, this.owned ? this.k.free : 0], this);
+		this.n = REGISTERED;
+	}
+
+	/** Release the hold [putHandle] took for a call. */
+	release(): void {
+		w.$release(this.i);
+	}
+
+	/** Close it as `Handle` says; again, it does nothing. */
+	[Symbol.dispose](): void {
+		if (this.p === CLOSED) return;
+		// Dropped, so a call that still holds it fails Rust's check, and none can hold it
+		// again: it is freed with its last hold.
+		const checked = this.owned && this.k.drop !== undefined;
+		if (checked) w[this.k.drop!](this.p);
+		if (!w.$close(this.p, this.owned ? this.k.free : 0, checked)) {
+			throw new Error(`${this.k.name}: a handle is already borrowed`);
+		}
+		this.p = CLOSED;
+		if (this.n >= 0) nursery[this.n] = undefined;
+		else if (this.n === REGISTERED) collected.unregister(this);
+		this.n = UNREGISTERED;
+	}
+}
 // #endregion node handles
 
 // #region node lends
@@ -224,9 +307,12 @@ export function handleAt(p: number): number {
 	return w.$handle(p);
 }
 
-/** Write at `p` the handle of index `h`. */
-export function putHandle(p: number, h: number): void {
-	w.$put(p, h);
+/** Write at `p` the handle `h`, or null for none, held until the running call returns: a closed one throws. */
+export function putHandle(p: number, h: Handle | undefined): void {
+	if (h === undefined) return addrPut(p, NULL);
+	if (h.p === CLOSED) throw new Error(`${h.k.name} is closed`);
+	w.$put(p, h.p);
+	held.push(h);
 }
 // #endregion node natives
 
@@ -285,11 +371,12 @@ function instantiate(path: string | URL, glue: Glue): void {
 	}
 	const imports = {
 		...rust2(glue.imports as Record<string, (...args: number[]) => unknown>),
-		// The event loop's run of what Rust's other threads queued counts as a call into Rust,
-		// as each it runs reaches JavaScript as one from Rust does.
-		rust2_idle(entering: number) {
-			s.d += entering;
-		},
+		// The event loop's run of what Rust's other threads queued, which the addon calls
+		// around it to learn whether the environment is torn down.
+		rust2_idle(_entering: number) {},
+		// What the addon makes of a 64-bit integer that is no safe one, or throws for.
+		rust2_u64: u64Big,
+		rust2_i64: i64Big,
 	};
 	const memory = exports.$init(imports) as ArrayBuffer;
 	const base = exports.$base() as bigint;

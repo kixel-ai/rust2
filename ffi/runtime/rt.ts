@@ -292,6 +292,7 @@ export const s = { d: 0 };
 /** Why the module aborted, after which every call throws: nothing of Rust's state is sound. */
 let aborted: unknown;
 
+// #region web live
 /**
  * Whether Rust may run: no call aborted, nor trapped, which unwinds past the `s.d--` after
  * it and leaves `s.d` raised wherever JavaScript runs next.
@@ -300,6 +301,7 @@ function live(): boolean {
 	if (s.d !== 0) aborted ??= new Error("a call into the module trapped");
 	return aborted === undefined;
 }
+// #endregion web live
 
 /** The error of a call into a module that aborted. */
 function dead(): Error {
@@ -343,11 +345,7 @@ const frames: number[] = [];
 
 /** Start a call: what [leave] takes back to. */
 export function enter(): number {
-	if (aborted !== undefined) throw dead();
-	if (s.d !== 0) {
-		aborted = new Error("a call into the module trapped");
-		throw dead();
-	}
+	if (!live()) throw dead();
 	frames.push(top, big.length, held.length, lent.length);
 	return frames.length;
 }
@@ -411,36 +409,6 @@ const STATUSES = [
 	"a value that is not Send is used on another thread than the one that made it",
 ];
 
-/** What each object type's handles do: its name, its free, and its drop, if Rust checks it. */
-export type Kind = {
-	readonly name: string;
-	readonly free: string;
-	readonly drop?: string;
-};
-
-// #region web handles
-/**
- * Whether a handle Rust lends is freed too, through [FORGET]: not a handle of the module,
- * which is its address.
- */
-const FORGETS = false;
-/** What frees a lent handle, where [FORGETS]. */
-const FORGET = "";
-// #endregion web handles
-
-/** The handles' frees the garbage collector makes, of each that left the nursery undisposed. */
-const collected = new FinalizationRegistry<[number, string]>(([p, free]) => {
-	if (!live()) return;
-	s.d++;
-	w[free](p);
-	s.d--;
-});
-
-// Its brand, which a class field keyed by a symbol would not declare without a type checker.
-export interface Handle<T extends string = string> {
-	readonly [brand]: T;
-}
-
 /**
  * How many of the latest owned handles and lent bytes returned the nursery holds: one
  * disposed while there is freed without the garbage collector's registry, which costs a
@@ -498,6 +466,35 @@ function watch(): void {
 }
 
 watch();
+
+// Its brand, which a class field keyed by a symbol would not declare without a type checker.
+export interface Handle<T extends string = string> {
+	readonly [brand]: T;
+}
+
+// #region web handles
+/** What each object type's handles do: its name, its free, and its drop, if Rust checks it. */
+export type Kind = {
+	readonly name: string;
+	readonly free: string;
+	readonly drop?: string;
+};
+
+/**
+ * Whether a handle Rust lends is freed too, through [FORGET]: not a handle of the module,
+ * which is its address.
+ */
+const FORGETS = false;
+/** What frees a lent handle, where [FORGETS]. */
+const FORGET = "";
+
+/** The handles' frees the garbage collector makes, of each that left the nursery undisposed. */
+const collected = new FinalizationRegistry<[number, string]>(([p, free]) => {
+	if (!live()) return;
+	s.d++;
+	w[free](p);
+	s.d--;
+});
 
 /**
  * A handle to a Rust object, which counts the calls holding it. An owned one of a value
@@ -595,6 +592,8 @@ export function hold(handle: Handle): number {
 export function holdOr(handle: Handle | undefined): number {
 	return handle === undefined ? 0 : hold(handle);
 }
+
+// #endregion web handles
 
 /** A handle Rust lends for a call, closed after it. */
 export function lentHandle<T extends string>(p: number, k: Kind): Handle<T> {

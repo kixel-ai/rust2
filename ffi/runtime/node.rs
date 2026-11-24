@@ -47,6 +47,10 @@ struct Api {
 	create_uint32: unsafe extern "C" fn(Env, u32, *mut Value) -> Status,
 	create_double: unsafe extern "C" fn(Env, f64, *mut Value) -> Status,
 	create_bigint_int64: unsafe extern "C" fn(Env, i64, *mut Value) -> Status,
+	create_object: unsafe extern "C" fn(Env, *mut Value) -> Status,
+	get_value_double: unsafe extern "C" fn(Env, Value, *mut f64) -> Status,
+	get_value_int32: unsafe extern "C" fn(Env, Value, *mut i32) -> Status,
+	get_boolean: unsafe extern "C" fn(Env, bool, *mut Value) -> Status,
 	create_string_utf8: unsafe extern "C" fn(Env, *const c_char, usize, *mut Value) -> Status,
 	get_undefined: unsafe extern "C" fn(Env, *mut Value) -> Status,
 	create_external_arraybuffer:
@@ -146,6 +150,10 @@ fn resolve() -> Api {
 		create_uint32: find!(c"napi_create_uint32"),
 		create_double: find!(c"napi_create_double"),
 		create_bigint_int64: find!(c"napi_create_bigint_int64"),
+		create_object: find!(c"napi_create_object"),
+		get_value_double: find!(c"napi_get_value_double"),
+		get_value_int32: find!(c"napi_get_value_int32"),
+		get_boolean: find!(c"napi_get_boolean"),
 		create_string_utf8: find!(c"napi_create_string_utf8"),
 		get_undefined: find!(c"napi_get_undefined"),
 		create_external_arraybuffer: find!(c"napi_create_external_arraybuffer"),
@@ -353,10 +361,23 @@ unsafe fn take(size: usize, align: usize) -> usize {
 	at
 }
 
-// Handles, by their index in the table, which the TypeScript holds: 0 is null.
+// Handles, by their index in the table, which the TypeScript holds: 0 is null. Each slot
+// counts the calls holding it, so one JavaScript closes meanwhile is freed by its last.
+
+/// A handle's slot: its address, how many calls hold it, and, once JavaScript closed it while
+/// a call held it, the free its last hold makes.
+struct Slot {
+	p: *const c_void,
+	holds: u32,
+	/// [`OPEN`], or once closed while held, the free [`close`] takes.
+	closing: u32,
+}
+
+/// A slot no one closed.
+const OPEN: u32 = u32::MAX;
 
 struct Table {
-	slots: Vec<*const c_void>,
+	slots: Vec<Slot>,
 	free: Vec<u32>,
 }
 
@@ -364,6 +385,10 @@ static TABLE: Js<Table> = Js(UnsafeCell::new(Table {
 	slots: Vec::new(),
 	free: Vec::new(),
 }));
+
+/// Each object type's free, which [`close`] takes by its index plus one, 0 being a lent
+/// handle's, which forgets its index alone.
+static FREES: OnceLock<&'static [unsafe fn(*const c_void)]> = OnceLock::new();
 
 /// The index of a new slot holding `p`, or 0 for null.
 ///
@@ -376,18 +401,33 @@ pub unsafe fn index(p: *const c_void) -> u32 {
 	}
 	// SAFETY: the caller's contract.
 	let table = unsafe { TABLE.get() };
+	let slot = Slot { p, holds: 0, closing: OPEN };
 	match table.free.pop() {
 		Some(i) => {
-			table.slots[i as usize] = p;
+			table.slots[i as usize] = slot;
 			i
 		}
 		None => {
 			if table.slots.is_empty() {
-				table.slots.push(null());
+				table.slots.push(Slot { p: null(), holds: 0, closing: OPEN });
 			}
-			table.slots.push(p);
+			table.slots.push(slot);
 			(table.slots.len() - 1) as u32
 		}
+	}
+}
+
+/// The slot of index `i`, which is not 0.
+///
+/// # Safety
+/// On JavaScript's thread.
+#[inline]
+unsafe fn slot(i: u32) -> &'static mut Slot {
+	// SAFETY: the caller's contract.
+	let table = unsafe { TABLE.get() };
+	match table.slots.get_mut(i as usize) {
+		Some(slot) if !slot.p.is_null() => slot,
+		_ => rt::fail("node", "a handle's index is not in the table"),
 	}
 }
 
@@ -397,14 +437,62 @@ pub unsafe fn index(p: *const c_void) -> u32 {
 /// On JavaScript's thread.
 #[inline]
 pub unsafe fn address(i: u32) -> *const c_void {
+	match i {
+		0 => null(),
+		// SAFETY: the caller's contract.
+		i => unsafe { slot(i) }.p,
+	}
+}
+
+/// The address of index `i`, held until [`release`]: a closed one's is refused before.
+///
+/// # Safety
+/// On JavaScript's thread.
+#[inline]
+unsafe fn hold(i: u32) -> *const c_void {
 	if i == 0 {
 		return null();
 	}
 	// SAFETY: the caller's contract.
-	let table = unsafe { TABLE.get() };
-	match table.slots.get(i as usize) {
-		Some(&p) => p,
-		None => rt::fail("node", "a handle's index is out of the table"),
+	let slot = unsafe { slot(i) };
+	slot.holds += 1;
+	slot.p
+}
+
+/// Release a hold of index `i`, freeing it if it was its last of a closed handle.
+///
+/// # Safety
+/// On JavaScript's thread, with no exception pending, as the free may call into it.
+#[inline]
+unsafe fn release(i: u32) {
+	if i == 0 {
+		return;
+	}
+	// SAFETY: the caller's contract.
+	let slot = unsafe { slot(i) };
+	slot.holds -= 1;
+	if slot.holds == 0 && slot.closing != OPEN {
+		let free = slot.closing;
+		// SAFETY: as above.
+		unsafe { close(i, free) };
+	}
+}
+
+/// Forget index `i` and free its handle with `free`, 1 plus its index in [`FREES`], or
+/// forget it alone for 0.
+///
+/// # Safety
+/// On JavaScript's thread, with no call holding `i`.
+unsafe fn close(i: u32, free: u32) {
+	// SAFETY: the caller's contract.
+	let p = unsafe { forget(i) };
+	if free != 0 {
+		let frees = FREES.get().copied().unwrap_or_default();
+		let Some(&f) = frees.get(free as usize - 1) else {
+			rt::fail("node", "a handle's free is not the addon's");
+		};
+		// SAFETY: a handle of the type the free is of, which no call holds.
+		unsafe { serve(|| f(p)) };
 	}
 }
 
@@ -414,16 +502,54 @@ pub unsafe fn address(i: u32) -> *const c_void {
 /// On JavaScript's thread.
 #[inline]
 pub unsafe fn forget(i: u32) -> *const c_void {
-	// SAFETY: the caller's contract.
-	let p = unsafe { address(i) };
-	if i != 0 {
-		// SAFETY: as above.
-		let table = unsafe { TABLE.get() };
-		table.slots[i as usize] = null();
-		table.free.push(i);
+	if i == 0 {
+		return null();
 	}
+	// SAFETY: the caller's contract.
+	let p = unsafe { slot(i) }.p;
+	// SAFETY: as above.
+	let table = unsafe { TABLE.get() };
+	table.slots[i as usize].p = null();
+	table.free.push(i);
 	p
 }
+
+/// A handle a call holds, released once it drops.
+pub struct Hold(u32);
+
+impl Hold {
+	/// The handle's address.
+	#[inline]
+	pub fn p(&self) -> *const c_void {
+		// SAFETY: on JavaScript's thread, as each call from it is.
+		unsafe { address(self.0) }
+	}
+}
+
+impl Drop for Hold {
+	#[inline]
+	fn drop(&mut self) {
+		// SAFETY: on JavaScript's thread, which a stub drops its holds on before it throws.
+		unsafe { release(self.0) }
+	}
+}
+
+/// Why the C ABI failed a check, by its status less one, as `rt.ts`'s `STATUSES` says it.
+const STATUSES: [&str; 7] = [
+	"a handle's value was moved out",
+	"a handle is borrowed exclusively",
+	"a handle is already borrowed",
+	"a handle is borrowed on another thread",
+	"a handle a call lent is borrowed exclusively or moved out",
+	"a handle lent from another outlived it: the other was borrowed exclusively, moved out, or freed",
+	"a value that is not Send is used on another thread than the one that made it",
+];
+
+/// What a native function returns once it threw.
+pub const THROWN: Value = null_mut();
+
+/// The largest integer a number holds exactly, 2^53 - 1.
+const MAX_SAFE: f64 = 9_007_199_254_740_991.0;
 
 /// A call from JavaScript: its environment and its `N` arguments.
 pub struct Cx<const N: usize> {
@@ -479,6 +605,131 @@ impl<const N: usize> Cx<N> {
 	pub unsafe fn handle(&self, n: usize) -> *const c_void {
 		// SAFETY: the caller's contract.
 		unsafe { address(self.int(n) as u32) }
+	}
+
+	/// Argument `n`, a handle's index, held until the [`Hold`] drops; a closed one throws,
+	/// naming its type, `what`.
+	///
+	/// # Safety
+	/// As [`Cx::handle`].
+	#[inline]
+	pub unsafe fn hold(&self, n: usize, what: &str) -> Result<Hold, ()> {
+		let mut i = 0;
+		// SAFETY: a value of this call.
+		ok(unsafe { (api().get_value_int32)(self.env, self.argv[n], &mut i) }, "a handle's index");
+		if i < 0 {
+			self.throw(&format!("{what} is closed"));
+			return Err(());
+		}
+		// SAFETY: the caller's contract.
+		unsafe { hold(i as u32) };
+		Ok(Hold(i as u32))
+	}
+
+	/// Argument `n`, an `rt.u64`: a safe integer, or else what `rt.ts`'s `u64Big` makes of
+	/// it, which throws for what no `u64` is.
+	#[inline]
+	pub fn u64(&self, n: usize) -> Result<u64, ()> {
+		match self.safe(n) {
+			Some(v) if v >= 0.0 => Ok(v as u64),
+			_ => self.widened(n, WIDE).map(|v| v as u64),
+		}
+	}
+
+	/// Argument `n`, an `rt.i64`, as [`Cx::u64`] takes a `u64`.
+	#[inline]
+	pub fn i64(&self, n: usize) -> Result<i64, ()> {
+		match self.safe(n) {
+			Some(v) => Ok(v as i64),
+			None => self.widened(n, WIDE + 1),
+		}
+	}
+
+	/// Argument `n`, if a safe integer.
+	#[inline]
+	fn safe(&self, n: usize) -> Option<f64> {
+		let mut v = 0.0;
+		// SAFETY: a value of this call.
+		let status = unsafe { (api().get_value_double)(self.env, self.argv[n], &mut v) };
+		(status == 0 && v.abs() <= MAX_SAFE && v.trunc() == v).then_some(v)
+	}
+
+	/// Argument `n` through the runtime's import `import`, which makes a `bigint` of it or
+	/// throws, leaving its exception pending.
+	#[cold]
+	#[inline(never)]
+	fn widened(&self, n: usize, import: usize) -> Result<i64, ()> {
+		// SAFETY: on JavaScript's thread, with the imports `$init` took.
+		unsafe {
+			let Some(&f) = IMPORTS.get().get(import) else {
+				rt::fail("node", "a call before the binding's load gave its imports");
+			};
+			let mut function = null_mut();
+			ok((api().get_reference_value)(self.env, f, &mut function), "an import");
+			let mut v = null_mut();
+			match (api().call_function)(self.env, self.undefined(), function, 1, &self.argv[n], &mut v) {
+				0 => Ok(Cx { env: self.env, argv: [v] }.big(0)),
+				_ => Err(()),
+			}
+		}
+	}
+
+	/// `v` as an `rt.u64`: a number while a safe integer, and its limbs past that.
+	#[inline]
+	pub fn u64v(&self, v: u64) -> Value {
+		match v as f64 <= MAX_SAFE {
+			true => self.number(v as f64),
+			false => self.limbs(self.uint32((v >> 32) as u32), v as u32),
+		}
+	}
+
+	/// `v` as an `rt.i64`, as [`Cx::u64v`] makes a `u64`'s.
+	#[inline]
+	pub fn i64v(&self, v: i64) -> Value {
+		match (v as f64).abs() <= MAX_SAFE {
+			true => self.number(v as f64),
+			false => self.limbs(self.int32((v >> 32) as i32), v as u32),
+		}
+	}
+
+	/// The limbs `{ hi, lo }` of a 64-bit integer past 2^53, as `rt.ts` makes them.
+	#[cold]
+	fn limbs(&self, hi: Value, lo: u32) -> Value {
+		let mut o = null_mut();
+		// SAFETY: this call's environment, and values of it.
+		unsafe {
+			ok((api().create_object)(self.env, &mut o), "an object");
+			ok((api().set_named_property)(self.env, o, c"hi".as_ptr(), hi), "a limb");
+			ok((api().set_named_property)(self.env, o, c"lo".as_ptr(), self.uint32(lo)), "a limb");
+		}
+		o
+	}
+
+	/// The boolean `b`.
+	#[inline]
+	pub fn boolean(&self, b: bool) -> Value {
+		let mut v = null_mut();
+		// SAFETY: this call's environment.
+		ok(unsafe { (api().get_boolean)(self.env, b, &mut v) }, "a boolean");
+		v
+	}
+
+	/// Throw the error of the C function `what`'s failed check, its status `status`.
+	#[cold]
+	#[inline(never)]
+	pub fn failed(&self, status: i32, what: &str) -> Value {
+		let why = (status as usize).checked_sub(1).and_then(|i| STATUSES.get(i));
+		self.throw(&format!("{what}: {}", why.unwrap_or(&"an unknown status")))
+	}
+
+	/// Throw an `Error` of `message`.
+	#[cold]
+	#[inline(never)]
+	pub fn throw(&self, message: &str) -> Value {
+		let text = std::ffi::CString::new(message).unwrap_or_default();
+		// SAFETY: this call's environment, and a C string.
+		ok(unsafe { (api().throw_error)(self.env, null(), text.as_ptr()) }, "a throw");
+		THROWN
 	}
 
 	/// Argument `n`, a handle's index, as its address, freeing the index: a free's.
@@ -595,7 +846,7 @@ pub unsafe fn from_bits<T: Copy>(bits: u64) -> T {
 static IMPORTS: Js<Vec<Ref>> = Js(UnsafeCell::new(Vec::new()));
 
 /// The runtime's imports, before the glue's `EXTERNS`.
-pub const RUNTIME_IMPORTS: [&CStr; 7] = [
+pub const RUNTIME_IMPORTS: [&CStr; 9] = [
 	c"rust2_wake",
 	c"rust2_waker_drop",
 	c"rust2_free",
@@ -603,7 +854,13 @@ pub const RUNTIME_IMPORTS: [&CStr; 7] = [
 	c"rust2_reader_read",
 	c"rust2_reader_seek",
 	c"rust2_idle",
+	c"rust2_u64",
+	c"rust2_i64",
 ];
+
+/// The index of `rust2_u64`, before `rust2_i64`'s: `rt.ts`'s `u64Big` and `i64Big`, which
+/// make a `bigint` of a 64-bit integer that is no safe one, or throw for what is no integer.
+const WIDE: usize = 7;
 
 /// The index of the glue's first import.
 pub const FIRST: usize = RUNTIME_IMPORTS.len();
@@ -658,6 +915,20 @@ impl Out {
 
 	pub fn bigint(&self, n: i64) -> Value {
 		self.cx().bigint(n)
+	}
+
+	pub fn boolean(&self, b: bool) -> Value {
+		self.cx().boolean(b)
+	}
+
+	/// `v` as an `rt.u64`.
+	pub fn u64v(&self, v: u64) -> Value {
+		self.cx().u64v(v)
+	}
+
+	/// `v` as an `rt.i64`.
+	pub fn i64v(&self, v: i64) -> Value {
+		self.cx().i64v(v)
 	}
 
 	/// The token `data` is.
@@ -792,6 +1063,22 @@ impl Out {
 	/// What JavaScript returned, a `bigint`, as its 64 bits.
 	pub fn big(&self, v: Value) -> i64 {
 		Cx { env: self.env, argv: [v] }.big(0)
+	}
+
+	/// What JavaScript returned, an `rt.u64`, aborting on what is none, as on what it throws.
+	pub fn u64(&self, v: Value) -> u64 {
+		match (Cx { env: self.env, argv: [v] }).u64(0) {
+			Ok(v) => v,
+			Err(()) => rt::fail("node", &format!("a call into JavaScript returned no u64: {}", self.thrown())),
+		}
+	}
+
+	/// What JavaScript returned, an `rt.i64`, as [`Out::u64`] reads a `u64`.
+	pub fn i64(&self, v: Value) -> i64 {
+		match (Cx { env: self.env, argv: [v] }).i64(0) {
+			Ok(v) => v,
+			Err(()) => rt::fail("node", &format!("a call into JavaScript returned no i64: {}", self.thrown())),
+		}
 	}
 
 	/// What JavaScript returned, a handle's index, as its address.
@@ -1455,23 +1742,46 @@ unsafe extern "C" fn native_handle(env: Env, info: Info) -> Value {
 	}
 }
 
-/// `$put(at, i)`: write the handle of index `i` at `at`.
+/// `$put(at, i)`: write the handle of index `i` at `at`, held until `$release(i)`.
 unsafe extern "C" fn native_put(env: Env, info: Info) -> Value {
 	// SAFETY: a call from JavaScript, whose place holds a handle.
 	unsafe {
 		let cx = Cx::<2>::new(env, info);
-		*cx.at(0).cast::<*const c_void>() = cx.handle(1);
+		*cx.at(0).cast::<*const c_void>() = hold(cx.int(1) as u32);
 		cx.undefined()
 	}
 }
 
-/// `$forget(i)`: free index `i`, of a handle Rust lent.
-unsafe extern "C" fn native_forget(env: Env, info: Info) -> Value {
+/// `$release(i)`: release the hold `$put` took of index `i`.
+unsafe extern "C" fn native_release(env: Env, info: Info) -> Value {
 	// SAFETY: a call from JavaScript.
 	unsafe {
 		let cx = Cx::<1>::new(env, info);
-		forget(cx.int(0) as u32);
+		release(cx.int(0) as u32);
 		cx.undefined()
+	}
+}
+
+/// `$close(i, free, force)`: close index `i`, freeing it with `free`, as [`close`] takes it,
+/// once no call holds it. While one does, it closes only where `force`, returning whether it
+/// closed.
+unsafe extern "C" fn native_close(env: Env, info: Info) -> Value {
+	// SAFETY: a call from JavaScript.
+	unsafe {
+		let cx = Cx::<3>::new(env, info);
+		let i = cx.int(0) as u32;
+		let free = cx.int(1) as u32;
+		let mut force = false;
+		ok((api().get_value_bool)(env, cx.argv[2], &mut force), "a boolean");
+		let slot = slot(i);
+		if slot.holds == 0 {
+			close(i, free);
+		} else if force {
+			slot.closing = free;
+		} else {
+			return cx.boolean(false);
+		}
+		cx.boolean(true)
 	}
 }
 
@@ -1540,7 +1850,13 @@ static REGISTERED: AtomicBool = AtomicBool::new(false);
 ///
 /// # Safety
 /// Node-API's module registration, on JavaScript's thread.
-pub unsafe fn register(env: Env, exports: Value, calls: &[(&CStr, Callback)], externs: &'static [&'static CStr]) -> Value {
+pub unsafe fn register(
+	env: Env,
+	exports: Value,
+	calls: &[(&CStr, Callback)],
+	externs: &'static [&'static CStr],
+	frees: &'static [unsafe fn(*const c_void)],
+) -> Value {
 	let api = API.get_or_init(resolve);
 	if REGISTERED.swap(true, Ordering::AcqRel) {
 		// SAFETY: the caller's contract.
@@ -1556,12 +1872,13 @@ pub unsafe fn register(env: Env, exports: Value, calls: &[(&CStr, Callback)], ex
 	JS.set(true);
 	ENV.store(env, Ordering::Relaxed);
 	let _ = EXTERNS.set(externs);
+	let _ = FREES.set(frees);
 	BASE.store(reserve(), Ordering::Relaxed);
 	// The word the relays' count is in.
 	commit(0, CHUNK);
 	// SAFETY: on JavaScript's thread, before any call.
 	unsafe { SCRATCH_STATE.get().low = CHUNK };
-	let natives: [(&CStr, Callback); 13] = [
+	let natives: [(&CStr, Callback); 14] = [
 		(c"$init", native_init),
 		(c"$base", native_base),
 		(c"$fns", native_fns),
@@ -1572,7 +1889,8 @@ pub unsafe fn register(env: Env, exports: Value, calls: &[(&CStr, Callback)], ex
 		(c"$byte", native_byte),
 		(c"$handle", native_handle),
 		(c"$put", native_put),
-		(c"$forget", native_forget),
+		(c"$release", native_release),
+		(c"$close", native_close),
 		(c"$external", native_external),
 		(c"$pends", native_pends),
 	];

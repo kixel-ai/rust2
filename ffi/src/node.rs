@@ -6,7 +6,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::Write;
 
-use crate::abi::Ty;
+use crate::abi::{Ty, is_status};
 use crate::glue::rs;
 use crate::ir::Int;
 use crate::web::{Cross, NodeSig};
@@ -15,7 +15,8 @@ use crate::web::{Cross, NodeSig};
 pub(crate) const GLUE_RUNTIME: &str = include_str!("../runtime/node.rs");
 
 /// The addon's glue, `src/node/mod.rs`, of the TypeScript's `calls` and `externs` and the
-/// Rust `rust` the web's generator wrote for them; `frees` free the handle each takes first.
+/// Rust `rust` the web's generator wrote for them; `frees` free the future each takes first,
+/// and `kinds` are each object type's free, which the addon calls by its index.
 pub(crate) fn glue(
 	prefix: &str,
 	space: &str,
@@ -23,12 +24,17 @@ pub(crate) fn glue(
 	calls: &BTreeMap<String, NodeSig>,
 	externs: &BTreeMap<String, NodeSig>,
 	frees: &BTreeSet<String>,
+	kinds: &[String],
 ) -> String {
 	let mut calls = calls.clone();
 	// What the runtime calls of every API's C ABI.
 	let buf = (Ty::Buf, Cross::Copy);
 	let void = (Ty::Void, Cross::Void);
-	let sig = |params: Vec<(Ty, Cross)>, ret: (Ty, Cross)| NodeSig { params, ret };
+	let sig = |params: Vec<(Ty, Cross)>, ret: (Ty, Cross)| NodeSig {
+		names: vec![String::new(); params.len()],
+		params,
+		ret,
+	};
 	calls.insert(format!("{prefix}_buf_free"), sig(vec![buf.clone()], void));
 	calls.insert(format!("{prefix}_buf_copy"), sig(vec![buf.clone()], buf.clone()));
 	calls.insert(format!("{prefix}_buf_clone"), sig(vec![buf.clone()], buf));
@@ -54,7 +60,7 @@ pub(crate) fn glue(
 		/// Node-API's registration of a module.\n\
 		#[unsafe(no_mangle)]\n\
 		pub unsafe extern \"C\" fn napi_register_module_v1(env: runtime::Env, exports: runtime::Value) -> runtime::Value {{\n\
-		\tunsafe {{ runtime::register(env, exports, CALLS, EXTERNS) }}\n\
+		\tunsafe {{ runtime::register(env, exports, CALLS, EXTERNS, FREES) }}\n\
 		}}\n\n{rust}"
 	);
 	let mut table = Vec::new();
@@ -68,6 +74,18 @@ pub(crate) fn glue(
 		out,
 		"/// Each C function the TypeScript calls, by name.\nstatic CALLS: &[(&CStr, runtime::Callback)] = &[\n{}];\n\n",
 		table.concat()
+	);
+	let mut table = String::new();
+	for (i, free) in kinds.iter().enumerate() {
+		let _ = write!(
+			out,
+			"/// `{free}`.\nunsafe fn f{i}(p: *const c_void) {{\n\tunsafe {{ {free}(p) }}\n}}\n\n"
+		);
+		let _ = writeln!(table, "\tf{i},");
+	}
+	let _ = write!(
+		out,
+		"/// Each object type's free, by the index its kind names less one.\nstatic FREES: &[unsafe fn(*const c_void)] = &[\n{table}];\n\n"
 	);
 	let mut names = String::new();
 	for (i, (name, sig)) in externs.iter().enumerate() {
@@ -96,24 +114,46 @@ fn through(cross: Cross) -> bool {
 }
 
 /// The native function `n<i>` of the C function `name`: its arguments, after the place of
-/// a struct it returns, each converted to C, then its return converted back; a free frees
-/// the index of the handle it takes.
+/// a struct it returns, each converted to C, then its handles held, then its return
+/// converted back once it released them and threw any status it failed with; a free frees
+/// the index of the future it takes.
 fn stub(out: &mut String, i: usize, name: &str, sig: &NodeSig, free: bool) {
 	let shift = usize::from(through(sig.ret.1));
-	let mut lines = vec![format!(
-		"let cx = runtime::Cx::<{}>::new(env, info);",
-		sig.params.len() + shift
-	)];
+	let argc = sig.params.iter().filter(|(ty, _)| !is_status(ty)).count() + shift;
+	let mut lines = vec![format!("let cx = runtime::Cx::<{argc}>::new(env, info);")];
+	// Held once every other argument converted, as a conversion may run JavaScript.
+	let mut holds = Vec::new();
+	let mut held = Vec::new();
 	let mut args = Vec::new();
+	let mut status = false;
+	let mut j = shift;
 	for (k, (ty, cross)) in sig.params.iter().enumerate() {
-		let j = k + shift;
+		if is_status(ty) {
+			lines.push("let mut s: i32 = 0;".to_string());
+			args.push("&mut s".to_string());
+			status = true;
+			continue;
+		}
 		let t = rs(ty);
 		let e = match cross {
 			Cross::Number if *ty == Ty::Bool => format!("cx.int({j}) != 0"),
 			Cross::Number => format!("cx.int({j}) as {t}"),
 			Cross::Big => format!("cx.big({j}) as {t}"),
+			Cross::Wide => {
+				let read = if signed(ty) { "i64" } else { "u64" };
+				format!("match cx.{read}({j}) {{\n\tOk(v) => v as {t},\n\tErr(()) => return runtime::THROWN,\n}}")
+			}
 			Cross::Handle if k == 0 && free => format!("cx.freed({j}) as {t}"),
-			Cross::Handle => format!("cx.handle({j}) as {t}"),
+			Cross::Handle => {
+				holds.push(format!(
+					"let h{k} = match cx.hold({j}, \"{}\") {{\n\tOk(h) => h,\n\tErr(()) => return runtime::THROWN,\n}};",
+					sig.names[k]
+				));
+				held.push(format!("h{k}"));
+				args.push(format!("h{k}.p() as {t}"));
+				j += 1;
+				continue;
+			}
 			Cross::Token => format!("cx.int({j}) as usize as {t}"),
 			Cross::Raw => format!("runtime::from_bits::<{t}>(cx.big({j}) as u64)"),
 			Cross::Offset => format!("cx.at({j}) as {t}"),
@@ -124,33 +164,42 @@ fn stub(out: &mut String, i: usize, name: &str, sig: &NodeSig, free: bool) {
 		};
 		lines.push(format!("let a{k}: {t} = {e};"));
 		args.push(format!("a{k}"));
+		j += 1;
 	}
+	lines.extend(holds);
 	let call = format!("runtime::serve(|| {name}({}))", args.join(", "));
 	let (ty, cross) = &sig.ret;
-	let ret = match cross {
-		Cross::Void => {
-			lines.push(format!("{call};"));
-			"cx.undefined()".to_string()
-		}
-		cross => {
-			lines.push(format!("let r = {call};"));
-			match cross {
-				Cross::Number if signed(ty) => "cx.int32(r as i32)".to_string(),
-				Cross::Number => "cx.uint32(r as u32)".to_string(),
-				Cross::Big => "cx.bigint(r as i64)".to_string(),
-				Cross::Handle => "cx.indexed(r as *const c_void)".to_string(),
-				Cross::Raw | Cross::OneBig => "cx.bigint(runtime::bits(r) as i64)".to_string(),
-				Cross::Copy | Cross::Float => format!("cx.at(0).cast::<{}>().write(r);\n\tcx.undefined()", rs(ty)),
-				Cross::OneNumber => "cx.int32(runtime::bits(r) as i32)".to_string(),
-				Cross::Token | Cross::Offset | Cross::Void => unreachable!("no C function returns a pointer"),
-			}
-		}
+	let bind = match cross {
+		Cross::Void => "",
+		_ => "let r = ",
 	};
+	lines.push(format!("{bind}{call};"));
+	// Released before the throw, as a handle's last release may free it, calling JavaScript.
+	if !held.is_empty() {
+		lines.push(format!("drop(({}));", held.iter().map(|h| format!("{h},")).collect::<String>()));
+	}
+	if status {
+		lines.push(format!("if s != 0 {{\n\treturn cx.failed(s, \"{name}\");\n}}"));
+	}
+	let ret = match cross {
+		Cross::Void => "cx.undefined()".to_string(),
+		Cross::Number if *ty == Ty::Bool => "cx.boolean(r)".to_string(),
+		Cross::Number if signed(ty) => "cx.int32(r as i32)".to_string(),
+		Cross::Number => "cx.uint32(r as u32)".to_string(),
+		Cross::Big => "cx.bigint(r as i64)".to_string(),
+		Cross::Wide if signed(ty) => "cx.i64v(r as i64)".to_string(),
+		Cross::Wide => "cx.u64v(r as u64)".to_string(),
+		Cross::Handle => "cx.indexed(r as *const c_void)".to_string(),
+		Cross::Raw | Cross::OneBig => "cx.bigint(runtime::bits(r) as i64)".to_string(),
+		Cross::Copy | Cross::Float => format!("cx.at(0).cast::<{}>().write(r);\ncx.undefined()", rs(ty)),
+		Cross::OneNumber => "cx.int32(runtime::bits(r) as i32)".to_string(),
+		Cross::Token | Cross::Offset => unreachable!("no C function returns a pointer"),
+	};
+	lines.push(ret);
+	let body = lines.join("\n").replace('\n', "\n\t\t");
 	let _ = write!(
 		out,
-		"/// `{name}`.\nunsafe extern \"C\" fn n{i}(env: runtime::Env, info: runtime::Info) -> runtime::Value {{\n\tunsafe {{\n\t\t{}\n\t\t{}\n\t}}\n}}\n\n",
-		lines.join("\n\t\t"),
-		ret.replace("\n\t", "\n\t\t")
+		"/// `{name}`.\nunsafe extern \"C\" fn n{i}(env: runtime::Env, info: runtime::Info) -> runtime::Value {{\n\tunsafe {{\n\t\t{body}\n\t}}\n}}\n\n"
 	);
 }
 
@@ -171,9 +220,12 @@ fn import(out: &mut String, i: usize, name: &str, sig: &NodeSig) {
 	for (k, (ty, cross)) in sig.params.iter().enumerate() {
 		let p = format!("p{k}");
 		let v = match cross {
-			Cross::Number if signed(ty) || *ty == Ty::Bool => format!("out.int32({p} as i32)"),
+			Cross::Number if *ty == Ty::Bool => format!("out.boolean({p})"),
+			Cross::Number if signed(ty) => format!("out.int32({p} as i32)"),
 			Cross::Number => format!("out.uint32({p} as u32)"),
 			Cross::Big => format!("out.bigint({p} as i64)"),
+			Cross::Wide if signed(ty) => format!("out.i64v({p} as i64)"),
+			Cross::Wide => format!("out.u64v({p} as u64)"),
 			Cross::Handle => format!("out.handle({p} as *const c_void)"),
 			Cross::Token => format!("out.token({p})"),
 			Cross::Raw | Cross::OneBig => format!("out.bigint(runtime::bits({p}) as i64)"),
@@ -211,6 +263,8 @@ fn import(out: &mut String, i: usize, name: &str, sig: &NodeSig) {
 		Cross::Number if *ty == Ty::Bool => "out.int(v) != 0".to_string(),
 		Cross::Number => format!("out.int(v) as {t}"),
 		Cross::Big => format!("out.big(v) as {t}"),
+		Cross::Wide if signed(ty) => format!("out.i64(v) as {t}"),
+		Cross::Wide => format!("out.u64(v) as {t}"),
 		Cross::Handle => format!("out.address(v) as {t}"),
 		Cross::Raw | Cross::OneBig => format!("runtime::from_bits::<{t}>(out.big(v) as u64)"),
 		Cross::OneNumber => format!("runtime::from_bits::<{t}>(out.int(v) as u64)"),
