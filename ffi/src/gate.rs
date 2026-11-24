@@ -230,7 +230,7 @@ pub(crate) fn gate(api: &Api, lang: Lang, on: On) -> Result<Gate, String> {
 		names.join(", ")
 	};
 	Err(format!(
-		"{}'s binding, which declares it only where it compiles for one of {}, cannot tell those targets apart from {} at compile time",
+		"{}'s binding cannot tell {} apart from {} at compile time",
 		lang.name(),
 		named(&inside),
 		named(&outside),
@@ -291,12 +291,12 @@ pub(crate) fn refusals(api: &Api) -> Vec<(&Constant, String)> {
 }
 
 #[cfg(test)]
-mod tests {
+pub(crate) mod tests {
 	use super::*;
 	use crate::ir::Profile;
 
 	/// An API serving each of `targets`, as `(triple, pointer width, arch, os, env, abi)`.
-	fn api(targets: &[(&str, &str, &str, &str, &str, &str)]) -> Api {
+	pub(crate) fn api(targets: &[(&str, &str, &str, &str, &str, &str)]) -> Api {
 		let mut api = Api::of(vec![]);
 		api.targets.clear();
 		for &(triple, width, arch, os, env, abi) in targets {
@@ -324,12 +324,12 @@ mod tests {
 		api
 	}
 
-	const LINUX: (&str, &str, &str, &str, &str, &str) =
+	pub(crate) const LINUX: (&str, &str, &str, &str, &str, &str) =
 		("x86_64-unknown-linux-gnu", "64", "x86_64", "linux", "gnu", "");
 	const MUSL: (&str, &str, &str, &str, &str, &str) =
 		("x86_64-unknown-linux-musl", "64", "x86_64", "linux", "musl", "");
 	const WASM: (&str, &str, &str, &str, &str, &str) = ("wasm32-wasip1", "32", "wasm32", "wasi", "p1", "");
-	const X64_ANDROID: (&str, &str, &str, &str, &str, &str) =
+	pub(crate) const X64_ANDROID: (&str, &str, &str, &str, &str, &str) =
 		("x86_64-linux-android", "64", "x86_64", "android", "", "");
 	const X86_ANDROID: (&str, &str, &str, &str, &str, &str) = ("i686-linux-android", "32", "x86", "android", "", "");
 	const ANDROID: (&str, &str, &str, &str, &str, &str) = ("aarch64-linux-android", "64", "aarch64", "android", "", "");
@@ -409,9 +409,7 @@ mod tests {
 		let targets = [LINUX, MUSL];
 		let why = gated(Lang::C, &targets, 0b01).unwrap_err();
 		assert!(
-			why.contains(
-				"one of x86_64-unknown-linux-gnu, cannot tell those targets apart from x86_64-unknown-linux-musl"
-			),
+			why.contains("cannot tell x86_64-unknown-linux-gnu apart from x86_64-unknown-linux-musl"),
 			"{why}"
 		);
 		let mut api = api(&[LINUX, WASM]);

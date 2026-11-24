@@ -3991,6 +3991,59 @@ fn package_names_are_locked() {
 	assert!(breaks[0].what.contains("its Go name `foobar` is now `foobar_`"));
 }
 
+/// A constant only some of the targets Go links have is in a file only those compile, and
+/// one only a target Go links none of has is in none.
+#[test]
+fn gates_constants_by_build_constraint() {
+	use crate::gate::tests::{LINUX, X64_ANDROID, api};
+	let mut api = api(&[LINUX, X64_ANDROID, ("wasm32-wasip1", "32", "wasm32", "wasi", "p1", "")]);
+	api.crates = vec!["gated".into()];
+	api.links = (api.targets.iter()).map(|t| (t.clone(), vec![])).collect();
+	let constant = |name: &str, on: u64| crate::ir::Constant {
+		path: vec!["gated".into(), name.into()],
+		home: Home {
+			krate: "gated".into(),
+			outside: 1,
+		},
+		span: rustc_span::DUMMY_SP,
+		on: crate::ir::On(on),
+		docs: String::new(),
+		deprecated: None,
+		value: Literal::Bool(true),
+	};
+	api.constants = vec![
+		constant("BOTH", 0b011),
+		constant("LINUX", 0b001),
+		constant("ANDROID", 0b010),
+		constant("ALSO_ANDROID", 0b110),
+		constant("WASM", 0b100),
+	];
+	let output = generate(&Abi::new(&api, "gated"), "gated", 0, "gated").unwrap();
+	let file = |path: &str| &output.files.iter().find(|(p, _)| p == path).expect(path).1;
+	let main = file("gated/gated.go");
+	assert!(
+		main.contains("const BOTH bool = true") && !main.contains("const LINUX"),
+		"{main}"
+	);
+	assert!(!main.contains("WASM"), "{main}");
+	let linux = file("gated/ffi_gated0.go");
+	assert!(
+		linux.contains("//go:build (linux && !android)\n\npackage gated\n"),
+		"{linux}"
+	);
+	assert!(
+		linux.contains("const LINUX bool = true") && !linux.contains("ANDROID"),
+		"{linux}"
+	);
+	let android = file("gated/ffi_gated1.go");
+	assert!(android.contains("//go:build android\n"), "{android}");
+	assert!(
+		android.contains("const ANDROID bool = true") && android.contains("const ALSO_ANDROID bool = true"),
+		"{android}"
+	);
+	assert!(!output.files.iter().any(|(p, _)| p == "gated/ffi_gated2.go"));
+}
+
 #[test]
 fn links_each_target_go_builds_for() {
 	let targets = [
