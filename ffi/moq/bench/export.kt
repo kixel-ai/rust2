@@ -1,7 +1,7 @@
 // bench/export.c's cases through the generated Kotlin, so the two differ by what JNI and
 // the Kotlin wrapper add. Each round runs twice, the first to warm the JIT. Each case prints
 // its wall time and the process's CPU time, the JIT's and GC's threads included, or under
-// CodSpeed, runs once for its CPU simulation to count. It runs on HotSpot and, shrunk by R8,
+// Valgrind, runs once for rust2-bench to count. It runs on HotSpot and, shrunk by R8,
 // on ART.
 
 import java.lang.management.ManagementFactory
@@ -13,7 +13,7 @@ import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.runBlocking
 import moq.*
 
-// A tenth under CodSpeed, whose simulation counts every call exactly.
+// A tenth under Valgrind, which counts every call exactly.
 var GROUPS = 10000
 const val FRAMES = 100
 val N get() = GROUPS * FRAMES
@@ -49,7 +49,7 @@ fun per(start: Span, n: Double = N.toDouble()): Span {
 	return Span((end.wall - start.wall) / n, (end.cpu - start.cpu) / n)
 }
 
-// Whether CodSpeed runs this, as `just ffi codspeed` says: only then is its library loaded,
+// Whether Valgrind counts this, as `just ffi count` says: only then is its library loaded,
 // which ART's run has none of.
 val codspeed = System.getenv("RUST2_CODSPEED") != null
 
@@ -66,7 +66,7 @@ object Codspeed {
 	external fun stop(name: String)
 }
 
-// A case's start: now, and CodSpeed counting from here.
+// A case's start: now, and Valgrind counting from here.
 fun begin(): Span {
 	val start = now()
 	if (codspeed) Codspeed.start()
@@ -171,7 +171,7 @@ fun round(measured: Boolean): Map<String, Span> {
 			out["getter"] = end(start, "getter")
 
 			// The handle call and the getter from THREADS threads: on one shared handle, then
-			// on a clone each, a handle of its own to the same value. CodSpeed's simulation runs
+			// on a clone each, a handle of its own to the same value. Valgrind runs
 			// one thread at a time, which contends for nothing, so it skips them.
 			if (!measured) {
 				val isClosed = { t: TrackProducer -> if (t.isClosed()) 1 else 0 }
@@ -206,7 +206,7 @@ fun round(measured: Boolean): Map<String, Span> {
 
 	// The same from THREADS threads at once, so objects made and freed together contend
 	// for whatever the binding shares between them. Kotlin's alone: the others share none.
-	// CodSpeed skips it as it does the other threaded cases.
+	// A count skips it as it does the other threaded cases.
 	if (!measured) {
 		val began = now()
 		val failures = java.util.concurrent.ConcurrentLinkedQueue<Throwable>()
@@ -332,7 +332,7 @@ fun round(measured: Boolean): Map<String, Span> {
 }
 
 fun main() {
-	// Under CodSpeed, one round, which prints nothing: its simulation counts each case.
+	// Under Valgrind, one round, which prints nothing: rust2-bench counts each case.
 	if (codspeed && Codspeed.init("ffi/moq/bench/export.kt::kotlin")) {
 		GROUPS /= 10
 		round(true)

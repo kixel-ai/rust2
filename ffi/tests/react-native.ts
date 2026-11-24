@@ -324,7 +324,69 @@ async function collected(): Promise<void> {
 	(() => Epilogue.new$(log, 1))();
 	await check.collect(() => lines.length > 0, "the collector drops an epilogue nobody disposed");
 	if (lines.join(", ") !== "closed") throw new Error(`a collected epilogue logged ${lines.join(", ")}`);
+	// A waker whose drop waits on a thread that calls into JavaScript, which a drop made in
+	// the collection, holding the runtime, would deadlock: Hermes finalizes on a thread of
+	// its own, outside any collection, and the drop is posted from there.
+	const woke: string[] = [];
+	(() => void api.logWaker({ log: (_level: number, line: string) => (woke.push(line), true) }))();
+	await check.collect(() => woke.length > 0, "the collector drops a waker nobody disposed");
+	if (woke.join(", ") !== "line 0") throw new Error(`a collected waker logged ${woke.join(", ")}`);
 	(globalThis as { kept?: unknown }).kept = Epilogue.new$(log, 2);
+}
+
+/**
+ * A handle that JavaScript its own Rust drop calls disposes again is closed already: the
+ * second dispose does nothing, rather than free the handle under the drop, which the host's
+ * poisoned frees would crash.
+ */
+function redisposed(): void {
+	const lines: string[] = [];
+	let epilogue: ReturnType<typeof Epilogue.new$> | undefined;
+	epilogue = Epilogue.new$(
+		{
+			log(_level: number, line: string): boolean {
+				lines.push(line);
+				epilogue![Symbol.dispose]();
+				return true;
+			},
+		},
+		1,
+	);
+	const before = api.dropped();
+	epilogue[Symbol.dispose]();
+	if (lines.join(", ") !== "closed") throw new Error(`a drop disposing its own handle logged ${lines.join(", ")}`);
+	if (api.dropped() !== before + 1) throw new Error(`a drop disposing its own handle dropped ${api.dropped() - before} tokens`);
+}
+
+/**
+ * A kit forged before the binding loads never holds Rust's memory: returned bytes past 4 KiB
+ * reach its `bytes` as no buffer, only an object whose state the module reads, which
+ * refuses a read once freed.
+ */
+function kept(): void {
+	const natives: Record<string, (...args: unknown[]) => unknown> = {};
+	const given: unknown[][] = [];
+	const made = {};
+	installer().install({
+		...kit(),
+		bytes: (...args: unknown[]) => (given.push(args), made),
+		natives,
+	});
+	const before = natives.dropped() as number;
+	if (natives.token_bytes(7, 4097) !== made) throw new Error("returned bytes were not the kit's");
+	if (given.length !== 1 || given[0][0] !== undefined || given[0][1] !== true || given[0][2] !== 4097) {
+		throw new Error(`the kit's bytes got ${given.map((args) => args.map(String).join(" ")).join(", ")}`);
+	}
+	if (natives.$bytesAt(made, 4096) !== 7) throw new Error("the module read no lent byte");
+	natives.$bytesFree(made);
+	if (natives.dropped() !== before + 1) throw new Error("freeing lent bytes dropped nothing");
+	try {
+		natives.$bytesAt(made, 0);
+	} catch (e) {
+		if (e instanceof Error && e.message === "Bytes is closed") return;
+		throw e;
+	}
+	throw new Error("freed bytes were read");
 }
 
 /** What installs the module: the host's global off a device, else the TurboModule. */
@@ -350,21 +412,12 @@ function reinstalled(): void {
  */
 function forged(): void {
 	const natives: Record<string, (...args: unknown[]) => unknown> = {};
-	const no = () => 0;
 	installer().install({
-		...Object.fromEntries(["pending", "bytes", "int", "char", "u128Words", "f32Bits", "bytesCopy", "opaqueMade", "opaqueBytes", "isCancelled", "cancelCall", "cancelled", "ready"].map((k) => [k, no])),
+		...kit(),
 		typedTag: () => "Int32Array",
 		u64Halves: () => 0,
 		i64Halves: () => [2 ** 40, 0],
 		f64Bits: () => [1, 2, 3],
-		Uint8Array,
-		typedArrays: {},
-		RangeError,
-		TypeError,
-		Error,
-		None: undefined,
-		Handle: {},
-		Waker: {},
 		natives,
 	});
 	const cases: [string, () => unknown][] = [
@@ -384,6 +437,24 @@ function forged(): void {
 	}
 }
 
+/** A kit of helpers that each return 0, which a forged install overrides. */
+function kit(): Record<string, unknown> {
+	const no = () => 0;
+	return {
+		...Object.fromEntries(
+			["pending", "bytes", "int", "char", "u64Halves", "i64Halves", "u128Words", "f32Bits", "f64Bits", "typedTag", "bytesCopy", "opaqueMade", "opaqueBytes", "isCancelled", "cancelCall", "cancelled", "ready"].map((k) => [k, no]),
+		),
+		Uint8Array,
+		typedArrays: {},
+		RangeError,
+		TypeError,
+		Error,
+		None: undefined,
+		Handle: {},
+		Waker: {},
+	};
+}
+
 /** A 64-bit target's `usize` constant crosses whole, as its parameters do. */
 function word(): void {
 	if (rt.u64ToBig(api.WORD) !== 0xffffffffffffffffn) throw new Error(`usize::MAX is ${String(api.WORD)}`);
@@ -400,6 +471,7 @@ const cases: Record<string, () => void | Promise<void>> = {
 	replaced,
 	cancelled,
 	woken,
+	redisposed,
 	collected,
 	reinstalled,
 	futures: check.futures,
@@ -414,6 +486,7 @@ async function main(): Promise<void> {
 	const which = process.argv[2];
 	// Before the binding loads, which it then refuses to.
 	if (which === "forged") return forged();
+	if (which === "kept") return kept();
 	await api.load();
 	if (which === undefined) return check.script();
 	return (cases[which] ?? (() => check.broken(which)))();

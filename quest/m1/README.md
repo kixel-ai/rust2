@@ -3,8 +3,7 @@
 ## Goal
 
 The work moq is waiting on: the exporter that replaces the UniFFI generator forks moq
-builds its bindings with today, and the [benchmark runner](/quest/m1/bench-runner.md) that
-replaces CodSpeed in moq, rind, and here.
+builds its bindings with today.
 
 ## Plan
 

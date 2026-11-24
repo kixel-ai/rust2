@@ -3,7 +3,7 @@
 ## Goal
 
 A benchmark is a plain function marked `#[bench]`, its arguments and sizes declared in the attribute and its setup passed in as parameters, registered at link time, with no closures.
-The harness counts each one's instructions under Valgrind, absorbing [the runner](/quest/m1/bench-runner.md)'s parallel runs, filter, `kixel-metrics` output, and local compare, so a benchmark written for it needs neither Criterion nor CodSpeed's crates.
+The harness counts each one's instructions under Valgrind, absorbing [the runner](/bench/runner/README.md)'s parallel runs, filter, `kixel-metrics` output, and local compare, so a benchmark written for it needs neither Criterion nor CodSpeed's crates.
 This repository's own Rust benchmarks, starting with `ffi/moq/bench/export.rs`, move to it.
 
 ## Plan

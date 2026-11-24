@@ -1,6 +1,6 @@
 // bench/export.c's cases through the generated Go, so the two differ by what cgo and the
 // Go wrapper add. Each round runs twice, the first to warm up. Each case prints its wall
-// time and the process's CPU time, the GC's threads included, or under CodSpeed, runs once
+// time and the process's CPU time, the GC's threads included, or under Valgrind, runs once
 // for its CPU simulation to count.
 package main
 
@@ -27,7 +27,7 @@ const (
 	threads = 4
 )
 
-// groups is a tenth under CodSpeed, whose simulation counts every call exactly, and n the
+// groups is a tenth under Valgrind, which counts every call exactly, and n the
 // calls a case makes.
 var (
 	groups = 10000
@@ -59,7 +59,7 @@ func per(start span, calls float64) span {
 	return span{(end.wall - start.wall) / calls, (end.cpu - start.cpu) / calls}
 }
 
-// begin is a case's start: now, and CodSpeed counting from here.
+// begin is a case's start: now, and Valgrind counting from here.
 func begin() span {
 	start := now()
 	C.codspeed_start()
@@ -216,7 +216,7 @@ func round(measured bool) []result {
 	out = append(out, result{"getter", end(start, "getter", n)})
 
 	// The handle call and the getter from threads goroutines: on one shared handle, then on
-	// a clone each, a handle of its own to the same value. CodSpeed's simulation runs one
+	// a clone each, a handle of its own to the same value. Valgrind runs one
 	// thread at a time, which contends for nothing, so it skips them.
 	if !measured {
 		isClosed := func(t *net.TrackProducer) func() int {
@@ -403,7 +403,7 @@ func main() {
 	bench := C.CString("ffi/moq/bench/export.go::go")
 	measured := bool(C.codspeed_init(bench))
 	C.free(unsafe.Pointer(bench))
-	// Under CodSpeed, one round, which prints nothing: its simulation counts each case.
+	// Under Valgrind, one round, which prints nothing: rust2-bench counts each case.
 	if measured {
 		groups /= 10
 		n = groups * frames

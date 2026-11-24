@@ -8,10 +8,6 @@ What stays here once every child has merged: the harness's docs, its line in rus
 
 ## Plan
 
-Decided 2026-11-23 (maintainer, `/quest-plan` in kixel-ai/kixel.quest, [kixel-ai/kixel.quest#113](https://github.com/kixel-ai/kixel.quest/pull/113)): ✅ plan a Criterion replacement here, beside [the runner](/quest/m1/bench-runner.md) (rejected: Gungraun for counts, which leaves every benchmark written twice, once for counts and once for Criterion's wall-clock; keeping Criterion). The maintainer has "never been a huge fan" of Criterion, and Divan, the nicer API, has had no release since April 2025.
+Decided 2026-11-23 (maintainer, `/quest-plan` in kixel-ai/kixel.quest, [kixel-ai/kixel.quest#113](https://github.com/kixel-ai/kixel.quest/pull/113)): ✅ plan a Criterion replacement here, beside [the runner](/bench/runner/README.md) (rejected: Gungraun for counts, which leaves every benchmark written twice, once for counts and once for Criterion's wall-clock; keeping Criterion). The maintainer has "never been a huge fan" of Criterion, and Divan, the nicer API, has had no release since April 2025.
 
 m2: moq and rind are the named consumers, and neither waits on it, since the runner already serves their benchmarks as they are written.
-
-## Required
-
-- [The runner](/quest/m1/bench-runner.md) - the Valgrind runner whose count mode the harness absorbs

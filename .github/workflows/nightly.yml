@@ -39,6 +39,36 @@ jobs:
       - name: Gate
         run: nix develop --command just gate
 
+  # Each module's checks and tests under strace, every path of the checkout it reads
+  # checked against what sh/dispatch.sh selects for a diff of that path, so the map a
+  # merge group runs by never skips a module a change reaches. On x86_64, the queue's
+  # architecture, whose surface files ffi checks, and cold, without mbx: a cached
+  # build reads no source it would compile.
+  coverage:
+    name: Dispatch coverage (${{ matrix.modules }})
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        modules: [ffi, ts, lint quest sh release driver]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: ./.github/actions/nix
+
+      - name: Coverage
+        env:
+          MODULES: ${{ matrix.modules }}
+        # The flake's own nixpkgs, so strace is pinned with everything else.
+        run: |
+          read -ra modules <<<"$MODULES"
+          nix develop --command nix shell --inputs-from . nixpkgs#strace --command python3 -I sh/coverage.py "${modules[@]}"
+
   ts:
     name: Packages
     runs-on: ubuntu-24.04-arm
@@ -628,7 +658,7 @@ jobs:
   # schedule, which runs main, gets the write token: a dispatch can run any branch.
   report:
     name: Report
-    needs: [bindings, gate, ts, bench, ffi-api, ffi, ffi-shapes, ffi-corpus, ffi-web, ffi-sanitize, ffi-cpp, ffi-android, ffi-react-native-host, ffi-react-native-android, ffi-react-native-ios, ffi-bench, census]
+    needs: [bindings, gate, coverage, ts, bench, ffi-api, ffi, ffi-shapes, ffi-corpus, ffi-web, ffi-sanitize, ffi-cpp, ffi-android, ffi-react-native-host, ffi-react-native-android, ffi-react-native-ios, ffi-bench, census]
     if: ${{ !cancelled() && github.event_name == 'schedule' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 5

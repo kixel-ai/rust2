@@ -1,6 +1,6 @@
 /* The binding benchmark's hooks into CodSpeed's CPU simulation, through its instrument-hooks
  * library: each program calls them through its own FFI around each case it times, so
- * CodSpeed counts that case alone. Outside CodSpeed they do nothing. */
+ * Valgrind counts that case alone. Outside Valgrind they do nothing. */
 
 #ifndef CODSPEED_H
 #define CODSPEED_H
@@ -11,7 +11,7 @@
 extern "C" {
 #endif
 
-/* Whether CodSpeed measures this process, naming its cases `<bench>::<case>`, such as
+/* Whether Valgrind measures this process, naming its cases `<bench>::<case>`, such as
  * `ffi/moq/bench/export.kt::kotlin`: the file, then the language. Call it once, first. */
 bool codspeed_init(const char *bench);
 
