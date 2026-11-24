@@ -221,8 +221,9 @@ pub(crate) fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<O
 	};
 	let on_fn = match checks {
 		true => format!(
-			"/// The index of the library's target among those this file serves.\n\
-			final int _target = {target_fn}();\n\n\
+			"/// The index of the library's target among those this file serves, read once [_n] has checked\n\
+			/// the library's contract.\n\
+			final int _target = () {{\n\t_n.check();\n\treturn {target_fn}();\n}}();\n\n\
 			/// Throws unless the library's target is among those of [on], as the item [what] is.\n\
 			void _on(int on, String what) {{\n\tif ((on >>> _target) & 1 == 0) {{\n\t\tthrow UnsupportedError(\"$what: it is not on this library's target\");\n\t}}\n}}\n\n"
 		),
