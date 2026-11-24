@@ -383,3 +383,22 @@ pub(crate) fn stamp(output: &Path) -> PathBuf {
 	name.push(".stamp");
 	name.into()
 }
+
+/// Runs `jobs`, each its own build, on as many threads as the host has CPUs, and returns
+/// once all have: a job that panics fails the caller after the others finish.
+pub(crate) fn parallel<'a>(jobs: Vec<Box<dyn FnOnce() + Send + 'a>>) {
+	let width = std::thread::available_parallelism().map_or(1, |n| n.get()).min(jobs.len());
+	let queue = Mutex::new(jobs.into_iter());
+	std::thread::scope(|scope| {
+		for _ in 0..width {
+			scope.spawn(|| {
+				loop {
+					// Its own statement, so the lock is released before the job runs.
+					let job = queue.lock().unwrap().next();
+					let Some(job) = job else { break };
+					job();
+				}
+			});
+		}
+	});
+}

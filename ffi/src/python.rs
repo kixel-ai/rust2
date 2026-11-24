@@ -803,9 +803,7 @@ impl<'a> Gen<'a> {
 				|| abi.tuples.contains_key(name)
 				|| abi.ranges.contains_key(name)
 				|| abi.arrays.contains_key(name)
-				|| (0..abi.api.records.len()).any(|i| abi.record(i) == name)
-				|| (0..abi.api.enums.len()).any(|i| abi.enumeration(i) == name)
-				|| (0..abi.api.objects.len()).any(|i| abi.object(i) == name)
+				|| !abi.types_named(name).is_empty()
 				|| self.converters.values().any(|n| n == name)
 		};
 		let made: Vec<Type> = made.iter().map(strip_refs).collect();

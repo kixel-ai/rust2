@@ -880,14 +880,14 @@ impl<'a> Gen<'a> {
 		if let Some(elements) = abi.tuples.get(name) {
 			return Shape::Fields(elements.iter().map(|e| abi.ty(e)).collect());
 		}
-		if let Some(i) = (0..abi.api.records.len()).find(|&i| abi.record(i) == name) {
+		if let Some(i) = abi.record_named(name) {
 			let record = &abi.api.records[i];
 			if let Some(opaque) = &record.opaque {
 				return Shape::Units(opaque.unit() as u32, opaque.units() as u32);
 			}
 			return Shape::Fields(record.fields.iter().map(|f| abi.ty(&f.ty)).collect());
 		}
-		if let Some(i) = (0..abi.api.enums.len()).find(|&i| abi.enumeration(i) == name) {
+		if let Some(i) = abi.enum_named(name) {
 			let payloads = (abi.api.enums[i].variants.iter())
 				.filter(|v| !v.fields.is_empty())
 				.map(|v| v.fields.iter().map(|f| abi.ty(&f.ty)).collect())

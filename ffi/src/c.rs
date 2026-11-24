@@ -459,7 +459,7 @@ impl Header<'_> {
 			self.line(format!("typedef struct {name} {{\n{}\n}} {name};\n", decls.join("\n")));
 			return;
 		}
-		if let Some(i) = (0..abi.api.records.len()).find(|&i| &abi.record(i) == name) {
+		if let Some(i) = abi.record_named(name) {
 			let record = &abi.api.records[i];
 			if let Some(opaque) = &record.opaque {
 				self.line(format!(
@@ -493,7 +493,7 @@ impl Header<'_> {
 			));
 			return;
 		}
-		let Some(i) = (0..abi.api.enums.len()).find(|&i| &abi.enumeration(i) == name) else {
+		let Some(i) = abi.enum_named(name) else {
 			return;
 		};
 		let e = &abi.api.enums[i];

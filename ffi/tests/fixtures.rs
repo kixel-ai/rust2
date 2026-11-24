@@ -729,59 +729,15 @@ fn api_cpp() {
 		generated: Some(cpp_transcript()),
 		..api.link()
 	};
+	// Each build below is its own, so they run beside each other.
+	let mut jobs: Vec<Box<dyn FnOnce() + Send + '_>> = Vec::new();
 	for (standard, plain) in [(17, true), (20, false), (23, true)] {
-		let exe = scratch().join("api").join(format!("api-c++{standard}{EXE_SUFFIX}"));
-		cxx(
-			&link,
-			standard,
-			plain,
-			&manifest_dir().join("tests").join("api.cpp"),
-			&exe,
-		);
-		let cpp = run(&mut Command::new(&exe));
-		assert_eq!(
-			String::from_utf8_lossy(&cpp.stdout),
-			api.transcript,
-			"the C++{standard} transcript differs from the native one"
-		);
-		run(Command::new(&exe).arg("futures"));
-		run(Command::new(&exe).arg("lifetimes"));
-		run(Command::new(&exe).arg("checks"));
-		let rehomed = run(Command::new(&exe).arg("rehomed"));
-		assert_eq!(String::from_utf8_lossy(&rehomed.stdout), "scaled by 7\n");
-		for (case, message) in [
-			("moved", "api_Counter_get: a handle's value was moved out"),
-			("moved from", "api_Counter_get: a handle is null"),
-			("shared moved from", "api_Gauge_into_level: a handle is null"),
-			(
-				"shared moved out",
-				"api_Gauge_into_level: a handle's value was moved out",
-			),
-			("lent copied", "a lent object was copied past its call"),
-			("value", "value() of a result that holds an error"),
-			(
-				"finished",
-				"api_Channel_recv_poll: a future is polled after it finished",
-			),
-			(
-				"lent moved",
-				"api_Counter_into_label: a handle a call lent is borrowed exclusively or moved out",
-			),
-			("lent kept", "a lent object was moved out of"),
-			("overread", "api_tail: a reader read more than it was asked"),
-			("null view", "a view of null bytes has a length"),
-			("outlived", OUTLIVED),
-			("lent ledger", "api_Ledger_published: a handle is borrowed exclusively"),
-		] {
-			let output = Command::new(&exe).arg(case).output().unwrap();
-			failed(&output, &format!("C++{standard} {case}"));
-			let stderr = String::from_utf8_lossy(&output.stderr);
-			assert!(stderr.contains(message), "C++{standard} {case} printed {stderr}");
-		}
+		let link = &link;
+		jobs.push(Box::new(move || cpp_standard(api, link, standard, plain)));
 	}
 
 	if !cfg!(target_env = "msvc") {
-		cpp_strict(&link);
+		jobs.extend(cpp_strict(&link));
 	}
 
 	// Each crate's header builds alone, needing only the headers it includes.
@@ -792,14 +748,74 @@ fn api_cpp() {
 	headers.sort();
 	assert!(headers.len() > 2, "the api fixture has a header per crate: {headers:?}");
 	for header in headers {
-		let src = scratch().join("api").join(format!("alone-{header}.cpp"));
-		step::write(&src, format!("#include \"api/{header}\"\nint main() {{}}\n"));
-		let exe = scratch().join("api").join(format!("alone-{header}{EXE_SUFFIX}"));
-		cxx(&api.link(), 17, true, &src, &exe);
+		jobs.push(Box::new(move || {
+			let src = scratch().join("api").join(format!("alone-{header}.cpp"));
+			step::write(&src, format!("#include \"api/{header}\"\nint main() {{}}\n"));
+			let exe = scratch().join("api").join(format!("alone-{header}{EXE_SUFFIX}"));
+			cxx(&api.link(), 17, true, &src, &exe);
+		}));
 	}
 
-	// A C++ program whose header names another contract than its library's aborts at load,
-	// non-dumpable from a constructor that runs before the header's check, as `broken` is.
+	jobs.push(Box::new(|| cpp_contract(api)));
+	step::parallel(jobs);
+}
+
+/// `tests/api.cpp` at C++`standard`, with exceptions and RTTI off if `plain`: its transcript
+/// matches the native one, and each broken contract aborts with its message.
+fn cpp_standard(api: &Api, link: &Link, standard: u8, plain: bool) {
+	let exe = scratch().join("api").join(format!("api-c++{standard}{EXE_SUFFIX}"));
+	cxx(
+		link,
+		standard,
+		plain,
+		&manifest_dir().join("tests").join("api.cpp"),
+		&exe,
+	);
+	let cpp = run(&mut Command::new(&exe));
+	assert_eq!(
+		String::from_utf8_lossy(&cpp.stdout),
+		api.transcript,
+		"the C++{standard} transcript differs from the native one"
+	);
+	run(Command::new(&exe).arg("futures"));
+	run(Command::new(&exe).arg("lifetimes"));
+	run(Command::new(&exe).arg("checks"));
+	let rehomed = run(Command::new(&exe).arg("rehomed"));
+	assert_eq!(String::from_utf8_lossy(&rehomed.stdout), "scaled by 7\n");
+	for (case, message) in [
+		("moved", "api_Counter_get: a handle's value was moved out"),
+		("moved from", "api_Counter_get: a handle is null"),
+		("shared moved from", "api_Gauge_into_level: a handle is null"),
+		(
+			"shared moved out",
+			"api_Gauge_into_level: a handle's value was moved out",
+		),
+		("lent copied", "a lent object was copied past its call"),
+		("value", "value() of a result that holds an error"),
+		(
+			"finished",
+			"api_Channel_recv_poll: a future is polled after it finished",
+		),
+		(
+			"lent moved",
+			"api_Counter_into_label: a handle a call lent is borrowed exclusively or moved out",
+		),
+		("lent kept", "a lent object was moved out of"),
+		("overread", "api_tail: a reader read more than it was asked"),
+		("null view", "a view of null bytes has a length"),
+		("outlived", OUTLIVED),
+		("lent ledger", "api_Ledger_published: a handle is borrowed exclusively"),
+	] {
+		let output = Command::new(&exe).arg(case).output().unwrap();
+		failed(&output, &format!("C++{standard} {case}"));
+		let stderr = String::from_utf8_lossy(&output.stderr);
+		assert!(stderr.contains(message), "C++{standard} {case} printed {stderr}");
+	}
+}
+
+/// A C++ program whose header names another contract than its library's aborts at load,
+/// non-dumpable from a constructor that runs before the header's check, as `broken` is.
+fn cpp_contract(api: &Api) {
 	let mismatched = scratch().join("api").join("contract.cpp");
 	step::write(
 		&mismatched,
@@ -838,12 +854,7 @@ int main() {}
 /// `RUST2_CLANG`, adds `-Wlifetime-safety`; Linux, where the merge gate runs, requires it,
 /// and elsewhere without it, as on the nightly's Apple Clang leg, the platform's `clang++`
 /// runs every check but that one.
-fn cpp_strict(link: &Link) {
-	let include = &link.include;
-	let generated = link
-		.generated
-		.as_deref()
-		.expect("tests/api.cpp includes its transcript");
+fn cpp_strict<'a>(link: &'a Link) -> Vec<Box<dyn FnOnce() + Send + 'a>> {
 	let clang23 = std::env::var_os("RUST2_CLANG");
 	assert!(
 		clang23.is_some() || !cfg!(target_os = "linux"),
@@ -851,46 +862,13 @@ fn cpp_strict(link: &Link) {
 	);
 	let lifetimes = clang23.is_some();
 	let compiler = clang23.unwrap_or_else(|| "clang++".into());
-	// What each case printed, kept apart from the others'; its object is not.
-	let clang = |src: &Path, case: u8| {
-		let mut cmd = Command::new(&compiler);
-		cmd.args([
-			"-std=c++17",
-			"-Wconsumed",
-			"-Wdangling",
-			"-Wreserved-identifier",
-			"-Werror",
-		]);
-		if lifetimes {
-			cmd.arg("-Wlifetime-safety");
-		}
-		cmd.arg("-c")
-			.arg("-I")
-			.arg(include)
-			.arg("-I")
-			.arg(generated)
-			.arg(format!("-DCASE={case}"))
-			.arg(src)
-			.arg("-o")
-			.arg(scratch().join("api").join("strict.o"));
-		let stamp = scratch()
-			.join("api")
-			.join("strict")
-			.join(format!("{}-{case}.stamp", src.file_stem().unwrap().to_string_lossy()));
-		let step = Step {
-			stamp: &stamp,
-			reads: &[src, include, generated],
-			writes: &[],
-		};
-		// Case 0 must build, so only the failing cases keep a failure.
-		match case {
-			0 => step.run(&mut cmd),
-			_ => step.output(&mut cmd),
-		}
-	};
 	let tests = manifest_dir().join("tests");
+	let mut jobs: Vec<Box<dyn FnOnce() + Send + 'a>> = Vec::new();
 	for src in ["api.cpp", "api_strict.cpp"] {
-		clang(&tests.join(src), 0);
+		let (src, compiler) = (tests.join(src), compiler.clone());
+		jobs.push(Box::new(move || {
+			clang_strict(link, &compiler, lifetimes, &src, 0);
+		}));
 	}
 	for (case, message) in [
 		(
@@ -927,10 +905,58 @@ fn cpp_strict(link: &Link) {
 		if case == 12 && !lifetimes {
 			continue;
 		}
-		let output = clang(&tests.join("api_strict.cpp"), case);
-		assert!(!output.status.success(), "case {case} built");
-		let stderr = String::from_utf8_lossy(&output.stderr);
-		assert!(stderr.contains(message), "case {case} printed {stderr}");
+		let (src, compiler) = (tests.join("api_strict.cpp"), compiler.clone());
+		jobs.push(Box::new(move || {
+			let output = clang_strict(link, &compiler, lifetimes, &src, case);
+			assert!(!output.status.success(), "case {case} built");
+			let stderr = String::from_utf8_lossy(&output.stderr);
+			assert!(stderr.contains(message), "case {case} printed {stderr}");
+		}));
+	}
+	jobs
+}
+
+/// Case `case` of `src` compiled by `compiler` under the strict checks, `-Wlifetime-safety`
+/// too where it has `lifetimes`: case 0 must build, so only a failing case keeps a failure.
+/// Each writes and stamps its own object, so the cases compile beside each other.
+fn clang_strict(link: &Link, compiler: &OsString, lifetimes: bool, src: &Path, case: u8) -> Output {
+	let include = &link.include;
+	let generated = link
+		.generated
+		.as_deref()
+		.expect("tests/api.cpp includes its transcript");
+	let stem = src.file_stem().unwrap().to_string_lossy();
+	let dir = scratch().join("api").join("strict");
+	std::fs::create_dir_all(&dir).unwrap();
+	let mut cmd = Command::new(compiler);
+	cmd.args([
+		"-std=c++17",
+		"-Wconsumed",
+		"-Wdangling",
+		"-Wreserved-identifier",
+		"-Werror",
+	]);
+	if lifetimes {
+		cmd.arg("-Wlifetime-safety");
+	}
+	cmd.arg("-c")
+		.arg("-I")
+		.arg(include)
+		.arg("-I")
+		.arg(generated)
+		.arg(format!("-DCASE={case}"))
+		.arg(src)
+		.arg("-o")
+		.arg(dir.join(format!("{stem}-{case}.o")));
+	let stamp = dir.join(format!("{stem}-{case}.stamp"));
+	let step = Step {
+		stamp: &stamp,
+		reads: &[src, include, generated],
+		writes: &[],
+	};
+	match case {
+		0 => step.run(&mut cmd),
+		_ => step.output(&mut cmd),
 	}
 }
 
@@ -4494,17 +4520,31 @@ fn api_go() {
 		&manifest_dir().join("tests").join("targets.go"),
 		&module.join("targets").join("main.go"),
 	);
-	let export = module.join("export");
-	for (name, root) in [("vet-export", &export), ("vet", &module)] {
+	let vet = |name: &str, root: &Path| {
 		let step = Step {
 			stamp: &dir.join(format!("{name}.stamp")),
 			reads: &[&module],
 			writes: &[],
 		};
 		step.run(&mut go(root, &["vet", "./..."]));
-	}
+	};
+	// The export's vet and the contract's build share no work with the module's vet and
+	// build, which reuses what that vet compiled, so the three run beside each other.
+	step::parallel(vec![
+		Box::new(|| vet("vet-export", &module.join("export"))),
+		Box::new(|| {
+			vet("vet", &module);
+			go_script(api, &dir, &module);
+		}),
+		Box::new(|| go_contract(api, &dir)),
+	]);
+}
+
+/// `tests/api.go` and `tests/targets.go` built in `module` and run: the transcript matches the
+/// native one, and each broken contract and missing target panics with its message.
+fn go_script(api: &Api, dir: &Path, module: &Path) {
 	let exe = dir.join(format!("api-test{EXE_SUFFIX}"));
-	go_build(api, &module, &exe);
+	go_build(api, module, &exe);
 	let output = run(&mut Command::new(&exe));
 	assert_eq!(
 		String::from_utf8_lossy(&output.stdout),
@@ -4535,10 +4575,10 @@ fn api_go() {
 	let targets = dir.join(format!("targets-test{EXE_SUFFIX}"));
 	let step = Step {
 		stamp: &step::stamp(&targets),
-		reads: &[&module, &api.staticlib()],
+		reads: &[module, &api.staticlib()],
 		writes: &[&targets],
 	};
-	step.run(go(&module, &["build", "-o"]).arg(&targets).arg("./targets"));
+	step.run(go(module, &["build", "-o"]).arg(&targets).arg("./targets"));
 	run(&mut Command::new(&targets));
 	for (case, message) in [
 		("target", "api_wasm_only: it is not on this library's target"),
@@ -4550,9 +4590,11 @@ fn api_go() {
 		let stderr = String::from_utf8_lossy(&output.stderr);
 		assert!(stderr.contains(message), "Go {case} printed {stderr}");
 	}
+}
 
-	// The same packages, with another contract than the library's in place of their own,
-	// refuse it when they load: in a module of their own, which leaves the test's as it was.
+/// The same packages, with another contract than the library's in place of their own,
+/// refuse it when they load: in a module of their own, which leaves the test's as it was.
+fn go_contract(api: &Api, dir: &Path) {
 	let contract = dir.join("contract");
 	go_layout(
 		api,
