@@ -3890,9 +3890,21 @@ mod tests {
 	fn member_calls_count_as_calls_does() {
 		let code = "A._(1); xA._(2); A._lent(3); A.__(4); p.A._(5); f(A._(6)); A$1._of(); A._of (); _B._(A._lent());";
 		let counted = member_calls(code);
-		for (name, member) in [("A", "_"), ("A", "_lent"), ("A", "__"), ("A$1", "_of"), ("A", "_of"), ("_B", "_"), ("xA", "_")] {
+		for (name, member) in [
+			("A", "_"),
+			("A", "_lent"),
+			("A", "__"),
+			("A$1", "_of"),
+			("A", "_of"),
+			("_B", "_"),
+			("xA", "_"),
+		] {
 			let call = format!("{name}.{member}(");
-			assert_eq!(counted.get(&(name, member)).copied().unwrap_or(0), calls(code, &call), "{call}");
+			assert_eq!(
+				counted.get(&(name, member)).copied().unwrap_or(0),
+				calls(code, &call),
+				"{call}"
+			);
 		}
 	}
 
