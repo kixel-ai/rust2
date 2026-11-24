@@ -10697,14 +10697,14 @@ export declare function enter(): number;
 export declare function leave(mark: number): void;
 export declare function alloc(size: number, align: number): number;
 export declare function status(p: number, what: string): void;
+export interface Handle<T extends string = string> {
+    readonly [brand]: T;
+}
 export type Kind = {
     readonly name: string;
     readonly free: string;
     readonly drop?: string;
 };
-export interface Handle<T extends string = string> {
-    readonly [brand]: T;
-}
 export declare class Handle<T extends string = string> {
     readonly p: number;
     readonly k: Kind;

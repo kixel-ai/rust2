@@ -48,9 +48,10 @@ web target and `node:ffi`, and it alone takes a call into JavaScript from Rust's
 moq-tokio's every wake is and the web target cannot build. `node:ffi` aborts on one, has
 no struct type, and was slower than the web target on every per-call case.
 The generated addon ([the binding](/ffi/README.md#node)) runs moq's script, its QUIC session
-included, on Node, Bun, and Deno. It costs 19 to 56 ns more than the web target per leaf call,
-since each runs the web's generated TypeScript per call, which costs more than the bare
-crossing does. [Lowering each call in the addon](/quest/m3/node-lowering.md) removes that.
+included, on Node, Bun, and Deno. Each native function converts its own arguments, holds
+its handles, and throws a failed status, so a leaf call costs 18 to 27 ns less than the web
+target's; [a call while JavaScript holds a token](/quest/m3/node-lowering.md) still hands
+off to a worker thread.
 
 Decided with the maintainer on 2026-11-12, in the quest audit:
 

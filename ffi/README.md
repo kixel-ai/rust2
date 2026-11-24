@@ -1949,11 +1949,17 @@ so the same library serves every other language too. It serves each 64-bit littl
 target but wasm32's, whose layouts its TypeScript reads.
 
 - **Calls**: each C function is a native function of the addon, whose arguments are numbers,
-  `bigint`s, and offsets, never a JavaScript object made per call. A value lowers into the
-  addon's scratch memory, one reservation as large as wasm32's memory, committed as the
-  stack reaches it and viewed by one `ArrayBuffer`, as the web's lowers into the module's
-  memory, but at the native C ABI's layouts. A handle crosses as its index in the addon's
-  table of addresses, which its free or the collector frees.
+  `boolean`s, handles' indices, and offsets, never a JavaScript object made per call. The
+  native function converts them itself, as React Native's JSI module does: it holds each
+  handle in the addon's table for the call, throwing if it is closed, and throws a failed
+  status, so a call of numbers and handles alone is one call in its TypeScript. A 64-bit
+  integer crosses as a number while it is a safe integer, else as `rt.u64`'s or `rt.i64`'s
+  limbs. A compound value lowers into the addon's scratch memory, one reservation as large
+  as wasm32's memory, committed as the stack reaches it and viewed by one `ArrayBuffer`, as
+  the web's lowers into the module's memory, but at the native C ABI's layouts: a Node-API
+  object costs more to make or read than the scratch memory's bytes. A handle crosses as
+  its index in the addon's table, which its dispose or the collector frees once no call
+  holds it.
 - **Values** are React Native's: `usize` and `isize` are `rt.u64` and `rt.i64`, and a
   constant only some targets have fails the export. A function only some targets have
   throws, naming it, on the others. An `rt.Bytes` past 64 bytes is Rust's own buffer,
@@ -1963,7 +1969,9 @@ target but wasm32's, whose layouts its TypeScript reads.
   waker, or reader from any. Such a call from another thread waits in a queue, as Dart's
   does: the event loop runs it, through a thread-safe function, and so does a call from
   JavaScript waiting in Rust, which runs on a worker thread while JavaScript holds a token
-  Rust may call from another thread. A wake and a drop from another thread queue the same
+  Rust may call from another thread. The worker and JavaScript's thread each spin 20 µs
+  for the other before parking, so such a call costs a handoff through shared memory, not
+  a thread's wake. A wake and a drop from another thread queue the same
   way without waiting. A call into Rust that pends keeps the event loop alive. The first
   environment to load the addon keeps it for the process's life: any other's load, such as
   a worker's, throws, even once the first has exited.

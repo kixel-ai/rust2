@@ -1,41 +1,37 @@
-# [L] Node's addon lowers each call itself
+# [M] Node's calls cost the bare crossing while JavaScript holds a token
 
 ## Goal
 
-The Node binding's call into the addon costs no more than the bare Node-API crossing, so
-it beats the web target per call on Node, as [the report](https://github.com/kixel-ai/rust2/pull/970)
-found a thin addon does. Each native function lowers its own arguments, checks its
-handles' borrows, and throws a failed status, as React Native's JSI module does in C++,
-so the TypeScript of a call is one call, and every binding rule
-([every binding's](/ffi/README.md#every-binding)) still holds, proved by the api
-fixture's transcript and cases on Node, Bun, and Deno.
+A call into the Node binding's addon while JavaScript holds a token Rust may call through
+from another thread costs about the bare Node-API crossing, as a call without one does,
+and every binding rule ([every binding's](/ffi/README.md#every-binding)) still holds.
 
 ## Plan
 
 - Decided 2026-11-24 (maintainer, /quest-run): ✅ keep this quest (rejected: drop it), since speed per call was half of why the report chose the addon.
-- Measured 2026-11-23 on **fedora**, at a load average near 25: the generated handle call
-  `track.is_closed()` costs 65 to 80 ns through the addon, of which the bare native call
-  is 30 ns, and 17 ns is any Node-API call's floor (`moq_contract`, no arguments). On the
-  wasm32 stand-in the same wrapper costs 38 to 58 ns over a 5 to 8 ns call, so the
-  generated TypeScript per call, `rt.enter`, `rt.hold`, the status slot, `rt.status`, and
-  `rt.leave`, costs both about 35 to 50 ns, and Node-API's crossing alone is what the
-  addon adds. The addon's column on [the benchmark](/bench/ffi/README.md#node-api) has
-  the per-case cost.
-- A call while JavaScript holds a token Rust may call through from another thread, as
-  moq's session always does through `Waiter.new$`'s closure, costs about 2.5 µs, not 43 ns
-  ([measured](/bench/ffi/README.md#node-api) 2026-11-24): `serve_run` hands each such call
-  to its worker and serves the queue until it returns. The goal holds then too, so a call
-  that cannot reach JavaScript from another thread must run on JavaScript's thread, or the
-  handoff must cost about the bare crossing. Find which, such as a generator-known set of
-  calls that take no closure and wait on nothing JavaScript serves, or a worker that spins
-  briefly before it parks, and measure it on `just ffi moq-node`'s session.
-- [React Native's binding](/ffi/README.md) is the model: its TypeScript calls `rt.n.<fn>`
-  and its JSI module lowers, holds, and checks. Here a native function would read a
-  handle's borrow state from the addon's table, which already holds each handle, rather
-  than from the `rt.Handle`.
-- First measure the floor of a native function that takes a handle and throws through
-  `napi_throw_error` on a status, against the 30 ns bare call, before generating any.
+- [The lowering PR](https://github.com/kixel-ai/rust2/pull/1004) made each native function
+  hold, throw, and convert itself: moq's `track.is_closed()` costs 40 ns of CPU against
+  wasm32's 58 and the bare crossing's 24 to 30. While a token is held, the call runs on a
+  worker thread as before, but the worker and JavaScript's thread spin 20 µs for each other
+  before they park: on moq's addon, a pending `clockDrive` holding the token, the same call
+  costs 184 to 215 ns of wall time and twice that of CPU, from 2,990 to 8,500 ns of wall
+  time and 2,290 to 2,840 of CPU (**fedora**, at a load average of 15 to 30).
+- moq's script holds no token: its session's `Waiter.new$` takes a waker, which a wake from
+  another thread queues without one. Only `clockDrive`, of moq's API, keeps a closure Rust
+  calls.
+- A handoff between two cores costs a few cache-line transfers each way, so only a call on
+  JavaScript's thread costs the bare crossing. A call is safe there only if nothing it waits
+  on calls JavaScript from another thread, which a stock crate's signature does not say:
+  `track.is_closed()` may wait on a lock another thread holds while it calls a closure.
+  Configless, no annotation may say it either.
+
+## Waiting
+
+- Maintainer: accept the spinning handoff as the floor and delete this quest, or keep it
+  for a way to run such a call on JavaScript's thread. No sound static rule is known, and
+  moq's script never holds a token. Recommended: delete it.
 
 ## Related
 
 - [The binding benchmark's Node-API column](/bench/ffi/README.md#node-api) - what it starts from
+- [Node's protocol](/quest/m3/node-protocol.md) - the addon's other open work

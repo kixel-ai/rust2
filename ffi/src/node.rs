@@ -176,7 +176,10 @@ fn stub(out: &mut String, i: usize, name: &str, sig: &NodeSig, free: bool) {
 	lines.push(format!("{bind}{call};"));
 	// Released before the throw, as a handle's last release may free it, calling JavaScript.
 	if !held.is_empty() {
-		lines.push(format!("drop(({}));", held.iter().map(|h| format!("{h},")).collect::<String>()));
+		lines.push(format!(
+			"drop(({}));",
+			held.iter().map(|h| format!("{h},")).collect::<String>()
+		));
 	}
 	if status {
 		lines.push(format!("if s != 0 {{\n\treturn cx.failed(s, \"{name}\");\n}}"));

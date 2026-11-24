@@ -1,14 +1,16 @@
 //! The runtime of the Node-API addon the crate's `node` feature builds, which `node/rt.ts`
 //! loads: Node-API, found in the process that loads the addon rather than linked, so the
 //! one library serves every other language too; the scratch memory the TypeScript lowers
-//! values into; the table of handles' addresses the TypeScript holds by index; and the
-//! calls into JavaScript.
+//! values into; the table of handles' addresses the TypeScript holds by index, which counts
+//! the calls holding each; the conversions each generated native function makes of its own
+//! arguments, holds, and failed status; and the calls into JavaScript.
 //!
 //! JavaScript runs only on its thread, so a call into it from any other, and the drop of
 //! an implementation there, waits in a queue for that thread to run: from its event loop,
 //! which a thread-safe function tells of each, or, while it waits in a call from
 //! JavaScript, from that wait. A call waits so only while JavaScript holds a token Rust
-//! may call through from another thread: then it runs on a worker thread. The first
+//! may call through from another thread: then it runs on a worker thread, and each side
+//! spins briefly for the other before it parks. The first
 //! environment to load the addon keeps it for the process's life, as the table and the
 //! scratch memory are its: any other's load throws, even once the first has exited.
 

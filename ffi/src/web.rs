@@ -1403,7 +1403,9 @@ impl<'a> Gen<'a> {
 			Type::IpAddr(Family::V4) => format!("rt.ipv4Put({p}, {e});"),
 			Type::IpAddr(Family::V6) => format!("rt.ipv6Put({p}, {e});"),
 			Type::Object(_) if self.node => format!("{handle}({p}, {e});"),
-			Type::Option(inner) if self.node && matches!(inner.base(), Type::Object(_)) => format!("{handle}({p}, {e});"),
+			Type::Option(inner) if self.node && matches!(inner.base(), Type::Object(_)) => {
+				format!("{handle}({p}, {e});")
+			}
 			Type::Object(_) => format!("{handle}({p}, rt.hold({e}));"),
 			Type::Option(inner) if matches!(inner.base(), Type::Object(_)) => format!("{handle}({p}, rt.holdOr({e}));"),
 			Type::Option(inner) if Abi::is_buf(inner) || matches!(inner.base(), Type::List(..)) => {
