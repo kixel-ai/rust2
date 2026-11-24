@@ -7,6 +7,8 @@ name: CI
 on:
   pull_request:
     branches: [main]
+    # `edited` covers a PR retargeted to main; the job skips other edits.
+    types: [opened, synchronize, reopened, edited]
   push:
     branches: [main]
 
@@ -15,15 +17,16 @@ on:
 permissions:
   contents: read
 
-# A new push supersedes a pull request's run. Each push to main finishes, since
-# a later one may not select the modules whose cache it saves.
-concurrency:
-  group: ci-${{ github.event.pull_request.number || github.sha }}
-  cancel-in-progress: true
-
 jobs:
   build:
     name: CI
+    if: github.event.action != 'edited' || github.event.changes.base
+    # A new push supersedes a pull request's run. Each push to main finishes,
+    # since a later one may not select the modules whose cache it saves. On the
+    # job, so a skipped title or body edit cancels nothing.
+    concurrency:
+      group: ci-${{ github.event.pull_request.number || github.sha }}
+      cancel-in-progress: true
     uses: ./.github/workflows/build.yml
     with:
       run: true

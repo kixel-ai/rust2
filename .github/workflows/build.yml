@@ -30,7 +30,8 @@ jobs:
           fetch-depth: 0
       # A module is its own job only where it is the critical path, which
       # ffi and ts are; the cheap rest share one, since every job pays the dev
-      # shell's setup. Each job's id names its cache.
+      # shell's setup. Each job's id names its cache, so the shared job's
+      # differs with the modules it holds.
       - id: select
         env:
           BASE: ${{ github.event.merge_group.base_sha || github.event.pull_request.base.sha || github.event.before }}
@@ -41,7 +42,7 @@ jobs:
           jq -cRnr '
             ["ffi", "ts"] as $own
             | [inputs] as $modules
-            | [$modules - $own | select(length > 0) | {id: "rest", modules: join(",")}]
+            | [$modules - $own | select(length > 0) | {id: join("-"), modules: join(",")}]
               + [$modules[] | select(IN($own[])) | {id: ., modules: .}]
             | "jobs=\(.)"' <<<"$modules" >> "$GITHUB_OUTPUT"
 
