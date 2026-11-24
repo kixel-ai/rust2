@@ -2,7 +2,8 @@
 
 ## Goal
 
-The harness times a `#[bench]` function's wall-clock cost by running the base and head builds interleaved in one session, so host load hits both equally.
+The harness times a `#[bench]` function's wall-clock cost by running the base and head builds in pairs in one session, each pair's order randomized, so drifting or recurring host load biases neither side.
+Shared-host load still widens the interval and can't be removed, only balanced.
 It reports each commit's value as a Kixel Quest `kixel-metrics` sample, the base's naming its commit, and prints the head/base ratio with a confidence interval.
 
 ## Plan
@@ -13,7 +14,7 @@ Recommendations for the implementer:
 
 - tango-bench 0.9 loads the base build as a shared library into the head's process and alternates them; study it before choosing between that and two processes.
 - moq's Nightly does paired comparisons with scripts today (`bench/run.sh`, its `--criterion` path with `BENCH_BASE`, and moq's `just bench <base>` quest). Measure against it, so moq's migration can delete them.
-- Instruction counts don't need pairing: they are the same on every run. This mode is for the wall-clock effects counts miss, such as syscalls, I/O, and contention.
+- Instruction counts don't need pairing, since host load doesn't move them, but multi-threaded ones vary between runs (up to 2.57% in moq), so a count comparison still checks repeat runs' spread, as [the runner](/quest/m1/bench-runner.md) measures. This mode is for the wall-clock effects counts miss, such as syscalls, I/O, and contention.
 
 ## Required
 

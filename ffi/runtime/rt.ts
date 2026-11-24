@@ -3,6 +3,7 @@
 // past 32 bits, futures as promises, what JavaScript implements for Rust, and the web APIs
 // that stand in for what the module's std imports.
 
+// #region shared
 // `Symbol.dispose` where the engine lacks it, as stable Safari does: the registry's symbol,
 // which esbuild's `using` helper falls back to too, though TypeScript's throws without one.
 // It runs before any class below keys a method on it.
@@ -93,28 +94,21 @@ export class Opaque<T extends string = string> {
 	// as a zero `NonZero`.
 	readonly #bytes: Uint8Array;
 	private constructor(bytes: Uint8Array, key: symbol) {
-		if (key !== minting) throw new TypeError("only Rust makes an opaque value");
+		if (key !== Opaque.#minting) throw new TypeError("only Rust makes an opaque value");
 		this.#bytes = bytes;
 	}
-	static {
+	// The key, whose initializer hands out the makers: not a static block, which React Native's
+	// Babel preset refuses.
+	static #minting = (() => {
 		made = (bytes) => new Opaque(bytes, minting);
 		bytesOf = (v) => (#bytes in v ? v.#bytes : undefined);
-	}
+		return minting;
+	})();
 }
 
 /** The generated glue's only: the opaque value of bytes Rust wrote. */
 export function opaqueMade(bytes: Uint8Array): Opaque {
 	return made(bytes);
-}
-
-/**
- * Copy an opaque value's bytes into memory at `p`, throwing unless it is one Rust made, of
- * `n` bytes. It returns nothing, so the bytes never reach a caller to change.
- */
-export function opaquePut(v: Opaque, n: number, p: number): void {
-	const bytes = bytesOf(v);
-	if (bytes === undefined || bytes.length !== n) throw new RangeError("a value Rust made is no other's");
-	mem().set(bytes, p);
 }
 
 /** Rust's `Duration`: whole seconds, and the nanoseconds below one. */
@@ -186,6 +180,17 @@ export class Cancelled extends Error {
 
 /** A waker Rust returned: `wake` wakes its task through Rust, and disposing it drops it. */
 export type Waker = { wake(): void; [Symbol.dispose](): void };
+// #endregion shared
+
+/**
+ * Copy an opaque value's bytes into memory at `p`, throwing unless it is one Rust made, of
+ * `n` bytes. It returns nothing, so the bytes never reach a caller to change.
+ */
+export function opaquePut(v: Opaque, n: number, p: number): void {
+	const bytes = bytesOf(v);
+	if (bytes === undefined || bytes.length !== n) throw new RangeError("a value Rust made is no other's");
+	mem().set(bytes, p);
+}
 
 /** The module's exports, which generated code calls by their C names. */
 type Exports = Record<string, any>;
@@ -525,8 +530,6 @@ export function lentHandle<T extends string>(p: number, k: Kind): Handle<T> {
 	return new Handle<T>(p, k, false);
 }
 
-// Integers.
-
 // A write the generated code makes of a value it reads: the value is an argument, so a getter
 // it runs, which may grow memory, runs before the view it is written through is taken.
 
@@ -545,6 +548,9 @@ export function put32(p: number, v: number): void {
 	dv().setUint32(p, v, true);
 }
 
+// #region shared
+// Integers.
+
 const TWO32 = 4294967296;
 /** The bits of Rust's `f32::NAN`, and the high bits of its `f64::NAN`, whose low are 0. */
 const F32_NAN = 0x7fc00000;
@@ -560,64 +566,6 @@ export function int(v: number, min: number, max: number, what: string): number {
 export function nonZero<T extends number | u64 | i64>(v: T): T {
 	if (v === 0) throw new RangeError("a NonZero is zero");
 	return v;
-}
-
-/** The `f32` at `p`: a NaN by its bits, which no number read through a float keeps. */
-export function f32Get(p: number): f32 {
-	const d = dv();
-	const bits = d.getUint32(p, true);
-	if ((bits & 0x7fffffff) <= 0x7f800000) return d.getFloat32(p, true);
-	return bits === F32_NAN ? NaN : ({ bits } as F32Nan);
-}
-
-/** Write the `f32` `v` at `p`: a number a single holds exactly, `NaN` as `f32::NAN`, or a
- * NaN's bits. Any other throws. */
-export function f32Put(p: number, v: f32): void {
-	if (typeof v === "number") {
-		const d = dv();
-		if (v !== v) d.setUint32(p, F32_NAN, true);
-		else if (Math.fround(v) === v) d.setFloat32(p, v, true);
-		else throw new RangeError(`${v} is no f32`);
-		return;
-	}
-	const bits = v.bits;
-	if (bits >>> 0 !== bits || (bits & 0x7fffffff) <= 0x7f800000 || bits === F32_NAN) {
-		throw new RangeError(`${JSON.stringify(v)} is no f32 NaN in its one form`);
-	}
-	// Taken after the payload's getters, which may run code that grows memory.
-	dv().setUint32(p, bits, true);
-}
-
-/** The `f64` at `p`: a NaN by its bits. */
-export function f64Get(p: number): f64 {
-	const d = dv();
-	const hi = d.getUint32(p + 4, true);
-	const lo = d.getUint32(p, true);
-	const high = hi & 0x7fffffff;
-	if (high < 0x7ff00000 || (high === 0x7ff00000 && lo === 0)) return d.getFloat64(p, true);
-	return hi === F64_NAN_HI && lo === 0 ? NaN : ({ hi, lo } as F64Nan);
-}
-
-/** Write the `f64` `v` at `p`: a number, `NaN` as `f64::NAN`, or a NaN's bits. */
-export function f64Put(p: number, v: f64): void {
-	if (typeof v === "number") {
-		const d = dv();
-		if (v === v) d.setFloat64(p, v, true);
-		else {
-			d.setUint32(p, 0, true);
-			d.setUint32(p + 4, F64_NAN_HI, true);
-		}
-		return;
-	}
-	const { hi, lo } = v;
-	const high = hi & 0x7fffffff;
-	const nan = high > 0x7ff00000 || (high === 0x7ff00000 && lo !== 0);
-	if (hi >>> 0 !== hi || lo >>> 0 !== lo || !nan || (hi === F64_NAN_HI && lo === 0)) {
-		throw new RangeError(`${JSON.stringify(v)} is no f64 NaN in its one form`);
-	}
-	const d = dv();
-	d.setUint32(p, lo, true);
-	d.setUint32(p + 4, hi, true);
 }
 
 /** An `f32` as a number: a NaN of its own bits as `NaN`, which loses them. */
@@ -679,34 +627,6 @@ export function i64Halves(v: i64): [number, number] {
 	return [hi, lo];
 }
 
-/** The `u64` at `p`. */
-export function u64Get(p: number): u64 {
-	const d = dv();
-	return u64Of(d.getUint32(p + 4, true), d.getUint32(p, true));
-}
-
-/** The `i64` at `p`. */
-export function i64Get(p: number): i64 {
-	const d = dv();
-	return i64Of(d.getInt32(p + 4, true), d.getUint32(p, true));
-}
-
-/** Write the `u64` `v` at `p`. */
-export function u64Put(p: number, v: u64): void {
-	const [hi, lo] = u64Halves(v);
-	const d = dv();
-	d.setUint32(p, lo, true);
-	d.setUint32(p + 4, hi, true);
-}
-
-/** Write the `i64` `v` at `p`. */
-export function i64Put(p: number, v: i64): void {
-	const [hi, lo] = i64Halves(v);
-	const d = dv();
-	d.setUint32(p, lo, true);
-	d.setInt32(p + 4, hi, true);
-}
-
 /** A `u64` as the `bigint` a wasm `i64` takes. */
 export function u64Big(v: u64): bigint {
 	if (typeof v === "number" && Number.isSafeInteger(v) && v >= 0) return BigInt(v);
@@ -732,33 +652,6 @@ export function i64OfBig(v: bigint): i64 {
 	return v >= -0x1fffffffffffffn && v <= 0x1fffffffffffffn
 		? Number(v)
 		: i64Of(Number(v >> 32n), Number(BigInt.asUintN(32, v)));
-}
-
-/** The `u128` at `p`, as its low then high 64 bits. */
-export function u128Get(p: number): u128 {
-	const d = dv();
-	const lo = d.getUint32(p, true);
-	const w1 = d.getUint32(p + 4, true);
-	const w2 = d.getUint32(p + 8, true);
-	const hi = d.getUint32(p + 12, true);
-	if (hi === 0 && w2 === 0 && w1 < 0x200000) return w1 * TWO32 + lo;
-	return { hi, w2, w1, lo } as U128Limbs;
-}
-
-/** Write the `u128` `v` at `p`. */
-export function u128Put(p: number, v: u128): void {
-	let words: number[];
-	if (typeof v === "number") {
-		if (!Number.isSafeInteger(v) || v < 0) throw new RangeError(`${v} is no u128`);
-		words = [v % TWO32, Math.floor(v / TWO32), 0, 0];
-	} else {
-		words = [v.lo, v.w1, v.w2, v.hi];
-		const [, w1, w2, hi] = words;
-		const one = words.every((x) => x >>> 0 === x) && (hi !== 0 || w2 !== 0 || w1! >= 0x200000);
-		if (!one) throw new RangeError(`${JSON.stringify(v)} is no u128 in its one form`);
-	}
-	const d = dv();
-	for (let i = 0; i < 4; i++) d.setUint32(p + 4 * i, words[i], true);
 }
 
 /** A `u64` as a `bigint`, for printing or arithmetic. */
@@ -795,6 +688,149 @@ export function u128FromBig(v: bigint): u128 {
 	if (v <= 0x1fffffffffffffn) return Number(v);
 	const word = (n: bigint) => Number(BigInt.asUintN(32, v >> n));
 	return { hi: word(96n), w2: word(64n), w1: word(32n), lo: word(0n) } as U128Limbs;
+}
+// #endregion shared
+
+/** The `f32` at `p`: a NaN by its bits, which no number read through a float keeps. */
+export function f32Get(p: number): f32 {
+	const d = dv();
+	const bits = d.getUint32(p, true);
+	if ((bits & 0x7fffffff) <= 0x7f800000) return d.getFloat32(p, true);
+	return bits === F32_NAN ? NaN : ({ bits } as F32Nan);
+}
+
+/** Write the `f32` `v` at `p`: a number a single holds exactly, `NaN` as `f32::NAN`, or a
+ * NaN's bits. Any other throws. */
+export function f32Put(p: number, v: f32): void {
+	if (typeof v === "number") {
+		const d = dv();
+		if (v !== v) d.setUint32(p, F32_NAN, true);
+		else if (Math.fround(v) === v) d.setFloat32(p, v, true);
+		else throw new RangeError(`${v} is no f32`);
+		return;
+	}
+	const bits = v.bits;
+	if (bits >>> 0 !== bits || (bits & 0x7fffffff) <= 0x7f800000 || bits === F32_NAN) {
+		throw new RangeError(`${JSON.stringify(v)} is no f32 NaN in its one form`);
+	}
+	// Taken after the payload's getters, which may run code that grows memory.
+	dv().setUint32(p, bits, true);
+}
+
+/** The `f64` at `p`: a NaN by its bits. */
+export function f64Get(p: number): f64 {
+	const d = dv();
+	const hi = d.getUint32(p + 4, true);
+	const lo = d.getUint32(p, true);
+	const high = hi & 0x7fffffff;
+	if (high < 0x7ff00000 || (high === 0x7ff00000 && lo === 0)) return d.getFloat64(p, true);
+	return hi === F64_NAN_HI && lo === 0 ? NaN : ({ hi, lo } as F64Nan);
+}
+
+/** Write the `f64` `v` at `p`: a number, `NaN` as `f64::NAN`, or a NaN's bits. */
+export function f64Put(p: number, v: f64): void {
+	if (typeof v === "number") {
+		const d = dv();
+		if (v === v) d.setFloat64(p, v, true);
+		else {
+			d.setUint32(p, 0, true);
+			d.setUint32(p + 4, F64_NAN_HI, true);
+		}
+		return;
+	}
+	const { hi, lo } = v;
+	const high = hi & 0x7fffffff;
+	const nan = high > 0x7ff00000 || (high === 0x7ff00000 && lo !== 0);
+	if (hi >>> 0 !== hi || lo >>> 0 !== lo || !nan || (hi === F64_NAN_HI && lo === 0)) {
+		throw new RangeError(`${JSON.stringify(v)} is no f64 NaN in its one form`);
+	}
+	const d = dv();
+	d.setUint32(p, lo, true);
+	d.setUint32(p + 4, hi, true);
+}
+
+/** The `u64` at `p`. */
+export function u64Get(p: number): u64 {
+	const d = dv();
+	return u64Of(d.getUint32(p + 4, true), d.getUint32(p, true));
+}
+
+/** The `i64` at `p`. */
+export function i64Get(p: number): i64 {
+	const d = dv();
+	return i64Of(d.getInt32(p + 4, true), d.getUint32(p, true));
+}
+
+/** Write the `u64` `v` at `p`. */
+export function u64Put(p: number, v: u64): void {
+	const [hi, lo] = u64Halves(v);
+	const d = dv();
+	d.setUint32(p, lo, true);
+	d.setUint32(p + 4, hi, true);
+}
+
+/** Write the `i64` `v` at `p`. */
+export function i64Put(p: number, v: i64): void {
+	const [hi, lo] = i64Halves(v);
+	const d = dv();
+	d.setUint32(p, lo, true);
+	d.setInt32(p + 4, hi, true);
+}
+
+/** The `u128` at `p`, as its low then high 64 bits. */
+export function u128Get(p: number): u128 {
+	const d = dv();
+	const lo = d.getUint32(p, true);
+	const w1 = d.getUint32(p + 4, true);
+	const w2 = d.getUint32(p + 8, true);
+	const hi = d.getUint32(p + 12, true);
+	if (hi === 0 && w2 === 0 && w1 < 0x200000) return w1 * TWO32 + lo;
+	return { hi, w2, w1, lo } as U128Limbs;
+}
+
+/** Write the `u128` `v` at `p`. */
+export function u128Put(p: number, v: u128): void {
+	let words: number[];
+	if (typeof v === "number") {
+		if (!Number.isSafeInteger(v) || v < 0) throw new RangeError(`${v} is no u128`);
+		words = [v % TWO32, Math.floor(v / TWO32), 0, 0];
+	} else {
+		words = [v.lo, v.w1, v.w2, v.hi];
+		const [, w1, w2, hi] = words;
+		const one = words.every((x) => x >>> 0 === x) && (hi !== 0 || w2 !== 0 || w1! >= 0x200000);
+		if (!one) throw new RangeError(`${JSON.stringify(v)} is no u128 in its one form`);
+	}
+	const d = dv();
+	for (let i = 0; i < 4; i++) d.setUint32(p + 4 * i, words[i], true);
+}
+
+// Typed arrays, read as the engine keeps them.
+
+// `%TypedArray%.prototype`'s own getters, taken at load and called through no method a
+// caller can replace: no subclass's, caller's, or Proxy's `length`, `byteOffset`, `buffer`,
+// or tag reaches them, and each but the tag's throws a TypeError on any other value.
+const typedArray = Object.getPrototypeOf(Uint8Array.prototype) as object;
+function getter<T>(key: PropertyKey): (v: unknown) => T {
+	return Function.prototype.call.bind(Object.getOwnPropertyDescriptor(typedArray, key)!.get!) as (v: unknown) => T;
+}
+const lengthOf = getter<number>("length");
+const offsetOf = getter<number>("byteOffset");
+const bufferOf = getter<ArrayBufferLike>("buffer");
+const tagOf = getter<string | undefined>(Symbol.toStringTag);
+
+/** How many items `v` holds, throwing a TypeError unless the engine holds it as a `kind`. */
+function typedLength(v: unknown, kind: string): number {
+	if (tagOf(v) !== kind) {
+		const shown = v !== null && (typeof v === "object" || typeof v === "function") ? "an object" : String(v);
+		throw new TypeError(`${shown} is no ${kind}`);
+	}
+	return lengthOf(v);
+}
+
+/** A view of the bytes of `v`, a `kind` of `size`-byte items, which throws unless it is one. */
+export function typedBytes(v: unknown, kind: string, size: number): Uint8Array {
+	const n = typedLength(v, kind);
+	return new Uint8Array(bufferOf(v), offsetOf(v), n * size);
 }
 
 // Text and bytes.
@@ -838,11 +874,13 @@ export function putBytes(dst: number, data: Uint8Array | Bytes): void {
 		}
 		data = read;
 	}
-	const p = alloc(data.length, 1);
+	// `set` copies as many bytes as the engine keeps, which no getter changes.
+	const n = typedLength(data, "Uint8Array");
+	const p = alloc(n, 1);
 	mem().set(data, p);
 	const d = dv();
 	d.setUint32(dst, p, true);
-	d.setUint32(dst + 4, data.length, true);
+	d.setUint32(dst + 4, n, true);
 	d.setUint32(dst + 8, 0, true);
 }
 
@@ -988,8 +1026,9 @@ export class Bytes {
 
 	/** The byte at `index`, from the end where it is negative, as `Uint8Array`'s `at`. */
 	at(index: number): number | undefined {
-		if (this.#closed) throw new Error("Bytes is closed");
+		// Converted first, so a `valueOf` that disposes these bytes finds them closed.
 		let i = Math.trunc(index) || 0;
+		if (this.#closed) throw new Error("Bytes is closed");
 		if (i < 0) i += this.#length;
 		if (i < 0 || i >= this.#length) return undefined;
 		return this.#copy !== undefined ? this.#copy[i] : mem()[this.#ptr + i];
@@ -997,9 +1036,19 @@ export class Bytes {
 
 	/** A copy of the bytes from `start` up to `end`, as `Uint8Array`'s `slice`. */
 	slice(start?: number, end?: number): Uint8Array<ArrayBuffer> {
+		// Converted first, as `at`'s index is.
+		const from = start === undefined ? undefined : +start;
+		const to = end === undefined ? undefined : +end;
 		if (this.#closed) throw new Error("Bytes is closed");
-		const all = this.#copy ?? mem().subarray(this.#ptr, this.#ptr + this.#length);
-		return all.slice(start, end) as Uint8Array<ArrayBuffer>;
+		// `subarray` and `slice` make their results through `Symbol.species`, which may run
+		// any JavaScript: a hold keeps Rust's buffer until they return.
+		this.#h++;
+		try {
+			const all = this.#copy ?? mem().subarray(this.#ptr, this.#ptr + this.#length);
+			return all.slice(from, to) as Uint8Array<ArrayBuffer>;
+		} finally {
+			this.#release();
+		}
 	}
 
 	/** Each byte in turn, each read as `at` reads it. */
@@ -1096,7 +1145,8 @@ export function copiedBytes(dst: number, data: Uint8Array): void {
 
 /** Write the `[u8; n]` `data` at `p`, which throws unless it holds exactly `n` bytes. */
 export function arrayPut(p: number, data: Uint8Array, n: number): void {
-	if (data.length !== n) throw new RangeError(`${data.length} bytes are no [u8; ${n}]`);
+	const length = typedLength(data, "Uint8Array");
+	if (length !== n) throw new RangeError(`${length} bytes are no [u8; ${n}]`);
 	mem().set(data, p);
 }
 
@@ -1124,7 +1174,7 @@ function octets(p: number, n: number): Uint8Array {
 }
 
 function putOctets(p: number, v: Uint8Array, n: number): void {
-	if (!(v instanceof Uint8Array) || v.length !== n) throw new RangeError(`an address is no ${n} bytes`);
+	if (typedLength(v, "Uint8Array") !== n) throw new RangeError(`an address is no ${n} bytes`);
 	mem().set(v, p);
 }
 
@@ -1569,6 +1619,7 @@ export function failed<T>(error: unknown): Call<T> {
 	return promise;
 }
 
+// #region shared
 /** A stream's items, as `for await` takes them, by a name no export's can hide. */
 export type Stream<T> = AsyncIterableIterator<T>;
 
@@ -1652,6 +1703,7 @@ class Values<T> implements AsyncIterableIterator<T> {
 		return this;
 	}
 }
+// #endregion shared
 
 // The module, and the web APIs its std imports.
 

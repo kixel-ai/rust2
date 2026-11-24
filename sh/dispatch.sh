@@ -25,7 +25,6 @@ declare -A scope=(
     [lint]=''
     [quest]='^quest/'
     [sh]='^sh/dispatch\.test\.py$'
-    [crabx]='^crabx/'
     # The driver and ffi link ts's toolchain, and both of the others build on
     # the driver's front end.
     [driver]='^(driver/|ts/rust-toolchain\.toml$)'
@@ -37,7 +36,7 @@ declare -A scope=(
     [ts]='^(ts|driver)/'
 )
 # Cheapest first, so a lint fails before the builds start.
-modules=(lint quest sh crabx driver ffi go ts)
+modules=(lint quest sh driver ffi go ts)
 
 # Paths that only the repository-wide lints read.
 lints='^(bench/|\.agents/|\.claude/|\.codex/|[^/]+\.md$|LICENSE-|\.(editorconfig|gitattributes|gitignore|taplo\.toml)$)'
@@ -102,14 +101,11 @@ check_lint() {
     nixfmt --check flake.nix
 }
 check_quest() { quest check; }
-check_crabx() { just crabx check; }
 check_driver() { just driver check; }
 check_ffi() { just ffi check; }
 check_go() { just go check; }
 check_ts() { just ts check; }
-test_lint() { python3 -I .github/crabx/test_pipeline.py; }
 test_sh() { python3 -I sh/dispatch.test.py; }
-test_crabx() { just crabx test; }
 test_driver() { just driver test; }
 # moq's export at the pin, cut down to C, and every binding's rendered API, which the
 # surface files lock on x86_64 Linux, the queue's host, before the slower test build.
