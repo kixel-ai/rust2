@@ -33,11 +33,11 @@ refusing any other so only reviewed code sees the signing key, downloads its
 `moq-ffi-maven`, and runs `central.sh validate` from that run's commit in the `publish`
 environment. It runs only on `release`, the one ref the environment admits that publishes
 nothing by being pushed; GitHub offers a dispatch only for a workflow on the default branch,
-so [moq-dev/moq#9519](https://github.com/moq-dev/moq/pull/9519) lands it on `main` and
+so [moq-dev/moq#9519](https://github.com/moq-dev/moq/pull/9519) landed it on `main` and
 [moq-dev/moq#9520](https://github.com/moq-dev/moq/pull/9520) on `release`. Never push a
 `moq-ffi-v*` tag for it: that starts moq's real release of every `moq-ffi` package.
 
-Once both land, dispatch it, which `publish` lets an agent do as it requires no reviewer:
+Dispatch it, which `publish` lets an agent do as it requires no reviewer:
 `gh workflow run central-check.yml -R moq-dev/moq --ref release -f run=<id>`, with `<id>` a
 finished Nightly, or a dispatched Check, on rust2's `main` since
 [#990](https://github.com/kixel-ai/rust2/pull/990) landed `central.sh` and the `dev.moq`
@@ -45,13 +45,12 @@ stand-in. A failed validation is a builder fix here. Delete moq's workflow once 
 its Kotlin library through rust2's builder.
 
 Decided 2026-11-24 (maintainer, /quest-run): ✅ land moq-dev/moq#9519 into `main` and
-moq-dev/moq#9520 into `release` (rejected: holding them). Both are queued.
+moq-dev/moq#9520 into `release` (rejected: holding them). Both landed on 2026-11-24.
 
 ## Waiting
 
-- moq-dev/moq: land the queued [moq-dev/moq#9519](https://github.com/moq-dev/moq/pull/9519)
-  into `main` and [moq-dev/moq#9520](https://github.com/moq-dev/moq/pull/9520) into
-  `release`. Check: `gh api 'repos/moq-dev/moq/contents/.github/workflows/central-check.yml?ref=release'`
-  succeeds. Once they and [#990](https://github.com/kixel-ai/rust2/pull/990) have landed, an
-  agent dispatches `central-check.yml` on moq's `release` with a finished rust2 `main` run,
+- kixel-ai/rust2: a Nightly, or a dispatched Check, finishes on `main` after
+  [#990](https://github.com/kixel-ai/rust2/pull/990) lands. Check:
+  `gh run list -R kixel-ai/rust2 --branch main --status success` lists one newer than #990's
+  merge. Then an agent dispatches `central-check.yml` on moq's `release` with that run's ID,
   as above.

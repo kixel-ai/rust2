@@ -24,11 +24,15 @@ done
 # The keyring holds the signing key, so it and the agent serving it go on every exit.
 tmp=$(mktemp -d "${RUNNER_TEMP:-${TMPDIR:-/tmp}}/central.XXXXXXXX")
 # shellcheck disable=SC2329 # the traps call it
+# A failed agent shutdown still removes the keyring, and then fails the run.
 cleanup() {
-    if [[ -d "$tmp/gnupg" ]]; then
-        GNUPGHOME="$tmp/gnupg" gpgconf --kill gpg-agent
+    local code=0
+    if [[ -d "$tmp/gnupg" ]] && ! GNUPGHOME="$tmp/gnupg" gpgconf --kill gpg-agent; then
+        echo "::error::could not stop the gpg-agent serving $tmp/gnupg" >&2
+        code=1
     fi
-    rm -rf "$tmp"
+    rm -rf "$tmp" || code=1
+    return "$code"
 }
 trap cleanup EXIT
 cd "$repo"
@@ -95,7 +99,7 @@ if [[ "$mode" == validate ]]; then
         else
             echo "Dropped deployment $id"
         fi
-        cleanup
+        cleanup || code=1
         exit "$code"
     }
     trap drop EXIT
