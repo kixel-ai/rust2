@@ -8,6 +8,7 @@
 use std::collections::HashMap;
 use std::ffi::OsString;
 use std::hash::{DefaultHasher, Hasher};
+use std::panic::{AssertUnwindSafe, catch_unwind, resume_unwind};
 use std::path::{Path, PathBuf};
 use std::process::{Command, ExitStatus, Output};
 use std::sync::{Arc, Mutex, OnceLock};
@@ -391,6 +392,7 @@ pub(crate) fn parallel<'a>(jobs: Vec<Box<dyn FnOnce() + Send + 'a>>) {
 		.map_or(1, |n| n.get())
 		.min(jobs.len());
 	let queue = Mutex::new(jobs.into_iter());
+	let panic = Mutex::new(None);
 	std::thread::scope(|scope| {
 		for _ in 0..width {
 			scope.spawn(|| {
@@ -398,9 +400,15 @@ pub(crate) fn parallel<'a>(jobs: Vec<Box<dyn FnOnce() + Send + 'a>>) {
 					// Its own statement, so the lock is released before the job runs.
 					let job = queue.lock().unwrap().next();
 					let Some(job) = job else { break };
-					job();
+					// A panic must not end this worker, or a one-CPU host would leave the queue undrained.
+					if let Err(payload) = catch_unwind(AssertUnwindSafe(job)) {
+						panic.lock().unwrap().get_or_insert(payload);
+					}
 				}
 			});
 		}
 	});
+	if let Some(payload) = panic.into_inner().unwrap() {
+		resume_unwind(payload);
+	}
 }
