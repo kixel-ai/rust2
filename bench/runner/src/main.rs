@@ -202,7 +202,9 @@ fn measure(dir: &Path, options: &Options) -> Result<Counts, String> {
 	} else {
 		if let Some(build) = &options.build {
 			eprintln!("rust2-bench: {build}");
+			// Its output goes to stderr, so stdout holds only the counts.
 			let status = shell(build, dir)
+				.stdout(std::io::stderr())
 				.status()
 				.map_err(|e| format!("cannot run {build}: {e}"))?;
 			if !status.success() {
