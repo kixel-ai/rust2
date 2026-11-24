@@ -141,7 +141,7 @@ between two runs:
 | Kotlin | 172% (`call`), 108% (`getter`) | leaves: without the warm-up, the JIT's and collector's threads compile and collect inside each case, and the JVM's C2 code crashes under Valgrind unless its implicit null checks are off |
 | Dart | does not run | leaves: the VM maps its code at an address hint off a page boundary, which Valgrind refuses |
 | C# | not measured | leaves until a pair of runs holds: CoreCLR's tiered JIT and collector run on their own threads |
-| TypeScript (Node) | 2.6% (`ready`), every other case under 2.3% | joins, with V8's flags below |
+| TypeScript (Node) | 63% (`ready`), 56% (`write`), 54% (`woken`) | left 2026-11-23: see below |
 
 Node joined on 2026-11-16, measured on **fedora** the same way, Node 24.22.2. With V8's
 default flags, two runs moved `write` 113%, `stamped` 69%, and `ready` 49%: V8 compiles,
@@ -149,10 +149,18 @@ sweeps, and collects on its own threads, by time. `--predictable --single-thread
 --v8-pool-size=0` keeps all of that on the main thread, which left 36%
 (`payload[1048576]`); `--predictable-gc-schedule`, so a collection follows allocation
 rather than time, left 16% (`throughput[1048576]`); and a full `gc()` before each case,
-through `--expose-gc`, left the 2.6% above. `just ffi count` passes all four flags
-under `RUST2_CODSPEED`, and `bench-run`, which times, passes none. The Chromium and Firefox
-columns stay out: a browser's processes would each count apart. Building the wasm32 module
-adds about 5 minutes to the workflow's build, and Node's cases about 6 to its count.
+through `--expose-gc`, left 2.6% (`ready`). `bench-program` passes all four flags under
+`RUST2_CODSPEED`, and `bench-run`, which times, passes none. The Chromium and Firefox
+columns stay out: a browser's processes would each count apart.
+
+Node left on 2026-11-23, when rust2-bench replaced CodSpeed: with the same flags, its
+async cases no longer hold still. Two hosted runs and one on **fedora** of one commit
+differed by up to 63% (`ready`), 56% (`write`), and 54% (`woken`), and two on **fedora**
+alone, one program at a time, by 27% (`ready`) and 23% (`woken`); with the flags CodSpeed's
+runner passed to Valgrind, by 17% (`write`). It had already drifted under CodSpeed: on
+PRs that change no TypeScript, CodSpeed reported `payload[16384]` 83% faster (kixel-ai/rust2#979),
+`ready` 82% faster and `woken` 36% slower (kixel-ai/rust2#972), and `ready` 39% slower
+(kixel-ai/rust2#971). Its cases changed since it joined (kixel-ai/rust2#851, kixel-ai/rust2#937).
 
 On CI, two runs of one commit under CodSpeed (kixel-ai/rust2#805's 11a94ff) left all 58
 benchmarks untouched: the largest move was Python's `throughput[1024]`, 2.4%, then its
