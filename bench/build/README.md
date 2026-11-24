@@ -1,8 +1,14 @@
 # Build-speed benchmark
 
 `just bench` measures Rust build time on the pinned projects and build configurations in [corpus.toml](corpus.toml).
-CI ([bench.yml](../../.github/workflows/bench.yml)) runs it on manual dispatch and on a PR that changes this harness, its workflow, the `build-bench` shell, or the `bench-ra-jit` package, since every input is pinned and nothing else can change its result.
-A later push to that PR reruns it only if it changes one of those since the PR's last benched head, so a docs-only push costs no bench time.
+CI ([bench.yml](../../.github/workflows/bench.yml)) runs on manual dispatch at `main`
+on nixos's `rust2-bench` runner. Its job hook holds a host lease that waits for queue
+builds and land fixers to finish, then excludes them until the benchmark job ends.
+The runner group admits only this workflow at `main`, so workflow changes must land
+before they can be measured. The workflow must never gain a `workflow_call` trigger,
+since the group would trust its jobs regardless of the calling workflow.
+The runner exposes user-space performance counters without a privileged workflow step.
+The `jobs-frontend` variant uses 32 threads to match this host's 32 logical CPUs.
 Every build-speed change here states its effect with its numbers.
 
 ```bash
@@ -52,6 +58,11 @@ Each is compared against its `base`, run in the same job: the levers on stable a
 The `control` variants repeat their base, so their change is the run's noise floor: an A/A control.
 Timed runs interleave the variants and rotate which goes first each round, so drift over a long job spreads across all of them.
 To measure a new build-speed change, add a variant whose base is the configuration it improves on.
+
+The `mostly-unused` variant enables Cargo's unstable profile hint and sets
+`profile.dev.package."*".hint-mostly-unused=true`, so it hints only dependencies
+outside the workspace, leaving moq's own crates unchanged.
+It compares against `nightly`; it has no measured recommendation yet.
 
 The `ra-jit` variant builds with `cargo ra-jit` ([ra-jit](https://github.com/indexable-inc/ra-jit), pinned in `flake.nix` and compiled from source on a run that selects it), a daemon that compiles only the functions an edit changed and splices them into the program cargo linked, or hands the build back to cargo.
 ra-jit works with one rustc only, so its base, `ra-jit-baseline`, is plain cargo on that toolchain.
