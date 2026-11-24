@@ -69,7 +69,7 @@ on:
         default: ''
         type: string
       maven-group:
-        description: The Maven groupId the Kotlin binding, a jar for desktop JVMs and an AAR for Android, is published under, a namespace the publisher holds on Maven Central; without it, neither is built or checked, though the Android leg still builds the Go module's Android archives
+        description: The Maven groupId the Kotlin binding, a jar for desktop JVMs and an AAR for Android, is published under, a namespace the publisher holds on Maven Central; without it, neither is built or checked, though the Android legs still build the Go module's Android archives
         default: ''
         type: string
       kotlin-check:
@@ -309,12 +309,20 @@ jobs:
           - host: windows
             os: windows-latest
             targets: x86_64-pc-windows-msvc x86_64-pc-windows-gnu
-          # The AAR's, the Dart package's, and React Native's libraries.
-          - host: android
+          # The AAR's, the Dart package's, and React Native's libraries, split across legs as
+          # each ABI takes two or three of moq's 8-minute builds. android-x86 builds the
+          # emulator's, and the example its consumers compare against.
+          - host: android-arm64
             os: ubuntu-24.04
-            targets: ${{ inputs.scope != '' && 'aarch64-linux-android armv7-linux-androideabi i686-linux-android x86_64-linux-android' || 'aarch64-linux-android armv7-linux-androideabi x86_64-linux-android' }}
+            targets: aarch64-linux-android
+          - host: android-arm
+            os: ubuntu-24.04
+            targets: armv7-linux-androideabi
+          - host: android-x86
+            os: ubuntu-24.04
+            targets: ${{ inputs.scope != '' && 'x86_64-linux-android i686-linux-android' || 'x86_64-linux-android' }}
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 90
+    timeout-minutes: 180
     defaults:
       run:
         shell: bash
@@ -352,7 +360,7 @@ jobs:
           esac
       # The NDK the libraries build with.
       - name: Android NDK
-        if: matrix.host == 'android'
+        if: startsWith(matrix.host, 'android')
         run: |
           "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "ndk;$NDK" > /dev/null
           echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/$NDK" >> "$GITHUB_ENV"
@@ -389,11 +397,12 @@ jobs:
         env:
           TARGETS: ${{ matrix.targets }}
           # Android's example only serves a kotlin-check's or react-native-check's comparison in
-          # a consumer, and the iOS simulator's a react-native-check's.
+          # a consumer, and the iOS simulator's a react-native-check's; the other Android legs
+          # build none.
           EXAMPLE: >-
-            ${{ (matrix.host == 'android' && (inputs.maven-group != '' && inputs.kotlin-check != '' || inputs.scope != '' && inputs.react-native-check != '')
+            ${{ (matrix.host == 'android-x86' && (inputs.maven-group != '' && inputs.kotlin-check != '' || inputs.scope != '' && inputs.react-native-check != '')
             || matrix.host == 'apple-ios-sim' && inputs.scope != '' && inputs.react-native-check != ''
-            || matrix.host != 'android' && matrix.host != 'apple-ios-sim') && inputs.example || '' }}
+            || !startsWith(matrix.host, 'android') && matrix.host != 'apple-ios-sim') && inputs.example || '' }}
           GROUP: ${{ inputs.maven-group }}
           SCOPE: ${{ inputs.scope }}
         run: |
@@ -1126,10 +1135,10 @@ jobs:
           REPRODUCE: ${{ inputs.reproduce }}
         run: |
           mkdir -p libs/jvm
-          cp -R "builds/$NAME-build-android/android" libs/
+          cp -R builds/"$NAME"-build-android-*/android libs/
           cp -R builds/*/jvm/* libs/jvm/
           maven() {
-            (cd source && python3 -I ../rust2/ffi/release/package.py maven --manifest-path "$MANIFEST" --export "$1" --libs ../libs --sbom "../builds/$NAME-build-android/kotlin.cdx.json" --group "$GROUP" --out "$2")
+            (cd source && python3 -I ../rust2/ffi/release/package.py maven --manifest-path "$MANIFEST" --export "$1" --libs ../libs --sbom "../builds/$NAME-build-android-x86/kotlin.cdx.json" --group "$GROUP" --out "$2")
           }
           maven "../builds/$NAME-build-linux-x64/export" ../dist/maven
           if [[ "$REPRODUCE" == true ]]; then
@@ -1224,7 +1233,7 @@ jobs:
           persist-credentials: false
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
-          name: ${{ needs.facts.outputs.name }}-build-android
+          name: ${{ needs.facts.outputs.name }}-build-android-x86
           path: dist
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
@@ -1471,8 +1480,9 @@ jobs:
           node-version: '24'
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
-          name: ${{ needs.facts.outputs.name }}-build-android
+          pattern: ${{ needs.facts.outputs.name }}-build-android-*
           path: android
+          merge-multiple: true
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           pattern: ${{ needs.facts.outputs.name }}-build-apple-ios*
@@ -1524,7 +1534,7 @@ jobs:
       # The check and the example built for the emulator.
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
-          name: ${{ needs.facts.outputs.name }}-build-android
+          name: ${{ needs.facts.outputs.name }}-build-android-x86
           path: dist
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
