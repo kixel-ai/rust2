@@ -34,7 +34,3 @@ stub attributes (`ffi/tests/unity.cs`), and running that half of it on CoreCLR.
   app. Considered: a build without activation, which the editor refuses even in batch mode.
   Check:
   `gh api repos/kixel-ai/rust2/actions/secrets --jq '[.secrets[].name]'` lists the three.
-
-## Related
-
-- [C# in the shapes, protocol, and corpus tests](/quest/m3/csharp-tests.md)

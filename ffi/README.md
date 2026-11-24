@@ -348,8 +348,9 @@ renders it, for the api fixture and moq's stand-in, and `just ci` fails where a 
 renders another. `just ffi surface` rewrites them; a PR changing any binding's API commits
 the diff. Each is the language's own reading where one needs no build: Python's `ast` for
 the `.pyi` a type checker sees, `go doc -all` for Go, `tsc`'s declarations for the web
-binding. C, C++, Kotlin, Swift, and Dart are an outline of the generated source: each
-public declaration up to its body, without comments or private members. The files are x86_64
+binding. C, C++, Kotlin, Swift, Dart, and C# are an outline of the generated source: each
+public declaration up to its body, without comments or private members, and a C# property
+with its public accessors. The files are x86_64
 Linux's exports, as the merge queue runs on, since a header names its targets.
 
 ## The C ABI
@@ -1940,17 +1941,17 @@ the header's wrappers would, and it needs only `jsi.h`.
 
 ```bash
 just ffi test     # export the fixtures, build them, and drive api from C, C++, Kotlin, Python, Swift, Go, Dart, C#, and TypeScript on Node, Deno, and Bun
-just ffi moq      # export moq's crates at the pinned revision, build them, and run moq/moq.c, moq/moq.cpp, moq/moq.kt, moq/moq.py, moq/moq.swift, moq/moq.go, moq/moq.dart, and moq/moq.ts, and compile moq's C# for .NET and Unity
+just ffi moq      # export moq's crates at the pinned revision, build them, and run moq/moq.c, moq/moq.cpp, moq/moq.kt, moq/moq.py, moq/moq.swift, moq/moq.go, moq/moq.dart, moq/moq.cs, and moq/moq.ts, and compile moq's C# for Unity
 just ffi moq-c    # the same export, built in debug, running only moq/moq.c: `just ci`'s check on moq
 just ffi moq-cpp  # the same export, running only moq/moq.cpp
 just ffi moq-swift  # the same export, running only moq/moq.swift
 just ffi moq-react-native  # the same export, running only moq/moq.ts through the React Native binding on Hermes
 just ffi moq-api <target>  # stage moq's API on another target into target/moq-api, which the exports above merge
 just ffi census   # census each into target/census
-just ffi shapes   # round-trip every sampled type shape in every language but C#, as the nightly does
+just ffi shapes   # round-trip every sampled type shape in every language, as the nightly does
 just ffi corpus   # census, export, and bind each crate of corpus/crates.txt through a facade, as the nightly does; it runs their build scripts
 just ffi corpus-update  # take corpus/crates.txt afresh from crates.io's top crates, and resolve corpus/Cargo.lock
-just ffi protocol # run longer protocol scripts from more seeds through the C ABI and every binding but C#, as the nightly does
+just ffi protocol # run longer protocol scripts from more seeds through the C ABI and every binding, as the nightly does
 just ffi aot      # api's C# compiled ahead of time by NativeAOT, as the nightly runs it
 nix develop .#bench --command just ffi browsers  # api's TypeScript in headless Chromium, Firefox, and on Linux WebKit, lowering `using` three ways for WebKit, as the nightly runs it
 nix develop .#android --command just ffi android  # the Kotlin test, shrunk by R8, under CheckJNI on the Android device adb reaches
@@ -2060,7 +2061,8 @@ decides what exports, so a shape refused by design, for a construct `BY_DESIGN` 
 any other refusal fails the test, so a value type the exporter stops taking fails it. Each
 language's driver, the web's on Node included, is a generated list of these calls whose
 printed digests must match the crate's own, run natively, or as wasm under Node's WASI
-for the web, where `usize` is 32 bits. The gate runs a subset; `just ffi shapes` runs
+for the web, where `usize` is 32 bits; C#'s runs twice, as .NET's code and as Unity's on
+CoreCLR, with its callbacks delegates and its arithmetic checked. The gate runs a subset; `just ffi shapes` runs
 every sampled shape and, as the nightly does, more drawn from the day's seed, which it
 prints and `RUST2_SHAPES_SEED` replays. A new IR `Type` variant fails `ir_covered` until
 the sampler covers it.
@@ -2070,7 +2072,7 @@ building as they are, pinned by `corpus/Cargo.lock`, through a facade of its own
 <crate>::*;`. Each is censused, then, where the census refuses nothing, exported, and
 its glue, C and C++ programs including its headers (compiled, not linked, since a crate
 may call a platform library the host lacks), its Kotlin, Python, Swift, Go, and Dart
-built; a panic, an error, or a binding that does not build fails it, a refusal not.
+built, and its C# compiled for .NET and at Unity's level, C# 9 against .NET Standard 2.1; a panic, an error, or a binding that does not build fails it, a refusal not.
 Its `KNOWN` lists the crates it fails on today, each with the quest that fixes it or why
 none can, which it skips. The nightly runs it in four shards, `CORPUS_SHARD=i/4`, and each writes a report
 of every crate's refusals and failures.
@@ -2083,8 +2085,8 @@ run, and each driver runs the script through its surface and prints the outcomes
 must match line for line, with the counts of the script's waker where it polls with one.
 `tests/protocol.c` runs them through the C ABI, `tests/miri/protocol.rs` under Miri, and
 `just ffi sanitize` runs the C driver under ASan and TSan. Each binding runs them through
-its own wrapper too, from `tests/protocol.cpp`, `.swift`, `.py`, `.go`, `.kt`, `.dart`, and
-`.ts`: its `Profile` in the model leaves out what the binding cannot write, such as a free
+its own wrapper too, from `tests/protocol.cpp`, `.swift`, `.py`, `.go`, `.kt`, `.dart`, `.cs`,
+and `.ts`: its `Profile` in the model leaves out what the binding cannot write, such as a free
 where its collector frees or a failed check where it aborts, and adds what the binding does
 its own way, such as a close that refuses before Rust's check, a future made only as it is
 awaited, or one made on a home. `protocol_profiles` checks that each flag keeps its
@@ -2144,9 +2146,11 @@ RTTI, as OBS builds it, serving on an executor's thread and blocking on each rea
 `moq/moq.py` through the Python, running the origin's driver and the server as asyncio
 tasks and awaiting each read, `moq/moq.swift` through the Swift, serving in a task and
 awaiting each read, `moq/moq.go` through the Go, running the origin's driver on a
-goroutine of its own and serving on another, each read blocking under a context, and
+goroutine of its own and serving on another, each read blocking under a context,
 `moq/moq.dart` through the Dart, polling the origin's driver from the isolate's event loop
-on each wake and at its deadline's `Timer`, and awaiting each read, and `moq/moq.ts`
+on each wake and at its deadline's `Timer`, and awaiting each read, `moq/moq.cs` through
+the C# on .NET, each local read polled again on a `SynchronizationContext` the script drains
+and the session's on the thread pool, serving under a token it cancels, and `moq/moq.ts`
 through the React Native binding on Hermes off a device, in `tests/rn_host.cpp`'s event
 loop, polling the origin's driver from it on each wake and at its deadline's `setTimeout`,
 and awaiting each read, whose wakes from moq-tokio's threads post to that loop.

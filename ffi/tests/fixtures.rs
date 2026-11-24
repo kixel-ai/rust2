@@ -1321,9 +1321,9 @@ fn api_android() {
 	std::fs::create_dir_all(&dex).unwrap();
 	run(Command::new("java")
 		.arg("-cp")
-		.arg(newest(&sdk.join("build-tools")).join("lib").join("d8.jar"))
+		.arg(newest(&sdk.join("build-tools"), "lib/d8.jar"))
 		.args(["com.android.tools.r8.R8", "--release", "--min-api", "24", "--lib"])
-		.arg(newest(&sdk.join("platforms")).join("android.jar"))
+		.arg(newest(&sdk.join("platforms"), "android.jar"))
 		.arg("--pg-conf")
 		.arg(out.join("kotlin").join("api.pro"))
 		.arg("--pg-conf")
@@ -1347,7 +1347,7 @@ fn api_android() {
 		.matches("@dalvik.annotation.optimization.FastNative\n")
 		.count();
 	assert!(marked > 0, "the api fixture has no leaf to mark");
-	let dump = run(Command::new(newest(&sdk.join("build-tools")).join("dexdump"))
+	let dump = run(Command::new(newest(&sdk.join("build-tools"), "dexdump"))
 		.arg("-a")
 		.arg(dex.join("classes.dex")));
 	let kept = String::from_utf8_lossy(&dump.stdout)
@@ -1831,10 +1831,11 @@ fn coroutines() -> OsString {
 		.expect("KOTLINX_COROUTINES names kotlinx-coroutines' jar: run this in the dev shell")
 }
 
-/// The entry of `dir` of the highest version, as the SDK names its build tools and platforms.
-fn newest(dir: &Path) -> PathBuf {
-	let version = |path: &PathBuf| -> Vec<u32> {
-		let name = path.file_name().unwrap().to_string_lossy().into_owned();
+/// `path` in the entry of `dir` of the highest version that holds it, as the SDK names its
+/// build tools and platforms: a newer entry may lack it, as a .NET 11 pack lacks `net10.0`.
+fn newest(dir: &Path, path: &str) -> PathBuf {
+	let version = |entry: &PathBuf| -> Vec<u32> {
+		let name = entry.file_name().unwrap().to_string_lossy().into_owned();
 		name.split(|c: char| !c.is_ascii_digit())
 			.filter_map(|n| n.parse().ok())
 			.collect()
@@ -1842,8 +1843,10 @@ fn newest(dir: &Path) -> PathBuf {
 	std::fs::read_dir(dir)
 		.unwrap_or_else(|err| panic!("reading {}: {err}", dir.display()))
 		.map(|entry| entry.unwrap().path())
+		.filter(|entry| entry.join(path).exists())
 		.max_by_key(version)
-		.unwrap_or_else(|| panic!("{} is empty", dir.display()))
+		.unwrap_or_else(|| panic!("no entry of {} holds {path}", dir.display()))
+		.join(path)
 }
 
 /// `tests/api.kt`'s script, run by `vm` with each argument list, prints the native
@@ -4262,6 +4265,42 @@ fn api_csharp() {
 		.env("DOTNET_CLI_TELEMETRY_OPTOUT", "1"));
 }
 
+/// The protocol scripts through the api fixture's C#, `tests/protocol.cs`, on .NET.
+#[test]
+fn api_csharp_protocol() {
+	csharp_protocol(
+		"scripts",
+		&protocol::scripts(0, PROTOCOL_SEEDS, PROTOCOL_STEPS, protocol::Profile::CSHARP),
+	);
+}
+
+/// Longer C# protocol scripts from other seeds, as the nightly runs them.
+#[test]
+#[ignore = "slow: just ffi protocol"]
+fn api_csharp_protocol_nightly() {
+	csharp_protocol(
+		"nightly",
+		&protocol::scripts(PROTOCOL_SEEDS, 5000, 400, protocol::Profile::CSHARP),
+	);
+}
+
+fn csharp_protocol(dir: &str, scripts: &[protocol::Script]) {
+	let api = api();
+	// Each variant builds its own, so the gate and the nightly run together share no file.
+	let built = scratch().join("api").join("csharp-protocol").join(dir);
+	let exe = built.join("protocol.dll");
+	std::fs::create_dir_all(&built).unwrap();
+	csc(
+		Dotnet::Net,
+		&exe,
+		&[
+			&api.out.join("csharp").join("api.cs"),
+			&manifest_dir().join("tests/protocol.cs"),
+		],
+	);
+	protocol::check_all(&built.join("scripts"), scripts, || csharp_run(&exe, &[]));
+}
+
 /// The same C# compiled ahead of time by NativeAOT, with its trim and AOT analyzers' warnings
 /// as errors, prints the native transcript and passes its checks: `dotnet publish`, from the
 /// packs the SDK carries, so it needs no network.
@@ -4332,6 +4371,8 @@ enum Dotnet {
 	/// and static constructor IL2CPP takes on CoreCLR; `Unity` checks its language level.
 	/// Its arithmetic is checked, as a consumer's build may make it.
 	NetUnity,
+	/// A .NET library, which needs no `Main`.
+	Library,
 	Unity,
 }
 
@@ -4342,12 +4383,30 @@ fn dotnet_root() -> PathBuf {
 }
 
 /// `sources` compiled by Roslyn into `out`, warnings as errors, a program for `Net` and
-/// `NetUnity` and a library for `Unity`.
+/// `NetUnity` and a library for `Library` and `Unity`.
 fn csc(target: Dotnet, out: &Path, sources: &[&Path]) {
+	let step = Step {
+		stamp: &out.with_extension("stamp"),
+		reads: sources,
+		writes: &[out],
+	};
+	step.run(&mut csc_command(target, out, sources));
+	if let Dotnet::Net | Dotnet::NetUnity = target {
+		step::write(
+			&out.with_extension("runtimeconfig.json"),
+			r#"{"runtimeOptions":{"tfm":"net10.0","rollForward":"LatestPatch","framework":{"name":"Microsoft.NETCore.App","version":"10.0.0"},"configProperties":{"System.Globalization.Invariant":true}}}"#,
+		);
+	}
+}
+
+/// The Roslyn command [`csc`] runs, for a caller that takes its failure.
+fn csc_command(target: Dotnet, out: &Path, sources: &[&Path]) -> Command {
 	let root = dotnet_root();
-	let csc = newest(&root.join("sdk")).join("Roslyn/bincore/csc.dll");
+	let csc = newest(&root.join("sdk"), "Roslyn/bincore/csc.dll");
 	let refs = match target {
-		Dotnet::Net | Dotnet::NetUnity => newest(&root.join("packs/Microsoft.NETCore.App.Ref")).join("ref/net10.0"),
+		Dotnet::Net | Dotnet::NetUnity | Dotnet::Library => {
+			newest(&root.join("packs/Microsoft.NETCore.App.Ref"), "ref/net10.0")
+		}
 		Dotnet::Unity => {
 			PathBuf::from(std::env::var_os("NETSTANDARD_REF").expect("the dev shell sets NETSTANDARD_REF"))
 		}
@@ -4365,6 +4424,7 @@ fn csc(target: Dotnet, out: &Path, sources: &[&Path]) {
 	]);
 	match target {
 		Dotnet::Net => cmd.arg("-target:exe"),
+		Dotnet::Library => cmd.arg("-target:library"),
 		Dotnet::NetUnity => cmd.args(["-target:exe", "-define:UNITY_5_3_OR_NEWER", "-checked"]),
 		Dotnet::Unity => cmd.args(["-target:library", "-langversion:9", "-define:UNITY_5_3_OR_NEWER"]),
 	};
@@ -4380,36 +4440,35 @@ fn csc(target: Dotnet, out: &Path, sources: &[&Path]) {
 		.arg(format!("-doc:{}", out.with_extension("xml").display()))
 		.args(sources);
 	std::fs::create_dir_all(out.parent().unwrap()).unwrap();
-	let step = Step {
-		stamp: &out.with_extension("stamp"),
-		reads: sources,
-		writes: &[out],
-	};
-	step.run(&mut cmd);
-	if let Dotnet::Net | Dotnet::NetUnity = target {
-		step::write(
-			&out.with_extension("runtimeconfig.json"),
-			r#"{"runtimeOptions":{"tfm":"net10.0","rollForward":"LatestPatch","framework":{"name":"Microsoft.NETCore.App","version":"10.0.0"},"configProperties":{"System.Globalization.Invariant":true}}}"#,
-		);
-	}
+	cmd
 }
 
 /// `exe`, a program `csc` built, run by `dotnet` with `args`, loading the api fixture's library.
 fn csharp_run(exe: &Path, args: &[&str]) -> Command {
+	dotnet_run(exe, args, &api().lib)
+}
+
+/// `exe`, a program `csc` built, run by `dotnet` with `args`, loading libraries from `lib`.
+fn dotnet_run(exe: &Path, args: &[&str], lib: &Path) -> Command {
 	let mut cmd = Command::new("dotnet");
 	cmd.arg(exe).args(args).env("DOTNET_CLI_TELEMETRY_OPTOUT", "1");
-	with_api_lib(&mut cmd);
+	with_lib(&mut cmd, lib);
 	cmd
 }
 
 /// `cmd` finding the api fixture's library where the platform's loader looks.
 fn with_api_lib(cmd: &mut Command) {
+	with_lib(cmd, &api().lib);
+}
+
+/// `cmd` finding the libraries in `lib` where the platform's loader looks.
+fn with_lib(cmd: &mut Command, lib: &Path) {
 	let var = match (cfg!(windows), cfg!(target_os = "macos")) {
 		(true, _) => "PATH",
 		(_, true) => "DYLD_LIBRARY_PATH",
 		_ => "LD_LIBRARY_PATH",
 	};
-	let mut paths = vec![api().lib.clone()];
+	let mut paths = vec![lib.to_path_buf()];
 	paths.extend(std::env::var_os(var).iter().flat_map(std::env::split_paths));
 	cmd.env(var, std::env::join_paths(paths).unwrap());
 }
