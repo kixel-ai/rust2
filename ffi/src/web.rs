@@ -199,7 +199,7 @@ pub(crate) fn generate(abi: &Abi<'_>, facade: &Package, contract: u64) -> Result
 /// the JSI module [`crate::jsi`] writes, serving every target but wasm32's; or none if the
 /// API serves no other.
 pub(crate) fn react_native(abi: &Abi<'_>, facade: &Package, contract: u64) -> Result<Option<Output>, String> {
-	let mask = native_mask(abi);
+	let mask = native_mask(abi.api);
 	if mask == 0 {
 		return Ok(None);
 	}
@@ -207,8 +207,8 @@ pub(crate) fn react_native(abi: &Abi<'_>, facade: &Package, contract: u64) -> Re
 }
 
 /// The targets React Native's binding serves, one bit each: every one but wasm32's.
-pub(crate) fn native_mask(abi: &Abi<'_>) -> u64 {
-	(abi.api.targets.iter().enumerate())
+pub(crate) fn native_mask(api: &crate::ir::Api) -> u64 {
+	(api.targets.iter().enumerate())
 		.filter(|(_, target)| !target.starts_with("wasm32"))
 		.fold(0u64, |mask, (i, _)| mask | 1 << i)
 }

@@ -836,19 +836,33 @@ fn changed(base: &Index<'_>, now: &Index<'_>, maps: &Maps, ours: &Item<'_>, thei
 			} else if bare(c) != bare(d) {
 				changes.push("how it exports".to_string());
 			}
-			// A binding serving several targets declares one only some have in another form,
-			// such as React Native's function for an `export const`, and a compiled one only
-			// where it compiles for one of them.
-			match (base.api.everywhere(c.on), now.api.everywhere(d.on)) {
-				(true, false) => changes.push(format!(
-					"it is now only on {}, so a binding declares it only there or reads it through a check, as a getter or function",
-					now.api.named(d.on).join(", ")
-				)),
-				(false, true) => changes.push(
-					"it is now on every target, so a binding that read it through a check, as a getter or function, declares it a constant"
-						.to_string(),
-				),
-				_ => {}
+			// A binding declares one only some of the targets it serves have in another form:
+			// every binding over all of the export's targets, and React Native over its own.
+			// React Native's only where it serves a target both before and now.
+			let plain = |api: &Api, on: On| {
+				let native = crate::web::native_mask(api);
+				[
+					Some(api.everywhere(on)),
+					(native != 0).then_some(on.0 & native == native),
+				]
+			};
+			let (was, is) = (plain(base.api, c.on), plain(now.api, d.on));
+			let form = |plain: bool| match plain {
+				true => "a constant",
+				false => "a getter or function reading it through a check of the library's target",
+			};
+			let differs = (0..2).find_map(|k| match (was[k], is[k]) {
+				(Some(was), Some(is)) if was != is => Some((k, was, is)),
+				_ => None,
+			});
+			if let Some((k, was, is)) = differs {
+				let binding = ["a binding", "React Native's binding"][k];
+				changes.push(format!(
+					"it is now on {}, so {binding} declares it as {} rather than {}",
+					now.api.named(d.on).join(", "),
+					form(is),
+					form(was)
+				));
 			}
 		}
 		_ => changes.push("it is another kind of item".to_string()),
@@ -1016,10 +1030,32 @@ mod tests {
 		now.constants[0].on = On(0b01);
 		let whats = |found: Vec<Break>| found.into_iter().map(|b| b.what).collect::<Vec<_>>();
 		let found = whats(breaks(&base, &now, "lock"));
-		assert!(found.iter().any(|w| w.contains("it is now only on a,")), "{found:?}");
+		assert!(
+			found
+				.iter()
+				.any(|w| w.contains("it is now on a, so a binding declares it as a getter")),
+			"{found:?}"
+		);
 		let found = whats(breaks(&now, &base, "lock"));
 		assert!(
-			found.iter().any(|w| w.contains("it is now on every target")),
+			found
+				.iter()
+				.any(|w| w.contains("so a binding declares it as a constant rather than")),
+			"{found:?}"
+		);
+		// Not on wasm32, which React Native does not serve, so it is a constant there until
+		// a native target lacking it is added.
+		let mut base = base;
+		base.targets = vec!["aarch64-linux-android".into(), "wasm32-unknown-unknown".into()];
+		base.constants[0].on = On(0b01);
+		let mut now = base.clone();
+		now.targets.insert(0, "a".into());
+		now.constants[0].on = On(0b010);
+		let found = whats(breaks(&base, &now, "lock"));
+		assert!(
+			found
+				.iter()
+				.any(|w| w.contains("so React Native's binding declares it as a getter")),
 			"{found:?}"
 		);
 	}

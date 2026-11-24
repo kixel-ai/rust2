@@ -626,7 +626,7 @@ impl Crate<'_> {
 			Some(_) => Some(crate::jsi::generate(
 				&rest,
 				&self.packages(),
-				crate::web::native_mask(&rest),
+				crate::web::native_mask(rest.api),
 			)?),
 			None => None,
 		};
