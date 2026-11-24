@@ -2,11 +2,13 @@
 
 ## Goal
 
-Every static library `ffi/release/package.py` packs, not just the C package's, is
-prelinked so its only global symbols are the C ABI's `<lib>_*`: the Swift package's
-XCFramework slices, the Go module's libraries, and React Native's XCFramework and Android
+Every static library `ffi/release/package.py` packs for an Apple, Android, or Linux target,
+not just the C package's, is prelinked so its only global symbols are the C ABI's
+`<lib>_*`: the Swift package's XCFramework slices, the Go module's libraries, and React Native's XCFramework and Android
 libraries. An app can then link any of them beside another Rust static library, built by
 any toolchain, in either order. Each build checks this as the C package's `coexist` does.
+MSVC libraries are outside the goal, since MSVC has no relocatable link; the Plan decides
+the Go module's `windows-gnu` library.
 
 ## Plan
 
