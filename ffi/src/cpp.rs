@@ -828,12 +828,17 @@ impl<'a> Header<'a> {
 			let name = self.name(&abi.constant(&constant.path));
 			self.locked
 				.insert(format!("const {}", constant.path.join("::")), name.clone());
-			self.line(format!(
+			let declared = format!(
 				"{}{}inline constexpr {ty} {name} = {};",
 				docs(&constant.docs, ""),
 				prefixed(constant.deprecated.as_deref()),
 				abi.constant(&constant.path)
-			));
+			);
+			// Where the C header defines it.
+			match crate::c::gate(abi, constant.on) {
+				crate::gate::Gate::If(condition) => self.line(format!("#if {condition}\n{declared}\n#endif")),
+				_ => self.line(declared),
+			}
 		}
 		if !constants.is_empty() {
 			self.line("");

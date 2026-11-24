@@ -2604,6 +2604,7 @@ export declare function u128FromBig(v: bigint): u128;
 export type Stream<T> = AsyncIterableIterator<T>;
 export declare function values<T>(next: () => Call<unknown>, none: unknown, fallible: boolean): Stream<T>;
 export declare let n: Record<string, (...args: any[]) => any>;
+export declare function on(targets: readonly number[], what: string): void;
 export declare function encoded(text: string): Uint8Array;
 export interface Handle<T extends string = string> {
     readonly [brand]: T;
