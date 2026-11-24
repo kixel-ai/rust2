@@ -12248,8 +12248,8 @@ export declare class Handle<T extends string = string> {
     release(): void;
     [Symbol.dispose](): void;
 }
-export declare function hold(handle: Handle): number;
-export declare function holdOr(handle: Handle | undefined): number;
+export declare function open(handle: Handle): number;
+export declare function openOr(handle: Handle | undefined): number;
 export declare function lentHandle<T extends string>(p: number, k: Kind): Handle<T>;
 export declare function put8(p: number, v: number): void;
 export declare function put16(p: number, v: number): void;

@@ -1951,11 +1951,12 @@ target but wasm32's, whose layouts its TypeScript reads.
 - **Calls**: each C function is a native function of the addon, whose arguments are numbers,
   `boolean`s, handles' indices, and offsets, never a JavaScript object made per call. The
   native function converts them itself, as React Native's JSI module does: it holds each
-  handle in the addon's table for the call, throwing if it is closed, and throws a failed
-  status, so a call of numbers and handles alone is one call in its TypeScript. A call
-  that also lowers a value through memory, which may run JavaScript or give Rust a value,
-  holds its handles and checks its 64-bit integers in its TypeScript first, as the web's
-  does, so no value is given to Rust before a check the addon fails. A 64-bit
+  handle in the addon's table for the call before converting the rest, throwing if it is
+  closed, and throws a failed status, so a call of numbers and handles alone is one call in
+  its TypeScript. A call that also lowers a value through memory, which may run JavaScript
+  or give Rust a value, reads its handles' indices after that lowering, refusing a closed
+  one, and checks its 64-bit integers before it gives Rust anything, so no check the addon
+  makes after can fail and leave a value given in vain. A 64-bit
   integer crosses as a number while it is a safe integer, else as `rt.u64`'s or `rt.i64`'s
   limbs. A compound value lowers into the addon's scratch memory, one reservation as large
   as wasm32's memory, committed as the stack reaches it and viewed by one `ArrayBuffer`, as

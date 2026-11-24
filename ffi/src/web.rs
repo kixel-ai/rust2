@@ -758,8 +758,9 @@ struct Gen<'a> {
 	/// through the scratch memory, so its body runs in a frame of the stack.
 	framed: bool,
 	/// For Node: whether the arguments lowering are a call's whose lowering may run
-	/// JavaScript and gives before the addon converts them: each handle is held and each
-	/// 64-bit integer checked first, so the addon's conversion cannot fail after a give.
+	/// JavaScript and gives before the addon converts them: each handle's index is read
+	/// after the rest, refusing a closed one, and each 64-bit integer checked, so the addon's
+	/// conversion cannot fail after a give.
 	holding: bool,
 	/// The namespace of the glue's C names, apart from the export's.
 	space: String,
@@ -1488,10 +1489,12 @@ impl<'a> Gen<'a> {
 					false => self.checked(ty, e),
 				}
 			}
-			Type::Object(_) if self.node && !self.holding => format!("{e}.p"),
-			Type::Option(inner) if self.node && !self.holding && matches!(inner.base(), Type::Object(_)) => {
-				format!("({e}?.p ?? 0)")
+			Type::Object(_) if self.node && self.holding => format!("rt.open({e})"),
+			Type::Option(inner) if self.node && self.holding && matches!(inner.base(), Type::Object(_)) => {
+				format!("rt.openOr({e})")
 			}
+			Type::Object(_) if self.node => format!("{e}.p"),
+			Type::Option(inner) if self.node && matches!(inner.base(), Type::Object(_)) => format!("({e}?.p ?? 0)"),
 			Type::Int(Int::U64) | Type::NonZero(Int::U64) => format!("rt.u64Big({})", self.checked(ty, e)),
 			Type::Int(Int::I64) | Type::NonZero(Int::I64) => format!("rt.i64Big({})", self.checked(ty, e)),
 			Type::Int(_) | Type::NonZero(_) | Type::Char => self.checked(ty, e),
@@ -3540,6 +3543,9 @@ impl Gen<'_> {
 		let mut params = Vec::new();
 		let mut lines = Vec::new();
 		let mut gives = Vec::new();
+		// Node's handles a lowering that may run JavaScript is beside, read after it: none
+		// is then closed, or its index taken by another, before the addon holds it.
+		let mut opens = Vec::new();
 		let mut args = Vec::new();
 		let mut c_params = export.call.params.iter();
 		if receiver.is_some() {
@@ -3548,7 +3554,13 @@ impl Gen<'_> {
 			let t = self.tt(&ty);
 			params.push(format!("self: {t}"));
 			match c {
-				Ty::Handle { .. } => lines.push(format!("const self$ = {};", self.lower(&ty, "self"))),
+				Ty::Handle { .. } => {
+					let line = format!("const self$ = {};", self.lower(&ty, "self"));
+					match self.holding {
+						true => opens.push(line),
+						false => lines.push(line),
+					}
+				}
 				Ty::In(inner) => {
 					let l = self.layout(inner);
 					let put = self.put(&ty, "self", "self$", false);
@@ -3575,7 +3587,11 @@ impl Gen<'_> {
 				let t = self.tt(inner);
 				params.push(format!("{name}: rt.Place<{t}>"));
 				let value = format!("{name}.v");
-				lines.push(self.pass(inner, c, &value, &a));
+				let line = self.pass(inner, c, &value, &a);
+				match self.holding && matches!(c, Ty::Handle { .. }) {
+					true => opens.push(line),
+					false => lines.push(line),
+				}
 				args.push(a);
 				let out = Abi::written(function, &abi::escape(&param.name));
 				let read = self.get(inner, &format!("o_{out}"), true);
@@ -3633,7 +3649,11 @@ impl Gen<'_> {
 					args.push(a);
 				}
 				(ty, c) => {
-					lines.push(self.pass(ty, c, name, &a));
+					let line = self.pass(ty, c, name, &a);
+					match self.holding && matches!(c, Ty::Handle { .. }) {
+						true => opens.push(line),
+						false => lines.push(line),
+					}
 					// Rust takes `Bytes` by value: lent bytes become a second owner of its
 					// buffer once nothing left to lower can throw, so none is given in vain.
 					if matches!(ty, Type::Bytes) || matches!(ty, Type::Option(inner) if **inner == Type::Bytes) {
@@ -3644,6 +3664,7 @@ impl Gen<'_> {
 			}
 		}
 		let outs: Vec<(String, Ty)> = c_params.filter(|(_, ty)| !abi::is_status(ty)).cloned().collect();
+		lines.extend(opens);
 		lines.extend(gives);
 		self.holding = false;
 

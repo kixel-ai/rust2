@@ -1848,18 +1848,7 @@ unsafe extern "C" fn native_put(env: Env, info: Info) -> Value {
 	}
 }
 
-/// `$hold(i)`: hold index `i` until `$release(i)`, as a call whose lowering may run
-/// JavaScript does before it.
-unsafe extern "C" fn native_hold(env: Env, info: Info) -> Value {
-	// SAFETY: a call from JavaScript.
-	unsafe {
-		let cx = Cx::<1>::new(env, info);
-		hold(cx.int(0) as u32);
-		cx.undefined()
-	}
-}
-
-/// `$release(i)`: release the hold `$put` or `$hold` took of index `i`.
+/// `$release(i)`: release the hold `$put` took of index `i`.
 unsafe extern "C" fn native_release(env: Env, info: Info) -> Value {
 	// SAFETY: a call from JavaScript.
 	unsafe {
@@ -1985,7 +1974,7 @@ pub unsafe fn register(
 	commit(0, CHUNK);
 	// SAFETY: on JavaScript's thread, before any call.
 	unsafe { SCRATCH_STATE.get().low = CHUNK };
-	let natives: [(&CStr, Callback); 15] = [
+	let natives: [(&CStr, Callback); 14] = [
 		(c"$init", native_init),
 		(c"$base", native_base),
 		(c"$fns", native_fns),
@@ -1996,7 +1985,6 @@ pub unsafe fn register(
 		(c"$byte", native_byte),
 		(c"$handle", native_handle),
 		(c"$put", native_put),
-		(c"$hold", native_hold),
 		(c"$release", native_release),
 		(c"$close", native_close),
 		(c"$external", native_external),

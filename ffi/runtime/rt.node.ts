@@ -194,7 +194,7 @@ export class Handle<T extends string = string> {
 		this.n = REGISTERED;
 	}
 
-	/** Release the hold [hold] or [putHandle] took for a call. */
+	/** Release the hold [putHandle] took for a call. */
 	release(): void {
 		w.$release(this.i);
 	}
@@ -220,20 +220,18 @@ export class Handle<T extends string = string> {
 }
 
 /**
- * `handle`'s index, held until the running call returns, as a call whose lowering may run
- * JavaScript holds each before: a closed one throws.
+ * `handle`'s index, for a call that reads it once nothing left to lower can run
+ * JavaScript, so it stays this handle's until the addon holds it: a closed one throws.
  */
-export function hold(handle: Handle): number {
+export function open(handle: Handle): number {
 	const p = handle.p;
 	if (p === CLOSED) throw new Error(`${handle.k.name} is closed`);
-	w.$hold(p);
-	held.push(handle);
 	return p;
 }
 
-/** [hold] of a handle, or 0 for none. */
-export function holdOr(handle: Handle | undefined): number {
-	return handle === undefined ? 0 : hold(handle);
+/** [open] of a handle, or 0 for none. */
+export function openOr(handle: Handle | undefined): number {
+	return handle === undefined ? 0 : open(handle);
 }
 // #endregion node handles
 
