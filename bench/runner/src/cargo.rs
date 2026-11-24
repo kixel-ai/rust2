@@ -32,10 +32,11 @@ struct Target {
 }
 
 /// How Cargo launches a benchmark target: its directory and its whole environment, with
-/// `[env]`, `CARGO_MANIFEST_DIR`, and the library path Cargo sets. Its arguments are always
-/// Cargo's own `--bench`, which CodSpeed's harness does not take, so they are left out.
+/// `[env]`, `CARGO_MANIFEST_DIR`, and the library path Cargo sets. Its arguments are kept
+/// only to check they are Cargo's own, which CodSpeed's harness does not take.
 #[derive(Clone)]
 struct Launch {
+	args: Vec<String>,
 	dir: PathBuf,
 	env: BTreeMap<String, String>,
 }
@@ -136,18 +137,20 @@ fn launches(dir: &Path) -> Result<BTreeMap<PathBuf, Launch>, String> {
 				))
 			})
 			.collect::<Result<_, String>>()?;
-		// Arguments after `cargo bench`'s `--` would choose what a harness runs, but CodSpeed's
-		// takes none beyond a filter, which `--benchmarks` stands in for.
-		if value["args"] != serde_json::json!(["--bench"]) {
-			return Err(format!(
-				"cargo passed the benchmark targets {}: rust2-bench takes no arguments for them after cargo's --; \
-				 name benchmarks with --benchmarks",
-				value["args"]
-			));
-		}
+		let args = value["args"]
+			.as_array()
+			.ok_or(format!("{} has no args", path.display()))?
+			.iter()
+			.map(|arg| {
+				arg.as_str()
+					.map(str::to_owned)
+					.ok_or(format!("{} has an arg not a string", path.display()))
+			})
+			.collect::<Result<_, String>>()?;
 		launches.insert(
 			field("executable")?,
 			Launch {
+				args,
 				dir: field("dir")?,
 				env,
 			},
@@ -516,6 +519,20 @@ fn build(dir: &Path, args: &[String]) -> Result<Vec<(Target, Launch)>, String> {
 				 a config or the environment sets one",
 				target.name
 			))?;
+			// Arguments after `cargo bench`'s `--` would choose what a harness runs, but
+			// CodSpeed's takes none beyond a filter, which `--benchmarks` stands in for. Cargo's
+			// own `--bench`, and `--quiet` under `cargo -q`, are left out of every launch.
+			if let Some(arg) = launch
+				.args
+				.iter()
+				.find(|arg| !["--bench", "--quiet"].contains(&arg.as_str()))
+			{
+				return Err(format!(
+					"cargo passed benchmark target {} {arg}: rust2-bench takes no arguments for the targets \
+					 after cargo's --; name benchmarks with --benchmarks",
+					target.name
+				));
+			}
 			Ok((target, launch))
 		})
 		.collect()

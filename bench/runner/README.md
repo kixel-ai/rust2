@@ -92,6 +92,9 @@ Markdown table of each benchmark's base, head, and change. It refuses two finger
 with no benchmark at all, as a base before the first, counts as none. An
 absolute `--manifest-path` in the repository counts the same manifest in the base's worktree,
 and one outside it is refused, since both sides would count it.
+Cargo args select the same targets on both sides, so a `--bench` or `-p` naming a target or
+package only one side has fails that side's build: compare every target, and name the
+benchmarks with `--benchmarks`, which takes one present on only one side.
 Another compare of the same repository waits, on a lock beside the worktree, until this one
 has counted its base.
 

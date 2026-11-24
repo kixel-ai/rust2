@@ -330,9 +330,18 @@ count *args:
     # The programs' switch to one round a case, kept CodSpeed's name so a compare with a
     # commit before rust2-bench still runs that commit's programs the same way.
     export RUST2_CODSPEED=1
+    # The programs' options follow these, so only a subcommand that counts takes them.
+    case "${1-}" in
+        run | compare) ;;
+        *) echo "count: run or compare, then rust2-bench's options" >&2; exit 1 ;;
+    esac
     for arg; do
-        # rust2-bench takes every arg after -- as cargo's, which would swallow the programs.
-        [ "$arg" != -- ] || { echo "count: the programs take no cargo args" >&2; exit 1; }
+        # rust2-bench takes every arg after -- as cargo's, which would swallow the programs,
+        # and the programs are this recipe's to name.
+        case "$arg" in
+            --) echo "count: the programs take no cargo args" >&2; exit 1 ;;
+            --build | --build=* | --program | --program=*) echo "count: $arg is this recipe's own" >&2; exit 1 ;;
+        esac
     done
     just=$(printf %q {{ quote(just_executable()) }})
     programs=()

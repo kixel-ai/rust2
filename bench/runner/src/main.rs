@@ -386,10 +386,12 @@ fn one(job: Job, dir: &Path) -> Measured {
 	let file = |name: &str| {
 		std::fs::File::create(dir.join(name)).map_err(|e| format!("cannot create {}: {e}", dir.join(name).display()))
 	};
+	// Valgrind expands every `%` in a file name, so one in the directory's stands for itself.
+	let escaped = dir.to_str().ok_or("a job's directory is not UTF-8")?.replace('%', "%%");
 	let mut valgrind = valgrind()?;
 	valgrind
-		.arg(format!("--callgrind-out-file={}/callgrind.%p", dir.display()))
-		.arg(format!("--log-file={}/valgrind.%p.log", dir.display()))
+		.arg(format!("--callgrind-out-file={escaped}/callgrind.%p"))
+		.arg(format!("--log-file={escaped}/valgrind.%p.log"))
 		.arg(command.get_program())
 		.args(command.get_args())
 		.stdin(std::process::Stdio::null())

@@ -18,12 +18,6 @@ on:
         type: string
         default: ""
 
-# A bisect's step runs on a branch of its own, so it never waits on main's run or another
-# step's.
-concurrency:
-  group: valgrind-${{ github.ref }}
-  cancel-in-progress: false
-
 jobs:
   count:
     name: Count
