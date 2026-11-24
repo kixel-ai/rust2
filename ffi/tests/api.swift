@@ -426,6 +426,7 @@ struct Count: ClashCount {
 /// What the transcript's script says only in Rust, or Swift alone has: its own types'
 /// conversions, the errors and checks it throws, and its protocols.
 func checks() {
+	check(WORD == UInt.max, "a 64-bit host has WORD")
 	check(U128(high: .max, low: .max).description == "340282366920938463463374607431768211455", "a u128's decimal digits")
 	check(ArrayU8x4([1, 2, 3]) == nil, "3 bytes are no [u8; 4]")
 	check(advance(.init_(1)) == .init_(0) && advance(.init_(0)) == .done, "a variant named init crosses")

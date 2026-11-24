@@ -356,6 +356,7 @@ fn api_c() {
 		api.transcript,
 		"the C transcript differs from the native one"
 	);
+	header_wasm32(api);
 	// A non-null status takes each failed check, which changed nothing.
 	run(Command::new(&exe).arg("statuses"));
 	// A value that is not Send stays on its thread; one freed after that exited leaks.
@@ -410,6 +411,37 @@ fn api_c() {
 		let stderr = String::from_utf8_lossy(&output.stderr);
 		assert!(stderr.contains(message), "{case} printed {stderr}");
 	}
+}
+
+/// The header compiled for wasm32, its other target, which tests/api.c cannot reach: it
+/// defines wasm32's constants and no 64-bit target's, by conditions `-Wundef` finds clean.
+/// Through the dev shell's Clang 23, `RUST2_CLANG`, which Linux, where the merge gate runs,
+/// requires; a platform's own may have no wasm32 backend.
+fn header_wasm32(api: &Api) {
+	let clang = std::env::var_os("RUST2_CLANG");
+	assert!(
+		clang.is_some() || !cfg!(target_os = "linux"),
+		"RUST2_CLANG names Clang 23's clang++: run this in the dev shell"
+	);
+	let Some(clang) = clang else {
+		return;
+	};
+	let src = scratch().join("api").join("wasm32.c");
+	std::fs::write(
+		&src,
+		"#include \"api.h\"\n\n#ifdef API_WORD\n#error \"API_WORD is a 64-bit target's\"\n#endif\n\n\
+		_Static_assert(API_WASM_PAGE == 65536, \"wasm32 has API_WASM_PAGE\");\n",
+	)
+	.unwrap();
+	run(Command::new(clang)
+		.args(["-x", "c", "--target=wasm32-wasip1", "-ffreestanding", "-fsyntax-only"])
+		.args(["-std=c11", "-pedantic", "-Wall", "-Wextra", "-Wundef", "-Werror"])
+		// Nix's wrapper adds the host's linker flags and hardening, which wasm32 refuses.
+		.arg("-Wno-unused-command-line-argument")
+		.env("NIX_HARDENING_ENABLE", "")
+		.arg("-I")
+		.arg(api.out.join("include"))
+		.arg(&src));
 }
 
 /// Random sequences of the ownership protocol's steps through the C ABI, by

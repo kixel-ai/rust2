@@ -19,6 +19,17 @@ export let n: Record<string, (...args: any[]) => any> = new Proxy(
 	},
 );
 
+/** The index of the library's target among those the binding serves, once it is read. */
+let target: number | undefined;
+
+/** Throw unless the library's target is one of `targets`, as the item `what` is. */
+export function on(targets: readonly number[], what: string): void {
+	target ??= n.target() as number;
+	if (!targets.includes(target)) {
+		throw new Error(`${what}: the library's target lacks it`);
+	}
+}
+
 /** Text as UTF-8, and back, through the module, as Hermes has no `TextDecoder`. */
 const loose = { decode: (bytes: Uint8Array): string => n.$decode(bytes) as string };
 

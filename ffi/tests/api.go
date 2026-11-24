@@ -403,6 +403,7 @@ func localLater(local *api.Local) {
 // types, what a refused call leaves, and what only Go's calls can pass.
 func checks() {
 	ctx := context.Background()
+	check(api.WORD == math.MaxUint, "a 64-bit host has WORD")
 	// An exported error type is returned as itself.
 	{
 		c := must(api.NewCounter("c", 5))

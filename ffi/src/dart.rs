@@ -1783,9 +1783,25 @@ impl<'a> Gen<'a> {
 				Literal::Int(Int::U64 | Int::Usize, v) => format!("U64.fromBits({})", int_literal(v)),
 				Literal::Int(_, v) => int_literal(v),
 			};
+			// One only some targets have throws on any other, as a function would.
+			let declared = match api.everywhere(constant.on) {
+				true => format!("const {name} = {value};"),
+				false => {
+					let ty = match constant.value {
+						Literal::Bool(_) => "bool",
+						Literal::Int(Int::U64 | Int::Usize, _) => "U64",
+						Literal::Int(..) => "int",
+					};
+					format!(
+						"{ty} get {name} {{\n\t_on(0x{:x}, '{}');\n\treturn {value};\n}}",
+						constant.on.0 & api.all().0,
+						abi.constant(&constant.path)
+					)
+				}
+			};
 			let _ = write!(
 				self.top,
-				"{}const {name} = {value};\n\n",
+				"{}{declared}\n\n",
 				docs(&constant.docs, constant.deprecated.as_deref(), "")
 			);
 		}

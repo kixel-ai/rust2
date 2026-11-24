@@ -1908,10 +1908,11 @@ final class VecClashToneException implements Exception {
 }
 const limit = U64.fromBits(1000);
 const far = 9223372036854775807;
+int get wasmPage;
 const eof = -1;
 const url = U64.fromBits(1000);
 @Deprecated('pass a step to `Dial::turn`, whose `}` or `{` alone stays in the note') const step = U64.fromBits(1);
-const word = U64.fromBits(0xffffffffffffffff);
+U64 get word;
 bool hasText(Note note);
 U64 marked(Mark apiMarked);
 Reading? reading(int n);

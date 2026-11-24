@@ -249,8 +249,17 @@ item that target compiles works exactly, and no other does:
   refused, as below.
 - A type only some targets have is declared everywhere, and only those targets' items
   make or take it.
-- A constant only some targets have keeps its value everywhere, since reading it calls
-  nothing.
+- A constant only some targets have exists only there. A binding compiled for each target
+  declares it under the language's own condition on the target it compiles for, the fewest
+  of its pointer width, architecture, system, and Apple simulator or Mac Catalyst that tell
+  those targets apart from the binding's others: C's and C++'s `#if UINTPTR_MAX ==
+  0xFFFFFFFFFFFFFFFFu` for a 64-bit one, Swift's `#if arch(x86_64)`, and a Go file of its own
+  under a `//go:build` constraint, or none in a package that links no target with it. One
+  those cannot tell apart, such as a constant only glibc's Linux has beside musl's, is
+  refused at its span. A binding serving its targets at run time reads it through the same
+  check of the library's target as a function: a Kotlin property, Dart getter, or C#
+  property that throws, a Python attribute that raises and that `import *` leaves out, and
+  in React Native a function, as an `export const` cannot throw.
 - An item whose definition differs between two targets, such as a function whose
   signature does, a record with a field only one has, a plain enum whose variant has
   another value, or a constant of another value, is refused at its span, with a note at the other's, naming both targets.
@@ -1913,8 +1922,8 @@ the header's wrappers would, and it needs only `jsi.h`.
   return, so no JavaScript that installs it first with a kit of its own reaches memory.
 - **Values** are the web's, but for `usize` and `isize`, which are `rt.u64` and `rt.i64`,
   since one package serves 64-bit targets as well as 32-bit ones, where a value past 32 bits
-  fails as it crosses in. A constant only some of the package's targets have fails the
-  export, naming the targets that lack it, since its value compiles into the one package. An `rt.Bytes` past 64 bytes holds Rust's own
+  fails as it crosses in. A constant only some of the package's targets have is a function
+  returning it, which throws on any other, as an `export const` cannot ([Targets](#targets)). An `rt.Bytes` past 64 bytes holds Rust's own
   buffer, which disposing or the collector frees, and passed back crosses in place, as the
   web's does. JavaScript reads it only through the module, by `at` and `slice`, which check
   it open as they read: no `ArrayBuffer` of it exists, since React Native's Babel preset

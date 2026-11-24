@@ -1474,9 +1474,18 @@ impl<'a> Gen<'a> {
 				Literal::Bool(b) => ("Boolean".to_string(), b.to_string()),
 				Literal::Int(int, v) => (kt_int(int).to_string(), int_literal(int, v)),
 			};
+			// One only some targets have throws on any other, as a function would.
+			let declared = match api.everywhere(constant.on) {
+				true => format!("const val {name}: {ty} = {value}"),
+				false => format!(
+					"val {name}: {ty}\n\tget() {{\n\t\t_Native.check({}uL, \"{}\")\n\t\treturn {value}\n\t}}",
+					constant.on.0 & api.all().0,
+					abi.constant(&constant.path)
+				),
+			};
 			let _ = write!(
 				self.top,
-				"{}const val {name}: {ty} = {value}\n\n",
+				"{}{declared}\n\n",
 				docs(&constant.docs, constant.deprecated.as_deref(), "")
 			);
 		}

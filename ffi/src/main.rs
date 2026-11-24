@@ -40,6 +40,7 @@ mod csharp;
 mod dart;
 mod doc;
 mod driver;
+mod gate;
 mod glue;
 mod go;
 mod help;
