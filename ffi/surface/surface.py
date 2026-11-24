@@ -9,8 +9,8 @@ nothing and fails with the diff where <dir> differs.
 
 Each comes from the language's own tool where one reads source: Python's `ast` for the
 stub a type checker reads, `go doc -all` for Go, and `tsc` for the declarations of the web
-binding and React Native's. C, C++, Kotlin, Swift, Dart, and C# have none that runs without a
-build, so an outline of the generated source keeps each public declaration up to its body.
+binding, React Native's, and Node's. C, C++, Kotlin, Swift, Dart, and C# have none that runs
+without a build, so an outline of the generated source keeps each public declaration up to its body.
 """
 
 import ast
@@ -918,7 +918,7 @@ def undocumented(text):
     return "\n".join(out).strip("\n") + "\n\n"
 
 
-# The web binding and React Native's: tsc's declarations of their modules.
+# The web binding, React Native's, and Node's: tsc's declarations of their modules.
 
 # What React Native's runtime imports of `react-native`, off a React Native app.
 REACT_NATIVE = """declare module "react-native" {
@@ -978,6 +978,8 @@ def files(export):
         surfaces["web.d.ts"] = lambda: web_declarations(export / "web")
     if (export / "react-native").is_dir():
         surfaces["react-native.d.ts"] = lambda: web_declarations(export / "react-native")
+    if (export / "node").is_dir():
+        surfaces["node.d.ts"] = lambda: web_declarations(export / "node")
     return surfaces
 
 

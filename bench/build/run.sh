@@ -318,8 +318,10 @@ time_once() { # corpus dir scenario variant prepare cargo-args...
             counts=$(rajit_counts "$dir")
         fi
         # hyperfine sends only stdout to the log; nextest and cargo report on stderr.
+        # hyperfine 2 reads no instruction counters under `--shell`, so bash is the
+        # benchmarked program instead, and its counters inherit to cargo's processes.
         hyperfine --style none --runs 1 --prepare "$prepare && sync" --export-json "$json" --output "$log" "${failure[@]}" \
-            --shell bash "$(printf '%q ' cargo "${sub[@]}" "$@" "${cfg[@]}") 2>&1" ||
+            --shell none "bash -c $(printf '%q' "$(printf '%q ' cargo "${sub[@]}" "$@" "${cfg[@]}") 2>&1")" ||
             { tail -40 "$log" >&2 && die "$corpus $scenario failed with $variant"; }
         measurement=$(jq -c '.results[0].measurements[0]' "$json")
         if ((${#failure[@]})); then

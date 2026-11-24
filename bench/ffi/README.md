@@ -14,7 +14,8 @@ on the stand-in's API from Rust, and `moq-c.c` moq's hand-written rs/libmoq, whi
 has only the stamped write. `export.ts` runs on Node and, through `browser.ts`, in
 headless Chromium and Firefox, over a wasm32-wasip1 build of the stand-in
 ([TypeScript](#typescript)), and on Hermes through the React Native binding of the export
-([React Native](#react-native)). Each program runs its cases twice and prints the second,
+([React Native](#react-native)), and on Node through the Node binding's addon
+([Node-API](#node-api)). Each program runs its cases twice and prints the second,
 so a JIT has warmed up, in wall time and in the process's CPU time on every thread.
 `just ffi bench-run` runs each program once a round, records the 1-minute load average
 over each run, and [`report.py`](report.py) prints each case's median over the rounds
@@ -1248,6 +1249,77 @@ C's header of the same export (2,483 KiB raw, 315 KiB gzipped):
 | the JSI module and TurboModule, C++ | 4 | 4,666 KiB | 270 KiB |
 | the package's podspec, CMake list, iOS loader, and manifests | 5 | 3 KiB | 2 KiB |
 | all | 591 | 7,416 KiB | 1,113 KiB |
+
+## Node-API
+
+The `ts-addon` column runs `export.ts` on Node over the Node binding of the export: the
+web's TypeScript, its imports and load rewritten, over the Node-API addon the export's
+library builds with `--features node`, beside the `ts-node` column's wasm32 stand-in on
+the same Node, so the two differ by what each crossing costs.
+
+Measured 2026-11-23 on **fedora**, an AMD Ryzen 9 9950X (32 threads), at this column's
+branch, moq `1aa86d5e`, 3 rounds each, alternating, at a load average of 20 to 33. Node
+24.22.2, the export's default `release` profile. CPU ns per call, medians:
+
+| call | Node, wasm32 | Node, Node-API |
+|---|---|---|
+| `track.is_closed()`, a handle call | 64 | 89 |
+| `demand.start()`, a u64 getter | 58 | 77 |
+| `track.largest()`, a record return | 71 | 108 |
+| `track.info()`, an object return | 140 | 196 |
+| `group.write_frame(at, frame)`, 100 B | 331 | 302 |
+| the same, with a new `Timestamp` each | 492 | 499 |
+| a 100 B frame written and read, ready | 1,082 | 1,043 |
+| the same, read after a wake | 1,967 | 2,650 |
+| one reader and writer, with their handoff | 2,543 | 2,448 |
+| `frame.payload`, 100 B | 225 | 285 |
+
+| frame, MB per CPU second | Node, wasm32 | Node, Node-API |
+|---|---|---|
+| 100 B | 64 | 80 |
+| 1 KiB | 666 | 707 |
+| 16 KiB | 5,953 | 6,718 |
+| 64 KiB | 9,903 | 10,197 |
+| 1 MiB | 10,206 | 9,138 |
+
+A leaf call costs 19 to 56 ns more through the addon: V8 compiles a call into wasm inline
+with the JavaScript, while a Node-API function's call reads its arguments through
+`napi_get_cb_info` and a call per argument. Where Rust does more, as in a write or a read,
+the two land within 10%, and the addon moves more bytes up to 64 KiB. A wake calls back
+into JavaScript through `napi_call_function`, where the module calls an import, which costs
+the woken read 0.7 µs more.
+
+Every number here is a call made while JavaScript holds no token Rust may call through
+from another thread, as `export.ts` holds none. While it holds one, as moq's session does
+through `Waiter.new$`'s closure, every call runs on the addon's worker thread while
+JavaScript's serves what Rust queues, a handoff and a wait each way. On the api fixture's
+release addon, a leaf call (`dropped()`) took 43 ns without a token and 2,400 to 2,560 ns
+of wall time, 1,980 to 2,060 ns of CPU, while a `Logger` held one: 3 rounds of 2 million
+calls on **fedora** at a load average of 27, 2026-11-24. Dart's binding waits the same way.
+[Node's lowering](/quest/m3/node-lowering.md) owns the cost.
+
+`frame.payload` up to 64 bytes copies through the scratch memory, one native call of
+numbers alone, 237 to 259 ns; a copy into a new `Uint8Array`, a call reading the array's
+place, cost about 560 in an earlier run. Past them it lends Rust's buffer, 275 to 357 ns at
+any length, telling V8 of the bytes held and freed, two calls more.
+
+| bytes | Node, wasm32 | Node, Node-API |
+|---|---|---|
+| 16 B | 198 | 259 |
+| 64 B | 181 | 237 |
+| 100 B | 221 | 287 |
+| 1 KiB | 183 | 276 |
+| 16 KiB | 177 | 286 |
+| 64 KiB | 181 | 277 |
+| 256 KiB | 179 | 357 |
+| 1 MiB | 183 | 275 |
+
+The binding's TypeScript is the web's, 582 modules of 4,953 KiB raw and 1,081 KiB gzipped,
+and its Rust glue 3,420 KiB raw and 187 KiB gzipped. In `libmoq.so` it adds 5,412 KiB,
+stripped, to the Kotlin and Dart glue's 40,443 KiB: 3.1 MiB of native functions, one for
+each of 6,593 C functions, and the call each makes.
+`just ffi bench` builds the generated crate, and times its build, with that glue too, which
+the build and size rows above predate.
 
 ## Consumer release profile
 
