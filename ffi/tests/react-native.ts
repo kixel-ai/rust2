@@ -43,8 +43,8 @@ function interleaved(): void {
  */
 async function foreign(): Promise<void> {
 	const channel = Channel.new();
-	Channel.send(channel, new Uint8Array(100));
-	// Past 64 bytes, Rust's own buffer, lent.
+	Channel.send(channel, new Uint8Array(4097));
+	// Past 4 KiB, Rust's own buffer, lent.
 	const lent = await Channel.recv(channel);
 	const dispose = rt.Handle.prototype[Symbol.dispose];
 	const cases: [string, () => unknown][] = [
@@ -66,7 +66,7 @@ async function foreign(): Promise<void> {
 		}
 		throw new Error(`${what} passed`);
 	}
-	if (lent.at(99) !== 0) throw new Error("bytes refused as a handle were touched");
+	if (lent.at(4096) !== 0) throw new Error("bytes refused as a handle were touched");
 	lent[Symbol.dispose]();
 	channel[Symbol.dispose]();
 }
@@ -78,14 +78,14 @@ async function foreign(): Promise<void> {
  */
 async function sliced(): Promise<void> {
 	const channel = Channel.new();
-	const sent = new Uint8Array(100).map((_, i) => i);
+	const sent = new Uint8Array(4097).map((_, i) => i);
 	const recv = async (length: number) => {
 		Channel.send(channel, sent.subarray(0, length));
 		return Channel.recv(channel);
 	};
-	// Past 64 bytes, Rust's own buffer, lent; up to it, a copy.
-	const lent = await recv(100);
-	const copied = await recv(10);
+	// Past 4 KiB, Rust's own buffer, lent; up to it, a copy.
+	const lent = await recv(4097);
+	const copied = await recv(4096);
 	const typed = Object.getPrototypeOf(Uint8Array.prototype);
 	const slice = typed.slice;
 	const set = typed.set;
@@ -95,8 +95,8 @@ async function sliced(): Promise<void> {
 	typed.slice = reached;
 	typed.set = reached;
 	try {
-		const bounds = [undefined, 0, 1, 9, 10, 11, 99, 100, 101, -1, -10, -100, -101, 2.7, -2.7, NaN, Infinity, -Infinity];
-		for (const [bytes, length] of [[lent, 100], [copied, 10]] as const) {
+		const bounds = [undefined, 0, 1, 4095, 4096, 4097, 4098, -1, -4096, -4097, -4098, 2.7, -2.7, NaN, Infinity, -Infinity];
+		for (const [bytes, length] of [[lent, 4097], [copied, 4096]] as const) {
 			for (const start of bounds) {
 				for (const end of bounds) {
 					const got = bytes.slice(start, end);
@@ -142,7 +142,7 @@ async function sliced(): Promise<void> {
 	];
 	for (const [what, hook] of hooks) {
 		for (const [start, end] of [[0, 80], [-80, undefined]]) {
-			const bytes = await recv(100);
+			const bytes = await recv(4097);
 			let disposed = false;
 			const restore = hook(() => {
 				if (!disposed) bytes[Symbol.dispose]();
@@ -232,7 +232,7 @@ function refused(): void {
  */
 async function replaced(): Promise<void> {
 	const channel = Channel.new();
-	Channel.send(channel, new Uint8Array(100));
+	Channel.send(channel, new Uint8Array(4097));
 	const seen: unknown[] = [];
 	const g = globalThis as { Uint8Array: Uint8ArrayConstructor };
 	const was = g.Uint8Array;
@@ -252,14 +252,14 @@ async function replaced(): Promise<void> {
 	});
 	let lent: rt.Bytes;
 	try {
-		// Past 64 bytes, Rust's own buffer, lent.
+		// Past 4 KiB, Rust's own buffer, lent.
 		lent = await Channel.recv(channel);
 	} finally {
 		g.Uint8Array = was;
 		Object.defineProperty(ArrayBuffer.prototype, "byteLength", length);
 	}
 	if (seen.length !== 0) throw new Error(`a replaced global saw ${seen.length} values as Rust's bytes were made`);
-	if (lent.length !== 100 || lent.at(99) !== 0) throw new Error(`lent bytes read ${lent.length}`);
+	if (lent.length !== 4097 || lent.at(4096) !== 0) throw new Error(`lent bytes read ${lent.length}`);
 	lent[Symbol.dispose]();
 	channel[Symbol.dispose]();
 }
