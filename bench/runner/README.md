@@ -39,9 +39,9 @@ one name, a job that fails, and a name `--benchmarks` lists that no benchmark ha
 bisect step never reads a suspect it could not count as clean. A program's benchmarks all
 run even when `--benchmarks` names only some; a Cargo benchmark runs only when named.
 
-The hooks' requests only CodSpeed's Valgrind fork knows, `ADD_DESC` and `ADD_OBJ_SKIP`,
-leave a warning in each job's Valgrind log, under `target/rust2-bench/jobs`, beside its
-profiles and output.
+The instrument hooks' `ADD_DESC` after each benchmark, a request only CodSpeed's Valgrind
+fork knows, leaves an `unknown callgrind client request` warning in the job's Valgrind log,
+under `target/rust2-bench/jobs`, beside its profiles and output.
 
 ## Fingerprints
 

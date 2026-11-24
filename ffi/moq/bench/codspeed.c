@@ -34,7 +34,7 @@ bool codspeed_init(const char *bench) {
 	}
 	/* A case is one run, which only the simulation counts exactly; walltime would time one. */
 	if (!RUNNING_ON_VALGRIND) {
-		fail("a CodSpeed instrument but its CPU simulation");
+		fail("an instrument other than Valgrind");
 	}
 	if (instrument_hooks_set_integration(hooks, "rust2-ffi-bench", "0.1.0") != 0) {
 		fail("instrument_hooks_set_integration");

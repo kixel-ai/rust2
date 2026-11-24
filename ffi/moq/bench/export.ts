@@ -3,8 +3,8 @@
 // thread. Each round runs twice, the first to warm the JIT. Each case prints its wall time
 // and, on Node, the process's CPU time, its own threads included; a browser has no clock of
 // that, so it prints NaN. Its arguments are the module's path, which bench/browser.ts's page
-// serves in a browser, and on Node, moq/bench/codspeed-node.c's addon, under CodSpeed's CPU
-// simulation, which then counts one round.
+// serves in a browser, and on Node, moq/bench/codspeed-node.c's addon, under Valgrind
+// for rust2-bench, which then counts one round.
 
 import * as api from "./web/index.ts";
 import * as BroadcastInfo from "./web/BroadcastInfo.ts";
@@ -32,7 +32,7 @@ declare const process: {
 /** moq/bench/codspeed.h's functions, as the addon gives them. */
 type Hooks = { init(bench: string): boolean; start(): void; stop(name: string): void };
 
-/** A tenth under CodSpeed, whose simulation counts every call exactly. */
+/** A tenth under Valgrind, which counts every call exactly. */
 let groups = 10000;
 const frames = 100;
 let n = groups * frames;
@@ -58,13 +58,13 @@ const addon = process.argv[3];
 const hooks = addon === undefined ? undefined : process.getBuiltinModule("node:module").createRequire(import.meta.url)(addon);
 
 /**
- * The garbage collector, which `--expose-gc` exposes. Under CodSpeed each case starts with
+ * The garbage collector, which `--expose-gc` exposes. Under Valgrind each case starts with
  * it collected, so the collections a case makes depend on what the case allocates alone.
  */
 const gc = (globalThis as { gc?: () => void }).gc;
 let measured = false;
 
-/** A case's start: now, and CodSpeed counting from here. */
+/** A case's start: now, and Valgrind counting from here. */
 function begin(): Span {
 	if (measured) gc!();
 	const start = now();
@@ -367,10 +367,10 @@ async function round(): Promise<Map<string, Span>> {
 
 const { readFileSync } = process.getBuiltinModule("node:fs");
 await api.load(readFileSync(process.argv[2]!));
-// Under CodSpeed, one round, which prints nothing: its simulation counts each case.
+// Under Valgrind, one round, which prints nothing: rust2-bench counts each case.
 measured = hooks?.init("ffi/moq/bench/export.ts::ts") ?? false;
 if (measured) {
-	if (gc === undefined) throw new Error("under CodSpeed, Node runs with --expose-gc");
+	if (gc === undefined) throw new Error("under Valgrind, Node runs with --expose-gc");
 	groups /= 10;
 	n = groups * frames;
 	await round();

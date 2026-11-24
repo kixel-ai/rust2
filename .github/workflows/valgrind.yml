@@ -25,26 +25,8 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  # TEMPORARY: surveys the fingerprints hosted runners give; removed before review.
-  survey:
-    if: inputs.benchmarks == '__survey__'
-    strategy:
-      fail-fast: false
-      matrix:
-        i: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]
-    runs-on: ubuntu-24.04
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-      - uses: ./.github/actions/nix
-      - run: |
-          grep -m1 'model name' /proc/cpuinfo
-          nix run .#bench -- fingerprint
-
   count:
     name: Count
-    if: inputs.benchmarks != '__survey__'
     # Hosted, which costs a public repository nothing.
     runs-on: ubuntu-24.04
     timeout-minutes: 180

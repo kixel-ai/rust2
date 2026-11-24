@@ -1,6 +1,6 @@
 # bench/export.c's cases through the generated Python, so the two differ by what CPython
 # and the Python wrapper add. Each round runs twice, the first to warm CPython's caches.
-# Each case prints its wall time and the process's CPU time, or under CodSpeed, runs once
+# Each case prints its wall time and the process's CPU time, or under Valgrind, runs once
 # for its CPU simulation to count. Its argument is moq/bench/codspeed.h's shared library.
 
 import asyncio
@@ -22,7 +22,7 @@ start_case = codspeed.codspeed_start
 stop_case = codspeed.codspeed_stop
 measured = codspeed.codspeed_init(b"ffi/moq/bench/export.py::python")
 
-# A tenth under CodSpeed, whose simulation counts every call exactly.
+# A tenth under Valgrind, which counts every call exactly.
 GROUPS = 100 if measured else 1000
 FRAMES = 100
 N = GROUPS * FRAMES
@@ -42,7 +42,7 @@ def per(start, n=N):
 
 
 def begin():
-	"""A case's start: now, and CodSpeed counting from here."""
+	"""A case's start: now, and Valgrind counting from here."""
 	start = now()
 	start_case()
 	return start
@@ -148,7 +148,7 @@ def round(loop, measured):
 	out["getter"] = end(start, b"getter")
 
 	# The handle call and the getter from THREADS threads: on one shared handle, then on a
-	# clone each, a handle of its own to the same value. CodSpeed's simulation runs one thread
+	# clone each, a handle of its own to the same value. Valgrind runs one thread
 	# at a time, which contends for nothing, so it skips them.
 	if not measured:
 		out["shared:call"] = concurrent([track.is_closed] * THREADS)
@@ -281,7 +281,7 @@ def round(loop, measured):
 	return out
 
 
-# Under CodSpeed, one round, which prints nothing: its simulation counts each case.
+# Under Valgrind, one round, which prints nothing: rust2-bench counts each case.
 loop = asyncio.new_event_loop()
 if measured:
 	round(loop, True)

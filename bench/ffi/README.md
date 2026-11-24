@@ -98,7 +98,7 @@ threads, each with a glibc malloc arena that keeps what it freed: with
 
 [rust2-bench](../runner/README.md) counts each single-threaded case's instructions under
 stock Valgrind for Kixel Quest, which keeps main's history of each and bisects a regression
-to its PR. [`codspeed.yml`](../../.github/workflows/codspeed.yml), the Valgrind workflow,
+to its PR. [`valgrind.yml`](../../.github/workflows/valgrind.yml)
 runs `just ffi count` in the bench shell nightly on main, and on each commit a bisect
 dispatches it on, with the benchmarks it narrows down as its `benchmarks` input, and uploads
 the `metrics.json` it writes as its `kixel-metrics` artifact. No pull request runs it:
