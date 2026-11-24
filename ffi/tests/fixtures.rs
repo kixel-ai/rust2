@@ -3375,13 +3375,17 @@ fn api_react_native_host() {
 		.arg(format!("-Wl,-rpath,{}", build.join("lib").display()));
 	run(&mut cmd);
 	// Each run is bounded here, as one stuck in JavaScript never reaches the host's own check
-	// that nothing is left to run.
+	// that nothing is left to run. The allocator poisons what is freed, glibc's or macOS's,
+	// so a read after a free crashes rather than find the bytes still there: glibc's with
+	// no thread cache, whose frees it leaves unpoisoned.
 	let hermes = |args: &[&str], what: &str| -> Ran {
 		let out = output(
 			Command::new("timeout")
 				.args(["--kill-after=10", "300"])
 				.arg(&host)
 				.args(args)
+				.env("GLIBC_TUNABLES", "glibc.malloc.tcache_count=0:glibc.malloc.perturb=165")
+				.env("MallocScribble", "1")
 				.current_dir(&dir),
 		);
 		let ran = Ran::from(out.clone());
@@ -3815,7 +3819,7 @@ fn package_imports(ts: &str, package: &str) -> String {
 
 /// The cases React Native runs after its transcript: `tests/react-native.ts`'s own, and
 /// `tests/api.ts`'s but `grown`'s memory and a load's, which are WebAssembly's.
-const REACT_NATIVE_CASES: [&str; 19] = [
+const REACT_NATIVE_CASES: [&str; 21] = [
 	"word",
 	"interleaved",
 	"foreign",
@@ -3826,9 +3830,11 @@ const REACT_NATIVE_CASES: [&str; 19] = [
 	"replaced",
 	"cancelled",
 	"woken",
+	"redisposed",
 	"collected",
 	"reinstalled",
 	"forged",
+	"kept",
 	"futures",
 	"owned",
 	"closed",

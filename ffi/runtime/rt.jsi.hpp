@@ -177,9 +177,10 @@ struct given {
 	}
 };
 
-// Run `drop`, a drop of Rust's that the collector made, on a posted job: a collection runs
-// inside JavaScript, which a drop calling into JavaScript must not reenter. Once the runtime
-// is gone it is leaked, as nothing of JavaScript is left to run it with.
+// Run `drop`, a drop of Rust's that the collector made, on a posted job: Hermes finalizes on
+// a thread of its own, and an engine that finalizes in a collection runs it inside
+// JavaScript, which a drop calling into JavaScript must not reenter. Once the runtime is
+// gone it is leaked, as nothing of JavaScript is left to run it with.
 inline void collected(const ::std::shared_ptr<world> &w, ::std::function<void()> drop) {
 	if (w->alive.load(::std::memory_order_acquire)) {
 		w->post([drop = ::std::move(drop)](jsi::Runtime &rt) { unlocked(rt, drop); });
@@ -1677,9 +1678,17 @@ inline void natives(jsi::Runtime &rt, jsi::Object &n) {
 			return jsi::Value::undefined();
 		}
 		if (c->owned && c->k->drop != nullptr) {
+			// Closed and held while Rust drops it, so JavaScript its `Drop` calls finds it
+			// closed, rather than drop it again and free what the drop still runs in.
+			c->closed = true;
+			c->h++;
 			::std::int32_t s = 0;
 			unlocked(rt, [&] { c->k->drop(c->p, &s); });
-			status(rt, s, c->k->dropping);
+			c->h--;
+			if (s != 0) {
+				c->closed = false;
+				status(rt, s, c->k->dropping);
+			}
 		} else if (c->h != 1) {
 			error(rt, ::std::string(c->k->name) + ": a handle is already borrowed");
 		}
