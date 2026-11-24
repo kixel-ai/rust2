@@ -55,8 +55,9 @@ either, the lines that would are written commented out. Then, outside the reposi
   `MAVEN_CENTRAL_PASSWORD`, and an ASCII-armored private OpenPGP key whose public half a key
   server holds as `SIGNING_KEY`, with its passphrase, if any, as `SIGNING_PASSWORD`. Central
   has no trusted publishing, so these are long-lived. Before the first tag,
-  `ffi/release/central.sh validate <repository>`, given the same secrets and the build's
-  `<crate>-maven` artifact, has the Portal validate the signed bundle and drops it unpublished.
+  `ffi/release/central.sh validate <repository>`, given the build's `<crate>-maven` artifact
+  and the same secrets, the Portal token as `USERNAME` and `PASSWORD`, has the Portal
+  validate the signed bundle and drops it unpublished.
 
 Releasing is pushing `<crate>-v<version>`, the crate's version, which the release checks.
 Called without a tag, such as from a nightly, it runs everything up to publication.

@@ -21,7 +21,16 @@ for var in USERNAME PASSWORD SIGNING_KEY; do
         exit 1
     fi
 done
-tmp=$(mktemp -d)
+# The keyring holds the signing key, so it and the agent serving it go on every exit.
+tmp=$(mktemp -d "${RUNNER_TEMP:-${TMPDIR:-/tmp}}/central.XXXXXXXX")
+# shellcheck disable=SC2329 # the traps call it
+cleanup() {
+    if [[ -d "$tmp/gnupg" ]]; then
+        GNUPGHOME="$tmp/gnupg" gpgconf --kill gpg-agent
+    fi
+    rm -rf "$tmp"
+}
+trap cleanup EXIT
 cd "$repo"
 mapfile -t poms < <(find . -name '*.pom')
 if [[ ${#poms[@]} -ne 1 ]]; then
@@ -82,9 +91,11 @@ if [[ "$mode" == validate ]]; then
         local code=$?
         if ! curl -sSf -X DELETE -H "$auth" "$api/deployment/$id"; then
             echo "::error::could not drop deployment $id: drop it on the Portal before it can be published"
-            exit 1
+            code=1
+        else
+            echo "Dropped deployment $id"
         fi
-        echo "Dropped deployment $id"
+        cleanup
         exit "$code"
     }
     trap drop EXIT

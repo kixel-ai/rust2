@@ -44,9 +44,14 @@ finished Nightly, or a dispatched Check, on rust2's `main` since
 stand-in. A failed validation is a builder fix here. Delete moq's workflow once moq releases
 its Kotlin library through rust2's builder.
 
+Decided 2026-11-24 (maintainer, /quest-run): ✅ land moq-dev/moq#9519 into `main` and
+moq-dev/moq#9520 into `release` (rejected: holding them). Both are queued.
+
 ## Waiting
 
-- Maintainer: approve landing [moq-dev/moq#9519](https://github.com/moq-dev/moq/pull/9519)
-  into `main` and then [moq-dev/moq#9520](https://github.com/moq-dev/moq/pull/9520) into
-  `release`, which moq lands only with the maintainer's go-ahead. Check:
-  `gh api 'repos/moq-dev/moq/contents/.github/workflows/central-check.yml?ref=release'` succeeds.
+- moq-dev/moq: land the queued [moq-dev/moq#9519](https://github.com/moq-dev/moq/pull/9519)
+  into `main` and [moq-dev/moq#9520](https://github.com/moq-dev/moq/pull/9520) into
+  `release`. Check: `gh api 'repos/moq-dev/moq/contents/.github/workflows/central-check.yml?ref=release'`
+  succeeds. Once they and [#990](https://github.com/kixel-ai/rust2/pull/990) have landed, an
+  agent dispatches `central-check.yml` on moq's `release` with a finished rust2 `main` run,
+  as above.
