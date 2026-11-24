@@ -3305,6 +3305,7 @@ export declare function u64Put(p: number, v: u64): void;
 export declare function i64Put(p: number, v: i64): void;
 export declare function u128Get(p: number): u128;
 export declare function u128Put(p: number, v: u128): void;
+export declare function typedBytes(v: unknown, kind: string, size: number): Uint8Array;
 export declare function encoded(text: string): Uint8Array;
 export declare function putStr(dst: number, text: string): void;
 export declare function putBytes(dst: number, data: Uint8Array | Bytes): void;
