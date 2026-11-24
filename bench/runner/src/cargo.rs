@@ -602,8 +602,8 @@ mod tests {
 
 	#[test]
 	fn finds_where_a_config_sets_rustflags_or_a_runner() {
-		let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("target/configured-rustflags");
-		let _ = std::fs::remove_dir_all(&root);
+		let scratch = Captures::create().unwrap();
+		let root = &scratch.0;
 		let inner = root.join("ws/crate");
 		std::fs::create_dir_all(&inner).unwrap();
 		std::fs::create_dir_all(root.join(".cargo")).unwrap();
