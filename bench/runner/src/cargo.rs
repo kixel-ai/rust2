@@ -252,13 +252,23 @@ enum Key<'a> {
 	/// A runner for one of these target triples. A `cfg(...)` runner needs no look: Cargo
 	/// refuses it beside rust2-bench's own before running anything.
 	Runner(&'a [String]),
+	/// `build.target`, the targets a build without `--target` is for.
+	Target,
 }
 
-/// Where Cargo's configuration sets `key`, if anywhere: its environment `env`, a `--config`
-/// among `args`, or the config file it reads from `dir` up, or from Cargo's home, following
-/// each file's `include`s.
+/// Where [`configured`] found a setting, and its value.
+type Found = (String, toml::Value);
+
+/// Where Cargo's configuration sets `key`, if anywhere, as [`lookup`] finds it.
 fn configured(dir: &Path, args: &[String], env: &BTreeMap<String, String>, key: Key) -> Result<Option<String>, String> {
-	for name in env.keys() {
+	Ok(lookup(dir, args, env, key)?.map(|(source, _)| source))
+}
+
+/// Where Cargo's configuration sets `key`, if anywhere, and to what: its environment `env`, a
+/// `--config` among `args`, or the config file it reads from `dir` up, or from Cargo's home,
+/// following each file's `include`s.
+fn lookup(dir: &Path, args: &[String], env: &BTreeMap<String, String>, key: Key) -> Result<Option<Found>, String> {
+	for (name, value) in env {
 		let found = match key {
 			Key::Rustflags => {
 				name == "CARGO_BUILD_RUSTFLAGS"
@@ -268,9 +278,10 @@ fn configured(dir: &Path, args: &[String], env: &BTreeMap<String, String>, key: 
 			Key::Runner(triples) => triples.iter().any(|triple| {
 				*name == format!("CARGO_TARGET_{}_RUNNER", triple.to_uppercase().replace(['-', '.'], "_"))
 			}),
+			Key::Target => name == "CARGO_BUILD_TARGET",
 		};
 		if found {
-			return Ok(Some(format!("the environment's {name}")));
+			return Ok(Some((format!("the environment's {name}"), value.clone().into())));
 		}
 	}
 	let dir = dir
@@ -326,7 +337,7 @@ fn configured(dir: &Path, args: &[String], env: &BTreeMap<String, String>, key: 
 
 /// Where the config file at `path`, or one it includes, sets `key`, if anywhere.
 /// `including` holds the files whose includes led here, so a cycle fails instead of recursing.
-fn config_file(path: &Path, key: Key, including: &mut Vec<PathBuf>) -> Result<Option<String>, String> {
+fn config_file(path: &Path, key: Key, including: &mut Vec<PathBuf>) -> Result<Option<Found>, String> {
 	let canonical = path
 		.canonicalize()
 		.map_err(|e| format!("cannot resolve {}: {e}", path.display()))?;
@@ -352,7 +363,7 @@ fn config_table(
 	base: &Path,
 	source: &str,
 	including: &mut Vec<PathBuf>,
-) -> Result<Option<String>, String> {
+) -> Result<Option<Found>, String> {
 	let found = match key {
 		Key::Rustflags => {
 			let build = table.get("build").and_then(|build| build.get("rustflags")).is_some();
@@ -365,18 +376,19 @@ fn config_table(
 					.is_some_and(|tables| tables.values().any(|table| table.get("rustflags").is_some()))
 			};
 			let host = table.get("host").and_then(|host| host.get("rustflags")).is_some();
-			build || host || per("target") || per("host")
+			(build || host || per("target") || per("host")).then(|| true.into())
 		}
-		Key::Runner(triples) => triples.iter().any(|triple| {
+		Key::Runner(triples) => triples.iter().find_map(|triple| {
 			table
 				.get("target")
 				.and_then(|target| target.get(triple))
 				.and_then(|target| target.get("runner"))
-				.is_some()
+				.cloned()
 		}),
+		Key::Target => table.get("build").and_then(|build| build.get("target")).cloned(),
 	};
-	if found {
-		return Ok(Some(source.to_owned()));
+	if let Some(value) = found {
+		return Ok(Some((source.to_owned(), value)));
 	}
 	// `include` is a path, or an array of paths or of tables with a `path`.
 	let includes = match table.get("include") {
@@ -405,8 +417,8 @@ fn config_table(
 }
 
 /// The target triples a build of `args` in `dir` runs benchmarks for: each `--target` among
-/// them, or else rustc's host.
-fn triples(dir: &Path, args: &[String]) -> Result<Vec<String>, String> {
+/// them, or else the configuration's `build.target`, or else rustc's host.
+fn triples(dir: &Path, args: &[String], env: &BTreeMap<String, String>) -> Result<Vec<String>, String> {
 	let mut triples = Vec::new();
 	let mut rest = args.iter();
 	while let Some(arg) = rest.next() {
@@ -421,6 +433,21 @@ fn triples(dir: &Path, args: &[String]) -> Result<Vec<String>, String> {
 	}
 	if !triples.is_empty() {
 		return Ok(triples);
+	}
+	if let Some((source, value)) = lookup(dir, args, env, Key::Target)? {
+		let targets = match &value {
+			toml::Value::Array(items) => items.iter().collect(),
+			item => vec![item],
+		};
+		return targets
+			.into_iter()
+			.map(|target| {
+				target
+					.as_str()
+					.map(str::to_owned)
+					.ok_or(format!("{source} sets build.target to something not a triple"))
+			})
+			.collect();
 	}
 	let rustc = std::env::var_os("RUSTC").unwrap_or("rustc".into());
 	let out = Command::new(rustc)
@@ -469,7 +496,7 @@ fn build(dir: &Path, args: &[String]) -> Result<Vec<(Target, Launch)>, String> {
 		.collect();
 	// Cargo would run a runner a config sets for the triple instead of rust2-bench's, so one
 	// is refused before anything builds or runs.
-	if let Some(source) = configured(dir, args, &env, Key::Runner(&triples(dir, args)?))? {
+	if let Some(source) = configured(dir, args, &env, Key::Runner(&triples(dir, args, &env)?))? {
 		return Err(format!(
 			"{source} sets a runner, which would run the benchmarks in place of rust2-bench's own"
 		));
@@ -729,6 +756,15 @@ mod tests {
 		let key = "CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUNNER";
 		let found = runner(&BTreeMap::from([(key.to_owned(), "wrap".to_owned())]));
 		assert_eq!(found, Some(format!("the environment's {key}")));
+		std::fs::remove_file(&config).unwrap();
+
+		// `build.target`, from a config or the environment, picks the triples a runner is for.
+		std::fs::write(&config, "[build]\ntarget = [\"x86_64-unknown-linux-musl\"]\n").unwrap();
+		assert_eq!(triples(&inner, &[], &env).unwrap(), ["x86_64-unknown-linux-musl"]);
+		let mut musl = env.clone();
+		musl.insert("CARGO_BUILD_TARGET".to_owned(), "i686-unknown-linux-gnu".to_owned());
+		assert_eq!(triples(&inner, &[], &musl).unwrap(), ["i686-unknown-linux-gnu"]);
+		assert_eq!(triples(&inner, &args(&["--target", "a"]), &env).unwrap(), ["a"]);
 		std::fs::remove_file(&config).unwrap();
 
 		// An include cycle is refused rather than followed forever.

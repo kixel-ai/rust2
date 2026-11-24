@@ -213,6 +213,8 @@ pub fn valgrind_path() -> Result<&'static Path, String> {
 					.is_ok_and(|m| m.is_file() && m.permissions().mode() & 0o111 != 0)
 			})
 			.ok_or_else(|| "valgrind is not on PATH".to_owned())
+			// Absolute, since jobs run in directories of their own.
+			.and_then(|file| std::path::absolute(&file).map_err(|e| format!("cannot resolve {}: {e}", file.display())))
 	})
 	.as_deref()
 	.map_err(Clone::clone)
