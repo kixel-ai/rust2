@@ -259,7 +259,9 @@ item that target compiles works exactly, and no other does:
   refused at its span. A binding serving its targets at run time reads it through the same
   check of the library's target as a function: a Kotlin property, Dart getter, or C#
   property that throws, a Python attribute that raises and that `import *` leaves out, and
-  in React Native a function, as an `export const` cannot throw.
+  in React Native a function, as an `export const` cannot throw. None of those is a
+  compile-time constant, so a constant expression, such as a Kotlin annotation's argument or
+  a Dart `case`, cannot use it.
 - An item whose definition differs between two targets, such as a function whose
   signature does, a record with a field only one has, a plain enum whose variant has
   another value, or a constant of another value, is refused at its span, with a note at the other's, naming both targets.

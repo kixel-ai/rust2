@@ -809,9 +809,10 @@ impl<'a> Gen<'a> {
 				crate::gate::Gate::If(condition) => {
 					let _ = write!(self.top, "#if {condition}\n{declared}#endif\n\n");
 				}
-				_ => {
+				crate::gate::Gate::Everywhere => {
 					let _ = writeln!(self.top, "{declared}");
 				}
+				crate::gate::Gate::Nowhere => unreachable!("Swift serves every target"),
 			}
 		}
 		for i in 0..api.records.len() {
