@@ -247,14 +247,23 @@ pub(crate) fn node(abi: &Abi<'_>, facade: &Package, contract: u64) -> Result<Opt
 /// and little-endian, which lays out the C ABI's structs as its TypeScript reads them.
 pub(crate) fn node_mask(abi: &Abi<'_>) -> u64 {
 	(abi.api.targets.iter().enumerate())
-		.filter(|(_, target)| {
-			let arch = target.split('-').next().unwrap_or_default();
-			matches!(
-				arch,
-				"x86_64" | "aarch64" | "arm64" | "arm64e" | "riscv64gc" | "riscv64" | "loongarch64" | "powerpc64le"
-			)
-		})
+		.filter(|(_, target)| node_target(target))
 		.fold(0u64, |mask, (i, _)| mask | 1 << i)
+}
+
+/// Whether the target triple `target` has 64-bit pointers and is little-endian, by its
+/// architecture's family, less the ABIs of 32-bit pointers on a 64-bit one.
+fn node_target(target: &str) -> bool {
+	let arch = target.split('-').next().unwrap_or_default();
+	let narrow = target.ends_with("x32") || target.contains("ilp32") || arch == "arm64_32";
+	let wide = arch.starts_with("x86_64")
+		|| (arch.starts_with("aarch64") && !arch.ends_with("_be"))
+		|| arch.starts_with("arm64")
+		|| arch.starts_with("riscv64")
+		|| arch.starts_with("loongarch64")
+		|| arch == "powerpc64le"
+		|| (arch.starts_with("mips") && arch.contains("64") && arch.ends_with("el"));
+	wide && !narrow
 }
 
 /// Which binding [`emit`] writes.
@@ -300,6 +309,14 @@ fn rn_runtime() -> String {
 		rest = &body[end..];
 	}
 	RN_RUNTIME.replacen("// #shared\n", &shared, 1)
+}
+
+/// `runtime` without the marks of the regions React Native's shares, which mean nothing to it.
+fn unshared(runtime: &str) -> String {
+	(runtime.lines())
+		.filter(|line| !matches!(*line, "// #region shared" | "// #endregion shared"))
+		.map(|line| format!("{line}\n"))
+		.collect()
 }
 
 /// Node's runtime: the web's, with each region `// #region web <name>` in place of the one
@@ -392,8 +409,8 @@ fn emit(abi: &Abi<'_>, facade: &Package, contract: u64, mask: u64, mode: Mode) -
 	let mut files = Vec::new();
 	let runtime = match mode {
 		Mode::Jsi => rn_runtime(),
-		Mode::Node => node_runtime(),
-		Mode::Web => RUNTIME.to_string(),
+		Mode::Node => unshared(&node_runtime()),
+		Mode::Web => unshared(RUNTIME),
 	};
 	files.push(("rt.ts".to_string(), runtime));
 	// The glue's helpers, which the modules import whole.
@@ -582,6 +599,10 @@ fn emit(abi: &Abi<'_>, facade: &Package, contract: u64, mask: u64, mode: Mode) -
 	})
 }
 
+/// The React Native release the JSI module is tested against, the oldest its package takes,
+/// as the module needs recent JSI, such as runtime data, and no older release is tested.
+const REACT_NATIVE: &str = "0.88.1";
+
 /// The npm package the binding is, named and versioned as the facade: each module by its
 /// name, the runtime's types as `<package>/rt`, and the module `cargo build` makes, which
 /// the package holds beside them.
@@ -608,7 +629,7 @@ fn package_json(facade: &Package, lib: &str, mode: Mode) -> String {
 		// codegen spec `specs/` holds, and the Rust library built for each in `libs/`.
 		let turbo = crate::jsi::module(lib);
 		return format!(
-			"{{\n\t\"name\": {},\n\t\"version\": {},\n\t\"description\": {},\n\t\"type\": \"module\",\n\t\"sideEffects\": false,\n\t\"exports\": {{\n\t\t\".\": {},\n\t\t\"./*\": {}\n\t}},\n\t\"files\": [\"*.js\", \"*.d.ts\", \"cpp\", \"include\", \"specs\", \"ios\", \"android\", \"libs\", \"*.podspec\", \"react-native.config.cjs\"],\n\t\"codegenConfig\": {{\n\t\t\"name\": \"{turbo}Spec\",\n\t\t\"type\": \"modules\",\n\t\t\"jsSrcsDir\": \"specs\"\n\t}}\n}}\n",
+			"{{\n\t\"name\": {},\n\t\"version\": {},\n\t\"description\": {},\n\t\"type\": \"module\",\n\t\"sideEffects\": false,\n\t\"exports\": {{\n\t\t\".\": {},\n\t\t\"./*\": {}\n\t}},\n\t\"files\": [\"*.js\", \"*.d.ts\", \"cpp\", \"include\", \"specs\", \"ios\", \"android\", \"libs\", \"*.podspec\", \"react-native.config.cjs\"],\n\t\"peerDependencies\": {{\n\t\t\"react-native\": \">={REACT_NATIVE}\"\n\t}},\n\t\"codegenConfig\": {{\n\t\t\"name\": \"{turbo}Spec\",\n\t\t\"type\": \"modules\",\n\t\t\"jsSrcsDir\": \"specs\"\n\t}}\n}}\n",
 			json(&facade.name),
 			json(&facade.version),
 			json(&format!(
@@ -840,6 +861,13 @@ impl<'a> Gen<'a> {
 	/// Whether an item on `on` is on the binding's target.
 	fn here(&self, on: crate::ir::On) -> bool {
 		on.0 & self.mask != 0
+	}
+
+	/// Node's check that the library's target has `what`, an item on `on`, where its one
+	/// package serves a target that lacks it: it throws there before the call reaches Rust,
+	/// whose glue would abort.
+	fn lacks(&self, on: crate::ir::On, what: &str) -> Option<String> {
+		(self.node && on.0 & self.mask != self.mask).then(|| format!("rt.on(0x{:x}n, \"{what}\");", on.0 & self.mask))
 	}
 
 	fn out(&mut self) -> &mut Module {
@@ -1528,7 +1556,12 @@ impl<'a> Gen<'a> {
 			let e = &abi.api.enums[i];
 			let cases: Vec<String> = (e.variants.iter())
 				.filter(|v| self.here(v.on))
-				.map(|v| format!("\t\tcase \"{}\":\n\t\t\treturn {};", v.name, v.discriminant))
+				.map(|v| {
+					let lacks = (self.lacks(v.on, &format!("{}::{}", e.path.join("::"), v.name)))
+						.map(|check| format!("\t\t\t{check}\n"))
+						.unwrap_or_default();
+					format!("\t\tcase \"{}\":\n{lacks}\t\t\treturn {};", v.name, v.discriminant)
+				})
 				.collect();
 			self.helpers.insert(
 				name.clone(),
@@ -1823,7 +1856,11 @@ impl<'a> Gen<'a> {
 					if !self.here(variant.on) {
 						continue;
 					}
-					let mut body = vec![format!("rt.dv().setInt32(p, {n}, true);")];
+					let mut body: Vec<String> = (self
+						.lacks(variant.on, &format!("{}::{}", e.path.join("::"), variant.name)))
+					.into_iter()
+					.collect();
+					body.push(format!("rt.dv().setInt32(p, {n}, true);"));
 					if !variant.fields.is_empty() {
 						let tys: Vec<Ty> = variant.fields.iter().map(|f| abi.ty(&f.ty)).collect();
 						let (_, at) = self.place(&tys);
@@ -1866,14 +1903,15 @@ impl<'a> Gen<'a> {
 				));
 				String::new()
 			}
-			// A list's length read once: a getter may change it, or grow memory, each time.
+			// Read as the engine keeps it, so no getter changes the bytes or kind Rust reads.
 			Type::List(..)
 				if let Some(block) = ty.block()
 					&& self.node =>
 			{
+				let array = typed_array(block);
 				let size = self.layout(&abi.ty(block)).size;
 				format!(
-					"if (v === undefined) {{\n\trt.putList(p, 0, 0);\n\treturn;\n}}\nconst n = v.length;\nconst src = new Uint8Array(v.buffer, v.byteOffset, n * {size});\nconst ptr = rt.alloc(Math.max(n * {size}, 1), {size});\nrt.mem().set(src, ptr);\nrt.putList(p, ptr, n);"
+					"if (v === undefined) {{\n\trt.putList(p, 0, 0);\n\treturn;\n}}\nconst src = rt.typedBytes(v, \"{array}\", {size});\nconst n = src.length / {size};\nconst ptr = rt.alloc(Math.max(n * {size}, 1), {size});\nrt.mem().set(src, ptr);\nrt.putList(p, ptr, n);"
 				)
 			}
 			Type::List(_, elem) if self.node => {
@@ -1888,9 +1926,10 @@ impl<'a> Gen<'a> {
 				)
 			}
 			Type::List(..) if let Some(block) = ty.block() => {
+				let array = typed_array(block);
 				let size = self.layout(&abi.ty(block)).size;
 				format!(
-					"if (v === undefined) {{\n\tconst d = rt.dv();\n\td.setUint32(p, 0, true);\n\td.setUint32(p + 4, 0, true);\n\td.setUint32(p + 8, 0, true);\n\treturn;\n}}\nconst n = v.length;\nconst src = new Uint8Array(v.buffer, v.byteOffset, n * {size});\nconst ptr = rt.alloc(Math.max(n * {size}, 1), {size});\nrt.mem().set(src, ptr);\nconst d = rt.dv();\nd.setUint32(p, ptr, true);\nd.setUint32(p + 4, n, true);\nd.setUint32(p + 8, 0, true);"
+					"if (v === undefined) {{\n\tconst d = rt.dv();\n\td.setUint32(p, 0, true);\n\td.setUint32(p + 4, 0, true);\n\td.setUint32(p + 8, 0, true);\n\treturn;\n}}\nconst src = rt.typedBytes(v, \"{array}\", {size});\nconst n = src.length / {size};\nconst ptr = rt.alloc(Math.max(n * {size}, 1), {size});\nrt.mem().set(src, ptr);\nconst d = rt.dv();\nd.setUint32(p, ptr, true);\nd.setUint32(p + 4, n, true);\nd.setUint32(p + 8, 0, true);"
 				)
 			}
 			Type::List(_, elem) => {
@@ -2797,7 +2836,7 @@ impl Gen<'_> {
 		};
 		self.start(&name, declaration);
 		let mut taken = BTreeSet::new();
-		self.traits(&ty, &c, record.traits, &mut taken);
+		self.traits(&ty, &c, record.traits, record.on, &mut taken);
 		self.methods(&record.methods, &Ty::Struct(c.clone()), &ty, &mut taken);
 	}
 
@@ -2845,7 +2884,7 @@ impl Gen<'_> {
 			),
 		);
 		let mut taken = BTreeSet::new();
-		self.traits(&ty, &c, e.traits, &mut taken);
+		self.traits(&ty, &c, e.traits, e.on, &mut taken);
 		self.methods(&e.methods, &abi.ty(&ty), &ty, &mut taken);
 	}
 
@@ -2876,7 +2915,7 @@ impl Gen<'_> {
 			constant: false,
 		};
 		let mut taken = BTreeSet::new();
-		self.traits(&ty, &c, object.traits, &mut taken);
+		self.traits(&ty, &c, object.traits, object.on, &mut taken);
 		self.methods(&object.methods, &owner, &ty, &mut taken);
 		// After the methods, so a Rust method keeps its name before an adapter.
 		for method in &object.methods {
@@ -3017,7 +3056,7 @@ impl Gen<'_> {
 	/// The functions a type's std traits export, into its module: `Display` is `toString`,
 	/// `Debug` `debug`, `Clone` an object's `clone`, `PartialEq` `eq`, with `Hash` `hash`,
 	/// and `Default` `default`.
-	fn traits(&mut self, ty: &Type, c: &str, t: crate::ir::Traits, taken: &mut BTreeSet<String>) {
+	fn traits(&mut self, ty: &Type, c: &str, t: crate::ir::Traits, on: crate::ir::On, taken: &mut BTreeSet<String>) {
 		let c_ = crate::abi::stem(c);
 		let abi = self.abi;
 		let name = self.tt(ty);
@@ -3073,6 +3112,10 @@ impl Gen<'_> {
 			let body = match g.jsi {
 				true => indent(&fwd),
 				false => indent(&wrap(&body)),
+			};
+			let body = match g.lacks(on, &format!("{name}.{member}")) {
+				Some(check) => format!("\t{check}\n{body}"),
+				None => body,
 			};
 			let code = format!("/** {doc} */\nexport function {local}({params}): {ret_t} {{\n{body}\n}}\n\n");
 			let module = g.out();
@@ -3229,8 +3272,14 @@ impl Gen<'_> {
 				},
 				false => c_ty.clone(),
 			};
+			// Node's makes a value that is not `Send` on a home, as a call may run on a worker
+			// while JavaScript's thread serves what Rust's other threads call.
+			let what = match ty {
+				Type::Object(i) if self.node && !abi.api.objects[*i].send => "default_homed",
+				_ => "default",
+			};
 			let mut lines = Vec::new();
-			let ret = self.invoke(&sig("default", &[], ret_c, false), Vec::new(), &mut lines);
+			let ret = self.invoke(&sig(what, &[], ret_c, false), Vec::new(), &mut lines);
 			let value = self.result(ty, &ret);
 			lines.push(format!("return {value};"));
 			let fwd = format!("return {};", forward("default", ""));
@@ -3650,9 +3699,9 @@ impl Gen<'_> {
 		};
 		// Node's one package serves each of its targets: a function only some have fails on
 		// the others before it reaches Rust, as the library's target says.
-		let body = match self.node && function.on.0 & self.mask != self.mask {
-			true => format!("\trt.on(0x{:x}n, \"{c_name}\");\n{body}", function.on.0 & self.mask),
-			false => body,
+		let body = match self.lacks(function.on, &c_name) {
+			Some(check) => format!("\t{check}\n{body}"),
+			None => body,
 		};
 		Some(format!(
 			"{}export function {local}({}): {ret_t} {{\n{body}\n}}\n",
@@ -3700,6 +3749,38 @@ mod tests {
 			"import * as rt from \"./rt.ts\";\nimport * as g from \"./glue.ts\";\n"
 		);
 		assert!(!uses("x.rt.y", "rt."));
+	}
+
+	/// Node serves each 64-bit little-endian target, and no 32-bit pointer ABI of a 64-bit one.
+	#[test]
+	fn node_targets() {
+		for served in [
+			"x86_64-unknown-linux-gnu",
+			"x86_64h-apple-darwin",
+			"aarch64-apple-darwin",
+			"arm64e-apple-ios",
+			"riscv64a23-unknown-linux-gnu",
+			"loongarch64-unknown-linux-gnu",
+			"powerpc64le-unknown-linux-gnu",
+			"mips64el-unknown-linux-gnuabi64",
+			"mipsisa64r6el-unknown-linux-gnuabi64",
+		] {
+			assert!(node_target(served), "{served}");
+		}
+		for refused in [
+			"wasm32-wasip1",
+			"armv7-linux-androideabi",
+			"i686-pc-windows-msvc",
+			"x86_64-unknown-linux-gnux32",
+			"aarch64-unknown-linux-gnu_ilp32",
+			"aarch64_be-unknown-linux-gnu",
+			"arm64_32-apple-watchos",
+			"powerpc64-unknown-linux-gnu",
+			"s390x-unknown-linux-gnu",
+			"mips64-unknown-linux-gnuabi64",
+		] {
+			assert!(!node_target(refused), "{refused}");
+		}
 	}
 
 	fn fields(names: &[&str]) -> Vec<crate::ir::Field> {

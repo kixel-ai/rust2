@@ -734,7 +734,7 @@ export async function futures(): Promise<void> {
 let gc: (() => void) | undefined;
 
 /** Run the garbage collector until `done()`, failing past a deadline. */
-async function collect(done: () => boolean, what: string): Promise<void> {
+export async function collect(done: () => boolean, what: string): Promise<void> {
 	if (gc === undefined) {
 		const own = (globalThis as { gc?: () => void }).gc;
 		const bun = (globalThis as { Bun?: { gc(force: boolean): void } }).Bun;
@@ -1017,10 +1017,10 @@ async function closedCall(f: () => Promise<unknown>, type: string, what: string)
  * Rust's buffer, freed once disposed and no call views it, or by the garbage collector, and
  * passed back to Rust they share it. Either reads the same, and refuses a read once disposed. */
 export async function lent(): Promise<void> {
-	// React Native's binding reads a typed array as its engine holds it, so it takes no Proxy
-	// of one, whose reads no getter sees during a call; the web's reads its `length`.
-	// React Native's module reads a typed array itself, as the engine holds it, through its runtime's natives.
-	const engineRead = "n" in rt;
+	// React Native's Babel preset compiles its modules sloppy, where a write to a getter does
+	// nothing; the web's and Node's are strict, where it throws. Only its runtime has natives
+	// of its own.
+	const sloppy = "n" in rt;
 	let before = api.dropped();
 	const small = api.tokenBytes(1, 64);
 	check(api.dropped() === ++before, "64 bytes are copied and Rust's freed at the call");
@@ -1086,8 +1086,8 @@ export async function lent(): Promise<void> {
 	close(got);
 	check(api.dropped() === ++before, "the last owner of lent bytes frees them");
 	close(channel);
-	// Disposed while a later argument lowers, lent bytes stay Rust's for the call it is in,
-	// and are freed once it returns.
+	// A later argument's getters never run, so a Proxy that would dispose bytes the call
+	// already views is refused, and the call's hold on them is let go.
 	const viewed = api.tokenBytes(6, 100);
 	const prefix = new Proxy(enc("ab"), {
 		get(target, key) {
@@ -1095,31 +1095,23 @@ export async function lent(): Promise<void> {
 			return Reflect.get(target, key);
 		},
 	});
-	if (engineRead) {
-		throws(() => api.prefixed(viewed, prefix), TypeError, "a Proxy of a Uint8Array");
-		close(viewed);
-		check(api.dropped() === ++before, "bytes lent to a call that fails are freed once disposed");
-	} else {
-		const joined = api.prefixed(viewed, prefix).slice();
-		check(joined.length === 102 && text(joined.subarray(0, 2)) === "ab" && joined.subarray(2).every((b) => b === 6), "bytes a call views read whole");
-		check(api.dropped() === ++before, "bytes disposed during a call are freed once it returns");
-	}
+	throws(() => api.prefixed(viewed, prefix), TypeError, "a Proxy of a Uint8Array");
+	check(viewed.at(0) === 6 && api.dropped() === before, "bytes a refused call viewed stay the caller's");
+	close(viewed);
+	check(api.dropped() === ++before, "bytes lent to a call that fails are freed once disposed");
 	// A Bytes' length is its own: no caller's write or definition changes what Rust reads.
 	const fixed = api.tokenBytes(11, 100);
-	// A write throws in strict code, and does nothing in sloppy code, as React Native's Babel
-	// preset compiles a module.
-	try {
+	const write = () => {
 		(fixed as { length: number }).length = 1 << 20;
-	} catch (e) {
-		check(e instanceof TypeError, "a write to a Bytes' length throws a TypeError");
-	}
+	};
+	if (sloppy) write();
+	else throws(write, TypeError, "a Bytes' length is read-only");
 	check(fixed.length === 100, "a Bytes' length is read-only");
 	Object.defineProperty(fixed, "length", { value: 1 << 20 });
 	check(api.len(fixed) === 100 && fixed.slice().length === 100, "a Bytes' length shadowed reaches no read");
 	close(fixed);
 	check(api.dropped() === ++before, "bytes whose length was shadowed are freed whole");
-	// Bytes a call takes by value, which Rust gets a second owner of, disposed while a later
-	// argument lowers, read whole and are freed once Rust drops them.
+	// Nor are bytes a call takes by value, which Rust would get a second owner of.
 	const given = api.tokenBytes(10, 100);
 	const high = new Proxy(enc("bc"), {
 		get(target, key) {
@@ -1127,15 +1119,10 @@ export async function lent(): Promise<void> {
 			return Reflect.get(target, key);
 		},
 	});
-	if (engineRead) {
-		throws(() => api.byteLimits(given, high), TypeError, "a Proxy of a Uint8Array given");
-		close(given);
-		check(api.dropped() === ++before, "bytes given to a call that fails are freed once disposed");
-	} else {
-		const limits = api.byteLimits(given, high);
-		check(limits.low.length === 100 && limits.low.every((b) => b === 10) && text(limits.high) === "bc", "bytes given and disposed during a call read whole");
-		check(api.dropped() === ++before, "bytes given and disposed during a call are freed once Rust drops them");
-	}
+	throws(() => api.byteLimits(given, high), TypeError, "a Proxy of a Uint8Array given");
+	check(given.at(0) === 10 && api.dropped() === before, "bytes a refused call would take stay the caller's");
+	close(given);
+	check(api.dropped() === ++before, "bytes given to a call that fails are freed once disposed");
 	// Bytes a call returned pass as an optional borrowed argument too.
 	const optional = api.tokenBytes(8, 100);
 	const suffixed = api.prefixed(enc("cd"), optional).slice();
@@ -1292,6 +1279,43 @@ export function bounds(): void {
 	throws(() => api.sameSocketAddrV6(v6(65536, 0, 0)), RangeError, "a port past u16");
 	throws(() => api.sameSocketAddrV6(v6(1, 0, -1)), RangeError, "a negative scope");
 	throws(() => api.sameSocketAddrV6(v6(1, 2 ** 32, 0)), RangeError, "a flow label past u32");
+
+	// A typed array crosses as the engine keeps it: no `length`, `byteLength`, `byteOffset`,
+	// `buffer`, or tag its class or the caller defines changes what Rust reads, or makes a
+	// call write past what it allocated, and another kind relabeled, or a Proxy, is refused.
+	const lying = <T extends object>(base: new (n: number) => T) => {
+		const Liar = class extends (base as new (n: number) => object) {};
+		for (const key of ["length", "byteLength", "byteOffset"]) Object.defineProperty(Liar.prototype, key, { get: () => 4 });
+		Object.defineProperty(Liar.prototype, "buffer", { get: () => new ArrayBuffer(64) });
+		Object.defineProperty(Liar.prototype, Symbol.toStringTag, { get: () => "Int32Array" });
+		return (...values: number[]) => {
+			const v = new Liar(values.length) as T & { [i: number]: number };
+			values.forEach((x, i) => (v[i] = x));
+			return v;
+		};
+	};
+	const liarBytes = lying(Uint8Array);
+	const many = liarBytes(...new Array<number>(64).fill(3));
+	check(api.len(many) === 64, "a lying subclass's bytes cross whole");
+	const read = api.prefixed(many, undefined).slice();
+	check(read.length === 64 && read.every((b) => b === 3), "a lying subclass's bytes read back");
+	const masked = Digest.new();
+	check(hex(Digest.flipped(masked, liarBytes(1, 2, 3, 4))) === "01020304", "a lying subclass of 4 bytes is a [u8; 4]");
+	throws(() => Digest.flipped(masked, many), RangeError, "a lying subclass of 64 bytes is no [u8; 4]");
+	close(masked);
+	check(ipHex(api.sameIpAddr({ tag: "V4", _0: { octets: liarBytes(1, 2, 3, 4) } })) === "01020304", "a lying subclass's octets");
+	throws(() => api.sameIpAddr({ tag: "V4", _0: { octets: many } }), RangeError, "a lying subclass of 64 octets");
+	check(api.sumLists(lying(Int32Array)(1, 2, 3, 4, 5), undefined, undefined) === 15, "a lying block list crosses whole");
+	const shadowed = Uint8Array.of(0x61);
+	Object.defineProperties(shadowed, { byteLength: { value: 4096 }, byteOffset: { value: 8 }, length: { value: 4096 } });
+	const own = api.prefixed(shadowed, undefined).slice();
+	check(own.length === 1 && own[0] === 0x61, "own properties shadowing a typed array's reach no read");
+	throws(() => api.sumLists(liarBytes(1, 2, 3, 4) as unknown as Int32Array, undefined, undefined), TypeError, "a Uint8Array tagged Int32Array");
+	const relabeled = new Int8Array(4);
+	Object.setPrototypeOf(relabeled, Int32Array.prototype);
+	throws(() => api.sumLists(relabeled as unknown as Int32Array, undefined, undefined), TypeError, "an Int8Array relabeled Int32Array");
+	throws(() => Digest.flipped(Digest.new(), new Proxy(bytes(1, 2, 3, 4), {})), TypeError, "a Proxy of a [u8; 4]");
+	throws(() => api.sumLists(new Proxy(Int32Array.of(1), {}), undefined, undefined), TypeError, "a Proxy of a block list");
 
 	// A key hashes by Rust's Hash, so its hash keys a Set.
 	const hashes = new Set(["a", "a", "b"].map((n) => dec(Key.hash(Key.new(n)))));

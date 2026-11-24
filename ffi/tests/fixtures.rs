@@ -3261,13 +3261,14 @@ fn api_react_native_host() {
 		"export const TurboModuleRegistry = {\n\tgetEnforcing(name: string): never {\n\t\tthrow new Error(`no TurboModule ${name} off React Native`);\n\t},\n};\nexport type TurboModule = object;\n",
 	);
 	// Hermes takes a script, not modules, and lacks async generators. Sloppy, as React
-	// Native's Babel preset compiles a module.
+	// Native's Babel preset compiles a module, and with classes and private fields as Hermes
+	// runs them, as `rn-program` bundles moq's.
 	run(Command::new("esbuild")
 		.args([
 			"entry.ts",
 			"--bundle",
 			"--format=iife",
-			"--target=es2020",
+			"--target=es2022",
 			"--supported:async-generator=false",
 			"--alias:react-native=./react-native-stub.ts",
 			"--log-level=error",
@@ -3311,8 +3312,29 @@ fn api_react_native_host() {
 		.args(&api.native)
 		.arg(format!("-Wl,-rpath,{}", build.join("lib").display()));
 	run(&mut cmd);
+	// Each run is bounded here, as one stuck in JavaScript never reaches the host's own check
+	// that nothing is left to run.
+	let hermes = |args: &[&str], what: &str| -> Ran {
+		let out = output(
+			Command::new("timeout")
+				.args(["--kill-after=10", "300"])
+				.arg(&host)
+				.args(args)
+				.current_dir(&dir),
+		);
+		let ran = Ran::from(out.clone());
+		assert!(
+			!matches!(out.status.code(), Some(124 | 137)),
+			"Hermes's {what} ran past 300 s:\n{}{}",
+			ran.stdout,
+			ran.stderr
+		);
+		ran
+	};
 	let script = |case: Option<&str>| -> Ran {
-		output(Command::new(&host).arg("bundle.js").args(case).current_dir(&dir)).into()
+		let mut args = vec!["bundle.js"];
+		args.extend(case);
+		hermes(&args, case.unwrap_or("transcript"))
 	};
 	let transcript = script(None);
 	assert!(transcript.ok, "Hermes's transcript failed:\n{}", transcript.stderr);
@@ -3326,7 +3348,15 @@ fn api_react_native_host() {
 	}
 	// A reload: the runtime destroyed with what the module holds of it, and the module
 	// installed again in a new one.
-	let reload: Ran = output(Command::new(&host).args(["--reload", "bundle.js"]).current_dir(&dir)).into();
+	let reload = hermes(&["--reload", "bundle.js"], "reload");
+	// What the first runtime still holds as it goes is left alone, even what calls into
+	// JavaScript as it drops.
+	let held = hermes(&["--reload", "bundle.js", "collected"], "collected reload");
+	assert!(
+		held.ok,
+		"Hermes's collected reload failed:\n{}{}",
+		held.stdout, held.stderr
+	);
 	assert!(reload.ok, "Hermes's reload failed:\n{}", reload.stderr);
 	assert_eq!(
 		reload.stdout,
@@ -3723,14 +3753,18 @@ fn package_imports(ts: &str, package: &str) -> String {
 
 /// The cases React Native runs after its transcript: `tests/react-native.ts`'s own, and
 /// `tests/api.ts`'s but `grown`'s memory and a load's, which are WebAssembly's.
-const REACT_NATIVE_CASES: [&str; 15] = [
-	"typed",
+const REACT_NATIVE_CASES: [&str; 19] = [
 	"word",
 	"interleaved",
 	"foreign",
 	"sliced",
 	"faked",
 	"written",
+	"refused",
+	"replaced",
+	"cancelled",
+	"woken",
+	"collected",
 	"reinstalled",
 	"forged",
 	"futures",
@@ -6421,11 +6455,8 @@ fn channel() {
 
 /// A stable rustc from PATH, as the repository's root resolves it: the dev shell puts the
 /// root's stable toolchain on PATH behind the exporter's nightly, and rustup picks it from
-/// the root's `rust-toolchain.toml` unless the environment names another.
-///
-/// That root is 1.100 for crabx's binstalk, so in the dev shell these checks prove the glue
-/// on 1.100 rather than moq's 1.98.1, until crabx moves to kixel-ai/crabx and the root
-/// returns to 1.98.1. Elsewhere, a standalone stable rustc earlier on PATH wins instead.
+/// the root's `rust-toolchain.toml` unless the environment names another. Elsewhere, a
+/// standalone stable rustc earlier on PATH wins instead.
 fn stable_rustc() -> PathBuf {
 	let root = manifest_dir().parent().unwrap().to_path_buf();
 	let path = std::env::var_os("PATH").unwrap_or_default();

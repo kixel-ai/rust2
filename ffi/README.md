@@ -1915,10 +1915,11 @@ the header's wrappers would, and it needs only `jsi.h`.
 - **Values** are the web's, but for `usize` and `isize`, which are `rt.u64` and `rt.i64`,
   since one package serves 64-bit targets as well as 32-bit ones, where a value past 32 bits
   fails as it crosses in. A constant only some of the package's targets have fails the
-  export, naming the targets that lack it, since its value compiles into the one package. An `rt.Bytes` past 64 bytes is an `ArrayBuffer` over Rust's own
+  export, naming the targets that lack it, since its value compiles into the one package. An `rt.Bytes` past 64 bytes holds Rust's own
   buffer, which disposing or the collector frees, and passed back crosses in place, as the
-  web's does; its `slice` copies through the module, so no JavaScript runs between the
-  check that it is open and the read. A typed array a call takes is copied, as the web's is, since JavaScript on
+  web's does. JavaScript reads it only through the module, by `at` and `slice`, which check
+  it open as they read: no `ArrayBuffer` of it exists, since React Native's Babel preset
+  makes private fields properties any caller can find and keep. A typed array a call takes is copied, as the web's is, since JavaScript on
   another thread, or a closure the call runs, may write it while Rust reads; text crosses
   through the module, as Hermes has no `TextDecoder`.
 - **Threads**: JavaScript runs on React Native's JS thread alone, while Rust calls a trait,
@@ -1928,9 +1929,11 @@ the header's wrappers would, and it needs only `jsi.h`.
   runs there at once, rather than deadlocking. Such a callback runs on top of the call it
   took the runtime from, as a nested call does: that call takes the runtime back only once
   the callback returned, even if the callback waits in a call into Rust of its own. A wake
-  polls on a posted job, never inside the wake, and a drop the collector makes while
-  JavaScript runs is posted too. The module keeps what it holds of each runtime apart, so
-  two may be alive at once, and leaks rather than frees what Rust still holds of one gone.
+  polls on a posted job, never inside the wake, and a drop the collector makes is posted
+  too, so one that calls into JavaScript runs outside the collection. The module keeps what
+  it holds of each runtime apart, so two may be alive at once. What either side still holds
+  of a runtime once it is gone is leaked, not freed: there is no JavaScript left to run a
+  drop that calls into it.
 - **Bundling**: React Native's Babel preset compiles modules sloppy and lacks `using`;
   the binding needs neither, but a caller's `using` needs
   `@babel/plugin-transform-explicit-resource-management` in its `babel.config.js`.

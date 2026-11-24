@@ -138,7 +138,8 @@ pub(crate) fn generate(abi: &Abi<'_>, packages: &str, mask: u64) -> Result<Vec<(
 		\tjsi::Object n = r::W(rt).kit.getPropertyAsObject(rt, \"natives\");\n\
 		\tr::natives(rt, n);\n\
 		\tauto fn = [&](const char *name, unsigned argc, jsi::Value (*f)(jsi::Runtime &, const jsi::Value &, const jsi::Value *, ::std::size_t)) {{\n\
-		\t\tn.setProperty(rt, name, jsi::Function::createFromHostFunction(rt, jsi::PropNameID::forAscii(rt, name), argc, f));\n\
+		\t\tjsi::PropNameID id = jsi::PropNameID::forUtf8(rt, name);\n\
+		\t\tn.setProperty(rt, id, jsi::Function::createFromHostFunction(rt, id, argc, f));\n\
 		\t}};\n\
 		\tfn(\"contract\", 0, [](jsi::Runtime &rt, const jsi::Value &, const jsi::Value *, ::std::size_t) -> jsi::Value {{\n\
 		\t\treturn jsi::BigInt::fromUint64(rt, ::{p}_contract());\n\
@@ -322,6 +323,22 @@ fn lit(s: &str) -> String {
 	serde_json::Value::from(s).to_string()
 }
 
+/// The property name `s`, a Rust name: a literal JSI reads as ASCII, unless it is not.
+fn prop(s: &str) -> String {
+	match s.is_ascii() {
+		true => lit(s),
+		false => format!("jsi::PropNameID::forUtf8(rt, {})", lit(s)),
+	}
+}
+
+/// The JavaScript string `s`, a Rust name: ASCII where it is, which JSI makes fastest.
+fn text(s: &str) -> String {
+	match s.is_ascii() {
+		true => format!("r::ascii(rt, {})", lit(s)),
+		false => format!("jsi::String::createFromUtf8(rt, {})", lit(s)),
+	}
+}
+
 impl<'a> Gen<'a> {
 	fn bare<'n>(&self, c: &'n str) -> &'n str {
 		&c[self.abi.prefix.len() + 1..]
@@ -503,7 +520,7 @@ impl<'a> Gen<'a> {
 			let e = &abi.api.enums[i];
 			let cases: Vec<String> = (e.variants.iter())
 				.filter(|v| self.here(v.on))
-				.map(|v| format!("\tcase {}:\n\t\treturn r::ascii(rt, {});", v.discriminant, lit(&v.name)))
+				.map(|v| format!("\tcase {}:\n\t\treturn {};", v.discriminant, text(&v.name)))
 				.collect();
 			let proto = format!("jsi::Value {name}(jsi::Runtime &rt, {c} v)");
 			self.define(
@@ -598,7 +615,7 @@ impl<'a> Gen<'a> {
 				let mut lines = vec!["jsi::Object out(rt);".to_string()];
 				for (f, name) in record.fields.iter().zip(field_names(&record.fields)) {
 					let value = self.lift_o(&f.ty, &format!("v.{}", abi::escape(&f.name)));
-					lines.push(format!("out.setProperty(rt, {}, {value});", lit(&name)));
+					lines.push(format!("out.setProperty(rt, {}, {value});", prop(&name)));
 				}
 				lines.push("return out;".to_string());
 				lines.join("\n")
@@ -612,12 +629,12 @@ impl<'a> Gen<'a> {
 					}
 					let mut lines = vec![
 						"jsi::Object out(rt);".to_string(),
-						format!("out.setProperty(rt, \"tag\", r::ascii(rt, {}));", lit(&variant.name)),
+						format!("out.setProperty(rt, \"tag\", {});", text(&variant.name)),
 					];
 					let member = abi::variant_member(&variant.name);
 					for (f, name) in variant.fields.iter().zip(variant_fields(&variant.fields)) {
 						let value = self.lift_o(&f.ty, &format!("v.{member}.{}", abi::escape(&f.name)));
-						lines.push(format!("out.setProperty(rt, {}, {value});", lit(&name)));
+						lines.push(format!("out.setProperty(rt, {}, {value});", prop(&name)));
 					}
 					lines.push("return out;".to_string());
 					cases.push(format!("case {n}: {{\n{}\n}}", indent(&lines.join("\n"))));
@@ -750,18 +767,17 @@ impl<'a> Gen<'a> {
 				let c = abi.object(*i);
 				format!("{out} = static_cast<{c} *>(f.hold_or({v}, {kind}));")
 			}
-			Type::Option(inner) if Abi::is_buf(inner) => {
-				let some = self.lower(inner.base(), v, out, take);
+			// `v` read once, as it may be a getter, and held by reference, which keeps a temporary
+			// alive. Nothing nests these two, so one name serves.
+			Type::Option(inner) if Abi::is_buf(inner) || matches!(inner.base(), Type::List(..)) => {
+				let none = match Abi::is_buf(inner) {
+					true => "c_buf{}",
+					false => "{}",
+				};
+				let some = self.lower(inner.base(), "opt_", out, take);
 				format!(
-					"if (({v}).isUndefined()) {{\n\t{out} = c_buf{{}};\n}} else {{\n{}\n}}",
-					indent(&some)
-				)
-			}
-			Type::Option(inner) if matches!(inner.base(), Type::List(..)) => {
-				let some = self.lower(inner.base(), v, out, take);
-				format!(
-					"if (({v}).isUndefined()) {{\n\t{out} = {{}};\n}} else {{\n{}\n}}",
-					indent(&some)
+					"{{\n\tconst jsi::Value &opt_ = {v};\n\tif (opt_.isUndefined()) {{\n\t\t{out} = {none};\n\t}} else {{\n{}\n\t}}\n}}",
+					indent(&indent(&some))
 				)
 			}
 			Type::Box(inner) | Type::Ref(_, inner) => self.lower(inner, v, out, take),
@@ -769,14 +785,7 @@ impl<'a> Gen<'a> {
 				let lower = self.enum_lower(*i);
 				format!("{out} = {lower}(rt, {v});")
 			}
-			Type::Callback(i, _) => {
-				let vtable = self.vtable(*i);
-				let name = self.class(&abi.callback(*i));
-				format!(
-					"{out} = {{&{vtable}, new r::remote(rt, r::obj(rt, {v}, {}))}};",
-					lit(&name)
-				)
-			}
+			Type::Callback(i, _) => format!("{out} = {};", self.callback(*i, v, false)),
 			Type::Waker => format!("{out} = r::waker_of(rt, {v});"),
 			Type::Future => format!("{out} = r::future_of(rt, {v});"),
 			Type::Reader => format!("{out} = r::reader_of(f, {v});"),
@@ -792,6 +801,17 @@ impl<'a> Gen<'a> {
 				format!("{w}(rt, f, {v}, {out});")
 			}
 			other => unreachable!("{other:?} is never lowered"),
+		}
+	}
+
+	/// The C value of the implementation `v` of the trait `i`, staged in the call's frame
+	/// where `staged`.
+	fn callback(&mut self, i: usize, v: &str, staged: bool) -> String {
+		let vtable = self.vtable(i);
+		let check = format!("r::obj(rt, {v}, {})", lit(&self.class(&self.abi.callback(i))));
+		match staged {
+			true => format!("{{&{vtable}, f.keep({check})}}"),
+			false => format!("{{&{vtable}, new r::remote(rt, {check})}}"),
 		}
 	}
 
@@ -834,7 +854,7 @@ impl<'a> Gen<'a> {
 				let mut lines = vec![format!("jsi::Object o = r::obj(rt, v, {});", lit(&class(c)))];
 				for (f, name) in record.fields.iter().zip(field_names(&record.fields)) {
 					let field = format!("out.{}", abi::escape(&f.name));
-					lines.push(self.lower(&f.ty, &format!("o.getProperty(rt, {})", lit(&name)), &field, take));
+					lines.push(self.lower(&f.ty, &format!("o.getProperty(rt, {})", prop(&name)), &field, take));
 				}
 				lines.join("\n")
 			}
@@ -857,7 +877,7 @@ impl<'a> Gen<'a> {
 					}
 					for (f, name) in variant.fields.iter().zip(variant_fields(&variant.fields)) {
 						let field = format!("out.{member}.{}", abi::escape(&f.name));
-						body.push(self.lower(&f.ty, &format!("o.getProperty(rt, {})", lit(&name)), &field, take));
+						body.push(self.lower(&f.ty, &format!("o.getProperty(rt, {})", prop(&name)), &field, take));
 					}
 					body.push("return;".to_string());
 					lines.push(format!(
@@ -1070,11 +1090,12 @@ impl Gen<'_> {
 				(Type::Closure(closure), Ty::Fn(..)) => {
 					c_params.next().expect("a closure has its data");
 					let t = self.closure(&param.ty, closure);
-					let check = format!("r::obj(rt, {v}, \"function\")");
+					// Callable now, as Rust may call it only after the call returns.
+					let check = format!("r::function(rt, {v})");
 					call.args.push(t);
 					if closure.kept {
 						c_params.next().expect("a kept closure has its free");
-						call.gives.push(format!("void *{a} = new r::remote(rt, {check});"));
+						call.gives.push(format!("void *{a} = f.keep({check});"));
 						call.args.push(a);
 						call.args.push("&r::closure_free".to_string());
 					} else {
@@ -1087,13 +1108,19 @@ impl Gen<'_> {
 				(Type::Callback(..), c) | (Type::Box(_), c @ Ty::Struct(_))
 					if matches!(param.ty.base(), Type::Callback(..)) =>
 				{
-					call.gives.push(format!("{}{{}};", self.decl(c, &a)));
-					call.gives.push(self.lower(param.ty.base(), &v, &a, false));
+					let Type::Callback(i, _) = param.ty.base() else {
+						unreachable!("matched a callback")
+					};
+					let value = self.callback(*i, &v, true);
+					call.gives.push(format!("{} = {value};", self.decl(c, &a)));
 					call.args.push(a);
 				}
-				(Type::Waker | Type::Future, c) => {
-					call.gives.push(format!("{}{{}};", self.decl(c, &a)));
-					call.gives.push(self.lower(&param.ty, &v, &a, false));
+				(Type::Waker, c) => {
+					call.gives.push(format!("{} = f.waker({v});", self.decl(c, &a)));
+					call.args.push(a);
+				}
+				(Type::Future, c) => {
+					call.gives.push(format!("{} = f.future({v});", self.decl(c, &a)));
 					call.args.push(a);
 				}
 				(ty, c) => {
@@ -1118,7 +1145,12 @@ impl Gen<'_> {
 		let ok = strip_refs(&function.ok);
 		let err = function.err.as_ref().map(strip_refs);
 		let mut lines = std::mem::take(&mut call.lines);
-		lines.extend(std::mem::take(&mut call.gives));
+		// What the call gives Rust is staged in the frame until each argument is converted,
+		// then Rust's: nothing between here and the call throws.
+		if !call.gives.is_empty() {
+			lines.extend(std::mem::take(&mut call.gives));
+			lines.push("f.passed();".to_string());
+		}
 		let status = export.call.status().is_some();
 		if let Some(abi::Future {
 			handle,
@@ -1393,7 +1425,7 @@ impl Gen<'_> {
 		let args: Vec<String> = (closure.params.iter().enumerate())
 			.map(|(n, p)| self.incoming(p, &format!("p{n}")))
 			.collect();
-		lines.push(self.invoke_js("r::found(rt, data).asFunction(rt).call", &args));
+		lines.push(self.invoke_js("r::found(rt, data).asFunction(rt).call", None, &args));
 		let back = match &closure.err {
 			None => self.outgoing(&closure.ok, &c_ret, "v_"),
 			Some(err) => {
@@ -1420,15 +1452,16 @@ impl Gen<'_> {
 		name
 	}
 
-	/// Statements calling the JavaScript function `callee`, as `callee(rt, args, n)`, into
-	/// `v_`.
-	fn invoke_js(&self, callee: &str, args: &[String]) -> String {
+	/// Statements calling the JavaScript function `callee`, as `callee(rt, this, args, n)`
+	/// with `this` where it has one, into `v_`.
+	fn invoke_js(&self, callee: &str, this: Option<&str>, args: &[String]) -> String {
+		let this = this.map(|this| format!("{this}, ")).unwrap_or_default();
 		match args.is_empty() {
-			true => {
-				format!("jsi::Value v_ = {callee}(rt, static_cast<const jsi::Value *>(nullptr), ::std::size_t{{0}});")
-			}
+			true => format!(
+				"jsi::Value v_ = {callee}(rt, {this}static_cast<const jsi::Value *>(nullptr), ::std::size_t{{0}});"
+			),
 			false => format!(
-				"jsi::Value xs_[] = {{{}}};\njsi::Value v_ = {callee}(rt, static_cast<const jsi::Value *>(xs_), ::std::size_t{{{}}});",
+				"jsi::Value xs_[] = {{{}}};\njsi::Value v_ = {callee}(rt, {this}static_cast<const jsi::Value *>(xs_), ::std::size_t{{{}}});",
 				args.join(", "),
 				args.len()
 			),
@@ -1500,10 +1533,15 @@ impl Gen<'_> {
 			let args: Vec<String> = (method.params.iter().enumerate())
 				.map(|(n, p)| self.incoming(&p.ty, &format!("p{n}")))
 				.collect();
-			let callee = format!("self_.getPropertyAsFunction(rt, {}).callWithThis", lit(&member));
-			let call = self
-				.invoke_js(&callee, &args)
-				.replace("(rt, static_cast", "(rt, self_, static_cast");
+			let callee = match member.is_ascii() {
+				true => format!("self_.getPropertyAsFunction(rt, {}).callWithThis", lit(&member)),
+				// `getPropertyAsFunction` takes no `PropNameID`.
+				false => format!(
+					"self_.getProperty(rt, {}).asObject(rt).asFunction(rt).callWithThis",
+					prop(&member)
+				),
+			};
+			let call = self.invoke_js(&callee, Some("self_"), &args);
 			lines.push(call);
 			lines.push(self.outgoing(&method.ok, &ret, "v_"));
 			let proto = format!("{} {m}({})", self.decl(&ret, ""), decls.join(", "));

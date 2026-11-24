@@ -183,6 +183,10 @@ fn failed(status: Status, what: &str) -> ! {
 // stack takes from its start up and the calls into JavaScript take from its end down, each
 // committing what it reaches. One `ArrayBuffer` views it all, so no view ever detaches.
 
+// Node's TypeScript reads the 64-bit little-endian layouts of the targets it serves.
+#[cfg(not(all(target_pointer_width = "64", target_endian = "little")))]
+compile_error!("the node feature builds only for a 64-bit little-endian target, whose layouts Node's binding reads");
+
 /// How large the scratch memory is.
 const SCRATCH: usize = 1 << 32;
 /// How much is committed at a time.
@@ -541,8 +545,6 @@ pub fn bits<T: Copy>(v: T) -> u64 {
 	let mut out = 0u64;
 	// SAFETY: `T` fits, and every byte of it is initialized, as a C ABI value's.
 	unsafe { std::ptr::copy_nonoverlapping((&raw const v).cast::<u8>(), (&raw mut out).cast::<u8>(), size_of::<T>()) };
-	#[cfg(target_endian = "big")]
-	compile_error!("Node's binding reads little-endian layouts");
 	out
 }
 
@@ -801,6 +803,9 @@ struct Home {
 	ready: Condvar,
 	/// Whether the event loop was told of a task it has yet to run.
 	told: AtomicBool,
+	/// Whether JavaScript refused to run what is queued, as its environment is torn down:
+	/// nothing queued then or later runs.
+	exited: AtomicBool,
 	tsfn: AtomicPtr<c_void>,
 }
 
@@ -808,6 +813,7 @@ static HOME: Home = Home {
 	tasks: Mutex::new(VecDeque::new()),
 	ready: Condvar::new(),
 	told: AtomicBool::new(false),
+	exited: AtomicBool::new(false),
 	tsfn: AtomicPtr::new(null_mut()),
 };
 
@@ -821,13 +827,39 @@ impl Home {
 	fn push(&self, task: Task) -> bool {
 		self.lock().push_back(task);
 		self.ready.notify_all();
-		if self.told.swap(true, Ordering::AcqRel) {
+		// After the task is queued, so either this sees an exit or the exit's abandon sees
+		// the task.
+		if self.exited.load(Ordering::SeqCst) {
+			self.abandon();
+			return false;
+		}
+		if self.told.swap(true, Ordering::SeqCst) {
 			return true;
 		}
 		let tsfn = self.tsfn.load(Ordering::Acquire);
 		// SAFETY: the thread-safe function lives until the environment is torn down, after
 		// which a call fails.
-		!tsfn.is_null() && unsafe { (api().call_threadsafe_function)(tsfn, null_mut(), 0) } == 0
+		let told = !tsfn.is_null() && unsafe { (api().call_threadsafe_function)(tsfn, null_mut(), 0) } == 0;
+		if !told {
+			self.exit();
+		}
+		told
+	}
+
+	/// JavaScript refused what is queued: abandon it, and all that is queued later.
+	fn exit(&self) {
+		self.exited.store(true, Ordering::SeqCst);
+		self.abandon();
+	}
+
+	/// Drop each queued task unrun, a call's waiter told it was abandoned.
+	fn abandon(&self) {
+		let tasks = std::mem::take(&mut *self.lock());
+		for task in tasks {
+			if let Task::Call(job) = task {
+				job.finish();
+			}
+		}
 	}
 
 	/// Run `task` on JavaScript's thread.
@@ -878,6 +910,10 @@ impl Home {
 			while !*done {
 				done = job.ran.wait(done).unwrap_or_else(|e| e.into_inner());
 			}
+		}
+		// A job done with its call still in it was abandoned unrun.
+		if job.run.lock().unwrap_or_else(|e| e.into_inner()).is_some() {
+			rt::fail(what, "the JavaScript it calls into has exited");
 		}
 		// SAFETY: the job is done only once it ran.
 		unsafe { result.assume_init() }
@@ -1094,6 +1130,11 @@ impl Job {
 			unsafe { run.run() };
 			ACTING.set(was);
 		}
+		self.finish();
+	}
+
+	/// Wake the waiting thread: the job ran, or else was abandoned with its call in it.
+	fn finish(&self) {
 		*self.done.lock().unwrap_or_else(|e| e.into_inner()) = true;
 		self.ran.notify_all();
 		self.waiter.unpark();
@@ -1112,11 +1153,12 @@ unsafe extern "C" fn on_loop(env: Env, _: Value, _: *mut c_void, _: *mut c_void)
 	unsafe {
 		let out = Out::new();
 		let entering = out.int32(1);
-		// JavaScript refuses a call while its environment is torn down, which leaves nothing
-		// queued to wake or close.
+		// JavaScript refuses a call while its environment is torn down: what is queued, and
+		// all queued later, is abandoned, and a call waiting on it fails rather than wait on.
 		if out.attempt(6, &[entering]).is_err() {
 			let mut e = null_mut();
 			(api().get_and_clear_last_exception)(env, &mut e);
+			HOME.exit();
 			return;
 		}
 		loop {

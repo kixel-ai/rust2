@@ -1759,8 +1759,11 @@ impl Gen<'_> {
 		if self.web {
 			self.line("#[cfg(all(feature = \"web\", target_arch = \"wasm32\"))]\nmod web;\n");
 		}
-		if self.node {
-			self.line("#[cfg(feature = \"node\")]\nmod node;\n");
+		match self.node {
+			true => self.line("#[cfg(feature = \"node\")]\nmod node;\n"),
+			false => self.line(
+				"#[cfg(feature = \"node\")]\ncompile_error!(\"the node feature needs a 64-bit little-endian target, which this API serves none of\");\n",
+			),
 		}
 		// The facade may export nothing, which cargo would call unused.
 		self.line(format!("use {} as _;\n", self.dependency));

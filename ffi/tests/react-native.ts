@@ -6,32 +6,12 @@
 import * as api from "./react-native/index.ts";
 import * as check from "./api.ts";
 import * as Channel from "./react-native/Channel.ts";
+import * as Epilogue from "./react-native/Epilogue.ts";
 import * as rt from "./react-native/rt.ts";
 import * as Spawned from "./react-native/Spawned.ts";
 import { TurboModuleRegistry } from "react-native";
 
 declare const process: { argv: string[]; exit(code: number): never; stderr: { write(text: string): boolean } };
-
-/**
- * A typed array crosses as the engine holds it, whatever its own properties or prototype
- * claim: a shadowed length reads no further than its bytes, and another kind relabeled is
- * refused, since the JSI module reads its memory as the kind it claims.
- */
-function typed(): void {
-	const shadowed = Uint8Array.of(0x61);
-	Object.defineProperties(shadowed, { byteLength: { value: 4096 }, byteOffset: { value: 8 }, length: { value: 4096 } });
-	const read = api.prefixed(shadowed, undefined).slice();
-	if (read.length !== 1 || read[0] !== 0x61) throw new Error(`a shadowed length read ${read.length} bytes`);
-	const relabeled = new Int8Array(3);
-	Object.setPrototypeOf(relabeled, Int32Array.prototype);
-	try {
-		api.sumLists(relabeled as unknown as Int32Array, undefined, undefined);
-	} catch (e) {
-		if (e instanceof TypeError) return;
-		throw e;
-	}
-	throw new Error("a relabeled typed array crossed");
-}
 
 /**
  * A thread that takes the runtime while the JavaScript thread waits in a call into Rust gives
@@ -221,6 +201,132 @@ function written(): void {
 	if (Array.from(seen).join(" ") !== "1 2 3 0") throw new Error(`a write during the call reached Rust: ${seen.join(" ")}`);
 }
 
+/**
+ * A closure Rust keeps and a promise Rust polls later are checked as the call converts them:
+ * one that is not callable, or a thenable whose `then` is not, throws a TypeError there,
+ * rather than abort once Rust calls or polls it.
+ */
+function refused(): void {
+	const cases: [string, () => unknown][] = [
+		["an object kept as a closure", () => api.hook({} as unknown as () => void)],
+		["a thenable whose then is no function", () => api.after({ then: 1 } as unknown as Promise<unknown>, 1)],
+	];
+	for (const [what, f] of cases) {
+		let made: unknown;
+		try {
+			made = f();
+		} catch (e) {
+			if (e instanceof TypeError) continue;
+			throw e;
+		}
+		// Thrown as the call converts it, not rejected later.
+		if (made instanceof Promise) made.catch(() => {});
+		throw new Error(`${what} passed`);
+	}
+}
+
+/**
+ * Bytes lent from Rust's buffer are made with no JavaScript a caller replaced: a global
+ * `Uint8Array` or an `ArrayBuffer` `byteLength` getter never sees Rust's buffer, so nothing
+ * keeps a view of it past its free.
+ */
+async function replaced(): Promise<void> {
+	const channel = Channel.new();
+	Channel.send(channel, new Uint8Array(100));
+	const seen: unknown[] = [];
+	const g = globalThis as { Uint8Array: Uint8ArrayConstructor };
+	const was = g.Uint8Array;
+	const length = Object.getOwnPropertyDescriptor(ArrayBuffer.prototype, "byteLength")!;
+	g.Uint8Array = new Proxy(was, {
+		construct(target, args) {
+			seen.push(args[0]);
+			return Reflect.construct(target, args);
+		},
+	});
+	Object.defineProperty(ArrayBuffer.prototype, "byteLength", {
+		configurable: true,
+		get(this: ArrayBuffer) {
+			seen.push(this);
+			return length.get!.call(this);
+		},
+	});
+	let lent: rt.Bytes;
+	try {
+		// Past 64 bytes, Rust's own buffer, lent.
+		lent = await Channel.recv(channel);
+	} finally {
+		g.Uint8Array = was;
+		Object.defineProperty(ArrayBuffer.prototype, "byteLength", length);
+	}
+	if (seen.length !== 0) throw new Error(`a replaced global saw ${seen.length} values as Rust's bytes were made`);
+	if (lent.length !== 100 || lent.at(99) !== 0) throw new Error(`lent bytes read ${lent.length}`);
+	lent[Symbol.dispose]();
+	channel[Symbol.dispose]();
+}
+
+/**
+ * A call given back to Rust as a future is cancelled as Rust drops it, as the web's is: a
+ * receive whose wait timed out takes nothing sent after it.
+ */
+async function cancelled(): Promise<void> {
+	const channel = Channel.new();
+	const recv = Channel.recv(channel);
+	const timed = await api.within(0, recv);
+	if (timed.ok) throw new Error("a receive on an empty channel finished");
+	Channel.send(channel, Uint8Array.of(7));
+	const outcome = await recv.then(
+		() => "received",
+		(e: unknown) => (e instanceof rt.Cancelled ? "cancelled" : e),
+	);
+	if (outcome !== "cancelled") throw new Error(`a timed-out receive ended ${String(outcome)}`);
+	const got = await Channel.recv(channel);
+	if (got.length !== 1 || got.at(0) !== 7) throw new Error("what was sent after a timed-out receive was lost");
+	got[Symbol.dispose]();
+	channel[Symbol.dispose]();
+}
+
+/**
+ * A waker that JavaScript its own wake runs disposes is dropped in Rust once that wake
+ * returns, not under it, which still borrows it.
+ */
+function woken(): void {
+	const events: string[] = [];
+	let waker: rt.Waker | undefined;
+	waker = api.logWaker({
+		log(level: number): boolean {
+			events.push(`log ${level}`);
+			if (level === 1) {
+				waker![Symbol.dispose]();
+				events.push("disposed");
+			}
+			return true;
+		},
+	});
+	waker.wake();
+	events.push("returned");
+	const seen = events.join(", ");
+	if (seen !== "log 1, disposed, log 0, returned") throw new Error(`a waker disposed in its wake: ${seen}`);
+}
+
+/**
+ * A value the collector frees is dropped on a posted job, so a drop that calls into
+ * JavaScript runs outside the collection. One still held as the runtime goes is leaked, as
+ * no JavaScript is left to call: the host runs this twice with `--reload`.
+ */
+async function collected(): Promise<void> {
+	const lines: string[] = [];
+	const log = {
+		log(_level: number, line: string): boolean {
+			lines.push(line);
+			return true;
+		},
+	};
+	(() => Epilogue.new$(log, 1))();
+	await check.collect(() => lines.length > 0, "the collector drops an epilogue nobody disposed");
+	if (lines.join(", ") !== "closed") throw new Error(`a collected epilogue logged ${lines.join(", ")}`);
+	(globalThis as { kept?: unknown }).kept = Epilogue.new$(log, 2);
+}
+
 /** What installs the module: the host's global off a device, else the TurboModule. */
 function installer(): { install(kit: object): boolean } {
 	const global = (globalThis as Record<string, unknown>).__rust2_api as { install(kit: object): boolean } | undefined;
@@ -252,6 +358,7 @@ function forged(): void {
 		i64Halves: () => [2 ** 40, 0],
 		f64Bits: () => [1, 2, 3],
 		Uint8Array,
+		typedArrays: {},
 		RangeError,
 		TypeError,
 		Error,
@@ -283,13 +390,17 @@ function word(): void {
 }
 
 const cases: Record<string, () => void | Promise<void>> = {
-	typed,
 	word,
 	interleaved,
 	foreign,
 	sliced,
 	faked,
 	written,
+	refused,
+	replaced,
+	cancelled,
+	woken,
+	collected,
 	reinstalled,
 	futures: check.futures,
 	owned: check.owned,

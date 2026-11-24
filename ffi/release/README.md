@@ -125,7 +125,7 @@ the builder unpacks over its checkout before reading the checks.
    metadata and a complete hashed RECORD. Each is repaired by its platform's
    standard tool, which claims the portable tag or fails: auditwheel for
    `manylinux_2_28` on x86_64 and aarch64 (built by cargo-zigbuild against glibc 2.28, as
-   [crabx](/crabx/README.md) builds), delocate for `macosx_11_0_arm64`, and delvewheel for
+   [crabx's pipeline](https://github.com/kixel-ai/crabx/blob/main/pipeline/README.md) builds), delocate for `macosx_11_0_arm64`, and delvewheel for
    `win_amd64`.
 
    And an sdist, `<name>-<version>.tar.gz`, from which pip builds the same wheel on any

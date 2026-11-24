@@ -80,8 +80,9 @@ function lentCopy(ptr: Addr, len: number): Uint8Array<ArrayBuffer> {
 	}
 }
 
-/** The text of the `len` bytes of UTF-8 at `ptr`, as `decoder` decodes it. */
+/** The text of the `len` bytes of UTF-8 at `ptr`, as `decoder` decodes it, through the scratch memory as [lentCopy] copies. */
 function lentText(ptr: Addr, len: number, decoder: TextDecoder): string {
+	if (len > LEND) return decoder.decode(lentCopy(ptr, len));
 	const m = top;
 	try {
 		const at = alloc(len, 1);
@@ -141,10 +142,16 @@ function lends(len: number): boolean {
 	return true;
 }
 
-/** A copy of the bytes from `from` up to `to` of the `len` at `ptr`, as `Uint8Array`'s `slice`. */
+/** A copy of the bytes from `from` up to `to` of the `len` at `ptr`, as `Uint8Array`'s `slice`: of those alone. */
 function lentSlice(ptr: Addr, len: number, from?: number, to?: number): Uint8Array<ArrayBuffer> {
-	const all = lentCopy(ptr, len);
-	return from === undefined && to === undefined ? all : all.slice(from, to);
+	// `slice`'s relative index: from the end where negative, clamped to the bytes.
+	const at = (index: number | undefined, unset: number): number => {
+		if (index === undefined) return unset;
+		const i = Math.trunc(index) || 0;
+		return i < 0 ? Math.max(len + i, 0) : Math.min(i, len);
+	};
+	const start = at(from, 0);
+	return lentCopy(ptr + BigInt(start), Math.max(at(to, len) - start, 0));
 }
 
 /** Bytes of `len` [lends] lent are freed. */
@@ -174,7 +181,7 @@ export function on(mask: bigint, name: string): void {
 	if (((mask >> target) & 1n) === 0n) throw new Error(`${name}: the library's target lacks it`);
 }
 
-/** The length of the list at `p - 8`, the word after its pointer. */
+/** The word at `p`: a list's length, at `p + 8` of the list. */
 export function lenAt(p: number): number {
 	return lenGet(p);
 }
@@ -225,12 +232,13 @@ export type Glue = {
 type Process = {
 	getBuiltinModule(id: "node:module"): { createRequire(from: string | URL): (id: string) => unknown };
 	getBuiltinModule(id: "node:url"): { fileURLToPath(url: URL): string };
+	getBuiltinModule(id: "node:path"): { resolve(path: string): string };
 };
 
 /**
- * Load the addon at `path`, checking it is the build `glue` was generated with, for a
- * target it serves, before any call. Its runtime serves one at a time: a worker's load
- * while another holds it throws.
+ * Load the addon at `path`, a URL or a path from the working directory, checking it is the
+ * build `glue` was generated with, for a target it serves, before any call. Its runtime
+ * serves one at a time: a worker's load while another holds it throws.
  */
 export async function load(path: string | URL, glue: Glue): Promise<void> {
 	if (loading || loaded) throw new Error(`${glue.file}: the addon is loaded already`);
@@ -249,7 +257,10 @@ let loaded = false;
 
 function instantiate(path: string | URL, glue: Glue): void {
 	const process = (globalThis as unknown as { process: Process }).process;
-	const file = path instanceof URL ? process.getBuiltinModule("node:url").fileURLToPath(path) : path;
+	// A relative path from the working directory, as a caller means it, not from this module,
+	// as `require` reads one.
+	const file =
+		path instanceof URL ? process.getBuiltinModule("node:url").fileURLToPath(path) : process.getBuiltinModule("node:path").resolve(path);
 	const exports = process.getBuiltinModule("node:module").createRequire(import.meta.url)(file) as Exports;
 	if (exports[`${glue.prefix}_contract`]() !== BigInt.asIntN(64, glue.contract)) {
 		throw new Error(`${glue.file} and the addon are from different builds`);

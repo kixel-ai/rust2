@@ -875,6 +875,35 @@ export function u128Put(p: number, v: u128): void {
 	for (let i = 0; i < 4; i++) d.setUint32(p + 4 * i, words[i], true);
 }
 
+// Typed arrays, read as the engine keeps them.
+
+// `%TypedArray%.prototype`'s own getters, taken at load and called through no method a
+// caller can replace: no subclass's, caller's, or Proxy's `length`, `byteOffset`, `buffer`,
+// or tag reaches them, and each but the tag's throws a TypeError on any other value.
+const typedArray = Object.getPrototypeOf(Uint8Array.prototype) as object;
+function getter<T>(key: PropertyKey): (v: unknown) => T {
+	return Function.prototype.call.bind(Object.getOwnPropertyDescriptor(typedArray, key)!.get!) as (v: unknown) => T;
+}
+const lengthOf = getter<number>("length");
+const offsetOf = getter<number>("byteOffset");
+const bufferOf = getter<ArrayBufferLike>("buffer");
+const tagOf = getter<string | undefined>(Symbol.toStringTag);
+
+/** How many items `v` holds, throwing a TypeError unless the engine holds it as a `kind`. */
+function typedLength(v: unknown, kind: string): number {
+	if (tagOf(v) !== kind) {
+		const shown = v !== null && (typeof v === "object" || typeof v === "function") ? "an object" : String(v);
+		throw new TypeError(`${shown} is no ${kind}`);
+	}
+	return lengthOf(v);
+}
+
+/** A view of the bytes of `v`, a `kind` of `size`-byte items, which throws unless it is one. */
+export function typedBytes(v: unknown, kind: string, size: number): Uint8Array {
+	const n = typedLength(v, kind);
+	return new Uint8Array(bufferOf(v), offsetOf(v), n * size);
+}
+
 // Text and bytes.
 
 const encoder = new TextEncoder();
@@ -914,10 +943,12 @@ export function putBytes(dst: number, data: Uint8Array | Bytes): void {
 		}
 		data = read;
 	}
-	const p = alloc(data.length, 1);
+	// `set` copies as many bytes as the engine keeps, which no getter changes.
+	const n = typedLength(data, "Uint8Array");
+	const p = alloc(n, 1);
 	mem().set(data, p);
 	placePut(dst, p);
-	lenPut(dst + WORD, data.length);
+	lenPut(dst + WORD, n);
 	lenPut(dst + 2 * WORD, 0);
 }
 
@@ -1188,7 +1219,8 @@ export function copiedBytes(dst: number, data: Uint8Array): void {
 
 /** Write the `[u8; n]` `data` at `p`, which throws unless it holds exactly `n` bytes. */
 export function arrayPut(p: number, data: Uint8Array, n: number): void {
-	if (data.length !== n) throw new RangeError(`${data.length} bytes are no [u8; ${n}]`);
+	const length = typedLength(data, "Uint8Array");
+	if (length !== n) throw new RangeError(`${length} bytes are no [u8; ${n}]`);
 	mem().set(data, p);
 }
 
@@ -1216,7 +1248,7 @@ function octets(p: number, n: number): Uint8Array {
 }
 
 function putOctets(p: number, v: Uint8Array, n: number): void {
-	if (!(v instanceof Uint8Array) || v.length !== n) throw new RangeError(`an address is no ${n} bytes`);
+	if (typedLength(v, "Uint8Array") !== n) throw new RangeError(`an address is no ${n} bytes`);
 	mem().set(v, p);
 }
 
