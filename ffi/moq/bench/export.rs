@@ -1,7 +1,7 @@
 // The Rust floor: every case the bindings time, called on the stand-in's API directly, as a
 // Rust caller holding a byte slice would. Futures are polled by hand with a no-op waker,
 // so a woken read costs a re-poll and nothing of an executor. Each case prints its wall
-// time and the process's CPU time, or under CodSpeed, runs once for its CPU simulation to
+// time and the process's CPU time, or under Valgrind, runs once for rust2-bench to
 // count.
 
 use std::ffi::{CStr, c_char};
@@ -12,7 +12,7 @@ use std::sync::Barrier;
 use std::task::{Context, Poll, Waker};
 use std::time::Instant;
 
-/// A tenth under CodSpeed, whose simulation counts every call exactly.
+/// A tenth under Valgrind, which counts every call exactly.
 const GROUPS: u64 = 10000;
 const FRAMES: u64 = 100;
 const THREADS: usize = 4;
@@ -44,7 +44,7 @@ unsafe extern "C" {
 	fn codspeed_stop(name: *const c_char);
 }
 
-/// A case's start: now, and CodSpeed counting from here.
+/// A case's start: now, and Valgrind counting from here.
 fn begin() -> Start {
 	let start = now();
 	// SAFETY: codspeed_init ran first, in main.
@@ -168,7 +168,7 @@ fn round(measured: bool) -> Vec<(String, (f64, f64))> {
 	out.push(("getter".into(), end(start, n, c"getter")));
 
 	// The handle call and the getter from THREADS threads: on one shared value, then on a
-	// clone each, as the bindings' own-handle cases do. CodSpeed's simulation runs one thread
+	// clone each, as the bindings' own-handle cases do. Valgrind runs one thread
 	// at a time, which contends for nothing, so it skips them.
 	if !measured {
 		let is_closed = |track: &moq::track::Producer| {
@@ -283,7 +283,7 @@ fn round(measured: bool) -> Vec<(String, (f64, f64))> {
 fn main() {
 	// SAFETY: the name is a C string, and this is the first call into the hooks.
 	let measured = unsafe { codspeed_init(c"ffi/moq/bench/export.rs::rust".as_ptr()) };
-	// Under CodSpeed, one round, which prints nothing: its simulation counts each case.
+	// Under Valgrind, one round, which prints nothing: rust2-bench counts each case.
 	if measured {
 		round(true);
 		return;

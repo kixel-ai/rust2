@@ -24,8 +24,8 @@ from an emptied target and without a compiler cache, the export (`rust2-ffi`, wh
 runs a release `cargo check` of moq under its driver) beside moq's own of the same
 crates, and the generated crate's release build beside moq's own release build, each with
 its peak RSS, through [`measure.py`](measure.py). Nightly runs it on arm64 Linux into
-the run's summary; nothing fails on a number. [CodSpeed](#codspeed) counts each
-single-threaded case on every push to main and on each PR that can move one.
+the run's summary; nothing fails on a number. [Instruction counts](#instruction-counts)
+count each single-threaded case nightly on main for Kixel Quest.
 
 | case | what it times | BoltFFI's nearest |
 |---|---|---|
@@ -95,41 +95,42 @@ peaks near 290 MB there. Go and Swift peak at 1.1 and 1.2 GB, as their reads run
 threads, each with a glibc malloc arena that keeps what it freed: with
 `MALLOC_ARENA_MAX=1` they peak near 330 and 400 MB.
 
-## CodSpeed
+## Instruction counts
 
-[CodSpeed](https://app.codspeed.io/kixel-ai/rust2) keeps main's history of each
-single-threaded case, and comments on a PR whose run changes a case, with its change per
-case.
-[`codspeed.yml`](../../.github/workflows/codspeed.yml) runs on every push to main, its
-baseline, and on each PR that changes what `just ffi bench` reads: it builds the programs in
-the bench shell, then runs `just ffi codspeed` under CodSpeed's CPU simulation in that
-shell's environment, so Nix itself never runs under Valgrind. It is informational: no
-threshold fails it and no ruleset requires it.
+[rust2-bench](../runner/README.md) counts each single-threaded case's instructions under
+stock Valgrind for Kixel Quest, which keeps main's history of each and bisects a regression
+to its PR. [`valgrind.yml`](../../.github/workflows/valgrind.yml)
+runs `just ffi count` in the bench shell nightly on main, and on each commit a bisect
+dispatches it on, with the benchmarks it narrows down as its `benchmarks` input, and uploads
+the `metrics.json` it writes as its `kixel-metrics` artifact. No pull request runs it:
+nothing fails on a count, so a change compares on its own host instead.
 
 ```bash
-nix develop .#bench --command just ffi bench-build
-nix develop .#bench --command codspeed run --mode simulation -- just ffi codspeed  # CodSpeed's CLI, on Ubuntu or Debian
+nix develop .#bench --command just ffi count run                 # each case's count
+nix develop .#bench --command just ffi count compare origin/main # each case's change from main
 ```
+
+`just ffi count` builds the programs with `bench-build`, then runs each language of
+`count_langs` in its own Valgrind process, at once.
 
 Each program calls CodSpeed's
 [instrument-hooks](https://github.com/CodSpeedHQ/instrument-hooks), which the flake pins,
 through [`codspeed.h`](../../ffi/moq/bench/codspeed.h) and its own FFI around each case:
-one benchmark per language and case, such as `python::write` or `c::throughput[1024]`.
-Under CodSpeed a program runs its round once, without the warm-up round, and with a tenth
-of the groups (so 100,000 calls a case, Python's 10,000), since the simulation counts
-every call exactly and costs 50 to 100 times the program's own time. It skips the
-`shared:*`, `own:*`, and Kotlin's `objects` cases: the simulation runs one thread at a
-time, so it would count a contention that never happens. It counts instructions and
-simulated cache misses, not time, so a system call or a wait costs nothing in it. The
-tables below keep wall and CPU time, and a case's absolute count is for its whole loop,
-not a call: read CodSpeed for each case's change.
+one benchmark per language and case, such as `ffi/moq/bench/export.py::python::write` or
+`ffi/moq/bench/export.c::c::throughput[1024]`. Counted, a program runs its round once,
+without the warm-up round, and with a tenth of the groups (so 100,000 calls a case, Python's
+10,000), since Valgrind counts every call exactly and costs 50 to 100 times the program's own
+time. It skips the `shared:*`, `own:*`, and Kotlin's `objects` cases: Valgrind runs one
+thread at a time, so it would count a contention that never happens. It counts instructions,
+not time, so a system call or a wait costs nothing in it. The tables below keep wall and CPU
+time, and a case's absolute count is for its whole loop, not a call: read a count for each
+case's change.
 
 A language joins only if its counts hold still: the same build, run twice, must move no
-case far enough for CodSpeed to report a change, which its default 10% regression
-threshold decides. `codspeed_langs` in [`ffi/justfile`](../../ffi/justfile) lists those
-that pass. Measured 2026-11-14 on **nixos** with stock Valgrind 3.27.1 and the flags
-CodSpeed's runner passes, without its fork's cycle estimation, in pairs of runs of one
-build, the largest move of any case between two runs:
+case by more than a few percent. `count_langs` in [`ffi/justfile`](../../ffi/justfile) lists
+those that pass. Measured 2026-11-14 on **nixos** with stock Valgrind 3.27.1 and the flags
+CodSpeed's runner passed, in pairs of runs of one build, the largest move of any case
+between two runs:
 
 | language | largest move | |
 |---|---|---|
@@ -141,7 +142,7 @@ build, the largest move of any case between two runs:
 | Kotlin | 172% (`call`), 108% (`getter`) | leaves: without the warm-up, the JIT's and collector's threads compile and collect inside each case, and the JVM's C2 code crashes under Valgrind unless its implicit null checks are off |
 | Dart | does not run | leaves: the VM maps its code at an address hint off a page boundary, which Valgrind refuses |
 | C# | not measured | leaves until a pair of runs holds: CoreCLR's tiered JIT and collector run on their own threads |
-| TypeScript (Node) | 2.6% (`ready`), every other case under 2.3% | joins, with V8's flags below |
+| TypeScript (Node) | 63% (`ready`), 56% (`write`), 54% (`woken`) | left 2026-11-23: see below |
 
 Node joined on 2026-11-16, measured on **fedora** the same way, Node 24.22.2. With V8's
 default flags, two runs moved `write` 113%, `stamped` 69%, and `ready` 49%: V8 compiles,
@@ -149,18 +150,25 @@ sweeps, and collects on its own threads, by time. `--predictable --single-thread
 --v8-pool-size=0` keeps all of that on the main thread, which left 36%
 (`payload[1048576]`); `--predictable-gc-schedule`, so a collection follows allocation
 rather than time, left 16% (`throughput[1048576]`); and a full `gc()` before each case,
-through `--expose-gc`, left the 2.6% above. `just ffi codspeed` passes all four flags
-under `RUST2_CODSPEED`, and `bench-run`, which times, passes none. The Chromium and Firefox
-columns stay out: CodSpeed's simulation runs one process, not a browser. Building the
-wasm32 module adds about 5 minutes to the workflow's build, and Node's cases about 6 to its
-simulation.
+through `--expose-gc`, left 2.6% (`ready`). `bench-program` passes all four flags under
+`RUST2_CODSPEED`, and `bench-run`, which times, passes none. The Chromium and Firefox
+columns stay out: a browser's processes would each count apart.
 
-On CI, two runs of one commit (kixel-ai/rust2#805's 11a94ff, a `pull_request` run and a
-`workflow_dispatch` one) left all 58 benchmarks untouched in CodSpeed's comparison: the
-largest move was Python's `throughput[1024]`, 2.4%, then its `throughput[100]` and
-`ready`, under 2%, and every one of Rust's, C's, C++'s, and moq-c's rounded to 0%.
+Node left on 2026-11-23, when rust2-bench replaced CodSpeed: with the same flags, its
+async cases no longer hold still. Two hosted runs and one on **fedora** of one commit
+differed by up to 63% (`ready`), 56% (`write`), and 54% (`woken`), and two on **fedora**
+alone, one program at a time, by 27% (`ready`) and 23% (`woken`); with the flags CodSpeed's
+runner passed to Valgrind, by 17% (`write`). It had already drifted under CodSpeed: on
+PRs that change no TypeScript, CodSpeed reported `payload[16384]` 83% faster (kixel-ai/rust2#979),
+`ready` 82% faster and `woken` 36% slower (kixel-ai/rust2#972), and `ready` 39% slower
+(kixel-ai/rust2#971). Its cases changed since it joined (kixel-ai/rust2#851, kixel-ai/rust2#937).
 
-Each leaver keeps its hooks, so it rejoins by `codspeed_langs` once a pair of runs holds.
+On CI, two runs of one commit under CodSpeed (kixel-ai/rust2#805's 11a94ff) left all 58
+benchmarks untouched: the largest move was Python's `throughput[1024]`, 2.4%, then its
+`throughput[100]` and `ready`, under 2%, and every one of Rust's, C's, C++'s, and moq-c's
+rounded to 0%.
+
+Each leaver keeps its hooks, so it rejoins by `count_langs` once a pair of runs holds.
 
 ## Concurrent calls
 

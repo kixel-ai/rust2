@@ -2003,7 +2003,7 @@ nix develop .#android --command just ffi react-native-android  # the same throug
 just ffi react-native-ios  # the same on the booted iOS simulator, on macOS with Xcode and CocoaPods
 nix develop .#android --command just ffi bench-android  # the benchmark's Kotlin rows on HotSpot and, shrunk by R8, on ART on the Android device adb reaches
 nix develop .#bench --command just ffi bench  # the binding benchmark: bench/ffi/README.md's cases from Rust, and through the export from C, C++, Kotlin, Python, Swift, Go, Dart, C#, TypeScript on Node over the wasm32 stand-in and over the Node-API addon, and React Native on Hermes
-nix develop .#bench --command just ffi codspeed  # after bench-build, each single-threaded case once under CodSpeed's CPU simulation, as the CodSpeed workflow runs it
+nix develop .#bench --command just ffi count run  # each single-threaded case's instructions under Valgrind, by rust2-bench, as the Valgrind workflow counts them; `count compare main` compares with a commit
 nix develop .#sanitize --command just ffi sanitize  # api's C and C++ scripts under ASan with UBSan, TSan, and Valgrind, its Swift under TSan, its Go under the race detector and cgocheck2, its Python looped on a debug CPython, and its C ABI under Miri
 ```
 
