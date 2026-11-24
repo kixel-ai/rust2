@@ -62,7 +62,7 @@ To measure a new build-speed change, add a variant whose base is the configurati
 The `mostly-unused` variant enables Cargo's unstable profile hint and sets
 `profile.dev.package."*".hint-mostly-unused=true`, so it hints only dependencies
 outside the workspace, leaving moq's own crates unchanged.
-It compares against `nightly`; it has no measured recommendation yet.
+It compares against `nightly`; [the bare-metal run](#reference-report-on-bare-metal) measured it slower, so no recommendation follows.
 
 The `ra-jit` variant builds with `cargo ra-jit` ([ra-jit](https://github.com/indexable-inc/ra-jit), pinned in `flake.nix` and compiled from source on a run that selects it), a daemon that compiles only the functions an edit changed and splices them into the program cargo linked, or hands the build back to cargo.
 ra-jit works with one rustc only, so its base, `ra-jit-baseline`, is plain cargo on that toolchain.
@@ -82,6 +82,69 @@ The report shows wall time (trimmed mean, and mean ± standard deviation), CPU t
 A busy host adds an occasional slow run, which on an edit of a few seconds can move a mean by over 10%, so the change against a base compares trimmed means, which drop each variant's fastest and slowest run; CPU time and instructions are trimmed means too.
 Instructions barely move with machine load, so they are the signal on a busy machine, where wall time is only a smoke test; they read `n/a` where the host exposes no performance counters.
 No threshold is set: the numbers inform a decision, they do not gate one.
+
+## Reference report on bare metal
+
+Measured on 2026-11-24 by a `bench.yml` dispatch at `main` ([run](https://github.com/kixel-ai/rust2/actions/runs/45323643680), rust2 [`c6b108a`](https://github.com/kixel-ai/rust2/commit/c6b108a55149866f00f9a8ca06f8148dd8832ce5)) on the `nixos` runner: a Ryzen 9 5900XT (32 CPUs, 63 GiB), the three jobs one after another, each holding the host lease (waits of 11, 4, and 12 minutes for queue builds to finish; none ran beside a job).
+Rows are the trimmed-mean wall time in seconds, then the change against the base in wall time and CPU time, from moq's `check`, `build`, and edits, 3 runs each (edits 5).
+**Instructions read `n/a` on every row**: this run's harness ran each command under `hyperfine --shell bash`, and hyperfine 2 reads no counters under a shell (the runner's counters work: `hyperfine true` there reports them). The harness now runs bash as the benchmarked program, which keeps the counters, so the next dispatch fills the column.
+
+The controls repeat their base, so their change is the noise floor, and it is not the 1.3 to 1.9% RMS seen on hosted runners:
+the stable controls moved wall time +2.9%, -12.6%, +8.8%, and -0.9% (CPU +8.3%, -11.1%, +11.1%, +4.8%), the nightly controls -6.8%, -2.6%, -7.8%, and +1.4% (CPU -2.7%, -9.7%, -0.8%, -4.3%).
+Single runs stall (a control's `edit-hub` took 105 s for 18 CPU-s), so a wall change under about 10% is noise, and CPU time is the steadier signal.
+
+| scenario | variant | wall | change | CPU change |
+| --- | --- | ---: | ---: | ---: |
+| check | nightly | 34.2 | base | base (179.9 s) |
+| check | `jobs-frontend=32` | 20.9 | -38.7% | +55.3% |
+| check | cranelift | 34.4 | +0.8% | -8.3% |
+| check | cache-proc-macros | 31.9 | -6.6% | -9% |
+| check | `mostly-unused` | 37.4 | +9.4% | +9.1% |
+| build | nightly | 49.7 | base | base (304.6 s) |
+| build | `jobs-frontend=32` | 31.9 | -35.8% | +46% |
+| build | cranelift | 48.6 | -2.3% | -25.1% |
+| build | cache-proc-macros | 52 | +4.6% | -1.9% |
+| build | `mostly-unused` | 57.1 | +14.9% | -3.4% |
+| edit-leaf | nightly | 3.37 | base | base (5.06 s) |
+| edit-leaf | `jobs-frontend=32` | 3.28 | -2.9% | +32% |
+| edit-leaf | cranelift | 3.14 | -7% | -9.7% |
+| edit-leaf | cache-proc-macros | 3.26 | -3.4% | +5.8% |
+| edit-leaf | `mostly-unused` | 3.33 | -1.3% | +1.7% |
+| edit-hub | nightly | 9.44 | base | base (13.2 s) |
+| edit-hub | `jobs-frontend=32` | 9.96 | +5.6% | +57.9% |
+| edit-hub | cranelift | 11.4 | +20.8% | -2.2% |
+| edit-hub | cache-proc-macros | 12.4 | +30.9% | -2.7% |
+| edit-hub | `mostly-unused` | 14.1 | +49% | +19.4% |
+| test-build | nightly | 105.4 | base | base (821.1 s) |
+| test-build | cranelift | 97.2 | -7.7% | -18.7% |
+| test-run | nightly | 20 | base | base (301.4 s) |
+| test-run | cranelift | 29.2 | +46% | +38.3% |
+| test-edit | nightly | 54.2 | base | base (327.2 s) |
+| test-edit | cranelift | 75.3 | +38.8% | +5.2% |
+| check | baseline (stable) | 36.3 | base | base (170.2 s) |
+| check | mold | 36.5 | +0.5% | +3% |
+| check | wild | 34 | -6.1% | +0.1% |
+| build | baseline (stable) | 52.6 | base | base (312.1 s) |
+| build | mold | 50.7 | -3.6% | -14.2% |
+| build | wild | 45.1 | -14.1% | -15.4% |
+| edit-leaf | baseline (stable) | 6.96 | base | base (7.89 s) |
+| edit-leaf | mold | 7.38 | +5.9% | -38.6% |
+| edit-leaf | wild | 6.88 | -1.2% | -29% |
+| edit-hub | baseline (stable) | 19.3 | base | base (17.9 s) |
+| edit-hub | mold | 20.5 | +6% | -12.7% |
+| edit-hub | wild | 12 | -37.7% | -25.6% |
+
+What it shows, with the noise above in mind:
+
+- `jobs-frontend=32` is the one lever far outside the noise: a cold `check` or `build` takes 36 to 39% less wall time for 46 to 55% more CPU time, and an edit gains nothing (edits cost 32 to 58% more CPU).
+  It buys speed on an idle 32-CPU host and costs where CPUs are shared: on 4 vCPUs the same flag at 8 measured oversubscription (+15.4% CPU, no win).
+- `mostly-unused` is no win: `build` +14.9% wall for -3.4% CPU, `check` +9.4% and +9.1%, and `edit-hub` slower and costlier. It stays out of moq's `.cargo/config.toml`.
+- cache-proc-macros moves every row but `edit-hub` inside the controls' range; its `edit-hub` +30.9% wall is outside it (the largest control change is +8.8%), and its -2.7% CPU suggests a stalled run, which this run cannot confirm.
+- cranelift keeps its earlier result: the `build` CPU falls 25.1% and wall 2.3%, `test-build` 18.7% and 7.7%, and `test-run` and `test-edit` cost more, with 58 of 6379 tests failing.
+- mold and wild cut CPU on `build` and edits (wild `edit-hub` -37.7% wall too), but the stable controls moved `build` -12.6% wall and -11.1% CPU, so their wall change is unproven until instructions read. Wild's `edit-hub` and `edit-leaf` CPU are the clearest hints.
+- ra-jit, on its own job (36 minutes): edits 96.6 to 98.4% faster when the daemon builds them (a lower bound for the marker edits, which compile nothing), `build` +38.1% wall and +170.7% CPU (the daemon built 0 of 3, with no reason given), and every `edit-async` run handed to cargo for the `parsed_values_given` reason above (+11.6% wall, +1305% CPU).
+
+No setting is recommended for moq's `.cargo/config.toml` yet: the only one clear of the noise, `jobs-frontend`, trades CPU for wall time, which is the maintainer's call, and wild's gain waits on instructions.
 
 ## Nix builds for moq
 
