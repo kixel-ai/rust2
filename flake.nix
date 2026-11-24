@@ -328,8 +328,8 @@
             # Built only when a recipe running on it asks: it compiles from source.
             inherit hermes;
           }
-          # Valgrind's counts are Linux's.
-          // pkgs.lib.optionalAttrs pkgs.stdenv.hostPlatform.isLinux {
+          # Valgrind's counts are Linux's, and the fingerprint reads x86_64's CPUID.
+          // pkgs.lib.optionalAttrs (pkgs.stdenv.hostPlatform.isLinux && pkgs.stdenv.hostPlatform.isx86_64) {
             bench = rust2-bench;
           }
           # ra-jit and its toolchain for the benchmark's ra-jit variants, which build it
@@ -466,9 +466,9 @@
                 pkgs.firefox
                 pkgs.binaryen
               ]
-              ++ pkgs.lib.optionals pkgs.stdenv.hostPlatform.isLinux [
-                webkit-headless
-                # `just ffi count` counts the programs' instructions with it.
+              ++ pkgs.lib.optionals pkgs.stdenv.hostPlatform.isLinux [ webkit-headless ]
+              # `just ffi count` counts the programs' instructions with it, on x86_64 Linux only.
+              ++ pkgs.lib.optionals (pkgs.stdenv.hostPlatform.isLinux && pkgs.stdenv.hostPlatform.isx86_64) [
                 rust2-bench
               ];
             # `just ffi bench` builds moq's rs/libmoq, whose VAAPI bindings run bindgen.

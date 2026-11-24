@@ -20,12 +20,12 @@ use fingerprint::Fingerprint;
 const PROBE: &str = "__cpu";
 
 const USAGE: &str = "\
-usage: rust2-bench run [options] [-- cargo build args...]
-       rust2-bench compare <base> [options] [-- cargo build args...]
+usage: rust2-bench run [options] [-- cargo bench args...]
+       rust2-bench compare <base> [options] [-- cargo bench args...]
        rust2-bench fingerprint
 
 run counts the working tree's benchmarks; compare counts <base>, a commit, in a worktree of its
-own under target/rust2-bench/base, then the working tree, and prints each change.
+own under ~/.cache/rust2-bench, then the working tree, and prints each change.
 
 Benchmarks are the Cargo workspace's, built with CodSpeed's compatibility crates, unless
 --program names them.
@@ -44,6 +44,15 @@ fn main() -> ExitCode {
 	if args.first().map(String::as_str) == Some(PROBE) {
 		print!("{}", fingerprint::cpu());
 		return ExitCode::SUCCESS;
+	}
+	if args.first().map(String::as_str) == Some(cargo::CAPTURE) {
+		return match cargo::capture(&args[1..]) {
+			Ok(()) => ExitCode::SUCCESS,
+			Err(err) => {
+				eprintln!("rust2-bench: {err}");
+				ExitCode::FAILURE
+			}
+		};
 	}
 	match cli(&args) {
 		Ok(()) => ExitCode::SUCCESS,
@@ -148,7 +157,7 @@ impl Options {
 			return Err("--build builds programs: name them with --program".to_owned());
 		}
 		if !options.programs.is_empty() && !options.cargo.is_empty() {
-			return Err("cargo build args are for a Cargo workspace's benchmarks, not --program's".to_owned());
+			return Err("cargo bench args are for a Cargo workspace's benchmarks, not --program's".to_owned());
 		}
 		Ok(options)
 	}
@@ -200,7 +209,7 @@ fn measure(dir: &Path, options: &Options, strict: bool) -> Result<Counts, String
 	let fingerprint = Fingerprint::probe()?.label();
 	eprintln!("rust2-bench: fingerprint {fingerprint}");
 	let mut jobs = if options.programs.is_empty() {
-		cargo::jobs(dir, &options.cargo)?
+		cargo::jobs(dir, &options.cargo, strict)?
 	} else {
 		if let Some(build) = &options.build {
 			eprintln!("rust2-bench: {build}");

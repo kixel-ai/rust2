@@ -6,8 +6,7 @@
 //! benchmark alone, and with `CODSPEED_PROCESS_ISOLATION=false` it runs every benchmark in
 //! its own process rather than one child each.
 
-use std::collections::BTreeSet;
-use std::ffi::OsString;
+use std::collections::{BTreeMap, BTreeSet};
 use std::io::{BufRead, BufReader};
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
@@ -19,29 +18,120 @@ use crate::Job;
 /// The cfg CodSpeed's compatibility crates take to run each benchmark once around its hooks.
 const CFG: &str = "--cfg=codspeed";
 
+/// The hidden argument that runs this executable as `cargo bench`'s runner, recording how
+/// Cargo launches each benchmark target instead of running it.
+pub const CAPTURE: &str = "__capture";
+
+/// Where the capturing runner writes each launch, set on the `cargo bench` it runs under.
+const CAPTURE_DIR: &str = "RUST2_BENCH_CAPTURE";
+
 /// A benchmark target cargo built.
 struct Target {
 	name: String,
 	executable: PathBuf,
-	/// Its package's directory, where `cargo bench` runs it.
-	dir: PathBuf,
 }
 
-/// Builds the benchmark targets of the workspace in `dir`, passing `args` to `cargo build`,
-/// and lists the benchmarks each runs as a job, one benchmark a process.
-pub fn jobs(dir: &Path, args: &[String]) -> Result<Vec<Job>, String> {
-	let root = workspace_root(dir, args)?;
-	let (targets, linked) = build(dir, args)?;
-	if targets.is_empty() {
-		return Err("cargo built no benchmark target".to_owned());
+/// How Cargo launches a benchmark target: its directory and its whole environment, with
+/// `[env]`, `CARGO_MANIFEST_DIR`, and the library path Cargo sets.
+#[derive(Clone)]
+struct Launch {
+	dir: PathBuf,
+	env: BTreeMap<String, String>,
+}
+
+impl Launch {
+	/// `executable` as Cargo launches it.
+	fn command(&self, executable: &Path, root: &Path) -> Command {
+		let mut command = Command::new(executable);
+		command
+			.current_dir(&self.dir)
+			.envs(&self.env)
+			.env("CODSPEED_CARGO_WORKSPACE_ROOT", root);
+		command
 	}
-	let libraries = library_path(&targets, linked)?;
+}
+
+/// Runs as `cargo bench`'s runner: records the target it is handed, as JSON in the directory
+/// `CAPTURE_DIR` names, and exits without running it.
+pub fn capture(args: &[String]) -> Result<(), String> {
+	let executable = args.first().ok_or("the capturing runner takes the target to launch")?;
+	let out = std::env::var_os(CAPTURE_DIR).ok_or(format!("the capturing runner needs {CAPTURE_DIR}"))?;
+	let dir = std::env::current_dir().map_err(|e| format!("cannot read the working directory: {e}"))?;
+	let mut env = serde_json::Map::new();
+	for (key, value) in std::env::vars_os() {
+		let (Some(key), Some(value)) = (key.to_str(), value.to_str()) else {
+			return Err(format!("cargo set {} to a value not UTF-8", key.to_string_lossy()));
+		};
+		if key != CAPTURE_DIR {
+			env.insert(key.to_owned(), value.into());
+		}
+	}
+	let launch = serde_json::json!({
+		"executable": executable,
+		"dir": dir.to_str().ok_or("the target's directory is not UTF-8")?,
+		"env": env,
+	});
+	let path = Path::new(&out).join(format!("{}.json", std::process::id()));
+	std::fs::write(&path, launch.to_string()).map_err(|e| format!("cannot write {}: {e}", path.display()))
+}
+
+/// The launches the capturing runner recorded in `dir`, by executable.
+fn launches(dir: &Path) -> Result<BTreeMap<PathBuf, Launch>, String> {
+	let mut launches = BTreeMap::new();
+	for entry in std::fs::read_dir(dir).map_err(|e| format!("cannot read {}: {e}", dir.display()))? {
+		let path = entry.map_err(|e| format!("cannot read {}: {e}", dir.display()))?.path();
+		let text = std::fs::read_to_string(&path).map_err(|e| format!("cannot read {}: {e}", path.display()))?;
+		let value: Value = serde_json::from_str(&text).map_err(|e| format!("cannot parse {}: {e}", path.display()))?;
+		let field = |name: &str| {
+			value[name]
+				.as_str()
+				.map(PathBuf::from)
+				.ok_or(format!("{} has no {name}", path.display()))
+		};
+		let env = value["env"]
+			.as_object()
+			.ok_or(format!("{} has no env", path.display()))?
+			.iter()
+			.map(|(key, value)| {
+				Ok((
+					key.clone(),
+					value
+						.as_str()
+						.ok_or(format!("{} has a value not a string", path.display()))?
+						.to_owned(),
+				))
+			})
+			.collect::<Result<_, String>>()?;
+		launches.insert(
+			field("executable")?,
+			Launch {
+				dir: field("dir")?,
+				env,
+			},
+		);
+	}
+	Ok(launches)
+}
+
+/// Builds the benchmark targets of the workspace in `dir`, passing `args` to `cargo bench`,
+/// and lists the benchmarks each runs as a job, one benchmark a process.
+/// Unless `strict`, a workspace with no benchmark target has no jobs, as a compare's base
+/// before the first one does.
+pub fn jobs(dir: &Path, args: &[String], strict: bool) -> Result<Vec<Job>, String> {
+	let root = workspace_root(dir, args)?;
+	let targets = build(dir, args)?;
+	if targets.is_empty() {
+		if strict {
+			return Err("cargo built no benchmark target".to_owned());
+		}
+		return Ok(Vec::new());
+	}
 	// Every target lists its benchmarks at once: each runs them natively, far faster than
 	// under Valgrind.
 	let listed = std::thread::scope(|scope| {
 		let handles: Vec<_> = targets
 			.iter()
-			.map(|target| scope.spawn(|| list(target, &root, &libraries)))
+			.map(|(target, launch)| scope.spawn(|| list(target, launch, &root)))
 			.collect();
 		handles
 			.into_iter()
@@ -50,7 +140,7 @@ pub fn jobs(dir: &Path, args: &[String]) -> Result<Vec<Job>, String> {
 	});
 	let mut seen = BTreeSet::new();
 	let mut jobs = Vec::new();
-	for (target, names) in targets.iter().zip(listed) {
+	for ((target, launch), names) in targets.iter().zip(listed) {
 		let names = names?;
 		if names.is_empty() {
 			return Err(format!(
@@ -63,12 +153,8 @@ pub fn jobs(dir: &Path, args: &[String]) -> Result<Vec<Job>, String> {
 			if !seen.insert(name.clone()) {
 				return Err(format!("two benchmarks are named {name}"));
 			}
-			let mut command = Command::new(&target.executable);
-			command
-				.current_dir(&target.dir)
-				.env("CODSPEED_CARGO_WORKSPACE_ROOT", &root)
-				.env("CODSPEED_ISOLATED_BENCHMARK", &name)
-				.env("LD_LIBRARY_PATH", &libraries);
+			let mut command = launch.command(&target.executable, &root);
+			command.env("CODSPEED_ISOLATED_BENCHMARK", &name);
 			jobs.push(Job {
 				label: name.clone(),
 				command,
@@ -86,6 +172,18 @@ fn workspace_root(dir: &Path, args: &[String]) -> Result<PathBuf, String> {
 	cargo.args(["locate-project", "--workspace", "--message-format", "plain"]);
 	if let Some(manifest) = manifest_path(args) {
 		cargo.args(["--manifest-path", manifest]);
+	}
+	// A config may move the workspace, so the build's configs locate it too.
+	let mut rest = args.iter();
+	while let Some(arg) = rest.next() {
+		if arg == "--" {
+			break;
+		}
+		if arg == "--config" {
+			cargo.arg(arg).args(rest.next());
+		} else if arg.starts_with("--config=") {
+			cargo.arg(arg);
+		}
 	}
 	let out = cargo
 		.current_dir(dir)
@@ -229,7 +327,7 @@ fn config_table(
 	Ok(None)
 }
 
-/// The manifest `cargo build` args select, when they name one.
+/// The manifest Cargo args select, when they name one.
 fn manifest_path(args: &[String]) -> Option<&str> {
 	let mut args = args.iter();
 	while let Some(arg) = args.next() {
@@ -246,70 +344,23 @@ fn manifest_path(args: &[String]) -> Option<&str> {
 	None
 }
 
-/// The `LD_LIBRARY_PATH` Cargo gives what it runs, so a target finds the shared libraries its
-/// build made: the build scripts' link search paths in the target directory and each target's
-/// output and deps directories, before the environment's own. Cargo's sysroot entry, which only
-/// `-Cprefer-dynamic` needs, is left out: finding it means resolving the compiler Cargo's
-/// configuration selects, and without it such a target fails loud with the loader's error.
-fn library_path(targets: &[Target], linked: Vec<PathBuf>) -> Result<OsString, String> {
-	let mut paths = linked;
-	for target in targets {
-		let deps = target
-			.executable
-			.parent()
-			.ok_or("cargo reported a benchmark at the root")?;
-		paths.push(deps.to_owned());
-		paths.extend(deps.parent().map(Path::to_owned));
-	}
-	let mut seen = BTreeSet::new();
-	paths.retain(|path| seen.insert(path.clone()));
-	if let Some(existing) = std::env::var_os("LD_LIBRARY_PATH") {
-		paths.extend(std::env::split_paths(&existing));
-	}
-	std::env::join_paths(paths).map_err(|e| format!("cannot join the library path: {e}"))
-}
-
-/// The link search paths a build script's message adds within the target directory, which
-/// Cargo puts on what it runs; those outside are the system's, for the caller to set.
-fn linked(message: &Value) -> Result<Vec<PathBuf>, String> {
-	if message["reason"] != "build-script-executed" {
-		return Ok(Vec::new());
-	}
-	let out = message["out_dir"]
-		.as_str()
-		.ok_or("cargo reported a build script without an out_dir")?;
-	// `<target>/<profile>/build/<package>/out`: the profile's directory holds what it builds.
-	let Some(profile) = Path::new(out).ancestors().nth(3) else {
-		return Err(format!(
-			"cargo reported a build script out_dir {out} outside a target directory"
-		));
-	};
-	let paths = message["linked_paths"]
-		.as_array()
-		.ok_or("cargo reported a build script without linked_paths")?;
-	let mut linked = Vec::new();
-	for path in paths {
-		let path = path.as_str().ok_or("cargo reported a linked path not a string")?;
-		// `KIND=PATH`, or a bare path.
-		let path = path.split_once('=').map_or(path, |(_, path)| path);
-		let path = Path::new(path);
-		if path.starts_with(profile) {
-			linked.push(path.to_owned());
-		}
-	}
-	Ok(linked)
-}
-
 /// Builds every benchmark target with CodSpeed's cfg, as `cargo codspeed build` does, and
-/// returns them with the link search paths its build scripts added in the target directory.
-fn build(dir: &Path, args: &[String]) -> Result<(Vec<Target>, Vec<PathBuf>), String> {
+/// returns each with how Cargo launches it: `cargo bench` runs each through this executable as
+/// its runner, which records the launch rather than running it.
+fn build(dir: &Path, args: &[String]) -> Result<Vec<(Target, Launch)>, String> {
+	let exe = std::env::current_exe().map_err(|e| format!("cannot find rust2-bench's own executable: {e}"))?;
+	let exe = exe.to_str().ok_or("rust2-bench's own path is not UTF-8")?;
+	let captures = dir.join("target/rust2-bench/launches");
+	let _ = std::fs::remove_dir_all(&captures);
+	std::fs::create_dir_all(&captures).map_err(|e| format!("cannot create {}: {e}", captures.display()))?;
+	let runner = format!(
+		"target.'cfg(all())'.runner=[{}, {}]",
+		toml::Value::from(exe),
+		toml::Value::from(CAPTURE)
+	);
 	let mut cargo = Command::new("cargo");
-	cargo.args([
-		"build",
-		"--profile",
-		"bench",
-		"--message-format=json-render-diagnostics",
-	]);
+	cargo.args(["bench", "--message-format=json-render-diagnostics", "--config", &runner]);
+	cargo.env(CAPTURE_DIR, &captures);
 	// Every benchmark target, unless the caller names some.
 	if !args.iter().any(|arg| arg == "--bench" || arg.starts_with("--bench=")) {
 		cargo.arg("--benches");
@@ -341,7 +392,6 @@ fn build(dir: &Path, args: &[String]) -> Result<(Vec<Target>, Vec<PathBuf>), Str
 	let stdout = child.stdout.take().expect("stdout is piped");
 	let built = (|| {
 		let mut targets = Vec::new();
-		let mut paths = Vec::new();
 		for line in BufReader::new(stdout).lines() {
 			let line = line.map_err(|e| format!("cannot read cargo's output: {e}"))?;
 			let message: Value =
@@ -349,9 +399,8 @@ fn build(dir: &Path, args: &[String]) -> Result<(Vec<Target>, Vec<PathBuf>), Str
 			if let Some(target) = bench(&message)? {
 				targets.push(target);
 			}
-			paths.extend(linked(&message)?);
 		}
-		Ok::<_, String>((targets, paths))
+		Ok::<_, String>(targets)
 	})();
 	let built = match built {
 		Ok(built) => built,
@@ -364,9 +413,20 @@ fn build(dir: &Path, args: &[String]) -> Result<(Vec<Target>, Vec<PathBuf>), Str
 	};
 	let status = child.wait().map_err(|e| format!("cannot wait for cargo: {e}"))?;
 	if !status.success() {
-		return Err(format!("cargo build failed ({status})"));
+		return Err(format!("cargo bench failed ({status})"));
 	}
-	Ok(built)
+	let mut launches = launches(&captures)?;
+	built
+		.into_iter()
+		.map(|target| {
+			let launch = launches.remove(&target.executable).ok_or(format!(
+				"cargo launched benchmark target {} through a runner other than rust2-bench's: \
+				 a config or the environment sets one",
+				target.name
+			))?;
+			Ok((target, launch))
+		})
+		.collect()
 }
 
 /// The benchmark target a cargo message reports built, if it reports one.
@@ -388,20 +448,13 @@ fn bench(message: &Value) -> Result<Option<Target>, String> {
 	};
 	let name = field(&message["target"]["name"], "a name")?;
 	let executable = PathBuf::from(field(&message["executable"], "an executable")?);
-	let manifest = PathBuf::from(field(&message["manifest_path"], "a manifest")?);
-	let dir = manifest
-		.parent()
-		.ok_or("cargo reported a manifest with no directory")?
-		.to_owned();
-	Ok(Some(Target { name, executable, dir }))
+	Ok(Some(Target { name, executable }))
 }
 
 /// The benchmarks `target` runs, as it names them when nothing measures it.
-fn list(target: &Target, root: &Path, libraries: &OsString) -> Result<Vec<String>, String> {
-	let out = Command::new(&target.executable)
-		.current_dir(&target.dir)
-		.env("CODSPEED_CARGO_WORKSPACE_ROOT", root)
-		.env("LD_LIBRARY_PATH", libraries)
+fn list(target: &Target, launch: &Launch, root: &Path) -> Result<Vec<String>, String> {
+	let out = launch
+		.command(&target.executable, root)
 		.env("CODSPEED_PROCESS_ISOLATION", "false")
 		.env_remove("CODSPEED_ISOLATED_BENCHMARK")
 		.stdin(Stdio::null())
@@ -431,27 +484,6 @@ fn checked(stdout: &str) -> Vec<String> {
 #[cfg(test)]
 mod tests {
 	use super::*;
-
-	#[test]
-	fn links_only_build_script_paths_in_the_target_directory() {
-		let message = serde_json::json!({
-			"reason": "build-script-executed",
-			"out_dir": "/w/target/release/build/sys-1/out",
-			"linked_paths": ["native=/w/target/release/build/sys-1/out/lib", "/w/target/release/build/sys-1/out", "native=/usr/lib"],
-		});
-		assert_eq!(
-			linked(&message).unwrap(),
-			[
-				PathBuf::from("/w/target/release/build/sys-1/out/lib"),
-				PathBuf::from("/w/target/release/build/sys-1/out")
-			]
-		);
-		assert!(
-			linked(&serde_json::json!({"reason": "compiler-artifact"}))
-				.unwrap()
-				.is_empty()
-		);
-	}
 
 	#[test]
 	fn lists_each_checked_benchmark() {
@@ -549,7 +581,6 @@ mod tests {
 		let target = bench(&message).unwrap().unwrap();
 		assert_eq!(target.name, "varint");
 		assert_eq!(target.executable, Path::new("/w/target/release/deps/varint-0123"));
-		assert_eq!(target.dir, Path::new("/w/rs/net"));
 	}
 
 	#[test]

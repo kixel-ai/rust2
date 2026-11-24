@@ -116,7 +116,7 @@ pub fn cpu() -> String {
 
 /// 64-bit FNV-1a, a stable hash with no dependency; a label needs no resistance to collisions
 /// someone engineers.
-struct Fnv(u64);
+pub struct Fnv(pub u64);
 
 impl Default for Fnv {
 	fn default() -> Self {
@@ -127,7 +127,7 @@ impl Default for Fnv {
 impl Fnv {
 	/// Hashes `field`, then a separator no field holds, so no two lists of fields collide by
 	/// where one ends.
-	fn write(&mut self, field: &str) {
+	pub fn write(&mut self, field: &str) {
 		for byte in field.bytes().chain([0]) {
 			self.0 = (self.0 ^ u64::from(byte)).wrapping_mul(0x0100_0000_01b3);
 		}

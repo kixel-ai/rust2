@@ -5,6 +5,7 @@ use std::fmt::Write;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
+use crate::fingerprint::Fnv;
 use crate::{Counts, Options, measure, missing};
 
 /// Counts `base` in a worktree of its own, then the working tree, and prints each change.
@@ -16,7 +17,7 @@ pub fn compare(base: &str, options: &Options) -> Result<(), String> {
 		Path::new("."),
 		&["rev-parse", "--verify", &format!("{base}^{{commit}}")],
 	)?;
-	let tree = top.join("target/rust2-bench/base");
+	let tree = base_tree(&top)?;
 	checkout(&top, &tree, &sha)?;
 	eprintln!(
 		"rust2-bench: counting {base} ({}) in {}",
@@ -42,6 +43,20 @@ pub fn compare(base: &str, options: &Options) -> Result<(), String> {
 	}
 	print!("{}", table(&before, &after)?);
 	Ok(())
+}
+
+/// Where the base's worktree for the repository at `top` lives: in the user's cache, outside
+/// the repository, since Cargo reads every `.cargo/config.toml` above where it builds, and the
+/// working tree's own must not configure the base's build.
+fn base_tree(top: &Path) -> Result<PathBuf, String> {
+	let cache = std::env::var_os("XDG_CACHE_HOME")
+		.map(PathBuf::from)
+		.or_else(|| std::env::var_os("HOME").map(|home| Path::new(&home).join(".cache")))
+		.ok_or("neither XDG_CACHE_HOME nor HOME is set, so the base's worktree has nowhere to go")?;
+	let mut hash = Fnv::default();
+	hash.write(&top.to_string_lossy());
+	let name = top.file_name().map_or("repo".into(), |name| name.to_string_lossy());
+	Ok(cache.join(format!("rust2-bench/{name}-{:012x}", hash.0 >> 16)))
 }
 
 /// `args` for the base's worktree: an absolute `--manifest-path` in the repository at `top`
@@ -92,12 +107,12 @@ fn rebase(args: &[String], top: &Path, tree: &Path) -> Result<Vec<String>, Strin
 fn checkout(top: &Path, tree: &Path, sha: &str) -> Result<(), String> {
 	let parent = tree.parent().expect("the base's worktree has a parent");
 	std::fs::create_dir_all(parent).map_err(|e| format!("cannot create {}: {e}", parent.display()))?;
-	// Keep the worktree out of the repository's status even where target/ is not ignored.
-	std::fs::write(parent.join(".gitignore"), "*\n").map_err(|e| format!("cannot write {}: {e}", parent.display()))?;
 	let path = tree.to_str().ok_or("the base's worktree path is not UTF-8")?;
 	if tree.join(".git").exists() {
 		git(tree, &["checkout", "--quiet", "--detach", "--force", sha])?;
 	} else {
+		// Forget a worktree whose directory a cache cleanup removed, so it can be added again.
+		git(top, &["worktree", "prune"])?;
 		git(top, &["worktree", "add", "--quiet", "--detach", path, sha])?;
 	}
 	if tree.join(".gitmodules").exists() {

@@ -9,7 +9,7 @@ CodSpeed's runner over the benchmarks as they are written for it.
 ```bash
 nix run github:kixel-ai/rust2#bench -- run --out metrics.json   # or, without Nix:
 cargo install --locked --git https://github.com/kixel-ai/rust2 rust2-bench   # Valgrind from PATH
-rust2-bench run [--benchmarks <file>] [--out metrics.json] [--jobs <n>] [-- <cargo build args>]
+rust2-bench run [--benchmarks <file>] [--out metrics.json] [--jobs <n>] [-- <cargo bench args>]
 rust2-bench compare <base> [the same options]
 rust2-bench fingerprint
 ```
@@ -18,7 +18,7 @@ rust2-bench fingerprint
 
 In a Cargo workspace, its benchmark targets, written with CodSpeed's compatibility crates
 (`codspeed-criterion-compat` 6). It builds them once with `--cfg codspeed`, as `cargo codspeed
-build` does, passing any arguments after `--` to `cargo build`, such as `-p moq-net --bench
+build` does, passing any arguments after `--` to Cargo, such as `-p moq-net --bench
 varint`. Cargo takes rustflags from one source and ignores the rest, so the cfg
 joins `RUSTFLAGS` or `CARGO_ENCODED_RUSTFLAGS` when the environment sets them, and is
 otherwise the only flags. A Cargo config that sets its own, `build.rustflags` or a
@@ -27,10 +27,10 @@ the environment, or a `--config`,
 fails the run before anything builds: set `RUSTFLAGS` to the flags the build needs instead.
 Each target lists its benchmarks by running once natively, then each benchmark runs alone in its own Valgrind process, through the crates' `CODSPEED_ISOLATED_BENCHMARK`. A
 target that runs no benchmark through the crates fails the run: leave it out with `--bench`.
-Each runs with the `LD_LIBRARY_PATH` Cargo gives what it runs: its build scripts' link search
-paths in the target directory and the output and deps directories. Cargo's sysroot entry,
-which only `-Cprefer-dynamic` needs, is left out, as it depends on the compiler Cargo's
-configuration selects: such a build sets `LD_LIBRARY_PATH` to the sysroot's libraries itself.
+It builds them with `cargo bench`, with itself as the targets' runner, which records how Cargo
+launches each target, its directory and whole environment (`[env]`, `CARGO_MANIFEST_DIR`,
+the library path), instead of running it; every listing and count launches the target the
+same way. A runner a config or the environment sets fails the run.
 
 Elsewhere, the programs `--program` names, each a shell command whose program brackets its
 benchmarks with CodSpeed's [instrument hooks](https://github.com/CodSpeedHQ/instrument-hooks)
@@ -75,10 +75,12 @@ version moves too, since a new Valgrind can count differently and starts new ser
 
 ## Compare
 
-`rust2-bench compare <base>` checks `<base>` out in a worktree kept at
-`target/rust2-bench/base` under the repository's top, so its build stays warm for the next
-compare, counts it from the same directory there, then counts the working tree, and prints a
-Markdown table of each benchmark's base, head, and change. It refuses two fingerprints. An
+`rust2-bench compare <base>` checks `<base>` out in a worktree kept under
+`~/.cache/rust2-bench` (or `$XDG_CACHE_HOME`), outside the repository so the working tree's
+`.cargo/config.toml` never configures the base's build, and kept so its build stays warm for
+the next compare, counts it from the same directory there, then counts the working tree, and prints a
+Markdown table of each benchmark's base, head, and change. It refuses two fingerprints. A side
+with no benchmark at all, as a base before the first, counts as none. An
 absolute `--manifest-path` in the repository counts the same manifest in the base's worktree,
 and one outside it is refused, since both sides would count it.
 
