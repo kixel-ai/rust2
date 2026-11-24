@@ -124,6 +124,18 @@ class SelectTests(unittest.TestCase):
     def test_all_selects_everything(self):
         self.assertEqual(self.select("--all"), EVERYTHING)
 
+    def test_only_selects_the_named_modules_in_the_map_order(self):
+        # The diff is ignored: a CI job runs exactly its share of a selection.
+        self.change("flake.nix")
+        self.assertEqual(self.select("--only=ts,lint,ts"), ["lint", "ts"])
+        self.assertEqual(self.select("--only=go"), ["go"])
+
+    def test_only_refuses_an_unknown_or_empty_module(self):
+        for arg in ("--only=", "--only=lint,", "--only=lint,docs", "--only=lint ts"):
+            with self.subTest(arg=arg):
+                result = self.query(arg)
+                self.assertEqual(result.returncode, 2, result.stderr)
+
     def test_deletions_count(self):
         self.commit("ts/src/lib.rs")
         self.git("update-ref", "refs/remotes/origin/main", "HEAD")

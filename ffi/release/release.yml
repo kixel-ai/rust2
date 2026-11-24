@@ -24,9 +24,10 @@ name: Release @NAME@ bindings
 #   npm registers for this workflow and the `npm` environment, and JSR's link to this
 #   repository, each with provenance.
 # - Maven Central: the Kotlin binding, a jar for desktop JVMs and an AAR for Android under
-#   one POM, when the build makes it, signed with the key and
-#   uploaded with the Central Portal user token in the `maven` environment's secrets, as
-#   Central has no trusted publishing.
+#   one POM, when the build makes it, signed with the armored key `SIGNING_KEY` and its
+#   passphrase `SIGNING_PASSWORD` and uploaded with the Central Portal user token
+#   `MAVEN_CENTRAL_USERNAME` and `MAVEN_CENTRAL_PASSWORD`, the `publish` environment's
+#   secrets, as Central has no trusted publishing.
 #
 # The Go module @GO_MODULE@ is the build's @NAME@-go artifact, its .info, .mod, .zip, and list laid
 # out as a GOPROXY serves them; no job here publishes it. Serve it from a module proxy: on a
@@ -426,66 +427,32 @@ jobs:
         run: npx --yes jsr@0.14.3 publish
 
   # The Kotlin binding's bundle, each file signed, which the Central Portal validates and
-  # publishes. A rerun uploads nothing once Central has published the version, and fails on
-  # a file it serves with other bytes; one whose upload still publishes fails until it is done.
+  # publishes, through rust2's central.sh at the builder's pin. A rerun uploads nothing once
+  # Central has published the version, and fails on a file it serves with other bytes; one
+  # whose upload still publishes fails until it is done.
   maven:
     needs: [build, tag, attest]
     if: needs.build.outputs.maven == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 90
-    environment: maven
+    environment: publish
     steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: kixel-ai/rust2
+          ref: @RUST2@
+          path: rust2
+          sparse-checkout: ffi/release/central.sh
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: @NAME@-maven
           path: maven
       - name: Publish
-        working-directory: maven
         env:
           USERNAME: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
           PASSWORD: ${{ secrets.MAVEN_CENTRAL_PASSWORD }}
-          SIGNING_KEY: ${{ secrets.MAVEN_SIGNING_KEY }}
-          SIGNING_PASSPHRASE: ${{ secrets.MAVEN_SIGNING_PASSPHRASE }}
-        run: |
-          pom=$(find . -name '*.pom')
-          dir=$(dirname "${pom#./}")
-          version=$(basename "$dir")
-          artifact=$(basename "$(dirname "$dir")")
-          group=$(dirname "$(dirname "$dir")" | tr / .)
-          api=https://central.sonatype.com/api/v1/publisher
-          auth="Authorization: Bearer $(printf '%s:%s' "$USERNAME" "$PASSWORD" | base64 -w0)"
-          files=$(find "$dir" -type f ! -name '*.md5' ! -name '*.sha1' | sort)
-          # Two steps, since the step's shell has no pipefail: a failed query must stop the job.
-          published=$(curl -sSf -H "$auth" "$api/published?namespace=$group&name=$artifact&version=$version")
-          published=$(jq -r '.published | if type == "boolean" then . else error("no published flag") end' <<< "$published")
-          if [[ "$published" == true ]]; then
-            for file in $files; do
-              if ! curl -sSfLo hosted "https://repo1.maven.org/maven2/$file"; then
-                echo "::error::Central published $group:$artifact:$version but does not serve $file yet: rerun once it does"
-                exit 1
-              fi
-              cmp hosted "$file" || { echo "::error::Central hosts another $file"; exit 1; }
-            done
-            echo "Central already hosts $group:$artifact:$version"
-            exit 0
-          fi
-          export GNUPGHOME="$RUNNER_TEMP/gnupg"
-          mkdir -m 700 "$GNUPGHOME"
-          printf '%s\n' "$SIGNING_KEY" | gpg --batch --quiet --import
-          for file in $files; do
-            printf '%s' "$SIGNING_PASSPHRASE" | gpg --batch --yes --pinentry-mode loopback --passphrase-fd 0 --armor --detach-sign "$file"
-          done
-          zip -qr "$RUNNER_TEMP/bundle.zip" .
-          id=$(curl -sSf -H "$auth" -F "bundle=@$RUNNER_TEMP/bundle.zip" "$api/upload?publishingType=AUTOMATIC&name=$group:$artifact:$version")
-          echo "Deployment $id"
-          # Central validates the bundle, then publishes it, which takes minutes.
-          for _ in $(seq 160); do
-            status=$(curl -sSf -X POST -H "$auth" "$api/status?id=$id")
-            case $(jq -r .deploymentState <<< "$status") in
-              PUBLISHED) exit 0 ;;
-              FAILED) echo "::error::Central refused $group:$artifact:$version: $(jq -c .errors <<< "$status")"; exit 1 ;;
-            esac
-            sleep 30
-          done
-          echo "::error::Central did not publish $group:$artifact:$version within 80 minutes: deployment $id"
-          exit 1
+          SIGNING_KEY: ${{ secrets.SIGNING_KEY }}
+          SIGNING_PASSWORD: ${{ secrets.SIGNING_PASSWORD }}
+        run: rust2/ffi/release/central.sh publish maven

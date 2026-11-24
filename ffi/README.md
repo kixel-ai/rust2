@@ -1914,9 +1914,10 @@ the header's wrappers would, and it needs only `jsi.h`.
 - **Values** are the web's, but for `usize` and `isize`, which are `rt.u64` and `rt.i64`,
   since one package serves 64-bit targets as well as 32-bit ones, where a value past 32 bits
   fails as it crosses in. A constant only some of the package's targets have fails the
-  export, naming the targets that lack it, since its value compiles into the one package. An `rt.Bytes` past 64 bytes holds Rust's own
+  export, naming the targets that lack it, since its value compiles into the one package. An `rt.Bytes` past 4 KiB holds Rust's own
   buffer, which disposing or the collector frees, and passed back crosses in place, as the
-  web's does. JavaScript reads it only through the module, by `at` and `slice`, which check
+  web's does; up to 4 KiB it holds a copy, which Hermes makes for what a lend's host calls
+  cost, as [the benchmark](../bench/ffi/README.md#react-native) measures. JavaScript reads Rust's buffer only through the module, by `at` and `slice`, which check
   it open as they read: no `ArrayBuffer` of it exists, since React Native's Babel preset
   makes private fields properties any caller can find and keep. A typed array a call takes is copied, as the web's is, since JavaScript on
   another thread, or a closure the call runs, may write it while Rust reads; text crosses
