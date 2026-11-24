@@ -123,19 +123,6 @@ Read that job by instructions, and its wall and CPU columns as a smoke test.
 | test-run | cranelift | 22.8 | +35.1% | +38.1% | +43.2% |
 | test-edit | nightly | 44.7 | base | base (275.7 s) | base (1020.3G) |
 | test-edit | cranelift | 40.7 | -8.8% | -25.5% | -28% |
-| unit | count | frontend | link | other | total |
-| dependency | 249 | 117.1 | 0.42 | 5.35 | 163.2 |
-| workspace lib | 13 | 28.1 | 0.19 | 0.53 | 48.8 |
-| proc macro | 22 | 12.4 | 3.03 | 0.51 | 23.5 |
-| build script (compile) | 27 | 1.72 | 2.93 | 0.62 | 7.64 |
-| binary | 1 | 0.1 | 0.6 | 0.03 | 2.11 |
-| build script (run) | 27 | 0 | 0 | 1.68 | 1.68 |
-| unit | count | frontend | link | other | total |
-| workspace lib | 9 | 6.42 | 0.17 | 0.57 | 11.5 |
-| binary | 1 | 0.11 | 0.55 | 0.04 | 1.07 |
-| unit | count | frontend | link | other | total |
-| workspace lib | 1 | 0.98 | 0.02 | 0.09 | 1.73 |
-| binary | 1 | 0.21 | 0.54 | 0.11 | 1.12 |
 | check | baseline | 62.5 | base | base (250 s) | base (438.8G) |
 | check | mold | 71.6 | +14.6% | +2.5% | +1.3% |
 | check | wild | 63.8 | +2.1% | -1.9% | +0% |
