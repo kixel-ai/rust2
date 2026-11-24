@@ -406,6 +406,8 @@ class Braced:
                     # visible outside the assembly.
                     top = set(depth0(body))
                     flat = "".join(c if k in top else " " for k, c in enumerate(body))
+                    # An accessor's expression body runs to its `;`, so a `set` inside it is no accessor.
+                    flat = re.sub(r"=>[^;]*", lambda m: "=>" + " " * (len(m.group()) - 2), flat)
                     accessors = [" ".join(v.split() + [a]) for v, a in re.findall(
                         r"(?:^|[;}\]\s])((?:(?:public|private|protected|internal)\s+)*)(get|set|init)\s*(?=[;{]|=>)", flat)
                         if "private" not in v.split() and v.split() != ["internal"]]

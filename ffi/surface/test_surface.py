@@ -356,6 +356,8 @@ namespace Api
 		public ValueTuple<(uint, uint)> Nested { get { return default; } }
 		public int Guarded { get { int set = 1; return set; } protected set { } }
 		public int Derived { get; private protected set; }
+		public int Aliased { get => set; }
+		public int Arrow { get => set; set => set = value; }
 		public int Either { protected internal get; internal set; }
 		[Obsolete("a]")] public void Old() { }
 
@@ -408,6 +410,8 @@ namespace Api
             "\t\tpublic ValueTuple<(uint, uint)> Nested { get; }",
             "\t\tpublic int Guarded { get; protected set; }",
             "\t\tpublic int Derived { get; }",
+            "\t\tpublic int Aliased { get; }",
+            "\t\tpublic int Arrow { get; set; }",
             "\t\tpublic int Either { protected internal get; }",
             '\t\t[Obsolete("a]")] public void Old();',
             "\t\tpublic static bool operator ==(Counter? a, Counter? b);",
