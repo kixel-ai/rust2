@@ -1205,22 +1205,31 @@ value a call makes in JavaScript, a record's object or a handle, adds hundreds m
 posts the read's next poll to the event loop, as a wake from another thread would, which
 costs the woken read 2.8 µs over the ready one.
 
-`frame.payload` is 0.7 µs up to 64 bytes, which it copies, and 1.4 to 1.5 µs of wall time
-past them, where it lends Rust's buffer as an `ArrayBuffer` whose native state frees it,
-2.2 µs of CPU with the collector's finalizing. That is the web's threshold, where a lend
-saves a copy; on Hermes a 100-byte lend costs 0.7 µs more wall time than a 64-byte copy, and
-[a quest](/quest/m3/react-native-bytes.md) finds where it starts to pay.
+`frame.payload` copies the bytes up to 4 KiB, and past them lends Rust's buffer, whose
+native state frees it, with an `at` and a dispose that are each a host call. Measured
+2026-11-23 on **fedora**, an AMD Ryzen 9 9950X (32 threads), at rust2 `779cf315` plus this
+change, moq `1aa86d5e`, 3 rounds at a load average of 6 to 18, by the host built with the
+module forced to copy every size, and to lend every size, wall ns per call: the benchmark's
+`frame.payload` with a byte read, then the same with `slice()` in its place, then with the
+bytes written back to Rust in a frame, as a relay does.
 
-| bytes | ns per call, CPU | wall |
-|---|---|---|
-| 16 B | 697 | 702 |
-| 64 B | 730 | 732 |
-| 100 B | 1,915 | 1,452 |
-| 1 KiB | 1,863 | 1,410 |
-| 16 KiB | 2,072 | 1,541 |
-| 64 KiB | 1,880 | 1,421 |
-| 256 KiB | 2,722 | 1,894 |
-| 1 MiB | 867 | 867 |
+| bytes | read a byte, copy / lend | `slice()`, copy / lend | written back, copy / lend |
+|---|---|---|---|
+| 256 B | 784 / 1,089 | 1,032 / 1,529 | 1,968 / 2,320 |
+| 1 KiB | 875 / 1,095 | 1,255 / 1,606 | 1,956 / 1,924 |
+| 2 KiB | 952 / 1,107 | 1,147 / 2,264 | 2,225 / 2,071 |
+| 4 KiB | 1,057 / 1,050 | 1,342 / 1,967 | 2,616 / 2,361 |
+| 8 KiB | 1,426 / 1,359 | 1,510 / 2,268 | 3,342 / 2,809 |
+| 16 KiB | 1,977 / 996 | 1,621 / 2,920 | 4,640 / 3,377 |
+
+A read of a byte breaks even at 4 KiB in wall time, and in CPU time between 8 and 16 KiB,
+since the lend's CPU counts the collector finalizing its native state: 1,052 against 1,212
+ns at 4 KiB. A copy's `slice()` is one `set` in the engine, still the cheaper at 16 KiB; a
+loop by index, as it was, took 78 µs at 4 KiB. A copy written back costs Rust a second copy,
+so a relay's lend pays from 2 KiB, by 10% at 4 KiB. The threshold is 4 KiB, where the byte
+read the benchmark times breaks even. Past it a lend saves the copy, 150 µs at 1 MiB, where
+each copy's allocation faults its pages in. The benchmark's own 100 B `frame.payload`, lent in the table above, is a copy
+since: 723 ns of wall time and 721 of CPU in the same rounds, against 930 and 1,037 lent.
 
 The binding's generated files, as [Size](#size) counts them, at the same revision, beside
 C's header of the same export (2,483 KiB raw, 315 KiB gzipped):
