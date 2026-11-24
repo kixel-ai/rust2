@@ -1919,7 +1919,9 @@ the header's wrappers would, and it needs only `jsi.h`.
   from `android/CMakeLists.txt`, which `react-native.config.cjs` names, with
   `libs/android/<abi>/lib<prefix>.a`, and iOS's CocoaPods from `Rust2<Prefix>.podspec`,
   with `libs/ios/<prefix>.xcframework`, whose `+load` registers the module. The app builds
-  the Rust library into `libs/` for each ABI it ships. `load()` installs the module
+  the Rust library into `libs/` for each ABI it ships, or installs the package
+  [the release builder](/ffi/release/README.md) packs with them from npm, as
+  `@<scope>/<crate>-rn`. `load()` installs the module
   through `TurboModuleRegistry`, or from `globalThis.__rust2_<prefix>` where a host
   without React Native installed it, then checks the contract and target as the web's
   does. The module installs once in a runtime, and checks each value its runtime's helpers
