@@ -48,7 +48,7 @@ if [[ "$base" == --all ]]; then
 elif [[ "$base" == --only=* ]]; then
     only=${base#--only=}
     if [[ ! "$only" =~ ^[a-z]+(,[a-z]+)*$ ]]; then
-        echo "error: --only takes a comma-separated list of ${modules[*]}" >&2
+        echo "error: --only takes a comma-separated list of: ${modules[*]}" >&2
         exit 2
     fi
     for module in ${only//,/ }; do

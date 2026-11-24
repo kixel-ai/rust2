@@ -76,8 +76,6 @@ jobs:
           github-cache-mode: objects
           isolate-objects-cache: true
           cache-generation: ${{ matrix.id }}-${{ hashFiles('rust-toolchain.toml', '*/rust-toolchain.toml') }}
-          # TEMPORARY, for #991's warm measurement: saves scoped to this PR's merge ref.
-          save-on-pull-request: true
       # The shim is how mbx reaches Cargo; the action only puts `mbx` on PATH.
       # flake.nix finds the shim through `mbx setup --status` and puts it ahead
       # of the dev shell's pinned toolchain. The shim existing is the assertion:
