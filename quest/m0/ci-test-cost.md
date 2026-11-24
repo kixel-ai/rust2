@@ -14,12 +14,14 @@ Planned from [#960](https://github.com/kixel-ai/rust2/pull/960), alongside
 place only where a benchmark against [#971](https://github.com/kixel-ai/rust2/pull/971)'s
 optimized exporter shows a gain; drop one that shows none and say so.
 
-- `ffi/surface/surface.py` renders only the surfaces a check asks for; the full stale-file
-  check, which catches a snapshot no surface writes anymore, stays in the nightly.
+- `ffi/surface/surface.py` renders only the surfaces a check asks for. `just ci` keeps
+  catching a snapshot no surface writes anymore, through a cheap inventory of every
+  surface's output paths checked against the files on disk; the full render stays nightly.
 - Fine-grained diff dispatch in `sh/dispatch.sh` within `ffi/` and `ts/`: a change to one
   language's emitter, runtime, or tests runs that language's tests, and anything shared
-  runs all. Test the map on executed coverage, that a selected test set exercises the files
-  the diff changes, not only on the selector's output, as #960's `dispatch.test.py` did.
+  runs all. Test the map on executed coverage: for each changed file, the selected tests must
+  include every test whose coverage executes it, and the check fails on any one missing,
+  not only on the selector's output, as #960's `dispatch.test.py` did.
   Cover the languages that exist now, which #960 predates, such as C# and Python ABI3T.
 - Parallel binding generation in `ffi/src/glue.rs` and `web.rs`, the C++ and Go fixture
   tests in `ffi/tests/fixtures.rs`, and `surface.py`'s extraction, each only where measured
@@ -33,14 +35,13 @@ Dropped from #960, and why:
 - `.github/` changes as lint-only: actionlint shows a workflow parses, not that its build
   commands still work.
 
-## Waiting
+Decided 2026-11-23 (maintainer, /quest-run): ✅ keep this quest (rejected: dropping it).
 
-- Maintainer: whether agents run `just check` plus the tests their change touches before a
-  push, instead of `just ci`, as #960 proposed. It changes AGENTS.md's rule, so it is the
-  maintainer's call. Options: keep `just ci`; or switch once
-  [hosted CI](/quest/m0/ci-hosted.md) runs every PR remotely. Recommended: switch only once
-  hosted CI has run reliably on PRs, since until then `just ci` is the only full check a PR
-  gets before the queue. Check: the decision is recorded in this Plan.
+Decided 2026-11-23 (maintainer, /quest-run): ✅ switch AGENTS.md's pre-push rule from
+`just ci` to `just check` plus the tests a change touches, as #960 proposed, only once
+[hosted CI](/quest/m0/ci-hosted.md)'s remote PR CI runs reliably (rejected: switching now;
+keeping `just ci` for good). Until then `just ci` is the only full check a PR gets before
+the queue.
 
 ## Related
 

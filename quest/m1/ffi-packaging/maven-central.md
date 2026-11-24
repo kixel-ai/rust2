@@ -37,4 +37,6 @@ the template the `maven` job needs `tag`, which skips off a tag, so the run need
 its own: a dispatched job that validates and drops instead of publishing. A dispatch reads
 its workflow from the ref it runs on, and `release` diverges from moq's `main`, so the
 workflow reaches it through a PR into `release`, which moq's `release-gate.yml` checks.
+GitHub offers a `workflow_dispatch` workflow only once its file is on the default branch,
+so the same file lands on moq's `main` first; the run then dispatches the `release` copy.
 Build the stand-in's `dev.moq:moq-ffi` at its pin. A failed validation is a builder fix here.

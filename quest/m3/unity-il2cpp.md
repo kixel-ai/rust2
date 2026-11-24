@@ -28,6 +28,8 @@ stub attributes (`ffi/tests/unity.cs`), and running that half of it on CoreCLR.
 - Maintainer: activate a Unity Personal license in the Unity Hub desktop app (Preferences >
   Licenses > Add > Get a free personal license), then set `UNITY_LICENSE` (the `.ulf` file's
   contents), `UNITY_EMAIL`, and `UNITY_PASSWORD` as kixel-ai/rust2 repository secrets.
+  Then sign out of Unity Hub: since Hub 3.7.0 that is how a Personal seat returns, and a
+  desktop still holding it blocks CI's activation.
   An agent cannot take it: activation signs in to the maintainer's Unity ID in a desktop
   app. Considered: a build without activation, which the editor refuses even in batch mode.
   Check:

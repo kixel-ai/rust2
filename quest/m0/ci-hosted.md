@@ -47,6 +47,8 @@ Dropped from #960, and why:
 - `.github/` changes as lint-only: actionlint shows a workflow parses, not that its build
   commands still work, so a workflow change keeps running the modules it can break.
 
+Decided 2026-11-23 (maintainer, /quest-run): ✅ keep this quest (rejected: dropping it).
+
 ## Related
 
 - [Measured test work cut](/quest/m0/ci-test-cost.md) - the rest of #960
