@@ -63,9 +63,13 @@ pub(crate) fn glue(
 		\tunsafe {{ runtime::register(env, exports, CALLS, EXTERNS, FREES) }}\n\
 		}}\n\n{rust}"
 	);
+	// The runtime's own, which wait on nothing JavaScript serves, so each runs at once: a
+	// call that gives bytes clones them between reading its handles and its call, where
+	// nothing may run JavaScript that closes one.
+	let direct = ["buf_copy", "buf_clone", "contract", "target"].map(|f| format!("{prefix}_{f}"));
 	let mut table = Vec::new();
 	for (i, (name, sig)) in calls.iter().enumerate() {
-		stub(&mut out, i, name, sig, frees.contains(name));
+		stub(&mut out, i, name, sig, frees.contains(name), direct.contains(name));
 		table.push(format!("\t(c\"{name}\", n{i}),\n"));
 	}
 	table.push(format!("\t(c\"{space}_call\", runtime::native_call),\n"));
@@ -116,8 +120,8 @@ fn through(cross: Cross) -> bool {
 /// The native function `n<i>` of the C function `name`: its handles held, then its other
 /// arguments, after the place of a struct it returns, each converted to C, then its return
 /// converted back once it released its handles and threw any status it failed with; a free
-/// frees the index of the future it takes.
-fn stub(out: &mut String, i: usize, name: &str, sig: &NodeSig, free: bool) {
+/// frees the index of the future it takes. A `direct` one runs at once, never on a worker.
+fn stub(out: &mut String, i: usize, name: &str, sig: &NodeSig, free: bool, direct: bool) {
 	let shift = usize::from(through(sig.ret.1));
 	let argc = sig.params.iter().filter(|(ty, _)| !is_status(ty)).count() + shift;
 	let mut lines = vec![format!("let cx = runtime::Cx::<{argc}>::new(env, info);")];
@@ -171,7 +175,10 @@ fn stub(out: &mut String, i: usize, name: &str, sig: &NodeSig, free: bool) {
 	}
 	lines.extend(holds);
 	lines.extend(conversions);
-	let call = format!("runtime::serve(|| {name}({}))", args.join(", "));
+	let call = match direct {
+		true => format!("{name}({})", args.join(", ")),
+		false => format!("runtime::serve(|| {name}({}))", args.join(", ")),
+	};
 	let (ty, cross) = &sig.ret;
 	let bind = match cross {
 		Cross::Void => "",
