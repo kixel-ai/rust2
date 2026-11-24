@@ -19,11 +19,14 @@ linker, so the verdict needs wall time from a quiet host.
 - Dispatch `bench.yml` at `main` while no agent session, `pullfrog-*` container, or landing
   check runs on `nixos` (the ci-lease excludes the queue containers, land fixers, and the
   Nix daemon only), and check that the stable job's baseline `check` takes about 137 CPU-s
-  for 438G instructions, as the nightly job's did. Replace the README's stable rows, and
-  say wild's `edit-hub` gain (-37.7% and -17.8% wall in two noisy runs) with its noise from
+  for 438G instructions, as the nightly job's did. Replace the README's stable rows, the
+  run link and date its provenance paragraph gives them, and its loaded-host note, and say
+  wild's `edit-hub` gain (-37.7% and -17.8% wall in two noisy runs) with its noise from
   the controls.
-- If wild or mold wins outside the controls' wall noise, report it as a line for moq's
-  `.cargo/config.toml`; no other lever is cost-free and clear of the noise.
+- If wild or mold wins outside the controls' wall noise, it is a candidate line for moq's
+  `.cargo/config.toml`, not yet a recommendation: `nixos` is an x86-64 Ryzen and moq's CI
+  runs on aarch64, so the win needs an aarch64 measurement first. No other lever is
+  cost-free and clear of the noise.
 
 Public API: none.
 
