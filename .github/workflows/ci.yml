@@ -10,15 +10,15 @@ on:
   push:
     branches: [main]
 
-# No secrets, and a read-only token: a pull request's branch may hold anyone's
+# No secrets, and a read-only token: a pull request runs its branch's own
 # workflow edits.
 permissions:
   contents: read
 
-# A new push supersedes a pull request's run, and a newer main's cache
-# supersedes an older one's.
+# A new push supersedes a pull request's run. Each push to main finishes, since
+# a later one may not select the modules whose cache it saves.
 concurrency:
-  group: ci-${{ github.event.pull_request.number || github.ref }}
+  group: ci-${{ github.event.pull_request.number || github.sha }}
   cancel-in-progress: true
 
 jobs:
