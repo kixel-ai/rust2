@@ -683,7 +683,8 @@ impl<'a> Gen<'a> {
 			.chain(self.structs.values())
 			.map(String::as_str)
 			.collect();
-		let calls = |name: &str, ctor: &str| calls(&code, &format!("{name}.{ctor}("));
+		let counts = constructor_calls(&code);
+		let calls = |name: &str, ctor: &str| counts.get(&(name, ctor)).copied().unwrap_or(0);
 		for (name, (of, write)) in std::mem::take(&mut self.arrays) {
 			if calls(&name, "_of") == 0 {
 				self.types = self.types.replace(&of, "");
@@ -885,7 +886,7 @@ impl<'a> Gen<'a> {
 			for (n, element) in elements.iter().enumerate() {
 				fields.push((format!("${n}"), abi.ty(element)));
 			}
-		} else if let Some(i) = (0..abi.api.records.len()).find(|&i| abi.record(i) == name) {
+		} else if let Some(i) = abi.record_named(&name) {
 			if let Some(opaque) = &abi.api.records[i].opaque {
 				let code = format!(
 					"final class {class} extends ffi.Struct {{\n\t@ffi.Array({})\n\texternal ffi.Array<ffi.Uint{}> $opaque;\n}}\n\n",
@@ -898,7 +899,7 @@ impl<'a> Gen<'a> {
 			for field in &abi.api.records[i].fields {
 				fields.push((abi::escape(&field.name), abi.ty(&field.ty)));
 			}
-		} else if let Some(i) = (0..abi.api.enums.len()).find(|&i| abi.enumeration(i) == name) {
+		} else if let Some(i) = abi.enum_named(&name) {
 			let e = &abi.api.enums[i];
 			let mut extra = String::new();
 			let union = private_type(&format!("{name}_u"));
@@ -3606,6 +3607,23 @@ fn calls(code: &str, call: &str) -> usize {
 		.count()
 }
 
+/// How often `code` calls each `Name.ctor(`, by name and constructor, as [`calls`] counts one:
+/// in one pass, since a binding's every class asks.
+fn constructor_calls(code: &str) -> HashMap<(&str, &str), usize> {
+	let word = |c: char| c.is_alphanumeric() || c == '_' || c == '$';
+	let mut counts = HashMap::new();
+	for (dot, _) in code.match_indices('.') {
+		let name = &code[..dot];
+		let name = &name[name.trim_end_matches(word).len()..];
+		let rest = &code[dot + 1..];
+		let ctor = &rest[..rest.len() - rest.trim_start_matches(word).len()];
+		if rest[ctor.len()..].starts_with('(') {
+			*counts.entry((name, ctor)).or_default() += 1;
+		}
+	}
+	counts
+}
+
 /// The local a call's out pointer `name` lands in.
 fn out_var(name: &str) -> String {
 	format!("o${}", mangle(name))
@@ -3893,6 +3911,29 @@ mod tests {
 		] {
 			assert!(package_name(name).is_err(), "{name}");
 		}
+	}
+
+	/// One pass counts each constructor's calls as [`calls`] counts one: a longer name or a
+	/// `$` before it is another name, and a constructor's call needs its `(`.
+	#[test]
+	fn constructor_calls_count_as_calls() {
+		let code = "Foo._(a); xFoo._(b); $Foo._(c); Foo._lent(d); Foo._ (e); ä.Foo._(f); Foo._of(g)._(h)";
+		let counts = constructor_calls(code);
+		for (name, ctor) in [
+			("Foo", "_"),
+			("Foo", "_lent"),
+			("Foo", "_of"),
+			("xFoo", "_"),
+			("Bar", "_"),
+		] {
+			let expected = calls(code, &format!("{name}.{ctor}("));
+			assert_eq!(
+				counts.get(&(name, ctor)).copied().unwrap_or(0),
+				expected,
+				"{name}.{ctor}"
+			);
+		}
+		assert_eq!(counts[&("Foo", "_")], 2);
 	}
 
 	/// Every type the runtime names unqualified is its own or [`TAKEN`], so no exported

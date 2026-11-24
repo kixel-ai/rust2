@@ -737,7 +737,7 @@ impl<'a> Gen<'a> {
 				self.c_struct(&element);
 				fields.push(format!("public {} _{n};", self.raw(&element)));
 			}
-		} else if let Some(i) = (0..abi.api.records.len()).find(|&i| &abi.record(i) == name) {
+		} else if let Some(i) = abi.record_named(name) {
 			let record = &abi.api.records[i];
 			if let Some(opaque) = &record.opaque {
 				let unit = match opaque.unit() {
@@ -758,7 +758,7 @@ impl<'a> Gen<'a> {
 					));
 				}
 			}
-		} else if let Some(i) = (0..abi.api.enums.len()).find(|&i| &abi.enumeration(i) == name) {
+		} else if let Some(i) = abi.enum_named(name) {
 			let e = &abi.api.enums[i];
 			fields.push("public int tag;".to_string());
 			let union = format!("{name}_union_");

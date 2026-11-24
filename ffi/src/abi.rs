@@ -472,6 +472,18 @@ pub(crate) struct Abi<'a> {
 	renames: HashMap<Item, usize>,
 	/// Each name one item claims twice.
 	pub(crate) clashes: Vec<Clash>,
+	/// Each type's final C name, empty until the clashes are renamed.
+	types: Types,
+}
+
+/// Each record's, enum's, and object's C name, and the types each name names, so an emitter
+/// asks for one by name without making every type's again.
+#[derive(Clone, Default)]
+struct Types {
+	records: Vec<String>,
+	enums: Vec<String>,
+	objects: Vec<String>,
+	named: HashMap<String, Vec<Type>>,
 }
 
 impl<'a> Abi<'a> {
@@ -493,6 +505,7 @@ impl<'a> Abi<'a> {
 			claims: Vec::new(),
 			renames: HashMap::new(),
 			clashes: Vec::new(),
+			types: Types::default(),
 		};
 		// Each round renames what clashed, until a round finds nothing more to rename.
 		loop {
@@ -504,7 +517,44 @@ impl<'a> Abi<'a> {
 		}
 		abi.clashes = abi.residue();
 		abi.clashes.extend(abi.scoped());
+		let records: Vec<String> = (0..api.records.len()).map(|i| abi.record(i)).collect();
+		let enums: Vec<String> = (0..api.enums.len()).map(|i| abi.enumeration(i)).collect();
+		let objects: Vec<String> = (0..api.objects.len()).map(|i| abi.object(i)).collect();
+		let mut named: HashMap<String, Vec<Type>> = HashMap::new();
+		let each = (records.iter().enumerate().map(|(i, name)| (name, Type::Record(i))))
+			.chain(enums.iter().enumerate().map(|(i, name)| (name, Type::Enum(i))))
+			.chain(objects.iter().enumerate().map(|(i, name)| (name, Type::Object(i))));
+		for (name, ty) in each {
+			named.entry(name.clone()).or_default().push(ty);
+		}
+		abi.types = Types {
+			records,
+			enums,
+			objects,
+			named,
+		};
 		abi
+	}
+
+	/// The records, enums, and objects whose C name is `c`, in that order.
+	pub(crate) fn types_named(&self, c: &str) -> &[Type] {
+		self.types.named.get(c).map_or(&[], Vec::as_slice)
+	}
+
+	/// The first record whose C name is `c`.
+	pub(crate) fn record_named(&self, c: &str) -> Option<usize> {
+		self.types_named(c).iter().find_map(|ty| match ty {
+			Type::Record(i) => Some(*i),
+			_ => None,
+		})
+	}
+
+	/// The first enum whose C name is `c`.
+	pub(crate) fn enum_named(&self, c: &str) -> Option<usize> {
+		self.types_named(c).iter().find_map(|ty| match ty {
+			Type::Enum(i) => Some(*i),
+			_ => None,
+		})
 	}
 
 	/// Every name the C header declares for the API, the runtime's aside, each once.
@@ -567,6 +617,8 @@ impl<'a> Abi<'a> {
 				.collect(),
 			renames,
 			clashes: self.clashes.clone(),
+			// The same types, which only functions taking a JNI value leave.
+			types: self.types.clone(),
 			checked: self.checked.clone(),
 			held: self.held.clone(),
 			affine: self.affine.clone(),
@@ -783,15 +835,24 @@ impl<'a> Abi<'a> {
 	}
 
 	pub(crate) fn record(&self, i: usize) -> String {
-		self.renamed(Item::Record(i), || self.unrenamed(&Item::Record(i)))
+		match self.types.records.get(i) {
+			Some(name) => name.clone(),
+			None => self.renamed(Item::Record(i), || self.unrenamed(&Item::Record(i))),
+		}
 	}
 
 	pub(crate) fn enumeration(&self, i: usize) -> String {
-		self.renamed(Item::Enum(i), || self.unrenamed(&Item::Enum(i)))
+		match self.types.enums.get(i) {
+			Some(name) => name.clone(),
+			None => self.renamed(Item::Enum(i), || self.unrenamed(&Item::Enum(i))),
+		}
 	}
 
 	pub(crate) fn object(&self, i: usize) -> String {
-		self.renamed(Item::Object(i), || self.unrenamed(&Item::Object(i)))
+		match self.types.objects.get(i) {
+			Some(name) => name.clone(),
+			None => self.renamed(Item::Object(i), || self.unrenamed(&Item::Object(i))),
+		}
 	}
 
 	/// The C name of the type `item` as no clash renames it.
