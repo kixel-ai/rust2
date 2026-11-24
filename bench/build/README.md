@@ -139,7 +139,7 @@ What it shows, with the noise above in mind:
 - `jobs-frontend=32` is the one lever far outside the noise: a cold `check` or `build` takes 36 to 39% less wall time for 46 to 55% more CPU time, and an edit gains nothing (edits cost 32 to 58% more CPU).
   It buys speed on an idle 32-CPU host and costs where CPUs are shared: on 4 vCPUs the same flag at 8 measured oversubscription (+15.4% CPU, no win).
 - `mostly-unused` is no win: `build` +14.9% wall for -3.4% CPU, `check` +9.4% and +9.1%, and `edit-hub` slower and costlier. It stays out of moq's `.cargo/config.toml`.
-- cache-proc-macros moves no row beyond the controls' range (its `edit-hub` +30.9% wall is -2.7% CPU, the signature of a stalled run).
+- cache-proc-macros moves every row but `edit-hub` inside the controls' range; its `edit-hub` +30.9% wall is outside it (the largest control change is +8.8%), and its -2.7% CPU suggests a stalled run, which this run cannot confirm.
 - cranelift keeps its earlier result: the `build` CPU falls 25.1% and wall 2.3%, `test-build` 18.7% and 7.7%, and `test-run` and `test-edit` cost more, with 58 of 6379 tests failing.
 - mold and wild cut CPU on `build` and edits (wild `edit-hub` -37.7% wall too), but the stable controls moved `build` -12.6% wall and -11.1% CPU, so their wall change is unproven until instructions read. Wild's `edit-hub` and `edit-leaf` CPU are the clearest hints.
 - ra-jit, on its own job (36 minutes): edits 96.6 to 98.4% faster when the daemon builds them (a lower bound for the marker edits, which compile nothing), `build` +38.1% wall and +170.7% CPU (the daemon built 0 of 3, with no reason given), and every `edit-async` run handed to cargo for the `parsed_values_given` reason above (+11.6% wall, +1305% CPU).

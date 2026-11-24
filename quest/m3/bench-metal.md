@@ -51,8 +51,8 @@ the instruction rerun (rejected: investigating now).
 
 Remaining, after that change lands at `main`:
 
-- Dispatch `bench.yml` at `main` again and check that every row of the new report holds
-  instructions. Replace the README's reference table with it, its noise from the controls'
+- Dispatch `bench.yml` at `main` again and check that every row of the new report, except ra-jit's
+  (the daemon's counters are not inherited, so they read `n/a`), holds instructions. Replace the README's reference table with it, its noise from the controls'
   instructions, and the mold and wild comparison the first run could not settle.
 - If the controls' wall time is still as noisy, find what shares the host that the lease
   does not exclude (the CARLA demo, agent sessions, the Nix daemon) and either exclude it
