@@ -8,6 +8,7 @@
 use std::collections::HashMap;
 use std::ffi::OsString;
 use std::hash::{DefaultHasher, Hasher};
+use std::panic::{AssertUnwindSafe, catch_unwind, resume_unwind};
 use std::path::{Path, PathBuf};
 use std::process::{Command, ExitStatus, Output};
 use std::sync::{Arc, Mutex, OnceLock};
@@ -382,4 +383,32 @@ pub(crate) fn stamp(output: &Path) -> PathBuf {
 	let mut name = output.as_os_str().to_owned();
 	name.push(".stamp");
 	name.into()
+}
+
+/// Runs `jobs`, each its own build, on as many threads as the host has CPUs, and returns
+/// once all have: a job that panics fails the caller after the others finish.
+pub(crate) fn parallel<'a>(jobs: Vec<Box<dyn FnOnce() + Send + 'a>>) {
+	let width = std::thread::available_parallelism()
+		.map_or(1, |n| n.get())
+		.min(jobs.len());
+	let queue = Mutex::new(jobs.into_iter());
+	let panic = Mutex::new(None);
+	std::thread::scope(|scope| {
+		for _ in 0..width {
+			scope.spawn(|| {
+				loop {
+					// Its own statement, so the lock is released before the job runs.
+					let job = queue.lock().unwrap().next();
+					let Some(job) = job else { break };
+					// A panic must not end this worker, or a one-CPU host would leave the queue undrained.
+					if let Err(payload) = catch_unwind(AssertUnwindSafe(job)) {
+						panic.lock().unwrap().get_or_insert(payload);
+					}
+				}
+			});
+		}
+	});
+	if let Some(payload) = panic.into_inner().unwrap() {
+		resume_unwind(payload);
+	}
 }

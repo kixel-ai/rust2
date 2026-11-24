@@ -855,6 +855,7 @@ function targets(): void {
 	check(api.pointerBits({ tag: "Native", _0: 64 }) === 64, "the native variant crosses too");
 	check(api.isFamily("Wasm") && !api.isFamily("Native"), "wasm32's plain variant crosses");
 	check(api.wasmOnly() === 32, "an item only wasm32 has");
+	check(api.WASM_PAGE === 65536, "a constant only wasm32 has");
 	const taken = api.wasmTake(Counter.new("t", 5));
 	check(taken.ok && taken.value === 5, "an item only wasm32 has takes a counter");
 	const log = new CountLog();

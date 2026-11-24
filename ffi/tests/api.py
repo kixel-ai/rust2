@@ -1168,8 +1168,10 @@ def values():
 	# The module serves wasm32 too: what only wasm32 has raises on the host's library.
 	check(api.pointer_bits(api.platform()) == api.pointer_bits(api.Platform.Native(64)) == 64, "the host is native")
 	check(api.is_family(api.Family.NATIVE), "and of the native family")
+	check(api.WORD == 2**64 - 1, "a 64-bit host has WORD")
 	for f, what in [
 		(api.wasm_only, "api_wasm_only"),
+		(lambda: api.WASM_PAGE, "API_WASM_PAGE"),
 		(lambda: api.pointer_bits(api.Platform.Wasm(32)), "api_Platform.Wasm"),
 		(lambda: api.is_family(api.Family.WASM), "api_Family.Wasm"),
 		(api.Page.default, "api_Page_default"),
@@ -1421,8 +1423,9 @@ def idioms():
 	# `import *` reaches every export: a `pub fn _deprecated` too, which takes a trailing `_`
 	# beside the module's own `_deprecated`, as `pub fn __all__` does beside the name Python
 	# reserves, past `pub fn __all___`, which keeps its own, and each constant `__getattr__`
-	# makes; and no import: what the module binds without a leading `_` but its `__future__`
-	# import.
+	# makes, but one the library's target lacks, whose read raises, such as wasm32's
+	# `WASM_PAGE`; and no import: what the module binds without a leading `_` but its
+	# `__future__` import.
 	star = {}
 	exec("from api import *", star)
 	del star["__builtins__"]
@@ -1430,7 +1433,7 @@ def idioms():
 	check(star["__all____"](1) == 3, "a pub fn named as a name Python reserves")
 	check(star["__all___"](1) == 4, "a pub fn named as the one Python reserves would take")
 	public = {name for name in vars(api) if not name.startswith("_")} - {"annotations"}
-	expected = public | {"_deprecated_", "__all___", "__all____"} | set(api._consts)
+	expected = public | {"_deprecated_", "__all___", "__all____"} | set(api._consts) - {"WASM_PAGE"}
 	check(set(star) == expected, f"import * reaches the exports: {sorted(set(star) ^ expected)}")
 	print("idioms ok")
 

@@ -2317,6 +2317,7 @@ namespace Api {
 	public static unsafe partial class Lib {
 		public const ulong LIMIT = 1000U;
 		public const long FAR = 9223372036854775807;
+		public static uint WASM_PAGE { get; }
 		public const int EOF = -1;
 		public const ulong URL = 1000U;
 		public const ulong STEP = 1U;
