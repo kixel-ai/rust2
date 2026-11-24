@@ -31,7 +31,7 @@ It builds them with `cargo bench`, with itself as the targets' runner, which rec
 launches each target, its directory and whole environment (`[env]`, `CARGO_MANIFEST_DIR`,
 the library path), instead of running it; every listing and count launches the target the
 same way. Those records live in a directory only the user can read, removed once read. A
-runner a config or the environment sets for the build's target fails the run before anything
+runner a config or the environment sets, for any target, fails the run before anything
 builds, as does, once built, an `[env]` that sets `GLIBC_TUNABLES`, which the fingerprint
 reads from the environment, and an argument for the targets after Cargo's own `--`, which
 CodSpeed's harness takes none of: `--benchmarks` chooses benchmarks. Every count, like the
