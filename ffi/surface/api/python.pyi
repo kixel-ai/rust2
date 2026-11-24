@@ -2327,4 +2327,5 @@ WORD: _int
 BOXED: BoxedU16
 GREETINGS: _list[_str]
 PRIMES: _array.array[_int]
+__all__ = [name for name in __all__ if {'WASM_PAGE': 1, 'WORD': 2}.get(name, -1) >> _n.target() & 1]
 def __getattr__(name: _str) -> _object: ...
