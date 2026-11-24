@@ -1,11 +1,10 @@
-# [S] The build benchmark on bare metal, with two more levers
+# [S] The build benchmark on bare metal, with a dependency hint
 
 ## Goal
 
 [The build-speed benchmark](/bench/build/README.md)'s reference report comes from the
 bare-metal `nixos` runner, so its "instructions vs base" column holds numbers, and it
-measures two levers already in the pinned nightly that it does not yet: cargo's
-`hint-mostly-unused` profile setting on dependencies, and `-Zembed-metadata`.
+measures Cargo's `hint-mostly-unused` profile setting on dependencies.
 
 ## Plan
 
@@ -28,14 +27,20 @@ runner's main-only trust). Land the workflow and variant setup first; keep this
 quest open for a later measurement and report PR from a `bench.yml` dispatch at
 `main`. The runner provisioning wait cleared with dotfiles PR 227.
 
+Decided 2026-11-23 (maintainer, /quest-run): ✅ drop the `embed-metadata` variant
+(rejected: replacing it with a Cargo-configured `unstable.embed-metadata=true`
+opt-out comparison). Nightly Cargo already defaults to `-Zembed-metadata=no`
+since rust-lang/cargo#17267, before the 2026-10-22 pin; moq has nothing to adopt.
+`mostly-unused` stays.
+
 The variants and runner wiring are implemented. Remaining work runs after the
 workflow lands at `main`, the only ref the runner group admits:
 
 - Dispatch `bench.yml` at `main` and publish its bare-metal reference report in
   `bench/build/README.md`, including retired instructions and A/A noise controls.
 - Compare `jobs-frontend=32` against nightly on the 32-CPU host.
-- Measure `mostly-unused` and `embed-metadata` against nightly alongside the other
-  levers. Keep the existing toolchain pin.
+- Measure `mostly-unused` against nightly alongside the other levers. Keep the
+  existing toolchain pin.
 - Report which winning, cost-free settings moq should use in `.cargo/config.toml`.
   Make no recommendation until the measurements support it.
 - Verify the real runner dispatch obtains the host lease and counts instructions.

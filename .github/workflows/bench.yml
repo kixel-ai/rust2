@@ -29,7 +29,7 @@ jobs:
           - name: moq stable
             args: --corpus moq --variant baseline --variant mold --variant wild --variant control --no-attribute
           - name: moq nightly
-            args: --corpus moq --variant nightly --variant jobs-frontend --variant cranelift --variant cache-proc-macros --variant mostly-unused --variant embed-metadata --variant nightly-control
+            args: --corpus moq --variant nightly --variant jobs-frontend --variant cranelift --variant cache-proc-macros --variant mostly-unused --variant nightly-control
           - name: moq ra-jit
             args: --corpus moq --variant ra-jit-baseline --variant ra-jit --no-attribute
 

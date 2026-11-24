@@ -107,12 +107,6 @@ toolchain = "nightly"
 config = ["unstable.profile-hint-mostly-unused=true", 'profile.dev.package."*".hint-mostly-unused=true']
 
 [[variant]]
-name = "embed-metadata"
-base = "nightly"
-toolchain = "nightly"
-rustflags = "-Zembed-metadata=no"
-
-[[variant]]
 name = "nightly-control"
 base = "nightly"
 toolchain = "nightly"

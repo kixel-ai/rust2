@@ -62,9 +62,7 @@ To measure a new build-speed change, add a variant whose base is the configurati
 The `mostly-unused` variant enables Cargo's unstable profile hint and sets
 `profile.dev.package."*".hint-mostly-unused=true`, so it hints only dependencies
 outside the workspace, leaving moq's own crates unchanged.
-The `embed-metadata` variant sets `-Zembed-metadata=no`, so rlibs carry stub
-metadata while Cargo emits the full metadata separately.
-Both compare against `nightly`; neither has a measured recommendation yet.
+It compares against `nightly`; it has no measured recommendation yet.
 
 The `ra-jit` variant builds with `cargo ra-jit` ([ra-jit](https://github.com/indexable-inc/ra-jit), pinned in `flake.nix` and compiled from source on a run that selects it), a daemon that compiles only the functions an edit changed and splices them into the program cargo linked, or hands the build back to cargo.
 ra-jit works with one rustc only, so its base, `ra-jit-baseline`, is plain cargo on that toolchain.
