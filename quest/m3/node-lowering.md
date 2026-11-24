@@ -12,6 +12,7 @@ fixture's transcript and cases on Node, Bun, and Deno.
 
 ## Plan
 
+- Decided 2026-11-24 (maintainer, /quest-run): ✅ keep this quest (rejected: drop it), since speed per call was half of why the report chose the addon.
 - Measured 2026-11-23 on **fedora**, at a load average near 25: the generated handle call
   `track.is_closed()` costs 65 to 80 ns through the addon, of which the bare native call
   is 30 ns, and 17 ns is any Node-API call's floor (`moq_contract`, no arguments). On the

@@ -9,6 +9,8 @@ fixed at its cause, or refuted with the case that shows it cannot happen.
 
 ## Plan
 
+- Decided 2026-11-24 (maintainer, /quest-run): ✅ keep this quest (rejected: drop it), since three of the four findings would be use-after-free or deadlock if real.
+
 The findings, as the review reported them on 2026-11-24, against what
 [kixel-ai/rust2#972](https://github.com/kixel-ai/rust2/pull/972) landed:
 
