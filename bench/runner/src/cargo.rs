@@ -106,7 +106,9 @@ fn workspace_root(dir: &Path, args: &[String]) -> Result<PathBuf, String> {
 fn configured_rustflags(dir: &Path, args: &[String]) -> Result<Option<String>, String> {
 	for (key, _) in std::env::vars_os() {
 		let key = key.to_string_lossy();
-		if key == "CARGO_BUILD_RUSTFLAGS" || (key.starts_with("CARGO_TARGET_") && key.ends_with("_RUSTFLAGS")) {
+		if key == "CARGO_BUILD_RUSTFLAGS"
+			|| ((key.starts_with("CARGO_TARGET_") || key.starts_with("CARGO_HOST_")) && key.ends_with("_RUSTFLAGS"))
+		{
 			return Ok(Some(format!("the environment's {key}")));
 		}
 	}
@@ -186,11 +188,16 @@ fn config_table(
 	including: &mut Vec<PathBuf>,
 ) -> Result<Option<String>, String> {
 	let build = table.get("build").and_then(|build| build.get("rustflags")).is_some();
-	let target = table
-		.get("target")
-		.and_then(toml::Value::as_table)
-		.is_some_and(|targets| targets.values().any(|target| target.get("rustflags").is_some()));
-	if build || target {
+	// `target.<triple>.rustflags`, and the unstable host config's `host.rustflags` and
+	// `host.<triple>.rustflags`.
+	let per = |name: &str| {
+		table
+			.get(name)
+			.and_then(toml::Value::as_table)
+			.is_some_and(|tables| tables.values().any(|table| table.get("rustflags").is_some()))
+	};
+	let host = table.get("host").and_then(|host| host.get("rustflags")).is_some();
+	if build || host || per("target") || per("host") {
 		return Ok(Some(source.to_owned()));
 	}
 	// `include` is a path, or an array of paths or of tables with a `path`.
@@ -274,15 +281,27 @@ fn build(dir: &Path, args: &[String]) -> Result<Vec<Target>, String> {
 	eprintln!("rust2-bench: building benchmarks in {}", dir.display());
 	let mut child = cargo.spawn().map_err(|e| format!("cannot run cargo: {e}"))?;
 	let stdout = child.stdout.take().expect("stdout is piped");
-	let mut targets = Vec::new();
-	for line in BufReader::new(stdout).lines() {
-		let line = line.map_err(|e| format!("cannot read cargo's output: {e}"))?;
-		let message: Value =
-			serde_json::from_str(&line).map_err(|e| format!("cargo printed a line not JSON ({e}): {line}"))?;
-		if let Some(target) = bench(&message)? {
-			targets.push(target);
+	let targets = (|| {
+		let mut targets = Vec::new();
+		for line in BufReader::new(stdout).lines() {
+			let line = line.map_err(|e| format!("cannot read cargo's output: {e}"))?;
+			let message: Value =
+				serde_json::from_str(&line).map_err(|e| format!("cargo printed a line not JSON ({e}): {line}"))?;
+			if let Some(target) = bench(&message)? {
+				targets.push(target);
+			}
 		}
-	}
+		Ok::<_, String>(targets)
+	})();
+	let targets = match targets {
+		Ok(targets) => targets,
+		Err(err) => {
+			// Stop the build rather than leave it writing the target directory the next step uses.
+			let _ = child.kill();
+			let _ = child.wait();
+			return Err(err);
+		}
+	};
 	let status = child.wait().map_err(|e| format!("cannot wait for cargo: {e}"))?;
 	if !status.success() {
 		return Err(format!("cargo build failed ({status})"));
@@ -373,6 +392,8 @@ mod tests {
 				true,
 			),
 			("[target.'cfg(unix)']\nrustflags = []\n", true),
+			("[host]\nrustflags = []\n", true),
+			("[host.x86_64-unknown-linux-gnu]\nrustflags = []\n", true),
 			("[build]\njobs = 4\n", false),
 		] {
 			std::fs::write(&config, text).unwrap();

@@ -22,7 +22,8 @@ build` does, passing any arguments after `--` to `cargo build`, such as `-p moq-
 varint`. Cargo takes rustflags from one source and ignores the rest, so the cfg
 joins `RUSTFLAGS` or `CARGO_ENCODED_RUSTFLAGS` when the environment sets them, and is
 otherwise the only flags. A Cargo config that sets its own, `build.rustflags` or a
-`target.*.rustflags` in a config file or one it includes, the environment, or a `--config`,
+`target.*.rustflags` (or the unstable `host` config's) in a config file or one it includes,
+the environment, or a `--config`,
 fails the run before anything builds: set `RUSTFLAGS` to the flags the build needs instead.
 Each target lists its benchmarks by running once natively, then each benchmark runs alone in its own Valgrind process, through the crates' `CODSPEED_ISOLATED_BENCHMARK`. A
 target that runs no benchmark through the crates fails the run: leave it out with `--bench`.
@@ -40,7 +41,8 @@ with Valgrind's `--instr-atstart=no`, so nothing outside a benchmark counts. Its
 dump's `totals` in `Ir`, instructions executed, on every thread. The run fails on a dump with
 an unknown trigger, a benchmark without `totals` or with zero instructions, two benchmarks of
 one name, a job that fails, and a name `--benchmarks` lists that no benchmark has, so a
-bisect step never reads a suspect it could not count as clean. A program's benchmarks all
+bisect step never reads a suspect it could not count as clean. `compare` fails on such a
+name only when neither side has it, since a change may add or remove a benchmark. A program's benchmarks all
 run even when `--benchmarks` names only some; a Cargo benchmark runs only when named.
 
 The instrument hooks' `ADD_DESC` after each benchmark, a request only CodSpeed's Valgrind
@@ -72,7 +74,9 @@ version moves too, since a new Valgrind can count differently and starts new ser
 `rust2-bench compare <base>` checks `<base>` out in a worktree kept at
 `target/rust2-bench/base` under the repository's top, so its build stays warm for the next
 compare, counts it from the same directory there, then counts the working tree, and prints a
-Markdown table of each benchmark's base, head, and change. It refuses two fingerprints.
+Markdown table of each benchmark's base, head, and change. It refuses two fingerprints. An
+absolute `--manifest-path` in the repository counts the same manifest in the base's worktree,
+and one outside it is refused, since both sides would count it.
 
 ## Output
 

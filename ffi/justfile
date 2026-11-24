@@ -330,11 +330,16 @@ count *args:
     # The programs' switch to one round a case, kept CodSpeed's name so a compare with a
     # commit before rust2-bench still runs that commit's programs the same way.
     export RUST2_CODSPEED=1
+    for arg; do
+        # rust2-bench takes every arg after -- as cargo's, which would swallow the programs.
+        [ "$arg" != -- ] || { echo "count: the programs take no cargo args" >&2; exit 1; }
+    done
+    just=$(printf %q {{ quote(just_executable()) }})
     programs=()
     for lang in {{ count_langs }}; do
-        programs+=(--program "just bench-program $lang")
+        programs+=(--program "$just bench-program $lang")
     done
-    rust2-bench "$@" --build "just bench-build" "${programs[@]}"
+    rust2-bench "$@" --build "$just bench-build" "${programs[@]}"
 
 # Run what bench-build or rn-bench built for one of bench_langs.
 [private]
@@ -361,8 +366,9 @@ bench-program lang:
         csharp) LD_LIBRARY_PATH="$out/target/release" DYLD_LIBRARY_PATH="$out/target/release" exec dotnet target/bench-csharp/bench.dll "$hooks" ;;
         ts-node)
             # Counted, V8 runs on this thread alone and collects on a schedule its allocations
-            # set, not time, and export.ts collects before each case, so its counts hold still
-            # between runs.
+            # set, not time, and export.ts collects before each case. Its counts still move
+            # between runs, so ts-node is not in count_langs; these flags stay for
+            # quest/m2/ffi-count-node.md, which brings it back.
             flags=()
             [ -z "${RUST2_CODSPEED:-}" ] || flags=(--expose-gc --predictable --predictable-gc-schedule --single-threaded --v8-pool-size=0)
             exec node ${flags[@]+"${flags[@]}"} target/bench-ts/export.ts "$wasm" "$PWD/target/codspeed/codspeed.node" ;;

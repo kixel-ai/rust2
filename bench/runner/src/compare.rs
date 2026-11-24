@@ -5,7 +5,7 @@ use std::fmt::Write;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-use crate::{Counts, Options, measure};
+use crate::{Counts, Options, measure, missing};
 
 /// Counts `base` in a worktree of its own, then the working tree, and prints each change.
 pub fn compare(base: &str, options: &Options) -> Result<(), String> {
@@ -23,11 +23,64 @@ pub fn compare(base: &str, options: &Options) -> Result<(), String> {
 		&sha[..12.min(sha.len())],
 		tree.display()
 	);
-	let before = measure(&tree.join(&prefix), options)?;
+	let mut base = options.clone();
+	let real = top.canonicalize().map_err(|e| format!("cannot resolve {}: {e}", top.display()))?;
+	base.cargo = rebase(&options.cargo, &real, &tree)?;
+	// A wanted benchmark may be new at the head or gone from it, but must be on one side.
+	let before = measure(&tree.join(&prefix), &base, false)?;
 	eprintln!("rust2-bench: counting the working tree");
-	let after = measure(Path::new("."), options)?;
+	let after = measure(Path::new("."), options, false)?;
+	if let Some(wanted) = &options.benchmarks {
+		missing(wanted, |name| before.counts.contains_key(name) || after.counts.contains_key(name))?;
+	}
+	if before.counts.is_empty() && after.counts.is_empty() {
+		return Err("no benchmark ran".to_owned());
+	}
 	print!("{}", table(&before, &after)?);
 	Ok(())
+}
+
+/// `args` for the base's worktree: an absolute `--manifest-path` in the repository at `top`
+/// moves to the same file under `tree`, and one outside it, which would count the same
+/// workspace twice, is refused.
+fn rebase(args: &[String], top: &Path, tree: &Path) -> Result<Vec<String>, String> {
+	let mut out = Vec::with_capacity(args.len());
+	let mut args = args.iter();
+	while let Some(arg) = args.next() {
+		if arg == "--" {
+			out.push(arg.clone());
+			out.extend(args.by_ref().cloned());
+			break;
+		}
+		let (flag, path) = if arg == "--manifest-path" {
+			out.push(arg.clone());
+			match args.next() {
+				Some(path) => ("", path.as_str()),
+				None => break,
+			}
+		} else if let Some(path) = arg.strip_prefix("--manifest-path=") {
+			("--manifest-path=", path)
+		} else {
+			out.push(arg.clone());
+			continue;
+		};
+		let rebased = if Path::new(path).is_absolute() {
+			let canonical = Path::new(path)
+				.canonicalize()
+				.map_err(|e| format!("cannot resolve {path}: {e}"))?;
+			let relative = canonical
+				.strip_prefix(top)
+				.map_err(|_| format!("--manifest-path {path} is outside the repository, so compare would count it twice"))?;
+			tree.join(relative)
+				.to_str()
+				.ok_or("the base's worktree path is not UTF-8")?
+				.to_owned()
+		} else {
+			path.to_owned()
+		};
+		out.push(format!("{flag}{rebased}"));
+	}
+	Ok(out)
 }
 
 /// Checks `sha` out at `tree`, a detached worktree of the repository at `top` kept between
@@ -101,6 +154,36 @@ fn table(before: &Counts, after: &Counts) -> Result<String, String> {
 #[cfg(test)]
 mod tests {
 	use super::*;
+
+	#[test]
+	fn rebases_an_absolute_manifest_path_into_the_base() {
+		let top = Path::new(env!("CARGO_MANIFEST_DIR")).canonicalize().unwrap();
+		let manifest = top.join("Cargo.toml");
+		let manifest = manifest.to_str().unwrap();
+		let tree = Path::new("/base");
+		let args = |list: &[&str]| list.iter().map(|s| (*s).to_owned()).collect::<Vec<_>>();
+		let rebased = rebase(
+			&args(&["--manifest-path", manifest, "--locked", "--", "--manifest-path", manifest]),
+			&top,
+			tree,
+		)
+		.unwrap();
+		assert_eq!(
+			rebased,
+			args(&["--manifest-path", "/base/Cargo.toml", "--locked", "--", "--manifest-path", manifest])
+		);
+		let equals = format!("--manifest-path={manifest}");
+		assert_eq!(
+			rebase(&args(&[&equals]), &top, tree).unwrap(),
+			args(&["--manifest-path=/base/Cargo.toml"])
+		);
+		assert_eq!(
+			rebase(&args(&["--manifest-path", "Cargo.toml"]), &top, tree).unwrap(),
+			args(&["--manifest-path", "Cargo.toml"])
+		);
+		let err = rebase(&args(&["--manifest-path", manifest]), &top.join("src"), tree).unwrap_err();
+		assert!(err.contains("outside the repository"), "{err}");
+	}
 
 	fn counts(fingerprint: &str, names: &[(&str, u64)]) -> Counts {
 		Counts {

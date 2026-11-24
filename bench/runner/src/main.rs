@@ -59,7 +59,7 @@ fn cli(args: &[String]) -> Result<(), String> {
 	match command.as_str() {
 		"run" => {
 			let options = Options::parse(rest)?;
-			let counts = measure(Path::new("."), &options)?;
+			let counts = measure(Path::new("."), &options, true)?;
 			print!("{}", metrics::table(&counts.counts));
 			if let Some(out) = &options.out {
 				metrics::write(out, &counts)?;
@@ -99,6 +99,7 @@ fn cli(args: &[String]) -> Result<(), String> {
 }
 
 /// What to count, and how.
+#[derive(Clone)]
 pub struct Options {
 	/// The only benchmarks to count, when given.
 	benchmarks: Option<BTreeSet<String>>,
@@ -189,8 +190,9 @@ fn valgrind() -> Command {
 	command
 }
 
-/// Counts the benchmarks in `dir`: builds them, then runs each job under Valgrind.
-fn measure(dir: &Path, options: &Options) -> Result<Counts, String> {
+/// Counts the benchmarks in `dir`: builds them, then runs each job under Valgrind. When
+/// `strict`, a wanted benchmark `dir` lacks fails it; a compare checks that across both trees.
+fn measure(dir: &Path, options: &Options, strict: bool) -> Result<Counts, String> {
 	// Absolute, since each job runs in a directory of its own choosing.
 	let dir = &dir
 		.canonicalize()
@@ -223,7 +225,7 @@ fn measure(dir: &Path, options: &Options) -> Result<Counts, String> {
 	};
 	if let Some(wanted) = &options.benchmarks {
 		// Where every job names its benchmark, a name none has fails before any runs.
-		if jobs.iter().all(|job| job.expect.is_some()) {
+		if strict && jobs.iter().all(|job| job.expect.is_some()) {
 			let known: BTreeSet<&String> = jobs.iter().filter_map(|job| job.expect.as_ref()).collect();
 			missing(wanted, |name| known.contains(name))?;
 		}
@@ -234,10 +236,12 @@ fn measure(dir: &Path, options: &Options) -> Result<Counts, String> {
 	let work = dir.join("target/rust2-bench/jobs");
 	let mut counts = run(jobs, &work, options.jobs)?;
 	if let Some(wanted) = &options.benchmarks {
-		missing(wanted, |name| counts.contains_key(name))?;
+		if strict {
+			missing(wanted, |name| counts.contains_key(name))?;
+		}
 		counts.retain(|name, _| wanted.contains(name));
 	}
-	if counts.is_empty() {
+	if strict && counts.is_empty() {
 		return Err("no benchmark ran".to_owned());
 	}
 	Ok(Counts { fingerprint, counts })
@@ -245,7 +249,7 @@ fn measure(dir: &Path, options: &Options) -> Result<Counts, String> {
 
 /// Fails naming each wanted benchmark `has` says no benchmark is, so a bisect step never
 /// reads a suspect it could not count as clean.
-fn missing(wanted: &BTreeSet<String>, has: impl Fn(&String) -> bool) -> Result<(), String> {
+pub fn missing(wanted: &BTreeSet<String>, has: impl Fn(&String) -> bool) -> Result<(), String> {
 	let missing: Vec<&str> = wanted.iter().filter(|name| !has(name)).map(String::as_str).collect();
 	if missing.is_empty() {
 		Ok(())
