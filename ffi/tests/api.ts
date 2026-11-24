@@ -1085,6 +1085,21 @@ export async function lent(): Promise<void> {
 	check(got.length === 65537 && got.at(0) === 5 && got.at(-1) === 5, "lent bytes sent read back");
 	close(got);
 	check(api.dropped() === ++before, "the last owner of lent bytes frees them");
+	// `slice` takes its indices as a Uint8Array's: truncated, from the end where negative,
+	// clamped to the bytes, and empty where they cross.
+	const pattern = Uint8Array.from({ length: 100 }, (_, i) => i);
+	Channel.send(channel, pattern);
+	// Past 64 bytes, lent.
+	const patterned = await within(Channel.recv(channel), "a receive of a pattern");
+	for (const [from, to] of [
+		[undefined, undefined], [10, 20], [-10, undefined], [-200, 5], [90, 200], [30, 10],
+		[NaN, 3], [2.9, 7.1], [-Infinity, Infinity], [Infinity, undefined], [-1, -1], [0, -95],
+	] as const) {
+		const want = pattern.slice(from, to);
+		const got = patterned.slice(from, to);
+		check(got.length === want.length && got.every((b, i) => b === want[i]), `lent bytes slice(${from}, ${to}) as a Uint8Array's`);
+	}
+	close(patterned);
 	close(channel);
 	// A later argument's getters never run, so a Proxy that would dispose bytes the call
 	// already views is refused, and the call's hold on them is let go.

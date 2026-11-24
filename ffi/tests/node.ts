@@ -1,6 +1,6 @@
 // The api fixture's Node test: tests/api.ts's script and cases through Node's binding, over
 // the addon the crate's `node` feature builds, which tests/fixtures.rs runs with a copy of
-// api.ts importing it, on Node, Bun, and Deno. RUST2_NODE is the addon's path. With an
+// api.ts importing it, on Node, Bun, and Deno, from the directory holding node/. With an
 // argument, it runs the case of that name, `threads` among them: what Rust calls from its
 // other threads, which the web's module has none of.
 
@@ -15,7 +15,6 @@ import * as Spawned from "./node/Spawned.ts";
 
 declare const process: {
 	readonly argv: string[];
-	readonly env: Record<string, string | undefined>;
 	exit(code: number): never;
 	readonly stderr: { write(text: string): boolean };
 };
@@ -146,9 +145,9 @@ async function threads(): Promise<void> {
 }
 
 async function main(): Promise<void> {
-	const path = process.env["RUST2_NODE"];
-	await (path === undefined ? api.load() : api.load(path));
-	const message = await api.load(path).then(
+	// A path from the working directory, not from the binding's modules, as a caller means it.
+	await api.load("node/api.node");
+	const message = await api.load().then(
 		() => "",
 		(e: unknown) => (e instanceof Error ? e.message : String(e)),
 	);
