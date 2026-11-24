@@ -3902,9 +3902,19 @@ mod tests {
 	fn constructor_calls_count_as_calls() {
 		let code = "Foo._(a); xFoo._(b); $Foo._(c); Foo._lent(d); Foo._ (e); ä.Foo._(f); Foo._of(g)._(h)";
 		let counts = constructor_calls(code);
-		for (name, ctor) in [("Foo", "_"), ("Foo", "_lent"), ("Foo", "_of"), ("xFoo", "_"), ("Bar", "_")] {
+		for (name, ctor) in [
+			("Foo", "_"),
+			("Foo", "_lent"),
+			("Foo", "_of"),
+			("xFoo", "_"),
+			("Bar", "_"),
+		] {
 			let expected = calls(code, &format!("{name}.{ctor}("));
-			assert_eq!(counts.get(&(name, ctor)).copied().unwrap_or(0), expected, "{name}.{ctor}");
+			assert_eq!(
+				counts.get(&(name, ctor)).copied().unwrap_or(0),
+				expected,
+				"{name}.{ctor}"
+			);
 		}
 		assert_eq!(counts[&("Foo", "_")], 2);
 	}
