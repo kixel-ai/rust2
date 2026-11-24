@@ -205,6 +205,7 @@ export let w: Exports = new Proxy(
 	},
 );
 
+// #region web memory
 let memory: WebAssembly.Memory;
 let view = new DataView(new ArrayBuffer(0));
 let bytes: Uint8Array<ArrayBuffer> = new Uint8Array(0);
@@ -227,6 +228,59 @@ export function mem(): Uint8Array<ArrayBuffer> {
 	dv();
 	return bytes;
 }
+
+/** An address in Rust's memory: in the module's, a number. */
+export type Addr = number;
+/** The null address. */
+const NULL: Addr = 0;
+/** A pointer's size, and so a word's. */
+const WORD = 4;
+
+/** The word at `p`, as a length. */
+function lenGet(p: number): number {
+	return dv().getUint32(p, true);
+}
+
+/** Write the word `n`, a length or a token, at `p`. */
+function lenPut(p: number, n: number): void {
+	dv().setUint32(p, n, true);
+}
+
+/** The address at `p`. */
+function addrGet(p: number): Addr {
+	return dv().getUint32(p, true);
+}
+
+/** Write the address `a` at `p`. */
+function addrPut(p: number, a: Addr): void {
+	dv().setUint32(p, a, true);
+}
+
+/** Write at `p` the address of `at`, a place the stack took. */
+function placePut(p: number, at: number): void {
+	dv().setUint32(p, at, true);
+}
+
+/** A copy of the `len` bytes at `ptr`. */
+function lentCopy(ptr: Addr, len: number): Uint8Array<ArrayBuffer> {
+	return mem().slice(ptr, ptr + len);
+}
+
+/** The text of the `len` bytes of UTF-8 at `ptr`, as `decoder` decodes it. */
+function lentText(ptr: Addr, len: number, decoder: TextDecoder): string {
+	return decoder.decode(mem().subarray(ptr, ptr + len));
+}
+
+/** The byte at `ptr + i`. */
+function lentByte(ptr: Addr, i: number): number {
+	return mem()[ptr + i]!;
+}
+
+/** Write `data` at `ptr`. */
+function lentWrite(ptr: Addr, data: Uint8Array): void {
+	mem().set(data, ptr);
+}
+// #endregion web memory
 
 /**
  * The state calls share: how many calls into the module are running less how many calls
@@ -273,9 +327,11 @@ export function abort(message: string): never {
 // The stack: memory each call lowers its values into, taking what it needs from the top and
 // giving it back once it returns, so a call Rust makes into JavaScript meanwhile takes and
 // gives back above it.
+// #region web stack
 const STACK = 1 << 16;
 let base = 0;
 let top = 0;
+// #endregion web stack
 /** What did not fit, each its pointer, size, and alignment, freed as the stack falls back. */
 const big: number[] = [];
 /** The handles, and lent bytes, each running call holds, released once it returns. */
@@ -303,7 +359,10 @@ export function leave(mark: number): void {
 	const h = frames.pop()!;
 	const b = frames.pop()!;
 	top = frames.pop()!;
-	while (lent.length > l) tokens.delete(lent.pop()!);
+	if (lent.length > l) {
+		while (lent.length > l) tokens.delete(lent.pop()!);
+		relayed();
+	}
 	// After a trap, Rust's state is unsound: forget what the call took, calling none of it.
 	if (!live()) {
 		held.length = h;
@@ -322,6 +381,7 @@ export function leave(mark: number): void {
 	}
 }
 
+// #region web alloc
 /** `size` bytes aligned to `align`, a power of two, until the running call returns. */
 export function alloc(size: number, align: number): number {
 	const at = (top + align - 1) & -align;
@@ -333,6 +393,7 @@ export function alloc(size: number, align: number): number {
 	big.push(p, size, align);
 	return p;
 }
+// #endregion web alloc
 
 /** Throw unless the call `what` wrote no status at `p`: a run-time check failed. */
 export function status(p: number, what: string): void {
@@ -356,6 +417,16 @@ export type Kind = {
 	readonly free: string;
 	readonly drop?: string;
 };
+
+// #region web handles
+/**
+ * Whether a handle Rust lends is freed too, through [FORGET]: not a handle of the module,
+ * which is its address.
+ */
+const FORGETS = false;
+/** What frees a lent handle, where [FORGETS]. */
+const FORGET = "";
+// #endregion web handles
 
 /** The handles' frees the garbage collector makes, of each that left the nursery undisposed. */
 const collected = new FinalizationRegistry<[number, string]>(([p, free]) => {
@@ -454,7 +525,7 @@ export class Handle<T extends string = string> {
 		this.k = k;
 		this.owned = owned;
 		this.checked = owned && k.drop !== undefined;
-		this.n = owned ? nurse(this) : UNREGISTERED;
+		this.n = owned || FORGETS ? nurse(this) : UNREGISTERED;
 	}
 
 	/** Leave the nursery, registering unless disposed, as its last hold then frees it. */
@@ -463,7 +534,7 @@ export class Handle<T extends string = string> {
 			this.n = UNREGISTERED;
 			return;
 		}
-		collected.register(this, [this.p, this.k.free], this);
+		collected.register(this, [this.p, this.owned ? this.k.free : FORGET], this);
 		this.n = REGISTERED;
 	}
 
@@ -474,7 +545,7 @@ export class Handle<T extends string = string> {
 	}
 
 	release(): void {
-		if (--this.h === 0 && this.owned) this.free();
+		if (--this.h === 0 && (this.owned || FORGETS)) this.free();
 	}
 
 	free(): void {
@@ -482,7 +553,7 @@ export class Handle<T extends string = string> {
 		else if (this.n === REGISTERED) collected.unregister(this);
 		const m = enter();
 		s.d++;
-		w[this.k.free](this.p);
+		w[this.owned ? this.k.free : FORGET](this.p);
 		s.d--;
 		leave(m);
 	}
@@ -852,10 +923,9 @@ export function putStr(dst: number, text: string): void {
 	const max = text.length * 3;
 	const p = alloc(max, 1);
 	const { written } = encoder.encodeInto(text, mem().subarray(p, p + max));
-	const d = dv();
-	d.setUint32(dst, p, true);
-	d.setUint32(dst + 4, written, true);
-	d.setUint32(dst + 8, 0, true);
+	placePut(dst, p);
+	lenPut(dst + WORD, written);
+	lenPut(dst + 2 * WORD, 0);
 }
 
 /**
@@ -866,10 +936,9 @@ export function putBytes(dst: number, data: Uint8Array | Bytes): void {
 	if (data instanceof Bytes) {
 		const read = bytesRead(data, true);
 		if (!(read instanceof Uint8Array)) {
-			const d = dv();
-			d.setUint32(dst, read[0], true);
-			d.setUint32(dst + 4, read[2], true);
-			d.setUint32(dst + 8, 0, true);
+			addrPut(dst, read[0]);
+			lenPut(dst + WORD, read[2]);
+			lenPut(dst + 2 * WORD, 0);
 			return;
 		}
 		data = read;
@@ -878,10 +947,9 @@ export function putBytes(dst: number, data: Uint8Array | Bytes): void {
 	const n = typedLength(data, "Uint8Array");
 	const p = alloc(n, 1);
 	mem().set(data, p);
-	const d = dv();
-	d.setUint32(dst, p, true);
-	d.setUint32(dst + 4, n, true);
-	d.setUint32(dst + 8, 0, true);
+	placePut(dst, p);
+	lenPut(dst + WORD, n);
+	lenPut(dst + 2 * WORD, 0);
 }
 
 /**
@@ -894,11 +962,10 @@ export function shared(dst: number, data: Uint8Array | Bytes | undefined): void 
 	const read = bytesRead(data, false);
 	if (read instanceof Uint8Array) return;
 	const m = top;
-	const view = alloc(12, 4);
-	const d = dv();
-	d.setUint32(view, read[0], true);
-	d.setUint32(view + 4, read[2], true);
-	d.setUint32(view + 8, read[1], true);
+	const view = alloc(3 * WORD, WORD);
+	addrPut(view, read[0]);
+	lenPut(view + WORD, read[2]);
+	addrPut(view + 2 * WORD, read[1]);
 	s.d++;
 	w[`${prefix}_buf_clone`](dst, view);
 	s.d--;
@@ -907,31 +974,25 @@ export function shared(dst: number, data: Uint8Array | Bytes | undefined): void 
 
 /** Write the null buffer, `None`, at `dst`. */
 export function putNone(dst: number): void {
-	const d = dv();
-	d.setUint32(dst, 0, true);
-	d.setUint32(dst + 4, 0, true);
-	d.setUint32(dst + 8, 0, true);
+	lenPut(dst, 0);
+	lenPut(dst + WORD, 0);
+	lenPut(dst + 2 * WORD, 0);
 }
 
 /** Whether the buffer at `p` is `None`. */
 export function isNone(p: number): boolean {
-	return dv().getUint32(p, true) === 0;
+	return lenGet(p) === 0;
 }
 
 /** A copy of the bytes the buffer at `p` views. */
 export function bytesLent(p: number): Uint8Array {
-	const d = dv();
-	const ptr = d.getUint32(p, true);
-	const len = d.getUint32(p + 4, true);
-	return mem().slice(ptr, ptr + len);
+	return lentCopy(addrGet(p), lenGet(p + WORD));
 }
 
 /** The text of the UTF-8 the buffer at `p` views. */
 export function strLent(p: number): string {
-	const d = dv();
-	const ptr = d.getUint32(p, true);
-	const len = d.getUint32(p + 4, true);
-	return len === 0 ? "" : strict.decode(mem().subarray(ptr, ptr + len));
+	const len = lenGet(p + WORD);
+	return len === 0 ? "" : lentText(addrGet(p), len, strict);
 }
 
 /** A copy of the bytes of the buffer Rust returned at `p`, which it frees. */
@@ -956,23 +1017,46 @@ const LEND = 64;
  */
 let lentLength = 0;
 
+// #region web lends
 /** Memory's size when no bytes were last lent. */
 let unlentSize = 0;
 
+/**
+ * Whether bytes of `len` a call returned are lent: so that lent bytes a caller forgot to
+ * dispose, which the collector frees only once it runs for its own heap, make memory grow
+ * by no more than a third, they lend while their length stays under a quarter of memory,
+ * and while memory has grown by no more than a third since none were lent, which bounds
+ * what slices keep that their length does not.
+ */
+function lends(len: number): boolean {
+	const size = memory.buffer.byteLength;
+	if (lentLength === 0) unlentSize = size;
+	return len > LEND && lentLength + len <= size / 4 && size - unlentSize <= unlentSize / 3;
+}
+
+/** A copy of the bytes from `from` up to `to` of the `len` at `ptr`, as `Uint8Array`'s `slice`. */
+function lentSlice(ptr: Addr, len: number, from?: number, to?: number): Uint8Array<ArrayBuffer> {
+	return mem().subarray(ptr, ptr + len).slice(from, to);
+}
+
+/** Bytes of `len` [lends] lent are freed. */
+function unlends(_len: number): void {}
+// #endregion web lends
+
 /** The frees the garbage collector makes of lent bytes never disposed: each owner and length. */
-const unlent = new FinalizationRegistry<[number, number]>(([owner, length]) => {
+const unlent = new FinalizationRegistry<[Addr, number]>(([owner, length]) => {
 	if (live()) ownerFree(owner, length);
 });
 
 /** Free the owner of `length` lent bytes, which frees Rust's buffer once it is the last. */
-function ownerFree(owner: number, length: number): void {
+function ownerFree(owner: Addr, length: number): void {
 	lentLength -= length;
+	unlends(length);
 	const m = enter();
-	const buf = alloc(12, 4);
-	const d = dv();
-	d.setUint32(buf, 0, true);
-	d.setUint32(buf + 4, 0, true);
-	d.setUint32(buf + 8, owner, true);
+	const buf = alloc(3 * WORD, WORD);
+	lenPut(buf, 0);
+	lenPut(buf + WORD, 0);
+	addrPut(buf + 2 * WORD, owner);
 	s.d++;
 	w[`${prefix}_buf_free`](buf);
 	s.d--;
@@ -980,8 +1064,8 @@ function ownerFree(owner: number, length: number): void {
 }
 
 // The private fields' accessors, which only the runtime holds.
-let bytesMade: (ptr: number, length: number, owner: number, copy: Uint8Array | undefined) => Bytes;
-let bytesRead: (b: Bytes, hold: boolean) => Uint8Array | [ptr: number, owner: number, length: number];
+let bytesMade: (ptr: Addr, length: number, owner: Addr, copy: Uint8Array | undefined) => Bytes;
+let bytesRead: (b: Bytes, hold: boolean) => Uint8Array | [ptr: Addr, owner: Addr, length: number];
 let bytesRelease: (b: Bytes) => void;
 let bytesEvict: (b: Bytes) => void;
 
@@ -997,9 +1081,9 @@ let bytesEvict: (b: Bytes) => void;
 export class Bytes {
 	// How many bytes it holds, private so that no caller's write reaches what Rust reads.
 	readonly #length: number;
-	// Rust's buffer and its owner, both 0 for a copy.
-	readonly #ptr: number;
-	readonly #owner: number;
+	// Rust's buffer and its owner, both null for a copy.
+	readonly #ptr: Addr;
+	readonly #owner: Addr;
 	readonly #copy: Uint8Array | undefined;
 	/** The owner's hold until disposed, and one for each call viewing Rust's buffer. */
 	#h = 1;
@@ -1007,13 +1091,13 @@ export class Bytes {
 	/** A lent one's slot in the nursery, or whether it registered once it left. */
 	#n = UNREGISTERED;
 
-	private constructor(key: symbol, ptr: number, length: number, owner: number, copy: Uint8Array | undefined) {
+	private constructor(key: symbol, ptr: Addr, length: number, owner: Addr, copy: Uint8Array | undefined) {
 		if (key !== minting) throw new TypeError("only Rust makes bytes it returned");
 		this.#ptr = ptr;
 		this.#length = length;
 		this.#owner = owner;
 		this.#copy = copy;
-		if (owner !== 0) {
+		if (owner !== NULL) {
 			lentLength += length;
 			this.#n = nurse(this);
 		}
@@ -1031,7 +1115,7 @@ export class Bytes {
 		if (this.#closed) throw new Error("Bytes is closed");
 		if (i < 0) i += this.#length;
 		if (i < 0 || i >= this.#length) return undefined;
-		return this.#copy !== undefined ? this.#copy[i] : mem()[this.#ptr + i];
+		return this.#copy !== undefined ? this.#copy[i] : lentByte(this.#ptr, i);
 	}
 
 	/** A copy of the bytes from `start` up to `end`, as `Uint8Array`'s `slice`. */
@@ -1044,8 +1128,8 @@ export class Bytes {
 		// any JavaScript: a hold keeps Rust's buffer until they return.
 		this.#h++;
 		try {
-			const all = this.#copy ?? mem().subarray(this.#ptr, this.#ptr + this.#length);
-			return all.slice(from, to) as Uint8Array<ArrayBuffer>;
+			if (this.#copy !== undefined) return this.#copy.slice(from, to) as Uint8Array<ArrayBuffer>;
+			return lentSlice(this.#ptr, this.#length, from, to);
 		} finally {
 			this.#release();
 		}
@@ -1064,7 +1148,7 @@ export class Bytes {
 	}
 
 	#release(): void {
-		if (--this.#h === 0 && this.#owner !== 0) {
+		if (--this.#h === 0 && this.#owner !== NULL) {
 			if (this.#n >= 0) nursery[this.#n] = undefined;
 			else if (this.#n === REGISTERED) unlent.unregister(this);
 			ownerFree(this.#owner, this.#length);
@@ -1098,19 +1182,9 @@ export class Bytes {
 
 /** The bytes of the buffer Rust returned at `p`: lent past [LEND] bytes, else copied and freed. */
 export function returnedBytes(p: number): Bytes {
-	const d = dv();
-	const ptr = d.getUint32(p, true);
-	const len = d.getUint32(p + 4, true);
-	// So that lent bytes a caller forgot to dispose, which the collector frees only once it
-	// runs for its own heap, make memory grow by no more than a third: they lend while their
-	// length stays under a quarter of memory, and while memory has grown by no more than a
-	// third since none were lent, which bounds what slices keep that their length does not.
-	const size = memory.buffer.byteLength;
-	if (lentLength === 0) unlentSize = size;
-	if (len > LEND && lentLength + len <= size / 4 && size - unlentSize <= unlentSize / 3) {
-		return bytesMade(ptr, len, d.getUint32(p + 8, true), undefined);
-	}
-	return bytesMade(0, len, 0, bytes_(p));
+	const len = lenGet(p + WORD);
+	if (lends(len)) return bytesMade(addrGet(p), len, addrGet(p + 2 * WORD), undefined);
+	return bytesMade(NULL, len, NULL, bytes_(p));
 }
 
 /** The text of the buffer Rust returned at `p`, which it frees. */
@@ -1123,7 +1197,7 @@ export function str(p: number): string {
 /** Rust's own copy of `text`, as `buf_copy` makes it, written at `dst`: what a closure returns. */
 export function copied(dst: number, text: string, message = false): void {
 	const m = top;
-	const view = alloc(12, 4);
+	const view = alloc(3 * WORD, WORD);
 	if (message) putBytes(view, encoder.encode(text));
 	else putStr(view, text);
 	s.d++;
@@ -1135,7 +1209,7 @@ export function copied(dst: number, text: string, message = false): void {
 /** Rust's own copy of `data`, as `buf_copy` makes it, written at `dst`. */
 export function copiedBytes(dst: number, data: Uint8Array): void {
 	const m = top;
-	const view = alloc(12, 4);
+	const view = alloc(3 * WORD, WORD);
 	putBytes(view, data);
 	s.d++;
 	w[`${prefix}_buf_copy`](dst, view);
@@ -1255,27 +1329,36 @@ const tokens = new Map<number, unknown>();
 const drops = new Map<number, () => void>();
 let token = 0;
 
+// #region web hooks
+/** Tell Rust how many tokens JavaScript holds, once that changes: the module has no other thread to call them. */
+function relayed(): void {}
+
+/** Tell the runtime whether a call into Rust pends, once that changes: the page lives on regardless. */
+function pends(_pending: boolean): void {}
+// #endregion web hooks
+
 /** A token for `value`, which Rust frees through `free`, calling `drop` then. */
 export function give(value: unknown, drop?: () => void): number {
 	const t = ++token;
 	tokens.set(t, value);
+	relayed();
 	if (drop) drops.set(t, drop);
 	return t;
 }
 
 /** Write at `p` the implementation `value` of a callback interface, which Rust calls through
  * `vtable` and closes once it drops it. */
-export function callbackPut(p: number, vtable: number, value: { close?(): void }): void {
+export function callbackPut(p: number, vtable: Addr, value: { close?(): void }): void {
 	const t = give(value, () => value.close?.());
-	const d = dv();
-	d.setUint32(p, vtable, true);
-	d.setUint32(p + 4, t, true);
+	addrPut(p, vtable);
+	lenPut(p + WORD, t);
 }
 
 /** A token for `value`, forgotten once the running call returns. */
 export function lend(value: unknown): number {
 	const t = ++token;
 	tokens.set(t, value);
+	relayed();
 	lent.push(t);
 	return t;
 }
@@ -1286,7 +1369,7 @@ export function find<T>(t: number): T {
 }
 
 /** The table index of each C function the runtime's values take, as `fns` gives them. */
-export const fn = { wake: 0, wakerDrop: 0, free: 0, poll: 0, read: 0, seek: 0 };
+export const fn: { wake: Addr; wakerDrop: Addr; free: Addr; poll: Addr; read: Addr; seek: Addr } = { wake: NULL, wakerDrop: NULL, free: NULL, poll: NULL, read: NULL, seek: NULL };
 
 /**
  * Run `f`, which JavaScript does for Rust inside a call, aborting the module on what it
@@ -1315,10 +1398,9 @@ function thrown(e: unknown): string {
 
 /** Write a waker of `t`'s wakes at `dst`. */
 function putWaker(dst: number, t: number): void {
-	const d = dv();
-	d.setUint32(dst, fn.wake, true);
-	d.setUint32(dst + 4, fn.wakerDrop, true);
-	d.setUint32(dst + 8, t, true);
+	addrPut(dst, fn.wake);
+	addrPut(dst + WORD, fn.wakerDrop);
+	lenPut(dst + 2 * WORD, t);
 }
 
 /** What each token's wake calls, and what dropping its last waker calls. */
@@ -1334,10 +1416,9 @@ export function wakerOf(dst: number, wake: () => void): void {
 
 /** A waker Rust returned at `p`, the caller's to wake through Rust and drop once. */
 export function wakerGet(p: number): Waker {
-	const d = dv();
-	const wake = d.getUint32(p, true);
-	const drop = d.getUint32(p + 4, true);
-	const data = d.getUint32(p + 8, true);
+	const wake = addrGet(p);
+	const drop = addrGet(p + WORD);
+	const data = addrGet(p + 2 * WORD);
 	let dropped = false;
 	const waker = {
 		wake() {
@@ -1363,7 +1444,7 @@ export function wakerGet(p: number): Waker {
 	return waker;
 }
 
-const wakers = new FinalizationRegistry<[number, number]>(([drop, data]) => {
+const wakers = new FinalizationRegistry<[Addr, Addr]>(([drop, data]) => {
 	if (!live()) return;
 	s.d++;
 	w[`${space}_call`](drop, data);
@@ -1371,11 +1452,11 @@ const wakers = new FinalizationRegistry<[number, number]>(([drop, data]) => {
 });
 
 /** A future JavaScript gave Rust: its promise's outcome, and the waker of Rust's last poll. */
-type Foreign = { done: boolean; failed: unknown; wake: number; drop: number; data: number; call?: Call<unknown> };
+type Foreign = { done: boolean; failed: unknown; wake: Addr; drop: Addr; data: Addr; call?: Call<unknown> };
 
 /** Write at `dst` the future Rust polls of `promise`, until it completes. */
 export function futureOf(dst: number, promise: Promise<unknown>): void {
-	const f: Foreign = { done: false, failed: undefined, wake: 0, drop: 0, data: 0 };
+	const f: Foreign = { done: false, failed: undefined, wake: NULL, drop: NULL, data: NULL };
 	if (calls.has(promise)) f.call = promise as Call<unknown>;
 	const t = give(f, () => {
 		f.done = true;
@@ -1386,10 +1467,9 @@ export function futureOf(dst: number, promise: Promise<unknown>): void {
 		() => settle(f, undefined),
 		(e) => settle(f, e ?? new Error("a future given to Rust rejected")),
 	);
-	const d = dv();
-	d.setUint32(dst, fn.poll, true);
-	d.setUint32(dst + 4, fn.free, true);
-	d.setUint32(dst + 8, t, true);
+	addrPut(dst, fn.poll);
+	addrPut(dst + WORD, fn.free);
+	lenPut(dst + 2 * WORD, t);
 }
 
 function settle(f: Foreign, failed: unknown): void {
@@ -1399,7 +1479,7 @@ function settle(f: Foreign, failed: unknown): void {
 	}
 	f.done = true;
 	const { wake, data } = f;
-	if (data === 0 || aborted !== undefined) return;
+	if (data === NULL || aborted !== undefined) return;
 	const m = enter();
 	s.d++;
 	w[`${space}_call`](wake, data);
@@ -1410,9 +1490,9 @@ function settle(f: Foreign, failed: unknown): void {
 
 /** Drop the waker `f` holds, if any. */
 function release(f: Foreign): void {
-	if (f.data === 0 || aborted !== undefined) return;
+	if (f.data === NULL || aborted !== undefined) return;
 	const { drop, data } = f;
-	f.data = 0;
+	f.data = NULL;
 	const m = enter();
 	s.d++;
 	w[`${space}_call`](drop, data);
@@ -1422,10 +1502,10 @@ function release(f: Foreign): void {
 
 /** Write at `dst` `reader`, lent to Rust for the running call. */
 export function readerOf(dst: number, reader: Reader): void {
-	const d = dv();
-	d.setUint32(dst, fn.read, true);
-	d.setUint32(dst + 4, fn.seek, true);
-	d.setUint32(dst + 8, lend(reader), true);
+	const t = lend(reader);
+	addrPut(dst, fn.read);
+	addrPut(dst + WORD, fn.seek);
+	lenPut(dst + 2 * WORD, t);
 }
 
 /** Write the error `e` a reader threw at `err`, as an `io::Error`'s message. */
@@ -1450,6 +1530,7 @@ function rust2(extra: Record<string, (...args: number[]) => unknown>): Record<st
 			out("a drop", () => {
 				const drop = drops.get(t);
 				tokens.delete(t);
+				relayed();
 				drops.delete(t);
 				drop?.();
 			});
@@ -1458,20 +1539,19 @@ function rust2(extra: Record<string, (...args: number[]) => unknown>): Record<st
 			return out("a future's poll", () => {
 				const f = find<Foreign>(t);
 				release(f);
-				const d = dv();
 				if (f.done) {
 					s.d++;
-					w[`${space}_call`](d.getUint32(waker + 4, true), d.getUint32(waker + 8, true));
+					w[`${space}_call`](addrGet(waker + WORD), addrGet(waker + 2 * WORD));
 					s.d--;
 					return 1;
 				}
-				f.wake = d.getUint32(waker, true);
-				f.drop = d.getUint32(waker + 4, true);
-				f.data = d.getUint32(waker + 8, true);
+				f.wake = addrGet(waker);
+				f.drop = addrGet(waker + WORD);
+				f.data = addrGet(waker + 2 * WORD);
 				return 0;
 			});
 		},
-		rust2_reader_read(t: number, buf: number, len: number, n: number, err: number): number {
+		rust2_reader_read(t: number, buf: Addr, len: number, n: number, err: number): number {
 			return out("a reader's read", () => {
 				const owned = new Uint8Array(len);
 				let got: number;
@@ -1480,8 +1560,8 @@ function rust2(extra: Record<string, (...args: number[]) => unknown>): Record<st
 				} catch (e) {
 					return readerError(err, e) ? 1 : 0;
 				}
-				if (Number.isInteger(got) && got > 0 && got <= len) mem().set(owned.subarray(0, got), buf);
-				dv().setUint32(n, got >>> 0 === got ? got : 0xffffffff, true);
+				if (Number.isInteger(got) && got > 0 && got <= len) lentWrite(buf, owned.subarray(0, got));
+				lenPut(n, got >>> 0 === got ? got : 0xffffffff);
 				return 1;
 			});
 		},
@@ -1537,7 +1617,7 @@ class Pending<T> {
 		let m = 0;
 		try {
 			m = enter();
-			const waker = alloc(12, 4);
+			const waker = alloc(3 * WORD, WORD);
 			putWaker(waker, this.t);
 			[done, value] = this.poll(this.f, waker);
 		} catch (e) {
@@ -1566,6 +1646,7 @@ class Pending<T> {
 		const f = this.f;
 		this.f = 0;
 		calls.delete(this.promise);
+		if (calls.size === 0) pends(false);
 		wakes.delete(this.t);
 		if (!live()) return;
 		const m = enter();
@@ -1599,6 +1680,7 @@ export function pending<T>(f: number, poll: (f: number, waker: number) => [boole
 	};
 	p.promise = promise;
 	calls.set(promise, p as Pending<unknown>);
+	if (calls.size === 1) pends(true);
 	p.t = ++token;
 	wakes.set(p.t, p.wake);
 	p.step();
@@ -1711,6 +1793,10 @@ let prefix = "";
 /** The namespace of the glue's C names. */
 let space = "";
 
+// #region web natives
+// #endregion web natives
+
+// #region web load
 const text = { out: "", err: "" };
 
 /** A line of what the module wrote to stdout or stderr, to `console.log` or `console.error`. */
@@ -1887,3 +1973,4 @@ async function instantiate(source: Source, glue: Glue): Promise<void> {
 		fn[name] = d.getUint32(p + 4 * i, true);
 	});
 }
+// #endregion web load

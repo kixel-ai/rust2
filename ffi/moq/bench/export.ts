@@ -4,7 +4,8 @@
 // and, on Node, the process's CPU time, its own threads included; a browser has no clock of
 // that, so it prints NaN. Its arguments are the module's path, which bench/browser.ts's page
 // serves in a browser, and on Node, moq/bench/codspeed-node.c's addon, under CodSpeed's CPU
-// simulation, which then counts one round.
+// simulation, which then counts one round. `just ffi bench` runs it over the Node binding's
+// addon too, its imports and load rewritten.
 
 import * as api from "./web/index.ts";
 import * as BroadcastInfo from "./web/BroadcastInfo.ts";

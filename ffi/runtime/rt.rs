@@ -1217,10 +1217,14 @@ impl Ticket {
 
 /// This thread's id for [`Object::borrow_local`]: the address of a thread local, which no
 /// other live thread shares and which is neither 0 nor a sentinel. A thread Dart's runtime
-/// hands a call to, while the thread it acts for waits, takes that thread's.
+/// hands a call to, as Node's addon does, while the thread it acts for waits, takes that thread's.
 pub fn thread() -> usize {
 	#[cfg(feature = "dart")]
 	if let Some(id) = crate::dart::acting() {
+		return id;
+	}
+	#[cfg(feature = "node")]
+	if let Some(id) = crate::node::acting() {
 		return id;
 	}
 	thread_local!(static ID: u8 = const { 0 });

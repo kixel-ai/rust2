@@ -5,7 +5,7 @@
 mbx caches a compilation that carries `-Zalways-encode-mir`, `-Zmir-opt-level=<n>`, or
 `-Zinline-mir=<bool>`, so a warm `rust2-ffi` export, native or web, is served every crate
 but the workspace's own, and the merge queue's mbx pin in
-`.github/workflows/queue-build.yml` is a release that does.
+`.github/workflows/build.yml` is a release that does.
 
 ## Plan
 

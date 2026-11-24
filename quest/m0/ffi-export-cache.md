@@ -15,8 +15,10 @@ the command lines a cache gets. mbx 1.30 still bypasses every target crate for t
 export's `-Z` flags, which [the mbx ask](/quest/m0/mbx-export-flags.md) closes, and serves
 only build scripts and proc macros (`bench/ffi/README.md`'s "The export's cache").
 
-Then, from the queue's `ffi` time before and after over its merge groups, and
-`bench/ffi/measure.py` with `mbx explain` on a second export from an emptied target:
+Then, from the queue's `ffi` time before and after over its merge groups, both on
+GitHub-hosted runners since [#991](https://github.com/kixel-ai/rust2/pull/991) moved the
+queue off the host's persistent mbx store, and `bench/ffi/measure.py` with `mbx explain` on
+a second export from an emptied target:
 
 - Both passes of the web export, the check and the walk of the glue crate, served from
   the cache, with std from the dev shell's MIR sysroot and from `-Zbuild-std`, or say why

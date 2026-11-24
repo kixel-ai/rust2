@@ -1,0 +1,114 @@
+name: Build
+
+# Checks and tests the modules a diff selects, on GitHub-hosted runners: ci.yml
+# calls it for every pull request into main and every push to it, and queue.yml
+# for each merge group. sh/dispatch.sh selects the modules, and this splits
+# them into jobs.
+on:
+  workflow_call:
+    inputs:
+      run:
+        description: Whether to build; false reports the jobs skipped, which satisfies a required check.
+        type: boolean
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  select:
+    name: Select
+    if: inputs.run
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      jobs: ${{ steps.select.outputs.jobs }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      # A module is its own job only where it is the critical path, which
+      # ffi and ts are; the cheap rest share one, since every job pays the dev
+      # shell's setup. Each job's id names its cache, so the shared job's
+      # differs with the modules it holds.
+      - id: select
+        env:
+          BASE: ${{ github.event.merge_group.base_sha || github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          : "${BASE:?no base commit for ${GITHUB_EVENT_NAME}}"
+          # A failed selection fails here; a pipe would hide it.
+          modules=$(sh/dispatch.sh ci "$BASE" --query)
+          jq -cRnr '
+            ["ffi", "ts"] as $own
+            | [inputs] as $modules
+            | [$modules - $own | select(length > 0) | {id: join("-"), modules: join(",")}]
+              + [$modules[] | select(IN($own[])) | {id: ., modules: .}]
+            | "jobs=\(.)"' <<<"$modules" >> "$GITHUB_OUTPUT"
+
+  module:
+    name: ${{ matrix.modules }}
+    needs: select
+    runs-on: ubuntu-24.04
+    # Below the queue's 90-minute response window, so a hung build reports
+    # before the group expires.
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJSON(needs.select.outputs.jobs) }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/nix
+      # mbx keys every compilation on its compiler, target, and inputs, and the
+      # bundle holds every target directory a job's builds use, the drivers'
+      # own included. The action saves only on a push to main, so a pull
+      # request or merge group reads main's latest bundle for its job and
+      # nothing unreviewed writes one. The generation names the job and the
+      # toolchains, since the dev shell's rustc is not on PATH yet.
+      # 1.29.2 is the floor: 1.28.0 prints no real paths for files in a build
+      # script's OUT_DIR (jdx/mr-boxington#896).
+      - uses: jdx/mr-boxington-action@b3ef673bd77c5426927fe8836c6185cdae04c2dd # v1.7.4
+        with:
+          version: 1.29.2
+          backend: github
+          github-cache-mode: objects
+          isolate-objects-cache: true
+          cache-generation: ${{ matrix.id }}-${{ hashFiles('rust-toolchain.toml', '*/rust-toolchain.toml') }}
+      # The shim is how mbx reaches Cargo; the action only puts `mbx` on PATH.
+      # flake.nix finds the shim through `mbx setup --status` and puts it ahead
+      # of the dev shell's pinned toolchain. The shim existing is the assertion:
+      # a setup that quietly did nothing would build cold and still pass.
+      - name: Cargo shim
+        run: |
+          mbx setup --yes
+          shim=$(mbx setup --status 2>/dev/null | sed -n '1s/.*: //p' || true)
+          if [ ! -e "$shim" ]; then
+            echo "::error::mbx setup installed no Cargo shim: $(mbx setup --status 2>&1)"
+            exit 1
+          fi
+      - name: Check and test ${{ matrix.modules }}
+        env:
+          MODULES: ${{ matrix.modules }}
+        run: nix develop --command sh/dispatch.sh ci "--only=$MODULES"
+
+  # The one context a ruleset requires, `<caller> / Build`, whatever jobs the
+  # selection made. It runs after a failed or cancelled job too, since a
+  # skipped required check passes.
+  build:
+    name: Build
+    needs: [select, module]
+    if: always() && inputs.run
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - env:
+          SELECT: ${{ needs.select.result }}
+          MODULE: ${{ needs.module.result }}
+        run: |
+          if [[ "$SELECT" != success || "$MODULE" != success ]]; then
+            echo "::error::select $SELECT, modules $MODULE" >&2
+            exit 1
+          fi

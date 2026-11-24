@@ -19,6 +19,17 @@ export let n: Record<string, (...args: any[]) => any> = new Proxy(
 	},
 );
 
+/** The index of the library's target among those the binding serves, once it is read. */
+let target: number | undefined;
+
+/** Throw unless the library's target is one of `targets`, as the item `what` is. */
+export function on(targets: readonly number[], what: string): void {
+	target ??= n.target() as number;
+	if (!targets.includes(target)) {
+		throw new Error(`${what}: the library's target lacks it`);
+	}
+}
+
 /** Text as UTF-8, and back, through the module, as Hermes has no `TextDecoder`. */
 const loose = { decode: (bytes: Uint8Array): string => n.$decode(bytes) as string };
 
@@ -52,6 +63,9 @@ export class Handle<T extends string = string> {
 // Before the class, whose static initializer sets them as it is defined.
 // Taken at load, before any caller's code can replace it.
 const U8 = Uint8Array;
+// `set`, which copies a typed array's bytes at once and runs no JavaScript, as `slice`'s
+// species lookup would.
+const setInto = Function.prototype.call.bind(U8.prototype.set) as (into: Uint8Array, from: Uint8Array) => void;
 
 /** A `slice` bound: `v` as an integer, from the end of `length` where negative, or `missing`. */
 function clamp(v: number | undefined, missing: number, length: number): number {
@@ -65,10 +79,10 @@ let bytesCopy: (b: object) => Uint8Array | undefined;
 
 /**
  * Bytes a call returns. `slice()` copies them into a `Uint8Array`, `at(i)` reads one, and
- * passed to a call that reads them or takes a `Bytes`, they cross with no copy. Past 64
- * bytes, they are Rust's own buffer, lent in place, which disposing frees, as `using` does,
- * or else the garbage collector; up to 64, a copy, which reads and disposes the same. A
- * read after disposing throws.
+ * passed to a call that reads them or takes a `Bytes`, they cross with no copy. Past 4 KiB,
+ * they are Rust's own buffer, lent in place, which disposing frees, as `using` does, or else
+ * the garbage collector; up to 4 KiB, a copy, which reads and disposes the same. A read
+ * after disposing throws.
  */
 export class Bytes {
 	// A copy's view, which the module copies again as a call reads it, so a write to it,
@@ -76,6 +90,7 @@ export class Bytes {
 	// React Native's Babel preset makes private fields properties any caller can find, and a
 	// view found would outlive the buffer's free, so the module reads it.
 	#view: Uint8Array | undefined;
+	#buffer: ArrayBuffer | undefined;
 	readonly #length: number;
 	readonly #lent: boolean;
 	#closed = false;
@@ -85,6 +100,7 @@ export class Bytes {
 	private constructor(key: symbol, buffer: ArrayBuffer | undefined, lent: boolean, length: number) {
 		if (key !== Bytes.#minting) throw new TypeError("only Rust makes bytes it returned");
 		this.#view = buffer === undefined ? undefined : new U8(buffer);
+		this.#buffer = buffer;
 		this.#length = length;
 		this.#lent = lent;
 	}
@@ -118,13 +134,12 @@ export class Bytes {
 		// Rust's buffer is checked open and copied in one native call, so no JavaScript a
 		// caller replaced, such as a getter or `Math`'s, runs between and frees it.
 		if (this.#lent) return n.$bytesSlice(this, from, to) as Uint8Array<ArrayBuffer>;
-		// A copy, of at most 64 bytes, read by index alone, which runs no JavaScript, so no
+		// A copy, copied again by `U8` and `set` alone, which run no JavaScript, so no
 		// caller's code sees the view.
 		this.#open();
-		const view = this.#view!;
 		const count = to - from;
 		const out = new U8(count);
-		for (let i = 0; i < count; i++) out[i] = view[from + i];
+		setInto(out, new U8(this.#buffer!, from, count));
 		return out;
 	}
 
@@ -138,6 +153,7 @@ export class Bytes {
 		if (this.#closed) return;
 		this.#closed = true;
 		this.#view = undefined;
+		this.#buffer = undefined;
 		if (this.#lent) n.$bytesFree(this);
 	}
 

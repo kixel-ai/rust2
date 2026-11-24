@@ -14,7 +14,8 @@ on the stand-in's API from Rust, and `moq-c.c` moq's hand-written rs/libmoq, whi
 has only the stamped write. `export.ts` runs on Node and, through `browser.ts`, in
 headless Chromium and Firefox, over a wasm32-wasip1 build of the stand-in
 ([TypeScript](#typescript)), and on Hermes through the React Native binding of the export
-([React Native](#react-native)). Each program runs its cases twice and prints the second,
+([React Native](#react-native)), and on Node through the Node binding's addon
+([Node-API](#node-api)). Each program runs its cases twice and prints the second,
 so a JIT has warmed up, in wall time and in the process's CPU time on every thread.
 `just ffi bench-run` runs each program once a round, records the 1-minute load average
 over each run, and [`report.py`](report.py) prints each case's median over the rounds
@@ -1205,22 +1206,31 @@ value a call makes in JavaScript, a record's object or a handle, adds hundreds m
 posts the read's next poll to the event loop, as a wake from another thread would, which
 costs the woken read 2.8 µs over the ready one.
 
-`frame.payload` is 0.7 µs up to 64 bytes, which it copies, and 1.4 to 1.5 µs of wall time
-past them, where it lends Rust's buffer as an `ArrayBuffer` whose native state frees it,
-2.2 µs of CPU with the collector's finalizing. That is the web's threshold, where a lend
-saves a copy; on Hermes a 100-byte lend costs 0.7 µs more wall time than a 64-byte copy, and
-[a quest](/quest/m3/react-native-bytes.md) finds where it starts to pay.
+`frame.payload` copies the bytes up to 4 KiB, and past them lends Rust's buffer, whose
+native state frees it, with an `at` and a dispose that are each a host call. Measured
+2026-11-23 on **fedora**, an AMD Ryzen 9 9950X (32 threads), at rust2 `779cf315` plus this
+change, moq `1aa86d5e`, 3 rounds at a load average of 6 to 18, by the host built with the
+module forced to copy every size, and to lend every size, wall ns per call: the benchmark's
+`frame.payload` with a byte read, then the same with `slice()` in its place, then with the
+bytes written back to Rust in a frame, as a relay does.
 
-| bytes | ns per call, CPU | wall |
-|---|---|---|
-| 16 B | 697 | 702 |
-| 64 B | 730 | 732 |
-| 100 B | 1,915 | 1,452 |
-| 1 KiB | 1,863 | 1,410 |
-| 16 KiB | 2,072 | 1,541 |
-| 64 KiB | 1,880 | 1,421 |
-| 256 KiB | 2,722 | 1,894 |
-| 1 MiB | 867 | 867 |
+| bytes | read a byte, copy / lend | `slice()`, copy / lend | written back, copy / lend |
+|---|---|---|---|
+| 256 B | 784 / 1,089 | 1,032 / 1,529 | 1,968 / 2,320 |
+| 1 KiB | 875 / 1,095 | 1,255 / 1,606 | 1,956 / 1,924 |
+| 2 KiB | 952 / 1,107 | 1,147 / 2,264 | 2,225 / 2,071 |
+| 4 KiB | 1,057 / 1,050 | 1,342 / 1,967 | 2,616 / 2,361 |
+| 8 KiB | 1,426 / 1,359 | 1,510 / 2,268 | 3,342 / 2,809 |
+| 16 KiB | 1,977 / 996 | 1,621 / 2,920 | 4,640 / 3,377 |
+
+A read of a byte breaks even at 4 KiB in wall time, and in CPU time between 8 and 16 KiB,
+since the lend's CPU counts the collector finalizing its native state: 1,052 against 1,212
+ns at 4 KiB. A copy's `slice()` is one `set` in the engine, still the cheaper at 16 KiB; a
+loop by index, as it was, took 78 µs at 4 KiB. A copy written back costs Rust a second copy,
+so a relay's lend pays from 2 KiB, by 10% at 4 KiB. The threshold is 4 KiB, where the byte
+read the benchmark times breaks even. Past it a lend saves the copy, 150 µs at 1 MiB, where
+each copy's allocation faults its pages in. The benchmark's own 100 B `frame.payload`, lent in the table above, is a copy
+since: 723 ns of wall time and 721 of CPU in the same rounds, against 930 and 1,037 lent.
 
 The binding's generated files, as [Size](#size) counts them, at the same revision, beside
 C's header of the same export (2,483 KiB raw, 315 KiB gzipped):
@@ -1231,6 +1241,77 @@ C's header of the same export (2,483 KiB raw, 315 KiB gzipped):
 | the JSI module and TurboModule, C++ | 4 | 4,666 KiB | 270 KiB |
 | the package's podspec, CMake list, iOS loader, and manifests | 5 | 3 KiB | 2 KiB |
 | all | 591 | 7,416 KiB | 1,113 KiB |
+
+## Node-API
+
+The `ts-addon` column runs `export.ts` on Node over the Node binding of the export: the
+web's TypeScript, its imports and load rewritten, over the Node-API addon the export's
+library builds with `--features node`, beside the `ts-node` column's wasm32 stand-in on
+the same Node, so the two differ by what each crossing costs.
+
+Measured 2026-11-23 on **fedora**, an AMD Ryzen 9 9950X (32 threads), at this column's
+branch, moq `1aa86d5e`, 3 rounds each, alternating, at a load average of 20 to 33. Node
+24.22.2, the export's default `release` profile. CPU ns per call, medians:
+
+| call | Node, wasm32 | Node, Node-API |
+|---|---|---|
+| `track.is_closed()`, a handle call | 64 | 89 |
+| `demand.start()`, a u64 getter | 58 | 77 |
+| `track.largest()`, a record return | 71 | 108 |
+| `track.info()`, an object return | 140 | 196 |
+| `group.write_frame(at, frame)`, 100 B | 331 | 302 |
+| the same, with a new `Timestamp` each | 492 | 499 |
+| a 100 B frame written and read, ready | 1,082 | 1,043 |
+| the same, read after a wake | 1,967 | 2,650 |
+| one reader and writer, with their handoff | 2,543 | 2,448 |
+| `frame.payload`, 100 B | 225 | 285 |
+
+| frame, MB per CPU second | Node, wasm32 | Node, Node-API |
+|---|---|---|
+| 100 B | 64 | 80 |
+| 1 KiB | 666 | 707 |
+| 16 KiB | 5,953 | 6,718 |
+| 64 KiB | 9,903 | 10,197 |
+| 1 MiB | 10,206 | 9,138 |
+
+A leaf call costs 19 to 56 ns more through the addon: V8 compiles a call into wasm inline
+with the JavaScript, while a Node-API function's call reads its arguments through
+`napi_get_cb_info` and a call per argument. Where Rust does more, as in a write or a read,
+the two land within 10%, and the addon moves more bytes up to 64 KiB. A wake calls back
+into JavaScript through `napi_call_function`, where the module calls an import, which costs
+the woken read 0.7 µs more.
+
+Every number here is a call made while JavaScript holds no token Rust may call through
+from another thread, as `export.ts` holds none. While it holds one, as moq's session does
+through `Waiter.new$`'s closure, every call runs on the addon's worker thread while
+JavaScript's serves what Rust queues, a handoff and a wait each way. On the api fixture's
+release addon, a leaf call (`dropped()`) took 43 ns without a token and 2,400 to 2,560 ns
+of wall time, 1,980 to 2,060 ns of CPU, while a `Logger` held one: 3 rounds of 2 million
+calls on **fedora** at a load average of 27, 2026-11-24. Dart's binding waits the same way.
+[Node's lowering](/quest/m3/node-lowering.md) owns the cost.
+
+`frame.payload` up to 64 bytes copies through the scratch memory, one native call of
+numbers alone, 237 to 259 ns; a copy into a new `Uint8Array`, a call reading the array's
+place, cost about 560 in an earlier run. Past them it lends Rust's buffer, 275 to 357 ns at
+any length, telling V8 of the bytes held and freed, two calls more.
+
+| bytes | Node, wasm32 | Node, Node-API |
+|---|---|---|
+| 16 B | 198 | 259 |
+| 64 B | 181 | 237 |
+| 100 B | 221 | 287 |
+| 1 KiB | 183 | 276 |
+| 16 KiB | 177 | 286 |
+| 64 KiB | 181 | 277 |
+| 256 KiB | 179 | 357 |
+| 1 MiB | 183 | 275 |
+
+The binding's TypeScript is the web's, 582 modules of 4,953 KiB raw and 1,081 KiB gzipped,
+and its Rust glue 3,420 KiB raw and 187 KiB gzipped. In `libmoq.so` it adds 5,412 KiB,
+stripped, to the Kotlin and Dart glue's 40,443 KiB: 3.1 MiB of native functions, one for
+each of 6,593 C functions, and the call each makes.
+`just ffi bench` builds the generated crate, and times its build, with that glue too, which
+the build and size rows above predate.
 
 ## Consumer release profile
 

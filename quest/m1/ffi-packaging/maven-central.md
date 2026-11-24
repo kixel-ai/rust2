@@ -20,23 +20,37 @@ As checked that day, `publish` holds `MAVEN_CENTRAL_USERNAME`, `MAVEN_CENTRAL_PA
 policy admits only the tags `libmoq-v*`, `moq-boy-v*`, `moq-cli-v*`, `moq-ffi-v*`,
 `moq-gst-v*`, and `moq-relay-v*`, and the branch `release`.
 
-So the template's `maven` job takes moq's names: `environment: publish`, and the signing key
-and passphrase from `SIGNING_KEY` and `SIGNING_PASSWORD` instead of `MAVEN_SIGNING_KEY` and
-`MAVEN_SIGNING_PASSPHRASE`, with the header comment saying so. Recommended over mapping
-the names in each consumer's copy, since a consumer's edit is a gap under the configless
-rule. The key is the ASCII-armored one moq's Gradle plugin reads in memory, which the
-job's `gpg --import` takes as it is.
+The template's `maven` job takes moq's names (`environment: publish`, `SIGNING_KEY`,
+`SIGNING_PASSWORD`) and runs `ffi/release/central.sh publish`, rust2's script at the builder's
+pin, which `central.sh validate` shares: it uploads with `publishingType=USER_MANAGED`,
+waits for `VALIDATED`, and drops the deployment, failing if the drop fails. rust2's test of
+moq's stand-in builds it under `dev.moq`, so its `moq-ffi-maven` artifact,
+`dev.moq:moq-ffi:0.0.0` at the exporter's moq pin, is the bundle Central validates.
 
-Check without publishing: upload the signed bundle with `publishingType=USER_MANAGED`, wait
-for `VALIDATED` from `POST /api/v1/publisher/status`, and drop it with
-`DELETE /api/v1/publisher/deployment/<id>`, from a `workflow_dispatch` run on moq's
-`release` branch, the one ref the policy admits that publishes nothing by being pushed.
-A `moq-ffi-v*` tag is wrong for it: pushing one starts moq's `release-shared-ffi.yml`, a real
-release of every `moq-ffi` package, and moq's `release tags` ruleset guards those tags. In
-the template the `maven` job needs `tag`, which skips off a tag, so the run needs a path of
-its own: a dispatched job that validates and drops instead of publishing. A dispatch reads
-its workflow from the ref it runs on, and `release` diverges from moq's `main`, so the
-workflow reaches it through a PR into `release`, which moq's `release-gate.yml` checks.
-GitHub offers a `workflow_dispatch` workflow only once its file is on the default branch,
-so the same file lands on moq's `main` first; the run then dispatches the `release` copy.
-Build the stand-in's `dev.moq:moq-ffi` at its pin. A failed validation is a builder fix here.
+moq's **Central check** workflow (`.github/workflows/central-check.yml`, through
+`just gh central-check`) takes the ID of a finished kixel-ai/rust2 run on rust2's `main`,
+refusing any other so only reviewed code sees the signing key, downloads its
+`moq-ffi-maven`, and runs `central.sh validate` from that run's commit in the `publish`
+environment. It runs only on `release`, the one ref the environment admits that publishes
+nothing by being pushed; GitHub offers a dispatch only for a workflow on the default branch,
+so [moq-dev/moq#9519](https://github.com/moq-dev/moq/pull/9519) landed it on `main` and
+[moq-dev/moq#9520](https://github.com/moq-dev/moq/pull/9520) on `release`. Never push a
+`moq-ffi-v*` tag for it: that starts moq's real release of every `moq-ffi` package.
+
+Dispatch it, which `publish` lets an agent do as it requires no reviewer:
+`gh workflow run central-check.yml -R moq-dev/moq --ref release -f run=<id>`, with `<id>` a
+finished Nightly, or a dispatched Check, on rust2's `main` since
+[#990](https://github.com/kixel-ai/rust2/pull/990) landed `central.sh` and the `dev.moq`
+stand-in. A failed validation is a builder fix here. Delete moq's workflow once moq releases
+its Kotlin library through rust2's builder.
+
+Decided 2026-11-24 (maintainer, /quest-run): ✅ land moq-dev/moq#9519 into `main` and
+moq-dev/moq#9520 into `release` (rejected: holding them). Both landed on 2026-11-24.
+
+## Waiting
+
+- kixel-ai/rust2: a Nightly, or a dispatched Check, finishes on `main` after
+  [#990](https://github.com/kixel-ai/rust2/pull/990) lands. Check:
+  `gh run list -R kixel-ai/rust2 --branch main --status success` lists one newer than #990's
+  merge. Then an agent dispatches `central-check.yml` on moq's `release` with that run's ID,
+  as above.

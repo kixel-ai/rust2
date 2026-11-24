@@ -24,6 +24,13 @@
 
 #include "api.h"
 
+/* A constant only some of the header's targets have is defined only where it compiles for
+ * one: a 64-bit host has `WORD`, and only wasm32 `WASM_PAGE`. */
+_Static_assert(API_WORD == SIZE_MAX, "API_WORD is a 64-bit target's largest size_t");
+#ifdef API_WASM_PAGE
+#error "API_WASM_PAGE is wasm32's alone"
+#endif
+
 static api_buf str(const char *s) {
 	return (api_buf){.ptr = (const uint8_t *)s, .len = strlen(s)};
 }

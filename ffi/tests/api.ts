@@ -838,8 +838,10 @@ function unclosedWaker(wake: () => void): void {
 }
 
 /** The binding's target's items are each here: wasm32's for the web, a native target's
- * for React Native, whose binding serves those alone. */
+ * for React Native and Node, whose bindings serve those alone. */
 function targets(): void {
+	const labelled = api.sameLabelled({ tag: "Tagged", tag$: 7 });
+	check(Labelled.debug(labelled) === "Tagged { tag: 7 }", "a variant's field named `tag` crosses as Rust reads it");
 	const platform = api.platform();
 	if (platform.tag === "Native") {
 		check(platform._0 === 64 && api.pointerBits(platform) === 64, "a 64-bit target's variant crosses");
@@ -847,18 +849,19 @@ function targets(): void {
 		check(api.isFamily("Native"), "a native target's plain variant crosses");
 		return;
 	}
+	// #region wasm32, which Node's check cuts, as its binding serves native targets alone
 	check(api.pointerBits(platform) === 32, "wasm32's variant crosses");
 	check(api.placement().tag === "Anywhere", "a variant wasm32 lacks is left out with its record");
-	const labelled = api.sameLabelled({ tag: "Tagged", tag$: 7 });
-	check(Labelled.debug(labelled) === "Tagged { tag: 7 }", "a variant's field named `tag` crosses as Rust reads it");
 	check(api.pointerBits({ tag: "Native", _0: 64 }) === 64, "the native variant crosses too");
 	check(api.isFamily("Wasm") && !api.isFamily("Native"), "wasm32's plain variant crosses");
 	check(api.wasmOnly() === 32, "an item only wasm32 has");
+	check(api.WASM_PAGE === 65536, "a constant only wasm32 has");
 	const taken = api.wasmTake(Counter.new("t", 5));
 	check(taken.ok && taken.value === 5, "an item only wasm32 has takes a counter");
 	const log = new CountLog();
 	api.wasmLog(log);
 	check(log.lines === 1 && log.closes === 1, "an item only wasm32 has takes an implementation");
+	// #endregion wasm32
 }
 
 /** Each call taking a closed object throws, however it was closed, and moves nothing. */
@@ -1011,20 +1014,24 @@ async function closedCall(f: () => Promise<unknown>, type: string, what: string)
 	check(false, what);
 }
 
-/** Bytes a call returns up to 64 are a copy, Rust's freed at the call; past that they lend
+/** Bytes a call returns up to 64, or 4 KiB on React Native, are a copy, Rust's freed at the call; past that they lend
  * Rust's buffer, freed once disposed and no call views it, or by the garbage collector, and
  * passed back to Rust they share it. Either reads the same, and refuses a read once disposed. */
 export async function lent(): Promise<void> {
 	// React Native's Babel preset compiles its modules sloppy, where a write to a getter does
-	// nothing; the web's are strict, where it throws.
-	const sloppy = api.platform().tag === "Native";
+	// nothing; the web's and Node's are strict, where it throws. Only its runtime has natives
+	// of its own.
+	const sloppy = "n" in rt;
+	// The most bytes a copy holds, which Hermes copies as cheaply as it lends.
+	const most = sloppy ? 4096 : 64;
+	const lends = 2 * most;
 	let before = api.dropped();
-	const small = api.tokenBytes(1, 64);
-	check(api.dropped() === ++before, "64 bytes are copied and Rust's freed at the call");
-	check(small.length === 64 && [...small].every((b) => b === 1), "copied bytes read back");
+	const small = api.tokenBytes(1, most);
+	check(api.dropped() === ++before, `${most} bytes are copied and Rust's freed at the call`);
+	check(small.length === most && [...small].every((b) => b === 1), "copied bytes read back");
 	close(small);
 	closed(() => small.at(0), "Bytes", "disposed copied bytes refuse a read");
-	for (const n of [65, 65537]) {
+	for (const n of [most + 1, 65537]) {
 		const big = api.tokenBytes(2, n);
 		check(api.dropped() === before, `${n} bytes lend Rust's buffer`);
 		const copy = big.slice();
@@ -1043,14 +1050,14 @@ export async function lent(): Promise<void> {
 	// Disposed while a read converts its index, lent bytes refuse the read rather than read
 	// what Rust freed.
 	for (const read of [(b: rt.Bytes, i: number) => b.at(i), (b: rt.Bytes, i: number) => b.slice(i)]) {
-		const disposing = api.tokenBytes(7, 100);
+		const disposing = api.tokenBytes(7, lends);
 		const index = { valueOf: () => (close(disposing), 0) } as unknown as number;
 		closed(() => read(disposing, index), "Bytes", "lent bytes disposed as a read's index converts refuse it");
 		check(api.dropped() === ++before, "lent bytes disposed as a read's index converts are freed");
 	}
 	// Disposed as `slice` makes its result through `Symbol.species`, lent bytes stay Rust's
 	// until it returns, and are freed then.
-	const sliced = api.tokenBytes(8, 100);
+	const sliced = api.tokenBytes(8, lends);
 	let freedEarly = false;
 	Object.defineProperty(Uint8Array, Symbol.species, {
 		configurable: true,
@@ -1066,7 +1073,7 @@ export async function lent(): Promise<void> {
 	} finally {
 		delete (Uint8Array as unknown as Record<symbol, unknown>)[Symbol.species];
 	}
-	check(!freedEarly && copied.length === 100 && copied.every((b) => b === 8), "lent bytes disposed as a slice makes its result read whole");
+	check(!freedEarly && copied.length === lends && copied.every((b) => b === 8), "lent bytes disposed as a slice makes its result read whole");
 	// Where the engine's `slice` reads no `Symbol.species`, as Hermes's does not, only here.
 	close(sliced);
 	check(api.dropped() === ++before, "lent bytes disposed as a slice makes its result are freed once it returns");
@@ -1082,10 +1089,25 @@ export async function lent(): Promise<void> {
 	check(got.length === 65537 && got.at(0) === 5 && got.at(-1) === 5, "lent bytes sent read back");
 	close(got);
 	check(api.dropped() === ++before, "the last owner of lent bytes frees them");
+	// `slice` takes its indices as a Uint8Array's: truncated, from the end where negative,
+	// clamped to the bytes, and empty where they cross.
+	const pattern = Uint8Array.from({ length: lends }, (_, i) => i);
+	Channel.send(channel, pattern);
+	// Past the most a copy holds, lent.
+	const patterned = await within(Channel.recv(channel), "a receive of a pattern");
+	for (const [from, to] of [
+		[undefined, undefined], [10, 20], [-10, undefined], [-2 * lends, 5], [lends - 10, 2 * lends], [30, 10],
+		[NaN, 3], [2.9, 7.1], [-Infinity, Infinity], [Infinity, undefined], [-1, -1], [0, 5 - lends],
+	] as const) {
+		const want = pattern.slice(from, to);
+		const got = patterned.slice(from, to);
+		check(got.length === want.length && got.every((b, i) => b === want[i]), `lent bytes slice(${from}, ${to}) as a Uint8Array's`);
+	}
+	close(patterned);
 	close(channel);
 	// A later argument's getters never run, so a Proxy that would dispose bytes the call
 	// already views is refused, and the call's hold on them is let go.
-	const viewed = api.tokenBytes(6, 100);
+	const viewed = api.tokenBytes(6, lends);
 	const prefix = new Proxy(enc("ab"), {
 		get(target, key) {
 			if (key === "length") close(viewed);
@@ -1097,19 +1119,19 @@ export async function lent(): Promise<void> {
 	close(viewed);
 	check(api.dropped() === ++before, "bytes lent to a call that fails are freed once disposed");
 	// A Bytes' length is its own: no caller's write or definition changes what Rust reads.
-	const fixed = api.tokenBytes(11, 100);
+	const fixed = api.tokenBytes(11, lends);
 	const write = () => {
 		(fixed as { length: number }).length = 1 << 20;
 	};
 	if (sloppy) write();
 	else throws(write, TypeError, "a Bytes' length is read-only");
-	check(fixed.length === 100, "a Bytes' length is read-only");
+	check(fixed.length === lends, "a Bytes' length is read-only");
 	Object.defineProperty(fixed, "length", { value: 1 << 20 });
-	check(api.len(fixed) === 100 && fixed.slice().length === 100, "a Bytes' length shadowed reaches no read");
+	check(api.len(fixed) === lends && fixed.slice().length === lends, "a Bytes' length shadowed reaches no read");
 	close(fixed);
 	check(api.dropped() === ++before, "bytes whose length was shadowed are freed whole");
 	// Nor are bytes a call takes by value, which Rust would get a second owner of.
-	const given = api.tokenBytes(10, 100);
+	const given = api.tokenBytes(10, lends);
 	const high = new Proxy(enc("bc"), {
 		get(target, key) {
 			if (key === "length") close(given);
@@ -1121,24 +1143,24 @@ export async function lent(): Promise<void> {
 	close(given);
 	check(api.dropped() === ++before, "bytes given to a call that fails are freed once disposed");
 	// Bytes a call returned pass as an optional borrowed argument too.
-	const optional = api.tokenBytes(8, 100);
+	const optional = api.tokenBytes(8, lends);
 	const suffixed = api.prefixed(enc("cd"), optional).slice();
-	check(suffixed.length === 102 && suffixed.subarray(0, 100).every((b) => b === 8) && text(suffixed.subarray(100)) === "cd", "returned bytes pass as an optional argument");
+	check(suffixed.length === lends + 2 && suffixed.subarray(0, lends).every((b) => b === 8) && text(suffixed.subarray(lends)) === "cd", "returned bytes pass as an optional argument");
 	close(optional);
 	check(api.dropped() === ++before, "returned bytes passed as an optional argument stay the caller's");
 	// The garbage collector frees lent bytes nobody disposed, left in the nursery with no
 	// return after them, or pushed out by later ones.
-	unclosedBytes();
+	unclosedBytes(lends);
 	await collect(() => api.dropped() > before, "the garbage collector frees lent bytes nobody disposed");
 	await settle();
 	check(api.dropped() === ++before, "the garbage collector frees lent bytes once");
-	unclosedBytes();
+	unclosedBytes(lends);
 	fill();
 	await collect(() => api.dropped() > before, "the garbage collector frees lent bytes later returns pushed out");
 	await settle();
 	check(api.dropped() === ++before, "the garbage collector frees lent bytes pushed out once");
 	// Disposed after later returns pushed them out undisposed, which registered them.
-	disposedLateBytes();
+	disposedLateBytes(lends);
 	check(api.dropped() === ++before, "disposing lent bytes pushed out of the nursery frees them at once");
 	await settle();
 	check(api.dropped() === before, "the garbage collector frees nothing disposed after a push out");
@@ -1180,15 +1202,15 @@ function memoryLending(): void {
 }
 
 /** Lent bytes disposed once later returns pushed them out, which nothing reaches after. */
-function disposedLateBytes(): void {
-	const pushed = api.tokenBytes(2, 100);
+function disposedLateBytes(length: number): void {
+	const pushed = api.tokenBytes(2, length);
 	fill();
 	close(pushed);
 }
 
 /** Lent bytes, left for the garbage collector. */
-function unclosedBytes(): void {
-	api.tokenBytes(8, 1000);
+function unclosedBytes(length: number): void {
+	api.tokenBytes(8, length);
 }
 
 /** Values at the edges of what Rust takes and returns, and each value Rust's type lacks,
@@ -1245,11 +1267,12 @@ export function bounds(): void {
 		throws(() => api.sameDuration({ secs: 0, nanos }), RangeError, `${nanos} nanoseconds`);
 	}
 
-	// A path is its bytes, which a string may not hold.
-	const stray = { bytes: bytes(0xff) };
+	// A path is its bytes, which a string may not hold: here WTF-8's lone surrogate, not
+	// UTF-8, which a Unix, WASI, and Windows path each hold.
+	const stray = { bytes: bytes(0xed, 0xa0, 0x80) };
 	const back = api.samePath(stray);
-	check(back.bytes.length === 1 && back.bytes[0] === 0xff, "a path that is not UTF-8");
-	check(rt.pathText(back) === "�", "a path's text replaces what is not UTF-8");
+	check(back.bytes.length === 3 && [...back.bytes].every((b, i) => b === stray.bytes[i]), "a path that is not UTF-8");
+	check(rt.pathText(back) === "\ufffd\ufffd\ufffd", "a path's text replaces what is not UTF-8");
 	check(rt.pathText(rt.pathFrom("a/é")) === "a/é", "a UTF-8 path as text");
 	// Each invalid lead or broken sequence is replaced as Rust's `from_utf8_lossy` does: by
 	// one U+FFFD for its longest valid prefix, never consuming the byte after it.
