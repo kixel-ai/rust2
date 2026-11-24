@@ -369,8 +369,9 @@ holding exactly the files it would upload, and anyone with the commit can check 
   archive, Dart library, and Kotlin library, the Go module's included, matches byte for
   byte; the Maven job builds its repository a second time from a copy of the export a level
   deeper, which must match too, and the web job builds its npm tarball from the second checkout; rust2
-  turns it on for its api fixture. It doubles the build, so a large crate may leave it to a
-  nightly.
+  turns it on for its api fixture. It doubles the build and shares the same 120-minute
+  build-job cap as ordinary runs, including in nightlies. Use it only when both builds
+  fit that cap; slow legs of a large crate can be cancelled before comparison.
 
 **Attestations and SBOM.** `package.py build` writes `sbom.cdx.json`, a CycloneDX SBOM of
 the crates the binding links (normal dependencies, platform-neutral, with each registry

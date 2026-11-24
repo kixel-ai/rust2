@@ -176,9 +176,9 @@ ZIP_EPOCH = backend.ZIP_EPOCH
 # and dlltool names a Windows GNU library's import symbols after one target directory, from any checkout.
 LINK = Path("C:/rust2-ffi") if sys.platform == "win32" else Path("/tmp/rust2-ffi")
 # The target directory of a wheel target's builds made with the wheels' floor and flags:
-# both wheels', the Dart and JVM libraries', and off Apple the C library's. They share every
-# dependency, so cargo builds those once and then each its generated crate, which a build
-# relinks, under its features, after the one before has taken its library.
+# both wheels', the Dart and JVM libraries', and off Apple the C library's. They reuse
+# dependencies with matching features and flags; cargo rebuilds those that differ and
+# relinks each generated crate after the previous build has taken its library.
 WHEELS_DIR = "target-python"
 # The target the web binding serves, whose module the npm and JSR packages hold.
 WEB_TARGET = "wasm32-wasip1"
