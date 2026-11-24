@@ -11,7 +11,8 @@ const TERMINATION: &str = "Program termination";
 /// The prefix of a dump a client request asked for.
 const REQUEST: &str = "Client Request: ";
 
-/// The prefix of the dump CodSpeed's hooks write to name their integration.
+/// The prefix of the dump CodSpeed's hooks write to name their integration, so reserved: a
+/// benchmark cannot be told from it by name.
 const METADATA: &str = "Metadata: ";
 
 /// Each benchmark one Callgrind profile measured, by name, with its instruction count (`Ir`).

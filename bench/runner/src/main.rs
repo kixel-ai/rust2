@@ -188,15 +188,34 @@ pub struct Counts {
 /// The Valgrind every count and the fingerprint's probe run under: Callgrind, counting only
 /// what the hooks bracket, following each exec, so a program a shell or `just` execs is
 /// measured, and leaving the exit code the program's.
-fn valgrind() -> Command {
-	let mut command = Command::new("valgrind");
+fn valgrind() -> Result<Command, String> {
+	let mut command = Command::new(valgrind_path()?);
 	command.args([
 		"--tool=callgrind",
 		"--instr-atstart=no",
 		"--trace-children=yes",
 		"--dump-line=no",
 	]);
-	command
+	Ok(command)
+}
+
+/// Valgrind on rust2-bench's own `PATH`, found once, so the fingerprint and every count run
+/// the same one even when a job's environment sets another `PATH`.
+pub fn valgrind_path() -> Result<&'static Path, String> {
+	static PATH: std::sync::OnceLock<Result<PathBuf, String>> = std::sync::OnceLock::new();
+	PATH.get_or_init(|| {
+		use std::os::unix::fs::PermissionsExt;
+		let path = std::env::var_os("PATH").unwrap_or_default();
+		std::env::split_paths(&path)
+			.map(|dir| dir.join("valgrind"))
+			.find(|file| {
+				file.metadata()
+					.is_ok_and(|m| m.is_file() && m.permissions().mode() & 0o111 != 0)
+			})
+			.ok_or_else(|| "valgrind is not on PATH".to_owned())
+	})
+	.as_deref()
+	.map_err(Clone::clone)
 }
 
 /// Counts the benchmarks in `dir`: builds them, then runs each job under Valgrind. When
@@ -242,8 +261,7 @@ fn measure(dir: &Path, options: &Options, strict: bool) -> Result<Counts, String
 		// whichever it holds.
 		jobs.retain(|job| job.expect.as_ref().is_none_or(|name| wanted.contains(name)));
 	}
-	let work = dir.join("target/rust2-bench/jobs");
-	let mut counts = run(jobs, &work, options.jobs)?;
+	let mut counts = run(jobs, &work(dir)?, options.jobs)?;
 	if let Some(wanted) = &options.benchmarks {
 		if strict {
 			missing(wanted, |name| counts.contains_key(name))?;
@@ -274,12 +292,28 @@ fn shell(command: &str, dir: &Path) -> Command {
 	sh
 }
 
-/// Runs each job under Valgrind, `parallel` at once, each in a directory of its own under
-/// `work`, and gathers what they measured. Any failure fails the whole.
-fn run(jobs: Vec<Job>, work: &Path, parallel: usize) -> Result<BTreeMap<String, u64>, String> {
-	if work.exists() {
-		std::fs::remove_dir_all(work).map_err(|e| format!("cannot empty {}: {e}", work.display()))?;
+/// A new directory for one run's jobs in the tree at `dir`, apart from any other run's, so
+/// two runs in one tree never read each other's profiles.
+fn work(dir: &Path) -> Result<PathBuf, String> {
+	let parent = dir.join("target/rust2-bench");
+	std::fs::create_dir_all(&parent).map_err(|e| format!("cannot create {}: {e}", parent.display()))?;
+	let pid = std::process::id();
+	for n in 0.. {
+		let work = parent.join(format!("jobs-{pid}-{n}"));
+		match std::fs::create_dir(&work) {
+			Ok(()) => return Ok(work),
+			// Left by an earlier process of the same id that failed.
+			Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => {}
+			Err(e) => return Err(format!("cannot create {}: {e}", work.display())),
+		}
 	}
+	unreachable!("some name is free")
+}
+
+/// Runs each job under Valgrind, `parallel` at once, each in a directory of its own under
+/// `work`, and gathers what they measured. Any failure fails the whole and keeps `work` for
+/// its output; success removes it.
+fn run(jobs: Vec<Job>, work: &Path, parallel: usize) -> Result<BTreeMap<String, u64>, String> {
 	let total = jobs.len();
 	let queue = Mutex::new(jobs.into_iter().enumerate());
 	let done = AtomicUsize::new(0);
@@ -336,6 +370,7 @@ fn run(jobs: Vec<Job>, work: &Path, parallel: usize) -> Result<BTreeMap<String, 
 	if !errors.is_empty() {
 		return Err(errors.join("\n"));
 	}
+	std::fs::remove_dir_all(work).map_err(|e| format!("cannot remove {}: {e}", work.display()))?;
 	Ok(counts)
 }
 
@@ -349,7 +384,7 @@ fn one(job: Job, dir: &Path) -> Measured {
 	let file = |name: &str| {
 		std::fs::File::create(dir.join(name)).map_err(|e| format!("cannot create {}: {e}", dir.join(name).display()))
 	};
-	let mut valgrind = valgrind();
+	let mut valgrind = valgrind()?;
 	valgrind
 		.arg(format!("--callgrind-out-file={}/callgrind.%p", dir.display()))
 		.arg(format!("--log-file={}/valgrind.%p.log", dir.display()))

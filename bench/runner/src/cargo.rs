@@ -32,7 +32,8 @@ struct Target {
 }
 
 /// How Cargo launches a benchmark target: its directory and its whole environment, with
-/// `[env]`, `CARGO_MANIFEST_DIR`, and the library path Cargo sets.
+/// `[env]`, `CARGO_MANIFEST_DIR`, and the library path Cargo sets. Its arguments are always
+/// Cargo's own `--bench`, which CodSpeed's harness does not take, so they are left out.
 #[derive(Clone)]
 struct Launch {
 	dir: PathBuf,
@@ -54,7 +55,9 @@ impl Launch {
 /// Runs as `cargo bench`'s runner: records the target it is handed, as JSON in the directory
 /// `CAPTURE_DIR` names, and exits without running it.
 pub fn capture(args: &[String]) -> Result<(), String> {
-	let executable = args.first().ok_or("the capturing runner takes the target to launch")?;
+	let (executable, args) = args
+		.split_first()
+		.ok_or("the capturing runner takes the target to launch")?;
 	let out = std::env::var_os(CAPTURE_DIR).ok_or(format!("the capturing runner needs {CAPTURE_DIR}"))?;
 	let dir = std::env::current_dir().map_err(|e| format!("cannot read the working directory: {e}"))?;
 	let mut env = serde_json::Map::new();
@@ -68,6 +71,7 @@ pub fn capture(args: &[String]) -> Result<(), String> {
 	}
 	let launch = serde_json::json!({
 		"executable": executable,
+		"args": args,
 		"dir": dir.to_str().ok_or("the target's directory is not UTF-8")?,
 		"env": env,
 	});
@@ -132,6 +136,15 @@ fn launches(dir: &Path) -> Result<BTreeMap<PathBuf, Launch>, String> {
 				))
 			})
 			.collect::<Result<_, String>>()?;
+		// Arguments after `cargo bench`'s `--` would choose what a harness runs, but CodSpeed's
+		// takes none beyond a filter, which `--benchmarks` stands in for.
+		if value["args"] != serde_json::json!(["--bench"]) {
+			return Err(format!(
+				"cargo passed the benchmark targets {}: rust2-bench takes no arguments for them after cargo's --; \
+				 name benchmarks with --benchmarks",
+				value["args"]
+			));
+		}
 		launches.insert(
 			field("executable")?,
 			Launch {
@@ -231,16 +244,33 @@ fn workspace_root(dir: &Path, args: &[String]) -> Result<PathBuf, String> {
 		.to_owned())
 }
 
-/// Where Cargo's configuration sets rustflags, if anywhere: its environment, a `--config`
-/// among `args`, or a config file it reads from `dir` up, or from Cargo's home, following
+/// A setting [`configured`] looks for.
+#[derive(Clone, Copy)]
+enum Key<'a> {
+	/// Rustflags, anywhere Cargo takes them.
+	Rustflags,
+	/// A runner for one of these target triples. A `cfg(...)` runner needs no look: Cargo
+	/// refuses it beside rust2-bench's own before running anything.
+	Runner(&'a [String]),
+}
+
+/// Where Cargo's configuration sets `key`, if anywhere: its environment `env`, a `--config`
+/// among `args`, or the config file it reads from `dir` up, or from Cargo's home, following
 /// each file's `include`s.
-fn configured_rustflags(dir: &Path, args: &[String]) -> Result<Option<String>, String> {
-	for (key, _) in std::env::vars_os() {
-		let key = key.to_string_lossy();
-		if key == "CARGO_BUILD_RUSTFLAGS"
-			|| ((key.starts_with("CARGO_TARGET_") || key.starts_with("CARGO_HOST_")) && key.ends_with("_RUSTFLAGS"))
-		{
-			return Ok(Some(format!("the environment's {key}")));
+fn configured(dir: &Path, args: &[String], env: &BTreeMap<String, String>, key: Key) -> Result<Option<String>, String> {
+	for name in env.keys() {
+		let found = match key {
+			Key::Rustflags => {
+				name == "CARGO_BUILD_RUSTFLAGS"
+					|| ((name.starts_with("CARGO_TARGET_") || name.starts_with("CARGO_HOST_"))
+						&& name.ends_with("_RUSTFLAGS"))
+			}
+			Key::Runner(triples) => triples.iter().any(|triple| {
+				*name == format!("CARGO_TARGET_{}_RUNNER", triple.to_uppercase().replace(['-', '.'], "_"))
+			}),
+		};
+		if found {
+			return Ok(Some(format!("the environment's {name}")));
 		}
 	}
 	let dir = dir
@@ -262,37 +292,41 @@ fn configured_rustflags(dir: &Path, args: &[String]) -> Result<Option<String>, S
 		// Cargo reads a relative path from its own directory, which is `dir`.
 		let path = dir.join(config);
 		let found = if path.is_file() {
-			config_file(&path, &mut Vec::new())?
+			config_file(&path, key, &mut Vec::new())?
 		} else {
 			let table: toml::Table = config
 				.parse()
 				.map_err(|e| format!("cannot parse --config {config}: {e}"))?;
-			config_table(&table, &dir, &format!("--config {config}"), &mut Vec::new())?
+			config_table(&table, key, &dir, &format!("--config {config}"), &mut Vec::new())?
 		};
 		if found.is_some() {
 			return Ok(found);
 		}
 	}
-	let home = std::env::var_os("CARGO_HOME")
+	let home = env
+		.get("CARGO_HOME")
 		.map(PathBuf::from)
-		.or_else(|| std::env::var_os("HOME").map(|home| Path::new(&home).join(".cargo")));
+		.or_else(|| env.get("HOME").map(|home| Path::new(home).join(".cargo")));
 	let dirs = dir.ancestors().map(|dir| dir.join(".cargo")).chain(home);
 	for cargo in dirs {
-		for name in ["config.toml", "config"] {
-			let path = cargo.join(name);
-			if path.is_file()
-				&& let Some(found) = config_file(&path, &mut Vec::new())?
-			{
-				return Ok(Some(found));
-			}
+		// Where both are, Cargo reads `config` alone.
+		let Some(path) = ["config", "config.toml"]
+			.into_iter()
+			.map(|name| cargo.join(name))
+			.find(|path| path.is_file())
+		else {
+			continue;
+		};
+		if let Some(found) = config_file(&path, key, &mut Vec::new())? {
+			return Ok(Some(found));
 		}
 	}
 	Ok(None)
 }
 
-/// Where the config file at `path`, or one it includes, sets rustflags, if anywhere.
+/// Where the config file at `path`, or one it includes, sets `key`, if anywhere.
 /// `including` holds the files whose includes led here, so a cycle fails instead of recursing.
-fn config_file(path: &Path, including: &mut Vec<PathBuf>) -> Result<Option<String>, String> {
+fn config_file(path: &Path, key: Key, including: &mut Vec<PathBuf>) -> Result<Option<String>, String> {
 	let canonical = path
 		.canonicalize()
 		.map_err(|e| format!("cannot resolve {}: {e}", path.display()))?;
@@ -305,30 +339,43 @@ fn config_file(path: &Path, including: &mut Vec<PathBuf>) -> Result<Option<Strin
 		.map_err(|e| format!("cannot parse {}: {e}", path.display()))?;
 	let base = path.parent().expect("a config file has a directory");
 	including.push(canonical);
-	let found = config_table(&table, base, &path.display().to_string(), including);
+	let found = config_table(&table, key, base, &path.display().to_string(), including);
 	including.pop();
 	found
 }
 
-/// Where one config table, from `source`, sets rustflags, if anywhere, reading the files it
+/// Where one config table, from `source`, sets `key`, if anywhere, reading the files it
 /// includes relative to `base`.
 fn config_table(
 	table: &toml::Table,
+	key: Key,
 	base: &Path,
 	source: &str,
 	including: &mut Vec<PathBuf>,
 ) -> Result<Option<String>, String> {
-	let build = table.get("build").and_then(|build| build.get("rustflags")).is_some();
-	// `target.<triple>.rustflags`, and the unstable host config's `host.rustflags` and
-	// `host.<triple>.rustflags`.
-	let per = |name: &str| {
-		table
-			.get(name)
-			.and_then(toml::Value::as_table)
-			.is_some_and(|tables| tables.values().any(|table| table.get("rustflags").is_some()))
+	let found = match key {
+		Key::Rustflags => {
+			let build = table.get("build").and_then(|build| build.get("rustflags")).is_some();
+			// `target.<triple>.rustflags`, and the unstable host config's `host.rustflags` and
+			// `host.<triple>.rustflags`.
+			let per = |name: &str| {
+				table
+					.get(name)
+					.and_then(toml::Value::as_table)
+					.is_some_and(|tables| tables.values().any(|table| table.get("rustflags").is_some()))
+			};
+			let host = table.get("host").and_then(|host| host.get("rustflags")).is_some();
+			build || host || per("target") || per("host")
+		}
+		Key::Runner(triples) => triples.iter().any(|triple| {
+			table
+				.get("target")
+				.and_then(|target| target.get(triple))
+				.and_then(|target| target.get("runner"))
+				.is_some()
+		}),
 	};
-	let host = table.get("host").and_then(|host| host.get("rustflags")).is_some();
-	if build || host || per("target") || per("host") {
+	if found {
 		return Ok(Some(source.to_owned()));
 	}
 	// `include` is a path, or an array of paths or of tables with a `path`.
@@ -349,12 +396,47 @@ fn config_table(
 		let path = base.join(path);
 		// An optional include may be absent; Cargo itself fails a required one.
 		if path.is_file()
-			&& let Some(found) = config_file(&path, including)?
+			&& let Some(found) = config_file(&path, key, including)?
 		{
 			return Ok(Some(found));
 		}
 	}
 	Ok(None)
+}
+
+/// The target triples a build of `args` in `dir` runs benchmarks for: each `--target` among
+/// them, or else rustc's host.
+fn triples(dir: &Path, args: &[String]) -> Result<Vec<String>, String> {
+	let mut triples = Vec::new();
+	let mut rest = args.iter();
+	while let Some(arg) = rest.next() {
+		if arg == "--" {
+			break;
+		}
+		if arg == "--target" {
+			triples.extend(rest.next().cloned());
+		} else if let Some(triple) = arg.strip_prefix("--target=") {
+			triples.push(triple.to_owned());
+		}
+	}
+	if !triples.is_empty() {
+		return Ok(triples);
+	}
+	let rustc = std::env::var_os("RUSTC").unwrap_or("rustc".into());
+	let out = Command::new(rustc)
+		.arg("-vV")
+		.current_dir(dir)
+		.stderr(Stdio::inherit())
+		.output()
+		.map_err(|e| format!("cannot run rustc: {e}"))?;
+	if !out.status.success() {
+		return Err(format!("rustc -vV failed ({})", out.status));
+	}
+	let host = String::from_utf8_lossy(&out.stdout)
+		.lines()
+		.find_map(|line| line.strip_prefix("host: ").map(str::to_owned))
+		.ok_or("rustc -vV names no host")?;
+	Ok(vec![host])
 }
 
 /// The manifest Cargo args select, when they name one.
@@ -382,6 +464,16 @@ fn build(dir: &Path, args: &[String]) -> Result<Vec<(Target, Launch)>, String> {
 	let exe = exe.to_str().ok_or("rust2-bench's own path is not UTF-8")?;
 	// A launch's environment holds whatever secrets the caller exported, so it goes to a
 	// directory only this user can read, removed once read.
+	let env: BTreeMap<String, String> = std::env::vars_os()
+		.map(|(key, value)| (key.to_string_lossy().into_owned(), value.to_string_lossy().into_owned()))
+		.collect();
+	// Cargo would run a runner a config sets for the triple instead of rust2-bench's, so one
+	// is refused before anything builds or runs.
+	if let Some(source) = configured(dir, args, &env, Key::Runner(&triples(dir, args)?))? {
+		return Err(format!(
+			"{source} sets a runner, which would run the benchmarks in place of rust2-bench's own"
+		));
+	}
 	let captures = Captures::create()?;
 	let captures = captures.0.as_path();
 	let runner = format!(
@@ -410,7 +502,7 @@ fn build(dir: &Path, args: &[String]) -> Result<Vec<(Target, Launch)>, String> {
 	} else if let Ok(flags) = std::env::var("RUSTFLAGS") {
 		cargo.env("RUSTFLAGS", format!("{flags} {CFG}"));
 	} else {
-		if let Some(source) = configured_rustflags(dir, args)? {
+		if let Some(source) = configured(dir, args, &env, Key::Rustflags)? {
 			return Err(format!(
 				"{source} sets rustflags, which the cfg CodSpeed's crates take would replace or be replaced by: \
 				 set RUSTFLAGS to the flags the build needs, and rust2-bench adds the cfg to them"
@@ -534,12 +626,18 @@ mod tests {
 	}
 
 	#[test]
-	fn finds_rustflags_a_config_file_sets() {
+	fn finds_where_a_config_sets_rustflags_or_a_runner() {
 		let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("target/configured-rustflags");
+		let _ = std::fs::remove_dir_all(&root);
 		let inner = root.join("ws/crate");
 		std::fs::create_dir_all(&inner).unwrap();
 		std::fs::create_dir_all(root.join(".cargo")).unwrap();
 		let config = root.join(".cargo/config.toml");
+		// A Cargo home of its own, so this host's configuration never reaches the lookup.
+		let home = root.join("home");
+		std::fs::create_dir_all(&home).unwrap();
+		let env = BTreeMap::from([("CARGO_HOME".to_owned(), home.to_str().unwrap().to_owned())]);
+		let configured_rustflags = |dir: &Path, args: &[String]| configured(dir, args, &env, Key::Rustflags);
 		for (text, sets) in [
 			("[build]\nrustflags = \"--cfg=foo\"\n", true),
 			("[build]\nrustflags = [\"--cfg=foo\"]\n", true),
@@ -556,12 +654,7 @@ mod tests {
 			// Found through the canonical path, as target/ may be a link.
 			let config = config.canonicalize().unwrap();
 			let found = configured_rustflags(&inner, &[]).unwrap();
-			// Cargo's home may set its own, which this host's tests cannot rule out.
-			if sets {
-				assert_eq!(found.as_deref(), Some(config.to_str().unwrap()), "{text}");
-			} else {
-				assert_ne!(found.as_deref(), Some(config.to_str().unwrap()), "{text}");
-			}
+			assert_eq!(found.as_deref(), sets.then_some(config.to_str().unwrap()), "{text}");
 		}
 		let args = |list: &[&str]| list.iter().map(|s| (*s).to_owned()).collect::<Vec<_>>();
 		std::fs::remove_file(&config).unwrap();
@@ -590,6 +683,53 @@ mod tests {
 		assert_eq!(found, flags);
 		std::fs::remove_file(inner.join("extra.toml")).unwrap();
 		std::fs::remove_file(&flags).unwrap();
+
+		// Where both files are, Cargo reads `config` alone.
+		let legacy = root.join(".cargo/config");
+		std::fs::write(&legacy, "[build]\njobs = 4\n").unwrap();
+		std::fs::write(&config, "[build]\nrustflags = []\n").unwrap();
+		assert_eq!(configured_rustflags(&inner, &[]).unwrap(), None);
+		std::fs::write(&legacy, "[build]\nrustflags = []\n").unwrap();
+		let legacy = legacy.canonicalize().unwrap();
+		let found = configured_rustflags(&inner, &[]).unwrap();
+		assert_eq!(found.as_deref(), Some(legacy.to_str().unwrap()));
+		std::fs::remove_file(&legacy).unwrap();
+		std::fs::remove_file(&config).unwrap();
+
+		// Cargo's home is read last.
+		std::fs::write(home.join("config.toml"), "[build]\nrustflags = []\n").unwrap();
+		let found = configured_rustflags(&inner, &[]).unwrap();
+		assert!(found.unwrap().ends_with("home/config.toml"));
+		std::fs::remove_file(home.join("config.toml")).unwrap();
+
+		// The environment's keys.
+		for key in [
+			"CARGO_BUILD_RUSTFLAGS",
+			"CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUSTFLAGS",
+		] {
+			let env = BTreeMap::from([(key.to_owned(), String::new())]);
+			let found = configured(&inner, &[], &env, Key::Rustflags).unwrap();
+			assert_eq!(found, Some(format!("the environment's {key}")));
+		}
+
+		// A runner for the triple, but not one for another.
+		let triple = ["x86_64-unknown-linux-gnu".to_owned()];
+		let runner = |env: &BTreeMap<String, String>| configured(&inner, &[], env, Key::Runner(&triple)).unwrap();
+		std::fs::write(
+			&config,
+			"[target.x86_64-unknown-linux-gnu]\nrunner = \"wrap\"\n[target.wasm32-unknown-unknown]\nrunner = \"w\"\n",
+		)
+		.unwrap();
+		assert_eq!(
+			runner(&env).as_deref(),
+			Some(config.canonicalize().unwrap().to_str().unwrap())
+		);
+		std::fs::write(&config, "[target.wasm32-unknown-unknown]\nrunner = \"w\"\n").unwrap();
+		assert_eq!(runner(&env), None);
+		let key = "CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUNNER";
+		let found = runner(&BTreeMap::from([(key.to_owned(), "wrap".to_owned())]));
+		assert_eq!(found, Some(format!("the environment's {key}")));
+		std::fs::remove_file(&config).unwrap();
 
 		// An include cycle is refused rather than followed forever.
 		std::fs::write(&config, "include = \"config.toml\"\n").unwrap();

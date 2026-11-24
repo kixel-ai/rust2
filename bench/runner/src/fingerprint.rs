@@ -29,9 +29,12 @@ impl Fingerprint {
 				"{arch} is not supported: only x86_64's CPU, as Valgrind presents it, is fingerprinted"
 			));
 		}
-		let version = output(Command::new("valgrind").arg("--version"), "valgrind --version")?;
+		let version = output(
+			Command::new(crate::valgrind_path()?).arg("--version"),
+			"valgrind --version",
+		)?;
 		let exe = std::env::current_exe().map_err(|e| format!("cannot locate rust2-bench itself: {e}"))?;
-		let mut probe = crate::valgrind();
+		let mut probe = crate::valgrind()?;
 		probe.arg("--callgrind-out-file=/dev/null").arg(exe).arg(crate::PROBE);
 		let cpu = output(&mut probe, "the CPU probe under Valgrind")?;
 		Ok(Self {

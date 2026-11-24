@@ -21,6 +21,12 @@ pub fn compare(base: &str, options: &Options) -> Result<(), String> {
 		.canonicalize()
 		.map_err(|e| format!("cannot resolve {}: {e}", top.display()))?;
 	let tree = base_tree(&real)?;
+	// Another compare of this repository shares the base's worktree, so it waits until this
+	// one has counted the base rather than check out another commit under it.
+	let lock = tree.with_extension("lock");
+	let lock = std::fs::File::create(&lock).map_err(|e| format!("cannot create {}: {e}", lock.display()))?;
+	lock.lock()
+		.map_err(|e| format!("cannot lock the base's worktree: {e}"))?;
 	checkout(&top, &tree, &sha)?;
 	eprintln!(
 		"rust2-bench: counting {base} ({}) in {}",
@@ -31,6 +37,7 @@ pub fn compare(base: &str, options: &Options) -> Result<(), String> {
 	base.cargo = rebase(&options.cargo, &real, &tree)?;
 	// A wanted benchmark may be new at the head or gone from it, but must be on one side.
 	let before = measure(&tree.join(&prefix), &base, false)?;
+	drop(lock);
 	eprintln!("rust2-bench: counting the working tree");
 	let after = measure(Path::new("."), options, false)?;
 	if let Some(wanted) = &options.benchmarks {
@@ -66,7 +73,9 @@ fn base_tree(top: &Path) -> Result<PathBuf, String> {
 	let mut hash = Fnv::default();
 	hash.write(&top.to_string_lossy());
 	let name = top.file_name().map_or("repo".into(), |name| name.to_string_lossy());
-	Ok(cache.join(format!("rust2-bench/{name}-{:012x}", hash.0 >> 16)))
+	let parent = cache.join("rust2-bench");
+	std::fs::create_dir_all(&parent).map_err(|e| format!("cannot create {}: {e}", parent.display()))?;
+	Ok(parent.join(format!("{name}-{:012x}", hash.0 >> 16)))
 }
 
 /// `args` for the base's worktree: an absolute `--manifest-path` in the repository at `top`
@@ -115,8 +124,6 @@ fn rebase(args: &[String], top: &Path, tree: &Path) -> Result<Vec<String>, Strin
 /// Checks `sha` out at `tree`, a detached worktree of the repository at `top` kept between
 /// compares, so its build products stay warm for the next.
 fn checkout(top: &Path, tree: &Path, sha: &str) -> Result<(), String> {
-	let parent = tree.parent().expect("the base's worktree has a parent");
-	std::fs::create_dir_all(parent).map_err(|e| format!("cannot create {}: {e}", parent.display()))?;
 	let path = tree.to_str().ok_or("the base's worktree path is not UTF-8")?;
 	if tree.join(".git").exists() {
 		git(tree, &["checkout", "--quiet", "--detach", "--force", sha])?;
@@ -169,9 +176,11 @@ fn table(before: &Counts, after: &Counts) -> Result<String, String> {
 			(Some(_), None) => "removed".to_owned(),
 			(None, None) => unreachable!("every name comes from one side"),
 		};
+		// A `|` in a name would split its cell.
+		let shown = name.replace('|', "\\|");
 		writeln!(
 			out,
-			"| {name} | {} | {} | {change} |",
+			"| {shown} | {} | {} | {change} |",
 			cell(&before.counts, name),
 			cell(&after.counts, name)
 		)

@@ -57,10 +57,9 @@ fn fixture() {
 /// rust2-bench, run in `dir` with `args`, counting the fixture as its one program.
 fn bench(dir: &Path, benches: &str, args: &[&str]) -> Output {
 	let me = std::env::current_exe().unwrap();
-	let program = format!(
-		"{FIXTURE}={benches} {} --exact fixture --ignored --test-threads=1 -q",
-		me.display()
-	);
+	// Quoted for the shell, which may otherwise split the path.
+	let me = me.to_str().unwrap().replace('\'', r"'\''");
+	let program = format!("{FIXTURE}={benches} '{me}' --exact fixture --ignored --test-threads=1 -q");
 	Command::new(env!("CARGO_BIN_EXE_rust2-bench"))
 		.arg("run")
 		.args(["--program", &program])

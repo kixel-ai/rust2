@@ -31,8 +31,11 @@ It builds them with `cargo bench`, with itself as the targets' runner, which rec
 launches each target, its directory and whole environment (`[env]`, `CARGO_MANIFEST_DIR`,
 the library path), instead of running it; every listing and count launches the target the
 same way. Those records live in a directory only the user can read, removed once read. A
-runner a config or the environment sets fails the run, as does an `[env]` that sets
-`GLIBC_TUNABLES`, which the fingerprint reads from the environment.
+runner a config or the environment sets for the build's target fails the run before anything
+builds, as does, once built, an `[env]` that sets `GLIBC_TUNABLES`, which the fingerprint
+reads from the environment, and an argument for the targets after Cargo's own `--`, which
+CodSpeed's harness takes none of: `--benchmarks` chooses benchmarks. Every count, like the
+fingerprint, runs the Valgrind on rust2-bench's own `PATH`, whatever `PATH` a target gets.
 
 Elsewhere, the programs `--program` names, each a shell command whose program brackets its
 benchmarks with CodSpeed's [instrument hooks](https://github.com/CodSpeedHQ/instrument-hooks)
@@ -50,10 +53,14 @@ one name, a job that fails, and a name `--benchmarks` lists that no benchmark ha
 bisect step never reads a suspect it could not count as clean. `compare` fails on such a
 name only when neither side has it, since a change may add or remove a benchmark. A program's benchmarks all
 run even when `--benchmarks` names only some; a Cargo benchmark runs only when named.
+A dump named `Metadata: ...` is the hooks' own description of their integration, never a
+benchmark, so no benchmark may take a name with that prefix: it would go uncounted.
 
 The instrument hooks' `ADD_DESC` after each benchmark, a request only CodSpeed's Valgrind
 fork knows, leaves an `unknown callgrind client request` warning in the job's Valgrind log,
-under `target/rust2-bench/jobs`, beside its profiles and output.
+under `target/rust2-bench/jobs-*`, beside its profiles and output. Each run takes a directory of
+its own there, so runs in one tree never read each other's profiles, and removes it when it
+succeeds; a failed run keeps it and names it.
 
 ## Fingerprints
 
@@ -85,6 +92,8 @@ Markdown table of each benchmark's base, head, and change. It refuses two finger
 with no benchmark at all, as a base before the first, counts as none. An
 absolute `--manifest-path` in the repository counts the same manifest in the base's worktree,
 and one outside it is refused, since both sides would count it.
+Another compare of the same repository waits, on a lock beside the worktree, until this one
+has counted its base.
 
 ## Output
 
