@@ -5,6 +5,8 @@
 // other threads, which the web's module has none of.
 
 import * as api from "./node/index.ts";
+// A second copy of the binding, as its `.js` beside its `.ts` would be.
+import * as copy from "./copy/index.ts";
 import * as check from "./api.ts";
 import * as rt from "./node/rt.ts";
 import * as Channel from "./node/Channel.ts";
@@ -152,6 +154,11 @@ async function main(): Promise<void> {
 		(e: unknown) => (e instanceof Error ? e.message : String(e)),
 	);
 	ok(message === "index.ts: the addon is loaded already", "a second load");
+	const copied = await copy.load("node/api.node").then(
+		() => "",
+		(e: unknown) => (e instanceof Error ? e.message : String(e)),
+	);
+	ok(copied.includes("by another copy of its binding"), `a second copy's load: ${copied}`);
 	const which = process.argv[2];
 	switch (which) {
 		case undefined:

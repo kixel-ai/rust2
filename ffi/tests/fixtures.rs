@@ -3103,6 +3103,7 @@ fn node_dir() -> &'static Path {
 			.args(["--features", "node"])
 			.env("RUSTFLAGS", "-D warnings"));
 		step::mirror(&api.out.join("node"), &dir.join("node"));
+		step::mirror(&api.out.join("node"), &dir.join("copy"));
 		// The library cargo builds, which Node loads by its name.
 		step::copy(
 			&target.join("debug").join(PYTHON_LIB),

@@ -31,6 +31,7 @@ type Ref = *mut c_void;
 type Tsfn = *mut c_void;
 type Status = i32;
 type CallJs = unsafe extern "C" fn(Env, Value, *mut c_void, *mut c_void);
+type Finalize = unsafe extern "C" fn(Env, *mut c_void, *mut c_void);
 
 /// What the addon calls of Node-API, each found by name in the process.
 struct Api {
@@ -69,7 +70,7 @@ struct Api {
 		usize,
 		usize,
 		*mut c_void,
-		*const c_void,
+		Option<Finalize>,
 		*mut c_void,
 		Option<CallJs>,
 		*mut Tsfn,
@@ -92,11 +93,12 @@ unsafe extern "C" {
 	fn dlsym(handle: *mut c_void, symbol: *const c_char) -> *mut c_void;
 }
 
-/// The handle `dlsym` searches every loaded object by.
-#[cfg(all(unix, target_vendor = "apple"))]
-const RTLD_DEFAULT: *mut c_void = -2isize as *mut c_void;
-#[cfg(all(unix, not(target_vendor = "apple")))]
+/// The handle `dlsym` searches every loaded object by: null on Linux, and -2 on the BSDs,
+/// macOS, and Solaris's family, where null searches only from the caller.
+#[cfg(any(target_os = "linux", target_os = "android"))]
 const RTLD_DEFAULT: *mut c_void = null_mut();
+#[cfg(all(unix, not(any(target_os = "linux", target_os = "android"))))]
+const RTLD_DEFAULT: *mut c_void = -2isize as *mut c_void;
 
 #[cfg(windows)]
 #[link(name = "kernel32")]
@@ -830,7 +832,10 @@ struct Home {
 	/// Whether JavaScript refused to run what is queued, as its environment is torn down:
 	/// nothing queued then or later runs.
 	exited: AtomicBool,
+	/// The thread-safe function, null once Node frees it as the environment is torn down.
 	tsfn: AtomicPtr<c_void>,
+	/// Held across a call of `tsfn` and while it is nulled, so no call reaches it freed.
+	telling: Mutex<()>,
 }
 
 static HOME: Home = Home {
@@ -839,6 +844,7 @@ static HOME: Home = Home {
 	told: AtomicBool::new(false),
 	exited: AtomicBool::new(false),
 	tsfn: AtomicPtr::new(null_mut()),
+	telling: Mutex::new(()),
 };
 
 impl Home {
@@ -860,10 +866,12 @@ impl Home {
 		if self.told.swap(true, Ordering::SeqCst) {
 			return true;
 		}
-		let tsfn = self.tsfn.load(Ordering::Acquire);
-		// SAFETY: the thread-safe function lives until the environment is torn down, after
-		// which a call fails.
-		let told = !tsfn.is_null() && unsafe { (api().call_threadsafe_function)(tsfn, null_mut(), 0) } == 0;
+		let told = {
+			let _telling = self.telling.lock().unwrap_or_else(|e| e.into_inner());
+			let tsfn = self.tsfn.load(Ordering::Acquire);
+			// SAFETY: `on_freed` nulls it, under the same lock, before Node frees it.
+			!tsfn.is_null() && unsafe { (api().call_threadsafe_function)(tsfn, null_mut(), 0) } == 0
+		};
 		if !told {
 			self.exit();
 		}
@@ -1165,10 +1173,22 @@ impl Job {
 	}
 }
 
+/// The thread-safe function's finalizer, as the environment is torn down and before Node frees
+/// it: no thread calls it after, and what is queued then or later is abandoned.
+unsafe extern "C" fn on_freed(_: Env, _: *mut c_void, _: *mut c_void) {
+	{
+		let _telling = HOME.telling.lock().unwrap_or_else(|e| e.into_inner());
+		HOME.tsfn.store(null_mut(), Ordering::Release);
+	}
+	HOME.exit();
+}
+
 /// The event loop's run of what other threads queued, as the thread-safe function calls it.
 unsafe extern "C" fn on_loop(env: Env, _: Value, _: *mut c_void, _: *mut c_void) {
-	// A null environment is the function's teardown, with nothing left to run.
+	// A null environment is the environment's teardown: what is queued never runs, so each
+	// call waiting on it is told it was abandoned.
 	if env.is_null() {
+		HOME.exit();
 		return;
 	}
 	HOME.told.store(false, Ordering::Release);
@@ -1309,13 +1329,23 @@ pub fn call<R>(what: &str, f: impl FnOnce(&mut Out) -> R) -> R {
 
 // The natives `rt.ts` calls.
 
+/// Whether a copy of the binding took the addon's imports.
+static INITIALIZED: AtomicBool = AtomicBool::new(false);
+
 /// `$init(imports)`: take the imports, each by its name, and give the scratch memory.
 unsafe extern "C" fn native_init(env: Env, info: Info) -> Value {
 	// SAFETY: a call from JavaScript, on its thread.
 	unsafe {
 		let cx = Cx::<1>::new(env, info);
+		// Node caches a module's exports, so a second copy of the binding, such as its `.js`
+		// beside its `.ts`, reaches the same addon without registering it again: its imports
+		// would replace those the first's tokens name.
+		if INITIALIZED.swap(true, Ordering::AcqRel) {
+			let message = c"the addon is loaded already, by another copy of its binding: import one copy";
+			(api().throw_error)(env, null(), message.as_ptr());
+			return null_mut();
+		}
 		let imports = IMPORTS.get();
-		imports.clear();
 		for name in RUNTIME_IMPORTS.iter().chain(EXTERNS.get().copied().unwrap_or_default()) {
 			let mut f = null_mut();
 			ok((api().get_named_property)(env, cx.argv[0], name.as_ptr(), &mut f), "an import");
@@ -1538,7 +1568,19 @@ pub unsafe fn register(env: Env, exports: Value, calls: &[(&CStr, Callback)], ex
 		ok((api.create_string_utf8)(env, label.as_ptr(), usize::MAX, &mut name), "a name");
 		let mut tsfn = null_mut();
 		ok(
-			(api.create_threadsafe_function)(env, null_mut(), null_mut(), name, 0, 1, null_mut(), null(), null_mut(), Some(on_loop), &mut tsfn),
+			(api.create_threadsafe_function)(
+				env,
+				null_mut(),
+				null_mut(),
+				name,
+				0,
+				1,
+				null_mut(),
+				Some(on_freed),
+				null_mut(),
+				Some(on_loop),
+				&mut tsfn,
+			),
 			"the thread-safe function",
 		);
 		ok((api.unref_threadsafe_function)(env, tsfn), "the thread-safe function's reference");
