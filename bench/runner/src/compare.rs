@@ -17,7 +17,10 @@ pub fn compare(base: &str, options: &Options) -> Result<(), String> {
 		Path::new("."),
 		&["rev-parse", "--verify", &format!("{base}^{{commit}}")],
 	)?;
-	let tree = base_tree(&top)?;
+	let real = top
+		.canonicalize()
+		.map_err(|e| format!("cannot resolve {}: {e}", top.display()))?;
+	let tree = base_tree(&real)?;
 	checkout(&top, &tree, &sha)?;
 	eprintln!(
 		"rust2-bench: counting {base} ({}) in {}",
@@ -25,9 +28,6 @@ pub fn compare(base: &str, options: &Options) -> Result<(), String> {
 		tree.display()
 	);
 	let mut base = options.clone();
-	let real = top
-		.canonicalize()
-		.map_err(|e| format!("cannot resolve {}: {e}", top.display()))?;
 	base.cargo = rebase(&options.cargo, &real, &tree)?;
 	// A wanted benchmark may be new at the head or gone from it, but must be on one side.
 	let before = measure(&tree.join(&prefix), &base, false)?;
@@ -47,12 +47,22 @@ pub fn compare(base: &str, options: &Options) -> Result<(), String> {
 
 /// Where the base's worktree for the repository at `top` lives: in the user's cache, outside
 /// the repository, since Cargo reads every `.cargo/config.toml` above where it builds, and the
-/// working tree's own must not configure the base's build.
+/// working tree's own must not configure the base's build. `top` is canonical.
 fn base_tree(top: &Path) -> Result<PathBuf, String> {
 	let cache = std::env::var_os("XDG_CACHE_HOME")
 		.map(PathBuf::from)
 		.or_else(|| std::env::var_os("HOME").map(|home| Path::new(&home).join(".cache")))
 		.ok_or("neither XDG_CACHE_HOME nor HOME is set, so the base's worktree has nowhere to go")?;
+	std::fs::create_dir_all(&cache).map_err(|e| format!("cannot create {}: {e}", cache.display()))?;
+	let cache = cache
+		.canonicalize()
+		.map_err(|e| format!("cannot resolve {}: {e}", cache.display()))?;
+	if cache.starts_with(top) {
+		return Err(format!(
+			"the cache {} is inside the repository, where its .cargo/config.toml would configure the base: point XDG_CACHE_HOME outside it",
+			cache.display()
+		));
+	}
 	let mut hash = Fnv::default();
 	hash.write(&top.to_string_lossy());
 	let name = top.file_name().map_or("repo".into(), |name| name.to_string_lossy());

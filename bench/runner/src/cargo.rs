@@ -72,7 +72,37 @@ pub fn capture(args: &[String]) -> Result<(), String> {
 		"env": env,
 	});
 	let path = Path::new(&out).join(format!("{}.json", std::process::id()));
-	std::fs::write(&path, launch.to_string()).map_err(|e| format!("cannot write {}: {e}", path.display()))
+	use std::io::Write;
+	use std::os::unix::fs::OpenOptionsExt;
+	std::fs::OpenOptions::new()
+		.write(true)
+		.create_new(true)
+		.mode(0o600)
+		.open(&path)
+		.and_then(|mut file| file.write_all(launch.to_string().as_bytes()))
+		.map_err(|e| format!("cannot write {}: {e}", path.display()))
+}
+
+/// A private directory for the capturing runner's launches, removed when dropped.
+struct Captures(PathBuf);
+
+impl Captures {
+	fn create() -> Result<Self, String> {
+		use std::os::unix::fs::DirBuilderExt;
+		let dir = std::env::temp_dir().join(format!("rust2-bench-launches-{}", std::process::id()));
+		// A directory already there may be another user's, so it is never reused.
+		std::fs::DirBuilder::new()
+			.mode(0o700)
+			.create(&dir)
+			.map_err(|e| format!("cannot create {}: {e}", dir.display()))?;
+		Ok(Self(dir))
+	}
+}
+
+impl Drop for Captures {
+	fn drop(&mut self) {
+		let _ = std::fs::remove_dir_all(&self.0);
+	}
 }
 
 /// The launches the capturing runner recorded in `dir`, by executable.
@@ -350,9 +380,10 @@ fn manifest_path(args: &[String]) -> Option<&str> {
 fn build(dir: &Path, args: &[String]) -> Result<Vec<(Target, Launch)>, String> {
 	let exe = std::env::current_exe().map_err(|e| format!("cannot find rust2-bench's own executable: {e}"))?;
 	let exe = exe.to_str().ok_or("rust2-bench's own path is not UTF-8")?;
-	let captures = dir.join("target/rust2-bench/launches");
-	let _ = std::fs::remove_dir_all(&captures);
-	std::fs::create_dir_all(&captures).map_err(|e| format!("cannot create {}: {e}", captures.display()))?;
+	// A launch's environment holds whatever secrets the caller exported, so it goes to a
+	// directory only this user can read, removed once read.
+	let captures = Captures::create()?;
+	let captures = captures.0.as_path();
 	let runner = format!(
 		"target.'cfg(all())'.runner=[{}, {}]",
 		toml::Value::from(exe),
@@ -360,7 +391,7 @@ fn build(dir: &Path, args: &[String]) -> Result<Vec<(Target, Launch)>, String> {
 	);
 	let mut cargo = Command::new("cargo");
 	cargo.args(["bench", "--message-format=json-render-diagnostics", "--config", &runner]);
-	cargo.env(CAPTURE_DIR, &captures);
+	cargo.env(CAPTURE_DIR, captures);
 	// Every benchmark target, unless the caller names some.
 	if !args.iter().any(|arg| arg == "--bench" || arg.starts_with("--bench=")) {
 		cargo.arg("--benches");
@@ -415,7 +446,18 @@ fn build(dir: &Path, args: &[String]) -> Result<Vec<(Target, Launch)>, String> {
 	if !status.success() {
 		return Err(format!("cargo bench failed ({status})"));
 	}
-	let mut launches = launches(&captures)?;
+	let mut launches = launches(captures)?;
+	// The fingerprint reads GLIBC_TUNABLES from rust2-bench's environment, so a Cargo `[env]`
+	// that sets another would count under a label that does not describe it.
+	let tunables = std::env::var("GLIBC_TUNABLES").ok();
+	for launch in launches.values() {
+		if launch.env.get("GLIBC_TUNABLES") != tunables.as_ref() {
+			return Err(
+				"a Cargo [env] sets GLIBC_TUNABLES, which the fingerprint would not see: set it in the environment instead"
+					.to_owned(),
+			);
+		}
+	}
 	built
 		.into_iter()
 		.map(|target| {

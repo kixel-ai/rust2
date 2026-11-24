@@ -30,7 +30,9 @@ target that runs no benchmark through the crates fails the run: leave it out wit
 It builds them with `cargo bench`, with itself as the targets' runner, which records how Cargo
 launches each target, its directory and whole environment (`[env]`, `CARGO_MANIFEST_DIR`,
 the library path), instead of running it; every listing and count launches the target the
-same way. A runner a config or the environment sets fails the run.
+same way. Those records live in a directory only the user can read, removed once read. A
+runner a config or the environment sets fails the run, as does an `[env]` that sets
+`GLIBC_TUNABLES`, which the fingerprint reads from the environment.
 
 Elsewhere, the programs `--program` names, each a shell command whose program brackets its
 benchmarks with CodSpeed's [instrument hooks](https://github.com/CodSpeedHQ/instrument-hooks)
