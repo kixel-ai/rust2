@@ -1,7 +1,7 @@
 name: Binding packages
 
 # The shared, read-only builder of a crate's rust2-ffi Python wheels, Swift package, C archives,
-# Go module, Android library, pub.dev package, and web package, which a release workflow
+# Go module, Android library, pub.dev package, web package, and React Native package, which a release workflow
 # ffi/release/package.py's `init` writes calls at a pinned rust2 commit.
 # It publishes nothing and holds no credentials: the caller's own jobs publish what it
 # uploads, once its consumers pass. See ffi/release/README.md.
@@ -41,7 +41,7 @@ on:
         default: ''
         type: string
       scope:
-        description: The npm and JSR scope the web package is named under, @<scope>/<crate>, without its @
+        description: The npm scope, without its @, of the React Native package, @<scope>/<crate>-rn, and the web package's on npm and JSR, @<scope>/<crate>; without it, no React Native package
         default: ''
         type: string
       web-check:
@@ -54,6 +54,10 @@ on:
         type: string
       web-example:
         description: The example of a web crate apart from manifest-path's whose stdout web-check must print, which takes example
+        default: ''
+        type: string
+      react-native-check:
+        description: A TypeScript module run in React Native apps on the installed npm package, importing the binding as ./react-native/<module>.ts does beside the export, or a directory holding it as check.ts beside the modules it imports
         default: ''
         type: string
       go-module:
@@ -96,6 +100,9 @@ on:
       maven:
         description: Whether the build made the Kotlin binding's Maven repository, <name>-maven
         value: ${{ inputs.maven-group != '' }}
+      react-native:
+        description: Whether the build made the React Native package, <name>-react-native
+        value: ${{ inputs.scope != '' }}
 
 permissions:
   contents: read
@@ -207,10 +214,11 @@ jobs:
           - host: windows
             os: windows-latest
             targets: x86_64-pc-windows-msvc x86_64-pc-windows-gnu aarch64-pc-windows-msvc
-          # Each Android ABI the AAR and the Dart package hold, and the Go module's, through the NDK.
+          # Each Android ABI the AAR and the Dart package hold, and the Go module's, through the
+          # NDK, with a scope React Native's fourth, x86.
           - host: android
             os: ubuntu-24.04
-            targets: aarch64-linux-android armv7-linux-androideabi x86_64-linux-android
+            targets: ${{ inputs.scope != '' && 'aarch64-linux-android armv7-linux-androideabi i686-linux-android x86_64-linux-android' || 'aarch64-linux-android armv7-linux-androideabi x86_64-linux-android' }}
     runs-on: ${{ matrix.os }}
     timeout-minutes: 60
     defaults:
@@ -301,10 +309,10 @@ jobs:
           - host: windows
             os: windows-latest
             targets: x86_64-pc-windows-msvc x86_64-pc-windows-gnu
-          # The AAR's and the Dart package's libraries.
+          # The AAR's, the Dart package's, and React Native's libraries.
           - host: android
             os: ubuntu-24.04
-            targets: aarch64-linux-android armv7-linux-androideabi x86_64-linux-android
+            targets: ${{ inputs.scope != '' && 'aarch64-linux-android armv7-linux-androideabi i686-linux-android x86_64-linux-android' || 'aarch64-linux-android armv7-linux-androideabi x86_64-linux-android' }}
     runs-on: ${{ matrix.os }}
     timeout-minutes: 90
     defaults:
@@ -380,14 +388,21 @@ jobs:
       - name: Build
         env:
           TARGETS: ${{ matrix.targets }}
-          # Android's example only serves a kotlin-check's comparison in the consumer.
-          EXAMPLE: ${{ (matrix.host != 'android' || inputs.maven-group != '' && inputs.kotlin-check != '') && inputs.example || '' }}
+          # Android's example only serves a kotlin-check's or react-native-check's comparison in
+          # a consumer, and the iOS simulator's a react-native-check's.
+          EXAMPLE: >-
+            ${{ (matrix.host == 'android' && (inputs.maven-group != '' && inputs.kotlin-check != '' || inputs.scope != '' && inputs.react-native-check != '')
+            || matrix.host == 'apple-ios-sim' && inputs.scope != '' && inputs.react-native-check != ''
+            || matrix.host != 'android' && matrix.host != 'apple-ios-sim') && inputs.example || '' }}
           GROUP: ${{ inputs.maven-group }}
+          SCOPE: ${{ inputs.scope }}
         run: |
           read -ra targets <<< "$TARGETS"
-          # The Kotlin binding's libraries, for the jar and the AAR, only for a Maven release.
+          # The Kotlin binding's libraries, for the jar and the AAR, only for a Maven release,
+          # and React Native's, only for an npm one.
           kotlin=()
           if [[ -n "$GROUP" ]]; then kotlin=(--kotlin); fi
+          if [[ -n "$SCOPE" ]]; then kotlin+=(--react-native); fi
           python -I rust2/ffi/release/package.py build --manifest-path "source/$MANIFEST" --features "$FEATURES" --export export --out dist --example "$EXAMPLE" "${kotlin[@]}" "${targets[@]}"
       # One host's: the sources are the same on every host, as `agree` checks their binding.
       - name: Source distribution
@@ -413,10 +428,12 @@ jobs:
           GO_MODULE: ${{ inputs.go-module }}
           HOST: ${{ matrix.host }}
           GROUP: ${{ inputs.maven-group }}
+          SCOPE: ${{ inputs.scope }}
         run: |
           read -ra targets <<< "$TARGETS"
           kotlin=()
           if [[ -n "$GROUP" ]]; then kotlin=(--kotlin); fi
+          if [[ -n "$SCOPE" ]]; then kotlin+=(--react-native); fi
           python3 -I ../rust2/ffi/release/package.py export --manifest-path "source/$MANIFEST" --features "$FEATURES" --api ../api --go-module "$GO_MODULE" --out export "${targets[@]}"
           python -I ../rust2/ffi/release/package.py build --manifest-path "source/$MANIFEST" --features "$FEATURES" --export export --out dist "${kotlin[@]}" "${targets[@]}"
           if [[ "$HOST" == linux-x64 ]]; then
@@ -438,6 +455,7 @@ jobs:
           GO_CHECK: ${{ inputs.go-check }}
           KOTLIN_CHECK: ${{ inputs.kotlin-check }}
           DART_CHECK: ${{ inputs.dart-check }}
+          REACT_NATIVE_CHECK: ${{ inputs.react-native-check }}
         run: |
           mkdir -p dist/checks
           stage() {
@@ -450,6 +468,7 @@ jobs:
           if [[ -n "$GO_CHECK" ]]; then stage "$GO_CHECK" dist/checks/go check.go; fi
           if [[ -n "$KOTLIN_CHECK" ]]; then stage "$KOTLIN_CHECK" dist/checks/kotlin check.kt; fi
           if [[ -n "$DART_CHECK" ]]; then stage "$DART_CHECK" dist/checks/dart check.dart; fi
+          if [[ -n "$REACT_NATIVE_CHECK" ]]; then stage "$REACT_NATIVE_CHECK" dist/checks/react-native check.ts; fi
       # The export's own package, as a checkout depends on it: its hook builds the crate.
       - uses: dart-lang/setup-dart@2286a0c042b44434fe26d292bbce8d34f7ec662b # v1.8.2
         if: matrix.host == 'linux-x64'
@@ -1418,3 +1437,158 @@ jobs:
           api-level: 24
           arch: x86_64
           script: python3 -I rust2/ffi/release/package.py consume-flutter $ARGS
+
+  # The React Native package: the export's react-native/, with each of React Native's Android
+  # ABIs' static libraries and an XCFramework of iOS's device and simulator ones, linked with what
+  # rustc names, and the iOS libraries' privacy manifest, packed by npm.
+  react-native:
+    needs: [facts, build, agree]
+    if: inputs.scope != ''
+    runs-on: macos-26
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          path: source
+          persist-credentials: false
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ${{ needs.facts.outputs.rust2 }}
+          ref: ${{ needs.facts.outputs.rust2-sha }}
+          path: rust2
+          sparse-checkout: ffi/release
+          persist-credentials: false
+      - uses: taiki-e/install-action@cfdb7ed4ccc7c7dce37759eae89dc5674b469b39 # v2.90.3
+        if: needs.facts.outputs.fixture == 'true'
+        with:
+          tool: just
+      - name: Stand-in
+        if: needs.facts.outputs.fixture == 'true'
+        working-directory: source
+        run: just ffi standin
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '24'
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: ${{ needs.facts.outputs.name }}-build-android
+          path: android
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: ${{ needs.facts.outputs.name }}-build-apple-ios*
+          path: apple
+          merge-multiple: true
+      - name: Package
+        env:
+          SCOPE: ${{ inputs.scope }}
+          REPRODUCE: ${{ inputs.reproduce }}
+        run: |
+          args=()
+          for target in aarch64-apple-ios aarch64-apple-ios-sim; do
+            args+=(--lib "$target=$(echo "$PWD"/apple/static/"$target"/*.a)" --native "$target=$PWD/apple/static/$target/native.txt")
+          done
+          package() {
+            (cd source && python3 -I ../rust2/ffi/release/package.py react-native --manifest-path "$MANIFEST" --export ../android/export --android ../android/react-native "${args[@]}" --scope "$SCOPE" --sbom ../android/react-native.cdx.json --out "$1")
+          }
+          package ../react-native
+          # The package again, which must be the same tarball, as a rerun of the release must pack.
+          if [[ "$REPRODUCE" == true ]]; then
+            package ../again
+            python3 -I rust2/ffi/release/package.py same react-native again
+          fi
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: ${{ needs.facts.outputs.name }}-react-native
+          path: react-native
+          if-no-files-found: error
+
+  # A new React Native app depending on the packed tarball, as an app installs it from npm,
+  # built for release for each of React Native's ABIs and run on an x86_64 Android emulator,
+  # which this runner's KVM runs at speed.
+  react-native-android:
+    needs: [facts, build, react-native]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ${{ needs.facts.outputs.rust2 }}
+          ref: ${{ needs.facts.outputs.rust2-sha }}
+          path: rust2
+          sparse-checkout: ffi/release
+          persist-credentials: false
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: ${{ needs.facts.outputs.name }}-react-native
+          path: react-native
+      # The check and the example built for the emulator.
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: ${{ needs.facts.outputs.name }}-build-android
+          path: dist
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '24'
+      - uses: actions/setup-java@d1374f8ac74474200d16ef8ecee22c7ae7a51880 # v6.3.0
+        with:
+          distribution: temurin
+          java-version: '17'
+      # Every Gradle build of the job fetches Central's artifacts from Google's mirror.
+      - name: Maven Central mirror
+        run: |
+          init="${GRADLE_USER_HOME:-$HOME/.gradle}/init.d"
+          mkdir -p "$init"
+          cp rust2/ffi/release/central.init.gradle.kts "$init/"
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Arguments
+        run: |
+          args="--dist react-native --platform android"
+          if [[ -d dist/checks/react-native ]]; then
+            args+=" --check dist/checks/react-native"
+            if [[ -d dist/android-example ]]; then args+=" --native dist/android-example"; fi
+          fi
+          echo "ARGS=$args" >> "$GITHUB_ENV"
+      - uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2.38.0
+        with:
+          api-level: 35
+          arch: x86_64
+          script: python3 -I rust2/ffi/release/package.py consume-react-native $ARGS
+
+  # The same app built for release for an iOS device and for the simulator, and run on a
+  # simulator it boots.
+  react-native-ios:
+    needs: [facts, build, react-native]
+    runs-on: macos-26
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ${{ needs.facts.outputs.rust2 }}
+          ref: ${{ needs.facts.outputs.rust2-sha }}
+          path: rust2
+          sparse-checkout: ffi/release
+          persist-credentials: false
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: ${{ needs.facts.outputs.name }}-react-native
+          path: react-native
+      # The check and the example built for the simulator.
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: ${{ needs.facts.outputs.name }}-build-apple-ios-sim
+          path: dist
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '24'
+      - name: Build and run
+        run: |
+          args=(--dist react-native --platform ios)
+          if [[ -d dist/checks/react-native ]]; then
+            args+=(--check dist/checks/react-native)
+            if [[ -d dist/ios-example ]]; then args+=(--native dist/ios-example); fi
+          fi
+          python3 -I rust2/ffi/release/package.py consume-react-native "${args[@]}"

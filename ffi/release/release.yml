@@ -2,13 +2,13 @@ name: Release @NAME@ bindings
 
 # Written by rust2's `ffi/release/package.py init`; yours to edit. rust2's builder, pinned
 # below, exports @NAME@'s pub API, builds its Python wheels and sdist, Swift package, C
-# archives, Go module, Android library, pub.dev package, and web package, and checks them in
-# clean consumers, all read-only. The jobs after it publish only a tag's build, once `attest`
+# archives, Go module, Android library, pub.dev package, web package, and React Native package,
+# and checks them in clean consumers, all read-only. The jobs after it publish only a tag's build, once `attest`
 # has signed it:
 #
 # - Attestations: a build provenance attestation and an SBOM attestation for every wheel, the
 #   sdist, the XCFramework, the Go module's .zip and .mod, each C archive, each Dart library,
-#   the jar, the AAR, their POM and Gradle metadata, and the npm tarball, from this repository's GitHub, checked with
+#   the jar, the AAR, their POM and Gradle metadata, and the npm tarballs, from this repository's GitHub, checked with
 #   `gh attestation verify`.
 # - PyPI: the project @NAME@'s wheels and sdist, through the trusted publisher this
 #   repository registers there for this workflow and the `pypi` environment.
@@ -22,7 +22,8 @@ name: Release @NAME@ bindings
 #   hosts <crate>-<version>-dart-<target>.<ext>, each library its build hook downloads.
 # - npm and JSR: the web package, when the build makes one, through the trusted publisher
 #   npm registers for this workflow and the `npm` environment, and JSR's link to this
-#   repository, each with provenance.
+#   repository, each with provenance; and on npm the React Native package, when the build
+#   makes one, through its own trusted publisher for the same workflow and environment.
 # - Maven Central: the Kotlin binding, a jar for desktop JVMs and an AAR for Android under
 #   one POM, when the build makes it, signed with the key and
 #   uploaded with the Central Portal user token in the `maven` environment's secrets, as
@@ -62,7 +63,7 @@ jobs:
 @MAVEN@
       # Optional: cargo features to ship, an example of the crate whose output every check
       # program must print, and those programs: `python-check`, `swift-check`, `c-check`,
-      # `go-check`, `kotlin-check`, and `web-check`.
+      # `go-check`, `kotlin-check`, `dart-check`, `web-check`, and `react-native-check`.
 
   tag:
     needs: build
@@ -82,19 +83,26 @@ jobs:
         if: needs.build.outputs.web == 'true'
         with:
           name: @NAME@-web
-          path: web
+          path: npm/web
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        if: needs.build.outputs.react-native == 'true'
+        with:
+          name: @NAME@-react-native
+          path: npm/react-native
       # npm's provenance refuses a package whose repository is not the one publishing it,
       # which is checked here, before any registry takes this release.
-      - name: Web package names this repository
-        if: needs.build.outputs.web == 'true'
+      - name: npm packages name this repository
+        if: needs.build.outputs.web == 'true' || needs.build.outputs.react-native == 'true'
         run: |
-          url=$(jq -r '.repository.url // ""' web/npm/package.json)
-          url=${url#git+}
-          url=${url%.git}
-          if [[ "${url%/}" != "https://github.com/$GITHUB_REPOSITORY" ]]; then
-            echo "::error::the web package's repository is '$url', not https://github.com/$GITHUB_REPOSITORY: set Cargo's repository to it."
-            exit 1
-          fi
+          for manifest in npm/*/npm/package.json; do
+            url=$(jq -r '.repository.url // ""' "$manifest")
+            url=${url#git+}
+            url=${url%.git}
+            if [[ "${url%/}" != "https://github.com/$GITHUB_REPOSITORY" ]]; then
+              echo "::error::$(jq -r .name "$manifest")'s repository is '$url', not https://github.com/$GITHUB_REPOSITORY: set Cargo's repository to it."
+              exit 1
+            fi
+          done
 
   # Signs what the jobs below publish, before any of it is public, as this workflow's own
   # build of this commit. The permissions are this job's alone.
@@ -129,6 +137,11 @@ jobs:
         with:
           name: @NAME@-maven
           path: artifacts/maven
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        if: needs.build.outputs.react-native == 'true'
+        with:
+          name: @NAME@-react-native
+          path: artifacts/react-native
       - uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
         with:
           subject-path: |
@@ -144,6 +157,7 @@ jobs:
             artifacts/maven/**/*.module
             artifacts/dart/*
             artifacts/web/*.tgz
+            artifacts/react-native/*.tgz
       - uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
         with:
           subject-path: |
@@ -161,6 +175,12 @@ jobs:
         with:
           subject-path: artifacts/web/*.tgz
           sbom-path: artifacts/web/sbom.cdx.json
+      # React Native's own, of the crates its C ABI links.
+      - uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        if: needs.build.outputs.react-native == 'true'
+        with:
+          subject-path: artifacts/react-native/*.tgz
+          sbom-path: artifacts/react-native/sbom.cdx.json
       # The Kotlin binding's own, of the crates its JNI build links, which Central serves beside it.
       - name: Kotlin SBOM
         id: maven
@@ -372,38 +392,47 @@ jobs:
           fi
           dart pub publish --force
 
-  # A rerun publishes only a version npm lacks, and fails on one it hosts with other bytes.
+  # The web package and the React Native package, each the build made. A rerun publishes only
+  # a version npm lacks, and fails on one it hosts with other bytes.
   npm:
     needs: [build, tag, attest]
-    if: needs.build.outputs.web == 'true'
+    if: needs.build.outputs.web == 'true' || needs.build.outputs.react-native == 'true'
     runs-on: ubuntu-24.04
     environment: npm
     permissions:
       id-token: write
     steps:
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        if: needs.build.outputs.web == 'true'
         with:
           name: @NAME@-web
-          path: web
+          path: npm/web
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        if: needs.build.outputs.react-native == 'true'
+        with:
+          name: @NAME@-react-native
+          path: npm/react-native
       # Trusted publishing needs npm 11.5.1 or later.
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: '24'
       - name: Publish
         run: |
-          tarball=$(echo web/*.tgz)
-          name=$(jq -r .name web/npm/package.json)
-          version=$(jq -r .version web/npm/package.json)
-          ours="sha512-$(openssl dgst -sha512 -binary "$tarball" | base64 -w0)"
-          if hosted=$(npm view "$name@$version" dist.integrity 2> /dev/null) && [[ -n "$hosted" ]]; then
-            [[ "$hosted" == "$ours" ]] || { echo "::error::npm hosts another $name@$version"; exit 1; }
-            echo "npm already hosts $name@$version"
-            exit 0
-          fi
-          # npm takes a prerelease only under a tag of its own, so it is never `latest`.
-          tag=latest
-          if [[ "$version" == *-* ]]; then tag=next; fi
-          npm publish --provenance --access public --tag "$tag" "$tarball"
+          for dir in npm/*/; do
+            tarball=$(echo "$dir"*.tgz)
+            name=$(jq -r .name "$dir/npm/package.json")
+            version=$(jq -r .version "$dir/npm/package.json")
+            ours="sha512-$(openssl dgst -sha512 -binary "$tarball" | base64 -w0)"
+            if hosted=$(npm view "$name@$version" dist.integrity 2> /dev/null) && [[ -n "$hosted" ]]; then
+              [[ "$hosted" == "$ours" ]] || { echo "::error::npm hosts another $name@$version"; exit 1; }
+              echo "npm already hosts $name@$version"
+              continue
+            fi
+            # npm takes a prerelease only under a tag of its own, so it is never `latest`.
+            tag=latest
+            if [[ "$version" == *-* ]]; then tag=next; fi
+            npm publish --provenance --access public --tag "$tag" "$tarball"
+          done
 
   # JSR skips a version it already hosts.
   jsr:

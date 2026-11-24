@@ -15,12 +15,7 @@ device tests do, and the release workflow `package.py init` writes publishes it 
   builder, so its React Native users would install this package from npm.
 - The builder already builds Android's ABIs for the Kotlin library and an XCFramework for
   Swift: the package takes the same static libraries, so no target is new.
-- Recommended: the package is named `@<scope>/<crate>-react-native` beside the web
-  package's `@<scope>/<crate>`, since one npm name cannot hold both a wasm32 module and a
-  TurboModule.
-
-## Waiting
-
-- Maintainer: name the package `@<scope>/<crate>-react-native` (recommended) or something
-  else, such as `@<scope>/<crate>` with the web package renamed instead; an agent can't
-  pick a published name. Check: this item is gone from the quest.
+- Decided 2026-11-24 (maintainer, /quest-run): the package is named `@<scope>/<crate>-rn`,
+  such as `@moq/moq-rn` beside the web's `@moq/moq`, since one npm name cannot hold both a
+  wasm32 module and a TurboModule. Rejected: `@<scope>/<crate>-react-native`, and giving
+  React Native `@<scope>/<crate>` with the web package renamed.
