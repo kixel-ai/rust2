@@ -7,6 +7,7 @@
 //! its own process rather than one child each.
 
 use std::collections::BTreeSet;
+use std::ffi::OsString;
 use std::io::{BufRead, BufReader};
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
@@ -30,16 +31,17 @@ struct Target {
 /// and lists the benchmarks each runs as a job, one benchmark a process.
 pub fn jobs(dir: &Path, args: &[String]) -> Result<Vec<Job>, String> {
 	let root = workspace_root(dir, args)?;
-	let targets = build(dir, args)?;
+	let (targets, linked) = build(dir, args)?;
 	if targets.is_empty() {
 		return Err("cargo built no benchmark target".to_owned());
 	}
+	let libraries = library_path(dir, &targets, linked)?;
 	// Every target lists its benchmarks at once: each runs them natively, far faster than
 	// under Valgrind.
 	let listed = std::thread::scope(|scope| {
 		let handles: Vec<_> = targets
 			.iter()
-			.map(|target| scope.spawn(|| list(target, &root)))
+			.map(|target| scope.spawn(|| list(target, &root, &libraries)))
 			.collect();
 		handles
 			.into_iter()
@@ -65,7 +67,8 @@ pub fn jobs(dir: &Path, args: &[String]) -> Result<Vec<Job>, String> {
 			command
 				.current_dir(&target.dir)
 				.env("CODSPEED_CARGO_WORKSPACE_ROOT", &root)
-				.env("CODSPEED_ISOLATED_BENCHMARK", &name);
+				.env("CODSPEED_ISOLATED_BENCHMARK", &name)
+				.env("LD_LIBRARY_PATH", &libraries);
 			jobs.push(Job {
 				label: name.clone(),
 				command,
@@ -243,8 +246,74 @@ fn manifest_path(args: &[String]) -> Option<&str> {
 	None
 }
 
-/// Builds every benchmark target with CodSpeed's cfg, as `cargo codspeed build` does.
-fn build(dir: &Path, args: &[String]) -> Result<Vec<Target>, String> {
+/// The `LD_LIBRARY_PATH` Cargo gives what it runs, so a target finds the shared libraries its
+/// build made: the build scripts' link search paths in the target directory, each target's
+/// output and deps directories, and the sysroot's, for `-Cprefer-dynamic`, before the
+/// environment's own.
+fn library_path(dir: &Path, targets: &[Target], linked: Vec<PathBuf>) -> Result<OsString, String> {
+	let mut paths = linked;
+	for target in targets {
+		let deps = target
+			.executable
+			.parent()
+			.ok_or("cargo reported a benchmark at the root")?;
+		paths.push(deps.to_owned());
+		paths.extend(deps.parent().map(Path::to_owned));
+	}
+	let rustc = std::env::var_os("RUSTC").unwrap_or_else(|| "rustc".into());
+	let out = Command::new(&rustc)
+		.args(["--print", "target-libdir"])
+		.current_dir(dir)
+		.stderr(Stdio::inherit())
+		.output()
+		.map_err(|e| format!("cannot run rustc: {e}"))?;
+	if !out.status.success() {
+		return Err(format!("rustc --print target-libdir failed ({})", out.status));
+	}
+	let sysroot = String::from_utf8(out.stdout).map_err(|_| "rustc printed a library path not UTF-8")?;
+	paths.push(PathBuf::from(sysroot.trim()));
+	let mut seen = BTreeSet::new();
+	paths.retain(|path| seen.insert(path.clone()));
+	if let Some(existing) = std::env::var_os("LD_LIBRARY_PATH") {
+		paths.extend(std::env::split_paths(&existing));
+	}
+	std::env::join_paths(paths).map_err(|e| format!("cannot join the library path: {e}"))
+}
+
+/// The link search paths a build script's message adds within the target directory, which
+/// Cargo puts on what it runs; those outside are the system's, for the caller to set.
+fn linked(message: &Value) -> Result<Vec<PathBuf>, String> {
+	if message["reason"] != "build-script-executed" {
+		return Ok(Vec::new());
+	}
+	let out = message["out_dir"]
+		.as_str()
+		.ok_or("cargo reported a build script without an out_dir")?;
+	// `<target>/<profile>/build/<package>/out`: the profile's directory holds what it builds.
+	let Some(profile) = Path::new(out).ancestors().nth(3) else {
+		return Err(format!(
+			"cargo reported a build script out_dir {out} outside a target directory"
+		));
+	};
+	let paths = message["linked_paths"]
+		.as_array()
+		.ok_or("cargo reported a build script without linked_paths")?;
+	let mut linked = Vec::new();
+	for path in paths {
+		let path = path.as_str().ok_or("cargo reported a linked path not a string")?;
+		// `KIND=PATH`, or a bare path.
+		let path = path.split_once('=').map_or(path, |(_, path)| path);
+		let path = Path::new(path);
+		if path.starts_with(profile) {
+			linked.push(path.to_owned());
+		}
+	}
+	Ok(linked)
+}
+
+/// Builds every benchmark target with CodSpeed's cfg, as `cargo codspeed build` does, and
+/// returns them with the link search paths its build scripts added in the target directory.
+fn build(dir: &Path, args: &[String]) -> Result<(Vec<Target>, Vec<PathBuf>), String> {
 	let mut cargo = Command::new("cargo");
 	cargo.args([
 		"build",
@@ -281,8 +350,9 @@ fn build(dir: &Path, args: &[String]) -> Result<Vec<Target>, String> {
 	eprintln!("rust2-bench: building benchmarks in {}", dir.display());
 	let mut child = cargo.spawn().map_err(|e| format!("cannot run cargo: {e}"))?;
 	let stdout = child.stdout.take().expect("stdout is piped");
-	let targets = (|| {
+	let built = (|| {
 		let mut targets = Vec::new();
+		let mut paths = Vec::new();
 		for line in BufReader::new(stdout).lines() {
 			let line = line.map_err(|e| format!("cannot read cargo's output: {e}"))?;
 			let message: Value =
@@ -290,11 +360,12 @@ fn build(dir: &Path, args: &[String]) -> Result<Vec<Target>, String> {
 			if let Some(target) = bench(&message)? {
 				targets.push(target);
 			}
+			paths.extend(linked(&message)?);
 		}
-		Ok::<_, String>(targets)
+		Ok::<_, String>((targets, paths))
 	})();
-	let targets = match targets {
-		Ok(targets) => targets,
+	let built = match built {
+		Ok(built) => built,
 		Err(err) => {
 			// Stop the build rather than leave it writing the target directory the next step uses.
 			let _ = child.kill();
@@ -306,7 +377,7 @@ fn build(dir: &Path, args: &[String]) -> Result<Vec<Target>, String> {
 	if !status.success() {
 		return Err(format!("cargo build failed ({status})"));
 	}
-	Ok(targets)
+	Ok(built)
 }
 
 /// The benchmark target a cargo message reports built, if it reports one.
@@ -337,10 +408,11 @@ fn bench(message: &Value) -> Result<Option<Target>, String> {
 }
 
 /// The benchmarks `target` runs, as it names them when nothing measures it.
-fn list(target: &Target, root: &Path) -> Result<Vec<String>, String> {
+fn list(target: &Target, root: &Path, libraries: &OsString) -> Result<Vec<String>, String> {
 	let out = Command::new(&target.executable)
 		.current_dir(&target.dir)
 		.env("CODSPEED_CARGO_WORKSPACE_ROOT", root)
+		.env("LD_LIBRARY_PATH", libraries)
 		.env("CODSPEED_PROCESS_ISOLATION", "false")
 		.env_remove("CODSPEED_ISOLATED_BENCHMARK")
 		.stdin(Stdio::null())
@@ -370,6 +442,27 @@ fn checked(stdout: &str) -> Vec<String> {
 #[cfg(test)]
 mod tests {
 	use super::*;
+
+	#[test]
+	fn links_only_build_script_paths_in_the_target_directory() {
+		let message = serde_json::json!({
+			"reason": "build-script-executed",
+			"out_dir": "/w/target/release/build/sys-1/out",
+			"linked_paths": ["native=/w/target/release/build/sys-1/out/lib", "/w/target/release/build/sys-1/out", "native=/usr/lib"],
+		});
+		assert_eq!(
+			linked(&message).unwrap(),
+			[
+				PathBuf::from("/w/target/release/build/sys-1/out/lib"),
+				PathBuf::from("/w/target/release/build/sys-1/out")
+			]
+		);
+		assert!(
+			linked(&serde_json::json!({"reason": "compiler-artifact"}))
+				.unwrap()
+				.is_empty()
+		);
+	}
 
 	#[test]
 	fn lists_each_checked_benchmark() {

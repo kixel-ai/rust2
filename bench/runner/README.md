@@ -27,6 +27,8 @@ the environment, or a `--config`,
 fails the run before anything builds: set `RUSTFLAGS` to the flags the build needs instead.
 Each target lists its benchmarks by running once natively, then each benchmark runs alone in its own Valgrind process, through the crates' `CODSPEED_ISOLATED_BENCHMARK`. A
 target that runs no benchmark through the crates fails the run: leave it out with `--bench`.
+Each runs with the `LD_LIBRARY_PATH` Cargo gives what it runs: its build scripts' link search
+paths in the target directory, the output and deps directories, and the sysroot's libraries.
 
 Elsewhere, the programs `--program` names, each a shell command whose program brackets its
 benchmarks with CodSpeed's [instrument hooks](https://github.com/CodSpeedHQ/instrument-hooks)
