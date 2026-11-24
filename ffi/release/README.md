@@ -337,8 +337,10 @@ the builder unpacks over its checkout before reading the checks.
     ([React Native](/ffi/README.md#react-native)), with the libraries its app builds link:
     a static library of the C ABI for each ABI React Native's template builds, `arm64-v8a`,
     `armeabi-v7a`, `x86`, and `x86_64`, at API 24, its floor, and an XCFramework of the
-    Swift package's iOS device and simulator libraries, at its iOS floor, 15.1, each keeping
-    its line tables, which the app's build hands Play or its dSYM. `android/CMakeLists.txt`
+    Swift package's iOS device and simulator libraries, at its iOS floor, 15.1. Each is
+    stripped of debug info and LTO bitcode, as the Go module's: an unlinked library's DWARF
+    is most of its bytes, and with it moq's tarball would be about 400 MB, twice what npm
+    takes, so a crash in Rust symbolicates to the function. `android/CMakeLists.txt`
     links the system libraries rustc names beside the module's own, and the podspec links
     its frameworks and libraries and bundles `ios/PrivacyInfo.xcprivacy`, which declares
     the required-reason APIs a link of the iOS libraries imports, as step 6 finds them,

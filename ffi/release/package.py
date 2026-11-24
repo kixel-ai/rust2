@@ -2081,14 +2081,10 @@ def build(args):
                 # Android's at the AAR's API floor, React Native's too, through the NDK.
                 if "android" in target:
                     env.update(android_toolchain(target, ANDROID_API))
-                react_native = args.react_native and target in RN_ANDROID_TARGETS
-                # React Native's keeps its line tables, which the app's build gives Play; the Go
-                # module's copy of the same library drops them.
-                library, native = staticlib(args.manifest_path, crate, lib, target, env=env,
-                                            config=line_tables(crate) if react_native else ())
+                library, native = staticlib(args.manifest_path, crate, lib, target, env=env)
                 if target in GO_TARGETS:
                     go_library(args, through, lib, target, library, native, out)
-                if react_native:
+                if args.react_native and target in RN_ANDROID_TARGETS:
                     dest = out / "react-native" / RN_ANDROID_TARGETS[target]
                     dest.mkdir(parents=True)
                     shutil.copy(library, dest)
@@ -3829,7 +3825,7 @@ def tree_bytes(root):
     return {p.relative_to(root).as_posix(): p.read_bytes() for p in sorted(Path(root).rglob("*")) if p.is_file()}
 
 
-def react_native_package(info, export, android, ios, natives, scope, sbom_path, out):
+def react_native_package(info, manifest_path, export, android, ios, natives, scope, sbom_path, out):
     """React Native's npm package: the export's `react-native/` with its libraries built for every
     ABI it serves, Android's static libraries and an XCFramework of iOS's, linked with what
     rustc names, the iOS libraries' privacy manifest, and Cargo's facts; and its tarball."""
@@ -3852,20 +3848,26 @@ def react_native_package(info, export, android, ios, natives, scope, sbom_path, 
     shutil.copytree(source, package, ignore=lambda d, _: ["libs"] if Path(d) == source else [])
     for path in licenses(info):
         shutil.copy(path, package)
+    # Each library without debug info or LTO bitcode, as the Go module's: an unlinked static
+    # library's DWARF, with its relocations, is most of its bytes, and moq's tarball would be
+    # twice the 200 MB npm takes.
+    objcopy = llvm_tool(manifest_path, "llvm-objcopy")
+    strip = lambda library, dest: run(objcopy, "--strip-debug", *(f"--remove-section={s}" for s in LTO_SECTIONS),  # noqa: E731
+                                      library, dest)
     # Android's: one static library per ABI, linked with the system libraries rustc names.
     for target, abi in RN_ANDROID_TARGETS.items():
         found = android / abi / f"lib{lib}.a"
         if not found.is_file():
             raise SystemExit(f"React Native's package ships {abi}, but {android} holds no {found.name} for it")
         (package / "libs" / "android" / abi).mkdir(parents=True)
-        shutil.copy(found, package / "libs" / "android" / abi)
+        strip(found, package / "libs" / "android" / abi / found.name)
     cmake = package / "android" / "CMakeLists.txt"
     flags = agreed([android / abi / "native.txt" for abi in RN_ANDROID_TARGETS.values()], "Android")
     cmake.write_text(rn_cmake(cmake.read_text(encoding="utf-8"), lib, flags), encoding="utf-8")
-    # iOS's: each slice at React Native's floor, what an app's link of it calls of Apple's
-    # required-reason APIs, its line tables, and one XCFramework of both, made twice, which must
-    # be the same bytes, as a rerun of the release must pack the same tarball.
-    found = {}
+    # iOS's: each slice at React Native's floor, stripped, what an app's link of it calls of
+    # Apple's required-reason APIs, and one XCFramework of both, made twice, which must be the
+    # same bytes, as a rerun of the release must pack the same tarball.
+    found, slices = {}, {}
     with tempfile.TemporaryDirectory() as raw:
         work = Path(raw)
         for target in RN_IOS_TARGETS:
@@ -3874,16 +3876,17 @@ def react_native_package(info, export, android, ios, natives, scope, sbom_path, 
                 raise SystemExit(f"{ios[target]} needs a newer iOS than React Native's {floor}: build it with the deployment target set")
             slice_dir = work / target
             slice_dir.mkdir()
-            probe = probe_link(lib, ios[target], target, Path(natives[target]).read_text(encoding="utf-8").strip(),
+            slices[target] = slice_dir / f"lib{lib}.a"
+            strip(ios[target], slices[target])
+            probe = probe_link(lib, slices[target], target, Path(natives[target]).read_text(encoding="utf-8").strip(),
                                slice_dir, floor)
             for category, apis in required_apis(probe).items():
                 found.setdefault(category, set()).update(apis)
-            check_symbolicated(lib, probe)
         frameworks = []
         for tree in (package / "libs" / "ios" / f"{lib}.xcframework", work / "again" / f"{lib}.xcframework"):
             args = ["xcodebuild", "-create-xcframework"]
             for target in RN_IOS_TARGETS:
-                args += ["-library", ios[target]]
+                args += ["-library", slices[target]]
             # libtool, which xcodebuild runs on each library, stamps the time unless told not to.
             run(*args, "-output", tree, env={**os.environ, "ZERO_AR_DATE": "1"}, capture_output=True)
             sort_plist(tree / "Info.plist")
@@ -4406,7 +4409,7 @@ def main():
         consume_web(args.dist, args.check, args.native)
     elif args.command == "react-native":
         pairs = lambda items: dict(item.split("=", 1) for item in items)  # noqa: E731
-        print(react_native_package(facts(args.manifest_path), args.export, args.android, pairs(args.lib),
+        print(react_native_package(facts(args.manifest_path), args.manifest_path, args.export, args.android, pairs(args.lib),
                                    pairs(args.native), args.scope, args.sbom, args.out))
     elif args.command == "consume-react-native":
         consume_react_native(args.dist, args.platform, args.check, args.native)
