@@ -1,17 +1,16 @@
 name: Queue
 
 # GitHub's merge queue tests each picked PR on top of main, one at a time, on
-# the host's self-hosted runner, and merges exactly the tree it tested. When the
+# GitHub-hosted runners, and merges exactly the tree it tested. When the
 # queue drops a PR, kixel-ai/quest's queue watcher on the host runs the land
 # fixer and re-enqueues it at the back of the queue.
 #
-# `main`'s ruleset requires the build's own `Queue build / Build` context, so
-# a group's check reports from the self-hosted runner and waits on no
-# GitHub-hosted one. GitHub admits a PR to the queue only once its required
-# checks pass on the PR itself, so the build is also called on main pull
-# requests, where its job skips under the same name; a skipped job satisfies
-# the requirement. Only the merge group build runs code, and only a
-# maintainer's pick enters the queue.
+# `main`'s ruleset requires the build's own `Queue build / Build` context.
+# GitHub admits a PR to the queue only once its required checks pass on the PR
+# itself, so the build is also called on main pull requests, where its jobs
+# skip under the same names; a skipped job satisfies the requirement. A pull
+# request's own build is ci.yml's, which nothing requires. Only the merge group
+# build runs code here, and only a maintainer's pick enters the queue.
 on:
   pull_request:
     branches: [main]
@@ -40,19 +39,15 @@ permissions:
 # only reports the same skipped context twice.
 
 jobs:
-  # The build runs in queue-build.yml so its runner group can admit that
-  # workflow alone; see that file. It calls main's copy, not the merge group's,
-  # since the group admits that workflow only at refs/heads/main: a PR's edit to
-  # queue-build.yml runs only after it lands.
-  #
   # The call has no `if`: a skipped call reports only `Queue build`, while a
-  # call whose job skips reports `Queue build / Build`, the context the
-  # ruleset requires. main's copy skips that job on every event but
-  # merge_group, so a pull request gets no runner. A failed or cancelled build
-  # reports its own context failed or cancelled, which fails the group.
+  # call whose jobs skip reports `Queue build / Build`, the context the
+  # ruleset requires. A failed or cancelled build reports its own context
+  # failed or cancelled, which fails the group.
   build:
     name: Queue build
-    uses: kixel-ai/rust2/.github/workflows/queue-build.yml@main
+    uses: ./.github/workflows/build.yml
+    with:
+      run: ${{ github.event_name == 'merge_group' }}
 
   # The merge queue still builds every group with the jobs above; this only
   # satisfies the PR-side requirement, as a pull_request run's skipped job does.

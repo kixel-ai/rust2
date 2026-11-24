@@ -18,7 +18,7 @@ moq_rev := "1aa86d5e6d091848cb1848c702a911099706b1a4"
 swift_collections_rev := "f96b909e1a9e469620bc5037c1e24e00153f376f"
 
 # The binding benchmark's programs, each a language, as bench-program runs them.
-bench_langs := "rust c cpp moq-c kotlin python swift go dart csharp ts-node ts-chromium ts-firefox react-native"
+bench_langs := "rust c cpp moq-c kotlin python swift go dart csharp ts-node ts-addon ts-chromium ts-firefox react-native"
 
 # Those whose cases CodSpeed counts the same on every run of one commit: bench/ffi/README.md's CodSpeed section says why Swift, Kotlin, Go, Dart, and C# do not.
 codspeed_langs := "rust c cpp moq-c python ts-node"
@@ -128,8 +128,8 @@ census checkout="": (standin checkout)
 # Measure the binding benchmark (bench/ffi/README.md) from the pinned moq revision or a checkout, in the bench shell: nix develop .#bench. Its tables go to target/bench/report.md.
 bench checkout="": (bench-build checkout) rn-bench bench-run
 
-# Build the binding benchmark's programs: Rust's floor, C, C++, Kotlin, Python, Swift, Go, Dart, and C# through the export, TypeScript through the wasm32 stand-in's, and C through moq's hand-written rs/libmoq. React Native's, which builds Hermes, is rn-bench's, which `bench` runs after it, so CodSpeed's run of this builds no Hermes.
-bench-build checkout="": (moq-export checkout) (moq-web checkout) ts-program codspeed-hooks
+# Build the binding benchmark's programs: Rust's floor, C, C++, Kotlin, Python, Swift, Go, Dart, and C# through the export, TypeScript through the wasm32 stand-in's and through the Node binding's addon, and C through moq's hand-written rs/libmoq. React Native's, which builds Hermes, is rn-bench's, which `bench` runs after it, so CodSpeed's run of this builds no Hermes.
+bench-build checkout="": (moq-export checkout) (moq-web checkout) ts-program node-bench codspeed-hooks
     #!/usr/bin/env bash
     set -euo pipefail
     [ -n "${LIBCLANG_PATH:-}" ] || { echo "LIBCLANG_PATH is unset: run this in the bench shell, nix develop .#bench" >&2; exit 1; }
@@ -309,7 +309,7 @@ bench-run rounds="3":
         rm -rf "$scratch"
         measure export env "$libpath=$sysroot/lib" target/release/rust2-ffi --manifest-path target/moq-ffi/Cargo.toml --out "$scratch/moq"
         measure check cargo check --quiet --release --lib --manifest-path target/moq-ffi/Cargo.toml
-        measure generated cargo build --locked --quiet --release --manifest-path "$scratch/moq/Cargo.toml" --features kotlin,dart
+        measure generated cargo build --locked --quiet --release --manifest-path "$scratch/moq/Cargo.toml" --features kotlin,dart,node
         measure moq cargo build --quiet --release --lib --manifest-path target/moq-ffi/Cargo.toml
         rm -rf "$scratch"
     }
@@ -361,12 +361,13 @@ bench-program lang:
             flags=()
             [ -z "${RUST2_CODSPEED:-}" ] || flags=(--expose-gc --predictable --predictable-gc-schedule --single-threaded --v8-pool-size=0)
             exec node ${flags[@]+"${flags[@]}"} target/bench-ts/export.ts "$wasm" "$PWD/target/codspeed/codspeed.node" ;;
+        ts-addon) exec node target/bench-node/main.ts ;;
         ts-chromium | ts-firefox) exec bun target/bench-ts/browser.ts "${lang#ts-}" "$wasm" "target/bench-browser/${lang#ts-}" ;;
         react-native) exec target/bench-rn/host target/bench-rn/bundle.js ;;
         *) echo "bench-program: no language {{ lang }}" >&2; exit 1 ;;
     esac
 
-# Export moq's crates' C ABI, build it, and run moq/moq.c, moq/moq.cpp, moq/moq.kt, moq/moq.py, moq/moq.swift, moq/moq.go, moq/moq.dart, moq/moq.cs, and moq/moq.ts against it, and compile its C# for Unity, from the pinned moq revision or a checkout.
+# Export moq's crates' C ABI, build it, and run moq/moq.c, moq/moq.cpp, moq/moq.kt, moq/moq.py, moq/moq.swift, moq/moq.go, moq/moq.dart, moq/moq.cs, and moq/moq.ts against it, the last on Hermes and through Node's addon, and compile its C# for Unity, from the pinned moq revision or a checkout.
 moq checkout="": (moq-cpp checkout)
     #!/usr/bin/env bash
     set -euo pipefail
@@ -398,6 +399,7 @@ moq checkout="": (moq-cpp checkout)
     LD_LIBRARY_PATH="$out/target/release" DYLD_LIBRARY_PATH="$out/target/release" dotnet target/moq-csharp/moq.dll
     {{ quote(just_executable()) }} csharp unity target/moq-csharp/unity.dll "$out/csharp/moq.cs" tests/unity.cs
     {{ quote(just_executable()) }} moq-react-native-run
+    {{ quote(just_executable()) }} moq-node-run
 
 # Export and build moq's crates' C ABI as `just ffi moq` does, and run only moq/moq.ts against it, through the React Native binding on Hermes off a device.
 moq-react-native checkout="": (moq-export checkout) moq-react-native-run
@@ -406,6 +408,22 @@ moq-react-native checkout="": (moq-export checkout) moq-react-native-run
 [private]
 moq-react-native-run: (rn-program "moq-rn" "moq/moq.ts")
     target/moq-rn/host target/moq-rn/bundle.js
+
+# Export and build moq's crates' C ABI as `just ffi moq` does, and run only moq/moq.ts against it, through the Node binding's addon on Node, Deno, and Bun.
+moq-node checkout="": (moq-export checkout) moq-node-run
+
+# Run moq/moq.ts through the Node binding's addon on Node, Deno, and Bun: the React Native binding's script, whose binding the Node one shares its API with.
+[private]
+moq-node-run:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    src=target/moq-node-src
+    mkdir -p "$src"
+    sed -e 's|"\./react-native/|"./node/|' moq/moq.ts > "$src/moq.ts"
+    {{ quote(just_executable()) }} node-program moq-node "$src/moq.ts"
+    node target/moq-node/main.ts
+    deno run --allow-read --allow-ffi target/moq-node/main.ts
+    bun target/moq-node/main.ts
 
 # Export and build moq's crates' C ABI as `just ffi moq` does, and run only moq/moq.cpp against it, built by $CXX or the platform's compiler: MSVC's on Windows, from a developer environment.
 moq-cpp checkout="": (moq-export checkout)
@@ -527,6 +545,34 @@ rn-bench:
         -e 's|^await api\.load(readFileSync(process\.argv\[2\]!));$|await api.load();|' moq/bench/export.ts > "$src/export.ts"
     grep -qx 'await api.load();' "$src/export.ts" || { echo "rn-bench: moq/bench/export.ts no longer loads its module as this rewrites it" >&2; exit 1; }
     {{ quote(just_executable()) }} rn-program bench-rn "$src/export.ts"
+
+# Lay out target/bench-node as export.ts over the Node binding bench-build exported, on Node: its modules the Node binding's, and its load the addon beside them.
+[private]
+node-bench:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    src=target/bench-node-src
+    mkdir -p "$src"
+    sed -e 's|"\./web/|"./node/|' -e '/^const { readFileSync } = /d' \
+        -e 's|^await api\.load(readFileSync(process\.argv\[2\]!));$|await api.load();|' moq/bench/export.ts > "$src/export.ts"
+    grep -qx 'await api.load();' "$src/export.ts" || { echo "node-bench: moq/bench/export.ts no longer loads its module as this rewrites it" >&2; exit 1; }
+    {{ quote(just_executable()) }} node-program bench-node "$src/export.ts"
+
+# Lay out target/<dir> as the run of <script> over target/export/moq's Node binding and the addon moq-export left beside it, checked with tsc as a caller imports it.
+[private]
+node-program dir script:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    dir=target/{{ dir }}
+    rm -rf "$dir"
+    mkdir -p "$dir"
+    cp -r target/export/moq/node "$dir/node"
+    cp {{ script }} "$dir/main.ts"
+    printf '%s\n' '{"compilerOptions": {"strict": true, "noEmit": true, "noUnusedLocals": true, "noUnusedParameters": true,' \
+        '"target": "es2024", "lib": ["es2024", "esnext.disposable", "dom"], "module": "esnext", "moduleResolution": "bundler",' \
+        '"allowImportingTsExtensions": true, "verbatimModuleSyntax": true, "erasableSyntaxOnly": true, "skipLibCheck": true, "types": []},' \
+        '"include": ["main.ts", "node/*.ts"], "exclude": ["node/*.d.ts"]}' > "$dir/tsconfig.json"
+    tsc -p "$dir"
 
 # Lay out target/<dir> as React Native's run of <script> on Hermes off a device, the flake's, which nix builds on first use: the script, checked with tsc over target/export/moq's React Native binding as a caller imports it, bundled into one script as Hermes runs it, its top-level await in an async function that exits as Node does, and tests/rn_host.cpp built over the binding's JSI module and moq's library.
 [private]
@@ -758,9 +804,12 @@ moq-export checkout="": (moq-write checkout)
     # left here, and mv refuses to move a file onto itself.
     rm -f "$out/python/$lib"
     mv "$out/target/release/$lib" "$out/python/$lib"
-    # The library the C programs link, and the shared one Kotlin and Dart load.
-    cargo build --locked --quiet --release --manifest-path "$out/Cargo.toml" --features kotlin,dart 2>&1 | tee target/moq-build.log
+    # The library the C programs link, and the shared one Kotlin, Dart, and Node load: the
+    # Node-API addon resolves Node's functions as it registers, so it links no Node.
+    cargo build --locked --quiet --release --manifest-path "$out/Cargo.toml" --features kotlin,dart,node 2>&1 | tee target/moq-build.log
     sed -n 's/^note: native-static-libs: //p' target/moq-build.log > target/moq-native
+    # Beside the Node binding, where its `load` looks by default.
+    cp "$out/target/release/$lib" "$out/node/moq.node"
 
 # Write target/moq-ffi, a facade re-exporting what moq-ffi ships from moq's crates, from the pinned moq revision or a checkout: the export follows its re-exports, as it will moq-ffi's remainder's. With `web`, target/moq-ffi-web, the same without moq-tokio, which builds for no wasm32 target.
 [private]

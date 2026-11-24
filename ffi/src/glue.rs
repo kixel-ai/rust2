@@ -381,8 +381,9 @@ pub(crate) struct Output {
 	/// Directories the export owns, where an earlier export may have written files for
 	/// crates or packages this one has not.
 	stale: Vec<PathBuf>,
-	/// Directories inside those that the export never writes and leaves as they are: React
-	/// Native's `libs/`, which the app builds its Rust libraries into.
+	/// Paths inside those that the export never writes and leaves as they are: React
+	/// Native's `libs/`, which the app builds its Rust libraries into, and Node's addon,
+	/// which the consumer stages beside its package.
 	spared: Vec<PathBuf>,
 }
 
@@ -443,7 +444,7 @@ fn prune(dir: &Path, keep: &HashSet<&Path>, spared: &[PathBuf]) -> Result<(), St
 			if !spared.contains(&path) {
 				prune(&path, keep, spared)?;
 			}
-		} else if !keep.contains(path.as_path()) {
+		} else if !keep.contains(path.as_path()) && !spared.contains(&path) {
 			std::fs::remove_file(&path).map_err(|err| format!("removing {}: {err}", path.display()))?;
 		}
 	}
@@ -599,6 +600,8 @@ impl Crate<'_> {
 			dart = []\n\
 			# What web/index.ts calls that the C ABI lacks, built for wasm32-wasip1.\n\
 			web = []\n\
+			# The Node-API addon node/index.ts loads, as node/{lib}.node.\n\
+			node = []\n\
 			\n\
 			{targeted}\
 			[workspace]\n\
@@ -622,6 +625,7 @@ impl Crate<'_> {
 		let csharp = crate::csharp::generate(&rest, &self.packages(), contract)?;
 		let web = crate::web::generate(&rest, self.facade, contract)?;
 		let react_native = crate::web::react_native(&rest, self.facade, contract)?;
+		let node = crate::web::node(&rest, self.facade, contract)?;
 		let jsi = match &react_native {
 			Some(_) => Some(crate::jsi::generate(
 				&rest,
@@ -649,6 +653,9 @@ impl Crate<'_> {
 		if let Some(react_native) = &react_native {
 			names.insert("React Native".to_string(), react_native.names.clone());
 		}
+		if let Some(node) = &node {
+			names.insert("Node".to_string(), node.names.clone());
+		}
 		let mut output = Output {
 			names,
 			files: Vec::new(),
@@ -658,8 +665,13 @@ impl Crate<'_> {
 				out.join("web"),
 				out.join("src").join("web"),
 				out.join("react-native"),
+				out.join("node"),
+				out.join("src").join("node"),
 			],
-			spared: vec![out.join("react-native").join("libs")],
+			spared: vec![
+				out.join("react-native").join("libs"),
+				out.join("node").join(format!("{}.node", self.abi.prefix)),
+			],
 		};
 		let mut generator = Gen {
 			abi: self.abi,
@@ -673,6 +685,7 @@ impl Crate<'_> {
 			checking: Cell::new(false),
 			reserved: Cell::new(false),
 			web: web.is_some(),
+			node: node.is_some(),
 			variants: String::new(),
 			unwind: self.abi.space("unwind"),
 		};
@@ -727,6 +740,13 @@ impl Crate<'_> {
 			output.file(&out.join("src/web/runtime.rs"), crate::web::GLUE_RUNTIME);
 			for (path, text) in &web.files {
 				output.file(&out.join("web").join(path), text);
+			}
+		}
+		if let Some(node) = node {
+			output.file(&out.join("src/node/mod.rs"), &node.glue);
+			output.file(&out.join("src/node/runtime.rs"), crate::node::GLUE_RUNTIME);
+			for (path, text) in &node.files {
+				output.file(&out.join("node").join(path), text);
 			}
 		}
 		if let (Some(react_native), Some(jsi)) = (react_native, jsi) {
@@ -1022,6 +1042,8 @@ struct Gen<'a> {
 	reserved: Cell<bool>,
 	/// Whether the API serves the web, whose glue the crate's `web` feature builds.
 	web: bool,
+	/// Whether the API serves Node, whose addon the crate's `node` feature builds.
+	node: bool,
 	/// The Python glue's functions telling which variant an object that is an enum holds.
 	variants: String,
 	/// Where each C function's `C-unwind` body is named under `kotlin`: no C name is it or
@@ -1740,6 +1762,12 @@ impl Gen<'_> {
 		self.line("#[cfg(feature = \"dart\")]\nmod dart;\n");
 		if self.web {
 			self.line("#[cfg(all(feature = \"web\", target_arch = \"wasm32\"))]\nmod web;\n");
+		}
+		match self.node {
+			true => self.line("#[cfg(feature = \"node\")]\nmod node;\n"),
+			false => self.line(
+				"#[cfg(feature = \"node\")]\ncompile_error!(\"the node feature needs a 64-bit little-endian target, which this API serves none of\");\n",
+			),
 		}
 		// The facade may export nothing, which cargo would call unused.
 		self.line(format!("use {} as _;\n", self.dependency));
@@ -3721,7 +3749,7 @@ fn rewrite_keeps_unchanged_files() {
 			.map(|(path, text)| (root.join(path), text.to_string()))
 			.collect(),
 		stale: vec![go.clone()],
-		spared: vec![],
+		spared: vec![go.join("staged.node")],
 	};
 	let first = [
 		("Cargo.toml", "a"),
@@ -3731,6 +3759,7 @@ fn rewrite_keeps_unchanged_files() {
 	];
 	output(&first).write().unwrap();
 	std::fs::write(root.join("go/rt/stray.go"), "stray").unwrap();
+	std::fs::write(go.join("staged.node"), "staged").unwrap();
 	std::fs::write(root.join("kept.txt"), "kept").unwrap();
 	// Set in the past, so a rewrite would move it.
 	let past = std::time::SystemTime::UNIX_EPOCH + std::time::Duration::from_secs(1 << 30);
@@ -3753,6 +3782,11 @@ fn rewrite_keeps_unchanged_files() {
 		root.join("kept.txt").exists(),
 		"a file outside the export's directories went"
 	);
+	assert!(
+		go.join("staged.node").exists(),
+		"a spared file the consumer staged went"
+	);
+	std::fs::remove_file(go.join("staged.node")).unwrap();
 	output(&[("Cargo.toml", "b")]).write().unwrap();
 	assert_eq!(std::fs::read_to_string(root.join("Cargo.toml")).unwrap(), "b");
 	assert!(!go.exists(), "the export's emptied directory stays");
