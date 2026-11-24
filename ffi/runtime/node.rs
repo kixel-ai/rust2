@@ -931,24 +931,33 @@ fn relays() -> u32 {
 /// A call from JavaScript, and `f` is a call through the C ABI.
 #[inline]
 pub unsafe fn serve<R>(f: impl FnOnce() -> R) -> R {
-	// Only this thread makes a token, so none appears before `f` returns.
-	let result = match relays() {
-		0 => f(),
-		_ => {
-			let mut out = MaybeUninit::uninit();
-			let mut run = ManuallyDrop::new(|| {
-				out.write(f());
-			});
-			// SAFETY: the caller's contract, and `serve_relays` returns once `run` returned.
-			unsafe { HOME.serve_relays(Run::new(&mut run)) };
-			// SAFETY: as above.
-			unsafe { out.assume_init() }
-		}
-	};
+	let mut out = MaybeUninit::uninit();
+	let mut run = ManuallyDrop::new(|| {
+		out.write(f());
+	});
+	// SAFETY: the caller's contract, and `serve_run` returns once `run` returned.
+	unsafe { serve_run(Run::new(&mut run)) };
+	// SAFETY: as above.
+	unsafe { out.assume_init() }
+}
+
+/// [`serve`]'s run of `run`, apart from each call, so each stub holds its call once: inlined
+/// into both of its ways to run, each call was there twice, 1.1 MiB of moq's addon.
+///
+/// # Safety
+/// As [`serve`]'s.
+#[inline(never)]
+unsafe fn serve_run(run: Run) {
+	// Only this thread makes a token, so none appears before `run` returns.
+	match relays() {
+		// SAFETY: the caller's contract.
+		0 => unsafe { run.run() },
+		// SAFETY: as above.
+		_ => unsafe { HOME.serve_relays(run) },
+	}
 	if rt::Thread::made() {
 		drains();
 	}
-	result
 }
 
 /// Give JavaScript's thread a wake that queues a drain, once: a value it made that is not

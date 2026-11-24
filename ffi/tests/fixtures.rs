@@ -3101,7 +3101,10 @@ fn node_dir() -> &'static Path {
 			.env("RUSTFLAGS", "-D warnings"));
 		step::mirror(&api.out.join("node"), &dir.join("node"));
 		// The library cargo builds, which Node loads by its name.
-		step::copy(&target.join("debug").join(PYTHON_LIB), &dir.join("node").join("api.node"));
+		step::copy(
+			&target.join("debug").join(PYTHON_LIB),
+			&dir.join("node").join("api.node"),
+		);
 		step::write(&dir.join("api.ts"), node_check());
 		step::copy(&manifest_dir().join("tests").join("node.ts"), &dir.join("node.ts"));
 		step::write(
@@ -3118,16 +3121,14 @@ fn node_dir() -> &'static Path {
 }
 
 /// `tests/api.ts` importing Node's binding, its cases exported for `tests/node.ts`, which
-/// loads the binding as its `main` does the web's.
+/// loads the binding as its `main` does the web's, without its region of wasm32's items,
+/// which tsc would find missing from a binding of native targets alone.
 fn node_check() -> String {
-	let check = std::fs::read_to_string(manifest_dir().join("tests").join("api.ts")).unwrap();
-	let check = check.replace("\"./web/", "\"./node/");
-	let glue = "import * as g from \"./node/glue.ts\";\n";
-	assert_eq!(check.matches(glue).count(), 1, "api.ts imports the web's glue once");
-	let check = check.replace(glue, "");
-	let main = "\nasync function main(): Promise<void> {";
-	let at = check.find(main).expect("api.ts has its main");
-	check[..=at].to_string()
+	let check = binding_check("node");
+	let start = check.find("\t// #region wasm32").expect("api.ts has wasm32's region");
+	let end = "\t// #endregion wasm32\n";
+	let stop = check.find(end).expect("api.ts ends wasm32's region") + end.len();
+	format!("{}{}", &check[..start], &check[stop..])
 }
 
 /// The cases of `tests/node.ts` that must pass, after its transcript: `threads`, then
@@ -3165,7 +3166,11 @@ fn api_node() {
 		for (case, message) in WEB_BROKEN {
 			let run = ran(Some(case));
 			assert!(!run.ok, "{runtime}'s {case} did not fail");
-			assert!(run.stderr.contains(message), "{runtime}'s {case} printed {}", run.stderr);
+			assert!(
+				run.stderr.contains(message),
+				"{runtime}'s {case} printed {}",
+				run.stderr
+			);
 		}
 	}
 }
@@ -3245,7 +3250,7 @@ fn api_react_native_host() {
 		&dir.join("transcript.ts"),
 		transcript::typescript::emit(transcript(), transcript::typescript::Binding::ReactNative),
 	);
-	step::write(&dir.join("api.ts"), react_native_check());
+	step::write(&dir.join("api.ts"), binding_check("react-native"));
 	step::copy(
 		&manifest_dir().join("tests").join("react-native.ts"),
 		&dir.join("entry.ts"),
@@ -3641,7 +3646,7 @@ fn react_native_app(dir: &Path, package: &Path) -> PathBuf {
 			transcript::typescript::Binding::ReactNative,
 		)),
 	);
-	step::write(&check.join("api.ts"), imported(&react_native_check()));
+	step::write(&check.join("api.ts"), imported(&binding_check("react-native")));
 	step::write(
 		&check.join("entry.ts"),
 		imported(&std::fs::read_to_string(manifest_dir().join("tests").join("react-native.ts")).unwrap()),
@@ -3736,14 +3741,15 @@ const REACT_NATIVE_CASES: [&str; 15] = [
 	"checks",
 ];
 
-/// `tests/api.ts` importing the React Native binding, its cases exported for
-/// `tests/react-native.ts`, which loads the binding as its `main` does the web's.
-fn react_native_check() -> String {
+/// `tests/api.ts` importing the binding in `dir` beside it instead of the web's, without the
+/// web's glue or its `main`, its cases exported for a script loading the binding as its
+/// `main` does the web's, such as `tests/react-native.ts`.
+fn binding_check(dir: &str) -> String {
 	let check = std::fs::read_to_string(manifest_dir().join("tests").join("api.ts")).unwrap();
-	let check = check.replace("\"./web/", "\"./react-native/");
-	let glue = "import * as g from \"./react-native/glue.ts\";\n";
-	assert_eq!(check.matches(glue).count(), 1, "api.ts imports the web's glue once");
-	let check = check.replace(glue, "");
+	let check = check.replace("\"./web/", &format!("\"./{dir}/"));
+	let glue = format!("import * as g from \"./{dir}/glue.ts\";\n");
+	assert_eq!(check.matches(&glue).count(), 1, "api.ts imports the web's glue once");
+	let check = check.replace(&glue, "");
 	let main = "\nasync function main(): Promise<void> {";
 	let at = check.find(main).expect("api.ts has its main");
 	check[..=at].to_string()

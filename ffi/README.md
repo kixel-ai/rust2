@@ -1966,11 +1966,12 @@ target but wasm32's, whose layouts its TypeScript reads.
 
 ```bash
 just ffi test     # export the fixtures, build them, and drive api from C, C++, Kotlin, Python, Swift, Go, Dart, C#, and TypeScript on Node, Deno, and Bun
-just ffi moq      # export moq's crates at the pinned revision, build them, and run moq/moq.c, moq/moq.cpp, moq/moq.kt, moq/moq.py, moq/moq.swift, moq/moq.go, moq/moq.dart, and moq/moq.ts, and compile moq's C# for .NET and Unity
+just ffi moq      # export moq's crates at the pinned revision, build them, and run moq/moq.c, moq/moq.cpp, moq/moq.kt, moq/moq.py, moq/moq.swift, moq/moq.go, moq/moq.dart, and moq/moq.ts on Hermes and through Node's addon, and compile moq's C# for .NET and Unity
 just ffi moq-c    # the same export, built in debug, running only moq/moq.c: `just ci`'s check on moq
 just ffi moq-cpp  # the same export, running only moq/moq.cpp
 just ffi moq-swift  # the same export, running only moq/moq.swift
 just ffi moq-react-native  # the same export, running only moq/moq.ts through the React Native binding on Hermes
+just ffi moq-node  # the same export, running only moq/moq.ts through the Node binding's addon on Node, Deno, and Bun
 just ffi moq-api <target>  # stage moq's API on another target into target/moq-api, which the exports above merge
 just ffi census   # census each into target/census
 just ffi shapes   # round-trip every sampled type shape in every language but C#, as the nightly does
@@ -1984,7 +1985,7 @@ just ffi react-native-host  # api's script and cases through the React Native bi
 nix develop .#android --command just ffi react-native-android  # the same through the React Native package in a new app, built for release, on the 64-bit Android device adb reaches
 just ffi react-native-ios  # the same on the booted iOS simulator, on macOS with Xcode and CocoaPods
 nix develop .#android --command just ffi bench-android  # the benchmark's Kotlin rows on HotSpot and, shrunk by R8, on ART on the Android device adb reaches
-nix develop .#bench --command just ffi bench  # the binding benchmark: bench/ffi/README.md's cases from Rust, and through the export from C, C++, Kotlin, Python, Swift, Go, Dart, C#, and React Native on Hermes
+nix develop .#bench --command just ffi bench  # the binding benchmark: bench/ffi/README.md's cases from Rust, and through the export from C, C++, Kotlin, Python, Swift, Go, Dart, C#, TypeScript on Node over the wasm32 stand-in and over the Node-API addon, and React Native on Hermes
 nix develop .#bench --command just ffi codspeed  # after bench-build, each single-threaded case once under CodSpeed's CPU simulation, as the CodSpeed workflow runs it
 nix develop .#sanitize --command just ffi sanitize  # api's C and C++ scripts under ASan with UBSan, TSan, and Valgrind, its Swift under TSan, its Go under the race detector and cgocheck2, its Python looped on a debug CPython, and its C ABI under Miri
 ```
@@ -2035,6 +2036,14 @@ depending on the package as `npm pack` makes it, built for release, on an x86_64
 at API 35 and on an iOS simulator, where the transcript must be native Rust's on that
 device. Nightly runs all three. Nothing in the merge gate runs them, since nixpkgs packages
 no Hermes and the flake's compiles from source.
+`tests/node.ts` runs `tests/api.ts`'s script and its cases through the Node binding on
+Node, Deno, and Bun, over the addon the fixture's crate builds with `--features node`: the
+transcript must be native Rust's, each case must pass, and each contract it breaks must
+throw or abort with its message, as the web's must. tsc checks it first, without wasm32's
+region of `targets`, whose items a binding of native targets lacks. Its `threads` case runs
+what the web's module has none of: a kept and a lent closure called on another thread, a
+send and a wake from one, an implementation called from a thread the call joins and from
+one that calls while JavaScript idles, and a returned waker's wake and close.
 `tests/api.py` runs the script through the Python, in CPython's development mode with
 warnings as errors, checks its futures the same way, what frees an object or bytes nobody
 closed, and the values Python's types bound, and breaks each runtime check, which must raise or

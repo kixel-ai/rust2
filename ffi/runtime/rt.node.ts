@@ -59,11 +59,25 @@ function placePut(p: number, at: number): void {
 	view.setUint32(p + 4, baseHi + Math.floor(lo / TWO32), true);
 }
 
-/** A copy of the `len` bytes at `ptr`. */
+/**
+ * A copy of the `len` bytes at `ptr`. Up to [LEND], through the scratch memory, as a native
+ * call taking only numbers costs half one reading a typed array's place; past it, straight
+ * into the copy, so the scratch memory, which stays committed, grows no larger than that.
+ */
 function lentCopy(ptr: Addr, len: number): Uint8Array<ArrayBuffer> {
-	const out = new Uint8Array(len);
-	if (len > 0) w.$into(out, ptr);
-	return out;
+	if (len > LEND) {
+		const out = new Uint8Array(len);
+		w.$into(out, ptr);
+		return out;
+	}
+	const m = top;
+	try {
+		const at = alloc(len, 1);
+		if (len > 0) w.$copy(at, ptr, len);
+		return bytes.slice(at, at + len);
+	} finally {
+		top = m;
+	}
 }
 
 /** The text of the `len` bytes of UTF-8 at `ptr`, as `decoder` decodes it. */

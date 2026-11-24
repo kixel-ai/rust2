@@ -838,8 +838,10 @@ function unclosedWaker(wake: () => void): void {
 }
 
 /** The binding's target's items are each here: wasm32's for the web, a native target's
- * for React Native, whose binding serves those alone. */
+ * for React Native and Node, whose bindings serve those alone. */
 function targets(): void {
+	const labelled = api.sameLabelled({ tag: "Tagged", tag$: 7 });
+	check(Labelled.debug(labelled) === "Tagged { tag: 7 }", "a variant's field named `tag` crosses as Rust reads it");
 	const platform = api.platform();
 	if (platform.tag === "Native") {
 		check(platform._0 === 64 && api.pointerBits(platform) === 64, "a 64-bit target's variant crosses");
@@ -847,10 +849,9 @@ function targets(): void {
 		check(api.isFamily("Native"), "a native target's plain variant crosses");
 		return;
 	}
+	// #region wasm32, which Node's check cuts, as its binding serves native targets alone
 	check(api.pointerBits(platform) === 32, "wasm32's variant crosses");
 	check(api.placement().tag === "Anywhere", "a variant wasm32 lacks is left out with its record");
-	const labelled = api.sameLabelled({ tag: "Tagged", tag$: 7 });
-	check(Labelled.debug(labelled) === "Tagged { tag: 7 }", "a variant's field named `tag` crosses as Rust reads it");
 	check(api.pointerBits({ tag: "Native", _0: 64 }) === 64, "the native variant crosses too");
 	check(api.isFamily("Wasm") && !api.isFamily("Native"), "wasm32's plain variant crosses");
 	check(api.wasmOnly() === 32, "an item only wasm32 has");
@@ -859,6 +860,7 @@ function targets(): void {
 	const log = new CountLog();
 	api.wasmLog(log);
 	check(log.lines === 1 && log.closes === 1, "an item only wasm32 has takes an implementation");
+	// #endregion wasm32
 }
 
 /** Each call taking a closed object throws, however it was closed, and moves nothing. */

@@ -30,13 +30,14 @@ LANGS = [
 	("dart", "Dart"),
 	("csharp", "C#"),
 	("ts-node", "TS (Node)"),
+	("ts-addon", "TS (Node-API)"),
 	("ts-chromium", "TS (Chromium)"),
 	("ts-firefox", "TS (Firefox)"),
 	("react-native", "React Native (Hermes)"),
 ]
 
 # The TypeScript programs, which run Rust on one JavaScript thread.
-TS = ["ts-node", "ts-chromium", "ts-firefox", "react-native"]
+TS = ["ts-node", "ts-addon", "ts-chromium", "ts-firefox", "react-native"]
 
 CALLS = [
 	("call", "`track.is_closed()`, a handle call"),
@@ -104,6 +105,8 @@ BINDINGS = [
 	("C#", ["csharp/moq.cs"], None, []),
 	# Its TypeScript and JSI module, and the TurboModule's package around them.
 	("React Native", ["react-native"], written, []),
+	# Its TypeScript, not the addon moq-export copies beside it, which is libmoq's build.
+	("Node", ["node"], typescript, ["src/node"]),
 ]
 
 # The TypeScript, under the wasm32 stand-in's export, and the glue its module builds with.
@@ -123,7 +126,7 @@ SHARED = "dylib" if sys.platform == "darwin" else "so"
 
 LIBRARIES = [
 	("`libmoq.a`, the C ABI that C, C++, Swift, Go, and React Native link", "target/release/libmoq.a"),
-	(f"`libmoq.{SHARED}`, with the Kotlin and Dart glue", f"target/release/libmoq.{SHARED}"),
+	(f"`libmoq.{SHARED}`, with the Kotlin, Dart, and Node glue", f"target/release/libmoq.{SHARED}"),
 	(f"`python/libmoq.{SHARED}`, the CPython extension", f"python/libmoq.{SHARED}"),
 ]
 
