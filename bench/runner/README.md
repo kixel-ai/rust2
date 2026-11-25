@@ -166,7 +166,9 @@ clock, and addresses are the host's own.
 and times each benchmark both have in two processes, the base's and the head's, alive together.
 It takes their samples in pairs, one of each side, in an order drawn anew for each pair, so load
 that drifts or recurs on a shared host biases neither side; it still widens the interval, which
-pairing cannot remove, only balance. Each side's time is its own samples' median, and the change
+pairing cannot remove, only balance. Two processes of one build still differ by a few tenths of
+a percent, by where each lands in memory and on the CPU, which no interval holds: a change that
+small is one a pair of processes cannot tell. Each side's time is its own samples' median, and the change
 is the median of each pair's ratio, head over base, with its interval, printed as a Markdown
 table. A benchmark only one side has times alone, as added or removed, and a base's benchmarks
 of CodSpeed's crates time as none, so a base from before a rewrite to the harness still has its
