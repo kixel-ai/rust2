@@ -3,8 +3,9 @@
 //! Valgrind presents a CPU derived from the host's, and code that picks a path by CPU
 //! feature, such as glibc's string functions or Rust's runtime detection, counts
 //! differently on another. So does another Valgrind, and glibc's tunables, which can mask
-//! features under the same CPU. Each count names the fingerprint of all of them, so counts
-//! from two environments never share a series.
+//! features under the same CPU, and the preload every count runs with, whose code runs inside
+//! what is counted. Each count names the fingerprint of all of them, so counts from two
+//! environments never share a series.
 
 use std::process::Command;
 
@@ -17,6 +18,8 @@ pub struct Fingerprint {
 	pub tunables: Option<String>,
 	/// What the CPU identifies as under Valgrind, one line a leaf.
 	pub cpu: String,
+	/// The hash of the library every count preloads, its seed and clock compiled in.
+	pub preload: String,
 }
 
 impl Fingerprint {
@@ -42,6 +45,7 @@ impl Fingerprint {
 			valgrind: version.trim().to_owned(),
 			tunables: std::env::var("GLIBC_TUNABLES").ok(),
 			cpu,
+			preload: crate::preload::hash(),
 		})
 	}
 
@@ -55,6 +59,7 @@ impl Fingerprint {
 			None => hash.write("GLIBC_TUNABLES unset"),
 		}
 		hash.write(&self.cpu);
+		hash.write(&self.preload);
 		format!("{}-{:012x}", self.arch, hash.0 >> 16)
 	}
 }
@@ -131,7 +136,12 @@ impl Fnv {
 	/// Hashes `field`, then a separator no field holds, so no two lists of fields collide by
 	/// where one ends.
 	pub fn write(&mut self, field: &str) {
-		for byte in field.bytes().chain([0]) {
+		self.bytes(field.as_bytes());
+	}
+
+	/// Hashes `field` as [`write`](Self::write) does, for bytes that are not text.
+	pub fn bytes(&mut self, field: &[u8]) {
+		for &byte in field.iter().chain(&[0]) {
 			self.0 = (self.0 ^ u64::from(byte)).wrapping_mul(0x0100_0000_01b3);
 		}
 	}
@@ -147,6 +157,7 @@ mod tests {
 			valgrind: "valgrind-3.27.1".to_owned(),
 			tunables: None,
 			cpu: "00000000.0 0000000d 756e6547 6c65746e 49656e69\n".to_owned(),
+			preload: "0123456789ab".to_owned(),
 		}
 	}
 
@@ -169,7 +180,9 @@ mod tests {
 		other.valgrind = "valgrind-3.28.0".to_owned();
 		let mut cpu = fingerprint();
 		cpu.cpu.push('\n');
-		for changed in [tuned, other, cpu] {
+		let mut preload = fingerprint();
+		preload.preload = "ba9876543210".to_owned();
+		for changed in [tuned, other, cpu, preload] {
 			assert_ne!(changed.label(), base);
 		}
 	}

@@ -66,14 +66,59 @@ under `target/rust2-bench/jobs-*`, beside its profiles and output. Each run take
 its own there, so runs in one tree never read each other's profiles, and removes it when it
 succeeds; a failed run keeps it and names it.
 
+## Randomness and the clock
+
+A count follows everything before it in the process, down to the allocator's state, so a seed
+or a clock read that differs from run to run moves it. So every process a job runs preloads a
+library, [preload.rs](preload.rs), built with rust2-bench and kept under
+`~/.cache/rust2-bench` (or `$XDG_CACHE_HOME`), which replaces glibc's:
+
+- randomness (`getrandom`, `getentropy`, and `syscall(SYS_getrandom)`) with one fixed-seed
+  stream, the same in every process, so std's `HashMap` seeds and the `getrandom` crate's
+  bytes repeat;
+- every clock (`clock_gettime`, `gettimeofday`, `time`) with one that starts at the same
+  instant in every process, a day of uptime and 2026-01-01 on the wall, and advances 1 µs a
+  read;
+- and timed waits (`epoll_wait`, `poll`, `nanosleep`, `clock_nanosleep`, a timed condition
+  variable, futex, semaphore, mutex or rwlock lock, thread join, or message queue call) with
+  ones that still wait as long as they ask, on the host's clock, and move this clock by what
+  they waited when they expire. A timer armed at an absolute time (`timerfd_settime` or
+  `timer_settime` with its `ABSTIME` flag) aborts the process, naming the call in its Valgrind
+  log, since the kernel would read the deadline on the host's clock.
+
+Each process logs that it loaded the library to its Valgrind log, and a process that measured
+a benchmark without it fails the run: a static executable never loads it, nor does one whose
+environment drops `LD_PRELOAD`. A process that reaches the kernel without glibc, as Go's
+runtime does, reads the host's randomness and clock for what it does so. Load still decides
+whether a real timeout or I/O comes first, so a benchmark that races them can still move.
+
+## Paths and the environment
+
+The same binary counts differently when its process starts with a longer path or a larger
+environment, since both sit on the initial stack and in the heap, and move the addresses, and
+so the copy loop glibc picks, after them. So every job's arguments and environment are padded
+to 1 MiB with `RUST2_BENCH_PAD_00` to `_15`, which puts its initial stack at the same place
+however long its checkout's path or however large the host's environment, such as CI's
+`GITHUB_REF` on another branch. A job whose own take more fails the run, as does a stack limit
+under 4.25 MiB (`ulimit -s 4352`), since Linux takes a quarter of it for them. A `--program`
+job pads its shell's launch: the program the shell runs keeps that environment but gets its
+own arguments, so a command that expands a checkout's path, such as `"$PWD/target/probe"`,
+still moves with that path's length. And CodSpeed's crates get their workspace relative to its
+Git repository, from which they name each benchmark's file, so they never resolve the
+checkout's path; a benchmark package at the repository's root still does, as does every
+benchmark outside a repository, which CodSpeed names by its absolute path, so their counts
+still move with that path's length. A path a build compiles in, such as a panic's location in a
+dependency outside the workspace, is the build's to keep fixed.
+
 ## Fingerprints
 
 Counts compare only within one environment. Valgrind presents a CPU derived from the host's,
 and a binary that picks a path by CPU feature, such as glibc's string functions or Rust's
 runtime detection, counts differently on another; so can another Valgrind, and glibc's
-tunables, which mask features under the same CPU. So each run fingerprints its environment:
+tunables, which mask features under the same CPU; so can another preload, whose code runs
+inside a count and whose seed and clock steer it. So each run fingerprints its environment:
 the architecture, every CPUID leaf a probe reads under the same Valgrind, `GLIBC_TUNABLES` as
-the benchmarks inherit it, and `valgrind --version`, hashed into a label such as
+the benchmarks inherit it, `valgrind --version`, and the preload's bytes, hashed into a label such as
 `x86_64-3059cd1d9e65`. The measure every count records names it, `instructions
 (x86_64-3059cd1d9e65)`, so counts from two environments never share a Kixel Quest series, and
 a hardware change starts a new series instead of reading as a regression. `rust2-bench

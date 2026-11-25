@@ -6,8 +6,10 @@ mod cargo;
 mod compare;
 mod fingerprint;
 mod metrics;
+mod preload;
 
 use std::collections::{BTreeMap, BTreeSet};
+use std::ffi::{OsStr, OsString};
 use std::path::{Path, PathBuf};
 use std::process::{Command, ExitCode};
 use std::sync::Mutex;
@@ -96,6 +98,7 @@ fn cli(args: &[String]) -> Result<(), String> {
 				"GLIBC_TUNABLES: {}",
 				fingerprint.tunables.as_deref().unwrap_or("(unset)")
 			);
+			eprintln!("preload: {}", fingerprint.preload);
 			eprint!("cpu:\n{}", fingerprint.cpu);
 			Ok(())
 		}
@@ -199,6 +202,19 @@ fn valgrind() -> Result<Command, String> {
 	Ok(command)
 }
 
+/// rust2-bench's directory in the user's cache, created when missing, as a canonical path.
+pub fn cache() -> Result<PathBuf, String> {
+	let cache = std::env::var_os("XDG_CACHE_HOME")
+		.map(PathBuf::from)
+		.or_else(|| std::env::var_os("HOME").map(|home| Path::new(&home).join(".cache")))
+		.ok_or("neither XDG_CACHE_HOME nor HOME is set, so rust2-bench's cache has nowhere to go")?
+		.join("rust2-bench");
+	std::fs::create_dir_all(&cache).map_err(|e| format!("cannot create {}: {e}", cache.display()))?;
+	cache
+		.canonicalize()
+		.map_err(|e| format!("cannot resolve {}: {e}", cache.display()))
+}
+
 /// Valgrind on rust2-bench's own `PATH`, found once, so the fingerprint and every count run
 /// the same one even when a job's environment sets another `PATH`.
 pub fn valgrind_path() -> Result<&'static Path, String> {
@@ -229,6 +245,8 @@ fn measure(dir: &Path, options: &Options, strict: bool) -> Result<Counts, String
 		.map_err(|e| format!("cannot resolve {}: {e}", dir.display()))?;
 	let fingerprint = Fingerprint::probe()?.label();
 	eprintln!("rust2-bench: fingerprint {fingerprint}");
+	let preload = preload::install()?;
+	fits(&std::fs::read_to_string("/proc/self/limits").map_err(|e| format!("cannot read /proc/self/limits: {e}"))?)?;
 	let mut jobs = if options.programs.is_empty() {
 		cargo::jobs(dir, &options.cargo, strict)?
 	} else {
@@ -263,7 +281,7 @@ fn measure(dir: &Path, options: &Options, strict: bool) -> Result<Counts, String
 		// whichever it holds.
 		jobs.retain(|job| job.expect.as_ref().is_none_or(|name| wanted.contains(name)));
 	}
-	let mut counts = run(jobs, &work(dir)?, options.jobs)?;
+	let mut counts = run(jobs, &work(dir)?, &preload, options.jobs)?;
 	if let Some(wanted) = &options.benchmarks {
 		if strict {
 			missing(wanted, |name| counts.contains_key(name))?;
@@ -312,10 +330,10 @@ fn work(dir: &Path) -> Result<PathBuf, String> {
 	unreachable!("some name is free")
 }
 
-/// Runs each job under Valgrind, `parallel` at once, each in a directory of its own under
-/// `work`, and gathers what they measured. Any failure fails the whole and keeps `work` for
-/// its output; success removes it.
-fn run(jobs: Vec<Job>, work: &Path, parallel: usize) -> Result<BTreeMap<String, u64>, String> {
+/// Runs each job under Valgrind with the library at `preload`, `parallel` at once, each in a
+/// directory of its own under `work`, and gathers what they measured. Any failure fails the
+/// whole and keeps `work` for its output; success removes it.
+fn run(jobs: Vec<Job>, work: &Path, preload: &Path, parallel: usize) -> Result<BTreeMap<String, u64>, String> {
 	let total = jobs.len();
 	let queue = Mutex::new(jobs.into_iter().enumerate());
 	let done = AtomicUsize::new(0);
@@ -333,7 +351,7 @@ fn run(jobs: Vec<Job>, work: &Path, parallel: usize) -> Result<BTreeMap<String, 
 						};
 						let started = Instant::now();
 						let label = job.label.clone();
-						let result = one(job, &work.join(index.to_string()));
+						let result = one(job, &work.join(index.to_string()), preload);
 						let finished = done.fetch_add(1, Ordering::Relaxed) + 1;
 						match &result {
 							Ok(measured) => eprintln!(
@@ -376,11 +394,87 @@ fn run(jobs: Vec<Job>, work: &Path, parallel: usize) -> Result<BTreeMap<String, 
 	Ok(counts)
 }
 
+/// The prefix of the variables [`pad`] fills.
+const PAD: &str = "RUST2_BENCH_PAD_";
+
+/// How many variables [`pad`] fills: a fixed number, so the count of pointers is fixed too, and
+/// enough that none passes the 128 KiB Linux takes in one.
+const PADS: usize = 16;
+
+/// How many bytes [`pad`] brings a job's arguments and environment to: room for a dev shell's
+/// several hundred KiB, and half the 2 MiB Linux takes in all under the default stack limit.
+const LAUNCH: usize = 1024 * 1024;
+
+/// How far a program's initial stack pointer sits below its strings, as Valgrind lays them out:
+/// each argument and variable with its NUL, the program's path once more for `AT_EXECFN`, and a
+/// pointer for each argument and variable. The rest it adds is the same for every job.
+fn launch(env: &BTreeMap<OsString, OsString>, args: &[&OsStr]) -> usize {
+	use std::os::unix::ffi::OsStrExt;
+	let strings = args.iter().map(|arg| arg.as_bytes().len() + 1).sum::<usize>()
+		+ args.first().map_or(0, |program| program.as_bytes().len() + 1)
+		+ env
+			.iter()
+			.map(|(key, value)| key.as_bytes().len() + value.as_bytes().len() + 2)
+			.sum::<usize>();
+	strings + 8 * (args.len() + env.len())
+}
+
+/// Adds [`PADS`] variables to `env`, sized so the job's arguments and environment take
+/// [`LAUNCH`] bytes, so its initial stack, and every address a count could depend on, sits at the
+/// same place however long the checkout's path is or however large the host's environment.
+fn pad(env: &mut BTreeMap<OsString, OsString>, args: &[&OsStr]) -> Result<(), String> {
+	use std::os::unix::ffi::OsStrExt;
+	env.retain(|key, _| !key.as_bytes().starts_with(PAD.as_bytes()));
+	let name = |i: usize| format!("{PAD}{i:02}");
+	// Each variable's name, `=`, NUL, and pointer.
+	let used = launch(env, args) + (0..PADS).map(|i| name(i).len() + 2 + 8).sum::<usize>();
+	let fill = LAUNCH.checked_sub(used).ok_or(format!(
+		"its arguments and environment take {used} bytes, more than the {LAUNCH} rust2-bench pads every job's to"
+	))?;
+	for i in 0..PADS {
+		let size = fill / PADS + usize::from(i < fill % PADS);
+		env.insert(name(i).into(), "x".repeat(size).into());
+	}
+	Ok(())
+}
+
+/// Room beside [`LAUNCH`] for Valgrind's own path and options, which name the job's directory.
+const VALGRIND_ROOM: usize = 64 * 1024;
+
+/// Fails unless the stack limit `limits` (`/proc/self/limits`) gives `exec` room for a padded
+/// launch: Linux takes arguments and environment up to a quarter of the limit, at most 6 MiB.
+fn fits(limits: &str) -> Result<(), String> {
+	let soft = limits
+		.lines()
+		.find_map(|line| line.strip_prefix("Max stack size"))
+		.and_then(|rest| rest.split_whitespace().next())
+		.ok_or("/proc/self/limits names no stack limit")?;
+	let room = match soft {
+		"unlimited" => 6 << 20,
+		bytes => (bytes
+			.parse::<usize>()
+			.map_err(|_| format!("cannot read the stack limit {bytes}"))?
+			/ 4)
+		.min(6 << 20),
+	};
+	if room < LAUNCH + VALGRIND_ROOM {
+		return Err(format!(
+			"the stack limit (ulimit -s) leaves exec {} KiB for a job's arguments and environment, less than the {} KiB a \
+			 padded job's launch takes: raise it to at least {} KiB",
+			room / 1024,
+			(LAUNCH + VALGRIND_ROOM) / 1024,
+			4 * (LAUNCH + VALGRIND_ROOM) / 1024
+		));
+	}
+	Ok(())
+}
+
 /// What one job measured: each benchmark's name and count, or why it failed.
 type Measured = Result<Vec<(String, u64)>, String>;
 
-/// Runs one job under Valgrind, its profiles and output in `dir`, and reads what it measured.
-fn one(job: Job, dir: &Path) -> Measured {
+/// Runs one job under Valgrind with the library at `preload` in every process, its profiles
+/// and output in `dir`, and reads what it measured.
+fn one(job: Job, dir: &Path, preload: &Path) -> Measured {
 	let Job { label, command, expect } = job;
 	std::fs::create_dir_all(dir).map_err(|e| format!("cannot create {}: {e}", dir.display()))?;
 	let file = |name: &str| {
@@ -400,12 +494,26 @@ fn one(job: Job, dir: &Path) -> Measured {
 	if let Some(cwd) = command.get_current_dir() {
 		valgrind.current_dir(cwd);
 	}
+	// The whole environment, spelled out, so its size is known exactly.
+	let mut env: BTreeMap<OsString, OsString> = std::env::vars_os().collect();
 	for (key, value) in command.get_envs() {
 		match value {
-			Some(value) => valgrind.env(key, value),
-			None => valgrind.env_remove(key),
+			Some(value) => env.insert(key.to_owned(), value.to_owned()),
+			None => env.remove(key),
 		};
 	}
+	// First, so its randomness and clock stand in front of any other preload's.
+	let mut preloads = preload.as_os_str().to_owned();
+	if let Some(others) = env.get(OsStr::new("LD_PRELOAD")).filter(|others| !others.is_empty()) {
+		preloads.push(":");
+		preloads.push(others);
+	}
+	env.insert("LD_PRELOAD".into(), preloads);
+	let args: Vec<&OsStr> = std::iter::once(command.get_program())
+		.chain(command.get_args())
+		.collect();
+	pad(&mut env, &args).map_err(|err| format!("{label}: {err}"))?;
+	valgrind.env_clear().envs(&env);
 	let status = valgrind.status().map_err(|e| format!("cannot run valgrind: {e}"))?;
 	if !status.success() {
 		return Err(format!(
@@ -428,7 +536,14 @@ fn one(job: Job, dir: &Path) -> Measured {
 			continue;
 		}
 		let text = std::fs::read_to_string(&path).map_err(|e| format!("cannot read {}: {e}", path.display()))?;
-		measured.extend(callgrind::parse(&text, &path.display().to_string())?);
+		let found = callgrind::parse(&text, &path.display().to_string())?;
+		if !found.is_empty() {
+			// `callgrind.<pid>`, then `.<n>` for each dump after the first.
+			let name = path.file_name().expect("listed").to_string_lossy();
+			let pid = name["callgrind.".len()..].split('.').next().unwrap_or_default();
+			preload::check(dir, pid, &label)?;
+		}
+		measured.extend(found);
 	}
 	match expect {
 		Some(name) => match measured.as_slice() {
@@ -455,6 +570,34 @@ mod tests {
 	fn a_list_holds_one_name_a_line() {
 		let wanted = names("a::b\n\n  c[1]  \na::b\n");
 		assert_eq!(wanted.into_iter().collect::<Vec<_>>(), ["a::b", "c[1]"]);
+	}
+
+	#[test]
+	fn refuses_a_stack_limit_too_small_to_pad_under() {
+		let limits = |soft: &str| format!("Limit Soft Limit Hard Limit Units\nMax stack size {soft} unlimited bytes\n");
+		assert!(fits(&limits("8388608")).is_ok());
+		assert!(fits(&limits("unlimited")).is_ok());
+		assert!(fits(&limits("2097152")).unwrap_err().contains("ulimit -s"));
+		assert!(fits("Max open files 1024 1024 files\n").is_err());
+	}
+
+	#[test]
+	fn pads_every_launch_to_one_size() {
+		let env = |pairs: &[(&str, &str)]| -> BTreeMap<OsString, OsString> {
+			pairs.iter().map(|(key, value)| (key.into(), value.into())).collect()
+		};
+		let mut short = env(&[("CARGO_MANIFEST_DIR", "/a/rs/net"), ("RUST2_BENCH_PAD_03", "stale")]);
+		let mut long = env(&[
+			("CARGO_MANIFEST_DIR", "/a/much/longer/checkout/rs/net"),
+			("GITHUB_REF", "refs/heads/kixel-bisect/1/abc"),
+		]);
+		pad(&mut short, &[OsStr::new("/a/bench"), OsStr::new("--bench")]).unwrap();
+		pad(&mut long, &[OsStr::new("/a/much/longer/checkout/bench")]).unwrap();
+		assert_eq!(launch(&short, &[OsStr::new("/a/bench"), OsStr::new("--bench")]), LAUNCH);
+		assert_eq!(launch(&long, &[OsStr::new("/a/much/longer/checkout/bench")]), LAUNCH);
+		assert_eq!(short.len(), 1 + PADS);
+		let mut huge = env(&[("BIG", &"x".repeat(LAUNCH))]);
+		assert!(pad(&mut huge, &[OsStr::new("/a/bench")]).is_err());
 	}
 
 	#[test]

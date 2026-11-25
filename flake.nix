@@ -299,6 +299,8 @@
                   fileset = pkgs.lib.fileset.unions [
                     ./bench/runner/Cargo.toml
                     ./bench/runner/Cargo.lock
+                    ./bench/runner/build.rs
+                    ./bench/runner/preload.rs
                     ./bench/runner/src
                     # A workspace member, which Cargo reads though the runner builds without it.
                     ./bench/runner/harness
