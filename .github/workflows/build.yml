@@ -68,9 +68,13 @@ jobs:
       # request or merge group reads main's latest bundle for its job and
       # nothing unreviewed writes one. The generation names the job and the
       # toolchains, since the dev shell's rustc is not on PATH yet.
-      # 1.31.0 is the floor: 1.30 bypasses every target crate the ffi export checks,
-      # whose -Zalways-encode-mir, -Zmir-opt-level, and -Zinline-mir it did not
-      # model (jdx/mr-boxington#1003).
+      # 1.31.0 is the floor: 1.28.0 prints no real paths for files in a build
+      # script's OUT_DIR (jdx/mr-boxington#896); 1.30 bypasses every target crate
+      # the ffi export checks, whose -Zalways-encode-mir, -Zmir-opt-level, and
+      # -Zinline-mir it did not model (jdx/mr-boxington#1003); and before 1.31.0
+      # target seeding recreated a donor's nested target directory, such as
+      # target/rust2-ffi, without the CACHEDIR.TAG `cargo clean --target-dir`
+      # needs (jdx/mr-boxington#993).
       - uses: jdx/mr-boxington-action@b3ef673bd77c5426927fe8836c6185cdae04c2dd # v1.7.4
         with:
           version: 1.31.0
