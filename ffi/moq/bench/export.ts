@@ -366,10 +366,37 @@ async function round(): Promise<Map<string, Span>> {
 	return out;
 }
 
-const { readFileSync } = process.getBuiltinModule("node:fs");
-await api.load(readFileSync(process.argv[2]!));
+/**
+ * Under Valgrind, the clock and random bytes the module's WASI imports read through the web
+ * APIs: a clock that moves a microsecond each read, from a fixed origin, and the same bytes
+ * every run. moq stamps each frame's arrival and keys its accounting by it, so a host clock
+ * would make each count depend on how slowly Valgrind ran the case and on the host's load.
+ */
+function replay(): void {
+	let reads = 0;
+	Object.defineProperty(performance, "now", { value: () => ++reads / 1000 });
+	Object.defineProperty(performance, "timeOrigin", { value: Date.UTC(2026, 0, 1) });
+	// xorshift32, from a fixed seed.
+	let x = 0x9e3779b9;
+	Object.defineProperty(crypto, "getRandomValues", {
+		value: <T extends ArrayBufferView>(view: T): T => {
+			const bytes = new Uint8Array(view.buffer, view.byteOffset, view.byteLength);
+			for (let i = 0; i < bytes.length; i++) {
+				x ^= x << 13;
+				x ^= x >>> 17;
+				x ^= x << 5;
+				bytes[i] = x;
+			}
+			return view;
+		},
+	});
+}
+
 // Under Valgrind, one round, which prints nothing: rust2-bench counts each case.
 measured = hooks?.init("ffi/moq/bench/export.ts::ts") ?? false;
+if (measured) replay();
+const { readFileSync } = process.getBuiltinModule("node:fs");
+await api.load(readFileSync(process.argv[2]!));
 if (measured) {
 	if (gc === undefined) throw new Error("under Valgrind, Node runs with --expose-gc");
 	groups /= 10;
