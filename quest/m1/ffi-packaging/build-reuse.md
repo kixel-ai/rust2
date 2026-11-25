@@ -5,8 +5,9 @@
 Each build leg of `.github/workflows/bindings.yml` compiles a target's dependency graph once
 per distinct flag set, not once per package, now also for the Swift, Go, Android, and
 Apple C builds, and the build job's `timeout-minutes` falls below 120 only if every leg of
-moq's stand-in then finishes with a third to spare. Packages stay byte for byte what they are,
-as `reproduce` checks.
+moq's stand-in then finishes with a third to spare. Each package's contents match main's
+build of the same source, shown by diffing a Check's packages on the branch against one on
+main; `reproduce` alone shows only that two builds of the branch agree.
 
 ## Plan
 
