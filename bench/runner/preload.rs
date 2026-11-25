@@ -281,15 +281,15 @@ fn reach(base: u64, deadline: &Timespec) {
 	}
 }
 
-/// Where a wait of `ns` starting now ends on the clock, for [`expired`] once it does: a deadline,
-/// so two threads waiting at once move the clock by the longer wait, not the sum.
-fn end(ns: u64) -> u64 {
-	ELAPSED.load(Relaxed).saturating_add(ns)
+/// Where the clock stands as a relative wait starts, for [`expired`].
+fn start() -> u64 {
+	ELAPSED.load(Relaxed)
 }
 
-/// Moves the clock to at least `end`, once a wait ending there expired.
-fn expired(end: u64) {
-	ELAPSED.fetch_max(end, Relaxed);
+/// Moves the clock to at least where a wait of `ns` from `start` ends, once it expired: to a
+/// deadline, so two threads waiting at once move the clock by the longer wait, not the sum.
+fn expired(start: u64, ns: u64) {
+	ELAPSED.fetch_max(start.saturating_add(ns), Relaxed);
 }
 
 /// The host's reading of `clock` `ahead` from now, for a deadline the kernel compares with it.
@@ -351,25 +351,21 @@ pub unsafe extern "C" fn time(out: *mut i64) -> i64 {
 
 // Waits: each one that expires moves the clock by what it waited for.
 
-/// Where a wait of `timeout` milliseconds starting now ends, for [`waited_ms`].
-fn end_ms(timeout: c_int) -> u64 {
-	end(timeout.max(0) as u64 * 1_000_000)
-}
-
-/// Moves the clock to `end` when a wait of `timeout` milliseconds that returned `ready` expired.
-fn waited_ms(timeout: c_int, end: u64, ready: c_int) {
+/// Moves the clock when a wait of `timeout` milliseconds from `start` that returned `ready`
+/// expired.
+fn waited_ms(timeout: c_int, start: u64, ready: c_int) {
 	if timeout > 0 && ready == 0 {
-		expired(end);
+		expired(start, timeout as u64 * 1_000_000);
 	}
 }
 
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn epoll_wait(epfd: c_int, events: *mut c_void, max: c_int, timeout: c_int) -> c_int {
 	let real = real!("epoll_wait": unsafe extern "C" fn(c_int, *mut c_void, c_int, c_int) -> c_int);
-	let end = end_ms(timeout);
+	let start = start();
 	// SAFETY: the caller's arguments, as it passed them.
 	let ready = unsafe { real(epfd, events, max, timeout) };
-	waited_ms(timeout, end, ready);
+	waited_ms(timeout, start, ready);
 	ready
 }
 
@@ -382,32 +378,33 @@ pub unsafe extern "C" fn epoll_pwait(
 	mask: *const c_void,
 ) -> c_int {
 	let real = real!("epoll_pwait": unsafe extern "C" fn(c_int, *mut c_void, c_int, c_int, *const c_void) -> c_int);
-	let end = end_ms(timeout);
+	let start = start();
 	// SAFETY: the caller's arguments, as it passed them.
 	let ready = unsafe { real(epfd, events, max, timeout, mask) };
-	waited_ms(timeout, end, ready);
+	waited_ms(timeout, start, ready);
 	ready
 }
 
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn poll(fds: *mut c_void, n: u64, timeout: c_int) -> c_int {
 	let real = real!("poll": unsafe extern "C" fn(*mut c_void, u64, c_int) -> c_int);
-	let end = end_ms(timeout);
+	let start = start();
 	// SAFETY: the caller's arguments, as it passed them.
 	let ready = unsafe { real(fds, n, timeout) };
-	waited_ms(timeout, end, ready);
+	waited_ms(timeout, start, ready);
 	ready
 }
 
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn nanosleep(span: *const Timespec, rest: *mut Timespec) -> c_int {
 	let real = real!("nanosleep": unsafe extern "C" fn(*const Timespec, *mut Timespec) -> c_int);
-	// SAFETY: when not null, the caller hands a timespec to read.
-	let end = end(unsafe { span.as_ref() }.and_then(Timespec::ns).unwrap_or(0));
+	let start = start();
 	// SAFETY: the caller's arguments, as it passed them.
 	let slept = unsafe { real(span, rest) };
 	if slept == 0 {
-		expired(end);
+		// SAFETY: the kernel read it, so it is a timespec; read only now, so an unreadable one
+		// fails the call with EFAULT as it would without this library.
+		expired(start, unsafe { (*span).ns() }.unwrap_or(0));
 	}
 	slept
 }
@@ -424,17 +421,18 @@ pub unsafe extern "C" fn clock_nanosleep(
 		// SAFETY: the caller's arguments, as it passed them.
 		return unsafe { real(clock, flags, at, rest) };
 	};
-	// SAFETY: the caller hands a timespec to read.
-	let at = unsafe { *at };
 	if flags & TIMER_ABSTIME == 0 {
-		let end = end(at.ns().unwrap_or(0));
+		let start = start();
 		// SAFETY: the caller's arguments, as it passed them.
-		let slept = unsafe { real(clock, flags, &at, rest) };
+		let slept = unsafe { real(clock, flags, at, rest) };
 		if slept == 0 {
-			expired(end);
+			// SAFETY: the kernel read it, so it is a timespec.
+			expired(start, unsafe { (*at).ns() }.unwrap_or(0));
 		}
 		return slept;
 	}
+	// SAFETY: the caller hands a timespec to read.
+	let at = unsafe { *at };
 	let Some(ahead) = ahead(base, &at) else {
 		// SAFETY: the caller's arguments, which the kernel refuses.
 		return unsafe { real(clock, flags, &at, rest) };
@@ -551,11 +549,12 @@ unsafe fn futex(
 	let pass_through = || unsafe { real(SYS_FUTEX, addr, op, val, at as c_long, e, f) };
 	match cmd {
 		FUTEX_WAIT => {
-			// SAFETY: a wait's timeout is a timespec to read.
-			let end = end(unsafe { (*at).ns() }.unwrap_or(0));
+			let start = start();
 			let woke = pass_through();
 			if woke == -1 && errno() == ETIMEDOUT {
-				expired(end);
+				// SAFETY: the kernel read the timeout, so it is a timespec; read only now, so an
+				// unreadable one fails the call with EFAULT as it would without this library.
+				expired(start, unsafe { (*at).ns() }.unwrap_or(0));
 			}
 			woke
 		}
