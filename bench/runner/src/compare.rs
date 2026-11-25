@@ -37,7 +37,10 @@ pub fn compare(base: &str, options: &Options) -> Result<(), String> {
 	both.cargo = rebase(&options.cargo, &real, &tree)?;
 	// Parsed before either side counts, so a selector compare cannot resolve fails first.
 	let args = parse(&both.cargo)?;
-	let selects = both.programs.is_empty() && args.iter().any(|arg| matches!(arg, Arg::Package(_) | Arg::Bench(_)));
+	let selects = both.programs.is_empty()
+		&& args
+			.iter()
+			.any(|arg| matches!(arg, Arg::Package(_) | Arg::Bench(_) | Arg::Exclude(_)));
 	let dir = tree.join(&prefix);
 	checkout(&top, &tree, &sha)?;
 	eprintln!(
@@ -251,7 +254,13 @@ fn select(args: &[Arg], members: &Members) -> Selection {
 			Arg::Other(arg) => out.push(arg.clone()),
 		}
 	}
-	if (whole || packages.is_empty() || !kept.is_empty()) && (!wants_bench || has_bench || every_bench) {
+	// Under `--workspace`, Cargo builds the members `--exclude` leaves, and fails with none left.
+	let built = if whole {
+		members.benches.keys().any(|name| !excluded.contains(name.as_str()))
+	} else {
+		packages.is_empty() || !kept.is_empty()
+	};
+	if built && (!wants_bench || has_bench || every_bench) {
 		selection.args = Some(out);
 	}
 	selection
@@ -753,6 +762,13 @@ mod tests {
 			select(&["--workspace", "-p", "a", "--bench", "z"]).args.unwrap(),
 			["--workspace", "-p", "a", "--bench", "z"]
 		);
+		// With every member excluded, the side builds nothing, whatever `-p` names.
+		assert!(
+			select(&["--workspace", "--exclude", "a", "--exclude", "c", "-p", "b"])
+				.args
+				.is_none()
+		);
+		assert!(select(&["--all", "--exclude=a", "--exclude=c"]).args.is_none());
 		let picked = select(&["--workspace", "-p", "b"]);
 		assert_eq!(picked.args.unwrap(), ["--workspace"]);
 		assert_eq!(picked.lacks, BTreeSet::from(["-p b".to_owned()]));
