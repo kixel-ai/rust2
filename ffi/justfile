@@ -126,7 +126,7 @@ census checkout="": (standin checkout)
     cargo run --locked --quiet -- --manifest-path target/moq-ffi/Cargo.toml --census target/census
 
 # Measure the binding benchmark (bench/ffi/README.md) from the pinned moq revision or a checkout, in the bench shell: nix develop .#bench. Its tables go to target/bench/report.md.
-bench checkout="": (bench-build checkout) rn-bench bench-run
+bench checkout="": mbx-shim (bench-build checkout) rn-bench bench-run
 
 # Build the binding benchmark's programs: Rust's floor, C, C++, Kotlin, Python, Swift, Go, Dart, and C# through the export, TypeScript through the wasm32 stand-in's and through the Node binding's addon, and C through moq's hand-written rs/libmoq. React Native's, which builds Hermes, is rn-bench's, which `bench` runs after it, so `count`'s build of this builds no Hermes.
 bench-build checkout="": (moq-export checkout) (moq-web checkout) ts-program node-bench codspeed-hooks
@@ -262,8 +262,13 @@ codspeed-hooks:
     cp moq/bench/codspeed.h "$dir/"
     printf 'module CodSpeed {\n    header "codspeed.h"\n    export *\n}\n' > "$dir/module.modulemap"
 
+# Fail unless cargo builds through mbx's Cargo shim, which bench-run times the warm export through, before anything builds: run `mbx setup` once, and the dev shell finds it.
+[private]
+mbx-shim:
+    @[ -n "${RUST2_CARGO_SHIM:-}" ] || { echo "no mbx Cargo shim: run mbx setup once, then reenter the dev shell" >&2; exit 1; }
+
 # Run what bench-build and rn-bench built: each program `rounds` times into target/bench/raw.tsv, and the export, native and web, cold and warm through mbx, and its crate's build, beside moq's, each round into target/bench/build.tsv, with the 1-minute load average over each run, and their medians and the export's sizes into target/bench/report.md.
-bench-run rounds="3":
+bench-run rounds="3": mbx-shim
     #!/usr/bin/env bash
     set -euo pipefail
     out=target/export/moq
@@ -298,7 +303,6 @@ bench-run rounds="3":
     scratch=$PWD/target/bench/scratch
     sysroot=$(rustc --print sysroot)
     if [ "{{ os() }}" = macos ]; then libpath=DYLD_LIBRARY_PATH; else libpath=LD_LIBRARY_PATH; fi
-    [ -n "${RUST2_CARGO_SHIM:-}" ] || { echo "bench-run times the warm export through mbx's Cargo shim, which the dev shell finds once mbx setup installs it" >&2; exit 1; }
     # Without mbx's Cargo shim, whose compiler cache an emptied target does not empty.
     uncached=(-u RUSTC_WRAPPER -u CARGO PATH="$(echo "$PATH" | tr : '\n' | grep -vxF "$RUST2_CARGO_SHIM" | paste -sd: -)")
     # Through it, into a store of the round's own and no remote, which only the export
@@ -326,12 +330,15 @@ bench-run rounds="3":
         local ffi=(env "$libpath=$sysroot/lib" target/release/rust2-ffi)
         local native=(--manifest-path target/moq-ffi/Cargo.toml --out "$scratch/moq")
         local web=(--manifest-path target/moq-ffi-web/Cargo.toml --target wasm32-wasip1 --out "$scratch/moq-web")
-        measure export uncached "${ffi[@]}" "${native[@]}"
-        measure - cached "${ffi[@]}" "${native[@]}"
-        measure export-warm cached "${ffi[@]}" "${native[@]}"
-        measure web uncached "${ffi[@]}" "${web[@]}"
-        measure - cached "${ffi[@]}" "${web[@]}"
-        measure web-warm cached "${ffi[@]}" "${web[@]}"
+        # Each export writes into an emptied output too, as the cold one does.
+        for step in export:uncached -:cached export-warm:cached; do
+            rm -rf "$scratch/moq"
+            measure "${step%:*}" "${step#*:}" "${ffi[@]}" "${native[@]}"
+        done
+        for step in web:uncached -:cached web-warm:cached; do
+            rm -rf "$scratch/moq-web"
+            measure "${step%:*}" "${step#*:}" "${ffi[@]}" "${web[@]}"
+        done
         measure check uncached cargo check --quiet --release --lib --manifest-path target/moq-ffi/Cargo.toml
         measure generated uncached cargo build --locked --quiet --release --manifest-path "$scratch/moq/Cargo.toml" --features kotlin,dart,node
         measure moq uncached cargo build --quiet --release --lib --manifest-path target/moq-ffi/Cargo.toml

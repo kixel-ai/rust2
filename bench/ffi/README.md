@@ -4,6 +4,7 @@ What [rust2-ffi](../../ffi/README.md)'s bindings cost over Rust, per language, o
 stand-in `just ffi bench` exports, against BoltFFI's numbers below as targets.
 
 ```bash
+mbx setup  # once: the warm export rows build through mbx's Cargo shim, 1.31 or later
 nix develop .#bench --command just ffi bench  # build, run 3 rounds, and write ffi/target/bench/report.md
 nix develop .#bench --command just ffi bench-run 5  # rerun what `bench` built, 5 rounds
 nix develop .#android --command just ffi bench-android  # the Kotlin rows on HotSpot and on the Android device adb reaches
