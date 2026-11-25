@@ -168,7 +168,16 @@ fn build(api: &crate::ir::Api) -> String {
 		\t// install_name_tool fits only in the room its load commands leave.\n\
 		\tif std::env::var(\"CARGO_CFG_TARGET_VENDOR\").is_ok_and(|vendor| vendor == \"apple\") {{\n\
 		\t\tprintln!(\"cargo::rustc-link-arg-cdylib=-Wl,-headerpad_max_install_names\");\n\
+		\t\t// The install name a package gives the library, rather than the path the linker\n\
+		\t\t// wrote it to. Cargo passes a build script's link arguments after `RUSTFLAGS`, so it\n\
+		\t\t// wins over any a caller's flags set, and as this crate's alone, it leaves every\n\
+		\t\t// dependency shared between libraries of different names.\n\
+		\t\tif let Some(name) = std::env::var_os(\"RUST2_FFI_INSTALL_NAME\") {{\n\
+		\t\t\tlet name = name.into_string().expect(\"RUST2_FFI_INSTALL_NAME is UTF-8\");\n\
+		\t\t\tprintln!(\"cargo::rustc-link-arg-cdylib=-Wl,-install_name,{{name}}\");\n\
+		\t\t}}\n\
 		\t}}\n\
+		\tprintln!(\"cargo::rerun-if-env-changed=RUST2_FFI_INSTALL_NAME\");\n\
 		\t// pyo3 targets the ABI of the interpreter it finds, whatever the feature asks for, such\n\
 		\t// as a version's own for a 3.14 when `abi3t` needs a 3.15, which would load nowhere else.\n\
 		\t#[cfg(any(feature = \"python\", feature = \"python-abi3t\"))]\n\

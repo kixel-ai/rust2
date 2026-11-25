@@ -379,10 +379,12 @@ class Reproducible(unittest.TestCase):
             self.assertNotIn("CXXFLAGS", windows)
             apple = package.reproducible(info(tmp), Path(tmp), "aarch64-apple-darwin")
             self.assertEqual(apple["ZERO_AR_DATE"], "1")
-            self.assertIn("link-arg=-Wl,-install_name,@rpath/libmoq.dylib", apple["CARGO_ENCODED_RUSTFLAGS"])
+            # The install name is the generated crate's alone, so every Apple build shares its dependencies' flags.
+            self.assertNotIn("install_name", apple["CARGO_ENCODED_RUSTFLAGS"])
+            self.assertEqual(apple["RUST2_FFI_INSTALL_NAME"], "@rpath/libmoq.dylib")
             named = package.reproducible(info(tmp), Path(tmp), "aarch64-apple-darwin", "libmoq.0.4.12.dylib")
-            self.assertIn("link-arg=-Wl,-install_name,@rpath/libmoq.0.4.12.dylib", named["CARGO_ENCODED_RUSTFLAGS"])
-            self.assertNotIn("@rpath/libmoq.dylib", named["CARGO_ENCODED_RUSTFLAGS"])
+            self.assertEqual(named["RUST2_FFI_INSTALL_NAME"], "@rpath/libmoq.0.4.12.dylib")
+            self.assertNotIn("RUST2_FFI_INSTALL_NAME", windows)
 
     def test_an_empty_encoded_rustflags_is_no_flags(self):
         with tempfile.TemporaryDirectory() as tmp, mock.patch.dict(os.environ, {"CARGO_ENCODED_RUSTFLAGS": "", "RUSTFLAGS": "-C x", "CARGO_HOME": tmp + "/home"}):
@@ -579,6 +581,17 @@ class ImportNames(unittest.TestCase):
             members = package.ar_members(path)
             self.assertEqual(members["kernel32.dllh.o"][0], imported.replace(b"4TX99l", b"000000"))
             self.assertEqual(members["api.o"][0], data)
+
+    def test_any_imported_files_lose_it_too(self):
+        exe = b"_head_D__a_x_out_rustcffeyij_ntoskrnl_exe_imports_lib\x00"
+        drv = b"_head_D__a_x_out_rustcwN6OqG_winspool_drv_imports_lib\x00"
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "lib.a"
+            path.write_bytes(self.archive(("", exe + drv), ("nt.exes12.o", exe), ("ws.drvh.o", drv)))
+            package.fix_import_names(path)
+            members = package.ar_members(path)
+            self.assertEqual(members["nt.exes12.o"][0], exe.replace(b"ffeyij", b"000000"))
+            self.assertEqual(members["ws.drvh.o"][0], drv.replace(b"wN6OqG", b"000000"))
 
 
 class BsdArchive(unittest.TestCase):
