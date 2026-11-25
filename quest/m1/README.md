@@ -3,7 +3,7 @@
 ## Goal
 
 The work moq is waiting on: the exporter that replaces the UniFFI generator forks moq
-builds its bindings with today.
+builds its bindings with today, and the end of CodSpeed in moq, rind, and here.
 
 ## Plan
 
@@ -28,3 +28,7 @@ changes were children of the exporter epic and landed as
 soon as possible; the rest are the speed (landed), rule cost (landed), and
 packaging (landed) epics, and the fixes and additions at this
 milestone's top. Rejected: packaging in m2.
+
+Decided 2026-11-25 (maintainer, `/quest-plan` in rust2): ✅ [removing CodSpeed](/quest/m1/codspeed/README.md),
+service, app, and code, joins m1, since moq's and rind's rewrites to `#[bench]` wait on its
+paired timing. Rejected: m2 beside the harness epic.
