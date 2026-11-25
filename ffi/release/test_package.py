@@ -583,6 +583,17 @@ class ImportNames(unittest.TestCase):
             self.assertEqual(members["kernel32.dllh.o"][0], imported.replace(b"4TX99l", b"000000"))
             self.assertEqual(members["api.o"][0], data)
 
+    def test_a_drivers_imports_lose_it_too(self):
+        exe = b"_head_D__a_x_out_rustcffeyij_ntoskrnl_exe_imports_lib\x00"
+        sys_ = b"_head_D__a_x_out_rustcwN6OqG_ksecdd_sys_imports_lib\x00"
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "lib.a"
+            path.write_bytes(self.archive(("", exe + sys_), ("nt.exes12.o", exe), ("ks.syss3.o", sys_)))
+            package.fix_import_names(path)
+            members = package.ar_members(path)
+            self.assertEqual(members["nt.exes12.o"][0], exe.replace(b"ffeyij", b"000000"))
+            self.assertEqual(members["ks.syss3.o"][0], sys_.replace(b"wN6OqG", b"000000"))
+
 
 class BsdArchive(unittest.TestCase):
     def test_extended_names_are_read_from_the_data(self):

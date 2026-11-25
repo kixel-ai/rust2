@@ -2009,9 +2009,10 @@ def llvm_tool(manifest, name):
 
 
 # The random directory rustc imports a Windows GNU library's raw-dylib symbols through, which
-# dlltool names them after, as `<path>_out_rustc<6 random characters>_kernel32_dll_imports_lib`.
-RUSTC_TEMP = re.compile(rb"(?<=_out_rustc)[0-9A-Za-z]{6}(?=_[0-9a-z_]+_dll_imports_lib)")
-IMPORT_MEMBER = re.compile(r".+\.dll(h|t|s[0-9]+)\.o")
+# dlltool names them after, as `<path>_out_rustc<6 random characters>_kernel32_dll_imports_lib`;
+# a driver's imports, such as windows-sys's of ntoskrnl.exe and ksecdd.sys, end in `_exe` and `_sys`.
+RUSTC_TEMP = re.compile(rb"(?<=_out_rustc)[0-9A-Za-z]{6}(?=_[0-9a-z_]+_(?:dll|exe|sys)_imports_lib)")
+IMPORT_MEMBER = re.compile(r".+\.(?:dll|exe|sys)(h|t|s[0-9]+)\.o")
 
 
 def fix_import_names(path):
