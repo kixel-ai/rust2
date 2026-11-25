@@ -41,7 +41,7 @@ snake case, without its leading and trailing `_`s and keeping one `_` of each ru
 reserves every global name starting with `_` and C++ every name holding `__`; a name left
 starting with no letter, such as `__`, fails the export. `--out` writes a crate of `extern "C"` functions over the facade, its runtime
 beside it, the header in `include/<prefix>.h`, and `exports.txt`, each C function the crate
-exports, then the features any of which builds it, if any; `cargo build` on that crate makes a
+exports, then the features any of which builds it, if any (`web` only for wasm32); `cargo build` on that crate makes a
 static and a shared library for those targets alone: its build script refuses another, on
 which an item the target compiles would be missing, or one it leaves out left over. So a
 `cfg`-gated item works on its targets and on no other ([Targets](#targets)), and the
