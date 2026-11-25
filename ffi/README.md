@@ -1949,12 +1949,12 @@ so the same library serves every other language too. It serves each 64-bit littl
 target but wasm32's, whose layouts its TypeScript reads.
 
 - **Calls**: each C function is a native function of the addon, whose arguments are numbers,
-  `boolean`s, handles' indices, and offsets, never a JavaScript object made per call. The
+  `boolean`s, handles' ids, and offsets, never a JavaScript object made per call. The
   native function converts them itself, as React Native's JSI module does: it holds each
   handle in the addon's table for the call before converting the rest, throwing if it is
   closed, and throws a failed status, so a call of numbers and handles alone is one call in
   its TypeScript. A call that also lowers a value through memory, which may run JavaScript
-  or give Rust a value, reads its handles' indices after that lowering, refusing a closed
+  or give Rust a value, reads its handles' ids after that lowering, refusing a closed
   one, and checks its 64-bit integers before it gives Rust anything, so no check the addon
   makes after can fail and leave a value given in vain. A 64-bit
   integer crosses as a number while it is a safe integer, else as `rt.u64`'s or `rt.i64`'s
@@ -1962,8 +1962,10 @@ target but wasm32's, whose layouts its TypeScript reads.
   as wasm32's memory, committed as the stack reaches it and viewed by one `ArrayBuffer`, as
   the web's lowers into the module's memory, but at the native C ABI's layouts: a Node-API
   object costs more to make or read than the scratch memory's bytes. A handle crosses as
-  its index in the addon's table, which its dispose or the collector frees once no call
-  holds it.
+  its id in the addon's table, which its dispose or the collector frees once no call holds
+  it: its slot's index and the slot's generation, which each free bumps, so the addon
+  refuses an id read before its handle closed as closed, whatever JavaScript ran before it
+  held it, rather than take it for the object in its slot now.
 - **Values** are React Native's: `usize` and `isize` are `rt.u64` and `rt.i64`, and a
   constant only some targets have fails the export. A function only some targets have
   throws, naming it, on the others. An `rt.Bytes` past 64 bytes is Rust's own buffer,

@@ -29,7 +29,10 @@ and every binding rule ([every binding's](/ffi/README.md#every-binding)) still h
 
 - Maintainer: accept the spinning handoff as the floor and delete this quest, or keep it
   for a way to run such a call on JavaScript's thread. No sound static rule is known, and
-  moq's script never holds a token. Recommended: delete it.
+  moq's script never holds a token. Recommended: delete it. Deferred 2026-11-24 to the
+  maintainer's return by [the lowering PR](https://github.com/kixel-ai/rust2/pull/1004)'s
+  decisions, so the PR lands with this quest in place; an agent cannot take it, as it
+  weighs a cost moq does not pay today against a search with no known answer.
 
 ## Related
 

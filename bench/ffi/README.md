@@ -1288,6 +1288,15 @@ than the bytes, 345 ns to return one against 45. A wake calls back into JavaScri
 `napi_call_function`, where the module calls an import, which costs the woken read 0.3 µs
 more.
 
+A handle's id carries its slot's generation, so the addon refuses an id read before its
+handle closed rather than take it for the object in its slot now. Against the same addon
+without it, in 6 alternating rounds at a load average of 12 to 17, the handle call cost 42
+ns against 40.5 and the getter 26.4 against 25.6, and every other call but one moved within
+the rounds' spread. `frame.payload` cost 10 to 27 ns more at every size, which the same
+call on the api fixture does not show: it ran 0.2% more instructions there. Once its slot
+was reused, an id passes 2^31, which V8 holds as a heap number, so making a handle there
+costs about 16 ns more, most of the 0.85% more instructions the whole run took.
+
 Every number here is a call made while JavaScript holds no token Rust may call through
 from another thread, as `export.ts` holds none, nor does moq's script: its session's
 `Waiter.new$` takes a waker, which a wake from another thread queues without a token. While
