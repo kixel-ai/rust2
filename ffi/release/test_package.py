@@ -926,13 +926,13 @@ Load command 1
         with self.assertRaises(SystemExit):
             package.declared_os(listing.split("libmoq.a(moq.o)")[0].replace("LC_VERSION_MIN_MACOSX", "LC_UUID"), "libmoq.a")
 
-    def test_the_c_abi_is_what_the_generated_crate_defines_and_the_rest_is_renamed(self):
+    def test_the_c_abi_is_what_every_build_exports_and_the_rest_is_renamed(self):
         listing = """api-0abf9f642fbb3007.api.d0e6e03e8f1aed16-cgu.01.rcgu.o:
 api_buf_free T 0 10
 api_Batch_drop_signal T 10 10
 malloc U
 
-libapi.a[df7d2551892e0561-api_lc.o]:
+libapi.a[my helper (1).o]:
 api_lc_init T 10 10
 tty_in C 8 8
 
@@ -942,37 +942,24 @@ DW.ref.rust_eh_personality V 0 8
 _ZN3std2rt10lang_start17h0123456789abcdefE T 30 10
 __cxa_thread_atexit_impl w
 """
-        self.assertEqual(package.nm_symbols("libapi.a[my helper.o]:\napi_help T 0 1\n"), [("my helper.o", "api_help", "T")])
-        self.assertEqual(package.nm_symbols(listing)[2], ("api-0abf9f642fbb3007.api.d0e6e03e8f1aed16-cgu.01.rcgu.o", "malloc", "U"))
-        self.assertEqual(package.nm_symbols(listing)[3], ("df7d2551892e0561-api_lc.o", "api_lc_init", "T"))
+        self.assertEqual(package.nm_symbols(listing)[2], ("malloc", "U"))
+        self.assertEqual(package.nm_symbols(listing)[3], ("api_lc_init", "T"))
         names = package.defined(listing)
         self.assertEqual(names, {"api_buf_free", "api_Batch_drop_signal", "api_lc_init", "tty_in", "rust_eh_personality",
                                  "DW.ref.rust_eh_personality", "_ZN3std2rt10lang_start17h0123456789abcdefE"})
-        # A C dependency's `api_lc_` shares the prefix, but only what the generated glue defines is
-        # the C ABI, a binding's entry points the header leaves out, such as `_drop_signal`, included.
-        glue = """#[unsafe(no_mangle)]
-pub extern "C" fn api_Batch_drop_signal(handle: u64) {}
-
-export! {
-    api_unwind_buf_free
-    #[allow(clippy::not_unsafe_ptr_arg_deref)]
-    fn api_buf_free(buf: Buf) {}
-}
-
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn api_never_linked() {}
-"""
-        keep = package.c_abi(listing, glue, "x86_64-unknown-linux-gnu")
-        self.assertEqual(keep, ["api_Batch_drop_signal", "api_buf_free"])
-        self.assertEqual(package.c_abi("api.o:\n_api_buf_free T 0 1\n", glue, "aarch64-apple-darwin"), ["_api_buf_free"])
-        # A facade's own `no_mangle` function sharing the prefix is not the generated glue's.
-        self.assertEqual(package.c_abi("api.o:\napi_internal T 0 1\n" + listing, glue, "x86_64-unknown-linux-gnu"), keep)
-        new = package.renamed(names - set(keep), "api", "0123456789abcdef")
+        with tempfile.TemporaryDirectory() as export:
+            # What only a binding's feature builds, such as JNI's, stays out of a static library.
+            Path(export, "exports.txt").write_text("# Generated.\nJava_api_1contract kotlin\napi_Batch_drop_signal\n"
+                                                   "api_buf_free\napi_ü̈\n", encoding="utf-8")
+            self.assertEqual(package.c_abi(export, "x86_64-unknown-linux-gnu"), {"api_Batch_drop_signal", "api_buf_free", "api_ü̈"})
+            self.assertEqual(package.c_abi(export, "aarch64-apple-darwin"), {"_api_Batch_drop_signal", "_api_buf_free", "_api_ü̈"})
+            Path(export, "exports.txt").write_text("# Generated.\nJava_api_1contract kotlin\n", encoding="utf-8")
+            with self.assertRaises(SystemExit):
+                package.c_abi(export, "x86_64-unknown-linux-gnu")
+        new = package.renamed(names - {"api_buf_free", "api_Batch_drop_signal"}, "api", "0123456789abcdef")
         self.assertEqual(new["rust_eh_personality"], "rust_eh_personality.api.0123456789abcdef")
         self.assertEqual(new["_ZN3std2rt10lang_start17h0123456789abcdefE"],
                          "_ZN3std2rt10lang_start17h0123456789abcdefE.api.0123456789abcdef")
-        with self.assertRaises(SystemExit):
-            package.c_abi(listing, "fn main() {}", "x86_64-unknown-linux-gnu")
 
     def test_every_section_group_signature_is_found_local_or_not(self):
         groups = """libapi.a(std.o):

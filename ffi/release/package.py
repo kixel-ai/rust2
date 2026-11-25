@@ -1097,40 +1097,33 @@ def cps(info, files, natives):
 
 
 def nm_symbols(listing):
-    """Each symbol of an `llvm-nm -P` listing of an archive, as (member, name, type)."""
-    member, found = "", []
-    for line in listing.splitlines():
-        # A member's header, `member.o:`, or `lib.a[member.o]:` or `lib.a(member.o):` by
-        # format, its name perhaps holding spaces; no symbol's row ends with a colon.
-        if line.endswith(":"):
-            member = re.fullmatch(r"(?:.*[\[(])?([^\[\]()]+?)[\])]?:", line).group(1)
-        elif len(line.split()) > 1:
-            found.append((member, *line.split()[:2]))
-    return found
+    """Each symbol of an `llvm-nm -P` listing, as (name, type)."""
+    # A member's header, perhaps holding spaces, ends with a colon, as no symbol's row does.
+    return [tuple(line.split()[:2]) for line in listing.splitlines() if len(line.split()) > 1 and not line.endswith(":")]
 
 
 def defined(listing):
     """The global symbols an `llvm-nm -g -P` listing defines or holds common, as the object format spells them."""
     # `U`, `v`, and `w` are undefined.
-    return {name for _, name, kind in nm_symbols(listing) if kind not in "Uvw"}
+    return {name for name, kind in nm_symbols(listing) if kind not in "Uvw"}
 
 
-# A C function the generated glue defines: `#[unsafe(no_mangle)]` on an `extern "C"` fn, or a
-# JNI one's `extern "system"`, or the name in an `export!` block, which expands to one.
-GLUE_EXPORT = re.compile(r'#\[(?:unsafe\()?no_mangle\)?\]\s*(?:#\[[^\]]*\]\s*)*pub (?:unsafe )?extern "(?:C|system)" fn (\w+)'
-                         r"|export! \{\s*\w+\s*(?:#\[[^\]]*\]\s*)*fn (\w+)\(")
-
-
-def c_abi(listing, glue, target):
-    """The C ABI's symbols, as the object format spells them: each C function the generated glue
-    defines, a binding's entry points the header leaves out included, that the archive defines,
-    and no dependency's, which may share their prefix."""
-    names = {a or b for a, b in GLUE_EXPORT.findall(glue)}
+def c_abi(export, target):
+    """The C ABI's symbols, as the object format spells them: each C function the export's
+    `exports.txt` lists that no binding feature gates, as a static library builds with none, a
+    binding's entry points the header leaves out included."""
+    lines = (Path(export) / "exports.txt").read_text(encoding="utf-8").splitlines()
     mangle = "_" if "apple" in target else ""
-    found = sorted(name for name in defined(listing) if name.startswith(mangle) and name[len(mangle):] in names)
+    found = {mangle + line for line in lines if line and not line.startswith("#") and " " not in line}
     if not found:
-        raise SystemExit("the static library defines none of the C functions the generated glue does")
+        raise SystemExit(f"{export}/exports.txt lists no C function every build exports")
     return found
+
+
+def exported(shared, manifest, target):
+    """The symbols a shared library exports, as the object format spells them."""
+    dynamic = [] if "apple" in target else ["--dynamic"]
+    return defined(output(llvm_tool(manifest, "llvm-nm"), *dynamic, "--extern-only", "--defined-only", "-P", shared))
 
 
 def group_signatures(groups):
@@ -1170,12 +1163,20 @@ def hide(static, lib, target, manifest, export, work):
     nm, objcopy = llvm_tool(manifest, "llvm-nm"), llvm_tool(manifest, "llvm-objcopy")
     listing = lambda path: output(nm, "--extern-only", "--no-llvm-bc", "-P", path)  # noqa: E731
     found = listing(static)
-    glue = "".join(path.read_text(encoding="utf-8") for path in sorted((Path(export) / "src").rglob("*.rs")))
-    keep = c_abi(found, glue, target)
-    names = defined(found) - set(keep)
+    keep = c_abi(export, target)
+    missing = sorted(keep - defined(found))
+    if missing:
+        raise SystemExit(f"{static.name} lacks C functions the export lists, such as {missing[:10]}")
+    names = defined(found) - keep
     if "apple" not in target:
         groups = output(llvm_tool(manifest, "llvm-readobj"), "--elf-output-style=GNU", "--section-groups", static)
-        names |= group_signatures(groups) - set(keep)
+        # A local signature is renamed in every member, so one naming what a member imports
+        # would rename that import too, to a name nothing defines.
+        local = group_signatures(groups) - defined(found)
+        clash = sorted(local & {name for name, kind in nm_symbols(found) if kind in "Uvw"})
+        if clash:
+            raise SystemExit(f"{static.name} holds a local section group named as what it imports, such as {clash[:10]}")
+        names |= local
     new = renamed(names, lib, hashlib.sha256(Path(static).read_bytes()).hexdigest()[:16])
     pairs, hidden = work / "renamed.txt", work / "hidden.txt"
     pairs.write_text("".join(f"{old} {name}\n" for old, name in new.items()), encoding="utf-8")
@@ -1184,7 +1185,7 @@ def hide(static, lib, target, manifest, export, work):
     if "apple" not in target:
         hidden.write_text("".join(f"{name}\n" for name in new.values()), encoding="utf-8")
         run(objcopy, f"--set-symbols-visibility={hidden}=hidden", archive)
-    stray = sorted(defined(listing(archive)) - set(keep) - set(new.values()))
+    stray = sorted(defined(listing(archive)) - keep - set(new.values()))
     if stray:
         raise SystemExit(f"the hidden {static.name} defines other global symbols than the C ABI, such as {stray[:10]}")
     return archive
@@ -1224,6 +1225,8 @@ def coexist(archive, include, lib, native, manifest, target, work):
            if not k.startswith(("RUSTC", "RUSTFLAGS", "RUSTDOCFLAGS", "CARGO_ENCODED_", "CARGO_BUILD_", "CARGO_PROFILE_",
                                 "CARGO_TARGET_", "CARGO_HOME"))}
     env["CARGO_HOME"] = str(work / "cargo-home")
+    # Set, though empty, these override an ancestor directory's `.cargo/config.toml` too.
+    env.update(RUSTC_WRAPPER="", RUSTC_WORKSPACE_WRAPPER="", RUSTFLAGS="")
     env["RUSTC"] = output("rustup", "which", "--toolchain", toolchain, "rustc").strip()
     if "apple" in target:
         clang, floor = apple_clang(archive, target)
@@ -1321,6 +1324,11 @@ def c_archive(info, manifest, export_dir, target, out):
         else:
             shared = release / f"lib{lib}.{'dylib' if apple else 'so'}"
             check_soname(shared, soname, target)
+            # The shared library, from the same build, exports exactly what `hide` keeps global.
+            keep, exports = c_abi(export_dir, target), exported(shared, manifest, target)
+            if keep != exports:
+                raise SystemExit(f"{shared.name} exports other C functions than {export_dir}/exports.txt lists: "
+                                 f"{sorted(exports - keep)[:10]} unlisted, {sorted(keep - exports)[:10]} not exported")
             shutil.copy(shared, root / files["shared"])
             (root / files["link"]).symlink_to(soname)
             hidden = raw / "hide"

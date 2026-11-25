@@ -215,7 +215,8 @@ the builder unpacks over its checkout before reading the checks.
 
    The static library is hidden, as every static library the builder ships but Windows'
    is: `llvm-objcopy` renames every global symbol it defines but the C ABI's, the
-   functions the generated glue's source exports, to `<name>.<lib>.<digest>`, the digest
+   functions the export's `exports.txt` lists for a build with no binding feature, which
+   the shared library must export exactly, to `<name>.<lib>.<digest>`, the digest
    of the archive's bytes, a suffix Rust's and C++'s demanglers skip, and on ELF each
    section group's signature with them, which a linker keeps one group of by name; on ELF
    the renamed symbols are hidden too, so a shared library linking it exports only the C ABI.
