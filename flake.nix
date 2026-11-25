@@ -294,6 +294,8 @@
                     ./bench/runner/Cargo.toml
                     ./bench/runner/Cargo.lock
                     ./bench/runner/src
+                    # A workspace member, which Cargo reads though the runner builds without it.
+                    ./bench/runner/harness
                   ];
                 };
                 cargoLock.lockFile = ./bench/runner/Cargo.lock;

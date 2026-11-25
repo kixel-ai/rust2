@@ -117,8 +117,10 @@ Each program calls CodSpeed's
 [instrument-hooks](https://github.com/CodSpeedHQ/instrument-hooks), which the flake pins,
 through [`codspeed.h`](../../ffi/moq/bench/codspeed.h) and its own FFI around each case:
 one benchmark per language and case, such as `ffi/moq/bench/export.py::python::write` or
-`ffi/moq/bench/export.c::c::throughput[1024]`. Counted, a program runs its round once,
-without the warm-up round, and with a tenth of the groups (so 100,000 calls a case, Python's
+`ffi/moq/bench/export.c::c::throughput[1024]`. The Rust floor's cases are `#[bench]`
+functions instead, counted through [rust2-bench-harness](../runner/harness/README.md) under the
+same names, such as `ffi/moq/bench/export.rs::rust::write`, each with a broadcast of its own.
+Counted, a program runs its round once, without the warm-up round, and with a tenth of the groups (so 100,000 calls a case, Python's
 10,000), since Valgrind counts every call exactly and costs 50 to 100 times the program's own
 time. It skips the `shared:*`, `own:*`, and Kotlin's `objects` cases: Valgrind runs one
 thread at a time, so it would count a contention that never happens. It counts instructions,
@@ -142,26 +144,35 @@ between two runs:
 | Kotlin | 172% (`call`), 108% (`getter`) | leaves: without the warm-up, the JIT's and collector's threads compile and collect inside each case, and the JVM's C2 code crashes under Valgrind unless its implicit null checks are off |
 | Dart | does not run | leaves: the VM maps its code at an address hint off a page boundary, which Valgrind refuses |
 | C# | not measured | leaves until a pair of runs holds: CoreCLR's tiered JIT and collector run on their own threads |
-| TypeScript (Node) | 63% (`ready`), 56% (`write`), 54% (`woken`) | left 2026-11-23: see below |
+| TypeScript (Node) | 0.0003% (`payload[16]`), measured 2026-11-24 on **fedora** under rust2-bench | joins: see below |
 
-Node joined on 2026-11-16, measured on **fedora** the same way, Node 24.22.2. With V8's
-default flags, two runs moved `write` 113%, `stamped` 69%, and `ready` 49%: V8 compiles,
-sweeps, and collects on its own threads, by time. `--predictable --single-threaded
---v8-pool-size=0` keeps all of that on the main thread, which left 36%
-(`payload[1048576]`); `--predictable-gc-schedule`, so a collection follows allocation
-rather than time, left 16% (`throughput[1048576]`); and a full `gc()` before each case,
-through `--expose-gc`, left 2.6% (`ready`). `bench-program` passes all four flags under
-`RUST2_CODSPEED`, and `bench-run`, which times, passes none. The Chromium and Firefox
-columns stay out: a browser's processes would each count apart.
+Node, 24.22.2, holds still only once neither V8 nor moq reads time while counted. V8
+compiles, sweeps, and collects on its own threads, by time, and Valgrind counts every
+thread: with its default flags, two runs moved `write` 113%. `bench-program` passes, under
+`RUST2_CODSPEED`, `--single-threaded`, which keeps that work on the main thread;
+`--predictable --predictable-gc-schedule`, so a collection follows allocation rather than
+time; `--expose-gc`, so `export.ts` collects before each case; and `--wasm-sync-tier-up`,
+so the module's hot functions compile where they trip their budget, not on a worker
+whenever it gets to them, which `--single-threaded` leaves on. `bench-run`, which times,
+passes none. And under Valgrind `export.ts` replays the clock and the random bytes the
+module's WASI imports read: a clock a microsecond later each read, from a fixed origin.
+moq stamps each frame's arrival and keys its accounting by it, so with the host's clock a
+count depended on how slowly Valgrind ran the case and on the host's load.
 
-Node left on 2026-11-23, when rust2-bench replaced CodSpeed: with the same flags, its
-async cases no longer hold still. Two hosted runs and one on **fedora** of one commit
-differed by up to 63% (`ready`), 56% (`write`), and 54% (`woken`), and two on **fedora**
-alone, one program at a time, by 27% (`ready`) and 23% (`woken`); with the flags CodSpeed's
-runner passed to Valgrind, by 17% (`write`). It had already drifted under CodSpeed: on
-PRs that change no TypeScript, CodSpeed reported `payload[16384]` 83% faster (kixel-ai/rust2#979),
-`ready` 82% faster and `woken` 36% slower (kixel-ai/rust2#972), and `ready` 39% slower
-(kixel-ai/rust2#971). Its cases changed since it joined (kixel-ai/rust2#851, kixel-ai/rust2#937).
+Two runs of one build on **fedora**, the largest move of any case, as each fix joined:
+
+| Node under | largest move |
+|---|---|
+| V8's default flags | 113% (`write`), 69% (`stamped`), 49% (`ready`) |
+| the four flags it had under CodSpeed, `--v8-pool-size=0` the fourth | 63% (`ready`), 56% (`write`), 54% (`woken`), on hosted runs and **fedora** |
+| those, and the replayed clock | 8.3% (`write`), 5.6% (`woken`) |
+| `--wasm-sync-tier-up` too, without `--v8-pool-size=0` | 0.0003% (`payload[16]`) |
+
+`--v8-pool-size=0` is gone because Node reads 0 as a pool sized by the host's cores, 31
+workers on **fedora**, not as none. `--no-incremental-marking` also held still, but made
+each collection that the payloads' external memory starts a full pause, 6.5 times
+`throughput[1024]`'s count, so incremental marking stays. The Chromium and Firefox columns
+stay out: a browser's processes would each count apart.
 
 On CI, two runs of one commit under CodSpeed (kixel-ai/rust2#805's 11a94ff) left all 58
 benchmarks untouched: the largest move was Python's `throughput[1024]`, 2.4%, then its
@@ -1257,62 +1268,80 @@ web's TypeScript, its imports and load rewritten, over the Node-API addon the ex
 library builds with `--features node`, beside the `ts-node` column's wasm32 stand-in on
 the same Node, so the two differ by what each crossing costs.
 
-Measured 2026-11-23 on **fedora**, an AMD Ryzen 9 9950X (32 threads), at this column's
-branch, moq `1aa86d5e`, 3 rounds each, alternating, at a load average of 20 to 33. Node
-24.22.2, the export's default `release` profile. CPU ns per call, medians:
+Measured 2026-11-24 on **fedora**, an AMD Ryzen 9 9950X (32 threads), at
+[the lowering PR](https://github.com/kixel-ai/rust2/pull/1004), moq `1aa86d5e`, alternating
+rounds at a load average of 12 to 33: 8 of the addon, 2 of them slow throughout, and 5 of
+wasm32. Node 24.22.2, the export's default
+`release` profile. CPU ns per call, medians:
 
 | call | Node, wasm32 | Node, Node-API |
 |---|---|---|
-| `track.is_closed()`, a handle call | 64 | 89 |
-| `demand.start()`, a u64 getter | 58 | 77 |
-| `track.largest()`, a record return | 71 | 108 |
-| `track.info()`, an object return | 140 | 196 |
-| `group.write_frame(at, frame)`, 100 B | 331 | 302 |
-| the same, with a new `Timestamp` each | 492 | 499 |
-| a 100 B frame written and read, ready | 1,082 | 1,043 |
-| the same, read after a wake | 1,967 | 2,650 |
-| one reader and writer, with their handoff | 2,543 | 2,448 |
-| `frame.payload`, 100 B | 225 | 285 |
+| `track.is_closed()`, a handle call | 58 | 40 |
+| `demand.start()`, a u64 getter | 52 | 25 |
+| `track.largest()`, a record return | 65 | 102 |
+| `track.info()`, an object return | 138 | 105 |
+| `group.write_frame(at, frame)`, 100 B | 321 | 283 |
+| the same, with a new `Timestamp` each | 463 | 436 |
+| a 100 B frame written and read, ready | 866 | 914 |
+| the same, read after a wake | 1,822 | 2,166 |
+| one reader and writer, with their handoff | 1,902 | 2,357 |
+| `frame.payload`, 100 B | 171 | 273 |
 
 | frame, MB per CPU second | Node, wasm32 | Node, Node-API |
 |---|---|---|
-| 100 B | 64 | 80 |
-| 1 KiB | 666 | 707 |
-| 16 KiB | 5,953 | 6,718 |
-| 64 KiB | 9,903 | 10,197 |
-| 1 MiB | 10,206 | 9,138 |
+| 100 B | 88 | 87 |
+| 1 KiB | 859 | 786 |
+| 16 KiB | 7,094 | 6,729 |
+| 64 KiB | 12,881 | 11,608 |
+| 1 MiB | 15,125 | 9,682 |
 
-A leaf call costs 19 to 56 ns more through the addon: V8 compiles a call into wasm inline
-with the JavaScript, while a Node-API function's call reads its arguments through
-`napi_get_cb_info` and a call per argument. Where Rust does more, as in a write or a read,
-the two land within 10%, and the addon moves more bytes up to 64 KiB. A wake calls back
-into JavaScript through `napi_call_function`, where the module calls an import, which costs
-the woken read 0.7 µs more.
+Each native function converts its own arguments, holds its handles in the addon's table,
+and throws a failed status, so a call of numbers and handles alone is one call in its
+TypeScript, as on React Native, and costs 18 to 27 ns less than wasm32's. Before it, in
+the same rounds, the addon's handle call cost 86 ns, its getter 71, and its object return
+198, each running the web's `rt.enter`, `rt.hold`, status slot, and `rt.leave` around the
+call. The crossing itself costs 24 to 30 ns, where V8 compiles a call into wasm inline with
+the JavaScript, so a call that still lowers through the scratch memory, as a record return
+does, costs that much more than wasm32's: a Node-API object costs more to make or read
+than the bytes, 345 ns to return one against 45. A wake calls back into JavaScript through
+`napi_call_function`, where the module calls an import, which costs the woken read 0.3 µs
+more.
+
+A handle's id carries its slot's generation, so the addon refuses an id read before its
+handle closed rather than take it for the object in its slot now. Against the same addon
+without it, in 6 alternating rounds at a load average of 12 to 17, the handle call cost 42
+ns against 40.5 and the getter 26.4 against 25.6, and every other call but one moved within
+the rounds' spread. `frame.payload` cost 10 to 27 ns more at every size, which the same
+call on the api fixture does not show: it ran 0.2% more instructions there. Once its slot
+was reused, an id passes 2^31, which V8 holds as a heap number, so making a handle there
+costs about 16 ns more, most of the 0.85% more instructions the whole run took.
 
 Every number here is a call made while JavaScript holds no token Rust may call through
-from another thread, as `export.ts` holds none. While it holds one, as moq's session does
-through `Waiter.new$`'s closure, every call runs on the addon's worker thread while
-JavaScript's serves what Rust queues, a handoff and a wait each way. On the api fixture's
-release addon, a leaf call (`dropped()`) took 43 ns without a token and 2,400 to 2,560 ns
-of wall time, 1,980 to 2,060 ns of CPU, while a `Logger` held one: 3 rounds of 2 million
-calls on **fedora** at a load average of 27, 2026-11-24. Dart's binding waits the same way.
-[Node's lowering](/quest/m3/node-lowering.md) owns the cost.
+from another thread, as `export.ts` holds none, nor does moq's script: its session's
+`Waiter.new$` takes a waker, which a wake from another thread queues without a token. While
+JavaScript holds one, as a pending `clockDrive` does through its closure, every call runs on
+the addon's worker thread while JavaScript's serves what Rust queues, each spinning 20 µs
+for the other before it parks. moq's `track.is_closed()` then cost 184 to 215 ns of wall
+time and 367 to 429 of CPU, from 2,990 to 8,500 ns of wall time and 2,290 to 2,840 of CPU
+at origin/main: 3 rounds of 200,000 calls each, at a load average near 25. Dart's binding
+waits the same way, without the spin. [Node's lowering](/quest/m3/node-lowering.md) owns
+the rest.
 
 `frame.payload` up to 64 bytes copies through the scratch memory, one native call of
-numbers alone, 237 to 259 ns; a copy into a new `Uint8Array`, a call reading the array's
-place, cost about 560 in an earlier run. Past them it lends Rust's buffer, 275 to 357 ns at
-any length, telling V8 of the bytes held and freed, two calls more.
+numbers alone; a copy into a new `Uint8Array`, a call reading the array's place, cost about
+560 in an earlier run. Past them it lends Rust's buffer at any length, telling V8 of the
+bytes held and freed, two calls more.
 
 | bytes | Node, wasm32 | Node, Node-API |
 |---|---|---|
-| 16 B | 198 | 259 |
-| 64 B | 181 | 237 |
-| 100 B | 221 | 287 |
-| 1 KiB | 183 | 276 |
-| 16 KiB | 177 | 286 |
-| 64 KiB | 181 | 277 |
-| 256 KiB | 179 | 357 |
-| 1 MiB | 183 | 275 |
+| 16 B | 184 | 228 |
+| 64 B | 171 | 230 |
+| 100 B | 155 | 274 |
+| 1 KiB | 159 | 271 |
+| 16 KiB | 160 | 264 |
+| 64 KiB | 155 | 271 |
+| 256 KiB | 161 | 265 |
+| 1 MiB | 174 | 286 |
 
 The binding's TypeScript is the web's, 582 modules of 4,953 KiB raw and 1,081 KiB gzipped,
 and its Rust glue 3,420 KiB raw and 187 KiB gzipped. In `libmoq.so` it adds 5,412 KiB,

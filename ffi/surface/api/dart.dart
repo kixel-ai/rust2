@@ -1919,6 +1919,7 @@ Reading? reading(int n);
 String readingDebug(int n);
 Reading? readingEcho(Reading? reading);
 void readingBump(Mut<Reading?> reading);
+Cancelable<U64> afterCounter(Counter counter, Future<void> first);
 Stage advance(Stage stage);
 (Counter,) only(Counter counter);
 (int, int, int, U64) widths(U64 n);

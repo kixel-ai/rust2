@@ -1710,6 +1710,7 @@ public let WORD: Swift.UInt
 @inlinable public func readingDebug(_ n: Swift.UInt32) -> Swift.String
 @inlinable public func readingEcho(_ reading: Reading?) -> Reading?
 @inlinable public func readingBump(_ reading: inout Reading?)
+@inlinable nonisolated(nonsending) public func afterCounter(_ counter: borrowing Counter, _ first: @escaping @Sendable () async -> Void) async throws -> Swift.UInt64
 @inlinable public func advance(_ stage: Stage) -> Stage
 @inlinable public func only(_ counter: consuming Counter) throws -> Counter
 @inlinable public func widths(_ n: Swift.UInt64) -> (Swift.UInt8, Swift.Int16, Swift.UInt32, Swift.UInt64)

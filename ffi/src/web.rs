@@ -183,9 +183,12 @@ pub(crate) enum Cross {
 	Void,
 	/// A number: an integer of at most 32 bits, a `bool`, a `char`, or a C enum.
 	Number,
-	/// A `bigint`: a 64-bit integer.
+	/// A `bigint`: a 64-bit integer the runtime passes.
 	Big,
-	/// A handle or a future's, by its index in the addon's table of addresses.
+	/// An `rt.u64` or `rt.i64`: a number while a safe integer, its limbs past that.
+	Wide,
+	/// A handle or a future's, by its id in the addon's table of addresses, which a call
+	/// holds: a closed handle's id is -1.
 	Handle,
 	/// The data of what JavaScript implements: its token, a number.
 	Token,
@@ -210,6 +213,10 @@ pub(crate) enum Cross {
 pub(crate) struct NodeSig {
 	pub(crate) params: Vec<(Ty, Cross)>,
 	pub(crate) ret: (Ty, Cross),
+	/// The type each handle parameter is of, by name, which its error once closed names.
+	pub(crate) names: Vec<String>,
+	/// Whether it waits on nothing JavaScript serves, so the addon runs it at once.
+	pub(crate) direct: bool,
 }
 
 /// A C type's size and alignment on wasm32.
@@ -400,6 +407,9 @@ fn emit(abi: &Abi<'_>, facade: &Package, contract: u64, mask: u64, mode: Mode) -
 		calls: BTreeMap::new(),
 		externs: BTreeMap::new(),
 		frees: BTreeSet::new(),
+		kind_frees: Vec::new(),
+		framed: true,
+		holding: false,
 		classes: classes(abi),
 		module: String::new(),
 		modules: BTreeMap::new(),
@@ -587,7 +597,7 @@ fn emit(abi: &Abi<'_>, facade: &Package, contract: u64, mask: u64, mode: Mode) -
 		});
 	}
 	if node {
-		let glue = crate::node::glue(p, &space, &g.rust, &g.calls, &g.externs, &g.frees);
+		let glue = crate::node::glue(p, &space, &g.rust, &g.calls, &g.externs, &g.frees, &g.kind_frees);
 		return Ok(Output {
 			names: g.locked,
 			files,
@@ -740,9 +750,20 @@ struct Gen<'a> {
 	calls: BTreeMap<String, NodeSig>,
 	/// For Node: each C function JavaScript implements, the addon calling it, by name.
 	externs: BTreeMap<String, NodeSig>,
-	/// For Node: each C function that frees the handle it takes first, whose index the
+	/// For Node: each C function that frees the future it takes first, whose index the
 	/// addon frees with it.
 	frees: BTreeSet<String>,
+	/// For Node: each object type's free, by its index plus one in the addon's table of
+	/// them, which a handle's kind names.
+	kind_frees: Vec<String>,
+	/// For Node: whether the call [`Gen::invoke`] wrote last lowers or lifts any value
+	/// through the scratch memory, so its body runs in a frame of the stack.
+	framed: bool,
+	/// For Node: whether the arguments lowering are a call's whose lowering may run
+	/// JavaScript and gives before the addon converts them: each handle's index is read
+	/// after the rest, refusing a closed one, and each 64-bit integer checked, so the addon's
+	/// conversion cannot fail after a give.
+	holding: bool,
 	/// The namespace of the glue's C names, apart from the export's.
 	space: String,
 	/// Each exported type's name, by its C name.
@@ -1206,7 +1227,7 @@ impl<'a> Gen<'a> {
 			Ty::Data => Cross::Token,
 			Ty::Fn(..) => Cross::Raw,
 			Ty::Out(_) | Ty::In(_) | Ty::InOut(_) => Cross::Offset,
-			Ty::Int(Int::U64 | Int::I64 | Int::Usize | Int::Isize) => Cross::Big,
+			Ty::Int(Int::U64 | Int::I64 | Int::Usize | Int::Isize) => Cross::Wide,
 			Ty::Jni(_) => unreachable!("only Kotlin's glue passes a JNI value"),
 			ty if Self::plain(ty) => Cross::Number,
 			ty => match self.scalar(ty) {
@@ -1222,9 +1243,17 @@ impl<'a> Gen<'a> {
 		if !self.node || self.calls.contains_key(name) {
 			return;
 		}
+		let names = (params.iter())
+			.map(|ty| match ty {
+				Ty::Handle { name, .. } => self.class(name),
+				_ => String::new(),
+			})
+			.collect();
 		let sig = NodeSig {
 			params: params.iter().map(|ty| (ty.clone(), self.cross(ty))).collect(),
 			ret: (ret.clone(), self.cross(ret)),
+			names,
+			direct: false,
 		};
 		self.calls.insert(name.to_string(), sig);
 	}
@@ -1382,6 +1411,10 @@ impl<'a> Gen<'a> {
 			Type::IpAddr(Family::Any) => format!("rt.ipPut({p}, {e});"),
 			Type::IpAddr(Family::V4) => format!("rt.ipv4Put({p}, {e});"),
 			Type::IpAddr(Family::V6) => format!("rt.ipv6Put({p}, {e});"),
+			Type::Object(_) if self.node => format!("{handle}({p}, {e});"),
+			Type::Option(inner) if self.node && matches!(inner.base(), Type::Object(_)) => {
+				format!("{handle}({p}, {e});")
+			}
 			Type::Object(_) => format!("{handle}({p}, rt.hold({e}));"),
 			Type::Option(inner) if matches!(inner.base(), Type::Object(_)) => format!("{handle}({p}, rt.holdOr({e}));"),
 			Type::Option(inner) if Abi::is_buf(inner) || matches!(inner.base(), Type::List(..)) => {
@@ -1452,6 +1485,19 @@ impl<'a> Gen<'a> {
 		}
 		match ty {
 			Type::Bool => format!("({e} ? 1 : 0)"),
+			// Node's addon converts these itself.
+			Type::Int(int @ (Int::U64 | Int::I64)) | Type::NonZero(int @ (Int::U64 | Int::I64)) if self.node => {
+				match self.holding {
+					true => format!("rt.{}Plain({})", int.rust(), self.checked(ty, e)),
+					false => self.checked(ty, e),
+				}
+			}
+			Type::Object(_) if self.node && self.holding => format!("rt.open({e})"),
+			Type::Option(inner) if self.node && self.holding && matches!(inner.base(), Type::Object(_)) => {
+				format!("rt.openOr({e})")
+			}
+			Type::Object(_) if self.node => format!("{e}.p"),
+			Type::Option(inner) if self.node && matches!(inner.base(), Type::Object(_)) => format!("({e}?.p ?? 0)"),
 			Type::Int(Int::U64) | Type::NonZero(Int::U64) => format!("rt.u64Big({})", self.checked(ty, e)),
 			Type::Int(Int::I64) | Type::NonZero(Int::I64) => format!("rt.i64Big({})", self.checked(ty, e)),
 			Type::Int(_) | Type::NonZero(_) | Type::Char => self.checked(ty, e),
@@ -1474,6 +1520,8 @@ impl<'a> Gen<'a> {
 		}
 		match ty {
 			Type::Unit => "undefined".to_string(),
+			// Node's addon returns each as its own value.
+			Type::Bool | Type::Int(_) | Type::NonZero(_) | Type::Char if self.node => e.to_string(),
 			Type::Bool => format!("{e} !== 0"),
 			Type::Int(int) | Type::NonZero(int) => match int {
 				Int::U8 => format!("{e} & 0xff"),
@@ -1541,8 +1589,18 @@ impl<'a> Gen<'a> {
 				name: c.clone(),
 				constant: false,
 			};
-			self.called(&format!("{c_}_free"), std::slice::from_ref(&handle), &Ty::Void);
-			self.frees.insert(format!("{c_}_free"));
+			// Node's addon frees a handle itself, by its free's index among its kinds'.
+			let free = match self.node {
+				true => {
+					self.kind_frees.push(format!("{c_}_free"));
+					self.kind_frees.len().to_string()
+				}
+				false => {
+					self.called(&format!("{c_}_free"), std::slice::from_ref(&handle), &Ty::Void);
+					self.frees.insert(format!("{c_}_free"));
+					format!("\"{c_}_free\"")
+				}
+			};
 			if abi.checked[i] {
 				let status = Ty::Out(Box::new(Ty::Status));
 				self.called(&format!("{c_}_drop"), &[handle, status], &Ty::Void);
@@ -1554,7 +1612,7 @@ impl<'a> Gen<'a> {
 			};
 			self.helpers.insert(
 				name.clone(),
-				format!("export const {name}: rt.Kind = {{ name: \"{class}\", free: \"{c_}_free\"{drop} }};\n\n"),
+				format!("export const {name}: rt.Kind = {{ name: \"{class}\", free: {free}{drop} }};\n\n"),
 			);
 		}
 		format!("g.{name}")
@@ -2162,14 +2220,21 @@ impl Gen<'_> {
 
 	/// Statements calling `sig`'s C function with `args`, into `lines`: a struct it returns is
 	/// written through a pointer passed first, and with a status, a check it fails throws once
-	/// it returns.
+	/// it returns. Node's addon throws that itself, and counts the call's handles' holds.
 	fn invoke(&mut self, sig: &Sig, mut args: Vec<String>, lines: &mut Vec<String>) -> Ret {
 		let (name, ret, status) = (&sig.name, &sig.ret, sig.status().is_some());
-		if status {
+		if status && !self.node {
 			lines.push("const s$ = rt.alloc(4, 4);\nrt.dv().setInt32(s$, 0, true);".to_string());
 			args.push("s$".to_string());
 		}
 		let params: Vec<Ty> = sig.params.iter().map(|(_, ty)| ty.clone()).collect();
+		// Node's call of numbers and handles alone takes nothing of the stack.
+		self.framed = self.framed(sig);
+		// A wasm call's trap leaves `s.d` raised; a native call cannot trap.
+		let (count, uncount) = match self.node {
+			true => ("", ""),
+			false => ("rt.s.d++;\n", "\nrt.s.d--;"),
+		};
 		let callee = self.callee(name, &params, ret);
 		let sret = !Self::plain(ret) && self.scalar(ret).is_none();
 		if sret {
@@ -2180,15 +2245,15 @@ impl Gen<'_> {
 		let call = format!("rt.w.{callee}({})", args.join(", "));
 		let ret = match ret {
 			Ty::Void => {
-				lines.push(format!("rt.s.d++;\n{call};\nrt.s.d--;"));
+				lines.push(format!("{count}{call};{uncount}"));
 				Ret::None
 			}
 			_ if sret => {
-				lines.push(format!("rt.s.d++;\n{call};\nrt.s.d--;"));
+				lines.push(format!("{count}{call};{uncount}"));
 				Ret::At("rp$".to_string())
 			}
 			ret if Self::plain(ret) => {
-				lines.push(format!("rt.s.d++;\nconst r$ = {call};\nrt.s.d--;"));
+				lines.push(format!("{count}const r$ = {call};{uncount}"));
 				Ret::Value("r$".to_string())
 			}
 			ret => {
@@ -2197,7 +2262,7 @@ impl Gen<'_> {
 				let l = self.layout(ret);
 				let w = self.scalar(ret).expect("a struct of one scalar");
 				lines.push(format!(
-					"rt.s.d++;\nconst r$ = {call};\nrt.s.d--;\nconst rp$ = rt.alloc({}, {});\nrt.dv().set{}(rp$, r$, true);",
+					"{count}const r$ = {call};{uncount}\nconst rp$ = rt.alloc({}, {});\nrt.dv().set{}(rp$, r$, true);",
 					l.size.max(8),
 					l.align.max(4),
 					Self::word(w).0
@@ -2205,10 +2270,29 @@ impl Gen<'_> {
 				Ret::At("rp$".to_string())
 			}
 		};
-		if status {
+		if status && !self.node {
 			lines.push(format!("rt.status(s$, \"{name}\");"));
 		}
 		ret
+	}
+
+	/// Whether a call of `sig` runs in a frame of the stack: any but Node's call of numbers
+	/// and handles alone.
+	fn framed(&self, sig: &Sig) -> bool {
+		!self.node || self.lowers(sig) || !(sig.ret == Ty::Void || Self::scalar_cross(self.cross(&sig.ret)))
+	}
+
+	/// Whether a call of `sig` takes anything but numbers and handles, whose lowering may run
+	/// JavaScript or give Rust a value.
+	fn lowers(&self, sig: &Sig) -> bool {
+		!(sig.params.iter())
+			.filter(|(_, ty)| !abi::is_status(ty))
+			.all(|(_, ty)| Self::scalar_cross(self.cross(ty)))
+	}
+
+	/// Whether a value crossing as `c` crosses as itself, a number or a handle's index.
+	fn scalar_cross(c: Cross) -> bool {
+		matches!(c, Cross::Number | Cross::Wide | Cross::Handle)
 	}
 
 	/// The value of type `ty` a call returned as `ret`, which the caller owns.
@@ -2303,6 +2387,7 @@ impl Gen<'_> {
 	fn wasm_ret(&self, ret: &Ty) -> &'static str {
 		match ret {
 			Ty::Void => "void",
+			ret if self.node && self.cross(ret) == Cross::Wide => Self::wide_t(ret),
 			ret => match self.scalar(ret) {
 				Some(Wasm::I64) => "bigint",
 				Some(_) => "number",
@@ -2314,8 +2399,18 @@ impl Gen<'_> {
 	/// The wasm type of a parameter of a C function JavaScript implements, as TypeScript.
 	fn wasm_param(&self, ty: &Ty) -> &'static str {
 		match self.scalar(ty) {
+			_ if self.node && *ty == Ty::Bool => "boolean",
+			_ if self.node && self.cross(ty) == Cross::Wide => Self::wide_t(ty),
 			Some(Wasm::I64) => "bigint",
 			_ => "number",
+		}
+	}
+
+	/// The TypeScript type of Node's 64-bit integer `ty`, as its addon passes it.
+	fn wide_t(ty: &Ty) -> &'static str {
+		match ty {
+			Ty::Int(Int::I64 | Int::Isize) => "rt.i64",
+			_ => "rt.u64",
 		}
 	}
 
@@ -2329,6 +2424,8 @@ impl Gen<'_> {
 			let sig = NodeSig {
 				params: params.iter().map(|ty| (ty.clone(), self.cross(ty))).collect(),
 				ret: (ret.clone(), self.cross(ret)),
+				names: vec![String::new(); params.len()],
+				direct: false,
 			};
 			self.externs.insert(name.to_string(), sig);
 			return name.to_string();
@@ -2449,6 +2546,11 @@ impl Gen<'_> {
 	fn index_fn(&mut self, local: &str, export: &str, ret: Ty) -> String {
 		if !self.helpers.contains_key(local) {
 			self.called(export, &[], &ret);
+			// A static's address, which Node's addon reads at once, serving no JavaScript, as
+			// a call that gives a value may read it after its handles.
+			if let Some(sig) = self.calls.get_mut(export) {
+				sig.direct = true;
+			}
 			// Node's is the function's address, a `bigint`.
 			let (t, zero) = match self.node {
 				true => ("bigint", "0n"),
@@ -2475,6 +2577,7 @@ impl Gen<'_> {
 		if self.helpers.contains_key(&local) {
 			return format!("g.{local}");
 		}
+		let holding = std::mem::replace(&mut self.holding, false);
 		let space = self.space.clone();
 		let callback = &abi.api.callbacks[i];
 		let rust = callback.path.join("::");
@@ -2527,7 +2630,9 @@ impl Gen<'_> {
 			format!("VTABLE_{bare}").to_uppercase(),
 		);
 		let export = format!("{space}_vtable_{bare}");
-		self.index_fn(&local, &export, Ty::Fn(Vec::new(), Box::new(Ty::Void)))
+		let result = self.index_fn(&local, &export, Ty::Fn(Vec::new(), Box::new(Ty::Void)));
+		self.holding = holding;
+		result
 	}
 
 	/// The value a call into JavaScript passes its implementation for the parameter `e` of
@@ -2549,6 +2654,7 @@ impl Gen<'_> {
 	/// The trampoline of the closure type `ty`, `g.t<n>`, and the glue's function giving the
 	/// table index of the C function of its signature, which calls it.
 	fn closure(&mut self, ty: &Type, closure: &Closure) -> (String, String) {
+		let holding = std::mem::replace(&mut self.holding, false);
 		let abi = self.abi;
 		let space = self.space.clone();
 		let sig = abi.closure(closure);
@@ -2593,7 +2699,12 @@ impl Gen<'_> {
 				k
 			}
 		};
-		let relay = self.index_fn(&format!("f{k}"), &format!("{space}_fn_{k}"), Ty::Int(Int::Usize));
+		// Node's is the function's address, which crosses as one.
+		let address = match self.node {
+			true => Ty::Fn(Vec::new(), Box::new(Ty::Void)),
+			false => Ty::Int(Int::Usize),
+		};
+		let relay = self.index_fn(&format!("f{k}"), &format!("{space}_fn_{k}"), address);
 		// The trampoline, per closure type, since two of one C signature may lift apart.
 		let t = match self.trampolines.iter().position(|t| t == ty) {
 			Some(t) => t,
@@ -2651,6 +2762,7 @@ impl Gen<'_> {
 				t
 			}
 		};
+		self.holding = holding;
 		(relay, format!("g.t{t}"))
 	}
 }
@@ -3108,7 +3220,7 @@ impl Gen<'_> {
 		// The statements passing `e` as the receiver, making `local`.
 		let this = |g: &mut Self, e: &str, local: &str| -> String {
 			match object {
-				true => format!("const {local} = rt.hold({e});"),
+				true => format!("const {local} = {};", g.lower(ty, e)),
 				false => {
 					let l = g.layout(&c_ty);
 					let put = g.put(ty, e, local, false);
@@ -3137,7 +3249,7 @@ impl Gen<'_> {
 			};
 			let body = match g.jsi {
 				true => indent(&fwd),
-				false => indent(&wrap(&body)),
+				false => g.frame(&body),
 			};
 			let body = match g.lacks(on, &format!("{name}.{member}")) {
 				Some(check) => format!("\t{check}\n{body}"),
@@ -3314,6 +3426,17 @@ impl Gen<'_> {
 	}
 }
 
+impl Gen<'_> {
+	/// The body of `lines`, indented, in a frame of the stack unless Node's call [`Gen::invoke`]
+	/// wrote last takes none.
+	fn frame(&self, lines: &[String]) -> String {
+		match self.framed {
+			true => indent(&wrap(lines)),
+			false => indent(&lines.join("\n")),
+		}
+	}
+}
+
 /// Statements running `lines` in a call's frame, which gives back what it took.
 fn wrap(lines: &[String]) -> String {
 	format!(
@@ -3440,9 +3563,13 @@ impl Gen<'_> {
 		};
 
 		let receiver = function.receiver.filter(|_| owner.is_some());
+		self.holding = self.node && self.lowers(export.future.as_ref().map_or(&export.call, |f| &f.start));
 		let mut params = Vec::new();
 		let mut lines = Vec::new();
 		let mut gives = Vec::new();
+		// Node's handles a lowering that may run JavaScript is beside, read after it: none
+		// is then closed, or its index taken by another, before the addon holds it.
+		let mut opens = Vec::new();
 		let mut args = Vec::new();
 		let mut c_params = export.call.params.iter();
 		if receiver.is_some() {
@@ -3451,7 +3578,13 @@ impl Gen<'_> {
 			let t = self.tt(&ty);
 			params.push(format!("self: {t}"));
 			match c {
-				Ty::Handle { .. } => lines.push("const self$ = rt.hold(self);".to_string()),
+				Ty::Handle { .. } => {
+					let line = format!("const self$ = {};", self.lower(&ty, "self"));
+					match self.holding {
+						true => opens.push(line),
+						false => lines.push(line),
+					}
+				}
 				Ty::In(inner) => {
 					let l = self.layout(inner);
 					let put = self.put(&ty, "self", "self$", false);
@@ -3478,7 +3611,11 @@ impl Gen<'_> {
 				let t = self.tt(inner);
 				params.push(format!("{name}: rt.Place<{t}>"));
 				let value = format!("{name}.v");
-				lines.push(self.pass(inner, c, &value, &a));
+				let line = self.pass(inner, c, &value, &a);
+				match self.holding && matches!(c, Ty::Handle { .. }) {
+					true => opens.push(line),
+					false => lines.push(line),
+				}
 				args.push(a);
 				let out = Abi::written(function, &abi::escape(&param.name));
 				let read = self.get(inner, &format!("o_{out}"), true);
@@ -3529,14 +3666,23 @@ impl Gen<'_> {
 				}
 				(Type::Future, _) => {
 					let l = self.layout(&Ty::ForeignFuture);
-					gives.push(format!(
-						"const {a} = rt.alloc({}, {});\nrt.futureOf({a}, {name});",
-						l.size, l.align
-					));
+					let put = if self.node {
+						// Subscribing can run an overridden `then`: do it before reading
+						// handles and before any give, so a refused call transfers nothing.
+						lines.push(format!("const f{k}$ = rt.futurePrepare({name});"));
+						format!("rt.futurePut({a}, f{k}$);")
+					} else {
+						format!("rt.futureOf({a}, {name});")
+					};
+					gives.push(format!("const {a} = rt.alloc({}, {});\n{put}", l.size, l.align));
 					args.push(a);
 				}
 				(ty, c) => {
-					lines.push(self.pass(ty, c, name, &a));
+					let line = self.pass(ty, c, name, &a);
+					match self.holding && matches!(c, Ty::Handle { .. }) {
+						true => opens.push(line),
+						false => lines.push(line),
+					}
 					// Rust takes `Bytes` by value: lent bytes become a second owner of its
 					// buffer once nothing left to lower can throw, so none is given in vain.
 					if matches!(ty, Type::Bytes) || matches!(ty, Type::Option(inner) if **inner == Type::Bytes) {
@@ -3547,7 +3693,9 @@ impl Gen<'_> {
 			}
 		}
 		let outs: Vec<(String, Ty)> = c_params.filter(|(_, ty)| !abi::is_status(ty)).cloned().collect();
+		lines.extend(opens);
 		lines.extend(gives);
+		self.holding = false;
 
 		let ok = strip_refs(&function.ok);
 		let err = function.err.as_ref().map(strip_refs);
@@ -3662,7 +3810,12 @@ impl Gen<'_> {
 						_ => self.lift_outs(&function.ok, &ok),
 					};
 					let error = self.get(err, "o_err", true);
-					lines.push(format!("return {r} !== 0 ? rt.Ok({value}) : rt.Err({error});"));
+					// Node's addon returns whether it did as a boolean.
+					let ok = match self.node {
+						true => r.to_string(),
+						false => format!("{r} !== 0"),
+					};
+					lines.push(format!("return {ok} ? rt.Ok({value}) : rt.Err({error});"));
 				}
 				None if ok == Type::Unit => {}
 				None if outs.len() > writes.len() => {
@@ -3721,7 +3874,7 @@ impl Gen<'_> {
 					.collect();
 				format!("\treturn rt.n.{}({});", self.bare(&c_name), args.join(", "))
 			}
-			false => indent(&wrap(&lines)),
+			false => self.frame(&lines),
 		};
 		// Node's one package serves each of its targets: a function only some have fails on
 		// the others before it reaches Rust, as the library's target says.
