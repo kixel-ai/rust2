@@ -137,21 +137,25 @@ pub fn preloaded() -> Result<(), String> {
 	let Some(library) = preloads.split([':', ' ']).find(|library| !library.is_empty()) else {
 		return Ok(());
 	};
-	// A bare name is the loader's to find on its search path; rust2-bench names its own by path.
-	if !library.contains('/') {
-		return Ok(());
+	let name =
+		std::ffi::CString::new(library).map_err(|_| format!("LD_PRELOAD names {library:?}, which holds a NUL"))?;
+	// Finds a library already loaded, by a bare name as the loader searched for it, or by a path
+	// or a link to it as the same file, and loads none.
+	// SAFETY: `name` is a C string; `RTLD_NOLOAD` only looks the library up.
+	let handle = unsafe { dlopen(name.as_ptr(), RTLD_NOLOAD | RTLD_LAZY) };
+	if handle.is_null() {
+		return Err(format!(
+			"LD_PRELOAD names {library}, which this process never loaded: the loader found no such library, or a static \
+			 executable or a glibc before 2.34 ignores it"
+		));
 	}
-	// The loader maps the file a link names, under the file's own path.
-	let path = std::fs::canonicalize(library).map_err(|e| format!("LD_PRELOAD names {library}: {e}"))?;
-	let maps = std::fs::read_to_string("/proc/self/maps").map_err(|e| format!("cannot read /proc/self/maps: {e}"))?;
-	if maps.lines().any(|line| line.ends_with(&*path.to_string_lossy())) {
-		return Ok(());
-	}
-	Err(format!(
-		"LD_PRELOAD names {library}, which this process never loaded: a static executable, or a glibc before 2.34, \
-		 ignores it"
-	))
+	// SAFETY: the handle `dlopen` returned, whose reference it took, released once.
+	unsafe { dlclose(handle) };
+	Ok(())
 }
+
+const RTLD_LAZY: i32 = 1;
+const RTLD_NOLOAD: i32 = 4;
 
 impl Counters {
 	fn read(self) -> Result<Count, String> {
@@ -230,6 +234,8 @@ unsafe extern "C" {
 	#[link_name = "prctl"]
 	fn sys_prctl(option: i32, ...) -> i32;
 	fn gettid() -> i32;
+	fn dlopen(name: *const std::ffi::c_char, flags: i32) -> *mut std::ffi::c_void;
+	fn dlclose(handle: *mut std::ffi::c_void) -> i32;
 }
 
 /// Starts or stops every perf event the calling thread opened.
