@@ -894,12 +894,73 @@ class CArchive(unittest.TestCase):
         self.assertEqual(windows["moq_shared"]["link_location"], "@prefix@/lib/moq.dll.lib")
         self.assertEqual(windows["moq"]["link_flags"], ["/defaultlib:msvcrt"])
 
-    def test_the_older_toolchain_is_a_stable_release_whatever_the_channel(self):
+    def test_the_older_toolchain_is_a_released_stable_whatever_the_channel(self):
         self.assertEqual(package.older_toolchain("rustc 1.98.1\nhost: x86_64-unknown-linux-gnu\nrelease: 1.98.1\n"), "1.96.0")
-        # A nightly's release is two ahead of stable, its beta one.
-        self.assertEqual(package.older_toolchain("release: 1.102.0-nightly\n"), "1.100.0")
+        self.assertEqual(package.older_toolchain("release: 1.101.0-beta.3\n"), "1.99.0")
+        # A nightly names release 1.N days before 1.(N-2) is out.
+        self.assertEqual(package.older_toolchain("release: 1.102.0-nightly\n"), "1.99.0")
         with self.assertRaises(SystemExit):
             package.older_toolchain("release: 2.0.0\n")
+
+    def test_the_minimum_os_is_the_newest_either_load_command_declares(self):
+        listing = """libmoq.a(std.o):
+Load command 1
+      cmd LC_VERSION_MIN_MACOSX
+  cmdsize 16
+  version 10.12
+      sdk n/a
+Load command 2
+      cmd LC_SOURCE_VERSION
+  cmdsize 16
+  version 1.2
+libmoq.a(moq.o):
+Load command 1
+      cmd LC_BUILD_VERSION
+  cmdsize 24
+ platform 1
+    minos 10.15
+      sdk 26.2
+"""
+        self.assertEqual(package.declared_os(listing, "libmoq.a"), (10, 15))
+        # A source version is no minimum OS.
+        with self.assertRaises(SystemExit):
+            package.declared_os(listing.split("libmoq.a(moq.o)")[0].replace("LC_VERSION_MIN_MACOSX", "LC_UUID"), "libmoq.a")
+
+    def test_the_c_abi_is_what_the_generated_crate_defines_and_the_rest_is_renamed(self):
+        listing = """api-0abf9f642fbb3007.api.d0e6e03e8f1aed16-cgu.01.rcgu.o:
+api_buf_free T 0 10
+api_Batch_drop_signal T 10 10
+malloc U
+
+libapi.a[df7d2551892e0561-api_lc.o]:
+api_lc_init T 10 10
+tty_in C 8 8
+
+libapi.a(std-62cf18f9587165ab.std.c6455289cfba667d-cgu.0.rcgu.o):
+rust_eh_personality T 20 10
+DW.ref.rust_eh_personality V 0 8
+_ZN3std2rt10lang_start17h0123456789abcdefE T 30 10
+__cxa_thread_atexit_impl w
+"""
+        self.assertEqual(package.nm_symbols(listing)[2], ("api-0abf9f642fbb3007.api.d0e6e03e8f1aed16-cgu.01.rcgu.o", "malloc", "U"))
+        self.assertEqual(package.nm_symbols(listing)[3], ("df7d2551892e0561-api_lc.o", "api_lc_init", "T"))
+        names = package.defined(listing)
+        self.assertEqual(names, {"api_buf_free", "api_Batch_drop_signal", "api_lc_init", "tty_in", "rust_eh_personality",
+                                 "DW.ref.rust_eh_personality", "_ZN3std2rt10lang_start17h0123456789abcdefE"})
+        # A C dependency's `api_lc_` shares the prefix, but only the crate's own objects define the C ABI,
+        # a binding's entry points the header leaves out, such as `_drop_signal`, included.
+        keep = package.c_abi(listing, "api", "x86_64-unknown-linux-gnu")
+        self.assertEqual(keep, ["api_Batch_drop_signal", "api_buf_free"])
+        self.assertEqual(package.c_abi("api.api.2-cgu.0.rcgu.o:\n_api_buf_free T 0 1\n", "api", "aarch64-apple-darwin"),
+                         ["_api_buf_free"])
+        self.assertEqual(package.c_abi("api_x-1.api_x.2-cgu.0.rcgu.o:\napi_x_init T 0 1\n" + listing, "api", "x86_64-unknown-linux-gnu"),
+                         keep)
+        new = package.renamed(names - set(keep), "api", "0123456789abcdef")
+        self.assertEqual(new["rust_eh_personality"], "rust_eh_personality.api.0123456789abcdef")
+        self.assertEqual(new["_ZN3std2rt10lang_start17h0123456789abcdefE"],
+                         "_ZN3std2rt10lang_start17h0123456789abcdefE.api.0123456789abcdef")
+        with self.assertRaises(SystemExit):
+            package.c_abi(listing, "moq", "x86_64-unknown-linux-gnu")
 
     def test_archive_is_owned_by_no_one(self):
         with tempfile.TemporaryDirectory() as tmp:

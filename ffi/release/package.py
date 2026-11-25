@@ -664,17 +664,22 @@ let package = Package(
 
 
 def min_os(archive):
-    """The newest minimum OS any object in a static library declares, in a build version, or
-    in the older version-min command rustc's Intel macOS objects still carry."""
+    """The newest minimum OS any object in a static library declares."""
+    return declared_os(output("/usr/bin/otool", "-l", archive), archive)
+
+
+def declared_os(load_commands, what):
+    """The newest minimum OS `otool -l` lists, in a build version or in the older version-min
+    command rustc's Intel macOS objects still carry."""
     versions, command = set(), None
-    for line in output("/usr/bin/otool", "-l", archive).splitlines():
+    for line in load_commands.splitlines():
         command = line.split()[1] if line.split()[:1] == ["cmd"] else command
         match = re.match(r"\s*minos ([0-9.]+)$", line) or (
             command and command.startswith("LC_VERSION_MIN_") and re.match(r"\s*version ([0-9.]+)$", line))
         if match:
             versions.add(tuple(int(x) for x in match.group(1).split(".")))
     if not versions:
-        raise SystemExit(f"{archive} declares no minimum OS")
+        raise SystemExit(f"{what} declares no minimum OS")
     return max(versions)
 
 
@@ -1087,26 +1092,41 @@ def cps(info, files, natives):
     return json.dumps(description, indent=2) + "\n"
 
 
-def defined(path, nm):
-    """The global symbols an object or archive defines, as its object format spells them."""
-    # POSIX format: a member's header is one field, a symbol is its name, type, and more.
-    lines = (line.split() for line in output(nm, "--extern-only", "--defined-only", "--no-llvm-bc", "-P", path).splitlines())
-    return {fields[0] for fields in lines if len(fields) > 1}
-
-
-def c_abi(static, lib, target, nm):
-    """The C ABI's symbols, `<lib>_*`, that the static library defines, as the object format spells them."""
-    want = f"_{lib}_" if "apple" in target else f"{lib}_"
-    found = sorted(name for name in defined(static, nm) if name.startswith(want))
-    if not found:
-        raise SystemExit(f"{static} defines no {want}* symbol")
+def nm_symbols(listing):
+    """Each global symbol of an `llvm-nm -g -P` listing of an archive, as (member, name, type)."""
+    member, found = "", []
+    for fields in (line.split() for line in listing.splitlines()):
+        if len(fields) == 1 and fields[0].endswith(":"):
+            # `member.o:`, or `lib.a[member.o]:` or `lib.a(member.o):` by format.
+            member = re.fullmatch(r"(?:.*[\[(])?([^\[\]()]+?)[\])]?:", fields[0]).group(1)
+        elif len(fields) > 1:
+            found.append((member, fields[0], fields[1]))
     return found
 
 
-def undefined(path, kind, nm):
-    """The undefined symbols of an ELF object or archive that nm marks `kind`: `U` strong, `w` weak."""
-    lines = output(nm, "--undefined-only", path).splitlines()
-    return {line.split()[1] for line in lines if line.split()[:1] == [kind] and len(line.split()) == 2}
+def defined(listing):
+    """The global symbols an `llvm-nm -g -P` listing defines or holds common, as the object format spells them."""
+    # `U`, `v`, and `w` are undefined.
+    return {name for _, name, kind in nm_symbols(listing) if kind not in "Uvw"}
+
+
+def c_abi(listing, lib, target):
+    """The C ABI's symbols: the `<lib>_*` globals the generated crate's own objects define, as
+    the object format spells them, whatever a binding calls, and not a dependency's sharing the prefix."""
+    want = f"_{lib}_" if "apple" in target else f"{lib}_"
+    # rustc names a crate's objects `<crate>-<hash>.<crate>.<hash>-cgu.<n>.rcgu.o`, or without
+    # the first hash when cargo passes no metadata, as `cargo rustc` of a staticlib and cdylib.
+    found = sorted({name for member, name, kind in nm_symbols(listing)
+                    if member.startswith((f"{lib}-", f"{lib}.")) and name.startswith(want) and kind not in "Uvw"})
+    if not found:
+        raise SystemExit(f"the static library's {lib} objects define no {want}* symbol")
+    return found
+
+
+def renamed(names, lib, digest):
+    """Each of `names` apart from any other library's, even another version of this one: its
+    whole name, then `.<lib>.<digest>`, a suffix Rust's and C++'s demanglers skip."""
+    return {name: f"{name}.{lib}.{digest}" for name in sorted(names)}
 
 
 def apple_clang(static, target):
@@ -1117,73 +1137,44 @@ def apple_clang(static, target):
     return ["xcrun", "--sdk", sdk, "clang", "-target", clang_target.format(floor)], floor
 
 
-def renamed(static, lib, keep, nm):
-    """Each global symbol `static` defines or holds common, but the C ABI's, by its name apart
-    from any other library's: behind a prefix of the library and a digest of its bytes, which
-    no C ABI symbol starts with, so two versions of one library differ too."""
-    lines = (line.split() for line in output(nm, "--extern-only", "--no-llvm-bc", "-P", static).splitlines())
-    names = sorted({f[0] for f in lines if len(f) > 1 and f[1] not in "Uvw"} - set(keep))
-    prefix = f"_{lib}${hashlib.sha256(Path(static).read_bytes()).hexdigest()[:16]}$"
-    return {name: prefix + name.removeprefix("_") for name in names}
-
-
 def hide(static, lib, target, manifest, work):
-    """The static library with no global symbol but the C ABI's that another can define, so its Rust runtime cannot clash.
+    """The static library with no global symbol another library can clash with but the C ABI's.
 
     Another Rust static library in the same program, built by another toolchain, brings its own
     std and compiler-builtins, whose unmangled symbols, such as `rust_eh_personality` and
-    `__addvdi3`, would otherwise collide. On ELF the library is one object prelinked to export
-    only the C ABI. Apple's relocatable link drops each object's DWARF for a debug map naming
-    files an app's link never sees, so a crash in the Swift package would not symbolicate:
-    there each member keeps its debug info, and every other global symbol is renamed apart.
-    MSVC's linker has no relocatable link, and GNU ld's of a MinGW archive leaves its import
-    symbols without a section, so a Windows static library keeps every symbol.
+    `__addvdi3`, would otherwise collide. `llvm-objcopy` renames every other global the archive
+    defines, in every member, which keeps each object's sections whole: a relocatable link
+    would drop Mach-O's DWARF, which the Swift package's line tables need, and with
+    `--gc-sections` lld drops ELF's unwind tables. On ELF the renamed symbols are hidden too,
+    so a shared library an app links this into exports none. A Windows library keeps every
+    symbol (see the quest `/quest/m1/ffi-packaging/static-isolation.md`).
     """
-    nm = llvm_tool(manifest, "llvm-nm")
-    objcopy = llvm_tool(manifest, "llvm-objcopy")
-    keep = c_abi(static, lib, target, nm)
+    nm, objcopy = llvm_tool(manifest, "llvm-nm"), llvm_tool(manifest, "llvm-objcopy")
+    listing = lambda path: output(nm, "--extern-only", "--no-llvm-bc", "-P", path)  # noqa: E731
+    found = listing(static)
+    names, keep = defined(found), c_abi(found, lib, target)
+    new = renamed(names - set(keep), lib, hashlib.sha256(Path(static).read_bytes()).hexdigest()[:16])
+    pairs, hidden = work / "renamed.txt", work / "hidden.txt"
+    pairs.write_text("".join(f"{old} {name}\n" for old, name in new.items()), encoding="utf-8")
     archive = work / static.name
-    if "apple" in target:
-        names = renamed(static, lib, keep, nm)
-        redefine = work / "renamed.txt"
-        redefine.write_text("".join(f"{old} {new}\n" for old, new in names.items()), encoding="utf-8")
-        run(objcopy, f"--redefine-syms={redefine}", static, archive)
-        allowed = set(keep) | set(names.values())
-        stray = sorted(defined(archive, nm) - allowed)
-    else:
-        listed = work / "exported.txt"
-        listed.write_text("\n".join(keep) + "\n", encoding="utf-8")
-        merged, hidden = work / "merged.o", work / "hidden.o"
-        # The toolchain's own LLVM, which reads every ELF target's objects, Android's
-        # included, keeping only the members the C ABI reaches, without the sections it never
-        # references.
-        run(llvm_tool(manifest, "rust-lld"), "-flavor", "gnu", "-r", "--gc-sections",
-            *(arg for name in keep for arg in ("-u", name)), static, "-o", merged)
-        # A COMDAT group would still merge with another library's copy, such as std's
-        # `DW.ref.rust_eh_personality`, whose symbol here is now local: as plain sections,
-        # each library keeps its own.
-        run(objcopy, "--remove-section=.group", f"--keep-global-symbols={listed}", merged, hidden)
-        if "There are no section groups" not in output(llvm_tool(manifest, "llvm-readobj"), "--elf-output-style=GNU", "-g", hidden):
-            raise SystemExit(f"the prelinked {static.name} still holds section groups")
-        # What std looks up only if the system has it, such as a newer glibc's
-        # `posix_spawn_file_actions_addchdir`, must stay weak, or a link on an older system fails.
-        strong = sorted(undefined(hidden, "U", nm) & (undefined(static, "w", nm) - undefined(static, "U", nm)))
-        if strong:
-            raise SystemExit(f"the prelinked {static.name} needs what Rust's archive only looks up, such as {strong[:5]}")
-        run(llvm_tool(manifest, "llvm-ar"), "rcsD", archive, hidden)
-        stray = sorted(defined(hidden, nm) - set(keep))
+    run(objcopy, f"--redefine-syms={pairs}", static, archive)
+    if "apple" not in target:
+        hidden.write_text("".join(f"{name}\n" for name in new.values()), encoding="utf-8")
+        run(objcopy, f"--set-symbols-visibility={hidden}=hidden", archive)
+    stray = sorted(defined(listing(archive)) - set(keep) - set(new.values()))
     if stray:
         raise SystemExit(f"the hidden {static.name} defines other global symbols than the C ABI, such as {stray[:10]}")
     return archive
 
 
 def older_toolchain(version):
-    """The toolchain two releases before the one `rustc -vV` describes: stable whatever that
-    one's channel, and with a std whose symbols differ, as another crate's would."""
-    release = re.search(r"^release: 1\.([0-9]+)\.", version, re.M)
+    """A released stable toolchain older than the one `rustc -vV` describes, whose std's
+    symbols differ, as another crate's would: two releases back, or three from a nightly,
+    which names its release before the stable two back is out."""
+    release = re.search(r"^release: 1\.([0-9]+)\.[0-9]+(-nightly|-dev)?", version, re.M)
     if release is None:
         raise SystemExit(f"rustc names no 1.x release: {version}")
-    return f"1.{int(release.group(1)) - 2}.0"
+    return f"1.{int(release.group(1)) - (3 if release.group(2) else 2)}.0"
 
 
 def coexist(archive, include, lib, native, manifest, target, work):
@@ -1202,8 +1193,12 @@ def coexist(archive, include, lib, native, manifest, target, work):
                                       encoding="utf-8")
     version = output("rustc", "-vV", cwd=Path(manifest).resolve().parent)
     toolchain = older_toolchain(version)
-    run("rustup", "toolchain", "install", "--profile", "minimal", "--target", target, toolchain, capture_output=True)
-    env = {**os.environ}
+    run("rustup", "toolchain", "install", toolchain, "--profile", "minimal", "--target", target, capture_output=True)
+    # Without the crate's own compiler, flags, and profile, which another toolchain may refuse
+    # or, naming the crate's rustc, would build the other library with the crate's std.
+    env = {k: v for k, v in os.environ.items()
+           if not k.startswith(("RUSTC", "RUSTFLAGS", "RUSTDOCFLAGS", "CARGO_ENCODED_", "CARGO_BUILD_", "CARGO_PROFILE_",
+                                "CARGO_TARGET_"))}
     if "apple" in target:
         clang, floor = apple_clang(archive, target)
         env["MACOSX_DEPLOYMENT_TARGET" if "darwin" in target else "IPHONEOS_DEPLOYMENT_TARGET"] = floor
@@ -1225,12 +1220,10 @@ def coexist(archive, include, lib, native, manifest, target, work):
                     f'\tprintf("%zu %lld\\n", buf.len, (long long)rust2_other_sum(40, 1));\n\t{lib}_buf_free(buf);\n\treturn 0;\n}}\n',
                     encoding="utf-8")
     host = re.search(r"^host: (\S+)$", version, re.M).group(1)
-    # What both libraries link, once each.
-    flags = [arg for kind, name in native_flags(f"{native} {notes[0]}", target, frameworks=True)
-             for arg in ((f"-l{name}",) if kind == "library" else ("-framework", name))]
     for order in ((archive, theirs), (theirs, archive)):
         exe = work / "coexist"
-        run(*clang, "-std=c11", "-I", include, main, *order, *flags, "-o", exe)
+        # Each library's native flags as rustc prints them, whose order and repeats a static link may need.
+        run(*clang, "-std=c11", "-I", include, main, *order, *shlex.split(native), *shlex.split(notes[0]), "-o", exe)
         if target == host and output(exe) != "2 42\n":
             raise SystemExit(f"{archive.name} beside another Rust static library printed the wrong result")
 

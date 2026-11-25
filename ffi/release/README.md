@@ -214,21 +214,21 @@ the builder unpacks over its checkout before reading the checks.
    On Windows it is `bin/<lib>.dll` with `lib/<lib>.dll.lib`, beside the static `lib/<lib>.lib`.
 
    The static library is hidden, as every static library the builder ships but Windows'
-   is. On ELF, Android's included, it is one object prelinked from Rust's archive (the
-   toolchain's `rust-lld -r`, then `llvm-objcopy`) whose only global symbols are the C
-   ABI's, `<lib>_*`, as the archive defines them. Apple's relocatable link would drop each
-   object's DWARF, which the Swift package's line tables need, so on Mach-O the archive
-   keeps its members and `llvm-objcopy` renames every other global symbol behind
-   `_<lib>$<digest>$`, the digest of the archive's bytes. Either way its std and
-   compiler-builtins, with unmangled symbols such as `rust_eh_personality` and
-   `__addvdi3`, cannot clash with another Rust static library in the same program, built
-   by any toolchain, nor with another version of its own. Each build checks it by linking
-   one beside it, built by the toolchain two releases older, in either order, and running
-   the program where the host can: one the same toolchain built would link even unhidden,
-   since the linker takes std's members from the first archive alone. MSVC's linker has no
-   relocatable link, and GNU ld's of a MinGW archive leaves its import symbols without a
-   section, so a Windows static library keeps every symbol: a program with two Rust static
-   libraries there links the DLL instead.
+   is: `llvm-objcopy` renames every global symbol it defines but the C ABI's, the `<lib>_*`
+   symbols the generated crate's own objects define, to `<name>.<lib>.<digest>`, the
+   digest of the archive's bytes, a suffix Rust's and C++'s demanglers skip; on ELF the
+   renamed symbols are hidden too, so a shared library linking it exports only the C ABI.
+   So its std and compiler-builtins, with unmangled symbols such as `rust_eh_personality`
+   and `__addvdi3`, cannot clash with another Rust static library in the same program,
+   built by any toolchain, nor with another version of its own. Each object keeps its
+   sections whole: a relocatable link would drop Mach-O's DWARF, and with `--gc-sections`
+   lld drops ELF's unwind tables. Each build checks it by linking one beside it, built by
+   a released stable toolchain two releases older (three from a nightly) without the
+   crate's compiler flags, in either order, and running the program where the host can:
+   one the same toolchain built would link even unhidden, since the linker takes std's
+   members from the first archive alone. A Windows static library keeps every symbol
+   ([its quest](/quest/m1/ffi-packaging/static-isolation.md)): a C program with two Rust
+   static libraries there links the DLL instead.
 8. Go: one module for every target, at the module path and `v<version>`, the major
    version's `/vN` suffix checked: the export's `go/`, whose runtime's `#cgo` lines link
    `rt/lib<prefix>_<goos>_<goarch>.a` for `linux/amd64` and `linux/arm64` (built against
@@ -238,8 +238,9 @@ the builder unpacks over its checkout before reading the checks.
    Android), and `windows/amd64` (an
    `x86_64-pc-windows-gnu` library, for Go's MinGW linker), and the license files. Each
    library must need exactly the system libraries the export's line names, as rustc prints
-   them building it, is hidden as the C archive's static library is, but on Windows, and
-   loses its debug info and the LLVM bitcode Go refuses. The module's
+   them building it, is hidden as the C archive's static library is, and loses its debug
+   info and the LLVM bitcode Go refuses. The Windows library is not hidden, so a Go program
+   on Windows cannot also link a Rust static library another toolchain built. The module's
    `.info`, `.mod`, and `.zip`, and a version `list` naming this release alone, which a proxy
    serving earlier releases appends to its own, are laid out as a GOPROXY serves them, under Go's 500 MiB
    limit on the zip and on its files, whose sizes the run's summary reports. One module
