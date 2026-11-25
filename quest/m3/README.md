@@ -50,7 +50,7 @@ no struct type, and was slower than the web target on every per-call case.
 The generated addon ([the binding](/ffi/README.md#node)) runs moq's script, its QUIC session
 included, on Node, Bun, and Deno. Each native function converts its own arguments, holds
 its handles, and throws a failed status. For the measured cost, see
-[the benchmark](/bench/ffi/README.md#node-api); [a call while JavaScript holds a token](/quest/m3/node-lowering.md) still hands
+[the benchmark](/bench/ffi/README.md#node-api); a call while JavaScript holds a token still hands
 off to a worker thread.
 
 Decided with the maintainer on 2026-11-12, in the quest audit:
