@@ -112,11 +112,16 @@ fn expand(attr: TokenStream, item: TokenStream) -> syn::Result<TokenStream> {
 	let param = inputs.first().copied();
 	if let Some(timed) = timed {
 		let returns = match &sig.output {
-			syn::ReturnType::Type(_, ty) => matches!(&**ty, Type::Path(path) if path.path.segments.last().is_some_and(|last| last.ident == "Duration")),
+			syn::ReturnType::Type(_, ty) => {
+				matches!(&**ty, Type::Path(path) if path.path.segments.last().is_some_and(|last| last.ident == "Duration"))
+			}
 			syn::ReturnType::Default => false,
 		};
 		if !returns {
-			return refuse(timed, "a benchmark that takes Iterations returns the Duration they took");
+			return refuse(
+				timed,
+				"a benchmark that takes Iterations returns the Duration they took",
+			);
 		}
 	}
 	// Without setup the argument moves in as args holds it, whatever its type; with setup,
@@ -176,7 +181,10 @@ fn expand(attr: TokenStream, item: TokenStream) -> syn::Result<TokenStream> {
 	let call = quote!(#pointer(#(#passed),*));
 	// What makes the input: setup, from the case's argument `arg` when there are args, or the
 	// argument itself. A new input each call is cloned from the argument, which stays the case's.
-	let taken = options.args.as_ref().map(|_| quote!(::core::clone::Clone::clone(&#arg)));
+	let taken = options
+		.args
+		.as_ref()
+		.map(|_| quote!(::core::clone::Clone::clone(&#arg)));
 	let made = match &options.setup {
 		Some(setup) => quote!(#setup(#taken)),
 		None => quote!(#taken),
@@ -264,17 +272,41 @@ mod tests {
 			("", "fn f(a: u8) {}", "nothing supplies this parameter"),
 			("args = [1]", "fn f() {}", "no parameter for its argument"),
 			("setup = s", "fn f() {}", "no parameter for setup's output"),
-			("arg = [1]", "fn f(a: u8) {}", "takes args, setup, before, and after alone"),
+			(
+				"arg = [1]",
+				"fn f(a: u8) {}",
+				"takes args, setup, before, and after alone",
+			),
 			("args = [1], args = [2]", "fn f(a: u8) {}", "args is given twice"),
 			("setup = a, setup = b", "fn f(a: u8) {}", "setup is given twice"),
-			("setup = s, before = a, before = b", "fn f(a: &mut u8) {}", "before is given twice"),
-			("setup = s, before = b", "fn f(a: u8) {}", "which the benchmark must borrow"),
-			("args = [1], after = b", "fn f(a: &u8) {}", "which the benchmark must borrow"),
+			(
+				"setup = s, before = a, before = b",
+				"fn f(a: &mut u8) {}",
+				"before is given twice",
+			),
+			(
+				"setup = s, before = b",
+				"fn f(a: u8) {}",
+				"which the benchmark must borrow",
+			),
+			(
+				"args = [1], after = b",
+				"fn f(a: &u8) {}",
+				"which the benchmark must borrow",
+			),
 			("before = b", "fn f() {}", "which the benchmark must borrow"),
 			("", "fn f(n: Iterations) {}", "returns the Duration they took"),
 			("", "fn f(n: Iterations) -> u64 {}", "returns the Duration they took"),
-			("setup = s, after = b", "fn f(a: &mut u8, n: Iterations) -> Duration {}", "takes its own steps"),
-			("args = [1]", "fn f(a: u8, b: u8, n: Iterations) -> Duration {}", "one input at most"),
+			(
+				"setup = s, after = b",
+				"fn f(a: &mut u8, n: Iterations) -> Duration {}",
+				"takes its own steps",
+			),
+			(
+				"args = [1]",
+				"fn f(a: u8, b: u8, n: Iterations) -> Duration {}",
+				"one input at most",
+			),
 		] {
 			let err = error(attr, item);
 			assert!(err.contains(message), "#[bench({attr})] {item}: {err}");
@@ -294,7 +326,10 @@ mod tests {
 		);
 		assert!(by("fn f(x: &X) {}").contains("black_box (& * input)"));
 		let value = by("fn f(x: X) {}");
-		assert!(value.contains(&format!("{h} fresh (move || s () , move | input | ")), "{value}");
+		assert!(
+			value.contains(&format!("{h} fresh (move || s () , move | input | ")),
+			"{value}"
+		);
 		assert!(value.contains(&format!("({h} black_box (input))")), "{value}");
 		// Without setup, each call takes a clone of the argument, even where the parameter is a reference.
 		let arg = expands("args = [\"a\"]", "fn f(x: &str) {}");
@@ -304,15 +339,24 @@ mod tests {
 			)),
 			"{arg}"
 		);
-		assert!(arg.contains(&format!("(f as fn (& str) -> _) ({h} black_box (input))")), "{arg}");
+		assert!(
+			arg.contains(&format!("(f as fn (& str) -> _) ({h} black_box (input))")),
+			"{arg}"
+		);
 		let none = expands("", "extern \"C\" fn f() {}");
 		assert!(none.contains("(f as extern \"C\" fn () -> _) ()"), "{none}");
 		// A borrowed input is set up once, from the argument itself.
 		let both = expands("args = SIZES, setup = s", "fn f(x: &X) {}");
-		assert!(both.contains(&format!("each (SIZES , | arg | move || {h} kept (s (arg) ,")), "{both}");
+		assert!(
+			both.contains(&format!("each (SIZES , | arg | move || {h} kept (s (arg) ,")),
+			"{both}"
+		);
 		// And by value, each call's from a clone of it.
 		let fresh = expands("args = SIZES, setup = s", "fn f(x: X) {}");
-		assert!(fresh.contains("fresh (move || s (:: core :: clone :: Clone :: clone (& arg)) ,"), "{fresh}");
+		assert!(
+			fresh.contains("fresh (move || s (:: core :: clone :: Clone :: clone (& arg)) ,"),
+			"{fresh}"
+		);
 	}
 
 	#[test]
@@ -321,7 +365,10 @@ mod tests {
 		assert!(shared.contains("step (| input : & mut _ | b (& * input))"), "{shared}");
 		assert!(shared.contains("step (| input : & mut _ | a (& * input))"), "{shared}");
 		let exclusive = expands("setup = s, before = b", "fn f(x: &mut X) {}");
-		assert!(exclusive.contains("step (| input : & mut _ | b (input))"), "{exclusive}");
+		assert!(
+			exclusive.contains("step (| input : & mut _ | b (input))"),
+			"{exclusive}"
+		);
 	}
 
 	#[test]
@@ -334,7 +381,10 @@ mod tests {
 			)),
 			"{none}"
 		);
-		let kept = expands("setup = s", "fn f(x: &mut X, n: rust2_bench_harness::Iterations) -> std::time::Duration {}");
+		let kept = expands(
+			"setup = s",
+			"fn f(x: &mut X, n: rust2_bench_harness::Iterations) -> std::time::Duration {}",
+		);
 		assert!(
 			kept.contains(&format!(
 				"{h} kept_timed (s () , move | input : & mut _ , iterations | {h} black_box (f as fn (& mut X , rust2_bench_harness :: Iterations) -> _) ({h} black_box (& mut * input) , iterations))"
@@ -343,7 +393,9 @@ mod tests {
 		);
 		let arg = expands("args = [1]", "fn f(x: u64, n: Iterations) -> Duration {}");
 		assert!(
-			arg.contains("fresh_timed (move || :: core :: clone :: Clone :: clone (& arg) , move | input , iterations |"),
+			arg.contains(
+				"fresh_timed (move || :: core :: clone :: Clone :: clone (& arg) , move | input , iterations |"
+			),
 			"{arg}"
 		);
 	}

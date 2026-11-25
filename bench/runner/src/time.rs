@@ -89,7 +89,13 @@ pub fn time(base: Option<&str>, options: &Options) -> Result<(), String> {
 		));
 	}
 	let empty = BTreeMap::new();
-	let mut names: BTreeSet<String> = before.as_ref().unwrap_or(&empty).keys().chain(after.keys()).cloned().collect();
+	let mut names: BTreeSet<String> = before
+		.as_ref()
+		.unwrap_or(&empty)
+		.keys()
+		.chain(after.keys())
+		.cloned()
+		.collect();
 	if let Some(wanted) = &options.benchmarks {
 		missing(wanted, |name| names.contains(name))?;
 		names.retain(|name| wanted.contains(name));
@@ -377,7 +383,11 @@ impl Which {
 enum Times {
 	Base(Estimate),
 	Head(Estimate),
-	Both { base: Estimate, head: Estimate, ratio: Estimate },
+	Both {
+		base: Estimate,
+		head: Estimate,
+		ratio: Estimate,
+	},
 }
 
 impl Times {
@@ -560,7 +570,8 @@ impl Process {
 		let Job { label, mut command, .. } = job;
 		std::fs::create_dir_all(dir).map_err(|e| format!("cannot create {}: {e}", dir.display()))?;
 		let file = |name: &str| {
-			std::fs::File::create(dir.join(name)).map_err(|e| format!("cannot create {}: {e}", dir.join(name).display()))
+			std::fs::File::create(dir.join(name))
+				.map_err(|e| format!("cannot create {}: {e}", dir.join(name).display()))
 		};
 		let mut child = command
 			.env(TIME, "1")
@@ -584,6 +595,10 @@ impl Process {
 	/// Why the process stopped answering: how it exited, and where its output is.
 	fn failure(&mut self) -> String {
 		let status = match self.child.wait() {
+			// A harness from before timing runs the benchmark once and exits cleanly.
+			Ok(status) if status.success() => {
+				"it exited without timing, as a rust2-bench-harness too old to time does".to_owned()
+			}
 			Ok(status) => status.to_string(),
 			Err(e) => format!("cannot wait for it: {e}"),
 		};
@@ -609,10 +624,7 @@ impl Process {
 		std::io::copy(&mut stdout, &mut log).map_err(|e| format!("cannot keep {label}'s output: {e}"))?;
 		let status = child.wait().map_err(|e| format!("cannot wait for {label}: {e}"))?;
 		if !status.success() {
-			return Err(format!(
-				"{label} failed ({status}); its output is in {}",
-				dir.display()
-			));
+			return Err(format!("{label} failed ({status}); its output is in {}", dir.display()));
 		}
 		Ok(())
 	}
@@ -785,7 +797,9 @@ mod tests {
 		// The base drifts from 100 to 200 ns; the head is 10% slower than the base beside it.
 		let pairs: Vec<(u64, u64)> = (0..10).map(|i| (100 + 10 * i, (110 + 11 * i))).collect();
 		let times = Times::pairs(1, &pairs).unwrap();
-		let Times::Both { ratio, .. } = times else { panic!("{times:?}") };
+		let Times::Both { ratio, .. } = times else {
+			panic!("{times:?}")
+		};
 		for value in [ratio.value, ratio.lower, ratio.upper] {
 			assert!((value - 1.1).abs() < 1e-9, "{ratio:?}");
 		}
@@ -808,14 +822,8 @@ mod tests {
 					ratio: estimate(0.75),
 				},
 			),
-			(
-				"gone".to_owned(),
-				Times::Base(estimate(5.0)),
-			),
-			(
-				"new|x".to_owned(),
-				Times::Head(estimate(12_345_678.0)),
-			),
+			("gone".to_owned(), Times::Base(estimate(5.0))),
+			("new|x".to_owned(), Times::Head(estimate(12_345_678.0))),
 		]);
 		assert_eq!(
 			table(&times, true),

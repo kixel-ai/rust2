@@ -4,7 +4,7 @@
 
 rust2 ships a Rust benchmark harness that replaces Criterion and CodSpeed's compatibility crates in moq-dev/moq, kixel-ai/rind, and here: benchmarks are plain functions marked `#[bench]`, measured by instruction count under Valgrind for Kixel Quest, by native perf counters for quick local compares, and by paired base-vs-head wall-clock timing.
 
-What stays here once every child has merged: the harness's docs and its line in rust2's charter beside the runner's. Paired timing, and moq's and rind's move to the harness, belong to [the CodSpeed epic](/quest/m1/codspeed/README.md).
+What stays here once every child has merged: the harness's docs and its line in rust2's charter beside the runner's. Paired timing, which shipped, and moq's and rind's move to the harness belong to [the CodSpeed epic](/quest/m1/codspeed/README.md).
 
 ## Plan
 

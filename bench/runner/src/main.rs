@@ -86,7 +86,7 @@ fn cli(args: &[String]) -> Result<(), String> {
 			let (base, rest) = rest.split_first().ok_or(USAGE)?;
 			let options = Options::parse(rest)?;
 			if options.out.is_some() {
-				return Err("compare writes no metrics.json: --out is run's".to_owned());
+				return Err("compare writes no metrics.json: --out is run's and time's".to_owned());
 			}
 			compare::compare(base, &options)
 		}

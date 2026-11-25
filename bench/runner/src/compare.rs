@@ -11,7 +11,11 @@ use crate::{Counts, Options, measure, missing};
 /// Counts `base` in a worktree of its own, then the working tree, and prints each change.
 pub fn compare(base: &str, options: &Options) -> Result<(), String> {
 	let checkout = Checkout::new(base, options)?;
-	eprintln!("rust2-bench: counting {base} ({}) in {}", checkout.short(), checkout.dir.display());
+	eprintln!(
+		"rust2-bench: counting {base} ({}) in {}",
+		checkout.short(),
+		checkout.dir.display()
+	);
 	// A wanted benchmark may be new at the head or gone from it, but must be on one side.
 	let before = measure(&checkout.dir, &checkout.options, false)?;
 	drop(checkout);
@@ -36,7 +40,8 @@ pub struct Checkout {
 	pub sha: String,
 	/// Where to measure it: the same place within its worktree as the run is within the repository.
 	pub dir: PathBuf,
-	/// The options to measure it with, its Cargo args moved into its worktree.
+	/// The options to measure it with, its Cargo args moved into its worktree and its target
+	/// directory there.
 	pub options: Options,
 	/// Held until dropped: another compare of this repository shares the worktree, so it waits
 	/// rather than check out another commit under this one.
@@ -64,6 +69,20 @@ impl Checkout {
 		checkout(&top, &tree, &sha)?;
 		let mut moved = options.clone();
 		moved.cargo = rebase(&options.cargo, &real, &tree)?;
+		// The base builds into its worktree's own target directory, kept warm with it: one the
+		// environment or a config shares with the working tree would get both sides' benchmark
+		// executables at one path, since Cargo names them alike whatever the workspace's path.
+		let target = tree.join("target");
+		let target = format!(
+			"--target-dir={}",
+			target.to_str().ok_or("the base's worktree path is not UTF-8")?
+		);
+		let at = moved
+			.cargo
+			.iter()
+			.position(|arg| arg == "--")
+			.unwrap_or(moved.cargo.len());
+		moved.cargo.insert(at, target);
 		Ok(Self {
 			sha,
 			dir: tree.join(prefix),

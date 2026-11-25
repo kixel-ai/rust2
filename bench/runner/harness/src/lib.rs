@@ -659,16 +659,19 @@ mod tests {
 			Duration::from_nanos(iterations.into_iter().map(|i| i + 1).sum())
 		});
 		assert_eq!(sampler.time(3), 6);
-		let mut sampler = fresh_timed(|| 7u64, |seven: u64, iterations: Iterations| {
-			Duration::from_nanos(seven * iterations.get())
-		});
+		let mut sampler = fresh_timed(
+			|| 7u64,
+			|seven: u64, iterations: Iterations| Duration::from_nanos(seven * iterations.get()),
+		);
 		assert_eq!(sampler.time(2), 14);
 	}
 
 	#[test]
 	fn serves_a_sample_for_each_line() {
 		let mut out = Vec::new();
-		let sampler = kept_timed((), |_: &mut (), iterations: Iterations| Duration::from_nanos(10 * iterations.get()));
+		let sampler = kept_timed((), |_: &mut (), iterations: Iterations| {
+			Duration::from_nanos(10 * iterations.get())
+		});
 		serve(sampler, "1\n4\n".as_bytes(), &mut out).unwrap();
 		assert_eq!(
 			String::from_utf8(out).unwrap(),

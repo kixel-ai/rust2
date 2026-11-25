@@ -169,7 +169,8 @@ mod tests {
 	fn writes_another_commits_sample_and_each_interval() {
 		let point = |value: f64, interval: Option<(f64, f64)>| Point {
 			value: Number::from_f64(value).unwrap(),
-			interval: interval.map(|(lower, upper)| (Number::from_f64(lower).unwrap(), Number::from_f64(upper).unwrap())),
+			interval: interval
+				.map(|(lower, upper)| (Number::from_f64(lower).unwrap(), Number::from_f64(upper).unwrap())),
 		};
 		let base = "a".repeat(40);
 		let file = File {
