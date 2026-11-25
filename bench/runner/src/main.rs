@@ -9,6 +9,7 @@ mod metrics;
 mod preload;
 
 use std::collections::{BTreeMap, BTreeSet};
+use std::ffi::{OsStr, OsString};
 use std::path::{Path, PathBuf};
 use std::process::{Command, ExitCode};
 use std::sync::Mutex;
@@ -392,6 +393,50 @@ fn run(jobs: Vec<Job>, work: &Path, preload: &Path, parallel: usize) -> Result<B
 	Ok(counts)
 }
 
+/// The prefix of the variables [`pad`] fills.
+const PAD: &str = "RUST2_BENCH_PAD_";
+
+/// How many variables [`pad`] fills: a fixed number, so the count of pointers is fixed too, and
+/// enough that none passes the 128 KiB Linux takes in one.
+const PADS: usize = 16;
+
+/// How many bytes [`pad`] brings a job's arguments and environment to: room for a dev shell's
+/// several hundred KiB, and half the 2 MiB Linux takes in all under the default stack limit.
+const LAUNCH: usize = 1024 * 1024;
+
+/// How far a program's initial stack pointer sits below its strings, as Valgrind lays them out:
+/// each argument and variable with its NUL, the program's path once more for `AT_EXECFN`, and a
+/// pointer for each argument and variable. The rest it adds is the same for every job.
+fn launch(env: &BTreeMap<OsString, OsString>, args: &[&OsStr]) -> usize {
+	use std::os::unix::ffi::OsStrExt;
+	let strings = args.iter().map(|arg| arg.as_bytes().len() + 1).sum::<usize>()
+		+ args.first().map_or(0, |program| program.as_bytes().len() + 1)
+		+ env
+			.iter()
+			.map(|(key, value)| key.as_bytes().len() + value.as_bytes().len() + 2)
+			.sum::<usize>();
+	strings + 8 * (args.len() + env.len())
+}
+
+/// Adds [`PADS`] variables to `env`, sized so the job's arguments and environment take
+/// [`LAUNCH`] bytes, so its initial stack, and every address a count could depend on, sits at the
+/// same place however long the checkout's path is or however large the host's environment.
+fn pad(env: &mut BTreeMap<OsString, OsString>, args: &[&OsStr]) -> Result<(), String> {
+	use std::os::unix::ffi::OsStrExt;
+	env.retain(|key, _| !key.as_bytes().starts_with(PAD.as_bytes()));
+	let name = |i: usize| format!("{PAD}{i:02}");
+	// Each variable's name, `=`, NUL, and pointer.
+	let used = launch(env, args) + (0..PADS).map(|i| name(i).len() + 2 + 8).sum::<usize>();
+	let fill = LAUNCH.checked_sub(used).ok_or(format!(
+		"its arguments and environment take {used} bytes, more than the {LAUNCH} rust2-bench pads every job's to"
+	))?;
+	for i in 0..PADS {
+		let size = fill / PADS + usize::from(i < fill % PADS);
+		env.insert(name(i).into(), "x".repeat(size).into());
+	}
+	Ok(())
+}
+
 /// What one job measured: each benchmark's name and count, or why it failed.
 type Measured = Result<Vec<(String, u64)>, String>;
 
@@ -417,23 +462,26 @@ fn one(job: Job, dir: &Path, preload: &Path) -> Measured {
 	if let Some(cwd) = command.get_current_dir() {
 		valgrind.current_dir(cwd);
 	}
+	// The whole environment, spelled out, so its size is known exactly.
+	let mut env: BTreeMap<OsString, OsString> = std::env::vars_os().collect();
 	for (key, value) in command.get_envs() {
 		match value {
-			Some(value) => valgrind.env(key, value),
-			None => valgrind.env_remove(key),
+			Some(value) => env.insert(key.to_owned(), value.to_owned()),
+			None => env.remove(key),
 		};
 	}
 	// First, so its randomness and clock stand in front of any other preload's.
-	let others = match command.get_envs().find(|(key, _)| *key == "LD_PRELOAD") {
-		Some((_, value)) => value.map(ToOwned::to_owned),
-		None => std::env::var_os("LD_PRELOAD"),
-	};
 	let mut preloads = preload.as_os_str().to_owned();
-	if let Some(others) = others.filter(|others| !others.is_empty()) {
+	if let Some(others) = env.get(OsStr::new("LD_PRELOAD")).filter(|others| !others.is_empty()) {
 		preloads.push(":");
 		preloads.push(others);
 	}
-	valgrind.env("LD_PRELOAD", preloads);
+	env.insert("LD_PRELOAD".into(), preloads);
+	let args: Vec<&OsStr> = std::iter::once(command.get_program())
+		.chain(command.get_args())
+		.collect();
+	pad(&mut env, &args).map_err(|err| format!("{label}: {err}"))?;
+	valgrind.env_clear().envs(&env);
 	let status = valgrind.status().map_err(|e| format!("cannot run valgrind: {e}"))?;
 	if !status.success() {
 		return Err(format!(
@@ -490,6 +538,25 @@ mod tests {
 	fn a_list_holds_one_name_a_line() {
 		let wanted = names("a::b\n\n  c[1]  \na::b\n");
 		assert_eq!(wanted.into_iter().collect::<Vec<_>>(), ["a::b", "c[1]"]);
+	}
+
+	#[test]
+	fn pads_every_launch_to_one_size() {
+		let env = |pairs: &[(&str, &str)]| -> BTreeMap<OsString, OsString> {
+			pairs.iter().map(|(key, value)| (key.into(), value.into())).collect()
+		};
+		let mut short = env(&[("CARGO_MANIFEST_DIR", "/a/rs/net"), ("RUST2_BENCH_PAD_03", "stale")]);
+		let mut long = env(&[
+			("CARGO_MANIFEST_DIR", "/a/much/longer/checkout/rs/net"),
+			("GITHUB_REF", "refs/heads/kixel-bisect/1/abc"),
+		]);
+		pad(&mut short, &[OsStr::new("/a/bench"), OsStr::new("--bench")]).unwrap();
+		pad(&mut long, &[OsStr::new("/a/much/longer/checkout/bench")]).unwrap();
+		assert_eq!(launch(&short, &[OsStr::new("/a/bench"), OsStr::new("--bench")]), LAUNCH);
+		assert_eq!(launch(&long, &[OsStr::new("/a/much/longer/checkout/bench")]), LAUNCH);
+		assert_eq!(short.len(), 1 + PADS);
+		let mut huge = env(&[("BIG", &"x".repeat(LAUNCH))]);
+		assert!(pad(&mut huge, &[OsStr::new("/a/bench")]).is_err());
 	}
 
 	#[test]

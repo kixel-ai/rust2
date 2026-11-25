@@ -89,6 +89,19 @@ environment drops `LD_PRELOAD`. A process that reaches the kernel without glibc,
 runtime does, reads the host's randomness and clock for what it does so. Load still decides
 whether a real timeout or I/O comes first, so a benchmark that races them can still move.
 
+## Paths and the environment
+
+The same binary counts differently when its process starts with a longer path or a larger
+environment, since both sit on the initial stack and in the heap, and move the addresses, and
+so the copy loop glibc picks, after them. So every job's arguments and environment are padded
+to 1 MiB with `RUST2_BENCH_PAD_00` to `_15`, which puts its initial stack at the same place
+however long its checkout's path or however large the host's environment, such as CI's
+`GITHUB_REF` on another branch; a job whose own take more fails the run. And CodSpeed's crates
+get their workspace relative to its Git repository, from which they name each benchmark's
+file, so they never resolve the checkout's path; a benchmark package at the repository's root
+still does, so its counts still move with that path's length. A path a build compiles in, such
+as a panic's location in a dependency outside the workspace, is the build's to keep fixed.
+
 ## Fingerprints
 
 Counts compare only within one environment. Valgrind presents a CPU derived from the host's,

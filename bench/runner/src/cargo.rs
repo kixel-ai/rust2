@@ -199,7 +199,7 @@ fn launches(dir: &Path) -> Result<BTreeMap<PathBuf, Launch>, String> {
 /// Unless `strict`, a workspace with no benchmark target has no jobs, as a compare's base
 /// before the first one does.
 pub fn jobs(dir: &Path, args: &[String], strict: bool) -> Result<Vec<Job>, String> {
-	let root = workspace_root(dir, args)?;
+	let root = codspeed_root(&workspace_root(dir, args)?)?;
 	let targets = build(dir, args)?;
 	if targets.is_empty() {
 		if strict {
@@ -280,6 +280,25 @@ fn workspace_root(dir: &Path, args: &[String]) -> Result<PathBuf, String> {
 		.parent()
 		.ok_or("cargo located a manifest with no directory")?
 		.to_owned())
+}
+
+/// The workspace at `root` as CodSpeed's crates take it: relative to its Git repository, which
+/// they name each benchmark's file from, or as is outside one. Given relative, it resolves to no
+/// file from a job's directory, so CodSpeed takes the name as it stands instead of resolving
+/// the checkout's path, whose length moves what the heap holds and so the count after it. A
+/// package at the repository's root still resolves, and so still moves with the path's length.
+fn codspeed_root(root: &Path) -> Result<PathBuf, String> {
+	let root = root
+		.canonicalize()
+		.map_err(|e| format!("cannot resolve {}: {e}", root.display()))?;
+	// Where CodSpeed looks for the repository: the nearest directory up holding `.git`.
+	Ok(match root.ancestors().find(|dir| dir.join(".git").exists()) {
+		Some(repo) => root
+			.strip_prefix(repo)
+			.expect("an ancestor prefixes its descendant")
+			.to_owned(),
+		None => PathBuf::new(),
+	})
 }
 
 /// A setting [`configured`] looks for.
@@ -653,6 +672,17 @@ mod tests {
 		assert_eq!(ran("Harness: codspeed-criterion-compat v6.0.0\n").unwrap(), None);
 		let both = "rust2-bench ran benches/a.rs::f\nChecked: benches/a.rs::g\n";
 		assert!(ran(both).unwrap_err().contains("both"));
+	}
+
+	#[test]
+	fn names_the_workspace_from_its_repository() {
+		let repo = std::env::temp_dir().join(format!("rust2-bench-root-{}", std::process::id()));
+		std::fs::create_dir_all(repo.join(".git")).unwrap();
+		std::fs::create_dir_all(repo.join("sub/ws")).unwrap();
+		let found = (codspeed_root(&repo), codspeed_root(&repo.join("sub/ws")));
+		std::fs::remove_dir_all(&repo).unwrap();
+		assert_eq!(found.0.unwrap(), Path::new(""));
+		assert_eq!(found.1.unwrap(), Path::new("sub/ws"));
 	}
 
 	#[test]
