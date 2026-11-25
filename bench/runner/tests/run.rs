@@ -49,7 +49,8 @@ unsafe extern "C" {
 /// the requests CodSpeed's hooks make. One whose name starts with `noisy` runs up to 2,000
 /// more, as many as std's random `HashMap` seed and the clock choose. One whose name starts
 /// with `abstimer` first arms a timer at an absolute time, repeating every 2^64 ns and more,
-/// which the kernel takes though the span overflows a count of nanoseconds.
+/// which the kernel takes though the span overflows a count of nanoseconds. One whose name
+/// starts with `cwd` runs as many more as its working directory's path has bytes.
 #[test]
 #[ignore = "the program the other tests count"]
 fn fixture() {
@@ -66,6 +67,9 @@ fn fixture() {
 				.subsec_nanos() as u64
 				% 1000;
 			iterations += seeded + clock;
+		}
+		if name.starts_with("cwd") {
+			iterations += std::env::current_dir().unwrap().as_os_str().len() as u64;
 		}
 		if name.starts_with("abstimer") {
 			const CLOCK_MONOTONIC: i32 = 1;
@@ -97,6 +101,15 @@ fn fixture() {
 	}
 }
 
+/// The shell command that runs the fixture as a program counting `benches`, launched through
+/// the command `wrap`, if any.
+fn program(benches: &str, wrap: &str) -> String {
+	let me = std::env::current_exe().unwrap();
+	// Quoted for the shell, which may otherwise split the path.
+	let me = me.to_str().unwrap().replace('\'', r"'\''");
+	format!("{FIXTURE}={benches} {wrap} '{me}' --exact fixture --ignored --test-threads=1 -q")
+}
+
 /// rust2-bench, run in `dir` with `args`, counting the fixture as its one program, launched
 /// through the command `wrap`, if any.
 fn bench(dir: &Path, benches: &str, wrap: &str, args: &[&str]) -> Output {
@@ -105,14 +118,10 @@ fn bench(dir: &Path, benches: &str, wrap: &str, args: &[&str]) -> Output {
 
 /// The command [`bench`] runs.
 fn command(dir: &Path, benches: &str, wrap: &str, args: &[&str]) -> Command {
-	let me = std::env::current_exe().unwrap();
-	// Quoted for the shell, which may otherwise split the path.
-	let me = me.to_str().unwrap().replace('\'', r"'\''");
-	let program = format!("{FIXTURE}={benches} {wrap} '{me}' --exact fixture --ignored --test-threads=1 -q");
 	let mut command = Command::new(env!("CARGO_BIN_EXE_rust2-bench"));
 	command
 		.arg("run")
-		.args(["--program", &program])
+		.args(["--program", &program(benches, wrap)])
 		.args(args)
 		.current_dir(dir)
 		.env_remove("GITHUB_STEP_SUMMARY");
@@ -369,4 +378,73 @@ fn fails_on_a_timer_armed_at_an_absolute_time() {
 		!out.status.success(),
 		"a timer the kernel reads on the host's clock was counted"
 	);
+}
+
+/// Runs git in `dir` under a fixed identity, returning its stdout.
+fn git(dir: &Path, args: &[&str]) -> String {
+	let out = Command::new("git")
+		.args([
+			"-c",
+			"user.name=test",
+			"-c",
+			"user.email=test@localhost",
+			"-c",
+			"commit.gpgsign=false",
+		])
+		.args(args)
+		.current_dir(dir)
+		.output()
+		.unwrap();
+	assert!(
+		out.status.success(),
+		"git {args:?}: {}",
+		String::from_utf8_lossy(&out.stderr)
+	);
+	String::from_utf8(out.stdout).unwrap()
+}
+
+#[test]
+fn compares_a_base_with_every_change_in_the_working_tree_from_one_directory() {
+	let repo = scratch("compare");
+	let cache = scratch("compare-cache");
+	git(&repo, &["init", "--quiet"]);
+	std::fs::write(repo.join("a.list"), "cwd=1000,a=1000,").unwrap();
+	std::fs::write(repo.join("d.list"), "d=100,").unwrap();
+	std::fs::write(repo.join(".gitignore"), "Cargo.lock\n").unwrap();
+	git(&repo, &["add", "."]);
+	git(&repo, &["commit", "--quiet", "-m", "base"]);
+	// Changed but unstaged, staged only, untracked, and deleted.
+	std::fs::write(repo.join("a.list"), "cwd=1000,a=2000,").unwrap();
+	std::fs::write(repo.join("c.list"), "c=300,").unwrap();
+	git(&repo, &["add", "c.list"]);
+	std::fs::write(repo.join("b.list"), "b=500,").unwrap();
+	std::fs::remove_file(repo.join("d.list")).unwrap();
+	let status = git(&repo, &["status", "--porcelain"]);
+	let out = Command::new(env!("CARGO_BIN_EXE_rust2-bench"))
+		.args(["compare", "HEAD", "--program", &program("$(cat *.list)", "")])
+		// Each side's build resolves its own ignored lockfile, never the side's before.
+		.args(["--build", "! test -e Cargo.lock && touch Cargo.lock"])
+		.current_dir(&repo)
+		.env("XDG_CACHE_HOME", &cache)
+		.output()
+		.unwrap();
+	assert!(out.status.success(), "{}", String::from_utf8_lossy(&out.stderr));
+	let table = String::from_utf8(out.stdout).unwrap();
+	let change = |name: &str| {
+		let row = table
+			.lines()
+			.find(|row| row.starts_with(&format!("| {name} |")))
+			.unwrap_or_else(|| panic!("no {name} in {table}"));
+		row.rsplit('|').nth(1).unwrap().trim().to_owned()
+	};
+	// Both sides count from one working directory, whose path is in the count.
+	assert_eq!(change("cwd"), "+0.00%");
+	let a = change("a");
+	assert!(a.starts_with('+') && a != "+0.00%", "{table}");
+	assert_eq!(change("b"), "added");
+	assert_eq!(change("c"), "added");
+	assert_eq!(change("d"), "removed");
+	// The caller's index, working tree, and stash are as they were.
+	assert_eq!(git(&repo, &["status", "--porcelain"]), status);
+	assert_eq!(git(&repo, &["stash", "list"]), "");
 }
