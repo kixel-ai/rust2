@@ -2,16 +2,18 @@
 
 Counts each benchmark's instructions under stock Valgrind, one Valgrind process a job, in
 parallel across the host's cores, and writes them as Kixel Quest's `metrics.json` or
-compares a base commit with the working tree. It runs on any x86_64 Linux host: hosted CI, a
+compares a base commit with the working tree. It counts on any x86_64 Linux host: hosted CI, a
 self-hosted runner, or an agent's own, with no third-party service in the loop. It replaces
 CodSpeed's runner over the benchmarks as they are written for it, and counts benchmarks
-written as plain `#[bench]` functions with [its harness](harness/README.md).
+written as plain `#[bench]` functions with [its harness](harness/README.md), which it also
+[times](#time) by wall clock on any Linux or macOS host, alone or paired with a base commit's.
 
 ```bash
 nix run github:kixel-ai/rust2#bench -- run --out metrics.json   # or, without Nix:
 cargo install --locked --git https://github.com/kixel-ai/rust2 rust2-bench   # Valgrind from PATH
 rust2-bench run [--benchmarks <file>] [--out metrics.json] [--jobs <n>] [-- <cargo bench args>]
 rust2-bench compare <base> [the same options]
+rust2-bench time [<base>] [--benchmarks <file>] [--out metrics.json] [-- <cargo bench args>]
 rust2-bench fingerprint
 ```
 
@@ -147,6 +149,36 @@ benchmarks with `--benchmarks`, which takes one present on only one side.
 Another compare of the same repository waits, on a lock beside the worktree, until this one
 has counted its base.
 
+## Time
+
+`rust2-bench time` builds the workspace's benchmark targets as a count does, then times each
+benchmark of rust2-bench-harness by wall clock, one at a time, each in its own process, which
+sets it up once and then runs a sample for each request: as many calls as fill a millisecond of
+its timed part, found by doubling from one, or of 50 ms of the whole sample, when steps or
+inputs built between calls take far longer. A benchmark takes samples for a second, and ten at
+least, and its time is their median per call, with a 95% confidence interval from the order
+statistics around it, which holds whatever the samples' distribution and leaves out the samples
+a preemption spoiled. A target written with CodSpeed's crates fails the run: only a count
+measures those. The run's processes are neither preloaded nor padded, so their randomness,
+clock, and addresses are the host's own.
+
+`rust2-bench time <base>` builds `<base>` in the worktree a compare keeps, then the working tree,
+and times each benchmark both have in two processes, the base's and the head's, alive together.
+It takes their samples in pairs, one of each side, in an order drawn anew for each pair, so load
+that drifts or recurs on a shared host biases neither side; it still widens the interval, which
+pairing cannot remove, only balance. Each side's time is its own samples' median, and the change
+is the median of each pair's ratio, head over base, with its interval, printed as a Markdown
+table. A benchmark only one side has times alone, as added or removed, and a base's benchmarks
+of CodSpeed's crates time as none, so a base from before a rewrite to the harness still has its
+head's times reported. The base's worktree stays locked until the last benchmark is timed.
+
+Times compare only on one kind of host, so each run labels its hardware: the architecture and a
+hash of the CPU's model, as `/proc/cpuinfo` or macOS's `machdep.cpu.brand_string` names it, and
+of how many CPUs the run may use, such as `x86_64-1a2b3c4d5e6f`. The measure every time records
+names it, `time (x86_64-1a2b3c4d5e6f)`, in `ns` a call, so times from two kinds of CPU never share
+a Kixel Quest series. Instruction counts need no pairing, since load never moves them: timing is
+for what counts miss, such as syscalls, I/O, and contention.
+
 ## Output
 
 `--out` writes one sample of the run's commit:
@@ -154,6 +186,15 @@ has counted its base.
 ```json
 {"samples":[{"metrics":{"benches/varint.rs::varint::encode[1]":{"instructions (x86_64-3059cd1d9e65)":{"value":12345}}}}],
  "units":{"instructions (x86_64-3059cd1d9e65)":"instructions"}}
+```
+
+`time --out` writes the working tree's times as the run's own sample, each with its interval in
+`lower_value` and `upper_value`, and with a base, the base's as a sample naming its commit:
+
+```json
+{"samples":[{"commit":"<the base's full commit ID>","metrics":{"benches/varint.rs::encode[300]":{"time (x86_64-1a2b3c4d5e6f)":{"lower_value":20.1,"upper_value":20.6,"value":20.3}}}},
+            {"metrics":{"benches/varint.rs::encode[300]":{"time (x86_64-1a2b3c4d5e6f)":{"lower_value":19.0,"upper_value":19.4,"value":19.2}}}}],
+ "units":{"time (x86_64-1a2b3c4d5e6f)":"ns"}}
 ```
 
 A benchmark's name is the one its hooks dump, which for CodSpeed's crates is the file

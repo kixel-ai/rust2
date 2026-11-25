@@ -233,6 +233,8 @@ fn counts_each_harness_benchmark_alone_without_its_setup() {
 			"sized[1000]",
 			"sized[2000]",
 			"sized[4000]",
+			"stepped",
+			"timed",
 			"unstable[1000]",
 			"unstable[8000]",
 			"word[word]"
@@ -252,8 +254,8 @@ fn counts_each_harness_benchmark_alone_without_its_setup() {
 			count(name)
 		);
 	};
-	// Every one spins a thousand times but the larger sized ones; a setup's million spins and its
-	// input's free would count a thousand times as much, were they counted.
+	// Every one spins a thousand times but the larger sized ones; a setup's or a step's million
+	// spins and its input's free would count a thousand times as much, were they counted.
 	near("sized[1000]", alone);
 	near("sized[2000]", 2 * alone);
 	near("sized[4000]", 4 * alone);
@@ -262,6 +264,8 @@ fn counts_each_harness_benchmark_alone_without_its_setup() {
 	near("borrowed", alone);
 	near("generic[4000]", alone);
 	near("word[word]", alone);
+	near("stepped", alone);
+	near("timed", alone);
 	near("inner::nested[a]", alone);
 	near("inner::nested[bc]", alone);
 
