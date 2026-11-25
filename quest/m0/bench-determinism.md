@@ -4,7 +4,7 @@
 
 rust2-bench runs every counted job with deterministic randomness and a deterministic clock, and launches it with a fixed environment and fixed-length paths, so a benchmark's instruction count is the same for the same code across runs, checkouts, and host load.
 The seed and clock enter the fingerprint, so the change starts new Kixel Quest series instead of reading as regressions, and a binary that would bypass them is refused.
-Done when all of moq's counted benchmarks (1,284 on 2026-11-24) agree exactly across two full runs in two checkouts, on a loaded host.
+Done when all of moq's counted benchmarks (1,284 on 2026-11-24) agree exactly across two full runs in two checkouts, one on an idle host and one on a host loaded to its core count, since load can still reorder real kernel timeouts against I/O readiness after the clock is fixed.
 
 ## Plan
 
