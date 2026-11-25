@@ -108,7 +108,8 @@ Git repository, from which they name each benchmark's file, so they never resolv
 checkout's path; a benchmark package at the repository's root still does, as does every
 benchmark outside a repository, which CodSpeed names by its absolute path, so their counts
 still move with that path's length. A path a build compiles in, such as a panic's location in a
-dependency outside the workspace, is the build's to keep fixed.
+dependency outside the workspace, is the build's to keep fixed across checkouts; `compare`
+counts both its sides from one directory, so it never moves between them.
 
 ## Fingerprints
 
@@ -133,11 +134,20 @@ version moves too, since a new Valgrind can count differently and starts new ser
 
 ## Compare
 
-`rust2-bench compare <base>` checks `<base>` out in a worktree kept under
-`~/.cache/rust2-bench` (or `$XDG_CACHE_HOME`), outside the repository so the working tree's
-`.cargo/config.toml` never configures the base's build, and kept so its build stays warm for
-the next compare, counts it from the same directory there, then counts the working tree, and prints a
-Markdown table of each benchmark's base, head, and change. It refuses two fingerprints. A side
+`rust2-bench compare <base>` counts `<base>` and the working tree in one worktree kept under
+`~/.cache/rust2-bench` (or `$XDG_CACHE_HOME`), each from the directory there that matches where
+it runs, and prints a Markdown table of each benchmark's base, head, and change. One directory
+counts both sides, so a path the build compiles in, such as a panic's location, is the same in
+each and moves neither count. The worktree sits outside the repository, so no
+`.cargo/config.toml` but each side's own configures its build, and is kept so its build stays
+warm for the next side and the next compare: the head rebuilds only what differs from the base.
+It first snapshots the working tree as a commit on `HEAD`, through an index of its own, so the
+caller's index and stash stay as they were: every tracked file as it is on disk, staged or not,
+and every untracked one Git does not ignore. An ignored file the caller has, such as a local
+`.env`, is on neither side. An ignored one a build leaves in the worktree stays for the next
+side, but for a `Cargo.lock` the side's commit does not track, which is removed before each side
+builds, so each resolves its own dependencies. A submodule with uncommitted changes fails the run, since the snapshot holds
+only its commit. A clean working tree counts `HEAD` itself. It refuses two fingerprints. A side
 with no benchmark at all, as a base before the first, counts as none. An
 absolute `--manifest-path` in the repository counts the same manifest in the base's worktree,
 and one outside it is refused, since both sides would count it.
@@ -145,7 +155,7 @@ Cargo args select the same targets on both sides, so a `--bench` or `-p` naming 
 package only one side has fails that side's build: compare every target, and name the
 benchmarks with `--benchmarks`, which takes one present on only one side.
 Another compare of the same repository waits, on a lock beside the worktree, until this one
-has counted its base.
+has counted both sides.
 
 ## Output
 

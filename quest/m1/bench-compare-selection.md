@@ -17,9 +17,6 @@ Recommendations for the implementer:
 
 - Resolve the selectors the way Cargo does for the forms consumers pass (`-p name`, `--package=name`, `--bench name`), drop each package-qualified `--features pkg/feat` entry whose package that side dropped, since moq passes `--features moq-quic/fuzz` beside `-p moq-quic`, and refuse any form the filter can't resolve rather than passing it through unfiltered.
 - Update the runner README's Compare section, which documents the current limit.
+- Both sides build in one cached worktree, the head checked out over the base's build as a snapshot commit, so each side's `cargo metadata` runs there after its own checkout.
 
 Public API: `compare` accepts a selection one side lacks. Wire: none.
-
-## Related
-
-- [One directory for compare](/quest/m0/bench-compare-one-path.md) - also changes how compare builds each side
