@@ -414,7 +414,9 @@
             nativeBuildInputs =
               pkgs.lib.optional (!pkgs.swift.swiftc.meta.broken) pkgs.swift
               # rust2-bench's tests count under its Valgrind.
-              ++ pkgs.lib.optional pkgs.stdenv.hostPlatform.isLinux valgrind;
+              ++ pkgs.lib.optional pkgs.stdenv.hostPlatform.isLinux valgrind
+              # The drivers link rustc's, which takes `-lz`, a library nixpkgs' macOS SDK omits.
+              ++ pkgs.lib.optional pkgs.stdenv.hostPlatform.isDarwin pkgs.zlib;
             RUST2_TS_TOOLCHAIN = tsToolchain;
             RUST2_TS_SYSROOT = rust2-ts-std;
             # rust2-ffi's strict C++ build needs Clang 23's `-Wlifetime-safety`, which no
