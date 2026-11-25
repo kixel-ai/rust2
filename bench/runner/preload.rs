@@ -590,10 +590,13 @@ until! {
 /// A malformed setting is not, so the real call refuses it with `EINVAL` as it would without
 /// this library.
 fn absolute(flags: c_int, new: *const Itimerspec) -> bool {
+	// The kernel's own check, field by field: any seconds it takes, however many nanoseconds
+	// they would make.
+	let valid = |at: &Timespec| at.sec >= 0 && (0..NS as i64).contains(&at.nsec);
 	// SAFETY: when not null, the caller hands a setting to read.
 	flags & TIMER_ABSTIME != 0
 		&& unsafe { new.as_ref() }
-			.is_some_and(|new| new.interval.ns().is_some() && new.value.ns().is_some_and(|ns| ns != 0))
+			.is_some_and(|new| valid(&new.interval) && valid(&new.value) && (new.value.sec != 0 || new.value.nsec != 0))
 }
 
 #[unsafe(no_mangle)]

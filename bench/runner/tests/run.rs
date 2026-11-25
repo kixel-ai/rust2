@@ -33,9 +33,23 @@ fn request(code: u64, arg: u64) {
 	}
 }
 
+/// A timer setting, as `timerfd_settime` takes it.
+#[repr(C)]
+struct Itimerspec {
+	interval: [i64; 2],
+	value: [i64; 2],
+}
+
+unsafe extern "C" {
+	fn timerfd_create(clock: i32, flags: i32) -> i32;
+	fn timerfd_settime(fd: i32, flags: i32, new: *const Itimerspec, old: *mut Itimerspec) -> i32;
+}
+
 /// The fixture: runs each benchmark `FIXTURE` names as a loop of its iterations, between
 /// the requests CodSpeed's hooks make. One whose name starts with `noisy` runs up to 2,000
-/// more, as many as std's random `HashMap` seed and the clock choose.
+/// more, as many as std's random `HashMap` seed and the clock choose. One whose name starts
+/// with `abstimer` first arms a timer at an absolute time, repeating every 2^64 ns and more,
+/// which the kernel takes though the span overflows a count of nanoseconds.
 #[test]
 #[ignore = "the program the other tests count"]
 fn fixture() {
@@ -52,6 +66,24 @@ fn fixture() {
 				.subsec_nanos() as u64
 				% 1000;
 			iterations += seeded + clock;
+		}
+		if name.starts_with("abstimer") {
+			const CLOCK_MONOTONIC: i32 = 1;
+			const TFD_TIMER_ABSTIME: i32 = 1;
+			let setting = Itimerspec {
+				interval: [18_446_744_074, 0],
+				value: [86_400, 50_000_000],
+			};
+			// SAFETY: a timerfd armed with a setting to read; nothing reads the timer.
+			let armed = unsafe {
+				timerfd_settime(
+					timerfd_create(CLOCK_MONOTONIC, 0),
+					TFD_TIMER_ABSTIME,
+					&setting,
+					std::ptr::null_mut(),
+				)
+			};
+			assert_eq!(armed, 0, "the kernel takes the setting");
 		}
 		request(ZERO_STATS, 0);
 		request(START_INSTRUMENTATION, 0);
@@ -275,4 +307,14 @@ fn fails_on_a_process_that_never_loaded_the_preload() {
 	assert!(!out.status.success());
 	let err = String::from_utf8_lossy(&out.stderr);
 	assert!(err.contains("never loaded rust2-bench's preload"), "{err}");
+}
+
+#[test]
+fn fails_on_a_timer_armed_at_an_absolute_time() {
+	let dir = scratch("abstimer");
+	let out = bench(&dir, "abstimer=10", "", &[]);
+	assert!(
+		!out.status.success(),
+		"a timer the kernel reads on the host's clock was counted"
+	);
 }
