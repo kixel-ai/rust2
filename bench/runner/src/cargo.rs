@@ -684,10 +684,15 @@ mod tests {
 		std::fs::remove_dir_all(repo.join(".git")).unwrap();
 		let outside = codspeed_root(&repo.join("sub/ws"));
 		let canonical = repo.join("sub/ws").canonicalize().unwrap();
+		// A temporary directory inside a checkout still has that checkout's repository above it.
+		let expected = match canonical.ancestors().find(|dir| dir.join(".git").exists()) {
+			Some(above) => canonical.strip_prefix(above).unwrap().to_owned(),
+			None => canonical.clone(),
+		};
 		std::fs::remove_dir_all(&repo).unwrap();
 		assert_eq!(found.0.unwrap(), Path::new(""));
 		assert_eq!(found.1.unwrap(), Path::new("sub/ws"));
-		assert_eq!(outside.unwrap(), canonical);
+		assert_eq!(outside.unwrap(), expected);
 	}
 
 	#[test]

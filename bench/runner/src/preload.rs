@@ -61,7 +61,7 @@ mod tests {
 	use super::*;
 
 	#[test]
-	#[cfg(all(target_os = "linux", target_arch = "x86_64"))]
+	#[cfg(all(target_os = "linux", target_arch = "x86_64", target_env = "gnu"))]
 	fn the_library_logs_the_marker() {
 		assert!(
 			LIBRARY.windows(MARKER.len()).any(|window| window == MARKER.as_bytes()),

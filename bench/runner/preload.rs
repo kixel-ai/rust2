@@ -80,6 +80,13 @@ pub struct Timespec {
 	nsec: i64,
 }
 
+/// A timer's setting, as `timerfd_settime` and `timer_settime` take it.
+#[repr(C)]
+pub struct Itimerspec {
+	interval: Timespec,
+	value: Timespec,
+}
+
 #[repr(C)]
 pub struct Timeval {
 	sec: i64,
@@ -127,11 +134,18 @@ fn panic(_: &core::panic::PanicInfo) -> ! {
 
 /// The next definition of a function after this library's, found once.
 macro_rules! real {
-	($name:literal $(@ $version:literal)?: $ty:ty) => {{
+	($name:literal $(@ $version:literal)?: $ty:ty) => {
+		real!(@load concat!($name, "\0"), [$($version)?], $ty)
+	};
+	// For a macro that holds the function's name as an identifier.
+	(fn $name:ident: $ty:ty) => {
+		real!(@load concat!(stringify!($name), "\0"), [], $ty)
+	};
+	(@load $name:expr, [$($version:literal)?], $ty:ty) => {{
 		static FOUND: AtomicPtr<c_void> = AtomicPtr::new(core::ptr::null_mut());
 		let mut found = FOUND.load(Relaxed);
 		if found.is_null() {
-			let name = concat!($name, "\0").as_ptr().cast();
+			let name = $name.as_ptr().cast();
 			// SAFETY: the name is NUL-terminated, and RTLD_NEXT is a handle dlsym takes.
 			found = unsafe { real!(@find name $(, $version)?) };
 			if found.is_null() {
@@ -160,12 +174,13 @@ fn errno() -> c_int {
 	unsafe { *__errno_location() }
 }
 
-/// Logs [`MARKER`] to Valgrind's log through a client request, a no-op on the CPU.
-extern "C" fn loaded() {
+/// Logs `line`, NUL-terminated and without a `%`, to Valgrind's log through a client request, a
+/// no-op on the CPU.
+fn log(line: &[u8]) {
 	// VG_USERREQ__PRINTF_VALIST_BY_REF: the format holds no conversion, so the va_list it is
 	// handed is never read.
 	let va_list = [0u64; 3];
-	let args: [u64; 6] = [0x1403, MARKER.as_ptr() as u64, va_list.as_ptr() as u64, 0, 0, 0];
+	let args: [u64; 6] = [0x1403, line.as_ptr() as u64, va_list.as_ptr() as u64, 0, 0, 0];
 	// SAFETY: the rotations sum to 128, leaving rdi as it was, and `xchg rbx, rbx` changes
 	// nothing; under Valgrind, the request reads `args` and writes rdx.
 	unsafe {
@@ -176,6 +191,19 @@ extern "C" fn loaded() {
 			options(nostack),
 		);
 	}
+}
+
+/// Logs [`MARKER`].
+extern "C" fn loaded() {
+	log(MARKER);
+}
+
+/// Logs why the process cannot go on under this library's clock, then aborts it, so the job
+/// fails rather than wait on a deadline the host reads on its own clock.
+fn refuse(line: &[u8]) -> ! {
+	log(line);
+	// SAFETY: abort takes nothing and never returns.
+	unsafe { abort() }
 }
 
 /// Logs [`MARKER`] now and in every child a `fork` makes without an `exec`, which Valgrind logs
@@ -447,9 +475,10 @@ pub unsafe extern "C" fn clock_nanosleep(
 	slept
 }
 
-/// `pthread_cond_timedwait`'s and `pthread_cond_clockwait`'s deadline moved onto the host's
-/// `clock`, or `None` when the deadline is malformed and the real call should refuse it.
-fn cond_deadline(clock: c_int, at: *const Timespec) -> Option<(u64, Timespec)> {
+/// An absolute deadline on `clock` moved onto the host's, with where `clock` starts here, or
+/// `None` for a clock this library leaves the host's or a malformed deadline, which the real
+/// call should take as it is.
+fn deadline(clock: c_int, at: *const Timespec) -> Option<(u64, Timespec)> {
 	let base = base(clock)?;
 	if at.is_null() {
 		return None;
@@ -469,7 +498,7 @@ pub unsafe extern "C" fn pthread_cond_timedwait(cond: *mut c_void, mutex: *mut c
 		Some(ns) if ns >= REALTIME / 2 => CLOCK_REALTIME,
 		_ => CLOCK_MONOTONIC,
 	};
-	let Some((base, host)) = cond_deadline(clock, at) else {
+	let Some((base, host)) = deadline(clock, at) else {
 		// SAFETY: the caller's arguments, as it passed them.
 		return unsafe { real(cond, mutex, at) };
 	};
@@ -490,7 +519,7 @@ pub unsafe extern "C" fn pthread_cond_clockwait(
 	at: *const Timespec,
 ) -> c_int {
 	let real = real!("pthread_cond_clockwait": unsafe extern "C" fn(*mut c_void, *mut c_void, c_int, *const Timespec) -> c_int);
-	let Some((base, host)) = cond_deadline(clock, at) else {
+	let Some((base, host)) = deadline(clock, at) else {
 		// SAFETY: the caller's arguments, as it passed them.
 		return unsafe { real(cond, mutex, clock, at) };
 	};
@@ -501,6 +530,99 @@ pub unsafe extern "C" fn pthread_cond_clockwait(
 		reach(base, unsafe { &*at });
 	}
 	woke
+}
+
+/// Runs `wait` with its absolute deadline `at`, on `clock`, moved onto the host's, and moves
+/// this clock to `at` once `expired` says the wait timed out.
+fn until<R>(clock: c_int, at: *const Timespec, wait: impl FnOnce(*const Timespec) -> R, expired: fn(&R) -> bool) -> R {
+	let Some((base, host)) = deadline(clock, at) else {
+		return wait(at);
+	};
+	let done = wait(&host);
+	if expired(&done) {
+		// SAFETY: `deadline` read `at`.
+		reach(base, unsafe { &*at });
+	}
+	done
+}
+
+/// Whether a call that returns its error timed out.
+fn returned_timeout(done: &c_int) -> bool {
+	*done == ETIMEDOUT
+}
+
+/// Whether a call that sets `errno` timed out.
+fn set_timeout<R: PartialEq + From<i8>>(done: &R) -> bool {
+	*done == R::from(-1) && errno() == ETIMEDOUT
+}
+
+/// Defines glibc's waits whose deadline is absolute: `$clock` is the deadline's clock, a
+/// parameter's or a fixed one's, and `$expired` how the call says it timed out.
+macro_rules! until {
+	($(fn $name:ident($($arg:ident: $ty:ty),*) -> $ret:ty, $clock:expr, $expired:expr;)*) => {$(
+		#[unsafe(no_mangle)]
+		pub unsafe extern "C" fn $name($($arg: $ty,)* at: *const Timespec) -> $ret {
+			let real = real!(fn $name: unsafe extern "C" fn($($ty,)* *const Timespec) -> $ret);
+			// SAFETY: the caller's arguments, with the deadline on the same clock.
+			until($clock, at, |at| unsafe { real($($arg,)* at) }, $expired)
+		}
+	)*};
+}
+
+until! {
+	fn sem_timedwait(sem: *mut c_void) -> c_int, CLOCK_REALTIME, set_timeout;
+	fn sem_clockwait(sem: *mut c_void, clock: c_int) -> c_int, clock, set_timeout;
+	fn pthread_mutex_timedlock(mutex: *mut c_void) -> c_int, CLOCK_REALTIME, returned_timeout;
+	fn pthread_mutex_clocklock(mutex: *mut c_void, clock: c_int) -> c_int, clock, returned_timeout;
+	fn pthread_rwlock_timedrdlock(lock: *mut c_void) -> c_int, CLOCK_REALTIME, returned_timeout;
+	fn pthread_rwlock_timedwrlock(lock: *mut c_void) -> c_int, CLOCK_REALTIME, returned_timeout;
+	fn pthread_rwlock_clockrdlock(lock: *mut c_void, clock: c_int) -> c_int, clock, returned_timeout;
+	fn pthread_rwlock_clockwrlock(lock: *mut c_void, clock: c_int) -> c_int, clock, returned_timeout;
+	fn pthread_timedjoin_np(thread: u64, out: *mut *mut c_void) -> c_int, CLOCK_REALTIME, returned_timeout;
+	fn pthread_clockjoin_np(thread: u64, out: *mut *mut c_void, clock: c_int) -> c_int, clock, returned_timeout;
+	fn mq_timedsend(queue: c_int, msg: *const c_char, len: usize, priority: c_uint) -> c_int, CLOCK_REALTIME, set_timeout;
+	fn mq_timedreceive(queue: c_int, msg: *mut c_char, len: usize, priority: *mut c_uint) -> isize, CLOCK_REALTIME, set_timeout;
+}
+
+/// Whether `new` arms a timer at an absolute deadline, which the kernel reads on the host's
+/// clock; translating one would mean tracking each timer's clock, and no benchmark has needed it.
+fn absolute(flags: c_int, new: *const Itimerspec) -> bool {
+	// SAFETY: when not null, the caller hands a setting to read.
+	flags & TIMER_ABSTIME != 0 && unsafe { new.as_ref() }.is_some_and(|new| new.value.sec != 0 || new.value.nsec != 0)
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn timerfd_settime(
+	fd: c_int,
+	flags: c_int,
+	new: *const Itimerspec,
+	old: *mut Itimerspec,
+) -> c_int {
+	if absolute(flags, new) {
+		refuse(b"rust2-bench preload: timerfd_settime with TFD_TIMER_ABSTIME is unsupported: arm the timer relative to now\n\0");
+	}
+	let real =
+		real!("timerfd_settime": unsafe extern "C" fn(c_int, c_int, *const Itimerspec, *mut Itimerspec) -> c_int);
+	// SAFETY: the caller's arguments, as it passed them.
+	unsafe { real(fd, flags, new, old) }
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn timer_settime(
+	timer: *mut c_void,
+	flags: c_int,
+	new: *const Itimerspec,
+	old: *mut Itimerspec,
+) -> c_int {
+	if absolute(flags, new) {
+		refuse(
+			b"rust2-bench preload: timer_settime with TIMER_ABSTIME is unsupported: arm the timer relative to now\n\0",
+		);
+	}
+	let real =
+		real!("timer_settime": unsafe extern "C" fn(*mut c_void, c_int, *const Itimerspec, *mut Itimerspec) -> c_int);
+	// SAFETY: the caller's arguments, as it passed them.
+	unsafe { real(timer, flags, new, old) }
 }
 
 type Syscall = unsafe extern "C" fn(c_long, ...) -> c_long;

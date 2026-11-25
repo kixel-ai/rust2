@@ -80,8 +80,11 @@ library, [preload.rs](preload.rs), built with rust2-bench and kept under
   instant in every process, a day of uptime and 2026-01-01 on the wall, and advances 1 µs a
   read;
 - and timed waits (`epoll_wait`, `poll`, `nanosleep`, `clock_nanosleep`, a timed condition
-  variable or futex) with ones that still wait as long as they ask, on the host's clock, and
-  move this clock by what they waited when they expire.
+  variable, futex, semaphore, mutex or rwlock lock, thread join, or message queue call) with
+  ones that still wait as long as they ask, on the host's clock, and move this clock by what
+  they waited when they expire. A timer armed at an absolute time (`timerfd_settime` or
+  `timer_settime` with its `ABSTIME` flag) aborts the process, naming the call in its Valgrind
+  log, since the kernel would read the deadline on the host's clock.
 
 Each process logs that it loaded the library to its Valgrind log, and a process that measured
 a benchmark without it fails the run: a static executable never loads it, nor does one whose
