@@ -894,27 +894,6 @@ class CArchive(unittest.TestCase):
         self.assertEqual(windows["moq_shared"]["link_location"], "@prefix@/lib/moq.dll.lib")
         self.assertEqual(windows["moq"]["link_flags"], ["/defaultlib:msvcrt"])
 
-    def test_commons_are_defined_unless_a_member_defines_them(self):
-        nm = """
-libmoq.a(ui.o):
-0000000000000008 (common) (alignment 2^3) external _tty_in
-0000000000000004 (common) (alignment 2^2) external _is_a_tty
-0000000000000010 (common) (alignment 2^4) external _shared
-                 (undefined) external _tty_out
-
-libmoq.a(other.o):
-0000000000000008 (common) (alignment 2^3) external _tty_out
-0000000000000020 (common) external _shared
-0000000000000000 (__DATA,__bss) external _is_a_tty
-0000000000000008 (common) (alignment 2^3) external _state
-0000000000000010 (__DATA,__data) private external _state
-"""
-        self.assertEqual(package.commons_source(nm),
-                         '__attribute__((aligned(16))) char common0[32] __asm__("_shared");\n'
-                         '__attribute__((aligned(8))) char common1[8] __asm__("_tty_in");\n'
-                         '__attribute__((aligned(8))) char common2[8] __asm__("_tty_out");\n')
-        self.assertEqual(package.commons_source("0000 (__TEXT,__text) external _moq_x\n"), "typedef int empty;\n")
-
     def test_the_older_toolchain_is_a_stable_release_whatever_the_channel(self):
         self.assertEqual(package.older_toolchain("rustc 1.98.1\nhost: x86_64-unknown-linux-gnu\nrelease: 1.98.1\n"), "1.96.0")
         # A nightly's release is two ahead of stable, its beta one.

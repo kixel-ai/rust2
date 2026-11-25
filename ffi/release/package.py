@@ -59,7 +59,7 @@ APPLE_TARGETS = {
 APPLE_BUILD = {**{target: SWIFT_PLATFORMS[platform] for target, platform in APPLE_TARGETS.items()},
                "aarch64-apple-ios": "15.1", "aarch64-apple-ios-sim": "15.1"}
 # Each Apple library's SDK and clang target, at a floor: for the link that finds what a slice
-# calls, and for `hide`'s and `coexist`'s.
+# calls, and for `coexist`'s.
 APPLE_LINKS = {
     "aarch64-apple-darwin": ("macosx", "arm64-apple-macos{}"),
     "aarch64-apple-ios": ("iphoneos", "arm64-apple-ios{}"),
@@ -664,10 +664,13 @@ let package = Package(
 
 
 def min_os(archive):
-    """The newest minimum OS any object in a static library declares."""
-    versions = set()
+    """The newest minimum OS any object in a static library declares, in a build version, or
+    in the older version-min command rustc's Intel macOS objects still carry."""
+    versions, command = set(), None
     for line in output("/usr/bin/otool", "-l", archive).splitlines():
-        match = re.match(r"\s*minos ([0-9.]+)$", line)
+        command = line.split()[1] if line.split()[:1] == ["cmd"] else command
+        match = re.match(r"\s*minos ([0-9.]+)$", line) or (
+            command and command.startswith("LC_VERSION_MIN_") and re.match(r"\s*version ([0-9.]+)$", line))
         if match:
             versions.add(tuple(int(x) for x in match.group(1).split(".")))
     if not versions:
@@ -1106,76 +1109,60 @@ def undefined(path, kind, nm):
     return {line.split()[1] for line in lines if line.split()[:1] == [kind] and len(line.split()) == 2}
 
 
-def commons_source(nm):
-    """C defining each common symbol `nm -m` lists that no member defines, at its largest size and alignment."""
-    commons, defined = {}, set()
-    for line in nm.splitlines():
-        common = re.fullmatch(r"([0-9a-f]+) \(common\) (?:\(alignment 2\^([0-9]+)\) )?external (\S+)", line.strip())
-        if common:
-            size, align = int(common.group(1), 16), int(common.group(2) or 0)
-            old_size, old_align = commons.get(common.group(3), (0, 0))
-            commons[common.group(3)] = (max(size, old_size), max(align, old_align))
-        elif re.search(r"\) (?:weak )?(?:private )?external ", line) and "(undefined)" not in line:
-            defined.add(line.split()[-1])
-    return "".join(
-        f'__attribute__((aligned({1 << align}))) char common{i}[{size}] __asm__("{name}");\n'
-        for i, (name, (size, align)) in enumerate(sorted((n, c) for n, c in commons.items() if n not in defined))
-    ) or "typedef int empty;\n"
-
-
-def define_commons(static, clang, work):
-    """An object defining each C tentative definition in a Mach-O archive that no member defines.
-
-    Apple's clang emits `int x;` as a common symbol, such as aws-lc's `tty_in`, which a
-    relocatable link leaves common, and global, past the exported-symbols list; Apple's
-    current linker has no `-d` to define it. Defined here at its size and alignment, it is
-    an ordinary symbol the list hides.
-    """
-    source = work / "commons.c"
-    source.write_text(commons_source(output("nm", "--no-llvm-bc", "-m", static)), encoding="utf-8")
-    obj = work / "commons.o"
-    run(*clang, "-c", "-fno-common", source, "-o", obj)
-    return obj
-
-
 def apple_clang(static, target):
-    """Apple's clang for `target`, at the newest minimum OS any object of `static` declares,
-    which a relocatable link of it, and a program linking it, then declare too."""
+    """Apple's clang for `target`, and the newest minimum OS any object of `static` declares,
+    at which a program linking it is built."""
     sdk, clang_target = APPLE_LINKS[target]
     floor = ".".join(str(part) for part in min_os(static))
     return ["xcrun", "--sdk", sdk, "clang", "-target", clang_target.format(floor)], floor
 
 
+def renamed(static, lib, keep, nm):
+    """Each global symbol `static` defines or holds common, but the C ABI's, by its name apart
+    from any other library's: behind a prefix of the library and a digest of its bytes, which
+    no C ABI symbol starts with, so two versions of one library differ too."""
+    lines = (line.split() for line in output(nm, "--extern-only", "--no-llvm-bc", "-P", static).splitlines())
+    names = sorted({f[0] for f in lines if len(f) > 1 and f[1] not in "Uvw"} - set(keep))
+    prefix = f"_{lib}${hashlib.sha256(Path(static).read_bytes()).hexdigest()[:16]}$"
+    return {name: prefix + name.removeprefix("_") for name in names}
+
+
 def hide(static, lib, target, manifest, work):
-    """The static library as one prelinked object exporting only the C ABI, so its Rust runtime cannot clash.
+    """The static library with no global symbol but the C ABI's that another can define, so its Rust runtime cannot clash.
 
     Another Rust static library in the same program, built by another toolchain, brings its own
     std and compiler-builtins, whose unmangled symbols, such as `rust_eh_personality` and
-    `__addvdi3`, would otherwise collide. MSVC's linker has no relocatable link, and GNU ld's
-    of a MinGW archive leaves its import symbols without a section, so a Windows static
-    library keeps every symbol.
+    `__addvdi3`, would otherwise collide. On ELF the library is one object prelinked to export
+    only the C ABI. Apple's relocatable link drops each object's DWARF for a debug map naming
+    files an app's link never sees, so a crash in the Swift package would not symbolicate:
+    there each member keeps its debug info, and every other global symbol is renamed apart.
+    MSVC's linker has no relocatable link, and GNU ld's of a MinGW archive leaves its import
+    symbols without a section, so a Windows static library keeps every symbol.
     """
     nm = llvm_tool(manifest, "llvm-nm")
+    objcopy = llvm_tool(manifest, "llvm-objcopy")
     keep = c_abi(static, lib, target, nm)
-    names = work / "exported.txt"
-    names.write_text("\n".join(keep) + "\n", encoding="utf-8")
-    roots = [arg for name in keep for arg in ("-u", name)]
-    merged, hidden, archive = work / "merged.o", work / "hidden.o", work / static.name
+    archive = work / static.name
     if "apple" in target:
-        clang, _ = apple_clang(static, target)
-        run(*clang, "-r", "-nostdlib", *(f"-Wl,{arg}" for arg in roots), f"-Wl,-exported_symbols_list,{names}",
-            define_commons(static, clang, work), static, "-o", hidden)
-        # Which stamps the member with the time unless told not to.
-        run("libtool", "-static", "-o", archive, hidden, env={**os.environ, "ZERO_AR_DATE": "1"})
+        names = renamed(static, lib, keep, nm)
+        redefine = work / "renamed.txt"
+        redefine.write_text("".join(f"{old} {new}\n" for old, new in names.items()), encoding="utf-8")
+        run(objcopy, f"--redefine-syms={redefine}", static, archive)
+        allowed = set(keep) | set(names.values())
+        stray = sorted(defined(archive, nm) - allowed)
     else:
+        listed = work / "exported.txt"
+        listed.write_text("\n".join(keep) + "\n", encoding="utf-8")
+        merged, hidden = work / "merged.o", work / "hidden.o"
         # The toolchain's own LLVM, which reads every ELF target's objects, Android's
         # included, keeping only the members the C ABI reaches, without the sections it never
         # references.
-        run(llvm_tool(manifest, "rust-lld"), "-flavor", "gnu", "-r", "--gc-sections", *roots, static, "-o", merged)
+        run(llvm_tool(manifest, "rust-lld"), "-flavor", "gnu", "-r", "--gc-sections",
+            *(arg for name in keep for arg in ("-u", name)), static, "-o", merged)
         # A COMDAT group would still merge with another library's copy, such as std's
         # `DW.ref.rust_eh_personality`, whose symbol here is now local: as plain sections,
         # each library keeps its own.
-        run(llvm_tool(manifest, "llvm-objcopy"), "--remove-section=.group", f"--keep-global-symbols={names}", merged, hidden)
+        run(objcopy, "--remove-section=.group", f"--keep-global-symbols={listed}", merged, hidden)
         if "There are no section groups" not in output(llvm_tool(manifest, "llvm-readobj"), "--elf-output-style=GNU", "-g", hidden):
             raise SystemExit(f"the prelinked {static.name} still holds section groups")
         # What std looks up only if the system has it, such as a newer glibc's
@@ -1184,9 +1171,9 @@ def hide(static, lib, target, manifest, work):
         if strong:
             raise SystemExit(f"the prelinked {static.name} needs what Rust's archive only looks up, such as {strong[:5]}")
         run(llvm_tool(manifest, "llvm-ar"), "rcsD", archive, hidden)
-    extra = sorted(defined(hidden, nm) - set(keep))
-    if extra:
-        raise SystemExit(f"the prelinked {static.name} exports other symbols than the C ABI, such as {extra[:10]}")
+        stray = sorted(defined(hidden, nm) - set(keep))
+    if stray:
+        raise SystemExit(f"the hidden {static.name} defines other global symbols than the C ABI, such as {stray[:10]}")
     return archive
 
 
@@ -1200,7 +1187,7 @@ def older_toolchain(version):
 
 
 def coexist(archive, include, lib, native, manifest, target, work):
-    """Link the prelinked static library with another Rust static library, built by another
+    """Link the hidden static library with another Rust static library, built by another
     toolchain, in either order, and run the program where the host can.
 
     The other library's std, unlike one the same toolchain built, defines what the linker

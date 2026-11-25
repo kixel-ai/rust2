@@ -214,12 +214,15 @@ the builder unpacks over its checkout before reading the checks.
    On Windows it is `bin/<lib>.dll` with `lib/<lib>.dll.lib`, beside the static `lib/<lib>.lib`.
 
    The static library is hidden, as every static library the builder ships but Windows'
-   is: one object prelinked from Rust's archive (the toolchain's `rust-lld -r`, then
-   `llvm-objcopy`, on ELF, Android's included, and Apple's `clang -r` with an
-   exported-symbols list on Mach-O) whose only global symbols are the C ABI's, `<lib>_*`,
-   as the archive defines them. So its std and compiler-builtins, with unmangled symbols
-   such as `rust_eh_personality` and `__addvdi3`, cannot clash with another Rust static
-   library in the same program, built by any toolchain. Each build checks it by linking
+   is. On ELF, Android's included, it is one object prelinked from Rust's archive (the
+   toolchain's `rust-lld -r`, then `llvm-objcopy`) whose only global symbols are the C
+   ABI's, `<lib>_*`, as the archive defines them. Apple's relocatable link would drop each
+   object's DWARF, which the Swift package's line tables need, so on Mach-O the archive
+   keeps its members and `llvm-objcopy` renames every other global symbol behind
+   `_<lib>$<digest>$`, the digest of the archive's bytes. Either way its std and
+   compiler-builtins, with unmangled symbols such as `rust_eh_personality` and
+   `__addvdi3`, cannot clash with another Rust static library in the same program, built
+   by any toolchain, nor with another version of its own. Each build checks it by linking
    one beside it, built by the toolchain two releases older, in either order, and running
    the program where the host can: one the same toolchain built would link even unhidden,
    since the linker takes std's members from the first archive alone. MSVC's linker has no
