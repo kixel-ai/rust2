@@ -220,9 +220,9 @@ the builder unpacks over its checkout before reading the checks.
    of the archive's bytes, a suffix Rust's and C++'s demanglers skip, and on ELF each
    section group's signature with them, which a linker keeps one group of by name; on ELF
    the renamed symbols are hidden too, so a shared library linking it exports only the C ABI.
-   This package's static library also keeps what the facade itself exports, such as
-   moq-ffi's `moq_ffi_shutdown`, as its shared library, which must export every listed
-   function, does; every other package's renames it.
+   The shared library must export every listed function, and may export more: a C
+   function the facade or a dependency defines itself, such as moq-ffi's
+   `moq_ffi_shutdown`, which every static library renames, so two packages never clash on it.
    So its std and compiler-builtins, with unmangled symbols such as `rust_eh_personality`
    and `__addvdi3`, cannot clash with another Rust static library in the same program,
    built by any toolchain, nor with another version of its own. Each object keeps its

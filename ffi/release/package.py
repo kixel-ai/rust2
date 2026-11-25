@@ -1324,9 +1324,10 @@ def c_archive(info, manifest, export_dir, target, out):
         else:
             shared = release / f"lib{lib}.{'dylib' if apple else 'so'}"
             check_soname(shared, soname, target)
-            # The static library keeps global what the shared library, from the same build,
-            # exports: every C function the export lists, and any the facade defines itself, such
-            # as moq-ffi's `moq_ffi_shutdown`, which the export cannot list.
+            # The static library keeps global only what the export lists, as every other
+            # package's does, which the shared library, from the same build, must export. It may
+            # export more, a function the facade or a dependency defines itself, such as moq-ffi's
+            # `moq_ffi_shutdown`, which the static library renames so no two packages clash on it.
             listed, exports = c_abi(export_dir, target), exported(shared, manifest, target)
             if not listed <= exports:
                 raise SystemExit(f"{shared.name} lacks C functions {export_dir}/exports.txt lists, such as "
@@ -1335,7 +1336,7 @@ def c_archive(info, manifest, export_dir, target, out):
             (root / files["link"]).symlink_to(soname)
             hidden = raw / "hide"
             hidden.mkdir()
-            shutil.copy(isolated(release / f"lib{lib}.a", exports, notes[0].strip(), lib, target, manifest, export_dir, hidden),
+            shutil.copy(isolated(release / f"lib{lib}.a", listed, notes[0].strip(), lib, target, manifest, export_dir, hidden),
                         root / files["static"])
             (root / "lib/pkgconfig").mkdir(parents=True)
             (root / f"lib/pkgconfig/{lib}.pc").write_text(pkg_config(info, natives), newline="\n", encoding="utf-8")
