@@ -1,7 +1,9 @@
-// moq.c's script through the React Native binding, on Hermes off a device: a broadcast's
-// track, published and subscribed to in one process, with every read a promise, and an
-// origin, its driver polled from the event loop, with moq-pattern, kio, moq-tokio, hang, and
-// moq-mux exported into the same library, and the catalog lent to JavaScript for a call.
+// moq.c's script through the React Native binding, on Hermes off a device, and through
+// the Node binding, whose API is the same, as `just ffi moq-node` rewrites its imports: a
+// broadcast's track, published and subscribed to in one process, with every read a promise,
+// and an origin, its driver polled from the event loop, with moq-pattern, kio, moq-tokio,
+// hang, and moq-mux exported into the same library, and the catalog lent to JavaScript for
+// a call.
 //
 // The local reads need no runtime: each read that must wait pends until the write that
 // wakes it posts its next poll to the JavaScript thread. A session over QUIC runs on

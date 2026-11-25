@@ -356,6 +356,7 @@ fn api_c() {
 		api.transcript,
 		"the C transcript differs from the native one"
 	);
+	header_wasm32(api);
 	// A non-null status takes each failed check, which changed nothing.
 	run(Command::new(&exe).arg("statuses"));
 	// A value that is not Send stays on its thread; one freed after that exited leaks.
@@ -410,6 +411,37 @@ fn api_c() {
 		let stderr = String::from_utf8_lossy(&output.stderr);
 		assert!(stderr.contains(message), "{case} printed {stderr}");
 	}
+}
+
+/// The header compiled for wasm32, its other target, which tests/api.c cannot reach: it
+/// defines wasm32's constants and no 64-bit target's, by conditions `-Wundef` finds clean.
+/// Through the dev shell's Clang 23, `RUST2_CLANG`, which Linux, where the merge gate runs,
+/// requires; a platform's own may have no wasm32 backend.
+fn header_wasm32(api: &Api) {
+	let clang = std::env::var_os("RUST2_CLANG");
+	assert!(
+		clang.is_some() || !cfg!(target_os = "linux"),
+		"RUST2_CLANG names Clang 23's clang++: run this in the dev shell"
+	);
+	let Some(clang) = clang else {
+		return;
+	};
+	let src = scratch().join("api").join("wasm32.c");
+	std::fs::write(
+		&src,
+		"#include \"api.h\"\n\n#ifdef API_WORD\n#error \"API_WORD is a 64-bit target's\"\n#endif\n\n\
+		_Static_assert(API_WASM_PAGE == 65536, \"wasm32 has API_WASM_PAGE\");\n",
+	)
+	.unwrap();
+	run(Command::new(clang)
+		.args(["-x", "c", "--target=wasm32-wasip1", "-ffreestanding", "-fsyntax-only"])
+		.args(["-std=c11", "-pedantic", "-Wall", "-Wextra", "-Wundef", "-Werror"])
+		// Nix's wrapper adds the host's linker flags and hardening, which wasm32 refuses.
+		.arg("-Wno-unused-command-line-argument")
+		.env("NIX_HARDENING_ENABLE", "")
+		.arg("-I")
+		.arg(api.out.join("include"))
+		.arg(&src));
 }
 
 /// Random sequences of the ownership protocol's steps through the C ABI, by
@@ -729,59 +761,15 @@ fn api_cpp() {
 		generated: Some(cpp_transcript()),
 		..api.link()
 	};
+	// Each build below is its own, so they run beside each other.
+	let mut jobs: Vec<Box<dyn FnOnce() + Send + '_>> = Vec::new();
 	for (standard, plain) in [(17, true), (20, false), (23, true)] {
-		let exe = scratch().join("api").join(format!("api-c++{standard}{EXE_SUFFIX}"));
-		cxx(
-			&link,
-			standard,
-			plain,
-			&manifest_dir().join("tests").join("api.cpp"),
-			&exe,
-		);
-		let cpp = run(&mut Command::new(&exe));
-		assert_eq!(
-			String::from_utf8_lossy(&cpp.stdout),
-			api.transcript,
-			"the C++{standard} transcript differs from the native one"
-		);
-		run(Command::new(&exe).arg("futures"));
-		run(Command::new(&exe).arg("lifetimes"));
-		run(Command::new(&exe).arg("checks"));
-		let rehomed = run(Command::new(&exe).arg("rehomed"));
-		assert_eq!(String::from_utf8_lossy(&rehomed.stdout), "scaled by 7\n");
-		for (case, message) in [
-			("moved", "api_Counter_get: a handle's value was moved out"),
-			("moved from", "api_Counter_get: a handle is null"),
-			("shared moved from", "api_Gauge_into_level: a handle is null"),
-			(
-				"shared moved out",
-				"api_Gauge_into_level: a handle's value was moved out",
-			),
-			("lent copied", "a lent object was copied past its call"),
-			("value", "value() of a result that holds an error"),
-			(
-				"finished",
-				"api_Channel_recv_poll: a future is polled after it finished",
-			),
-			(
-				"lent moved",
-				"api_Counter_into_label: a handle a call lent is borrowed exclusively or moved out",
-			),
-			("lent kept", "a lent object was moved out of"),
-			("overread", "api_tail: a reader read more than it was asked"),
-			("null view", "a view of null bytes has a length"),
-			("outlived", OUTLIVED),
-			("lent ledger", "api_Ledger_published: a handle is borrowed exclusively"),
-		] {
-			let output = Command::new(&exe).arg(case).output().unwrap();
-			failed(&output, &format!("C++{standard} {case}"));
-			let stderr = String::from_utf8_lossy(&output.stderr);
-			assert!(stderr.contains(message), "C++{standard} {case} printed {stderr}");
-		}
+		let link = &link;
+		jobs.push(Box::new(move || cpp_standard(api, link, standard, plain)));
 	}
 
 	if !cfg!(target_env = "msvc") {
-		cpp_strict(&link);
+		jobs.extend(cpp_strict(&link));
 	}
 
 	// Each crate's header builds alone, needing only the headers it includes.
@@ -792,14 +780,74 @@ fn api_cpp() {
 	headers.sort();
 	assert!(headers.len() > 2, "the api fixture has a header per crate: {headers:?}");
 	for header in headers {
-		let src = scratch().join("api").join(format!("alone-{header}.cpp"));
-		step::write(&src, format!("#include \"api/{header}\"\nint main() {{}}\n"));
-		let exe = scratch().join("api").join(format!("alone-{header}{EXE_SUFFIX}"));
-		cxx(&api.link(), 17, true, &src, &exe);
+		jobs.push(Box::new(move || {
+			let src = scratch().join("api").join(format!("alone-{header}.cpp"));
+			step::write(&src, format!("#include \"api/{header}\"\nint main() {{}}\n"));
+			let exe = scratch().join("api").join(format!("alone-{header}{EXE_SUFFIX}"));
+			cxx(&api.link(), 17, true, &src, &exe);
+		}));
 	}
 
-	// A C++ program whose header names another contract than its library's aborts at load,
-	// non-dumpable from a constructor that runs before the header's check, as `broken` is.
+	jobs.push(Box::new(|| cpp_contract(api)));
+	step::parallel(jobs);
+}
+
+/// `tests/api.cpp` at C++`standard`, with exceptions and RTTI off if `plain`: its transcript
+/// matches the native one, and each broken contract aborts with its message.
+fn cpp_standard(api: &Api, link: &Link, standard: u8, plain: bool) {
+	let exe = scratch().join("api").join(format!("api-c++{standard}{EXE_SUFFIX}"));
+	cxx(
+		link,
+		standard,
+		plain,
+		&manifest_dir().join("tests").join("api.cpp"),
+		&exe,
+	);
+	let cpp = run(&mut Command::new(&exe));
+	assert_eq!(
+		String::from_utf8_lossy(&cpp.stdout),
+		api.transcript,
+		"the C++{standard} transcript differs from the native one"
+	);
+	run(Command::new(&exe).arg("futures"));
+	run(Command::new(&exe).arg("lifetimes"));
+	run(Command::new(&exe).arg("checks"));
+	let rehomed = run(Command::new(&exe).arg("rehomed"));
+	assert_eq!(String::from_utf8_lossy(&rehomed.stdout), "scaled by 7\n");
+	for (case, message) in [
+		("moved", "api_Counter_get: a handle's value was moved out"),
+		("moved from", "api_Counter_get: a handle is null"),
+		("shared moved from", "api_Gauge_into_level: a handle is null"),
+		(
+			"shared moved out",
+			"api_Gauge_into_level: a handle's value was moved out",
+		),
+		("lent copied", "a lent object was copied past its call"),
+		("value", "value() of a result that holds an error"),
+		(
+			"finished",
+			"api_Channel_recv_poll: a future is polled after it finished",
+		),
+		(
+			"lent moved",
+			"api_Counter_into_label: a handle a call lent is borrowed exclusively or moved out",
+		),
+		("lent kept", "a lent object was moved out of"),
+		("overread", "api_tail: a reader read more than it was asked"),
+		("null view", "a view of null bytes has a length"),
+		("outlived", OUTLIVED),
+		("lent ledger", "api_Ledger_published: a handle is borrowed exclusively"),
+	] {
+		let output = Command::new(&exe).arg(case).output().unwrap();
+		failed(&output, &format!("C++{standard} {case}"));
+		let stderr = String::from_utf8_lossy(&output.stderr);
+		assert!(stderr.contains(message), "C++{standard} {case} printed {stderr}");
+	}
+}
+
+/// A C++ program whose header names another contract than its library's aborts at load,
+/// non-dumpable from a constructor that runs before the header's check, as `broken` is.
+fn cpp_contract(api: &Api) {
 	let mismatched = scratch().join("api").join("contract.cpp");
 	step::write(
 		&mismatched,
@@ -838,12 +886,7 @@ int main() {}
 /// `RUST2_CLANG`, adds `-Wlifetime-safety`; Linux, where the merge gate runs, requires it,
 /// and elsewhere without it, as on the nightly's Apple Clang leg, the platform's `clang++`
 /// runs every check but that one.
-fn cpp_strict(link: &Link) {
-	let include = &link.include;
-	let generated = link
-		.generated
-		.as_deref()
-		.expect("tests/api.cpp includes its transcript");
+fn cpp_strict<'a>(link: &'a Link) -> Vec<Box<dyn FnOnce() + Send + 'a>> {
 	let clang23 = std::env::var_os("RUST2_CLANG");
 	assert!(
 		clang23.is_some() || !cfg!(target_os = "linux"),
@@ -851,46 +894,13 @@ fn cpp_strict(link: &Link) {
 	);
 	let lifetimes = clang23.is_some();
 	let compiler = clang23.unwrap_or_else(|| "clang++".into());
-	// What each case printed, kept apart from the others'; its object is not.
-	let clang = |src: &Path, case: u8| {
-		let mut cmd = Command::new(&compiler);
-		cmd.args([
-			"-std=c++17",
-			"-Wconsumed",
-			"-Wdangling",
-			"-Wreserved-identifier",
-			"-Werror",
-		]);
-		if lifetimes {
-			cmd.arg("-Wlifetime-safety");
-		}
-		cmd.arg("-c")
-			.arg("-I")
-			.arg(include)
-			.arg("-I")
-			.arg(generated)
-			.arg(format!("-DCASE={case}"))
-			.arg(src)
-			.arg("-o")
-			.arg(scratch().join("api").join("strict.o"));
-		let stamp = scratch()
-			.join("api")
-			.join("strict")
-			.join(format!("{}-{case}.stamp", src.file_stem().unwrap().to_string_lossy()));
-		let step = Step {
-			stamp: &stamp,
-			reads: &[src, include, generated],
-			writes: &[],
-		};
-		// Case 0 must build, so only the failing cases keep a failure.
-		match case {
-			0 => step.run(&mut cmd),
-			_ => step.output(&mut cmd),
-		}
-	};
 	let tests = manifest_dir().join("tests");
+	let mut jobs: Vec<Box<dyn FnOnce() + Send + 'a>> = Vec::new();
 	for src in ["api.cpp", "api_strict.cpp"] {
-		clang(&tests.join(src), 0);
+		let (src, compiler) = (tests.join(src), compiler.clone());
+		jobs.push(Box::new(move || {
+			clang_strict(link, &compiler, lifetimes, &src, 0);
+		}));
 	}
 	for (case, message) in [
 		(
@@ -927,10 +937,58 @@ fn cpp_strict(link: &Link) {
 		if case == 12 && !lifetimes {
 			continue;
 		}
-		let output = clang(&tests.join("api_strict.cpp"), case);
-		assert!(!output.status.success(), "case {case} built");
-		let stderr = String::from_utf8_lossy(&output.stderr);
-		assert!(stderr.contains(message), "case {case} printed {stderr}");
+		let (src, compiler) = (tests.join("api_strict.cpp"), compiler.clone());
+		jobs.push(Box::new(move || {
+			let output = clang_strict(link, &compiler, lifetimes, &src, case);
+			assert!(!output.status.success(), "case {case} built");
+			let stderr = String::from_utf8_lossy(&output.stderr);
+			assert!(stderr.contains(message), "case {case} printed {stderr}");
+		}));
+	}
+	jobs
+}
+
+/// Case `case` of `src` compiled by `compiler` under the strict checks, `-Wlifetime-safety`
+/// too where it has `lifetimes`: case 0 must build, so only a failing case keeps a failure.
+/// Each writes and stamps its own object, so the cases compile beside each other.
+fn clang_strict(link: &Link, compiler: &OsString, lifetimes: bool, src: &Path, case: u8) -> Output {
+	let include = &link.include;
+	let generated = link
+		.generated
+		.as_deref()
+		.expect("tests/api.cpp includes its transcript");
+	let stem = src.file_stem().unwrap().to_string_lossy();
+	let dir = scratch().join("api").join("strict");
+	std::fs::create_dir_all(&dir).unwrap();
+	let mut cmd = Command::new(compiler);
+	cmd.args([
+		"-std=c++17",
+		"-Wconsumed",
+		"-Wdangling",
+		"-Wreserved-identifier",
+		"-Werror",
+	]);
+	if lifetimes {
+		cmd.arg("-Wlifetime-safety");
+	}
+	cmd.arg("-c")
+		.arg("-I")
+		.arg(include)
+		.arg("-I")
+		.arg(generated)
+		.arg(format!("-DCASE={case}"))
+		.arg(src)
+		.arg("-o")
+		.arg(dir.join(format!("{stem}-{case}.o")));
+	let stamp = dir.join(format!("{stem}-{case}.stamp"));
+	let step = Step {
+		stamp: &stamp,
+		reads: &[src, include, generated],
+		writes: &[],
+	};
+	match case {
+		0 => step.run(&mut cmd),
+		_ => step.output(&mut cmd),
 	}
 }
 
@@ -3086,6 +3144,99 @@ fn api_web_package() {
 	}
 }
 
+/// The api fixture's Node binding, `node/`, beside the addon the crate's `node` feature
+/// builds as `node/api.node`, which `load` finds by default: `tests/node.ts` runs
+/// `tests/api.ts`'s script and cases through it.
+fn node_dir() -> &'static Path {
+	static BUILT: OnceLock<PathBuf> = OnceLock::new();
+	BUILT.get_or_init(|| {
+		let api = api();
+		let dir = scratch().join("api").join("node");
+		let target = scratch().join("api").join("glue-node");
+		run(cargo()
+			.args(["build", "--quiet", "--locked", "--manifest-path"])
+			.arg(api.out.join("Cargo.toml"))
+			.arg("--target-dir")
+			.arg(&target)
+			.args(["--features", "node"])
+			.env("RUSTFLAGS", "-D warnings"));
+		step::mirror(&api.out.join("node"), &dir.join("node"));
+		step::mirror(&api.out.join("node"), &dir.join("copy"));
+		// The library cargo builds, which Node loads by its name.
+		step::copy(
+			&target.join("debug").join(PYTHON_LIB),
+			&dir.join("node").join("api.node"),
+		);
+		step::write(&dir.join("api.ts"), node_check());
+		step::copy(&manifest_dir().join("tests").join("node.ts"), &dir.join("node.ts"));
+		step::write(
+			&dir.join("transcript.ts"),
+			transcript::typescript::emit(transcript(), transcript::typescript::Binding::Node),
+		);
+		let tsconfig = TSCONFIG
+			.replace("\"protocol.ts\", \"web/*.ts\"", "\"node.ts\", \"node/*.ts\"")
+			.replace("web/*.d.ts", "node/*.d.ts");
+		step::write(&dir.join("tsconfig.json"), tsconfig);
+		run(Command::new("tsc").arg("-p").arg(&dir));
+		dir
+	})
+}
+
+/// `tests/api.ts` importing Node's binding, its cases exported for `tests/node.ts`, which
+/// loads the binding as its `main` does the web's, without its region of wasm32's items,
+/// which tsc would find missing from a binding of native targets alone.
+fn node_check() -> String {
+	let check = binding_check("node");
+	let start = check.find("\t// #region wasm32").expect("api.ts has wasm32's region");
+	let end = "\t// #endregion wasm32\n";
+	let stop = check.find(end).expect("api.ts ends wasm32's region") + end.len();
+	format!("{}{}", &check[..start], &check[stop..])
+}
+
+/// The cases of `tests/node.ts` that must pass, after its transcript: `threads`, then
+/// `tests/api.ts`'s but `grown`, as the addon's memory never grows.
+const NODE_CASES: [&str; 7] = ["threads", "futures", "owned", "closed", "bytes", "bounds", "checks"];
+
+/// The api fixture's Node binding runs `tests/node.ts` on Node, Deno, and Bun, over the
+/// addon the crate's `node` feature builds: it prints what native Rust prints, then passes
+/// each case and fails each broken one with its message, as the web's does.
+#[test]
+fn api_node() {
+	let dir = node_dir();
+	for runtime in ["node", "deno", "bun"] {
+		let ran = |case: Option<&str>| -> Ran {
+			let mut cmd = Command::new(runtime);
+			if runtime == "deno" {
+				cmd.args(["run", "--allow-read", "--allow-env", "--allow-ffi"])
+					.env("DENO_DIR", scratch().join("deno"))
+					.env("DENO_NO_UPDATE_CHECK", "1")
+					.env("NO_COLOR", "1");
+			}
+			output(cmd.arg("node.ts").args(case).current_dir(dir)).into()
+		};
+		let transcript = ran(None);
+		assert!(transcript.ok, "{runtime}'s transcript failed:\n{}", transcript.stderr);
+		assert_eq!(
+			transcript.stdout,
+			api().transcript,
+			"{runtime}'s transcript differs from native Rust's"
+		);
+		for case in NODE_CASES {
+			let run = ran(Some(case));
+			assert!(run.ok, "{runtime}'s {case} failed:\n{}{}", run.stdout, run.stderr);
+		}
+		for (case, message) in WEB_BROKEN {
+			let run = ran(Some(case));
+			assert!(!run.ok, "{runtime}'s {case} did not fail");
+			assert!(
+				run.stderr.contains(message),
+				"{runtime}'s {case} printed {}",
+				run.stderr
+			);
+		}
+	}
+}
+
 /// `api_web`'s checks in headless Chromium, Firefox, and WebKit, which only the bench shell
 /// carries, WebKit on Linux alone, where nixpkgs builds it: `tests/browser.ts` bundles the
 /// script and runs each case in a frame of its own.
@@ -3161,7 +3312,7 @@ fn api_react_native_host() {
 		&dir.join("transcript.ts"),
 		transcript::typescript::emit(transcript(), transcript::typescript::Binding::ReactNative),
 	);
-	step::write(&dir.join("api.ts"), react_native_check());
+	step::write(&dir.join("api.ts"), binding_check("react-native"));
 	step::copy(
 		&manifest_dir().join("tests").join("react-native.ts"),
 		&dir.join("entry.ts"),
@@ -3224,13 +3375,17 @@ fn api_react_native_host() {
 		.arg(format!("-Wl,-rpath,{}", build.join("lib").display()));
 	run(&mut cmd);
 	// Each run is bounded here, as one stuck in JavaScript never reaches the host's own check
-	// that nothing is left to run.
+	// that nothing is left to run. The allocator poisons what is freed, glibc's or macOS's,
+	// so a read after a free crashes rather than find the bytes still there: glibc's with
+	// no thread cache, whose frees it leaves unpoisoned.
 	let hermes = |args: &[&str], what: &str| -> Ran {
 		let out = output(
 			Command::new("timeout")
 				.args(["--kill-after=10", "300"])
 				.arg(&host)
 				.args(args)
+				.env("GLIBC_TUNABLES", "glibc.malloc.tcache_count=0:glibc.malloc.perturb=165")
+				.env("MallocScribble", "1")
 				.current_dir(&dir),
 		);
 		let ran = Ran::from(out.clone());
@@ -3587,7 +3742,7 @@ fn react_native_app(dir: &Path, package: &Path) -> PathBuf {
 			transcript::typescript::Binding::ReactNative,
 		)),
 	);
-	step::write(&check.join("api.ts"), imported(&react_native_check()));
+	step::write(&check.join("api.ts"), imported(&binding_check("react-native")));
 	step::write(
 		&check.join("entry.ts"),
 		imported(&std::fs::read_to_string(manifest_dir().join("tests").join("react-native.ts")).unwrap()),
@@ -3664,7 +3819,7 @@ fn package_imports(ts: &str, package: &str) -> String {
 
 /// The cases React Native runs after its transcript: `tests/react-native.ts`'s own, and
 /// `tests/api.ts`'s but `grown`'s memory and a load's, which are WebAssembly's.
-const REACT_NATIVE_CASES: [&str; 19] = [
+const REACT_NATIVE_CASES: [&str; 21] = [
 	"word",
 	"interleaved",
 	"foreign",
@@ -3675,9 +3830,11 @@ const REACT_NATIVE_CASES: [&str; 19] = [
 	"replaced",
 	"cancelled",
 	"woken",
+	"redisposed",
 	"collected",
 	"reinstalled",
 	"forged",
+	"kept",
 	"futures",
 	"owned",
 	"closed",
@@ -3686,14 +3843,16 @@ const REACT_NATIVE_CASES: [&str; 19] = [
 	"checks",
 ];
 
-/// `tests/api.ts` importing the React Native binding, its cases exported for
-/// `tests/react-native.ts`, which loads the binding as its `main` does the web's.
-fn react_native_check() -> String {
+/// `tests/api.ts` importing the binding in `dir` beside it instead of the web's, without the
+/// web's glue or its `main`, its cases exported for a script loading the binding as its
+/// `main` does the web's, such as `tests/react-native.ts`.
+fn binding_check(dir: &str) -> String {
+	// A Windows checkout's line endings, which the rewrites below match as LF.
 	let check = std::fs::read_to_string(manifest_dir().join("tests").join("api.ts")).unwrap();
-	let check = check.replace("\"./web/", "\"./react-native/");
-	let glue = "import * as g from \"./react-native/glue.ts\";\n";
-	assert_eq!(check.matches(glue).count(), 1, "api.ts imports the web's glue once");
-	let check = check.replace(glue, "");
+	let check = check.replace("\r\n", "\n").replace("\"./web/", &format!("\"./{dir}/"));
+	let glue = format!("import * as g from \"./{dir}/glue.ts\";\n");
+	assert_eq!(check.matches(&glue).count(), 1, "api.ts imports the web's glue once");
+	let check = check.replace(&glue, "");
 	let main = "\nasync function main(): Promise<void> {";
 	let at = check.find(main).expect("api.ts has its main");
 	check[..=at].to_string()
@@ -4494,17 +4653,31 @@ fn api_go() {
 		&manifest_dir().join("tests").join("targets.go"),
 		&module.join("targets").join("main.go"),
 	);
-	let export = module.join("export");
-	for (name, root) in [("vet-export", &export), ("vet", &module)] {
+	let vet = |name: &str, root: &Path| {
 		let step = Step {
 			stamp: &dir.join(format!("{name}.stamp")),
 			reads: &[&module],
 			writes: &[],
 		};
 		step.run(&mut go(root, &["vet", "./..."]));
-	}
+	};
+	// The export's vet and the contract's build share no work with the module's vet and
+	// build, which reuses what that vet compiled, so the three run beside each other.
+	step::parallel(vec![
+		Box::new(|| vet("vet-export", &module.join("export"))),
+		Box::new(|| {
+			vet("vet", &module);
+			go_script(api, &dir, &module);
+		}),
+		Box::new(|| go_contract(api, &dir)),
+	]);
+}
+
+/// `tests/api.go` and `tests/targets.go` built in `module` and run: the transcript matches the
+/// native one, and each broken contract and missing target panics with its message.
+fn go_script(api: &Api, dir: &Path, module: &Path) {
 	let exe = dir.join(format!("api-test{EXE_SUFFIX}"));
-	go_build(api, &module, &exe);
+	go_build(api, module, &exe);
 	let output = run(&mut Command::new(&exe));
 	assert_eq!(
 		String::from_utf8_lossy(&output.stdout),
@@ -4535,10 +4708,10 @@ fn api_go() {
 	let targets = dir.join(format!("targets-test{EXE_SUFFIX}"));
 	let step = Step {
 		stamp: &step::stamp(&targets),
-		reads: &[&module, &api.staticlib()],
+		reads: &[module, &api.staticlib()],
 		writes: &[&targets],
 	};
-	step.run(go(&module, &["build", "-o"]).arg(&targets).arg("./targets"));
+	step.run(go(module, &["build", "-o"]).arg(&targets).arg("./targets"));
 	run(&mut Command::new(&targets));
 	for (case, message) in [
 		("target", "api_wasm_only: it is not on this library's target"),
@@ -4550,9 +4723,11 @@ fn api_go() {
 		let stderr = String::from_utf8_lossy(&output.stderr);
 		assert!(stderr.contains(message), "Go {case} printed {stderr}");
 	}
+}
 
-	// The same packages, with another contract than the library's in place of their own,
-	// refuse it when they load: in a module of their own, which leaves the test's as it was.
+/// The same packages, with another contract than the library's in place of their own,
+/// refuse it when they load: in a module of their own, which leaves the test's as it was.
+fn go_contract(api: &Api, dir: &Path) {
 	let contract = dir.join("contract");
 	go_layout(
 		api,

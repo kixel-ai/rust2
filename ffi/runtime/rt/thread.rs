@@ -400,7 +400,7 @@ impl Thread {
 	/// Wait until `done`, running each call queued meanwhile if this thread is a home, as one
 	/// a call it waits on makes may be: false at once if it is none, to wait as it would.
 	/// Whatever makes `done` true then unparks this thread.
-	#[cfg(feature = "dart")]
+	#[cfg(any(feature = "dart", feature = "node"))]
 	pub fn serve_until(done: impl Fn() -> bool) -> bool {
 		let Some(home) = Self::serving() else {
 			return false;

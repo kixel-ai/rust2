@@ -1,7 +1,7 @@
 // bench/export.c's cases through the generated C#, so the two differ by what P/Invoke and
 // the C# wrapper add. Each round runs twice, the first to warm the JIT. Each case prints
 // its wall time and the process's CPU time, the JIT's and GC's threads included, or under
-// CodSpeed, runs once for its CPU simulation to count. Its argument is
+// Valgrind, runs once for rust2-bench to count. Its argument is
 // moq/bench/codspeed.h's shared library.
 
 #nullable enable
@@ -50,7 +50,7 @@ static unsafe class Clock
 		return new Span(Wall.ElapsedTicks * 1e9 / Stopwatch.Frequency, ts.Sec * 1e9 + ts.Nsec);
 	}
 
-	/// Opens moq/bench/codspeed.h's library, returning whether CodSpeed runs this.
+	/// Opens moq/bench/codspeed.h's library, returning whether Valgrind counts this.
 	public static bool Open(string path, string bench)
 	{
 		var lib = NativeLibrary.Load(path);
@@ -78,7 +78,7 @@ static unsafe class Clock
 
 static class Bench
 {
-	/// A tenth under CodSpeed, whose simulation counts every call exactly.
+	/// A tenth under Valgrind, which counts every call exactly.
 	static int Groups = 10000;
 	const int Frames = 100;
 	static int N => Groups * Frames;
@@ -102,7 +102,7 @@ static class Bench
 		return new Span((end.Wall - start.Wall) / calls, (end.Cpu - start.Cpu) / calls);
 	}
 
-	/// A case's start: now, and CodSpeed counting from here.
+	/// A case's start: now, and Valgrind counting from here.
 	static Span Begin()
 	{
 		var start = Clock.Now();
@@ -270,8 +270,8 @@ static class Bench
 			out_["getter"] = End(start, "getter");
 
 			// The handle call and the getter from `Threads` threads: on one shared handle,
-			// then on a clone each, a handle of its own to the same value. CodSpeed's
-			// simulation runs one thread at a time, which contends for nothing, so it skips them.
+			// then on a clone each, a handle of its own to the same value. Valgrind
+			// runs one thread at a time, which contends for nothing, so it skips them.
 			if (!measured)
 			{
 				var tracks = new TrackProducer[Threads];
@@ -470,7 +470,7 @@ static class Bench
 	static async Task Main(string[] args)
 	{
 		var measured = Clock.Open(args[0], "ffi/moq/bench/export.cs::csharp");
-		// Under CodSpeed, one round, which prints nothing: its simulation counts each case.
+		// Under Valgrind, one round, which prints nothing: rust2-bench counts each case.
 		if (measured)
 		{
 			Groups /= 10;

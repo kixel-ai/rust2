@@ -2199,6 +2199,7 @@ export declare function p_Retired_next(f: number, w$: number): [boolean, number 
 export declare function p_Tally_bump_later(f: number, w$: number): [boolean, number];
 export declare function p_Waiter_poll_future(f: number, w$: number): [boolean, void];
 export declare function p_after(f: number, w$: number): [boolean, number];
+export declare function p_after_counter(f: number, w$: number): [boolean, rt.u64];
 export declare function p_byte_len(f: number, w$: number): [boolean, number];
 export declare function p_corner_later(f: number, w$: number): [boolean, [number, number]];
 export declare function p_counted(f: number, w$: number): [boolean, rt.Result<number, Error_>];
@@ -2738,6 +2739,7 @@ import type { WrapU32 } from "./WrapU32.ts";
 export declare function load(source?: rt.Source): Promise<void>;
 export declare const LIMIT: rt.u64;
 export declare const FAR: rt.i64;
+export declare const WASM_PAGE: number;
 export declare const EOF: number;
 export declare const URL$: rt.u64;
 export declare const STEP: rt.u64;
@@ -2747,6 +2749,7 @@ export declare function reading(n: number): Reading | undefined;
 export declare function readingDebug(n: number): string;
 export declare function readingEcho(reading: Reading | undefined): Reading | undefined;
 export declare function readingBump(reading: rt.Place<Reading | undefined>): void;
+export declare function afterCounter(counter: Counter, first: Promise<unknown>): rt.Call<rt.u64>;
 export declare function advance(stage: Stage): Stage;
 export declare function only(counter: Counter): [Counter];
 export declare function widths(n: rt.u64): [number, number, number, rt.u64];
@@ -3239,6 +3242,7 @@ type Exports = Record<string, any>;
 export declare let w: Exports;
 export declare function dv(): DataView;
 export declare function mem(): Uint8Array<ArrayBuffer>;
+export type Addr = number;
 export declare const s: {
     d: number;
 };
@@ -3247,14 +3251,14 @@ export declare function enter(): number;
 export declare function leave(mark: number): void;
 export declare function alloc(size: number, align: number): number;
 export declare function status(p: number, what: string): void;
+export interface Handle<T extends string = string> {
+    readonly [brand]: T;
+}
 export type Kind = {
     readonly name: string;
     readonly free: string;
     readonly drop?: string;
 };
-export interface Handle<T extends string = string> {
-    readonly [brand]: T;
-}
 export declare class Handle<T extends string = string> {
     readonly p: number;
     readonly k: Kind;
@@ -3345,22 +3349,33 @@ export declare function socketV6Put(p: number, v: SocketAddrV6): void;
 export declare function socketGet(p: number): SocketAddr;
 export declare function socketPut(p: number, v: SocketAddr): void;
 export declare function give(value: unknown, drop?: () => void): number;
-export declare function callbackPut(p: number, vtable: number, value: {
+export declare function callbackPut(p: number, vtable: Addr, value: {
     close?(): void;
 }): void;
 export declare function lend(value: unknown): number;
 export declare function find<T>(t: number): T;
 export declare const fn: {
-    wake: number;
-    wakerDrop: number;
-    free: number;
-    poll: number;
-    read: number;
-    seek: number;
+    wake: Addr;
+    wakerDrop: Addr;
+    free: Addr;
+    poll: Addr;
+    read: Addr;
+    seek: Addr;
 };
 export declare function out<T>(what: string, f: () => T): T;
 export declare function wakerOf(dst: number, wake: () => void): void;
 export declare function wakerGet(p: number): Waker;
+type Foreign = {
+    given: boolean;
+    done: boolean;
+    failed: unknown;
+    wake: Addr;
+    drop: Addr;
+    data: Addr;
+    call?: Call<unknown>;
+};
+export declare function futurePrepare(promise: Promise<unknown>): Foreign;
+export declare function futurePut(dst: number, f: Foreign): void;
 export declare function futureOf(dst: number, promise: Promise<unknown>): void;
 export declare function readerOf(dst: number, reader: Reader): void;
 export declare function pending<T>(f: number, poll: (f: number, waker: number) => [boolean, T], free: string): Call<T>;

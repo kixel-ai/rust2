@@ -48,10 +48,15 @@ namespace api {
 	};
 	inline constexpr ::std::uint64_t LIMIT = API_LIMIT;
 	inline constexpr ::std::int64_t FAR = API_FAR;
+	#if UINTPTR_MAX == 0xFFFFFFFFu
+	inline constexpr ::std::uint32_t WASM_PAGE = API_WASM_PAGE;
+	#endif
 	inline constexpr ::std::int32_t EOF_ = API_EOF;
 	inline constexpr ::std::uint64_t URL = API_URL;
 	[[deprecated("pass a step to `Dial::turn`, whose `}` or `{` alone stays in the note")]] inline constexpr ::std::uint64_t STEP = API_STEP;
+	#if UINTPTR_MAX == 0xFFFFFFFFFFFFFFFFu
 	inline constexpr ::std::size_t WORD = API_WORD;
+	#endif
 	class RUST2_FFI_CONSUMABLE Board {
 		RUST2_FFI_UNCONSUMED Board(Board &&other RUST2_FFI_MOVED_FROM) noexcept = default;
 		Board &operator=(Board &&other) noexcept = default;
@@ -1778,6 +1783,7 @@ namespace api {
 	inline ::api::buf reading_debug(::std::uint32_t n);
 	inline ::std::optional<::api::Reading> reading_echo(const ::std::optional<::api::Reading> &reading);
 	inline void reading_bump(::std::optional<::api::Reading> &reading);
+	template <class F0> inline ::api::after_counter_future after_counter(const ::api::Counter &counter, F0 first);
 	inline ::api::Stage advance(const ::api::Stage &stage);
 	inline ::std::tuple<::api::Counter> only(::api::Counter counter);
 	inline ::std::tuple<::std::uint8_t, ::std::int16_t, ::std::uint32_t, ::std::uint64_t> widths(::std::uint64_t n);
@@ -2669,6 +2675,7 @@ namespace api {
 	using Tally_bump_later_future = ::api::future<detail::Tally_bump_later_future_op>;
 	using Gauge_later_future = ::api::future<detail::Gauge_later_future_op>;
 	using Gauge_reaches_future = ::api::future<detail::Gauge_reaches_future_op>;
+	using after_counter_future = ::api::future<detail::after_counter_future_op>;
 	using corner_later_future = ::api::future<detail::corner_later_future_op>;
 	using fill_4_future = ::api::future<detail::fill_4_future_op>;
 	using fill_2_future = ::api::future<detail::fill_2_future_op>;

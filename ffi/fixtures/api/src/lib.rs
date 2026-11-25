@@ -18,9 +18,15 @@ pub const LIMIT: u64 = 1000;
 /// The largest `i64`, past what a binding's float holds exactly.
 pub const FAR: i64 = i64::MAX;
 
-/// The largest `usize` of a 64-bit target, past what a binding's float holds exactly.
+/// The largest `usize` of a 64-bit target, past what a binding's float holds exactly: no
+/// binding for a 32-bit target compiles it or reads it.
 #[cfg(target_pointer_width = "64")]
 pub const WORD: usize = usize::MAX;
+
+/// The bytes of a WebAssembly page: a constant only wasm32 has, which a binding compiled
+/// for another target lacks and one serving several refuses to read on another.
+#[cfg(target_arch = "wasm32")]
+pub const WASM_PAGE: u32 = 65536;
 
 /// A point: a record, since every field is `pub`. Its docs reach the header, where a
 /// comment such as `/* this */` must not close the header's own.
@@ -270,6 +276,12 @@ impl Clash {
 		*out = n * 2;
 		format!("{text} {self:?} {n} {shape:?}")
 	}
+}
+
+/// The counter's value once `first` finishes.
+pub async fn after_counter(counter: &Counter, first: impl Future<Output = ()> + Send) -> u64 {
+	first.await;
+	counter.get()
 }
 
 /// A record whose field is named as the Kotlin package, which a qualifier in its methods'

@@ -9,12 +9,13 @@ nothing and fails with the diff where <dir> differs.
 
 Each comes from the language's own tool where one reads source: Python's `ast` for the
 stub a type checker reads, `go doc -all` for Go, and `tsc` for the declarations of the web
-binding and React Native's. C, C++, Kotlin, Swift, Dart, and C# have none that runs without a
-build, so an outline of the generated source keeps each public declaration up to its body.
+binding, React Native's, and Node's. C, C++, Kotlin, Swift, Dart, and C# have none that runs
+without a build, so an outline of the generated source keeps each public declaration up to its body.
 """
 
 import ast
 import difflib
+import multiprocessing
 import os
 import re
 import subprocess
@@ -918,7 +919,7 @@ def undocumented(text):
     return "\n".join(out).strip("\n") + "\n\n"
 
 
-# The web binding and React Native's: tsc's declarations of their modules.
+# The web binding, React Native's, and Node's: tsc's declarations of their modules.
 
 # What React Native's runtime imports of `react-native`, off a React Native app.
 REACT_NATIVE = """declare module "react-native" {
@@ -978,6 +979,8 @@ def files(export):
         surfaces["web.d.ts"] = lambda: web_declarations(export / "web")
     if (export / "react-native").is_dir():
         surfaces["react-native.d.ts"] = lambda: web_declarations(export / "react-native")
+    if (export / "node").is_dir():
+        surfaces["node.d.ts"] = lambda: web_declarations(export / "node")
     return surfaces
 
 
@@ -990,6 +993,30 @@ def joined(sources, outline, label):
             raise SystemExit(f"{source}: {err}") from None
         parts.append(label.format(source.name) + "\n" + text)
     return "\n".join(parts)
+
+
+# The renders of the running `rendered`, which a forked worker inherits rather than pickles.
+RENDERS = {}
+
+
+def render(name):
+    """`name`'s surface, or the error that stopped it."""
+    try:
+        return RENDERS[name](), None
+    except SystemExit as err:
+        return None, err.code
+
+
+def rendered(renders):
+    """Each surface of `renders`, rendered at once, since each is a few CPU-bound seconds."""
+    RENDERS.update(renders)
+    width = min(len(renders), os.cpu_count() or 1)
+    with multiprocessing.get_context("fork").Pool(width) as pool:
+        results = dict(zip(renders, pool.map(render, renders)))
+    for name, (_, err) in sorted(results.items()):
+        if err is not None:
+            raise SystemExit(err)
+    return {name: text for name, (text, _) in results.items()}
 
 
 def main():
@@ -1006,7 +1033,7 @@ def main():
     if not surfaces:
         raise SystemExit(f"{export} holds no binding")
     # Only the files asked for render, so another's malformed source fails no check of these.
-    surfaces = {name: render() for name, render in surfaces.items()}
+    surfaces = rendered(surfaces)
     existing = {p.name for p in out.iterdir()} if out.is_dir() else set()
     # Files named leave the others alone, which another export may render.
     stale = [] if only else sorted(existing - set(surfaces))

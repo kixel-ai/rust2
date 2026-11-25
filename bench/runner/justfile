@@ -1,0 +1,31 @@
+#!/usr/bin/env just --justfile
+#
+# The benchmark runner and the harness benchmarks are written with, invoked from the repo root
+# as `just runner <recipe>`. Their crates are their own workspace on the repo's stable toolchain.
+
+set shell := ["bash", "-euo", "pipefail", "-c"]
+
+default:
+    @just --list
+
+# Lint and format-check the runner and the harness.
+check:
+    cargo clippy --locked --workspace --all-targets -- -D warnings
+    cargo fmt --all --check
+    cargo shear
+    cargo sort --workspace --check --no-format
+
+# Run their tests, which count under the dev shell's Valgrind, and the harness's fixture once natively.
+test *args:
+    cargo test --locked --workspace --all-targets {{ args }}
+
+# Apply formatters without changing program behavior.
+fix:
+    cargo clippy --locked --fix --allow-staged --allow-dirty --workspace --all-targets
+    cargo fmt --all
+    cargo shear --fix
+    cargo sort --workspace --no-format
+
+# Run the runner: `just runner run run --out metrics.json`.
+run *args:
+    cargo run --locked --quiet --release -- {{ args }}

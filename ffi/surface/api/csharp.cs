@@ -2317,6 +2317,7 @@ namespace Api {
 	public static unsafe partial class Lib {
 		public const ulong LIMIT = 1000U;
 		public const long FAR = 9223372036854775807;
+		public static uint WASM_PAGE { get; }
 		public const int EOF = -1;
 		public const ulong URL = 1000U;
 		public const ulong STEP = 1U;
@@ -2327,6 +2328,7 @@ namespace Api {
 		public static Str ReadingDebug(uint n);
 		public static Reading? ReadingEcho(Reading? reading);
 		public static void ReadingBump(ref Reading? reading);
+		public static ValueTask<ulong> AfterCounter(Counter counter, Func<CancellationToken, Task> first, CancellationToken cancellationToken = default);
 		public static Stage Advance(Stage stage);
 		public static ValueTuple<Counter> Only(Counter counter);
 		public static (byte, short, uint, ulong) Widths(ulong n);
