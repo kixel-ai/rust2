@@ -74,7 +74,8 @@ compile, saying why.
 A benchmark is named by its file, relative to the workspace root, then its module path within
 the crate, its function, and its argument, such as `rs/net/benches/varint.rs::encode[300]`
 or `ffi/moq/bench/export.rs::rust::call`, as CodSpeed's crates name theirs by file, group, and
-function. Two of one name fail the run. Cargo names a member's file relative to the
+function. Two of one name fail the run, as does a name holding a control character, such as
+an argument that shows a line break: rust2-bench reads names a line each. Cargo names a member's file relative to the
 workspace root; a file it names by an absolute path, as for a target whose path lies outside
 its package, fails to compile, since a name holding a host's path would never match another
 host's: remap it with `--remap-path-prefix`, as [`just ffi bench-build`](../../../ffi/justfile)

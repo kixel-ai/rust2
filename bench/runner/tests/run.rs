@@ -181,7 +181,8 @@ fn counts_each_harness_benchmark_alone_without_its_setup() {
 			"inner::nested[a]",
 			"inner::nested[bc]",
 			"sized[1000]",
-			"sized[2000]"
+			"sized[2000]",
+			"sized[4000]"
 		]
 	);
 	let count = |name: &str| {
@@ -198,10 +199,11 @@ fn counts_each_harness_benchmark_alone_without_its_setup() {
 			count(name)
 		);
 	};
-	// Every one spins a thousand times but sized[2000]; a setup's million spins and its
+	// Every one spins a thousand times but the larger sized ones; a setup's million spins and its
 	// input's free would count a thousand times as much, were they counted.
 	near("sized[1000]", alone);
 	near("sized[2000]", 2 * alone);
+	near("sized[4000]", 4 * alone);
 	near("borrowed", alone);
 	near("inner::nested[a]", alone);
 	near("inner::nested[bc]", alone);

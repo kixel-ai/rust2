@@ -140,9 +140,12 @@ fn expand(attr: TokenStream, item: TokenStream) -> syn::Result<TokenStream> {
 		FnArg::Typed(typed) => &typed.ty,
 		FnArg::Receiver(_) => unreachable!("a receiver was refused"),
 	});
-	let names = match &options.args {
-		Some(args) => quote!(::core::option::Option::Some(|| #h::names(#args))),
-		None => quote!(::core::option::Option::None),
+	// Named through the function that takes the argument, so a literal gets its type there,
+	// as it does when the case runs, such as `u64` for `[4_294_967_296]`.
+	let names = match (&options.args, &options.setup) {
+		(Some(args), Some(setup)) => quote!(::core::option::Option::Some(|| #h::names(#args, #setup))),
+		(Some(args), None) => quote!(::core::option::Option::Some(|| #h::names(#args, #ident))),
+		(None, _) => quote!(::core::option::Option::None),
 	};
 	let span = ident.span();
 	let registration = quote::quote_spanned! {span=>
@@ -238,7 +241,9 @@ mod tests {
 		);
 		let none = expands("", "extern \"C\" fn f() {}");
 		assert!(none.contains("(f as extern \"C\" fn () -> _) ()"), "{none}");
+		assert!(arg.contains("names ([\"a\"] , f)"), "{arg}");
 		let both = expands("args = SIZES, setup = s", "fn f(x: &X) {}");
+		assert!(both.contains("names (SIZES , s)"), "{both}");
 		assert!(
 			both.contains("s (:: rust2_bench_harness :: __private :: arg (SIZES , case))"),
 			"{both}"

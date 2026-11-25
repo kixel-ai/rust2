@@ -19,7 +19,8 @@ fn alone() -> u64 {
 	spin(1000)
 }
 
-#[bench(args = [1000, 2000])]
+/// Its literals are `u64`s, as `sized` takes them, which the first would overflow as an `i32`.
+#[bench(args = [1000, 2000, 4_294_967_296_000 >> 30])]
 fn sized(n: u64) -> u64 {
 	spin(n)
 }

@@ -79,6 +79,12 @@ fn cases<'a>(
 			}
 		};
 		for (case, name) in names.into_iter().enumerate() {
+			// rust2-bench reads names a line each, and Kixel Quest takes none holding one.
+			if name.chars().any(char::is_control) {
+				return Err(format!(
+					"{name:?} holds a control character, which no benchmark's name may"
+				));
+			}
 			if cases.insert(name.clone(), (bench, case)).is_some() {
 				return Err(format!("two benchmarks are named {name}"));
 			}
@@ -170,8 +176,9 @@ pub mod __private {
 			.expect("args yields what it yielded when the cases were listed")
 	}
 
-	/// Each argument among `args`, shown.
-	pub fn names<I: IntoIterator<Item: Display>>(args: I) -> Vec<String> {
+	/// Each argument among `args`, shown. `_takes` is the function the argument goes to, never
+	/// called: it gives each argument the type it has when its case runs.
+	pub fn names<A: Display, R>(args: impl IntoIterator<Item = A>, _takes: impl FnOnce(A) -> R) -> Vec<String> {
 		args.into_iter().map(|arg| arg.to_string()).collect()
 	}
 }
@@ -260,6 +267,8 @@ mod tests {
 			cases(&twice).err().unwrap(),
 			"two benchmarks are named benches/a.rs::f[1]"
 		);
+		let lines = [bench("a", "f", Some(|| vec!["a\nb".to_owned()]))];
+		assert!(cases(&lines).err().unwrap().contains("control character"));
 		let empty = [bench("a", "f", Some(Vec::new))];
 		assert_eq!(cases(&empty).err().unwrap(), "benches/a.rs::f has no args");
 		assert_eq!(cases(&[]).err().unwrap(), "no function is marked #[bench]");
