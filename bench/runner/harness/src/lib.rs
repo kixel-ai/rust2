@@ -82,6 +82,10 @@ fn run() -> Result<(), String> {
 		Err(std::env::VarError::NotPresent) => None,
 		Err(std::env::VarError::NotUnicode(_)) => return Err(format!("{PERF} is not UTF-8")),
 	};
+	#[cfg(target_os = "linux")]
+	if perf.is_some() {
+		perf::preloaded()?;
+	}
 	for (name, case) in cases {
 		let meter = __private::Meter::new(&name, perf)?;
 		(case.run)(&meter);

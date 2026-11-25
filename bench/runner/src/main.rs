@@ -41,7 +41,8 @@ options:
   --perf               count rust2-bench-harness's benchmarks natively with Linux perf
                        counters, not under Valgrind: faster, comparable only on this host,
                        and never written out
-  --jobs <n>           how many Valgrind processes run at once (default: every core)
+  --jobs <n>           how many jobs run at once (default: every core, or with --perf,
+                       every core of the PMU it counts on)
   --build <command>    a shell command that builds the programs, run first (with --program)
   --program <command>  a shell command that runs a program whose benchmarks run through
                        rust2-bench-harness or CodSpeed's instrument hooks; repeat for each";

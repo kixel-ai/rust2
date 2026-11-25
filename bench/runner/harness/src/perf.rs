@@ -87,29 +87,62 @@ impl Counter {
 		// SAFETY: it takes nothing and always succeeds.
 		let own = unsafe { gettid() };
 		let mut others = Vec::new();
-		let tasks = std::fs::read_dir("/proc/self/task").map_err(|e| format!("cannot list /proc/self/task: {e}"))?;
-		for task in tasks {
-			let task = task.map_err(|e| format!("cannot list /proc/self/task: {e}"))?;
-			let tid: i32 = task
-				.file_name()
-				.to_str()
-				.and_then(|name| name.parse().ok())
-				.ok_or("/proc/self/task lists a thread by no number")?;
-			if tid != own {
-				match instructions(self.kind, tid, true) {
-					Ok(fd) => others.push(fd),
-					// It exited since the listing, so it runs nothing in the count.
-					Err(err) if err.raw_os_error() == Some(ESRCH) => {}
-					Err(err) => return Err(refused(&err)),
-				}
+		let before = threads()?;
+		for &tid in before.iter().filter(|&&tid| tid != own) {
+			match instructions(self.kind, tid, true) {
+				Ok(fd) => others.push(fd),
+				// It exited since the listing, so it runs nothing in the count.
+				Err(err) if err.raw_os_error() == Some(ESRCH) => {}
+				Err(err) => return Err(refused(&err)),
 			}
 		}
-		Ok(Counters {
+		let counters = Counters {
 			own: instructions(self.kind, 0, true).map_err(|err| refused(&err))?,
 			alone: instructions(self.kind, 0, false).map_err(|err| refused(&err))?,
 			others,
-		})
+		};
+		// A thread started meanwhile has no counter, or its spawner's as well as its own.
+		if let Some(tid) = threads()?.difference(&before).next() {
+			return Err(format!(
+				"thread {tid} started while the case's perf counters opened, so it would count twice or not at all: \
+				 let setup's threads settle before it returns"
+			));
+		}
+		Ok(counters)
 	}
+}
+
+/// The process's threads.
+fn threads() -> Result<std::collections::BTreeSet<i32>, String> {
+	let tasks = std::fs::read_dir("/proc/self/task").map_err(|e| format!("cannot list /proc/self/task: {e}"))?;
+	tasks
+		.map(|task| {
+			task.map_err(|e| format!("cannot list /proc/self/task: {e}"))?
+				.file_name()
+				.to_str()
+				.and_then(|name| name.parse().ok())
+				.ok_or_else(|| "/proc/self/task lists a thread by no number".to_owned())
+		})
+		.collect()
+}
+
+/// Fails unless the process loaded every library `LD_PRELOAD` names, which a static executable
+/// never does, so a count never follows the host's randomness and clock unannounced.
+pub fn preloaded() -> Result<(), String> {
+	let Some(preloads) = std::env::var_os("LD_PRELOAD") else {
+		return Ok(());
+	};
+	let maps = std::fs::read_to_string("/proc/self/maps").map_err(|e| format!("cannot read /proc/self/maps: {e}"))?;
+	let preloads = preloads.to_string_lossy().into_owned();
+	for library in preloads.split([':', ' ']).filter(|library| !library.is_empty()) {
+		if !maps.lines().any(|line| line.ends_with(library)) {
+			return Err(format!(
+				"LD_PRELOAD names {library}, which this process never loaded: a static executable, or a glibc \
+				 before 2.34, ignores it"
+			));
+		}
+	}
+	Ok(())
 }
 
 impl Counters {

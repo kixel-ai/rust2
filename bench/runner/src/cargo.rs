@@ -83,7 +83,9 @@ impl Launch {
 		command
 			.current_dir(&self.dir)
 			.envs(&self.env)
-			.env("CODSPEED_CARGO_WORKSPACE_ROOT", root);
+			.env("CODSPEED_CARGO_WORKSPACE_ROOT", root)
+			// Only a perf count sets it, on a job pinned to its PMU's cores.
+			.env_remove(crate::perf::PERF);
 		command
 	}
 }

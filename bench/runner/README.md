@@ -159,7 +159,8 @@ GitHub's hosted runners: rust2-bench opens a counter before it builds anything, 
 setting. The counts never leave the host, so `--out` refuses them: a binary that picks a path by
 CPU feature counts differently on another CPU, and CI's series stay on Valgrind's.
 
-Each job runs as a count does, with the preload and a padded launch, but natively, without
+Each job runs as a count does, with the preload, which the harness fails a process for not
+having loaded, and a padded launch, but natively, without
 address randomization, which the copy loop glibc picks by alignment would follow, and pinned
 to the CPUs of one core PMU. On a host whose cores are of two kinds, such as Intel's P- and
 E-cores, each kind has its own PMU, which counts only on its own cores and whose cores report
@@ -169,7 +170,8 @@ the most cores, and `--jobs` defaults to how many there are.
 The harness opens a counter on each of the process's threads after the case's setup, each
 also counting every thread its thread spawns, starts them all at once, and stops them right
 after the call, so a count holds the call on every thread and a few dozen instructions of the
-counters' own. A counter that did not run the whole time it was enabled fails the run rather
+counters' own. A thread that starts while they open fails the run, since it would count twice
+or not at all. A counter that did not run the whole time it was enabled fails the run rather
 than be scaled up: another user of the host's counters multiplexed it, or a thread left the
 PMU's cores. A count that other threads ran beside, setup's or the benchmark's own, is noisy,
 since what they run while the call does depends on the scheduler: the table names each one.

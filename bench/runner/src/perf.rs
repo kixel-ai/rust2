@@ -5,7 +5,7 @@ use std::path::Path;
 
 /// The variable that has a harness target count each benchmark with perf counters of the PMU
 /// of the perf type it holds: rust2-bench-harness's `PERF`.
-const PERF: &str = "RUST2_BENCH_PERF";
+pub const PERF: &str = "RUST2_BENCH_PERF";
 
 /// What a harness target prints for each benchmark it counted so: its count, `alone` or
 /// `threads`, and its name.
