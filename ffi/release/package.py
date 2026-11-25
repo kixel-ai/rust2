@@ -197,11 +197,14 @@ ZIP_EPOCH = backend.ZIP_EPOCH
 # cargo hashes a path package outside the generated crate's workspace, the facade, by one path,
 # and dlltool names a Windows GNU library's import symbols after one target directory, from any checkout.
 LINK = Path("C:/rust2-ffi") if sys.platform == "win32" else Path("/tmp/rust2-ffi")
-# The target directory of a wheel target's builds made with the wheels' floor and flags:
-# both wheels', the Dart and JVM libraries', and off Apple the C library's. They reuse
-# dependencies with matching features and flags; cargo rebuilds those that differ and
-# relinks each generated crate after the previous build has taken its library.
-WHEELS_DIR = "target-python"
+# The target directory every build of a target shares unless one of its settings keeps it
+# apart: the wheels', the C, Dart, and JVM libraries', and the Go module's and React Native's
+# static libraries. Cargo reuses each dependency built with the same features, profile, and
+# flags, and relinks each generated crate after the previous build has taken its library.
+# The Swift and Android libraries' line tables change the profile, which shares nothing, and
+# an Apple build at a deployment target of its own builds apart, since cargo does not rebuild
+# for a changed one.
+SHARED_DIR = "target-python"
 # The target the web binding serves, whose module the npm and JSR packages hold.
 WEB_TARGET = "wasm32-wasip1"
 # JSR's cap on a version's files, unpacked.
@@ -1228,21 +1231,15 @@ def c_archive(info, manifest, export_dir, target, out):
     files = c_files(lib, target, version)
     soname = Path(files["shared"]).name
     linux, apple = "linux" in target, "apple" in target
-    link_args = []
-    if linux:
-        link_args = ["-C", f"link-arg=-Wl,-soname,{soname}"]
-    elif apple:
-        # The last -install_name rustc's linker sees wins over its own unversioned one.
-        link_args = ["-C", f"link-arg=-Wl,-install_name,@rpath/{soname}"]
-    env = {**reproducible(info, export_dir, target, soname), **({"MACOSX_DEPLOYMENT_TARGET": MACOS_WHEEL} if apple else {})}
+    link_args = ["-C", f"link-arg=-Wl,-soname,{soname}"] if linux else install_name(info, target, soname)
+    env = {**reproducible(info, export_dir, target), **({"MACOSX_DEPLOYMENT_TARGET": MACOS_WHEEL} if apple else {})}
     # The C library alone, as the Swift package's: the glue's language features add symbols
     # a C program cannot resolve. Its link arguments, after `--`, reach only the generated
-    # crate, but on Apple its install name is in the flags every crate builds with, so it
-    # builds apart from the wheels there.
+    # crate, so it shares the wheels' dependencies.
     # cargo-zigbuild's own `rustc`, as Cargo knows only its `zigbuild`, from the package's
     # directory for its toolchain.
     command = ["cargo-zigbuild", "rustc"] if linux else ["cargo", "rustc"]
-    target_dir = export_dir / ("target-c" if apple else WHEELS_DIR)
+    target_dir = export_dir / SHARED_DIR
     built = run(*command, "--color", "never", "--locked", "--release", "--manifest-path", export_dir / "Cargo.toml",
                 "--target", f"{target}.{GLIBC}" if linux else target, "--target-dir", target_dir,
                 "--lib", "--crate-type", "staticlib,cdylib", "--", "--print=native-static-libs", *link_args,
@@ -1668,12 +1665,12 @@ def rustflags_config(directory, target):
             yield key
 
 
-def reproducible(info, export_dir, target, install=None):
+def reproducible(info, export_dir, target):
     """The environment that makes a build's bytes the same on any host, at any path.
 
     Release time is the commit's, and each directory the build reads from, which rustc and
     C compilers write into panic messages and debug info, is spelled the same, through `LINK`
-    or not. A dylib is named `install`, else by its library's own name.
+    or not. An Apple dylib's name is `install_name`'s, which the generated crate takes alone.
     """
     named = {
         info["workspace"]: "/source",
@@ -1705,12 +1702,20 @@ def reproducible(info, export_dir, target, install=None):
         for var in ("CFLAGS", "CXXFLAGS"):
             env[var] = " ".join(filter(None, [os.environ.get(var), *(f"-ffile-prefix-map={old}={new}" for old, new in pairs)]))
     if "apple" in target:
-        # Apple's ar and libtool stamp archive members with the time unless told not to, and
-        # the linker names a dylib after the path it wrote it to, in the export's build directory.
+        # Apple's ar and libtool stamp archive members with the time unless told not to.
         env["ZERO_AR_DATE"] = "1"
-        flags += ["-C", f"link-arg=-Wl,-install_name,@rpath/{install or library_name(info['lib'], target)}"]
     env["CARGO_ENCODED_RUSTFLAGS"] = "\x1f".join(flags)
     return env
+
+
+def install_name(info, target, name=None):
+    """rustc's arguments naming an Apple dylib `name`, else its library's own name, where the
+    linker would name it after the path it wrote it to, in the export's build directory. For
+    the generated crate alone, after `cargo rustc`'s `--`: in the flags every crate builds
+    with, a name would keep the libraries named apart from sharing their dependencies."""
+    if "apple" not in target:
+        return []
+    return ["-C", f"link-arg=-Wl,-install_name,@rpath/{name or library_name(info['lib'], target)}"]
 
 
 def purl(package):
@@ -1962,8 +1967,12 @@ def linked(manifest, export, *features):
 def staticlib(manifest, crate, lib, target, env=None, config=()):
     """The C library alone, apart from the Python extension, whose CPython symbols it would
     leave undefined, and the system libraries rustc says it needs beside it."""
-    # Its own target directory, since cargo does not rebuild for a changed deployment target.
-    target_dir = crate.parent / ("target-swift" if target in APPLE_TARGETS else "target-go")
+    # An Apple slice's apart, at the Swift package's floor and with line tables, and Intel
+    # macOS's at rustc's own floor, since cargo does not rebuild for a changed deployment target.
+    # Windows GNU's builds nothing else to share, and dlltool names its import symbols after
+    # the directory, so it keeps its own.
+    target_dir = crate.parent / ("target-swift" if target in APPLE_TARGETS
+                                 else "target-go" if "apple" in target or "windows" in target else SHARED_DIR)
     # cargo-zigbuild links Linux against the glibc floor's symbols, whichever glibc the host has.
     linux = target.endswith("linux-gnu")
     # Uncolored, so the note below reads as written whatever the caller's terminal.
@@ -2056,11 +2065,13 @@ def build(args):
                 linux = "linux" in target
                 for abi, feature in backend.FEATURES.items():
                     # cargo-zigbuild links Linux against the glibc floor's symbols, whichever glibc the host has.
-                    built = cargo(args.manifest_path, *(["zigbuild"] if linux else ["build"]), "--locked", "--release",
-                                  "--manifest-path", crate, "--target", f"{target}.{GLIBC}" if linux else target,
-                                  "--target-dir", through / WHEELS_DIR, "--features", feature, env=env)
+                    built = run(*(["cargo-zigbuild"] if linux else ["cargo"]), "rustc", "--locked", "--release",
+                                "--manifest-path", crate, "--target", f"{target}.{GLIBC}" if linux else target,
+                                "--target-dir", through / SHARED_DIR, "--lib", "--features", feature, "--",
+                                *install_name(inside, target), cwd=Path(args.manifest_path).resolve().parent,
+                                env={**os.environ, **env}, capture_output=True, encoding="utf-8")
                     sys.stderr.write(built.stderr)
-                    library = through / WHEELS_DIR / target / "release" / library_name(lib, target)
+                    library = through / SHARED_DIR / target / "release" / library_name(lib, target)
                     with tempfile.TemporaryDirectory() as raw, tempfile.TemporaryDirectory() as fixed:
                         wheel = repair(write_wheel(inside, through, library, target, raw, abi), target, fixed,
                                        inside["epoch"])
@@ -2276,7 +2287,7 @@ def dart_library(info, manifest, export_dir, target, out):
     oldest system its hook lets an app target."""
     lib, floor = info["lib"], DART_TARGETS[target]
     name = library_name(lib, target)
-    env = reproducible(info, export_dir, target, name)
+    env = reproducible(info, export_dir, target)
     if target.endswith("apple-darwin"):
         env["MACOSX_DEPLOYMENT_TARGET"] = floor or MACOS_WHEEL
     elif "apple-ios" in target:
@@ -2286,12 +2297,13 @@ def dart_library(info, manifest, export_dir, target, out):
     # Linux's against the glibc floor, as the wheel's.
     glibc = target.endswith("linux-gnu")
     command = ["cargo-zigbuild", "rustc"] if glibc else ["cargo", "rustc"]
-    # A wheel target's at the wheels' floor is built with their flags.
-    target_dir = export_dir / (WHEELS_DIR if target in WHEEL_TARGETS and floor is None else "target-dart")
+    # Apart on Apple at a floor below the wheels', since cargo does not rebuild for a changed
+    # deployment target; Android's floor is the AAR's, as Go's and React Native's libraries build.
+    target_dir = export_dir / ("target-dart" if "apple" in target and floor is not None else SHARED_DIR)
     built = run(*command, "--color", "never", "--locked", "--release", "--manifest-path", export_dir / "Cargo.toml",
                 "--target", f"{target}.{GLIBC}" if glibc else target, "--target-dir", target_dir,
-                "--lib", "--crate-type", "cdylib", "--features", "dart", cwd=Path(manifest).resolve().parent,
-                env={**os.environ, **env}, capture_output=True, encoding="utf-8")
+                "--lib", "--crate-type", "cdylib", "--features", "dart", "--", *install_name(info, target),
+                cwd=Path(manifest).resolve().parent, env={**os.environ, **env}, capture_output=True, encoding="utf-8")
     sys.stderr.write(built.stderr)
     dest = out / "dart" / dart_file(info, target)
     dest.parent.mkdir(parents=True, exist_ok=True)
@@ -2940,18 +2952,19 @@ def android_library(info, manifest, export_dir, target, out):
 
 def jvm_library(info, manifest, export_dir, target, out):
     """`target`'s library for the desktop jar, the C ABI with its JNI glue, built as the wheel's
-    is: Linux's against the glibc floor, macOS's at the wheels' floor, in WHEELS_DIR."""
+    is: Linux's against the glibc floor, macOS's at the wheels' floor, in SHARED_DIR."""
     env = reproducible(info, export_dir, target)
     if "apple" in target:
         env["MACOSX_DEPLOYMENT_TARGET"] = MACOS_WHEEL
     linux = "linux" in target
-    built = cargo(manifest, *(["zigbuild"] if linux else ["build"]), "--locked", "--release",
-                  "--manifest-path", export_dir / "Cargo.toml", "--target", f"{target}.{GLIBC}" if linux else target,
-                  "--target-dir", export_dir / WHEELS_DIR, "--features", "kotlin", env=env)
+    built = run(*(["cargo-zigbuild"] if linux else ["cargo"]), "rustc", "--locked", "--release",
+                "--manifest-path", export_dir / "Cargo.toml", "--target", f"{target}.{GLIBC}" if linux else target,
+                "--target-dir", export_dir / SHARED_DIR, "--lib", "--features", "kotlin", "--", *install_name(info, target),
+                cwd=Path(manifest).resolve().parent, env={**os.environ, **env}, capture_output=True, encoding="utf-8")
     sys.stderr.write(built.stderr)
     dest = out / "jvm" / target
     dest.mkdir(parents=True)
-    shutil.copy(export_dir / WHEELS_DIR / target / "release" / library_name(info["lib"], target), dest)
+    shutil.copy(export_dir / SHARED_DIR / target / "release" / library_name(info["lib"], target), dest)
 
 
 def android_example(info, args, out):
