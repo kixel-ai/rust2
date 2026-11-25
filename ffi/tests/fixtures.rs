@@ -3200,7 +3200,10 @@ fn node_protocol_script() -> String {
 	let script = std::fs::read_to_string(manifest_dir().join("tests").join("protocol.ts")).unwrap();
 	let load = "await api.load(await WebAssembly.compile(fs.readFileSync(process.env[\"RUST2_WASM\"]!)));";
 	assert!(script.contains(load), "protocol.ts loads the module as this rewrites");
-	assert!(script.contains("from \"./web/"), "protocol.ts imports the binding as this rewrites");
+	assert!(
+		script.contains("from \"./web/"),
+		"protocol.ts imports the binding as this rewrites"
+	);
 	script
 		.replace("from \"./web/", "from \"./node/")
 		.replace(load, "await api.load(\"node/api.node\");")
