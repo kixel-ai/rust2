@@ -215,11 +215,14 @@ the builder unpacks over its checkout before reading the checks.
 
    The static library is hidden, as every static library the builder ships but Windows'
    is: `llvm-objcopy` renames every global symbol it defines but the C ABI's, the
-   functions the export's `exports.txt` lists for a build with no binding feature, which
-   the shared library must export exactly, to `<name>.<lib>.<digest>`, the digest
+   functions the export's `exports.txt` lists for a build with no binding feature, to
+   `<name>.<lib>.<digest>`, the digest
    of the archive's bytes, a suffix Rust's and C++'s demanglers skip, and on ELF each
    section group's signature with them, which a linker keeps one group of by name; on ELF
    the renamed symbols are hidden too, so a shared library linking it exports only the C ABI.
+   This package's static library also keeps what the facade itself exports, such as
+   moq-ffi's `moq_ffi_shutdown`, as its shared library, which must export every listed
+   function, does; every other package's renames it.
    So its std and compiler-builtins, with unmangled symbols such as `rust_eh_personality`
    and `__addvdi3`, cannot clash with another Rust static library in the same program,
    built by any toolchain, nor with another version of its own. Each object keeps its

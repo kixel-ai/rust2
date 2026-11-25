@@ -1146,8 +1146,9 @@ def apple_clang(static, target):
     return ["xcrun", "--sdk", sdk, "clang", "-target", clang_target.format(floor)], floor
 
 
-def hide(static, lib, target, manifest, export, work):
-    """The static library with no global symbol another library can clash with but the C ABI's.
+def hide(static, keep, lib, target, manifest, work):
+    """The static library with no global symbol another library can clash with but `keep`, the
+    C ABI's, as the object format spells them.
 
     Another Rust static library in the same program, built by another toolchain, brings its own
     std and compiler-builtins, whose unmangled symbols, such as `rust_eh_personality` and
@@ -1163,7 +1164,6 @@ def hide(static, lib, target, manifest, export, work):
     nm, objcopy = llvm_tool(manifest, "llvm-nm"), llvm_tool(manifest, "llvm-objcopy")
     listing = lambda path: output(nm, "--extern-only", "--no-llvm-bc", "-P", path)  # noqa: E731
     found = listing(static)
-    keep = c_abi(export, target)
     missing = sorted(keep - defined(found))
     if missing:
         raise SystemExit(f"{static.name} lacks C functions the export lists, such as {missing[:10]}")
@@ -1257,9 +1257,9 @@ def coexist(archive, include, lib, native, manifest, target, work):
             raise SystemExit(f"{archive.name} beside another Rust static library printed the wrong result")
 
 
-def isolated(static, native, lib, target, manifest, export, work):
-    """`static` hidden, and checked beside another toolchain's Rust static library."""
-    archive = hide(static, lib, target, manifest, export, work)
+def isolated(static, keep, native, lib, target, manifest, export, work):
+    """`static` hidden but `keep`, and checked beside another toolchain's Rust static library."""
+    archive = hide(static, keep, lib, target, manifest, work)
     coexist(archive, Path(export) / "include", lib, native, manifest, target, work)
     return archive
 
@@ -1324,16 +1324,18 @@ def c_archive(info, manifest, export_dir, target, out):
         else:
             shared = release / f"lib{lib}.{'dylib' if apple else 'so'}"
             check_soname(shared, soname, target)
-            # The shared library, from the same build, exports exactly what `hide` keeps global.
-            keep, exports = c_abi(export_dir, target), exported(shared, manifest, target)
-            if keep != exports:
-                raise SystemExit(f"{shared.name} exports other C functions than {export_dir}/exports.txt lists: "
-                                 f"{sorted(exports - keep)[:10]} unlisted, {sorted(keep - exports)[:10]} not exported")
+            # The static library keeps global what the shared library, from the same build,
+            # exports: every C function the export lists, and any the facade defines itself, such
+            # as moq-ffi's `moq_ffi_shutdown`, which the export cannot list.
+            listed, exports = c_abi(export_dir, target), exported(shared, manifest, target)
+            if not listed <= exports:
+                raise SystemExit(f"{shared.name} lacks C functions {export_dir}/exports.txt lists, such as "
+                                 f"{sorted(listed - exports)[:10]}")
             shutil.copy(shared, root / files["shared"])
             (root / files["link"]).symlink_to(soname)
             hidden = raw / "hide"
             hidden.mkdir()
-            shutil.copy(isolated(release / f"lib{lib}.a", notes[0].strip(), lib, target, manifest, export_dir, hidden),
+            shutil.copy(isolated(release / f"lib{lib}.a", exports, notes[0].strip(), lib, target, manifest, export_dir, hidden),
                         root / files["static"])
             (root / "lib/pkgconfig").mkdir(parents=True)
             (root / f"lib/pkgconfig/{lib}.pc").write_text(pkg_config(info, natives), newline="\n", encoding="utf-8")
@@ -2138,7 +2140,8 @@ def build(args):
                                             config=line_tables(crate))
                 with tempfile.TemporaryDirectory() as work:
                     # Hidden once, as the Swift package's, React Native's, and the Go module's.
-                    library = isolated(library, native, lib, target, args.manifest_path, through, Path(work))
+                    library = isolated(library, c_abi(through, target), native, lib, target, args.manifest_path,
+                                       through, Path(work))
                     static = out / "static" / target
                     static.mkdir(parents=True)
                     shutil.copy(library, static)
@@ -2155,7 +2158,8 @@ def build(args):
                 with tempfile.TemporaryDirectory() as work:
                     # Hidden once, as the Go module's and React Native's, but on Windows (`hide`).
                     if "windows" not in target:
-                        library = isolated(library, native, lib, target, args.manifest_path, through, Path(work))
+                        library = isolated(library, c_abi(through, target), native, lib, target, args.manifest_path,
+                                           through, Path(work))
                     if target in GO_TARGETS:
                         go_library(args, through, lib, target, library, native, out)
                     if args.react_native and target in RN_ANDROID_TARGETS:
