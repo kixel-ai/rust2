@@ -39,6 +39,25 @@ fn borrowed(heavy: &Heavy) -> u64 {
 	spin(1000) + heavy.0[0]
 }
 
+/// The arguments `generic` takes, borrowed as `&&str`, which its call coerces to `&str`.
+const WORDS: [&str; 1] = ["word"];
+
+/// A setup whose argument's type only the benchmark's parameter decides.
+fn same<T>(t: T) -> T {
+	t
+}
+
+/// Named as it runs: `same` passes on `u64`s, and the words coerce to `&str`.
+#[bench(args = [4_294_967_296_000 >> 30], setup = same)]
+extern "C" fn generic(n: u64) -> u64 {
+	spin(n / 4) + spin(WORDS.len() as u64 - 1)
+}
+
+#[bench(args = &WORDS)]
+fn word(word: &str) -> u64 {
+	spin(1000) + word.len() as u64 - 4
+}
+
 mod inner {
 	/// `heavy`, built from the case's argument.
 	fn from(arg: &str) -> super::Heavy {

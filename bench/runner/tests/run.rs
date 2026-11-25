@@ -178,11 +178,13 @@ fn counts_each_harness_benchmark_alone_without_its_setup() {
 		[
 			"alone",
 			"borrowed",
+			"generic[4000]",
 			"inner::nested[a]",
 			"inner::nested[bc]",
 			"sized[1000]",
 			"sized[2000]",
-			"sized[4000]"
+			"sized[4000]",
+			"word[word]"
 		]
 	);
 	let count = |name: &str| {
@@ -205,6 +207,8 @@ fn counts_each_harness_benchmark_alone_without_its_setup() {
 	near("sized[2000]", 2 * alone);
 	near("sized[4000]", 4 * alone);
 	near("borrowed", alone);
+	near("generic[4000]", alone);
+	near("word[word]", alone);
 	near("inner::nested[a]", alone);
 	near("inner::nested[bc]", alone);
 
