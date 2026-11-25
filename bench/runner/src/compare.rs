@@ -316,6 +316,7 @@ fn count(dir: &Path, options: &Options, selection: &Selection, side: &str) -> Re
 		return Ok(Counts {
 			fingerprint: crate::fingerprint::Fingerprint::probe()?.label(),
 			counts: BTreeMap::new(),
+			threaded: BTreeSet::new(),
 		});
 	};
 	let mut options = options.clone();
