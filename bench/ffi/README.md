@@ -1322,8 +1322,8 @@ the addon's worker thread while JavaScript's serves what Rust queues, each spinn
 for the other before it parks. moq's `track.is_closed()` then cost 184 to 215 ns of wall
 time and 367 to 429 of CPU, from 2,990 to 8,500 ns of wall time and 2,290 to 2,840 of CPU
 at origin/main: 3 rounds of 200,000 calls each, at a load average near 25. Dart's binding
-waits the same way, without the spin. [Node's lowering](/quest/m3/node-lowering.md) owns
-the rest.
+waits the same way, without the spin. The spin is the floor: no sound static rule tells
+which calls could run on JavaScript's thread instead.
 
 `frame.payload` up to 64 bytes copies through the scratch memory, one native call of
 numbers alone; a copy into a new `Uint8Array`, a call reading the array's place, cost about

@@ -23,7 +23,3 @@ Bun, every run, checked by a test beside `api_node`.
   progress, such as the addon polling woken futures on a microtask as the web's does, or
   `drain` and `await` yielding until the queue is empty, and keep it out of the generated
   binding's hot path.
-
-## Related
-
-- [Node's lowering](/quest/m3/node-lowering.md) - the addon's other open work
