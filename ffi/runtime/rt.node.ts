@@ -215,6 +215,9 @@ export class Handle<T extends string = string> {
 				w[this.k.drop!](p);
 			} catch (e) {
 				this.p = p;
+				// The drop may have run JavaScript that evicted it from the nursery meanwhile,
+				// as closed, so unregistered: register it now it is open again.
+				if (this.n === UNREGISTERED) this.evict();
 				throw e;
 			}
 		}
