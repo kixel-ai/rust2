@@ -8,7 +8,8 @@ grouped into milestones ordered by priority.
 ## Plan
 
 m0 holds urgent fixes and what every run pays for. m1 is the work with a consumer
-waiting on it now: the exporter moq switches its bindings to. m2 is research with a named
+waiting on it now: the exporter moq switches its bindings to, and
+[removing CodSpeed](/quest/m1/codspeed/README.md) from moq, rind, and here. m2 is research with a named
 consumer: rust2-wasm, moq's browser route, the TypeScript translator, an experiment
 that has to beat it, and [a benchmark harness](/quest/m2/harness/README.md) to replace
 Criterion. m3 holds work that waits on evidence or has no consumer yet:
