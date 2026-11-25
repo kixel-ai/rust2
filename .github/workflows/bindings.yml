@@ -322,7 +322,10 @@ jobs:
             os: ubuntu-24.04
             targets: ${{ inputs.scope != '' && 'x86_64-linux-android i686-linux-android' || 'x86_64-linux-android' }}
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 180
+    # A wheel host builds six fat-LTO libraries, each 5 to 18 minutes: the slowest legs,
+    # Windows and the Apple macOS slice, take 85 to 92 minutes, so the cap leaves them a third more.
+    # This cap also bounds reproduction runs; a second build may exhaust it.
+    timeout-minutes: 120
     defaults:
       run:
         shell: bash
