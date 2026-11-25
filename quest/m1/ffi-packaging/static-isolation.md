@@ -11,8 +11,9 @@ library's build does, or the release README says why it cannot be.
 ## Plan
 
 [#1014](https://github.com/kixel-ai/rust2/pull/1014) hid every Apple, Android, and Linux
-static library and made `coexist` link the other library from a toolchain two releases
-older, which fails on an unhidden library.
+static library (prelinked on ELF, its other globals renamed apart on Mach-O, whose
+relocatable link drops DWARF) and made `coexist` link the other library from a toolchain
+two releases older, which fails on an unhidden library.
 
 Reproduced on 2026-11-24 for `windows-gnu`: two static libraries from rustc 1.98.1 and
 1.96.0, linked by MinGW gcc 16.2 (binutils 2.46), fail on a duplicate
