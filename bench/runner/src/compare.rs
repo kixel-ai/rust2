@@ -182,10 +182,15 @@ fn select(args: &[Arg], members: &Members) -> Selection {
 		.iter()
 		.map(|name| name.as_str())
 		.partition(|name| members.benches.contains_key(*name));
-	let whole = args
-		.iter()
-		.take_while(|arg| **arg != Arg::Other("--".to_owned()))
-		.any(|arg| matches!(arg, Arg::Other(arg) if arg == "--workspace" || arg == "--all"));
+	let flag = |names: &[&str]| {
+		args.iter()
+			.take_while(|arg| **arg != Arg::Other("--".to_owned()))
+			.any(|arg| matches!(arg, Arg::Other(arg) if names.contains(&arg.as_str())))
+	};
+	let whole = flag(&["--workspace", "--all"]);
+	// Each builds every benchmark target of the packages, so one named target a side lacks
+	// still leaves it a selection.
+	let every_bench = flag(&["--benches", "--all-targets"]);
 	let excluded: BTreeSet<&str> = args
 		.iter()
 		.filter_map(|arg| match arg {
@@ -193,16 +198,16 @@ fn select(args: &[Arg], members: &Members) -> Selection {
 			_ => None,
 		})
 		.collect();
-	// Cargo looks for `--bench` among the packages it builds: those `-p` selects, else every
-	// member but those excluded under `--workspace`, else the default ones.
+	// Cargo looks for `--bench` among the packages it builds: every member but those excluded
+	// under `--workspace`, which overrides `-p`, else those `-p` selects, else the default ones.
 	let benches: BTreeSet<&String> = members
 		.benches
 		.iter()
 		.filter(|(name, _)| {
-			if !packages.is_empty() {
-				kept.contains(name.as_str())
-			} else if whole {
+			if whole {
 				!excluded.contains(name.as_str())
+			} else if !packages.is_empty() {
+				kept.contains(name.as_str())
 			} else {
 				members.default.contains(*name)
 			}
@@ -246,7 +251,7 @@ fn select(args: &[Arg], members: &Members) -> Selection {
 			Arg::Other(arg) => out.push(arg.clone()),
 		}
 	}
-	if (packages.is_empty() || !kept.is_empty()) && (!wants_bench || has_bench) {
+	if (whole || packages.is_empty() || !kept.is_empty()) && (!wants_bench || has_bench || every_bench) {
 		selection.args = Some(out);
 	}
 	selection
@@ -743,6 +748,21 @@ mod tests {
 				.is_none()
 		);
 		assert!(select(&["--all", "--exclude=c", "--bench", "z"]).args.is_none());
+		// `--workspace` overrides `-p`, which Cargo still requires to name a member.
+		assert_eq!(
+			select(&["--workspace", "-p", "a", "--bench", "z"]).args.unwrap(),
+			["--workspace", "-p", "a", "--bench", "z"]
+		);
+		let picked = select(&["--workspace", "-p", "b"]);
+		assert_eq!(picked.args.unwrap(), ["--workspace"]);
+		assert_eq!(picked.lacks, BTreeSet::from(["-p b".to_owned()]));
+		// `--benches` and `--all-targets` still select every target beside one the side lacks.
+		assert_eq!(select(&["--bench", "y", "--benches"]).args.unwrap(), ["--benches"]);
+		assert_eq!(
+			select(&["--all-targets", "--bench", "y"]).args.unwrap(),
+			["--all-targets"]
+		);
+		assert!(select(&["--bench", "y", "--", "--benches"]).args.is_none());
 		// Features split on whitespace as on commas.
 		assert_eq!(
 			select(&["-F", "a/g\nb/f", "-p", "a", "-p", "b"]).args.unwrap(),

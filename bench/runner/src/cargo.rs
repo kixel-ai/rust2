@@ -586,8 +586,13 @@ fn build(dir: &Path, args: &[String]) -> Result<Vec<(Target, Launch)>, String> {
 	let mut cargo = Command::new("cargo");
 	cargo.args(["bench", "--message-format=json-render-diagnostics", "--config", &runner]);
 	cargo.env(CAPTURE_DIR, captures);
-	// Every benchmark target, unless the caller names some.
-	if !args.iter().any(|arg| arg == "--bench" || arg.starts_with("--bench=")) {
+	// Every benchmark target, unless the caller names some or already asks for every one, which
+	// Cargo refuses twice.
+	if !args
+		.iter()
+		.take_while(|arg| *arg != "--")
+		.any(|arg| arg == "--bench" || arg == "--benches" || arg.starts_with("--bench="))
+	{
 		cargo.arg("--benches");
 	}
 	cargo.args(args).current_dir(dir).stdout(Stdio::piped());
