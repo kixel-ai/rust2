@@ -19,7 +19,7 @@ What #9574 measured on rust2-bench at kixel-ai/rust2@6ead6d56:
 - Both were test shims loaded into the benchmark processes; the implementation is open.
 - Location: #9574 makes moq's binaries byte-identical across checkouts and `CARGO_HOME`s. What's left is that each count gets the host's whole environment, whose size shifts the stack by up to 12 instructions.
 
-Once this ships, moq bumps rust2, counts every benchmark twice in two checkouts, then drops `--jobs 1` from its `codspeed.yml` and its wall-clock caveats (moq's `quest/m0/repeatable-instruction-counts.md`).
+Once this ships, moq bumps rust2, counts every benchmark twice in two checkouts, once idle and once loaded, then drops `--jobs 1` from its `codspeed.yml` and its wall-clock caveats (moq's `quest/m0/repeatable-instruction-counts.md`).
 
 ## Related
 
