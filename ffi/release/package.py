@@ -1689,11 +1689,13 @@ def reproducible(info, export_dir, target):
         # Cargo reads an empty value as no flags, not as one empty flag.
         flags = encoded.split("\x1f") if encoded else []
     # The generated crate names an Apple dylib after `cargo rustc`'s `--`, which a caller's flags
-    # would follow, and override. rustc reads an `@file` (or `@shell:file`) flag's arguments from it.
+    # would follow, and override. An `@file` flag's arguments are rustc's to read, relative to a
+    # directory and with quoting this can't check, so it can't pass either.
     if "apple" in target:
         for flag in flags:
-            text = Path(flag.removeprefix("@").removeprefix("shell:")).read_text() if flag.startswith("@") else flag
-            if APPLE_INSTALL_NAME.search(text):
+            if flag.startswith("@"):
+                raise SystemExit(f"RUSTFLAGS reads arguments from {flag}, which could name an install name the packages set themselves: pass them directly")
+            if APPLE_INSTALL_NAME.search(flag):
                 raise SystemExit(f"RUSTFLAGS sets an install name in {flag}, which the packages set themselves: drop it")
     flags += [f"--remap-path-prefix={old}={new}" for old, new in pairs]
     env = {"SOURCE_DATE_EPOCH": str(info["epoch"])}
@@ -1715,8 +1717,8 @@ def reproducible(info, export_dir, target):
     return env
 
 
-# ld64's install-name option, or its older `-dylib_install_name` spelling, as a whole argument.
-APPLE_INSTALL_NAME = re.compile(r"(?:^|[\s,=])-(?:dylib_)?install_name(?:$|[\s,=])")
+# ld64's install-name option, or an older spelling of it, as a whole argument.
+APPLE_INSTALL_NAME = re.compile(r"(?:^|[\s,=])-(?:dylib_|dylinker_)?install_name(?:$|[\s,=])")
 
 
 def install_name(info, target, name=None):

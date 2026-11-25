@@ -396,7 +396,8 @@ holding exactly the files it would upload, and anyone with the commit can check 
   each spelling, are remapped to fixed names for rustc and the C compilers, so panic
   messages and debug info name no checkout. This takes `RUSTFLAGS` over a
   `.cargo/config.toml`'s `rustflags`, so a config that sets any fails the build: export them
-  as `RUSTFLAGS`, which the builder keeps. Apple builds also stamp no archive time
+  as `RUSTFLAGS`, which the builder keeps. An Apple build's `RUSTFLAGS` may not name an
+  install name, which the packages set, nor an `@file` of arguments that could. Apple builds also stamp no archive time
   (`ZERO_AR_DATE`), and Windows links with `/Brepro`. rustc's random temporary directory in
   a Windows GNU import symbol's name is replaced by zeros.
 - **Checked.** The Swift job builds the XCFramework twice and fails unless both ZIPs match.
