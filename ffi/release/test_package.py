@@ -381,29 +381,10 @@ class Reproducible(unittest.TestCase):
             self.assertEqual(apple["ZERO_AR_DATE"], "1")
             # The install name is the generated crate's alone, so every Apple build shares its dependencies' flags.
             self.assertNotIn("install_name", apple["CARGO_ENCODED_RUSTFLAGS"])
-            self.assertEqual(package.install_name(info(tmp), "aarch64-apple-darwin"),
-                             ["-C", "link-arg=-Wl,-install_name,@rpath/libmoq.dylib"])
-            self.assertEqual(package.install_name(info(tmp), "aarch64-apple-darwin", "libmoq.0.4.12.dylib"),
-                             ["-C", "link-arg=-Wl,-install_name,@rpath/libmoq.0.4.12.dylib"])
-            self.assertEqual(package.install_name(info(tmp), "x86_64-unknown-linux-gnu"), [])
-
-    def test_a_callers_apple_install_name_fails(self):
-        with tempfile.TemporaryDirectory() as tmp, mock.patch.dict(os.environ, {"RUSTFLAGS": "-C link-arg=-Wl,-install_name,@rpath/x.dylib", "CARGO_HOME": tmp + "/home"}):
-            os.environ.pop("CARGO_ENCODED_RUSTFLAGS", None)
-            with self.assertRaises(SystemExit):
-                package.reproducible(info(tmp), Path(tmp) / "export", "aarch64-apple-darwin")
-
-    def test_an_apple_install_name_is_found_whole_and_argfiles_fail(self):
-        with tempfile.TemporaryDirectory() as tmp, mock.patch.dict(os.environ, {"CARGO_HOME": tmp + "/home"}):
-            os.environ.pop("RUSTFLAGS", None)
-            for flags in ("@args", "@shell:args", "-Clink-args=-dylib_install_name x", "-C\x1flink-arg=-Wl,-dylinker_install_name,x"):
-                os.environ["CARGO_ENCODED_RUSTFLAGS"] = flags
-                with self.assertRaises(SystemExit, msg=flags):
-                    package.reproducible(info(tmp), Path(tmp) / "export", "aarch64-apple-darwin")
-            # This only reserves header space, which a longer install name may need.
-            os.environ["CARGO_ENCODED_RUSTFLAGS"] = "-C\x1flink-arg=-Wl,-headerpad_max_install_names"
-            env = package.reproducible(info(tmp), Path(tmp) / "export", "aarch64-apple-darwin")
-            self.assertIn("link-arg=-Wl,-headerpad_max_install_names", env["CARGO_ENCODED_RUSTFLAGS"])
+            self.assertEqual(apple["RUST2_FFI_INSTALL_NAME"], "@rpath/libmoq.dylib")
+            named = package.reproducible(info(tmp), Path(tmp), "aarch64-apple-darwin", "libmoq.0.4.12.dylib")
+            self.assertEqual(named["RUST2_FFI_INSTALL_NAME"], "@rpath/libmoq.0.4.12.dylib")
+            self.assertNotIn("RUST2_FFI_INSTALL_NAME", windows)
 
     def test_an_empty_encoded_rustflags_is_no_flags(self):
         with tempfile.TemporaryDirectory() as tmp, mock.patch.dict(os.environ, {"CARGO_ENCODED_RUSTFLAGS": "", "RUSTFLAGS": "-C x", "CARGO_HOME": tmp + "/home"}):
