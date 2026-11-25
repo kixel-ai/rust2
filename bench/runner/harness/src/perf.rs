@@ -126,23 +126,27 @@ fn threads() -> Result<std::collections::BTreeSet<i32>, String> {
 		.collect()
 }
 
-/// Fails unless the process loaded every library `LD_PRELOAD` names, which a static executable
-/// never does, so a count never follows the host's randomness and clock unannounced.
+/// Fails unless the process loaded the first library `LD_PRELOAD` names, where rust2-bench puts
+/// its own, which a static executable never does, so a count never follows the host's
+/// randomness and clock unannounced.
 pub fn preloaded() -> Result<(), String> {
 	let Some(preloads) = std::env::var_os("LD_PRELOAD") else {
 		return Ok(());
 	};
-	let maps = std::fs::read_to_string("/proc/self/maps").map_err(|e| format!("cannot read /proc/self/maps: {e}"))?;
 	let preloads = preloads.to_string_lossy().into_owned();
-	for library in preloads.split([':', ' ']).filter(|library| !library.is_empty()) {
-		if !maps.lines().any(|line| line.ends_with(library)) {
-			return Err(format!(
-				"LD_PRELOAD names {library}, which this process never loaded: a static executable, or a glibc \
-				 before 2.34, ignores it"
-			));
-		}
+	let Some(library) = preloads.split([':', ' ']).find(|library| !library.is_empty()) else {
+		return Ok(());
+	};
+	// The loader maps the file a link names, under the file's own path.
+	let path = std::fs::canonicalize(library).map_err(|e| format!("LD_PRELOAD names {library}: {e}"))?;
+	let maps = std::fs::read_to_string("/proc/self/maps").map_err(|e| format!("cannot read /proc/self/maps: {e}"))?;
+	if maps.lines().any(|line| line.ends_with(&*path.to_string_lossy())) {
+		return Ok(());
 	}
-	Ok(())
+	Err(format!(
+		"LD_PRELOAD names {library}, which this process never loaded: a static executable, or a glibc before 2.34, \
+		 ignores it"
+	))
 }
 
 impl Counters {

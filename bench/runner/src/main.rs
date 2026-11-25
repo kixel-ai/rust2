@@ -629,8 +629,13 @@ fn native(job: Job, dir: &Path, preload: &Path, pmu: &perf::Pmu) -> Measured {
 /// and output in `dir`, and reads what it measured.
 fn one(job: Job, dir: &Path, preload: &Path) -> Measured {
 	let Job {
-		label, command, expect, ..
+		label,
+		mut command,
+		expect,
+		..
 	} = job;
+	// A `--program`'s shell inherits rust2-bench's environment, whose perf setting is a native count's.
+	command.env_remove(perf::PERF);
 	std::fs::create_dir_all(dir).map_err(|e| format!("cannot create {}: {e}", dir.display()))?;
 	let file = |name: &str| {
 		std::fs::File::create(dir.join(name)).map_err(|e| format!("cannot create {}: {e}", dir.join(name).display()))

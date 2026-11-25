@@ -171,7 +171,8 @@ The harness opens a counter on each of the process's threads after the case's se
 also counting every thread its thread spawns, starts them all at once, and stops them right
 after the call, so a count holds the call on every thread and a few dozen instructions of the
 counters' own. A thread that starts while they open fails the run, since it would count twice
-or not at all. A counter that did not run the whole time it was enabled fails the run rather
+or not at all; one a setup's pool is still creating as they open may yet go uncounted, a count
+already named noisy, since that pool's threads ran beside it. A counter that did not run the whole time it was enabled fails the run rather
 than be scaled up: another user of the host's counters multiplexed it, or a thread left the
 PMU's cores. A count that other threads ran beside, setup's or the benchmark's own, is noisy,
 since what they run while the call does depends on the scheduler: the table names each one.
