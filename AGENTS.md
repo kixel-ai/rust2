@@ -16,8 +16,8 @@ Each project lives in its own top-level directory; the [quest tree](quest/README
 
 PRs target `main`.
 Run `just ci` before every push.
-Outside the dev shell, such as in Pullfrog's job, which puts the shell's tools on `PATH` but not its variables (`PKG_CONFIG_PATH`, `NIX_LDFLAGS`, ...), run `just` as `nix develop --command just ...`.
+Outside the dev shell, run `just` as `nix develop --command just ...`: the shell's tools on `PATH` alone lack its variables (`PKG_CONFIG_PATH`, `NIX_LDFLAGS`, ...).
 
-Review rounds run one local reviewer, `quest review --harness codex`, or `--harness claude` when Codex changed the branch last. Pullfrog's review on the PR is the second reviewer, and its approval is what lands it.
+Review rounds run one local reviewer, `quest review --harness codex`, or `--harness claude` when Codex changed the branch last.
 
 Quests: before any work, run `quest context` and follow it, unless this session already holds its rules.

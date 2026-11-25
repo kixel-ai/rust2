@@ -20,8 +20,8 @@ swift_collections_rev := "f96b909e1a9e469620bc5037c1e24e00153f376f"
 # The binding benchmark's programs, each a language, as bench-program runs them.
 bench_langs := "rust c cpp moq-c kotlin python swift go dart csharp ts-node ts-addon ts-chromium ts-firefox react-native"
 
-# Those whose cases count the same under Valgrind on every run of one commit: bench/ffi/README.md's Instruction counts section says why Swift, Kotlin, Go, Dart, C#, and Node do not.
-count_langs := "rust c cpp moq-c python"
+# Those whose cases count the same under Valgrind on every run of one commit: bench/ffi/README.md's Instruction counts section says why Swift, Kotlin, Go, Dart, and C# do not.
+count_langs := "rust c cpp moq-c python ts-node"
 
 default:
     @just --list
@@ -139,13 +139,16 @@ bench-build checkout="": (moq-export checkout) (moq-web checkout) ts-program nod
     hooks=$PWD/target/codspeed
     # The exporter bench-run times, built as a consumer installs it.
     cargo build --locked --quiet --release
-    # The floor: the stand-in's API called from Rust, resolved as the export is.
+    # The floor: the stand-in's API called from Rust, resolved as the export is, its cases
+    # counted through rust2-bench-harness.
     rm -rf target/bench-rust
     mkdir -p target/bench-rust
-    printf '[package]\nname = "bench"\nversion = "0.0.0"\nedition = "2024"\npublish = false\n\n[[bin]]\nname = "bench"\npath = "%s"\n\n[dependencies]\nlibc = "0.2"\nmoq = { package = "moq-ffi", path = "../moq-ffi" }\n\n[workspace]\n' "$PWD/moq/bench/export.rs" > target/bench-rust/Cargo.toml
+    root=$(dirname "$PWD")
+    printf '[package]\nname = "bench"\nversion = "0.0.0"\nedition = "2024"\npublish = false\n\n[[bin]]\nname = "bench"\npath = "%s"\n\n[dependencies]\nlibc = "0.2"\nmoq = { package = "moq-ffi", path = "../moq-ffi" }\nrust2-bench-harness = { path = "%s" }\n\n[workspace]\n' "$PWD/moq/bench/export.rs" "$root/bench/runner/harness" > target/bench-rust/Cargo.toml
     cp target/moq-ffi/Cargo.lock target/bench-rust/Cargo.lock
-    # The hooks' search path goes to the program alone, so moq builds as bench-run's export does.
-    cargo rustc --quiet --release --manifest-path target/bench-rust/Cargo.toml -- -L "native=$hooks"
+    # The program's own flag, so moq builds as bench-run's export does: its path relative to
+    # the repository, as the harness names a benchmark by.
+    cargo rustc --quiet --release --manifest-path target/bench-rust/Cargo.toml -- "--remap-path-prefix=$root/="
     # libmoq's header is written to its build script's output directory.
     moqc=$(cd "$src" && cargo build --locked --quiet --release --package libmoq --message-format=json \
         | jq -r 'select(.reason == "build-script-executed" and (.package_id | contains("libmoq#"))) | .out_dir')
@@ -374,12 +377,11 @@ bench-program lang:
         dart) exec dart target/bench-dart/main.dill "$hooks" ;;
         csharp) LD_LIBRARY_PATH="$out/target/release" DYLD_LIBRARY_PATH="$out/target/release" exec dotnet target/bench-csharp/bench.dll "$hooks" ;;
         ts-node)
-            # Counted, V8 runs on this thread alone and collects on a schedule its allocations
-            # set, not time, and export.ts collects before each case. Its counts still move
-            # between runs, so ts-node is not in count_langs; these flags stay for
-            # quest/m2/ffi-count-node.md, which brings it back.
+            # Counted, V8 compiles, tiers the module up, and collects on this thread alone, as
+            # its allocations schedule rather than time, and export.ts collects before each
+            # case and gives the module a clock that moves only as it is read.
             flags=()
-            [ -z "${RUST2_CODSPEED:-}" ] || flags=(--expose-gc --predictable --predictable-gc-schedule --single-threaded --v8-pool-size=0)
+            [ -z "${RUST2_CODSPEED:-}" ] || flags=(--expose-gc --predictable --predictable-gc-schedule --single-threaded --wasm-sync-tier-up)
             exec node ${flags[@]+"${flags[@]}"} target/bench-ts/export.ts "$wasm" "$PWD/target/codspeed/codspeed.node" ;;
         ts-addon) exec node target/bench-node/main.ts ;;
         ts-chromium | ts-firefox) exec bun target/bench-ts/browser.ts "${lang#ts-}" "$wasm" "target/bench-browser/${lang#ts-}" ;;

@@ -34,6 +34,7 @@ import * as Labelled from "./web/Labelled.ts";
 import * as Ledger from "./web/Ledger.ts";
 import * as Local from "./web/Local.ts";
 import type { Log } from "./web/Log.ts";
+import * as Journal from "./web/Journal.ts";
 import * as Logger from "./web/Logger.ts";
 import * as Meter from "./web/Meter.ts";
 import * as Meters from "./web/Meters.ts";
@@ -990,7 +991,38 @@ export async function closedObjects(): Promise<void> {
 	check(log.closes === 1, "a dispose after the call frees it");
 	close(logger);
 	check(log.closes === 1, "disposing it again frees nothing");
+	// Disposed again from the close its own free calls, it frees nothing more.
+	let reentered: Logger.Logger | undefined;
+	const reentrant = new (class extends CountLog {
+		override close(): void {
+			super.close();
+			close(reentered!);
+		}
+	})();
+	reentered = Logger.new(reentrant);
+	close(reentered);
+	check(reentrant.closes === 1, "a dispose from the free it ran frees nothing more");
 	closed(() => Logger.write(logger!, "x"), "Logger", "a call after the dispose");
+	// A checked object disposed again from inside its own drop, which Rust runs at the
+	// dispose, frees nothing more, and is closed to a call meanwhile.
+	let journal: Journal.Journal | undefined;
+	let during = "";
+	const nested = new (class extends CountLog {
+		override close(): void {
+			super.close();
+			try {
+				Journal.write(journal!, "x");
+			} catch (e) {
+				during = (e as Error).message;
+			}
+			journal![Symbol.dispose]();
+		}
+	})();
+	journal = Journal.new$(nested);
+	journal[Symbol.dispose]();
+	check(nested.closes === 1, "a dispose from inside its own drop frees nothing more");
+	check(during === "Journal is closed", `a call while Rust drops it: ${during}`);
+
 	print("closed ok");
 }
 

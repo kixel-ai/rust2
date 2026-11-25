@@ -346,6 +346,47 @@ fn api_c_exe(api: &Api) -> PathBuf {
 	exe
 }
 
+/// The C functions `exports.txt` lists for the features the shared library builds with are
+/// exactly those it exports, as the release builder keeps them global in a static library.
+#[test]
+#[cfg(not(windows))]
+fn api_exports() {
+	let api = api();
+	let listed = std::fs::read_to_string(api.out.join("exports.txt")).unwrap();
+	let mangle = if cfg!(target_os = "macos") { "_" } else { "" };
+	let mut want: Vec<String> = (listed.lines())
+		.filter(|line| !line.starts_with('#'))
+		.filter_map(|line| {
+			let mut words = line.split(' ');
+			let name = words.next().unwrap();
+			let features: Vec<&str> = words.collect();
+			let built = features.is_empty() || features.iter().any(|f| ["kotlin", "dart"].contains(f));
+			built.then(|| format!("{mangle}{name}"))
+		})
+		.collect();
+	want.sort();
+	let nm = llvm_objcopy().with_file_name(format!("llvm-nm{EXE_SUFFIX}"));
+	let dynamic = if cfg!(target_os = "macos") {
+		None
+	} else {
+		Some("--dynamic")
+	};
+	let found = run(Command::new(nm)
+		.args(dynamic)
+		.args(["--defined-only", "--extern-only", "--format=just-symbols"])
+		.arg(api.lib.join(shared("api"))));
+	let mut found: Vec<String> = String::from_utf8_lossy(&found.stdout)
+		.lines()
+		.map(str::to_string)
+		.collect();
+	found.sort();
+	found.dedup();
+	assert_eq!(
+		found, want,
+		"the shared library exports other C functions than exports.txt lists"
+	);
+}
+
 #[test]
 fn api_c() {
 	let api = api();
