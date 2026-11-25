@@ -325,7 +325,11 @@ fn exports(modules: &[(&str, &[&str])]) -> String {
 			if *line != NO_MANGLE.trim_end() {
 				// Indented, it would be a C function the list leaves out, which every static
 				// library would rename.
-				assert_ne!(line.trim(), NO_MANGLE.trim_end(), "a C function's attribute, unindented");
+				assert_ne!(
+					line.trim(),
+					NO_MANGLE.trim_end(),
+					"a C function's attribute, unindented"
+				);
 				continue;
 			}
 			let head = (lines[i + 1..].iter())
@@ -4007,5 +4011,8 @@ fn exports_refuse_a_no_mangle_they_cannot_name() {
 #[test]
 #[should_panic(expected = "unindented")]
 fn exports_refuse_an_indented_no_mangle() {
-	exports(&[("mod inner {\n\t#[unsafe(no_mangle)]\n\tpub extern \"C\" fn api_inner() {}\n}\n", &[])]);
+	exports(&[(
+		"mod inner {\n\t#[unsafe(no_mangle)]\n\tpub extern \"C\" fn api_inner() {}\n}\n",
+		&[],
+	)]);
 }
