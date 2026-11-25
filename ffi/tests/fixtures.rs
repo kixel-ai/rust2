@@ -366,15 +366,25 @@ fn api_exports() {
 		.collect();
 	want.sort();
 	let nm = llvm_objcopy().with_file_name(format!("llvm-nm{EXE_SUFFIX}"));
-	let dynamic = if cfg!(target_os = "macos") { None } else { Some("--dynamic") };
+	let dynamic = if cfg!(target_os = "macos") {
+		None
+	} else {
+		Some("--dynamic")
+	};
 	let found = run(Command::new(nm)
 		.args(dynamic)
 		.args(["--defined-only", "--extern-only", "--format=just-symbols"])
 		.arg(api.lib.join(shared("api"))));
-	let mut found: Vec<String> = String::from_utf8_lossy(&found.stdout).lines().map(str::to_string).collect();
+	let mut found: Vec<String> = String::from_utf8_lossy(&found.stdout)
+		.lines()
+		.map(str::to_string)
+		.collect();
 	found.sort();
 	found.dedup();
-	assert_eq!(found, want, "the shared library exports other C functions than exports.txt lists");
+	assert_eq!(
+		found, want,
+		"the shared library exports other C functions than exports.txt lists"
+	);
 }
 
 #[test]

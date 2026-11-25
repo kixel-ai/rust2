@@ -316,27 +316,36 @@ fn unwinding(lib: &str, space: &str) -> String {
 /// `#[cfg(not(feature = ..))]` on a function drops that one. The release builder keeps exactly
 /// these global in a static library.
 fn exports(modules: &[(&str, &[&str])]) -> String {
-	let mut found: std::collections::BTreeMap<&str, Option<std::collections::BTreeSet<&str>>> =
-		Default::default();
+	let mut found: std::collections::BTreeMap<&str, Option<std::collections::BTreeSet<&str>>> = Default::default();
 	for (glue, features) in modules {
 		let lines: Vec<&str> = glue.lines().collect();
 		for (i, line) in lines.iter().enumerate() {
 			if !line.contains("no_mangle") {
 				continue;
 			}
-			assert_eq!(*line, NO_MANGLE.trim_end(), "a C function's attribute, as the glue writes it");
+			assert_eq!(
+				*line,
+				NO_MANGLE.trim_end(),
+				"a C function's attribute, as the glue writes it"
+			);
 			let head = (lines[i + 1..].iter())
 				.find(|l| !l.starts_with("#["))
 				.expect("a C function after its attributes");
 			let at = head.find(" fn ").expect("a C function");
-			assert!(head.starts_with("pub ") && head[..at].contains(" extern \""), "a C function: {head}");
+			assert!(
+				head.starts_with("pub ") && head[..at].contains(" extern \""),
+				"a C function: {head}"
+			);
 			let name = &head[at + 4..head.find('(').expect("a C function's parameters")];
 			let mut on: std::collections::BTreeSet<&str> = features.iter().copied().collect();
 			if let Some(off) = (i.checked_sub(1).map(|j| lines[j]))
 				.and_then(|l| l.strip_prefix("#[cfg(not(feature = \""))
 				.and_then(|l| l.strip_suffix("\"))]"))
 			{
-				assert!(on.remove(off), "a C function off under a feature its module never builds with");
+				assert!(
+					on.remove(off),
+					"a C function off under a feature its module never builds with"
+				);
 			}
 			// Gated by none of its module's features, as one under `not(feature)` in an ungated
 			// module would be, it is in some builds only, which the list cannot say.
