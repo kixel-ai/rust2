@@ -1,4 +1,4 @@
-# A benchmark harness to replace Criterion
+# [S] A benchmark harness to replace Criterion
 
 ## Goal
 

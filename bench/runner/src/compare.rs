@@ -49,6 +49,8 @@ pub fn compare(base: &str, options: &Options) -> Result<(), String> {
 		return Err("no benchmark ran".to_owned());
 	}
 	print!("{}", table(&before, &after)?);
+	let threaded: BTreeSet<String> = before.threaded.union(&after.threaded).cloned().collect();
+	print!("{}", crate::threaded(&threaded));
 	Ok(())
 }
 
@@ -232,6 +234,7 @@ mod tests {
 		Counts {
 			fingerprint: fingerprint.to_owned(),
 			counts: names.iter().map(|(name, ir)| ((*name).to_owned(), *ir)).collect(),
+			threaded: BTreeSet::new(),
 		}
 	}
 

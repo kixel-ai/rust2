@@ -19,6 +19,8 @@ resolver = "3"
 allow_attributes_without_reason = "warn"
 
 [dependencies]
+# For its perf counters, which a perf count checks this host exposes before building anything.
+rust2-bench-harness = { path = "harness" }
 serde_json = "1.0.154"
 toml = "1.1.8"
 

@@ -12,6 +12,7 @@ nix run github:kixel-ai/rust2#bench -- run --out metrics.json   # or, without Ni
 cargo install --locked --git https://github.com/kixel-ai/rust2 rust2-bench   # Valgrind from PATH
 rust2-bench run [--benchmarks <file>] [--out metrics.json] [--jobs <n>] [-- <cargo bench args>]
 rust2-bench compare <base> [the same options]
+rust2-bench run --perf    # or compare <base> --perf: natively, with Linux perf counters
 rust2-bench fingerprint
 ```
 
@@ -146,6 +147,34 @@ package only one side has fails that side's build: compare every target, and nam
 benchmarks with `--benchmarks`, which takes one present on only one side.
 Another compare of the same repository waits, on a lock beside the worktree, until this one
 has counted its base.
+
+## Perf counters
+
+`--perf` counts each benchmark of [rust2-bench-harness](harness/README.md) natively, without
+Valgrind's 20 to 50 times slowdown, with a Linux perf counter of its user-space instructions
+(`instructions:u`), for a quick compare on one host. A target of CodSpeed's crates, or a
+`--program`, fails the run, as does a host that lets no process count its own instructions,
+such as a VM without its PMU passed through, a `kernel.perf_event_paranoid` above 2, or
+GitHub's hosted runners: rust2-bench opens a counter before it builds anything, and names the
+setting. The counts never leave the host, so `--out` refuses them: a binary that picks a path by
+CPU feature counts differently on another CPU, and CI's series stay on Valgrind's.
+
+Each job runs as a count does, with the preload and a padded launch, but natively, without
+address randomization, which the copy loop glibc picks by alignment would follow, and pinned
+to the CPUs of one core PMU. On a host whose cores are of two kinds, such as Intel's P- and
+E-cores, each kind has its own PMU, which counts only on its own cores and whose cores report
+their own cache sizes, from which glibc sizes its copies; so every job runs on the kind with
+the most cores, and `--jobs` defaults to how many there are.
+
+The harness opens a counter on each of the process's threads after the case's setup, each
+also counting every thread its thread spawns, starts them all at once, and stops them right
+after the call, so a count holds the call on every thread and a few dozen instructions of the
+counters' own. A counter that did not run the whole time it was enabled fails the run rather
+than be scaled up: another user of the host's counters multiplexed it, or a thread left the
+PMU's cores. A count that other threads ran beside, setup's or the benchmark's own, is noisy,
+since what they run while the call does depends on the scheduler: the table names each one.
+Run under Valgrind, the same benchmark counts within those few dozen instructions when it runs
+alone.
 
 ## Output
 
