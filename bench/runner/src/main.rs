@@ -318,7 +318,7 @@ pub fn missing(wanted: &BTreeSet<String>, has: impl Fn(&String) -> bool) -> Resu
 /// The wanted benchmarks `has` says no benchmark is. Any fails the run unless `allow`, when
 /// only all of them does: Kixel Quest reads a benchmark `metrics.json` lacks as unmeasured,
 /// never as clean, so a bisect step keeps the suspects it can count.
-fn absent<'a>(wanted: &'a BTreeSet<String>, has: impl Fn(&String) -> bool, allow: bool) -> Result<Vec<&'a str>, String> {
+fn absent(wanted: &BTreeSet<String>, has: impl Fn(&String) -> bool, allow: bool) -> Result<Vec<&str>, String> {
 	let absent: Vec<&str> = wanted.iter().filter(|name| !has(name)).map(String::as_str).collect();
 	if absent.is_empty() || (allow && absent.len() < wanted.len()) {
 		Ok(absent)
@@ -331,7 +331,10 @@ fn absent<'a>(wanted: &'a BTreeSet<String>, has: impl Fn(&String) -> bool, allow
 /// summary when it runs in one.
 fn report(absent: &[&str]) -> Result<(), String> {
 	use std::io::Write;
-	eprintln!("rust2-bench: no benchmark is named {}; counted the rest", absent.join(", "));
+	eprintln!(
+		"rust2-bench: no benchmark is named {}; counted the rest",
+		absent.join(", ")
+	);
 	let Some(summary) = std::env::var_os("GITHUB_STEP_SUMMARY").filter(|path| !path.is_empty()) else {
 		return Ok(());
 	};
