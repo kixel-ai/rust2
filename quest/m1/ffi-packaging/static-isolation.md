@@ -4,8 +4,8 @@
 
 The Go module's `windows/amd64` library, an `x86_64-pc-windows-gnu` static library that
 Go's MinGW linker links, is the one static library `ffi/release/package.py` ships for a
-platform with a relocatable link that is still unhidden. Either it is prelinked so its
-only global symbols are the C ABI's `<lib>_*`, and `coexist` checks it as every other
+platform with a relocatable link that is still unhidden. Either no global symbol but the
+C ABI's `<lib>_*` can clash with another library's, and `coexist` checks it as every other
 library's build does, or the release README says why it cannot be.
 
 ## Plan
@@ -24,8 +24,10 @@ A trial of the ELF recipe with MinGW binutils (`ld -r --gc-sections -u <root>`, 
 warned that local symbols such as `__imp__RNvNtCs..._5alloc4sync18STATIC_INNER_SLICE` have
 no section: the `__imp_` stubs of std's statics, which windows-gnu reaches through the
 runtime pseudo-relocations of auto-import, do not survive a relocatable PE link as they
-are. Hiding it needs a way around that, such as resolving the `__imp_` references before
-the `-r` link, and a run of the result on Windows, which the Windows build leg can do.
+are. Hiding it needs a way around that and a run of the result on Windows, which the
+Windows build leg can do. Mach-O's way may serve: no relocatable link, but `llvm-objcopy
+--redefine-syms` renaming each global the archive defines, sparing the `__imp_` symbols of
+its import-library members, which name the DLLs' own functions.
 
 ## Waiting
 
