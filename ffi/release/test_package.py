@@ -942,25 +942,47 @@ DW.ref.rust_eh_personality V 0 8
 _ZN3std2rt10lang_start17h0123456789abcdefE T 30 10
 __cxa_thread_atexit_impl w
 """
+        self.assertEqual(package.nm_symbols("libapi.a[my helper.o]:\napi_help T 0 1\n"), [("my helper.o", "api_help", "T")])
         self.assertEqual(package.nm_symbols(listing)[2], ("api-0abf9f642fbb3007.api.d0e6e03e8f1aed16-cgu.01.rcgu.o", "malloc", "U"))
         self.assertEqual(package.nm_symbols(listing)[3], ("df7d2551892e0561-api_lc.o", "api_lc_init", "T"))
         names = package.defined(listing)
         self.assertEqual(names, {"api_buf_free", "api_Batch_drop_signal", "api_lc_init", "tty_in", "rust_eh_personality",
                                  "DW.ref.rust_eh_personality", "_ZN3std2rt10lang_start17h0123456789abcdefE"})
-        # A C dependency's `api_lc_` shares the prefix, but only the crate's own objects define the C ABI,
-        # a binding's entry points the header leaves out, such as `_drop_signal`, included.
-        keep = package.c_abi(listing, "api", "x86_64-unknown-linux-gnu")
+        # A C dependency's `api_lc_` shares the prefix, but only what the generated glue defines is
+        # the C ABI, a binding's entry points the header leaves out, such as `_drop_signal`, included.
+        glue = """#[unsafe(no_mangle)]
+pub extern "C" fn api_Batch_drop_signal(handle: u64) {}
+
+export! {
+    api_unwind_buf_free
+    #[allow(clippy::not_unsafe_ptr_arg_deref)]
+    fn api_buf_free(buf: Buf) {}
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn api_never_linked() {}
+"""
+        keep = package.c_abi(listing, glue, "x86_64-unknown-linux-gnu")
         self.assertEqual(keep, ["api_Batch_drop_signal", "api_buf_free"])
-        self.assertEqual(package.c_abi("api.api.2-cgu.0.rcgu.o:\n_api_buf_free T 0 1\n", "api", "aarch64-apple-darwin"),
-                         ["_api_buf_free"])
-        self.assertEqual(package.c_abi("api_x-1.api_x.2-cgu.0.rcgu.o:\napi_x_init T 0 1\n" + listing, "api", "x86_64-unknown-linux-gnu"),
-                         keep)
+        self.assertEqual(package.c_abi("api.o:\n_api_buf_free T 0 1\n", glue, "aarch64-apple-darwin"), ["_api_buf_free"])
+        # A facade's own `no_mangle` function sharing the prefix is not the generated glue's.
+        self.assertEqual(package.c_abi("api.o:\napi_internal T 0 1\n" + listing, glue, "x86_64-unknown-linux-gnu"), keep)
         new = package.renamed(names - set(keep), "api", "0123456789abcdef")
         self.assertEqual(new["rust_eh_personality"], "rust_eh_personality.api.0123456789abcdef")
         self.assertEqual(new["_ZN3std2rt10lang_start17h0123456789abcdefE"],
                          "_ZN3std2rt10lang_start17h0123456789abcdefE.api.0123456789abcdef")
         with self.assertRaises(SystemExit):
-            package.c_abi(listing, "moq", "x86_64-unknown-linux-gnu")
+            package.c_abi(listing, "fn main() {}", "x86_64-unknown-linux-gnu")
+
+    def test_every_section_group_signature_is_found_local_or_not(self):
+        groups = """libapi.a(std.o):
+COMDAT group section [ 1943] `.group' [DW.ref.rust_eh_personality] contains 2 sections:
+   [Index]    Name
+   [ 1944]   .data.DW.ref.rust_eh_personality
+
+COMDAT group section [   12] `.group' [_ZN4core3fmt5write17h0123E] contains 1 sections:
+"""
+        self.assertEqual(package.group_signatures(groups), {"DW.ref.rust_eh_personality", "_ZN4core3fmt5write17h0123E"})
 
     def test_archive_is_owned_by_no_one(self):
         with tempfile.TemporaryDirectory() as tmp:

@@ -214,10 +214,11 @@ the builder unpacks over its checkout before reading the checks.
    On Windows it is `bin/<lib>.dll` with `lib/<lib>.dll.lib`, beside the static `lib/<lib>.lib`.
 
    The static library is hidden, as every static library the builder ships but Windows'
-   is: `llvm-objcopy` renames every global symbol it defines but the C ABI's, the `<lib>_*`
-   symbols the generated crate's own objects define, to `<name>.<lib>.<digest>`, the
-   digest of the archive's bytes, a suffix Rust's and C++'s demanglers skip; on ELF the
-   renamed symbols are hidden too, so a shared library linking it exports only the C ABI.
+   is: `llvm-objcopy` renames every global symbol it defines but the C ABI's, the
+   functions the generated glue's source exports, to `<name>.<lib>.<digest>`, the digest
+   of the archive's bytes, a suffix Rust's and C++'s demanglers skip, and on ELF each
+   section group's signature with them, which a linker keeps one group of by name; on ELF
+   the renamed symbols are hidden too, so a shared library linking it exports only the C ABI.
    So its std and compiler-builtins, with unmangled symbols such as `rust_eh_personality`
    and `__addvdi3`, cannot clash with another Rust static library in the same program,
    built by any toolchain, nor with another version of its own. Each object keeps its
@@ -226,9 +227,9 @@ the builder unpacks over its checkout before reading the checks.
    a released stable toolchain two releases older (three from a nightly) without the
    crate's compiler flags, in either order, and running the program where the host can:
    one the same toolchain built would link even unhidden, since the linker takes std's
-   members from the first archive alone. A Windows static library keeps every symbol
-   ([its quest](/quest/m1/ffi-packaging/static-isolation.md)): a C program with two Rust
-   static libraries there links the DLL instead.
+   members from the first archive alone. A Windows static library keeps every symbol:
+   COFF has no visibility, and the members `dlltool` makes for raw-dylib imports must keep
+   their names. A C program with two Rust static libraries there links the DLL instead.
 8. Go: one module for every target, at the module path and `v<version>`, the major
    version's `/vN` suffix checked: the export's `go/`, whose runtime's `#cgo` lines link
    `rt/lib<prefix>_<goos>_<goarch>.a` for `linux/amd64` and `linux/arm64` (built against
