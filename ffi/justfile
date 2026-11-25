@@ -20,8 +20,8 @@ swift_collections_rev := "f96b909e1a9e469620bc5037c1e24e00153f376f"
 # The binding benchmark's programs, each a language, as bench-program runs them.
 bench_langs := "rust c cpp moq-c kotlin python swift go dart csharp ts-node ts-addon ts-chromium ts-firefox react-native"
 
-# Those whose cases count the same under Valgrind on every run of one commit: bench/ffi/README.md's Instruction counts section says why Swift, Kotlin, Go, Dart, C#, and Node do not.
-count_langs := "rust c cpp moq-c python"
+# Those whose cases count the same under Valgrind on every run of one commit: bench/ffi/README.md's Instruction counts section says why Swift, Kotlin, Go, Dart, and C# do not.
+count_langs := "rust c cpp moq-c python ts-node"
 
 default:
     @just --list
@@ -374,12 +374,11 @@ bench-program lang:
         dart) exec dart target/bench-dart/main.dill "$hooks" ;;
         csharp) LD_LIBRARY_PATH="$out/target/release" DYLD_LIBRARY_PATH="$out/target/release" exec dotnet target/bench-csharp/bench.dll "$hooks" ;;
         ts-node)
-            # Counted, V8 runs on this thread alone and collects on a schedule its allocations
-            # set, not time, and export.ts collects before each case. Its counts still move
-            # between runs, so ts-node is not in count_langs; these flags stay for
-            # quest/m2/ffi-count-node.md, which brings it back.
+            # Counted, V8 compiles, tiers the module up, and collects on this thread alone, as
+            # its allocations schedule rather than time, and export.ts collects before each
+            # case and gives the module a clock that moves only as it is read.
             flags=()
-            [ -z "${RUST2_CODSPEED:-}" ] || flags=(--expose-gc --predictable --predictable-gc-schedule --single-threaded --v8-pool-size=0)
+            [ -z "${RUST2_CODSPEED:-}" ] || flags=(--expose-gc --predictable --predictable-gc-schedule --single-threaded --wasm-sync-tier-up)
             exec node ${flags[@]+"${flags[@]}"} target/bench-ts/export.ts "$wasm" "$PWD/target/codspeed/codspeed.node" ;;
         ts-addon) exec node target/bench-node/main.ts ;;
         ts-chromium | ts-firefox) exec bun target/bench-ts/browser.ts "${lang#ts-}" "$wasm" "target/bench-browser/${lang#ts-}" ;;
