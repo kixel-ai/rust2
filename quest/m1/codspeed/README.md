@@ -17,6 +17,7 @@ Decided 2026-11-25 (maintainer, `/quest-plan` in rust2):
 - ✅ Wall-clock timing ships first, so each bench is written once and Criterion and `codspeed-criterion-compat` leave together (rejected: rewrite now and stop timing until it ships; keep a Criterion copy of each bench for timing, which kixel-ai/kixel.quest#113 rejected). moq's Nightly times every bench by wall clock through Criterion, including the async and `iter_custom` ones counts skip, and rind's native job times its rustcrypto rows against aws-lc-rs and ring. [Paired timing](/quest/m1/codspeed/paired.md) moves here from the m2 harness epic as the rewrite's only prerequisite; [perf counters](/quest/m2/harness/perf.md) stop blocking it.
 - ✅ m1, since moq and rind wait on it once planned (rejected: m2 beside the harness epic, which ranks it with research).
 - The rewrites are quests in moq's and rind's own trees, each waiting on paired timing, planned there from this PR's follow-ups.
+- Each rewrite is a boundary for its repository's paired timing: a base before it has only Criterion benches and a head after it only `#[bench]` ones. Its quest says how its nightly handles a base across the boundary, such as timing each revision with its own harness until the base is past it, so the first runs after the rewrite still report.
 
 ## Waiting
 
