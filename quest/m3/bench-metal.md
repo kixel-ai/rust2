@@ -29,16 +29,12 @@ linker, so the verdict needs wall time from a quiet host.
   runs on aarch64, so the win needs an aarch64 measurement first. No other lever is
   cost-free and clear of the noise.
 
+Decided 2026-11-25 (maintainer, /quest-run): dispatch when nixos is quiet at 6am.
+[Run 45629535072](https://github.com/kixel-ai/rust2/actions/runs/45629535072) was dispatched
+at 06:01 PST after nixos showed a load average of 0.34 on 32 CPUs, no agent session, no
+`pullfrog-*` container, and no runner job.
+
 Public API: none.
-
-## Waiting
-
-- Maintainer: how to get a quiet host for the stable job, which waits 1 to 2 hours for the
-  lease and runs 2 hours more. Options: (a) pause agent work on `nixos` for a dispatch;
-  (b) extend the ci-lease in dotfiles to freeze or exclude agent sessions and the
-  `pullfrog-*` containers while a bench job holds it; (c) drop the verdict, since moq's CI
-  runs on aarch64 and the instructions show no linker gain. Recommendation: (a), since
-  (b) stalls every agent whenever a bench runs and (c) leaves wild's two hints open.
 
 ## Hosts
 
