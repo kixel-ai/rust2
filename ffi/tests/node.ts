@@ -12,7 +12,6 @@ import * as rt from "./node/rt.ts";
 import * as Channel from "./node/Channel.ts";
 import * as Counter from "./node/Counter.ts";
 import type { Log } from "./node/Log.ts";
-import * as Journal from "./node/Journal.ts";
 import * as Logger from "./node/Logger.ts";
 import * as LogThread from "./node/LogThread.ts";
 import * as Spawned from "./node/Spawned.ts";
