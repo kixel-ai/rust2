@@ -142,26 +142,35 @@ between two runs:
 | Kotlin | 172% (`call`), 108% (`getter`) | leaves: without the warm-up, the JIT's and collector's threads compile and collect inside each case, and the JVM's C2 code crashes under Valgrind unless its implicit null checks are off |
 | Dart | does not run | leaves: the VM maps its code at an address hint off a page boundary, which Valgrind refuses |
 | C# | not measured | leaves until a pair of runs holds: CoreCLR's tiered JIT and collector run on their own threads |
-| TypeScript (Node) | 63% (`ready`), 56% (`write`), 54% (`woken`) | left 2026-11-23: see below |
+| TypeScript (Node) | 0.0003% (`payload[16]`), measured 2026-11-24 on **fedora** under rust2-bench | joins: see below |
 
-Node joined on 2026-11-16, measured on **fedora** the same way, Node 24.22.2. With V8's
-default flags, two runs moved `write` 113%, `stamped` 69%, and `ready` 49%: V8 compiles,
-sweeps, and collects on its own threads, by time. `--predictable --single-threaded
---v8-pool-size=0` keeps all of that on the main thread, which left 36%
-(`payload[1048576]`); `--predictable-gc-schedule`, so a collection follows allocation
-rather than time, left 16% (`throughput[1048576]`); and a full `gc()` before each case,
-through `--expose-gc`, left 2.6% (`ready`). `bench-program` passes all four flags under
-`RUST2_CODSPEED`, and `bench-run`, which times, passes none. The Chromium and Firefox
-columns stay out: a browser's processes would each count apart.
+Node, 24.22.2, holds still only once neither V8 nor moq reads time while counted. V8
+compiles, sweeps, and collects on its own threads, by time, and Valgrind counts every
+thread: with its default flags, two runs moved `write` 113%. `bench-program` passes, under
+`RUST2_CODSPEED`, `--single-threaded`, which keeps that work on the main thread;
+`--predictable --predictable-gc-schedule`, so a collection follows allocation rather than
+time; `--expose-gc`, so `export.ts` collects before each case; and `--wasm-sync-tier-up`,
+so the module's hot functions compile where they trip their budget, not on a worker
+whenever it gets to them, which `--single-threaded` leaves on. `bench-run`, which times,
+passes none. And under Valgrind `export.ts` replays the clock and the random bytes the
+module's WASI imports read: a clock a microsecond later each read, from a fixed origin.
+moq stamps each frame's arrival and keys its accounting by it, so with the host's clock a
+count depended on how slowly Valgrind ran the case and on the host's load.
 
-Node left on 2026-11-23, when rust2-bench replaced CodSpeed: with the same flags, its
-async cases no longer hold still. Two hosted runs and one on **fedora** of one commit
-differed by up to 63% (`ready`), 56% (`write`), and 54% (`woken`), and two on **fedora**
-alone, one program at a time, by 27% (`ready`) and 23% (`woken`); with the flags CodSpeed's
-runner passed to Valgrind, by 17% (`write`). It had already drifted under CodSpeed: on
-PRs that change no TypeScript, CodSpeed reported `payload[16384]` 83% faster (kixel-ai/rust2#979),
-`ready` 82% faster and `woken` 36% slower (kixel-ai/rust2#972), and `ready` 39% slower
-(kixel-ai/rust2#971). Its cases changed since it joined (kixel-ai/rust2#851, kixel-ai/rust2#937).
+Two runs of one build on **fedora**, the largest move of any case, as each fix joined:
+
+| Node under | largest move |
+|---|---|
+| V8's default flags | 113% (`write`), 69% (`stamped`), 49% (`ready`) |
+| the four flags it had under CodSpeed, `--v8-pool-size=0` the fourth | 63% (`ready`), 56% (`write`), 54% (`woken`), on hosted runs and **fedora** |
+| those, and the replayed clock | 8.3% (`write`), 5.6% (`woken`) |
+| `--wasm-sync-tier-up` too, without `--v8-pool-size=0` | 0.0003% (`payload[16]`) |
+
+`--v8-pool-size=0` is gone because Node reads 0 as a pool sized by the host's cores, 31
+workers on **fedora**, not as none. `--no-incremental-marking` also held still, but made
+each collection that the payloads' external memory starts a full pause, 6.5 times
+`throughput[1024]`'s count, so incremental marking stays. The Chromium and Firefox columns
+stay out: a browser's processes would each count apart.
 
 On CI, two runs of one commit under CodSpeed (kixel-ai/rust2#805's 11a94ff) left all 58
 benchmarks untouched: the largest move was Python's `throughput[1024]`, 2.4%, then its
