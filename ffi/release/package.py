@@ -1688,6 +1688,10 @@ def reproducible(info, export_dir, target):
     else:
         # Cargo reads an empty value as no flags, not as one empty flag.
         flags = encoded.split("\x1f") if encoded else []
+    # The generated crate names an Apple dylib after `cargo rustc`'s `--`, which a caller's flags
+    # would follow, and override.
+    if "apple" in target and any("install_name" in flag for flag in flags):
+        raise SystemExit("RUSTFLAGS sets an install name, which the packages set themselves: drop it")
     flags += [f"--remap-path-prefix={old}={new}" for old, new in pairs]
     env = {"SOURCE_DATE_EPOCH": str(info["epoch"])}
     if "msvc" in target:
@@ -2009,10 +2013,10 @@ def llvm_tool(manifest, name):
 
 
 # The random directory rustc imports a Windows GNU library's raw-dylib symbols through, which
-# dlltool names them after, as `<path>_out_rustc<6 random characters>_kernel32_dll_imports_lib`;
-# a driver's imports, such as windows-sys's of ntoskrnl.exe and ksecdd.sys, end in `_exe` and `_sys`.
-RUSTC_TEMP = re.compile(rb"(?<=_out_rustc)[0-9A-Za-z]{6}(?=_[0-9a-z_]+_(?:dll|exe|sys)_imports_lib)")
-IMPORT_MEMBER = re.compile(r".+\.(?:dll|exe|sys)(h|t|s[0-9]+)\.o")
+# dlltool names them after, as `<path>_out_rustc<6 random characters>_kernel32_dll_imports_lib`,
+# and its members after the imported file, whatever its extension, such as ntoskrnl.exe's.
+RUSTC_TEMP = re.compile(rb"(?<=_out_rustc)[0-9A-Za-z]{6}(?=_[0-9a-z_]+_imports_lib)")
+IMPORT_MEMBER = re.compile(r".+\.[0-9A-Za-z]+(h|t|s[0-9]+)\.o")
 
 
 def fix_import_names(path):

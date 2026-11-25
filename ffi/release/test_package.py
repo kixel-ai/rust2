@@ -387,6 +387,12 @@ class Reproducible(unittest.TestCase):
                              ["-C", "link-arg=-Wl,-install_name,@rpath/libmoq.0.4.12.dylib"])
             self.assertEqual(package.install_name(info(tmp), "x86_64-unknown-linux-gnu"), [])
 
+    def test_a_callers_apple_install_name_fails(self):
+        with tempfile.TemporaryDirectory() as tmp, mock.patch.dict(os.environ, {"RUSTFLAGS": "-C link-arg=-Wl,-install_name,@rpath/x.dylib", "CARGO_HOME": tmp + "/home"}):
+            os.environ.pop("CARGO_ENCODED_RUSTFLAGS", None)
+            with self.assertRaises(SystemExit):
+                package.reproducible(info(tmp), Path(tmp) / "export", "aarch64-apple-darwin")
+
     def test_an_empty_encoded_rustflags_is_no_flags(self):
         with tempfile.TemporaryDirectory() as tmp, mock.patch.dict(os.environ, {"CARGO_ENCODED_RUSTFLAGS": "", "RUSTFLAGS": "-C x", "CARGO_HOME": tmp + "/home"}):
             env = package.reproducible(info(tmp), Path(tmp) / "export", "x86_64-unknown-linux-gnu")
@@ -583,16 +589,16 @@ class ImportNames(unittest.TestCase):
             self.assertEqual(members["kernel32.dllh.o"][0], imported.replace(b"4TX99l", b"000000"))
             self.assertEqual(members["api.o"][0], data)
 
-    def test_a_drivers_imports_lose_it_too(self):
+    def test_any_imported_files_lose_it_too(self):
         exe = b"_head_D__a_x_out_rustcffeyij_ntoskrnl_exe_imports_lib\x00"
-        sys_ = b"_head_D__a_x_out_rustcwN6OqG_ksecdd_sys_imports_lib\x00"
+        drv = b"_head_D__a_x_out_rustcwN6OqG_winspool_drv_imports_lib\x00"
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / "lib.a"
-            path.write_bytes(self.archive(("", exe + sys_), ("nt.exes12.o", exe), ("ks.syss3.o", sys_)))
+            path.write_bytes(self.archive(("", exe + drv), ("nt.exes12.o", exe), ("ws.drvh.o", drv)))
             package.fix_import_names(path)
             members = package.ar_members(path)
             self.assertEqual(members["nt.exes12.o"][0], exe.replace(b"ffeyij", b"000000"))
-            self.assertEqual(members["ks.syss3.o"][0], sys_.replace(b"wN6OqG", b"000000"))
+            self.assertEqual(members["ws.drvh.o"][0], drv.replace(b"wN6OqG", b"000000"))
 
 
 class BsdArchive(unittest.TestCase):
