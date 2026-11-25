@@ -34,14 +34,25 @@ fn request(code: u64, arg: u64) {
 }
 
 /// The fixture: runs each benchmark `FIXTURE` names as a loop of its iterations, between
-/// the requests CodSpeed's hooks make.
+/// the requests CodSpeed's hooks make. One whose name starts with `noisy` runs up to 2,000
+/// more, as many as std's random `HashMap` seed and the clock choose.
 #[test]
 #[ignore = "the program the other tests count"]
 fn fixture() {
 	let Ok(list) = std::env::var(FIXTURE) else { return };
 	for bench in list.split(',').filter(|bench| !bench.is_empty()) {
 		let (name, iterations) = bench.split_once('=').expect("name=iterations");
-		let iterations: u64 = iterations.parse().expect("a count");
+		let mut iterations: u64 = iterations.parse().expect("a count");
+		if name.starts_with("noisy") {
+			use std::hash::BuildHasher;
+			let seeded = std::collections::hash_map::RandomState::new().hash_one(name) % 1000;
+			let clock = std::time::SystemTime::now()
+				.duration_since(std::time::UNIX_EPOCH)
+				.unwrap()
+				.subsec_nanos() as u64
+				% 1000;
+			iterations += seeded + clock;
+		}
 		request(ZERO_STATS, 0);
 		request(START_INSTRUMENTATION, 0);
 		let mut sum = 0u64;
@@ -54,12 +65,13 @@ fn fixture() {
 	}
 }
 
-/// rust2-bench, run in `dir` with `args`, counting the fixture as its one program.
-fn bench(dir: &Path, benches: &str, args: &[&str]) -> Output {
+/// rust2-bench, run in `dir` with `args`, counting the fixture as its one program, launched
+/// through the command `wrap`, if any.
+fn bench(dir: &Path, benches: &str, wrap: &str, args: &[&str]) -> Output {
 	let me = std::env::current_exe().unwrap();
 	// Quoted for the shell, which may otherwise split the path.
 	let me = me.to_str().unwrap().replace('\'', r"'\''");
-	let program = format!("{FIXTURE}={benches} '{me}' --exact fixture --ignored --test-threads=1 -q");
+	let program = format!("{FIXTURE}={benches} {wrap} '{me}' --exact fixture --ignored --test-threads=1 -q");
 	Command::new(env!("CARGO_BIN_EXE_rust2-bench"))
 		.arg("run")
 		.args(["--program", &program])
@@ -79,7 +91,7 @@ fn scratch(name: &str) -> std::path::PathBuf {
 #[test]
 fn counts_each_benchmark_a_program_brackets() {
 	let dir = scratch("counts");
-	let out = bench(&dir, "a=1000,b=2000", &["--out", "metrics.json"]);
+	let out = bench(&dir, "a=1000,b=2000", "", &["--out", "metrics.json"]);
 	assert!(out.status.success(), "{}", String::from_utf8_lossy(&out.stderr));
 	let metrics: serde_json::Value =
 		serde_json::from_str(&std::fs::read_to_string(dir.join("metrics.json")).unwrap()).unwrap();
@@ -99,7 +111,7 @@ fn counts_each_benchmark_a_program_brackets() {
 	let ratio = b as f64 / a as f64;
 	assert!((1.9..2.1).contains(&ratio), "{a} {b}");
 	// The same program counts the same again.
-	let again = bench(&dir, "a=1000,b=2000", &["--out", "again.json"]);
+	let again = bench(&dir, "a=1000,b=2000", "", &["--out", "again.json"]);
 	assert!(again.status.success(), "{}", String::from_utf8_lossy(&again.stderr));
 	assert_eq!(
 		std::fs::read(dir.join("metrics.json")).unwrap(),
@@ -111,7 +123,12 @@ fn counts_each_benchmark_a_program_brackets() {
 fn counts_only_the_benchmarks_a_list_names() {
 	let dir = scratch("listed");
 	std::fs::write(dir.join("list"), "b\n").unwrap();
-	let out = bench(&dir, "a=10,b=20", &["--benchmarks", "list", "--out", "metrics.json"]);
+	let out = bench(
+		&dir,
+		"a=10,b=20",
+		"",
+		&["--benchmarks", "list", "--out", "metrics.json"],
+	);
 	assert!(out.status.success(), "{}", String::from_utf8_lossy(&out.stderr));
 	let metrics: serde_json::Value =
 		serde_json::from_str(&std::fs::read_to_string(dir.join("metrics.json")).unwrap()).unwrap();
@@ -123,7 +140,7 @@ fn counts_only_the_benchmarks_a_list_names() {
 fn fails_on_a_listed_benchmark_no_program_has() {
 	let dir = scratch("missing");
 	std::fs::write(dir.join("list"), "a\nsuspect\n").unwrap();
-	let out = bench(&dir, "a=10", &["--benchmarks", "list"]);
+	let out = bench(&dir, "a=10", "", &["--benchmarks", "list"]);
 	assert!(!out.status.success());
 	let err = String::from_utf8_lossy(&out.stderr);
 	assert!(err.contains("no benchmark is named suspect"), "{err}");
@@ -132,7 +149,7 @@ fn fails_on_a_listed_benchmark_no_program_has() {
 #[test]
 fn fails_on_two_benchmarks_of_one_name() {
 	let dir = scratch("twice");
-	let out = bench(&dir, "a=10,a=20", &[]);
+	let out = bench(&dir, "a=10,a=20", "", &[]);
 	assert!(!out.status.success());
 	let err = String::from_utf8_lossy(&out.stderr);
 	assert!(err.contains("two benchmarks are named a"), "{err}");
@@ -141,7 +158,7 @@ fn fails_on_two_benchmarks_of_one_name() {
 #[test]
 fn fails_on_a_program_that_measures_nothing() {
 	let dir = scratch("nothing");
-	let out = bench(&dir, "", &[]);
+	let out = bench(&dir, "", "", &[]);
 	assert!(!out.status.success());
 	let err = String::from_utf8_lossy(&out.stderr);
 	assert!(err.contains("measured no benchmark"), "{err}");
@@ -237,4 +254,25 @@ fn counts_each_harness_benchmark_alone_without_its_setup() {
 		err.contains(&format!("no benchmark is named {file}sized[3000]")),
 		"{err}"
 	);
+}
+
+#[test]
+fn repeats_a_count_that_reads_randomness_and_the_clock() {
+	let dir = scratch("noisy");
+	let count = |out: &str| {
+		let run = bench(&dir, "noisy=1000", "", &["--out", out]);
+		assert!(run.status.success(), "{}", String::from_utf8_lossy(&run.stderr));
+		std::fs::read(dir.join(out)).unwrap()
+	};
+	// Each run would otherwise draw one of a million counts.
+	assert_eq!(count("one.json"), count("two.json"));
+}
+
+#[test]
+fn fails_on_a_process_that_never_loaded_the_preload() {
+	let dir = scratch("bypass");
+	let out = bench(&dir, "a=10", "env -u LD_PRELOAD", &[]);
+	assert!(!out.status.success());
+	let err = String::from_utf8_lossy(&out.stderr);
+	assert!(err.contains("never loaded rust2-bench's preload"), "{err}");
 }

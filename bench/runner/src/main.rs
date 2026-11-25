@@ -6,6 +6,7 @@ mod cargo;
 mod compare;
 mod fingerprint;
 mod metrics;
+mod preload;
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
@@ -96,6 +97,7 @@ fn cli(args: &[String]) -> Result<(), String> {
 				"GLIBC_TUNABLES: {}",
 				fingerprint.tunables.as_deref().unwrap_or("(unset)")
 			);
+			eprintln!("preload: {}", fingerprint.preload);
 			eprint!("cpu:\n{}", fingerprint.cpu);
 			Ok(())
 		}
@@ -199,6 +201,19 @@ fn valgrind() -> Result<Command, String> {
 	Ok(command)
 }
 
+/// rust2-bench's directory in the user's cache, created when missing, as a canonical path.
+pub fn cache() -> Result<PathBuf, String> {
+	let cache = std::env::var_os("XDG_CACHE_HOME")
+		.map(PathBuf::from)
+		.or_else(|| std::env::var_os("HOME").map(|home| Path::new(&home).join(".cache")))
+		.ok_or("neither XDG_CACHE_HOME nor HOME is set, so rust2-bench's cache has nowhere to go")?
+		.join("rust2-bench");
+	std::fs::create_dir_all(&cache).map_err(|e| format!("cannot create {}: {e}", cache.display()))?;
+	cache
+		.canonicalize()
+		.map_err(|e| format!("cannot resolve {}: {e}", cache.display()))
+}
+
 /// Valgrind on rust2-bench's own `PATH`, found once, so the fingerprint and every count run
 /// the same one even when a job's environment sets another `PATH`.
 pub fn valgrind_path() -> Result<&'static Path, String> {
@@ -229,6 +244,7 @@ fn measure(dir: &Path, options: &Options, strict: bool) -> Result<Counts, String
 		.map_err(|e| format!("cannot resolve {}: {e}", dir.display()))?;
 	let fingerprint = Fingerprint::probe()?.label();
 	eprintln!("rust2-bench: fingerprint {fingerprint}");
+	let preload = preload::install()?;
 	let mut jobs = if options.programs.is_empty() {
 		cargo::jobs(dir, &options.cargo, strict)?
 	} else {
@@ -263,7 +279,7 @@ fn measure(dir: &Path, options: &Options, strict: bool) -> Result<Counts, String
 		// whichever it holds.
 		jobs.retain(|job| job.expect.as_ref().is_none_or(|name| wanted.contains(name)));
 	}
-	let mut counts = run(jobs, &work(dir)?, options.jobs)?;
+	let mut counts = run(jobs, &work(dir)?, &preload, options.jobs)?;
 	if let Some(wanted) = &options.benchmarks {
 		if strict {
 			missing(wanted, |name| counts.contains_key(name))?;
@@ -312,10 +328,10 @@ fn work(dir: &Path) -> Result<PathBuf, String> {
 	unreachable!("some name is free")
 }
 
-/// Runs each job under Valgrind, `parallel` at once, each in a directory of its own under
-/// `work`, and gathers what they measured. Any failure fails the whole and keeps `work` for
-/// its output; success removes it.
-fn run(jobs: Vec<Job>, work: &Path, parallel: usize) -> Result<BTreeMap<String, u64>, String> {
+/// Runs each job under Valgrind with the library at `preload`, `parallel` at once, each in a
+/// directory of its own under `work`, and gathers what they measured. Any failure fails the
+/// whole and keeps `work` for its output; success removes it.
+fn run(jobs: Vec<Job>, work: &Path, preload: &Path, parallel: usize) -> Result<BTreeMap<String, u64>, String> {
 	let total = jobs.len();
 	let queue = Mutex::new(jobs.into_iter().enumerate());
 	let done = AtomicUsize::new(0);
@@ -333,7 +349,7 @@ fn run(jobs: Vec<Job>, work: &Path, parallel: usize) -> Result<BTreeMap<String, 
 						};
 						let started = Instant::now();
 						let label = job.label.clone();
-						let result = one(job, &work.join(index.to_string()));
+						let result = one(job, &work.join(index.to_string()), preload);
 						let finished = done.fetch_add(1, Ordering::Relaxed) + 1;
 						match &result {
 							Ok(measured) => eprintln!(
@@ -379,8 +395,9 @@ fn run(jobs: Vec<Job>, work: &Path, parallel: usize) -> Result<BTreeMap<String, 
 /// What one job measured: each benchmark's name and count, or why it failed.
 type Measured = Result<Vec<(String, u64)>, String>;
 
-/// Runs one job under Valgrind, its profiles and output in `dir`, and reads what it measured.
-fn one(job: Job, dir: &Path) -> Measured {
+/// Runs one job under Valgrind with the library at `preload` in every process, its profiles
+/// and output in `dir`, and reads what it measured.
+fn one(job: Job, dir: &Path, preload: &Path) -> Measured {
 	let Job { label, command, expect } = job;
 	std::fs::create_dir_all(dir).map_err(|e| format!("cannot create {}: {e}", dir.display()))?;
 	let file = |name: &str| {
@@ -406,6 +423,17 @@ fn one(job: Job, dir: &Path) -> Measured {
 			None => valgrind.env_remove(key),
 		};
 	}
+	// First, so its randomness and clock stand in front of any other preload's.
+	let others = match command.get_envs().find(|(key, _)| *key == "LD_PRELOAD") {
+		Some((_, value)) => value.map(ToOwned::to_owned),
+		None => std::env::var_os("LD_PRELOAD"),
+	};
+	let mut preloads = preload.as_os_str().to_owned();
+	if let Some(others) = others.filter(|others| !others.is_empty()) {
+		preloads.push(":");
+		preloads.push(others);
+	}
+	valgrind.env("LD_PRELOAD", preloads);
 	let status = valgrind.status().map_err(|e| format!("cannot run valgrind: {e}"))?;
 	if !status.success() {
 		return Err(format!(
@@ -428,7 +456,14 @@ fn one(job: Job, dir: &Path) -> Measured {
 			continue;
 		}
 		let text = std::fs::read_to_string(&path).map_err(|e| format!("cannot read {}: {e}", path.display()))?;
-		measured.extend(callgrind::parse(&text, &path.display().to_string())?);
+		let found = callgrind::parse(&text, &path.display().to_string())?;
+		if !found.is_empty() {
+			// `callgrind.<pid>`, then `.<n>` for each dump after the first.
+			let name = path.file_name().expect("listed").to_string_lossy();
+			let pid = name["callgrind.".len()..].split('.').next().unwrap_or_default();
+			preload::check(dir, pid, &label)?;
+		}
+		measured.extend(found);
 	}
 	match expect {
 		Some(name) => match measured.as_slice() {
