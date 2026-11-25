@@ -915,6 +915,13 @@ libmoq.a(other.o):
                          '__attribute__((aligned(8))) char common2[8] __asm__("_tty_out");\n')
         self.assertEqual(package.commons_source("0000 (__TEXT,__text) external _moq_x\n"), "typedef int empty;\n")
 
+    def test_the_older_toolchain_is_a_stable_release_whatever_the_channel(self):
+        self.assertEqual(package.older_toolchain("rustc 1.98.1\nhost: x86_64-unknown-linux-gnu\nrelease: 1.98.1\n"), "1.96.0")
+        # A nightly's release is two ahead of stable, its beta one.
+        self.assertEqual(package.older_toolchain("release: 1.102.0-nightly\n"), "1.100.0")
+        with self.assertRaises(SystemExit):
+            package.older_toolchain("release: 2.0.0\n")
+
     def test_archive_is_owned_by_no_one(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp) / "moq-ffi-0.4.12-x86_64-unknown-linux-gnu"

@@ -162,7 +162,8 @@ the builder unpacks over its checkout before reading the checks.
 6. Swift: static libraries for macOS arm64 at macOS 13 and Mac Catalyst arm64 at iOS 16,
    the floors of the generated Swift's `Swift.Duration`, and iOS arm64 and its simulator at
    React Native's 15.1, below the package's 16, as React Native's package takes them too,
-   each checked against every object's declared minimum OS; one XCFramework of the four, zipped by the builder itself,
+   each checked against every object's declared minimum OS and hidden as the C archive's
+   static library is; one XCFramework of the four, zipped by the builder itself,
    its SHA-256 checked against `swift package compute-checksum`; and a `Package.swift`
    naming it at `https://github.com/<repo>/releases/download/<crate>-v<version>/<Module>FFI.xcframework.zip`.
    The package depends on swift-collections by the release tag at the exporter's pinned
@@ -212,13 +213,19 @@ the builder unpacks over its checkout before reading the checks.
    Both targets require C11 and C++17 of what links them, the headers' floor.
    On Windows it is `bin/<lib>.dll` with `lib/<lib>.dll.lib`, beside the static `lib/<lib>.lib`.
 
-   The static library is one object prelinked from Rust's archive (`ld -r`, then `objcopy`
-   on ELF and the linker's exported-symbols list on Mach-O) whose only global symbols are
-   the C ABI's, `<lib>_*`. So its std and compiler-builtins, with unmangled symbols such as
-   `__addvdi3`, cannot clash with another Rust static library in the same program, which
-   each build checks by linking one beside it. MSVC's linker has no relocatable link, so the
-   Windows static library keeps every symbol: a program with two Rust static libraries
-   there links the DLL instead.
+   The static library is hidden, as every static library the builder ships but Windows'
+   is: one object prelinked from Rust's archive (the toolchain's `rust-lld -r`, then
+   `llvm-objcopy`, on ELF, Android's included, and Apple's `clang -r` with an
+   exported-symbols list on Mach-O) whose only global symbols are the C ABI's, `<lib>_*`,
+   as the archive defines them. So its std and compiler-builtins, with unmangled symbols
+   such as `rust_eh_personality` and `__addvdi3`, cannot clash with another Rust static
+   library in the same program, built by any toolchain. Each build checks it by linking
+   one beside it, built by the toolchain two releases older, in either order, and running
+   the program where the host can: one the same toolchain built would link even unhidden,
+   since the linker takes std's members from the first archive alone. MSVC's linker has no
+   relocatable link, and GNU ld's of a MinGW archive leaves its import symbols without a
+   section, so a Windows static library keeps every symbol: a program with two Rust static
+   libraries there links the DLL instead.
 8. Go: one module for every target, at the module path and `v<version>`, the major
    version's `/vN` suffix checked: the export's `go/`, whose runtime's `#cgo` lines link
    `rt/lib<prefix>_<goos>_<goarch>.a` for `linux/amd64` and `linux/arm64` (built against
@@ -228,7 +235,8 @@ the builder unpacks over its checkout before reading the checks.
    Android), and `windows/amd64` (an
    `x86_64-pc-windows-gnu` library, for Go's MinGW linker), and the license files. Each
    library must need exactly the system libraries the export's line names, as rustc prints
-   them building it, and loses its debug info and the LLVM bitcode Go refuses. The module's
+   them building it, is hidden as the C archive's static library is, but on Windows, and
+   loses its debug info and the LLVM bitcode Go refuses. The module's
    `.info`, `.mod`, and `.zip`, and a version `list` naming this release alone, which a proxy
    serving earlier releases appends to its own, are laid out as a GOPROXY serves them, under Go's 500 MiB
    limit on the zip and on its files, whose sizes the run's summary reports. One module
@@ -339,7 +347,8 @@ the builder unpacks over its checkout before reading the checks.
 14. React Native, with a `scope`: the export's `react-native/`
     ([React Native](/ffi/README.md#react-native)), with the libraries its app builds link:
     a static library of the C ABI for each ABI React Native's template builds, `arm64-v8a`,
-    `armeabi-v7a`, `x86`, and `x86_64`, at API 24, its floor, and an XCFramework of the
+    `armeabi-v7a`, `x86`, and `x86_64`, at API 24, its floor, hidden as the C archive's
+    static library is, and an XCFramework of the
     Swift package's iOS device and simulator libraries, at its iOS floor, 15.1. Each is
     stripped of debug info and LTO bitcode, as the Go module's: an unlinked library's DWARF
     is most of its bytes, and with it moq's tarball would be about 400 MB, twice what npm
