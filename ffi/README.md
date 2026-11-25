@@ -40,7 +40,8 @@ is the library's crate name, Cargo's `[lib] name`, which defaults to the package
 snake case, without its leading and trailing `_`s and keeping one `_` of each run, since C
 reserves every global name starting with `_` and C++ every name holding `__`; a name left
 starting with no letter, such as `__`, fails the export. `--out` writes a crate of `extern "C"` functions over the facade, its runtime
-beside it, and the header in `include/<prefix>.h`; `cargo build` on that crate makes a
+beside it, the header in `include/<prefix>.h`, and `exports.txt`, each C function the crate
+exports, then the features any of which builds it, if any (`web` only for wasm32); `cargo build` on that crate makes a
 static and a shared library for those targets alone: its build script refuses another, on
 which an item the target compiles would be missing, or one it leaves out left over. So a
 `cfg`-gated item works on its targets and on no other ([Targets](#targets)), and the
