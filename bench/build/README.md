@@ -160,7 +160,7 @@ The control moved wall time +0%, -0.4%, -15.9%, and -0.8% on `check`, `build`, `
 Neither linker belongs in moq's `.cargo/config.toml`:
 
 - mold is slower on every scenario, by 8 to 32% of wall time.
-- wild ties the baseline on `check` and `build` and loses 2.6% on `edit-hub`, so its -17.8% and -37.7% on `edit-hub` in the loaded runs were the host's noise.
+- wild ties the baseline on `check` and `build` and loses 2.6% on `edit-hub`, so its -17.8% and -37.7% on `edit-hub` in the loaded runs did not reproduce on a quiet host.
   Its one gain is `edit-leaf`, -23.1% against a control that moved -15.9%; its fastest run beats the baseline's by 0.31 s (12%), a hint inside the noise, not a win.
 - Both cut the edits' CPU time by 15 to 43%, but not their wall time.
 
