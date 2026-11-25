@@ -222,7 +222,8 @@ the builder unpacks over its checkout before reading the checks.
    the renamed symbols are hidden too, so a shared library linking it exports only the C ABI.
    The shared library must export every listed function, and may export more: a C
    function the facade or a dependency defines itself, such as moq-ffi's
-   `moq_ffi_shutdown`, which every static library renames, so two packages never clash on it.
+   `moq_ffi_shutdown`, which every static library renames, so two packages never clash on it:
+   a C program calling one links the shared library.
    So its std and compiler-builtins, with unmangled symbols such as `rust_eh_personality`
    and `__addvdi3`, cannot clash with another Rust static library in the same program,
    built by any toolchain, nor with another version of its own. Each object keeps its

@@ -323,6 +323,9 @@ fn exports(modules: &[(&str, &[&str])]) -> String {
 			// The attribute's whole line, as the glue writes it and [`unwinding`] reads it: an
 			// API's own name may hold `no_mangle`.
 			if *line != NO_MANGLE.trim_end() {
+				// Indented, it would be a C function the list leaves out, which every static
+				// library would rename.
+				assert_ne!(line.trim(), NO_MANGLE.trim_end(), "a C function's attribute, unindented");
 				continue;
 			}
 			let head = (lines[i + 1..].iter())
@@ -3999,4 +4002,10 @@ fn exports_name_each_function_by_the_features_that_build_it() {
 #[should_panic(expected = "a C function")]
 fn exports_refuse_a_no_mangle_they_cannot_name() {
 	exports(&[("#[unsafe(no_mangle)]\npub static API: u8 = 0;\n", &[])]);
+}
+
+#[test]
+#[should_panic(expected = "unindented")]
+fn exports_refuse_an_indented_no_mangle() {
+	exports(&[("mod inner {\n\t#[unsafe(no_mangle)]\n\tpub extern \"C\" fn api_inner() {}\n}\n", &[])]);
 }

@@ -1112,7 +1112,10 @@ def c_abi(export, target):
     """The C ABI's symbols, as the object format spells them: each C function the export's
     `exports.txt` lists that no binding feature gates, as a static library builds with none, a
     binding's entry points the header leaves out included."""
-    lines = (Path(export) / "exports.txt").read_text(encoding="utf-8").splitlines()
+    listed = Path(export) / "exports.txt"
+    if not listed.is_file():
+        raise SystemExit(f"{export} has no exports.txt: export it again with this rust2-ffi")
+    lines = listed.read_text(encoding="utf-8").splitlines()
     mangle = "_" if "apple" in target else ""
     found = {mangle + line for line in lines if line and not line.startswith("#") and " " not in line}
     if not found:

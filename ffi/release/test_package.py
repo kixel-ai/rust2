@@ -956,6 +956,10 @@ __cxa_thread_atexit_impl w
             Path(export, "exports.txt").write_text("# Generated.\nJava_api_1contract kotlin\n", encoding="utf-8")
             with self.assertRaises(SystemExit):
                 package.c_abi(export, "x86_64-unknown-linux-gnu")
+            # An export an older rust2-ffi wrote has no list.
+            Path(export, "exports.txt").unlink()
+            with self.assertRaises(SystemExit):
+                package.c_abi(export, "x86_64-unknown-linux-gnu")
         new = package.renamed(names - {"api_buf_free", "api_Batch_drop_signal"}, "api", "0123456789abcdef")
         self.assertEqual(new["rust_eh_personality"], "rust_eh_personality.api.0123456789abcdef")
         self.assertEqual(new["_ZN3std2rt10lang_start17h0123456789abcdefE"],
