@@ -1238,9 +1238,12 @@ def coexist(archive, include, lib, native, manifest, target, work):
                     f'\tprintf("%zu %lld\\n", buf.len, (long long)rust2_other_sum(40, 1));\n\t{lib}_buf_free(buf);\n\treturn 0;\n}}\n',
                     encoding="utf-8")
     host = re.search(r"^host: (\S+)$", version, re.M).group(1)
+    # What both libraries link, once each.
+    flags = [arg for kind, name in native_flags(f"{native} {notes[0]}", target, frameworks=True)
+             for arg in ((f"-l{name}",) if kind == "library" else ("-framework", name))]
     for order in ((archive, theirs), (theirs, archive)):
         exe = work / "coexist"
-        run(*clang, "-std=c11", "-I", include, main, *order, *shlex.split(native), *shlex.split(notes[0]), "-o", exe)
+        run(*clang, "-std=c11", "-I", include, main, *order, *flags, "-o", exe)
         if target == host and output(exe) != "2 42\n":
             raise SystemExit(f"{archive.name} beside another Rust static library printed the wrong result")
 
