@@ -25,10 +25,7 @@ pub fn compare(base: &str, options: &Options) -> Result<(), String> {
 	let tree = worktree(&real)?;
 	// Taken first, so the head is the working tree as it was when compare started, however
 	// long it waits for the lock or the base takes to count.
-	let head = snapshot(
-		&top,
-		&tree.with_extension(format!("index-{}", std::process::id())),
-	)?;
+	let head = snapshot(&top, &tree.with_extension(format!("index-{}", std::process::id())))?;
 	// Another compare of this repository shares the worktree, so it waits until this one has
 	// counted both sides rather than check out another commit under it.
 	let lock = tree.with_extension("lock");
@@ -77,7 +74,10 @@ fn snapshot(top: &Path, index: &Path) -> Result<String, String> {
 		)?)?;
 	}
 	// A copy of the caller's index, whose cached file stats spare `add` hashing every file again.
-	let own = PathBuf::from(git(top, &["rev-parse", "--path-format=absolute", "--git-path", "index"])?);
+	let own = PathBuf::from(git(
+		top,
+		&["rev-parse", "--path-format=absolute", "--git-path", "index"],
+	)?);
 	match std::fs::copy(&own, index) {
 		Ok(_) => {}
 		Err(e) if e.kind() == std::io::ErrorKind::NotFound => {

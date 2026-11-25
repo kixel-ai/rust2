@@ -331,12 +331,23 @@ fn fails_on_a_timer_armed_at_an_absolute_time() {
 /// Runs git in `dir` under a fixed identity, returning its stdout.
 fn git(dir: &Path, args: &[&str]) -> String {
 	let out = Command::new("git")
-		.args(["-c", "user.name=test", "-c", "user.email=test@localhost", "-c", "commit.gpgsign=false"])
+		.args([
+			"-c",
+			"user.name=test",
+			"-c",
+			"user.email=test@localhost",
+			"-c",
+			"commit.gpgsign=false",
+		])
 		.args(args)
 		.current_dir(dir)
 		.output()
 		.unwrap();
-	assert!(out.status.success(), "git {args:?}: {}", String::from_utf8_lossy(&out.stderr));
+	assert!(
+		out.status.success(),
+		"git {args:?}: {}",
+		String::from_utf8_lossy(&out.stderr)
+	);
 	String::from_utf8(out.stdout).unwrap()
 }
 
