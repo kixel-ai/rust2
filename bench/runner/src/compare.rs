@@ -10,34 +10,11 @@ use crate::{Counts, Options, measure, missing};
 
 /// Counts `base` in a worktree of its own, then the working tree, and prints each change.
 pub fn compare(base: &str, options: &Options) -> Result<(), String> {
-	let top = PathBuf::from(git(Path::new("."), &["rev-parse", "--show-toplevel"])?);
-	// Where the run is within the repository, so the base runs from the same place in its own.
-	let prefix = git(Path::new("."), &["rev-parse", "--show-prefix"])?;
-	let sha = git(
-		Path::new("."),
-		&["rev-parse", "--verify", &format!("{base}^{{commit}}")],
-	)?;
-	let real = top
-		.canonicalize()
-		.map_err(|e| format!("cannot resolve {}: {e}", top.display()))?;
-	let tree = base_tree(&real)?;
-	// Another compare of this repository shares the base's worktree, so it waits until this
-	// one has counted the base rather than check out another commit under it.
-	let lock = tree.with_extension("lock");
-	let lock = std::fs::File::create(&lock).map_err(|e| format!("cannot create {}: {e}", lock.display()))?;
-	lock.lock()
-		.map_err(|e| format!("cannot lock the base's worktree: {e}"))?;
-	checkout(&top, &tree, &sha)?;
-	eprintln!(
-		"rust2-bench: counting {base} ({}) in {}",
-		&sha[..12.min(sha.len())],
-		tree.display()
-	);
-	let mut base = options.clone();
-	base.cargo = rebase(&options.cargo, &real, &tree)?;
+	let checkout = Checkout::new(base, options)?;
+	eprintln!("rust2-bench: counting {base} ({}) in {}", checkout.short(), checkout.dir.display());
 	// A wanted benchmark may be new at the head or gone from it, but must be on one side.
-	let before = measure(&tree.join(&prefix), &base, false)?;
-	drop(lock);
+	let before = measure(&checkout.dir, &checkout.options, false)?;
+	drop(checkout);
 	eprintln!("rust2-bench: counting the working tree");
 	let after = measure(Path::new("."), options, false)?;
 	if let Some(wanted) = &options.benchmarks {
@@ -50,6 +27,55 @@ pub fn compare(base: &str, options: &Options) -> Result<(), String> {
 	}
 	print!("{}", table(&before, &after)?);
 	Ok(())
+}
+
+/// A base commit checked out in the worktree kept for this repository, held from any other
+/// compare until dropped.
+pub struct Checkout {
+	/// The commit's full ID.
+	pub sha: String,
+	/// Where to measure it: the same place within its worktree as the run is within the repository.
+	pub dir: PathBuf,
+	/// The options to measure it with, its Cargo args moved into its worktree.
+	pub options: Options,
+	/// Held until dropped: another compare of this repository shares the worktree, so it waits
+	/// rather than check out another commit under this one.
+	_lock: std::fs::File,
+}
+
+impl Checkout {
+	/// Checks `base` out, waiting for any other compare of this repository to drop its own.
+	pub fn new(base: &str, options: &Options) -> Result<Self, String> {
+		let top = PathBuf::from(git(Path::new("."), &["rev-parse", "--show-toplevel"])?);
+		// Where the run is within the repository, so the base runs from the same place in its own.
+		let prefix = git(Path::new("."), &["rev-parse", "--show-prefix"])?;
+		let sha = git(
+			Path::new("."),
+			&["rev-parse", "--verify", &format!("{base}^{{commit}}")],
+		)?;
+		let real = top
+			.canonicalize()
+			.map_err(|e| format!("cannot resolve {}: {e}", top.display()))?;
+		let tree = base_tree(&real)?;
+		let lock = tree.with_extension("lock");
+		let lock = std::fs::File::create(&lock).map_err(|e| format!("cannot create {}: {e}", lock.display()))?;
+		lock.lock()
+			.map_err(|e| format!("cannot lock the base's worktree: {e}"))?;
+		checkout(&top, &tree, &sha)?;
+		let mut moved = options.clone();
+		moved.cargo = rebase(&options.cargo, &real, &tree)?;
+		Ok(Self {
+			sha,
+			dir: tree.join(prefix),
+			options: moved,
+			_lock: lock,
+		})
+	}
+
+	/// The commit's ID, abbreviated.
+	pub fn short(&self) -> &str {
+		&self.sha[..12.min(self.sha.len())]
+	}
 }
 
 /// Where the base's worktree for the repository at `top` lives: in the user's cache, outside

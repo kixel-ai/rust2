@@ -240,6 +240,7 @@ pub fn jobs(dir: &Path, args: &[String], strict: bool) -> Result<Vec<Job>, Strin
 				label: name.clone(),
 				command,
 				expect: Some(name),
+				codspeed: harness == Harness::CodSpeed,
 			});
 		}
 	}

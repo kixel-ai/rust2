@@ -1,10 +1,12 @@
-//! The benchmarks rust2-bench's tests count: a loop of known length alone, by argument, in a
-//! module, in an order that changes, and behind a setup whose own work must go uncounted.
+//! The benchmarks rust2-bench's tests count and time: a loop of known length alone, by
+//! argument, in a module, in an order that changes, behind a setup and between steps whose own
+//! work must go uncounted, and timing itself.
 
 use std::hint::black_box;
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::time::{Duration, Instant};
 
-use rust2_bench_harness::bench;
+use rust2_bench_harness::{Iterations, bench};
 
 /// `n` iterations of a loop the optimizer keeps.
 fn spin(n: u64) -> u64 {
@@ -52,6 +54,27 @@ fn same<T>(t: T) -> T {
 #[bench(args = [4_294_967_296_000 >> 30], setup = same)]
 extern "C" fn generic(n: u64) -> u64 {
 	spin(n / 4) + spin(WORDS.len() as u64 - 1)
+}
+
+/// A step that costs a million iterations.
+fn touch(heavy: &mut Heavy) {
+	heavy.0[0] = spin(1_000_000) & 1;
+}
+
+/// Counts as `alone` does: neither step around it counts.
+#[bench(setup = heavy, before = touch, after = touch)]
+fn stepped(heavy: &mut Heavy) -> u64 {
+	spin(1000) + heavy.0[0]
+}
+
+/// Counts near `alone`, called for one iteration: its clock's reads count too.
+#[bench]
+fn timed(iterations: Iterations) -> Duration {
+	let start = Instant::now();
+	for _ in iterations {
+		black_box(spin(1000));
+	}
+	start.elapsed()
 }
 
 #[bench(args = &WORDS)]

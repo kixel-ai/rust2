@@ -1,5 +1,6 @@
 //! rust2-bench: counts each benchmark's instructions under stock Valgrind, one process a job,
-//! in parallel, for Kixel Quest's `metrics.json` and for a local base-versus-head compare.
+//! in parallel, for Kixel Quest's `metrics.json` and for a local base-versus-head compare, and
+//! times them by wall clock, alone or paired with a base commit's.
 
 mod callgrind;
 mod cargo;
@@ -7,6 +8,7 @@ mod compare;
 mod fingerprint;
 mod metrics;
 mod preload;
+mod time;
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::ffi::{OsStr, OsString};
@@ -24,10 +26,12 @@ const PROBE: &str = "__cpu";
 const USAGE: &str = "\
 usage: rust2-bench run [options] [-- cargo bench args...]
        rust2-bench compare <base> [options] [-- cargo bench args...]
+       rust2-bench time [<base>] [options] [-- cargo bench args...]
        rust2-bench fingerprint
 
 run counts the working tree's benchmarks; compare counts <base>, a commit, in a worktree of its
-own under ~/.cache/rust2-bench, then the working tree, and prints each change.
+own under ~/.cache/rust2-bench, then the working tree, and prints each change. time times the
+working tree's by wall clock, one at a time, or with <base> each paired with the base's.
 
 Benchmarks are the Cargo workspace's, written with rust2-bench-harness or CodSpeed's
 compatibility crates, unless --program names them.
@@ -35,7 +39,7 @@ compatibility crates, unless --program names them.
 options:
   --benchmarks <file>  count only the benchmarks it names, one a line; any it names that no
                        benchmark has fails the run
-  --out <file>         write the counts as Kixel Quest's metrics.json (run only)
+  --out <file>         write the counts or times as Kixel Quest's metrics.json (run and time)
   --jobs <n>           how many Valgrind processes run at once (default: every core)
   --build <command>    a shell command that builds the programs, run first (with --program)
   --program <command>  a shell command that runs a program whose benchmarks run through
@@ -73,7 +77,7 @@ fn cli(args: &[String]) -> Result<(), String> {
 			let counts = measure(Path::new("."), &options, true)?;
 			print!("{}", metrics::table(&counts.counts));
 			if let Some(out) = &options.out {
-				metrics::write(out, &counts)?;
+				metrics::File::counts(&counts).write(out)?;
 				eprintln!("rust2-bench: wrote {}", out.display());
 			}
 			Ok(())
@@ -85,6 +89,14 @@ fn cli(args: &[String]) -> Result<(), String> {
 				return Err("compare writes no metrics.json: --out is run's".to_owned());
 			}
 			compare::compare(base, &options)
+		}
+		"time" => {
+			// A base is a commit, and no commit's name starts with a dash.
+			let (base, rest) = match rest.split_first() {
+				Some((base, rest)) if !base.starts_with('-') => (Some(base.as_str()), rest),
+				_ => (None, rest),
+			};
+			time::time(base, &Options::parse(rest)?)
 		}
 		"fingerprint" => {
 			if !rest.is_empty() {
@@ -116,7 +128,8 @@ pub struct Options {
 	/// The only benchmarks to count, when given.
 	benchmarks: Option<BTreeSet<String>>,
 	out: Option<PathBuf>,
-	jobs: usize,
+	/// How many Valgrind processes run at once, when given.
+	jobs: Option<usize>,
 	build: Option<String>,
 	programs: Vec<String>,
 	cargo: Vec<String>,
@@ -127,7 +140,7 @@ impl Options {
 		let mut options = Options {
 			benchmarks: None,
 			out: None,
-			jobs: std::thread::available_parallelism().map_or(1, usize::from),
+			jobs: None,
 			build: None,
 			programs: Vec::new(),
 			cargo: Vec::new(),
@@ -144,11 +157,12 @@ impl Options {
 				"--out" => options.out = Some(PathBuf::from(value()?)),
 				"--jobs" => {
 					let jobs = value()?;
-					options.jobs = jobs
-						.parse()
-						.ok()
-						.filter(|&n| n > 0)
-						.ok_or(format!("--jobs {jobs} is not a count"))?;
+					options.jobs = Some(
+						jobs.parse()
+							.ok()
+							.filter(|&n| n > 0)
+							.ok_or(format!("--jobs {jobs} is not a count"))?,
+					);
 				}
 				"--build" => options.build = Some(value()?.clone()),
 				"--program" => options.programs.push(value()?.clone()),
@@ -180,6 +194,8 @@ pub struct Job {
 	label: String,
 	command: Command,
 	expect: Option<String>,
+	/// Whether it runs a benchmark of CodSpeed's crates, which only a count measures.
+	codspeed: bool,
 }
 
 /// Each benchmark's instruction count, under one fingerprint.
@@ -268,6 +284,7 @@ fn measure(dir: &Path, options: &Options, strict: bool) -> Result<Counts, String
 				label: program.clone(),
 				command: shell(program, dir),
 				expect: None,
+				codspeed: false,
 			})
 			.collect()
 	};
@@ -281,7 +298,10 @@ fn measure(dir: &Path, options: &Options, strict: bool) -> Result<Counts, String
 		// whichever it holds.
 		jobs.retain(|job| job.expect.as_ref().is_none_or(|name| wanted.contains(name)));
 	}
-	let mut counts = run(jobs, &work(dir)?, &preload, options.jobs)?;
+	let parallel = options
+		.jobs
+		.unwrap_or_else(|| std::thread::available_parallelism().map_or(1, usize::from));
+	let mut counts = run(jobs, &work(dir)?, &preload, parallel)?;
 	if let Some(wanted) = &options.benchmarks {
 		if strict {
 			missing(wanted, |name| counts.contains_key(name))?;
@@ -314,7 +334,7 @@ fn shell(command: &str, dir: &Path) -> Command {
 
 /// A new directory for one run's jobs in the tree at `dir`, apart from any other run's, so
 /// two runs in one tree never read each other's profiles.
-fn work(dir: &Path) -> Result<PathBuf, String> {
+pub fn work(dir: &Path) -> Result<PathBuf, String> {
 	let parent = dir.join("target/rust2-bench");
 	std::fs::create_dir_all(&parent).map_err(|e| format!("cannot create {}: {e}", parent.display()))?;
 	let pid = std::process::id();
@@ -475,7 +495,9 @@ type Measured = Result<Vec<(String, u64)>, String>;
 /// Runs one job under Valgrind with the library at `preload` in every process, its profiles
 /// and output in `dir`, and reads what it measured.
 fn one(job: Job, dir: &Path, preload: &Path) -> Measured {
-	let Job { label, command, expect } = job;
+	let Job {
+		label, command, expect, ..
+	} = job;
 	std::fs::create_dir_all(dir).map_err(|e| format!("cannot create {}: {e}", dir.display()))?;
 	let file = |name: &str| {
 		std::fs::File::create(dir.join(name)).map_err(|e| format!("cannot create {}: {e}", dir.join(name).display()))
@@ -604,7 +626,7 @@ mod tests {
 	fn options_keep_programs_and_cargo_args_apart() {
 		let args = |list: &[&str]| list.iter().map(|s| (*s).to_owned()).collect::<Vec<_>>();
 		let options = Options::parse(&args(&["--jobs", "3", "--", "-p", "net", "--features", "x"])).unwrap();
-		assert_eq!(options.jobs, 3);
+		assert_eq!(options.jobs, Some(3));
 		assert_eq!(options.cargo, ["-p", "net", "--features", "x"]);
 		assert!(Options::parse(&args(&["--program", "a", "--", "-p", "net"])).is_err());
 		assert!(Options::parse(&args(&["--build", "make"])).is_err());
