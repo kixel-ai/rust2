@@ -15,7 +15,7 @@ Decided 2026-11-24 (maintainer, `/quest-plan`): ✅ filter each side's selectors
 
 Recommendations for the implementer:
 
-- Resolve the selectors the way Cargo does for the forms consumers pass (`-p name`, `--package=name`, `--bench name`), and refuse any form the filter can't resolve rather than passing it through unfiltered.
+- Resolve the selectors the way Cargo does for the forms consumers pass (`-p name`, `--package=name`, `--bench name`), drop each package-qualified `--features pkg/feat` entry whose package that side dropped, since moq passes `--features moq-quic/fuzz` beside `-p moq-quic`, and refuse any form the filter can't resolve rather than passing it through unfiltered.
 - Update the runner README's Compare section, which documents the current limit.
 
 Public API: `compare` accepts a selection one side lacks. Wire: none.
