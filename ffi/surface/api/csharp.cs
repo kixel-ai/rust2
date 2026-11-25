@@ -2328,6 +2328,7 @@ namespace Api {
 		public static Str ReadingDebug(uint n);
 		public static Reading? ReadingEcho(Reading? reading);
 		public static void ReadingBump(ref Reading? reading);
+		public static ValueTask<ulong> AfterCounter(Counter counter, Func<CancellationToken, Task> first, CancellationToken cancellationToken = default);
 		public static Stage Advance(Stage stage);
 		public static ValueTuple<Counter> Only(Counter counter);
 		public static (byte, short, uint, ulong) Widths(ulong n);

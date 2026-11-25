@@ -10,6 +10,7 @@ import * as copy from "./copy/index.ts";
 import * as check from "./api.ts";
 import * as rt from "./node/rt.ts";
 import * as Channel from "./node/Channel.ts";
+import * as Counter from "./node/Counter.ts";
 import type { Log } from "./node/Log.ts";
 import * as Logger from "./node/Logger.ts";
 import * as LogThread from "./node/LogThread.ts";
@@ -74,6 +75,124 @@ const text = (data: Uint8Array | rt.Bytes) => new TextDecoder().decode(data.slic
  * a wake, and a drop, from either.
  */
 async function threads(): Promise<void> {
+	// A call refused before it reached Rust gives Rust no implementation, so none keeps a
+	// token and the next call runs on JavaScript's thread, as the first did.
+	ok(api.onFirstThread(), "the first call runs on JavaScript's thread");
+	const disposed = Counter.new$("c", 0);
+	disposed[Symbol.dispose]();
+	let refused = false;
+	try {
+		api.logCounts(new CountLog(), 0, disposed, []);
+	} catch {
+		refused = true;
+	}
+	ok(refused, "a call of a disposed object throws");
+	ok(api.onFirstThread(), "a call after a refused one runs on JavaScript's thread");
+
+	// A promise's then may close a handle before Rust accepts the foreign future.
+	const waiter = Counter.new$("future", 1);
+	const promise = new Promise<void>(() => {});
+	promise.then = (() => {
+		waiter[Symbol.dispose]();
+		return promise;
+	}) as typeof promise.then;
+	let futureRefused = false;
+	try {
+		api.afterCounter(waiter, promise);
+	} catch {
+		futureRefused = true;
+	}
+	ok(futureRefused, "a future's then closing the receiver refuses the call");
+	ok(api.onFirstThread(), "a refused foreign future leaves no token");
+
+	const rejected = Promise.withResolvers<void>();
+	try {
+		api.afterCounter(waiter, rejected.promise);
+	} catch {}
+	rejected.reject(new Error("refused"));
+	await Promise.resolve();
+	ok(api.onFirstThread(), "a refused future's later rejection leaves the runtime live");
+
+	const acceptedCounter = Counter.new$("accepted", 7);
+	const accepted = api.afterCounter(acceptedCounter, new Promise<void>(() => {}));
+	ok(!api.onFirstThread(), "an accepted foreign future keeps its token");
+	accepted.cancel();
+	try {
+		await accepted;
+		ok(false, "a cancelled accepted future completed");
+	} catch (e) {
+		ok(e instanceof rt.Cancelled, "an accepted foreign future cancels");
+	}
+	acceptedCounter[Symbol.dispose]();
+	ok(api.onFirstThread(), "cancelling the accepted future releases its token");
+
+	// The addon holds a call's handles before it converts the rest, which may run
+	// JavaScript: a getter of a `u64`'s limbs that disposes the receiver and makes another
+	// object leaves the call its own receiver, whose value was moved out, not the new one.
+	const victim = Counter.new$("victim", 1);
+	let replacement: Counter.Counter | undefined;
+	const limbs = {
+		get hi(): number {
+			victim[Symbol.dispose]();
+			replacement = Counter.new$("replacement", 100);
+			return 0x200000;
+		},
+		lo: 0,
+	} as unknown as rt.u64;
+	let moved = "";
+	try {
+		Counter.offset(victim, limbs, 0);
+	} catch (e) {
+		moved = (e as Error).message;
+	}
+	ok(moved === "api_Counter_offset: a handle's value was moved out", `a receiver disposed while held: ${moved}`);
+	ok(Counter.get(replacement!) === 100, "the object made meanwhile is untouched");
+
+	const conversionLog = Logger.new$(new CountLog());
+	const converting = Counter.new$("conversion", 1);
+	const conversionError = new Error("limbs");
+	let caught: unknown;
+	try {
+		Counter.offset(converting, {
+			get hi(): number {
+				converting[Symbol.dispose]();
+				throw conversionError;
+			},
+			lo: 0,
+		} as unknown as rt.u64, 0);
+	} catch (e) {
+		caught = e;
+	}
+	ok(caught === conversionError, "releasing a closed handle preserves the conversion exception");
+	conversionLog[Symbol.dispose]();
+
+	// A handle's id read before a reentrant call disposed it, and another object took its
+	// slot, is refused once the addon reads it, never taken for the other object: what any
+	// JavaScript between a call's read of an id and the addon's hold would pass.
+	const stale = Counter.new$("stale", 1);
+	const id = stale.p;
+	let taker: Counter.Counter | undefined;
+	const reentrant = Logger.new(
+		new (class extends CountLog {
+			override log(level: number, line: string): boolean {
+				stale[Symbol.dispose]();
+				taker = Counter.new$("taker", 100);
+				return super.log(level, line);
+			}
+		})(),
+	);
+	Logger.write(reentrant, "dispose");
+	reentrant[Symbol.dispose]();
+	ok(taker!.p % 2 ** 32 === id % 2 ** 32, "the new object took the disposed one's slot");
+	let stalled = "";
+	try {
+		rt.w.api_Counter_get(id);
+	} catch (e) {
+		stalled = (e as Error).message;
+	}
+	ok(stalled === "Counter is closed", `a stale id: ${stalled}`);
+	ok(Counter.get(taker!) === 100, "the object that took its slot is untouched");
+
 	// A kept closure, called on another thread after the call that took it returned.
 	const spawned = Spawned.new$(() => 7);
 	ok(Spawned.join(spawned) === 7, "a kept closure runs on another thread");
