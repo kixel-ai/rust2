@@ -155,7 +155,10 @@ fn harness(args: &[&str]) -> Output {
 		.args(args)
 		.args(["--", "-p", "rust2-bench-harness", "--bench", "fixture"])
 		.current_dir(env!("CARGO_MANIFEST_DIR"))
-		.env("CARGO_TARGET_DIR", Path::new(env!("CARGO_TARGET_TMPDIR")).join("harness"))
+		.env(
+			"CARGO_TARGET_DIR",
+			Path::new(env!("CARGO_TARGET_TMPDIR")).join("harness"),
+		)
 		.output()
 		.unwrap()
 }
@@ -189,7 +192,11 @@ fn counts_each_harness_benchmark_alone_without_its_setup() {
 	assert!(alone > 1000, "{alone}");
 	let near = |name: &str, expected: u64| {
 		let ratio = count(name) as f64 / expected as f64;
-		assert!((0.9..1.1).contains(&ratio), "{name}: {} against {expected}", count(name));
+		assert!(
+			(0.9..1.1).contains(&ratio),
+			"{name}: {} against {expected}",
+			count(name)
+		);
 	};
 	// Every one spins a thousand times but sized[2000]; a setup's million spins and its
 	// input's free would count a thousand times as much, were they counted.
@@ -216,5 +223,8 @@ fn counts_each_harness_benchmark_alone_without_its_setup() {
 	let out = harness(&["--benchmarks", dir.join("list").to_str().unwrap()]);
 	assert!(!out.status.success());
 	let err = String::from_utf8_lossy(&out.stderr);
-	assert!(err.contains(&format!("no benchmark is named {file}sized[3000]")), "{err}");
+	assert!(
+		err.contains(&format!("no benchmark is named {file}sized[3000]")),
+		"{err}"
+	);
 }

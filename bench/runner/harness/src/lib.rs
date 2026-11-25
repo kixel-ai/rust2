@@ -43,7 +43,9 @@ fn run() -> Result<(), String> {
 	let mut cases = cases(inventory::iter::<__private::Bench>)?;
 	match std::env::var(ONLY) {
 		Ok(only) => {
-			let case = cases.remove(&only).ok_or(format!("{ONLY} names {only}, which no benchmark is"))?;
+			let case = cases
+				.remove(&only)
+				.ok_or(format!("{ONLY} names {only}, which no benchmark is"))?;
 			cases = BTreeMap::from([(only, case)]);
 		}
 		Err(std::env::VarError::NotPresent) => {}
@@ -254,7 +256,10 @@ mod tests {
 	#[test]
 	fn refuses_two_cases_of_one_name_and_args_of_none() {
 		let twice = [bench("a", "f", Some(|| vec!["1".to_owned(), "1".to_owned()]))];
-		assert_eq!(cases(&twice).err().unwrap(), "two benchmarks are named benches/a.rs::f[1]");
+		assert_eq!(
+			cases(&twice).err().unwrap(),
+			"two benchmarks are named benches/a.rs::f[1]"
+		);
 		let empty = [bench("a", "f", Some(Vec::new))];
 		assert_eq!(cases(&empty).err().unwrap(), "benches/a.rs::f has no args");
 		assert_eq!(cases(&[]).err().unwrap(), "no function is marked #[bench]");

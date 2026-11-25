@@ -117,8 +117,10 @@ Each program calls CodSpeed's
 [instrument-hooks](https://github.com/CodSpeedHQ/instrument-hooks), which the flake pins,
 through [`codspeed.h`](../../ffi/moq/bench/codspeed.h) and its own FFI around each case:
 one benchmark per language and case, such as `ffi/moq/bench/export.py::python::write` or
-`ffi/moq/bench/export.c::c::throughput[1024]`. Counted, a program runs its round once,
-without the warm-up round, and with a tenth of the groups (so 100,000 calls a case, Python's
+`ffi/moq/bench/export.c::c::throughput[1024]`. The Rust floor's cases are `#[bench]`
+functions instead, counted through [rust2-bench-harness](../runner/harness/README.md) under the
+same names, such as `ffi/moq/bench/export.rs::rust::write`, each with a broadcast of its own.
+Counted, a program runs its round once, without the warm-up round, and with a tenth of the groups (so 100,000 calls a case, Python's
 10,000), since Valgrind counts every call exactly and costs 50 to 100 times the program's own
 time. It skips the `shared:*`, `own:*`, and Kotlin's `objects` cases: Valgrind runs one
 thread at a time, so it would count a contention that never happens. It counts instructions,

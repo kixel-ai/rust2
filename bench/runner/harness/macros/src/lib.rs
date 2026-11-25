@@ -84,6 +84,9 @@ fn expand(attr: TokenStream, item: TokenStream) -> syn::Result<TokenStream> {
 		Some(FnArg::Receiver(receiver)) => return refuse(receiver, "a benchmark is a free function, not a method"),
 		// Without setup the argument moves in as args holds it, whatever its type; with setup,
 		// a reference borrows setup's output, which the harness drops after the count stops.
+		Some(FnArg::Typed(typed)) if matches!(&*typed.ty, Type::ImplTrait(_)) => {
+			return refuse(&typed.ty, "a benchmark cannot be generic: name its parameter's type");
+		}
 		Some(FnArg::Typed(typed)) => Some(match (&*typed.ty, &options.setup) {
 			(Type::Reference(reference), Some(_)) if reference.mutability.is_some() => Pass::Mut,
 			(Type::Reference(_), Some(_)) => Pass::Shared,
@@ -92,7 +95,10 @@ fn expand(attr: TokenStream, item: TokenStream) -> syn::Result<TokenStream> {
 	};
 	match (&param, &options.args, &options.setup) {
 		(Some(param), None, None) => {
-			return refuse(*param, "nothing supplies this parameter: declare args or setup in #[bench]");
+			return refuse(
+				*param,
+				"nothing supplies this parameter: declare args or setup in #[bench]",
+			);
 		}
 		(None, Some(args), None) => return refuse(args, "the benchmark takes no parameter for its argument"),
 		(None, _, Some(setup)) => return refuse(setup, "the benchmark takes no parameter for setup's output"),
@@ -119,7 +125,21 @@ fn expand(attr: TokenStream, item: TokenStream) -> syn::Result<TokenStream> {
 			}
 		}
 	};
-	let pass = if param.is_some() { quote!(#h::black_box(#pass)) } else { pass };
+	let pass = if param.is_some() {
+		quote!(#h::black_box(#pass))
+	} else {
+		pass
+	};
+	// Called through a pointer the optimizer cannot see through, the benchmark compiles on
+	// its own, as written: inlined, an input whose address escaped to `black_box` here would
+	// be reloaded around every `black_box` inside it.
+	let abi = &sig.abi;
+	// The parameter's own type, which an argument's literal would otherwise infer, such as
+	// `i32` for `[1000]`.
+	let types = sig.inputs.iter().map(|input| match input {
+		FnArg::Typed(typed) => &typed.ty,
+		FnArg::Receiver(_) => unreachable!("a receiver was refused"),
+	});
 	let names = match &options.args {
 		Some(args) => quote!(::core::option::Option::Some(|| #h::names(#args))),
 		None => quote!(::core::option::Option::None),
@@ -136,7 +156,7 @@ fn expand(attr: TokenStream, item: TokenStream) -> syn::Result<TokenStream> {
 				let _ = #case;
 				#prepare
 				#meter.start();
-				let #output = #h::black_box(#ident(#pass));
+				let #output = #h::black_box(#h::black_box(#ident as #abi fn(#(#types),*) -> _)(#pass));
 				#meter.stop();
 				// The output, then any input setup built, drop here, after the count stopped.
 			}
@@ -182,6 +202,7 @@ mod tests {
 			("", "fn f<T>() {}", "cannot be generic"),
 			("", "fn f() where u8: Copy {}", "cannot be generic"),
 			("", "fn f(&self) {}", "not a method"),
+			("args = [1]", "fn f(a: impl Copy) {}", "cannot be generic"),
 			("args = [1]", "fn f(a: u8, b: u8) {}", "one parameter at most"),
 			("", "fn f(a: u8) {}", "nothing supplies this parameter"),
 			("args = [1]", "fn f() {}", "no parameter for its argument"),
@@ -199,14 +220,28 @@ mod tests {
 	fn passes_setup_output_as_the_parameter_takes_it() {
 		let by = |item: &str| expands("setup = s", item);
 		assert!(by("fn f(x: &mut X) {}").contains("let mut input = s () ;"));
-		assert!(by("fn f(x: &mut X) {}").contains("f (:: rust2_bench_harness :: __private :: black_box (& mut input))"));
+		assert!(
+			by("fn f(x: &mut X) {}")
+				.contains("(f as fn (& mut X) -> _) (:: rust2_bench_harness :: __private :: black_box (& mut input))")
+		);
 		assert!(by("fn f(x: &X) {}").contains("black_box (& input)"));
 		assert!(by("fn f(x: X) {}").contains("black_box (input)"));
 		// Without setup, the argument moves in even where the parameter is a reference.
 		let arg = expands("args = [\"a\"]", "fn f(x: &str) {}");
-		assert!(arg.contains("let input = :: rust2_bench_harness :: __private :: arg ([\"a\"] , case) ;"), "{arg}");
-		assert!(arg.contains("f (:: rust2_bench_harness :: __private :: black_box (input))"), "{arg}");
+		assert!(
+			arg.contains("let input = :: rust2_bench_harness :: __private :: arg ([\"a\"] , case) ;"),
+			"{arg}"
+		);
+		assert!(
+			arg.contains("(f as fn (& str) -> _) (:: rust2_bench_harness :: __private :: black_box (input))"),
+			"{arg}"
+		);
+		let none = expands("", "extern \"C\" fn f() {}");
+		assert!(none.contains("(f as extern \"C\" fn () -> _) ()"), "{none}");
 		let both = expands("args = SIZES, setup = s", "fn f(x: &X) {}");
-		assert!(both.contains("s (:: rust2_bench_harness :: __private :: arg (SIZES , case))"), "{both}");
+		assert!(
+			both.contains("s (:: rust2_bench_harness :: __private :: arg (SIZES , case))"),
+			"{both}"
+		);
 	}
 }

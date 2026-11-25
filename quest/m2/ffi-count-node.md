@@ -24,7 +24,3 @@ Recommendations for the implementer:
 - A count that depends on wall time, such as a timer or a deadline the module reads through
   WASI's clock, slows with Valgrind and moves with the host's load. Prefer a fix in the
   benchmark, such as a clock that only its cases advance, over one in the binding.
-
-## Related
-
-- [The harness's counts](/quest/m2/harness/counts.md) - also counts under Valgrind, with the same need for counts that hold still
