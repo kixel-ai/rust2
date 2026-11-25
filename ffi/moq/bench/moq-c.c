@@ -9,7 +9,7 @@
 #include <string.h>
 #include <time.h>
 
-#include "codspeed.h"
+#include "hooks.h"
 #include "moq.h"
 
 /* A tenth under Valgrind, as bench/export.c. */
@@ -37,7 +37,7 @@ int main(void) {
 	}
 
 	/* Two rounds, printing the second, as bench/export.c does; under Valgrind, one. */
-	bool measured = codspeed_init("ffi/moq/bench/moq-c.c::moq-c");
+	bool measured = hooks_init("ffi/moq/bench/moq-c.c::moq-c");
 	if (measured) {
 		GROUPS /= 10;
 	}
@@ -46,7 +46,7 @@ int main(void) {
 	for (int round = measured; round < 2; round++) {
 		double wall = clock_ns(CLOCK_MONOTONIC);
 		double cpu = clock_ns(CLOCK_PROCESS_CPUTIME_ID);
-		codspeed_start();
+		hooks_start();
 		for (int g = 0; g < GROUPS; g++) {
 			/* Groups are keyed by their start, which only moves forward: each starts at its
 			 * first frame's time. */
@@ -63,7 +63,7 @@ int main(void) {
 			}
 			moq_publish_group_finish((uint32_t)group);
 		}
-		codspeed_stop("stamped");
+		hooks_stop("stamped");
 		wall = (clock_ns(CLOCK_MONOTONIC) - wall) / (GROUPS * FRAMES);
 		cpu = (clock_ns(CLOCK_PROCESS_CPUTIME_ID) - cpu) / (GROUPS * FRAMES);
 

@@ -2,7 +2,7 @@
  * language's binding builds on. bench/export.rs times the same in Rust, and
  * bench/export.cpp through the C++ header. Futures are polled by hand with a null waker.
  * Each case prints its wall time and the process's CPU time, or under Valgrind, runs once
- * for its CPU simulation to count. */
+ * for rust2-bench to count. */
 
 #define _POSIX_C_SOURCE 200112L
 
@@ -14,7 +14,7 @@
 #include <string.h>
 #include <time.h>
 
-#include "codspeed.h"
+#include "hooks.h"
 #include "moq.h"
 
 /* A tenth under Valgrind, which counts every call exactly. */
@@ -52,13 +52,13 @@ static bool measured;
 /* A case's start: now, and Valgrind counting from here. */
 static span begin(void) {
 	span start = now();
-	codspeed_start();
+	hooks_start();
 	return start;
 }
 
 /* The case `name`'s nanoseconds per call since `start`, over `n` calls. */
 static span end(span start, double n, const char *name) {
-	codspeed_stop(name);
+	hooks_stop(name);
 	return per(start, n);
 }
 
@@ -445,7 +445,7 @@ static void round_(int print) {
 
 int main(void) {
 	/* Under Valgrind, one round, which prints nothing: rust2-bench counts each case. */
-	measured = codspeed_init("ffi/moq/bench/export.c::c");
+	measured = hooks_init("ffi/moq/bench/export.c::c");
 	if (measured) {
 		GROUPS /= 10;
 	} else {

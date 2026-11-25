@@ -51,12 +51,12 @@ fun per(start: Span, n: Double = N.toDouble()): Span {
 
 // Whether Valgrind counts this, as `just ffi count` says: only then is its library loaded,
 // which ART's run has none of.
-val codspeed = System.getenv("RUST2_CODSPEED") != null
+val counting = System.getenv("RUST2_COUNT") != null
 
-// moq/bench/codspeed.h, through the JNI functions in the shared library bench-build makes.
-object Codspeed {
+// moq/bench/hooks.h, through the JNI functions in the shared library bench-build makes.
+object Hooks {
 	init {
-		System.loadLibrary("codspeed")
+		System.loadLibrary("hooks")
 	}
 
 	external fun init(bench: String): Boolean
@@ -69,13 +69,13 @@ object Codspeed {
 // A case's start: now, and Valgrind counting from here.
 fun begin(): Span {
 	val start = now()
-	if (codspeed) Codspeed.start()
+	if (counting) Hooks.start()
 	return start
 }
 
 // The case `name`'s nanoseconds per call since `start`, over `n` calls.
 fun end(start: Span, name: String, n: Double = N.toDouble()): Span {
-	if (codspeed) Codspeed.stop(name)
+	if (counting) Hooks.stop(name)
 	return per(start, n)
 }
 
@@ -333,7 +333,7 @@ fun round(measured: Boolean): Map<String, Span> {
 
 fun main() {
 	// Under Valgrind, one round, which prints nothing: rust2-bench counts each case.
-	if (codspeed && Codspeed.init("ffi/moq/bench/export.kt::kotlin")) {
+	if (counting && Hooks.init("ffi/moq/bench/export.kt::kotlin")) {
 		GROUPS /= 10
 		round(true)
 		return

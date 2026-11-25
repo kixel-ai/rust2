@@ -3,12 +3,12 @@
 // and the process's CPU time, the global executor's threads included, or under Valgrind,
 // runs once for rust2-bench to count.
 
-import CodSpeed
 import Foundation
+import Hooks
 import Moq
 
 /// Whether Valgrind counts this run, which then skips the warm-up and the threaded cases.
-let measured = codspeed_init("ffi/moq/bench/export.swift::swift")
+let measured = hooks_init("ffi/moq/bench/export.swift::swift")
 /// A tenth under Valgrind, which counts every call exactly.
 let groups = measured ? 1000 : 10000
 let frames = 100
@@ -42,13 +42,13 @@ func per(_ start: Span, _ calls: Double = Double(n)) -> Span {
 /// A case's start: now, and Valgrind counting from here.
 func begin() -> Span {
 	let start = now()
-	codspeed_start()
+	hooks_start()
 	return start
 }
 
 /// The case `name`'s nanoseconds per call since `start`, over `calls` calls.
 func end(_ start: Span, _ name: String, _ calls: Double = Double(n)) -> Span {
-	codspeed_stop(name)
+	hooks_stop(name)
 	return per(start, calls)
 }
 
