@@ -308,6 +308,15 @@ impl Future {
 		let owner = unsafe { &(*future).owner };
 		// A future that is not `Send` drops on its own thread.
 		if let Some(owner) = owner.as_ref().filter(|owner| !owner.is_here()) {
+			// Node's addon keeps such a future on a home only because a call may run on a
+			// worker, so a free from JavaScript waits for the drop, as it would on its own
+			// thread: what the future borrowed is free again once `cancel()` returns.
+			#[cfg(feature = "node")]
+			if owner.away() && crate::node::from_js() {
+				let owner = owner.clone();
+				// SAFETY: a home, and this thread waits while it drops the future.
+				return unsafe { owner.run(|| unsafe { ((*future).drop)(future) }) };
+			}
 			// SAFETY: the future is the owner's.
 			unsafe { Dropped::new(Freed(future), owner.clone(), "a future") }.send();
 			return;

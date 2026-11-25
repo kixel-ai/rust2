@@ -2969,7 +2969,7 @@ fn api_web_protocol_nightly() {
 /// of `runtime`, Node or Deno.
 fn web_protocol(runtime: &str, name: &str, first: u64, count: u64, steps: usize) {
 	let web = web();
-	let scripts = protocol::scripts(first, count, steps, protocol::Profile::NODE);
+	let scripts = protocol::scripts(first, count, steps, protocol::Profile::TS);
 	let driver = || {
 		let mut cmd = Command::new(runtime);
 		match runtime {
@@ -3275,7 +3275,7 @@ fn api_node_protocol_nightly() {
 /// of `runtime`, Node, Deno, or Bun, over Node's binding.
 fn node_protocol(runtime: &str, name: &str, first: u64, count: u64, steps: usize) {
 	let dir = node_dir();
-	let scripts = protocol::scripts(first, count, steps, protocol::Profile::NODE);
+	let scripts = protocol::scripts(first, count, steps, protocol::Profile::TS);
 	let driver = || {
 		let mut cmd = Command::new(runtime);
 		match runtime {

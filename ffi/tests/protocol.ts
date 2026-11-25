@@ -144,8 +144,7 @@ async function run(text: string): Promise<string> {
 			case "bump_later":
 				return made(Tally.bumpLater(at(b)));
 			case "local_new":
-				// The binding makes it where its profile says: on wasm32, which has no homes,
-				// here, and through Node's addon, on a home.
+				if (b !== "0") throw new Error("no home on wasm32");
 				return made(Local.new$());
 			case "local_bump":
 				return show(Local.bump(at(a)));

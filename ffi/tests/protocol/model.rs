@@ -217,15 +217,6 @@ impl Profile {
 		closes: true,
 		..Self::C
 	};
-
-	/// Node's addon's, the web's but for its homes: a call may run on a worker thread, so
-	/// every value that is not `Send`, and every future that is not, lives on a home, whose
-	/// wakes JavaScript's thread runs before the call that made them returns.
-	pub const NODE: Self = Self {
-		homed: true,
-		pooled: true,
-		..Self::TS
-	};
 }
 
 /// [`crate`]'s `rt::Status`, as each driver prints it.

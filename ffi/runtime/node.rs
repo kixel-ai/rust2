@@ -1576,6 +1576,11 @@ pub fn waited() {
 	}
 }
 
+/// Whether this thread runs a call from JavaScript: JavaScript's own, or a worker acting for it.
+pub fn from_js() -> bool {
+	on_js() || ACTING.get() != 0
+}
+
 thread_local!(static ACTING: Cell<usize> = const { Cell::new(0) });
 
 /// The thread this one acts as for the handles it borrows, if another: one waiting on it.
