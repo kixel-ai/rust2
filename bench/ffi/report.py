@@ -70,6 +70,9 @@ INSTEAD = {("dart", case): "no: an isolate takes no other's object" for case in 
 # Each step `just ffi bench-run` times from an emptied target, and what it is.
 BUILDS = [
 	("export", "rust2-ffi's export, a release `cargo check` of moq under its driver"),
+	("export-warm", "the same through mbx, from a store one export filled"),
+	("web", "rust2-ffi's wasm32-wasip1 export, std from the dev shell's MIR sysroot"),
+	("web-warm", "the same through mbx, from a store one export filled"),
 	("check", "moq's own release `cargo check` of the same crates"),
 	("generated", "the generated crate's release build, Kotlin and Dart glue included"),
 	("moq", "moq's own release build of the same crates"),
