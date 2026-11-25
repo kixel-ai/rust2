@@ -176,9 +176,10 @@ export function _free(kept = 0): void {
 "#;
 
 /// The TypeScript module of `t`'s script.
-pub(crate) fn emit(t: &Transcript) -> String {
+pub(crate) fn emit(t: &Transcript, binding: Binding) -> String {
 	let mut e = Emitter {
 		t,
+		p64: binding != Binding::Web,
 		depth: 1,
 		mutated: Vec::new(),
 		fresh: 0,
@@ -191,14 +192,19 @@ pub(crate) fn emit(t: &Transcript) -> String {
 	};
 	mutated(&t.steps, t, &mut e.mutated);
 	let body = e.steps(&t.steps);
-	let mut out = String::from(
+	let dir = match binding {
+		Binding::Web => "web",
+		Binding::ReactNative => "react-native",
+		Binding::Node => "node",
+	};
+	let mut out = format!(
 		"// Generated from fixtures/api/examples/transcript.rs by tests/fixtures/transcript.\n\n\
-		import * as api from \"./web/index.ts\";\n\
-		import * as rt from \"./web/rt.ts\";\n\
+		import * as api from \"./{dir}/index.ts\";\n\
+		import * as rt from \"./{dir}/rt.ts\";\n\
 		import * as hook from \"./api.ts\";\n",
 	);
 	for module in &e.modules {
-		let _ = writeln!(out, "import * as {module} from \"./web/{module}.ts\";");
+		let _ = writeln!(out, "import * as {module} from \"./{dir}/{module}.ts\";");
 	}
 	out.push_str(PRELUDE);
 	out.push_str("\nexport async function script(): Promise<void> {\n");
@@ -229,8 +235,21 @@ fn mutated(steps: &[Step], t: &Transcript, out: &mut Vec<String>) {
 	}
 }
 
+/// Which TypeScript binding a transcript calls.
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub(crate) enum Binding {
+	/// The web's, for wasm32, whose pointer-sized integers are numbers.
+	Web,
+	/// React Native's, for 64-bit targets, whose pointer-sized integers are `rt.u64` and `rt.i64`.
+	ReactNative,
+	/// Node's, for 64-bit targets as React Native's.
+	Node,
+}
+
 struct Emitter<'t> {
 	t: &'t Transcript,
+	/// Whether `usize` and `isize` are 64 bits, and so wide.
+	p64: bool,
 	depth: usize,
 	/// The locals each an `rt.Place`.
 	mutated: Vec<String>,
@@ -303,8 +322,11 @@ fn block(ty: &Type) -> Option<&Type> {
 
 /// Whether `ty` is an integer the binding holds as `rt.u64`, `rt.i64`, or `rt.u128`, each
 /// with its `bigint` conversion.
-fn wide(ty: &Type) -> Option<&'static str> {
+fn wide(ty: &Type, p64: bool) -> Option<&'static str> {
 	match ty {
+		// React Native's targets are 64-bit, whose pointer-sized integers are wide.
+		Type::Int(Int::Usize) | Type::NonZero(Int::Usize) if p64 => Some("u64"),
+		Type::Int(Int::Isize) | Type::NonZero(Int::Isize) if p64 => Some("i64"),
 		Type::Int(Int::U64) | Type::NonZero(Int::U64) => Some("u64"),
 		Type::Int(Int::I64) | Type::NonZero(Int::I64) => Some("i64"),
 		Type::U128 => Some("u128"),
@@ -643,7 +665,7 @@ impl Emitter<'_> {
 		match ty {
 			Type::Unit => "undefined".to_string(),
 			Type::Bool => "boolean".to_string(),
-			ty if wide(ty).is_some() => format!("rt.{}", wide(ty).unwrap()),
+			ty if wide(ty, self.p64).is_some() => format!("rt.{}", wide(ty, self.p64).unwrap()),
 			Type::Int(_) | Type::NonZero(_) | Type::F32 | Type::F64 | Type::Char => "number".to_string(),
 			Type::Str | Type::String => "string".to_string(),
 			Type::Slice | Type::Vec | Type::Bytes | Type::Array(_) => "Uint8Array".to_string(),
@@ -717,7 +739,7 @@ impl Emitter<'_> {
 	fn show(&mut self, v: &str, ty: &Type, spec: Spec) -> String {
 		let ty = unref(ty).base().clone();
 		match spec {
-			Spec::Hex(width) => return format!("_hex({}, {width})", big(v, &ty)),
+			Spec::Hex(width) => return format!("_hex({}, {width})", big(v, &ty, self.p64)),
 			Spec::Padded(width) => {
 				return format!("String({}).padStart({width}, \"0\")", self.show(v, &ty, Spec::Display));
 			}
@@ -728,7 +750,7 @@ impl Emitter<'_> {
 			Type::Bool => v.to_string(),
 			Type::String | Type::Str => v.to_string(),
 			Type::Char => format!("String.fromCodePoint({v})"),
-			ty if wide(ty).is_some() => format!("_{}({v})", wide(ty).unwrap()),
+			ty if wide(ty, self.p64).is_some() => format!("_{}({v})", wide(ty, self.p64).unwrap()),
 			Type::Int(_) | Type::NonZero(_) => v.to_string(),
 			Type::Object(_) | Type::Record(_) | Type::Enum(_) => self.text(v, &ty),
 			ty => panic!("Display of {ty:?}"),
@@ -778,7 +800,7 @@ impl Emitter<'_> {
 		}
 		match &ty {
 			Type::Bool => format!("`${{{v}}}`"),
-			ty if wide(ty).is_some() => format!("_{}({v})", wide(ty).unwrap()),
+			ty if wide(ty, self.p64).is_some() => format!("_{}({v})", wide(ty, self.p64).unwrap()),
 			Type::Int(_) | Type::NonZero(_) => format!("`${{{v}}}`"),
 			Type::String | Type::Str => format!("_quoted({v})"),
 			Type::Option(inner) => {
@@ -856,7 +878,7 @@ impl Emitter<'_> {
 		match &e.kind {
 			Kind::Unit => "undefined".to_string(),
 			Kind::Bool(b) => b.to_string(),
-			Kind::Int(n) => int(*n, unref(&e.ty).base()),
+			Kind::Int(n) => int(*n, unref(&e.ty).base(), self.p64),
 			Kind::Float(f) => float(*f),
 			Kind::Char(c) => (*c as u32).to_string(),
 			Kind::Str(s) => match unref(&e.ty).base() {
@@ -865,7 +887,7 @@ impl Emitter<'_> {
 			},
 			Kind::Bytes(b) => bytes(b),
 			Kind::Duration(secs, nanos) => {
-				let secs = int(Num::new(i128::from(*secs)), &Type::Int(Int::U64));
+				let secs = int(Num::new(i128::from(*secs)), &Type::Int(Int::U64), self.p64);
 				format!("{{ secs: {secs}, nanos: {nanos} }}")
 			}
 			Kind::Socket(addr) => {
@@ -1028,7 +1050,7 @@ impl Emitter<'_> {
 				let block = block(unref(&items.ty).base()).is_some();
 				let mut items = self.expr(items);
 				// A block's wide items are `bigint`s, which the body takes as the binding's form.
-				if let (true, Some(wide)) = (block, wide(&item)) {
+				if let (true, Some(wide)) = (block, wide(&item, self.p64)) {
 					items = format!("Array.from({items}, (v) => rt.{wide}FromBig(v))");
 				}
 				let target = self.param(pat, &item);
@@ -1110,12 +1132,12 @@ impl Emitter<'_> {
 					Op::Rem => "%",
 					_ => unreachable!(),
 				};
-				match wide(&ty) {
+				match wide(&ty, self.p64) {
 					Some(_) => {
-						let joined = format!("{} {symbol} {}", big(&x, &ty), big(&y, &ty));
+						let joined = format!("{} {symbol} {}", big(&x, &ty, self.p64), big(&y, &ty, self.p64));
 						match op {
 							Op::Lt | Op::Le | Op::Gt | Op::Ge => format!("({joined})"),
-							_ => format!("rt.{}FromBig({joined})", wide(&ty).unwrap()),
+							_ => format!("rt.{}FromBig({joined})", wide(&ty, self.p64).unwrap()),
 						}
 					}
 					None if matches!(ty, Type::Int(_) | Type::NonZero(_) | Type::F32 | Type::F64) => {
@@ -1129,8 +1151,8 @@ impl Emitter<'_> {
 
 	/// Whether `x` equals `y`, each a value of `ty`, as Rust's `==` says.
 	fn equal(&mut self, x: &str, y: &str, ty: &Type) -> String {
-		if wide(ty).is_some() {
-			return format!("({} === {})", big(x, ty), big(y, ty));
+		if wide(ty, self.p64).is_some() {
+			return format!("({} === {})", big(x, ty, self.p64), big(y, ty, self.p64));
 		}
 		match ty {
 			Type::Enum(i) if self.t.api.enums[*i].variants.iter().all(|v| v.fields.is_empty()) => {
@@ -1170,6 +1192,7 @@ impl Emitter<'_> {
 			panic!("a list as {ty:?}")
 		};
 		let item = (**item).clone();
+		let p64 = self.p64;
 		let Some(element) = block(&ty) else {
 			let parts: Vec<String> = items.iter().map(|e| self.value(e, &item)).collect();
 			return format!("[{}]", parts.join(", "));
@@ -1186,7 +1209,7 @@ impl Emitter<'_> {
 		};
 		match element {
 			Type::Int(int @ (Int::U64 | Int::I64)) => {
-				let convert = format!("rt.{}ToBig", wide(element).unwrap());
+				let convert = format!("rt.{}ToBig", wide(element, p64).unwrap());
 				let parts = each(
 					&|k| match k {
 						Kind::Int(n) => Some(format!("{n}n")),
@@ -1316,22 +1339,22 @@ fn typed_array(elem: &Type) -> &'static str {
 }
 
 /// `v`, a value of the integer type `ty`, as a `bigint`.
-fn big(v: &str, ty: &Type) -> String {
-	match wide(ty) {
+fn big(v: &str, ty: &Type, p64: bool) -> String {
+	match wide(ty, p64) {
 		Some(wide) => format!("rt.{wide}ToBig({v})"),
 		None => format!("BigInt({v})"),
 	}
 }
 
 /// An integer literal of `ty`: a number while it is a safe integer, else its type's form.
-fn int(n: Num, ty: &Type) -> String {
+fn int(n: Num, ty: &Type, p64: bool) -> String {
 	const SAFE: u128 = (1 << 53) - 1;
 	match ty {
-		ty if wide(ty).is_some() => match n.magnitude <= SAFE {
+		ty if wide(ty, p64).is_some() => match n.magnitude <= SAFE {
 			true => n.to_string(),
-			false => format!("rt.{}FromBig({n}n)", wide(ty).unwrap()),
+			false => format!("rt.{}FromBig({n}n)", wide(ty, p64).unwrap()),
 		},
-		// The web binding's target is wasm32, whose pointer is 32 bits: a literal past them,
+		// Otherwise the target is wasm32, whose pointer is 32 bits: a literal past them,
 		// which no Rust for wasm32 spells, is the bound `MAX` or `MIN` is on a 64-bit host.
 		Type::Int(Int::Usize) | Type::NonZero(Int::Usize) => match (n.negative, n.magnitude) {
 			(false, m) if m <= u128::from(u32::MAX) => n.to_string(),

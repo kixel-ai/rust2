@@ -38,6 +38,7 @@ void main() {
   check(api.pointerBits(api.platform()) == 64, "the host's variant crosses");
   check(api.isFamily(api.Family.native), "the host's plain variant crosses");
   lacks(() => api.wasmOnly(), 'api_wasm_only');
+  lacks(() => api.wasmPage, 'API_WASM_PAGE');
   lacks(() => api.pointerBits(const api.PlatformWasm(bits: 32)), 'api_Platform.Wasm');
   lacks(() => api.isFamily(api.Family.wasm), 'api_Family.Wasm');
   lacks(() => api.Page.default_(), 'api_Page_default');

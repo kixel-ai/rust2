@@ -1695,15 +1695,22 @@ extension Refusal: Swift.Error {}
 extension Stamp: Swift.Error {}
 public let LIMIT: Swift.UInt64
 public let FAR: Swift.Int64
+#if arch(wasm32)
+public let WASM_PAGE: Swift.UInt32
+#endif
 public let EOF: Swift.Int32
 public let URL: Swift.UInt64
 @available(*, deprecated, message: "pass a step to `Dial::turn`, whose `}` or `{` alone stays in the note") public let STEP: Swift.UInt64
+#if arch(x86_64)
+public let WORD: Swift.UInt
+#endif
 @inlinable public func hasText(_ note: Note) -> Swift.Bool
 @inlinable public func marked(_ apiMarked: Mark) throws -> Swift.UInt64
 @inlinable public func reading(_ n: Swift.UInt32) -> Reading?
 @inlinable public func readingDebug(_ n: Swift.UInt32) -> Swift.String
 @inlinable public func readingEcho(_ reading: Reading?) -> Reading?
 @inlinable public func readingBump(_ reading: inout Reading?)
+@inlinable nonisolated(nonsending) public func afterCounter(_ counter: borrowing Counter, _ first: @escaping @Sendable () async -> Void) async throws -> Swift.UInt64
 @inlinable public func advance(_ stage: Stage) -> Stage
 @inlinable public func only(_ counter: consuming Counter) throws -> Counter
 @inlinable public func widths(_ n: Swift.UInt64) -> (Swift.UInt8, Swift.Int16, Swift.UInt32, Swift.UInt64)

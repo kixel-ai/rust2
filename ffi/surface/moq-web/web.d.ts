@@ -10629,7 +10629,6 @@ export declare class Opaque<T extends string = string> {
     private constructor();
 }
 export declare function opaqueMade(bytes: Uint8Array): Opaque;
-export declare function opaquePut(v: Opaque, n: number, p: number): void;
 export type Duration = {
     readonly secs: u64;
     readonly nanos: number;
@@ -10684,10 +10683,12 @@ export type Waker = {
     wake(): void;
     [Symbol.dispose](): void;
 };
+export declare function opaquePut(v: Opaque, n: number, p: number): void;
 type Exports = Record<string, any>;
 export declare let w: Exports;
 export declare function dv(): DataView;
 export declare function mem(): Uint8Array<ArrayBuffer>;
+export type Addr = number;
 export declare const s: {
     d: number;
 };
@@ -10696,14 +10697,14 @@ export declare function enter(): number;
 export declare function leave(mark: number): void;
 export declare function alloc(size: number, align: number): number;
 export declare function status(p: number, what: string): void;
+export interface Handle<T extends string = string> {
+    readonly [brand]: T;
+}
 export type Kind = {
     readonly name: string;
     readonly free: string;
     readonly drop?: string;
 };
-export interface Handle<T extends string = string> {
-    readonly [brand]: T;
-}
 export declare class Handle<T extends string = string> {
     readonly p: number;
     readonly k: Kind;
@@ -10722,12 +10723,11 @@ export declare class Handle<T extends string = string> {
 export declare function hold(handle: Handle): number;
 export declare function holdOr(handle: Handle | undefined): number;
 export declare function lentHandle<T extends string>(p: number, k: Kind): Handle<T>;
+export declare function put8(p: number, v: number): void;
+export declare function put16(p: number, v: number): void;
+export declare function put32(p: number, v: number): void;
 export declare function int(v: number, min: number, max: number, what: string): number;
 export declare function nonZero<T extends number | u64 | i64>(v: T): T;
-export declare function f32Get(p: number): f32;
-export declare function f32Put(p: number, v: f32): void;
-export declare function f64Get(p: number): f64;
-export declare function f64Put(p: number, v: f64): void;
 export declare function f32Number(v: f32): number;
 export declare function f64Number(v: f64): number;
 export declare function char(v: number): number;
@@ -10735,22 +10735,27 @@ export declare function u64Of(hi: number, lo: number): u64;
 export declare function i64Of(hi: number, lo: number): i64;
 export declare function u64Halves(v: u64): [number, number];
 export declare function i64Halves(v: i64): [number, number];
-export declare function u64Get(p: number): u64;
-export declare function i64Get(p: number): i64;
-export declare function u64Put(p: number, v: u64): void;
-export declare function i64Put(p: number, v: i64): void;
 export declare function u64Big(v: u64): bigint;
 export declare function i64Big(v: i64): bigint;
 export declare function u64OfBig(v: bigint): u64;
 export declare function i64OfBig(v: bigint): i64;
-export declare function u128Get(p: number): u128;
-export declare function u128Put(p: number, v: u128): void;
 export declare function u64ToBig(v: u64): bigint;
 export declare function i64ToBig(v: i64): bigint;
 export declare function u128ToBig(v: u128): bigint;
 export declare function u64FromBig(v: bigint): u64;
 export declare function i64FromBig(v: bigint): i64;
 export declare function u128FromBig(v: bigint): u128;
+export declare function f32Get(p: number): f32;
+export declare function f32Put(p: number, v: f32): void;
+export declare function f64Get(p: number): f64;
+export declare function f64Put(p: number, v: f64): void;
+export declare function u64Get(p: number): u64;
+export declare function i64Get(p: number): i64;
+export declare function u64Put(p: number, v: u64): void;
+export declare function i64Put(p: number, v: i64): void;
+export declare function u128Get(p: number): u128;
+export declare function u128Put(p: number, v: u128): void;
+export declare function typedBytes(v: unknown, kind: string, size: number): Uint8Array;
 export declare function encoded(text: string): Uint8Array;
 export declare function putStr(dst: number, text: string): void;
 export declare function putBytes(dst: number, data: Uint8Array | Bytes): void;
@@ -10773,7 +10778,7 @@ export declare function returnedBytes(p: number): Bytes;
 export declare function str(p: number): string;
 export declare function copied(dst: number, text: string, message?: boolean): void;
 export declare function copiedBytes(dst: number, data: Uint8Array): void;
-export declare function array(data: Uint8Array, n: number): Uint8Array;
+export declare function arrayPut(p: number, data: Uint8Array, n: number): void;
 export declare function pathBytes(path: PathBuf): Uint8Array;
 export declare function durationGet(p: number): Duration;
 export declare function durationPut(p: number, v: Duration): void;
@@ -10790,19 +10795,33 @@ export declare function socketV6Put(p: number, v: SocketAddrV6): void;
 export declare function socketGet(p: number): SocketAddr;
 export declare function socketPut(p: number, v: SocketAddr): void;
 export declare function give(value: unknown, drop?: () => void): number;
+export declare function callbackPut(p: number, vtable: Addr, value: {
+    close?(): void;
+}): void;
 export declare function lend(value: unknown): number;
 export declare function find<T>(t: number): T;
 export declare const fn: {
-    wake: number;
-    wakerDrop: number;
-    free: number;
-    poll: number;
-    read: number;
-    seek: number;
+    wake: Addr;
+    wakerDrop: Addr;
+    free: Addr;
+    poll: Addr;
+    read: Addr;
+    seek: Addr;
 };
 export declare function out<T>(what: string, f: () => T): T;
 export declare function wakerOf(dst: number, wake: () => void): void;
 export declare function wakerGet(p: number): Waker;
+type Foreign = {
+    given: boolean;
+    done: boolean;
+    failed: unknown;
+    wake: Addr;
+    drop: Addr;
+    data: Addr;
+    call?: Call<unknown>;
+};
+export declare function futurePrepare(promise: Promise<unknown>): Foreign;
+export declare function futurePut(dst: number, f: Foreign): void;
 export declare function futureOf(dst: number, promise: Promise<unknown>): void;
 export declare function readerOf(dst: number, reader: Reader): void;
 export declare function pending<T>(f: number, poll: (f: number, waker: number) => [boolean, T], free: string): Call<T>;

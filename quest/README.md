@@ -10,12 +10,14 @@ grouped into milestones ordered by priority.
 m0 holds urgent fixes and what every run pays for. m1 is the work with a consumer
 waiting on it now: the exporter moq switches its bindings to. m2 is research with a named
 consumer: rust2-wasm, moq's browser route, the TypeScript translator, an experiment
-that has to beat it, and [crabx](/quest/m2/crabx/README.md), prebuilt Rust CLIs without
-a toolchain. m3 holds work that waits on evidence or has no consumer yet:
+that has to beat it, and [a benchmark harness](/quest/m2/harness/README.md) to replace
+Criterion. m3 holds work that waits on evidence or has no consumer yet:
 upstream's build-speed levers, which the [build-speed benchmark](/bench/build/README.md)
 measures, the translator's features that wait on [the gate](/quest/m2/wasm/README.md),
-the binding targets planned ahead of a consumer, what waits on moq, and crabx's GitHub
-App. m4 holds long-term research.
+the binding targets planned ahead of a consumer, and what waits on moq. m4 holds long-term
+research.
+
+crabx, prebuilt Rust CLIs without a toolchain, lives in [kixel-ai/crabx](https://github.com/kixel-ai/crabx), with its quests.
 
 Decided with the maintainer on 2026-11-09, in the quest audit, the goal: one Rust code
 base callable from any language or framework, with no manual wrappers or annotations.
@@ -24,6 +26,12 @@ it, and what is unsupported fails the export, not the run. The
 [exporter](/ffi/README.md) is the product, WebAssembly its browser
 target, the translator an experiment against that, and build speed a side track that
 keeps only what costs nothing.
+
+Decided with the maintainer on 2026-11-23, in kixel-ai/kixel.quest's `/quest-plan`
+([kixel-ai/kixel.quest#113](https://github.com/kixel-ai/kixel.quest/pull/113)): benchmarking
+joins the charter. [rust2-bench](/bench/runner/README.md) counts benchmarks' instructions
+under stock Valgrind for moq, rind, and here, replacing CodSpeed, and
+[a harness](/quest/m2/harness/README.md) replaces Criterion.
 
 Decided with the maintainer on 2026-10-23, when rust2 was planned from moq
 ([moq-dev/moq#6578](https://github.com/moq-dev/moq/pull/6578)):

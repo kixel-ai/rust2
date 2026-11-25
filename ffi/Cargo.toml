@@ -41,3 +41,13 @@ syn = { version = "3.0.10", default-features = false, features = ["clone-impls",
 
 [lints]
 workspace = true
+
+# The exporter's own check and generation, which no compiler cache serves, take about two
+# minutes of one thread unoptimized and under 30 seconds at opt-level 3, and the dev build is
+# what `cargo run` and `cargo test` make. The dependencies stay unoptimized: the profile
+# names only the two packages that do the work (bench/ffi/README.md, "The export's cache").
+[profile.dev.package.rust2-driver]
+opt-level = 3
+
+[profile.dev.package.rust2-ffi]
+opt-level = 3

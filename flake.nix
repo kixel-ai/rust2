@@ -11,7 +11,7 @@
     # The quest CLI, which also serves the quest guide and skills the stubs in
     # .claude/skills call. Bump the rev to upgrade them.
     quest = {
-      url = "github:moq-dev/quest";
+      url = "github:kixel-ai/quest";
       inputs.nixpkgs.follows = "nixpkgs";
       inputs.flake-utils.follows = "flake-utils";
     };
@@ -24,7 +24,7 @@
       inputs.flake-utils.follows = "flake-utils";
     };
     # CodSpeed's instrument-hooks, which the binding benchmark's programs call around each
-    # case its CPU simulation counts.
+    # case rust2-bench counts.
     instrument-hooks = {
       url = "github:CodSpeedHQ/instrument-hooks/8fd5b878499f819561b33219cdafaa6f8c28b4e4";
       flake = false;
@@ -72,6 +72,41 @@
               export __EGL_VENDOR_LIBRARY_DIRS=${pkgs.mesa}/share/glvnd/egl_vendor.d
               exec ${browsers.passthru.entries.${webkit}}/minibrowser-wpe/MiniBrowser --headless "$@"
             '';
+          # Hermes at the tag React Native 0.88.1 pins, built for the host, which nixpkgs
+          # doesn't package: the engine the React Native binding runs on off a device, in its
+          # test, moq run, and benchmark column. Laid out as a checkout built into its
+          # `build`, as RUST2_HERMES names one.
+          hermes = pkgs.stdenv.mkDerivation {
+            pname = "hermes";
+            version = "260318099.0.5";
+            src = pkgs.fetchFromGitHub {
+              owner = "facebook";
+              repo = "hermes";
+              tag = "hermes-v260318099.0.5";
+              hash = "sha256-OJb3UDHxvoN9euDgpsWb+OO8VSLzxq6CLZw4Vr942hk=";
+            };
+            nativeBuildInputs = with pkgs; [
+              cmake
+              ninja
+              python3
+            ];
+            buildInputs = [ pkgs.icu ];
+            cmakeFlags = [
+              "-DCMAKE_BUILD_TYPE=Release"
+              "-DHERMES_ENABLE_TEST_SUITE=OFF"
+            ];
+            ninjaFlags = [
+              "hermesvm"
+              "jsi"
+            ];
+            installPhase = ''
+              mkdir -p $out/build/lib $out/build/jsi
+              cp -r ../API ../public ../include $out/
+              cp -r lib/config $out/build/lib/
+              cp lib/libhermesvm${pkgs.stdenv.hostPlatform.extensions.sharedLibrary} $out/build/lib/
+              cp jsi/libjsi.a $out/build/jsi/
+            '';
+          };
           # The benchmark's nightly levers (--jobs-frontend, cranelift, self-profile).
           # Bumping the date is a benchmark corpus change: numbers before and
           # after it do not compare.
@@ -237,11 +272,53 @@
                 # The tests build every language's binding: `just ffi test` runs them.
                 doCheck = false;
               };
+          # The Valgrind rust2-bench counts under. Another can count differently, so a nixpkgs
+          # bump that moves it fails here, and moves only by editing the version, a visible
+          # change; its version also starts new series through each count's fingerprint.
+          valgrind =
+            pkgs.lib.throwIfNot (pkgs.valgrind.version == "3.27.1")
+              "nixpkgs moved Valgrind to ${pkgs.valgrind.version}: bump the version flake.nix pins for rust2-bench"
+              pkgs.valgrind;
+          # The benchmark runner, on the repo's stable toolchain, with its Valgrind.
+          rust2-bench =
+            (pkgs.makeRustPlatform {
+              cargo = toolchain;
+              rustc = toolchain;
+            }).buildRustPackage
+              {
+                pname = "rust2-bench";
+                version = "0.0.0";
+                src = pkgs.lib.fileset.toSource {
+                  root = ./bench/runner;
+                  fileset = pkgs.lib.fileset.unions [
+                    ./bench/runner/Cargo.toml
+                    ./bench/runner/Cargo.lock
+                    ./bench/runner/src
+                    # A workspace member, which Cargo reads though the runner builds without it.
+                    ./bench/runner/harness
+                  ];
+                };
+                cargoLock.lockFile = ./bench/runner/Cargo.lock;
+                nativeBuildInputs = [ pkgs.makeWrapper ];
+                postInstall = ''
+                  wrapProgram $out/bin/rust2-bench --prefix PATH : ${valgrind}/bin
+                '';
+                # The tests run Valgrind: `just runner test` runs them.
+                doCheck = false;
+              };
           # rust2-ffi's generated async Kotlin needs coroutines on the
           # classpath; nixpkgs has no jar.
           kotlinx-coroutines = pkgs.fetchurl {
             url = "https://repo1.maven.org/maven2/org/jetbrains/kotlinx/kotlinx-coroutines-core-jvm/1.10.2/kotlinx-coroutines-core-jvm-1.10.2.jar";
             hash = "sha256-XKF1s43zMf1kFVs1zYyuElH6nuNpcJs21C4KKIzM4/0=";
+          };
+          # .NET Standard 2.1's reference assemblies, the API Unity's scripts compile
+          # against, which rust2-ffi's generated C# also builds for; the SDK has none.
+          netstandard-ref = pkgs.fetchzip {
+            url = "https://www.nuget.org/api/v2/package/NETStandard.Library.Ref/2.1.0";
+            extension = "zip";
+            stripRoot = false;
+            hash = "sha256-YD1IlzeVfK3aHwO9IyiCGnlh/yNIgfoEeezPBLOWV6M=";
           };
         in
         {
@@ -250,6 +327,12 @@
             ts = rust2-ts;
             pub = rust2-pub;
             ffi = rust2-ffi;
+            # Built only when a recipe running on it asks: it compiles from source.
+            inherit hermes;
+          }
+          # Valgrind's counts are Linux's, and the fingerprint reads x86_64's CPUID.
+          // pkgs.lib.optionalAttrs (pkgs.stdenv.hostPlatform.isLinux && pkgs.stdenv.hostPlatform.isx86_64) {
+            bench = rust2-bench;
           }
           # ra-jit and its toolchain for the benchmark's ra-jit variants, which build it
           # only when they run: it compiles from source. ra-jit skips Intel macOS.
@@ -323,16 +406,24 @@
               # rust2-go's tests build and run its output against native Rust.
               go
               dart
+              # ... and compile its C# with Roslyn and run it on .NET, NativeAOT included.
+              dotnet-sdk_10
             ];
             # ... and its generated Swift, unless nixpkgs marks the compiler broken on this system.
             # The `swift` wrapper doesn't copy its compiler's `broken`, so ask the compiler.
-            nativeBuildInputs = pkgs.lib.optional (!pkgs.swift.swiftc.meta.broken) pkgs.swift;
+            nativeBuildInputs =
+              pkgs.lib.optional (!pkgs.swift.swiftc.meta.broken) pkgs.swift
+              # rust2-bench's tests count under its Valgrind.
+              ++ pkgs.lib.optional pkgs.stdenv.hostPlatform.isLinux valgrind;
             RUST2_TS_TOOLCHAIN = tsToolchain;
             RUST2_TS_SYSROOT = rust2-ts-std;
             # rust2-ffi's strict C++ build needs Clang 23's `-Wlifetime-safety`, which no
             # compiler on PATH has.
             RUST2_CLANG = "${pkgs.llvmPackages_23.clang}/bin/clang++";
             KOTLINX_COROUTINES = "${kotlinx-coroutines}";
+            NETSTANDARD_REF = "${netstandard-ref}/ref/netstandard2.1";
+            DOTNET_CLI_TELEMETRY_OPTOUT = "1";
+            DOTNET_NOLOGO = "1";
             # The CPythons the generated Python loads in or refuses beside the default 3.14: the
             # free-threaded 3.14, which no stable ABI covers, and 3.15 with and without its GIL,
             # which load the abi3t extension. By path, since each python3 would shadow the
@@ -377,10 +468,14 @@
                 pkgs.firefox
                 pkgs.binaryen
               ]
-              ++ pkgs.lib.optional pkgs.stdenv.hostPlatform.isLinux webkit-headless;
+              ++ pkgs.lib.optionals pkgs.stdenv.hostPlatform.isLinux [ webkit-headless ]
+              # `just ffi count` counts the programs' instructions with it, on x86_64 Linux only.
+              ++ pkgs.lib.optionals (pkgs.stdenv.hostPlatform.isLinux && pkgs.stdenv.hostPlatform.isx86_64) [
+                rust2-bench
+              ];
             # `just ffi bench` builds moq's rs/libmoq, whose VAAPI bindings run bindgen.
             LIBCLANG_PATH = "${pkgs.llvmPackages.libclang.lib}/lib";
-            # ... and its programs over instrument-hooks, for CodSpeed.
+            # ... and its programs over CodSpeed's instrument-hooks, which rust2-bench reads.
             CODSPEED_INSTRUMENT_HOOKS = "${instrument-hooks}";
           });
           # Clang beside the default shell's GCC, which the nightly builds the exporter's C++ with.

@@ -1,7 +1,7 @@
 // bench/export.c's cases through the generated Dart, so the two differ by what dart:ffi and
 // the Dart wrapper add. Each round runs twice, the first to warm the JIT. Each case prints
 // its wall time and the process's CPU time, the VM's own threads included, or under
-// CodSpeed, runs once for its CPU simulation to count. Its argument is
+// Valgrind, runs once for rust2-bench to count. Its argument is
 // moq/bench/codspeed.h's shared library.
 
 import 'dart:async';
@@ -11,7 +11,7 @@ import 'dart:typed_data';
 
 import 'package:moq/moq.dart' as moq;
 
-/// A tenth under CodSpeed, whose simulation counts every call exactly.
+/// A tenth under Valgrind, which counts every call exactly.
 var groups = 10000;
 const frames = 100;
 int get n => groups * frames;
@@ -54,7 +54,7 @@ late final bool Function(ffi.Pointer<ffi.Char>) _codspeedInit;
 late final void Function() _codspeedStart;
 late final void Function(ffi.Pointer<ffi.Char>) _codspeedStop;
 
-/// A case's start: now, and CodSpeed counting from here.
+/// A case's start: now, and Valgrind counting from here.
 Span begin() {
   final start = now();
   _codspeedStart();
@@ -339,7 +339,7 @@ Future<void> main(List<String> args) async {
   final bench = _cString('ffi/moq/bench/export.dart::dart');
   final measured = _codspeedInit(bench);
   _free(bench.cast());
-  // Under CodSpeed, one round, which prints nothing: its simulation counts each case.
+  // Under Valgrind, one round, which prints nothing: rust2-bench counts each case.
   if (measured) {
     groups ~/= 10;
     await round();

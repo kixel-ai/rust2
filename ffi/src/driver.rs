@@ -775,6 +775,14 @@ impl Export {
 			}
 			err.emit();
 		}
+		for (constant, why) in crate::gate::refusals(api) {
+			let targets = api.named(constant.on).join(", ");
+			let what = format!(
+				"rust2-ffi: cannot export const `{}`, only on {targets}: {why}",
+				constant.path.join("::")
+			);
+			tcx.dcx().struct_span_err(constant.span, what).emit();
+		}
 		let can_generate = tcx.dcx().has_errors().is_none();
 		let baseline = match self.baseline(tcx, &target) {
 			Ok(base) => base,

@@ -1,7 +1,7 @@
 // bench/export.c's cases through the generated C++ header, so the two differ by what the
 // C++ wrapper adds. Futures are polled by hand with a waker that does nothing. Each case
-// prints its wall time and the process's CPU time, or under CodSpeed, runs once for its CPU
-// simulation to count.
+// prints its wall time and the process's CPU time, or under Valgrind, runs once for rust2-bench
+// to count.
 
 #include <algorithm>
 #include <atomic>
@@ -19,7 +19,7 @@
 
 namespace {
 
-// A tenth under CodSpeed, whose simulation counts every call exactly.
+// A tenth under Valgrind, which counts every call exactly.
 int groups = 10000;
 constexpr int frames = 100;
 int n = groups * frames;
@@ -50,10 +50,10 @@ span per(span start, double calls = n) {
 	return {(end.wall - start.wall) / calls, (end.cpu - start.cpu) / calls};
 }
 
-// Whether CodSpeed counts this run, which then skips the warm-up and the threaded cases.
+// Whether Valgrind counts this run, which then skips the warm-up and the threaded cases.
 bool measured;
 
-// A case's start: now, and CodSpeed counting from here.
+// A case's start: now, and Valgrind counting from here.
 span begin() {
 	span start = now();
 	codspeed_start();
@@ -201,7 +201,7 @@ void round(bool print) {
 		getter = end(start, "getter");
 
 		// The handle call and the getter from `threads` threads: on one shared handle, then
-		// on a clone each, a handle of its own to the same value. CodSpeed's simulation runs
+		// on a clone each, a handle of its own to the same value. Valgrind runs
 		// one thread at a time, which contends for nothing, so it skips them.
 		if (!measured) {
 			auto is_closed = [](const moq::track_Producer &t) { return static_cast<unsigned>(t.is_closed()); };
@@ -344,7 +344,7 @@ void round(bool print) {
 } // namespace
 
 int main() {
-	// Under CodSpeed, one round, which prints nothing: its simulation counts each case.
+	// Under Valgrind, one round, which prints nothing: rust2-bench counts each case.
 	measured = codspeed_init("ffi/moq/bench/export.cpp::cpp");
 	if (measured) {
 		groups /= 10;

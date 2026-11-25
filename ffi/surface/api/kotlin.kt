@@ -1790,15 +1790,18 @@ class kotlincollectionsListClashToneException(val error: kotlin.collections.List
 }
 const val LIMIT: ULong
 const val FAR: Long
+val WASM_PAGE: UInt
 const val EOF: Int
 const val URL: ULong
 @kotlin.Deprecated("pass a step to `Dial::turn`, whose `}` or `{` alone stays in the note") const val STEP: ULong
+val WORD: ULong
 fun hasText(note: api.Note): kotlin.Boolean
 fun marked(apiMarked: api.Mark): kotlin.ULong
 @kotlin.jvm.JvmName("reading") fun reading(n: kotlin.UInt): api.Reading?
 @kotlin.jvm.JvmName("readingDebug") fun readingDebug(n: kotlin.UInt): kotlin.String
 fun readingEcho(reading: api.Reading?): api.Reading?
 fun readingBump(reading: api.Mut<api.Reading?>)
+suspend fun afterCounter(counter: api.Counter, first: suspend () -> kotlin.Unit): kotlin.ULong
 fun advance(stage: api.Stage): api.Stage
 @kotlin.jvm.Throws(StringException::class) fun sameObject(a: kotlin.Any?, b: kotlin.Any?): kotlin.Boolean
 @kotlin.jvm.Throws(StringException::class) fun thrown(fail: kotlin.Boolean): kotlin.ULong

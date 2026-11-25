@@ -1,19 +1,21 @@
 set shell := ["bash", "-euo", "pipefail", "-c"]
 
+# Each module names its file, so loading this one lists no project's directory.
+
 # The TypeScript driver, its own workspace on its own nightly: `just ts <recipe>`.
-mod ts
+mod ts 'ts/justfile'
 
 # The C exporter, its own workspace on the TypeScript driver's nightly: `just ffi <recipe>`.
-mod ffi
+mod ffi 'ffi/justfile'
 
 # The Go translator, its own workspace on the TypeScript driver's nightly: `just go <recipe>`.
-mod go
+mod go 'go/justfile'
 
 # The drivers' shared front end, its own workspace on the TypeScript driver's nightly: `just driver <recipe>`.
-mod driver
+mod driver 'driver/justfile'
 
-# Run a Rust CLI from a release: `just crabx <recipe>`.
-mod crabx
+# The benchmark runner, its own workspace on the repo's stable toolchain: `just runner <recipe>`.
+mod runner 'bench/runner/justfile'
 
 # List the available development commands.
 default:
@@ -48,8 +50,8 @@ fix:
     shfmt -w bench/*/*.sh sh/*.sh
     taplo format
     nixfmt flake.nix
-    just crabx fix
     just ts fix
     just ffi fix
     just go fix
     just driver fix
+    just runner fix

@@ -235,6 +235,16 @@ class Wheel(unittest.TestCase):
                     dst.writestr(name, src.read(name))
             package.check_wheel(repaired)
 
+    def test_vendored_libraries_are_each_tools(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            wheel = Path(tmp) / "repaired.whl"
+            # Where auditwheel and delvewheel, then delocate, put the libraries they copy in.
+            with zipfile.ZipFile(wheel, "w") as archive:
+                for name in ("moq/libmoq.so", "moq_ffi.libs/", "moq_ffi.libs/libssl-1a2b.so.3",
+                             "moq/.dylibs/libz.1.dylib", "moq_ffi-0.4.12.dist-info/RECORD"):
+                    archive.writestr(name, b"")
+            self.assertEqual(package.vendored(wheel), ["libssl-1a2b.so.3", "libz.1.dylib"])
+
     def test_a_tampered_record_fails(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
@@ -369,10 +379,12 @@ class Reproducible(unittest.TestCase):
             self.assertNotIn("CXXFLAGS", windows)
             apple = package.reproducible(info(tmp), Path(tmp), "aarch64-apple-darwin")
             self.assertEqual(apple["ZERO_AR_DATE"], "1")
-            self.assertIn("link-arg=-Wl,-install_name,@rpath/libmoq.dylib", apple["CARGO_ENCODED_RUSTFLAGS"])
+            # The install name is the generated crate's alone, so every Apple build shares its dependencies' flags.
+            self.assertNotIn("install_name", apple["CARGO_ENCODED_RUSTFLAGS"])
+            self.assertEqual(apple["RUST2_FFI_INSTALL_NAME"], "@rpath/libmoq.dylib")
             named = package.reproducible(info(tmp), Path(tmp), "aarch64-apple-darwin", "libmoq.0.4.12.dylib")
-            self.assertIn("link-arg=-Wl,-install_name,@rpath/libmoq.0.4.12.dylib", named["CARGO_ENCODED_RUSTFLAGS"])
-            self.assertNotIn("@rpath/libmoq.dylib", named["CARGO_ENCODED_RUSTFLAGS"])
+            self.assertEqual(named["RUST2_FFI_INSTALL_NAME"], "@rpath/libmoq.0.4.12.dylib")
+            self.assertNotIn("RUST2_FFI_INSTALL_NAME", windows)
 
     def test_an_empty_encoded_rustflags_is_no_flags(self):
         with tempfile.TemporaryDirectory() as tmp, mock.patch.dict(os.environ, {"CARGO_ENCODED_RUSTFLAGS": "", "RUSTFLAGS": "-C x", "CARGO_HOME": tmp + "/home"}):
@@ -569,6 +581,17 @@ class ImportNames(unittest.TestCase):
             members = package.ar_members(path)
             self.assertEqual(members["kernel32.dllh.o"][0], imported.replace(b"4TX99l", b"000000"))
             self.assertEqual(members["api.o"][0], data)
+
+    def test_any_imported_files_lose_it_too(self):
+        exe = b"_head_D__a_x_out_rustcffeyij_ntoskrnl_exe_imports_lib\x00"
+        drv = b"_head_D__a_x_out_rustcwN6OqG_winspool_drv_imports_lib\x00"
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "lib.a"
+            path.write_bytes(self.archive(("", exe + drv), ("nt.exes12.o", exe), ("ws.drvh.o", drv)))
+            package.fix_import_names(path)
+            members = package.ar_members(path)
+            self.assertEqual(members["nt.exes12.o"][0], exe.replace(b"ffeyij", b"000000"))
+            self.assertEqual(members["ws.drvh.o"][0], drv.replace(b"wN6OqG", b"000000"))
 
 
 class BsdArchive(unittest.TestCase):
@@ -884,26 +907,86 @@ class CArchive(unittest.TestCase):
         self.assertEqual(windows["moq_shared"]["link_location"], "@prefix@/lib/moq.dll.lib")
         self.assertEqual(windows["moq"]["link_flags"], ["/defaultlib:msvcrt"])
 
-    def test_commons_are_defined_unless_a_member_defines_them(self):
-        nm = """
-libmoq.a(ui.o):
-0000000000000008 (common) (alignment 2^3) external _tty_in
-0000000000000004 (common) (alignment 2^2) external _is_a_tty
-0000000000000010 (common) (alignment 2^4) external _shared
-                 (undefined) external _tty_out
+    def test_the_older_toolchain_is_a_released_stable_whatever_the_channel(self):
+        self.assertEqual(package.older_toolchain("rustc 1.98.1\nhost: x86_64-unknown-linux-gnu\nrelease: 1.98.1\n"), "1.96.0")
+        self.assertEqual(package.older_toolchain("release: 1.101.0-beta.3\n"), "1.99.0")
+        # A nightly names release 1.N days before 1.(N-2) is out.
+        self.assertEqual(package.older_toolchain("release: 1.102.0-nightly\n"), "1.99.0")
+        with self.assertRaises(SystemExit):
+            package.older_toolchain("release: 2.0.0\n")
 
-libmoq.a(other.o):
-0000000000000008 (common) (alignment 2^3) external _tty_out
-0000000000000020 (common) external _shared
-0000000000000000 (__DATA,__bss) external _is_a_tty
-0000000000000008 (common) (alignment 2^3) external _state
-0000000000000010 (__DATA,__data) private external _state
+    def test_the_minimum_os_is_the_newest_either_load_command_declares(self):
+        listing = """libmoq.a(std.o):
+Load command 1
+      cmd LC_VERSION_MIN_MACOSX
+  cmdsize 16
+  version 10.12
+      sdk n/a
+Load command 2
+      cmd LC_SOURCE_VERSION
+  cmdsize 16
+  version 1.2
+libmoq.a(moq.o):
+Load command 1
+      cmd LC_BUILD_VERSION
+  cmdsize 24
+ platform 1
+    minos 10.15
+      sdk 26.2
 """
-        self.assertEqual(package.commons_source(nm),
-                         '__attribute__((aligned(16))) char common0[32] __asm__("_shared");\n'
-                         '__attribute__((aligned(8))) char common1[8] __asm__("_tty_in");\n'
-                         '__attribute__((aligned(8))) char common2[8] __asm__("_tty_out");\n')
-        self.assertEqual(package.commons_source("0000 (__TEXT,__text) external _moq_x\n"), "typedef int empty;\n")
+        self.assertEqual(package.declared_os(listing, "libmoq.a"), (10, 15))
+        # A source version is no minimum OS.
+        with self.assertRaises(SystemExit):
+            package.declared_os(listing.split("libmoq.a(moq.o)")[0].replace("LC_VERSION_MIN_MACOSX", "LC_UUID"), "libmoq.a")
+
+    def test_the_c_abi_is_what_every_build_exports_and_the_rest_is_renamed(self):
+        listing = """api-0abf9f642fbb3007.api.d0e6e03e8f1aed16-cgu.01.rcgu.o:
+api_buf_free T 0 10
+api_Batch_drop_signal T 10 10
+malloc U
+
+libapi.a[my helper (1).o]:
+api_lc_init T 10 10
+tty_in C 8 8
+
+libapi.a(std-62cf18f9587165ab.std.c6455289cfba667d-cgu.0.rcgu.o):
+rust_eh_personality T 20 10
+DW.ref.rust_eh_personality V 0 8
+_ZN3std2rt10lang_start17h0123456789abcdefE T 30 10
+__cxa_thread_atexit_impl w
+"""
+        self.assertEqual(package.nm_symbols(listing)[2], ("malloc", "U"))
+        self.assertEqual(package.nm_symbols(listing)[3], ("api_lc_init", "T"))
+        names = package.defined(listing)
+        self.assertEqual(names, {"api_buf_free", "api_Batch_drop_signal", "api_lc_init", "tty_in", "rust_eh_personality",
+                                 "DW.ref.rust_eh_personality", "_ZN3std2rt10lang_start17h0123456789abcdefE"})
+        with tempfile.TemporaryDirectory() as export:
+            # What only a binding's feature builds, such as JNI's, stays out of a static library.
+            Path(export, "exports.txt").write_text("# Generated.\nJava_api_1contract kotlin\napi_Batch_drop_signal\n"
+                                                   "api_buf_free\napi_ü̈\n", encoding="utf-8")
+            self.assertEqual(package.c_abi(export, "x86_64-unknown-linux-gnu"), {"api_Batch_drop_signal", "api_buf_free", "api_ü̈"})
+            self.assertEqual(package.c_abi(export, "aarch64-apple-darwin"), {"_api_Batch_drop_signal", "_api_buf_free", "_api_ü̈"})
+            Path(export, "exports.txt").write_text("# Generated.\nJava_api_1contract kotlin\n", encoding="utf-8")
+            with self.assertRaises(SystemExit):
+                package.c_abi(export, "x86_64-unknown-linux-gnu")
+            # An export an older rust2-ffi wrote has no list.
+            Path(export, "exports.txt").unlink()
+            with self.assertRaises(SystemExit):
+                package.c_abi(export, "x86_64-unknown-linux-gnu")
+        new = package.renamed(names - {"api_buf_free", "api_Batch_drop_signal"}, "api", "0123456789abcdef")
+        self.assertEqual(new["rust_eh_personality"], "rust_eh_personality.api.0123456789abcdef")
+        self.assertEqual(new["_ZN3std2rt10lang_start17h0123456789abcdefE"],
+                         "_ZN3std2rt10lang_start17h0123456789abcdefE.api.0123456789abcdef")
+
+    def test_every_section_group_signature_is_found_local_or_not(self):
+        groups = """libapi.a(std.o):
+COMDAT group section [ 1943] `.group' [DW.ref.rust_eh_personality] contains 2 sections:
+   [Index]    Name
+   [ 1944]   .data.DW.ref.rust_eh_personality
+
+COMDAT group section [   12] `.group' [_ZN4core3fmt5write17h0123E] contains 1 sections:
+"""
+        self.assertEqual(package.group_signatures(groups), {"DW.ref.rust_eh_personality", "_ZN4core3fmt5write17h0123E"})
 
     def test_archive_is_owned_by_no_one(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -1292,7 +1375,7 @@ class Template(unittest.TestCase):
     def test_web_lines_follow_the_scope(self):
         shipped = package.template(info("/src"), "rs/moq-ffi/Cargo.toml", "a" * 40, "moq-dev/moq-swift-ffi", "moq.dev/moq-ffi", "moq")
         self.assertIn("\n      web-manifest-path: rs/moq-ffi/Cargo.toml\n      scope: moq\n", shipped)
-        self.assertIn("@moq/moq-ffi on npm and JSR", shipped)
+        self.assertIn("@moq/moq-ffi on npm and JSR, and the React Native package, @moq/moq-ffi-rn on npm", shipped)
         none = package.template(info("/src"), "rs/moq-ffi/Cargo.toml", "a" * 40, "moq-dev/moq-swift-ffi", "moq.dev/moq-ffi")
         self.assertIn("      # web-manifest-path: rs/moq-ffi/Cargo.toml\n", none)
         self.assertNotIn("\n      web-manifest-path:", none)
@@ -1303,7 +1386,7 @@ class Template(unittest.TestCase):
         shipped = package.template(*args, group="dev.moq")
         self.assertIn("\n      maven-group: dev.moq\n", shipped)
         self.assertIn("dev.moq:moq-ffi on Maven Central", shipped)
-        self.assertIn("name: moq-ffi-build-android", shipped)
+        self.assertIn("name: moq-ffi-maven", shipped)
         none = package.template(*args)
         self.assertIn("      # maven-group: <group>\n", none)
         self.assertNotIn("\n      maven-group:", none)
@@ -1324,7 +1407,9 @@ class Maven(unittest.TestCase):
         root, ns = self.fields(authors=["Luke Curley <kixelated@gmail.com>", "Someone"])
         get = lambda path: [e.text for e in root.findall(path, ns)]  # noqa: E731
         self.assertEqual(get("m:groupId") + get("m:artifactId") + get("m:version") + get("m:packaging"),
-                         ["dev.moq", "moq-ffi", "0.4.12", "aar"])
+                         ["dev.moq", "moq-ffi", "0.4.12", "jar"])
+        # Gradle reads the .module, which gives Android the AAR, only when the POM says it has one.
+        self.assertIn("<!-- do_not_remove: published-with-gradle-metadata -->", package.pom(info("/src"), "dev.moq", "1.10.2"))
         self.assertEqual(get("m:description"), ["Media over QUIC, bindings"])
         # No homepage: the repository is the project's URL.
         self.assertEqual(get("m:url"), ["https://github.com/moq-dev/moq"])
@@ -1353,6 +1438,24 @@ class Maven(unittest.TestCase):
                         {"version": "1.0.0+build"}):
             with self.assertRaises(SystemExit, msg=missing):
                 package.pom(info("/src", **missing), "dev.moq", "1.10.2")
+
+    def test_module_gives_android_the_aar_and_the_jvm_the_jar(self):
+        files = {f"moq-ffi-0.4.12{suffix}": suffix.encode() for suffix in (".jar", ".aar", "-sources.jar", "-javadoc.jar")}
+        module = json.loads(package.gradle_module("dev.moq", "moq-ffi", "0.4.12", package.maven_dependencies("1.10.2"), files))
+        self.assertEqual(module["component"], {"group": "dev.moq", "module": "moq-ffi", "version": "0.4.12",
+                                               "attributes": {"org.gradle.status": "release"}})
+        attribute = lambda v, *names: next(v["attributes"][n] for n in names if n in v["attributes"])  # noqa: E731
+        chosen = {(attribute(v, "org.gradle.jvm.environment", "org.gradle.docstype"), v["attributes"]["org.gradle.usage"]):
+                  v["files"][0]["name"] for v in module["variants"]}
+        self.assertEqual(chosen, {("android", "java-api"): "moq-ffi-0.4.12.aar", ("android", "java-runtime"): "moq-ffi-0.4.12.aar",
+                                  ("standard-jvm", "java-api"): "moq-ffi-0.4.12.jar", ("standard-jvm", "java-runtime"): "moq-ffi-0.4.12.jar",
+                                  ("sources", "java-runtime"): "moq-ffi-0.4.12-sources.jar",
+                                  ("javadoc", "java-runtime"): "moq-ffi-0.4.12-javadoc.jar"})
+        jar = next(v for v in module["variants"] if v["name"] == "jvmRuntimeElements")
+        self.assertEqual(jar["files"][0]["size"], 4)
+        self.assertEqual(jar["files"][0]["sha256"], package.hashlib.sha256(b".jar").hexdigest())
+        self.assertEqual([d["module"] for d in jar["dependencies"]], ["kotlin-stdlib", "kotlinx-coroutines-core"])
+        self.assertEqual(jar["attributes"]["org.jetbrains.kotlin.platform.type"], "jvm")
 
     def test_prerelease_orders_before_its_release(self):
         self.assertEqual(package.maven_version("1.0.0-rc.1"), "1.0.0-rc.1")
@@ -1519,6 +1622,74 @@ class Web(unittest.TestCase):
             (Path(tmp) / "native.txt").write_bytes(b"other\n")
             with self.assertRaises(SystemExit):
                 package.consume_python(check, Path(tmp) / "native.txt", None)
+
+
+
+class ReactNative(unittest.TestCase):
+    CMAKE = ("target_link_libraries(rust2_moq jsi reactnative react_codegen_Rust2MoqSpec\n"
+             "\t${CMAKE_CURRENT_SOURCE_DIR}/../libs/android/${ANDROID_ABI}/libmoq.a log dl m)\n")
+    PODSPEC = ('  s.source_files = "cpp/*.{h,cpp}", "ios/*.mm", "include/*.h"\n'
+               '  s.vendored_frameworks = "libs/ios/moq.xcframework"\n'
+               "  install_modules_dependencies(s)\nend\n")
+
+    def test_names_beside_the_web_package(self):
+        self.assertEqual(package.rn_package_name(info("/src"), "moq"), "@moq/moq-ffi-rn")
+        for scope in ("Moq", "-moq", ""):
+            with self.assertRaises(SystemExit):
+                package.rn_package_name(info("/src"), scope)
+        with self.assertRaises(SystemExit):
+            package.rn_package_name(info("/src", name="Moq"), "moq")
+
+    def test_cmake_links_what_rustc_names_beside_its_own(self):
+        linked = package.rn_cmake(self.CMAKE, "moq", "-lunwind -ldl -llog -lunwind -ldl -lm -lc")
+        self.assertIn("/libmoq.a log dl m unwind c)\n", linked)
+        self.assertEqual(package.rn_cmake(self.CMAKE, "moq", "-ldl -llog"), self.CMAKE)
+        with self.assertRaisesRegex(SystemExit, "update the packager"):
+            package.rn_cmake(self.CMAKE.replace(" log dl m", " log"), "moq", "-ldl")
+        with self.assertRaisesRegex(SystemExit, "unsupported"):
+            package.rn_cmake(self.CMAKE, "moq", "-ldl -Wl,--as-needed")
+
+    def test_podspec_links_frameworks_and_bundles_the_manifest(self):
+        spec = package.rn_podspec(self.PODSPEC, "moq", "-framework Security -framework CoreFoundation -liconv -lSystem -lc -lm "
+                                  "-framework Security", "Rust2MoqPrivacy")
+        self.assertIn('  s.frameworks = ["Security", "CoreFoundation"]\n  s.libraries = ["iconv", "System", "c", "m"]\n'
+                      '  s.resource_bundles = { "Rust2MoqPrivacy" => ["ios/PrivacyInfo.xcprivacy"] }\n'
+                      "  install_modules_dependencies(s)\nend\n", spec)
+        with self.assertRaisesRegex(SystemExit, "update the packager"):
+            package.rn_podspec(self.PODSPEC.replace("moq.xcframework", "other.xcframework"), "moq", "-lc", "Rust2MoqPrivacy")
+        with self.assertRaisesRegex(SystemExit, "unsupported"):
+            package.rn_podspec(self.PODSPEC, "moq", "-lc -weak_framework Foo", "Rust2MoqPrivacy")
+
+    def test_slices_agree_on_their_libraries(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            one, two = Path(tmp) / "one.txt", Path(tmp) / "two.txt"
+            one.write_text("-ldl -llog\n")
+            two.write_text("-ldl -llog\n")
+            self.assertEqual(package.agreed([one, two], "Android"), "-ldl -llog")
+            two.write_text("-ldl -llog -lz\n")
+            with self.assertRaisesRegex(SystemExit, "different native libraries"):
+                package.agreed([one, two], "Android")
+
+    def test_check_imports_the_package(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            check = Path(tmp) / "check.ts"
+            check.write_text('import * as moq from "./react-native/index.ts";\nimport * as Client from "./react-native/Client.ts";\n')
+            self.assertEqual(package.check_program(check, "@moq/moq-ffi-rn", "react-native"),
+                             'import * as moq from "@moq/moq-ffi-rn";\nimport * as Client from "@moq/moq-ffi-rn/Client";\n')
+            check.write_text('import * as moq from "./react-native/nested/index.ts";\n')
+            with self.assertRaises(SystemExit):
+                package.check_program(check, "@moq/moq-ffi-rn", "react-native")
+
+    def test_reads_the_app_log(self):
+        log = object.__new__(package.Logcat)
+        log.tag, log.what = "ReactNativeJS", "React Native app"
+        log.lines, log.pid, log.vm_service = queue.Queue(), None, None
+        for line in ("I/ReactNativeJS( 4321): Running \"Consumer\"", "I/ReactNativeJS( 4321): rust2: start",
+                     "I/ReactNativeJS( 4321): rust2: aGk=", "I/flutter ( 4321): rust2: Ym9vbQ==",
+                     "I/ReactNativeJS( 4321): rust2: exit 0", None):
+            log.lines.put(line)
+        with mock.patch("sys.stderr"):
+            self.assertEqual(log.output(), b"hi")
 
 
 if __name__ == "__main__":

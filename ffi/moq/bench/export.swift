@@ -1,15 +1,15 @@
 // bench/export.c's cases through the generated Swift, so the two differ by what the Swift
 // wrapper adds. Each round runs twice, the first to warm up. Each case prints its wall time
-// and the process's CPU time, the global executor's threads included, or under CodSpeed,
-// runs once for its CPU simulation to count.
+// and the process's CPU time, the global executor's threads included, or under Valgrind,
+// runs once for rust2-bench to count.
 
 import CodSpeed
 import Foundation
 import Moq
 
-/// Whether CodSpeed counts this run, which then skips the warm-up and the threaded cases.
+/// Whether Valgrind counts this run, which then skips the warm-up and the threaded cases.
 let measured = codspeed_init("ffi/moq/bench/export.swift::swift")
-/// A tenth under CodSpeed, whose simulation counts every call exactly.
+/// A tenth under Valgrind, which counts every call exactly.
 let groups = measured ? 1000 : 10000
 let frames = 100
 let n = groups * frames
@@ -39,7 +39,7 @@ func per(_ start: Span, _ calls: Double = Double(n)) -> Span {
 	return Span(wall: (end.wall - start.wall) / calls, cpu: (end.cpu - start.cpu) / calls)
 }
 
-/// A case's start: now, and CodSpeed counting from here.
+/// A case's start: now, and Valgrind counting from here.
 func begin() -> Span {
 	let start = now()
 	codspeed_start()
@@ -210,7 +210,7 @@ func round(_ measured: Bool) throws -> ([(String, Span)], Int) {
 	out.append(("getter", end(start, "getter")))
 
 	// The handle call and the getter from `threads` threads: on one shared handle, then on a
-	// clone each, a handle of its own to the same value. CodSpeed's simulation runs one thread
+	// clone each, a handle of its own to the same value. Valgrind runs one thread
 	// at a time, which contends for nothing, so it skips them.
 	if !measured {
 		let isClosed = { (t: TrackProducer) -> @Sendable () -> Int in { try! t.isClosed() ? 1 : 0 } }
@@ -413,7 +413,7 @@ func round(_ measured: Bool) throws -> ([(String, Span)], Int) {
 	return (out, sum)
 }
 
-// Under CodSpeed, one round, which prints nothing: its simulation counts each case.
+// Under Valgrind, one round, which prints nothing: rust2-bench counts each case.
 var sink = 0
 if !measured {
 	sink += try round(false).1

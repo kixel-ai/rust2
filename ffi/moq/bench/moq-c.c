@@ -1,6 +1,6 @@
 /* bench/export.c's stamped frame writes, through moq's hand-written rs/libmoq: a timed
  * track, groups of 100 frames of 100 bytes, each frame stamped, in wall and CPU time, or
- * under CodSpeed, once for its CPU simulation to count. */
+ * under Valgrind, once for rust2-bench to count. */
 
 #define _POSIX_C_SOURCE 199309L
 
@@ -12,7 +12,7 @@
 #include "codspeed.h"
 #include "moq.h"
 
-/* A tenth under CodSpeed, as bench/export.c. */
+/* A tenth under Valgrind, as bench/export.c. */
 static int GROUPS = 10000;
 #define FRAMES 100
 
@@ -36,7 +36,7 @@ int main(void) {
 		return 1;
 	}
 
-	/* Two rounds, printing the second, as bench/export.c does; under CodSpeed, one. */
+	/* Two rounds, printing the second, as bench/export.c does; under Valgrind, one. */
 	bool measured = codspeed_init("ffi/moq/bench/moq-c.c::moq-c");
 	if (measured) {
 		GROUPS /= 10;

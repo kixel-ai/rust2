@@ -71,7 +71,11 @@ jobs:
       scope: kixel-ai
       # Under the export's own module, `moq`, which moq.go imports.
       go-check: ffi/moq/moq.go
-      maven-group: ai.kixel
+      # moq's own namespace, as it stands in for dev.moq:moq-ffi: its Maven repository,
+      # version 0.0.0, is the bundle moq's Central Portal validates (ffi/release/central.sh).
+      maven-group: dev.moq
       kotlin-check: ffi/moq/moq.kt
       # The export's package, `moq`, which moq.dart imports.
       dart-check: ffi/moq/moq.dart
+      # moq.ts's script through React Native's package, in apps on Android and iOS.
+      react-native-check: ffi/moq/moq.ts

@@ -401,6 +401,74 @@ class __Reader(private val b: java.nio.ByteBuffer) {
 	fun duration(): Duration = Duration(b.getLong().toULong(), b.getInt().toUInt())
 }
 
+/**
+ * Loads the library [name]: the copy for this host a desktop jar bundles beside this class,
+ * which its index `<name>.natives` names by Rust target, or else, with no index, as on
+ * Android, the one on the library path. A bundled copy is loaded from a private directory,
+ * since the JVM loads only a file.
+ */
+private fun __load(name: String) {
+	// ART names itself Dalvik; an APK bundles no index, and looking for one would index its
+	// resources on the class loader's first lookup.
+	val index = if (System.getProperty("java.vm.name") == "Dalvik") null else _Native::class.java.getResourceAsStream("$name.natives")
+	if (index == null) {
+		System.loadLibrary(name)
+		return
+	}
+	val bundled = index.use { it.readBytes().decodeToString() }.lines().filter { it.isNotEmpty() }.associate {
+		val (target, file) = it.split(' ', limit = 2)
+		target to file
+	}
+	val host = __host()
+	val file = bundled[host]
+		?: throw java.lang.UnsatisfiedLinkError("this jar bundles $name for ${bundled.keys.sorted()}, not this host's $host")
+	val library = _Native::class.java.getResourceAsStream("native/$host/$file")
+		?: throw java.lang.UnsatisfiedLinkError("this jar's index names native/$host/$file, which it lacks")
+	// Absolute, as System.load takes only an absolute path, and java.io.tmpdir may be relative.
+	val dir = java.nio.file.Files.createTempDirectory("rust2-$name-").toAbsolutePath()
+	val path = dir.resolve(file)
+	try {
+		library.use { java.nio.file.Files.copy(it, path) }
+		System.load(path.toString())
+	} catch (e: Throwable) {
+		// A library that failed to load is not mapped, so even Windows lets it go.
+		path.toFile().delete()
+		dir.toFile().delete()
+		throw e
+	}
+	// The file can go once loaded, as its mapping stays, except where the system refuses, as
+	// Windows does while the process runs: there the directory is marked stale, and each such
+	// load sweeps the stale directories whose process ended, whose files it can delete.
+	if (!(path.toFile().delete() && dir.toFile().delete())) {
+		java.io.File(dir.toFile(), "stale").createNewFile()
+		dir.parent.toFile().listFiles()?.forEach { stale ->
+			if (stale.name.startsWith("rust2-$name-") && stale != dir.toFile() && java.io.File(stale, "stale").isFile) {
+				val files = stale.listFiles().orEmpty().filter { it.name != "stale" }
+				if (files.all { it.delete() }) {
+					java.io.File(stale, "stale").delete()
+					stale.delete()
+				}
+			}
+		}
+	}
+}
+
+/** This host as a Rust target names it, for the bundled libraries built for one. */
+private fun __host(): String {
+	val os = System.getProperty("os.name").orEmpty()
+	val arch = when (val arch = System.getProperty("os.arch").orEmpty()) {
+		"amd64", "x86_64" -> "x86_64"
+		"aarch64", "arm64" -> "aarch64"
+		else -> arch
+	}
+	return when {
+		os == "Linux" -> "$arch-unknown-linux-gnu"
+		os == "Mac OS X" -> "$arch-apple-darwin"
+		os.startsWith("Windows") -> "$arch-pc-windows-msvc"
+		else -> "$arch $os"
+	}
+}
+
 /** The most a `usize` holds on the library's target, whose `isize` holds half. */
 private val USIZE_MAX: ULong = __usize_max().toULong()
 

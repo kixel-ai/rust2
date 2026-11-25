@@ -8,13 +8,14 @@ so a change to what a generator renders shows in the file's diff. With --check, 
 nothing and fails with the diff where <dir> differs.
 
 Each comes from the language's own tool where one reads source: Python's `ast` for the
-stub a type checker reads, `go doc -all` for Go, and `tsc` for the web binding's
-declarations. C, C++, Kotlin, Swift, and Dart have none that runs without a build, so an
-outline of the generated source keeps each public declaration up to its body.
+stub a type checker reads, `go doc -all` for Go, and `tsc` for the declarations of the web
+binding, React Native's, and Node's. C, C++, Kotlin, Swift, Dart, and C# have none that runs
+without a build, so an outline of the generated source keeps each public declaration up to its body.
 """
 
 import ast
 import difflib
+import multiprocessing
 import os
 import re
 import subprocess
@@ -64,7 +65,7 @@ def scan(text, i, lang, code, masked, close):
             blank(code, i, end)
             blank(masked, i, end)
             i = end
-        elif c == '"' or (c == "'" and lang in ("dart", "cpp", "c", "kotlin")):
+        elif c == '"' or (c == "'" and lang in ("dart", "cpp", "c", "kotlin", "csharp")):
             i = string(text, i, lang, code, masked)
         elif close is not None and c == close and depth == 0:
             return i
@@ -101,6 +102,8 @@ def string(text, i, lang, code, masked):
     """Scan the string literal at `i`, masking its contents; return the offset past it."""
     if lang in ("c", "cpp") and i > 0 and (text[i - 1].isalnum() or text[i - 1] == "_") and text[i - 1] == "R":
         raise Malformed("a C++ raw string")
+    if lang == "csharp" and (text[max(i - 1, 0):i] == "@" or text[max(i - 2, 0):i] == "@$" or text.startswith('"""', i)):
+        raise Malformed("a C# verbatim or raw string")
     quote = text[i]
     raw = lang == "dart" and i > 0 and text[i - 1] == "r"
     triple = lang in ("kotlin", "swift", "dart") and text.startswith(quote * 3, i)
@@ -216,6 +219,11 @@ CPP_TYPE = re.compile(r"^(?:template\s*<.*?>\s*)?(class|struct|union|enum|namesp
 DART_TYPE = re.compile(
     r"^(?:@\S+\s+)*(?:(?:abstract|sealed|final|base|interface|mixin)\s+)*(class|mixin|enum|extension)\b")
 ACCESS = re.compile(r"^(public|private|protected)$")
+# A C# declaration's modifiers, after its attributes, then a type's keyword.
+CSHARP_MODIFIERS = re.compile(
+    r"^(?:(?:public|internal|private|protected|static|sealed|abstract|unsafe|partial|readonly|ref|new|file|"
+    r"override|virtual|extern|const|implicit|explicit|async|volatile)\s+)*")
+CSHARP_TYPE = re.compile(r"(class|struct|interface|enum|namespace|record)\b")
 ATTRIBUTE = re.compile(r"\[\[.*?\]\]|\b[A-Z][A-Z0-9_]*\([^()]*\)")
 
 
@@ -265,7 +273,10 @@ class Braced:
                         j += 1
                         continue
                     break
-                self.emit(level, squash(code[i:j].replace("\\\n", " ")))
+                line = squash(code[i:j].replace("\\\n", " "))
+                # A C# warning's pragma is no API.
+                if not (self.lang == "csharp" and line.startswith("#pragma")):
+                    self.emit(level, line)
                 i = hs = j
                 continue
             if c in "([" or c == "{" and depth > 0:
@@ -301,7 +312,7 @@ class Braced:
                         i = hs = i + 1
                     continue
                 if public or self.friend(hmask):
-                    self.declaration(header, hmask, level, kind)
+                    self.declaration(header, hmask, level, kind, masked[i + 1:j])
                 i = hs = j + 1
                 continue
             elif c in "}":
@@ -328,6 +339,9 @@ class Braced:
     def nested(self, hmask):
         """The kind of scope a `{` after `hmask` opens, or None for a body."""
         head = squash(hmask)
+        if self.lang == "csharp":
+            m = CSHARP_TYPE.match(cs_unmodified(head))
+            return m and m.group(1)
         if self.lang == "cpp":
             if head.startswith('extern "') or head == "extern _":
                 return "namespace"
@@ -343,7 +357,11 @@ class Braced:
 
     def typed(self, header, hmask, kind, i, j, level):
         head = squash(header)
-        if self.lang == "cpp":
+        if self.lang == "csharp":
+            if kind != "namespace" and not cs_visible(squash(hmask)):
+                return
+            public = True
+        elif self.lang == "cpp":
             if kind == "namespace" and re.search(r"\b(detail|)$", head.split("{")[0]):
                 if re.fullmatch(r"namespace(\s+\w+)*\s+detail|namespace", head):
                     return
@@ -368,9 +386,41 @@ class Braced:
         self.scope(start, j, level + 1, kind, public)
         self.emit(level, "};" if self.lang == "cpp" and kind != "namespace" else "}")
 
-    def declaration(self, header, hmask, level, kind):
+    def declaration(self, header, hmask, level, kind, body=None):
         head = squash(header)
         if not head:
+            return
+        if self.lang == "csharp":
+            if head.startswith("using ") or kind != "interface" and not cs_visible(squash(hmask)):
+                return
+            cut = assignment(hmask)
+            end = len(header) if cut is None or re.search(r"\bconst\b", cs_attributed(squash(hmask))) else cut
+            init = first(hmask[:end], re.compile(r"\)\s*:"))
+            if init is not None:
+                # A constructor's `: base(...)` or `: this(...)`.
+                end = init + 1
+            line = squash(header[:end])
+            # A property, by its accessors: a body of them, or an expression body's getter.
+            if not cs_parameters(hmask[:end]) and kind not in ("enum",):
+                if body is not None:
+                    # Its accessors, at its body's depth zero, each with the modifiers that keep it
+                    # visible outside the assembly.
+                    top = set(depth0(body))
+                    flat = "".join(c if k in top else " " for k, c in enumerate(body))
+                    # An accessor's expression body runs to its `;`, so a `set` inside it is no accessor.
+                    flat = re.sub(r"=>[^;]*", lambda m: "=>" + " " * (len(m.group()) - 2), flat)
+                    accessors = [" ".join(v.split() + [a]) for v, a in re.findall(
+                        r"(?:^|[;}\]\s])((?:(?:public|private|protected|internal)\s+)*)(get|set|init)\s*(?=[;{]|=>)", flat)
+                        if "private" not in v.split() and v.split() != ["internal"]]
+                    if not accessors:
+                        raise Malformed(f"a C# body that is no type, method, or property: {line[:80]}")
+                    line += " { " + " ".join(a + ";" for a in accessors) + " }"
+                    self.emit(level, line)
+                    return
+                if cut is not None and hmask[cut:cut + 2] == "=>":
+                    self.emit(level, line + " { get; }")
+                    return
+            self.emit(level, line + ";")
             return
         if self.lang == "cpp":
             if (friended(hmask) and not self.friend(hmask)) or head.startswith("static_assert"):
@@ -408,6 +458,46 @@ class Braced:
 
     def emit(self, level, line):
         self.out.append("\t" * level + line)
+
+
+def cs_attributed(head):
+    """A C# declaration's masked head without its attributes, each to its balanced `]`."""
+    i = 0
+    while head.startswith("[", i):
+        depth = 0
+        for k in range(i, len(head)):
+            depth += {"[": 1, "]": -1}.get(head[k], 0)
+            if depth == 0:
+                break
+        else:
+            raise Malformed(f"an unclosed C# attribute: {head[:80]}")
+        i = k + 1
+        while i < len(head) and head[i].isspace():
+            i += 1
+    return head[i:]
+
+
+def cs_unmodified(head):
+    """A C# declaration's head without its attributes and modifiers."""
+    head = cs_attributed(head)
+    return head[CSHARP_MODIFIERS.match(head).end():]
+
+
+def cs_parameters(hmask):
+    """Whether a C# member's header has a parameter list: a `(` at depth zero right after its
+    name, type parameters, or operator, where a tuple type's follows a space, `<`, or `,`."""
+    top = set(depth0(hmask))
+    return any(c == "(" and k in top and k > 0 and (
+        hmask[k - 1].isalnum() or hmask[k - 1] in "_>" or re.search(r"\boperator\s*\S+$", hmask[:k]))
+        for k, c in enumerate(hmask))
+
+
+def cs_visible(head):
+    """Whether a C# declaration's modifiers make it visible outside its assembly."""
+    head = cs_attributed(head)
+    modifiers = head[:CSHARP_MODIFIERS.match(head).end()]
+    # `private protected` reaches only subclasses in its own assembly.
+    return re.search(r"\b(public|protected)\b", modifiers) is not None and re.search(r"\bprivate\b", modifiers) is None
 
 
 def qualified(hmask):
@@ -829,17 +919,27 @@ def undocumented(text):
     return "\n".join(out).strip("\n") + "\n\n"
 
 
-# The web binding: tsc's declarations of its modules.
+# The web binding, React Native's, and Node's: tsc's declarations of their modules.
+
+# What React Native's runtime imports of `react-native`, off a React Native app.
+REACT_NATIVE = """declare module "react-native" {
+  export type TurboModule = object;
+  export const TurboModuleRegistry: { getEnforcing<T>(name: string): T };
+}
+"""
 
 
 def web_declarations(root):
     sources = sorted(p for p in root.glob("*.ts") if not p.name.endswith(".d.ts"))
     with tempfile.TemporaryDirectory(dir=root.parent) as tmp:
+        ambient = Path(tmp) / "ambient" / "react-native.d.ts"
+        ambient.parent.mkdir()
+        ambient.write_text(REACT_NATIVE, encoding="utf-8")
         result = subprocess.run(
             ["tsc", "--declaration", "--emitDeclarationOnly", "--removeComments", "--strict", "--skipLibCheck",
              "--target", "es2024", "--lib", "es2024,esnext.disposable,dom", "--module", "esnext",
              "--moduleResolution", "bundler", "--allowImportingTsExtensions", "--types", "",
-             "--rootDir", str(root), "--outDir", tmp, *map(str, sources)],
+             "--rootDir", str(root), "--outDir", tmp, str(ambient), *map(str, sources)],
             capture_output=True, text=True)
         if result.returncode != 0:
             raise Malformed(f"tsc: {result.stdout}{result.stderr}")
@@ -854,28 +954,33 @@ def web_declarations(root):
 
 
 def files(export):
-    """The surface files of `export`, by name."""
+    """The surface files of `export`, by name, each rendered when called."""
     surfaces = {}
     include = export / "include"
     headers = sorted(include.glob("*.h"))
     if headers:
-        surfaces["c.h"] = joined(headers, c_header, "/* {} */")
+        surfaces["c.h"] = lambda: joined(headers, c_header, "/* {} */")
     hpp = sorted(include.glob("*/*.hpp"))
     if hpp:
-        surfaces["cpp.hpp"] = joined(hpp, lambda t: braced(t, "cpp"), "// {}")
+        surfaces["cpp.hpp"] = lambda: joined(hpp, lambda t: braced(t, "cpp"), "// {}")
     for lang, glob, name, outline, label in [
         ("kotlin", "kotlin/*.kt", "kotlin.kt", lambda t: indented(t, "kotlin"), "// {}"),
         ("swift", "swift/*.swift", "swift.swift", lambda t: indented(t, "swift"), "// {}"),
         ("dart", "dart/lib/*.dart", "dart.dart", lambda t: braced(t, "dart"), "// {}"),
         ("python", "python/*.py", "python.pyi", python_stub, "# {}"),
+        ("csharp", "csharp/*.cs", "csharp.cs", lambda t: braced(t, "csharp"), "// {}"),
     ]:
         sources = sorted(export.glob(glob))
         if sources:
-            surfaces[name] = joined(sources, outline, label)
+            surfaces[name] = lambda sources=sources, outline=outline, label=label: joined(sources, outline, label)
     if (export / "go" / "go.mod").exists():
-        surfaces["go.txt"] = go_doc(export / "go")
+        surfaces["go.txt"] = lambda: go_doc(export / "go")
     if (export / "web").is_dir():
-        surfaces["web.d.ts"] = web_declarations(export / "web")
+        surfaces["web.d.ts"] = lambda: web_declarations(export / "web")
+    if (export / "react-native").is_dir():
+        surfaces["react-native.d.ts"] = lambda: web_declarations(export / "react-native")
+    if (export / "node").is_dir():
+        surfaces["node.d.ts"] = lambda: web_declarations(export / "node")
     return surfaces
 
 
@@ -890,6 +995,30 @@ def joined(sources, outline, label):
     return "\n".join(parts)
 
 
+# The renders of the running `rendered`, which a forked worker inherits rather than pickles.
+RENDERS = {}
+
+
+def render(name):
+    """`name`'s surface, or the error that stopped it."""
+    try:
+        return RENDERS[name](), None
+    except SystemExit as err:
+        return None, err.code
+
+
+def rendered(renders):
+    """Each surface of `renders`, rendered at once, since each is a few CPU-bound seconds."""
+    RENDERS.update(renders)
+    width = min(len(renders), os.cpu_count() or 1)
+    with multiprocessing.get_context("fork").Pool(width) as pool:
+        results = dict(zip(renders, pool.map(render, renders)))
+    for name, (_, err) in sorted(results.items()):
+        if err is not None:
+            raise SystemExit(err)
+    return {name: text for name, (text, _) in results.items()}
+
+
 def main():
     args = [a for a in sys.argv[1:] if a != "--check"]
     check = "--check" in sys.argv[1:]
@@ -900,11 +1029,14 @@ def main():
     if only:
         if only - set(surfaces):
             raise SystemExit(f"{export} renders no {', '.join(sorted(only - set(surfaces)))}")
-        surfaces = {name: text for name, text in surfaces.items() if name in only}
+        surfaces = {name: render for name, render in surfaces.items() if name in only}
     if not surfaces:
         raise SystemExit(f"{export} holds no binding")
+    # Only the files asked for render, so another's malformed source fails no check of these.
+    surfaces = rendered(surfaces)
     existing = {p.name for p in out.iterdir()} if out.is_dir() else set()
-    stale = sorted(existing - set(surfaces))
+    # Files named leave the others alone, which another export may render.
+    stale = [] if only else sorted(existing - set(surfaces))
     if check:
         failed = False
         for name, text in sorted(surfaces.items()):

@@ -1,4 +1,4 @@
-"""Build and check the Python wheels, Swift package, C archives, Go module, Android library, and web package of a crate's rust2-ffi export.
+"""Build and check the Python wheels, Swift package, C archives, Go module, Kotlin jar and Android library, Dart package, web package, and React Native package of a crate's rust2-ffi export.
 
 bindings.yml runs each step on the host it needs; release.yml is the caller `init` writes.
 Every fact about the package comes from Cargo metadata or the export, so nothing here
@@ -38,7 +38,7 @@ ROOT = HERE.parents[1]
 sys.path.insert(0, str(HERE))
 import backend  # noqa: E402
 from backend import seal, write_zip  # noqa: E402,F401
-# The wheel's Linux floor: glibc 2.28 (RHEL 8, Debian 10), crabx's, and moq's manylinux_2_28.
+# The wheel's Linux floor: glibc 2.28 (RHEL 8, Debian 10), matching moq's manylinux_2_28.
 GLIBC = "2.28"
 # The macOS a wheel loads on: the oldest Rust's aarch64-apple-darwin target supports.
 MACOS_WHEEL = "11.0"
@@ -54,12 +54,19 @@ APPLE_TARGETS = {
     "aarch64-apple-ios-sim": "ios",
     "aarch64-apple-ios-macabi": "maccatalyst",
 }
-# Each slice's SDK and clang target, at the floor, for the link that finds what it calls.
+# The OS each Apple slice is built for: the Swift package's floors, but iOS's device and
+# simulator at React Native's, `min_ios_version_supported`, as its package takes them too.
+APPLE_BUILD = {**{target: SWIFT_PLATFORMS[platform] for target, platform in APPLE_TARGETS.items()},
+               "aarch64-apple-ios": "15.1", "aarch64-apple-ios-sim": "15.1"}
+# Each Apple library's SDK and clang target, at a floor: for the link that finds what a slice
+# calls, and for `coexist`'s.
 APPLE_LINKS = {
     "aarch64-apple-darwin": ("macosx", "arm64-apple-macos{}"),
     "aarch64-apple-ios": ("iphoneos", "arm64-apple-ios{}"),
     "aarch64-apple-ios-sim": ("iphonesimulator", "arm64-apple-ios{}-simulator"),
     "aarch64-apple-ios-macabi": ("macosx", "arm64-apple-ios{}-macabi"),
+    # The Go module's Intel macOS library.
+    "x86_64-apple-darwin": ("macosx", "x86_64-apple-macos{}"),
 }
 # Apple's required-reason APIs a symbol names, by the privacy manifest category declaring them
 # (https://developer.apple.com/documentation/bundleresources/describing-use-of-required-reason-api).
@@ -136,17 +143,38 @@ ANDROID_TARGETS = {
     "armv7-linux-androideabi": "armeabi-v7a",
     "x86_64-linux-android": "x86_64",
 }
+# Every target the desktop jar bundles a library for, which its Kotlin loads on that host:
+# the wheels', as moq's jar ships.
+JVM_TARGETS = WHEEL_TARGETS
+# Every Android ABI React Native's package holds a static library of, by the target built for
+# it: its template's `reactNativeArchitectures`, each of which an app builds by default.
+RN_ANDROID_TARGETS = {
+    "aarch64-linux-android": "arm64-v8a",
+    "armv7-linux-androideabi": "armeabi-v7a",
+    "i686-linux-android": "x86",
+    "x86_64-linux-android": "x86_64",
+}
+# React Native's iOS slices, the device's and the simulator's: the Swift package's, at React
+# Native's floor.
+RN_IOS_TARGETS = ("aarch64-apple-ios", "aarch64-apple-ios-sim")
+# The simulator React Native's consumer runs on, as macOS runners are arm64.
+IOS_SIMULATOR = "aarch64-apple-ios-sim"
+# The React Native release the package's consumer app is made with: the generator's floor.
+REACT_NATIVE = "0.88.1"
+# The community CLI whose `init` makes that app, and the esbuild that bundles its check.
+RN_CLI = "21.0.0"
+ESBUILD = "0.28.2"
 # The ABI the AAR's consumer runs on, in the emulator GitHub's x64 runners run at speed.
 ANDROID_EMULATOR = "x86_64-linux-android"
 # The oldest Android the AAR loads on: moq's floor, which the exporter's nightly emulator runs.
 ANDROID_API = 24
-# The SDK the AAR's classes compile against: 34 or later, whose android.jar holds the
-# @FastNative the generated Kotlin names, so the AAR leaves FastNative.kt out.
+# The SDK the classes of the AAR and the jar compile against: 34 or later, whose android.jar
+# holds the @FastNative the generated Kotlin names, so the build leaves FastNative.kt out.
 ANDROID_COMPILE_SDK = 35
-# The Kotlin the AAR's classes are written for: the oldest kotlinc 2.4 does not deprecate,
+# The Kotlin the classes are written for: the oldest kotlinc 2.4 does not deprecate,
 # whose metadata a consumer's Kotlin 2.1 or later reads, and the standard library they need.
 KOTLIN_API = "2.2"
-# The bytecode the AAR's classes hold, which every D8 reads and no consumer's JVM target is below.
+# The bytecode the classes hold, which every D8 reads and no consumer's JVM target is below.
 JVM_TARGET = "1.8"
 # What a Maven groupId may be: dotted segments, as Central's namespaces are.
 MAVEN_GROUP = re.compile(r"[A-Za-z0-9_-]+(\.[A-Za-z0-9_-]+)+")
@@ -172,6 +200,14 @@ ZIP_EPOCH = backend.ZIP_EPOCH
 # cargo hashes a path package outside the generated crate's workspace, the facade, by one path,
 # and dlltool names a Windows GNU library's import symbols after one target directory, from any checkout.
 LINK = Path("C:/rust2-ffi") if sys.platform == "win32" else Path("/tmp/rust2-ffi")
+# The target directory every build of a target shares unless one of its settings keeps it
+# apart: the wheels', the C, Dart, and JVM libraries', and the Go module's and React Native's
+# static libraries. Cargo reuses each dependency built with the same features, profile, and
+# flags, and relinks each generated crate after the previous build has taken its library.
+# The Swift and Android libraries' line tables change the profile, which shares nothing, and
+# an Apple build at a deployment target of its own builds apart, since cargo does not rebuild
+# for a changed one.
+SHARED_DIR = "target-python"
 # The target the web binding serves, whose module the npm and JSR packages hold.
 WEB_TARGET = "wasm32-wasip1"
 # JSR's cap on a version's files, unpacked.
@@ -358,6 +394,14 @@ def repair(wheel, target, out, stamp):
     normalize_wheel(repaired[0], stamp)
     check_wheel(repaired[0])
     return repaired[0]
+
+
+def vendored(wheel):
+    """The shared libraries a repair tool copied into `wheel` beside its own, which each puts in a
+    `.libs` or `.dylibs` directory."""
+    with zipfile.ZipFile(wheel) as archive:
+        return sorted(Path(n).name for n in archive.namelist()
+                      if not n.endswith("/") and any(d.endswith((".libs", ".dylibs")) for d in Path(n).parts[:-1]))
 
 
 def check_wheel(path):
@@ -547,7 +591,7 @@ def digest(export, lib):
     def files(part):
         return sorted((p for p in (export / part).rglob("*") if p.is_file()), key=lambda p: p.relative_to(export).as_posix())
     paths = [export / "python" / f"{lib}.py", *files("include"), *files("swift"), *files("go"), *files("kotlin"),
-             *files("dart")]
+             *files("dart"), *files("csharp"), *files("react-native")]
     for path in paths:
         hasher.update(path.relative_to(export).as_posix().encode() + b"\0")
         # Exact bytes: each wheel ships its own host's module.
@@ -624,13 +668,21 @@ let package = Package(
 
 def min_os(archive):
     """The newest minimum OS any object in a static library declares."""
-    versions = set()
-    for line in output("/usr/bin/otool", "-l", archive).splitlines():
-        match = re.match(r"\s*minos ([0-9.]+)$", line)
+    return declared_os(output("/usr/bin/otool", "-l", archive), archive)
+
+
+def declared_os(load_commands, what):
+    """The newest minimum OS `otool -l` lists, in a build version or in the older version-min
+    command rustc's Intel macOS objects still carry."""
+    versions, command = set(), None
+    for line in load_commands.splitlines():
+        command = line.split()[1] if line.split()[:1] == ["cmd"] else command
+        match = re.match(r"\s*minos ([0-9.]+)$", line) or (
+            command and command.startswith("LC_VERSION_MIN_") and re.match(r"\s*version ([0-9.]+)$", line))
         if match:
             versions.add(tuple(int(x) for x in match.group(1).split(".")))
     if not versions:
-        raise SystemExit(f"{archive} declares no minimum OS")
+        raise SystemExit(f"{what} declares no minimum OS")
     return max(versions)
 
 
@@ -663,13 +715,19 @@ def privacy_manifest(lib, found):
     return plistlib.dumps({"NSPrivacyAccessedAPITypes": types}, sort_keys=True)
 
 
-def probe_link(lib, static, target, native, work):
-    """`static` linked as an app links it: a dylib keeping only what the C ABI reaches, with its native libraries."""
+def probe_link(lib, static, target, native, work, floor=None):
+    """`static` linked as an app at `floor`, by default the Swift package's, links it: a dylib
+    keeping only what the C ABI reaches, with its native libraries."""
     sdk, clang_target = APPLE_LINKS[target]
     names = work / "exported.txt"
-    names.write_text(f"_{lib}_*\n", encoding="utf-8")
+    # Exactly the C ABI's names: a wildcard would also match a dependency's symbol `hide` renamed
+    # to `_<lib>_<name>.<lib>.<digest>`.
+    defined = output("xcrun", "nm", "--no-llvm-bc", "-gUj", static).split()
+    names.write_text("".join(f"{name}\n" for name in sorted(set(defined))
+                             if name.startswith(f"_{lib}_") and "." not in name), encoding="utf-8")
     probe = work / f"{target}.dylib"
-    run("xcrun", "--sdk", sdk, "clang", "-target", clang_target.format(SWIFT_PLATFORMS[APPLE_TARGETS[target]]),
+    floor = floor or SWIFT_PLATFORMS[APPLE_TARGETS[target]]
+    run("xcrun", "--sdk", sdk, "clang", "-target", clang_target.format(floor),
         "-dynamiclib", "-Wl,-dead_strip", f"-Wl,-exported_symbols_list,{names}", f"-Wl,-force_load,{static}",
         *shlex.split(native), "-o", probe)
     return probe
@@ -1041,111 +1099,121 @@ def cps(info, files, natives):
     return json.dumps(description, indent=2) + "\n"
 
 
-def exported(shared, lib, target):
-    """The C ABI's symbols, `<lib>_*`, that the shared library exports, as the object format spells them."""
-    if "apple" in target:
-        names = output("nm", "--no-llvm-bc", "-gUj", shared).split()
-        want = f"_{lib}_"
-    else:
-        names = [line.split()[-1] for line in output("nm", "-D", "--defined-only", shared).splitlines() if line.strip()]
-        want = f"{lib}_"
-    found = sorted({name for name in names if name.startswith(want)})
+def nm_symbols(listing):
+    """Each symbol of an `llvm-nm -P` listing, as (name, type)."""
+    # A member's header, perhaps holding spaces, ends with a colon, as no symbol's row does.
+    return [tuple(line.split()[:2]) for line in listing.splitlines() if len(line.split()) > 1 and not line.endswith(":")]
+
+
+def defined(listing):
+    """The global symbols an `llvm-nm -g -P` listing defines or holds common, as the object format spells them."""
+    # `U`, `v`, and `w` are undefined.
+    return {name for name, kind in nm_symbols(listing) if kind not in "Uvw"}
+
+
+def c_abi(export, target):
+    """The C ABI's symbols, as the object format spells them: each C function the export's
+    `exports.txt` lists that no binding feature gates, as a static library builds with none, a
+    binding's entry points the header leaves out included."""
+    listed = Path(export) / "exports.txt"
+    if not listed.is_file():
+        raise SystemExit(f"{export} has no exports.txt: export it again with this rust2-ffi")
+    lines = listed.read_text(encoding="utf-8").splitlines()
+    mangle = "_" if "apple" in target else ""
+    found = {mangle + line for line in lines if line and not line.startswith("#") and " " not in line}
     if not found:
-        raise SystemExit(f"{shared} exports no {want}* symbol")
+        raise SystemExit(f"{export}/exports.txt lists no C function every build exports")
     return found
 
 
-def undefined(path, kind):
-    """The undefined symbols of an ELF object or archive that nm marks `kind`: `U` strong, `w` weak."""
-    lines = output("nm", "--undefined-only", path).splitlines()
-    return {line.split()[1] for line in lines if line.split()[:1] == [kind] and len(line.split()) == 2}
+def exported(shared, manifest, target):
+    """The symbols a shared library exports, as the object format spells them."""
+    dynamic = [] if "apple" in target else ["--dynamic"]
+    return defined(output(llvm_tool(manifest, "llvm-nm"), *dynamic, "--extern-only", "--defined-only", "-P", shared))
 
 
-def commons_source(nm):
-    """C defining each common symbol `nm -m` lists that no member defines, at its largest size and alignment."""
-    commons, defined = {}, set()
-    for line in nm.splitlines():
-        common = re.fullmatch(r"([0-9a-f]+) \(common\) (?:\(alignment 2\^([0-9]+)\) )?external (\S+)", line.strip())
-        if common:
-            size, align = int(common.group(1), 16), int(common.group(2) or 0)
-            old_size, old_align = commons.get(common.group(3), (0, 0))
-            commons[common.group(3)] = (max(size, old_size), max(align, old_align))
-        elif re.search(r"\) (?:weak )?(?:private )?external ", line) and "(undefined)" not in line:
-            defined.add(line.split()[-1])
-    return "".join(
-        f'__attribute__((aligned({1 << align}))) char common{i}[{size}] __asm__("{name}");\n'
-        for i, (name, (size, align)) in enumerate(sorted((n, c) for n, c in commons.items() if n not in defined))
-    ) or "typedef int empty;\n"
+def group_signatures(groups):
+    """The signature of each ELF section group `llvm-readelf -g` lists, local ones included."""
+    return set(re.findall(r"^COMDAT group section \[\s*[0-9]+\] `[^']*' \[(.+)\] contains", groups, re.M))
 
 
-def define_commons(static, arch, work):
-    """An object defining each C tentative definition in a Mach-O archive that no member defines.
+def renamed(names, lib, digest):
+    """Each of `names` apart from any other library's, even another version of this one: its
+    whole name, then `.<lib>.<digest>`, a suffix Rust's and C++'s demanglers skip, and which no C
+    identifier holds."""
+    return {name: f"{name}.{lib}.{digest}" for name in sorted(names)}
 
-    Apple's clang emits `int x;` as a common symbol, such as aws-lc's `tty_in`, which a
-    relocatable link leaves common, and global, past the exported-symbols list; Apple's
-    current linker has no `-d` to define it. Defined here at its size and alignment, it is
-    an ordinary symbol the list hides.
+
+def apple_clang(static, target):
+    """Apple's clang for `target`, and the newest minimum OS any object of `static` declares,
+    at which a program linking it is built."""
+    sdk, clang_target = APPLE_LINKS[target]
+    floor = ".".join(str(part) for part in min_os(static))
+    return ["xcrun", "--sdk", sdk, "clang", "-target", clang_target.format(floor)], floor
+
+
+def hide(static, keep, lib, target, manifest, work):
+    """The static library with no global symbol another library can clash with but `keep`, the
+    C ABI's, as the object format spells them.
+
+    Another Rust static library in the same program, built by another toolchain, brings its own
+    std and compiler-builtins, whose unmangled symbols, such as `rust_eh_personality` and
+    `__addvdi3`, would otherwise collide. `llvm-objcopy` renames every other global the archive
+    defines, in every member, and on ELF each section group's signature, which a linker keeps
+    one group of by name, local or not; renaming keeps each object's sections whole, where a
+    relocatable link would drop Mach-O's DWARF, which the Swift package's line tables need, and
+    with `--gc-sections` lld drops ELF's unwind tables. On ELF the renamed globals are hidden
+    too, so a shared library an app links this into exports none. A Windows library keeps
+    every symbol: COFF has no visibility, and the members `dlltool` makes for raw-dylib
+    imports must keep their names.
     """
-    source = work / "commons.c"
-    source.write_text(commons_source(output("nm", "--no-llvm-bc", "-m", static)), encoding="utf-8")
-    obj = work / "commons.o"
-    run("cc", "-c", "-fno-common", *arch, source, "-o", obj)
-    return obj
-
-
-def hide(static, shared, lib, target, work):
-    """The static library as one prelinked object exporting only the C ABI, so its Rust runtime cannot clash.
-
-    Another Rust static library in the same program brings its own std and compiler-builtins,
-    whose unmangled symbols, such as `__addvdi3`, would otherwise collide. MSVC's linker has no
-    relocatable link, so a Windows static library keeps every symbol.
-    """
-    keep = exported(shared, lib, target)
-    names = work / "exported.txt"
-    names.write_text("\n".join(keep) + "\n", encoding="utf-8")
-    roots = [arg for name in keep for arg in ("-u", name)]
-    merged, hidden, archive = work / "merged.o", work / "hidden.o", work / static.name
-    if "apple" in target:
-        arch = ["-arch", "arm64", f"-mmacosx-version-min={MACOS_WHEEL}"]
-        run("cc", "-r", "-nostdlib", *arch, *(f"-Wl,{arg}" for arg in roots), f"-Wl,-exported_symbols_list,{names}",
-            define_commons(static, arch, work), static, "-o", hidden)
-        # Which stamps the member with the time unless told not to.
-        run("libtool", "-static", "-o", archive, hidden, env={**os.environ, "ZERO_AR_DATE": "1"})
-        # Rust's objects embed LLVM bitcode newer than Xcode's nm reads.
-        found = output("nm", "--no-llvm-bc", "-gUj", hidden).split()
-    else:
-        # Only the members the C ABI reaches, without the sections it never references.
-        run("ld", "-r", "--gc-sections", *roots, static, "-o", merged)
-        # What std looks up only if the system has it, such as a newer glibc's
-        # `posix_spawn_file_actions_addchdir`, stays weak: binutils 2.42's `ld -r
-        # --gc-sections` makes it local, which objcopy makes strong, failing a link on an
-        # older glibc.
-        weak = undefined(static, "w") - undefined(static, "U")
-        weaken = work / "weak.txt"
-        weaken.write_text("".join(f"{name}\n" for name in sorted(weak)), encoding="utf-8")
-        # A COMDAT group would still merge with another library's copy, such as std's
-        # `DW.ref.rust_eh_personality`, whose symbol here is now local: as plain sections,
-        # each library keeps its own.
-        run("objcopy", "--remove-section=.group", f"--keep-global-symbols={names}", f"--weaken-symbols={weaken}",
-            merged, hidden)
-        if "There are no section groups" not in output("readelf", "-g", hidden):
-            raise SystemExit(f"the prelinked {static.name} still holds section groups")
-        strong = sorted(undefined(hidden, "U") & weak)
-        if strong:
-            raise SystemExit(f"the prelinked {static.name} needs what Rust's archive only looks up, such as {strong[:5]}")
-        run("ar", "rcsD", archive, hidden)
-        found = [line.split()[-1] for line in output("nm", "-g", "--defined-only", hidden).splitlines() if line.strip()]
-    if sorted(set(found)) != keep:
-        extra = sorted(set(found) - set(keep))[:10]
-        lines = [line for line in output("nm", *(["--no-llvm-bc"] if "apple" in target else []), "-m" if "apple" in target else "-S",
-                                         hidden).splitlines() if line.split() and line.split()[-1] in extra]
-        sys.stderr.write("\n".join(lines) + "\n")
-        raise SystemExit(f"the prelinked {static.name} exports other symbols than the C ABI, such as {extra}")
+    nm, objcopy = llvm_tool(manifest, "llvm-nm"), llvm_tool(manifest, "llvm-objcopy")
+    listing = lambda path: output(nm, "--extern-only", "--no-llvm-bc", "-P", path)  # noqa: E731
+    found = listing(static)
+    missing = sorted(keep - defined(found))
+    if missing:
+        raise SystemExit(f"{static.name} lacks C functions the export lists, such as {missing[:10]}")
+    names = defined(found) - keep
+    if "apple" not in target:
+        groups = output(llvm_tool(manifest, "llvm-readobj"), "--elf-output-style=GNU", "--section-groups", static)
+        # A local signature is renamed in every member, so one naming what a member imports
+        # would rename that import too, to a name nothing defines.
+        local = group_signatures(groups) - defined(found)
+        clash = sorted(local & {name for name, kind in nm_symbols(found) if kind in "Uvw"})
+        if clash:
+            raise SystemExit(f"{static.name} holds a local section group named as what it imports, such as {clash[:10]}")
+        names |= local
+    new = renamed(names, lib, hashlib.sha256(Path(static).read_bytes()).hexdigest()[:16])
+    pairs, hidden = work / "renamed.txt", work / "hidden.txt"
+    pairs.write_text("".join(f"{old} {name}\n" for old, name in new.items()), encoding="utf-8")
+    archive = work / static.name
+    run(objcopy, f"--redefine-syms={pairs}", static, archive)
+    if "apple" not in target:
+        hidden.write_text("".join(f"{name}\n" for name in new.values()), encoding="utf-8")
+        run(objcopy, f"--set-symbols-visibility={hidden}=hidden", archive)
+    stray = sorted(defined(listing(archive)) - keep - set(new.values()))
+    if stray:
+        raise SystemExit(f"the hidden {static.name} defines other global symbols than the C ABI, such as {stray[:10]}")
     return archive
 
 
-def coexist(archive, include, lib, natives, manifest, target, work):
-    """Link the prelinked static library with another Rust static library, in either order, and run it."""
+def older_toolchain(version):
+    """A released stable toolchain older than the one `rustc -vV` describes, whose std's
+    symbols differ, as another crate's would: two releases back, or three from a nightly,
+    which names its release before the stable two back is out."""
+    release = re.search(r"^release: 1\.([0-9]+)\.[0-9]+(-nightly|-dev)?", version, re.M)
+    if release is None:
+        raise SystemExit(f"rustc names no 1.x release: {version}")
+    return f"1.{int(release.group(1)) - (3 if release.group(2) else 2)}.0"
+
+
+def coexist(archive, include, lib, native, manifest, target, work):
+    """Link the hidden static library with another Rust static library, built by another
+    toolchain, in either order, and run the program where the host can.
+
+    The other library's std, unlike one the same toolchain built, defines what the linker
+    takes from both archives, so any unhidden runtime symbol of ours is defined twice.
+    """
     other = work / "other"
     (other / "src").mkdir(parents=True)
     (other / "Cargo.toml").write_text('[package]\nname = "other"\nversion = "0.0.0"\nedition = "2021"\n\n'
@@ -1153,21 +1221,53 @@ def coexist(archive, include, lib, natives, manifest, target, work):
     (other / "src/lib.rs").write_text('#[no_mangle]\npub extern "C" fn rust2_other_sum(a: i64, b: i64) -> i64 {\n'
                                       '\t[a, b].to_vec().iter().sum::<i64>() + std::env::args().count() as i64\n}\n',
                                       encoding="utf-8")
-    env = {**os.environ, "MACOSX_DEPLOYMENT_TARGET": MACOS_WHEEL} if "apple" in target else None
-    run("cargo", "build", "--quiet", "--release", "--manifest-path", other / "Cargo.toml", "--target", target,
-        "--target-dir", work / "target", cwd=Path(manifest).resolve().parent, env=env)
+    version = output("rustc", "-vV", cwd=Path(manifest).resolve().parent)
+    toolchain = older_toolchain(version)
+    run("rustup", "toolchain", "install", toolchain, "--profile", "minimal", "--target", target, capture_output=True)
+    # Without the crate's own compiler, wrapper, flags, and profile, from the environment or a
+    # Cargo home's config, which another toolchain may refuse or, naming the crate's rustc, would
+    # build the other library with the crate's std. It has no dependencies to fetch.
+    env = {k: v for k, v in os.environ.items()
+           if not k.startswith(("RUSTC", "RUSTFLAGS", "RUSTDOCFLAGS", "CARGO_ENCODED_", "CARGO_BUILD_", "CARGO_PROFILE_",
+                                "CARGO_TARGET_", "CARGO_HOME"))}
+    env["CARGO_HOME"] = str(work / "cargo-home")
+    # Set, though empty, these override an ancestor directory's `.cargo/config.toml` too.
+    env.update(RUSTC_WRAPPER="", RUSTC_WORKSPACE_WRAPPER="", RUSTFLAGS="")
+    env["RUSTC"] = output("rustup", "which", "--toolchain", toolchain, "rustc").strip()
+    if "apple" in target:
+        clang, floor = apple_clang(archive, target)
+        env["MACOSX_DEPLOYMENT_TARGET" if "darwin" in target else "IPHONEOS_DEPLOYMENT_TARGET"] = floor
+    elif "android" in target:
+        clang = [android_toolchain(target, ANDROID_API)[f"CC_{target.replace('-', '_')}"]]
+    else:
+        clang = ["cc"]
+    built = run("rustup", "run", toolchain, "cargo", "rustc", "--color", "never", "--quiet", "--release",
+                "--manifest-path", other / "Cargo.toml", "--target", target, "--target-dir", work / "target",
+                "--crate-type", "staticlib", "--", "--print=native-static-libs", cwd=other, env=env,
+                capture_output=True, encoding="utf-8")
+    notes = re.findall(r"note: native-static-libs: (.*)", built.stderr)
+    if len(notes) != 1:
+        raise SystemExit(f"rustc {toolchain} reported no native libraries for {target}")
     theirs = work / "target" / target / "release" / "libother.a"
     main = work / "main.c"
     main.write_text(f'#include <stdio.h>\n#include "{lib}.h"\n\nint64_t rust2_other_sum(int64_t a, int64_t b);\n\n'
                     f"int main(void) {{\n\t{lib}_buf buf = {lib}_buf_copy(({lib}_buf){{.ptr = (const uint8_t *)\"hi\", .len = 2}});\n"
                     f'\tprintf("%zu %lld\\n", buf.len, (long long)rust2_other_sum(40, 1));\n\t{lib}_buf_free(buf);\n\treturn 0;\n}}\n',
                     encoding="utf-8")
-    flags = [arg for kind, name in natives for arg in ((f"-l{name}",) if kind == "lib" else ("-framework", name))]
+    host = re.search(r"^host: (\S+)$", version, re.M).group(1)
     for order in ((archive, theirs), (theirs, archive)):
         exe = work / "coexist"
-        run("cc", "-std=c11", "-I", include, main, *order, *flags, "-o", exe)
-        if output(exe) != "2 42\n":
+        # Each library's native flags as rustc prints them, whose order and repeats a static link may need.
+        run(*clang, "-std=c11", "-I", include, main, *order, *shlex.split(native), *shlex.split(notes[0]), "-o", exe)
+        if target == host and output(exe) != "2 42\n":
             raise SystemExit(f"{archive.name} beside another Rust static library printed the wrong result")
+
+
+def isolated(static, keep, native, lib, target, manifest, export, work):
+    """`static` hidden but `keep`, and checked beside another toolchain's Rust static library."""
+    archive = hide(static, keep, lib, target, manifest, work)
+    coexist(archive, Path(export) / "include", lib, native, manifest, target, work)
+    return archive
 
 
 def check_soname(shared, soname, target):
@@ -1188,20 +1288,18 @@ def c_archive(info, manifest, export_dir, target, out):
     files = c_files(lib, target, version)
     soname = Path(files["shared"]).name
     linux, apple = "linux" in target, "apple" in target
-    link_args = []
-    if linux:
-        link_args = ["-C", f"link-arg=-Wl,-soname,{soname}"]
-    elif apple:
-        # The last -install_name rustc's linker sees wins over its own unversioned one.
-        link_args = ["-C", f"link-arg=-Wl,-install_name,@rpath/{soname}"]
+    link_args = ["-C", f"link-arg=-Wl,-soname,{soname}"] if linux else []
     env = {**reproducible(info, export_dir, target, soname), **({"MACOSX_DEPLOYMENT_TARGET": MACOS_WHEEL} if apple else {})}
     # The C library alone, as the Swift package's: the glue's language features add symbols
-    # a C program cannot resolve. Its own target directory, since its link arguments differ.
+    # a C program cannot resolve. Its link arguments, after `--`, and its Apple install name,
+    # from the generated crate's build script, reach only that crate, so it shares the
+    # wheels' dependencies.
     # cargo-zigbuild's own `rustc`, as Cargo knows only its `zigbuild`, from the package's
     # directory for its toolchain.
     command = ["cargo-zigbuild", "rustc"] if linux else ["cargo", "rustc"]
+    target_dir = export_dir / SHARED_DIR
     built = run(*command, "--color", "never", "--locked", "--release", "--manifest-path", export_dir / "Cargo.toml",
-                "--target", f"{target}.{GLIBC}" if linux else target, "--target-dir", export_dir / "target-c",
+                "--target", f"{target}.{GLIBC}" if linux else target, "--target-dir", target_dir,
                 "--lib", "--crate-type", "staticlib,cdylib", "--", "--print=native-static-libs", *link_args,
                 cwd=Path(manifest).resolve().parent, env={**os.environ, **env}, capture_output=True, encoding="utf-8")
     sys.stderr.write(built.stderr)
@@ -1209,7 +1307,7 @@ def c_archive(info, manifest, export_dir, target, out):
     if len(notes) != 1:
         raise SystemExit(f"rustc reported no native libraries for {target}")
     natives = native_libs(notes[0].strip(), target)
-    release = export_dir / "target-c" / target / "release"
+    release = target_dir / target / "release"
     name = f"{info['name']}-{version}-{target}"
     with tempfile.TemporaryDirectory() as raw:
         raw = Path(raw)
@@ -1227,12 +1325,20 @@ def c_archive(info, manifest, export_dir, target, out):
         else:
             shared = release / f"lib{lib}.{'dylib' if apple else 'so'}"
             check_soname(shared, soname, target)
+            # The static library keeps global only what the export lists, as every other
+            # package's does, which the shared library, from the same build, must export. It may
+            # export more, a function the facade or a dependency defines itself, such as moq-ffi's
+            # `moq_ffi_shutdown`, which the static library renames so no two packages clash on it.
+            listed, exports = c_abi(export_dir, target), exported(shared, manifest, target)
+            if not listed <= exports:
+                raise SystemExit(f"{shared.name} lacks C functions {export_dir}/exports.txt lists, such as "
+                                 f"{sorted(listed - exports)[:10]}")
             shutil.copy(shared, root / files["shared"])
             (root / files["link"]).symlink_to(soname)
             hidden = raw / "hide"
             hidden.mkdir()
-            shutil.copy(hide(release / f"lib{lib}.a", shared, lib, target, hidden), root / files["static"])
-            coexist(root / files["static"], root / "include", lib, natives, manifest, target, hidden)
+            shutil.copy(isolated(release / f"lib{lib}.a", listed, notes[0].strip(), lib, target, manifest, export_dir, hidden),
+                        root / files["static"])
             (root / "lib/pkgconfig").mkdir(parents=True)
             (root / f"lib/pkgconfig/{lib}.pc").write_text(pkg_config(info, natives), newline="\n", encoding="utf-8")
         cmake = root / "lib/cmake" / lib
@@ -1430,8 +1536,8 @@ def exporter(manifest, features, *args):
     cargo = ["--", "--features", features] if features.strip() else []
     env = dict(os.environ)
     for target in (str(a) for a in args):
-        if target in DART_TARGETS and "android" in target:
-            env.update(android_toolchain(target, DART_TARGETS[target]))
+        if target in RN_ANDROID_TARGETS:
+            env.update(android_toolchain(target, ANDROID_API))
     run("cargo", "run", "--locked", "--release", "--quiet", "--", "--manifest-path", manifest,
         *args, *cargo, cwd=ROOT / "ffi", env=env)
 
@@ -1630,7 +1736,7 @@ def reproducible(info, export_dir, target, install=None):
 
     Release time is the commit's, and each directory the build reads from, which rustc and
     C compilers write into panic messages and debug info, is spelled the same, through `LINK`
-    or not. A dylib is named `install`, else by its library's own name.
+    or not. An Apple dylib is named `install`, else by its library's own name.
     """
     named = {
         info["workspace"]: "/source",
@@ -1664,8 +1770,10 @@ def reproducible(info, export_dir, target, install=None):
     if "apple" in target:
         # Apple's ar and libtool stamp archive members with the time unless told not to, and
         # the linker names a dylib after the path it wrote it to, in the export's build directory.
+        # The generated crate's build script links its own with this name, after any a caller's
+        # flags set, without changing the flags its dependencies build with.
         env["ZERO_AR_DATE"] = "1"
-        flags += ["-C", f"link-arg=-Wl,-install_name,@rpath/{install or library_name(info['lib'], target)}"]
+        env["RUST2_FFI_INSTALL_NAME"] = f"@rpath/{install or library_name(info['lib'], target)}"
     env["CARGO_ENCODED_RUSTFLAGS"] = "\x1f".join(flags)
     return env
 
@@ -1683,8 +1791,10 @@ def purl(package):
 
 
 def sbom(info, crate, feature="python"):
-    """A CycloneDX SBOM of the crates the binding is built from with `feature`, the same for every host and target."""
-    meta = json.loads(output("cargo", "metadata", "--locked", "--format-version", "1", "--features", feature,
+    """A CycloneDX SBOM of the crates the binding is built from with `feature`, or the C ABI's
+    alone with None, the same for every host and target."""
+    features = ["--features", feature] if feature else []
+    meta = json.loads(output("cargo", "metadata", "--locked", "--format-version", "1", *features,
                              "--manifest-path", crate))
     lock = tomllib.loads((Path(crate).parent / "Cargo.lock").read_text(encoding="utf-8"))
     checksums = {(p["name"], p["version"], p.get("source")): p["checksum"] for p in lock["package"] if "checksum" in p}
@@ -1822,10 +1932,10 @@ def tar_diff(one, two):
 
 
 def same(first, second):
-    """Fail unless two builds' wheels, sdist, static libraries, C archives, Dart libraries, Android libraries, Maven repository, and npm tarball, the Go module's included, are the same bytes, naming what differs."""
+    """Fail unless two builds' wheels, sdist, static libraries, C archives, Dart libraries, Android and desktop JVM libraries, SBOMs, Maven repository, and npm tarballs, the Go module's included, are the same bytes, naming what differs."""
     found = {}
-    patterns = ("wheels/*.whl", "sdist/*.tar.gz", "static/*/*.a", "go/*.a", "c/*.tar.gz", "c/*.zip", "dart/*",
-                "android/*/*.so", "maven/**/*.*", "*.tgz")
+    patterns = ("wheels/*.whl", "sdist/*.tar.gz", "static/*/*.a", "react-native/*/*.a", "go/*.a", "c/*.tar.gz", "c/*.zip", "dart/*",
+                "android/*/*.so", "jvm/*/*", "maven/**/*.*", "*.tgz", "*.cdx.json")
     for root in (Path(first), Path(second)):
         found[root] = {p.relative_to(root).as_posix(): p for pattern in patterns for p in root.glob(pattern) if p.is_file()}
     names = sorted(found[Path(first)])
@@ -1917,8 +2027,12 @@ def linked(manifest, export, *features):
 def staticlib(manifest, crate, lib, target, env=None, config=()):
     """The C library alone, apart from the Python extension, whose CPython symbols it would
     leave undefined, and the system libraries rustc says it needs beside it."""
-    # Its own target directory, since cargo does not rebuild for a changed deployment target.
-    target_dir = crate.parent / ("target-swift" if target in APPLE_TARGETS else "target-go")
+    # An Apple slice's apart, at the Swift package's floor and with line tables, and Intel
+    # macOS's at rustc's own floor, since cargo does not rebuild for a changed deployment target.
+    # Windows GNU's builds nothing else to share, and dlltool names its import symbols after
+    # the directory, so it keeps its own.
+    target_dir = crate.parent / ("target-swift" if target in APPLE_TARGETS
+                                 else "target-go" if "apple" in target or "windows" in target else SHARED_DIR)
     # cargo-zigbuild links Linux against the glibc floor's symbols, whichever glibc the host has.
     linux = target.endswith("linux-gnu")
     # Uncolored, so the note below reads as written whatever the caller's terminal.
@@ -1955,9 +2069,10 @@ def llvm_tool(manifest, name):
 
 
 # The random directory rustc imports a Windows GNU library's raw-dylib symbols through, which
-# dlltool names them after, as `<path>_out_rustc<6 random characters>_kernel32_dll_imports_lib`.
-RUSTC_TEMP = re.compile(rb"(?<=_out_rustc)[0-9A-Za-z]{6}(?=_[0-9a-z_]+_dll_imports_lib)")
-IMPORT_MEMBER = re.compile(r".+\.dll(h|t|s[0-9]+)\.o")
+# dlltool names them after, as `<path>_out_rustc<6 random characters>_kernel32_dll_imports_lib`,
+# and its members after the imported file, whatever its extension, such as ntoskrnl.exe's.
+RUSTC_TEMP = re.compile(rb"(?<=_out_rustc)[0-9A-Za-z]{6}(?=_[0-9a-z_]+_imports_lib)")
+IMPORT_MEMBER = re.compile(r".+\.[0-9A-Za-z]+(h|t|s[0-9]+)\.o")
 
 
 def fix_import_names(path):
@@ -1984,7 +2099,9 @@ def go_library(args, export_dir, lib, target, library, native, out):
 
 
 def build(args):
-    """This host's wheels, C archives, Apple and Go static libraries, Dart libraries, the export's sources, and native output."""
+    """This host's wheels, C archives, Apple and Go static libraries, Dart libraries, with
+    `kotlin` the Kotlin binding's desktop and Android libraries, with `react_native` React
+    Native's Android libraries, the export's sources, and native output."""
     info = facts(args.manifest_path)
     lib, export_dir, out = info["lib"], Path(args.export).resolve(), Path(args.out).resolve()
     out.mkdir(parents=True, exist_ok=True)
@@ -1995,7 +2112,8 @@ def build(args):
         through, inside = spell(export_dir), {**info, "workspace": str(spell(info["workspace"]))}
         crate = through / "Cargo.toml"
         for target in args.targets:
-            if not any(target in t for t in (WHEEL_TARGETS, APPLE_TARGETS, GO_TARGETS, DART_TARGETS, ANDROID_TARGETS)):
+            if not any(target in t for t in (WHEEL_TARGETS, APPLE_TARGETS, GO_TARGETS, DART_TARGETS, ANDROID_TARGETS,
+                                             RN_ANDROID_TARGETS)):
                 raise SystemExit(f"no package ships {target}")
             run("rustup", "target", "add", target, cwd=Path(args.manifest_path).resolve().parent)
             if target in WHEEL_TARGETS:
@@ -2010,12 +2128,15 @@ def build(args):
                     # cargo-zigbuild links Linux against the glibc floor's symbols, whichever glibc the host has.
                     built = cargo(args.manifest_path, *(["zigbuild"] if linux else ["build"]), "--locked", "--release",
                                   "--manifest-path", crate, "--target", f"{target}.{GLIBC}" if linux else target,
-                                  "--target-dir", through / f"target-{feature}", "--features", feature, env=env)
+                                  "--target-dir", through / SHARED_DIR, "--features", feature, env=env)
                     sys.stderr.write(built.stderr)
-                    library = through / f"target-{feature}" / target / "release" / library_name(lib, target)
+                    library = through / SHARED_DIR / target / "release" / library_name(lib, target)
                     with tempfile.TemporaryDirectory() as raw, tempfile.TemporaryDirectory() as fixed:
                         wheel = repair(write_wheel(inside, through, library, target, raw, abi), target, fixed,
                                        inside["epoch"])
+                        if args.kotlin and target in JVM_TARGETS and (bundled := vendored(wheel)):
+                            raise SystemExit(f"{lib} links {bundled} on {target}, which the wheel bundles but the desktop "
+                                             "jar cannot: its loader loads one library")
                         (out / "wheels").mkdir(parents=True, exist_ok=True)
                         shutil.move(wheel, out / "wheels" / wheel.name)
                 c_archive(inside, args.manifest_path, through, target, out)
@@ -2024,29 +2145,52 @@ def build(args):
                 # Mac Catalyst's floor is an iOS version, which rustc and cc read as iOS's.
                 name = "MACOSX_DEPLOYMENT_TARGET" if apple == "macos" else "IPHONEOS_DEPLOYMENT_TARGET"
                 library, native = staticlib(args.manifest_path, crate, lib, target,
-                                            env={**reproducible(inside, through, target), name: SWIFT_PLATFORMS[apple]},
+                                            env={**reproducible(inside, through, target), name: APPLE_BUILD[target]},
                                             config=line_tables(crate))
-                static = out / "static" / target
-                static.mkdir(parents=True)
-                shutil.copy(library, static)
-                (static / "native.txt").write_text(native + "\n", encoding="utf-8")
-                # The Go module links the Swift package's macOS library, at its floor.
-                if target in GO_TARGETS:
-                    go_library(args, through, lib, target, library, native, out)
-            elif target in GO_TARGETS:
+                with tempfile.TemporaryDirectory() as work:
+                    # Hidden once, as the Swift package's, React Native's, and the Go module's.
+                    library = isolated(library, c_abi(through, target), native, lib, target, args.manifest_path,
+                                       through, Path(work))
+                    static = out / "static" / target
+                    static.mkdir(parents=True)
+                    shutil.copy(library, static)
+                    (static / "native.txt").write_text(native + "\n", encoding="utf-8")
+                    # The Go module links the Swift package's macOS library, at its floor.
+                    if target in GO_TARGETS:
+                        go_library(args, through, lib, target, library, native, out)
+            elif target in GO_TARGETS or args.react_native and target in RN_ANDROID_TARGETS:
                 env = reproducible(inside, through, target)
-                # Android's at the Dart package's API floor, through the NDK.
+                # Android's at the AAR's API floor, React Native's too, through the NDK.
                 if "android" in target:
-                    env.update(android_toolchain(target, DART_TARGETS[target]))
+                    env.update(android_toolchain(target, ANDROID_API))
                 library, native = staticlib(args.manifest_path, crate, lib, target, env=env)
-                go_library(args, through, lib, target, library, native, out)
+                with tempfile.TemporaryDirectory() as work:
+                    # Hidden once, as the Go module's and React Native's, but on Windows (`hide`).
+                    if "windows" not in target:
+                        library = isolated(library, c_abi(through, target), native, lib, target, args.manifest_path,
+                                           through, Path(work))
+                    if target in GO_TARGETS:
+                        go_library(args, through, lib, target, library, native, out)
+                    if args.react_native and target in RN_ANDROID_TARGETS:
+                        dest = out / "react-native" / RN_ANDROID_TARGETS[target]
+                        dest.mkdir(parents=True)
+                        shutil.copy(library, dest)
+                        (dest / "native.txt").write_text(native + "\n", encoding="utf-8")
             if target in DART_TARGETS:
                 dart_library(inside, args.manifest_path, through, target, out)
-            if target in ANDROID_TARGETS:
+            if args.kotlin and target in JVM_TARGETS:
+                jvm_library(inside, args.manifest_path, through, target, out)
+            if args.kotlin and target in ANDROID_TARGETS:
                 android_library(inside, args.manifest_path, through, target, out)
+        # The crates the Kotlin binding's libraries link, which Maven serves beside them.
+        if args.kotlin and any(t in JVM_TARGETS or t in ANDROID_TARGETS for t in args.targets):
+            (out / "kotlin.cdx.json").write_bytes(sbom(info, export_dir / "Cargo.toml", "kotlin"))
+        # And React Native's, the C ABI alone, which its npm tarball's attestation names.
+        if args.react_native and any(t in RN_ANDROID_TARGETS for t in args.targets):
+            (out / "react-native.cdx.json").write_bytes(sbom(info, export_dir / "Cargo.toml", None))
     # The generated sources, for the Swift package, the Go module, and the hosts' agreement.
     # Text this writes is LF on every host, as the jobs reading it compare bytes.
-    for part in ("include", "swift", "python", "go", "kotlin", "dart"):
+    for part in ("include", "swift", "python", "go", "kotlin", "dart", "csharp", "react-native"):
         shutil.copytree(export_dir / part, out / "export" / part, dirs_exist_ok=True)
     shutil.copy(export_dir / "Cargo.toml", out / "export")
     shutil.copy(export_dir / "api.json", out / "export")
@@ -2067,6 +2211,8 @@ def build(args):
         (out / "native.txt").write_bytes(native.stdout)
     if args.example and ANDROID_EMULATOR in args.targets:
         android_example(info, args, out)
+    if args.example and IOS_SIMULATOR in args.targets:
+        ios_example(info, args, out)
 
 
 def go_version(version):
@@ -2219,14 +2365,17 @@ def dart_library(info, manifest, export_dir, target, out):
     # Linux's against the glibc floor, as the wheel's.
     glibc = target.endswith("linux-gnu")
     command = ["cargo-zigbuild", "rustc"] if glibc else ["cargo", "rustc"]
+    # Apart on Apple at a floor below the wheels', since cargo does not rebuild for a changed
+    # deployment target; Android's floor is the AAR's, as Go's and React Native's libraries build.
+    target_dir = export_dir / ("target-dart" if "apple" in target and floor is not None else SHARED_DIR)
     built = run(*command, "--color", "never", "--locked", "--release", "--manifest-path", export_dir / "Cargo.toml",
-                "--target", f"{target}.{GLIBC}" if glibc else target, "--target-dir", export_dir / "target-dart",
+                "--target", f"{target}.{GLIBC}" if glibc else target, "--target-dir", target_dir,
                 "--lib", "--crate-type", "cdylib", "--features", "dart", cwd=Path(manifest).resolve().parent,
                 env={**os.environ, **env}, capture_output=True, encoding="utf-8")
     sys.stderr.write(built.stderr)
     dest = out / "dart" / dart_file(info, target)
     dest.parent.mkdir(parents=True, exist_ok=True)
-    shutil.copy(export_dir / "target-dart" / target / "release" / name, dest)
+    shutil.copy(target_dir / target / "release" / name, dest)
     # The required-reason APIs the linked library imports, which `pub` declares for the app.
     if "apple" in target:
         privacy = out / "dart-privacy" / f"{target}.xcprivacy"
@@ -2493,16 +2642,20 @@ SILENT = 15 * 60
 FLUTTER_TARGETS = {"arm64-v8a": "android-arm64", "armeabi-v7a": "android-arm", "x86_64": "android-x64"}
 
 
-def reader(process, handle):
-    """A queue of the items `handle` makes of each of `process`'s output lines, from a thread
-    reading them, ending in None once it closes."""
+def reader(stream, handle):
+    """A queue of the items `handle` makes of each of `stream`'s lines, from a thread reading
+    them, ending in None once it closes."""
     import threading
     lines = queue.Queue()
 
     def read():
-        for line in process.stdout:
-            for item in handle(line.rstrip("\r\n")):
-                lines.put(item)
+        try:
+            for line in stream:
+                for item in handle(line.rstrip("\r\n")):
+                    lines.put(item)
+        # A terminal's end, once what writes to it exits: Linux's ends reads in EIO.
+        except OSError:
+            pass
         lines.put(None)
     threading.Thread(target=read, daemon=True).start()
     return lines
@@ -2523,19 +2676,48 @@ def take(lines, what):
 FLUTTER_APP = "dev.rust2.consumer"
 
 
-class Logcat:
-    """What the device logs under Flutter's tag, and any crash of the consumer app, from now on."""
+def check_output(said, what):
+    """What one run of a consumer app's check printed, from the lines `said` returns that it
+    marks `rust2: `: `start`, its output in base64 chunks, then `exit <code>`, which must be
+    0, or `threw <error>`."""
+    chunks = None
+    while True:
+        line = said()
+        if not line.startswith("rust2: "):
+            continue
+        line = line[len("rust2: "):]
+        if line == "start":
+            chunks = []
+        elif chunks is None:
+            continue
+        elif line.startswith("threw "):
+            raise SystemExit(f"the check threw in the {what}: {line}")
+        elif line.startswith("exit "):
+            if line != "exit 0":
+                raise SystemExit(f"the check failed in the {what}: {line}")
+            return base64.b64decode("".join(chunks))
+        else:
+            chunks.append(line)
 
-    def __init__(self, device):
+
+class Logcat:
+    """What the device logs under the app's tag, Flutter's or React Native's, and any crash of
+    the consumer app, from now on."""
+
+    # The tag the app logs what it prints under, and the app it is.
+    tag, what = "flutter", "Flutter app"
+
+    def __init__(self, device, tag="flutter", what="Flutter app"):
+        self.tag, self.what = tag, what
         # From the log's last line, as `flutter run` reads it: Android 7's emulator may refuse
         # to clear its log.
         last = adb("-s", device, "logcat", "-v", "time", "-t", "1", capture_output=True, encoding="utf-8").stdout
         if not (since := re.search(r"^\d\d-\d\d \d\d:\d\d:\d\d\.\d{3}", last, re.M)):
             raise SystemExit(f"the device's log holds no time to read it from: {last!r}")
         self.process = subprocess.Popen(
-            [adb_path(), "-s", device, "logcat", "-T", since[0], "-v", "brief", "-s", "flutter:I", "libc:F", "DEBUG:F",
+            [adb_path(), "-s", device, "logcat", "-T", since[0], "-v", "brief", "-s", f"{tag}:I", "libc:F", "DEBUG:F",
              "AndroidRuntime:E"], text=True, encoding="utf-8", errors="replace", stdout=subprocess.PIPE)
-        self.lines = reader(self.process, lambda line: [line])
+        self.lines = reader(self.process.stdout, lambda line: [line])
         # The app's process, known from its first line under Flutter's tag.
         self.pid = None
         # Where the app's Dart VM service listens, from the engine's announcement.
@@ -2549,16 +2731,16 @@ class Logcat:
                 or (tag == "E/AndroidRuntime" and text.startswith(f"Process: {FLUTTER_APP},")))
 
     def said(self):
-        """The next line the app logs under Flutter's tag, failing on its crash."""
+        """The next line the app logs under its tag, failing on its crash."""
         while True:
             line = take(self.lines, "the device's log")
             print(line, file=sys.stderr)
             if not (entry := re.match(r"([A-Z]/[^(]*?)\s*\(\s*(\d+)\): (.*)", line)):
                 continue
             tag, pid, said = entry[1], int(entry[2]), entry[3]
-            if tag != "I/flutter":
+            if tag != f"I/{self.tag}":
                 if self.crashed(tag, pid, said):
-                    raise SystemExit(f"the Flutter app crashed: {line}")
+                    raise SystemExit(f"the {self.what} crashed: {line}")
                 continue
             self.pid = self.pid or pid
             if listening := re.match(r"The Dart VM service is listening on (http://\S+)", said):
@@ -2574,24 +2756,7 @@ class Logcat:
 
     def output(self):
         """What one run of the check printed, failing unless it exits 0."""
-        chunks = None
-        while True:
-            said = self.said()
-            if not said.startswith("rust2: "):
-                continue
-            said = said[len("rust2: "):]
-            if said == "start":
-                chunks = []
-            elif chunks is None:
-                continue
-            elif said.startswith("threw "):
-                raise SystemExit(f"the check threw in the Flutter app: {said}")
-            elif said.startswith("exit "):
-                if said != "exit 0":
-                    raise SystemExit(f"the check failed in the Flutter app: {said}")
-                return base64.b64decode("".join(chunks))
-            else:
-                chunks.append(said)
+        return check_output(self.said, self.what)
 
 
 class Flutter:
@@ -2603,7 +2768,7 @@ class Flutter:
         self.process = subprocess.Popen(["flutter", "attach", "--machine", "-d", device, "--debug-url", vm_service],
                                         cwd=app, text=True, encoding="utf-8", stdin=subprocess.PIPE,
                                         stdout=subprocess.PIPE)
-        self.events = reader(self.process, self.event)
+        self.events = reader(self.process.stdout, self.event)
         self.app, self.started, self.ids = None, False, 0
 
     @staticmethod
@@ -2853,6 +3018,22 @@ def android_library(info, manifest, export_dir, target, out):
     shutil.copy(library, dest)
 
 
+def jvm_library(info, manifest, export_dir, target, out):
+    """`target`'s library for the desktop jar, the C ABI with its JNI glue, built as the wheel's
+    is: Linux's against the glibc floor, macOS's at the wheels' floor, in SHARED_DIR."""
+    env = reproducible(info, export_dir, target)
+    if "apple" in target:
+        env["MACOSX_DEPLOYMENT_TARGET"] = MACOS_WHEEL
+    linux = "linux" in target
+    built = cargo(manifest, *(["zigbuild"] if linux else ["build"]), "--locked", "--release",
+                  "--manifest-path", export_dir / "Cargo.toml", "--target", f"{target}.{GLIBC}" if linux else target,
+                  "--target-dir", export_dir / SHARED_DIR, "--features", "kotlin", env=env)
+    sys.stderr.write(built.stderr)
+    dest = out / "jvm" / target
+    dest.mkdir(parents=True)
+    shutil.copy(export_dir / SHARED_DIR / target / "release" / library_name(info["lib"], target), dest)
+
+
 def android_example(info, args, out):
     """The example built for the emulator, where its output is native Rust's on Android."""
     if args.example not in info["examples"]:
@@ -2877,6 +3058,26 @@ def android_example(info, args, out):
         if needed != "libc++_shared.so":
             raise SystemExit(f"example {args.example} needs {needed}, which neither an Android {ANDROID_API} device nor the NDK holds")
         shutil.copy(android_sysroot(ANDROID_EMULATOR) / needed, dest)
+
+
+def ios_example(info, args, out):
+    """The example built for the simulator, where its output is native Rust's on iOS."""
+    if args.example not in info["examples"]:
+        raise SystemExit(f"{info['name']} has no example {args.example}: it has {info['examples']}")
+    features = ["--features", args.features] if args.features.strip() else []
+    manifest = Path(args.manifest_path).resolve()
+    built = run("cargo", "build", "--locked", "--release", "--message-format", "json-render-diagnostics",
+                "--manifest-path", manifest, "--target", IOS_SIMULATOR, "--example", args.example, *features,
+                cwd=manifest.parent, env={**os.environ, "IPHONEOS_DEPLOYMENT_TARGET": APPLE_BUILD[IOS_SIMULATOR]},
+                capture_output=True, encoding="utf-8")
+    sys.stderr.write(built.stderr)
+    found = [m["executable"] for m in map(json.loads, built.stdout.splitlines())
+             if m.get("reason") == "compiler-artifact" and m.get("executable") and "example" in m["target"]["kind"]]
+    if len(found) != 1:
+        raise SystemExit(f"cargo built no single example {args.example}: {found}")
+    dest = out / "ios-example"
+    dest.mkdir(parents=True)
+    shutil.copy(found[0], dest / "example")
 
 
 def java_package(name):
@@ -2941,31 +3142,38 @@ def xml_escape(text):
     return text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
 
 
+def maven_dependencies(coroutines):
+    """The libraries the binding's classes need, as `(group, artifact, version)`."""
+    return [("org.jetbrains.kotlin", "kotlin-stdlib", f"{KOTLIN_API}.0"),
+            ("org.jetbrains.kotlinx", "kotlinx-coroutines-core", coroutines)]
+
+
 def pom(info, group, coroutines):
     """The POM Maven Central requires: coordinates, name, description, URL, licenses,
-    developers, and source control, each from Cargo, and the libraries the classes need."""
+    developers, and source control, each from Cargo, and the libraries the classes need. Its
+    packaging is the jar, which Maven, reading no Gradle metadata, resolves on any JVM."""
     if not info["description"]:
         raise SystemExit("Maven Central requires a description: set Cargo's description")
     if not info["repository"]:
         raise SystemExit("Maven Central requires the source's repository: set Cargo's repository")
     repository = info["repository"].removesuffix("/")
     git = repository if repository.endswith(".git") else f"{repository}.git"
-    dependencies = [("org.jetbrains.kotlin", "kotlin-stdlib", f"{KOTLIN_API}.0"),
-                    ("org.jetbrains.kotlinx", "kotlinx-coroutines-core", coroutines)]
     fields = [
         ("modelVersion", "4.0.0"), ("groupId", group), ("artifactId", info["name"]),
-        ("version", maven_version(info["version"])), ("packaging", "aar"), ("name", info["name"]),
+        ("version", maven_version(info["version"])), ("packaging", "jar"), ("name", info["name"]),
         ("description", " ".join(info["description"].split())), ("url", info["homepage"] or repository),
         ("licenses", [("license", [("name", name), *([("url", url)] if url else [])]) for name, url in maven_licenses(info)]),
         ("developers", [("developer", list(d.items())) for d in maven_developers(info)]),
         ("scm", [("url", repository), ("connection", f"scm:git:{git}"), ("developerConnection", f"scm:git:{git}")]),
         # Compile scope: the binding's API names their types.
         ("dependencies", [("dependency", [("groupId", g), ("artifactId", a), ("version", v), ("scope", "compile")])
-                          for g, a, v in dependencies]),
+                          for g, a, v in maven_dependencies(coroutines)]),
     ]
     return ('<?xml version="1.0" encoding="UTF-8"?>\n'
             '<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" '
             'xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">\n'
+            # What tells Gradle to read the .module beside it, which chooses the AAR on Android.
+            "\t<!-- do_not_remove: published-with-gradle-metadata -->\n"
             + "".join(xml(tag, value) for tag, value in fields) + "</project>\n")
 
 
@@ -2977,18 +3185,20 @@ def android_manifest(namespace):
             f'\t<uses-sdk android:minSdkVersion="{ANDROID_API}" />\n</manifest>\n')
 
 
-def kotlin_classes(lib, export, module, stamp):
+def kotlin_classes(lib, export, module):
     """The export's Kotlin compiled as an Android library's is, against android.jar and
-    kotlinx-coroutines, as a jar, and the coroutines' version, which the POM requires."""
+    kotlinx-coroutines, as a jar's entries, and the coroutines' version, which the POM requires.
+    A desktop JVM runs the same classes: they name no Android API, and `@FastNative`, which
+    android.jar alone holds, is an annotation the JVM never loads."""
     sdk = os.environ.get("ANDROID_HOME")
     if not sdk:
-        raise SystemExit("compiling the AAR's classes needs the Android SDK: set ANDROID_HOME")
+        raise SystemExit("compiling the Kotlin binding's classes needs the Android SDK: set ANDROID_HOME")
     android_jar = Path(sdk) / "platforms" / f"android-{ANDROID_COMPILE_SDK}" / "android.jar"
     if not android_jar.is_file():
         raise SystemExit(f"{android_jar} is missing: install platforms;android-{ANDROID_COMPILE_SDK}")
     coroutines = os.environ.get("KOTLINX_COROUTINES")
     if not coroutines:
-        raise SystemExit("compiling the AAR's classes needs kotlinx-coroutines-core-jvm's jar: set KOTLINX_COROUTINES")
+        raise SystemExit("compiling the Kotlin binding's classes needs kotlinx-coroutines-core-jvm's jar: set KOTLINX_COROUTINES")
     with zipfile.ZipFile(coroutines) as jar:
         version = jar.read("META-INF/kotlinx_coroutines_core.version").decode().strip()
     with tempfile.TemporaryDirectory() as raw:
@@ -2999,34 +3209,74 @@ def kotlin_classes(lib, export, module, stamp):
             "-jvm-target", JVM_TARGET, "-module-name", module, "-cp", os.pathsep.join([str(android_jar), coroutines]),
             Path(export) / "kotlin" / f"{lib}.kt", "-d", classes, env={**os.environ, "JAVA_OPTS": "-Xmx2g -Xms128M"})
         files = sorted(p for p in classes.rglob("*") if p.is_file())
-        entries = [(p.relative_to(classes).as_posix(), p.read_bytes(), 0o644) for p in files]
-    jar = io.BytesIO()
-    write_zip(jar, entries, stamp)
-    return jar.getvalue(), version
+        return [(p.relative_to(classes).as_posix(), p.read_bytes(), 0o644) for p in files], version
+
+
+def gradle_module(group, artifact, version, dependencies, files):
+    """The Gradle module metadata naming each variant's file: the AAR for Android and the jar
+    for the JVM, by the attributes Kotlin Multiplatform publishes them with, which AGP's and
+    Kotlin's builds ask for, and the sources and javadoc for either."""
+    def file(name):
+        data = files[name]
+        return {"name": name, "url": name, "size": len(data),
+                **{algorithm: hashlib.new(algorithm, data).hexdigest() for algorithm in ("sha512", "sha256", "sha1", "md5")}}
+    requires = [{"group": g, "module": a, "version": {"requires": v}} for g, a, v in dependencies]
+    name = f"{artifact}-{version}"
+    variants = []
+    for platform, environment, kotlin, elements, binary in (
+            ("android", "android", "androidJvm", {}, f"{name}.aar"),
+            ("jvm", "standard-jvm", "jvm", {"org.gradle.libraryelements": "jar"}, f"{name}.jar")):
+        for usage in ("api", "runtime"):
+            variants.append({"name": f"{platform}{usage.capitalize()}Elements", "attributes": {
+                "org.gradle.category": "library", "org.gradle.jvm.environment": environment, **elements,
+                "org.gradle.usage": f"java-{usage}", "org.jetbrains.kotlin.platform.type": kotlin,
+            }, "dependencies": requires, "files": [file(binary)]})
+    for docs in ("sources", "javadoc"):
+        variants.append({"name": f"{docs}Elements", "attributes": {
+            "org.gradle.category": "documentation", "org.gradle.dependency.bundling": "external",
+            "org.gradle.docstype": docs, "org.gradle.usage": "java-runtime",
+        }, "files": [file(f"{name}-{docs}.jar")]})
+    module = {"formatVersion": "1.1",
+              "component": {"group": group, "module": artifact, "version": version,
+                            "attributes": {"org.gradle.status": "release"}},
+              "variants": variants}
+    return (json.dumps(module, indent=2) + "\n").encode()
 
 
 def maven(args):
-    """The AAR and the files Maven Central requires beside it, laid out as a Maven repository:
-    the POM, sources and javadoc jars, the CycloneDX SBOM, and each file's MD5 and SHA-1."""
+    """The jar and the AAR, and the files Maven Central requires beside them, laid out as a
+    Maven repository: the POM, the Gradle metadata choosing between the two, sources and
+    javadoc jars, the CycloneDX SBOM, and each file's MD5 and SHA-1."""
     info = facts(args.manifest_path)
     group, lib, stamp = args.group, info["lib"], info["epoch"]
     if not MAVEN_GROUP.fullmatch(group):
         raise SystemExit(f"the Maven group must be a dotted namespace, such as dev.example, not {group!r}")
     export, libs = Path(args.export).resolve(), Path(args.libs).resolve()
     artifact, version = info["name"], maven_version(info["version"])
-    missing = sorted(abi for abi in ANDROID_TARGETS.values() if not (libs / abi / f"lib{lib}.so").is_file())
+    missing = sorted([f"android/{abi}" for abi in ANDROID_TARGETS.values() if not (libs / "android" / abi / f"lib{lib}.so").is_file()]
+                     + [f"jvm/{t}" for t in JVM_TARGETS if not (libs / "jvm" / t / library_name(lib, t)).is_file()])
     if missing:
-        raise SystemExit(f"{libs} holds no library for {missing}: the AAR ships every ABI")
+        raise SystemExit(f"{libs} holds no library for {missing}: the jar and the AAR ship every target")
     # The POM's facts first, as a missing one fails before the slow compile.
     pom(info, group, "")
-    classes, coroutines = kotlin_classes(lib, export, f"{group}.{artifact}", stamp)
+    classes, coroutines = kotlin_classes(lib, export, f"{group}.{artifact}")
+    natives = [n for n, _, _ in classes if n.endswith("/_Native.class")]
+    if len(natives) != 1:
+        raise SystemExit(f"the compiled Kotlin holds no single _Native: {natives}")
+    package = natives[0].removesuffix("/_Native.class")
     namespace = java_package(f"{group}.{lib}")
+    classes_jar = io.BytesIO()
+    write_zip(classes_jar, classes, stamp)
     aar = [("AndroidManifest.xml", android_manifest(namespace).encode(), 0o644), ("R.txt", b"", 0o644),
-           ("classes.jar", classes, 0o644),
+           ("classes.jar", classes_jar.getvalue(), 0o644),
            *((f"jni/{abi}/{p.name}", p.read_bytes(), 0o755)
-             for abi in sorted(ANDROID_TARGETS.values()) for p in sorted((libs / abi).iterdir())),
+             for abi in sorted(ANDROID_TARGETS.values()) for p in sorted((libs / "android" / abi).iterdir())),
            # R8 reads an AAR's proguard.txt as the consumer rules of each app that shrinks it.
            ("proguard.txt", (export / "kotlin" / f"{lib}.pro").read_bytes(), 0o644)]
+    # The index the binding's loader reads beside _Native, naming each target's library, and the libraries.
+    bundled = [(t, library_name(lib, t)) for t in sorted(JVM_TARGETS)]
+    jar = [*classes, (f"{package}/{lib}.natives", "".join(f"{t} {f}\n" for t, f in bundled).encode(), 0o644),
+           *((f"{package}/native/{t}/{f}", (libs / "jvm" / t / f).read_bytes(), 0o755) for t, f in bundled)]
     kotlin = (export / "kotlin" / f"{lib}.kt").read_bytes()
     readme = (f"# {artifact} {version}\n\nThe API's documentation is the KDoc in {artifact}-{version}-sources.jar,\n"
               "which an IDE shows beside the classes.\n").encode()
@@ -3036,12 +3286,14 @@ def maven(args):
     base.mkdir(parents=True)
     name = f"{artifact}-{version}"
     files = {f"{name}.pom": pom(info, group, coroutines).encode(),
-             f"{name}-cyclonedx.json": sbom(info, export / "Cargo.toml", "kotlin")}
-    for file, entries in ((f"{name}.aar", aar), (f"{name}-sources.jar", [(f"{lib}/{lib}.kt", kotlin, 0o644)]),
+             f"{name}-cyclonedx.json": Path(args.sbom).read_bytes()}
+    for file, entries in ((f"{name}.jar", jar), (f"{name}.aar", aar),
+                          (f"{name}-sources.jar", [(f"{lib}/{lib}.kt", kotlin, 0o644)]),
                           (f"{name}-javadoc.jar", [("README.md", readme, 0o644)])):
         sink = io.BytesIO()
         write_zip(sink, entries, stamp)
         files[file] = sink.getvalue()
+    files[f"{name}.module"] = gradle_module(group, artifact, version, maven_dependencies(coroutines), files)
     for file, data in sorted(files.items()):
         (base / file).write_bytes(data)
         for algorithm in ("md5", "sha1"):
@@ -3153,13 +3405,14 @@ def main_classes(listing, source):
     return sorted(found)
 
 
-def javap():
-    """The JDK's javap, from the JDK Gradle runs on."""
+def jdk(tool):
+    """The JDK's `tool`, from the JDK Gradle runs on."""
     home = os.environ.get("JAVA_HOME")
-    found = Path(home) / "bin" / "javap" if home else shutil.which("javap")
+    exe = f"{tool}.exe" if sys.platform == "win32" else tool
+    found = Path(home) / "bin" / exe if home else shutil.which(tool)
     if not found or not Path(found).is_file():
-        raise SystemExit("finding the check's main needs the JDK's javap: set JAVA_HOME")
-    return found
+        raise SystemExit(f"the consumer needs the JDK's {tool}: set JAVA_HOME")
+    return Path(found)
 
 
 def instrument(step, *extra):
@@ -3170,6 +3423,30 @@ def instrument(step, *extra):
     return dict(re.findall(r"^INSTRUMENTATION_RESULT: (\w+)=(.*?)\r?$", out, re.M))
 
 
+def kotlin_check(check, source):
+    """The Kotlin check `check`, a file or a directory holding check.kt, as an app's sources in `source`."""
+    check = Path(check)
+    if check.is_dir():
+        # Sources alone: the Android app has no file beside them to read at run time.
+        if other := sorted(str(p.relative_to(check)) for p in check.rglob("*") if p.is_file() and p.suffix != ".kt"):
+            raise SystemExit(f"{check} holds files other than Kotlin sources, which the app cannot read: {other}")
+        shutil.copytree(check, source, dirs_exist_ok=True)
+    else:
+        shutil.copy(check, source / "check.kt")
+    if not (source / "check.kt").is_file():
+        raise SystemExit(f"{check} holds no check.kt")
+
+
+def maven_coordinates(repo):
+    """The group, artifact, and version of the one release in the Maven repository `repo`, and its directory."""
+    poms = list(Path(repo).rglob("*.pom"))
+    if len(poms) != 1:
+        raise SystemExit(f"expected one POM in {repo}, found {poms}")
+    version_dir = poms[0].parent
+    group = ".".join(version_dir.parent.parent.relative_to(Path(repo)).parts)
+    return group, version_dir.parent.name, version_dir.name, version_dir
+
+
 def consume_android(repo, check, native):
     """A new Gradle app depending on the AAR from the Maven repository `repo`, as an app
     resolves it from Central, shrunk by R8 with its consumer rules and run on the device adb
@@ -3177,12 +3454,7 @@ def consume_android(repo, check, native):
     `native`, the example built for the device, the check prints what it prints there."""
     if native and not check:
         raise SystemExit("an example's output is compared with a check's: give a check with it")
-    poms = list(Path(repo).rglob("*.pom"))
-    if len(poms) != 1:
-        raise SystemExit(f"expected one POM in {repo}, found {poms}")
-    version_dir = poms[0].parent
-    version, artifact, group = version_dir.name, version_dir.parent.name, \
-        ".".join(version_dir.parent.parent.relative_to(Path(repo)).parts)
+    group, artifact, version, version_dir = maven_coordinates(repo)
     with zipfile.ZipFile(version_dir / f"{artifact}-{version}.aar") as aar:
         with zipfile.ZipFile(io.BytesIO(aar.read("classes.jar"))) as jar:
             natives = [n for n in jar.namelist() if n.endswith("/_Native.class")]
@@ -3199,16 +3471,7 @@ def consume_android(repo, check, native):
         source = app / "src" / "main" / "kotlin"
         (source / "rust2" / "check").mkdir(parents=True)
         if check:
-            check = Path(check)
-            if check.is_dir():
-                # Sources alone: the app has no file beside them to read at run time.
-                if other := sorted(str(p.relative_to(check)) for p in check.rglob("*") if p.is_file() and p.suffix != ".kt"):
-                    raise SystemExit(f"{check} holds files other than Kotlin sources, which the app cannot read: {other}")
-                shutil.copytree(check, source, dirs_exist_ok=True)
-            else:
-                shutil.copy(check, source / "check.kt")
-            if not (source / "check.kt").is_file():
-                raise SystemExit(f"{check} holds no check.kt")
+            kotlin_check(check, source)
             # Its main, in whichever class the compiler names, which reflection reaches from
             # the instrumentation's package and which is kept, as an app keeps its entry points.
             body = 'Class.forName(main!!).getMethod("main", Array<String>::class.java).invoke(null, arrayOf<String>())'
@@ -3230,13 +3493,10 @@ def consume_android(repo, check, native):
         ndk = os.environ.get("ANDROID_NDK_HOME")
         if not ndk:
             raise SystemExit("stripping the app's libraries needs the Android NDK: set ANDROID_NDK_HOME")
-        # Google's mirror of Maven Central: repo1.maven.org blocks some runners' IPs for hours,
-        # answering 404 or 429 with a retry-after no retry outlasts.
-        central = 'maven("https://maven-central.storage-download.googleapis.com/maven2/")'
         (app / "settings.gradle.kts").write_text(f"""pluginManagement {{
 	repositories {{
 		google()
-		{central}
+		mavenCentral()
 	}}
 }}
 
@@ -3249,7 +3509,7 @@ dependencyResolutionManagement {{
 			filter {{ includeGroup("{group}") }}
 		}}
 		google()
-		{central}
+		mavenCentral()
 	}}
 }}
 
@@ -3305,7 +3565,7 @@ dependencies {{
             # The class the compiler made check.kt's main a member of, whatever its package,
             # @file:JvmName, or layout, among the app's own classes the build compiled.
             classes = sorted(str(p) for p in (app / "build").rglob("*.class"))
-            listing = output(javap(), *classes) if classes else ""
+            listing = output(jdk("javap"), *classes) if classes else ""
             mains = main_classes(listing, "check.kt")
             if len(mains) != 1:
                 raise SystemExit(f"the consumer's build compiled no single main from check.kt: {mains}")
@@ -3325,13 +3585,13 @@ dependencies {{
 
 def android_native(example, aar, abi):
     """The output on the device of the example in the directory `example`, beside the libraries
-    it needs, run beside the AAR's libraries for its ABI."""
+    it needs, run beside the AAR's libraries for its ABI, if any."""
     device = "/data/local/tmp/rust2-example"
     with tempfile.TemporaryDirectory() as raw:
         staged = Path(raw) / "example"
         shutil.copytree(example, staged)
-        with zipfile.ZipFile(aar) as z:
-            for name in z.namelist():
+        with zipfile.ZipFile(aar) if aar else contextlib.nullcontext() as z:
+            for name in z.namelist() if z else []:
                 if name.startswith(f"jni/{abi}/"):
                     (staged / posixpath.basename(name)).write_bytes(z.read(name))
         adb("shell", "rm", "-rf", device)
@@ -3340,6 +3600,92 @@ def android_native(example, aar, abi):
     result = adb("shell", "-T", f"cd {device} && chmod 755 example && LD_LIBRARY_PATH={device} ./example",
                  capture_output=True)
     return result.stdout
+
+
+# The consumer's Kotlin Gradle plugin: the kotlinc the classes are compiled with.
+KOTLIN_GRADLE = "2.4.21"
+
+
+def consume_jvm(repo, check, native):
+    """A new Gradle JVM app depending on the release from the Maven repository `repo`, as an
+    app resolves it from Central, which must choose the jar, run with the classpath Gradle
+    resolved: the check program, or else a load of this host's library. With `native`,
+    native Rust's output here, the check prints exactly that."""
+    if native and not check:
+        raise SystemExit("an example's output is compared with a check's: give a check with it")
+    group, artifact, version, version_dir = maven_coordinates(repo)
+    with zipfile.ZipFile(version_dir / f"{artifact}-{version}.jar") as jar:
+        natives = [n for n in jar.namelist() if n.endswith("/_Native.class")]
+    if len(natives) != 1:
+        raise SystemExit(f"the jar holds no single _Native: {natives}")
+    package = natives[0].removesuffix("/_Native.class").replace("/", ".")
+    gradle = shutil.which("gradle")
+    if not gradle:
+        raise SystemExit("the JVM consumer needs Gradle on PATH")
+    with tempfile.TemporaryDirectory() as raw:
+        app = Path(raw)
+        source = app / "src" / "main" / "kotlin"
+        source.mkdir(parents=True)
+        if check:
+            kotlin_check(check, source)
+        else:
+            # Loading the library checks its contract against the Kotlin's.
+            (source / "check.kt").write_text(f'fun main() {{\n\tClass.forName("{package}._Native")\n}}\n', encoding="utf-8")
+        (app / "settings.gradle.kts").write_text(f"""pluginManagement {{
+	repositories {{
+		mavenCentral()
+	}}
+}}
+
+dependencyResolutionManagement {{
+	repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+	repositories {{
+		// The release's repository serves its group alone, as Central would.
+		exclusiveContent {{
+			forRepository {{ maven({json.dumps(Path(repo).resolve().as_uri())}) }}
+			filter {{ includeGroup("{group}") }}
+		}}
+		mavenCentral()
+	}}
+}}
+
+rootProject.name = "check"
+""", encoding="utf-8")
+        (app / "build.gradle.kts").write_text(f"""plugins {{
+	kotlin("jvm") version "{KOTLIN_GRADLE}"
+}}
+
+dependencies {{
+	implementation("{group}:{artifact}:{version}")
+}}
+
+// The classpath the app runs with, as `run` would pass it.
+val runtime: FileCollection = configurations.runtimeClasspath.get()
+val listing = layout.buildDirectory.file("classpath.txt")
+tasks.register("classpath") {{
+	inputs.files(runtime)
+	outputs.file(listing)
+	doLast {{ listing.get().asFile.writeText(runtime.joinToString("\\n")) }}
+}}
+""", encoding="utf-8")
+        run(gradle, "--no-daemon", "--console", "plain", "--stacktrace", "classes", "classpath", cwd=app)
+        classpath = (app / "build" / "classpath.txt").read_text(encoding="utf-8").splitlines()
+        names = sorted(Path(p).name for p in classpath)
+        if f"{artifact}-{version}.jar" not in names or any(n.endswith(".aar") for n in names):
+            raise SystemExit(f"Gradle resolved {group}:{artifact} on the JVM to {names}, not its jar")
+        compiled = app / "build" / "classes" / "kotlin" / "main"
+        mains = main_classes(output(jdk("javap"), *sorted(str(p) for p in compiled.rglob("*.class"))), "check.kt")
+        if len(mains) != 1:
+            raise SystemExit(f"the consumer's build compiled no single main from check.kt: {mains}")
+        result = subprocess.run([jdk("java"), "-cp", os.pathsep.join([str(compiled), *classpath]), mains[0]],
+                                capture_output=True, cwd=app)
+    sys.stderr.buffer.write(result.stderr)
+    if result.returncode:
+        raise SystemExit(f"{check or 'the load'} failed in the JVM app with status {result.returncode}")
+    if native:
+        # Kotlin's println ends a line with the platform's separator, Rust's with LF.
+        actual = result.stdout.replace(b"\r\n", b"\n") if sys.platform == "win32" else result.stdout
+        compare(Path(native).read_bytes(), actual, "JVM app")
 
 
 def line_tables(manifest):
@@ -3421,18 +3767,19 @@ def web(args):
         shutil.rmtree(target_dir)
 
 
-def check_program(check, name):
-    """A check's module written beside an export, importing `./web/<module>.ts`, as it imports the package."""
+def check_program(check, name, binding="web"):
+    """A check's module written beside an export, importing `./<binding>/<module>.ts`, the
+    web's or React Native's, as it imports the package."""
     text = Path(check).read_text(encoding="utf-8")
     # Whitespace and comments, which may separate the keyword from its specifier.
     gap = r"(?:\s|/\*[\s\S]*?\*/|//[^\n]*\n)*"
     # Only a specifier, after `from` or `import`, in either quote, kept as written: a string
     # the check prints stays as the transcript has it.
-    text = re.sub(rf"""(\b(?:from|import){gap}(?:\({gap})?)(["'])\./web/([A-Za-z0-9_$]+)\.ts\2""",
+    text = re.sub(rf"""(\b(?:from|import){gap}(?:\({gap})?)(["'])\./{binding}/([A-Za-z0-9_$]+)\.ts\2""",
                   lambda m: m.group(1) + m.group(2) + (name if m.group(3) == "index" else f"{name}/{m.group(3)}") + m.group(2),
                   text)
-    if re.search(rf"""\b(?:from|import){gap}(?:\({gap})?["']\./web/""", text):
-        raise SystemExit(f"{check} imports the binding by a path other than ./web/<module>.ts")
+    if re.search(rf"""\b(?:from|import){gap}(?:\({gap})?["']\./{binding}/""", text):
+        raise SystemExit(f"{check} imports the binding by a path other than ./{binding}/<module>.ts")
     return text
 
 
@@ -3503,10 +3850,409 @@ def consume_web(dist, check, native):
                 compare(expected, result.stdout, f"{consumer}'s installed package")
 
 
+def rn_package_name(info, scope):
+    """React Native's package name on npm, `@<scope>/<crate>-rn`, beside the web's `@<scope>/<crate>`,
+    refusing what npm cannot spell."""
+    name = f"@{scope}/{info['name']}-rn"
+    if not re.fullmatch(r"@[a-z0-9][a-z0-9._-]*/[a-z0-9][a-z0-9._-]*", name) or len(name) > 214:
+        raise SystemExit(f"{name} is no npm package name: a scope and crate name of lowercase letters, digits, hyphens, dots, and underscores")
+    return name
+
+
+def native_flags(flags, what, frameworks=False):
+    """The system libraries, and on Apple frameworks, rustc's `native-static-libs` names, in its
+    order, once each, as (kind, name) pairs."""
+    found = []
+    args = iter(shlex.split(flags))
+    for flag in args:
+        if flag.startswith("-l") and len(flag) > 2:
+            item = ("library", flag[2:])
+        elif frameworks and flag == "-framework":
+            item = ("framework", next(args))
+        else:
+            raise SystemExit(f"unsupported native linker flag on {what}: {flag}")
+        if item not in found:
+            found.append(item)
+    return found
+
+
+def agreed(natives, what):
+    """The one set of native flags every slice of `what` links with, from each slice's native.txt."""
+    found = {Path(path).read_text(encoding="utf-8").strip() for path in natives}
+    if len(found) != 1:
+        raise SystemExit(f"{what}'s slices link different native libraries: {sorted(found)}")
+    return found.pop()
+
+
+def rn_cmake(text, lib, flags):
+    """android/CMakeLists.txt linking the module with the system libraries rustc links the Rust library with, beside its own."""
+    anchor = f"/../libs/android/${{ANDROID_ABI}}/lib{lib}.a log dl m)"
+    if text.count(anchor) != 1:
+        raise SystemExit("android/CMakeLists.txt no longer links the Rust library with log, dl, and m: update the packager")
+    names = ["log", "dl", "m"]
+    names += [name for _, name in native_flags(flags, "Android") if name not in names]
+    return text.replace(anchor, f"/../libs/android/${{ANDROID_ABI}}/lib{lib}.a {' '.join(names)})")
+
+
+def rn_podspec(text, lib, flags, bundle):
+    """The podspec linking the XCFramework's frameworks and system libraries, as rustc names them,
+    and bundling the privacy manifest as the resource bundle `bundle`, since a static library holds none."""
+    vendored = f's.vendored_frameworks = "libs/ios/{lib}.xcframework"\n'
+    anchor = "  install_modules_dependencies(s)\n"
+    if text.count(vendored) != 1 or text.count(anchor) != 1:
+        raise SystemExit("the podspec no longer vendors the XCFramework before its dependencies: update the packager")
+    found = native_flags(flags, "iOS", frameworks=True)
+    lines = [f"  s.frameworks = {json.dumps([n for kind, n in found if kind == 'framework'])}\n",
+             f"  s.libraries = {json.dumps([n for kind, n in found if kind == 'library'])}\n",
+             f"  s.resource_bundles = {{ {json.dumps(bundle)} => [\"ios/PrivacyInfo.xcprivacy\"] }}\n"]
+    return text.replace(anchor, "".join(lines) + anchor)
+
+
+def tree_bytes(root):
+    """Every file under `root`, by its relative path, with its bytes."""
+    return {p.relative_to(root).as_posix(): p.read_bytes() for p in sorted(Path(root).rglob("*")) if p.is_file()}
+
+
+def react_native_package(info, manifest_path, export, android, ios, natives, scope, sbom_path, out):
+    """React Native's npm package: the export's `react-native/` with its libraries built for every
+    ABI it serves, Android's static libraries and an XCFramework of iOS's, linked with what
+    rustc names, the iOS libraries' privacy manifest, and Cargo's facts; and its tarball."""
+    if sys.platform != "darwin":
+        raise SystemExit("React Native's XCFramework needs Apple's xcodebuild, on macOS")
+    if set(ios) != set(RN_IOS_TARGETS) or set(natives) != set(RN_IOS_TARGETS):
+        raise SystemExit(f"React Native's package ships {sorted(RN_IOS_TARGETS)} on iOS, given {sorted(ios)} and {sorted(natives)}")
+    lib, name = info["lib"], rn_package_name(info, scope)
+    source, android, out = Path(export) / "react-native", Path(android), Path(out).resolve()
+    manifest = json.loads((source / "package.json").read_text(encoding="utf-8"))
+    if manifest["version"] != info["version"]:
+        raise SystemExit(f"the export's react-native/package.json is {manifest['version']}, not the crate's {info['version']}")
+    podspecs = list(source.glob("*.podspec"))
+    if len(podspecs) != 1:
+        raise SystemExit(f"{source} holds no single podspec: {podspecs}")
+    if out.exists():
+        shutil.rmtree(out)
+    package = out / "npm"
+    # The export's, without any libraries a local build put in it: the package's are these.
+    shutil.copytree(source, package, ignore=lambda d, _: ["libs"] if Path(d) == source else [])
+    for path in licenses(info):
+        shutil.copy(path, package)
+    # Each library without debug info or LTO bitcode, as the Go module's: an unlinked static
+    # library's DWARF, with its relocations, is most of its bytes, and moq's tarball would be
+    # twice the 200 MB npm takes.
+    objcopy = llvm_tool(manifest_path, "llvm-objcopy")
+    strip = lambda library, dest: run(objcopy, "--strip-debug", *(f"--remove-section={s}" for s in LTO_SECTIONS),  # noqa: E731
+                                      library, dest)
+    # Android's: one static library per ABI, linked with the system libraries rustc names.
+    for target, abi in RN_ANDROID_TARGETS.items():
+        found = android / abi / f"lib{lib}.a"
+        if not found.is_file():
+            raise SystemExit(f"React Native's package ships {abi}, but {android} holds no {found.name} for it")
+        (package / "libs" / "android" / abi).mkdir(parents=True)
+        strip(found, package / "libs" / "android" / abi / found.name)
+    cmake = package / "android" / "CMakeLists.txt"
+    flags = agreed([android / abi / "native.txt" for abi in RN_ANDROID_TARGETS.values()], "Android")
+    cmake.write_text(rn_cmake(cmake.read_text(encoding="utf-8"), lib, flags), encoding="utf-8")
+    # iOS's: each slice at React Native's floor, stripped, what an app's link of it calls of
+    # Apple's required-reason APIs, and one XCFramework of both, made twice, which must be the
+    # same bytes, as a rerun of the release must pack the same tarball.
+    found, slices = {}, {}
+    with tempfile.TemporaryDirectory() as raw:
+        work = Path(raw)
+        for target in RN_IOS_TARGETS:
+            floor = APPLE_BUILD[target]
+            if min_os(ios[target]) > tuple(int(x) for x in floor.split(".")):
+                raise SystemExit(f"{ios[target]} needs a newer iOS than React Native's {floor}: build it with the deployment target set")
+            slice_dir = work / target
+            slice_dir.mkdir()
+            slices[target] = slice_dir / f"lib{lib}.a"
+            strip(ios[target], slices[target])
+            probe = probe_link(lib, slices[target], target, Path(natives[target]).read_text(encoding="utf-8").strip(),
+                               slice_dir, floor)
+            for category, apis in required_apis(probe).items():
+                found.setdefault(category, set()).update(apis)
+        frameworks = []
+        for tree in (package / "libs" / "ios" / f"{lib}.xcframework", work / "again" / f"{lib}.xcframework"):
+            args = ["xcodebuild", "-create-xcframework"]
+            for target in RN_IOS_TARGETS:
+                args += ["-library", slices[target]]
+            # libtool, which xcodebuild runs on each library, stamps the time unless told not to.
+            run(*args, "-output", tree, env={**os.environ, "ZERO_AR_DATE": "1"}, capture_output=True)
+            sort_plist(tree / "Info.plist")
+            frameworks.append(tree_bytes(tree))
+        if frameworks[0] != frameworks[1]:
+            raise SystemExit("xcodebuild made different XCFrameworks from the same libraries: "
+                             f"{sorted(k for k in frameworks[0].keys() | frameworks[1].keys() if frameworks[0].get(k) != frameworks[1].get(k))}")
+    (package / "ios" / "PrivacyInfo.xcprivacy").write_bytes(privacy_manifest(lib, found))
+    podspec = package / podspecs[0].name
+    flags = agreed([natives[t] for t in RN_IOS_TARGETS], "iOS")
+    podspec.write_text(rn_podspec(podspec.read_text(encoding="utf-8"), lib, flags, f"{podspec.stem}Privacy"),
+                       encoding="utf-8")
+    # What Cargo says of the package, beside what the export wrote, as the web's.
+    said = {"name": name, "version": info["version"]}
+    if info["description"]:
+        said["description"] = " ".join(info["description"].split())
+    if info["license"]:
+        said["license"] = info["license"]
+    if info["repository"]:
+        said["repository"] = {"type": "git", "url": f"git+{info['repository']}"}
+    if info["homepage"]:
+        said["homepage"] = info["homepage"]
+    manifest = {**said, **{k: v for k, v in manifest.items() if k not in said}}
+    manifest["files"] = manifest["files"] + [p.name for p in licenses(info) if p.name not in manifest["files"]]
+    (package / "package.json").write_text(json.dumps(manifest, indent="\t") + "\n", newline="\n", encoding="utf-8")
+    shutil.copy(sbom_path, out / "sbom.cdx.json")
+    packed = output("npm", "pack", "--silent", "--pack-destination", out, cwd=package).strip()
+    if not (out / packed).is_file():
+        raise SystemExit(f"npm pack wrote no {packed}")
+    print(f"{packed}: {(out / packed).stat().st_size} bytes", file=sys.stderr)
+    return out / packed
+
+
+# The consumer app's entry: it runs the check once its component first renders, and logs what it
+# printed as `rust2: start`, base64 chunks of it, then `rust2: exit <code>` or `rust2: threw
+# <error>`, by hand, as Hermes may lack TextEncoder and btoa. React Native and the package come
+# from Metro, through `check/imports.js`, which the bundler writes with the check's bundle.
+RN_INDEX = r"""import { AppRegistry } from "react-native";
+
+const log = console.log;
+let out = "";
+let ended = false;
+
+function base64(text) {
+	const bytes = [];
+	for (const char of text) {
+		let c = char.codePointAt(0);
+		if (c < 0x80) bytes.push(c);
+		else if (c < 0x800) bytes.push(0xc0 | (c >> 6), 0x80 | (c & 63));
+		else if (c < 0x10000) bytes.push(0xe0 | (c >> 12), 0x80 | ((c >> 6) & 63), 0x80 | (c & 63));
+		else bytes.push(0xf0 | (c >> 18), 0x80 | ((c >> 12) & 63), 0x80 | ((c >> 6) & 63), 0x80 | (c & 63));
+	}
+	const digits = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+	let encoded = "";
+	for (let i = 0; i < bytes.length; i += 3) {
+		const n = (bytes[i] << 16) | ((bytes[i + 1] ?? 0) << 8) | (bytes[i + 2] ?? 0);
+		encoded += digits[n >> 18] + digits[(n >> 12) & 63];
+		encoded += i + 1 < bytes.length ? digits[(n >> 6) & 63] : "=";
+		encoded += i + 2 < bytes.length ? digits[n & 63] : "=";
+	}
+	return encoded;
+}
+
+function report(end) {
+	if (ended) return;
+	ended = true;
+	const data = base64(out);
+	log("rust2: start");
+	for (let i = 0; i < data.length; i += 800) log(`rust2: ${data.slice(i, i + 800)}`);
+	log(`rust2: ${end}`);
+}
+
+function Check() {
+	if (globalThis.__rust2_import === undefined) {
+		const imports = require("./check/imports.js");
+		globalThis.__rust2_import = (path) => imports[path];
+		console.log = (...args) => {
+			out += `${args.join(" ")}\n`;
+		};
+		globalThis.process = Object.assign(globalThis.process ?? {}, {
+			argv: ["react-native", "check"],
+			exit(code) {
+				report(`exit ${code ?? 0}`);
+				throw new Error("__exited");
+			},
+			stderr: {
+				write(text) {
+					log(`rust2! ${text}`);
+					return true;
+				},
+			},
+		});
+		globalThis.__rust2_end = (error) => {
+			if (error === undefined) report("exit 0");
+			else if (!(error instanceof Error && error.message === "__exited"))
+				report(`threw ${error instanceof Error ? (error.stack ?? error.message) : String(error)}`.replace(/\n/g, " | "));
+		};
+		require("./check/bundle.js");
+	}
+	return null;
+}
+
+AppRegistry.registerComponent("Consumer", () => Check);
+"""
+
+# Bundles the check, `check/check.ts`, into `check/bundle.js`, its top-level await in an async
+# function, as Metro takes no top-level await: each import of React Native or the package, named
+# by the first argument, is left to Metro, through the map `check/imports.js` requires. The entry
+# imports the check rather than being it, so nothing the check exports stays an `export`, which
+# the function could not hold.
+RN_BUNDLE = r"""import * as esbuild from "esbuild";
+import { writeFileSync } from "node:fs";
+
+const name = process.argv[2];
+const imported = new Set(["react-native", name]);
+const result = await esbuild.build({
+	stdin: { contents: 'import "./check.ts";', resolveDir: "check", sourcefile: "entry.ts", loader: "ts" },
+	bundle: true,
+	write: false,
+	format: "esm",
+	target: "es2022",
+	platform: "neutral",
+	define: { "import.meta.url": "undefined" },
+	logLevel: "error",
+	plugins: [
+		{
+			name: "metro",
+			setup(build) {
+				build.onResolve({ filter: /.*/ }, (args) => {
+					if (args.path !== "react-native" && args.path !== name && !args.path.startsWith(`${name}/`)) return undefined;
+					imported.add(args.path);
+					return { path: args.path, namespace: "metro" };
+				});
+				build.onLoad({ filter: /.*/, namespace: "metro" }, (args) => ({
+					contents: `module.exports = globalThis.__rust2_import(${JSON.stringify(args.path)});`,
+					loader: "js",
+				}));
+			},
+		},
+	],
+});
+const [code] = result.outputFiles;
+writeFileSync("check/bundle.js", `(async () => {\n${code.text}\n})().then(() => globalThis.__rust2_end(), (e) => globalThis.__rust2_end(e ?? new Error(String(e))));\n`);
+const entries = [...imported].sort().map((path) => `\t${JSON.stringify(path)}: require(${JSON.stringify(path)}),`);
+writeFileSync("check/imports.js", `module.exports = {\n${entries.join("\n")}\n};\n`);
+"""
+
+
+def rn_app(work, tarball, name, check):
+    """A new React Native app at the release the package is tested with, depending on the
+    tarball, whose entry runs the check, or else a load, bundled for Metro."""
+    run("npx", "--yes", f"@react-native-community/cli@{RN_CLI}", "init", "Consumer", "--version", REACT_NATIVE,
+        "--skip-git-init", "--install-pods", "false", "--package-name", FLUTTER_APP, "--pm", "npm", cwd=work,
+        capture_output=True)
+    app = work / "Consumer"
+    run("npm", "install", "--no-audit", "--no-fund", tarball, f"esbuild@{ESBUILD}", cwd=app, capture_output=True)
+    checks = app / "check"
+    if check:
+        shutil.copytree(check, checks)
+        for module in checks.rglob("*.ts"):
+            module.write_text(check_program(module, name, "react-native"), encoding="utf-8")
+    else:
+        checks.mkdir()
+        (checks / "check.ts").write_text(f"import * as binding from {json.dumps(name)};\n\nawait binding.load();\n",
+                                         encoding="utf-8")
+    (app / "bundle.mjs").write_text(RN_BUNDLE, encoding="utf-8")
+    run("node", "bundle.mjs", name, cwd=app)
+    (app / "index.js").write_text(RN_INDEX, encoding="utf-8")
+    return app
+
+
+def consume_react_native(dist, platform, check, native):
+    """A new React Native app depending on the npm tarball, as an app installs it, built for
+    release: on Android for each of React Native's ABIs and run on the device adb reaches, on
+    iOS for a device and for the simulator, run on one booted for it. It runs the check, or
+    else a load; with `native`, the example built for the device, whose output it must print."""
+    dist = Path(dist).resolve()
+    tarballs = list(dist.glob("*.tgz"))
+    if len(tarballs) != 1:
+        raise SystemExit(f"{dist} holds {len(tarballs)} npm tarballs")
+    if native and not check:
+        raise SystemExit("an example's output is compared with a check's: give a check with it")
+    name = json.loads((dist / "npm" / "package.json").read_text(encoding="utf-8"))["name"]
+    if check:
+        check_program_in(check, ("check.ts",))
+    with tempfile.TemporaryDirectory() as raw:
+        app = rn_app(Path(raw), tarballs[0], name, check)
+        if platform == "android":
+            printed, expected = rn_android(app, native)
+        else:
+            printed, expected = rn_ios(app, native)
+    if native:
+        compare(expected, printed, f"React Native app on {platform}")
+    print(f"React Native app on {platform}: ok")
+
+
+def rn_android(app, native):
+    """The app built for release for every ABI, its check's output on the device adb reaches,
+    and the example's there."""
+    run("./gradlew", "--console", "plain", "assembleRelease", cwd=app / "android")
+    apk = app / "android" / "app" / "build" / "outputs" / "apk" / "release" / "app-release.apk"
+    with zipfile.ZipFile(apk) as z:
+        abis = {n.split("/")[1] for n in z.namelist() if n.startswith("lib/")}
+    if abis != set(RN_ANDROID_TARGETS.values()):
+        raise SystemExit(f"the app's APK holds {sorted(abis)}, not each of React Native's ABIs")
+    device = adb("get-serialno", capture_output=True, encoding="utf-8").stdout.strip()
+    abi = adb("-s", device, "shell", "getprop", "ro.product.cpu.abi", capture_output=True, encoding="utf-8").stdout.strip()
+    adb("-s", device, "install", "-r", "--no-streaming", apk, capture_output=True)
+    logcat = Logcat(device, "ReactNativeJS", "React Native app")
+    try:
+        # `am start` exits 0 whether or not it starts the app.
+        started = adb("-s", device, "shell", "am", "start", "-n", f"{FLUTTER_APP}/.MainActivity",
+                      capture_output=True, encoding="utf-8").stdout
+        if re.search(r"Error|Exception", started):
+            raise SystemExit(f"the React Native app did not start: {started}")
+        printed = logcat.output()
+    finally:
+        logcat.process.kill()
+    return printed, android_native(native, None, abi) if native else None
+
+
+def rn_ios(app, native):
+    """The app built for release for a device and for the simulator, its check's output on a
+    simulator booted for it, and the example's there."""
+    ios = app / "ios"
+    run("pod", "install", cwd=ios, capture_output=True)
+    built = app / "xcode"
+    build = ["xcodebuild", "-workspace", "Consumer.xcworkspace", "-scheme", "Consumer", "-configuration", "Release",
+             "-quiet", "-derivedDataPath", built]
+    # The package's simulator slice is arm64's alone, as the Swift package's is.
+    run(*build, "-destination", "generic/platform=iOS Simulator", "ARCHS=arm64", "build", cwd=ios)
+    run(*build, "-destination", "generic/platform=iOS", "CODE_SIGNING_ALLOWED=NO", "build", cwd=ios)
+    devices = json.loads(output("xcrun", "simctl", "list", "devices", "available", "--json"))["devices"]
+    phones = [d for runtime, found in sorted(devices.items()) if "iOS" in runtime for d in found if "iPhone" in d["name"]]
+    if not phones:
+        raise SystemExit("no iPhone simulator is available")
+    udid = phones[-1]["udid"]
+    if phones[-1]["state"] != "Booted":
+        run("xcrun", "simctl", "boot", udid)
+    run("xcrun", "simctl", "bootstatus", udid, "-b", capture_output=True)
+    run("xcrun", "simctl", "install", udid, built / "Build" / "Products" / "Release-iphonesimulator" / "Consumer.app")
+    # `log stream` buffers what it writes to a pipe, so it writes to a terminal of this one's.
+    import pty
+    leader, follower = pty.openpty()
+    stream = subprocess.Popen(["xcrun", "simctl", "spawn", udid, "log", "stream", "--level", "info", "--style",
+                               "compact", "--predicate",
+                               'subsystem == "com.facebook.react.log" AND category == "javascript"'],
+                              stdin=subprocess.DEVNULL, stdout=follower, stderr=follower)
+    os.close(follower)
+    lines = reader(os.fdopen(leader, encoding="utf-8", errors="replace"), lambda line: [line])
+    try:
+        # The line it prints as it starts reading, before the app's first: a launch that beat
+        # it would lose the app's lines, failing the check rather than passing it.
+        while not take(lines, "the simulator's log").startswith("Filtering the log data"):
+            pass
+        run("xcrun", "simctl", "launch", "--terminate-running-process", udid, FLUTTER_APP, capture_output=True)
+
+        def said():
+            line = take(lines, "the simulator's log")
+            print(line, file=sys.stderr)
+            return line[line.find("rust2: "):] if "rust2: " in line else line
+        printed = check_output(said, "React Native app")
+    finally:
+        stream.kill()
+        stream.wait()
+    expected = None
+    if native:
+        # An artifact keeps no file mode. No terminal, which would end each line with a carriage return.
+        example = Path(native) / "example"
+        example.chmod(0o755)
+        expected = run("xcrun", "simctl", "spawn", udid, example, capture_output=True).stdout
+    return printed, expected
+
+
 def template(info, manifest, rust2, mirror, go_module, scope=None, group=None):
     """The caller workflow, with every identity Cargo cannot establish spelled out in it.
-    With a scope, it ships the crate's own web package, and with a group, its Android
-    library; without, the lines that would are left commented out."""
+    With a scope, it ships the crate's own web package and its React Native package, and with
+    a group, its Kotlin library; without, the lines that would are left commented out."""
     if not re.fullmatch(r"[0-9a-f]{40}", rust2):
         raise SystemExit("pin rust2 by a full commit SHA")
     if not re.fullmatch(r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+", mirror):
@@ -3518,18 +4264,21 @@ def template(info, manifest, rust2, mirror, go_module, scope=None, group=None):
     indent = "      "
     if scope:
         name = package_name(info, scope)
-        web = (f"{indent}# The web package, {name} on npm and JSR: delete these two lines to ship none.\n"
+        rn = rn_package_name(info, scope)
+        web = (f"{indent}# The web package, {name} on npm and JSR, and the React Native package, {rn} on npm:\n"
+               f"{indent}# delete web-manifest-path to ship no web package, and both lines to ship neither.\n"
                f"{indent}web-manifest-path: {manifest}\n{indent}scope: {scope}")
     else:
-        web = (f"{indent}# The web package on npm and JSR, @<scope>/{info['name']}, for a crate that builds for wasm32-wasip1:\n"
+        web = (f"{indent}# The React Native package on npm, @<scope>/{info['name']}-rn, and with web-manifest-path, for a\n"
+               f"{indent}# crate that builds for wasm32-wasip1, the web package on npm and JSR, @<scope>/{info['name']}:\n"
                f"{indent}# web-manifest-path: {manifest}\n{indent}# scope: <scope>")
     if group:
         if not MAVEN_GROUP.fullmatch(group):
             raise SystemExit(f"the Maven group must be a dotted namespace, such as dev.example, not {group!r}")
-        maven = (f"{indent}# The Android library, {group}:{info['name']} on Maven Central: delete this line to ship none.\n"
+        maven = (f"{indent}# The Kotlin binding for desktop JVMs and Android, {group}:{info['name']} on Maven Central: delete this line to ship none.\n"
                  f"{indent}maven-group: {group}")
     else:
-        maven = (f"{indent}# The Android library on Maven Central, <group>:{info['name']}, under a namespace you hold there:\n"
+        maven = (f"{indent}# The Kotlin binding for desktop JVMs and Android on Maven Central, <group>:{info['name']}, under a namespace you hold there:\n"
                  f"{indent}# maven-group: <group>")
     values = {
         "GO_MODULE": go_module,
@@ -3575,7 +4324,7 @@ def main():
     p.add_argument("--manifest-path", required=True)
     for name, helptext in (("api", "stage each target's API on this host"),
                            ("export", "export the binding of every staged target"),
-                           ("build", "build this host's wheels, C archives, and Apple, Go, and Android libraries")):
+                           ("build", "build this host's wheels, C archives, and Apple, Go, Dart, and Kotlin libraries")):
         p = sub.add_parser(name, help=helptext)
         p.add_argument("--manifest-path", required=True)
         p.add_argument("--features", default="")
@@ -3588,6 +4337,8 @@ def main():
         if name == "build":
             p.add_argument("--export", required=True)
             p.add_argument("--example", default="")
+            p.add_argument("--kotlin", action="store_true", help="build the Kotlin binding's libraries, for the desktop jar and the AAR")
+            p.add_argument("--react-native", action="store_true", help="build React Native's Android libraries")
     p = sub.add_parser("sdist", help="write the sdist of the export's crate and the local packages it builds with")
     p.add_argument("--manifest-path", required=True)
     p.add_argument("--export", required=True)
@@ -3614,6 +4365,21 @@ def main():
     p.add_argument("--dist", required=True, help="what `web` wrote")
     p.add_argument("--check")
     p.add_argument("--native")
+    p = sub.add_parser("react-native", help="write React Native's npm package around its libraries, and pack it")
+    p.add_argument("--manifest-path", required=True)
+    p.add_argument("--export", required=True, help="an export holding react-native/")
+    p.add_argument("--android", required=True, help="a directory of each ABI's static library and native.txt, as build names them")
+    p.add_argument("--lib", action="append", default=[], metavar="TARGET=PATH", help="each iOS slice's static library")
+    p.add_argument("--native", action="append", default=[], metavar="TARGET=PATH", help="each iOS slice's native.txt")
+    p.add_argument("--scope", required=True, help="the npm scope, without its @")
+    p.add_argument("--sbom", required=True, help="the react-native.cdx.json build wrote")
+    p.add_argument("--out", required=True)
+    p = sub.add_parser("consume-react-native", help="run a check program, or a load, in a new React Native app on the npm package")
+    p.add_argument("--dist", required=True, help="what `react-native` wrote")
+    p.add_argument("--platform", required=True, choices=("android", "ios"),
+                   help="android, run on the device adb reaches, or ios, on a simulator it boots")
+    p.add_argument("--check", help="a directory holding check.ts beside the modules it imports")
+    p.add_argument("--native", help="a directory holding the example built for the device, whose output the check must print")
     p = sub.add_parser("digest", help="print the hash of the generated bindings")
     p.add_argument("--manifest-path", required=True)
     p.add_argument("--export", required=True)
@@ -3640,16 +4406,21 @@ def main():
     p.add_argument("--proxy", required=True, help="the directory `go` wrote")
     p.add_argument("--check")
     p.add_argument("--native")
-    p = sub.add_parser("maven", help="write the AAR, its POM, and the files Maven Central requires beside them as a Maven repository")
+    p = sub.add_parser("maven", help="write the jar, the AAR, and the files Maven Central requires beside them as a Maven repository")
     p.add_argument("--manifest-path", required=True)
     p.add_argument("--export", required=True)
-    p.add_argument("--libs", required=True, help="a directory of each Android ABI's libraries, as build names them")
+    p.add_argument("--libs", required=True, help="a directory holding android/ and jvm/, each target's libraries as build names them")
+    p.add_argument("--sbom", required=True, help="the kotlin.cdx.json build wrote")
     p.add_argument("--group", required=True, help="the groupId, a namespace the publisher holds on Central")
     p.add_argument("--out", required=True)
     p = sub.add_parser("consume-android", help="run a check program, or a load, in a Gradle app on the AAR, on the device adb reaches")
     p.add_argument("--repo", required=True, help="the Maven repository `maven` wrote")
     p.add_argument("--check", help="a Kotlin file, or a directory holding it as check.kt beside the files it reads")
     p.add_argument("--native", help="a directory holding the example built for the device, whose output the check must print, beside the libraries it needs")
+    p = sub.add_parser("consume-jvm", help="run a check program, or a load, in a Gradle JVM app on the jar")
+    p.add_argument("--repo", required=True, help="the Maven repository `maven` wrote")
+    p.add_argument("--check", help="a Kotlin file, or a directory holding it as check.kt beside the files it reads")
+    p.add_argument("--native", help="native Rust's output on this host, which the check must print")
     p = sub.add_parser("consume-python", help="run a check program, or an import, on the installed wheel")
     group = p.add_mutually_exclusive_group(required=True)
     group.add_argument("--check")
@@ -3690,8 +4461,8 @@ def main():
     p.add_argument("--go-module", required=True, metavar="PATH",
                    help="the Go module's path, which a proxy you run serves, /vN suffix included")
     p.add_argument("--rust2", help="the rust2 commit to pin; this checkout's by default")
-    p.add_argument("--scope", help="the npm and JSR scope of the crate's web package, without its @; without it, none ships")
-    p.add_argument("--maven-group", help="the Maven groupId of the crate's Android library, a namespace you hold on Central; without it, none ships")
+    p.add_argument("--scope", help="the npm scope of the crate's web and React Native packages, and the web's JSR one, without its @; without it, neither ships")
+    p.add_argument("--maven-group", help="the Maven groupId of the crate's Kotlin binding, a namespace you hold on Central; without it, none ships")
     args = parser.parse_args()
     # winapi links MinGW import libraries of its own, from cargo's registry, where nothing
     # linking the Go module's static library finds them: the system's serve every check and
@@ -3726,6 +4497,12 @@ def main():
         web(args)
     elif args.command == "consume-web":
         consume_web(args.dist, args.check, args.native)
+    elif args.command == "react-native":
+        pairs = lambda items: dict(item.split("=", 1) for item in items)  # noqa: E731
+        print(react_native_package(facts(args.manifest_path), args.manifest_path, args.export, args.android, pairs(args.lib),
+                                   pairs(args.native), args.scope, args.sbom, args.out))
+    elif args.command == "consume-react-native":
+        consume_react_native(args.dist, args.platform, args.check, args.native)
     elif args.command == "digest":
         print(digest(args.export, facts(args.manifest_path)["lib"]))
     elif args.command == "swift":
@@ -3745,6 +4522,8 @@ def main():
         print(maven(args))
     elif args.command == "consume-android":
         consume_android(args.repo, args.check, args.native)
+    elif args.command == "consume-jvm":
+        consume_jvm(args.repo, args.check, args.native)
     elif args.command == "consume-python":
         consume_python(args.check, args.native, args.module)
     elif args.command == "consume-c":

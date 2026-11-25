@@ -5,7 +5,7 @@ stand-in `just ffi bench` exports, against BoltFFI's numbers below as targets.
 
 ```bash
 nix develop .#bench --command just ffi bench  # build, run 3 rounds, and write ffi/target/bench/report.md
-nix develop .#bench --command just ffi bench-run 5  # rerun what bench-build built, 5 rounds
+nix develop .#bench --command just ffi bench-run 5  # rerun what `bench` built, 5 rounds
 nix develop .#android --command just ffi bench-android  # the Kotlin rows on HotSpot and on the Android device adb reaches
 ```
 
@@ -13,7 +13,9 @@ nix develop .#android --command just ffi bench-android  # the Kotlin rows on Hot
 on the stand-in's API from Rust, and `moq-c.c` moq's hand-written rs/libmoq, which
 has only the stamped write. `export.ts` runs on Node and, through `browser.ts`, in
 headless Chromium and Firefox, over a wasm32-wasip1 build of the stand-in
-([TypeScript](#typescript)). Each program runs its cases twice and prints the second,
+([TypeScript](#typescript)), and on Hermes through the React Native binding of the export
+([React Native](#react-native)), and on Node through the Node binding's addon
+([Node-API](#node-api)). Each program runs its cases twice and prints the second,
 so a JIT has warmed up, in wall time and in the process's CPU time on every thread.
 `just ffi bench-run` runs each program once a round, records the 1-minute load average
 over each run, and [`report.py`](report.py) prints each case's median over the rounds
@@ -22,8 +24,8 @@ from an emptied target and without a compiler cache, the export (`rust2-ffi`, wh
 runs a release `cargo check` of moq under its driver) beside moq's own of the same
 crates, and the generated crate's release build beside moq's own release build, each with
 its peak RSS, through [`measure.py`](measure.py). Nightly runs it on arm64 Linux into
-the run's summary; nothing fails on a number. [CodSpeed](#codspeed) counts each
-single-threaded case on every push to main and on each PR that can move one.
+the run's summary; nothing fails on a number. [Instruction counts](#instruction-counts)
+count each single-threaded case nightly on main for Kixel Quest.
 
 | case | what it times | BoltFFI's nearest |
 |---|---|---|
@@ -52,19 +54,21 @@ each equals its single-thread row. A clone is a new handle over the same Rust va
 both cases share moq's own state and differ only in the binding's: the gap between them is
 what a binding's run-time checks cost under contention. The handle call also takes moq's
 read lock, which all four threads share in both cases; the getter takes none. C, C++,
-Kotlin, Swift, and Python use OS threads, and Go goroutines. Dart has no number: an
+Kotlin, Swift, Python, and C# use OS threads, and Go goroutines. Dart has no number: an
 isolate cannot receive another's object, so no two threads ever borrow one handle.
-TypeScript has none either: the module runs on the one JavaScript thread that loaded it.
+TypeScript and React Native have none either: the module runs on the one JavaScript thread
+that loaded it.
 
 A woken read starts its read the language's own way: by polling in C, C++, and Rust; a
 `Task` and a yield in Swift and Python; a goroutine and a yield in Go; an undispatched
-coroutine in Kotlin; an eager call in Dart; and in TypeScript, a promise made before the
+coroutine in Kotlin; an eager call in Dart; a `ValueTask` made before the write in C#,
+whose wake polls it again on the thread pool; and in TypeScript, a promise made before the
 write, which polls once and pends. So it measures a task's start and its
 wake, and in Swift, Python, and Go, a read the scheduler had not yet started is ready
 instead of woken.
 
 The `loop` case removes task creation per frame: one reader loops over all groups and
-one writer supplies them. Kotlin, Python, Dart, Swift, and TypeScript include a permit handoff per
+one writer supplies them. Kotlin, Python, Dart, Swift, C#, and TypeScript include a permit handoff per
 frame and an acknowledgement before advancing groups, bounding queued work. Swift runs
 on its default global pool. Its writer can race the read's first poll, so this is a
 streaming workload, not an isolated measurement of every read suspending.
@@ -91,41 +95,44 @@ peaks near 290 MB there. Go and Swift peak at 1.1 and 1.2 GB, as their reads run
 threads, each with a glibc malloc arena that keeps what it freed: with
 `MALLOC_ARENA_MAX=1` they peak near 330 and 400 MB.
 
-## CodSpeed
+## Instruction counts
 
-[CodSpeed](https://app.codspeed.io/kixel-ai/rust2) keeps main's history of each
-single-threaded case, and comments on a PR whose run changes a case, with its change per
-case.
-[`codspeed.yml`](../../.github/workflows/codspeed.yml) runs on every push to main, its
-baseline, and on each PR that changes what `just ffi bench` reads: it builds the programs in
-the bench shell, then runs `just ffi codspeed` under CodSpeed's CPU simulation in that
-shell's environment, so Nix itself never runs under Valgrind. It is informational: no
-threshold fails it and no ruleset requires it.
+[rust2-bench](../runner/README.md) counts each single-threaded case's instructions under
+stock Valgrind for Kixel Quest, which keeps main's history of each and bisects a regression
+to its PR. [`valgrind.yml`](../../.github/workflows/valgrind.yml)
+runs `just ffi count` in the bench shell nightly on main, and on each commit a bisect
+dispatches it on, with the benchmarks it narrows down as its `benchmarks` input, and uploads
+the `metrics.json` it writes as its `kixel-metrics` artifact. No pull request runs it:
+nothing fails on a count, so a change compares on its own host instead.
 
 ```bash
-nix develop .#bench --command just ffi bench-build
-nix develop .#bench --command codspeed run --mode simulation -- just ffi codspeed  # CodSpeed's CLI, on Ubuntu or Debian
+nix develop .#bench --command just ffi count run                 # each case's count
+nix develop .#bench --command just ffi count compare origin/main # each case's change from main
 ```
+
+`just ffi count` builds the programs with `bench-build`, then runs each language of
+`count_langs` in its own Valgrind process, at once.
 
 Each program calls CodSpeed's
 [instrument-hooks](https://github.com/CodSpeedHQ/instrument-hooks), which the flake pins,
 through [`codspeed.h`](../../ffi/moq/bench/codspeed.h) and its own FFI around each case:
-one benchmark per language and case, such as `python::write` or `c::throughput[1024]`.
-Under CodSpeed a program runs its round once, without the warm-up round, and with a tenth
-of the groups (so 100,000 calls a case, Python's 10,000), since the simulation counts
-every call exactly and costs 50 to 100 times the program's own time. It skips the
-`shared:*`, `own:*`, and Kotlin's `objects` cases: the simulation runs one thread at a
-time, so it would count a contention that never happens. It counts instructions and
-simulated cache misses, not time, so a system call or a wait costs nothing in it. The
-tables below keep wall and CPU time, and a case's absolute count is for its whole loop,
-not a call: read CodSpeed for each case's change.
+one benchmark per language and case, such as `ffi/moq/bench/export.py::python::write` or
+`ffi/moq/bench/export.c::c::throughput[1024]`. The Rust floor's cases are `#[bench]`
+functions instead, counted through [rust2-bench-harness](../runner/harness/README.md) under the
+same names, such as `ffi/moq/bench/export.rs::rust::write`, each with a broadcast of its own.
+Counted, a program runs its round once, without the warm-up round, and with a tenth of the groups (so 100,000 calls a case, Python's
+10,000), since Valgrind counts every call exactly and costs 50 to 100 times the program's own
+time. It skips the `shared:*`, `own:*`, and Kotlin's `objects` cases: Valgrind runs one
+thread at a time, so it would count a contention that never happens. It counts instructions,
+not time, so a system call or a wait costs nothing in it. The tables below keep wall and CPU
+time, and a case's absolute count is for its whole loop, not a call: read a count for each
+case's change.
 
 A language joins only if its counts hold still: the same build, run twice, must move no
-case far enough for CodSpeed to report a change, which its default 10% regression
-threshold decides. `codspeed_langs` in [`ffi/justfile`](../../ffi/justfile) lists those
-that pass. Measured 2026-11-14 on **nixos** with stock Valgrind 3.27.1 and the flags
-CodSpeed's runner passes, without its fork's cycle estimation, in pairs of runs of one
-build, the largest move of any case between two runs:
+case by more than a few percent. `count_langs` in [`ffi/justfile`](../../ffi/justfile) lists
+those that pass. Measured 2026-11-14 on **nixos** with stock Valgrind 3.27.1 and the flags
+CodSpeed's runner passed, in pairs of runs of one build, the largest move of any case
+between two runs:
 
 | language | largest move | |
 |---|---|---|
@@ -136,26 +143,43 @@ build, the largest move of any case between two runs:
 | Go | 362% (`stamped`), 330% (`record`), 84% (`loop`) | leaves: its collector and scheduler run inside each case, and its preemption signal crashes Callgrind unless `GODEBUG=asyncpreemptoff=1` |
 | Kotlin | 172% (`call`), 108% (`getter`) | leaves: without the warm-up, the JIT's and collector's threads compile and collect inside each case, and the JVM's C2 code crashes under Valgrind unless its implicit null checks are off |
 | Dart | does not run | leaves: the VM maps its code at an address hint off a page boundary, which Valgrind refuses |
-| TypeScript (Node) | 2.6% (`ready`), every other case under 2.3% | joins, with V8's flags below |
+| C# | not measured | leaves until a pair of runs holds: CoreCLR's tiered JIT and collector run on their own threads |
+| TypeScript (Node) | 0.0003% (`payload[16]`), measured 2026-11-24 on **fedora** under rust2-bench | joins: see below |
 
-Node joined on 2026-11-16, measured on **fedora** the same way, Node 24.22.2. With V8's
-default flags, two runs moved `write` 113%, `stamped` 69%, and `ready` 49%: V8 compiles,
-sweeps, and collects on its own threads, by time. `--predictable --single-threaded
---v8-pool-size=0` keeps all of that on the main thread, which left 36%
-(`payload[1048576]`); `--predictable-gc-schedule`, so a collection follows allocation
-rather than time, left 16% (`throughput[1048576]`); and a full `gc()` before each case,
-through `--expose-gc`, left the 2.6% above. `just ffi codspeed` passes all four flags
-under `RUST2_CODSPEED`, and `bench-run`, which times, passes none. The Chromium and Firefox
-columns stay out: CodSpeed's simulation runs one process, not a browser. Building the
-wasm32 module adds about 5 minutes to the workflow's build, and Node's cases about 6 to its
-simulation.
+Node, 24.22.2, holds still only once neither V8 nor moq reads time while counted. V8
+compiles, sweeps, and collects on its own threads, by time, and Valgrind counts every
+thread: with its default flags, two runs moved `write` 113%. `bench-program` passes, under
+`RUST2_CODSPEED`, `--single-threaded`, which keeps that work on the main thread;
+`--predictable --predictable-gc-schedule`, so a collection follows allocation rather than
+time; `--expose-gc`, so `export.ts` collects before each case; and `--wasm-sync-tier-up`,
+so the module's hot functions compile where they trip their budget, not on a worker
+whenever it gets to them, which `--single-threaded` leaves on. `bench-run`, which times,
+passes none. And under Valgrind `export.ts` replays the clock and the random bytes the
+module's WASI imports read: a clock a microsecond later each read, from a fixed origin.
+moq stamps each frame's arrival and keys its accounting by it, so with the host's clock a
+count depended on how slowly Valgrind ran the case and on the host's load.
 
-On CI, two runs of one commit (kixel-ai/rust2#805's 11a94ff, a `pull_request` run and a
-`workflow_dispatch` one) left all 58 benchmarks untouched in CodSpeed's comparison: the
-largest move was Python's `throughput[1024]`, 2.4%, then its `throughput[100]` and
-`ready`, under 2%, and every one of Rust's, C's, C++'s, and moq-c's rounded to 0%.
+Two runs of one build on **fedora**, the largest move of any case, as each fix joined:
 
-Each leaver keeps its hooks, so it rejoins by `codspeed_langs` once a pair of runs holds.
+| Node under | largest move |
+|---|---|
+| V8's default flags | 113% (`write`), 69% (`stamped`), 49% (`ready`) |
+| the four flags it had under CodSpeed, `--v8-pool-size=0` the fourth | 63% (`ready`), 56% (`write`), 54% (`woken`), on hosted runs and **fedora** |
+| those, and the replayed clock | 8.3% (`write`), 5.6% (`woken`) |
+| `--wasm-sync-tier-up` too, without `--v8-pool-size=0` | 0.0003% (`payload[16]`) |
+
+`--v8-pool-size=0` is gone because Node reads 0 as a pool sized by the host's cores, 31
+workers on **fedora**, not as none. `--no-incremental-marking` also held still, but made
+each collection that the payloads' external memory starts a full pause, 6.5 times
+`throughput[1024]`'s count, so incremental marking stays. The Chromium and Firefox columns
+stay out: a browser's processes would each count apart.
+
+On CI, two runs of one commit under CodSpeed (kixel-ai/rust2#805's 11a94ff) left all 58
+benchmarks untouched: the largest move was Python's `throughput[1024]`, 2.4%, then its
+`throughput[100]` and `ready`, under 2%, and every one of Rust's, C's, C++'s, and moq-c's
+rounded to 0%.
+
+Each leaver keeps its hooks, so it rejoins by `count_langs` once a pair of runs holds.
 
 ## Concurrent calls
 
@@ -1045,6 +1069,32 @@ modeled `-Coverflow-checks=on` added: every crate but the facade is then served.
 leaves the facade's own check, which a dev build of rust2-ffi takes about two minutes on
 one thread to analyze and generate, and a release build under 20 seconds.
 
+Which build of rust2-ffi serves the queue was measured the same day on **desktop** at a load
+average of 16 to 34, the stand-in's export alone and then the queue's whole `ffi` test phase
+(`just test` since `origin/main`: the surface check, `moq-c`, and `cargo test`, through
+`quest gate`). Cold removes `ffi/target`; warm touches `ffi/src/main.rs`, so rust2-ffi
+rebuilds and nothing else does. Each is one run, so a gap under about 20 percent is noise.
+
+| rust2-ffi's dev profile | export alone | build | `just test`, cold | `just test`, warm |
+|---|---|---|---|---|
+| unoptimized | 138 s | | 574 s | 350 s |
+| `opt-level = 1`, rust2-ffi | 82 s | 26 s | | |
+| `opt-level = 1`, and rust2-driver | 90 s | 28 s | | |
+| `opt-level = 3`, rust2-driver alone | 111 s | 18 s | | |
+| `opt-level = 3`, rust2-ffi alone | 26 s | 36 s | 620 s | 203 s |
+| `opt-level = 3`, both | 20 s | 37 s | 460 s | 164 s |
+| `--release` in the recipes | | | failed, see below | 413 s |
+
+The facade's check and the generator are rust2-ffi's own code, and rust2-driver's share is
+small, so `opt-level = 1` recovers only 40 percent of the export's time and 3 recovers
+nearly all of a release build's. CPU time agrees with the wall time: cold 1,481 s of user
+time unoptimized against 1,159 s at 3 for both, and warm 452 against 252. Optimizing the
+dependencies too is what `--release` adds, and it also builds the test crates and their
+dependencies in release, so its warm run, which built them, took longer than the
+unoptimized build. Its cold run stopped at an mbx lockfile collision between moq's
+checkout and the copy mbx kept of it, which the other variants did not meet, and was not
+repeated.
+
 ### Lending returned bytes
 
 Bytes a call returns are an [`rt.Bytes`](../../ffi/README.md#typescript-web): up to 64 B a copy, and
@@ -1085,6 +1135,220 @@ million were still held at the loop's end, and each cost 628 ns against a dispos
 275. So `rt.Bytes` lends only while lent bytes stay under a quarter of the memory, and
 while the memory has grown by no more than a third since none were lent, which bounds
 a returned slice that keeps a larger buffer whole; it copies past either.
+
+## C#
+
+Measured 2026-11-22 on **desktop** (Intel Core Ultra 7 270K Plus, 24 threads) at rust2
+`34d46770` with returned bytes lent past 512, moq `1aa86d5e`, .NET 10.0.14 on CoreCLR's
+tiered JIT, beside C from the same export, in turn for 3 rounds at a load of 30 from other
+agents' builds, so read the C# column against C's from the same runs, not against the
+tables above. CPU time, ns per call, and MB per CPU second for throughput:
+
+| case | C | C# |
+|---|---|---|
+| `track.is_closed()`, a handle call | 16 | 34 |
+| `demand.start()`, a u64 getter | 8.4 | 22 |
+| the getter on 4 threads, one shared handle | 11 | 24 |
+| the getter on 4 threads, a clone each | 9.3 | 21 |
+| `track.largest()`, a record return | 28 | 71 |
+| `track.info()`, an object return | 35 | 115 |
+| `info.priority`, a field | 8.8 | 24 |
+| `group.write_frame(at, frame)`, 100 B | 164 | 175 |
+| the same, with a new `Timestamp` each | 178 | 261 |
+| a 100 B frame written and read, ready | 303 | 422 |
+| the same, read after a wake | 444 | 5,159 |
+| `frame.payload`, 100 B | 26 | 64 |
+| throughput, 100 B frames | 307 | 188 |
+| throughput, 1 KiB | 2,564 | 1,408 |
+| throughput, 64 KiB | 7,869 | 5,447 |
+| throughput, 1 MiB | 7,841 | 6,198 |
+
+`frame.payload` by size, C# alone, ns per call: 16 B 47, 64 B 54, 100 B 56, 256 B 79,
+1 KiB 81, 4 KiB 88, 64 KiB 87, 1 MiB 85. Past 512 bytes it lends Rust's buffer, so a read
+costs the same at any size; at 1 KiB, a copy measured 111. Before the lend, a copy into a
+managed array from the large object heap, 1 MiB frames ran at 1,832 MB/s against C's
+10,422. What separates 1 MiB from C now is the write: per frame, `write_frame` took 240 µs
+at 1 MiB against 5 at 64 KiB, Rust allocating its copy of the frame in fresh pages, while
+the read stayed under 0.4 µs.
+
+A call holds its handle as Kotlin's and Go's do ([Concurrent calls](#concurrent-calls)).
+Before it did, with a count of its own on each object that every call wrote, 4 threads
+sharing one handle cost 208 ns a getter, against 37 on a clone each, at a load of 22. A
+woken read awaits a `ValueTask` whose wake posts its next poll to the thread pool, never
+running it inside Rust's wake, so a pool thread's handoff dominates it.
+
+## React Native
+
+`just ffi rn-bench`, which `just ffi bench` runs, takes `export.ts` over the export's React
+Native binding on Hermes off a device: the TurboModule's JSI module and moq's library in
+`ffi/tests/rn_host.cpp`, an event loop that runs what the module posts, as React Native's JS
+thread does, on the flake's Hermes, built from source at the tag React Native 0.88.1 pins.
+The script is bundled by esbuild, sloppy, with async generators lowered, as React Native's
+Babel preset does, but classes and their private fields kept, as Hermes V1 runs them.
+The preset lowers a private field to a property under a unique key (its `loose` mode),
+which esbuild cannot; esbuild would lower one into a `WeakMap`, which cost a record return
+1,112 ns of CPU and an object return 979 in one run, against 530 and 753 kept. The host
+gives `process.cpuUsage` from `getrusage`, so its CPU columns count every thread, Hermes's
+collector's included.
+
+Measured 2026-11-23 on **desktop**, an Intel Core Ultra 7 270K Plus (24 threads), at rust2
+`4731dbb2` plus this harness, moq `1aa86d5e`, 3 rounds at a load average of 7 to 18, with C
+and Node from the same rounds for scale: Node runs the wasm32 stand-in's web binding, as
+[TypeScript](#typescript) does. Hermes `260318099.0.5`, Node 24.22.2, GCC 16.2.0, the export's
+default `release` profile. CPU ns per call:
+
+| call | C | Node | React Native (Hermes) |
+|---|---|---|---|
+| `track.is_closed()`, a handle call | 18 | 49 | 205 |
+| `demand.start()`, a u64 getter | 10 | 43 | 196 |
+| `track.largest()`, a record return | 28 | 63 | 572 |
+| `track.info()`, an object return | 35 | 110 | 857 |
+| `group.write_frame(at, frame)`, 100 B | 171 | 202 | 1,358 |
+| the same, with a new `Timestamp` each | 177 | 301 | 2,232 |
+| a 100 B frame written and read, ready | 285 | 569 | 3,315 |
+| the same, read after a wake | 421 | 1,429 | 6,155 |
+| one reader and writer, with their handoff |  | 1,535 | 6,886 |
+| `frame.payload`, 100 B | 20 | 136 | 2,213 |
+
+| frame, MB per CPU second | C | Node | React Native (Hermes) |
+|---|---|---|---|
+| 100 B | 329 | 116 | 16 |
+| 1 KiB | 2,675 | 1,260 | 148 |
+| 16 KiB | 10,303 | 7,388 | 1,927 |
+| 64 KiB | 13,242 | 6,429 | 2,598 |
+| 1 MiB | 26,220 | 4,958 | 3,693 |
+
+Hermes interprets the script, as React Native runs it, so a call costs 4 to 10 times
+Node's: the handle call, a
+JSI host function's dispatch, its argument's check, and the C call, is 205 ns, and each
+value a call makes in JavaScript, a record's object or a handle, adds hundreds more. A wake
+posts the read's next poll to the event loop, as a wake from another thread would, which
+costs the woken read 2.8 µs over the ready one.
+
+`frame.payload` copies the bytes up to 4 KiB, and past them lends Rust's buffer, whose
+native state frees it, with an `at` and a dispose that are each a host call. Measured
+2026-11-23 on **fedora**, an AMD Ryzen 9 9950X (32 threads), at rust2 `779cf315` plus this
+change, moq `1aa86d5e`, 3 rounds at a load average of 6 to 18, by the host built with the
+module forced to copy every size, and to lend every size, wall ns per call: the benchmark's
+`frame.payload` with a byte read, then the same with `slice()` in its place, then with the
+bytes written back to Rust in a frame, as a relay does.
+
+| bytes | read a byte, copy / lend | `slice()`, copy / lend | written back, copy / lend |
+|---|---|---|---|
+| 256 B | 784 / 1,089 | 1,032 / 1,529 | 1,968 / 2,320 |
+| 1 KiB | 875 / 1,095 | 1,255 / 1,606 | 1,956 / 1,924 |
+| 2 KiB | 952 / 1,107 | 1,147 / 2,264 | 2,225 / 2,071 |
+| 4 KiB | 1,057 / 1,050 | 1,342 / 1,967 | 2,616 / 2,361 |
+| 8 KiB | 1,426 / 1,359 | 1,510 / 2,268 | 3,342 / 2,809 |
+| 16 KiB | 1,977 / 996 | 1,621 / 2,920 | 4,640 / 3,377 |
+
+A read of a byte breaks even at 4 KiB in wall time, and in CPU time between 8 and 16 KiB,
+since the lend's CPU counts the collector finalizing its native state: 1,052 against 1,212
+ns at 4 KiB. A copy's `slice()` is one `set` in the engine, still the cheaper at 16 KiB; a
+loop by index, as it was, took 78 µs at 4 KiB. A copy written back costs Rust a second copy,
+so a relay's lend pays from 2 KiB, by 10% at 4 KiB. The threshold is 4 KiB, where the byte
+read the benchmark times breaks even. Past it a lend saves the copy, 150 µs at 1 MiB, where
+each copy's allocation faults its pages in. The benchmark's own 100 B `frame.payload`, lent in the table above, is a copy
+since: 723 ns of wall time and 721 of CPU in the same rounds, against 930 and 1,037 lent.
+
+The binding's generated files, as [Size](#size) counts them, at the same revision, beside
+C's header of the same export (2,483 KiB raw, 315 KiB gzipped):
+
+| React Native | files | raw | gzip |
+|---|---|---|---|
+| the TypeScript, as the web's | 582 | 2,747 KiB | 842 KiB |
+| the JSI module and TurboModule, C++ | 4 | 4,666 KiB | 270 KiB |
+| the package's podspec, CMake list, iOS loader, and manifests | 5 | 3 KiB | 2 KiB |
+| all | 591 | 7,416 KiB | 1,113 KiB |
+
+## Node-API
+
+The `ts-addon` column runs `export.ts` on Node over the Node binding of the export: the
+web's TypeScript, its imports and load rewritten, over the Node-API addon the export's
+library builds with `--features node`, beside the `ts-node` column's wasm32 stand-in on
+the same Node, so the two differ by what each crossing costs.
+
+Measured 2026-11-24 on **fedora**, an AMD Ryzen 9 9950X (32 threads), at
+[the lowering PR](https://github.com/kixel-ai/rust2/pull/1004), moq `1aa86d5e`, alternating
+rounds at a load average of 12 to 33: 8 of the addon, 2 of them slow throughout, and 5 of
+wasm32. Node 24.22.2, the export's default
+`release` profile. CPU ns per call, medians:
+
+| call | Node, wasm32 | Node, Node-API |
+|---|---|---|
+| `track.is_closed()`, a handle call | 58 | 40 |
+| `demand.start()`, a u64 getter | 52 | 25 |
+| `track.largest()`, a record return | 65 | 102 |
+| `track.info()`, an object return | 138 | 105 |
+| `group.write_frame(at, frame)`, 100 B | 321 | 283 |
+| the same, with a new `Timestamp` each | 463 | 436 |
+| a 100 B frame written and read, ready | 866 | 914 |
+| the same, read after a wake | 1,822 | 2,166 |
+| one reader and writer, with their handoff | 1,902 | 2,357 |
+| `frame.payload`, 100 B | 171 | 273 |
+
+| frame, MB per CPU second | Node, wasm32 | Node, Node-API |
+|---|---|---|
+| 100 B | 88 | 87 |
+| 1 KiB | 859 | 786 |
+| 16 KiB | 7,094 | 6,729 |
+| 64 KiB | 12,881 | 11,608 |
+| 1 MiB | 15,125 | 9,682 |
+
+Each native function converts its own arguments, holds its handles in the addon's table,
+and throws a failed status, so a call of numbers and handles alone is one call in its
+TypeScript, as on React Native, and costs 18 to 27 ns less than wasm32's. Before it, in
+the same rounds, the addon's handle call cost 86 ns, its getter 71, and its object return
+198, each running the web's `rt.enter`, `rt.hold`, status slot, and `rt.leave` around the
+call. The crossing itself costs 24 to 30 ns, where V8 compiles a call into wasm inline with
+the JavaScript, so a call that still lowers through the scratch memory, as a record return
+does, costs that much more than wasm32's: a Node-API object costs more to make or read
+than the bytes, 345 ns to return one against 45. A wake calls back into JavaScript through
+`napi_call_function`, where the module calls an import, which costs the woken read 0.3 µs
+more.
+
+A handle's id carries its slot's generation, so the addon refuses an id read before its
+handle closed rather than take it for the object in its slot now. Against the same addon
+without it, in 6 alternating rounds at a load average of 12 to 17, the handle call cost 42
+ns against 40.5 and the getter 26.4 against 25.6, and every other call but one moved within
+the rounds' spread. `frame.payload` cost 10 to 27 ns more at every size, which the same
+call on the api fixture does not show: it ran 0.2% more instructions there. Once its slot
+was reused, an id passes 2^31, which V8 holds as a heap number, so making a handle there
+costs about 16 ns more, most of the 0.85% more instructions the whole run took.
+
+Every number here is a call made while JavaScript holds no token Rust may call through
+from another thread, as `export.ts` holds none, nor does moq's script: its session's
+`Waiter.new$` takes a waker, which a wake from another thread queues without a token. While
+JavaScript holds one, as a pending `clockDrive` does through its closure, every call runs on
+the addon's worker thread while JavaScript's serves what Rust queues, each spinning 20 µs
+for the other before it parks. moq's `track.is_closed()` then cost 184 to 215 ns of wall
+time and 367 to 429 of CPU, from 2,990 to 8,500 ns of wall time and 2,290 to 2,840 of CPU
+at origin/main: 3 rounds of 200,000 calls each, at a load average near 25. Dart's binding
+waits the same way, without the spin. [Node's lowering](/quest/m3/node-lowering.md) owns
+the rest.
+
+`frame.payload` up to 64 bytes copies through the scratch memory, one native call of
+numbers alone; a copy into a new `Uint8Array`, a call reading the array's place, cost about
+560 in an earlier run. Past them it lends Rust's buffer at any length, telling V8 of the
+bytes held and freed, two calls more.
+
+| bytes | Node, wasm32 | Node, Node-API |
+|---|---|---|
+| 16 B | 184 | 228 |
+| 64 B | 171 | 230 |
+| 100 B | 155 | 274 |
+| 1 KiB | 159 | 271 |
+| 16 KiB | 160 | 264 |
+| 64 KiB | 155 | 271 |
+| 256 KiB | 161 | 265 |
+| 1 MiB | 174 | 286 |
+
+The binding's TypeScript is the web's, 582 modules of 4,953 KiB raw and 1,081 KiB gzipped,
+and its Rust glue 3,420 KiB raw and 187 KiB gzipped. In `libmoq.so` it adds 5,412 KiB,
+stripped, to the Kotlin and Dart glue's 40,443 KiB: 3.1 MiB of native functions, one for
+each of 6,593 C functions, and the call each makes.
+`just ffi bench` builds the generated crate, and times its build, with that glue too, which
+the build and size rows above predate.
 
 ## Consumer release profile
 

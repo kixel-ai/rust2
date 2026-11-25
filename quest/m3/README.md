@@ -6,7 +6,8 @@ Work that waits on evidence or has no consumer yet: two waits on upstream's buil
 levers ([relink](/quest/m3/relink.md) and [TPDE](/quest/m3/tpde.md)) and
 [the benchmark on bare metal](/quest/m3/bench-metal.md), the translator's features that
 wait on [the gate](/quest/m2/wasm/README.md), the binding targets planned ahead of a
-consumer, what waits on moq, and [crabx's GitHub App](/quest/m3/crabx-app.md).
+consumer, and what waits on moq. crabx's GitHub App moved to
+[kixel-ai/crabx](https://github.com/kixel-ai/crabx).
 
 ## Plan
 
@@ -39,6 +40,18 @@ value, and NaN payloads may change. Of the runtimes a host language embeds, only
 wasmtime and JavaScript's jco run p3 components. A core module still needs a binding per
 host language over its runtime, as the web target's is over JavaScript, so none is planned
 until a host asks for one; [the pure-Go epic](/quest/m4/go/README.md) weighs Go's.
+
+The Node report ([kixel-ai/rust2#970](https://github.com/kixel-ai/rust2/pull/970), 2026-11-22)
+kept the Node-API addon and dropped a thin file over `node:ffi`. On
+bench/ffi's cases from Node 26, the addon was fastest on every per-call case, against the
+web target and `node:ffi`, and it alone takes a call into JavaScript from Rust's own thread, which
+moq-tokio's every wake is and the web target cannot build. `node:ffi` aborts on one, has
+no struct type, and was slower than the web target on every per-call case.
+The generated addon ([the binding](/ffi/README.md#node)) runs moq's script, its QUIC session
+included, on Node, Bun, and Deno. Each native function converts its own arguments, holds
+its handles, and throws a failed status. For the measured cost, see
+[the benchmark](/bench/ffi/README.md#node-api); [a call while JavaScript holds a token](/quest/m3/node-lowering.md) still hands
+off to a worker thread.
 
 Decided with the maintainer on 2026-11-12, in the quest audit:
 
