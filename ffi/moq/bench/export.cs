@@ -2,7 +2,7 @@
 // the C# wrapper add. Each round runs twice, the first to warm the JIT. Each case prints
 // its wall time and the process's CPU time, the JIT's and GC's threads included, or under
 // Valgrind, runs once for rust2-bench to count. Its argument is
-// moq/bench/codspeed.h's shared library.
+// moq/bench/hooks.h's shared library.
 
 #nullable enable
 
@@ -18,7 +18,7 @@ using Moq;
 /// Wall and CPU nanoseconds: a point, or a span per call.
 readonly record struct Span(double Wall, double Cpu);
 
-/// The clocks and CodSpeed's hooks, apart from the bench's `async` code, which C# keeps
+/// The clocks and Callgrind's hooks, apart from the bench's `async` code, which C# keeps
 /// out of an unsafe context.
 static unsafe class Clock
 {
@@ -50,13 +50,13 @@ static unsafe class Clock
 		return new Span(Wall.ElapsedTicks * 1e9 / Stopwatch.Frequency, ts.Sec * 1e9 + ts.Nsec);
 	}
 
-	/// Opens moq/bench/codspeed.h's library, returning whether Valgrind counts this.
+	/// Opens moq/bench/hooks.h's library, returning whether Valgrind counts this.
 	public static bool Open(string path, string bench)
 	{
 		var lib = NativeLibrary.Load(path);
-		init = (delegate* unmanaged<byte*, byte>)NativeLibrary.GetExport(lib, "codspeed_init");
-		start = (delegate* unmanaged<void>)NativeLibrary.GetExport(lib, "codspeed_start");
-		stop = (delegate* unmanaged<byte*, void>)NativeLibrary.GetExport(lib, "codspeed_stop");
+		init = (delegate* unmanaged<byte*, byte>)NativeLibrary.GetExport(lib, "hooks_init");
+		start = (delegate* unmanaged<void>)NativeLibrary.GetExport(lib, "hooks_start");
+		stop = (delegate* unmanaged<byte*, void>)NativeLibrary.GetExport(lib, "hooks_stop");
 		fixed (byte* name = Ascii(bench))
 		{
 			return init(name) != 0;

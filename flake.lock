@@ -18,23 +18,6 @@
         "type": "github"
       }
     },
-    "instrument-hooks": {
-      "flake": false,
-      "locked": {
-        "lastModified": 1793015678,
-        "narHash": "sha256-d86nCCmv++8BsuCCDbmaw4xdifbn22ic7R7dMWxfxR8=",
-        "owner": "CodSpeedHQ",
-        "repo": "instrument-hooks",
-        "rev": "8fd5b878499f819561b33219cdafaa6f8c28b4e4",
-        "type": "github"
-      },
-      "original": {
-        "owner": "CodSpeedHQ",
-        "repo": "instrument-hooks",
-        "rev": "8fd5b878499f819561b33219cdafaa6f8c28b4e4",
-        "type": "github"
-      }
-    },
     "nixpkgs": {
       "locked": {
         "lastModified": 1794495034,
@@ -139,7 +122,6 @@
     "root": {
       "inputs": {
         "flake-utils": "flake-utils",
-        "instrument-hooks": "instrument-hooks",
         "nixpkgs": "nixpkgs",
         "quest": "quest",
         "ra-jit": "ra-jit",
