@@ -9,7 +9,6 @@
 
 use std::path::{Path, PathBuf};
 
-use rustc_span::source_map::SourceMap;
 use rustc_span::{DUMMY_SP, Span};
 
 use crate::ir::{
@@ -32,20 +31,19 @@ pub(crate) struct Target {
 }
 
 impl Target {
-	/// Write it to `path`, with each span as its file and offsets in `source_map`, the
-	/// file relative to the first of `roots` it is in.
-	pub(crate) fn write(&self, path: &Path, source_map: &SourceMap, roots: &[PathBuf]) -> Result<(), String> {
-		let json = span::with(source_map, roots, || serde_json::to_string(self))
+	/// Write it to `path`, with each span as its file and offsets, the file relative to the
+	/// first of the roots it is in.
+	pub(crate) fn write(&self, path: &Path, spans: &span::Spans<'_>) -> Result<(), String> {
+		let json = span::with(spans, || serde_json::to_string(self))
 			.map_err(|err| format!("writing {}: {err}", path.display()))?;
 		crate::driver::write(path, &json)
 	}
 
-	/// Read what [`Self::write`] wrote, with each span loaded into `source_map` from
-	/// `roots`, or none where its file is not on this host as it was.
-	pub(crate) fn read(path: &Path, source_map: &SourceMap, roots: &[PathBuf]) -> Result<Self, String> {
+	/// Read what [`Self::write`] wrote, with each span loaded from its file, or none where
+	/// its file is not on this host as it was.
+	pub(crate) fn read(path: &Path, spans: &span::Spans<'_>) -> Result<Self, String> {
 		let json = std::fs::read_to_string(path).map_err(|err| format!("reading {}: {err}", path.display()))?;
-		span::with(source_map, roots, || serde_json::from_str(&json))
-			.map_err(|err| format!("reading {}: {err}", path.display()))
+		span::with(spans, || serde_json::from_str(&json)).map_err(|err| format!("reading {}: {err}", path.display()))
 	}
 }
 
@@ -805,32 +803,92 @@ fn cycle(crates: &[String], before: &[std::collections::BTreeMap<usize, (On, Spa
 
 /// Spans as their file and byte offsets, which a later session loads that file for.
 pub(crate) mod span {
-	use std::cell::Cell;
+	use std::cell::{Cell, RefCell};
+	use std::collections::HashMap;
 	use std::path::{Path, PathBuf};
 
 	use rustc_span::source_map::SourceMap;
 	use rustc_span::{BytePos, DUMMY_SP, FileName, Span};
 	use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
-	thread_local! {
-		static CONTEXT: Cell<Option<(*const SourceMap, *const [PathBuf])>> = const { Cell::new(None) };
+	/// Each file and directory a session's staged spans name, each looked for once rather
+	/// than once per span: a merge of 15 targets reads about 75,000 spans, and on macOS a
+	/// look for another host's path under `/home`, which autofs serves, takes about 11 ms.
+	#[derive(Default)]
+	pub(crate) struct Loaded {
+		/// A file found is its start in the source map and its length.
+		files: RefCell<HashMap<PathBuf, Option<(BytePos, u32)>>>,
+		/// Whether each directory is on this host, so another host's checkout costs one
+		/// look, at its first missing directory, not one per file.
+		dirs: RefCell<HashMap<PathBuf, bool>>,
 	}
 
-	/// Run `f` with spans read and written through `source_map`, their files relative to
-	/// `roots`.
-	pub(crate) fn with<R>(source_map: &SourceMap, roots: &[PathBuf], f: impl FnOnce() -> R) -> R {
-		let previous = CONTEXT.replace(Some((source_map, roots)));
+	/// What spans are read and written through: the session's source map, the roots their
+	/// files are relative to, and the files its reads loaded.
+	pub(crate) struct Spans<'a> {
+		source_map: &'a SourceMap,
+		roots: &'a [PathBuf],
+		loaded: &'a Loaded,
+	}
+
+	impl<'a> Spans<'a> {
+		/// Spans in `source_map`, relative to `roots`, sharing `loaded` with each read of
+		/// the session.
+		pub(crate) fn new(source_map: &'a SourceMap, roots: &'a [PathBuf], loaded: &'a Loaded) -> Self {
+			Self {
+				source_map,
+				roots,
+				loaded,
+			}
+		}
+
+		/// The start and length of the file at `path`, loaded on its first look.
+		pub(super) fn load(&self, path: PathBuf) -> Option<(BytePos, u32)> {
+			if let Some(&file) = self.loaded.files.borrow().get(&path) {
+				return file;
+			}
+			let file = match path.parent().is_none_or(|dir| self.dir(dir)) {
+				true => (self.source_map.load_file(&path).ok())
+					.map(|file| (file.start_pos, (file.end_position() - file.start_pos).0)),
+				false => None,
+			};
+			self.loaded.files.borrow_mut().insert(path, file);
+			file
+		}
+
+		/// Whether the directory `dir` is on this host, looked for only below a parent that is.
+		/// The empty one, a relative path's last parent, is the working directory.
+		fn dir(&self, dir: &Path) -> bool {
+			if dir.as_os_str().is_empty() {
+				return true;
+			}
+			if let Some(&found) = self.loaded.dirs.borrow().get(dir) {
+				return found;
+			}
+			let found = dir.parent().is_none_or(|parent| self.dir(parent)) && dir.is_dir();
+			self.loaded.dirs.borrow_mut().insert(dir.to_path_buf(), found);
+			found
+		}
+	}
+
+	thread_local! {
+		static CONTEXT: Cell<Option<*const Spans<'static>>> = const { Cell::new(None) };
+	}
+
+	/// Run `f` with spans read and written through `spans`.
+	pub(crate) fn with<R>(spans: &Spans<'_>, f: impl FnOnce() -> R) -> R {
+		let previous = CONTEXT.replace(Some((spans as *const Spans<'_>).cast()));
 		let result = f();
 		CONTEXT.set(previous);
 		result
 	}
 
-	fn context<R>(f: impl FnOnce(&SourceMap, &[PathBuf]) -> R) -> R {
-		let (map, roots) = CONTEXT
+	fn context<R>(f: impl FnOnce(&Spans<'_>) -> R) -> R {
+		let spans = CONTEXT
 			.get()
 			.expect("a span is read or written only within `span::with`");
-		// SAFETY: `with` sets them to references that outlive `f`'s run, then restores them.
-		f(unsafe { &*map }, unsafe { &*roots })
+		// SAFETY: `with` sets it to a reference that outlives `f`'s run, then restores it.
+		f(unsafe { &*spans })
 	}
 
 	/// A span's file, relative to the root at its index if it is in one, with `/` between
@@ -855,18 +913,18 @@ pub(crate) mod span {
 	}
 
 	pub(crate) fn serialize<S: Serializer>(span: &Span, s: S) -> Result<S::Ok, S::Error> {
-		let located = context(|map, roots| {
+		let located = context(|spans| {
 			// A staged span whose file was not on this host as it was: no file names it.
 			if span.is_dummy() {
 				return None;
 			}
 			let span = span.source_callsite();
-			let file = map.lookup_source_file(span.lo());
+			let file = spans.source_map.lookup_source_file(span.lo());
 			let FileName::Real(real) = &file.name else {
 				return None;
 			};
 			let path = real.local_path()?;
-			let (root, path) = match relative(path, roots) {
+			let (root, path) = match relative(path, spans.roots) {
 				Some((root, path)) => (Some(root), path),
 				None => (None, path.to_path_buf()),
 			};
@@ -885,20 +943,17 @@ pub(crate) mod span {
 		let Some(located) = Option::<Located>::deserialize(d)? else {
 			return Ok(DUMMY_SP);
 		};
-		Ok(context(|map, roots| {
+		Ok(context(|spans| {
 			let path = match located.root {
-				Some(root) => match roots.get(root) {
+				Some(root) => match spans.roots.get(root) {
 					Some(root) => root.join(&located.file),
 					None => return DUMMY_SP,
 				},
 				None => located.file,
 			};
-			match map.load_file(&path) {
-				Ok(file) if (file.end_position() - file.start_pos).0 == located.len && located.hi <= located.len => {
-					Span::with_root_ctxt(
-						file.start_pos + BytePos(located.lo),
-						file.start_pos + BytePos(located.hi),
-					)
+			match spans.load(path) {
+				Some((start, len)) if len == located.len && located.hi <= located.len => {
+					Span::with_root_ctxt(start + BytePos(located.lo), start + BytePos(located.hi))
 				}
 				// Its file is not on this host, or not as it was.
 				_ => DUMMY_SP,
@@ -920,6 +975,30 @@ mod tests {
 
 	use super::{On, cycle, linked, order_crates};
 	use crate::ir::{Access, Api, Enum, Field, Function, Home, Read, Traits, Type, Variant};
+
+	/// A staged span's file loads relative to the working directory, whose path's last
+	/// parent is empty, as well as absolute, and not from another host's checkout.
+	#[test]
+	fn spans_load_files_on_this_host() {
+		use std::path::PathBuf;
+
+		use rustc_span::source_map::{FilePathMapping, SourceMap};
+
+		use super::span::{Loaded, Spans};
+
+		rustc_span::create_default_session_globals_then(|| {
+			let map = SourceMap::new(FilePathMapping::empty());
+			let loaded = Loaded::default();
+			let spans = Spans::new(&map, &[], &loaded);
+			let load = |path: &str| spans.load(PathBuf::from(path));
+			let own = load("src/merge.rs");
+			assert!(own.is_some_and(|(_, len)| len > 0));
+			assert!(load(concat!(env!("CARGO_MANIFEST_DIR"), "/src/merge.rs")).is_some());
+			assert_eq!(load("/rust2-ffi-elsewhere/src/lib.rs"), None);
+			// Twice, the second from what the first found.
+			assert_eq!(load("src/merge.rs"), own);
+		});
+	}
 
 	/// Docs keep the target's whose links resolve more, as one lacking an item does not.
 	#[test]
