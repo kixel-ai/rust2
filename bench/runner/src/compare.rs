@@ -5,6 +5,7 @@ use std::fmt::Write;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
+use crate::cargo::Members;
 use crate::fingerprint::Fnv;
 use crate::{Counts, Options, measure, missing};
 
@@ -140,7 +141,7 @@ fn parse(args: &[String]) -> Result<Vec<Arg>, String> {
 			Arg::Bench(named("benchmark targets", name)?)
 		} else if let Some(list) = value("-F", "--features", &mut args)? {
 			Arg::Features(
-				list.split([',', ' '])
+				list.split(|c: char| c == ',' || c.is_whitespace())
 					.filter(|feature| !feature.is_empty())
 					.map(str::to_owned)
 					.collect(),
@@ -162,10 +163,10 @@ struct Selection {
 	features: Vec<String>,
 }
 
-/// The Cargo `args` for a side whose workspace has `members`, each with its benchmark targets:
-/// each package and benchmark target it lacks is left out, with each feature of a package left
-/// out, and a selection left with no package or no target selects nothing.
-fn select(args: &[Arg], members: &BTreeMap<String, BTreeSet<String>>) -> Selection {
+/// The Cargo `args` for a side whose workspace has `members`: each package and benchmark target
+/// it lacks is left out, with each feature of a package left out, and a selection left with no
+/// package or no target selects nothing.
+fn select(args: &[Arg], members: &Members) -> Selection {
 	let packages: Vec<&String> = args
 		.iter()
 		.filter_map(|arg| match arg {
@@ -176,12 +177,37 @@ fn select(args: &[Arg], members: &BTreeMap<String, BTreeSet<String>>) -> Selecti
 	let (kept, dropped): (BTreeSet<&str>, BTreeSet<&str>) = packages
 		.iter()
 		.map(|name| name.as_str())
-		.partition(|name| members.contains_key(*name));
-	// Cargo looks for `--bench` among the packages `-p` selects, or without one, the default
-	// members, which every member holds: a target only another member has fails its build.
-	let benches: BTreeSet<&String> = members
+		.partition(|name| members.benches.contains_key(*name));
+	let cargo: Vec<&str> = args
 		.iter()
-		.filter(|(name, _)| packages.is_empty() || kept.contains(name.as_str()))
+		.filter_map(|arg| match arg {
+			Arg::Other(arg) => Some(arg.as_str()),
+			_ => None,
+		})
+		.take_while(|arg| *arg != "--")
+		.collect();
+	let whole = cargo.iter().any(|arg| ["--workspace", "--all"].contains(arg));
+	let excluded: BTreeSet<&str> = cargo
+		.iter()
+		.zip(cargo.iter().skip(1))
+		.filter(|(flag, _)| **flag == "--exclude")
+		.map(|(_, name)| *name)
+		.chain(cargo.iter().filter_map(|arg| arg.strip_prefix("--exclude=")))
+		.collect();
+	// Cargo looks for `--bench` among the packages it builds: those `-p` selects, else every
+	// member but those excluded under `--workspace`, else the default ones.
+	let benches: BTreeSet<&String> = members
+		.benches
+		.iter()
+		.filter(|(name, _)| {
+			if !packages.is_empty() {
+				kept.contains(name.as_str())
+			} else if whole {
+				!excluded.contains(name.as_str())
+			} else {
+				members.default.contains(*name)
+			}
+		})
 		.flat_map(|(_, benches)| benches)
 		.collect();
 	let mut selection = Selection {
@@ -229,6 +255,17 @@ fn select(args: &[Arg], members: &BTreeMap<String, BTreeSet<String>>) -> Selecti
 /// What the side checked out under `dir`, which the log calls `side`, builds of `args`, the Cargo
 /// args of `options`: all of them unless `selects`, when they name a package or target it may lack.
 fn pick(dir: &Path, options: &Options, args: &[Arg], selects: bool, side: &str) -> Result<Selection, String> {
+	// A manifest only one side has, such as a new package's, selects nothing on the other.
+	if let Some(manifest) = crate::cargo::manifest_path(&options.cargo)
+		&& !dir.join(manifest).exists()
+	{
+		eprintln!("rust2-bench: {side} has no {manifest}, so counts none");
+		return Ok(Selection {
+			args: None,
+			lacks: BTreeSet::from([format!("--manifest-path {manifest}")]),
+			features: Vec::new(),
+		});
+	}
 	if !selects {
 		return Ok(Selection {
 			args: Some(options.cargo.clone()),
@@ -634,10 +671,14 @@ mod tests {
 
 	#[test]
 	fn selects_only_what_a_side_has() {
-		let members: BTreeMap<String, BTreeSet<String>> = [("a", &["x"][..]), ("c", &["z"])]
-			.into_iter()
-			.map(|(name, benches)| (name.to_owned(), benches.iter().map(|b| (*b).to_owned()).collect()))
-			.collect();
+		// Run from `a`'s directory, so `a` alone is the default.
+		let members = Members {
+			benches: [("a", &["x"][..]), ("c", &["z"])]
+				.into_iter()
+				.map(|(name, benches)| (name.to_owned(), benches.iter().map(|b| (*b).to_owned()).collect()))
+				.collect(),
+			default: BTreeSet::from(["a".to_owned()]),
+		};
 		let select = |args: &[&str]| select(&parse(&strings(args)).unwrap(), &members);
 
 		// A package and its feature, and a target, only the other side has.
@@ -661,11 +702,27 @@ mod tests {
 		assert_eq!(picked.lacks, strings(&["-p b", "--bench y"]).into_iter().collect());
 		assert_eq!(picked.features, ["b/f"]);
 
-		// A target is looked for among the packages selected, or without `-p`, every member.
+		// A target is looked for among the packages Cargo builds: those `-p` selects, else every
+		// member under `--workspace` but those excluded, else the default ones.
 		let picked = select(&["-p", "a", "--bench", "z"]);
 		assert!(picked.args.is_none());
 		assert_eq!(picked.lacks, BTreeSet::from(["--bench z".to_owned()]));
-		assert_eq!(select(&["--bench", "z"]).args.unwrap(), ["--bench", "z"]);
+		assert!(select(&["--bench", "z"]).args.is_none());
+		assert_eq!(
+			select(&["--workspace", "--bench", "z"]).args.unwrap(),
+			["--workspace", "--bench", "z"]
+		);
+		assert!(
+			select(&["--workspace", "--exclude", "c", "--bench", "z"])
+				.args
+				.is_none()
+		);
+		assert!(select(&["--all", "--exclude=c", "--bench", "z"]).args.is_none());
+		// Features split on whitespace as on commas.
+		assert_eq!(
+			select(&["-F", "a/g\nb/f", "-p", "a", "-p", "b"]).args.unwrap(),
+			["--features", "a/g", "-p", "a"]
+		);
 
 		// With every package or every target gone, the side selects nothing rather than everything.
 		assert!(select(&["-p", "b", "--features", "b/f"]).args.is_none());

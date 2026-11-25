@@ -262,14 +262,55 @@ fn workspace_root(dir: &Path, args: &[String]) -> Result<PathBuf, String> {
 		.to_owned())
 }
 
-/// Each member of the workspace in `dir`, by name, with the names of its benchmark targets.
-pub fn members(dir: &Path, args: &[String]) -> Result<BTreeMap<String, BTreeSet<String>>, String> {
+/// The members of a workspace, as a build selects among them.
+pub struct Members {
+	/// Each member by name, with the names of its benchmark targets.
+	pub benches: BTreeMap<String, BTreeSet<String>>,
+	/// The members a build selects without `-p` or `--workspace`: the workspace's default
+	/// members from its root, or else the package of the manifest the build finds.
+	pub default: BTreeSet<String>,
+}
+
+/// The members of the workspace the build `args` select from `dir`.
+pub fn members(dir: &Path, args: &[String]) -> Result<Members, String> {
 	let out = workspace(dir, args, &["metadata", "--format-version", "1", "--no-deps"])?;
 	let metadata: Value =
 		serde_json::from_slice(&out).map_err(|e| format!("cargo metadata printed something not JSON: {e}"))?;
-	metadata["packages"]
+	let packages = metadata["packages"]
 		.as_array()
-		.ok_or("cargo metadata listed no packages")?
+		.ok_or("cargo metadata listed no packages")?;
+	let out = workspace(dir, args, &["locate-project", "--message-format", "plain"])?;
+	let located = String::from_utf8(out).map_err(|_| "cargo located a manifest at a path not UTF-8")?;
+	let resolve = |path: &str| {
+		Path::new(path)
+			.canonicalize()
+			.map_err(|e| format!("cannot resolve {path}: {e}"))
+	};
+	let located = resolve(located.trim())?;
+	let root = metadata["workspace_root"]
+		.as_str()
+		.ok_or("cargo metadata named no workspace root")?;
+	let default = if located == resolve(root)?.join("Cargo.toml") {
+		let ids = metadata["workspace_default_members"]
+			.as_array()
+			.ok_or("cargo metadata listed no default members: it needs Cargo 1.71 or later")?;
+		packages
+			.iter()
+			.filter(|package| ids.contains(&package["id"]))
+			.filter_map(|package| package["name"].as_str().map(str::to_owned))
+			.collect()
+	} else {
+		let mut default = BTreeSet::new();
+		for package in packages {
+			if let Some(path) = package["manifest_path"].as_str()
+				&& resolve(path)? == located
+			{
+				default.extend(package["name"].as_str().map(str::to_owned));
+			}
+		}
+		default
+	};
+	let benches = packages
 		.iter()
 		.map(|package| {
 			let name = package["name"]
@@ -293,7 +334,8 @@ pub fn members(dir: &Path, args: &[String]) -> Result<BTreeMap<String, BTreeSet<
 				.collect::<Result<_, String>>()?;
 			Ok((name.to_owned(), benches))
 		})
-		.collect()
+		.collect::<Result<_, String>>()?;
+	Ok(Members { benches, default })
 }
 
 /// The stdout of `cargo <command>` on the workspace the build `args` select from `dir`: their
@@ -500,7 +542,7 @@ fn config_table(
 }
 
 /// The manifest Cargo args select, when they name one.
-fn manifest_path(args: &[String]) -> Option<&str> {
+pub fn manifest_path(args: &[String]) -> Option<&str> {
 	let mut args = args.iter();
 	while let Some(arg) = args.next() {
 		if arg == "--" {

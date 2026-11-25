@@ -154,10 +154,11 @@ and one outside it is refused, since both sides would count it.
 A change may add or remove a package or benchmark target, so each side builds only the `-p`
 (`--package`) and `--bench` selectors its own revision has, from its `cargo metadata` after its
 checkout, leaving out each `--features package/feature` of a package it lacks, and prints each it
-left out; a `--bench` is looked for among the packages `-p` selects, or without one, the whole
-workspace. A side left with none of the packages or none of the targets selected counts none, and
-its benchmarks read as added or removed. A selector neither side has fails, as does one compare
-cannot resolve by name alone, such as `name@1.0` or a glob.
+left out; a `--bench` is looked for among the packages Cargo builds, those `-p` selects, else
+every member `--workspace` does not `--exclude`, else the default ones. A side left with none of
+the packages or none of the targets selected, or without the manifest `--manifest-path` names,
+counts none, and its benchmarks read as added or removed. A selector neither side has fails, as
+does one compare cannot resolve by name alone, such as `name@1.0` or a glob.
 Another compare of the same repository waits, on a lock beside the worktree, until this one
 has counted both sides.
 

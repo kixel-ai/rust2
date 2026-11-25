@@ -490,6 +490,15 @@ fn compares_a_selection_only_one_side_has() {
 	assert_eq!(table.lines().count(), 3, "{table}");
 	assert!(row(&table, "b").ends_with("| added |"), "{table}");
 
+	// So does a manifest only the head has.
+	let out = compare(&["--manifest-path", "b/Cargo.toml", "--features", "f"]);
+	let err = String::from_utf8_lossy(&out.stderr);
+	assert!(out.status.success(), "{err}");
+	assert!(err.contains("HEAD has no b/Cargo.toml"), "{err}");
+	let table = String::from_utf8(out.stdout).unwrap();
+	assert_eq!(table.lines().count(), 3, "{table}");
+	assert!(row(&table, "b").ends_with("| added |"), "{table}");
+
 	// A selector neither side has still fails.
 	let out = compare(&["-p", "a", "-p", "c"]);
 	let err = String::from_utf8_lossy(&out.stderr);
