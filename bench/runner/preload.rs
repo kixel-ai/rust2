@@ -158,7 +158,8 @@ macro_rules! real {
 		unsafe { core::mem::transmute::<*mut c_void, $ty>(found) }
 	}};
 	(@find $name:ident) => { dlsym(RTLD_NEXT, $name) };
-	// dlsym alone finds a symbol's oldest version, which for pthread_cond_* is the pre-NPTL one.
+	// dlsym alone finds a symbol's oldest version, which for pthread_cond_* is the pre-NPTL one and
+	// for timer_settime takes the old ABI's timer index.
 	(@find $name:ident, $version:literal) => {
 		dlvsym(RTLD_NEXT, $name, concat!($version, "\0").as_ptr().cast())
 	};
@@ -586,9 +587,13 @@ until! {
 
 /// Whether `new` arms a timer at an absolute deadline, which the kernel reads on the host's
 /// clock; translating one would mean tracking each timer's clock, and no benchmark has needed it.
+/// A malformed setting is not, so the real call refuses it with `EINVAL` as it would without
+/// this library.
 fn absolute(flags: c_int, new: *const Itimerspec) -> bool {
 	// SAFETY: when not null, the caller hands a setting to read.
-	flags & TIMER_ABSTIME != 0 && unsafe { new.as_ref() }.is_some_and(|new| new.value.sec != 0 || new.value.nsec != 0)
+	flags & TIMER_ABSTIME != 0
+		&& unsafe { new.as_ref() }
+			.is_some_and(|new| new.interval.ns().is_some() && new.value.ns().is_some_and(|ns| ns != 0))
 }
 
 #[unsafe(no_mangle)]
@@ -619,8 +624,7 @@ pub unsafe extern "C" fn timer_settime(
 			b"rust2-bench preload: timer_settime with TIMER_ABSTIME is unsupported: arm the timer relative to now\n\0",
 		);
 	}
-	let real =
-		real!("timer_settime": unsafe extern "C" fn(*mut c_void, c_int, *const Itimerspec, *mut Itimerspec) -> c_int);
+	let real = real!("timer_settime" @ "GLIBC_2.3.3": unsafe extern "C" fn(*mut c_void, c_int, *const Itimerspec, *mut Itimerspec) -> c_int);
 	// SAFETY: the caller's arguments, as it passed them.
 	unsafe { real(timer, flags, new, old) }
 }
