@@ -331,6 +331,8 @@ struct Export {
 	merge: Vec<PathBuf>,
 	/// The directories a staged API's spans are relative to.
 	roots: Vec<PathBuf>,
+	/// Each file a staged API's spans name, as [`merge::span::Spans`] loaded it.
+	loaded: merge::span::Loaded,
 	/// The API an earlier export wrote, which this one's must not break.
 	baseline: Option<PathBuf>,
 	/// The `PROFILE` cargo gives a build script of the check.
@@ -442,6 +444,7 @@ impl Export {
 			patch,
 			merge,
 			roots,
+			loaded: Default::default(),
 			baseline,
 			profile,
 			profile_dir,
@@ -531,7 +534,7 @@ impl Callbacks for Export {
 		let written = match &self.output {
 			Output::Census(_) => unreachable!("written above"),
 			Output::Api(_) if tcx.dcx().has_errors().is_some() => Ok(()),
-			Output::Api(path) => target.write(path, tcx.sess.source_map(), &self.roots),
+			Output::Api(path) => target.write(path, &self.spans(tcx)),
 			Output::Dir(out) => match self.merged(tcx, target) {
 				Some(api) => self.export(tcx, api, out),
 				_ => Ok(()),
@@ -597,6 +600,11 @@ fn swift_refused(api: &Api, lib: &str) -> (Api, Vec<collect::Refusal>) {
 }
 
 impl Export {
+	/// Spans as this session reads and writes them.
+	fn spans<'a, 'tcx: 'a>(&'a self, tcx: TyCtxt<'tcx>) -> merge::span::Spans<'a> {
+		merge::span::Spans::new(tcx.sess.source_map(), &self.roots, &self.loaded)
+	}
+
 	/// This target's API merged with the other targets', or none once a difference
 	/// between two of them is an error.
 	fn merged(&self, tcx: TyCtxt<'_>, ours: merge::Target) -> Option<merge::Target> {
@@ -606,7 +614,7 @@ impl Export {
 		let mut apis = vec![ours.api.clone()];
 		let mut unmergeable = false;
 		for path in &self.merge {
-			let theirs = match merge::Target::read(path, tcx.sess.source_map(), &self.roots) {
+			let theirs = match merge::Target::read(path, &self.spans(tcx)) {
 				Ok(theirs) => theirs,
 				Err(err) => {
 					tcx.dcx().err(format!("rust2-ffi: {err}"));
@@ -677,7 +685,7 @@ impl Export {
 		let Some(path) = &self.baseline else {
 			return Ok(None);
 		};
-		let base = match merge::Target::read(path, tcx.sess.source_map(), &self.roots) {
+		let base = match merge::Target::read(path, &self.spans(tcx)) {
 			Ok(base) => base,
 			Err(err) => {
 				tcx.dcx().err(format!("rust2-ffi: the baseline: {err}"));
@@ -814,7 +822,7 @@ impl Export {
 		}
 		target.names = Some(generated.write()?);
 
-		target.write(&out.join(API_FILE), tcx.sess.source_map(), &self.roots)
+		target.write(&out.join(API_FILE), &self.spans(tcx))
 	}
 }
 

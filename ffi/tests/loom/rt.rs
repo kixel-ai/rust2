@@ -179,7 +179,11 @@ macro_rules! thread_local {
 pub mod thread;
 
 #[path = "../../runtime/rt/future.rs"]
-#[allow(dead_code, reason = "the models drive part of what the runtime uses")]
+#[allow(
+	dead_code,
+	unexpected_cfgs,
+	reason = "the models drive part of what the runtime uses, and the runtime's own features are not this crate's"
+)]
 pub mod future;
 
 /// The runtime's refusals, of which threads and futures return this one.

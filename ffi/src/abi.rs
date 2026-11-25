@@ -16,6 +16,7 @@
 //! `MOQ_STATUS_MOVED` is `moq_Status_2`, with `MOQ_STATUS_2_MOVED`. Only the names that
 //! clash change.
 
+use std::borrow::Cow;
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 
 use rustc_span::Span;
@@ -539,6 +540,38 @@ impl<'a> Abi<'a> {
 	/// The records, enums, and objects whose C name is `c`, in that order.
 	pub(crate) fn types_named(&self, c: &str) -> &[Type] {
 		self.types.named.get(c).map_or(&[], Vec::as_slice)
+	}
+
+	/// The records, enums, and objects whose C name is `c`, in that order: the final names'
+	/// once the clashes are renamed, else each type's own made afresh, as a renaming round
+	/// needs. An owner is found by name thousands of times, so the final names are looked
+	/// up rather than made and compared, which costs seconds on macOS's allocator.
+	fn named(&self, c: &str) -> Cow<'_, [Type]> {
+		let api = self.api;
+		let final_names = self.types.records.len() + self.types.enums.len() + self.types.objects.len();
+		if final_names == api.records.len() + api.enums.len() + api.objects.len() {
+			return Cow::Borrowed(self.types_named(c));
+		}
+		let records = (0..api.records.len())
+			.filter(|&i| self.record(i) == c)
+			.map(Type::Record);
+		let enums = (0..api.enums.len())
+			.filter(|&i| self.enumeration(i) == c)
+			.map(Type::Enum);
+		let objects = (0..api.objects.len())
+			.filter(|&i| self.object(i) == c)
+			.map(Type::Object);
+		Cow::Owned(records.chain(enums).chain(objects).collect())
+	}
+
+	/// The first record or enum whose C type is `owner`.
+	fn value_named(&self, owner: &Ty) -> Option<Type> {
+		let (Ty::Struct(name) | Ty::Enum(name)) = owner else {
+			return None;
+		};
+		(self.named(name).iter())
+			.find(|ty| !matches!(ty, Type::Object(_)) && &self.ty(ty) == owner)
+			.cloned()
 	}
 
 	/// The first record whose C name is `c`.
@@ -1321,8 +1354,8 @@ impl<'a> Abi<'a> {
 					name: name.clone(),
 					constant: receiver == Receiver::Ref
 						|| (receiver == Receiver::Owned
-							&& (0..self.api.objects.len())
-								.any(|i| self.api.objects[i].copy && &self.object(i) == name)),
+							&& (self.named(name).iter())
+								.any(|ty| matches!(ty, Type::Object(i) if self.api.objects[*i].copy))),
 				},
 				// A value's receiver is read through a pointer, and written back in place for
 				// `&mut self`.
@@ -1470,16 +1503,9 @@ impl<'a> Abi<'a> {
 			(function.future && !function.send) || unsent(&function.ok) || function.err.as_ref().is_some_and(unsent);
 		let receiver = match (function.receiver, owner) {
 			(Some(_), Some(Ty::Handle { name, .. })) => {
-				(0..self.api.objects.len()).any(|i| &self.object(i) == name && !self.api.objects[i].send)
+				(self.named(name).iter()).any(|ty| matches!(ty, Type::Object(i) if !self.api.objects[*i].send))
 			}
-			(Some(_), Some(owner)) => {
-				let records = (0..self.api.records.len()).map(Type::Record);
-				let enums = (0..self.api.enums.len()).map(Type::Enum);
-				records
-					.chain(enums)
-					.find(|ty| &self.ty(ty) == owner)
-					.is_some_and(|ty| unsent(&ty))
-			}
+			(Some(_), Some(owner)) => self.value_named(owner).is_some_and(|ty| unsent(&ty)),
 			_ => false,
 		};
 		// A handle that may be absent leaves the call to a home when it is: the twin runs it
@@ -1503,13 +1529,14 @@ impl<'a> Abi<'a> {
 		let mut seen = Vec::new();
 		match (function.receiver, owner) {
 			(Some(_), Some(Ty::Handle { name, .. })) => {
-				handles.extend((0..self.api.objects.len()).find(|&i| &self.object(i) == name))
+				handles.extend(self.named(name).iter().find_map(|ty| match ty {
+					Type::Object(i) => Some(*i),
+					_ => None,
+				}))
 			}
 			// A record's or enum's receiver lifts each handle it holds.
 			(Some(_), Some(owner)) => {
-				let records = (0..self.api.records.len()).map(Type::Record);
-				let enums = (0..self.api.enums.len()).map(Type::Enum);
-				if let Some(ty) = records.chain(enums).find(|ty| &self.ty(ty) == owner) {
+				if let Some(ty) = self.value_named(owner) {
 					self.api.handles(&ty, &mut handles, &mut seen);
 				}
 			}

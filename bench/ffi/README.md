@@ -1048,11 +1048,18 @@ two more of its methods are leaves, `hang::Extra`'s `len` and `is_empty`, whose
 ### The export's cache
 
 The export wraps only the workspace's own crates, so a compiler cache in cargo's
-`RUSTC_WRAPPER` serves the rest ([how](../../ffi/README.md)). mbx 1.30 caches a compilation
-only when it models every flag on its command line, and it models none of the export's
-`-Zalways-encode-mir`, `-Zmir-opt-level=1`, and the web target's `-Zinline-mir=no`
-("rustc flag is not modeled by the cache adapter"), so it serves the build scripts and
-proc macros alone, which take no target rustflags. Measured 2026-11-22 on **desktop**, the
+`RUSTC_WRAPPER` serves the rest ([how](../../ffi/README.md)). mbx caches a compilation
+only when it models every flag on its command line, and before 1.31 it modeled none of the
+export's `-Zalways-encode-mir`, `-Zmir-opt-level=1`, and the web target's
+`-Zinline-mir=no` ("rustc flag is not modeled by the cache adapter"), so it served the build
+scripts and proc macros alone, which take no target rustflags. mbx 1.31 keys each
+([jdx/mr-boxington#1003](https://github.com/jdx/mr-boxington/issues/1003)): measured
+2026-11-25 on **desktop** with a release rust2-ffi at a load average of about 20, a second
+native export from an emptied target took 14 s wall and 14 CPU seconds against the first's
+56 and 70, with 332 hits and the facade the one compilation left to the wrapper, as the
+last row below predicted. The web export's crates stay uncached over the dev shell's MIR
+sysroot, whose `/nix/store` path mbx cannot map, which [the cached
+export](/quest/m0/ffi-export-cache.md) takes up. Measured 2026-11-22 on **desktop**, the
 stand-in's native export by a dev build of rust2-ffi, as the merge queue's `cargo run`
 runs it, from an emptied target through mbx, at a load average of about 19; the after
 rounds follow one that stored the host units:
