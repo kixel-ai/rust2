@@ -184,6 +184,8 @@ fn counts_each_harness_benchmark_alone_without_its_setup() {
 			"sized[1000]",
 			"sized[2000]",
 			"sized[4000]",
+			"unstable[1000]",
+			"unstable[8000]",
 			"word[word]"
 		]
 	);
@@ -206,6 +208,8 @@ fn counts_each_harness_benchmark_alone_without_its_setup() {
 	near("sized[1000]", alone);
 	near("sized[2000]", 2 * alone);
 	near("sized[4000]", 4 * alone);
+	near("unstable[1000]", alone);
+	near("unstable[8000]", 8 * alone);
 	near("borrowed", alone);
 	near("generic[4000]", alone);
 	near("word[word]", alone);

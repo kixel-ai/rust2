@@ -1,7 +1,8 @@
 //! The benchmarks rust2-bench's tests count: a loop of known length alone, by argument, in a
-//! module, and behind a setup whose own work must go uncounted.
+//! module, in an order that changes, and behind a setup whose own work must go uncounted.
 
 use std::hint::black_box;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 use rust2_bench_harness::bench;
 
@@ -56,6 +57,22 @@ extern "C" fn generic(n: u64) -> u64 {
 #[bench(args = &WORDS)]
 fn word(word: &str) -> u64 {
 	spin(1000) + word.len() as u64 - 4
+}
+
+/// The arguments in an order that differs each time the expression is evaluated, as a
+/// `HashSet`'s does: a case named for one argument must still run it.
+fn shuffled() -> [u64; 2] {
+	static FLIP: AtomicBool = AtomicBool::new(false);
+	if FLIP.fetch_xor(true, Ordering::Relaxed) {
+		[8000, 1000]
+	} else {
+		[1000, 8000]
+	}
+}
+
+#[bench(args = shuffled())]
+fn unstable(n: u64) -> u64 {
+	spin(n)
 }
 
 mod inner {

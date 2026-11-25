@@ -110,14 +110,15 @@ fn expand(attr: TokenStream, item: TokenStream) -> syn::Result<TokenStream> {
 	// Locals hygienic to the expansion, so no item of the same name, such as a benchmark
 	// named `input`, is shadowed by them.
 	let local = |name: &str| proc_macro2::Ident::new(name, proc_macro2::Span::mixed_site());
-	let (input, output, case, meter) = (local("input"), local("_output"), local("case"), local("meter"));
-	// What runs before the count starts, from the argument `arg` when there are args, and the
-	// parameter the benchmark is called with.
-	let prepare = |arg: &TokenStream| match (&options.setup, &pass) {
+	let (input, output, arg, meter) = (local("input"), local("_output"), local("arg"), local("meter"));
+	// What runs before the count starts, from the case's argument `arg` when there are args,
+	// and the parameter the benchmark is called with.
+	let taken = options.args.as_ref().map(|_| &arg);
+	let prepare = match (&options.setup, &pass) {
 		(_, None) => quote!(),
 		(None, Some(_)) => quote!(let #input = #arg;),
-		(Some(setup), Some(Pass::Mut)) => quote!(let mut #input = #setup(#arg);),
-		(Some(setup), Some(_)) => quote!(let #input = #setup(#arg);),
+		(Some(setup), Some(Pass::Mut)) => quote!(let mut #input = #setup(#taken);),
+		(Some(setup), Some(_)) => quote!(let #input = #setup(#taken);),
 	};
 	let pass = match (&options.setup, &pass) {
 		(_, None) => quote!(),
@@ -136,21 +137,20 @@ fn expand(attr: TokenStream, item: TokenStream) -> syn::Result<TokenStream> {
 		FnArg::Receiver(_) => unreachable!("a receiver was refused"),
 	});
 	let call = quote!(#h::black_box(#ident as #abi fn(#(#types),*) -> _)(#pass));
-	let arg = options.args.as_ref().map(|args| quote!(#h::arg(#args, #case)));
-	let run = prepare(&arg.unwrap_or_default());
-	// Named through a closure, never called, that sets up and calls the case as running it
-	// does, so each argument gets the type and coercions it runs with, such as `u64` for
-	// `[4_294_967_296]`.
-	let names = match &options.args {
-		Some(args) => {
-			let taken = local("arg");
-			let witness = prepare(&quote!(#taken));
-			quote!(::core::option::Option::Some(|| #h::names(#args, |#taken| {
-				#witness
-				let _ = #call;
-			})))
-		}
-		None => quote!(::core::option::Option::None),
+	// One case: what the harness runs once its name is known. The args expression is evaluated
+	// once, and each argument moves into the case it names, so no case can run another's.
+	// Its type is inferred from this body, so each argument gets the type and coercions it
+	// runs with, such as `u64` for `[4_294_967_296]`.
+	let run = quote! {
+		#prepare
+		#meter.start();
+		let #output = #h::black_box(#call);
+		#meter.stop();
+		// The output, then any input setup built, drop here, after the count stopped.
+	};
+	let cases = match &options.args {
+		Some(args) => quote!(#h::each(#args, |#arg| move |#meter: &#h::Meter| { #run })),
+		None => quote!(#h::single(|#meter: &#h::Meter| { #run })),
 	};
 	let span = ident.span();
 	let registration = quote::quote_spanned! {span=>
@@ -160,21 +160,12 @@ fn expand(attr: TokenStream, item: TokenStream) -> syn::Result<TokenStream> {
 				"a benchmark's file must be relative to its workspace, as Cargo builds a member's: \
 				 build it from the workspace that holds it, or remap its path with --remap-path-prefix",
 			);
-			fn __rust2_bench_run(#case: usize, #meter: &#h::Meter) {
-				let _ = #case;
-				#run
-				#meter.start();
-				let #output = #h::black_box(#call);
-				#meter.stop();
-				// The output, then any input setup built, drop here, after the count stopped.
-			}
 			#h::inventory::submit! {
 				#h::Bench {
 					file: ::core::file!(),
 					module: ::core::module_path!(),
 					name: ::core::stringify!(#ident),
-					args: #names,
-					run: __rust2_bench_run,
+					cases: || #cases,
 				}
 			}
 		};
@@ -237,7 +228,9 @@ mod tests {
 		// Without setup, the argument moves in even where the parameter is a reference.
 		let arg = expands("args = [\"a\"]", "fn f(x: &str) {}");
 		assert!(
-			arg.contains("let input = :: rust2_bench_harness :: __private :: arg ([\"a\"] , case) ;"),
+			arg.contains(
+				"each ([\"a\"] , | arg | move | meter : & :: rust2_bench_harness :: __private :: Meter | { let input = arg ;"
+			),
 			"{arg}"
 		);
 		assert!(
@@ -246,18 +239,8 @@ mod tests {
 		);
 		let none = expands("", "extern \"C\" fn f() {}");
 		assert!(none.contains("(f as extern \"C\" fn () -> _) ()"), "{none}");
-		assert!(
-			arg.contains("names ([\"a\"] , | arg | { let input = arg ; let _ ="),
-			"{arg}"
-		);
 		let both = expands("args = SIZES, setup = s", "fn f(x: &X) {}");
-		assert!(
-			both.contains("names (SIZES , | arg | { let input = s (arg) ;"),
-			"{both}"
-		);
-		assert!(
-			both.contains("s (:: rust2_bench_harness :: __private :: arg (SIZES , case))"),
-			"{both}"
-		);
+		assert!(both.contains("each (SIZES , | arg | move | meter"), "{both}");
+		assert!(both.contains("let input = s (arg) ;"), "{both}");
 	}
 }

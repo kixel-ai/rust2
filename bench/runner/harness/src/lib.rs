@@ -51,9 +51,9 @@ fn run() -> Result<(), String> {
 		Err(std::env::VarError::NotPresent) => {}
 		Err(std::env::VarError::NotUnicode(_)) => return Err(format!("{ONLY} is not UTF-8")),
 	}
-	for (name, (bench, case)) in cases {
+	for (name, case) in cases {
 		let meter = __private::Meter::new(&name)?;
-		(bench.run)(case, &meter);
+		(case.run)(&meter);
 		if !quiet {
 			println!("{RAN}{name}");
 		}
@@ -61,33 +61,33 @@ fn run() -> Result<(), String> {
 	Ok(())
 }
 
-/// Each case of `benches` by its name, with its benchmark and argument's index.
+/// Each case of `benches` by its name. Every benchmark's args are evaluated here, once, and
+/// each argument moves into its case, so a name always holds the argument its case runs.
 fn cases<'a>(
 	benches: impl IntoIterator<Item = &'a __private::Bench>,
-) -> Result<BTreeMap<String, (&'a __private::Bench, usize)>, String> {
+) -> Result<BTreeMap<String, __private::Case>, String> {
 	let mut cases = BTreeMap::new();
 	for bench in benches {
 		let base = bench.base();
-		let names = match bench.args {
-			None => vec![base],
-			Some(args) => {
-				let args = args();
-				if args.is_empty() {
-					return Err(format!("{base} has no args"));
-				}
-				args.iter().map(|arg| format!("{base}[{arg}]")).collect()
-			}
-		};
-		for (case, name) in names.into_iter().enumerate() {
+		let each = (bench.cases)();
+		if each.is_empty() {
+			return Err(format!("{base} has no args"));
+		}
+		for case in each {
+			let name = match &case.arg {
+				Some(arg) => format!("{base}[{arg}]"),
+				None => base.clone(),
+			};
 			// rust2-bench reads names a line each, and Kixel Quest takes none holding one.
 			if name.chars().any(char::is_control) {
 				return Err(format!(
 					"{name:?} holds a control character, which no benchmark's name may"
 				));
 			}
-			if cases.insert(name.clone(), (bench, case)).is_some() {
+			if cases.contains_key(&name) {
 				return Err(format!("two benchmarks are named {name}"));
 			}
+			cases.insert(name, case);
 		}
 	}
 	if cases.is_empty() {
@@ -112,10 +112,16 @@ pub mod __private {
 		/// Its module, as `module_path!()` names it, starting with the crate's.
 		pub module: &'static str,
 		pub name: &'static str,
-		/// Each case's argument, shown, when it declares args.
-		pub args: Option<fn() -> Vec<String>>,
-		/// Runs one case, by its argument's index, counting what `Meter` brackets.
-		pub run: fn(usize, &Meter),
+		/// Its cases: one without args, else one per argument, built by evaluating the args once.
+		pub cases: fn() -> Vec<Case>,
+	}
+
+	/// One case of a benchmark, ready to run.
+	pub struct Case {
+		/// Its argument, shown, when the benchmark declares args.
+		pub(crate) arg: Option<String>,
+		/// Runs it, counting what `Meter` brackets.
+		pub(crate) run: Box<dyn FnOnce(&Meter)>,
 	}
 
 	inventory::collect!(Bench);
@@ -169,17 +175,26 @@ pub mod __private {
 		}
 	}
 
-	/// The argument at `case` among `args`.
-	pub fn arg<I: IntoIterator>(args: I, case: usize) -> I::Item {
-		args.into_iter()
-			.nth(case)
-			.expect("args yields what it yielded when the cases were listed")
+	/// The one case of a benchmark without args.
+	pub fn single(run: impl FnOnce(&Meter) + 'static) -> Vec<Case> {
+		vec![Case {
+			arg: None,
+			run: Box::new(run),
+		}]
 	}
 
-	/// Each argument among `args`, shown. `_takes` is the function the argument goes to, never
-	/// called: it gives each argument the type it has when its case runs.
-	pub fn names<A: Display, R>(args: impl IntoIterator<Item = A>, _takes: impl FnOnce(A) -> R) -> Vec<String> {
-		args.into_iter().map(|arg| arg.to_string()).collect()
+	/// A case per argument among `args`, shown, each moving its argument into the case `make`
+	/// builds from it. `make`'s body gives the argument the type it runs with.
+	pub fn each<A: Display, R: FnOnce(&Meter) + 'static>(
+		args: impl IntoIterator<Item = A>,
+		make: impl Fn(A) -> R,
+	) -> Vec<Case> {
+		args.into_iter()
+			.map(|arg| Case {
+				arg: Some(arg.to_string()),
+				run: Box::new(make(arg)),
+			})
+			.collect()
 	}
 }
 
@@ -227,49 +242,68 @@ mod valgrind {
 
 #[cfg(test)]
 mod tests {
-	use super::__private::{Bench, Meter, relative};
+	use super::__private::{Bench, Meter, each, relative, single};
 	use super::*;
 
-	fn bench(module: &'static str, name: &'static str, args: Option<fn() -> Vec<String>>) -> Bench {
+	fn bench(module: &'static str, name: &'static str) -> Bench {
 		Bench {
 			file: "benches/a.rs",
 			module,
 			name,
-			args,
-			run: |_, _| {},
+			cases: || single(|_| {}),
 		}
 	}
 
 	#[test]
 	fn names_each_case_by_file_module_function_and_argument() {
 		let benches = [
-			bench("a", "top", None),
-			bench("a::inner::deeper", "nested", None),
-			bench("a", "sized", Some(|| vec!["16".to_owned(), "1024".to_owned()])),
+			bench("a", "top"),
+			bench("a::inner::deeper", "nested"),
+			Bench {
+				file: "benches/a.rs",
+				module: "a",
+				name: "sized",
+				cases: || each(["16", "1024"], |_| |_: &Meter| {}),
+			},
 		];
 		let cases = cases(&benches).unwrap();
-		let names: Vec<(&str, usize)> = cases.iter().map(|(name, (_, case))| (name.as_str(), *case)).collect();
+		let names: Vec<&str> = cases.keys().map(String::as_str).collect();
 		assert_eq!(
 			names,
 			[
-				("benches/a.rs::inner::deeper::nested", 0),
-				("benches/a.rs::sized[1024]", 1),
-				("benches/a.rs::sized[16]", 0),
-				("benches/a.rs::top", 0),
+				"benches/a.rs::inner::deeper::nested",
+				"benches/a.rs::sized[1024]",
+				"benches/a.rs::sized[16]",
+				"benches/a.rs::top",
 			]
 		);
 	}
 
 	#[test]
 	fn refuses_two_cases_of_one_name_and_args_of_none() {
-		let twice = [bench("a", "f", Some(|| vec!["1".to_owned(), "1".to_owned()]))];
+		let twice = [Bench {
+			file: "benches/a.rs",
+			module: "a",
+			name: "f",
+			cases: || each([1, 1], |_| |_: &Meter| {}),
+		}];
 		assert_eq!(
 			cases(&twice).err().unwrap(),
 			"two benchmarks are named benches/a.rs::f[1]"
 		);
-		let lines = [bench("a", "f", Some(|| vec!["a\nb".to_owned()]))];
+		let lines = [Bench {
+			file: "benches/a.rs",
+			module: "a",
+			name: "f",
+			cases: || each(["a\nb"], |_| |_: &Meter| {}),
+		}];
 		assert!(cases(&lines).err().unwrap().contains("control character"));
-		let empty = [bench("a", "f", Some(Vec::new))];
+		let empty = [Bench {
+			file: "benches/a.rs",
+			module: "a",
+			name: "f",
+			cases: || each(Vec::<u8>::new(), |_| |_: &Meter| {}),
+		}];
 		assert_eq!(cases(&empty).err().unwrap(), "benches/a.rs::f has no args");
 		assert_eq!(cases(&[]).err().unwrap(), "no function is marked #[bench]");
 	}

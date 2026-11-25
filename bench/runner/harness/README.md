@@ -56,7 +56,9 @@ A function, its body the only thing counted. It takes one parameter at most:
 - With neither key, none.
 - `args = <expr>`, an expression a `for` loop takes, such as an array or a `const`, declares
   one case an argument, named `[<arg>]` by the argument's `Display`. Without `setup` the
-  function takes the argument itself, moved in.
+  function takes the argument itself, moved in. The expression is evaluated once, so an
+  iterable of unstable order, such as a `HashSet`, still runs each case the argument it is
+  named for; its items must own what they hold, or borrow only from statics.
 - `setup = <path>` names a function that builds the benchmark's input before the count
   starts, taking the case's argument when there are args. The benchmark takes the input by
   `&`, `&mut`, or by value, as its parameter's type says. Borrowed, the input drops after the
