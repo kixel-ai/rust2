@@ -87,6 +87,8 @@ enum Arg {
 	Package(String),
 	/// `--bench`'s target name.
 	Bench(String),
+	/// `--exclude`'s package name.
+	Exclude(String),
 	/// The features of one `-F` or `--features`, each on its own.
 	Features(Vec<String>),
 	/// Any other argument, passed through as it is.
@@ -139,6 +141,8 @@ fn parse(args: &[String]) -> Result<Vec<Arg>, String> {
 			Arg::Package(named("packages", name)?)
 		} else if let Some(name) = value("", "--bench", &mut args)? {
 			Arg::Bench(named("benchmark targets", name)?)
+		} else if let Some(name) = value("", "--exclude", &mut args)? {
+			Arg::Exclude(named("excluded packages", name)?)
 		} else if let Some(list) = value("-F", "--features", &mut args)? {
 			Arg::Features(
 				list.split(|c: char| c == ',' || c.is_whitespace())
@@ -178,21 +182,16 @@ fn select(args: &[Arg], members: &Members) -> Selection {
 		.iter()
 		.map(|name| name.as_str())
 		.partition(|name| members.benches.contains_key(*name));
-	let cargo: Vec<&str> = args
+	let whole = args
+		.iter()
+		.take_while(|arg| **arg != Arg::Other("--".to_owned()))
+		.any(|arg| matches!(arg, Arg::Other(arg) if arg == "--workspace" || arg == "--all"));
+	let excluded: BTreeSet<&str> = args
 		.iter()
 		.filter_map(|arg| match arg {
-			Arg::Other(arg) => Some(arg.as_str()),
+			Arg::Exclude(name) => Some(name.as_str()),
 			_ => None,
 		})
-		.take_while(|arg| *arg != "--")
-		.collect();
-	let whole = cargo.iter().any(|arg| ["--workspace", "--all"].contains(arg));
-	let excluded: BTreeSet<&str> = cargo
-		.iter()
-		.zip(cargo.iter().skip(1))
-		.filter(|(flag, _)| **flag == "--exclude")
-		.map(|(_, name)| *name)
-		.chain(cargo.iter().filter_map(|arg| arg.strip_prefix("--exclude=")))
 		.collect();
 	// Cargo looks for `--bench` among the packages it builds: those `-p` selects, else every
 	// member but those excluded under `--workspace`, else the default ones.
@@ -243,6 +242,7 @@ fn select(args: &[Arg], members: &Members) -> Selection {
 					out.extend(["--features".to_owned(), features.join(",")]);
 				}
 			}
+			Arg::Exclude(name) => out.extend(["--exclude".to_owned(), name.clone()]),
 			Arg::Other(arg) => out.push(arg.clone()),
 		}
 	}
@@ -260,9 +260,19 @@ fn pick(dir: &Path, options: &Options, args: &[Arg], selects: bool, side: &str) 
 		&& !dir.join(manifest).exists()
 	{
 		eprintln!("rust2-bench: {side} has no {manifest}, so counts none");
+		// It lacks every selector too, so one the other side also lacks still fails.
+		let lacks = args
+			.iter()
+			.filter_map(|arg| match arg {
+				Arg::Package(name) => Some(format!("-p {name}")),
+				Arg::Bench(name) => Some(format!("--bench {name}")),
+				_ => None,
+			})
+			.chain([format!("--manifest-path {manifest}")])
+			.collect();
 		return Ok(Selection {
 			args: None,
-			lacks: BTreeSet::from([format!("--manifest-path {manifest}")]),
+			lacks,
 			features: Vec::new(),
 		});
 	}
@@ -428,9 +438,17 @@ fn rebase(args: &[String], top: &Path, tree: &Path) -> Result<Vec<String>, Strin
 			continue;
 		};
 		let rebased = if Path::new(path).is_absolute() {
-			let canonical = Path::new(path)
+			// The nearest directory up that exists, since the manifest may be only the base's.
+			let path = Path::new(path);
+			let existing = path.ancestors().find(|dir| dir.exists()).expect("the root exists");
+			let canonical = existing
 				.canonicalize()
-				.map_err(|e| format!("cannot resolve {path}: {e}"))?;
+				.map_err(|e| format!("cannot resolve {}: {e}", existing.display()))?
+				.join(
+					path.strip_prefix(existing)
+						.expect("an ancestor prefixes its descendant"),
+				);
+			let path = path.display();
 			let relative = canonical.strip_prefix(top).map_err(|_| {
 				format!("--manifest-path {path} is outside the repository, so compare would count it twice")
 			})?;
@@ -569,6 +587,12 @@ mod tests {
 			rebase(&args(&["--manifest-path", "Cargo.toml"]), &top, tree).unwrap(),
 			args(&["--manifest-path", "Cargo.toml"])
 		);
+		// A manifest only the base has, gone from the working tree.
+		let gone = top.join("gone/Cargo.toml");
+		assert_eq!(
+			rebase(&args(&["--manifest-path", gone.to_str().unwrap()]), &top, tree).unwrap(),
+			args(&["--manifest-path", "/base/gone/Cargo.toml"])
+		);
 		let err = rebase(&args(&["--manifest-path", manifest]), &top.join("src"), tree).unwrap_err();
 		assert!(err.contains("outside the repository"), "{err}");
 	}
@@ -664,6 +688,7 @@ mod tests {
 			&["--bench", "x*"],
 			&["-p"],
 			&["--bench", "--locked"],
+			&["--workspace", "--exclude", "legacy-*"],
 		] {
 			assert!(parse(&strings(refused)).is_err(), "{refused:?}");
 		}

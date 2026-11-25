@@ -504,4 +504,9 @@ fn compares_a_selection_only_one_side_has() {
 	let err = String::from_utf8_lossy(&out.stderr);
 	assert!(!out.status.success());
 	assert!(err.contains("neither HEAD nor the working tree has -p c"), "{err}");
+	// Even beside a manifest only one side has.
+	let out = compare(&["--manifest-path", "b/Cargo.toml", "-p", "b", "-p", "c"]);
+	let err = String::from_utf8_lossy(&out.stderr);
+	assert!(!out.status.success());
+	assert!(err.contains("neither HEAD nor the working tree has -p c"), "{err}");
 }
