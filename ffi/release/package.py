@@ -1689,9 +1689,12 @@ def reproducible(info, export_dir, target):
         # Cargo reads an empty value as no flags, not as one empty flag.
         flags = encoded.split("\x1f") if encoded else []
     # The generated crate names an Apple dylib after `cargo rustc`'s `--`, which a caller's flags
-    # would follow, and override.
-    if "apple" in target and any("install_name" in flag for flag in flags):
-        raise SystemExit("RUSTFLAGS sets an install name, which the packages set themselves: drop it")
+    # would follow, and override. rustc reads an `@file` (or `@shell:file`) flag's arguments from it.
+    if "apple" in target:
+        for flag in flags:
+            text = Path(flag.removeprefix("@").removeprefix("shell:")).read_text() if flag.startswith("@") else flag
+            if APPLE_INSTALL_NAME.search(text):
+                raise SystemExit(f"RUSTFLAGS sets an install name in {flag}, which the packages set themselves: drop it")
     flags += [f"--remap-path-prefix={old}={new}" for old, new in pairs]
     env = {"SOURCE_DATE_EPOCH": str(info["epoch"])}
     if "msvc" in target:
@@ -1710,6 +1713,10 @@ def reproducible(info, export_dir, target):
         env["ZERO_AR_DATE"] = "1"
     env["CARGO_ENCODED_RUSTFLAGS"] = "\x1f".join(flags)
     return env
+
+
+# ld64's install-name option, or its older `-dylib_install_name` spelling, as a whole argument.
+APPLE_INSTALL_NAME = re.compile(r"(?:^|[\s,=])-(?:dylib_)?install_name(?:$|[\s,=])")
 
 
 def install_name(info, target, name=None):

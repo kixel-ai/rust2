@@ -393,6 +393,19 @@ class Reproducible(unittest.TestCase):
             with self.assertRaises(SystemExit):
                 package.reproducible(info(tmp), Path(tmp) / "export", "aarch64-apple-darwin")
 
+    def test_an_apple_install_name_is_found_whole_and_in_argfiles(self):
+        with tempfile.TemporaryDirectory() as tmp, mock.patch.dict(os.environ, {"CARGO_HOME": tmp + "/home"}):
+            os.environ.pop("RUSTFLAGS", None)
+            Path(tmp, "args").write_text("-C\nlink-arg=-install_name\nlink-arg=@rpath/x.dylib\n")
+            for flags in (f"@{tmp}/args", f"@shell:{tmp}/args", "-Clink-args=-dylib_install_name x"):
+                os.environ["CARGO_ENCODED_RUSTFLAGS"] = flags
+                with self.assertRaises(SystemExit, msg=flags):
+                    package.reproducible(info(tmp), Path(tmp) / "export", "aarch64-apple-darwin")
+            # This only reserves header space, which a longer install name may need.
+            os.environ["CARGO_ENCODED_RUSTFLAGS"] = "-C\x1flink-arg=-Wl,-headerpad_max_install_names"
+            env = package.reproducible(info(tmp), Path(tmp) / "export", "aarch64-apple-darwin")
+            self.assertIn("link-arg=-Wl,-headerpad_max_install_names", env["CARGO_ENCODED_RUSTFLAGS"])
+
     def test_an_empty_encoded_rustflags_is_no_flags(self):
         with tempfile.TemporaryDirectory() as tmp, mock.patch.dict(os.environ, {"CARGO_ENCODED_RUSTFLAGS": "", "RUSTFLAGS": "-C x", "CARGO_HOME": tmp + "/home"}):
             env = package.reproducible(info(tmp), Path(tmp) / "export", "x86_64-unknown-linux-gnu")
