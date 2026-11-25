@@ -152,7 +152,7 @@ has counted its base.
 
 `--perf` counts each benchmark of [rust2-bench-harness](harness/README.md) natively, without
 Valgrind's 20 to 50 times slowdown, with a Linux perf counter of its user-space instructions
-(`instructions:u`), for a quick compare on one host. A target of CodSpeed's crates, or a
+(`instructions:u`), for a quick compare on one x86_64 Linux host, where the preload is built. A target of CodSpeed's crates, or a
 `--program`, fails the run, as does a host that lets no process count its own instructions,
 such as a VM without its PMU passed through, a `kernel.perf_event_paranoid` above 2, or
 GitHub's hosted runners: rust2-bench opens a counter before it builds anything, and names the
