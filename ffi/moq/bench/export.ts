@@ -3,7 +3,7 @@
 // thread. Each round runs twice, the first to warm the JIT. Each case prints its wall time
 // and, on Node, the process's CPU time, its own threads included; a browser has no clock of
 // that, so it prints NaN. Its arguments are the module's path, which bench/browser.ts's page
-// serves in a browser, and on Node, moq/bench/codspeed-node.c's addon, under Valgrind
+// serves in a browser, and on Node, moq/bench/hooks-node.c's addon, under Valgrind
 // for rust2-bench, which then counts one round. `just ffi bench` runs it over the Node binding's
 // addon too, its imports and load rewritten.
 
@@ -30,7 +30,7 @@ declare const process: {
 	cpuUsage?(): { user: number; system: number };
 };
 
-/** moq/bench/codspeed.h's functions, as the addon gives them. */
+/** moq/bench/hooks.h's functions, as the addon gives them. */
 type Hooks = { init(bench: string): boolean; start(): void; stop(name: string): void };
 
 /** A tenth under Valgrind, which counts every call exactly. */

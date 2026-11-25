@@ -1,11 +1,13 @@
 //! rust2-bench: counts each benchmark's instructions under stock Valgrind, one process a job,
-//! in parallel, for Kixel Quest's `metrics.json` and for a local base-versus-head compare.
+//! in parallel, for Kixel Quest's `metrics.json` and for a local base-versus-head compare, or
+//! natively with Linux perf counters, for a quick local compare.
 
 mod callgrind;
 mod cargo;
 mod compare;
 mod fingerprint;
 mod metrics;
+mod perf;
 mod preload;
 
 use std::collections::{BTreeMap, BTreeSet};
@@ -36,7 +38,11 @@ options:
   --benchmarks <file>  count only the benchmarks it names, one a line; any it names that no
                        benchmark has fails the run
   --out <file>         write the counts as Kixel Quest's metrics.json (run only)
-  --jobs <n>           how many Valgrind processes run at once (default: every core)
+  --perf               count rust2-bench-harness's benchmarks natively with Linux perf
+                       counters, not under Valgrind: faster, comparable only on this host,
+                       and never written out
+  --jobs <n>           how many jobs run at once (default: every core, or with --perf,
+                       every core of the PMU it counts on)
   --build <command>    a shell command that builds the programs, run first (with --program)
   --program <command>  a shell command that runs a program whose benchmarks run through
                        rust2-bench-harness or CodSpeed's instrument hooks; repeat for each";
@@ -72,6 +78,7 @@ fn cli(args: &[String]) -> Result<(), String> {
 			let options = Options::parse(rest)?;
 			let counts = measure(Path::new("."), &options, true)?;
 			print!("{}", metrics::table(&counts.counts));
+			print!("{}", threaded(&counts.threaded));
 			if let Some(out) = &options.out {
 				metrics::write(out, &counts)?;
 				eprintln!("rust2-bench: wrote {}", out.display());
@@ -116,7 +123,10 @@ pub struct Options {
 	/// The only benchmarks to count, when given.
 	benchmarks: Option<BTreeSet<String>>,
 	out: Option<PathBuf>,
-	jobs: usize,
+	/// Whether to count natively with perf counters rather than under Valgrind.
+	perf: bool,
+	/// How many jobs run at once, when given.
+	jobs: Option<usize>,
 	build: Option<String>,
 	programs: Vec<String>,
 	cargo: Vec<String>,
@@ -127,7 +137,8 @@ impl Options {
 		let mut options = Options {
 			benchmarks: None,
 			out: None,
-			jobs: std::thread::available_parallelism().map_or(1, usize::from),
+			perf: false,
+			jobs: None,
 			build: None,
 			programs: Vec::new(),
 			cargo: Vec::new(),
@@ -142,13 +153,15 @@ impl Options {
 					options.benchmarks = Some(names(&text));
 				}
 				"--out" => options.out = Some(PathBuf::from(value()?)),
+				"--perf" => options.perf = true,
 				"--jobs" => {
 					let jobs = value()?;
-					options.jobs = jobs
-						.parse()
-						.ok()
-						.filter(|&n| n > 0)
-						.ok_or(format!("--jobs {jobs} is not a count"))?;
+					options.jobs = Some(
+						jobs.parse()
+							.ok()
+							.filter(|&n| n > 0)
+							.ok_or(format!("--jobs {jobs} is not a count"))?,
+					);
 				}
 				"--build" => options.build = Some(value()?.clone()),
 				"--program" => options.programs.push(value()?.clone()),
@@ -161,6 +174,16 @@ impl Options {
 		}
 		if !options.programs.is_empty() && !options.cargo.is_empty() {
 			return Err("cargo bench args are for a Cargo workspace's benchmarks, not --program's".to_owned());
+		}
+		if options.perf && options.out.is_some() {
+			return Err(
+				"--perf counts stay on this host, whose CPU they follow: --out writes Valgrind's counts".to_owned(),
+			);
+		}
+		if options.perf && !options.programs.is_empty() {
+			return Err(
+				"--perf counts a Cargo workspace's benchmarks of rust2-bench-harness, not --program's".to_owned(),
+			);
 		}
 		Ok(options)
 	}
@@ -180,12 +203,34 @@ pub struct Job {
 	label: String,
 	command: Command,
 	expect: Option<String>,
+	/// Whether it runs a benchmark of CodSpeed's crates, which only Valgrind counts.
+	codspeed: bool,
 }
 
 /// Each benchmark's instruction count, under one fingerprint.
 pub struct Counts {
 	pub fingerprint: String,
 	pub counts: BTreeMap<String, u64>,
+	/// The benchmarks beside which other threads ran, whose perf counts are noisy.
+	pub threaded: BTreeSet<String>,
+}
+
+/// What counts each job's instructions.
+enum Counter {
+	Valgrind,
+	Perf(perf::Pmu),
+}
+
+/// A note naming the benchmarks beside which other threads ran, if any.
+fn threaded(names: &BTreeSet<String>) -> String {
+	if names.is_empty() {
+		return String::new();
+	}
+	let names: Vec<&str> = names.iter().map(String::as_str).collect();
+	format!(
+		"\nOther threads ran during the perf counts of {}, which the scheduler makes noisy.\n",
+		names.join(", ")
+	)
 }
 
 /// The Valgrind every count and the fingerprint's probe run under: Callgrind, counting only
@@ -243,7 +288,13 @@ fn measure(dir: &Path, options: &Options, strict: bool) -> Result<Counts, String
 	let dir = &dir
 		.canonicalize()
 		.map_err(|e| format!("cannot resolve {}: {e}", dir.display()))?;
-	let fingerprint = Fingerprint::probe()?.label();
+	let (counter, fingerprint) = if options.perf {
+		let pmu = perf::Pmu::find()?;
+		let label = pmu.label();
+		(Counter::Perf(pmu), label)
+	} else {
+		(Counter::Valgrind, Fingerprint::probe()?.label())
+	};
 	eprintln!("rust2-bench: fingerprint {fingerprint}");
 	let preload = preload::install()?;
 	fits(&std::fs::read_to_string("/proc/self/limits").map_err(|e| format!("cannot read /proc/self/limits: {e}"))?)?;
@@ -268,9 +319,16 @@ fn measure(dir: &Path, options: &Options, strict: bool) -> Result<Counts, String
 				label: program.clone(),
 				command: shell(program, dir),
 				expect: None,
+				codspeed: false,
 			})
 			.collect()
 	};
+	if let (Counter::Perf(_), Some(job)) = (&counter, jobs.iter().find(|job| job.codspeed)) {
+		return Err(format!(
+			"--perf counts benchmarks of rust2-bench-harness, and {} is of CodSpeed's crates, which only Valgrind counts",
+			job.label
+		));
+	}
 	if let Some(wanted) = &options.benchmarks {
 		// Where every job names its benchmark, a name none has fails before any runs.
 		if strict && jobs.iter().all(|job| job.expect.is_some()) {
@@ -281,17 +339,26 @@ fn measure(dir: &Path, options: &Options, strict: bool) -> Result<Counts, String
 		// whichever it holds.
 		jobs.retain(|job| job.expect.as_ref().is_none_or(|name| wanted.contains(name)));
 	}
-	let mut counts = run(jobs, &work(dir)?, &preload, options.jobs)?;
+	let parallel = options.jobs.unwrap_or_else(|| match &counter {
+		Counter::Perf(pmu) => pmu.cpus.len(),
+		Counter::Valgrind => std::thread::available_parallelism().map_or(1, usize::from),
+	});
+	let (mut counts, mut threaded) = run(jobs, &work(dir)?, &preload, parallel, &counter)?;
 	if let Some(wanted) = &options.benchmarks {
 		if strict {
 			missing(wanted, |name| counts.contains_key(name))?;
 		}
 		counts.retain(|name, _| wanted.contains(name));
+		threaded.retain(|name| wanted.contains(name));
 	}
 	if strict && counts.is_empty() {
 		return Err("no benchmark ran".to_owned());
 	}
-	Ok(Counts { fingerprint, counts })
+	Ok(Counts {
+		fingerprint,
+		counts,
+		threaded,
+	})
 }
 
 /// Fails naming each wanted benchmark `has` says no benchmark is, so a bisect step never
@@ -330,10 +397,17 @@ fn work(dir: &Path) -> Result<PathBuf, String> {
 	unreachable!("some name is free")
 }
 
-/// Runs each job under Valgrind with the library at `preload`, `parallel` at once, each in a
-/// directory of its own under `work`, and gathers what they measured. Any failure fails the
-/// whole and keeps `work` for its output; success removes it.
-fn run(jobs: Vec<Job>, work: &Path, preload: &Path, parallel: usize) -> Result<BTreeMap<String, u64>, String> {
+/// Runs each job with the library at `preload`, counted by `counter`, `parallel` at once, each
+/// in a directory of its own under `work`, and gathers what they measured, and beside which
+/// other threads ran. Any failure fails the whole and keeps `work` for its output; success
+/// removes it.
+fn run(
+	jobs: Vec<Job>,
+	work: &Path,
+	preload: &Path,
+	parallel: usize,
+	counter: &Counter,
+) -> Result<(BTreeMap<String, u64>, BTreeSet<String>), String> {
 	let total = jobs.len();
 	let queue = Mutex::new(jobs.into_iter().enumerate());
 	let done = AtomicUsize::new(0);
@@ -351,13 +425,17 @@ fn run(jobs: Vec<Job>, work: &Path, preload: &Path, parallel: usize) -> Result<B
 						};
 						let started = Instant::now();
 						let label = job.label.clone();
-						let result = one(job, &work.join(index.to_string()), preload);
+						let dir = work.join(index.to_string());
+						let result = match counter {
+							Counter::Valgrind => one(job, &dir, preload),
+							Counter::Perf(pmu) => native(job, &dir, preload, pmu),
+						};
 						let finished = done.fetch_add(1, Ordering::Relaxed) + 1;
 						match &result {
 							Ok(measured) => eprintln!(
 								"rust2-bench: [{finished}/{total}] {label}: {} benchmark(s), {} instructions, {:.1}s",
 								measured.len(),
-								measured.iter().map(|(_, ir)| ir).sum::<u64>(),
+								measured.iter().map(|(_, ir, _)| ir).sum::<u64>(),
 								started.elapsed().as_secs_f64()
 							),
 							Err(_) => failed.store(true, Ordering::Relaxed),
@@ -374,11 +452,15 @@ fn run(jobs: Vec<Job>, work: &Path, preload: &Path, parallel: usize) -> Result<B
 			.collect()
 	});
 	let mut counts = BTreeMap::new();
+	let mut threaded = BTreeSet::new();
 	let mut errors = Vec::new();
 	for result in results {
 		match result {
 			Ok(measured) => {
-				for (name, ir) in measured {
+				for (name, ir, threads) in measured {
+					if threads {
+						threaded.insert(name.clone());
+					}
 					if counts.insert(name.clone(), ir).is_some() {
 						errors.push(format!("two benchmarks are named {name}"));
 					}
@@ -391,7 +473,7 @@ fn run(jobs: Vec<Job>, work: &Path, preload: &Path, parallel: usize) -> Result<B
 		return Err(errors.join("\n"));
 	}
 	std::fs::remove_dir_all(work).map_err(|e| format!("cannot remove {}: {e}", work.display()))?;
-	Ok(counts)
+	Ok((counts, threaded))
 }
 
 /// The prefix of the variables [`pad`] fills.
@@ -469,32 +551,13 @@ fn fits(limits: &str) -> Result<(), String> {
 	Ok(())
 }
 
-/// What one job measured: each benchmark's name and count, or why it failed.
-type Measured = Result<Vec<(String, u64)>, String>;
+/// What one job measured: each benchmark's name, its count, and whether other threads ran
+/// beside it, or why it failed.
+type Measured = Result<Vec<(String, u64, bool)>, String>;
 
-/// Runs one job under Valgrind with the library at `preload` in every process, its profiles
-/// and output in `dir`, and reads what it measured.
-fn one(job: Job, dir: &Path, preload: &Path) -> Measured {
-	let Job { label, command, expect } = job;
-	std::fs::create_dir_all(dir).map_err(|e| format!("cannot create {}: {e}", dir.display()))?;
-	let file = |name: &str| {
-		std::fs::File::create(dir.join(name)).map_err(|e| format!("cannot create {}: {e}", dir.join(name).display()))
-	};
-	// Valgrind expands every `%` in a file name, so one in the directory's stands for itself.
-	let escaped = dir.to_str().ok_or("a job's directory is not UTF-8")?.replace('%', "%%");
-	let mut valgrind = valgrind()?;
-	valgrind
-		.arg(format!("--callgrind-out-file={escaped}/callgrind.%p"))
-		.arg(format!("--log-file={escaped}/valgrind.%p.log"))
-		.arg(command.get_program())
-		.args(command.get_args())
-		.stdin(std::process::Stdio::null())
-		.stdout(file("stdout")?)
-		.stderr(file("stderr")?);
-	if let Some(cwd) = command.get_current_dir() {
-		valgrind.current_dir(cwd);
-	}
-	// The whole environment, spelled out, so its size is known exactly.
+/// The whole environment `command` launches with, spelled out so its size is known exactly:
+/// the library at `preload` first in `LD_PRELOAD`, and padded, so it starts at the same place.
+fn environment(command: &Command, preload: &Path, label: &str) -> Result<BTreeMap<OsString, OsString>, String> {
 	let mut env: BTreeMap<OsString, OsString> = std::env::vars_os().collect();
 	for (key, value) in command.get_envs() {
 		match value {
@@ -513,7 +576,85 @@ fn one(job: Job, dir: &Path, preload: &Path) -> Measured {
 		.chain(command.get_args())
 		.collect();
 	pad(&mut env, &args).map_err(|err| format!("{label}: {err}"))?;
-	valgrind.env_clear().envs(&env);
+	Ok(env)
+}
+
+/// Runs one job natively, its benchmark counted by perf counters of `pmu` on its CPUs, with the
+/// library at `preload`, its output in `dir`, and reads what it counted.
+fn native(job: Job, dir: &Path, preload: &Path, pmu: &perf::Pmu) -> Measured {
+	let Job {
+		label,
+		mut command,
+		expect,
+		..
+	} = job;
+	std::fs::create_dir_all(dir).map_err(|e| format!("cannot create {}: {e}", dir.display()))?;
+	let path = dir.join("stdout");
+	let stdout = std::fs::File::create(&path).map_err(|e| format!("cannot create {}: {e}", path.display()))?;
+	let stderr = dir.join("stderr");
+	let stderr = std::fs::File::create(&stderr).map_err(|e| format!("cannot create {}: {e}", stderr.display()))?;
+	pmu.select(&mut command);
+	let env = environment(&command, preload, &label)?;
+	command
+		.env_clear()
+		.envs(env)
+		.stdin(std::process::Stdio::null())
+		.stdout(stdout)
+		.stderr(stderr);
+	pmu.launch(&mut command);
+	let status = command.status().map_err(|e| format!("cannot run {label}: {e}"))?;
+	if !status.success() {
+		return Err(format!("{label} failed ({status}); its output is in {}", dir.display()));
+	}
+	let text = std::fs::read_to_string(&path).map_err(|e| format!("cannot read {}: {e}", path.display()))?;
+	let measured = perf::counted(&text).map_err(|err| format!("{label}: {err}"))?;
+	match (expect, measured.as_slice()) {
+		(Some(name), [(only, _, _)]) if *only == name => Ok(measured),
+		(_, []) => Err(format!(
+			"{label} printed no perf count: its rust2-bench-harness is older than --perf; its output is in {}",
+			dir.display()
+		)),
+		_ => {
+			let found: Vec<&str> = measured.iter().map(|(name, _, _)| name.as_str()).collect();
+			Err(format!(
+				"{label} should count itself alone, but counted [{}]; its output is in {}",
+				found.join(", "),
+				dir.display()
+			))
+		}
+	}
+}
+
+/// Runs one job under Valgrind with the library at `preload` in every process, its profiles
+/// and output in `dir`, and reads what it measured.
+fn one(job: Job, dir: &Path, preload: &Path) -> Measured {
+	let Job {
+		label,
+		mut command,
+		expect,
+		..
+	} = job;
+	// A `--program`'s shell inherits rust2-bench's environment, whose perf setting is a native count's.
+	command.env_remove(perf::PERF);
+	std::fs::create_dir_all(dir).map_err(|e| format!("cannot create {}: {e}", dir.display()))?;
+	let file = |name: &str| {
+		std::fs::File::create(dir.join(name)).map_err(|e| format!("cannot create {}: {e}", dir.join(name).display()))
+	};
+	// Valgrind expands every `%` in a file name, so one in the directory's stands for itself.
+	let escaped = dir.to_str().ok_or("a job's directory is not UTF-8")?.replace('%', "%%");
+	let mut valgrind = valgrind()?;
+	valgrind
+		.arg(format!("--callgrind-out-file={escaped}/callgrind.%p"))
+		.arg(format!("--log-file={escaped}/valgrind.%p.log"))
+		.arg(command.get_program())
+		.args(command.get_args())
+		.stdin(std::process::Stdio::null())
+		.stdout(file("stdout")?)
+		.stderr(file("stderr")?);
+	if let Some(cwd) = command.get_current_dir() {
+		valgrind.current_dir(cwd);
+	}
+	valgrind.env_clear().envs(environment(&command, preload, &label)?);
 	let status = valgrind.status().map_err(|e| format!("cannot run valgrind: {e}"))?;
 	if !status.success() {
 		return Err(format!(
@@ -543,13 +684,13 @@ fn one(job: Job, dir: &Path, preload: &Path) -> Measured {
 			let pid = name["callgrind.".len()..].split('.').next().unwrap_or_default();
 			preload::check(dir, pid, &label)?;
 		}
-		measured.extend(found);
+		measured.extend(found.into_iter().map(|(name, ir)| (name, ir, false)));
 	}
 	match expect {
 		Some(name) => match measured.as_slice() {
-			[(only, _)] if *only == name => {}
+			[(only, _, _)] if *only == name => {}
 			_ => {
-				let found: Vec<&str> = measured.iter().map(|(name, _)| name.as_str()).collect();
+				let found: Vec<&str> = measured.iter().map(|(name, _, _)| name.as_str()).collect();
 				return Err(format!(
 					"{label} should measure itself alone, but measured [{}]",
 					found.join(", ")
@@ -604,7 +745,10 @@ mod tests {
 	fn options_keep_programs_and_cargo_args_apart() {
 		let args = |list: &[&str]| list.iter().map(|s| (*s).to_owned()).collect::<Vec<_>>();
 		let options = Options::parse(&args(&["--jobs", "3", "--", "-p", "net", "--features", "x"])).unwrap();
-		assert_eq!(options.jobs, 3);
+		assert_eq!(options.jobs, Some(3));
+		assert!(Options::parse(&args(&["--perf", "--", "-p", "net"])).unwrap().perf);
+		assert!(Options::parse(&args(&["--perf", "--out", "m.json"])).is_err());
+		assert!(Options::parse(&args(&["--perf", "--program", "a"])).is_err());
 		assert_eq!(options.cargo, ["-p", "net", "--features", "x"]);
 		assert!(Options::parse(&args(&["--program", "a", "--", "-p", "net"])).is_err());
 		assert!(Options::parse(&args(&["--build", "make"])).is_err());

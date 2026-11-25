@@ -113,13 +113,20 @@ nix develop .#bench --command just ffi count compare origin/main # each case's c
 `just ffi count` builds the programs with `bench-build`, then runs each language of
 `count_langs` in its own Valgrind process, at once.
 
-Each program calls CodSpeed's
-[instrument-hooks](https://github.com/CodSpeedHQ/instrument-hooks), which the flake pins,
-through [`codspeed.h`](../../ffi/moq/bench/codspeed.h) and its own FFI around each case:
-one benchmark per language and case, such as `ffi/moq/bench/export.py::python::write` or
-`ffi/moq/bench/export.c::c::throughput[1024]`. The Rust floor's cases are `#[bench]`
-functions instead, counted through [rust2-bench-harness](../runner/harness/README.md) under the
-same names, such as `ffi/moq/bench/export.rs::rust::write`, each with a broadcast of its own.
+A compare reaches back only to [kixel-ai/rust2#1034](https://github.com/kixel-ai/rust2/pull/1034),
+which moved the programs' hooks off CodSpeed's instrument-hooks: a base before it builds
+them over `CODSPEED_INSTRUMENT_HOOKS`, which today's bench shell lacks, so its build fails,
+and its programs would count only under `RUST2_CODSPEED`, which today's `count` no longer
+sets. To compare across it, count each
+revision with `just ffi count run --out <file>` in a checkout of it, in its own bench shell,
+and compare the two files by name.
+
+Each program brackets each case with Callgrind's client requests, from the header of the
+Valgrind rust2-bench counts under, through [`hooks.h`](../../ffi/moq/bench/hooks.h) and its
+own FFI, as rust2-bench-harness does: one benchmark per language and case, such as
+`ffi/moq/bench/export.py::python::write` or `ffi/moq/bench/export.c::c::throughput[1024]`.
+The Rust floor's cases are `#[bench]` functions instead, counted through
+[rust2-bench-harness](../runner/harness/README.md) under the same names, such as `ffi/moq/bench/export.rs::rust::write`, each with a broadcast of its own.
 Counted, a program runs its round once, without the warm-up round, and with a tenth of the groups (so 100,000 calls a case, Python's
 10,000), since Valgrind counts every call exactly and costs 50 to 100 times the program's own
 time. It skips the `shared:*`, `own:*`, and Kotlin's `objects` cases: Valgrind runs one
@@ -149,7 +156,7 @@ between two runs:
 Node, 24.22.2, holds still only once neither V8 nor moq reads time while counted. V8
 compiles, sweeps, and collects on its own threads, by time, and Valgrind counts every
 thread: with its default flags, two runs moved `write` 113%. `bench-program` passes, under
-`RUST2_CODSPEED`, `--single-threaded`, which keeps that work on the main thread;
+`RUST2_COUNT`, `--single-threaded`, which keeps that work on the main thread;
 `--predictable --predictable-gc-schedule`, so a collection follows allocation rather than
 time; `--expose-gc`, so `export.ts` collects before each case; and `--wasm-sync-tier-up`,
 so the module's hot functions compile where they trip their budget, not on a worker

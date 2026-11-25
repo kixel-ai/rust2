@@ -23,6 +23,9 @@ pub fn hash() -> String {
 /// Writes the library where every run on this host finds it at the same path, under the user's
 /// cache, and returns that path. Named by its hash, it is rewritten only when missing or altered.
 pub fn install() -> Result<PathBuf, String> {
+	if LIBRARY.is_empty() {
+		return Err("rust2-bench's preload is built for x86_64 Linux alone, where it counts".to_owned());
+	}
 	let path = crate::cache()?.join(format!("preload-{}.so", hash()));
 	// The loader splits LD_PRELOAD at each.
 	if path.to_string_lossy().contains([':', ' ']) {
@@ -56,12 +59,11 @@ pub fn check(dir: &Path, pid: &str, label: &str) -> Result<(), String> {
 	))
 }
 
-#[cfg(test)]
+#[cfg(all(test, target_os = "linux", target_arch = "x86_64", target_env = "gnu"))]
 mod tests {
 	use super::*;
 
 	#[test]
-	#[cfg(all(target_os = "linux", target_arch = "x86_64", target_env = "gnu"))]
 	fn the_library_logs_the_marker() {
 		assert!(
 			LIBRARY.windows(MARKER.len()).any(|window| window == MARKER.as_bytes()),

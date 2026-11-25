@@ -2,7 +2,7 @@
 // the Dart wrapper add. Each round runs twice, the first to warm the JIT. Each case prints
 // its wall time and the process's CPU time, the VM's own threads included, or under
 // Valgrind, runs once for rust2-bench to count. Its argument is
-// moq/bench/codspeed.h's shared library.
+// moq/bench/hooks.h's shared library.
 
 import 'dart:async';
 import 'dart:ffi' as ffi;
@@ -49,22 +49,22 @@ Span per(Span start, [num? calls]) {
   return Span((end.wall - start.wall) / calls, (end.cpu - start.cpu) / calls);
 }
 
-/// moq/bench/codspeed.h's functions, from the shared library main opens.
-late final bool Function(ffi.Pointer<ffi.Char>) _codspeedInit;
-late final void Function() _codspeedStart;
-late final void Function(ffi.Pointer<ffi.Char>) _codspeedStop;
+/// moq/bench/hooks.h's functions, from the shared library main opens.
+late final bool Function(ffi.Pointer<ffi.Char>) _hooksInit;
+late final void Function() _hooksStart;
+late final void Function(ffi.Pointer<ffi.Char>) _hooksStop;
 
 /// A case's start: now, and Valgrind counting from here.
 Span begin() {
   final start = now();
-  _codspeedStart();
+  _hooksStart();
   return start;
 }
 
 /// The case `name`'s nanoseconds per call since `start`, over `calls` calls.
 Span end(Span start, String name, [num? calls]) {
   final c = _cString(name);
-  _codspeedStop(c);
+  _hooksStop(c);
   _free(c.cast());
   return per(start, calls);
 }
@@ -330,14 +330,14 @@ Future<Map<String, Span>> round() async {
 }
 
 Future<void> main(List<String> args) async {
-  final codspeed = ffi.DynamicLibrary.open(args.single);
-  _codspeedInit = codspeed
-      .lookupFunction<ffi.Bool Function(ffi.Pointer<ffi.Char>), bool Function(ffi.Pointer<ffi.Char>)>('codspeed_init');
-  _codspeedStart = codspeed.lookupFunction<ffi.Void Function(), void Function()>('codspeed_start');
-  _codspeedStop = codspeed
-      .lookupFunction<ffi.Void Function(ffi.Pointer<ffi.Char>), void Function(ffi.Pointer<ffi.Char>)>('codspeed_stop');
+  final hooks = ffi.DynamicLibrary.open(args.single);
+  _hooksInit = hooks
+      .lookupFunction<ffi.Bool Function(ffi.Pointer<ffi.Char>), bool Function(ffi.Pointer<ffi.Char>)>('hooks_init');
+  _hooksStart = hooks.lookupFunction<ffi.Void Function(), void Function()>('hooks_start');
+  _hooksStop = hooks
+      .lookupFunction<ffi.Void Function(ffi.Pointer<ffi.Char>), void Function(ffi.Pointer<ffi.Char>)>('hooks_stop');
   final bench = _cString('ffi/moq/bench/export.dart::dart');
-  final measured = _codspeedInit(bench);
+  final measured = _hooksInit(bench);
   _free(bench.cast());
   // Under Valgrind, one round, which prints nothing: rust2-bench counts each case.
   if (measured) {

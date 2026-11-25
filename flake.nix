@@ -23,12 +23,6 @@
       inputs.rust-overlay.follows = "rust-overlay";
       inputs.flake-utils.follows = "flake-utils";
     };
-    # CodSpeed's instrument-hooks, which the binding benchmark's programs call around each
-    # case rust2-bench counts.
-    instrument-hooks = {
-      url = "github:CodSpeedHQ/instrument-hooks/8fd5b878499f819561b33219cdafaa6f8c28b4e4";
-      flake = false;
-    };
   };
 
   outputs =
@@ -39,7 +33,6 @@
       rust-overlay,
       quest,
       ra-jit,
-      instrument-hooks,
       ...
     }:
     flake-utils.lib.eachSystem
@@ -478,8 +471,9 @@
               ];
             # `just ffi bench` builds moq's rs/libmoq, whose VAAPI bindings run bindgen.
             LIBCLANG_PATH = "${pkgs.llvmPackages.libclang.lib}/lib";
-            # ... and its programs over CodSpeed's instrument-hooks, which rust2-bench reads.
-            CODSPEED_INSTRUMENT_HOOKS = "${instrument-hooks}";
+            # ... and its programs' hooks over the header of the Valgrind rust2-bench counts
+            # under, so a bump moves both.
+            RUST2_VALGRIND_INCLUDE = "${valgrind.dev}/include";
           });
           # Clang beside the default shell's GCC, which the nightly builds the exporter's C++ with.
           devShells.clang = self.devShells.${system}.default.overrideAttrs (old: {

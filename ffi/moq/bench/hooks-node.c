@@ -1,16 +1,15 @@
-/* codspeed.h as a Node addon, which export.ts loads to call CodSpeed's hooks around each
- * case, as each other program calls them through its own FFI: `init(bench)`, `start()`, and
- * `stop(name)`. */
+/* hooks.h as a Node addon, which export.ts loads to call the hooks around each case, as each
+ * other program calls them through its own FFI: `init(bench)`, `start()`, and `stop(name)`. */
 
 #include <node_api.h>
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "codspeed.h"
+#include "hooks.h"
 
 static void fail(napi_env env, napi_status status, const char *what) {
 	if (status != napi_ok) {
-		fprintf(stderr, "codspeed-node: %s failed\n", what);
+		fprintf(stderr, "hooks-node: %s failed\n", what);
 		exit(1);
 	}
 	(void)env;
@@ -35,21 +34,21 @@ static napi_value init(napi_env env, napi_callback_info info) {
 	char bench[256];
 	text(env, info, bench, sizeof bench);
 	napi_value measured;
-	fail(env, napi_get_boolean(env, codspeed_init(bench), &measured), "a boolean");
+	fail(env, napi_get_boolean(env, hooks_init(bench), &measured), "a boolean");
 	return measured;
 }
 
 static napi_value start(napi_env env, napi_callback_info info) {
 	(void)env;
 	(void)info;
-	codspeed_start();
+	hooks_start();
 	return NULL;
 }
 
 static napi_value stop(napi_env env, napi_callback_info info) {
 	char name[256];
 	text(env, info, name, sizeof name);
-	codspeed_stop(name);
+	hooks_stop(name);
 	return NULL;
 }
 

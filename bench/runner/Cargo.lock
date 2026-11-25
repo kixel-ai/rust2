@@ -67,6 +67,7 @@ dependencies = [
 name = "rust2-bench"
 version = "0.0.0"
 dependencies = [
+ "rust2-bench-harness",
  "serde_json",
  "toml",
 ]
