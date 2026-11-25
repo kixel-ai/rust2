@@ -1,6 +1,7 @@
 /* The binding benchmark's hooks into CodSpeed's CPU simulation, through its instrument-hooks
- * library: each program calls them through its own FFI around each case it times, so
- * Valgrind counts that case alone. Outside Valgrind they do nothing. */
+ * library: each program but the Rust floor, which counts through rust2-bench-harness, calls
+ * them through its own FFI around each case it times, so Valgrind counts that case alone.
+ * Outside Valgrind they do nothing. */
 
 #ifndef CODSPEED_H
 #define CODSPEED_H

@@ -1,10 +1,14 @@
-//! A Cargo workspace's benchmarks, written with CodSpeed's compatibility crates.
+//! A Cargo workspace's benchmarks, written with rust2-bench-harness or CodSpeed's
+//! compatibility crates.
 //!
-//! Built with `--cfg codspeed`, as `cargo codspeed build` builds them, a benchmark target
-//! runs each benchmark once around CodSpeed's instrument hooks, printing `Checked: <name>`
-//! where nothing measures it. With `CODSPEED_ISOLATED_BENCHMARK` set to a name it runs that
-//! benchmark alone, and with `CODSPEED_PROCESS_ISOLATION=false` it runs every benchmark in
-//! its own process rather than one child each.
+//! A harness target runs each benchmark once, printing `rust2-bench ran <name>` after it, or
+//! with `RUST2_BENCH` set to a name, that benchmark alone.
+//!
+//! Built with `--cfg codspeed`, as `cargo codspeed build` builds them, a target of CodSpeed's
+//! crates runs each benchmark once around CodSpeed's instrument hooks, printing
+//! `Checked: <name>` where nothing measures it. With `CODSPEED_ISOLATED_BENCHMARK` set to a
+//! name it runs that benchmark alone, and with `CODSPEED_PROCESS_ISOLATION=false` it runs every
+//! benchmark in its own process rather than one child each.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::io::{BufRead, BufReader};
@@ -25,6 +29,37 @@ pub const CAPTURE: &str = "__capture";
 /// Where the capturing runner writes each launch, set on the `cargo bench` it runs under.
 const CAPTURE_DIR: &str = "RUST2_BENCH_CAPTURE";
 
+/// What a harness target prints after each benchmark it ran, before the benchmark's name.
+const HARNESS_RAN: &str = "rust2-bench ran ";
+
+/// The variable naming the one benchmark a harness target runs.
+const HARNESS_ONLY: &str = "RUST2_BENCH";
+
+/// What a target of CodSpeed's crates prints for each benchmark it ran unmeasured.
+const CODSPEED_CHECKED: &str = "Checked: ";
+
+/// The variable naming the one benchmark a target of CodSpeed's crates runs.
+const CODSPEED_ONLY: &str = "CODSPEED_ISOLATED_BENCHMARK";
+
+/// What a benchmark target is written with, which says how to run one of its benchmarks.
+#[derive(Clone, Copy, Debug, PartialEq)]
+enum Harness {
+	/// rust2-bench-harness's `#[bench]` functions.
+	Rust2,
+	/// CodSpeed's compatibility crates.
+	CodSpeed,
+}
+
+impl Harness {
+	/// The variable that names the one benchmark a target runs.
+	fn only(self) -> &'static str {
+		match self {
+			Harness::Rust2 => HARNESS_ONLY,
+			Harness::CodSpeed => CODSPEED_ONLY,
+		}
+	}
+}
+
 /// A benchmark target cargo built.
 struct Target {
 	name: String,
@@ -33,7 +68,7 @@ struct Target {
 
 /// How Cargo launches a benchmark target: its directory and its whole environment, with
 /// `[env]`, `CARGO_MANIFEST_DIR`, and the library path Cargo sets. Its arguments are kept
-/// only to check they are Cargo's own, which CodSpeed's harness does not take.
+/// only to check they are Cargo's own, which neither harness takes.
 #[derive(Clone)]
 struct Launch {
 	args: Vec<String>,
@@ -186,21 +221,21 @@ pub fn jobs(dir: &Path, args: &[String], strict: bool) -> Result<Vec<Job>, Strin
 	});
 	let mut seen = BTreeSet::new();
 	let mut jobs = Vec::new();
-	for ((target, launch), names) in targets.iter().zip(listed) {
-		let names = names?;
-		if names.is_empty() {
+	for ((target, launch), listed) in targets.iter().zip(listed) {
+		let Some((harness, names)) = listed? else {
 			return Err(format!(
-				"benchmark target {} ran no benchmark through CodSpeed's compatibility crates, built with --cfg=codspeed \
-				 (which a config's target rustflags would drop): leave it out with cargo's --bench",
+				"benchmark target {} ran no benchmark through rust2-bench-harness, nor through CodSpeed's \
+				 compatibility crates, built with --cfg=codspeed (which a config's target rustflags would drop): \
+				 leave it out with cargo's --bench",
 				target.name
 			));
-		}
+		};
 		for name in names {
 			if !seen.insert(name.clone()) {
 				return Err(format!("two benchmarks are named {name}"));
 			}
 			let mut command = launch.command(&target.executable, &root);
-			command.env("CODSPEED_ISOLATED_BENCHMARK", &name);
+			command.env(harness.only(), &name);
 			jobs.push(Job {
 				label: name.clone(),
 				command,
@@ -519,8 +554,8 @@ fn build(dir: &Path, args: &[String]) -> Result<Vec<(Target, Launch)>, String> {
 				 a config or the environment sets one",
 				target.name
 			))?;
-			// Arguments after `cargo bench`'s `--` would choose what a harness runs, but
-			// CodSpeed's takes none beyond a filter, which `--benchmarks` stands in for. Cargo's
+			// Arguments after `cargo bench`'s `--` would choose what a harness runs, but neither
+			// takes any beyond a filter, which `--benchmarks` stands in for. Cargo's
 			// own `--bench`, and `--quiet` under `cargo -q`, are left out of every launch.
 			if let Some(arg) = launch
 				.args
@@ -560,12 +595,14 @@ fn bench(message: &Value) -> Result<Option<Target>, String> {
 	Ok(Some(Target { name, executable }))
 }
 
-/// The benchmarks `target` runs, as it names them when nothing measures it.
-fn list(target: &Target, launch: &Launch, root: &Path) -> Result<Vec<String>, String> {
+/// What `target` is written with and the benchmarks it runs, as it names them when nothing
+/// measures it, or `None` when it ran none.
+fn list(target: &Target, launch: &Launch, root: &Path) -> Result<Option<(Harness, Vec<String>)>, String> {
 	let out = launch
 		.command(&target.executable, root)
 		.env("CODSPEED_PROCESS_ISOLATION", "false")
-		.env_remove("CODSPEED_ISOLATED_BENCHMARK")
+		.env_remove(CODSPEED_ONLY)
+		.env_remove(HARNESS_ONLY)
 		.stdin(Stdio::null())
 		.output()
 		.map_err(|e| format!("cannot run benchmark target {}: {e}", target.name))?;
@@ -578,16 +615,25 @@ fn list(target: &Target, launch: &Launch, root: &Path) -> Result<Vec<String>, St
 			String::from_utf8_lossy(&out.stderr)
 		));
 	}
-	Ok(checked(&String::from_utf8_lossy(&out.stdout)))
+	ran(&String::from_utf8_lossy(&out.stdout)).map_err(|err| format!("benchmark target {}: {err}", target.name))
 }
 
-/// The benchmarks a target's output says it ran unmeasured.
-fn checked(stdout: &str) -> Vec<String> {
-	stdout
-		.lines()
-		.filter_map(|line| line.strip_prefix("Checked: "))
-		.map(str::to_owned)
-		.collect()
+/// What a target's output says it is written with, and the benchmarks it ran unmeasured, or
+/// `None` when it ran none.
+fn ran(stdout: &str) -> Result<Option<(Harness, Vec<String>)>, String> {
+	let names = |prefix: &str| -> Vec<String> {
+		stdout
+			.lines()
+			.filter_map(|line| line.strip_prefix(prefix))
+			.map(str::to_owned)
+			.collect()
+	};
+	match (names(HARNESS_RAN), names(CODSPEED_CHECKED)) {
+		(harness, codspeed) if harness.is_empty() && codspeed.is_empty() => Ok(None),
+		(harness, codspeed) if codspeed.is_empty() => Ok(Some((Harness::Rust2, harness))),
+		(harness, codspeed) if harness.is_empty() => Ok(Some((Harness::CodSpeed, codspeed))),
+		_ => Err("it ran benchmarks through both rust2-bench-harness and CodSpeed's crates".to_owned()),
+	}
 }
 
 #[cfg(test)]
@@ -595,9 +641,18 @@ mod tests {
 	use super::*;
 
 	#[test]
-	fn lists_each_checked_benchmark() {
+	fn lists_each_benchmark_a_target_ran() {
 		let out = "Harness: codspeed-criterion-compat v6.0.0\nChecked: benches/a.rs::g::f[1]\nSkipping: benches/a.rs::c (CodSpeed doesn't support custom iterations)\nChecked: benches/a.rs::g::h\n";
-		assert_eq!(checked(out), ["benches/a.rs::g::f[1]", "benches/a.rs::g::h"]);
+		let (harness, names) = ran(out).unwrap().unwrap();
+		assert_eq!(harness, Harness::CodSpeed);
+		assert_eq!(names, ["benches/a.rs::g::f[1]", "benches/a.rs::g::h"]);
+		let out = "a benchmark's own line\nrust2-bench ran benches/a.rs::f[1]\nrust2-bench ran benches/a.rs::m::g\n";
+		let (harness, names) = ran(out).unwrap().unwrap();
+		assert_eq!(harness, Harness::Rust2);
+		assert_eq!(names, ["benches/a.rs::f[1]", "benches/a.rs::m::g"]);
+		assert_eq!(ran("Harness: codspeed-criterion-compat v6.0.0\n").unwrap(), None);
+		let both = "rust2-bench ran benches/a.rs::f\nChecked: benches/a.rs::g\n";
+		assert!(ran(both).unwrap_err().contains("both"));
 	}
 
 	#[test]

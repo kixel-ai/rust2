@@ -15,7 +15,3 @@ Recommendations for the implementer:
 - tango-bench 0.9 loads the base build as a shared library into the head's process and alternates them; study it before choosing between that and two processes.
 - moq's Nightly does paired comparisons with scripts today (`bench/run.sh`, its `--criterion` path with `BENCH_BASE`, and moq's `just bench <base>` quest). Measure against it, so moq's migration can delete them.
 - Instruction counts don't need pairing, since host load doesn't move them, but multi-threaded ones vary between runs (up to 2.57% in moq), so a count comparison still checks repeat runs' spread, as [the runner](/bench/runner/README.md) measures. This mode is for the wall-clock effects counts miss, such as syscalls, I/O, and contention.
-
-## Required
-
-- [Counts](/quest/m2/harness/counts.md) - the `#[bench]` API this times
