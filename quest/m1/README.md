@@ -27,5 +27,5 @@ Decided with the maintainer on 2026-11-18, in the per-language audit of the expo
 bindings and the translators: ✅ its findings join m1 where moq's switch uses them. Breaking
 changes were children of the exporter epic and landed as
 soon as possible; the rest are the speed (landed), rule cost (landed), and
-[packaging](/quest/m1/ffi-packaging/README.md) epics, and the fixes and additions at this
+packaging (landed) epics, and the fixes and additions at this
 milestone's top. Rejected: packaging in m2.
