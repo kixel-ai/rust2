@@ -249,12 +249,61 @@ pub fn jobs(dir: &Path, args: &[String], strict: bool) -> Result<Vec<Job>, Strin
 /// The root of the workspace in `dir`, which CodSpeed's crates name each benchmark's file
 /// relative to.
 fn workspace_root(dir: &Path, args: &[String]) -> Result<PathBuf, String> {
+	let out = workspace(
+		dir,
+		args,
+		&["locate-project", "--workspace", "--message-format", "plain"],
+	)?;
+	let manifest = String::from_utf8(out).map_err(|_| "cargo located a manifest at a path not UTF-8")?;
+	let manifest = Path::new(manifest.trim());
+	Ok(manifest
+		.parent()
+		.ok_or("cargo located a manifest with no directory")?
+		.to_owned())
+}
+
+/// Each member of the workspace in `dir`, by name, with the names of its benchmark targets.
+pub fn members(dir: &Path, args: &[String]) -> Result<BTreeMap<String, BTreeSet<String>>, String> {
+	let out = workspace(dir, args, &["metadata", "--format-version", "1", "--no-deps"])?;
+	let metadata: Value =
+		serde_json::from_slice(&out).map_err(|e| format!("cargo metadata printed something not JSON: {e}"))?;
+	metadata["packages"]
+		.as_array()
+		.ok_or("cargo metadata listed no packages")?
+		.iter()
+		.map(|package| {
+			let name = package["name"]
+				.as_str()
+				.ok_or("cargo metadata listed a package without a name")?;
+			let benches = package["targets"]
+				.as_array()
+				.ok_or(format!("cargo metadata listed package {name} without targets"))?
+				.iter()
+				.filter(|target| {
+					target["kind"]
+						.as_array()
+						.is_some_and(|kinds| kinds.iter().any(|kind| kind == "bench"))
+				})
+				.map(|target| {
+					target["name"]
+						.as_str()
+						.map(str::to_owned)
+						.ok_or(format!("cargo metadata listed a target of {name} without a name"))
+				})
+				.collect::<Result<_, String>>()?;
+			Ok((name.to_owned(), benches))
+		})
+		.collect()
+}
+
+/// The stdout of `cargo <command>` on the workspace the build `args` select from `dir`: their
+/// manifest, and their configs, since a config may move the workspace.
+fn workspace(dir: &Path, args: &[String], command: &[&str]) -> Result<Vec<u8>, String> {
 	let mut cargo = Command::new("cargo");
-	cargo.args(["locate-project", "--workspace", "--message-format", "plain"]);
+	cargo.args(command);
 	if let Some(manifest) = manifest_path(args) {
 		cargo.args(["--manifest-path", manifest]);
 	}
-	// A config may move the workspace, so the build's configs locate it too.
 	let mut rest = args.iter();
 	while let Some(arg) = rest.next() {
 		if arg == "--" {
@@ -272,14 +321,9 @@ fn workspace_root(dir: &Path, args: &[String]) -> Result<PathBuf, String> {
 		.output()
 		.map_err(|e| format!("cannot run cargo: {e}"))?;
 	if !out.status.success() {
-		return Err(format!("cargo locate-project failed ({})", out.status));
+		return Err(format!("cargo {} failed ({})", command.join(" "), out.status));
 	}
-	let manifest = String::from_utf8(out.stdout).map_err(|_| "cargo located a manifest at a path not UTF-8")?;
-	let manifest = Path::new(manifest.trim());
-	Ok(manifest
-		.parent()
-		.ok_or("cargo located a manifest with no directory")?
-		.to_owned())
+	Ok(out.stdout)
 }
 
 /// The workspace at `root` as CodSpeed's crates take it: relative to its Git repository, which

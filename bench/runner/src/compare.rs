@@ -34,6 +34,9 @@ pub fn compare(base: &str, options: &Options) -> Result<(), String> {
 		.map_err(|e| format!("cannot lock compare's worktree: {e}"))?;
 	let mut both = options.clone();
 	both.cargo = rebase(&options.cargo, &real, &tree)?;
+	// Parsed before either side counts, so a selector compare cannot resolve fails first.
+	let args = parse(&both.cargo)?;
+	let selects = both.programs.is_empty() && args.iter().any(|arg| matches!(arg, Arg::Package(_) | Arg::Bench(_)));
 	let dir = tree.join(&prefix);
 	checkout(&top, &tree, &sha)?;
 	eprintln!(
@@ -41,15 +44,28 @@ pub fn compare(base: &str, options: &Options) -> Result<(), String> {
 		&sha[..12.min(sha.len())],
 		tree.display()
 	);
+	let picked = pick(&dir, &both, &args, selects, base)?;
 	// A wanted benchmark may be new at the head or gone from it, but must be on one side.
-	let before = measure(&dir, &both, false)?;
+	let before = count(&dir, &both, &picked, base)?;
 	checkout(&top, &tree, &head)?;
 	eprintln!(
 		"rust2-bench: counting the working tree ({}) in {}",
 		&head[..12.min(head.len())],
 		tree.display()
 	);
-	let after = measure(&dir, &both, false)?;
+	let head_picked = pick(&dir, &both, &args, selects, "the working tree")?;
+	let neither: Vec<&str> = picked
+		.lacks
+		.intersection(&head_picked.lacks)
+		.map(String::as_str)
+		.collect();
+	if !neither.is_empty() {
+		return Err(format!(
+			"neither {base} nor the working tree has {}",
+			neither.join(", ")
+		));
+	}
+	let after = count(&dir, &both, &head_picked, "the working tree")?;
 	drop(lock);
 	if let Some(wanted) = &options.benchmarks {
 		missing(wanted, |name| {
@@ -61,6 +77,187 @@ pub fn compare(base: &str, options: &Options) -> Result<(), String> {
 	}
 	print!("{}", table(&before, &after)?);
 	Ok(())
+}
+
+/// A Cargo argument as compare's selection reads it.
+#[derive(Debug, PartialEq)]
+enum Arg {
+	/// `-p`'s or `--package`'s package name.
+	Package(String),
+	/// `--bench`'s target name.
+	Bench(String),
+	/// The features of one `-F` or `--features`, each on its own.
+	Features(Vec<String>),
+	/// Any other argument, passed through as it is.
+	Other(String),
+}
+
+/// Reads the Cargo `args` before their `--`, refusing a package or benchmark target the selection
+/// cannot resolve by its name alone, such as `name@1.0` or a glob, rather than passing it to a side
+/// that may lack it.
+fn parse(args: &[String]) -> Result<Vec<Arg>, String> {
+	let mut out = Vec::new();
+	let mut args = args.iter();
+	while let Some(arg) = args.next() {
+		if arg == "--" {
+			out.push(Arg::Other(arg.clone()));
+			out.extend(args.by_ref().cloned().map(Arg::Other));
+			break;
+		}
+		// `-p name`, `-pname`, `-p=name`, `--package name`, or `--package=name`, and the same
+		// forms of `-F` and `--bench`.
+		let value = |short: &str, long: &str, args: &mut std::slice::Iter<String>| -> Result<Option<String>, String> {
+			if arg == long || (!short.is_empty() && arg == short) {
+				return args
+					.next()
+					.filter(|value| !value.starts_with('-'))
+					.cloned()
+					.map(Some)
+					.ok_or(format!("compare needs {arg} to name its value"));
+			}
+			if let Some(value) = arg.strip_prefix(long).and_then(|rest| rest.strip_prefix('=')) {
+				return Ok(Some(value.to_owned()));
+			}
+			if !short.is_empty()
+				&& let Some(value) = arg.strip_prefix(short)
+			{
+				return Ok(Some(value.strip_prefix('=').unwrap_or(value).to_owned()));
+			}
+			Ok(None)
+		};
+		let named = |what: &str, name: String| {
+			if !name.is_empty() && name.chars().all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_') {
+				Ok(name)
+			} else {
+				Err(format!(
+					"compare selects each side's {what} by name, and cannot resolve {name:?}: name each one"
+				))
+			}
+		};
+		out.push(if let Some(name) = value("-p", "--package", &mut args)? {
+			Arg::Package(named("packages", name)?)
+		} else if let Some(name) = value("", "--bench", &mut args)? {
+			Arg::Bench(named("benchmark targets", name)?)
+		} else if let Some(list) = value("-F", "--features", &mut args)? {
+			Arg::Features(
+				list.split([',', ' '])
+					.filter(|feature| !feature.is_empty())
+					.map(str::to_owned)
+					.collect(),
+			)
+		} else {
+			Arg::Other(arg.clone())
+		});
+	}
+	Ok(out)
+}
+
+/// What one side builds: the Cargo args, or none when it has nothing they select, and what of
+/// the selection it lacks.
+struct Selection {
+	args: Option<Vec<String>>,
+	/// Each `-p name` and `--bench name` naming what the side lacks.
+	lacks: BTreeSet<String>,
+	/// Each `package/feature` left out of `--features`, since the side lacks its package.
+	features: Vec<String>,
+}
+
+/// The Cargo `args` for a side whose workspace has `members`, each with its benchmark targets:
+/// each package and benchmark target it lacks is left out, with each feature of a package left
+/// out, and a selection left with no package or no target selects nothing.
+fn select(args: &[Arg], members: &BTreeMap<String, BTreeSet<String>>) -> Selection {
+	let packages: Vec<&String> = args
+		.iter()
+		.filter_map(|arg| match arg {
+			Arg::Package(name) => Some(name),
+			_ => None,
+		})
+		.collect();
+	let (kept, dropped): (BTreeSet<&str>, BTreeSet<&str>) = packages
+		.iter()
+		.map(|name| name.as_str())
+		.partition(|name| members.contains_key(*name));
+	// Cargo looks for `--bench` among the packages `-p` selects, or without one, the default
+	// members, which every member holds: a target only another member has fails its build.
+	let benches: BTreeSet<&String> = members
+		.iter()
+		.filter(|(name, _)| packages.is_empty() || kept.contains(name.as_str()))
+		.flat_map(|(_, benches)| benches)
+		.collect();
+	let mut selection = Selection {
+		args: None,
+		lacks: BTreeSet::new(),
+		features: Vec::new(),
+	};
+	let mut out = Vec::new();
+	let (mut wants_bench, mut has_bench) = (false, false);
+	for arg in args {
+		match arg {
+			Arg::Package(name) if kept.contains(name.as_str()) => out.extend(["-p".to_owned(), name.clone()]),
+			Arg::Package(name) => {
+				selection.lacks.insert(format!("-p {name}"));
+			}
+			Arg::Bench(name) => {
+				wants_bench = true;
+				if benches.contains(name) {
+					has_bench = true;
+					out.extend(["--bench".to_owned(), name.clone()]);
+				} else {
+					selection.lacks.insert(format!("--bench {name}"));
+				}
+			}
+			Arg::Features(list) => {
+				let (gone, features): (Vec<&str>, Vec<&str>) = list.iter().map(String::as_str).partition(|feature| {
+					feature
+						.split_once('/')
+						.is_some_and(|(package, _)| dropped.contains(package))
+				});
+				selection.features.extend(gone.into_iter().map(str::to_owned));
+				if !features.is_empty() {
+					out.extend(["--features".to_owned(), features.join(",")]);
+				}
+			}
+			Arg::Other(arg) => out.push(arg.clone()),
+		}
+	}
+	if (packages.is_empty() || !kept.is_empty()) && (!wants_bench || has_bench) {
+		selection.args = Some(out);
+	}
+	selection
+}
+
+/// What the side checked out under `dir`, which the log calls `side`, builds of `args`, the Cargo
+/// args of `options`: all of them unless `selects`, when they name a package or target it may lack.
+fn pick(dir: &Path, options: &Options, args: &[Arg], selects: bool, side: &str) -> Result<Selection, String> {
+	if !selects {
+		return Ok(Selection {
+			args: Some(options.cargo.clone()),
+			lacks: BTreeSet::new(),
+			features: Vec::new(),
+		});
+	}
+	let selection = select(args, &crate::cargo::members(dir, &options.cargo)?);
+	for lacked in &selection.lacks {
+		eprintln!("rust2-bench: {side} has no {lacked}, so builds without it");
+	}
+	for feature in &selection.features {
+		eprintln!("rust2-bench: {side} lacks the package of feature {feature}, so builds without it");
+	}
+	Ok(selection)
+}
+
+/// Counts the side checked out under `dir`, which the log calls `side`, building what `selection` picked.
+fn count(dir: &Path, options: &Options, selection: &Selection, side: &str) -> Result<Counts, String> {
+	let Some(args) = &selection.args else {
+		eprintln!("rust2-bench: {side} has nothing the cargo args select, so counts none");
+		return Ok(Counts {
+			fingerprint: crate::fingerprint::Fingerprint::probe()?.label(),
+			counts: BTreeMap::new(),
+		});
+	};
+	let mut options = options.clone();
+	options.cargo = args.clone();
+	measure(dir, &options, false)
 }
 
 /// The working tree of the repository at `top` as a commit: `HEAD` when nothing differs from
@@ -376,5 +573,107 @@ mod tests {
 	fn refuses_two_fingerprints() {
 		let err = table(&counts("f", &[("a", 1)]), &counts("g", &[("a", 1)])).unwrap_err();
 		assert!(err.contains("do not compare"), "{err}");
+	}
+
+	fn strings(list: &[&str]) -> Vec<String> {
+		list.iter().map(|s| (*s).to_owned()).collect()
+	}
+
+	#[test]
+	fn parses_each_form_of_a_selector() {
+		let args = parse(&strings(&[
+			"-p",
+			"a",
+			"-pb",
+			"-p=c",
+			"--package",
+			"d",
+			"--package=e",
+			"--bench",
+			"x",
+			"--bench=y",
+			"--benches",
+			"-F",
+			"a/f, g",
+			"--features=b/h",
+			"--",
+			"-p",
+			"z",
+		]))
+		.unwrap();
+		let package = |name: &str| Arg::Package(name.to_owned());
+		let other = |arg: &str| Arg::Other(arg.to_owned());
+		assert_eq!(
+			args,
+			[
+				package("a"),
+				package("b"),
+				package("c"),
+				package("d"),
+				package("e"),
+				Arg::Bench("x".to_owned()),
+				Arg::Bench("y".to_owned()),
+				other("--benches"),
+				Arg::Features(strings(&["a/f", "g"])),
+				Arg::Features(strings(&["b/h"])),
+				other("--"),
+				other("-p"),
+				other("z"),
+			]
+		);
+		for refused in [
+			&["-p", "a@1.0"][..],
+			&["-p", "moq-*"],
+			&["--bench", "x*"],
+			&["-p"],
+			&["--bench", "--locked"],
+		] {
+			assert!(parse(&strings(refused)).is_err(), "{refused:?}");
+		}
+	}
+
+	#[test]
+	fn selects_only_what_a_side_has() {
+		let members: BTreeMap<String, BTreeSet<String>> = [("a", &["x"][..]), ("c", &["z"])]
+			.into_iter()
+			.map(|(name, benches)| (name.to_owned(), benches.iter().map(|b| (*b).to_owned()).collect()))
+			.collect();
+		let select = |args: &[&str]| select(&parse(&strings(args)).unwrap(), &members);
+
+		// A package and its feature, and a target, only the other side has.
+		let picked = select(&[
+			"-p",
+			"a",
+			"-p",
+			"b",
+			"--bench",
+			"x",
+			"--bench",
+			"y",
+			"--features",
+			"b/f,a/g,h",
+			"--locked",
+		]);
+		assert_eq!(
+			picked.args.unwrap(),
+			strings(&["-p", "a", "--bench", "x", "--features", "a/g,h", "--locked"])
+		);
+		assert_eq!(picked.lacks, strings(&["-p b", "--bench y"]).into_iter().collect());
+		assert_eq!(picked.features, ["b/f"]);
+
+		// A target is looked for among the packages selected, or without `-p`, every member.
+		let picked = select(&["-p", "a", "--bench", "z"]);
+		assert!(picked.args.is_none());
+		assert_eq!(picked.lacks, BTreeSet::from(["--bench z".to_owned()]));
+		assert_eq!(select(&["--bench", "z"]).args.unwrap(), ["--bench", "z"]);
+
+		// With every package or every target gone, the side selects nothing rather than everything.
+		assert!(select(&["-p", "b", "--features", "b/f"]).args.is_none());
+		assert!(select(&["--bench", "y"]).args.is_none());
+		// A feature of a dependency the args never name with -p stays.
+		assert_eq!(
+			select(&["-p", "a", "-F", "dep/f"]).args.unwrap(),
+			["-p", "a", "--features", "dep/f"]
+		);
 	}
 }
