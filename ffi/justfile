@@ -305,19 +305,24 @@ bench-run rounds="3": mbx-shim
     if [ "{{ os() }}" = macos ]; then libpath=DYLD_LIBRARY_PATH; else libpath=LD_LIBRARY_PATH; fi
     # Without mbx's Cargo shim, whose compiler cache an emptied target does not empty.
     uncached=(-u RUSTC_WRAPPER -u CARGO PATH="$(echo "$PATH" | tr : '\n' | grep -vxF "$RUST2_CARGO_SHIM" | paste -sd: -)")
-    # Through it, into a store of the round's own and no remote, which only the export
-    # before the warm one fills, as an earlier CI run or another checkout would.
-    cached=(MBX_CACHE_DIR="$scratch/mbx" MBX_REMOTE_MODE=write-only MBX_REMOTE_TRUST_WRITES=false)
+    # Through it, into a store of the round's and export's own and no remote, which only the
+    # export before the warm one fills, as an earlier CI run or another checkout would.
+    cached=(MBX_REMOTE_MODE=write-only MBX_REMOTE_TRUST_WRITES=false)
+    # The web rows measure the export over the dev shell's MIR sysroot, as report.py says.
+    if [ -z "${RUST2_TS_SYSROOT:-}" ]; then
+        echo "bench-run: RUST2_TS_SYSROOT is unset or empty; run it from the dev shell" >&2
+        exit 1
+    fi
     # Its store's objects are read-only.
     wipe() {
         if [ -d "$scratch" ]; then chmod -R u+w "$scratch"; fi
         rm -rf "$scratch"
     }
-    # The step, `uncached` or `cached`, and the command, run from an emptied target; a step
-    # named `-` records nothing.
+    # The step, `uncached` or the store under the scratch directory to cache through, and the
+    # command, run from an emptied target; a step named `-` records nothing.
     measure() {
         local step=$1 before after via
-        if [ "$2" = cached ]; then via=("${cached[@]}"); else via=("${uncached[@]}"); fi
+        if [ "$2" = uncached ]; then via=("${uncached[@]}"); else via=("${cached[@]}" MBX_CACHE_DIR="$scratch/$2"); fi
         shift 2
         rm -rf "$scratch/target"
         before=$(load)
@@ -331,11 +336,11 @@ bench-run rounds="3": mbx-shim
         local native=(--manifest-path target/moq-ffi/Cargo.toml --out "$scratch/moq")
         local web=(--manifest-path target/moq-ffi-web/Cargo.toml --target wasm32-wasip1 --out "$scratch/moq-web")
         # Each export writes into an emptied output too, as the cold one does.
-        for step in export:uncached -:cached export-warm:cached; do
+        for step in export:uncached -:mbx-native export-warm:mbx-native; do
             rm -rf "$scratch/moq"
             measure "${step%:*}" "${step#*:}" "${ffi[@]}" "${native[@]}"
         done
-        for step in web:uncached -:cached web-warm:cached; do
+        for step in web:uncached -:mbx-web web-warm:mbx-web; do
             rm -rf "$scratch/moq-web"
             measure "${step%:*}" "${step#*:}" "${ffi[@]}" "${web[@]}"
         done

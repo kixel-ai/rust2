@@ -3,7 +3,9 @@
 ## Goal
 
 A warm wasm32 `rust2-ffi` export in the dev shell is served from mbx's cache: every crate
-over its MIR sysroot, and std's crates under `-Zbuild-std`, not compiled each time.
+mbx compiles over its MIR sysroot, and std's crates under `-Zbuild-std`, not compiled each
+time. The crates the export's wrapper compiles itself, such as the facade it analyzes, are
+[the wrapper ask](/quest/m1/mbx-wrapper-delegate.md)'s.
 
 ## Plan
 
