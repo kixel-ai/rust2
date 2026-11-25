@@ -246,6 +246,7 @@ fn measure(dir: &Path, options: &Options, strict: bool) -> Result<Counts, String
 	let fingerprint = Fingerprint::probe()?.label();
 	eprintln!("rust2-bench: fingerprint {fingerprint}");
 	let preload = preload::install()?;
+	fits(&std::fs::read_to_string("/proc/self/limits").map_err(|e| format!("cannot read /proc/self/limits: {e}"))?)?;
 	let mut jobs = if options.programs.is_empty() {
 		cargo::jobs(dir, &options.cargo, strict)?
 	} else {
@@ -437,6 +438,37 @@ fn pad(env: &mut BTreeMap<OsString, OsString>, args: &[&OsStr]) -> Result<(), St
 	Ok(())
 }
 
+/// Room beside [`LAUNCH`] for Valgrind's own path and options, which name the job's directory.
+const VALGRIND_ROOM: usize = 64 * 1024;
+
+/// Fails unless the stack limit `limits` (`/proc/self/limits`) gives `exec` room for a padded
+/// launch: Linux takes arguments and environment up to a quarter of the limit, at most 6 MiB.
+fn fits(limits: &str) -> Result<(), String> {
+	let soft = limits
+		.lines()
+		.find_map(|line| line.strip_prefix("Max stack size"))
+		.and_then(|rest| rest.split_whitespace().next())
+		.ok_or("/proc/self/limits names no stack limit")?;
+	let room = match soft {
+		"unlimited" => 6 << 20,
+		bytes => (bytes
+			.parse::<usize>()
+			.map_err(|_| format!("cannot read the stack limit {bytes}"))?
+			/ 4)
+		.min(6 << 20),
+	};
+	if room < LAUNCH + VALGRIND_ROOM {
+		return Err(format!(
+			"the stack limit (ulimit -s) leaves exec {} KiB for a job's arguments and environment, less than the {} KiB a \
+			 padded job's launch takes: raise it to at least {} KiB",
+			room / 1024,
+			(LAUNCH + VALGRIND_ROOM) / 1024,
+			4 * (LAUNCH + VALGRIND_ROOM) / 1024
+		));
+	}
+	Ok(())
+}
+
 /// What one job measured: each benchmark's name and count, or why it failed.
 type Measured = Result<Vec<(String, u64)>, String>;
 
@@ -538,6 +570,15 @@ mod tests {
 	fn a_list_holds_one_name_a_line() {
 		let wanted = names("a::b\n\n  c[1]  \na::b\n");
 		assert_eq!(wanted.into_iter().collect::<Vec<_>>(), ["a::b", "c[1]"]);
+	}
+
+	#[test]
+	fn refuses_a_stack_limit_too_small_to_pad_under() {
+		let limits = |soft: &str| format!("Limit Soft Limit Hard Limit Units\nMax stack size {soft} unlimited bytes\n");
+		assert!(fits(&limits("8388608")).is_ok());
+		assert!(fits(&limits("unlimited")).is_ok());
+		assert!(fits(&limits("2097152")).unwrap_err().contains("ulimit -s"));
+		assert!(fits("Max open files 1024 1024 files\n").is_err());
 	}
 
 	#[test]

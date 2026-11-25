@@ -283,10 +283,11 @@ fn workspace_root(dir: &Path, args: &[String]) -> Result<PathBuf, String> {
 }
 
 /// The workspace at `root` as CodSpeed's crates take it: relative to its Git repository, which
-/// they name each benchmark's file from, or as is outside one. Given relative, it resolves to no
-/// file from a job's directory, so CodSpeed takes the name as it stands instead of resolving
-/// the checkout's path, whose length moves what the heap holds and so the count after it. A
-/// package at the repository's root still resolves, and so still moves with the path's length.
+/// they name each benchmark's file from. Given relative, it resolves to no file from a job's
+/// directory, so CodSpeed takes the name as it stands instead of resolving the checkout's path,
+/// whose length moves what the heap holds and so the count after it. A package at the
+/// repository's root still resolves, and so still moves with the path's length. Outside a
+/// repository CodSpeed names each file by its absolute path, so the root stays absolute.
 fn codspeed_root(root: &Path) -> Result<PathBuf, String> {
 	let root = root
 		.canonicalize()
@@ -297,7 +298,7 @@ fn codspeed_root(root: &Path) -> Result<PathBuf, String> {
 			.strip_prefix(repo)
 			.expect("an ancestor prefixes its descendant")
 			.to_owned(),
-		None => PathBuf::new(),
+		None => root,
 	})
 }
 
@@ -680,9 +681,13 @@ mod tests {
 		std::fs::create_dir_all(repo.join(".git")).unwrap();
 		std::fs::create_dir_all(repo.join("sub/ws")).unwrap();
 		let found = (codspeed_root(&repo), codspeed_root(&repo.join("sub/ws")));
+		std::fs::remove_dir_all(repo.join(".git")).unwrap();
+		let outside = codspeed_root(&repo.join("sub/ws"));
+		let canonical = repo.join("sub/ws").canonicalize().unwrap();
 		std::fs::remove_dir_all(&repo).unwrap();
 		assert_eq!(found.0.unwrap(), Path::new(""));
 		assert_eq!(found.1.unwrap(), Path::new("sub/ws"));
+		assert_eq!(outside.unwrap(), canonical);
 	}
 
 	#[test]

@@ -96,11 +96,16 @@ environment, since both sit on the initial stack and in the heap, and move the a
 so the copy loop glibc picks, after them. So every job's arguments and environment are padded
 to 1 MiB with `RUST2_BENCH_PAD_00` to `_15`, which puts its initial stack at the same place
 however long its checkout's path or however large the host's environment, such as CI's
-`GITHUB_REF` on another branch; a job whose own take more fails the run. And CodSpeed's crates
-get their workspace relative to its Git repository, from which they name each benchmark's
-file, so they never resolve the checkout's path; a benchmark package at the repository's root
-still does, so its counts still move with that path's length. A path a build compiles in, such
-as a panic's location in a dependency outside the workspace, is the build's to keep fixed.
+`GITHUB_REF` on another branch. A job whose own take more fails the run, as does a stack limit
+under 4.25 MiB (`ulimit -s 4352`), since Linux takes a quarter of it for them. A `--program`
+job pads its shell's launch: the program the shell runs keeps that environment but gets its
+own arguments, so a command that expands a checkout's path, such as `"$PWD/target/probe"`,
+still moves with that path's length. And CodSpeed's crates get their workspace relative to its
+Git repository, from which they name each benchmark's file, so they never resolve the
+checkout's path; a benchmark package at the repository's root still does, as does every
+benchmark outside a repository, which CodSpeed names by its absolute path, so their counts
+still move with that path's length. A path a build compiles in, such as a panic's location in a
+dependency outside the workspace, is the build's to keep fixed.
 
 ## Fingerprints
 
