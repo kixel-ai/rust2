@@ -4,7 +4,7 @@
 
 `rust2-bench compare <base>` of identical code reports no change: it counts the base and the working tree from the same directory, so neither side's count moves by where it was checked out.
 
-Non-goals: noise inside a benchmark itself, such as wall-clock timers or thread interleaving, which each benchmark's own repository fixes (moq: [quest/m0/repeatable-instruction-counts.md](https://github.com/moq-dev/moq/blob/main/quest/m0/repeatable-instruction-counts.md)).
+Non-goals: noise inside a benchmark itself: randomness and the clock, which [bench-determinism](/quest/m0/bench-determinism.md) fixes in the runner, and thread interleaving, which each benchmark's own repository fixes.
 
 ## Plan
 
@@ -23,4 +23,3 @@ Public API: none; `compare`'s output is unchanged. Wire: none.
 ## Related
 
 - [Per-side selection in compare](/quest/m1/bench-compare-selection.md) - also changes how compare builds each side
-- [The harness's counts](/quest/m2/harness/counts.md) - absorbs the runner's compare later
