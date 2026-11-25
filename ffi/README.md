@@ -40,7 +40,8 @@ is the library's crate name, Cargo's `[lib] name`, which defaults to the package
 snake case, without its leading and trailing `_`s and keeping one `_` of each run, since C
 reserves every global name starting with `_` and C++ every name holding `__`; a name left
 starting with no letter, such as `__`, fails the export. `--out` writes a crate of `extern "C"` functions over the facade, its runtime
-beside it, and the header in `include/<prefix>.h`; `cargo build` on that crate makes a
+beside it, the header in `include/<prefix>.h`, and `exports.txt`, each C function the crate
+exports, then the features any of which builds it, if any (`web` only for wasm32); `cargo build` on that crate makes a
 static and a shared library for those targets alone: its build script refuses another, on
 which an item the target compiles would be missing, or one it leaves out left over. So a
 `cfg`-gated item works on its targets and on no other ([Targets](#targets)), and the
@@ -1991,7 +1992,11 @@ target but wasm32's, whose layouts its TypeScript reads.
   Rust may call from another thread. The worker and JavaScript's thread each spin 20 µs
   for the other before parking, so such a call costs a handoff through shared memory, not
   a thread's wake. A wake and a drop from another thread queue the same
-  way without waiting. A call into Rust that pends keeps the event loop alive. The first
+  way without waiting. A value or future that is not `Send` lives on a home, as a call may
+  run on a worker; what a home's call queues for JavaScript, such as a wake its poll makes,
+  runs before the call returns, so a future progresses only as JavaScript awaits, and a
+  future's `cancel()` outside its own poll waits for the home to drop it, so what it
+  borrowed is free once it returns, as on the web. A call into Rust that pends keeps the event loop alive. The first
   environment to load the addon keeps it for the process's life: any other's load, such as
   a worker's, throws, even once the first has exited.
 
@@ -2153,7 +2158,7 @@ must match line for line, with the counts of the script's waker where it polls w
 `tests/protocol.c` runs them through the C ABI, `tests/miri/protocol.rs` under Miri, and
 `just ffi sanitize` runs the C driver under ASan and TSan. Each binding runs them through
 its own wrapper too, from `tests/protocol.cpp`, `.swift`, `.py`, `.go`, `.kt`, `.dart`, `.cs`,
-and `.ts`: its `Profile` in the model leaves out what the binding cannot write, such as a free
+and `.ts`, which runs over the web's module and Node's addon alike: its `Profile` in the model leaves out what the binding cannot write, such as a free
 where its collector frees or a failed check where it aborts, and adds what the binding does
 its own way, such as a close that refuses before Rust's check, a future made only as it is
 awaited, or one made on a home. `protocol_profiles` checks that each flag keeps its

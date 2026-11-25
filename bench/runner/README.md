@@ -4,7 +4,8 @@ Counts each benchmark's instructions under stock Valgrind, one Valgrind process 
 parallel across the host's cores, and writes them as Kixel Quest's `metrics.json` or
 compares a base commit with the working tree. It runs on any x86_64 Linux host: hosted CI, a
 self-hosted runner, or an agent's own, with no third-party service in the loop. It replaces
-CodSpeed's runner over the benchmarks as they are written for it.
+CodSpeed's runner over the benchmarks as they are written for it, and counts benchmarks
+written as plain `#[bench]` functions with [its harness](harness/README.md).
 
 ```bash
 nix run github:kixel-ai/rust2#bench -- run --out metrics.json   # or, without Nix:
@@ -16,17 +17,19 @@ rust2-bench fingerprint
 
 ## What it counts
 
-In a Cargo workspace, its benchmark targets, written with CodSpeed's compatibility crates
-(`codspeed-criterion-compat` 6). It builds them once with `--cfg codspeed`, as `cargo codspeed
-build` does, passing any arguments after `--` to Cargo, such as `-p moq-net --bench
+In a Cargo workspace, its benchmark targets, written with [rust2-bench-harness](harness/README.md)
+or with CodSpeed's compatibility crates (`codspeed-criterion-compat` 6). It builds them once
+with `--cfg codspeed`, which CodSpeed's crates take, as `cargo codspeed build` does, passing any arguments after `--` to Cargo, such as `-p moq-net --bench
 varint`. Cargo takes rustflags from one source and ignores the rest, so the cfg
 joins `RUSTFLAGS` or `CARGO_ENCODED_RUSTFLAGS` when the environment sets them, and is
 otherwise the only flags. A Cargo config that sets its own, `build.rustflags` or a
 `target.*.rustflags` (or the unstable `host` config's) in a config file or one it includes,
 the environment, or a `--config`,
 fails the run before anything builds: set `RUSTFLAGS` to the flags the build needs instead.
-Each target lists its benchmarks by running once natively, then each benchmark runs alone in its own Valgrind process, through the crates' `CODSPEED_ISOLATED_BENCHMARK`. A
-target that runs no benchmark through the crates fails the run: leave it out with `--bench`.
+Each target lists its benchmarks by running once natively, then each benchmark runs alone in
+its own Valgrind process, through the harness's `RUST2_BENCH` or CodSpeed's
+`CODSPEED_ISOLATED_BENCHMARK`. A target that runs no benchmark through either fails the run,
+as does one that runs some through both: leave it out with `--bench`.
 It builds them with `cargo bench`, with itself as the targets' runner, which records how Cargo
 launches each target, its directory and whole environment (`[env]`, `CARGO_MANIFEST_DIR`,
 the library path), instead of running it; every listing and count launches the target the
@@ -34,12 +37,13 @@ same way. Those records live in a directory only the user can read, removed once
 runner a config or the environment sets, for any target, fails the run before anything
 builds, as does, once built, an `[env]` that sets `GLIBC_TUNABLES`, which the fingerprint
 reads from the environment, and an argument for the targets after Cargo's own `--`, which
-CodSpeed's harness takes none of: `--benchmarks` chooses benchmarks. Every count, like the
+neither harness takes: `--benchmarks` chooses benchmarks. Every count, like the
 fingerprint, runs the Valgrind on rust2-bench's own `PATH`, whatever `PATH` a target gets.
 
 Elsewhere, the programs `--program` names, each a shell command whose program brackets its
-benchmarks with CodSpeed's [instrument hooks](https://github.com/CodSpeedHQ/instrument-hooks)
-itself, after `--build`'s command builds them. Each program is one Valgrind process, which
+benchmarks itself, with rust2-bench-harness or CodSpeed's
+[instrument hooks](https://github.com/CodSpeedHQ/instrument-hooks), after `--build`'s command
+builds them. Each program is one Valgrind process, which
 follows each `exec`, so a command may go through a shell or `just`.
 [`just ffi count`](../../ffi/justfile) counts rust2's [binding benchmark](../ffi/README.md)
 this way.
@@ -109,4 +113,5 @@ has counted its base.
 
 A benchmark's name is the one its hooks dump, which for CodSpeed's crates is the file
 relative to the repository, then its group, function, and parameter: the same name CodSpeed
-gave it, so only the measure differs.
+gave it, so only the measure differs. The harness names its own the same way, by
+[file, module, function, and argument](harness/README.md#names).

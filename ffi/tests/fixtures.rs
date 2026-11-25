@@ -346,6 +346,47 @@ fn api_c_exe(api: &Api) -> PathBuf {
 	exe
 }
 
+/// The C functions `exports.txt` lists for the features the shared library builds with are
+/// exactly those it exports, as the release builder keeps them global in a static library.
+#[test]
+#[cfg(not(windows))]
+fn api_exports() {
+	let api = api();
+	let listed = std::fs::read_to_string(api.out.join("exports.txt")).unwrap();
+	let mangle = if cfg!(target_os = "macos") { "_" } else { "" };
+	let mut want: Vec<String> = (listed.lines())
+		.filter(|line| !line.starts_with('#'))
+		.filter_map(|line| {
+			let mut words = line.split(' ');
+			let name = words.next().unwrap();
+			let features: Vec<&str> = words.collect();
+			let built = features.is_empty() || features.iter().any(|f| ["kotlin", "dart"].contains(f));
+			built.then(|| format!("{mangle}{name}"))
+		})
+		.collect();
+	want.sort();
+	let nm = llvm_objcopy().with_file_name(format!("llvm-nm{EXE_SUFFIX}"));
+	let dynamic = if cfg!(target_os = "macos") {
+		None
+	} else {
+		Some("--dynamic")
+	};
+	let found = run(Command::new(nm)
+		.args(dynamic)
+		.args(["--defined-only", "--extern-only", "--format=just-symbols"])
+		.arg(api.lib.join(shared("api"))));
+	let mut found: Vec<String> = String::from_utf8_lossy(&found.stdout)
+		.lines()
+		.map(str::to_string)
+		.collect();
+	found.sort();
+	found.dedup();
+	assert_eq!(
+		found, want,
+		"the shared library exports other C functions than exports.txt lists"
+	);
+}
+
 #[test]
 fn api_c() {
 	let api = api();
@@ -3169,12 +3210,13 @@ fn node_dir() -> &'static Path {
 		);
 		step::write(&dir.join("api.ts"), node_check());
 		step::copy(&manifest_dir().join("tests").join("node.ts"), &dir.join("node.ts"));
+		step::write(&dir.join("protocol.ts"), node_protocol_script());
 		step::write(
 			&dir.join("transcript.ts"),
 			transcript::typescript::emit(transcript(), transcript::typescript::Binding::Node),
 		);
 		let tsconfig = TSCONFIG
-			.replace("\"protocol.ts\", \"web/*.ts\"", "\"node.ts\", \"node/*.ts\"")
+			.replace("\"web/*.ts\"", "\"node.ts\", \"node/*.ts\"")
 			.replace("web/*.d.ts", "node/*.d.ts");
 		step::write(&dir.join("tsconfig.json"), tsconfig);
 		run(Command::new("tsc").arg("-p").arg(&dir));
@@ -3191,6 +3233,21 @@ fn node_check() -> String {
 	let end = "\t// #endregion wasm32\n";
 	let stop = check.find(end).expect("api.ts ends wasm32's region") + end.len();
 	format!("{}{}", &check[..start], &check[stop..])
+}
+
+/// `tests/protocol.ts` running its scripts through Node's binding: importing it, and loading
+/// the addon beside it rather than the web's module.
+fn node_protocol_script() -> String {
+	let script = std::fs::read_to_string(manifest_dir().join("tests").join("protocol.ts")).unwrap();
+	let load = "await api.load(await WebAssembly.compile(fs.readFileSync(process.env[\"RUST2_WASM\"]!)));";
+	assert!(script.contains(load), "protocol.ts loads the module as this rewrites");
+	assert!(
+		script.contains("from \"./web/"),
+		"protocol.ts imports the binding as this rewrites"
+	);
+	script
+		.replace("from \"./web/", "from \"./node/")
+		.replace(load, "await api.load(\"node/api.node\");")
 }
 
 /// The cases of `tests/node.ts` that must pass, after its transcript: `threads`, then
@@ -3235,6 +3292,47 @@ fn api_node() {
 			);
 		}
 	}
+}
+
+/// Random sequences of the ownership protocol's steps through Node's binding on Node, Deno,
+/// and Bun, by `tests/protocol.ts`, each matching what the model says each step returns, as
+/// the web's do.
+#[test]
+fn api_node_protocol() {
+	for runtime in ["node", "deno", "bun"] {
+		node_protocol(runtime, "scripts", 0, PROTOCOL_SEEDS, PROTOCOL_STEPS);
+	}
+}
+
+/// Longer protocol scripts from other seeds through Node's binding on Node, as the nightly
+/// runs them.
+#[test]
+#[ignore = "slow: just ffi protocol"]
+fn api_node_protocol_nightly() {
+	node_protocol("node", "nightly", PROTOCOL_SEEDS, 5000, 400);
+}
+
+/// `count` scripts from `first` of `steps` each, through `tests/protocol.ts` in one process
+/// of `runtime`, Node, Deno, or Bun, over Node's binding.
+fn node_protocol(runtime: &str, name: &str, first: u64, count: u64, steps: usize) {
+	let dir = node_dir();
+	let scripts = protocol::scripts(first, count, steps, protocol::Profile::TS);
+	let driver = || {
+		let mut cmd = Command::new(runtime);
+		match runtime {
+			"deno" => cmd
+				.args(["run", "--allow-read", "--allow-write", "--allow-env", "--allow-ffi"])
+				.env("DENO_DIR", scratch().join("deno"))
+				.env("DENO_NO_UPDATE_CHECK", "1")
+				.env("NO_COLOR", "1"),
+			"node" => cmd.arg("--no-warnings"),
+			_ => &mut cmd,
+		};
+		cmd.arg("protocol.ts").current_dir(dir);
+		cmd
+	};
+	let out = scratch().join("api").join("node-protocol").join(runtime).join(name);
+	protocol::check_all(&out, &scripts, driver);
 }
 
 /// `api_web`'s checks in headless Chromium, Firefox, and WebKit, which only the bench shell

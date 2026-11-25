@@ -27,8 +27,8 @@ usage: rust2-bench run [options] [-- cargo bench args...]
 run counts the working tree's benchmarks; compare counts <base>, a commit, in a worktree of its
 own under ~/.cache/rust2-bench, then the working tree, and prints each change.
 
-Benchmarks are the Cargo workspace's, built with CodSpeed's compatibility crates, unless
---program names them.
+Benchmarks are the Cargo workspace's, written with rust2-bench-harness or CodSpeed's
+compatibility crates, unless --program names them.
 
 options:
   --benchmarks <file>  count only the benchmarks it names, one a line; any it names that no
@@ -36,8 +36,8 @@ options:
   --out <file>         write the counts as Kixel Quest's metrics.json (run only)
   --jobs <n>           how many Valgrind processes run at once (default: every core)
   --build <command>    a shell command that builds the programs, run first (with --program)
-  --program <command>  a shell command that runs a program whose benchmarks call CodSpeed's
-                       instrument hooks; repeat for each program";
+  --program <command>  a shell command that runs a program whose benchmarks run through
+                       rust2-bench-harness or CodSpeed's instrument hooks; repeat for each";
 
 fn main() -> ExitCode {
 	let args: Vec<String> = std::env::args().skip(1).collect();

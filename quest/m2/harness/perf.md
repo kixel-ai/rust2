@@ -14,7 +14,3 @@ Recommendations for the implementer:
 - Keep these counts local: never write them to `kixel-metrics`. GitHub's hosted runners expose no counters, so CI's series stay on Valgrind. Like Valgrind's, these counts compare only between builds run on the same host, since code that picks a path by CPU feature, such as rind's AES and SHA or moq's SIMD, takes another path elsewhere.
 - Report a compare only when base and head ran on the same host, and refuse multiplexed counters, as moq's `SESSION_ALLOCS` mode does, rather than scale an undercount.
 - Threads make these counts noisy; say so in the output for a benchmark that spawns any.
-
-## Required
-
-- [Counts](/quest/m2/harness/counts.md) - the `#[bench]` API this measures

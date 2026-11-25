@@ -1299,6 +1299,20 @@ impl Home {
 		}
 	}
 
+	/// Run the tasks queued by now, but none queued meanwhile, so a steady producer can't
+	/// hold this thread.
+	///
+	/// # Safety
+	/// On JavaScript's thread.
+	unsafe fn run_queued(&self) {
+		let queued = self.lock().len();
+		for _ in 0..queued {
+			let Some(task) = self.pop() else { break };
+			// SAFETY: the caller's contract.
+			unsafe { self.run(task) };
+		}
+	}
+
 	/// Run `f`, which calls into JavaScript, on its thread: at once if called there, or else
 	/// as a job it runs while this thread waits.
 	fn call<R>(&self, what: &str, f: impl FnOnce(&mut Out) -> R) -> R {
@@ -1551,6 +1565,22 @@ impl Worker {
 	}
 }
 
+/// Run what a home queued for JavaScript's thread while it waited on the home's call, if
+/// this is that thread: a wake a poll there made runs before the call returns, as one on
+/// JavaScript's own thread does at once, so a future progresses only as JavaScript awaits,
+/// as on the web, rather than when the event loop next serves its queue.
+pub fn waited() {
+	if on_js() && HOME.pushed.load(Ordering::Acquire) != HOME.popped.load(Ordering::Acquire) {
+		// SAFETY: on JavaScript's thread, in a call from it.
+		unsafe { HOME.run_queued() };
+	}
+}
+
+/// Whether this thread runs a call from JavaScript: JavaScript's own, or a worker acting for it.
+pub fn from_js() -> bool {
+	on_js() || ACTING.get() != 0
+}
+
 thread_local!(static ACTING: Cell<usize> = const { Cell::new(0) });
 
 /// The thread this one acts as for the handles it borrows, if another: one waiting on it.
@@ -1655,11 +1685,7 @@ unsafe extern "C" fn on_loop(env: Env, _: Value, _: *mut c_void, _: *mut c_void)
 		}
 		// Only the tasks queued by now: each queued after `told` cleared tells the event loop
 		// again, so a steady producer can't hold this turn.
-		let queued = HOME.lock().len();
-		for _ in 0..queued {
-			let Some(task) = HOME.pop() else { break };
-			HOME.run(task);
-		}
+		HOME.run_queued();
 		let leaving = out.int32(-1);
 		out.invoke(6, &[leaving]);
 	}

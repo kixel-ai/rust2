@@ -379,10 +379,12 @@ class Reproducible(unittest.TestCase):
             self.assertNotIn("CXXFLAGS", windows)
             apple = package.reproducible(info(tmp), Path(tmp), "aarch64-apple-darwin")
             self.assertEqual(apple["ZERO_AR_DATE"], "1")
-            self.assertIn("link-arg=-Wl,-install_name,@rpath/libmoq.dylib", apple["CARGO_ENCODED_RUSTFLAGS"])
+            # The install name is the generated crate's alone, so every Apple build shares its dependencies' flags.
+            self.assertNotIn("install_name", apple["CARGO_ENCODED_RUSTFLAGS"])
+            self.assertEqual(apple["RUST2_FFI_INSTALL_NAME"], "@rpath/libmoq.dylib")
             named = package.reproducible(info(tmp), Path(tmp), "aarch64-apple-darwin", "libmoq.0.4.12.dylib")
-            self.assertIn("link-arg=-Wl,-install_name,@rpath/libmoq.0.4.12.dylib", named["CARGO_ENCODED_RUSTFLAGS"])
-            self.assertNotIn("@rpath/libmoq.dylib", named["CARGO_ENCODED_RUSTFLAGS"])
+            self.assertEqual(named["RUST2_FFI_INSTALL_NAME"], "@rpath/libmoq.0.4.12.dylib")
+            self.assertNotIn("RUST2_FFI_INSTALL_NAME", windows)
 
     def test_an_empty_encoded_rustflags_is_no_flags(self):
         with tempfile.TemporaryDirectory() as tmp, mock.patch.dict(os.environ, {"CARGO_ENCODED_RUSTFLAGS": "", "RUSTFLAGS": "-C x", "CARGO_HOME": tmp + "/home"}):
@@ -579,6 +581,17 @@ class ImportNames(unittest.TestCase):
             members = package.ar_members(path)
             self.assertEqual(members["kernel32.dllh.o"][0], imported.replace(b"4TX99l", b"000000"))
             self.assertEqual(members["api.o"][0], data)
+
+    def test_any_imported_files_lose_it_too(self):
+        exe = b"_head_D__a_x_out_rustcffeyij_ntoskrnl_exe_imports_lib\x00"
+        drv = b"_head_D__a_x_out_rustcwN6OqG_winspool_drv_imports_lib\x00"
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "lib.a"
+            path.write_bytes(self.archive(("", exe + drv), ("nt.exes12.o", exe), ("ws.drvh.o", drv)))
+            package.fix_import_names(path)
+            members = package.ar_members(path)
+            self.assertEqual(members["nt.exes12.o"][0], exe.replace(b"ffeyij", b"000000"))
+            self.assertEqual(members["ws.drvh.o"][0], drv.replace(b"wN6OqG", b"000000"))
 
 
 class BsdArchive(unittest.TestCase):
@@ -894,26 +907,86 @@ class CArchive(unittest.TestCase):
         self.assertEqual(windows["moq_shared"]["link_location"], "@prefix@/lib/moq.dll.lib")
         self.assertEqual(windows["moq"]["link_flags"], ["/defaultlib:msvcrt"])
 
-    def test_commons_are_defined_unless_a_member_defines_them(self):
-        nm = """
-libmoq.a(ui.o):
-0000000000000008 (common) (alignment 2^3) external _tty_in
-0000000000000004 (common) (alignment 2^2) external _is_a_tty
-0000000000000010 (common) (alignment 2^4) external _shared
-                 (undefined) external _tty_out
+    def test_the_older_toolchain_is_a_released_stable_whatever_the_channel(self):
+        self.assertEqual(package.older_toolchain("rustc 1.98.1\nhost: x86_64-unknown-linux-gnu\nrelease: 1.98.1\n"), "1.96.0")
+        self.assertEqual(package.older_toolchain("release: 1.101.0-beta.3\n"), "1.99.0")
+        # A nightly names release 1.N days before 1.(N-2) is out.
+        self.assertEqual(package.older_toolchain("release: 1.102.0-nightly\n"), "1.99.0")
+        with self.assertRaises(SystemExit):
+            package.older_toolchain("release: 2.0.0\n")
 
-libmoq.a(other.o):
-0000000000000008 (common) (alignment 2^3) external _tty_out
-0000000000000020 (common) external _shared
-0000000000000000 (__DATA,__bss) external _is_a_tty
-0000000000000008 (common) (alignment 2^3) external _state
-0000000000000010 (__DATA,__data) private external _state
+    def test_the_minimum_os_is_the_newest_either_load_command_declares(self):
+        listing = """libmoq.a(std.o):
+Load command 1
+      cmd LC_VERSION_MIN_MACOSX
+  cmdsize 16
+  version 10.12
+      sdk n/a
+Load command 2
+      cmd LC_SOURCE_VERSION
+  cmdsize 16
+  version 1.2
+libmoq.a(moq.o):
+Load command 1
+      cmd LC_BUILD_VERSION
+  cmdsize 24
+ platform 1
+    minos 10.15
+      sdk 26.2
 """
-        self.assertEqual(package.commons_source(nm),
-                         '__attribute__((aligned(16))) char common0[32] __asm__("_shared");\n'
-                         '__attribute__((aligned(8))) char common1[8] __asm__("_tty_in");\n'
-                         '__attribute__((aligned(8))) char common2[8] __asm__("_tty_out");\n')
-        self.assertEqual(package.commons_source("0000 (__TEXT,__text) external _moq_x\n"), "typedef int empty;\n")
+        self.assertEqual(package.declared_os(listing, "libmoq.a"), (10, 15))
+        # A source version is no minimum OS.
+        with self.assertRaises(SystemExit):
+            package.declared_os(listing.split("libmoq.a(moq.o)")[0].replace("LC_VERSION_MIN_MACOSX", "LC_UUID"), "libmoq.a")
+
+    def test_the_c_abi_is_what_every_build_exports_and_the_rest_is_renamed(self):
+        listing = """api-0abf9f642fbb3007.api.d0e6e03e8f1aed16-cgu.01.rcgu.o:
+api_buf_free T 0 10
+api_Batch_drop_signal T 10 10
+malloc U
+
+libapi.a[my helper (1).o]:
+api_lc_init T 10 10
+tty_in C 8 8
+
+libapi.a(std-62cf18f9587165ab.std.c6455289cfba667d-cgu.0.rcgu.o):
+rust_eh_personality T 20 10
+DW.ref.rust_eh_personality V 0 8
+_ZN3std2rt10lang_start17h0123456789abcdefE T 30 10
+__cxa_thread_atexit_impl w
+"""
+        self.assertEqual(package.nm_symbols(listing)[2], ("malloc", "U"))
+        self.assertEqual(package.nm_symbols(listing)[3], ("api_lc_init", "T"))
+        names = package.defined(listing)
+        self.assertEqual(names, {"api_buf_free", "api_Batch_drop_signal", "api_lc_init", "tty_in", "rust_eh_personality",
+                                 "DW.ref.rust_eh_personality", "_ZN3std2rt10lang_start17h0123456789abcdefE"})
+        with tempfile.TemporaryDirectory() as export:
+            # What only a binding's feature builds, such as JNI's, stays out of a static library.
+            Path(export, "exports.txt").write_text("# Generated.\nJava_api_1contract kotlin\napi_Batch_drop_signal\n"
+                                                   "api_buf_free\napi_ü̈\n", encoding="utf-8")
+            self.assertEqual(package.c_abi(export, "x86_64-unknown-linux-gnu"), {"api_Batch_drop_signal", "api_buf_free", "api_ü̈"})
+            self.assertEqual(package.c_abi(export, "aarch64-apple-darwin"), {"_api_Batch_drop_signal", "_api_buf_free", "_api_ü̈"})
+            Path(export, "exports.txt").write_text("# Generated.\nJava_api_1contract kotlin\n", encoding="utf-8")
+            with self.assertRaises(SystemExit):
+                package.c_abi(export, "x86_64-unknown-linux-gnu")
+            # An export an older rust2-ffi wrote has no list.
+            Path(export, "exports.txt").unlink()
+            with self.assertRaises(SystemExit):
+                package.c_abi(export, "x86_64-unknown-linux-gnu")
+        new = package.renamed(names - {"api_buf_free", "api_Batch_drop_signal"}, "api", "0123456789abcdef")
+        self.assertEqual(new["rust_eh_personality"], "rust_eh_personality.api.0123456789abcdef")
+        self.assertEqual(new["_ZN3std2rt10lang_start17h0123456789abcdefE"],
+                         "_ZN3std2rt10lang_start17h0123456789abcdefE.api.0123456789abcdef")
+
+    def test_every_section_group_signature_is_found_local_or_not(self):
+        groups = """libapi.a(std.o):
+COMDAT group section [ 1943] `.group' [DW.ref.rust_eh_personality] contains 2 sections:
+   [Index]    Name
+   [ 1944]   .data.DW.ref.rust_eh_personality
+
+COMDAT group section [   12] `.group' [_ZN4core3fmt5write17h0123E] contains 1 sections:
+"""
+        self.assertEqual(package.group_signatures(groups), {"DW.ref.rust_eh_personality", "_ZN4core3fmt5write17h0123E"})
 
     def test_archive_is_owned_by_no_one(self):
         with tempfile.TemporaryDirectory() as tmp:

@@ -58,12 +58,15 @@ APPLE_TARGETS = {
 # simulator at React Native's, `min_ios_version_supported`, as its package takes them too.
 APPLE_BUILD = {**{target: SWIFT_PLATFORMS[platform] for target, platform in APPLE_TARGETS.items()},
                "aarch64-apple-ios": "15.1", "aarch64-apple-ios-sim": "15.1"}
-# Each slice's SDK and clang target, at the floor, for the link that finds what it calls.
+# Each Apple library's SDK and clang target, at a floor: for the link that finds what a slice
+# calls, and for `coexist`'s.
 APPLE_LINKS = {
     "aarch64-apple-darwin": ("macosx", "arm64-apple-macos{}"),
     "aarch64-apple-ios": ("iphoneos", "arm64-apple-ios{}"),
     "aarch64-apple-ios-sim": ("iphonesimulator", "arm64-apple-ios{}-simulator"),
     "aarch64-apple-ios-macabi": ("macosx", "arm64-apple-ios{}-macabi"),
+    # The Go module's Intel macOS library.
+    "x86_64-apple-darwin": ("macosx", "x86_64-apple-macos{}"),
 }
 # Apple's required-reason APIs a symbol names, by the privacy manifest category declaring them
 # (https://developer.apple.com/documentation/bundleresources/describing-use-of-required-reason-api).
@@ -197,11 +200,14 @@ ZIP_EPOCH = backend.ZIP_EPOCH
 # cargo hashes a path package outside the generated crate's workspace, the facade, by one path,
 # and dlltool names a Windows GNU library's import symbols after one target directory, from any checkout.
 LINK = Path("C:/rust2-ffi") if sys.platform == "win32" else Path("/tmp/rust2-ffi")
-# The target directory of a wheel target's builds made with the wheels' floor and flags:
-# both wheels', the Dart and JVM libraries', and off Apple the C library's. They reuse
-# dependencies with matching features and flags; cargo rebuilds those that differ and
-# relinks each generated crate after the previous build has taken its library.
-WHEELS_DIR = "target-python"
+# The target directory every build of a target shares unless one of its settings keeps it
+# apart: the wheels', the C, Dart, and JVM libraries', and the Go module's and React Native's
+# static libraries. Cargo reuses each dependency built with the same features, profile, and
+# flags, and relinks each generated crate after the previous build has taken its library.
+# The Swift and Android libraries' line tables change the profile, which shares nothing, and
+# an Apple build at a deployment target of its own builds apart, since cargo does not rebuild
+# for a changed one.
+SHARED_DIR = "target-python"
 # The target the web binding serves, whose module the npm and JSR packages hold.
 WEB_TARGET = "wasm32-wasip1"
 # JSR's cap on a version's files, unpacked.
@@ -662,13 +668,21 @@ let package = Package(
 
 def min_os(archive):
     """The newest minimum OS any object in a static library declares."""
-    versions = set()
-    for line in output("/usr/bin/otool", "-l", archive).splitlines():
-        match = re.match(r"\s*minos ([0-9.]+)$", line)
+    return declared_os(output("/usr/bin/otool", "-l", archive), archive)
+
+
+def declared_os(load_commands, what):
+    """The newest minimum OS `otool -l` lists, in a build version or in the older version-min
+    command rustc's Intel macOS objects still carry."""
+    versions, command = set(), None
+    for line in load_commands.splitlines():
+        command = line.split()[1] if line.split()[:1] == ["cmd"] else command
+        match = re.match(r"\s*minos ([0-9.]+)$", line) or (
+            command and command.startswith("LC_VERSION_MIN_") and re.match(r"\s*version ([0-9.]+)$", line))
         if match:
             versions.add(tuple(int(x) for x in match.group(1).split(".")))
     if not versions:
-        raise SystemExit(f"{archive} declares no minimum OS")
+        raise SystemExit(f"{what} declares no minimum OS")
     return max(versions)
 
 
@@ -706,7 +720,11 @@ def probe_link(lib, static, target, native, work, floor=None):
     keeping only what the C ABI reaches, with its native libraries."""
     sdk, clang_target = APPLE_LINKS[target]
     names = work / "exported.txt"
-    names.write_text(f"_{lib}_*\n", encoding="utf-8")
+    # Exactly the C ABI's names: a wildcard would also match a dependency's symbol `hide` renamed
+    # to `_<lib>_<name>.<lib>.<digest>`.
+    defined = output("xcrun", "nm", "--no-llvm-bc", "-gUj", static).split()
+    names.write_text("".join(f"{name}\n" for name in sorted(set(defined))
+                             if name.startswith(f"_{lib}_") and "." not in name), encoding="utf-8")
     probe = work / f"{target}.dylib"
     floor = floor or SWIFT_PLATFORMS[APPLE_TARGETS[target]]
     run("xcrun", "--sdk", sdk, "clang", "-target", clang_target.format(floor),
@@ -1081,111 +1099,121 @@ def cps(info, files, natives):
     return json.dumps(description, indent=2) + "\n"
 
 
-def exported(shared, lib, target):
-    """The C ABI's symbols, `<lib>_*`, that the shared library exports, as the object format spells them."""
-    if "apple" in target:
-        names = output("nm", "--no-llvm-bc", "-gUj", shared).split()
-        want = f"_{lib}_"
-    else:
-        names = [line.split()[-1] for line in output("nm", "-D", "--defined-only", shared).splitlines() if line.strip()]
-        want = f"{lib}_"
-    found = sorted({name for name in names if name.startswith(want)})
+def nm_symbols(listing):
+    """Each symbol of an `llvm-nm -P` listing, as (name, type)."""
+    # A member's header, perhaps holding spaces, ends with a colon, as no symbol's row does.
+    return [tuple(line.split()[:2]) for line in listing.splitlines() if len(line.split()) > 1 and not line.endswith(":")]
+
+
+def defined(listing):
+    """The global symbols an `llvm-nm -g -P` listing defines or holds common, as the object format spells them."""
+    # `U`, `v`, and `w` are undefined.
+    return {name for name, kind in nm_symbols(listing) if kind not in "Uvw"}
+
+
+def c_abi(export, target):
+    """The C ABI's symbols, as the object format spells them: each C function the export's
+    `exports.txt` lists that no binding feature gates, as a static library builds with none, a
+    binding's entry points the header leaves out included."""
+    listed = Path(export) / "exports.txt"
+    if not listed.is_file():
+        raise SystemExit(f"{export} has no exports.txt: export it again with this rust2-ffi")
+    lines = listed.read_text(encoding="utf-8").splitlines()
+    mangle = "_" if "apple" in target else ""
+    found = {mangle + line for line in lines if line and not line.startswith("#") and " " not in line}
     if not found:
-        raise SystemExit(f"{shared} exports no {want}* symbol")
+        raise SystemExit(f"{export}/exports.txt lists no C function every build exports")
     return found
 
 
-def undefined(path, kind):
-    """The undefined symbols of an ELF object or archive that nm marks `kind`: `U` strong, `w` weak."""
-    lines = output("nm", "--undefined-only", path).splitlines()
-    return {line.split()[1] for line in lines if line.split()[:1] == [kind] and len(line.split()) == 2}
+def exported(shared, manifest, target):
+    """The symbols a shared library exports, as the object format spells them."""
+    dynamic = [] if "apple" in target else ["--dynamic"]
+    return defined(output(llvm_tool(manifest, "llvm-nm"), *dynamic, "--extern-only", "--defined-only", "-P", shared))
 
 
-def commons_source(nm):
-    """C defining each common symbol `nm -m` lists that no member defines, at its largest size and alignment."""
-    commons, defined = {}, set()
-    for line in nm.splitlines():
-        common = re.fullmatch(r"([0-9a-f]+) \(common\) (?:\(alignment 2\^([0-9]+)\) )?external (\S+)", line.strip())
-        if common:
-            size, align = int(common.group(1), 16), int(common.group(2) or 0)
-            old_size, old_align = commons.get(common.group(3), (0, 0))
-            commons[common.group(3)] = (max(size, old_size), max(align, old_align))
-        elif re.search(r"\) (?:weak )?(?:private )?external ", line) and "(undefined)" not in line:
-            defined.add(line.split()[-1])
-    return "".join(
-        f'__attribute__((aligned({1 << align}))) char common{i}[{size}] __asm__("{name}");\n'
-        for i, (name, (size, align)) in enumerate(sorted((n, c) for n, c in commons.items() if n not in defined))
-    ) or "typedef int empty;\n"
+def group_signatures(groups):
+    """The signature of each ELF section group `llvm-readelf -g` lists, local ones included."""
+    return set(re.findall(r"^COMDAT group section \[\s*[0-9]+\] `[^']*' \[(.+)\] contains", groups, re.M))
 
 
-def define_commons(static, arch, work):
-    """An object defining each C tentative definition in a Mach-O archive that no member defines.
+def renamed(names, lib, digest):
+    """Each of `names` apart from any other library's, even another version of this one: its
+    whole name, then `.<lib>.<digest>`, a suffix Rust's and C++'s demanglers skip, and which no C
+    identifier holds."""
+    return {name: f"{name}.{lib}.{digest}" for name in sorted(names)}
 
-    Apple's clang emits `int x;` as a common symbol, such as aws-lc's `tty_in`, which a
-    relocatable link leaves common, and global, past the exported-symbols list; Apple's
-    current linker has no `-d` to define it. Defined here at its size and alignment, it is
-    an ordinary symbol the list hides.
+
+def apple_clang(static, target):
+    """Apple's clang for `target`, and the newest minimum OS any object of `static` declares,
+    at which a program linking it is built."""
+    sdk, clang_target = APPLE_LINKS[target]
+    floor = ".".join(str(part) for part in min_os(static))
+    return ["xcrun", "--sdk", sdk, "clang", "-target", clang_target.format(floor)], floor
+
+
+def hide(static, keep, lib, target, manifest, work):
+    """The static library with no global symbol another library can clash with but `keep`, the
+    C ABI's, as the object format spells them.
+
+    Another Rust static library in the same program, built by another toolchain, brings its own
+    std and compiler-builtins, whose unmangled symbols, such as `rust_eh_personality` and
+    `__addvdi3`, would otherwise collide. `llvm-objcopy` renames every other global the archive
+    defines, in every member, and on ELF each section group's signature, which a linker keeps
+    one group of by name, local or not; renaming keeps each object's sections whole, where a
+    relocatable link would drop Mach-O's DWARF, which the Swift package's line tables need, and
+    with `--gc-sections` lld drops ELF's unwind tables. On ELF the renamed globals are hidden
+    too, so a shared library an app links this into exports none. A Windows library keeps
+    every symbol: COFF has no visibility, and the members `dlltool` makes for raw-dylib
+    imports must keep their names.
     """
-    source = work / "commons.c"
-    source.write_text(commons_source(output("nm", "--no-llvm-bc", "-m", static)), encoding="utf-8")
-    obj = work / "commons.o"
-    run("cc", "-c", "-fno-common", *arch, source, "-o", obj)
-    return obj
-
-
-def hide(static, shared, lib, target, work):
-    """The static library as one prelinked object exporting only the C ABI, so its Rust runtime cannot clash.
-
-    Another Rust static library in the same program brings its own std and compiler-builtins,
-    whose unmangled symbols, such as `__addvdi3`, would otherwise collide. MSVC's linker has no
-    relocatable link, so a Windows static library keeps every symbol.
-    """
-    keep = exported(shared, lib, target)
-    names = work / "exported.txt"
-    names.write_text("\n".join(keep) + "\n", encoding="utf-8")
-    roots = [arg for name in keep for arg in ("-u", name)]
-    merged, hidden, archive = work / "merged.o", work / "hidden.o", work / static.name
-    if "apple" in target:
-        arch = ["-arch", "arm64", f"-mmacosx-version-min={MACOS_WHEEL}"]
-        run("cc", "-r", "-nostdlib", *arch, *(f"-Wl,{arg}" for arg in roots), f"-Wl,-exported_symbols_list,{names}",
-            define_commons(static, arch, work), static, "-o", hidden)
-        # Which stamps the member with the time unless told not to.
-        run("libtool", "-static", "-o", archive, hidden, env={**os.environ, "ZERO_AR_DATE": "1"})
-        # Rust's objects embed LLVM bitcode newer than Xcode's nm reads.
-        found = output("nm", "--no-llvm-bc", "-gUj", hidden).split()
-    else:
-        # Only the members the C ABI reaches, without the sections it never references.
-        run("ld", "-r", "--gc-sections", *roots, static, "-o", merged)
-        # What std looks up only if the system has it, such as a newer glibc's
-        # `posix_spawn_file_actions_addchdir`, stays weak: binutils 2.42's `ld -r
-        # --gc-sections` makes it local, which objcopy makes strong, failing a link on an
-        # older glibc.
-        weak = undefined(static, "w") - undefined(static, "U")
-        weaken = work / "weak.txt"
-        weaken.write_text("".join(f"{name}\n" for name in sorted(weak)), encoding="utf-8")
-        # A COMDAT group would still merge with another library's copy, such as std's
-        # `DW.ref.rust_eh_personality`, whose symbol here is now local: as plain sections,
-        # each library keeps its own.
-        run("objcopy", "--remove-section=.group", f"--keep-global-symbols={names}", f"--weaken-symbols={weaken}",
-            merged, hidden)
-        if "There are no section groups" not in output("readelf", "-g", hidden):
-            raise SystemExit(f"the prelinked {static.name} still holds section groups")
-        strong = sorted(undefined(hidden, "U") & weak)
-        if strong:
-            raise SystemExit(f"the prelinked {static.name} needs what Rust's archive only looks up, such as {strong[:5]}")
-        run("ar", "rcsD", archive, hidden)
-        found = [line.split()[-1] for line in output("nm", "-g", "--defined-only", hidden).splitlines() if line.strip()]
-    if sorted(set(found)) != keep:
-        extra = sorted(set(found) - set(keep))[:10]
-        lines = [line for line in output("nm", *(["--no-llvm-bc"] if "apple" in target else []), "-m" if "apple" in target else "-S",
-                                         hidden).splitlines() if line.split() and line.split()[-1] in extra]
-        sys.stderr.write("\n".join(lines) + "\n")
-        raise SystemExit(f"the prelinked {static.name} exports other symbols than the C ABI, such as {extra}")
+    nm, objcopy = llvm_tool(manifest, "llvm-nm"), llvm_tool(manifest, "llvm-objcopy")
+    listing = lambda path: output(nm, "--extern-only", "--no-llvm-bc", "-P", path)  # noqa: E731
+    found = listing(static)
+    missing = sorted(keep - defined(found))
+    if missing:
+        raise SystemExit(f"{static.name} lacks C functions the export lists, such as {missing[:10]}")
+    names = defined(found) - keep
+    if "apple" not in target:
+        groups = output(llvm_tool(manifest, "llvm-readobj"), "--elf-output-style=GNU", "--section-groups", static)
+        # A local signature is renamed in every member, so one naming what a member imports
+        # would rename that import too, to a name nothing defines.
+        local = group_signatures(groups) - defined(found)
+        clash = sorted(local & {name for name, kind in nm_symbols(found) if kind in "Uvw"})
+        if clash:
+            raise SystemExit(f"{static.name} holds a local section group named as what it imports, such as {clash[:10]}")
+        names |= local
+    new = renamed(names, lib, hashlib.sha256(Path(static).read_bytes()).hexdigest()[:16])
+    pairs, hidden = work / "renamed.txt", work / "hidden.txt"
+    pairs.write_text("".join(f"{old} {name}\n" for old, name in new.items()), encoding="utf-8")
+    archive = work / static.name
+    run(objcopy, f"--redefine-syms={pairs}", static, archive)
+    if "apple" not in target:
+        hidden.write_text("".join(f"{name}\n" for name in new.values()), encoding="utf-8")
+        run(objcopy, f"--set-symbols-visibility={hidden}=hidden", archive)
+    stray = sorted(defined(listing(archive)) - keep - set(new.values()))
+    if stray:
+        raise SystemExit(f"the hidden {static.name} defines other global symbols than the C ABI, such as {stray[:10]}")
     return archive
 
 
-def coexist(archive, include, lib, natives, manifest, target, work):
-    """Link the prelinked static library with another Rust static library, in either order, and run it."""
+def older_toolchain(version):
+    """A released stable toolchain older than the one `rustc -vV` describes, whose std's
+    symbols differ, as another crate's would: two releases back, or three from a nightly,
+    which names its release before the stable two back is out."""
+    release = re.search(r"^release: 1\.([0-9]+)\.[0-9]+(-nightly|-dev)?", version, re.M)
+    if release is None:
+        raise SystemExit(f"rustc names no 1.x release: {version}")
+    return f"1.{int(release.group(1)) - (3 if release.group(2) else 2)}.0"
+
+
+def coexist(archive, include, lib, native, manifest, target, work):
+    """Link the hidden static library with another Rust static library, built by another
+    toolchain, in either order, and run the program where the host can.
+
+    The other library's std, unlike one the same toolchain built, defines what the linker
+    takes from both archives, so any unhidden runtime symbol of ours is defined twice.
+    """
     other = work / "other"
     (other / "src").mkdir(parents=True)
     (other / "Cargo.toml").write_text('[package]\nname = "other"\nversion = "0.0.0"\nedition = "2021"\n\n'
@@ -1193,21 +1221,53 @@ def coexist(archive, include, lib, natives, manifest, target, work):
     (other / "src/lib.rs").write_text('#[no_mangle]\npub extern "C" fn rust2_other_sum(a: i64, b: i64) -> i64 {\n'
                                       '\t[a, b].to_vec().iter().sum::<i64>() + std::env::args().count() as i64\n}\n',
                                       encoding="utf-8")
-    env = {**os.environ, "MACOSX_DEPLOYMENT_TARGET": MACOS_WHEEL} if "apple" in target else None
-    run("cargo", "build", "--quiet", "--release", "--manifest-path", other / "Cargo.toml", "--target", target,
-        "--target-dir", work / "target", cwd=Path(manifest).resolve().parent, env=env)
+    version = output("rustc", "-vV", cwd=Path(manifest).resolve().parent)
+    toolchain = older_toolchain(version)
+    run("rustup", "toolchain", "install", toolchain, "--profile", "minimal", "--target", target, capture_output=True)
+    # Without the crate's own compiler, wrapper, flags, and profile, from the environment or a
+    # Cargo home's config, which another toolchain may refuse or, naming the crate's rustc, would
+    # build the other library with the crate's std. It has no dependencies to fetch.
+    env = {k: v for k, v in os.environ.items()
+           if not k.startswith(("RUSTC", "RUSTFLAGS", "RUSTDOCFLAGS", "CARGO_ENCODED_", "CARGO_BUILD_", "CARGO_PROFILE_",
+                                "CARGO_TARGET_", "CARGO_HOME"))}
+    env["CARGO_HOME"] = str(work / "cargo-home")
+    # Set, though empty, these override an ancestor directory's `.cargo/config.toml` too.
+    env.update(RUSTC_WRAPPER="", RUSTC_WORKSPACE_WRAPPER="", RUSTFLAGS="")
+    env["RUSTC"] = output("rustup", "which", "--toolchain", toolchain, "rustc").strip()
+    if "apple" in target:
+        clang, floor = apple_clang(archive, target)
+        env["MACOSX_DEPLOYMENT_TARGET" if "darwin" in target else "IPHONEOS_DEPLOYMENT_TARGET"] = floor
+    elif "android" in target:
+        clang = [android_toolchain(target, ANDROID_API)[f"CC_{target.replace('-', '_')}"]]
+    else:
+        clang = ["cc"]
+    built = run("rustup", "run", toolchain, "cargo", "rustc", "--color", "never", "--quiet", "--release",
+                "--manifest-path", other / "Cargo.toml", "--target", target, "--target-dir", work / "target",
+                "--crate-type", "staticlib", "--", "--print=native-static-libs", cwd=other, env=env,
+                capture_output=True, encoding="utf-8")
+    notes = re.findall(r"note: native-static-libs: (.*)", built.stderr)
+    if len(notes) != 1:
+        raise SystemExit(f"rustc {toolchain} reported no native libraries for {target}")
     theirs = work / "target" / target / "release" / "libother.a"
     main = work / "main.c"
     main.write_text(f'#include <stdio.h>\n#include "{lib}.h"\n\nint64_t rust2_other_sum(int64_t a, int64_t b);\n\n'
                     f"int main(void) {{\n\t{lib}_buf buf = {lib}_buf_copy(({lib}_buf){{.ptr = (const uint8_t *)\"hi\", .len = 2}});\n"
                     f'\tprintf("%zu %lld\\n", buf.len, (long long)rust2_other_sum(40, 1));\n\t{lib}_buf_free(buf);\n\treturn 0;\n}}\n',
                     encoding="utf-8")
-    flags = [arg for kind, name in natives for arg in ((f"-l{name}",) if kind == "lib" else ("-framework", name))]
+    host = re.search(r"^host: (\S+)$", version, re.M).group(1)
     for order in ((archive, theirs), (theirs, archive)):
         exe = work / "coexist"
-        run("cc", "-std=c11", "-I", include, main, *order, *flags, "-o", exe)
-        if output(exe) != "2 42\n":
+        # Each library's native flags as rustc prints them, whose order and repeats a static link may need.
+        run(*clang, "-std=c11", "-I", include, main, *order, *shlex.split(native), *shlex.split(notes[0]), "-o", exe)
+        if target == host and output(exe) != "2 42\n":
             raise SystemExit(f"{archive.name} beside another Rust static library printed the wrong result")
+
+
+def isolated(static, keep, native, lib, target, manifest, export, work):
+    """`static` hidden but `keep`, and checked beside another toolchain's Rust static library."""
+    archive = hide(static, keep, lib, target, manifest, work)
+    coexist(archive, Path(export) / "include", lib, native, manifest, target, work)
+    return archive
 
 
 def check_soname(shared, soname, target):
@@ -1228,21 +1288,16 @@ def c_archive(info, manifest, export_dir, target, out):
     files = c_files(lib, target, version)
     soname = Path(files["shared"]).name
     linux, apple = "linux" in target, "apple" in target
-    link_args = []
-    if linux:
-        link_args = ["-C", f"link-arg=-Wl,-soname,{soname}"]
-    elif apple:
-        # The last -install_name rustc's linker sees wins over its own unversioned one.
-        link_args = ["-C", f"link-arg=-Wl,-install_name,@rpath/{soname}"]
+    link_args = ["-C", f"link-arg=-Wl,-soname,{soname}"] if linux else []
     env = {**reproducible(info, export_dir, target, soname), **({"MACOSX_DEPLOYMENT_TARGET": MACOS_WHEEL} if apple else {})}
     # The C library alone, as the Swift package's: the glue's language features add symbols
-    # a C program cannot resolve. Its link arguments, after `--`, reach only the generated
-    # crate, but on Apple its install name is in the flags every crate builds with, so it
-    # builds apart from the wheels there.
+    # a C program cannot resolve. Its link arguments, after `--`, and its Apple install name,
+    # from the generated crate's build script, reach only that crate, so it shares the
+    # wheels' dependencies.
     # cargo-zigbuild's own `rustc`, as Cargo knows only its `zigbuild`, from the package's
     # directory for its toolchain.
     command = ["cargo-zigbuild", "rustc"] if linux else ["cargo", "rustc"]
-    target_dir = export_dir / ("target-c" if apple else WHEELS_DIR)
+    target_dir = export_dir / SHARED_DIR
     built = run(*command, "--color", "never", "--locked", "--release", "--manifest-path", export_dir / "Cargo.toml",
                 "--target", f"{target}.{GLIBC}" if linux else target, "--target-dir", target_dir,
                 "--lib", "--crate-type", "staticlib,cdylib", "--", "--print=native-static-libs", *link_args,
@@ -1270,12 +1325,20 @@ def c_archive(info, manifest, export_dir, target, out):
         else:
             shared = release / f"lib{lib}.{'dylib' if apple else 'so'}"
             check_soname(shared, soname, target)
+            # The static library keeps global only what the export lists, as every other
+            # package's does, which the shared library, from the same build, must export. It may
+            # export more, a function the facade or a dependency defines itself, such as moq-ffi's
+            # `moq_ffi_shutdown`, which the static library renames so no two packages clash on it.
+            listed, exports = c_abi(export_dir, target), exported(shared, manifest, target)
+            if not listed <= exports:
+                raise SystemExit(f"{shared.name} lacks C functions {export_dir}/exports.txt lists, such as "
+                                 f"{sorted(listed - exports)[:10]}")
             shutil.copy(shared, root / files["shared"])
             (root / files["link"]).symlink_to(soname)
             hidden = raw / "hide"
             hidden.mkdir()
-            shutil.copy(hide(release / f"lib{lib}.a", shared, lib, target, hidden), root / files["static"])
-            coexist(root / files["static"], root / "include", lib, natives, manifest, target, hidden)
+            shutil.copy(isolated(release / f"lib{lib}.a", listed, notes[0].strip(), lib, target, manifest, export_dir, hidden),
+                        root / files["static"])
             (root / "lib/pkgconfig").mkdir(parents=True)
             (root / f"lib/pkgconfig/{lib}.pc").write_text(pkg_config(info, natives), newline="\n", encoding="utf-8")
         cmake = root / "lib/cmake" / lib
@@ -1673,7 +1736,7 @@ def reproducible(info, export_dir, target, install=None):
 
     Release time is the commit's, and each directory the build reads from, which rustc and
     C compilers write into panic messages and debug info, is spelled the same, through `LINK`
-    or not. A dylib is named `install`, else by its library's own name.
+    or not. An Apple dylib is named `install`, else by its library's own name.
     """
     named = {
         info["workspace"]: "/source",
@@ -1707,8 +1770,10 @@ def reproducible(info, export_dir, target, install=None):
     if "apple" in target:
         # Apple's ar and libtool stamp archive members with the time unless told not to, and
         # the linker names a dylib after the path it wrote it to, in the export's build directory.
+        # The generated crate's build script links its own with this name, after any a caller's
+        # flags set, without changing the flags its dependencies build with.
         env["ZERO_AR_DATE"] = "1"
-        flags += ["-C", f"link-arg=-Wl,-install_name,@rpath/{install or library_name(info['lib'], target)}"]
+        env["RUST2_FFI_INSTALL_NAME"] = f"@rpath/{install or library_name(info['lib'], target)}"
     env["CARGO_ENCODED_RUSTFLAGS"] = "\x1f".join(flags)
     return env
 
@@ -1962,8 +2027,12 @@ def linked(manifest, export, *features):
 def staticlib(manifest, crate, lib, target, env=None, config=()):
     """The C library alone, apart from the Python extension, whose CPython symbols it would
     leave undefined, and the system libraries rustc says it needs beside it."""
-    # Its own target directory, since cargo does not rebuild for a changed deployment target.
-    target_dir = crate.parent / ("target-swift" if target in APPLE_TARGETS else "target-go")
+    # An Apple slice's apart, at the Swift package's floor and with line tables, and Intel
+    # macOS's at rustc's own floor, since cargo does not rebuild for a changed deployment target.
+    # Windows GNU's builds nothing else to share, and dlltool names its import symbols after
+    # the directory, so it keeps its own.
+    target_dir = crate.parent / ("target-swift" if target in APPLE_TARGETS
+                                 else "target-go" if "apple" in target or "windows" in target else SHARED_DIR)
     # cargo-zigbuild links Linux against the glibc floor's symbols, whichever glibc the host has.
     linux = target.endswith("linux-gnu")
     # Uncolored, so the note below reads as written whatever the caller's terminal.
@@ -2000,9 +2069,10 @@ def llvm_tool(manifest, name):
 
 
 # The random directory rustc imports a Windows GNU library's raw-dylib symbols through, which
-# dlltool names them after, as `<path>_out_rustc<6 random characters>_kernel32_dll_imports_lib`.
-RUSTC_TEMP = re.compile(rb"(?<=_out_rustc)[0-9A-Za-z]{6}(?=_[0-9a-z_]+_dll_imports_lib)")
-IMPORT_MEMBER = re.compile(r".+\.dll(h|t|s[0-9]+)\.o")
+# dlltool names them after, as `<path>_out_rustc<6 random characters>_kernel32_dll_imports_lib`,
+# and its members after the imported file, whatever its extension, such as ntoskrnl.exe's.
+RUSTC_TEMP = re.compile(rb"(?<=_out_rustc)[0-9A-Za-z]{6}(?=_[0-9a-z_]+_imports_lib)")
+IMPORT_MEMBER = re.compile(r".+\.[0-9A-Za-z]+(h|t|s[0-9]+)\.o")
 
 
 def fix_import_names(path):
@@ -2058,9 +2128,9 @@ def build(args):
                     # cargo-zigbuild links Linux against the glibc floor's symbols, whichever glibc the host has.
                     built = cargo(args.manifest_path, *(["zigbuild"] if linux else ["build"]), "--locked", "--release",
                                   "--manifest-path", crate, "--target", f"{target}.{GLIBC}" if linux else target,
-                                  "--target-dir", through / WHEELS_DIR, "--features", feature, env=env)
+                                  "--target-dir", through / SHARED_DIR, "--features", feature, env=env)
                     sys.stderr.write(built.stderr)
-                    library = through / WHEELS_DIR / target / "release" / library_name(lib, target)
+                    library = through / SHARED_DIR / target / "release" / library_name(lib, target)
                     with tempfile.TemporaryDirectory() as raw, tempfile.TemporaryDirectory() as fixed:
                         wheel = repair(write_wheel(inside, through, library, target, raw, abi), target, fixed,
                                        inside["epoch"])
@@ -2077,26 +2147,35 @@ def build(args):
                 library, native = staticlib(args.manifest_path, crate, lib, target,
                                             env={**reproducible(inside, through, target), name: APPLE_BUILD[target]},
                                             config=line_tables(crate))
-                static = out / "static" / target
-                static.mkdir(parents=True)
-                shutil.copy(library, static)
-                (static / "native.txt").write_text(native + "\n", encoding="utf-8")
-                # The Go module links the Swift package's macOS library, at its floor.
-                if target in GO_TARGETS:
-                    go_library(args, through, lib, target, library, native, out)
+                with tempfile.TemporaryDirectory() as work:
+                    # Hidden once, as the Swift package's, React Native's, and the Go module's.
+                    library = isolated(library, c_abi(through, target), native, lib, target, args.manifest_path,
+                                       through, Path(work))
+                    static = out / "static" / target
+                    static.mkdir(parents=True)
+                    shutil.copy(library, static)
+                    (static / "native.txt").write_text(native + "\n", encoding="utf-8")
+                    # The Go module links the Swift package's macOS library, at its floor.
+                    if target in GO_TARGETS:
+                        go_library(args, through, lib, target, library, native, out)
             elif target in GO_TARGETS or args.react_native and target in RN_ANDROID_TARGETS:
                 env = reproducible(inside, through, target)
                 # Android's at the AAR's API floor, React Native's too, through the NDK.
                 if "android" in target:
                     env.update(android_toolchain(target, ANDROID_API))
                 library, native = staticlib(args.manifest_path, crate, lib, target, env=env)
-                if target in GO_TARGETS:
-                    go_library(args, through, lib, target, library, native, out)
-                if args.react_native and target in RN_ANDROID_TARGETS:
-                    dest = out / "react-native" / RN_ANDROID_TARGETS[target]
-                    dest.mkdir(parents=True)
-                    shutil.copy(library, dest)
-                    (dest / "native.txt").write_text(native + "\n", encoding="utf-8")
+                with tempfile.TemporaryDirectory() as work:
+                    # Hidden once, as the Go module's and React Native's, but on Windows (`hide`).
+                    if "windows" not in target:
+                        library = isolated(library, c_abi(through, target), native, lib, target, args.manifest_path,
+                                           through, Path(work))
+                    if target in GO_TARGETS:
+                        go_library(args, through, lib, target, library, native, out)
+                    if args.react_native and target in RN_ANDROID_TARGETS:
+                        dest = out / "react-native" / RN_ANDROID_TARGETS[target]
+                        dest.mkdir(parents=True)
+                        shutil.copy(library, dest)
+                        (dest / "native.txt").write_text(native + "\n", encoding="utf-8")
             if target in DART_TARGETS:
                 dart_library(inside, args.manifest_path, through, target, out)
             if args.kotlin and target in JVM_TARGETS:
@@ -2286,8 +2365,9 @@ def dart_library(info, manifest, export_dir, target, out):
     # Linux's against the glibc floor, as the wheel's.
     glibc = target.endswith("linux-gnu")
     command = ["cargo-zigbuild", "rustc"] if glibc else ["cargo", "rustc"]
-    # A wheel target's at the wheels' floor is built with their flags.
-    target_dir = export_dir / (WHEELS_DIR if target in WHEEL_TARGETS and floor is None else "target-dart")
+    # Apart on Apple at a floor below the wheels', since cargo does not rebuild for a changed
+    # deployment target; Android's floor is the AAR's, as Go's and React Native's libraries build.
+    target_dir = export_dir / ("target-dart" if "apple" in target and floor is not None else SHARED_DIR)
     built = run(*command, "--color", "never", "--locked", "--release", "--manifest-path", export_dir / "Cargo.toml",
                 "--target", f"{target}.{GLIBC}" if glibc else target, "--target-dir", target_dir,
                 "--lib", "--crate-type", "cdylib", "--features", "dart", cwd=Path(manifest).resolve().parent,
@@ -2940,18 +3020,18 @@ def android_library(info, manifest, export_dir, target, out):
 
 def jvm_library(info, manifest, export_dir, target, out):
     """`target`'s library for the desktop jar, the C ABI with its JNI glue, built as the wheel's
-    is: Linux's against the glibc floor, macOS's at the wheels' floor, in WHEELS_DIR."""
+    is: Linux's against the glibc floor, macOS's at the wheels' floor, in SHARED_DIR."""
     env = reproducible(info, export_dir, target)
     if "apple" in target:
         env["MACOSX_DEPLOYMENT_TARGET"] = MACOS_WHEEL
     linux = "linux" in target
     built = cargo(manifest, *(["zigbuild"] if linux else ["build"]), "--locked", "--release",
                   "--manifest-path", export_dir / "Cargo.toml", "--target", f"{target}.{GLIBC}" if linux else target,
-                  "--target-dir", export_dir / WHEELS_DIR, "--features", "kotlin", env=env)
+                  "--target-dir", export_dir / SHARED_DIR, "--features", "kotlin", env=env)
     sys.stderr.write(built.stderr)
     dest = out / "jvm" / target
     dest.mkdir(parents=True)
-    shutil.copy(export_dir / WHEELS_DIR / target / "release" / library_name(info["lib"], target), dest)
+    shutil.copy(export_dir / SHARED_DIR / target / "release" / library_name(info["lib"], target), dest)
 
 
 def android_example(info, args, out):
