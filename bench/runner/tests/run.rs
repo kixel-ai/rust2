@@ -358,6 +358,7 @@ fn compares_a_base_with_every_change_in_the_working_tree_from_one_directory() {
 	git(&repo, &["init", "--quiet"]);
 	std::fs::write(repo.join("a.list"), "cwd=1000,a=1000,").unwrap();
 	std::fs::write(repo.join("d.list"), "d=100,").unwrap();
+	std::fs::write(repo.join(".gitignore"), "Cargo.lock\n").unwrap();
 	git(&repo, &["add", "."]);
 	git(&repo, &["commit", "--quiet", "-m", "base"]);
 	// Changed but unstaged, staged only, untracked, and deleted.
@@ -369,6 +370,8 @@ fn compares_a_base_with_every_change_in_the_working_tree_from_one_directory() {
 	let status = git(&repo, &["status", "--porcelain"]);
 	let out = Command::new(env!("CARGO_BIN_EXE_rust2-bench"))
 		.args(["compare", "HEAD", "--program", &program("$(cat *.list)", "")])
+		// Each side's build resolves its own ignored lockfile, never the side's before.
+		.args(["--build", "! test -e Cargo.lock && touch Cargo.lock"])
 		.current_dir(&repo)
 		.env("XDG_CACHE_HOME", &cache)
 		.output()

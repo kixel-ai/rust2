@@ -215,9 +215,15 @@ fn rebase(args: &[String], top: &Path, tree: &Path) -> Result<Vec<String>, Strin
 /// Checks `sha` out at `tree`, a detached worktree of the repository at `top` kept between
 /// compares, so its build products stay warm for the next side and the next compare.
 fn checkout(top: &Path, tree: &Path, sha: &str) -> Result<(), String> {
-	let path = tree.to_str().ok_or("the base's worktree path is not UTF-8")?;
+	let path = tree.to_str().ok_or("compare's worktree path is not UTF-8")?;
 	if tree.join(".git").exists() {
 		git(tree, &["checkout", "--quiet", "--detach", "--force", sha])?;
+		// A lockfile the commit does not track is one an earlier side's build resolved, which
+		// would pin this side's dependencies to that side's.
+		git(
+			tree,
+			&["clean", "--quiet", "--force", "-x", "--", ":(glob)**/Cargo.lock"],
+		)?;
 	} else {
 		// Forget a worktree whose directory a cache cleanup removed, so it can be added again.
 		git(top, &["worktree", "prune"])?;

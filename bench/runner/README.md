@@ -143,8 +143,10 @@ each and moves neither count. The worktree sits outside the repository, so no
 warm for the next side and the next compare: the head rebuilds only what differs from the base.
 It first snapshots the working tree as a commit on `HEAD`, through an index of its own, so the
 caller's index and stash stay as they were: every tracked file as it is on disk, staged or not,
-and every untracked one Git does not ignore. An ignored file, such as a local `.env`, is on
-neither side, and a submodule with uncommitted changes fails the run, since the snapshot holds
+and every untracked one Git does not ignore. An ignored file the caller has, such as a local
+`.env`, is on neither side. An ignored one a build leaves in the worktree stays for the next
+side, but for a `Cargo.lock` the side's commit does not track, which is removed before each side
+builds, so each resolves its own dependencies. A submodule with uncommitted changes fails the run, since the snapshot holds
 only its commit. A clean working tree counts `HEAD` itself. It refuses two fingerprints. A side
 with no benchmark at all, as a base before the first, counts as none. An
 absolute `--manifest-path` in the repository counts the same manifest in the base's worktree,
