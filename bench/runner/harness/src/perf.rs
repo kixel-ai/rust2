@@ -137,6 +137,10 @@ pub fn preloaded() -> Result<(), String> {
 	let Some(library) = preloads.split([':', ' ']).find(|library| !library.is_empty()) else {
 		return Ok(());
 	};
+	// A bare name is the loader's to find on its search path; rust2-bench names its own by path.
+	if !library.contains('/') {
+		return Ok(());
+	}
 	// The loader maps the file a link names, under the file's own path.
 	let path = std::fs::canonicalize(library).map_err(|e| format!("LD_PRELOAD names {library}: {e}"))?;
 	let maps = std::fs::read_to_string("/proc/self/maps").map_err(|e| format!("cannot read /proc/self/maps: {e}"))?;
