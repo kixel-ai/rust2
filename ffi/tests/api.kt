@@ -1054,8 +1054,10 @@ fun owned() {
 	// The file serves wasm32 too: what only wasm32 has throws on the host's library.
 	check(platform() is Platform.Native && pointerBits(Platform.Native(64u)) == 64u, "the host is native")
 	check(isFamily(Family.NATIVE), "and of the native family")
+	check(WORD == ULong.MAX_VALUE, "a 64-bit host has WORD")
 	for ((what, call) in listOf<Pair<String, () -> Unit>>(
 		"api_wasm_only" to { wasmOnly() },
+		"API_WASM_PAGE" to { WASM_PAGE },
 		"api_Platform.Wasm" to { pointerBits(Platform.Wasm(32u)) },
 		"api_Family.Wasm" to { isFamily(Family.WASM) },
 		"api_Page_default" to { Page.default() },

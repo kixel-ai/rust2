@@ -251,8 +251,19 @@ item that target compiles works exactly, and no other does:
   refused, as below.
 - A type only some targets have is declared everywhere, and only those targets' items
   make or take it.
-- A constant only some targets have keeps its value everywhere, since reading it calls
-  nothing.
+- A constant only some targets have exists only there. A binding compiled for each target
+  declares it under the language's own condition on the target it compiles for, the fewest
+  of its pointer width, architecture, system, and Apple simulator or Mac Catalyst that tell
+  those targets apart from the binding's others: C's and C++'s `#if UINTPTR_MAX ==
+  0xFFFFFFFFFFFFFFFFu` for a 64-bit one, Swift's `#if arch(x86_64)`, and a Go file of its own
+  under a `//go:build` constraint, or none in a package that links no target with it. One
+  those cannot tell apart, such as a constant only glibc's Linux has beside musl's, is
+  refused at its span. A binding serving its targets at run time reads it through the same
+  check of the library's target as a function: a Kotlin property, Dart getter, or C#
+  property that throws, a Python attribute that raises and that `import *` leaves out, and
+  in React Native a function, as an `export const` cannot throw. None of those is a
+  compile-time constant, so a constant expression, such as a Kotlin annotation's argument or
+  a Dart `case`, cannot use it.
 - An item whose definition differs between two targets, such as a function whose
   signature does, a record with a field only one has, a plain enum whose variant has
   another value, or a constant of another value, is refused at its span, with a note at the other's, naming both targets.
@@ -303,7 +314,7 @@ API breaks the one in `file`, with an error at each item that names how:
 - an item removed, or no longer on one of the baseline's targets, and a target the baseline
   serves that the export does not;
 - a function's receiver, parameter, return, error, or asyncness changed, a constant's type
-  changed, a trait method added or changed, or a trait impl such as `Clone` dropped;
+  changed or whether it is on every target, which changes how a binding declares it, a trait method added or changed, or a trait impl such as `Clone` dropped;
 - a record's or variant's field added, removed, moved, or of another type, a variant
   removed or of another value or, in an enum with fields, at another place, which is its C
   tag, one added to an enum another crate matches exhaustively, and an enum gaining its
@@ -1908,15 +1919,17 @@ the header's wrappers would, and it needs only `jsi.h`.
   from `android/CMakeLists.txt`, which `react-native.config.cjs` names, with
   `libs/android/<abi>/lib<prefix>.a`, and iOS's CocoaPods from `Rust2<Prefix>.podspec`,
   with `libs/ios/<prefix>.xcframework`, whose `+load` registers the module. The app builds
-  the Rust library into `libs/` for each ABI it ships. `load()` installs the module
+  the Rust library into `libs/` for each ABI it ships, or installs the package
+  [the release builder](/ffi/release/README.md) packs with them from npm, as
+  `@<scope>/<crate>-rn`. `load()` installs the module
   through `TurboModuleRegistry`, or from `globalThis.__rust2_<prefix>` where a host
   without React Native installed it, then checks the contract and target as the web's
   does. The module installs once in a runtime, and checks each value its runtime's helpers
   return, so no JavaScript that installs it first with a kit of its own reaches memory.
 - **Values** are the web's, but for `usize` and `isize`, which are `rt.u64` and `rt.i64`,
   since one package serves 64-bit targets as well as 32-bit ones, where a value past 32 bits
-  fails as it crosses in. A constant only some of the package's targets have fails the
-  export, naming the targets that lack it, since its value compiles into the one package. An `rt.Bytes` past 4 KiB holds Rust's own
+  fails as it crosses in. A constant only some of the package's targets have is a function
+  returning it, which throws on any other, as an `export const` cannot ([Targets](#targets)). An `rt.Bytes` past 4 KiB holds Rust's own
   buffer, which disposing or the collector frees, and passed back crosses in place, as the
   web's does; up to 4 KiB it holds a copy, which Hermes makes for what a lend's host calls
   cost, as [the benchmark](../bench/ffi/README.md#react-native) measures. JavaScript reads Rust's buffer only through the module, by `at` and `slice`, which check
@@ -2006,7 +2019,7 @@ nix develop .#android --command just ffi react-native-android  # the same throug
 just ffi react-native-ios  # the same on the booted iOS simulator, on macOS with Xcode and CocoaPods
 nix develop .#android --command just ffi bench-android  # the benchmark's Kotlin rows on HotSpot and, shrunk by R8, on ART on the Android device adb reaches
 nix develop .#bench --command just ffi bench  # the binding benchmark: bench/ffi/README.md's cases from Rust, and through the export from C, C++, Kotlin, Python, Swift, Go, Dart, C#, TypeScript on Node over the wasm32 stand-in and over the Node-API addon, and React Native on Hermes
-nix develop .#bench --command just ffi codspeed  # after bench-build, each single-threaded case once under CodSpeed's CPU simulation, as the CodSpeed workflow runs it
+nix develop .#bench --command just ffi count run  # each single-threaded case's instructions under Valgrind, by rust2-bench, as the Valgrind workflow counts them; `count compare main` compares with a commit
 nix develop .#sanitize --command just ffi sanitize  # api's C and C++ scripts under ASan with UBSan, TSan, and Valgrind, its Swift under TSan, its Go under the race detector and cgocheck2, its Python looped on a debug CPython, and its C ABI under Miri
 ```
 

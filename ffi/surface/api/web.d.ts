@@ -2739,6 +2739,7 @@ import type { WrapU32 } from "./WrapU32.ts";
 export declare function load(source?: rt.Source): Promise<void>;
 export declare const LIMIT: rt.u64;
 export declare const FAR: rt.i64;
+export declare const WASM_PAGE: number;
 export declare const EOF: number;
 export declare const URL$: rt.u64;
 export declare const STEP: rt.u64;

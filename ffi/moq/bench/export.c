@@ -1,7 +1,7 @@
 /* Every case bench/ffi/README.md lists, through the exported C ABI: the floor every other
  * language's binding builds on. bench/export.rs times the same in Rust, and
  * bench/export.cpp through the C++ header. Futures are polled by hand with a null waker.
- * Each case prints its wall time and the process's CPU time, or under CodSpeed, runs once
+ * Each case prints its wall time and the process's CPU time, or under Valgrind, runs once
  * for its CPU simulation to count. */
 
 #define _POSIX_C_SOURCE 200112L
@@ -17,7 +17,7 @@
 #include "codspeed.h"
 #include "moq.h"
 
-/* A tenth under CodSpeed, whose simulation counts every call exactly. */
+/* A tenth under Valgrind, which counts every call exactly. */
 static int GROUPS = 10000;
 #define FRAMES 100
 #define N (GROUPS * FRAMES)
@@ -46,10 +46,10 @@ static span per(span start, double n) {
 	return (span){(end.wall - start.wall) / n, (end.cpu - start.cpu) / n};
 }
 
-/* Whether CodSpeed counts this run, which then skips the warm-up and the threaded cases. */
+/* Whether Valgrind counts this run, which then skips the warm-up and the threaded cases. */
 static bool measured;
 
-/* A case's start: now, and CodSpeed counting from here. */
+/* A case's start: now, and Valgrind counting from here. */
 static span begin(void) {
 	span start = now();
 	codspeed_start();
@@ -289,7 +289,7 @@ static void round_(int print) {
 	span getter = end(start, N, "getter");
 
 	/* The handle call and the getter from THREADS threads: on one shared handle, then on a
-	 * clone each, a handle of its own to the same value. CodSpeed's simulation runs one
+	 * clone each, a handle of its own to the same value. Valgrind runs one
 	 * thread at a time, which contends for nothing, so it skips them. */
 	span shared_call = {0}, own_call = {0}, shared_getter = {0}, own_getter = {0};
 	if (!measured) {
@@ -444,7 +444,7 @@ static void round_(int print) {
 }
 
 int main(void) {
-	/* Under CodSpeed, one round, which prints nothing: its simulation counts each case. */
+	/* Under Valgrind, one round, which prints nothing: rust2-bench counts each case. */
 	measured = codspeed_init("ffi/moq/bench/export.c::c");
 	if (measured) {
 		GROUPS /= 10;

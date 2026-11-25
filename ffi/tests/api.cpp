@@ -44,6 +44,10 @@
 
 #include "api.hpp"
 
+// A constant only some of the header's targets have is declared only where it compiles for
+// one: a 64-bit host has `WORD`.
+static_assert(api::WORD == SIZE_MAX, "api::WORD is a 64-bit target's largest size_t");
+
 #ifdef _WIN32
 #include <fcntl.h>
 #include <io.h>

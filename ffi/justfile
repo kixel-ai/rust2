@@ -20,8 +20,8 @@ swift_collections_rev := "f96b909e1a9e469620bc5037c1e24e00153f376f"
 # The binding benchmark's programs, each a language, as bench-program runs them.
 bench_langs := "rust c cpp moq-c kotlin python swift go dart csharp ts-node ts-addon ts-chromium ts-firefox react-native"
 
-# Those whose cases CodSpeed counts the same on every run of one commit: bench/ffi/README.md's CodSpeed section says why Swift, Kotlin, Go, Dart, and C# do not.
-codspeed_langs := "rust c cpp moq-c python ts-node"
+# Those whose cases count the same under Valgrind on every run of one commit: bench/ffi/README.md's Instruction counts section says why Swift, Kotlin, Go, Dart, and C# do not.
+count_langs := "rust c cpp moq-c python ts-node"
 
 default:
     @just --list
@@ -128,7 +128,7 @@ census checkout="": (standin checkout)
 # Measure the binding benchmark (bench/ffi/README.md) from the pinned moq revision or a checkout, in the bench shell: nix develop .#bench. Its tables go to target/bench/report.md.
 bench checkout="": (bench-build checkout) rn-bench bench-run
 
-# Build the binding benchmark's programs: Rust's floor, C, C++, Kotlin, Python, Swift, Go, Dart, and C# through the export, TypeScript through the wasm32 stand-in's and through the Node binding's addon, and C through moq's hand-written rs/libmoq. React Native's, which builds Hermes, is rn-bench's, which `bench` runs after it, so CodSpeed's run of this builds no Hermes.
+# Build the binding benchmark's programs: Rust's floor, C, C++, Kotlin, Python, Swift, Go, Dart, and C# through the export, TypeScript through the wasm32 stand-in's and through the Node binding's addon, and C through moq's hand-written rs/libmoq. React Native's, which builds Hermes, is rn-bench's, which `bench` runs after it, so `count`'s build of this builds no Hermes.
 bench-build checkout="": (moq-export checkout) (moq-web checkout) ts-program node-bench codspeed-hooks
     #!/usr/bin/env bash
     set -euo pipefail
@@ -322,14 +322,33 @@ bench-run rounds="3":
     python3 -I ../bench/ffi/report.py "$raw" "$builds" "$out" target/export/moq-web target/bench-ts/export.ts > target/bench/report.md
     cat target/bench/report.md
 
-# Run what bench-build built once each, under `codspeed run` in the bench shell's environment, so CodSpeed's CPU simulation counts each single-threaded case: the CodSpeed workflow's run.
-codspeed:
+# Count each case of count_langs' programs in instructions with rust2-bench, from the bench shell, building them first: `just ffi count run --out metrics.json` for Kixel Quest's metrics.json, `just ffi count compare main` for each case's change from a commit; a path it takes is relative to ffi/. The Valgrind workflow's run.
+[positional-arguments]
+count *args:
     #!/usr/bin/env bash
     set -euo pipefail
+    # The programs' switch to one round a case, kept CodSpeed's name so a compare with a
+    # commit before rust2-bench still runs that commit's programs the same way.
     export RUST2_CODSPEED=1
-    for lang in {{ codspeed_langs }}; do
-        {{ quote(just_executable()) }} bench-program "$lang"
+    # The programs' options follow these, so only a subcommand that counts takes them.
+    case "${1-}" in
+        run | compare) ;;
+        *) echo "count: run or compare, then rust2-bench's options" >&2; exit 1 ;;
+    esac
+    for arg; do
+        # rust2-bench takes every arg after -- as cargo's, which would swallow the programs,
+        # and the programs are this recipe's to name.
+        case "$arg" in
+            --) echo "count: the programs take no cargo args" >&2; exit 1 ;;
+            --build | --build=* | --program | --program=*) echo "count: $arg is this recipe's own" >&2; exit 1 ;;
+        esac
     done
+    just=$(printf %q {{ quote(just_executable()) }})
+    programs=()
+    for lang in {{ count_langs }}; do
+        programs+=(--program "$just bench-program $lang")
+    done
+    rust2-bench "$@" --build "$just bench-build" "${programs[@]}"
 
 # Run what bench-build or rn-bench built for one of bench_langs.
 [private]
@@ -355,11 +374,11 @@ bench-program lang:
         dart) exec dart target/bench-dart/main.dill "$hooks" ;;
         csharp) LD_LIBRARY_PATH="$out/target/release" DYLD_LIBRARY_PATH="$out/target/release" exec dotnet target/bench-csharp/bench.dll "$hooks" ;;
         ts-node)
-            # Under CodSpeed, V8 runs on this thread alone and collects on a schedule its
-            # allocations set, not time, and export.ts collects before each case, so its counts
-            # hold still between runs.
+            # Counted, V8 compiles, tiers the module up, and collects on this thread alone, as
+            # its allocations schedule rather than time, and export.ts collects before each
+            # case and gives the module a clock that moves only as it is read.
             flags=()
-            [ -z "${RUST2_CODSPEED:-}" ] || flags=(--expose-gc --predictable --predictable-gc-schedule --single-threaded --v8-pool-size=0)
+            [ -z "${RUST2_CODSPEED:-}" ] || flags=(--expose-gc --predictable --predictable-gc-schedule --single-threaded --wasm-sync-tier-up)
             exec node ${flags[@]+"${flags[@]}"} target/bench-ts/export.ts "$wasm" "$PWD/target/codspeed/codspeed.node" ;;
         ts-addon) exec node target/bench-node/main.ts ;;
         ts-chromium | ts-firefox) exec bun target/bench-ts/browser.ts "${lang#ts-}" "$wasm" "target/bench-browser/${lang#ts-}" ;;

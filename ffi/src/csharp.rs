@@ -737,7 +737,7 @@ impl<'a> Gen<'a> {
 				self.c_struct(&element);
 				fields.push(format!("public {} _{n};", self.raw(&element)));
 			}
-		} else if let Some(i) = (0..abi.api.records.len()).find(|&i| &abi.record(i) == name) {
+		} else if let Some(i) = abi.record_named(name) {
 			let record = &abi.api.records[i];
 			if let Some(opaque) = &record.opaque {
 				let unit = match opaque.unit() {
@@ -758,7 +758,7 @@ impl<'a> Gen<'a> {
 					));
 				}
 			}
-		} else if let Some(i) = (0..abi.api.enums.len()).find(|&i| &abi.enumeration(i) == name) {
+		} else if let Some(i) = abi.enum_named(name) {
 			let e = &abi.api.enums[i];
 			fields.push("public int tag;".to_string());
 			let union = format!("{name}_union_");
@@ -1440,6 +1440,16 @@ impl<'a> Gen<'a> {
 			};
 			let key = format!("const {}", constant.path.join("::"));
 			self.locked.insert(key, name.clone());
+			// One only some targets have is a property throwing on any other, as a function
+			// would.
+			let on = match api.everywhere(constant.on) {
+				true => String::new(),
+				false => format!(
+					"Native.On({}, \"{}\"); ",
+					constant.on.0 & api.all().0,
+					abi.constant(&constant.path)
+				),
+			};
 			let declaration = match constant.value {
 				Literal::Int(int, v) if wide(int, v) => {
 					let wide = match int {
@@ -1449,8 +1459,9 @@ impl<'a> Gen<'a> {
 					// A property, so on a 32-bit runtime only its own read throws, not `Lib`'s
 					// initializer, which every member of `Lib` would then rethrow. Through a
 					// local, since Roslyn refuses to convert the constant itself.
-					format!("static {ty} {name} {{ get {{ {wide} v = {v}; return checked(({ty})v); }} }}")
+					format!("static {ty} {name} {{ get {{ {on}{wide} v = {v}; return checked(({ty})v); }} }}")
 				}
+				_ if !on.is_empty() => format!("static {ty} {name} {{ get {{ {on}return {value}; }} }}"),
 				_ => format!("const {ty} {name} = {value};"),
 			};
 			let _ = write!(self.lib, "{}\tpublic {declaration}\n\n", docs(&constant.docs, "\t"));

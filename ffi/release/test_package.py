@@ -1302,7 +1302,7 @@ class Template(unittest.TestCase):
     def test_web_lines_follow_the_scope(self):
         shipped = package.template(info("/src"), "rs/moq-ffi/Cargo.toml", "a" * 40, "moq-dev/moq-swift-ffi", "moq.dev/moq-ffi", "moq")
         self.assertIn("\n      web-manifest-path: rs/moq-ffi/Cargo.toml\n      scope: moq\n", shipped)
-        self.assertIn("@moq/moq-ffi on npm and JSR", shipped)
+        self.assertIn("@moq/moq-ffi on npm and JSR, and the React Native package, @moq/moq-ffi-rn on npm", shipped)
         none = package.template(info("/src"), "rs/moq-ffi/Cargo.toml", "a" * 40, "moq-dev/moq-swift-ffi", "moq.dev/moq-ffi")
         self.assertIn("      # web-manifest-path: rs/moq-ffi/Cargo.toml\n", none)
         self.assertNotIn("\n      web-manifest-path:", none)
@@ -1549,6 +1549,74 @@ class Web(unittest.TestCase):
             (Path(tmp) / "native.txt").write_bytes(b"other\n")
             with self.assertRaises(SystemExit):
                 package.consume_python(check, Path(tmp) / "native.txt", None)
+
+
+
+class ReactNative(unittest.TestCase):
+    CMAKE = ("target_link_libraries(rust2_moq jsi reactnative react_codegen_Rust2MoqSpec\n"
+             "\t${CMAKE_CURRENT_SOURCE_DIR}/../libs/android/${ANDROID_ABI}/libmoq.a log dl m)\n")
+    PODSPEC = ('  s.source_files = "cpp/*.{h,cpp}", "ios/*.mm", "include/*.h"\n'
+               '  s.vendored_frameworks = "libs/ios/moq.xcframework"\n'
+               "  install_modules_dependencies(s)\nend\n")
+
+    def test_names_beside_the_web_package(self):
+        self.assertEqual(package.rn_package_name(info("/src"), "moq"), "@moq/moq-ffi-rn")
+        for scope in ("Moq", "-moq", ""):
+            with self.assertRaises(SystemExit):
+                package.rn_package_name(info("/src"), scope)
+        with self.assertRaises(SystemExit):
+            package.rn_package_name(info("/src", name="Moq"), "moq")
+
+    def test_cmake_links_what_rustc_names_beside_its_own(self):
+        linked = package.rn_cmake(self.CMAKE, "moq", "-lunwind -ldl -llog -lunwind -ldl -lm -lc")
+        self.assertIn("/libmoq.a log dl m unwind c)\n", linked)
+        self.assertEqual(package.rn_cmake(self.CMAKE, "moq", "-ldl -llog"), self.CMAKE)
+        with self.assertRaisesRegex(SystemExit, "update the packager"):
+            package.rn_cmake(self.CMAKE.replace(" log dl m", " log"), "moq", "-ldl")
+        with self.assertRaisesRegex(SystemExit, "unsupported"):
+            package.rn_cmake(self.CMAKE, "moq", "-ldl -Wl,--as-needed")
+
+    def test_podspec_links_frameworks_and_bundles_the_manifest(self):
+        spec = package.rn_podspec(self.PODSPEC, "moq", "-framework Security -framework CoreFoundation -liconv -lSystem -lc -lm "
+                                  "-framework Security", "Rust2MoqPrivacy")
+        self.assertIn('  s.frameworks = ["Security", "CoreFoundation"]\n  s.libraries = ["iconv", "System", "c", "m"]\n'
+                      '  s.resource_bundles = { "Rust2MoqPrivacy" => ["ios/PrivacyInfo.xcprivacy"] }\n'
+                      "  install_modules_dependencies(s)\nend\n", spec)
+        with self.assertRaisesRegex(SystemExit, "update the packager"):
+            package.rn_podspec(self.PODSPEC.replace("moq.xcframework", "other.xcframework"), "moq", "-lc", "Rust2MoqPrivacy")
+        with self.assertRaisesRegex(SystemExit, "unsupported"):
+            package.rn_podspec(self.PODSPEC, "moq", "-lc -weak_framework Foo", "Rust2MoqPrivacy")
+
+    def test_slices_agree_on_their_libraries(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            one, two = Path(tmp) / "one.txt", Path(tmp) / "two.txt"
+            one.write_text("-ldl -llog\n")
+            two.write_text("-ldl -llog\n")
+            self.assertEqual(package.agreed([one, two], "Android"), "-ldl -llog")
+            two.write_text("-ldl -llog -lz\n")
+            with self.assertRaisesRegex(SystemExit, "different native libraries"):
+                package.agreed([one, two], "Android")
+
+    def test_check_imports_the_package(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            check = Path(tmp) / "check.ts"
+            check.write_text('import * as moq from "./react-native/index.ts";\nimport * as Client from "./react-native/Client.ts";\n')
+            self.assertEqual(package.check_program(check, "@moq/moq-ffi-rn", "react-native"),
+                             'import * as moq from "@moq/moq-ffi-rn";\nimport * as Client from "@moq/moq-ffi-rn/Client";\n')
+            check.write_text('import * as moq from "./react-native/nested/index.ts";\n')
+            with self.assertRaises(SystemExit):
+                package.check_program(check, "@moq/moq-ffi-rn", "react-native")
+
+    def test_reads_the_app_log(self):
+        log = object.__new__(package.Logcat)
+        log.tag, log.what = "ReactNativeJS", "React Native app"
+        log.lines, log.pid, log.vm_service = queue.Queue(), None, None
+        for line in ("I/ReactNativeJS( 4321): Running \"Consumer\"", "I/ReactNativeJS( 4321): rust2: start",
+                     "I/ReactNativeJS( 4321): rust2: aGk=", "I/flutter ( 4321): rust2: Ym9vbQ==",
+                     "I/ReactNativeJS( 4321): rust2: exit 0", None):
+            log.lines.put(line)
+        with mock.patch("sys.stderr"):
+            self.assertEqual(log.output(), b"hi")
 
 
 if __name__ == "__main__":

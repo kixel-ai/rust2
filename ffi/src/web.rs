@@ -304,7 +304,7 @@ enum Mode {
 /// the JSI module [`crate::jsi`] writes, serving every target but wasm32's; or none if the
 /// API serves no other.
 pub(crate) fn react_native(abi: &Abi<'_>, facade: &Package, contract: u64) -> Result<Option<Output>, String> {
-	let mask = native_mask(abi);
+	let mask = native_mask(abi.api);
 	if mask == 0 {
 		return Ok(None);
 	}
@@ -312,8 +312,8 @@ pub(crate) fn react_native(abi: &Abi<'_>, facade: &Package, contract: u64) -> Re
 }
 
 /// The targets React Native's binding serves, one bit each: every one but wasm32's.
-pub(crate) fn native_mask(abi: &Abi<'_>) -> u64 {
-	(abi.api.targets.iter().enumerate())
+pub(crate) fn native_mask(api: &crate::ir::Api) -> u64 {
+	(api.targets.iter().enumerate())
 		.filter(|(_, target)| !target.starts_with("wasm32"))
 		.fold(0u64, |mask, (i, _)| mask | 1 << i)
 }
@@ -1097,14 +1097,14 @@ impl<'a> Gen<'a> {
 		if let Some(elements) = abi.tuples.get(name) {
 			return Shape::Fields(elements.iter().map(|e| abi.ty(e)).collect());
 		}
-		if let Some(i) = (0..abi.api.records.len()).find(|&i| abi.record(i) == name) {
+		if let Some(i) = abi.record_named(name) {
 			let record = &abi.api.records[i];
 			if let Some(opaque) = &record.opaque {
 				return Shape::Units(opaque.unit() as u32, opaque.units() as u32);
 			}
 			return Shape::Fields(record.fields.iter().map(|f| abi.ty(&f.ty)).collect());
 		}
-		if let Some(i) = (0..abi.api.enums.len()).find(|&i| abi.enumeration(i) == name) {
+		if let Some(i) = abi.enum_named(name) {
 			let payloads = (abi.api.enums[i].variants.iter())
 				.filter(|v| !v.fields.is_empty())
 				.map(|v| v.fields.iter().map(|f| abi.ty(&f.ty)).collect())
@@ -2819,14 +2819,13 @@ impl Gen<'_> {
 			if !self.here(constant.on) {
 				continue;
 			}
-			// React Native's and Node's one package serves each of its targets, and a constant
-			// compiles into its TypeScript, so one only some have, or whose value differs by
-			// target, has no form there yet.
-			if (self.jsi || self.node) && constant.on.0 & self.mask != self.mask {
+			// Node's one package serves each of its targets, and a constant compiles into its
+			// TypeScript, so one only some have, or whose value differs by target, has no form
+			// there yet.
+			if self.node && constant.on.0 & self.mask != self.mask {
 				self.errors.push(format!(
-					"const `{}` is missing on the {} target(s) {}, so the one package serving every target has no form for it yet, which rust2-ffi should give it",
+					"const `{}` is missing on the Node target(s) {}, so the one package serving every target has no form for it yet, which rust2-ffi should give it",
 					constant.path.join("::"),
-					if self.node { "Node" } else { "React Native" },
 					api.named(crate::ir::On(self.mask & !constant.on.0)).join(", "),
 				));
 				continue;
@@ -2869,8 +2868,19 @@ impl Gen<'_> {
 			if local != name {
 				self.out().renames.insert(local.clone(), name.clone());
 			}
+			// React Native's one package serves each of its targets, so one only some have is
+			// a function, which throws on any other, as a function the target lacks does: an
+			// `export const` cannot throw.
+			let declared = match constant.on.0 & self.mask == self.mask {
+				true => format!("export const {local}: {ty} = {value};"),
+				false => format!(
+					"export function {local}(): {ty} {{\n\trt.on([{}], \"{}\");\n\treturn {value};\n}}",
+					indices(constant.on.0 & self.mask).join(", "),
+					abi.constant(&constant.path)
+				),
+			};
 			let code = format!(
-				"{}export const {local}: {ty} = {value};\n\n",
+				"{}{declared}\n\n",
 				docs(&constant.docs, constant.deprecated.as_deref(), "")
 			);
 			self.out().body.push_str(&code);
@@ -3980,8 +3990,8 @@ mod tests {
 		assert_eq!(field_names(&fields(&["tag", "foo", "foo_"])), ["tag", "foo", "foo2"]);
 	}
 
-	/// React Native's package refuses a constant some of its targets lack, naming them, and
-	/// keeps one they all have.
+	/// React Native's package reads a constant some of its targets lack through a check of the
+	/// library's target, and keeps one they all have a constant.
 	#[test]
 	fn react_native_constant_on_some_targets() {
 		let constant = |name: &str, on: u64| crate::ir::Constant {
@@ -4011,16 +4021,16 @@ mod tests {
 			dir: Default::default(),
 			features: vec![],
 		};
-		// On both native targets, though not the web's, which the package does not serve.
-		api.constants = vec![constant("BOTH", 0b011)];
+		// On both native targets, though not the web's, which the package does not serve;
+		// and on one of them alone.
+		api.constants = vec![constant("BOTH", 0b011), constant("WIDE", 0b101)];
 		let abi = Abi::new(&api, "ns");
-		assert!(react_native(&abi, &facade, 0).is_ok());
-		api.constants.push(constant("WIDE", 0b101));
-		let abi = Abi::new(&api, "ns");
-		let error = react_native(&abi, &facade, 0).err().expect("WIDE is refused");
+		let output = react_native(&abi, &facade, 0).unwrap().expect("a native target");
+		let index = &output.files.iter().find(|(name, _)| name == "index.ts").unwrap().1;
+		assert!(index.contains("export const BOTH: boolean = true;"), "{index}");
 		assert!(
-			error.contains("const `ns::WIDE`") && error.contains("target(s) armv7-linux-androideabi,"),
-			"{error}"
+			index.contains("export function WIDE(): boolean {\n\trt.on([0], \"NS_WIDE\");\n\treturn true;\n}"),
+			"{index}"
 		);
 	}
 

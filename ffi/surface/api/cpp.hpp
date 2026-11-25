@@ -48,10 +48,15 @@ namespace api {
 	};
 	inline constexpr ::std::uint64_t LIMIT = API_LIMIT;
 	inline constexpr ::std::int64_t FAR = API_FAR;
+	#if UINTPTR_MAX == 0xFFFFFFFFu
+	inline constexpr ::std::uint32_t WASM_PAGE = API_WASM_PAGE;
+	#endif
 	inline constexpr ::std::int32_t EOF_ = API_EOF;
 	inline constexpr ::std::uint64_t URL = API_URL;
 	[[deprecated("pass a step to `Dial::turn`, whose `}` or `{` alone stays in the note")]] inline constexpr ::std::uint64_t STEP = API_STEP;
+	#if UINTPTR_MAX == 0xFFFFFFFFFFFFFFFFu
 	inline constexpr ::std::size_t WORD = API_WORD;
+	#endif
 	class RUST2_FFI_CONSUMABLE Board {
 		RUST2_FFI_UNCONSUMED Board(Board &&other RUST2_FFI_MOVED_FROM) noexcept = default;
 		Board &operator=(Board &&other) noexcept = default;

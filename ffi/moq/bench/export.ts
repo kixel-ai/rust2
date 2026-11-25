@@ -3,8 +3,8 @@
 // thread. Each round runs twice, the first to warm the JIT. Each case prints its wall time
 // and, on Node, the process's CPU time, its own threads included; a browser has no clock of
 // that, so it prints NaN. Its arguments are the module's path, which bench/browser.ts's page
-// serves in a browser, and on Node, moq/bench/codspeed-node.c's addon, under CodSpeed's CPU
-// simulation, which then counts one round. `just ffi bench` runs it over the Node binding's
+// serves in a browser, and on Node, moq/bench/codspeed-node.c's addon, under Valgrind
+// for rust2-bench, which then counts one round. `just ffi bench` runs it over the Node binding's
 // addon too, its imports and load rewritten.
 
 import * as api from "./web/index.ts";
@@ -33,7 +33,7 @@ declare const process: {
 /** moq/bench/codspeed.h's functions, as the addon gives them. */
 type Hooks = { init(bench: string): boolean; start(): void; stop(name: string): void };
 
-/** A tenth under CodSpeed, whose simulation counts every call exactly. */
+/** A tenth under Valgrind, which counts every call exactly. */
 let groups = 10000;
 const frames = 100;
 let n = groups * frames;
@@ -59,13 +59,13 @@ const addon = process.argv[3];
 const hooks = addon === undefined ? undefined : process.getBuiltinModule("node:module").createRequire(import.meta.url)(addon);
 
 /**
- * The garbage collector, which `--expose-gc` exposes. Under CodSpeed each case starts with
+ * The garbage collector, which `--expose-gc` exposes. Under Valgrind each case starts with
  * it collected, so the collections a case makes depend on what the case allocates alone.
  */
 const gc = (globalThis as { gc?: () => void }).gc;
 let measured = false;
 
-/** A case's start: now, and CodSpeed counting from here. */
+/** A case's start: now, and Valgrind counting from here. */
 function begin(): Span {
 	if (measured) gc!();
 	const start = now();
@@ -366,12 +366,39 @@ async function round(): Promise<Map<string, Span>> {
 	return out;
 }
 
+/**
+ * Under Valgrind, the clock and random bytes the module's WASI imports read through the web
+ * APIs: a clock that moves a microsecond each read, from a fixed origin, and the same bytes
+ * every run. moq stamps each frame's arrival and keys its accounting by it, so a host clock
+ * would make each count depend on how slowly Valgrind ran the case and on the host's load.
+ */
+function replay(): void {
+	let reads = 0;
+	Object.defineProperty(performance, "now", { value: () => ++reads / 1000 });
+	Object.defineProperty(performance, "timeOrigin", { value: Date.UTC(2026, 0, 1) });
+	// xorshift32, from a fixed seed.
+	let x = 0x9e3779b9;
+	Object.defineProperty(crypto, "getRandomValues", {
+		value: <T extends ArrayBufferView>(view: T): T => {
+			const bytes = new Uint8Array(view.buffer, view.byteOffset, view.byteLength);
+			for (let i = 0; i < bytes.length; i++) {
+				x ^= x << 13;
+				x ^= x >>> 17;
+				x ^= x << 5;
+				bytes[i] = x;
+			}
+			return view;
+		},
+	});
+}
+
+// Under Valgrind, one round, which prints nothing: rust2-bench counts each case.
+measured = hooks?.init("ffi/moq/bench/export.ts::ts") ?? false;
+if (measured) replay();
 const { readFileSync } = process.getBuiltinModule("node:fs");
 await api.load(readFileSync(process.argv[2]!));
-// Under CodSpeed, one round, which prints nothing: its simulation counts each case.
-measured = hooks?.init("ffi/moq/bench/export.ts::ts") ?? false;
 if (measured) {
-	if (gc === undefined) throw new Error("under CodSpeed, Node runs with --expose-gc");
+	if (gc === undefined) throw new Error("under Valgrind, Node runs with --expose-gc");
 	groups /= 10;
 	n = groups * frames;
 	await round();
