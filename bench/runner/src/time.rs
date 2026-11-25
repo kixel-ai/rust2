@@ -15,9 +15,14 @@ use crate::compare::Checkout;
 use crate::fingerprint::Fnv;
 use crate::{Job, Options, cargo, metrics, missing, work};
 
-/// How long a sample aims to take: long enough that the clock's reads and a request's round trip
-/// vanish in it, short enough that a pair's two samples see the same host.
-const SLICE: Duration = Duration::from_millis(10);
+/// How long a sample's timed part aims to take: long enough that the clock's reads and its
+/// resolution vanish in it, short enough that a pair's two samples see the same host and that a
+/// preemption spoils few samples, which the median then leaves out.
+const SLICE: Duration = Duration::from_millis(1);
+
+/// How long a whole sample may take before its timed part fills a slice, as when steps or inputs
+/// built between calls take far longer than the calls.
+const WALL: Duration = Duration::from_millis(50);
 
 /// How long each benchmark's samples take in all, both sides of a pair together.
 const BUDGET: Duration = Duration::from_secs(1);
@@ -217,17 +222,18 @@ trait Side {
 	fn sample(&mut self, iterations: u64) -> Result<Sample, String>;
 }
 
-/// The iterations each sample takes: doubled from one until a sample of either side takes a slice.
-/// The samples it takes warm both sides up, and are dropped.
+/// The iterations each sample takes: doubled from one until the timed part of a sample of either
+/// side takes a slice, or the whole sample its most. The samples it takes warm both sides up, and
+/// are dropped.
 fn calibrate(sides: &mut [&mut dyn Side]) -> Result<u64, String> {
 	let mut iterations = 1;
 	loop {
-		let mut longest = Duration::ZERO;
+		let mut full = false;
 		for side in sides.iter_mut() {
 			let sample = side.sample(iterations)?;
-			longest = longest.max(Duration::from_nanos(sample.nanos)).max(sample.wall);
+			full |= Duration::from_nanos(sample.nanos) >= SLICE || sample.wall >= WALL;
 		}
-		if longest >= SLICE {
+		if full {
 			return Ok(iterations);
 		}
 		if iterations >= MAX_ITERATIONS {
@@ -649,10 +655,12 @@ mod tests {
 	use super::*;
 
 	/// A side whose samples take what `nanos` says an iteration takes, given the sample's index,
-	/// recording each request in a log shared with another side.
+	/// and `step` nanoseconds more an iteration untimed, recording each request in a log shared
+	/// with another side.
 	struct Fake<'a> {
 		name: &'static str,
 		nanos: fn(usize) -> u64,
+		step: u64,
 		log: &'a std::cell::RefCell<Vec<(&'static str, u64)>>,
 	}
 
@@ -664,7 +672,7 @@ mod tests {
 			let nanos = (self.nanos)(index) * iterations;
 			Ok(Sample {
 				nanos,
-				wall: Duration::from_nanos(nanos),
+				wall: Duration::from_nanos(nanos + self.step * iterations),
 			})
 		}
 	}
@@ -675,17 +683,29 @@ mod tests {
 		let mut slow = Fake {
 			name: "slow",
 			nanos: |_| 1_000_000,
+			step: 0,
 			log: &log,
 		};
 		let mut fast = Fake {
 			name: "fast",
 			nanos: |_| 10_000,
+			step: 0,
 			log: &log,
 		};
-		assert_eq!(calibrate(&mut [&mut fast, &mut slow]).unwrap(), 16);
+		assert_eq!(calibrate(&mut [&mut fast, &mut slow]).unwrap(), 1);
+		assert_eq!(calibrate(&mut [&mut fast]).unwrap(), 128);
+		// A step of 10 ms an iteration fills a sample's whole by eight iterations.
+		let mut stepped = Fake {
+			name: "stepped",
+			nanos: |_| 1_000,
+			step: 10_000_000,
+			log: &log,
+		};
+		assert_eq!(calibrate(&mut [&mut stepped]).unwrap(), 8);
 		let mut nothing = Fake {
 			name: "nothing",
 			nanos: |_| 0,
+			step: 0,
 			log: &log,
 		};
 		assert!(calibrate(&mut [&mut nothing]).unwrap_err().contains("does nothing"));
@@ -697,19 +717,21 @@ mod tests {
 		let mut base = Fake {
 			name: "base",
 			nanos: |_| 1_000_000,
+			step: 0,
 			log: &log,
 		};
 		// A drift that slows each sample, which the pairs see on both sides alike.
 		let mut head = Fake {
 			name: "head",
 			nanos: |index| 1_000_000 + index as u64,
+			step: 0,
 			log: &log,
 		};
 		let mut coin = Coin(0x9e37_79b9_7f4a_7c15);
 		let (iterations, pairs) = paired(&mut base, &mut head, &mut coin).unwrap();
-		assert_eq!(iterations, 16);
-		// Each pair takes 32 ms, so 32 of them spend the budget.
-		assert_eq!(pairs.len(), 32);
+		assert_eq!(iterations, 1);
+		// Each pair takes 2 ms, so 500 of them spend the budget.
+		assert_eq!(pairs.len(), 500);
 		let log = log.borrow();
 		let measured = &log[log.len() - 2 * pairs.len()..];
 		let firsts: Vec<&str> = measured.chunks(2).map(|pair| pair[0].0).collect();
@@ -725,6 +747,7 @@ mod tests {
 		let mut slow = Fake {
 			name: "slow",
 			nanos: |_| 1_000_000_000,
+			step: 0,
 			log: &log,
 		};
 		let (iterations, samples) = alone(&mut slow).unwrap();
