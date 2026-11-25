@@ -204,12 +204,20 @@ export class Handle<T extends string = string> {
 	[Symbol.dispose](): void {
 		const p = this.p;
 		if (p === CLOSED) return;
-		// Dropped, so a call that still holds it fails Rust's check, and none can hold it
-		// again: it is freed with its last hold.
-		const checked = this.owned && this.k.drop !== undefined;
-		if (checked) w[this.k.drop!](p);
-		// Closed before the free, which may call JavaScript that disposes it again.
+		// Closed before its drop and its free, either of which may call JavaScript that
+		// disposes it again or calls it.
 		this.p = CLOSED;
+		// Dropped, so a call that still holds it fails Rust's check, and none can hold it
+		// again: it is freed with its last hold. A drop Rust refuses leaves it open.
+		const checked = this.owned && this.k.drop !== undefined;
+		if (checked) {
+			try {
+				w[this.k.drop!](p);
+			} catch (e) {
+				this.p = p;
+				throw e;
+			}
+		}
 		if (!w.$close(p, this.owned ? this.k.free : 0, checked)) {
 			this.p = p;
 			throw new Error(`${this.k.name}: a handle is already borrowed`);

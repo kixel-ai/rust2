@@ -12,6 +12,7 @@ import * as rt from "./node/rt.ts";
 import * as Channel from "./node/Channel.ts";
 import * as Counter from "./node/Counter.ts";
 import type { Log } from "./node/Log.ts";
+import * as Journal from "./node/Journal.ts";
 import * as Logger from "./node/Logger.ts";
 import * as LogThread from "./node/LogThread.ts";
 import * as Spawned from "./node/Spawned.ts";
@@ -137,6 +138,26 @@ async function threads(): Promise<void> {
 	}
 	ok(stalled === "Counter is closed", `a stale id: ${stalled}`);
 	ok(Counter.get(taker!) === 100, "the object that took its slot is untouched");
+
+	// A checked object disposed again from inside its own drop, which Rust runs at the
+	// dispose, frees nothing more, and is closed to a call meanwhile.
+	let journal: Journal.Journal | undefined;
+	let during = "";
+	const nested = new (class extends CountLog {
+		override close(): void {
+			super.close();
+			try {
+				Journal.write(journal!, "x");
+			} catch (e) {
+				during = (e as Error).message;
+			}
+			journal![Symbol.dispose]();
+		}
+	})();
+	journal = Journal.new$(nested);
+	journal[Symbol.dispose]();
+	ok(nested.closes === 1, "a dispose from inside its own drop frees nothing more");
+	ok(during === "Journal is closed", `a call while Rust drops it: ${during}`);
 
 	// A kept closure, called on another thread after the call that took it returned.
 	const spawned = Spawned.new$(() => 7);
