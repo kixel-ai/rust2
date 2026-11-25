@@ -36,4 +36,3 @@ and every binding rule ([every binding's](/ffi/README.md#every-binding)) still h
 ## Related
 
 - [The binding benchmark's Node-API column](/bench/ffi/README.md#node-api) - what it starts from
-- [Node's protocol](/quest/m3/node-protocol.md) - the addon's other open work
