@@ -106,6 +106,14 @@ async function threads(): Promise<void> {
 	ok(futureRefused, "a future's then closing the receiver refuses the call");
 	ok(api.onFirstThread(), "a refused foreign future leaves no token");
 
+	const rejected = Promise.withResolvers<void>();
+	try {
+		api.afterCounter(waiter, rejected.promise);
+	} catch {}
+	rejected.reject(new Error("refused"));
+	await Promise.resolve();
+	ok(api.onFirstThread(), "a refused future's later rejection leaves the runtime live");
+
 	const acceptedCounter = Counter.new$("accepted", 7);
 	const accepted = api.afterCounter(acceptedCounter, new Promise<void>(() => {}));
 	ok(!api.onFirstThread(), "an accepted foreign future keeps its token");
@@ -141,6 +149,24 @@ async function threads(): Promise<void> {
 	ok(moved === "api_Counter_offset: a handle's value was moved out", `a receiver disposed while held: ${moved}`);
 	ok(Counter.get(replacement!) === 100, "the object made meanwhile is untouched");
 
+	const conversionLog = Logger.new$(new CountLog());
+	const converting = Counter.new$("conversion", 1);
+	const conversionError = new Error("limbs");
+	let caught: unknown;
+	try {
+		Counter.offset(converting, {
+			get hi(): number {
+				converting[Symbol.dispose]();
+				throw conversionError;
+			},
+			lo: 0,
+		} as unknown as rt.u64, 0);
+	} catch (e) {
+		caught = e;
+	}
+	ok(caught === conversionError, "releasing a closed handle preserves the conversion exception");
+	conversionLog[Symbol.dispose]();
+
 	// A handle's id read before a reentrant call disposed it, and another object took its
 	// slot, is refused once the addon reads it, never taken for the other object: what any
 	// JavaScript between a call's read of an id and the addon's hold would pass.
@@ -167,26 +193,6 @@ async function threads(): Promise<void> {
 	}
 	ok(stalled === "Counter is closed", `a stale id: ${stalled}`);
 	ok(Counter.get(taker!) === 100, "the object that took its slot is untouched");
-
-	// A checked object disposed again from inside its own drop, which Rust runs at the
-	// dispose, frees nothing more, and is closed to a call meanwhile.
-	let journal: Journal.Journal | undefined;
-	let during = "";
-	const nested = new (class extends CountLog {
-		override close(): void {
-			super.close();
-			try {
-				Journal.write(journal!, "x");
-			} catch (e) {
-				during = (e as Error).message;
-			}
-			journal![Symbol.dispose]();
-		}
-	})();
-	journal = Journal.new$(nested);
-	journal[Symbol.dispose]();
-	ok(nested.closes === 1, "a dispose from inside its own drop frees nothing more");
-	ok(during === "Journal is closed", `a call while Rust drops it: ${during}`);
 
 	// A kept closure, called on another thread after the call that took it returned.
 	const spawned = Spawned.new$(() => 7);

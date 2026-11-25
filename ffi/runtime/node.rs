@@ -52,7 +52,6 @@ struct Api {
 	create_bigint_int64: unsafe extern "C" fn(Env, i64, *mut Value) -> Status,
 	create_object: unsafe extern "C" fn(Env, *mut Value) -> Status,
 	get_value_double: unsafe extern "C" fn(Env, Value, *mut f64) -> Status,
-	get_value_int32: unsafe extern "C" fn(Env, Value, *mut i32) -> Status,
 	get_boolean: unsafe extern "C" fn(Env, bool, *mut Value) -> Status,
 	create_string_utf8: unsafe extern "C" fn(Env, *const c_char, usize, *mut Value) -> Status,
 	get_undefined: unsafe extern "C" fn(Env, *mut Value) -> Status,
@@ -67,6 +66,7 @@ struct Api {
 	get_and_clear_last_exception: unsafe extern "C" fn(Env, *mut Value) -> Status,
 	coerce_to_string: unsafe extern "C" fn(Env, Value, *mut Value) -> Status,
 	get_value_string_utf8: unsafe extern "C" fn(Env, Value, *mut c_char, usize, *mut usize) -> Status,
+	throw: unsafe extern "C" fn(Env, Value) -> Status,
 	throw_error: unsafe extern "C" fn(Env, *const c_char, *const c_char) -> Status,
 	adjust_external_memory: unsafe extern "C" fn(Env, i64, *mut i64) -> Status,
 	create_threadsafe_function: unsafe extern "C" fn(
@@ -155,7 +155,6 @@ fn resolve() -> Api {
 		create_bigint_int64: find!(c"napi_create_bigint_int64"),
 		create_object: find!(c"napi_create_object"),
 		get_value_double: find!(c"napi_get_value_double"),
-		get_value_int32: find!(c"napi_get_value_int32"),
 		get_boolean: find!(c"napi_get_boolean"),
 		create_string_utf8: find!(c"napi_create_string_utf8"),
 		get_undefined: find!(c"napi_get_undefined"),
@@ -169,6 +168,7 @@ fn resolve() -> Api {
 		get_and_clear_last_exception: find!(c"napi_get_and_clear_last_exception"),
 		coerce_to_string: find!(c"napi_coerce_to_string"),
 		get_value_string_utf8: find!(c"napi_get_value_string_utf8"),
+		throw: find!(c"napi_throw"),
 		throw_error: find!(c"napi_throw_error"),
 		adjust_external_memory: find!(c"napi_adjust_external_memory"),
 		create_threadsafe_function: find!(c"napi_create_threadsafe_function"),
@@ -569,17 +569,6 @@ impl Drop for Hold {
 	}
 }
 
-/// Why the C ABI failed a check, by its status less one, as `rt.ts`'s `STATUSES` says it.
-const STATUSES: [&str; 7] = [
-	"a handle's value was moved out",
-	"a handle is borrowed exclusively",
-	"a handle is already borrowed",
-	"a handle is borrowed on another thread",
-	"a handle a call lent is borrowed exclusively or moved out",
-	"a handle lent from another outlived it: the other was borrowed exclusively, moved out, or freed",
-	"a value that is not Send is used on another thread than the one that made it",
-];
-
 /// What a native function returns once it threw.
 pub const THROWN: Value = null_mut();
 
@@ -621,6 +610,18 @@ impl<const N: usize> Cx<N> {
 		// SAFETY: a value of this call.
 		ok(unsafe { (api().get_value_bigint_int64)(self.env, self.argv[n], &mut v, &mut lossless) }, "a bigint");
 		v
+	}
+
+	/// Release a refused call's holds without exposing its pending exception to cleanup.
+	pub fn refused<T>(&self, held: T) -> Value {
+		// SAFETY: on JavaScript's thread; this path has a pending conversion exception.
+		unsafe {
+			let mut exception = null_mut();
+			ok((api().get_and_clear_last_exception)(self.env, &mut exception), "take a conversion exception");
+			drop(held);
+			ok((api().throw)(self.env, exception), "restore a conversion exception");
+		}
+		THROWN
 	}
 
 	/// Argument `n`, an offset in the scratch memory, as its address, or null for 0.
@@ -755,8 +756,8 @@ impl<const N: usize> Cx<N> {
 	#[cold]
 	#[inline(never)]
 	pub fn failed(&self, status: i32, what: &str) -> Value {
-		let why = (status as usize).checked_sub(1).and_then(|i| STATUSES.get(i));
-		self.throw(&format!("{what}: {}", why.unwrap_or(&"an unknown status")))
+		let why = (status as usize).checked_sub(1).and_then(|i| rt::Status::ALL.get(i)).map(|s| s.message());
+		self.throw(&format!("{what}: {}", why.unwrap_or("an unknown status")))
 	}
 
 	/// Throw an `Error` of `message`.
@@ -1191,9 +1192,13 @@ static HOME: Home = Home {
 /// through a park, so a run of calls keeps both awake, while an idle one parks within this.
 const SPIN: Duration = Duration::from_micros(20);
 
-/// Spin while `f` returns none, until [`SPIN`] passed since the last time it was `Some`.
+/// Spin while `f` returns none, until [`SPIN`] passed since it began.
 #[inline]
 fn spin<T>(mut f: impl FnMut() -> Option<T>) -> Option<T> {
+	static PARALLEL: OnceLock<bool> = OnceLock::new();
+	if !*PARALLEL.get_or_init(|| std::thread::available_parallelism().is_ok_and(|n| n.get() > 1)) {
+		return f();
+	}
 	let start = Instant::now();
 	let mut spins = 0u32;
 	loop {

@@ -3365,6 +3365,7 @@ export declare function out<T>(what: string, f: () => T): T;
 export declare function wakerOf(dst: number, wake: () => void): void;
 export declare function wakerGet(p: number): Waker;
 type Foreign = {
+    given: boolean;
     done: boolean;
     failed: unknown;
     wake: Addr;

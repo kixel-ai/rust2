@@ -2577,6 +2577,7 @@ impl Gen<'_> {
 		if self.helpers.contains_key(&local) {
 			return format!("g.{local}");
 		}
+		let holding = std::mem::replace(&mut self.holding, false);
 		let space = self.space.clone();
 		let callback = &abi.api.callbacks[i];
 		let rust = callback.path.join("::");
@@ -2629,7 +2630,9 @@ impl Gen<'_> {
 			format!("VTABLE_{bare}").to_uppercase(),
 		);
 		let export = format!("{space}_vtable_{bare}");
-		self.index_fn(&local, &export, Ty::Fn(Vec::new(), Box::new(Ty::Void)))
+		let result = self.index_fn(&local, &export, Ty::Fn(Vec::new(), Box::new(Ty::Void)));
+		self.holding = holding;
+		result
 	}
 
 	/// The value a call into JavaScript passes its implementation for the parameter `e` of
@@ -2651,6 +2654,7 @@ impl Gen<'_> {
 	/// The trampoline of the closure type `ty`, `g.t<n>`, and the glue's function giving the
 	/// table index of the C function of its signature, which calls it.
 	fn closure(&mut self, ty: &Type, closure: &Closure) -> (String, String) {
+		let holding = std::mem::replace(&mut self.holding, false);
 		let abi = self.abi;
 		let space = self.space.clone();
 		let sig = abi.closure(closure);
@@ -2758,6 +2762,7 @@ impl Gen<'_> {
 				t
 			}
 		};
+		self.holding = holding;
 		(relay, format!("g.t{t}"))
 	}
 }
@@ -3411,7 +3416,6 @@ impl Gen<'_> {
 	}
 }
 
-/// Statements running `lines` in a call's frame, which gives back what it took.
 impl Gen<'_> {
 	/// The body of `lines`, indented, in a frame of the stack unless Node's call [`Gen::invoke`]
 	/// wrote last takes none.
@@ -3423,6 +3427,7 @@ impl Gen<'_> {
 	}
 }
 
+/// Statements running `lines` in a call's frame, which gives back what it took.
 fn wrap(lines: &[String]) -> String {
 	format!(
 		"const m$ = rt.enter();\ntry {{\n{}\n}} finally {{\n\trt.leave(m$);\n}}",

@@ -8,14 +8,12 @@ and every binding rule ([every binding's](/ffi/README.md#every-binding)) still h
 
 ## Plan
 
-- Decided 2026-11-24 (maintainer, /quest-run): ✅ keep this quest (rejected: drop it), since speed per call was half of why the report chose the addon.
-- [The lowering PR](https://github.com/kixel-ai/rust2/pull/1004) made each native function
-  hold, throw, and convert itself: moq's `track.is_closed()` costs 40 ns of CPU against
-  wasm32's 58 and the bare crossing's 24 to 30. While a token is held, the call runs on a
-  worker thread as before, but the worker and JavaScript's thread spin 20 µs for each other
-  before they park: on moq's addon, a pending `clockDrive` holding the token, the same call
-  costs 184 to 215 ns of wall time and twice that of CPU, from 2,990 to 8,500 ns of wall
-  time and 2,290 to 2,840 of CPU (**fedora**, at a load average of 15 to 30).
+- The earlier decision to keep this quest is superseded by the deferred maintainer
+  question under Waiting; leave it in place until that question is answered.
+- [The lowering PR](https://github.com/kixel-ai/rust2/pull/1004) moved argument conversion,
+  handle holds, and status checks into each native function. Token-held calls still
+  use a worker handoff with a short spin before parking. Measurements live in
+  [the binding benchmark](/bench/ffi/README.md#node-api).
 - moq's script holds no token: its session's `Waiter.new$` takes a waker, which a wake from
   another thread queues without one. Only `clockDrive`, of moq's API, keeps a closure Rust
   calls.

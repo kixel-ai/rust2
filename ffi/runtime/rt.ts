@@ -559,6 +559,7 @@ export class Handle<T extends string = string> {
 	[Symbol.dispose](): void {
 		if (this.closed) return;
 		if (this.checked) {
+			this.closed = true;
 			const m = enter();
 			try {
 				const st = alloc(4, 4);
@@ -567,6 +568,10 @@ export class Handle<T extends string = string> {
 				w[this.k.drop!](this.p, st);
 				s.d--;
 				status(st, this.k.drop!);
+			} catch (e) {
+				this.closed = false;
+				if (this.n === UNREGISTERED) this.evict();
+				throw e;
 			} finally {
 				leave(m);
 			}
@@ -1451,11 +1456,11 @@ const wakers = new FinalizationRegistry<[Addr, Addr]>(([drop, data]) => {
 });
 
 /** A future JavaScript gave Rust: its promise's outcome, and the waker of Rust's last poll. */
-type Foreign = { done: boolean; failed: unknown; wake: Addr; drop: Addr; data: Addr; call?: Call<unknown> };
+type Foreign = { given: boolean; done: boolean; failed: unknown; wake: Addr; drop: Addr; data: Addr; call?: Call<unknown> };
 
 /** Subscribe to a future before validating handles or transferring any value to Rust. */
 export function futurePrepare(promise: Promise<unknown>): Foreign {
-	const f: Foreign = { done: false, failed: undefined, wake: NULL, drop: NULL, data: NULL };
+	const f: Foreign = { given: false, done: false, failed: undefined, wake: NULL, drop: NULL, data: NULL };
 	if (calls.has(promise)) f.call = promise as Call<unknown>;
 	promise.then(
 		() => settle(f, undefined),
@@ -1466,6 +1471,8 @@ export function futurePrepare(promise: Promise<unknown>): Foreign {
 
 /** Transfer a prepared future to Rust without running user JavaScript. */
 export function futurePut(dst: number, f: Foreign): void {
+	f.given = true;
+	if (f.failed !== undefined && !(f.failed instanceof Cancelled)) abort(`a future given to Rust: it rejected with ${f.failed}`);
 	const t = give(f, () => {
 		f.done = true;
 		release(f);
@@ -1484,7 +1491,8 @@ export function futureOf(dst: number, promise: Promise<unknown>): void {
 function settle(f: Foreign, failed: unknown): void {
 	if (f.done) return;
 	if (failed !== undefined) {
-		if (!(failed instanceof Cancelled)) abort(`a future given to Rust: it rejected with ${failed}`);
+		if (f.given && !(failed instanceof Cancelled)) abort(`a future given to Rust: it rejected with ${failed}`);
+		f.failed = failed;
 	}
 	f.done = true;
 	const { wake, data } = f;

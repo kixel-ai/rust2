@@ -147,7 +147,7 @@ fn stub(out: &mut String, i: usize, name: &str, sig: &NodeSig, free: bool) {
 			Cross::Big => format!("cx.big({j}) as {t}"),
 			Cross::Wide => {
 				let read = if signed(ty) { "i64" } else { "u64" };
-				format!("match cx.{read}({j}) {{\n\tOk(v) => v as {t},\n\tErr(()) => return runtime::THROWN,\n}}")
+				format!("match cx.{read}({j}) {{\n\tOk(v) => v as {t},\n\tErr(()) => return cx.refused(HELD),\n}}")
 			}
 			Cross::Handle if k == 0 && free => format!("cx.freed({j}) as {t}"),
 			Cross::Handle => {
@@ -174,7 +174,8 @@ fn stub(out: &mut String, i: usize, name: &str, sig: &NodeSig, free: bool) {
 		j += 1;
 	}
 	lines.extend(holds);
-	lines.extend(conversions);
+	let cleanup = format!("({})", held.iter().map(|h| format!("{h},")).collect::<String>());
+	lines.extend(conversions.into_iter().map(|line| line.replace("HELD", &cleanup)));
 	let call = match sig.direct {
 		true => format!("{name}({})", args.join(", ")),
 		false => format!("runtime::serve(|| {name}({}))", args.join(", ")),
