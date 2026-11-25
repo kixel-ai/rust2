@@ -24,6 +24,13 @@ pub fn hash() -> String {
 /// cache, and returns that path. Named by its hash, it is rewritten only when missing or altered.
 pub fn install() -> Result<PathBuf, String> {
 	let path = crate::cache()?.join(format!("preload-{}.so", hash()));
+	// The loader splits LD_PRELOAD at each.
+	if path.to_string_lossy().contains([':', ' ']) {
+		return Err(format!(
+			"the preload's path {} holds a ':' or a space, which LD_PRELOAD cannot: point XDG_CACHE_HOME elsewhere",
+			path.display()
+		));
+	}
 	if std::fs::read(&path).is_ok_and(|bytes| bytes == LIBRARY) {
 		return Ok(path);
 	}
