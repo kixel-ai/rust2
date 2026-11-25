@@ -145,6 +145,9 @@
           # The TypeScript driver's own nightly, kept off PATH so the other projects keep
           # the repo toolchain. ts/justfile puts it first for its recipes.
           tsToolchain = pkgs.rust-bin.fromRustupToolchainFile ./ts/rust-toolchain.toml;
+          # What a driver links beside rustc's own driver, which takes `-lz`, a library
+          # nixpkgs' macOS SDK omits.
+          driverLibs = pkgs.lib.optional pkgs.stdenv.hostPlatform.isDarwin pkgs.zlib;
           quest-cli = quest.packages.${system}.default;
           # std checked once per toolchain for the TypeScript driver's target, with the
           # profile translation reads its MIR at, as the sysroot rust2-ts takes instead of
@@ -200,6 +203,7 @@
                 ];
                 RUSTFLAGS = "-C link-args=-Wl,-rpath,${tsToolchain}/lib";
                 nativeBuildInputs = [ pkgs.makeWrapper ];
+                buildInputs = driverLibs;
                 # tsc checks bindings, from the caller's PATH first.
                 postInstall = ''
                   wrapProgram $out/bin/rust2-ts --set-default CARGO ${tsToolchain}/bin/cargo \
@@ -227,6 +231,7 @@
                 cargoLock.lockFile = ./driver/Cargo.lock;
                 RUSTFLAGS = "-C link-args=-Wl,-rpath,${tsToolchain}/lib";
                 nativeBuildInputs = [ pkgs.makeWrapper ];
+                buildInputs = driverLibs;
                 # It checks with its own nightly's cargo and rustc, which build scripts run
                 # as `$RUSTC`, unless the caller names others.
                 postInstall = ''
@@ -264,6 +269,7 @@
                 ];
                 RUSTFLAGS = "-C link-args=-Wl,-rpath,${tsToolchain}/lib";
                 nativeBuildInputs = [ pkgs.makeWrapper ];
+                buildInputs = driverLibs;
                 # A wasm32-wasip1 export checks std's MIR from the sysroot, which a stable
                 # cargo could not build with -Zbuild-std.
                 postInstall = ''
@@ -415,8 +421,7 @@
               pkgs.lib.optional (!pkgs.swift.swiftc.meta.broken) pkgs.swift
               # rust2-bench's tests count under its Valgrind.
               ++ pkgs.lib.optional pkgs.stdenv.hostPlatform.isLinux valgrind
-              # The drivers link rustc's, which takes `-lz`, a library nixpkgs' macOS SDK omits.
-              ++ pkgs.lib.optional pkgs.stdenv.hostPlatform.isDarwin pkgs.zlib;
+              ++ driverLibs;
             RUST2_TS_TOOLCHAIN = tsToolchain;
             RUST2_TS_SYSROOT = rust2-ts-std;
             # rust2-ffi's strict C++ build needs Clang 23's `-Wlifetime-safety`, which no
