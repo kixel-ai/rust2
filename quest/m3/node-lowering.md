@@ -8,8 +8,8 @@ and every binding rule ([every binding's](/ffi/README.md#every-binding)) still h
 
 ## Plan
 
-- The earlier decision to keep this quest is superseded by the deferred maintainer
-  question under Waiting; leave it in place until that question is answered.
+- Decided 2026-11-24 (maintainer, /quest-run): ✅ keep this quest (rejected: drop it), since speed per call was half of why the report chose the addon.
+- The Waiting question reopens that decision; keep the quest until the maintainer answers it.
 - [The lowering PR](https://github.com/kixel-ai/rust2/pull/1004) moved argument conversion,
   handle holds, and status checks into each native function. Token-held calls still
   use a worker handoff with a short spin before parking. Measurements live in
@@ -25,7 +25,8 @@ and every binding rule ([every binding's](/ffi/README.md#every-binding)) still h
 
 ## Waiting
 
-- Maintainer: accept the spinning handoff as the floor and delete this quest, or keep it
+- Maintainer: reconsider the earlier keep decision: accept the spinning handoff as the floor
+  and delete this quest, or reaffirm keeping it
   for a way to run such a call on JavaScript's thread. No sound static rule is known, and
   moq's script never holds a token. Recommended: delete it. Deferred 2026-11-24 to the
   maintainer's return by [the lowering PR](https://github.com/kixel-ai/rust2/pull/1004)'s
