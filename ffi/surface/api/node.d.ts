@@ -2250,6 +2250,7 @@ export declare function p_Retired_next(f: number, w$: number): [boolean, number 
 export declare function p_Tally_bump_later_homed(f: number, w$: number): [boolean, number];
 export declare function p_Waiter_poll_future(f: number, w$: number): [boolean, void];
 export declare function p_after(f: number, w$: number): [boolean, number];
+export declare function p_after_counter(f: number, w$: number): [boolean, rt.u64];
 export declare function p_byte_len(f: number, w$: number): [boolean, rt.u64];
 export declare function p_corner_later(f: number, w$: number): [boolean, [number, number]];
 export declare function p_counted(f: number, w$: number): [boolean, rt.Result<number, Error_>];
@@ -2797,6 +2798,7 @@ export declare function reading(n: number): Reading | undefined;
 export declare function readingDebug(n: number): string;
 export declare function readingEcho(reading: Reading | undefined): Reading | undefined;
 export declare function readingBump(reading: rt.Place<Reading | undefined>): void;
+export declare function afterCounter(counter: Counter, first: Promise<unknown>): rt.Call<rt.u64>;
 export declare function advance(stage: Stage): Stage;
 export declare function only(counter: Counter): [Counter];
 export declare function widths(n: rt.u64): [number, number, number, rt.u64];
@@ -3408,6 +3410,16 @@ export declare const fn: {
 export declare function out<T>(what: string, f: () => T): T;
 export declare function wakerOf(dst: number, wake: () => void): void;
 export declare function wakerGet(p: number): Waker;
+type Foreign = {
+    done: boolean;
+    failed: unknown;
+    wake: Addr;
+    drop: Addr;
+    data: Addr;
+    call?: Call<unknown>;
+};
+export declare function futurePrepare(promise: Promise<unknown>): Foreign;
+export declare function futurePut(dst: number, f: Foreign): void;
 export declare function futureOf(dst: number, promise: Promise<unknown>): void;
 export declare function readerOf(dst: number, reader: Reader): void;
 export declare function pending<T>(f: number, poll: (f: number, waker: number) => [boolean, T], free: string): Call<T>;

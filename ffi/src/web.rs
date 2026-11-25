@@ -3651,10 +3651,15 @@ impl Gen<'_> {
 				}
 				(Type::Future, _) => {
 					let l = self.layout(&Ty::ForeignFuture);
-					gives.push(format!(
-						"const {a} = rt.alloc({}, {});\nrt.futureOf({a}, {name});",
-						l.size, l.align
-					));
+					let put = if self.node {
+						// Subscribing can run an overridden `then`: do it before reading
+						// handles and before any give, so a refused call transfers nothing.
+						lines.push(format!("const f{k}$ = rt.futurePrepare({name});"));
+						format!("rt.futurePut({a}, f{k}$);")
+					} else {
+						format!("rt.futureOf({a}, {name});")
+					};
+					gives.push(format!("const {a} = rt.alloc({}, {});\n{put}", l.size, l.align));
 					args.push(a);
 				}
 				(ty, c) => {

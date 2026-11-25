@@ -17,7 +17,7 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-#define API_CONTRACT ((uint64_t)0x66223956c3ae2fe4ULL)
+#define API_CONTRACT ((uint64_t)0xbe00585c40b9b7f9ULL)
 uint64_t api_contract(void);
 uint32_t api_target(void);
 typedef int32_t api_status;
@@ -2418,6 +2418,11 @@ API_MUST_USE api_option_Reading api_reading(uint32_t n);
 API_MUST_USE api_buf api_reading_debug(uint32_t n);
 API_MUST_USE api_option_Reading api_reading_echo(api_option_Reading reading);
 void api_reading_bump(api_option_Reading reading, api_option_Reading *reading_out);
+typedef struct api_after_counter_future api_after_counter_future;
+API_MUST_USE api_after_counter_future *api_after_counter(const api_Counter *counter, api_foreign_future first, api_status *status);
+API_MUST_USE api_poll api_after_counter_start(const api_Counter *counter, api_foreign_future first, uint64_t *out, api_after_counter_future **future, api_status *status);
+API_MUST_USE api_poll api_after_counter_poll(api_after_counter_future *future, api_waker waker, uint64_t *out);
+void api_after_counter_future_free(api_after_counter_future *future);
 api_Stage api_advance(api_Stage stage);
 void api_only(api_Counter *counter, api_Counter **out0, api_status *status);
 void api_widths(uint64_t n, uint8_t *out0, int16_t *out1, uint32_t *out2, uint64_t *out3);

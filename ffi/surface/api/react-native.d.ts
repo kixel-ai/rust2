@@ -2095,6 +2095,7 @@ export declare function reading(n: number): Reading | undefined;
 export declare function readingDebug(n: number): string;
 export declare function readingEcho(reading: Reading | undefined): Reading | undefined;
 export declare function readingBump(reading: rt.Place<Reading | undefined>): void;
+export declare function afterCounter(counter: Counter, first: Promise<unknown>): rt.Call<rt.u64>;
 export declare function advance(stage: Stage): Stage;
 export declare function only(counter: Counter): [Counter];
 export declare function widths(n: rt.u64): [number, number, number, rt.u64];

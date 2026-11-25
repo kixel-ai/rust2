@@ -272,6 +272,12 @@ impl Clash {
 	}
 }
 
+/// The counter's value once `first` finishes.
+pub async fn after_counter(counter: &Counter, first: impl Future<Output = ()> + Send) -> u64 {
+	first.await;
+	counter.get()
+}
+
 /// A record whose field is named as the Kotlin package, which a qualifier in its methods'
 /// bodies would resolve to.
 #[derive(Clone, Copy, Debug, PartialEq)]

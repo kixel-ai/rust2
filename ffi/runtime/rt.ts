@@ -1453,22 +1453,32 @@ const wakers = new FinalizationRegistry<[Addr, Addr]>(([drop, data]) => {
 /** A future JavaScript gave Rust: its promise's outcome, and the waker of Rust's last poll. */
 type Foreign = { done: boolean; failed: unknown; wake: Addr; drop: Addr; data: Addr; call?: Call<unknown> };
 
-/** Write at `dst` the future Rust polls of `promise`, until it completes. */
-export function futureOf(dst: number, promise: Promise<unknown>): void {
+/** Subscribe to a future before validating handles or transferring any value to Rust. */
+export function futurePrepare(promise: Promise<unknown>): Foreign {
 	const f: Foreign = { done: false, failed: undefined, wake: NULL, drop: NULL, data: NULL };
 	if (calls.has(promise)) f.call = promise as Call<unknown>;
+	promise.then(
+		() => settle(f, undefined),
+		(e) => settle(f, e ?? new Error("a future given to Rust rejected")),
+	);
+	return f;
+}
+
+/** Transfer a prepared future to Rust without running user JavaScript. */
+export function futurePut(dst: number, f: Foreign): void {
 	const t = give(f, () => {
 		f.done = true;
 		release(f);
 		f.call?.cancel();
 	});
-	promise.then(
-		() => settle(f, undefined),
-		(e) => settle(f, e ?? new Error("a future given to Rust rejected")),
-	);
 	addrPut(dst, fn.poll);
 	addrPut(dst + WORD, fn.free);
 	lenPut(dst + 2 * WORD, t);
+}
+
+/** Write at `dst` the future Rust polls of `promise`, until it completes. */
+export function futureOf(dst: number, promise: Promise<unknown>): void {
+	futurePut(dst, futurePrepare(promise));
 }
 
 function settle(f: Foreign, failed: unknown): void {

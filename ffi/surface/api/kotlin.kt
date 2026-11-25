@@ -1800,6 +1800,7 @@ fun marked(apiMarked: api.Mark): kotlin.ULong
 @kotlin.jvm.JvmName("readingDebug") fun readingDebug(n: kotlin.UInt): kotlin.String
 fun readingEcho(reading: api.Reading?): api.Reading?
 fun readingBump(reading: api.Mut<api.Reading?>)
+suspend fun afterCounter(counter: api.Counter, first: suspend () -> kotlin.Unit): kotlin.ULong
 fun advance(stage: api.Stage): api.Stage
 @kotlin.jvm.Throws(StringException::class) fun sameObject(a: kotlin.Any?, b: kotlin.Any?): kotlin.Boolean
 @kotlin.jvm.Throws(StringException::class) fun thrown(fail: kotlin.Boolean): kotlin.ULong

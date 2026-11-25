@@ -90,6 +90,35 @@ async function threads(): Promise<void> {
 	ok(refused, "a call of a disposed object throws");
 	ok(api.onFirstThread(), "a call after a refused one runs on JavaScript's thread");
 
+	// A promise's then may close a handle before Rust accepts the foreign future.
+	const waiter = Counter.new$("future", 1);
+	const promise = new Promise<void>(() => {});
+	promise.then = (() => {
+		waiter[Symbol.dispose]();
+		return promise;
+	}) as typeof promise.then;
+	let futureRefused = false;
+	try {
+		api.afterCounter(waiter, promise);
+	} catch {
+		futureRefused = true;
+	}
+	ok(futureRefused, "a future's then closing the receiver refuses the call");
+	ok(api.onFirstThread(), "a refused foreign future leaves no token");
+
+	const acceptedCounter = Counter.new$("accepted", 7);
+	const accepted = api.afterCounter(acceptedCounter, new Promise<void>(() => {}));
+	ok(!api.onFirstThread(), "an accepted foreign future keeps its token");
+	accepted.cancel();
+	try {
+		await accepted;
+		ok(false, "a cancelled accepted future completed");
+	} catch (e) {
+		ok(e instanceof rt.Cancelled, "an accepted foreign future cancels");
+	}
+	acceptedCounter[Symbol.dispose]();
+	ok(api.onFirstThread(), "cancelling the accepted future releases its token");
+
 	// The addon holds a call's handles before it converts the rest, which may run
 	// JavaScript: a getter of a `u64`'s limbs that disposes the receiver and makes another
 	// object leaves the call its own receiver, whose value was moved out, not the new one.

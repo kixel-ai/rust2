@@ -11,6 +11,7 @@ const WORD uint = 18446744073709551615
 FUNCTIONS
 func Admit(entry p_rt.Tuple4[*Counter, *Mark, Seat, Choice]) (uint64, error)
 func After(ctx context.Context, first func(context.Context), value uint32) (uint32, error)
+func AfterCounter(ctx context.Context, counter *Counter, first func(context.Context)) (uint64, error)
 func All(note uint8) uint8
 func All_(note uint8) uint8
 func Alpn(config *p_tls.Config) (string, error)

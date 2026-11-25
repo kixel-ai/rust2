@@ -12339,6 +12339,16 @@ export declare const fn: {
 export declare function out<T>(what: string, f: () => T): T;
 export declare function wakerOf(dst: number, wake: () => void): void;
 export declare function wakerGet(p: number): Waker;
+type Foreign = {
+    done: boolean;
+    failed: unknown;
+    wake: Addr;
+    drop: Addr;
+    data: Addr;
+    call?: Call<unknown>;
+};
+export declare function futurePrepare(promise: Promise<unknown>): Foreign;
+export declare function futurePut(dst: number, f: Foreign): void;
 export declare function futureOf(dst: number, promise: Promise<unknown>): void;
 export declare function readerOf(dst: number, reader: Reader): void;
 export declare function pending<T>(f: number, poll: (f: number, waker: number) => [boolean, T], free: string): Call<T>;
