@@ -26,8 +26,8 @@ usage: rust2-bench run [options] [-- cargo bench args...]
        rust2-bench compare <base> [options] [-- cargo bench args...]
        rust2-bench fingerprint
 
-run counts the working tree's benchmarks; compare counts <base>, a commit, in a worktree of its
-own under ~/.cache/rust2-bench, then the working tree, and prints each change.
+run counts the working tree's benchmarks; compare counts <base>, a commit, then the working
+tree, both in one worktree of their own under ~/.cache/rust2-bench, and prints each change.
 
 Benchmarks are the Cargo workspace's, written with rust2-bench-harness or CodSpeed's
 compatibility crates, unless --program names them.
