@@ -70,7 +70,14 @@ fn snapshot(top: &Path, index: &Path) -> Result<String, String> {
 	if top.join(".gitmodules").exists() {
 		dirty_submodules(&git(
 			top,
-			&["status", "--porcelain=v2", "--ignore-submodules=none", "-z"],
+			// Without the optional lock, status never refreshes the caller's index.
+			&[
+				"--no-optional-locks",
+				"status",
+				"--porcelain=v2",
+				"--ignore-submodules=none",
+				"-z",
+			],
 		)?)?;
 	}
 	// A copy of the caller's index, whose cached file stats spare `add` hashing every file again.
