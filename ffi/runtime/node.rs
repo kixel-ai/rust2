@@ -649,14 +649,18 @@ impl<const N: usize> Cx<N> {
 		}
 	}
 
-	/// Argument `n`, a handle's id: read as a double, as an id past a small integer's range
-	/// is one, which reading it as an integer would take a slower way to.
+	/// Argument `n`, a handle's id, or -1, no slot's, for a number no id is: read as a
+	/// double, as an id past a small integer's range is one, which reading it as an integer
+	/// would take a slower way to.
 	#[inline]
 	fn id(&self, n: usize) -> i64 {
 		let mut v = 0.0;
 		// SAFETY: a value of this call.
 		ok(unsafe { (api().get_value_double)(self.env, self.argv[n], &mut v) }, "a handle's id");
-		v as i64
+		match v as i64 {
+			id if id as f64 == v => id,
+			_ => -1,
+		}
 	}
 
 	/// Argument `n`, an `rt.u64`: a safe integer, or else what `rt.ts`'s `u64Big` makes of
