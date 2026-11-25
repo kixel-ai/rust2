@@ -315,7 +315,10 @@ impl Future {
 			if owner.away() && crate::node::from_js() {
 				let owner = owner.clone();
 				// SAFETY: a home, and this thread waits while it drops the future.
-				return unsafe { owner.run(|| unsafe { ((*future).drop)(future) }) };
+				unsafe { owner.run(|| unsafe { ((*future).drop)(future) }) };
+				// Let go of the home as a queued drop does, so it sees whether it is idle now.
+				Thread::let_go(owner);
+				return;
 			}
 			// SAFETY: the future is the owner's.
 			unsafe { Dropped::new(Freed(future), owner.clone(), "a future") }.send();

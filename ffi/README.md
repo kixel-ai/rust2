@@ -1994,8 +1994,8 @@ target but wasm32's, whose layouts its TypeScript reads.
   way without waiting. A value or future that is not `Send` lives on a home, as a call may
   run on a worker; what a home's call queues for JavaScript, such as a wake its poll makes,
   runs before the call returns, so a future progresses only as JavaScript awaits, and a
-  future's `cancel()` waits for the home to drop it, so what it borrowed is free once it
-  returns, as on the web. A call into Rust that pends keeps the event loop alive. The first
+  future's `cancel()` outside its own poll waits for the home to drop it, so what it
+  borrowed is free once it returns, as on the web. A call into Rust that pends keeps the event loop alive. The first
   environment to load the addon keeps it for the process's life: any other's load, such as
   a worker's, throws, even once the first has exited.
 
