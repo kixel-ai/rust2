@@ -11,7 +11,7 @@ written as plain `#[bench]` functions with [its harness](harness/README.md).
 nix run github:kixel-ai/rust2#bench -- run --out metrics.json   # or, without Nix:
 cargo install --locked --git https://github.com/kixel-ai/rust2 rust2-bench   # Valgrind from PATH
 rust2-bench run [--benchmarks <file> [--allow-missing]] [--out metrics.json] [--jobs <n>] [-- <cargo bench args>]
-rust2-bench compare <base> [the same options]
+rust2-bench compare <base> [--benchmarks <file>] [--jobs <n>] [-- <cargo bench args>]
 rust2-bench fingerprint
 ```
 
