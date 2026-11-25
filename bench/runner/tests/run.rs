@@ -237,11 +237,14 @@ fn counts_each_harness_benchmark_alone_without_its_setup() {
 			"alone",
 			"borrowed",
 			"generic[4000]",
+			"handed",
 			"inner::nested[a]",
 			"inner::nested[bc]",
 			"sized[1000]",
 			"sized[2000]",
 			"sized[4000]",
+			"spawned[100000]",
+			"spawned[1000]",
 			"unstable[1000]",
 			"unstable[8000]",
 			"word[word]"
@@ -294,6 +297,76 @@ fn counts_each_harness_benchmark_alone_without_its_setup() {
 	assert!(
 		err.contains(&format!("no benchmark is named {file}sized[3000]")),
 		"{err}"
+	);
+}
+
+/// Each count and name of the table `run` prints.
+fn table(stdout: &[u8]) -> std::collections::BTreeMap<String, u64> {
+	String::from_utf8_lossy(stdout)
+		.lines()
+		.map_while(|line| {
+			let (count, name) = line.trim_start().split_once("  ")?;
+			Some((name.to_owned(), count.parse().ok()?))
+		})
+		.collect()
+}
+
+/// On a host that exposes perf counters, they count what Valgrind does, on every thread; on
+/// one that exposes none, as a hosted CI runner, the run fails, saying so.
+#[test]
+fn counts_with_perf_counters_what_valgrind_does() {
+	let out = harness(&["--perf"]);
+	let err = String::from_utf8_lossy(&out.stderr);
+	if !out.status.success() {
+		assert!(err.contains("this host exposes no counters"), "{err}");
+		return;
+	}
+	let perf = table(&out.stdout);
+	let valgrind = harness(&[]);
+	assert!(
+		valgrind.status.success(),
+		"{}",
+		String::from_utf8_lossy(&valgrind.stderr)
+	);
+	let valgrind = table(&valgrind.stdout);
+	assert_eq!(perf.keys().collect::<Vec<_>>(), valgrind.keys().collect::<Vec<_>>());
+	assert_eq!(perf.len(), 14);
+	let file = "harness/benches/fixture.rs::";
+	let threaded = [
+		format!("{file}handed"),
+		format!("{file}spawned[100000]"),
+		format!("{file}spawned[1000]"),
+	];
+	for (name, &count) in &perf {
+		let under = valgrind[name];
+		if threaded.contains(name) {
+			// Starting a thread takes its own path under Valgrind's scheduler.
+			let ratio = count as f64 / under as f64;
+			assert!(
+				(0.9..1.1).contains(&ratio),
+				"{name}: {count} natively, {under} under Valgrind"
+			);
+		} else {
+			// The same instructions, but for each bracket's own few dozen.
+			assert!(
+				count.abs_diff(under) < 100,
+				"{name}: {count} natively, {under} under Valgrind"
+			);
+		}
+	}
+	// The other thread's spins count, the one setup started and the one the benchmark spawns.
+	assert!(perf[&format!("{file}handed")] > 100 * perf[&format!("{file}alone")] * 9 / 10);
+	assert!(
+		perf[&format!("{file}spawned[100000]")] - perf[&format!("{file}spawned[1000]")]
+			> 99 * perf[&format!("{file}alone")] * 9 / 10
+	);
+	let stdout = String::from_utf8_lossy(&out.stdout);
+	assert!(
+		stdout.ends_with(&format!(
+			"\nOther threads ran during the perf counts of {}, which the scheduler makes noisy.\n",
+			threaded.join(", ")
+		)),
+		"{stdout}"
 	);
 }
 
