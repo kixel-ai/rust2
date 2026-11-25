@@ -3,6 +3,8 @@
 // returned a line to the script's path with `.out` added, which tests/fixtures.rs compares
 // with the model's transcript. One process runs them all, as loading the module costs more
 // than a script. RUST2_WASM is the path of the module, built with the crate's `web` feature.
+// tests/fixtures.rs runs it through Node's binding too, importing `./node/` in place of
+// `./web/` and loading the addon beside it.
 //
 // A dispose is the script's drop, and a future's `cancel()` its free; the garbage collector
 // frees in its own time, so no step frees an object. Every step runs before any microtask
@@ -142,7 +144,8 @@ async function run(text: string): Promise<string> {
 			case "bump_later":
 				return made(Tally.bumpLater(at(b)));
 			case "local_new":
-				if (b !== "0") throw new Error("no home on wasm32");
+				// The binding makes it where its profile says: on wasm32, which has no homes,
+				// here, and through Node's addon, on a home.
 				return made(Local.new$());
 			case "local_bump":
 				return show(Local.bump(at(a)));

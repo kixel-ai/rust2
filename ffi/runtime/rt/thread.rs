@@ -449,6 +449,10 @@ impl Thread {
 				while !ran() {
 					os::park();
 				}
+				// What the home queued meanwhile for the JavaScript thread waiting, such as a
+				// wake, runs before the call returns, as it would have on that thread.
+				#[cfg(feature = "node")]
+				crate::node::waited();
 			}
 		}
 		// SAFETY: it ran, writing `out`.

@@ -1991,7 +1991,10 @@ target but wasm32's, whose layouts its TypeScript reads.
   Rust may call from another thread. The worker and JavaScript's thread each spin 20 µs
   for the other before parking, so such a call costs a handoff through shared memory, not
   a thread's wake. A wake and a drop from another thread queue the same
-  way without waiting. A call into Rust that pends keeps the event loop alive. The first
+  way without waiting. A value or future that is not `Send` lives on a home, as a call may
+  run on a worker; what a home's call queues for JavaScript, such as a wake its poll makes,
+  runs before the call returns, so a future progresses only as JavaScript awaits, as on
+  the web. A call into Rust that pends keeps the event loop alive. The first
   environment to load the addon keeps it for the process's life: any other's load, such as
   a worker's, throws, even once the first has exited.
 
@@ -2153,7 +2156,7 @@ must match line for line, with the counts of the script's waker where it polls w
 `tests/protocol.c` runs them through the C ABI, `tests/miri/protocol.rs` under Miri, and
 `just ffi sanitize` runs the C driver under ASan and TSan. Each binding runs them through
 its own wrapper too, from `tests/protocol.cpp`, `.swift`, `.py`, `.go`, `.kt`, `.dart`, `.cs`,
-and `.ts`: its `Profile` in the model leaves out what the binding cannot write, such as a free
+and `.ts`, which runs over the web's module and Node's addon alike: its `Profile` in the model leaves out what the binding cannot write, such as a free
 where its collector frees or a failed check where it aborts, and adds what the binding does
 its own way, such as a close that refuses before Rust's check, a future made only as it is
 awaited, or one made on a home. `protocol_profiles` checks that each flag keeps its

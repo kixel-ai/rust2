@@ -2969,7 +2969,7 @@ fn api_web_protocol_nightly() {
 /// of `runtime`, Node or Deno.
 fn web_protocol(runtime: &str, name: &str, first: u64, count: u64, steps: usize) {
 	let web = web();
-	let scripts = protocol::scripts(first, count, steps, protocol::Profile::TS);
+	let scripts = protocol::scripts(first, count, steps, protocol::Profile::NODE);
 	let driver = || {
 		let mut cmd = Command::new(runtime);
 		match runtime {
@@ -3169,12 +3169,13 @@ fn node_dir() -> &'static Path {
 		);
 		step::write(&dir.join("api.ts"), node_check());
 		step::copy(&manifest_dir().join("tests").join("node.ts"), &dir.join("node.ts"));
+		step::write(&dir.join("protocol.ts"), node_protocol_script());
 		step::write(
 			&dir.join("transcript.ts"),
 			transcript::typescript::emit(transcript(), transcript::typescript::Binding::Node),
 		);
 		let tsconfig = TSCONFIG
-			.replace("\"protocol.ts\", \"web/*.ts\"", "\"node.ts\", \"node/*.ts\"")
+			.replace("\"web/*.ts\"", "\"node.ts\", \"node/*.ts\"")
 			.replace("web/*.d.ts", "node/*.d.ts");
 		step::write(&dir.join("tsconfig.json"), tsconfig);
 		run(Command::new("tsc").arg("-p").arg(&dir));
@@ -3191,6 +3192,18 @@ fn node_check() -> String {
 	let end = "\t// #endregion wasm32\n";
 	let stop = check.find(end).expect("api.ts ends wasm32's region") + end.len();
 	format!("{}{}", &check[..start], &check[stop..])
+}
+
+/// `tests/protocol.ts` running its scripts through Node's binding: importing it, and loading
+/// the addon beside it rather than the web's module.
+fn node_protocol_script() -> String {
+	let script = std::fs::read_to_string(manifest_dir().join("tests").join("protocol.ts")).unwrap();
+	let load = "await api.load(await WebAssembly.compile(fs.readFileSync(process.env[\"RUST2_WASM\"]!)));";
+	assert!(script.contains(load), "protocol.ts loads the module as this rewrites");
+	assert!(script.contains("from \"./web/"), "protocol.ts imports the binding as this rewrites");
+	script
+		.replace("from \"./web/", "from \"./node/")
+		.replace(load, "await api.load(\"node/api.node\");")
 }
 
 /// The cases of `tests/node.ts` that must pass, after its transcript: `threads`, then
@@ -3235,6 +3248,47 @@ fn api_node() {
 			);
 		}
 	}
+}
+
+/// Random sequences of the ownership protocol's steps through Node's binding on Node, Deno,
+/// and Bun, by `tests/protocol.ts`, each matching what the model says each step returns, as
+/// the web's do.
+#[test]
+fn api_node_protocol() {
+	for runtime in ["node", "deno", "bun"] {
+		node_protocol(runtime, "scripts", 0, PROTOCOL_SEEDS, PROTOCOL_STEPS);
+	}
+}
+
+/// Longer protocol scripts from other seeds through Node's binding on Node, as the nightly
+/// runs them.
+#[test]
+#[ignore = "slow: just ffi protocol"]
+fn api_node_protocol_nightly() {
+	node_protocol("node", "nightly", PROTOCOL_SEEDS, 5000, 400);
+}
+
+/// `count` scripts from `first` of `steps` each, through `tests/protocol.ts` in one process
+/// of `runtime`, Node, Deno, or Bun, over Node's binding.
+fn node_protocol(runtime: &str, name: &str, first: u64, count: u64, steps: usize) {
+	let dir = node_dir();
+	let scripts = protocol::scripts(first, count, steps, protocol::Profile::NODE);
+	let driver = || {
+		let mut cmd = Command::new(runtime);
+		match runtime {
+			"deno" => cmd
+				.args(["run", "--allow-read", "--allow-write", "--allow-env", "--allow-ffi"])
+				.env("DENO_DIR", scratch().join("deno"))
+				.env("DENO_NO_UPDATE_CHECK", "1")
+				.env("NO_COLOR", "1"),
+			"node" => cmd.arg("--no-warnings"),
+			_ => &mut cmd,
+		};
+		cmd.arg("protocol.ts").current_dir(dir);
+		cmd
+	};
+	let out = scratch().join("api").join("node-protocol").join(runtime).join(name);
+	protocol::check_all(&out, &scripts, driver);
 }
 
 /// `api_web`'s checks in headless Chromium, Firefox, and WebKit, which only the bench shell
