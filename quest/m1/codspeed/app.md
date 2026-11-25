@@ -8,7 +8,7 @@ The CodSpeed GitHub App is uninstalled from kixel-ai (all repositories, installa
 
 Decided 2026-11-25 (maintainer, `/quest-plan` in rust2): ✅ an agent drives Chrome with `agent-browser` for both organizations' settings and CodSpeed's dashboard (rejected: the maintainer does it; uninstall the app but keep the CodSpeed account). The API can't uninstall an app with our token, so it needs an org owner's browser session.
 
-Check it's done with `gh api orgs/<org>/installations --jq '.installations[].app_slug'` listing no `codspeed` in either organization.
+Check it's done with `gh api orgs/<org>/installations --jq '.installations[].app_slug'` listing no `codspeed` in either organization, and with CodSpeed's dashboard, signed in, showing neither organization or its projects.
 
 ## Waiting
 
