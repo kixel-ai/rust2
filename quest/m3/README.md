@@ -3,8 +3,7 @@
 ## Goal
 
 Work that waits on evidence or has no consumer yet: two waits on upstream's build-speed
-levers ([relink](/quest/m3/relink.md) and [TPDE](/quest/m3/tpde.md)) and
-[the benchmark on bare metal](/quest/m3/bench-metal.md), the translator's features that
+levers ([relink](/quest/m3/relink.md) and [TPDE](/quest/m3/tpde.md)), the translator's features that
 wait on [the gate](/quest/m2/wasm/README.md), the binding targets planned ahead of a
 consumer, and what waits on moq. crabx's GitHub App moved to
 [kixel-ai/crabx](https://github.com/kixel-ai/crabx).

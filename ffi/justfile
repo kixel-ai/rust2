@@ -115,7 +115,7 @@ surface *flags: (moq-write "") (standin "" "web")
     fi
     # The api fixture as its tests export it, with wasm32 for the web binding.
     cargo run --locked --quiet -- --manifest-path fixtures/api/Cargo.toml --out target/surface/api --target x86_64-unknown-linux-gnu --target wasm32-wasip1 -- --profile dev --features doubled
-    cargo run --locked --quiet -- --manifest-path target/moq-ffi-web/Cargo.toml --target wasm32-wasip1 --out target/surface/moq-web
+    cargo run --locked --quiet -- --manifest-path .work/moq-ffi-web/Cargo.toml --target wasm32-wasip1 --out target/surface/moq-web
     python3 -I surface/surface.py {{ flags }} target/surface/api surface/api
     python3 -I surface/surface.py {{ flags }} target/export/moq surface/moq
     # Its other bindings are moq's on wasm32, which no one ships.
@@ -123,7 +123,7 @@ surface *flags: (moq-write "") (standin "" "web")
 
 # Census the stand-in facade into target/census/moq-ffi.md, from the pinned moq revision or a checkout.
 census checkout="": (standin checkout)
-    cargo run --locked --quiet -- --manifest-path target/moq-ffi/Cargo.toml --census target/census
+    cargo run --locked --quiet -- --manifest-path .work/moq-ffi/Cargo.toml --census target/census
 
 # Measure the binding benchmark (bench/ffi/README.md) from the pinned moq revision or a checkout, in the bench shell: nix develop .#bench. Its tables go to target/bench/report.md.
 bench checkout="": mbx-shim mir-sysroot (bench-build checkout) rn-bench bench-run
@@ -134,7 +134,7 @@ bench-build checkout="": (moq-export checkout) (moq-web checkout) ts-program nod
     set -euo pipefail
     [ -n "${LIBCLANG_PATH:-}" ] || { echo "LIBCLANG_PATH is unset: run this in the bench shell, nix develop .#bench" >&2; exit 1; }
     src="{{ checkout }}"
-    [ -n "$src" ] || src=target/moq
+    [ -n "$src" ] || src=.work/moq
     out=target/export/moq
     hooks=$PWD/target/hooks
     # The exporter bench-run times, built as a consumer installs it.
@@ -144,8 +144,8 @@ bench-build checkout="": (moq-export checkout) (moq-web checkout) ts-program nod
     rm -rf target/bench-rust
     mkdir -p target/bench-rust
     root=$(dirname "$PWD")
-    printf '[package]\nname = "bench"\nversion = "0.0.0"\nedition = "2024"\npublish = false\n\n[[bin]]\nname = "bench"\npath = "%s"\n\n[dependencies]\nlibc = "0.2"\nmoq = { package = "moq-ffi", path = "../moq-ffi" }\nrust2-bench-harness = { path = "%s" }\n\n[workspace]\n' "$PWD/moq/bench/export.rs" "$root/bench/runner/harness" > target/bench-rust/Cargo.toml
-    cp target/moq-ffi/Cargo.lock target/bench-rust/Cargo.lock
+    printf '[package]\nname = "bench"\nversion = "0.0.0"\nedition = "2024"\npublish = false\n\n[[bin]]\nname = "bench"\npath = "%s"\n\n[dependencies]\nlibc = "0.2"\nmoq = { package = "moq-ffi", path = "%s" }\nrust2-bench-harness = { path = "%s" }\n\n[workspace]\n' "$PWD/moq/bench/export.rs" "$PWD/.work/moq-ffi" "$root/bench/runner/harness" > target/bench-rust/Cargo.toml
+    cp .work/moq-ffi/Cargo.lock target/bench-rust/Cargo.lock
     # The program's own flag, so moq builds as bench-run's export does: its path relative to
     # the repository, as the harness names a benchmark by.
     cargo rustc --quiet --release --manifest-path target/bench-rust/Cargo.toml -- "--remap-path-prefix=$root/="
@@ -324,8 +324,8 @@ bench-run rounds="3": mbx-shim mir-sysroot
     build() {
         wipe
         local ffi=(env "$libpath=$sysroot/lib" target/release/rust2-ffi)
-        local native=(--manifest-path target/moq-ffi/Cargo.toml --out "$scratch/moq")
-        local web=(--manifest-path target/moq-ffi-web/Cargo.toml --target wasm32-wasip1 --out "$scratch/moq-web")
+        local native=(--manifest-path .work/moq-ffi/Cargo.toml --out "$scratch/moq")
+        local web=(--manifest-path .work/moq-ffi-web/Cargo.toml --target wasm32-wasip1 --out "$scratch/moq-web")
         # Each export writes into an emptied output too, as the cold one does.
         for step in export:uncached -:mbx-native export-warm:mbx-native; do
             rm -rf "$scratch/moq"
@@ -335,9 +335,9 @@ bench-run rounds="3": mbx-shim mir-sysroot
             rm -rf "$scratch/moq-web"
             measure "${step%:*}" "${step#*:}" "${ffi[@]}" "${web[@]}"
         done
-        measure check uncached cargo check --quiet --release --lib --manifest-path target/moq-ffi/Cargo.toml
+        measure check uncached cargo check --quiet --release --lib --manifest-path .work/moq-ffi/Cargo.toml
         measure generated uncached cargo build --locked --quiet --release --manifest-path "$scratch/moq/Cargo.toml" --features kotlin,dart,node
-        measure moq uncached cargo build --quiet --release --lib --manifest-path target/moq-ffi/Cargo.toml
+        measure moq uncached cargo build --quiet --release --lib --manifest-path .work/moq-ffi/Cargo.toml
         wipe
     }
     for r in $(seq {{ rounds }}); do
@@ -766,19 +766,19 @@ moq-write checkout="": (standin checkout)
     for api in target/moq-api/*.json; do
         [ -e "$api" ] || continue
         # A staged API speaks for the sources it was checked from, which the export's must be.
-        if ! cmp -s "${api%.json}.source" target/moq-ffi/source; then
+        if ! cmp -s "${api%.json}.source" .work/moq-ffi/source; then
             echo "$api was staged from other moq sources than these: stage it again with just ffi moq-api, or delete it" >&2
             exit 1
         fi
         with+=(--with "$api")
     done
     # macOS's bash 3.2 reads an empty array as unset.
-    cargo run --locked --quiet -- --manifest-path target/moq-ffi/Cargo.toml --out target/export/moq ${with[@]+"${with[@]}"}
+    cargo run --locked --quiet -- --manifest-path .work/moq-ffi/Cargo.toml --out target/export/moq ${with[@]+"${with[@]}"}
     # Sources that changed while the export read them leave it matching neither version.
-    if [ -f target/moq-ffi/source ]; then
-        before=$(cat target/moq-ffi/source)
+    if [ -f .work/moq-ffi/source ]; then
+        before=$(cat .work/moq-ffi/source)
         {{ quote(just_executable()) }} standin {{ quote(checkout) }}
-        if [ "$before" != "$(cat target/moq-ffi/source)" ]; then
+        if [ "$before" != "$(cat .work/moq-ffi/source)" ]; then
             rm -rf target/export/moq
             echo "moq's sources changed during the export: export again" >&2
             exit 1
@@ -790,7 +790,7 @@ moq-api target checkout="": (standin checkout)
     #!/usr/bin/env bash
     set -euo pipefail
     target={{ target }}
-    [ -f target/moq-ffi/source ] || { echo "moq-api stages a git checkout of moq, whose revision names its sources" >&2; exit 1; }
+    [ -f .work/moq-ffi/source ] || { echo "moq-api stages a git checkout of moq, whose revision names its sources" >&2; exit 1; }
     case "$target" in
         *-android*)
             # The NDK's compiler for the target, at API 24, the oldest moq's Android library
@@ -808,11 +808,11 @@ moq-api target checkout="": (standin checkout)
     esac
     mkdir -p target/moq-api
     rm -f "target/moq-api/$target.json" "target/moq-api/$target.source"
-    before=$(cat target/moq-ffi/source)
-    cargo run --locked --quiet -- --manifest-path target/moq-ffi/Cargo.toml --target "$target" --api "target/moq-api/$target.json"
+    before=$(cat .work/moq-ffi/source)
+    cargo run --locked --quiet -- --manifest-path .work/moq-ffi/Cargo.toml --target "$target" --api "target/moq-api/$target.json"
     # Sources that changed while the check read them leave the API matching neither version.
     {{ quote(just_executable()) }} standin {{ quote(checkout) }}
-    if [ "$before" != "$(cat target/moq-ffi/source)" ]; then
+    if [ "$before" != "$(cat .work/moq-ffi/source)" ]; then
         rm -f "target/moq-api/$target.json"
         echo "moq's sources changed while staging the $target API: stage it again" >&2
         exit 1
@@ -822,7 +822,7 @@ moq-api target checkout="": (standin checkout)
 # Export the wasm32 stand-in, moq's crates but moq-tokio, into target/export/moq-web for wasm32-wasip1, and build its module for the web binding.
 [private]
 moq-web checkout="": (standin checkout "web")
-    cargo run --locked --quiet -- --manifest-path target/moq-ffi-web/Cargo.toml --target wasm32-wasip1 --out target/export/moq-web
+    cargo run --locked --quiet -- --manifest-path .work/moq-ffi-web/Cargo.toml --target wasm32-wasip1 --out target/export/moq-web
     cargo build --locked --quiet --release --manifest-path target/export/moq-web/Cargo.toml --target wasm32-wasip1 --features web
 
 # Export moq's crates' C ABI into target/export/moq and build it, with the libraries a program linking it needs besides in target/moq-native.
@@ -853,7 +853,7 @@ moq-export checkout="": (moq-write checkout)
     # Beside the Node binding, where its `load` looks by default.
     cp "$out/target/release/$lib" "$out/node/moq.node"
 
-# Write target/moq-ffi, a facade re-exporting what moq-ffi ships from moq's crates, from the pinned moq revision or a checkout: the export follows its re-exports, as it will moq-ffi's remainder's. With `web`, target/moq-ffi-web, the same without moq-tokio, which builds for no wasm32 target.
+# Write .work/moq-ffi, a facade re-exporting what moq-ffi ships from moq's crates, from the pinned moq revision or a checkout: the export follows its re-exports, as it will moq-ffi's remainder's. With `web`, .work/moq-ffi-web, the same without moq-tokio, which builds for no wasm32 target.
 [private]
 standin checkout="" web="":
     #!/usr/bin/env bash
@@ -861,23 +861,23 @@ standin checkout="" web="":
     src="{{ checkout }}"
     if [ -z "$src" ]; then
         {{ quote(just_executable()) }} moq-pin
-        src=target/moq
+        src=.work/moq
     fi
     # Absolute, but through any symlink as spelled: cargo hashes a path dependency outside
-    # the workspace by its path, so a target directory that mbx keeps elsewhere, under a
-    # store CI names afresh each run, would key moq's crates apart in every run.
+    # the workspace by its path, so a checkout reached through a link whose target moves,
+    # such as one in an mbx store CI names afresh each run, would key moq's crates apart.
     src=$(cd "$src" && pwd -L)
     # Cargo on Windows reads a path as Windows writes it, not as Git Bash does.
     if [ "{{ os_family() }}" = windows ]; then
         src=$(cygpath -m "$src")
     fi
-    dir=target/moq-ffi
+    dir=.work/moq-ffi
     # moq-ffi's dependencies, each with the features moq-ffi turns on, such as moq-mux's
     # async wrappers, read from its manifest.
     deps=(hang kio moq-mux moq-net moq-pattern moq-tokio)
     # rustls-native-certs, under moq-tokio, has no platform module on wasm32-wasip1.
     if [ -n "{{ web }}" ]; then
-        dir=target/moq-ffi-web
+        dir=.work/moq-ffi-web
         deps=(hang kio moq-mux moq-net moq-pattern)
     fi
     ffi=$(cd "$src" && cargo metadata --format-version 1 --no-deps | jq -c '.packages[] | select(.name == "moq-ffi")')
@@ -986,9 +986,9 @@ standin checkout="" web="":
         git hash-object "$dir/src/lib.rs" >> "$dir/source"
     fi
 
-# Check out the pinned moq revision in target/moq, apart from `just ts`'s so neither recipe touches the other's checkout, copying the objects its clone already has.
+# Check out the pinned moq revision in .work/moq, apart from `just ts`'s so neither recipe touches the other's checkout, copying the objects its clone already has.
 [private]
 moq-pin:
-    [ -d target/moq/.git ] || git clone --quiet --filter=blob:none --reference-if-able ../ts/target/moq --dissociate https://github.com/moq-dev/moq target/moq
-    GIT_NO_LAZY_FETCH=1 git -C target/moq cat-file -e {{ moq_rev }}^{commit} 2> /dev/null || git -C target/moq fetch --quiet origin {{ moq_rev }}
-    git -C target/moq checkout --quiet --detach {{ moq_rev }}
+    [ -d .work/moq/.git ] || git clone --quiet --filter=blob:none --reference-if-able ../ts/.work/moq --dissociate https://github.com/moq-dev/moq .work/moq
+    GIT_NO_LAZY_FETCH=1 git -C .work/moq cat-file -e {{ moq_rev }}^{commit} 2> /dev/null || git -C .work/moq fetch --quiet origin {{ moq_rev }}
+    git -C .work/moq checkout --quiet --detach {{ moq_rev }}

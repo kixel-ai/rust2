@@ -6157,7 +6157,8 @@ fn argfile() {
 /// A compiler cache in cargo's `RUSTC_WRAPPER`, as mbx's Cargo shim sets one, wraps every
 /// crate: the workspace's own through the exporter's wrapper, and every other crate with
 /// the exporter as rustc, the consumer's rustflags and then the export's on its command
-/// line, which the cache keys it by.
+/// line, which the cache keys it by. A crate of the workspace's own that the export only
+/// compiles the exporter hands back to the cache, as cargo runs a crate outside it.
 #[cfg(unix)]
 #[test]
 fn cached() {
@@ -6167,9 +6168,15 @@ fn cached() {
 			(
 				"Cargo.toml",
 				"[package]\nname = \"cached\"\nversion = \"0.0.0\"\nedition = \"2024\"\n\n\
-				[dependencies]\ndep = { path = \"../cached_dep\" }\n\n[workspace]\n",
+				[dependencies]\ndep = { path = \"../cached_dep\" }\nsibling = { path = \"sibling\" }\n\n\
+				[workspace]\nmembers = [\"sibling\"]\n",
 			),
-			("src/lib.rs", "pub use dep::one;\n"),
+			("src/lib.rs", "pub use dep::one;\npub use sibling::two;\n"),
+			(
+				"sibling/Cargo.toml",
+				"[package]\nname = \"sibling\"\nversion = \"0.0.0\"\nedition = \"2024\"\n",
+			),
+			("sibling/src/lib.rs", "pub fn two() -> u32 {\n\t2\n}\n"),
 			// Cargo queries the target once without these, which it reads only from the
 			// target's `cfg`s, and again with them.
 			(
@@ -6226,6 +6233,13 @@ fn cached() {
 	// Cargo passes its rustc to the workspace's wrapper alone.
 	assert_ne!(dep[0], facade[0], "{log}");
 	assert_eq!(dep[0], facade[1], "{log}");
+	// The sibling reaches the cache twice: from cargo, as the facade does, then handed back
+	// with the exporter as rustc, as the dep does.
+	let sibling = log.lines().filter(|line| line.contains("--crate-name sibling "));
+	let sibling = sibling.map(|line| line.split(' ').next().unwrap()).collect::<Vec<_>>();
+	assert_eq!(sibling, [&facade[0], &dep[0]], "{log}");
+	// The facade, whose compilation writes the export, is not handed back.
+	assert_eq!(log.matches("--crate-name cached ").count(), 1, "{log}");
 	let flags = [
 		"--cfg",
 		"consumer",

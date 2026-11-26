@@ -11,7 +11,7 @@ and bench/ffi/README.md's "The export's cache" records its time against the grou
 into a store mbx names afresh in every run, so cargo hashed moq's crates, path dependencies
 outside the stand-in's workspace, by a new path in every merge group, and mbx never served
 them: the export checked moq-net for 12.5 s in every group, before mbx 1.31 and after. It
-now names the checkout as spelled, `/home/runner/work/rust2/rust2/ffi/target/moq` in every
+now names the checkout as spelled, `/home/runner/work/rust2/rust2/ffi/.work/moq` in every
 run; on **desktop** a store filled through a symlink whose target then moved served the
 whole export, 332 hits.
 

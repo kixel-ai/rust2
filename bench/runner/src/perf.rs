@@ -108,9 +108,12 @@ impl Pmu {
 				Ok(())
 			});
 		}
+		#[cfg(not(target_os = "linux"))]
+		let _ = (command, mask);
 	}
 }
 
+#[cfg(target_os = "linux")]
 const ADDR_NO_RANDOMIZE: u64 = 0x0040000;
 
 #[cfg(target_os = "linux")]

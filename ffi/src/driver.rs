@@ -51,7 +51,9 @@ fn fail_loud(code: Result<ExitCode, String>) -> ExitCode {
 
 /// Compile as rustc, with `args` as cargo passed them to its wrapper: the wrapped rustc's
 /// path first. Only the workspace's own crates, which cargo `wrapped`, may be the facade or
-/// the generated crate whose compilation writes the export: a cache serves the others.
+/// the generated crate whose compilation writes the export: a cache serves the others, and
+/// those of the workspace's own the export only compiles, which this hands back to cargo's
+/// `RUSTC_WRAPPER` as cargo would have run it for a crate outside the workspace.
 fn compile(args: Vec<String>, rustc: &Path, wrapped: bool) -> ExitCode {
 	// A build script's probe of the compiler, as `rustversion` and `autocfg` make, runs the
 	// rustc cargo resolved, the one the glue builds with, rather than this nightly, so the
@@ -65,15 +67,33 @@ fn compile(args: Vec<String>, rustc: &Path, wrapped: bool) -> ExitCode {
 		eprintln!("rust2-ffi: {err}");
 		return ExitCode::FAILURE;
 	}
-	rust2_driver::rustc::run("rust2-ffi", args, |args, _| {
-		if !wrapped {
-			return Ok(None);
-		}
-		if let Some(walk) = crate::wasm::Walk::for_args(args)? {
-			return Ok(Some(Box::new(walk)));
-		}
-		Ok(Export::for_args(args)?.map(|job| Box::new(job) as rust2_driver::rustc::Job))
-	})
+	let job = match wrapped {
+		true => job(&args),
+		false => Ok(None),
+	};
+	// mbx defers to a workspace wrapper, so it caches a workspace crate only when the wrapper
+	// runs it as cargo runs any other: the wrapper, then the rustc cargo passed, this
+	// executable spelled apart from the wrapper, which compiles it as rustc would.
+	if wrapped
+		&& matches!(job, Ok(None))
+		&& let Some(wrapper) = std::env::var_os("RUSTC_WRAPPER").filter(|wrapper| !wrapper.is_empty())
+	{
+		return run_rustc(Path::new(&wrapper), &args[1..]);
+	}
+	rust2_driver::rustc::run("rust2-ffi", args, |_, _| job)
+}
+
+/// The job for a crate cargo `wrapped`, with `args` as cargo passed them: the walk of the
+/// glue, the export of the facade, or `None` for a crate the export only compiles.
+fn job(args: &[String]) -> Result<Option<rust2_driver::rustc::Job>, String> {
+	// The job reads rustc's own arguments, as `rust2_driver::rustc::run` passes them: an
+	// argfile's read, and the wrapped rustc's path gone.
+	let early = rustc_session::EarlyDiagCtxt::new(rustc_session::config::ErrorOutputType::default());
+	let args = [&args[..1], &rustc_driver::args::arg_expand_all(&early, &args[2..])].concat();
+	if let Some(walk) = crate::wasm::Walk::for_args(&args)? {
+		return Ok(Some(Box::new(walk)));
+	}
+	Ok(Export::for_args(&args)?.map(|job| Box::new(job) as rust2_driver::rustc::Job))
 }
 
 /// Run `rustc` with `args`, exiting as it does.

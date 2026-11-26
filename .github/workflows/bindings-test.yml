@@ -62,12 +62,12 @@ jobs:
     name: moq stand-in
     uses: ./.github/workflows/bindings.yml
     with:
-      manifest-path: ffi/target/moq-ffi/Cargo.toml
+      manifest-path: ffi/.work/moq-ffi/Cargo.toml
       python-check: ffi/moq/moq.py
       swift-check: ffi/moq/moq.swift
       c-check: ffi/moq/moq.cpp
       # moq's wasm32 stand-in, which leaves moq-tokio out, as no wasm32 target builds it.
-      web-manifest-path: ffi/target/moq-ffi-web/Cargo.toml
+      web-manifest-path: ffi/.work/moq-ffi-web/Cargo.toml
       scope: kixel-ai
       # Under the export's own module, `moq`, which moq.go imports.
       go-check: ffi/moq/moq.go

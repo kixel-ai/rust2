@@ -85,15 +85,13 @@ No threshold is set: the numbers inform a decision, they do not gate one.
 
 ## Reference report on bare metal
 
-Measured on 2026-11-24 by a `bench.yml` dispatch at `main` ([run](https://github.com/kixel-ai/rust2/actions/runs/45450542634), rust2 [`963b34a`](https://github.com/kixel-ai/rust2/commit/963b34a692984a46eecaedc4d83218969da680d6)) on the `nixos` runner: a Ryzen 9 5900XT (32 CPUs, 63 GiB), the three jobs one after another, each holding the host lease (the stable job waited 60 minutes for it, the others under 3).
+The nightly and ra-jit jobs were measured on 2026-11-24 by a `bench.yml` dispatch at `main` ([run](https://github.com/kixel-ai/rust2/actions/runs/45450542634), rust2 [`963b34a`](https://github.com/kixel-ai/rust2/commit/963b34a692984a46eecaedc4d83218969da680d6)) on the `nixos` runner: a Ryzen 9 5900XT (32 CPUs, 63 GiB), the three jobs one after another, each holding the host lease.
+The stable job (mold and wild) comes from [its own section](#mold-and-wild-on-a-quiet-host), since it ran on a loaded host in that run.
 Rows are the trimmed-mean wall time in seconds, then the change against the base in wall time, CPU time, and retired instructions, from moq's `check`, `build`, and edits, 3 runs each (edits 5).
 Instructions are the signal here: the harness runs bash as the benchmarked program, which keeps hyperfine's counters, and ra-jit's daemon is the one row without them.
 
 The controls repeat their base, so their change is the noise floor.
 In the nightly job it is small: wall -0.1%, +0.5%, +0.4%, and -0.6%, CPU +1%, +0.4%, -0.1%, and 0%, instructions +0.1% at most.
-**The stable job (mold and wild) ran on a loaded host**: its baseline `check` took 250 CPU-s for 438.8G instructions where the nightly job took 137.5 s for 437.4G, its wall times were 2.5 to 4.4 times longer, and its controls moved wall time up to -4.3%.
-The ci-lease excludes the queue containers, land fixers, and the Nix daemon, but not agent sessions, the `pullfrog-*` containers, or the landing checker, and `nixos` held a load average of 191 on 32 CPUs from an agent's replay harness when this run was inspected; whether it ran during the job is not recoverable.
-Read that job by instructions, and its wall and CPU columns as a smoke test.
 
 | scenario | variant | wall | wall change | CPU change | instructions change |
 | --- | --- | ---: | ---: | ---: | ---: |
@@ -123,18 +121,6 @@ Read that job by instructions, and its wall and CPU columns as a smoke test.
 | test-run | cranelift | 22.8 | +35.1% | +38.1% | +43.2% |
 | test-edit | nightly | 44.7 | base | base (275.7 s) | base (1020.3G) |
 | test-edit | cranelift | 40.7 | -8.8% | -25.5% | -28% |
-| check | baseline | 62.5 | base | base (250 s) | base (438.8G) |
-| check | mold | 71.6 | +14.6% | +2.5% | +1.3% |
-| check | wild | 63.8 | +2.1% | -1.9% | +0% |
-| build | baseline | 97.8 | base | base (413.9 s) | base (807.1G) |
-| build | mold | 103 | +5.4% | +0.5% | +0.8% |
-| build | wild | 94.1 | -3.7% | -2.4% | +0.1% |
-| edit-leaf | baseline | 8.99 | base | base (9.93 s) | base (12.6G) |
-| edit-leaf | mold | 10.3 | +14.6% | -32.3% | +10.1% |
-| edit-leaf | wild | 9.01 | +0.2% | -32.8% | +5.4% |
-| edit-hub | baseline | 30.2 | base | base (33.5 s) | base (42G) |
-| edit-hub | mold | 27.9 | -7.6% | -9.2% | +3.1% |
-| edit-hub | wild | 24.8 | -17.8% | -10% | +1.6% |
 
 What it shows:
 
@@ -144,10 +130,39 @@ What it shows:
 - `mostly-unused` is no win: 8 to 18% more instructions on every scenario, `build` +13.1% wall. It stays out of moq's `.cargo/config.toml`.
 - cache-proc-macros does nothing on `check` and `build` (+0.2% and +0.1% instructions) and saves 6.5% of the instructions of both edits, which wall and CPU time (-1.9 to -5.5% and -1.3 to -3.5%) hardly show. The earlier run's +30.9% `edit-hub` wall was a stalled run. It needs a nightly compiler, so no setting follows.
 - cranelift cuts `build` 16.5% of instructions (17.1% of CPU, 3.8% of wall) and `test-build` 19.6% (8.9% of wall), but `test-run` costs 43.2% more and 58 of 6379 tests fail (nightly: 1). Added up as CI runs them, a cold build and run saves 2% of instructions and 0.5% of CPU, and a warm one (`test-edit` and `test-run`) costs 2.7% more instructions and 6.6% more CPU, so [the earlier recommendation](#cranelift-for-moqs-ci) stands.
-- mold and wild do not cut instructions (+0 to +10% on every scenario), as expected of linkers that win by running in parallel, so only wall time can show their gain, and the loaded stable job cannot: wild's `edit-hub` -17.8% wall (-37.7% in the first run) is the one candidate: 5.4 s (30.2 to 24.8), just over the baseline's 4.95 s standard deviation, from one run on a loaded host, so no proof. No verdict.
+- mold and wild: see [their own section](#mold-and-wild-on-a-quiet-host).
 - ra-jit, on its own job (24 minutes): edits 95.1 to 98.3% faster when the daemon builds them (a lower bound for the marker edits, which compile nothing), `build` +44.5% wall and +236.9% CPU (the daemon built 0 of 3, with no reason given), and every `edit-async` run handed to cargo for the `parsed_values_given` reason above (+75% wall, +1469.1% CPU).
 
-No setting is recommended for moq's `.cargo/config.toml`: no lever is both cost-free and clear of the noise, and the wild question waits for a quiet host.
+No setting is recommended for moq's `.cargo/config.toml`: no lever is both cost-free and clear of the noise.
+
+### Mold and wild on a quiet host
+
+Measured on 2026-11-25 by a `bench.yml` dispatch at `main` ([run](https://github.com/kixel-ai/rust2/actions/runs/45629535072), rust2 [`d637bba`](https://github.com/kixel-ai/rust2/commit/d637bba57b9a8b4e7940d92b328edf37edba0c3a)), dispatched while `nixos` ran no agent session, `pullfrog-*` container, or other job; samples every 5 minutes through the stable job showed none start.
+Its baseline `check` took 135.1 CPU-s for 438.8G instructions, as the nightly job's 137.5 s for 437.4G did, so the host was quiet.
+The control moved wall time +0%, -0.4%, -15.9%, and -0.8% on `check`, `build`, `edit-leaf`, and `edit-hub`, and CPU time +0.4% to +1.9%.
+`edit-leaf` is the noisy one: its baseline and control runs fall in two groups, 2.5 to 2.7 s and 3.0 to 4.2 s.
+
+| scenario | variant | wall | wall change | CPU change | instructions change |
+| --- | --- | ---: | ---: | ---: | ---: |
+| check | baseline | 23.7 | base | base (135.1 s) | base (438.8G) |
+| check | mold | 28.4 | +19.5% | +7.2% | +1.5% |
+| check | wild | 23.7 | -0.2% | -2.8% | +0.1% |
+| build | baseline | 35.7 | base | base (227.2 s) | base (807.1G) |
+| build | mold | 38.5 | +8% | +5.5% | +0.9% |
+| build | wild | 35.3 | -1.1% | -2.6% | +0.1% |
+| edit-leaf | baseline | 3.47 | base | base (3.8 s) | base (12.6G) |
+| edit-leaf | mold | 4.57 | +31.7% | -43% | +8.6% |
+| edit-leaf | wild | 2.67 | -23.1% | -42.6% | +5.6% |
+| edit-hub | baseline | 7.34 | base | base (10.8 s) | base (42G) |
+| edit-hub | mold | 8.04 | +9.5% | -15.5% | +2.7% |
+| edit-hub | wild | 7.53 | +2.6% | -15.2% | +1.7% |
+
+Neither linker belongs in moq's `.cargo/config.toml`:
+
+- mold is slower on every scenario, by 8 to 32% of wall time.
+- wild ties the baseline on `check` and `build` and loses 2.6% on `edit-hub`, so its -17.8% and -37.7% on `edit-hub` in the loaded runs did not reproduce on a quiet host.
+  Its one gain is `edit-leaf`, -23.1% against a control that moved -15.9%; its fastest run beats the baseline's by 0.31 s (12%), a hint inside the noise, not a win.
+- Both cut the edits' CPU time by 15 to 43%, but not their wall time.
 
 ## Nix builds for moq
 

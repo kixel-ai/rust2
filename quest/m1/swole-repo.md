@@ -21,7 +21,3 @@ Recommendations for the implementer (following [kixel-ai/rust2#974](https://gith
 - Carry [the swole epic](/quest/m2/swole/README.md), its `m3` siblings ([scaling](/quest/m3/swole-scaling.md), [noise floors](/quest/m3/swole-noise-floors.md), [faster simulation spike](/quest/m3/swole-fast-sim.md)), and [count determinism](/quest/m0/bench-determinism.md) (if still open at the split) into `kixel-ai/swole`'s quest tree, dropping their `Required` link to this quest.
 - In `rust2`: delete `bench/runner/`, point `.github/workflows/valgrind.yml` and `ffi/justfile` at `kixel-ai/swole`'s flake input, update `AGENTS.md`, `README.md`, `quest/README.md`, and [the CodSpeed epic](/quest/m1/codspeed/README.md) with a pointer to `kixel-ai/swole`.
 - Update `moq`'s and `rind`'s bench-rewrite quests (`moq/quest/m9/bench-harness.md` and `rind`'s equivalent) once `kixel-ai/swole` exists so they depend directly on `swole`; [the CodSpeed epic](/quest/m1/codspeed/README.md) already holds both rewrites behind this move.
-
-## Required
-
-- [Paired base-vs-head wall-clock timing](/quest/m1/codspeed/paired.md) - lands paired timing and `#[bench]` updates before filtering history into `kixel-ai/swole`

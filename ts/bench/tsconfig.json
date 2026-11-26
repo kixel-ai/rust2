@@ -9,8 +9,8 @@
 		"allowImportingTsExtensions": true,
 		"verbatimModuleSyntax": true,
 		"skipLibCheck": true,
-		"paths": { "moq/*": ["../target/moq/*"] },
-		"typeRoots": ["../target/moq/node_modules/@types"],
+		"paths": { "moq/*": ["../.work/moq/*"] },
+		"typeRoots": ["../.work/moq/node_modules/@types"],
 		"types": ["bun"]
 	},
 	"include": ["*.ts"]
