@@ -734,7 +734,9 @@ mod tests {
 	#[cfg(unix)]
 	#[test]
 	fn keeps_a_benchmark_output_that_is_not_utf8() {
-		let dir = std::env::temp_dir().join(format!("rust2-bench-bytes-{}", std::process::id()));
+		// Beside the test's own executable, in the build's target directory, not a shared one.
+		let exe = std::env::current_exe().unwrap();
+		let dir = exe.with_file_name(format!("rust2-bench-bytes-{}", std::process::id()));
 		let mut command = std::process::Command::new("sh");
 		command.args([
 			"-c",
