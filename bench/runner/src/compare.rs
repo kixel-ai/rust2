@@ -285,8 +285,10 @@ fn pick(dir: &Path, options: &Options, args: &[Arg], side: &str) -> Result<Selec
 			lacks: BTreeSet::new(),
 		});
 	}
-	// A directory or manifest only one side has, such as a new package's, selects nothing on the other.
-	let absent = if !dir.exists() {
+	// A directory or manifest only one side has, such as a new package's, selects nothing on the
+	// other. The directory counts only when the side's revision tracks it, since an earlier side's
+	// build may have left its output there.
+	let absent = if !dir.exists() || git(dir, &["ls-tree", "HEAD", "--", "."])?.is_empty() {
 		Some(dir.display().to_string())
 	} else {
 		crate::cargo::manifest_path(&options.cargo)

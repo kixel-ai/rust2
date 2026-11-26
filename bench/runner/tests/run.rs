@@ -576,13 +576,16 @@ fn compares_a_selection_only_one_side_has() {
 	assert_eq!(table.lines().count(), 3, "{table}");
 	assert!(row(&table, "b").ends_with("| added |"), "{table}");
 
-	// So does the directory of a package only the head has.
-	let out = run(&repo.join("b"), &[], &["--features", "f"]);
-	let err = String::from_utf8_lossy(&out.stderr);
-	assert!(out.status.success(), "{err}");
-	let table = String::from_utf8(out.stdout).unwrap();
-	assert_eq!(table.lines().count(), 3, "{table}");
-	assert!(row(&table, "b").ends_with("| added |"), "{table}");
+	// So does the directory of a package only the head has, even once a run left the head's
+	// build output in it.
+	for _ in 0..2 {
+		let out = run(&repo.join("b"), &[], &["--features", "f"]);
+		let err = String::from_utf8_lossy(&out.stderr);
+		assert!(out.status.success(), "{err}");
+		let table = String::from_utf8(out.stdout).unwrap();
+		assert_eq!(table.lines().count(), 3, "{table}");
+		assert!(row(&table, "b").ends_with("| added |"), "{table}");
+	}
 
 	// Under perf counters, the empty side carries the counted side's fingerprint.
 	let out = run(&repo, &["--perf"], &["-p", "b", "--features", "b/f"]);
