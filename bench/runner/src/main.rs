@@ -281,6 +281,17 @@ pub fn valgrind_path() -> Result<&'static Path, String> {
 	.map_err(Clone::clone)
 }
 
+/// What counts each job's instructions under `options`, and the fingerprint its counts carry.
+fn counter(options: &Options) -> Result<(Counter, String), String> {
+	Ok(if options.perf {
+		let pmu = perf::Pmu::find()?;
+		let label = pmu.label();
+		(Counter::Perf(pmu), label)
+	} else {
+		(Counter::Valgrind, Fingerprint::probe()?.label())
+	})
+}
+
 /// Counts the benchmarks in `dir`: builds them, then runs each job under Valgrind. When
 /// `strict`, a wanted benchmark `dir` lacks fails it; a compare checks that across both trees.
 fn measure(dir: &Path, options: &Options, strict: bool) -> Result<Counts, String> {
@@ -288,13 +299,7 @@ fn measure(dir: &Path, options: &Options, strict: bool) -> Result<Counts, String
 	let dir = &dir
 		.canonicalize()
 		.map_err(|e| format!("cannot resolve {}: {e}", dir.display()))?;
-	let (counter, fingerprint) = if options.perf {
-		let pmu = perf::Pmu::find()?;
-		let label = pmu.label();
-		(Counter::Perf(pmu), label)
-	} else {
-		(Counter::Valgrind, Fingerprint::probe()?.label())
-	};
+	let (counter, fingerprint) = counter(options)?;
 	eprintln!("rust2-bench: fingerprint {fingerprint}");
 	let preload = preload::install()?;
 	fits(&std::fs::read_to_string("/proc/self/limits").map_err(|e| format!("cannot read /proc/self/limits: {e}"))?)?;

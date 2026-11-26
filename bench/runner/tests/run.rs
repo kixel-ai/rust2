@@ -469,3 +469,158 @@ fn compares_a_base_with_every_change_in_the_working_tree_from_one_directory() {
 	assert_eq!(git(&repo, &["status", "--porcelain"]), status);
 	assert_eq!(git(&repo, &["stash", "list"]), "");
 }
+
+/// Writes a workspace package `name` under `repo` with one harness benchmark target, `bench`,
+/// which needs the package's features `needs`.
+fn package(repo: &Path, name: &str, bench: &str, needs: &[&str]) {
+	let dir = repo.join(name);
+	std::fs::create_dir_all(dir.join("benches")).unwrap();
+	let harness = Path::new(env!("CARGO_MANIFEST_DIR")).join("harness");
+	let features: String = needs.iter().map(|f| format!("{f} = []\n")).collect();
+	std::fs::write(
+		dir.join("Cargo.toml"),
+		format!(
+			"[package]\nname = \"{name}\"\nedition = \"2024\"\n\n[features]\n{features}\n\
+			 [dev-dependencies]\nrust2-bench-harness = {{ path = {harness:?} }}\n\n\
+			 [[bench]]\nname = \"{bench}\"\nharness = false\nrequired-features = {needs:?}\n"
+		),
+	)
+	.unwrap();
+	std::fs::create_dir_all(dir.join("src")).unwrap();
+	std::fs::write(dir.join("src/lib.rs"), "").unwrap();
+	std::fs::write(
+		dir.join("benches").join(format!("{bench}.rs")),
+		"#[rust2_bench_harness::bench]\nfn spin() -> u64 {\n\t(0..1000u64).map(std::hint::black_box).sum()\n}\n\n\
+		 fn main() {\n\trust2_bench_harness::main();\n}\n",
+	)
+	.unwrap();
+}
+
+#[test]
+fn compares_a_selection_only_one_side_has() {
+	let repo = scratch("compare-select");
+	let cache = scratch("compare-select-cache");
+	git(&repo, &["init", "--quiet"]);
+	// The runner's own lockfile, so the workspace resolves the harness's dependencies as the
+	// runner's build already has, offline.
+	std::fs::copy(
+		Path::new(env!("CARGO_MANIFEST_DIR")).join("Cargo.lock"),
+		repo.join("Cargo.lock"),
+	)
+	.unwrap();
+	std::fs::write(
+		repo.join("Cargo.toml"),
+		"[workspace]\nmembers = [\"a\"]\nresolver = \"3\"\n",
+	)
+	.unwrap();
+	package(&repo, "a", "x", &[]);
+	git(&repo, &["add", "."]);
+	git(&repo, &["commit", "--quiet", "-m", "base"]);
+	// The head adds a package whose benchmark target needs a feature.
+	std::fs::write(
+		repo.join("Cargo.toml"),
+		"[workspace]\nmembers = [\"a\", \"b\"]\nresolver = \"3\"\n",
+	)
+	.unwrap();
+	package(&repo, "b", "y", &["f"]);
+	// Compare from `dir`, with rust2-bench's `flags` and the `cargo` args.
+	let run = |dir: &Path, flags: &[&str], cargo: &[&str]| {
+		Command::new(env!("CARGO_BIN_EXE_rust2-bench"))
+			.args(["compare", "HEAD"])
+			.args(flags)
+			.arg("--")
+			.args(cargo)
+			.current_dir(dir)
+			.env("XDG_CACHE_HOME", &cache)
+			.env(
+				"CARGO_TARGET_DIR",
+				Path::new(env!("CARGO_TARGET_TMPDIR")).join("compare-select-target"),
+			)
+			.env("CARGO_NET_OFFLINE", "true")
+			.output()
+			.unwrap()
+	};
+	let compare = |cargo: &[&str]| run(&repo, &[], cargo);
+	let out = compare(&["-p", "a", "--package=b", "--bench", "x", "--bench=y", "-F", "b/f"]);
+	let err = String::from_utf8_lossy(&out.stderr);
+	assert!(out.status.success(), "{err}");
+	assert!(err.contains("HEAD has no -p b"), "{err}");
+	assert!(err.contains("HEAD has no --bench y"), "{err}");
+	assert!(err.contains("feature b/f"), "{err}");
+	let table = String::from_utf8(out.stdout).unwrap();
+	let row = |table: &str, name: &str| {
+		table
+			.lines()
+			.find(|row| row.starts_with(&format!("| {name}/benches/")))
+			.unwrap_or_else(|| panic!("no {name} in {table}"))
+			.to_owned()
+	};
+	assert!(!row(&table, "a").contains(" - "), "{table}");
+	assert!(row(&table, "b").ends_with("| added |"), "{table}");
+
+	// The head's package alone: the base selects nothing, rather than every benchmark.
+	let out = compare(&["-p", "b", "--features", "b/f"]);
+	let err = String::from_utf8_lossy(&out.stderr);
+	assert!(out.status.success(), "{err}");
+	assert!(err.contains("HEAD has nothing the cargo args select"), "{err}");
+	let table = String::from_utf8(out.stdout).unwrap();
+	assert_eq!(table.lines().count(), 3, "{table}");
+	assert!(row(&table, "b").ends_with("| added |"), "{table}");
+
+	// So does a manifest only the head has.
+	let out = compare(&["--manifest-path", "b/Cargo.toml", "--features", "f"]);
+	let err = String::from_utf8_lossy(&out.stderr);
+	assert!(out.status.success(), "{err}");
+	assert!(err.contains("HEAD has no --manifest-path b/Cargo.toml"), "{err}");
+	let table = String::from_utf8(out.stdout).unwrap();
+	assert_eq!(table.lines().count(), 3, "{table}");
+	assert!(row(&table, "b").ends_with("| added |"), "{table}");
+
+	// So does the directory of a package only the head has, even once a run left the head's
+	// build output in it.
+	for _ in 0..2 {
+		let out = run(&repo.join("b"), &[], &["--features", "f"]);
+		let err = String::from_utf8_lossy(&out.stderr);
+		assert!(out.status.success(), "{err}");
+		let table = String::from_utf8(out.stdout).unwrap();
+		assert_eq!(table.lines().count(), 3, "{table}");
+		assert!(row(&table, "b").ends_with("| added |"), "{table}");
+	}
+
+	// Under perf counters, the empty side carries the counted side's fingerprint.
+	let out = run(&repo, &["--perf"], &["-p", "b", "--features", "b/f"]);
+	let err = String::from_utf8_lossy(&out.stderr);
+	if out.status.success() {
+		assert!(row(&String::from_utf8(out.stdout).unwrap(), "b").ends_with("| added |"));
+	} else {
+		assert!(err.contains("this host exposes no counters"), "{err}");
+	}
+
+	// Without `-p`, the base leaves out the feature of a package it lacks.
+	let out = compare(&["--workspace", "--features", "b/f"]);
+	let err = String::from_utf8_lossy(&out.stderr);
+	assert!(out.status.success(), "{err}");
+	assert!(err.contains("HEAD has no feature b/f"), "{err}");
+	let table = String::from_utf8(out.stdout).unwrap();
+	assert!(!row(&table, "a").contains(" - "), "{table}");
+	assert!(row(&table, "b").ends_with("| added |"), "{table}");
+
+	// Beside `--benches`, a target the base lacks leaves it every other target.
+	let out = compare(&["-p", "a", "-p", "b", "--bench", "y", "--benches", "-F", "b/f"]);
+	let err = String::from_utf8_lossy(&out.stderr);
+	assert!(out.status.success(), "{err}");
+	let table = String::from_utf8(out.stdout).unwrap();
+	assert!(!row(&table, "a").contains(" - "), "{table}");
+	assert!(row(&table, "b").ends_with("| added |"), "{table}");
+
+	// A selector neither side has still fails.
+	let out = compare(&["-p", "a", "-p", "c"]);
+	let err = String::from_utf8_lossy(&out.stderr);
+	assert!(!out.status.success());
+	assert!(err.contains("neither HEAD nor the working tree has -p c"), "{err}");
+	// Even beside a manifest only one side has.
+	let out = compare(&["--manifest-path", "b/Cargo.toml", "-p", "b", "-p", "c"]);
+	let err = String::from_utf8_lossy(&out.stderr);
+	assert!(!out.status.success());
+	assert!(err.contains("neither HEAD nor the working tree has -p c"), "{err}");
+}
