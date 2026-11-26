@@ -37,6 +37,8 @@ compatibility crates, unless --program names them.
 options:
   --benchmarks <file>  count only the benchmarks it names, one a line; any it names that no
                        benchmark has fails the run
+  --allow-missing      with --benchmarks, report each name no benchmark has and count the rest,
+                       failing only when none is there, as a bisect step needs (run only)
   --out <file>         write the counts as Kixel Quest's metrics.json (run only)
   --perf               count rust2-bench-harness's benchmarks natively with Linux perf
                        counters, not under Valgrind: faster, comparable only on this host,
@@ -91,6 +93,9 @@ fn cli(args: &[String]) -> Result<(), String> {
 			if options.out.is_some() {
 				return Err("compare writes no metrics.json: --out is run's".to_owned());
 			}
+			if options.allow_missing {
+				return Err("compare already counts a name only one side has: --allow-missing is run's".to_owned());
+			}
 			compare::compare(base, &options)
 		}
 		"fingerprint" => {
@@ -122,6 +127,8 @@ fn cli(args: &[String]) -> Result<(), String> {
 pub struct Options {
 	/// The only benchmarks to count, when given.
 	benchmarks: Option<BTreeSet<String>>,
+	/// Whether a wanted benchmark no benchmark is gets reported rather than failing the run.
+	allow_missing: bool,
 	out: Option<PathBuf>,
 	/// Whether to count natively with perf counters rather than under Valgrind.
 	perf: bool,
@@ -136,6 +143,7 @@ impl Options {
 	fn parse(args: &[String]) -> Result<Self, String> {
 		let mut options = Options {
 			benchmarks: None,
+			allow_missing: false,
 			out: None,
 			perf: false,
 			jobs: None,
@@ -152,6 +160,7 @@ impl Options {
 					let text = std::fs::read_to_string(path).map_err(|e| format!("cannot read {path}: {e}"))?;
 					options.benchmarks = Some(names(&text));
 				}
+				"--allow-missing" => options.allow_missing = true,
 				"--out" => options.out = Some(PathBuf::from(value()?)),
 				"--perf" => options.perf = true,
 				"--jobs" => {
@@ -168,6 +177,9 @@ impl Options {
 				"--" => options.cargo = args.by_ref().cloned().collect(),
 				_ => return Err(format!("unknown argument {arg}\n\n{USAGE}")),
 			}
+		}
+		if options.allow_missing && options.benchmarks.is_none() {
+			return Err("--allow-missing tolerates names --benchmarks lists: give it one".to_owned());
 		}
 		if options.programs.is_empty() && options.build.is_some() {
 			return Err("--build builds programs: name them with --program".to_owned());
@@ -338,7 +350,7 @@ fn measure(dir: &Path, options: &Options, strict: bool) -> Result<Counts, String
 		// Where every job names its benchmark, a name none has fails before any runs.
 		if strict && jobs.iter().all(|job| job.expect.is_some()) {
 			let known: BTreeSet<&String> = jobs.iter().filter_map(|job| job.expect.as_ref()).collect();
-			missing(wanted, |name| known.contains(name))?;
+			absent(wanted, |name| known.contains(name), options.allow_missing)?;
 		}
 		// A job that runs one known benchmark runs only when wanted; a program runs
 		// whichever it holds.
@@ -351,7 +363,10 @@ fn measure(dir: &Path, options: &Options, strict: bool) -> Result<Counts, String
 	let (mut counts, mut threaded) = run(jobs, &work(dir)?, &preload, parallel, &counter)?;
 	if let Some(wanted) = &options.benchmarks {
 		if strict {
-			missing(wanted, |name| counts.contains_key(name))?;
+			let absent = absent(wanted, |name| counts.contains_key(name), options.allow_missing)?;
+			if !absent.is_empty() {
+				report(&absent)?;
+			}
 		}
 		counts.retain(|name, _| wanted.contains(name));
 		threaded.retain(|name| wanted.contains(name));
@@ -369,12 +384,43 @@ fn measure(dir: &Path, options: &Options, strict: bool) -> Result<Counts, String
 /// Fails naming each wanted benchmark `has` says no benchmark is, so a bisect step never
 /// reads a suspect it could not count as clean.
 pub fn missing(wanted: &BTreeSet<String>, has: impl Fn(&String) -> bool) -> Result<(), String> {
-	let missing: Vec<&str> = wanted.iter().filter(|name| !has(name)).map(String::as_str).collect();
-	if missing.is_empty() {
-		Ok(())
+	absent(wanted, has, false).map(drop)
+}
+
+/// The wanted benchmarks `has` says no benchmark is. Any fails the run unless `allow`, when
+/// only all of them does: Kixel Quest reads a benchmark `metrics.json` lacks as unmeasured,
+/// never as clean, so a bisect step keeps the suspects it can count.
+fn absent(wanted: &BTreeSet<String>, has: impl Fn(&String) -> bool, allow: bool) -> Result<Vec<&str>, String> {
+	let absent: Vec<&str> = wanted.iter().filter(|name| !has(name)).map(String::as_str).collect();
+	if absent.is_empty() || (allow && absent.len() < wanted.len()) {
+		Ok(absent)
 	} else {
-		Err(format!("no benchmark is named {}", missing.join(", ")))
+		Err(format!("no benchmark is named {}", absent.join(", ")))
 	}
+}
+
+/// Reports the wanted benchmarks a run lacks on stderr, and in the GitHub Actions job's
+/// summary when it runs in one.
+fn report(absent: &[&str]) -> Result<(), String> {
+	use std::io::Write;
+	eprintln!(
+		"rust2-bench: no benchmark is named {}; counted the rest",
+		absent.join(", ")
+	);
+	let Some(summary) = std::env::var_os("GITHUB_STEP_SUMMARY").filter(|path| !path.is_empty()) else {
+		return Ok(());
+	};
+	let mut text = String::from("rust2-bench counted no benchmark named:\n\n");
+	for name in absent {
+		text.push_str(&format!("- `{name}`\n"));
+	}
+	text.push('\n');
+	std::fs::OpenOptions::new()
+		.append(true)
+		.create(true)
+		.open(&summary)
+		.and_then(|mut file| file.write_all(text.as_bytes()))
+		.map_err(|e| format!("cannot write the job summary {}: {e}", Path::new(&summary).display()))
 }
 
 /// `sh -c command` in `dir`.
@@ -719,6 +765,19 @@ mod tests {
 	}
 
 	#[test]
+	fn allowing_absent_names_fails_only_when_all_are() {
+		let wanted = names("a\nb\n");
+		let has = |names: &'static [&str]| move |name: &String| names.contains(&name.as_str());
+		assert_eq!(absent(&wanted, has(&["a", "b"]), false), Ok(vec![]));
+		assert!(absent(&wanted, has(&["a"]), false).is_err());
+		assert_eq!(absent(&wanted, has(&["a"]), true), Ok(vec!["b"]));
+		assert_eq!(
+			absent(&wanted, has(&[]), true),
+			Err("no benchmark is named a, b".to_owned())
+		);
+	}
+
+	#[test]
 	fn refuses_a_stack_limit_too_small_to_pad_under() {
 		let limits = |soft: &str| format!("Limit Soft Limit Hard Limit Units\nMax stack size {soft} unlimited bytes\n");
 		assert!(fits(&limits("8388608")).is_ok());
@@ -760,5 +819,6 @@ mod tests {
 		assert!(Options::parse(&args(&["--jobs", "0"])).is_err());
 		assert!(Options::parse(&args(&["--jobs"])).is_err());
 		assert!(Options::parse(&args(&["--frobnicate"])).is_err());
+		assert!(Options::parse(&args(&["--allow-missing"])).is_err());
 	}
 }

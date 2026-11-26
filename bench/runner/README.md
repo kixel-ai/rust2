@@ -10,8 +10,8 @@ written as plain `#[bench]` functions with [its harness](harness/README.md).
 ```bash
 nix run github:kixel-ai/rust2#bench -- run --out metrics.json   # or, without Nix:
 cargo install --locked --git https://github.com/kixel-ai/rust2 rust2-bench   # Valgrind from PATH
-rust2-bench run [--benchmarks <file>] [--out metrics.json] [--jobs <n>] [-- <cargo bench args>]
-rust2-bench compare <base> [the same options]
+rust2-bench run [--benchmarks <file> [--allow-missing]] [--out metrics.json] [--jobs <n>] [-- <cargo bench args>]
+rust2-bench compare <base> [--benchmarks <file>] [--jobs <n>] [-- <cargo bench args>]
 rust2-bench run --perf    # or compare <base> --perf: natively, with Linux perf counters
 rust2-bench fingerprint
 ```
@@ -55,7 +55,12 @@ with Valgrind's `--instr-atstart=no`, so nothing outside a benchmark counts. Its
 dump's `totals` in `Ir`, instructions executed, on every thread. The run fails on a dump with
 an unknown trigger, a benchmark without `totals` or with zero instructions, two benchmarks of
 one name, a job that fails, and a name `--benchmarks` lists that no benchmark has, so a
-bisect step never reads a suspect it could not count as clean. `compare` fails on such a
+bisect step never reads a suspect it could not count as clean. With `--allow-missing`, `run`
+instead names each such name on stderr, and in the job summary under GitHub Actions, counts
+the rest, and fails only when none is there: a bisect step at a commit before a suspect was
+added, or after a rename, keeps its other suspects' counts, and Kixel Quest reads one
+`metrics.json` lacks as unmeasured. The [Valgrind workflow](../../.github/workflows/valgrind.yml)
+passes it with the benchmarks a bisect dispatches it with. `compare` fails on such a
 name only when neither side has it, since a change may add or remove a benchmark. A program's benchmarks all
 run even when `--benchmarks` names only some; a Cargo benchmark runs only when named.
 A dump named `Metadata: ...` is the hooks' own description of their integration, never a
