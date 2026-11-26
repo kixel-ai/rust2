@@ -266,7 +266,7 @@ fn workspace_root(dir: &Path, args: &[String]) -> Result<PathBuf, String> {
 }
 
 /// The members of a workspace, as a build selects among them.
-#[derive(Clone, Default)]
+#[derive(Default)]
 pub struct Members {
 	/// Each member by name, with the names of its benchmark targets.
 	pub benches: BTreeMap<String, BTreeSet<String>>,
@@ -276,12 +276,10 @@ pub struct Members {
 	/// Each member by name, with the names its manifest calls its dependencies, which a
 	/// `--features dependency/feature` may name.
 	pub dependencies: BTreeMap<String, BTreeSet<String>>,
-	/// The current package under resolver 1, which applies `--features` to it too, so they may
-	/// name its dependencies; none under later resolvers.
-	pub legacy: Option<String>,
 }
 
-/// The members of the workspace the build `args` select from `dir`.
+/// The members of the workspace the build `args` select from `dir`, refusing a workspace under
+/// resolver 1, whose `--features` also reach the current package, which no consumer uses.
 pub fn members(dir: &Path, args: &[String]) -> Result<Members, String> {
 	let out = workspace(dir, args, &["metadata", "--format-version", "1", "--no-deps"])?;
 	let metadata: Value =
@@ -342,6 +340,12 @@ pub fn members(dir: &Path, args: &[String]) -> Result<Members, String> {
 		Some(resolver) => resolver == "1",
 		None => package(&root)?.is_none_or(|package| matches!(package["edition"].as_str(), Some("2015" | "2018"))),
 	};
+	if legacy {
+		return Err(format!(
+			"{} uses Cargo's resolver 1, and compare's per-side selection needs resolver 2 or later: set resolver = \"2\"",
+			root.display()
+		));
+	}
 	let (mut benches, mut dependencies) = (BTreeMap::new(), BTreeMap::new());
 	for package in packages {
 		let name = package["name"]
@@ -382,7 +386,6 @@ pub fn members(dir: &Path, args: &[String]) -> Result<Members, String> {
 		benches,
 		default,
 		dependencies,
-		legacy: current.filter(|_| legacy),
 	})
 }
 
@@ -982,46 +985,38 @@ mod tests {
 	}
 
 	#[test]
-	fn names_the_current_package_only_under_resolver_1() {
+	fn refuses_a_workspace_under_resolver_1() {
 		let dir = std::env::temp_dir().join(format!("rust2-bench-resolver-{}", std::process::id()));
 		let member = dir.join("a");
 		std::fs::create_dir_all(member.join("src")).unwrap();
 		std::fs::write(member.join("src/lib.rs"), "").unwrap();
-		let legacy = |root: &str, package: &str| {
-			std::fs::write(dir.join("Cargo.toml"), root).unwrap();
+		let refused = |root: Option<&str>, package: &str| {
+			match root {
+				Some(root) => std::fs::write(dir.join("Cargo.toml"), root).unwrap(),
+				None => {
+					let _ = std::fs::remove_file(dir.join("Cargo.toml"));
+				}
+			}
 			std::fs::write(member.join("Cargo.toml"), format!("[package]\nname = \"a\"\n{package}")).unwrap();
-			members(&member, &[]).unwrap().legacy
+			match members(&member, &[]) {
+				Ok(_) => false,
+				Err(err) => {
+					assert!(err.contains("needs resolver 2 or later"), "{err}");
+					true
+				}
+			}
 		};
-		let a = Some("a".to_owned());
+		let edition = "edition = \"2021\"\n";
 		// A virtual workspace without a resolver takes 1, whatever its members' editions.
-		assert_eq!(legacy("[workspace]\nmembers = [\"a\"]\n", "edition = \"2021\"\n"), a);
-		assert_eq!(
-			legacy(
-				"[workspace]\nmembers = [\"a\"]\nresolver = \"2\"\n",
-				"edition = \"2021\"\n"
-			),
-			None
-		);
+		assert!(refused(Some("[workspace]\nmembers = [\"a\"]\n"), edition));
+		assert!(!refused(
+			Some("[workspace]\nmembers = [\"a\"]\nresolver = \"2\"\n"),
+			edition
+		));
 		// A package that is its own workspace takes its edition's resolver, unless it names one.
-		std::fs::remove_file(dir.join("Cargo.toml")).unwrap();
-		std::fs::write(
-			member.join("Cargo.toml"),
-			"[package]\nname = \"a\"\nedition = \"2018\"\n",
-		)
-		.unwrap();
-		assert_eq!(members(&member, &[]).unwrap().legacy, a);
-		std::fs::write(
-			member.join("Cargo.toml"),
-			"[package]\nname = \"a\"\nedition = \"2021\"\n",
-		)
-		.unwrap();
-		assert_eq!(members(&member, &[]).unwrap().legacy, None);
-		std::fs::write(
-			member.join("Cargo.toml"),
-			"[package]\nname = \"a\"\nedition = \"2021\"\nresolver = \"1\"\n",
-		)
-		.unwrap();
-		assert_eq!(members(&member, &[]).unwrap().legacy, a);
+		assert!(refused(None, "edition = \"2018\"\n"));
+		assert!(!refused(None, edition));
+		assert!(refused(None, "edition = \"2021\"\nresolver = \"1\"\n"));
 		std::fs::remove_dir_all(&dir).unwrap();
 	}
 }
