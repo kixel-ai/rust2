@@ -146,12 +146,12 @@ jobs:
           RUST2: ${{ steps.identity.outputs.workflow_repository }}
           WEB_MANIFEST: ${{ inputs.web-manifest-path }}
         run: |
-          if [[ "$RUST2" == "$GITHUB_REPOSITORY" && "$MANIFEST" == ffi/target/moq-ffi/Cargo.toml ]]; then
+          if [[ "$RUST2" == "$GITHUB_REPOSITORY" && "$MANIFEST" == ffi/.work/moq-ffi/Cargo.toml ]]; then
             echo fixture=true >> "$GITHUB_OUTPUT"
           else
             echo fixture=false >> "$GITHUB_OUTPUT"
           fi
-          if [[ "$RUST2" == "$GITHUB_REPOSITORY" && "$WEB_MANIFEST" == ffi/target/moq-ffi-web/Cargo.toml ]]; then
+          if [[ "$RUST2" == "$GITHUB_REPOSITORY" && "$WEB_MANIFEST" == ffi/.work/moq-ffi-web/Cargo.toml ]]; then
             echo web-fixture=true >> "$GITHUB_OUTPUT"
           else
             echo web-fixture=false >> "$GITHUB_OUTPUT"

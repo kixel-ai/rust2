@@ -48,7 +48,7 @@ check:
     tsc -p runtime
     # The bench against moq's TypeScript at the pin, so a pin that drops what it uses fails here.
     just moq-pin
-    cd target/moq && bun install --frozen-lockfile --ignore-scripts --filter @moq/net --silent
+    cd .work/moq && bun install --frozen-lockfile --ignore-scripts --filter @moq/net --silent
     tsc -p bench
 
 # Run the snapshot and differential tests.
@@ -85,7 +85,7 @@ moq checkout="":
     src="{{ checkout }}"
     if [ -z "$src" ]; then
         just moq-pin
-        src=target/moq
+        src=.work/moq
     fi
     out=target/moq-ts
     cargo run --locked --quiet -- --config moq/ts.toml --manifest-path "$src/rs/moq-net/Cargo.toml" --out "$out"
@@ -99,20 +99,20 @@ census checkout="":
     src="{{ checkout }}"
     if [ -z "$src" ]; then
         just moq-pin
-        src=target/moq
+        src=.work/moq
     fi
     cargo run --locked --quiet -- --config moq/net.toml --manifest-path "$src/rs/moq-net/Cargo.toml" --census target/census/moq-net.md
     cargo run --locked --quiet -- --config moq/model.toml --manifest-path "$src/rs/moq-net/Cargo.toml" --census target/census/model.md
     cargo run --locked --quiet -- --config moq/kio.toml --manifest-path "$src/rs/kio/Cargo.toml" --census target/census/kio.md
 
-# Check out the pinned moq revision in target/moq.
+# Check out the pinned moq revision in .work/moq.
 [private]
 moq-pin:
-    [ -d target/moq/.git ] || git clone --quiet --filter=blob:none https://github.com/moq-dev/moq target/moq
+    [ -d .work/moq/.git ] || git clone --quiet --filter=blob:none https://github.com/moq-dev/moq .work/moq
     # Fetch only a missing pin; the partial clone would otherwise fetch it lazily to look it up.
     # A full fetch keeps the clone unshallow, as `just ffi`'s clone needs to borrow its objects.
-    GIT_NO_LAZY_FETCH=1 git -C target/moq cat-file -e {{ moq_rev }}^{commit} 2> /dev/null || git -C target/moq fetch --quiet origin {{ moq_rev }}
-    git -C target/moq checkout --quiet --detach {{ moq_rev }}
+    GIT_NO_LAZY_FETCH=1 git -C .work/moq cat-file -e {{ moq_rev }}^{commit} 2> /dev/null || git -C .work/moq fetch --quiet origin {{ moq_rev }}
+    git -C .work/moq checkout --quiet --detach {{ moq_rev }}
 
 # Time the codec natively, as moq's WASM, through rust2-ffi's export, lowered by wasm2js, as moq's hand-written TS, and translated, in Node, Bun, Chrome, and Firefox, with each route's size, build, and cold start; `--route name=dir` adds another run's translations.
 [arg("route", long)]
@@ -123,7 +123,7 @@ bench checkout="" route="": (moq checkout)
         command -v "$tool" > /dev/null || { echo "$tool is missing: run this in the bench shell, nix develop .#bench" >&2; exit 1; }
     done
     src="{{ checkout }}"
-    [ -n "$src" ] || src=target/moq
+    [ -n "$src" ] || src=.work/moq
     route=()
     [ -z "{{ route }}" ] || route=(--route "{{ route }}")
     # The translators, built as a consumer installs them; bench/build.ts times each route's
