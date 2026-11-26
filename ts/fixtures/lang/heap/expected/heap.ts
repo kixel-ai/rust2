@@ -103,25 +103,13 @@ export function spills(data: rs.ByteSlice, out: rs.ByteVec): void {
 export function remnants(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const pointer = rs.alloc(rs.resultUnwrap(rs.layoutArray(rs.usizeAdd(data.length, 1), 4, 4), rs.fmtLayoutErrorDebug));
 	const slots: rs.Place<rs.u32> = rs.allocAs(rs.optionUnwrap(pointer === rs.NULL ? undefined : pointer), 4, "u32");
-	const leaf: rs.Iter<rs.u8> = rs.iterSlice(rs.byteSliceView(data));
+	const s: Uint8Array = rs.byteSliceView(data);
+	let front: number = 0;
+	const back: number = s.length;
 	let count: number = 0;
-	while (true) {
-		let next!: [rs.usize, rs.u8] | rs.Done;
-		next2: {
-			const x = leaf.next();
-			if (x === rs.DONE) {
-				next = rs.DONE;
-				break next2;
-			}
-			next = [count++, x];
-		}
-		const _16: [rs.usize, rs.u8] | rs.Done = next;
-		if (_16 === rs.DONE) {
-			break;
-		}
-		const i: rs.usize = _16[0];
-		const b: rs.u8 = _16[1];
-		rs.ptrAdd(slots, i).v = ((((b as rs.u32) << 8) >>> 0) | 1) >>> 0;
+	while (!(front >= back)) {
+		const x = s[front++];
+		rs.ptrAdd(slots, count++).v = ((((x as rs.u32) << 8) >>> 0) | 1) >>> 0;
 	}
 	const words: rs.Place<rs.u32> = slots;
 	rs.iterExtendBytes(out, rs.iterFlatMap(rs.iterSlice(rs.sliceItems(rs.ptrSlice(words, data.length))), (x2: rs.u32): Uint8Array => {

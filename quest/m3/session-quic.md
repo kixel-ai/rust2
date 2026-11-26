@@ -10,7 +10,7 @@ poll from its own event loop, as driving decided for the origin's
 ## Plan
 
 Decided with the maintainer on 2026-11-09, in the quest audit: ✅ m3, out of
-[the exporter epic](/quest/m1/ffi-export/README.md), which it would have held open until
+the exporter epic, which it would have held open until
 moq's m3 driver lands. Rejected: m2; a top-level m1 quest.
 
 Decided with the maintainer on 2026-10-27: the full-control path, after sessions on
@@ -35,7 +35,8 @@ Public API: the C names moq's bindings get.
 
 ## Waiting
 
-- moq-dev/moq: the [runtime-free QUIC driver](https://github.com/moq-dev/moq/blob/main/quest/m3/quic-sansio-driver.md),
+- moq-dev/moq: the [runtime-free QUIC driver](https://github.com/moq-dev/moq/blob/main/quest/m4/quic-sansio-driver.md),
   planned in [moq-dev/moq#7197](https://github.com/moq-dev/moq/pull/7197), lands. moq ranks
-  it in m3, after its next breaking release. Done once that quest is gone from moq's `main`
+  it in m4, which waits on its next release cut
+  ([moq-dev/moq#8637](https://github.com/moq-dev/moq/pull/8637) moved it from m3 on 2026-11-14). Done once that quest is gone from moq's `main`
   and the driver's connections implement moq-net's `transport::poll::Session`.

@@ -11,7 +11,7 @@
 //! JS or an export, is refused where translation reaches it.
 
 mod convert;
-pub mod decode;
+pub(crate) mod decode;
 mod lower;
 
 use std::rc::Rc;
@@ -24,7 +24,7 @@ use rustc_span::hygiene::{ExpnKind, MacroKind};
 
 use super::Translator;
 
-pub use lower::{call, constant};
+pub(crate) use lower::{call, constant};
 
 /// The module wasm-bindgen's imports name in place of where a global is: the JS that runs
 /// the module provides them, and wasm-bindgen's own intrinsics are its imports too.
@@ -33,7 +33,7 @@ const PLACEHOLDER: &str = "__wbindgen_placeholder__";
 /// Whether `did` is wasm-bindgen's `__rt::LazyCell`, where a `thread_local_v2` import keeps
 /// its value from first use: std's `LazyCell`, but for being `Sync` where WASM has no
 /// threads, which translation makes an `rs.LazyCell` alike.
-pub fn is_lazy(tcx: TyCtxt<'_>, did: DefId) -> bool {
+pub(crate) fn is_lazy(tcx: TyCtxt<'_>, did: DefId) -> bool {
 	tcx.crate_name(did.krate).as_str() == "wasm_bindgen"
 		&& matches!(tcx.def_kind(did), DefKind::Struct)
 		&& tcx
@@ -51,7 +51,7 @@ pub fn is_lazy(tcx: TyCtxt<'_>, did: DefId) -> bool {
 /// parameters, such as js-sys's `Promise<T>`, whose instances are then one JS value. Its
 /// `obj` must be the macro's own, so that a struct a crate writes the same way keeps its
 /// fields and its `Drop`.
-pub fn represents(tcx: TyCtxt<'_>, did: DefId) -> bool {
+pub(crate) fn represents(tcx: TyCtxt<'_>, did: DefId) -> bool {
 	if !matches!(tcx.def_kind(did), DefKind::Struct) {
 		return false;
 	}
@@ -79,7 +79,7 @@ pub fn represents(tcx: TyCtxt<'_>, did: DefId) -> bool {
 /// The field of `did`, a JS-represented struct, that holds its JS value: an import's
 /// `obj`, or `JsError`'s `value`. `JsValue` has none: its `idx` is a slot of wasm-bindgen's
 /// heap.
-pub fn js_field(tcx: TyCtxt<'_>, did: DefId) -> Option<&'static str> {
+pub(crate) fn js_field(tcx: TyCtxt<'_>, did: DefId) -> Option<&'static str> {
 	match tcx.item_name(did).as_str() {
 		"JsValue" if tcx.crate_name(did.krate).as_str() == "wasm_bindgen" => None,
 		"JsError" if tcx.crate_name(did.krate).as_str() == "wasm_bindgen" => Some("value"),
@@ -88,7 +88,7 @@ pub fn js_field(tcx: TyCtxt<'_>, did: DefId) -> Option<&'static str> {
 }
 
 /// Whether `did` is wasm-bindgen's `ScopedClosure`, which `Closure` is.
-pub fn is_closure(tcx: TyCtxt<'_>, did: DefId) -> bool {
+pub(crate) fn is_closure(tcx: TyCtxt<'_>, did: DefId) -> bool {
 	tcx.crate_name(did.krate).as_str() == "wasm_bindgen"
 		&& matches!(tcx.def_kind(did), DefKind::Struct)
 		&& tcx.item_name(did).as_str() == "ScopedClosure"
@@ -104,7 +104,7 @@ fn from_macro(tcx: TyCtxt<'_>, did: DefId) -> bool {
 }
 
 /// What of wasm-bindgen a call reaches in place of its MIR.
-pub enum Glue<'tcx> {
+pub(crate) enum Glue<'tcx> {
 	/// A function the macro made around an import.
 	Import(Wrapper),
 	/// What is its argument, once JS values are themselves: `JsValue`'s clone, `JsCast`'s
@@ -132,7 +132,7 @@ pub enum Glue<'tcx> {
 }
 
 /// What of wasm-bindgen `instance` is, if a call of it maps rather than lowers from MIR.
-pub fn glue<'tcx>(t: &Translator<'_, 'tcx>, instance: Instance<'tcx>) -> Option<Glue<'tcx>> {
+pub(crate) fn glue<'tcx>(t: &Translator<'_, 'tcx>, instance: Instance<'tcx>) -> Option<Glue<'tcx>> {
 	let InstanceKind::Item(did) = instance.def else {
 		return None;
 	};
@@ -281,19 +281,19 @@ fn is_js_value(tcx: TyCtxt<'_>, ty: Ty<'_>) -> bool {
 
 /// What an import is, from the program that declares it.
 #[derive(Debug)]
-pub struct Import {
-	pub shim: String,
+pub(crate) struct Import {
+	pub(crate) shim: String,
 	/// Where it is from, if it is not a global: custom JS, or wasm-bindgen's placeholder.
-	pub module: Option<Module>,
-	pub namespace: Option<Vec<String>>,
-	pub kind: Kind,
+	pub(crate) module: Option<Module>,
+	pub(crate) namespace: Option<Vec<String>>,
+	pub(crate) kind: Kind,
 	/// The prefixes the program lists for the class or global it names, tried in turn
 	/// where the unprefixed one is not defined.
-	pub vendor_prefixes: Vec<String>,
+	pub(crate) vendor_prefixes: Vec<String>,
 }
 
 #[derive(Debug, PartialEq, Eq)]
-pub enum Module {
+pub(crate) enum Module {
 	/// `module = "..."`: a local JS file.
 	Named(String),
 	/// `raw_module = "..."`.
@@ -303,7 +303,7 @@ pub enum Module {
 }
 
 #[derive(Debug)]
-pub enum Kind {
+pub(crate) enum Kind {
 	Function(Function),
 	/// A static's value, read once.
 	Static {
@@ -318,33 +318,33 @@ pub enum Kind {
 }
 
 #[derive(Debug)]
-pub struct Function {
+pub(crate) struct Function {
 	/// Its JS name, a path of properties.
-	pub name: String,
-	pub catch: bool,
-	pub variadic: bool,
-	pub structural: bool,
-	pub suspending: bool,
-	pub generic_per_mono: bool,
-	pub asyncness: bool,
-	pub jspi: bool,
-	pub method: Option<Method>,
+	pub(crate) name: String,
+	pub(crate) catch: bool,
+	pub(crate) variadic: bool,
+	pub(crate) structural: bool,
+	pub(crate) suspending: bool,
+	pub(crate) generic_per_mono: bool,
+	pub(crate) asyncness: bool,
+	pub(crate) jspi: bool,
+	pub(crate) method: Option<Method>,
 }
 
 #[derive(Debug)]
-pub struct Method {
-	pub class: String,
-	pub kind: MethodKind,
+pub(crate) struct Method {
+	pub(crate) class: String,
+	pub(crate) kind: MethodKind,
 }
 
 #[derive(Debug)]
-pub enum MethodKind {
+pub(crate) enum MethodKind {
 	Constructor,
 	Operation { is_static: bool, op: Op },
 }
 
 #[derive(Debug)]
-pub enum Op {
+pub(crate) enum Op {
 	Regular,
 	RegularThis,
 	Getter(String),
@@ -357,18 +357,18 @@ pub enum Op {
 /// A string enum: its JS strings, in the order of its Rust variants, the last of which
 /// stands for any other.
 #[derive(Debug)]
-pub struct StringEnum {
-	pub values: Vec<String>,
+pub(crate) struct StringEnum {
+	pub(crate) values: Vec<String>,
 	/// The module path of its invocation, where the schema records one.
-	pub module_path: Option<String>,
+	pub(crate) module_path: Option<String>,
 }
 
 /// What a wrapper stands for: its import, or why translation refuses it.
-pub type Wrapper = Result<Rc<Import>, String>;
+pub(crate) type Wrapper = Result<Rc<Import>, String>;
 
 /// The programs of every crate that translates, read once.
 #[derive(Default)]
-pub struct Programs {
+pub(crate) struct Programs {
 	/// Each function the macro made around an import, by the function.
 	wrappers: FxHashMap<DefId, Wrapper>,
 	/// Each crate's string enums, by name.
@@ -379,7 +379,7 @@ pub struct Programs {
 
 impl Programs {
 	/// Read the programs of `crates` and the package's.
-	pub fn read(tcx: TyCtxt<'_>, crates: impl IntoIterator<Item = CrateNum>) -> Self {
+	pub(crate) fn read(tcx: TyCtxt<'_>, crates: impl IntoIterator<Item = CrateNum>) -> Self {
 		let mut programs = Self::default();
 		for krate in crates.into_iter().chain([LOCAL_CRATE]) {
 			programs.read_crate(tcx, krate);
@@ -388,17 +388,17 @@ impl Programs {
 	}
 
 	/// The import the macro made `did` around, if it did.
-	pub fn wrapper(&self, did: DefId) -> Option<&Wrapper> {
+	pub(crate) fn wrapper(&self, did: DefId) -> Option<&Wrapper> {
 		self.wrappers.get(&did)
 	}
 
 	/// Whether `did` is a `#[wasm_bindgen]` export: the function an export's shim calls.
-	pub fn is_export(&self, did: DefId) -> bool {
+	pub(crate) fn is_export(&self, did: DefId) -> bool {
 		self.exports.contains(&did)
 	}
 
 	/// The string enum `did` is, by its crate, name, and module.
-	pub fn string_enum(&self, tcx: TyCtxt<'_>, did: DefId) -> Option<Rc<StringEnum>> {
+	pub(crate) fn string_enum(&self, tcx: TyCtxt<'_>, did: DefId) -> Option<Rc<StringEnum>> {
 		let found = self.enums.get(&(did.krate, tcx.item_name(did).to_string()))?;
 		let module = tcx.def_path_str(tcx.parent(did));
 		let module = match did.is_local() {

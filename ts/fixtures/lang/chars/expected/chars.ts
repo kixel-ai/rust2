@@ -167,24 +167,14 @@ export function chars(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		}), "next", 4, false, 4);
 		const sorted: rs.BTreeSet<rs.char> = rs.btreeNew(rs.cmp) as rs.BTreeSet<rs.char>;
 		const seen: rs.HashSet<rs.char> = rs.hashNew() as rs.HashSet<rs.char>;
-		const leaf: rs.Iter<rs.char> = rs.iterSlice(cs.items);
+		const s: rs.char[] = cs.items;
+		let front: number = 0;
+		const back: number = s.length;
 		let count: number = 0;
-		while (true) {
-			let next!: [rs.usize, rs.char] | rs.Done;
-			next2: {
-				const x = leaf.next();
-				if (x === rs.DONE) {
-					next = rs.DONE;
-					break next2;
-				}
-				next = [count++, x];
-			}
-			const _88: [rs.usize, rs.char] | rs.Done = next;
-			if (_88 === rs.DONE) {
-				break;
-			}
-			const i: rs.usize = _88[0];
-			const c3: rs.char = _88[1];
+		while (!(front >= back)) {
+			const x = s[front++];
+			const i: rs.usize = count++;
+			const c3: rs.char = x;
 			const d: rs.char = cs.items[rs.idx(cs.items, rs.usizeRem(rs.usizeAdd(rs.usizeMul(i, 7), 3), cs.items.length))];
 			rs.byteVecPush(out, (c3 < d ? 1 : 0) | (((c3 === d ? 1 : 0) << 1) & 0xff) | (((c3 >= 122 ? 1 : 0) << 2) & 0xff));
 			rs.byteVecPush(out, rs.hashAdd(seen, c3) ? 1 : 0);
@@ -235,21 +225,21 @@ export function unicode(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void 
 	const iter: rs.Iter<rs.char> = rs.iterFilterMap(new rs.Range((block << 12) >>> 0, (rs.u32Add(block, 1) << 12) >>> 0), (a07: rs.u32): rs.char | undefined => {
 		return rs.charFromU32(a07);
 	});
+	const classes: Array<(a0: rs.char) => boolean> = [(a0: rs.char): boolean => {
+		return rs.charIsAlphabetic(a0);
+	}, (a02: rs.char): boolean => {
+		return rs.charIsLowercase(a02);
+	}, (a03: rs.char): boolean => {
+		return rs.charIsUppercase(a03);
+	}, (a04: rs.char): boolean => {
+		return rs.charIsAlphanumeric(a04);
+	}, (a05: rs.char): boolean => {
+		return rs.charIsControl(a05);
+	}, (a06: rs.char): boolean => {
+		return rs.charIsNumeric(a06);
+	}];
 	while (true) {
 		const _34: rs.char | rs.Done = iter.next();
-		const classes: Array<(a0: rs.char) => boolean> = [(a0: rs.char): boolean => {
-			return rs.charIsAlphabetic(a0);
-		}, (a02: rs.char): boolean => {
-			return rs.charIsLowercase(a02);
-		}, (a03: rs.char): boolean => {
-			return rs.charIsUppercase(a03);
-		}, (a04: rs.char): boolean => {
-			return rs.charIsAlphanumeric(a04);
-		}, (a05: rs.char): boolean => {
-			return rs.charIsControl(a05);
-		}, (a06: rs.char): boolean => {
-			return rs.charIsNumeric(a06);
-		}];
 		if (_34 === rs.DONE) {
 			break;
 		}
@@ -257,18 +247,17 @@ export function unicode(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void 
 		if (rs.u8Rem(kind, 2) === 0) {
 			flags = (rs.charIsAlphabetic(c) ? 1 : 0) | (((rs.charIsLowercase(c) ? 1 : 0) << 1) & 0xff) | (((rs.charIsUppercase(c) ? 1 : 0) << 2) & 0xff) | (((rs.charIsAlphanumeric(c) ? 1 : 0) << 3) & 0xff) | (((rs.charIsControl(c) ? 1 : 0) << 4) & 0xff) | (((rs.charIsNumeric(c) ? 1 : 0) << 5) & 0xff) | (((isDigit$10ivuux(c, 36) ? 1 : 0) << 6) & 0xff);
 		} else {
-			const leaf = rs.iterSlice(classes);
+			const s = classes;
+			let front = 0;
+			let back = s.length;
 			let count = 0;
 			const f = (flags2: rs.u8, _3: [rs.usize, (a0: rs.char) => boolean]): rs.u8 => {
 				const i: rs.usize = _3[0];
 				return flags2 | rs.u8Shl(_3[1](c) ? 1 : 0, i);
 			};
 			let acc: rs.u8 = 0;
-			while (true) {
-				const x = leaf.next();
-				if (x === rs.DONE) {
-					break;
-				}
+			while (!(front >= back)) {
+				const x = s[front++];
 				acc = f(acc, [count++, x]);
 			}
 			flags = acc;

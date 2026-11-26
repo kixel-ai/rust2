@@ -42,7 +42,7 @@ struct Inline<'tcx> {
 impl<'a, 'tcx> Translator<'a, 'tcx> {
 	/// Whether a `ty` is copied where Rust copies it: a `Copy` value that is, or holds by
 	/// value, a JS object the crate's code writes into in place or compares pointers to.
-	pub fn needs_copy(&self, ty: Ty<'tcx>) -> bool {
+	pub(crate) fn needs_copy(&self, ty: Ty<'tcx>) -> bool {
 		self.is_copy(ty) && self.changes(ty)
 	}
 
@@ -164,7 +164,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 	/// a library object whose inline state only its runtime class knows, which the copy
 	/// copies one object deep. A safe move leaves nothing pointing into the original,
 	/// which a copy one object deep is exact for.
-	pub fn unsplit(&self, ty: Ty<'tcx>) -> Option<(Ty<'tcx>, &'static str)> {
+	pub(crate) fn unsplit(&self, ty: Ty<'tcx>) -> Option<(Ty<'tcx>, &'static str)> {
 		if let Some(opaque) = self.opaque(ty) {
 			return Some((
 				opaque,
@@ -258,7 +258,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 
 	/// Whether the runs before compared pointers to a `ty`, or to a type it holds by value,
 	/// so each copy of one is at an address of its own, as in Rust, wherever it is read.
-	pub fn held_addressed(&self, ty: Ty<'tcx>) -> bool {
+	pub(crate) fn held_addressed(&self, ty: Ty<'tcx>) -> bool {
 		!self.compared.is_empty() && by_value(self.tcx, self.typing_env(), ty).any(|part| self.addressed(part))
 	}
 
@@ -271,7 +271,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 	/// Whether the crate may give the part of a `ty` kept as a JS object in the field `at`,
 	/// or with `None` in an element, another object: by a write of that part, or of a whole
 	/// value that is or holds a `ty`.
-	pub fn replaced(&self, ty: Ty<'tcx>, at: Option<FieldIdx>) -> bool {
+	pub(crate) fn replaced(&self, ty: Ty<'tcx>, at: Option<FieldIdx>) -> bool {
 		let writes = &self.writes;
 		writes.contains(&writes.replaced, true, self.tcx, ty)
 			|| writes
@@ -287,7 +287,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 	/// it holds: an assignment of where it is disables a pointer made through a reference to
 	/// it, so a read through one after is undefined in both Stacked and Tree Borrows, but
 	/// comparing its address is not.
-	pub fn taken(&self, body: DefId, ty: Ty<'tcx>, object: &dyn Fn(Ty<'tcx>) -> bool) -> bool {
+	pub(crate) fn taken(&self, body: DefId, ty: Ty<'tcx>, object: &dyn Fn(Ty<'tcx>) -> bool) -> bool {
 		let (tcx, writes, env) = (self.tcx, &self.writes, self.typing_env());
 		let local = writes.taken_in.get(&body);
 		by_value(tcx, env, ty).any(|part| {
@@ -301,7 +301,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 	/// Note a comparison of pointers to a `ty`, which the next run copies each value of as
 	/// it is read, and which [`Self::taken`] counts if a pointer may be made into it, or into
 	/// what holds it, through a reference, by any body.
-	pub fn compare(&mut self, ty: Ty<'tcx>) {
+	pub(crate) fn compare(&mut self, ty: Ty<'tcx>) {
 		self.comparing.insert(storage(self.tcx, ty));
 	}
 
@@ -317,7 +317,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 	/// `value`, a `ty` read out of where it is kept, as a value of its own, as Rust's read
 	/// copies its bytes: the JS objects it holds by value copied where the crate's code
 	/// writes into them in place.
-	pub fn snapshot(&mut self, value: Expr, ty: Ty<'tcx>, span: Span) -> Expr {
+	pub(crate) fn snapshot(&mut self, value: Expr, ty: Ty<'tcx>, span: Span) -> Expr {
 		match self.snapshot_fn(ty, span) {
 			Some(copy) => copy.call(vec![value]),
 			None => value,
@@ -325,14 +325,14 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 	}
 
 	/// The function [`Self::snapshot`] calls on a `ty`, if it copies one.
-	pub fn snapshot_fn(&mut self, ty: Ty<'tcx>, span: Span) -> Option<Expr> {
+	pub(crate) fn snapshot_fn(&mut self, ty: Ty<'tcx>, span: Span) -> Option<Expr> {
 		self.changes(ty).then(|| self.shim(ty, span)).flatten()
 	}
 
 	/// A copy of the `ty`, a `[T; N]`, that `s`, the slice a reference to one is, holds, as
 	/// a read through the reference copies it: an array of its own, with each element JS
 	/// keeps as an object the crate writes into copied too.
-	pub fn array_copy(&mut self, s: Expr, ty: Ty<'tcx>, span: Span) -> Expr {
+	pub(crate) fn array_copy(&mut self, s: Expr, ty: Ty<'tcx>, span: Span) -> Expr {
 		let elem = match self.uninit_inner(ty).kind() {
 			ty::Array(elem, _) => *elem,
 			_ => unreachable!("an array's slice"),
@@ -353,7 +353,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 	/// What copies an element of the arrays of `ty`, an array or slice of arrays, as arrays
 	/// copied out and written back read it: a `Copy` value's copy where it is an object, and
 	/// `rs.objectCopy` of an object a write lands in, which a write of the arrays back changes.
-	pub fn elem_copy(&mut self, ty: Ty<'tcx>, span: Span) -> Option<Expr> {
+	pub(crate) fn elem_copy(&mut self, ty: Ty<'tcx>, span: Span) -> Option<Expr> {
 		let mut elem = self.uninit_inner(ty);
 		while let ty::Array(inner, _) | ty::Slice(inner) = elem.kind() {
 			elem = *inner;
@@ -365,7 +365,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 	}
 
 	/// The function [`Self::array_copy`] calls on a slice of a `ty`.
-	pub fn array_copy_fn(&mut self, ty: Ty<'tcx>, span: Span) -> Expr {
+	pub(crate) fn array_copy_fn(&mut self, ty: Ty<'tcx>, span: Span) -> Expr {
 		match self.array_copy(Expr::ident("s"), ty, span) {
 			Expr::Call(f, args) if args.len() == 1 => *f,
 			copy => Expr::Lambda(
@@ -379,7 +379,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 	}
 
 	/// `value`, copied if a `ty` is.
-	pub fn copied(&mut self, value: Expr, ty: Ty<'tcx>, span: Span) -> Expr {
+	pub(crate) fn copied(&mut self, value: Expr, ty: Ty<'tcx>, span: Span) -> Expr {
 		match self.copy_fn(ty, span) {
 			Some(copy) => copy.call(vec![value]),
 			None => value,
@@ -387,7 +387,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 	}
 
 	/// The function copying a `ty`, made the first time, or `None` if a `ty` is shared.
-	pub fn copy_fn(&mut self, ty: Ty<'tcx>, span: Span) -> Option<Expr> {
+	pub(crate) fn copy_fn(&mut self, ty: Ty<'tcx>, span: Span) -> Option<Expr> {
 		if !self.needs_copy(ty) {
 			return None;
 		}
@@ -396,7 +396,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 
 	/// The function copying a `ty`, made the first time: a new object of it, whatever the
 	/// crate writes, holding the parts [`Self::snapshot`] copies.
-	pub fn shim(&mut self, ty: Ty<'tcx>, span: Span) -> Option<Expr> {
+	pub(crate) fn shim(&mut self, ty: Ty<'tcx>, span: Span) -> Option<Expr> {
 		// An array's copy is the same at every length, so its name has none: `array_u8`.
 		let tcx = self.tcx;
 		let (ty, any_length) = match ty.kind() {
@@ -641,14 +641,14 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 	}
 
 	/// The type of field `did` of an ADT with `args`, normalized in the translator's environment.
-	pub fn field_ty(&self, did: DefId, args: ty::GenericArgs<'tcx>) -> Ty<'tcx> {
+	pub(crate) fn field_ty(&self, did: DefId, args: ty::GenericArgs<'tcx>) -> Ty<'tcx> {
 		field_ty(self.tcx, self.typing_env(), did, args)
 	}
 }
 
 /// The type of field `did` of an ADT with `args`, normalized in `env`, the bounds of the
 /// body naming it.
-pub fn field_ty<'tcx>(
+pub(crate) fn field_ty<'tcx>(
 	tcx: TyCtxt<'tcx>,
 	env: ty::TypingEnv<'tcx>,
 	did: DefId,
@@ -658,7 +658,7 @@ pub fn field_ty<'tcx>(
 }
 
 /// `ty`, over an item's own type parameters, with `args` for them, normalized in `env`.
-pub fn instantiate<'tcx>(
+pub(crate) fn instantiate<'tcx>(
 	tcx: TyCtxt<'tcx>,
 	env: ty::TypingEnv<'tcx>,
 	ty: Ty<'tcx>,
@@ -680,7 +680,7 @@ pub fn instantiate<'tcx>(
 /// translation reaches gives it, in a census too. A write that fills memory nothing
 /// points into yet gives no pointer's object another.
 #[derive(Default)]
-pub struct Writes<'tcx> {
+pub(crate) struct Writes<'tcx> {
 	into: Types<'tcx>,
 	/// The types the code may write whole, each standing for every type it holds by value
 	/// too: a write of a whole value, as `*r = v`, a call of a std function given a
@@ -724,7 +724,7 @@ impl<'tcx> Writes<'tcx> {
 	/// `reached`, the instances translation reached, that `own` says translates, and of the
 	/// closures and coroutines they hold: a binding stands in for any other, which counts
 	/// as code it doesn't read.
-	pub fn of_bodies(
+	pub(crate) fn of_bodies(
 		t: &Translator<'_, 'tcx>,
 		bodies: impl IntoIterator<Item = DefId>,
 		reached: &FxHashSet<ty::Instance<'tcx>>,
@@ -773,7 +773,7 @@ impl<'tcx> Writes<'tcx> {
 
 	/// Whether translation must run again to judge the writes `instance` reaches: its body
 	/// is unread, or writes a type over its type parameters and these arguments are new.
-	pub fn unread(&self, instance: ty::Instance<'tcx>) -> bool {
+	pub(crate) fn unread(&self, instance: ty::Instance<'tcx>) -> bool {
 		let def_id = instance.def_id();
 		if !self.read.contains(&def_id) {
 			return true;
@@ -969,7 +969,7 @@ fn borrows<'tcx>(body: &mir::Body<'tcx>) -> IndexVec<mir::Local, Option<Place<'t
 
 /// `place`, read through each reference that `borrow` says borrows a place, as that place:
 /// `(*r).0` of `r = &mut pair` is `pair.0`.
-pub fn through_borrows<'tcx>(
+pub(crate) fn through_borrows<'tcx>(
 	tcx: TyCtxt<'tcx>,
 	mut place: Place<'tcx>,
 	borrow: impl Fn(mir::Local) -> Option<Place<'tcx>>,
@@ -985,7 +985,7 @@ pub fn through_borrows<'tcx>(
 /// The places a pointer made of `place` at `at` may point into: `place` read through each
 /// reference that `borrow` says borrows a place, as [`through_borrows`] reads it, and
 /// through one that [`retargeted`] follows, as each place it may borrow there.
-pub fn borrowed_places<'tcx>(
+pub(crate) fn borrowed_places<'tcx>(
 	tcx: TyCtxt<'tcx>,
 	body: &mir::Body<'tcx>,
 	place: Place<'tcx>,
@@ -1010,7 +1010,7 @@ pub fn borrowed_places<'tcx>(
 /// `mem::replace(&mut r, &mut b)` points `r` at `b`: those of each borrow that reaches
 /// `at`, assigned to it or given it by such a call. `None` if something else assigns it,
 /// or the parameter's value may reach `at`.
-pub fn retargeted<'tcx>(
+pub(crate) fn retargeted<'tcx>(
 	tcx: TyCtxt<'tcx>,
 	body: &mir::Body<'tcx>,
 	local: Local,

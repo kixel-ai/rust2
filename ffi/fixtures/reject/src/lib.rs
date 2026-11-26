@@ -17,13 +17,6 @@ pub fn generic<T: Copy>(value: T) -> T {
 	value
 }
 
-/// A future that borrows its argument, from a function that runs when called: the export
-/// would have to keep the argument alive past the call.
-#[allow(clippy::manual_async_fn, reason = "the construct under test")]
-pub fn borrowing(name: &str) -> impl Future<Output = usize> + '_ {
-	async move { name.len() }
-}
-
 /// An option inside an option, through a `Box`: C has one `None` per option.
 pub fn nested(value: Option<Box<Option<u32>>>) -> bool {
 	value.is_some()
@@ -47,8 +40,8 @@ macro_rules! noop {
 	() => {};
 }
 
-/// Left out by the config, so it refuses nothing itself, but a signature naming it is
-/// refused.
+/// Hidden, so it refuses nothing itself, but a signature naming it is refused.
+#[doc(hidden)]
 pub struct Excluded;
 
 pub fn excluded() -> Excluded {
@@ -108,8 +101,9 @@ impl<'a> Text<'a> {
 	}
 }
 
-/// Bytes that must be `'static`, which only a string's interning makes them.
-pub fn forever(bytes: &'static [u8]) -> usize {
+/// Bytes lent mutably for as long as the program runs, which interning would alias: every
+/// call with equal bytes would share one copy.
+pub fn forever_mut(bytes: &'static mut [u8]) -> usize {
 	bytes.len()
 }
 
@@ -124,13 +118,132 @@ pub struct Size {
 	pub bytes: u64,
 }
 
-/// Another crate's types, which the facade does not re-export.
-pub fn measure(size: dep::Size) -> dep::Area {
-	dep::Area::new(size)
+/// A waiter of another crate, which a handle holds by value.
+pub fn waiter() -> tls::held::Waiter {
+	tls::held::Waiter::new(std::task::Waker::noop().clone())
+}
+
+/// Not a poll through [`waiter`]'s: the glue cannot name the type a handle holds to make one
+/// from the poll's waker.
+pub fn poll_ready(_waiter: &tls::held::Waiter) -> std::task::Poll<u32> {
+	std::task::Poll::Ready(1)
+}
+
+/// An object holding another crate's session, which C holds as a handle.
+pub struct Link {
+	session: tls::held::Handoff,
+}
+
+impl Link {
+	pub fn new() -> Self {
+		Self {
+			session: tls::held::Handoff { id: 1 },
+		}
+	}
+
+	/// Not lent: a handle holds another crate's value only erased, and by value.
+	pub fn session(&self) -> &tls::held::Handoff {
+		&self.session
+	}
+
+	/// What makes the session a value C holds.
+	pub fn take(self) -> tls::held::Handoff {
+		self.session
+	}
+}
+
+impl Default for Link {
+	fn default() -> Self {
+		Self::new()
+	}
+}
+
+/// Another crate's type that is not `Send`, which no handle may hold.
+pub fn measure(local: tls::held::Local) -> u32 {
+	local.get()
 }
 
 /// A generic type, which exports at the instances its exports name.
 pub struct Cell<T>(T);
+
+/// An instance naming another crate's type that a handle holds by value, erased.
+pub fn sealed(cert: tls::held::Cert) -> Cell<tls::held::Cert> {
+	Cell(cert)
+}
+
+/// A generic type whose guard borrows it.
+pub struct Slot<T>(T);
+
+/// A guard borrowing its slot, an instance of which an export names with the lifetime its
+/// signature binds.
+pub struct SlotGuard<'a, T>(&'a mut T);
+
+impl Slot<u8> {
+	pub fn new() -> Self {
+		Self(0)
+	}
+
+	/// A guard that borrows its handle exclusively, which its own handle holds: exported.
+	pub fn lock(&mut self) -> SlotGuard<'_, u8> {
+		SlotGuard(&mut self.0)
+	}
+
+	/// A guard of a slot of its own, borrowing nothing, so C holds one.
+	pub fn leaked() -> SlotGuard<'static, u8> {
+		SlotGuard(Box::leak(Box::new(0)))
+	}
+}
+
+/// A future returned by a function that is not async, whose output borrows what the
+/// future holds only until it completes.
+pub fn echo(tag: &str) -> impl std::future::Future<Output = &str> + '_ {
+	async move { tag }
+}
+
+/// As `echo`, but the output borrows only inside an error that crosses as its message.
+pub fn blame(tag: &str) -> impl std::future::Future<Output = Result<u32, tls::held::Wrapped<'_, u8>>> + '_ {
+	async move { Err(tls::held::Wrapped(tag, 0)) }
+}
+
+/// As `echo`, but its borrowed output named only by a supertrait of the bound.
+pub fn relay(tag: &str) -> impl tls::held::Borrowing<'_> {
+	async move { tag }
+}
+
+/// As `echo`, but through a future that is not an `impl Future`.
+pub fn resolve(tag: &str) -> tls::held::Lend<'_, u8> {
+	tls::held::Lend(tag, std::marker::PhantomData)
+}
+
+/// A closure taking a `Copy` value of another crate's, which a handle holds.
+pub fn spend(f: impl FnOnce(tls::held::Token) -> u32) -> u32 {
+	f(tls::held::Token(1))
+}
+
+/// A closure returning one.
+pub fn mint(f: impl FnOnce() -> tls::held::Token) -> u32 {
+	f().0
+}
+
+/// Returns another crate's `Copy` value, which a handle holds.
+pub fn token() -> tls::held::Token {
+	tls::held::Token(2)
+}
+
+/// Borrows a slice of them, whose handles C would have to give up.
+pub fn spent(tokens: &[tls::held::Token]) -> u32 {
+	tokens.iter().map(|t| t.0).sum()
+}
+
+/// Returns another crate's value, which a handle holds.
+pub fn issue() -> tls::held::Cert {
+	tls::held::Cert::new(b"der")
+}
+
+/// Takes what converts into it, which only inference could name in the glue.
+pub fn adopt(cert: impl Into<tls::held::Cert>) -> usize {
+	cert.into().der().len()
+}
 
 impl<T> Cell<T> {
 	pub fn new(value: T) -> Self {
@@ -206,11 +319,6 @@ pub struct Probe<T>(T);
 
 pub fn probe<const N: usize>(x: impl Into<Probe<u8>>) {
 	let _ = x;
-}
-
-/// An instance the config excludes.
-pub fn excluded_cell(cell: Cell<u16>) -> u16 {
-	cell.0
 }
 
 /// An instance whose type argument is no value or handle, so it cannot name it.
@@ -332,7 +440,8 @@ pub fn stash(value: impl Into<Excluded>) -> u32 {
 	0
 }
 
-/// Excluded, borrowing what it converts from.
+/// Hidden, borrowing what it converts from.
+#[doc(hidden)]
 pub struct Held<'a>(pub &'a u32);
 
 impl<'a> From<&'a u32> for Held<'a> {
@@ -356,7 +465,8 @@ pub fn kept<'a>(value: impl Into<Held<'a>> + 'static) -> u32 {
 	*value.into().0
 }
 
-/// Excluded, what converts into a `Held<'static>`.
+/// Hidden, what converts into a `Held<'static>`.
+#[doc(hidden)]
 pub struct Holder(pub Held<'static>);
 
 impl<T: Into<Held<'static>>> From<T> for Holder {
@@ -370,7 +480,8 @@ pub fn holder(value: impl Into<Holder>) -> u32 {
 	*value.into().0.0
 }
 
-/// Excluded, what converts into a `Held<'a>`, at the lifetime the parameter names.
+/// Hidden, what converts into a `Held<'a>`, at the lifetime the parameter names.
+#[doc(hidden)]
 pub struct Lender<'a>(pub Held<'a>);
 
 impl<'a, T: Into<Held<'a>>> From<T> for Lender<'a> {
@@ -384,7 +495,8 @@ pub fn lender(value: impl Into<Lender<'static>>) -> u32 {
 	*value.into().0.0
 }
 
-/// Excluded, what converts into a `Held<'b>` for a `'b` that outlives its own `'a`.
+/// Hidden, what converts into a `Held<'b>` for a `'b` that outlives its own `'a`.
+#[doc(hidden)]
 pub struct Outlived<'a>(pub Held<'a>);
 
 impl<'a, 'b: 'a, T: Into<Held<'b>>> From<T> for Outlived<'a> {
@@ -399,7 +511,8 @@ pub fn outlived(value: impl Into<Outlived<'static>>) -> u32 {
 	*value.into().0.0
 }
 
-/// Excluded, two lifetimes, what converts into a `Held` for the second converting into it.
+/// Hidden, two lifetimes, what converts into a `Held` for the second converting into it.
+#[doc(hidden)]
 pub struct Paired<'a, 'b>(pub &'a u32, pub Held<'b>);
 
 impl<'a, 'b, T: Into<Held<'b>>> From<T> for Paired<'a, 'b> {
@@ -414,7 +527,8 @@ pub fn paired(value: impl Into<Paired<'static, 'static>>) -> u32 {
 	*value.into().1.0
 }
 
-/// Excluded, a `'static` borrow, from what converts into one.
+/// Hidden, a `'static` borrow, from what converts into one.
+#[doc(hidden)]
 pub struct Pinned(pub &'static u32);
 
 impl<T: Into<&'static u32>> From<T> for Pinned {
@@ -423,7 +537,8 @@ impl<T: Into<&'static u32>> From<T> for Pinned {
 	}
 }
 
-/// Excluded, what converts into a `Pinned`.
+/// Hidden, what converts into a `Pinned`.
+#[doc(hidden)]
 pub struct Pinner(pub Pinned);
 
 impl<T: Into<Pinned>> From<T> for Pinner {
@@ -437,7 +552,8 @@ pub fn pinner(value: impl Into<Pinner>) -> u32 {
 	*value.into().0.0
 }
 
-/// Excluded, what converts into one of a `Vec` of its type, and so into ever larger ones.
+/// Hidden, what converts into one of a `Vec` of its type, and so into ever larger ones.
+#[doc(hidden)]
 pub struct Grows<T>(pub Vec<T>);
 
 impl<T, U: Into<Grows<Vec<T>>> + Copy> From<U> for Grows<T> {
@@ -452,7 +568,8 @@ pub fn grows(value: impl Into<Grows<u8>>) -> usize {
 	value.into().0.len()
 }
 
-/// Excluded, a name from a string, or from bytes that need not be UTF-8.
+/// Hidden, a name from a string, or from bytes that need not be UTF-8.
+#[doc(hidden)]
 pub struct Called(pub String);
 
 impl From<String> for Called {
@@ -467,7 +584,8 @@ impl From<Vec<u8>> for Called {
 	}
 }
 
-/// Excluded, what converts into a name.
+/// Hidden, what converts into a name.
+#[doc(hidden)]
 pub struct Caller(pub Called);
 
 impl<T: Into<Called>> From<T> for Caller {
@@ -874,8 +992,46 @@ pub use dep;
 /// The same crate whole, by another name.
 pub use ::dep as renamed;
 
-/// A crate whole, which the config excludes, so nothing refuses it.
-pub use ::dep as Shed;
+/// The same crate whole, and the standard library's item, each re-exported hidden, which
+/// leaves out the path rather than refuse it.
+#[doc(hidden)]
+pub use ::dep as hidden_dep;
+#[doc(hidden)]
+pub use std::collections::BTreeSet as HiddenSet;
+
+/// A hidden field is no part of the API, so its pointer is not refused, and the struct, which
+/// C cannot build without it, is an object.
+pub struct Peeked {
+	pub len: u32,
+	#[doc(hidden)]
+	pub raw: *const u8,
+}
+
+pub fn peeked() -> Peeked {
+	Peeked {
+		len: 0,
+		raw: std::ptr::null(),
+	}
+}
+
+/// An object that is not `Clone`, which a value's reference field holds.
+pub struct Lone(u32);
+
+pub fn lone() -> Lone {
+	Lone(1)
+}
+
+static LONE: Lone = Lone(7);
+
+/// A value C copies, so it has no handle to lend its field from, and the field is refused.
+#[derive(Clone, Copy)]
+pub struct Moored {
+	pub lone: &'static Lone,
+}
+
+pub fn moored() -> Moored {
+	Moored { lone: &LONE }
+}
 
 /// A value whose poll changes it, which C passes as a copy.
 pub struct Tally {
@@ -1027,6 +1183,54 @@ pub fn wide_non_zero(n: std::num::NonZero<u128>) -> u128 {
 	n.get()
 }
 
+/// A `Copy` view of bytes it borrows, held across as its bytes.
+#[derive(Clone, Copy)]
+pub struct View<'a> {
+	bytes: &'a [u8],
+}
+
+impl View<'_> {
+	pub fn len(&self) -> usize {
+		self.bytes.len()
+	}
+}
+
+/// A view of nothing, which borrows nothing, so an export returns a `View`.
+pub fn empty_view() -> View<'static> {
+	View { bytes: &[] }
+}
+
+/// Returns a value that borrows its parameter, which C could keep past the borrow.
+pub fn wrap(bytes: &[u8]) -> View<'_> {
+	View { bytes }
+}
+
+/// The same, through an `impl Trait` hiding the value, which holds what it captures.
+pub fn hidden_wrap(bytes: &[u8]) -> impl Clone + '_ {
+	View { bytes }
+}
+
+/// A `Copy` mark held across as its bytes.
+#[derive(Clone, Copy)]
+pub struct Mark {
+	at: u64,
+}
+
+/// A mark at `at`, so an export returns one.
+pub fn mark(at: u64) -> Mark {
+	Mark { at }
+}
+
+/// A closure returning a borrowed value, which C has no reference to hand back.
+pub fn picked(pick: impl Fn() -> &'static Mark) -> u64 {
+	pick().at
+}
+
+/// The same, in an `Option`.
+pub fn maybe_picked(pick: impl Fn() -> Option<&'static Mark>) -> u64 {
+	pick().map_or(0, |mark| mark.at)
+}
+
 /// A future whose output is an `impl Trait` hiding no object, which the glue cannot name.
 pub async fn hidden_answer() -> impl Copy {
 	1_u32
@@ -1045,4 +1249,448 @@ pub fn hidden_option() -> impl Clone {
 /// A boxed slice of bytes, which no buffer form takes.
 pub fn boxed_bytes(bytes: Box<[u8]>) -> usize {
 	bytes.len()
+}
+
+/// An iterator of borrowed strings a future keeps past the call that lent them.
+pub async fn count_later<'a>(words: impl Iterator<Item = &'a str> + Send) -> usize {
+	words.count()
+}
+
+/// An iterator of borrowed objects, which C lends none of inside an array.
+pub fn count_opaques<'a>(items: impl Iterator<Item = &'a Opaque>) -> usize {
+	items.count()
+}
+
+/// A trait object with another auto trait than the one form its handle names.
+pub fn unpin_resolver() -> std::sync::Arc<dyn tls::held::Resolver + Unpin> {
+	std::sync::Arc::new(tls::held::Named("unpin".into()))
+}
+
+/// A trait object that borrows, which no handle outliving the call may hold.
+pub fn borrowed_resolver<'a>(_ids: &'a [u32]) -> std::sync::Arc<dyn tls::held::Resolver + 'a> {
+	std::sync::Arc::new(tls::held::Named("borrowed".into()))
+}
+
+/// A trait-object handle inside a borrowed value, which lifting would take out of C's handle.
+pub fn peek_resolver(resolver: &Option<std::sync::Arc<dyn tls::held::Resolver>>) -> bool {
+	resolver.is_some()
+}
+
+/// A `'static` trait-object handle inside a borrowed value, refused as the `Arc` form is.
+pub fn peek_codec(codec: &Option<&'static dyn tls::held::Codec>) -> bool {
+	codec.is_some()
+}
+
+/// A stream an exported type implements, so the bound is met by a value C holds: refused,
+/// not left out.
+pub struct Pipe(pub u8);
+
+impl tls::held::Stream for Pipe {
+	fn read(&mut self) -> u8 {
+		self.0
+	}
+}
+
+/// Reads one byte of a stream.
+pub fn pump_pipe<T: tls::held::Stream>(mut stream: T) -> u8 {
+	stream.read()
+}
+
+/// A sink a reference to any exported type meets: refused, not left out.
+pub fn pump_sink<T: tls::held::Sink>(sink: T) -> u8 {
+	sink.write(1)
+}
+
+/// A width only `u32`, which C passes by role, meets: refused, not left out.
+pub fn widen<T: tls::held::Width>(x: T) -> u32 {
+	x.bits()
+}
+
+/// A `Copy` count, a value, whose change a raised error or a future would lose, and which a
+/// returned borrow would still hold as it is written back.
+#[derive(Clone, Copy)]
+pub struct Counter {
+	count: u8,
+}
+
+impl Counter {
+	pub fn zero() -> Self {
+		Self { count: 0 }
+	}
+
+	pub fn try_bump(&mut self) -> Result<u8, String> {
+		self.count = self.count.checked_add(1).ok_or("overflow")?;
+		Ok(self.count)
+	}
+
+	pub fn bump_later(&mut self) -> impl std::future::Future<Output = u8> + use<> {
+		self.count += 1;
+		std::future::ready(self.count)
+	}
+
+	pub fn bump_ref(&mut self) -> &u8 {
+		self.count += 1;
+		&self.count
+	}
+}
+
+/// A reference with no env to lend it from.
+pub fn object_alone(object: jni::objects::JObject) -> bool {
+	object.is_null()
+}
+
+/// Two envs, which the glue cannot lend apart.
+pub fn two_envs(a: &mut jni::Env, b: &mut jni::Env) -> bool {
+	a.get_raw() == b.get_raw()
+}
+
+/// An env lent to a future, which outlives the native call that lends it.
+pub fn env_later(env: &mut jni::Env) -> impl std::future::Future<Output = bool> + use<> {
+	std::future::ready(env.get_raw().is_null())
+}
+
+/// A `&mut` value beside an env, whose change a Java exception left pending would lose.
+pub fn env_counted(env: &mut jni::Env, count: &mut u32) -> bool {
+	*count += 1;
+	env.get_raw().is_null()
+}
+
+/// An env shared, which no rule maps.
+pub fn shared_env(env: &jni::Env) -> bool {
+	env.get_raw().is_null()
+}
+
+/// A JNI type but `&mut Env` and `JObject`.
+pub fn java_string(string: jni::objects::JString) -> bool {
+	string.is_null()
+}
+
+/// A trait whose method takes an env, which Kotlin would lend to itself through Rust.
+pub trait Visit {
+	fn visit(&self, env: &mut jni::Env) -> bool;
+}
+
+pub fn visit(visitor: Box<dyn Visit>) -> bool {
+	let _ = visitor;
+	false
+}
+
+/// A reference kept past the call that lends it.
+pub fn keep_object(env: &mut jni::Env, object: jni::objects::JObject<'static>) -> bool {
+	env.get_raw().is_null() && object.is_null()
+}
+
+/// A reference a bound keeps past the call that lends it.
+pub fn bound_object<'a: 'static>(env: &mut jni::Env<'a>, object: jni::objects::JObject<'a>) -> bool {
+	env.get_raw().is_null() && object.is_null()
+}
+
+/// A view sharing its slot's borrow, which a copy carries.
+#[derive(Clone, Copy)]
+pub struct SlotView<'a, T>(&'a T);
+
+impl SlotView<'static, u8> {
+	/// A view of a constant, which keeps the view reachable without its slot.
+	pub fn fixed() -> Self {
+		Self(&7)
+	}
+}
+
+impl<T: Copy> SlotView<'_, T> {
+	pub fn get(&self) -> T {
+		*self.0
+	}
+}
+
+impl Slot<u8> {
+	/// A view that borrows its handle shared, which a new handle would outlive: only a
+	/// `&mut self` method's borrowing object holds its receiver's borrow.
+	pub fn view(&self) -> SlotView<'_, u8> {
+		SlotView(&self.0)
+	}
+
+	/// A view that borrows its handle exclusively, but whose copies would carry the borrow
+	/// past the one handle that holds it.
+	pub fn peek(&mut self) -> SlotView<'_, u8> {
+		SlotView(&self.0)
+	}
+}
+
+/// A tag whose `Clone` is implemented for `'static` alone, which a clone through a handle
+/// would call on a value whose borrow is shorter.
+pub struct SlotTag<'a>(&'a mut u8);
+
+impl Clone for SlotTag<'static> {
+	fn clone(&self) -> Self {
+		SlotTag(Box::leak(Box::new(*self.0)))
+	}
+}
+
+/// A lens whose `Deref` is implemented for `'static` alone.
+pub struct SlotLens<'a>(&'a mut u8);
+
+impl std::ops::Deref for SlotLens<'static> {
+	type Target = u8;
+
+	fn deref(&self) -> &u8 {
+		self.0
+	}
+}
+
+/// A peer that derefs to a view of the same borrow, whose own traits the export does not
+/// prove at the lend's lifetime.
+pub struct SlotPeer<'a>(SlotView<'a, u8>, &'a mut u8);
+
+impl<'a> std::ops::Deref for SlotPeer<'a> {
+	type Target = SlotView<'a, u8>;
+
+	fn deref(&self) -> &SlotView<'a, u8> {
+		&self.0
+	}
+}
+
+/// A hold with no trait at all, which the lend's own bound keeps refused.
+pub struct SlotHold<'a>(&'a mut u8);
+
+mod pin {
+	/// Implemented for a `'static` borrow of a slot alone, which a callee bounded by it
+	/// could keep.
+	pub trait StaticOnly<'a> {}
+
+	impl StaticOnly<'static> for &'static mut super::Slot<u8> {}
+}
+
+impl Slot<u8> {
+	/// Refused: its bound holds only for a `'static` borrow of the slot, which the lend's
+	/// borrow is not.
+	pub fn hold<'a>(&'a mut self) -> SlotHold<'a>
+	where
+		&'a mut Self: pin::StaticOnly<'a>,
+	{
+		SlotHold(&mut self.0)
+	}
+
+	/// Refused: its tag's `Clone` holds only for `'static`.
+	pub fn tag(&mut self) -> SlotTag<'_> {
+		SlotTag(&mut self.0)
+	}
+
+	/// Refused: its lens's `Deref` holds only for `'static`.
+	pub fn lens(&mut self) -> SlotLens<'_> {
+		SlotLens(&mut self.0)
+	}
+
+	/// Refused: its peer's `Deref` target names the lend's lifetime.
+	pub fn peer(&mut self) -> SlotPeer<'_> {
+		let Slot(value) = self;
+		let view: &u8 = Box::leak(Box::new(*value));
+		SlotPeer(SlotView(view), value)
+	}
+}
+
+impl SlotTag<'static> {
+	/// A tag of its own, which keeps the type reachable without a slot.
+	pub fn fixed() -> Self {
+		SlotTag(Box::leak(Box::new(0)))
+	}
+}
+
+impl SlotHold<'static> {
+	/// A hold of its own, which keeps the type reachable without a slot.
+	pub fn fixed() -> Self {
+		SlotHold(Box::leak(Box::new(0)))
+	}
+}
+
+impl SlotLens<'static> {
+	/// A lens of its own, which keeps the type reachable without a slot.
+	pub fn fixed() -> Self {
+		SlotLens(Box::leak(Box::new(0)))
+	}
+}
+
+impl SlotPeer<'static> {
+	/// A peer of its own, which keeps the type reachable without a slot.
+	pub fn fixed() -> Self {
+		SlotPeer(SlotView(&0), Box::leak(Box::new(0)))
+	}
+}
+
+/// Refused: a `()` error has no value for a language to raise.
+pub fn unit_error(ok: bool) -> Result<(), ()> {
+	if ok { Ok(()) } else { Err(()) }
+}
+
+/// Refused as `unit_error` is, in a future's output.
+pub async fn unit_error_later(ok: bool) -> Result<u8, ()> {
+	if ok { Ok(1) } else { Err(()) }
+}
+
+/// Either of two values, which `race` resolves to.
+pub enum Either<A, B> {
+	Left(A),
+	Right(B),
+}
+
+/// The first of two futures to finish, as futures-util's `Select` is.
+pub struct Race<A, B>(Option<(A, B)>);
+
+impl<A: Future + Unpin, B: Future + Unpin> Future for Race<A, B> {
+	type Output = Either<(A::Output, B), (B::Output, A)>;
+
+	fn poll(mut self: std::pin::Pin<&mut Self>, cx: &mut std::task::Context<'_>) -> std::task::Poll<Self::Output> {
+		let (mut a, mut b) = self.0.take().expect("polled after it finished");
+		if let std::task::Poll::Ready(out) = std::pin::Pin::new(&mut a).poll(cx) {
+			return std::task::Poll::Ready(Either::Left((out, b)));
+		}
+		if let std::task::Poll::Ready(out) = std::pin::Pin::new(&mut b).poll(cx) {
+			return std::task::Poll::Ready(Either::Right((out, a)));
+		}
+		self.0 = Some((a, b));
+		std::task::Poll::Pending
+	}
+}
+
+/// Refused: what it resolves to holds the future C implements, which crosses only as a
+/// parameter.
+pub fn race<A: Future + Unpin, B: Future + Unpin>(a: A, b: B) -> Race<A, B> {
+	Race(Some((a, b)))
+}
+
+/// A future held unpolled, as futures-util's `Abortable` holds one.
+pub struct Parked<F>(pub F);
+
+/// Refused as `race` is, returning the future C implements inside a type of its own.
+pub fn park<F: Future>(future: F) -> Parked<F> {
+	Parked(future)
+}
+
+/// Refused at the instance `bits` names, as any union is, as zerovec's `NichedOptionULE`.
+#[derive(Clone, Copy)]
+pub union Bits<T: Copy> {
+	pub raw: u32,
+	pub value: T,
+}
+
+/// Refused: it returns a union.
+pub fn bits() -> Bits<u32> {
+	Bits { raw: 0 }
+}
+
+/// Refused: a struct ending in a slice is only ever behind a pointer, as zerovec's
+/// `ZeroSlice<T>` is, here at the instance `tail` names.
+pub struct Tail<T>(T, [u8]);
+
+/// Refused: it borrows an unsized type.
+pub fn tail(bytes: &'static Tail<u8>) -> u8 {
+	bytes.0
+}
+
+/// Refused: a `Cow` a future returns inside a list would borrow what the future held, as
+/// only its own, its `Option`'s, or a tuple's is owned before the future ends.
+pub async fn cows_later(text: &str) -> Vec<std::borrow::Cow<'_, str>> {
+	vec![std::borrow::Cow::Borrowed(text)]
+}
+
+/// Refused: a future's error as bytes a `Cow` may borrow, which only a `Cow<str>`'s
+/// message escapes.
+pub async fn cow_error_later(bytes: &[u8]) -> Result<u8, std::borrow::Cow<'_, [u8]>> {
+	Err(std::borrow::Cow::Borrowed(bytes))
+}
+
+/// Refused: a `Cow` C would hand Rust, which would need its form.
+pub fn cow_param(text: std::borrow::Cow<'_, str>) -> usize {
+	text.len()
+}
+
+/// Three generic types whose methods each wrap their own in the next: inferring from
+/// `Rope<u8>` names `Knot<Rope<u8>>`, as deep as `Rope::knot` spells, whose `tie` names
+/// `Tie<Knot<Rope<u8>>>`, deeper than any type the crate spells, which ends inference
+/// there though no type holds its own.
+pub struct Rope<T>(T);
+
+pub struct Knot<T>(T);
+
+pub struct Tie<T>(T);
+
+impl<T> Rope<T> {
+	pub fn knot(self) -> Knot<Rope<T>> {
+		Knot(self)
+	}
+}
+
+impl<T> Knot<T> {
+	pub fn tie(self) -> Tie<Knot<T>> {
+		Tie(self)
+	}
+}
+
+pub fn rope(value: u8) -> Rope<u8> {
+	Rope(value)
+}
+
+/// An impl with no public member spells nothing, so it raises no instance's depth past
+/// what the API spells: `Tie<Knot<Rope<u8>>>` stays refused.
+impl<T> Rope<Knot<Tie<T>>> {
+	#[allow(dead_code, reason = "private, so no part of the API")]
+	fn private(&self) {}
+}
+
+/// A packed object whose field is not `Clone` and lies unaligned, so a getter has no copy to
+/// return and no aligned field to lend: the getter is refused, the setter kept.
+#[repr(C, packed)]
+pub struct Packed {
+	pub lone: Lone,
+	seed: u8,
+}
+
+pub fn packed() -> Packed {
+	Packed { lone: Lone(2), seed: 0 }
+}
+
+impl Packed {
+	pub fn seed(&self) -> u8 {
+		self.seed
+	}
+}
+
+/// A `Clone` object holding an atomic, which another `&self` method may write while a getter
+/// copies its bytes out unaligned: that read is non-atomic, so the getter is refused.
+pub struct Dial(std::sync::atomic::AtomicU32);
+
+impl Clone for Dial {
+	fn clone(&self) -> Self {
+		Self(std::sync::atomic::AtomicU32::new(
+			self.0.load(std::sync::atomic::Ordering::Relaxed),
+		))
+	}
+}
+
+pub fn dial() -> Dial {
+	Dial(std::sync::atomic::AtomicU32::new(0))
+}
+
+impl Dial {
+	pub fn hit(&self) {
+		self.0.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+	}
+}
+
+#[repr(C, packed)]
+pub struct Ledger {
+	pub dial: Dial,
+	seed: u8,
+}
+
+pub fn ledger() -> Ledger {
+	Ledger {
+		dial: Dial(std::sync::atomic::AtomicU32::new(0)),
+		seed: 0,
+	}
+}
+
+impl Ledger {
+	pub fn seed(&self) -> u8 {
+		self.seed
+	}
 }

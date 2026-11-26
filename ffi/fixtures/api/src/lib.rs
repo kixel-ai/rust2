@@ -15,6 +15,19 @@ pub use dep::*;
 /// The largest value a [`Counter`] reaches.
 pub const LIMIT: u64 = 1000;
 
+/// The largest `i64`, past what a binding's float holds exactly.
+pub const FAR: i64 = i64::MAX;
+
+/// The largest `usize` of a 64-bit target, past what a binding's float holds exactly: no
+/// binding for a 32-bit target compiles it or reads it.
+#[cfg(target_pointer_width = "64")]
+pub const WORD: usize = usize::MAX;
+
+/// The bytes of a WebAssembly page: a constant only wasm32 has, which a binding compiled
+/// for another target lacks and one serving several refuses to read on another.
+#[cfg(target_arch = "wasm32")]
+pub const WASM_PAGE: u32 = 65536;
+
 /// A point: a record, since every field is `pub`. Its docs reach the header, where a
 /// comment such as `/* this */` must not close the header's own.
 #[derive(Clone, Copy, Debug, PartialEq, Default)]
@@ -30,6 +43,12 @@ impl Point {
 			x: self.x + dx,
 			y: self.y + dy,
 		}
+	}
+
+	/// The origin's `x`: a static whose Kotlin name, `getX`, is also the JVM name of `x`'s
+	/// getter, which a companion's `@JvmStatic` function would clash with.
+	pub fn get_x() -> i32 {
+		0
 	}
 }
 
@@ -50,6 +69,12 @@ pub struct Note {
 /// Whether `note` has text, even empty.
 pub fn has_text(note: Note) -> bool {
 	note.text.is_some()
+}
+
+/// A mark's count, its checked parameter named as its own C function, which no shim calling
+/// it may hide.
+pub fn marked(api_marked: &Mark) -> u64 {
+	api_marked.count
 }
 
 /// A reading: a field of each scalar kind at the edge of its range, a nested record, and
@@ -106,10 +131,32 @@ pub fn reading_debug(n: u32) -> String {
 	reading(n).map_or_else(String::new, |r| format!("{r:?}"))
 }
 
-/// `reading`, passed through Rust and back.
-pub fn reading_echo(reading: Reading) -> Reading {
+/// `reading`, or none, passed through Rust and back.
+pub fn reading_echo(reading: Option<Reading>) -> Option<Reading> {
 	reading
 }
+
+/// Counts `reading` up one and notes it, if there is one.
+pub fn reading_bump(reading: &mut Option<Reading>) {
+	if let Some(r) = reading {
+		r.count = r.count.wrapping_add(1);
+		r.note.push('+');
+	}
+}
+
+/// Declares `crowded`, whose parameters take 243 of a JVM method's 255 slots, so flattening
+/// its `Reading` would take 15 more: a binding that counts a `Stamp` as one slot, not the
+/// two of the `long` it crosses as, flattens it past the limit.
+macro_rules! crowded {
+	($($n:ident)*) => {
+		/// The sum of the reading's count, both stamps' millis, and every number.
+		pub fn crowded(reading: Reading, a: Stamp, b: Stamp, $($n: u64),*) -> u64 {
+			reading.count.wrapping_add(a.millis).wrapping_add(b.millis)$(.wrapping_add($n))*
+		}
+	};
+}
+
+crowded!(n0 n1 n2 n3 n4 n5 n6 n7 n8 n9 n10 n11 n12 n13 n14 n15 n16 n17 n18 n19 n20 n21 n22 n23 n24 n25 n26 n27 n28 n29 n30 n31 n32 n33 n34 n35 n36 n37 n38 n39 n40 n41 n42 n43 n44 n45 n46 n47 n48 n49 n50 n51 n52 n53 n54 n55 n56 n57 n58 n59 n60 n61 n62 n63 n64 n65 n66 n67 n68 n69 n70 n71 n72 n73 n74 n75 n76 n77 n78 n79 n80 n81 n82 n83 n84 n85 n86 n87 n88 n89 n90 n91 n92 n93 n94 n95 n96 n97 n98 n99 n100 n101 n102 n103 n104 n105 n106 n107 n108 n109 n110 n111 n112 n113 n114 n115 n116 n117 n118);
 
 /// A plain enumeration.
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -124,6 +171,142 @@ pub enum Event {
 	Moved(Point),
 	Named { name: String },
 	Done,
+}
+
+/// An enum whose variants are named as types its Kotlin sealed class names: builtins,
+/// the runtime's, and exported types, each of which a nested variant class would shadow.
+#[derive(Clone, Debug, PartialEq)]
+pub enum Clash {
+	Point(Point),
+	Shape(Shape),
+	Event(Event),
+	Double(f64),
+	Float(f32),
+	String(String),
+	Int(i32),
+	Boolean(bool),
+	Native(u32),
+	Bytes(Vec<u8>),
+	Any,
+	Unit,
+	Waker,
+	Mut,
+	Pair(u8, u8),
+	Stamp(i64),
+	Moment(Moment),
+}
+
+impl Clash {
+	/// The clash's point, if it has one.
+	pub fn point(&self) -> Option<Point> {
+		match self {
+			Clash::Point(p) => Some(*p),
+			_ => None,
+		}
+	}
+
+	/// A double variant of `value`.
+	pub fn of(value: f64) -> Clash {
+		Clash::Double(value)
+	}
+
+	/// Its bytes, its text's or its own.
+	pub fn bytes(&self) -> Vec<u8> {
+		match self {
+			Clash::Bytes(b) => b.clone(),
+			Clash::String(s) => s.as_bytes().to_vec(),
+			_ => Vec::new(),
+		}
+	}
+
+	/// The reading of `kotlin`, whose float fields the sealed class reads back from their bits
+	/// under a parameter named as the package of Kotlin's builtins.
+	pub fn reading(&self, kotlin: u32) -> Reading {
+		reading(kotlin).unwrap()
+	}
+
+	/// `java` with `kotlin` appended, and its old length through `kotlin`, under parameters
+	/// named as the packages that qualify Kotlin's builtins and the JDK.
+	pub fn listed(mut java: Vec<u32>, kotlin: &mut u32) -> Vec<Vec<u32>> {
+		java.push(*kotlin);
+		*kotlin = java.len() as u32 - 1;
+		vec![java]
+	}
+
+	/// The double clash of `kotlin`, once `first` finishes in the caller's context, which the
+	/// sealed class's body reaches under a parameter named as the package of Kotlin's builtins.
+	pub async fn after(first: impl Future<Output = ()> + Send, kotlin: f64) -> Clash {
+		first.await;
+		Clash::Double(kotlin)
+	}
+
+	/// `lent` then `owned`, each of the byte parameters a sealed class's body names.
+	pub fn joined(&self, lent: &[u8], owned: Vec<u8>, maybe: Option<Vec<u8>>) -> Vec<u8> {
+		[lent, &owned, &maybe.unwrap_or_default()].concat()
+	}
+
+	/// `tag` with this clash's form, from a future that borrows both.
+	#[expect(clippy::manual_async_fn, reason = "the non-`async` form a borrowing future takes")]
+	pub fn tagged<'a>(&'a self, tag: &'a str) -> impl Future<Output = String> + 'a {
+		async move { format!("{tag} {self:?}") }
+	}
+
+	/// A stamp `kotlin` milliseconds in, a value only Rust makes in a word, which the sealed
+	/// class's body builds from its `Long` beside a `Stamp` variant that also takes one.
+	pub fn stamp(&self, kotlin: u64) -> Stamp {
+		Stamp::from_millis(kotlin)
+	}
+
+	/// Its moment, or `kotlin` ticks at a millisecond's rate: a value only Rust makes, past a
+	/// word, which the sealed class's body builds beside its `Moment` variant.
+	pub fn moment(&self, kotlin: u64) -> Moment {
+		match self {
+			Clash::Moment(m) => *m,
+			_ => Moment::new(kotlin, 1000).unwrap(),
+		}
+	}
+
+	/// A point clash at `api`, a parameter named as the Kotlin package that qualifies its type.
+	pub fn at(api: Point) -> Clash {
+		Clash::Point(api)
+	}
+
+	/// `text` with this clash's form and `n`, and `n` doubled through `out`.
+	pub fn describe(&self, text: &str, n: u32, shape: Shape, out: &mut u32) -> String {
+		*out = n * 2;
+		format!("{text} {self:?} {n} {shape:?}")
+	}
+}
+
+/// The counter's value once `first` finishes.
+pub async fn after_counter(counter: &Counter, first: impl Future<Output = ()> + Send) -> u64 {
+	first.await;
+	counter.get()
+}
+
+/// A record whose field is named as the Kotlin package, which a qualifier in its methods'
+/// bodies would resolve to.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct Packaged {
+	pub api: u32,
+}
+
+impl Packaged {
+	/// The point at `api` on both axes.
+	pub fn point(&self) -> Point {
+		Point {
+			x: self.api as i32,
+			y: self.api as i32,
+		}
+	}
+
+	/// The shape of `api`'s parity.
+	pub fn shape(&self) -> Shape {
+		match self.api % 2 {
+			0 => Shape::Square,
+			_ => Shape::Circle,
+		}
+	}
 }
 
 /// An enum whose variant `Init` names an initializer in Swift, and the C union member
@@ -264,6 +447,68 @@ impl Counter {
 	}
 }
 
+/// What only Kotlin exports: a method taking the env of the Java thread calling.
+impl Counter {
+	/// The value plus `n` if `object` is a Java string, else the value, or an error for a
+	/// null `object`: an env between parameters Kotlin passes.
+	pub fn plus_if_string(&self, n: u64, env: &mut ::jni::Env, object: ::jni::objects::JObject) -> Result<u64, String> {
+		if object.is_null() {
+			return Err("the object is null".to_string());
+		}
+		let string = (env.is_instance_of(&object, ::jni::jni_str!("java/lang/String"))).map_err(|e| e.to_string())?;
+		Ok(if string { self.value + n } else { self.value })
+	}
+}
+
+/// Whether `a` and `b` are the same Java object, or both null: only Kotlin exports it,
+/// passing the env of the thread calling.
+pub fn same_object(
+	a: ::jni::objects::JObject,
+	env: &mut ::jni::Env,
+	b: ::jni::objects::JObject,
+) -> Result<bool, String> {
+	env.is_same_object(&a, &b).map_err(|e| e.to_string())
+}
+
+/// Throws Java's `IllegalStateException("thrown")`, then returns `fail`'s error or a value:
+/// either way, Kotlin gets the exception left pending, as a native method's caller does.
+pub fn thrown(env: &mut ::jni::Env, fail: bool) -> Result<u64, String> {
+	(env.throw_new(
+		::jni::jni_str!("java/lang/IllegalStateException"),
+		::jni::jni_str!("thrown"),
+	))
+	.map_err(|e| e.to_string())?;
+	match fail {
+		true => Err("failed".to_string()),
+		false => Ok(1),
+	}
+}
+
+/// A [`Logger`] for `sink`, after throwing Java's `IllegalStateException("logger")`: the
+/// logger drops, closing `sink` in Kotlin, as Kotlin gets the exception.
+pub fn thrown_logger(env: &mut ::jni::Env, sink: Box<dyn Log>) -> Result<Logger, String> {
+	let thrown = env.throw_new(
+		::jni::jni_str!("java/lang/IllegalStateException"),
+		::jni::jni_str!("logger"),
+	);
+	// jni reports the exception it threw as an error.
+	if let Err(e) = thrown
+		&& !matches!(e, ::jni::errors::Error::JavaException)
+	{
+		return Err(e.to_string());
+	}
+	Ok(Logger::new(sink))
+}
+
+/// A facade module named as the jni crate is, whose items the glue reaches through the
+/// facade, not jni.
+pub mod jni {
+	/// One, through a path whose first segment names the jni crate.
+	pub fn one() -> u32 {
+		1
+	}
+}
+
 /// An impl lifetime its type does not take is the call's, as a method's own is.
 impl<'a> Counter {
 	/// Whether the counter is named `name`, which borrows C's text for the call.
@@ -341,6 +586,11 @@ impl Board {
 		Self {
 			counters: counters.into_iter().collect(),
 		}
+	}
+
+	/// Each name and its counter in name order, each handle moved out of the board.
+	pub fn into_counters(self) -> Vec<(String, Counter)> {
+		self.counters.into_iter().collect()
 	}
 
 	/// Each name and its counter, highest first, as hang's `ranked`: each pair borrowed,
@@ -453,10 +703,13 @@ impl Meter {
 	}
 }
 
-/// Owns a meter it lends.
+/// Owns a meter it lends, and one in a field, lent as the method's is, and an optional one,
+/// lent as `Some` of it.
 #[derive(Default)]
 pub struct Meters {
 	first: Meter,
+	pub last: Meter,
+	pub spare: Option<Meter>,
 }
 
 impl Meters {
@@ -509,6 +762,426 @@ impl Registry {
 
 /// The address of the counter [`Registry::edit`] lends.
 static EDITING: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+
+/// A sheet a [`Draft`] edits in place: [`Ledger::edit`] lends the ledger exclusively until
+/// the draft drops, as moq-mux's `catalog::Producer::modify` lends its catalog.
+#[derive(Default)]
+pub struct Ledger {
+	sheet: Mutex<Sheet>,
+	published: u32,
+	sealed: bool,
+}
+
+impl Ledger {
+	pub fn new() -> Self {
+		Self::default()
+	}
+
+	/// A draft of the sheet, which borrows this ledger exclusively until it drops: fails
+	/// once sealed.
+	pub fn edit(&mut self) -> Result<Draft<'_>, Error> {
+		if self.sealed {
+			return Err(Error::Overflow);
+		}
+		Ok(Draft {
+			sheet: self.sheet.lock().expect("a draft never panics holding the lock"),
+			published: &mut self.published,
+			edited: false,
+		})
+	}
+
+	/// How many drafts published an edit.
+	pub fn published(&self) -> u32 {
+		self.published
+	}
+
+	/// The sheet's title, read through its lock.
+	pub fn title(&self) -> String {
+		self.sheet
+			.lock()
+			.expect("a draft never panics holding the lock")
+			.title
+			.clone()
+	}
+
+	/// Refuses every later draft.
+	pub fn seal(&mut self) {
+		self.sealed = true;
+	}
+
+	/// What this ledger published, which borrows it exclusively while any copy of the
+	/// receipt lives, as a `&mut self` method's borrowing return does in Rust.
+	pub fn receipt(&mut self) -> Receipt<'_> {
+		Receipt(&self.published)
+	}
+
+	/// A receipt from a method bounded on its own borrow, by a trait that holds at every
+	/// lifetime, so the lend still exports.
+	pub fn noted<'a>(&'a mut self) -> Receipt<'a>
+	where
+		&'a mut Self: noted::Noted<'a>,
+	{
+		Receipt(&self.published)
+	}
+
+	/// Files `item` beside what the ledger published, generic over what counts itself.
+	pub fn file<T: Totaled>(&mut self, item: T) -> Filed<'_, T> {
+		Filed {
+			published: &self.published,
+			item,
+		}
+	}
+
+	/// A tab on this ledger, holding its exclusive borrow in a field, as rustls's
+	/// `ClientConfig::dangerous` does.
+	pub fn tab(&mut self) -> Tab<'_> {
+		Tab {
+			ledger: self,
+			label: "ledger",
+		}
+	}
+
+	pub fn slip(&mut self) -> Slip<'_> {
+		Slip {
+			receipt: Receipt(&self.published),
+			global: Receipt(&7),
+			here: std::marker::PhantomData,
+		}
+	}
+}
+
+/// What [`Ledger::tab`] lends: fields holding borrows, which C reads through and never
+/// assigns, lent where what they borrow is not `Clone`, and copied where it is.
+#[non_exhaustive]
+pub struct Tab<'a> {
+	pub ledger: &'a mut Ledger,
+	pub label: &'a str,
+}
+
+mod noted {
+	/// Implemented for a borrow of a ledger of any lifetime.
+	pub trait Noted<'a> {}
+
+	impl<'a> Noted<'a> for &'a mut super::Ledger {}
+}
+
+/// A receipt kept on the thread that took it: `Clone` and not `Send`, with a field that
+/// borrows what the slip borrows, so reading it would carry the ledger's borrow out, and
+/// one that borrows only what lives as long as the program.
+#[derive(Clone)]
+pub struct Slip<'a> {
+	pub receipt: Receipt<'a>,
+	pub global: Receipt<'static>,
+	here: std::marker::PhantomData<std::rc::Rc<()>>,
+}
+
+impl Slip<'_> {
+	pub fn count(&self) -> u32 {
+		self.receipt.count()
+	}
+}
+
+/// What a [`Ledger`] published, borrowed from it: `Send` and `Clone`, unlike a [`Draft`].
+pub struct Receipt<'a>(&'a u32);
+
+/// Bounded by what always holds, so proving `Receipt<'a>: Clone` asks nothing of `'a`.
+impl<'a> Clone for Receipt<'a>
+where
+	Receipt<'a>: 'a,
+{
+	fn clone(&self) -> Self {
+		Self(self.0)
+	}
+}
+
+impl Receipt<'_> {
+	pub fn count(&self) -> u32 {
+		*self.0
+	}
+}
+
+/// What a [`Draft`] derefs to: a title, and the lines written under it.
+#[derive(Clone, Debug, Default)]
+pub struct Sheet {
+	pub title: String,
+	lines: Vec<String>,
+}
+
+impl Sheet {
+	pub fn new() -> Self {
+		Self::default()
+	}
+
+	/// How many lines it holds.
+	pub fn lines(&self) -> u32 {
+		self.lines.len() as u32
+	}
+
+	/// Adds a line.
+	pub fn write(&mut self, line: &str) {
+		self.lines.push(line.to_string());
+	}
+
+	/// The sheet in a word, which a draft's own `describe` shadows, as in Rust.
+	pub fn describe(&self) -> String {
+		format!("sheet {}", self.title)
+	}
+}
+
+/// An edit of a [`Ledger`]'s sheet, reached through `Deref` and `DerefMut`, and published
+/// once it commits or drops if a `DerefMut` marked it, as moq-mux's `catalog::Guard` does.
+/// Not `Send`, as the lock it holds is not.
+pub struct Draft<'a> {
+	sheet: std::sync::MutexGuard<'a, Sheet>,
+	published: &'a mut u32,
+	edited: bool,
+}
+
+impl Draft<'_> {
+	/// Whether a `DerefMut` marked it, which a read through `Deref` does not.
+	pub fn edited(&self) -> bool {
+		self.edited
+	}
+
+	/// The draft in a word, shadowing its sheet's.
+	pub fn describe(&self) -> String {
+		format!("draft of {} lines", self.sheet.lines())
+	}
+
+	/// Publishes the edit, if any, returning how many the ledger published: the drop then
+	/// publishes nothing.
+	pub fn commit(mut self) -> u32 {
+		self.publish();
+		*self.published
+	}
+
+	fn publish(&mut self) {
+		if std::mem::take(&mut self.edited) {
+			*self.published += 1;
+		}
+	}
+}
+
+impl std::ops::Deref for Draft<'_> {
+	type Target = Sheet;
+
+	fn deref(&self) -> &Sheet {
+		&self.sheet
+	}
+}
+
+impl std::ops::DerefMut for Draft<'_> {
+	fn deref_mut(&mut self) -> &mut Sheet {
+		self.edited = true;
+		&mut self.sheet
+	}
+}
+
+impl Drop for Draft<'_> {
+	fn drop(&mut self) {
+		self.publish();
+	}
+}
+
+/// Whether `draft` is marked: it must live as long as the program, which a draft
+/// [`Ledger::edit`] lends never does, so passing one fails, as Rust refuses it.
+pub fn lasting(draft: &Draft<'static>) -> bool {
+	draft.edited
+}
+
+/// What `receipt` counts: its bound lets it live as long as the program, so passing one a
+/// [`Ledger`] lends fails, as Rust refuses it.
+pub fn stored<'a: 'static>(receipt: Receipt<'a>) -> u32 {
+	receipt.count()
+}
+
+/// What `receipt` counts, through a bound that holds for any lifetime, so a [`Ledger`]'s
+/// lent receipt moves in, and the ledger is free once it returns.
+pub fn tallied<'a>(receipt: Receipt<'a>) -> u32
+where
+	Receipt<'a>: Clone,
+{
+	receipt.clone().count()
+}
+
+/// An item filed with a ledger, whose `Clone` asks that it outlive its borrow, as it always
+/// does: an instance's erased lifetime stands beside the lend's.
+pub struct Filed<'a, T> {
+	published: &'a u32,
+	item: T,
+}
+
+impl<'a, T: Clone> Clone for Filed<'a, T>
+where
+	Filed<'a, T>: 'a,
+{
+	fn clone(&self) -> Self {
+		Self {
+			published: self.published,
+			item: self.item.clone(),
+		}
+	}
+}
+
+impl<T: Totaled + Clone> Filed<'_, T> {
+	pub fn count(&self) -> u32 {
+		*self.published + self.item.clone().total()
+	}
+}
+
+/// What counts itself, implemented only for a receipt that lives as long as the program.
+pub trait Totaled {
+	fn total(self) -> u32;
+}
+
+impl Totaled for Receipt<'static> {
+	fn total(self) -> u32 {
+		self.count()
+	}
+}
+
+/// What `totaled` counts: the instance a binding calls takes a receipt that lives as long
+/// as the program, so passing one a [`Ledger`] lends fails.
+pub fn summed_up<T: Totaled>(totaled: T) -> u32 {
+	totaled.total()
+}
+
+/// What `receipt` counts: its bound implies it lives as long as the program, as `Any`'s
+/// does, so passing one a [`Ledger`] lends fails too.
+pub fn erased<'a>(receipt: Receipt<'a>) -> u32
+where
+	Receipt<'a>: std::any::Any,
+{
+	receipt.count()
+}
+
+/// A sheet with a tag, which derefs to the sheet: only `Pad<u8>` has a `describe` of its
+/// own, which hides the sheet's, while `Pad<u16>`'s is the sheet's, as in Rust.
+pub struct Pad<T> {
+	sheet: Sheet,
+	tag: T,
+}
+
+impl<T> std::ops::Deref for Pad<T> {
+	type Target = Sheet;
+
+	fn deref(&self) -> &Sheet {
+		&self.sheet
+	}
+}
+
+impl Pad<u8> {
+	pub fn small() -> Self {
+		Self {
+			sheet: Sheet::new(),
+			tag: 1,
+		}
+	}
+
+	pub fn describe(&self) -> String {
+		format!("pad {}", self.tag)
+	}
+}
+
+impl Pad<u16> {
+	pub fn wide() -> Self {
+		Self {
+			sheet: Sheet::new(),
+			tag: 2,
+		}
+	}
+
+	pub fn tag(&self) -> u16 {
+		self.tag
+	}
+
+	/// A method named as the sheet's field, which hides no field: `title` still reaches the
+	/// sheet's, as Rust's field access does.
+	pub fn title(&self) -> u16 {
+		self.tag
+	}
+}
+
+mod layers {
+	/// Between a layered sheet and its sheet: no path from the crate root names it, so it
+	/// does not export, yet its `describe` hides the sheet's, as in Rust.
+	pub struct Middle(pub(crate) super::Sheet);
+
+	impl Middle {
+		pub fn describe(&self) -> String {
+			"middle".to_string()
+		}
+	}
+
+	impl std::ops::Deref for Middle {
+		type Target = super::Sheet;
+
+		fn deref(&self) -> &super::Sheet {
+			&self.0
+		}
+	}
+}
+
+/// A sheet behind a layer, which forwards what the layer does not hide.
+pub struct Layered(layers::Middle);
+
+impl Layered {
+	pub fn new() -> Self {
+		Self(layers::Middle(Sheet::new()))
+	}
+}
+
+impl std::ops::Deref for Layered {
+	type Target = layers::Middle;
+
+	fn deref(&self) -> &layers::Middle {
+		&self.0
+	}
+}
+
+/// A named point, which derefs mutably to a record, whose fields it reaches.
+pub struct Marker {
+	point: Point,
+	label: String,
+}
+
+impl Marker {
+	pub fn new(label: &str, x: i32, y: i32) -> Self {
+		Self {
+			point: Point { x, y },
+			label: label.to_string(),
+		}
+	}
+
+	pub fn label(&self) -> String {
+		self.label.clone()
+	}
+
+	/// A method sharing its path with the point's field, which the config leaves out alone.
+	pub fn x(&self) -> i32 {
+		self.point.x
+	}
+
+	/// A function without `self` sharing its path with the point's field, which the config
+	/// leaves out alone too.
+	pub fn y() -> i32 {
+		0
+	}
+}
+
+impl std::ops::Deref for Marker {
+	type Target = Point;
+
+	fn deref(&self) -> &Point {
+		&self.point
+	}
+}
+
+impl std::ops::DerefMut for Marker {
+	fn deref_mut(&mut self) -> &mut Point {
+		&mut self.point
+	}
+}
 
 /// A name that may borrow its text: its only generic parameter is a lifetime, so a
 /// handle holds `Name<'static>`, which borrows nothing.
@@ -703,11 +1376,9 @@ impl Waiter {
 
 /// Calls `poll` until it fails, returning its error: with `start`, then with each instant
 /// it asks for, as if the clock reached it at once, or once its waiter is woken, with the
-/// last one again. A closure its future keeps, as kio's `clock::drive` keeps one.
-pub async fn drive<E>(
-	start: std::time::Instant,
-	mut poll: impl FnMut(std::time::Instant, &Waiter) -> Result<Option<std::time::Instant>, E> + Unpin,
-) -> E {
+/// last one again. A closure its future keeps, as kio's `clock::drive` keeps one, over a
+/// moment as kio's is over its own padding-free instant.
+pub async fn drive<E>(start: Moment, mut poll: impl FnMut(Moment, &Waiter) -> Result<Option<Moment>, E> + Unpin) -> E {
 	let mut now = start;
 	std::future::poll_fn(move |cx| {
 		let waiter = Waiter::new(cx.waker().clone());
@@ -722,12 +1393,14 @@ pub async fn drive<E>(
 	.await
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 /// A thread running a closure it keeps past the call that made it, which
 /// [`Spawned::join`] waits on.
 pub struct Spawned {
 	thread: std::thread::JoinHandle<u32>,
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 impl Spawned {
 	pub fn new(task: impl FnOnce() -> u32 + Send + 'static) -> Self {
 		Self {
@@ -750,7 +1423,7 @@ pub fn made<R>(n: u32, make: impl FnOnce(u32) -> R) -> R {
 /// How many times a [`Ticket`]'s `Clone` ran.
 static TICKET_CLONES: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
 
-/// A `Copy` object whose `Clone` counts its calls, which a closure taking or returning one
+/// A `Copy` value whose `Clone` counts its calls, which a closure taking or returning one
 /// never runs, as Rust copies it instead.
 #[derive(Copy, Debug, PartialEq)]
 pub struct Ticket {
@@ -774,10 +1447,20 @@ impl Ticket {
 		self.number
 	}
 
+	/// Named as `Object`'s final `wait()`, which Kotlin's value class member, a static of
+	/// another name on the JVM, keeps without `@JvmName`, which it cannot take, as Java's
+	/// static `wait(Ticket)` does.
+	pub fn wait(&self) {}
+
 	/// How many times any ticket's `Clone` ran.
 	pub fn clones() -> u32 {
 		TICKET_CLONES.load(std::sync::atomic::Ordering::Relaxed)
 	}
+}
+
+/// Each name and its ticket, as given, so a binding passes back what it returned.
+pub fn tickets(entries: Vec<(String, Ticket)>) -> Vec<(String, Ticket)> {
+	entries
 }
 
 /// The ticket `swap` returns for `ticket`.
@@ -788,6 +1471,84 @@ pub fn reissue(ticket: Ticket, swap: impl Fn(Ticket) -> Ticket) -> Ticket {
 /// The ticket `swap` returns for a lent `ticket`, which Go spells as `reissue`'s closure.
 pub fn reissue_lent(ticket: &Ticket, swap: impl Fn(&Ticket) -> Ticket) -> Ticket {
 	swap(ticket)
+}
+
+/// A record holding a `Copy` handle, so its `PartialEq` and `Debug` check that handle.
+#[derive(Clone, Debug, PartialEq)]
+pub struct Seat {
+	pub mark: Mark,
+	pub row: u32,
+}
+
+/// The seat in `row` for `mark`.
+pub fn seat(mark: Mark, row: u32) -> Seat {
+	Seat { mark, row }
+}
+
+impl Seat {
+	/// Its mark's count: a record's method whose receiver holds a checked object.
+	pub fn count(&self) -> u64 {
+		self.mark.count
+	}
+}
+
+/// The counter's value plus the count of each mark beside it: a counter moved in beside
+/// copied checked objects, alone and held in a record and an enum.
+pub fn admit(entry: (Counter, Mark, Seat, Choice)) -> u64 {
+	let (counter, mark, seat, choice) = entry;
+	counter
+		.value
+		.wrapping_add(mark.count)
+		.wrapping_add(seat.mark.count)
+		.wrapping_add(choose(choice))
+}
+
+/// A mark picked, or none: a data enum with an empty variant beside a checked object.
+pub enum Choice {
+	Empty,
+	Picked(Mark),
+}
+
+/// The count of the mark picked, or 0.
+pub fn choose(choice: Choice) -> u64 {
+	match choice {
+		Choice::Empty => 0,
+		Choice::Picked(mark) => mark.count,
+	}
+}
+
+/// A mark and a payload: a record holding a checked handle beside a buffer.
+pub struct Parcel {
+	pub mark: Mark,
+	pub payload: Bytes,
+}
+
+/// Each count and each payload's length, summed: a checked mark beside bytes in a tuple
+/// and in a record lent, and bytes beside a moved counter, so a call a failed check
+/// refuses frees every buffer it was given.
+pub fn heft(marked: (Mark, Bytes), lent: &Parcel, moved: (Counter, Bytes)) -> u64 {
+	let (mark, bytes) = marked;
+	let (counter, more) = moved;
+	let lengths = bytes.len() + lent.payload.len() + more.len();
+	mark.count + lent.mark.count + counter.value + lengths as u64
+}
+
+/// Both counters' values, or an error once they overflow: moved parameters named as what
+/// a binding's own cleanup might bind, an exception `e` and a lambda's `it`.
+pub fn spend(e: Counter, it: Counter) -> Result<u64, String> {
+	e.value.checked_add(it.value).ok_or_else(|| "overflow".to_string())
+}
+
+/// An enum named as the runtime's status, whose constants C would name as its statuses.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum Status {
+	Moved,
+	Kept,
+}
+
+/// Whether `status` is `Kept`.
+pub fn is_kept(status: Status) -> bool {
+	status == Status::Kept
 }
 
 /// What `check` returns, a closure with no value but its error.
@@ -837,6 +1598,7 @@ impl Channel {
 	/// Sends from another thread, before it returns, so the wake lands from that thread, as
 	/// an async runtime's worker wakes a task: the one way Dart, whose isolates share no
 	/// object, has to wake from another thread.
+	#[cfg(not(target_arch = "wasm32"))]
 	pub fn send_from_thread(&self, payload: Bytes) {
 		std::thread::scope(|scope| {
 			scope.spawn(|| self.send(payload));
@@ -869,6 +1631,27 @@ impl Channel {
 	pub fn send_later(&self, payload: Bytes) -> impl Future<Output = ()> + use<> {
 		self.send(payload);
 		std::future::ready(())
+	}
+
+	/// Sends `tag` at once, as a function that is not `async` runs when called, and returns a
+	/// future that borrows this channel and `tag`: what it next receives, after `tag`.
+	pub fn tagged<'a>(&'a self, tag: &'a str) -> impl Future<Output = String> + 'a {
+		self.send(Bytes::copy_from_slice(tag.as_bytes()));
+		async move {
+			let payload = self.recv().await;
+			format!("{tag} {}", String::from_utf8_lossy(&payload))
+		}
+	}
+
+	/// Sends the sum of `items`, if any, at once, and returns a future that borrows them:
+	/// their count once this channel next receives.
+	pub fn itemized<'a>(&'a self, items: Option<&'a [u32]>) -> impl Future<Output = usize> + 'a {
+		let sum: u32 = items.unwrap_or_default().iter().sum();
+		self.send(Bytes::copy_from_slice(&sum.to_le_bytes()));
+		async move {
+			self.recv().await;
+			items.map_or(0, <[u32]>::len)
+		}
 	}
 
 	/// `recv`'s poll, which does not map: left out, since `recv` exports as a future.
@@ -930,6 +1713,86 @@ impl Channel {
 			payload if payload.is_empty() => Err(Error::Underflow { by: 1 }),
 			payload => Ok(payload),
 		}
+	}
+
+	/// What this channel receives from now on, as a stream.
+	pub fn feed(&self) -> Feed {
+		Feed(self.clone())
+	}
+}
+
+/// What a channel receives, as a stream each binding iterates in its language's own
+/// protocol: each payload, ending at an empty one and failing at `!`.
+pub struct Feed(Channel);
+
+impl Feed {
+	/// The next payload, waiting for it: `None` at an empty one, and an error at `!`.
+	/// Dropped while it waits, it loses nothing, since only the poll returning a payload
+	/// takes it.
+	pub async fn next(&mut self) -> Result<Option<Bytes>, Error> {
+		match self.0.recv().await {
+			payload if payload.is_empty() => Ok(None),
+			payload if payload == "!" => Err(Error::Overflow),
+			payload => Ok(Some(payload)),
+		}
+	}
+}
+
+/// Counts down to 1, then ends: a stream each binding iterates in its language's own
+/// protocol, whose every count pends once first.
+pub struct Countdown {
+	left: u32,
+	told: Option<Box<dyn Log>>,
+}
+
+impl Countdown {
+	pub fn new(from: u32) -> Self {
+		Self { left: from, told: None }
+	}
+
+	/// A countdown telling `log` each count in the poll that returns it, so a binding's
+	/// adapter sees a callback in the poll that finishes its call.
+	pub fn told(from: u32, log: Box<dyn Log>) -> Self {
+		Self {
+			left: from,
+			told: Some(log),
+		}
+	}
+
+	/// The next count, or `None` past 1: each pends once and wakes itself first, so the
+	/// adapter waits on a wake between items.
+	pub async fn next(&mut self) -> Option<u32> {
+		let mut pended = false;
+		std::future::poll_fn(|cx| {
+			if !std::mem::replace(&mut pended, true) {
+				cx.waker().wake_by_ref();
+				return Poll::Pending;
+			}
+			Poll::Ready(())
+		})
+		.await;
+		let count = self.left;
+		self.left = count.saturating_sub(1);
+		if let Some(log) = &self.told {
+			log.log(0, &format!("count {count}"));
+		}
+		(count > 0).then_some(count)
+	}
+}
+
+/// A countdown whose `next` is deprecated, as is each binding's adapter calling it, so a
+/// binding that refuses a use of what is deprecated still builds.
+pub struct Retired(Countdown);
+
+impl Retired {
+	pub fn new(from: u32) -> Self {
+		Self(Countdown::new(from))
+	}
+
+	/// The next count, or `None` past 1.
+	#[deprecated(note = "count with [`Countdown`]")]
+	pub async fn next(&mut self) -> Option<u32> {
+		self.0.next().await
 	}
 }
 
@@ -993,11 +1856,28 @@ impl<F: Future> Future for Within<F> {
 	}
 }
 
-/// A time: an object, since its field is private, but `Copy`, so passing it by value
-/// copies it rather than moving it out of its handle.
-#[derive(Clone, Copy, Debug, PartialEq)]
+/// A time: `Copy` with a private field, so a value only Rust makes, copied across, and
+/// ordered with a default, as moq's `Timescale` is.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Stamp {
 	millis: u64,
+}
+
+/// `at` where it is past `deadline`, or else an error of `deadline`, which only Rust makes,
+/// as moq's `clock::Elapsed` is.
+pub fn past(at: Stamp, deadline: Stamp) -> Result<Stamp, Stamp> {
+	match at > deadline {
+		true => Ok(at),
+		false => Err(deadline),
+	}
+}
+
+/// `n` where it is odd, or else an error of `n`.
+pub fn odd(n: u32) -> Result<u32, u32> {
+	match n % 2 {
+		1 => Ok(n),
+		_ => Err(n),
+	}
 }
 
 impl Stamp {
@@ -1009,12 +1889,431 @@ impl Stamp {
 		self.millis / 1000
 	}
 
+	/// It rounded down to whole seconds, through an `impl Trait`, so it crosses as its bytes.
+	pub fn whole(self) -> impl Into<Stamp> + use<> {
+		Self {
+			millis: self.millis / 1000 * 1000,
+		}
+	}
+
 	pub fn later(self, other: Stamp) -> bool {
 		self.millis > other.millis
 	}
 }
 
-/// A stamp and a count: a record holding an object, whose method reads it.
+/// A time on a clock of its own rate, as moq's `Timestamp`: `Copy` with private fields, past
+/// a word on every target, and never all zero bytes, so only a value Rust made may cross.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct Moment {
+	ticks: u64,
+	rate: std::num::NonZero<u64>,
+}
+
+impl Moment {
+	/// `ticks` of `rate` a second, or none at a rate of zero.
+	pub fn new(ticks: u64, rate: u64) -> Option<Self> {
+		std::num::NonZero::new(rate).map(|rate| Self { ticks, rate })
+	}
+
+	/// Whole milliseconds since zero.
+	pub fn millis(&self) -> u64 {
+		(u128::from(self.ticks) * 1000 / u128::from(self.rate.get())) as u64
+	}
+
+	/// The moment `ticks` later, at the same rate, wrapping as `u64` does.
+	pub fn after(self, ticks: u64) -> Self {
+		Self {
+			ticks: self.ticks.wrapping_add(ticks),
+			..self
+		}
+	}
+}
+
+/// `ticks` of `rate` a second, failing at a rate of zero: a value past a word in a `Result`.
+pub fn moment_at(ticks: u64, rate: u64) -> Result<Moment, String> {
+	Moment::new(ticks, rate).ok_or_else(|| "a rate of zero".to_string())
+}
+
+/// The stamp `millis` from zero, failing at zero: a value of a word in a `Result`.
+pub fn stamp_at(millis: u64) -> Result<Stamp, String> {
+	match millis {
+		0 => Err("zero".to_string()),
+		millis => Ok(Stamp::from_millis(millis)),
+	}
+}
+
+/// The moment `shift` returns for `moment`, which C copies in and out.
+pub fn shifted(moment: Moment, shift: impl Fn(Moment) -> Moment) -> Moment {
+	shift(moment)
+}
+
+/// A `Copy` value with padding, after its `u8`, which crosses as a handle, since the glue's
+/// `rustc` may order its fields to put the padding anywhere.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct Gap {
+	wide: u64,
+	narrow: u8,
+}
+
+impl Gap {
+	pub fn new(wide: u64, narrow: u8) -> Self {
+		Self { wide, narrow }
+	}
+
+	pub fn sum(&self) -> u64 {
+		self.wide.wrapping_add(u64::from(self.narrow))
+	}
+}
+
+/// A value named as Kotlin's `LongArray`, which holds a returned value's words, with methods named
+/// as C++'s member holding its bytes and Kotlin's `also`, which makes a value past a word: each
+/// generator keeps its own apart.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct LongArray {
+	words: [u64; 2],
+}
+
+impl LongArray {
+	pub fn new(low: u64, high: u64) -> Self {
+		LongArray { words: [low, high] }
+	}
+
+	pub fn c_(&self) -> u64 {
+		self.words[0].wrapping_add(self.words[1])
+	}
+
+	/// Calls `f` with its low word.
+	pub fn also(&self, f: impl Fn(u64)) {
+		f(self.words[0])
+	}
+}
+
+/// A type named as the annotation Kotlin's fields take, which the binding qualifies.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct JvmField {
+	pub n: u32,
+}
+
+/// A type named as the annotation Kotlin's static methods take, which the binding qualifies.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct JvmStatic {
+	pub n: u32,
+}
+
+/// A type named as the annotation Kotlin opts in to an API with, which the binding qualifies.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct OptIn {
+	pub n: u32,
+}
+
+/// The sum of a `JvmField`, a `JvmStatic`, and an `OptIn`.
+pub fn jvm_sum(field: JvmField, method: JvmStatic, opt: OptIn) -> u32 {
+	field.n.wrapping_add(method.n).wrapping_add(opt.n)
+}
+
+/// A value of 128 words, past what a JVM method's 255 slots hold as `long`s: Kotlin makes
+/// one with no constructor of a parameter each, and passes one encoded.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct Wide {
+	words: [u64; 128],
+}
+
+impl Wide {
+	/// Words `seed`, `seed + 1`, and on, wrapping.
+	pub fn new(seed: u64) -> Self {
+		Self {
+			words: std::array::from_fn(|k| seed.wrapping_add(k as u64)),
+		}
+	}
+
+	pub fn sum(&self) -> u64 {
+		self.words.iter().fold(0, |a, w| a.wrapping_add(*w))
+	}
+}
+
+/// A moment and a count: a record holding a value past a word, flattened as its words.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct Clocked {
+	pub at: Moment,
+	pub count: u32,
+}
+
+/// `clocked`, its moment `ticks` later and its count one more.
+pub fn clocked_after(clocked: Clocked, ticks: u64) -> Clocked {
+	Clocked {
+		at: clocked.at.after(ticks),
+		count: clocked.count + 1,
+	}
+}
+
+/// Declares `crammed`, whose numbers take 248 of a JVM method's 255 slots, so its first
+/// moment crosses as its words and its second, past the limit, encoded.
+macro_rules! crammed {
+	($($n:ident)*) => {
+		/// Both moments' millis and every number, summed.
+		pub fn crammed(a: Moment, b: Moment, $($n: u64),*) -> u64 {
+			a.millis().wrapping_add(b.millis())$(.wrapping_add($n))*
+		}
+	};
+}
+
+crammed!(n0 n1 n2 n3 n4 n5 n6 n7 n8 n9 n10 n11 n12 n13 n14 n15 n16 n17 n18 n19 n20 n21 n22 n23 n24 n25 n26 n27 n28 n29 n30 n31 n32 n33 n34 n35 n36 n37 n38 n39 n40 n41 n42 n43 n44 n45 n46 n47 n48 n49 n50 n51 n52 n53 n54 n55 n56 n57 n58 n59 n60 n61 n62 n63 n64 n65 n66 n67 n68 n69 n70 n71 n72 n73 n74 n75 n76 n77 n78 n79 n80 n81 n82 n83 n84 n85 n86 n87 n88 n89 n90 n91 n92 n93 n94 n95 n96 n97 n98 n99 n100 n101 n102 n103 n104 n105 n106 n107 n108 n109 n110 n111 n112 n113 n114 n115 n116 n117 n118 n119 n120 n121 n122 n123);
+
+/// A `Copy` type whose `None` leaves its payload's bytes uninitialized, so no padding table
+/// covers it: a handle, rather than a value.
+#[derive(Clone, Copy, Debug)]
+pub struct Berth {
+	at: Option<u32>,
+}
+
+impl Berth {
+	pub fn new(at: Option<u32>) -> Self {
+		Self { at }
+	}
+
+	pub fn at(&self) -> Option<u32> {
+		self.at
+	}
+}
+
+/// A count at a scale that may be absent: `Copy` with private fields, whose `None` writes
+/// its niche's whole `u64`, so a value whatever it holds.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct Rated {
+	count: u64,
+	scale: Option<NonZero<u64>>,
+}
+
+impl Rated {
+	/// `count` at `scale` a second, or unscaled at a scale of zero.
+	pub fn new(count: u64, scale: u64) -> Self {
+		Self {
+			count,
+			scale: NonZero::new(scale),
+		}
+	}
+
+	/// Its scale, or zero when unscaled.
+	pub fn scale(&self) -> u64 {
+		self.scale.map_or(0, NonZero::get)
+	}
+}
+
+/// A running count, as moq's `stats::Traffic`: `Copy` with private fields, changed in place
+/// through `&mut self`, so a value whose every copy changes alone.
+#[derive(Clone, Copy, Debug)]
+pub struct Score {
+	count: u64,
+}
+
+impl Score {
+	pub fn of(count: u64) -> Self {
+		Self { count }
+	}
+
+	pub fn count(&self) -> u64 {
+		self.count
+	}
+
+	/// Adds `other`'s count to this one, as Rust copies `other`.
+	pub fn add(&mut self, other: Score) {
+		self.count = self.count.wrapping_add(other.count);
+	}
+
+	/// Twice the count, as Rust copies `self`.
+	pub fn doubled(self) -> Score {
+		Self {
+			count: self.count.wrapping_mul(2),
+		}
+	}
+
+	/// The count, leaving zero in its place.
+	pub fn take(&mut self) -> u64 {
+		std::mem::take(&mut self.count)
+	}
+
+	/// Adds `mark`'s count to this one, returning the count before: a value's `&mut self`
+	/// beside a checked handle, so a call a failed check refuses leaves the value as it was.
+	pub fn note(&mut self, mark: &Mark) -> u64 {
+		let before = self.count;
+		self.count = self.count.wrapping_add(mark.count);
+		before
+	}
+
+	/// Moves `other`'s count into this one, as `&mut` of a value Rust writes back too, and
+	/// returns both counts before, as a tuple.
+	pub fn absorb(&mut self, other: &mut Score) -> (u64, u64) {
+		let before = (self.count, other.count);
+		self.count = self.count.wrapping_add(std::mem::take(&mut other.count));
+		before
+	}
+}
+
+/// A count beside a slot whose `None` leaves its bytes uninitialized, so a `Copy` handle
+/// rather than a value, which `&mut self` makes checked. A call taking one by value copies
+/// it out of its handle, leaving the caller's as it was.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct Mark {
+	count: u64,
+	slot: Option<u32>,
+}
+
+impl Mark {
+	pub fn of(count: u64) -> Self {
+		Self { count, slot: None }
+	}
+
+	pub fn count(&self) -> u64 {
+		self.count
+	}
+
+	/// Adds `by` to the count, in place.
+	pub fn add(&mut self, by: u64) {
+		self.count = self.count.wrapping_add(by);
+		self.slot = Some(0);
+	}
+}
+
+/// A tally, as moq's `stats::Presence`: `Copy`, its fields `pub` but `#[non_exhaustive]`,
+/// so a value whose fields read and write through accessors, each a `u64`, so it has no
+/// padding.
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+#[non_exhaustive]
+pub struct Hits {
+	pub hits: u64,
+	pub misses: u64,
+}
+
+impl Hits {
+	pub fn of(hits: u64, misses: u64) -> Self {
+		Self { hits, misses }
+	}
+
+	/// Adds `other` into this one, as moq's `add` does.
+	pub fn add(&mut self, other: Hits) {
+		self.hits = self.hits.wrapping_add(other.hits);
+		self.misses = self.misses.wrapping_add(other.misses);
+	}
+
+	/// Whether `other` equals this one, counting it a hit: named as `PartialEq`'s C
+	/// function, which the clash renames.
+	pub fn eq(&mut self, other: Hits) -> bool {
+		let same = *self == other;
+		self.hits = self.hits.wrapping_add(1);
+		same
+	}
+}
+
+/// A packed value, as redox_syscall's `FloatRegisters` is: its fields lie unaligned, which
+/// rustc lets no reference point at, so a getter copies out its `u16`, `u64`, and record,
+/// and borrows the `u8`, which no packing misaligns.
+#[derive(Clone, Copy, Debug, PartialEq)]
+#[repr(C, packed)]
+pub struct Regs {
+	pub fcw: u16,
+	pub wide: u64,
+	pub at: Point,
+	pub tag: u8,
+	seed: u8,
+}
+
+impl Regs {
+	pub fn new(fcw: u16, wide: u64, at: Point) -> Self {
+		Self {
+			fcw,
+			wide,
+			at,
+			tag: 7,
+			seed: 1,
+		}
+	}
+
+	pub fn seed(&self) -> u8 {
+		self.seed
+	}
+}
+
+/// A packed object: its `String` and `Option` lie unaligned, so a getter clones what it
+/// reads out of the field without dropping the original, its hasp, aligned to 1, is
+/// lent from the folio in place, and its dock is lent through the reference it holds, which
+/// is copied out.
+#[repr(C, packed)]
+pub struct Folio {
+	pub page: u16,
+	pub title: String,
+	pub note: Option<String>,
+	pub hasp: Hasp,
+	pub dock: &'static Hasp,
+	seed: u8,
+}
+
+static DOCK: Hasp = Hasp(std::sync::atomic::AtomicBool::new(false));
+
+impl Folio {
+	pub fn new(page: u16, title: &str) -> Self {
+		Self {
+			page,
+			title: title.to_string(),
+			note: None,
+			hasp: Hasp::default(),
+			dock: &DOCK,
+			seed: 3,
+		}
+	}
+
+	pub fn seed(&self) -> u8 {
+		self.seed
+	}
+}
+
+/// A flag that is not `Clone` and one byte wide, so aligned wherever it lies.
+#[derive(Default)]
+pub struct Hasp(std::sync::atomic::AtomicBool);
+
+impl Hasp {
+	/// Sets the flag, returning whether it was set already.
+	pub fn set(&self) -> bool {
+		self.0.swap(true, std::sync::atomic::Ordering::Relaxed)
+	}
+}
+
+/// A span whose `pub` start sits beside a private length, which no record could hold.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct Extent {
+	pub start: u64,
+	len: u64,
+}
+
+impl Extent {
+	pub fn new(start: u64, len: u64) -> Self {
+		Self { start, len }
+	}
+
+	pub fn end(&self) -> u64 {
+		self.start.wrapping_add(self.len)
+	}
+
+	/// Moves the window `by` later, returning its old start.
+	pub fn slide(&mut self, by: u64) -> u64 {
+		let start = self.start;
+		self.start = start.wrapping_add(by);
+		start
+	}
+}
+
+/// A score and its weight: a record holding a `Copy` handle, copied in and out.
+pub struct Weighted {
+	pub score: Score,
+	pub weight: u32,
+}
+
+impl Weighted {
+	pub fn total(&self) -> u64 {
+		self.score.count.wrapping_mul(u64::from(self.weight))
+	}
+}
+
+/// A stamp and a count: a record holding a value only Rust makes, whose method reads it.
 pub struct Stamped {
 	pub at: Stamp,
 	pub count: u32,
@@ -1027,7 +2326,8 @@ impl Stamped {
 	}
 }
 
-/// A message: an object, since one field is private, whose `pub` fields read as getters.
+/// A message: an object, since one field is private and it is not `Copy`, whose `pub`
+/// fields read as getters.
 #[derive(Clone, Debug)]
 pub struct Message {
 	pub stamp: Option<Stamp>,
@@ -1060,17 +2360,38 @@ pub fn emit(log: impl Log, lines: Vec<u8>) -> u32 {
 	lines.iter().filter(|&&n| log.log(n, &format!("line {n}"))).count() as u32
 }
 
+/// A sensor Rust reads, then stops by a method of its own named as a binding's closing is,
+/// on a bus named as a keyword is.
+pub trait Sensor: Send + Sync {
+	/// The sensor's reading.
+	fn read(&self) -> u32;
+	/// The bus the sensor reads through.
+	fn interface(&self) -> u8;
+	/// Stops the sensor.
+	fn close(&self);
+}
+
+/// `sensor`'s reading offset by its bus, taken before stopping it.
+pub fn sensed(sensor: impl Sensor) -> u32 {
+	let read = sensor.read().wrapping_add(u32::from(sensor.interface()));
+	sensor.close();
+	read
+}
+
+#[cfg(not(target_arch = "wasm32"))]
 /// [`emit`] on another thread, which the call waits on.
 pub fn emit_from_thread(log: impl Log, lines: Vec<u8>) -> u32 {
 	on_thread(&log, &lines)
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 /// [`emit_from_thread`] before it returns its future, and again once polled.
 pub fn emit_later(log: Box<dyn Log>, lines: Vec<u8>) -> impl Future<Output = u32> + use<> {
 	let eager = on_thread(&*log, &lines);
 	async move { eager + on_thread(&*log, &lines) }
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 fn on_thread(log: &(impl Log + ?Sized), lines: &[u8]) -> u32 {
 	std::thread::scope(|scope| {
 		scope
@@ -1095,10 +2416,12 @@ pub fn counted(n: u32, mut count: impl FnMut(u32)) -> std::future::Ready<Result<
 /// Each line to `keep` on another thread, returning how many it kept: a lent closure may
 /// run on any thread until the call returns.
 pub fn filter(lines: Vec<u8>, mut keep: impl FnMut(u8, &str) -> bool + Send) -> u32 {
-	std::thread::scope(|scope| {
-		let kept = scope.spawn(move || lines.iter().filter(|&&n| keep(n, &format!("line {n}"))).count());
-		kept.join().expect("the thread finishes") as u32
-	})
+	let kept = move || lines.iter().filter(|&&n| keep(n, &format!("line {n}"))).count() as u32;
+	// wasm32 has no other thread, so it runs there on the caller's.
+	#[cfg(target_arch = "wasm32")]
+	return { kept }();
+	#[cfg(not(target_arch = "wasm32"))]
+	std::thread::scope(|scope| scope.spawn(kept).join().expect("the thread finishes"))
 }
 
 /// Logs a line once polled, returning whether it was kept: the future holds `log` until it
@@ -1136,16 +2459,68 @@ impl Logger {
 	}
 
 	/// [`Logger::write`] on another thread, which the call waits on.
+	#[cfg(not(target_arch = "wasm32"))]
 	pub fn write_from_thread(&self, line: &str) -> bool {
 		std::thread::scope(|scope| scope.spawn(|| self.write(line)).join().expect("the thread finishes"))
 	}
 }
 
+/// A [`Logger`] its `&mut self` method makes checked, so a binding's close drops it through
+/// Rust, running its implementation's close inside that drop.
+pub struct Journal {
+	sink: Box<dyn Log>,
+}
+
+impl Journal {
+	pub fn new(sink: Box<dyn Log>) -> Self {
+		Self { sink }
+	}
+
+	/// Log to `sink` from now on, dropping the implementation before it.
+	pub fn redirect(&mut self, sink: Box<dyn Log>) {
+		self.sink = sink;
+	}
+
+	pub fn write(&self, line: &str) -> bool {
+		self.sink.log(0, line)
+	}
+}
+
+/// A checked value that logs a last line to its sink as it drops, which a foreign
+/// implementation may fail by throwing: a drop that unwinds, after a binding's close
+/// committed it, and still drops its token.
+pub struct Epilogue {
+	sink: Box<dyn Log>,
+	_token: Token,
+}
+
+impl Epilogue {
+	pub fn new(sink: Box<dyn Log>, id: u32) -> Self {
+		Self {
+			sink,
+			_token: Token::new(id),
+		}
+	}
+
+	/// Log to `sink` from now on, which a drop's last line then goes to.
+	pub fn redirect(&mut self, sink: Box<dyn Log>) {
+		self.sink = sink;
+	}
+}
+
+impl Drop for Epilogue {
+	fn drop(&mut self) {
+		self.sink.log(0, "closed");
+	}
+}
+
+#[cfg(not(target_arch = "wasm32"))]
 /// A thread logging a line to a foreign implementation, which [`LogThread::join`] waits on.
 pub struct LogThread {
 	thread: std::thread::JoinHandle<bool>,
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 impl LogThread {
 	pub fn new(log: Box<dyn Log>, line: String) -> Self {
 		Self {
@@ -1159,6 +2534,7 @@ impl LogThread {
 	}
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 /// A future that never finishes, whose drop logs a line to `log` on another thread it
 /// waits on.
 pub fn log_on_drop(log: Box<dyn Log>) -> impl Future<Output = ()> + use<> {
@@ -1169,8 +2545,37 @@ pub fn log_on_drop(log: Box<dyn Log>) -> impl Future<Output = ()> + use<> {
 	}
 }
 
+#[cfg(not(target_arch = "wasm32"))]
+/// A waker whose wake and drop each log a line to `log` on another thread they wait on.
+pub fn log_waker(log: Box<dyn Log>) -> Waker {
+	Waker::from(Arc::new(LogWake(log)))
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+struct LogWake(Box<dyn Log>);
+
+#[cfg(not(target_arch = "wasm32"))]
+impl std::task::Wake for LogWake {
+	fn wake(self: Arc<Self>) {
+		self.wake_by_ref();
+	}
+
+	fn wake_by_ref(self: &Arc<Self>) {
+		on_thread(&*self.0, &[1]);
+	}
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+impl Drop for LogWake {
+	fn drop(&mut self) {
+		on_thread(&*self.0, &[0]);
+	}
+}
+
+#[cfg(not(target_arch = "wasm32"))]
 struct LogOnDrop(Box<dyn Log>);
 
+#[cfg(not(target_arch = "wasm32"))]
 impl Drop for LogOnDrop {
 	fn drop(&mut self) {
 		on_thread(&*self.0, &[0]);
@@ -1236,6 +2641,448 @@ impl Tallies {
 	pub fn first(&self) -> &Tally {
 		&self.first
 	}
+}
+
+impl Tally {
+	/// Counts once its future, which holds an `Rc` across a yield and so is not `Send`, is
+	/// polled a second time: what a binding polling on a pool runs on a home.
+	pub async fn bump_later(&self) -> u32 {
+		let held = std::rc::Rc::new(());
+		yielded(0).await;
+		drop(held);
+		self.bump()
+	}
+}
+
+/// A count its handles share through an `Rc`, so not `Send`: it stays on the thread that
+/// made it, which alone calls, polls, and drops it, as each method checks.
+pub struct Local {
+	count: std::rc::Rc<std::cell::Cell<u32>>,
+	thread: std::thread::ThreadId,
+}
+
+impl Default for Local {
+	fn default() -> Self {
+		Self::new()
+	}
+}
+
+impl Local {
+	pub fn new() -> Self {
+		Self {
+			count: std::rc::Rc::new(std::cell::Cell::new(0)),
+			thread: std::thread::current().id(),
+		}
+	}
+
+	/// Counts once, on its own thread.
+	pub fn bump(&self) -> u32 {
+		self.here();
+		self.count.set(self.count.get() + 1);
+		self.count.get()
+	}
+
+	/// Another handle to the same count.
+	pub fn share(&self) -> Local {
+		self.here();
+		Local {
+			count: self.count.clone(),
+			thread: self.thread,
+		}
+	}
+
+	/// Counts once its future, which is not `Send`, is polled a third time.
+	pub async fn later(&self) -> u32 {
+		yielded(0).await;
+		self.bump()
+	}
+
+	/// What `f` returns, called on this local's thread, where it may use the local again.
+	pub fn visit(&self, f: impl Fn() -> u32) -> u32 {
+		self.here();
+		f()
+	}
+
+	/// Counts once, as a poll: its future holds the local, so is not `Send` either.
+	pub fn poll_count(&self, cx: &mut std::task::Context<'_>) -> std::task::Poll<u32> {
+		let _ = cx;
+		std::task::Poll::Ready(self.bump())
+	}
+
+	/// Which thread it lives on, numbered from 1 in the order each first asked.
+	pub fn thread_number(&self) -> u64 {
+		self.here();
+		static NEXT: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(1);
+		thread_local!(static NUMBER: u64 = NEXT.fetch_add(1, std::sync::atomic::Ordering::Relaxed));
+		NUMBER.with(|number| *number)
+	}
+
+	/// Whether this runs on its own thread, which every use of it must.
+	pub fn on_own_thread(&self) -> bool {
+		std::thread::current().id() == self.thread
+	}
+
+	fn here(&self) {
+		assert!(self.on_own_thread(), "a Local is used off its own thread");
+	}
+}
+
+/// Equal to another handle to the same count.
+impl PartialEq for Local {
+	fn eq(&self, other: &Self) -> bool {
+		self.here();
+		std::rc::Rc::ptr_eq(&self.count, &other.count)
+	}
+}
+
+impl Eq for Local {}
+
+/// Hashed by the count it shares, as its equality compares.
+impl std::hash::Hash for Local {
+	fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+		self.here();
+		std::rc::Rc::as_ptr(&self.count).hash(state);
+	}
+}
+
+impl Drop for Local {
+	fn drop(&mut self) {
+		// A drop elsewhere would panic, which aborts through the C ABI.
+		self.here();
+		LOCALS.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+	}
+}
+
+static LOCALS: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
+
+/// How many locals have dropped, each on its own thread.
+pub fn locals_dropped() -> u32 {
+	LOCALS.load(std::sync::atomic::Ordering::Relaxed)
+}
+
+/// What [`Hooked`]'s and [`Forged`]'s `PartialEq` and [`Pinned`]'s drop run, on another thread they wait
+/// for: a call reaching either deadlocks if its binding kept its lock or its thread across
+/// it, as one taken for a leaf call would.
+#[cfg(not(target_arch = "wasm32"))]
+static HOOK: std::sync::Mutex<Option<Box<dyn Fn() + Send>>> = std::sync::Mutex::new(None);
+
+/// Have each [`Hooked`] or [`Forged`] compared and each [`Pinned`] dropped call `f` from another thread.
+#[cfg(not(target_arch = "wasm32"))]
+pub fn hook(f: impl Fn() + Send + 'static) {
+	let old = HOOK.lock().unwrap().replace(Box::new(f));
+	drop(old);
+}
+
+/// Let go of the hook [`hook`] set.
+#[cfg(not(target_arch = "wasm32"))]
+pub fn unhook() {
+	let old = HOOK.lock().unwrap().take();
+	drop(old);
+}
+
+/// Call the hook, if set, from another thread, failing loud rather than deadlocking if the
+/// call it runs in kept what that thread waits on.
+#[cfg(not(target_arch = "wasm32"))]
+fn run_hook() {
+	let Some(f) = HOOK.lock().unwrap().take() else {
+		return;
+	};
+	let (done, ran) = std::sync::mpsc::channel();
+	std::thread::spawn(move || {
+		f();
+		let _ = done.send(f);
+	});
+	let f = ran
+		.recv_timeout(std::time::Duration::from_secs(60))
+		.expect("the hook ran: a binding that kept its lock or thread across the call deadlocked");
+	*HOOK.lock().unwrap() = Some(f);
+}
+
+/// A count whose `PartialEq`, written by hand, runs the hook.
+#[cfg(not(target_arch = "wasm32"))]
+#[derive(Debug)]
+struct Gated(u64);
+
+#[cfg(not(target_arch = "wasm32"))]
+impl PartialEq for Gated {
+	fn eq(&self, other: &Self) -> bool {
+		run_hook();
+		self.0 == other.0
+	}
+}
+
+/// A value whose `PartialEq` is derived over a field whose own is written by hand, so a
+/// comparison runs user code though it looks derived.
+#[cfg(not(target_arch = "wasm32"))]
+#[derive(Debug, PartialEq)]
+pub struct Hooked {
+	pub n: u64,
+	gated: Gated,
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+impl Hooked {
+	pub fn new(n: u64) -> Self {
+		Self { n, gated: Gated(n) }
+	}
+
+	/// Its count, by a method that runs the hook first: no leaf call, though it returns
+	/// what a leaf would.
+	pub fn count(&self) -> u64 {
+		run_hook();
+		self.n
+	}
+}
+
+/// A value whose `PartialEq`, written by hand, claims to be derived, as a procedural
+/// macro's may: what claims it proves nothing, so a comparison is no leaf call.
+#[cfg(not(target_arch = "wasm32"))]
+#[derive(Debug)]
+pub struct Forged {
+	pub n: u64,
+	pinned: u8,
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[automatically_derived]
+impl PartialEq for Forged {
+	fn eq(&self, other: &Self) -> bool {
+		run_hook();
+		self.n == other.n && self.pinned == other.pinned
+	}
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+impl Forged {
+	pub fn new(n: u64) -> Self {
+		Self { n, pinned: 0 }
+	}
+}
+
+/// A value kept on its thread, whose drop runs the hook: a getter of its field runs the
+/// drops other threads queued of its thread's values first.
+#[cfg(not(target_arch = "wasm32"))]
+pub struct Pinned {
+	pub value: u64,
+	part: Part,
+	_here: std::rc::Rc<()>,
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+impl Pinned {
+	pub fn new(value: u64) -> Self {
+		Self {
+			value,
+			part: Part { value, kept: 0 },
+			_here: std::rc::Rc::new(()),
+		}
+	}
+
+	/// Its part, lent: a use of the handle borrows the [`Pinned`] on its thread too.
+	pub fn part(&self) -> &Part {
+		&self.part
+	}
+}
+
+/// A `Send` value a [`Pinned`] lends, whose field and derived traits would be leaves but
+/// for its lender.
+#[cfg(not(target_arch = "wasm32"))]
+#[derive(Debug, PartialEq, Hash)]
+pub struct Part {
+	pub value: u64,
+	kept: u8,
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+impl Drop for Pinned {
+	fn drop(&mut self) {
+		run_hook();
+	}
+}
+
+/// A value whose `PartialEq` and `Hash` are derived over primitives alone, so comparing or
+/// hashing one is a leaf call, as is reading or writing its field.
+#[derive(Debug, PartialEq, Hash)]
+pub struct Plain {
+	pub n: u64,
+	pub on: bool,
+	pinned: (i8, char),
+}
+
+impl Plain {
+	pub fn new(n: u64, on: bool) -> Self {
+		Self {
+			n,
+			on,
+			pinned: (-1, 'p'),
+		}
+	}
+
+	/// Its count, by a method whose body only reads it: a leaf call.
+	pub fn count(&self) -> u64 {
+		self.n
+	}
+
+	/// Set its count, by a method whose body only writes it: a leaf call.
+	pub fn recount(&mut self, n: u64) {
+		self.n = n;
+	}
+
+	/// Count up to its count: a loop as long as the caller makes it, so no leaf call.
+	pub fn steps(&self) -> u64 {
+		let mut i = 0u64;
+		while i < self.n {
+			i = i.wrapping_add(1);
+		}
+		i
+	}
+
+	/// How many locals have dropped, a static's count: no leaf call.
+	pub fn locals(&self) -> u32 {
+		LOCALS.load(std::sync::atomic::Ordering::Relaxed)
+	}
+}
+
+/// A [`Plain`] behind a `Deref` and `DerefMut` that only borrow it, so its fields and
+/// methods are leaf calls through it too.
+pub struct Wrapped(Plain);
+
+impl Wrapped {
+	pub fn new(n: u64) -> Self {
+		Self(Plain::new(n, false))
+	}
+}
+
+impl std::ops::Deref for Wrapped {
+	type Target = Plain;
+
+	fn deref(&self) -> &Plain {
+		&self.0
+	}
+}
+
+impl std::ops::DerefMut for Wrapped {
+	fn deref_mut(&mut self) -> &mut Plain {
+		&mut self.0
+	}
+}
+
+/// A [`Plain`] behind a `Deref` that runs the hook, so nothing reached through it is a
+/// leaf call.
+#[cfg(not(target_arch = "wasm32"))]
+pub struct Guarded(Plain);
+
+#[cfg(not(target_arch = "wasm32"))]
+impl Guarded {
+	pub fn new(n: u64) -> Self {
+		Self(Plain::new(n, false))
+	}
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+impl std::ops::Deref for Guarded {
+	type Target = Plain;
+
+	fn deref(&self) -> &Plain {
+		run_hook();
+		&self.0
+	}
+}
+
+/// A value whose derived `PartialEq` and `Hash` reach no user code but walk a string as
+/// long as the caller makes it: a leaf in Python, but no Dart leaf call, which would stall
+/// the isolate group's garbage collector that long.
+#[derive(Debug, PartialEq, Hash)]
+pub struct Labeled {
+	label: String,
+}
+
+impl Labeled {
+	pub fn new(label: String) -> Self {
+		Self { label }
+	}
+}
+
+/// Bytes as many as the caller asks for.
+pub struct Buffer {
+	bytes: Vec<u8>,
+}
+
+impl Buffer {
+	/// A buffer of `len` ones.
+	pub fn new(len: u32) -> Self {
+		Self {
+			bytes: vec![1; len as usize],
+		}
+	}
+
+	/// Zero its bytes: a fill as long as the caller makes it, with no loop in its MIR, so no
+	/// leaf call.
+	pub fn blank(&mut self) {
+		self.bytes.fill(0);
+	}
+
+	/// Whether every byte is zero.
+	pub fn zeroed(&self) -> bool {
+		self.bytes.iter().all(|&b| b == 0)
+	}
+}
+
+/// A handle to `local`'s count if there is one, else a new local: made where `local`
+/// stays, or, with none, wherever a local made from nothing would be.
+pub fn local_or_new(local: Option<&Local>) -> Local {
+	local.map_or_else(Local::new, Local::share)
+}
+
+/// `local_or_new` after a yield: a future that is not `Send`, made where `local` stays,
+/// or, with none, wherever a local made from nothing would be.
+pub async fn local_or_new_later(local: Option<&Local>) -> Local {
+	yielded(0).await;
+	local_or_new(local)
+}
+
+/// The first local's count bumped if there is one, else the second's.
+pub fn bump_either(first: Option<&Local>, second: &Local) -> u32 {
+	first.unwrap_or(second).bump()
+}
+
+/// A new local, made after a yield: the future is `Send`, but its output is not, so it is
+/// made where the future is polled.
+pub async fn local_after() -> Local {
+	yielded(0).await;
+	Local::new()
+}
+
+/// `n` doubled after a yield, through an `Rc` it holds across it: a future that is not
+/// `Send`, though nothing it takes is not.
+pub async fn local_later(n: u32) -> u32 {
+	let n = std::rc::Rc::new(n);
+	yielded(0).await;
+	*n * 2
+}
+
+/// What a poll registers that is not `Send`, as `Waiter` is but through an `Rc`: a future
+/// polling with one keeps it between polls, so is not `Send` either.
+pub struct LocalWaiter(std::rc::Rc<Waker>);
+
+impl LocalWaiter {
+	pub fn new(waker: Waker) -> Self {
+		Self(std::rc::Rc::new(waker))
+	}
+
+	/// `n` at once: a poll of the waiter it is a method of, which exports as a future
+	/// making and keeping it.
+	pub fn poll_ready(&self, n: u32) -> Poll<u32> {
+		let _ = &self.0;
+		Poll::Ready(n)
+	}
+}
+
+/// `n` tripled at once: a poll through a waiter that is not `Send`, which exports as a
+/// future making and keeping it.
+pub fn poll_tripled(waiter: &LocalWaiter, n: u32) -> Poll<u32> {
+	let _ = &waiter.0;
+	Poll::Ready(n * 3)
 }
 
 static DROPPED: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
@@ -1352,6 +3199,12 @@ pub fn token_bytes(id: u32, len: u32) -> Bytes {
 	Bytes::from_owner(Owner(Token::new(id), vec![id as u8; len as usize]))
 }
 
+/// The first `len` of the `of` bytes [`token_bytes`] makes: a slice that keeps its whole
+/// buffer.
+pub fn token_slice(id: u32, len: u32, of: u32) -> Bytes {
+	token_bytes(id, of).slice(..len as usize)
+}
+
 /// A payload and its sequence number: a record, whose bytes cross in both ways.
 pub struct Packet {
 	pub seq: u32,
@@ -1373,18 +3226,11 @@ pub fn next_packet(packet: Packet) -> Packet {
 pub struct Retry {
 	pub limit: Option<u32>,
 	pub delay: Option<u32>,
-	/// Its field exports, but the method of its name is refused, so the config excludes
-	/// both, and the census lists only `field@Retry::jitter` as excluding what exports.
-	pub jitter: u32,
 }
 
 impl Retry {
 	pub fn new(limit: Option<u32>) -> Self {
-		Self {
-			limit,
-			delay: None,
-			jitter: 0,
-		}
+		Self { limit, delay: None }
 	}
 
 	pub fn limit(&self) -> u32 {
@@ -1397,11 +3243,6 @@ impl Retry {
 
 	pub fn set_limit(&mut self, limit: u32) {
 		self.limit = Some(limit);
-	}
-
-	/// The jitter capped by `cap`, if any: a nested `Option`, which the export refuses.
-	pub fn jitter(&self, cap: Option<Box<Option<u32>>>) -> u32 {
-		cap.and_then(|cap| *cap).map_or(self.jitter, |cap| self.jitter.min(cap))
 	}
 }
 
@@ -1561,7 +3402,9 @@ pub fn hex(payload: impl Payload) -> String {
 	payload.into_bytes().iter().map(|b| format!("{b:02x}")).collect()
 }
 
-/// A value and when it was stamped, as moq's `Timed` is, which bytes convert into.
+/// A value and when it was stamped, as moq's `Timed` is, which bytes convert into. Hidden,
+/// so a parameter that converts into one takes what converts instead.
+#[doc(hidden)]
 pub struct Timed<P> {
 	pub value: P,
 	pub at: Option<Stamp>,
@@ -1579,18 +3422,6 @@ impl<B: AsRef<[u8]>> From<B> for Timed<Bytes> {
 /// A timed payload's bytes in hex, which need not be UTF-8, owned as it is `'static`.
 pub fn timed_hex(payload: impl Into<Timed<Bytes>> + 'static) -> String {
 	hex(payload.into().value)
-}
-
-/// A reference stamped with no time, as moq's `Timed` converts one.
-impl<'a, V> From<&'a V> for Timed<&'a V> {
-	fn from(value: &'a V) -> Self {
-		Self { value, at: None }
-	}
-}
-
-/// A timed value's compact JSON text, taken as moq's JSON tracks take theirs.
-pub fn timed_text<'a, T: serde::Serialize + 'a>(value: impl Into<Timed<&'a T>>) -> String {
-	serde_json::to_string(value.into().value).expect("a JSON document serializes")
 }
 
 /// A timed payload on a track, which what converts into one converts into.
@@ -2167,16 +3998,18 @@ pub fn file(dir: &std::path::Path, name: &str) -> std::path::PathBuf {
 	dir.join(name)
 }
 
-/// A path whose bytes are not UTF-8, as a Unix path may be.
-#[cfg(unix)]
+/// A path whose bytes are not UTF-8, as a Unix or WASI path may be.
+#[cfg(any(unix, target_os = "wasi"))]
 pub fn stray() -> std::path::PathBuf {
-	std::path::PathBuf::from(<std::ffi::OsString as std::os::unix::ffi::OsStringExt>::from_vec(vec![
-		0xff,
-	]))
+	#[cfg(unix)]
+	use std::os::unix::ffi::OsStringExt;
+	#[cfg(target_os = "wasi")]
+	use std::os::wasi::ffi::OsStringExt;
+	std::path::PathBuf::from(std::ffi::OsString::from_vec(vec![0xff]))
 }
 
 /// Lends [`stray`]'s path to `visit`.
-#[cfg(unix)]
+#[cfg(any(unix, target_os = "wasi"))]
 pub fn visit_stray(visit: impl Fn(&std::path::Path)) {
 	visit(&stray());
 }
@@ -2250,6 +4083,12 @@ pub fn nudge(point: &mut Point, by: i32) {
 	point.y += by;
 }
 
+/// Nudge `point` by the length of `refusal`'s reason: a value Rust writes back beside an
+/// object a check of can fail.
+pub fn nudge_by(point: &mut Point, refusal: &Refusal) {
+	nudge(point, i32::try_from(refusal.reason.len()).unwrap_or(i32::MAX));
+}
+
 /// A config of a crate the facade re-exports nothing from, behind an `Arc`, as moq-tokio's
 /// listener returns rustls's: an opaque handle, which Rust takes back.
 pub fn secure(alpn: &str) -> Arc<tls::Config> {
@@ -2264,6 +4103,198 @@ pub fn alpn(config: Arc<tls::Config>) -> String {
 /// [`alpn`], lent.
 pub fn alpn_lent(config: &Arc<tls::Config>) -> String {
 	config.alpn().to_string()
+}
+
+/// A certificate of a crate the facade re-exports nothing from, by value, with no public
+/// path there, as moq-tokio's rustls root certificates: an opaque handle, which Rust takes
+/// back or borrows.
+pub fn certify(der: &[u8]) -> tls::held::Cert {
+	tls::held::Cert::new(der)
+}
+
+/// The length of `bytes`, through another crate's future that borrows them but resolves
+/// to an owned count: a future, not an opaque handle.
+pub fn byte_len(bytes: &[u8]) -> tls::held::Pending<'_> {
+	tls::held::Pending(bytes)
+}
+
+/// The length of a certificate [`certify`] made, lent.
+pub fn cert_len(cert: &tls::held::Cert) -> usize {
+	cert.der().len()
+}
+
+/// The bytes of a certificate [`certify`] made, taken back by value.
+pub fn cert_der(cert: tls::held::Cert) -> Vec<u8> {
+	cert.der().to_vec()
+}
+
+/// The total length of a chain of certificates, each taken back by value.
+pub fn chain_len(chain: Vec<tls::held::Cert>) -> usize {
+	chain.iter().map(|cert| cert.der().len()).sum()
+}
+
+/// Another crate's session with no public path there, which no export returns: left out, since C can never
+/// hold one.
+pub fn handover(session: tls::held::Handoff) -> u32 {
+	session.id
+}
+
+/// A certificate's length, or why it is refused: another crate's error, which crosses as
+/// its message though `blame` names it as a handle no export returns.
+pub fn verify(cert: &tls::held::Cert) -> Result<u32, tls::held::Invalid> {
+	match cert.der().len() {
+		0 => Err(tls::held::Invalid {
+			reason: "empty".to_string(),
+		}),
+		len => Ok(len as u32),
+	}
+}
+
+/// `text`'s length, or why it is no certificate: another crate's error borrowing `text`,
+/// which crosses as its message, so nothing outlives the call.
+pub fn parse_cert(text: &str) -> Result<u32, tls::held::Malformed<'_>> {
+	match text.is_empty() {
+		true => Err(tls::held::Malformed(text)),
+		false => Ok(text.len() as u32),
+	}
+}
+
+/// `parse_cert` as a future: its error borrows `text`, which the future owns, so the glue
+/// makes it its message before the future ends.
+pub async fn parse_later(text: &str) -> Result<u32, tls::held::Malformed<'_>> {
+	parse_cert(text)
+}
+
+/// Another crate's error taken back by value, which no export returns: left out.
+pub fn blame(err: tls::held::Invalid) -> String {
+	err.to_string()
+}
+
+/// Another crate's trait object behind an `Arc`: an opaque handle, taken back as the `Arc`.
+pub fn resolver(name: &str) -> Arc<dyn tls::held::Resolver> {
+	Arc::new(tls::held::Named(name.to_string()))
+}
+
+/// The name a resolver resolves, from its handle.
+pub fn resolved(resolver: Arc<dyn tls::held::Resolver>) -> String {
+	resolver.name()
+}
+
+/// A resolver as a tuple struct's field, whose accessors each binding names as its `_0`.
+pub struct Resolving(pub Arc<dyn tls::held::Resolver>);
+
+impl Resolving {
+	pub fn new(name: &str) -> Self {
+		Self(resolver(name))
+	}
+}
+
+/// Codecs, each another crate's `&'static dyn Codec`, held by value in an opaque handle.
+pub struct Codecs {
+	pub list: Vec<&'static dyn tls::held::Codec>,
+	seen: u8,
+}
+
+impl Codecs {
+	pub fn new() -> Self {
+		Self {
+			list: vec![&tls::held::ZLIB, &tls::held::BROTLI],
+			seen: 0,
+		}
+	}
+
+	/// The ids of the listed codecs, in order, as one number of a digit each.
+	pub fn ids(&mut self) -> u32 {
+		self.seen += 1;
+		self.list.iter().fold(0, |n, codec| n * 10 + u32::from(codec.id()))
+	}
+}
+
+impl Default for Codecs {
+	fn default() -> Self {
+		Self::new()
+	}
+}
+
+/// A standard library value no exported type maps: an opaque handle held by value.
+pub fn failure(message: &str) -> std::io::Error {
+	std::io::Error::other(message.to_string())
+}
+
+/// The failure's message, borrowed from its handle.
+pub fn failure_message(error: &std::io::Error) -> String {
+	error.to_string()
+}
+
+/// The failure's kind, taken back by value.
+pub fn failure_kind(error: std::io::Error) -> String {
+	format!("{:?}", error.kind())
+}
+
+/// The sum of what an iterator yields, which C passes as the array of its items.
+pub fn sum_all(items: impl Iterator<Item = u32>) -> u32 {
+	items.sum()
+}
+
+/// What a counter weighs, owned or borrowed, which C cannot implement for its constant.
+pub trait Weigh {
+	const SCALE: u64;
+	fn weight(&self) -> u64;
+}
+
+impl Weigh for Counter {
+	const SCALE: u64 = 1;
+	fn weight(&self) -> u64 {
+		self.get() * Self::SCALE
+	}
+}
+
+impl Weigh for &Counter {
+	const SCALE: u64 = 10;
+	fn weight(&self) -> u64 {
+		self.get() * Self::SCALE
+	}
+}
+
+/// The weights of an iterator's items summed: C passes the array of its counters, each
+/// moved in, so `&Counter`'s weight is not taken.
+pub fn weigh_all<I: Iterator<Item = W>, W: Weigh>(items: I) -> u64 {
+	items.map(|item| item.weight()).sum()
+}
+
+/// The total length of borrowed byte strings, as moq-tokio's TLS acceptor reads offered ALPNs.
+pub fn offered_len<'a>(alpns: impl Iterator<Item = &'a [u8]>) -> usize {
+	alpns.map(<[u8]>::len).sum()
+}
+
+/// Words joined with spaces: an `IntoIterator` of what converts to `&str`, as moq-tokio's
+/// WebSocket listener takes its protocols.
+pub fn join_words<I, S>(words: I) -> String
+where
+	I: IntoIterator<Item = S>,
+	S: AsRef<str>,
+{
+	let words: Vec<String> = words.into_iter().map(|w| w.as_ref().to_string()).collect();
+	words.join(" ")
+}
+
+/// Bytes that must outlive every handle, as rustls's `CertificateDer::from_slice` borrows
+/// its DER: the glue interns them.
+pub struct Der<'a>(&'a [u8]);
+
+impl<'a> Der<'a> {
+	pub fn from_slice(bytes: &'a [u8]) -> Self {
+		Self(bytes)
+	}
+
+	pub fn bytes(&self) -> Vec<u8> {
+		self.0.to_vec()
+	}
+}
+
+/// Reads a stream no type C holds implements: left out, as C never holds one.
+pub fn pump<T: tls::held::Stream>(mut stream: T) -> u8 {
+	stream.read()
 }
 
 /// A session of `alpn` lasting `seconds`, from a crate the facade re-exports nothing from:
@@ -2474,6 +4505,26 @@ pub fn doubled_i64(items: &[i64]) -> Vec<i64> {
 	items.iter().map(|v| v.wrapping_mul(2)).collect()
 }
 
+/// What `visit` returns for each chunk of `payload` of up to `size` bytes, which is not 0,
+/// each lent in place, then for none.
+pub fn visit_chunks(payload: &[u8], size: usize, mut visit: impl FnMut(Option<&[u8]>) -> u64) -> Vec<u64> {
+	let mut seen: Vec<u64> = payload.chunks(size).map(|chunk| visit(Some(chunk))).collect();
+	seen.push(visit(None));
+	seen
+}
+
+/// A reader of lent bytes: a callback interface, implemented in C.
+pub trait Scan {
+	/// A digest of `payload` and `rest`, if any, each lent for the call.
+	fn scan(&self, payload: &[u8], rest: Option<&[u8]>) -> u64;
+}
+
+/// What `scan` returns for each half of `payload`, each lent in place, then for none.
+pub fn scanned(scan: impl Scan, payload: Vec<u8>) -> u64 {
+	let (head, tail) = payload.split_at(payload.len() / 2);
+	scan.scan(head, Some(tail)) + scan.scan(&[], None)
+}
+
 /// `items` back as Rust took them, boxed.
 pub fn boxed_floats(items: Box<[f64]>) -> Box<[f64]> {
 	items
@@ -2564,6 +4615,12 @@ pub fn since(later: std::time::Instant, earlier: std::time::Instant) -> Duration
 	later.saturating_duration_since(earlier)
 }
 
+/// Whether `at` holds an instant, lent inside an `Option`: an instant crosses as a `Copy`
+/// object, so lending one inside a value takes no handle.
+pub fn has_instant(at: &Option<std::time::Instant>) -> bool {
+	at.is_some()
+}
+
 /// How much to log, as moq-tokio's `Log` holds it: a field of a foreign enum, and its filter.
 #[non_exhaustive]
 pub struct Verbosity {
@@ -2612,12 +4669,28 @@ impl Site {
 }
 
 impl Shape {
+	/// The shape `name` names, if any: a static whose Kotlin name, `valueOf`, a Kotlin enum
+	/// also declares on the JVM, which a companion's `@JvmStatic` function would clash with.
+	pub fn value_of(name: &str) -> Option<Shape> {
+		match name {
+			"circle" => Some(Shape::Circle),
+			"square" => Some(Shape::Square),
+			_ => None,
+		}
+	}
+
 	/// Every shape, as a constant slice.
 	pub const ALL: &'static [Shape] = &[Shape::Circle, Shape::Square];
+
+	/// Every shape, as a constant array, returned as the array of its elements.
+	pub const BOTH: [Shape; 2] = [Shape::Circle, Shape::Square];
 }
 
 /// Greetings, as a constant slice of references, each returned as a clone.
 pub const GREETINGS: &[&str] = &["hi", "hello"];
+
+/// Primes, as a constant array of a block's element.
+pub const PRIMES: [u32; 3] = [2, 3, 5];
 
 /// A trail through points, each labeled: slices passed in and lent back out.
 pub struct Trail {
@@ -2701,6 +4774,23 @@ pub fn nexts(
 	(std::net::SocketAddrV4::new(*v4.ip(), v4.port() + 1), v6)
 }
 
+/// Each address one past, wrapping, one IPv4 and one IPv6.
+pub fn next_ips(v4: std::net::Ipv4Addr, v6: std::net::Ipv6Addr) -> (std::net::Ipv4Addr, std::net::Ipv6Addr) {
+	(
+		u32::from(v4).wrapping_add(1).into(),
+		u128::from(v6).wrapping_add(1).into(),
+	)
+}
+
+/// The address in the other family: IPv4 as its IPv4-mapped IPv6, and an IPv4-mapped IPv6
+/// as its IPv4; any other IPv6 stays as it is.
+pub fn flip(ip: std::net::IpAddr) -> std::net::IpAddr {
+	match ip {
+		std::net::IpAddr::V4(v4) => v4.to_ipv6_mapped().into(),
+		std::net::IpAddr::V6(v6) => v6.to_ipv4_mapped().map_or(ip, Into::into),
+	}
+}
+
 /// Why [`refuse`] refused, which Rust returns only boxed.
 #[derive(Debug)]
 pub struct Refusal {
@@ -2723,11 +4813,59 @@ pub fn reasons(pairs: Vec<(Counter, Refusal)>, last: Option<(Counter, Refusal)>)
 		.join(", ")
 }
 
+/// The length of the note, the bytes, and the reason: bytes beside a class Swift closes
+/// once a move took it, so a call refused before Rust runs frees the bytes it gave Rust.
+pub fn excuse(note: Bytes, entry: (Bytes, Refusal)) -> usize {
+	note.len() + entry.0.len() + entry.1.reason.len()
+}
+
+/// How many of `refusals` `log` keeps, each logged at level 0: a callback the binding gives
+/// before a list whose classes a move may have closed.
+pub fn relay(log: Box<dyn Log>, refusals: Vec<Refusal>) -> u32 {
+	refusals.iter().filter(|r| log.log(0, &r.to_string())).count() as u32
+}
+
 /// Always refuses, for `reason`.
 pub fn refuse(reason: &str) -> Result<u32, Box<Refusal>> {
 	Err(Box::new(Refusal {
 		reason: reason.to_string(),
 	}))
+}
+
+/// Why [`jam`] failed: an enum whose own `Drop` makes it an object, whose variants a
+/// binding still tells apart, as Python raises each as its own subclass.
+#[derive(Debug)]
+pub enum Fault {
+	/// Nothing is free.
+	Busy,
+	/// What was sent is lost.
+	Lost(String),
+	/// Too late, by this many.
+	Late { by: u32 },
+}
+
+impl Drop for Fault {
+	fn drop(&mut self) {}
+}
+
+impl fmt::Display for Fault {
+	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+		match self {
+			Fault::Busy => write!(f, "busy"),
+			Fault::Lost(what) => write!(f, "lost {what}"),
+			Fault::Late { by } => write!(f, "late by {by}"),
+		}
+	}
+}
+
+/// Fails with the fault `n` picks: busy, lost, or late, and for any other `n`, returns it.
+pub fn jam(n: u32) -> Result<u32, Fault> {
+	match n {
+		0 => Err(Fault::Busy),
+		1 => Err(Fault::Lost("frame".to_string())),
+		2 => Err(Fault::Late { by: 7 }),
+		n => Ok(n),
+	}
 }
 
 /// The kind of target the library was built for. One binding serves the host and wasm32,
@@ -2756,6 +4894,39 @@ pub fn pointer_bits(platform: Platform) -> u32 {
 		#[cfg(target_arch = "wasm32")]
 		Platform::Wasm { bits } => bits,
 	}
+}
+
+/// A variant whose field is named as a binding's tag naming the variant.
+#[derive(Debug, PartialEq)]
+pub enum Labelled {
+	Tagged { tag: u32 },
+	Bare,
+}
+
+/// `labelled`, as it came.
+pub fn same_labelled(labelled: Labelled) -> Labelled {
+	labelled
+}
+
+/// A core of a native target's CPU: a record wasm32 lacks.
+#[cfg(not(target_arch = "wasm32"))]
+pub struct Core {
+	pub id: u32,
+}
+
+/// Where work runs, with a variant only native targets have holding a record only they
+/// have, which wasm32's binding reads no field of.
+pub enum Placement {
+	/// Wherever the target runs it.
+	Anywhere,
+	/// On one core of a native target.
+	#[cfg(not(target_arch = "wasm32"))]
+	Pinned(Core),
+}
+
+/// Where the library's target runs work.
+pub fn placement() -> Placement {
+	Placement::Anywhere
 }
 
 /// The family of the library's target, a plain enum with a variant only wasm32 has.
@@ -2813,10 +4984,24 @@ impl Worker {
 	}
 }
 
-/// A record only wasm32 has.
+/// A record only wasm32 has, whose std traits fail on another target as its functions do.
 #[cfg(target_arch = "wasm32")]
+#[derive(Debug, Default, PartialEq)]
 pub struct Page {
 	pub size: u32,
+}
+
+/// A record only wasm32 has, holding a checked object, so its std traits take a status.
+#[cfg(target_arch = "wasm32")]
+#[derive(Debug, PartialEq)]
+pub struct Booth {
+	pub mark: Mark,
+}
+
+/// The count of `booth`'s mark.
+#[cfg(target_arch = "wasm32")]
+pub fn booth_count(booth: Booth) -> u64 {
+	booth.mark.count
 }
 
 /// wasm32's page.
@@ -2857,6 +5042,12 @@ pub struct StartSeekable {
 	pub at: u64,
 }
 
+/// The sum of what `f` and `f_unwind` return, wrapping: Kotlin's trampoline for `f_unwind`
+/// is named as `f`'s would name its unwinding body if that were not scoped to it.
+pub fn paired(f: impl Fn() -> u8, f_unwind: impl Fn() -> u8) -> u8 {
+	f().wrapping_add(f_unwind())
+}
+
 /// Whether two floats are equal as `1`, named as the helper Kotlin's records compare through.
 pub fn same(a: f64, b: f64) -> i32 {
 	i32::from(a == b)
@@ -2867,6 +5058,44 @@ pub fn same(a: f64, b: f64) -> i32 {
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct DoubleArray {
 	pub len: u32,
+}
+
+/// The value of `errno`, a macro `<cerrno>` defines: a C++ function of this name must not
+/// be rewritten as `(*__errno_location ())`.
+pub fn errno() -> i32 {
+	7
+}
+
+/// A function named as `assert`, which `<cassert>` defines as a macro.
+pub fn assert(holds: bool) -> bool {
+	holds
+}
+
+/// A function named as `offsetof`, which `<cstddef>` defines as a macro.
+pub fn offsetof(field: u8) -> u8 {
+	field
+}
+
+/// A record of fields named as macros a C library's headers define, which each binding
+/// keeps apart.
+pub mod macros {
+	/// A record of fields named as `stdin`, `stdout`, and `stderr`, macros on some C libraries.
+	#[derive(Clone, Copy, Debug, PartialEq)]
+	pub struct Streams {
+		pub stdin: u8,
+		pub stdout: u8,
+		pub stderr: u8,
+		pub errno: u8,
+	}
+
+	/// The sum of `streams`' fields, and `errno`, a parameter named as the macro.
+	pub fn streamed(streams: Streams, errno: u8) -> u32 {
+		u32::from(streams.stdin)
+			+ u32::from(streams.stdout)
+			+ u32::from(streams.stderr)
+			+ u32::from(streams.errno)
+			+ u32::from(errno)
+	}
 }
 
 pub mod clash {
@@ -2909,6 +5138,95 @@ pub mod clash {
 		}
 	}
 
+	/// A message of any type, named as prost-types' is, which Swift reads as a keyword.
+	#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+	pub struct Any {
+		pub type_url: String,
+	}
+
+	/// An `Any` of `type_url`.
+	pub fn any(type_url: String) -> Any {
+		Any { type_url }
+	}
+
+	/// A candidate, whose variant `None` Python reads as a keyword, as aho-corasick's has.
+	#[derive(Clone, Copy, Debug, PartialEq)]
+	pub enum Candidate {
+		None,
+		Match(u8),
+	}
+
+	/// The candidate of `at`, none for zero.
+	pub fn candidate(at: u8) -> Candidate {
+		match at {
+			0 => Candidate::None,
+			at => Candidate::Match(at),
+		}
+	}
+
+	/// `arg1`, beside a parameter named `_`, which no language can pass a value to, as
+	/// utf8parse's has; the `_` is named apart from `arg1`.
+	pub fn ignore(_: u8, arg1: u8, _: u8) -> u8 {
+		arg1
+	}
+
+	/// A seed, whose own `default` C names apart from `Default`'s, as rustc-hash's `FxHasher`
+	/// has, while C++ escapes both to `default_`.
+	pub struct Seed {
+		value: u32,
+	}
+
+	impl Seed {
+		/// One.
+		#[allow(clippy::should_implement_trait, reason = "the clash under test")]
+		pub const fn default() -> Seed {
+			Seed { value: 1 }
+		}
+
+		pub fn value(&self) -> u32 {
+			self.value
+		}
+
+		/// Whether it is not zero, by a name Dart's type of the result takes, as fastrand's
+		/// `bool` is.
+		pub fn bool(&self) -> bool {
+			self.value != 0
+		}
+	}
+
+	impl Default for Seed {
+		/// Two.
+		fn default() -> Self {
+			Seed { value: 2 }
+		}
+	}
+
+	/// A break, with an alias named as a constant but for case, as icu_properties'
+	/// `SentenceBreak::SP` is `Sp`'s.
+	#[derive(Clone, Copy, Debug, PartialEq)]
+	pub struct Break(pub u8);
+
+	#[allow(non_upper_case_globals, reason = "the clash under test")]
+	impl Break {
+		pub const Sp: Break = Break(8);
+		pub const SP: Break = Break::Sp;
+	}
+
+	/// Nothing of `T`, as futures-util's `stream::Empty` is.
+	pub struct Empty<T>(std::marker::PhantomData<T>);
+
+	impl<T> Empty<T> {
+		pub fn is_empty(&self) -> bool {
+			true
+		}
+	}
+
+	/// An `Empty` of a `T` no argument infers, which the call names, as futures-util's
+	/// `stream::empty` takes.
+	pub fn empty<T>() -> Empty<T> {
+		Empty(std::marker::PhantomData)
+	}
+
 	/// A count, whose methods are named as what C and some languages give every handle.
 	pub struct Store {
 		count: u32,
@@ -2928,6 +5246,175 @@ pub mod clash {
 		pub fn close(&self) -> u32 {
 			self.count + 1
 		}
+
+		/// Nothing, named and typed as a final method of `java.lang.Object`, as parking_lot's
+		/// `Once::wait` is.
+		pub fn wait(&self) {}
+
+		/// Nothing, named and typed as the method a JVM finalizer overrides.
+		pub fn finalize(&self) {}
+
+		/// The count plus `ticket`'s number, by a method taking an opaque value, which Kotlin
+		/// names as the static `take_`.
+		pub fn take(&self, ticket: crate::Ticket) -> u32 {
+			self.count.wrapping_add(ticket.number())
+		}
+
+		/// `ticket`'s number, by a static function taking an opaque value, which Kotlin names
+		/// as the method `take`.
+		pub fn take_(ticket: crate::Ticket) -> u32 {
+			ticket.number()
+		}
+
+		/// Seven, by a static function that camel case names as the method `count`.
+		pub fn count_() -> u32 {
+			7
+		}
+
+		/// The count, by a method that camel case names as the static `count_`.
+		pub fn count(&self) -> u32 {
+			self.count
+		}
+
+		/// A store of five, by a constructor that camel case names as the method `open`.
+		pub fn open_() -> Store {
+			Store { count: 5 }
+		}
+
+		/// The count plus two, wrapping past `u32::MAX`, by a method that camel case names as
+		/// the constructor `open_`.
+		pub fn open(&self) -> u32 {
+			self.count.wrapping_add(2)
+		}
+	}
+
+	/// A level, whose values are named as the members `Debug` and `Default` give a type, as
+	/// log's `Level::Debug` and nu-ansi-term's `Color::Default` are.
+	#[derive(Clone, Copy, Debug, Default, PartialEq)]
+	pub enum Level {
+		#[default]
+		Default,
+		Debug,
+	}
+
+	impl Level {
+		/// Its place from one, by the name of what every Dart enum has, as petgraph's
+		/// `Direction::index` is.
+		pub fn index(self) -> u8 {
+			self as u8 + 1
+		}
+	}
+
+	/// A tag, whose variants' field `number` its method of that name reads, as der's `Tag`'s
+	/// are.
+	#[derive(Clone, Copy, Debug, PartialEq)]
+	pub enum Tag {
+		Application { number: u32 },
+		Private { number: u32 },
+	}
+
+	impl Tag {
+		/// The number, and whether it is private in the next decimal place.
+		pub fn number(&self) -> u32 {
+			match *self {
+				Tag::Application { number } => number,
+				Tag::Private { number } => number + 10,
+			}
+		}
+	}
+
+	/// Malformed input at an offset, an error whose `is` go vet reads as `errors.Is`, as
+	/// anyhow's `Error::is` is.
+	#[derive(Clone, Copy, Debug, PartialEq)]
+	pub struct Malformed {
+		pub at: u8,
+	}
+
+	impl Malformed {
+		/// Whether it is at `at`.
+		pub fn is(&self, at: u8) -> bool {
+			self.at == at
+		}
+	}
+
+	impl std::fmt::Display for Malformed {
+		fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+			write!(f, "malformed at {}", self.at)
+		}
+	}
+
+	/// Digits whose fields are named as the members Swift's protocols for `Display` and `Debug`
+	/// give a type.
+	#[derive(Clone, Copy, Debug, PartialEq)]
+	pub struct Described {
+		pub description: u8,
+		pub debug_description: u8,
+	}
+
+	impl std::fmt::Display for Described {
+		fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+			write!(f, "{}{}", self.description, self.debug_description)
+		}
+	}
+
+	/// `described`'s fields as decimal digits, from `description` up.
+	pub fn described(described: Described) -> u32 {
+		u32::from(described.description) * 10 + u32::from(described.debug_description)
+	}
+
+	/// Bytes read one at a time, whose methods go vet reads as `io.ByteScanner`'s, as
+	/// untrusted's `Reader::read_byte` is.
+	pub struct Reader {
+		bytes: Vec<u8>,
+		at: usize,
+	}
+
+	impl Reader {
+		pub fn new(bytes: Vec<u8>) -> Reader {
+			Reader { bytes, at: 0 }
+		}
+
+		/// The next byte, or the end as malformed: of another signature than vet's.
+		pub fn read_byte(&mut self) -> Result<u8, Malformed> {
+			let byte = *self.bytes.get(self.at).ok_or(Malformed { at: self.at as u8 })?;
+			self.at += 1;
+			Ok(byte)
+		}
+
+		/// Back a byte, or malformed at the start: of the signature vet's has.
+		pub fn unread_byte(&mut self) -> Result<(), Malformed> {
+			self.at = self.at.checked_sub(1).ok_or(Malformed { at: 0 })?;
+			Ok(())
+		}
+
+		/// Nothing, typed on the JVM as `java.lang.Object`'s final `wait(long)`.
+		pub fn wait(&self, ms: u64) {
+			let _ = ms;
+		}
+	}
+
+	/// What a caller waits on, whose methods are named as `java.lang.Object`'s final `wait`
+	/// and as `io.ByteReader`'s `ReadByte`.
+	pub trait Source {
+		fn wait(&self);
+		fn read_byte(&self) -> u8;
+	}
+
+	/// The byte `source` reads once it waited.
+	pub fn waited(source: impl Source) -> u8 {
+		source.wait();
+		source.read_byte()
+	}
+
+	/// An error number, in a field named as `errno.h`'s macro.
+	#[derive(Clone, Copy, Debug, PartialEq)]
+	pub struct Errno {
+		pub errno: i32,
+	}
+
+	impl Errno {
+		/// None, named as `stddef.h`'s macro, as wasm-bindgen's `JsValue::NULL` is.
+		pub const NULL: Errno = Errno { errno: 0 };
 	}
 
 	pub mod audio {
@@ -2942,6 +5429,193 @@ pub mod clash {
 		pub fn finish() -> u8 {
 			2
 		}
+	}
+
+	/// A byte, whose methods `delete_` and `delete` C++ escapes alike, as `delete_`, and the
+	/// rest name alike where their case drops the `_`.
+	#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+	pub struct Escaped {
+		pub new: u8,
+	}
+
+	impl Escaped {
+		/// `new` plus the arguments, by parameters C++ escapes alike.
+		pub fn delete_(&self, new: u8, new_: u8) -> u8 {
+			self.new + new * 10 + new_ * 100
+		}
+
+		/// `new`, by a method C++ escapes as `delete_`.
+		pub fn delete(&self) -> u8 {
+			self.new
+		}
+	}
+
+	/// Digits whose fields differ only by trailing underscores, which camel case drops, and
+	/// are named as the members `Debug` and `Default` give a type.
+	#[derive(Clone, Copy, Debug, Default, PartialEq)]
+	pub struct Underscored {
+		pub new_: u8,
+		pub new: u8,
+		pub debug: u8,
+		pub default: u8,
+	}
+
+	/// An edit, whose values differ only by a trailing underscore, which Swift's case drops.
+	#[allow(non_camel_case_types, reason = "the clash under test")]
+	#[derive(Clone, Copy, Debug, PartialEq)]
+	pub enum Op {
+		Delete_,
+		Delete,
+	}
+
+	/// A change, whose payload's fields differ only by a trailing underscore.
+	#[derive(Clone, Copy, Debug, PartialEq)]
+	pub enum Change {
+		Set { new_: u8, new: u8 },
+		Clear,
+	}
+
+	/// `underscored`'s fields as decimal digits, from `new_` up, after `op`'s and `change`'s,
+	/// to show each crossed to its own place.
+	pub fn underscored(underscored: Underscored, op: Op, change: Change) -> u32 {
+		let Underscored {
+			new_,
+			new,
+			debug,
+			default,
+		} = underscored;
+		let change = match change {
+			Change::Set { new_, new } => u32::from(new_) * 10 + u32::from(new),
+			Change::Clear => 0,
+		};
+		let digits = [new_, new, debug, default]
+			.iter()
+			.fold(0, |n, &d| n * 10 + u32::from(d));
+		(op as u32 + 1) * 1_000_000 + change * 10_000 + digits
+	}
+
+	/// The underscored record with each field one more, wrapping past 255, and the change with
+	/// each swapped.
+	pub fn underscored_next(underscored: Underscored, change: Change) -> (Underscored, Change) {
+		let Underscored {
+			new_,
+			new,
+			debug,
+			default,
+		} = underscored;
+		let next = Underscored {
+			new_: new_.wrapping_add(1),
+			new: new.wrapping_add(1),
+			debug: debug.wrapping_add(1),
+			default: default.wrapping_add(1),
+		};
+		let change = match change {
+			Change::Set { new_, new } => Change::Set { new_: new, new: new_ },
+			Change::Clear => Change::Clear,
+		};
+		(next, change)
+	}
+
+	/// An eraser, implemented in each binding, whose methods and parameters differ only by
+	/// trailing underscores.
+	pub trait Eraser {
+		/// The arguments as decimal digits.
+		fn delete_(&self, new_: u8, new: u8) -> u8;
+
+		/// One.
+		fn delete(&self) -> u8;
+	}
+
+	/// `eraser`'s `delete_(1, 2)`, then its `delete()`, as decimal digits.
+	pub fn erased(eraser: impl Eraser) -> u32 {
+		u32::from(eraser.delete_(1, 2)) * 10 + u32::from(eraser.delete())
+	}
+
+	/// A notch named with a trailing underscore, `api_clash_Notch_` in C, whose functions C
+	/// names as its stem's, `api_clash_Notch_eq`, since C++ reserves every name holding `__`.
+	#[derive(Clone, Debug, Default, PartialEq, Eq, Hash, PartialOrd, Ord)]
+	pub struct Notch_ {
+		count: u32,
+	}
+
+	impl Notch_ {
+		pub fn new(count: u32) -> Notch_ {
+			Notch_ { count }
+		}
+
+		/// The count.
+		pub fn count(&self) -> u32 {
+			self.count
+		}
+	}
+
+	impl std::fmt::Display for Notch_ {
+		fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+			write!(f, "notch {}", self.count)
+		}
+	}
+
+	/// Notches of each count below `n`, in a `Vec` C frees as `api_vec_clash_Notch_free`.
+	pub fn notches(n: u32) -> Vec<Notch_> {
+		(0..n).map(Notch_::new).collect()
+	}
+
+	/// A shift named with a trailing underscore, whose tag C names `api_clash_Shift_tag`.
+	#[derive(Clone, Copy, Debug, PartialEq)]
+	pub enum Shift_ {
+		Up(u8),
+		Down,
+		/// Down by its count, by a name whose C union member would be the tag's own.
+		Tag(u8),
+	}
+
+	/// `at` shifted, wrapping.
+	pub fn shifted(at: u8, shift: Shift_) -> u8 {
+		match shift {
+			Shift_::Up(by) => at.wrapping_add(by),
+			Shift_::Down => at.wrapping_sub(1),
+			Shift_::Tag(by) => at.wrapping_sub(by),
+		}
+	}
+
+	/// A count implemented in each binding, named with a trailing underscore, whose table C
+	/// names `api_clash_Count_vtable`.
+	pub trait Count_ {
+		/// The next count.
+		fn next(&self) -> u32;
+	}
+
+	/// `count`'s next, plus one, wrapping.
+	pub fn counted(count: impl Count_) -> u32 {
+		count.next().wrapping_add(1)
+	}
+
+	/// Two, by a name that differs only by a trailing underscore from `erase`'s.
+	pub fn erase_() -> u8 {
+		2
+	}
+
+	/// One.
+	pub fn erase() -> u8 {
+		1
+	}
+
+	/// One more than the store's count, or none without one, by a name that differs only by
+	/// a trailing underscore from `lend`'s: Swift's overload leaving out `store` would be
+	/// `lend()` too. The sum saturates at `u32::MAX`.
+	pub fn lend_(store: Option<&Store>) -> u32 {
+		store.map_or(0, |store| store.count.saturating_add(1))
+	}
+
+	/// Nine.
+	pub fn lend() -> u32 {
+		9
+	}
+
+	/// Ten times what `work_` returns, plus `work`, by parameters that differ only by a
+	/// trailing underscore, the closure's first.
+	pub fn run(work_: impl Fn() -> u8, work: u8) -> u32 {
+		u32::from(work_()) * 10 + u32::from(work)
 	}
 
 	/// The tone, or no tones where it is silent: an error Go names as `VecClashTone`'s variant.
@@ -3026,9 +5700,13 @@ pub fn farther_hop(hops: Pair<NonZero<u16>>) -> Box<NonZero<u16>> {
 	Box::new(hops.left.max(hops.right))
 }
 
-/// Three optional borrowed counters, past what Swift takes, so the config leaves it out.
-pub fn among(first: Option<&Counter>, second: Option<&Counter>, third: Option<&Counter>) -> u64 {
-	[first, second, third].into_iter().flatten().map(|c| c.value).sum()
+/// The end of a stream, named as `stdio.h`'s macro, as libc's is.
+pub const EOF: i32 = -1;
+
+/// A wait status's exit code, named as `sys/wait.h`'s macro, as libc's is.
+#[allow(non_snake_case, reason = "the clash under test")]
+pub fn WEXITSTATUS(status: i32) -> i32 {
+	(status >> 8) & 0xff
 }
 
 /// A record named as C++'s `==` names its first argument, which must not hide it.
@@ -3076,4 +5754,478 @@ pub enum Builtin {
 pub struct Qualifiers {
 	pub api: f64,
 	pub kotlin: f64,
+}
+
+/// An object named as a class of Kotlin's runtime once was, which keeps its name now the
+/// runtime's take a leading `__`.
+pub struct Handle {
+	count: u32,
+}
+
+impl Handle {
+	pub fn new(count: u32) -> Self {
+		Handle { count }
+	}
+
+	pub fn count(&self) -> u32 {
+		self.count
+	}
+
+	pub async fn later(count: u32) -> Self {
+		Handle { count }
+	}
+}
+
+// Lossless round trips: each returns what it is given, so a binding passes a type's edge
+// values through Rust and back, and prints what it holds.
+
+/// `v`, as given: the longest `Duration` included.
+pub fn same_duration(v: Duration) -> Duration {
+	v
+}
+
+/// `v`, as given: past `i64::MAX` included.
+pub fn same_u64(v: u64) -> u64 {
+	v
+}
+
+/// `v`, as given: past a 32-bit target's included.
+pub fn same_usize(v: usize) -> usize {
+	v
+}
+
+/// `v`, as given.
+pub fn same_isize(v: isize) -> isize {
+	v
+}
+
+/// `v`, as given.
+pub fn same_u128(v: u128) -> u128 {
+	v
+}
+
+/// `v`, as given.
+pub fn same_char(v: char) -> char {
+	v
+}
+
+/// `v`, as given.
+pub fn same_string(v: String) -> String {
+	v
+}
+
+/// `v`, as given: one whose bytes are not UTF-8 included, as a Unix path may be.
+pub fn same_path(v: std::path::PathBuf) -> std::path::PathBuf {
+	v
+}
+
+/// `v`, as given: a flow label and scope included.
+pub fn same_socket_addr(v: std::net::SocketAddr) -> std::net::SocketAddr {
+	v
+}
+
+/// `v`, as given.
+pub fn same_socket_addr_v4(v: std::net::SocketAddrV4) -> std::net::SocketAddrV4 {
+	v
+}
+
+/// `v`, as given: a flow label and scope included.
+pub fn same_socket_addr_v6(v: std::net::SocketAddrV6) -> std::net::SocketAddrV6 {
+	v
+}
+
+/// `v`, as given.
+pub fn same_ip_addr(v: std::net::IpAddr) -> std::net::IpAddr {
+	v
+}
+
+/// A version: a record whose derived `Ord` is a total order, `major` first.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub struct Version {
+	pub major: u16,
+	pub minor: u16,
+}
+
+/// A quantity: an object whose hand-written `PartialOrd` leaves quantities of two units
+/// unordered, as moq's timestamps of two scales are, so it has no `Ord`.
+#[derive(Debug, PartialEq)]
+pub struct Quantity {
+	value: i64,
+	unit: char,
+}
+
+impl Quantity {
+	pub fn new(value: i64, unit: char) -> Quantity {
+		Quantity { value, unit }
+	}
+}
+
+impl PartialOrd for Quantity {
+	fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+		(self.unit == other.unit).then(|| self.value.cmp(&other.value))
+	}
+}
+
+/// A pass: an object whose derived `Ord` is a total order, and whose handle a call checks,
+/// since `redeem` moves it out.
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub struct Pass {
+	number: u32,
+}
+
+impl Pass {
+	pub fn new(number: u32) -> Pass {
+		Pass { number }
+	}
+
+	/// Its number, using it up.
+	pub fn redeem(self) -> u32 {
+		self.number
+	}
+}
+
+/// A rank: a data enum with `Ord` whose fields are named as the comparison methods a
+/// binding gives it, which each binding's names for them must keep apart.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub enum Rank {
+	Unranked,
+	Ranked {
+		compare: u8,
+		partial_compare: u8,
+		compare_to: u8,
+		partial_compare_to: u8,
+	},
+}
+
+/// A tier: an enum whose derived `Ord` orders its variants as declared.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub enum Tier {
+	Low,
+	High,
+	/// Named as Dart's comparison methods are, which its constants keep apart.
+	CompareTo,
+	PartialCompareTo,
+}
+
+/// A key: an object whose `Hash` agrees with its `PartialEq`, so a binding hashes it by
+/// Rust's, as a map keyed by it needs.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct Key {
+	name: String,
+}
+
+impl Key {
+	pub fn new(name: &str) -> Key {
+		Key { name: name.to_string() }
+	}
+
+	/// Its hash by std's hasher, which a binding's own of it must equal, as both hash
+	/// through Rust's `Hash` alike.
+	pub fn hash_of(&self) -> u64 {
+		std::hash::BuildHasher::hash_one(
+			&std::hash::BuildHasherDefault::<std::hash::DefaultHasher>::default(),
+			self,
+		)
+	}
+}
+
+/// `text` without its backslashes, borrowed where it has none, as moq-pattern's `unescape` is.
+pub fn unescaped(text: &str) -> Cow<'_, str> {
+	match text.contains('\\') {
+		true => Cow::Owned(text.replace('\\', "")),
+		false => Cow::Borrowed(text),
+	}
+}
+
+/// [`unescaped`], later: the future owns the text it borrows, so what it returns is
+/// owned before the future ends.
+pub async fn unescaped_later(text: &str) -> Cow<'_, str> {
+	unescaped(text)
+}
+
+/// [`unescaped`] of `text` if any, later.
+pub async fn unescaped_maybe(text: Option<&str>) -> Option<Cow<'_, str>> {
+	text.map(unescaped)
+}
+
+/// `bytes` without their zeros, borrowed where they have none.
+pub fn unzeroed(bytes: &[u8]) -> Cow<'_, [u8]> {
+	match bytes.contains(&0) {
+		true => Cow::Owned(bytes.iter().copied().filter(|b| *b != 0).collect()),
+		false => Cow::Borrowed(bytes),
+	}
+}
+
+/// A spot that reads itself from any serde deserializer, as `#[serde(remote = "Self")]`
+/// derives an inherent `deserialize`, which moq-mux's `Mpegts` has.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct Spot {
+	pub x: u32,
+	pub y: u32,
+}
+
+impl Spot {
+	pub fn deserialize<'de, D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+		let (x, y) = <(u32, u32) as serde::Deserialize>::deserialize(deserializer)?;
+		Ok(Self { x, y })
+	}
+}
+/// A type named as Kotlin's and Dart's deprecation annotation, which the bindings' own
+/// annotations must not resolve to.
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub struct Deprecated {
+	pub on: bool,
+	/// Named as the Swift record's own conversion, which its stored field must not be.
+	#[deprecated]
+	pub lower: u32,
+	/// Named as Dart's annotation, which its sibling's must not resolve to.
+	pub deprecated: bool,
+}
+
+/// A function named as Dart's deprecation annotation, which the deprecated items after it
+/// must not resolve to.
+pub fn deprecated(note: u8) -> u8 {
+	note
+}
+
+/// One more than `note`, by a name starting with an underscore, which `pub` still exports,
+/// and which Python's module takes for its own deprecation decorator.
+pub fn _deprecated(note: u8) -> u8 {
+	note + 1
+}
+
+/// Two more than `note`, by a name Python reserves, as the module's own `__all__` is.
+pub fn __all__(note: u8) -> u8 {
+	note + 2
+}
+
+/// Three more than `note`, wrapping past 255, by the name Python would give `__all__`, which
+/// this one keeps.
+pub fn __all___(note: u8) -> u8 {
+	note.wrapping_add(3)
+}
+
+/// A dial, whose docs carry each rustdoc form a binding renders as its own: links to a
+/// method [`Self::turn`], a field [`Dial::level`], a variant [`Error::Overflow`], a
+/// function [`advance`], a constant [`LIMIT`], an object [`Counter`], a callback's method
+/// [`Log::log`], [`Spawned`], which the web lacks, a method [`clash::Span::width`] and the
+/// [field](field@clash::Span::width) of its name, [`Vec`], which no binding has, and
+/// [a link with its own text](Self::turn).
+///
+/// # Examples
+///
+/// ```
+/// let dial = api::Dial::default();
+/// assert_eq!(dial.level, 0);
+/// ```
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub struct Dial {
+	/// How far it is turned, below [`LIMIT`].
+	pub level: u64,
+	/// What [`Self::level`] was before the last turn.
+	#[deprecated(note = "keep the [`Dial`] from before the turn")]
+	pub before: u64,
+}
+
+impl Dial {
+	/// The dial turned `by` more.
+	///
+	/// # Errors
+	///
+	/// [`Error::Overflow`] past [`LIMIT`].
+	///
+	/// # Panics
+	///
+	/// When `by` is zero.
+	#[allow(deprecated, reason = "it keeps the field it deprecates")]
+	pub fn turn(self, by: u64) -> Result<Dial, Error> {
+		assert!(by != 0, "a turn by nothing");
+		match self.level.checked_add(by) {
+			Some(level) if level <= LIMIT => Ok(Dial {
+				level,
+				before: self.level,
+			}),
+			_ => Err(Error::Overflow),
+		}
+	}
+
+	/// The dial turned all the way: use [`Self::turn`].
+	#[deprecated(since = "0.2.0", note = "turn it by [`LIMIT`] with [`Dial::turn`]")]
+	pub fn max(self) -> Dial {
+		#[allow(deprecated, reason = "it keeps the field it deprecates")]
+		Dial {
+			level: LIMIT,
+			before: self.level,
+		}
+	}
+}
+
+/// A knob, deprecated as a whole: [`Dial`] replaces it.
+#[deprecated(note = "use [`Dial`], whose 'level' is \"the same\" at $0\nand past it")]
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub struct Knob {
+	pub level: u64,
+}
+
+#[allow(deprecated, reason = "it is the type it deprecates")]
+impl Knob {
+	/// Its level, twice.
+	pub fn doubled(&self) -> u64 {
+		self.level * 2
+	}
+}
+
+/// A knob behind a handle, which reaches its deprecated type's methods, deprecated too.
+#[allow(deprecated, reason = "it holds the type it deprecates")]
+pub struct Holder {
+	knob: Knob,
+}
+
+#[allow(deprecated, reason = "it holds the type it deprecates")]
+impl Holder {
+	/// A knob at `level`.
+	pub fn new(level: u64) -> Self {
+		Self { knob: Knob { level } }
+	}
+}
+
+#[allow(deprecated, reason = "it holds the type it deprecates")]
+impl std::ops::Deref for Holder {
+	type Target = Knob;
+
+	fn deref(&self) -> &Knob {
+		&self.knob
+	}
+}
+
+/// The knob of `dial`.
+#[deprecated]
+#[allow(deprecated, reason = "it returns the type it deprecates")]
+pub fn knob(dial: Dial) -> Knob {
+	Knob { level: dial.level }
+}
+
+/// The level of `dial`, from a future.
+#[deprecated(note = "read its `level`")]
+pub async fn level_later(dial: Dial) -> u64 {
+	dial.level
+}
+
+/// What turns a [`Dial`], implemented in each binding.
+pub trait Turner {
+	/// How far to turn.
+	fn by(&self) -> u64;
+
+	/// How far to turn once.
+	#[deprecated(note = "turn [`Turner::by`] instead")]
+	fn once(&self) -> u64;
+}
+
+/// `dial` turned as `turner` says, and once more.
+#[allow(deprecated, reason = "it calls the method it deprecates")]
+pub fn turned(dial: Dial, turner: impl Turner) -> Result<Dial, Error> {
+	dial.turn(turner.by())?.turn(turner.once())
+}
+
+/// An edit history, implemented in each binding, whose methods are named as a C++
+/// keyword, a C table's own `free`, and a Rust keyword.
+pub trait Undo {
+	/// What deleting `n` edits leaves.
+	fn delete(&self, n: u32) -> u32;
+
+	/// How many edits it frees.
+	fn free(&self) -> u32;
+
+	/// Its kind of edit.
+	fn r#type(&self) -> u8;
+}
+
+/// `undo`'s methods' results as decimal digits: `delete(n)`, `free()`, then `type()`.
+pub fn undone(undo: impl Undo, n: u32) -> u32 {
+	undo.delete(n) * 100 + undo.free() * 10 + u32::from(undo.r#type())
+}
+
+/// The most a [`Dial`] turns, a name the web's globals take too: [`URL`] links its own.
+pub const URL: u64 = LIMIT;
+
+/// The step a [`Dial`] turned by before [`Dial::turn`] took any, at most [`URL`].
+#[deprecated(note = "pass a step to [`Dial::turn`], whose `}` or `{` alone stays in the note")]
+pub const STEP: u64 = 1;
+
+static UNWOUND: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
+
+/// What a call holding it while a closure runs drops however the call ends, as a
+/// closure's panic unwinding drops it.
+struct Unwound;
+
+impl Drop for Unwound {
+	fn drop(&mut self) {
+		UNWOUND.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+	}
+}
+
+/// How many calls of [`measured`], [`negated`], [`lettered`], [`bumped`], and [`stretched`]
+/// dropped what they held.
+pub fn unwound() -> u32 {
+	UNWOUND.load(std::sync::atomic::Ordering::Relaxed)
+}
+
+/// One past the length `f` returns, wrapping.
+pub fn measured(f: impl Fn() -> usize) -> usize {
+	let _held = Unwound;
+	f().wrapping_add(1)
+}
+
+/// The offset `f` returns, negated, wrapping.
+pub fn negated(f: impl Fn() -> isize) -> isize {
+	let _held = Unwound;
+	f().wrapping_neg()
+}
+
+/// The letter `f` returns.
+pub fn lettered(f: impl Fn() -> char) -> char {
+	let _held = Unwound;
+	f()
+}
+
+/// `n` bumped, then the letter `f` returns: a caller catching `f`'s failure sees the bump.
+pub fn bumped(n: &mut u32, f: impl Fn() -> char) -> char {
+	let _held = Unwound;
+	*n += 1;
+	f()
+}
+
+/// Letters a closure appends to, read back borrowed.
+pub struct Tag(String);
+
+impl Tag {
+	/// An empty one.
+	pub fn new() -> Self {
+		Tag(String::new())
+	}
+
+	/// `n` bumped, then the letter `f` returns appended: a borrowed result beside a written argument.
+	pub fn tagged(&mut self, n: &mut u32, f: impl Fn() -> char) -> &str {
+		*n += 1;
+		self.0.push(f());
+		&self.0
+	}
+}
+
+impl Default for Tag {
+	fn default() -> Self {
+		Self::new()
+	}
+}
+
+/// What has a length, implemented in each binding.
+pub trait Stretch {
+	/// Its length.
+	fn stretch(&self) -> usize;
+}
+
+/// One past `stretch`'s length, wrapping.
+pub fn stretched(stretch: impl Stretch) -> usize {
+	let _held = Unwound;
+	stretch.stretch().wrapping_add(1)
 }

@@ -134,7 +134,7 @@ crate translation reaches is refused, and so are two versions of one crate it re
 | `dyn Iterator`, `dyn DoubleEndedIterator`, `dyn ExactSizeIterator`, `dyn FusedIterator` | `rs.Iter<Item>`: `rs.iterDyn` of the iterator it was made of |
 | constant | its value, inlined as Rust inlines it, so each use of one holding a cell is a cell of its own; one with no value tree, or holding a cell, read from the memory rustc evaluated |
 | `static` | a module's value, named for the static, that every use shares, read from the memory rustc evaluated; one that reads another static or a class is an `rs.LazyCell` of it, made on first use, since that may not be made yet when its module is. A `static mut`, and a pointer in one into memory the translation can't name, fail translation |
-| a type that drops | a class with `[Symbol.dispose]`: its `Drop` impl, then its fields |
+| a type that drops | a class with `[Symbol.dispose]`: its `Drop` impl, then its fields; where the engine lacks that symbol, as stable Safari does, the runtime defines it as `Symbol.for("Symbol.dispose")` before any class keys a method on it, so a consumer's `using` runs the drop, native or lowered by `tsc` or esbuild |
 | a type's function | a function of the type's module, taking `self` first: `Decoder.slice(dec, 4)` after `import * as Decoder` |
 | `Arc<T>`, `Rc<T>`, `Weak<T>`, `Mutex<T>` | `rs.Arc` for either, of what a `Box<T>` is for a slice or `str`, with its strong and weak counts, an `Arc<[T; N]>` unsized to an `Arc<[T]>` an `rs.ArcDyn` of the slice of its array, sharing its count, an `Arc<[u8]>` of an `Arc<str>`'s bytes sharing its count, and `new_cyclic`'s `Weak` upgrading only once its value is made, `get_mut` lending its value only while no other `Arc` or `Weak` shares it, `make_mut` cloning it into a new `rs.Arc` while another `Arc` shares it, or moving it there while only `Weak`s do, which then dangle, as a copy where pointers to it compare, `as_ptr` and `into_raw` pointing where a reference to its value does, or at its place where JS copies it, as a pointer the body shows made from a reference to that value does, which `from_raw`, `increment_strong_count`, and `decrement_strong_count` take back to its `rs.Arc` and count, refused for one the body shows a borrow made, and aborting, as std's debug checks of unsafe preconditions do, on another pointer no `as_ptr` or `into_raw` of that type of `Arc` gave, or one whose value dropped, which Rust leaves undefined, and refused for one to a slice or bytes, which JS makes anew each time, and `ptr::addr_eq` comparing what `ptr::eq` compares, of one pointee type, and `into_inner` giving it only from the last strong `Arc`, as a copy where pointers to it compare, after which its `Weak`s no longer upgrade; `rs.Weak`, counted in its `rs.Arc` until it drops, and of no `Arc` once made by `Weak::new`, its `as_ptr` pointing where its `Arc`'s does whether or not a strong one is left, or at std's dangling address, wasm32's `usize::MAX`, for a `Weak::new`'s, and refused for a slice, which JS keeps no length of for a `Weak::new` unsized to one, and for a value JS keeps as an object of a type the program makes by `new_cyclic` too, which has no object to point at until its closure returns; `rs.Mutex`, its own guard, which a lock gives as `Ok` and the guard's drop unlocks: locking it again while held panics and `try_lock` gives `WouldBlock`, as wasm32's do, and a guard's `map` and `filter_map` make `rs.MutexMap`s, each where the part it lends is, which hold the mutex locked until they drop, and a panic aborts, so nothing poisons it and `thread::panicking` is `false`; a `Mutex`'s, a `RefCell`'s, and an `RwLock`'s `into_inner` gives its value and `get_mut` lends it, or an `rs.Place` of it where JS copies it |
 | `PoisonError<T>`, `TryLockError<T>` | the `T` it holds; `rs.TryLockError<T>`, tagged as `Bound` is |
@@ -241,8 +241,10 @@ A wider integer is a `number` up to 2^53 - 1 in magnitude, and past that an immu
 object of 32-bit limbs, `{ hi, lo }`, with `w2` and `w1` between them at 128 bits and
 `hi` signed in a signed type. Each value has one form, so `x === 0` is exact; a caller
 makes one past 2^53 with `rs.u64Of(18446744073709551615n)`. Its other operators and
-comparisons are runtime calls, `rs.u64Add(a, b)` and `rs.u64Lt(a, b)`, and `x as u32`
-is `rs.u64Low(x)`. `((hi as u64) << 32) | lo as u64` of halves of at most 32 bits is
+comparisons are runtime calls, `rs.u64Add(a, b)` and `rs.u64Lt(a, b)`, but for a `u64`'s sum
+and difference and any wide comparison of names and literals, which write the numbers' case
+at the call and leave limbs to the runtime: `typeof a === "number" && a + 1 <= 9007199254740991
+? a + 1 : rs.u64Add(a, 1)`. `x as u32` is `rs.u64Low(x)`. `((hi as u64) << 32) | lo as u64` of halves of at most 32 bits is
 one call, `rs.u64FromHalves(hi, lo)`.
 
 Each integer's inherent methods are std's, and a `NonZero`'s, a `Wrapping`'s, and a
@@ -399,10 +401,12 @@ A chain of `map`, `filter`, `enumerate`, and `zip` over a slice's, a `Vec`'s, or
 iterator, or the `rev` of one, whose items drop nothing JS sees, fuses into the loop that
 reads it: `count`, `any`, `all`, `fold`, `sum`, `product`, `for_each`, `find`, `position`,
 or a `for` loop, each adaptor's step written inline, with the leaves still `rs.Iter`s and
-only their `next` called, so no adaptor object is made between them. Under a consumer, a
-closure whose body is one expression is written in place of its call, and a `zip`'s or an
-`enumerate`'s pair reaches it as its parts, made into an array only where the tuple is read
-whole. It calls each closure, and reads each side of a `zip`, in std's order, as the
+only their `next` called, so no adaptor object is made between them. A closure whose body
+is one expression is written in place of its call, in a `for` loop only where each variable
+it names is still the one it names where the chain is made, and a `zip`'s or an
+`enumerate`'s pair reaches the consumer or the loop's body as its parts, made into an array
+only where the tuple is read whole. A `for` loop leaves where the chain ends, testing for
+the end once. It calls each closure, and reads each side of a `zip`, in std's order, as the
 runtime does, a `zip` read by index or folded by its size hint included, so a chain whose
 consumer stops early or panics partway leaves what Rust's does. A chain read any other
 way, such as one returned, or read from the back or by `nth`, is the runtime's.
@@ -1007,10 +1011,20 @@ they need.
   2-6x faster. Limbs for every value allocate an object each, which costs what a
   `bigint` does in V8, so they lost decode; unboxed halves would lower every value to
   two. Past 2^53 an operation allocates limbs, computed on their 32-bit words: sums,
-  differences, comparisons, casts, products of 64-bit values or of two numbers, and
-  division by a divisor below 2^32, with the rest of 128-bit arithmetic through `bigint`
-  inside the runtime. A literal past 2^53 is written out as limbs, which cost what a
-  hoisted constant does. Converting timestamps between timescales as moq-net does,
+  differences, comparisons, casts, products of 64-bit values or of two numbers, wrapping
+  products, and division by a divisor below 2^32. The rest of 128-bit arithmetic and the
+  division of 64-bit values by a larger divisor go through `bigint` inside the runtime,
+  which limbs and `bigint`s trade through one `DataView`: a store of each limb and a load,
+  not a shift and an add per limb. A `u64` kept as a number or a `bigint` wrapped by
+  `BigInt.asUintN(64, ...)`, which V8 lowers to 64-bit machine operations, measured
+  against limbs in Node, Bun, Chrome, and Firefox: it ties or loses on a product past 2^53
+  divided back down (0.3-0.7x in Node and Chrome, 1.1-1.3x in Firefox) and on comparing
+  two such products (0.4-0.5x, 0.9x in Firefox), and wins only where every value stays past 2^53, 3-5x on a
+  wrapping product and on division by a divisor past 2^32. Limbs took that win without
+  the representation: a wrapping product from the halves, and the `DataView` for the
+  division, made the hash workload `int/` 2.5-5x faster in all four engines, at the
+  hand-written `bigint` route's time. A literal past 2^53 is written out as limbs, which
+  cost what a hoisted constant does. Converting timestamps between timescales as moq-net does,
   products past 2^53 divided back down, takes 0.8-1.0x the hand-written `bigint` route's
   time in Chrome in `u64`, and 1.2-1.5x in `u128`. `u128` and `i128` as
   native `bigint`s measured 1.4-1.8x slower than limbs on that in Chrome and 1.2-1.5x in
@@ -1095,6 +1109,15 @@ they need.
   `rs.ByteSlice` too, its bytes read in place: the decode workloads then took 0.72 times
   a view's time in Chrome, 0.67 in Firefox, 0.87 in Node, and 0.71 in Bun at the
   geometric mean, with the A/A route within 0.03, and encode no slower.
+- A `u64`'s sum and difference, and a wide comparison, of names and literals write the
+  numbers' case at the call instead of calling the runtime: in a function SpiderMonkey
+  compiled large, `parts/prefix-writes`' loop of `wrapping_add` stayed a call to the
+  runtime, 4 times the time the same path written out took (`just ts bench`'s `translated`
+  against the route from before, run together: 0.21-0.49x in Firefox, 0.54x at the
+  geometric mean of the `parts/` rows in Node, 0.60x in Bun, and 0.80x in Chrome, every
+  other family within the A/A route's spread). It adds 458 bytes gzipped, 1.7%. The narrower
+  integers' sums and differences written out the same way added 340 more with no further
+  speed up, so they stay calls; so do a signed `i64`'s.
 - A run of bytes `as_chunks_mut` lends is a `Uint8Array` view, which a whole write of
   another run can't detach, so a read of one by value copies it (decided with the
   maintainer on 2026-11-03). moq writes its runs by element and reads none whole, so it
@@ -1120,6 +1143,17 @@ they need.
   where it meets a slot below, and its object, such as an `rs.Ok`, counts as made at each
   read that makes it. An `Option` of a number is one part, that or `undefined`, as its JS
   value is. A return is still a `ByteSlice` but for the `Result`s below.
+- A local of slices of other elements, each an `rs.Slice`, shared or `&mut`, is held as
+  parts the same way, written through them where its object would be, and also when
+  `deref`, `as_slice`, or a range index of a `Vec`, a slice, or an array assigns it, its
+  range checked as std's `Index` checks it, so `split_at_mut` and `&mut v[..k]` make no
+  tuple or slice per step. Only one some read takes apart is held so: one every read makes
+  whole saves nothing, and the call that makes it reads the `Vec`'s items in place. Byte
+  slices keep the rules above. `just ts bench` measured `parts/heap-sift` at 0.24, 0.18,
+  and 0.49 times `main`'s time in Chrome from 16 to 4096 items, 0.26, 0.18, and 0.41 in
+  Firefox, 0.30, 0.29, and 0.51 in Node, and 0.76 in Bun at 4096, with smaller sizes
+  within its noise, and `parts/prefix-writes` at 0.61-0.78 in Chrome, 0.66-0.83 in Node,
+  and 0.71-1.0 in Firefox, with the A/A route within 0.10 at the median workload.
 - A function only translated code calls takes each `&[u8]` or `&[u8; N]` parameter as
   three, its `data`, `start`, and `length`, which its body holds as that local's parts:
   not a root, which the outside calls, a closure, or an `async fn`. One whose object the
@@ -1244,6 +1278,14 @@ they need.
   without which Node ran the codec 1.31x slower. Against the runtime functions, the codec
   and async handoff bundles are within 25 bytes gzipped, and `just ts bench` measures
   them within the A/A route's spread in Node, Bun, Chrome, and Firefox.
+- A `&str`'s UTF-8 is a loop's in `rs/utf8.ts` up to 64 code units, into the runtime's
+  shared byte buffer, and its decode a loop's up to 32 bytes; longer ones take
+  `TextEncoder` and `TextDecoder`. V8's `TextEncoder.encode` costs 450-950 ns at any
+  length, and a slice of a fresh array of its own costs V8 another 500 ns to give it a
+  buffer, which the shared one already has. `just ts bench` measured string encode in
+  Chrome at 121-129 ns against 767-778, and decode at 178-207 against 226-270; Firefox's
+  native codecs beat the loops, which take 1.4x their time to encode and 1.4-1.9x to
+  decode, but Chrome decides.
 
 ## Not yet
 
@@ -1431,31 +1473,44 @@ frame headers decoded as they arrive a few bytes at a time, which prices a decod
 comes up `Short` and retries, iterator chains over bytes, a `BTreeMap` of 16, 256, and
 4096 keys, and timestamps converted between timescales as moq-net's `Timestamp::convert`
 does, whose products pass 2^53, then added by its `checked_add` and ordered by its `Ord`,
-whose cross products do too, integers sorted, searched for their greatest and least,
+whose cross products do too, 64-bit hash arithmetic that stays past 2^53, integers sorted, searched for their greatest and least,
 and kept in a `BinaryHeap`, TS packets numbered through `as_chunks_mut` as moq-mux
 numbers them, each also read by value, a copy of its bytes, and frames' `Bytes` split off a
-group's, cloned, sliced, and dropped, as moq-net's model hands them to its consumers. Each runs four ways: natively, as wasm32 at the
-size-optimized profile moq's WASM shipped with, hand-written (moq's `js/net` in `bench/moq.ts` and its `Timestamp`
+group's, cloned, sliced, and dropped, as moq-net's model hands them to its consumers. Each runs seven ways: natively; as wasm32 at the
+size-optimized profile moq's WASM shipped with, through `fixtures/wasm.rs`'s hand-written
+boundary; the same at `wasm-checked`, that profile with the overflow checks and debug
+assertions the translation keeps; that build lowered to JavaScript by Binaryen's `wasm2js`;
+through [rust2-wasm](../ffi/README.md#typescript-web), the export of a facade whose `pub`
+API is `bench::run` alone (`fixtures/codec/web`), built at `wasm-checked` for
+`wasm32-wasip1` and called through its generated TypeScript; hand-written (moq's `js/net` in `bench/moq.ts` and its `Timestamp`
 in `bench/timestamp.ts`, ES iterator helpers in `bench/iter.ts`, a sorted array in
 `bench/sorted.ts`, `bigint` in `bench/rescale.ts`, as moq's `js/hang` converts
-timescales, typed arrays and a heap of its own in `bench/order.ts`, offsets into one
-`Uint8Array` in `bench/packets.ts`, and `subarray`s in `bench/frames.ts`), and translated; every route's output must match
-native Rust's first. The JS routes run minified, the same bundles whose size it reports,
-in Node, Bun, Chrome, and Firefox, with the WASM route's copies across the boundary timed
+timescales, `bigint` wrapped to 64 bits in `bench/mixed.ts`, typed arrays and a heap of its own in `bench/order.ts`, offsets into one
+`Uint8Array` in `bench/packets.ts`, and `subarray`s in `bench/frames.ts`); and translated. Every route's output must match
+native Rust's first. The four routes the translation is compared with run the same checks,
+so rust2-wasm against `wasm checked` is the generated binding's cost, `wasm2js` against it
+the lowering's, and `wasm checked` against `wasm` the checks'. The JS routes run minified, the same bundles whose size it reports,
+in Node, Bun, Chrome, and Firefox, with the reference WASM route's copies across the boundary timed
 apart from its compute, and an A/A copy of the
-translation to show the noise. Each route runs alone in a worker of its own, since routes
+translation to show the noise. `bench/build.ts` builds every route from the fixtures'
+source, timing each build from an emptied target directory without a compiler cache, and
+each round's fresh worker times its route's cold start, from loading its files to its
+first output, compiling its `.wasm` or evaluating its JavaScript included; each `.wasm` is
+compiled with a custom section of its own, since V8 shares a module's code across a
+process. Each route runs alone in a worker of its own, since routes
 in one realm share type profiles and run slower loaded second, and each round starts every
 route's worker afresh: a worker keeps the inlining and deopts it settles into for the whole
 run, which put identical copies of a route up to 1.6x apart in Chrome, so a round is one
 sample of each workload from fresh workers. Each round warms up and times the routes and
 workloads in a new random order, so no route keeps a slot that runs it faster or slower
 than identical code in another; the report records the seed. It also records the host and engine versions,
-and each route's bundle size raw and gzipped. It sets no threshold; the nightly workflow
+and each route's shipped bytes raw and gzipped, rust2-wasm's `.wasm` and binding together. It sets no threshold; the nightly workflow
 runs it and posts the report to its summary. Each browser's page reports each step it
 starts, and one that runs 30 s fails the run, naming it.
 
 The task fixture's `bench::run` times an async handoff: a value sent to a task parked on
-its channel, read through 1, 4, or 16 async functions. Its translation runs polled at
+its channel, read through 1, 4, or 16 async functions, through the same wasm32 routes, its
+facade in `fixtures/task/web`. Its translation runs polled at
 once, as natively, and on `rs.spawn`; its hand-written route is the same handoff with
 promises, as moq's TypeScript writes it.
 
@@ -1474,4 +1529,4 @@ workloads still settle into one of two speeds per worker, up to 2x apart, so on 
 their A/A stayed 6-35% wide while the median workload's was 1-3%. The report's
 A/A line also gives the noise of a family's geometric mean, the steadier gauge.
 
-The bench shell adds Chromium and Firefox.
+The bench shell adds Chromium, Firefox, WebKit, and Binaryen.

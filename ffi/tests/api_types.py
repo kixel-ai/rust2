@@ -4,7 +4,7 @@
 
 import array
 import asyncio
-import datetime
+import dataclasses
 import io
 
 import api
@@ -38,15 +38,37 @@ class Reader:
 
 tail = api.tail(Reader(), 1)
 
+# A method named as a builtin leaves the builtin its annotations name.
+clash_bytes: memoryview = api.Clash.String("hi").bytes()
+
 
 # Closures returning what Rust owns, or raising the exception of their error.
-def drive(now: api.Instant, waiter: api.Waiter) -> api.Instant | None:
-	if api.since(now, now):
+def drive(now: api.Moment, waiter: api.Waiter) -> api.Moment | None:
+	if now.millis():
 		raise api.StringException("stopped")
-	return api.later(now, datetime.timedelta(milliseconds=5))
+	return now.after(5)
 
 
-stopped: str = asyncio.run(api.drive(api.now(), drive))
+start = api.Moment.new(0, 1000)
+assert start is not None
+stopped: str = asyncio.run(api.drive(start, drive))
 made: str = api.made(3, lambda n: f"{n} times")
 spawned: int = api.Spawned.new(lambda: 7).join()
 polled: None = asyncio.run(api.Waiter.poll_future(asyncio.sleep(0)))
+
+
+# A stream is an async iterator of its items.
+async def streamed(feed: api.Feed) -> list[int]:
+	payloads: list[memoryview] = [payload async for payload in feed]
+	return [count async for count in api.Countdown.new(len(payloads))]
+
+# An error's variant is its own subclass, and a record a dataclass to `dataclasses`.
+try:
+	api.jam(0)
+except api.FaultException.Busy as busy:
+	fault: api.Fault = busy.error
+except api.ErrorException.Overflow as overflow:
+	error: api.Error = overflow.error
+over: api.ErrorException.Overflow = api.ErrorException.Overflow(api.Error.Overflow())
+moved: api.Point = dataclasses.replace(api.Point(1, 2), x=3)
+named: tuple[str, ...] = tuple(f.name for f in dataclasses.fields(moved))

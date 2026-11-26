@@ -224,15 +224,25 @@ export function stepRun(s: watch_State.State, op: rs.u8, arg: rs.u8): void {
 					s.senders.items.push(_219);
 				}
 			} else {
-				const _227: rs.usize | undefined = rs.iterPosition(rs.iterSlice(s.senders.items), (a0: rs.WatchSender<Item.Item> | undefined): boolean => {
-					return a0 !== undefined;
-				});
+				const s2 = s.senders.items;
+				let front = 0;
+				let back = s2.length;
+				let i2 = 0;
+				let at: number | undefined = undefined;
+				while (!(front >= back)) {
+					if (s2[front++] !== undefined) {
+						at = i2;
+						break;
+					}
+					i2++;
+				}
+				const _227: rs.usize | undefined = at;
 				if (_227 !== undefined) {
 					const i: rs.usize = _227;
 					note(rs.stringFrom("drop sender"));
-					const at = rs.idx(s.senders.items, i);
-					rs.drop(s.senders.items[at]);
-					s.senders.items[at] = undefined;
+					const at2 = rs.idx(s.senders.items, i);
+					rs.drop(s.senders.items[at2]);
+					s.senders.items[at2] = undefined;
 				}
 			}
 		} else if (op === 12) {
@@ -463,11 +473,13 @@ export function copied(data: rs.ByteSlice, out: rs.String): void {
 	const rx: rs.WatchReceiver<rs.u64> = _5[1];
 	for (const b of rs.byteSliceView(data)) {
 		rs.watchSendModify(tx, (v: rs.Place<rs.u64>): undefined => {
-			v.v = rs.u64WrappingAdd(rs.u64WrappingMul(v.v, 31), b as rs.u64);
+			const _4: rs.u64 = rs.u64WrappingMul(v.v, 31);
+			const _62: rs.u64 = b as rs.u64;
+			v.v = (typeof _4 === "number" && typeof _62 === "number" && _4 + _62 <= 9007199254740991 ? _4 + _62 : rs.u64WrappingAdd(_4, _62)) as rs.u64;
 		}, true);
 		if ((b & 1) === 0) {
 			const part = rs.watchSendIfModified(tx, (v2: rs.Place<rs.u64>): boolean => {
-				v2.v = rs.u64Add(v2.v, 1);
+				v2.v = (typeof v2.v === "number" && v2.v + 1 <= 9007199254740991 ? v2.v + 1 : rs.u64Add(v2.v, 1)) as rs.u64;
 				return (b & 2) === 0;
 			}, true);
 			note(rs.fmtFormat(["modified ", (f: rs.Formatter) => rs.fmtBool(part, f)]));

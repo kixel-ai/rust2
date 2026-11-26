@@ -1,30 +1,42 @@
 # The api fixture's Python test: the script fixtures/api/examples/transcript.rs runs
-# natively, through the generated Python. tests/fixtures.rs compares the transcripts.
+# natively, through the Python tests/fixtures/transcript writes from it, which calls the
+# functions here that transcript.rs defines. tests/fixtures.rs compares the transcripts.
 #
 # With an argument, it instead checks the futures' semantics, what frees what nobody
-# closed, the values only Python's types bound, or how Python calls into the extension,
-# or breaks a contract, which must fail.
+# closed, the values only Python's types bound, how Python calls into the extension, or
+# what Python code expects of a package, under a debug CPython that all of those leak
+# nothing, or breaks a contract, which must fail.
 
 import array
 import asyncio
+import contextlib
+import copy
+import dataclasses
 import datetime
 import gc
 import io
+import ipaddress
 import math
 import os
 import struct
 import sys
+import sysconfig
 import threading
 import weakref
 
 import api
+
+# A free-threaded CPython runs the module with the GIL off: one that turned it back on to
+# import it would run every thread of `threads` one at a time.
+if sysconfig.get_config_var("Py_GIL_DISABLED"):
+	assert not sys._is_gil_enabled(), "importing api turned the GIL on"
 
 # The transcript's lines end and encode as Rust's do, which Windows' text mode and code
 # page would turn into CRLF and the locale's encoding.
 sys.stdout.reconfigure(encoding="utf-8", newline="\n")
 
 
-class PrintLog(api.Log):
+class Print(api.Log):
 	"""The Log callback: keeps even levels."""
 
 	def log(self, level, line):
@@ -34,6 +46,36 @@ class PrintLog(api.Log):
 	# Rust closes it once it drops the implementation.
 	def close(self):
 		print("freed")
+
+
+class Eraser(api.ClashEraser):
+	"""An eraser whose methods differ only by a trailing underscore."""
+
+	def delete_(self, new_, new):
+		return new_ * 10 + new
+
+	def delete(self):
+		return 3
+
+
+class Count(api.ClashCount):
+	"""A count named with a trailing underscore in Rust, whose C names join no `__`."""
+
+	def next(self):
+		return 4
+
+
+class Edits(api.Undo):
+	"""The Undo callback: each method returns its own digit."""
+
+	def delete(self, n):
+		return n - 1
+
+	def free(self):
+		return 2
+
+	def type(self):
+		return 3
 
 
 def bound(b):
@@ -111,6 +153,57 @@ def numbers(what, n):
 	print(f"{what} some {'None' if n.some is None else f'Some({n.some.tolist()})'}")
 
 
+def millis(duration):
+	"""A duration in whole milliseconds."""
+	return duration.secs * 1000 + duration.nanos // 1_000_000
+
+
+def socket_hex(addr):
+	"""A socket address as the native script's socket_hex prints it."""
+	ip = ipaddress.ip_address(addr[0]).packed.hex()
+	return ":".join([ip] + [str(part) for part in addr[1:]])
+
+
+def hex(data):
+	return bytes(data).hex()
+
+
+def path_hex(path):
+	return os.fsencode(path).hex()
+
+
+def seconds(duration):
+	return f"{duration.secs}.{duration.nanos:09}"
+
+
+def code(c):
+	return ord(c)
+
+
+def reversed(items):
+	return items[::-1]
+
+
+def f64_bits(floats):
+	return bits(floats, "Q")
+
+
+def ip_hex(ip):
+	return ip.packed.hex()
+
+
+def unspelled():
+	"""A path no Rust string spells: on Unix, bytes that are not UTF-8; on Windows, a
+	lone surrogate."""
+	if os.name == "nt":
+		return "\ud800"
+	return api.stray()
+
+
+# How long a wait may take before the run calls it a hang, enough for ThreadSanitizer's slowdown.
+HANG = 60
+
+
 def check(ok, what):
 	if not ok:
 		print(f"failed: {what}", file=sys.stderr)
@@ -129,230 +222,40 @@ def until(loop, done):
 		while not done():
 			await asyncio.sleep(0)
 
-	loop.run_until_complete(asyncio.wait_for(wait(), 5))
+	loop.run_until_complete(asyncio.wait_for(wait(), HANG))
+
+
+def free_elsewhere(held, then=None):
+	"""Free what `held` holds on another thread, which then calls `then`. A free-threaded
+	CPython hands the last reference another thread drops back to the object's maker to free,
+	unless that thread's own reference outlived the maker's, as the copy's here does."""
+	took, dropped = threading.Event(), threading.Event()
+
+	def free():
+		mine = list(held)
+		took.set()
+		dropped.wait()
+		mine.clear()
+		if then is not None:
+			then()
+
+	thread = threading.Thread(target=free)
+	thread.start()
+	took.wait()
+	held.clear()
+	dropped.set()
+	thread.join()
+
 
 
 def script():
-	print(f"limit {api.LIMIT}")
+	import transcript
 
-	p = api.Point(1, 2).offset(2, 3)
-	print(f"offset {p.x} {p.y}")
-	print(f"debug {p!r}")
-	print(f"eq {flag(p == api.Point(3, 5))}")
-	d = api.Point.default()
-	print(f"default {d.x} {d.y}")
+	transcript.script()
 
-	c = api.Counter.new("c", 5)
-	print(f"get {c.get()}")
-	print(f"name {c.name()}")
-	print(f"add ok {c.add(10)}")
-	try:
-		c.add(2000)
-	except api.ErrorException as e:
-		print(f"add err {e} {e.error!r}")
-	try:
-		c.sub(20)
-	except api.ErrorException as e:
-		print(f"sub err {e} {e.error!r}")
-	c.rename("d")
-	print(f"name {c.name()}")
-	print(f"is d {flag(c.is_('d'))}")
-	copy = c.clone()
-	copy.add(1)
-	print(f"clone {copy.get()} original {c.get()}")
-	print(f"debug {c!r}")
-	label = c.into_label(p)
-	print(f"label {label!r}")
-	print(f"note {flag(api.has_text(api.Note('')))} {flag(api.has_text(api.Note(None)))}")
 
-	below, above = api.Counter.new("s", 7).split(5)
-	print(f"split {below.name()} {below.get()} {above.name()} {above.get()}")
-	(only,) = api.only(api.Counter.new("o", 3))
-	print(f"only {only.name()} {only.get()}")
-	w8, w16, w32, w64 = api.widths(98305)
-	print(f"widths {w8} {w16} {w32} {w64}")
-	for b in [2, 0]:
-		try:
-			q, r = api.divide(7, b)
-			print(f"divide {q} {r}")
-		except api.ErrorException as e:
-			print(f"divide err {e}")
-	for n in [98305, 0]:
-		spread = api.spread(n)
-		print("spread none" if spread is None else f"spread {spread[0]} {spread[1]} {spread[2]} {spread[3]}")
-	for needle in [b"lo", b"x"]:
-		found = api.find(b"hello", needle)
-		print("find none" if found is None else f"find {found[0]} {found[1]}")
-	stat_rows = api.rows([api.Point(1, 2), api.Point(3, 3)])
-	print("rows " + ", ".join(f"{name} {shape!r} {p.x} {p.y}" for name, shape, p in stat_rows))
-	# Each handle in a tuple moves in, as one taken by value does.
-	board = api.Board.new([("low", api.Counter.new("l", 1)), ("high", api.Counter.new("h", 9))])
-	ranked = board.ranked()
-	print("ranked " + ", ".join(f"{name} {counter.name()} {counter.get()}" for name, counter in ranked))
-	best = board.best()
-	print(f"best {best.name()} {best.get()}")
-	# A map crosses as its pairs and a set as its items, which Rust collects in order, each
-	# key once, the last kept.
-	atlas = api.Atlas([("b", api.Point(1, 1)), ("ab", api.Point(2, 3)), ("b", api.Point(4, 4))], [3, 1, 3])
-	atlas = atlas.with_("c", api.Point(5, 6))
-	atlas_points = ", ".join(f"{name} {p.x} {p.y}" for name, p in atlas.points)
-	print(f"atlas {atlas_points}; ids {' '.join(str(i) for i in atlas.ids)}")
-	# Another crate's error crosses as its message.
-	for port_text in ["80", "x"]:
-		try:
-			print(f"port {api.port(port_text)}")
-		except api.StringException as e:
-			print(f"port err {e.error}")
-	span = api.Span((2, 10), ("s", api.Shape.SQUARE))
-	lower_half, upper_half = api.halves(span)
-	print(f"halves {lower_half[0]} {lower_half[1]} {upper_half[0]} {upper_half[1]} {span!r}")
-	swapped_n, swapped_text = api.swapped(("t", 4))
-	print(f"swapped {swapped_n} {swapped_text}")
-	for value in [None, (None,), (3,)]:
-		doubled = api.doubled(value)
-		if doubled is None:
-			print("doubled None")
-		else:
-			print(f"doubled Some(({'None' if doubled[0] is None else f'Some({doubled[0]})'},))")
-	# A borrowed or boxed tuple of one is a tuple, not its element.
-	lent_one = list(data(api.lent_back((bytes([1, 2]),))[0]))
-	boxed_one = list(data(api.boxed_tuple(bytes([3]))[0]))
-	print(f"lent back {lent_one} boxed {boxed_one}")
-	# A borrowed string and an owned one share a tuple struct.
-	print(
-		f'title Some(("{api.title(True)[0]}",)) {"None" if api.title(False) is None else "Some"} '
-		f'named Some(("{api.named("x")[0]}",))'
-	)
-
-	# Each lent counter is a new handle to a clone.
-	registry = api.Registry.new(api.Counter.new("first", 1))
-	print(f"last {flag(registry.last() is not None)}")
-	registry.push(api.Counter.new("last", 2))
-	first = registry.first_get
-	first.add(10)
-	print(f"first {registry.first_get.get()} lent {first.get()}")
-	last = registry.last()
-	last.add(10)
-	print(f"last {registry.last().get()} lent {last.get()}")
-	# A closure lent for the call edits the first counter through a handle.
-	by = 5
-
-	def edit(counter):
-		counter.add(by)
-		return counter.edited() and counter.get() == 6
-
-	print(f"edit {flag(registry.edit(edit))} {registry.first_get.get()}")
-	# A setter moves an object in, as assignment does, closing it.
-	registry.first_set(api.Counter.new("second", 3))
-	print(f"set first {registry.first_get.get()} {registry.first_get.name()}")
-	print(f"walk {api.walk(3, lambda cursor: cursor.at() * 2)}")
-	print(f"each {api.each(2, lambda at: print(f'visit {at}'))}")
-	print(f"offset {api.offset(lambda: 7, 3)}")
-	print(f"shift {api.shift(lambda: 7, 4)}")
-
-	name = api.Name.owned("a")
-	joined = name.join(api.Name.owned("b"))
-	print(f"joined {joined.as_str()} {joined!r} {flag(joined == name)}")
-	joined.rename("c")
-	print(f"renamed {joined.as_str()}")
-	long = api.longer(joined, api.Name.owned("dd"))
-	print(f"longer {long.as_str()}")
-	print(f"unnamed [{api.unnamed().as_str()}]")
-	lit = api.Name.borrowed("lit")
-	shares = [str(lit.shares(api.Name.borrowed(text))).lower() for text in ("lit", "other")]
-	print(f"borrowed {lit.as_str()} {' '.join(shares)}")
-
-	print(f"total {api.total(range(2, 5))}")
-	print(f"reach {api.reach(2, 5)}")
-	scaled = [api.scaled(2**128 - 1, 1), api.scaled(2**64 + 1, 2**63), api.scaled(2**127, 2)]
-	print("scaled " + " ".join("none" if v is None else f"{v:032x}" for v in scaled))
-	digest = api.Digest.new()
-	digest.sum_set(api.fingerprint("deadbeef"))
-	try:
-		api.fingerprint("zz")
-		unparsed = ""
-	except api.StringException as e:
-		unparsed = e.error
-	flipped = digest.flipped(api.ArrayU8x4(bytes([0xFF, 0, 0xFF, 0])))
-	print(f"digest {digest.sum_get.hex()} {flipped.hex()} {unparsed}")
-	batch, batch2 = api.Batch.new(), api.pair()
-	accepted = sum(batch.push(v) for v in range(1, 6))
-	paired = sum(batch2.push(v) for v in range(1, 4))
-	emptied = api.drain_4(batch)
-	print(f"batch {batch.capacity()} {accepted} {emptied} {api.drain_4(batch)} {batch2.capacity()} {paired} {api.drain_2(batch2)}")
-	print(f"capacities {api.capacities_4_2(batch, batch2)} {api.capacities_2_2(batch2, batch2)}")
-	wide = api.widen(range(2, 5), 1)
-	print(f"widen {wide.start} {wide.stop}")
-	inc, exc, unb = api.Bound.INCLUDED, api.Bound.EXCLUDED, api.Bound.UNBOUNDED
-	counts = [
-		api.count(api.BoundsU64(api.BoundU64(start, s), api.BoundU64(end, e)))
-		for (start, s), (end, e) in [
-			((inc, 2), (exc, 5)),
-			((inc, 2), (inc, 5)),
-			((inc, 3), (unb, 0)),
-			((unb, 0), (unb, 0)),
-			((exc, 2), (inc, 4)),
-		]
-	]
-	print("count " + " ".join(str(n) for n in counts))
-	print(f"end {bound(api.end(3))} {bound(api.end(0))}")
-	ends_start, ends_end = api.ends(3)
-	print(f"ends {bound(ends_start)} {bound(ends_end)}")
-	for n in [2, 5]:
-		try:
-			print(f"below {api.below(n, 3)}")
-		except api.BoundsU64Exception as e:
-			print(f"below err {bound(e.error.start)} {bound(e.error.end)}")
-	window = api.Window(range(2, 8), api.end(5))
-	print(f"window {flag(window.contains(4))} {flag(window.contains(6))} {window!r}")
-
-	print(api.greet("x", api.Shape.SQUARE))
-	print(f"len {api.len(b'abc')}")
-	binary = bytes([0xFF, 0, ord("a")])
-	print(f"hex {api.hex(binary)}")
-	print(f"timed hex {api.timed_hex(binary)}")
-	print(f"sample hex {api.sample_hex(binary)}")
-	print(f"queued hex {api.queued_hex(binary)}")
-	print(f"tick {api.tick_name(api.Label('tick', None, None))}")
-	print(f"rooted {api.rooted_name(api.Label('rooted', None, None))}")
-	print(f"stored {api.stored_text('stored')}")
-	print(f"layer {api.layer_name(api.Label('layer', None, None))}")
-	for event in [api.Event.Moved(p), api.Event.Named("n"), api.Event.Done()]:
-		print(api.describe(event))
-
-	# A `Copy` handle passed by value is copied, so it stays usable.
-	stamp = api.Stamp.from_millis(2500)
-	print(f"secs {stamp.secs()}")
-	print(f"later {flag(api.Stamp.from_millis(3000).later(stamp))}")
-	print(f"secs {stamp.secs()}")
-	message = api.Message.new(stamp, b"body")
-	print(f"payload {text(message.payload_get)}")
-	print(f"stamp {message.stamp_get!r}")
-	print(f"sent {flag(message.sent())}")
-	# Setters assign in place: the bytes are copied in, and a `Copy` handle copied.
-	reset = api.Stamp.from_millis(4000)
-	message.stamp_set(reset)
-	message.payload_set(b"edited")
-	print(f"payload {text(message.payload_get)}")
-	print(f"stamp {message.stamp_get!r}")
-	print(f"secs {reset.secs()}")
-	message.stamp_set(None)
-	print(f"stamp {flag(message.stamp_get is not None)}")
-
-	print(f"kept {api.emit(PrintLog(), bytes([1, 2, 3, 4]))}")
-	logger = api.Logger.new(PrintLog())
-	print(f"write {flag(logger.write('hi'))}")
-	del logger
-	print("dropped")
-	# Rust calls it on another thread, before the call returns.
-	threshold = 2
-
-	def keep(level, line):
-		print(f"filter {level} {line}")
-		return level > threshold
-
-	print(f"filtered {api.filter(bytes([1, 2, 3, 4]), keep)}")
-
+def channel():
+	"""A channel's futures, on a loop the script steps."""
 	loop = asyncio.new_event_loop()
 	channel = api.Channel.new()
 	wakes = 0
@@ -391,6 +294,10 @@ def script():
 		# The send happens at the call: the future is dropped unawaited.
 		channel.send_later(b"eager")
 		print(f"recv {text(await channel.recv())}")
+		# The send happens at the call, and the future borrows the channel and the tag.
+		print(f"tagged {await channel.tagged('tag')}")
+		print(f"itemized {await channel.itemized(array.array('I', [1, 2, 3]))}")
+		print(f"byte_len {await api.byte_len(b'abc')}")
 		channel.send(b"sized")
 		payload, size = await channel.recv_sized()
 		print(f"sized {text(payload)} {size}")
@@ -431,276 +338,30 @@ def script():
 	channel.clear()
 	loop.close()
 
-	nodes = api.Node.new(1, None)
-	nodes.push(2)
-	print(f"node {nodes.sum()}")
 
-	tally = api.Tally.new()
-	tally.bump()
-	print(f"tally {tally.bump()} {flag(tally == tally)}")
-	print(f"both {api.bump_both(tally, tally)}")
-	print(f"peek {api.peek(tally, lambda lent: lent.bump())}")
-
-	area = api.grow(api.Area.new(api.Size(2, 3)), 1)
-	size = area.size()
-	print(f"area {size.width} {size.height} {area.pixels()}")
-
-	# Generic types, each at the instances it infers, named by their arguments.
-	pair = api.PairU32(2, 5)
-	swapped = pair.swap()
-	print(f"pair {swapped.left} {swapped.right} sum {pair.sum()} {pair!r} {flag(pair == swapped)}")
-	print(f"even {flag(pair.even())} {flag(api.PairU32(7, 7).even())}")
-	# An instance renamed alone, beside another of `Pair` that keeps its name.
-	sized = api.tag(api.Size(1, 2), 3)
-	flipped = sized.swap()
-	print(f"sized {flipped.left} {flipped.right.width} {flipped!r}")
-	beside = api.PairU32(258, 9).beside_size(sized.left)
-	print(f"beside {beside.left} {beside!r}")
-	# At its default, named as the type itself.
-	stack = api.Stack.new()
-	for i, n in enumerate(["a", "b"]):
-		stack.push(api.Counter.new(n, i + 1))
-	top = stack.pop().get()
-	print(f"stack {stack.depth()} Some({top}) {flag(stack.pop() is not None)} {flag(stack.pop() is None)}")
-	# Generic functions and methods, at each implementation of the trait bounding them, by
-	# reference, which leaves Python its object.
-	from_point = api.Counter.seeded_point("p", api.Point(-3, 4))
-	from_size = api.Counter.seeded_size("s", api.Size(5, 6))
-	from_counter = api.Counter.seeded_counter("c", from_point)
-	from_polar = api.Counter.seeded_polar_point("q", api.PolarPoint(1, 2))
-	print(
-		f"seeded {from_point.get()} {from_size.get()} {from_counter.get()} {from_polar.get()} "
-		f"past {stack.depth_past_point(api.Point(1, 2))} seeds {api.seeds_point_size(api.Size(2, 3))}"
-	)
-
-	# A trait implemented for `Point` and `&Point` apart: one instance.
-	print(f"weigh {api.weigh_point(api.Point(-1, 2))}")
-	# A function named as the type it returns, and one named as a type it does not.
-	polar = api.polar_point(2)
-	check(polar is not None, "a point off the origin")
-	print(f"polar {polar.distance} {flag(api.polar_point(0) is None)} area {api.area(api.Size(2, 3))}")
-	# Two types whose paths join alike, the second kept apart where its path splits.
-	print(f"wind {api.wind(api.PolarTurn(2), api.Polar_Turn(3))}")
-	# Names that clash in some language, each kept apart there.
-	clash_span = api.ClashSpan(4)
-	clash_store = api.ClashStore.new(7)
-	print(
-		f"clash {api.ClashTone(440)!r} {api.ClashTone_(3)!r} {api.Cancelled(2)!r} "
-		f"span {clash_span.width_()} {clash_span.to_string()} {clash_span} "
-		f"store {clash_store.free()} {clash_store.close()} "
-		f"audio {api.clash_audio_encoder_finish()} {api.clash_audio_encoder_finish_()} "
-		f"nested {api.clash_nested(((1, 2), 3), ((1, 2, 3),))}"
-	)
-	# Instances that name each other, and one made only by an impl of it.
-	cross = api.cross(api.LeftRightU8(api.RightU8(1)), api.RightLeftU8(api.LeftU8(2)))
-	print(f"cross {cross} outer {api.OuterInnerU8.new(4).get()}")
-	# A bound that outlives the call takes a value, and an instance only a constant names.
-	print(f"kept {api.kept_point(api.Point(1, -2))} boxed {api.BOXED.value}")
-	print(f"keep {api.keep_point(api.Point(1, -2))}")
-	five = api.Point(5, 2)
-	print(f"kept or {api.kept_or_point(five)} {api.kept_or_point(None)} keeper {api.keeper_point(five)}")
-	# Inferred instances taking a lent closure and a foreign implementation, and one only
-	# its impl of a trait names.
-	sides = api.PairU32(2, 5)
-	print(f"apply {api.apply_u32(sides, lambda side: side * 3)}")
-	print(f"report {api.report_u32(sides, PrintLog())}")
-	print(f"wrapped {api.kept_wrap_u32(api.WrapU32(4))}")
-	print(f"keeps {api.keeps(PrintLog()).value}")
-
-	# Its Drop runs when its last reference goes, not before.
-	token = api.Token.new(7)
-	print(f"token {token.id_get} dropped {api.dropped()}")
-	del token
-	print(f"dropped {api.dropped()}")
-
-	# A field and the method of its name, each its own member.
-	retry = api.Retry.new(5)
-	limit = retry.limit_get
-	print(f"retry {0 if limit is None else 1} {limit or 0} {retry.limit()} {retry.delay()}")
-	# The renamed field's setter, named as its getter.
-	retry.limit_set(None)
-	print(f"retry {retry.limit()}")
-	print(f"slot {api.SlotU8.new(200).value()}")
-
-	# Foreign types: a URL parsed from text, socket addresses, OS paths, and `Vec`s.
-	base = api.Url.parse("https://example.com/a/b")
-	host = api.host(base)
-	host = "None" if host is None else f'Some("{host}")'
-	print(f"url {base} host {host}")
-	url = api.resolve(base.clone(), "c?d")
-	print(f"resolve {url} {flag(url == base)}")
-	try:
-		api.Url.parse("no scheme")
-	except api.StringException as e:
-		print(f"parse err {e.error}")
-	v4 = ("127.0.0.1", 8080)
-	v6 = ("::1", 443, 0, 3)
-	print(f"ports {api.ports([v4, v6]).tolist()}")
-	peer = api.Peer(v6, ["a", "b"]).next("c")
-	print(f"peer {peer!r} {quoted(peer.aliases())}")
-	file = api.file("dir", "f\\'\"\t")
-	print(f"file {escaped(file)}")
-	print("parents " + " ".join("none" if p is None else escaped(p) for p in api.parents([file, "/"])))
-	words = api.words(" one two  three ")
-	print(f"words {len(words)} {quoted(words)}")
-	print(f"sentence {api.sentence(words)} {api.sentence(None)}")
-	print(f"sentence {api.sentence([])}|")
-	print(f"either {api.either('abc')} {api.either(None)}")
-	print(f"prefixed {bytes(api.prefixed(b'cd', b'ab')).decode()} {bytes(api.prefixed(b'cd', None)).decode()}")
-	print(f"coordinates {api.coordinates(api.Point(2, 3))} {api.coordinates(None)}")
-	two, three = api.Counter.new("two", 2), api.Counter.new("three", 3)
-	print(f"plus {two.plus(three)} {two.plus(None)}")
-	print(f"add_to {str(two.add_to(three)).lower()} {str(two.add_to(None)).lower()} {three.get()}")
-	encoded = api.Mut(memoryview(b"0,"))
-	api.put_number(1, encoded)
-	api.put_number(23, encoded)
-	print(f"put_number {bytes(encoded.value).decode()}")
-	entry = api.Mut((memoryview(b"ab"), 1))
-	stamps = api.push_counted(entry, ord("c"))
-	print(f"push_counted {stamps} {bytes(entry.value[0]).decode()} {entry.value[1]}")
-	digits = api.Mut(memoryview(b"7x9"))
-	first_digit = api.digit(digits)
-	try:
-		api.digit(digits)
-		skipped = False
-	except api.ErrorException:
-		skipped = True
-	print(f"digit {first_digit} {str(skipped).lower()} {api.digit(digits)} {len(digits.value)}")
-	nudged = api.Mut(api.Point(1, 2))
-	api.nudge(nudged, 3)
-	print(f"nudge {nudged.value.x} {nudged.value.y}")
-	config = api.secure("h3")
-	print(f"secure {api.alpn_lent(config)} {api.alpn(config.clone())}")
-	session = api.resume("h3", 60)
-	print(f"resume {session.alpn()} {session.lifetime().seconds}")
-	try:
-		api.resume("", 60)
-	except api.StringException as e:
-		print(f"resume err {e.error}")
-	meters = api.Meters.new()
-	first = meters.first()
-	first.add(2)
-	print(f"lent {first.add(3)} {meters.first().count()}")
-	meters.clear()
-	print(f"cleared {meters.first().count()}")
-	tallies = api.Tallies.new()
-	tallies.first().bump()
-	print(f"tallied {tallies.first().bump()}")
-	print(f"chunks {[list(data(chunk)) for chunk in api.chunks(b'abcde', 2)]}")
-	counters = api.counters(["x", "y"])
-	print("counters " + ", ".join(f"{c.name()} {c.get()}" for c in counters))
-	# Each counter moves in, so Python closes it.
-	print(f"worth {api.worth([counters[0]], [counters[1]])} {api.worth(None, [])}")
-	for counter in counters:
-		try:
-			counter.get()
-			check(False, "a counter moved in is closed")
-		except ValueError:
-			pass
-	held = [api.held_count((api.Counter.new("h", 4),)), api.held_count(None)]
-	print("held " + " ".join("None" if n is None else f"Some({n})" for n in held))
-	print(f'boxed Some("{api.boxed_name(api.boxed_counter("b"))}") {api.boxed_name(None)} {str(api.boxed_counter(None) is None).lower()}')
-	print(f"less {api.less(5, 2)}")
-	rows = [array.array("I", [1, 2]), array.array("I"), memoryview(struct.pack("=I", 3)).cast("I")]
-	print(f"sums {api.sums(rows).tolist()}")
-	print("least " + " ".join(str(s) for s in api.least([{3, 1}, set(), [2]])))
-	numbers("edges", api.Numbers.edges())
-	numbers("reversed", api.Numbers.edges().reversed())
-	edges = api.Numbers.edges()
-	nan = api.Measure.new(math.nan, False)
-	equal = [edges == edges, edges == api.Numbers.edges(), api.Numbers.zero(True) == api.Numbers.zero(False), nan == nan, api.Measure.new(-0.0, True) == api.Measure.new(0.0, False)]
-	print("float equal " + " ".join(str(e).lower() for e in equal))
-	# A record compares a buffer passed in by its numbers, as Rust does, not by its own `==`.
-	held = [api.Shadowed(Elementwise("i", items), 1, 2) for items in [[1, 2], [1, 2], [1, 3]]]
-	check(held[0] == held[1] and not held[0] == held[2], "a record compares a buffer by its numbers")
-	print(f"sum u32 {api.sum_u32(array.array('I'))} {api.sum_u32(array.array('I', [2**32 - 1, 2**32 - 1, 2]))}")
-	print(f"doubled i64 {api.doubled_i64(array.array('q', [-(2**63), -1, 0, 2**63 - 1])).tolist()}")
-	floats = api.boxed_floats(array.array("d", struct.pack("=dQ", -0.0, 0x7FF8000000000001)))
-	print(f"boxed floats {bits(floats, 'Q')}")
-	summed = api.summed([api.Point(1, 2), api.Point(-4, 6)])
-	none_summed = api.summed([])
-	print(f"summed {summed.x} {summed.y} {none_summed.x} {none_summed.y}")
-	print(f"longest {api.longest(['a', 'abc'])} {api.longest([])}")
-	print(f'first of Some("{api.first_of(["a", "b"])}") {api.first_of([]) or "None"}')
-	limits = api.byte_limits(b'a', b'bc')
-	waits = api.LimitsDuration(datetime.timedelta(milliseconds=5), datetime.timedelta(seconds=2))
-	breadth = api.breadth(waits) // datetime.timedelta(milliseconds=1)
-	print(f"limits {bytes(limits.low).decode()} {bytes(limits.high).decode()} breadth {breadth}")
-	joined = bytes(api.joined([b'ab', b'', b'c'])).decode()
-	print(f"joined {joined} {len(api.joined([]))} read {api.read_len(b'hello')}")
-	doc = api.Json.parse('{"b": [1, 2.5, null], "a": "é"}')
-	print(f"json {api.encode(doc)}")
-	print(f"timed text {api.timed_text(doc)}")
-	tagged = api.tagged(doc, "t")
-	print(f"tagged {tagged.to_text()}")
-	# A JSON object's entries cross as pairs of a key and its document, each moved in.
-	entries = api.entries([("b", api.Json.parse("[1]")), ("a", api.Json.parse("2"))], "t")
-	print("entries " + ", ".join(f"{key} {value.to_text()}" for key, value in entries))
-	try:
-		api.Json.parse('{"a":')
-	except api.StringException as e:
-		print(f"json parse err {e.error}")
-	site = api.Site.new(base)
-	print(f"site {site.home_get} {site.home_get}")
-
-	# Slices, passed in and returned as clones, and the socket address of each family.
-	print(f"shapes {debugs(api.Shape.ALL)} greetings {quoted(api.GREETINGS)}")
-	trail = api.Trail.new([api.Point(1, 2), api.Point(3, 4)], ["a", "b"])
-	print(f"trail {debugs(trail.points())} {debugs(trail.labels())}")
-	# Returned iterators, each collected at the call: drained labels are gone after.
-	print(f"iterated {debugs(trail.iter())} {quoted(trail.names())} {list(data(trail.bytes()))}")
-	print(f"drained {debugs(trail.drain())} then {debugs(trail.labels())}")
-	# A filter, collected at the call.
-	print("beyond " + ", ".join(f"{p.x} {p.y}" for p in trail.beyond(1)))
-	numbered = api.numbered(["p", "q"])
-	print("numbered " + ", ".join(f"{c.name()} {c.get()}" for c in numbered))
-	next4, next6 = api.nexts(v4, v6)
-	print(f"nexts {next4[0]} {next4[1]} {next6[1]} {next6[3]}")
-
-	# serde_json's map iterator, collected as pairs of a key and its document.
-	sections = api.sections([("b", api.Json.parse("[1]")), ("a", api.Json.parse("2"))])
-	print("sections " + ", ".join(f"{key} {value.to_text()}" for key, value in sections))
-	# An instant only Rust makes, which each call copies out of its handle, and compares.
-	ms = datetime.timedelta(milliseconds=1)
-	began = api.now()
-	ended = api.later(began, datetime.timedelta(milliseconds=1500))
-	same = api.later(began, datetime.timedelta())
-	print(f"instants {api.since(ended, began) // ms} {api.since(began, ended) // ms} {flag(began == same)} {flag(began == ended)}")
-	# tracing's level, and its filter as an optional level whose None is `OFF`.
-	verbosity = api.Verbosity.new(api.Level.WARN)
-	print(f"verbosity {api.spell(verbosity.filter())} {api.spell(api.louder(verbosity.filter()))}")
-	verbosity.level_set(api.Level.TRACE)
-	louder = api.spell(api.louder(verbosity.filter()))
-	print(
-		f"verbosity {flag(verbosity.level_get == api.Level.TRACE)} {api.spell(verbosity.filter())} {louder} {api.spell(api.louder(None))}"
-	)
-
-	print(f"made {api.made(3, lambda n: f'{n} times')}")
-	# A closure taking and returning `Copy` objects copies them, never running their `Clone`.
-	kept = api.Ticket.new(9)
-	given = api.reissue(api.Ticket.new(7), lambda t: api.Ticket.new(t.number() + 1)).number()
-	held = api.reissue(api.Ticket.new(7), lambda _: kept).number()
-	print(f"reissued {given} {held}, cloned {api.Ticket.clones()}")
-	# A kept closure, called on another thread after the call that took it returned.
-	print(f"spawned {api.Spawned.new(lambda: 7).join()}")
-	# A kept closure: called again at the instant it asks for, then once its waiter wakes.
-	start = api.now()
+def drive():
+	"""A kept closure: called again at the instant it asks for, then once its waiter wakes."""
+	start = api.Moment.new(0, 1000)
 	calls = 0
 
-	def drive(now, waiter):
+	def kept(now, waiter):
 		nonlocal calls
 		calls += 1
 		match calls:
 			case 1:
-				return api.later(now, datetime.timedelta(milliseconds=5))
+				return now.after(5)
 			case 2:
-				print(f"drive {api.since(now, start) // ms}")
+				print(f"drive {now.millis() - start.millis()}")
 				waiter.waker().wake()
 				return None
 			case _:
 				raise api.StringException(f"stopped after {calls}")
 
-	print(f"drive {asyncio.run(api.drive(start, drive))}")
+	print(f"drive {asyncio.run(api.drive(start, kept))}")
+
+
+def readers():
+	"""Readers over bytes, whose reads fail, and that seek past `i64::MAX`."""
 	for file in (io.BytesIO(b"hello world"), Broken()):
 		try:
 			tail, at = api.tail(file, 5)
@@ -712,11 +373,103 @@ def script():
 		print(f"sought {api.seek_to(Far(), 2**64 - 1)}")
 	except api.StringException as e:
 		print(f"sought error {e}")
-	print(f"non zeros {api.describe_non_zeros(api.non_zeros())}")
-	for hop in [None, 1, 2**64 - 1]:
-		next = api.next_hop(hop)
-		print("hop None" if next is None else f"hop Some({next})")
-	print(f"farther hop {api.farther_hop(api.PairNonZeroU16(3, 0xFFFF))}")
+
+
+def streams():
+	"""Streams, each iterated by `async for`: to its end, left early, and to an error, past
+	which the stream goes on."""
+
+	async def run():
+		counts = [str(count) async for count in api.Countdown.new(3)]
+		print(f"countdown {' '.join(counts)}")
+		# A loop left early takes nothing past the item it stopped at.
+		countdown = api.Countdown.new(5)
+		async for count in countdown:
+			if count == 4:
+				break
+		print(f"countdown after break {await countdown.next()}")
+		# Each payload sends the next, which `!` fails and an empty one ends.
+		channel = api.Channel.new()
+		feed = channel.feed()
+		for first in ("a", "c"):
+			channel.send(first.encode())
+			try:
+				async for payload in feed:
+					got = text(payload)
+					print(f"feed {got}")
+					channel.send({"a": b"b", "b": b"!"}.get(got, b""))
+				print("feed end")
+			except api.ErrorException as e:
+				print(f"feed error {e}")
+
+	asyncio.run(run())
+
+
+async def streamed():
+	"""A stream's iteration cancelled while its `next` pends loses nothing: the payload
+	sent after it is the next one `next` returns."""
+	channel = api.Channel.new()
+	feed = channel.feed()
+	got = []
+
+	async def iterate():
+		async for payload in feed:
+			got.append(text(payload))
+
+	task = asyncio.ensure_future(iterate())
+	await asyncio.sleep(0)
+	check(not task.done(), "a stream's iteration waits for a payload")
+	task.cancel()
+	try:
+		await task
+		check(False, "a cancelled iteration raises")
+	except asyncio.CancelledError:
+		pass
+	channel.send(b"kept")
+	check(got == [], "a cancelled iteration took nothing")
+	payload = await asyncio.wait_for(feed.next(), HANG)
+	check(payload is not None and text(payload) == "kept", "a cancelled iteration loses nothing")
+	check(aiter(feed) is feed, "a stream iterates itself")
+
+
+def local_later(local):
+	"""Futures of a value that is not `Send`, run on this thread."""
+	loop = asyncio.new_event_loop()
+	print(f"local later {loop.run_until_complete(api.local_or_new_later(local)).bump()}")
+	print(f"local later fresh {loop.run_until_complete(api.local_or_new_later(None)).bump()}")
+	loop.close()
+
+
+def checks():
+	"""What the transcript's script says only in Rust: Python's own errors and equality."""
+	try:
+		api.Moment()
+		check(False, "Python makes no opaque value")
+	except TypeError:
+		pass
+	# A draft borrows its ledger exclusively: the ledger refuses any other use meanwhile.
+	ledger = api.Ledger.new()
+	draft = ledger.edit()
+	try:
+		ledger.published()
+		check(False, "a lent ledger refuses a read")
+	except RuntimeError as e:
+		check(str(e) == "api_Ledger_published: a handle is borrowed exclusively", repr(e))
+	del draft
+	# Each counter moves in, so a later call raises.
+	counters = api.counters(["x", "y"])
+	api.worth([counters[0]], [counters[1]])
+	for counter in counters:
+		try:
+			counter.get()
+			check(False, "a counter moved in is closed")
+		except ValueError:
+			pass
+	# A record compares a buffer passed in by its numbers, as Rust does, not by its own `==`.
+	held = [api.Shadowed(Elementwise("i", items), 1, 2) for items in [[1, 2], [1, 2], [1, 3]]]
+	check(held[0] == held[1] and not held[0] == held[2], "a record compares a buffer by its numbers")
+	# A kept closure, called on another thread after the call that took it returned.
+	check(api.Spawned.new(lambda: 7).join() == 7, "a kept closure runs on another thread")
 
 
 class Elementwise(array.array):
@@ -760,7 +513,7 @@ def futures():
 	async def threaded():
 		sender = threading.Thread(target=lambda: channel.send(b"blocked"))
 		sender.start()
-		payload = await asyncio.wait_for(channel.recv(), 5)
+		payload = await asyncio.wait_for(channel.recv(), HANG)
 		sender.join()
 		check(text(payload) == "blocked", "recv returns the payload another thread sent")
 
@@ -780,13 +533,75 @@ def futures():
 	check(got is None, "recv waits for a send")
 	channel.send(b"then")
 	check(got is None, "recv never polls inside the wake")
-	loop.run_until_complete(asyncio.wait_for(task, 5))
+	loop.run_until_complete(asyncio.wait_for(task, HANG))
 	check(got == "then", "recv resumes with the payload")
 
 	# A wake that lands while the future polls, before it returns pending, is kept: the
 	# future polls again rather than waiting for a wake that already happened.
-	check(loop.run_until_complete(asyncio.wait_for(api.yielded(7), 5)) == 7, "a wake during the poll polls again")
+	check(loop.run_until_complete(asyncio.wait_for(api.yielded(7), HANG)) == 7, "a wake during the poll polls again")
 	check(loop.run_until_complete(api.corner_later()) == (1, 1), "a future's borrowed tuple returns whole")
+	# A future's error borrowing its argument crosses as its message, as `parse_cert`'s does.
+	check(loop.run_until_complete(api.parse_later("cert")) == 4, "a future with a borrowing error returns Ok")
+	try:
+		loop.run_until_complete(api.parse_later(""))
+		check(False, "a future's borrowing error raises")
+	except api.StringException as e:
+		check(e.error == "malformed: ", "a future's borrowing error is its message")
+	# A future returning a `Cow` that borrows its text owns it before the future ends.
+	check(loop.run_until_complete(api.unescaped_later("a\\b")) == "ab", "a future's owned Cow crosses")
+	check(loop.run_until_complete(api.unescaped_later("plain")) == "plain", "a future's borrowed Cow crosses")
+	check(loop.run_until_complete(api.unescaped_maybe("c\\d")) == "cd", "a future's optional Cow crosses")
+	check(loop.run_until_complete(api.unescaped_maybe(None)) is None, "a future's absent Cow crosses")
+
+	# A value that is not Send stays on the thread that made it: a use elsewhere raises, and
+	# its future polls on its thread alone. Freed elsewhere, it drops there at its next call.
+	local = api.Local.new()
+	shared = local.share()
+	local.bump()
+	check(shared.bump() == 2, "a shared local counts together")
+	check(loop.run_until_complete(local.later()) == 3, "a local's future runs on its thread")
+	check(loop.run_until_complete(api.local_later(5)) == 10, "a future that is not Send runs on its thread")
+	raised = []
+
+	def elsewhere():
+		try:
+			local.bump()
+		except RuntimeError as e:
+			raised.append(str(e))
+
+	thread = threading.Thread(target=elsewhere)
+	thread.start()
+	thread.join()
+	check(raised == ["api_Local_bump: a value that is not Send is used on another thread than the one that made it"], "a local used elsewhere raises")
+	before = api.locals_dropped()
+	held = [local]
+	del local
+	free_elsewhere(held)
+	check(api.locals_dropped() == before, "a local freed elsewhere waits for its thread")
+	check(shared.bump() == 4 and api.locals_dropped() == before + 1, "a local freed elsewhere drops on its thread")
+
+	# Made while a loop runs, one freed elsewhere drops on the loop's next turn, though the
+	# loop calls nothing into Rust meanwhile.
+	# One made with no loop running and freed elsewhere waits, until a value made while one
+	# runs gives the thread its wake.
+	early = [api.Local.new()]
+	before = api.locals_dropped()
+	free_elsewhere(early)
+	check(api.locals_dropped() == before, "a local freed elsewhere with no wake waits")
+
+	async def idle() -> None:
+		before = api.locals_dropped()
+		held = [api.Local.new()]
+		await asyncio.sleep(0)
+		await asyncio.sleep(0)
+		check(api.locals_dropped() == before + 1, "a drop queued before its thread's wake drains once it is set")
+		before += 1
+		freed = loop.create_future()
+		free_elsewhere(held, lambda: loop.call_soon_threadsafe(freed.set_result, None))
+		await freed
+		check(api.locals_dropped() == before + 1, "a local freed elsewhere drops on its idle loop")
+
+	loop.run_until_complete(idle())
 
 	# Cancelled between its wake and its poll, a receive loses nothing: the payload stays
 	# for the next.
@@ -803,7 +618,7 @@ def futures():
 	task.cancel()
 	until(loop, task.done)
 	check(not called and task.cancelled(), "a cancelled receive never resumes")
-	payload = loop.run_until_complete(asyncio.wait_for(channel.recv(), 5))
+	payload = loop.run_until_complete(asyncio.wait_for(channel.recv(), HANG))
 	check(text(payload) == "kept", "a cancelled receive loses nothing")
 
 	# An object whose last reference goes while a call awaits on it is freed once the
@@ -814,7 +629,7 @@ def futures():
 	step(loop)
 	del other
 	sender.send(b"held")
-	got = loop.run_until_complete(asyncio.wait_for(task, 5))
+	got = loop.run_until_complete(asyncio.wait_for(task, HANG))
 	check(text(got) == "held", "the call awaiting on an object holds it")
 
 	# An awaitable from Rust is awaited once, as a coroutine is.
@@ -823,13 +638,23 @@ def futures():
 	async def wait(awaitable):
 		return await awaitable
 
-	loop.run_until_complete(asyncio.wait_for(wait(later), 5))
+	loop.run_until_complete(asyncio.wait_for(wait(later), HANG))
 	try:
 		loop.run_until_complete(wait(later))
 		check(False, "a second await raises")
 	except RuntimeError:
 		pass
-	check(text(loop.run_until_complete(asyncio.wait_for(channel.recv(), 5))) == "once", "the send landed once")
+	check(text(loop.run_until_complete(asyncio.wait_for(channel.recv(), HANG))) == "once", "the send landed once")
+
+	# Closed while a task awaits it parked, a future ends the await, rather than leave it
+	# waiting for a wake that never comes.
+	waiting = api._n.Channel_recv(channel)
+	check(isinstance(waiting, api._Future), "an empty channel's receive pends")
+	task = loop.create_task(wait(waiting))
+	step(loop)
+	waiting.close()
+	until(loop, task.done)
+	check(isinstance(task.exception(), ValueError), "a future closed while awaited ends the await")
 
 	# Python run while a closing future is freed, as by its drop's callback, finds it ended.
 	class Polls(api.Log):
@@ -856,12 +681,13 @@ def futures():
 	sender.join()
 	until(loop, lambda: wakes)
 	check(wakes == [threading.get_ident()], "a waker calls back on its loop's thread")
-	loop.run_until_complete(asyncio.wait_for(on_loop(), 5))
-	loop.run_until_complete(asyncio.wait_for(foreign(), 5))
-	loop.run_until_complete(asyncio.wait_for(polled(), 5))
-	loop.run_until_complete(asyncio.wait_for(kept(), 5))
+	loop.run_until_complete(asyncio.wait_for(on_loop(), HANG))
+	loop.run_until_complete(asyncio.wait_for(foreign(), HANG))
+	loop.run_until_complete(asyncio.wait_for(polled(), HANG))
+	loop.run_until_complete(asyncio.wait_for(kept(), HANG))
+	loop.run_until_complete(asyncio.wait_for(streamed(), HANG))
 	loop.close()
-	readers()
+	reading()
 	print("futures ok")
 
 
@@ -916,7 +742,7 @@ class Drive:
 
 async def kept():
 	"""Closures Rust keeps past the call, which it lets go of once it drops them."""
-	start = api.now()
+	start = api.Moment.new(0, 1000)
 	stopping = Drive(True)
 	ref = weakref.ref(stopping)
 	check(await api.drive(start, stopping) == "stopped", "a kept closure's error ends its future")
@@ -963,8 +789,8 @@ async def kept():
 	gc.collect()
 	check(threads != [threading.get_ident()] and ref() is None, "a spawned closure runs elsewhere, then is let go")
 
-	# What a closure returns, Rust owns: a copy of a string, and a clone of an object.
-	later = api.later(start, datetime.timedelta(milliseconds=7))
+	# What a closure returns, Rust owns: a copy of a moment.
+	later = start.after(7)
 	calls = 0
 
 	def ask(now, waiter):
@@ -972,14 +798,14 @@ async def kept():
 		calls += 1
 		if calls == 1:
 			return later
-		check(api.since(now, later) == datetime.timedelta(), "Rust's copy of a returned object is its value")
+		check(now == later, "Rust's copy of a returned moment is its value")
 		raise api.StringException("done")
 
-	check(await api.drive(start, ask) == "done", "a closure's returned object is Rust's own copy")
-	check(api.since(later, start) == datetime.timedelta(milliseconds=7), "a returned object stays the caller's")
+	check(await api.drive(start, ask) == "done", "a closure's returned moment is Rust's own copy")
+	check(later.millis() == 7, "a returned moment stays the caller's")
 
 
-def readers():
+def reading():
 	"""Readers Rust reads and seeks during the call."""
 	data = bytes(range(256)) * 64
 	file = io.BytesIO(data)
@@ -1208,13 +1034,63 @@ def owned():
 	del cycle
 	gc.collect()
 	check(api.dropped() == before + 5, "the cycle collector frees what a cycle held")
+	forwarding()
+	released_mid_call()
+
+
+def released_mid_call():
+	"""Rust's bytes a call reads in place stay Rust's until it returns, though the view
+	passed is released while the arguments are still being read."""
+	kept = []
+
+	def parts():
+		before = api.dropped()
+		with api.token_bytes(9, 2048) as view:
+			yield view
+		kept.append(api.dropped() == before)
+		yield b"x"
+
+	before = api.dropped()
+	joined = bytes(api.joined(parts()))
+	check(kept == [True], "a call keeps Rust's bytes it was passed a released view of")
+	check(joined == bytes([9]) * 2048 + b"x", "a released view's bytes read back")
+	check(api.dropped() == before + 1, "Rust's bytes drop once the call returns")
 	print("owned ok")
+
+
+def forwarding():
+	"""Rust's bytes, read and passed back, cross in place: whole, sliced, kept while passed
+	on, and in a record. The token's drop shows no copy stood in for them: it comes once,
+	only when the last view of the bytes Rust put it in goes."""
+	loop = asyncio.new_event_loop()
+	channel = api.Channel.new()
+	before = api.dropped()
+	payload = api.token_bytes(3, 64)
+	channel.send(payload)
+	del payload
+	payload = loop.run_until_complete(channel.recv())
+	channel.send(payload[1:63])
+	del payload
+	payload = loop.run_until_complete(channel.recv())
+	check(bytes(payload) == bytes([3]) * 62, "a slice of Rust's bytes crosses as itself")
+	channel.send(payload)
+	kept = loop.run_until_complete(channel.recv())
+	del payload
+	packet = api.next_packet(api.Packet(1, kept))
+	del kept
+	check(api.dropped() == before and len(packet.payload) == 62, "Rust's bytes cross back without a copy")
+	del packet
+	check(api.dropped() == before + 1, "Rust's bytes drop once, with their last view")
+	# Bytes of Python's own cross copied once, and a view of Rust's only read stays theirs.
+	packet = api.next_packet(api.Packet(1, bytearray(b"abc")))
+	check(bytes(packet.payload) == b"abc", "a bytearray crosses copied")
+	loop.close()
 
 
 def values():
 	"""The values Python's types bound: integers checked against their Rust type's range,
-	durations truncated to the microsecond up to `timedelta.max`, which stands for longer,
-	and on Unix, a path whose bytes are not UTF-8, which crosses as `os.fsdecode` decodes it,
+	durations and their conversions to and from `timedelta`, which raise rather than lose
+	anything, a key hashing by Rust's `Hash`, a zero passed for a `NonZero`, which raises, and on Unix, a path whose bytes are not UTF-8, which crosses as `os.fsdecode` decodes it,
 	and back as it came. Also a borrowed tuple, returned whole."""
 
 	def raises(error, f, what):
@@ -1230,6 +1106,14 @@ def values():
 	raises(TypeError, lambda: api.title(1), "an int is no bool")
 	raises(OverflowError, lambda: api.scaled(2**128, 1), "an int past u128 raises")
 	raises(OverflowError, lambda: api.scaled(-1, 1), "a negative int for a u128 raises")
+
+	# An object reclassed in Python is still what Rust made: its methods refuse it.
+	stamp = api.Stamp.from_millis(5)
+	stamp.__class__ = api.Moment
+	raises(TypeError, lambda: stamp.millis(), "a Stamp reclassed as a Moment is no Moment")
+	counter = api.Counter.new("r", 1)
+	counter.__class__ = api.Berth
+	raises(TypeError, lambda: counter.at(), "a Counter reclassed as a Berth is no Berth")
 
 	# A list of numbers is any buffer of exactly its numbers, one dimension and contiguous,
 	# and returns as an array of them.
@@ -1260,18 +1144,39 @@ def values():
 	raises(api.ErrorException, lambda: api.corner(False), "a borrowed tuple's error raises")
 
 	td = datetime.timedelta
-	check(api.doubled_ttl(td(seconds=1, microseconds=5)) == td(seconds=2, microseconds=10), "a duration crosses")
-	check(api.doubled_ttl(td(days=600_000_000)) == td.max, "a duration past timedelta's is its max")
-	check(api.doubled_ttl(td.max) == td.max, "timedelta's max is Duration::MAX")
-	raises(ValueError, lambda: api.doubled_ttl(td(seconds=-1)), "a negative duration raises")
+	longest = api.Duration(2**64 - 1, 999_999_999)
+	check(api.doubled_ttl(api.Duration(1, 5)) == api.Duration(2, 10), "a duration crosses")
+	check(api.doubled_ttl(api.Duration(1, 5)) in {api.Duration(2, 10)}, "a returned duration hashes as one Python makes")
+	check(api.doubled_ttl(longest) == longest, "the longest crosses")
+	check(api.Duration(1, 2) < api.Duration(1, 3) < api.Duration(2), "durations order as Rust's")
+	check(api.Duration.from_timedelta(td(days=1, microseconds=5)) == api.Duration(86_400, 5_000), "from a timedelta")
+	check(api.Duration(86_400, 5_000).to_timedelta() == td(days=1, microseconds=5), "to a timedelta")
+	check(api.Duration.from_timedelta(td.max).to_timedelta() == td.max, "timedelta's max round trips")
+	raises(ValueError, lambda: api.Duration.from_timedelta(td(seconds=-1)), "a negative timedelta raises")
+	raises(ValueError, lambda: api.Duration(0, 1).to_timedelta(), "a part of a microsecond raises")
+	raises(OverflowError, lambda: api.Duration(2**64 - 1).to_timedelta(), "past timedelta's max raises")
+	raises(ValueError, lambda: api.doubled_ttl(api.Duration(0, 10**9)), "a billion nanoseconds raises")
+	raises(OverflowError, lambda: api.doubled_ttl(api.Duration(2**64)), "seconds past u64 raise")
+	raises(OverflowError, lambda: api.doubled_ttl(api.Duration(-1)), "negative seconds raise")
+	raises(TypeError, lambda: api.doubled_ttl(td(seconds=1)), "a timedelta is no Duration")
+	raises(ValueError, lambda: api.next_hop(0), "a zero NonZero raises")
+	raises(ValueError, lambda: api.farther_hop(api.PairNonZeroU16(0, 1)), "a zero NonZero field raises")
+	key = api.Key.new("a")
+	check(len({key, api.Key.new("a"), api.Key.new("b")}) == 2, "equal keys are one set member")
+	check(hash(api.Url.parse("https://a/")) == hash(api.Url.parse("https://a/")), "a URL hashes by Rust's Hash")
 
 	# The module serves wasm32 too: what only wasm32 has raises on the host's library.
 	check(api.pointer_bits(api.platform()) == api.pointer_bits(api.Platform.Native(64)) == 64, "the host is native")
 	check(api.is_family(api.Family.NATIVE), "and of the native family")
+	check(api.WORD == 2**64 - 1, "a 64-bit host has WORD")
 	for f, what in [
 		(api.wasm_only, "api_wasm_only"),
+		(lambda: api.WASM_PAGE, "API_WASM_PAGE"),
 		(lambda: api.pointer_bits(api.Platform.Wasm(32)), "api_Platform.Wasm"),
 		(lambda: api.is_family(api.Family.WASM), "api_Family.Wasm"),
+		(api.Page.default, "api_Page_default"),
+		(lambda: repr(api.Page(size=1)), "api_Page_debug"),
+		(lambda: repr(api.Booth(mark=api.Mark.of(1))), "api_Booth_debug"),
 	]:
 		try:
 			f()
@@ -1283,6 +1188,29 @@ def values():
 		path = api.stray()
 		check(os.fsencode(path) == b"\xff", "a path that is not UTF-8 keeps its bytes")
 		check(api.parents([path, os.fsdecode(b"\xfe/\xff")])[1] == os.fsdecode(b"\xfe"), "and crosses back")
+	check(bytes(api.Clash.String("hi").bytes()) == b"hi", "a method named as a builtin runs")
+	# Names that differ only by trailing underscores, each reaching its own Rust: a name Python
+	# spells as Rust does keeps it, whichever comes first.
+	underscored = api.ClashUnderscored(new_=1, new=2, debug=3, default_=4)
+	check(api.clash_underscored(underscored, api.ClashOp.DELETE, api.ClashChange.Set(new_=5, new=6)) == 2_561_234, "names apart by trailing underscores cross")
+	check(
+		api.clash_underscored_next(underscored, api.ClashChange.Set(new_=5, new=6))
+		== (api.ClashUnderscored(new_=2, new=3, debug=4, default_=5), api.ClashChange.Set(new_=6, new=5)),
+		"names apart by trailing underscores cross back",
+	)
+	check(api.clash_erased(Eraser()) == 123, "a callback's methods apart by a trailing underscore")
+	check(api.ClashEscaped(new=3).delete() == 3 and api.ClashEscaped(new=3).delete_(1, 2) == 213, "methods apart by a trailing underscore")
+	check(api.clash_erase_() == 2 and api.clash_erase() == 1, "functions apart by a trailing underscore")
+	# Items whose Rust names end in `_`, so every C name joined to them keeps one `_`.
+	notch = api.ClashNotch.new(3)
+	check(notch.count() == 3 and notch.clone() == notch and hash(notch.clone()) == hash(notch), "a class named with a trailing underscore")
+	check(api.ClashNotch.default() < notch, "a class named with a trailing underscore orders")
+	check(str(notch) == "notch 3" and repr(notch) == "Notch_ { count: 3 }", "a class named with a trailing underscore prints")
+	check(len(api.clash_notches(2)) == 2, "a list of a class named with a trailing underscore")
+	check(api.clash_shifted(1, api.ClashShift.Up(2)) == 3 and api.clash_shifted(1, api.ClashShift.Down()) == 0, "an enum named with a trailing underscore")
+	check(api.clash_shifted(5, api.ClashShift.Tag(2)) == 3, "a variant named as the tag")
+	check(api.clash_counted(Count()) == 5, "a callback named with a trailing underscore")
+	check(api.ClashStore.open_().open() == 7, "a static function and a method apart by a trailing underscore")
 	print("values ok")
 
 
@@ -1352,11 +1280,295 @@ def calls():
 	check(api.Gauge.set.__doc__ == "Set the level each clone reads.", "a method's docstring")
 	check(api.Counter.get.__doc__ is None, "a method without docs has no docstring")
 	check(api.Registry.first_get.__doc__ is None, "a property without docs has no docstring")
+
+	# A deprecated function warns at each call, as Python's own do, and still runs.
+	import warnings
+
+	with warnings.catch_warnings(record=True) as caught:
+		warnings.simplefilter("always")
+		knob = api.knob(api.Dial(level=3, before=0))
+		dial = api.Dial(level=3, before=0).max()
+		turned = api.Dial(level=3, before=0).turn(2)
+		# An `async def`'s warns at its await.
+
+		async def awaits():
+			return await api.level_later(api.Dial(level=4, before=0))
+
+		later = asyncio.run(awaits())
+	warned = [(w.category, str(w.message), w.filename == __file__) for w in caught]
+	check(
+		warned
+		== [
+			(DeprecationWarning, "knob() is deprecated", True),
+			(DeprecationWarning, "Dial.max() is deprecated: turn it by `LIMIT` with `Dial::turn`", True),
+			(DeprecationWarning, "level_later() is deprecated: read its `level`", True),
+		],
+		f"deprecated calls warn at the caller: {warned}",
+	)
+	check(knob.level == 3 and dial == api.Dial(level=api.LIMIT, before=3), "a deprecated call runs")
+	check(turned == api.Dial(level=5, before=3), "a turn")
+	check(later == 4, "a deprecated future runs")
 	print("calls ok")
+
+
+def idioms():
+	"""What Python code expects of a package: an error's exception per variant, weak
+	references to objects and records, records `dataclasses` takes as its own, and an await
+	off asyncio's loop refused with a message naming asyncio."""
+
+	def raised(f):
+		try:
+			f()
+		except Exception as e:
+			return e
+		check(False, f"{f} raises")
+
+	# An enum's variants, each raised as its own subclass of the error's exception.
+	c = api.Counter.new("c", 5)
+	e = raised(lambda: c.add(2000))
+	check(type(e) is api.ErrorException.Overflow, repr(type(e)))
+	check(isinstance(e, api.ErrorException) and e.error == api.Error.Overflow(), "an overflow is the error's")
+	check(type(e).__qualname__ == "ErrorException.Overflow", type(e).__qualname__)
+	e = raised(lambda: c.sub(20))
+	check(type(e) is api.ErrorException.Underflow and e.error == api.Error.Underflow(by=15), repr(e))
+	check(not isinstance(e, api.ErrorException.Overflow), "an underflow is no overflow")
+	try:
+		api.divide(7, 0)
+		check(False, "a division by zero raises")
+	except api.ErrorException.Underflow:
+		check(False, "a division by zero is no underflow")
+	except api.ErrorException.Overflow:
+		pass
+	# Python makes the same subclass of a variant, as a closure raising it to Rust does.
+	check(type(api.ErrorException(api.Error.Overflow())) is api.ErrorException.Overflow, "made by its variant")
+	check(type(api.ErrorException.Underflow(api.Error.Underflow(by=1))) is api.ErrorException.Underflow, "made as itself")
+
+	# An object that is an enum, whose fields no binding reads, raises by its variant too.
+	for n, variant, text in [
+		(0, api.FaultException.Busy, "busy"),
+		(1, api.FaultException.Lost, "lost frame"),
+		(2, api.FaultException.Late, "late by 7"),
+	]:
+		e = raised(lambda: api.jam(n))
+		check(type(e) is variant and str(e) == text, f"{n}: {e!r} {e}")
+		check(type(api.FaultException(e.error)) is variant, f"{n}: made by its variant")
+	check(api.jam(3) == 3, "no fault")
+
+	# Weak references to an object, an opaque value, a record, a variant, and a range's bound.
+	for make in [
+		lambda: api.Counter.new("w", 1),
+		lambda: api.Stamp.from_millis(5),
+		lambda: api.Point(1, 2),
+		lambda: api.Error.Underflow(by=1),
+		lambda: api.BoundU64(api.Bound.INCLUDED, 3),
+	]:
+		value = make()
+		gone = []
+		ref = weakref.ref(value, gone.append)
+		check(ref() is value, f"{value!r} is weakly referenced")
+		del value
+		check(ref() is None and gone == [ref], "a weak reference dies with its referent")
+	# An opaque value's item count, which CPython keeps beside its header, counts its bytes,
+	# whatever its weak references.
+	stamp = api.Stamp.from_millis(5)
+	size = sys.getsizeof(stamp)
+	ref = weakref.ref(stamp)
+	check(sys.getsizeof(stamp) == size > type(stamp).__basicsize__, "a value's size counts its bytes alone")
+
+	# A record is a dataclass to `dataclasses`, `copy`, and `match`, as `@dataclass` made it.
+	# A subclass's fields are its record's, read first through either, and a dataclass may
+	# subclass a record.
+	class Hidden(api.Point):
+		__match_args__ = ()
+
+	check(dataclasses.asdict(Hidden(1, 2)) == {"x": 1, "y": 2}, "a subclass's own __match_args__")
+
+	class Sub(api.Point):
+		pass
+
+	check(dataclasses.asdict(Sub(1, 2)) == {"x": 1, "y": 2}, "a subclass's fields")
+
+	@dataclasses.dataclass
+	class Tagged(api.Weighted):
+		tag: str = ""
+
+	tagged = Tagged(api.Score.of(1), 2, "t")
+	check([f.name for f in dataclasses.fields(tagged)] == ["score", "weight", "tag"], "a dataclass subclass")
+	weighted = api.Weighted(tagged.score, 2)
+	check(weighted == api.Weighted(tagged.score, 2) and weighted != tagged and tagged != weighted, "== only its own class")
+	p = api.Point(1, 2)
+	check(dataclasses.is_dataclass(p) and [f.name for f in dataclasses.fields(api.Point)] == ["x", "y"], "fields")
+	check(dataclasses.replace(p, x=5) == api.Point(5, 2) and p == api.Point(1, 2), "replace")
+	check(dataclasses.asdict(api.Platform.Native(64)) == {"_0": 64}, "asdict")
+	if sys.version_info >= (3, 13):
+		check(copy.replace(p, y=7) == api.Point(1, 7), "copy.replace")
+	check(copy.copy(p) == p and copy.copy(p) is not p, "copy")
+	match api.Platform.Native(64):
+		case api.Platform.Native(bits):
+			check(bits == 64, "matched positionally")
+		case _:
+			check(False, "a variant matches its class")
+	check(repr(api.Platform.Native(64)) == "Platform.Native(_0=64)", repr(api.Platform.Native(64)))
+	check(p != api.Point(1, 3) and p != (1, 2) and api.Point.__eq__(p, (1, 2)) is NotImplemented, "eq")
+	check(api.Platform.Native(64) != api.Platform.Wasm(64), "variants differ")
+	check(api.Point.__hash__ is None, "a record is unhashable, as Rust's without Hash")
+
+	# An await or a waker off a running asyncio loop names asyncio.
+	coro = api.Local.default().later()
+	e = raised(lambda: coro.send(None))
+	check(type(e) is RuntimeError and "asyncio" in str(e) and "trio" in str(e), str(e))
+	e = raised(lambda: api.Waker(lambda: None))
+	check(type(e) is RuntimeError and "asyncio" in str(e), str(e))
+
+	# `import *` reaches every export: a `pub fn _deprecated` too, which takes a trailing `_`
+	# beside the module's own `_deprecated`, as `pub fn __all__` does beside the name Python
+	# reserves, past `pub fn __all___`, which keeps its own, and each constant `__getattr__`
+	# makes, but one the library's target lacks, whose read raises, such as wasm32's
+	# `WASM_PAGE`; and no import: what the module binds without a leading `_` but its
+	# `__future__` import.
+	star = {}
+	exec("from api import *", star)
+	del star["__builtins__"]
+	check(star["_deprecated_"](1) == 2, "a pub fn named with a leading underscore")
+	check(star["__all____"](1) == 3, "a pub fn named as a name Python reserves")
+	check(star["__all___"](1) == 4, "a pub fn named as the one Python reserves would take")
+	public = {name for name in vars(api) if not name.startswith("_")} - {"annotations"}
+	expected = public | {"_deprecated_", "__all___", "__all____"} | set(api._consts) - {"WASM_PAGE"}
+	check(set(star) == expected, f"import * reaches the exports: {sorted(set(star) ^ expected)}")
+	print("idioms ok")
+
+
+def leaf():
+	"""Calls proven to reach no user code keep the GIL; one that only looks like them
+	releases it, which a hook Rust calls from another thread, which takes the GIL, proves:
+	had the call kept it, the hook would deadlock against it."""
+	plain = api.Plain.new(3, True)
+	plain.n_set(4)
+	check(plain.n_get == 4 and plain.on_get, "a leaf getter reads what a leaf setter wrote")
+	check(plain == api.Plain.new(4, True) and plain != api.Plain.new(4, False), "a leaf equality")
+	check(hash(plain) == hash(api.Plain.new(4, True)), "a leaf hash")
+	plain.recount(5)
+	check(plain.count() == 5, "a leaf method reads what a leaf method wrote")
+	check(plain.steps() == 5, "a method that loops")
+	wrapped = api.Wrapped.new(3)
+	wrapped.n_set(4)
+	check(wrapped.n_get == 4 and wrapped.count() == 4, "a leaf through a Deref")
+	labeled = api.Labeled.new("a" * 100)
+	check(labeled == api.Labeled.new("a" * 100) and labeled != api.Labeled.new("b"), "a leaf equality over a string")
+	check(hash(labeled) == hash(api.Labeled.new("a" * 100)), "a leaf hash over a string")
+	buffer = api.Buffer.new(100)
+	buffer.blank()
+	check(buffer.zeroed(), "a fill the caller sized")
+
+	hooked = []
+	api.hook(lambda: hooked.append(threading.get_ident()))
+	# A derived equality over a field whose own is written by hand.
+	check(api.Hooked.new(1) == api.Hooked.new(1), "a hooked equality")
+	check(len(hooked) == 1 and hooked[0] != threading.get_ident(), "a hooked equality releases the GIL")
+	# A hand-written equality that claims to be derived.
+	check(api.Forged.new(1) == api.Forged.new(1), "a forged equality")
+	check(len(hooked) == 2 and hooked[1] != threading.get_ident(), "a forged equality releases the GIL")
+	# A getter of a value kept on its thread, after another thread freed one of its values:
+	# the getter first drops that one, whose drop runs the hook.
+	pinned = api.Pinned.new(5)
+	free_elsewhere([api.Pinned.new(6)])
+	check(len(hooked) == 2, "a value freed elsewhere waits for its thread")
+	check(pinned.value_get == 5 and len(hooked) == 3, "a getter that drains releases the GIL")
+	# A `Send` part it lends, whose getter and equality borrow it too, so drain the same.
+	part = pinned.part()
+	for use in [lambda: part.value_get == 5, lambda: part == part]:
+		free_elsewhere([api.Pinned.new(6)])
+		count = len(hooked)
+		check(use() and len(hooked) == count + 1, "a use of a part that drains releases the GIL")
+	count = len(hooked)
+	check(api.Hooked.new(1).count() == 1 and len(hooked) == count + 1, "a hooked method")
+	check(hooked[-1] != threading.get_ident(), "a hooked method releases the GIL")
+	guarded = api.Guarded.new(2)
+	check(guarded.n_get == 2 and guarded.count() == 2, "a hooked Deref")
+	check(len(hooked) == count + 3, "a hooked Deref releases the GIL")
+	api.unhook()
+	del part
+	del pinned
+	print("leaf ok")
+
+
+def threads():
+	"""The runtime's shared state used from many threads at once, which a free-threaded
+	CPython runs in parallel: each first use, an object's calls, its borrows, values made and
+	freed, and futures on a loop per thread."""
+	# Fewer rounds than a counter holds, `api::LIMIT`.
+	n, rounds = 8, 100
+	start = threading.Barrier(n)
+	meter = api.Meter.default()
+	counter = api.Counter.new("shared", 0)
+	added = [0] * n
+	refused = [0] * n
+	failures = []
+	# A buffer every thread rewrites whole while others copy it into calls.
+	shared = bytearray(4096)
+
+	async def wakes(channel):
+		# Each payload sent from another thread while the receive waits.
+		for i in range(10):
+			sender = threading.Thread(target=channel.send, args=(bytes([i]),))
+			sender.start()
+			got = await asyncio.wait_for(channel.recv(), HANG)
+			sender.join()
+			check(data(got) == bytes([i]), "a receive gets what another thread sent")
+
+	def run(k):
+		try:
+			start.wait()
+			# First uses race: interned names, an enum's members, and the runtime's types.
+			check([shape for _, shape, _ in api.rows([api.Point(1, 1), api.Point(1, 2)])] == [api.Shape.SQUARE, api.Shape.CIRCLE], "an enum's members")
+			for _ in range(rounds):
+				# A leaf on a shared object, which no call detaches from.
+				meter.add(1)
+				# Borrows of one object, which Rust refuses while an exclusive one runs, and an
+				# exclusive one while any other does.
+				try:
+					check(counter.name() == "shared", "a shared borrow")
+				except RuntimeError as e:
+					check(str(e) == "api_Counter_name: a handle is borrowed exclusively", repr(e))
+				try:
+					counter.add(1)
+					added[k] += 1
+				except RuntimeError as e:
+					check(str(e) == "api_Counter_add: a handle is already borrowed", repr(e))
+					refused[k] += 1
+				own = api.Counter.new(f"own{k}", k)
+				check(own.get() == k and api.only(own)[0].get() == k, "an object moved through a call")
+				check(api.Point(k, 1).offset(1, 1) == api.Point(k + 1, 2), "a record")
+				check(data(api.boxed_tuple(bytes([k]))[0]) == bytes([k]), "bytes Rust returned")
+				shared[:] = bytes([k]) * len(shared)
+				for passed in [shared, memoryview(shared), memoryview(memoryview(shared))]:
+					check(len(set(data(api.boxed_tuple(passed)[0]))) == 1, "a bytearray another thread rewrites crosses whole")
+			asyncio.run(wakes(api.Channel.new()))
+			check(api.Spawned.new(lambda: k).join() == k, "a kept closure called on another thread")
+		except BaseException as e:
+			failures.append(e)
+			raise
+
+	workers = [threading.Thread(target=run, args=(k,)) for k in range(n)]
+	for worker in workers:
+		worker.start()
+	for worker in workers:
+		worker.join()
+	check(not failures, f"every thread finished: {failures!r}")
+	check(meter.count() == n * rounds, "a leaf loses no update")
+	check(counter.get() == sum(added) and sum(added) + sum(refused) == n * rounds, "each exclusive borrow either ran or was refused")
+	print("threads ok")
 
 
 def broken(which):
 	"""Each breaks a contract, which must fail with a message naming it."""
+	if sys.platform == "linux":
+		# Non-dumpable, an expected abort writes no core and never starts the host's crash
+		# handler. PR_SET_DUMPABLE is 4.
+		import ctypes
+
+		if ctypes.CDLL(None, use_errno=True).prctl(4, 0, 0, 0, 0) != 0:
+			raise OSError(ctypes.get_errno(), "prctl")
 	match which:
 		case "moved":
 			c = api.Counter.new("c", 0)
@@ -1400,6 +1612,12 @@ def broken(which):
 		# An IPv6 address where Rust takes `SocketAddrV4`.
 		case "family":
 			api.nexts(("::", 1, 0, 0), ("::", 1, 0, 0))
+		# An IPv6 address where Rust takes `Ipv4Addr`.
+		case "ip family":
+			api.next_ips(ipaddress.IPv6Address("::1"), ipaddress.IPv6Address("::1"))
+		# An IPv6 address with a scope, which Rust's `IpAddr` has no room for.
+		case "ip scope":
+			api.flip(ipaddress.IPv6Address("fe80::1%3"))
 		# A future Rust polls, cancelled by its owner rather than by Rust.
 		case "foreign cancelled":
 
@@ -1437,9 +1655,41 @@ def broken(which):
 			raise ValueError(f"no case {which}")
 
 
+def leaks():
+	"""The other runs' checks, looped under a debug CPython: once two rounds warm the
+	interpreter, five more leave its references and memory blocks exactly as they were."""
+	check(hasattr(sys, "gettotalrefcount"), "leaks runs under a debug CPython")
+
+	def counts():
+		# Printed lines wait in the stream's buffer, and attribute lookups in the
+		# interpreter's caches, until they fill.
+		sys.stdout.flush()
+		sys._clear_internal_caches()
+		gc.collect()
+		return sys.gettotalrefcount(), sys.getallocatedblocks()
+
+	def rounds(n):
+		for _ in range(n):
+			for run in (script, checks, futures, owned, values, calls, idioms):
+				run()
+
+	with open(os.devnull, "w") as null, contextlib.redirect_stdout(null):
+		rounds(2)
+		first = counts()
+		# Each measurement held is counted by the next one.
+		before = counts()
+		rounds(5)
+		after = counts()
+	held = [b - f for b, f in zip(before, first)]
+	grown = [a - b for a, b in zip(after, before)]
+	check(grown == held, f"five rounds left the references and blocks {before} as {after}")
+
+
 match sys.argv[1:]:
 	case []:
 		script()
+	case ["leaks"]:
+		leaks()
 	case ["futures"]:
 		futures()
 	case ["owned"]:
@@ -1448,5 +1698,13 @@ match sys.argv[1:]:
 		values()
 	case ["calls"]:
 		calls()
+	case ["checks"]:
+		checks()
+	case ["leaf"]:
+		leaf()
+	case ["idioms"]:
+		idioms()
+	case ["threads"]:
+		threads()
 	case [which]:
 		broken(which)

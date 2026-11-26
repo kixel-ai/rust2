@@ -249,9 +249,28 @@ export function stepRun(s: mpsc_State.State, op: rs.u8, arg: rs.u8): void {
 				drop$mpsc_Tx(_86);
 			}
 		} else if (op === 7) {
-			const live: rs.Vec<rs.usize> = rs.iterToVec(rs.iterFilter(new rs.Range(0, s.owned.items.length), (_24: rs.usize): boolean => {
-				return s.owned.items[rs.idx(s.owned.items, _24)] !== undefined;
-			}), "next", 4);
+			let start2 = 0;
+			let end2 = s.owned.items.length;
+			const d2: rs.usize[] = [];
+			let cap2 = 0;
+			fused4: while (true) {
+				let y2!: rs.usize;
+				while (true) {
+					if (start2 >= end2) {
+						break fused4;
+					}
+					const x2 = start2++;
+					if (s.owned.items[rs.idx(s.owned.items, x2)] !== undefined) {
+						y2 = x2;
+						break;
+					}
+				}
+				if (d2.length === cap2) {
+					cap2 = rs.capReserve(d2.length, cap2, 1, 4);
+				}
+				d2.push(y2);
+			}
+			const live: rs.Vec<rs.usize> = new rs.Vec(d2, cap2);
 			if (!(live.items.length === 0)) {
 				const at5 = rs.idx(s.owned.items, live.items[rs.idx(live.items, rs.usizeRem(arg as rs.usize, live.items.length))]);
 				const taken2 = s.owned.items[at5];
@@ -429,9 +448,28 @@ export function stepRun(s: mpsc_State.State, op: rs.u8, arg: rs.u8): void {
 			}
 			rs.refMutRelease(_383);
 		} else if (op === 13) {
-			const live2: rs.Vec<rs.usize> = rs.iterToVec(rs.iterFilter(new rs.Range(0, s.senders.items.length), (_2: rs.usize): boolean => {
-				return s.senders.items[rs.idx(s.senders.items, _2)] !== undefined;
-			}), "next", 4);
+			let start = 0;
+			let end = s.senders.items.length;
+			const d: rs.usize[] = [];
+			let cap = 0;
+			fused2: while (true) {
+				let y!: rs.usize;
+				while (true) {
+					if (start >= end) {
+						break fused2;
+					}
+					const x = start++;
+					if (s.senders.items[rs.idx(s.senders.items, x)] !== undefined) {
+						y = x;
+						break;
+					}
+				}
+				if (d.length === cap) {
+					cap = rs.capReserve(d.length, cap, 1, 4);
+				}
+				d.push(y);
+			}
+			const live2: rs.Vec<rs.usize> = new rs.Vec(d, cap);
 			const _397: rs.usize | undefined = rs.sliceGet(rs.sliceFrom(live2.items), rs.usizeRem(arg as rs.usize, rs.max(live2.items.length, 1)));
 			if (_397 !== undefined) {
 				const i2: rs.usize = _397;

@@ -102,17 +102,89 @@ unsafe extern "C" fn foreign_free(data: *mut c_void) {
 fn handles() {
 	unsafe {
 		let counter = api_Counter_new(view("c"), 5);
-		assert_eq!(api_Counter_get(counter), 5);
+		assert_eq!(api_Counter_get(counter, std::ptr::null_mut()), 5);
 		let mut out = 0;
-		assert!(api_Counter_add(counter, 2, &mut out, std::ptr::null_mut()));
-		assert_eq!(api_Counter_get(counter), 7);
-		assert_eq!(take(api_Counter_name(counter)), "c");
+		assert!(api_Counter_add(counter, 2, &mut out, std::ptr::null_mut(), std::ptr::null_mut()));
+		assert_eq!(api_Counter_get(counter, std::ptr::null_mut()), 7);
+		assert_eq!(take(api_Counter_name(counter, std::ptr::null_mut())), "c");
 		let other = api_Counter_new(view("d"), 3);
-		assert_eq!(api_Counter_plus(counter, other), 10);
+		assert_eq!(api_Counter_plus(counter, other, std::ptr::null_mut()), 10);
 		api_Counter_free(other);
 		// Moving the value out leaves the handle for the caller to free.
-		assert_eq!(api_Counter_into_sum(counter, 1), 8);
+		assert_eq!(api_Counter_into_sum(counter, 1, std::ptr::null_mut()), 8);
 		api_Counter_free(counter);
+	}
+}
+
+/// A value whose `None` its niche encodes crosses with every byte initialized, as C reads
+/// each of its words: Miri fails on one Rust left uninitialized.
+#[test]
+fn niche_value() {
+	for scale in [0, 1000] {
+		unsafe {
+			let rated = api_Rated_new(7, scale);
+			let words = rated.opaque.map(|word| word.assume_init());
+			assert_eq!(words.iter().filter(|&&word| word == 7).count(), 1);
+			assert_eq!(api_Rated_scale(&rated), scale);
+		}
+	}
+}
+
+/// A close while a call reserved the value to move out fails as borrowed, so the call's
+/// rollback, once a later check of it fails, revives no value the close reported dropped.
+#[test]
+fn close_while_reserved() {
+	type Counter = rt::Object<::api_export::Counter>;
+	unsafe {
+		let counter = api_Counter_new(view("c"), 5);
+		let mut takes = rt::Takes::default();
+		Counter::reserve(counter, &mut takes, "reserve").unwrap();
+		assert_eq!(Counter::close(counter, "close", Some(|| panic!("a refused drop commits"))), Err(rt::Status::Borrowed));
+		assert!(Counter::borrow(counter, "borrow").is_err());
+		drop(takes);
+		let mut status = 0;
+		assert_eq!(api_Counter_get(counter, &mut status), 5);
+		assert_eq!(status, 0);
+		api_Counter_free(counter);
+	}
+}
+
+/// A draft the ledger's `edit` lends holds the ledger's exclusive borrow until it drops:
+/// through a commit that moves it out, past a free of the ledger, and shared by a receipt's
+/// clone, which the last copy gives back.
+#[test]
+fn exclusive_lend() {
+	unsafe {
+		let null = std::ptr::null_mut();
+		let mut err = std::mem::MaybeUninit::<api_Error>::uninit();
+		let mut draft = std::ptr::null();
+		let ledger = api_Ledger_new();
+		assert!(api_Ledger_edit(ledger, &mut draft, err.as_mut_ptr(), null));
+		api_Draft_write(draft, view("first"), null);
+		let mut status = 0;
+		api_Ledger_published(ledger, &mut status);
+		assert_eq!(status, rt::Status::Exclusive as i32);
+		assert_eq!(api_Draft_commit(draft, null), 1);
+		api_Draft_free(draft);
+		assert_eq!(api_Ledger_published(ledger, null), 1);
+		assert!(api_Ledger_edit(ledger, &mut draft, err.as_mut_ptr(), null));
+		api_Ledger_free(ledger);
+		api_Draft_write(draft, view("second"), null);
+		assert_eq!(api_Draft_lines(draft, null), 2);
+		assert_eq!(api_Draft_commit(draft, null), 2);
+		api_Draft_free(draft);
+		let ledger = api_Ledger_new();
+		let receipt = api_Ledger_receipt(ledger, null);
+		let copy = api_Receipt_clone(receipt, null);
+		api_Receipt_free(receipt);
+		api_Ledger_seal(ledger, &mut status);
+		assert_eq!(status, rt::Status::Borrowed as i32);
+		assert_eq!(api_Receipt_count(copy, null), 0);
+		api_Receipt_free(copy);
+		status = 0;
+		api_Ledger_seal(ledger, &mut status);
+		assert_eq!(status, 0);
+		api_Ledger_free(ledger);
 	}
 }
 
@@ -135,26 +207,26 @@ fn channel() {
 	let w = waker(&counts);
 	unsafe {
 		let channel = api_Channel_new();
-		let recv = api_Channel_recv(channel);
+		let recv = api_Channel_recv(channel, std::ptr::null_mut());
 		let mut payload = rt::Buf::NONE;
 		assert_eq!(api_Channel_recv_poll(recv, w, &mut payload), rt::PENDING);
-		api_Channel_send(channel, view("hi"));
+		api_Channel_send(channel, view("hi"), std::ptr::null_mut());
 		assert_eq!(counts.wakes.load(Ordering::SeqCst), 1);
 		assert_eq!(api_Channel_recv_poll(recv, w, &mut payload), rt::READY);
 		assert_eq!(take(payload), "hi");
 		api_Channel_recv_future_free(recv);
 
 		// A send from another thread wakes the poll's waker there.
-		let recv = api_Channel_recv(channel);
+		let recv = api_Channel_recv(channel, std::ptr::null_mut());
 		assert_eq!(api_Channel_recv_poll(recv, w, &mut payload), rt::PENDING);
-		api_Channel_send_from_thread(channel, view("far"));
+		api_Channel_send_from_thread(channel, view("far"), std::ptr::null_mut());
 		assert_eq!(counts.wakes.load(Ordering::SeqCst), 2);
 		assert_eq!(api_Channel_recv_poll(recv, w, &mut payload), rt::READY);
 		assert_eq!(take(payload), "far");
 		api_Channel_recv_future_free(recv);
 
 		// Cancelled while pending, it frees what it held, its waker included.
-		let recv = api_Channel_recv(channel);
+		let recv = api_Channel_recv(channel, std::ptr::null_mut());
 		assert_eq!(api_Channel_recv_poll(recv, w, &mut payload), rt::PENDING);
 		api_Channel_recv_future_free(recv);
 		api_Channel_free(channel);
@@ -192,4 +264,20 @@ fn foreign_futures() {
 		api_Waiter_poll_future_future_free(polled);
 		assert!(dropped.freed && dropped.waker.is_none());
 	}
+}
+
+/// WTF-8, as a Windows path crosses: a surrogate alone is its own unit, and a lead and
+/// trail written apart, which WTF-8 writes as the scalar they make, are refused.
+#[test]
+fn wtf8() {
+	let units = |s: &str| s.encode_utf16().collect::<Vec<_>>();
+	assert_eq!(rt::wtf8("aé😀".as_bytes()), Some(units("aé😀")));
+	assert_eq!(rt::wtf8(&[0xED, 0xA0, 0x80]), Some(vec![0xD800]));
+	assert_eq!(rt::wtf8(&[b'a', 0xED, 0xB0, 0x80, b'b']), Some(vec![0x61, 0xDC00, 0x62]));
+	assert_eq!(rt::wtf8(&[0xED, 0xB0, 0x80, 0xED, 0xA0, 0x80]), Some(vec![0xDC00, 0xD800]));
+	assert_eq!(rt::wtf8(&[0xED, 0xA0, 0x80, b'x', 0xED, 0xB0, 0x80]), Some(vec![0xD800, 0x78, 0xDC00]));
+	assert_eq!(rt::wtf8(&[0xED, 0xA0, 0x80, 0xED, 0xB0, 0x80]), None);
+	assert_eq!(rt::wtf8(&[0xFF]), None);
+	assert_eq!(rt::wtf8(&[0xED, 0xA0]), None);
+	assert_eq!(rt::wtf8(&[b'a', 0xC3]), None);
 }

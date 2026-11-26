@@ -292,9 +292,14 @@ export function blockOn$raw_executor_closure1(f: rs.Future<rs.u8>): rs.u8 | unde
 
 /** An `async` block awaiting a `Yields` of each byte, polled to its end by `block_on`. */
 export function executor(data: rs.ByteSlice, out: rs.ByteVec): void {
-	rs.iterExtendBytes(out, rs.iterOption(blockOn$raw_executor_closure1(new executorFuture$closure1(rs.iterToByteVec(rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (b: rs.u8): rs.u8 => {
-		return rs.u8Rem(b, 5);
-	}), undefined, true)))), undefined, true);
+	const s = rs.byteSliceView(data);
+	let front = 0;
+	let back = s.length;
+	const v: rs.ByteVec = rs.byteVecWithCapacity(back - front);
+	while (!(front >= back)) {
+		rs.byteVecPush(v, rs.u8Rem(s[front++], 5));
+	}
+	rs.iterExtendBytes(out, rs.iterOption(blockOn$raw_executor_closure1(new executorFuture$closure1(v))), undefined, true);
 	rs.NEVER;
 	rs.byteVecPush(out, blockOn$future_Pending_u8(rs.NEVER) === undefined ? 1 : 0);
 }
@@ -715,9 +720,14 @@ export function tasks(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const task2: rs.Arc<Task.Task> = new rs.Arc(new Task.Task(2, new rs.Cell(0)));
 	const waker: rs.Waker = taskWaker(rs.arcClone(task2));
 	const cx: rs.Context = waker;
-	const pinned: rs.Future<rs.u8> = new tasksFuture$closure1(rs.iterToByteVec(rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (b: rs.u8): rs.u8 => {
-		return rs.u8Rem(b, 4);
-	}), undefined, true));
+	const s = rs.byteSliceView(data);
+	let front = 0;
+	let back = s.length;
+	const v: rs.ByteVec = rs.byteVecWithCapacity(back - front);
+	while (!(front >= back)) {
+		rs.byteVecPush(v, rs.u8Rem(s[front++], 4));
+	}
+	const pinned: rs.Future<rs.u8> = new tasksFuture$closure1(v);
 	const f: rs.Future<rs.u8> = pinned;
 	while (true) {
 		_101 = f.poll(cx);

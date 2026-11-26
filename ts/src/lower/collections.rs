@@ -21,7 +21,7 @@ use crate::ts::{Expr, Param, Stmt, StmtKind, Type};
 
 /// A call of a standard library function on these types, or its arguments back if it is
 /// none of theirs.
-pub fn call<'tcx>(
+pub(crate) fn call<'tcx>(
 	b: &mut Body<'_, '_, 'tcx>,
 	call: &Call<'tcx>,
 	owner: &str,
@@ -330,7 +330,7 @@ pub fn call<'tcx>(
 /// Whether the mappings of a collection of type `std` hand out the bytes it holds as
 /// [`super::lend::lend`] makes them, in what each returns and hands a closure, and read
 /// the bytes they are given in either form.
-pub fn lending(std: Std) -> bool {
+pub(crate) fn lending(std: Std) -> bool {
 	matches!(
 		std,
 		Std::HashMap
@@ -485,7 +485,7 @@ fn alike<'tcx>(b: &Body<'_, '_, 'tcx>, ty: Ty<'tcx>, other: Ty<'tcx>) -> bool {
 /// Whether `call` lends a value a collection or an atomic holds that JS copies, which its
 /// mapping makes an `rs.Place` of: returned as `get_mut` and an entry's do, yielded as
 /// `iter_mut`'s, or handed to a closure as `retain`'s. An atomic is that place itself.
-pub fn place_call<'tcx>(b: &Body<'_, '_, 'tcx>, call: &Call<'tcx>) -> bool {
+pub(crate) fn place_call<'tcx>(b: &Body<'_, '_, 'tcx>, call: &Call<'tcx>) -> bool {
 	let tcx = b.t.tcx;
 	let Some(std) = library::inherent_std(tcx, call.def_id) else {
 		return false;
@@ -609,7 +609,7 @@ fn peel_by<'tcx>(
 }
 
 /// `ty` through what `peel_by` peels for `PartialOrd`, or for `Ord` unless `partial`.
-pub fn peel_ord<'tcx>(b: &Body<'_, '_, 'tcx>, ty: Ty<'tcx>, partial: bool) -> Ty<'tcx> {
+pub(crate) fn peel_ord<'tcx>(b: &Body<'_, '_, 'tcx>, ty: Ty<'tcx>, partial: bool) -> Ty<'tcx> {
 	let tcx = b.t.tcx;
 	match partial {
 		true => peel_by(b, trait_fn(tcx, "PartialOrd", "partial_cmp"), ty, |t| {
@@ -646,7 +646,7 @@ fn own_impl<'tcx>(b: &Body<'_, '_, 'tcx>, f: DefId, args: GenericArgs<'tcx>) -> 
 
 /// Whether `ty`, as `peel_by` leaves it, compares and hashes by the crate's own impls: of a
 /// type of its own, or of a reference or a `Box` where `peel_by` stopped.
-pub fn by_own<'tcx>(b: &Body<'_, '_, 'tcx>, ty: Ty<'tcx>) -> bool {
+pub(crate) fn by_own<'tcx>(b: &Body<'_, '_, 'tcx>, ty: Ty<'tcx>) -> bool {
 	local(b, ty) || pointee(b, ty).is_some()
 }
 
@@ -1205,7 +1205,7 @@ fn own_test<'tcx>(b: &Body<'_, '_, 'tcx>, ty: Ty<'tcx>, test: &str) -> bool {
 
 /// `PartialOrd::{test}` of `ty` as a function, `lt` or another of its tests: the crate's own
 /// where `ty` reaches it, or else by `partial_cmp`, as the trait's defaults test it.
-pub fn test_fn<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, test: &str, span: Span) -> Expr {
+pub(crate) fn test_fn<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, test: &str, span: Span) -> Expr {
 	let tcx = b.t.tcx;
 	let ty = peel_ord(b, ty, true);
 	// An integer's, which the runtime tests directly rather than through `partial_cmp`.
@@ -2134,7 +2134,7 @@ fn heap<'tcx>(
 }
 
 /// The `Vec` a heap, `h`, is, an `rs.ByteVec` of bytes, with its capacity.
-pub fn heap_vec(h: Expr, bytes: bool) -> Expr {
+pub(crate) fn heap_vec(h: Expr, bytes: bool) -> Expr {
 	match bytes {
 		true => Expr::rs("byteVecFromVec", vec![h]),
 		false => h,
@@ -2184,7 +2184,7 @@ pub(super) fn extend_source<'tcx>(
 /// `extend` of `target`, a collection of type `coll`, `()`, or a tuple of them, by `items`,
 /// an iterator of type `iter` of `item`s, copied already where they are borrowed, as its
 /// own `Extend` reads and reserves for it, giving the collection back.
-pub fn extend<'tcx>(
+pub(crate) fn extend<'tcx>(
 	b: &mut Body<'_, '_, 'tcx>,
 	coll: Ty<'tcx>,
 	item: Ty<'tcx>,
@@ -2266,7 +2266,12 @@ pub fn extend<'tcx>(
 /// What copies each borrowed `item` a collection of type `coll` is extended by, as
 /// `Extend<&T>` and `Extend<(&K, &V)>` store a copy: `None` where `item` is what it stores,
 /// a copy is the value itself, or `coll` is no collection of items.
-pub fn copy_borrowed<'tcx>(b: &mut Body<'_, '_, 'tcx>, coll: Ty<'tcx>, item: Ty<'tcx>, span: Span) -> Option<Expr> {
+pub(crate) fn copy_borrowed<'tcx>(
+	b: &mut Body<'_, '_, 'tcx>,
+	coll: Ty<'tcx>,
+	item: Ty<'tcx>,
+	span: Span,
+) -> Option<Expr> {
 	let Some(
 		Std::Vec
 		| Std::VecDeque
@@ -2291,7 +2296,7 @@ pub fn copy_borrowed<'tcx>(b: &mut Body<'_, '_, 'tcx>, coll: Ty<'tcx>, item: Ty<
 /// type `iter` of `item`s, or without one, `collect` into the tuple of the collections'
 /// defaults, as std's `Extend` and `FromIterator` of tuples are: a 1-tuple's collection by
 /// its own `extend`, and a longer one's each by its `extend_reserve` and `extend_one`.
-pub fn tuple_extend<'tcx>(
+pub(crate) fn tuple_extend<'tcx>(
 	b: &mut Body<'_, '_, 'tcx>,
 	tuple: Ty<'tcx>,
 	item: Ty<'tcx>,
@@ -2360,7 +2365,7 @@ pub fn tuple_extend<'tcx>(
 /// `Iterator::partition` of `items`, an iterator of `item`s, by `f`, into two defaults of
 /// `coll`, as std's makes them, each extended as a tuple's `Extend` extends it: `flags` say
 /// whether the iterator drops and whether `f` drops as its fold ends.
-pub fn partition<'tcx>(
+pub(crate) fn partition<'tcx>(
 	b: &mut Body<'_, '_, 'tcx>,
 	coll: Ty<'tcx>,
 	item: Ty<'tcx>,
@@ -2598,7 +2603,7 @@ fn uncalled<'tcx>(b: &mut Body<'_, '_, 'tcx>, call: &Call<'tcx>) -> Option<Vec<E
 
 /// Whether `entry`, an `Entry` of a map or, as `std` says, of a `HashTable`, is its variant
 /// `index`: `Occupied` while the map holds its key. Each variant's entry is the `Entry` itself.
-pub fn entry_test(std: Std, adt: ty::AdtDef<'_>, index: rustc_abi::VariantIdx, entry: Expr) -> Expr {
+pub(crate) fn entry_test(std: Std, adt: ty::AdtDef<'_>, index: rustc_abi::VariantIdx, entry: Expr) -> Expr {
 	let f = if std == Std::TableEntry {
 		"tableOccupied"
 	} else {
@@ -2618,7 +2623,7 @@ fn is_vacant<'tcx>(b: &Body<'_, '_, 'tcx>, entry: Ty<'tcx>) -> bool {
 
 /// An `Ordering` variant, which is its discriminant: `Less` is `-1`, `Equal` `0`, and
 /// `Greater` `1`.
-pub fn ordering_variant(index: rustc_abi::VariantIdx) -> Expr {
+pub(crate) fn ordering_variant(index: rustc_abi::VariantIdx) -> Expr {
 	Expr::lit((index.as_u32() as i32 - 1).to_string())
 }
 
@@ -2913,8 +2918,8 @@ fn bytes<'tcx>(b: &Body<'_, '_, 'tcx>, ty: Ty<'tcx>) -> bool {
 
 /// What `bounds` makes of the range a call takes: what an `rs.Bounds` reads, and, for a
 /// range that drops, the range and what drops it.
-pub struct Ranged {
-	pub bounds: Expr,
+pub(crate) struct Ranged {
+	pub(crate) bounds: Expr,
 	dropped: Option<(Expr, String, Expr)>,
 }
 
@@ -2922,7 +2927,7 @@ impl Ranged {
 	/// `e`, the call, which drops a range that drops once it returns: std drops it once it
 	/// has read its bounds and searched by them, after which it does nothing JS can see
 	/// before it returns.
-	pub fn after(self, e: Expr) -> Expr {
+	pub(crate) fn after(self, e: Expr) -> Expr {
 		let Some((range, name, drop)) = self.dropped else {
 			return e;
 		};
@@ -2932,7 +2937,7 @@ impl Ranged {
 
 	/// `call` of the bounds and what drops the range, for a call whose result holds the
 	/// range and drops it as it drops: a range that drops, read once, and else `undefined`.
-	pub fn held(self, call: impl FnOnce(Expr, Expr) -> Expr) -> Expr {
+	pub(crate) fn held(self, call: impl FnOnce(Expr, Expr) -> Expr) -> Expr {
 		let Some((range, name, drop)) = self.dropped else {
 			return call(self.bounds, Expr::undefined());
 		};
@@ -2944,7 +2949,7 @@ impl Ranged {
 	/// The bounds, for a call that checks more once `slice::range` has checked them within
 	/// `len`, as `String`'s do its char boundaries: a range that drops drops between the two,
 	/// as std's does, and the call takes the checked `{ start, end }`.
-	pub fn within(self, len: Expr) -> Expr {
+	pub(crate) fn within(self, len: Expr) -> Expr {
 		let Some((range, name, drop)) = self.dropped else {
 			return self.bounds;
 		};
@@ -2957,7 +2962,7 @@ impl Ranged {
 /// Makes `range`, the range `call` takes, what an `rs.Bounds` reads: std's range types
 /// and a pair of `Bound`s are already, and any other `RangeBounds` becomes `rs.boundsOf` of
 /// it and its `start_bound` and `end_bound`, which the runtime calls where std's does.
-pub fn bounds<'tcx>(b: &mut Body<'_, '_, 'tcx>, call: &Call<'tcx>, range: Expr) -> Ranged {
+pub(crate) fn bounds<'tcx>(b: &mut Body<'_, '_, 'tcx>, call: &Call<'tcx>, range: Expr) -> Ranged {
 	let tcx = b.t.tcx;
 	let span = call.span;
 	let (input, target) = range_input(b, call);
@@ -2983,7 +2988,7 @@ pub fn bounds<'tcx>(b: &mut Body<'_, '_, 'tcx>, call: &Call<'tcx>, range: Expr) 
 }
 
 /// Whether an `rs.Bounds` reads `ty` as it is: std's range types and a pair of `Bound`s.
-pub fn plain_bounds<'tcx>(t: &Translator<'_, 'tcx>, ty: Ty<'tcx>) -> bool {
+pub(crate) fn plain_bounds<'tcx>(t: &Translator<'_, 'tcx>, ty: Ty<'tcx>) -> bool {
 	match (ty.kind(), t.std_of(ty)) {
 		(
 			_,
@@ -3068,7 +3073,7 @@ fn cell_by<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, by: &str, f: Expr, me
 /// `Ord::cmp` of `ty` as a function, or `PartialOrd::partial_cmp` if `partial`: the
 /// runtime's for a std type, which calls the same of what it holds, or the crate's, of its
 /// type or a reference to it.
-pub fn cmp_fn<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, partial: bool, span: Span) -> Expr {
+pub(crate) fn cmp_fn<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, partial: bool, span: Span) -> Expr {
 	let tcx = b.t.tcx;
 	let ty = peel_ord(b, ty, partial);
 	match ty.kind() {
@@ -3143,7 +3148,7 @@ pub fn cmp_fn<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, partial: bool, spa
 
 /// `PartialEq::eq` of `ty`, as a function: the runtime's for a std type, or the crate's, of
 /// its type or a reference to it.
-pub fn eq_fn<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, span: Span) -> Expr {
+pub(crate) fn eq_fn<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, span: Span) -> Expr {
 	let tcx = b.t.tcx;
 	let ty = peel_eq(b, ty);
 	match ty.kind() {
@@ -3274,7 +3279,7 @@ fn item_eq<'tcx>(b: &mut Body<'_, '_, 'tcx>, t: Ty<'tcx>, u: Ty<'tcx>, span: Spa
 /// `<t as PartialEq<u>>::eq` as a function, which `==` of a `t` and a `u` calls, or with
 /// `by_ne`, what `!=` of them finds equal: `!ne`, which `eq` stands for unless the crate
 /// overrides it.
-pub fn pair_eq<'tcx>(b: &mut Body<'_, '_, 'tcx>, t: Ty<'tcx>, u: Ty<'tcx>, by_ne: bool, span: Span) -> Expr {
+pub(crate) fn pair_eq<'tcx>(b: &mut Body<'_, '_, 'tcx>, t: Ty<'tcx>, u: Ty<'tcx>, by_ne: bool, span: Span) -> Expr {
 	let tcx = b.t.tcx;
 	if let Some(eq) = seq_eq(b, t, u, span) {
 		return eq;
@@ -3302,7 +3307,7 @@ pub fn pair_eq<'tcx>(b: &mut Body<'_, '_, 'tcx>, t: Ty<'tcx>, u: Ty<'tcx>, by_ne
 /// `<t as PartialOrd<u>>::partial_cmp` as a function, which std's `partial_cmp` of a `t`
 /// and a `u` calls: through what std's forwards through, `cmp_fn`'s where std's
 /// impl compares one type, and else the crate's own.
-pub fn pair_partial_cmp<'tcx>(b: &mut Body<'_, '_, 'tcx>, t: Ty<'tcx>, u: Ty<'tcx>, span: Span) -> Expr {
+pub(crate) fn pair_partial_cmp<'tcx>(b: &mut Body<'_, '_, 'tcx>, t: Ty<'tcx>, u: Ty<'tcx>, span: Span) -> Expr {
 	let tcx = b.t.tcx;
 	if b.t.deferred(peel(b, t)) || b.t.deferred(peel(b, u)) {
 		return Expr::undefined();
@@ -3329,7 +3334,7 @@ fn peel_pair<'tcx>(b: &Body<'_, '_, 'tcx>, f: DefId, t: Ty<'tcx>, u: Ty<'tcx>) -
 
 /// `<t as PartialEq<u>>::{name}`, `eq` or `ne`, as `impl_fn` makes it. A `ne` returns
 /// what `eq` would.
-pub fn impl_eq<'tcx>(
+pub(crate) fn impl_eq<'tcx>(
 	b: &mut Body<'_, '_, 'tcx>,
 	name: &str,
 	t: Ty<'tcx>,
@@ -3475,7 +3480,7 @@ fn own_hash_slice<'tcx>(b: &Body<'_, '_, 'tcx>, elem: Ty<'tcx>, hasher: Ty<'tcx>
 }
 
 /// `Clone::clone` of `ty`, as a function, or `undefined` where it is the value itself.
-pub fn clone_fn<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, span: Span) -> Expr {
+pub(crate) fn clone_fn<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, span: Span) -> Expr {
 	let (tcx, env) = (b.t.tcx, b.t.typing_env_pub());
 	if library::clone_copies(b.t, env, ty)
 		&& let Some(copy) = b.t.copy_fn(ty, span)
@@ -3507,7 +3512,7 @@ pub fn clone_fn<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, span: Span) -> E
 }
 
 /// An item of one of std's traits, by the trait's diagnostic name: `Ord`'s `cmp`.
-pub fn trait_fn(tcx: ty::TyCtxt<'_>, tr: &str, item: &str) -> rustc_hir::def_id::DefId {
+pub(crate) fn trait_fn(tcx: ty::TyCtxt<'_>, tr: &str, item: &str) -> rustc_hir::def_id::DefId {
 	let tr = tcx
 		.get_diagnostic_item(rustc_span::Symbol::intern(tr))
 		.expect("a trait of std");
@@ -3525,7 +3530,7 @@ fn trait_fn_of(tcx: ty::TyCtxt<'_>, tr: DefId, item: &str) -> DefId {
 
 /// What `into_iter` makes of a collection of type `ty`, by value or by reference: an
 /// `rs.Iter` of its entries, keys, or items, which by value drops those it still holds.
-pub fn into_iter<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, value: Expr, span: Span) -> Option<Expr> {
+pub(crate) fn into_iter<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, value: Expr, span: Span) -> Option<Expr> {
 	let coll = ty.peel_refs();
 	// A `&mut` lends each value JS copies as its place.
 	let places = |n: usize| ty.ref_mutability() == Some(ty::Mutability::Mut) && b.t.needs_place(arg(coll, n));
@@ -3566,7 +3571,7 @@ pub fn into_iter<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, value: Expr, sp
 
 /// `collect` into a collection of type `ty` from `iter`, an iterator of type `from`, which
 /// std's reserves for as it does a `TrustedLen` one if `trusted`.
-pub fn collect<'tcx>(
+pub(crate) fn collect<'tcx>(
 	b: &mut Body<'_, '_, 'tcx>,
 	ty: Ty<'tcx>,
 	iter: Expr,

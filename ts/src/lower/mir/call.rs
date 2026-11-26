@@ -50,7 +50,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 			ty::FnDef(def_id, gargs) if dest.as_local().is_some() && self.fuses(def_id, gargs.skip_binder()) => {
 				let gargs = gargs.skip_binder();
 				let acc = library::key(tcx, def_id)
-					.filter(|(_, name)| matches!(name.as_str(), "fold" | "sum" | "product"))
+					.filter(|(_, name)| matches!(name.as_str(), "fold" | "rfold" | "sum" | "product"))
 					.map(|_| gargs.type_at(1));
 				Some((gargs.type_at(0), acc))
 			}
@@ -77,6 +77,22 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 					&& let Some(value) = self.fused_next(&args[0].node, span, &mut pre) =>
 			{
 				(value, true)
+			}
+			// `next_back` of a fused chain read from the back, from its parts, as an `Option`.
+			ty::FnDef(def_id, gargs)
+				if super::fuse::is_next_back(tcx, def_id)
+					&& let Some(value) = self.fused_next(&args[0].node, span, &mut pre) =>
+			{
+				let item = self
+					.b
+					.t
+					.iter_item(gargs.skip_binder().type_at(0))
+					.expect("an iterator's item");
+				let none = self.b.t.none_arg(item);
+				(
+					Expr::rs("iterToOption", [value].into_iter().chain(none).collect()),
+					true,
+				)
 			}
 			// `next` into a local that holds the protocol's item or `rs.DONE`, unconverted.
 			ty::FnDef(def_id, gargs)
@@ -203,7 +219,10 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 			}) = out.pop()
 		{
 			let mut init = init;
-			if let Expr::Call(_, args) = peel_mut(&mut init)
+			// Only a consumer's: what wraps one, as `rs.dropAfter` wraps one that drops its
+			// closure, takes the closure first.
+			if let Expr::Call(f, args) = peel_mut(&mut init)
+				&& super::fuse::consumes(f)
 				&& let Some(chain) = args.first_mut()
 			{
 				self.take_held(chain, out);
@@ -2395,7 +2414,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 	}
 
 	/// The start and optional end of a range: `a..b`, `..b`, `a..`, or `..`.
-	fn range_bounds(
+	pub(super) fn range_bounds(
 		&mut self,
 		op: &Operand<'tcx>,
 		ty: Ty<'tcx>,
@@ -2491,7 +2510,7 @@ fn flow<'tcx>(tcx: TyCtxt<'tcx>, ty: Ty<'tcx>) -> Flow {
 
 /// The test that `scrut`, a `ControlFlow`, is `Continue` (variant 0) or `Break`, where
 /// `next` says it is what `?` on a `next` result branches to, which holds the same.
-pub fn control_flow_test<'tcx>(
+pub(crate) fn control_flow_test<'tcx>(
 	fx: &mut Fx<'_, '_, '_, 'tcx>,
 	scrut: &Expr,
 	ty: Ty<'tcx>,
@@ -2513,7 +2532,7 @@ pub fn control_flow_test<'tcx>(
 
 /// A field of a `ControlFlow`: `Continue`'s value, or `Break`'s, which for `?` is the
 /// value it was applied to.
-pub fn control_flow_field<'tcx>(
+pub(crate) fn control_flow_field<'tcx>(
 	fx: &mut Fx<'_, '_, '_, 'tcx>,
 	base: Expr,
 	ty: Ty<'tcx>,
@@ -2530,7 +2549,7 @@ pub fn control_flow_field<'tcx>(
 }
 
 /// A `ControlFlow` made in place.
-pub fn control_flow<'tcx>(
+pub(crate) fn control_flow<'tcx>(
 	fx: &mut Fx<'_, '_, '_, 'tcx>,
 	ty: Ty<'tcx>,
 	variant: VariantIdx,

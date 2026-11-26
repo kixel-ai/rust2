@@ -90,6 +90,20 @@ export function map$167hjon(self: rs.StrCow | undefined, _: (a0: rs.StrCow) => s
 	return rs.strCowStr(self);
 }
 
+export function map$1y3jsu8(self: [Noted.Noted, Noted.Noted] | undefined, f: (a0: [Noted.Noted, Noted.Noted]) => rs.u8): rs.u8 | undefined {
+	if (self === undefined) {
+		return undefined;
+	}
+	return f(self);
+}
+
+export function map$190fgwn(self: [Noted.Noted, rs.u8] | undefined, f: (a0: [Noted.Noted, rs.u8]) => rs.u8): rs.u8 | undefined {
+	if (self === undefined) {
+		return undefined;
+	}
+	return f(self);
+}
+
 export function map$1p2lbl3(self: [rs.u8, rs.String] | undefined, f: (a0: [rs.u8, rs.String]) => rs.String): rs.String | undefined {
 	if (self === undefined) {
 		return undefined;
@@ -104,7 +118,21 @@ export function map$1oqs2fe(self: [rs.u8, rs.u16] | undefined, f: (a0: [rs.u8, r
 	return f(self);
 }
 
+export function map$11o103r(self: [rs.u16, rs.u8] | undefined, f: (a0: [rs.u16, rs.u8]) => rs.u8): rs.u8 | undefined {
+	if (self === undefined) {
+		return undefined;
+	}
+	return f(self);
+}
+
 export function map$1c8069b(self: [rs.u8, rs.u8] | undefined, f: (a0: [rs.u8, rs.u8]) => rs.u8): rs.u8 | undefined {
+	if (self === undefined) {
+		return undefined;
+	}
+	return f(self);
+}
+
+export function map$0h22a1a(self: [rs.usize, rs.u8] | undefined, f: (a0: [rs.usize, rs.u8]) => rs.u8): rs.u8 | undefined {
 	if (self === undefined) {
 		return undefined;
 	}

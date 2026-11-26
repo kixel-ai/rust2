@@ -1,0 +1,83 @@
+#!/usr/bin/env bash
+# Consume a staged Swift package as a user would, before any upload: its own scheme built
+# for macOS, iOS, the iOS Simulator, and Mac Catalyst at the floors it declares, then a new
+# executable package whose only library is it, run and compared with native Rust, whose
+# bundled privacy manifest must declare each required-reason API the executable imports.
+# usage: consume-swift.sh <bindings-swift artifact> <bindings-build-apple artifact>
+set -euo pipefail
+here=$(cd "$(dirname "$0")" && pwd)
+swift=$(cd "$1" && pwd)
+apple=$(cd "$2" && pwd)
+module=$(python3 -I -c 'import json, sys; print(json.load(open(sys.argv[1]))["module"])' "$swift/swift.json")
+work=$(mktemp -d "${RUNNER_TEMP:-${TMPDIR:-/tmp}}/swift-consumer.XXXXXXXX")
+trap 'rm -rf "$work"' EXIT
+
+# The ZIP a release hosts, unpacked as SwiftPM would after checking its checksum.
+[[ "$(shasum -a 256 "$swift/${module}FFI.xcframework.zip" | cut -d' ' -f1)" == "$(cat "$swift/checksum.txt")" ]]
+cp -R "$swift/package" "$work/$module"
+# SwiftPM takes a local binary target only from inside the package.
+(cd "$work/$module" && unzip -q "$swift/${module}FFI.xcframework.zip")
+python3 -I "$here/package.py" swift-local --state "$swift/swift.json" --package "$work/$module" --framework "$work/$module/${module}FFI.xcframework"
+
+(
+    cd "$work/$module"
+    for destination in 'generic/platform=macOS' 'generic/platform=iOS' 'generic/platform=iOS Simulator' \
+        'generic/platform=macOS,variant=Mac Catalyst'; do
+        xcodebuild -quiet -scheme "$module" -destination "$destination" -derivedDataPath "$work/derived" \
+            CODE_SIGNING_ALLOWED=NO build
+    done
+)
+
+mkdir -p "$work/consumer/Sources/Check"
+# A check is a directory holding it as check.swift beside the files of its own, which the
+# executable's target takes whole.
+if [[ -d "$apple/checks/swift" ]]; then
+    [[ -f "$apple/checks/swift/check.swift" ]] || {
+        echo "$apple/checks/swift holds no check.swift" >&2
+        exit 1
+    }
+    cp -R "$apple/checks/swift/." "$work/consumer/Sources/Check/"
+else
+    printf 'import %s\n\n@main\nstruct Check {\n\tstatic func main() {}\n}\n' "$module" >"$work/consumer/Sources/Check/Check.swift"
+fi
+collections=$(python3 -I -c 'import json, sys; print(json.load(open(sys.argv[1]))["collections"])' "$swift/swift.json")
+# The check program may use newer APIs than the package needs, such as an executor's, and
+# builds in Swift 5's language mode, as rust2's own tests build it; the package builds in 6.
+cat >"$work/consumer/Package.swift" <<SWIFT
+// swift-tools-version: 6.2
+import PackageDescription
+
+let package = Package(
+    name: "Check",
+    platforms: [.macOS(.v15)],
+    dependencies: [
+        .package(path: "../$module"),
+        .package(url: "https://github.com/apple/swift-collections", exact: "$collections"),
+    ],
+    targets: [
+        .executableTarget(
+            name: "Check",
+            dependencies: [
+                .product(name: "$module", package: "$module"),
+                .product(name: "BasicContainers", package: "swift-collections"),
+            ],
+            swiftSettings: [.swiftLanguageMode(.v5)]
+        ),
+    ]
+)
+SWIFT
+cd "$work/consumer"
+swift build -c release
+.build/release/Check >"$work/actual.txt"
+# The manifest SwiftPM bundled beside the executable, as an app embeds it.
+manifests=$(find .build/release/ -path "*/${module}_${module}Privacy.bundle/*" -name PrivacyInfo.xcprivacy)
+if [[ -z "$manifests" || $(wc -l <<<"$manifests") -ne 1 ]]; then
+    echo "the build bundled no single privacy manifest: $manifests" >&2
+    exit 1
+fi
+python3 -I "$here/package.py" privacy-check --manifest "$manifests" .build/release/Check
+# Only a check program prints the transcript; the stub prints nothing.
+if [[ -d "$apple/checks/swift" && -f "$apple/native.txt" ]]; then
+    python3 -I "$here/package.py" compare "$apple/native.txt" "$work/actual.txt"
+fi
+echo "installed Swift package: builds for macOS, iOS, the iOS Simulator, and Mac Catalyst, and its check passes"

@@ -12,11 +12,15 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  bindings:
+    name: Binding packages
+    uses: ./.github/workflows/bindings-test.yml
+
   check:
     name: Check
     runs-on: ubuntu-24.04-arm
     # Backstop a hang instead of holding the runner for the 6-hour default.
-    timeout-minutes: 30
+    timeout-minutes: 60
 
     steps:
       - name: Checkout

@@ -255,21 +255,21 @@ export function u8s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	};
 	const _31: rs.u8 = rs.u8Rem(kind, 24);
 	if (_31 === 0) {
-		const part45 = rs.u8WrappingAdd(a, b);
-		_30(out, part45);
+		const part39 = rs.u8WrappingAdd(a, b);
+		_30(out, part39);
 	} else if (_31 === 1) {
-		const part44 = rs.u8WrappingSub(a, b);
-		_30(out, part44);
+		const part38 = rs.u8WrappingSub(a, b);
+		_30(out, part38);
 	} else if (_31 === 2) {
-		const part43 = rs.u8WrappingMul(a, b);
-		_30(out, part43);
+		const part37 = rs.u8WrappingMul(a, b);
+		_30(out, part37);
 	} else if (_31 === 3) {
 		_30(out, rs.u8Div(a, b));
 	} else if (_31 === 4) {
 		_30(out, rs.u8Rem(a, b));
 	} else if (_31 === 5) {
-		const part40 = rs.u8WrappingSub(0, a);
-		_30(out, part40);
+		const part34 = rs.u8WrappingSub(0, a);
+		_30(out, part34);
 	} else if (_31 === 6) {
 		_30(out, ~a & 0xff);
 	} else if (_31 === 7) {
@@ -313,14 +313,14 @@ export function u8s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		_30(out, (a << 3) & 0xff);
 		_30(out, rs.u8Shr(a, rs.usizeAdd(8, 1) & 7));
 	} else if (_31 === 17) {
-		const part15 = rs.u8WrappingAdd(a, b);
-		_30(out, part15);
-		const part16 = rs.u8WrappingSub(a, b);
-		_30(out, part16);
-		const part17 = rs.u8WrappingMul(a, c);
-		_30(out, part17);
-		const part18 = rs.u8WrappingSub(0, a);
-		_30(out, part18);
+		const part9 = rs.u8WrappingAdd(a, b);
+		_30(out, part9);
+		const part10 = rs.u8WrappingSub(a, b);
+		_30(out, part10);
+		const part11 = rs.u8WrappingMul(a, c);
+		_30(out, part11);
+		const part12 = rs.u8WrappingSub(0, a);
+		_30(out, part12);
 		_30(out, ~b & 0xff);
 		_30(out, rs.u8Shl(a, n & 7));
 		_30(out, rs.u8Shr(a, n & 7));
@@ -347,14 +347,14 @@ export function u8s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 			}
 			rs.byteVecPush(out, _219 ? 1 : 0);
 		}
-		const part12 = rs.ordMax(a, b, rs.cmpLt(rs.cmp));
-		_30(out, part12);
-		const part13 = rs.ordMin(a, c, rs.cmpLt(rs.cmp));
-		_30(out, part13);
+		const part6 = rs.ordMax(a, b, rs.cmpLt(rs.cmp));
+		_30(out, part6);
+		const part7 = rs.ordMin(a, c, rs.cmpLt(rs.cmp));
+		_30(out, part7);
 		const _237: rs.u8 = rs.ordMin(b, c, rs.cmpLt(rs.cmp));
 		const _238: rs.u8 = rs.ordMax(b, c, rs.cmpLt(rs.cmp));
-		const part14 = rs.ordClamp(a, _237, _238, rs.cmpLe(rs.cmp), rs.cmpLt(rs.cmp), rs.cmpGt(rs.cmp));
-		_30(out, part14);
+		const part8 = rs.ordClamp(a, _237, _238, rs.cmpLe(rs.cmp), rs.cmpLt(rs.cmp), rs.cmpGt(rs.cmp));
+		_30(out, part8);
 	} else if (_31 === 19) {
 		const dst2 = out;
 		const word2 = hashed$num_Wrapping_u8(a);
@@ -371,7 +371,9 @@ export function u8s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		dst2.data[pos2 + 6] = (word3 >>> 8) & 255;
 		dst2.data[pos2 + 7] = word3 & 255;
 		dst2.length = dst2.length + 8;
-		rs.byteVecPush(out, rs.u64Eq(hashed$num_Wrapping_u8(a), hashed$u8(a)) ? 1 : 0);
+		const _248: rs.u64 = hashed$num_Wrapping_u8(a);
+		const _250: rs.u64 = hashed$u8(a);
+		rs.byteVecPush(out, (typeof _248 === "number" && typeof _250 === "number" ? _248 === _250 : rs.u64Eq(_248, _250)) ? 1 : 0);
 		const _253: rs.Iter<rs.u8> = rs.iterSlice([a, b, c, a]);
 		const iter2: rs.Iter<rs.u8> = rs.btreeKeys(rs.btreeExtendKeys(rs.btreeNew(rs.cmp) as rs.BTreeSet<rs.u8>, _253, true, undefined, undefined, 1, true));
 		while (true) {
@@ -390,18 +392,54 @@ export function u8s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args6[0], " ", args6[1], " ", args6[2], " ", args6[3], " ", args6[4], " ", args6[5], " ", rs.fmtSpec({ align: ">", width: 6 }, args6[6]), " ", rs.fmtSpec({ alternate: true }, args6[7]), " ", rs.fmtSpec({ zero: true, width: 8 }, args6[8]), " ", rs.fmtSpec({ plus: true }, args6[6])]).v));
 	} else if (_31 === 21) {
 		const all: rs.u8[] = [a, b, c];
-		const part6 = rs.iterSum(rs.iterSlice(all), rs.u8WrappingAdd, 0);
-		_30(out, part6);
-		const part7 = rs.iterSum(rs.iterSlice(all), rs.u8WrappingAdd, 0);
-		_30(out, part7);
-		const part8 = rs.iterProduct(rs.iterSlice(all), rs.u8WrappingMul, 1);
-		_30(out, part8);
-		const part9 = rs.iterProduct(rs.iterSlice(all), rs.u8WrappingMul, 1);
-		_30(out, part9);
-		const part10 = rs.iterSum(rs.iterSlice(rs.sliceItems(rs.sliceRange(rs.sliceFrom(all), 0, 0))), rs.u8WrappingAdd, 0);
-		_30(out, part10);
-		const part11 = rs.iterProduct(rs.iterSlice(rs.sliceItems(rs.sliceRange(rs.sliceFrom(all), 0, 0))), rs.u8WrappingMul, 1);
-		_30(out, part11);
+		const s = all;
+		let front = 0;
+		let back = s.length;
+		let acc: rs.u8 = 0;
+		while (!(front >= back)) {
+			acc = rs.u8WrappingAdd(acc, s[front++]);
+		}
+		_30(out, acc);
+		const s2 = all;
+		let front2 = 0;
+		let back2 = s2.length;
+		let acc2: rs.u8 = 0;
+		while (!(front2 >= back2)) {
+			acc2 = rs.u8WrappingAdd(acc2, s2[front2++]);
+		}
+		_30(out, acc2);
+		const s3 = all;
+		let front3 = 0;
+		let back3 = s3.length;
+		let acc3: rs.u8 = 1;
+		while (!(front3 >= back3)) {
+			acc3 = rs.u8WrappingMul(acc3, s3[front3++]);
+		}
+		_30(out, acc3);
+		const s4 = all;
+		let front4 = 0;
+		let back4 = s4.length;
+		let acc4: rs.u8 = 1;
+		while (!(front4 >= back4)) {
+			acc4 = rs.u8WrappingMul(acc4, s4[front4++]);
+		}
+		_30(out, acc4);
+		const s5 = rs.sliceItems(rs.sliceRange(rs.sliceFrom(all), 0, 0));
+		let front5 = 0;
+		let back5 = s5.length;
+		let acc5: rs.u8 = 0;
+		while (!(front5 >= back5)) {
+			acc5 = rs.u8WrappingAdd(acc5, s5[front5++]);
+		}
+		_30(out, acc5);
+		const s6 = rs.sliceItems(rs.sliceRange(rs.sliceFrom(all), 0, 0));
+		let front6 = 0;
+		let back6 = s6.length;
+		let acc6: rs.u8 = 1;
+		while (!(front6 >= back6)) {
+			acc6 = rs.u8WrappingMul(acc6, s6[front6++]);
+		}
+		_30(out, acc6);
 	} else if (_31 === 22) {
 		_30(out, 0);
 		_30(out, a);
@@ -415,7 +453,9 @@ export function u8s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args5[0], " ", args5[1]]).v));
 		rs.byteVecPush(out, Tick.eq$cmp_PartialEq_u8(x7, y) ? 1 : 0);
 		rs.byteVecPush(out, Tick.cmp$cmp_Ord_u8(x7, y) & 0xff);
-		rs.byteVecPush(out, rs.u64Eq(hashed$wraps_Tick_u8(x7), hashed$num_Wrapping_u8(a)) ? 1 : 0);
+		const _389: rs.u64 = hashed$wraps_Tick_u8(x7);
+		const _391: rs.u64 = hashed$num_Wrapping_u8(a);
+		rs.byteVecPush(out, (typeof _389 === "number" && typeof _391 === "number" ? _389 === _391 : rs.u64Eq(_389, _391)) ? 1 : 0);
 		const z: Tick.Tick<rs.u8> = copy$wraps_Tick_u8(x7);
 		z._0 = rs.u8WrappingSub(z._0, y._0);
 		_30(out, z._0);
@@ -458,21 +498,21 @@ export function u16s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	};
 	const _31: rs.u8 = rs.u8Rem(kind, 24);
 	if (_31 === 0) {
-		const part45 = rs.u16WrappingAdd(a, b);
-		_30(out, part45);
+		const part39 = rs.u16WrappingAdd(a, b);
+		_30(out, part39);
 	} else if (_31 === 1) {
-		const part44 = rs.u16WrappingSub(a, b);
-		_30(out, part44);
+		const part38 = rs.u16WrappingSub(a, b);
+		_30(out, part38);
 	} else if (_31 === 2) {
-		const part43 = rs.u16WrappingMul(a, b);
-		_30(out, part43);
+		const part37 = rs.u16WrappingMul(a, b);
+		_30(out, part37);
 	} else if (_31 === 3) {
 		_30(out, rs.u16Div(a, b));
 	} else if (_31 === 4) {
 		_30(out, rs.u16Rem(a, b));
 	} else if (_31 === 5) {
-		const part40 = rs.u16WrappingSub(0, a);
-		_30(out, part40);
+		const part34 = rs.u16WrappingSub(0, a);
+		_30(out, part34);
 	} else if (_31 === 6) {
 		_30(out, ~a & 0xffff);
 	} else if (_31 === 7) {
@@ -516,14 +556,14 @@ export function u16s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		_30(out, (a << 3) & 0xffff);
 		_30(out, rs.u16Shr(a, rs.usizeAdd(16, 1) & 15));
 	} else if (_31 === 17) {
-		const part15 = rs.u16WrappingAdd(a, b);
-		_30(out, part15);
-		const part16 = rs.u16WrappingSub(a, b);
-		_30(out, part16);
-		const part17 = rs.u16WrappingMul(a, c);
-		_30(out, part17);
-		const part18 = rs.u16WrappingSub(0, a);
-		_30(out, part18);
+		const part9 = rs.u16WrappingAdd(a, b);
+		_30(out, part9);
+		const part10 = rs.u16WrappingSub(a, b);
+		_30(out, part10);
+		const part11 = rs.u16WrappingMul(a, c);
+		_30(out, part11);
+		const part12 = rs.u16WrappingSub(0, a);
+		_30(out, part12);
 		_30(out, ~b & 0xffff);
 		_30(out, rs.u16Shl(a, n & 15));
 		_30(out, rs.u16Shr(a, n & 15));
@@ -550,14 +590,14 @@ export function u16s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 			}
 			rs.byteVecPush(out, _219 ? 1 : 0);
 		}
-		const part12 = rs.ordMax(a, b, rs.cmpLt(rs.cmp));
-		_30(out, part12);
-		const part13 = rs.ordMin(a, c, rs.cmpLt(rs.cmp));
-		_30(out, part13);
+		const part6 = rs.ordMax(a, b, rs.cmpLt(rs.cmp));
+		_30(out, part6);
+		const part7 = rs.ordMin(a, c, rs.cmpLt(rs.cmp));
+		_30(out, part7);
 		const _237: rs.u16 = rs.ordMin(b, c, rs.cmpLt(rs.cmp));
 		const _238: rs.u16 = rs.ordMax(b, c, rs.cmpLt(rs.cmp));
-		const part14 = rs.ordClamp(a, _237, _238, rs.cmpLe(rs.cmp), rs.cmpLt(rs.cmp), rs.cmpGt(rs.cmp));
-		_30(out, part14);
+		const part8 = rs.ordClamp(a, _237, _238, rs.cmpLe(rs.cmp), rs.cmpLt(rs.cmp), rs.cmpGt(rs.cmp));
+		_30(out, part8);
 	} else if (_31 === 19) {
 		const dst2 = out;
 		const word2 = hashed$num_Wrapping_u16(a);
@@ -574,7 +614,9 @@ export function u16s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		dst2.data[pos2 + 6] = (word3 >>> 8) & 255;
 		dst2.data[pos2 + 7] = word3 & 255;
 		dst2.length = dst2.length + 8;
-		rs.byteVecPush(out, rs.u64Eq(hashed$num_Wrapping_u16(a), hashed$u16(a)) ? 1 : 0);
+		const _248: rs.u64 = hashed$num_Wrapping_u16(a);
+		const _250: rs.u64 = hashed$u16(a);
+		rs.byteVecPush(out, (typeof _248 === "number" && typeof _250 === "number" ? _248 === _250 : rs.u64Eq(_248, _250)) ? 1 : 0);
 		const _253: rs.Iter<rs.u16> = rs.iterSlice([a, b, c, a]);
 		const iter2: rs.Iter<rs.u16> = rs.btreeKeys(rs.btreeExtendKeys(rs.btreeNew(rs.cmp) as rs.BTreeSet<rs.u16>, _253, true, undefined, undefined, 2, true));
 		while (true) {
@@ -593,18 +635,54 @@ export function u16s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args6[0], " ", args6[1], " ", args6[2], " ", args6[3], " ", args6[4], " ", args6[5], " ", rs.fmtSpec({ align: ">", width: 6 }, args6[6]), " ", rs.fmtSpec({ alternate: true }, args6[7]), " ", rs.fmtSpec({ zero: true, width: 8 }, args6[8]), " ", rs.fmtSpec({ plus: true }, args6[6])]).v));
 	} else if (_31 === 21) {
 		const all: rs.u16[] = [a, b, c];
-		const part6 = rs.iterSum(rs.iterSlice(all), rs.u16WrappingAdd, 0);
-		_30(out, part6);
-		const part7 = rs.iterSum(rs.iterSlice(all), rs.u16WrappingAdd, 0);
-		_30(out, part7);
-		const part8 = rs.iterProduct(rs.iterSlice(all), rs.u16WrappingMul, 1);
-		_30(out, part8);
-		const part9 = rs.iterProduct(rs.iterSlice(all), rs.u16WrappingMul, 1);
-		_30(out, part9);
-		const part10 = rs.iterSum(rs.iterSlice(rs.sliceItems(rs.sliceRange(rs.sliceFrom(all), 0, 0))), rs.u16WrappingAdd, 0);
-		_30(out, part10);
-		const part11 = rs.iterProduct(rs.iterSlice(rs.sliceItems(rs.sliceRange(rs.sliceFrom(all), 0, 0))), rs.u16WrappingMul, 1);
-		_30(out, part11);
+		const s = all;
+		let front = 0;
+		let back = s.length;
+		let acc: rs.u16 = 0;
+		while (!(front >= back)) {
+			acc = rs.u16WrappingAdd(acc, s[front++]);
+		}
+		_30(out, acc);
+		const s2 = all;
+		let front2 = 0;
+		let back2 = s2.length;
+		let acc2: rs.u16 = 0;
+		while (!(front2 >= back2)) {
+			acc2 = rs.u16WrappingAdd(acc2, s2[front2++]);
+		}
+		_30(out, acc2);
+		const s3 = all;
+		let front3 = 0;
+		let back3 = s3.length;
+		let acc3: rs.u16 = 1;
+		while (!(front3 >= back3)) {
+			acc3 = rs.u16WrappingMul(acc3, s3[front3++]);
+		}
+		_30(out, acc3);
+		const s4 = all;
+		let front4 = 0;
+		let back4 = s4.length;
+		let acc4: rs.u16 = 1;
+		while (!(front4 >= back4)) {
+			acc4 = rs.u16WrappingMul(acc4, s4[front4++]);
+		}
+		_30(out, acc4);
+		const s5 = rs.sliceItems(rs.sliceRange(rs.sliceFrom(all), 0, 0));
+		let front5 = 0;
+		let back5 = s5.length;
+		let acc5: rs.u16 = 0;
+		while (!(front5 >= back5)) {
+			acc5 = rs.u16WrappingAdd(acc5, s5[front5++]);
+		}
+		_30(out, acc5);
+		const s6 = rs.sliceItems(rs.sliceRange(rs.sliceFrom(all), 0, 0));
+		let front6 = 0;
+		let back6 = s6.length;
+		let acc6: rs.u16 = 1;
+		while (!(front6 >= back6)) {
+			acc6 = rs.u16WrappingMul(acc6, s6[front6++]);
+		}
+		_30(out, acc6);
 	} else if (_31 === 22) {
 		_30(out, 0);
 		_30(out, a);
@@ -618,7 +696,9 @@ export function u16s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args5[0], " ", args5[1]]).v));
 		rs.byteVecPush(out, Tick.eq$cmp_PartialEq_u16(x7, y) ? 1 : 0);
 		rs.byteVecPush(out, Tick.cmp$cmp_Ord_u16(x7, y) & 0xff);
-		rs.byteVecPush(out, rs.u64Eq(hashed$wraps_Tick_u16(x7), hashed$num_Wrapping_u16(a)) ? 1 : 0);
+		const _389: rs.u64 = hashed$wraps_Tick_u16(x7);
+		const _391: rs.u64 = hashed$num_Wrapping_u16(a);
+		rs.byteVecPush(out, (typeof _389 === "number" && typeof _391 === "number" ? _389 === _391 : rs.u64Eq(_389, _391)) ? 1 : 0);
 		const z: Tick.Tick<rs.u16> = copy$wraps_Tick_u16(x7);
 		z._0 = rs.u16WrappingSub(z._0, y._0);
 		_30(out, z._0);
@@ -663,21 +743,21 @@ export function u32s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	};
 	const _31: rs.u8 = rs.u8Rem(kind, 24);
 	if (_31 === 0) {
-		const part45 = rs.u32WrappingAdd(a, b);
-		_30(out, part45);
+		const part39 = rs.u32WrappingAdd(a, b);
+		_30(out, part39);
 	} else if (_31 === 1) {
-		const part44 = rs.u32WrappingSub(a, b);
-		_30(out, part44);
+		const part38 = rs.u32WrappingSub(a, b);
+		_30(out, part38);
 	} else if (_31 === 2) {
-		const part43 = rs.u32WrappingMul(a, b);
-		_30(out, part43);
+		const part37 = rs.u32WrappingMul(a, b);
+		_30(out, part37);
 	} else if (_31 === 3) {
 		_30(out, rs.u32Div(a, b));
 	} else if (_31 === 4) {
 		_30(out, rs.u32Rem(a, b));
 	} else if (_31 === 5) {
-		const part40 = rs.u32WrappingSub(0, a);
-		_30(out, part40);
+		const part34 = rs.u32WrappingSub(0, a);
+		_30(out, part34);
 	} else if (_31 === 6) {
 		_30(out, ~a >>> 0);
 	} else if (_31 === 7) {
@@ -721,14 +801,14 @@ export function u32s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		_30(out, (a << 3) >>> 0);
 		_30(out, rs.u32Shr(a, rs.usizeAdd(32, 1) & 31));
 	} else if (_31 === 17) {
-		const part15 = rs.u32WrappingAdd(a, b);
-		_30(out, part15);
-		const part16 = rs.u32WrappingSub(a, b);
-		_30(out, part16);
-		const part17 = rs.u32WrappingMul(a, c);
-		_30(out, part17);
-		const part18 = rs.u32WrappingSub(0, a);
-		_30(out, part18);
+		const part9 = rs.u32WrappingAdd(a, b);
+		_30(out, part9);
+		const part10 = rs.u32WrappingSub(a, b);
+		_30(out, part10);
+		const part11 = rs.u32WrappingMul(a, c);
+		_30(out, part11);
+		const part12 = rs.u32WrappingSub(0, a);
+		_30(out, part12);
 		_30(out, ~b >>> 0);
 		_30(out, rs.u32Shl(a, n & 31));
 		_30(out, rs.u32Shr(a, n & 31));
@@ -755,14 +835,14 @@ export function u32s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 			}
 			rs.byteVecPush(out, _219 ? 1 : 0);
 		}
-		const part12 = rs.ordMax(a, b, rs.cmpLt(rs.cmp));
-		_30(out, part12);
-		const part13 = rs.ordMin(a, c, rs.cmpLt(rs.cmp));
-		_30(out, part13);
+		const part6 = rs.ordMax(a, b, rs.cmpLt(rs.cmp));
+		_30(out, part6);
+		const part7 = rs.ordMin(a, c, rs.cmpLt(rs.cmp));
+		_30(out, part7);
 		const _237: rs.u32 = rs.ordMin(b, c, rs.cmpLt(rs.cmp));
 		const _238: rs.u32 = rs.ordMax(b, c, rs.cmpLt(rs.cmp));
-		const part14 = rs.ordClamp(a, _237, _238, rs.cmpLe(rs.cmp), rs.cmpLt(rs.cmp), rs.cmpGt(rs.cmp));
-		_30(out, part14);
+		const part8 = rs.ordClamp(a, _237, _238, rs.cmpLe(rs.cmp), rs.cmpLt(rs.cmp), rs.cmpGt(rs.cmp));
+		_30(out, part8);
 	} else if (_31 === 19) {
 		const dst2 = out;
 		const word2 = hashed$num_Wrapping_u32(a);
@@ -779,7 +859,9 @@ export function u32s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		dst2.data[pos2 + 6] = (word3 >>> 8) & 255;
 		dst2.data[pos2 + 7] = word3 & 255;
 		dst2.length = dst2.length + 8;
-		rs.byteVecPush(out, rs.u64Eq(hashed$num_Wrapping_u32(a), hashed$u32(a)) ? 1 : 0);
+		const _248: rs.u64 = hashed$num_Wrapping_u32(a);
+		const _250: rs.u64 = hashed$u32(a);
+		rs.byteVecPush(out, (typeof _248 === "number" && typeof _250 === "number" ? _248 === _250 : rs.u64Eq(_248, _250)) ? 1 : 0);
 		const _253: rs.Iter<rs.u32> = rs.iterSlice([a, b, c, a]);
 		const iter2: rs.Iter<rs.u32> = rs.btreeKeys(rs.btreeExtendKeys(rs.btreeNew(rs.cmp) as rs.BTreeSet<rs.u32>, _253, true, undefined, undefined, 4, true));
 		while (true) {
@@ -798,18 +880,54 @@ export function u32s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args6[0], " ", args6[1], " ", args6[2], " ", args6[3], " ", args6[4], " ", args6[5], " ", rs.fmtSpec({ align: ">", width: 6 }, args6[6]), " ", rs.fmtSpec({ alternate: true }, args6[7]), " ", rs.fmtSpec({ zero: true, width: 8 }, args6[8]), " ", rs.fmtSpec({ plus: true }, args6[6])]).v));
 	} else if (_31 === 21) {
 		const all: rs.u32[] = [a, b, c];
-		const part6 = rs.iterSum(rs.iterSlice(all), rs.u32WrappingAdd, 0);
-		_30(out, part6);
-		const part7 = rs.iterSum(rs.iterSlice(all), rs.u32WrappingAdd, 0);
-		_30(out, part7);
-		const part8 = rs.iterProduct(rs.iterSlice(all), rs.u32WrappingMul, 1);
-		_30(out, part8);
-		const part9 = rs.iterProduct(rs.iterSlice(all), rs.u32WrappingMul, 1);
-		_30(out, part9);
-		const part10 = rs.iterSum(rs.iterSlice(rs.sliceItems(rs.sliceRange(rs.sliceFrom(all), 0, 0))), rs.u32WrappingAdd, 0);
-		_30(out, part10);
-		const part11 = rs.iterProduct(rs.iterSlice(rs.sliceItems(rs.sliceRange(rs.sliceFrom(all), 0, 0))), rs.u32WrappingMul, 1);
-		_30(out, part11);
+		const s = all;
+		let front = 0;
+		let back = s.length;
+		let acc: rs.u32 = 0;
+		while (!(front >= back)) {
+			acc = rs.u32WrappingAdd(acc, s[front++]);
+		}
+		_30(out, acc);
+		const s2 = all;
+		let front2 = 0;
+		let back2 = s2.length;
+		let acc2: rs.u32 = 0;
+		while (!(front2 >= back2)) {
+			acc2 = rs.u32WrappingAdd(acc2, s2[front2++]);
+		}
+		_30(out, acc2);
+		const s3 = all;
+		let front3 = 0;
+		let back3 = s3.length;
+		let acc3: rs.u32 = 1;
+		while (!(front3 >= back3)) {
+			acc3 = rs.u32WrappingMul(acc3, s3[front3++]);
+		}
+		_30(out, acc3);
+		const s4 = all;
+		let front4 = 0;
+		let back4 = s4.length;
+		let acc4: rs.u32 = 1;
+		while (!(front4 >= back4)) {
+			acc4 = rs.u32WrappingMul(acc4, s4[front4++]);
+		}
+		_30(out, acc4);
+		const s5 = rs.sliceItems(rs.sliceRange(rs.sliceFrom(all), 0, 0));
+		let front5 = 0;
+		let back5 = s5.length;
+		let acc5: rs.u32 = 0;
+		while (!(front5 >= back5)) {
+			acc5 = rs.u32WrappingAdd(acc5, s5[front5++]);
+		}
+		_30(out, acc5);
+		const s6 = rs.sliceItems(rs.sliceRange(rs.sliceFrom(all), 0, 0));
+		let front6 = 0;
+		let back6 = s6.length;
+		let acc6: rs.u32 = 1;
+		while (!(front6 >= back6)) {
+			acc6 = rs.u32WrappingMul(acc6, s6[front6++]);
+		}
+		_30(out, acc6);
 	} else if (_31 === 22) {
 		_30(out, 0);
 		_30(out, a);
@@ -823,7 +941,9 @@ export function u32s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args5[0], " ", args5[1]]).v));
 		rs.byteVecPush(out, Tick.eq$cmp_PartialEq_u32(x7, y) ? 1 : 0);
 		rs.byteVecPush(out, Tick.cmp$cmp_Ord_u32(x7, y) & 0xff);
-		rs.byteVecPush(out, rs.u64Eq(hashed$wraps_Tick_u32(x7), hashed$num_Wrapping_u32(a)) ? 1 : 0);
+		const _389: rs.u64 = hashed$wraps_Tick_u32(x7);
+		const _391: rs.u64 = hashed$num_Wrapping_u32(a);
+		rs.byteVecPush(out, (typeof _389 === "number" && typeof _391 === "number" ? _389 === _391 : rs.u64Eq(_389, _391)) ? 1 : 0);
 		const z: Tick.Tick<rs.u32> = copy$wraps_Tick_u32(x7);
 		z._0 = rs.u32WrappingSub(z._0, y._0);
 		_30(out, z._0);
@@ -874,21 +994,21 @@ export function u64s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	};
 	const _31: rs.u8 = rs.u8Rem(kind, 24);
 	if (_31 === 0) {
-		const part45 = rs.u64WrappingAdd(a, b);
-		_30(out, part45);
+		const part39 = (typeof a === "number" && typeof b === "number" && a + b <= 9007199254740991 ? a + b : rs.u64WrappingAdd(a, b)) as rs.u64;
+		_30(out, part39);
 	} else if (_31 === 1) {
-		const part44 = rs.u64WrappingSub(a, b);
-		_30(out, part44);
+		const part38 = (typeof a === "number" && typeof b === "number" && a - b >= 0 ? a - b : rs.u64WrappingSub(a, b)) as rs.u64;
+		_30(out, part38);
 	} else if (_31 === 2) {
-		const part43 = rs.u64WrappingMul(a, b);
-		_30(out, part43);
+		const part37 = rs.u64WrappingMul(a, b);
+		_30(out, part37);
 	} else if (_31 === 3) {
 		_30(out, rs.u64Div(a, b));
 	} else if (_31 === 4) {
 		_30(out, rs.u64Rem(a, b));
 	} else if (_31 === 5) {
-		const part40 = rs.u64WrappingSub(0, a);
-		_30(out, part40);
+		const part34 = (typeof a === "number" && 0 - a >= 0 ? 0 - a : rs.u64WrappingSub(0, a)) as rs.u64;
+		_30(out, part34);
 	} else if (_31 === 6) {
 		_30(out, rs.u64Not(a));
 	} else if (_31 === 7) {
@@ -903,11 +1023,11 @@ export function u64s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		_30(out, rs.u64Shr(a, n & 63));
 	} else if (_31 === 12) {
 		let x: rs.u64 = a;
-		x = rs.u64WrappingAdd(x, b);
+		x = (typeof x === "number" && typeof b === "number" && x + b <= 9007199254740991 ? x + b : rs.u64WrappingAdd(x, b)) as rs.u64;
 		_30(out, x);
 		x = rs.u64WrappingMul(x, c);
 		_30(out, x);
-		x = rs.u64WrappingSub(x, b);
+		x = (typeof x === "number" && typeof b === "number" && x - b >= 0 ? x - b : rs.u64WrappingSub(x, b)) as rs.u64;
 		_30(out, x);
 	} else if (_31 === 13) {
 		let x2: rs.u64 = a;
@@ -932,20 +1052,20 @@ export function u64s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		_30(out, rs.u64Shl(a, 3));
 		_30(out, rs.u64Shr(a, rs.usizeAdd(64, 1) & 63));
 	} else if (_31 === 17) {
-		const part15 = rs.u64WrappingAdd(a, b);
-		_30(out, part15);
-		const part16 = rs.u64WrappingSub(a, b);
-		_30(out, part16);
-		const part17 = rs.u64WrappingMul(a, c);
-		_30(out, part17);
-		const part18 = rs.u64WrappingSub(0, a);
-		_30(out, part18);
+		const part9 = (typeof a === "number" && typeof b === "number" && a + b <= 9007199254740991 ? a + b : rs.u64WrappingAdd(a, b)) as rs.u64;
+		_30(out, part9);
+		const part10 = (typeof a === "number" && typeof b === "number" && a - b >= 0 ? a - b : rs.u64WrappingSub(a, b)) as rs.u64;
+		_30(out, part10);
+		const part11 = rs.u64WrappingMul(a, c);
+		_30(out, part11);
+		const part12 = (typeof a === "number" && 0 - a >= 0 ? 0 - a : rs.u64WrappingSub(0, a)) as rs.u64;
+		_30(out, part12);
 		_30(out, rs.u64Not(b));
 		_30(out, rs.u64Shl(a, n & 63));
 		_30(out, rs.u64Shr(a, n & 63));
 		_30(out, rs.u64Xor(a, c));
 		let x6: rs.u64 = a;
-		x6 = rs.u64WrappingAdd(x6, b);
+		x6 = (typeof x6 === "number" && typeof b === "number" && x6 + b <= 9007199254740991 ? x6 + b : rs.u64WrappingAdd(x6, b)) as rs.u64;
 		x6 = rs.u64Shl(x6, n & 63);
 		_30(out, x6);
 	} else if (_31 === 18) {
@@ -966,14 +1086,14 @@ export function u64s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 			}
 			rs.byteVecPush(out, _219 ? 1 : 0);
 		}
-		const part12 = rs.ordMax(a, b, rs.cmpLt(rs.cmp));
-		_30(out, part12);
-		const part13 = rs.ordMin(a, c, rs.cmpLt(rs.cmp));
-		_30(out, part13);
+		const part6 = rs.ordMax(a, b, rs.cmpLt(rs.cmp));
+		_30(out, part6);
+		const part7 = rs.ordMin(a, c, rs.cmpLt(rs.cmp));
+		_30(out, part7);
 		const _237: rs.u64 = rs.ordMin(b, c, rs.cmpLt(rs.cmp));
 		const _238: rs.u64 = rs.ordMax(b, c, rs.cmpLt(rs.cmp));
-		const part14 = rs.ordClamp(a, _237, _238, rs.cmpLe(rs.cmp), rs.cmpLt(rs.cmp), rs.cmpGt(rs.cmp));
-		_30(out, part14);
+		const part8 = rs.ordClamp(a, _237, _238, rs.cmpLe(rs.cmp), rs.cmpLt(rs.cmp), rs.cmpGt(rs.cmp));
+		_30(out, part8);
 	} else if (_31 === 19) {
 		const dst2 = out;
 		const word4 = hashed$num_Wrapping_u64(a);
@@ -990,7 +1110,9 @@ export function u64s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		dst2.data[pos2 + 6] = (word5 >>> 8) & 255;
 		dst2.data[pos2 + 7] = word5 & 255;
 		dst2.length = dst2.length + 8;
-		rs.byteVecPush(out, rs.u64Eq(hashed$num_Wrapping_u64(a), hashed$u64(a)) ? 1 : 0);
+		const _248: rs.u64 = hashed$num_Wrapping_u64(a);
+		const _250: rs.u64 = hashed$u64(a);
+		rs.byteVecPush(out, (typeof _248 === "number" && typeof _250 === "number" ? _248 === _250 : rs.u64Eq(_248, _250)) ? 1 : 0);
 		const _253: rs.Iter<rs.u64> = rs.iterSlice([a, b, c, a]);
 		const iter2: rs.Iter<rs.u64> = rs.btreeKeys(rs.btreeExtendKeys(rs.btreeNew(rs.cmp) as rs.BTreeSet<rs.u64>, _253, true, undefined, undefined, 8, true));
 		while (true) {
@@ -1009,18 +1131,54 @@ export function u64s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args6[0], " ", args6[1], " ", args6[2], " ", args6[3], " ", args6[4], " ", args6[5], " ", rs.fmtSpec({ align: ">", width: 6 }, args6[6]), " ", rs.fmtSpec({ alternate: true }, args6[7]), " ", rs.fmtSpec({ zero: true, width: 8 }, args6[8]), " ", rs.fmtSpec({ plus: true }, args6[6])]).v));
 	} else if (_31 === 21) {
 		const all: rs.u64[] = [a, b, c];
-		const part6 = rs.iterSum(rs.iterSlice(all), rs.u64WrappingAdd, 0);
-		_30(out, part6);
-		const part7 = rs.iterSum(rs.iterSlice(all), rs.u64WrappingAdd, 0);
-		_30(out, part7);
-		const part8 = rs.iterProduct(rs.iterSlice(all), rs.u64WrappingMul, 1);
-		_30(out, part8);
-		const part9 = rs.iterProduct(rs.iterSlice(all), rs.u64WrappingMul, 1);
-		_30(out, part9);
-		const part10 = rs.iterSum(rs.iterSlice(rs.sliceItems(rs.sliceRange(rs.sliceFrom(all), 0, 0))), rs.u64WrappingAdd, 0);
-		_30(out, part10);
-		const part11 = rs.iterProduct(rs.iterSlice(rs.sliceItems(rs.sliceRange(rs.sliceFrom(all), 0, 0))), rs.u64WrappingMul, 1);
-		_30(out, part11);
+		const s = all;
+		let front = 0;
+		let back = s.length;
+		let acc: rs.u64 = 0;
+		while (!(front >= back)) {
+			acc = rs.u64WrappingAdd(acc, s[front++]);
+		}
+		_30(out, acc);
+		const s2 = all;
+		let front2 = 0;
+		let back2 = s2.length;
+		let acc2: rs.u64 = 0;
+		while (!(front2 >= back2)) {
+			acc2 = rs.u64WrappingAdd(acc2, s2[front2++]);
+		}
+		_30(out, acc2);
+		const s3 = all;
+		let front3 = 0;
+		let back3 = s3.length;
+		let acc3: rs.u64 = 1;
+		while (!(front3 >= back3)) {
+			acc3 = rs.u64WrappingMul(acc3, s3[front3++]);
+		}
+		_30(out, acc3);
+		const s4 = all;
+		let front4 = 0;
+		let back4 = s4.length;
+		let acc4: rs.u64 = 1;
+		while (!(front4 >= back4)) {
+			acc4 = rs.u64WrappingMul(acc4, s4[front4++]);
+		}
+		_30(out, acc4);
+		const s5 = rs.sliceItems(rs.sliceRange(rs.sliceFrom(all), 0, 0));
+		let front5 = 0;
+		let back5 = s5.length;
+		let acc5: rs.u64 = 0;
+		while (!(front5 >= back5)) {
+			acc5 = rs.u64WrappingAdd(acc5, s5[front5++]);
+		}
+		_30(out, acc5);
+		const s6 = rs.sliceItems(rs.sliceRange(rs.sliceFrom(all), 0, 0));
+		let front6 = 0;
+		let back6 = s6.length;
+		let acc6: rs.u64 = 1;
+		while (!(front6 >= back6)) {
+			acc6 = rs.u64WrappingMul(acc6, s6[front6++]);
+		}
+		_30(out, acc6);
 	} else if (_31 === 22) {
 		_30(out, 0);
 		_30(out, a);
@@ -1034,9 +1192,12 @@ export function u64s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args5[0], " ", args5[1]]).v));
 		rs.byteVecPush(out, Tick.eq$cmp_PartialEq_u64(x7, y) ? 1 : 0);
 		rs.byteVecPush(out, Tick.cmp$cmp_Ord_u64(x7, y) & 0xff);
-		rs.byteVecPush(out, rs.u64Eq(hashed$wraps_Tick_u64(x7), hashed$num_Wrapping_u64(a)) ? 1 : 0);
+		const _389: rs.u64 = hashed$wraps_Tick_u64(x7);
+		const _391: rs.u64 = hashed$num_Wrapping_u64(a);
+		rs.byteVecPush(out, (typeof _389 === "number" && typeof _391 === "number" ? _389 === _391 : rs.u64Eq(_389, _391)) ? 1 : 0);
 		const z: Tick.Tick<rs.u64> = copy$wraps_Tick_u64(x7);
-		z._0 = rs.u64WrappingSub(z._0, y._0);
+		const _396: rs.u64 = y._0;
+		z._0 = (typeof z._0 === "number" && typeof _396 === "number" && z._0 - _396 >= 0 ? z._0 - _396 : rs.u64WrappingSub(z._0, _396)) as rs.u64;
 		_30(out, z._0);
 	}
 }
@@ -1095,21 +1256,21 @@ export function u128s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	};
 	const _31: rs.u8 = rs.u8Rem(kind, 24);
 	if (_31 === 0) {
-		const part45 = rs.u128WrappingAdd(a, b);
-		_30(out, part45);
+		const part39 = rs.u128WrappingAdd(a, b);
+		_30(out, part39);
 	} else if (_31 === 1) {
-		const part44 = rs.u128WrappingSub(a, b);
-		_30(out, part44);
+		const part38 = rs.u128WrappingSub(a, b);
+		_30(out, part38);
 	} else if (_31 === 2) {
-		const part43 = rs.u128WrappingMul(a, b);
-		_30(out, part43);
+		const part37 = rs.u128WrappingMul(a, b);
+		_30(out, part37);
 	} else if (_31 === 3) {
 		_30(out, rs.u128Div(a, b));
 	} else if (_31 === 4) {
 		_30(out, rs.u128Rem(a, b));
 	} else if (_31 === 5) {
-		const part40 = rs.u128WrappingSub(0, a);
-		_30(out, part40);
+		const part34 = rs.u128WrappingSub(0, a);
+		_30(out, part34);
 	} else if (_31 === 6) {
 		_30(out, rs.u128Not(a));
 	} else if (_31 === 7) {
@@ -1153,14 +1314,14 @@ export function u128s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		_30(out, rs.u128Shl(a, 3));
 		_30(out, rs.u128Shr(a, rs.usizeAdd(128, 1) & 127));
 	} else if (_31 === 17) {
-		const part15 = rs.u128WrappingAdd(a, b);
-		_30(out, part15);
-		const part16 = rs.u128WrappingSub(a, b);
-		_30(out, part16);
-		const part17 = rs.u128WrappingMul(a, c);
-		_30(out, part17);
-		const part18 = rs.u128WrappingSub(0, a);
-		_30(out, part18);
+		const part9 = rs.u128WrappingAdd(a, b);
+		_30(out, part9);
+		const part10 = rs.u128WrappingSub(a, b);
+		_30(out, part10);
+		const part11 = rs.u128WrappingMul(a, c);
+		_30(out, part11);
+		const part12 = rs.u128WrappingSub(0, a);
+		_30(out, part12);
 		_30(out, rs.u128Not(b));
 		_30(out, rs.u128Shl(a, n & 127));
 		_30(out, rs.u128Shr(a, n & 127));
@@ -1187,14 +1348,14 @@ export function u128s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 			}
 			rs.byteVecPush(out, _219 ? 1 : 0);
 		}
-		const part12 = rs.ordMax(a, b, rs.cmpLt(rs.cmp));
-		_30(out, part12);
-		const part13 = rs.ordMin(a, c, rs.cmpLt(rs.cmp));
-		_30(out, part13);
+		const part6 = rs.ordMax(a, b, rs.cmpLt(rs.cmp));
+		_30(out, part6);
+		const part7 = rs.ordMin(a, c, rs.cmpLt(rs.cmp));
+		_30(out, part7);
 		const _237: rs.u128 = rs.ordMin(b, c, rs.cmpLt(rs.cmp));
 		const _238: rs.u128 = rs.ordMax(b, c, rs.cmpLt(rs.cmp));
-		const part14 = rs.ordClamp(a, _237, _238, rs.cmpLe(rs.cmp), rs.cmpLt(rs.cmp), rs.cmpGt(rs.cmp));
-		_30(out, part14);
+		const part8 = rs.ordClamp(a, _237, _238, rs.cmpLe(rs.cmp), rs.cmpLt(rs.cmp), rs.cmpGt(rs.cmp));
+		_30(out, part8);
 	} else if (_31 === 19) {
 		const dst2 = out;
 		const word6 = hashed$num_Wrapping_u128(a);
@@ -1211,7 +1372,9 @@ export function u128s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		dst2.data[pos2 + 6] = (word7 >>> 8) & 255;
 		dst2.data[pos2 + 7] = word7 & 255;
 		dst2.length = dst2.length + 8;
-		rs.byteVecPush(out, rs.u64Eq(hashed$num_Wrapping_u128(a), hashed$u128(a)) ? 1 : 0);
+		const _248: rs.u64 = hashed$num_Wrapping_u128(a);
+		const _250: rs.u64 = hashed$u128(a);
+		rs.byteVecPush(out, (typeof _248 === "number" && typeof _250 === "number" ? _248 === _250 : rs.u64Eq(_248, _250)) ? 1 : 0);
 		const _253: rs.Iter<rs.u128> = rs.iterSlice([a, b, c, a]);
 		const iter2: rs.Iter<rs.u128> = rs.btreeKeys(rs.btreeExtendKeys(rs.btreeNew(rs.cmp) as rs.BTreeSet<rs.u128>, _253, true, undefined, undefined, 16, true));
 		while (true) {
@@ -1230,18 +1393,54 @@ export function u128s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args6[0], " ", args6[1], " ", args6[2], " ", args6[3], " ", args6[4], " ", args6[5], " ", rs.fmtSpec({ align: ">", width: 6 }, args6[6]), " ", rs.fmtSpec({ alternate: true }, args6[7]), " ", rs.fmtSpec({ zero: true, width: 8 }, args6[8]), " ", rs.fmtSpec({ plus: true }, args6[6])]).v));
 	} else if (_31 === 21) {
 		const all: rs.u128[] = [a, b, c];
-		const part6 = rs.iterSum(rs.iterSlice(all), rs.u128WrappingAdd, 0);
-		_30(out, part6);
-		const part7 = rs.iterSum(rs.iterSlice(all), rs.u128WrappingAdd, 0);
-		_30(out, part7);
-		const part8 = rs.iterProduct(rs.iterSlice(all), rs.u128WrappingMul, 1);
-		_30(out, part8);
-		const part9 = rs.iterProduct(rs.iterSlice(all), rs.u128WrappingMul, 1);
-		_30(out, part9);
-		const part10 = rs.iterSum(rs.iterSlice(rs.sliceItems(rs.sliceRange(rs.sliceFrom(all), 0, 0))), rs.u128WrappingAdd, 0);
-		_30(out, part10);
-		const part11 = rs.iterProduct(rs.iterSlice(rs.sliceItems(rs.sliceRange(rs.sliceFrom(all), 0, 0))), rs.u128WrappingMul, 1);
-		_30(out, part11);
+		const s = all;
+		let front = 0;
+		let back = s.length;
+		let acc: rs.u128 = 0;
+		while (!(front >= back)) {
+			acc = rs.u128WrappingAdd(acc, s[front++]);
+		}
+		_30(out, acc);
+		const s2 = all;
+		let front2 = 0;
+		let back2 = s2.length;
+		let acc2: rs.u128 = 0;
+		while (!(front2 >= back2)) {
+			acc2 = rs.u128WrappingAdd(acc2, s2[front2++]);
+		}
+		_30(out, acc2);
+		const s3 = all;
+		let front3 = 0;
+		let back3 = s3.length;
+		let acc3: rs.u128 = 1;
+		while (!(front3 >= back3)) {
+			acc3 = rs.u128WrappingMul(acc3, s3[front3++]);
+		}
+		_30(out, acc3);
+		const s4 = all;
+		let front4 = 0;
+		let back4 = s4.length;
+		let acc4: rs.u128 = 1;
+		while (!(front4 >= back4)) {
+			acc4 = rs.u128WrappingMul(acc4, s4[front4++]);
+		}
+		_30(out, acc4);
+		const s5 = rs.sliceItems(rs.sliceRange(rs.sliceFrom(all), 0, 0));
+		let front5 = 0;
+		let back5 = s5.length;
+		let acc5: rs.u128 = 0;
+		while (!(front5 >= back5)) {
+			acc5 = rs.u128WrappingAdd(acc5, s5[front5++]);
+		}
+		_30(out, acc5);
+		const s6 = rs.sliceItems(rs.sliceRange(rs.sliceFrom(all), 0, 0));
+		let front6 = 0;
+		let back6 = s6.length;
+		let acc6: rs.u128 = 1;
+		while (!(front6 >= back6)) {
+			acc6 = rs.u128WrappingMul(acc6, s6[front6++]);
+		}
+		_30(out, acc6);
 	} else if (_31 === 22) {
 		_30(out, 0);
 		_30(out, a);
@@ -1255,7 +1454,9 @@ export function u128s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args5[0], " ", args5[1]]).v));
 		rs.byteVecPush(out, Tick.eq$cmp_PartialEq_u128(x7, y) ? 1 : 0);
 		rs.byteVecPush(out, Tick.cmp$cmp_Ord_u128(x7, y) & 0xff);
-		rs.byteVecPush(out, rs.u64Eq(hashed$wraps_Tick_u128(x7), hashed$num_Wrapping_u128(a)) ? 1 : 0);
+		const _389: rs.u64 = hashed$wraps_Tick_u128(x7);
+		const _391: rs.u64 = hashed$num_Wrapping_u128(a);
+		rs.byteVecPush(out, (typeof _389 === "number" && typeof _391 === "number" ? _389 === _391 : rs.u64Eq(_389, _391)) ? 1 : 0);
 		const z: Tick.Tick<rs.u128> = copy$wraps_Tick_u128(x7);
 		z._0 = rs.u128WrappingSub(z._0, y._0);
 		_30(out, z._0);
@@ -1300,21 +1501,21 @@ export function usizes(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	};
 	const _31: rs.u8 = rs.u8Rem(kind, 24);
 	if (_31 === 0) {
-		const part45 = rs.usizeWrappingAdd(a, b);
-		_30(out, part45);
+		const part39 = rs.usizeWrappingAdd(a, b);
+		_30(out, part39);
 	} else if (_31 === 1) {
-		const part44 = rs.usizeWrappingSub(a, b);
-		_30(out, part44);
+		const part38 = rs.usizeWrappingSub(a, b);
+		_30(out, part38);
 	} else if (_31 === 2) {
-		const part43 = rs.usizeWrappingMul(a, b);
-		_30(out, part43);
+		const part37 = rs.usizeWrappingMul(a, b);
+		_30(out, part37);
 	} else if (_31 === 3) {
 		_30(out, rs.usizeDiv(a, b));
 	} else if (_31 === 4) {
 		_30(out, rs.usizeRem(a, b));
 	} else if (_31 === 5) {
-		const part40 = rs.usizeWrappingSub(0, a);
-		_30(out, part40);
+		const part34 = rs.usizeWrappingSub(0, a);
+		_30(out, part34);
 	} else if (_31 === 6) {
 		_30(out, ~a >>> 0);
 	} else if (_31 === 7) {
@@ -1358,14 +1559,14 @@ export function usizes(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		_30(out, (a << 3) >>> 0);
 		_30(out, rs.usizeShr(a, rs.usizeAdd(32, 1) & 31));
 	} else if (_31 === 17) {
-		const part15 = rs.usizeWrappingAdd(a, b);
-		_30(out, part15);
-		const part16 = rs.usizeWrappingSub(a, b);
-		_30(out, part16);
-		const part17 = rs.usizeWrappingMul(a, c);
-		_30(out, part17);
-		const part18 = rs.usizeWrappingSub(0, a);
-		_30(out, part18);
+		const part9 = rs.usizeWrappingAdd(a, b);
+		_30(out, part9);
+		const part10 = rs.usizeWrappingSub(a, b);
+		_30(out, part10);
+		const part11 = rs.usizeWrappingMul(a, c);
+		_30(out, part11);
+		const part12 = rs.usizeWrappingSub(0, a);
+		_30(out, part12);
 		_30(out, ~b >>> 0);
 		_30(out, rs.usizeShl(a, n & 31));
 		_30(out, rs.usizeShr(a, n & 31));
@@ -1392,14 +1593,14 @@ export function usizes(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 			}
 			rs.byteVecPush(out, _219 ? 1 : 0);
 		}
-		const part12 = rs.ordMax(a, b, rs.cmpLt(rs.cmp));
-		_30(out, part12);
-		const part13 = rs.ordMin(a, c, rs.cmpLt(rs.cmp));
-		_30(out, part13);
+		const part6 = rs.ordMax(a, b, rs.cmpLt(rs.cmp));
+		_30(out, part6);
+		const part7 = rs.ordMin(a, c, rs.cmpLt(rs.cmp));
+		_30(out, part7);
 		const _237: rs.usize = rs.ordMin(b, c, rs.cmpLt(rs.cmp));
 		const _238: rs.usize = rs.ordMax(b, c, rs.cmpLt(rs.cmp));
-		const part14 = rs.ordClamp(a, _237, _238, rs.cmpLe(rs.cmp), rs.cmpLt(rs.cmp), rs.cmpGt(rs.cmp));
-		_30(out, part14);
+		const part8 = rs.ordClamp(a, _237, _238, rs.cmpLe(rs.cmp), rs.cmpLt(rs.cmp), rs.cmpGt(rs.cmp));
+		_30(out, part8);
 	} else if (_31 === 19) {
 		const dst2 = out;
 		const word2 = hashed$num_Wrapping_usize(a);
@@ -1416,7 +1617,9 @@ export function usizes(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		dst2.data[pos2 + 6] = (word3 >>> 8) & 255;
 		dst2.data[pos2 + 7] = word3 & 255;
 		dst2.length = dst2.length + 8;
-		rs.byteVecPush(out, rs.u64Eq(hashed$num_Wrapping_usize(a), hashed$usize(a)) ? 1 : 0);
+		const _248: rs.u64 = hashed$num_Wrapping_usize(a);
+		const _250: rs.u64 = hashed$usize(a);
+		rs.byteVecPush(out, (typeof _248 === "number" && typeof _250 === "number" ? _248 === _250 : rs.u64Eq(_248, _250)) ? 1 : 0);
 		const _253: rs.Iter<rs.usize> = rs.iterSlice([a, b, c, a]);
 		const iter2: rs.Iter<rs.usize> = rs.btreeKeys(rs.btreeExtendKeys(rs.btreeNew(rs.cmp) as rs.BTreeSet<rs.usize>, _253, true, undefined, undefined, 4, true));
 		while (true) {
@@ -1435,18 +1638,54 @@ export function usizes(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args6[0], " ", args6[1], " ", args6[2], " ", args6[3], " ", args6[4], " ", args6[5], " ", rs.fmtSpec({ align: ">", width: 6 }, args6[6]), " ", rs.fmtSpec({ alternate: true }, args6[7]), " ", rs.fmtSpec({ zero: true, width: 8 }, args6[8]), " ", rs.fmtSpec({ plus: true }, args6[6])]).v));
 	} else if (_31 === 21) {
 		const all: rs.usize[] = [a, b, c];
-		const part6 = rs.iterSum(rs.iterSlice(all), rs.usizeWrappingAdd, 0);
-		_30(out, part6);
-		const part7 = rs.iterSum(rs.iterSlice(all), rs.usizeWrappingAdd, 0);
-		_30(out, part7);
-		const part8 = rs.iterProduct(rs.iterSlice(all), rs.usizeWrappingMul, 1);
-		_30(out, part8);
-		const part9 = rs.iterProduct(rs.iterSlice(all), rs.usizeWrappingMul, 1);
-		_30(out, part9);
-		const part10 = rs.iterSum(rs.iterSlice(rs.sliceItems(rs.sliceRange(rs.sliceFrom(all), 0, 0))), rs.usizeWrappingAdd, 0);
-		_30(out, part10);
-		const part11 = rs.iterProduct(rs.iterSlice(rs.sliceItems(rs.sliceRange(rs.sliceFrom(all), 0, 0))), rs.usizeWrappingMul, 1);
-		_30(out, part11);
+		const s = all;
+		let front = 0;
+		let back = s.length;
+		let acc: rs.usize = 0;
+		while (!(front >= back)) {
+			acc = rs.usizeWrappingAdd(acc, s[front++]);
+		}
+		_30(out, acc);
+		const s2 = all;
+		let front2 = 0;
+		let back2 = s2.length;
+		let acc2: rs.usize = 0;
+		while (!(front2 >= back2)) {
+			acc2 = rs.usizeWrappingAdd(acc2, s2[front2++]);
+		}
+		_30(out, acc2);
+		const s3 = all;
+		let front3 = 0;
+		let back3 = s3.length;
+		let acc3: rs.usize = 1;
+		while (!(front3 >= back3)) {
+			acc3 = rs.usizeWrappingMul(acc3, s3[front3++]);
+		}
+		_30(out, acc3);
+		const s4 = all;
+		let front4 = 0;
+		let back4 = s4.length;
+		let acc4: rs.usize = 1;
+		while (!(front4 >= back4)) {
+			acc4 = rs.usizeWrappingMul(acc4, s4[front4++]);
+		}
+		_30(out, acc4);
+		const s5 = rs.sliceItems(rs.sliceRange(rs.sliceFrom(all), 0, 0));
+		let front5 = 0;
+		let back5 = s5.length;
+		let acc5: rs.usize = 0;
+		while (!(front5 >= back5)) {
+			acc5 = rs.usizeWrappingAdd(acc5, s5[front5++]);
+		}
+		_30(out, acc5);
+		const s6 = rs.sliceItems(rs.sliceRange(rs.sliceFrom(all), 0, 0));
+		let front6 = 0;
+		let back6 = s6.length;
+		let acc6: rs.usize = 1;
+		while (!(front6 >= back6)) {
+			acc6 = rs.usizeWrappingMul(acc6, s6[front6++]);
+		}
+		_30(out, acc6);
 	} else if (_31 === 22) {
 		_30(out, 0);
 		_30(out, a);
@@ -1460,7 +1699,9 @@ export function usizes(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args5[0], " ", args5[1]]).v));
 		rs.byteVecPush(out, Tick.eq$cmp_PartialEq_usize(x7, y) ? 1 : 0);
 		rs.byteVecPush(out, Tick.cmp$cmp_Ord_usize(x7, y) & 0xff);
-		rs.byteVecPush(out, rs.u64Eq(hashed$wraps_Tick_usize(x7), hashed$num_Wrapping_usize(a)) ? 1 : 0);
+		const _389: rs.u64 = hashed$wraps_Tick_usize(x7);
+		const _391: rs.u64 = hashed$num_Wrapping_usize(a);
+		rs.byteVecPush(out, (typeof _389 === "number" && typeof _391 === "number" ? _389 === _391 : rs.u64Eq(_389, _391)) ? 1 : 0);
 		const z: Tick.Tick<rs.usize> = copy$wraps_Tick_usize(x7);
 		z._0 = rs.usizeWrappingSub(z._0, y._0);
 		_30(out, z._0);
@@ -1501,23 +1742,23 @@ export function i8s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	};
 	const _31: rs.u8 = rs.u8Rem(kind, 24);
 	if (_31 === 0) {
-		const part45 = rs.i8WrappingAdd(a, b);
-		_30(out, part45);
+		const part39 = rs.i8WrappingAdd(a, b);
+		_30(out, part39);
 	} else if (_31 === 1) {
-		const part44 = rs.i8WrappingSub(a, b);
-		_30(out, part44);
+		const part38 = rs.i8WrappingSub(a, b);
+		_30(out, part38);
 	} else if (_31 === 2) {
-		const part43 = rs.i8WrappingMul(a, b);
-		_30(out, part43);
+		const part37 = rs.i8WrappingMul(a, b);
+		_30(out, part37);
 	} else if (_31 === 3) {
-		const part42 = rs.i8WrappingDiv(a, b);
-		_30(out, part42);
+		const part36 = rs.i8WrappingDiv(a, b);
+		_30(out, part36);
 	} else if (_31 === 4) {
-		const part41 = rs.i8WrappingRem(a, b);
-		_30(out, part41);
+		const part35 = rs.i8WrappingRem(a, b);
+		_30(out, part35);
 	} else if (_31 === 5) {
-		const part40 = rs.i8WrappingSub(0, a);
-		_30(out, part40);
+		const part34 = rs.i8WrappingSub(0, a);
+		_30(out, part34);
 	} else if (_31 === 6) {
 		_30(out, ~a);
 	} else if (_31 === 7) {
@@ -1561,14 +1802,14 @@ export function i8s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		_30(out, (a << 3 << 24) >> 24);
 		_30(out, rs.i8Shr(a, rs.usizeAdd(8, 1) & 7));
 	} else if (_31 === 17) {
-		const part15 = rs.i8WrappingAdd(a, b);
-		_30(out, part15);
-		const part16 = rs.i8WrappingSub(a, b);
-		_30(out, part16);
-		const part17 = rs.i8WrappingMul(a, c);
-		_30(out, part17);
-		const part18 = rs.i8WrappingSub(0, a);
-		_30(out, part18);
+		const part9 = rs.i8WrappingAdd(a, b);
+		_30(out, part9);
+		const part10 = rs.i8WrappingSub(a, b);
+		_30(out, part10);
+		const part11 = rs.i8WrappingMul(a, c);
+		_30(out, part11);
+		const part12 = rs.i8WrappingSub(0, a);
+		_30(out, part12);
 		_30(out, ~b);
 		_30(out, rs.i8Shl(a, n & 7));
 		_30(out, rs.i8Shr(a, n & 7));
@@ -1595,14 +1836,14 @@ export function i8s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 			}
 			rs.byteVecPush(out, _219 ? 1 : 0);
 		}
-		const part12 = rs.ordMax(a, b, rs.cmpLt(rs.cmp));
-		_30(out, part12);
-		const part13 = rs.ordMin(a, c, rs.cmpLt(rs.cmp));
-		_30(out, part13);
+		const part6 = rs.ordMax(a, b, rs.cmpLt(rs.cmp));
+		_30(out, part6);
+		const part7 = rs.ordMin(a, c, rs.cmpLt(rs.cmp));
+		_30(out, part7);
 		const _237: rs.i8 = rs.ordMin(b, c, rs.cmpLt(rs.cmp));
 		const _238: rs.i8 = rs.ordMax(b, c, rs.cmpLt(rs.cmp));
-		const part14 = rs.ordClamp(a, _237, _238, rs.cmpLe(rs.cmp), rs.cmpLt(rs.cmp), rs.cmpGt(rs.cmp));
-		_30(out, part14);
+		const part8 = rs.ordClamp(a, _237, _238, rs.cmpLe(rs.cmp), rs.cmpLt(rs.cmp), rs.cmpGt(rs.cmp));
+		_30(out, part8);
 	} else if (_31 === 19) {
 		const dst2 = out;
 		const word2 = hashed$num_Wrapping_i8(a);
@@ -1619,7 +1860,9 @@ export function i8s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		dst2.data[pos2 + 6] = (word3 >>> 8) & 255;
 		dst2.data[pos2 + 7] = word3 & 255;
 		dst2.length = dst2.length + 8;
-		rs.byteVecPush(out, rs.u64Eq(hashed$num_Wrapping_i8(a), hashed$i8(a)) ? 1 : 0);
+		const _248: rs.u64 = hashed$num_Wrapping_i8(a);
+		const _250: rs.u64 = hashed$i8(a);
+		rs.byteVecPush(out, (typeof _248 === "number" && typeof _250 === "number" ? _248 === _250 : rs.u64Eq(_248, _250)) ? 1 : 0);
 		const _253: rs.Iter<rs.i8> = rs.iterSlice([a, b, c, a]);
 		const iter2: rs.Iter<rs.i8> = rs.btreeKeys(rs.btreeExtendKeys(rs.btreeNew(rs.cmp) as rs.BTreeSet<rs.i8>, _253, true, undefined, undefined, 1, true));
 		while (true) {
@@ -1638,18 +1881,54 @@ export function i8s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args6[0], " ", args6[1], " ", args6[2], " ", args6[3], " ", args6[4], " ", args6[5], " ", rs.fmtSpec({ align: ">", width: 6 }, args6[6]), " ", rs.fmtSpec({ alternate: true }, args6[7]), " ", rs.fmtSpec({ zero: true, width: 8 }, args6[8]), " ", rs.fmtSpec({ plus: true }, args6[6])]).v));
 	} else if (_31 === 21) {
 		const all: rs.i8[] = [a, b, c];
-		const part6 = rs.iterSum(rs.iterSlice(all), rs.i8WrappingAdd, 0);
-		_30(out, part6);
-		const part7 = rs.iterSum(rs.iterSlice(all), rs.i8WrappingAdd, 0);
-		_30(out, part7);
-		const part8 = rs.iterProduct(rs.iterSlice(all), rs.i8WrappingMul, 1);
-		_30(out, part8);
-		const part9 = rs.iterProduct(rs.iterSlice(all), rs.i8WrappingMul, 1);
-		_30(out, part9);
-		const part10 = rs.iterSum(rs.iterSlice(rs.sliceItems(rs.sliceRange(rs.sliceFrom(all), 0, 0))), rs.i8WrappingAdd, 0);
-		_30(out, part10);
-		const part11 = rs.iterProduct(rs.iterSlice(rs.sliceItems(rs.sliceRange(rs.sliceFrom(all), 0, 0))), rs.i8WrappingMul, 1);
-		_30(out, part11);
+		const s = all;
+		let front = 0;
+		let back = s.length;
+		let acc: rs.i8 = 0;
+		while (!(front >= back)) {
+			acc = rs.i8WrappingAdd(acc, s[front++]);
+		}
+		_30(out, acc);
+		const s2 = all;
+		let front2 = 0;
+		let back2 = s2.length;
+		let acc2: rs.i8 = 0;
+		while (!(front2 >= back2)) {
+			acc2 = rs.i8WrappingAdd(acc2, s2[front2++]);
+		}
+		_30(out, acc2);
+		const s3 = all;
+		let front3 = 0;
+		let back3 = s3.length;
+		let acc3: rs.i8 = 1;
+		while (!(front3 >= back3)) {
+			acc3 = rs.i8WrappingMul(acc3, s3[front3++]);
+		}
+		_30(out, acc3);
+		const s4 = all;
+		let front4 = 0;
+		let back4 = s4.length;
+		let acc4: rs.i8 = 1;
+		while (!(front4 >= back4)) {
+			acc4 = rs.i8WrappingMul(acc4, s4[front4++]);
+		}
+		_30(out, acc4);
+		const s5 = rs.sliceItems(rs.sliceRange(rs.sliceFrom(all), 0, 0));
+		let front5 = 0;
+		let back5 = s5.length;
+		let acc5: rs.i8 = 0;
+		while (!(front5 >= back5)) {
+			acc5 = rs.i8WrappingAdd(acc5, s5[front5++]);
+		}
+		_30(out, acc5);
+		const s6 = rs.sliceItems(rs.sliceRange(rs.sliceFrom(all), 0, 0));
+		let front6 = 0;
+		let back6 = s6.length;
+		let acc6: rs.i8 = 1;
+		while (!(front6 >= back6)) {
+			acc6 = rs.i8WrappingMul(acc6, s6[front6++]);
+		}
+		_30(out, acc6);
 	} else if (_31 === 22) {
 		_30(out, 0);
 		_30(out, a);
@@ -1663,7 +1942,9 @@ export function i8s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args5[0], " ", args5[1]]).v));
 		rs.byteVecPush(out, Tick.eq$cmp_PartialEq_i8(x7, y) ? 1 : 0);
 		rs.byteVecPush(out, Tick.cmp$cmp_Ord_i8(x7, y) & 0xff);
-		rs.byteVecPush(out, rs.u64Eq(hashed$wraps_Tick_i8(x7), hashed$num_Wrapping_i8(a)) ? 1 : 0);
+		const _389: rs.u64 = hashed$wraps_Tick_i8(x7);
+		const _391: rs.u64 = hashed$num_Wrapping_i8(a);
+		rs.byteVecPush(out, (typeof _389 === "number" && typeof _391 === "number" ? _389 === _391 : rs.u64Eq(_389, _391)) ? 1 : 0);
 		const z: Tick.Tick<rs.i8> = copy$wraps_Tick_i8(x7);
 		z._0 = rs.i8WrappingSub(z._0, y._0);
 		_30(out, z._0);
@@ -1706,23 +1987,23 @@ export function i16s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	};
 	const _31: rs.u8 = rs.u8Rem(kind, 24);
 	if (_31 === 0) {
-		const part45 = rs.i16WrappingAdd(a, b);
-		_30(out, part45);
+		const part39 = rs.i16WrappingAdd(a, b);
+		_30(out, part39);
 	} else if (_31 === 1) {
-		const part44 = rs.i16WrappingSub(a, b);
-		_30(out, part44);
+		const part38 = rs.i16WrappingSub(a, b);
+		_30(out, part38);
 	} else if (_31 === 2) {
-		const part43 = rs.i16WrappingMul(a, b);
-		_30(out, part43);
+		const part37 = rs.i16WrappingMul(a, b);
+		_30(out, part37);
 	} else if (_31 === 3) {
-		const part42 = rs.i16WrappingDiv(a, b);
-		_30(out, part42);
+		const part36 = rs.i16WrappingDiv(a, b);
+		_30(out, part36);
 	} else if (_31 === 4) {
-		const part41 = rs.i16WrappingRem(a, b);
-		_30(out, part41);
+		const part35 = rs.i16WrappingRem(a, b);
+		_30(out, part35);
 	} else if (_31 === 5) {
-		const part40 = rs.i16WrappingSub(0, a);
-		_30(out, part40);
+		const part34 = rs.i16WrappingSub(0, a);
+		_30(out, part34);
 	} else if (_31 === 6) {
 		_30(out, ~a);
 	} else if (_31 === 7) {
@@ -1766,14 +2047,14 @@ export function i16s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		_30(out, (a << 3 << 16) >> 16);
 		_30(out, rs.i16Shr(a, rs.usizeAdd(16, 1) & 15));
 	} else if (_31 === 17) {
-		const part15 = rs.i16WrappingAdd(a, b);
-		_30(out, part15);
-		const part16 = rs.i16WrappingSub(a, b);
-		_30(out, part16);
-		const part17 = rs.i16WrappingMul(a, c);
-		_30(out, part17);
-		const part18 = rs.i16WrappingSub(0, a);
-		_30(out, part18);
+		const part9 = rs.i16WrappingAdd(a, b);
+		_30(out, part9);
+		const part10 = rs.i16WrappingSub(a, b);
+		_30(out, part10);
+		const part11 = rs.i16WrappingMul(a, c);
+		_30(out, part11);
+		const part12 = rs.i16WrappingSub(0, a);
+		_30(out, part12);
 		_30(out, ~b);
 		_30(out, rs.i16Shl(a, n & 15));
 		_30(out, rs.i16Shr(a, n & 15));
@@ -1800,14 +2081,14 @@ export function i16s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 			}
 			rs.byteVecPush(out, _219 ? 1 : 0);
 		}
-		const part12 = rs.ordMax(a, b, rs.cmpLt(rs.cmp));
-		_30(out, part12);
-		const part13 = rs.ordMin(a, c, rs.cmpLt(rs.cmp));
-		_30(out, part13);
+		const part6 = rs.ordMax(a, b, rs.cmpLt(rs.cmp));
+		_30(out, part6);
+		const part7 = rs.ordMin(a, c, rs.cmpLt(rs.cmp));
+		_30(out, part7);
 		const _237: rs.i16 = rs.ordMin(b, c, rs.cmpLt(rs.cmp));
 		const _238: rs.i16 = rs.ordMax(b, c, rs.cmpLt(rs.cmp));
-		const part14 = rs.ordClamp(a, _237, _238, rs.cmpLe(rs.cmp), rs.cmpLt(rs.cmp), rs.cmpGt(rs.cmp));
-		_30(out, part14);
+		const part8 = rs.ordClamp(a, _237, _238, rs.cmpLe(rs.cmp), rs.cmpLt(rs.cmp), rs.cmpGt(rs.cmp));
+		_30(out, part8);
 	} else if (_31 === 19) {
 		const dst2 = out;
 		const word2 = hashed$num_Wrapping_i16(a);
@@ -1824,7 +2105,9 @@ export function i16s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		dst2.data[pos2 + 6] = (word3 >>> 8) & 255;
 		dst2.data[pos2 + 7] = word3 & 255;
 		dst2.length = dst2.length + 8;
-		rs.byteVecPush(out, rs.u64Eq(hashed$num_Wrapping_i16(a), hashed$i16(a)) ? 1 : 0);
+		const _248: rs.u64 = hashed$num_Wrapping_i16(a);
+		const _250: rs.u64 = hashed$i16(a);
+		rs.byteVecPush(out, (typeof _248 === "number" && typeof _250 === "number" ? _248 === _250 : rs.u64Eq(_248, _250)) ? 1 : 0);
 		const _253: rs.Iter<rs.i16> = rs.iterSlice([a, b, c, a]);
 		const iter2: rs.Iter<rs.i16> = rs.btreeKeys(rs.btreeExtendKeys(rs.btreeNew(rs.cmp) as rs.BTreeSet<rs.i16>, _253, true, undefined, undefined, 2, true));
 		while (true) {
@@ -1843,18 +2126,54 @@ export function i16s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args6[0], " ", args6[1], " ", args6[2], " ", args6[3], " ", args6[4], " ", args6[5], " ", rs.fmtSpec({ align: ">", width: 6 }, args6[6]), " ", rs.fmtSpec({ alternate: true }, args6[7]), " ", rs.fmtSpec({ zero: true, width: 8 }, args6[8]), " ", rs.fmtSpec({ plus: true }, args6[6])]).v));
 	} else if (_31 === 21) {
 		const all: rs.i16[] = [a, b, c];
-		const part6 = rs.iterSum(rs.iterSlice(all), rs.i16WrappingAdd, 0);
-		_30(out, part6);
-		const part7 = rs.iterSum(rs.iterSlice(all), rs.i16WrappingAdd, 0);
-		_30(out, part7);
-		const part8 = rs.iterProduct(rs.iterSlice(all), rs.i16WrappingMul, 1);
-		_30(out, part8);
-		const part9 = rs.iterProduct(rs.iterSlice(all), rs.i16WrappingMul, 1);
-		_30(out, part9);
-		const part10 = rs.iterSum(rs.iterSlice(rs.sliceItems(rs.sliceRange(rs.sliceFrom(all), 0, 0))), rs.i16WrappingAdd, 0);
-		_30(out, part10);
-		const part11 = rs.iterProduct(rs.iterSlice(rs.sliceItems(rs.sliceRange(rs.sliceFrom(all), 0, 0))), rs.i16WrappingMul, 1);
-		_30(out, part11);
+		const s = all;
+		let front = 0;
+		let back = s.length;
+		let acc: rs.i16 = 0;
+		while (!(front >= back)) {
+			acc = rs.i16WrappingAdd(acc, s[front++]);
+		}
+		_30(out, acc);
+		const s2 = all;
+		let front2 = 0;
+		let back2 = s2.length;
+		let acc2: rs.i16 = 0;
+		while (!(front2 >= back2)) {
+			acc2 = rs.i16WrappingAdd(acc2, s2[front2++]);
+		}
+		_30(out, acc2);
+		const s3 = all;
+		let front3 = 0;
+		let back3 = s3.length;
+		let acc3: rs.i16 = 1;
+		while (!(front3 >= back3)) {
+			acc3 = rs.i16WrappingMul(acc3, s3[front3++]);
+		}
+		_30(out, acc3);
+		const s4 = all;
+		let front4 = 0;
+		let back4 = s4.length;
+		let acc4: rs.i16 = 1;
+		while (!(front4 >= back4)) {
+			acc4 = rs.i16WrappingMul(acc4, s4[front4++]);
+		}
+		_30(out, acc4);
+		const s5 = rs.sliceItems(rs.sliceRange(rs.sliceFrom(all), 0, 0));
+		let front5 = 0;
+		let back5 = s5.length;
+		let acc5: rs.i16 = 0;
+		while (!(front5 >= back5)) {
+			acc5 = rs.i16WrappingAdd(acc5, s5[front5++]);
+		}
+		_30(out, acc5);
+		const s6 = rs.sliceItems(rs.sliceRange(rs.sliceFrom(all), 0, 0));
+		let front6 = 0;
+		let back6 = s6.length;
+		let acc6: rs.i16 = 1;
+		while (!(front6 >= back6)) {
+			acc6 = rs.i16WrappingMul(acc6, s6[front6++]);
+		}
+		_30(out, acc6);
 	} else if (_31 === 22) {
 		_30(out, 0);
 		_30(out, a);
@@ -1868,7 +2187,9 @@ export function i16s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args5[0], " ", args5[1]]).v));
 		rs.byteVecPush(out, Tick.eq$cmp_PartialEq_i16(x7, y) ? 1 : 0);
 		rs.byteVecPush(out, Tick.cmp$cmp_Ord_i16(x7, y) & 0xff);
-		rs.byteVecPush(out, rs.u64Eq(hashed$wraps_Tick_i16(x7), hashed$num_Wrapping_i16(a)) ? 1 : 0);
+		const _389: rs.u64 = hashed$wraps_Tick_i16(x7);
+		const _391: rs.u64 = hashed$num_Wrapping_i16(a);
+		rs.byteVecPush(out, (typeof _389 === "number" && typeof _391 === "number" ? _389 === _391 : rs.u64Eq(_389, _391)) ? 1 : 0);
 		const z: Tick.Tick<rs.i16> = copy$wraps_Tick_i16(x7);
 		z._0 = rs.i16WrappingSub(z._0, y._0);
 		_30(out, z._0);
@@ -1913,23 +2234,23 @@ export function i32s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	};
 	const _31: rs.u8 = rs.u8Rem(kind, 24);
 	if (_31 === 0) {
-		const part45 = rs.i32WrappingAdd(a, b);
-		_30(out, part45);
+		const part39 = rs.i32WrappingAdd(a, b);
+		_30(out, part39);
 	} else if (_31 === 1) {
-		const part44 = rs.i32WrappingSub(a, b);
-		_30(out, part44);
+		const part38 = rs.i32WrappingSub(a, b);
+		_30(out, part38);
 	} else if (_31 === 2) {
-		const part43 = rs.i32WrappingMul(a, b);
-		_30(out, part43);
+		const part37 = rs.i32WrappingMul(a, b);
+		_30(out, part37);
 	} else if (_31 === 3) {
-		const part42 = rs.i32WrappingDiv(a, b);
-		_30(out, part42);
+		const part36 = rs.i32WrappingDiv(a, b);
+		_30(out, part36);
 	} else if (_31 === 4) {
-		const part41 = rs.i32WrappingRem(a, b);
-		_30(out, part41);
+		const part35 = rs.i32WrappingRem(a, b);
+		_30(out, part35);
 	} else if (_31 === 5) {
-		const part40 = rs.i32WrappingSub(0, a);
-		_30(out, part40);
+		const part34 = rs.i32WrappingSub(0, a);
+		_30(out, part34);
 	} else if (_31 === 6) {
 		_30(out, ~a);
 	} else if (_31 === 7) {
@@ -1973,14 +2294,14 @@ export function i32s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		_30(out, (a << 3) | 0);
 		_30(out, rs.i32Shr(a, rs.usizeAdd(32, 1) & 31));
 	} else if (_31 === 17) {
-		const part15 = rs.i32WrappingAdd(a, b);
-		_30(out, part15);
-		const part16 = rs.i32WrappingSub(a, b);
-		_30(out, part16);
-		const part17 = rs.i32WrappingMul(a, c);
-		_30(out, part17);
-		const part18 = rs.i32WrappingSub(0, a);
-		_30(out, part18);
+		const part9 = rs.i32WrappingAdd(a, b);
+		_30(out, part9);
+		const part10 = rs.i32WrappingSub(a, b);
+		_30(out, part10);
+		const part11 = rs.i32WrappingMul(a, c);
+		_30(out, part11);
+		const part12 = rs.i32WrappingSub(0, a);
+		_30(out, part12);
 		_30(out, ~b);
 		_30(out, rs.i32Shl(a, n & 31));
 		_30(out, rs.i32Shr(a, n & 31));
@@ -2007,14 +2328,14 @@ export function i32s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 			}
 			rs.byteVecPush(out, _219 ? 1 : 0);
 		}
-		const part12 = rs.ordMax(a, b, rs.cmpLt(rs.cmp));
-		_30(out, part12);
-		const part13 = rs.ordMin(a, c, rs.cmpLt(rs.cmp));
-		_30(out, part13);
+		const part6 = rs.ordMax(a, b, rs.cmpLt(rs.cmp));
+		_30(out, part6);
+		const part7 = rs.ordMin(a, c, rs.cmpLt(rs.cmp));
+		_30(out, part7);
 		const _237: rs.i32 = rs.ordMin(b, c, rs.cmpLt(rs.cmp));
 		const _238: rs.i32 = rs.ordMax(b, c, rs.cmpLt(rs.cmp));
-		const part14 = rs.ordClamp(a, _237, _238, rs.cmpLe(rs.cmp), rs.cmpLt(rs.cmp), rs.cmpGt(rs.cmp));
-		_30(out, part14);
+		const part8 = rs.ordClamp(a, _237, _238, rs.cmpLe(rs.cmp), rs.cmpLt(rs.cmp), rs.cmpGt(rs.cmp));
+		_30(out, part8);
 	} else if (_31 === 19) {
 		const dst2 = out;
 		const word2 = hashed$num_Wrapping_i32(a);
@@ -2031,7 +2352,9 @@ export function i32s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		dst2.data[pos2 + 6] = (word3 >>> 8) & 255;
 		dst2.data[pos2 + 7] = word3 & 255;
 		dst2.length = dst2.length + 8;
-		rs.byteVecPush(out, rs.u64Eq(hashed$num_Wrapping_i32(a), hashed$i32(a)) ? 1 : 0);
+		const _248: rs.u64 = hashed$num_Wrapping_i32(a);
+		const _250: rs.u64 = hashed$i32(a);
+		rs.byteVecPush(out, (typeof _248 === "number" && typeof _250 === "number" ? _248 === _250 : rs.u64Eq(_248, _250)) ? 1 : 0);
 		const _253: rs.Iter<rs.i32> = rs.iterSlice([a, b, c, a]);
 		const iter2: rs.Iter<rs.i32> = rs.btreeKeys(rs.btreeExtendKeys(rs.btreeNew(rs.cmp) as rs.BTreeSet<rs.i32>, _253, true, undefined, undefined, 4, true));
 		while (true) {
@@ -2050,18 +2373,54 @@ export function i32s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args6[0], " ", args6[1], " ", args6[2], " ", args6[3], " ", args6[4], " ", args6[5], " ", rs.fmtSpec({ align: ">", width: 6 }, args6[6]), " ", rs.fmtSpec({ alternate: true }, args6[7]), " ", rs.fmtSpec({ zero: true, width: 8 }, args6[8]), " ", rs.fmtSpec({ plus: true }, args6[6])]).v));
 	} else if (_31 === 21) {
 		const all: rs.i32[] = [a, b, c];
-		const part6 = rs.iterSum(rs.iterSlice(all), rs.i32WrappingAdd, 0);
-		_30(out, part6);
-		const part7 = rs.iterSum(rs.iterSlice(all), rs.i32WrappingAdd, 0);
-		_30(out, part7);
-		const part8 = rs.iterProduct(rs.iterSlice(all), rs.i32WrappingMul, 1);
-		_30(out, part8);
-		const part9 = rs.iterProduct(rs.iterSlice(all), rs.i32WrappingMul, 1);
-		_30(out, part9);
-		const part10 = rs.iterSum(rs.iterSlice(rs.sliceItems(rs.sliceRange(rs.sliceFrom(all), 0, 0))), rs.i32WrappingAdd, 0);
-		_30(out, part10);
-		const part11 = rs.iterProduct(rs.iterSlice(rs.sliceItems(rs.sliceRange(rs.sliceFrom(all), 0, 0))), rs.i32WrappingMul, 1);
-		_30(out, part11);
+		const s = all;
+		let front = 0;
+		let back = s.length;
+		let acc: rs.i32 = 0;
+		while (!(front >= back)) {
+			acc = rs.i32WrappingAdd(acc, s[front++]);
+		}
+		_30(out, acc);
+		const s2 = all;
+		let front2 = 0;
+		let back2 = s2.length;
+		let acc2: rs.i32 = 0;
+		while (!(front2 >= back2)) {
+			acc2 = rs.i32WrappingAdd(acc2, s2[front2++]);
+		}
+		_30(out, acc2);
+		const s3 = all;
+		let front3 = 0;
+		let back3 = s3.length;
+		let acc3: rs.i32 = 1;
+		while (!(front3 >= back3)) {
+			acc3 = rs.i32WrappingMul(acc3, s3[front3++]);
+		}
+		_30(out, acc3);
+		const s4 = all;
+		let front4 = 0;
+		let back4 = s4.length;
+		let acc4: rs.i32 = 1;
+		while (!(front4 >= back4)) {
+			acc4 = rs.i32WrappingMul(acc4, s4[front4++]);
+		}
+		_30(out, acc4);
+		const s5 = rs.sliceItems(rs.sliceRange(rs.sliceFrom(all), 0, 0));
+		let front5 = 0;
+		let back5 = s5.length;
+		let acc5: rs.i32 = 0;
+		while (!(front5 >= back5)) {
+			acc5 = rs.i32WrappingAdd(acc5, s5[front5++]);
+		}
+		_30(out, acc5);
+		const s6 = rs.sliceItems(rs.sliceRange(rs.sliceFrom(all), 0, 0));
+		let front6 = 0;
+		let back6 = s6.length;
+		let acc6: rs.i32 = 1;
+		while (!(front6 >= back6)) {
+			acc6 = rs.i32WrappingMul(acc6, s6[front6++]);
+		}
+		_30(out, acc6);
 	} else if (_31 === 22) {
 		_30(out, 0);
 		_30(out, a);
@@ -2075,7 +2434,9 @@ export function i32s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args5[0], " ", args5[1]]).v));
 		rs.byteVecPush(out, Tick.eq$cmp_PartialEq_i32(x7, y) ? 1 : 0);
 		rs.byteVecPush(out, Tick.cmp$cmp_Ord_i32(x7, y) & 0xff);
-		rs.byteVecPush(out, rs.u64Eq(hashed$wraps_Tick_i32(x7), hashed$num_Wrapping_i32(a)) ? 1 : 0);
+		const _389: rs.u64 = hashed$wraps_Tick_i32(x7);
+		const _391: rs.u64 = hashed$num_Wrapping_i32(a);
+		rs.byteVecPush(out, (typeof _389 === "number" && typeof _391 === "number" ? _389 === _391 : rs.u64Eq(_389, _391)) ? 1 : 0);
 		const z: Tick.Tick<rs.i32> = copy$wraps_Tick_i32(x7);
 		z._0 = rs.i32WrappingSub(z._0, y._0);
 		_30(out, z._0);
@@ -2126,23 +2487,23 @@ export function i64s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	};
 	const _31: rs.u8 = rs.u8Rem(kind, 24);
 	if (_31 === 0) {
-		const part45 = rs.i64WrappingAdd(a, b);
-		_30(out, part45);
+		const part39 = rs.i64WrappingAdd(a, b);
+		_30(out, part39);
 	} else if (_31 === 1) {
-		const part44 = rs.i64WrappingSub(a, b);
-		_30(out, part44);
+		const part38 = rs.i64WrappingSub(a, b);
+		_30(out, part38);
 	} else if (_31 === 2) {
-		const part43 = rs.i64WrappingMul(a, b);
-		_30(out, part43);
+		const part37 = rs.i64WrappingMul(a, b);
+		_30(out, part37);
 	} else if (_31 === 3) {
-		const part42 = rs.i64WrappingDiv(a, b);
-		_30(out, part42);
+		const part36 = rs.i64WrappingDiv(a, b);
+		_30(out, part36);
 	} else if (_31 === 4) {
-		const part41 = rs.i64WrappingRem(a, b);
-		_30(out, part41);
+		const part35 = rs.i64WrappingRem(a, b);
+		_30(out, part35);
 	} else if (_31 === 5) {
-		const part40 = rs.i64WrappingSub(0, a);
-		_30(out, part40);
+		const part34 = rs.i64WrappingSub(0, a);
+		_30(out, part34);
 	} else if (_31 === 6) {
 		_30(out, rs.i64Not(a));
 	} else if (_31 === 7) {
@@ -2186,14 +2547,14 @@ export function i64s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		_30(out, rs.i64Shl(a, 3));
 		_30(out, rs.i64Shr(a, rs.usizeAdd(64, 1) & 63));
 	} else if (_31 === 17) {
-		const part15 = rs.i64WrappingAdd(a, b);
-		_30(out, part15);
-		const part16 = rs.i64WrappingSub(a, b);
-		_30(out, part16);
-		const part17 = rs.i64WrappingMul(a, c);
-		_30(out, part17);
-		const part18 = rs.i64WrappingSub(0, a);
-		_30(out, part18);
+		const part9 = rs.i64WrappingAdd(a, b);
+		_30(out, part9);
+		const part10 = rs.i64WrappingSub(a, b);
+		_30(out, part10);
+		const part11 = rs.i64WrappingMul(a, c);
+		_30(out, part11);
+		const part12 = rs.i64WrappingSub(0, a);
+		_30(out, part12);
 		_30(out, rs.i64Not(b));
 		_30(out, rs.i64Shl(a, n & 63));
 		_30(out, rs.i64Shr(a, n & 63));
@@ -2220,14 +2581,14 @@ export function i64s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 			}
 			rs.byteVecPush(out, _219 ? 1 : 0);
 		}
-		const part12 = rs.ordMax(a, b, rs.cmpLt(rs.cmp));
-		_30(out, part12);
-		const part13 = rs.ordMin(a, c, rs.cmpLt(rs.cmp));
-		_30(out, part13);
+		const part6 = rs.ordMax(a, b, rs.cmpLt(rs.cmp));
+		_30(out, part6);
+		const part7 = rs.ordMin(a, c, rs.cmpLt(rs.cmp));
+		_30(out, part7);
 		const _237: rs.i64 = rs.ordMin(b, c, rs.cmpLt(rs.cmp));
 		const _238: rs.i64 = rs.ordMax(b, c, rs.cmpLt(rs.cmp));
-		const part14 = rs.ordClamp(a, _237, _238, rs.cmpLe(rs.cmp), rs.cmpLt(rs.cmp), rs.cmpGt(rs.cmp));
-		_30(out, part14);
+		const part8 = rs.ordClamp(a, _237, _238, rs.cmpLe(rs.cmp), rs.cmpLt(rs.cmp), rs.cmpGt(rs.cmp));
+		_30(out, part8);
 	} else if (_31 === 19) {
 		const dst2 = out;
 		const word4 = hashed$num_Wrapping_i64(a);
@@ -2244,7 +2605,9 @@ export function i64s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		dst2.data[pos2 + 6] = (word5 >>> 8) & 255;
 		dst2.data[pos2 + 7] = word5 & 255;
 		dst2.length = dst2.length + 8;
-		rs.byteVecPush(out, rs.u64Eq(hashed$num_Wrapping_i64(a), hashed$i64(a)) ? 1 : 0);
+		const _248: rs.u64 = hashed$num_Wrapping_i64(a);
+		const _250: rs.u64 = hashed$i64(a);
+		rs.byteVecPush(out, (typeof _248 === "number" && typeof _250 === "number" ? _248 === _250 : rs.u64Eq(_248, _250)) ? 1 : 0);
 		const _253: rs.Iter<rs.i64> = rs.iterSlice([a, b, c, a]);
 		const iter2: rs.Iter<rs.i64> = rs.btreeKeys(rs.btreeExtendKeys(rs.btreeNew(rs.cmp) as rs.BTreeSet<rs.i64>, _253, true, undefined, undefined, 8, true));
 		while (true) {
@@ -2263,18 +2626,54 @@ export function i64s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args6[0], " ", args6[1], " ", args6[2], " ", args6[3], " ", args6[4], " ", args6[5], " ", rs.fmtSpec({ align: ">", width: 6 }, args6[6]), " ", rs.fmtSpec({ alternate: true }, args6[7]), " ", rs.fmtSpec({ zero: true, width: 8 }, args6[8]), " ", rs.fmtSpec({ plus: true }, args6[6])]).v));
 	} else if (_31 === 21) {
 		const all: rs.i64[] = [a, b, c];
-		const part6 = rs.iterSum(rs.iterSlice(all), rs.i64WrappingAdd, 0);
-		_30(out, part6);
-		const part7 = rs.iterSum(rs.iterSlice(all), rs.i64WrappingAdd, 0);
-		_30(out, part7);
-		const part8 = rs.iterProduct(rs.iterSlice(all), rs.i64WrappingMul, 1);
-		_30(out, part8);
-		const part9 = rs.iterProduct(rs.iterSlice(all), rs.i64WrappingMul, 1);
-		_30(out, part9);
-		const part10 = rs.iterSum(rs.iterSlice(rs.sliceItems(rs.sliceRange(rs.sliceFrom(all), 0, 0))), rs.i64WrappingAdd, 0);
-		_30(out, part10);
-		const part11 = rs.iterProduct(rs.iterSlice(rs.sliceItems(rs.sliceRange(rs.sliceFrom(all), 0, 0))), rs.i64WrappingMul, 1);
-		_30(out, part11);
+		const s = all;
+		let front = 0;
+		let back = s.length;
+		let acc: rs.i64 = 0;
+		while (!(front >= back)) {
+			acc = rs.i64WrappingAdd(acc, s[front++]);
+		}
+		_30(out, acc);
+		const s2 = all;
+		let front2 = 0;
+		let back2 = s2.length;
+		let acc2: rs.i64 = 0;
+		while (!(front2 >= back2)) {
+			acc2 = rs.i64WrappingAdd(acc2, s2[front2++]);
+		}
+		_30(out, acc2);
+		const s3 = all;
+		let front3 = 0;
+		let back3 = s3.length;
+		let acc3: rs.i64 = 1;
+		while (!(front3 >= back3)) {
+			acc3 = rs.i64WrappingMul(acc3, s3[front3++]);
+		}
+		_30(out, acc3);
+		const s4 = all;
+		let front4 = 0;
+		let back4 = s4.length;
+		let acc4: rs.i64 = 1;
+		while (!(front4 >= back4)) {
+			acc4 = rs.i64WrappingMul(acc4, s4[front4++]);
+		}
+		_30(out, acc4);
+		const s5 = rs.sliceItems(rs.sliceRange(rs.sliceFrom(all), 0, 0));
+		let front5 = 0;
+		let back5 = s5.length;
+		let acc5: rs.i64 = 0;
+		while (!(front5 >= back5)) {
+			acc5 = rs.i64WrappingAdd(acc5, s5[front5++]);
+		}
+		_30(out, acc5);
+		const s6 = rs.sliceItems(rs.sliceRange(rs.sliceFrom(all), 0, 0));
+		let front6 = 0;
+		let back6 = s6.length;
+		let acc6: rs.i64 = 1;
+		while (!(front6 >= back6)) {
+			acc6 = rs.i64WrappingMul(acc6, s6[front6++]);
+		}
+		_30(out, acc6);
 	} else if (_31 === 22) {
 		_30(out, 0);
 		_30(out, a);
@@ -2288,7 +2687,9 @@ export function i64s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args5[0], " ", args5[1]]).v));
 		rs.byteVecPush(out, Tick.eq$cmp_PartialEq_i64(x7, y) ? 1 : 0);
 		rs.byteVecPush(out, Tick.cmp$cmp_Ord_i64(x7, y) & 0xff);
-		rs.byteVecPush(out, rs.u64Eq(hashed$wraps_Tick_i64(x7), hashed$num_Wrapping_i64(a)) ? 1 : 0);
+		const _389: rs.u64 = hashed$wraps_Tick_i64(x7);
+		const _391: rs.u64 = hashed$num_Wrapping_i64(a);
+		rs.byteVecPush(out, (typeof _389 === "number" && typeof _391 === "number" ? _389 === _391 : rs.u64Eq(_389, _391)) ? 1 : 0);
 		const z: Tick.Tick<rs.i64> = copy$wraps_Tick_i64(x7);
 		z._0 = rs.i64WrappingSub(z._0, y._0);
 		_30(out, z._0);
@@ -2349,23 +2750,23 @@ export function i128s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	};
 	const _31: rs.u8 = rs.u8Rem(kind, 24);
 	if (_31 === 0) {
-		const part45 = rs.i128WrappingAdd(a, b);
-		_30(out, part45);
+		const part39 = rs.i128WrappingAdd(a, b);
+		_30(out, part39);
 	} else if (_31 === 1) {
-		const part44 = rs.i128WrappingSub(a, b);
-		_30(out, part44);
+		const part38 = rs.i128WrappingSub(a, b);
+		_30(out, part38);
 	} else if (_31 === 2) {
-		const part43 = rs.i128WrappingMul(a, b);
-		_30(out, part43);
+		const part37 = rs.i128WrappingMul(a, b);
+		_30(out, part37);
 	} else if (_31 === 3) {
-		const part42 = rs.i128WrappingDiv(a, b);
-		_30(out, part42);
+		const part36 = rs.i128WrappingDiv(a, b);
+		_30(out, part36);
 	} else if (_31 === 4) {
-		const part41 = rs.i128WrappingRem(a, b);
-		_30(out, part41);
+		const part35 = rs.i128WrappingRem(a, b);
+		_30(out, part35);
 	} else if (_31 === 5) {
-		const part40 = rs.i128WrappingSub(0, a);
-		_30(out, part40);
+		const part34 = rs.i128WrappingSub(0, a);
+		_30(out, part34);
 	} else if (_31 === 6) {
 		_30(out, rs.i128Not(a));
 	} else if (_31 === 7) {
@@ -2409,14 +2810,14 @@ export function i128s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		_30(out, rs.i128Shl(a, 3));
 		_30(out, rs.i128Shr(a, rs.usizeAdd(128, 1) & 127));
 	} else if (_31 === 17) {
-		const part15 = rs.i128WrappingAdd(a, b);
-		_30(out, part15);
-		const part16 = rs.i128WrappingSub(a, b);
-		_30(out, part16);
-		const part17 = rs.i128WrappingMul(a, c);
-		_30(out, part17);
-		const part18 = rs.i128WrappingSub(0, a);
-		_30(out, part18);
+		const part9 = rs.i128WrappingAdd(a, b);
+		_30(out, part9);
+		const part10 = rs.i128WrappingSub(a, b);
+		_30(out, part10);
+		const part11 = rs.i128WrappingMul(a, c);
+		_30(out, part11);
+		const part12 = rs.i128WrappingSub(0, a);
+		_30(out, part12);
 		_30(out, rs.i128Not(b));
 		_30(out, rs.i128Shl(a, n & 127));
 		_30(out, rs.i128Shr(a, n & 127));
@@ -2443,14 +2844,14 @@ export function i128s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 			}
 			rs.byteVecPush(out, _219 ? 1 : 0);
 		}
-		const part12 = rs.ordMax(a, b, rs.cmpLt(rs.cmp));
-		_30(out, part12);
-		const part13 = rs.ordMin(a, c, rs.cmpLt(rs.cmp));
-		_30(out, part13);
+		const part6 = rs.ordMax(a, b, rs.cmpLt(rs.cmp));
+		_30(out, part6);
+		const part7 = rs.ordMin(a, c, rs.cmpLt(rs.cmp));
+		_30(out, part7);
 		const _237: rs.i128 = rs.ordMin(b, c, rs.cmpLt(rs.cmp));
 		const _238: rs.i128 = rs.ordMax(b, c, rs.cmpLt(rs.cmp));
-		const part14 = rs.ordClamp(a, _237, _238, rs.cmpLe(rs.cmp), rs.cmpLt(rs.cmp), rs.cmpGt(rs.cmp));
-		_30(out, part14);
+		const part8 = rs.ordClamp(a, _237, _238, rs.cmpLe(rs.cmp), rs.cmpLt(rs.cmp), rs.cmpGt(rs.cmp));
+		_30(out, part8);
 	} else if (_31 === 19) {
 		const dst2 = out;
 		const word6 = hashed$num_Wrapping_i128(a);
@@ -2467,7 +2868,9 @@ export function i128s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		dst2.data[pos2 + 6] = (word7 >>> 8) & 255;
 		dst2.data[pos2 + 7] = word7 & 255;
 		dst2.length = dst2.length + 8;
-		rs.byteVecPush(out, rs.u64Eq(hashed$num_Wrapping_i128(a), hashed$i128(a)) ? 1 : 0);
+		const _248: rs.u64 = hashed$num_Wrapping_i128(a);
+		const _250: rs.u64 = hashed$i128(a);
+		rs.byteVecPush(out, (typeof _248 === "number" && typeof _250 === "number" ? _248 === _250 : rs.u64Eq(_248, _250)) ? 1 : 0);
 		const _253: rs.Iter<rs.i128> = rs.iterSlice([a, b, c, a]);
 		const iter2: rs.Iter<rs.i128> = rs.btreeKeys(rs.btreeExtendKeys(rs.btreeNew(rs.cmp) as rs.BTreeSet<rs.i128>, _253, true, undefined, undefined, 16, true));
 		while (true) {
@@ -2486,18 +2889,54 @@ export function i128s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args6[0], " ", args6[1], " ", args6[2], " ", args6[3], " ", args6[4], " ", args6[5], " ", rs.fmtSpec({ align: ">", width: 6 }, args6[6]), " ", rs.fmtSpec({ alternate: true }, args6[7]), " ", rs.fmtSpec({ zero: true, width: 8 }, args6[8]), " ", rs.fmtSpec({ plus: true }, args6[6])]).v));
 	} else if (_31 === 21) {
 		const all: rs.i128[] = [a, b, c];
-		const part6 = rs.iterSum(rs.iterSlice(all), rs.i128WrappingAdd, 0);
-		_30(out, part6);
-		const part7 = rs.iterSum(rs.iterSlice(all), rs.i128WrappingAdd, 0);
-		_30(out, part7);
-		const part8 = rs.iterProduct(rs.iterSlice(all), rs.i128WrappingMul, 1);
-		_30(out, part8);
-		const part9 = rs.iterProduct(rs.iterSlice(all), rs.i128WrappingMul, 1);
-		_30(out, part9);
-		const part10 = rs.iterSum(rs.iterSlice(rs.sliceItems(rs.sliceRange(rs.sliceFrom(all), 0, 0))), rs.i128WrappingAdd, 0);
-		_30(out, part10);
-		const part11 = rs.iterProduct(rs.iterSlice(rs.sliceItems(rs.sliceRange(rs.sliceFrom(all), 0, 0))), rs.i128WrappingMul, 1);
-		_30(out, part11);
+		const s = all;
+		let front = 0;
+		let back = s.length;
+		let acc: rs.i128 = 0;
+		while (!(front >= back)) {
+			acc = rs.i128WrappingAdd(acc, s[front++]);
+		}
+		_30(out, acc);
+		const s2 = all;
+		let front2 = 0;
+		let back2 = s2.length;
+		let acc2: rs.i128 = 0;
+		while (!(front2 >= back2)) {
+			acc2 = rs.i128WrappingAdd(acc2, s2[front2++]);
+		}
+		_30(out, acc2);
+		const s3 = all;
+		let front3 = 0;
+		let back3 = s3.length;
+		let acc3: rs.i128 = 1;
+		while (!(front3 >= back3)) {
+			acc3 = rs.i128WrappingMul(acc3, s3[front3++]);
+		}
+		_30(out, acc3);
+		const s4 = all;
+		let front4 = 0;
+		let back4 = s4.length;
+		let acc4: rs.i128 = 1;
+		while (!(front4 >= back4)) {
+			acc4 = rs.i128WrappingMul(acc4, s4[front4++]);
+		}
+		_30(out, acc4);
+		const s5 = rs.sliceItems(rs.sliceRange(rs.sliceFrom(all), 0, 0));
+		let front5 = 0;
+		let back5 = s5.length;
+		let acc5: rs.i128 = 0;
+		while (!(front5 >= back5)) {
+			acc5 = rs.i128WrappingAdd(acc5, s5[front5++]);
+		}
+		_30(out, acc5);
+		const s6 = rs.sliceItems(rs.sliceRange(rs.sliceFrom(all), 0, 0));
+		let front6 = 0;
+		let back6 = s6.length;
+		let acc6: rs.i128 = 1;
+		while (!(front6 >= back6)) {
+			acc6 = rs.i128WrappingMul(acc6, s6[front6++]);
+		}
+		_30(out, acc6);
 	} else if (_31 === 22) {
 		_30(out, 0);
 		_30(out, a);
@@ -2511,7 +2950,9 @@ export function i128s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args5[0], " ", args5[1]]).v));
 		rs.byteVecPush(out, Tick.eq$cmp_PartialEq_i128(x7, y) ? 1 : 0);
 		rs.byteVecPush(out, Tick.cmp$cmp_Ord_i128(x7, y) & 0xff);
-		rs.byteVecPush(out, rs.u64Eq(hashed$wraps_Tick_i128(x7), hashed$num_Wrapping_i128(a)) ? 1 : 0);
+		const _389: rs.u64 = hashed$wraps_Tick_i128(x7);
+		const _391: rs.u64 = hashed$num_Wrapping_i128(a);
+		rs.byteVecPush(out, (typeof _389 === "number" && typeof _391 === "number" ? _389 === _391 : rs.u64Eq(_389, _391)) ? 1 : 0);
 		const z: Tick.Tick<rs.i128> = copy$wraps_Tick_i128(x7);
 		z._0 = rs.i128WrappingSub(z._0, y._0);
 		_30(out, z._0);
@@ -2556,23 +2997,23 @@ export function isizes(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	};
 	const _31: rs.u8 = rs.u8Rem(kind, 24);
 	if (_31 === 0) {
-		const part45 = rs.isizeWrappingAdd(a, b);
-		_30(out, part45);
+		const part39 = rs.isizeWrappingAdd(a, b);
+		_30(out, part39);
 	} else if (_31 === 1) {
-		const part44 = rs.isizeWrappingSub(a, b);
-		_30(out, part44);
+		const part38 = rs.isizeWrappingSub(a, b);
+		_30(out, part38);
 	} else if (_31 === 2) {
-		const part43 = rs.isizeWrappingMul(a, b);
-		_30(out, part43);
+		const part37 = rs.isizeWrappingMul(a, b);
+		_30(out, part37);
 	} else if (_31 === 3) {
-		const part42 = rs.isizeWrappingDiv(a, b);
-		_30(out, part42);
+		const part36 = rs.isizeWrappingDiv(a, b);
+		_30(out, part36);
 	} else if (_31 === 4) {
-		const part41 = rs.isizeWrappingRem(a, b);
-		_30(out, part41);
+		const part35 = rs.isizeWrappingRem(a, b);
+		_30(out, part35);
 	} else if (_31 === 5) {
-		const part40 = rs.isizeWrappingSub(0, a);
-		_30(out, part40);
+		const part34 = rs.isizeWrappingSub(0, a);
+		_30(out, part34);
 	} else if (_31 === 6) {
 		_30(out, ~a);
 	} else if (_31 === 7) {
@@ -2616,14 +3057,14 @@ export function isizes(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		_30(out, (a << 3) | 0);
 		_30(out, rs.isizeShr(a, rs.usizeAdd(32, 1) & 31));
 	} else if (_31 === 17) {
-		const part15 = rs.isizeWrappingAdd(a, b);
-		_30(out, part15);
-		const part16 = rs.isizeWrappingSub(a, b);
-		_30(out, part16);
-		const part17 = rs.isizeWrappingMul(a, c);
-		_30(out, part17);
-		const part18 = rs.isizeWrappingSub(0, a);
-		_30(out, part18);
+		const part9 = rs.isizeWrappingAdd(a, b);
+		_30(out, part9);
+		const part10 = rs.isizeWrappingSub(a, b);
+		_30(out, part10);
+		const part11 = rs.isizeWrappingMul(a, c);
+		_30(out, part11);
+		const part12 = rs.isizeWrappingSub(0, a);
+		_30(out, part12);
 		_30(out, ~b);
 		_30(out, rs.isizeShl(a, n & 31));
 		_30(out, rs.isizeShr(a, n & 31));
@@ -2650,14 +3091,14 @@ export function isizes(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 			}
 			rs.byteVecPush(out, _219 ? 1 : 0);
 		}
-		const part12 = rs.ordMax(a, b, rs.cmpLt(rs.cmp));
-		_30(out, part12);
-		const part13 = rs.ordMin(a, c, rs.cmpLt(rs.cmp));
-		_30(out, part13);
+		const part6 = rs.ordMax(a, b, rs.cmpLt(rs.cmp));
+		_30(out, part6);
+		const part7 = rs.ordMin(a, c, rs.cmpLt(rs.cmp));
+		_30(out, part7);
 		const _237: rs.isize = rs.ordMin(b, c, rs.cmpLt(rs.cmp));
 		const _238: rs.isize = rs.ordMax(b, c, rs.cmpLt(rs.cmp));
-		const part14 = rs.ordClamp(a, _237, _238, rs.cmpLe(rs.cmp), rs.cmpLt(rs.cmp), rs.cmpGt(rs.cmp));
-		_30(out, part14);
+		const part8 = rs.ordClamp(a, _237, _238, rs.cmpLe(rs.cmp), rs.cmpLt(rs.cmp), rs.cmpGt(rs.cmp));
+		_30(out, part8);
 	} else if (_31 === 19) {
 		const dst2 = out;
 		const word2 = hashed$num_Wrapping_isize(a);
@@ -2674,7 +3115,9 @@ export function isizes(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		dst2.data[pos2 + 6] = (word3 >>> 8) & 255;
 		dst2.data[pos2 + 7] = word3 & 255;
 		dst2.length = dst2.length + 8;
-		rs.byteVecPush(out, rs.u64Eq(hashed$num_Wrapping_isize(a), hashed$isize(a)) ? 1 : 0);
+		const _248: rs.u64 = hashed$num_Wrapping_isize(a);
+		const _250: rs.u64 = hashed$isize(a);
+		rs.byteVecPush(out, (typeof _248 === "number" && typeof _250 === "number" ? _248 === _250 : rs.u64Eq(_248, _250)) ? 1 : 0);
 		const _253: rs.Iter<rs.isize> = rs.iterSlice([a, b, c, a]);
 		const iter2: rs.Iter<rs.isize> = rs.btreeKeys(rs.btreeExtendKeys(rs.btreeNew(rs.cmp) as rs.BTreeSet<rs.isize>, _253, true, undefined, undefined, 4, true));
 		while (true) {
@@ -2693,18 +3136,54 @@ export function isizes(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args6[0], " ", args6[1], " ", args6[2], " ", args6[3], " ", args6[4], " ", args6[5], " ", rs.fmtSpec({ align: ">", width: 6 }, args6[6]), " ", rs.fmtSpec({ alternate: true }, args6[7]), " ", rs.fmtSpec({ zero: true, width: 8 }, args6[8]), " ", rs.fmtSpec({ plus: true }, args6[6])]).v));
 	} else if (_31 === 21) {
 		const all: rs.isize[] = [a, b, c];
-		const part6 = rs.iterSum(rs.iterSlice(all), rs.isizeWrappingAdd, 0);
-		_30(out, part6);
-		const part7 = rs.iterSum(rs.iterSlice(all), rs.isizeWrappingAdd, 0);
-		_30(out, part7);
-		const part8 = rs.iterProduct(rs.iterSlice(all), rs.isizeWrappingMul, 1);
-		_30(out, part8);
-		const part9 = rs.iterProduct(rs.iterSlice(all), rs.isizeWrappingMul, 1);
-		_30(out, part9);
-		const part10 = rs.iterSum(rs.iterSlice(rs.sliceItems(rs.sliceRange(rs.sliceFrom(all), 0, 0))), rs.isizeWrappingAdd, 0);
-		_30(out, part10);
-		const part11 = rs.iterProduct(rs.iterSlice(rs.sliceItems(rs.sliceRange(rs.sliceFrom(all), 0, 0))), rs.isizeWrappingMul, 1);
-		_30(out, part11);
+		const s = all;
+		let front = 0;
+		let back = s.length;
+		let acc: rs.isize = 0;
+		while (!(front >= back)) {
+			acc = rs.isizeWrappingAdd(acc, s[front++]);
+		}
+		_30(out, acc);
+		const s2 = all;
+		let front2 = 0;
+		let back2 = s2.length;
+		let acc2: rs.isize = 0;
+		while (!(front2 >= back2)) {
+			acc2 = rs.isizeWrappingAdd(acc2, s2[front2++]);
+		}
+		_30(out, acc2);
+		const s3 = all;
+		let front3 = 0;
+		let back3 = s3.length;
+		let acc3: rs.isize = 1;
+		while (!(front3 >= back3)) {
+			acc3 = rs.isizeWrappingMul(acc3, s3[front3++]);
+		}
+		_30(out, acc3);
+		const s4 = all;
+		let front4 = 0;
+		let back4 = s4.length;
+		let acc4: rs.isize = 1;
+		while (!(front4 >= back4)) {
+			acc4 = rs.isizeWrappingMul(acc4, s4[front4++]);
+		}
+		_30(out, acc4);
+		const s5 = rs.sliceItems(rs.sliceRange(rs.sliceFrom(all), 0, 0));
+		let front5 = 0;
+		let back5 = s5.length;
+		let acc5: rs.isize = 0;
+		while (!(front5 >= back5)) {
+			acc5 = rs.isizeWrappingAdd(acc5, s5[front5++]);
+		}
+		_30(out, acc5);
+		const s6 = rs.sliceItems(rs.sliceRange(rs.sliceFrom(all), 0, 0));
+		let front6 = 0;
+		let back6 = s6.length;
+		let acc6: rs.isize = 1;
+		while (!(front6 >= back6)) {
+			acc6 = rs.isizeWrappingMul(acc6, s6[front6++]);
+		}
+		_30(out, acc6);
 	} else if (_31 === 22) {
 		_30(out, 0);
 		_30(out, a);
@@ -2718,7 +3197,9 @@ export function isizes(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args5[0], " ", args5[1]]).v));
 		rs.byteVecPush(out, Tick.eq$cmp_PartialEq_isize(x7, y) ? 1 : 0);
 		rs.byteVecPush(out, Tick.cmp$cmp_Ord_isize(x7, y) & 0xff);
-		rs.byteVecPush(out, rs.u64Eq(hashed$wraps_Tick_isize(x7), hashed$num_Wrapping_isize(a)) ? 1 : 0);
+		const _389: rs.u64 = hashed$wraps_Tick_isize(x7);
+		const _391: rs.u64 = hashed$num_Wrapping_isize(a);
+		rs.byteVecPush(out, (typeof _389 === "number" && typeof _391 === "number" ? _389 === _391 : rs.u64Eq(_389, _391)) ? 1 : 0);
 		const z: Tick.Tick<rs.isize> = copy$wraps_Tick_isize(x7);
 		z._0 = rs.isizeWrappingSub(z._0, y._0);
 		_30(out, z._0);

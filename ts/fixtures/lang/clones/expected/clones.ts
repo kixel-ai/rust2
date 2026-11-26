@@ -7397,9 +7397,21 @@ export function owned(data: rs.ByteSlice, plan: Plan.Plan, out: rs.ByteVec): voi
 	const logged: (a0: rs.u8) => Logged.Logged = (id: rs.u8): Logged.Logged => {
 		return new Logged.Logged(id, rs.arcClone(log));
 	};
-	const it: rs.Iter<Logged.Logged> = rs.vecIntoIter(rs.iterToVec(rs.iterMap(rs.iterTake(rs.iterSlice(rs.byteSliceView(data)), 6), (_2: rs.u8): Logged.Logged => {
-		return logged(_2 & 112);
-	}), undefined, 8, true), rs.drop);
+	const s = rs.byteSliceView(data);
+	let front = 0;
+	let back = s.length;
+	let take = 6;
+	const v: rs.Vec<Logged.Logged> = rs.vecWithCapacity(Math.min(back - front, take), 8);
+	while (take !== 0) {
+		take--;
+		if (front >= back) {
+			break;
+		}
+		const x = s[front++];
+		const y: Logged.Logged = logged(x & 112);
+		v.items.push(y);
+	}
+	const it: rs.Iter<Logged.Logged> = rs.vecIntoIter(v, rs.drop);
 	rs.drop(rs.iterToOption(it.next()));
 	rs.drop(rs.iterToOption(it.nextBack()));
 	const clone: rs.Iter<Logged.Logged> = it.clone({ v: Logged.clone$Clone });
@@ -7408,9 +7420,9 @@ export function owned(data: rs.ByteSlice, plan: Plan.Plan, out: rs.ByteVec): voi
 	flush(log.value, out);
 	turns$vec_IntoIter_clones_Logged_clones_owned_closure2_clones_owned_closure3(clone, (it6: rs.Iter<Logged.Logged>): Logged.Logged | undefined => {
 		return rs.iterToOption(it6.nextBack());
-	}, plan, (x: Logged.Logged): rs.u8 => {
-		const _04: rs.u8 = Logged.id(x);
-		x[Symbol.dispose]();
+	}, plan, (x2: Logged.Logged): rs.u8 => {
+		const _04: rs.u8 = Logged.id(x2);
+		x2[Symbol.dispose]();
 		return _04;
 	}, out);
 	flush(log.value, out);
@@ -7418,15 +7430,27 @@ export function owned(data: rs.ByteSlice, plan: Plan.Plan, out: rs.ByteVec): voi
 		return logged(_22 & 112);
 	}), undefined, 8, true), 8) as rs.VecDeque<Logged.Logged>, rs.drop), (it7: rs.Iter<Logged.Logged>): Logged.Logged | undefined => {
 		return rs.iterToOption(it7.nextBack());
-	}, plan, (x2: Logged.Logged): rs.u8 => {
-		const _07: rs.u8 = Logged.id(x2);
-		x2[Symbol.dispose]();
+	}, plan, (x3: Logged.Logged): rs.u8 => {
+		const _07: rs.u8 = Logged.id(x3);
+		x3[Symbol.dispose]();
 		return _07;
 	}, out);
 	flush(log.value, out);
-	const it2: rs.Peekable<Logged.Logged> = rs.iterPeekable(rs.vecIntoIter(rs.iterToVec(rs.iterMap(rs.iterTake(rs.iterSlice(rs.byteSliceView(data)), 4), (_24: rs.u8): Logged.Logged => {
-		return logged(_24 & 112);
-	}), undefined, 8, true), rs.drop), rs.drop);
+	const s2 = rs.byteSliceView(data);
+	let front2 = 0;
+	let back2 = s2.length;
+	let take2 = 4;
+	const v2: rs.Vec<Logged.Logged> = rs.vecWithCapacity(Math.min(back2 - front2, take2), 8);
+	while (take2 !== 0) {
+		take2--;
+		if (front2 >= back2) {
+			break;
+		}
+		const x4 = s2[front2++];
+		const y2: Logged.Logged = logged(x4 & 112);
+		v2.items.push(y2);
+	}
+	const it2: rs.Peekable<Logged.Logged> = rs.iterPeekable(rs.vecIntoIter(v2, rs.drop), rs.drop);
 	rs.byteVecPush(out, option_mapOr$15gmqsv(rs.peekablePeek(it2), 238, Logged.id));
 	const clone2: rs.Peekable<Logged.Logged> = it2.clone({ i: { v: Logged.clone$Clone }, v: Logged.clone$Clone });
 	flush(log.value, out);
@@ -7434,9 +7458,9 @@ export function owned(data: rs.ByteSlice, plan: Plan.Plan, out: rs.ByteVec): voi
 	flush(log.value, out);
 	turns$iter_Peekable_vec_IntoIter_clones_Logged_clones_owned_closure8_clones_owned_closure9(it2, (it8: rs.Peekable<Logged.Logged>): Logged.Logged | undefined => {
 		return rs.iterToOption(it8.nextBack());
-	}, plan, (x3: Logged.Logged): rs.u8 => {
-		const _010: rs.u8 = Logged.id(x3);
-		x3[Symbol.dispose]();
+	}, plan, (x5: Logged.Logged): rs.u8 => {
+		const _010: rs.u8 = Logged.id(x5);
+		x5[Symbol.dispose]();
 		return _010;
 	}, out);
 	flush(log.value, out);
@@ -7446,16 +7470,22 @@ export function owned(data: rs.ByteSlice, plan: Plan.Plan, out: rs.ByteVec): voi
 	rs.drop(it3);
 	turns$iter_Chain_iter_Once_clones_Logged_option_IntoIter_clones_Logged_clones_owned_closure10_clones_owned_closure11(clone3, (it9: rs.Iter<Logged.Logged>): Logged.Logged | undefined => {
 		return rs.iterToOption(it9.nextBack());
-	}, plan, (x4: Logged.Logged): rs.u8 => {
-		const _012: rs.u8 = Logged.id(x4);
-		x4[Symbol.dispose]();
+	}, plan, (x6: Logged.Logged): rs.u8 => {
+		const _012: rs.u8 = Logged.id(x6);
+		x6[Symbol.dispose]();
 		return _012;
 	}, out);
 	flush(log.value, out);
 	const it4: rs.Iter<Logged.Logged> = rs.iterFlatten(rs.vecIntoIter(rs.iterToVec(rs.iterMap(rs.iterTake(rs.byteSliceChunks(data, 3), 3), (c: rs.ByteSlice): rs.Vec<Logged.Logged> => {
-		return rs.iterToVec(rs.iterMap(rs.iterSlice(rs.byteSliceView(c)), (_25: rs.u8): Logged.Logged => {
-			return logged(_25 & 112);
-		}), undefined, 8, true);
+		const s3 = rs.byteSliceView(c);
+		let front3 = 0;
+		let back3 = s3.length;
+		const v3: rs.Vec<Logged.Logged> = rs.vecWithCapacity(back3 - front3, 8);
+		while (!(front3 >= back3)) {
+			const y3: Logged.Logged = logged(s3[front3++] & 112);
+			v3.items.push(y3);
+		}
+		return v3;
 	}), undefined, 12, true), drop$Vec_clones_Logged), (value: rs.Vec<Logged.Logged>) => rs.vecIntoIter(value, rs.drop), true);
 	rs.drop(rs.iterToOption(it4.next()));
 	rs.drop(rs.iterToOption(it4.nextBack()));
@@ -7467,14 +7497,14 @@ export function owned(data: rs.ByteSlice, plan: Plan.Plan, out: rs.ByteVec): voi
 	flush(log.value, out);
 	turns$iter_Flatten_vec_IntoIter_Vec_clones_Logged_clones_owned_closure13_clones_owned_closure14(clone4, (it10: rs.Iter<Logged.Logged>): Logged.Logged | undefined => {
 		return rs.iterToOption(it10.nextBack());
-	}, plan, (x5: Logged.Logged): rs.u8 => {
-		const _017: rs.u8 = Logged.id(x5);
-		x5[Symbol.dispose]();
+	}, plan, (x8: Logged.Logged): rs.u8 => {
+		const _017: rs.u8 = Logged.id(x8);
+		x8[Symbol.dispose]();
 		return _017;
 	}, out);
 	flush(log.value, out);
-	const it5: rs.Iter<Logged.Logged> = rs.iterSuccessors(logged(40), (x6: Logged.Logged): Logged.Logged | undefined => {
-		return option_map$1kvcy6m(rs.u8CheckedSub(Logged.id(x6), 13), (id2: rs.u8): Logged.Logged => {
+	const it5: rs.Iter<Logged.Logged> = rs.iterSuccessors(logged(40), (x9: Logged.Logged): Logged.Logged | undefined => {
+		return option_map$1kvcy6m(rs.u8CheckedSub(Logged.id(x9), 13), (id2: rs.u8): Logged.Logged => {
 			return logged(id2);
 		});
 	}, rs.drop);
@@ -7483,9 +7513,9 @@ export function owned(data: rs.ByteSlice, plan: Plan.Plan, out: rs.ByteVec): voi
 	flush(log.value, out);
 	turns$iter_Successors_clones_Logged_clones_owned_closure15_clones_owned_closure16_clones_owned_closure17(clone5, (it11: rs.Iter<Logged.Logged>): Logged.Logged | undefined => {
 		return rs.iterToOption(it11.next());
-	}, plan, (x7: Logged.Logged): rs.u8 => {
-		const _021: rs.u8 = Logged.id(x7);
-		x7[Symbol.dispose]();
+	}, plan, (x10: Logged.Logged): rs.u8 => {
+		const _021: rs.u8 = Logged.id(x10);
+		x10[Symbol.dispose]();
 		return _021;
 	}, out);
 	rs.drop(it5);
@@ -7757,8 +7787,9 @@ export function arrays(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		flush(log.value, out);
 		const part12 = rs.sliceFrom(copy2[1]);
 		_13(part12, out);
+		const _292: rs.String = rs.stringFrom("a");
 		const _295: rs.u8 = at(4);
-		const words: rs.String[] = [rs.stringFrom("a"), rs.fmtToString((f: rs.Formatter) => rs.u8Display(_295, f), 0), rs.stringNew()];
+		const words: rs.String[] = [_292, rs.fmtToString((f: rs.Formatter) => rs.u8Display(_295, f), 0), rs.stringNew()];
 		const vecs: rs.ByteVec[] = [rs.byteSliceToByteVec(data), rs.byteVecFrom(Uint8Array.of(at(5)))];
 		const _308: [rs.String[], rs.ByteVec[]] = [words.map((a02: rs.String): rs.String => {
 			return rs.stringClone(a02);
@@ -7829,9 +7860,14 @@ export function cloneFroms(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): vo
 		return rs.u8Rem(option_unwrapOr$1fr498u(rs.byteSliceGet(data, i3), i3 & 0xff), 4) as rs.usize;
 	};
 	const row: (a0: rs.usize, a1: rs.usize) => rs.Vec<Logged.Logged> = (from: rs.usize, n2: rs.usize): rs.Vec<Logged.Logged> => {
-		return rs.iterToVec(rs.iterMap(new rs.Range(0, n2), (i4: rs.usize): Logged.Logged => {
-			return logged(at(rs.usizeAdd(from, i4)));
-		}), undefined, 8, true);
+		let start = 0;
+		let end = n2;
+		const v: rs.Vec<Logged.Logged> = rs.vecWithCapacity(Math.max(end - start, 0), 8);
+		while (!(start >= end)) {
+			const y: Logged.Logged = logged(at(rs.usizeAdd(from, start++)));
+			v.items.push(y);
+		}
+		return v;
 	};
 	const _14: (a0: rs.Slice<Logged.Logged>, a1: rs.ByteVec) => undefined = (a7: rs.Slice<Logged.Logged>, out2: rs.ByteVec): undefined => {
 		rs.iterExtendBytes(out2, rs.iterMap(rs.iterSlice(rs.sliceItems(a7)), Logged.id), undefined, true);
@@ -7998,9 +8034,15 @@ export function cloneFroms(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): vo
 		const _421: rs.Vec<Logged.Logged> = row(12, part17);
 		const part18 = len(16);
 		const other3: rs.Vec<rs.Vec<Logged.Logged>> = rs.vecFrom([_415, _421, row(16, part18)]);
-		const cut: rs.Vec<rs.Vec<Logged.Logged>> = rs.iterToVec(rs.iterMap(new rs.Range(0, 4), (i11: rs.usize): rs.Vec<Logged.Logged> => {
-			return row(rs.usizeAdd(20, i11), len(rs.usizeAdd(20, i11)));
-		}), undefined, 12, true);
+		let start3 = 0;
+		let end3 = 4;
+		const v3: rs.Vec<rs.Vec<Logged.Logged>> = rs.vecWithCapacity(Math.max(end3 - start3, 0), 12);
+		while (!(start3 >= end3)) {
+			const x3 = start3++;
+			const y3: rs.Vec<Logged.Logged> = row(rs.usizeAdd(20, x3), len(rs.usizeAdd(20, x3)));
+			v3.items.push(y3);
+		}
+		const cut: rs.Vec<rs.Vec<Logged.Logged>> = v3;
 		flush(log.value, out);
 		rs.vecCloneFrom(rows2, other3, 12, (a0: rs.Vec<Logged.Logged>): rs.Vec<Logged.Logged> => {
 			return rs.vecFrom(a0.items.map(Logged.clone$Clone));
@@ -8051,9 +8093,15 @@ export function cloneFroms(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): vo
 		const a6: rs.Vec<Kept.Kept> = rs.vecFrom([kept(0), kept(1)]);
 		const _555: rs.usize = len(0);
 		rs.vecTruncate(a6, _555, rs.drop);
-		const b5: rs.Vec<Kept.Kept> = rs.iterToVec(rs.iterMap(new rs.Range(0, len(1)), (i6: rs.usize): Kept.Kept => {
-			return kept(rs.usizeAdd(2, i6));
-		}), undefined, 8, true);
+		let start2 = 0;
+		let end2 = len(1);
+		const v2: rs.Vec<Kept.Kept> = rs.vecWithCapacity(Math.max(end2 - start2, 0), 8);
+		while (!(start2 >= end2)) {
+			const x2 = start2++;
+			const y2: Kept.Kept = kept(rs.usizeAdd(2, x2));
+			v2.items.push(y2);
+		}
+		const b5: rs.Vec<Kept.Kept> = v2;
 		flush(log.value, out);
 		rs.vecCloneFrom(a6, b5, 8, Kept.clone$Clone, rs.drop, rs.cloneFromFn(Kept.cloneFrom$Clone as (a0: Kept.Kept, a1: Kept.Kept) => undefined));
 		flush(log.value, out);
@@ -8181,21 +8229,26 @@ export function repeats(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void 
 		const some: rs.Vec<Logged.Logged | undefined> = rs.vecFromElem(logged(part10), n(1), option_clone$1jx0028, rs.drop);
 		const none: rs.Vec<Logged.Logged | undefined> = rs.vecFromElem(undefined as Logged.Logged | undefined, n(2), option_clone$1jx0028, rs.drop);
 		flush(log.value, out);
-		rs.iterExtendBytes(out, rs.iterMap(rs.iterSlice(some.items), (x: Logged.Logged | undefined): rs.u8 => {
-			return option_mapOr$15gmqsv(x, 254, Logged.id);
+		rs.iterExtendBytes(out, rs.iterMap(rs.iterSlice(some.items), (x2: Logged.Logged | undefined): rs.u8 => {
+			return option_mapOr$15gmqsv(x2, 254, Logged.id);
 		}), undefined, true);
 		rs.byteVecPush(out, none.items.length & 0xff);
 		const part11 = at(3);
+		const _186: Logged.Logged = logged(part11);
 		const _194: rs.u8 = at(4);
-		const pairs: rs.Vec<[Logged.Logged, rs.String]> = rs.vecFromElem([logged(part11), rs.fmtToString((f: rs.Formatter) => rs.u8Display(_194, f), 0)] as [Logged.Logged, rs.String], n(5), (a02: [Logged.Logged, rs.String]): [Logged.Logged, rs.String] => {
+		const pairs: rs.Vec<[Logged.Logged, rs.String]> = rs.vecFromElem([_186, rs.fmtToString((f: rs.Formatter) => rs.u8Display(_194, f), 0)] as [Logged.Logged, rs.String], n(5), (a02: [Logged.Logged, rs.String]): [Logged.Logged, rs.String] => {
 			return rs.tupleClone(a02, [Logged.clone$Clone, (a03: rs.String): rs.String => {
 				return rs.stringClone(a03);
 			}]);
 		}, drop$tuple2_clones_Logged_String);
 		flush(log.value, out);
-		rs.iterForEach(rs.iterSlice(pairs.items), (_2: [Logged.Logged, rs.String]): undefined => {
-			rs.iterExtendBytes(out, rs.iterChain(rs.strBytes(_2[1].v), rs.iterSlice(Uint8Array.of(Logged.id(_2[0])))), undefined, true);
-		});
+		const s2 = pairs.items;
+		let front2 = 0;
+		let back2 = s2.length;
+		while (!(front2 >= back2)) {
+			const x3 = s2[front2++];
+			rs.iterExtendBytes(out, rs.iterChain(rs.strBytes(x3[1].v), rs.iterSlice(Uint8Array.of(Logged.id(x3[0])))), undefined, true);
+		}
 		drop$tuple3_Vec_Option_clones_Logged_Vec_Option_clones_Logged_Vec_tuple2_clones_Logged_String([some, none, pairs] as [rs.Vec<Logged.Logged | undefined>, rs.Vec<Logged.Logged | undefined>, rs.Vec<[Logged.Logged, rs.String]>]);
 		flush(log.value, out);
 	} else if (_12 === 5) {
@@ -8204,9 +8257,13 @@ export function repeats(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void 
 			return rs.vecFrom(a0.items.map(Logged.clone$Clone));
 		}, drop$Vec_clones_Logged);
 		flush(log.value, out);
-		rs.iterForEach(rs.iterSlice(v5.items), (row2: rs.Vec<Logged.Logged>): undefined => {
-			_11(rs.sliceFrom(row2.items), out);
-		});
+		const s = v5.items;
+		let front = 0;
+		let back = s.length;
+		while (!(front >= back)) {
+			const x = s[front++];
+			_11(rs.sliceFrom(x.items), out);
+		}
 		rs.dropVec(v5, drop$Vec_clones_Logged);
 		flush(log.value, out);
 	} else if (_12 === 6) {

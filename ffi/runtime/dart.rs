@@ -13,6 +13,7 @@
 use std::cell::Cell;
 use std::collections::VecDeque;
 use std::ffi::{CStr, c_char, c_void};
+use std::mem::{ManuallyDrop, MaybeUninit};
 use std::panic::AssertUnwindSafe;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::{Arc, Condvar, Mutex, MutexGuard, OnceLock};
@@ -133,6 +134,39 @@ pub unsafe fn disown(own: *mut c_void, object: *mut c_void) {
 	unsafe { (api().unfinalize)(own, object) }
 }
 
+/// The slots of a nursery of `len` objects, which Dart fills: `len`, then each object's
+/// handle, then the C function freeing it, the handle null while the slot is out. Once the
+/// garbage collector finds `object`, the nursery, unreachable, as when its isolate exits,
+/// each handle still in a slot is freed.
+///
+/// # Safety
+/// Called from Dart in its isolate, with `object` a handle of the Dart object, which writes
+/// only handles the function beside each frees, and only while reachable.
+pub unsafe fn nursery(object: *mut c_void, len: usize) -> *mut *mut c_void {
+	unsafe extern "C" fn finalize(_: *mut c_void, slots: *mut c_void) {
+		let slots = slots.cast::<*mut c_void>();
+		// SAFETY: `nursery` made `slots`, whose first word is its length.
+		let len = unsafe { *slots } as usize;
+		// SAFETY: as above, nothing writes it once the nursery is unreachable.
+		let slots = unsafe { Box::from_raw(std::ptr::slice_from_raw_parts_mut(slots, 1 + 2 * len)) };
+		for i in 0..len {
+			let raw = slots[1 + i];
+			if !raw.is_null() {
+				// SAFETY: Dart's contract: each handle beside the function that frees it.
+				let free = unsafe { std::mem::transmute::<*mut c_void, unsafe extern "C" fn(*mut c_void)>(slots[1 + len + i]) };
+				// SAFETY: as above, and this frees each at most once, as no Dart object owns it.
+				unsafe { free(raw) };
+			}
+		}
+	}
+	let mut slots = vec![std::ptr::null_mut::<c_void>(); 1 + 2 * len].into_boxed_slice();
+	slots[0] = len as *mut c_void;
+	let slots = Box::into_raw(slots).cast::<*mut c_void>();
+	// SAFETY: the caller's contract.
+	unsafe { own(object, slots.cast(), finalize) };
+	slots
+}
+
 /// An isolate: its port, and the calls into it other threads wait on. One lives for each
 /// isolate that loads the library, and is never freed, since nothing tells Rust an
 /// isolate exited.
@@ -217,27 +251,30 @@ impl Home {
 		if self.here() {
 			return f();
 		}
-		let mut f = Some(f);
-		let mut out = None;
-		let mut run = || out = Some((f.take().expect("a job runs once"))());
-		let run: &mut (dyn FnMut() + '_) = &mut run;
-		// SAFETY: this thread waits below until the job ran, so `run` outlives its use.
-		let run: *mut (dyn FnMut() + 'static) = unsafe { std::mem::transmute(run) };
+		let mut out = MaybeUninit::uninit();
+		let mut run = ManuallyDrop::new(|| {
+			out.write(f());
+		});
 		let job = Arc::new(Job {
-			run: Mutex::new(Some(Run(run))),
+			// SAFETY: this thread waits below until the job ran, so `run` outlives its use.
+			run: Mutex::new(Some(unsafe { Run::new(&mut run) })),
 			thread: rt::thread(),
+			waiter: std::thread::current(),
 			done: Mutex::new(false),
 			ran: Condvar::new(),
 		});
 		if !self.push(Task::Call(job.clone())) {
 			rt::fail(what, "the Dart isolate it calls into has exited");
 		}
-		let mut done = job.done.lock().unwrap_or_else(|e| e.into_inner());
-		while !*done {
-			done = job.ran.wait(done).unwrap_or_else(|e| e.into_inner());
+		// A home runs meanwhile what the Dart it calls asks of the values it holds.
+		if !rt::Thread::serve_until(|| *job.done.lock().unwrap_or_else(|e| e.into_inner())) {
+			let mut done = job.done.lock().unwrap_or_else(|e| e.into_inner());
+			while !*done {
+				done = job.ran.wait(done).unwrap_or_else(|e| e.into_inner());
+			}
 		}
-		drop(done);
-		out.expect("the job ran")
+		// SAFETY: the job is done only once it ran.
+		unsafe { out.assume_init() }
 	}
 
 	/// Run `f`, a call from Dart, at once if Rust holds no relay of this isolate, since
@@ -252,32 +289,27 @@ impl Home {
 		if self.relays.load(Ordering::Acquire) == 0 {
 			return f();
 		}
-		let mut f = Some(f);
-		let mut out = None;
-		let mut run = || {
-			let f = f.take().expect("a call runs once");
-			out = Some(std::panic::catch_unwind(AssertUnwindSafe(f)));
-		};
-		let run: &mut (dyn FnMut() + '_) = &mut run;
-		// SAFETY: the caller's contract.
-		unsafe { self.serve_relays(run) };
-		match out.expect("the call ran") {
-			Ok(result) => result,
-			Err(panic) => std::panic::resume_unwind(panic),
-		}
+		// Each of the glue's thousands of calls instantiates this, so it holds no `Option`,
+		// `expect`, or `catch_unwind` of its own: the worker aborts on a panic instead.
+		let mut out = MaybeUninit::uninit();
+		let mut run = ManuallyDrop::new(|| {
+			out.write(f());
+		});
+		// SAFETY: the caller's contract, and `serve_relays` returns once `run` returned.
+		unsafe { self.serve_relays(Run::new(&mut run)) };
+		// SAFETY: as above.
+		unsafe { out.assume_init() }
 	}
 
-	/// Lend `run` to a worker and run each task queued for this isolate's thread until the
-	/// worker finishes it. Not generic, so every `serve` shares this loop's code.
+	/// Lend `run` to a worker, which calls it once, and run each task queued for this
+	/// isolate's thread until it returns. Not generic, so every `serve` shares this code.
 	///
 	/// # Safety
 	/// Called from Dart in this isolate, and `run` makes only calls through the C ABI.
 	#[inline(never)]
-	unsafe fn serve_relays(&'static self, run: &mut (dyn FnMut() + '_)) {
+	unsafe fn serve_relays(&'static self, run: Run) {
 		let acting = rt::thread();
 		let done = Arc::new(AtomicBool::new(false));
-		// SAFETY: this thread waits below until `run` returned, so it outlives its use.
-		let run = Run(unsafe { std::mem::transmute(run) });
 		Worker::lend(Lent {
 			run,
 			home: self,
@@ -349,8 +381,12 @@ impl Worker {
 			};
 			drop(call);
 			ACTING.set(acting);
+			// A panic here would leave the lending thread waiting forever, so it aborts, as
+			// one through the C ABI would.
 			// SAFETY: the lending thread waits until `done`.
-			unsafe { (*run.0)() };
+			if std::panic::catch_unwind(AssertUnwindSafe(|| unsafe { run.run() })).is_err() {
+				rt::fail("dart", "a call from Dart panicked");
+			}
 			let tasks = home.lock();
 			done.store(true, Ordering::Release);
 			drop(tasks);
@@ -367,16 +403,45 @@ pub fn acting() -> Option<usize> {
 	Some(ACTING.get()).filter(|&id| id != 0)
 }
 
-struct Run(*mut (dyn FnMut() + 'static));
+/// A closure another thread calls once, erased to a function and its data rather than a
+/// `dyn FnOnce`, whose vtable would compile an unused shim of every call's closure.
+struct Run {
+	call: unsafe fn(*mut ()),
+	data: *mut (),
+}
 
 // SAFETY: the thread that made it waits until it ran.
 unsafe impl Send for Run {}
+
+impl Run {
+	/// # Safety
+	/// `f` outlives the call, which takes it, and is not otherwise called or dropped.
+	unsafe fn new<F: FnOnce()>(f: &mut ManuallyDrop<F>) -> Self {
+		unsafe fn call<F: FnOnce()>(data: *mut ()) {
+			// SAFETY: `new`'s contract.
+			unsafe { ManuallyDrop::take(&mut *data.cast::<ManuallyDrop<F>>())() }
+		}
+		Run {
+			call: call::<F>,
+			data: std::ptr::from_mut(f).cast(),
+		}
+	}
+
+	/// # Safety
+	/// What made it is still alive, as [`Run::new`] requires.
+	unsafe fn run(self) {
+		// SAFETY: the caller's contract.
+		unsafe { (self.call)(self.data) }
+	}
+}
 
 /// A call into Dart another thread waits on.
 pub struct Job {
 	run: Mutex<Option<Run>>,
 	/// The waiting thread, which the isolate's acts as while it runs the call.
 	thread: usize,
+	/// The waiting thread, which a home's wait parks.
+	waiter: std::thread::Thread,
 	done: Mutex<bool>,
 	ran: Condvar,
 }
@@ -384,14 +449,15 @@ pub struct Job {
 impl Job {
 	fn run(&self) {
 		let run = self.run.lock().unwrap_or_else(|e| e.into_inner()).take();
-		if let Some(Run(run)) = run {
+		if let Some(run) = run {
 			let was = ACTING.replace(self.thread);
 			// SAFETY: the waiting thread keeps it alive until `done`.
-			unsafe { (*run)() };
+			unsafe { run.run() };
 			ACTING.set(was);
 		}
 		*self.done.lock().unwrap_or_else(|e| e.into_inner()) = true;
 		self.ran.notify_all();
+		self.waiter.unpark();
 	}
 }
 

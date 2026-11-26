@@ -327,10 +327,19 @@ export function extended(data: rs.ByteSlice, out: rs.ByteVec): void {
 
 /** `Extend<&T>` and `Extend<(&K, &V)>`, which store copies of what the items borrow. */
 export function borrowed(data: rs.ByteSlice, out: rs.ByteVec): void {
-	const points: rs.Vec<Spot.Spot> = rs.iterToVec(rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (_2: rs.u8): Spot.Spot => {
+	const s2 = rs.byteSliceView(data);
+	let front = 0;
+	let back = s2.length;
+	const f = (_2: rs.u8): Spot.Spot => {
 		const b: rs.u8 = _2;
 		return { x: b, y: ((b as rs.u16) << 2) & 0xffff };
-	}), undefined, 4, true);
+	};
+	const v2: rs.Vec<Spot.Spot> = rs.vecWithCapacity(back - front, 4);
+	while (!(front >= back)) {
+		const y: Spot.Spot = f(s2[front++]);
+		v2.items.push(y);
+	}
+	const points: rs.Vec<Spot.Spot> = v2;
 	const t: [rs.ByteVec, rs.Vec<Spot.Spot>, rs.HashMap<rs.u8, rs.u8>, rs.String] = [new rs.ByteVec(), new rs.Vec(), rs.hashNew() as rs.HashMap<rs.u8, rs.u8>, rs.stringNew()];
 	const marks: rs.char[] = [122, 233];
 	const _11: rs.Iter<[rs.u8, Spot.Spot]> = rs.iterZip(rs.iterSlice(rs.byteSliceView(data)), rs.iterSlice(points.items), [false, false]);
@@ -423,11 +432,22 @@ export function dropped(data: rs.ByteSlice, out: rs.ByteVec): void {
 	}), undefined, true);
 	rs.btreeDrop(tree, undefined, rs.drop);
 	flush(log.value, out);
-	const source: rs.Vec<[Logged.Logged, rs.u8]> = rs.iterToVec(rs.iterMap(rs.iterEnumerate(rs.iterSlice(rs.byteSliceView(data))), (_29: [rs.usize, rs.u8]): [Logged.Logged, rs.u8] => {
+	const s = rs.byteSliceView(data);
+	let front = 0;
+	let back = s.length;
+	let count = 0;
+	const f = (_29: [rs.usize, rs.u8]): [Logged.Logged, rs.u8] => {
 		const i4: rs.usize = _29[0];
 		const b3: rs.u8 = _29[1];
 		return [logged(i4 & 0xff, b3), b3] as [Logged.Logged, rs.u8];
-	}), undefined, 12, true);
+	};
+	const v2: rs.Vec<[Logged.Logged, rs.u8]> = rs.vecWithCapacity(back - front, 12);
+	while (!(front >= back)) {
+		const x = s[front++];
+		const y: [Logged.Logged, rs.u8] = f([count++, x]);
+		v2.items.push(y);
+	}
+	const source: rs.Vec<[Logged.Logged, rs.u8]> = v2;
 	const n: rs.usize = rs.u8Rem(option_unwrapOr$1fr498u(rs.byteSliceFirst(data), 0), 8) as rs.usize;
 	const _87: rs.Iter<[Logged.Logged, rs.u8]> = rs.iterTake(rs.vecIntoIter(source, drop$tuple2_tuples_Logged_u8), n, drop$tuple2_tuples_Logged_u8);
 	const _86: [rs.Vec<Logged.Logged>, rs.ByteVec] = rs.tupleExtend([new rs.Vec(), new rs.ByteVec()] as [rs.Vec<Logged.Logged>, rs.ByteVec], _87, [rs.vecPart(8), rs.byteVecPart()], "fold");
@@ -590,13 +610,21 @@ export function made(b: rs.u8): void {
  * `extend` of `Some` of each item, in field order, after each default in field order.
  */
 export function own(data: rs.ByteSlice, out: rs.ByteVec): void {
-	const data2: rs.ByteVec = rs.iterToByteVec(rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (_2: rs.u8): rs.u8 => {
+	const s3 = rs.byteSliceView(data);
+	let front = 0;
+	let back = s3.length;
+	const f = (_2: rs.u8): rs.u8 => {
 		const b2: rs.u8 = _2;
 		if (!(b2 === 238)) {
 			return b2;
 		}
 		return 237;
-	}), undefined, true);
+	};
+	const v6: rs.ByteVec = rs.byteVecWithCapacity(back - front);
+	while (!(front >= back)) {
+		rs.byteVecPush(v6, f(s3[front++]));
+	}
+	const data2: rs.ByteVec = v6;
 	set$0e2h2hd(NEXT, 0);
 	rs.localKeyWithBorrowMut(CALLS, (a0: rs.ByteVec): undefined => {
 		rs.byteVecClear(a0);
@@ -725,14 +753,25 @@ export function own(data: rs.ByteSlice, out: rs.ByteVec): void {
 	}
 	calls(out);
 	const log: rs.Arc<rs.RefCell<rs.ByteVec>> = new rs.Arc(new rs.RefCell(new rs.ByteVec()));
-	const held: rs.Result<[rs.Vec<Logged.Logged>, Tally.Tally], rs.u8> = rs.iterCollectResult(rs.vecIntoIter(rs.iterToVec(rs.iterMap(rs.iterEnumerate(rs.iterSlice(rs.byteSliceView(rs.byteVecSlice(data2)))), (_219: [rs.usize, rs.u8]): rs.Result<[Logged.Logged, rs.u8], rs.u8> => {
+	const s4 = rs.byteSliceView(rs.byteVecSlice(data2));
+	let front2 = 0;
+	let back2 = s4.length;
+	let count = 0;
+	const f2 = (_219: [rs.usize, rs.u8]): rs.Result<[Logged.Logged, rs.u8], rs.u8> => {
 		const i: rs.usize = _219[0];
 		const b17: rs.u8 = _219[1];
 		if (!(128 <= b17)) {
 			return rs.Ok([new Logged.Logged(i & 0xff, b17, rs.arcClone(log)), b17] as [Logged.Logged, rs.u8]);
 		}
 		return rs.Err(b17);
-	}), undefined, 12, true), drop$Result_tuple2_tuples_Logged_u8_u8), (values: rs.Iter<[Logged.Logged, rs.u8]>) => rs.tupleExtend([new rs.Vec(), Tally.default$Default()] as [rs.Vec<Logged.Logged>, Tally.Tally], values, [rs.vecPart(8), rs.ownPart(Tally.extend$iter_Extend_u8_Option_u8 as (a0: Tally.Tally, a1: rs.u8 | undefined) => undefined)], "fold"), drop$tuple2_Vec_tuples_Logged_tuples_Tally);
+	};
+	const v7: rs.Vec<rs.Result<[Logged.Logged, rs.u8], rs.u8>> = rs.vecWithCapacity(back2 - front2, 12);
+	while (!(front2 >= back2)) {
+		const x2 = s4[front2++];
+		const y2: rs.Result<[Logged.Logged, rs.u8], rs.u8> = f2([count++, x2]);
+		v7.items.push(y2);
+	}
+	const held: rs.Result<[rs.Vec<Logged.Logged>, Tally.Tally], rs.u8> = rs.iterCollectResult(rs.vecIntoIter(v7, drop$Result_tuple2_tuples_Logged_u8_u8), (values: rs.Iter<[Logged.Logged, rs.u8]>) => rs.tupleExtend([new rs.Vec(), Tally.default$Default()] as [rs.Vec<Logged.Logged>, Tally.Tally], values, [rs.vecPart(8), rs.ownPart(Tally.extend$iter_Extend_u8_Option_u8 as (a0: Tally.Tally, a1: rs.u8 | undefined) => undefined)], "fold"), drop$tuple2_Vec_tuples_Logged_tuples_Tally);
 	flush(log.value, out);
 	if (held.ok) {
 		const v5: rs.Vec<Logged.Logged> = held.value[0];

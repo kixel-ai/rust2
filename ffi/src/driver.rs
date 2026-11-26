@@ -7,49 +7,340 @@ use std::process::{Command, ExitCode};
 use rustc_ast as ast;
 use rustc_data_structures::fx::FxHashSet;
 use rustc_driver::{Callbacks, Compilation};
-use rustc_hir::def::{DefKind, Res};
-use rustc_hir::def_id::{DefId, LOCAL_CRATE};
 use rustc_interface::interface::Compiler;
-use rustc_lexer::{FrontmatterAllowed, TokenKind};
-use rustc_middle::middle::resolve::Reexport;
 use rustc_middle::ty::TyCtxt;
 use rustc_parse::lexer::StripTokens;
 use rustc_parse::parser::{AllowConstBlockItems, ForceCollect};
-use rustc_span::{FileName, Span, sym};
+use rustc_span::{FileName, Span};
 
 use crate::abi::Abi;
-use crate::config::{self, Config};
+use crate::config;
 use crate::ir::{self, Api};
 use crate::{census, collect, glue, merge};
 
-/// Run as rustc, with `args` as cargo passed them: the wrapped rustc's path first.
-pub fn run(args: Vec<String>) -> ExitCode {
-	// A build script's probe of the compiler, as `rustversion` and `autocfg` make, runs the
-	// rustc cargo resolved, the one the glue builds with, rather than this nightly, so the
-	// check exports no item a nightly probe enables that the glue's build then lacks. Cargo
-	// sets `CARGO_CFG_*` for build scripts alone, and the CLI runs cargo without them.
-	if std::env::var_os("CARGO_CFG_TARGET_ARCH").is_some() {
-		return match Command::new(&args[1]).args(&args[2..]).status() {
-			Ok(status) => ExitCode::from(status.code().and_then(|code| u8::try_from(code).ok()).unwrap_or(1)),
-			Err(err) => {
-				eprintln!("rust2-ffi: running {}: {err}", args[1]);
-				ExitCode::FAILURE
-			}
-		};
+/// Run as cargo's rustc or its wrapper, as the environment the CLI gives cargo says, with
+/// `args` as cargo passed them; `None` when neither is set, as the CLI was run.
+pub(crate) fn run(args: &[String]) -> Option<ExitCode> {
+	if let Some(dir) = std::env::var_os(config::env::RECORD) {
+		return Some(fail_loud(record(args, Path::new(&dir))));
 	}
-	rust2_driver::rustc::run("rust2-ffi", args, |args, _| {
-		Ok(Export::for_args(args)?.map(|job| Box::new(job) as rust2_driver::rustc::Job))
+	let rustc = PathBuf::from(std::env::var_os(config::env::RUSTC)?);
+	let exe = match std::env::current_exe() {
+		Ok(exe) => exe,
+		Err(err) => return Some(fail_loud(Err(format!("finding this executable: {err}")))),
+	};
+	// Cargo passes the rustc to wrap, this executable by another spelling, to the
+	// workspace's wrapper alone.
+	let exe = std::fs::canonicalize(&exe).unwrap_or(exe);
+	let wrapped = args
+		.get(1)
+		.is_some_and(|arg| std::fs::canonicalize(arg).is_ok_and(|arg| arg == exe));
+	let mut args = args.to_vec();
+	if !wrapped {
+		args.insert(1, args[0].clone());
+	}
+	Some(compile(args, &rustc, wrapped))
+}
+
+fn fail_loud(code: Result<ExitCode, String>) -> ExitCode {
+	code.unwrap_or_else(|err| {
+		eprintln!("rust2-ffi: {err}");
+		ExitCode::FAILURE
 	})
 }
 
+/// Compile as rustc, with `args` as cargo passed them to its wrapper: the wrapped rustc's
+/// path first. Only the workspace's own crates, which cargo `wrapped`, may be the facade or
+/// the generated crate whose compilation writes the export: a cache serves the others, and
+/// those of the workspace's own the export only compiles, which this hands back to cargo's
+/// `RUSTC_WRAPPER` as cargo would have run it for a crate outside the workspace.
+fn compile(args: Vec<String>, rustc: &Path, wrapped: bool) -> ExitCode {
+	// A build script's probe of the compiler, as `rustversion` and `autocfg` make, runs the
+	// rustc cargo resolved, the one the glue builds with, rather than this nightly, so the
+	// check exports no item a nightly probe enables that the glue's build then lacks. It
+	// takes the check's rustflags without the export's own, as that build would. Cargo sets
+	// `CARGO_CFG_*` for build scripts alone, and the CLI runs cargo without them.
+	if std::env::var_os("CARGO_CFG_TARGET_ARCH").is_some() {
+		return fail_loud(added().map(|added| run_rustc(rustc, &without(&args[2..], &added))));
+	}
+	if wrapped && let Err(err) = record_cfgs(&args, rustc) {
+		eprintln!("rust2-ffi: {err}");
+		return ExitCode::FAILURE;
+	}
+	let job = match wrapped {
+		true => job(&args),
+		false => Ok(None),
+	};
+	// mbx defers to a workspace wrapper, so it caches a workspace crate only when the wrapper
+	// runs it as cargo runs any other: the wrapper, then the rustc cargo passed, this
+	// executable spelled apart from the wrapper, which compiles it as rustc would.
+	if wrapped
+		&& matches!(job, Ok(None))
+		&& let Some(wrapper) = std::env::var_os("RUSTC_WRAPPER").filter(|wrapper| !wrapper.is_empty())
+	{
+		return run_rustc(Path::new(&wrapper), &args[1..]);
+	}
+	rust2_driver::rustc::run("rust2-ffi", args, |_, _| job)
+}
+
+/// The job for a crate cargo `wrapped`, with `args` as cargo passed them: the walk of the
+/// glue, the export of the facade, or `None` for a crate the export only compiles.
+fn job(args: &[String]) -> Result<Option<rust2_driver::rustc::Job>, String> {
+	// The job reads rustc's own arguments, as `rust2_driver::rustc::run` passes them: an
+	// argfile's read, and the wrapped rustc's path gone.
+	let early = rustc_session::EarlyDiagCtxt::new(rustc_session::config::ErrorOutputType::default());
+	let args = [&args[..1], &rustc_driver::args::arg_expand_all(&early, &args[2..])].concat();
+	if let Some(walk) = crate::wasm::Walk::for_args(&args)? {
+		return Ok(Some(Box::new(walk)));
+	}
+	Ok(Export::for_args(&args)?.map(|job| Box::new(job) as rust2_driver::rustc::Job))
+}
+
+/// Run `rustc` with `args`, exiting as it does.
+fn run_rustc(rustc: &Path, args: &[String]) -> ExitCode {
+	match Command::new(rustc).args(args).status() {
+		Ok(status) => ExitCode::from(status.code().and_then(|code| u8::try_from(code).ok()).unwrap_or(1)),
+		Err(err) => {
+			eprintln!("rust2-ffi: running {}: {err}", rustc.display());
+			ExitCode::FAILURE
+		}
+	}
+}
+
+/// The rustflags the export adds after the consumer's, as [`config::env::ADDED`] holds them.
+fn added() -> Result<Vec<String>, String> {
+	let added =
+		std::env::var(config::env::ADDED).map_err(|_| format!("{} is unset or not UTF-8", config::env::ADDED))?;
+	Ok(added
+		.split('\x1f')
+		.filter(|flag| !flag.is_empty())
+		.map(str::to_string)
+		.collect())
+}
+
+/// `args` without the last run of them that is `added`: what they were before the export
+/// added its rustflags after the consumer's.
+fn without(args: &[String], added: &[String]) -> Vec<String> {
+	let at = (!added.is_empty())
+		.then(|| args.windows(added.len()).rposition(|run| run == added))
+		.flatten();
+	match at {
+		Some(at) => [&args[..at], &args[at + added.len()..]].concat(),
+		None => args.to_vec(),
+	}
+}
+
+/// What cargo passes the crates of one target, as its query of that target shows it.
+#[derive(Clone, serde::Serialize, serde::Deserialize)]
+pub(crate) struct Recorded {
+	/// The rustc cargo resolved, which the glue builds with.
+	pub(crate) rustc: PathBuf,
+	/// The consumer's rustflags for the target, from wherever cargo read them.
+	pub(crate) flags: Vec<String>,
+}
+
+impl Recorded {
+	/// The file in `dir` [`record`] writes into.
+	pub(crate) fn path(dir: &Path) -> PathBuf {
+		dir.join("target.json")
+	}
+}
+
+/// As the workspace's wrapper for a `cargo metadata` of one target the export checks, on
+/// cargo's query of that target, record what it passes the target's crates into `dir`; then
+/// run the rustc cargo wraps as it asked.
+fn record(args: &[String], dir: &Path) -> Result<ExitCode, String> {
+	let [_, rustc, rest @ ..] = args else {
+		return Err("ran as a wrapper with no rustc to wrap".to_string());
+	};
+	// Cargo passes args in an argfile once they overflow a command line, which no
+	// environment variable the check passes them on in holds either.
+	if let [argfile] = rest
+		&& argfile.starts_with('@')
+	{
+		return Err(format!(
+			"cargo passed rustc its args in an argfile, {argfile}: the target's rustflags are too long to pass on"
+		));
+	}
+	if rest.windows(2).any(|w| w[0] == "--crate-name" && w[1] == "___") {
+		// Cargo's query lists the target's rustflags between these two.
+		let start = (rest.iter().position(|arg| arg == "--print=file-names")).ok_or_else(|| {
+			format!(
+				"cargo's query of a target is not as rust2-ffi reads it: {}",
+				rest.join(" ")
+			)
+		})?;
+		let end = rest[start..]
+			.iter()
+			.position(|arg| arg == "--target")
+			.map(|at| start + at);
+		// The host's, which a check for a named target compiles build scripts and proc macros
+		// for, without its rustflags, has none.
+		if let Some(end) = end {
+			let recorded = Recorded {
+				rustc: rustc.into(),
+				flags: rest[start + 1..end].to_vec(),
+			};
+			let path = Recorded::path(dir);
+			let json = serde_json::to_string(&recorded).expect("paths and strings serialize");
+			// Cargo queries the target again once its `cfg`s select more rustflags, until they
+			// settle, so its last query holds what it compiles with. Filtered to one target, it
+			// queries no other with `--target`.
+			std::fs::write(&path, json)
+				.map_err(|err| format!("recording cargo's query of a target in {}: {err}", path.display()))?;
+		}
+	}
+	Ok(run_rustc(Path::new(rustc), rest))
+}
+
+/// What the wrapper finds in cargo's query of the target, which carries the check's
+/// `RUSTFLAGS` and nothing of the profile's.
+#[derive(serde::Serialize, serde::Deserialize)]
+struct Queried {
+	/// rustc's `--print=cfg`, in each view a build may see.
+	printed: Vec<String>,
+	/// How many debug info flags `RUSTFLAGS` holds, which follow cargo's own.
+	debuginfo: usize,
+}
+
+/// On cargo's query of the target, write the `cfg`s cargo's own rustc prints for it to
+/// [`config::env::CFGS`]: what cargo gives the glue's build script under the check's
+/// `RUSTFLAGS`, as a build with that rustc does, rather than this nightly's. Then as it
+/// prints them acting as a stable release, which keeps unstable `cfg`s back, as a stable
+/// build of the glue does whatever rustc exported it. The query names the target, and the
+/// crate `___`.
+fn record_cfgs(args: &[String], rustc: &Path) -> Result<(), String> {
+	let Some(path) = std::env::var_os(config::env::CFGS) else {
+		return Ok(());
+	};
+	// Cargo passes the args in an argfile once they overflow a command line, as many
+	// `RUSTFLAGS` may.
+	let early = rustc_session::EarlyDiagCtxt::new(rustc_session::config::ErrorOutputType::default());
+	let expanded = without(&rustc_driver::args::arg_expand_all(&early, &args[2..]), &added()?);
+	let query = expanded.windows(2).any(|w| w[0] == "--crate-name" && w[1] == "___")
+		&& expanded
+			.iter()
+			.any(|arg| arg == "--target" || arg.starts_with("--target="))
+		&& expanded.iter().any(|arg| arg == "--print=cfg");
+	if !query {
+		return Ok(());
+	}
+	// Its args without what it prints, and the crate types `--print=file-names` reads, in
+	// an argfile of its own.
+	let mut asked = Vec::new();
+	let mut rest = expanded.iter();
+	while let Some(arg) = rest.next() {
+		match arg.as_str() {
+			"--print" | "--crate-type" => {
+				rest.next();
+			}
+			_ if arg.starts_with("--print=") || arg.starts_with("--crate-type=") => {}
+			_ => asked.push(arg.as_str()),
+		}
+	}
+	let argfile = Path::new(&path).with_extension("args");
+	asked.push("--print=cfg");
+	std::fs::write(&argfile, asked.join("\n")).map_err(|err| format!("writing {}: {err}", argfile.display()))?;
+	let mut at = std::ffi::OsString::from("@");
+	at.push(&argfile);
+	// A stable release refuses the `-Z` flags a nightly's `RUSTFLAGS` may hold, and a build
+	// with them is a nightly's.
+	let nightly = asked.iter().any(|arg| arg.starts_with("-Z"));
+	let print = |stable: bool| {
+		let mut cmd = Command::new(rustc);
+		cmd.arg(&at).stdin(std::process::Stdio::null());
+		if stable {
+			cmd.env("RUSTC_BOOTSTRAP", "-1");
+		}
+		let output = cmd
+			.output()
+			.map_err(|err| format!("running {}: {err}", rustc.display()))?;
+		match output.status.success() {
+			true => {
+				String::from_utf8(output.stdout).map_err(|_| format!("{} printed a non-UTF-8 cfg", rustc.display()))
+			}
+			false => Err(format!(
+				"{} --print=cfg failed ({}): {}",
+				rustc.display(),
+				output.status,
+				String::from_utf8_lossy(&output.stderr).trim()
+			)),
+		}
+	};
+	let mut printed = vec![print(false)?];
+	if !nightly {
+		printed.push(print(true)?);
+	}
+	printed.dedup();
+	let queried = Queried {
+		printed,
+		debuginfo: debuginfo(&expanded).len(),
+	};
+	let json = serde_json::to_string(&queried).expect("strings serialize");
+	std::fs::write(&path, json).map_err(|err| format!("writing {}: {err}", Path::new(&path).display()))
+}
+
+/// The value of each debug info flag in rustc's `args`, in order.
+fn debuginfo(args: &[String]) -> Vec<&str> {
+	let mut values = Vec::new();
+	let mut rest = args.iter().map(String::as_str);
+	while let Some(arg) = rest.next() {
+		let codegen = match arg {
+			"-g" => {
+				values.push("2");
+				continue;
+			}
+			"-C" | "--codegen" => rest.next(),
+			_ => arg.strip_prefix("-C").or_else(|| arg.strip_prefix("--codegen=")),
+		};
+		values.extend(codegen.and_then(|c| c.strip_prefix("debuginfo=")));
+	}
+	values
+}
+
+/// Cargo's `DEBUG` for the crate rustc compiles with `args`: whether cargo passed it debug
+/// info, before the `queried` flags of `RUSTFLAGS`, which may set another.
+fn cargo_debug(args: &[String], queried: usize) -> bool {
+	let values = debuginfo(args);
+	values.len() > queried && !matches!(values[0], "0" | "none")
+}
+
+/// The `cfg`s rustc's `--print=cfg` lists, as cargo gives a build script them: each name's
+/// values joined by commas in the order rustc lists them, by the name as cargo's
+/// `CARGO_CFG_<NAME>` spells it. Less the crate's features and debug assertions, which
+/// cargo sets from the crate and its profile instead.
+fn cfgs(printed: &str) -> Result<std::collections::BTreeMap<String, String>, String> {
+	let mut values: std::collections::BTreeMap<String, Vec<&str>> = Default::default();
+	for line in printed.lines() {
+		let (name, value) = match line.split_once('=') {
+			None => (line, None),
+			Some((name, value)) => {
+				let value = (value.strip_prefix('"').and_then(|v| v.strip_suffix('"')))
+					.ok_or_else(|| format!("rustc printed the cfg `{line}`, whose value is unquoted"))?;
+				(name, Some(value))
+			}
+		};
+		if name.is_empty() || matches!(name, "feature" | "debug_assertions") {
+			continue;
+		}
+		values
+			.entry(name.to_uppercase().replace('-', "_"))
+			.or_default()
+			.extend(value);
+	}
+	Ok(values
+		.into_iter()
+		.map(|(name, values)| (name, values.join(",")))
+		.collect())
+}
+
 /// The file in the export that holds its API, which `--baseline` reads back.
-pub const API_FILE: &str = "api.json";
+pub(crate) const API_FILE: &str = "api.json";
 
 /// Compiles the facade, exporting its API after analysis.
 struct Export {
 	/// Each crate the facade builds with, as [`config::env::CRATES`] has them.
 	crates: std::collections::BTreeMap<String, String>,
-	config: Config,
 	output: Output,
 	/// The facade's package, with the features rustc compiles it with.
 	facade: config::Package,
@@ -60,8 +351,20 @@ struct Export {
 	merge: Vec<PathBuf>,
 	/// The directories a staged API's spans are relative to.
 	roots: Vec<PathBuf>,
+	/// Each file a staged API's spans name, as [`merge::span::Spans`] loaded it.
+	loaded: merge::span::Loaded,
 	/// The API an earlier export wrote, which this one's must not break.
 	baseline: Option<PathBuf>,
+	/// The `PROFILE` cargo gives a build script of the check.
+	profile: String,
+	/// The directory cargo builds the check's profile in, unless another's could share it.
+	profile_dir: Option<String>,
+	/// The target's `cfg`s as cargo gives a build script them, by [`ir::Profile::cfgs`].
+	cfgs: Vec<std::collections::BTreeMap<String, String>>,
+	/// Cargo's `DEBUG` for the facade.
+	debug: bool,
+	/// The `CARGO_PROFILE_*` variables that may override the profile, with their values.
+	vars: std::collections::BTreeMap<String, Option<String>>,
 }
 
 /// What the job writes.
@@ -77,15 +380,14 @@ enum Output {
 impl Export {
 	/// The job for this rustc invocation, if it compiles the facade's library.
 	fn for_args(args: &[String]) -> Result<Option<Self>, String> {
-		let Some(path) = std::env::var_os(config::env::CONFIG) else {
+		let Some(line) = std::env::var_os(config::env::PACKAGE) else {
 			return Ok(None);
 		};
-		let line = std::env::var(config::env::PACKAGE).map_err(|_| format!("{} is unset", config::env::PACKAGE))?;
-		let mut facade = config::Package::parse(&line)?;
+		let line = (line.to_str()).ok_or_else(|| format!("{} is not UTF-8", config::env::PACKAGE))?;
+		let mut facade = config::Package::parse(line)?;
 		if !rust2_driver::rustc::compiles_lib(args, &facade.name) {
 			return Ok(None);
 		}
-		let config = Config::load(path.as_ref())?;
 		let output = match (
 			std::env::var_os(config::env::OUT),
 			std::env::var_os(config::env::CENSUS),
@@ -132,90 +434,127 @@ impl Export {
 		let baseline = std::env::var_os(config::env::BASELINE)
 			.filter(|p| !p.is_empty())
 			.map(PathBuf::from);
+		let profile = std::env::var(config::env::PROFILE).map_err(|_| format!("{} is unset", config::env::PROFILE))?;
+		let profile_dir =
+			std::env::var(config::env::PROFILE_DIR).map_err(|_| format!("{} is unset", config::env::PROFILE_DIR))?;
+		let profile_dir = Some(profile_dir).filter(|dir| !dir.is_empty());
+		let path = std::env::var_os(config::env::CFGS).ok_or_else(|| format!("{} is unset", config::env::CFGS))?;
+		// Cargo queries the target before it compiles any crate for it.
+		let printed = std::fs::read_to_string(&path)
+			.map_err(|err| format!("reading the target's cfgs from {}: {err}", Path::new(&path).display()))?;
+		let queried: Queried = serde_json::from_str(&printed)
+			.map_err(|err| format!("reading the target's cfgs from {}: {err}", Path::new(&path).display()))?;
+		let cfgs = (queried.printed.iter())
+			.map(|printed| cfgs(printed))
+			.collect::<Result<_, _>>()?;
+		let debug = cargo_debug(args, queried.debuginfo);
+		let vars =
+			std::env::var(config::env::PROFILE_VARS).map_err(|_| format!("{} is unset", config::env::PROFILE_VARS))?;
+		let vars = (vars.split(',').filter(|var| !var.is_empty()))
+			.map(|var| {
+				let value = std::env::var_os(var).map(|value| value.into_string());
+				let value = value.transpose().map_err(|_| format!("{var} is not UTF-8"))?;
+				Ok((var.to_string(), value))
+			})
+			.collect::<Result<_, String>>()?;
 		Ok(Some(Self {
 			crates,
-			config,
 			output,
 			facade,
 			patch,
 			merge,
 			roots,
+			loaded: Default::default(),
 			baseline,
+			profile,
+			profile_dir,
+			cfgs,
+			debug,
+			vars,
 		}))
 	}
 }
 
 impl Callbacks for Export {
+	/// Load std, unnamed, into a `no_std` facade too: the glue links it whatever the facade
+	/// does, so the check that lists the system libraries a static library needs must see it.
+	fn after_crate_root_parsing(&mut self, compiler: &Compiler, krate: &mut ast::Crate) -> Compilation {
+		let source = "extern crate std as _;";
+		let item = rustc_parse::new_parser_from_source_str(
+			&compiler.sess.psess,
+			FileName::anon_source_code(source),
+			source.to_string(),
+			StripTokens::Nothing,
+		)
+		.ok()
+		.and_then(|mut parser| {
+			parser
+				.parse_item(ForceCollect::No, AllowConstBlockItems::DoesNotMatter)
+				.ok()
+		})
+		.flatten()
+		.expect("an extern crate parses");
+		krate.items.insert(0, item);
+		Compilation::Continue
+	}
+
 	fn after_analysis<'tcx>(&mut self, _compiler: &Compiler, tcx: TyCtxt<'tcx>) -> Compilation {
 		if tcx.dcx().has_errors().is_some() {
+			return Compilation::Stop;
+		}
+		if crate::abi::prefix(&self.facade.lib).is_none() {
+			let lib = &self.facade.lib;
+			tcx.dcx().err(format!(
+				"rust2-ffi: the library `{lib}` names no C prefix: without its leading `_`s, its name starts with no letter"
+			));
 			return Compilation::Stop;
 		}
 		let facade = collect::Facade {
 			root: self.facade.root(),
 			package: &self.facade.name,
 			crates: &self.crates,
-			// A census counts the whole API, whatever the config leaves out.
-			exclude: match self.output {
-				Output::Census(_) => &[],
-				Output::Dir(_) | Output::Api(_) => &self.config.exclude,
-			},
-			// It lists instead each item one names that exports.
-			audit: match self.output {
-				Output::Census(_) => &self.config.exclude,
-				Output::Dir(_) | Output::Api(_) => &[],
-			},
+			profile: &self.profile,
+			profile_dir: self.profile_dir.as_deref(),
+			cfgs: &self.cfgs,
+			debug: self.debug,
+			vars: &self.vars,
 		};
-		let collected = collect::collect(tcx, &facade);
-		let report = &collected.report;
+		let mut collected = collect::collect(tcx, &facade);
 		if let Output::Census(dir) = &self.output {
 			let abi = Abi::new(&collected.api, &self.facade.lib);
-			// What Swift refuses needs its exclude, as the export says, so it is not exporting.
-			let swift: FxHashSet<_> = crate::swift::refusals(&abi)
-				.into_iter()
-				.map(|(f, _)| f.shown.clone())
-				.collect();
-			let exporting = exporting(&collected.api, &report.audited, &swift);
-			let text = census::render(&collected.api, report, &exporting, &abi.clashes, &|span| at(tcx, span));
+			// What Swift refuses fails the export too, so the census lists it with the rest.
+			let (api, swift) = swift_refused(&collected.api, &self.facade.lib);
+			let report = &mut collected.report;
+			report.refusals.extend(swift);
+			let text = census::render(&api, report, &abi.clashes, &|span| at(tcx, span));
 			// A census reports what a crate uses, but a missed instance is the exporter's bug.
 			for refusal in &report.refusals {
 				if refusal.why.iter().any(|why| why.construct == collect::NOT_INFERRED) {
-					refuse(tcx, refusal, "inference missed an instance, a bug in rust2-ffi");
+					refuse(tcx, refusal, Some("inference missed an instance, a bug in rust2-ffi"));
 				}
 			}
 			if let Err(err) = write(&dir.join(format!("{}.md", report.package)), &text) {
 				tcx.dcx().err(format!("rust2-ffi: {err}"));
 			}
-			// An exclude that leaves out what would export hides that much of the API.
-			for (exclude, exported) in &exporting {
-				tcx.dcx().err(format!(
-					"rust2-ffi: exclude `{exclude}` in the config leaves out `{}`, which exports",
-					exported.join("`, `")
-				));
-			}
 			return stop_on_errors(tcx);
 		}
+		let report = &collected.report;
 		for refusal in &report.refusals {
-			refuse(tcx, refusal, "exclude it in the config to leave it out");
+			refuse(tcx, refusal, None);
 		}
-		for (path, count) in &report.excluded {
-			if *count == 0 && !configured_out(tcx, path) {
-				tcx.dcx().err(format!(
-					"rust2-ffi: exclude `{path}` in the config names nothing exported"
-				));
-			}
-		}
-		// Refusals still let the export go on to report each clash, but write nothing.
+		// Refusals still let the export go on to report each clash, but write nothing. Those
+		// of the CLI's later steps, the lockfile's and the web target's walk, come once the
+		// export is written, which they check.
 		let target = merge::Target {
 			names: None,
 			package: self.facade.name.clone(),
 			features: self.facade.features.clone(),
-			exclude: self.config.exclude.clone(),
 			api: collected.api,
 		};
 		let written = match &self.output {
 			Output::Census(_) => unreachable!("written above"),
 			Output::Api(_) if tcx.dcx().has_errors().is_some() => Ok(()),
-			Output::Api(path) => target.write(path, tcx.sess.source_map(), &self.roots),
+			Output::Api(path) => target.write(path, &self.spans(tcx)),
 			Output::Dir(out) => match self.merged(tcx, target) {
 				Some(api) => self.export(tcx, api, out),
 				_ => Ok(()),
@@ -228,68 +567,64 @@ impl Callbacks for Export {
 	}
 }
 
-/// Each exclude whose item would export without it, and that item's paths: what an
-/// exclude checked, from [`collect::Report::audited`], that the census's API holds by the
-/// same path, except a function `refused` names by its shown path, since a generic's
-/// instances share a span but Swift may refuse only some.
-fn exporting(
-	api: &Api,
-	audited: &[(String, Vec<String>)],
-	refused: &FxHashSet<ir::Path>,
-) -> Vec<(String, Vec<String>)> {
-	// Every path an exported item is checked by, from the facade's root, as the walk checks it.
-	let mut paths = FxHashSet::default();
-	let mut add = |path: &[String]| {
-		paths.insert(path[1..].join("::"));
-	};
-	let methods = |methods: &[ir::Function], add: &mut dyn FnMut(&[String])| {
-		for f in methods.iter().filter(|f| !refused.contains(&f.shown)) {
-			match f.access {
-				// A field is checked by `field@` and, unless a method or constant takes its
-				// name, by its path, which then names that method or constant instead.
-				ir::Access::Field { shared, .. } => {
-					let mut key = f.shown.clone();
-					key[1].insert_str(0, "field@");
-					add(&key);
-					if !shared {
-						add(&f.shown);
-					}
-				}
-				_ => add(&f.shown),
+/// `api` without what Swift refuses, and each it refuses as a census refusal: to a fixed
+/// point, since leaving out a function that throws an object bare can make that object
+/// noncopyable, refusing another that throws it inside a value. Swift exports the API
+/// without what takes a JNI value, as the export does.
+fn swift_refused(api: &Api, lib: &str) -> (Api, Vec<collect::Refusal>) {
+	let mut api = api.clone();
+	let mut refused = Vec::new();
+	loop {
+		let abi = Abi::new(&api, lib);
+		let rest = api.without_jni();
+		// A function refused for each of several reasons is one refusal of them all, its
+		// reasons in a row. A field's accessors are apart from a method of its name.
+		let mut found: Vec<(bool, collect::Refusal)> = Vec::new();
+		for r in crate::swift::refusals(&abi.without_jni(&rest)) {
+			let why = collect::Why {
+				construct: r.construct,
+				detail: String::new(),
+				note: None,
+			};
+			let path = r.function.shown[1..].join("::");
+			let field = matches!(r.function.access, ir::Access::Field { .. });
+			match found.last_mut() {
+				Some((was, last)) if *was == field && last.path == path => last.why.push(why),
+				_ => found.push((
+					field,
+					collect::Refusal {
+						path,
+						kind: r.kind,
+						span: r.function.span,
+						why: vec![why],
+					},
+				)),
 			}
 		}
-	};
-	for r in &api.records {
-		add(&r.shown);
-		methods(&r.methods, &mut add);
+		if found.is_empty() {
+			return (api, refused);
+		}
+		let gone: FxHashSet<(bool, &str)> = found.iter().map(|(field, r)| (*field, r.path.as_str())).collect();
+		let keep = |methods: &mut Vec<ir::Function>| {
+			methods.retain(|f| {
+				let field = matches!(f.access, ir::Access::Field { .. });
+				!gone.contains(&(field, f.shown[1..].join("::").as_str()))
+			})
+		};
+		api.records.iter_mut().for_each(|r| keep(&mut r.methods));
+		api.enums.iter_mut().for_each(|e| keep(&mut e.methods));
+		api.objects.iter_mut().for_each(|o| keep(&mut o.methods));
+		keep(&mut api.functions);
+		refused.extend(found.into_iter().map(|(_, r)| r));
 	}
-	for e in &api.enums {
-		add(&e.shown);
-		methods(&e.methods, &mut add);
-	}
-	for o in &api.objects {
-		add(&o.shown);
-		methods(&o.methods, &mut add);
-	}
-	for c in &api.callbacks {
-		add(&c.path);
-		methods(&c.methods, &mut add);
-	}
-	methods(&api.functions, &mut add);
-	for c in &api.constants {
-		add(&c.path);
-	}
-	(audited.iter())
-		.filter_map(|(exclude, named)| {
-			let mut exported: Vec<String> = named.iter().filter(|path| paths.contains(*path)).cloned().collect();
-			exported.sort();
-			exported.dedup();
-			(!exported.is_empty()).then(|| (exclude.clone(), exported))
-		})
-		.collect()
 }
 
 impl Export {
+	/// Spans as this session reads and writes them.
+	fn spans<'a, 'tcx: 'a>(&'a self, tcx: TyCtxt<'tcx>) -> merge::span::Spans<'a> {
+		merge::span::Spans::new(tcx.sess.source_map(), &self.roots, &self.loaded)
+	}
+
 	/// This target's API merged with the other targets', or none once a difference
 	/// between two of them is an error.
 	fn merged(&self, tcx: TyCtxt<'_>, ours: merge::Target) -> Option<merge::Target> {
@@ -299,7 +634,7 @@ impl Export {
 		let mut apis = vec![ours.api.clone()];
 		let mut unmergeable = false;
 		for path in &self.merge {
-			let theirs = match merge::Target::read(path, tcx.sess.source_map(), &self.roots) {
+			let theirs = match merge::Target::read(path, &self.spans(tcx)) {
 				Ok(theirs) => theirs,
 				Err(err) => {
 					tcx.dcx().err(format!("rust2-ffi: {err}"));
@@ -320,7 +655,6 @@ impl Export {
 			let differs = [
 				("package", theirs.package != ours.package),
 				("features", theirs.features != ours.features),
-				("config's exclude", theirs.exclude != ours.exclude),
 			];
 			for (what, _) in differs.iter().filter(|(_, differs)| *differs) {
 				unmergeable = true;
@@ -371,7 +705,7 @@ impl Export {
 		let Some(path) = &self.baseline else {
 			return Ok(None);
 		};
-		let base = match merge::Target::read(path, tcx.sess.source_map(), &self.roots) {
+		let base = match merge::Target::read(path, &self.spans(tcx)) {
 			Ok(base) => base,
 			Err(err) => {
 				tcx.dcx().err(format!("rust2-ffi: the baseline: {err}"));
@@ -452,11 +786,30 @@ impl Export {
 				.with_span_note(*first_span, format!("{first} is here"))
 				.emit();
 		}
-		for (function, why) in crate::swift::refusals(&abi) {
-			tcx.dcx().span_err(
-				function.span,
-				format!("rust2-ffi: {why}; exclude it in the config to leave it out"),
+		// Swift exports the API without what takes a JNI value, which only Kotlin passes.
+		let rest = api.without_jni();
+		for refusal in crate::swift::refusals(&abi.without_jni(&rest)) {
+			let mut err = tcx.dcx().struct_span_err(
+				refusal.function.span,
+				format!(
+					"rust2-ffi: cannot export {} `{}`: {}",
+					refusal.kind,
+					refusal.function.shown[1..].join("::"),
+					refusal.why
+				),
 			);
+			if let Some(help) = crate::help::of(refusal.construct) {
+				err = err.with_help(help);
+			}
+			err.emit();
+		}
+		for (constant, why) in crate::gate::refusals(api) {
+			let targets = api.named(constant.on).join(", ");
+			let what = format!(
+				"rust2-ffi: cannot export const `{}`, only on {targets}: {why}",
+				constant.path.join("::")
+			);
+			tcx.dcx().struct_span_err(constant.span, what).emit();
 		}
 		let can_generate = tcx.dcx().has_errors().is_none();
 		let baseline = match self.baseline(tcx, &target) {
@@ -489,7 +842,7 @@ impl Export {
 		}
 		target.names = Some(generated.write()?);
 
-		target.write(&out.join(API_FILE), tcx.sess.source_map(), &self.roots)
+		target.write(&out.join(API_FILE), &self.spans(tcx))
 	}
 }
 
@@ -500,8 +853,9 @@ fn stop_on_errors(tcx: TyCtxt<'_>) -> Compilation {
 	}
 }
 
-/// Emits `refusal` as an error at its span, with every reason and its notes, then `advice`.
-fn refuse(tcx: TyCtxt<'_>, refusal: &collect::Refusal, advice: &str) {
+/// Emits `refusal` as an error at its span, with every reason, any `advice`, its notes, and how to
+/// change the facade.
+fn refuse(tcx: TyCtxt<'_>, refusal: &collect::Refusal, advice: Option<&str>) {
 	let reasons: Vec<String> = refusal
 		.why
 		.iter()
@@ -513,14 +867,23 @@ fn refuse(tcx: TyCtxt<'_>, refusal: &collect::Refusal, advice: &str) {
 	let mut err = tcx.dcx().struct_span_err(
 		refusal.span,
 		format!(
-			"rust2-ffi: cannot export {} `{}`: {}; {advice}",
+			"rust2-ffi: cannot export {} `{}`: {}{}",
 			refusal.kind,
 			refusal.path,
-			reasons.join("; ")
+			reasons.join("; "),
+			advice.map_or_else(String::new, |advice| format!("; {advice}"))
 		),
 	);
 	for (span, note) in refusal.why.iter().filter_map(|why| why.note.as_ref()) {
 		err = err.with_span_note(*span, note.clone());
+	}
+	// One note a construct, in the order found, though several reasons may share one.
+	let mut helped: Vec<&str> = Vec::new();
+	for help in refusal.why.iter().filter_map(|why| crate::help::of(why.construct)) {
+		if !helped.contains(&help) {
+			helped.push(help);
+			err = err.with_help(help);
+		}
 	}
 	err.emit();
 }
@@ -544,151 +907,91 @@ fn at(tcx: TyCtxt<'_>, span: Span) -> String {
 	format!("{name}:{line}:{col}")
 }
 
-pub fn write(path: &Path, text: &str) -> Result<(), String> {
-	if let Some(dir) = path.parent() {
-		std::fs::create_dir_all(dir).map_err(|err| format!("creating {}: {err}", dir.display()))?;
+/// Write `text` to `path` unless it already holds it, so its mtime moves only on a change.
+/// A changed file is written beside `path` and renamed over it, so a reader sees the old
+/// content or the new, never neither or part, and a link at `path` goes and leaves what it
+/// points to.
+pub(crate) fn write(path: &Path, text: &str) -> Result<(), String> {
+	if std::fs::read(path).is_ok_and(|old| old == text.as_bytes()) {
+		return Ok(());
 	}
-	std::fs::write(path, text).map_err(|err| format!("writing {}: {err}", path.display()))
+	let (Some(dir), Some(name)) = (path.parent(), path.file_name()) else {
+		return Err(format!("writing {}: not a file path", path.display()));
+	};
+	std::fs::create_dir_all(dir).map_err(|err| format!("creating {}: {err}", dir.display()))?;
+	let mut temp = std::ffi::OsString::from(".");
+	temp.push(name);
+	temp.push(".rust2-ffi");
+	let temp = dir.join(temp);
+	// A link left at the temporary path goes first, so the write cannot follow it.
+	match std::fs::remove_file(&temp) {
+		Err(err) if err.kind() != std::io::ErrorKind::NotFound => {
+			return Err(format!("removing {}: {err}", temp.display()));
+		}
+		_ => {}
+	}
+	std::fs::File::options()
+		.write(true)
+		.create_new(true)
+		.open(&temp)
+		.and_then(|mut file| std::io::Write::write_all(&mut file, text.as_bytes()))
+		.map_err(|err| format!("writing {}: {err}", temp.display()))?;
+	std::fs::rename(&temp, path).map_err(|err| {
+		let _ = std::fs::remove_file(&temp);
+		format!("writing {}: {err}", path.display())
+	})
 }
 
-/// Whether the struct, enum, or union `adt` declares a field or variant `name` under a
-/// `cfg` this build left it out by. rustc records only the items a `cfg` strips, not their
-/// members, so this reads the declaration from its source.
-fn stripped_member(tcx: TyCtxt<'_>, adt: DefId, name: &str) -> bool {
-	if tcx.adt_def(adt).all_fields().any(|f| f.name.as_str() == name)
-		|| tcx.adt_def(adt).variants().iter().any(|v| v.name.as_str() == name)
-	{
-		return false;
-	}
-	// The item from its name on, up to the `;` or closing brace that ends it: past it the
-	// file may close a module the item is in, which the parser would refuse unmatched. Each
-	// place nesting returns to the item's own level may end it, such as a const generic's
-	// block before its fields, so the first that parses as an item does.
-	let source_map = tcx.sess.source_map();
-	let head = tcx.def_span(adt);
-	let source_file = source_map.lookup_source_file(head.lo());
-	let Ok(source) = source_map.span_to_snippet(head.with_hi(source_file.end_position())) else {
-		return false;
-	};
-	let (mut depth, mut at) = (0usize, 0usize);
-	let mut item = None;
-	for token in rustc_lexer::tokenize(&source, FrontmatterAllowed::No) {
-		at += token.len as usize;
-		let end = match token.kind {
-			TokenKind::OpenParen | TokenKind::OpenBrace | TokenKind::OpenBracket => {
-				depth += 1;
-				false
-			}
-			TokenKind::CloseParen | TokenKind::CloseBrace | TokenKind::CloseBracket => {
-				// A delimiter the item never opened closes the module it is in.
-				let Some(inner) = depth.checked_sub(1) else { break };
-				depth = inner;
-				depth == 0 && token.kind == TokenKind::CloseBrace
-			}
-			TokenKind::Semi => depth == 0,
-			_ => false,
-		};
-		if end && let Some(parsed) = parse_item(tcx, &source[..at]) {
-			item = Some(parsed);
-			break;
+#[cfg(test)]
+mod tests {
+	#[test]
+	fn strips_the_last_run_of_added_flags() {
+		let args = |args: &str| args.split_whitespace().map(str::to_string).collect::<Vec<_>>();
+		for (from, added, want) in [
+			("-a -x -y -b", "-x -y", "-a -b"),
+			// The consumer's own copy, before the export's, stays.
+			("-x -y -a -x -y", "-x -y", "-x -y -a"),
+			// Not a run: neither is the export's.
+			("-x -a -y", "-x -y", "-x -a -y"),
+			("-x -y", "", "-x -y"),
+		] {
+			assert_eq!(super::without(&args(from), &args(added)), args(want), "{from}");
 		}
 	}
-	let Some(item) = item else { return false };
-	// A `cfg`, or one a `cfg_attr` adds, at any depth: the attributes past its predicate.
-	fn adds_cfg(items: &[ast::MetaItemInner]) -> bool {
-		items.iter().skip(1).any(|item| {
-			item.has_name(sym::cfg) || (item.has_name(sym::cfg_attr) && item.meta_item_list().is_some_and(adds_cfg))
-		})
-	}
-	let configured = |attrs: &[ast::Attribute]| {
-		attrs.iter().any(|attr| {
-			attr.has_name(sym::cfg)
-				|| (attr.has_name(sym::cfg_attr) && attr.meta_item_list().is_some_and(|items| adds_cfg(&items)))
-		})
-	};
-	match &item.kind {
-		ast::ItemKind::Struct(_, _, data) | ast::ItemKind::Union(_, _, data) => {
-			(data.fields().iter()).any(|f| f.ident.is_some_and(|ident| ident.as_str() == name) && configured(&f.attrs))
-		}
-		ast::ItemKind::Enum(_, _, def) => {
-			(def.variants.iter()).any(|v| v.ident.as_str() == name && configured(&v.attrs))
-		}
-		_ => false,
-	}
-}
 
-/// `source` parsed as one item, or none if it is not one.
-fn parse_item(tcx: TyCtxt<'_>, source: &str) -> Option<Box<ast::Item>> {
-	let file = FileName::anon_source_code(source);
-	let mut parser = match rustc_parse::new_parser_from_source_str(
-		&tcx.sess.psess,
-		file,
-		source.to_string(),
-		StripTokens::Nothing,
-	) {
-		Ok(parser) => parser,
-		Err(errors) => {
-			errors.into_iter().for_each(|e| e.cancel());
-			return None;
-		}
-	};
-	match parser.parse_item(ForceCollect::No, AllowConstBlockItems::DoesNotMatter) {
-		Ok(item) => item,
-		Err(e) => {
-			e.cancel();
-			None
-		}
+	#[test]
+	fn reads_cfgs_as_cargo_gives_them() {
+		let printed = "debug_assertions\nfeature=\"x\"\nfoo\nfoo=\"a,b\"\nfoo=\"x\"\npanic=\"unwind\"\n\
+			target_abi=\"\"\ntarget_feature=\"sse\"\ntarget_feature=\"sse2\"\nunix\n";
+		let cfgs = super::cfgs(printed).unwrap();
+		let want = [
+			("FOO", "a,b,x"),
+			("PANIC", "unwind"),
+			("TARGET_ABI", ""),
+			("TARGET_FEATURE", "sse,sse2"),
+			("UNIX", ""),
+		];
+		assert_eq!(
+			cfgs.iter().map(|(k, v)| (k.as_str(), v.as_str())).collect::<Vec<_>>(),
+			want
+		);
+		assert!(super::cfgs("foo=bar").is_err());
 	}
-}
 
-/// Whether `path`, from the facade's root, names an item a `cfg` leaves out of this build,
-/// or a field or variant of one: the config names it for the builds that have it. Its first
-/// segment no module has is stripped from that module or from one the module
-/// glob-re-exports.
-fn configured_out(tcx: TyCtxt<'_>, path: &str) -> bool {
-	let path = path.strip_prefix("field@").unwrap_or(path);
-	let segments: Vec<&str> = path.split("::").collect();
-	let mut module = LOCAL_CRATE.as_def_id();
-	for (i, segment) in segments.iter().enumerate() {
-		let name = segment.split('<').next().unwrap_or(segment);
-		let children = match module.as_local() {
-			Some(local) => tcx.module_children_local(local),
-			None => tcx.module_children(module),
-		};
-		if let Some(child) = children.iter().find(|child| child.ident.as_str() == name) {
-			match child.res {
-				Res::Def(DefKind::Mod, def_id) => {
-					module = def_id;
-					continue;
-				}
-				Res::Def(DefKind::Struct | DefKind::Enum | DefKind::Union, def_id) if i + 2 == segments.len() => {
-					return stripped_member(tcx, def_id, segments[i + 1]);
-				}
-				// A method, or a member past one, which no `cfg` this checks strips.
-				_ => return false,
-			}
+	#[test]
+	fn reads_cargo_debug_apart_from_rustflags() {
+		let args = |args: &str| args.split(' ').map(str::to_string).collect::<Vec<_>>();
+		// Cargo's own comes first, and `RUSTFLAGS`' after it.
+		for (facade, queried, want) in [
+			("--crate-name a -C debuginfo=2 -C opt-level=0", 0, true),
+			("--crate-name a -C opt-level=3", 0, false),
+			("--crate-name a -C opt-level=3 -Cdebuginfo=2", 1, false),
+			("--crate-name a -C debuginfo=line-tables-only -C debuginfo=0", 1, true),
+			("--crate-name a -C debuginfo=1 -g", 1, true),
+			("--crate-name a --codegen=debuginfo=2 -C debuginfo=0", 1, true),
+			("--crate-name a -C debuginfo=0", 1, false),
+		] {
+			assert_eq!(super::cargo_debug(&args(facade), queried), want, "{facade}");
 		}
-		// Each source of a glob the item came through, while its imports are globs: the
-		// module of the next import, or else the item's own. A single re-export brings in no
-		// other name of its module.
-		let sources = children
-			.iter()
-			.flat_map(|child| {
-				let chain = &child.reexport_chain;
-				let globs = chain
-					.iter()
-					.take_while(|reexport| matches!(reexport, Reexport::Glob(_)));
-				(globs.enumerate()).filter_map(move |(i, _)| match chain.get(i + 1).and_then(|next| next.id()) {
-					Some(import) => tcx.opt_parent(import),
-					None => child.res.opt_def_id().and_then(|def_id| tcx.opt_parent(def_id)),
-				})
-			})
-			.chain([module]);
-		let stripped = |source: DefId| {
-			(tcx.stripped_cfg_items(source.krate).iter())
-				.any(|item| item.parent_scope == source && item.ident.as_str() == name)
-		};
-		return sources.collect::<FxHashSet<_>>().into_iter().any(stripped);
 	}
-	false
 }

@@ -6,7 +6,7 @@ use std::fmt::Write;
 
 use rust2_driver::cfg::{self, Form, Jump};
 
-pub enum Stmt {
+pub(crate) enum Stmt {
 	/// Lines of Go, each ending in a newline.
 	Lines(String),
 	If {
@@ -36,7 +36,7 @@ pub enum Stmt {
 }
 
 /// A Go boolean expression.
-pub struct Cond(pub String);
+pub(crate) struct Cond(pub(crate) String);
 
 impl cfg::Cond for Cond {
 	fn negate(&mut self) {
@@ -140,7 +140,7 @@ impl cfg::Syntax for Stmt {
 
 /// Write `stmts` as Go, `gofmt` to indent them. `blocks` holds the labels of the blocks
 /// they are in, which a `break` reaches by `goto`.
-pub fn print(stmts: &[Stmt], blocks: &mut HashSet<String>, out: &mut String) {
+pub(crate) fn print(stmts: &[Stmt], blocks: &mut HashSet<String>, out: &mut String) {
 	let target = |label: &Option<String>| label.as_ref().map(|l| format!(" {l}")).unwrap_or_default();
 	for stmt in stmts {
 		match stmt {
@@ -207,7 +207,7 @@ pub fn print(stmts: &[Stmt], blocks: &mut HashSet<String>, out: &mut String) {
 /// of the innermost statement list that holds every statement naming it and that no loop
 /// holds, so Go zeroes it only where control reaches it, still once per call. A variable
 /// nothing names goes first in `body`.
-pub fn declare(body: &mut Vec<Stmt>, decls: Vec<(String, String)>) {
+pub(crate) fn declare(body: &mut Vec<Stmt>, decls: Vec<(String, String)>) {
 	let mut at: HashMap<&str, Vec<Step>> = HashMap::new();
 	let names: HashSet<&str> = decls.iter().map(|(name, _)| name.as_str()).collect();
 	uses(body, &mut Vec::new(), &names, &mut at);

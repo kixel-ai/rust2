@@ -18,7 +18,7 @@ use super::library::{self, Std};
 use crate::ts::{Expr, Param, Stmt, StmtKind};
 
 /// What a call of std's function makes of the `[T; N]`s it holds.
-pub enum Plan<'tcx> {
+pub(crate) enum Plan<'tcx> {
 	/// It lends none, or its mapping makes each slice itself.
 	Untouched,
 	/// It lends some, which [`lend_closure`] and [`lend`] make slices, or is given some,
@@ -29,32 +29,32 @@ pub enum Plan<'tcx> {
 }
 
 /// A type in std's generic code, and as instantiated.
-pub type Pair<'tcx> = (Ty<'tcx>, Ty<'tcx>);
+pub(crate) type Pair<'tcx> = (Ty<'tcx>, Ty<'tcx>);
 
 /// Where a call lends `&[T; N]`s, or is given them.
-pub struct Lent<'tcx> {
+pub(crate) struct Lent<'tcx> {
 	/// The closures it lends them to.
-	pub closures: Vec<Closure<'tcx>>,
+	pub(crate) closures: Vec<Closure<'tcx>>,
 	/// What the call returns, if it lends one.
-	pub output: Option<Pair<'tcx>>,
+	pub(crate) output: Option<Pair<'tcx>>,
 	/// The inputs, by index, it is given them in.
-	pub given: Vec<(usize, Pair<'tcx>)>,
+	pub(crate) given: Vec<(usize, Pair<'tcx>)>,
 }
 
 /// A closure std lends a `&[T; N]` to.
-pub struct Closure<'tcx> {
+pub(crate) struct Closure<'tcx> {
 	/// Its index among the call's inputs.
-	pub index: usize,
+	pub(crate) index: usize,
 	/// Its type.
-	pub ty: Ty<'tcx>,
+	pub(crate) ty: Ty<'tcx>,
 	/// What it is given.
-	pub params: Vec<Pair<'tcx>>,
+	pub(crate) params: Vec<Pair<'tcx>>,
 	/// Whether what the call returns holds it.
-	pub held: bool,
+	pub(crate) held: bool,
 }
 
 /// What a call of std's `def_id` lends.
-pub fn plan<'tcx>(t: &Translator<'_, 'tcx>, def_id: DefId, args: GenericArgs<'tcx>) -> Plan<'tcx> {
+pub(crate) fn plan<'tcx>(t: &Translator<'_, 'tcx>, def_id: DefId, args: GenericArgs<'tcx>) -> Plan<'tcx> {
 	let tcx = t.tcx;
 	if t.translated(def_id, args) || !args.types().any(owns_array) || super::array_slice::native(tcx, def_id, args) {
 		return Plan::Untouched;
@@ -201,7 +201,7 @@ fn owns_array(ty: Ty<'_>) -> bool {
 /// A function's signature for its arguments, beside its generic one. A trait method's is
 /// the trait's, whose `Self::Item` is an iterator's item as it was made, not as an impl's
 /// `next` makes it.
-pub struct Sig<'tcx> {
+pub(crate) struct Sig<'tcx> {
 	def_id: DefId,
 	args: GenericArgs<'tcx>,
 	generic: ty::FnSig<'tcx>,
@@ -209,7 +209,7 @@ pub struct Sig<'tcx> {
 }
 
 impl<'tcx> Sig<'tcx> {
-	pub fn of(t: &Translator<'_, 'tcx>, def_id: DefId, args: GenericArgs<'tcx>) -> Self {
+	pub(crate) fn of(t: &Translator<'_, 'tcx>, def_id: DefId, args: GenericArgs<'tcx>) -> Self {
 		let tcx = t.tcx;
 		let generic = tcx.fn_sig(def_id).instantiate_identity().skip_norm_wip();
 		let generic = normalize(
@@ -271,7 +271,7 @@ fn normalize<'tcx, T: ty::TypeFoldable<ty::TyCtxt<'tcx>> + Copy>(
 /// made of an array it holds: `Some(true)` if it does, by itself or in a tuple, an
 /// `Option`, or an iterator's items, which [`lend`] reaches, `Some(false)` if it holds
 /// none, and `None` if it holds one [`lend`] cannot reach.
-pub fn lends<'tcx>(t: &Translator<'_, 'tcx>, generic: Ty<'tcx>, ty: Ty<'tcx>) -> Option<bool> {
+pub(crate) fn lends<'tcx>(t: &Translator<'_, 'tcx>, generic: Ty<'tcx>, ty: Ty<'tcx>) -> Option<bool> {
 	match (generic.kind(), ty.kind()) {
 		// What std was given, as it was given it.
 		(ty::Param(_) | ty::Alias(..), _) => Some(false),
@@ -327,7 +327,7 @@ fn item<'tcx>(t: &Translator<'_, 'tcx>, ty: Ty<'tcx>) -> Option<(Option<Ty<'tcx>
 }
 
 /// Whether `ty` holds a `&[T; N]`, as a closure's signature does if it takes one.
-pub fn holds_array_ref(ty: Ty<'_>) -> bool {
+pub(crate) fn holds_array_ref(ty: Ty<'_>) -> bool {
 	ty.walk().any(|arg| arg.as_type().and_then(super::array_ref).is_some())
 }
 
@@ -335,7 +335,7 @@ pub fn holds_array_ref(ty: Ty<'_>) -> bool {
 /// as translated code reads it: each `&[T; N]` std made of an array it holds, which the
 /// mapping hands out as the JS array, a slice of all of it. It shares the elements, which
 /// nothing writes through a `&`, and a `&mut` writes where std holds them.
-pub fn lend<'tcx>(b: &mut Body<'_, '_, 'tcx>, generic: Ty<'tcx>, ty: Ty<'tcx>, value: Expr, span: Span) -> Expr {
+pub(crate) fn lend<'tcx>(b: &mut Body<'_, '_, 'tcx>, generic: Ty<'tcx>, ty: Ty<'tcx>, value: Expr, span: Span) -> Expr {
 	cross(b, generic, ty, value, Way::Lent, span)
 }
 
@@ -346,7 +346,7 @@ pub fn lend<'tcx>(b: &mut Body<'_, '_, 'tcx>, generic: Ty<'tcx>, ty: Ty<'tcx>, v
 /// whatever the mapping keeps of it reads and writes where the reference does, or else the
 /// `rs.sliceItems` of a shared one, which nothing writes through. A mutable one of other
 /// elements, which no JS array shares, is refused.
-pub fn give<'tcx>(b: &mut Body<'_, '_, 'tcx>, generic: Ty<'tcx>, ty: Ty<'tcx>, value: Expr, span: Span) -> Expr {
+pub(crate) fn give<'tcx>(b: &mut Body<'_, '_, 'tcx>, generic: Ty<'tcx>, ty: Ty<'tcx>, value: Expr, span: Span) -> Expr {
 	cross(b, generic, ty, value, Way::Given, span)
 }
 
@@ -454,7 +454,7 @@ fn cross_fn<'tcx>(b: &mut Body<'_, '_, 'tcx>, generic: Ty<'tcx>, ty: Ty<'tcx>, w
 /// [`lend`] makes it. One that what the call returns holds, or that drops, which the
 /// mapping may drop through what it is given, is `rs.lending`, `holds`, which clones and
 /// drops as `f` does.
-pub fn lend_closure<'tcx>(
+pub(crate) fn lend_closure<'tcx>(
 	b: &mut Body<'_, '_, 'tcx>,
 	f: Expr,
 	params: &[Pair<'tcx>],
@@ -488,7 +488,7 @@ pub fn lend_closure<'tcx>(
 
 /// A function copying a `ty` out of what `Extend<&T>` and `Extend<(&K, &V)>` are given,
 /// where each `[T; N]` is the slice a `&[T; N]` is: `None` if a copy is the value itself.
-pub fn copy_fn<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, span: Span) -> Option<Expr> {
+pub(crate) fn copy_fn<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, span: Span) -> Option<Expr> {
 	match ty.kind() {
 		ty::Array(..) => {
 			let name = b.fresh("held");

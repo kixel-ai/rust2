@@ -96,7 +96,8 @@ export function count(dataData: Uint8Array, dataStart: number, dataLen: number):
 	const part3: number = out$tuple2_u64_ref_slice_u8.p_1Start;
 	const part4: number = out$tuple2_u64_ref_slice_u8.p_1Len;
 	if (err === undefined) {
-		const _14_0: rs.u64 = rs.u64Add(part as rs.u64, 1);
+		const n: rs.u64 = part as rs.u64;
+		const _14_0: rs.u64 = (typeof n === "number" && n + 1 <= 9007199254740991 ? n + 1 : rs.u64Add(n, 1)) as rs.u64;
 		out$tuple2_u64_ref_slice_u8.p_1Data = part2;
 		out$tuple2_u64_ref_slice_u8.p_1Start = part3;
 		out$tuple2_u64_ref_slice_u8.p_1Len = part4;
@@ -609,10 +610,18 @@ export function numbers(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void 
 		dst4.data[pos4 + 1] = byte2;
 		dst4.length = dst4.length + 2;
 	}
-	for (const _67 of rs.iterToVec(rs.iterMap(new rs.Range(0, 3), (i: rs.usize): rs.Result<rs.u64, returns_Error.Error> => {
+	let start = 0;
+	let end = 3;
+	const f3 = (i: rs.usize): rs.Result<rs.u64, returns_Error.Error> => {
 		const part9 = big(rs.byteSliceRange(data, rs.min(data.length, i)));
 		return part9 === undefined ? rs.Err(out$u64.err as returns_Error.Error) : rs.Ok(part9);
-	}), undefined, 16, true).items) {
+	};
+	const v: rs.Vec<rs.Result<rs.u64, returns_Error.Error>> = rs.vecWithCapacity(Math.max(end - start, 0), 16);
+	while (!(start >= end)) {
+		const y8: rs.Result<rs.u64, returns_Error.Error> = f3(start++);
+		v.items.push(y8);
+	}
+	for (const _67 of v.items) {
 		pushBig(out, _67);
 	}
 	if (!(rs.u8Rem(kind, 2) === 0)) {
@@ -678,7 +687,9 @@ export function numbers(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void 
 		const part17: rs.u32 | undefined = depth(_112.data, _112.start, _112.length);
 		if ((part17 === undefined ? out$u32.err as returns_Error.Error : undefined) === undefined) {
 			const n: rs.u32 = part17 as rs.u32;
-			sum = rs.u64WrappingAdd(rs.u64WrappingMul(sum, 31), n as rs.u64);
+			const _116: rs.u64 = rs.u64WrappingMul(sum, 31);
+			const _118: rs.u64 = n as rs.u64;
+			sum = (typeof _116 === "number" && typeof _118 === "number" && _116 + _118 <= 9007199254740991 ? _116 + _118 : rs.u64WrappingAdd(_116, _118)) as rs.u64;
 			rest = rs.byteSliceRange(rest, rs.usizeAdd(n as rs.usize, 1));
 		} else {
 			break;
@@ -721,15 +732,22 @@ export function returns(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void 
 				const part81: number = out$tuple2_u64_ref_slice_u8.p_1Len;
 				pushNumber(out, (err20 !== undefined ? rs.Err(err20 as returns_Error.Error) : rs.Ok([part78 as rs.u64, new rs.ByteSlice(part79, part80, part81)] as [rs.u64, rs.ByteSlice])) as rs.Result<[rs.u64, rs.ByteSlice], returns_Error.Error>);
 			} else if (_7 === 1) {
-				const kept: rs.Vec<rs.Result<rs.ByteSlice, returns_Error.Error>> = rs.iterToVec(rs.iterMap(new rs.Range(0, 4), (n3: rs.usize): rs.Result<rs.ByteSlice, returns_Error.Error> => {
+				let start = 0;
+				let end = 4;
+				const f3 = (n3: rs.usize): rs.Result<rs.ByteSlice, returns_Error.Error> => {
 					const err13 = take(data.data, data.start, data.length, rs.usizeMul(n3, 3));
 					return err13 !== undefined ? rs.Err(err13 as returns_Error.Error) : rs.Ok(new rs.ByteSlice(out$ref_slice_u8.pData, out$ref_slice_u8.pStart, out$ref_slice_u8.pLen));
-				}), undefined, 12, true);
+				};
+				const v3: rs.Vec<rs.Result<rs.ByteSlice, returns_Error.Error>> = rs.vecWithCapacity(Math.max(end - start, 0), 12);
+				while (!(start >= end)) {
+					const y2: rs.Result<rs.ByteSlice, returns_Error.Error> = f3(start++);
+					v3.items.push(y2);
+				}
 				const err14: returns_Error.Error | undefined = tail(data, 1);
 				const part57: Uint8Array = out$ref_slice_u8.pData;
 				const part58: number = out$ref_slice_u8.pStart;
 				const part59: number = out$ref_slice_u8.pLen;
-				for (const _32 of kept.items) {
+				for (const _32 of v3.items) {
 					push(out, _32);
 				}
 				push(out, (err14 !== undefined ? rs.Err(err14 as returns_Error.Error) : rs.Ok(new rs.ByteSlice(part57, part58, part59))) as rs.Result<rs.ByteSlice, returns_Error.Error>);
@@ -785,16 +803,25 @@ export function returns(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void 
 					};
 				}
 				pushNumber(out, f(data));
-				for (const _74 of rs.iterToVec(rs.iterMap(rs.iterSlice([data, rs.byteSliceRange(data, rs.min(data.length, 3))]), (a03: rs.ByteSlice): rs.Result<[rs.u64, rs.ByteSlice], returns_Error.Error> => {
+				const s2 = [data, rs.byteSliceRange(data, rs.min(data.length, 3))];
+				let front = 0;
+				let back = s2.length;
+				const f2 = (a03: rs.ByteSlice): rs.Result<[rs.u64, rs.ByteSlice], returns_Error.Error> => {
 					const part53 = count(a03.data, a03.start, a03.length);
 					return part53 === undefined ? rs.Err(out$tuple2_u64_ref_slice_u8.err as returns_Error.Error) : rs.Ok([part53, new rs.ByteSlice(out$tuple2_u64_ref_slice_u8.p_1Data, out$tuple2_u64_ref_slice_u8.p_1Start, out$tuple2_u64_ref_slice_u8.p_1Len)] as [rs.u64, rs.ByteSlice]);
-				}), undefined, 16, true).items) {
+				};
+				const v2: rs.Vec<rs.Result<[rs.u64, rs.ByteSlice], returns_Error.Error>> = rs.vecWithCapacity(back - front, 16);
+				while (!(front >= back)) {
+					const y: rs.Result<[rs.u64, rs.ByteSlice], returns_Error.Error> = f2(s2[front++]);
+					v2.items.push(y);
+				}
+				for (const _74 of v2.items) {
 					pushNumber(out, _74);
 				}
 				rs.iterExtendBytes(out, rs.iterOption(option_map$0q6fk7x(option_map$05uajnx((data.length !== 0 ? [data.data[data.start], new rs.ByteSlice(data.data, data.start + 1, data.length - 1)] as [rs.u8, rs.ByteSlice] : undefined) as [rs.u8, rs.ByteSlice] | undefined, (_23: [rs.u8, rs.ByteSlice]): rs.ByteSlice => {
 					return _23[1];
-				}), (s2: rs.ByteSlice): rs.u8 => {
-					const err12: returns_Error.Error | undefined = tail(s2, 2);
+				}), (s3: rs.ByteSlice): rs.u8 => {
+					const err12: returns_Error.Error | undefined = tail(s3, 2);
 					const part54: Uint8Array = out$ref_slice_u8.pData;
 					const part55: number = out$ref_slice_u8.pStart;
 					const part56: number = out$ref_slice_u8.pLen;
@@ -979,7 +1006,9 @@ export function returns(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void 
 					const part15: number = out$tuple2_u64_ref_slice_u8.p_1Start;
 					const part16: number = out$tuple2_u64_ref_slice_u8.p_1Len;
 					if (err4 === undefined) {
-						sum = rs.u64WrappingAdd(rs.u64WrappingMul(sum, 31), part13 as rs.u64);
+						const n2: rs.u64 = part13 as rs.u64;
+						const _230: rs.u64 = rs.u64WrappingMul(sum, 31);
+						sum = (typeof _230 === "number" && typeof n2 === "number" && _230 + n2 <= 9007199254740991 ? _230 + n2 : rs.u64WrappingAdd(_230, n2)) as rs.u64;
 						restData4 = part14;
 						restStart4 = part15;
 						restLen4 = part16;
@@ -2052,11 +2081,19 @@ export function options(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void 
 		dst20.data[pos20 + 2] = byte23;
 		dst20.length = dst20.length + 3;
 	}
-	for (const r of rs.iterToVec(rs.iterMap(new rs.Range(0, 3), (i: rs.usize): rs.Result<rs.u64 | undefined, returns_Error.Error> => {
+	let start = 0;
+	let end = 3;
+	const f2 = (i: rs.usize): rs.Result<rs.u64 | undefined, returns_Error.Error> => {
 		const _3: rs.ByteSlice = rs.byteSliceRange(data, rs.min(data.length, i));
 		const err23 = optU64(_3.data, _3.start, _3.length);
 		return err23 !== undefined ? rs.Err(err23 as returns_Error.Error) : rs.Ok(out$Option_u64.p);
-	}), undefined, 16, true).items) {
+	};
+	const v19: rs.Vec<rs.Result<rs.u64 | undefined, returns_Error.Error>> = rs.vecWithCapacity(Math.max(end - start, 0), 16);
+	while (!(start >= end)) {
+		const y6: rs.Result<rs.u64 | undefined, returns_Error.Error> = f2(start++);
+		v19.items.push(y6);
+	}
+	for (const r of v19.items) {
 		if (r.ok) {
 			if (r.value === undefined) {
 				rs.byteVecPush(out, 0);

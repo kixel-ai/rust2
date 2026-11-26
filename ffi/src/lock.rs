@@ -15,14 +15,14 @@ use std::collections::{BTreeMap, BTreeSet};
 use rustc_span::{DUMMY_SP, Span};
 
 use crate::abi::{Abi, Ty};
-use crate::ir::{Access, Api, Constant, Function, Literal, On, Traits, Type};
+use crate::ir::{Access, Api, Constant, Function, Literal, On, Opaque, Order, Traits, Type};
 use crate::merge::{self, Maps};
 
 /// Each language's public names, keyed by the item's kind and Rust path.
-pub type Names = BTreeMap<String, BTreeMap<String, String>>;
+pub(crate) type Names = BTreeMap<String, BTreeMap<String, String>>;
 
 /// A generator's names for exported types, translated from C keys to stable item keys.
-pub fn types(abi: &Abi<'_>, classes: &std::collections::HashMap<String, String>) -> BTreeMap<String, String> {
+pub(crate) fn types(abi: &Abi<'_>, classes: &std::collections::HashMap<String, String>) -> BTreeMap<String, String> {
 	let api = abi.api;
 	let records = api.records.iter().enumerate().map(|(i, r)| (abi.record(i), &r.shown));
 	let enums = api
@@ -47,24 +47,67 @@ pub fn types(abi: &Abi<'_>, classes: &std::collections::HashMap<String, String>)
 /// Record names made for enum variants by a generator's collision rules.
 ///
 /// `variant` gives a variant's name by its enum's C name and its Rust name, if it has one.
-pub fn variants(abi: &Abi<'_>, names: &mut BTreeMap<String, String>, variant: impl Fn(&str, &str) -> Option<String>) {
+pub(crate) fn variants(
+	abi: &Abi<'_>,
+	names: &mut BTreeMap<String, String>,
+	variant: impl Fn(&str, &str) -> Option<String>,
+) {
 	for (i, e) in abi.api.enums.iter().enumerate() {
 		for v in &e.variants {
 			if let Some(name) = variant(&abi.enumeration(i), &v.name) {
-				names.insert(format!("{} / variant {}", type_key(&e.shown), v.name), name);
+				self::variant(names, &e.shown, &v.name, &name);
 			}
 		}
 	}
 }
 
+/// Record the name a binding gives the field `field` of the record at `owner`.
+pub(crate) fn field(names: &mut BTreeMap<String, String>, owner: &[String], field: &str, name: &str) {
+	names.insert(field_key(owner, field), name.to_string());
+}
+
+/// The key [`field`] records the name of the field `field` of the record at `owner` under.
+pub(crate) fn field_key(owner: &[String], field: &str) -> String {
+	format!("{} / field {field}", type_key(owner))
+}
+
+/// Record the name a binding gives the variant `variant` of the enum at `owner`.
+pub(crate) fn variant(names: &mut BTreeMap<String, String>, owner: &[String], variant: &str, name: &str) {
+	names.insert(format!("{} / variant {variant}", type_key(owner)), name.to_string());
+}
+
+/// Record the name a binding gives the field `field` of the data variant `variant`.
+pub(crate) fn variant_field(
+	names: &mut BTreeMap<String, String>,
+	owner: &[String],
+	variant: &str,
+	field: &str,
+	name: &str,
+) {
+	let key = format!("{} / variant {variant} / field {field}", type_key(owner));
+	names.insert(key, name.to_string());
+}
+
+/// Record the name a binding gives the member of the std trait `t`, such as `Clone`, on the
+/// type at `owner`, keyed by the trait, since each exports one member a binding names.
+pub(crate) fn trait_member(names: &mut BTreeMap<String, String>, owner: &[String], t: &str, name: &str) {
+	names.insert(format!("{} / {t}", type_key(owner)), name.to_string());
+}
+
+/// Record the name a binding gives the tuple of `elements`, keyed by its Rust spelling.
+pub(crate) fn tuple(names: &mut BTreeMap<String, String>, abi: &Abi<'_>, elements: &[Type], name: &str) {
+	let key = format!("tuple {}", abi.spell(&Type::Tuple(elements.to_vec())));
+	names.insert(key, name.to_string());
+}
+
 /// Record the final public name of a function or field accessor.
-pub fn function(names: &mut BTreeMap<String, String>, function: &Function, name: &str) {
+pub(crate) fn function(names: &mut BTreeMap<String, String>, function: &Function, name: &str) {
 	names.insert(function_key(function), name.to_string());
 }
 
 /// The shared exception identity after references lose ownership. `Abi::key` already folds
 /// references and borrowed strings everywhere but a tuple, which `Abi::spell` spells itself.
-pub fn error_key(abi: &Abi<'_>, ty: &Type) -> String {
+pub(crate) fn error_key(abi: &Abi<'_>, ty: &Type) -> String {
 	fn owned(ty: &Type) -> Type {
 		match ty {
 			Type::Ref(_, inner) => owned(inner),
@@ -75,11 +118,24 @@ pub fn error_key(abi: &Abi<'_>, ty: &Type) -> String {
 	format!("error {}", abi.spell(&owned(ty)))
 }
 
+/// Record `name`, the exception class an error of type `err` throws as, which the language
+/// holds as `native`. One error key may name several classes, as Kotlin's `UShortArray` and
+/// `List<UShort>` both spell `vec_u16`, so each is known by its native type too: a type
+/// added beside it adds a class rather than renaming one, and a class that loses its name to
+/// it is a rename. The key alone names the last, as a baseline from before knew it. A
+/// generator's spelling of `native` may change, so [`name_breaks`] holds the key alone, or a
+/// native type gone from it, kept while any class of the key still bears its name.
+pub(crate) fn exception(names: &mut BTreeMap<String, String>, abi: &Abi<'_>, err: &Type, native: &str, name: &str) {
+	let key = error_key(abi, err);
+	names.insert(format!("{key} / as {native}"), name.to_string());
+	names.insert(key, name.to_string());
+}
+
 /// Compare the names the generators actually emitted, retaining the current item's span.
 ///
 /// An item whose C name `base_api`, the baseline's API, gave it changed is already a structural
 /// break, so its binding names, which follow from the C name, are not reported again.
-pub fn name_breaks(base: &Names, now: &Names, base_api: &Api, abi: &Abi<'_>) -> Vec<Break> {
+pub(crate) fn name_breaks(base: &Names, now: &Names, base_api: &Api, abi: &Abi<'_>) -> Vec<Break> {
 	let api = abi.api;
 	let index = Index::with(abi);
 	let baseline = Index::new(base_api, &abi.prefix);
@@ -169,6 +225,18 @@ pub fn name_breaks(base: &Names, now: &Names, base_api: &Api, abi: &Abi<'_>) -> 
 				continue;
 			}
 			let new = now.get(language).and_then(|names| names.get(key));
+			// An exception known by its key alone names one class of several the key may have,
+			// as a baseline from before they were known apart wrote it, and one known by a
+			// native type no class has now was respelled or dropped: kept while one has it.
+			if key.starts_with("error ")
+				&& (key == owner || new.is_none())
+				&& now.get(language).is_some_and(|names| {
+					(names.range(format!("{owner} / as ")..))
+						.take_while(|(k, _)| k.starts_with(&format!("{owner} / as ")))
+						.any(|(_, name)| name == old)
+				}) {
+				continue;
+			}
 			// Missing parts need a name diagnostic unless the owner's structural change
 			// already reports the break, such as a removed variant or changed signature.
 			if new.is_none()
@@ -203,15 +271,15 @@ pub fn name_breaks(base: &Names, now: &Names, base_api: &Api, abi: &Abi<'_>) -> 
 }
 
 /// An item the export's API breaks the baseline's at: where, and how.
-pub struct Break {
+pub(crate) struct Break {
 	/// The item's span in the export, or the baseline's if the export lacks it, or none.
-	pub span: Span,
+	pub(crate) span: Span,
 	/// The item, then each way it breaks.
-	pub what: String,
+	pub(crate) what: String,
 }
 
 /// Every break of `base`, the baseline, by `now`, the export's API, both prefixed `prefix`.
-pub fn breaks(base: &Api, now: &Api, prefix: &str) -> Vec<Break> {
+pub(crate) fn breaks(base: &Api, now: &Api, prefix: &str) -> Vec<Break> {
 	// Every path starts with the facade's root, which prefixes every C name.
 	let root = (base.records.iter().map(|r| &r.shown))
 		.chain(base.enums.iter().map(|e| &e.shown))
@@ -265,6 +333,18 @@ pub fn breaks(base: &Api, now: &Api, prefix: &str) -> Vec<Break> {
 			changes.push(format!("it is no longer on {}", lost.join(", ")));
 		}
 		changes.extend(changed(&base, &now, &maps, &ours.item, &theirs.item));
+		if let (Item::Object(i), Item::Object(j)) = (ours.item, theirs.item) {
+			match (base.checked[i], now.checked[j]) {
+				(false, true) => changes.push(
+					"its handle is now checked at run time, so each call taking it gains a status, and throws in Swift"
+						.to_string(),
+				),
+				(true, false) => changes.push(
+					"its handle is no longer checked at run time, so each call taking it loses its status".to_string(),
+				),
+				_ => {}
+			}
+		}
 		if ours.c != theirs.c {
 			let mut renamed = format!("its C name `{}` is now `{}`", ours.c, theirs.c);
 			if let Some(other) = now.named(&ours.c) {
@@ -325,6 +405,9 @@ struct Index<'a> {
 	/// Each tuple's struct by its Rust spelling: its C name, and a function that takes or
 	/// returns it.
 	tuples: BTreeMap<String, (String, Span)>,
+	/// Whether a call can fail a check of each object's handle, which gives each call
+	/// taking it a status.
+	checked: Vec<bool>,
 }
 
 impl<'a> Index<'a> {
@@ -460,7 +543,12 @@ impl<'a> Index<'a> {
 				});
 			}
 		}
-		Self { api, entries, tuples }
+		Self {
+			api,
+			entries,
+			tuples,
+			checked: abi.checked.clone(),
+		}
 	}
 
 	/// The item whose C name is `c`.
@@ -523,12 +611,12 @@ impl<'a> Entry<'a> {
 }
 
 /// A type's key: one for every kind, so a type that becomes another kind is changed.
-pub fn type_key(path: &[String]) -> String {
+pub(crate) fn type_key(path: &[String]) -> String {
 	format!("type {}", path.join("::"))
 }
 
 /// A function or accessor identity, independent of its generated name.
-pub fn function_key(function: &Function) -> String {
+pub(crate) fn function_key(function: &Function) -> String {
 	let kind = match function.access {
 		Access::Field { set: false, .. } => "get",
 		Access::Field { set: true, .. } => "set",
@@ -546,6 +634,9 @@ fn changed(base: &Index<'_>, now: &Index<'_>, maps: &Maps, ours: &Item<'_>, thei
 		let lost: Vec<&str> = [
 			("Clone", ours.clone && !theirs.clone),
 			("PartialEq", ours.eq && !theirs.eq),
+			("Hash", ours.hash && !theirs.hash),
+			("PartialOrd", ours.ord != Order::None && theirs.ord == Order::None),
+			("Ord", ours.ord == Order::Total && theirs.ord != Order::Total),
 			("Display", ours.display && !theirs.display),
 			("Debug", ours.debug && !theirs.debug),
 			("Default", ours.default && !theirs.default),
@@ -560,6 +651,23 @@ fn changed(base: &Index<'_>, now: &Index<'_>, maps: &Maps, ours: &Item<'_>, thei
 	match (*ours, *theirs) {
 		(Item::Record(i), Item::Record(j)) => {
 			traits(b.records[i].traits, n.records[j].traits);
+			// An opaque value's bytes are its C struct, which every binding sizes, and
+			// whether a word holds it and compares it is Kotlin's type for it.
+			if let (Some(o), Some(p)) = (b.records[i].opaque, n.records[j].opaque) {
+				if (o.size, o.align) != (p.size, p.align) {
+					changes.push(format!(
+						"its bytes: {} aligned to {}, and now {} aligned to {}",
+						o.size, o.align, p.size, p.align
+					));
+				}
+				let held = |o: Opaque| match o.compared() {
+					true => "a word compared by its bits",
+					false => "bytes compared by Rust",
+				};
+				if o.compared() != p.compared() {
+					changes.push(format!("how it is held: {}, and now {}", held(o), held(p)));
+				}
+			}
 			let mut ours = merge::bare_record(&b.records[i]);
 			maps.fields(&mut ours.fields);
 			maps.types(&mut ours.args);
@@ -643,6 +751,23 @@ fn changed(base: &Index<'_>, now: &Index<'_>, maps: &Maps, ours: &Item<'_>, thei
 		}
 		(Item::Object(i), Item::Object(j)) => {
 			traits(b.objects[i].traits, n.objects[j].traits);
+			// A binding names an enum object's variants, as Python's exception subclasses.
+			for variant in &b.objects[i].variants {
+				let Some(other) = n.objects[j].variants.iter().find(|v| v.name == variant.name) else {
+					changes.push(format!("variant `{}` is removed", variant.name));
+					continue;
+				};
+				let lost: Vec<&str> = (b.named(variant.on).into_iter())
+					.filter(|t| n.targets.iter().any(|n| n == t) && !n.named(other.on).contains(t))
+					.collect();
+				if !lost.is_empty() {
+					changes.push(format!(
+						"variant `{}` is no longer on {}",
+						variant.name,
+						lost.join(", ")
+					));
+				}
+			}
 			let mut ours = merge::bare_object(&b.objects[i]);
 			maps.types(&mut ours.args);
 			let mut theirs = merge::bare_object(&n.objects[j]);
@@ -711,6 +836,34 @@ fn changed(base: &Index<'_>, now: &Index<'_>, maps: &Maps, ours: &Item<'_>, thei
 			} else if bare(c) != bare(d) {
 				changes.push("how it exports".to_string());
 			}
+			// A binding declares one only some of the targets it serves have in another form:
+			// every binding over all of the export's targets, and React Native over its own.
+			// React Native's only where it serves a target both before and now.
+			let plain = |api: &Api, on: On| {
+				let native = crate::web::native_mask(api);
+				[
+					Some(api.everywhere(on)),
+					(native != 0).then_some(on.0 & native == native),
+				]
+			};
+			let (was, is) = (plain(base.api, c.on), plain(now.api, d.on));
+			let form = |plain: bool| match plain {
+				true => "a constant",
+				false => "a getter or function reading it through a check of the library's target",
+			};
+			let differs = (0..2).find_map(|k| match (was[k], is[k]) {
+				(Some(was), Some(is)) if was != is => Some((k, was, is)),
+				_ => None,
+			});
+			if let Some((k, was, is)) = differs {
+				let binding = ["a binding", "React Native's binding"][k];
+				changes.push(format!(
+					"it is now on {}, so {binding} declares it as {} rather than {}",
+					now.api.named(d.on).join(", "),
+					form(is),
+					form(was)
+				));
+			}
 		}
 		_ => changes.push("it is another kind of item".to_string()),
 	}
@@ -741,11 +894,10 @@ fn fields(what: &str, ours: &[crate::ir::Field], theirs: &[crate::ir::Field]) ->
 /// What of the function `ours` changed in `theirs`, both bare and of one key.
 fn signature(ours: &Function, theirs: &Function) -> Vec<String> {
 	let (mut ours, mut theirs) = (ours.clone(), theirs.clone());
-	// Which name the config gives a field: no binding names it otherwise.
+	// Not whether a held handle fails it, which only a newer export lends and a baseline
+	// written before it lacks.
 	for f in [&mut ours, &mut theirs] {
-		if let Access::Field { shared, .. } = &mut f.access {
-			*shared = false;
-		}
+		f.ties = false;
 	}
 	let mut changes = Vec::new();
 	if ours.receiver != theirs.receiver {
@@ -798,6 +950,7 @@ mod tests {
 				span: DUMMY_SP,
 				on: On::ALL,
 				docs: String::new(),
+				deprecated: None,
 				receiver: None,
 				params: vec![],
 				units: vec![],
@@ -805,9 +958,15 @@ mod tests {
 				err: None,
 				future: false,
 				eager: false,
+				holds: false,
 				task: None,
+				send: true,
 				collect: false,
 				lends: false,
+				lends_mut: false,
+				derefs: 0,
+				leaf: false,
+				ties: false,
 				access: Access::Call,
 				instance: None,
 				home: Home {
@@ -818,6 +977,8 @@ mod tests {
 			constants: vec![],
 			crates: vec!["lock_a".into(), "lock_b".into()],
 			targets: vec!["host".into()],
+			links: Default::default(),
+			profiles: Default::default(),
 			reached: Vec::new(),
 		}
 	}
@@ -834,19 +995,151 @@ mod tests {
 			span: DUMMY_SP,
 			on: On::ALL,
 			docs: String::new(),
+			deprecated: None,
 			fields: vec![],
 			tuple: false,
 			methods: vec![],
 			traits: Traits::default(),
+			opaque: None,
+			sizes: Default::default(),
 		}
 	}
 
+	/// A constant that was on every target and is now only on some, as when an export adds a
+	/// target lacking it, breaks, as a binding then declares it in another form; so does the
+	/// reverse.
 	#[test]
-	fn tuple_c_rename_is_reported_once() {
+	fn constant_on_some_targets_breaks() {
 		let mut base = api();
-		base.objects.push(crate::ir::Object {
-			path: vec!["lock".into(), "A_B".into()],
-			shown: vec!["lock".into(), "A_B".into()],
+		base.targets = vec!["a".into()];
+		base.constants = vec![Constant {
+			path: vec!["lock".into(), "WORD".into()],
+			home: Home {
+				krate: "lock".into(),
+				outside: 1,
+			},
+			span: DUMMY_SP,
+			on: On::ALL,
+			docs: String::new(),
+			deprecated: None,
+			value: Literal::Int(Int::Usize, 1),
+		}];
+		let mut now = base.clone();
+		now.targets.push("b".into());
+		assert!(breaks(&base, &now, "lock").is_empty(), "a target with it passes");
+		now.constants[0].on = On(0b01);
+		let whats = |found: Vec<Break>| found.into_iter().map(|b| b.what).collect::<Vec<_>>();
+		let found = whats(breaks(&base, &now, "lock"));
+		assert!(
+			found
+				.iter()
+				.any(|w| w.contains("it is now on a, so a binding declares it as a getter")),
+			"{found:?}"
+		);
+		let found = whats(breaks(&now, &base, "lock"));
+		assert!(
+			found
+				.iter()
+				.any(|w| w.contains("so a binding declares it as a constant rather than")),
+			"{found:?}"
+		);
+		// Not on wasm32, which React Native does not serve, so it is a constant there until
+		// a native target lacking it is added.
+		base.targets = vec!["aarch64-linux-android".into(), "wasm32-unknown-unknown".into()];
+		base.constants[0].on = On(0b01);
+		let mut now = base.clone();
+		now.targets.insert(0, "a".into());
+		now.constants[0].on = On(0b010);
+		let found = whats(breaks(&base, &now, "lock"));
+		assert!(
+			found
+				.iter()
+				.any(|w| w.contains("so React Native's binding declares it as a getter")),
+			"{found:?}"
+		);
+	}
+
+	#[test]
+	fn enum_object_variant_removal_breaks() {
+		let variant = |name: &str| crate::ir::Variant {
+			name: name.into(),
+			discriminant: 0,
+			fields: vec![],
+			tuple: false,
+			on: On::ALL,
+		};
+		let mut base = api();
+		base.objects.push(object("Fault"));
+		base.objects[0].variants = vec![variant("Busy"), variant("Lost")];
+		base.functions[0].err = Some(Type::Object(0));
+		let mut now = base.clone();
+		now.objects[0].variants.push(variant("Late"));
+		assert!(breaks(&base, &now, "lock").is_empty(), "an added variant passes");
+		now.objects[0].variants.remove(1);
+		let found = breaks(&base, &now, "lock");
+		assert!(
+			found.iter().any(|b| b.what.contains("variant `Lost` is removed")),
+			"{:?}",
+			found.iter().map(|b| &b.what).collect::<Vec<_>>()
+		);
+	}
+
+	#[test]
+	fn python_variant_rename_breaks() {
+		let variant = |name: &str| crate::ir::Variant {
+			name: name.into(),
+			discriminant: 0,
+			fields: vec![],
+			tuple: false,
+			on: On::ALL,
+		};
+		let mut base = api();
+		base.objects.push(object("Fault"));
+		base.objects[0].variants = vec![variant("Foo_Bar")];
+		base.functions[0].err = Some(Type::Object(0));
+		let old = crate::python::generate(&Abi::new(&base, "lock"), "lock", 0).unwrap();
+		assert_eq!(old.names["error Fault / variant Foo_Bar"], "FaultException.FooBar");
+		// `FooBar` added, which Python spells as its Rust, takes `FooBar` from the kept
+		// variant, whichever comes first.
+		let mut now = base.clone();
+		now.objects[0].variants.push(variant("FooBar"));
+
+		assert!(
+			breaks(&base, &now, "lock").is_empty(),
+			"an added variant passes structurally"
+		);
+		let abi = Abi::new(&now, "lock");
+		let new = crate::python::generate(&abi, "lock", 0).unwrap();
+		let changes = name_breaks(
+			&BTreeMap::from([("Python".into(), old.names)]),
+			&BTreeMap::from([("Python".into(), new.names)]),
+			&base,
+			&abi,
+		);
+		assert!(
+			changes.iter().any(|c| c
+				.what
+				.contains("`FaultException.FooBar` is now `FaultException.FooBar_`")),
+			"{:?}",
+			changes.iter().map(|c| &c.what).collect::<Vec<_>>()
+		);
+	}
+
+	/// A case named as a member a trait gives the enum moves out of its way once the enum
+	/// has the trait, which the structure accepts and the names report.
+	#[test]
+	fn a_trait_renaming_a_case_breaks() {
+		let variant = |name: &str| crate::ir::Variant {
+			name: name.into(),
+			discriminant: 0,
+			fields: vec![],
+			tuple: false,
+			on: On::ALL,
+		};
+		let mut base = api();
+		base.enums.push(crate::ir::Enum {
+			path: vec!["lock".into(), "Mode".into()],
+			shown: vec!["lock".into(), "Mode".into()],
 			home: Home {
 				krate: "lock_a".into(),
 				outside: 1,
@@ -855,15 +1148,120 @@ mod tests {
 			span: DUMMY_SP,
 			on: On::ALL,
 			docs: String::new(),
+			deprecated: None,
+			variants: vec![variant("Default"), variant("Debug")],
+			exhaustive: true,
+			methods: vec![],
+			traits: Traits::default(),
+			foreign: false,
+		});
+		base.functions[0].ok = Type::Enum(0);
+		let mut now = base.clone();
+		now.enums[0].traits.default = true;
+		now.enums[0].traits.debug = true;
+		assert!(
+			breaks(&base, &now, "lock").is_empty(),
+			"an added trait passes structurally"
+		);
+		let names = |api: &Api, language: &str| {
+			let abi = Abi::new(api, "lock");
+			match language {
+				"Swift" => crate::swift::generate(&abi, "lock", 0).unwrap().names,
+				_ => crate::dart::generate(&abi, "lock", 0).unwrap().names,
+			}
+		};
+		for (language, renamed) in [
+			("Swift", "`default` is now `default_`"),
+			("Dart", "`debug` is now `debug_`"),
+		] {
+			let changes = name_breaks(
+				&BTreeMap::from([(language.into(), names(&base, language))]),
+				&BTreeMap::from([(language.into(), names(&now, language))]),
+				&base,
+				&Abi::new(&now, "lock"),
+			);
+			assert!(
+				changes.iter().any(|c| c.what.contains(renamed)),
+				"{language}: {:?}",
+				changes.iter().map(|c| &c.what).collect::<Vec<_>>()
+			);
+		}
+	}
+
+	/// A method whose JVM name moves past `Object`'s `wait(long)` moves again once a method
+	/// added before it takes that name, which only the JVM name the lock records reports.
+	#[test]
+	fn a_jvm_rename_breaks() {
+		let method = |name: &str| Function {
+			path: vec!["lock".into(), "Store".into(), name.into()],
+			shown: vec!["lock".into(), "Store".into(), name.into()],
+			receiver: Some(crate::ir::Receiver::Ref),
+			params: vec![crate::ir::Param {
+				name: "ms".into(),
+				ty: Type::Int(Int::I64),
+				interned: false,
+			}],
+			..api().functions[0].clone()
+		};
+		let mut base = api();
+		base.objects.push(object("Store"));
+		base.objects[0].methods = vec![method("wait")];
+		let mut now = base.clone();
+		now.objects[0].methods.insert(0, method("wait_"));
+		assert!(
+			breaks(&base, &now, "lock").is_empty(),
+			"an added method passes structurally"
+		);
+		let names = |api: &Api| {
+			crate::kotlin::generate(&Abi::new(api, "lock"), "lock", 0)
+				.unwrap()
+				.names
+		};
+		let changes = name_breaks(
+			&BTreeMap::from([("Kotlin".into(), names(&base))]),
+			&BTreeMap::from([("Kotlin".into(), names(&now))]),
+			&base,
+			&Abi::new(&now, "lock"),
+		);
+		assert!(
+			changes
+				.iter()
+				.any(|c| c.what.contains("/ jvm: its Kotlin name `wait_` is now `wait__`")),
+			"{:?}",
+			changes.iter().map(|c| &c.what).collect::<Vec<_>>()
+		);
+	}
+
+	fn object(name: &str) -> crate::ir::Object {
+		crate::ir::Object {
+			path: vec!["lock".into(), name.into()],
+			shown: vec!["lock".into(), name.into()],
+			home: Home {
+				krate: "lock_a".into(),
+				outside: 1,
+			},
+			args: vec![],
+			span: DUMMY_SP,
+			on: On::ALL,
+			docs: String::new(),
+			deprecated: None,
 			sync: true,
+			send: true,
 			copy: false,
 			shared: false,
 			lifetimes: 0,
 			methods: vec![],
 			traits: Traits::default(),
+			variants: vec![],
 			foreign: false,
-			opaque: false,
-		});
+			opaque: None,
+		}
+	}
+
+	#[test]
+	fn tuple_c_rename_is_reported_once() {
+		let mut base = api();
+		base.objects.push(object("A_B"));
 		base.functions[0].ok = Type::Option(Box::new(Type::Tuple(vec![Type::Object(0), Type::Int(Int::U64)])));
 		let old = crate::swift::generate(&Abi::new(&base, "lock"), "lock", 0).unwrap();
 		let mut now = base.clone();
@@ -927,5 +1325,13 @@ mod tests {
 		assert_eq!(changes.len(), 1);
 		assert!(changes[0].what.contains("lock_b"));
 		assert!(changes[0].what.contains("lock_a"));
+	}
+
+	#[test]
+	fn ties_is_not_a_break() {
+		let base = api();
+		let mut now = base.clone();
+		now.functions[0].ties = true;
+		assert!(breaks(&base, &now, "lock").is_empty());
 	}
 }

@@ -21,7 +21,7 @@ use super::{Translator, names};
 
 /// Which way a walk hands storage, and so what it does with each buffer it reaches.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub enum Hand {
+pub(crate) enum Hand {
 	/// Into a root: each `Vec<u8>` of Go's is taken off the shape of own storage, and each
 	/// container holding one is copied.
 	In,
@@ -44,7 +44,7 @@ fn reaches(mutable: bool, hand: Hand) -> bool {
 
 impl<'tcx> Translator<'tcx> {
 	/// Whether a walk handing a value of `ty` this way has anything to do.
-	pub fn hands(&self, ty: Ty<'tcx>, hand: Hand) -> bool {
+	pub(crate) fn hands(&self, ty: Ty<'tcx>, hand: Hand) -> bool {
 		self.hands_in(ty, hand, &mut Vec::new())
 	}
 
@@ -99,7 +99,7 @@ impl<'tcx> Translator<'tcx> {
 	/// a `&mut`, the only place of Go's the translation can write, since a reference
 	/// anywhere else in an argument is refused. A slice or `str` it points to is the
 	/// root's own copy of the slice, so only its elements are Go's.
-	pub fn hands_back(&self, ty: Ty<'tcx>) -> bool {
+	pub(crate) fn hands_back(&self, ty: Ty<'tcx>) -> bool {
 		let ty::Ref(_, inner, ty::Mutability::Mut) = *ty.kind() else {
 			return false;
 		};
@@ -125,7 +125,7 @@ impl<'tcx> Translator<'tcx> {
 
 	/// The Go function that walks a value of `ty` behind a pointer, handing its storage
 	/// this way, declared if new. Only for a `ty` that `hands`.
-	pub fn hand(&mut self, ty: Ty<'tcx>, hand: Hand, span: Span) -> String {
+	pub(crate) fn hand(&mut self, ty: Ty<'tcx>, hand: Hand, span: Span) -> String {
 		if let Some(name) = self.hand_fns.get(&(ty, hand)) {
 			return name.clone();
 		}
@@ -303,7 +303,7 @@ impl<'tcx> Translator<'tcx> {
 	/// reference anywhere in an argument but its outermost type, which the translation
 	/// could move out of what handing back walks, leaving the place of Go's it points to
 	/// with storage of its own.
-	pub fn refuse_unhandable(&mut self, inputs: &[Ty<'tcx>], output: Ty<'tcx>, span: Span) {
+	pub(crate) fn refuse_unhandable(&mut self, inputs: &[Ty<'tcx>], output: Ty<'tcx>, span: Span) {
 		let find = |tys: &[Ty<'tcx>], pick: &dyn Fn(Ty<'tcx>, &Self) -> bool| {
 			let mut seen = Vec::new();
 			tys.iter().find_map(|t| self.find_part(*t, &mut seen, pick))

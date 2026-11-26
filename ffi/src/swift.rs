@@ -8,33 +8,41 @@
 //! handle, freed in `deinit`, so Swift's compiler checks each move and borrow Rust makes:
 //! `self` is `consuming`, `&mut self` `mutating`, a parameter `consuming`, `borrowing`, or
 //! `inout`, a tuple holding one a struct of its own, and an array of them swift-collections'
-//! `UniqueArray`. An object that is `Copy` or thrown as an error is a final class instead,
-//! since `Swift.Error` requires a copyable type, whose handle a call holds at run time. A
-//! record is a struct; an enum a Swift enum, with
-//! its data as associated values; a trait a protocol; a closure a function type; a future
+//! `UniqueArray`. An object that is `Copy`, which only one C may change is, or thrown as an
+//! error is a final class instead, since `Swift.Error` requires a copyable type, whose
+//! handle a call holds at run time. A record is a struct, and any other `Copy` type with
+//! private fields a struct over the bytes of its C struct, which only Rust makes or reads;
+//! an enum a Swift enum, with its data as associated values; a trait a protocol; a closure a function type; a future
 //! an `async` function; an error a thrown `Swift.Error`. The runtime they share,
 //! [`runtime/rt.swift`](../runtime/rt.swift), holds the classes' handles, the arena a call
 //! lowers nested values into, and the signal a future parks on.
 //!
-//! A call passes bytes and text at its top level as views of Swift's own memory, and
-//! returned bytes are `Data` lending Rust's buffer, so neither is copied; nested in another
-//! value, bytes passed in are copied into the call's arena.
+//! Bytes are the runtime's `Bytes`: those Rust returned lend its buffer, and pass back to
+//! Rust as a second owner of it, so neither way copies them. Swift's own bytes and text
+//! pass as views of Swift's memory at a call's top level, which Rust copies once where it
+//! keeps them; nested in another value, they are copied once into a buffer Rust takes. A
+//! slice Rust borrows, of bytes or a block's numbers, is a `Span` either way: a parameter
+//! Rust reads in place, and bytes Rust lends a closure or callback, which Swift's compiler
+//! keeps from escaping the call.
 
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::fmt::Write;
 
 use crate::abi::{self, Abi, Ty, pascal};
-use crate::ir::{Access, Closure, Function, Int, Literal, Mutability, On, Param, Receiver, Type};
+use crate::doc;
+use crate::ir::{
+	Access, Closure, Collection, Family, Function, Int, Literal, Mutability, On, Order, Param, Receiver, Type,
+};
 
 const RUNTIME: &str = include_str!("../runtime/rt.swift");
 
 /// What the generator writes: the Swift file, the clang module map it imports the C
 /// header through, and the header of atomics that module adds.
-pub struct Output {
-	pub names: BTreeMap<String, String>,
-	pub swift: String,
-	pub modulemap: String,
-	pub atomics: String,
+pub(crate) struct Output {
+	pub(crate) names: BTreeMap<String, String>,
+	pub(crate) swift: String,
+	pub(crate) modulemap: String,
+	pub(crate) atomics: String,
 }
 
 /// The name of the clang module of the C header: `api` is `ApiFFI`.
@@ -44,7 +52,7 @@ fn module(prefix: &str) -> String {
 
 /// The Swift for `abi`, whose header's contract is `contract`, or the names two items
 /// claim alike.
-pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Output, String> {
+pub(crate) fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Output, String> {
 	let mut g = Gen {
 		locked: BTreeMap::new(),
 		abi,
@@ -56,9 +64,11 @@ pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Output, 
 		errors: Vec::new(),
 		thrown: BTreeMap::new(),
 		conforms: BTreeSet::new(),
+		unsent_errors: BTreeSet::new(),
 		structs: structs(abi),
 		fresh: 0,
 		on: On::ALL,
+		docc: HashMap::new(),
 	};
 	for name in g.classes.values() {
 		g.names.insert(name.clone(), "a type".to_string());
@@ -68,6 +78,16 @@ pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Output, 
 	if !g.errors.is_empty() {
 		return Err(g.errors.join("\n"));
 	}
+	// Each link once every name is final; DocC's show only the symbol's own name.
+	let render = |link: &doc::Link<'_>| match link.text {
+		Some(_) => None,
+		None => g.link(link.target),
+	};
+	let (types, top) = (
+		doc::links(&g.types, abi.api, render),
+		doc::links(&g.top, abi.api, render),
+	);
+	(g.types, g.top) = (types, top);
 	let p = &abi.prefix;
 	let upper = p.to_uppercase();
 	let module = module(p);
@@ -85,21 +105,40 @@ pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Output, 
 		\ttypealias CForeignReader = {p}_foreign_reader\n\
 		\ttypealias CU128 = {p}_u128\n\
 		\ttypealias CDuration = {p}_duration\n\
-		\ttypealias CAddr = {p}_socket_addr\n\n\
+		\ttypealias CIpv4Addr = {p}_ipv4_addr\n\
+		\ttypealias CIpv6Addr = {p}_ipv6_addr\n\
+		\ttypealias CIpAddr = {p}_ip_addr\n\
+		\ttypealias CSocketAddrV4 = {p}_socket_addr_v4\n\
+		\ttypealias CSocketAddrV6 = {p}_socket_addr_v6\n\
+		\ttypealias CSocketAddr = {p}_socket_addr\n\n\
 		\tstatic func contract() -> Swift.Bool {{\n\t\t{p}_contract() == 0x{contract:016x} && {upper}_CONTRACT == 0x{contract:016x}\n\t}}\n\n\
 		\t/// The index of the library's target among those this file serves.\n\
 		\tstatic let target = Swift.UInt64({p}_target())\n\n\
-		\t/// Traps unless the library's target is among those of `on`, as the item `what` is.\n\
-		\tstatic func on(_ on: Swift.UInt64, _ what: Swift.String) {{\n\t\tif (on >> target) & 1 == 0 {{\n\t\t\tfatalError(\"\\(what): it is not on this library's target\")\n\t\t}}\n\t}}\n\n\
+		\t/// Throws unless the library's target is among those of `on`, as the item `what` is.\n\
+		\tstatic func on(_ on: Swift.UInt64, _ what: Swift.String) throws {{\n\t\tif (on >> target) & 1 == 0 {{\n\t\t\tthrow CheckError(function: what, message: \"it is not on this library's target\")\n\t\t}}\n\t}}\n\n\
+		\t/// Traps unless the library's target is among those of `on`, where nothing can throw.\n\
+		\tstatic func onOrTrap(_ on: Swift.UInt64, _ what: Swift.String) {{\n\t\tif (on >> target) & 1 == 0 {{\n\t\t\tfatalError(\"\\(what): it is not on this library's target\")\n\t\t}}\n\t}}\n\n\
+		\t/// Throws what `status`, written by a call of `what`, says it failed, if anything.\n\
+		\t@inline(__always)\n\tstatic func status(_ status: Swift.Int32, _ what: Swift.StaticString) throws {{\n\t\tif status != 0 {{\n\t\t\tthrow failure(status, what)\n\t\t}}\n\t}}\n\n\
+		\t/// The error `status` says a call of `what` failed with: out of line, so each call that\n\
+		\t/// checks one stays small enough for its caller to inline.\n\
+		\t@inline(never)\n\tstatic func failure(_ status: Swift.Int32, _ what: Swift.StaticString) -> CheckError {{\n\t\tCheckError(function: \"\\(what)\", message: Swift.String(cString: {p}_status_message(status)))\n\t}}\n\n\
 		\tstatic func free(_ buf: Buf) {{\n\t\t{p}_buf_free(buf)\n\t}}\n\n\
 		\t/// A buffer Rust owns, holding a copy of what `view` lends.\n\
 		\tstatic func copy(_ view: Buf) -> Buf {{\n\t\t{p}_buf_copy(view)\n\t}}\n\n\
+		\t/// A second owner of `buf`, which Rust returned, sharing its bytes.\n\
+		\tstatic func clone(_ buf: Buf) -> Buf {{\n\t\t{p}_buf_clone(buf)\n\t}}\n\n\
 		\tstatic func load(_ state: UnsafeMutablePointer<Swift.Int>) -> Swift.Int {{\n\t\t{p}_atomic_load(state)\n\t}}\n\n\
 		\tstatic func store(_ state: UnsafeMutablePointer<Swift.Int>, _ value: Swift.Int) {{\n\t\t{p}_atomic_store(state, value)\n\t}}\n\n\
 		\tstatic func add(_ state: UnsafeMutablePointer<Swift.Int>, _ value: Swift.Int) -> Swift.Int {{\n\t\t{p}_atomic_add(state, value)\n\t}}\n\n\
 		\tstatic func exchange(_ state: UnsafeMutablePointer<Swift.Int>, _ value: Swift.Int) -> Swift.Int {{\n\t\t{p}_atomic_exchange(state, value)\n\t}}\n\n\
 		\t/// Set `state` to `new` if it is `old`, returning what it was.\n\
-		\tstatic func swap(_ state: UnsafeMutablePointer<Swift.Int>, _ old: Swift.Int, _ new: Swift.Int) -> Swift.Int {{\n\t\t{p}_atomic_cas(state, old, new)\n\t}}\n}}\n\n"
+		\tstatic func swap(_ state: UnsafeMutablePointer<Swift.Int>, _ old: Swift.Int, _ new: Swift.Int) -> Swift.Int {{\n\t\t{p}_atomic_cas(state, old, new)\n\t}}\n\n\
+		\t/// `load`, `store`, and `swap`, sequentially consistent: a store and a later load of\n\
+		\t/// another word on two threads each meet the other's.\n\
+		\tstatic func loadSC(_ state: UnsafeMutablePointer<Swift.Int>) -> Swift.Int {{\n\t\t{p}_atomic_load_sc(state)\n\t}}\n\n\
+		\tstatic func storeSC(_ state: UnsafeMutablePointer<Swift.Int>, _ value: Swift.Int) {{\n\t\t{p}_atomic_store_sc(state, value)\n\t}}\n\n\
+		\tstatic func swapSC(_ state: UnsafeMutablePointer<Swift.Int>, _ old: Swift.Int, _ new: Swift.Int) -> Swift.Int {{\n\t\t{p}_atomic_cas_sc(state, old, new)\n\t}}\n}}\n\n"
 	);
 	swift.push_str(RUNTIME);
 	swift.push('\n');
@@ -111,6 +150,7 @@ pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Output, 
 	while swift.ends_with("\n\n") {
 		swift.pop();
 	}
+	let swift = inlinable(&swift);
 	let modulemap = format!(
 		"// Generated by rust2-ffi: the C ABI of {packages} as a clang module, which {p}.swift imports. Do not edit.\n\n\
 		module {module} {{\n\theader \"../include/{p}.h\"\n\theader \"{p}_atomics.h\"\n\texport *\n}}\n"
@@ -123,6 +163,9 @@ pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Output, 
 		static inline intptr_t {p}_atomic_add(intptr_t *p, intptr_t v) {{\n\treturn __atomic_add_fetch(p, v, __ATOMIC_ACQ_REL);\n}}\n\n\
 		static inline intptr_t {p}_atomic_exchange(intptr_t *p, intptr_t v) {{\n\treturn __atomic_exchange_n(p, v, __ATOMIC_ACQ_REL);\n}}\n\n\
 		static inline intptr_t {p}_atomic_cas(intptr_t *p, intptr_t old, intptr_t new_) {{\n\t__atomic_compare_exchange_n(p, &old, new_, 0, __ATOMIC_ACQ_REL, __ATOMIC_ACQUIRE);\n\treturn old;\n}}\n\n\
+		static inline intptr_t {p}_atomic_load_sc(const intptr_t *p) {{\n\treturn __atomic_load_n(p, __ATOMIC_SEQ_CST);\n}}\n\n\
+		static inline void {p}_atomic_store_sc(intptr_t *p, intptr_t v) {{\n\t__atomic_store_n(p, v, __ATOMIC_SEQ_CST);\n}}\n\n\
+		static inline intptr_t {p}_atomic_cas_sc(intptr_t *p, intptr_t old, intptr_t new_) {{\n\t__atomic_compare_exchange_n(p, &old, new_, 0, __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST);\n\treturn old;\n}}\n\n\
 		#endif\n"
 	);
 	Ok(Output {
@@ -134,28 +177,44 @@ pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Output, 
 }
 
 /// The standard library's names the runtime and the generated code use unqualified, which
-/// an exported type or function would shadow, and `Swift`, which qualifies the rest. The
-/// runtime's own are the C ABI's: `Native` and `SocketAddr` are claimed as
-/// `<prefix>_native` and `<prefix>_socket_addr`.
+/// an exported type or function would shadow, and `Swift`, which qualifies the rest. A
+/// stream's class declares or infers `Element`, `Failure`, and `AsyncIterator`, which would
+/// shadow an export of that name inside it. The
+/// runtime's own are the C ABI's: `Native`, `Bytes`, and each address type are claimed as
+/// `<prefix>_native`, `<prefix>_bytes`, `<prefix>_socket_addr`, and so on.
 const TAKEN: &[&str] = &[
 	"Array",
+	"AsyncIterator",
 	"Bool",
+	"Bytes",
 	"CancellationError",
+	"CheckError",
 	"Comparable",
 	"CustomDebugStringConvertible",
 	"CustomStringConvertible",
 	"Data",
+	"Element",
 	"Equatable",
+	"Failure",
 	"Hashable",
 	"Int",
 	"Int64",
+	"IpAddr",
+	"Ipv4Addr",
+	"Ipv6Addr",
 	"Never",
+	"NonZero",
 	"OpaquePointer",
 	"Optional",
+	"PathBuf",
+	"RandomAccessCollection",
+	"RustDuration",
 	"Sendable",
 	"SeekOrigin",
 	"SeekableReader",
 	"SocketAddr",
+	"SocketAddrV4",
+	"SocketAddrV6",
 	"StaticString",
 	"Swift",
 	"Task",
@@ -175,6 +234,7 @@ const TAKEN: &[&str] = &[
 	"UnsafeMutableRawPointer",
 	"UnsafePointer",
 	"UnsafeRawBufferPointer",
+	"UnsafeRawPointer",
 	"UniqueArray",
 	"Void",
 	"fatalError",
@@ -193,10 +253,19 @@ struct Arg {
 	open: Option<(String, String)>,
 	exprs: Vec<String>,
 	after: Vec<String>,
+	/// Whether an expression gives Rust a retained box, which only the call takes.
+	gives: bool,
+	/// Whether its lowering, its one expression, throws.
+	throws: bool,
+	/// Whether it opens a buffer Rust takes, a second owner of Rust's own, which only the
+	/// call frees: so it opens inside every open that throws.
+	takes: bool,
 }
 
 struct Gen<'a> {
 	locked: BTreeMap<String, String>,
+	/// Each function's name as DocC links it, by its [`crate::lock::function_key`].
+	docc: HashMap<String, String>,
 	abi: &'a Abi<'a>,
 	/// Each exported type's name, by its C name.
 	classes: HashMap<String, String>,
@@ -211,6 +280,9 @@ struct Gen<'a> {
 	thrown: BTreeMap<String, Type>,
 	/// The exported types thrown as errors, which conform to `Swift.Error`.
 	conforms: BTreeSet<String>,
+	/// Those of them that are not `Sendable`, which `Swift.Error` requires: each conforms
+	/// unchecked, as its run-time checks keep it on its thread.
+	unsent_errors: BTreeSet<String>,
 	/// The objects that are noncopyable structs: each but those `Copy` or thrown.
 	structs: BTreeSet<usize>,
 	fresh: usize,
@@ -219,13 +291,18 @@ struct Gen<'a> {
 }
 
 impl<'a> Gen<'a> {
-	/// The statement that traps unless the library's target is among those of `on`, as the
-	/// item `what` is, then `then`; or `then` alone if it is on every target.
-	fn on(&self, on: On, what: &str, then: &str) -> String {
+	/// The statement that throws, if the body around it can, or else traps, unless the
+	/// library's target is among those of `on`, as the item `what` is, then `then`; or `then`
+	/// alone if it is on every target.
+	fn on(&self, on: On, what: &str, then: &str, throws: bool) -> String {
 		let api = self.abi.api;
+		let check = match throws {
+			true => "try Native.on",
+			false => "Native.onOrTrap",
+		};
 		match api.everywhere(on) {
 			true => then.to_string(),
-			false => format!("Native.on({}, \"{what}\"){then}", on.0 & api.all().0),
+			false => format!("{check}({}, \"{what}\"){then}", on.0 & api.all().0),
 		}
 	}
 
@@ -241,7 +318,7 @@ impl<'a> Gen<'a> {
 
 	/// The Swift name of the C type `c`.
 	fn class(&self, c: &str) -> String {
-		self.classes.get(c).cloned().unwrap_or_else(|| pascal(self.bare(c)))
+		kw(&self.classes.get(c).cloned().unwrap_or_else(|| pascal(self.bare(c))))
 	}
 
 	/// The top-level Swift name `what` takes with `labels`: `name`, with a trailing `_`
@@ -257,22 +334,38 @@ impl<'a> Gen<'a> {
 		name
 	}
 
-	/// Check that no two members of the type `rust` share a full Swift name, as [`full`]
-	/// spells it.
-	fn distinct(&mut self, rust: &str, members: &[String]) {
-		let mut seen = BTreeSet::new();
-		for member in members {
-			if !seen.insert(member) {
-				self.errors.push(format!(
-					"two members of `{rust}` are both `{member}` in Swift, which rust2-ffi should keep apart"
-				));
-			}
-		}
+	/// Asserts that no two members of the type `rust` share a full Swift name, as [`full`]
+	/// spells it and [`abi::assert_apart`] checks.
+	fn distinct(&self, rust: &str, members: &[String]) {
+		abi::assert_apart(rust, "Swift", members, |a, b| a == b);
 	}
 
 	/// Whether Swift's value of `ty` is noncopyable: it holds an object's struct.
 	fn unique(&self, ty: &Type) -> bool {
 		unique(&self.structs, ty)
+	}
+
+	/// The element of the span Swift borrows a shared slice of bytes or of a block's numbers
+	/// as, in place, which the compiler keeps from escaping the call.
+	fn spanned(&self, ty: &Type) -> Option<String> {
+		match ty {
+			Type::Ref(Mutability::Not, inner) => match &**inner {
+				Type::Slice => Some("Swift.UInt8".to_string()),
+				list @ Type::List(Collection::Slice, elem) if list.block().is_some() => Some(self.sw(elem)),
+				_ => None,
+			},
+			_ => None,
+		}
+	}
+
+	/// The Swift type of a parameter of type `ty`, which Rust takes or lends: a slice it
+	/// borrows is a span, and any other type as [`Self::sw`] has it.
+	fn param(&self, ty: &Type) -> String {
+		match (ty, self.spanned(unoption(ty))) {
+			(Type::Option(_), Some(elem)) => format!("Swift.Span<{elem}>?"),
+			(_, Some(elem)) => format!("Swift.Span<{elem}>"),
+			(_, None) => self.sw(ty),
+		}
 	}
 
 	/// The ownership a parameter of type `ty` declares, which Swift requires of a
@@ -313,18 +406,26 @@ impl<'a> Gen<'a> {
 		let abi = self.abi;
 		match ty {
 			Type::Const(_) => unreachable!("a const argument is no value"),
+			Type::Jni(_) => unreachable!("only Kotlin exports what takes a JNI value"),
 			Type::Array(n) => Abi::array_class(*n),
 			Type::Unit => "Void".to_string(),
 			Type::Bool => "Swift.Bool".to_string(),
-			Type::Int(int) | Type::NonZero(int) => sw_int(*int).to_string(),
+			Type::Int(int) => sw_int(*int).to_string(),
+			Type::NonZero(int) => format!("NonZero<{}>", sw_int(*int)),
 			Type::F32 => "Swift.Float".to_string(),
 			Type::F64 => "Swift.Double".to_string(),
 			Type::Char => "Swift.Unicode.Scalar".to_string(),
-			Type::Str | Type::String | Type::Path | Type::PathBuf => "Swift.String".to_string(),
-			Type::Slice | Type::Vec | Type::Bytes => "Data".to_string(),
+			Type::Str | Type::String => "Swift.String".to_string(),
+			Type::Path | Type::PathBuf => "PathBuf".to_string(),
+			Type::Slice | Type::Vec | Type::Bytes => "Bytes".to_string(),
 			Type::U128 => "U128".to_string(),
-			Type::Duration => "Swift.Duration".to_string(),
-			Type::SocketAddr(_) => "SocketAddr".to_string(),
+			Type::Duration => "RustDuration".to_string(),
+			Type::SocketAddr(Family::Any) => "SocketAddr".to_string(),
+			Type::SocketAddr(Family::V4) => "SocketAddrV4".to_string(),
+			Type::SocketAddr(Family::V6) => "SocketAddrV6".to_string(),
+			Type::IpAddr(Family::Any) => "IpAddr".to_string(),
+			Type::IpAddr(Family::V4) => "Ipv4Addr".to_string(),
+			Type::IpAddr(Family::V6) => "Ipv6Addr".to_string(),
 			Type::List(_, inner) if self.unique(inner) => format!("UniqueArray<{}>", self.sw(inner)),
 			Type::List(_, inner) => format!("[{}]", self.sw(inner)),
 			Type::Waker => "@Sendable () -> Void".to_string(),
@@ -339,7 +440,7 @@ impl<'a> Gen<'a> {
 			Type::Closure(closure_) => {
 				let (params, ret) = (&closure_.params, &closure_.ok);
 				let params: Vec<String> = (params.iter())
-					.map(|p| format!("{}{}", self.ownership(p), self.sw(p)))
+					.map(|p| format!("{}{}", self.ownership(p), self.param(p)))
 					.collect();
 				let throws = match closure_.err {
 					Some(_) => " throws",
@@ -372,7 +473,8 @@ impl<'a> Gen<'a> {
 			Ty::Buf => abi.rt("buf"),
 			Ty::U128 => abi.rt("u128"),
 			Ty::Duration => abi.rt("duration"),
-			Ty::SocketAddr => abi.rt("socket_addr"),
+			Ty::SocketAddr(family) => abi.rt(abi::addr(true, *family)),
+			Ty::IpAddr(family) => abi.rt(abi::addr(false, *family)),
 			Ty::Struct(n) | Ty::Enum(n) => n.clone(),
 			Ty::Handle { .. } | Ty::Future(_) => "OpaquePointer?".to_string(),
 			Ty::Waker => abi.rt("waker"),
@@ -406,6 +508,27 @@ impl<'a> Gen<'a> {
 		}
 	}
 
+	/// Whether lowering a `ty` nested in another value can throw: it holds a class whose
+	/// value a move takes, closing its handle.
+	fn throwing(&self, ty: &Type) -> bool {
+		let mut handles = Vec::new();
+		self.abi.api.handles(ty, &mut handles, &mut Vec::new());
+		handles.into_iter().any(|i| self.held(i))
+	}
+
+	/// Whether object `i` is a class a move may close, whose hold for a call can fail.
+	fn held(&self, i: usize) -> bool {
+		self.abi.traits_status(i) && !self.unique(&Type::Object(i))
+	}
+
+	/// `lowered`, a lowering in a function that cannot throw, trapping instead.
+	fn trapping(lowered: String) -> String {
+		match lowered.contains("try ") {
+			true => format!("try! {lowered}"),
+			false => lowered,
+		}
+	}
+
 	/// The arena argument a value's `_lower` takes, if it needs one.
 	fn arena_arg(&self, ty: &Type) -> &'static str {
 		match self.arena(ty) {
@@ -425,12 +548,13 @@ impl<'a> Gen<'a> {
 		match ty {
 			Type::Unit => unreachable!("no value is unit"),
 			Type::Bool | Type::F32 | Type::F64 => e.to_string(),
-			Type::Int(int) | Type::NonZero(int) => lower_int(*int, e),
+			Type::Int(int) => lower_int(*int, e),
+			Type::NonZero(int) => lower_int(*int, &format!("{e}.value")),
 			Type::Char => format!("{e}.value"),
 			Type::U128 => format!("Native.u128({e})"),
 			Type::Array(_) => format!("{e}._c"),
 			Type::Duration => format!("Native.duration({e})"),
-			Type::SocketAddr(_) => format!("Native.socketAddr({e})"),
+			Type::SocketAddr(_) | Type::IpAddr(_) => format!("Native.addr({e})"),
 			Type::Range(_) | Type::Bound(_) | Type::Bounds(_) => format!("{e}._lower()"),
 			Type::Waker => format!("Native.waker({e})"),
 			Type::Future => format!("Native.future({e})"),
@@ -445,8 +569,13 @@ impl<'a> Gen<'a> {
 					true => "unique",
 					false => "list",
 				};
+				// A hold that throws makes the list's lowering throw.
+				let t = match item.contains("try ") {
+					true => "try ",
+					false => "",
+				};
 				format!(
-					"Native.vec(a_.{list}({e}) {{ {x} in {item} }}, {}.init(ptr:len:owner:))",
+					"Native.vec({t}a_.{list}({e}) {{ {x} in {item} }}, {}.init(ptr:len:owner:))",
 					abi.list(inner)
 				)
 			}
@@ -464,26 +593,40 @@ impl<'a> Gen<'a> {
 						)
 					}
 				};
-				format!("Native.option({e}, {{ {v} in {some} }}, {none})")
+				let t = match some.contains("try ") {
+					true => "try ",
+					false => "",
+				};
+				format!("{t}Native.option({e}, {{ {v} in {some} }}, {none})")
 			}
 			Type::Option(inner) => match inner.base() {
+				Type::Object(i) if self.held(*i) => format!("try a_.held({e}?.handle)"),
 				Type::Object(_) => format!("a_.hold({e}?.handle)"),
 				_ if Abi::is_buf(inner) => format!("a_.buf({e})"),
 				Type::List(_, elem) => {
 					let v = self.fresh("v");
 					let some = self.lower(inner, &v);
-					format!("({e}.map {{ {v} in {some} }} ?? {}())", abi.list(elem))
+					let t = if some.contains("try ") { "try " } else { "" };
+					format!("({t}{e}.map {{ {v} in {some} }} ?? {}())", abi.list(elem))
 				}
 				_ => {
 					let c = abi.option(inner);
 					let v = self.fresh("v");
 					let some = self.lower(inner, &v);
-					format!("({e}.map {{ {v} in {c}(some: true, value: {some}) }} ?? {c}())")
+					let t = if some.contains("try ") { "try " } else { "" };
+					format!("({t}{e}.map {{ {v} in {c}(some: true, value: {some}) }} ?? {c}())")
 				}
 			},
 			Type::Box(inner) | Type::Ref(_, inner) => self.lower(inner, e),
-			Type::Record(_) | Type::Enum(_) => format!("{e}._lower({})", self.arena_arg(ty)),
+			Type::Record(_) | Type::Enum(_) => {
+				let t = match self.throwing(ty) {
+					true => "try ",
+					false => "",
+				};
+				format!("{t}{e}._lower({})", self.arena_arg(ty))
+			}
 			Type::Object(_) if self.unique(ty) => format!("{e}.handle"),
+			Type::Object(i) if self.held(*i) => format!("try a_.held({e}.handle)"),
 			Type::Object(_) => format!("a_.hold({e}.handle)"),
 			Type::Callback(i, _) => format!("Native.lower_{}({e})", abi.callback(*i)),
 			Type::Tuple(elements) => {
@@ -508,22 +651,23 @@ impl<'a> Gen<'a> {
 		match ty {
 			Type::Str | Type::String => format!("Native.string({e})"),
 			Type::Path | Type::PathBuf => format!("Native.path({e})"),
-			Type::Slice | Type::Vec | Type::Bytes => format!("Native.data({e})"),
+			Type::Slice | Type::Vec | Type::Bytes => format!("Native.bytes({e})"),
 			Type::Bool | Type::F32 | Type::F64 => e.to_string(),
-			Type::Int(int) | Type::NonZero(int) => lift_int(*int, e),
+			Type::Int(int) => lift_int(*int, e),
+			Type::NonZero(int) => format!("NonZero(_unchecked: {})", lift_int(*int, e)),
 			Type::Char => format!("Native.scalar({e})"),
 			Type::U128 => format!("Native.u128({e})"),
 			Type::Array(n) => format!("{}(_c: {e})", Abi::array_class(*n)),
 			Type::Duration => format!("Native.duration({e})"),
-			Type::SocketAddr(_) => format!("Native.socketAddr({e})"),
+			Type::SocketAddr(_) | Type::IpAddr(_) => format!("Native.addr({e})"),
 			Type::Range(_) | Type::Bound(_) | Type::Bounds(_) => format!("{}._lift({e})", self.sw(ty)),
 			// A block is copied out whole, then freed.
 			Type::List(_, inner) if ty.block().is_some() => {
 				let v = self.fresh("v");
 				format!(
-					"{{ () -> {} in let {v} = {e}; defer {{ {}_free({v}) }}; return Native.block({v}.ptr, {v}.len) }}()",
+					"{{ () -> {} in let {v} = {e}; defer {{ {}({v}) }}; return Native.block({v}.ptr, {v}.len) }}()",
 					self.sw(ty),
-					abi.list(inner)
+					abi::join(&abi.list(inner), "free")
 				)
 			}
 			Type::List(_, inner) => {
@@ -534,16 +678,16 @@ impl<'a> Gen<'a> {
 					false => "list",
 				};
 				format!(
-					"{{ () -> {} in var {v} = {e}; defer {{ {v}.len = 0; {}_free({v}) }}; return Native.{list}({v}.ptr, {v}.len) {{ {c} in {item} }} }}()",
+					"{{ () -> {} in var {v} = {e}; defer {{ {v}.len = 0; {}({v}) }}; return Native.{list}({v}.ptr, {v}.len) {{ {c} in {item} }} }}()",
 					self.sw(ty),
-					abi.list(inner)
+					abi::join(&abi.list(inner), "free")
 				)
 			}
 			Type::Option(inner) => match inner.base() {
 				Type::Object(_) => format!("{e}.map {{ {}(raw: $0) }}", self.sw(inner)),
 				Type::Str | Type::String => format!("Native.string(option: {e})"),
 				Type::Path | Type::PathBuf => format!("Native.path(option: {e})"),
-				Type::Slice | Type::Vec | Type::Bytes => format!("Native.data(option: {e})"),
+				Type::Slice | Type::Vec | Type::Bytes => format!("Native.bytes(option: {e})"),
 				Type::List(..) => format!(
 					"({e}.ptr == nil ? nil : {} as {}?)",
 					self.lift(inner, e),
@@ -576,16 +720,21 @@ impl<'a> Gen<'a> {
 	}
 
 	/// The Swift value of the C value `e` of type `ty`, which C lends a callback or closure
-	/// for its call: bytes and text copied, and a scalar as it is.
+	/// for its call: a slice as a span of it in place, other bytes and text copied, and a
+	/// scalar as it is.
 	fn lift_lent(&mut self, ty: &Type, e: &str) -> String {
+		let span =
+			|e: &str| format!("Swift.Span(_unsafeElements: Swift.UnsafeBufferPointer(start: {e}.ptr, count: {e}.len))");
 		match ty {
+			_ if self.spanned(ty).is_some() => span(e),
+			Type::Option(inner) if self.spanned(inner).is_some() => format!("({e}.ptr == nil ? nil : {})", span(e)),
 			Type::Str | Type::String => format!("Native.string(lent: {e})"),
 			Type::Path | Type::PathBuf => format!("Native.path(lent: {e})"),
-			Type::Slice | Type::Vec | Type::Bytes => format!("Native.data(lent: {e})"),
+			Type::Slice | Type::Vec | Type::Bytes => format!("Native.bytes(lent: {e})"),
 			Type::Option(inner) => match inner.base() {
 				Type::Str | Type::String => format!("Native.string(lentOption: {e})"),
 				Type::Path | Type::PathBuf => format!("Native.path(lentOption: {e})"),
-				Type::Slice | Type::Vec | Type::Bytes => format!("Native.data(lentOption: {e})"),
+				Type::Slice | Type::Vec | Type::Bytes => format!("Native.bytes(lentOption: {e})"),
 				_ => self.lift(ty, e),
 			},
 			Type::Ref(_, inner) => self.lift_lent(inner, e),
@@ -649,11 +798,22 @@ impl<'a> Gen<'a> {
 				Literal::Bool(b) => ("Swift.Bool".to_string(), b.to_string()),
 				Literal::Int(int, v) => (sw_int(int).to_string(), v.to_string()),
 			};
-			let _ = write!(
-				self.top,
-				"{}public let {name}: {ty} = {value}\n\n",
-				docs(&constant.docs, "")
+			let declared = format!(
+				"{}public let {name}: {ty} = {value}\n",
+				docs(&constant.docs, constant.deprecated.as_deref(), "")
 			);
+			// Only where it compiles for a target that has it: elsewhere its value may be
+			// past its type's, as a 64-bit `usize`'s is past a 32-bit `UInt`'s.
+			let gate = crate::gate::gate(api, crate::gate::Lang::Swift, constant.on);
+			match gate.expect("the export refuses a constant Swift cannot gate") {
+				crate::gate::Gate::If(condition) => {
+					let _ = write!(self.top, "#if {condition}\n{declared}#endif\n\n");
+				}
+				crate::gate::Gate::Everywhere => {
+					let _ = writeln!(self.top, "{declared}");
+				}
+				crate::gate::Gate::Nowhere => unreachable!("Swift serves every target"),
+			}
 		}
 		for i in 0..api.records.len() {
 			self.record(i);
@@ -667,22 +827,37 @@ impl<'a> Gen<'a> {
 		for i in 0..api.callbacks.len() {
 			self.callback(i);
 		}
-		for function in &api.functions {
-			for (code, _) in self.function(function, None, None, &[]) {
+		let functions: Vec<&Function> = api.functions.iter().collect();
+		let named = self.names(&functions, None, None, |full| {
+			let name = full.split('(').next().unwrap_or(full);
+			TAKEN.contains(&name) || self.names.contains_key(full)
+		});
+		for (function, name) in api.functions.iter().zip(&named) {
+			for (code, _) in self.function(function, (None, None), name, &[]) {
 				self.top.push_str(&code);
 				self.top.push('\n');
 			}
 		}
+		// `Swift.Error` is `Sendable`, so an error holding a value Swift keeps on one thread
+		// is so unchecked: its value's run-time checks still keep it there.
 		for (name, ty) in &self.thrown.clone() {
 			let sw = self.sw(ty);
+			let unchecked = match self.sendable(ty).is_empty() {
+				true => ", @unchecked Sendable",
+				false => "",
+			};
 			let _ = write!(
 				self.types,
-				"/// A `{}` Rust returned as an error, or a closure throws for Rust to return.\npublic struct {name}: Swift.Error, CustomStringConvertible {{\n\tpublic let error: {sw}\n\n\tpublic init(error: {sw}) {{\n\t\tself.error = error\n\t}}\n\n\tpublic var description: Swift.String {{\n\t\t\"\\(error)\"\n\t}}\n}}\n\n",
+				"/// A `{}` Rust returned as an error, or a closure throws for Rust to return.\npublic struct {name}: Swift.Error{unchecked}, CustomStringConvertible {{\n\tpublic let error: {sw}\n\n\tpublic init(error: {sw}) {{\n\t\tself.error = error\n\t}}\n\n\tpublic var description: Swift.String {{\n\t\tSwift.String(describing: error)\n\t}}\n}}\n\n",
 				sw.trim_start_matches("Swift.")
 			);
 		}
 		for name in &self.conforms.clone() {
-			let _ = write!(self.types, "extension {name}: Swift.Error {{}}\n\n");
+			let unchecked = match self.unsent_errors.contains(name) {
+				true => ", @unchecked Sendable",
+				false => "",
+			};
+			let _ = write!(self.types, "extension {name}: Swift.Error{unchecked} {{}}\n\n");
 		}
 	}
 
@@ -699,9 +874,13 @@ impl<'a> Gen<'a> {
 			.collect();
 		let assigns: String = (0..elements.len()).map(|n| format!("\t\tself._{n} = _{n}\n")).collect();
 		let shown: Vec<&str> = types.iter().map(|t| t.trim_start_matches("Swift.")).collect();
+		let sendable = match self.sendable(&Type::Tuple(elements.to_vec())).is_empty() {
+			true => "",
+			false => ", Sendable",
+		};
 		let _ = write!(
 			self.types,
-			"/// The tuple `({})`, as a struct, since it holds a value Swift cannot copy. Frozen, so\n/// another module may move each element out.\n@frozen public struct {name}: ~Copyable, Sendable {{\n{fields}\n\tpublic init({}) {{\n{assigns}\t}}\n}}\n\n",
+			"/// The tuple `({})`, as a struct, since it holds a value Swift cannot copy. Frozen, so\n/// another module may move each element out.\n@frozen public struct {name}: ~Copyable{sendable} {{\n{fields}\n\tpublic init({}) {{\n{assigns}\t}}\n}}\n\n",
 			shown.join(", "),
 			params.join(", ")
 		);
@@ -747,8 +926,8 @@ impl<'a> Gen<'a> {
 	}
 
 	/// The members a type's std traits export, with the protocols they conform it to:
-	/// `Display` is `description`, `Debug` `debugDescription`, `PartialEq` `==`, `Default`
-	/// a static `default()`, and `Clone` an object's `clone()`.
+	/// `Display` is `description`, `Debug` `debugDescription`, `PartialEq` `==`, `Hash`
+	/// `hash(into:)`, `Default` a static `default()`, and `Clone` an object's `clone()`.
 	fn traits(
 		&mut self,
 		ty: &Type,
@@ -758,94 +937,203 @@ impl<'a> Gen<'a> {
 		members: &mut Vec<String>,
 		protocols: &mut Vec<&'static str>,
 	) {
+		let c_ = crate::abi::stem(c);
 		let name = self.sw(ty);
 		let object = matches!(ty, Type::Object(_));
 		let unique = self.unique(ty);
-		// The receiver: a struct's handle, a class's held, or the value lowered.
-		let (open, this, close) = match object {
-			true if unique => (String::new(), "self.handle", ""),
-			true => ("self.handle.with { h_ in ".to_string(), "h_", " }"),
-			false => {
-				let arena = match self.arena(ty) {
-					true => "let a_ = Native.Arena()\n\t\tdefer { a_.finish() }\n\t\t",
-					false => "",
-				};
-				(
+		// One whose checks can fail throws, so conforms to no protocol of these, whose
+		// requirements cannot throw; any other's checks never fail.
+		let status = self.abi.traits_status_of(ty);
+		// The statements lowering a value receiver for the function `what`, which on a target
+		// the type is not on throws where it can.
+		let value = |what: &str| {
+			let arena = match self.arena(ty) {
+				true => format!("let a_ = Native.Arena(\"{what}\")\n\t\tdefer {{ a_.finish() }}\n\t\t"),
+				false => String::new(),
+			};
+			format!(
+				"{}Native.check()\n\t\t{arena}",
+				self.on(self.on, what, "\n\t\t", status)
+			)
+		};
+		let lower = match self.throwing(ty) {
+			true => format!("try self._lower({})", self.arena_arg(ty)),
+			false => format!("self._lower({})", self.arena_arg(ty)),
+		};
+		// The statements calling `call`, the C call with its arguments, unclosed, of the
+		// function `what`, returning `lift` of its result.
+		let call = |call: &str, what: &str, lift: &dyn Fn(&str) -> String| match status {
+			true => format!(
+				"var s_: Swift.Int32 = 0\n\t\tlet r_ = {call}, &s_)\n\t\ttry Native.status(s_, \"{what}\")\n\t\treturn {}",
+				lift("r_")
+			),
+			false => format!("return {}", lift(&format!("{call})"))),
+		};
+		// The body calling `{c}_<suffix>` of the receiver, returning `lift` of its result.
+		let unary = |suffix: &str, lift: &dyn Fn(&str) -> String| {
+			let what = format!("{c_}_{suffix}");
+			match (object, unique) {
+				(true, true) => call(&format!("{what}(self.handle"), &what, lift),
+				(true, false) => {
+					let with = match status {
+						true => format!("try self.handle.with(\"{what}\")"),
+						false => "self.handle.with".to_string(),
+					};
 					format!(
-						"{}Native.check()\n\t\t{arena}var c_ = self._lower({})\n\t\treturn ",
-						self.on(self.on, c, "\n\t\t"),
-						self.arena_arg(ty)
-					),
-					"&c_",
-					"",
-				)
+						"return {with} {{ h_ in\n\t\t\t{}\n\t\t}}",
+						call(&format!("{what}(h_"), &what, lift).replace("\n\t\t", "\n\t\t\t")
+					)
+				}
+				(false, _) => format!(
+					"{}var c_ = {lower}\n\t\t{}",
+					value(&what),
+					call(&format!("{what}(&c_"), &what, lift)
+				),
 			}
 		};
-		let text = |open: &str, call: &str| match object {
-			true => format!("Native.string({open}{call}{close})"),
-			false => format!("{open}Native.string({call})"),
+		// The body calling `{c}_<suffix>` of `a` and `b`, returning `lift` of its result.
+		let binary = |suffix: &str, lift: &dyn Fn(&str) -> String| {
+			let what = format!("{c_}_{suffix}");
+			match (object, unique) {
+				(true, true) => call(&format!("{what}(a.handle, b.handle"), &what, lift),
+				(true, false) => {
+					let with = |h: &str| match status {
+						true => format!("try {h}.handle.with(\"{what}\")"),
+						false => format!("{h}.handle.with"),
+					};
+					format!(
+						"return {} {{ a_ in {} {{ b_ in\n\t\t\t{}\n\t\t}} }}",
+						with("a"),
+						with("b"),
+						call(&format!("{what}(a_, b_"), &what, lift).replace("\n\t\t", "\n\t\t\t")
+					)
+				}
+				(false, _) => format!(
+					"{}var ca_ = {}\n\t\tvar cb_ = {}\n\t\t{}",
+					value(&what),
+					lower.replacen("self.", "a.", 1),
+					lower.replacen("self.", "b.", 1),
+					call(&format!("{what}(&ca_, &cb_"), &what, lift)
+				),
+			}
 		};
+		let throws = match status {
+			true => " throws",
+			false => "",
+		};
+		let borrowing = match unique {
+			true => "borrowing ",
+			false => "",
+		};
+		// A property's body, in a getter that throws if the call can.
+		let getter = |body: String| match status {
+			true => format!("get throws {{\n\t\t\t{}\n\t\t}}", body.replace("\n\t\t", "\n\t\t\t")),
+			false => body,
+		};
+		let text = |r: &str| format!("Native.string({r})");
+		// The members named here, by trait, which the lock records.
+		let mut named = Vec::new();
 		if t.display {
-			protocols.push("CustomStringConvertible");
+			named.push(("Display", "description"));
+			if !status {
+				protocols.push("CustomStringConvertible");
+			}
 			members.push("description".to_string());
 			body.push(format!(
 				"\tpublic var description: Swift.String {{\n\t\t{}\n\t}}\n",
-				text(&open, &format!("{c}_to_string({this})"))
+				getter(unary("to_string", &text))
 			));
 		}
 		if t.debug {
-			protocols.push("CustomDebugStringConvertible");
+			named.push(("Debug", "debugDescription"));
+			if !status {
+				protocols.push("CustomDebugStringConvertible");
+			}
 			members.push("debugDescription".to_string());
 			body.push(format!(
 				"\t/// Rust's `Debug` form.\n\tpublic var debugDescription: Swift.String {{\n\t\t{}\n\t}}\n",
-				text(&open, &format!("{c}_debug({this})"))
+				getter(unary("debug", &text))
 			));
 		}
 		if object && t.clone {
+			named.push(("Clone", "clone"));
 			members.push("clone".to_string());
-			let raw = match unique {
-				true => format!("{c}_clone(self.handle)"),
-				false => format!("self.handle.with {{ {c}_clone($0) }}"),
-			};
+			let lift = |r: &str| format!("{name}(raw: {r})");
 			body.push(format!(
-				"\t/// A new handle to a clone.\n\tpublic func clone() -> {name} {{\n\t\t{name}(raw: {raw})\n\t}}\n"
+				"\t/// A new handle to a clone.\n\tpublic func clone(){throws} -> {name} {{\n\t\t{}\n\t}}\n",
+				unary("clone", &lift)
 			));
 		}
 		if t.eq {
-			protocols.push("Equatable");
-			let compare = match object {
-				true if unique => format!("{c}_eq(a.handle, b.handle)"),
-				true => format!("a.handle.with {{ a_ in b.handle.with {{ b_ in {c}_eq(a_, b_) }} }}"),
-				false => {
-					let arena = match self.arena(ty) {
-						true => "let a_ = Native.Arena()\n\t\tdefer { a_.finish() }\n\t\t",
-						false => "",
-					};
-					let arg = self.arena_arg(ty);
-					format!(
-						"{}Native.check()\n\t\t{arena}var ca_ = a._lower({arg})\n\t\tvar cb_ = b._lower({arg})\n\t\treturn {c}_eq(&ca_, &cb_)",
-						self.on(self.on, c, "\n\t\t")
-					)
-				}
-			};
-			let borrowing = match unique {
-				true => "borrowing ",
+			// `Hash` agrees with `PartialEq`, so a type with both hashes as Rust does.
+			if !status {
+				protocols.push(match t.hash {
+					true => "Hashable",
+					false => "Equatable",
+				});
+			}
+			let same = |r: &str| r.to_string();
+			let compare = binary("eq", &same);
+			body.push(format!(
+				"\tpublic static func == (a: {borrowing}{name}, b: {borrowing}{name}){throws} -> Swift.Bool {{\n\t\t{compare}\n\t}}\n"
+			));
+		}
+		// `<` and its kin through Rust's `partial_cmp`, as Rust's are: -1, 0, 1, or 2 when
+		// unordered, which none of them is. A total order is `Comparable`, whose other
+		// operators these replace.
+		if t.ord != Order::None {
+			if t.ord == Order::Total && !status {
+				protocols.push("Comparable");
+			}
+			let ordering = |r: &str| r.to_string();
+			body.push(format!(
+				"\t/// Rust's `partial_cmp`: -1, 0, 1, or 2 when unordered.\n\tstatic func _partialCmp(_ a: {borrowing}{name}, _ b: {borrowing}{name}){throws} -> Swift.Int8 {{\n\t\t{}\n\t}}\n",
+				binary("partial_cmp", &ordering)
+			));
+			let try_ = match status {
+				true => "try ",
 				false => "",
 			};
+			for (op, test) in [
+				("<", "c_ == -1"),
+				("<=", "c_ == -1 || c_ == 0"),
+				(">", "c_ == 1"),
+				(">=", "c_ == 0 || c_ == 1"),
+			] {
+				body.push(format!(
+					"\tpublic static func {op} (a: {borrowing}{name}, b: {borrowing}{name}){throws} -> Swift.Bool {{\n\t\tlet c_ = {try_}_partialCmp(a, b)\n\t\treturn {test}\n\t}}\n"
+				));
+			}
+		}
+		if t.hash {
+			named.push(("Hash", "hash(into:)"));
+			members.push("hash(into:)".to_string());
+			let combine = |r: &str| format!("hasher.combine({r})");
 			body.push(format!(
-				"\tpublic static func == (a: {borrowing}{name}, b: {borrowing}{name}) -> Swift.Bool {{\n\t\t{compare}\n\t}}\n"
+				"\t/// Rust's `Hash`, agreeing with `==`.\n\tpublic func hash(into hasher: inout Swift.Hasher){throws} {{\n\t\t{}\n\t}}\n",
+				unary("hash", &combine)
 			));
 		}
 		if t.default {
+			named.push(("Default", "default"));
 			members.push("static default".to_string());
 			let lift = match ty {
-				Type::Object(_) => format!("{name}(raw: {c}_default())"),
-				_ => format!("{name}._lift({c}_default())"),
+				Type::Object(_) => format!("{name}(raw: {c_}_default())"),
+				_ => format!("{name}._lift({c_}_default())"),
+			};
+			// A constructor the target lacks throws, as a function's call does.
+			let limited = !self.abi.api.everywhere(self.on);
+			let throws = match limited {
+				true => " throws",
+				false => "",
 			};
 			body.push(format!(
-				"\t/// Rust's `Default`.\n\tpublic static func `default`() -> {name} {{\n\t\t{}Native.check()\n\t\treturn {lift}\n\t}}\n",
-				self.on(self.on, c, "\n\t\t")
+				"\t/// Rust's `Default`.\n\tpublic static func `default`(){throws} -> {name} {{\n\t\t{}Native.check()\n\t\treturn {lift}\n\t}}\n",
+				self.on(self.on, &format!("{c_}_default"), "\n\t\t", limited)
 			));
+		}
+		for (t, member) in named {
+			crate::lock::trait_member(&mut self.locked, self.abi.api.shown(ty), t, member);
 		}
 	}
 
@@ -858,8 +1146,12 @@ impl<'a> Gen<'a> {
 		body: &mut Vec<String>,
 		members: &mut Vec<String>,
 	) {
-		for method in methods {
-			for (code, member) in self.function(method, Some(owner), Some(ty), members) {
+		let methods_: Vec<&Function> = methods.iter().collect();
+		let named = self.names(&methods_, Some(owner), Some(ty), |full| {
+			members.iter().any(|m| m == full)
+		});
+		for (method, name) in methods.iter().zip(&named) {
+			for (code, member) in self.function(method, (Some(owner), Some(ty)), name, members) {
 				members.push(member);
 				body.push(indent(&code));
 			}
@@ -874,12 +1166,43 @@ impl<'a> Gen<'a> {
 		let name = self.class(&c);
 		let rust = abi.api.rust(&record.path, &record.args);
 		let ty = Type::Record(i);
-		let fields: Vec<(String, String)> = (record.fields.iter())
-			.map(|f| (field_name(&f.name), self.sw(&f.ty)))
+		if record.opaque.is_some() {
+			return self.opaque(i);
+		}
+		let fields: Vec<(String, String)> = (record.fields.iter().zip(field_names(&record.fields, RECORD)))
+			.map(|(f, name)| (name, self.sw(&f.ty)))
 			.collect();
+		for (f, (name, _)) in record.fields.iter().zip(&fields) {
+			crate::lock::field(&mut self.locked, &record.shown, &f.name, &unquote(name));
+		}
 		let mut members: Vec<String> = fields.iter().map(|(f, _)| unquote(f)).collect();
-		let mut body: Vec<String> = (record.fields.iter().zip(&fields))
-			.map(|(f, (name, sw))| format!("{}\tpublic var {name}: {sw}\n", docs(&f.docs, "\t")))
+		// A deprecated field is stored apart, under `_` and its name, so its own code's uses
+		// do not warn as a caller's do: Swift has no way to silence one.
+		// Apart from the fields and the record's own `_lift` and `_lower` too.
+		let mut stored: Vec<String> = Vec::new();
+		for (f, (name, _)) in record.fields.iter().zip(&fields) {
+			let mut name = match f.deprecated {
+				Some(_) => format!("_{}", unquote(name)),
+				None => name.clone(),
+			};
+			while f.deprecated.is_some()
+				&& (["_lift", "_lower"].contains(&name.as_str()) || members.contains(&name) || stored.contains(&name))
+			{
+				name.push('_');
+			}
+			stored.push(name);
+		}
+		members.extend(stored.iter().filter(|s| !fields.iter().any(|(f, _)| f == *s)).cloned());
+		let mut body: Vec<String> = (record.fields.iter().zip(&fields).zip(&stored))
+			.map(|((f, (name, sw)), stored)| {
+				let docs = docs(&f.docs, f.deprecated.as_deref(), "\t");
+				match f.deprecated {
+					Some(_) => format!(
+						"\tvar {stored}: {sw}\n\n{docs}\tpublic var {name}: {sw} {{\n\t\tget {{ {stored} }}\n\t\tset {{ {stored} = newValue }}\n\t}}\n"
+					),
+					None => format!("{docs}\tpublic var {name}: {sw}\n"),
+				}
+			})
 			.collect();
 		let params: Vec<String> = fields
 			.iter()
@@ -888,9 +1211,11 @@ impl<'a> Gen<'a> {
 				false => format!("{f}: {sw}"),
 			})
 			.collect();
-		let assigns: String = fields.iter().map(|(f, _)| format!("\t\tself.{f} = {f}\n")).collect();
+		let assigns: String = (fields.iter().zip(&stored))
+			.map(|((f, _), stored)| format!("\t\tself.{stored} = {f}\n"))
+			.collect();
 		body.push(format!("\tpublic init({}) {{\n{assigns}\t}}\n", params.join(", ")));
-		let mut protocols = vec!["Sendable"];
+		let mut protocols = self.sendable(&ty);
 		self.traits(&ty, &c, record.traits, &mut body, &mut members, &mut protocols);
 		self.methods(&record.methods, &Ty::Struct(c.clone()), &ty, &mut body, &mut members);
 		self.distinct(&rust, &members);
@@ -905,9 +1230,9 @@ impl<'a> Gen<'a> {
 				}
 			})
 			.collect();
-		let lowered: Vec<String> = (record.fields.iter().zip(&fields))
-			.map(|(f, (name, _))| {
-				let value = self.lower(&f.ty, &format!("self.{name}"));
+		let lowered: Vec<String> = (record.fields.iter().zip(&stored))
+			.map(|(f, stored)| {
+				let value = self.lower(&f.ty, &format!("self.{stored}"));
 				format!("{}: {value}", abi::escape(&f.name))
 			})
 			.collect();
@@ -919,16 +1244,51 @@ impl<'a> Gen<'a> {
 			"\tstatic func _lift(_ c: {c}) -> {name} {{\n\t\t{name}({})\n\t}}\n",
 			lifted.join(", ")
 		));
+		let throws = match self.throwing(&ty) {
+			true => " throws",
+			false => "",
+		};
 		body.push(format!(
-			"\tfunc _lower({arena}) -> {c} {{\n\t\t{c}({})\n\t}}\n",
+			"\tfunc _lower({arena}){throws} -> {c} {{\n\t\t{c}({})\n\t}}\n",
 			lowered.join(", ")
 		));
 		let text = format!("{rust}\n\n{}", record.docs);
 		let _ = write!(
 			self.types,
-			"{}public struct {name}: {} {{\n{}}}\n\n",
-			docs(text.trim(), ""),
-			protocols.join(", "),
+			"{}public struct {name}{} {{\n{}}}\n\n",
+			docs(text.trim(), record.deprecated.as_deref(), ""),
+			conform(&protocols),
+			body.join("\n")
+		);
+	}
+
+	/// A `Copy` type with private fields: a struct over the bytes of its C struct, which
+	/// only Rust makes or reads. Swift copies it as it copies the bytes.
+	fn opaque(&mut self, i: usize) {
+		let abi = self.abi;
+		let record = &abi.api.records[i];
+		let c = abi.record(i);
+		let name = self.class(&c);
+		let rust = abi.api.rust(&record.path, &record.args);
+		let ty = Type::Record(i);
+		let mut members = Vec::new();
+		let mut body = vec![format!(
+			"\t/// Its bytes, which only Rust reads.\n\tlet c_: {c}\n\n\tprivate init(c_: {c}) {{\n\t\tself.c_ = c_\n\t}}\n"
+		)];
+		let mut protocols = self.sendable(&ty);
+		self.traits(&ty, &c, record.traits, &mut body, &mut members, &mut protocols);
+		self.methods(&record.methods, &Ty::Struct(c.clone()), &ty, &mut body, &mut members);
+		self.distinct(&rust, &members);
+		body.push(format!(
+			"\tstatic func _lift(_ c: {c}) -> {name} {{\n\t\t{name}(c_: c)\n\t}}\n"
+		));
+		body.push(format!("\tfunc _lower() -> {c} {{\n\t\tc_\n\t}}\n"));
+		let text = format!("{rust}\n\n{}", record.docs);
+		let _ = write!(
+			self.types,
+			"{}public struct {name}{} {{\n{}}}\n\n",
+			docs(text.trim(), record.deprecated.as_deref(), ""),
+			conform(&protocols),
 			body.join("\n")
 		);
 	}
@@ -946,20 +1306,27 @@ impl<'a> Gen<'a> {
 		let mut cases = Vec::new();
 		let mut lifts = Vec::new();
 		let mut lowers = Vec::new();
-		for variant in &e.variants {
+		for (variant, case) in e.variants.iter().zip(case_names(e)) {
 			let snake = abi::snake(&variant.name);
-			let case = member(&snake, &["init"]);
-			let labels = variant.fields.iter().map(|f| match variant.tuple {
+			let names = field_names(&variant.fields, &["init"]);
+			crate::lock::variant(&mut self.locked, &e.shown, &variant.name, &unquote(&case));
+			if !variant.tuple {
+				for (f, name) in variant.fields.iter().zip(&names) {
+					let label = unquote(name);
+					crate::lock::variant_field(&mut self.locked, &e.shown, &variant.name, &f.name, &label);
+				}
+			}
+			let labels = names.iter().map(|name| match variant.tuple {
 				true => "_".to_string(),
-				false => unquote(&field_name(&f.name)),
+				false => unquote(name),
 			});
 			members.push(full(true, &case, labels));
-			let tag = format!("{upper}_{}", snake.to_uppercase());
-			let member = kw(&abi::escape(&snake));
-			let fields: Vec<String> = (variant.fields.iter())
-				.map(|f| match variant.tuple {
+			let tag = abi::join(&upper, &snake.to_uppercase());
+			let member = kw(&abi::variant_member(&variant.name));
+			let fields: Vec<String> = (variant.fields.iter().zip(&names))
+				.map(|(f, name)| match variant.tuple {
 					true => self.sw(&f.ty),
-					false => format!("{}: {}", field_name(&f.name), self.sw(&f.ty)),
+					false => format!("{name}: {}", self.sw(&f.ty)),
 				})
 				.collect();
 			match fields.is_empty() {
@@ -967,18 +1334,18 @@ impl<'a> Gen<'a> {
 				false => cases.push(format!("\tcase {case}({})\n", fields.join(", "))),
 			}
 			// A value of a variant the library's target lacks is refused as it crosses.
-			let refused = self.on(variant.on, &format!("{c}.{}", variant.name), "\n\t\t\t");
+			let refused = self.on(variant.on, &format!("{c}.{}", variant.name), "\n\t\t\t", false);
 			if e.plain() {
 				lifts.push(format!("\t\tcase {tag}: return .{case}"));
 				lowers.push(format!("\t\tcase .{case}:\n\t\t\t{refused}return {tag}"));
 				continue;
 			}
-			let lifted: Vec<String> = (variant.fields.iter())
-				.map(|f| {
+			let lifted: Vec<String> = (variant.fields.iter().zip(&names))
+				.map(|(f, name)| {
 					let value = self.lift(&f.ty, &format!("c.{member}.{}", kw(&abi::escape(&f.name))));
 					match variant.tuple {
 						true => value,
-						false => format!("{}: {value}", unquote(&field_name(&f.name))),
+						false => format!("{}: {value}", unquote(name)),
 					}
 				})
 				.collect();
@@ -1003,7 +1370,7 @@ impl<'a> Gen<'a> {
 			}
 		}
 		let mut body = cases;
-		let mut protocols = vec!["Sendable"];
+		let mut protocols = self.sendable(&ty);
 		self.traits(&ty, &c, e.traits, &mut body, &mut members, &mut protocols);
 		let owner = abi.ty(&ty);
 		self.methods(&e.methods, &owner, &ty, &mut body, &mut members);
@@ -1026,18 +1393,42 @@ impl<'a> Gen<'a> {
 				lowers.join("\n")
 			),
 			false => format!(
-				"\tfunc _lower({arena}) -> {c} {{\n\t\tvar c = {c}()\n\t\tswitch self {{\n{}\n\t\t}}\n\t\treturn c\n\t}}\n",
+				"\tfunc _lower({arena}){} -> {c} {{\n\t\tvar c = {c}()\n\t\tswitch self {{\n{}\n\t\t}}\n\t\treturn c\n\t}}\n",
+				match self.throwing(&ty) {
+					true => " throws",
+					false => "",
+				},
 				lowers.join("\n")
 			),
 		});
 		let text = format!("{rust}\n\n{}", e.docs);
 		let _ = write!(
 			self.types,
-			"{}public enum {name}: {} {{\n{}}}\n\n",
-			docs(text.trim(), ""),
-			protocols.join(", "),
+			"{}public enum {name}{} {{\n{}}}\n\n",
+			docs(text.trim(), e.deprecated.as_deref(), ""),
+			conform(&protocols),
 			body.join("\n")
 		);
+	}
+
+	/// `Sendable`, for a value whose every handle Rust lets cross threads: see
+	/// [`Self::sends`].
+	fn sendable(&self, ty: &Type) -> Vec<&'static str> {
+		let mut handles = Vec::new();
+		self.abi.api.handles(ty, &mut handles, &mut Vec::new());
+		match handles.iter().all(|&i| self.sends(i)) {
+			true => vec!["Sendable"],
+			false => Vec::new(),
+		}
+	}
+
+	/// Whether object `i` is `Sendable`: a class shares its value between the threads that
+	/// hold it, so only one Rust shares, `Send` and `Sync`; a noncopyable struct only moves
+	/// to another, so one that is `Send`. Swift's compiler then keeps any other on one
+	/// thread at a time, as its run-time checks do.
+	fn sends(&self, i: usize) -> bool {
+		let object = &self.abi.api.objects[i];
+		object.send && (object.sync || self.unique(&Type::Object(i)))
 	}
 
 	fn object(&mut self, i: usize) {
@@ -1045,6 +1436,7 @@ impl<'a> Gen<'a> {
 		let object = &abi.api.objects[i];
 		self.on = object.on;
 		let c = abi.object(i);
+		let c_ = crate::abi::stem(&c);
 		let name = self.class(&c);
 		let rust = abi.api.rust(&object.path, &object.args);
 		let ty = Type::Object(i);
@@ -1053,43 +1445,150 @@ impl<'a> Gen<'a> {
 		let mut body = vec![match unique {
 			// A lend ends with `_end`, which leaves Rust the handle it lent to free.
 			true => format!(
-				"\tlet handle: OpaquePointer?\n\n\tinit(raw: OpaquePointer?) {{\n\t\thandle = raw\n\t}}\n\n\tdeinit {{\n\t\t{c}_free(handle)\n\t}}\n\n\tconsuming func _end() {{\n\t\tdiscard self\n\t}}\n"
+				"\tlet handle: OpaquePointer?\n\n\tinit(raw: OpaquePointer?) {{\n\t\thandle = raw\n\t}}\n\n\tdeinit {{\n\t\t{c_}_free(handle)\n\t}}\n\n\t@usableFromInline consuming func _end() {{\n\t\tdiscard self\n\t}}\n"
 			),
 			false => format!(
-				"\tlet handle: Native.Handle\n\n\tinit(raw: OpaquePointer?) {{\n\t\thandle = Native.Handle(raw, {c}_free, \"{name}\")\n\t}}\n\n\tinit(lent raw: OpaquePointer?) {{\n\t\thandle = Native.Handle(raw, nil, \"{name}\")\n\t}}\n\n\tdeinit {{\n\t\thandle.drop()\n\t}}\n"
+				"\tlet handle: Native.Handle\n\n\tinit(raw: OpaquePointer?) {{\n\t\thandle = Native.Handle(raw, {c_}_free, \"{name}\")\n\t}}\n\n\tinit(lent raw: OpaquePointer?) {{\n\t\thandle = Native.Handle(raw, nil, \"{name}\")\n\t}}\n\n\tdeinit {{\n\t\thandle.drop()\n\t}}\n"
 			),
 		}];
-		let mut protocols = vec!["@unchecked Sendable"];
+		// Rust checks each borrow at run time, so it is `Sendable` unless its value stays on
+		// one thread, or is shared on one at a time, which Swift's compiler then enforces.
+		let mut protocols = match self.sends(i) {
+			true => vec!["@unchecked Sendable"],
+			false => Vec::new(),
+		};
 		self.traits(&ty, &c, object.traits, &mut body, &mut members, &mut protocols);
 		let owner = Ty::Handle {
 			name: c.clone(),
 			constant: false,
 		};
-		self.methods(&object.methods, &owner, &ty, &mut body, &mut members);
+		let mut streams = Vec::new();
+		let methods: Vec<&Function> = object.methods.iter().collect();
+		let named = self.names(&methods, Some(&owner), Some(&ty), |full| {
+			members.iter().any(|m| m == full)
+		});
+		for (method, name) in object.methods.iter().zip(&named) {
+			for (code, member) in self.function(method, (Some(&owner), Some(&ty)), name, &members) {
+				if method.stream().is_some() {
+					streams.push((method, member.clone()));
+				}
+				members.push(member);
+				body.push(indent(&code));
+			}
+		}
+		for (method, next) in streams {
+			self.stream(method, &name, &next, unique, &mut body, &mut members);
+		}
 		self.distinct(&rust, &members);
 		let text = format!("{rust}\n\n{}", object.docs);
-		let docs = docs(text.trim(), "");
+		let docs = docs(text.trim(), object.deprecated.as_deref(), "");
 		let body = body.join("\n");
 		if !unique {
 			let _ = write!(
 				self.types,
-				"{docs}public final class {name}: {} {{\n{body}}}\n\n",
-				protocols.join(", ")
+				"{docs}public final class {name}{} {{\n{body}}}\n\n",
+				conform(&protocols)
 			);
 			return;
 		}
+		let sendable = match self.sends(i) {
+			true => ", @unchecked Sendable",
+			false => "",
+		};
 		let _ = write!(
 			self.types,
-			"{docs}public struct {name}: ~Copyable, @unchecked Sendable {{\n{body}}}\n\n"
+			"{docs}public struct {name}: ~Copyable{sendable} {{\n{body}}}\n\n"
 		);
-		// Swift 6.4 takes a noncopyable type's `Equatable`, but not yet its
+		// Swift 6.4 takes a noncopyable type's `Equatable` and `Hashable`, but not yet its
 		// `CustomStringConvertible` or `CustomDebugStringConvertible`, whose members it keeps.
-		if protocols.contains(&"Equatable") {
+		if let Some(equal) = protocols.iter().find(|p| ["Equatable", "Hashable"].contains(p)) {
 			let _ = write!(
 				self.types,
-				"#if compiler(>=6.4)\nextension {name}: Equatable {{}}\n#endif\n\n"
+				"#if compiler(>=6.4)\nextension {name}: {equal} {{}}\n#endif\n\n"
 			);
 		}
+	}
+
+	/// The `AsyncSequence` of the stream `method` of the object `name`, whose Swift member
+	/// is `next`: a method `stream()`, a member of the object's `body`, making a class that
+	/// owns the object, and each loop's iterator, written after it. `AsyncSequence` requires a copyable element, so a
+	/// stream of a noncopyable struct keeps `next` alone.
+	fn stream(
+		&mut self,
+		method: &Function,
+		name: &str,
+		next: &str,
+		unique: bool,
+		body: &mut Vec<String>,
+		members: &mut Vec<String>,
+	) {
+		let item = method.stream().expect("a stream yields its item");
+		if self.unique(item) {
+			return;
+		}
+		let element = self.sw(&strip_refs(item));
+		let rust = method.path.join("::");
+		let mut member = "stream".to_string();
+		while members.contains(&member) {
+			member.push('_');
+		}
+		let key = crate::lock::function_key(method);
+		self.locked.insert(format!("{key} / stream"), member.clone());
+		// A keyword's quoting would split the name it starts.
+		let class = self.claim(
+			&format!("{}Stream", name.trim_matches('`')),
+			&[],
+			format!("the stream of `{rust}`"),
+		);
+		self.locked.insert(format!("{key} / stream type"), class.clone());
+		let consuming = match unique {
+			true => "consuming ",
+			false => "",
+		};
+		// Deprecated as `next` is, so its own use of `next` warns of nothing.
+		let deprecated = method.deprecated.as_deref();
+		let doc = format!("This value as an `AsyncSequence` of what `{next}()` yields, which owns it.");
+		body.push(format!(
+			"{}\t@inlinable public {consuming}func {member}() -> {class} {{\n\t\t{class}(self)\n\t}}\n",
+			docs(&doc, deprecated, "\t")
+		));
+		members.push(member);
+		let text = format!(
+			"`{rust}` as an `AsyncSequence`, owning the value: each item is a call of `{next}()`,\n\
+			and none is read ahead, so a loop left early leaves the next item to the next loop or\n\
+			call of `next()`. Each loop's iterator ends for good once `{next}()` returns nil or throws,\n\
+			as `AsyncIteratorProtocol` requires, while the next loop, or `next()`, calls it again,\n\
+			as Rust may. Cancelling the task while `next()` waits drops its Rust future, which loses\n\
+			an item only where that future does when dropped."
+		);
+		let _ = write!(
+			self.types,
+			"{}public final class {class}: Swift.AsyncSequence {{\n\
+			\tpublic typealias Element = {element}\n\
+			\tpublic typealias Failure = any Swift.Error\n\n\
+			\t@usableFromInline var value: {name}\n\n\
+			\t@usableFromInline init(_ value: {consuming}{name}) {{\n\t\tself.value = value\n\t}}\n\n\
+			\tpublic func makeAsyncIterator() -> AsyncIterator {{\n\t\tAsyncIterator(self)\n\t}}\n\n\
+			\t/// The next item, as `{next}()` returns it, even past the end or an error.\n\
+			\t@inlinable nonisolated(nonsending) public func next() async throws -> {element}? {{\n\t\ttry await value.{next}()\n\t}}\n\n\
+			\t/// One loop over the stream, which ends for good at nil or an error.\n\
+			\tpublic struct AsyncIterator: Swift.AsyncIteratorProtocol {{\n\
+			\t\t@usableFromInline let stream: {class}\n\
+			\t\t@usableFromInline var done = false\n\n\
+			\t\t@usableFromInline init(_ stream: {class}) {{\n\t\t\tself.stream = stream\n\t\t}}\n\n\
+			\t\t/// The next item, or nil once the stream ended or threw.\n\
+			\t\t@inlinable nonisolated(nonsending) public mutating func next() async throws -> {element}? {{\n\
+			\t\t\tif done {{ return nil }}\n\
+			\t\t\tdo {{\n\t\t\t\tguard let item = try await stream.value.{next}() else {{\n\t\t\t\t\tdone = true\n\t\t\t\t\treturn nil\n\t\t\t\t}}\n\t\t\t\treturn item\n\
+			\t\t\t}} catch {{\n\t\t\t\tdone = true\n\t\t\t\tthrow error\n\t\t\t}}\n\
+			\t\t}}\n\n\
+			\t\t@inlinable public mutating func next(isolation actor: isolated (any Swift.Actor)?) async throws -> {element}? {{\n\
+			\t\t\ttry await next()\n\
+			\t\t}}\n\
+			\t}}\n\
+			}}\n\n",
+			docs(&text, deprecated, "")
+		);
 	}
 
 	fn callback(&mut self, i: usize) {
@@ -1097,25 +1596,47 @@ impl<'a> Gen<'a> {
 		let callback = &abi.api.callbacks[i];
 		self.on = callback.on;
 		let c = abi.callback(i);
+		let c_ = crate::abi::stem(&c);
 		let name = self.class(&c);
 		let rust = callback.path.join("::");
 		let mut body = Vec::new();
 		let mut members = Vec::new();
 		let mut table = vec![format!("free: {{ data in Box<any {name}>.release(data) }}")];
-		for method in &callback.methods {
-			let member = member(&abi::snake(method.name()), &[]);
+		let methods: Vec<&str> = callback.methods.iter().map(|method| method.name()).collect();
+		let spelled = (callback.methods.iter())
+			.map(|method| {
+				let member = member(&abi::snake(method.name()), &[]);
+				full(false, &member, method.params.iter().map(|_| "_".to_string()))
+			})
+			.collect();
+		let named = abi::named(&methods, spelled, own, |_, _| false, abi::underscored);
+		for (method, full_name) in callback.methods.iter().zip(&named) {
+			let member = kw(&unfull(full_name));
 			crate::lock::function(&mut self.locked, method, &member);
+			self.docc.insert(
+				crate::lock::function_key(method),
+				docc_call(&member, method.params.iter().map(|_| "_")),
+			);
 			members.push(full(false, &member, method.params.iter().map(|_| "_".to_string())));
 			let params: Vec<String> = (method.params.iter().zip(locals(&method.params)))
-				.map(|(p, name)| format!("_ {name}: {}", self.sw(&p.ty)))
+				.map(|(p, name)| format!("_ {name}: {}", self.param(&p.ty)))
 				.collect();
 			let ret = match method.ok {
 				Type::Unit => String::new(),
 				_ => format!(" -> {}", self.sw(&method.ok)),
 			};
+			// The trampoline calls the requirement, which an `@available` deprecation would warn
+			// of, and Swift has no way to silence one: its docs say it instead, to the
+			// implementation Rust calls.
+			let mut text = self.function_docs(method, doc::sections(&method.docs).body);
+			match method.deprecated.as_deref() {
+				Some("") => text.push_str("\n\nDeprecated."),
+				Some(note) => text.push_str(&format!("\n\nDeprecated: {note}")),
+				None => {}
+			}
 			body.push(format!(
 				"{}\tfunc {member}({}){ret}",
-				docs(&method.docs, "\t"),
+				docs(text.trim(), None, "\t"),
 				params.join(", ")
 			));
 			let ps: Vec<String> = (0..method.params.len()).map(|k| format!("p{k}_")).collect();
@@ -1125,13 +1646,13 @@ impl<'a> Gen<'a> {
 			let call = format!("Box<any {name}>.unbox(data).{member}({})", args.join(", "));
 			let call = match method.ok {
 				Type::Unit => call,
-				_ => self.lower(&method.ok, &call),
+				_ => Self::trapping(self.lower(&method.ok, &call)),
 			};
 			let mut closure_params = vec!["data".to_string()];
 			closure_params.extend(ps);
 			table.push(format!(
 				"{}: {{ {} in {call} }}",
-				method.name(),
+				abi::member(method),
 				closure_params.join(", ")
 			));
 		}
@@ -1143,12 +1664,12 @@ impl<'a> Gen<'a> {
 		let _ = write!(
 			self.types,
 			"{}public protocol {name}: Sendable {{\n{}\n}}\n\n",
-			docs(text.trim(), ""),
+			docs(text.trim(), callback.deprecated.as_deref(), ""),
 			body.join("\n\n")
 		);
 		let _ = write!(
 			self.natives,
-			"\tnonisolated(unsafe) static let vtable_{c}: UnsafeMutablePointer<{c}_vtable> = {{\n\t\tlet vtable = UnsafeMutablePointer<{c}_vtable>.allocate(capacity: 1)\n\t\tvtable.initialize(to: {c}_vtable(\n\t\t\t{}))\n\t\treturn vtable\n\t}}()\n\n\tstatic func lower_{c}(_ implementation: any {name}) -> {c} {{\n\t\t{c}(vtable: vtable_{c}, data: Box.give(implementation))\n\t}}\n\n",
+			"\tnonisolated(unsafe) static let vtable_{c}: UnsafeMutablePointer<{c_}_vtable> = {{\n\t\tlet vtable = UnsafeMutablePointer<{c_}_vtable>.allocate(capacity: 1)\n\t\tvtable.initialize(to: {c_}_vtable(\n\t\t\t{}))\n\t\treturn vtable\n\t}}()\n\n\tstatic func lower_{c}(_ implementation: any {name}) -> {c} {{\n\t\t{c}(vtable: vtable_{c}, data: Box.give(implementation))\n\t}}\n\n",
 			table.join(",\n\t\t\t")
 		);
 	}
@@ -1196,7 +1717,7 @@ impl<'a> Gen<'a> {
 
 	/// How the call passes `param`, the C parameter `c`, whose Swift value is `e`, the
 	/// `k`th, which `function` takes.
-	fn arg(&mut self, ty: &Type, c: &Ty, e: &str, k: usize, tr: &str) -> (Arg, bool) {
+	fn arg(&mut self, ty: &Type, c: &Ty, e: &str, k: usize, tr: &str, what: &str) -> (Arg, bool) {
 		let abi = self.abi;
 		let mut arg = Arg::default();
 		let mut arena = false;
@@ -1209,6 +1730,7 @@ impl<'a> Gen<'a> {
 				let sw = self.sw(ty);
 				arg.exprs.push(self.trampoline(ty, closure_));
 				arg.exprs.push(format!("Native.Box<{sw}>.give({e})"));
+				arg.gives = true;
 				arg.exprs
 					.push(format!("{{ data_ in Native.Box<{sw}>.release(data_) }}"));
 			}
@@ -1228,13 +1750,35 @@ impl<'a> Gen<'a> {
 				arg.open = Some((format!("{tr}Native.reader(&{e}) {{ {r} in"), "}".to_string()));
 				arg.exprs.push(r);
 			}
-			(Type::Callback(i, _), _) => arg.exprs.push(format!("Native.lower_{}({e})", abi.callback(*i))),
-			(Type::Waker, _) => arg.exprs.push(format!("Native.waker({e})")),
-			(Type::Future, _) => arg.exprs.push(format!("Native.future({e})")),
+			(Type::Callback(i, _), _) => {
+				arg.exprs.push(format!("Native.lower_{}({e})", abi.callback(*i)));
+				arg.gives = true;
+			}
+			(Type::Waker, _) => {
+				arg.exprs.push(format!("Native.waker({e})"));
+				arg.gives = true;
+			}
+			(Type::Future, _) => {
+				arg.exprs.push(format!("Native.future({e})"));
+				arg.gives = true;
+			}
+			// A span is a view of Swift's memory, which Rust borrows in place.
+			(ty, _) if self.spanned(unoption(ty)).is_some() => {
+				let b = format!("b{k}_");
+				let make = match unoption(ty) {
+					Type::Ref(_, list) if let Type::List(_, elem) = &**list => {
+						format!(", {}.init(ptr:len:owner:)", abi.list(elem))
+					}
+					_ => String::new(),
+				};
+				arg.open = Some((format!("{tr}Native.view({e}{make}) {{ {b} in"), "}".to_string()));
+				arg.exprs.push(b);
+			}
 			(ty, Ty::Buf) if Abi::is_buf(ty) || matches!(ty.base(), Type::Option(inner) if Abi::is_buf(inner)) => {
 				let b = format!("b{k}_");
-				arg.open = Some((format!("{tr}Native.view({e}) {{ {b} in"), "}".to_string()));
+				arg.open = Some((format!("{tr}Native.take({e}) {{ {b} in"), "}".to_string()));
 				arg.exprs.push(b);
+				arg.takes = true;
 			}
 			// A struct the call borrows or consumes, so it lives until the call returns.
 			(ty, Ty::Handle { .. }) if self.unique(ty) => arg.exprs.push(match ty.base() {
@@ -1244,15 +1788,17 @@ impl<'a> Gen<'a> {
 			(ty, Ty::Handle { .. }) => {
 				let h = format!("h{k}_");
 				let open = match ty.base() {
-					Type::Option(_) => format!("{tr}Native.with({e}?.handle) {{ {h} in"),
-					_ => format!("{tr}{e}.handle.with {{ {h} in"),
+					Type::Option(_) => format!("{tr}Native.with({what}{e}?.handle, {{ {h} in"),
+					_ => format!("{tr}{e}.handle.with({what}{{ {h} in"),
 				};
-				arg.open = Some((open, "}".to_string()));
+				arg.open = Some((open, "})".to_string()));
 				arg.exprs.push(h);
 			}
 			(ty, _) => {
 				arena = self.arena(ty);
-				arg.exprs.push(self.lower(ty, e));
+				let lowered = self.lower(ty, e);
+				arg.throws = lowered.contains("try ");
+				arg.exprs.push(lowered);
 			}
 		}
 		(arg, arena)
@@ -1300,8 +1846,6 @@ impl<'a> Gen<'a> {
 					body.push(format!("defer {{ {l}.handle.end() }}"));
 					args.push(l);
 				}
-				// A `Copy` object, which Swift's class holds a copy of.
-				Type::Object(i) => args.push(format!("{}(raw: {}_copy({p}))", self.sw(ty), self.abi.object(*i))),
 				ty => args.push(self.lift_lent(ty, p)),
 			}
 		}
@@ -1347,39 +1891,143 @@ impl<'a> Gen<'a> {
 		format!("{{ {} in\n\t{}\n}}", params.join(", "), body.join("\n\t"))
 	}
 
-	/// The C value of `e`, of type `ty`, which a closure returns for Rust to own: a scalar
-	/// as it is, text in a buffer `buf_copy` made, and a copy of an object's handle.
+	/// The C value of `e`, of type `ty`, which a closure returns for Rust to own: a value
+	/// as it lowers, and text in a buffer `buf_copy` made.
 	fn returned(&mut self, ty: &Type, e: &str) -> String {
-		let abi = self.abi;
 		match ty {
-			Type::Str | Type::String => format!("Native.owned({e})"),
-			// Kept alive while its handle is copied: once `.handle` is read, ARC may release
-			// the object, whose deinit would free the handle first.
-			Type::Object(i) => format!(
-				"withExtendedLifetime({e}) {{ r_ in r_.handle.with {{ {}_copy($0) }} }}",
-				abi.object(*i)
-			),
-			Type::Option(inner) => match &**inner {
-				Type::Str | Type::String => format!("({e}.map {{ Native.owned($0) }} ?? Native.none)"),
-				Type::Object(i) => format!(
-					"withExtendedLifetime({e}) {{ r_ in r_?.handle.with {{ {}_copy($0) }} ?? nil }}",
-					abi.object(*i)
-				),
-				_ => self.lower(ty, e),
-			},
-			ty => self.lower(ty, e),
+			Type::Str | Type::String | Type::PathBuf => format!("Native.owned({e})"),
+			Type::Option(inner) if matches!(**inner, Type::Str | Type::String | Type::PathBuf) => {
+				format!("({e}.map {{ Native.owned($0) }} ?? Native.none)")
+			}
+			ty => Self::trapping(self.lower(ty, e)),
 		}
 	}
 
-	/// `function`'s Swift forms and their member names, members of `owner` (whose IR type
-	/// is `owner_ty`) if it has one, apart from the members `taken` names: an overload for
-	/// each choice of passing or leaving out each `Option<&T>` of a struct, since an optional
-	/// holds a struct only by consuming it.
-	fn function(
-		&mut self,
+	/// The name each of `functions` takes as a member of `owner` (whose IR type is
+	/// `owner_ty`) if it has one, or at the top level, apart from each other and from what
+	/// `taken` holds of a member's full name, as [`abi::named`] keeps a scope's. Each is
+	/// apart in every overload [`Gen::function`] gives it, each of its own labels, so Rust's
+	/// `foo()` keeps `foo()` beside a `foo_(value: Option<&T>)` whose overload without
+	/// `value` would be `foo()` too.
+	fn names(
+		&self,
+		functions: &[&Function],
+		owner: Option<&Ty>,
+		owner_ty: Option<&Type>,
+		taken: impl Fn(&str) -> bool,
+	) -> Vec<String> {
+		let (mut rust, mut spelled, mut forms) = (Vec::new(), Vec::new(), Vec::new());
+		for function in functions {
+			let export = self.abi.export(function, owner);
+			let (name, member, is_static, var) = self.declared(function, owner, owner_ty, &export);
+			let labels: Vec<(String, bool)> = match var {
+				true => Vec::new(),
+				false => (function.params.iter().zip(locals(&function.params)))
+					.map(|(p, name)| match self.lent_option(&p.ty) {
+						true => (unquote(&name), true),
+						false => ("_".to_string(), false),
+					})
+					.collect(),
+			};
+			let optional = labels.iter().filter(|(_, optional)| *optional).count();
+			// Each overload's labels, leaving out the optional ones its mask clears.
+			let overloads: Vec<Vec<String>> = (0..1usize << optional)
+				.map(|mask| {
+					let mut bit = 0;
+					(labels.iter())
+						.filter(|(_, optional)| {
+							bit += usize::from(*optional);
+							!*optional || mask & (1 << (bit - 1)) != 0
+						})
+						.map(|(label, _)| label.clone())
+						.collect()
+				})
+				.collect();
+			rust.push(name);
+			spelled.push(full(is_static, &member, labels.into_iter().map(|(label, _)| label)));
+			forms.push((is_static, overloads));
+		}
+		let rust: Vec<&str> = rust.iter().map(String::as_str).collect();
+		let fulls = |k: usize, name: &str| -> Vec<String> {
+			let (is_static, overloads) = &forms[k];
+			let name = unfull(name);
+			(overloads.iter())
+				.map(|labels| full(*is_static, &name, labels.iter().cloned()))
+				.collect()
+		};
+		let clash = |k: usize, a: &str, j: usize, b: &str| {
+			let theirs = fulls(j, b);
+			fulls(k, a).iter().any(|full| theirs.contains(full))
+		};
+		let taken = |k: usize, name: &str| fulls(k, name).iter().any(|full| taken(full));
+		(abi::named_apart(&rust, spelled, own, taken, abi::underscored, clash).iter())
+			.map(|full| kw(&unfull(full)))
+			.collect()
+	}
+
+	/// The declaration `function` makes as a member of `owner` (whose IR type is `owner_ty`)
+	/// if it has one, exported as `export`, before it keeps apart from another: the Rust name
+	/// it spells, its Swift name, whether it is static, and whether it is a property, whose
+	/// name is a constant's in upper case.
+	fn declared(
+		&self,
 		function: &Function,
 		owner: Option<&Ty>,
 		owner_ty: Option<&Type>,
+		export: &abi::Export,
+	) -> (String, String, bool, bool) {
+		let abi = self.abi;
+		let own = match owner {
+			Some(Ty::Struct(o) | Ty::Enum(o) | Ty::Handle { name: o, .. }) => {
+				export.named.strip_prefix(o.as_str()).and_then(|r| r.strip_prefix('_'))
+			}
+			_ => None,
+		};
+		let reserved: &[&str] = match owner_ty {
+			Some(Type::Object(_)) => &["handle", "init", "deinit"],
+			Some(_) => &["init"],
+			None => &[],
+		};
+		// Named as Rust's path is, whatever C's clashes rename.
+		let rust = own.unwrap_or_else(|| self.bare(&export.named)).to_string();
+		let member = member(&rust, reserved);
+		let receiver = function.receiver.filter(|_| owner.is_some());
+		// A struct's method that consumes or writes back its value is `consuming` or `mutating`.
+		let unique = owner_ty.is_some_and(|ty| self.unique(ty));
+		let value = matches!(export.call.params.first(), Some((_, Ty::InOut(_))));
+		let mutates = match receiver {
+			Some(Receiver::Owned) => unique,
+			Some(Receiver::Mut) => unique || value,
+			_ => false,
+		};
+		let everywhere = abi.api.everywhere(function.on);
+		let throws = function.future || function.err.is_some() || export.call.status().is_some() || !everywhere;
+		// A field read stays a property though a check of its handle may fail, which throws
+		// from its getter, unless Swift cannot copy its value, whose getter cannot throw.
+		let getter = throws && !function.future && function.err.is_none() && everywhere && !self.unique(&function.ok);
+		let var = match (function.access, receiver) {
+			(Access::Field { set: false, .. }, Some(_)) => {
+				function.params.is_empty() && (!throws || getter) && !mutates
+			}
+			(Access::Const, None) => function.params.is_empty() && !throws,
+			_ => false,
+		};
+		let member = match (var, function.access) {
+			(true, Access::Const) => member.trim_matches('`').to_uppercase(),
+			_ => member,
+		};
+		(rust, member, receiver.is_none() && owner.is_some(), var)
+	}
+
+	/// `function`'s Swift forms and their member names, members of `owner` (whose IR type
+	/// is `owner_ty`) if it has one, named `name` apart from the members `taken` names: an
+	/// overload for each choice of passing or leaving out each `Option<&T>` of a struct, since
+	/// an optional holds a struct only by consuming it.
+	fn function(
+		&mut self,
+		function: &Function,
+		(owner, owner_ty): (Option<&Ty>, Option<&Type>),
+		name: &str,
 		taken: &[String],
 	) -> Vec<(String, String)> {
 		let optional: Vec<usize> = (function.params.iter().enumerate())
@@ -1396,7 +2044,7 @@ impl<'a> Gen<'a> {
 					.filter(|(bit, _)| mask & (1 << bit) == 0)
 					.map(|(_, k)| *k)
 					.collect();
-				self.overload(function, owner, owner_ty, taken, &left)
+				self.overload(function, (owner, owner_ty), (name, taken), &left)
 			})
 			.collect()
 	}
@@ -1406,60 +2054,56 @@ impl<'a> Gen<'a> {
 		lent_option(&self.structs, ty)
 	}
 
-	/// One of `function`'s Swift forms, apart from the members `taken` names, leaving out
-	/// the optional borrowed parameters in `left`, which pass `None`.
+	/// One of `function`'s Swift forms, named `member` apart from the members `taken` names,
+	/// leaving out the optional borrowed parameters in `left`, which pass `None`.
 	fn overload(
 		&mut self,
 		function: &Function,
-		owner: Option<&Ty>,
-		owner_ty: Option<&Type>,
-		taken: &[String],
+		(owner, owner_ty): (Option<&Ty>, Option<&Type>),
+		(member, taken): (&str, &[String]),
 		left: &BTreeSet<usize>,
 	) -> (String, String) {
 		let abi = self.abi;
 		let export = abi.export(function, owner);
 		let c_name = export.call.name.clone();
-		let owner_c = match owner {
-			Some(Ty::Struct(n) | Ty::Enum(n) | Ty::Handle { name: n, .. }) => Some(n.clone()),
-			_ => None,
-		};
-		let own = match &owner_c {
-			Some(o) => export.named.strip_prefix(o.as_str()).and_then(|r| r.strip_prefix('_')),
-			None => None,
-		};
-		let reserved: &[&str] = match owner_ty {
-			Some(Type::Object(_)) => &["handle", "init", "deinit"],
-			Some(_) => &["init"],
-			None => &[],
-		};
-		// Named as Rust's path is, whatever C's clashes rename.
-		let named = self.bare(&export.named).to_string();
-		let snake = own.unwrap_or(&named);
-		let mut member = member(snake, reserved);
+		let (_, _, is_static, var) = self.declared(function, owner, owner_ty, &export);
+		let mut member = member.to_string();
 
 		let receiver = function.receiver.filter(|_| owner.is_some());
 		let object = matches!(owner, Some(Ty::Handle { .. })) && receiver.is_some();
 		// A struct's method takes `self` as Rust does: by value, it consumes it, and Swift
 		// then frees the handle Rust moved the value out of.
 		let unique = owner_ty.is_some_and(|ty| self.unique(ty));
+		// A value's `&mut self` is too, as Rust writes back the value it changed.
+		let value = matches!(export.call.params.first(), Some((_, Ty::InOut(_))));
 		let mutation = match receiver {
 			Some(Receiver::Owned) if unique => "consuming ",
-			Some(Receiver::Mut) if unique => "mutating ",
+			Some(Receiver::Mut) if unique || value => "mutating ",
 			_ => "",
 		};
-		// Only a future or a `Result` throws, and a future only once it is awaited.
-		let throws = function.future || function.err.is_some();
+		// A call that can fail a check throws, as do a future and a `Result`.
+		let status = export.call.status().is_some();
+		let everywhere = abi.api.everywhere(function.on);
+		let throws = function.future || function.err.is_some() || status || !everywhere;
 		// A future's error throws from the call that starts it, as from its polls.
-		let tr = match function.err.is_some() {
+		let tr = match function.err.is_some() || status {
 			true => "try ",
 			false => "",
+		};
+		// A class's handle closed throws where the call can.
+		let what = match status {
+			true => format!("\"{c_name}\", "),
+			false => String::new(),
 		};
 		let mut prelude = Vec::new();
 		if !object {
 			prelude.push("Native.check()".to_string());
 		}
-		if !abi.api.everywhere(function.on) {
-			prelude.push(self.on(function.on, &c_name, ""));
+		if !everywhere {
+			prelude.push(format!(
+				"try Native.on({}, \"{c_name}\")",
+				function.on.0 & abi.api.all().0
+			));
 		}
 		let mut arena = false;
 		let mut args: Vec<Arg> = Vec::new();
@@ -1471,7 +2115,7 @@ impl<'a> Gen<'a> {
 			match c {
 				Ty::Handle { .. } if unique => arg.exprs.push("self.handle".to_string()),
 				Ty::Handle { .. } => {
-					arg.open = Some((format!("{tr}self.handle.with {{ h_ in"), "}".to_string()));
+					arg.open = Some((format!("{tr}self.handle.with({what}{{ h_ in"), "})".to_string()));
 					arg.exprs.push("h_".to_string());
 					let copy = matches!(ty, Type::Object(i) if abi.api.objects[i].copy);
 					if receiver == Receiver::Owned && !copy {
@@ -1480,7 +2124,14 @@ impl<'a> Gen<'a> {
 				}
 				_ => {
 					arena |= self.arena(&ty);
-					prelude.push(format!("var c_self_ = self._lower({})", self.arena_arg(&ty)));
+					let t = match self.throwing(&ty) {
+						true => "try ",
+						false => "",
+					};
+					prelude.push(format!("var c_self_ = {t}self._lower({})", self.arena_arg(&ty)));
+					if value {
+						prelude.push(format!("defer {{ self = {} }}", self.lift(&ty, "c_self_")));
+					}
 					arg.exprs.push("&c_self_".to_string());
 				}
 			}
@@ -1508,6 +2159,8 @@ impl<'a> Gen<'a> {
 			{
 				// Labelled, as a defaulted argument is, so that overloads leaving out
 				// different ones differ in name.
+				let key = format!("{} / label {}", crate::lock::function_key(function), param.name);
+				self.locked.insert(key, unquote(name));
 				params.push(format!("{name}: borrowing {}", self.sw(lent)));
 				args.push(Arg {
 					exprs: vec![format!("{name}.handle")],
@@ -1523,16 +2176,29 @@ impl<'a> Gen<'a> {
 				(false, Type::Closure(closure_)) if closure_.kept => "@escaping ",
 				// Rust reads and seeks the reader in place.
 				(false, Type::Ref(_, inner)) if **inner == Type::Reader => "inout ",
+				(false, ty) if self.spanned(unoption(ty)).is_some() => "borrowing ",
 				(false, _) => self.ownership(&param.ty),
 			};
-			params.push(format!("_ {name}: {ownership}{}", self.sw(&param.ty)));
-			let (arg, needs) = self.arg(&param.ty, c, name, k, tr);
+			params.push(format!("_ {name}: {ownership}{}", self.param(&param.ty)));
+			let (arg, needs) = self.arg(&param.ty, c, name, k, tr, &what);
 			arena |= needs;
 			args.push(arg);
 		}
-		let outs: Vec<(String, Ty)> = c_params.cloned().collect();
+		let outs: Vec<(String, Ty)> = c_params.filter(|(_, ty)| !abi::is_status(ty)).cloned().collect();
+		// What runs once the call returns, gated on its checks passing when it can fail one:
+		// a failed check, or an argument whose lowering throws, leaves every argument as it
+		// was, as Rust ran nothing.
+		let ran =
+			status && (function.params.iter().any(|p| p.ty.written()) || args.iter().any(|a| !a.after.is_empty()));
+		if ran {
+			prelude.push("var c_ran_ = false".to_string());
+		}
+		let gate = |stmts: &str| match ran {
+			true => format!("defer {{ if c_ran_ {{ {stmts} }} }}"),
+			false => format!("defer {{ {stmts} }}"),
+		};
 		// Each value passed for `&mut` takes what Rust wrote back, once the call's own
-		// access to it ends, on every path, a throw included.
+		// access to it ends, on every path the call ran, a throw included.
 		let mut written = Vec::new();
 		for (param, name) in function.params.iter().zip(&names).filter(|(p, _)| p.ty.written()) {
 			let out = Abi::written(function, &abi::escape(&param.name));
@@ -1542,18 +2208,28 @@ impl<'a> Gen<'a> {
 				.expect("a written parameter has its out");
 			prelude.push(self.out_decl(&out, ty));
 			let lifted = self.lift(param.ty.base(), &format!("c_{out}_"));
-			prelude.push(format!("defer {{ {name} = {lifted} }}"));
+			prelude.push(gate(&format!("{name} = {lifted}")));
 			written.push(out);
 		}
 		if arena {
 			prelude.insert(
 				1.min(prelude.len()),
-				"let a_ = Native.Arena()\ndefer { a_.finish() }".to_string(),
+				format!("let a_ = Native.Arena(\"{c_name}\")\ndefer {{ a_.finish() }}"),
 			);
+			// Past the receiver, which Rust only reads, Rust takes each value passed.
+			prelude.push("a_.take = true".to_string());
 		}
 		let after: Vec<String> = args.iter().flat_map(|a| a.after.clone()).collect();
 		if !after.is_empty() {
-			prelude.push(format!("defer {{ {} }}", after.join("; ")));
+			prelude.push(gate(&after.join("; ")));
+		}
+		// A lowering that throws runs before any box or buffer is given, which the call
+		// alone would take: a throw between them would leak it.
+		if args.iter().any(|a| a.gives || a.takes) {
+			for (k, arg) in args.iter_mut().enumerate().filter(|(_, a)| a.throws) {
+				prelude.push(format!("let c_arg{k}_ = {}", arg.exprs[0]));
+				arg.exprs[0] = format!("c_arg{k}_");
+			}
 		}
 		let exprs: Vec<String> = args.iter().flat_map(|a| a.exprs.clone()).collect();
 
@@ -1566,13 +2242,48 @@ impl<'a> Gen<'a> {
 		let thrown = err.as_ref().map(|e| self.thrown(e));
 
 		let mut inner = Vec::new();
+		// A failed check writes its status, which throws once the call returns.
+		let (status_arg, check) = match status {
+			true => {
+				inner.push("var c_status_: Swift.Int32 = 0".to_string());
+				(
+					vec!["&c_status_".to_string()],
+					Some(match ran {
+						true => format!("try Native.status(c_status_, \"{c_name}\")\nc_ran_ = true"),
+						false => format!("try Native.status(c_status_, \"{c_name}\")"),
+					}),
+				)
+			}
+			false => (Vec::new(), None),
+		};
 		let tail;
-		// What a cancelled task runs instead of the start: the call alone, whose future
-		// it drops unpolled, as Rust drops one it never awaits.
+		// The call that makes the future unpolled, as `f_`, its status checked: what an eager
+		// call starts with, and, freed, what a cancelled task runs instead of the start, as
+		// Rust drops a future it never awaits.
+		// The arena frees what it gave Rust unless the call reached C, which then owns it.
+		let reached = |call: String| match arena {
+			true => format!("a_.ran({call})"),
+			false => call,
+		};
+		// A future that is not `Send` made from none is made on a home, where it stays, so
+		// a poll from any thread of the task's executor runs there.
+		let make = export.homed_call().map_or_else(|| c_name.clone(), |homed| homed.name);
+		let call = reached(format!(
+			"{make}({})",
+			exprs.iter().chain(&status_arg).cloned().collect::<Vec<_>>().join(", ")
+		));
+		let made = check
+			.as_ref()
+			.map(|check| format!("var c_status_: Swift.Int32 = 0\nlet f_ = {call}\n{check}"));
 		let mut cancelled = None;
 		if let Some(abi::Future { start, poll, free, .. }) = &export.future {
-			cancelled = Some(format!("{}({c_name}({}))", free.name, exprs.join(", ")));
-			let poll_outs: Vec<(String, Ty)> = poll.params[2..].to_vec();
+			cancelled = Some(match &made {
+				Some(made) => format!("{made}\n{}(f_)", free.name),
+				None => format!("{}({call})", free.name),
+			});
+			// A poll that can fail, of a future that is not `Send`, throws.
+			let poll_status = poll.status().is_some();
+			let poll_outs: Vec<(String, Ty)> = poll.params[2..poll.params.len() - usize::from(poll_status)].to_vec();
 			let decls: Vec<String> = poll_outs.iter().map(|(n, ty)| self.out_decl(n, ty)).collect();
 			let ptrs: Vec<String> = poll_outs.iter().map(|(n, _)| format!("&c_{n}_")).collect();
 			let ready = match ok {
@@ -1595,19 +2306,36 @@ impl<'a> Gen<'a> {
 			let start_args: Vec<String> = (exprs.iter().cloned())
 				.chain(ptrs.iter().cloned())
 				.chain(["&f_".to_string()])
+				.chain(status_arg.iter().cloned())
 				.collect();
-			inner.push(format!(
-				"switch {}({}) {{\n{cases}\n}}",
-				start.name,
-				start_args.join(", ")
-			));
+			let start = export
+				.homed_start()
+				.map_or_else(|| start.name.clone(), |homed| homed.name);
+			let started = reached(format!("{start}({})", start_args.join(", ")));
+			match &check {
+				Some(check) => {
+					inner.push(format!("let c_poll_ = {started}"));
+					inner.push(check.clone());
+					inner.push(format!("switch c_poll_ {{\n{cases}\n}}"));
+				}
+				None => inner.push(format!("switch {started} {{\n{cases}\n}}")),
+			}
 			let mut body = decls;
-			let call_args: Vec<String> = ["f_".to_string(), "w_".to_string()].into_iter().chain(ptrs).collect();
-			body.push(format!(
-				"switch {}({}) {{\n{cases}\n}}",
-				poll.name,
-				call_args.join(", ")
-			));
+			let mut call_args: Vec<String> = ["f_".to_string(), "w_".to_string()].into_iter().chain(ptrs).collect();
+			match poll_status {
+				true => {
+					body.push("var c_ps_: Swift.Int32 = 0".to_string());
+					call_args.push("&c_ps_".to_string());
+					body.push(format!("let c_poll_ = {}({})", poll.name, call_args.join(", ")));
+					body.push(format!("try Native.status(c_ps_, \"{}\")", poll.name));
+					body.push(format!("switch c_poll_ {{\n{cases}\n}}"));
+				}
+				false => body.push(format!(
+					"switch {}({}) {{\n{cases}\n}}",
+					poll.name,
+					call_args.join(", ")
+				)),
+			}
 			tail = Some(format!(
 				"return try await Native.run(f_, {}) {{ f_, w_ in\n{}\n}}",
 				free.name,
@@ -1620,37 +2348,52 @@ impl<'a> Gen<'a> {
 			}
 			let mut call_args = exprs.clone();
 			call_args.extend(outs.iter().map(|(n, _)| format!("&c_{n}_")));
-			let call = format!("{c_name}({})", call_args.join(", "));
+			call_args.extend(status_arg);
+			let call = reached(format!("{c_name}({})", call_args.join(", ")));
 			match (&err, &ok) {
 				(Some(err), ok) => {
 					let ready = match ok {
 						Type::Unit => "return".to_string(),
 						_ => format!("return {}", self.lift_outs(&function.ok, ok)),
 					};
-					inner.push(format!("if {call} {{\n\t{ready}\n}}"));
+					match &check {
+						Some(check) => {
+							inner.push(format!("let c_ok_ = {call}"));
+							inner.push(check.clone());
+							inner.push(format!("if c_ok_ {{\n\t{ready}\n}}"));
+						}
+						None => inner.push(format!("if {call} {{\n\t{ready}\n}}")),
+					}
 					let lifted = self.lift(err, "c_err_");
 					inner.push(format!(
 						"throw {}",
 						thrown_value(thrown.as_ref().expect("an error throws"), &lifted)
 					));
 				}
-				(None, Type::Unit) => inner.push(call),
+				(None, Type::Unit) => {
+					inner.push(call);
+					inner.extend(check);
+				}
 				// A value C returns beside what Rust wrote back is its return, as with none.
 				(None, ok) if outs.iter().any(|(n, _)| !written.contains(n)) => {
 					inner.push(call);
+					inner.extend(check);
 					inner.push(format!("return {}", self.lift_outs(&function.ok, ok)));
 				}
 				(None, ok) => {
 					inner.push(format!("let c_ret_ = {call}"));
+					inner.extend(check);
 					inner.push(format!("return {}", self.lift(ok, "c_ret_")));
 				}
 			}
 		}
 		// Wrap the call in each argument's closure, innermost last, each opened with `try`
-		// only where the call throws.
+		// only where the call throws. A buffer Rust takes opens innermost, so nothing throws
+		// between its take and the call.
 		let wrap = |inner: String, throws: bool| {
 			let mut code = inner;
-			for arg in args.iter().rev() {
+			let (takes, rest): (Vec<&Arg>, Vec<&Arg>) = args.iter().partition(|a| a.takes);
+			for arg in takes.into_iter().rev().chain(rest.into_iter().rev()) {
 				if let Some((open, close)) = &arg.open {
 					// An opener may hold several `try`s, as a lent closure's two do.
 					let open = match throws {
@@ -1675,12 +2418,24 @@ impl<'a> Gen<'a> {
 			// and a callback may cancel the task: so it is made, then `Native.made` checks the
 			// task before its first poll, never started.
 			Some(tail) if function.eager => {
-				let made = wrap(format!("{c_name}({})", exprs.join(", ")), false);
-				body.push(format!("let f_ = {}", made.strip_prefix("return ").unwrap_or(&made)));
+				match &made {
+					// Made by a call of several lines, which binds `f_` itself unwrapped.
+					Some(made) => {
+						let wrapped = wrap(format!("{made}\nreturn f_"), true);
+						match wrapped.strip_prefix("return ") {
+							Some(wrapped) => body.push(format!("let f_ = {wrapped}")),
+							None => body.push(made.clone()),
+						}
+					}
+					None => {
+						let made = wrap(call.clone(), false);
+						body.push(format!("let f_ = {}", made.strip_prefix("return ").unwrap_or(&made)));
+					}
+				}
 				body.push(tail.replacen("Native.run(", "Native.made(", 1));
 			}
 			Some(tail) => {
-				let made = wrap(cancelled.expect("a future has its cancel"), false);
+				let made = wrap(cancelled.expect("a future has its cancel"), status);
 				let made = made.strip_prefix("return ").unwrap_or(&made);
 				body.push(format!(
 					"// A task cancelled already takes nothing, even what is ready.\nif Task.isCancelled {{\n{}\n\tthrow CancellationError()\n}}",
@@ -1691,7 +2446,7 @@ impl<'a> Gen<'a> {
 					Type::Unit => "Void".to_string(),
 					_ => self.sw(&ok),
 				};
-				let tr = match err.is_some() {
+				let tr = match err.is_some() || status {
 					true => "try ",
 					false => "",
 				};
@@ -1709,7 +2464,7 @@ impl<'a> Gen<'a> {
 			None => body.push(code),
 		}
 
-		let mut text = function.docs.clone();
+		let mut text = doc::sections(&function.docs).body;
 		for k in left {
 			text.push_str(&format!("\n\nWithout `{}`, as Rust's `None`.", unquote(&names[*k])));
 		}
@@ -1746,23 +2501,11 @@ impl<'a> Gen<'a> {
 			Type::Unit => String::new(),
 			_ => format!(" -> {}", self.sw(&ok)),
 		};
-		let is_static = receiver.is_none() && owner.is_some();
 		let stat = match is_static {
 			true => "static ",
 			false => "",
 		};
 		let body = body.join("\n");
-		let var = function.params.is_empty() && !throws;
-		let var = match (function.access, receiver) {
-			(Access::Field { set: false, .. }, Some(_)) => var && mutation.is_empty(),
-			(Access::Const, None) => {
-				if var {
-					member = member.trim_matches('`').to_uppercase();
-				}
-				var
-			}
-			_ => false,
-		};
 		let labels: Vec<String> = match var {
 			true => Vec::new(),
 			false => (params.iter())
@@ -1784,14 +2527,36 @@ impl<'a> Gen<'a> {
 			member.clone(),
 		);
 
+		// A future runs on its caller's executor, as Swift 6.2's `nonisolated(nonsending)`
+		// says, so a call ready at its first poll never hops off an actor and back.
+		let isolation = match function.future {
+			true => "nonisolated(nonsending) ",
+			false => "",
+		};
 		let head = match var {
 			true => format!("public {stat}var {member}{}", ret.replacen(" -> ", ": ", 1)),
 			false => format!(
-				"public {stat}{mutation}func {member}({}){effects}{ret}",
+				"{isolation}public {stat}{mutation}func {member}({}){effects}{ret}",
 				params.join(", ")
 			),
 		};
-		let code = format!("{}{head} {{\n{}\n}}\n", docs(text.trim(), ""), indent(&body));
+		let body = match var && throws {
+			true => format!("get throws {{\n{}\n}}", indent(&body)),
+			false => body,
+		};
+		self.docc.insert(
+			crate::lock::function_key(function),
+			match var {
+				true => unquote(&member),
+				false => docc_call(&member, labels.iter().map(String::as_str)),
+			},
+		);
+		let text = self.function_docs(function, text);
+		let code = format!(
+			"{}{head} {{\n{}\n}}\n",
+			docs(&text, function.deprecated.as_deref(), ""),
+			indent(&body)
+		);
 		(code, full(is_static, &member, labels))
 	}
 
@@ -1820,12 +2585,75 @@ impl<'a> Gen<'a> {
 		}
 	}
 
+	/// `text`, a function's docs without its sections, then its `# Errors` as what it throws,
+	/// and its `# Panics` as when it aborts.
+	fn function_docs(&mut self, function: &Function, text: String) -> String {
+		let sections = doc::sections(&function.docs);
+		let mut text = text.trim().to_string();
+		if let Some(panics) = &sections.panics {
+			let _ = write!(text, "\n\n# Aborts\n\n{panics}");
+		}
+		match (&sections.errors, &function.err) {
+			(Some(errors), Some(err)) => {
+				let thrown = match self.thrown(err) {
+					Thrown::Itself => self.sw(err),
+					Thrown::Wrapped(name) => name,
+				};
+				let _ = write!(text, "\n\n- Throws: ``{thrown}``: {errors}");
+			}
+			(Some(errors), None) => {
+				let _ = write!(text, "\n\n# Errors\n\n{errors}");
+			}
+			(None, _) => {}
+		}
+		text.trim().to_string()
+	}
+
+	/// The DocC symbol link for `target`, if Swift has it.
+	fn link(&self, target: doc::Target<'_>) -> Option<String> {
+		let abi = self.abi;
+		let owner = |owner: doc::Owner| match owner {
+			doc::Owner::Record(i) => self.class(&abi.record(i)),
+			doc::Owner::Enum(i) => self.class(&abi.enumeration(i)),
+			doc::Owner::Object(i) => self.class(&abi.object(i)),
+			doc::Owner::Callback(i) => self.class(&abi.callback(i)),
+		};
+		let path = match target {
+			doc::Target::Record(i) => owner(doc::Owner::Record(i)),
+			doc::Target::Enum(i) => owner(doc::Owner::Enum(i)),
+			doc::Target::Object(i) => owner(doc::Owner::Object(i)),
+			doc::Target::Callback(i) => owner(doc::Owner::Callback(i)),
+			doc::Target::Variant(i, v) => format!(
+				"{}/{}",
+				owner(doc::Owner::Enum(i)),
+				unquote(&case_names(&abi.api.enums[i]).swap_remove(v))
+			),
+			doc::Target::Field(i, n) => format!(
+				"{}/{}",
+				owner(doc::Owner::Record(i)),
+				unquote(&field_names(&abi.api.records[i].fields, RECORD).swap_remove(n))
+			),
+			doc::Target::Constant(c) => self.locked.get(&format!("const {}", c.path.join("::")))?.clone(),
+			doc::Target::Function(of, f) => {
+				let member = self.docc.get(&crate::lock::function_key(f))?;
+				match of {
+					Some(of) => format!("{}/{member}", owner(of)),
+					None => member.clone(),
+				}
+			}
+		};
+		Some(format!("``{path}``"))
+	}
+
 	/// How an error of type `err` is thrown: as itself if an exported type, which then
 	/// conforms to `Swift.Error`, or else in a struct of its own.
 	fn thrown(&mut self, err: &Type) -> Thrown {
 		match err.base() {
 			Type::Record(_) | Type::Enum(_) | Type::Object(_) => {
 				self.conforms.insert(self.sw(err));
+				if self.sendable(err.base()).is_empty() {
+					self.unsent_errors.insert(self.sw(err));
+				}
 				Thrown::Itself
 			}
 			_ => {
@@ -1866,11 +2694,21 @@ fn thrown_value(thrown: &Thrown, lifted: &str) -> String {
 /// overloads.
 const MAX_OPTIONAL: usize = 2;
 
-/// Each function or method Swift cannot export, and why, which the driver
-/// refuses before any language is generated: one taking more optional borrowed structs
-/// than [`MAX_OPTIONAL`], or returning an error that holds one, which `Swift.Error`
-/// requires be copyable.
-pub fn refusals<'a>(abi: &Abi<'a>) -> Vec<(&'a Function, String)> {
+/// A function or method Swift cannot export.
+pub(crate) struct Refusal<'a> {
+	pub(crate) function: &'a Function,
+	/// `fn` or `method`.
+	pub(crate) kind: &'static str,
+	/// What it uses that Swift cannot export, as the census ranks it.
+	pub(crate) construct: &'static str,
+	/// Why, in full.
+	pub(crate) why: String,
+}
+
+/// Each function or method Swift cannot export, which the driver refuses before any
+/// language is generated: one taking more optional borrowed structs than [`MAX_OPTIONAL`],
+/// or returning an error that holds one, which `Swift.Error` requires be copyable.
+pub(crate) fn refusals<'a>(abi: &Abi<'a>) -> Vec<Refusal<'a>> {
 	let structs = structs(abi);
 	let api = abi.api;
 	let methods = (api.records.iter().flat_map(|r| &r.methods))
@@ -1878,23 +2716,26 @@ pub fn refusals<'a>(abi: &Abi<'a>) -> Vec<(&'a Function, String)> {
 		.chain(api.objects.iter().flat_map(|o| &o.methods));
 	let mut refusals = Vec::new();
 	for (kind, function) in (api.functions.iter().map(|f| ("fn", f))).chain(methods.map(|f| ("method", f))) {
-		let what = format!("cannot export {kind} `{}`", function.shown[1..].join("::"));
 		let optional = (function.params.iter())
 			.filter(|p| lent_option(&structs, &p.ty))
 			.count();
 		if optional > MAX_OPTIONAL {
-			refusals.push((
+			refusals.push(Refusal {
 				function,
-				format!(
-					"{what}: {optional} optional borrowed objects, past the {MAX_OPTIONAL} Swift takes, which overloads each with and without it since its optional holds an object only by consuming it"
+				kind,
+				construct: "optional borrowed objects past what Swift overloads",
+				why: format!(
+					"{optional} optional borrowed objects, past the {MAX_OPTIONAL} Swift takes, which overloads each with and without it since its optional holds an object only by consuming it"
 				),
-			));
+			});
 		}
 		if function.err.as_ref().is_some_and(|err| unique(&structs, err)) {
-			refusals.push((
+			refusals.push(Refusal {
 				function,
-				format!("{what}: error holding an object Swift cannot copy, as `Swift.Error` requires"),
-			));
+				kind,
+				construct: "error holding an object Swift cannot copy",
+				why: "error holding an object Swift cannot copy, as `Swift.Error` requires".into(),
+			});
 		}
 	}
 	refusals
@@ -1907,6 +2748,14 @@ fn unique(structs: &BTreeSet<usize>, ty: &Type) -> bool {
 		Type::Option(inner) | Type::Box(inner) | Type::Ref(_, inner) | Type::List(_, inner) => unique(structs, inner),
 		Type::Tuple(elements) => elements.iter().any(|e| unique(structs, e)),
 		_ => false,
+	}
+}
+
+/// `ty`, or what it holds if an `Option`.
+fn unoption(ty: &Type) -> &Type {
+	match ty {
+		Type::Option(inner) => inner,
+		ty => ty,
 	}
 }
 
@@ -1985,10 +2834,10 @@ fn lift_int(int: Int, e: &str) -> String {
 	}
 }
 
-/// The Swift names of parameters, in camel case, [`abi::distinct`], and quoted if a
-/// keyword.
+/// The Swift names of parameters, in camel case, kept apart as [`abi::distinct`] keeps
+/// them, and quoted if a keyword.
 fn locals(params: &[Param]) -> Vec<String> {
-	(abi::distinct(params.iter().map(|p| camel(&p.name))).iter())
+	(abi::distinct(params, camel, |_| false).iter())
 		.map(|name| kw(name))
 		.collect()
 }
@@ -2006,9 +2855,40 @@ fn camel(name: &str) -> String {
 	}
 }
 
-/// A field's Swift name: `init` would name the initializer.
-fn field_name(name: &str) -> String {
-	member(name, &["init"])
+/// The cases of the enum `e`, one scope's, in camel case as [`abi::named`] keeps them apart,
+/// and quoted where a keyword: `init` would name the initializer, and `default`, where `e`
+/// has `Default`, its static `default()`.
+fn case_names(e: &crate::ir::Enum) -> Vec<String> {
+	let rust: Vec<&str> = e.variants.iter().map(|v| v.name.as_str()).collect();
+	let spelled = rust.iter().map(|name| camel(&abi::snake(name))).collect();
+	let taken = |name: &str| name == "init" || (e.traits.default && name == "default");
+	let names = abi::named(
+		&rust,
+		spelled,
+		|rust, name| pascal(name) == rust,
+		|_, name| taken(name),
+		abi::underscored,
+	);
+	names.iter().map(|name| kw(name)).collect()
+}
+
+/// A record's members its fields keep apart from: the initializer, and the properties
+/// `Display` and `Debug` give it, so a record that gains either renames no field.
+const RECORD: &[&str] = &["init", "description", "debugDescription"];
+
+/// The Swift names of `fields`, one scope's, in camel case as [`abi::named`] keeps them
+/// apart from each other and from `taken`, and quoted where a keyword.
+fn field_names(fields: &[crate::ir::Field], taken: &[&str]) -> Vec<String> {
+	let rust: Vec<&str> = fields.iter().map(|f| f.name.as_str()).collect();
+	let spelled = rust.iter().map(|name| camel(name)).collect();
+	let names = abi::named(
+		&rust,
+		spelled,
+		|rust, name| abi::snake(name) == rust,
+		|_, name| taken.contains(&name),
+		abi::underscored,
+	);
+	names.iter().map(|name| kw(name)).collect()
 }
 
 /// A member's Swift name: in camel case, quoted if a keyword, or with `_` appended if
@@ -2034,6 +2914,25 @@ fn full(is_static: bool, name: &str, labels: impl IntoIterator<Item = String>) -
 		true => format!("{stat}{}", unquote(name)),
 		false => format!("{stat}{}({labels})", unquote(name)),
 	}
+}
+
+/// The name of a member's [`full`] name.
+fn unfull(full: &str) -> String {
+	let full = full.strip_prefix("static ").unwrap_or(full);
+	full.split('(').next().unwrap_or(full).to_string()
+}
+
+/// Whether the member's [`full`] name `full` reads back as the Rust name `rust`, as it
+/// spells it or in camel case, for [`abi::named`].
+fn own(rust: &str, full: &str) -> bool {
+	let name = unfull(full);
+	name == rust || abi::snake(&name) == rust
+}
+
+/// A function's name as DocC links it: with its argument labels.
+fn docc_call<'l>(name: &str, labels: impl IntoIterator<Item = &'l str>) -> String {
+	let labels: String = labels.into_iter().map(|l| format!("{l}:")).collect();
+	format!("{}({labels})", unquote(name))
 }
 
 /// A name without the backticks quoting a keyword.
@@ -2108,14 +3007,149 @@ fn kw(name: &str) -> String {
 	}
 }
 
-/// Swift doc comments holding `docs`, each line indented by `indent`, or nothing for none.
-fn docs(docs: &str, indent: &str) -> String {
-	docs.lines()
+/// `swift` with every body another module may inline: each function, initializer,
+/// subscript, and computed property of a type or the file `@inlinable`, and each other
+/// declaration they could name `@usableFromInline` unless public, `private` ones made
+/// internal. So a consumer's call of a wrapper compiles to a direct call of its C function,
+/// not a call into this module, whose cost would follow where the linker places its code.
+///
+/// It reads the generated file a line at a time, as the generator writes it: one
+/// declaration a line, each brace that opens a body ending its line.
+fn inlinable(swift: &str) -> String {
+	/// What a brace opened: a type's members, or code.
+	#[derive(PartialEq)]
+	enum Scope {
+		Members,
+		Protocol,
+		Code,
+	}
+	const ACCESS: &[&str] = &["public ", "private ", "fileprivate "];
+	const MODIFIERS: &[&str] = &[
+		"static ",
+		"mutating ",
+		"consuming ",
+		"final ",
+		"nonisolated ",
+		"nonisolated(unsafe) ",
+		"nonisolated(nonsending) ",
+	];
+	let mut scopes: Vec<Scope> = Vec::new();
+	let mut out = String::with_capacity(swift.len() * 11 / 10);
+	for line in swift.lines() {
+		let code = line.trim_start_matches('\t');
+		let tabs = &line[..line.len() - code.len()];
+		let mut opened = Scope::Code;
+		let mut written = None;
+		if !code.starts_with("//") && scopes.iter().all(|s| *s == Scope::Members) {
+			// Attributes on the line, then its access and modifiers, then its keyword.
+			let mut rest = code;
+			let mut attributes = String::new();
+			while rest.starts_with('@') {
+				let end = rest.find(' ').unwrap_or(rest.len());
+				attributes.push_str(&rest[..end]);
+				attributes.push(' ');
+				rest = rest[end..].trim_start();
+			}
+			// Access and modifiers come in either order, as `nonisolated(nonsending) public`,
+			// and keep it, but for a `private` or `fileprivate`, which an inlined body could
+			// not name.
+			let mut public = false;
+			let mut modifiers = String::new();
+			loop {
+				if let Some(a) = ACCESS.iter().find(|a| rest.starts_with(**a)) {
+					if *a == "public " {
+						public = true;
+						modifiers.push_str(a);
+					}
+					rest = &rest[a.len()..];
+				} else if let Some(m) = MODIFIERS.iter().find(|m| rest.starts_with(**m)) {
+					modifiers.push_str(m);
+					rest = &rest[m.len()..];
+				} else {
+					break;
+				}
+			}
+			let keyword = rest.split([' ', '(', '<', '?']).next().unwrap_or("");
+			// A property is computed when its line opens a body before any `=`.
+			let computed = match (rest.find('{'), rest.find('=')) {
+				(Some(brace), Some(assign)) => brace < assign,
+				(brace, _) => brace.is_some(),
+			};
+			let attribute = match keyword {
+				"func" | "init" | "subscript" => Some("@inlinable "),
+				"var" | "let" if computed => Some("@inlinable "),
+				"var" | "let" | "struct" | "class" | "enum" | "typealias" if !public => Some("@usableFromInline "),
+				_ => None,
+			};
+			opened = match keyword {
+				"struct" | "class" | "enum" | "extension" => Scope::Members,
+				"protocol" => Scope::Protocol,
+				_ => Scope::Code,
+			};
+			// A declaration the generator marks itself keeps its mark.
+			let marked = attributes.contains("@inlinable") || attributes.contains("@usableFromInline");
+			if let Some(attribute) = attribute.filter(|_| !marked) {
+				written = Some(format!("{tabs}{attributes}{attribute}{modifiers}{rest}"));
+			}
+		}
+		let (opens, closes) = braces(line);
+		if !code.starts_with("//") {
+			match opens.cmp(&closes) {
+				std::cmp::Ordering::Greater => {
+					scopes.push(opened);
+					scopes.extend((1..opens - closes).map(|_| Scope::Code));
+				}
+				std::cmp::Ordering::Less => {
+					for _ in 0..closes - opens {
+						scopes.pop().expect("the generated Swift's braces balance");
+					}
+				}
+				std::cmp::Ordering::Equal => {}
+			}
+		}
+		out.push_str(written.as_deref().unwrap_or(line));
+		out.push('\n');
+	}
+	assert!(scopes.is_empty(), "the generated Swift's braces balance");
+	out
+}
+
+/// The braces `line` opens and closes outside its string literals, such as a deprecation's
+/// message, whose escapes, `\u{301}` among them, stay inside the literal.
+fn braces(line: &str) -> (usize, usize) {
+	let (mut opens, mut closes) = (0, 0);
+	let mut chars = line.chars();
+	let mut quoted = false;
+	while let Some(c) = chars.next() {
+		match (quoted, c) {
+			(true, '\\') => {
+				chars.next();
+			}
+			(_, '"') => quoted = !quoted,
+			(false, '{') => opens += 1,
+			(false, '}') => closes += 1,
+			_ => {}
+		}
+	}
+	(opens, closes)
+}
+
+/// Swift doc comments holding `docs`, each line indented by `indent`, or nothing for none,
+/// and `@available(*, deprecated)` with its note where `deprecated` has one.
+fn docs(docs: &str, deprecated: Option<&str>, indent: &str) -> String {
+	let mut out: String = docs
+		.lines()
 		.map(|line| match line.is_empty() {
 			true => format!("{indent}///\n"),
 			false => format!("{indent}/// {line}\n"),
 		})
-		.collect()
+		.collect();
+	match deprecated {
+		Some("") => out.push_str(&format!("{indent}@available(*, deprecated)\n")),
+		Some(note) => out.push_str(&format!("{indent}@available(*, deprecated, message: {note:?})\n")),
+		None => {}
+	}
+	out
 }
 
 /// Code indented by one tab more, but for blank lines.
@@ -2133,9 +3167,115 @@ fn indent(code: &str) -> String {
 	out
 }
 
+/// The conformances a type declares, as `: A, B`, or nothing for none.
+fn conform(protocols: &[&str]) -> String {
+	match protocols.is_empty() {
+		true => String::new(),
+		false => format!(": {}", protocols.join(", ")),
+	}
+}
+
 #[cfg(test)]
 mod tests {
-	use super::{RUNTIME, TAKEN};
+	use super::{RUNTIME, TAKEN, inlinable};
+
+	/// Each member a body may name crosses: functions and computed properties inline,
+	/// internal storage and types are usable from them, and code, protocols, public
+	/// storage, and what the generator marks itself stay as written.
+	#[test]
+	fn inlinable_marks_members() {
+		let swift = "\
+public struct A: ~Copyable {
+	let handle: OpaquePointer?
+	public let name: Swift.String
+	private var count = 0
+	var size: Swift.Int { 1 }
+	public var bytes: Swift.Int {
+		let n = size
+		return n
+	}
+
+	init(raw: OpaquePointer?) {
+		handle = raw
+	}
+
+	deinit {
+		free(handle)
+	}
+
+	@usableFromInline consuming func _end() {
+		discard self
+	}
+
+	/// A call {in braces.
+	nonisolated(nonsending) public func get() async throws -> Swift.Int {
+		let x = { () -> Int in 1 }()
+		return x
+	}
+}
+
+public protocol P: Sendable {
+	func call() -> Swift.Int
+}
+
+enum Native {
+	struct Handle {
+		static let slots: UnsafeMutablePointer<Int> = {
+			let count = 1
+			return .allocate(capacity: count)
+		}()
+	}
+}
+
+public func top() {}
+";
+		let want = "\
+public struct A: ~Copyable {
+	@usableFromInline let handle: OpaquePointer?
+	public let name: Swift.String
+	@usableFromInline var count = 0
+	@inlinable var size: Swift.Int { 1 }
+	@inlinable public var bytes: Swift.Int {
+		let n = size
+		return n
+	}
+
+	@inlinable init(raw: OpaquePointer?) {
+		handle = raw
+	}
+
+	deinit {
+		free(handle)
+	}
+
+	@usableFromInline consuming func _end() {
+		discard self
+	}
+
+	/// A call {in braces.
+	@inlinable nonisolated(nonsending) public func get() async throws -> Swift.Int {
+		let x = { () -> Int in 1 }()
+		return x
+	}
+}
+
+public protocol P: Sendable {
+	func call() -> Swift.Int
+}
+
+@usableFromInline enum Native {
+	@usableFromInline struct Handle {
+		@usableFromInline static let slots: UnsafeMutablePointer<Int> = {
+			let count = 1
+			return .allocate(capacity: count)
+		}()
+	}
+}
+
+@inlinable public func top() {}
+";
+		assert_eq!(inlinable(swift), want);
+	}
 
 	/// Each type the runtime declares at its top level, and each protocol one conforms to,
 	/// is a name no export may take, as either would clash with or shadow it.
@@ -2153,9 +3293,16 @@ mod tests {
 				continue;
 			};
 			let decl = decl.trim_end_matches('{').trim();
-			let (name, conforms) = decl.split_once(':').unwrap_or((decl, ""));
+			// A generic's parameters, such as `NonZero<T: Swift.FixedWidthInteger>`, name it
+			// no further; the type is its name before them.
+			let decl = match decl.split_once('<') {
+				Some((name, rest)) => name.to_string() + rest.split_once('>').expect("a generic closes").1,
+				None => decl.to_string(),
+			};
+			let (name, conforms) = decl.split_once(':').unwrap_or((&decl, ""));
 			let names = std::iter::once(name).chain(conforms.split(','));
-			for name in names.map(str::trim).filter(|n| !n.is_empty() && !n.starts_with('@')) {
+			// A qualified name, such as `Swift.Error`, cannot clash.
+			for name in (names.map(str::trim)).filter(|n| !n.is_empty() && !n.starts_with('@') && !n.contains('.')) {
 				assert!(TAKEN.contains(&name), "the runtime's `{name}` is not in TAKEN");
 			}
 		}

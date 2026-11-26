@@ -1,12 +1,14 @@
 //! Go over the C ABI through cgo: a package per crate whose items the facade exports,
-//! `go/<package>/`, and the runtime they share, `go/rt/`, each including the C header from
-//! `include/` beside `go/`. A crate's package is its name without the prefix and its `_`
+//! `go/<package>/`, and the runtime they share, `go/rt/`, each including the C header the
+//! runtime holds, so `go/` is a module of its own. The runtime links each exported target's
+//! static library, `rt/lib<prefix>_<goos>_<goarch>.a`, with the system libraries it needs, by
+//! a `#cgo` line of that platform, and fails to compile on any other. A crate's package is its name without the prefix and its `_`
 //! (moq-mux's is `mux`), so callers write `mux.CodecOpusConfig_`. Cargo keeps crates from
 //! depending on each other in a cycle, so their packages import none in one either, as Go
 //! requires; Rust's modules may, and so cannot each be a package. An instance of a generic
 //! type, or a function naming one, belongs to the last of its own and its arguments'
-//! crates, which can name them all. The import path of `go/` is the module of the `go.mod`
-//! above it, or else the module `<prefix>` of the `go.mod` the export writes there.
+//! crates, which can name them all. The import path of `go/` is the module of its own
+//! `go.mod` or one above it, or else the module `<prefix>` of the `go.mod` the export writes there.
 //!
 //! Each name is its C name without the prefix and the segments outside its crate, in
 //! Pascal case, kept [`apart`](abi::apart) from another type's of the package that would
@@ -19,7 +21,9 @@
 //! at any depth, returns an `error`; a record a struct; a plain enum an integer type and its
 //! constants; an enum with data an interface each variant's struct implements; a trait an
 //! interface; a closure a function; a reader an `io.ReadSeeker`; a future a call taking a
-//! `context.Context` that blocks until the future is ready; a `Result` an `error`. The
+//! `context.Context` that blocks until the future is ready; a `Result` an `error`. A `Copy`
+//! type with private fields is a struct over its bytes, which only Rust makes or reads,
+//! and a zero one panics where Rust would read it. The
 //! runtime they share,
 //! [`runtime/rt.go`](../runtime/rt.go), holds the handles and the bytes Rust returns, and
 //! each package's copy of [`runtime/ffi_cgo.go`](../runtime/ffi_cgo.go) the arena a call lowers
@@ -38,20 +42,21 @@ use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::fmt::Write;
 
 use crate::abi::{self, Abi, Ty, pascal};
-use crate::ir::{Access, Closure, Collection, Family, Function, Home, Int, Literal, On, Param, Receiver, Type};
+use crate::doc;
+use crate::ir::{
+	Access, Closure, Collection, Function, Home, Int, Literal, On, Order, Param, Receiver, Traits, Type, Variant,
+};
 
 const RUNTIME: &str = include_str!("../runtime/rt.go");
 const CONVERSIONS: &str = include_str!("../runtime/ffi_cgo.go");
 
 /// The standard library's packages the generated items name.
 const STD: &[(&str, &str)] = &[
-	("big", "math/big"),
 	("context", "context"),
 	("cgo", "runtime/cgo"),
 	("io", "io"),
-	("netip", "net/netip"),
+	("iter", "iter"),
 	("runtime", "runtime"),
-	("time", "time"),
 	("unsafe", "unsafe"),
 ];
 
@@ -102,13 +107,13 @@ impl Packages {
 }
 
 /// The generated Go files and their public names.
-pub struct Output {
-	pub files: Vec<(String, String)>,
-	pub names: BTreeMap<String, String>,
+pub(crate) struct Output {
+	pub(crate) files: Vec<(String, String)>,
+	pub(crate) names: BTreeMap<String, String>,
 }
 
 /// Each crate's Go package name, by crate, which also names its C++ header.
-pub fn packages(abi: &Abi<'_>) -> BTreeMap<String, String> {
+pub(crate) fn packages(abi: &Abi<'_>) -> BTreeMap<String, String> {
 	let mut by_crate = Packages::new(abi, "").by_crate;
 	by_crate.remove(Packages::RT);
 	by_crate.into_iter().map(|(krate, (name, _))| (krate, name)).collect()
@@ -116,7 +121,7 @@ pub fn packages(abi: &Abi<'_>) -> BTreeMap<String, String> {
 
 /// The Go for `abi`, whose header's contract is `contract`, as each file under `go/` by its
 /// path there, for the module path `module` of `go/`; or the names two items claim alike.
-pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64, module: &str) -> Result<Output, String> {
+pub(crate) fn generate(abi: &Abi<'_>, packages: &str, contract: u64, module: &str) -> Result<Output, String> {
 	let set = Packages::new(abi, module);
 	let types = abi.classes(|home| (home.krate.clone(), home.outside - 1), |_| false);
 	let mut locked = crate::lock::types(abi, &types);
@@ -175,6 +180,7 @@ pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64, module: &str) -> R
 	let mut files = Vec::new();
 	let mut errors = Vec::new();
 	let mut tuples = BTreeSet::new();
+	let mut api_files = Vec::new();
 	let mut rt = Gen::new(abi, &set, Packages::RT, &shared);
 	rt.write_rt();
 	for krate in &abi.api.crates {
@@ -187,16 +193,33 @@ pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64, module: &str) -> R
 		locked.insert(format!("crate {krate}"), name.to_string());
 		let doc = format!(
 			"// Package {name} is the pub API of the crate {krate} in {packages}, over its C ABI\n\
-			// through cgo. Link the library built with {p}.h, through CGO_LDFLAGS.\n",
+			// through cgo, whose runtime links the static library rt/lib{p}_<goos>_<goarch>.a.\n",
 			p = abi.prefix
 		);
+		api_files.push((files.len(), krate));
 		files.push((format!("{name}/{name}.go"), g.file(&doc)));
+		// Named so that no suffix is a `GOOS` or `GOARCH`, which would constrain it too.
+		for (n, (condition, code)) in g.gated.iter().enumerate() {
+			api_files.push((files.len(), krate));
+			let code = code.trim_end();
+			let file = format!(
+				"// Code generated by rust2-ffi. DO NOT EDIT.\n\n//go:build {condition}\n\npackage {name}\n\n{code}\n"
+			);
+			files.push((format!("{name}/ffi_gated{n}.go"), file));
+		}
 		// No package name holds a `_` but at its end, so the helpers never take the API's file.
 		files.push((format!("{name}/ffi_cgo.go"), g.conversions()));
 	}
 	errors.append(&mut rt.errors);
 	if !errors.is_empty() {
 		return Err(errors.join("\n"));
+	}
+	// Each link once every name is final; Go's show only the item's own name.
+	for (at, krate) in api_files {
+		files[at].1 = doc::links(&files[at].1, api, |link| match link.text {
+			Some(_) => None,
+			None => doc_link(abi, &set, &shared, &locked, krate, link.target),
+		});
 	}
 	for n in tuples {
 		let params: Vec<String> = (0..n).map(|k| format!("T{k}")).collect();
@@ -207,9 +230,76 @@ pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64, module: &str) -> R
 			params.join(", ")
 		);
 	}
-	files.push(("rt/rt.go".to_string(), rt.runtime(packages, contract)));
+	let (links, platform) = link(abi)?;
+	files.push(("rt/rt.go".to_string(), rt.runtime(packages, contract, &links)));
+	files.push(("rt/platform.go".to_string(), platform));
 	files.push(("rt/types.go".to_string(), rt.file("")));
 	Ok(Output { files, names: locked })
+}
+
+/// Each target whose static library Go links: its `GOOS`, `GOARCH`, and the `GOOS` that
+/// also satisfies its own as a build constraint, which is not it. Windows' is a `-gnu`
+/// library, as Go links through MinGW; iOS's the device's, as Go tells no simulator apart.
+pub(crate) const PLATFORMS: &[(&str, &str, &str, Option<&str>)] = &[
+	("x86_64-unknown-linux-gnu", "linux", "amd64", Some("android")),
+	("aarch64-unknown-linux-gnu", "linux", "arm64", Some("android")),
+	("x86_64-apple-darwin", "darwin", "amd64", Some("ios")),
+	("aarch64-apple-darwin", "darwin", "arm64", Some("ios")),
+	("aarch64-apple-ios", "ios", "arm64", None),
+	("x86_64-linux-android", "android", "amd64", None),
+	("aarch64-linux-android", "android", "arm64", None),
+	("x86_64-pc-windows-gnu", "windows", "amd64", None),
+	("aarch64-pc-windows-gnullvm", "windows", "arm64", None),
+];
+
+/// The `#cgo LDFLAGS` lines linking each exported target's library, `rt/lib<prefix>_<goos>_<goarch>.a`,
+/// and the system libraries it needs, and `rt/platform.go`, which fails to compile on any
+/// other platform, so no build links without a library.
+fn link(abi: &Abi<'_>) -> Result<(String, String), String> {
+	let p = &abi.prefix;
+	let mut lines = String::new();
+	let mut constraints = Vec::new();
+	for &(target, goos, goarch, not) in PLATFORMS {
+		if !abi.api.targets.iter().any(|t| t == target) {
+			continue;
+		}
+		let Some(libs) = abi.api.links.get(target) else {
+			return Err(format!(
+				"the staged API of {target} names no system libraries: stage it again with this rust2-ffi"
+			));
+		};
+		let not = not.map(|os| format!(",!{os}")).unwrap_or_default();
+		let mut flags = vec![format!("${{SRCDIR}}/lib{p}_{goos}_{goarch}.a")];
+		flags.extend(libs.iter().cloned());
+		// Then the glue's own, which rustc lists after its dependencies', dropping one that
+		// repeats the last: on Android, the log its abort writes to (`runtime/rt/android.rs`).
+		if goos == "android" && flags.last().map(String::as_str) != Some("-llog") {
+			flags.push("-llog".to_string());
+		}
+		let _ = writeln!(lines, "#cgo {goos}{not},{goarch} LDFLAGS: {}", flags.join(" "));
+		let not = not.replace(",!", " && !");
+		constraints.push(format!("{goos}{not} && {goarch}"));
+	}
+	let only = match constraints.is_empty() {
+		true => String::new(),
+		false => format!("//go:build !({})\n\n", constraints.join(" || ")),
+	};
+	let platform = format!(
+		"// Code generated by rust2-ffi. DO NOT EDIT.\n\n{only}package rt\n\n\
+		// The export has no library for this platform, so nothing it declares would link.\n\
+		var _ int = \"rust2-ffi exported no library of {p} for this GOOS and GOARCH\"\n"
+	);
+	Ok((lines, platform))
+}
+
+/// A call holding `object`'s handle as `h`, in the slot `s`, until it returns: through
+/// `Count`, inlined, then `Contend` once calls contend for it, running `failed` once closed.
+/// `slot` is the runtime's `Slot_`, as the package names it.
+fn hold(slot: &str, object: &str, h: &str, s: &str, failed: &str) -> String {
+	let failed = failed.replace('\n', "\n\t\t");
+	format!(
+		"{h}, {s} := {object}.Handle_.Count(), {slot}{{}}\nif {h} == nil {{\n\tif {h}, {s} = {object}.Handle_.Contend(); {h} == nil {{\n\t\t{failed}\n\t}}\n}}\ndefer unhold_({object}.Handle_, {s}, {object})"
+	)
 }
 
 /// Each error type that is no exported type, named by its key as its C structs are, so two
@@ -352,9 +442,33 @@ const TAKEN: &[&str] = &[
 	"BoundExcluded",
 	"Bytes",
 	"NewBytes",
+	"ErrBorrowed",
 	"ErrClosed",
+	"ErrInvalid",
+	"Invalid_",
+	"Duration",
+	"NewDuration",
+	"DurationOf",
+	"U128",
+	"U128Of",
+	"Ipv4Addr",
+	"Ipv4AddrOf",
+	"Ipv6Addr",
+	"Ipv6AddrOf",
+	"IpAddr",
+	"IpAddrOf",
+	"IpAddrFromV4",
+	"IpAddrFromV6",
+	"SocketAddrV4",
+	"SocketAddrV4Of",
+	"SocketAddrV6",
+	"SocketAddrV6Of",
+	"SocketAddr",
+	"SocketAddrOf",
+	"SocketAddrFromV4",
+	"SocketAddrFromV6",
 	"Handle_",
-	"NewHandle_",
+	"Slot_",
 	"LiftBytes_",
 	"BytesBuf_",
 	"GoCall_",
@@ -403,6 +517,13 @@ impl Method {
 		format!("{}({}){results}", self.name, params.join(", "))
 	}
 
+	/// Whether go vet reports it, as [`vetted`] says, on a type that is an `error` or not.
+	fn vetted(&self, error: bool) -> bool {
+		let params: Vec<&str> = self.params.iter().map(|(_, ty)| ty.as_str()).collect();
+		let results: Vec<&str> = self.results.iter().map(String::as_str).collect();
+		vetted(&self.name, &params, &results, error)
+	}
+
 	fn write(&self) -> String {
 		let receiver = match &self.receiver {
 			Some(r) => format!("({r}) "),
@@ -410,7 +531,7 @@ impl Method {
 		};
 		format!(
 			"{}func {receiver}{} {{\n{}\n}}\n\n",
-			docs(self.docs.trim(), ""),
+			docs(self.docs.trim(), None, ""),
 			self.signature(),
 			indent(&self.body)
 		)
@@ -427,10 +548,16 @@ struct Gen<'a> {
 	/// then the functions Go exports to C.
 	types: String,
 	top: String,
+	/// The constants only some of the targets Go links have, by the build constraint of the
+	/// file holding them, which compiles only for those.
+	gated: BTreeMap<String, String>,
 	helpers: BTreeMap<String, String>,
 	exports: String,
-	/// The C declarations of what Go exports, for the preamble.
+	/// The C declarations of what Go exports, and the definitions of the calls' shims, for
+	/// the preamble.
 	decls: Vec<String>,
+	/// The name of each call's shim the preamble defines.
+	shims: BTreeSet<String>,
 	/// Each closure type's trampoline, by its Go type.
 	closures: HashMap<Closure, String>,
 	/// The arity of each tuple type the package names.
@@ -477,9 +604,11 @@ impl<'a> Gen<'a> {
 			pkg,
 			types: String::new(),
 			top: String::new(),
+			gated: BTreeMap::new(),
 			helpers: BTreeMap::new(),
 			exports: String::new(),
 			decls: Vec::new(),
+			shims: BTreeSet::new(),
 			closures: HashMap::new(),
 			tuples: BTreeSet::new(),
 			names,
@@ -509,7 +638,7 @@ impl<'a> Gen<'a> {
 			let p = &self.abi.prefix;
 			let _ = write!(
 				out,
-				"/*\n#cgo CFLAGS: -I${{SRCDIR}}/../../include\n#include <stdlib.h>\n#include \"{p}.h\"\n\n"
+				"/*\n#cgo CFLAGS: -I${{SRCDIR}}/../rt\n#include <stdlib.h>\n#include \"{p}.h\"\n\n"
 			);
 			for decl in &self.decls {
 				out.push_str(decl);
@@ -555,10 +684,10 @@ impl<'a> Gen<'a> {
 		let mut out = format!(
 			"// Code generated by rust2-ffi. DO NOT EDIT.\n\n\
 			package {name}\n\n\
-			/*\n#cgo CFLAGS: -I${{SRCDIR}}/../../include\n#include <stdlib.h>\n#include \"{p}.h\"\n*/\nimport \"C\"\n\n\
-			import (\n\t\"context\"\n\t\"math\"\n\t\"math/big\"\n\t\"net\"\n\t\"net/netip\"\n\t\"runtime\"\n\t\"runtime/cgo\"\n\t\"strconv\"\n\t\"time\"\n\t\"unsafe\"\n\n\t\"{rt}\"\n)\n\n\
+			/*\n#cgo CFLAGS: -I${{SRCDIR}}/../rt\n#include <stdlib.h>\n#include \"{p}.h\"\n*/\nimport \"C\"\n\n\
+			import (\n\t\"context\"\n\t\"runtime\"\n\t\"runtime/cgo\"\n\t\"unicode/utf8\"\n\t\"unsafe\"\n\n\t\"{rt}\"\n)\n\n\
 			// The runtime's names for the export's C types and functions.\n\
-			type (\n\tcBuf           = C.{p}_buf\n\tcWaker         = C.{p}_waker\n\tcForeignFuture = C.{p}_foreign_future\n\tcForeignReader = C.{p}_foreign_reader\n\tcU128          = C.{p}_u128\n\tcDuration      = C.{p}_duration\n\tcAddr          = C.{p}_socket_addr\n)\n\n\
+			type (\n\tcBuf           = C.{p}_buf\n\tcWaker         = C.{p}_waker\n\tcForeignFuture = C.{p}_foreign_future\n\tcForeignReader = C.{p}_foreign_reader\n\tcU128          = C.{p}_u128\n\tcDuration      = C.{p}_duration\n\tcIpv4Addr      = C.{p}_ipv4_addr\n\tcIpv6Addr      = C.{p}_ipv6_addr\n\tcIpAddr        = C.{p}_ip_addr\n\tcSocketAddrV4  = C.{p}_socket_addr_v4\n\tcSocketAddrV6  = C.{p}_socket_addr_v6\n\tcSocketAddr    = C.{p}_socket_addr\n)\n\n\
 			var (\n\tgoCall    = (*[0]byte)(rt.GoCall_())\n\tgoRelease = (*[0]byte)(rt.GoRelease_())\n\tgoPoll    = (*[0]byte)(rt.GoPoll_())\n\tgoRead    = (*[0]byte)(rt.GoRead_())\n\tgoSeek    = (*[0]byte)(rt.GoSeek_())\n)\n\n\
 			func cBufFree(buf cBuf) {{\n\tC.{p}_buf_free(buf)\n}}\n\n\
 			// cBufCopy is a copy of s Rust owns, as a closure returns it.\n\
@@ -569,7 +698,7 @@ impl<'a> Gen<'a> {
 	}
 
 	/// The runtime's package, which checks the library's contract once it loads.
-	fn runtime(&self, packages: &str, contract: u64) -> String {
+	fn runtime(&self, packages: &str, contract: u64, links: &str) -> String {
 		let p = &self.abi.prefix;
 		let upper = p.to_uppercase();
 		let go = format!("{p}Go");
@@ -578,31 +707,46 @@ impl<'a> Gen<'a> {
 			// Package rt is what the Go packages of the pub API of {packages} share: the bytes\n\
 			// Rust returns, the error a closed object returns, and the types of no crate's.\n\
 			package rt\n\n\
-			/*\n#cgo CFLAGS: -I${{SRCDIR}}/../../include\n#include <stdlib.h>\n#include \"{p}.h\"\n\n\
+			/*\n#cgo CFLAGS: -I${{SRCDIR}}\n{links}#include <stdlib.h>\n#include \"{p}.h\"\n\n\
 			extern void {go}_call(void *data);\nextern void {go}_release(void *data);\nextern bool {go}_poll(void *data, {p}_waker waker);\n\
 			extern bool {go}_read(void *data, uint8_t *buf, size_t len, size_t *n, {p}_buf *err);\n\
-			extern bool {go}_seek(void *data, int whence, int64_t offset, uint64_t *position, {p}_buf *err);\n\n\
+			extern bool {go}_seek(void *data, int whence, int64_t offset, uint64_t *position, {p}_buf *err);\n\
+			extern bool {p}_close_drain(const void *handle);\n\n\
 			static void {go}_bufs_free({p}_buf *bufs, size_t n) {{\n\tfor (size_t i = 0; i < n; i++) {{\n\t\t{p}_buf_free(bufs[i]);\n\t}}\n}}\n\n\
+			// The header's contract, read through C: cgo built by clang reads a uint64_t macro\n\
+			// with its top bit set as a negative constant.\n\
+			static uint64_t {go}_header_contract(void) {{\n\treturn {upper}_CONTRACT;\n}}\n\n\
 			static void {go}_waker_wake({p}_waker w) {{\n\tif (w.wake != NULL) {{\n\t\tw.wake(w.data);\n\t}}\n}}\n\n\
 			static void {go}_waker_drop({p}_waker w) {{\n\tif (w.drop != NULL) {{\n\t\tw.drop(w.data);\n\t}}\n}}\n\
 			*/\nimport \"C\"\n\n\
-			import (\n\t\"context\"\n\t\"errors\"\n\t\"io\"\n\t\"runtime\"\n\t\"runtime/cgo\"\n\t\"sync\"\n\t\"sync/atomic\"\n\t\"unsafe\"\n)\n\n\
+			import (\n\t\"context\"\n\t\"encoding/binary\"\n\t\"errors\"\n\t\"io\"\n\t\"math\"\n\t\"math/big\"\n\t\"net\"\n\t\"net/netip\"\n\t\"runtime\"\n\t\"runtime/cgo\"\n\t\"strconv\"\n\t\"sync\"\n\t\"sync/atomic\"\n\t\"time\"\n\t\"unsafe\"\n)\n\n\
 			type (\n\tcBuf   = C.{p}_buf\n\tcWaker = C.{p}_waker\n)\n\n\
 			var (\n\tgoCall    = (*[0]byte)(C.{go}_call)\n\tgoRelease = (*[0]byte)(C.{go}_release)\n\tgoPoll    = (*[0]byte)(C.{go}_poll)\n\tgoRead    = (*[0]byte)(C.{go}_read)\n\tgoSeek    = (*[0]byte)(C.{go}_seek)\n)\n\n\
 			func cBufFree(buf cBuf) {{\n\tC.{p}_buf_free(buf)\n}}\n\n\
 			// cBufCopy is a copy of s Rust owns, as a reader's error returns it.\n\
 			func cBufCopy(s string) cBuf {{\n\tif len(s) == 0 {{\n\t\treturn C.{p}_buf_copy(cBuf{{}})\n\t}}\n\treturn C.{p}_buf_copy(cBuf{{ptr: (*C.uint8_t)(unsafe.Pointer(unsafe.StringData(s))), len: C.size_t(len(s))}})\n}}\n\n\
+			// cBufClone is a second owner of buf, which Rust returned, sharing its bytes.\n\
+			func cBufClone(buf cBuf) cBuf {{\n\treturn C.{p}_buf_clone(buf)\n}}\n\n\
 			// cBufsFree frees bufs, which are not empty, in one call.\n\
 			func cBufsFree(bufs []cBuf) {{\n\tC.{go}_bufs_free(&bufs[0], C.size_t(len(bufs)))\n}}\n\n\
 			func cWakerWake(w cWaker) {{\n\tC.{go}_waker_wake(w)\n}}\n\n\
 			func cWakerDrop(w cWaker) {{\n\tC.{go}_waker_drop(w)\n}}\n\n\
+			// cCloseDrain runs what other threads left this thread, for a Close waiting on another's\n\
+			// undecided drop, given nil, or for one of raw refused: whether to try again.\n\
+			func cCloseDrain(raw unsafe.Pointer) bool {{\n\treturn bool(C.{p}_close_drain(raw))\n}}\n\n\
 			// Go packages and a library from different builds must not mix: checked when the\n\
 			// runtime loads, before any other call.\n\
-			func init() {{\n\tif C.{p}_contract() != 0x{contract:016x} || C.{upper}_CONTRACT != 0x{contract:016x} {{\n\t\tpanic(\"the Go of {p} and the library are from different builds\")\n\t}}\n\ttarget_ = uint64(C.{p}_target())\n}}\n\n\
+			func init() {{\n\tif C.{p}_contract() != 0x{contract:016x} || C.{go}_header_contract() != 0x{contract:016x} {{\n\t\tpanic(\"the Go of {p} and the library are from different builds\")\n\t}}\n\ttarget_ = uint64(C.{p}_target())\n}}\n\n\
 			// target_ is the index of the library's target among those the packages serve.\n\
 			var target_ uint64\n\n\
 			// On_ panics unless the library's target is among those of on, as the item what is.\n\
 			func On_(on uint64, what string) {{\n\tif on>>target_&1 == 0 {{\n\t\tpanic(what + \": it is not on this library's target\")\n\t}}\n}}\n\n\
+			// Supported_ is the error a call of what returns, matching errors.ErrUnsupported,\n\
+			// unless the library's target is among those of on, as the item what is.\n\
+			func Supported_(on uint64, what string) error {{\n\tif on>>target_&1 == 0 {{\n\t\treturn checkError_{{what, \"it is not on this library's target\", 0}}\n\t}}\n\treturn nil\n}}\n\n\
+			// Status_ is the error a call of what returns, given the status it wrote: nil for\n\
+			// none.\n\
+			func Status_(status int32, what string) error {{\n\tif status == 0 {{\n\t\treturn nil\n\t}}\n\treturn checkError_{{what, C.GoString(C.{p}_status_message(C.{p}_status(status))), status}}\n}}\n\n\
 			//export {go}_call\nfunc {go}_call(data unsafe.Pointer) {{\n\tgiven_(data).(func())()\n}}\n\n\
 			//export {go}_release\nfunc {go}_release(data unsafe.Pointer) {{\n\trelease_(data)\n}}\n\n\
 			//export {go}_poll\nfunc {go}_poll(data unsafe.Pointer, waker cWaker) C.bool {{\n\treturn C.bool(given_(data).(*pollable_).poll(waker))\n}}\n\n\
@@ -666,14 +810,166 @@ impl<'a> Gen<'a> {
 		&c[self.abi.prefix.len() + 1..]
 	}
 
+	/// The call of the C function `c` with `args`, an argument for each parameter in `params`
+	/// but an out: the statements making it, and the expression of its value, empty for none.
+	///
+	/// A Go pointer passed to C moves to the heap, as C may call back into Go and grow the
+	/// stack it pointed into. So a call passing one goes through a shim the preamble adds,
+	/// which takes each value C reads by value and passes C a pointer to its own copy, and
+	/// returns what C writes: a C local never moves, and cgo returns a value into the moved
+	/// stack. The statements bind each out `n` to `c_<n>_`, the status to `c_status_`, and a
+	/// future's handle to `f_`, and write a value C writes back to `c_<n>_`.
+	fn call(&mut self, c: &str, params: &[(String, Ty)], ret: &Ty, args: &[String]) -> (String, String) {
+		let args = args.join(", ");
+		if !params
+			.iter()
+			.any(|(_, ty)| matches!(ty, Ty::In(_) | Ty::Out(_) | Ty::InOut(_)))
+		{
+			return (String::new(), format!("C.{c}({args})"));
+		}
+		let p = &self.abi.prefix;
+		let bare = self.bare(c);
+		let name = format!("{p}GoCall_{bare}");
+		let returned = format!("{p}GoReturned_{bare}");
+		// What the shim returns: C's value as `value`, then what each parameter writes, as
+		// `status` or by its position, with the Go statement binding it.
+		let mut fields: Vec<(String, Ty, Option<String>)> = Vec::new();
+		if !matches!(ret, Ty::Void) {
+			fields.push(("value".to_string(), ret.clone(), None));
+		}
+		for (i, (n, ty)) in params.iter().enumerate() {
+			let (field, inner, bind) = match ty {
+				Ty::Out(inner) => match **inner {
+					Ty::Status => ("status".to_string(), inner, "c_status_ :=".to_string()),
+					Ty::Future(_) => (format!("p{i}"), inner, "f_ =".to_string()),
+					_ => (format!("p{i}"), inner, format!("c_{n}_ :=")),
+				},
+				Ty::InOut(inner) => (format!("p{i}"), inner, format!("c_{n}_ =")),
+				_ => continue,
+			};
+			fields.push((field, (**inner).clone(), Some(bind)));
+		}
+		// No result returns nothing, and a lone one returns by itself, as `r`; more return in a
+		// struct.
+		let lone = fields.len() == 1;
+		let place = |field: &str| match lone {
+			true => "r".to_string(),
+			false => format!("r.{field}"),
+		};
+		let shim = format!("C.{name}({args})");
+		let (stmts, value) = match &fields[..] {
+			[] | [(_, _, None)] => (String::new(), shim),
+			[(_, _, Some(bind))] => (format!("{bind} {shim}"), String::new()),
+			fields => {
+				let mut stmts = vec![format!("c_ret_ := {shim}")];
+				let mut value = String::new();
+				for (field, _, bind) in fields {
+					match bind {
+						Some(bind) => stmts.push(format!("{bind} c_ret_.{field}")),
+						None => value = format!("c_ret_.{field}"),
+					}
+				}
+				(stmts.join("\n"), value)
+			}
+		};
+		if !self.shims.insert(name.clone()) {
+			return (stmts, value);
+		}
+		// The shim's parameters and C's arguments, by position, since a Rust name may be a C
+		// name the shim uses, such as `c`'s own.
+		let mut decls = Vec::new();
+		let mut passed = Vec::new();
+		let mut back = String::new();
+		for (i, (_, ty)) in params.iter().enumerate() {
+			match ty {
+				Ty::Out(inner) if matches!(**inner, Ty::Status) => passed.push(format!("&{}", place("status"))),
+				Ty::Out(_) => passed.push(format!("&{}", place(&format!("p{i}")))),
+				Ty::In(inner) | Ty::InOut(inner) => {
+					decls.push(crate::c::decl(self.abi, inner, &format!("arg{i}")));
+					passed.push(format!("&arg{i}"));
+					if matches!(ty, Ty::InOut(_)) {
+						back.push_str(&format!("\t{} = arg{i};\n", place(&format!("p{i}"))));
+					}
+				}
+				ty => {
+					decls.push(crate::c::decl(self.abi, ty, &format!("arg{i}")));
+					passed.push(format!("arg{i}"));
+				}
+			}
+		}
+		let decls = match decls.is_empty() {
+			true => "void".to_string(),
+			false => decls.join(", "),
+		};
+		let made = format!("{c}({});", passed.join(", "));
+		let made = match matches!(ret, Ty::Void) {
+			true => made,
+			false => format!("{} = {made}", place("value")),
+		};
+		if fields.is_empty() {
+			self.decls
+				.push(format!("static inline void {name}({decls}) {{\n\t{made}\n}}\n"));
+			return (stmts, value);
+		}
+		let (r, typedef) = match lone {
+			true => (crate::c::decl(self.abi, &fields[0].1, ""), String::new()),
+			false => {
+				let members: String = (fields.iter())
+					.map(|(field, ty, _)| format!("\t{};\n", crate::c::decl(self.abi, ty, field)))
+					.collect();
+				(
+					returned.clone(),
+					format!("typedef struct {{\n{members}}} {returned};\n\n"),
+				)
+			}
+		};
+		// Zeroed, so Go never reads a stale pointer from what C left unwritten.
+		self.decls.push(format!(
+			"{typedef}static inline {r} {name}({decls}) {{\n\t{r} r = {{0}};\n\t{made}\n{back}\treturn r;\n}}\n"
+		));
+		(stmts, value)
+	}
+
+	/// The C shim dropping the value of the object `c`'s handle, which Rust checks, then,
+	/// given the handle's state, freeing the handle if the drop passed: a close in one
+	/// crossing, which stores closed to the state as the drop commits, so a close waiting on
+	/// it returns before any `Drop` runs.
+	fn close_c(&mut self, c: &str) -> String {
+		let c_ = crate::abi::stem(c);
+		let p = &self.abi.prefix;
+		let name = format!("{p}GoClose_{}", self.bare(c));
+		let handle = Ty::Handle {
+			name: c.to_string(),
+			constant: false,
+		};
+		let decl = crate::c::decl(self.abi, &handle, "self");
+		let status = crate::c::decl(self.abi, &Ty::Status, "");
+		let committed = format!("{p}GoCommitted");
+		if self.shims.insert(committed.clone()) {
+			self.decls.push(format!(
+				"static void {committed}(void *state) {{\n\t__atomic_store_n((int64_t *)state, 1, __ATOMIC_RELEASE);\n}}\n"
+			));
+		}
+		self.decls.push(format!(
+			"extern void {c_}_drop_signal({decl}, {status} *status, void (*commit)(void *), void *data);\n\
+			static inline {status} {name}({decl}, int64_t *state) {{\n\t{status} r = 0;\n\t{c_}_drop_signal(self, &r, state ? {committed} : NULL, state);\n\tif (r == 0 && state) {{\n\t\t{c_}_free(self);\n\t}}\n\treturn r;\n}}\n"
+		));
+		name
+	}
+
+	/// The call of `sig` with `args`, as [`Self::call`] makes it.
+	fn call_sig(&mut self, sig: &abi::Sig, args: &[String]) -> (String, String) {
+		self.call(&sig.name, &sig.params, &sig.ret, args)
+	}
+
 	/// The Go name of the runtime's C type `c`, such as a range's.
 	fn class(&self, c: &str) -> String {
 		pascal(self.bare(c))
 	}
 
-	/// The Go names of parameters, each [`local`], [`abi::distinct`].
+	/// The Go names of parameters, each [`local`], kept apart as [`abi::distinct`] keeps them.
 	fn locals(&self, params: &[Param]) -> Vec<String> {
-		abi::distinct(params.iter().map(|p| local(&p.name)))
+		abi::distinct(params, local, |_| false)
 	}
 
 	/// The package-level Go name `what` takes, `name` unless that is taken.
@@ -682,22 +978,17 @@ impl<'a> Gen<'a> {
 		abi::claim(&mut self.names, |name| rt && taken(name), name, what)
 	}
 
-	/// Check that no two members of the type `rust` share a Go name.
-	fn distinct(&mut self, rust: &str, members: &[String]) {
-		let mut seen = BTreeSet::new();
-		for member in members {
-			if !seen.insert(member) {
-				self.errors.push(format!(
-					"two members of `{rust}` are both `{member}` in Go, which rust2-ffi should keep apart"
-				));
-			}
-		}
+	/// Asserts that no two members of the type `rust` share a Go name, as
+	/// [`abi::assert_apart`] does.
+	fn distinct(&self, rust: &str, members: &[String]) {
+		abi::assert_apart(rust, "Go", members, |a, b| a == b);
 	}
 
 	/// The Go type of `ty`, as a value, a parameter, or a result.
 	fn go(&mut self, ty: &Type) -> String {
 		match ty {
 			Type::Const(_) => unreachable!("a const argument is no value"),
+			Type::Jni(_) => unreachable!("only Kotlin exports what takes a JNI value"),
 			Type::Array(n) => format!("[{n}]byte"),
 			Type::Unit => unreachable!("no value is unit"),
 			Type::Bool => "bool".to_string(),
@@ -707,16 +998,17 @@ impl<'a> Gen<'a> {
 			Type::Char => "rune".to_string(),
 			Type::Str | Type::String | Type::Path | Type::PathBuf => "string".to_string(),
 			Type::Slice | Type::Vec | Type::Bytes => self.qualify(Packages::RT, "Bytes"),
-			Type::U128 => "*big.Int".to_string(),
-			Type::Duration => "time.Duration".to_string(),
-			Type::SocketAddr(_) => "netip.AddrPort".to_string(),
+			Type::U128 => self.qualify(Packages::RT, "U128"),
+			Type::Duration => self.qualify(Packages::RT, "Duration"),
+			Type::SocketAddr(family) => self.qualify(Packages::RT, &pascal(abi::addr(true, *family))),
+			Type::IpAddr(family) => self.qualify(Packages::RT, &pascal(abi::addr(false, *family))),
 			Type::List(_, inner) => format!("[]{}", self.go(inner)),
 			Type::Waker => "func()".to_string(),
 			Type::Reader => "io.ReadSeeker".to_string(),
 			Type::Future => "func(context.Context)".to_string(),
 			Type::Option(inner) => match inner.base() {
 				// Already a pointer, nil for none.
-				Type::Object(_) | Type::U128 => self.go(inner),
+				Type::Object(_) => self.go(inner),
 				_ => format!("*{}", self.go(inner)),
 			},
 			Type::Box(inner) | Type::Ref(_, inner) => self.go(inner),
@@ -747,9 +1039,19 @@ impl<'a> Gen<'a> {
 		}
 	}
 
-	/// The Go type of a parameter of type `ty`: bytes alone or in an `Option`, which C passes
-	/// as a buffer, are a `[]byte` either way, read in place when Go passes them and copied
-	/// when Rust lends them, and anything else as [`Self::go`] has it.
+	/// The Go type of a parameter of a function Go calls: as [`Self::go`] has it, so bytes
+	/// Rust returned pass back without a copy.
+	fn go_arg(&mut self, ty: &Type) -> String {
+		match ty.buffer() {
+			Some(Type::Bytes) => self.go(&Type::Bytes),
+			Some(Type::Option(inner)) if *inner == Type::Bytes => format!("*{}", self.go(&Type::Bytes)),
+			_ => self.go_param(ty),
+		}
+	}
+
+	/// The Go type of a parameter Rust lends a callback or closure: bytes alone or in an
+	/// `Option`, which C passes as a buffer, are a `[]byte`, copied, and anything else as
+	/// [`Self::go`] has it.
 	fn go_param(&mut self, ty: &Type) -> String {
 		match ty.buffer() {
 			Some(Type::Bytes) => "[]byte".to_string(),
@@ -762,7 +1064,7 @@ impl<'a> Gen<'a> {
 	fn zero(&mut self, ty: &Type) -> String {
 		match ty {
 			Type::Bool => "false".to_string(),
-			Type::Int(_) | Type::NonZero(_) | Type::F32 | Type::F64 | Type::Char | Type::Duration => "0".to_string(),
+			Type::Int(_) | Type::NonZero(_) | Type::F32 | Type::F64 | Type::Char => "0".to_string(),
 			Type::Str | Type::String | Type::Path | Type::PathBuf => "\"\"".to_string(),
 			Type::Slice | Type::Vec | Type::Bytes => format!("{}{{}}", self.qualify(Packages::RT, "Bytes")),
 			Type::Enum(i) if self.abi.api.enums[*i].plain() => "0".to_string(),
@@ -770,7 +1072,10 @@ impl<'a> Gen<'a> {
 			Type::Tuple(elements) if elements.len() == 1 => self.zero(&elements[0]),
 			Type::Record(_)
 			| Type::Array(_)
+			| Type::U128
+			| Type::Duration
 			| Type::SocketAddr(_)
+			| Type::IpAddr(_)
 			| Type::Range(_)
 			| Type::Bound(_)
 			| Type::Bounds(_)
@@ -792,7 +1097,8 @@ impl<'a> Gen<'a> {
 			Ty::Buf => "cBuf".to_string(),
 			Ty::U128 => "cU128".to_string(),
 			Ty::Duration => "cDuration".to_string(),
-			Ty::SocketAddr => "cAddr".to_string(),
+			Ty::SocketAddr(family) => format!("c{}", pascal(abi::addr(true, *family))),
+			Ty::IpAddr(family) => format!("c{}", pascal(abi::addr(false, *family))),
 			Ty::Struct(n) | Ty::Enum(n) => format!("C.{n}"),
 			Ty::Handle { name, .. } | Ty::Future(name) => format!("*C.{name}"),
 			Ty::Waker => "cWaker".to_string(),
@@ -809,7 +1115,7 @@ impl<'a> Gen<'a> {
 		let api = self.abi.api;
 		match ty {
 			ty if Abi::is_buf(ty) => true,
-			Type::List(..) | Type::Object(_) => true,
+			Type::List(..) | Type::Object(_) | Type::Char | Type::NonZero(_) => true,
 			Type::Option(inner) | Type::Box(inner) | Type::Ref(_, inner) => self.arena(inner),
 			Type::Tuple(elements) => elements.iter().any(|e| self.arena(e)),
 			Type::Record(i) => api.records[*i].fields.iter().any(|f| self.arena(&f.ty)),
@@ -828,6 +1134,23 @@ impl<'a> Gen<'a> {
 			Type::Tuple(elements) => elements.iter().any(|e| self.holds(e)),
 			Type::Record(i) => api.records[*i].fields.iter().any(|f| self.holds(&f.ty)),
 			Type::Enum(i) => (api.enums[*i].variants.iter()).any(|v| v.fields.iter().any(|f| self.holds(&f.ty))),
+			_ => false,
+		}
+	}
+
+	/// Whether lowering a `ty` can fail the call before it is made, which then returns an
+	/// error: it holds an object, which may be closed, or text, a char, a path, or a
+	/// `NonZero`, whose Go types hold values Rust's do not, a path's only on Windows.
+	fn fails(&self, ty: &Type) -> bool {
+		let api = self.abi.api;
+		match ty {
+			Type::Object(_) | Type::Str | Type::String | Type::Char | Type::Path | Type::PathBuf | Type::NonZero(_) => {
+				true
+			}
+			Type::Option(inner) | Type::Box(inner) | Type::Ref(_, inner) | Type::List(_, inner) => self.fails(inner),
+			Type::Tuple(elements) => elements.iter().any(|e| self.fails(e)),
+			Type::Record(i) => api.records[*i].fields.iter().any(|f| self.fails(&f.ty)),
+			Type::Enum(i) => (api.enums[*i].variants.iter()).any(|v| v.fields.iter().any(|f| self.fails(&f.ty))),
 			_ => false,
 		}
 	}
@@ -865,23 +1188,25 @@ impl<'a> Gen<'a> {
 		let abi = self.abi;
 		match ty {
 			Type::Const(_) => unreachable!("a const argument is no value"),
+			Type::Jni(_) => unreachable!("only Kotlin exports what takes a JNI value"),
 			Type::Array(n) => {
 				self.array(*n);
 				format!("lower_{}({e})", abi.array(*n))
 			}
-			Type::Str | Type::String | Type::Path | Type::PathBuf => format!("a_.bufString({e})"),
+			Type::Str | Type::String => format!("a_.bufString({e})"),
+			Type::Path | Type::PathBuf => format!("a_.bufPath({e})"),
 			Type::Slice | Type::Vec | Type::Bytes => format!("a_.bufView({e})"),
 			Type::Unit => unreachable!("no value is unit"),
 			Type::Bool => format!("C.bool({e})"),
-			Type::Int(int) | Type::NonZero(int) => format!("C.{}({e})", c_int(*int)),
+			Type::Int(int) => format!("C.{}({e})", c_int(*int)),
+			Type::NonZero(int) => format!("C.{}(nonZero_(a_, {e}))", c_int(*int)),
 			Type::F32 => format!("C.float({e})"),
 			Type::F64 => format!("C.double({e})"),
-			Type::Char => format!("C.uint32_t({e})"),
+			Type::Char => format!("a_.char({e})"),
 			Type::U128 => format!("lowerU128_({e})"),
 			Type::Duration => format!("lowerDuration_({e})"),
-			Type::SocketAddr(Family::Any) => format!("lowerAddr_({e})"),
-			Type::SocketAddr(Family::V4) => format!("lowerAddrV4_({e})"),
-			Type::SocketAddr(Family::V6) => format!("lowerAddrV6_({e})"),
+			Type::SocketAddr(family) => format!("lower{}_({e})", pascal(abi::addr(true, *family))),
+			Type::IpAddr(family) => format!("lower{}_({e})", pascal(abi::addr(false, *family))),
 			Type::Waker => format!("waker_({e})"),
 			Type::Reader | Type::Future => unreachable!("{ty:?} crosses only as a parameter"),
 			Type::Range(_) | Type::Bound(_) | Type::Bounds(_) => {
@@ -898,7 +1223,8 @@ impl<'a> Gen<'a> {
 					self.convert(object);
 					format!("holdOption_{}(a_, {e})", abi.object(*i))
 				}
-				Type::Str | Type::String | Type::Path | Type::PathBuf => format!("a_.bufStringOption({e})"),
+				Type::Str | Type::String => format!("a_.bufStringOption({e})"),
+				Type::Path | Type::PathBuf => format!("a_.bufPathOption({e})"),
 				Type::Slice | Type::Vec | Type::Bytes => format!("a_.bufViewOption({e})"),
 				Type::List(_, elem) => {
 					let c = abi.list(elem);
@@ -917,11 +1243,7 @@ impl<'a> Gen<'a> {
 					let arena = self.arena(inner);
 					let inner = (**inner).clone();
 					self.helper(&format!("lower_{c}"), |g| {
-						// A Go pointer already, which nil is none of.
-						let (go, value) = match inner.base() {
-							Type::U128 => (g.go(&inner), g.lower(&inner, "v")),
-							_ => (format!("*{}", g.go(&inner)), g.lower(&inner, "*v")),
-						};
+						let (go, value) = (format!("*{}", g.go(&inner)), g.lower(&inner, "*v"));
 						let param = g.arena_param(&inner);
 						format!(
 							"func lower_{c}({param}v {go}) C.{c} {{\n\tif v == nil {{\n\t\treturn C.{c}{{}}\n\t}}\n\treturn C.{c}{{some: true, value: {value}}}\n}}\n\n"
@@ -1022,7 +1344,8 @@ impl<'a> Gen<'a> {
 				self.array(*n);
 				format!("lift_{}({e})", abi.array(*n))
 			}
-			Type::SocketAddr(_) => format!("liftAddr_({e})"),
+			Type::SocketAddr(family) => format!("lift{}_({e})", pascal(abi::addr(true, *family))),
+			Type::IpAddr(family) => format!("lift{}_({e})", pascal(abi::addr(false, *family))),
 			Type::Range(_) | Type::Bound(_) | Type::Bounds(_) => {
 				self.convert(ty);
 				format!("lift_{}({e})", abi.range(ty))
@@ -1056,12 +1379,9 @@ impl<'a> Gen<'a> {
 					let inner = (**inner).clone();
 					self.helper(&format!("lift_{c}"), |g| {
 						let value = g.lift(&inner, "c.value");
-						let (go, v) = match inner.base() {
-							Type::U128 => (g.go(&inner), "v"),
-							_ => (format!("*{}", g.go(&inner)), "&v"),
-						};
+						let go = g.go(&inner);
 						format!(
-							"func lift_{c}(c C.{c}) {go} {{\n\tif !c.some {{\n\t\treturn nil\n\t}}\n\tv := {value}\n\treturn {v}\n}}\n\n"
+							"func lift_{c}(c C.{c}) *{go} {{\n\tif !c.some {{\n\t\treturn nil\n\t}}\n\tv := {value}\n\treturn &v\n}}\n\n"
 						)
 					});
 					format!("lift_{c}({e})")
@@ -1106,19 +1426,20 @@ impl<'a> Gen<'a> {
 
 	/// The helper lifting the C array struct `c` of `elem`s, then freeing the array alone.
 	fn lift_list(&mut self, c: &str, elem: &Type) {
+		let c_ = crate::abi::stem(c);
 		let elem = elem.clone();
 		self.helper(&format!("lift_{c}"), |g| {
 			let go = g.go(&elem);
 			// A block of numbers is copied out whole.
 			if block(&elem) {
 				return format!(
-					"func lift_{c}(c C.{c}) []{go} {{\n\tv := liftBlock_[{go}](c.ptr, c.len)\n\tC.{c}_free(c)\n\treturn v\n}}\n\n"
+					"func lift_{c}(c C.{c}) []{go} {{\n\tv := liftBlock_[{go}](c.ptr, c.len)\n\tC.{c_}_free(c)\n\treturn v\n}}\n\n"
 				);
 			}
 			let item = g.lift(&elem, "x");
 			let elem_c = g.c_go(&g.abi.ty(&elem));
 			format!(
-				"func lift_{c}(c C.{c}) []{go} {{\n\tv := liftList_(c.ptr, c.len, func(x {elem_c}) {go} {{\n\t\treturn {item}\n\t}})\n\tc.len = 0\n\tC.{c}_free(c)\n\treturn v\n}}\n\n"
+				"func lift_{c}(c C.{c}) []{go} {{\n\tv := liftList_(c.ptr, c.len, func(x {elem_c}) {go} {{\n\t\treturn {item}\n\t}})\n\tc.len = 0\n\tC.{c_}_free(c)\n\treturn v\n}}\n\n"
 			)
 		});
 	}
@@ -1155,7 +1476,16 @@ impl<'a> Gen<'a> {
 				Literal::Bool(b) => ("bool", b.to_string()),
 				Literal::Int(int, v) => (go_int(int), v.to_string()),
 			};
-			let _ = write!(self.top, "{}const {name} {ty} = {value}\n\n", docs(&constant.docs, ""));
+			let code = format!(
+				"{}const {name} {ty} = {value}\n\n",
+				docs(&constant.docs, constant.deprecated.as_deref(), "")
+			);
+			let gate = crate::gate::gate(api, crate::gate::Lang::Go, constant.on);
+			match gate.expect("the export refuses a constant Go cannot gate") {
+				crate::gate::Gate::Everywhere => self.top.push_str(&code),
+				crate::gate::Gate::Nowhere => {}
+				crate::gate::Gate::If(condition) => self.gated.entry(condition).or_default().push_str(&code),
+			}
 		}
 		for i in (0..api.records.len()).filter(|&i| mine(&api.records[i].home)) {
 			self.record(i);
@@ -1169,12 +1499,24 @@ impl<'a> Gen<'a> {
 		for i in (0..api.callbacks.len()).filter(|&i| mine(&api.callbacks[i].home)) {
 			self.callback(i);
 		}
-		for function in api.functions.iter().filter(|f| mine(&f.home)) {
-			let mut method = self.function(function, None, None);
-			method.name = self.claim(&method.name, format!("fn `{}`", function.path.join("::")));
+		// Named apart from each other as [`abi::named`] keeps a scope's, then from the rest.
+		let functions: Vec<&Function> = api.functions.iter().filter(|f| mine(&f.home)).collect();
+		let mut methods: Vec<Method> = functions.iter().map(|f| self.function(f, None, None)).collect();
+		let rust: Vec<String> = (functions.iter())
+			.map(|f| rest(&abi.prefix, &abi.export(f, None).on_home().named, &f.shown, &f.home).to_string())
+			.collect();
+		let rust: Vec<&str> = rust.iter().map(String::as_str).collect();
+		let spelled = methods.iter().map(|method| method.name.clone()).collect();
+		let rt = self.pkg == Packages::RT;
+		let own = |rust: &str, name: &str| abi::snake(name) == rust || name == rust.to_uppercase();
+		let free = |_: usize, name: &str| rt && taken(name) || self.names.contains_key(name);
+		let names = abi::named(&rust, spelled, own, free, abi::underscored);
+		for ((function, method), name) in functions.into_iter().zip(&mut methods).zip(names) {
+			method.name = self.claim(&name, format!("fn `{}`", function.path.join("::")));
 			crate::lock::function(&mut self.locked, function, &method.name);
 			self.top.push_str(&method.write());
 		}
+
 		self.moved();
 		self.errors_of();
 	}
@@ -1214,6 +1556,7 @@ impl<'a> Gen<'a> {
 			if home.krate == pkg {
 				continue;
 			}
+			let mut streams = Vec::new();
 			for function in methods.iter().filter(|f| f.home.krate == pkg) {
 				let mut method = self.function(function, Some(&owner), Some(&ty));
 				if let Some(receiver) = method.receiver.take() {
@@ -1227,7 +1570,69 @@ impl<'a> Gen<'a> {
 				method.name = self.claim(&method.name, format!("fn `{}`", function.path.join("::")));
 				crate::lock::function(&mut self.locked, function, &method.name);
 				self.top.push_str(&method.write());
+				if let (Some(item), Type::Object(_), Some((_, go))) = (function.stream(), &ty, method.params.first()) {
+					streams.push((function, item, method.name.clone(), go.clone()));
+				}
 			}
+			// A stream's adapter, named after every method of Rust's, so a clash renames the adapter.
+			for (function, item, next, go) in streams {
+				let mut adapter = self.stream(function, item, &next, &format!("{next}(self, "));
+				adapter.params.insert(0, ("self".to_string(), go));
+				adapter.name = format!("{}{}", self.named(&ty).1, adapter.name);
+				adapter.name = self.claim(&adapter.name, format!("`{}`'s stream", function.path.join("::")));
+				let key = format!("{} / stream", crate::lock::function_key(function));
+				self.locked.insert(key, adapter.name.clone());
+				self.top.push_str(&adapter.write());
+			}
+		}
+	}
+
+	/// The adapter ranging over the stream `function`'s items of type `item`, calling `next`,
+	/// its Go name, as `call` begins, with ctx: an `iter.Seq2` named `All`, deprecated as
+	/// `function` is.
+	fn stream(&mut self, function: &Function, item: &Type, next: &str, call: &str) -> Method {
+		let item = strip_refs(item);
+		let go = self.go(&item);
+		// An object is already a pointer, nil for none; any other item is one's target.
+		let value = match item.base() {
+			Type::Object(_) => "item_",
+			_ => "*item_",
+		};
+		let call = match call.ends_with(", ") {
+			true => format!("{call}ctx)"),
+			false => format!("{call}(ctx)"),
+		};
+		Method {
+			key: None,
+			docs: deprecation(
+				&format!(
+					"All ranges over the items {next} returns, calling it once for each, until it returns none\n\
+				 or an error, which All yields last. It reads no item ahead, so a loop that breaks\n\
+				 leaves the next item to the next call. Once ctx is done, the pending {next} cancels its\n\
+				 future in Rust, as dropping it there would, and All yields ctx's error: an item is lost\n\
+				 only where Rust's future loses one when dropped, and the stream stays usable."
+				),
+				function.deprecated.as_deref(),
+			),
+			receiver: None,
+			name: "All".to_string(),
+			params: vec![("ctx".to_string(), "context.Context".to_string())],
+			results: vec![format!("iter.Seq2[{go}, error]")],
+			body: format!(
+				"return func(yield_ func({go}, error) bool) {{\n\
+				 \tfor {{\n\
+				 \t\titem_, err_ := {call}\n\
+				 \t\tif err_ != nil {{\n\
+				 \t\t\tvar zero_ {go}\n\
+				 \t\t\tyield_(zero_, err_)\n\
+				 \t\t\treturn\n\
+				 \t\t}}\n\
+				 \t\tif item_ == nil || !yield_({value}, nil) {{\n\
+				 \t\t\treturn\n\
+				 \t\t}}\n\
+				 \t}}\n\
+				 }}"
+			),
 		}
 	}
 
@@ -1397,7 +1802,8 @@ impl<'a> Gen<'a> {
 	/// The methods a type's std traits export: `Display` is `String`, `Debug` `GoString`,
 	/// `PartialEq` `Equal`, and `Clone` an object's `Clone`; and the package's function for
 	/// `Default`.
-	fn traits(&mut self, ty: &Type, c: &str, t: crate::ir::Traits) -> (Vec<Method>, Option<Method>) {
+	fn traits(&mut self, ty: &Type, c: &str, t: Traits) -> (Vec<Method>, Option<Method>) {
+		let c_ = crate::abi::stem(c);
 		let name = self.go(ty);
 		let object = matches!(ty, Type::Object(_));
 		let arena = self.arena(ty);
@@ -1405,30 +1811,39 @@ impl<'a> Gen<'a> {
 		if !object || t.clone || t.default {
 			self.convert(ty);
 		}
-		// A value holding an object fails once that object is closed, as an object does.
-		let closable = object || self.holds(ty);
+		// A value holding an object fails once that object is closed, as an object does, and
+		// one holding text or a char Rust's types do not hold fails too.
+		let closable = object || self.fails(ty);
+		// On a target the type is not on, only the binding makes a value of it, and each
+		// trait fails as a function the target lacks does.
+		let limited = !self.abi.api.everywhere(self.abi.on(ty));
+		// Qualified only where a call holds a handle, which imports the runtime's package.
+		let slot = match object {
+			true => self.qualify(Packages::RT, "Slot_"),
+			false => String::new(),
+		};
 		// The receiver, a held handle or the value lowered, and the return of `failed`, an
 		// expression of the error, once a closed object fails the call.
 		let open = |failed: &dyn Fn(&str) -> String| match (object, arena) {
-			(true, _) => (
-				format!(
-					"h_ := self.Handle_.Hold()\nif h_ == nil {{\n\treturn {}\n}}\ndefer unhold_(self.Handle_, self)\n",
-					failed("self.Handle_.Closed()")
-				),
-				format!("(*C.{c})(h_)"),
-			),
+			(true, _) => {
+				let closed = format!("return {}", failed("self.Handle_.Closed()"));
+				(
+					format!("{}\n", hold(&slot, "self", "h_", "s_", &closed)),
+					format!("(*C.{c})(h_)"),
+				)
+			}
 			(false, true) if closable => (
 				format!(
 					"a_ := &arena_{{}}\ndefer a_.finish()\nc_self_ := lower_{c}(a_, self)\nif a_.err != nil {{\n\treturn {}\n}}\n",
 					failed("a_.err")
 				),
-				"&c_self_".to_string(),
+				"c_self_".to_string(),
 			),
 			(false, true) => (
 				format!("a_ := &arena_{{}}\ndefer a_.finish()\nc_self_ := lower_{c}(a_, self)\n"),
-				"&c_self_".to_string(),
+				"c_self_".to_string(),
 			),
-			(false, false) => (format!("c_self_ := lower_{c}(self)\n"), "&c_self_".to_string()),
+			(false, false) => (format!("c_self_ := lower_{c}(self)\n"), "c_self_".to_string()),
 		};
 		let method =
 			|docs: &str, member: &str, params: Vec<(String, String)>, results: Vec<String>, body: String| Method {
@@ -1440,7 +1855,50 @@ impl<'a> Gen<'a> {
 				results,
 				body,
 			};
-		// fmt's String and GoString return no error, so a closed one reads as the error.
+		// A check each trait's borrow can fail.
+		let status = self.abi.traits_status_of(ty);
+		let status_error = match status {
+			true => self.qualify(Packages::RT, "Status_"),
+			false => String::new(),
+		};
+		// Each trait's C function, its status last if a check can fail it.
+		let this_ty = match object {
+			true => Ty::Handle {
+				name: c.to_string(),
+				constant: true,
+			},
+			false => Ty::In(Box::new(self.abi.ty(ty))),
+		};
+		let sig = |what: &str, n: usize, ret: Ty| abi::Sig {
+			name: format!("{c_}_{what}"),
+			params: (0..n)
+				.map(|k| (format!("p{k}"), this_ty.clone()))
+				.chain(status.then(|| ("status".to_string(), Ty::Out(Box::new(Ty::Status)))))
+				.collect(),
+			ret,
+		};
+		let clone_ret = Ty::Handle {
+			name: c.to_string(),
+			constant: false,
+		};
+		// The call of `sig` with `args`, binding its result to `r_` after returning `failed`
+		// of its status's error, if it can fail a check.
+		let mut checked = |sig: abi::Sig, args: &[String], failed: &dyn Fn(&str) -> String| {
+			let (call, value) = self.call_sig(&sig, args);
+			let fail = match status {
+				true => format!(
+					"if c_status_ != 0 {{\n\treturn {}\n}}\n",
+					failed(&format!("{status_error}(int32(c_status_), \"{}\")", sig.name))
+				),
+				false => String::new(),
+			};
+			match call.is_empty() {
+				true => format!("{fail}r_ := {value}\n"),
+				false => format!("{call}\n{fail}r_ := {value}\n"),
+			}
+		};
+		// fmt's String and GoString return no error, so a closed one, or a failed check, reads
+		// as the error.
 		let text = |e: &str| format!("{e}.Error()");
 		let mut methods = Vec::new();
 		if t.display {
@@ -1450,7 +1908,10 @@ impl<'a> Gen<'a> {
 				"String",
 				Vec::new(),
 				vec!["string".to_string()],
-				format!("{open}return liftString_(C.{c}_to_string({this}))"),
+				format!(
+					"{open}{}return liftString_(r_)",
+					checked(sig("to_string", 1, Ty::Buf), &[this], &text)
+				),
 			));
 		}
 		if t.debug {
@@ -1460,7 +1921,10 @@ impl<'a> Gen<'a> {
 				"GoString",
 				Vec::new(),
 				vec!["string".to_string()],
-				format!("{open}return liftString_(C.{c}_debug({this}))"),
+				format!(
+					"{open}{}return liftString_(r_)",
+					checked(sig("debug", 1, Ty::Buf), &[this], &text)
+				),
 			));
 		}
 		if object && t.clone {
@@ -1470,7 +1934,10 @@ impl<'a> Gen<'a> {
 				"Clone",
 				Vec::new(),
 				vec![name.clone(), "error".to_string()],
-				format!("{open}return own_{c}(C.{c}_clone({this})), nil"),
+				format!(
+					"{open}{}return own_{c}(r_), nil",
+					checked(sig("clone", 1, clone_ret.clone()), &[this], &|e| format!("nil, {e}"))
+				),
 			));
 		}
 		if t.eq {
@@ -1479,25 +1946,30 @@ impl<'a> Gen<'a> {
 				true => open(&failed),
 				false => open(&|_: &str| unreachable!("a value holding no object is never closed")),
 			};
-			let (results, ok) = match closable {
+			let (results, ok) = match closable || limited {
 				true => (vec!["bool".to_string(), "error".to_string()], ", nil"),
 				false => (vec!["bool".to_string()], ""),
 			};
+			let closed = format!("return {}", failed("other.Handle_.Closed()"));
 			let body = match (object, arena) {
 				(true, _) => format!(
-					"{open}o_ := other.Handle_.Hold()\nif o_ == nil {{\n\treturn {}\n}}\ndefer unhold_(other.Handle_, other)\nreturn bool(C.{c}_eq({this}, (*C.{c})(o_))){ok}",
-					failed("other.Handle_.Closed()")
+					"{open}{}\n{}return bool(r_){ok}",
+					hold(&slot, "other", "o_", "os_", &closed),
+					checked(sig("eq", 2, Ty::Bool), &[this, format!("(*C.{c})(o_)")], &failed)
 				),
 				(false, true) if closable => format!(
-					"{open}c_other_ := lower_{c}(a_, other)\nif a_.err != nil {{\n\treturn {}\n}}\nreturn bool(C.{c}_eq({this}, &c_other_)){ok}",
-					failed("a_.err")
+					"{open}c_other_ := lower_{c}(a_, other)\nif a_.err != nil {{\n\treturn {}\n}}\n{}return bool(r_){ok}",
+					failed("a_.err"),
+					checked(sig("eq", 2, Ty::Bool), &[this, "c_other_".to_string()], &failed)
 				),
-				(false, true) => {
-					format!("{open}c_other_ := lower_{c}(a_, other)\nreturn bool(C.{c}_eq({this}, &c_other_))")
-				}
-				(false, false) => {
-					format!("{open}c_other_ := lower_{c}(other)\nreturn bool(C.{c}_eq({this}, &c_other_))")
-				}
+				(false, true) => format!(
+					"{open}c_other_ := lower_{c}(a_, other)\n{}return bool(r_){ok}",
+					checked(sig("eq", 2, Ty::Bool), &[this, "c_other_".to_string()], &failed)
+				),
+				(false, false) => format!(
+					"{open}c_other_ := lower_{c}(other)\n{}return bool(r_){ok}",
+					checked(sig("eq", 2, Ty::Bool), &[this, "c_other_".to_string()], &failed)
+				),
 			};
 			methods.push(method(
 				"Equal is Rust's PartialEq.",
@@ -1507,11 +1979,79 @@ impl<'a> Gen<'a> {
 				body,
 			));
 		}
+		// Rust's `partial_cmp`, -1, 0, 1, or 2 when unordered, as `PartialCompare`, and with
+		// `Ord` its `cmp` as `Compare`, the shape `slices.SortFunc` takes.
+		for &(_, suffix) in crate::c::comparisons(t.ord) {
+			let (member, docs, zero, results, done) = match suffix {
+				"cmp" => (
+					"Compare",
+					"Compare is Rust's Ord: -1, 0, or 1 as self is less than, equal to, or greater than other.",
+					"0",
+					vec!["int".to_string()],
+					"return int(r_)",
+				),
+				_ => (
+					"PartialCompare",
+					"PartialCompare is Rust's PartialOrd: -1, 0, or 1 as self is less than, equal to, or greater than\nother, and false when the two are unordered.",
+					"0, false",
+					vec!["int".to_string(), "bool".to_string()],
+					"if r_ == 2 {\n\treturn 0, false{ok}\n}\nreturn int(r_), true",
+				),
+			};
+			let failed = |e: &str| format!("{zero}, {e}");
+			let (open, this) = match closable {
+				true => open(&failed),
+				false => open(&|_: &str| unreachable!("a value holding no object is never closed")),
+			};
+			let (results, ok) = match closable || limited {
+				true => ([results, vec!["error".to_string()]].concat(), ", nil"),
+				false => (results, ""),
+			};
+			let done = format!("{}{ok}", done.replace("{ok}", ok));
+			let sig = || sig(suffix, 2, Ty::Int(Int::I8));
+			let closed = format!("return {}", failed("other.Handle_.Closed()"));
+			let body = match (object, arena) {
+				(true, _) => format!(
+					"{open}{}\n{}{done}",
+					hold(&slot, "other", "o_", "os_", &closed),
+					checked(sig(), &[this, format!("(*C.{c})(o_)")], &failed)
+				),
+				(false, true) if closable => format!(
+					"{open}c_other_ := lower_{c}(a_, other)\nif a_.err != nil {{\n\treturn {}\n}}\n{}{done}",
+					failed("a_.err"),
+					checked(sig(), &[this, "c_other_".to_string()], &failed)
+				),
+				(false, true) => format!(
+					"{open}c_other_ := lower_{c}(a_, other)\n{}{done}",
+					checked(sig(), &[this, "c_other_".to_string()], &failed)
+				),
+				(false, false) => format!(
+					"{open}c_other_ := lower_{c}(other)\n{}{done}",
+					checked(sig(), &[this, "c_other_".to_string()], &failed)
+				),
+			};
+			methods.push(method(
+				docs,
+				member,
+				vec![("other".to_string(), name.clone())],
+				results,
+				body,
+			));
+		}
 		let default = t.default.then(|| {
 			let func = format!("{}Default", name.trim_start_matches('*'));
+			// A value that is not `Send` is made on a home, which its calls then run on.
+			let homed = match ty {
+				Type::Object(i) if !self.abi.api.objects[*i].send => "_homed",
+				_ => "",
+			};
 			let lift = match object {
-				true => format!("own_{c}(C.{c}_default())"),
-				false => format!("lift_{c}(C.{c}_default())"),
+				true => format!("own_{c}(C.{c_}_default{homed}())"),
+				false => format!("lift_{c}(C.{c_}_default())"),
+			};
+			let (results, ok) = match limited {
+				true => (vec![name.clone(), "error".to_string()], ", nil"),
+				false => (vec![name.clone()], ""),
 			};
 			Method {
 				key: None,
@@ -1519,16 +2059,29 @@ impl<'a> Gen<'a> {
 				receiver: None,
 				name: func,
 				params: Vec::new(),
-				results: vec![name.clone()],
-				body: format!("return {lift}"),
+				results,
+				body: format!("return {lift}{ok}"),
 			}
 		});
 		let (mut methods, mut default) = (methods, default);
-		// On a target a value's type is not on, only the binding makes one, which calls in
-		// for none of these.
-		if let Some(check) = self.on(self.abi.on(ty), c) {
+		if limited {
+			let supported = self.qualify(Packages::RT, "Supported_");
+			let on = self.abi.on(ty).0 & self.abi.api.all().0;
+			let zero = self.zero(ty);
 			for method in methods.iter_mut().chain(default.as_mut()) {
-				method.body = format!("{check}\n{}", method.body);
+				let (what, failed) = match method.name.as_str() {
+					"String" => ("to_string", "err_.Error()".to_string()),
+					"GoString" => ("debug", "err_.Error()".to_string()),
+					"Clone" => ("clone", "nil, err_".to_string()),
+					"Equal" => ("eq", "false, err_".to_string()),
+					"Compare" => ("cmp", "0, err_".to_string()),
+					"PartialCompare" => ("partial_cmp", "0, false, err_".to_string()),
+					_ => ("default", format!("{zero}, err_")),
+				};
+				method.body = format!(
+					"if err_ := {supported}({on}, \"{c_}_{what}\"); err_ != nil {{\n\treturn {failed}\n}}\n{}",
+					method.body
+				);
 			}
 		}
 		(methods, default)
@@ -1541,18 +2094,44 @@ impl<'a> Gen<'a> {
 		let ty = Type::Record(i);
 		let name = self.named(&ty).1;
 		let rust = abi.api.rust(&record.path, &record.args);
+		if let Some(opaque) = &record.opaque {
+			let text = format!(
+				"{name} is `{rust}`, its bytes, which only Rust makes or reads: copy it, but never\nmake or change one. A zero {name} panics where Rust would read it, and == is a compile\nerror, since bytes alike need not be equal: Equal, if it has one, is Rust's.\n\n{}",
+				record.docs
+			);
+			let _ = write!(
+				self.types,
+				"{}type {name} struct {{\n\t_ [0]func()\n\t// Bytes_ is its bytes, for the generated packages: use none of it.\n\tBytes_ [{}]uint{}\n\t// Made_ is whether Rust made it, rather than it being Go's zero value.\n\tMade_ bool\n}}\n\n",
+				docs(text.trim(), record.deprecated.as_deref(), ""),
+				opaque.units(),
+				opaque.unit() * 8
+			);
+			let mut members = vec!["Bytes_".to_string(), "Made_".to_string()];
+			let fields = members.clone();
+			members.extend(self.methods_of(
+				&ty,
+				&c,
+				&rust,
+				record.traits,
+				&record.methods,
+				&Ty::Struct(c.clone()),
+				&fields,
+			));
+			self.distinct(&rust, &members);
+			return;
+		}
 		let fields: Vec<(String, String)> = (self.record_fields(i).into_iter().zip(&record.fields))
 			.map(|(name, f)| (name, self.go(&f.ty)))
 			.collect();
 		let mut members: Vec<String> = fields.iter().map(|(f, _)| f.clone()).collect();
 		let body: String = (record.fields.iter().zip(&fields))
-			.map(|(f, (name, go))| format!("{}\t{name} {go}\n", docs(&f.docs, "\t")))
+			.map(|(f, (name, go))| format!("{}\t{name} {go}\n", docs(&f.docs, f.deprecated.as_deref(), "\t")))
 			.collect();
 		let text = format!("{name} is `{rust}`.\n\n{}", record.docs);
 		let _ = write!(
 			self.types,
 			"{}type {name} struct {{\n{body}}}\n\n",
-			docs(text.trim(), "")
+			docs(text.trim(), record.deprecated.as_deref(), "")
 		);
 		let fields: Vec<String> = members.clone();
 		members.extend(self.methods_of(
@@ -1567,34 +2146,42 @@ impl<'a> Gen<'a> {
 		self.distinct(&rust, &members);
 	}
 
-	/// The Go names of a record's fields: each [`field_name`], with a trailing `_` while
-	/// a method its traits give it, which an interface requires by name, or an earlier
-	/// field takes it.
+	/// The Go names of a record's fields, kept apart from a method its traits give it, which
+	/// an interface requires by name, as [`field_names`] keeps them.
 	fn record_fields(&mut self, i: usize) -> Vec<String> {
 		let record = &self.abi.api.records[i];
-		let t = record.traits;
+		let taken = self.trait_methods(&Type::Record(i), record.traits);
+		let names = field_names(&record.fields, &taken);
+		for (f, name) in record.fields.iter().zip(&names) {
+			crate::lock::field(&mut self.locked, &record.shown, &f.name, name);
+		}
+		names
+	}
+
+	/// The Go names of a data enum's variant's fields, clear of the methods its traits add.
+	fn variant_fields(&mut self, i: usize, variant: &Variant) -> Vec<String> {
+		let e = &self.abi.api.enums[i];
+		let taken = self.trait_methods(&Type::Enum(i), e.traits);
+		let names = field_names(&variant.fields, &taken);
+		for (f, name) in variant.fields.iter().zip(&names) {
+			crate::lock::variant_field(&mut self.locked, &e.shown, &variant.name, &f.name, name);
+		}
+		names
+	}
+
+	/// The methods the traits `t` of the type `ty` add, which a field's name must clear.
+	fn trait_methods(&self, ty: &Type, t: Traits) -> BTreeSet<String> {
 		let methods = [
 			(t.display, "String"),
 			(t.debug, "GoString"),
 			(t.eq, "Equal"),
-			(self.errored(&Type::Record(i)), "Error"),
+			(t.ord != Order::None, "PartialCompare"),
+			(t.ord == Order::Total, "Compare"),
+			(self.errored(ty), "Error"),
 		];
-		let mut taken: BTreeSet<String> = (methods.iter())
+		(methods.iter())
 			.filter(|(has, _)| *has)
 			.map(|(_, name)| name.to_string())
-			.collect();
-		(record.fields.iter())
-			.map(|f| {
-				let mut name = field_name(&f.name);
-				while !taken.insert(name.clone()) {
-					name.push('_');
-				}
-				self.locked.insert(
-					format!("{} / field {}", crate::lock::type_key(&record.shown), f.name),
-					name.clone(),
-				);
-				name
-			})
 			.collect()
 	}
 
@@ -1605,6 +2192,16 @@ impl<'a> Gen<'a> {
 		let c = abi.record(i);
 		let ty = Type::Record(i);
 		let name = self.qualified(&ty);
+		if let Some(opaque) = &record.opaque {
+			let (local, bytes) = (
+				self.named(&ty).1,
+				format!("[{}]uint{}", opaque.units(), opaque.unit() * 8),
+			);
+			return format!(
+				"func lift_{c}(c C.{c}) {name} {{\n\treturn {name}{{Bytes_: *(*{bytes})(unsafe.Pointer(&c)), Made_: true}}\n}}\n\n\
+				func lower_{c}(v {name}) C.{c} {{\n\tif !v.Made_ {{\n\t\tpanic(\"a zero {local}, which only Rust makes\")\n\t}}\n\treturn *(*C.{c})(unsafe.Pointer(&v.Bytes_))\n}}\n\n"
+			);
+		}
 		let names = self.record_fields(i);
 		let lifted: Vec<String> = (record.fields.iter().zip(&names))
 			.map(|(f, field)| {
@@ -1643,18 +2240,71 @@ impl<'a> Gen<'a> {
 		owner: &Ty,
 		fields: &[String],
 	) -> Vec<String> {
-		let (methods, statics) = self.members(ty, c, rust, traits, functions, owner);
+		let (mut methods, statics) = self.members(ty, c, rust, traits, functions, owner);
 		let mut members = Vec::new();
 		let mut taken: BTreeSet<String> = fields.iter().cloned().collect();
-		for mut method in methods {
-			while !taken.insert(method.name.clone()) {
+		let error = self.errored(ty);
+		// What its traits make, and `Error`, keep their names, which an interface requires,
+		// before Rust's, which keep apart as one scope.
+		for method in methods.iter_mut().filter(|m| m.key.is_none()) {
+			while method.vetted(error) || !taken.insert(method.name.clone()) {
 				method.name.push('_');
 			}
+		}
+		let own: Vec<usize> = (0..methods.len()).filter(|&k| methods[k].key.is_some()).collect();
+		let rust: Vec<&str> = (own.iter())
+			.map(|&k| {
+				let key = methods[k].key.as_deref();
+				(functions.iter())
+					.find(|f| Some(crate::lock::function_key(f).as_str()) == key)
+					.expect("a method is of its type's functions")
+					.name()
+			})
+			.collect();
+		for &k in &own {
+			while methods[k].vetted(error) {
+				methods[k].name.push('_');
+			}
+		}
+		let spelled = own.iter().map(|&k| methods[k].name.clone()).collect();
+		let names = abi::named(
+			&rust,
+			spelled,
+			|rust, name| abi::snake(name) == rust,
+			|_, name| taken.contains(name),
+			abi::underscored,
+		);
+		for (k, name) in own.into_iter().zip(names) {
+			taken.insert(name.clone());
+			methods[k].name = name;
+		}
+		// Each method's final name and receiver, by its lock key, which a stream's adapter calls.
+		let mut named = BTreeMap::new();
+		for method in methods {
 			if let Some(key) = &method.key {
 				self.locked.insert(key.clone(), method.name.clone());
+				named.insert(key.clone(), (method.name.clone(), method.receiver.clone()));
 			}
 			members.push(method.name.clone());
 			self.types.push_str(&method.write());
+		}
+		// A stream's adapter, named after every method of Rust's, so a clash renames the adapter.
+		let pkg = self.pkg;
+		let streams = (functions.iter()).filter(|f| f.home.krate == pkg && matches!(ty, Type::Object(_)));
+		for function in streams {
+			let Some(item) = function.stream() else { continue };
+			let key = crate::lock::function_key(function);
+			let Some((next, receiver)) = named.get(&key).cloned() else {
+				continue;
+			};
+			let mut adapter = self.stream(function, item, &next, &format!("self.{next}"));
+			adapter.receiver = receiver;
+			while !taken.insert(adapter.name.clone()) {
+				adapter.name.push('_');
+			}
+			self.locked.insert(format!("{key} / stream"), adapter.name.clone());
+			members.push(adapter.name.clone());
+			self.types.push_str(&adapter.write());
 		}
 		for function in statics {
 			self.types.push_str(&function.write());
@@ -1674,20 +2324,22 @@ impl<'a> Gen<'a> {
 		owner: &Ty,
 	) -> (Vec<Method>, Vec<Method>) {
 		let (mut methods, default) = self.traits(ty, c, traits);
+		for method in &methods {
+			let t = match method.name.as_str() {
+				"String" => "Display",
+				"GoString" => "Debug",
+				"Clone" => "Clone",
+				"Equal" => "PartialEq",
+				"PartialCompare" => "PartialOrd",
+				"Compare" => "Ord",
+				name => unreachable!("no trait exports {name}"),
+			};
+			crate::lock::trait_member(&mut self.locked, self.abi.api.shown(ty), t, &method.name);
+		}
 		let mut statics = Vec::new();
 		if let Some(mut default) = default {
 			default.name = self.claim(&default.name, format!("`{rust}`'s Default"));
-			let api = self.abi.api;
-			let shown = match ty {
-				Type::Record(i) => &api.records[*i].shown,
-				Type::Enum(i) => &api.enums[*i].shown,
-				Type::Object(i) => &api.objects[*i].shown,
-				_ => unreachable!("only an exported type has members"),
-			};
-			self.locked.insert(
-				format!("{} / Default", crate::lock::type_key(shown)),
-				default.name.clone(),
-			);
+			crate::lock::trait_member(&mut self.locked, self.abi.api.shown(ty), "Default", &default.name);
 			statics.push(default);
 		}
 		let pkg = self.pkg;
@@ -1749,7 +2401,7 @@ impl<'a> Gen<'a> {
 			let _ = write!(
 				self.types,
 				"{}type {name} int32\n\nconst (\n{consts})\n\n",
-				docs(text.trim(), "")
+				docs(text.trim(), e.deprecated.as_deref(), "")
 			);
 			let members = self.methods_of(&ty, &c, &rust, e.traits, &e.methods, &Ty::Enum(c.clone()), &[]);
 			self.distinct(&rust, &members);
@@ -1758,11 +2410,31 @@ impl<'a> Gen<'a> {
 		// An interface each variant's struct implements, sealed by a method of its own. Each
 		// method is a function of the interface, which each variant's forwards to.
 		let seal = format!("is_{c}");
-		let (methods, statics) = self.members(&ty, &c, &rust, e.traits, &e.methods, &Ty::Struct(c.clone()));
+		let (mut methods, statics) = self.members(&ty, &c, &rust, e.traits, &e.methods, &Ty::Struct(c.clone()));
+		// Each variant's struct declares its fields beside the methods it forwards, so a method
+		// takes a trailing `_` beside one, as a record's does beside its own.
+		let mut taken: BTreeSet<String> = (e.variants.iter())
+			.flat_map(|variant| self.variant_fields(i, variant))
+			.collect();
+		taken.insert(seal.clone());
+		let error = self.errored(&ty);
+		for method in &mut methods {
+			while method.vetted(error) || !taken.insert(method.name.clone()) {
+				method.name.push('_');
+			}
+			if let Some(key) = &method.key {
+				self.locked.insert(key.clone(), method.name.clone());
+			}
+		}
 		let mut interface = format!("\t{seal}()\n");
 		let mut shared = String::new();
 		for method in &methods {
-			let _ = writeln!(interface, "{}\t{}", docs(method.docs.trim(), "\t"), method.signature());
+			let _ = writeln!(
+				interface,
+				"{}\t{}",
+				docs(method.docs.trim(), None, "\t"),
+				method.signature()
+			);
 			let mut function = Method {
 				key: None,
 				docs: String::new(),
@@ -1778,12 +2450,12 @@ impl<'a> Gen<'a> {
 		let _ = write!(
 			self.types,
 			"{}type {name} interface {{\n{interface}}}\n\n{shared}",
-			docs(text.trim(), "")
+			docs(text.trim(), e.deprecated.as_deref(), "")
 		);
 		for variant in &e.variants {
 			let vname = self.variants[&(c.clone(), variant.name.clone())].clone();
-			let fields: Vec<(String, String)> = (variant.fields.iter())
-				.map(|f| (field_name(&f.name), self.go(&f.ty)))
+			let fields: Vec<(String, String)> = (self.variant_fields(i, variant).into_iter())
+				.zip(variant.fields.iter().map(|f| self.go(&f.ty)))
 				.collect();
 			let mut members: Vec<String> = fields.iter().map(|(f, _)| f.clone()).collect();
 			members.extend(methods.iter().map(|m| m.name.clone()));
@@ -1853,15 +2525,16 @@ impl<'a> Gen<'a> {
 				lowers.push(format!("\tcase {vname}:\n{check}\t\tc.tag = {n}\n"));
 				continue;
 			}
-			let lifted: Vec<String> = (variant.fields.iter())
-				.map(|f| {
+			let names = self.variant_fields(i, variant);
+			let lifted: Vec<String> = (variant.fields.iter().zip(&names))
+				.map(|(f, name)| {
 					let value = self.lift(&f.ty, &format!("p.{}", cgo_field(&abi::escape(&f.name))));
-					format!("{}: {value}", field_name(&f.name))
+					format!("{name}: {value}")
 				})
 				.collect();
-			let lowered: Vec<String> = (variant.fields.iter())
-				.map(|f| {
-					let value = self.lower(&f.ty, &format!("v.{}", field_name(&f.name)));
+			let lowered: Vec<String> = (variant.fields.iter().zip(&names))
+				.map(|(f, name)| {
+					let value = self.lower(&f.ty, &format!("v.{name}"));
 					format!("{}: {value}", cgo_field(&abi::escape(&f.name)))
 				})
 				.collect();
@@ -1891,6 +2564,17 @@ impl<'a> Gen<'a> {
 		let name = self.named(&ty).1;
 		let rust = abi.api.rust(&object.path, &object.args);
 		let handle = self.qualify(Packages::RT, "Handle_");
+		let close = match abi.checked[i] {
+			true => {
+				"// Close drops the value now, as Rust's drop does, and frees the handle once no call holds\n\
+				// it: a call after it fails, and Close fails while a call borrows the value, changing\n\
+				// nothing.\n"
+			}
+			false => {
+				"// Close frees the handle now, rather than once the GC collects it: a call after it fails,\n\
+				// and Close fails while a call holds it, changing nothing.\n"
+			}
+		};
 		let text = format!(
 			"{name} is `{rust}`, a handle Close frees, or else the GC once it collects it.\n\n{}",
 			object.docs
@@ -1898,11 +2582,10 @@ impl<'a> Gen<'a> {
 		let _ = write!(
 			self.types,
 			"{}type {name} struct {{\n\t// Handle_ is the handle it owns, for the generated packages: use none of it.\n\tHandle_ *{handle}\n}}\n\n\
-			// Close frees the handle once no call holds it, rather than once the GC collects it: a\n\
-			// call after it panics.\n\
-			func (self *{name}) Close() {{\n\tself.Handle_.Close()\n}}\n\n",
-			docs(text.trim(), "")
+			{close}func (self *{name}) Close() error {{\n\treturn self.Handle_.Close()\n}}\n\n",
+			docs(text.trim(), object.deprecated.as_deref(), "")
 		);
+		crate::lock::trait_member(&mut self.locked, &object.shown, "Drop", "Close");
 		let mut members = vec!["Close".to_string(), "Handle_".to_string()];
 		let owner = Ty::Handle {
 			name: c.clone(),
@@ -1916,17 +2599,32 @@ impl<'a> Gen<'a> {
 	/// An object's free, own, lend, and hold of one that may be nil.
 	fn object_conv(&mut self, i: usize) -> String {
 		let c = self.abi.object(i);
+		let c_ = crate::abi::stem(&c);
 		let ty = Type::Object(i);
 		let (_, local) = self.named(&ty);
 		let name = self.qualified(&ty);
 		let handle = self.qualify(Packages::RT, "Handle_");
-		let new = self.qualify(Packages::RT, "NewHandle_");
+		let (drop, dropping) = match self.abi.checked[i] {
+			true => (
+				format!(
+					"// drop_{c} drops the value of the handle p, which Rust checks, then, given its state,\n\
+					// frees p if the drop passed, storing closed to state once it can no longer fail.\n\
+					func drop_{c}(p, state unsafe.Pointer) error {{\n\treturn {status_}(int32(C.{shim}((*C.{c})(p), (*C.int64_t)(state))), \"{c_}_drop\")\n}}\n\n",
+					shim = self.close_c(&c),
+					status_ = self.qualify(Packages::RT, "Status_"),
+				),
+				format!("drop_{c}"),
+			),
+			false => (String::new(), "nil".to_string()),
+		};
 		format!(
-			"func free_{c}(p unsafe.Pointer) {{\n\tC.{c}_free((*C.{c})(p))\n}}\n\n\
-			// own_{c} owns a handle Rust returned, or is nil for none.\n\
-			func own_{c}(raw *C.{c}) *{name} {{\n\tif raw == nil {{\n\t\treturn nil\n\t}}\n\tv := &{name}{{Handle_: {new}(unsafe.Pointer(raw), free_{c}, \"{local}\")}}\n\tv.Handle_.Cleanup = runtime.AddCleanup(v, (*{handle}).Close, v.Handle_)\n\treturn v\n}}\n\n\
+			"func free_{c}(p unsafe.Pointer) {{\n\tC.{c_}_free((*C.{c})(p))\n}}\n\n\
+			{drop}\
+			// own_{c} owns a handle Rust returned, or is nil for none: the object and its handle\n\
+			// in one allocation, in the nursery Own puts it in.\n\
+			func own_{c}(raw *C.{c}) *{name} {{\n\tif raw == nil {{\n\t\treturn nil\n\t}}\n\to := &struct {{\n\t\tv {name}\n\t\th {handle}\n\t}}{{}}\n\to.h.Init(unsafe.Pointer(raw), free_{c}, {dropping}, \"{local}\")\n\to.v.Handle_ = &o.h\n\to.h.Own()\n\treturn &o.v\n}}\n\n\
 			// lend_{c} is a handle Rust lends for a call, which it frees itself.\n\
-			func lend_{c}(raw *C.{c}) *{name} {{\n\treturn &{name}{{Handle_: {new}(unsafe.Pointer(raw), nil, \"{local}\")}}\n}}\n\n\
+			func lend_{c}(raw *C.{c}) *{name} {{\n\to := &struct {{\n\t\tv {name}\n\t\th {handle}\n\t}}{{}}\n\to.h.Init(unsafe.Pointer(raw), nil, nil, \"{local}\")\n\to.v.Handle_ = &o.h\n\treturn &o.v\n}}\n\n\
 			// holdOption_{c} is v's handle, held until the call returns, or nil for none.\n\
 			func holdOption_{c}(a_ *arena_, v *{name}) *C.{c} {{\n\tif v == nil {{\n\t\treturn nil\n\t}}\n\treturn (*C.{c})(a_.hold(v.Handle_, v))\n}}\n\n"
 		)
@@ -1936,6 +2634,7 @@ impl<'a> Gen<'a> {
 		let abi = self.abi;
 		let callback = &abi.api.callbacks[i];
 		let c = abi.callback(i);
+		let c_ = crate::abi::stem(&c);
 		let ty = Type::Callback(i, crate::ir::Dyn::Impl);
 		let name = self.named(&ty).1;
 		let rust = callback.path.join("::");
@@ -1944,21 +2643,54 @@ impl<'a> Gen<'a> {
 		let mut body = Vec::new();
 		let mut members = Vec::new();
 		let mut table = vec!["\tv.free = goRelease\n".to_string()];
-		for method in &callback.methods {
-			let member = pascal(method.name());
+		let signatures: Vec<(Vec<String>, Option<String>)> = (callback.methods.iter())
+			.map(|method| {
+				let types: Vec<String> = method.params.iter().map(|p| self.go_param(&p.ty)).collect();
+				let ret = match method.ok {
+					Type::Unit => None,
+					_ => Some(self.go(&method.ok)),
+				};
+				(types, ret)
+			})
+			.collect();
+		// An interface's method is vetted too, though never as an `error`'s.
+		let spelled = (callback.methods.iter().zip(&signatures))
+			.map(|(method, (types, ret))| {
+				let ps: Vec<&str> = types.iter().map(String::as_str).collect();
+				let rs: Vec<&str> = ret.iter().map(String::as_str).collect();
+				let mut member = pascal(method.name());
+				while vetted(&member, &ps, &rs, false) {
+					member.push('_');
+				}
+				member
+			})
+			.collect();
+		let methods: Vec<&str> = callback.methods.iter().map(|method| method.name()).collect();
+		let named = abi::named(
+			&methods,
+			spelled,
+			|rust, name| abi::snake(name) == rust,
+			|_, _| false,
+			abi::underscored,
+		);
+		for ((method, (types, ret)), member) in callback.methods.iter().zip(signatures).zip(named) {
 			crate::lock::function(&mut self.locked, method, &member);
 			members.push(member.clone());
 			let names = self.locals(&method.params);
-			let params: Vec<String> = (method.params.iter().zip(&names))
-				.map(|(p, name)| format!("{name} {}", self.go_param(&p.ty)))
+			let params: Vec<String> = (names.iter().zip(&types))
+				.map(|(name, ty)| format!("{name} {ty}"))
 				.collect();
-			let ret = match method.ok {
-				Type::Unit => String::new(),
-				_ => format!(" {}", self.go(&method.ok)),
+			let ret = match &ret {
+				None => String::new(),
+				Some(ret) => format!(" {ret}"),
 			};
 			body.push(format!(
 				"{}\t{member}({}){ret}",
-				docs(&method.docs, "\t"),
+				docs(
+					&self.function_docs(method, doc::sections(&method.docs).body),
+					method.deprecated.as_deref(),
+					"\t"
+				),
 				params.join(", ")
 			));
 			let export = format!("{p}Go_{}_{}", self.bare(&c), method.name());
@@ -1976,7 +2708,10 @@ impl<'a> Gen<'a> {
 				_ => format!("\treturn {}\n", self.lower_scalar(&method.ok, &call)),
 			};
 			self.export(&export, &c_params, &ret_ty, &call);
-			table.push(format!("\tv.{} = (*[0]byte)(C.{export})\n", cgo_field(method.name())));
+			table.push(format!(
+				"\tv.{} = (*[0]byte)(C.{export})\n",
+				cgo_field(&abi::member(method))
+			));
 		}
 		self.distinct(&rust, &members);
 		let text = format!(
@@ -1986,10 +2721,10 @@ impl<'a> Gen<'a> {
 		let _ = write!(
 			self.types,
 			"{}type {name} interface {{\n{}\n}}\n\n\
-			var vtable_{c} = func() *C.{c}_vtable {{\n\tv := (*C.{c}_vtable)(C.malloc(C.size_t(unsafe.Sizeof(C.{c}_vtable{{}}))))\n{}\treturn v\n}}()\n\n\
+			var vtable_{c} = func() *C.{c_}_vtable {{\n\tv := (*C.{c_}_vtable)(C.malloc(C.size_t(unsafe.Sizeof(C.{c_}_vtable{{}}))))\n{}\treturn v\n}}()\n\n\
 			// {vtable} is the table of {name}'s methods Rust calls, for the generated packages.\n\
 			func {vtable}() unsafe.Pointer {{\n\treturn unsafe.Pointer(vtable_{c})\n}}\n\n",
-			docs(text.trim(), ""),
+			docs(text.trim(), callback.deprecated.as_deref(), ""),
 			body.join("\n"),
 			table.join("")
 		);
@@ -1998,19 +2733,24 @@ impl<'a> Gen<'a> {
 	/// A callback's lower: a Go implementation, kept for Rust until it drops it.
 	fn callback_conv(&mut self, i: usize) -> String {
 		let c = self.abi.callback(i);
+		let c_ = crate::abi::stem(&c);
 		let ty = Type::Callback(i, crate::ir::Dyn::Impl);
 		let (krate, local) = self.named(&ty);
 		let name = self.qualify(krate, &local);
 		let vtable = self.qualify(krate, &self.vtables[&c]);
 		format!(
-			"func lower_{c}(v {name}) C.{c} {{\n\tif v == nil {{\n\t\tpanic(\"a nil {local}\")\n\t}}\n\treturn C.{c}{{vtable: (*C.{c}_vtable)({vtable}()), data: give_(v)}}\n}}\n\n"
+			"func lower_{c}(v {name}) C.{c} {{\n\tif v == nil {{\n\t\tpanic(\"a nil {local}\")\n\t}}\n\treturn C.{c}{{vtable: (*C.{c_}_vtable)({vtable}()), data: give_(v)}}\n}}\n\n"
 		)
 	}
 
 	/// The C value of a scalar `e` of type `ty` a callback returns, needing no arena.
 	fn lower_scalar(&mut self, ty: &Type, e: &str) -> String {
 		match ty {
-			Type::Bool | Type::Int(_) | Type::NonZero(_) | Type::F32 | Type::F64 | Type::Char => self.lower(ty, e),
+			Type::Bool | Type::Int(_) | Type::F32 | Type::F64 => self.lower(ty, e),
+			// Rust, the caller, has no error to take, so a zero, or a char that is no Unicode
+			// scalar, aborts.
+			Type::NonZero(int) => self.lower(&Type::Int(*int), e),
+			Type::Char => format!("C.uint32_t({e})"),
 			Type::Enum(i) if self.abi.api.enums[*i].plain() => self.lower(ty, e),
 			other => unreachable!("a callback returns a scalar, not {other:?}"),
 		}
@@ -2050,8 +2790,7 @@ impl<'a> Gen<'a> {
 
 	/// The trampoline C calls for a closure of type `ty`, which Rust lends for a call or
 	/// keeps: it lends each object it takes by reference as its type, ended once it returns,
-	/// owns a clone of each `Copy` object, and hands Rust what the closure returns, writing
-	/// a `Result` through its outs.
+	/// and hands Rust what the closure returns, writing a `Result` through its outs.
 	fn trampoline(&mut self, ty: &Type, closure: &Closure) -> String {
 		let go = self.go(ty);
 		// Keyed by the Rust closure, since Go spells a borrowed and a copied object alike.
@@ -2078,13 +2817,6 @@ impl<'a> Gen<'a> {
 					let _ = writeln!(body, "\t{l} := lend_{}({p})", self.abi.object(i));
 					let _ = writeln!(body, "\tdefer {l}.Handle_.End()");
 					args.push(l);
-				}
-				// A copy is the callee's, which Go keeps as long as it likes: its own copy of
-				// the value Rust lends for the call, made as Rust copies it.
-				Type::Object(i) => {
-					self.convert(ty);
-					let c = self.abi.object(*i);
-					args.push(format!("own_{c}(C.{c}_copy({p}))"));
 				}
 				ty => args.push(self.lift_lent(ty, p)),
 			}
@@ -2137,48 +2869,21 @@ impl<'a> Gen<'a> {
 	}
 
 	/// The C value Rust takes from the Go value `e` of type `ty` a closure returned, which
-	/// Rust then owns: a string's copy, or a clone of a `Copy` object's handle.
+	/// Rust then owns: a string's copy, and a value as it lowers.
 	fn returned(&mut self, ty: &Type, e: &str) -> String {
 		match ty {
 			Type::String => format!("cBufCopy({e})"),
-			Type::Object(i) => {
-				self.returns(*i);
-				format!("returned_{}({e})", self.abi.object(*i))
-			}
-			Type::Option(inner) => {
-				let Type::Object(i) = **inner else {
-					unreachable!("a closure returns an Option only of a Copy object, not {inner:?}")
-				};
-				self.returns(i);
-				format!("returnedOption_{}({e})", self.abi.object(i))
-			}
+			Type::Record(_) | Type::Option(_) => self.lower(ty, e),
 			ty => self.lower_scalar(ty, e),
 		}
 	}
 
-	/// The helpers handing Rust a clone of the handle of object `i` a closure returned, or
-	/// nil for none.
-	fn returns(&mut self, i: usize) {
-		let ty = Type::Object(i);
-		self.convert(&ty);
-		let c = self.abi.object(i);
-		let name = self.qualified(&ty);
-		let local = self.named(&ty).1;
-		self.helper(&format!("returned_{c}"), |_| {
-			format!(
-				"// returned_{c} is a new handle to a copy of v, which Rust frees once it copies v out of it.\n\
-				func returned_{c}(v *{name}) *C.{c} {{\n\tif v == nil {{\n\t\tpanic(\"a nil {local} returned to Rust\")\n\t}}\n\th := v.Handle_.Hold()\n\tif h == nil {{\n\t\tpanic(v.Handle_.Closed())\n\t}}\n\tdefer unhold_(v.Handle_, v)\n\treturn C.{c}_copy((*C.{c})(h))\n}}\n\n\
-				func returnedOption_{c}(v *{name}) *C.{c} {{\n\tif v == nil {{\n\t\treturn nil\n\t}}\n\treturn returned_{c}(v)\n}}\n\n"
-			)
-		});
-	}
-
-	/// The Go statement closing each object the value `e` of type `ty` holds, once a call
-	/// moved them out.
+	/// The Go statement closing each handle the value `e` of type `ty` holds, once a call
+	/// moved their values out.
 	fn close(&self, ty: &Type, e: &str, depth: usize) -> String {
 		match ty {
 			Type::Option(inner) => match inner.base() {
-				Type::Object(_) => format!("if {e} != nil {{ {e}.Close() }}"),
+				Type::Object(_) => format!("if {e} != nil {{ {e}.Handle_.Moved() }}"),
 				_ => {
 					let v = format!("v{depth}_");
 					format!("if {e} != nil {{ {v} := *{e}; {} }}", self.close(inner, &v, depth + 1))
@@ -2197,7 +2902,7 @@ impl<'a> Gen<'a> {
 				let v = format!("v{depth}_");
 				format!("for _, {v} := range {e} {{ {} }}", self.close(inner, &v, depth + 1))
 			}
-			_ => format!("{e}.Close()"),
+			_ => format!("{e}.Handle_.Moved()"),
 		}
 	}
 
@@ -2205,7 +2910,7 @@ impl<'a> Gen<'a> {
 	/// and a receiver, or else a function of the package.
 	fn function(&mut self, function: &Function, owner: Option<&Ty>, owner_ty: Option<&Type>) -> Method {
 		let abi = self.abi;
-		let export = abi.export(function, owner);
+		let export = abi.export(function, owner).on_home();
 		let c_name = export.call.name.clone();
 		let owner_c = match owner {
 			Some(Ty::Struct(n) | Ty::Enum(n) | Ty::Handle { name: n, .. }) => Some(n.clone()),
@@ -2231,6 +2936,11 @@ impl<'a> Gen<'a> {
 					_ => pascal(rest),
 				}
 			}
+		};
+		// A positional field's accessor, `0Get`, is `V0Get`, as its field is `V0`.
+		let member = match member.starts_with(|c: char| c.is_ascii_digit()) {
+			true => format!("V{member}"),
+			false => member,
 		};
 		let classes = self.classes.get(self.pkg);
 		let member = match (receiver.is_some(), member.as_str()) {
@@ -2267,9 +2977,14 @@ impl<'a> Gen<'a> {
 		let err = function.err.as_ref().map(strip_refs);
 		let mut results: Vec<String> = oks.iter().map(|ty| self.go(ty)).collect();
 		// A call that takes an object, as its receiver or held in any value it takes,
-		// returns an error once that object is closed.
-		let closable = receiver.is_some() && owner_ty.is_some_and(|ty| self.holds(ty))
-			|| function.params.iter().any(|p| self.holds(&p.ty));
+		// returns an error once that object is closed, as one taking text or a char does
+		// once Rust's type does not hold it.
+		let status = export.call.status().is_some();
+		let everywhere = abi.api.everywhere(function.on);
+		let closable = receiver.is_some() && owner_ty.is_some_and(|ty| self.fails(ty))
+			|| function.params.iter().any(|p| self.fails(&p.ty))
+			|| status
+			|| !everywhere;
 		if function.err.is_some() || function.future || closable {
 			results.push("error".to_string());
 		}
@@ -2283,7 +2998,8 @@ impl<'a> Gen<'a> {
 		};
 
 		let mut prelude: Vec<String> = Vec::new();
-		let mut after: Vec<String> = Vec::new();
+		// What closes each handle a call moved the value out of, once it passed its checks.
+		let mut moves: Vec<String> = Vec::new();
 		let mut checked = false;
 		let mut arena = false;
 		let mut args: Vec<String> = Vec::new();
@@ -2293,17 +3009,20 @@ impl<'a> Gen<'a> {
 			let (_, c) = c_params.next().expect("a method has its receiver");
 			let ty = owner_ty.expect("a method has its type").clone();
 			let go = self.go(&ty);
-			go_receiver = Some(format!("self {go}"));
+			// A value's `&mut self` is a pointer receiver, which Rust writes back through.
+			let pointer = matches!(c, Ty::InOut(_));
+			go_receiver = Some(match pointer {
+				true => format!("self *{go}"),
+				false => format!("self {go}"),
+			});
 			match c {
 				Ty::Handle { name, .. } => {
-					prelude.push(format!(
-						"h_ := self.Handle_.Hold()\nif h_ == nil {{\n\t{}\n}}\ndefer unhold_(self.Handle_, self)",
-						fail("self.Handle_.Closed()")
-					));
+					let slot = self.qualify(Packages::RT, "Slot_");
+					prelude.push(hold(&slot, "self", "h_", "s_", &fail("self.Handle_.Closed()")));
 					args.push(format!("(*C.{name})(h_)"));
 					let copy = matches!(ty, Type::Object(i) if abi.api.objects[i].copy);
 					if receiver == Receiver::Owned && !copy {
-						after.push("self.Close()".to_string());
+						moves.push("self.Handle_.Moved()".to_string());
 					}
 				}
 				_ => {
@@ -2317,12 +3036,24 @@ impl<'a> Gen<'a> {
 						true => "a_, ",
 						false => "",
 					};
-					prelude.push(format!("c_self_ := lower_{c}({a}self)"));
-					args.push("&c_self_".to_string());
-					checked |= self.holds(&ty);
+					let deref = match pointer {
+						true => "*",
+						false => "",
+					};
+					prelude.push(format!("c_self_ := lower_{c}({a}{deref}self)"));
+					args.push("c_self_".to_string());
+					checked |= self.fails(&ty);
 				}
 			}
 		}
+		// Past the receiver, which Rust only reads, Rust takes each buffer passed by value.
+		let take_at = prelude.len();
+		// Whether an argument is a parameter's own buffer, and the arguments converted from
+		// Go values, which may panic, such as on a nil enum.
+		let mut bufs = false;
+		let mut lowered = Vec::new();
+		// The callbacks, which give Rust a handle only the call releases.
+		let mut callbacks = Vec::new();
 		let mut params = Vec::new();
 		if function.future {
 			params.push(("ctx".to_string(), "context.Context".to_string()));
@@ -2342,12 +3073,14 @@ impl<'a> Gen<'a> {
 				let inner = param.ty.base();
 				params.push((name.clone(), format!("*{}", self.go(inner))));
 				arena |= self.arena(inner);
+				checked |= self.fails(inner);
+				lowered.push(args.len());
 				args.push(self.lower(inner, &format!("(*{name})")));
 				continue;
 			}
-			params.push((name.clone(), self.go_param(&param.ty)));
+			params.push((name.clone(), self.go_arg(&param.ty)));
 			if moved(abi, &param.ty) {
-				after.push(self.close(&param.ty, &name, 0));
+				moves.push(self.close(&param.ty, &name, 0));
 			}
 			match (&param.ty, c) {
 				(Type::Closure(closure), _) => {
@@ -2375,6 +3108,7 @@ impl<'a> Gen<'a> {
 				}
 				(ty @ Type::Callback(i, _), _) => {
 					self.convert(ty);
+					callbacks.push(args.len());
 					args.push(format!("lower_{}({name})", abi.callback(*i)))
 				}
 				(Type::Waker, _) => args.push(format!("waker_({name})")),
@@ -2386,28 +3120,61 @@ impl<'a> Gen<'a> {
 					};
 					args.push(format!("future_({ctx}, {name})"))
 				}
+				// Checked before the call, as a char lowered in the arena is, but needing none.
+				(Type::Char, _) => {
+					prelude.push(format!(
+						"if err_ := checkRune_({name}); err_ != nil {{\n\t{}\n}}",
+						fail("err_")
+					));
+					args.push(format!("C.uint32_t({name})"));
+				}
+				(Type::NonZero(int), _) => {
+					prelude.push(format!("if {name} == 0 {{\n\t{}\n}}", fail("errNonZero_")));
+					args.push(format!("C.{}({name})", c_int(*int)));
+				}
 				(ty, Ty::Buf) => {
+					// Text and paths are checked before the call.
+					let check = match ty.buffer() {
+						Some(Type::String) => Some("checkString_"),
+						Some(Type::PathBuf) => Some("checkPath_"),
+						Some(Type::Option(inner)) if *inner == Type::String => Some("checkStringOption_"),
+						Some(Type::Option(inner)) if *inner == Type::PathBuf => Some("checkPathOption_"),
+						_ => None,
+					};
+					if let Some(check) = check {
+						prelude.push(format!(
+							"if err_ := {check}({name}); err_ != nil {{\n\t{}\n}}",
+							fail("err_")
+						));
+					}
 					let call = match ty.buffer() {
 						Some(Type::String | Type::PathBuf) => format!("bufString_({name})"),
-						Some(Type::Bytes) => format!("bufBytes_({name})"),
+						Some(Type::Bytes) => format!("bufTake_({name})"),
 						Some(Type::Option(inner)) => match *inner {
-							Type::Bytes => format!("bufBytesOption_({name})"),
+							Type::Bytes => format!("bufTakeOption_({name})"),
 							_ => format!("bufStringOption_({name})"),
 						},
 						other => unreachable!("a buffer holds {other:?}"),
 					};
+					bufs = true;
 					args.push(call);
 				}
 				(ty, Ty::Handle { name: c, .. }) => {
 					let h = format!("h{k}_");
 					let failed = fail(&format!("{name}.Handle_.Closed()"));
 					match ty.base() {
-						Type::Option(_) => prelude.push(format!(
-							"var {h} unsafe.Pointer\nif {name} != nil {{\n\tif {h} = {name}.Handle_.Hold(); {h} == nil {{\n\t\t{failed}\n\t}}\n\tdefer unhold_({name}.Handle_, {name})\n}}"
-						)),
-						_ => prelude.push(format!(
-							"{h} := {name}.Handle_.Hold()\nif {h} == nil {{\n\t{failed}\n}}\ndefer unhold_({name}.Handle_, {name})"
-						)),
+						Type::Option(_) => {
+							let slot = self.qualify(Packages::RT, "Slot_");
+							let held = hold(&slot, &name, &h, "s_", &failed).replacen(":=", "=", 1);
+							let held = held.replace('\n', "\n\t");
+							prelude.push(format!(
+								"var {h} unsafe.Pointer\nif {name} != nil {{\n\tvar s_ {slot}\n\t{held}\n}}"
+							));
+						}
+						_ => {
+							let slot = self.qualify(Packages::RT, "Slot_");
+							prelude.push(hold(&slot, &name, &h, &format!("{h}s"), &failed));
+						}
 					}
 					args.push(format!("(*C.{c})({h})"));
 				}
@@ -2421,24 +3188,59 @@ impl<'a> Gen<'a> {
 				}
 				(ty, _) => {
 					arena |= self.arena(ty);
+					checked |= self.fails(ty);
+					lowered.push(args.len());
 					args.push(self.lower(ty, &name));
 				}
 			}
 		}
-		let outs: Vec<(String, Ty)> = c_params.cloned().collect();
+		let outs: Vec<(String, Ty)> = c_params.filter(|(_, ty)| !abi::is_status(ty)).cloned().collect();
+		// A failed check writes its status, whose error the call returns; once it passed,
+		// each handle the call moved out of closes.
+		let status_error = match status {
+			true => format!(
+				"{}(int32(c_status_), \"{c_name}\")",
+				self.qualify(Packages::RT, "Status_")
+			),
+			false => String::new(),
+		};
+		let moved = moves.join("\n");
+		let failed = status.then(|| {
+			let failed = format!("if c_status_ != 0 {{\n\t{}\n}}", fail(&status_error));
+			match moved.is_empty() {
+				true => failed,
+				false => format!("{failed}\n{moved}"),
+			}
+		});
+		assert!(status || moves.is_empty(), "{c_name} moves a value Rust checks");
 		let mut body = Vec::new();
 		if arena {
 			body.push("a_ := &arena_{}\ndefer a_.finish()".to_string());
+			prelude.insert(take_at, "a_.take = true".to_string());
 		}
 		body.extend(prelude);
+		// Converted first, as a conversion may panic or fail the call: then the arena frees
+		// Rust's buffers it lowered, and no parameter's own buffer is shared yet.
+		if arena || bufs {
+			for &i in &lowered {
+				body.push(format!("l{i}_ := {}", args[i]));
+				args[i] = format!("l{i}_");
+			}
+		}
 		if checked {
 			body.push(format!("if a_.err != nil {{\n\t{}\n}}", fail("a_.err")));
 		}
-		if !after.is_empty() {
-			match &after[..] {
-				[one] if one.ends_with("Close()") && !one.contains(' ') => body.push(format!("defer {one}")),
-				_ => body.push(format!("defer func() {{\n\t{}\n}}()", after.join("\n\t"))),
+		// Given once no check can fail the call, which then releases them, but before the
+		// arena hands Rust its buffers, as a nil one panics.
+		if arena || bufs {
+			for &i in &callbacks {
+				body.push(format!("l{i}_ := {}", args[i]));
+				args[i] = format!("l{i}_");
 			}
+		}
+		// Nothing from here fails before the call, which Rust's buffers given it go to.
+		if arena {
+			body.push("a_.made = true".to_string());
 		}
 
 		if let Some(abi::Future {
@@ -2455,7 +3257,6 @@ impl<'a> Gen<'a> {
 			}
 			body.extend(decls);
 			let zeros: String = (0..oks.len()).map(|k| format!("r{k}_, ")).collect();
-			let poll_outs: Vec<(String, Ty)> = poll.params[2..].to_vec();
 			let mut ready: Vec<String> = Vec::new();
 			for (k, ty) in oks.iter().enumerate() {
 				let out = out_name(&function.ok, k);
@@ -2469,26 +3270,27 @@ impl<'a> Gen<'a> {
 			}
 			let cases = cases.join("\n");
 			// Lifts what a call or a poll wrote, once either reports the future finished.
-			let decls: Vec<String> = poll_outs.iter().map(|(n, ty)| self.out_decl(n, ty)).collect();
-			let ptrs: Vec<String> = poll_outs.iter().map(|(n, _)| format!("&c_{n}_")).collect();
-			let mut call_args = vec!["f_".to_string(), "w_".to_string()];
-			call_args.extend(ptrs.iter().cloned());
-			let mut polled = decls.clone();
-			polled.push(format!(
-				"switch C.{}({}) {{\n{cases}\n}}\nreturn false, nil",
-				poll.name,
-				call_args.join(", ")
-			));
-			let polled = indent(&polled.join("\n"));
+			let (call, value) = self.call_sig(poll, &["f_".to_string(), "w_".to_string()]);
+			let mut rest = format!("switch {value} {{\n{cases}\n}}\nreturn false, nil");
+			// A future that is not `Send` lives on a home, which polls it, so its check fails
+			// only for one a callback made elsewhere.
+			if poll.status().is_some() {
+				let error = format!(
+					"{}(int32(c_status_), \"{}\")",
+					self.qualify(Packages::RT, "Status_"),
+					poll.name
+				);
+				rest = format!("if c_status_ != 0 {{\n\treturn true, {error}\n}}\n{rest}");
+			}
+			let polled = indent(&then(&call, &rest));
 			if function.eager {
 				// An eager call runs Rust, and any callback it makes, before its future
 				// exists, and a callback may cancel the context: so it is made, then the
 				// context checked, then polled, never started.
-				body.push(format!(
-					"f_ := C.{c_name}({})\ndefer C.{}(f_)",
-					args.join(", "),
-					free.name
-				));
+				let (call, value) = self.call_sig(&export.call, &args);
+				body.push(then(&call, &format!("f_ := {value}")));
+				body.extend(failed.clone());
+				body.push(format!("defer C.{}(f_)", free.name));
 				body.push(format!(
 					"if err_ := ctx.Err(); err_ != nil {{\n\treturn {zeros}err_\n}}"
 				));
@@ -2498,20 +3300,36 @@ impl<'a> Gen<'a> {
 				// A context done already takes nothing, even what is ready: the future is made
 				// and dropped unpolled, as Rust drops one it never awaits. Making an `async fn`'s
 				// future runs nothing, so the check needs no repeat after it.
+				// What it moved out of closes once its checks passed, as the future owns it.
+				let (call, value) = self.call_sig(&export.call, &args);
+				let free_made = format!("C.{}({value})", free.name);
+				let made = match status {
+					true if moved.is_empty() => format!("{call}\nif c_status_ == 0 {{\n\t{free_made}\n}}"),
+					true => {
+						let moved = moved.replace('\n', "\n\t");
+						format!("{call}\nif c_status_ == 0 {{\n\t{free_made}\n\t{moved}\n}}")
+					}
+					false => then(&call, &free_made),
+				};
 				body.push(format!(
-					"if err_ := ctx.Err(); err_ != nil {{\n\tC.{}(C.{c_name}({}))\n\treturn {zeros}err_\n}}",
-					free.name,
-					args.join(", ")
+					"if err_ := ctx.Err(); err_ != nil {{\n{}\n\treturn {zeros}err_\n}}",
+					indent(&made)
 				));
-				let mut start_args = args.clone();
-				start_args.extend(ptrs.iter().cloned());
-				start_args.push("&f_".to_string());
-				let mut inner = decls;
-				inner.push(format!(
-					"switch C.{}({}) {{\n{cases}\n}}\nreturn false, nil",
-					start.name,
-					start_args.join(", ")
-				));
+				// The shim returns each out, the future's handle, and the status.
+				let (call, value) = self.call_sig(start, &args);
+				let mut inner = Vec::new();
+				match status {
+					true => {
+						inner.push(format!(
+							"{call}\nstarted_ := {value}\nif c_status_ != 0 {{\n\treturn true, {status_error}\n}}"
+						));
+						if !moved.is_empty() {
+							inner.push(moved.clone());
+						}
+						inner.push(format!("switch started_ {{\n{cases}\n}}\nreturn false, nil"));
+					}
+					false => inner.push(format!("{call}\nswitch {value} {{\n{cases}\n}}\nreturn false, nil")),
+				}
 				body.push(format!("var f_ *C.{handle}"));
 				body.push(format!(
 					"done_, err_ := func() (bool, error) {{\n{}\n}}()",
@@ -2527,21 +3345,49 @@ impl<'a> Gen<'a> {
 			returns.push("err_".to_string());
 			body.push(format!("return {}", returns.join(", ")));
 		} else {
-			for (n, ty) in &outs {
-				body.push(self.out_decl(n, ty));
+			// A shim's call is made here, and binds each out; a plain call is the value.
+			let (made, mut call) = self.call_sig(&export.call, &args);
+			if !made.is_empty() {
+				body.push(made);
 			}
-			let mut call_args = args.clone();
-			call_args.extend(outs.iter().map(|(n, _)| format!("&c_{n}_")));
-			let mut call = format!("C.{c_name}({})", call_args.join(", "));
-			// Each value passed for `&mut` takes what Rust wrote back, on every path.
-			let writes: Vec<String> = (function.params.iter().zip(&names))
-				.filter(|(param, _)| param.ty.written())
-				.map(|(param, name)| {
-					let out = Abi::written(function, &abi::escape(&param.name));
-					format!("*{name} = {}", self.lift(param.ty.base(), &format!("c_{out}_")))
-				})
-				.collect();
-			if !writes.is_empty() {
+			// Made first, so a failed check returns before any result is read.
+			let made = failed.map(|failed| {
+				let made = match (&err, &export.call.ret) {
+					(Some(_), _) => {
+						body.push(format!("ok_ := {call}"));
+						"ok_".to_string()
+					}
+					(None, Ty::Void) => String::new(),
+					// Lifted from the out the result names, as a value written beside one is.
+					(None, _) => {
+						body.push(format!("c_out_ := {call}"));
+						String::new()
+					}
+				};
+				body.push(failed);
+				made
+			});
+			// Each value passed for `&mut` takes what Rust wrote back, on every path, as does a
+			// value's own `&mut self`, which Rust wrote back in place.
+			let mut writes: Vec<String> = match export.call.params.first() {
+				Some((_, Ty::InOut(_))) => {
+					let ty = owner_ty.expect("a method has its type");
+					vec![format!("*self = {}", self.lift(ty, "c_self_"))]
+				}
+				_ => Vec::new(),
+			};
+			writes.extend(
+				(function.params.iter().zip(&names))
+					.filter(|(param, _)| param.ty.written())
+					.map(|(param, name)| {
+						let out = Abi::written(function, &abi::escape(&param.name));
+						format!("*{name} = {}", self.lift(param.ty.base(), &format!("c_{out}_")))
+					}),
+			);
+			if let Some(made) = made {
+				body.extend(writes);
+				call = made;
+			} else if !writes.is_empty() {
 				let made = match &err {
 					Some(_) => {
 						body.push(format!("ok_ := {call}"));
@@ -2554,7 +3400,9 @@ impl<'a> Gen<'a> {
 						String::new()
 					}
 					None => {
-						body.push(call);
+						if !call.is_empty() {
+							body.push(call);
+						}
 						String::new()
 					}
 				};
@@ -2595,7 +3443,9 @@ impl<'a> Gen<'a> {
 					}
 				}
 				(None, false) if !outs.is_empty() => {
-					body.push(call);
+					if !call.is_empty() {
+						body.push(call);
+					}
 					let mut values: Vec<String> = (oks.iter().enumerate())
 						.map(|(k, ty)| {
 							let out = out_name(&function.ok, k);
@@ -2617,7 +3467,7 @@ impl<'a> Gen<'a> {
 			}
 		}
 
-		let mut text = function.docs.clone();
+		let mut text = doc::sections(&function.docs).body;
 		for (param, name) in function.params.iter().zip(&names) {
 			if let Type::Closure(closure) = &param.ty {
 				text.push_str(&match closure.kept {
@@ -2648,12 +3498,15 @@ impl<'a> Gen<'a> {
 				"\n\nIt blocks until Rust's future is ready, or ctx is done: then it cancels the future in\nRust, losing nothing, and returns ctx's error.",
 			);
 		}
-		if let Some(check) = self.on(function.on, &c_name) {
-			body.insert(0, check);
+		if !everywhere {
+			let supported = self.qualify(Packages::RT, "Supported_");
+			let error = format!("{supported}({}, \"{c_name}\")", function.on.0 & abi.api.all().0);
+			body.insert(0, format!("if err_ := {error}; err_ != nil {{\n\t{}\n}}", fail("err_")));
 		}
+		let text = self.function_docs(function, text);
 		Method {
 			key: Some(crate::lock::function_key(function)),
-			docs: text,
+			docs: deprecation(&text, function.deprecated.as_deref()),
 			receiver: go_receiver,
 			name: member,
 			params,
@@ -2662,12 +3515,40 @@ impl<'a> Gen<'a> {
 		}
 	}
 
-	/// The declaration of the local the call writes the out value `name` of C type `ty` to.
-	fn out_decl(&self, name: &str, ty: &Ty) -> String {
-		let Ty::Out(inner) = ty else {
-			unreachable!("an out parameter is a pointer")
+	/// `text`, a function's docs without its sections, then its `# Errors`, naming its
+	/// error's type, and its `# Panics` as when it aborts.
+	fn function_docs(&mut self, function: &Function, text: String) -> String {
+		let sections = doc::sections(&function.docs);
+		let mut text = text.trim().to_string();
+		if let Some(errors) = &sections.errors {
+			let what = match &function.err {
+				Some(err) => format!("Its error type is {}.\n\n", self.error_link(err)),
+				None => String::new(),
+			};
+			let _ = write!(text, "\n\n# Errors\n\n{what}{errors}");
+		}
+		if let Some(panics) = &sections.panics {
+			let _ = write!(text, "\n\n# Aborts\n\n{panics}");
+		}
+		text.trim().to_string()
+	}
+
+	/// A doc link to the Go type of an error of type `err`.
+	fn error_link(&self, err: &Type) -> String {
+		let api = self.abi.api;
+		let (krate, name) = match err.base() {
+			Type::Record(i) => (&api.records[*i].home.krate, &self.type_names[&self.abi.record(*i)]),
+			Type::Enum(i) => (&api.enums[*i].home.krate, &self.type_names[&self.abi.enumeration(*i)]),
+			Type::Object(i) => (&api.objects[*i].home.krate, &self.type_names[&self.abi.object(*i)]),
+			_ => {
+				let key = self.abi.key(err);
+				let (name, (home, _)) = (self.thrown.iter())
+					.find(|(_, (_, thrown))| self.abi.key(thrown) == key)
+					.expect("each error is thrown");
+				(home, name)
+			}
 		};
-		format!("var c_{name}_ {}", self.c_go(inner))
+		format!("[{}]", in_package(self.set, self.pkg, krate, name))
 	}
 
 	/// The Go error of the C error `e` of type `err`: itself if an exported type, which then
@@ -2685,6 +3566,76 @@ impl<'a> Gen<'a> {
 				format!("{name}{{Value: {lifted}}}")
 			}
 		}
+	}
+}
+
+/// `name`, of `krate`'s package, as a doc link names it from `here`'s: by its import path
+/// from another package's.
+fn in_package(set: &Packages, here: &str, krate: &str, name: &str) -> String {
+	match krate == here {
+		true => name.to_string(),
+		false => format!("{}.{name}", set.by_crate[krate].1),
+	}
+}
+
+/// The Go doc link for `target`, from `here`'s package, if Go has it.
+fn doc_link(
+	abi: &Abi<'_>,
+	set: &Packages,
+	shared: &Shared,
+	locked: &BTreeMap<String, String>,
+	here: &str,
+	target: doc::Target<'_>,
+) -> Option<String> {
+	let api = abi.api;
+	let owner = |owner: doc::Owner| match owner {
+		doc::Owner::Record(i) => (&api.records[i].home.krate, &shared.type_names[&abi.record(i)]),
+		doc::Owner::Enum(i) => (&api.enums[i].home.krate, &shared.type_names[&abi.enumeration(i)]),
+		doc::Owner::Object(i) => (&api.objects[i].home.krate, &shared.type_names[&abi.object(i)]),
+		doc::Owner::Callback(i) => (&api.callbacks[i].home.krate, &shared.type_names[&abi.callback(i)]),
+	};
+	let (krate, name) = match target {
+		doc::Target::Record(i) => owner(doc::Owner::Record(i)),
+		doc::Target::Enum(i) => owner(doc::Owner::Enum(i)),
+		doc::Target::Object(i) => owner(doc::Owner::Object(i)),
+		doc::Target::Callback(i) => owner(doc::Owner::Callback(i)),
+		doc::Target::Variant(i, v) => (
+			&api.enums[i].home.krate,
+			&shared.variants[&(abi.enumeration(i), api.enums[i].variants[v].name.clone())],
+		),
+		doc::Target::Field(i, n) => {
+			let (krate, name) = owner(doc::Owner::Record(i));
+			let record = &api.records[i];
+			let key = format!(
+				"{} / field {}",
+				crate::lock::type_key(&record.shown),
+				record.fields[n].name
+			);
+			let field = locked.get(&key)?;
+			return Some(format!("[{}.{field}]", in_package(set, here, krate, name)));
+		}
+		doc::Target::Constant(c) => (&c.home.krate, locked.get(&format!("const {}", c.path.join("::")))?),
+		doc::Target::Function(of, f) => {
+			let member = locked.get(&crate::lock::function_key(f))?;
+			// A method with a receiver in its type's package is the type's; any other is a
+			// function of its own package, named for the type already.
+			let (krate, name) = match of.map(owner) {
+				Some((krate, name)) if f.receiver.is_some() && *krate == f.home.krate => {
+					(krate, format!("{name}.{member}"))
+				}
+				_ => (&f.home.krate, member.clone()),
+			};
+			return Some(format!("[{}]", in_package(set, here, krate, &name)));
+		}
+	};
+	Some(format!("[{}]", in_package(set, here, krate, name)))
+}
+
+/// The Go statements `first`, if any, then `rest`.
+fn then(first: &str, rest: &str) -> String {
+	match first.is_empty() {
+		true => rest.to_string(),
+		false => format!("{first}\n{rest}"),
 	}
 }
 
@@ -2764,7 +3715,60 @@ fn c_int(int: Int) -> &'static str {
 	}
 }
 
-/// A field's Go name: in Pascal case, and `V0`, `V1`, ... for a positional one.
+/// Whether go vet's `stdmethods` reports a method `name` of the Go types `params` and
+/// `results`: one named as a standard interface's but of another signature, as its
+/// `canonicalMethods` lists them. `Is`, `As`, and `Unwrap` are checked only on an `error`.
+fn vetted(name: &str, params: &[&str], results: &[&str], error: bool) -> bool {
+	// Each method's parameters and results; a `=` type must match for vet to check the rest.
+	let (want, got): (&[&str], &[&str]) = match name {
+		"As" if error => (&["any"], &["bool"]),
+		"Is" if error => (&["error"], &["bool"]),
+		"Unwrap" if error => {
+			return !(params.is_empty() && matches!(results, ["error"] | ["[]error"]));
+		}
+		"Format" => (&["=fmt.State", "rune"], &[]),
+		"GobDecode" => (&["[]byte"], &["error"]),
+		"GobEncode" => (&[], &["[]byte", "error"]),
+		"MarshalJSON" => (&[], &["[]byte", "error"]),
+		"MarshalXML" => (&["*xml.Encoder", "xml.StartElement"], &["error"]),
+		"ReadByte" => (&[], &["byte", "error"]),
+		"ReadFrom" => (&["=io.Reader"], &["int64", "error"]),
+		"ReadRune" => (&[], &["rune", "int", "error"]),
+		"Scan" => (&["=fmt.ScanState", "rune"], &["error"]),
+		"Seek" => (&["=int64", "int"], &["int64", "error"]),
+		"UnmarshalJSON" => (&["[]byte"], &["error"]),
+		"UnmarshalXML" => (&["*xml.Decoder", "xml.StartElement"], &["error"]),
+		"UnreadByte" | "UnreadRune" => (&[], &["error"]),
+		"WriteByte" => (&["byte"], &["error"]),
+		"WriteTo" if params.len() <= 1 => (&["=io.Writer"], &["int64", "error"]),
+		_ => return false,
+	};
+	let alike = |want: &[&str], have: &[&str], exact: bool| {
+		(want.iter().enumerate())
+			.filter(|(_, w)| !exact || w.starts_with('='))
+			.all(|(k, w)| have.get(k).is_some_and(|h| *h == w.trim_start_matches('=')))
+			&& (exact || have.len() <= want.len())
+	};
+	alike(want, params, true)
+		&& alike(got, results, true)
+		&& !(alike(want, params, false) && alike(got, results, false))
+}
+
+/// The Go names of `fields`, one scope's, each [`field_name`], kept apart from each other and
+/// from `taken` as [`abi::named`] keeps them.
+fn field_names(fields: &[crate::ir::Field], taken: &BTreeSet<String>) -> Vec<String> {
+	let rust: Vec<&str> = fields.iter().map(|f| f.name.as_str()).collect();
+	let spelled = rust.iter().map(|name| field_name(name)).collect();
+	abi::named(
+		&rust,
+		spelled,
+		|rust, name| abi::snake(name) == rust,
+		|_, name| taken.contains(name),
+		abi::underscored,
+	)
+}
+
+/// A field's Go name, in Pascal case: a positional one's is `V0`, `V1`, ...
 fn field_name(name: &str) -> String {
 	match name.starts_with(|c: char| c.is_ascii_digit()) {
 		true => format!("V{name}"),
@@ -2845,6 +3849,7 @@ fn local(name: &str) -> String {
 		"context",
 		"errors",
 		"io",
+		"iter",
 		"ctx",
 		"cgo",
 		"math",
@@ -2909,14 +3914,34 @@ fn cgo_field(name: &str) -> String {
 	}
 }
 
-/// Go doc comments holding `docs`, each line indented by `indent`, or nothing for none.
-fn docs(docs: &str, indent: &str) -> String {
-	docs.lines()
-		.map(|line| match line.is_empty() {
-			true => format!("{indent}//\n"),
-			false => format!("{indent}// {line}\n"),
-		})
-		.collect()
+/// `docs`, then a `Deprecated:` paragraph of `deprecated`'s note where it has one.
+fn deprecation(docs: &str, deprecated: Option<&str>) -> String {
+	match deprecated {
+		Some("") => format!("{docs}\n\nDeprecated: Rust deprecates it."),
+		Some(note) => format!("{docs}\n\nDeprecated: {note}"),
+		None => docs.to_string(),
+	}
+}
+
+/// Go doc comments holding `docs`, then a `Deprecated:` paragraph of `deprecated`'s note
+/// where it has one, as Go's tools read it, each line indented by `indent`, or nothing for
+/// none. A fenced block is indented instead, as Go's doc comments set code.
+fn docs(docs: &str, deprecated: Option<&str>, indent: &str) -> String {
+	let docs = deprecation(docs, deprecated);
+	let mut fenced = false;
+	let mut out = String::new();
+	for line in docs.trim().lines() {
+		if line.trim_start().starts_with("```") {
+			fenced = !fenced;
+			continue;
+		}
+		let _ = match (line.is_empty(), fenced) {
+			(true, _) => writeln!(out, "{indent}//"),
+			(false, true) => writeln!(out, "{indent}//\t{line}"),
+			(false, false) => writeln!(out, "{indent}// {line}"),
+		};
+	}
+	out
 }
 
 /// Code indented by one tab more, but for blank lines.
@@ -2945,6 +3970,8 @@ fn package_names_are_locked() {
 		constants: vec![],
 		crates: vec!["lock_foobar".into()],
 		targets: vec!["host".into()],
+		links: Default::default(),
+		profiles: Default::default(),
 		reached: Vec::new(),
 	};
 	let base = api.clone();
@@ -2962,4 +3989,133 @@ fn package_names_are_locked() {
 	);
 	assert_eq!(breaks.len(), 1);
 	assert!(breaks[0].what.contains("its Go name `foobar` is now `foobar_`"));
+}
+
+/// A constant only some of the targets Go links have is in a file only those compile, and
+/// one only a target Go links none of has is in none.
+#[test]
+fn gates_constants_by_build_constraint() {
+	use crate::gate::tests::{LINUX, X64_ANDROID, api};
+	let mut api = api(&[LINUX, X64_ANDROID, ("wasm32-wasip1", "32", "wasm32", "wasi", "p1", "")]);
+	api.crates = vec!["gated".into()];
+	api.links = (api.targets.iter()).map(|t| (t.clone(), vec![])).collect();
+	let constant = |name: &str, on: u64| crate::ir::Constant {
+		path: vec!["gated".into(), name.into()],
+		home: Home {
+			krate: "gated".into(),
+			outside: 1,
+		},
+		span: rustc_span::DUMMY_SP,
+		on: crate::ir::On(on),
+		docs: String::new(),
+		deprecated: None,
+		value: Literal::Bool(true),
+	};
+	api.constants = vec![
+		constant("BOTH", 0b011),
+		constant("LINUX", 0b001),
+		constant("ANDROID", 0b010),
+		constant("ALSO_ANDROID", 0b110),
+		constant("WASM", 0b100),
+	];
+	let output = generate(&Abi::new(&api, "gated"), "gated", 0, "gated").unwrap();
+	let file = |path: &str| &output.files.iter().find(|(p, _)| p == path).expect(path).1;
+	let main = file("gated/gated.go");
+	assert!(
+		main.contains("const BOTH bool = true") && !main.contains("const LINUX"),
+		"{main}"
+	);
+	assert!(!main.contains("WASM"), "{main}");
+	let linux = file("gated/ffi_gated0.go");
+	assert!(
+		linux.contains("//go:build (linux && !android)\n\npackage gated\n"),
+		"{linux}"
+	);
+	assert!(
+		linux.contains("const LINUX bool = true") && !linux.contains("ANDROID"),
+		"{linux}"
+	);
+	let android = file("gated/ffi_gated1.go");
+	assert!(android.contains("//go:build android\n"), "{android}");
+	assert!(
+		android.contains("const ANDROID bool = true") && android.contains("const ALSO_ANDROID bool = true"),
+		"{android}"
+	);
+	assert!(!output.files.iter().any(|(p, _)| p == "gated/ffi_gated2.go"));
+}
+
+#[test]
+fn links_each_target_go_builds_for() {
+	let targets = [
+		"aarch64-apple-darwin",
+		"aarch64-apple-ios",
+		"aarch64-linux-android",
+		"wasm32-wasip1",
+		"x86_64-linux-android",
+		"x86_64-pc-windows-gnu",
+		"x86_64-pc-windows-msvc",
+	];
+	let api = crate::ir::Api {
+		records: vec![],
+		enums: vec![],
+		objects: vec![],
+		callbacks: vec![],
+		functions: vec![],
+		constants: vec![],
+		crates: vec!["lock".into()],
+		targets: targets.map(String::from).to_vec(),
+		reached: Vec::new(),
+		links: (targets.iter())
+			.filter(|t| **t != "wasm32-wasip1")
+			.map(|t| (t.to_string(), vec![format!("-l{}", &t[..3])]))
+			.chain([("x86_64-linux-android".to_string(), vec!["-ldl".into(), "-llog".into()])])
+			.collect(),
+		profiles: Default::default(),
+	};
+	let (lines, platform) = link(&Abi::new(&api, "lock")).unwrap();
+	// iOS also satisfies `darwin`; MSVC's library is none Go links; wasm32 runs no cgo.
+	// Android's ends with the glue's log, which rustc does not repeat.
+	assert_eq!(
+		lines,
+		"#cgo darwin,!ios,arm64 LDFLAGS: ${SRCDIR}/liblock_darwin_arm64.a -laar\n\
+		#cgo ios,arm64 LDFLAGS: ${SRCDIR}/liblock_ios_arm64.a -laar\n\
+		#cgo android,amd64 LDFLAGS: ${SRCDIR}/liblock_android_amd64.a -ldl -llog\n\
+		#cgo android,arm64 LDFLAGS: ${SRCDIR}/liblock_android_arm64.a -laar -llog\n\
+		#cgo windows,amd64 LDFLAGS: ${SRCDIR}/liblock_windows_amd64.a -lx86\n"
+	);
+	assert!(
+		platform.contains(
+			"//go:build !(darwin && !ios && arm64 || ios && arm64 || android && amd64 || android && arm64 || windows && amd64)\n"
+		),
+		"{platform}"
+	);
+	let mut stale = api.clone();
+	stale.links.clear();
+	assert!(
+		link(&Abi::new(&stale, "lock"))
+			.unwrap_err()
+			.contains("aarch64-apple-darwin")
+	);
+}
+
+#[test]
+fn vet_reads_standard_methods_as_its_check_does() {
+	// untrusted's `Reader::read_byte`: Go's `byte` is spelled `uint8` here, which vet tells apart.
+	assert!(vetted("ReadByte", &[], &["uint8", "error"], false));
+	assert!(!vetted("ReadByte", &[], &["byte", "error"], false));
+	assert!(!vetted("UnreadByte", &[], &["error"], false));
+	// anyhow's `Error::is`, checked only on an `error`.
+	assert!(vetted("Is", &[], &["bool", "error"], true));
+	assert!(!vetted("Is", &[], &["bool", "error"], false));
+	assert!(!vetted("Is", &["error"], &["bool"], true));
+	assert!(vetted("Unwrap", &[], &["uint8"], true));
+	assert!(!vetted("Unwrap", &[], &["[]error"], true));
+	// A `=` type that differs leaves the rest unchecked.
+	assert!(!vetted("Seek", &["uint64"], &[], false));
+	assert!(vetted("Seek", &["int64"], &[], false));
+	assert!(!vetted("Format", &[], &[], false));
+	// `WriteTo` of more than one argument implements nothing.
+	assert!(!vetted("WriteTo", &["uint8", "uint8"], &[], false));
+	assert!(vetted("GobEncode", &["uint8"], &["[]byte", "error"], false));
+	assert!(!vetted("Read", &[], &[], false));
 }

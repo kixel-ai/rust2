@@ -26,6 +26,7 @@ fn tsconfig(files: &[String]) -> String {
 		r#"{{
 	"compilerOptions": {{
 		"strict": true,
+		"noImplicitOverride": true,
 		"noEmit": true,
 		"pretty": false,
 		"target": "es2022",
@@ -47,7 +48,7 @@ fn tsconfig(files: &[String]) -> String {
 
 /// Type-check the translation in `out`, whose modules `written` holds as printed,
 /// reporting each error at the Rust it maps to, and then removing the translation.
-pub fn typecheck(tcx: TyCtxt<'_>, program: &Program, out: &Path, written: &[(PathBuf, Printed)]) {
+pub(crate) fn typecheck(tcx: TyCtxt<'_>, program: &Program, out: &Path, written: &[(PathBuf, Printed)]) {
 	if written.is_empty() && program.checks.is_empty() {
 		return;
 	}

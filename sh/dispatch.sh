@@ -1,10 +1,12 @@
 #!/usr/bin/env bash
 # Run `just check`, `just test`, or `just ci` over the modules the branch changed
 # since BASE: the queue's explicit argument, the fixer's QUEST_LAND_BASE, or origin/main.
-# --all runs every module. --query prints the selected modules instead.
+# --all runs every module, and --only=MODULE,... the named ones, as a CI job given its
+# share of a selection does. --paths takes the changed paths on stdin, one per line,
+# as sh/coverage.py asks of one path. --query prints the selected modules instead.
 set -euo pipefail
 
-usage="usage: sh/dispatch.sh check|test|ci [BASE|--all] [--query]"
+usage="usage: sh/dispatch.sh check|test|ci [BASE|--all|--only=MODULE,...|--paths] [--query]"
 action=${1:-}
 base=${2:-}
 query=${3:-}
@@ -19,53 +21,87 @@ fi
 
 cd "$(git rev-parse --show-toplevel)"
 
+# What every `just` reads as it loads the root justfile: each module's justfile, and
+# the manifest ts's reads its moq pin from.
+justs='(ffi|go|ts|driver)/justfile$|ts/fixtures/model/Cargo\.toml$'
 # The impact map: a module runs when a changed path matches its pattern. An
 # empty pattern runs on every diff.
 declare -A scope=(
     [lint]=''
-    [quest]='^quest/'
-    [sh]='^sh/dispatch\.test\.py$'
-    [crabx]='^crabx/'
+    # quest check reads the quest skills' stubs, the docs, and every path a quest links to,
+    # which any diff can move, in about a second.
+    [quest]=''
+    [sh]='^sh/(dispatch|coverage)\.test\.py$'
+    # The release builder's scripts, which only their own tests and the release run.
+    [release]='^ffi/release/'
     # The driver and ffi link ts's toolchain, and both of the others build on
     # the driver's front end.
-    [driver]='^(driver/|ts/rust-toolchain\.toml$)'
-    [ffi]='^(ffi/|driver/|ts/rust-toolchain\.toml$)'
+    [driver]="^(driver/|ts/rust-toolchain\\.toml$|$justs)"
+    [ffi]="^(ffi/|driver/|ts/rust-toolchain\\.toml$|$justs)"
     # The parked go translator runs on its own diff only; its shared inputs
     # (the driver, ts's toolchain and codec fixture) reach it in the nightly's
     # `just gate`, whose failure issue reports a break.
     [go]='^go/'
-    [ts]='^(ts|driver)/'
+    [ts]="^((ts|driver)/|$justs)"
 )
-# Cheapest first, so a lint fails before the builds start.
-modules=(lint quest sh crabx driver ffi go ts)
+# A path a module's pattern matches that it never reads, since another module owns it.
+declare -A except=(
+    [ffi]='^ffi/release/'
+)
+# Cheapest first, so within one run a lint fails before the builds start.
+modules=(lint quest sh release driver ffi go ts)
 
-# Paths that only the repository-wide lints read.
-lints='^(bench/|\.agents/|\.claude/|\.codex/|[^/]+\.md$|LICENSE-|\.(editorconfig|gitattributes|gitignore|taplo\.toml)$)'
+# Paths that only the modules every diff runs read, lint and quest, as sh/coverage.py
+# checks: among them the quests, and prose no build or test reads. A crate's README is
+# not, since cargo looks for one, and neither are .gitignore and .gitattributes, which git reads.
+lints='^(quest/|bench/(build|ffi)/|\.agents/|\.claude/|\.codex/|[^/]+\.md$|LICENSE-|\.(editorconfig|taplo\.toml)$|ffi/(FACADE|release/README)\.md$)'
 
 selected=()
 if [[ "$base" == --all ]]; then
     selected=("${modules[@]}")
+elif [[ "$base" == --only=* ]]; then
+    only=${base#--only=}
+    if [[ ! "$only" =~ ^[a-z]+(,[a-z]+)*$ ]]; then
+        echo "error: --only takes a comma-separated list of: ${modules[*]}" >&2
+        exit 2
+    fi
+    for module in ${only//,/ }; do
+        if [[ -z "${scope[$module]+set}" ]]; then
+            echo "error: no module named '$module'; the modules are ${modules[*]}" >&2
+            exit 2
+        fi
+    done
+    # The map's order, so a lint in the list still runs before its builds.
+    for module in "${modules[@]}"; do
+        [[ ",$only," != *",$module,"* ]] || selected+=("$module")
+    done
 else
-    base=${base:-${QUEST_LAND_BASE:-origin/main}}
-    merge_base=$(git merge-base "$base" HEAD) || {
-        echo "error: cannot resolve a merge base with $base; pass BASE, or run \`just gate\`" >&2
-        exit 1
-    }
-    echo "$action: changes since $base" >&2
-    # Untracked files count, so a new file selects its module, and a rename
-    # lists both sides, since a reader of the old path is affected too.
-    changed=$({
-        git diff --name-only --no-renames "$merge_base"
-        git ls-files --others --exclude-standard
-    } | sort -u)
+    if [[ "$base" == --paths ]]; then
+        changed=$(grep . | sort -u || true)
+    else
+        base=${base:-${QUEST_LAND_BASE:-origin/main}}
+        merge_base=$(git merge-base "$base" HEAD) || {
+            echo "error: cannot resolve a merge base with $base; pass BASE, or run \`just gate\`" >&2
+            exit 1
+        }
+        echo "$action: changes since $base" >&2
+        # Untracked files count, so a new file selects its module, and a rename
+        # lists both sides, since a reader of the old path is affected too.
+        changed=$({
+            git diff --name-only --no-renames "$merge_base"
+            git ls-files --others --exclude-standard
+        } | sort -u)
+    fi
+    # What only the modules every diff runs read selects no other.
+    changed=$(grep -vE "$lints" <<<"$changed" || true)
 
     # A path no module claims is a shared input, such as the flake, a
     # toolchain, the root justfile, .github, or this map, so it selects
     # every module but the parked go, which only its own diff selects. A new
     # project selects everything until it is mapped.
-    claimed=$lints
+    claimed=''
     for module in "${modules[@]}"; do
-        [[ -z "${scope[$module]}" ]] || claimed+="|${scope[$module]}"
+        [[ -z "${scope[$module]}" ]] || claimed+="${claimed:+|}${scope[$module]}"
     done
     shared=$(grep -vE "$claimed" <<<"$changed" | grep . || true)
     if [[ -n "$shared" ]]; then
@@ -79,7 +115,9 @@ else
     else
         for module in "${modules[@]}"; do
             pattern=${scope[$module]}
-            if [[ -z "$pattern" ]] || grep -qE "$pattern" <<<"$changed"; then
+            ours=$changed
+            [[ -z "${except[$module]+set}" ]] || ours=$(grep -vE "${except[$module]}" <<<"$changed" || true)
+            if [[ -z "$pattern" ]] || grep -qE "$pattern" <<<"$ours"; then
                 selected+=("$module")
             fi
         done
@@ -91,10 +129,9 @@ if [[ -n "$query" ]]; then
     exit
 fi
 
-scripts=(bench/*/*.sh sh/*.sh)
-
 # One function per module and phase; a module skips a phase it has none for.
 check_lint() {
+    local scripts=(bench/*/*.sh ffi/release/*.sh sh/*.sh)
     actionlint
     shellcheck "${scripts[@]}"
     shfmt -d "${scripts[@]}"
@@ -102,18 +139,27 @@ check_lint() {
     nixfmt --check flake.nix
 }
 check_quest() { quest check; }
-check_crabx() { just crabx check; }
 check_driver() { just driver check; }
 check_ffi() { just ffi check; }
 check_go() { just go check; }
 check_ts() { just ts check; }
-test_lint() { python3 -I .github/crabx/test_pipeline.py; }
-test_sh() { python3 -I sh/dispatch.test.py; }
-test_crabx() { just crabx test; }
+test_sh() {
+    python3 -I sh/dispatch.test.py
+    python3 -I sh/coverage.test.py
+}
+test_release() { python3 -I ffi/release/test_package.py; }
 test_driver() { just driver test; }
-# moq's export at the pin, cut down to C, before the slower test build.
+# moq's export at the pin, cut down to C, and every binding's rendered API, which the
+# surface files lock on x86_64 Linux, the queue's runners, before the slower test build.
 test_ffi() {
-    just ffi moq-c
+    python3 -I ffi/surface/test_surface.py
+    if [[ "$(uname -sm)" == "Linux x86_64" ]]; then
+        # One invocation, so the export both read runs once: moq-c's checkout comes first.
+        just ffi::moq-c '' ffi::surface --check
+    else
+        echo "test: the surface files are x86_64 Linux's exports, which the queue checks" >&2
+        just ffi moq-c
+    fi
     just ffi test
 }
 test_go() { just go test; }
@@ -123,7 +169,7 @@ test_ts() {
     just ts test
 }
 
-# Every check runs before any test, so a lint fails before the test builds.
+# Every check runs before any test, so within one run a lint fails before the test builds.
 case "$action" in
     check | test) phases=("$action") ;;
     ci) phases=(check test) ;;

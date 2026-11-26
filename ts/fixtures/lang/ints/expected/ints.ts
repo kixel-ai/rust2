@@ -2,10 +2,10 @@
 
 import * as rs from "./rs.ts";
 import { toDigit$14z95r4 } from "./core/char/methods.ts";
-import { fromStr$1el0yvy as num_fromStr$1el0yvy, fromStr$0ehcbzz as num_fromStr$0ehcbzz, fromStr$1ckv470 as num_fromStr$1ckv470, fromStr$00n8jbp as num_fromStr$00n8jbp, fromStr$1amqoj7 as num_fromStr$1amqoj7, fromStr$0ytcpik as num_fromStr$0ytcpik, fromStrRadix$0cysu2u as num_fromStrRadix$0cysu2u, fromStrRadix$19vdb8q as num_fromStrRadix$19vdb8q, fromStrRadix$1ct8u92 as num_fromStrRadix$1ct8u92, fromStrRadix$04fc4zz as num_fromStrRadix$04fc4zz, fromStrRadix$0qyezqs as num_fromStrRadix$0qyezqs, fromStrRadix$1nys6eo as num_fromStrRadix$1nys6eo, fromStr$0ihvy10 as num_fromStr$0ihvy10, fromStr$1gvvety as num_fromStr$1gvvety, fromStr$1rjp7t4 as num_fromStr$1rjp7t4, fromStr$0bkyuqf as num_fromStr$0bkyuqf, fromStr$1t58fis as num_fromStr$1t58fis, fromStr$1jgkxdq as num_fromStr$1jgkxdq, fromStrRadix$09i2k2a as num_fromStrRadix$09i2k2a, fromStrRadix$1wu02v6 as num_fromStrRadix$1wu02v6, fromStrRadix$1ftrr55 as num_fromStrRadix$1ftrr55, fromStrRadix$0al5jri as num_fromStrRadix$0al5jri, fromStrRadix$1osjin2 as num_fromStrRadix$1osjin2, fromStrRadix$1479ec4 as num_fromStrRadix$1479ec4 } from "./core/num.ts";
+import { fromStr$1el0yvy as num_fromStr$1el0yvy, fromStr$0ehcbzz as num_fromStr$0ehcbzz, fromStr$1ckv470 as num_fromStr$1ckv470, fromStr$00n8jbp as num_fromStr$00n8jbp, fromStr$1amqoj7 as num_fromStr$1amqoj7, fromStr$0ytcpik as num_fromStr$0ytcpik, fromStrRadix$0cysu2u as num_fromStrRadix$0cysu2u, fromStrRadix$19vdb8q as num_fromStrRadix$19vdb8q, fromStrRadix$1ct8u92 as num_fromStrRadix$1ct8u92, fromStrRadix$04fc4zz as num_fromStrRadix$04fc4zz, fromStrRadix$0qyezqs as num_fromStrRadix$0qyezqs, fromStrRadix$1nys6eo as num_fromStrRadix$1nys6eo, fromStr$0ihvy10 as num_fromStr$0ihvy10, fromStr$1gvvety as num_fromStr$1gvvety, fromStr$1rjp7t4 as num_fromStr$1rjp7t4, fromStr$1qo2o4i as num_fromStr$1qo2o4i, fromStr$1t58fis as num_fromStr$1t58fis, fromStr$1jgkxdq as num_fromStr$1jgkxdq, fromStrRadix$09i2k2a as num_fromStrRadix$09i2k2a, fromStrRadix$1wu02v6 as num_fromStrRadix$1wu02v6, fromStrRadix$1ftrr55 as num_fromStrRadix$1ftrr55, fromStrRadix$0vgyhkt as num_fromStrRadix$0vgyhkt, fromStrRadix$1osjin2 as num_fromStrRadix$1osjin2, fromStrRadix$1479ec4 as num_fromStrRadix$1479ec4 } from "./core/num.ts";
 import { isSomeAnd$1s2u5lz, unwrapOr$1b5hww3 as option_unwrapOr$1b5hww3, unwrapOr$1fr498u as option_unwrapOr$1fr498u } from "./core/option.ts";
 import { eq$1o2c9h9 as result_eq$1o2c9h9, eq$0zqqsur as result_eq$0zqqsur, eq$0f4q5sk as result_eq$0f4q5sk, eq$12fysd9 as result_eq$12fysd9, eq$0g4cq9b as result_eq$0g4cq9b, eq$0a3yvnt as result_eq$0a3yvnt, eq$04o4aqp as result_eq$04o4aqp, eq$06v73px as result_eq$06v73px, eq$08c3ca7 as result_eq$08c3ca7, eq$07qa6jl as result_eq$07qa6jl, eq$0qlnrz6 as result_eq$0qlnrz6, eq$1nxe4h7 as result_eq$1nxe4h7, unwrapOr$0a3q6xs as result_unwrapOr$0a3q6xs, unwrapOr$09f0got as result_unwrapOr$09f0got, unwrapOr$0z0v7fv as result_unwrapOr$0z0v7fv } from "./core/result.ts";
-import { parse$1kyj9pm, parse$00ajhlu, parse$14v13am, parse$0px1msj, parse$02m1946, parse$1g90yxu, parse$11owssr, parse$0un0sth, parse$069xxen, parse$092epd5, parse$1brosjp, parse$07zoymb } from "./core/str.ts";
+import { parse$1kyj9pm, parse$00ajhlu, parse$14v13am, parse$0px1msj, parse$02m1946, parse$1g90yxu, parse$11owssr, parse$0un0sth, parse$069xxen, parse$1p8sskw, parse$1brosjp, parse$07zoymb } from "./core/str.ts";
 import { put } from "./harness.ts";
 import * as Scaled from "./ints.Scaled.ts";
 
@@ -804,7 +804,8 @@ export function u64Op(op: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		dst.data[pos + 14] = (word2 >>> 8) & 255;
 		dst.data[pos + 15] = word2 & 255;
 		dst.length = dst.length + 16;
-		rs.byteVecPush(out2, rs.u64Eq(rs.u64FromBeBytes(rs.u64ToBeBytes(v3)), v3) ? 1 : 0);
+		const _124: rs.u64 = rs.u64FromBeBytes(rs.u64ToBeBytes(v3));
+		rs.byteVecPush(out2, (typeof _124 === "number" && typeof v3 === "number" ? _124 === v3 : rs.u64Eq(_124, v3)) ? 1 : 0);
 	};
 	const _69: (a0: rs.ByteVec, a1: rs.u64 | undefined) => undefined = (out3: rs.ByteVec, v4: rs.u64 | undefined): undefined => {
 		if (v4 === undefined) {
@@ -841,9 +842,9 @@ export function u64Op(op: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	};
 	const _70: rs.u8 = rs.u8Rem(op, 32);
 	if (_70 === 0) {
-		_68(out, rs.u64Add(a, b));
+		_68(out, (typeof a === "number" && typeof b === "number" && a + b <= 9007199254740991 ? a + b : rs.u64Add(a, b)) as rs.u64);
 	} else if (_70 === 1) {
-		_68(out, rs.u64Sub(a, b));
+		_68(out, (typeof a === "number" && typeof b === "number" && a - b >= 0 ? a - b : rs.u64Sub(a, b)) as rs.u64);
 	} else if (_70 === 2) {
 		_68(out, rs.u64Mul(a, b));
 	} else if (_70 === 3) {
@@ -878,10 +879,10 @@ export function u64Op(op: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		const part12 = rs.u64SaturatingSub(a, b);
 		_68(out, part12);
 	} else if (_70 === 16) {
-		const part11 = rs.u64WrappingAdd(a, b);
+		const part11 = (typeof a === "number" && typeof b === "number" && a + b <= 9007199254740991 ? a + b : rs.u64WrappingAdd(a, b)) as rs.u64;
 		_68(out, part11);
 	} else if (_70 === 17) {
-		const part10 = rs.u64WrappingSub(a, b);
+		const part10 = (typeof a === "number" && typeof b === "number" && a - b >= 0 ? a - b : rs.u64WrappingSub(a, b)) as rs.u64;
 		_68(out, part10);
 	} else if (_70 === 18) {
 		const dst3 = out;
@@ -908,14 +909,14 @@ export function u64Op(op: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	} else if (_70 === 21) {
 		_68(out, rs.u64Min(a, b));
 	} else if (_70 === 22) {
-		rs.byteVecPush(out, rs.u64Eq(a, b) ? 1 : 0);
-		rs.byteVecPush(out, rs.u64Lt(a, b) ? 1 : 0);
-		rs.byteVecPush(out, rs.u64Ge(a, b) ? 1 : 0);
-		rs.byteVecPush(out, rs.u64WrappingSub(a, b) === 0 ? 1 : 0);
+		rs.byteVecPush(out, (typeof a === "number" && typeof b === "number" ? a === b : rs.u64Eq(a, b)) ? 1 : 0);
+		rs.byteVecPush(out, (typeof a === "number" && typeof b === "number" ? a < b : rs.u64Lt(a, b)) ? 1 : 0);
+		rs.byteVecPush(out, (typeof a === "number" && typeof b === "number" ? a >= b : rs.u64Ge(a, b)) ? 1 : 0);
+		rs.byteVecPush(out, ((typeof a === "number" && typeof b === "number" && a - b >= 0 ? a - b : rs.u64WrappingSub(a, b)) as rs.u64) === 0 ? 1 : 0);
 	} else if (_70 === 23) {
-		const x: rs.u64 = rs.u64Add(a, b);
+		const x: rs.u64 = (typeof a === "number" && typeof b === "number" && a + b <= 9007199254740991 ? a + b : rs.u64Add(a, b)) as rs.u64;
 		rs.u64Mul(x, b);
-		rs.u64Mul(rs.u64Sub(x, b), a);
+		rs.u64Mul((typeof x === "number" && typeof b === "number" && x - b >= 0 ? x - b : rs.u64Sub(x, b)) as rs.u64, a);
 		rs.byteVecPush(out, 1);
 	} else if (_70 === 24) {
 		const part7 = rs.u64SaturatingMul(a, b);
@@ -996,8 +997,8 @@ export function u64Op(op: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		}
 	} else {
 		let x2: rs.u64 = a;
-		x2 = rs.u64Add(x2, b);
-		x2 = rs.u64Sub(x2, 1);
+		x2 = (typeof x2 === "number" && typeof b === "number" && x2 + b <= 9007199254740991 ? x2 + b : rs.u64Add(x2, b)) as rs.u64;
+		x2 = (typeof x2 === "number" && x2 - 1 >= 0 ? x2 - 1 : rs.u64Sub(x2, 1)) as rs.u64;
 		x2 = rs.u64Mul(x2, 2);
 		x2 = rs.u64Shr(x2, 1);
 		x2 = rs.u64Shl(x2, 1);
@@ -1055,7 +1056,8 @@ export function u128Op(op: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		dst.data[pos + 14] = (word2 >>> 8) & 255;
 		dst.data[pos + 15] = word2 & 255;
 		dst.length = dst.length + 16;
-		rs.byteVecPush(out2, rs.u128Eq(rs.u128FromBeBytes(rs.u128ToBeBytes(v3)), v3) ? 1 : 0);
+		const _112: rs.u128 = rs.u128FromBeBytes(rs.u128ToBeBytes(v3));
+		rs.byteVecPush(out2, (typeof _112 === "number" && typeof v3 === "number" ? _112 === v3 : rs.u128Eq(_112, v3)) ? 1 : 0);
 	};
 	const _69: (a0: rs.ByteVec, a1: rs.u128 | undefined) => undefined = (out3: rs.ByteVec, v4: rs.u128 | undefined): undefined => {
 		if (v4 === undefined) {
@@ -1158,9 +1160,9 @@ export function u128Op(op: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	} else if (_70 === 21) {
 		_68(out, rs.u128Min(a, b));
 	} else if (_70 === 22) {
-		rs.byteVecPush(out, rs.u128Eq(a, b) ? 1 : 0);
-		rs.byteVecPush(out, rs.u128Lt(a, b) ? 1 : 0);
-		rs.byteVecPush(out, rs.u128Ge(a, b) ? 1 : 0);
+		rs.byteVecPush(out, (typeof a === "number" && typeof b === "number" ? a === b : rs.u128Eq(a, b)) ? 1 : 0);
+		rs.byteVecPush(out, (typeof a === "number" && typeof b === "number" ? a < b : rs.u128Lt(a, b)) ? 1 : 0);
+		rs.byteVecPush(out, (typeof a === "number" && typeof b === "number" ? a >= b : rs.u128Ge(a, b)) ? 1 : 0);
 		rs.byteVecPush(out, rs.u128WrappingSub(a, b) === 0 ? 1 : 0);
 	} else if (_70 === 23) {
 		const x: rs.u128 = rs.u128Add(a, b);
@@ -2305,7 +2307,8 @@ export function i64Op(op: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		dst.data[pos + 14] = (word2 >>> 8) & 255;
 		dst.data[pos + 15] = word2 & 255;
 		dst.length = dst.length + 16;
-		rs.byteVecPush(out2, rs.i64Eq(rs.i64FromBeBytes(rs.i64ToBeBytes(v3)), v3) ? 1 : 0);
+		const _124: rs.i64 = rs.i64FromBeBytes(rs.i64ToBeBytes(v3));
+		rs.byteVecPush(out2, (typeof _124 === "number" && typeof v3 === "number" ? _124 === v3 : rs.i64Eq(_124, v3)) ? 1 : 0);
 	};
 	const _69: (a0: rs.ByteVec, a1: rs.i64 | undefined) => undefined = (out3: rs.ByteVec, v4: rs.i64 | undefined): undefined => {
 		if (v4 === undefined) {
@@ -2409,9 +2412,9 @@ export function i64Op(op: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	} else if (_70 === 21) {
 		_68(out, rs.i64Min(a, b));
 	} else if (_70 === 22) {
-		rs.byteVecPush(out, rs.i64Eq(a, b) ? 1 : 0);
-		rs.byteVecPush(out, rs.i64Lt(a, b) ? 1 : 0);
-		rs.byteVecPush(out, rs.i64Ge(a, b) ? 1 : 0);
+		rs.byteVecPush(out, (typeof a === "number" && typeof b === "number" ? a === b : rs.i64Eq(a, b)) ? 1 : 0);
+		rs.byteVecPush(out, (typeof a === "number" && typeof b === "number" ? a < b : rs.i64Lt(a, b)) ? 1 : 0);
+		rs.byteVecPush(out, (typeof a === "number" && typeof b === "number" ? a >= b : rs.i64Ge(a, b)) ? 1 : 0);
 		rs.byteVecPush(out, rs.i64WrappingSub(a, b) === 0 ? 1 : 0);
 	} else if (_70 === 23) {
 		const x: rs.i64 = rs.i64Add(a, b);
@@ -2556,7 +2559,8 @@ export function i128Op(op: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		dst.data[pos + 14] = (word2 >>> 8) & 255;
 		dst.data[pos + 15] = word2 & 255;
 		dst.length = dst.length + 16;
-		rs.byteVecPush(out2, rs.i128Eq(rs.i128FromBeBytes(rs.i128ToBeBytes(v3)), v3) ? 1 : 0);
+		const _115: rs.i128 = rs.i128FromBeBytes(rs.i128ToBeBytes(v3));
+		rs.byteVecPush(out2, (typeof _115 === "number" && typeof v3 === "number" ? _115 === v3 : rs.i128Eq(_115, v3)) ? 1 : 0);
 	};
 	const _69: (a0: rs.ByteVec, a1: rs.i128 | undefined) => undefined = (out3: rs.ByteVec, v4: rs.i128 | undefined): undefined => {
 		if (v4 === undefined) {
@@ -2659,9 +2663,9 @@ export function i128Op(op: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	} else if (_70 === 21) {
 		_68(out, rs.i128Min(a, b));
 	} else if (_70 === 22) {
-		rs.byteVecPush(out, rs.i128Eq(a, b) ? 1 : 0);
-		rs.byteVecPush(out, rs.i128Lt(a, b) ? 1 : 0);
-		rs.byteVecPush(out, rs.i128Ge(a, b) ? 1 : 0);
+		rs.byteVecPush(out, (typeof a === "number" && typeof b === "number" ? a === b : rs.i128Eq(a, b)) ? 1 : 0);
+		rs.byteVecPush(out, (typeof a === "number" && typeof b === "number" ? a < b : rs.i128Lt(a, b)) ? 1 : 0);
+		rs.byteVecPush(out, (typeof a === "number" && typeof b === "number" ? a >= b : rs.i128Ge(a, b)) ? 1 : 0);
 		rs.byteVecPush(out, rs.i128WrappingSub(a, b) === 0 ? 1 : 0);
 	} else if (_70 === 23) {
 		const x: rs.i128 = rs.i128Add(a, b);
@@ -5524,9 +5528,19 @@ export function succ(s: string, radix: rs.u32): rs.String {
 			break;
 		}
 		const d: rs.Place<rs.u8> = _11;
-		const next: rs.usize = rs.usizeAdd(rs.optionUnwrap(rs.iterPosition(rs.iterSlice(rs.byteSliceView(rs.byteSliceFrom(Uint8Array.of(48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122)))), (c: rs.u8): boolean => {
-			return c === d.v;
-		})), 1);
+		const s2 = rs.byteSliceView(rs.byteSliceFrom(Uint8Array.of(48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122)));
+		let front = 0;
+		let back = s2.length;
+		let i = 0;
+		let at: number | undefined = undefined;
+		while (!(front >= back)) {
+			if (s2[front++] === d.v) {
+				at = i;
+				break;
+			}
+			i++;
+		}
+		const next: rs.usize = rs.usizeAdd(rs.optionUnwrap(at), 1);
 		if (!(next < (radix as rs.usize))) {
 			d.v = 48;
 		} else {
@@ -5560,14 +5574,14 @@ export function edges(max: rs.u128, min: rs.u128, bits: rs.usize, radix: rs.u32)
 	}), undefined, true);
 	const _53: rs.String[] = [rs.fmtFormat(["-", (f: rs.Formatter) => rs.fmtPad(f, top.v)]), rs.fmtFormat(["000", (f: rs.Formatter) => rs.fmtPad(f, past.v)]), rs.resultUnwrap(rs.stringFromUtf8(upper), rs.fmtFromUtf8ErrorDebug)];
 	rs.iterExtend(all, rs.iterSlice(_53), undefined, 12, true);
-	if (rs.u128Gt(min, 0)) {
+	if (typeof min === "number" ? min > 0 : rs.u128Gt(min, 0)) {
 		const _77: [rs.String, rs.String] = [digits(min, radix), succ(digits(min, radix).v, radix)];
 		const bottom: rs.String = _77[0];
 		const below: rs.String = _77[1];
 		const _85: rs.String[] = [rs.fmtFormat(["-", (f: rs.Formatter) => rs.fmtPad(f, bottom.v)]), rs.fmtFormat(["-", (f: rs.Formatter) => rs.fmtPad(f, below.v)]), rs.fmtFormat(["-000", (f: rs.Formatter) => rs.fmtPad(f, bottom.v)]), rs.fmtFormat(["-00", (f: rs.Formatter) => rs.fmtPad(f, below.v)])];
 		rs.iterExtend(all, rs.iterSlice(_85), undefined, 12, true);
 	}
-	const unchecked: rs.usize = rs.usizeSub(rs.usizeDiv(bits, 4), rs.u128Gt(min, 0) ? 1 : 0);
+	const unchecked: rs.usize = rs.usizeSub(rs.usizeDiv(bits, 4), (typeof min === "number" ? min > 0 : rs.u128Gt(min, 0)) ? 1 : 0);
 	const _131: rs.usize = rs.usizeSub(radix as rs.usize, 1);
 	if (!(_131 < 36)) {
 		rs.panic("index out of bounds: the len is " + 36 + " but the index is " + _131);
@@ -6466,7 +6480,7 @@ export function parses(kind: rs.u8, dataData: Uint8Array, dataStart: number, dat
 						dst7.length = dst7.length + 4;
 					}
 					const radix23: rs.u32 = radix22;
-					const _1162: rs.Result<rs.u64, rs.ParseIntError> = num_fromStrRadix$0al5jri(_1141.value, radix23);
+					const _1162: rs.Result<rs.u64, rs.ParseIntError> = num_fromStrRadix$0vgyhkt(_1141.value, radix23);
 					if (_1162.ok) {
 						const arg36 = _1162.value;
 						put(out, rs.fmtFormat([(f: rs.Formatter) => rs.u64Display(arg36, f)]).v);
@@ -6494,8 +6508,8 @@ export function parses(kind: rs.u8, dataData: Uint8Array, dataStart: number, dat
 						put(out, rs.fmtFormat([args263[0], "|", args263[1], "|", args263[2], "|", rs.fmtSpec({ align: ">", width: 42 }, args263[0]), "|", rs.fmtSpec({ align: "<", width: 3, precision: 5 }, args263[0]), "|", args263[3], "|", args263[4]]).v);
 					}
 					if (radix23 === 10) {
-						const parsed13: rs.Result<rs.u64, rs.ParseIntError> = parse$092epd5(_1141.value);
-						const from13: rs.Result<rs.u64, rs.ParseIntError> = num_fromStr$0bkyuqf(_1141.value);
+						const parsed13: rs.Result<rs.u64, rs.ParseIntError> = parse$1p8sskw(_1141.value);
+						const from13: rs.Result<rs.u64, rs.ParseIntError> = num_fromStr$1qo2o4i(_1141.value);
 						if (from13.ok) {
 							max13 = rs.u8Mul(rs.u64Eq(from13.value, { hi: 0xffffffff, lo: 0xffffffff } as rs.u64) ? 1 : 0, 4);
 						} else {
@@ -6514,7 +6528,7 @@ export function parses(kind: rs.u8, dataData: Uint8Array, dataStart: number, dat
 				}
 				const _1250: string = s7.v;
 				const radix24: rs.u32 = radix22;
-				const _1253: rs.Result<rs.u64, rs.ParseIntError> = num_fromStrRadix$0al5jri(_1250, radix24);
+				const _1253: rs.Result<rs.u64, rs.ParseIntError> = num_fromStrRadix$0vgyhkt(_1250, radix24);
 				if (_1253.ok) {
 					const arg35 = _1253.value;
 					put(out, rs.fmtFormat([(f: rs.Formatter) => rs.u64Display(arg35, f)]).v);
@@ -6542,8 +6556,8 @@ export function parses(kind: rs.u8, dataData: Uint8Array, dataStart: number, dat
 					put(out, rs.fmtFormat([args261[0], "|", args261[1], "|", args261[2], "|", rs.fmtSpec({ align: ">", width: 42 }, args261[0]), "|", rs.fmtSpec({ align: "<", width: 3, precision: 5 }, args261[0]), "|", args261[3], "|", args261[4]]).v);
 				}
 				if (radix24 === 10) {
-					const parsed14: rs.Result<rs.u64, rs.ParseIntError> = parse$092epd5(_1250);
-					const from14: rs.Result<rs.u64, rs.ParseIntError> = num_fromStr$0bkyuqf(_1250);
+					const parsed14: rs.Result<rs.u64, rs.ParseIntError> = parse$1p8sskw(_1250);
+					const from14: rs.Result<rs.u64, rs.ParseIntError> = num_fromStr$1qo2o4i(_1250);
 					if (from14.ok) {
 						max14 = rs.u8Mul(rs.u64Eq(from14.value, { hi: 0xffffffff, lo: 0xffffffff } as rs.u64) ? 1 : 0, 4);
 					} else {
@@ -6562,7 +6576,7 @@ export function parses(kind: rs.u8, dataData: Uint8Array, dataStart: number, dat
 					for (const _1329 of edges({ hi: 0, w2: 0, w1: 0xffffffff, lo: 0xffffffff } as rs.u128, 0, 64, radix25).items) {
 						const _1337: string = _1329.v;
 						const radix26: rs.u32 = radix25;
-						const _1340: rs.Result<rs.u64, rs.ParseIntError> = num_fromStrRadix$0al5jri(_1337, radix26);
+						const _1340: rs.Result<rs.u64, rs.ParseIntError> = num_fromStrRadix$0vgyhkt(_1337, radix26);
 						if (_1340.ok) {
 							const arg34 = _1340.value;
 							put(out, rs.fmtFormat([(f: rs.Formatter) => rs.u64Display(arg34, f)]).v);
@@ -6590,8 +6604,8 @@ export function parses(kind: rs.u8, dataData: Uint8Array, dataStart: number, dat
 							put(out, rs.fmtFormat([args259[0], "|", args259[1], "|", args259[2], "|", rs.fmtSpec({ align: ">", width: 42 }, args259[0]), "|", rs.fmtSpec({ align: "<", width: 3, precision: 5 }, args259[0]), "|", args259[3], "|", args259[4]]).v);
 						}
 						if (radix26 === 10) {
-							const parsed15: rs.Result<rs.u64, rs.ParseIntError> = parse$092epd5(_1337);
-							const from15: rs.Result<rs.u64, rs.ParseIntError> = num_fromStr$0bkyuqf(_1337);
+							const parsed15: rs.Result<rs.u64, rs.ParseIntError> = parse$1p8sskw(_1337);
+							const from15: rs.Result<rs.u64, rs.ParseIntError> = num_fromStr$1qo2o4i(_1337);
 							if (from15.ok) {
 								max15 = rs.u8Mul(rs.u64Eq(from15.value, { hi: 0xffffffff, lo: 0xffffffff } as rs.u64) ? 1 : 0, 4);
 							} else {
@@ -6623,7 +6637,7 @@ export function parses(kind: rs.u8, dataData: Uint8Array, dataStart: number, dat
 				}
 				const _1432: string = result_unwrapOr$0a3q6xs(rs.strFromUtf8(text4), "1");
 				const radix28: rs.u32 = radix27;
-				const _1437: rs.Result<rs.u64, rs.ParseIntError> = num_fromStrRadix$0al5jri(_1432, radix28);
+				const _1437: rs.Result<rs.u64, rs.ParseIntError> = num_fromStrRadix$0vgyhkt(_1432, radix28);
 				if (_1437.ok) {
 					const arg33 = _1437.value;
 					put(out, rs.fmtFormat([(f: rs.Formatter) => rs.u64Display(arg33, f)]).v);
@@ -6651,8 +6665,8 @@ export function parses(kind: rs.u8, dataData: Uint8Array, dataStart: number, dat
 					put(out, rs.fmtFormat([args257[0], "|", args257[1], "|", args257[2], "|", rs.fmtSpec({ align: ">", width: 42 }, args257[0]), "|", rs.fmtSpec({ align: "<", width: 3, precision: 5 }, args257[0]), "|", args257[3], "|", args257[4]]).v);
 				}
 				if (radix28 === 10) {
-					const parsed16: rs.Result<rs.u64, rs.ParseIntError> = parse$092epd5(_1432);
-					const from16: rs.Result<rs.u64, rs.ParseIntError> = num_fromStr$0bkyuqf(_1432);
+					const parsed16: rs.Result<rs.u64, rs.ParseIntError> = parse$1p8sskw(_1432);
+					const from16: rs.Result<rs.u64, rs.ParseIntError> = num_fromStr$1qo2o4i(_1432);
 					if (from16.ok) {
 						max16 = rs.u8Mul(rs.u64Eq(from16.value, { hi: 0xffffffff, lo: 0xffffffff } as rs.u64) ? 1 : 0, 4);
 					} else {
@@ -8512,7 +8526,9 @@ export function widenings(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): voi
 			dst4.length = dst4.length + 8;
 			const into4: rs.Result<rs.u64, never> = rs.Ok(v as rs.u64);
 			const w8: rs.u64 = (into4 as { ok: true; value: rs.u64 }).value;
-			rs.byteVecPush(out, (result_eq$07qa6jl(into4, named4) ? 1 : 0) | (((rs.u64Eq(w8, v as rs.u64) ? 1 : 0) << 1) & 0xff));
+			const _109: rs.u8 = result_eq$07qa6jl(into4, named4) ? 1 : 0;
+			const _116: rs.u64 = v as rs.u64;
+			rs.byteVecPush(out, _109 | ((((typeof w8 === "number" && typeof _116 === "number" ? w8 === _116 : rs.u64Eq(w8, _116)) ? 1 : 0) << 1) & 0xff));
 			const named5: rs.Result<rs.u128, never> = rs.Ok(v as rs.u128);
 			const dst5 = out;
 			const word7 = (named5 as { ok: true; value: rs.u128 }).value;
@@ -8541,7 +8557,9 @@ export function widenings(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): voi
 			dst5.length = dst5.length + 16;
 			const into5: rs.Result<rs.u128, never> = rs.Ok(v as rs.u128);
 			const w10: rs.u128 = (into5 as { ok: true; value: rs.u128 }).value;
-			rs.byteVecPush(out, (result_eq$04o4aqp(into5, named5) ? 1 : 0) | (((rs.u128Eq(w10, v as rs.u128) ? 1 : 0) << 1) & 0xff));
+			const _131: rs.u8 = result_eq$04o4aqp(into5, named5) ? 1 : 0;
+			const _138: rs.u128 = v as rs.u128;
+			rs.byteVecPush(out, _131 | ((((typeof w10 === "number" && typeof _138 === "number" ? w10 === _138 : rs.u128Eq(w10, _138)) ? 1 : 0) << 1) & 0xff));
 			const named6: rs.Result<rs.usize, never> = rs.Ok(v as rs.usize);
 			const dst6 = out;
 			const word12 = (named6 as { ok: true; value: rs.usize }).value;
@@ -8597,7 +8615,9 @@ export function widenings(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): voi
 			dst9.length = dst9.length + 8;
 			const into9: rs.Result<rs.i64, never> = rs.Ok(v as rs.i64);
 			const w18: rs.i64 = (into9 as { ok: true; value: rs.i64 }).value;
-			rs.byteVecPush(out, (result_eq$12fysd9(into9, named9) ? 1 : 0) | (((rs.i64Eq(w18, v as rs.i64) ? 1 : 0) << 1) & 0xff));
+			const _219: rs.u8 = result_eq$12fysd9(into9, named9) ? 1 : 0;
+			const _226: rs.i64 = v as rs.i64;
+			rs.byteVecPush(out, _219 | ((((typeof w18 === "number" && typeof _226 === "number" ? w18 === _226 : rs.i64Eq(w18, _226)) ? 1 : 0) << 1) & 0xff));
 			const named10: rs.Result<rs.i128, never> = rs.Ok(v as rs.i128);
 			const dst10 = out;
 			const word18 = (named10 as { ok: true; value: rs.i128 }).value;
@@ -8626,7 +8646,9 @@ export function widenings(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): voi
 			dst10.length = dst10.length + 16;
 			const into10: rs.Result<rs.i128, never> = rs.Ok(v as rs.i128);
 			const w20: rs.i128 = (into10 as { ok: true; value: rs.i128 }).value;
-			rs.byteVecPush(out, (result_eq$1o2c9h9(into10, named10) ? 1 : 0) | (((rs.i128Eq(w20, v as rs.i128) ? 1 : 0) << 1) & 0xff));
+			const _241: rs.u8 = result_eq$1o2c9h9(into10, named10) ? 1 : 0;
+			const _248: rs.i128 = v as rs.i128;
+			rs.byteVecPush(out, _241 | ((((typeof w20 === "number" && typeof _248 === "number" ? w20 === _248 : rs.i128Eq(w20, _248)) ? 1 : 0) << 1) & 0xff));
 			const named11: rs.Result<rs.isize, never> = rs.Ok(v as rs.isize);
 			const dst11 = out;
 			const word23 = (named11 as { ok: true; value: rs.isize }).value;
@@ -8694,7 +8716,9 @@ export function widenings(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): voi
 			dst14.length = dst14.length + 8;
 			const into14: rs.Result<rs.u64, never> = rs.Ok(v2 as rs.u64);
 			const w28: rs.u64 = (into14 as { ok: true; value: rs.u64 }).value;
-			rs.byteVecPush(out, (result_eq$07qa6jl(into14, named14) ? 1 : 0) | (((rs.u64Eq(w28, v2 as rs.u64) ? 1 : 0) << 1) & 0xff));
+			const _354: rs.u8 = result_eq$07qa6jl(into14, named14) ? 1 : 0;
+			const _361: rs.u64 = v2 as rs.u64;
+			rs.byteVecPush(out, _354 | ((((typeof w28 === "number" && typeof _361 === "number" ? w28 === _361 : rs.u64Eq(w28, _361)) ? 1 : 0) << 1) & 0xff));
 			const named15: rs.Result<rs.u128, never> = rs.Ok(v2 as rs.u128);
 			const dst15 = out;
 			const word29 = (named15 as { ok: true; value: rs.u128 }).value;
@@ -8723,7 +8747,9 @@ export function widenings(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): voi
 			dst15.length = dst15.length + 16;
 			const into15: rs.Result<rs.u128, never> = rs.Ok(v2 as rs.u128);
 			const w30: rs.u128 = (into15 as { ok: true; value: rs.u128 }).value;
-			rs.byteVecPush(out, (result_eq$04o4aqp(into15, named15) ? 1 : 0) | (((rs.u128Eq(w30, v2 as rs.u128) ? 1 : 0) << 1) & 0xff));
+			const _376: rs.u8 = result_eq$04o4aqp(into15, named15) ? 1 : 0;
+			const _383: rs.u128 = v2 as rs.u128;
+			rs.byteVecPush(out, _376 | ((((typeof w30 === "number" && typeof _383 === "number" ? w30 === _383 : rs.u128Eq(w30, _383)) ? 1 : 0) << 1) & 0xff));
 			const named16: rs.Result<rs.usize, never> = rs.Ok(v2 as rs.usize);
 			const dst16 = out;
 			const word34 = (named16 as { ok: true; value: rs.usize }).value;
@@ -8768,7 +8794,9 @@ export function widenings(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): voi
 			dst18.length = dst18.length + 8;
 			const into18: rs.Result<rs.i64, never> = rs.Ok(v2 as rs.i64);
 			const w36: rs.i64 = (into18 as { ok: true; value: rs.i64 }).value;
-			rs.byteVecPush(out, (result_eq$12fysd9(into18, named18) ? 1 : 0) | (((rs.i64Eq(w36, v2 as rs.i64) ? 1 : 0) << 1) & 0xff));
+			const _442: rs.u8 = result_eq$12fysd9(into18, named18) ? 1 : 0;
+			const _449: rs.i64 = v2 as rs.i64;
+			rs.byteVecPush(out, _442 | ((((typeof w36 === "number" && typeof _449 === "number" ? w36 === _449 : rs.i64Eq(w36, _449)) ? 1 : 0) << 1) & 0xff));
 			const named19: rs.Result<rs.i128, never> = rs.Ok(v2 as rs.i128);
 			const dst19 = out;
 			const word39 = (named19 as { ok: true; value: rs.i128 }).value;
@@ -8797,7 +8825,9 @@ export function widenings(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): voi
 			dst19.length = dst19.length + 16;
 			const into19: rs.Result<rs.i128, never> = rs.Ok(v2 as rs.i128);
 			const w38: rs.i128 = (into19 as { ok: true; value: rs.i128 }).value;
-			rs.byteVecPush(out, (result_eq$1o2c9h9(into19, named19) ? 1 : 0) | (((rs.i128Eq(w38, v2 as rs.i128) ? 1 : 0) << 1) & 0xff));
+			const _464: rs.u8 = result_eq$1o2c9h9(into19, named19) ? 1 : 0;
+			const _471: rs.i128 = v2 as rs.i128;
+			rs.byteVecPush(out, _464 | ((((typeof w38 === "number" && typeof _471 === "number" ? w38 === _471 : rs.i128Eq(w38, _471)) ? 1 : 0) << 1) & 0xff));
 		}
 	} else if (_4 === 2) {
 		const buf3: Uint8Array = rs.bytes(4);
@@ -8841,7 +8871,9 @@ export function widenings(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): voi
 			dst21.length = dst21.length + 8;
 			const into21: rs.Result<rs.u64, never> = rs.Ok(v3 as rs.u64);
 			const w42: rs.u64 = (into21 as { ok: true; value: rs.u64 }).value;
-			rs.byteVecPush(out, (result_eq$07qa6jl(into21, named21) ? 1 : 0) | (((rs.u64Eq(w42, v3 as rs.u64) ? 1 : 0) << 1) & 0xff));
+			const _533: rs.u8 = result_eq$07qa6jl(into21, named21) ? 1 : 0;
+			const _540: rs.u64 = v3 as rs.u64;
+			rs.byteVecPush(out, _533 | ((((typeof w42 === "number" && typeof _540 === "number" ? w42 === _540 : rs.u64Eq(w42, _540)) ? 1 : 0) << 1) & 0xff));
 			const named22: rs.Result<rs.u128, never> = rs.Ok(v3 as rs.u128);
 			const dst22 = out;
 			const word48 = (named22 as { ok: true; value: rs.u128 }).value;
@@ -8870,7 +8902,9 @@ export function widenings(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): voi
 			dst22.length = dst22.length + 16;
 			const into22: rs.Result<rs.u128, never> = rs.Ok(v3 as rs.u128);
 			const w44: rs.u128 = (into22 as { ok: true; value: rs.u128 }).value;
-			rs.byteVecPush(out, (result_eq$04o4aqp(into22, named22) ? 1 : 0) | (((rs.u128Eq(w44, v3 as rs.u128) ? 1 : 0) << 1) & 0xff));
+			const _555: rs.u8 = result_eq$04o4aqp(into22, named22) ? 1 : 0;
+			const _562: rs.u128 = v3 as rs.u128;
+			rs.byteVecPush(out, _555 | ((((typeof w44 === "number" && typeof _562 === "number" ? w44 === _562 : rs.u128Eq(w44, _562)) ? 1 : 0) << 1) & 0xff));
 			const named23: rs.Result<rs.i64, never> = rs.Ok(v3 as rs.i64);
 			const dst23 = out;
 			const word53 = (named23 as { ok: true; value: rs.i64 }).value;
@@ -8889,7 +8923,9 @@ export function widenings(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): voi
 			dst23.length = dst23.length + 8;
 			const into23: rs.Result<rs.i64, never> = rs.Ok(v3 as rs.i64);
 			const w46: rs.i64 = (into23 as { ok: true; value: rs.i64 }).value;
-			rs.byteVecPush(out, (result_eq$12fysd9(into23, named23) ? 1 : 0) | (((rs.i64Eq(w46, v3 as rs.i64) ? 1 : 0) << 1) & 0xff));
+			const _577: rs.u8 = result_eq$12fysd9(into23, named23) ? 1 : 0;
+			const _584: rs.i64 = v3 as rs.i64;
+			rs.byteVecPush(out, _577 | ((((typeof w46 === "number" && typeof _584 === "number" ? w46 === _584 : rs.i64Eq(w46, _584)) ? 1 : 0) << 1) & 0xff));
 			const named24: rs.Result<rs.i128, never> = rs.Ok(v3 as rs.i128);
 			const dst24 = out;
 			const word56 = (named24 as { ok: true; value: rs.i128 }).value;
@@ -8918,7 +8954,9 @@ export function widenings(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): voi
 			dst24.length = dst24.length + 16;
 			const into24: rs.Result<rs.i128, never> = rs.Ok(v3 as rs.i128);
 			const w48: rs.i128 = (into24 as { ok: true; value: rs.i128 }).value;
-			rs.byteVecPush(out, (result_eq$1o2c9h9(into24, named24) ? 1 : 0) | (((rs.i128Eq(w48, v3 as rs.i128) ? 1 : 0) << 1) & 0xff));
+			const _599: rs.u8 = result_eq$1o2c9h9(into24, named24) ? 1 : 0;
+			const _606: rs.i128 = v3 as rs.i128;
+			rs.byteVecPush(out, _599 | ((((typeof w48 === "number" && typeof _606 === "number" ? w48 === _606 : rs.i128Eq(w48, _606)) ? 1 : 0) << 1) & 0xff));
 		}
 	} else if (_4 === 3) {
 		const buf4: Uint8Array = rs.bytes(8);
@@ -8949,7 +8987,9 @@ export function widenings(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): voi
 			dst25.length = dst25.length + 8;
 			const into25: rs.Result<rs.u64, never> = rs.Ok(v4);
 			const w50: rs.u64 = (into25 as { ok: true; value: rs.u64 }).value;
-			rs.byteVecPush(out, (result_eq$07qa6jl(into25, named25) ? 1 : 0) | (((rs.u64Eq(w50, v4) ? 1 : 0) << 1) & 0xff));
+			const _646: rs.u8 = result_eq$07qa6jl(into25, named25) ? 1 : 0;
+			const _653: rs.u64 = v4;
+			rs.byteVecPush(out, _646 | ((((typeof w50 === "number" && typeof _653 === "number" ? w50 === _653 : rs.u64Eq(w50, _653)) ? 1 : 0) << 1) & 0xff));
 			const named26: rs.Result<rs.u128, never> = rs.Ok(rs.u128Cast(v4));
 			const dst26 = out;
 			const word64 = (named26 as { ok: true; value: rs.u128 }).value;
@@ -8978,7 +9018,9 @@ export function widenings(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): voi
 			dst26.length = dst26.length + 16;
 			const into26: rs.Result<rs.u128, never> = rs.Ok(rs.u128Cast(v4));
 			const w52: rs.u128 = (into26 as { ok: true; value: rs.u128 }).value;
-			rs.byteVecPush(out, (result_eq$04o4aqp(into26, named26) ? 1 : 0) | (((rs.u128Eq(w52, rs.u128Cast(v4)) ? 1 : 0) << 1) & 0xff));
+			const _668: rs.u8 = result_eq$04o4aqp(into26, named26) ? 1 : 0;
+			const _675: rs.u128 = rs.u128Cast(v4);
+			rs.byteVecPush(out, _668 | ((((typeof w52 === "number" && typeof _675 === "number" ? w52 === _675 : rs.u128Eq(w52, _675)) ? 1 : 0) << 1) & 0xff));
 			const named27: rs.Result<rs.i128, never> = rs.Ok(rs.i128Cast(v4));
 			const dst27 = out;
 			const word69 = (named27 as { ok: true; value: rs.i128 }).value;
@@ -9007,7 +9049,9 @@ export function widenings(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): voi
 			dst27.length = dst27.length + 16;
 			const into27: rs.Result<rs.i128, never> = rs.Ok(rs.i128Cast(v4));
 			const w54: rs.i128 = (into27 as { ok: true; value: rs.i128 }).value;
-			rs.byteVecPush(out, (result_eq$1o2c9h9(into27, named27) ? 1 : 0) | (((rs.i128Eq(w54, rs.i128Cast(v4)) ? 1 : 0) << 1) & 0xff));
+			const _690: rs.u8 = result_eq$1o2c9h9(into27, named27) ? 1 : 0;
+			const _697: rs.i128 = rs.i128Cast(v4);
+			rs.byteVecPush(out, _690 | ((((typeof w54 === "number" && typeof _697 === "number" ? w54 === _697 : rs.i128Eq(w54, _697)) ? 1 : 0) << 1) & 0xff));
 		}
 	} else if (_4 === 4) {
 		const buf5: Uint8Array = rs.bytes(16);
@@ -9048,7 +9092,9 @@ export function widenings(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): voi
 			dst28.length = dst28.length + 16;
 			const into28: rs.Result<rs.u128, never> = rs.Ok(v5);
 			const w56: rs.u128 = (into28 as { ok: true; value: rs.u128 }).value;
-			rs.byteVecPush(out, (result_eq$04o4aqp(into28, named28) ? 1 : 0) | (((rs.u128Eq(w56, v5) ? 1 : 0) << 1) & 0xff));
+			const _737: rs.u8 = result_eq$04o4aqp(into28, named28) ? 1 : 0;
+			const _744: rs.u128 = v5;
+			rs.byteVecPush(out, _737 | ((((typeof w56 === "number" && typeof _744 === "number" ? w56 === _744 : rs.u128Eq(w56, _744)) ? 1 : 0) << 1) & 0xff));
 		}
 	} else if (_4 === 5) {
 		const buf6: Uint8Array = rs.bytes(4);
@@ -9137,7 +9183,9 @@ export function widenings(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): voi
 			dst33.length = dst33.length + 8;
 			const into33: rs.Result<rs.i64, never> = rs.Ok(v7 as rs.i64);
 			const w66: rs.i64 = (into33 as { ok: true; value: rs.i64 }).value;
-			rs.byteVecPush(out, (result_eq$12fysd9(into33, named33) ? 1 : 0) | (((rs.i64Eq(w66, v7 as rs.i64) ? 1 : 0) << 1) & 0xff));
+			const _897: rs.u8 = result_eq$12fysd9(into33, named33) ? 1 : 0;
+			const _904: rs.i64 = v7 as rs.i64;
+			rs.byteVecPush(out, _897 | ((((typeof w66 === "number" && typeof _904 === "number" ? w66 === _904 : rs.i64Eq(w66, _904)) ? 1 : 0) << 1) & 0xff));
 			const named34: rs.Result<rs.i128, never> = rs.Ok(v7 as rs.i128);
 			const dst34 = out;
 			const word86 = (named34 as { ok: true; value: rs.i128 }).value;
@@ -9166,7 +9214,9 @@ export function widenings(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): voi
 			dst34.length = dst34.length + 16;
 			const into34: rs.Result<rs.i128, never> = rs.Ok(v7 as rs.i128);
 			const w68: rs.i128 = (into34 as { ok: true; value: rs.i128 }).value;
-			rs.byteVecPush(out, (result_eq$1o2c9h9(into34, named34) ? 1 : 0) | (((rs.i128Eq(w68, v7 as rs.i128) ? 1 : 0) << 1) & 0xff));
+			const _919: rs.u8 = result_eq$1o2c9h9(into34, named34) ? 1 : 0;
+			const _926: rs.i128 = v7 as rs.i128;
+			rs.byteVecPush(out, _919 | ((((typeof w68 === "number" && typeof _926 === "number" ? w68 === _926 : rs.i128Eq(w68, _926)) ? 1 : 0) << 1) & 0xff));
 			const named35: rs.Result<rs.isize, never> = rs.Ok(v7 as rs.isize);
 			const dst35 = out;
 			const word91 = (named35 as { ok: true; value: rs.isize }).value;
@@ -9234,7 +9284,9 @@ export function widenings(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): voi
 			dst38.length = dst38.length + 8;
 			const into38: rs.Result<rs.i64, never> = rs.Ok(v8 as rs.i64);
 			const w76: rs.i64 = (into38 as { ok: true; value: rs.i64 }).value;
-			rs.byteVecPush(out, (result_eq$12fysd9(into38, named38) ? 1 : 0) | (((rs.i64Eq(w76, v8 as rs.i64) ? 1 : 0) << 1) & 0xff));
+			const _1032: rs.u8 = result_eq$12fysd9(into38, named38) ? 1 : 0;
+			const _1039: rs.i64 = v8 as rs.i64;
+			rs.byteVecPush(out, _1032 | ((((typeof w76 === "number" && typeof _1039 === "number" ? w76 === _1039 : rs.i64Eq(w76, _1039)) ? 1 : 0) << 1) & 0xff));
 			const named39: rs.Result<rs.i128, never> = rs.Ok(v8 as rs.i128);
 			const dst39 = out;
 			const word97 = (named39 as { ok: true; value: rs.i128 }).value;
@@ -9263,7 +9315,9 @@ export function widenings(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): voi
 			dst39.length = dst39.length + 16;
 			const into39: rs.Result<rs.i128, never> = rs.Ok(v8 as rs.i128);
 			const w78: rs.i128 = (into39 as { ok: true; value: rs.i128 }).value;
-			rs.byteVecPush(out, (result_eq$1o2c9h9(into39, named39) ? 1 : 0) | (((rs.i128Eq(w78, v8 as rs.i128) ? 1 : 0) << 1) & 0xff));
+			const _1054: rs.u8 = result_eq$1o2c9h9(into39, named39) ? 1 : 0;
+			const _1061: rs.i128 = v8 as rs.i128;
+			rs.byteVecPush(out, _1054 | ((((typeof w78 === "number" && typeof _1061 === "number" ? w78 === _1061 : rs.i128Eq(w78, _1061)) ? 1 : 0) << 1) & 0xff));
 			const named40: rs.Result<rs.isize, never> = rs.Ok(v8 as rs.isize);
 			const dst40 = out;
 			const word102 = (named40 as { ok: true; value: rs.isize }).value;
@@ -9320,7 +9374,9 @@ export function widenings(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): voi
 			dst42.length = dst42.length + 8;
 			const into42: rs.Result<rs.i64, never> = rs.Ok(v9 as rs.i64);
 			const w84: rs.i64 = (into42 as { ok: true; value: rs.i64 }).value;
-			rs.byteVecPush(out, (result_eq$12fysd9(into42, named42) ? 1 : 0) | (((rs.i64Eq(w84, v9 as rs.i64) ? 1 : 0) << 1) & 0xff));
+			const _1145: rs.u8 = result_eq$12fysd9(into42, named42) ? 1 : 0;
+			const _1152: rs.i64 = v9 as rs.i64;
+			rs.byteVecPush(out, _1145 | ((((typeof w84 === "number" && typeof _1152 === "number" ? w84 === _1152 : rs.i64Eq(w84, _1152)) ? 1 : 0) << 1) & 0xff));
 			const named43: rs.Result<rs.i128, never> = rs.Ok(v9 as rs.i128);
 			const dst43 = out;
 			const word107 = (named43 as { ok: true; value: rs.i128 }).value;
@@ -9349,7 +9405,9 @@ export function widenings(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): voi
 			dst43.length = dst43.length + 16;
 			const into43: rs.Result<rs.i128, never> = rs.Ok(v9 as rs.i128);
 			const w86: rs.i128 = (into43 as { ok: true; value: rs.i128 }).value;
-			rs.byteVecPush(out, (result_eq$1o2c9h9(into43, named43) ? 1 : 0) | (((rs.i128Eq(w86, v9 as rs.i128) ? 1 : 0) << 1) & 0xff));
+			const _1167: rs.u8 = result_eq$1o2c9h9(into43, named43) ? 1 : 0;
+			const _1174: rs.i128 = v9 as rs.i128;
+			rs.byteVecPush(out, _1167 | ((((typeof w86 === "number" && typeof _1174 === "number" ? w86 === _1174 : rs.i128Eq(w86, _1174)) ? 1 : 0) << 1) & 0xff));
 		}
 	} else if (_4 === 9) {
 		const buf10: Uint8Array = rs.bytes(8);
@@ -9380,7 +9438,9 @@ export function widenings(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): voi
 			dst44.length = dst44.length + 8;
 			const into44: rs.Result<rs.i64, never> = rs.Ok(v10);
 			const w88: rs.i64 = (into44 as { ok: true; value: rs.i64 }).value;
-			rs.byteVecPush(out, (result_eq$12fysd9(into44, named44) ? 1 : 0) | (((rs.i64Eq(w88, v10) ? 1 : 0) << 1) & 0xff));
+			const _1214: rs.u8 = result_eq$12fysd9(into44, named44) ? 1 : 0;
+			const _1221: rs.i64 = v10;
+			rs.byteVecPush(out, _1214 | ((((typeof w88 === "number" && typeof _1221 === "number" ? w88 === _1221 : rs.i64Eq(w88, _1221)) ? 1 : 0) << 1) & 0xff));
 			const named45: rs.Result<rs.i128, never> = rs.Ok(rs.i128Cast(v10));
 			const dst45 = out;
 			const word115 = (named45 as { ok: true; value: rs.i128 }).value;
@@ -9409,7 +9469,9 @@ export function widenings(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): voi
 			dst45.length = dst45.length + 16;
 			const into45: rs.Result<rs.i128, never> = rs.Ok(rs.i128Cast(v10));
 			const w90: rs.i128 = (into45 as { ok: true; value: rs.i128 }).value;
-			rs.byteVecPush(out, (result_eq$1o2c9h9(into45, named45) ? 1 : 0) | (((rs.i128Eq(w90, rs.i128Cast(v10)) ? 1 : 0) << 1) & 0xff));
+			const _1236: rs.u8 = result_eq$1o2c9h9(into45, named45) ? 1 : 0;
+			const _1243: rs.i128 = rs.i128Cast(v10);
+			rs.byteVecPush(out, _1236 | ((((typeof w90 === "number" && typeof _1243 === "number" ? w90 === _1243 : rs.i128Eq(w90, _1243)) ? 1 : 0) << 1) & 0xff));
 		}
 	} else if (_4 === 10) {
 		const buf11: Uint8Array = rs.bytes(16);
@@ -9450,7 +9512,9 @@ export function widenings(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): voi
 			dst46.length = dst46.length + 16;
 			const into46: rs.Result<rs.i128, never> = rs.Ok(v11);
 			const w92: rs.i128 = (into46 as { ok: true; value: rs.i128 }).value;
-			rs.byteVecPush(out, (result_eq$1o2c9h9(into46, named46) ? 1 : 0) | (((rs.i128Eq(w92, v11) ? 1 : 0) << 1) & 0xff));
+			const _1283: rs.u8 = result_eq$1o2c9h9(into46, named46) ? 1 : 0;
+			const _1290: rs.i128 = v11;
+			rs.byteVecPush(out, _1283 | ((((typeof w92 === "number" && typeof _1290 === "number" ? w92 === _1290 : rs.i128Eq(w92, _1290)) ? 1 : 0) << 1) & 0xff));
 		}
 	} else if (_4 === 11) {
 		const buf12: Uint8Array = rs.bytes(4);

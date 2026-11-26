@@ -1,9 +1,10 @@
-// `just ts bench`: bundles and minifies each route, times every workload natively and in
-// Node, Bun, Chrome, and Firefox, and reports the numbers with each route's bundle size.
+// `just ts bench`: builds each route from the fixtures' Rust, timing each build, bundles and
+// minifies the JS routes, times every workload natively and in Node, Bun, Chrome, and
+// Firefox, and reports the numbers with each route's size, build, and cold start.
 //
-// usage: bun main.ts --translated <dir> --wasm <file> --native <bin> --moq <checkout>
-//                    --task <dir> --task-wasm <file> --task-native <bin>
-//                    --out <dir> [--sample-ms 2] [--rounds 25] [--seed <u32>] [--route <name>=<dir>] [--filter <prefix>]
+// usage: bun main.ts --rust2-ts <bin> --rust2-ffi <bin> --native <bin> --task-native <bin>
+//                    --moq <checkout> --out <dir>
+//                    [--sample-ms 2] [--rounds 25] [--seed <u32>] [--route <name>=<dir>] [--filter <prefix>[,<prefix>...]]
 //
 // The task fixture's async handoff runs beside the codec, against moq's way with promises.
 // `--route` times the translations in another run's `--out` as one more route, for A/B runs.
@@ -15,23 +16,23 @@ import { parseArgs } from "node:util";
 import type { BunPlugin } from "bun";
 
 import { Wasm } from "../tests/wasm.ts";
+import { type Built, build, type Step } from "./build.ts";
 import type { Config } from "./entry.ts";
-import { hex, type Timing } from "./time.ts";
+import { type Cold, hex, type Timing } from "./time.ts";
 import { handoffs, type Workload, workloads } from "./workloads.ts";
 
 interface Engine {
 	engine: string;
 	timings: Timing[];
+	cold: { codec: Cold[]; handoff: Cold[] };
 }
 
 const { values: args } = parseArgs({
 	options: {
-		translated: { type: "string" },
-		wasm: { type: "string" },
+		"rust2-ts": { type: "string" },
+		"rust2-ffi": { type: "string" },
 		native: { type: "string" },
 		moq: { type: "string" },
-		task: { type: "string" },
-		"task-wasm": { type: "string" },
 		"task-native": { type: "string" },
 		out: { type: "string" },
 		"sample-ms": { type: "string", default: "2" },
@@ -55,8 +56,9 @@ const rounds = Number(args.rounds);
 const seed = args.seed === undefined ? crypto.getRandomValues(new Uint32Array(1))[0] : Number(args.seed);
 if (!Number.isInteger(seed) || seed < 0 || seed >= 2 ** 32) throw new Error(`--seed takes a u32, not ${args.seed}`);
 
-const codecRoutes = ["native", "wasm", "wasm copy-in", "wasm copy-out", "hand-written", "translated", "A/A"];
-const handoffRoutes = ["native", "wasm", "hand-written", "translated", "spawned", "A/A"];
+const wasmRoutes = ["wasm", "wasm copy-in", "wasm copy-out", "wasm checked", "wasm2js", "rust2-wasm"];
+const codecRoutes = ["native", ...wasmRoutes, "hand-written", "translated", "A/A"];
+const handoffRoutes = ["native", ...wasmRoutes.filter((r) => !r.includes("copy")), "hand-written", "translated", "spawned", "A/A"];
 const extra = args.route === undefined ? undefined : await extraRoute(args.route);
 
 /** `--route`'s name, and the bundles of the translations in its directory, which must both be there. */
@@ -82,9 +84,16 @@ const moq: BunPlugin = {
 	},
 };
 
-/** `entry` bundled and minified, as a consumer ships it: each route is timed and sized as this. */
-async function bundle(entry: string, plugins: BunPlugin[] = []): Promise<Uint8Array<ArrayBuffer>> {
+/**
+ * `entry` bundled and minified, as a consumer ships it: each route is timed and sized as
+ * this. Its wall and CPU time go to `steps` as the step `step`.
+ */
+async function bundle(entry: string, plugins: BunPlugin[] = [], steps?: Step[], step = ""): Promise<Uint8Array<ArrayBuffer>> {
+	const start = performance.now();
+	const cpu = process.cpuUsage();
 	const result = await Bun.build({ entrypoints: [entry], target: "browser", external: ["node:*"], minify: true, plugins });
+	const used = process.cpuUsage(cpu);
+	steps?.push({ step, wall: (performance.now() - start) / 1000, cpu: (used.user + used.system) / 1e6 });
 	if (result.outputs.length !== 1) throw new Error(`bundling ${entry} made ${result.outputs.length} files`);
 	return new Uint8Array(await result.outputs[0].arrayBuffer());
 }
@@ -116,10 +125,6 @@ export const run = (input: Uint8Array) => bench(rs.byteSliceFrom(input));
 	);
 	return entry;
 }
-const translated = await codecEntry(arg("translated"));
-const wasmBytes = await read(arg("wasm"));
-const translation = await bundle(translated);
-const handBundle = await bundle(handWritten, [moq]);
 
 // The task fixture's translation, as `bench/task.ts` drives it.
 async function taskEntry(dir: string): Promise<string> {
@@ -138,56 +143,139 @@ export const spawn = spawned(fixture);
 	);
 	return entry;
 }
-const taskHand = join(import.meta.dir, "task.ts");
-const taskTranslated = await taskEntry(arg("task"));
-const taskWasmBytes = await read(arg("task-wasm"));
-const taskTranslation = await bundle(taskTranslated);
-const taskHandBundle = await bundle(taskHand);
+
+// A fixture's export through rust2-ffi, as a consumer calls it: the module, `wasm` beside
+// the bundle, loaded once, and `bench::run` through the generated binding, its output
+// copied out of the bytes Rust returns, which are then freed.
+async function webEntry(built: Built, wasm: string): Promise<string> {
+	const entry = join(built.export, "bench-entry.ts");
+	await Bun.write(
+		entry,
+		`import { load, run as call } from "./web/index.ts";
+import { fresh } from ${JSON.stringify(join(import.meta.dir, "fresh.ts"))};
+
+const url = new URL(${JSON.stringify(wasm)}, import.meta.url);
+const bytes = url.protocol === "file:" ? (await import("node:fs/promises")).readFile(url) : fetch(url).then((r) => r.arrayBuffer());
+await load(fresh(new Uint8Array(await bytes)));
+
+export function run(input: Uint8Array): Uint8Array {
+	const out = call(input);
+	try {
+		return out.slice();
+	} finally {
+		out[Symbol.dispose]();
+	}
+}
+`,
+	);
+	return entry;
+}
+
+// Each fixture's routes, built from its Rust source, each step timed.
+const tools = { ts: arg("rust2-ts"), ffi: arg("rust2-ffi"), root: resolve(import.meta.dir, ".."), out: join(out, "build"), scratch: join(out, "scratch") };
+await mkdir(tools.out, { recursive: true });
+const codec = await build("codec", join(out, "translated"), tools);
+const task = await build("task", join(out, "task"), tools);
+await rm(tools.scratch, { recursive: true, force: true });
+
+/** A fixture's routes as they ship, each its files, and what made them. */
+interface Shipped {
+	wasm: Uint8Array<ArrayBuffer>;
+	checked: Uint8Array<ArrayBuffer>;
+	lowered: Uint8Array<ArrayBuffer>;
+	exported: Uint8Array<ArrayBuffer>;
+	binding: Uint8Array<ArrayBuffer>;
+	hand: Uint8Array<ArrayBuffer>;
+	translation: Uint8Array<ArrayBuffer>;
+	steps: Step[];
+}
+
+async function ship(built: Built, prefix: string, hand: string, translated: string, plugins: BunPlugin[]): Promise<Shipped> {
+	const { steps } = built;
+	return {
+		wasm: await read(built.wasm),
+		checked: await read(built.checked),
+		lowered: await bundle(built.lowered, [], steps, "wasm2js's bundle"),
+		exported: await read(built.exported),
+		binding: await bundle(await webEntry(built, `${prefix}rust2-wasm.wasm`), [], steps, "rust2-wasm's bundle"),
+		hand: await bundle(hand, plugins, steps, "hand-written's bundle"),
+		translation: await bundle(translated, [], steps, "translated's bundle"),
+		steps,
+	};
+}
+const codecShip = await ship(codec, "", handWritten, await codecEntry(codec.translated), [moq]);
+// The task fixture: its channel, its async functions, and their runtime, as each route ships them.
+const taskShip = await ship(task, "task-", join(import.meta.dir, "task.ts"), await taskEntry(task.translated), []);
+
 await Promise.all([
 	Bun.write(join(out, "entry.js"), await bundle(join(import.meta.dir, "entry.ts"))),
-	Bun.write(join(out, "moq.js"), handBundle),
-	Bun.write(join(out, "translated.js"), translation),
-	Bun.write(join(out, "translated-aa.js"), translation),
-	Bun.write(join(out, "bench.wasm"), wasmBytes),
-	Bun.write(join(out, "task-hand.js"), taskHandBundle),
-	Bun.write(join(out, "task-translated.js"), taskTranslation),
-	Bun.write(join(out, "task-spawned.js"), taskTranslation),
-	Bun.write(join(out, "task-translated-aa.js"), taskTranslation),
-	Bun.write(join(out, "task.wasm"), taskWasmBytes),
+	...files("bench", "", codecShip),
+	...files("task", "task-", taskShip),
+	Bun.write(join(out, "moq.js"), codecShip.hand),
+	Bun.write(join(out, "translated.js"), codecShip.translation),
+	Bun.write(join(out, "translated-aa.js"), codecShip.translation),
+	Bun.write(join(out, "task-hand.js"), taskShip.hand),
+	Bun.write(join(out, "task-translated.js"), taskShip.translation),
+	Bun.write(join(out, "task-spawned.js"), taskShip.translation),
+	Bun.write(join(out, "task-translated-aa.js"), taskShip.translation),
 	Bun.write(join(out, "package.json"), '{ "type": "module" }\n'),
 	Bun.write(join(out, "index.html"), page),
 	extra && Bun.write(join(out, "route.js"), extra.codec),
 	extra && Bun.write(join(out, "task-route.js"), extra.task),
 ]);
 
-const sizes = [
-	{ route: "wasm", files: [wasmBytes] },
-	{ route: "hand-written", files: [handBundle] },
-	{ route: "translated", files: [translation] },
-	...(extra ? [{ route: extra.name, files: [extra.codec] }] : []),
-].map(measureSize);
-
-// The task fixture: its channel, its async functions, and their runtime, as each route ships them.
-const taskSizes = [
-	{ route: "wasm", files: [taskWasmBytes] },
-	{ route: "hand-written", files: [taskHandBundle] },
-	{ route: "translated", files: [taskTranslation] },
-	...(extra ? [{ route: extra.name, files: [extra.task] }] : []),
-].map(measureSize);
-
-function measureSize({ route, files }: { route: string; files: Uint8Array<ArrayBuffer>[] }) {
-	const sum = (f: (b: Uint8Array<ArrayBuffer>) => number) => files.reduce((n, b) => n + f(b), 0);
-	return { route, raw: sum((b) => b.byteLength), gzip: sum((b) => Bun.gzipSync(b, { level: 9 }).byteLength) };
+/** The wasm32 builds' files, as `entry.ts` names them. */
+function files(wasm: string, prefix: string, s: Shipped): Promise<number>[] {
+	return [
+		Bun.write(join(out, `${wasm}.wasm`), s.wasm),
+		Bun.write(join(out, `${wasm}-checked.wasm`), s.checked),
+		Bun.write(join(out, `${wasm}-wasm2js.js`), s.lowered),
+		Bun.write(join(out, `${prefix}rust2-wasm.js`), s.binding),
+		Bun.write(join(out, `${prefix}rust2-wasm.wasm`), s.exported),
+	];
 }
 
+/** Each route's files, and the build steps that make them. */
+function shipped(s: Shipped, extraFile?: Uint8Array<ArrayBuffer>) {
+	return [
+		{ route: "wasm", files: [s.wasm], steps: ["wasm"] },
+		{ route: "wasm checked", files: [s.checked], steps: ["wasm checked"] },
+		{ route: "wasm2js", files: [s.lowered], steps: ["wasm checked", "wasm2js", "wasm2js's bundle"] },
+		{ route: "rust2-wasm", files: [s.exported, s.binding], steps: ["rust2-ffi", "export's build", "rust2-wasm's bundle"] },
+		{ route: "hand-written", files: [s.hand], steps: ["hand-written's bundle"] },
+		{ route: "translated", files: [s.translation], steps: ["rust2-ts", "translated's bundle"] },
+		...(extra && extraFile ? [{ route: extra.name, files: [extraFile], steps: [] }] : []),
+	].map(({ route, files, steps }) => {
+		const sum = (f: (b: Uint8Array<ArrayBuffer>) => number) => files.reduce((n, b) => n + f(b), 0);
+		const cost = steps.map((name) => {
+			const step = s.steps.find((t) => t.step === name);
+			if (!step) throw new Error(`no build step ${name}`);
+			return step;
+		});
+		return {
+			route,
+			raw: sum((b) => b.byteLength),
+			gzip: sum((b) => Bun.gzipSync(b, { level: 9 }).byteLength),
+			wall: cost.reduce((n, t) => n + t.wall, 0),
+			cpu: cost.reduce((n, t) => n + t.cpu, 0),
+			built: steps.length > 0,
+		};
+	});
+}
+const sizes = shipped(codecShip, extra?.codec);
+const taskSizes = shipped(taskShip, extra?.task);
+
 // The workloads, made by the wasm32 build, which also gives each its expected output.
-const wasm = new Wasm(await WebAssembly.compile(wasmBytes));
+const wasm = new Wasm(await WebAssembly.compile(codecShip.wasm));
 function expected(input: Uint8Array): Uint8Array {
 	const output = wasm.call(input);
 	if (!(output instanceof Uint8Array)) throw new Error(`native Rust traps on ${hex(input)}`);
 	return output;
 }
-const list = workloads(expected).filter((w) => w.name.startsWith(args.filter ?? ""));
+const prefixes = (args.filter ?? "").split(",");
+// An empty prefix starts every name, so `--filter int/,` would select every workload.
+if (args.filter !== undefined && prefixes.includes("")) throw new Error(`--filter ${args.filter} has an empty prefix`);
+const list = workloads(expected).filter((w) => prefixes.some((p) => w.name.startsWith(p)));
 if (list.length === 0) throw new Error(`--filter ${args.filter} matches no codec workloads`);
 const handoffList = handoffs();
 const config: Config = {
@@ -217,18 +305,14 @@ async function nativeRoute(bin: string, list: Workload[], expected: (input: Uint
 	});
 }
 
-async function native(): Promise<Engine> {
-	const taskWasm = new Wasm(await WebAssembly.compile(taskWasmBytes));
+async function native(): Promise<Timing[]> {
+	const taskWasm = new Wasm(await WebAssembly.compile(taskShip.wasm));
 	const handoff = (input: Uint8Array) => {
 		const output = taskWasm.call(input);
 		if (!(output instanceof Uint8Array)) throw new Error(`native Rust traps on ${hex(input)}`);
 		return output;
 	};
-	const timings = [
-		...(await nativeRoute(arg("native"), list, expected)),
-		...(await nativeRoute(arg("task-native"), handoffList, handoff)),
-	];
-	return { engine: "native", timings };
+	return [...(await nativeRoute(arg("native"), list, expected)), ...(await nativeRoute(arg("task-native"), handoffList, handoff))];
 }
 
 async function script(command: string): Promise<Engine> {
@@ -301,8 +385,13 @@ async function browser({ name, command, argv, setup }: Browser): Promise<Engine>
 			const file = Bun.file(join(out, path === "/" ? "index.html" : path.slice(1)));
 			if (!(await file.exists())) return new Response(null, { status: 404 });
 			// Cross-origin isolated, so performance.now() is precise to 5µs in Chrome and 20µs
-			// in Firefox, rather than 100µs and 1 ms.
-			const headers = { "Cross-Origin-Opener-Policy": "same-origin", "Cross-Origin-Embedder-Policy": "require-corp" };
+			// in Firefox, rather than 100µs and 1 ms. Never stored, so each worker's load of a
+			// route is cold: no engine caches code it compiled for an earlier one by the response.
+			const headers = {
+				"Cross-Origin-Opener-Policy": "same-origin",
+				"Cross-Origin-Embedder-Policy": "require-corp",
+				"Cache-Control": "no-store",
+			};
 			return new Response(file, { headers });
 		},
 	});
@@ -358,38 +447,54 @@ function render(): string {
 		"",
 		`- Host: ${model}, ${cpu.length} threads, ${(totalmem() / 2 ** 30).toFixed(0)} GiB, ${process.platform} ${release()} ${process.arch}`,
 		`- Rust: ${text(["rustc", "-V"])}`,
+		`- ${text(["wasm2js", "--version"])}`,
 		`- moq: ${text(["git", "-C", checkout, "rev-parse", "HEAD"])}`,
 		...engines.map((e) => `- ${e.engine}`),
 		"",
-		"Each cell is nanoseconds per item (a varint, a frame header, a message, a byte iterated, a key, a timestamp converted, added, or compared, a line formatted, a step, a frame, or a string coded, joined, or keyed): the median",
+		"Each cell is nanoseconds per item (a varint, a frame header, a message, a byte iterated, a key, a timestamp converted, added, or compared, a hash round, a line formatted, a step, a frame, or a string coded, joined, or keyed): the median",
 		`of ${rounds} samples of at least ${sampleMs} ms, ± half their interquartile range. Each round runs`,
 		`the JS routes and workloads in a new random order, from seed ${seed}. \`native\` is a release`,
 		"build on the host, its workloads in a fixed order. `wasm` is the same",
 		"Rust at the size-optimized profile moq's WASM shipped with, run with its input already in memory;",
-		"copying the input in and the output out are timed apart. `hand-written` is moq's",
+		"copying the input in and the output out are timed apart. `wasm checked` is it at the",
+		"`wasm-checked` profile, with the overflow checks and debug assertions the translation keeps,",
+		"and `wasm2js` that build lowered to JavaScript by Binaryen's wasm2js, each run as `wasm` is.",
+		"`rust2-wasm` is the fixture's `bench::run` exported by rust2-ffi, built at `wasm-checked`, and",
+		"called through its generated TypeScript, which copies the input in and the output out. So",
+		"`translated`, `rust2-wasm`, `wasm2js`, and `wasm checked` run the same checks: `rust2-wasm`",
+		"against `wasm checked` plus `wasm`'s copies is the binding's cost, `wasm2js` against `wasm checked`",
+		"the lowering's, and `wasm checked` against `wasm` the checks'. `hand-written` is moq's",
 		"`js/net`, called as its own benchmarks call it, for `iter/` the same chain with ES",
 		"iterator helpers (`bench/iter.ts`), for `btree/` a sorted array (`bench/sorted.ts`), for `hash/` a `Map` (`bench/hashed.ts`), and",
 		"for `time/` conversions `bigint`, as moq's `js/hang` converts timescales (`bench/rescale.ts`),",
 		"for `time/checked-add` and `time/ord` moq's own `Timestamp` (`bench/timestamp.ts`), for `fmt/` a template literal (`bench/fmt.ts`), for `parts/` a plain array (`bench/parts.ts`), for `bytes/` subarrays (`bench/frames.ts`), and for `str/`",
-		"moq's Writer and Cursor, a template literal, and a `Map` (`bench/strings.ts`).",
-		"Each JS route and `wasm` runs alone in a worker of its own, a fresh one each round. `A/A` is the translation again: its",
+		"moq's Writer and Cursor, a template literal, and a `Map` (`bench/strings.ts`), and for `int/` `bigint` wrapped to 64 bits (`bench/mixed.ts`).",
+		"Each route runs alone in a worker of its own, a fresh one each round. `A/A` is the translation again: its",
 		"gap from `translated` is the noise. A `reads` decode is the frame headers above as they",
 		"arrive that many bytes at a time, so a header cut by a read comes up short and is",
 		"decoded again on the next: its gap from the whole decode is the error path's price.",
 		...(extra ? [`\`${extra.name}\` is the translation in another run's output, given by \`--route\`.`] : []),
 		"",
-		"## Bundle size",
+		"## Size and build",
 		"",
-		"Bytes for the same workloads, as timed: minified by Bun where JS.",
+		"Bytes of each route's own files for the same workloads, as timed: minified by Bun where JS,",
+		"and for `rust2-wasm` its `.wasm`, its binding, and the loader that fetches the module, while",
+		"the hand-boundary wasm32 rows are the `.wasm` alone, without the few lines of JS a caller",
+		"needs to copy its input in and its output out. Each build step is timed from an emptied target",
+		"directory of its own, without a compiler cache, its dependencies included, in wall and CPU",
+		"seconds, so a route of two cargo steps pays for its dependencies twice where a consumer's",
+		"one pipeline would share them: `wasm2js`'s includes `wasm checked`'s build, `rust2-wasm`'s",
+		"rust2-ffi's export and the export's build, `translated`'s rust2-ts's translation, and every",
+		"JS route's its bundling by Bun.",
 		"",
-		"| route | raw | gzip |",
-		"| --- | ---: | ---: |",
-		...sizes.map((s) => `| ${s.route} | ${s.raw} | ${s.gzip} |`),
+		"| route | raw | gzip | build wall s | build CPU s |",
+		"| --- | ---: | ---: | ---: | ---: |",
+		...sizes.map(sizeRow),
 	];
 
 	const routes = [...codecRoutes, ...(extra ? [extra.name] : [])];
 	for (const engine of engines) {
-		const all = [...host.timings, ...engine.timings];
+		const all = [...host, ...engine.timings];
 		const median = (w: Workload, route: string) => stats(find(all, w, route).ns).median;
 		const ratio = (w: Workload) => median(w, "A/A") / median(w, "translated");
 		const aa = list.map((w) => Math.abs(ratio(w) - 1)).sort((a, b) => a - b);
@@ -403,17 +508,52 @@ function render(): string {
 			"",
 			`A/A differs from translated by ${percent(aa[aa.length >> 1])} at the median workload, ${percent(aa[aa.length - 1])} at most, and ${percent(family)} at most over a family's geometric mean.`,
 			"",
-			`| workload | op | ${routes.join(" | ")} | translated ÷ hand-written |`,
-			`| --- | --- |${" ---: |".repeat(routes.length + 1)}`,
+			`| workload | op | ${routes.join(" | ")} | translated ÷ rust2-wasm | translated ÷ hand-written |`,
+			`| --- | --- |${" ---: |".repeat(routes.length + 2)}`,
 			...list.map((w) => {
 				const cells = routes.map((r) => cell(find(all, w, r).ns));
-				const ratio = (median(w, "translated") / median(w, "hand-written")).toFixed(2);
-				return `| ${w.name} | ${w.op} | ${cells.join(" | ")} | ${ratio} |`;
+				const over = (route: string) => (median(w, "translated") / median(w, route)).toFixed(2);
+				return `| ${w.name} | ${w.op} | ${cells.join(" | ")} | ${over("rust2-wasm")} | ${over("hand-written")} |`;
 			}),
 		);
 	}
-	lines.push(...renderHandoffs());
+	lines.push(...renderCold(), ...renderHandoffs());
 	return `${lines.join("\n")}\n`;
+}
+
+function sizeRow(s: ReturnType<typeof shipped>[number]): string {
+	const build = s.built ? `${s.wall.toFixed(2)} | ${s.cpu.toFixed(2)}` : " | ";
+	return `| ${s.route} | ${s.raw} | ${s.gzip} | ${build} |`;
+}
+
+/** Each route's cold start in each engine. */
+function renderCold(): string[] {
+	const lines = [
+		"",
+		"## Cold start",
+		"",
+		"Milliseconds from a fresh worker's load of a route to its first output, the codec's first",
+		"workload and the handoff's: fetching or reading its files, compiling a `.wasm` or",
+		"evaluating its JavaScript, and the first call, the median of a round's worker each, ± half",
+		"their interquartile range. Each `.wasm` is compiled with a custom section of its own, and",
+		"a browser is told to store nothing, so no engine reuses code it compiled for another worker.",
+	];
+	for (const engine of engines) {
+		const of = (cold: Cold[], route: string) => {
+			const found = cold.find((c) => c.route === route);
+			return found ? cell(found.ms) : "";
+		};
+		const routes = [...new Set([...engine.cold.codec, ...engine.cold.handoff].map((c) => c.route))];
+		lines.push(
+			"",
+			`### ${engine.engine}`,
+			"",
+			"| route | codec | handoff |",
+			"| --- | ---: | ---: |",
+			...routes.map((r) => `| ${r} | ${of(engine.cold.codec, r)} | ${of(engine.cold.handoff, r)} |`),
+		);
+	}
+	return lines;
 }
 
 /** The async handoff on every route, and each route's size. */
@@ -425,30 +565,36 @@ function renderHandoffs(): string[] {
 		"",
 		"Nanoseconds per handoff: a value sent to a task parked on a kio-shaped channel, which",
 		"wakes it, polls it through `depth` async functions to the channel, and parks it again.",
-		"`native` and `wasm` run the task fixture's `bench.rs`, which polls the task at once on",
-		"each wake, and `translated` its translation polled the same way. `spawned` runs the",
+		"`native` and the wasm32 routes run the task fixture's `bench.rs`, which polls the task at",
+		"once on each wake, and `translated` its translation polled the same way. `spawned` runs the",
 		"translation on the runtime's `spawn`, which polls woken tasks from a microtask.",
 		"`hand-written` is the handoff with promises and `async` functions, as moq's TypeScript",
-		"writes it, where each handoff waits for the reader to park again. Bundle sizes are of",
-		"the channel, the async functions, and their runtime.",
+		"writes it, where each handoff waits for the reader to park again. Sizes are of",
+		"the channel, the async functions, and their runtime, and builds as above.",
+		"`rust2-wasm` can run the handoff faster than `wasm checked`, the same Rust at the same",
+		"profile. Neither its target nor its allocator does it, since the hand-boundary build",
+		"for `wasm32-wasip1` runs as the `wasm32-unknown-unknown` one, nor this harness, since",
+		"both reproduce called directly. The fixture is the cdylib's root in one and a dependency",
+		"behind the export's `extern \"C\"` function in the other, and the gap narrows at",
+		"`opt-level = 3`, so it reads as their code generation differing, not pinned down further.",
 		"",
-		"| route | raw | gzip |",
-		"| --- | ---: | ---: |",
-		...taskSizes.map((s) => `| ${s.route} | ${s.raw} | ${s.gzip} |`),
+		"| route | raw | gzip | build wall s | build CPU s |",
+		"| --- | ---: | ---: | ---: | ---: |",
+		...taskSizes.map(sizeRow),
 	];
 	for (const engine of engines) {
-		const all = [...host.timings, ...engine.timings];
+		const all = [...host, ...engine.timings];
 		lines.push(
 			"",
 			`### ${engine.engine}`,
 			"",
-			`| depth | ${routes.join(" | ")} | translated ÷ hand-written |`,
-			`| --- |${" ---: |".repeat(routes.length + 1)}`,
+			`| depth | ${routes.join(" | ")} | translated ÷ rust2-wasm | translated ÷ hand-written |`,
+			`| --- |${" ---: |".repeat(routes.length + 2)}`,
 			...handoffList.map((w) => {
 				const cells = routes.map((r) => cell(find(all, w, r).ns));
 				const median = (route: string) => stats(find(all, w, route).ns).median;
-				const ratio = (median("translated") / median("hand-written")).toFixed(2);
-				return `| ${w.name.replace("depth ", "")} | ${cells.join(" | ")} | ${ratio} |`;
+				const over = (route: string) => (median("translated") / median(route)).toFixed(2);
+				return `| ${w.name.replace("depth ", "")} | ${cells.join(" | ")} | ${over("rust2-wasm")} | ${over("hand-written")} |`;
 			}),
 		);
 	}

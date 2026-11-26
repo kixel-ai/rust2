@@ -1,0 +1,1607 @@
+name: Binding packages
+
+# The shared, read-only builder of a crate's rust2-ffi Python wheels, Swift package, C archives,
+# Go module, Android library, pub.dev package, web package, and React Native package, which a release workflow
+# ffi/release/package.py's `init` writes calls at a pinned rust2 commit.
+# It publishes nothing and holds no credentials: the caller's own jobs publish what it
+# uploads, once its consumers pass. See ffi/release/README.md.
+on:
+  workflow_call:
+    inputs:
+      manifest-path:
+        description: The Cargo.toml of the package whose pub API the bindings export
+        required: true
+        type: string
+      features:
+        description: Cargo features the export and every build turn on, space-separated
+        default: ''
+        type: string
+      example:
+        description: An example of the package whose stdout every check program must print
+        default: ''
+        type: string
+      python-check:
+        description: A program run on each installed wheel from a clean directory, or a directory holding it as check.py beside the modules it imports
+        default: ''
+        type: string
+      swift-check:
+        description: The Swift file of an executable run on the installed Swift package, importing its module, or a directory holding it as check.swift beside the files of its own
+        default: ''
+        type: string
+      reproduce:
+        description: Build every host's packages a second time, from a second checkout and export, and fail unless the bytes match
+        default: false
+        type: boolean
+      c-check:
+        description: A C or C++ program built by clean CMake and pkg-config consumers of each C archive, or a directory holding it as check.c or check.cpp beside the headers it includes
+        default: ''
+        type: string
+      web-manifest-path:
+        description: The Cargo.toml of the package whose wasm32-wasip1 export the npm and JSR package holds, often manifest-path; without it, no web package
+        default: ''
+        type: string
+      scope:
+        description: The npm scope, without its @, of the React Native package, @<scope>/<crate>-rn, and the web package's on npm and JSR, @<scope>/<crate>; without it, no React Native package
+        default: ''
+        type: string
+      web-check:
+        description: A TypeScript module run on the installed npm package, importing the binding as ./web/<module>.ts does beside the export, or a directory holding it as check.ts beside the modules it imports
+        default: ''
+        type: string
+      web-features:
+        description: Cargo features of a web crate apart from manifest-path's, which takes features
+        default: ''
+        type: string
+      web-example:
+        description: The example of a web crate apart from manifest-path's whose stdout web-check must print, which takes example
+        default: ''
+        type: string
+      react-native-check:
+        description: A TypeScript module run in React Native apps on the installed npm package, importing the binding as ./react-native/<module>.ts does beside the export, or a directory holding it as check.ts beside the modules it imports
+        default: ''
+        type: string
+      go-module:
+        description: The Go module's path; without it, the export's own, which no proxy serves
+        default: ''
+        type: string
+      go-check:
+        description: The main.go of a program, importing the module's packages, run against it, or a directory holding it as check.go beside the files of its package
+        default: ''
+        type: string
+      maven-group:
+        description: The Maven groupId the Kotlin binding, a jar for desktop JVMs and an AAR for Android, is published under, a namespace the publisher holds on Maven Central; without it, neither is built or checked, though the Android legs still build the Go module's Android archives
+        default: ''
+        type: string
+      kotlin-check:
+        description: A Kotlin program, importing the binding's package, run by Gradle apps on the jar and the Android library, or a directory holding it as check.kt beside the Kotlin sources it uses
+        default: ''
+        type: string
+      dart-check:
+        description: The Dart program, whose main takes no arguments or a list of them, importing the package as package:<lib>/<lib>.dart, run by Dart and Flutter apps on it, or a directory holding it as check.dart beside the files it imports
+        default: ''
+        type: string
+      checks-artifact:
+        description: An artifact of the caller's run unpacked over its checkout before the checks are read, for checks it generates
+        default: ''
+        type: string
+    outputs:
+      version:
+        description: The package's Cargo version
+        value: ${{ jobs.facts.outputs.version }}
+      tag:
+        description: The release tag the hosted XCFramework URL names, <package>-v<version>
+        value: ${{ jobs.facts.outputs.tag }}
+      module:
+        description: The Swift module, whose XCFramework is <module>FFI.xcframework.zip
+        value: ${{ jobs.facts.outputs.module }}
+      web:
+        description: Whether the build made the web package, <name>-web
+        value: ${{ inputs.web-manifest-path != '' }}
+      maven:
+        description: Whether the build made the Kotlin binding's Maven repository, <name>-maven
+        value: ${{ inputs.maven-group != '' }}
+      react-native:
+        description: Whether the build made the React Native package, <name>-react-native
+        value: ${{ inputs.scope != '' }}
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+  MANIFEST: ${{ inputs.manifest-path }}
+  FEATURES: ${{ inputs.features }}
+  # The NDK the Android libraries build with: the Android Gradle Plugin's and Flutter's default.
+  NDK: 28.2.13676358
+
+jobs:
+  facts:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    outputs:
+      name: ${{ steps.facts.outputs.name }}
+      version: ${{ steps.facts.outputs.version }}
+      tag: ${{ steps.facts.outputs.tag }}
+      module: ${{ steps.facts.outputs.module }}
+      fixture: ${{ steps.mode.outputs.fixture }}
+      web-fixture: ${{ steps.mode.outputs.web-fixture }}
+      rust2: ${{ steps.identity.outputs.workflow_repository }}
+      rust2-sha: ${{ steps.identity.outputs.workflow_sha }}
+      previous: ${{ steps.previous.outputs.previous }}
+      baseline: ${{ steps.previous.outputs.baseline }}
+    steps:
+      # Read new job identity fields through JSON until actionlint knows their types.
+      - id: identity
+        env:
+          JOB: ${{ toJSON(job) }}
+        run: |
+          for field in workflow_repository workflow_sha; do
+            value=$(jq -er --arg field "$field" '.[$field] | select(type == "string" and length > 0)' <<< "$JOB")
+            echo "$field=$value" >> "$GITHUB_OUTPUT"
+          done
+      # rust2's own test exports moq's stand-in facade, which `just ffi standin` writes from
+      # moq's pinned sources: no repository holds it.
+      - id: mode
+        env:
+          RUST2: ${{ steps.identity.outputs.workflow_repository }}
+          WEB_MANIFEST: ${{ inputs.web-manifest-path }}
+        run: |
+          if [[ "$RUST2" == "$GITHUB_REPOSITORY" && "$MANIFEST" == ffi/.work/moq-ffi/Cargo.toml ]]; then
+            echo fixture=true >> "$GITHUB_OUTPUT"
+          else
+            echo fixture=false >> "$GITHUB_OUTPUT"
+          fi
+          if [[ "$RUST2" == "$GITHUB_REPOSITORY" && "$WEB_MANIFEST" == ffi/.work/moq-ffi-web/Cargo.toml ]]; then
+            echo web-fixture=true >> "$GITHUB_OUTPUT"
+          else
+            echo web-fixture=false >> "$GITHUB_OUTPUT"
+          fi
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          path: source
+          persist-credentials: false
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ${{ steps.identity.outputs.workflow_repository }}
+          ref: ${{ steps.identity.outputs.workflow_sha }}
+          path: rust2
+          persist-credentials: false
+      - uses: taiki-e/install-action@cfdb7ed4ccc7c7dce37759eae89dc5674b469b39 # v2.90.3
+        if: steps.mode.outputs.fixture == 'true'
+        with:
+          tool: just
+      - name: Stand-in
+        if: steps.mode.outputs.fixture == 'true'
+        working-directory: source
+        run: just ffi standin
+      - id: facts
+        working-directory: source
+        run: python3 -I ../rust2/ffi/release/package.py facts --manifest-path "$MANIFEST" >> "$GITHUB_OUTPUT"
+      # The APIs of the release the changelog follows and of the newest one Cargo treats as
+      # compatible with this version, which the export must not break.
+      - id: previous
+        working-directory: source
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 -I ../rust2/ffi/release/package.py previous --manifest-path "$MANIFEST" --repo "$GITHUB_REPOSITORY" --out ../previous >> "$GITHUB_OUTPUT"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: steps.previous.outputs.previous != ''
+        with:
+          name: ${{ steps.facts.outputs.name }}-previous
+          path: previous
+          if-no-files-found: error
+
+  # Each target's API, checked on the host whose C toolchain its build scripts need, for
+  # every build host's export to merge into one binding. Beside each prebuilt package's
+  # targets, those the sdist builds a wheel on, package.py's SDIST_TARGETS: the generated
+  # crate builds for no target it was not exported for.
+  api:
+    needs: facts
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - host: linux-x64
+            os: ubuntu-24.04
+            targets: x86_64-unknown-linux-gnu x86_64-unknown-linux-musl
+          - host: linux-arm64
+            os: ubuntu-24.04-arm
+            targets: aarch64-unknown-linux-gnu aarch64-unknown-linux-musl
+          - host: apple
+            os: macos-26
+            targets: aarch64-apple-darwin aarch64-apple-ios aarch64-apple-ios-sim aarch64-apple-ios-macabi x86_64-apple-darwin
+          # MSVC's library for the wheel, MinGW's for Go, which links through MinGW.
+          - host: windows
+            os: windows-latest
+            targets: x86_64-pc-windows-msvc x86_64-pc-windows-gnu aarch64-pc-windows-msvc
+          # Each Android ABI the AAR and the Dart package hold, and the Go module's, through the
+          # NDK, with a scope React Native's fourth, x86.
+          - host: android
+            os: ubuntu-24.04
+            targets: ${{ inputs.scope != '' && 'aarch64-linux-android armv7-linux-androideabi i686-linux-android x86_64-linux-android' || 'aarch64-linux-android armv7-linux-androideabi x86_64-linux-android' }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    defaults:
+      run:
+        shell: bash
+    steps:
+      # ffi/rust-toolchain.toml links to ts/'s.
+      - if: runner.os == 'Windows'
+        run: git config --global core.symlinks true
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          path: source
+          persist-credentials: false
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ${{ needs.facts.outputs.rust2 }}
+          ref: ${{ needs.facts.outputs.rust2-sha }}
+          path: rust2
+          persist-credentials: false
+      - uses: taiki-e/install-action@cfdb7ed4ccc7c7dce37759eae89dc5674b469b39 # v2.90.3
+        if: needs.facts.outputs.fixture == 'true'
+        with:
+          tool: just
+      - name: Stand-in
+        if: needs.facts.outputs.fixture == 'true'
+        working-directory: source
+        run: just ffi standin
+      - name: Android NDK
+        if: matrix.host == 'android'
+        run: |
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "ndk;$NDK" > /dev/null
+          echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/$NDK" >> "$GITHUB_ENV"
+      # musl-gcc, which a build script's cc compiles musl's C with.
+      - if: runner.os == 'Linux'
+        run: sudo apt-get update -q && sudo apt-get install -yq musl-tools
+      - name: Exporter
+        working-directory: rust2/ffi
+        env:
+          TARGETS: ${{ matrix.targets }}
+        run: |
+          read -ra targets <<< "$TARGETS"
+          rustup target add "${targets[@]}"
+          cargo build --locked --release
+      - name: Stage
+        env:
+          TARGETS: ${{ matrix.targets }}
+        run: |
+          read -ra targets <<< "$TARGETS"
+          python3 -I rust2/ffi/release/package.py api --manifest-path "source/$MANIFEST" --features "$FEATURES" --out api "${targets[@]}"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: ${{ needs.facts.outputs.name }}-api-${{ matrix.host }}
+          path: api
+          if-no-files-found: error
+
+  # Each host exports the binding with every target's API, builds its own targets, and runs
+  # the native example the consumers compare with.
+  build:
+    needs: [facts, api]
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - host: linux-x64
+            os: ubuntu-24.04
+            targets: x86_64-unknown-linux-gnu
+          - host: linux-arm64
+            os: ubuntu-24.04-arm
+            targets: aarch64-unknown-linux-gnu
+          # One leg per Apple slice: a 3-core runner takes about 20 minutes for each of moq's.
+          - host: apple-darwin
+            os: macos-26
+            targets: aarch64-apple-darwin
+          - host: apple-ios
+            os: macos-26
+            targets: aarch64-apple-ios
+          - host: apple-ios-sim
+            os: macos-26
+            targets: aarch64-apple-ios-sim
+          - host: apple-catalyst
+            os: macos-26
+            targets: aarch64-apple-ios-macabi
+          # Intel macOS's Go and Dart libraries, which the export's Go links once its API is
+          # merged, and its native output; named apart from apple-*, the Swift package's slices.
+          - host: darwin-x64
+            os: macos-15-intel
+            targets: x86_64-apple-darwin
+          - host: windows
+            os: windows-latest
+            targets: x86_64-pc-windows-msvc x86_64-pc-windows-gnu
+          # The AAR's, the Dart package's, and React Native's libraries, split across legs as
+          # each ABI takes two or three of moq's 8-minute builds. android-x86 builds the
+          # emulator's, and the example its consumers compare against.
+          - host: android-arm64
+            os: ubuntu-24.04
+            targets: aarch64-linux-android
+          - host: android-arm
+            os: ubuntu-24.04
+            targets: armv7-linux-androideabi
+          - host: android-x86
+            os: ubuntu-24.04
+            targets: ${{ inputs.scope != '' && 'x86_64-linux-android i686-linux-android' || 'x86_64-linux-android' }}
+    runs-on: ${{ matrix.os }}
+    # A wheel host builds six fat-LTO libraries, each 5 to 18 minutes: the slowest legs,
+    # Windows and the Apple macOS slice, take 85 to 92 minutes, so the cap leaves them a third more.
+    # This cap also bounds reproduction runs; a second build may exhaust it.
+    timeout-minutes: 120
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - if: runner.os == 'Windows'
+        run: git config --global core.symlinks true
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          path: source
+          persist-credentials: false
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ${{ needs.facts.outputs.rust2 }}
+          ref: ${{ needs.facts.outputs.rust2-sha }}
+          path: rust2
+          persist-credentials: false
+      - uses: taiki-e/install-action@cfdb7ed4ccc7c7dce37759eae89dc5674b469b39 # v2.90.3
+        if: needs.facts.outputs.fixture == 'true'
+        with:
+          tool: just
+      - name: Stand-in
+        if: needs.facts.outputs.fixture == 'true'
+        working-directory: source
+        run: just ffi standin
+      # The tools that build and repair, apart from the CPython the consumers test on.
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: '3.13'
+      - name: Packaging tools
+        run: |
+          case "$RUNNER_OS" in
+            Linux) python -m pip install auditwheel==6.8.2 patchelf==0.17.2.4 cargo-zigbuild==0.24.1 ziglang==0.17.1 ;;
+            macOS) python -m pip install delocate==0.13.0 ;;
+            Windows) python -m pip install delvewheel==1.13.2 ;;
+          esac
+      # The NDK the libraries build with.
+      - name: Android NDK
+        if: startsWith(matrix.host, 'android')
+        run: |
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "ndk;$NDK" > /dev/null
+          echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/$NDK" >> "$GITHUB_ENV"
+      - name: Exporter
+        working-directory: rust2/ffi
+        env:
+          TARGETS: ${{ matrix.targets }}
+        run: |
+          read -ra targets <<< "$TARGETS"
+          rustup target add "${targets[@]}"
+          cargo build --locked --release
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: ${{ needs.facts.outputs.name }}-api-*
+          path: api
+          merge-multiple: true
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        if: needs.facts.outputs.baseline != ''
+        with:
+          name: ${{ needs.facts.outputs.name }}-previous
+          path: previous
+      # A version must not break the API of the newest release Cargo treats as compatible.
+      - name: Export
+        env:
+          TARGETS: ${{ matrix.targets }}
+          BASELINE: ${{ needs.facts.outputs.baseline }}
+          GO_MODULE: ${{ inputs.go-module }}
+        run: |
+          read -ra targets <<< "$TARGETS"
+          baseline=()
+          if [[ -n "$BASELINE" ]]; then baseline=(--baseline previous/baseline/api.json); fi
+          python3 -I rust2/ffi/release/package.py export --manifest-path "source/$MANIFEST" --features "$FEATURES" --api api "${baseline[@]}" --go-module "$GO_MODULE" --out export "${targets[@]}"
+      - name: Build
+        env:
+          TARGETS: ${{ matrix.targets }}
+          # Android's example only serves a kotlin-check's or react-native-check's comparison in
+          # a consumer, and the iOS simulator's a react-native-check's; the other Android legs
+          # build none.
+          EXAMPLE: >-
+            ${{ (matrix.host == 'android-x86' && (inputs.maven-group != '' && inputs.kotlin-check != '' || inputs.scope != '' && inputs.react-native-check != '')
+            || matrix.host == 'apple-ios-sim' && inputs.scope != '' && inputs.react-native-check != ''
+            || !startsWith(matrix.host, 'android') && matrix.host != 'apple-ios-sim') && inputs.example || '' }}
+          GROUP: ${{ inputs.maven-group }}
+          SCOPE: ${{ inputs.scope }}
+        run: |
+          read -ra targets <<< "$TARGETS"
+          # The Kotlin binding's libraries, for the jar and the AAR, only for a Maven release,
+          # and React Native's, only for an npm one.
+          kotlin=()
+          if [[ -n "$GROUP" ]]; then kotlin=(--kotlin); fi
+          if [[ -n "$SCOPE" ]]; then kotlin+=(--react-native); fi
+          python -I rust2/ffi/release/package.py build --manifest-path "source/$MANIFEST" --features "$FEATURES" --export export --out dist --example "$EXAMPLE" "${kotlin[@]}" "${targets[@]}"
+      # One host's: the sources are the same on every host, as `agree` checks their binding.
+      - name: Source distribution
+        if: matrix.host == 'linux-x64'
+        run: python3 -I rust2/ffi/release/package.py sdist --manifest-path "source/$MANIFEST" --export export --out dist
+      # The build again, as anyone with the commit makes it: the same packages byte for byte,
+      # from a second checkout and export a level deeper, beside each other as the first are.
+      # It doubles the job's time.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        if: inputs.reproduce
+        with:
+          path: again/source
+          persist-credentials: false
+      - name: Stand-in again
+        if: inputs.reproduce && needs.facts.outputs.fixture == 'true'
+        working-directory: again/source
+        run: just ffi standin
+      - name: Rebuild
+        if: inputs.reproduce
+        working-directory: again
+        env:
+          TARGETS: ${{ matrix.targets }}
+          GO_MODULE: ${{ inputs.go-module }}
+          HOST: ${{ matrix.host }}
+          GROUP: ${{ inputs.maven-group }}
+          SCOPE: ${{ inputs.scope }}
+        run: |
+          read -ra targets <<< "$TARGETS"
+          kotlin=()
+          if [[ -n "$GROUP" ]]; then kotlin=(--kotlin); fi
+          if [[ -n "$SCOPE" ]]; then kotlin+=(--react-native); fi
+          python3 -I ../rust2/ffi/release/package.py export --manifest-path "source/$MANIFEST" --features "$FEATURES" --api ../api --go-module "$GO_MODULE" --out export "${targets[@]}"
+          python -I ../rust2/ffi/release/package.py build --manifest-path "source/$MANIFEST" --features "$FEATURES" --export export --out dist "${kotlin[@]}" "${targets[@]}"
+          if [[ "$HOST" == linux-x64 ]]; then
+            python3 -I ../rust2/ffi/release/package.py sdist --manifest-path "source/$MANIFEST" --export export --out dist
+          fi
+          python3 -I ../rust2/ffi/release/package.py same ../dist dist
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        if: inputs.checks-artifact != ''
+        with:
+          name: ${{ inputs.checks-artifact }}
+          path: source
+      # A check lands as a directory holding it as check.<ext>, whichever form the input takes:
+      # a file is copied into one, and a directory whole.
+      - name: Checks
+        env:
+          PYTHON_CHECK: ${{ inputs.python-check }}
+          SWIFT_CHECK: ${{ inputs.swift-check }}
+          C_CHECK: ${{ inputs.c-check }}
+          GO_CHECK: ${{ inputs.go-check }}
+          KOTLIN_CHECK: ${{ inputs.kotlin-check }}
+          DART_CHECK: ${{ inputs.dart-check }}
+          REACT_NATIVE_CHECK: ${{ inputs.react-native-check }}
+        run: |
+          mkdir -p dist/checks
+          stage() {
+            if [[ -d "source/$1" ]]; then cp -R "source/$1" "$2"; else mkdir "$2" && cp "source/$1" "$2/$3"; fi
+          }
+          if [[ -n "$PYTHON_CHECK" ]]; then stage "$PYTHON_CHECK" dist/checks/python check.py; fi
+          if [[ -n "$SWIFT_CHECK" ]]; then stage "$SWIFT_CHECK" dist/checks/swift check.swift; fi
+          # A file's extension says whether it is C or C++.
+          if [[ -n "$C_CHECK" ]]; then stage "$C_CHECK" dist/checks/c "check.${C_CHECK##*.}"; fi
+          if [[ -n "$GO_CHECK" ]]; then stage "$GO_CHECK" dist/checks/go check.go; fi
+          if [[ -n "$KOTLIN_CHECK" ]]; then stage "$KOTLIN_CHECK" dist/checks/kotlin check.kt; fi
+          if [[ -n "$DART_CHECK" ]]; then stage "$DART_CHECK" dist/checks/dart check.dart; fi
+          if [[ -n "$REACT_NATIVE_CHECK" ]]; then stage "$REACT_NATIVE_CHECK" dist/checks/react-native check.ts; fi
+      # The export's own package, as a checkout depends on it: its hook builds the crate.
+      - uses: dart-lang/setup-dart@2286a0c042b44434fe26d292bbce8d34f7ec662b # v1.8.2
+        if: matrix.host == 'linux-x64'
+        with:
+          sdk: stable
+      - name: Dart from source
+        if: matrix.host == 'linux-x64'
+        run: |
+          args=()
+          if [[ -d dist/checks/dart ]]; then args+=(--check dist/checks/dart); fi
+          if [[ -f dist/native.txt ]]; then args+=(--native dist/native.txt); fi
+          python3 -I rust2/ffi/release/package.py consume-source --export export "${args[@]}"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: ${{ needs.facts.outputs.name }}-build-${{ matrix.host }}
+          path: dist
+          if-no-files-found: error
+
+  # The hosts' exports must be one binding: a module and a library from different builds
+  # refuse to load, but two wheels of different bindings would each load. Their SBOMs, of
+  # the one dependency graph, must match as well.
+  agree:
+    needs: [facts, build]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: ${{ needs.facts.outputs.name }}-build-*
+          path: builds
+      - run: |
+          sort -u builds/*/digest.txt > digests
+          cat builds/*/digest.txt
+          if [[ $(wc -l < digests) != 1 ]]; then
+            echo '::error::The build hosts exported different bindings.'
+            exit 1
+          fi
+          if [[ $(sha256sum builds/*/sbom.cdx.json | cut -d' ' -f1 | sort -u | wc -l) != 1 ]]; then
+            echo '::error::The build hosts listed different dependencies.'
+            exit 1
+          fi
+
+  # The release's API, which the next release is checked against, and its changelog from
+  # the previous release's: what the caller's release publishes beside the packages.
+  changes:
+    needs: [facts, agree]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ${{ needs.facts.outputs.rust2 }}
+          ref: ${{ needs.facts.outputs.rust2-sha }}
+          path: rust2
+          sparse-checkout: ffi/release
+          persist-credentials: false
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: ${{ needs.facts.outputs.name }}-build-linux-x64
+          path: build
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        if: needs.facts.outputs.previous != ''
+        with:
+          name: ${{ needs.facts.outputs.name }}-previous
+          path: previous
+      - env:
+          PREVIOUS: ${{ needs.facts.outputs.previous }}
+        run: |
+          mkdir release
+          cp build/export/api.json release/api.json
+          old=()
+          if [[ -n "$PREVIOUS" ]]; then old=(--old previous/previous/api.json --since "$PREVIOUS"); fi
+          python3 -I rust2/ffi/release/package.py changes "${old[@]}" --new release/api.json > release/changes.md
+          cat release/changes.md >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: ${{ needs.facts.outputs.name }}-release
+          path: release
+          if-no-files-found: error
+
+  swift:
+    needs: [facts, build]
+    runs-on: macos-26
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          path: source
+          persist-credentials: false
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ${{ needs.facts.outputs.rust2 }}
+          ref: ${{ needs.facts.outputs.rust2-sha }}
+          path: rust2
+          persist-credentials: false
+      - uses: taiki-e/install-action@cfdb7ed4ccc7c7dce37759eae89dc5674b469b39 # v2.90.3
+        if: needs.facts.outputs.fixture == 'true'
+        with:
+          tool: just
+      - name: Stand-in
+        if: needs.facts.outputs.fixture == 'true'
+        working-directory: source
+        run: just ffi standin
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: ${{ needs.facts.outputs.name }}-build-apple-*
+          path: apple
+          merge-multiple: true
+      - name: Package
+        env:
+          URL: https://github.com/${{ github.repository }}/releases/download/${{ needs.facts.outputs.tag }}/${{ needs.facts.outputs.module }}FFI.xcframework.zip
+        run: |
+          args=()
+          for target in aarch64-apple-darwin aarch64-apple-ios aarch64-apple-ios-sim aarch64-apple-ios-macabi; do
+            args+=(--lib "$target=$(echo "$PWD"/apple/static/"$target"/*.a)" --native "$target=$PWD/apple/static/$target/native.txt")
+          done
+          cd source
+          python3 -I ../rust2/ffi/release/package.py swift --manifest-path "$MANIFEST" --export ../apple/export "${args[@]}" --url "$URL" --out ../swift
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: ${{ needs.facts.outputs.name }}-swift
+          path: swift
+          if-no-files-found: error
+
+  # A fresh environment per wheel, on the oldest CPython its stable ABI claims, with no
+  # checkout, Rust, or source path: what a user's `pip install` gets. The `abi3t` wheel's is
+  # free-threaded, where `-W error` fails the check on the warning that the GIL turned on.
+  python:
+    needs: [facts, build, agree]
+    strategy:
+      fail-fast: false
+      matrix:
+        abi: [abi3, abi3t]
+        host: [linux-x64, linux-arm64, apple-darwin, windows]
+        include:
+          - host: linux-x64
+            os: ubuntu-24.04
+          - host: linux-arm64
+            os: ubuntu-24.04-arm
+          - host: apple-darwin
+            os: macos-26
+          - host: windows
+            os: windows-latest
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ${{ needs.facts.outputs.rust2 }}
+          ref: ${{ needs.facts.outputs.rust2-sha }}
+          path: rust2
+          sparse-checkout: ffi/release
+          persist-credentials: false
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: ${{ needs.facts.outputs.name }}-build-${{ matrix.host }}
+          path: dist
+      - name: Python floor
+        id: floor
+        env:
+          ABI: ${{ matrix.abi }}
+        run: |
+          shopt -s nullglob
+          wheels=(dist/wheels/*-"$ABI"-*.whl)
+          [[ ${#wheels[@]} == 1 ]] || { echo "::error::expected one $ABI wheel, found ${wheels[*]}"; exit 1; }
+          tag=$(basename "${wheels[0]}" .whl | cut -d- -f3)
+          [[ "$tag" =~ ^cp3([0-9]+)$ ]] || { echo "::error::no CPython floor in ${wheels[0]}"; exit 1; }
+          echo "version=3.${BASH_REMATCH[1]}$([[ $ABI == abi3t ]] && echo t)" >> "$GITHUB_OUTPUT"
+          echo "wheel=${wheels[0]}" >> "$GITHUB_OUTPUT"
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: ${{ steps.floor.outputs.version }}
+      - name: Install and run
+        env:
+          WHEEL: ${{ steps.floor.outputs.wheel }}
+        run: |
+          python -m venv "$RUNNER_TEMP/env"
+          if [[ "$RUNNER_OS" == Windows ]]; then py="$RUNNER_TEMP/env/Scripts/python.exe"; else py="$RUNNER_TEMP/env/bin/python"; fi
+          "$py" -m pip install --no-index --no-deps "$WHEEL"
+          args=()
+          if [[ -f dist/native.txt ]]; then args+=(--native dist/native.txt); fi
+          if [[ -d dist/checks/python ]]; then
+            "$py" -I rust2/ffi/release/package.py consume-python --check dist/checks/python "${args[@]}"
+          else
+            "$py" -I rust2/ffi/release/package.py consume-python --import "$(cat dist/lib.txt)"
+          fi
+          echo "PY=$py" >> "$GITHUB_ENV"
+      # The installed package as a caller's type checker finds it: through its py.typed, and
+      # with no error under --strict. One host's, as the module is the same on each.
+      - name: Type check
+        if: matrix.host == 'linux-x64' && matrix.abi == 'abi3'
+        run: |
+          python -m venv "$RUNNER_TEMP/tools"
+          "$RUNNER_TEMP/tools/bin/python" -m pip install -q mypy==2.4.1
+          mkdir "$RUNNER_TEMP/typed"
+          cd "$RUNNER_TEMP/typed"
+          "$RUNNER_TEMP/tools/bin/mypy" --strict --python-executable "$PY" -p "$(cat "$GITHUB_WORKSPACE/dist/lib.txt")"
+
+  # The sdist built and installed by pip, with Rust's toolchain and no other, on targets no
+  # prebuilt wheel covers: musllinux in Alpine, Windows on arm64, and Intel macOS. Each runs
+  # the check against its OS's native output.
+  python-sdist:
+    needs: [facts, build, agree]
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - host: musllinux-x64
+            os: ubuntu-24.04
+            native: linux-x64
+          - host: windows-arm64
+            os: windows-11-arm
+            native: windows
+          - host: darwin-x64
+            os: macos-15-intel
+            native: darwin-x64
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 90
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ${{ needs.facts.outputs.rust2 }}
+          ref: ${{ needs.facts.outputs.rust2-sha }}
+          path: rust2
+          sparse-checkout: ffi/release
+          persist-credentials: false
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: ${{ needs.facts.outputs.name }}-build-linux-x64
+          path: dist
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: ${{ needs.facts.outputs.name }}-build-${{ matrix.native }}
+          path: native
+      - name: Python floor
+        id: floor
+        run: |
+          shopt -s nullglob
+          wheels=(dist/wheels/*-abi3-*.whl)
+          [[ ${#wheels[@]} == 1 ]] || { echo "::error::expected one abi3 wheel, found ${wheels[*]}"; exit 1; }
+          tag=$(basename "${wheels[0]}" .whl | cut -d- -f3)
+          [[ "$tag" =~ ^cp3([0-9]+)$ ]] || { echo "::error::no CPython floor in ${wheels[0]}"; exit 1; }
+          echo "version=3.${BASH_REMATCH[1]}" >> "$GITHUB_OUTPUT"
+          args=(--check dist/checks/python)
+          if [[ ! -d dist/checks/python ]]; then args=(--import "$(cat dist/lib.txt)"); fi
+          if [[ -f native/native.txt ]]; then args+=(--native native/native.txt); fi
+          echo "args=${args[*]}" >> "$GITHUB_OUTPUT"
+      # Alpine's own Python and rustup's Rust, whose host is the musl target the export names.
+      - name: Install and run in Alpine
+        if: matrix.host == 'musllinux-x64'
+        env:
+          ARGS: ${{ steps.floor.outputs.args }}
+          FLOOR: ${{ steps.floor.outputs.version }}
+        run: |
+          docker run --rm -v "$PWD:/work" -w /work -e ARGS "python:$FLOOR-alpine" sh -euc '
+            apk add --no-cache build-base rustup
+            rustup-init -y --profile minimal --default-toolchain stable
+            export PATH="$HOME/.cargo/bin:$PATH"
+            python -m venv /env
+            /env/bin/python -m pip install -v --no-index --no-deps dist/sdist/*.tar.gz
+            /env/bin/python -I rust2/ffi/release/package.py consume-python $ARGS
+          '
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        if: matrix.host != 'musllinux-x64'
+        with:
+          python-version: ${{ steps.floor.outputs.version }}
+      - name: Install and run
+        if: matrix.host != 'musllinux-x64'
+        env:
+          ARGS: ${{ steps.floor.outputs.args }}
+        run: |
+          if ! command -v rustup > /dev/null; then
+            if [[ "$RUNNER_OS" == Windows ]]; then
+              curl -sSfLo "$RUNNER_TEMP/rustup-init.exe" https://static.rust-lang.org/rustup/dist/aarch64-pc-windows-msvc/rustup-init.exe
+              "$RUNNER_TEMP/rustup-init.exe" -y --profile minimal --default-toolchain stable
+            else
+              curl -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal --default-toolchain stable
+            fi
+            export PATH="$HOME/.cargo/bin:$PATH"
+          fi
+          python -m venv "$RUNNER_TEMP/env"
+          if [[ "$RUNNER_OS" == Windows ]]; then py="$RUNNER_TEMP/env/Scripts/python.exe"; else py="$RUNNER_TEMP/env/bin/python"; fi
+          "$py" -m pip install -v --no-index --no-deps dist/sdist/*.tar.gz
+          read -ra args <<< "$ARGS"
+          "$py" -I rust2/ffi/release/package.py consume-python "${args[@]}"
+
+  # A new SwiftPM package whose only library is the staged package, as a user's would be,
+  # run on macOS and built for iOS devices and simulators and Mac Catalyst.
+  swift-consumer:
+    needs: [facts, swift, agree]
+    runs-on: macos-26
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ${{ needs.facts.outputs.rust2 }}
+          ref: ${{ needs.facts.outputs.rust2-sha }}
+          path: rust2
+          sparse-checkout: ffi/release
+          persist-credentials: false
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: ${{ needs.facts.outputs.name }}-swift
+          path: swift
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: ${{ needs.facts.outputs.name }}-build-apple-darwin
+          path: apple
+      - name: Consume
+        env:
+          MODULE: ${{ needs.facts.outputs.module }}
+        run: bash rust2/ffi/release/consume-swift.sh swift apple
+
+  # Each C archive unpacked alone, with no checkout, Rust, or source path: a new CMake project
+  # finding it by its CPS file and by its config package, and on Linux and macOS a pkg-config
+  # build, each linking the static and the shared library.
+  c:
+    needs: [facts, build, agree]
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - host: linux-x64
+            os: ubuntu-24.04
+          - host: linux-arm64
+            os: ubuntu-24.04-arm
+          - host: apple-darwin
+            os: macos-26
+          - host: windows
+            os: windows-latest
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ${{ needs.facts.outputs.rust2 }}
+          ref: ${{ needs.facts.outputs.rust2-sha }}
+          path: rust2
+          sparse-checkout: ffi/release
+          persist-credentials: false
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: ${{ needs.facts.outputs.name }}-build-${{ matrix.host }}
+          path: dist
+      # The oldest CMake that reads CPS is 4.3; the config package serves older ones too.
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: '3.13'
+      - name: Consume
+        run: |
+          python -m pip install cmake==4.4.5
+          if [[ "$RUNNER_OS" == macOS ]] && ! command -v pkg-config > /dev/null; then brew install pkgconf; fi
+          shopt -s nullglob
+          archives=(dist/c/*)
+          [[ ${#archives[@]} == 1 ]] || { echo "::error::expected one C archive, found ${archives[*]}"; exit 1; }
+          args=(--archive "${archives[0]}")
+          if [[ -f dist/native.txt ]]; then args+=(--native dist/native.txt); fi
+          if [[ -d dist/checks/c ]]; then args+=(--check dist/checks/c); fi
+          python -I rust2/ffi/release/package.py consume-c "${args[@]}"
+
+  # The web binding's npm and JSR packages: web-manifest-path exported for wasm32-wasip1
+  # alone, the binding's only target, and its module built beside it; with native Rust's
+  # output on that target, which the consumers compare with.
+  web:
+    needs: facts
+    if: inputs.web-manifest-path != ''
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          path: source
+          persist-credentials: false
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ${{ needs.facts.outputs.rust2 }}
+          ref: ${{ needs.facts.outputs.rust2-sha }}
+          path: rust2
+          persist-credentials: false
+      - uses: taiki-e/install-action@cfdb7ed4ccc7c7dce37759eae89dc5674b469b39 # v2.90.3
+        if: needs.facts.outputs.web-fixture == 'true'
+        with:
+          tool: just
+      - name: Stand-in
+        if: needs.facts.outputs.web-fixture == 'true'
+        working-directory: source
+        run: just ffi standin "" web
+      # The second checkout the rebuild below makes its package from, a level deeper.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        if: inputs.reproduce
+        with:
+          path: again/source
+          persist-credentials: false
+      - name: Stand-in again
+        if: inputs.reproduce && needs.facts.outputs.web-fixture == 'true'
+        working-directory: again/source
+        run: just ffi standin "" web
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        if: inputs.checks-artifact != ''
+        with:
+          name: ${{ inputs.checks-artifact }}
+          path: source
+      # npm packs, and Node's WASI runs the native example.
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '24'
+      - name: Exporter
+        working-directory: rust2/ffi
+        run: cargo build --locked --release
+      # The crate's own features and example, or a web crate's apart from it.
+      - name: Package
+        env:
+          WEB_MANIFEST: ${{ inputs.web-manifest-path }}
+          SCOPE: ${{ inputs.scope }}
+          VERSION: ${{ needs.facts.outputs.version }}
+          EXAMPLE: ${{ inputs.example }}
+          WEB_FEATURES: ${{ inputs.web-features }}
+          WEB_EXAMPLE: ${{ inputs.web-example }}
+          WEB_CHECK: ${{ inputs.web-check }}
+          REPRODUCE: ${{ inputs.reproduce }}
+        run: |
+          if [[ "$(realpath -m "source/$WEB_MANIFEST")" == "$(realpath -m "source/$MANIFEST")" ]]; then
+            if [[ -n "$WEB_FEATURES$WEB_EXAMPLE" ]]; then
+              echo "::error::web-features and web-example are for a web crate apart from manifest-path's: set features and example"
+              exit 1
+            fi
+            features=$FEATURES example=$EXAMPLE
+          else
+            features=$WEB_FEATURES example=$WEB_EXAMPLE
+          fi
+          python3 -I rust2/ffi/release/package.py web --manifest-path "source/$WEB_MANIFEST" --features "$features" --scope "$SCOPE" --version "$VERSION" --example "$example" --out web
+          # A directory whole, or a file copied into one as check.ts.
+          if [[ -n "$WEB_CHECK" && -d "source/$WEB_CHECK" ]]; then
+            cp -R "source/$WEB_CHECK" web/check
+          elif [[ -n "$WEB_CHECK" ]]; then
+            mkdir web/check && cp "source/$WEB_CHECK" web/check/check.ts
+          fi
+          # The build again, from the second checkout, which must pack the same tarball.
+          if [[ "$REPRODUCE" == true ]]; then
+            cd again
+            python3 -I ../rust2/ffi/release/package.py web --manifest-path "source/$WEB_MANIFEST" --features "$features" --scope "$SCOPE" --version "$VERSION" --example "" --out web
+            python3 -I ../rust2/ffi/release/package.py same ../web web
+          fi
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: ${{ needs.facts.outputs.name }}-web
+          path: web
+          if-no-files-found: error
+
+  # A new npm project depending on only the packed tarball, as an app's would, run on
+  # Node, Deno, and Bun and bundled by Vite and webpack; and JSR's checks of its package.
+  web-consumer:
+    needs: [facts, web]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ${{ needs.facts.outputs.rust2 }}
+          ref: ${{ needs.facts.outputs.rust2-sha }}
+          path: rust2
+          sparse-checkout: ffi/release
+          persist-credentials: false
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: ${{ needs.facts.outputs.name }}-web
+          path: web
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '24'
+      - uses: denoland/setup-deno@22d081ff2d3a40755e97629de92e3bcbfa7cf2ed # v2.0.5
+        with:
+          deno-version: v2.x
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+      - name: Install and run
+        run: |
+          args=()
+          if [[ -d web/check ]]; then args+=(--check web/check); fi
+          if [[ -f web/native.txt ]]; then args+=(--native web/native.txt); fi
+          python3 -I rust2/ffi/release/package.py consume-web --dist web "${args[@]}"
+
+  # The module as a GOPROXY serves it: the export's packages, and each Go target's library
+  # beside the runtime that links it.
+  go:
+    needs: [facts, build, agree]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          path: source
+          persist-credentials: false
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ${{ needs.facts.outputs.rust2 }}
+          ref: ${{ needs.facts.outputs.rust2-sha }}
+          path: rust2
+          persist-credentials: false
+      - uses: taiki-e/install-action@cfdb7ed4ccc7c7dce37759eae89dc5674b469b39 # v2.90.3
+        if: needs.facts.outputs.fixture == 'true'
+        with:
+          tool: just
+      - name: Stand-in
+        if: needs.facts.outputs.fixture == 'true'
+        working-directory: source
+        run: just ffi standin
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: ${{ needs.facts.outputs.name }}-build-*
+          path: builds
+      # The go command reads the module's go.mod.
+      - uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5 # v7.1.0
+        with:
+          go-version: stable
+          cache: false
+      - name: Module
+        env:
+          NAME: ${{ needs.facts.outputs.name }}
+        run: |
+          mkdir libs
+          cp builds/*/go/*.a libs/
+          cd source
+          python3 -I ../rust2/ffi/release/package.py go --manifest-path "$MANIFEST" --export "../builds/$NAME-build-linux-x64/export" --libs ../libs --out ../proxy >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: ${{ needs.facts.outputs.name }}-go
+          path: proxy
+          if-no-files-found: error
+
+  # A new module whose only requirement is the built one, unpacked from its zip, as `go get`
+  # unpacks it: built and run on each platform with no checkout, Rust, or CGO_LDFLAGS.
+  go-consumer:
+    needs: [facts, go]
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - host: linux-x64
+            os: ubuntu-24.04
+          - host: linux-arm64
+            os: ubuntu-24.04-arm
+          - host: apple-darwin
+            os: macos-26
+          - host: darwin-x64
+            os: macos-15-intel
+          - host: windows
+            os: windows-latest
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ${{ needs.facts.outputs.rust2 }}
+          ref: ${{ needs.facts.outputs.rust2-sha }}
+          path: rust2
+          sparse-checkout: ffi/release
+          persist-credentials: false
+      # The newest Go, whose cgo checks what a #cgo line links most strictly.
+      - uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5 # v7.1.0
+        with:
+          go-version: stable
+          cache: false
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: ${{ needs.facts.outputs.name }}-go
+          path: proxy
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: ${{ needs.facts.outputs.name }}-build-${{ matrix.host }}
+          path: dist
+      - name: Build and run
+        run: |
+          args=()
+          if [[ -d dist/checks/go ]]; then args+=(--check dist/checks/go); fi
+          if [[ -f dist/native.txt ]]; then args+=(--native dist/native.txt); fi
+          python3 -I rust2/ffi/release/package.py consume-go --proxy proxy "${args[@]}"
+
+  # The Kotlin binding as a Maven repository, as Central serves it: the jar, bundling each
+  # desktop target's library, and the AAR, of the same classes compiled once, under one POM,
+  # whose Gradle metadata gives Android the AAR. Built twice when asked, from a second copy
+  # of the export, as a rebuild must make the same bytes.
+  maven:
+    needs: [facts, build, agree]
+    if: inputs.maven-group != ''
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          path: source
+          persist-credentials: false
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ${{ needs.facts.outputs.rust2 }}
+          ref: ${{ needs.facts.outputs.rust2-sha }}
+          path: rust2
+          sparse-checkout: ffi/release
+          persist-credentials: false
+      - uses: taiki-e/install-action@cfdb7ed4ccc7c7dce37759eae89dc5674b469b39 # v2.90.3
+        if: needs.facts.outputs.fixture == 'true'
+        with:
+          tool: just
+      - name: Stand-in
+        if: needs.facts.outputs.fixture == 'true'
+        working-directory: source
+        run: just ffi standin
+      # What compiles the classes: the SDK's android.jar, kotlinc, and kotlinx-coroutines, each pinned.
+      - name: Kotlin tools
+        env:
+          KOTLIN: 2.4.21
+          KOTLIN_SHA256: 7cc140e76daf416a0424a5557f99afd7ca89ebd463ea1101261e3e01c33e75cd
+          # kotlin-compiler-$KOTLIN.zip's id: gh api repos/JetBrains/kotlin/releases/tags/v$KOTLIN
+          KOTLIN_ASSET: 621287401
+          # Anonymous release downloads share the runner's IP's limit and answer 429 under load;
+          # the API serves the same asset against the token's own limit.
+          GH_TOKEN: ${{ github.token }}
+          COROUTINES: 1.10.2
+          COROUTINES_SHA256: 5ca175b38df331fd64155b35cd8cae1251fa9ee369709b36d42e0a288ccce3fd
+        run: |
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "platforms;android-35" > /dev/null
+          cd "$RUNNER_TEMP"
+          # The checksums below make any retry safe. curl drops the token on the redirect off
+          # api.github.com, and names the host that answered, since a redirect may be what fails.
+          get() { curl -sSfL --retry 5 --retry-all-errors -w '%{stderr}%{http_code} %{url_effective}\n' -o "$@"; }
+          get kotlin.zip -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/octet-stream" \
+            "https://api.github.com/repos/JetBrains/kotlin/releases/assets/$KOTLIN_ASSET"
+          jar="kotlinx-coroutines-core-jvm-$COROUTINES.jar"
+          # Google's mirror of Maven Central: repo1.maven.org blocks some runners' IPs for hours,
+          # answering 404 or 429 with a retry-after no retry outlasts.
+          get "$jar" "https://maven-central.storage-download.googleapis.com/maven2/org/jetbrains/kotlinx/kotlinx-coroutines-core-jvm/$COROUTINES/$jar"
+          printf '%s  kotlin.zip\n%s  %s\n' "$KOTLIN_SHA256" "$COROUTINES_SHA256" "$jar" | sha256sum --check --strict
+          unzip -q kotlin.zip
+          echo "$RUNNER_TEMP/kotlinc/bin" >> "$GITHUB_PATH"
+          echo "KOTLINX_COROUTINES=$RUNNER_TEMP/$jar" >> "$GITHUB_ENV"
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: ${{ needs.facts.outputs.name }}-build-*
+          path: builds
+      - name: Repository
+        env:
+          NAME: ${{ needs.facts.outputs.name }}
+          GROUP: ${{ inputs.maven-group }}
+          REPRODUCE: ${{ inputs.reproduce }}
+        run: |
+          mkdir -p libs/jvm
+          cp -R builds/"$NAME"-build-android-*/android libs/
+          cp -R builds/*/jvm/* libs/jvm/
+          maven() {
+            (cd source && python3 -I ../rust2/ffi/release/package.py maven --manifest-path "$MANIFEST" --export "$1" --libs ../libs --sbom "../builds/$NAME-build-android-x86/kotlin.cdx.json" --group "$GROUP" --out "$2")
+          }
+          maven "../builds/$NAME-build-linux-x64/export" ../dist/maven
+          if [[ "$REPRODUCE" == true ]]; then
+            mkdir -p again/deeper
+            cp -R "builds/$NAME-build-linux-x64/export" again/deeper/
+            maven ../again/deeper/export ../again/dist/maven
+            python3 -I rust2/ffi/release/package.py same dist again/dist
+          fi
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: ${{ needs.facts.outputs.name }}-maven
+          path: dist/maven
+          if-no-files-found: error
+
+  # A new Gradle JVM app whose only library from the release is the jar, which Gradle must
+  # choose over the AAR, resolved from the Maven repository as Central serves it and run on
+  # each desktop target the jar bundles a library for.
+  jvm:
+    needs: [facts, maven]
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - host: linux-x64
+            os: ubuntu-24.04
+          - host: linux-arm64
+            os: ubuntu-24.04-arm
+          - host: apple-darwin
+            os: macos-26
+          - host: windows
+            os: windows-latest
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ${{ needs.facts.outputs.rust2 }}
+          ref: ${{ needs.facts.outputs.rust2-sha }}
+          path: rust2
+          sparse-checkout: ffi/release
+          persist-credentials: false
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: ${{ needs.facts.outputs.name }}-maven
+          path: maven
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: ${{ needs.facts.outputs.name }}-build-${{ matrix.host }}
+          path: dist
+      - uses: actions/setup-java@d1374f8ac74474200d16ef8ecee22c7ae7a51880 # v6.3.0
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: gradle/actions/setup-gradle@8da46b539cd8fe6ab27ca75128919a18d757604c # v6.4.1
+        with:
+          gradle-version: 9.9.2
+          cache-disabled: true
+      # Every Gradle build of the job fetches Central's artifacts from Google's mirror.
+      - name: Maven Central mirror
+        run: |
+          init="${GRADLE_USER_HOME:-$HOME/.gradle}/init.d"
+          mkdir -p "$init"
+          cp rust2/ffi/release/central.init.gradle.kts "$init/"
+      - name: Build and run
+        run: |
+          args=(--repo maven)
+          if [[ -d dist/checks/kotlin ]]; then
+            args+=(--check dist/checks/kotlin)
+            if [[ -f dist/native.txt ]]; then args+=(--native dist/native.txt); fi
+          fi
+          python3 -I rust2/ffi/release/package.py consume-jvm "${args[@]}"
+
+  # A new Gradle app whose only library from the release is the AAR, resolved from its Maven
+  # repository as Central serves it: shrunk by R8 with the AAR's consumer rules, bundled with
+  # the line tables Play symbolicates by, and run on an Android emulator, whose x86_64 this
+  # runner's KVM runs at speed, at an API level that records how a check's process exited.
+  android:
+    needs: [facts, build, maven]
+    if: inputs.maven-group != ''
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ${{ needs.facts.outputs.rust2 }}
+          ref: ${{ needs.facts.outputs.rust2-sha }}
+          path: rust2
+          sparse-checkout: ffi/release
+          persist-credentials: false
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: ${{ needs.facts.outputs.name }}-build-android-x86
+          path: dist
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: ${{ needs.facts.outputs.name }}-maven
+          path: maven
+      - uses: gradle/actions/setup-gradle@8da46b539cd8fe6ab27ca75128919a18d757604c # v6.4.1
+        with:
+          gradle-version: 9.9.2
+          cache-disabled: true
+      # Every Gradle build of the job fetches Central's artifacts from Google's mirror.
+      - name: Maven Central mirror
+        run: |
+          init="${GRADLE_USER_HOME:-$HOME/.gradle}/init.d"
+          mkdir -p "$init"
+          cp rust2/ffi/release/central.init.gradle.kts "$init/"
+      # The NDK the libraries were built with, whose llvm-strip the app's build strips them with.
+      - name: Android NDK
+        run: |
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "ndk;$NDK" > /dev/null
+          echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/$NDK" >> "$GITHUB_ENV"
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Arguments
+        run: |
+          args=(--repo maven)
+          if [[ -d dist/checks/kotlin ]]; then args+=(--check dist/checks/kotlin); fi
+          if [[ -d dist/android-example ]]; then args+=(--native dist/android-example); fi
+          echo "ARGS=${args[*]}" >> "$GITHUB_ENV"
+      - uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2.38.0
+        with:
+          api-level: 35
+          arch: x86_64
+          script: python3 -I rust2/ffi/release/package.py consume-android $ARGS
+
+  # The pub.dev package: the export's, its hook/release.json naming each target's library on
+  # the release by size and SHA-256, the Apple libraries' privacy manifest for an app to merge,
+  # and what pub asks of a package beside, which pub checks as publishing would, and the
+  # analyzer with the lints pub.dev scores it by.
+  pub:
+    needs: [facts, build, agree, changes]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          path: source
+          persist-credentials: false
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ${{ needs.facts.outputs.rust2 }}
+          ref: ${{ needs.facts.outputs.rust2-sha }}
+          path: rust2
+          sparse-checkout: |
+            ffi/release
+            ffi/tests/dart_lints.yaml
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+      - uses: taiki-e/install-action@3a3daafd3b7f23b8f65d9f5ba2db203fb59b79e2 # v2.90.2
+        if: needs.facts.outputs.fixture == 'true'
+        with:
+          tool: just
+      - name: Stand-in
+        if: needs.facts.outputs.fixture == 'true'
+        working-directory: source
+        run: just ffi standin
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: ${{ needs.facts.outputs.name }}-build-*
+          path: builds
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: ${{ needs.facts.outputs.name }}-release
+          path: release
+      - uses: dart-lang/setup-dart@2286a0c042b44434fe26d292bbce8d34f7ec662b # v1.8.2
+        with:
+          sdk: stable
+      - name: Package
+        env:
+          NAME: ${{ needs.facts.outputs.name }}
+          URL: https://github.com/${{ github.repository }}/releases/download/${{ needs.facts.outputs.tag }}/
+        run: |
+          mkdir -p pub/libs privacy
+          cp builds/*/dart/* pub/libs/
+          cp builds/*/dart-privacy/* privacy/
+          cd source
+          python3 -I ../rust2/ffi/release/package.py pub --manifest-path "$MANIFEST" --export "../builds/$NAME-build-linux-x64/export" --libs ../pub/libs --url "$URL" --changes ../release/changes.md --privacy ../privacy --out ../pub/package
+      # Each in a copy, as resolving writes into the package.
+      - name: Check
+        run: |
+          cp -R pub/package publish
+          (cd publish && dart pub publish --dry-run)
+          cp -R pub/package lint
+          cp rust2/ffi/tests/dart_lints.yaml lint/analysis_options.yaml
+          (cd lint && dart pub get && dart analyze --fatal-infos .)
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: ${{ needs.facts.outputs.name }}-pub
+          path: pub
+          if-no-files-found: error
+
+  # New Dart apps depending on the package, its libraries served from the loopback as the
+  # release hosts them: one its hook refuses a library of other bytes, and one run by `dart
+  # run` and from `dart build cli`'s bundle, on the newest Dart and on 3.10, the oldest the
+  # package takes.
+  dart-consumer:
+    needs: [facts, pub]
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - host: linux-x64
+            os: ubuntu-24.04
+            sdk: stable
+          - host: linux-x64
+            os: ubuntu-24.04
+            sdk: 3.10.0
+          - host: linux-arm64
+            os: ubuntu-24.04-arm
+            sdk: stable
+          - host: apple-darwin
+            os: macos-26
+            sdk: stable
+          - host: darwin-x64
+            os: macos-15-intel
+            sdk: stable
+          - host: windows
+            os: windows-latest
+            sdk: stable
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ${{ needs.facts.outputs.rust2 }}
+          ref: ${{ needs.facts.outputs.rust2-sha }}
+          path: rust2
+          sparse-checkout: ffi/release
+          persist-credentials: false
+      - uses: dart-lang/setup-dart@2286a0c042b44434fe26d292bbce8d34f7ec662b # v1.8.2
+        with:
+          sdk: ${{ matrix.sdk }}
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: ${{ needs.facts.outputs.name }}-pub
+          path: pub
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: ${{ needs.facts.outputs.name }}-build-${{ matrix.host }}
+          path: dist
+      - name: Run
+        run: |
+          args=()
+          if [[ -d dist/checks/dart ]]; then args+=(--check dist/checks/dart); fi
+          if [[ -f dist/native.txt ]]; then args+=(--native dist/native.txt); fi
+          python3 -I rust2/ffi/release/package.py consume-dart --package pub/package --libs pub/libs "${args[@]}"
+
+  # A new Flutter app depending on the package, its libraries served from the loopback,
+  # run on an x86_64 Android emulator, which this runner's KVM runs at speed, then again
+  # after a hot restart, which keeps the library and Rust's statics but not the isolate.
+  flutter-consumer:
+    needs: [facts, pub]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ${{ needs.facts.outputs.rust2 }}
+          ref: ${{ needs.facts.outputs.rust2-sha }}
+          path: rust2
+          sparse-checkout: ffi/release
+          persist-credentials: false
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: ${{ needs.facts.outputs.name }}-pub
+          path: pub
+      # The check and native Rust's output, as Linux on x86_64 printed it.
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: ${{ needs.facts.outputs.name }}-build-linux-x64
+          path: dist
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
+        with:
+          channel: stable
+      # Every Gradle build of the job fetches Central's artifacts from Google's mirror.
+      - name: Maven Central mirror
+        run: |
+          init="${GRADLE_USER_HOME:-$HOME/.gradle}/init.d"
+          mkdir -p "$init"
+          cp rust2/ffi/release/central.init.gradle.kts "$init/"
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Arguments
+        run: |
+          args="--package pub/package --libs pub/libs --device emulator-5554"
+          if [[ -d dist/checks/dart ]]; then args+=" --check dist/checks/dart"; fi
+          if [[ -f dist/native.txt ]]; then args+=" --native dist/native.txt"; fi
+          echo "ARGS=$args" >> "$GITHUB_ENV"
+      # Flutter's oldest Android, the floor the hook checks the app's against.
+      - uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2.38.0
+        with:
+          api-level: 24
+          arch: x86_64
+          script: python3 -I rust2/ffi/release/package.py consume-flutter $ARGS
+
+  # The React Native package: the export's react-native/, with each of React Native's Android
+  # ABIs' static libraries and an XCFramework of iOS's device and simulator ones, linked with what
+  # rustc names, and the iOS libraries' privacy manifest, packed by npm.
+  react-native:
+    needs: [facts, build, agree]
+    if: inputs.scope != ''
+    runs-on: macos-26
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          path: source
+          persist-credentials: false
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ${{ needs.facts.outputs.rust2 }}
+          ref: ${{ needs.facts.outputs.rust2-sha }}
+          path: rust2
+          sparse-checkout: ffi/release
+          persist-credentials: false
+      - uses: taiki-e/install-action@cfdb7ed4ccc7c7dce37759eae89dc5674b469b39 # v2.90.3
+        if: needs.facts.outputs.fixture == 'true'
+        with:
+          tool: just
+      - name: Stand-in
+        if: needs.facts.outputs.fixture == 'true'
+        working-directory: source
+        run: just ffi standin
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '24'
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: ${{ needs.facts.outputs.name }}-build-android-*
+          path: android
+          merge-multiple: true
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: ${{ needs.facts.outputs.name }}-build-apple-ios*
+          path: apple
+          merge-multiple: true
+      - name: Package
+        env:
+          SCOPE: ${{ inputs.scope }}
+          REPRODUCE: ${{ inputs.reproduce }}
+        run: |
+          args=()
+          for target in aarch64-apple-ios aarch64-apple-ios-sim; do
+            args+=(--lib "$target=$(echo "$PWD"/apple/static/"$target"/*.a)" --native "$target=$PWD/apple/static/$target/native.txt")
+          done
+          package() {
+            (cd source && python3 -I ../rust2/ffi/release/package.py react-native --manifest-path "$MANIFEST" --export ../android/export --android ../android/react-native "${args[@]}" --scope "$SCOPE" --sbom ../android/react-native.cdx.json --out "$1")
+          }
+          package ../react-native
+          # The package again, which must be the same tarball, as a rerun of the release must pack.
+          if [[ "$REPRODUCE" == true ]]; then
+            package ../again
+            python3 -I rust2/ffi/release/package.py same react-native again
+          fi
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: ${{ needs.facts.outputs.name }}-react-native
+          path: react-native
+          if-no-files-found: error
+
+  # A new React Native app depending on the packed tarball, as an app installs it from npm,
+  # built for release for each of React Native's ABIs and run on an x86_64 Android emulator,
+  # which this runner's KVM runs at speed.
+  react-native-android:
+    needs: [facts, build, react-native]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ${{ needs.facts.outputs.rust2 }}
+          ref: ${{ needs.facts.outputs.rust2-sha }}
+          path: rust2
+          sparse-checkout: ffi/release
+          persist-credentials: false
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: ${{ needs.facts.outputs.name }}-react-native
+          path: react-native
+      # The check and the example built for the emulator.
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: ${{ needs.facts.outputs.name }}-build-android-x86
+          path: dist
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '24'
+      - uses: actions/setup-java@d1374f8ac74474200d16ef8ecee22c7ae7a51880 # v6.3.0
+        with:
+          distribution: temurin
+          java-version: '17'
+      # Every Gradle build of the job fetches Central's artifacts from Google's mirror.
+      - name: Maven Central mirror
+        run: |
+          init="${GRADLE_USER_HOME:-$HOME/.gradle}/init.d"
+          mkdir -p "$init"
+          cp rust2/ffi/release/central.init.gradle.kts "$init/"
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Arguments
+        run: |
+          args="--dist react-native --platform android"
+          if [[ -d dist/checks/react-native ]]; then
+            args+=" --check dist/checks/react-native"
+            if [[ -d dist/android-example ]]; then args+=" --native dist/android-example"; fi
+          fi
+          echo "ARGS=$args" >> "$GITHUB_ENV"
+      - uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2.38.0
+        with:
+          api-level: 35
+          arch: x86_64
+          script: python3 -I rust2/ffi/release/package.py consume-react-native $ARGS
+
+  # The same app built for release for an iOS device and for the simulator, and run on a
+  # simulator it boots.
+  react-native-ios:
+    needs: [facts, build, react-native]
+    runs-on: macos-26
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ${{ needs.facts.outputs.rust2 }}
+          ref: ${{ needs.facts.outputs.rust2-sha }}
+          path: rust2
+          sparse-checkout: ffi/release
+          persist-credentials: false
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: ${{ needs.facts.outputs.name }}-react-native
+          path: react-native
+      # The check and the example built for the simulator.
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: ${{ needs.facts.outputs.name }}-build-apple-ios-sim
+          path: dist
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '24'
+      - name: Build and run
+        run: |
+          args=(--dist react-native --platform ios)
+          if [[ -d dist/checks/react-native ]]; then
+            args+=(--check dist/checks/react-native)
+            if [[ -d dist/ios-example ]]; then args+=(--native dist/ios-example); fi
+          fi
+          python3 -I rust2/ffi/release/package.py consume-react-native "${args[@]}"

@@ -13,7 +13,7 @@ use crate::lower::library::{self, Std};
 
 /// Rewrite each `vec![a, b]` in `body` so its box's locals hold the array. One whose MIR
 /// has another shape is left as it is, and refused where it is lowered.
-pub fn literals<'tcx>(tcx: TyCtxt<'tcx>, body: &mut mir::Body<'tcx>) {
+pub(crate) fn literals<'tcx>(tcx: TyCtxt<'tcx>, body: &mut mir::Body<'tcx>) {
 	let Some(into_vec) = tcx.get_diagnostic_item(rustc_span::Symbol::intern("box_assume_init_into_vec_unsafe")) else {
 		return;
 	};

@@ -39,6 +39,11 @@ bool same(Uint8List? a, List<int> b) => a != null && a.length == b.length && a.i
 /// Let the event loop run what is ready.
 Future<void> step() => Future<void>.delayed(Duration.zero);
 
+/// `d` rounded up to the microsecond, as a timer waits at least that long: a Rust duration
+/// holds nanoseconds, which `toDuration` refuses to drop.
+Duration rounded(moq.RustDuration d) =>
+    moq.RustDuration(d.secs).toDuration() + Duration(microseconds: (d.nanos + 999) ~/ 1000);
+
 /// Poll `driver` from the isolate's event loop: on each wake, and at the deadline each poll
 /// returns, through a [Timer], with one waiter held across polls, since what a poll
 /// registers lives only as long as its waiter. It completes once the driver finishes, with
@@ -56,8 +61,7 @@ Future<moq.Error> drive(moq.OriginDriver driver) {
     try {
       final next = driver.poll(moq.clockNow(), waiter);
       if (next != null) {
-        deadline = Timer(next.saturatingDurationSince(moq.clockNow()), poll);
-        next.close();
+        deadline = Timer(rounded(next.saturatingDurationSince(moq.clockNow())), poll);
       }
     } on moq.Error catch (e) {
       waiter.close();
@@ -98,7 +102,8 @@ Future<void> local() async {
   recv.then((_) => received = true).ignore();
   await step();
   expect(!received, 'a receive waits for a group');
-  final writer = track.appendGroup();
+  // The track is untimed, so its group's start is a bare key.
+  final writer = track.appendGroup(moq.Timestamp.unscaled(moq.U64(0)));
   expect(!received, 'a receive never completes inside the wake');
   final first = (await recv.timeout(const Duration(seconds: 5)))!;
   expect(first.index() == 0, 'the first group is 0');
@@ -109,17 +114,22 @@ Future<void> local() async {
   read.then((_) => ready = true).ignore();
   await step();
   expect(!ready, 'a read waits for a frame');
-  writer.writeFrame(null, utf8.encode('hello'));
+  writer.writeFrame(moq.Timestamp.unscaled(moq.U64(0)), utf8.encode('hello'));
   final hello = (await read.timeout(const Duration(seconds: 5)))!;
   expect(utf8.decode(hello.payloadGet) == 'hello', 'a frame has its payload');
-  expect(hello.timestampGet == null, 'an untimed frame has no timestamp');
+  expect(hello.timestampGet.scale() == null, "an untimed frame's timestamp has no scale");
   // When it arrived: kio's clock's `Instant`, from kio's own export.
   expect(moq.clockNow().checkedDurationSince(hello.arrived()) != null, 'a frame arrived before now');
 
-  // A timestamp is a `Copy` value behind a handle: passing it copies it out. The track is
-  // untimed, so a timestamped frame is refused.
-  final at = moq.Timestamp.fromMillis(1500);
-  expect(at.asSecs() == 1, '1500 ms is 1 s');
+  // A timestamp is a `Copy` value copied across, which allocates nothing. The track is
+  // untimed, so a timed frame is refused.
+  final at = moq.Timestamp.fromMillis(moq.U64(1500));
+  expect(at.asSecs() == moq.U64(1), '1500 ms is 1 s');
+  // Timestamps order in time across scales, and a scaled one and an unscaled key not at all.
+  final second = moq.Timestamp.fromSecs(moq.U64(1));
+  final key = moq.Timestamp.unscaled(moq.U64(0));
+  expect(second < at && at > second && second.partialCompareTo(at) == -1, '1 s is before 1500 ms');
+  expect(!(key < at) && !(key >= at) && key.partialCompareTo(at) == null, 'an unscaled key is unordered against a time');
   throws<moq.Error>(
     () => writer.writeFrame(at, utf8.encode('late')),
     (e) => '$e' == "frame timestamp doesn't fit its track",
@@ -129,7 +139,7 @@ Future<void> local() async {
 
   // The last frame, bytes that are not UTF-8, then the group's end, which reads as null.
   final world = [0xff, ...utf8.encode('world')];
-  writer.writeFrame(null, Uint8List.fromList(world));
+  writer.writeFrame(moq.Timestamp.unscaled(moq.U64(0)), Uint8List.fromList(world));
   writer.finish();
   final last = await first.readFrame();
   expect(same(last?.payloadGet, world), 'the last frame reads');
@@ -158,8 +168,8 @@ Future<void> origin() async {
   scoped.close();
   patterns.close();
 
-  // A broadcast the origin creates is stamped with its path, which its info lends.
-  final publication = origin.createBroadcast('room/alice');
+  // A broadcast the origin routes is stamped with its path, which its info lends.
+  final publication = origin.route('room/alice', moq.OriginRouteOptions.default_());
   final created = publication.broadcast();
   final path = created.info().pathGet;
   created.close();
@@ -212,12 +222,12 @@ Future<void> catalog() async {
   );
 
   // A subscription's ranges, from any iterable of them: a list.
-  final groups = moq.TrackRange.groups(const moq.BoundsU64(moq.BoundU64Included(2), moq.BoundU64Excluded(6)));
+  final groups = moq.TrackRange(start: moq.TrackAnchorTime(moq.U64(2)), end: moq.TrackAnchorTime(moq.U64(6)));
   final ranges = [moq.TrackRange.live(), groups];
   final ranged = moq.TrackSubscription.default_().withRanges(ranges).rangesGet;
   expect(ranged.length == 2 && ranged[0] == ranges[0] && ranged[1] == ranges[1], 'a subscription keeps its ranges');
-  expect(groups.start == const moq.TrackAnchorAbsolute(2), 'groups start at their first');
-  expect(groups.end == const moq.TrackAnchorAbsolute(6), 'groups end before their end');
+  expect(ranged[1].start == moq.TrackAnchorTime(moq.U64(2)), 'a range starts at its first time');
+  expect(ranged[1].end == moq.TrackAnchorTime(moq.U64(6)), 'a range ends at its last time');
 
   // A catalog at moq-mux's untyped extension, from the config Dart builds, whose generic
   // `is_claimed` is named by the last segment of its argument, and whose `mutate` lends
@@ -236,7 +246,7 @@ Future<void> catalog() async {
   // a JSON document, and a section Dart parses from text, set in the lent catalog and read
   // back as text.
   final status = producer.jsonSnapshotConfig(
-    publisher.createTrack('status', moq.TrackInfo.default_().withTimescale(moq.Timescale.MILLI)),
+    publisher.createTrack('status', moq.TrackInfo.default_().withTimescale(moq.Timescale.milli)),
     moq.MuxJsonConfig.default_(),
     moq.MuxJsonOptions.default_(),
   );
@@ -245,7 +255,7 @@ Future<void> catalog() async {
   // A value Dart parses is published as the track's latest, which a subscriber reads back
   // as JSON text.
   final on = moq.Json.parse('{"on": true}');
-  status.update(on, moq.Timestamp.now());
+  status.update(on, moq.Timestamp.fromMillis(moq.U64(1)));
   on.close();
   final latest = await (await status.consume().recvGroup())?.readFrame();
   expect(latest != null && utf8.decode(latest.payloadGet) == '{"on":true}', 'a subscriber reads the latest value');
@@ -296,24 +306,23 @@ void config() {
   final url = connect.urlGet!;
   connect.close();
   final versions = moq.Versions.default_();
-  final tokens = moq.AuthTokens([]);
-  final dial = tokens.dial(url, versions);
-  final dialed = dial.urlGet;
-  expect(dialed == url, 'a dial keeps its URL');
+  // A client names the URL each session is dialed at.
+  final client = moq.Client().withUrl(url.clone());
+  final dialed = client.url()!;
+  expect(dialed == url, 'a client keeps its URL');
   expect('$dialed' == 'https://relay.example:4443/demo', "a URL prints as Rust's");
   dialed.close();
-  dial.close();
-  tokens.close();
+  client.close();
   url.close();
   // A `Vec<String>`, as a list.
-  expect(moq.ALPNS.isNotEmpty, 'a constant slice crosses as a list');
+  expect(moq.alpns.isNotEmpty, 'a constant slice crosses as a list');
   final alpns = versions.alpns();
   expect(alpns.isNotEmpty && alpns.every((a) => a.isNotEmpty), 'each version has an ALPN');
   versions.close();
   // A socket address, crossing in a listener's bind.
-  final bind = moq.TokioListenBindAddr(moq.SocketAddr(InternetAddress('::1'), 4443));
+  final bind = moq.TokioListenBindAddr(moq.SocketAddr(moq.IpAddr.from(InternetAddress('::1')), 4443));
   expect('$bind' == '[::1]:4443', "an IPv6 bind prints as Rust's");
-  final v4 = moq.SocketAddr(InternetAddress('127.0.0.1'), 0);
+  final v4 = moq.SocketAddrV4(moq.Ipv4Addr.from(InternetAddress('127.0.0.1')), 0);
   expect('${moq.TokioListenBindAddr(v4)}' == '127.0.0.1:0', "an IPv4 bind prints as Rust's");
   final listen = moq.TokioListenConfig.default_();
   listen.bindSet(bind);
@@ -336,16 +345,15 @@ void config() {
 /// from its threads.
 Future<void> session() async {
   final served = moq.tokioOriginSpawn();
-  final live = served.createBroadcast('live');
-  live.announce(moq.OriginRoute.default_());
+  final live = served.route('live', moq.OriginRouteOptions.default_());
   final liveTrack = live.broadcast().createTrack('video', null);
-  final liveGroup = liveTrack.appendGroup();
-  liveGroup.writeFrame(null, utf8.encode('hello'));
+  final liveGroup = liveTrack.appendGroup(moq.Timestamp.unscaled(moq.U64(0)));
+  liveGroup.writeFrame(moq.Timestamp.unscaled(moq.U64(0)), utf8.encode('hello'));
   liveGroup.finish();
 
   final serverConfig = moq.TokioServerConfig.default_();
   final listen = serverConfig.listenGet;
-  listen.bindSet(moq.TokioListenBindAddr(moq.SocketAddr(InternetAddress('::'), 0)));
+  listen.bindSet(moq.TokioListenBindAddr(moq.SocketAddr(moq.IpAddr.from(InternetAddress('::')), 0)));
   final tls = listen.tlsGet;
   tls.generateSet(['localhost']);
   listen.tlsSet(tls);

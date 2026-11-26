@@ -84,6 +84,9 @@ fn parse(args: &[String], usage: &str, configured: bool) -> Result<Option<Args<O
 					"--census" => &mut census,
 					_ => &mut manifest,
 				};
+				if slot.is_some() {
+					return Err(format!("{arg} is given twice\n\n{usage}"));
+				}
 				*slot = Some(absolute(Path::new(value))?);
 			}
 			"--" => {
@@ -135,6 +138,29 @@ pub struct Check<'a> {
 	pub args: &'a [String],
 	/// The environment cargo runs in, which the wrapper reads its job from.
 	pub env: &'a [(&'a str, &'a OsStr)],
+	/// Where cargo builds, absolute, if not [`target_dir`]'s for the manifest: another
+	/// package's, whose crates this check then shares.
+	pub target_dir: Option<&'a Path>,
+	/// Where cargo runs, which it reads its config and a `--config` path from, absolute, if
+	/// not the package's directory: another package's, whose config this check then shares.
+	pub dir: Option<&'a Path>,
+	/// Which crates cargo compiles through this executable.
+	pub wrap: Wrap,
+}
+
+/// Which crates cargo compiles through the driver.
+pub enum Wrap {
+	/// Every crate, as cargo's `RUSTC_WRAPPER`.
+	All,
+	/// The workspace's own crates, as cargo's `RUSTC_WORKSPACE_WRAPPER`, and every other crate
+	/// with this executable as cargo's `RUSTC`, which it compiles as rustc would: a cache in
+	/// cargo's `RUSTC_WRAPPER`, such as mbx's, then serves those, and runs the wrapper for
+	/// the workspace's own, whose compilation writes the driver's output. The executable
+	/// tells the two apart by whether cargo passes it itself as the rustc to wrap.
+	///
+	/// `RUSTC` spells the executable's path apart from the wrapper's, as mbx 1.30 tells a
+	/// workspace crate by cargo passing its wrapper the wrapper's own path as rustc's.
+	Workspace,
 }
 
 impl Check<'_> {
@@ -142,8 +168,11 @@ impl Check<'_> {
 	/// stale, so the package always recompiles.
 	pub fn run(&self) -> Result<ExitCode, String> {
 		let exe = std::env::current_exe().map_err(|err| format!("finding this executable: {err}"))?;
-		let target_dir = target_dir(self.tool, Some(self.manifest))?;
-		let package_dir = self.manifest.parent().expect("a manifest path has a parent");
+		let target_dir = match self.target_dir {
+			Some(dir) => dir.to_path_buf(),
+			None => target_dir(self.tool, Some(self.manifest))?,
+		};
+		let package_dir = (self.dir).unwrap_or_else(|| self.manifest.parent().expect("a manifest path has a parent"));
 		let cargo = |subcommand: &str| {
 			let mut cmd = cargo();
 			// Cargo reads its config from where it runs, so run where the package is.
@@ -154,6 +183,15 @@ impl Check<'_> {
 					cmd.env_remove(key);
 				}
 			}
+			match self.wrap {
+				Wrap::All => cmd.env("RUSTC_WRAPPER", &exe),
+				// An empty wrapper is none, whatever cargo's config names, so only a cache that
+				// sets its own, as mbx's does, wraps rustc.
+				Wrap::Workspace => cmd
+					.env("RUSTC", rustc(&exe))
+					.env("RUSTC_WORKSPACE_WRAPPER", &exe)
+					.env("RUSTC_WRAPPER", ""),
+			};
 			cmd.arg(subcommand)
 				.arg("--manifest-path")
 				.arg(self.root.unwrap_or(self.manifest))
@@ -166,7 +204,19 @@ impl Check<'_> {
 			}
 			cmd
 		};
-		run_cargo(cargo("clean").arg("--quiet").args(resolution(self.args)))?;
+		// Show what it says only when it fails: `--quiet` would hide even its error.
+		let clean = cargo("clean")
+			.args(resolution(self.args))
+			.output()
+			.map_err(|err| format!("running cargo clean: {err}"))?;
+		if !clean.status.success() {
+			return Err(format!(
+				"cargo clean of {} failed ({}): {}",
+				target_dir.display(),
+				clean.status,
+				String::from_utf8_lossy(&clean.stderr).trim()
+			));
+		}
 		// Its own, since runs may share a target directory.
 		let ran = target_dir.join(format!("{}-{}.ran", self.tool, std::process::id()));
 		match std::fs::remove_file(&ran) {
@@ -178,7 +228,6 @@ impl Check<'_> {
 		let status = cargo("check")
 			.arg("--lib")
 			.args(self.args)
-			.env("RUSTC_WRAPPER", &exe)
 			.env(crate::rustc::RAN, &ran)
 			.status()
 			.map_err(|err| format!("running cargo: {err}"))?;
@@ -193,6 +242,15 @@ impl Check<'_> {
 		}
 		Ok(ExitCode::SUCCESS)
 	}
+}
+
+/// `exe`'s path spelled through its directory's `.`, as [`Wrap::Workspace`] names it cargo's
+/// rustc.
+fn rustc(exe: &Path) -> PathBuf {
+	let (Some(dir), Some(name)) = (exe.parent(), exe.file_name()) else {
+		return exe.to_path_buf();
+	};
+	dir.join(".").join(name)
 }
 
 /// Where `tool` builds, absolute: `CARGO_TARGET_DIR`, or its own directory in the target
@@ -214,24 +272,17 @@ fn cargo() -> Command {
 	Command::new(std::env::var_os("CARGO").unwrap_or_else(|| "cargo".into()))
 }
 
-fn run_cargo(cmd: &mut Command) -> Result<(), String> {
-	let status = cmd.status().map_err(|err| format!("running cargo: {err}"))?;
-	match status.success() {
-		true => Ok(()),
-		false => Err(format!("{cmd:?} failed")),
-	}
-}
-
 /// The cargo args that pick how the workspace resolves, which `cargo clean` resolves it
-/// by too: `--config`, and the lockfile and network flags.
+/// by too: `--config`, and the lockfile and network flags; and the profile, in whose
+/// directory alone it removes the package's artifacts.
 fn resolution(args: &[String]) -> Vec<&str> {
 	let mut picked = Vec::new();
 	let mut args = args.iter().map(String::as_str);
 	while let Some(arg) = args.next() {
 		match arg {
-			"--locked" | "--frozen" | "--offline" => picked.push(arg),
-			"--config" => picked.extend([Some(arg), args.next()].into_iter().flatten()),
-			_ if arg.starts_with("--config=") => picked.push(arg),
+			"--locked" | "--frozen" | "--offline" | "--release" | "-r" => picked.push(arg),
+			"--config" | "--profile" => picked.extend([Some(arg), args.next()].into_iter().flatten()),
+			_ if arg.starts_with("--config=") || arg.starts_with("--profile=") => picked.push(arg),
 			_ => {}
 		}
 	}

@@ -75,6 +75,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "codec-web"
+version = "0.0.0"
+dependencies = [
+ "codec-fixture",
+]
+
+[[package]]
 name = "cpufeatures"
 version = "0.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -704,6 +711,13 @@ dependencies = [
 [[package]]
 name = "task-kio"
 version = "0.0.0"
+
+[[package]]
+name = "task-web"
+version = "0.0.0"
+dependencies = [
+ "task-fixture",
+]
 
 [[package]]
 name = "thiserror"

@@ -515,10 +515,38 @@ export function floats(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		dst19.length = dst19.length + 8;
 		rs.byteVecPush(out, rs.f64IsSignNegative(rs.f64FromBits({ hi: 0xfff80000, lo: 0x123 } as rs.u64)) ? 1 : 0);
 		const v2: rs.f64[] = [a, b, 0.5];
-		putF64(out, rs.iterSum(rs.iterSlice(v2), rs.f64Add, -0.0));
-		putF64(out, rs.iterProduct(rs.iterSlice(v2), rs.f64Mul, 1.0));
-		putF64(out, rs.iterSum(rs.iterSlice([]), rs.f64Add, -0.0));
-		putF64(out, rs.iterSum(rs.iterSlice([-0.0, -0.0]), rs.f64Add, -0.0));
+		const s2 = v2;
+		let front = 0;
+		let back = s2.length;
+		let acc: rs.f64 = -0.0;
+		while (!(front >= back)) {
+			acc = rs.f64Add(acc, s2[front++]);
+		}
+		putF64(out, acc);
+		const s3 = v2;
+		let front2 = 0;
+		let back2 = s3.length;
+		let acc2: rs.f64 = 1.0;
+		while (!(front2 >= back2)) {
+			acc2 = rs.f64Mul(acc2, s3[front2++]);
+		}
+		putF64(out, acc2);
+		const s4: rs.f64[] = [];
+		let front3 = 0;
+		let back3 = s4.length;
+		let acc3: rs.f64 = -0.0;
+		while (!(front3 >= back3)) {
+			acc3 = rs.f64Add(acc3, s4[front3++]);
+		}
+		putF64(out, acc3);
+		const s5 = [-0.0, -0.0];
+		let front4 = 0;
+		let back4 = s5.length;
+		let acc4: rs.f64 = -0.0;
+		while (!(front4 >= back4)) {
+			acc4 = rs.f64Add(acc4, s5[front4++]);
+		}
+		putF64(out, acc4);
 		putF64(out, 0.0);
 		const g: Gauge.Gauge = { level: a, peak: b };
 		raise(rs.place(() => g.level, (value) => g.level = value), b);
@@ -686,7 +714,9 @@ export function formats(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void 
 		const iterEnd2: rs.i32 = 64;
 		while (iterStart2++ < iterEnd2) {
 			const r2: rs.u64 = step(rs.place(() => state, (value2) => state = value2));
-			const x2: rs.f64 = rs.u64ToF64(rs.u64Shr(r2, 11)) / rs.u64ToF64(rs.u64Shl(1, rs.u64Add(rs.u64Rem(r2, 24), 1)));
+			const _129: rs.f64 = rs.u64ToF64(rs.u64Shr(r2, 11));
+			const _136: rs.u64 = rs.u64Rem(r2, 24);
+			const x2: rs.f64 = _129 / rs.u64ToF64(rs.u64Shl(1, (typeof _136 === "number" && _136 + 1 <= 9007199254740991 ? _136 + 1 : rs.u64Add(_136, 1)) as rs.u64));
 			const args14 = [(f: rs.Formatter) => rs.f64Debug(x2, f), (f: rs.Formatter) => rs.f64LowerExp(x2, f)];
 			put(out, rs.fmtFormat([args14[0], " ", args14[1]]).v);
 		}
@@ -720,7 +750,8 @@ export function parses(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		const iterEnd: rs.i32 = 16;
 		while (iterStart++ < iterEnd) {
 			const r: rs.u64 = step(rs.place(() => state, (value) => state = value));
-			const len: rs.usize = rs.u64Low(rs.u64Add(rs.u64Rem(r, 40), 1));
+			const _45: rs.u64 = rs.u64Rem(r, 40);
+			const len: rs.usize = rs.u64Low((typeof _45 === "number" && _45 + 1 <= 9007199254740991 ? _45 + 1 : rs.u64Add(_45, 1)) as rs.u64);
 			const point: rs.usize = rs.usizeRem(rs.u64Low(rs.u64Shr(r, 8)), rs.usizeAdd(len, 1));
 			const s2: rs.String = rs.stringNew();
 			let iterStart2: rs.usize = 0;

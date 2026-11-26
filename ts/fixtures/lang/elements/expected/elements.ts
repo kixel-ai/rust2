@@ -14,9 +14,15 @@ import * as Storage from "./elements.Storage.ts";
  * another, read back through slices made of the pointers.
  */
 export function vecs(data: rs.ByteSlice, out: rs.ByteVec): void {
-	const v: rs.Vec<rs.u32> = rs.iterToVec(rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (_2: rs.u8): rs.u32 => {
-		return rs.u32Mul(_2 as rs.u32, 3);
-	}), undefined, 4, true);
+	const s = rs.byteSliceView(data);
+	let front = 0;
+	let back = s.length;
+	const v2: rs.Vec<rs.u32> = rs.vecWithCapacity(back - front, 4);
+	while (!(front >= back)) {
+		const x = s[front++];
+		v2.items.push(rs.u32Mul(x as rs.u32, 3));
+	}
+	const v: rs.Vec<rs.u32> = v2;
 	rs.iterExtend(v, rs.iterSlice([7, 8]), undefined, 4, true);
 	const len: rs.usize = v.items.length;
 	const at: rs.usize = rs.usizeRem(option_unwrapOr$1fr498u(rs.byteSliceFirst(data), 0) as rs.usize, rs.usizeSub(len, 1));
@@ -130,24 +136,14 @@ export function inline(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const shared: rs.Arc<rs.u8> = new rs.Arc(0);
 	const held: Inline.Inline<rs.Arc<rs.u8>> = Inline.new$sync_Arc_u8();
 	const pairs: Inline.Inline<[rs.u8, rs.u8] | undefined> = Inline.new$Option_tuple2_u8_u8();
-	const leaf: rs.Iter<rs.u8> = rs.iterSlice(rs.byteSliceView(data));
+	const s: Uint8Array = rs.byteSliceView(data);
+	let front: number = 0;
+	const back: number = s.length;
 	let count: number = 0;
-	while (true) {
-		let next!: [rs.usize, rs.u8] | rs.Done;
-		next2: {
-			const x = leaf.next();
-			if (x === rs.DONE) {
-				next = rs.DONE;
-				break next2;
-			}
-			next = [count++, x];
-		}
-		const _10: [rs.usize, rs.u8] | rs.Done = next;
-		if (_10 === rs.DONE) {
-			break;
-		}
-		const i: rs.usize = _10[0];
-		const n: rs.u8 = _10[1];
+	while (!(front >= back)) {
+		const x = s[front++];
+		const i: rs.usize = count++;
+		const n: rs.u8 = x;
 		if (held.len === 4) {
 			const gone: rs.Arc<rs.u8> = Inline.remove$sync_Arc_u8(held, rs.usizeRem(n as rs.usize, 4));
 			rs.byteVecPush(out, gone.value);
@@ -250,12 +246,12 @@ export function edges(data: rs.ByteSlice, out: rs.ByteVec): void {
 		rs.byteVecPush(out, _97.data[_97.start]);
 		const a: rs.u32[] = [n as rs.u32, 1, 2, 3];
 		const base: rs.Place<rs.u32> = rs.sliceAsPtr(rs.sliceFrom(a));
-		const part: rs.Slice<rs.u32> = rs.sliceRange(rs.sliceFrom(a), 1, 3);
-		rs.idx(part, 1);
-		const at2: rs.Place<rs.u32> = rs.arrayAsPtr(part.data, part.start + 1);
+		const slice: rs.Slice<rs.u32> = rs.sliceFrom(a);
+		rs.rangeCheck(slice.length, 1, 3);
+		const at2: rs.Place<rs.u32> = rs.arrayAsPtr(slice.data, slice.start + 2);
 		rs.byteVecPush(out, rs.ptrOffsetFrom(at2, base) & 0xff);
 		at2.v = rs.u32Add(at2.v, 5);
-		const got: rs.Place<rs.u32> = rs.optionUnwrap(rs.sliceGetMut(part, 0));
+		const got: rs.Place<rs.u32> = rs.optionUnwrap(rs.sliceGetMut(new rs.Slice(slice.data, slice.start + 1, 3 - 1), 0));
 		rs.byteVecPush(out, rs.ptrOffsetFrom(got, base) & 0xff);
 		rs.byteVecPush(out, rs.ptrAdd(got, -1).v & 0xff);
 		rs.byteVecPush(out, rs.ptrOffsetFrom(rs.sliceAsPtr(rs.ptrSlice(rs.ptrAdd(at2, 1), 0)), base) & 0xff);
@@ -371,10 +367,20 @@ export function rawSlices(data: rs.ByteSlice, out: rs.ByteVec): void {
 	rs.idx(p, 1);
 	const slice4 = p.deref();
 	rs.byteVecPush(out, slice4.data[slice4.start + 1] & 0xff);
-	const tail: rs.Slice<rs.u32> = rs.sliceRange(p.deref(), 1);
-	rs.idx(tail, 0);
-	tail.data[tail.start] = 9;
-	rs.byteVecPush(out, rs.iterSum(rs.iterSlice(rs.sliceItems(p.deref())), rs.u32Add, 0) & 0xff);
+	const slice5: rs.Slice<rs.u32> = p.deref();
+	rs.rangeCheck(slice5.length, 1, slice5.length);
+	if (0 >= slice5.length - 1) {
+		rs.panic("index out of bounds: the len is " + (slice5.length - 1) + " but the index is " + 0);
+	}
+	slice5.data[slice5.start + 1] = 9;
+	const s = rs.sliceItems(p.deref());
+	let front = 0;
+	let back2 = s.length;
+	let acc: rs.u32 = 0;
+	while (!(front >= back2)) {
+		acc = rs.u32Add(acc, s[front++]);
+	}
+	rs.byteVecPush(out, acc & 0xff);
 	emit(rs.sliceFrom(v.items), out);
 	const bytes: rs.ByteVec = rs.byteSliceToByteVec(data);
 	rs.iterExtendBytes(bytes, rs.iterSlice(Uint8Array.of(3, 4)), undefined, true);
@@ -404,9 +410,9 @@ export function rawSlices(data: rs.ByteSlice, out: rs.ByteVec): void {
 	rs.idx(_110, 1);
 	rs.byteVecPush(out, _110.data[_110.start + 1] & 0xff);
 	const pointer2 = nn;
-	rs.byteVecPush(out, option_mapOr$0e6re16(pointer2.ptr === rs.NULL ? undefined : pointer2.deref(), 0, (s: rs.Slice<rs.u32>): rs.u32 => {
-		rs.idx(s, 0);
-		return s.data[s.start];
+	rs.byteVecPush(out, option_mapOr$0e6re16(pointer2.ptr === rs.NULL ? undefined : pointer2.deref(), 0, (s2: rs.Slice<rs.u32>): rs.u32 => {
+		rs.idx(s2, 0);
+		return s2.data[s2.start];
 	}) & 0xff);
 	const _121: rs.Slice<rs.u32> = nn.deref();
 	rs.idx(_121, 0);

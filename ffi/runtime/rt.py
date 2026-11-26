@@ -1,14 +1,16 @@
 # The runtime every generated Python module includes: the awaitable a future that pends
 # is, the queue each event loop reads its wakes from, `Waker`, what runs an awaitable Rust
-# polls, `Mut`, and `ForeignReader`. Its names start with `_` but `Waker`, `Mut`, and
-# `ForeignReader`, so no exported name clashes with them.
+# polls, `Mut`, `ForeignReader`, `Duration`, and what each record shares. Its names start
+# with `_` but `Waker`, `Mut`, `ForeignReader`, and `Duration`, so no exported name clashes
+# with them.
 
 
 class _Future(_n.Future, _typing.Generic[_T]):
 	"""A Rust future its first poll left pending: awaiting it polls it on the running
 	event loop until it finishes. Cancelling the awaiting task frees it, which cancels it in
-	Rust and loses nothing, as does dropping it unawaited. Like a coroutine, it is awaited
-	once: a second `await` raises `RuntimeError`."""
+	Rust and loses nothing, as does dropping it unawaited, and closing it while awaited
+	makes the `await` raise `ValueError`. Like a coroutine, it is awaited once: a second
+	`await` raises `RuntimeError`."""
 
 	__slots__ = ()
 
@@ -38,13 +40,13 @@ class _Wakeup:
 	def __init__(self, loop: _asyncio.AbstractEventLoop) -> None:
 		self.queue = _n.Queue(loop)
 		# The future each parked poll waits on, and each `Waker`'s callback, by token.
-		self.parked: dict[int, _asyncio.Future[None]] = {}
-		self.wakers: dict[int, _typing.Callable[[], object]] = {}
+		self.parked: _dict[_int, _asyncio.Future[None]] = {}
+		self.wakers: _dict[_int, _typing.Callable[[], _object]] = {}
 		self.pump: _asyncio.Task[None] | None = None
 		fd = self.queue.fileno()
 		try:
 			loop.add_reader(fd, self.dispatch, True)
-		except NotImplementedError:
+		except _NotImplementedError:
 			# A proactor loop, Windows' default, reads only through its own calls.
 			sock = _socket.fromfd(fd, _socket.AF_INET if _sys.platform == "win32" else _socket.AF_UNIX, _socket.SOCK_STREAM)
 			sock.setblocking(False)
@@ -56,9 +58,13 @@ class _Wakeup:
 				await loop.sock_recv(sock, 64)
 				self.dispatch(True)
 
-	def dispatch(self, read: bool) -> None:
+	def dispatch(self, read: _bool) -> None:
 		loop: _asyncio.AbstractEventLoop | None = None
 		for token in self.queue.take(read):
+			if token == 0:
+				# Other threads freed values of this thread that are not Send.
+				self.queue.drain()
+				continue
 			if token < 0:
 				self.wakers.pop(-token, None)
 				continue
@@ -87,6 +93,12 @@ def _resume() -> _n.Queue | None:
 	return w.queue
 
 
+def _drains() -> _n.Queue:
+	"""The queue of the loop running here, which a free on another thread of a value this
+	thread made that is not Send queues a drain on."""
+	return _wakeup(_get_running_loop()).queue
+
+
 def _wakeup(loop: _asyncio.AbstractEventLoop) -> _Wakeup:
 	w = _wakeups.get(loop)
 	if w is None:
@@ -103,7 +115,7 @@ class Waker:
 
 	_node: _n.Node | _n.Returned
 
-	def __init__(self, wake: _typing.Callable[[], object], loop: _asyncio.AbstractEventLoop | None = None) -> None:
+	def __init__(self, wake: _typing.Callable[[], _object], loop: _asyncio.AbstractEventLoop | None = None) -> None:
 		w = _wakeup(_get_running_loop() if loop is None else loop)
 		self._node = _n.Node(w.queue)
 		w.wakers[self._node.token()] = wake
@@ -126,22 +138,22 @@ class _Pollable:
 		self._loop = _get_running_loop()
 		# Refused at the call, before Rust takes it, rather than stranding Rust once started.
 		if not _inspect.isawaitable(awaitable):
-			raise TypeError(f"{type(awaitable).__name__} is not awaitable")
+			raise _TypeError(f"{_type(awaitable).__name__} is not awaitable")
 		if _asyncio.isfuture(awaitable) and awaitable.get_loop() is not self._loop:
-			raise ValueError("a future of another event loop")
+			raise _ValueError("a future of another event loop")
 		self._awaitable = awaitable
 		self._task: _asyncio.Future[None] | None = None
 		self._closed = False
 
-	def start(self, ended: _typing.Callable[[_asyncio.Future[None]], object]) -> None:
+	def start(self, ended: _typing.Callable[[_asyncio.Future[None]], _object]) -> None:
 		self._loop.call_soon_threadsafe(self._run, ended)
 
-	def _run(self, ended: _typing.Callable[[_asyncio.Future[None]], object]) -> None:
+	def _run(self, ended: _typing.Callable[[_asyncio.Future[None]], _object]) -> None:
 		if self._closed:
 			return
 		try:
 			self._task = _asyncio.ensure_future(self._awaitable, loop=self._loop)
-		except BaseException as e:
+		except _BaseException as e:
 			# `ended` aborts on it, as on a task that raised.
 			failed = self._loop.create_future()
 			failed.set_exception(e)
@@ -181,9 +193,34 @@ class ForeignReader(_typing.Protocol):
 	`SEEK_CUR`, or `SEEK_END` and returns the position from the start. An `OSError` either
 	raises fails Rust's read or seek with its message; any other exception aborts."""
 
-	def readinto(self, buffer: memoryview, /) -> int | None: ...
+	def readinto(self, buffer: _memoryview, /) -> _int | None: ...
 
-	def seek(self, offset: int, whence: int = 0, /) -> int: ...
+	def seek(self, offset: _int, whence: _int = 0, /) -> _int: ...
+
+
+class Duration(_typing.NamedTuple):
+	"""Rust's `Duration`, as it holds one: whole seconds below 2**64, and the nanoseconds past
+	them, below a billion, which Rust checks a call's are. A `datetime.timedelta` holds only
+	whole microseconds, and none past 999,999,999 days, so each conversion checks it loses
+	nothing."""
+
+	secs: _int
+	nanos: _int = 0
+
+	@_staticmethod
+	def from_timedelta(delta: _datetime.timedelta) -> Duration:
+		"""`delta`, raising `ValueError` if it is negative, which no Rust `Duration` is."""
+		if delta < _datetime.timedelta(0):
+			raise _ValueError(f"{delta!r} is negative, which no Rust Duration is")
+		return Duration(delta.days * 86_400 + delta.seconds, delta.microseconds * 1_000)
+
+	def to_timedelta(self) -> _datetime.timedelta:
+		"""This as a `datetime.timedelta`, raising `ValueError` if it has a part of a
+		microsecond, and `OverflowError` if it is past `timedelta.max`."""
+		micros = self.nanos // 1_000
+		if self.nanos % 1_000:
+			raise _ValueError(f"{self!r} has a part of a microsecond, which no timedelta holds")
+		return _datetime.timedelta(seconds=self.secs, microseconds=micros)
 
 
 class _Const:
@@ -191,8 +228,63 @@ class _Const:
 
 	__slots__ = ("get",)
 
-	def __init__(self, get: _typing.Callable[[], object]) -> None:
+	def __init__(self, get: _typing.Callable[[], _object]) -> None:
 		self.get = get
 
-	def __get__(self, obj: object, cls: object = None) -> object:
+	def __get__(self, obj: _object, cls: _object = None) -> _object:
 		return self.get()
+
+
+class _Dataclass:
+	"""A record class's `__dataclass_fields__` or `__dataclass_params__`, which `dataclasses`
+	makes on the first read of either, so `dataclasses` takes a record, or a subclass of
+	one, as the dataclass it was, while no record pays for `dataclasses` at import."""
+
+	__slots__ = ("name",)
+
+	def __init__(self, name: _str) -> None:
+		self.name = name
+
+	def __get__(self, obj: _object, cls: _type[_Record]) -> _object:
+		import dataclasses
+
+		# The record that declares the fields, which a subclass of it inherits. It is the first
+		# this module made, as a subclass made elsewhere may set its own `__match_args__`.
+		owner: _typing.Any = _Record
+		for c in cls.__mro__:
+			if c.__module__ == _Record.__module__ and "__match_args__" in c.__dict__:
+				owner = c
+				break
+		hints = owner.__annotations__
+		shape: _typing.Any = _type(owner.__name__, (), {"__annotations__": {name: hints[name] for name in owner.__match_args__}})
+		shape = dataclasses.dataclass(shape, slots=True, weakref_slot=True)
+		made = {name: _getattr(shape, name) for name in ("__dataclass_fields__", "__dataclass_params__")}
+		# `_Record`'s own stay, as each record reads them.
+		if owner is not _Record:
+			for name, value in made.items():
+				_type.__setattr__(owner, name, value)
+		return made[self.name]
+
+
+class _Record:
+	"""What each record shares besides the `__init__` and `__eq__` it writes out as a
+	dataclass would: a dataclass's `repr`, `__dataclass_fields__`, `__dataclass_params__`,
+	and `__replace__`."""
+
+	__slots__ = ()
+
+	__match_args__: _typing.ClassVar[_tuple[_str, ...]] = ()
+	if _typing.TYPE_CHECKING:
+		__dataclass_fields__: _typing.ClassVar[_dict[_str, _dataclasses.Field[_typing.Any]]]
+	else:
+		__dataclass_fields__ = _Dataclass("__dataclass_fields__")
+		__dataclass_params__ = _Dataclass("__dataclass_params__")
+
+	def __repr__(self) -> _str:
+		fields = ", ".join(f"{name}={_getattr(self, name)!r}" for name in self.__match_args__)
+		return f"{_type(self).__qualname__}({fields})"
+
+	def __replace__(self, /, **changes: _object) -> _typing.Self:
+		import dataclasses
+
+		return dataclasses.replace(self, **changes)

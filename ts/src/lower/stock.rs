@@ -16,7 +16,7 @@ use super::num::Int;
 use crate::ts::{Expr, Stmt, StmtKind};
 
 /// The type `did` is, if it is one of these crates' that has a representation of its own.
-pub fn of(tcx: TyCtxt<'_>, did: DefId) -> Option<Std> {
+pub(crate) fn of(tcx: TyCtxt<'_>, did: DefId) -> Option<Std> {
 	if !is_stock(tcx, did) {
 		return None;
 	}
@@ -48,7 +48,7 @@ pub fn of(tcx: TyCtxt<'_>, did: DefId) -> Option<Std> {
 /// The `[MaybeUninit<u8>]` that `ty` wraps if it is `bytes`' `UninitSlice`, which is
 /// `#[repr(transparent)]` over it, so JS keeps it as that slice's `rs.ByteSlice`, which
 /// views the storage of the buffer that lends it.
-pub fn uninit_slice<'tcx>(tcx: TyCtxt<'tcx>, ty: Ty<'tcx>) -> Option<Ty<'tcx>> {
+pub(crate) fn uninit_slice<'tcx>(tcx: TyCtxt<'tcx>, ty: Ty<'tcx>) -> Option<Ty<'tcx>> {
 	match ty.kind() {
 		ty::Adt(adt, _) if is_uninit_slice(tcx, adt.did()) => {
 			Some(Ty::new_slice(tcx, Ty::new_maybe_uninit(tcx, tcx.types.u8)))
@@ -58,7 +58,7 @@ pub fn uninit_slice<'tcx>(tcx: TyCtxt<'tcx>, ty: Ty<'tcx>) -> Option<Ty<'tcx>> {
 }
 
 /// Whether `did` is `bytes`' `UninitSlice`.
-pub fn is_uninit_slice(tcx: TyCtxt<'_>, did: DefId) -> bool {
+pub(crate) fn is_uninit_slice(tcx: TyCtxt<'_>, did: DefId) -> bool {
 	is_stock(tcx, did)
 		&& tcx.crate_name(did.krate).as_str() == "bytes"
 		&& tcx
@@ -68,19 +68,19 @@ pub fn is_uninit_slice(tcx: TyCtxt<'_>, did: DefId) -> bool {
 
 /// Whether `did` is an item of `hashbrown`, whose tables are std's, so its functions map
 /// as std's do.
-pub fn as_std(tcx: TyCtxt<'_>, did: DefId) -> bool {
+pub(crate) fn as_std(tcx: TyCtxt<'_>, did: DefId) -> bool {
 	is_stock(tcx, did) && tcx.crate_name(did.krate).as_str() == "hashbrown"
 }
 
 /// Whether `did` is an item of one of these crates, rather than of the crate translated,
 /// whatever its name.
-pub fn is_stock(tcx: TyCtxt<'_>, did: DefId) -> bool {
+pub(crate) fn is_stock(tcx: TyCtxt<'_>, did: DefId) -> bool {
 	!did.is_local() && is_stock_crate(tcx, did.krate)
 }
 
 /// Whether `krate`, a dependency, is one of these crates, whose functions map, or translate
 /// only where [`maps`] says they don't.
-pub fn is_stock_crate(tcx: TyCtxt<'_>, krate: CrateNum) -> bool {
+pub(crate) fn is_stock_crate(tcx: TyCtxt<'_>, krate: CrateNum) -> bool {
 	matches!(
 		tcx.crate_name(krate).as_str(),
 		"bytes" | "hashbrown" | "rand" | "smallvec" | "tokio"
@@ -89,7 +89,7 @@ pub fn is_stock_crate(tcx: TyCtxt<'_>, krate: CrateNum) -> bool {
 
 /// Whether `krate` is one of these crates of which nothing translates: `rand`, whose
 /// generators would have to be its own, and `hashbrown`, whose tables are the runtime's.
-pub fn is_opaque_crate(tcx: TyCtxt<'_>, krate: CrateNum) -> bool {
+pub(crate) fn is_opaque_crate(tcx: TyCtxt<'_>, krate: CrateNum) -> bool {
 	matches!(tcx.crate_name(krate).as_str(), "hashbrown" | "rand")
 }
 
@@ -98,7 +98,7 @@ pub fn is_opaque_crate(tcx: TyCtxt<'_>, krate: CrateNum) -> bool {
 /// and vectors. The mapping of a function stands in for it or refuses it. The impls that
 /// forward through a reference or a `Box`, and the crate's other types and functions,
 /// translate, as do its impls for a `VecDeque<u8>` and a `&mut [u8]`.
-pub fn mapped(tcx: TyCtxt<'_>, did: DefId) -> bool {
+pub(crate) fn mapped(tcx: TyCtxt<'_>, did: DefId) -> bool {
 	if tcx.crate_name(did.krate).as_str() == "tokio" {
 		return super::tokio::mapped(tcx, did);
 	}
@@ -122,7 +122,7 @@ pub fn mapped(tcx: TyCtxt<'_>, did: DefId) -> bool {
 /// impl maps or that a `&mut` or a `Box` writes through, and `copy_to_bytes` of any
 /// other, whose `BytesMut::put` reads a capacity. The others lower from their MIR, as for
 /// the crate's own buffers.
-pub fn maps<'tcx>(tcx: TyCtxt<'tcx>, instance: Instance<'tcx>) -> bool {
+pub(crate) fn maps<'tcx>(tcx: TyCtxt<'tcx>, instance: Instance<'tcx>) -> bool {
 	let did = instance.def_id();
 	if tcx.crate_name(did.krate).as_str() != "bytes" || tcx.trait_of_assoc(did).is_none() {
 		return false;
@@ -291,7 +291,7 @@ fn mapped_self<'tcx>(tcx: TyCtxt<'tcx>, ty: Ty<'tcx>) -> bool {
 
 /// A call of one of these crates' functions, or of a std trait's on one of their types:
 /// its mapping, `None` if it has none, or its arguments back if it is no such call.
-pub fn call<'tcx>(
+pub(crate) fn call<'tcx>(
 	b: &mut Body<'_, '_, 'tcx>,
 	call: &Call<'tcx>,
 	args: Vec<Expr>,

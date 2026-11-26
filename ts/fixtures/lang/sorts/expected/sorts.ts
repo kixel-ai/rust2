@@ -50,9 +50,14 @@ export function put$Cell_u32(v: rs.Slice<Item.Item<rs.Cell<rs.u32>>>, out: rs.By
 	rs.iterExtendBytes(out, rs.iterSlice(rs.u32ToBeBytes(hash).reverse()), undefined, true);
 	rs.iterExtendBytes(out, rs.iterSlice(rs.u32ToBeBytes(count).reverse()), undefined, true);
 	if (!(v.length <= 64)) {
-		rs.iterExtendBytes(out, rs.iterSlice(rs.u32ToBeBytes(rs.iterFold(rs.iterSlice(rs.sliceItems(v)), 0, (h: rs.u32, x2: Item.Item<rs.Cell<rs.u32>>): rs.u32 => {
-			return rs.u32WrappingMul((h ^ x2.tag as rs.u32) >>> 0, 16777619);
-		})).reverse()), undefined, true);
+		const s = rs.sliceItems(v);
+		let front = 0;
+		let back = s.length;
+		let acc: rs.u32 = 0;
+		while (!(front >= back)) {
+			acc = rs.u32WrappingMul((acc ^ s[front++].tag as rs.u32) >>> 0, 16777619);
+		}
+		rs.iterExtendBytes(out, rs.iterSlice(rs.u32ToBeBytes(acc).reverse()), undefined, true);
 	} else {
 		rs.iterExtendBytes(out, rs.iterFlatMap(rs.iterSlice(rs.sliceItems(v)), (x: Item.Item<rs.Cell<rs.u32>>): Uint8Array => {
 			return rs.u16ToBeBytes(x.tag).reverse();
@@ -73,9 +78,14 @@ export function put$array10_u32(v: rs.Slice<Item.Item<rs.u32[]>>, out: rs.ByteVe
 	rs.iterExtendBytes(out, rs.iterSlice(rs.u32ToBeBytes(hash).reverse()), undefined, true);
 	rs.iterExtendBytes(out, rs.iterSlice(rs.u32ToBeBytes(count).reverse()), undefined, true);
 	if (!(v.length <= 64)) {
-		rs.iterExtendBytes(out, rs.iterSlice(rs.u32ToBeBytes(rs.iterFold(rs.iterSlice(rs.sliceItems(v)), 0, (h: rs.u32, x2: Item.Item<rs.u32[]>): rs.u32 => {
-			return rs.u32WrappingMul((h ^ x2.tag as rs.u32) >>> 0, 16777619);
-		})).reverse()), undefined, true);
+		const s = rs.sliceItems(v);
+		let front = 0;
+		let back = s.length;
+		let acc: rs.u32 = 0;
+		while (!(front >= back)) {
+			acc = rs.u32WrappingMul((acc ^ s[front++].tag as rs.u32) >>> 0, 16777619);
+		}
+		rs.iterExtendBytes(out, rs.iterSlice(rs.u32ToBeBytes(acc).reverse()), undefined, true);
 	} else {
 		rs.iterExtendBytes(out, rs.iterFlatMap(rs.iterSlice(rs.sliceItems(v)), (x: Item.Item<rs.u32[]>): Uint8Array => {
 			return rs.u16ToBeBytes(x.tag).reverse();
@@ -96,9 +106,14 @@ export function put$array1100_u32(v: rs.Slice<Item.Item<rs.u32[]>>, out: rs.Byte
 	rs.iterExtendBytes(out, rs.iterSlice(rs.u32ToBeBytes(hash).reverse()), undefined, true);
 	rs.iterExtendBytes(out, rs.iterSlice(rs.u32ToBeBytes(count).reverse()), undefined, true);
 	if (!(v.length <= 64)) {
-		rs.iterExtendBytes(out, rs.iterSlice(rs.u32ToBeBytes(rs.iterFold(rs.iterSlice(rs.sliceItems(v)), 0, (h: rs.u32, x2: Item.Item<rs.u32[]>): rs.u32 => {
-			return rs.u32WrappingMul((h ^ x2.tag as rs.u32) >>> 0, 16777619);
-		})).reverse()), undefined, true);
+		const s = rs.sliceItems(v);
+		let front = 0;
+		let back = s.length;
+		let acc: rs.u32 = 0;
+		while (!(front >= back)) {
+			acc = rs.u32WrappingMul((acc ^ s[front++].tag as rs.u32) >>> 0, 16777619);
+		}
+		rs.iterExtendBytes(out, rs.iterSlice(rs.u32ToBeBytes(acc).reverse()), undefined, true);
 	} else {
 		rs.iterExtendBytes(out, rs.iterFlatMap(rs.iterSlice(rs.sliceItems(v)), (x: Item.Item<rs.u32[]>): Uint8Array => {
 			return rs.u16ToBeBytes(x.tag).reverse();
@@ -119,9 +134,14 @@ export function put$array22_u32(v: rs.Slice<Item.Item<rs.u32[]>>, out: rs.ByteVe
 	rs.iterExtendBytes(out, rs.iterSlice(rs.u32ToBeBytes(hash).reverse()), undefined, true);
 	rs.iterExtendBytes(out, rs.iterSlice(rs.u32ToBeBytes(count).reverse()), undefined, true);
 	if (!(v.length <= 64)) {
-		rs.iterExtendBytes(out, rs.iterSlice(rs.u32ToBeBytes(rs.iterFold(rs.iterSlice(rs.sliceItems(v)), 0, (h: rs.u32, x2: Item.Item<rs.u32[]>): rs.u32 => {
-			return rs.u32WrappingMul((h ^ x2.tag as rs.u32) >>> 0, 16777619);
-		})).reverse()), undefined, true);
+		const s = rs.sliceItems(v);
+		let front = 0;
+		let back = s.length;
+		let acc: rs.u32 = 0;
+		while (!(front >= back)) {
+			acc = rs.u32WrappingMul((acc ^ s[front++].tag as rs.u32) >>> 0, 16777619);
+		}
+		rs.iterExtendBytes(out, rs.iterSlice(rs.u32ToBeBytes(acc).reverse()), undefined, true);
 	} else {
 		rs.iterExtendBytes(out, rs.iterFlatMap(rs.iterSlice(rs.sliceItems(v)), (x: Item.Item<rs.u32[]>): Uint8Array => {
 			return rs.u16ToBeBytes(x.tag).reverse();
@@ -142,9 +162,14 @@ export function put$array30_u32(v: rs.Slice<Item.Item<rs.u32[]>>, out: rs.ByteVe
 	rs.iterExtendBytes(out, rs.iterSlice(rs.u32ToBeBytes(hash).reverse()), undefined, true);
 	rs.iterExtendBytes(out, rs.iterSlice(rs.u32ToBeBytes(count).reverse()), undefined, true);
 	if (!(v.length <= 64)) {
-		rs.iterExtendBytes(out, rs.iterSlice(rs.u32ToBeBytes(rs.iterFold(rs.iterSlice(rs.sliceItems(v)), 0, (h: rs.u32, x2: Item.Item<rs.u32[]>): rs.u32 => {
-			return rs.u32WrappingMul((h ^ x2.tag as rs.u32) >>> 0, 16777619);
-		})).reverse()), undefined, true);
+		const s = rs.sliceItems(v);
+		let front = 0;
+		let back = s.length;
+		let acc: rs.u32 = 0;
+		while (!(front >= back)) {
+			acc = rs.u32WrappingMul((acc ^ s[front++].tag as rs.u32) >>> 0, 16777619);
+		}
+		rs.iterExtendBytes(out, rs.iterSlice(rs.u32ToBeBytes(acc).reverse()), undefined, true);
 	} else {
 		rs.iterExtendBytes(out, rs.iterFlatMap(rs.iterSlice(rs.sliceItems(v)), (x: Item.Item<rs.u32[]>): Uint8Array => {
 			return rs.u16ToBeBytes(x.tag).reverse();
@@ -165,9 +190,14 @@ export function put$sorts_Held(v: rs.Slice<Item.Item<Held.Held>>, out: rs.ByteVe
 	rs.iterExtendBytes(out, rs.iterSlice(rs.u32ToBeBytes(hash).reverse()), undefined, true);
 	rs.iterExtendBytes(out, rs.iterSlice(rs.u32ToBeBytes(count).reverse()), undefined, true);
 	if (!(v.length <= 64)) {
-		rs.iterExtendBytes(out, rs.iterSlice(rs.u32ToBeBytes(rs.iterFold(rs.iterSlice(rs.sliceItems(v)), 0, (h: rs.u32, x2: Item.Item<Held.Held>): rs.u32 => {
-			return rs.u32WrappingMul((h ^ x2.tag as rs.u32) >>> 0, 16777619);
-		})).reverse()), undefined, true);
+		const s = rs.sliceItems(v);
+		let front = 0;
+		let back = s.length;
+		let acc: rs.u32 = 0;
+		while (!(front >= back)) {
+			acc = rs.u32WrappingMul((acc ^ s[front++].tag as rs.u32) >>> 0, 16777619);
+		}
+		rs.iterExtendBytes(out, rs.iterSlice(rs.u32ToBeBytes(acc).reverse()), undefined, true);
 	} else {
 		rs.iterExtendBytes(out, rs.iterFlatMap(rs.iterSlice(rs.sliceItems(v)), (x: Item.Item<Held.Held>): Uint8Array => {
 			return rs.u16ToBeBytes(x.tag).reverse();
@@ -188,9 +218,14 @@ export function put$unit(v: rs.Slice<Item.Item<undefined>>, out: rs.ByteVec): vo
 	rs.iterExtendBytes(out, rs.iterSlice(rs.u32ToBeBytes(hash).reverse()), undefined, true);
 	rs.iterExtendBytes(out, rs.iterSlice(rs.u32ToBeBytes(count).reverse()), undefined, true);
 	if (!(v.length <= 64)) {
-		rs.iterExtendBytes(out, rs.iterSlice(rs.u32ToBeBytes(rs.iterFold(rs.iterSlice(rs.sliceItems(v)), 0, (h: rs.u32, x2: Item.Item<undefined>): rs.u32 => {
-			return rs.u32WrappingMul((h ^ x2.tag as rs.u32) >>> 0, 16777619);
-		})).reverse()), undefined, true);
+		const s = rs.sliceItems(v);
+		let front = 0;
+		let back = s.length;
+		let acc: rs.u32 = 0;
+		while (!(front >= back)) {
+			acc = rs.u32WrappingMul((acc ^ s[front++].tag as rs.u32) >>> 0, 16777619);
+		}
+		rs.iterExtendBytes(out, rs.iterSlice(rs.u32ToBeBytes(acc).reverse()), undefined, true);
 	} else {
 		rs.iterExtendBytes(out, rs.iterFlatMap(rs.iterSlice(rs.sliceItems(v)), (x: Item.Item<undefined>): Uint8Array => {
 			return rs.u16ToBeBytes(x.tag).reverse();
@@ -255,16 +290,23 @@ export function keys(n: rs.usize, dataData: Uint8Array, dataStart: number, dataL
 		return [_2[0], _2[1]] as [rs.u8, rs.ByteSlice];
 	});
 	const pick: rs.u8 = _5[0];
-	let captured = (rs.iterFold(rs.iterSlice(rs.byteSliceView(_5[1])), 2654435769, (h: rs.u32, _3: rs.u8): rs.u32 => {
-		return rs.u32WrappingMul((h ^ _3 as rs.u32) >>> 0, 16777619);
-	}) | 1) >>> 0;
+	const s = rs.byteSliceView(_5[1]);
+	let front = 0;
+	let back = s.length;
+	let acc: rs.u32 = 2654435769;
+	while (!(front >= back)) {
+		acc = rs.u32WrappingMul((acc ^ s[front++] as rs.u32) >>> 0, 16777619);
+	}
+	let captured = (acc | 1) >>> 0;
 	const random: () => rs.u32 = (): rs.u32 => {
 		captured = (captured ^ ((captured << 13) >>> 0)) >>> 0;
 		captured = (captured ^ (captured >>> 17)) >>> 0;
 		captured = (captured ^ ((captured << 5) >>> 0)) >>> 0;
 		return captured;
 	};
-	return rs.iterToVec(rs.iterMap(new rs.Range(0, n), (i: rs.usize): rs.u16 => {
+	let start = 0;
+	let end = n;
+	const f2 = (i: rs.usize): rs.u16 => {
 		const r: rs.u32 = random();
 		const _42: rs.u8 = rs.u8Rem(pick, 5);
 		if (_42 === 0) {
@@ -283,121 +325,241 @@ export function keys(n: rs.usize, dataData: Uint8Array, dataStart: number, dataL
 			return i & 0xffff;
 		}
 		return rs.u32Rem(r, 64) & 0xffff;
-	}), undefined, 2, true);
+	};
+	const v: rs.Vec<rs.u16> = rs.vecWithCapacity(Math.max(end - start, 0), 2);
+	while (!(start >= end)) {
+		const y: rs.u16 = f2(start++);
+		v.items.push(y);
+	}
+	return v;
 }
 
 /** `keys` as items, each padded by `pad` and tagged by where it is. */
 export function items$Cell_u32_ref_sorts_sorts_closure1(keys: rs.Slice<rs.u16>, pad: () => rs.Cell<rs.u32>): rs.Vec<Item.Item<rs.Cell<rs.u32>>> {
-	return rs.iterToVec(rs.iterMap(rs.iterEnumerate(rs.iterSlice(rs.sliceItems(keys))), (_2: [rs.usize, rs.u16]): Item.Item<rs.Cell<rs.u32>> => {
-		return new Item.Item(_2[1], _2[0] & 0xffff, pad());
-	}), undefined, 8, true);
+	const s = rs.sliceItems(keys);
+	let front = 0;
+	let back = s.length;
+	let count = 0;
+	const v: rs.Vec<Item.Item<rs.Cell<rs.u32>>> = rs.vecWithCapacity(back - front, 8);
+	while (!(front >= back)) {
+		const y: Item.Item<rs.Cell<rs.u32>> = new Item.Item(s[front++], count++ & 0xffff, pad());
+		v.items.push(y);
+	}
+	return v;
 }
 
 /** `keys` as items, each padded by `pad` and tagged by where it is. */
 export function items$Cell_u32_sorts_disorders_closure3(keys: rs.Slice<rs.u16>, pad: () => rs.Cell<rs.u32>): rs.Vec<Item.Item<rs.Cell<rs.u32>>> {
-	return rs.iterToVec(rs.iterMap(rs.iterEnumerate(rs.iterSlice(rs.sliceItems(keys))), (_2: [rs.usize, rs.u16]): Item.Item<rs.Cell<rs.u32>> => {
-		return new Item.Item(_2[1], _2[0] & 0xffff, pad());
-	}), undefined, 8, true);
+	const s = rs.sliceItems(keys);
+	let front = 0;
+	let back = s.length;
+	let count = 0;
+	const v: rs.Vec<Item.Item<rs.Cell<rs.u32>>> = rs.vecWithCapacity(back - front, 8);
+	while (!(front >= back)) {
+		const y: Item.Item<rs.Cell<rs.u32>> = new Item.Item(s[front++], count++ & 0xffff, pad());
+		v.items.push(y);
+	}
+	return v;
 }
 
 /** `keys` as items, each padded by `pad` and tagged by where it is. */
 export function items$array10_u32_ref_sorts_sorts_closure3(keys: rs.Slice<rs.u16>, pad: () => rs.u32[]): rs.Vec<Item.Item<rs.u32[]>> {
-	return rs.iterToVec(rs.iterMap(rs.iterEnumerate(rs.iterSlice(rs.sliceItems(keys))), (_2: [rs.usize, rs.u16]): Item.Item<rs.u32[]> => {
-		return new Item.Item(_2[1], _2[0] & 0xffff, pad());
-	}), undefined, 44, true);
+	const s = rs.sliceItems(keys);
+	let front = 0;
+	let back = s.length;
+	let count = 0;
+	const v: rs.Vec<Item.Item<rs.u32[]>> = rs.vecWithCapacity(back - front, 44);
+	while (!(front >= back)) {
+		const y: Item.Item<rs.u32[]> = new Item.Item(s[front++], count++ & 0xffff, pad());
+		v.items.push(y);
+	}
+	return v;
 }
 
 /** `keys` as items, each padded by `pad` and tagged by where it is. */
 export function items$array10_u32_sorts_disorders_closure1(keys: rs.Slice<rs.u16>, pad: () => rs.u32[]): rs.Vec<Item.Item<rs.u32[]>> {
-	return rs.iterToVec(rs.iterMap(rs.iterEnumerate(rs.iterSlice(rs.sliceItems(keys))), (_2: [rs.usize, rs.u16]): Item.Item<rs.u32[]> => {
-		return new Item.Item(_2[1], _2[0] & 0xffff, pad());
-	}), undefined, 44, true);
+	const s = rs.sliceItems(keys);
+	let front = 0;
+	let back = s.length;
+	let count = 0;
+	const v: rs.Vec<Item.Item<rs.u32[]>> = rs.vecWithCapacity(back - front, 44);
+	while (!(front >= back)) {
+		const y: Item.Item<rs.u32[]> = new Item.Item(s[front++], count++ & 0xffff, pad());
+		v.items.push(y);
+	}
+	return v;
 }
 
 /** `keys` as items, each padded by `pad` and tagged by where it is. */
 export function items$array1100_u32_sorts_sorts_closure6(keys: rs.Slice<rs.u16>, pad: () => rs.u32[]): rs.Vec<Item.Item<rs.u32[]>> {
-	return rs.iterToVec(rs.iterMap(rs.iterEnumerate(rs.iterSlice(rs.sliceItems(keys))), (_2: [rs.usize, rs.u16]): Item.Item<rs.u32[]> => {
-		return new Item.Item(_2[1], _2[0] & 0xffff, pad());
-	}), undefined, 4404, true);
+	const s = rs.sliceItems(keys);
+	let front = 0;
+	let back = s.length;
+	let count = 0;
+	const v: rs.Vec<Item.Item<rs.u32[]>> = rs.vecWithCapacity(back - front, 4404);
+	while (!(front >= back)) {
+		const y: Item.Item<rs.u32[]> = new Item.Item(s[front++], count++ & 0xffff, pad());
+		v.items.push(y);
+	}
+	return v;
 }
 
 /** `keys` as items, each padded by `pad` and tagged by where it is. */
 export function items$array22_u32_ref_sorts_sorts_closure4(keys: rs.Slice<rs.u16>, pad: () => rs.u32[]): rs.Vec<Item.Item<rs.u32[]>> {
-	return rs.iterToVec(rs.iterMap(rs.iterEnumerate(rs.iterSlice(rs.sliceItems(keys))), (_2: [rs.usize, rs.u16]): Item.Item<rs.u32[]> => {
-		return new Item.Item(_2[1], _2[0] & 0xffff, pad());
-	}), undefined, 92, true);
+	const s = rs.sliceItems(keys);
+	let front = 0;
+	let back = s.length;
+	let count = 0;
+	const v: rs.Vec<Item.Item<rs.u32[]>> = rs.vecWithCapacity(back - front, 92);
+	while (!(front >= back)) {
+		const y: Item.Item<rs.u32[]> = new Item.Item(s[front++], count++ & 0xffff, pad());
+		v.items.push(y);
+	}
+	return v;
 }
 
 /** `keys` as items, each padded by `pad` and tagged by where it is. */
 export function items$array30_u32_ref_sorts_sorts_closure5(keys: rs.Slice<rs.u16>, pad: () => rs.u32[]): rs.Vec<Item.Item<rs.u32[]>> {
-	return rs.iterToVec(rs.iterMap(rs.iterEnumerate(rs.iterSlice(rs.sliceItems(keys))), (_2: [rs.usize, rs.u16]): Item.Item<rs.u32[]> => {
-		return new Item.Item(_2[1], _2[0] & 0xffff, pad());
-	}), undefined, 124, true);
+	const s = rs.sliceItems(keys);
+	let front = 0;
+	let back = s.length;
+	let count = 0;
+	const v: rs.Vec<Item.Item<rs.u32[]>> = rs.vecWithCapacity(back - front, 124);
+	while (!(front >= back)) {
+		const y: Item.Item<rs.u32[]> = new Item.Item(s[front++], count++ & 0xffff, pad());
+		v.items.push(y);
+	}
+	return v;
 }
 
 /** `keys` as items, each padded by `pad` and tagged by where it is. */
 export function items$array30_u32_sorts_btrees_closure3(keys: rs.Slice<rs.u16>, pad: () => rs.u32[]): rs.Vec<Item.Item<rs.u32[]>> {
-	return rs.iterToVec(rs.iterMap(rs.iterEnumerate(rs.iterSlice(rs.sliceItems(keys))), (_2: [rs.usize, rs.u16]): Item.Item<rs.u32[]> => {
-		return new Item.Item(_2[1], _2[0] & 0xffff, pad());
-	}), undefined, 124, true);
+	const s = rs.sliceItems(keys);
+	let front = 0;
+	let back = s.length;
+	let count = 0;
+	const v: rs.Vec<Item.Item<rs.u32[]>> = rs.vecWithCapacity(back - front, 124);
+	while (!(front >= back)) {
+		const y: Item.Item<rs.u32[]> = new Item.Item(s[front++], count++ & 0xffff, pad());
+		v.items.push(y);
+	}
+	return v;
 }
 
 /** `keys` as items, each padded by `pad` and tagged by where it is. */
 export function items$array30_u32_sorts_disorders_closure2(keys: rs.Slice<rs.u16>, pad: () => rs.u32[]): rs.Vec<Item.Item<rs.u32[]>> {
-	return rs.iterToVec(rs.iterMap(rs.iterEnumerate(rs.iterSlice(rs.sliceItems(keys))), (_2: [rs.usize, rs.u16]): Item.Item<rs.u32[]> => {
-		return new Item.Item(_2[1], _2[0] & 0xffff, pad());
-	}), undefined, 124, true);
+	const s = rs.sliceItems(keys);
+	let front = 0;
+	let back = s.length;
+	let count = 0;
+	const v: rs.Vec<Item.Item<rs.u32[]>> = rs.vecWithCapacity(back - front, 124);
+	while (!(front >= back)) {
+		const y: Item.Item<rs.u32[]> = new Item.Item(s[front++], count++ & 0xffff, pad());
+		v.items.push(y);
+	}
+	return v;
 }
 
 /** `keys` as items, each padded by `pad` and tagged by where it is. */
 export function items$sorts_Held_ref_sorts_sorts_closure2(keys: rs.Slice<rs.u16>, pad: () => Held.Held): rs.Vec<Item.Item<Held.Held>> {
-	return rs.iterToVec(rs.iterMap(rs.iterEnumerate(rs.iterSlice(rs.sliceItems(keys))), (_2: [rs.usize, rs.u16]): Item.Item<Held.Held> => {
-		return new Item.Item(_2[1], _2[0] & 0xffff, pad());
-	}), undefined, 6, true);
+	const s = rs.sliceItems(keys);
+	let front = 0;
+	let back = s.length;
+	let count = 0;
+	const v: rs.Vec<Item.Item<Held.Held>> = rs.vecWithCapacity(back - front, 6);
+	while (!(front >= back)) {
+		const y: Item.Item<Held.Held> = new Item.Item(s[front++], count++ & 0xffff, pad());
+		v.items.push(y);
+	}
+	return v;
 }
 
 /** `keys` as items, each padded by `pad` and tagged by where it is. */
 export function items$unit_ref_sorts_sorts_closure0(keys: rs.Slice<rs.u16>, pad: () => undefined): rs.Vec<Item.Item<undefined>> {
-	return rs.iterToVec(rs.iterMap(rs.iterEnumerate(rs.iterSlice(rs.sliceItems(keys))), (_2: [rs.usize, rs.u16]): Item.Item<undefined> => {
+	const s = rs.sliceItems(keys);
+	let front = 0;
+	let back = s.length;
+	let count = 0;
+	const f = (_2: [rs.usize, rs.u16]): Item.Item<undefined> => {
 		const i: rs.usize = _2[0];
 		const key: rs.u16 = _2[1];
 		const _52: rs.u16 = i & 0xffff;
 		pad();
 		return new Item.Item(key, _52, undefined);
-	}), undefined, 4, true);
+	};
+	const v: rs.Vec<Item.Item<undefined>> = rs.vecWithCapacity(back - front, 4);
+	while (!(front >= back)) {
+		const x = s[front++];
+		const y: Item.Item<undefined> = f([count++, x]);
+		v.items.push(y);
+	}
+	return v;
 }
 
 /** `keys` as items, each padded by `pad` and tagged by where it is. */
 export function items$unit_sorts_btrees_closure0(keys: rs.Slice<rs.u16>, pad: () => undefined): rs.Vec<Item.Item<undefined>> {
-	return rs.iterToVec(rs.iterMap(rs.iterEnumerate(rs.iterSlice(rs.sliceItems(keys))), (_2: [rs.usize, rs.u16]): Item.Item<undefined> => {
+	const s = rs.sliceItems(keys);
+	let front = 0;
+	let back = s.length;
+	let count = 0;
+	const f = (_2: [rs.usize, rs.u16]): Item.Item<undefined> => {
 		const i: rs.usize = _2[0];
 		const key: rs.u16 = _2[1];
 		const _52: rs.u16 = i & 0xffff;
 		pad();
 		return new Item.Item(key, _52, undefined);
-	}), undefined, 4, true);
+	};
+	const v: rs.Vec<Item.Item<undefined>> = rs.vecWithCapacity(back - front, 4);
+	while (!(front >= back)) {
+		const x = s[front++];
+		const y: Item.Item<undefined> = f([count++, x]);
+		v.items.push(y);
+	}
+	return v;
 }
 
 /** `keys` as items, each padded by `pad` and tagged by where it is. */
 export function items$unit_sorts_btrees_closure1(keys: rs.Slice<rs.u16>, pad: () => undefined): rs.Vec<Item.Item<undefined>> {
-	return rs.iterToVec(rs.iterMap(rs.iterEnumerate(rs.iterSlice(rs.sliceItems(keys))), (_2: [rs.usize, rs.u16]): Item.Item<undefined> => {
+	const s = rs.sliceItems(keys);
+	let front = 0;
+	let back = s.length;
+	let count = 0;
+	const f = (_2: [rs.usize, rs.u16]): Item.Item<undefined> => {
 		const i: rs.usize = _2[0];
 		const key: rs.u16 = _2[1];
 		const _52: rs.u16 = i & 0xffff;
 		pad();
 		return new Item.Item(key, _52, undefined);
-	}), undefined, 4, true);
+	};
+	const v: rs.Vec<Item.Item<undefined>> = rs.vecWithCapacity(back - front, 4);
+	while (!(front >= back)) {
+		const x = s[front++];
+		const y: Item.Item<undefined> = f([count++, x]);
+		v.items.push(y);
+	}
+	return v;
 }
 
 /** `keys` as items, each padded by `pad` and tagged by where it is. */
 export function items$unit_sorts_disorders_closure0(keys: rs.Slice<rs.u16>, pad: () => undefined): rs.Vec<Item.Item<undefined>> {
-	return rs.iterToVec(rs.iterMap(rs.iterEnumerate(rs.iterSlice(rs.sliceItems(keys))), (_2: [rs.usize, rs.u16]): Item.Item<undefined> => {
+	const s = rs.sliceItems(keys);
+	let front = 0;
+	let back = s.length;
+	let count = 0;
+	const f = (_2: [rs.usize, rs.u16]): Item.Item<undefined> => {
 		const i: rs.usize = _2[0];
 		const key: rs.u16 = _2[1];
 		const _52: rs.u16 = i & 0xffff;
 		pad();
 		return new Item.Item(key, _52, undefined);
-	}), undefined, 4, true);
+	};
+	const v: rs.Vec<Item.Item<undefined>> = rs.vecWithCapacity(back - front, 4);
+	while (!(front >= back)) {
+		const x = s[front++];
+		const y: Item.Item<undefined> = f([count++, x]);
+		v.items.push(y);
+	}
+	return v;
 }
 
 /** Each sort of `keys` as items padded by `pad`, and what it tested and left. */

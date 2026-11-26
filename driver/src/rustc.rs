@@ -1,4 +1,4 @@
-//! The binary as rustc, run by cargo as its `RUSTC_WRAPPER`.
+//! The binary as rustc, run by cargo as rustc's wrapper.
 
 use std::path::Path;
 use std::process::ExitCode;

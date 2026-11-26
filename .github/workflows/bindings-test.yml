@@ -1,0 +1,81 @@
+name: Binding packages test
+
+# bindings.yml on the api fixture, whose consumers in every language must print native Rust's
+# transcript byte for byte, and on moq's stand-in facade at the exporter's moq pin, its first consumer.
+# Read-only: nothing here publishes.
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  # The api fixture's checks, each beside the script generated from its transcript, which the
+  # tree does not hold: the builder unpacks them over its checkout as api-checks/.
+  transcripts:
+    name: api fixture's checks
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: taiki-e/install-action@3a3daafd3b7f23b8f65d9f5ba2db203fb59b79e2 # v2.90.2
+        with:
+          tool: just
+      - run: just ffi transcripts generated/api-checks
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: api-checks
+          path: generated
+          if-no-files-found: error
+
+  api:
+    name: api fixture
+    needs: transcripts
+    uses: ./.github/workflows/bindings.yml
+    with:
+      manifest-path: ffi/fixtures/api/Cargo.toml
+      features: doubled
+      example: transcript
+      checks-artifact: api-checks
+      python-check: api-checks/python
+      # The small crate, so the second build costs little: moq's stand-in leaves it to its release.
+      reproduce: true
+      # api.cpp rather than api.c, whose broken cases name items only wasm32 has.
+      c-check: api-checks/cpp
+      web-manifest-path: ffi/fixtures/api/Cargo.toml
+      scope: kixel-ai
+      web-check: api-checks/web
+      # Each check leaves out its targets file, which the exporter's tests run: what a target of
+      # either export lacks (wasm32's items there, `stray` on this export's Windows), and what
+      # the tests' export makes fallible, as it serves wasm32 too.
+      # No go-module, whose path would rename the export's own module, `api`, which api.go imports.
+      go-check: api-checks/go
+      swift-check: api-checks/swift
+      dart-check: api-checks/dart
+      # A namespace no release publishes to. No kotlin-check: api.kt names wasm32 items this
+      # export lacks, so the consumer only loads the library.
+      maven-group: ai.kixel
+
+  moq:
+    name: moq stand-in
+    uses: ./.github/workflows/bindings.yml
+    with:
+      manifest-path: ffi/.work/moq-ffi/Cargo.toml
+      python-check: ffi/moq/moq.py
+      swift-check: ffi/moq/moq.swift
+      c-check: ffi/moq/moq.cpp
+      # moq's wasm32 stand-in, which leaves moq-tokio out, as no wasm32 target builds it.
+      web-manifest-path: ffi/.work/moq-ffi-web/Cargo.toml
+      scope: kixel-ai
+      # Under the export's own module, `moq`, which moq.go imports.
+      go-check: ffi/moq/moq.go
+      # moq's own namespace, as it stands in for dev.moq:moq-ffi: its Maven repository,
+      # version 0.0.0, is the bundle moq's Central Portal validates (ffi/release/central.sh).
+      maven-group: dev.moq
+      kotlin-check: ffi/moq/moq.kt
+      # The export's package, `moq`, which moq.dart imports.
+      dart-check: ffi/moq/moq.dart
+      # moq.ts's script through React Native's package, in apps on Android and iOS.
+      react-native-check: ffi/moq/moq.ts

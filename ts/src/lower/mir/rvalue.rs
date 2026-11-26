@@ -127,6 +127,13 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 					_ => value,
 				}
 			}
+			// The length of a slice held as its parts, or of the fake pointer to one a bounds
+			// check reads.
+			Rvalue::UnaryOp(UnOp::PtrMetadata, Operand::Copy(p) | Operand::Move(p))
+				if let Some(len) = self.scalar_len(*p, span) =>
+			{
+				len
+			}
 			Rvalue::UnaryOp(op, operand) => {
 				let aty = operand.ty(&self.mir.local_decls, tcx);
 				let value = self.operand(operand, span, out);
@@ -1327,7 +1334,7 @@ fn unpinned<'tcx>(tcx: TyCtxt<'tcx>, from: Ty<'tcx>, to: Ty<'tcx>) -> (Ty<'tcx>,
 }
 
 /// Whether evaluating `rvalue` can do or throw anything.
-pub fn effect<'tcx>(rvalue: &Rvalue<'tcx>, fx: &Fx<'_, '_, '_, 'tcx>) -> bool {
+pub(crate) fn effect<'tcx>(rvalue: &Rvalue<'tcx>, fx: &Fx<'_, '_, '_, 'tcx>) -> bool {
 	match rvalue {
 		Rvalue::BinaryOp(op, ops) => {
 			let ty = ops.0.ty(&fx.mir.local_decls, fx.tcx);
@@ -1360,7 +1367,7 @@ fn place_memory<'tcx>(p: &Place<'tcx>, fx: &Fx<'_, '_, '_, 'tcx>) -> bool {
 
 /// Whether reading `op` reads memory something could change, a local changed in place
 /// included: a copy of one held past a write to its field would see the write.
-pub fn operand_memory<'tcx>(op: &Operand<'tcx>, fx: &Fx<'_, '_, '_, 'tcx>) -> bool {
+pub(crate) fn operand_memory<'tcx>(op: &Operand<'tcx>, fx: &Fx<'_, '_, '_, 'tcx>) -> bool {
 	match op {
 		Operand::Copy(p) | Operand::Move(p) => place_memory(p, fx) || fx.mutated[p.local],
 		_ => false,
@@ -1368,7 +1375,7 @@ pub fn operand_memory<'tcx>(op: &Operand<'tcx>, fx: &Fx<'_, '_, '_, 'tcx>) -> bo
 }
 
 /// Whether evaluating `rvalue` reads memory that something else could change.
-pub fn memory<'tcx>(rvalue: &Rvalue<'tcx>, fx: &Fx<'_, '_, '_, 'tcx>) -> bool {
+pub(crate) fn memory<'tcx>(rvalue: &Rvalue<'tcx>, fx: &Fx<'_, '_, '_, 'tcx>) -> bool {
 	let place = |p: &Place<'tcx>| place_memory(p, fx);
 	let operand = |op: &Operand<'tcx>| operand_memory(op, fx);
 	match rvalue {

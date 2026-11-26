@@ -17,14 +17,14 @@ use crate::ts::{Expr, Type};
 
 /// A float type JS has a value of.
 #[derive(Clone, Copy, PartialEq, Eq)]
-pub enum Float {
+pub(crate) enum Float {
 	F32,
 	F64,
 }
 
 impl Float {
 	/// `ty`'s, if it is `f32` or `f64`. The other float types have no JS value yet.
-	pub fn of(ty: Ty<'_>) -> Option<Self> {
+	pub(crate) fn of(ty: Ty<'_>) -> Option<Self> {
 		match ty.kind() {
 			ty::Float(ty::FloatTy::F32) => Some(Self::F32),
 			ty::Float(ty::FloatTy::F64) => Some(Self::F64),
@@ -33,7 +33,7 @@ impl Float {
 	}
 
 	/// The Rust name, which also prefixes the type's runtime functions: `rs.f32Round`.
-	pub fn name(self) -> &'static str {
+	pub(crate) fn name(self) -> &'static str {
 		match self {
 			Self::F32 => "f32",
 			Self::F64 => "f64",
@@ -41,12 +41,12 @@ impl Float {
 	}
 
 	/// The TypeScript type of a value.
-	pub fn ty(self) -> Type {
+	pub(crate) fn ty(self) -> Type {
 		Type::Rs(self.name(), Vec::new())
 	}
 
 	/// `e`, a number JS computed exactly or as a double, rounded to this type.
-	pub fn round(self, e: Expr) -> Expr {
+	pub(crate) fn round(self, e: Expr) -> Expr {
 		match self {
 			Self::F32 => Expr::ident("Math").member("fround").call(vec![e]),
 			Self::F64 => e,
@@ -54,7 +54,7 @@ impl Float {
 	}
 
 	/// A constant from its bits.
-	pub fn constant(self, int: ScalarInt) -> Expr {
+	pub(crate) fn constant(self, int: ScalarInt) -> Expr {
 		match self {
 			Self::F32 => lit32(f32::from_bits(int.to_u32())),
 			Self::F64 => lit(f64::from_bits(int.to_u64())),
@@ -62,7 +62,7 @@ impl Float {
 	}
 
 	/// `v`, which this type holds exactly, as a literal.
-	pub fn lit(self, v: f64) -> Expr {
+	pub(crate) fn lit(self, v: f64) -> Expr {
 		match self {
 			Self::F32 => lit32(v as f32),
 			Self::F64 => lit(v),
@@ -76,13 +76,13 @@ impl Float {
 }
 
 /// Whether `ty` is a float type JS has a value of.
-pub fn is(ty: Ty<'_>) -> bool {
+pub(crate) fn is(ty: Ty<'_>) -> bool {
 	Float::of(ty).is_some()
 }
 
 /// `v` as a literal: the shortest digits that read back as it, as Rust's `Debug` prints them.
 /// A NaN other than `f64::NAN` is made from its bits, which keeps its sign and payload.
-pub fn lit(v: f64) -> Expr {
+pub(crate) fn lit(v: f64) -> Expr {
 	match v {
 		_ if v.is_nan() && v.to_bits() != f64::NAN.to_bits() => {
 			let u64 = Int {
@@ -115,7 +115,7 @@ fn lit32(v: f32) -> Expr {
 }
 
 /// `l op r` of two floats, which JS's operators compute as Rust's do, an `f32`'s rounded.
-pub fn binary<'tcx>(b: &mut Body<'_, '_, 'tcx>, float: Float, op: BinOp, l: Expr, r: Expr, span: Span) -> Expr {
+pub(crate) fn binary<'tcx>(b: &mut Body<'_, '_, 'tcx>, float: Float, op: BinOp, l: Expr, r: Expr, span: Span) -> Expr {
 	let rounds = |js| float.round(l.clone().binary(js, r.clone()));
 	match op {
 		BinOp::Add => rounds("+"),
@@ -134,7 +134,7 @@ pub fn binary<'tcx>(b: &mut Body<'_, '_, 'tcx>, float: Float, op: BinOp, l: Expr
 	}
 }
 
-pub fn unary<'tcx>(b: &mut Body<'_, '_, 'tcx>, float: Float, op: UnOp, value: Expr, span: Span) -> Expr {
+pub(crate) fn unary<'tcx>(b: &mut Body<'_, '_, 'tcx>, float: Float, op: UnOp, value: Expr, span: Span) -> Expr {
 	match op {
 		UnOp::Neg => Expr::unary("-", value),
 		_ => b.err(span, format!("`{op:?}` on `{}`", float.name())),
@@ -142,7 +142,7 @@ pub fn unary<'tcx>(b: &mut Body<'_, '_, 'tcx>, float: Float, op: UnOp, value: Ex
 }
 
 /// `value as to` where either side is a float.
-pub fn cast<'tcx>(b: &mut Body<'_, '_, 'tcx>, value: Operand, from: Ty<'tcx>, to: Ty<'tcx>, span: Span) -> Expr {
+pub(crate) fn cast<'tcx>(b: &mut Body<'_, '_, 'tcx>, value: Operand, from: Ty<'tcx>, to: Ty<'tcx>, span: Span) -> Expr {
 	match (Float::of(from), Float::of(to), Int::of(from), Int::of(to)) {
 		(Some(f), Some(t), ..) if f == t => value.expr,
 		// Every single is exactly a double.
@@ -177,7 +177,7 @@ pub fn cast<'tcx>(b: &mut Body<'_, '_, 'tcx>, value: Operand, from: Ty<'tcx>, to
 }
 
 /// A call of the float type's own `name`, or `None` if it is not mapped.
-pub fn method(float: Float, name: &str, args: Vec<Expr>) -> Option<Expr> {
+pub(crate) fn method(float: Float, name: &str, args: Vec<Expr>) -> Option<Expr> {
 	let math = |f: &str, args: Vec<Expr>| float.round(Expr::ident("Math").member(f).call(args));
 	let rs = |f: &str, args: Vec<Expr>| float.func(f).call(args);
 	let one = |args: Vec<Expr>| <[Expr; 1]>::try_from(args).ok().map(|[x]| x);

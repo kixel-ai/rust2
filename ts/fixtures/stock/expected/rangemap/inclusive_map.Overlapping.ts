@@ -28,7 +28,9 @@ export class Overlapping<K, V, R> {
 export function next$iter_Iterator_u64_u32_ref_ops_RangeInclusive_u64(self: Overlapping<rs.u64, rs.u32, rs.RangeInclusive<rs.u64>>): [rs.RangeInclusive<rs.u64>, rs.u32] | rs.Done {
 	const _2: [RangeInclusiveStartWrapper.RangeInclusiveStartWrapper<rs.u64>, rs.u32] | rs.Done = (self.btmRangeIter as rs.Iter<[RangeInclusiveStartWrapper.RangeInclusiveStartWrapper<rs.u64>, rs.u32]>).next();
 	if (_2 !== rs.DONE) {
-		if (!rs.u64Le(rs.rangeInclusiveStart(RangeInclusiveEndWrapper.deref$ops_Deref_u64(RangeInclusiveStartWrapper.deref$ops_Deref_u64(_2[0]))), rs.rangeInclusiveEnd(self.queryRange))) {
+		const _9: rs.u64 = rs.rangeInclusiveStart(RangeInclusiveEndWrapper.deref$ops_Deref_u64(RangeInclusiveStartWrapper.deref$ops_Deref_u64(_2[0])));
+		const _14: rs.u64 = rs.rangeInclusiveEnd(self.queryRange);
+		if (!(typeof _9 === "number" && typeof _14 === "number" ? _9 <= _14 : rs.u64Le(_9, _14))) {
 			return rs.DONE;
 		}
 		return [RangeInclusiveStartWrapper.deref$ops_Deref_u64(_2[0]).range, _2[1]] as [rs.RangeInclusive<rs.u64>, rs.u32];
@@ -39,7 +41,9 @@ export function next$iter_Iterator_u64_u32_ref_ops_RangeInclusive_u64(self: Over
 export function next$iter_Iterator_u64_unit_ops_RangeInclusive_u64(self: Overlapping<rs.u64, undefined, rs.RangeInclusive<rs.u64>>): [rs.RangeInclusive<rs.u64>, undefined] | rs.Done {
 	const _2: [RangeInclusiveStartWrapper.RangeInclusiveStartWrapper<rs.u64>, undefined] | rs.Done = (self.btmRangeIter as rs.Iter<[RangeInclusiveStartWrapper.RangeInclusiveStartWrapper<rs.u64>, undefined]>).next();
 	if (_2 !== rs.DONE) {
-		if (!rs.u64Le(rs.rangeInclusiveStart(RangeInclusiveEndWrapper.deref$ops_Deref_u64(RangeInclusiveStartWrapper.deref$ops_Deref_u64(_2[0]))), rs.rangeInclusiveEnd(self.queryRange))) {
+		const _9: rs.u64 = rs.rangeInclusiveStart(RangeInclusiveEndWrapper.deref$ops_Deref_u64(RangeInclusiveStartWrapper.deref$ops_Deref_u64(_2[0])));
+		const _14: rs.u64 = rs.rangeInclusiveEnd(self.queryRange);
+		if (!(typeof _9 === "number" && typeof _14 === "number" ? _9 <= _14 : rs.u64Le(_9, _14))) {
 			return rs.DONE;
 		}
 		return [RangeInclusiveStartWrapper.deref$ops_Deref_u64(_2[0]).range, undefined] as [rs.RangeInclusive<rs.u64>, undefined];
@@ -51,7 +55,9 @@ export function nextBack$iter_DoubleEndedIterator_u64_u32_ref_ops_RangeInclusive
 	while (true) {
 		const _2: [RangeInclusiveStartWrapper.RangeInclusiveStartWrapper<rs.u64>, rs.u32] | undefined = rs.iterToOption((self.btmRangeIter as rs.Iter<[RangeInclusiveStartWrapper.RangeInclusiveStartWrapper<rs.u64>, rs.u32]>).nextBack());
 		if (_2 !== undefined) {
-			if (rs.u64Le(rs.rangeInclusiveStart(RangeInclusiveEndWrapper.deref$ops_Deref_u64(RangeInclusiveStartWrapper.deref$ops_Deref_u64(_2[0]))), rs.rangeInclusiveEnd(self.queryRange))) {
+			const _9: rs.u64 = rs.rangeInclusiveStart(RangeInclusiveEndWrapper.deref$ops_Deref_u64(RangeInclusiveStartWrapper.deref$ops_Deref_u64(_2[0])));
+			const _14: rs.u64 = rs.rangeInclusiveEnd(self.queryRange);
+			if (typeof _9 === "number" && typeof _14 === "number" ? _9 <= _14 : rs.u64Le(_9, _14)) {
 				return [RangeInclusiveStartWrapper.deref$ops_Deref_u64(_2[0]).range, _2[1]] as [rs.RangeInclusive<rs.u64>, rs.u32];
 			}
 		} else {
@@ -65,7 +71,9 @@ export function nextBack$iter_DoubleEndedIterator_u64_unit_ops_RangeInclusive_u6
 	while (true) {
 		const _2: [RangeInclusiveStartWrapper.RangeInclusiveStartWrapper<rs.u64>, undefined] | undefined = rs.iterToOption((self.btmRangeIter as rs.Iter<[RangeInclusiveStartWrapper.RangeInclusiveStartWrapper<rs.u64>, undefined]>).nextBack());
 		if (_2 !== undefined) {
-			if (rs.u64Le(rs.rangeInclusiveStart(RangeInclusiveEndWrapper.deref$ops_Deref_u64(RangeInclusiveStartWrapper.deref$ops_Deref_u64(_2[0]))), rs.rangeInclusiveEnd(self.queryRange))) {
+			const _9: rs.u64 = rs.rangeInclusiveStart(RangeInclusiveEndWrapper.deref$ops_Deref_u64(RangeInclusiveStartWrapper.deref$ops_Deref_u64(_2[0])));
+			const _14: rs.u64 = rs.rangeInclusiveEnd(self.queryRange);
+			if (typeof _9 === "number" && typeof _14 === "number" ? _9 <= _14 : rs.u64Le(_9, _14)) {
 				return [RangeInclusiveStartWrapper.deref$ops_Deref_u64(_2[0]).range, undefined] as [rs.RangeInclusive<rs.u64>, undefined];
 			}
 		} else {

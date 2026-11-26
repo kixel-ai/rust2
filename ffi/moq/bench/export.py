@@ -1,15 +1,32 @@
 # bench/export.c's cases through the generated Python, so the two differ by what CPython
 # and the Python wrapper add. Each round runs twice, the first to warm CPython's caches.
-# Each case prints its wall time and the process's CPU time.
+# Each case prints its wall time and the process's CPU time, or under Valgrind, runs once
+# for swole to count. Its argument is moq/bench/hooks.h's shared library.
 
 import asyncio
+import ctypes
+import sys
+import threading
 import time
 
 import moq
 
-GROUPS = 1000
+hooks = ctypes.CDLL(sys.argv[1])
+hooks.hooks_init.argtypes = [ctypes.c_char_p]
+hooks.hooks_init.restype = ctypes.c_bool
+hooks.hooks_start.argtypes = []
+hooks.hooks_start.restype = None
+hooks.hooks_stop.argtypes = [ctypes.c_char_p]
+hooks.hooks_stop.restype = None
+start_case = hooks.hooks_start
+stop_case = hooks.hooks_stop
+measured = hooks.hooks_init(b"ffi/moq/bench/export.py::python")
+
+# A tenth under Valgrind, which counts every call exactly.
+GROUPS = 100 if measured else 1000
 FRAMES = 100
 N = GROUPS * FRAMES
+THREADS = 4
 SIZES = [100, 1024, 16384, 65536, 1048576]
 
 
@@ -24,16 +41,73 @@ def per(start, n=N):
 	return (wall - start[0]) / n, (cpu - start[1]) / n
 
 
-async def throughput(track, subscriber, at, size):
+def begin():
+	"""A case's start: now, and Valgrind counting from here."""
+	start = now()
+	start_case()
+	return start
+
+
+def end(start, name, n=N):
+	"""The case `name`'s nanoseconds per call since `start`, over `n` calls."""
+	stop_case(name)
+	return per(start, n)
+
+
+def concurrent(calls):
+	"""Each of `calls`, a bound method, made N times on a thread of its own, all at once:
+	wall nanoseconds per call on one thread, and CPU nanoseconds per call."""
+	ready = threading.Barrier(len(calls) + 1)
+	go = threading.Event()
+	failures = []
+
+	def work(call):
+		ready.wait()
+		go.wait()
+		try:
+			for _ in range(N):
+				call()
+		except BaseException as error:
+			failures.append(error)
+
+	threads = [threading.Thread(target=work, args=(call,)) for call in calls]
+	for thread in threads:
+		thread.start()
+	ready.wait()
+	begin = now()
+	go.set()
+	for thread in threads:
+		thread.join()
+	# A worker that died early would otherwise report a time for fewer than N calls.
+	if failures:
+		raise failures[0]
+	wall, cpu = per(begin)
+	return wall, cpu / len(calls)
+
+
+def create_track(broadcast, name):
+	"""A timed track named `name` on `broadcast`. It caches every group written to it until it
+	is freed, as the broadcast's pool, which nothing polls, evicts none, so each case that
+	writes groups writes them to a track of its own, freed once it ends: a round holds one
+	case's frames at a time instead of every case's, about 2 GB."""
+	return broadcast.create_track(name, moq.TrackInfo.default().with_timescale(moq.Timescale.MICRO))
+
+
+async def throughput(broadcast, micros, size):
 	"""Groups of 100 frames of `size` bytes written and each read back, its payload's first
-	byte touched, in about 64 MiB and at least 300 frames: megabytes a wall and a CPU
-	second."""
+	byte touched, in about 64 MiB and at least 300 frames, each group starting at the next
+	of `micros`: megabytes a wall and a CPU second, and the next start."""
 	groups = min(max((64 << 20) // (size * FRAMES), 3), 2000)
 	frame = bytes(size)
+	name = f"throughput[{size}]"
+	track = create_track(broadcast, name)
+	subscriber = await track.consume().subscribe(None)
 	total = 0
-	start = now()
+	start = begin()
 	for _ in range(groups):
-		group = track.append_group()
+		at = moq.Timestamp.from_micros(micros)
+		micros += 1
+		group = track.append_group(at)
 		reader = await subscriber.recv_group()
 		for _ in range(FRAMES):
 			group.write_frame(at, frame)
@@ -41,83 +115,119 @@ async def throughput(track, subscriber, at, size):
 			with read.payload_get as payload:
 				total += payload[0]
 		group.finish()
-	wall, cpu = per(start, groups * FRAMES * size)
-	return 1e3 / wall, 1e3 / cpu
+	wall, cpu = end(start, name.encode(), groups * FRAMES * size)
+	return (1e3 / wall, 1e3 / cpu), micros
 
 
-def round(loop):
+def round(loop, measured):
 	broadcast = moq.BroadcastInfo.new().produce()
-	track = broadcast.create_track("bench", moq.TrackInfo.default().with_timescale(moq.Timescale.MICRO))
+	track = create_track(broadcast, "bench")
 	frame = bytes(100)
 	out = {}
+	# Each group's start, in microseconds: a track's appended starts strictly increase, so
+	# every group takes the next, and each frame of a group is written at its start, as
+	# moq's own bench does.
+	micros = 0
 
-	start = now()
+	start = begin()
 	for _ in range(N):
 		track.is_closed()
-	out["call"] = per(start)
+	out["call"] = end(start, b"call")
 
 	# A bound method called in a loop, as bench/ffi/README.md timed BoltFFI's
-	# `group.sequence()`. BoltFFI holds the GIL through the call, where the export releases
-	# it so Rust may call Python back from another thread.
-	demanded = track.append_group()
-	sequence = demanded.demand().sequence
-	start = now()
+	# `group.sequence()`, which a group's start has replaced. BoltFFI holds the GIL through
+	# the call, where the export releases it so Rust may call Python back from another
+	# thread.
+	demanded = track.append_group(moq.Timestamp.from_micros(micros))
+	micros += 1
+	demand = demanded.demand()
+	group_start = demand.start
+	start = begin()
 	for _ in range(N):
-		sequence()
-	out["getter"] = per(start)
+		group_start()
+	out["getter"] = end(start, b"getter")
+
+	# The handle call and the getter from THREADS threads: on one shared handle, then on a
+	# clone each, a handle of its own to the same value. Valgrind runs one thread
+	# at a time, which contends for nothing, so it skips them.
+	if not measured:
+		out["shared:call"] = concurrent([track.is_closed] * THREADS)
+		out["own:call"] = concurrent([track.clone().is_closed for _ in range(THREADS)])
+		out["shared:getter"] = concurrent([group_start] * THREADS)
+		out["own:getter"] = concurrent([demand.clone().start for _ in range(THREADS)])
 	demanded.finish()
 
-	start = now()
+	start = begin()
 	for _ in range(N):
 		track.largest()
-	out["record"] = per(start)
+	out["record"] = end(start, b"record")
 
-	start = now()
+	start = begin()
 	for _ in range(N):
 		track.info()
-	out["object"] = per(start)
+	out["object"] = end(start, b"object")
 
-	# Each frame stamped through a fresh timestamp object, as a caller holding an int must.
-	micros = 0
-	start = now()
+	# A primitive pub field read, which reaches no user code, so it keeps the GIL.
+	info = track.info()
+	start = begin()
+	for _ in range(N):
+		info.priority_get
+	out["field"] = end(start, b"field")
+	del info
+
+	# Each frame stamped through a fresh timestamp, as a caller holding an int must.
+	track = create_track(broadcast, "stamped")
+	start = begin()
 	for _ in range(GROUPS):
-		group = track.append_group()
+		group = track.append_group(moq.Timestamp.from_micros(micros))
 		for _ in range(FRAMES):
 			group.write_frame(moq.Timestamp.from_micros(micros), frame)
 			micros += 1
 		group.finish()
-	out["stamped"] = per(start)
+	out["stamped"] = end(start, b"stamped")
 
-	at = moq.Timestamp.from_micros(micros)
-	start = now()
+	# Each group's frames written at its start, converted once a group.
+	track = create_track(broadcast, "write")
+	start = begin()
 	for _ in range(GROUPS):
-		group = track.append_group()
+		at = moq.Timestamp.from_micros(micros)
+		micros += 1
+		group = track.append_group(at)
 		for _ in range(FRAMES):
 			group.write_frame(at, frame)
 		group.finish()
-	out["write"] = per(start)
+	out["write"] = end(start, b"write")
+	del track
 
 	async def reads():
-		subscriber = await track.consume().subscribe(None)
+		nonlocal micros
 
 		# Each frame written, then read through an awaitable ready at its first poll, so it
 		# never suspends.
+		track = create_track(broadcast, "ready")
+		subscriber = await track.consume().subscribe(None)
 		last = None
-		start = now()
+		start = begin()
 		for _ in range(GROUPS):
-			group = track.append_group()
+			at = moq.Timestamp.from_micros(micros)
+			micros += 1
+			group = track.append_group(at)
 			reader = await subscriber.recv_group()
 			for _ in range(FRAMES):
 				group.write_frame(at, frame)
 				last = await reader.read_frame()
 			group.finish()
-		out["ready"] = per(start)
+		out["ready"] = end(start, b"ready")
 
 		# Each read awaited before its frame is written, so it pends, and the write's wake
 		# resumes it through the loop.
-		start = now()
+		track = create_track(broadcast, "woken")
+		subscriber = await track.consume().subscribe(None)
+		start = begin()
 		for _ in range(GROUPS):
-			group = track.append_group()
+			at = moq.Timestamp.from_micros(micros)
+			micros += 1
+			group = track.append_group(at)
 			reader = await subscriber.recv_group()
 			for _ in range(FRAMES):
 				pending = asyncio.ensure_future(reader.read_frame())
@@ -125,15 +235,20 @@ def round(loop):
 				group.write_frame(at, frame)
 				await pending
 			group.finish()
-		out["woken"] = per(start)
+		out["woken"] = end(start, b"woken")
 
 		# One writer task, with one outstanding permit, for the whole reader loop.
-		start = now()
+		track = create_track(broadcast, "loop")
+		subscriber = await track.consume().subscribe(None)
+		start = begin()
 		permits = asyncio.Queue(maxsize=1)
 
 		async def write_loop():
+			nonlocal micros
 			for _ in range(GROUPS):
-				group = track.append_group()
+				at = moq.Timestamp.from_micros(micros)
+				micros += 1
+				group = track.append_group(at)
 				for _ in range(FRAMES):
 					await permits.get()
 					group.write_frame(at, frame)
@@ -148,25 +263,30 @@ def round(loop):
 				await reader.read_frame()
 			permits.put_nowait(None)
 		await writer
-		out["loop"] = per(start)
+		out["loop"] = end(start, b"loop")
+		del track, subscriber
 
 		for size in SIZES:
-			out[f"mbps:{size}"] = await throughput(track, subscriber, at, size)
+			out[f"mbps:{size}"], micros = await throughput(broadcast, micros, size)
 		return last
 
 	last = loop.run_until_complete(reads())
 
 	# The last frame's 100 bytes, lent without a copy, then released.
-	start = now()
+	start = begin()
 	for _ in range(N):
 		with last.payload_get as payload:
 			payload[0]
-	out["payload"] = per(start)
+	out["payload"] = end(start, b"payload")
 	return out
 
 
+# Under Valgrind, one round, which prints nothing: swole counts each case.
 loop = asyncio.new_event_loop()
-round(loop)
-for case, (wall, cpu) in round(loop).items():
-	print(f"{case}\t{wall}\t{cpu}")
+if measured:
+	round(loop, True)
+else:
+	round(loop, False)
+	for case, (wall, cpu) in round(loop, False).items():
+		print(f"{case}\t{wall}\t{cpu}")
 loop.close()

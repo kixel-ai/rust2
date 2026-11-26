@@ -197,6 +197,54 @@ pub fn flat(x: ((u32, u64), u8)) -> u32 {
 	x.0.0
 }
 
+/// A `Copy` value C holds as its bytes, which `next` lengthens.
+#[derive(Clone, Copy)]
+pub struct Tick {
+	at: u32,
+	#[cfg(feature = "next")]
+	late: u32,
+}
+
+impl Tick {
+	pub fn new(at: u32) -> Self {
+		Self {
+			at,
+			#[cfg(feature = "next")]
+			late: 0,
+		}
+	}
+
+	pub fn at(&self) -> u32 {
+		self.at
+	}
+
+	#[cfg(feature = "next")]
+	pub fn late(&self) -> u32 {
+		self.late
+	}
+}
+
+/// A `Copy` value in a word, whose `PartialEq` `next` writes by hand, so Kotlin can no
+/// longer compare its bits.
+#[derive(Clone, Copy)]
+#[cfg_attr(not(feature = "next"), derive(PartialEq))]
+pub struct Beat {
+	at: u32,
+}
+
+#[cfg(feature = "next")]
+impl PartialEq for Beat {
+	fn eq(&self, other: &Self) -> bool {
+		self.at / 2 == other.at / 2
+	}
+}
+
+impl Beat {
+	pub fn new(at: u32) -> Self {
+		Self { at }
+	}
+}
+
 /// Kept class whose Pascal name collides only in the bindings.
 pub mod graphics {
 	pub mod encoder {
@@ -217,7 +265,7 @@ pub fn smoothStep() -> u32 {
 	2
 }
 
-/// Kept function whose camel name is claimed by the added function first.
+/// Kept function, which moves past the added `smoothStep` in camel case, in Rust's name order.
 pub fn smooth_step() -> u32 {
 	1
 }
@@ -239,6 +287,23 @@ impl Members {
 #[cfg(feature = "added")]
 pub fn failing_borrowed() -> Result<u32, &'static str> {
 	Err("failure")
+}
+
+/// An error whose key, `vec_u16`, `added` gives a `BTreeSet<u16>` too, which Kotlin,
+/// Python, and Dart hold as another type and so throw as an exception of its own: an
+/// addition. A `Vec<NonZero<u16>>` shares its C type, which Dart holds apart.
+pub fn samples() -> Result<u32, Vec<u16>> {
+	Err(vec![1])
+}
+
+#[cfg(feature = "added")]
+pub fn samples_set() -> Result<u32, std::collections::BTreeSet<u16>> {
+	Err([1].into())
+}
+
+#[cfg(feature = "added")]
+pub fn samples_nonzero() -> Result<u32, Vec<std::num::NonZero<u16>>> {
+	Err(vec![std::num::NonZero::<u16>::MIN])
 }
 
 /// Error wrappers and variants occupy their own language namespaces.
@@ -324,4 +389,31 @@ pub fn speed(speed: Speed) -> u32 {
 #[cfg(feature = "thrown")]
 pub fn failing_meter() -> Result<(), Meter> {
 	Err(Meter::new())
+}
+
+/// A handle `next` borrows exclusively, which checks each call taking it at run time: each
+/// gains a status, and throws in Swift.
+pub struct Gauge {
+	level: u32,
+}
+
+impl Gauge {
+	pub fn new() -> Self {
+		Self { level: 0 }
+	}
+
+	pub fn level(&self) -> u32 {
+		self.level
+	}
+
+	#[cfg(feature = "next")]
+	pub fn raise(&mut self) {
+		self.level += 1;
+	}
+}
+
+impl Default for Gauge {
+	fn default() -> Self {
+		Self::new()
+	}
 }

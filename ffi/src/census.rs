@@ -10,15 +10,9 @@ use crate::abi::Clash;
 use crate::collect::{Refusal, Report};
 use crate::ir::{Access, Api, Function};
 
-/// The census of the facade as Markdown, listing `exporting`, each exclude whose item
-/// would export and its paths; `at` locates a span.
-pub fn render(
-	api: &Api,
-	collected: &Report,
-	exporting: &[(String, Vec<String>)],
-	clashes: &[Clash],
-	at: &dyn Fn(Span) -> String,
-) -> String {
+/// The census of the facade as Markdown, Swift's refusals among the rest; `at` locates a
+/// span.
+pub(crate) fn render(api: &Api, collected: &Report, clashes: &[Clash], at: &dyn Fn(Span) -> String) -> String {
 	let records = &api.records;
 	let enums = &api.enums;
 	let objects: Vec<_> = api.objects.iter().filter(|o| !o.foreign).collect();
@@ -58,7 +52,7 @@ pub fn render(
 		methods,
 		refused(&["method", "field"]),
 	);
-	row("Traits", callbacks, 0);
+	row("Traits", callbacks, refused(&["trait"]));
 	row("Constants", constants, refused(&["const"]));
 	row("Other items", 0, refused(&["use", "macro", "static", "item"]));
 	let _ = writeln!(
@@ -144,17 +138,6 @@ pub fn render(
 		);
 	}
 
-	if !collected.refusals.is_empty() {
-		let _ = writeln!(out, "\n## The config that exports what maps\n");
-		let _ = writeln!(out, "```toml\nexclude = [");
-		let mut paths: Vec<&str> = collected.refusals.iter().map(|r| r.path.as_str()).collect();
-		paths.sort();
-		paths.dedup();
-		for path in paths {
-			let _ = writeln!(out, "    \"{path}\",");
-		}
-		let _ = writeln!(out, "]\n```");
-	}
 	if !clashes.is_empty() {
 		let _ = writeln!(out, "\n## C names claimed twice\n");
 		for (name, (first, _), (second, span)) in clashes {
@@ -183,18 +166,6 @@ pub fn render(
 		);
 		for path in &collected.twins {
 			let _ = writeln!(out, "- `{path}`");
-		}
-	}
-	if !collected.excluded.is_empty() {
-		let _ = writeln!(out, "\n## Excluded by the config\n");
-		for (path, count) in &collected.excluded {
-			let _ = writeln!(out, "- `{path}`: {count} items");
-		}
-	}
-	if !exporting.is_empty() {
-		let _ = writeln!(out, "\n## Excluded by the config, though it exports\n");
-		for (exclude, exported) in exporting {
-			let _ = writeln!(out, "- `{exclude}`: `{}`", exported.join("`, `"));
 		}
 	}
 	if !collected.hidden.is_empty() {

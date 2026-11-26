@@ -326,7 +326,7 @@ export class closuresFuture {
 										if (_146 !== rs.Pending) {
 											const result7: rs.u64 = _146;
 											rs.drop(this.#awaitee$3);
-											this.#fourth = rs.u64Add(this.#fourth, result7);
+											this.#fourth = (typeof this.#fourth === "number" && typeof result7 === "number" && this.#fourth + result7 <= 9007199254740991 ? this.#fourth + result7 : rs.u64Add(this.#fourth, result7)) as rs.u64;
 											this.#awaitee$3 = new throughFnFuture$closures_closures_closure0_closure4_closures_closures_closure0_closure4_closure0((value4: rs.u64): rs.Future<rs.u64> => {
 												return new closuresFuture$closure4_closure0(value4);
 											}, 6);
@@ -339,7 +339,7 @@ export class closuresFuture {
 									if (_158 !== rs.Pending) {
 										const result8: rs.u64 = _158;
 										rs.drop(this.#awaitee$3);
-										this.#fourth = rs.u64Add(this.#fourth, result8);
+										this.#fourth = (typeof this.#fourth === "number" && typeof result8 === "number" && this.#fourth + result8 <= 9007199254740991 ? this.#fourth + result8 : rs.u64Add(this.#fourth, result8)) as rs.u64;
 										const captured3 = Guard.new(rs.u32Add(this.#id, 700), Log.clone$Clone(this.#log));
 										this.#awaitee$2 = rs.closure((): rs.Future<rs.u32> => {
 											return new closuresFuture$closure5_closure0(captured3);
@@ -386,7 +386,7 @@ export class closuresFuture {
 						if (_206 !== rs.Pending) {
 							const result11: rs.u64 = _206;
 							rs.drop(this.#awaitee$3);
-							this.#fifth = rs.u64Add(this.#fifth, result11);
+							this.#fifth = (typeof this.#fifth === "number" && typeof result11 === "number" && this.#fifth + result11 <= 9007199254740991 ? this.#fifth + result11 : rs.u64Add(this.#fifth, result11)) as rs.u64;
 							this.#saved$4 = false;
 							this.#saved$3 = this.#finish;
 							this.#awaitee = new recvFuture$kio_Consumer(this.#rx);
@@ -410,7 +410,7 @@ export class closuresFuture {
 				if (_229 !== rs.Pending) {
 					const result13: rs.u64 = _229;
 					rs.drop(this.#awaitee$3);
-					this.#fifth = rs.u64Add(this.#fifth, result13);
+					this.#fifth = (typeof this.#fifth === "number" && typeof result13 === "number" && this.#fifth + result13 <= 9007199254740991 ? this.#fifth + result13 : rs.u64Add(this.#fifth, result13)) as rs.u64;
 					const arg8 = this.#fourth;
 					const _249: rs.Fmt = (f: rs.Formatter) => rs.u64Display(arg8, f);
 					const arg9 = this.#fifth;
@@ -482,7 +482,17 @@ export class closuresFuture {
 			const args12 = [(f: rs.Formatter) => rs.u64Display(arg10, f), (f: rs.Formatter) => rs.u32Display(seventh, f)];
 			const _319: string = rs.fmtFormat(["sixth ", args12[0], " seventh ", args12[1]]).v;
 			Guard.note(this.#guard, _319);
-			const _360: rs.u64 = rs.u64Add(rs.u64Add(rs.u64Add(rs.u64Add(rs.u64Add(option_unwrapOr$15hbiwd(this.#first, 0), option_unwrapOr$15hbiwd(this.#second, 0)), this.#third), this.#fourth), this.#fifth), this.#sixth);
+			const _336: rs.u64 = option_unwrapOr$15hbiwd(this.#first, 0);
+			const _338: rs.u64 = option_unwrapOr$15hbiwd(this.#second, 0);
+			const _335: rs.u64 = (typeof _336 === "number" && typeof _338 === "number" && _336 + _338 <= 9007199254740991 ? _336 + _338 : rs.u64Add(_336, _338)) as rs.u64;
+			const _341: rs.u64 = this.#third;
+			const _334: rs.u64 = (typeof _335 === "number" && typeof _341 === "number" && _335 + _341 <= 9007199254740991 ? _335 + _341 : rs.u64Add(_335, _341)) as rs.u64;
+			const _343: rs.u64 = this.#fourth;
+			const _333: rs.u64 = (typeof _334 === "number" && typeof _343 === "number" && _334 + _343 <= 9007199254740991 ? _334 + _343 : rs.u64Add(_334, _343)) as rs.u64;
+			const _345: rs.u64 = this.#fifth;
+			const _332: rs.u64 = (typeof _333 === "number" && typeof _345 === "number" && _333 + _345 <= 9007199254740991 ? _333 + _345 : rs.u64Add(_333, _345)) as rs.u64;
+			const _347: rs.u64 = this.#sixth;
+			const _360: rs.u64 = (typeof _332 === "number" && typeof _347 === "number" && _332 + _347 <= 9007199254740991 ? _332 + _347 : rs.u64Add(_332, _347)) as rs.u64;
 			this.#saved$4 = false;
 			this.#lent[Symbol.dispose]();
 			this.#log[Symbol.dispose]();
@@ -660,7 +670,7 @@ export class closuresFuture$closure3_closure0 {
 		if (this.#state === 0) {
 			const value: rs.u64 = this.#value;
 			Guard.note(this.#lent, rs.fmtFormat(["peek ", (f: rs.Formatter) => rs.u64Display(value, f)]).v);
-			const _0: rs.Poll<rs.u64> = rs.u64Add(value, 1);
+			const _0: rs.Poll<rs.u64> = (typeof value === "number" && value + 1 <= 9007199254740991 ? value + 1 : rs.u64Add(value, 1)) as rs.u64;
 			this.#state = 1;
 			return _0;
 		}
@@ -1038,7 +1048,8 @@ export class twiceFuture$closures_closures_closure0_closure0 {
 				rs.drop(this.#awaitee);
 				const _19: rs.u64 | undefined = result2;
 				if (_19 !== undefined) {
-					_35 = rs.u64Add(this.#saved, _19);
+					const val2: rs.u64 = _19;
+					_35 = (typeof this.#saved === "number" && typeof val2 === "number" && this.#saved + val2 <= 9007199254740991 ? this.#saved + val2 : rs.u64Add(this.#saved, val2)) as rs.u64;
 				} else {
 					_35 = undefined;
 				}
@@ -1367,7 +1378,9 @@ export class adderFuture$closure0_closure0 {
 
 	poll(_2: rs.Context): rs.Poll<rs.u64> {
 		if (this.#state === 0) {
-			const _0: rs.Poll<rs.u64> = rs.u64Add(this.#value, this.#n);
+			const value: rs.u64 = this.#value;
+			const _4: rs.u64 = this.#n;
+			const _0: rs.Poll<rs.u64> = (typeof value === "number" && typeof _4 === "number" && value + _4 <= 9007199254740991 ? value + _4 : rs.u64Add(value, _4)) as rs.u64;
 			this.#state = 1;
 			return _0;
 		}

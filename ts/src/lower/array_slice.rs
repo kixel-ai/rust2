@@ -14,13 +14,13 @@ use super::library::{self, Call};
 use crate::ts::{Expr, Param, Stmt, StmtKind, Type};
 
 /// Whether `ty` is a slice or array of arrays, which behind a reference is an `rs.ArraySlice`.
-pub fn of_arrays(ty: Ty<'_>) -> bool {
+pub(crate) fn of_arrays(ty: Ty<'_>) -> bool {
 	matches!(ty.kind(), ty::Slice(elem) | ty::Array(elem, _) if elem.is_array())
 }
 
 /// Whether std's `def_id` of `args` is a method of a slice of arrays the runtime's own
 /// functions map, which take and lend the arrays where the slice holds them.
-pub fn native<'tcx>(tcx: TyCtxt<'tcx>, def_id: rustc_hir::def_id::DefId, args: ty::GenericArgs<'tcx>) -> bool {
+pub(crate) fn native<'tcx>(tcx: TyCtxt<'tcx>, def_id: rustc_hir::def_id::DefId, args: ty::GenericArgs<'tcx>) -> bool {
 	let Some((owner, name)) = library::key(tcx, def_id) else {
 		return false;
 	};
@@ -86,7 +86,7 @@ pub fn native<'tcx>(tcx: TyCtxt<'tcx>, def_id: rustc_hir::def_id::DefId, args: t
 /// `&[[T; N]]` it reads as a slice given as `rs.arraySliceAsSlice`' copies, and each `&mut` one by
 /// name, which [`wrap`] binds to `rs.arraySliceBy`'s copies. A function that returns a borrow,
 /// which may be of the copies, is refused.
-pub fn give<'tcx>(b: &mut Body<'_, '_, 'tcx>, call: &Call<'tcx>, args: Vec<Expr>) -> Result<Given, Expr> {
+pub(crate) fn give<'tcx>(b: &mut Body<'_, '_, 'tcx>, call: &Call<'tcx>, args: Vec<Expr>) -> Result<Given, Expr> {
 	let tcx = b.t.tcx;
 	let mut given = Given { args, by: Vec::new() };
 	// Only std's own functions and methods; a trait's mapping reads arrays as their type says.
@@ -136,26 +136,26 @@ pub fn give<'tcx>(b: &mut Body<'_, '_, 'tcx>, call: &Call<'tcx>, args: Vec<Expr>
 }
 
 /// What [`give`] makes of a call's arguments.
-pub struct Given {
+pub(crate) struct Given {
 	/// The arguments std's mapping takes.
-	pub args: Vec<Expr>,
+	pub(crate) args: Vec<Expr>,
 	/// Each `&mut [[T; N]]` given by name.
-	pub by: Vec<By>,
+	pub(crate) by: Vec<By>,
 }
 
 /// A `&mut [[T; N]]` [`give`] names in a call's arguments.
-pub struct By {
+pub(crate) struct By {
 	/// Its name in the arguments.
-	pub name: String,
+	pub(crate) name: String,
 	/// The arrays.
-	pub value: Expr,
+	pub(crate) value: Expr,
 	/// What copies an element of the arrays out, as [`super::Translator::elem_copy`] says.
-	pub copy: Option<Expr>,
+	pub(crate) copy: Option<Expr>,
 }
 
 /// `e`, the call std's mapping made of [`Given::args`], a `ty`, after `stmts`, with each
 /// name it binds the `rs.arraySliceBy` copies of its arrays.
-pub fn wrap(e: Expr, ty: Type, stmts: Vec<Stmt>, by: Vec<By>) -> Expr {
+pub(crate) fn wrap(e: Expr, ty: Type, stmts: Vec<Stmt>, by: Vec<By>) -> Expr {
 	let mut stmts = Some(stmts);
 	let mut e = e;
 	for By { name, value, copy } in by.into_iter().rev() {

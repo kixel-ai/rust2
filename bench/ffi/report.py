@@ -2,9 +2,10 @@
 in CPU and wall time, each beside the median 1-minute load average over its rounds, read
 from `just ffi bench-run`'s raw.tsv; the median time and peak RSS of the export and its
 crate's build, beside moq's own, from its build.tsv; and the sizes of the export's generated bindings and
-native libraries.
+native libraries, and of the wasm32 stand-in's TypeScript, module, and npm package, and of
+one caller's bundle. `just ffi bench-android`'s raw.tsv alone prints only the time tables.
 
-Usage: report.py <raw.tsv> <build.tsv> <export dir>
+Usage: report.py <raw.tsv> [<build.tsv> <export dir> <web export dir> <caller.ts>]
 """
 
 import collections
@@ -22,18 +23,35 @@ LANGS = [
 	("cpp", "C++"),
 	("moq-c", "moq-c"),
 	("kotlin", "Kotlin"),
+	("kotlin-art", "Kotlin (ART)"),
 	("python", "Python"),
 	("swift", "Swift"),
 	("go", "Go"),
 	("dart", "Dart"),
+	("csharp", "C#"),
+	("ts-node", "TS (Node)"),
+	("ts-addon", "TS (Node-API)"),
+	("ts-chromium", "TS (Chromium)"),
+	("ts-firefox", "TS (Firefox)"),
+	("react-native", "React Native (Hermes)"),
 ]
+
+# The TypeScript programs, which run Rust on one JavaScript thread.
+TS = ["ts-node", "ts-addon", "ts-chromium", "ts-firefox", "react-native"]
 
 CALLS = [
 	("call", "`track.is_closed()`, a handle call"),
-	("getter", "`demand.sequence()`, a u64 getter"),
+	("getter", "`demand.start()`, a u64 getter"),
+	("shared:call", "the handle call on 4 threads, one shared handle"),
+	("own:call", "the same, a handle per thread"),
+	("shared:getter", "the u64 getter on 4 threads, one shared handle"),
+	("own:getter", "the same, a handle per thread"),
 	("record", "`track.largest()`, a record return"),
 	("object", "`track.info()`, an object return"),
 	("objects", "the same from 4 threads at once, Kotlin only"),
+	("field", "`info.priority`, a primitive `pub` field: a leaf"),
+	("hop:call", "Dart only: the handle call while Rust holds a closure, on a worker"),
+	("hop:field", "Dart only: the field then, a leaf call on the isolate's thread"),
 	("write", "`group.write_frame(at, frame)`, 100 B"),
 	("stamped", "the same, with a new `Timestamp` each"),
 	("ready", "a 100 B frame written and read, ready"),
@@ -43,33 +61,75 @@ CALLS = [
 	("payload", "`frame.payload`, 100 B"),
 ]
 
+# What a language does in place of a case it cannot run, printed in that case's cell.
+THREADED = ["shared:call", "own:call", "shared:getter", "own:getter"]
+INSTEAD = {("dart", case): "no: an isolate takes no other's object" for case in THREADED} | {
+	(lang, case): "no: one thread" for lang in TS for case in THREADED
+}
+
 # Each step `just ffi bench-run` times from an emptied target, and what it is.
 BUILDS = [
-	("export", "rust2-ffi's export, a `cargo check` of moq under its driver"),
-	("check", "moq's own `cargo check` of the same crates"),
+	("export", "rust2-ffi's export, a release `cargo check` of moq under its driver"),
+	("export-warm", "the same through mbx, from a store one export filled"),
+	("web", "rust2-ffi's wasm32-wasip1 export, std from the dev shell's MIR sysroot"),
+	("web-warm", "the same through mbx, from a store one export filled"),
+	("check", "moq's own release `cargo check` of the same crates"),
 	("generated", "the generated crate's release build, Kotlin and Dart glue included"),
 	("moq", "moq's own release build of the same crates"),
 ]
 
 SIZES = [100, 1024, 16384, 65536, 1048576]
 
-# Each binding's generated files, and its Rust glue in the export's crate, under the export.
+LABELS = {16: "16 B", 64: "64 B", 100: "100 B", 256: "256 B", 1024: "1 KiB", 4096: "4 KiB", 16384: "16 KiB"}
+LABELS |= {65536: "64 KiB", 262144: "256 KiB", 1048576: "1 MiB"}
+
+def typescript(path):
+	"""A TypeScript module the web binding writes, not its JavaScript or declarations."""
+	return path.endswith(".ts") and not path.endswith(".d.ts")
+
+
+def written(path):
+	"""A file of React Native's package its generator writes, not the JavaScript and
+	declarations of its TypeScript, which the web's leave out too, or the copy of the C
+	header its native builds include, which C's row counts."""
+	return not (path.endswith(".js") or path.endswith(".d.ts") or "/react-native/include/" in path)
+
+
+# Each binding's generated files, which of them it counts, and its Rust glue in the
+# export's crate, under the export.
 BINDINGS = [
-	("C", ["include/moq.h"], ["src/lib.rs", "src/rt.rs"]),
-	("C++", ["include/moq.hpp", "include/moq"], []),
-	("Kotlin", ["kotlin/moq.kt", "kotlin/moq.pro"], ["src/jni"]),
-	("Python", ["python/moq.py"], ["src/python"]),
-	("Swift", ["swift"], []),
-	("Go", ["go"], []),
-	("Dart", ["dart/moq.dart"], ["src/dart"]),
+	("C", ["include/moq.h"], None, ["src/lib.rs", "src/rt.rs"]),
+	("C++", ["include/moq.hpp", "include/moq"], None, []),
+	("Kotlin", ["kotlin/moq.kt", "kotlin/moq.pro"], None, ["src/jni"]),
+	("Python", ["python/moq.py"], None, ["src/python"]),
+	("Swift", ["swift"], None, []),
+	("Go", ["go"], None, []),
+	("Dart", ["dart/lib/moq.dart"], None, ["src/dart"]),
+	("C#", ["csharp/moq.cs"], None, []),
+	# Its TypeScript and JSI module, and the TurboModule's package around them.
+	("React Native", ["react-native"], written, []),
+	# Its TypeScript, not the addon moq-export copies beside it, which is libmoq's build.
+	("Node", ["node"], typescript, ["src/node"]),
 ]
+
+# The TypeScript, under the wasm32 stand-in's export, and the glue its module builds with.
+WEB_BINDING = ("TypeScript", ["web"], typescript, ["src/lib.rs", "src/rt.rs", "src/web"])
+
+# Brotli at its densest, as a host precompresses what it serves; Python's standard library
+# lacks it, so Node's.
+BROTLI = (
+	"const zlib = require('node:zlib');"
+	"const data = require('node:fs').readFileSync(0);"
+	"process.stdout.write(String(zlib.brotliCompressSync(data, {params: {[zlib.constants.BROTLI_PARAM_QUALITY]: 11}}).length));"
+)
+WASM = ("`moq.wasm`, the wasm32 stand-in's module, with the web glue", "target/wasm32-wasip1/release/moq.wasm")
 
 # The shared library's suffix, as `just ffi moq-export` names it on each platform it builds on.
 SHARED = "dylib" if sys.platform == "darwin" else "so"
 
 LIBRARIES = [
-	("`libmoq.a`, the C ABI that C, C++, Swift, and Go link", "target/release/libmoq.a"),
-	(f"`libmoq.{SHARED}`, with the Kotlin and Dart glue", f"target/release/libmoq.{SHARED}"),
+	("`libmoq.a`, the C ABI that C, C++, Swift, Go, and React Native link", "target/release/libmoq.a"),
+	(f"`libmoq.{SHARED}`, with the Kotlin, Dart, and Node glue", f"target/release/libmoq.{SHARED}"),
 	(f"`python/libmoq.{SHARED}`, the CPython extension", f"python/libmoq.{SHARED}"),
 ]
 
@@ -99,6 +159,54 @@ def size(paths):
 		raw += len(data)
 		zipped += len(gzip.compress(data, compresslevel=6, mtime=0))
 	return raw, zipped
+
+
+def compressed(data):
+	"""The raw, gzipped, and brotli'd bytes of `data`."""
+	brotli = subprocess.run(["node", "-e", BROTLI], input=data, capture_output=True, check=True).stdout
+	return len(data), len(gzip.compress(data, compresslevel=6, mtime=0)), int(brotli)
+
+
+def sizes(paths):
+	"""The raw, gzipped, and brotli'd bytes of `paths`, each compressed alone as a host serves it."""
+	total = [0, 0, 0]
+	for path in paths:
+		with open(path, "rb") as f:
+			for i, n in enumerate(compressed(f.read())):
+				total[i] += n
+	return total
+
+
+def bundle(caller):
+	"""`caller` and what it imports of the binding, bundled for the browser, minified and
+	tree-shaken, as an app's build ships it."""
+	with tempfile.TemporaryDirectory() as tmp:
+		out = os.path.join(tmp, "bundle.js")
+		subprocess.run(["esbuild", caller, "--bundle", "--minify", "--format=esm", "--platform=browser",
+			"--target=es2024", "--log-level=warning", f"--outfile={out}"], check=True)
+		with open(out, "rb") as f:
+			return f.read()
+
+
+def wasm_stripped(data):
+	"""A wasm module without its custom sections, its names and debug info among them."""
+	out = bytearray(data[:8])
+	at = 8
+	while at < len(data):
+		section = data[at]
+		size = shift = 0
+		end = at + 1
+		while True:
+			byte = data[end]
+			size |= (byte & 0x7F) << shift
+			shift += 7
+			end += 1
+			if byte < 0x80:
+				break
+		if section != 0:
+			out += data[at : end + size]
+		at = end + size
+	return bytes(out)
 
 
 def kib(n):
@@ -131,7 +239,7 @@ def builds(path):
 	return table(["step", "wall s", "CPU s", "peak RSS", "load average"], rows)
 
 
-def main(raw_path, build_path, export):
+def main(raw_path, build_path=None, export=None, web=None, caller=None):
 	rounds = collections.defaultdict(list)
 	with open(raw_path) as f:
 		for line in f:
@@ -144,22 +252,39 @@ def main(raw_path, build_path, export):
 	langs = [(key, name) for key, name in LANGS if any(lang == key for lang, _ in median)]
 
 	def cell(lang, case, i):
+		if (lang, case) in INSTEAD:
+			return INSTEAD[(lang, case)]
 		if (lang, case) not in median:
 			return ""
 		values = median[(lang, case)]
+		# A browser has no clock of its CPU time.
+		if values[i] != values[i]:
+			return ""
 		return f"{number(values[i])} ({values[2]:.0f})"
 
 	thru = [(key, name) for key, name in langs if (key, f"mbps:{SIZES[0]}") in median]
-	labels = {100: "100 B", 1024: "1 KiB", 16384: "16 KiB", 65536: "64 KiB", 1048576: "1 MiB"}
+	payloads = sorted({int(case.split(":")[1]) for _, case in median if case.startswith("payload:")})
+	sized = [(key, name) for key, name in langs if any((key, f"payload:{n}") in median for n in payloads)]
 	for i, clock, rate in [(1, "CPU", "MB per CPU second"), (0, "wall", "MB/s")]:
 		print(f"### Calls (ns per call, {clock} time; load average)\n")
 		header = ["call"] + [name for _, name in langs]
-		print(table(header, [[label] + [cell(lang, case, i) for lang, _ in langs] for case, label in CALLS]))
+		rows = [[label] + [cell(lang, case, i) for lang, _ in langs] for case, label in CALLS]
+		# A case no language here runs, as in bench-android's Kotlin alone.
+		print(table(header, [row for row in rows if any(row[1:])]))
 		print(f"\n### Throughput ({rate}, write plus ready read; load average)\n")
 		header = ["frame"] + [name for _, name in thru]
-		rows = [[labels[n]] + [cell(lang, f"mbps:{n}", i) for lang, _ in thru] for n in SIZES]
+		rows = [[LABELS[n]] + [cell(lang, f"mbps:{n}", i) for lang, _ in thru] for n in SIZES]
 		print(table(header, rows))
 		print()
+		if sized:
+			print(f"### `frame.payload` by size (ns per call, {clock} time; load average)\n")
+			header = ["payload"] + [name for _, name in sized]
+			rows = [[LABELS[n]] + [cell(lang, f"payload:{n}", i) for lang, _ in sized] for n in payloads]
+			print(table(header, rows))
+			print()
+
+	if build_path is None:
+		return
 
 	print("### Build (median, from an emptied target)\n")
 	print(builds(build_path))
@@ -167,10 +292,11 @@ def main(raw_path, build_path, export):
 
 	print("### Size\n")
 	rows = []
-	for name, generated, glue in BINDINGS:
-		raw, zipped = size(files(export, generated))
-		glue_raw, glue_zipped = size(files(export, glue))
-		count = len(files(export, generated))
+	for root, (name, generated, counted, glue) in [(export, b) for b in BINDINGS] + [(web, WEB_BINDING)]:
+		ours = [p for p in files(root, generated) if counted is None or counted(p)]
+		raw, zipped = size(ours)
+		glue_raw, glue_zipped = size(files(root, glue))
+		count = len(ours)
 		glue_cell = f"{kib(glue_raw)} / {kib(glue_zipped)}" if glue else "none"
 		rows.append([name, str(count), kib(raw), kib(zipped), glue_cell])
 	print(table(["binding", "files", "raw", "gzip", "Rust glue, raw / gzip"], rows))
@@ -184,10 +310,26 @@ def main(raw_path, build_path, export):
 			shutil.copyfile(full, copy)
 			subprocess.run([*STRIP, copy], check=True)
 			rows.append([label, kib(os.path.getsize(full)), kib(os.path.getsize(copy))])
+	label, path = WASM
+	with open(os.path.join(web, path), "rb") as f:
+		data = f.read()
+	rows.append([label, kib(len(data)), kib(len(wasm_stripped(data)))])
 	print(table(["native library", "as built", "stripped"], rows))
+
+	print()
+	everything = files(web, ["web"])
+	modules = [p for p in everything if typescript(p)]
+	package = [p for p in everything if p.endswith(".js") or p.endswith(".d.ts")]
+	rows = [
+		["`moq.wasm`, stripped", *map(kib, compressed(wasm_stripped(data)))],
+		[f"the TypeScript, {len(modules)} modules", *map(kib, sizes(modules))],
+		["the npm package's JavaScript and declarations", *map(kib, sizes(package))],
+		[f"`{os.path.basename(caller)}` bundled by esbuild, minified", *map(kib, compressed(bundle(caller)))],
+	]
+	print(table(["web binding", "raw", "gzip", "brotli"], rows))
 
 
 if __name__ == "__main__":
-	if len(sys.argv) != 4:
+	if len(sys.argv) not in (2, 6):
 		sys.exit(__doc__)
-	main(sys.argv[1], sys.argv[2], sys.argv[3])
+	main(*sys.argv[1:])

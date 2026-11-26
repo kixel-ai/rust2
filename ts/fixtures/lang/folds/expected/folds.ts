@@ -591,7 +591,9 @@ export function folds(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 				if (k3 === undefined) {
 					return true;
 				}
-				return rs.i64Lt(x6, k3);
+				const k4: rs.i64 = k3;
+				const _52: rs.i64 = x6;
+				return typeof _52 === "number" && typeof k4 === "number" ? _52 < k4 : rs.i64Lt(_52, k4);
 			};
 			const r84: rs.RangeInclusive<rs.i64> = new rs.RangeInclusive(lo5, hi5, rs.i64Step);
 			const iter6: rs.RangeInclusive<rs.i64> = r84;

@@ -1,20 +1,21 @@
-//! The command line: run cargo on the configured package with this binary as rustc.
+//! The command line: run cargo on the package with this binary as rustc.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 use std::process::{Command, ExitCode};
 
-use rust2_driver::cargo::{Args, Check, Output};
+use rust2_driver::cargo::{Args, Check, Output, Wrap};
 
-use crate::config::{self, Config};
+use crate::config;
 
-const USAGE: &str = "usage: rust2-ffi --config <ffi.toml> (--out <dir> | --census <dir> | --api <file>) [--manifest-path <Cargo.toml>] [--target <triple>]... [--with <file>]... [--baseline <api.json>] [-- <cargo args>]
+const USAGE: &str = "usage: rust2-ffi (--out <dir> | --census <dir> | --api <file>) [--manifest-path <Cargo.toml>] [--target <triple>]... [--with <file>]... [--baseline <api.json>] [-- <cargo args>]
 
 Exports the pub API of the package's library, following its `pub use` re-exports into
 other crates, as one library: a crate in <dir> that builds the C ABI, with its C header
-in <dir>/include, every C name prefixed by the library's crate name. ffi.toml says what
-to leave out. The package's Cargo.toml is beside ffi.toml unless --manifest-path says
-where. Cargo args, such as --features, are passed to `cargo check`.
+in <dir>/include, every C name prefixed by the library's crate name. An item that cannot
+export fails the export. The package's Cargo.toml is in the current directory unless
+--manifest-path says where. Cargo args, such as --features, are passed to `cargo check`,
+which checks the release profile unless they pick another, as a library ships.
 
 --target exports the API the package has on that target, the host by default, whatever
 cargo's config names: its `cfg`s and its layouts. Given several times, it exports each
@@ -34,7 +35,7 @@ replace it to accept a break.
 --census writes a Markdown report, <dir>/<package>.md, of what exports and of every
 construct the export refuses, instead of exporting.";
 
-pub fn run(args: &[String]) -> ExitCode {
+pub(crate) fn run(args: &[String]) -> ExitCode {
 	match try_run(args) {
 		Ok(code) => code,
 		Err(err) => {
@@ -46,11 +47,10 @@ pub fn run(args: &[String]) -> ExitCode {
 
 fn try_run(args: &[String]) -> Result<ExitCode, String> {
 	let (own, args) = Own::parse(args)?;
-	let Some(args) = Args::parse(&args, USAGE)? else {
+	let Some(mut args) = Args::parse_configless(&args, USAGE)? else {
 		return Ok(ExitCode::SUCCESS);
 	};
-	// Read now, so a malformed config fails before the check.
-	Config::load(&args.config)?;
+	args.cargo = ungroup(&args.cargo);
 	let mut targets = own.targets;
 	if targets.is_empty() {
 		targets.push(rustc_session::config::host_tuple().to_string());
@@ -81,9 +81,17 @@ fn try_run(args: &[String]) -> Result<ExitCode, String> {
 	}
 	let dir = args.manifest.parent().expect("a manifest path has a parent");
 	let picks = Picks::parse(&args.cargo, dir)?;
-	let (facade, patch, checked) = facade(&args.manifest, &targets[0], &picks)?;
+	let (facade, patch, checked) = facade(&args.manifest, &targets, &picks)?;
 	let crates = crates(&checked.metadata, &checked.top)?;
+	let profile = check_profile(&args.cargo, &checked.metadata.workspace_root)?;
+	// The check's cargo args, with `--release` first where they pick no profile, so as not to
+	// follow a `--` of theirs.
+	let cargo = match profile.args == profile_args(&args.cargo) {
+		true => args.cargo.clone(),
+		false => [profile.args.clone(), args.cargo.clone()].concat(),
+	};
 	let line = facade.line();
+	let vars = profile.vars.join(",");
 	// A staged API's spans are relative to the workspace and cargo's home, which hold the
 	// same files at other paths on another host.
 	let cargo_home = std::env::var_os("CARGO_HOME")
@@ -93,54 +101,196 @@ fn try_run(args: &[String]) -> Result<ExitCode, String> {
 	let roots = std::env::join_paths(std::iter::once(workspace).chain(cargo_home))
 		.map_err(|err| format!("joining the roots of spans: {err}"))?;
 	let baseline = own.baseline.unwrap_or_default();
-	let check = |target: &str, output: (&str, &std::ffi::OsStr), merge: &std::ffi::OsStr, baseline: &Path| {
-		Check {
-			tool: "rust2-ffi",
-			manifest: &args.manifest,
-			package: &facade.name,
-			root: None,
-			// Always named, so cargo's config never picks another: the exports are found on it.
-			target: Some(target),
-			args: &args.cargo,
-			env: &[
-				(config::env::CONFIG, args.config.as_os_str()),
-				(config::env::PACKAGE, line.as_ref()),
-				(config::env::PATCH, patch.as_ref()),
-				(config::env::CRATES, crates.as_ref()),
-				(config::env::MERGE, merge),
-				(config::env::BASELINE, baseline.as_os_str()),
-				(config::env::ROOTS, roots.as_ref()),
-				output,
-			],
-		}
-		.run()
+	// Where the wrapper writes each target's `cfg`s on cargo's query of it, which comes before
+	// cargo makes its target directory, and so outside it.
+	let queried = private_dir("cfgs")?;
+	// A target with a host checks std's MIR too, from the sysroot or else from source.
+	let cargo_args = |target: &str, args: Vec<String>| -> Result<Vec<String>, String> {
+		let build_std = crate::wasm::host(target).is_some() && crate::wasm::sysroot(target)?.is_none();
+		Ok(match build_std {
+			true => [args, vec![crate::wasm::STD.to_string()]].concat(),
+			false => args,
+		})
 	};
+	// Each target's `cfg`s are written under its index, as a target may be a path.
+	let check =
+		|index: usize, target: &str, output: (&str, &std::ffi::OsStr), merge: &std::ffi::OsStr, baseline: &Path| {
+			let rustflags = Rustflags::of(&checked.targets[target], target)?;
+			let [flags, rustc, added] = rustflags.env();
+			Check {
+				tool: "rust2-ffi",
+				manifest: &args.manifest,
+				package: &facade.name,
+				root: None,
+				// Always named, so cargo's config never picks another: the exports are found on it.
+				target: Some(target),
+				args: &cargo_args(target, cargo.clone())?,
+				target_dir: None,
+				dir: None,
+				wrap: Wrap::Workspace,
+				env: &[
+					// The wrapper writes the target's `cfg`s on cargo's query of it, which cargo
+					// would otherwise answer from its cache.
+					("CARGO_CACHE_RUSTC_INFO", "0".as_ref()),
+					flags,
+					rustc,
+					added,
+					(config::env::PACKAGE, line.as_ref()),
+					(config::env::PATCH, patch.as_ref()),
+					(config::env::CRATES, crates.as_ref()),
+					(config::env::MERGE, merge),
+					(config::env::BASELINE, baseline.as_os_str()),
+					(config::env::ROOTS, roots.as_ref()),
+					(config::env::PROFILE, profile.root.as_ref()),
+					(
+						config::env::PROFILE_DIR,
+						profile.dir.as_deref().unwrap_or_default().as_ref(),
+					),
+					(config::env::PROFILE_VARS, vars.as_ref()),
+					(config::env::CFGS, queried.join(index.to_string()).as_os_str()),
+					output,
+				],
+			}
+			.run()
+		};
 	let (last, rest) = targets.split_last().expect("a target");
 	// Each target but the last stages its API for the last one's check to merge.
 	let stage =
 		rust2_driver::cargo::target_dir("rust2-ffi", Some(&args.manifest))?.join(format!("api-{}", std::process::id()));
 	let run = || {
 		let mut merge = own.with.clone();
-		for target in rest {
+		for (index, target) in rest.iter().enumerate() {
 			let staged = crate::merge::staged(&stage, target);
-			let code = check(target, (config::env::API, staged.as_os_str()), "".as_ref(), "".as_ref())?;
+			let code = check(
+				index,
+				target,
+				(config::env::API, staged.as_os_str()),
+				"".as_ref(),
+				"".as_ref(),
+			)?;
 			if code != ExitCode::SUCCESS {
 				return Ok(code);
 			}
 			merge.push(staged);
 		}
 		let merge = std::env::join_paths(&merge).map_err(|err| format!("joining the paths to merge: {err}"))?;
-		check(last, (output.0, output.1.as_os_str()), &merge, &baseline)
+		check(rest.len(), last, (output.0, output.1.as_os_str()), &merge, &baseline)
 	};
 	let code = run();
-	if stage.exists() {
-		std::fs::remove_dir_all(&stage).map_err(|err| format!("removing {}: {err}", stage.display()))?;
+	for dir in [&stage, &queried] {
+		if dir.exists() {
+			std::fs::remove_dir_all(dir).map_err(|err| format!("removing {}: {err}", dir.display()))?;
+		}
 	}
 	let code = code?;
-	if output.0 == config::env::OUT && code == ExitCode::SUCCESS {
-		lock(&checked, &output.1, &picks)?;
+	if output.0 != config::env::OUT || code != ExitCode::SUCCESS {
+		return Ok(code);
 	}
-	Ok(code)
+	lock(&checked, &output.1, &picks)?;
+	// The web binding is written when the export serves its target, whose host lacks what
+	// the generated crate may reach: walked in the facade's target directory, which holds
+	// every crate it builds with already.
+	if !output.1.join("web").join("index.ts").exists() {
+		return Ok(code);
+	}
+	let glue = format!("{}-ffi", facade.name);
+	let own: Vec<String> = (checked.metadata.packages.iter())
+		.filter(|p| p.source.is_none())
+		.flat_map(|p| p.targets.iter().filter(|t| t.kind.iter().any(|k| k.contains("lib"))))
+		.map(|t| t.name.replace('-', "_"))
+		.collect();
+	let own = own.join(",");
+	let target_dir = rust2_driver::cargo::target_dir("rust2-ffi", Some(&args.manifest))?;
+	// Resolved as `lock` resolved it, under the check's profile, whose `cfg`s the glue was
+	// generated against.
+	let mut cargo = picks.resolving().args();
+	cargo.extend(profile.args);
+	cargo.extend(["--features".to_string(), "web".to_string()]);
+	let walked = match checked.targets.get(crate::web::TARGET) {
+		Some(recorded) => recorded.clone(),
+		None => on_target(&args.manifest, crate::web::TARGET, &picks)?.1,
+	};
+	let rustflags = Rustflags::of(&walked, crate::web::TARGET)?;
+	let [flags, rustc, added] = rustflags.env();
+	Check {
+		tool: "rust2-ffi",
+		manifest: &output.1.join("Cargo.toml"),
+		package: &glue,
+		root: None,
+		target: Some(crate::web::TARGET),
+		args: &cargo_args(crate::web::TARGET, cargo)?,
+		target_dir: Some(&target_dir),
+		dir: Some(picks.dir),
+		wrap: Wrap::Workspace,
+		env: &[
+			flags,
+			rustc,
+			added,
+			(crate::wasm::env::PACKAGE, glue.as_ref()),
+			(crate::wasm::env::OWN, own.as_ref()),
+		],
+	}
+	.run()
+}
+
+/// The environment cargo checks `target`'s crates in: as rustc, the executable compiles every
+/// crate the workspace does not own, which a cache in cargo's `RUSTC_WRAPPER` serves, so each
+/// sees every flag on its command line: the consumer's rustflags for the target, and the
+/// export's after them, which cargo passes no build script or proc macro.
+struct Rustflags {
+	rustc: std::ffi::OsString,
+	encoded: String,
+	added: String,
+}
+
+/// The most bytes of rustflags the check passes cargo, which every platform's environment
+/// holds in one variable.
+const ENV_MAX: usize = 32_000;
+
+impl Rustflags {
+	fn of(recorded: &crate::driver::Recorded, target: &str) -> Result<Self, String> {
+		let mut added: Vec<String> = crate::leaf::FLAGS.map(str::to_string).to_vec();
+		added.extend(crate::wasm::flags(target)?);
+		let encoded = [recorded.flags.clone(), added.clone()].concat().join("\x1f");
+		// Windows holds at most 32,767 characters in one environment variable, and Linux
+		// 128 KiB.
+		if encoded.len() > ENV_MAX {
+			return Err(format!(
+				"{target}'s rustflags take {} bytes, more than the {ENV_MAX} rust2-ffi can pass cargo in CARGO_ENCODED_RUSTFLAGS: put most in an argfile, as `@<path>`",
+				encoded.len()
+			));
+		}
+		Ok(Self {
+			rustc: recorded.rustc.clone().into_os_string(),
+			encoded,
+			added: added.join("\x1f"),
+		})
+	}
+
+	fn env(&self) -> [(&'static str, &std::ffi::OsStr); 3] {
+		[
+			("CARGO_ENCODED_RUSTFLAGS", self.encoded.as_ref()),
+			(config::env::RUSTC, &self.rustc),
+			(config::env::ADDED, self.added.as_ref()),
+		]
+	}
+}
+
+/// A new directory in the temp directory, named for `what`: private and unguessable, as the
+/// shared temp directory holds other users' files, and made afresh, so that no one else's
+/// can stand in for it.
+fn private_dir(what: &str) -> Result<PathBuf, String> {
+	let dir = std::env::temp_dir().join(format!(
+		"rust2-ffi-{what}-{:016x}",
+		std::hash::BuildHasher::hash_one(&std::hash::RandomState::new(), std::process::id())
+	));
+	let mut private = std::fs::DirBuilder::new();
+	#[cfg(unix)]
+	std::os::unix::fs::DirBuilderExt::mode(&mut private, 0o700);
+	private
+		.create(&dir)
+		.map_err(|err| format!("creating {}: {err}", dir.display()))?;
+	Ok(dir)
 }
 
 /// Write the generated crate's lockfile: the check's, with what the crate adds of its own
@@ -148,13 +298,29 @@ fn try_run(args: &[String]) -> Result<ExitCode, String> {
 /// check did not resolve for the same dependent, which the glue was not generated against.
 fn lock(checked: &Checked, out: &Path, picks: &Picks<'_>) -> Result<(), String> {
 	let lockfile = checked.metadata.workspace_root.join("Cargo.lock");
-	std::fs::copy(&lockfile, out.join("Cargo.lock"))
+	let written = out.join("Cargo.lock");
+	let earlier = std::fs::read(&written)
+		.ok()
+		.zip(std::fs::metadata(&written).and_then(|meta| meta.modified()).ok());
+	std::fs::copy(&lockfile, &written)
 		.map_err(|err| format!("copying {} into {}: {err}", lockfile.display(), out.display()))?;
 	let output = run_cargo(
 		&out.join("Cargo.toml"),
 		&["metadata", "--format-version", "1"],
+		&[],
 		&picks.resolving(),
 	)?;
+	// Resolved as before, the lockfile keeps its mtime, as every unchanged file of the
+	// export does: cargo reruns a build script when any file of its package is newer.
+	if let Some((bytes, mtime)) = earlier
+		&& std::fs::read(&written).is_ok_and(|now| now == bytes)
+	{
+		std::fs::File::options()
+			.write(true)
+			.open(&written)
+			.and_then(|file| file.set_modified(mtime))
+			.map_err(|err| format!("writing {}: {err}", written.display()))?;
+	}
 	let generated: Metadata =
 		serde_json::from_slice(&output).map_err(|err| format!("reading cargo metadata: {err}"))?;
 	// The check's resolution holds more than its build: cargo metadata enables what the
@@ -206,6 +372,8 @@ struct Checked {
 	metadata: Metadata,
 	/// The facade's package id.
 	top: String,
+	/// What cargo passes each target's crates, by the target as the check names it.
+	targets: BTreeMap<String, crate::driver::Recorded>,
 }
 
 /// The args rust2-ffi takes beyond the shared parser's.
@@ -278,13 +446,19 @@ fn absolute(path: &str) -> Result<PathBuf, String> {
 
 /// The facade, the package of `manifest`, then the patches it resolved with, as
 /// [`config::env::PATCH`] has them.
-fn facade(manifest: &Path, target: &str, picks: &Picks<'_>) -> Result<(config::Package, String, Checked), String> {
-	// On the target, so the resolved dependencies are the ones the check passes rustc.
-	let output = run_cargo(
-		manifest,
-		&["metadata", "--format-version", "1", "--filter-platform", target],
-		picks,
-	)?;
+fn facade(
+	manifest: &Path,
+	targets: &[String],
+	picks: &Picks<'_>,
+) -> Result<(config::Package, String, Checked), String> {
+	// On the first target, which records what cargo passes its crates; each other's then.
+	let (output, first) = on_target(manifest, &targets[0], picks)?;
+	let mut recorded = BTreeMap::from([(targets[0].clone(), first)]);
+	for target in &targets[1..] {
+		if !recorded.contains_key(target) {
+			recorded.insert(target.clone(), on_target(manifest, target, picks)?.1);
+		}
+	}
 	let metadata: Metadata = serde_json::from_slice(&output).map_err(|err| format!("reading cargo metadata: {err}"))?;
 	let canonical =
 		std::fs::canonicalize(manifest).map_err(|err| format!("resolving {}: {err}", manifest.display()))?;
@@ -302,16 +476,18 @@ fn facade(manifest: &Path, target: &str, picks: &Picks<'_>) -> Result<(config::P
 	let facade = config::Package {
 		name: top.name.clone(),
 		lib: lib.name.replace('-', "_"),
+		version: top.version.clone(),
 		dir: manifest.parent().expect("a manifest path has a parent").into(),
 		features: Vec::new(),
 	};
 	// Every platform's dependencies, which cargo resolves wherever the glue builds.
-	let output = run_cargo(manifest, &["metadata", "--format-version", "1"], picks)?;
+	let output = run_cargo(manifest, &["metadata", "--format-version", "1"], &[], picks)?;
 	let resolved: Metadata = serde_json::from_slice(&output).map_err(|err| format!("reading cargo metadata: {err}"))?;
 	let patch = overrides(&resolved, top)?;
 	let checked = Checked {
 		metadata: resolved,
 		top: top.id.clone(),
+		targets: recorded,
 	};
 	Ok((facade, patch, checked))
 }
@@ -413,7 +589,8 @@ mod decode_tests {
 }
 
 /// The `[patch]` the glue's workspace resolves the exports by as the check did, wherever
-/// it builds, as TOML with each path absolute, and the `[profile]` the exports build with.
+/// it builds, as TOML with each path absolute, which the glue writes relative to its export,
+/// and the `[profile]` the exports build with.
 fn overrides(metadata: &Metadata, top: &Package) -> Result<String, String> {
 	let (patch, built) = patch(metadata, top)?;
 	let mut overrides = toml::Table::new();
@@ -650,11 +827,48 @@ fn patch_key(source: &str) -> Result<String, String> {
 	Err(format!("a patch of {source}, which the export's library cannot patch"))
 }
 
+/// `cargo metadata` of `manifest` filtered to `target`, and what cargo passes that target's
+/// crates, which this executable records as cargo's workspace wrapper on cargo's query of the
+/// target: the consumer's rustflags, from wherever cargo reads them, which the check passes on
+/// with the export's own after them, and the rustc cargo resolved. One target a run, as cargo
+/// names it to rustc, which may not be as the export names it, such as a relative path.
+fn on_target(manifest: &Path, target: &str, picks: &Picks<'_>) -> Result<(Vec<u8>, crate::driver::Recorded), String> {
+	let exe = std::env::current_exe().map_err(|err| format!("finding this executable: {err}"))?;
+	let record = private_dir("record")?;
+	let env = [
+		("RUSTC_WORKSPACE_WRAPPER", exe.as_os_str()),
+		("RUSTC_WRAPPER", "".as_ref()),
+		// Cargo would otherwise answer a query it has made before from its cache.
+		("CARGO_CACHE_RUSTC_INFO", "0".as_ref()),
+		(config::env::RECORD, record.as_os_str()),
+	];
+	let subcommand = ["metadata", "--format-version", "1", "--filter-platform", target];
+	let output = run_cargo(manifest, &subcommand, &env, picks).and_then(|output| {
+		let path = crate::driver::Recorded::path(&record);
+		let json = std::fs::read_to_string(&path).map_err(|err| {
+			format!(
+				"cargo never queried {target} through rust2-ffi ({}: {err})",
+				path.display()
+			)
+		})?;
+		let recorded = serde_json::from_str(&json).map_err(|err| format!("reading {}: {err}", path.display()))?;
+		Ok((output, recorded))
+	});
+	std::fs::remove_dir_all(&record).map_err(|err| format!("removing {}: {err}", record.display()))?;
+	output
+}
+
 /// What a cargo subcommand prints for a package, run as the check resolves: from the
 /// facade's directory, where cargo reads its config, with the check's picks.
-fn run_cargo(manifest: &Path, subcommand: &[&str], picks: &Picks<'_>) -> Result<Vec<u8>, String> {
+fn run_cargo(
+	manifest: &Path,
+	subcommand: &[&str],
+	env: &[(&str, &std::ffi::OsStr)],
+	picks: &Picks<'_>,
+) -> Result<Vec<u8>, String> {
 	let output = Command::new(std::env::var_os("CARGO").unwrap_or_else(|| "cargo".into()))
 		.current_dir(picks.dir)
+		.envs(env.iter().copied())
 		.args(subcommand)
 		.arg("--manifest-path")
 		.arg(manifest)
@@ -665,6 +879,198 @@ fn run_cargo(manifest: &Path, subcommand: &[&str], picks: &Picks<'_>) -> Result<
 		true => Ok(output.stdout),
 		false => Err(String::from_utf8_lossy(&output.stderr).into_owned()),
 	}
+}
+
+/// The check's profile: the cargo args that pick it, `--release` unless `cargo` picks one,
+/// as a library ships in it, since its leaves are proven against the bodies it compiles.
+struct CheckProfile {
+	args: Vec<String>,
+	/// The `PROFILE` cargo gives a build script under it: `release` for a profile that is
+	/// or inherits from `release`, else `debug`.
+	root: &'static str,
+	/// The directory cargo builds it in, unless a build under another profile could share it
+	/// with other settings: `dev`, `test`, and `debug` share `debug`, and `release` and
+	/// `bench` share `release`, each the same profile as its directory's root unless the
+	/// manifest sets any of its own, which a package override of the glue's may hide from the
+	/// glue's build script while every other crate compiles under it.
+	dir: Option<String>,
+	/// The `CARGO_PROFILE_*` variables that may change what a crate compiles under it, or
+	/// under another profile that shares its directory.
+	vars: Vec<String>,
+}
+
+/// The keys of a profile, as a `CARGO_PROFILE_<NAME>_<KEY>` variable spells them, that may
+/// change what a crate compiles: the settings a build script reads, and the debug
+/// assertions of the build scripts and proc macros themselves. Overflow checks the check
+/// always makes, and the panic strategy the crate's `PROVEN` compares.
+const PROFILE_KEYS: [&str; 4] = [
+	"OPT_LEVEL",
+	"DEBUG",
+	"DEBUG_ASSERTIONS",
+	"BUILD_OVERRIDE_DEBUG_ASSERTIONS",
+];
+
+/// The [`PROFILE_KEYS`] variables of each profile in `chain`.
+fn profile_vars(chain: &[&str]) -> Vec<String> {
+	(chain.iter())
+		.flat_map(|name| {
+			let name = name.to_uppercase().replace('-', "_");
+			PROFILE_KEYS.map(|key| format!("CARGO_PROFILE_{name}_{key}"))
+		})
+		.collect()
+}
+
+/// The [`CheckProfile`] `cargo` picks, following `inherits` through the workspace's
+/// manifest, whose profiles alone the glue carries. One cargo's config defines is an error.
+fn check_profile(cargo: &[String], workspace: &Path) -> Result<CheckProfile, String> {
+	let mut args = profile_args(cargo);
+	let picked = match args.last().map(String::as_str) {
+		None => {
+			args = vec!["--release".to_string()];
+			"release"
+		}
+		Some("--release" | "-r") => "release",
+		Some(last) => last.strip_prefix("--profile=").unwrap_or(last),
+	}
+	.to_string();
+	let manifest = workspace.join("Cargo.toml");
+	let source = std::fs::read_to_string(&manifest).map_err(|err| format!("reading {}: {err}", manifest.display()))?;
+	let table: toml::Table = toml::from_str(&source).map_err(|err| format!("{}: {err}", manifest.display()))?;
+	let profiles = table.get("profile").and_then(|p| p.as_table());
+	let (root, dir, chain) =
+		resolve_profile(&picked, profiles).map_err(|err| format!("{}: {err}", manifest.display()))?;
+	let (dir, vars) = shared_vars(dir, &chain, |var| std::env::var_os(var).is_some());
+	Ok(CheckProfile { args, root, dir, vars })
+}
+
+/// The [`CheckProfile::dir`] and [`CheckProfile::vars`] of a profile in `dir` that inherits
+/// from the profiles in `chain`, given which variables the export's environment `set`s. A
+/// shared directory proves a build under any profile in it, so its other profiles'
+/// variables are watched too, and must be unset in the build as in the check: a check whose
+/// environment sets one proves nothing.
+fn shared_vars(dir: Option<String>, chain: &[&str], set: impl Fn(&str) -> bool) -> (Option<String>, Vec<String>) {
+	let others: &[&str] = match dir.as_deref() {
+		Some("debug") => &["test", "debug"],
+		Some("release") => &["bench"],
+		_ => &[],
+	};
+	let others = profile_vars(others);
+	let dir = dir.filter(|_| !others.iter().any(|var| set(var)));
+	let mut vars = profile_vars(chain);
+	for var in others {
+		if !vars.contains(&var) {
+			vars.push(var);
+		}
+	}
+	(dir, vars)
+}
+
+/// The profile cargo's own `inherits` names where the manifest names none: `test`'s and
+/// `bench`'s, and that of `debug`, which newer cargos define (1.98 refuses it).
+fn default_inherits(name: &str) -> Option<&'static str> {
+	match name {
+		"test" | "debug" => Some("dev"),
+		"bench" => Some("release"),
+		_ => None,
+	}
+}
+
+/// The [`CheckProfile::root`] and [`CheckProfile::dir`] of the profile `picked` under the
+/// manifest's `profiles`, and the profiles it inherits from, itself first.
+fn resolve_profile<'a>(
+	picked: &'a str,
+	profiles: Option<&'a toml::Table>,
+) -> Result<(&'static str, Option<String>, Vec<&'a str>), String> {
+	let table = |name: &str| profiles.and_then(|p| p.get(name)).and_then(|p| p.as_table());
+	// Whether a profile that shares its directory's root's is that root: its table sets
+	// nothing but the `inherits` cargo gives it anyway.
+	let same = |name: &str| {
+		table(name).is_none_or(|own| {
+			own.iter()
+				.all(|(key, value)| key == "inherits" && value.as_str() == default_inherits(name))
+		})
+	};
+	let dir = match picked {
+		"dev" | "test" | "debug" => (same("test") && same("debug")).then(|| "debug".to_string()),
+		"release" | "bench" => same("bench").then(|| "release".to_string()),
+		name => Some(name.to_string()),
+	};
+	let mut name = picked;
+	let mut chain = Vec::new();
+	// Cargo refuses a cycle, which this bound stops at before cargo runs.
+	for _ in 0..=profiles.map_or(0, |p| p.len()) + 1 {
+		chain.push(name);
+		match name {
+			"dev" => return Ok(("debug", dir, chain)),
+			"release" => return Ok(("release", dir, chain)),
+			_ => {}
+		}
+		let inherits = table(name).and_then(|p| p.get("inherits")).and_then(|i| i.as_str());
+		name = inherits.or_else(|| default_inherits(name)).ok_or_else(|| {
+			format!(
+				"no profile `{name}` inherits from another here, where the profiles the export's library builds with are"
+			)
+		})?;
+	}
+	Err(format!("the profile `{name}` inherits from itself"))
+}
+
+/// The cargo args with each group of short flags, such as `-qr` or `-vFa`, apart, as
+/// `-q -r` and `-v -Fa`, so that each reader of them finds the one it picks. A group with
+/// a letter cargo gives no short flag stays as it is, for cargo to refuse.
+fn ungroup(cargo: &[String]) -> Vec<String> {
+	let mut out = Vec::new();
+	let mut args = cargo.iter();
+	while let Some(arg) = args.next() {
+		if arg == "--" {
+			out.extend(std::iter::once(arg).chain(args).cloned());
+			break;
+		}
+		let group = arg
+			.strip_prefix('-')
+			.filter(|g| g.len() > 1 && g.starts_with(['q', 'v', 'r', 'h']));
+		let Some(group) = group else {
+			out.push(arg.clone());
+			continue;
+		};
+		let mut split = Vec::new();
+		let mut whole = true;
+		for (at, flag) in group.char_indices() {
+			match flag {
+				'q' | 'v' | 'r' | 'h' => split.push(format!("-{flag}")),
+				// A flag that takes a value takes the rest of the group as written, an empty
+				// `=` value included.
+				'p' | 'j' | 'F' | 'Z' | 'C' => {
+					split.push(format!("-{}", &group[at..]));
+					break;
+				}
+				_ => {
+					whole = false;
+					break;
+				}
+			}
+		}
+		match whole {
+			true => out.extend(split),
+			false => out.push(arg.clone()),
+		}
+	}
+	out
+}
+
+/// The cargo args that pick the profile: `--release`, `-r`, and `--profile`.
+fn profile_args(cargo: &[String]) -> Vec<String> {
+	let mut picked = Vec::new();
+	let mut args = cargo.iter();
+	while let Some(arg) = args.next() {
+		match arg.as_str() {
+			"--release" | "-r" => picked.push(arg.clone()),
+			"--profile" => picked.extend([Some(arg), args.next()].into_iter().flatten().cloned()),
+			_ if arg.starts_with("--profile=") => picked.push(arg.clone()),
+			_ => {}
+		}
+	}
+	picked
 }
 
 /// What the cargo args pick for how the check resolves its dependencies.
@@ -874,6 +1280,137 @@ mod tests {
 			("bar@1", "1.0.0", false),
 		] {
 			assert_eq!(matches(spec, &package(version)), Ok(want), "{spec} against {version}");
+		}
+	}
+
+	#[test]
+	fn reads_what_picks_the_profile() {
+		for (cargo, want) in [
+			(&["--release", "--locked"][..], &["--release"][..]),
+			(&["-r"], &["-r"]),
+			(&["--features", "a", "--profile", "bench"], &["--profile", "bench"]),
+			(&["--profile=bench", "--offline"], &["--profile=bench"]),
+			(&["--features", "release"], &[]),
+		] {
+			let cargo: Vec<String> = cargo.iter().map(|s| s.to_string()).collect();
+			assert_eq!(profile_args(&cargo), want, "{cargo:?}");
+		}
+	}
+
+	#[test]
+	fn ungroups_short_flags() {
+		for (cargo, want) in [
+			(&["-qr", "--locked"][..], &["-q", "-r", "--locked"][..]),
+			(&["-vvFa,b"], &["-v", "-v", "-Fa,b"]),
+			(&["-qF=a"], &["-q", "-F=a"]),
+			(&["-qF="], &["-q", "-F="]),
+			(&["-qp", "foo"], &["-q", "-p", "foo"]),
+			(&["-r", "-Frelease", "-q"], &["-r", "-Frelease", "-q"]),
+			(&["-qx"], &["-qx"]),
+			(&["--", "-qr"], &["--", "-qr"]),
+		] {
+			let cargo: Vec<String> = cargo.iter().map(|s| s.to_string()).collect();
+			assert_eq!(ungroup(&cargo), want, "{cargo:?}");
+		}
+	}
+
+	#[test]
+	fn watches_the_variables_of_each_inherited_profile() {
+		let profiles: toml::Table = toml::from_str("[ship-it]\ninherits = \"test\"").unwrap();
+		let (_, _, chain) = resolve_profile("ship-it", Some(&profiles)).unwrap();
+		assert_eq!(chain, ["ship-it", "test", "dev"]);
+		let vars = profile_vars(&chain);
+		assert_eq!(vars.len(), 3 * PROFILE_KEYS.len());
+		assert!(vars.contains(&"CARGO_PROFILE_SHIP_IT_DEBUG".to_string()), "{vars:?}");
+		assert!(
+			vars.contains(&"CARGO_PROFILE_DEV_BUILD_OVERRIDE_DEBUG_ASSERTIONS".to_string()),
+			"{vars:?}"
+		);
+	}
+
+	#[test]
+	fn watches_the_other_profiles_of_a_shared_directory() {
+		let release = Some("release".to_string());
+		let bench = "CARGO_PROFILE_BENCH_BUILD_OVERRIDE_DEBUG_ASSERTIONS";
+		let (dir, vars) = shared_vars(release.clone(), &["release"], |_| false);
+		assert_eq!(dir, release);
+		assert_eq!(vars.len(), 2 * PROFILE_KEYS.len());
+		assert!(vars.contains(&bench.to_string()), "{vars:?}");
+		// Watched once though the check's profile is the other one.
+		let (_, vars) = shared_vars(release.clone(), &["bench", "release"], |_| false);
+		assert_eq!(vars.len(), 2 * PROFILE_KEYS.len());
+		assert_eq!(shared_vars(release, &["release"], |var| var == bench).0, None);
+		let (_, vars) = shared_vars(Some("debug".to_string()), &["dev"], |_| false);
+		assert_eq!(vars.len(), 3 * PROFILE_KEYS.len());
+		let (_, vars) = shared_vars(Some("ship-it".to_string()), &["ship-it", "release"], |_| false);
+		assert_eq!(vars.len(), 2 * PROFILE_KEYS.len());
+	}
+
+	#[test]
+	fn resolves_the_profile_and_its_directory() {
+		let resolve = |picked: &str, manifest: &str| {
+			let profiles: toml::Table = toml::from_str(manifest).unwrap();
+			(resolve_profile(picked, Some(&profiles)))
+				.map(|(root, dir, _)| (root, dir))
+				.map_err(|err| err.contains("inherits from another"))
+		};
+		let debug = Some("debug".to_string());
+		let release = Some("release".to_string());
+		for (picked, manifest, want) in [
+			("dev", "", Ok(("debug", debug.clone()))),
+			("release", "", Ok(("release", release.clone()))),
+			// Cargo defines `debug` itself, inheriting `dev`'s, in `dev`'s directory.
+			("debug", "", Ok(("debug", debug.clone()))),
+			("debug", "[debug]\ninherits = \"dev\"", Ok(("debug", debug.clone()))),
+			("dev", "[test]\ninherits = \"dev\"", Ok(("debug", debug.clone()))),
+			(
+				"release",
+				"[bench]\ninherits = \"release\"",
+				Ok(("release", release.clone())),
+			),
+			// A profile that sets its own, here only for a dependency, shares its directory
+			// with another of other settings.
+			("debug", "[debug]\nopt-level = 1", Ok(("debug", None))),
+			(
+				"dev",
+				"[debug.package.dep]\ndebug-assertions = true",
+				Ok(("debug", None)),
+			),
+			(
+				"debug",
+				"[test.package.dep]\ndebug-assertions = true",
+				Ok(("debug", None)),
+			),
+			("dev", "[debug]\ninherits = \"release\"", Ok(("debug", None))),
+			("debug", "[debug]\ninherits = \"release\"", Ok(("release", None))),
+			(
+				"release",
+				"[bench.package.dep]\ndebug-assertions = true",
+				Ok(("release", None)),
+			),
+			("release", "[debug]\nopt-level = 1", Ok(("release", release.clone()))),
+			(
+				"ship",
+				"[ship]\ninherits = \"release\"",
+				Ok(("release", Some("ship".to_string()))),
+			),
+			(
+				"ship",
+				"[ship]\ninherits = \"debug\"",
+				Ok(("debug", Some("ship".to_string()))),
+			),
+			// `test` and `bench` follow an `inherits` of their own.
+			(
+				"ship",
+				"[ship]\ninherits = \"test\"\n[test]\ninherits = \"release\"",
+				Ok(("release", Some("ship".to_string()))),
+			),
+			("test", "[test]\ninherits = \"release\"", Ok(("release", None))),
+			("bench", "[bench]\ninherits = \"dev\"", Ok(("debug", None))),
+			("ship", "", Err(true)),
+			("ship", "[ship]\ninherits = \"ship\"", Err(false)),
+		] {
+			assert_eq!(resolve(picked, manifest), want, "{picked} under {manifest:?}");
 		}
 	}
 

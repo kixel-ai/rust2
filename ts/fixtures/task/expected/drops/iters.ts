@@ -543,14 +543,12 @@ export function drained(log: Log.Log, id: rs.u32): void {
 	const args26 = [(f: rs.Formatter) => rs.usizeDisplay(_222, f), (f: rs.Formatter) => rs.fmtBool(_225, f)];
 	Log.note(log, rs.fmtFormat(["rest ", args26[0], " ", args26[1]]));
 	rs.drop(one);
-	const leaf = rs.iterSlice(rs.byteSliceView(rs.byteVecSlice(Log.text(sink))));
+	const s = rs.byteSliceView(rs.byteVecSlice(Log.text(sink)));
+	let front = 0;
+	let back2 = s.length;
 	let acc: rs.u32 = 0;
-	while (true) {
-		const x = leaf.next();
-		if (x === rs.DONE) {
-			break;
-		}
-		acc = rs.u32Add(acc, x as rs.u32);
+	while (!(front >= back2)) {
+		acc = rs.u32Add(acc, s[front++] as rs.u32);
 	}
 	Log.note(log, rs.fmtFormat(["sink ", (f: rs.Formatter) => rs.u32Display(acc, f)]));
 	sink[Symbol.dispose]();
@@ -672,17 +670,29 @@ export function compared(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 		return Key.new(rs.u32Add(id, n), Log.clone$Clone(log));
 	};
 	const keys: (a0: rs.Slice<rs.u32>) => rs.Vec<Key.Key> = (ns: rs.Slice<rs.u32>): rs.Vec<Key.Key> => {
-		return rs.iterToVec(rs.iterMap(rs.iterSlice(rs.sliceItems(ns)), (_2: rs.u32): Key.Key => {
-			return key(_2);
-		}), undefined, 12, true);
+		const s = rs.sliceItems(ns);
+		let front = 0;
+		let back = s.length;
+		const v: rs.Vec<Key.Key> = rs.vecWithCapacity(back - front, 12);
+		while (!(front >= back)) {
+			const y: Key.Key = key(s[front++]);
+			v.items.push(y);
+		}
+		return v;
 	};
 	const guard: (a0: rs.u32) => Guard.Guard = (n3: rs.u32): Guard.Guard => {
 		return Guard.new(rs.u32Add(id, n3), Log.clone$Clone(log));
 	};
 	const guards: (a0: rs.Slice<rs.u32>) => rs.Vec<Guard.Guard> = (ns2: rs.Slice<rs.u32>): rs.Vec<Guard.Guard> => {
-		return rs.iterToVec(rs.iterMap(rs.iterSlice(rs.sliceItems(ns2)), (_26: rs.u32): Guard.Guard => {
-			return guard(_26);
-		}), undefined, 8, true);
+		const s2 = rs.sliceItems(ns2);
+		let front2 = 0;
+		let back2 = s2.length;
+		const v2: rs.Vec<Guard.Guard> = rs.vecWithCapacity(back2 - front2, 8);
+		while (!(front2 >= back2)) {
+			const y2: Guard.Guard = guard(s2[front2++]);
+			v2.items.push(y2);
+		}
+		return v2;
 	};
 	const _12: (a0: rs.Ordering | undefined) => rs.i8 = (o: rs.Ordering | undefined): rs.i8 => {
 		return option_mapOr$16nkz0h(o, 9, (o2: rs.Ordering): rs.i8 => {
@@ -719,12 +729,12 @@ export function compared(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 		const _169: rs.Vec<Guard.Guard> = guards(rs.sliceFrom([1, 2, 5]));
 		_283 = false;
 		const captured3 = c;
-		const part5 = rs.iterCmp(_163, rs.vecIntoIter(_169, rs.drop), rs.closure((x3: Key.Key, y3: Guard.Guard): rs.Ordering => {
+		const part5 = rs.iterCmp(_163, rs.vecIntoIter(_169, rs.drop), rs.closure((x5: Key.Key, y5: Guard.Guard): rs.Ordering => {
 			Guard.note(captured3, "compared");
-			const _93: rs.u32 = Guard.id(y3);
-			const _011: rs.Ordering = rs.cmp(x3.id, _93);
-			y3[Symbol.dispose]();
-			x3[Symbol.dispose]();
+			const _93: rs.u32 = Guard.id(y5);
+			const _011: rs.Ordering = rs.cmp(x5.id, _93);
+			y5[Symbol.dispose]();
+			x5[Symbol.dispose]();
 			return _011;
 		}, (): void => {
 			captured3[Symbol.dispose]();
@@ -735,11 +745,11 @@ export function compared(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 		const _194: rs.Vec<Guard.Guard> = guards(rs.sliceFrom([1]));
 		_283 = false;
 		const captured2 = c;
-		const part4 = rs.iterEq(_188, rs.vecIntoIter(_194, rs.drop), rs.closure((x2: Key.Key, y2: Guard.Guard): boolean => {
+		const part4 = rs.iterEq(_188, rs.vecIntoIter(_194, rs.drop), rs.closure((x4: Key.Key, y4: Guard.Guard): boolean => {
 			Guard.note(captured2, "compared");
-			const _010: boolean = x2.id === Guard.id(y2);
-			y2[Symbol.dispose]();
-			x2[Symbol.dispose]();
+			const _010: boolean = x4.id === Guard.id(y4);
+			y4[Symbol.dispose]();
+			x4[Symbol.dispose]();
 			return _010;
 		}, (): void => {
 			captured2[Symbol.dispose]();
@@ -750,12 +760,12 @@ export function compared(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 		const _217: rs.Vec<Guard.Guard> = guards(rs.sliceFrom([1]));
 		_283 = false;
 		const captured = c;
-		const part2 = rs.iterCmp(_211, rs.vecIntoIter(_217, rs.drop), rs.closure((x: Key.Key, y: Guard.Guard): rs.Ordering | undefined => {
+		const part2 = rs.iterCmp(_211, rs.vecIntoIter(_217, rs.drop), rs.closure((x3: Key.Key, y3: Guard.Guard): rs.Ordering | undefined => {
 			Guard.note(captured, "compared");
-			const _9: rs.u32 = Guard.id(y);
-			const _09: rs.Ordering | undefined = rs.cmp(x.id, _9);
-			y[Symbol.dispose]();
-			x[Symbol.dispose]();
+			const _9: rs.u32 = Guard.id(y3);
+			const _09: rs.Ordering | undefined = rs.cmp(x3.id, _9);
+			y3[Symbol.dispose]();
+			x3[Symbol.dispose]();
 			return _09;
 		}, (): void => {
 			captured[Symbol.dispose]();

@@ -10,9 +10,14 @@ import * as Guard from "../model.Guard.ts";
 /** Three `Vec`s of guards, of 3, 2, and 3, numbered from `n`. */
 export function nested(log: Log.Log, id: rs.u32, n: rs.u32): rs.Vec<rs.Vec<Guard.Guard>> {
 	const guards: (a0: rs.u32, a1: rs.u32) => rs.Vec<Guard.Guard> = (from: rs.u32, to: rs.u32): rs.Vec<Guard.Guard> => {
-		return rs.iterToVec(rs.iterMap(new rs.Range(from, to), (k: rs.u32): Guard.Guard => {
-			return Guard.new(rs.u32Add(id, k), Log.clone$Clone(log));
-		}), undefined, 8, true);
+		let start = from;
+		let end = to;
+		const v: rs.Vec<Guard.Guard> = rs.vecWithCapacity(Math.max(end - start, 0), 8);
+		while (!(start >= end)) {
+			const y: Guard.Guard = Guard.new(rs.u32Add(id, start++), Log.clone$Clone(log));
+			v.items.push(y);
+		}
+		return v;
 	};
 	const all: rs.Vec<rs.Vec<Guard.Guard>> = new rs.Vec();
 	const _9: rs.Vec<Guard.Guard> = guards(n, rs.u32Add(n, 3));

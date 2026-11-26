@@ -8,8 +8,8 @@
 mod alloc;
 mod bind;
 mod bindgen;
-pub use bind::check_module;
-pub mod array_slice;
+pub(crate) use bind::check_module;
+pub(crate) mod array_slice;
 mod body;
 mod caller;
 mod collections;
@@ -26,13 +26,13 @@ mod library;
 mod mir;
 pub(crate) mod names;
 mod num;
-pub mod pointer;
+pub(crate) mod pointer;
 pub(crate) mod smallvec;
 mod stock;
 mod task;
 mod time;
 mod tokio;
-pub mod unions;
+pub(crate) mod unions;
 
 use std::collections::VecDeque;
 
@@ -49,7 +49,7 @@ use crate::program::{Program, Source, SymKind, Symbol};
 use crate::ts::{self, Ctor, FieldId, Item, Loc, SymId, Type};
 
 /// Translate what the config's roots reach, or `None` after reporting why not.
-pub fn translate<'tcx>(tcx: TyCtxt<'tcx>, config: &Config) -> Option<Program> {
+pub(crate) fn translate<'tcx>(tcx: TyCtxt<'tcx>, config: &Config) -> Option<Program> {
 	let (mut t, ()) = Translator::settle(tcx, config, false, |t| {
 		for root in &config.roots {
 			t.root(root);
@@ -86,7 +86,7 @@ pub fn translate<'tcx>(tcx: TyCtxt<'tcx>, config: &Config) -> Option<Program> {
 /// Every construct translation refuses in the crate: in what the config's roots reach, as
 /// translation does, or where it names none, in what each item reaches as if each were a
 /// root.
-pub fn census<'tcx>(tcx: TyCtxt<'tcx>, config: &Config) -> Option<Census> {
+pub(crate) fn census<'tcx>(tcx: TyCtxt<'tcx>, config: &Config) -> Option<Census> {
 	let (mut t, polymorphic) = Translator::settle(tcx, config, true, |t| match config.roots.is_empty() {
 		true => t.every_item(),
 		false => {
@@ -192,12 +192,12 @@ impl<'tcx> Translator<'_, 'tcx> {
 	}
 }
 
-pub struct Translator<'a, 'tcx> {
-	pub tcx: TyCtxt<'tcx>,
+pub(crate) struct Translator<'a, 'tcx> {
+	pub(crate) tcx: TyCtxt<'tcx>,
 	config: &'a Config,
 	/// The crates whose bodies translate.
-	pub crates: Crates<'tcx>,
-	pub program: Program,
+	pub(crate) crates: Crates<'tcx>,
+	pub(crate) program: Program,
 	instances: rustc_data_structures::fx::FxHashMap<Instance<'tcx>, SymId>,
 	queue: VecDeque<(Instance<'tcx>, SymId)>,
 	adts: rustc_data_structures::fx::FxHashMap<DefId, Adt>,
@@ -240,15 +240,15 @@ pub struct Translator<'a, 'tcx> {
 	shared_glues: rustc_data_structures::fx::FxHashMap<DefId, bool>,
 	shared_open: rustc_data_structures::fx::FxHashSet<DefId>,
 	/// The drop glue made from each type's drop shim.
-	pub drop_shims: rustc_data_structures::fx::FxHashMap<Ty<'tcx>, SymId>,
+	pub(crate) drop_shims: rustc_data_structures::fx::FxHashMap<Ty<'tcx>, SymId>,
 	/// The function copying each `Copy` aggregate type.
 	copy_shims: rustc_data_structures::fx::FxHashMap<Ty<'tcx>, SymId>,
 	/// Each module value, by the item it stands for: a thread-local's key or a static.
-	pub values: rustc_data_structures::fx::FxHashMap<DefId, SymId>,
+	pub(crate) values: rustc_data_structures::fx::FxHashMap<DefId, SymId>,
 	/// The statics whose values are being read, which a pointer within one can't name yet.
-	pub reading: rustc_data_structures::fx::FxHashSet<DefId>,
+	pub(crate) reading: rustc_data_structures::fx::FxHashSet<DefId>,
 	/// The statics made on first use, as an `rs.LazyCell` of their value.
-	pub deferred: rustc_data_structures::fx::FxHashSet<SymId>,
+	pub(crate) deferred: rustc_data_structures::fx::FxHashSet<SymId>,
 	/// The types the crate writes into in place, which alone are copied.
 	writes: copy::Writes<'tcx>,
 	/// The instances whose writes count: those the runs before reached.
@@ -272,7 +272,7 @@ pub struct Translator<'a, 'tcx> {
 	weak_pointers: Vec<(&'static str, Ty<'tcx>, Span, String)>,
 	/// Whether the runs before reached a `panic::set_hook`, so every panic carries the
 	/// `rs.Location` its hook reads.
-	pub hooked: bool,
+	pub(crate) hooked: bool,
 	/// Whether this run did.
 	hooking: bool,
 	/// The trait of each trait object, by its principal trait.
@@ -283,7 +283,7 @@ pub struct Translator<'a, 'tcx> {
 	/// and name.
 	class_methods: rustc_data_structures::fx::FxHashMap<(SymId, String), (DefId, GenericArgs<'tcx>)>,
 	/// The class of each coroutine instance.
-	pub coroutines: rustc_data_structures::fx::FxHashMap<Instance<'tcx>, mir::coroutine::Info<'tcx>>,
+	pub(crate) coroutines: rustc_data_structures::fx::FxHashMap<Instance<'tcx>, mir::coroutine::Info<'tcx>>,
 	/// Whether [`Self::ty`] is typing a variable: see [`Self::held_ty`].
 	held: bool,
 	/// Whether [`Self::ty`] is typing a generic class's drop glue, which only an instance
@@ -307,9 +307,9 @@ pub struct Translator<'a, 'tcx> {
 	/// The slot of each `Ok` payload type, which every function returning one shares.
 	slots: rustc_data_structures::fx::FxHashMap<Ty<'tcx>, SymId>,
 	/// The `rs.HasherImpl` of each `Hasher` of the crate's own.
-	pub hashers: rustc_data_structures::fx::FxHashMap<Ty<'tcx>, SymId>,
+	pub(crate) hashers: rustc_data_structures::fx::FxHashMap<Ty<'tcx>, SymId>,
 	/// The field of each struct's byte slice field held as its parts that holds its bytes.
-	pub slices: rustc_data_structures::fx::FxHashSet<FieldId>,
+	pub(crate) slices: rustc_data_structures::fx::FxHashSet<FieldId>,
 	/// The wasm-bindgen programs of the crates that translate, read on first use.
 	programs: std::cell::OnceCell<bindgen::Programs>,
 }
@@ -318,7 +318,7 @@ pub struct Translator<'a, 'tcx> {
 /// but std's and those [`stock`] maps whole. What the roots reach of them translates, but
 /// for what [`stock`] maps in place of it; any function of the others is its mapping, a
 /// binding, or refused.
-pub struct Crates<'tcx> {
+pub(crate) struct Crates<'tcx> {
 	tcx: TyCtxt<'tcx>,
 	crates: rustc_data_structures::fx::FxHashSet<CrateNum>,
 }
@@ -337,7 +337,7 @@ impl<'tcx> Crates<'tcx> {
 	}
 
 	/// Whether `def_id` translates: it is of a crate that does, and no mapping stands in for it.
-	pub fn translates(&self, def_id: DefId) -> bool {
+	pub(crate) fn translates(&self, def_id: DefId) -> bool {
 		def_id.is_local() || (self.crates.contains(&def_id.krate) && !stock::mapped(self.tcx, def_id))
 	}
 }
@@ -350,13 +350,13 @@ pub(crate) fn of_std(tcx: TyCtxt<'_>, krate: CrateNum) -> bool {
 
 /// A translated struct or enum, and how it is represented.
 #[derive(Clone)]
-pub struct Adt {
-	pub sym: SymId,
-	pub repr: AdtRepr,
+pub(crate) struct Adt {
+	pub(crate) sym: SymId,
+	pub(crate) repr: AdtRepr,
 }
 
 #[derive(Clone)]
-pub enum AdtRepr {
+pub(crate) enum AdtRepr {
 	/// A struct: a plain object, or a class if it may drop, whose fields are named at print time.
 	Struct { ctor: Ctor, fields: Vec<StructField> },
 	/// An enum whose variants carry no data: a string per variant.
@@ -370,7 +370,7 @@ pub enum AdtRepr {
 
 /// The JS fields of a struct's field.
 #[derive(Clone, Copy, Debug)]
-pub enum StructField {
+pub(crate) enum StructField {
 	Whole(FieldId),
 	/// A private `&[u8]` or `&[u8; N]`: its bytes, start, and length, so a cursor moving
 	/// through it makes no object.
@@ -379,7 +379,7 @@ pub enum StructField {
 
 /// A JS object that a `&mut` can change in place.
 #[derive(Clone, Copy, PartialEq, Eq)]
-pub enum ObjectKind {
+pub(crate) enum ObjectKind {
 	Class,
 	Bytes,
 	Array,
@@ -393,13 +393,13 @@ pub enum ObjectKind {
 /// `undefined`, or `rs.None` where `Some` can already be `undefined`, and `Pending` is
 /// `rs.Pending`, or `rs.OuterPending` where `Ready` can already be `rs.Pending`.
 #[derive(Clone, Copy, Default)]
-pub struct Erased {
-	pub undefined: bool,
-	pub none: bool,
-	pub pending: bool,
-	pub outer_pending: bool,
+pub(crate) struct Erased {
+	pub(crate) undefined: bool,
+	pub(crate) none: bool,
+	pub(crate) pending: bool,
+	pub(crate) outer_pending: bool,
 	/// A type parameter's value, which each instance decides.
-	pub param: bool,
+	pub(crate) param: bool,
 }
 
 impl Erased {
@@ -479,7 +479,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 
 	/// Note an `of::new_cyclic` of a `ty`, an `Arc` or `Rc` as `of` says, whose value isn't
 	/// there until its closure returns.
-	pub fn cyclic(&mut self, of: &'static str, ty: Ty<'tcx>) {
+	pub(crate) fn cyclic(&mut self, of: &'static str, ty: Ty<'tcx>) {
 		// Only an instance decides what a parameter is.
 		if self.polymorphic() && ty.has_param() {
 			return;
@@ -489,7 +489,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 
 	/// Note a `Weak::as_ptr` at `span` of a `ty` JS keeps as an object, of an `Arc` or `Rc`
 	/// as `of` says, which has no object to point at while `new_cyclic` makes it.
-	pub fn weak_pointer(&mut self, ty: Ty<'tcx>, of: &'static str, span: Span) {
+	pub(crate) fn weak_pointer(&mut self, ty: Ty<'tcx>, of: &'static str, span: Span) {
 		if self.polymorphic() && ty.has_param() {
 			return;
 		}
@@ -511,18 +511,18 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 	}
 
 	/// Note a `panic::set_hook`, after which every panic carries its location.
-	pub fn hook(&mut self) {
+	pub(crate) fn hook(&mut self) {
 		self.hooking = true;
 	}
 
 	/// Note a clone of the closure `def_id` that can't share it.
-	pub fn clone_closure(&mut self, def_id: DefId) {
+	pub(crate) fn clone_closure(&mut self, def_id: DefId) {
 		self.cloning.insert(def_id);
 	}
 
 	/// Whether a clone of the closure `def_id` that can't share it was reached, so it is
 	/// made by a function of its captures.
-	pub fn clones_closure(&self, def_id: DefId) -> bool {
+	pub(crate) fn clones_closure(&self, def_id: DefId) -> bool {
 		self.cloned.contains(&def_id)
 	}
 
@@ -603,13 +603,13 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 	}
 
 	/// Whether a struct's values are plain objects rather than its class's.
-	pub fn plain(&self, sym: SymId) -> bool {
+	pub(crate) fn plain(&self, sym: SymId) -> bool {
 		self.program.plain.contains(&sym)
 	}
 
 	/// A struct's value, from its fields' values in declaration order: a byte slice's held
 	/// as its parts is made of them, or read from a path or `undefined`.
-	pub fn construct(&self, sym: SymId, ctor: &Ctor, fields: &[StructField], values: Vec<ts::Expr>) -> ts::Expr {
+	pub(crate) fn construct(&self, sym: SymId, ctor: &Ctor, fields: &[StructField], values: Vec<ts::Expr>) -> ts::Expr {
 		let mut props = Vec::with_capacity(values.len());
 		for (field, value) in fields.iter().zip(values) {
 			match *field {
@@ -630,7 +630,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 
 	/// The value of field `field` of `base`, a path: a byte slice's held as its parts made
 	/// of them.
-	pub fn read_field(base: ts::Expr, field: StructField) -> ts::Expr {
+	pub(crate) fn read_field(base: ts::Expr, field: StructField) -> ts::Expr {
 		match field {
 			StructField::Whole(id) => base.field(id),
 			StructField::Slice(ids) => ts::Expr::New(
@@ -642,7 +642,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 
 	/// Whether a struct's `field` is held as a byte slice's parts: a `&[u8]` or `&[u8; N]`
 	/// that only the crate's own code can name.
-	pub fn split(&self, field: &ty::FieldDef) -> bool {
+	pub(crate) fn split(&self, field: &ty::FieldDef) -> bool {
 		let ty = self.tcx.type_of(field.did).instantiate_identity().skip_norm_wip();
 		matches!(ty.kind(), ty::Ref(_, inner, rustc_ast::Mutability::Not)
 			if (matches!(inner.kind(), ty::Slice(e) if byte(*e)) || byte_array(*inner)))
@@ -704,7 +704,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 	}
 
 	/// Refuse a construct outside the subset: inside a body of std's, at the crate's call.
-	pub fn err(&mut self, span: Span, msg: impl Into<String>) {
+	pub(crate) fn err(&mut self, span: Span, msg: impl Into<String>) {
 		let (span, msg) = self.sited(span, msg.into());
 		self.refuse(span, msg);
 	}
@@ -732,19 +732,19 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 	/// Whether a census is lowering a function over its own type parameters. Only an
 	/// instance decides what a parameter is, so nothing that hinges on one is refused
 	/// then: each instance translation reaches is lowered, and refused, on its own.
-	pub fn polymorphic(&self) -> bool {
+	pub(crate) fn polymorphic(&self) -> bool {
 		self.env != TypingEnv::fully_monomorphized()
 	}
 
 	/// Whether `ty` is a type parameter, or a projection from one, that only an instance
 	/// decides.
-	pub fn deferred(&self, ty: Ty<'tcx>) -> bool {
+	pub(crate) fn deferred(&self, ty: Ty<'tcx>) -> bool {
 		self.polymorphic() && matches!(ty.kind(), ty::Param(_) | ty::Alias(..))
 	}
 
 	/// Whether `ty` is a type parameter, or a projection from one, in a generic type's
 	/// definition, which only an instance decides.
-	pub fn open(&self, ty: Ty<'tcx>) -> bool {
+	pub(crate) fn open(&self, ty: Ty<'tcx>) -> bool {
 		!self.polymorphic() && ty.has_param() && matches!(ty.kind(), ty::Param(_) | ty::Alias(..))
 	}
 
@@ -754,7 +754,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 		!self.glue && self.open(elem)
 	}
 
-	pub fn typing_env_pub(&self) -> TypingEnv<'tcx> {
+	pub(crate) fn typing_env_pub(&self) -> TypingEnv<'tcx> {
 		self.typing_env()
 	}
 
@@ -934,7 +934,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 
 	/// The symbol of a function instance, queueing its translation the first time, or the
 	/// export of a binding that stands in for it.
-	pub fn instance(&mut self, instance: Instance<'tcx>) -> SymId {
+	pub(crate) fn instance(&mut self, instance: Instance<'tcx>) -> SymId {
 		if let Some(&sym) = self.instances.get(&instance) {
 			return sym;
 		}
@@ -971,7 +971,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 
 	/// The symbol of an instance a call at `span` reaches, noting where the crate first
 	/// reached one of std's.
-	pub fn callee(&mut self, instance: Instance<'tcx>, span: Span) -> SymId {
+	pub(crate) fn callee(&mut self, instance: Instance<'tcx>, span: Span) -> SymId {
 		if !self.crates.translates(instance.def_id()) {
 			let site = self.site.map_or(span, |(site, _)| site);
 			self.sites.entry(instance).or_insert(site);
@@ -980,7 +980,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 	}
 
 	/// The type an associated function's impl or trait is for.
-	pub fn self_ty(&self, instance: Instance<'tcx>) -> Option<Ty<'tcx>> {
+	pub(crate) fn self_ty(&self, instance: Instance<'tcx>) -> Option<Ty<'tcx>> {
 		let def_id = instance.def_id();
 		if let Some(imp) = self.tcx.impl_of_assoc(def_id) {
 			return Some(self.subst(instance.args, self.tcx.type_of(imp).skip_binder()));
@@ -1007,7 +1007,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 
 	/// The Rust module `def_id` is in, from the crate root; another crate's is under a
 	/// directory of its name, as `core/option` for `Option::map`.
-	pub fn module_of(&self, def_id: DefId) -> Vec<String> {
+	pub(crate) fn module_of(&self, def_id: DefId) -> Vec<String> {
 		let tcx = self.tcx;
 		let mut module = tcx.parent(def_id);
 		while tcx.def_kind(module) != DefKind::Mod {
@@ -1026,7 +1026,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 
 	/// Where `span` is written, for sorting: where its macro is called, for an item a
 	/// macro makes.
-	pub fn order(&self, span: Span) -> u32 {
+	pub(crate) fn order(&self, span: Span) -> u32 {
 		span.source_callsite().lo().0
 	}
 
@@ -1052,7 +1052,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 	}
 
 	/// Where `span` starts, for the source map: the macro call for macro-made code.
-	pub fn loc(&mut self, span: Span) -> Option<Loc> {
+	pub(crate) fn loc(&mut self, span: Span) -> Option<Loc> {
 		if span.is_dummy() {
 			return None;
 		}
@@ -1072,14 +1072,14 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 		})
 	}
 
-	pub fn subst<T: ty::TypeFoldable<TyCtxt<'tcx>>>(&self, args: GenericArgs<'tcx>, value: T) -> T {
+	pub(crate) fn subst<T: ty::TypeFoldable<TyCtxt<'tcx>>>(&self, args: GenericArgs<'tcx>, value: T) -> T {
 		self.tcx
 			.instantiate_and_normalize_erasing_regions(args, self.typing_env(), EarlyBinder::bind(self.tcx, value))
 	}
 
 	/// `def_id`'s signature for `args`, with what its projections name, as `Deref::deref`'s
 	/// `&Self::Target`, where they resolve: a census's call over type parameters may leave one.
-	pub fn sig(&self, def_id: DefId, args: GenericArgs<'tcx>) -> ty::FnSig<'tcx> {
+	pub(crate) fn sig(&self, def_id: DefId, args: GenericArgs<'tcx>) -> ty::FnSig<'tcx> {
 		let sig = self.tcx.fn_sig(def_id).instantiate(self.tcx, args).skip_norm_wip();
 		let sig = self.tcx.instantiate_bound_regions_with_erased(sig);
 		self.tcx
@@ -1088,20 +1088,20 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 	}
 
 	/// The standard library type `ty` is, if it is one with its own representation.
-	pub fn std_of(&self, ty: Ty<'tcx>) -> Option<library::Std> {
+	pub(crate) fn std_of(&self, ty: Ty<'tcx>) -> Option<library::Std> {
 		match ty.kind() {
 			ty::Adt(adt, _) => library::Std::of(self.tcx, adt.did()),
 			_ => None,
 		}
 	}
 
-	pub fn is_copy(&self, ty: Ty<'tcx>) -> bool {
+	pub(crate) fn is_copy(&self, ty: Ty<'tcx>) -> bool {
 		self.tcx.type_is_copy_modulo_regions(self.typing_env(), ty)
 	}
 
 	/// Whether a call of `def_id` with `args` runs a function whose body translates, the
 	/// crate's own or std's from its MIR, rather than a mapping.
-	pub fn translated(&self, def_id: DefId, args: GenericArgs<'tcx>) -> bool {
+	pub(crate) fn translated(&self, def_id: DefId, args: GenericArgs<'tcx>) -> bool {
 		match Instance::try_resolve(self.tcx, self.typing_env(), def_id, args) {
 			Ok(Some(instance)) => self.lowers(self.typing_env(), instance) || self.dispatches(instance),
 			_ => false,
@@ -1111,7 +1111,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 	/// Whether `instance`'s body lowers from its MIR: the crate's own function, unless a
 	/// binding stands in for it, or one of std's that `library` leaves to its MIR. `env`
 	/// holds the bounds of the body naming `instance`.
-	pub fn lowers(&self, env: TypingEnv<'tcx>, instance: Instance<'tcx>) -> bool {
+	pub(crate) fn lowers(&self, env: TypingEnv<'tcx>, instance: Instance<'tcx>) -> bool {
 		match instance.def {
 			InstanceKind::Item(did) => {
 				self.bound_module(instance).is_none()
@@ -1125,7 +1125,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 
 	/// Whether a call of `def_id` with `args` runs std's mapping, which takes a `&mut`
 	/// parameter as what it points at, rather than a body that translates or a binding's export.
-	pub fn mapped(&self, def_id: DefId, args: GenericArgs<'tcx>) -> bool {
+	pub(crate) fn mapped(&self, def_id: DefId, args: GenericArgs<'tcx>) -> bool {
 		match Instance::try_resolve(self.tcx, self.typing_env(), def_id, args) {
 			Ok(Some(instance)) => {
 				!self.lowers(self.typing_env(), instance)
@@ -1138,7 +1138,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 	}
 
 	/// Whether a call of `def_id` with `args` calls a binding's export.
-	pub fn binds(&self, def_id: DefId, args: GenericArgs<'tcx>) -> bool {
+	pub(crate) fn binds(&self, def_id: DefId, args: GenericArgs<'tcx>) -> bool {
 		match Instance::try_resolve(self.tcx, self.typing_env(), def_id, args) {
 			Ok(Some(instance)) => self.bound_module(instance).is_some(),
 			_ => false,
@@ -1146,13 +1146,13 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 	}
 
 	/// The wasm-bindgen programs of the crates that translate.
-	pub fn programs(&self) -> &bindgen::Programs {
+	pub(crate) fn programs(&self) -> &bindgen::Programs {
 		self.programs
 			.get_or_init(|| bindgen::Programs::read(self.tcx, self.crates.crates.iter().copied()))
 	}
 
 	/// A translated struct or enum, translating its definition the first time.
-	pub fn adt(&mut self, adt: AdtDef<'tcx>, span: Span) -> Adt {
+	pub(crate) fn adt(&mut self, adt: AdtDef<'tcx>, span: Span) -> Adt {
 		if let Some(info) = self.adts.get(&adt.did()) {
 			return info.clone();
 		}
@@ -1351,7 +1351,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 
 	/// Whether a `ty`'s JS type is a union of its variants', which TypeScript narrows a
 	/// variable to the member it was assigned.
-	pub fn narrows(&self, ty: Ty<'tcx>) -> bool {
+	pub(crate) fn narrows(&self, ty: Ty<'tcx>) -> bool {
 		match ty.kind() {
 			// A box is what it holds.
 			ty::Adt(adt, args) if adt.is_box() => self.narrows(args.type_at(0)),
@@ -1372,7 +1372,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 	}
 
 	/// What kind of JS object a `&mut` to `ty` can change in place, if any.
-	pub fn object_kind(&self, ty: Ty<'tcx>) -> Option<ObjectKind> {
+	pub(crate) fn object_kind(&self, ty: Ty<'tcx>) -> Option<ObjectKind> {
 		match ty.kind() {
 			ty::Array(elem, _) => match byte(*elem) {
 				true => Some(ObjectKind::Bytes),
@@ -1467,7 +1467,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 	/// or a reference, or an object its clones may share, as an `Arc`'s and a `Waker`'s are,
 	/// pinned or boxed too, which JS erases, so a `&mut` to it is an `rs.Place`: where the
 	/// value is, read and written through `v`. A `LocalKey`'s copies share its storage too.
-	pub fn needs_place(&self, ty: Ty<'tcx>) -> bool {
+	pub(crate) fn needs_place(&self, ty: Ty<'tcx>) -> bool {
 		use library::Std;
 		if self.object_kind(ty).is_none() {
 			return true;
@@ -1481,7 +1481,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 	/// Whether `ty`'s JS value, through the `Pin`s, `Box`es, and `AssertUnwindSafe`s JS
 	/// erases, is of an `rs` class that keeps its state private, which `rs.ptrWrite` moves in
 	/// by its `$move`.
-	pub fn moves_private(&self, ty: Ty<'tcx>) -> bool {
+	pub(crate) fn moves_private(&self, ty: Ty<'tcx>) -> bool {
 		use library::Std;
 		matches!(
 			self.std_of(self.erased(ty)),
@@ -1491,7 +1491,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 
 	/// What JS keeps of a `ty`: what it holds through any number of `Pin`s, `Box`es, and
 	/// `AssertUnwindSafe`s.
-	pub fn erased(&self, ty: Ty<'tcx>) -> Ty<'tcx> {
+	pub(crate) fn erased(&self, ty: Ty<'tcx>) -> Ty<'tcx> {
 		use library::Std;
 		let mut erased = ty;
 		while let ty::Adt(adt, args) = erased.kind()
@@ -1507,7 +1507,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 	/// Whether `ty` is a `Box` of an object a whole write lands in, through any `Pin`s and
 	/// `AssertUnwindSafe`s, as a pinned `Box` is: a copy of the value there is another
 	/// allocation.
-	pub fn boxed_object(&self, ty: Ty<'tcx>) -> bool {
+	pub(crate) fn boxed_object(&self, ty: Ty<'tcx>) -> bool {
 		use library::Std;
 		let mut at = ty;
 		while let ty::Adt(adt, args) = at.kind() {
@@ -1525,7 +1525,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 	/// its owner holds, unlike an `Arc`'s or a `LocalKey`'s, which its copies share, and whose
 	/// state a write reaches, unlike a binding's, or a future's, or a trait object's, whatever
 	/// class it is.
-	pub fn write_in(&self, pointee: Ty<'tcx>) -> Option<ObjectKind> {
+	pub(crate) fn write_in(&self, pointee: Ty<'tcx>) -> Option<ObjectKind> {
 		use library::Std;
 		let erased = self.erased(pointee);
 		let hidden = match erased.kind() {
@@ -1555,7 +1555,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 	/// How many levels of arrays of objects a write may land in `ty` nests, whose items a
 	/// copy of a view of one copies too, unlike references, which move as they are: the
 	/// runtime's `depth`, if any.
-	pub fn copy_depth(&self, ty: Ty<'tcx>) -> Option<ts::Expr> {
+	pub(crate) fn copy_depth(&self, ty: Ty<'tcx>) -> Option<ts::Expr> {
 		let mut depth = 0;
 		let mut at = ty;
 		while let ty::Array(elem, _) = at.kind()
@@ -1568,7 +1568,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 	}
 
 	/// What `ty` points at, if it is a `&mut` that is an `rs.Place`.
-	pub fn place_pointee(&self, ty: Ty<'tcx>) -> Option<Ty<'tcx>> {
+	pub(crate) fn place_pointee(&self, ty: Ty<'tcx>) -> Option<Ty<'tcx>> {
 		match ty.kind() {
 			ty::Ref(_, inner, rustc_ast::Mutability::Mut) if self.needs_place(*inner) => Some(*inner),
 			ty::RawPtr(..) => self.raw_place(ty),
@@ -1578,7 +1578,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 
 	/// What `value`, a `ty` that is a reference, points at: an `rs.Place`'s `v`, and
 	/// otherwise the reference's own JS value.
-	pub fn pointee_value(&self, ty: Ty<'tcx>, value: ts::Expr) -> ts::Expr {
+	pub(crate) fn pointee_value(&self, ty: Ty<'tcx>, value: ts::Expr) -> ts::Expr {
 		match (self.place_pointee(ty), value.place_read()) {
 			(Some(_), Some(read)) => read,
 			(Some(_), None) => value.member("v"),
@@ -1588,7 +1588,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 
 	/// Whether `ty` holds a `&mut` that is an `rs.Place`, other than in what a closure or
 	/// coroutine captured.
-	pub fn has_place(&self, ty: Ty<'tcx>) -> bool {
+	pub(crate) fn has_place(&self, ty: Ty<'tcx>) -> bool {
 		let mut walker = ty.walk();
 		while let Some(arg) = walker.next() {
 			let Some(t) = arg.as_type() else { continue };
@@ -1604,7 +1604,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 	/// The TypeScript type of a slice of `elem`s, as behind a reference, which a
 	/// reference to a `[elem; N]` is too: an `rs.ByteSlice` of bytes, an `rs.ArraySlice` of
 	/// arrays, lending each as this of its own elements, and else an `rs.Slice`.
-	pub fn slice_ty(&mut self, elem: Ty<'tcx>, span: Span) -> Type {
+	pub(crate) fn slice_ty(&mut self, elem: Ty<'tcx>, span: Span) -> Type {
 		match elem.kind() {
 			_ if byte(elem) => Type::Rs("ByteSlice", vec![]),
 			_ if self.open_elem(elem) => Type::Rs("SliceOf", vec![self.ty(elem, span)]),
@@ -1614,7 +1614,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 	}
 
 	/// The TypeScript type of a Rust type.
-	pub fn ty(&mut self, ty: Ty<'tcx>, span: Span) -> Type {
+	pub(crate) fn ty(&mut self, ty: Ty<'tcx>, span: Span) -> Type {
 		let tcx = self.tcx;
 		match ty.kind() {
 			ty::Bool => Type::Builtin("boolean"),
@@ -1696,7 +1696,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 	/// The TypeScript type of a variable that holds a `ty`. It refuses no type without a JS
 	/// value, which is refused where a value of it is made or received: a parameter, a
 	/// field, a call, or a constant.
-	pub fn held_ty(&mut self, ty: Ty<'tcx>, span: Span) -> Type {
+	pub(crate) fn held_ty(&mut self, ty: Ty<'tcx>, span: Span) -> Type {
 		let held = std::mem::replace(&mut self.held, true);
 		let ts = self.ty(ty, span);
 		self.held = held;
@@ -1712,7 +1712,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 
 	/// Refuse each type in `ty` whose JS value can't tell two of its values apart, as an
 	/// `Option` of what can already be `undefined`.
-	pub fn check_erased(&mut self, ty: Ty<'tcx>, span: Span) {
+	pub(crate) fn check_erased(&mut self, ty: Ty<'tcx>, span: Span) {
 		let mut msgs: Vec<String> = Vec::new();
 		for part in ty.walk().filter_map(|arg| arg.as_type()) {
 			if let Some(msg) = self.erasure_conflict(part)
@@ -1766,7 +1766,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 	}
 
 	/// The return type of a declared function returning `ty`, whose `()` is `void`.
-	pub fn ret_ty(&mut self, ty: Ty<'tcx>, span: Span) -> Type {
+	pub(crate) fn ret_ty(&mut self, ty: Ty<'tcx>, span: Span) -> Type {
 		match ty.is_unit() {
 			true => Type::Builtin("void"),
 			false => self.ty(ty, span),
@@ -2144,7 +2144,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 	/// takes a form only an instance decides, as a function taking what the instance holds,
 	/// or a generic type over it, takes no other form, or where it holds an `rs.OptionOf` or
 	/// `rs.PollOf`.
-	pub fn field_value(
+	pub(crate) fn field_value(
 		&mut self,
 		value: ts::Expr,
 		adt: DefId,
@@ -2166,7 +2166,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 
 	/// `read`, of `field` of an instance with `args`, cast to what the instance holds there
 	/// where the definition types a form in it that only an instance decides.
-	pub fn held_field(&mut self, read: ts::Expr, field: DefId, args: GenericArgs<'tcx>, span: Span) -> ts::Expr {
+	pub(crate) fn held_field(&mut self, read: ts::Expr, field: DefId, args: GenericArgs<'tcx>, span: Span) -> ts::Expr {
 		if !self.instanced_fields.contains_key(&field) {
 			return read;
 		}
@@ -2345,14 +2345,14 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 
 	/// The JS value of `Pending` in a `Poll<inner>`: `rs.Pending`, or `rs.OuterPending`
 	/// where `inner` can already be `rs.Pending`.
-	pub fn pending(&self, inner: Ty<'tcx>) -> ts::Expr {
+	pub(crate) fn pending(&self, inner: Ty<'tcx>) -> ts::Expr {
 		self.pending_arg(inner)
 			.unwrap_or_else(|| ts::Expr::Rs("Pending".into()))
 	}
 
 	/// `rs.OuterPending` where it is a `Poll<inner>`'s `Pending`, for a runtime function
 	/// whose `pending` is `rs.Pending` unless given.
-	pub fn pending_arg(&self, inner: Ty<'tcx>) -> Option<ts::Expr> {
+	pub(crate) fn pending_arg(&self, inner: Ty<'tcx>) -> Option<ts::Expr> {
 		self.erases_to(inner)
 			.pending
 			.then(|| ts::Expr::Rs("OuterPending".into()))
@@ -2361,19 +2361,19 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 	/// The JS value of `None` in an `Option<inner>`, and of `Break` in a `ControlFlow`
 	/// that `?` on one makes: `undefined`, or `rs.None` where `inner` can already be
 	/// `undefined`.
-	pub fn none(&self, inner: Ty<'tcx>) -> ts::Expr {
+	pub(crate) fn none(&self, inner: Ty<'tcx>) -> ts::Expr {
 		self.none_arg(inner).unwrap_or_else(ts::Expr::undefined)
 	}
 
 	/// `rs.None`, if it is an `Option<inner>`'s `None`, which a runtime function taking
 	/// one takes after its own arguments.
-	pub fn none_arg(&self, inner: Ty<'tcx>) -> Option<ts::Expr> {
+	pub(crate) fn none_arg(&self, inner: Ty<'tcx>) -> Option<ts::Expr> {
 		self.erases_to(inner).undefined.then(|| ts::Expr::Rs("None".into()))
 	}
 
 	/// Which of the values `Option` and `Poll` erase to a `ty`'s JS value can already be,
 	/// seen through the wrappers that erase to their contents.
-	pub fn erases_to(&self, ty: Ty<'tcx>) -> Erased {
+	pub(crate) fn erases_to(&self, ty: Ty<'tcx>) -> Erased {
 		match ty.kind() {
 			_ if library::nothing(self.tcx, ty) => Erased {
 				undefined: true,
@@ -2493,7 +2493,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 	/// the outermost of `tracing`'s events, which expand to one another. Translated code
 	/// installs no subscriber, and without one an event evaluates none of its fields and
 	/// does nothing, so leaving it out is exact.
-	pub fn ignored_site(&self, mut span: Span) -> Option<Span> {
+	pub(crate) fn ignored_site(&self, mut span: Span) -> Option<Span> {
 		let mut site = None;
 		while span.from_expansion() {
 			let data = span.ctxt().outer_expn_data();
@@ -2512,7 +2512,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 }
 
 /// What the closure or async closure `ty` captured, in order.
-pub fn captured<'tcx>(ty: Ty<'tcx>) -> Option<&'tcx ty::List<Ty<'tcx>>> {
+pub(crate) fn captured<'tcx>(ty: Ty<'tcx>) -> Option<&'tcx ty::List<Ty<'tcx>>> {
 	match ty.kind() {
 		ty::Closure(_, args) => Some(args.as_closure().upvar_tys()),
 		ty::CoroutineClosure(_, args) => Some(args.as_coroutine_closure().upvar_tys()),
@@ -2521,7 +2521,7 @@ pub fn captured<'tcx>(ty: Ty<'tcx>) -> Option<&'tcx ty::List<Ty<'tcx>>> {
 }
 
 /// The function trait that calls the closure or async closure `ty`.
-pub fn closure_kind(ty: Ty<'_>) -> Option<ty::ClosureKind> {
+pub(crate) fn closure_kind(ty: Ty<'_>) -> Option<ty::ClosureKind> {
 	match ty.kind() {
 		ty::Closure(_, args) => Some(args.as_closure().kind()),
 		ty::CoroutineClosure(_, args) => Some(args.as_coroutine_closure().kind()),
@@ -2532,7 +2532,7 @@ pub fn closure_kind(ty: Ty<'_>) -> Option<ty::ClosureKind> {
 /// Whether `ty` is a byte: a `u8`, or a `MaybeUninit` of one through any number of them,
 /// which JS keeps as the `u8`, so that a run of any is a typed array's and a write through
 /// a `[MaybeUninit<u8>]` reaches the bytes it lends.
-pub fn byte(ty: Ty<'_>) -> bool {
+pub(crate) fn byte(ty: Ty<'_>) -> bool {
 	match ty.kind() {
 		ty::Uint(ty::UintTy::U8) => true,
 		// The context every lowering runs in, so the many callers that name no `TyCtxt` need none.
@@ -2547,14 +2547,14 @@ pub fn byte(ty: Ty<'_>) -> bool {
 }
 
 /// Whether `ty` is `[u8; N]`, or one of `MaybeUninit<u8>`, which is a `Uint8Array`.
-pub fn byte_array(ty: Ty<'_>) -> bool {
+pub(crate) fn byte_array(ty: Ty<'_>) -> bool {
 	matches!(ty.kind(), ty::Array(elem, _) if byte(*elem))
 }
 
 /// The parts of `slice`, an `rs.ByteSlice`, each read once: those it is made of, or those of a
 /// path or a slice made from a view of known length, or `undefined`'s, as a value not yet
 /// written. `None` for what must be held in a path first.
-pub fn slice_parts(slice: ts::Expr) -> Option<[ts::Expr; 3]> {
+pub(crate) fn slice_parts(slice: ts::Expr) -> Option<[ts::Expr; 3]> {
 	use ts::Expr;
 	let mut slice = slice;
 	while let Expr::Located(_, e) | Expr::As(e, _) = slice {
@@ -2589,14 +2589,14 @@ pub fn slice_parts(slice: ts::Expr) -> Option<[ts::Expr; 3]> {
 
 /// Whether `ty` is a reference to a `[u8; N]`, which is an `rs.ByteSlice` of its bytes, as a
 /// `&[u8]` is: a split's chunk is then no view.
-pub fn bytes_ref(ty: Ty<'_>) -> bool {
+pub(crate) fn bytes_ref(ty: Ty<'_>) -> bool {
 	matches!(ty.kind(), ty::Ref(..)) && byte_array(ty.peel_refs())
 }
 
 /// The runtime's function `name` of the slice a reference to `ty`, a `[T; N]`, is:
 /// `byteSlice{name}` of bytes, `arraySlice{name}` of arrays, and else `slice{name}`. `From`
 /// of arrays, which lends each by its own `From`, is `rs.arraySliceOf` of that.
-pub fn array_fn(ty: Ty<'_>, name: &str) -> ts::Expr {
+pub(crate) fn array_fn(ty: Ty<'_>, name: &str) -> ts::Expr {
 	let prefix = match ty.kind() {
 		_ if byte_array(ty) => "byteSlice",
 		ty::Array(elem, _) if elem.is_array() => match name {
@@ -2609,7 +2609,7 @@ pub fn array_fn(ty: Ty<'_>, name: &str) -> ts::Expr {
 }
 
 /// `value`, the JS array of a `ty`, a `[T; N]`, as the slice a reference to it is.
-pub fn array_slice(ty: Ty<'_>, value: ts::Expr) -> ts::Expr {
+pub(crate) fn array_slice(ty: Ty<'_>, value: ts::Expr) -> ts::Expr {
 	match ty.kind() {
 		ty::Array(elem, _) => slice_items_from(value, *elem),
 		_ => unreachable!("an array's slice"),
@@ -2618,7 +2618,7 @@ pub fn array_slice(ty: Ty<'_>, value: ts::Expr) -> ts::Expr {
 
 /// `items`, a JS array of `elem`s, or their `Uint8Array`, as the slice of all of them: an
 /// `rs.ByteSlice`, an `rs.ArraySlice` of arrays, lending each by its own slice, or an `rs.Slice`.
-pub fn slice_items_from(items: ts::Expr, elem: Ty<'_>) -> ts::Expr {
+pub(crate) fn slice_items_from(items: ts::Expr, elem: Ty<'_>) -> ts::Expr {
 	match elem.kind() {
 		_ if byte(elem) => ts::Expr::rs("byteSliceFrom", vec![items]),
 		ty::Array(..) => ts::Expr::rs("arraySliceFrom", vec![items, array_fn(elem, "From")]),
@@ -2629,7 +2629,7 @@ pub fn slice_items_from(items: ts::Expr, elem: Ty<'_>) -> ts::Expr {
 /// The element of the `[T; N]` that `ty` is a reference to, if it is one: an `rs.Slice` of
 /// its elements, as a `&[T]` is, or an `rs.ByteSlice` of bytes, so a part a slice lends as
 /// an array is read and written where the slice holds it.
-pub fn array_ref(ty: Ty<'_>) -> Option<Ty<'_>> {
+pub(crate) fn array_ref(ty: Ty<'_>) -> Option<Ty<'_>> {
 	match (ty.kind(), ty.peel_refs().kind()) {
 		(ty::Ref(..), ty::Array(elem, _)) => Some(*elem),
 		_ => None,
@@ -2638,13 +2638,13 @@ pub fn array_ref(ty: Ty<'_>) -> Option<Ty<'_>> {
 
 /// Whether `ty` is a form only an instance of a generic definition decides, which the
 /// definition types as every form it may be.
-pub fn instanced(ty: &Type) -> bool {
+pub(crate) fn instanced(ty: &Type) -> bool {
 	matches!(ty, Type::Rs("Ptr" | "ArrayOf" | "SliceOf" | "VecOf" | "CowOf", _))
 }
 
 /// Whether TypeScript's `undefined extends t` holds of `t`, a type no instance decides, as
 /// `rs.OptionOf` asks.
-pub fn holds_undefined(t: &Type) -> bool {
+pub(crate) fn holds_undefined(t: &Type) -> bool {
 	match t {
 		Type::Builtin("undefined") => true,
 		Type::Union(tys) => tys.iter().any(holds_undefined),
@@ -2655,7 +2655,7 @@ pub fn holds_undefined(t: &Type) -> bool {
 
 /// Whether TypeScript's `typeof rs.Pending extends t` holds of `t`, a type no instance
 /// decides, as `rs.PollOf` asks.
-pub fn holds_pending(t: &Type) -> bool {
+pub(crate) fn holds_pending(t: &Type) -> bool {
 	match t {
 		Type::Rs("Poll", _) => true,
 		Type::Union(tys) => tys.iter().any(holds_pending),
@@ -2664,7 +2664,7 @@ pub fn holds_pending(t: &Type) -> bool {
 }
 
 /// `snake_case` to `camelCase`, keeping leading underscores.
-pub fn camel(name: &str) -> String {
+pub(crate) fn camel(name: &str) -> String {
 	let name = name.strip_prefix("r#").unwrap_or(name);
 	let trimmed = name.trim_start_matches('_');
 	let mut out: String = name[..name.len() - trimmed.len()].to_string();
@@ -2701,7 +2701,7 @@ fn unnamed_params(item: &mut Item) {
 }
 
 /// A field's property name: `camelCase`, or `_0` for a tuple field.
-pub fn field_name(name: &str, index: usize) -> String {
+pub(crate) fn field_name(name: &str, index: usize) -> String {
 	match name.parse::<usize>() {
 		Ok(_) => format!("_{index}"),
 		Err(_) => camel(name),
@@ -2709,7 +2709,7 @@ pub fn field_name(name: &str, index: usize) -> String {
 }
 
 /// A binding name that is not a JS reserved word.
-pub fn escape(name: &str) -> String {
+pub(crate) fn escape(name: &str) -> String {
 	const RESERVED: &[&str] = &[
 		"arguments",
 		"await",

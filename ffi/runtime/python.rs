@@ -2,50 +2,59 @@
 //! Python's values and the C ABI's, the handles objects own, and the queue a future's
 //! and a waker's wakes reach the event loop through.
 //!
-//! The glue holds the GIL only while it touches Python: it releases it around each call
-//! into the C ABI, so Rust may call Python back from any thread, as a lent closure or a
-//! trait method, while the caller waits. A wake never takes the GIL: it queues a token
-//! and writes a byte to a socket the event loop reads, and the loop does the rest. A wake
-//! on the loop's own thread, during a call, writes nothing: the call schedules the loop's
-//! dispatch once it returns.
+//! A thread is attached while it may touch Python: it holds the GIL, or in a free-threaded
+//! CPython, which has none, an attached thread state, as a call from Python does. The glue
+//! is attached only while it touches Python: it detaches around each call into the C ABI,
+//! so Rust may call Python back from any thread, as a lent closure or a trait method,
+//! while the caller waits. A wake never attaches: it queues a token and writes a byte to a
+//! socket the event loop reads, and the loop does the rest. A wake on the loop's own
+//! thread, during a call, writes nothing: the call schedules the loop's dispatch once it
+//! returns.
+//!
+//! The runtime never relies on the GIL for its own state: what threads share is atomic,
+//! behind a lock no Python runs under, or set once. The `python` feature builds it on the
+//! stable ABI, `abi3`, for CPython 3.11 and later with a GIL, and `python-abi3t` on `abi3t`
+//! (PEP 803), for CPython 3.15 and later with or without one, where an object's data lies
+//! past a header whose size only the interpreter knows.
 
 use std::cell::{Cell, RefCell, UnsafeCell};
 use std::ffi::{CStr, c_char, c_int, c_void};
 use std::io::{Read, Write};
 use std::ptr::{NonNull, null, null_mut};
 use std::sync::atomic::{AtomicBool, AtomicI64, AtomicPtr, AtomicU8, AtomicUsize, Ordering};
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, OnceLock};
 
 pub use pyo3_ffi::*;
 
 use crate::rt;
+
+#[cfg(all(feature = "python", feature = "python-abi3t"))]
+compile_error!("the `python` and `python-abi3t` features build two extensions: enable one");
 
 /// A Python exception is set, for the caller to return null with.
 pub struct Raised;
 
 pub type R<T> = Result<T, Raised>;
 
-/// A value only the thread holding the GIL touches.
-pub struct Gil<T>(UnsafeCell<T>);
+/// A table Python reads for the process's life, such as a method's: shared, as Python only
+/// reads it once it is made.
+pub struct Table<T, const N: usize>(pub UnsafeCell<[T; N]>);
 
-// SAFETY: every access holds the GIL, which this abi3 extension's interpreters have.
-unsafe impl<T> Sync for Gil<T> {}
+// SAFETY: Python reads it, and nothing writes it once made.
+unsafe impl<T, const N: usize> Sync for Table<T, N> {}
 
-impl<T> Gil<T> {
-	pub const fn new(value: T) -> Self {
-		Self(UnsafeCell::new(value))
+impl<T, const N: usize> Table<T, N> {
+	pub const fn new(items: [T; N]) -> Self {
+		Self(UnsafeCell::new(items))
 	}
 
-	/// The value.
-	///
-	/// # Safety
-	/// The caller holds the GIL, and no other reference to the value is live.
-	#[allow(clippy::mut_from_ref, reason = "the GIL makes the access exclusive")]
-	pub unsafe fn get(&self) -> &mut T {
-		// SAFETY: the caller's contract.
-		unsafe { &mut *self.0.get() }
+	pub const fn ptr(&self) -> *mut T {
+		self.0.get().cast()
 	}
 }
+
+/// A method table.
+pub type Methods<const N: usize> = Table<PyMethodDef, N>;
 
 /// A strong reference, released when dropped.
 pub struct Obj(NonNull<PyObject>);
@@ -54,7 +63,7 @@ impl Obj {
 	/// A new reference a call returned, or the exception it raised.
 	///
 	/// # Safety
-	/// `ptr` is null with an exception set, or a new reference, and the GIL is held.
+	/// `ptr` is null with an exception set, or a new reference, and the thread is attached.
 	pub unsafe fn new(ptr: *mut PyObject) -> R<Self> {
 		NonNull::new(ptr).map(Self).ok_or(Raised)
 	}
@@ -62,7 +71,7 @@ impl Obj {
 	/// A new reference to `ptr`, which the caller borrows.
 	///
 	/// # Safety
-	/// `ptr` is a live object, and the GIL is held.
+	/// `ptr` is a live object, and the thread is attached.
 	pub unsafe fn borrowed(ptr: *mut PyObject) -> Self {
 		// SAFETY: the caller's contract.
 		unsafe { Py_IncRef(ptr) };
@@ -83,14 +92,14 @@ impl Obj {
 
 impl Drop for Obj {
 	fn drop(&mut self) {
-		// SAFETY: a strong reference, dropped with the GIL held, as every `Obj` is.
+		// SAFETY: a strong reference, dropped attached, as every `Obj` is.
 		unsafe { Py_DecRef(self.ptr()) };
 	}
 }
 
 /// Raise `exc` with `msg`.
 pub fn raise<T>(exc: *mut PyObject, msg: &str) -> R<T> {
-	// SAFETY: the GIL is held, and `exc` is an exception type.
+	// SAFETY: the thread is attached, and `exc` is an exception type.
 	unsafe {
 		let msg = PyUnicode_FromStringAndSize(msg.as_ptr().cast(), msg.len() as Py_ssize_t);
 		if !msg.is_null() {
@@ -99,6 +108,16 @@ pub fn raise<T>(exc: *mut PyObject, msg: &str) -> R<T> {
 		}
 	}
 	Err(Raised)
+}
+
+/// Warn of a call of a deprecated item, as `msg` says: a `DeprecationWarning` at the caller
+/// `level` frames up, which raises where warnings are errors.
+pub fn deprecated(msg: &CStr, level: isize) -> R<()> {
+	// SAFETY: the thread is attached, and the category is a static warning type.
+	match unsafe { PyErr_WarnEx(PyExc_DeprecationWarning, msg.as_ptr(), level) } {
+		0 => Ok(()),
+		_ => Err(Raised),
+	}
 }
 
 /// Raise for a call of `what`, or a value of it crossing in, which the library's target
@@ -224,7 +243,7 @@ pub unsafe fn params<const N: usize>(
 	Ok(out)
 }
 
-/// Call into the C ABI with the GIL released, so Rust may call Python back from any
+/// Call into the C ABI detached, the GIL released, so Rust may call Python back from any
 /// thread while this one waits, then resume what it woke on this thread's loop.
 pub fn call<T>(f: impl FnOnce() -> T) -> T {
 	// A call inside another keeps its loop: none starts on a thread one runs on.
@@ -237,16 +256,82 @@ pub fn call<T>(f: impl FnOnce() -> T) -> T {
 		}
 		RUNNING.set(running);
 	}
-	// SAFETY: this thread holds the GIL, and touches no Python object until it retakes it.
+	// SAFETY: this thread is attached, and touches no Python object until it attaches again.
 	let state = unsafe { PyEval_SaveThread() };
 	let result = f();
 	// SAFETY: released just above.
 	unsafe { PyEval_RestoreThread(state) };
 	RUNNING.set(outer);
+	// First, as a drain it queues at once may be one to resume.
+	if rt::Thread::made() {
+		drains();
+	}
 	if !RESUMES.with_borrow(Vec::is_empty) {
 		resume();
 	}
 	result
+}
+
+/// Call a leaf, as `Abi::leaf` proves it, attached, keeping any GIL, which nothing in it waits on, when
+/// the build runs the bodies the proof saw; else as [`call`] calls any other.
+#[inline]
+pub fn leaf<T>(f: impl FnOnce() -> T) -> T {
+	match crate::PROVEN {
+		true => f(),
+		false => call(f),
+	}
+}
+
+/// The token of a drain, which no future or `Waker` takes.
+const DRAIN: i64 = 0;
+
+/// A call made a value that is not `Send`: give this thread a wake that queues a drain on
+/// the event loop running here, if one is, so a free on another thread reaches an idle
+/// loop, which its `Queue.drain` then runs.
+#[cold]
+fn drains() {
+	// SAFETY: the thread is attached. An exception the caller has set is kept aside while Python
+	// runs, and put back after.
+	unsafe {
+		let (mut kind, mut value, mut trace) = (null_mut(), null_mut(), null_mut());
+		PyErr_Fetch(&mut kind, &mut value, &mut trace);
+		// With no loop running here, the thread drains at its next call instead.
+		let running = running_loop();
+		let woken = DRAINS.with_borrow(|drains| {
+			drains.upgrade().is_some_and(|queue| queue.event_loop == running && !queue.closed.load(Ordering::Relaxed))
+		});
+		if running != 0 && !woken {
+			match Obj::new(PyObject_CallNoArgs(ty(T_DRAINS))).and_then(|queue| queue_of(queue.ptr())) {
+				Ok(queue) => drain_on(&queue),
+				// The thread drains at its next call instead, and an interrupt its Python ran
+				// into is raised again at the thread's next chance.
+				Err(Raised) if PyErr_ExceptionMatches(PyExc_KeyboardInterrupt) != 0 => {
+					PyErr_Clear();
+					PyErr_SetInterrupt();
+				}
+				Err(Raised) => PyErr_WriteUnraisable(ty(T_DRAINS)),
+			}
+		}
+		PyErr_Restore(kind, value, trace);
+	}
+}
+
+/// Wake this thread through `queue` for each drain.
+fn drain_on(queue: &Arc<Queue>) {
+	let weak = Arc::downgrade(queue);
+	DRAINS.set(weak.clone());
+	rt::Thread::wake_here(Arc::new(move || {
+		if let Some(queue) = weak.upgrade() {
+			queue.push(DRAIN);
+		}
+	}));
+}
+
+/// `drain()`, on the thread running its loop: drop what other threads freed of the
+/// thread's values that are not `Send`.
+unsafe extern "C" fn queue_drain(_: *mut PyObject, _: *mut PyObject) -> *mut PyObject {
+	call(rt::Thread::drain_here);
+	wrap(none)
 }
 
 thread_local! {
@@ -258,14 +343,16 @@ thread_local! {
 	static RUNNING: Cell<usize> = const { Cell::new(0) };
 	/// The queues woken on their loop's thread during the calls it is in.
 	static RESUMES: RefCell<Vec<Arc<Queue>>> = const { RefCell::new(Vec::new()) };
+	/// The queue this thread's wake queues a drain on.
+	static DRAINS: RefCell<std::sync::Weak<Queue>> = const { RefCell::new(std::sync::Weak::new()) };
 }
 
-static GET_RUNNING_LOOP: std::sync::OnceLock<Static> = std::sync::OnceLock::new();
+static GET_RUNNING_LOOP: Class = OnceLock::new();
 
 /// The address of the event loop running on this thread, or `0`: none is while an
 /// exception is set, which a call must not run Python over.
 fn running_loop() -> usize {
-	// SAFETY: the GIL is held, and `asyncio._get_running_loop` neither raises nor runs
+	// SAFETY: the thread is attached, and `asyncio._get_running_loop` neither raises nor runs
 	// Python code.
 	unsafe {
 		if !PyErr_Occurred().is_null() {
@@ -289,7 +376,7 @@ fn running_loop() -> usize {
 fn resume() {
 	let woken = RESUMES.with_borrow_mut(std::mem::take);
 	let resume = ty(T_RESUME);
-	// SAFETY: the GIL is held. An exception the caller has set is kept aside while Python
+	// SAFETY: the thread is attached. An exception the caller has set is kept aside while Python
 	// runs, and put back after.
 	unsafe {
 		let (mut kind, mut value, mut trace) = (null_mut(), null_mut(), null_mut());
@@ -317,10 +404,10 @@ fn resume() {
 	}
 }
 
-/// Run `f` calling into Python, from whatever thread Rust calls on, holding the GIL; an
+/// Run `f` calling into Python, from whatever thread Rust calls on, attached; an
 /// exception it raises aborts with what it was, since Rust has nowhere to unwind it to.
 pub fn upcall<T>(what: &str, f: impl FnOnce() -> R<T>) -> T {
-	// SAFETY: any thread may take the GIL.
+	// SAFETY: any thread may attach.
 	let gil = unsafe { PyGILState_Ensure() };
 	match f() {
 		Ok(value) => {
@@ -329,7 +416,7 @@ pub fn upcall<T>(what: &str, f: impl FnOnce() -> R<T>) -> T {
 			value
 		}
 		Err(Raised) => {
-			// SAFETY: the GIL is held, and an exception is set.
+			// SAFETY: the thread is attached, and an exception is set.
 			unsafe { PyErr_Print() };
 			rt::fail(what, "a call into Python raised")
 		}
@@ -344,32 +431,32 @@ impl Key {
 		Self(name, AtomicPtr::new(null_mut()))
 	}
 
-	/// The string, which lives as long as the interpreter.
+	/// The string, which lives as long as the interpreter. Threads that race to intern it
+	/// get the same string.
 	pub fn get(&self) -> R<*mut PyObject> {
-		let ptr = self.1.load(Ordering::Relaxed);
+		let ptr = self.1.load(Ordering::Acquire);
 		if !ptr.is_null() {
 			return Ok(ptr);
 		}
-		// SAFETY: the GIL is held.
+		// SAFETY: the thread is attached.
 		let ptr = unsafe { PyUnicode_InternFromString(self.0.as_ptr()) };
 		if ptr.is_null() {
 			return Err(Raised);
 		}
-		self.1.store(ptr, Ordering::Relaxed);
+		self.1.store(ptr, Ordering::Release);
 		Ok(ptr)
 	}
 }
 
 /// What a call borrows from Python until it returns: the objects and copies whose memory
-/// it reads, the handles it holds and those it moves out of, and what it
-/// gives Rust, taken back if the call never happens.
+/// it reads, the lent handles it holds, and what it gives Rust, taken back if the call
+/// never happens.
 #[derive(Default)]
 pub struct Scope {
 	keep: Vec<Obj>,
 	arrays: Vec<Box<dyn std::any::Any>>,
-	/// The handles held, each with whether the call moves its value out. Inline, as a
-	/// call holds few, so holding one allocates nothing.
-	held: smallvec::SmallVec<[(Obj, bool); 4]>,
+	/// The lent handles held. Inline, as a call holds few, so holding one allocates nothing.
+	held: smallvec::SmallVec<[Obj; 4]>,
 	/// The objects Rust lends a callback, ended once it returns.
 	lent: Vec<Obj>,
 	/// Python implementations and wakers given to Rust, taken back unless the call
@@ -378,6 +465,8 @@ pub struct Scope {
 	nodes: Vec<rt::Waker>,
 	/// Awaitables given to Rust, freed unless the call happens.
 	futures: Vec<rt::ForeignFuture>,
+	/// Buffers handed to Rust, which takes them, freed unless the call happens.
+	bufs: Vec<rt::Buf>,
 }
 
 impl Scope {
@@ -388,37 +477,65 @@ impl Scope {
 		ptr
 	}
 
-	/// Note that the call happened: what it moved out of is closed, and what it was given
-	/// is Rust's.
+	/// Note that the call happened: what it was given is Rust's.
 	pub fn done(&mut self) {
-		for (held, moved) in &self.held {
-			if *moved {
-				// SAFETY: a handle this scope holds, so live.
-				unsafe { close(held.ptr().cast()) };
-			}
+		self.given();
+	}
+
+	/// Raise for the call of `what` unless its `status` is zero: a run-time check failed,
+	/// so Rust moved nothing out, though it took and dropped what it was given.
+	pub fn status(&mut self, status: i32, what: &str) -> R<()> {
+		if status == 0 {
+			return Ok(());
 		}
+		self.given();
+		check_status(status, what)
+	}
+
+	/// Note that what the call was given is Rust's.
+	fn given(&mut self) {
 		while let Some(given) = self.given.pop() {
 			given.into_ptr();
 		}
 		self.nodes.clear();
 		self.futures.clear();
+		self.bufs.clear();
 	}
 
 	/// The handles held, which a future keeps until it ends.
 	pub fn take_held(&mut self) -> Vec<Obj> {
-		self.held.drain(..).map(|(held, _)| held).collect()
+		self.held.drain(..).collect()
 	}
+}
+
+/// Raise for `what` unless its `status` is zero, as [`Scope::status`] does: a poll's.
+pub fn check_status(status: i32, what: &str) -> R<()> {
+	if status == 0 {
+		return Ok(());
+	}
+	let message = format!("{what}: {}", rt::Status::text(status).to_string_lossy());
+	// A value moved out or outlived is as a closed one, and any other check is a misuse.
+	// SAFETY: static exception types.
+	let exc = match rt::Status::of(status) {
+		Some(rt::Status::Moved | rt::Status::Outlived) => unsafe { PyExc_ValueError },
+		_ => unsafe { PyExc_RuntimeError },
+	};
+	raise(exc, &message)
 }
 
 // Popping rather than draining, as each call drops a scope whose lists are mostly empty.
 impl Drop for Scope {
 	fn drop(&mut self) {
+		while let Some(buf) = self.bufs.pop() {
+			// SAFETY: a buffer the call never took.
+			unsafe { buf.free() };
+		}
 		while let Some(waker) = self.nodes.pop() {
 			// SAFETY: a waker the call never took.
 			unsafe { waker.release() };
 		}
 		if !self.futures.is_empty() {
-			// SAFETY: the GIL is held. The exception that failed the call is kept aside
+			// SAFETY: the thread is attached. The exception that failed the call is kept aside
 			// while the frees run Python, and put back after.
 			unsafe {
 				let (mut kind, mut value, mut trace) = (null_mut(), null_mut(), null_mut());
@@ -432,66 +549,101 @@ impl Drop for Scope {
 		}
 		while let Some(lent) = self.lent.pop() {
 			// SAFETY: an object [`lent`] made.
-			unsafe { end(lent.ptr().cast()) };
+			unsafe { end(lent.ptr()) };
 		}
-		while let Some((held, _)) = self.held.pop() {
+		while let Some(held) = self.held.pop() {
 			// SAFETY: a handle this scope holds.
-			unsafe { release(held.ptr().cast()) };
+			unsafe { release(held.ptr()) };
 		}
 	}
 }
 
-/// The objects the generated Python registers, by the index the glue names each with:
-/// the runtime's, then the API's classes.
-static TYPES: Gil<Vec<Obj>> = Gil::new(Vec::new());
+/// What the generated Python registers: the classes, by the index the glue names each with,
+/// the runtime's then the API's, and the plain enums' members, each read once.
+struct Registry {
+	types: Box<[Obj]>,
+	members: Box<[OnceLock<Vec<(i64, Obj)>>]>,
+}
 
-/// The plain enums' members, by class, with their discriminants.
-static MEMBERS: Gil<Vec<Option<Vec<(i64, Obj)>>>> = Gil::new(Vec::new());
+// SAFETY: its objects live for the process, and only threads attached to the interpreter
+// touch them.
+unsafe impl Send for Registry {}
+// SAFETY: as above; each set of members is set once.
+unsafe impl Sync for Registry {}
+
+/// The latest registry: a module loaded again registers its classes anew, and the one it
+/// replaces is kept, as another thread may still read it.
+static REGISTRY: AtomicPtr<Registry> = AtomicPtr::new(null_mut());
+
+fn registry() -> &'static Registry {
+	// SAFETY: a leaked registry, set before any glue function runs.
+	unsafe { REGISTRY.load(Ordering::Acquire).as_ref() }.expect("the module registered its classes")
+}
 
 /// The runtime's entries, at the start of the registry: the awaitable a pending future
-/// is, `datetime.timedelta`, `_resume`, which schedules the running loop's dispatch,
-/// `Waker`, and `_Pollable`, which runs an awaitable Rust polls.
+/// is, the runtime's `Duration`, `_resume`, which schedules the running loop's dispatch,
+/// `Waker`, `_Pollable`, which runs an awaitable Rust polls, `ipaddress`'s two classes, and
+/// `_drains`, which returns the running loop's queue.
 pub const T_FUTURE: usize = 0;
-const T_TIMEDELTA: usize = 1;
+const T_DURATION: usize = 1;
 const T_RESUME: usize = 2;
 const T_WAKER: usize = 3;
 const T_POLLABLE: usize = 4;
+const T_IPV4: usize = 5;
+const T_IPV6: usize = 6;
+const T_DRAINS: usize = 7;
 
 /// The class registered at `index`.
 pub fn ty(index: usize) -> *mut PyObject {
-	// SAFETY: the GIL is held, and the module registered its classes when it loaded.
-	(unsafe { TYPES.get() })[index].ptr()
+	registry().types[index].ptr()
 }
 
 /// `_register(*classes)`: note the classes the glue makes values of, and set the glue's
-/// members on them.
+/// members on them, in the main interpreter alone: a legacy subinterpreter before 3.15
+/// shares the module `PyInit_` made, and its classes would replace the process's.
 unsafe extern "C" fn register(_: *mut PyObject, args: *mut *mut PyObject, nargs: Py_ssize_t) -> *mut PyObject {
-	// SAFETY: Python's call.
-	let args = unsafe { std::slice::from_raw_parts(args, nargs as usize) };
-	// SAFETY: the GIL is held, and each argument a live class.
-	unsafe {
-		*TYPES.get() = args.iter().map(|&class| Obj::borrowed(class)).collect();
-		*MEMBERS.get() = (0..args.len()).map(|_| None).collect();
-	}
 	wrap(|| {
-		// SAFETY: the GIL is held, and each member's index one `_register` was passed.
-		unsafe { install() }?;
+		// SAFETY: the thread is attached; the main interpreter's ID is 0.
+		if unsafe { PyInterpreterState_GetID(PyInterpreterState_Get()) } != 0 {
+			// SAFETY: a static exception type.
+			return raise(unsafe { PyExc_ImportError }, "the module loads only in the main interpreter");
+		}
+		// SAFETY: Python's call.
+		let args = unsafe { std::slice::from_raw_parts(args, nargs as usize) };
+		let registry: &'static Registry = Box::leak(Box::new(Registry {
+			// SAFETY: each argument a live class.
+			types: args.iter().map(|&class| unsafe { Obj::borrowed(class) }).collect(),
+			members: args.iter().map(|_| OnceLock::new()).collect(),
+		}));
+		REGISTRY.store(std::ptr::from_ref(registry).cast_mut(), Ordering::Release);
+		// SAFETY: the thread is attached, and each member's index one `_register` was passed.
+		unsafe { install(registry) }?;
 		none()
 	})
 }
 
-/// Set each of the glue's members on its class: a method as a method descriptor, which
-/// CPython calls without binding it, as it does a builtin type's.
-unsafe fn install() -> R<()> {
-	// SAFETY: the GIL is held, and `INSTALL` lives as long as the interpreter.
+/// A definition Python takes by a mutable pointer, though it only reads it.
+fn mutable<T>(def: &T) -> *mut T {
+	(def as *const T).cast_mut()
+}
+
+/// Set each of the glue's members on its class in `registry`, which another load may
+/// replace meanwhile: a method as a method descriptor, which CPython calls without binding
+/// it, as it does a builtin type's.
+unsafe fn install(registry: &Registry) -> R<()> {
+	let ty = |index: usize| registry.types[index].ptr();
+	let install = INSTALL.get().expect("set as the module loaded");
+	// SAFETY: the glue's table, which Python reads for the process's life; a descriptor
+	// takes its entry's address, which it only reads.
 	unsafe {
 		let mut staticmethod = None;
-		for member in INSTALL.get().iter_mut() {
+		for n in 0..install.1 {
+			let member = &*install.0.add(n);
 			let (class, name, value) = match member {
-				Member::Method(class, def) => (*class, def.ml_name, PyDescr_NewMethod(ty(*class).cast(), def)),
-				Member::Get(class, def) => (*class, def.name, PyDescr_NewGetSet(ty(*class).cast(), def)),
+				Member::Method(class, def) => (*class, def.ml_name, PyDescr_NewMethod(ty(*class).cast(), mutable(def))),
+				Member::Get(class, def) => (*class, def.name, PyDescr_NewGetSet(ty(*class).cast(), mutable(def))),
 				Member::Static(class, def) => {
-					let f = Obj::new(PyCMethod_New(def, null_mut(), null_mut(), null_mut()));
+					let f = Obj::new(PyCMethod_New(mutable(def), null_mut(), null_mut(), null_mut()));
 					if staticmethod.is_none() {
 						let builtins = Obj::new(PyImport_ImportModule(c"builtins".as_ptr()))?;
 						staticmethod = Some(Obj::new(PyObject_GetAttrString(builtins.ptr(), c"staticmethod".as_ptr()))?);
@@ -521,7 +673,7 @@ pub fn is_none(obj: *mut PyObject) -> bool {
 
 /// Whether `obj` is an instance of the class registered at `index`.
 pub fn is(obj: *mut PyObject, index: usize) -> bool {
-	// SAFETY: the GIL is held, and `obj` is live.
+	// SAFETY: the thread is attached, and `obj` is live.
 	unsafe { PyObject_TypeCheck(obj, ty(index).cast()) != 0 }
 }
 
@@ -538,7 +690,7 @@ fn expected_named<T>(obj: *mut PyObject, want: &str) -> R<T> {
 
 /// A class's name, for an error.
 fn type_name(class: *mut PyObject) -> String {
-	// SAFETY: the GIL is held, and `class` is a type.
+	// SAFETY: the thread is attached, and `class` is a type.
 	unsafe {
 		let Ok(name) = Obj::new(PyType_GetName(class.cast())) else {
 			PyErr_Clear();
@@ -562,7 +714,7 @@ pub fn mut_value(obj: *mut PyObject, s: &mut Scope) -> R<*mut PyObject> {
 /// Write `value`, what a call left in a value it took `&mut`, back into the `Mut` `obj`.
 pub fn set_mut(obj: *mut PyObject, value: R<Obj>) -> R<()> {
 	let value = value?;
-	// SAFETY: the GIL is held, and `obj` and `value` are live.
+	// SAFETY: the thread is attached, and `obj` and `value` are live.
 	match unsafe { PyObject_SetAttr(obj, VALUE.get()?, value.ptr()) } {
 		0 => Ok(()),
 		_ => Err(Raised),
@@ -571,7 +723,7 @@ pub fn set_mut(obj: *mut PyObject, value: R<Obj>) -> R<()> {
 
 /// The attribute `key` of `obj`, kept for the call.
 pub fn attr(obj: *mut PyObject, key: &Key, s: &mut Scope) -> R<*mut PyObject> {
-	// SAFETY: the GIL is held, and `obj` is live.
+	// SAFETY: the thread is attached, and `obj` is live.
 	let value = unsafe { Obj::new(PyObject_GetAttr(obj, key.get()?)) }?;
 	Ok(s.keep(value))
 }
@@ -590,13 +742,13 @@ pub fn bool_in(obj: *mut PyObject) -> R<bool> {
 }
 
 pub fn bool_out(value: bool) -> R<Obj> {
-	// SAFETY: the GIL is held.
+	// SAFETY: the thread is attached.
 	unsafe { Obj::new(PyBool_FromLong(value as _)) }
 }
 
 /// An integer of Rust's type `T`, from any `int` or object with `__index__` in its range.
 pub fn int_in<T: TryFrom<i128>>(obj: *mut PyObject) -> R<T> {
-	// SAFETY: the GIL is held, and `obj` is live.
+	// SAFETY: the thread is attached, and `obj` is live.
 	let value = unsafe {
 		let index = Obj::new(PyNumber_Index(obj))?;
 		let mut overflow = 0;
@@ -618,24 +770,33 @@ pub fn int_in<T: TryFrom<i128>>(obj: *mut PyObject) -> R<T> {
 	T::try_from(value).or_else(|_| overflow_int::<T>())
 }
 
+/// A `NonZero<T>`'s integer, as `int_in`, with a zero raising `ValueError`.
+pub fn nonzero_in<T: TryFrom<i128> + Default + PartialEq>(obj: *mut PyObject) -> R<T> {
+	let value = int_in::<T>(obj)?;
+	match value == T::default() {
+		true => value_error("a NonZero is zero"),
+		false => Ok(value),
+	}
+}
+
 fn overflow_int<T>() -> R<T> {
 	let name = std::any::type_name::<T>();
 	overflow(&format!("int out of range for Rust's {name}"))
 }
 
 pub fn int_out(value: i64) -> R<Obj> {
-	// SAFETY: the GIL is held.
+	// SAFETY: the thread is attached.
 	unsafe { Obj::new(PyLong_FromLongLong(value)) }
 }
 
 pub fn uint_out(value: u64) -> R<Obj> {
-	// SAFETY: the GIL is held.
+	// SAFETY: the thread is attached.
 	unsafe { Obj::new(PyLong_FromUnsignedLongLong(value)) }
 }
 
 /// A `u128`, from any `int` or object with `__index__` in its range.
 pub fn u128_in(obj: *mut PyObject) -> R<rt::U128> {
-	// SAFETY: the GIL is held, and `obj` is live.
+	// SAFETY: the thread is attached, and `obj` is live.
 	unsafe {
 		let index = Obj::new(PyNumber_Index(obj))?;
 		let shift = uint_out(64)?;
@@ -659,7 +820,7 @@ pub fn u128_out(value: rt::U128) -> R<Obj> {
 	if value.hi == 0 {
 		return Ok(lo);
 	}
-	// SAFETY: the GIL is held, and each operand is live.
+	// SAFETY: the thread is attached, and each operand is live.
 	unsafe {
 		let high = Obj::new(PyNumber_Lshift(uint_out(value.hi)?.ptr(), uint_out(64)?.ptr()))?;
 		Obj::new(PyNumber_Or(high.ptr(), lo.ptr()))
@@ -667,7 +828,7 @@ pub fn u128_out(value: rt::U128) -> R<Obj> {
 }
 
 pub fn float_in(obj: *mut PyObject) -> R<f64> {
-	// SAFETY: the GIL is held, and `obj` is live.
+	// SAFETY: the thread is attached, and `obj` is live.
 	let value = unsafe { PyFloat_AsDouble(obj) };
 	// SAFETY: as above.
 	if value == -1.0 && !unsafe { PyErr_Occurred() }.is_null() {
@@ -677,13 +838,41 @@ pub fn float_in(obj: *mut PyObject) -> R<f64> {
 }
 
 pub fn float_out(value: f64) -> R<Obj> {
-	// SAFETY: the GIL is held.
+	// SAFETY: the thread is attached.
 	unsafe { Obj::new(PyFloat_FromDouble(value)) }
+}
+
+/// An `f32`, from a `float` that [`f32_out`] widened: a NaN narrowed by its bits, keeping
+/// its sign, its quiet bit, and its payload's top 23 bits, as CPython's `struct` packs one,
+/// where the hardware's narrowing would set the quiet bit.
+pub fn f32_in(obj: *mut PyObject) -> R<f32> {
+	let value = float_in(obj)?;
+	if !value.is_nan() {
+		return Ok(value as f32);
+	}
+	let bits = value.to_bits();
+	let mut payload = (bits >> 29) as u32 & 0x7f_ffff;
+	// A payload only in the low bits would narrow to infinity: quieted instead, as the
+	// hardware does.
+	if payload == 0 {
+		payload = 1 << 22;
+	}
+	Ok(f32::from_bits((bits >> 32) as u32 & 1 << 31 | 0x7f80_0000 | payload))
+}
+
+/// A `float` of an `f32`: a NaN widened by its bits, its payload shifted up and its quiet
+/// bit kept, as CPython's `struct` unpacks one, so [`f32_in`] narrows it back exactly.
+pub fn f32_out(value: f32) -> R<Obj> {
+	if !value.is_nan() {
+		return float_out(value as f64);
+	}
+	let bits = u64::from(value.to_bits());
+	float_out(f64::from_bits((bits & 1 << 31) << 32 | 0x7ff0_0000_0000_0000 | (bits & 0x7f_ffff) << 29))
 }
 
 /// A `char`, from a `str` of one code point that is a Unicode scalar value.
 pub fn char_in(obj: *mut PyObject) -> R<u32> {
-	// SAFETY: the GIL is held, and `obj` is live.
+	// SAFETY: the thread is attached, and `obj` is live.
 	unsafe {
 		if PyUnicode_Check(obj) == 0 || PyUnicode_GetLength(obj) != 1 {
 			return expected_named(obj, "a str of one character");
@@ -697,14 +886,14 @@ pub fn char_in(obj: *mut PyObject) -> R<u32> {
 }
 
 pub fn char_out(code: u32) -> R<Obj> {
-	// SAFETY: the GIL is held.
+	// SAFETY: the thread is attached.
 	unsafe { Obj::new(PyUnicode_FromOrdinal(code as c_int)) }
 }
 
 /// A view of a `str`'s UTF-8, which Python caches in the string, so it lives as long as
 /// `obj`: the caller keeps `obj` for the call.
 pub fn str_in(obj: *mut PyObject) -> R<rt::Buf> {
-	// SAFETY: the GIL is held, and `obj` is live.
+	// SAFETY: the thread is attached, and `obj` is live.
 	unsafe {
 		if PyUnicode_Check(obj) == 0 {
 			return expected_named(obj, "str");
@@ -732,11 +921,13 @@ pub fn str_out(buf: rt::Buf) -> R<Obj> {
 	}
 }
 
-/// The bytes of `bytes`, read in place, or of any other object with the buffer protocol,
-/// such as a `bytearray` or a `memoryview`, copied: the call runs without the GIL, so
-/// another thread could write storage that is not immutable while Rust reads it.
-pub fn bytes_in(obj: *mut PyObject, s: &mut Scope) -> R<rt::Buf> {
-	// SAFETY: the GIL is held, and `obj` is live.
+/// The bytes of `bytes`, or of a `memoryview` of Rust's, read in place, or of any other
+/// object with the buffer protocol, such as a `bytearray`, copied: the call runs without
+/// the GIL, so another thread could write storage that is not immutable while Rust reads
+/// it. Where Rust takes the buffer, `take`, Rust's bytes cross shared and a copy crosses
+/// as Rust's own, so neither is copied again.
+pub fn bytes_in(obj: *mut PyObject, s: &mut Scope, take: bool) -> R<rt::Buf> {
+	// SAFETY: the thread is attached, and `obj` is live.
 	unsafe {
 		if PyBytes_Check(obj) != 0 {
 			let mut ptr: *mut c_char = null_mut();
@@ -751,25 +942,68 @@ pub fn bytes_in(obj: *mut PyObject, s: &mut Scope) -> R<rt::Buf> {
 				owner: null_mut(),
 			});
 		}
-		// SAFETY: `Py_buffer` is plain data, which the call fills.
+		// SAFETY: `Py_buffer` is plain data, which the call fills. Its format, which a
+		// `memoryview` passes on, marks Rust's bytes.
 		let mut view: Py_buffer = std::mem::zeroed();
-		if PyObject_GetBuffer(obj, &mut view, PyBUF_SIMPLE) != 0 {
+		if PyObject_GetBuffer(obj, &mut view, PyBUF_FORMAT | PyBUF_ND) != 0 {
 			return Err(Raised);
 		}
-		let copy = match view.len {
-			0 => Vec::new(),
-			len => std::slice::from_raw_parts(view.buf.cast_const().cast::<u8>(), len as usize).to_vec(),
+		let ptr = view.buf.cast_const().cast::<u8>();
+		let len = view.len as usize;
+		let buf = match (std::ptr::eq(view.format, RUST_FORMAT.as_ptr()), take) {
+			// Rust's, which never change, read in place: a second owner of them kept for
+			// the call, since releasing `obj`, a view, mid-call could free them.
+			(true, false) => {
+				let owner = (*bytes_of(view.internal.cast())).buf.owner.cast::<bytes::Bytes>();
+				s.arrays.push(Box::new((*owner).clone()));
+				rt::Buf {
+					ptr,
+					len,
+					owner: null_mut(),
+				}
+			}
+			(true, true) => {
+				let shared = (*bytes_of(view.internal.cast())).buf.share("python");
+				s.bufs.push(shared);
+				rt::Buf { ptr, len, ..shared }
+			}
+			(false, _) => {
+				let exporter = match exporter(obj) {
+					Ok(exporter) => exporter,
+					Err(err) => {
+						PyBuffer_Release(&mut view);
+						return Err(err);
+					}
+				};
+				let mut copy = Vec::with_capacity(len);
+				snapshot(&exporter, ptr, copy.as_mut_ptr(), len);
+				copy.set_len(len);
+				match take {
+					true => {
+						let owned = rt::Buf::vec(copy);
+						s.bufs.push(owned);
+						owned
+					}
+					false => {
+						let buf = rt::Buf {
+							ptr: copy.as_ptr(),
+							len: copy.len(),
+							owner: null_mut(),
+						};
+						s.arrays.push(Box::new(copy));
+						buf
+					}
+				}
+			}
 		};
 		PyBuffer_Release(&mut view);
-		let buf = rt::Buf {
-			ptr: copy.as_ptr(),
-			len: copy.len(),
-			owner: null_mut(),
-		};
-		s.arrays.push(Box::new(copy));
 		Ok(buf)
 	}
 }
+
+/// The format of a view of Rust's bytes: unsigned bytes, at an address no other exporter
+/// uses, which marks them, its `internal` then their owner.
+static RUST_FORMAT: [c_char; 2] = [b'B' as c_char, 0];
 
 /// Bytes Rust returned, as a read-only `memoryview` that lends them without a copy until
 /// it and every view of it are released.
@@ -780,14 +1014,14 @@ pub fn bytes_out(buf: rt::Buf) -> R<Obj> {
 		true => rt::Buf::owned(bytes::Bytes::copy_from_slice(unsafe { buf.bytes("python") })),
 		false => buf,
 	};
-	// SAFETY: the GIL is held, and the owner type's slots are this module's.
+	// SAFETY: the thread is attached, and the owner type's slots are this module's.
 	unsafe {
 		let owner = PyType_GenericAlloc(BYTES.get().expect("loaded").ptr().cast(), 0);
 		let Ok(owner) = Obj::new(owner) else {
 			buf.free();
 			return Err(Raised);
 		};
-		(*owner.ptr().cast::<Bytes>()).buf = buf;
+		(*bytes_of(owner.ptr())).buf = buf;
 		Obj::new(PyMemoryView_FromObject(owner.ptr()))
 	}
 }
@@ -826,7 +1060,7 @@ number!(
 );
 
 /// `array.array`, and its `frombytes`.
-static ARRAY: std::sync::OnceLock<(Static, Static)> = std::sync::OnceLock::new();
+static ARRAY: OnceLock<(Static, Static)> = OnceLock::new();
 
 /// The kind of number a buffer's `struct` format holds, if a single native one: its byte
 /// order the host's, its width the buffer's own `itemsize`.
@@ -853,9 +1087,10 @@ fn kind(format: &[u8]) -> Option<Kind> {
 /// format, or a numpy array: copied once, as the call runs without the GIL and another
 /// thread could write them while Rust reads.
 pub fn block_in<T: Number>(obj: *mut PyObject, s: &mut Scope) -> R<rt::List<T>> {
-	// SAFETY: the GIL is held, and `obj` is live.
+	// SAFETY: the thread is attached, and `obj` is live.
 	unsafe {
 		// SAFETY: `Py_buffer` is plain data, which the call fills.
+		let exporter = exporter(obj)?;
 		let mut view: Py_buffer = std::mem::zeroed();
 		if PyObject_GetBuffer(obj, &mut view, PyBUF_C_CONTIGUOUS | PyBUF_FORMAT) != 0 {
 			return Err(Raised);
@@ -877,7 +1112,7 @@ pub fn block_in<T: Number>(obj: *mut PyObject, s: &mut Scope) -> R<rt::List<T>> 
 		let len = view.len as usize / size_of::<T>();
 		let mut items = Vec::<T>::with_capacity(len);
 		// A byte copy, as the buffer need not be aligned for `T`.
-		std::ptr::copy_nonoverlapping(view.buf.cast_const().cast::<u8>(), items.as_mut_ptr().cast::<u8>(), len * size_of::<T>());
+		snapshot(&exporter, view.buf.cast_const().cast(), items.as_mut_ptr().cast(), len * size_of::<T>());
 		items.set_len(len);
 		PyBuffer_Release(&mut view);
 		let items = Box::new(items);
@@ -891,11 +1126,69 @@ pub fn block_in<T: Number>(obj: *mut PyObject, s: &mut Scope) -> R<rt::List<T>> 
 	}
 }
 
+/// What a buffer copy locks: under `abi3t` the object whose critical section its writers
+/// take, nothing where the GIL keeps them out.
+#[cfg(feature = "python-abi3t")]
+type Exporter = Obj;
+#[cfg(not(feature = "python-abi3t"))]
+type Exporter = ();
+
+/// The [`Exporter`] of `obj`'s buffer: `obj`, or a `memoryview`'s own exporter, whose bytes
+/// it shares and whose writes, such as a `bytearray`'s, lock that one.
+///
+/// # Safety
+/// The thread is attached, and `obj` is live.
+unsafe fn exporter(obj: *mut PyObject) -> R<Exporter> {
+	#[cfg(feature = "python-abi3t")]
+	// SAFETY: the caller's contract.
+	unsafe {
+		if PyMemoryView_Check(obj) == 0 {
+			return Ok(Obj::borrowed(obj));
+		}
+		let base = Obj::new(PyObject_GetAttrString(obj, c"obj".as_ptr()))?;
+		Ok(match is_none(base.ptr()) {
+			true => Obj::borrowed(obj),
+			false => base,
+		})
+	}
+	#[cfg(not(feature = "python-abi3t"))]
+	{
+		let _ = obj;
+		Ok(())
+	}
+}
+
+/// Copy `len` bytes at `src`, of a buffer `exporter` exports, to `dst`, as another thread
+/// may write them meanwhile without a GIL: inside the exporter's critical section, which a
+/// free-threaded CPython's `bytearray` takes to write, and through no Rust reference, which
+/// would claim the bytes unchanged. A writer that takes no lock, such as an `array.array`'s
+/// or a `memoryview`'s item assignment, tears the copy as it tears CPython's own, such as
+/// `bytes(view)`.
+///
+/// # Safety
+/// The thread is attached, and `src` is `len` bytes of a buffer `exporter` exports.
+unsafe fn snapshot(exporter: &Exporter, src: *const u8, dst: *mut u8, len: usize) {
+	#[cfg(feature = "python-abi3t")]
+	// SAFETY: the caller's contract; the section ends before the thread detaches.
+	unsafe {
+		let mut section = std::mem::MaybeUninit::<PyCriticalSection>::uninit();
+		PyCriticalSection_Begin(section.as_mut_ptr(), exporter.ptr());
+		std::ptr::copy_nonoverlapping(src, dst, len);
+		PyCriticalSection_End(section.as_mut_ptr());
+	}
+	#[cfg(not(feature = "python-abi3t"))]
+	// SAFETY: the caller's contract; the GIL keeps every Python writer out.
+	unsafe {
+		let () = *exporter;
+		std::ptr::copy_nonoverlapping(src, dst, len);
+	}
+}
+
 /// Numbers Rust returned, as an `array.array` of their typecode, filled in one copy.
 pub fn block_out<T: Number>(list: rt::List<T>) -> R<Obj> {
 	let out = (|| {
 		let (array, frombytes) = ARRAY.get().expect("loaded");
-		// SAFETY: the GIL is held.
+		// SAFETY: the thread is attached.
 		let code = unsafe { Obj::new(PyUnicode_FromString(T::CODE.as_ptr())) };
 		let out = call_py(array.ptr(), vec![code])?;
 		if list.len > 0 {
@@ -907,7 +1200,7 @@ pub fn block_out<T: Number>(list: rt::List<T>) -> R<Obj> {
 					PyBUF_READ,
 				))
 			};
-			// SAFETY: the GIL is held, and `out` is live.
+			// SAFETY: the thread is attached, and `out` is live.
 			call_py(frombytes.ptr(), vec![Ok(unsafe { Obj::borrowed(out.ptr()) }), view])?;
 		}
 		Ok(out)
@@ -919,7 +1212,7 @@ pub fn block_out<T: Number>(list: rt::List<T>) -> R<Obj> {
 
 /// Note `array.array`, failing unless each number's typecode is exactly as wide.
 unsafe fn arrays() -> R<()> {
-	// SAFETY: the GIL is held.
+	// SAFETY: the thread is attached.
 	unsafe {
 		let module = Obj::new(PyImport_ImportModule(c"array".as_ptr()))?;
 		let array = Obj::new(PyObject_GetAttrString(module.ptr(), c"array".as_ptr()))?;
@@ -945,7 +1238,7 @@ unsafe fn arrays() -> R<()> {
 
 /// A `[u8; N]`, from `bytes` of exactly `N`, as its class holds them.
 pub fn array_in<const N: usize>(obj: *mut PyObject) -> R<[u8; N]> {
-	// SAFETY: the GIL is held, and `obj` is live.
+	// SAFETY: the thread is attached, and `obj` is live.
 	unsafe {
 		if PyBytes_Check(obj) == 0 {
 			return expected_named(obj, "bytes");
@@ -964,14 +1257,96 @@ pub fn array_in<const N: usize>(obj: *mut PyObject) -> R<[u8; N]> {
 
 /// A `[u8; N]` as its class, `bytes` of exactly `N`, registered at `index`.
 pub fn array_out(items: &[u8], index: usize) -> R<Obj> {
-	// SAFETY: the GIL is held.
+	// SAFETY: the thread is attached.
 	let bytes = unsafe { Obj::new(PyBytes_FromStringAndSize(items.as_ptr().cast(), items.len() as Py_ssize_t)) };
 	call_py(ty(index), vec![bytes])
 }
 
+/// A `Value`'s data, before its bytes.
+#[repr(C)]
+struct ValueHead {
+	/// The weak references to it, which `weakref` keeps.
+	weaklist: *mut PyObject,
+	/// The class registered at this index made it: Python can reassign `__class__`, to
+	/// any class of `Value`'s layout, whose bytes may be fewer or another type's.
+	index: usize,
+}
+
+/// The `Copy` value a `Value` of the class registered at `index` holds, which only Rust
+/// made: Python makes none, as `Value` disallows it.
+pub fn value_in<T: Copy>(obj: *mut PyObject, index: usize) -> R<T> {
+	if !is(obj, index) {
+		return expected(obj, index);
+	}
+	// SAFETY: the thread is attached, and `obj` a `Value`; once its index matches, one
+	// `value_out` made of a `T`, which its class always holds; `T` is a struct of
+	// `MaybeUninit` units.
+	unsafe {
+		if (*value_head(obj)).index != index {
+			return expected(obj, index);
+		}
+		Ok(value_bytes(obj).cast::<T>().read_unaligned())
+	}
+}
+
+/// A new `Value` of the class registered at `index`, holding `value` in place.
+pub fn value_out<T: Copy>(index: usize, value: T) -> R<Obj> {
+	let class = ty(index);
+	// SAFETY: the thread is attached, `class` subclasses `Value`, whose items are its bytes, and
+	// the object is `size_of::<T>()` of them past its header.
+	unsafe {
+		let alloc: allocfunc = std::mem::transmute(PyType_GetSlot(class.cast(), Py_tp_alloc));
+		let obj = Obj::new(alloc(class.cast(), size_of::<T>() as Py_ssize_t))?;
+		(*value_head(obj.ptr())).weaklist = null_mut();
+		(*value_head(obj.ptr())).index = index;
+		value_bytes(obj.ptr()).cast::<T>().write_unaligned(value);
+		Ok(obj)
+	}
+}
+
+/// The data of `obj`, a `Value`.
+///
+/// # Safety
+/// `obj` is a live `Value`.
+unsafe fn value_head(obj: *mut PyObject) -> *mut ValueHead {
+	#[cfg(not(feature = "python-abi3t"))]
+	// SAFETY: the caller's contract.
+	unsafe {
+		obj.byte_add(VALUE_DATA).cast()
+	}
+	#[cfg(feature = "python-abi3t")]
+	// SAFETY: the caller's contract.
+	unsafe {
+		data::<u8>(obj, &VALUE_BASE).byte_add(VALUE_DATA).cast()
+	}
+}
+
+/// The bytes of `obj`, a `Value`, which end it, as its class keeps no fields of its own:
+/// past its data, or under `abi3t` at the type's basic size, where `Py_TPFLAGS_ITEMS_AT_END`
+/// puts them.
+///
+/// # Safety
+/// `obj` is a live `Value`.
+unsafe fn value_bytes(obj: *mut PyObject) -> *mut u8 {
+	#[cfg(not(feature = "python-abi3t"))]
+	// SAFETY: the caller's contract.
+	unsafe {
+		value_head(obj).add(1).cast()
+	}
+	#[cfg(feature = "python-abi3t")]
+	// SAFETY: the caller's contract.
+	unsafe {
+		obj.byte_add(VALUE_SIZE.load(Ordering::Relaxed)).cast()
+	}
+}
+
+/// The basic size of `Value`, read once it is made: where a value's bytes start.
+#[cfg(feature = "python-abi3t")]
+static VALUE_SIZE: AtomicUsize = AtomicUsize::new(0);
+
 /// Bytes Rust lends a callback for its call, copied into `bytes`.
 pub fn lent_bytes(buf: rt::Buf) -> R<Obj> {
-	// SAFETY: the GIL is held, and a buffer Rust lent for the call.
+	// SAFETY: the thread is attached, and a buffer Rust lent for the call.
 	unsafe {
 		let bytes = buf.bytes("python");
 		Obj::new(PyBytes_FromStringAndSize(bytes.as_ptr().cast(), bytes.len() as Py_ssize_t))
@@ -982,7 +1357,7 @@ pub fn lent_bytes(buf: rt::Buf) -> R<Obj> {
 /// so a name a Unix path holds that is not UTF-8 crosses as it came, and so does a NUL,
 /// which a Rust path holds and `PyUnicode_FSConverter` refuses.
 pub fn path_in(obj: *mut PyObject, s: &mut Scope) -> R<rt::Buf> {
-	// SAFETY: the GIL is held, and `obj` is live; each call returns a new reference.
+	// SAFETY: the thread is attached, and `obj` is live; each call returns a new reference.
 	unsafe {
 		let path = s.keep(Obj::new(PyOS_FSPath(obj))?);
 		let encoded = match PyBytes_Check(path) != 0 {
@@ -993,6 +1368,15 @@ pub fn path_in(obj: *mut PyObject, s: &mut Scope) -> R<rt::Buf> {
 		let mut len = 0;
 		if PyBytes_AsStringAndSize(encoded, &mut ptr, &mut len) != 0 {
 			return Err(Raised);
+		}
+		// Windows' file system encoding passes a surrogate through, but a lead and a trail
+		// written apart are no path, which WTF-8 writes as the scalar they make.
+		#[cfg(windows)]
+		{
+			let bytes = std::slice::from_raw_parts(ptr.cast::<u8>(), len as usize);
+			if std::str::from_utf8(bytes).is_err() && rt::wtf8(bytes).is_none() {
+				return value_error("a str with a surrogate pair apart is no Windows path");
+			}
 		}
 		Ok(rt::Buf {
 			ptr: ptr.cast_const().cast(),
@@ -1012,58 +1396,41 @@ pub fn path_out(buf: rt::Buf) -> R<Obj> {
 	}
 }
 
-static DAYS: Key = Key::new(c"days");
-static SECONDS: Key = Key::new(c"seconds");
-static MICROSECONDS: Key = Key::new(c"microseconds");
-static MAX: Key = Key::new(c"max");
-
-/// The days in `timedelta.max`, past which [`duration_out`] gives it.
-const MAX_DAYS: u64 = 999_999_999;
-
-/// A `Duration`, from a `datetime.timedelta` that is not negative: `timedelta.max`, which
-/// [`duration_out`] gives for any longer one, is `Duration::MAX`.
+/// A `Duration`, from the runtime's `Duration`: seconds a `u64` holds, and nanoseconds below
+/// a billion, else `OverflowError` or `ValueError`.
 pub fn duration_in(obj: *mut PyObject) -> R<rt::Duration> {
-	if !is(obj, T_TIMEDELTA) {
-		return expected(obj, T_TIMEDELTA);
+	if !is(obj, T_DURATION) {
+		return expected(obj, T_DURATION);
 	}
-	let mut s = Scope::default();
-	let days: u64 = match int_in::<i64>(attr(obj, &DAYS, &mut s)?)? {
-		days if days < 0 => return value_error("a negative timedelta has no Rust Duration"),
-		days => days as u64,
+	// SAFETY: the thread is attached, and `obj` a `Duration`, a tuple of its two fields.
+	let (secs, nanos) = unsafe { (PyTuple_GetItem(obj, 0), PyTuple_GetItem(obj, 1)) };
+	let duration = rt::Duration {
+		secs: int_in(secs)?,
+		nanos: int_in(nanos)?,
 	};
-	let seconds: u64 = int_in(attr(obj, &SECONDS, &mut s)?)?;
-	let micros: u32 = int_in(attr(obj, &MICROSECONDS, &mut s)?)?;
-	if (days, seconds, micros) == (MAX_DAYS, 86_399, 999_999) {
-		return Ok(rt::Duration::lower(std::time::Duration::MAX));
+	match duration.nanos < 1_000_000_000 {
+		true => Ok(duration),
+		false => value_error("a Duration's nanos are below a billion"),
 	}
-	Ok(rt::Duration {
-		secs: days * 86_400 + seconds,
-		nanos: micros * 1_000,
-	})
 }
 
-/// A `datetime.timedelta`, which holds whole microseconds up to 999,999,999 days: Rust's
-/// nanoseconds are truncated, and a longer one is `timedelta.max`, as Rust's
-/// `Duration::MAX` stands for forever, which [`duration_in`] gives back.
+/// The runtime's `Duration`, made by `tuple`'s own constructor, which (unlike a bare
+/// allocation) marks the hash CPython 3.14+ caches as not yet computed, and skips the
+/// `NamedTuple`'s Python `__new__`.
 pub fn duration_out(duration: rt::Duration) -> R<Obj> {
-	let class = ty(T_TIMEDELTA);
-	// SAFETY: the GIL is held.
+	let items = tuple(vec![uint_out(duration.secs), uint_out(duration.nanos.into())]);
+	let args = tuple(vec![items])?;
+	// SAFETY: the thread is attached; `tuple`'s `tp_new` takes a subclass and, as `tuple(items)`
+	// does, its arguments.
 	unsafe {
-		if duration.secs / 86_400 > MAX_DAYS {
-			return Obj::new(PyObject_GetAttr(class, MAX.get()?));
-		}
-		let args = tuple(vec![
-			int_out(0),
-			uint_out(duration.secs),
-			uint_out(u64::from(duration.nanos / 1_000)),
-		])?;
-		Obj::new(PyObject_CallObject(class, args.ptr()))
+		let new: newfunc = std::mem::transmute(PyType_GetSlot(&raw mut PyTuple_Type, Py_tp_new));
+		Obj::new(new(ty(T_DURATION).cast(), args.ptr(), null_mut()))
 	}
 }
 
 /// Which addresses a socket address type holds.
 #[derive(Clone, Copy, PartialEq, Eq)]
-pub enum Family {
+enum Family {
 	Any,
 	V4,
 	V6,
@@ -1071,8 +1438,29 @@ pub enum Family {
 
 /// A socket address, from a tuple as Python's `socket` module writes one: `(host, port)`,
 /// or for IPv6, `(host, port, flowinfo, scope_id)`, its host a numeric address.
-pub fn addr_in(obj: *mut PyObject, family: Family) -> R<rt::SocketAddr> {
-	// SAFETY: the GIL is held, and `obj` is live.
+pub fn addr_in(obj: *mut PyObject) -> R<rt::SocketAddr> {
+	socket_in(obj, Family::Any).map(rt::SocketAddr::lower)
+}
+
+/// An IPv4 socket address, as [`addr_in`] takes one.
+pub fn addr_v4_in(obj: *mut PyObject) -> R<rt::SocketAddrV4> {
+	match socket_in(obj, Family::V4)? {
+		std::net::SocketAddr::V4(addr) => Ok(rt::SocketAddrV4::lower(addr)),
+		std::net::SocketAddr::V6(_) => unreachable!("checked IPv4"),
+	}
+}
+
+/// An IPv6 socket address, as [`addr_in`] takes one.
+pub fn addr_v6_in(obj: *mut PyObject) -> R<rt::SocketAddrV6> {
+	match socket_in(obj, Family::V6)? {
+		std::net::SocketAddr::V6(addr) => Ok(rt::SocketAddrV6::lower(addr)),
+		std::net::SocketAddr::V4(_) => unreachable!("checked IPv6"),
+	}
+}
+
+/// A socket address of `family`, as [`addr_in`] takes one.
+fn socket_in(obj: *mut PyObject, family: Family) -> R<std::net::SocketAddr> {
+	// SAFETY: the thread is attached, and `obj` is live.
 	let len = unsafe {
 		if PyTuple_Check(obj) == 0 {
 			return expected_named(obj, "a (host, port) tuple");
@@ -1103,18 +1491,30 @@ pub fn addr_in(obj: *mut PyObject, family: Family) -> R<rt::SocketAddr> {
 	match (family, addr) {
 		(Family::V4, std::net::SocketAddr::V6(_)) => value_error("an IPv6 address has no Rust SocketAddrV4"),
 		(Family::V6, std::net::SocketAddr::V4(_)) => value_error("an IPv4 address has no Rust SocketAddrV6"),
-		_ => Ok(rt::SocketAddr::lower(addr)),
+		_ => Ok(addr),
 	}
 }
 
-/// A socket address as Python's `socket` module writes one.
+pub fn addr_v4_out(addr: rt::SocketAddrV4) -> R<Obj> {
+	socket_out(addr.lift().into())
+}
+
+pub fn addr_v6_out(addr: rt::SocketAddrV6) -> R<Obj> {
+	socket_out(addr.lift().into())
+}
+
 pub fn addr_out(addr: rt::SocketAddr) -> R<Obj> {
+	socket_out(addr.lift())
+}
+
+/// A socket address as Python's `socket` module writes one.
+fn socket_out(addr: std::net::SocketAddr) -> R<Obj> {
 	let text = |ip: &dyn std::fmt::Display| {
 		let text = ip.to_string();
-		// SAFETY: the GIL is held.
+		// SAFETY: the thread is attached.
 		unsafe { Obj::new(PyUnicode_FromStringAndSize(text.as_ptr().cast(), text.len() as Py_ssize_t)) }
 	};
-	match addr.lift("python") {
+	match addr {
 		std::net::SocketAddr::V4(v4) => tuple(vec![text(v4.ip()), uint_out(v4.port().into())]),
 		std::net::SocketAddr::V6(v6) => tuple(vec![
 			text(v6.ip()),
@@ -1125,13 +1525,83 @@ pub fn addr_out(addr: rt::SocketAddr) -> R<Obj> {
 	}
 }
 
+static PACKED: Key = Key::new(c"packed");
+static SCOPE_ID: Key = Key::new(c"scope_id");
+
+/// An IP address, from an `ipaddress.IPv4Address` or an `IPv6Address` without a scope,
+/// which Rust's `IpAddr` has no room for.
+pub fn ip_in(obj: *mut PyObject) -> R<rt::IpAddr> {
+	address_in(obj, Family::Any).map(rt::IpAddr::lower)
+}
+
+/// An IPv4 address, from an `ipaddress.IPv4Address`.
+pub fn ipv4_in(obj: *mut PyObject) -> R<rt::Ipv4Addr> {
+	match address_in(obj, Family::V4)? {
+		std::net::IpAddr::V4(ip) => Ok(rt::Ipv4Addr::lower(ip)),
+		std::net::IpAddr::V6(_) => unreachable!("checked IPv4"),
+	}
+}
+
+/// An IPv6 address, from an `ipaddress.IPv6Address` without a scope.
+pub fn ipv6_in(obj: *mut PyObject) -> R<rt::Ipv6Addr> {
+	match address_in(obj, Family::V6)? {
+		std::net::IpAddr::V6(ip) => Ok(rt::Ipv6Addr::lower(ip)),
+		std::net::IpAddr::V4(_) => unreachable!("checked IPv6"),
+	}
+}
+
+/// An IP address of `family`, as [`ip_in`] takes one.
+fn address_in(obj: *mut PyObject, family: Family) -> R<std::net::IpAddr> {
+	let v6 = match (is(obj, T_IPV4), is(obj, T_IPV6)) {
+		(true, _) if family == Family::V6 => return value_error("an IPv4 address has no Rust Ipv6Addr"),
+		(_, true) if family == Family::V4 => return value_error("an IPv6 address has no Rust Ipv4Addr"),
+		(true, _) => false,
+		(_, true) => true,
+		_ if family == Family::V4 => return expected(obj, T_IPV4),
+		_ if family == Family::V6 => return expected(obj, T_IPV6),
+		_ => return expected_named(obj, "an IPv4Address or IPv6Address"),
+	};
+	let mut s = Scope::default();
+	if v6 && !is_none(attr(obj, &SCOPE_ID, &mut s)?) {
+		return value_error("an IPv6 address with a scope has no Rust IpAddr");
+	}
+	let packed = attr(obj, &PACKED, &mut s)?;
+	Ok(match v6 {
+		true => std::net::Ipv6Addr::from(array_in::<16>(packed)?).into(),
+		false => std::net::Ipv4Addr::from(array_in::<4>(packed)?).into(),
+	})
+}
+
+pub fn ip_out(ip: rt::IpAddr) -> R<Obj> {
+	address_out(ip.lift())
+}
+
+pub fn ipv4_out(ip: rt::Ipv4Addr) -> R<Obj> {
+	address_out(ip.lift().into())
+}
+
+pub fn ipv6_out(ip: rt::Ipv6Addr) -> R<Obj> {
+	address_out(ip.lift().into())
+}
+
+/// An `ipaddress.IPv4Address` or `IPv6Address`.
+fn address_out(ip: std::net::IpAddr) -> R<Obj> {
+	let (class, packed) = match ip {
+		std::net::IpAddr::V4(v4) => (T_IPV4, v4.octets().to_vec()),
+		std::net::IpAddr::V6(v6) => (T_IPV6, v6.octets().to_vec()),
+	};
+	// SAFETY: the thread is attached.
+	let packed = unsafe { Obj::new(PyBytes_FromStringAndSize(packed.as_ptr().cast(), packed.len() as Py_ssize_t)) };
+	call_py(ty(class), vec![packed])
+}
+
 static START: Key = Key::new(c"start");
 static STOP: Key = Key::new(c"stop");
 static STEP: Key = Key::new(c"step");
 
 /// A `Range`, from a `range` of step 1.
 pub fn range_in<T: TryFrom<i128>>(obj: *mut PyObject) -> R<rt::Range<T>> {
-	// SAFETY: the GIL is held, and `obj` is live.
+	// SAFETY: the thread is attached, and `obj` is live.
 	if unsafe { PyObject_TypeCheck(obj, &raw mut PyRange_Type) } == 0 {
 		return expected_named(obj, "range");
 	}
@@ -1147,14 +1617,14 @@ pub fn range_in<T: TryFrom<i128>>(obj: *mut PyObject) -> R<rt::Range<T>> {
 
 pub fn range_out(start: R<Obj>, end: R<Obj>) -> R<Obj> {
 	let args = tuple(vec![start, end])?;
-	// SAFETY: the GIL is held.
+	// SAFETY: the thread is attached.
 	unsafe { Obj::new(PyObject_CallObject((&raw mut PyRange_Type).cast(), args.ptr())) }
 }
 
 /// A tuple of `items`, each made before any error is returned, so each frees what Rust
 /// handed over.
 pub fn tuple(items: Vec<R<Obj>>) -> R<Obj> {
-	// SAFETY: the GIL is held.
+	// SAFETY: the thread is attached.
 	unsafe {
 		let tuple = Obj::new(PyTuple_New(items.len() as Py_ssize_t));
 		let mut raised = false;
@@ -1176,7 +1646,7 @@ pub fn tuple(items: Vec<R<Obj>>) -> R<Obj> {
 
 /// The item `n` of a tuple of `len`, or a `TypeError`.
 pub fn tuple_item(obj: *mut PyObject, n: usize, len: usize) -> R<*mut PyObject> {
-	// SAFETY: the GIL is held, and `obj` is live.
+	// SAFETY: the thread is attached, and `obj` is live.
 	unsafe {
 		if PyTuple_Check(obj) == 0 || PyTuple_Size(obj) != len as Py_ssize_t {
 			return expected_named(obj, &format!("a tuple of {len}"));
@@ -1191,7 +1661,7 @@ pub fn list_in<T: Copy + 'static>(
 	s: &mut Scope,
 	mut each: impl FnMut(*mut PyObject, &mut Scope) -> R<T>,
 ) -> R<rt::List<T>> {
-	// SAFETY: the GIL is held, and `obj` is live.
+	// SAFETY: the thread is attached, and `obj` is live.
 	unsafe {
 		// A str iterates its characters, which no Rust list of strings means.
 		if PyUnicode_Check(obj) != 0 {
@@ -1228,7 +1698,7 @@ pub fn list_out<T: Copy + 'static>(list: rt::List<T>, mut each: impl FnMut(T) ->
 	let items: Vec<R<Obj>> = unsafe { list.items("python") }.iter().map(|&item| each(item)).collect();
 	// SAFETY: as above, with its elements taken.
 	unsafe { rt::List { len: 0, ..list }.free("python", |_| {}) };
-	// SAFETY: the GIL is held.
+	// SAFETY: the thread is attached.
 	unsafe {
 		let out = Obj::new(PyList_New(items.len() as Py_ssize_t));
 		let mut raised = false;
@@ -1253,7 +1723,7 @@ pub fn list_out<T: Copy + 'static>(list: rt::List<T>, mut each: impl FnMut(T) ->
 /// makes one and set as `object.__setattr__` sets, so no `__init__` runs.
 pub fn record(index: usize, fields: Vec<(&Key, R<Obj>)>) -> R<Obj> {
 	let class = ty(index);
-	// SAFETY: the GIL is held, and `class` a class of the generated Python.
+	// SAFETY: the thread is attached, and `class` a class of the generated Python.
 	unsafe {
 		let alloc: allocfunc = std::mem::transmute(PyType_GetSlot(class.cast(), Py_tp_alloc));
 		let obj = Obj::new(alloc(class.cast(), 0));
@@ -1292,15 +1762,17 @@ pub fn check(obj: *mut PyObject, index: usize) -> R<()> {
 
 static VALUE: Key = Key::new(c"value");
 
-/// The members of the plain enum registered at `index`, with their discriminants.
+/// The members of the plain enum registered at `index`, with their discriminants: read
+/// once, though threads that race may each read them.
 fn members(index: usize) -> R<&'static [(i64, Obj)]> {
-	// SAFETY: the GIL is held.
-	let table = unsafe { MEMBERS.get() };
-	if table[index].is_none() {
+	// One registry for both the class and its cell, as another load may replace it.
+	let registry = registry();
+	let cell = &registry.members[index];
+	if cell.get().is_none() {
 		let mut members = Vec::new();
-		// SAFETY: the GIL is held, and an `Enum` class iterates its members.
+		// SAFETY: the thread is attached, and an `Enum` class iterates its members.
 		unsafe {
-			let iter = Obj::new(PyObject_GetIter(ty(index)))?;
+			let iter = Obj::new(PyObject_GetIter(registry.types[index].ptr()))?;
 			loop {
 				let member = PyIter_Next(iter.ptr());
 				if member.is_null() {
@@ -1314,9 +1786,9 @@ fn members(index: usize) -> R<&'static [(i64, Obj)]> {
 				members.push((int_in::<i64>(value.ptr())?, member));
 			}
 		}
-		table[index] = Some(members);
+		let _ = cell.set(members);
 	}
-	Ok(table[index].as_deref().expect("set above"))
+	Ok(cell.get().expect("set above"))
 }
 
 /// The member of the plain enum registered at `index` whose discriminant is `value`.
@@ -1336,13 +1808,14 @@ pub fn member_in(obj: *mut PyObject, index: usize) -> R<i32> {
 	}
 }
 
-/// Raise the exception class registered at `index`, holding `error`.
+/// Raise the exception class registered at `index`, holding `error`: the subclass of its
+/// variant, for an enum's, which the class makes.
 pub fn raise_error<T>(index: usize, error: R<Obj>) -> R<T> {
 	let args = tuple(vec![error])?;
-	// SAFETY: the GIL is held, and the class an exception's.
+	// SAFETY: the thread is attached, and the class an exception's.
 	unsafe {
 		let exc = Obj::new(PyObject_CallObject(ty(index), args.ptr()))?;
-		PyErr_SetObject(ty(index), exc.ptr());
+		PyErr_SetObject(Py_TYPE(exc.ptr()).cast(), exc.ptr());
 	}
 	Err(Raised)
 }
@@ -1350,13 +1823,13 @@ pub fn raise_error<T>(index: usize, error: R<Obj>) -> R<T> {
 /// Call `callable` with `args`, each made before any error is returned.
 pub fn call_py(callable: *mut PyObject, args: Vec<R<Obj>>) -> R<Obj> {
 	let args = tuple(args)?;
-	// SAFETY: the GIL is held, and `callable` is live.
+	// SAFETY: the thread is attached, and `callable` is live.
 	unsafe { Obj::new(PyObject_CallObject(callable, args.ptr())) }
 }
 
 /// Call the method `key` of `obj` with `args`.
 pub fn call_method(obj: *mut PyObject, key: &Key, args: Vec<R<Obj>>) -> R<Obj> {
-	// SAFETY: the GIL is held, and `obj` is live.
+	// SAFETY: the thread is attached, and `obj` is live.
 	let method = unsafe { Obj::new(PyObject_GetAttr(obj, key.get()?)) }?;
 	call_py(method.ptr(), args)
 }
@@ -1366,7 +1839,7 @@ pub fn call_method(obj: *mut PyObject, key: &Key, args: Vec<R<Obj>>) -> R<Obj> {
 /// drops if the call never happens.
 pub fn callback(obj: *mut PyObject, index: usize, s: &mut Scope) -> R<*mut c_void> {
 	check(obj, index)?;
-	// SAFETY: the GIL is held, and `obj` is live.
+	// SAFETY: the thread is attached, and `obj` is live.
 	let given = unsafe { Obj::borrowed(obj) };
 	let ptr = given.ptr();
 	s.given.push(given);
@@ -1376,7 +1849,7 @@ pub fn callback(obj: *mut PyObject, index: usize, s: &mut Scope) -> R<*mut c_voi
 /// A callable Rust calls only during the call, as a closure's data: the caller's reference
 /// outlives it.
 pub fn closure(obj: *mut PyObject) -> R<*mut c_void> {
-	// SAFETY: the GIL is held, and `obj` is live.
+	// SAFETY: the thread is attached, and `obj` is live.
 	match unsafe { PyCallable_Check(obj) } {
 		0 => expected_named(obj, "a callable"),
 		_ => Ok(obj.cast()),
@@ -1387,7 +1860,7 @@ pub fn closure(obj: *mut PyObject) -> R<*mut c_void> {
 /// through [`free_closure`], or the scope drops if the call never happens.
 pub fn kept(obj: *mut PyObject, s: &mut Scope) -> R<*mut c_void> {
 	closure(obj)?;
-	// SAFETY: the GIL is held, and `obj` is live.
+	// SAFETY: the thread is attached, and `obj` is live.
 	let given = unsafe { Obj::borrowed(obj) };
 	let ptr = given.ptr();
 	s.given.push(given);
@@ -1420,7 +1893,7 @@ static ERROR: Key = Key::new(c"error");
 /// read by `message`: a copy Rust owns, as a closure or reader fails with one. An exception
 /// of any other class stays raised.
 fn caught(class: *mut PyObject, message: impl FnOnce(*mut PyObject) -> R<Obj>) -> R<rt::Buf> {
-	// SAFETY: the GIL is held, and an exception is set.
+	// SAFETY: the thread is attached, and an exception is set.
 	unsafe {
 		if PyErr_ExceptionMatches(class) == 0 {
 			return Err(Raised);
@@ -1439,7 +1912,7 @@ fn caught(class: *mut PyObject, message: impl FnOnce(*mut PyObject) -> R<Obj>) -
 /// `index`, which a Rust `String` error raises: its `error`.
 pub fn closure_error(index: usize) -> R<rt::Buf> {
 	caught(ty(index), |exc| {
-		// SAFETY: the GIL is held, and `exc` is live.
+		// SAFETY: the thread is attached, and `exc` is live.
 		unsafe { Obj::new(PyObject_GetAttr(exc, ERROR.get()?)) }
 	})
 }
@@ -1451,7 +1924,7 @@ static RELEASE: Key = Key::new(c"release");
 /// A Python reader, lent to Rust for the call as its data: anything with `readinto` and
 /// `seek`, as a binary file has, which the caller's reference outlives.
 pub fn reader_in(obj: *mut PyObject) -> R<rt::ForeignReader> {
-	// SAFETY: the GIL is held, and `obj` is live.
+	// SAFETY: the thread is attached, and `obj` is live.
 	let readable = unsafe { PyObject_HasAttr(obj, READINTO.get()?) == 1 && PyObject_HasAttr(obj, SEEK.get()?) == 1 };
 	match readable {
 		true => Ok(rt::ForeignReader {
@@ -1470,25 +1943,21 @@ pub fn reader_in(obj: *mut PyObject) -> R<rt::ForeignReader> {
 unsafe extern "C" fn reader_read(data: *mut c_void, buf: *mut u8, len: usize, n: *mut usize, err: *mut rt::Buf) -> bool {
 	upcall("read", || {
 		let lent = lend(buf, len)?;
-		// SAFETY: the GIL is held, and `lent` is live.
+		// SAFETY: the thread is attached, and `lent` is live.
 		let view = unsafe { Obj::new(PyMemoryView_FromObject(lent.ptr())) }?;
 		// SAFETY: as above, for `view`.
 		let read = match call_method(data.cast(), &READINTO, vec![Ok(unsafe { Obj::borrowed(view.ptr()) })]) {
 			Ok(read) => Ok(read),
-			// SAFETY: the GIL is held.
+			// SAFETY: the thread is attached.
 			Err(Raised) => Err(caught(unsafe { PyExc_OSError }, str_of)?),
 		};
 		let released = call_method(view.ptr(), &RELEASE, Vec::new());
 		drop(view);
-		let lent = lent.ptr().cast::<Lent>();
-		// SAFETY: a live `Lent`, which exports nothing more once its pointer is null.
-		let kept = unsafe {
-			(*lent).buf = null_mut();
-			(*lent).exports != 0
-		};
+		// SAFETY: a live `Lent`, which exports nothing more once closed.
+		let kept = unsafe { (*lent_of(lent.ptr())).exports.close() };
 		if released.is_err() || kept {
 			if released.is_err() {
-				// SAFETY: the GIL is held, and an exception is set.
+				// SAFETY: the thread is attached, and an exception is set.
 				unsafe { PyErr_Print() };
 			}
 			rt::fail("read", "a reader kept a view of its buffer past the read");
@@ -1530,7 +1999,7 @@ unsafe extern "C" fn reader_seek(data: *mut c_void, whence: c_int, offset: i64, 
 				Ok(true)
 			}
 			Err(Raised) => {
-				// SAFETY: the GIL is held.
+				// SAFETY: the thread is attached.
 				let message = caught(unsafe { PyExc_OSError }, str_of)?;
 				// SAFETY: Rust's out pointer, which it reads only on failure.
 				unsafe { err.write(message) };
@@ -1542,7 +2011,7 @@ unsafe extern "C" fn reader_seek(data: *mut c_void, whence: c_int, offset: i64, 
 
 /// `str(obj)`.
 fn str_of(obj: *mut PyObject) -> R<Obj> {
-	// SAFETY: the GIL is held, and `obj` is live.
+	// SAFETY: the thread is attached, and `obj` is live.
 	unsafe { Obj::new(PyObject_Str(obj)) }
 }
 
@@ -1557,7 +2026,7 @@ pub unsafe extern "C" fn free_callback(data: *mut c_void) {
 	upcall("free", || {
 		// SAFETY: the reference Rust held.
 		let obj = unsafe { Obj::new(data.cast()) }?;
-		// SAFETY: the GIL is held.
+		// SAFETY: the thread is attached.
 		if unsafe { PyObject_HasAttr(obj.ptr(), CLOSE.get()?) } == 1 {
 			call_method(obj.ptr(), &CLOSE, Vec::new())?;
 		}
@@ -1565,17 +2034,51 @@ pub unsafe extern "C" fn free_callback(data: *mut c_void) {
 	})
 }
 
-/// An object owning a handle Rust returned, or one Rust lends for a call: the instance
-/// of a class of the generated Python, which subclasses `Object`.
+/// An object owning a handle Rust returned, or one Rust lends for a call: the data of an
+/// instance of a class of the generated Python, which subclasses `Object`. An owned one is
+/// freed once its last reference goes, which no call outlives: Rust's own check fails a use
+/// after its value moved out. A lent one counts its calls, so its lend ends with none.
 #[repr(C)]
 pub struct Handle {
-	ob_base: PyObject,
+	/// The weak references to it, which `weakref` keeps.
+	weaklist: *mut PyObject,
+	/// The class registered at this index made it: Python can reassign `__class__`.
+	index: usize,
 	raw: *const c_void,
 	/// What frees the handle: none for one Rust lends, or once freed.
 	free: Option<unsafe extern "C" fn(*const c_void)>,
-	/// The calls holding it, each of which it outlives.
-	holds: usize,
-	closed: bool,
+	/// A lent one's calls holding it, each of which it outlives, as [`Lend`] counts them.
+	lend: Lend,
+}
+
+/// A count of what holds a lent thing, closed once its lend ends: twice the holds, plus one
+/// once closed, so a hold and the end that would close it under it never both win.
+#[repr(transparent)]
+struct Lend(AtomicUsize);
+
+impl Lend {
+	/// Hold it, unless its lend ended.
+	fn hold(&self) -> bool {
+		(self.0.fetch_update(Ordering::Acquire, Ordering::Relaxed, |n| (n & 1 == 0).then_some(n + 2))).is_ok()
+	}
+
+	fn release(&self) {
+		self.0.fetch_sub(2, Ordering::Release);
+	}
+
+	/// End the lend, returning whether anything still held it.
+	fn close(&self) -> bool {
+		self.0.fetch_or(1, Ordering::AcqRel) >> 1 != 0
+	}
+}
+
+/// The handle data of `obj`, an instance of a class of `Object`.
+///
+/// # Safety
+/// `obj` is live, and of a class that subclasses `Object`.
+unsafe fn handle_of(obj: *mut PyObject) -> *mut Handle {
+	// SAFETY: the caller's contract.
+	unsafe { data(obj, &OBJECT) }
 }
 
 /// A new object of the class registered at `index` owning `raw`, which `free` frees.
@@ -1595,14 +2098,15 @@ pub fn object_opt(raw: *const c_void, index: usize, free: unsafe extern "C" fn(*
 /// ended once the scope `s` of the call ends.
 pub fn lent(raw: *const c_void, index: usize, s: &mut Scope) -> R<Obj> {
 	let obj = handle(raw, index, None)?;
-	// SAFETY: the GIL is held, and `obj` is live.
+	// SAFETY: `obj` is live.
 	s.lent.push(unsafe { Obj::borrowed(obj.ptr()) });
 	Ok(obj)
 }
 
 fn handle(raw: *const c_void, index: usize, free: Option<unsafe extern "C" fn(*const c_void)>) -> R<Obj> {
 	let class = ty(index);
-	// SAFETY: the GIL is held, and `class` subclasses `Object` with no fields of its own.
+	// SAFETY: `class` subclasses `Object` with no fields of its own, and the allocation is
+	// zeroed, which is an unheld lend and no weak references.
 	unsafe {
 		let obj = PyType_GenericAlloc(class.cast(), 0);
 		let Ok(obj) = Obj::new(obj) else {
@@ -1611,110 +2115,193 @@ fn handle(raw: *const c_void, index: usize, free: Option<unsafe extern "C" fn(*c
 			}
 			return Err(Raised);
 		};
-		let handle = obj.ptr().cast::<Handle>();
+		let handle = handle_of(obj.ptr());
+		(*handle).index = index;
 		(*handle).raw = raw;
 		(*handle).free = free;
-		(*handle).holds = 0;
-		(*handle).closed = false;
 		Ok(obj)
 	}
 }
 
-/// The handle `obj` owns, an object of the class registered at `index`, held for the
-/// call; `moved` when the call moves its value out, after which `obj` is closed.
-pub fn hold(obj: *mut PyObject, index: usize, s: &mut Scope, moved: bool) -> R<*const c_void> {
+/// The handle `obj` owns, an object of the class registered at `index`, for the call,
+/// which the caller's reference keeps; a lent one held until the call returns.
+pub fn hold(obj: *mut PyObject, index: usize, s: &mut Scope) -> R<*const c_void> {
 	check(obj, index)?;
-	let handle = obj.cast::<Handle>();
-	// SAFETY: an object of a class that subclasses `Object`, and the GIL is held.
+	// SAFETY: an object of a class that subclasses `Object`, whose index, handle, and
+	// free change only as it is made and freed. Each field is read through the pointer, as
+	// `weakref` may write the weak list beside them meanwhile.
 	unsafe {
-		if (*handle).closed {
+		let handle = handle_of(obj);
+		if (*handle).index != index {
+			return expected(obj, index);
+		}
+		let raw = (*handle).raw;
+		if (*handle).free.is_some() {
+			return Ok(raw);
+		}
+		if !(*handle).lend.hold() {
 			return value_error(&format!("{} is closed", type_name(ty(index))));
 		}
-		(*handle).holds += 1;
-		s.held.push((Obj::borrowed(obj), moved));
-		Ok((*handle).raw)
+		s.held.push(Obj::borrowed(obj));
+		Ok(raw)
 	}
 }
 
 /// [`hold`], or a null handle for `None`.
-pub fn hold_opt(obj: *mut PyObject, index: usize, s: &mut Scope, moved: bool) -> R<*const c_void> {
+pub fn hold_opt(obj: *mut PyObject, index: usize, s: &mut Scope) -> R<*const c_void> {
 	match is_none(obj) {
 		true => Ok(null()),
-		false => hold(obj, index, s, moved),
+		false => hold(obj, index, s),
 	}
 }
 
-/// Let go of a call's hold, freeing the handle if it was closed meanwhile.
+/// Let go of a call's hold of the lent handle `obj`.
 ///
 /// # Safety
-/// `handle` is live, and held.
-unsafe fn release(handle: *mut Handle) {
+/// `obj` is a live object of `Object`, and held.
+unsafe fn release(obj: *mut PyObject) {
 	// SAFETY: the caller's contract.
-	unsafe {
-		(*handle).holds -= 1;
-		if (*handle).closed && (*handle).holds == 0 {
-			free_now(handle);
-		}
-	}
+	unsafe { (*handle_of(obj)).lend.release() };
 }
 
-/// Close a handle: freed now, or once the last call holding it returns.
+/// End the lend of `obj`, closing its handle, which Rust frees next: a call still holding
+/// it would reach the freed handle, so it fails loud, as Rust's own check does once a call
+/// borrowed.
 ///
 /// # Safety
-/// `handle` is live.
-pub unsafe fn close(handle: *mut Handle) {
+/// `obj` is a live object [`lent`] made.
+unsafe fn end(obj: *mut PyObject) {
 	// SAFETY: the caller's contract.
-	unsafe {
-		if (*handle).closed {
-			return;
-		}
-		(*handle).closed = true;
-		if (*handle).holds == 0 {
-			free_now(handle);
-		}
-	}
-}
-
-/// End a lend, closing its handle, which Rust frees next: a call still holding it would
-/// reach the freed handle, so it fails loud, as Rust's own check does once a call borrowed.
-///
-/// # Safety
-/// `handle` is live, and one [`lent`] made.
-unsafe fn end(handle: *mut Handle) {
-	// SAFETY: the caller's contract, and the GIL is held.
-	unsafe {
-		if (*handle).holds != 0 {
-			let name = type_name(Py_TYPE(handle.cast()).cast());
-			rt::fail(&name, "a call still holds it when its lend ends");
-		}
-		close(handle);
-	}
-}
-
-/// # Safety
-/// `handle` is live and held by no call.
-unsafe fn free_now(handle: *mut Handle) {
-	// SAFETY: the caller's contract.
-	unsafe {
-		if let Some(free) = (*handle).free.take() {
-			let raw = std::mem::replace(&mut (*handle).raw, null());
-			call(|| free(raw));
-		}
+	if unsafe { (*handle_of(obj)).lend.close() } {
+		// SAFETY: as above.
+		let name = type_name(unsafe { Py_TYPE(obj) }.cast());
+		rt::fail(&name, "a call still holds it when its lend ends");
 	}
 }
 
 unsafe extern "C" fn handle_dealloc(obj: *mut PyObject) {
-	// SAFETY: Python deallocates an `Object` once, holding the GIL; nothing holds it.
+	// SAFETY: Python deallocates an `Object` once, and nothing holds it.
 	unsafe {
-		free_now(obj.cast());
+		clear_weak(obj);
+		let handle = handle_of(obj);
+		if let Some(free) = (*handle).free.take() {
+			let raw = std::mem::replace(&mut (*handle).raw, null());
+			call(|| free(raw));
+		}
 		dealloc(obj);
+	}
+}
+
+unsafe extern "C" fn value_dealloc(obj: *mut PyObject) {
+	// SAFETY: Python deallocates a `Value` once.
+	unsafe {
+		clear_weak(obj);
+		dealloc(obj);
+	}
+}
+
+/// Clear the weak references to `obj`, as its dealloc must: Python's `subtype_dealloc`
+/// leaves them to the base declaring the list. CPython reads the list, not Rust, as a
+/// weak reference dying on another thread may write it meanwhile.
+///
+/// # Safety
+/// `obj`, an `Object` or `Value`, is being deallocated.
+unsafe fn clear_weak(obj: *mut PyObject) {
+	// SAFETY: the caller's contract.
+	unsafe { PyObject_ClearWeakRefs(obj) };
+}
+
+/// The members of a type whose objects hold a list of weak references at `offset`, from
+/// where [`DATA`] says: `__weaklistoffset__` alone, which `PyType_FromSpec` reads to let
+/// `weakref` take them.
+const fn weak_members(offset: usize) -> [PyMemberDef; 2] {
+	[
+		PyMemberDef {
+			name: c"__weaklistoffset__".as_ptr(),
+			type_code: Py_T_PYSSIZET,
+			offset: offset as Py_ssize_t,
+			flags: Py_READONLY | RELATIVE,
+			doc: null(),
+		},
+		PyMemberDef {
+			name: null(),
+			type_code: 0,
+			offset: 0,
+			flags: 0,
+			doc: null(),
+		},
+	]
+}
+
+static OBJECT_MEMBERS: Table<PyMemberDef, 2> = Table::new(weak_members(DATA + std::mem::offset_of!(Handle, weaklist)));
+static VALUE_MEMBERS: Table<PyMemberDef, 2> = Table::new(weak_members(VALUE_DATA + std::mem::offset_of!(ValueHead, weaklist)));
+
+/// A runtime type, made once per process, with the first module.
+type Class = OnceLock<Static>;
+
+/// The header of an object, before its type's data, where the stable ABI fixes its size.
+#[cfg(not(feature = "python-abi3t"))]
+#[repr(C)]
+struct Embedded<H, T> {
+	head: H,
+	data: T,
+}
+
+/// Where a runtime type's data starts in an object: past its header, as the stable ABI
+/// lays it out, or under `abi3t` at the data `PyObject_GetTypeData` finds, from which a
+/// member's offset is relative.
+#[cfg(not(feature = "python-abi3t"))]
+const DATA: usize = std::mem::offset_of!(Embedded<PyObject, Handle>, data);
+#[cfg(feature = "python-abi3t")]
+const DATA: usize = 0;
+
+/// [`DATA`] of `Value`, whose header varies in size by its items. Under `abi3t` its data
+/// starts where the interpreter puts it, past `object`'s header, where a variable-size
+/// object keeps its item count, `ob_size`, which the data leaves room for.
+#[cfg(not(feature = "python-abi3t"))]
+const VALUE_DATA: usize = std::mem::offset_of!(Embedded<PyVarObject, ValueHead>, data);
+#[cfg(feature = "python-abi3t")]
+const VALUE_DATA: usize = size_of::<Py_ssize_t>();
+
+/// The flag a member's offset within the type's data takes: none where the data's place is
+/// fixed.
+#[cfg(not(feature = "python-abi3t"))]
+const RELATIVE: c_int = 0;
+#[cfg(feature = "python-abi3t")]
+const RELATIVE: c_int = Py_RELATIVE_OFFSET;
+
+/// The spec's basic size of a runtime type whose data is a `T`: the whole object's, or under
+/// `abi3t` the negated size of its data alone, which the interpreter places past a header
+/// of its own (PEP 697).
+const fn basicsize<T>() -> c_int {
+	#[cfg(not(feature = "python-abi3t"))]
+	return (DATA + size_of::<T>()) as c_int;
+	#[cfg(feature = "python-abi3t")]
+	return -(size_of::<T>() as c_int);
+}
+
+/// The `T` the type `class` holds in `obj`.
+///
+/// # Safety
+/// `obj` is live and an instance of `class`, whose data is a `T`.
+unsafe fn data<T>(obj: *mut PyObject, class: &Class) -> *mut T {
+	#[cfg(not(feature = "python-abi3t"))]
+	{
+		let _ = class;
+		// SAFETY: the caller's contract; every runtime type's data has a pointer's alignment.
+		unsafe { obj.byte_add(DATA).cast() }
+	}
+	#[cfg(feature = "python-abi3t")]
+	// SAFETY: the caller's contract.
+	unsafe {
+		PyObject_GetTypeData(obj, class.get().expect("made with the module").ptr().cast()).cast()
 	}
 }
 
 /// Free an instance of a heap type, and the reference to its type it held.
 ///
 /// # Safety
-/// `obj` is being deallocated, holding the GIL.
+/// `obj` is being deallocated.
 unsafe fn dealloc(obj: *mut PyObject) {
 	// SAFETY: the caller's contract.
 	unsafe {
@@ -1728,16 +2315,25 @@ unsafe fn dealloc(obj: *mut PyObject) {
 /// The owner of bytes Rust returned, which a `memoryview` reads in place.
 #[repr(C)]
 struct Bytes {
-	ob_base: PyObject,
 	buf: rt::Buf,
 }
 
-static BYTES: std::sync::OnceLock<Static> = std::sync::OnceLock::new();
+/// The bytes `obj`, a `Bytes`, owns.
+///
+/// # Safety
+/// `obj` is a live `Bytes`.
+unsafe fn bytes_of(obj: *mut PyObject) -> *mut Bytes {
+	// SAFETY: the caller's contract.
+	unsafe { data(obj, &BYTES) }
+}
+
+static BYTES: Class = OnceLock::new();
 
 /// A reference kept for the interpreter's life.
 struct Static(Obj);
 
-// SAFETY: touched only with the GIL held.
+// SAFETY: touched only by threads attached to the interpreter, which counts its references
+// atomically where it has no GIL.
 unsafe impl Send for Static {}
 // SAFETY: as above.
 unsafe impl Sync for Static {}
@@ -1749,27 +2345,34 @@ impl Static {
 }
 
 /// The exporter of a buffer Rust lends a reader's `readinto`, writable until the read
-/// ends, counting the views of it still open.
+/// ends, counting the views of it still open, which the reader may pass to other threads.
 #[repr(C)]
 struct Lent {
-	ob_base: PyObject,
 	buf: *mut u8,
 	len: usize,
-	exports: usize,
+	exports: Lend,
 }
 
-static LENT: std::sync::OnceLock<Static> = std::sync::OnceLock::new();
+static LENT: Class = OnceLock::new();
+
+/// The buffer `obj`, a `Lent`, exports.
+///
+/// # Safety
+/// `obj` is a live `Lent`.
+unsafe fn lent_of(obj: *mut PyObject) -> *mut Lent {
+	// SAFETY: the caller's contract.
+	unsafe { data(obj, &LENT) }
+}
 
 /// A [`Lent`] of Rust's `len` bytes at `buf`.
 fn lend(buf: *mut u8, len: usize) -> R<Obj> {
 	let class = LENT.get().expect("loaded").ptr();
-	// SAFETY: the GIL is held, and `class` is `Lent`'s.
+	// SAFETY: the thread is attached, and `class` is `Lent`'s.
 	unsafe {
 		let obj = Obj::new(PyType_GenericAlloc(class.cast(), 0))?;
-		let lent = obj.ptr().cast::<Lent>();
+		let lent = lent_of(obj.ptr());
 		(*lent).buf = buf;
 		(*lent).len = len;
-		(*lent).exports = 0;
 		Ok(obj)
 	}
 }
@@ -1777,14 +2380,14 @@ fn lend(buf: *mut u8, len: usize) -> R<Obj> {
 unsafe extern "C" fn lent_getbuffer(obj: *mut PyObject, view: *mut Py_buffer, flags: c_int) -> c_int {
 	// SAFETY: Python asks a live `Lent` for a view.
 	unsafe {
-		let lent = obj.cast::<Lent>();
-		if (*lent).buf.is_null() {
+		let lent = &*lent_of(obj);
+		if !lent.exports.hold() {
 			PyErr_SetString(PyExc_ValueError, c"a reader's buffer is used past its read".as_ptr());
 			return -1;
 		}
-		let filled = PyBuffer_FillInfo(view, obj, (*lent).buf.cast(), (*lent).len as Py_ssize_t, 0, flags);
-		if filled == 0 {
-			(*lent).exports += 1;
+		let filled = PyBuffer_FillInfo(view, obj, lent.buf.cast(), lent.len as Py_ssize_t, 0, flags);
+		if filled != 0 {
+			lent.exports.release();
 		}
 		filled
 	}
@@ -1792,7 +2395,7 @@ unsafe extern "C" fn lent_getbuffer(obj: *mut PyObject, view: *mut Py_buffer, fl
 
 unsafe extern "C" fn lent_releasebuffer(obj: *mut PyObject, _: *mut Py_buffer) {
 	// SAFETY: Python releases a view of a live `Lent` it exported.
-	unsafe { (*obj.cast::<Lent>()).exports -= 1 };
+	unsafe { (*lent_of(obj)).exports.release() };
 }
 
 unsafe extern "C" fn lent_dealloc(obj: *mut PyObject) {
@@ -1803,15 +2406,21 @@ unsafe extern "C" fn lent_dealloc(obj: *mut PyObject) {
 unsafe extern "C" fn bytes_getbuffer(obj: *mut PyObject, view: *mut Py_buffer, flags: c_int) -> c_int {
 	// SAFETY: Python asks a live `Bytes` for a view.
 	unsafe {
-		let buf = (*obj.cast::<Bytes>()).buf;
-		PyBuffer_FillInfo(view, obj, buf.ptr.cast_mut().cast(), buf.len as Py_ssize_t, 1, flags)
+		let buf = (*bytes_of(obj)).buf;
+		let filled = PyBuffer_FillInfo(view, obj, buf.ptr.cast_mut().cast(), buf.len as Py_ssize_t, 1, flags);
+		// A `memoryview` keeps both in each view of it, its slices included.
+		if filled == 0 && !(*view).format.is_null() {
+			(*view).format = RUST_FORMAT.as_ptr().cast_mut();
+			(*view).internal = obj.cast();
+		}
+		filled
 	}
 }
 
 unsafe extern "C" fn bytes_dealloc(obj: *mut PyObject) {
 	// SAFETY: Python deallocates a `Bytes` once no view of it is left.
 	unsafe {
-		(*obj.cast::<Bytes>()).buf.free();
+		(*bytes_of(obj)).buf.free();
 		dealloc(obj);
 	}
 }
@@ -1826,6 +2435,9 @@ pub struct Queue {
 	woken: AtomicBool,
 	/// The address of its event loop, which [`RUNNING`] matches while it runs a call.
 	event_loop: usize,
+	/// Whether its `Queue` was deallocated, as it is once its loop goes, after which
+	/// another loop may take the address.
+	closed: AtomicBool,
 	/// How many of its futures are parked and its `Waker`s alive, which a wake may queue.
 	waits: Arc<AtomicUsize>,
 	tx: Socket,
@@ -2010,8 +2622,16 @@ unsafe extern "C" fn node_drop(data: *mut c_void) {
 /// `Queue(loop)`: the queue of one event loop, with its socket's file descriptor to read.
 #[repr(C)]
 struct QueueObj {
-	ob_base: PyObject,
 	queue: Option<Arc<Queue>>,
+}
+
+/// The queue `obj`, a `Queue`, holds until it is deallocated.
+///
+/// # Safety
+/// `obj` is a live `Queue`.
+unsafe fn queue_obj(obj: *mut PyObject) -> *mut QueueObj {
+	// SAFETY: the caller's contract.
+	unsafe { data(obj, &QUEUE) }
 }
 
 unsafe extern "C" fn queue_new(class: *mut PyTypeObject, args: *mut PyObject, _: *mut PyObject) -> *mut PyObject {
@@ -2022,7 +2642,7 @@ unsafe extern "C" fn queue_new(class: *mut PyTypeObject, args: *mut PyObject, _:
 			// SAFETY: a static exception type.
 			Err(err) => return raise(unsafe { PyExc_OSError }, &err.to_string()),
 		};
-		// SAFETY: the GIL is held, and `class` is `Queue`.
+		// SAFETY: the thread is attached, and `class` is `Queue`.
 		unsafe {
 			let obj = Obj::new(PyType_GenericAlloc(class, 0))?;
 			let queue = Queue {
@@ -2030,11 +2650,12 @@ unsafe extern "C" fn queue_new(class: *mut PyTypeObject, args: *mut PyObject, _:
 				signaled: AtomicBool::new(false),
 				woken: AtomicBool::new(false),
 				event_loop,
+				closed: AtomicBool::new(false),
 				waits: Arc::new(AtomicUsize::new(0)),
 				tx,
 				rx,
 			};
-			std::ptr::write(&raw mut (*obj.ptr().cast::<QueueObj>()).queue, Some(Arc::new(queue)));
+			std::ptr::write(&raw mut (*queue_obj(obj.ptr())).queue, Some(Arc::new(queue)));
 			Ok(obj)
 		}
 	})
@@ -2043,7 +2664,9 @@ unsafe extern "C" fn queue_new(class: *mut PyTypeObject, args: *mut PyObject, _:
 unsafe extern "C" fn queue_dealloc(obj: *mut PyObject) {
 	// SAFETY: Python deallocates a `Queue` once.
 	unsafe {
-		drop((*obj.cast::<QueueObj>()).queue.take());
+		if let Some(queue) = (*queue_obj(obj)).queue.take() {
+			queue.closed.store(true, Ordering::Relaxed);
+		}
 		dealloc(obj);
 	}
 }
@@ -2054,12 +2677,12 @@ fn queue_of(obj: *mut PyObject) -> R<Arc<Queue>> {
 		return expected_named(obj, "Queue");
 	}
 	// SAFETY: a `Queue`, which holds its queue until deallocated.
-	Ok(unsafe { (*obj.cast::<QueueObj>()).queue.clone() }.expect("a live queue"))
+	Ok(unsafe { (*queue_obj(obj)).queue.clone() }.expect("a live queue"))
 }
 
 unsafe extern "C" fn queue_fileno(obj: *mut PyObject, _: *mut PyObject) -> *mut PyObject {
 	// SAFETY: Python calls it on a `Queue`.
-	let queue = unsafe { (*obj.cast::<QueueObj>()).queue.as_ref() }.expect("a live queue");
+	let queue = unsafe { (*queue_obj(obj)).queue.as_ref() }.expect("a live queue");
 	#[cfg(unix)]
 	let fd = std::os::fd::AsRawFd::as_raw_fd(&queue.rx) as i64;
 	#[cfg(windows)]
@@ -2070,7 +2693,7 @@ unsafe extern "C" fn queue_fileno(obj: *mut PyObject, _: *mut PyObject) -> *mut 
 /// `take(read)`: the tokens queued, the socket drained first if `read`.
 unsafe extern "C" fn queue_take(obj: *mut PyObject, read: *mut PyObject) -> *mut PyObject {
 	// SAFETY: Python calls it on a `Queue`.
-	let queue = unsafe { (*obj.cast::<QueueObj>()).queue.as_ref() }.expect("a live queue");
+	let queue = unsafe { (*queue_obj(obj)).queue.as_ref() }.expect("a live queue");
 	// SAFETY: comparing addresses.
 	let tokens = queue.take(read == unsafe { Py_True() });
 	wrap(|| {
@@ -2083,24 +2706,32 @@ unsafe extern "C" fn queue_take(obj: *mut PyObject, read: *mut PyObject) -> *mut
 /// cannot say, since a proactor loop's pending read takes the byte as it lands.
 unsafe extern "C" fn queue_signaled(obj: *mut PyObject, _: *mut PyObject) -> *mut PyObject {
 	// SAFETY: Python calls it on a `Queue`.
-	let queue = unsafe { (*obj.cast::<QueueObj>()).queue.as_ref() }.expect("a live queue");
+	let queue = unsafe { (*queue_obj(obj)).queue.as_ref() }.expect("a live queue");
 	bool_out(queue.signaled.load(Ordering::SeqCst)).map_or(null_mut(), Obj::into_ptr)
 }
 
 /// `Node`: a Python `Waker`'s node, made on its loop's queue.
 #[repr(C)]
 struct NodeObj {
-	ob_base: PyObject,
 	node: Option<Arc<Node>>,
+}
+
+/// The node `obj`, a `Node`, holds until it is deallocated.
+///
+/// # Safety
+/// `obj` is a live `Node`.
+unsafe fn node_obj(obj: *mut PyObject) -> *mut NodeObj {
+	// SAFETY: the caller's contract.
+	unsafe { data(obj, &NODE) }
 }
 
 unsafe extern "C" fn node_new(class: *mut PyTypeObject, args: *mut PyObject, _: *mut PyObject) -> *mut PyObject {
 	wrap(|| {
 		let queue = queue_of(tuple_item(args, 0, 1)?)?;
-		// SAFETY: the GIL is held, and `class` is `Node`.
+		// SAFETY: the thread is attached, and `class` is `Node`.
 		unsafe {
 			let obj = Obj::new(PyType_GenericAlloc(class, 0))?;
-			std::ptr::write(&raw mut (*obj.ptr().cast::<NodeObj>()).node, Some(Node::new(queue, true)));
+			std::ptr::write(&raw mut (*node_obj(obj.ptr())).node, Some(Node::new(queue, true)));
 			Ok(obj)
 		}
 	})
@@ -2109,14 +2740,14 @@ unsafe extern "C" fn node_new(class: *mut PyTypeObject, args: *mut PyObject, _: 
 unsafe extern "C" fn node_obj_dealloc(obj: *mut PyObject) {
 	// SAFETY: Python deallocates a `Node` once.
 	unsafe {
-		drop((*obj.cast::<NodeObj>()).node.take());
+		drop((*node_obj(obj)).node.take());
 		dealloc(obj);
 	}
 }
 
 unsafe extern "C" fn node_wake_py(obj: *mut PyObject, _: *mut PyObject) -> *mut PyObject {
 	// SAFETY: Python calls it on a `Node`.
-	let node = unsafe { (*obj.cast::<NodeObj>()).node.as_ref() }.expect("a live node");
+	let node = unsafe { (*node_obj(obj)).node.as_ref() }.expect("a live node");
 	// SAFETY: the node is live while its `Node` is.
 	unsafe { node_wake(Arc::as_ptr(node).cast_mut().cast()) };
 	none().map_or(null_mut(), Obj::into_ptr)
@@ -2124,7 +2755,7 @@ unsafe extern "C" fn node_wake_py(obj: *mut PyObject, _: *mut PyObject) -> *mut 
 
 unsafe extern "C" fn node_token(obj: *mut PyObject, _: *mut PyObject) -> *mut PyObject {
 	// SAFETY: Python calls it on a `Node`.
-	let node = unsafe { (*obj.cast::<NodeObj>()).node.as_ref() }.expect("a live node");
+	let node = unsafe { (*node_obj(obj)).node.as_ref() }.expect("a live node");
 	int_out(node.token).map_or(null_mut(), Obj::into_ptr)
 }
 
@@ -2136,11 +2767,11 @@ pub fn waker_in(obj: *mut PyObject, s: &mut Scope) -> R<rt::Waker> {
 	let node = attr(obj, &NODE_ATTR, s)?;
 	let waker = if is_type(node, &NODE) {
 		// SAFETY: a `Node`, which holds its node until deallocated.
-		let node = unsafe { (*node.cast::<NodeObj>()).node.clone() }.expect("a live node");
+		let node = unsafe { (*node_obj(node)).node.clone() }.expect("a live node");
 		node.give()
 	} else if is_type(node, &RETURNED) {
 		// SAFETY: a `Returned`, which holds its waker until deallocated.
-		rt::Waker::lower(unsafe { (*node.cast::<ReturnedObj>()).waker.clone() })
+		rt::Waker::lower(unsafe { (*returned_obj(node)).waker.clone() })
 	} else {
 		return expected_named(obj, "Waker");
 	};
@@ -2174,12 +2805,12 @@ struct Pollable {
 	started: bool,
 }
 
-static ENDED_METHODS: Methods<2> = Methods(UnsafeCell::new([onearg(c"ended", pollable_ended), END]));
+static ENDED_METHODS: Methods<2> = Methods::new([onearg(c"ended", pollable_ended), END]);
 
 /// An awaitable passed by value, as `_Pollable` runs it on the running event loop: Rust
 /// polls it and frees it, or the scope does if the call never happens.
 pub fn future_in(obj: *mut PyObject, s: &mut Scope) -> R<rt::ForeignFuture> {
-	// SAFETY: the GIL is held, and `obj` is live.
+	// SAFETY: the thread is attached, and `obj` is live.
 	let obj = call_py(ty(T_POLLABLE), vec![Ok(unsafe { Obj::borrowed(obj) })])?;
 	let pollable = Box::new(Pollable {
 		obj,
@@ -2216,7 +2847,7 @@ unsafe extern "C" fn pollable_poll(data: *mut c_void, waker: rt::Waker) -> bool 
 		pollable.started = true;
 		upcall("poll", || {
 			let ended = Box::into_raw(Box::new(pollable.ended.clone()));
-			// SAFETY: the GIL is held; the capsule owns `ended` until it is collected.
+			// SAFETY: the thread is attached; the capsule owns `ended` until it is collected.
 			let capsule = unsafe { Obj::new(PyCapsule_New(ended.cast(), null(), Some(ended_free))) }?;
 			// SAFETY: as above; the method table lives for the interpreter's life.
 			let ended = unsafe { Obj::new(PyCMethod_New(ENDED_METHODS.ptr(), capsule.ptr(), null_mut(), null_mut())) }?;
@@ -2262,7 +2893,7 @@ unsafe extern "C" fn pollable_ended(capsule: *mut PyObject, task: *mut PyObject)
 	// SAFETY: the capsule holds what `pollable_poll` boxed, until it is collected.
 	let ended = unsafe { &*PyCapsule_GetPointer(capsule, null()).cast::<Arc<Ended>>() };
 	if call_method(task, &RESULT, Vec::new()).is_err() {
-		// SAFETY: the GIL is held, and an exception is set.
+		// SAFETY: the thread is attached, and an exception is set.
 		unsafe { PyErr_Print() };
 		rt::fail("ended", "a future Rust polls raised");
 	}
@@ -2280,18 +2911,26 @@ unsafe extern "C" fn pollable_ended(capsule: *mut PyObject, task: *mut PyObject)
 /// `Returned`: the node of a `Waker` Rust returned, which wakes through Rust.
 #[repr(C)]
 struct ReturnedObj {
-	ob_base: PyObject,
 	waker: std::task::Waker,
+}
+
+/// The waker `obj`, a `Returned`, holds until it is deallocated.
+///
+/// # Safety
+/// `obj` is a live `Returned`.
+unsafe fn returned_obj(obj: *mut PyObject) -> *mut ReturnedObj {
+	// SAFETY: the caller's contract.
+	unsafe { data(obj, &RETURNED) }
 }
 
 /// A waker Rust returned, as a `Waker` whose node is a `Returned`.
 pub fn waker_out(waker: rt::Waker) -> R<Obj> {
 	let waker = waker.lift();
 	let returned = RETURNED.get().expect("made with the module").ptr().cast();
-	// SAFETY: the GIL is held, `returned` is `Returned`, and `T_WAKER` the `Waker` class.
+	// SAFETY: the thread is attached, `returned` is `Returned`, and `T_WAKER` the `Waker` class.
 	unsafe {
 		let node = Obj::new(PyType_GenericAlloc(returned, 0))?;
-		std::ptr::write(&raw mut (*node.ptr().cast::<ReturnedObj>()).waker, waker);
+		std::ptr::write(&raw mut (*returned_obj(node.ptr())).waker, waker);
 		let new = Obj::new(PyObject_GetAttrString((&raw mut PyBaseObject_Type).cast(), c"__new__".as_ptr()))?;
 		let obj = Obj::new(PyObject_CallObject(new.ptr(), tuple(vec![Ok(Obj::borrowed(ty(T_WAKER)))])?.ptr()))?;
 		if PyObject_SetAttr(obj.ptr(), NODE_ATTR.get()?, node.ptr()) != 0 {
@@ -2303,14 +2942,14 @@ pub fn waker_out(waker: rt::Waker) -> R<Obj> {
 
 unsafe extern "C" fn returned_wake(obj: *mut PyObject, _: *mut PyObject) -> *mut PyObject {
 	// SAFETY: Python calls it on a live `Returned`.
-	unsafe { &(*obj.cast::<ReturnedObj>()).waker }.wake_by_ref();
+	unsafe { &(*returned_obj(obj)).waker }.wake_by_ref();
 	none().map_or(null_mut(), Obj::into_ptr)
 }
 
 unsafe extern "C" fn returned_dealloc(obj: *mut PyObject) {
 	// SAFETY: Python deallocates a `Returned` once.
 	unsafe {
-		std::ptr::drop_in_place(&raw mut (*obj.cast::<ReturnedObj>()).waker);
+		std::ptr::drop_in_place(&raw mut (*returned_obj(obj)).waker);
 		dealloc(obj);
 	}
 }
@@ -2320,18 +2959,23 @@ pub type Poll = unsafe fn(*mut c_void, rt::Waker) -> R<Option<Obj>>;
 
 /// `Future`: a C ABI future its first poll left pending, which `__await__` polls on its
 /// loop's queue until it finishes, and frees once it does or is closed, cancelling it.
-#[repr(C)]
 pub struct Future {
-	ob_base: PyObject,
+	token: i64,
+	/// Whether an `await` took it, after which another raises, as awaiting a coroutine
+	/// twice does.
+	claimed: AtomicBool,
+	/// What a poll and a close share, which no Python runs under the lock of: a poll runs
+	/// without the GIL, or under none, while another thread may close it.
+	state: Mutex<Polled>,
+}
+
+/// What a [`Future`]'s poll and close share.
+struct Polled {
 	raw: *mut c_void,
 	poll: Option<Poll>,
 	free: Option<unsafe fn(*mut c_void)>,
 	node: Option<Arc<Node>>,
-	token: i64,
-	/// Whether an `await` took it, after which another raises, as awaiting a coroutine
-	/// twice does.
-	claimed: bool,
-	/// Whether a poll runs, without the GIL, so a close from another thread waits for it.
+	/// Whether a poll runs, so a close waits for it.
 	polling: bool,
 	/// Whether it was closed while it polled, which the poll then does.
 	closing: bool,
@@ -2339,7 +2983,62 @@ pub struct Future {
 	held: Vec<Obj>,
 }
 
-static PENDING: std::sync::OnceLock<Static> = std::sync::OnceLock::new();
+/// What a future that ended lets go of, once out of its lock, as each may run Python.
+struct Ending {
+	free: Option<(unsafe fn(*mut c_void), *mut c_void)>,
+	node: Option<Arc<Node>>,
+	held: Vec<Obj>,
+}
+
+impl Polled {
+	/// End the future: no poll reaches it after.
+	fn end(&mut self) -> Ending {
+		self.poll = None;
+		Ending {
+			free: (self.free.take()).map(|free| (free, std::mem::replace(&mut self.raw, null_mut()))),
+			node: self.node.take(),
+			held: std::mem::take(&mut self.held),
+		}
+	}
+}
+
+impl Ending {
+	/// Free the C future, cancelling it unless it finished, wake it for good, so a wake Rust
+	/// makes after queues nothing, and let go of its holds. A parked one is queued, as a
+	/// wake would, so an `await` of it resumes to find it ended.
+	fn finish(self) {
+		if let Some((free, raw)) = self.free {
+			// SAFETY: the future, which ended, is freed once.
+			call(|| unsafe { free(raw) });
+		}
+		if let Some(node) = self.node
+			&& node.enter(WOKEN) == PARKED
+		{
+			node.queue.push(node.token);
+		}
+		for held in self.held {
+			// SAFETY: a handle the call held, which the future held since.
+			unsafe { release(held.ptr()) };
+		}
+	}
+}
+
+impl Future {
+	fn lock(&self) -> std::sync::MutexGuard<'_, Polled> {
+		self.state.lock().unwrap_or_else(|e| e.into_inner())
+	}
+}
+
+/// The future `obj`, a `Future`, holds.
+///
+/// # Safety
+/// `obj` is a live `Future` [`start`] made.
+unsafe fn future_of<'a>(obj: *mut PyObject) -> &'a Future {
+	// SAFETY: the caller's contract.
+	unsafe { &*data::<Future>(obj, &FUTURE) }
+}
+
+static PENDING: Class = OnceLock::new();
 
 /// A future the call `raw` made, polled at once unless `eager`, since a function that is
 /// not `async` ran at the call and is polled when awaited: its value if ready, or else the
@@ -2364,116 +3063,130 @@ pub unsafe fn start(raw: *mut c_void, poll: Poll, free: unsafe fn(*mut c_void), 
 			}
 		}
 	}
-	// SAFETY: the GIL is held, and the registered class subclasses `Future`.
+	// SAFETY: the registered class subclasses `Future`, whose data is written before any
+	// other code sees the object.
 	unsafe {
 		let obj = PyType_GenericAlloc(ty(T_FUTURE).cast(), 0);
 		let Ok(obj) = Obj::new(obj) else {
 			call(|| free(raw));
 			return Err(Raised);
 		};
-		// The allocation is zeroed, which is `None` for each option.
-		let future = obj.ptr().cast::<Future>();
-		(*future).raw = raw;
-		(*future).poll = Some(poll);
-		(*future).free = Some(free);
-		(*future).token = TOKENS.fetch_add(1, Ordering::Relaxed);
-		std::ptr::write(&raw mut (*future).held, s.take_held());
+		let future = Future {
+			token: TOKENS.fetch_add(1, Ordering::Relaxed),
+			claimed: AtomicBool::new(false),
+			state: Mutex::new(Polled {
+				raw,
+				poll: Some(poll),
+				free: Some(free),
+				node: None,
+				polling: false,
+				closing: false,
+				held: s.take_held(),
+			}),
+		};
+		std::ptr::write(data::<Future>(obj.ptr(), &FUTURE), future);
 		Ok(obj)
 	}
 }
 
 /// Free a future's C future, cancelling it unless it finished, and let go of its holds:
 /// once its poll returns, if one runs.
-///
-/// # Safety
-/// `future` is live.
-unsafe fn future_close(future: *mut Future) {
-	// SAFETY: the caller's contract.
-	unsafe {
-		if (*future).polling {
-			(*future).closing = true;
+fn future_close(future: &Future) {
+	let ending = {
+		let mut state = future.lock();
+		if state.polling {
+			state.closing = true;
 			return;
 		}
-		// Ended before the free releases the GIL, as Python may run during it.
-		(*future).poll = None;
-		if let Some(free) = (*future).free.take() {
-			let raw = std::mem::replace(&mut (*future).raw, null_mut());
-			call(|| free(raw));
-		}
-		// Woken for good: a wake Rust makes after queues nothing.
-		if let Some(node) = (*future).node.take() {
-			node.enter(WOKEN);
-		}
-		for held in std::mem::take(&mut (*future).held) {
-			release(held.ptr().cast());
-		}
-	}
+		state.end()
+	};
+	ending.finish();
+}
+
+/// Why a poll cannot start.
+enum Refused {
+	Ended,
+	Polling,
 }
 
 /// `poll(queue)`: poll on the queue's loop, again at once if woken while polling: the
 /// value, or `PENDING` once parked, after which a wake queues the future's token.
 unsafe extern "C" fn future_poll(obj: *mut PyObject, args: *mut *mut PyObject, nargs: Py_ssize_t) -> *mut PyObject {
-	let future = obj.cast::<Future>();
+	// SAFETY: Python calls it on a `Future`, whose reference it holds for the call.
+	let future = unsafe { future_of(obj) };
 	wrap(|| {
 		// SAFETY: Python's call.
 		let args = unsafe { self::args(args, nargs, 1, "poll") }?;
-		// SAFETY: Python calls it on a `Future`, holding the GIL. Each access goes through
-		// the pointer, as a thread holding the GIL may close it while the poll runs without.
-		unsafe {
-			let Some(poll) = (*future).poll else {
-				return value_error("the future ended");
-			};
-			if (*future).polling {
-				return raise(PyExc_RuntimeError, "a Rust future is polled already");
+		let queue = queue_of(args[0])?;
+		let started = {
+			let mut state = future.lock();
+			match (state.poll, state.polling) {
+				(None, _) => Err(Refused::Ended),
+				(Some(_), true) => Err(Refused::Polling),
+				(Some(poll), false) => {
+					let node = (state.node.get_or_insert_with(|| {
+						Arc::new(Node {
+							state: AtomicU8::new(IDLE),
+							token: future.token,
+							queue,
+							waker: false,
+						})
+					}))
+					.clone();
+					state.polling = true;
+					Ok((poll, state.raw, node))
+				}
 			}
-			let node = match &(*future).node {
-				Some(node) => node.clone(),
-				None => {
-					let node = Arc::new(Node {
-						state: AtomicU8::new(IDLE),
-						token: (*future).token,
-						queue: queue_of(args[0])?,
-						waker: false,
-					});
-					(*future).node = Some(node.clone());
-					node
-				}
+		};
+		let (poll, raw, node) = match started {
+			Ok(started) => started,
+			Err(Refused::Ended) => return value_error("the future ended"),
+			// SAFETY: a static exception type.
+			Err(Refused::Polling) => return raise(unsafe { PyExc_RuntimeError }, "a Rust future is polled already"),
+		};
+		node.queue.here();
+		loop {
+			let first = node.enter(POLLING) == IDLE;
+			// The first poll with the node gives the C ABI a reference, which it keeps
+			// while it reuses the waker.
+			let waker = match first {
+				true => node.give(),
+				false => node.lend(),
 			};
-			node.queue.here();
-			loop {
-				let first = node.enter(POLLING) == IDLE;
-				// The first poll with the node gives the C ABI a reference, which it keeps
-				// while it reuses the waker.
-				let waker = match first {
-					true => node.give(),
-					false => node.lend(),
-				};
-				(*future).polling = true;
-				let done = poll((*future).raw, waker);
-				(*future).polling = false;
-				if std::mem::take(&mut (*future).closing) {
-					future_close(future);
-					// What the poll returned is dropped with the future.
-					return value_error("the future was closed while it polled");
-				}
-				if let Some(done) = done.transpose() {
-					future_close(future);
-					return done;
-				}
-				if node.park() {
-					return Ok(Obj::borrowed(PENDING.get().expect("loaded").ptr()));
-				}
-				// Woken while it polled: the wake is for this poll's registration, so poll again.
+			// SAFETY: the live C future, which no close frees while this poll runs.
+			let done = unsafe { poll(raw, waker) };
+			let mut state = future.lock();
+			if std::mem::take(&mut state.closing) {
+				state.polling = false;
+				let ending = state.end();
+				drop(state);
+				ending.finish();
+				// What the poll returned is dropped with the future.
+				return value_error("the future was closed while it polled");
 			}
+			if let Some(done) = done.transpose() {
+				state.polling = false;
+				let ending = state.end();
+				drop(state);
+				ending.finish();
+				return done;
+			}
+			if node.park() {
+				state.polling = false;
+				drop(state);
+				// SAFETY: a live object.
+				return Ok(unsafe { Obj::borrowed(PENDING.get().expect("loaded").ptr()) });
+			}
+			// Woken while it polled: the wake is for this poll's registration, so poll again.
 		}
 	})
 }
 
 /// `claim()`: take the future for one `await`, returning the token its wakes queue.
 unsafe extern "C" fn future_claim(obj: *mut PyObject, _: *mut PyObject) -> *mut PyObject {
-	// SAFETY: Python calls it on a `Future`, holding the GIL.
-	let future = unsafe { &mut *obj.cast::<Future>() };
-	wrap(|| match std::mem::replace(&mut future.claimed, true) {
+	// SAFETY: Python calls it on a `Future`.
+	let future = unsafe { future_of(obj) };
+	wrap(|| match future.claimed.swap(true, Ordering::AcqRel) {
 		// SAFETY: a static exception type.
 		true => raise(unsafe { PyExc_RuntimeError }, "a Rust future is awaited already"),
 		false => int_out(future.token),
@@ -2481,31 +3194,32 @@ unsafe extern "C" fn future_claim(obj: *mut PyObject, _: *mut PyObject) -> *mut 
 }
 
 unsafe extern "C" fn future_close_py(obj: *mut PyObject, _: *mut PyObject) -> *mut PyObject {
-	// SAFETY: Python calls it on a `Future`, holding the GIL.
-	unsafe { future_close(obj.cast()) };
+	// SAFETY: Python calls it on a `Future`.
+	future_close(unsafe { future_of(obj) });
 	none().map_or(null_mut(), Obj::into_ptr)
 }
 
 unsafe extern "C" fn future_dealloc(obj: *mut PyObject) {
-	// SAFETY: Python deallocates a `Future` once.
+	// SAFETY: Python deallocates a `Future` once, which no poll holds.
 	unsafe {
-		future_close(obj.cast());
-		std::ptr::drop_in_place(&raw mut (*obj.cast::<Future>()).held);
+		future_close(future_of(obj));
+		std::ptr::drop_in_place(data::<Future>(obj, &FUTURE));
 		dealloc(obj);
 	}
 }
 
 /// Whether `obj` is exactly the runtime's type in `slot`.
-fn is_type(obj: *mut PyObject, slot: &std::sync::OnceLock<Static>) -> bool {
+fn is_type(obj: *mut PyObject, slot: &Class) -> bool {
 	// SAFETY: `obj` is live.
 	slot.get().is_some_and(|t| unsafe { Py_TYPE(obj) }.cast() == t.ptr())
 }
 
-static OBJECT: std::sync::OnceLock<Static> = std::sync::OnceLock::new();
-static FUTURE: std::sync::OnceLock<Static> = std::sync::OnceLock::new();
-static QUEUE: std::sync::OnceLock<Static> = std::sync::OnceLock::new();
-static NODE: std::sync::OnceLock<Static> = std::sync::OnceLock::new();
-static RETURNED: std::sync::OnceLock<Static> = std::sync::OnceLock::new();
+static OBJECT: Class = OnceLock::new();
+static VALUE_BASE: Class = OnceLock::new();
+static FUTURE: Class = OnceLock::new();
+static QUEUE: Class = OnceLock::new();
+static NODE: Class = OnceLock::new();
+static RETURNED: Class = OnceLock::new();
 
 /// A method table entry.
 pub const fn method(name: &'static CStr, f: PyCFunctionFast) -> PyMethodDef {
@@ -2575,95 +3289,226 @@ pub const fn property(name: &'static CStr, doc: Option<&'static CStr>, f: getter
 	}
 }
 
-/// The glue's members, which `_register` sets on their classes.
-static INSTALL: Gil<&'static mut [Member]> = Gil::new(&mut []);
+/// The glue's members, which `_register` sets on their classes: the same table each
+/// time the module loads.
+static INSTALL: OnceLock<Install> = OnceLock::new();
 
-/// A table of methods Python reads for the interpreter's life.
-pub struct Methods<const N: usize>(pub UnsafeCell<[PyMethodDef; N]>);
+/// The glue's table of members, which Python reads for the process's life.
+struct Install(*mut Member, usize);
 
-// SAFETY: Python reads it, holding the GIL.
-unsafe impl<const N: usize> Sync for Methods<N> {}
+// SAFETY: a static table Python only reads.
+unsafe impl Send for Install {}
+// SAFETY: as above.
+unsafe impl Sync for Install {}
 
-impl<const N: usize> Methods<N> {
-	pub fn ptr(&self) -> *mut PyMethodDef {
-		self.0.get().cast()
-	}
-}
-
-static FUTURE_METHODS: Methods<4> = Methods(UnsafeCell::new([
+static FUTURE_METHODS: Methods<4> = Methods::new([
 	method(c"poll", future_poll),
 	noargs(c"claim", future_claim),
 	noargs(c"close", future_close_py),
 	END,
-]));
+]);
 
-static QUEUE_METHODS: Methods<4> = Methods(UnsafeCell::new([
+static QUEUE_METHODS: Methods<5> = Methods::new([
 	noargs(c"fileno", queue_fileno),
 	onearg(c"take", queue_take),
 	noargs(c"signaled", queue_signaled),
+	noargs(c"drain", queue_drain),
 	END,
-]));
+]);
 
-static NODE_METHODS: Methods<3> = Methods(UnsafeCell::new([
+static NODE_METHODS: Methods<3> = Methods::new([
 	noargs(c"token", node_token),
 	noargs(c"wake", node_wake_py),
 	END,
-]));
+]);
 
-static RETURNED_METHODS: Methods<2> = Methods(UnsafeCell::new([noargs(c"wake", returned_wake), END]));
+static RETURNED_METHODS: Methods<2> = Methods::new([noargs(c"wake", returned_wake), END]);
 
-static REGISTER: Methods<2> = Methods(UnsafeCell::new([method(c"_register", register), END]));
+static REGISTER: Methods<2> = Methods::new([method(c"_register", register), END]);
 
-/// Make a type from `slots` and add it to `module` by its name, noting it in `cell`.
+/// Add the runtime type `cell` holds to `module` by its name: made from `slots` as the
+/// first module loads, of objects `size` as [`basicsize`] gives it, and each `itemsize`
+/// bytes longer per item. Threads that race may each make one, of which one is kept.
 ///
 /// # Safety
-/// The GIL is held, and `module` is the module being made.
+/// `module` is the module being made.
 unsafe fn add_type(
 	module: *mut PyObject,
-	cell: &std::sync::OnceLock<Static>,
+	cell: &Class,
 	name: &CStr,
-	size: usize,
+	(size, itemsize): (c_int, usize),
 	flags: u64,
 	slots: &mut [PyType_Slot],
 ) -> R<()> {
-	let qualified = format!("{}.{}\0", module_name(module), name.to_str().expect("ASCII"));
-	// Python keeps the name for the type's life.
-	let qualified: &'static str = Box::leak(qualified.into_boxed_str());
-	let mut spec = PyType_Spec {
-		name: qualified.as_ptr().cast(),
-		basicsize: size as c_int,
-		itemsize: 0,
-		flags: (Py_TPFLAGS_DEFAULT as u64 | flags) as _,
-		slots: slots.as_mut_ptr(),
-	};
-	// SAFETY: the caller's contract, and `spec` a valid spec.
-	unsafe {
-		let class = Obj::new(PyType_FromSpec(&mut spec))?;
-		if PyModule_AddObjectRef(module, name.as_ptr(), class.ptr()) != 0 {
-			return Err(Raised);
-		}
+	if cell.get().is_none() {
+		let qualified = format!("{}.{}\0", module_name(module), name.to_str().expect("ASCII"));
+		// Python keeps the name for the type's life.
+		let qualified: &'static str = Box::leak(qualified.into_boxed_str());
+		let mut spec = PyType_Spec {
+			name: qualified.as_ptr().cast(),
+			basicsize: size,
+			itemsize: itemsize as c_int,
+			flags: (Py_TPFLAGS_DEFAULT as u64 | flags) as _,
+			slots: slots.as_mut_ptr(),
+		};
+		// SAFETY: `spec` a valid spec.
+		let class = unsafe { Obj::new(PyType_FromSpec(&mut spec)) }?;
 		let _ = cell.set(Static(class));
 	}
-	Ok(())
+	let class = cell.get().expect("set above");
+	// SAFETY: the caller's contract.
+	match unsafe { PyModule_AddObjectRef(module, name.as_ptr(), class.ptr()) } {
+		0 => Ok(()),
+		_ => Err(Raised),
+	}
 }
 
 fn module_name(module: *mut PyObject) -> String {
-	// SAFETY: the GIL is held, and `module` a module.
+	// SAFETY: `module` a module.
 	unsafe {
 		let name = PyModule_GetName(module);
 		CStr::from_ptr(name).to_string_lossy().into_owned()
 	}
 }
 
-/// Make the extension module `def` names, with the runtime's types and functions beside
-/// the glue's, whose `members` `_register` sets on their classes.
+/// A slot of the module `PyModExport_` describes (PEP 793), as CPython 3.15 lays one out.
+#[repr(C)]
+struct Slot {
+	id: u16,
+	flags: u16,
+	reserved: u32,
+	value: SlotValue,
+}
+
+/// A slot's value, whose C union also holds a 64-bit integer, which widens it past a
+/// pointer on a 32-bit target.
+#[repr(C)]
+union SlotValue {
+	ptr: *mut c_void,
+	_wide: u64,
+}
+
+const _: () = assert!(size_of::<Slot>() == 16, "CPython's PySlot is 16 bytes on every target");
+
+/// The slots' IDs and flags, from CPython 3.15, which every later version keeps.
+const MOD_ABI: u16 = 109;
+const MOD_NAME: u16 = 100;
+const MOD_METHODS: u16 = 103;
+const MOD_EXEC: u16 = 85;
+const MOD_MULTIPLE_INTERPRETERS: u16 = 86;
+const MOD_GIL: u16 = 87;
+const SLOT_STATIC: u16 = 0x2;
+const SLOT_INTPTR: u16 = 0x4;
+
+/// The ABI a module was built for, which CPython checks before it runs any of it: one
+/// built for its GIL alone fails to import in a free-threaded CPython, rather than crash.
+#[repr(C)]
+struct AbiInfo {
+	major: u8,
+	minor: u8,
+	flags: u16,
+	build: u32,
+	abi: u32,
+}
+
+// SAFETY: plain data, never written.
+unsafe impl Sync for AbiInfo {}
+
+/// The stable ABI, for the GIL alone from 3.11, or under `abi3t` with or without it from 3.15.
+#[cfg(not(feature = "python-abi3t"))]
+static ABI: AbiInfo = AbiInfo {
+	major: 1,
+	minor: 0,
+	flags: 0x1 | 0x2,
+	build: 0x030b_0000,
+	abi: 0x030b_0000,
+};
+#[cfg(feature = "python-abi3t")]
+static ABI: AbiInfo = AbiInfo {
+	major: 1,
+	minor: 0,
+	flags: 0x1 | 0x2 | 0x4,
+	build: 0x030f_0000,
+	abi: 0x030f_0000,
+};
+
+/// The module `PyModExport_` returns, from CPython 3.15: its ABI, name, and functions, the
+/// runtime's types, made as it executes, that it leaves the GIL off, and that it loads in
+/// the main interpreter alone, as its types are the process's.
+pub struct Export([Slot; 7]);
+
+// SAFETY: plain data Python only reads.
+unsafe impl Sync for Export {}
+
+impl Export {
+	pub const fn new(name: &'static CStr, methods: *mut PyMethodDef) -> Self {
+		const fn slot(id: u16, flags: u16, value: *mut c_void) -> Slot {
+			Slot {
+				id,
+				flags,
+				reserved: 0,
+				value: SlotValue { ptr: value },
+			}
+		}
+		Self([
+			slot(MOD_ABI, SLOT_STATIC, (&raw const ABI).cast_mut().cast()),
+			slot(MOD_NAME, SLOT_STATIC, name.as_ptr().cast_mut().cast()),
+			slot(MOD_METHODS, SLOT_STATIC, methods.cast()),
+			slot(MOD_EXEC, 0, exec as *mut c_void),
+			slot(MOD_MULTIPLE_INTERPRETERS, SLOT_INTPTR, null_mut()),
+			slot(MOD_GIL, SLOT_INTPTR, std::ptr::without_provenance_mut(1)),
+			slot(0, 0, null_mut()),
+		])
+	}
+}
+
+/// The slots of the module `export` describes, whose executing sets the glue's `n`
+/// `members` on their classes once `_register` names them.
 ///
 /// # Safety
-/// Python calls the module's `PyInit_` with the GIL held, once per interpreter.
-pub unsafe fn module(def: *mut PyModuleDef, members: &'static mut [Member]) -> *mut PyObject {
-	// SAFETY: the caller's contract.
+/// `members` is the glue's static table of `n` members.
+pub unsafe fn export(export: &'static Export, members: *mut Member, n: usize) -> *mut c_void {
+	let _ = INSTALL.set(Install(members, n));
+	export.0.as_ptr().cast_mut().cast()
+}
+
+/// `Py_mod_exec`: add the runtime's types and functions to the module, beside the glue's.
+unsafe extern "C" fn exec(module: *mut PyObject) -> c_int {
+	// SAFETY: Python executes the module it made.
+	match unsafe { runtime(module) } {
+		Ok(()) => 0,
+		Err(Raised) => -1,
+	}
+}
+
+/// The module CPython before 3.15 makes from `PyInit_`.
+#[cfg(not(feature = "python-abi3t"))]
+static MODULE: Table<PyModuleDef, 1> = Table::new([PyModuleDef {
+	m_base: PyModuleDef_HEAD_INIT,
+	m_name: null(),
+	m_doc: null(),
+	m_size: -1,
+	m_methods: null_mut(),
+	m_slots: null_mut(),
+	m_traverse: None,
+	m_clear: None,
+	m_free: None,
+}]);
+
+/// Make the extension module `name`, of the glue's `methods`, with the runtime's types
+/// and functions beside them, as [`export`] describes it to a later CPython.
+///
+/// # Safety
+/// Python calls the module's `PyInit_` with the GIL held, and `methods` and `members` are
+/// the glue's static tables, of `n` members.
+#[cfg(not(feature = "python-abi3t"))]
+pub unsafe fn init(name: &'static CStr, methods: *mut PyMethodDef, members: *mut Member, n: usize) -> *mut PyObject {
+	let _ = INSTALL.set(Install(members, n));
+	// SAFETY: the caller's contract: the GIL guards the definition, which CPython writes.
 	unsafe {
-		*INSTALL.get() = members;
+		let def = MODULE.ptr();
+		(*def).m_name = name.as_ptr();
+		(*def).m_methods = methods;
 		let Ok(module) = Obj::new(PyModule_Create(def)) else {
 			return null_mut();
 		};
@@ -2674,33 +3519,54 @@ pub unsafe fn module(def: *mut PyModuleDef, members: &'static mut [Member]) -> *
 	}
 }
 
+/// Add the runtime's types and functions to `module`, made with the first module.
+///
+/// # Safety
+/// `module` is the module being made.
 unsafe fn runtime(module: *mut PyObject) -> R<()> {
-	// SAFETY: the GIL is held, and `module` the module being made.
+	// SAFETY: as above.
 	unsafe {
 		if PyModule_AddFunctions(module, REGISTER.ptr()) != 0 {
 			return Err(Raised);
 		}
 		let base = (Py_TPFLAGS_BASETYPE | Py_TPFLAGS_DISALLOW_INSTANTIATION) as u64;
-		add_type(module, &OBJECT, c"Object", size_of::<Handle>(), base, &mut [
+		add_type(module, &OBJECT, c"Object", (basicsize::<Handle>(), 0), base, &mut [
 			slot(Py_tp_dealloc, handle_dealloc as *mut c_void),
+			slot(Py_tp_members, OBJECT_MEMBERS.ptr().cast()),
 			slot(
 				Py_tp_doc,
 				c"An object owning a Rust value's handle, freed once the last reference to it goes.".as_ptr().cast_mut().cast(),
 			),
 			slot(0, null_mut()),
 		])?;
-		add_type(module, &FUTURE, c"Future", size_of::<Future>(), base, &mut [
+		// Its items are a value's bytes, past its data.
+		add_type(module, &VALUE_BASE, c"Value", (value_size(), 1), base | ITEMS_AT_END, &mut [
+			slot(Py_tp_dealloc, value_dealloc as *mut c_void),
+			slot(Py_tp_members, VALUE_MEMBERS.ptr().cast()),
+			slot(
+				Py_tp_doc,
+				c"A Rust `Copy` value's bytes, which only Rust makes or reads.".as_ptr().cast_mut().cast(),
+			),
+			slot(0, null_mut()),
+		])?;
+		#[cfg(feature = "python-abi3t")]
+		{
+			let class = VALUE_BASE.get().expect("made above").ptr();
+			let size = Obj::new(PyObject_GetAttrString(class, c"__basicsize__".as_ptr()))?;
+			VALUE_SIZE.store(int_in(size.ptr())?, Ordering::Relaxed);
+		}
+		add_type(module, &FUTURE, c"Future", (basicsize::<Future>(), 0), base, &mut [
 			slot(Py_tp_dealloc, future_dealloc as *mut c_void),
 			slot(Py_tp_methods, FUTURE_METHODS.ptr().cast()),
 			slot(0, null_mut()),
 		])?;
-		add_type(module, &QUEUE, c"Queue", size_of::<QueueObj>(), 0, &mut [
+		add_type(module, &QUEUE, c"Queue", (basicsize::<QueueObj>(), 0), 0, &mut [
 			slot(Py_tp_new, queue_new as *mut c_void),
 			slot(Py_tp_dealloc, queue_dealloc as *mut c_void),
 			slot(Py_tp_methods, QUEUE_METHODS.ptr().cast()),
 			slot(0, null_mut()),
 		])?;
-		add_type(module, &NODE, c"Node", size_of::<NodeObj>(), 0, &mut [
+		add_type(module, &NODE, c"Node", (basicsize::<NodeObj>(), 0), 0, &mut [
 			slot(Py_tp_new, node_new as *mut c_void),
 			slot(Py_tp_dealloc, node_obj_dealloc as *mut c_void),
 			slot(Py_tp_methods, NODE_METHODS.ptr().cast()),
@@ -2710,7 +3576,7 @@ unsafe fn runtime(module: *mut PyObject) -> R<()> {
 			module,
 			&RETURNED,
 			c"Returned",
-			size_of::<ReturnedObj>(),
+			(basicsize::<ReturnedObj>(), 0),
 			Py_TPFLAGS_DISALLOW_INSTANTIATION as u64,
 			&mut [
 				slot(Py_tp_dealloc, returned_dealloc as *mut c_void),
@@ -2723,27 +3589,50 @@ unsafe fn runtime(module: *mut PyObject) -> R<()> {
 			slot(Py_tp_dealloc, bytes_dealloc as *mut c_void),
 			slot(0, null_mut()),
 		];
-		add_type(module, &BYTES, c"Bytes", size_of::<Bytes>(), Py_TPFLAGS_DISALLOW_INSTANTIATION as u64, bytes_slots)?;
+		let bytes = (basicsize::<Bytes>(), 0);
+		add_type(module, &BYTES, c"Bytes", bytes, Py_TPFLAGS_DISALLOW_INSTANTIATION as u64, bytes_slots)?;
 		let lent_slots = &mut [
 			slot(Py_bf_getbuffer, lent_getbuffer as *mut c_void),
 			slot(Py_bf_releasebuffer, lent_releasebuffer as *mut c_void),
 			slot(Py_tp_dealloc, lent_dealloc as *mut c_void),
 			slot(0, null_mut()),
 		];
-		add_type(module, &LENT, c"Lent", size_of::<Lent>(), Py_TPFLAGS_DISALLOW_INSTANTIATION as u64, lent_slots)?;
-		// A plain `object()`, which nothing else is.
-		let pending = Obj::new(PyObject_CallObject((&raw mut PyBaseObject_Type).cast(), null_mut()))?;
-		if PyModule_AddObjectRef(module, c"PENDING".as_ptr(), pending.ptr()) != 0 {
+		let lent = (basicsize::<Lent>(), 0);
+		add_type(module, &LENT, c"Lent", lent, Py_TPFLAGS_DISALLOW_INSTANTIATION as u64, lent_slots)?;
+		if PENDING.get().is_none() {
+			// A plain `object()`, which nothing else is.
+			let pending = Obj::new(PyObject_CallObject((&raw mut PyBaseObject_Type).cast(), null_mut()))?;
+			let _ = PENDING.set(Static(pending));
+		}
+		if PyModule_AddObjectRef(module, c"PENDING".as_ptr(), PENDING.get().expect("set above").ptr()) != 0 {
 			return Err(Raised);
 		}
-		let _ = PENDING.set(Static(pending));
-		let asyncio = Obj::new(PyImport_ImportModule(c"asyncio".as_ptr()))?;
-		let get = Obj::new(PyObject_GetAttrString(asyncio.ptr(), c"_get_running_loop".as_ptr()))?;
-		let _ = GET_RUNNING_LOOP.set(Static(get));
-		arrays()?;
+		if GET_RUNNING_LOOP.get().is_none() {
+			let asyncio = Obj::new(PyImport_ImportModule(c"asyncio".as_ptr()))?;
+			let get = Obj::new(PyObject_GetAttrString(asyncio.ptr(), c"_get_running_loop".as_ptr()))?;
+			let _ = GET_RUNNING_LOOP.set(Static(get));
+		}
+		if ARRAY.get().is_none() {
+			arrays()?;
+		}
 	}
 	Ok(())
 }
+
+/// The spec's basic size of `Value`, whose header varies in size by its items.
+const fn value_size() -> c_int {
+	#[cfg(not(feature = "python-abi3t"))]
+	return (VALUE_DATA + size_of::<ValueHead>()) as c_int;
+	#[cfg(feature = "python-abi3t")]
+	return -((VALUE_DATA + size_of::<ValueHead>()) as c_int);
+}
+
+/// The flag that puts a `Value`'s bytes at its end, which a type whose data the
+/// interpreter places must say.
+#[cfg(not(feature = "python-abi3t"))]
+const ITEMS_AT_END: u64 = 0;
+#[cfg(feature = "python-abi3t")]
+const ITEMS_AT_END: u64 = Py_TPFLAGS_ITEMS_AT_END as u64;
 
 const fn slot(slot: c_int, pfunc: *mut c_void) -> PyType_Slot {
 	PyType_Slot { slot, pfunc }

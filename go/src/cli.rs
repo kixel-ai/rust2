@@ -3,7 +3,7 @@
 use std::path::Path;
 use std::process::ExitCode;
 
-use rust2_driver::cargo::{Args, Check, Output};
+use rust2_driver::cargo::{Args, Check, Output, Wrap};
 
 use crate::driver::env;
 
@@ -14,7 +14,7 @@ wherever --manifest-path says, to a Go package in <dir> named after the crate, e
 its whole `pub` API. Cargo args, such as --features, are passed to `cargo check`, which
 checks with the dev profile on the host, with std checked from source.";
 
-pub fn run(args: &[String]) -> ExitCode {
+pub(crate) fn run(args: &[String]) -> ExitCode {
 	match try_run(args) {
 		Ok(code) => code,
 		Err(err) => {
@@ -45,11 +45,14 @@ fn try_run(args: &[String]) -> Result<ExitCode, String> {
 		// targets, as the host's `usize` is.
 		target: Some(rustc_session::config::host_tuple()),
 		args: &cargo,
+		target_dir: None,
+		dir: None,
 		env: &[
 			(env::PACKAGE, package.as_ref()),
 			(env::OUT, out.as_os_str()),
 			("CARGO_UNSTABLE_PROFILE_RUSTFLAGS", "true".as_ref()),
 		],
+		wrap: Wrap::All,
 	}
 	.run()
 }

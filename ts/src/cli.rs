@@ -3,14 +3,14 @@
 use std::path::Path;
 use std::process::ExitCode;
 
-use rust2_driver::cargo::{Args, Check, Output};
+use rust2_driver::cargo::{Args, Check, Output, Wrap};
 
 use crate::browser;
 use crate::config::{self, Config};
 
 /// Translation type-checks for this target: its 32-bit `usize` is what a JS number
 /// holds exactly, and its `cfg`s are the browser's.
-pub const TARGET: &str = "wasm32-unknown-unknown";
+pub(crate) const TARGET: &str = "wasm32-unknown-unknown";
 
 const USAGE: &str = "usage: rust2-ts --config <ts.toml> (--out <dir> | --census <file>) [--manifest-path <Cargo.toml>] [-- <cargo args>]
 
@@ -22,7 +22,7 @@ picks getrandom's and uuid's browser randomness for wasm32 as a binary would.
 --census writes a Markdown report of every construct translation refuses in the library,
 reached from each of its items as if each were a root, instead of translating it.";
 
-pub fn run(args: &[String]) -> ExitCode {
+pub(crate) fn run(args: &[String]) -> ExitCode {
 	match try_run(args) {
 		Ok(code) => code,
 		Err(err) => {
@@ -69,6 +69,9 @@ fn try_run(args: &[String]) -> Result<ExitCode, String> {
 		target: Some(TARGET),
 		args: &cargo,
 		env: &env,
+		target_dir: None,
+		dir: None,
+		wrap: Wrap::All,
 	}
 	.run()
 }
@@ -97,7 +100,7 @@ fn profile_args(std: bool) -> Vec<String> {
 /// The sysroot of std checked with [`PROFILE`] for [`TARGET`], which rustc takes for the
 /// target's crates instead of a `-Zbuild-std` in every target directory, if set:
 /// absolute.
-pub fn sysroot() -> Result<Option<String>, String> {
+pub(crate) fn sysroot() -> Result<Option<String>, String> {
 	let dir = match std::env::var(config::env::SYSROOT) {
 		Ok(dir) if !dir.is_empty() => dir,
 		Err(std::env::VarError::NotUnicode(_)) => return Err(format!("{} is not UTF-8", config::env::SYSROOT)),

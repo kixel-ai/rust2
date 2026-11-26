@@ -1,0 +1,4 @@
+module NoDump {
+	header "nodump.h"
+	export *
+}

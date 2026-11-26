@@ -39,7 +39,7 @@ pub(super) struct Mirrors {
 	made: FxHashMap<BasicBlock, Made>,
 	/// The blocks whose call makes one of a byte the body shows is in an array of bytes,
 	/// whose slice is a view of it.
-	pub views: FxHashSet<BasicBlock>,
+	pub(crate) views: FxHashSet<BasicBlock>,
 	/// The mirrors to write back after each statement.
 	after: FxHashMap<Location, Vec<String>>,
 	/// The mirrors to write back as each block starts, after a call or drop that may have

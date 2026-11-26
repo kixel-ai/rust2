@@ -9,56 +9,55 @@
 
 use std::path::{Path, PathBuf};
 
-use rustc_span::source_map::SourceMap;
 use rustc_span::{DUMMY_SP, Span};
 
-use crate::ir::{Api, Callback, Constant, Enum, Field, Function, Home, Object, On, Record, TaskKind, Type, Variant};
+use crate::ir::{
+	Access, Api, Callback, Constant, Enum, Field, Function, Home, Object, On, Read, Record, TaskKind, Traits, Type,
+	Variant,
+};
 
 /// A target's API, as a check writes it for the export of several targets.
 #[derive(serde::Serialize, serde::Deserialize)]
-pub struct Target {
+pub(crate) struct Target {
 	/// Names are present only in a complete export, after all targets merge.
 	#[serde(default, skip_serializing_if = "Option::is_none")]
-	pub names: Option<crate::lock::Names>,
+	pub(crate) names: Option<crate::lock::Names>,
 	/// The facade's package, which every target's must share.
-	pub package: String,
+	pub(crate) package: String,
 	/// The features the facade compiled with, which every target's must share, since the
 	/// crate enables one set.
-	pub features: Vec<String>,
-	/// The config's `exclude`, which every target's must share.
-	pub exclude: Vec<String>,
-	pub api: Api,
+	pub(crate) features: Vec<String>,
+	pub(crate) api: Api,
 }
 
 impl Target {
-	/// Write it to `path`, with each span as its file and offsets in `source_map`, the
-	/// file relative to the first of `roots` it is in.
-	pub fn write(&self, path: &Path, source_map: &SourceMap, roots: &[PathBuf]) -> Result<(), String> {
-		let json = span::with(source_map, roots, || serde_json::to_string(self))
+	/// Write it to `path`, with each span as its file and offsets, the file relative to the
+	/// first of the roots it is in.
+	pub(crate) fn write(&self, path: &Path, spans: &span::Spans<'_>) -> Result<(), String> {
+		let json = span::with(spans, || serde_json::to_string(self))
 			.map_err(|err| format!("writing {}: {err}", path.display()))?;
 		crate::driver::write(path, &json)
 	}
 
-	/// Read what [`Self::write`] wrote, with each span loaded into `source_map` from
-	/// `roots`, or none where its file is not on this host as it was.
-	pub fn read(path: &Path, source_map: &SourceMap, roots: &[PathBuf]) -> Result<Self, String> {
+	/// Read what [`Self::write`] wrote, with each span loaded from its file, or none where
+	/// its file is not on this host as it was.
+	pub(crate) fn read(path: &Path, spans: &span::Spans<'_>) -> Result<Self, String> {
 		let json = std::fs::read_to_string(path).map_err(|err| format!("reading {}: {err}", path.display()))?;
-		span::with(source_map, roots, || serde_json::from_str(&json))
-			.map_err(|err| format!("reading {}: {err}", path.display()))
+		span::with(spans, || serde_json::from_str(&json)).map_err(|err| format!("reading {}: {err}", path.display()))
 	}
 }
 
 /// An item two targets compile differently, which one binding cannot serve: what it is,
 /// then each target with its span there.
-pub struct Differs {
-	pub what: String,
-	pub first: (String, Span),
-	pub second: (String, Span),
+pub(crate) struct Differs {
+	pub(crate) what: String,
+	pub(crate) first: (String, Span),
+	pub(crate) second: (String, Span),
 }
 
 /// The APIs of several targets, one each, merged into one serving them all, with every
 /// item that differs between two of them.
-pub fn merge(mut apis: Vec<Api>) -> (Api, Vec<Differs>) {
+pub(crate) fn merge(mut apis: Vec<Api>) -> (Api, Vec<Differs>) {
 	apis.sort_by(|a, b| a.targets.cmp(&b.targets));
 	let targets: Vec<String> = apis.iter().flat_map(|api| api.targets.clone()).collect();
 	let mut apis = apis.into_iter().enumerate().map(|(i, mut api)| {
@@ -91,6 +90,7 @@ fn mark(api: &mut Api, on: On) {
 	}
 	for object in &mut api.objects {
 		object.on = on;
+		object.variants.iter_mut().for_each(|v| v.on = on);
 		functions(&mut object.methods);
 	}
 	for callback in &mut api.callbacks {
@@ -111,11 +111,11 @@ struct Merged {
 
 /// Where each type of the API being added lands among the merged API's.
 #[derive(Default)]
-pub struct Maps {
-	pub records: Vec<usize>,
-	pub enums: Vec<usize>,
-	pub objects: Vec<usize>,
-	pub callbacks: Vec<usize>,
+pub(crate) struct Maps {
+	pub(crate) records: Vec<usize>,
+	pub(crate) enums: Vec<usize>,
+	pub(crate) objects: Vec<usize>,
+	pub(crate) callbacks: Vec<usize>,
 }
 
 impl Maps {
@@ -132,7 +132,7 @@ impl Maps {
 			.collect()
 	}
 
-	pub fn ty(&self, ty: &mut Type) {
+	pub(crate) fn ty(&self, ty: &mut Type) {
 		match ty {
 			Type::Record(i) => *i = self.records[*i],
 			Type::Enum(i) => *i = self.enums[*i],
@@ -151,15 +151,15 @@ impl Maps {
 		}
 	}
 
-	pub fn types(&self, types: &mut [Type]) {
+	pub(crate) fn types(&self, types: &mut [Type]) {
 		types.iter_mut().for_each(|ty| self.ty(ty));
 	}
 
-	pub fn fields(&self, fields: &mut [Field]) {
+	pub(crate) fn fields(&self, fields: &mut [Field]) {
 		fields.iter_mut().for_each(|f| self.ty(&mut f.ty));
 	}
 
-	pub fn function(&self, f: &mut Function) {
+	pub(crate) fn function(&self, f: &mut Function) {
 		f.params.iter_mut().for_each(|p| self.ty(&mut p.ty));
 		self.ty(&mut f.ok);
 		if let Some(err) = &mut f.err {
@@ -174,12 +174,26 @@ impl Maps {
 		}
 	}
 
-	pub fn functions(&self, functions: &mut [Function]) {
+	pub(crate) fn functions(&self, functions: &mut [Function]) {
 		functions.iter_mut().for_each(|f| self.function(f));
 	}
 }
 
-/// `item` with what may differ between targets alike cleared: its span, docs, targets,
+/// `ours` with each link `theirs` resolves too: a link to an item one target lacks resolves
+/// only where it has it, and each binding drops the links it cannot follow. Docs that
+/// differ in more than links, as `cfg_attr` can make them, keep the side that resolves more.
+fn linked(ours: &mut String, theirs: String) {
+	if let Some(merged) = crate::doc::merge(ours, &theirs) {
+		*ours = merged;
+		return;
+	}
+	let links = |docs: &str| docs.matches(crate::doc::LINK).count();
+	if links(&theirs) > links(ours) {
+		*ours = theirs;
+	}
+}
+
+/// `item` with what may differ between targets alike cleared: its span, docs, deprecation, targets,
 /// and `clear`'s, which clears its members, compared on their own.
 fn bare<T: Clone>(item: &T, clear: impl Fn(&mut T)) -> T {
 	let mut item = item.clone();
@@ -187,65 +201,130 @@ fn bare<T: Clone>(item: &T, clear: impl Fn(&mut T)) -> T {
 	item
 }
 
-pub fn bare_function(f: &Function) -> Function {
+/// Whether two functions read alike, which a field's two targets do whichever way its
+/// layout makes each getter read it.
+fn same_access(a: &Access, b: &Access) -> bool {
+	match (a, b) {
+		(
+			Access::Field { set, through, .. },
+			Access::Field {
+				set: other,
+				through: through_other,
+				..
+			},
+		) => set == other && through == through_other,
+		_ => a == b,
+	}
+}
+
+pub(crate) fn bare_function(f: &Function) -> Function {
 	bare(f, |f| {
 		f.span = DUMMY_SP;
 		f.docs.clear();
+		f.deprecated = None;
 		f.on = On::ALL;
+		// Merged apart, as a trait's leaves are.
+		f.leaf = false;
+		// Merged to the greatest, as a target's layout may decide it.
+		if let Access::Field {
+			read, unfrozen, copy, ..
+		} = &mut f.access
+		{
+			*read = Read::Borrow;
+			*unfrozen = false;
+			*copy = false;
+		}
 	})
 }
 
-pub fn bare_record(r: &Record) -> Record {
+pub(crate) fn bare_record(r: &Record) -> Record {
 	bare(r, |r| {
 		r.span = DUMMY_SP;
 		r.docs.clear();
+		r.deprecated = None;
 		r.on = On::ALL;
 		r.methods.clear();
-		r.fields.iter_mut().for_each(|f| f.docs.clear());
+		r.fields.iter_mut().for_each(|f| {
+			f.docs.clear();
+			f.deprecated = None;
+		});
+		// Merged apart: one binding holds the largest, and each target asserts its own size.
+		if let Some(opaque) = &mut r.opaque {
+			opaque.size = 0;
+			opaque.align = 0;
+			opaque.dense = true;
+		}
+		r.sizes.clear();
+		unleaf(&mut r.traits);
 	})
 }
 
-pub fn bare_enum(e: &Enum) -> Enum {
+pub(crate) fn bare_enum(e: &Enum) -> Enum {
 	bare(e, |e| {
 		e.span = DUMMY_SP;
 		e.docs.clear();
+		e.deprecated = None;
 		e.on = On::ALL;
 		e.methods.clear();
 		e.variants.clear();
+		unleaf(&mut e.traits);
 	})
 }
 
-pub fn bare_variant(v: &Variant) -> Variant {
+pub(crate) fn bare_variant(v: &Variant) -> Variant {
 	bare(v, |v| {
 		v.on = On::ALL;
 		// Compared apart, as only a plain enum's matter.
 		v.discriminant = 0;
-		v.fields.iter_mut().for_each(|f| f.docs.clear());
+		v.fields.iter_mut().for_each(|f| {
+			f.docs.clear();
+			f.deprecated = None;
+		});
 	})
 }
 
-pub fn bare_object(o: &Object) -> Object {
+pub(crate) fn bare_object(o: &Object) -> Object {
 	bare(o, |o| {
 		o.span = DUMMY_SP;
 		o.docs.clear();
+		o.deprecated = None;
 		o.on = On::ALL;
 		o.methods.clear();
+		o.variants.clear();
+		unleaf(&mut o.traits);
 	})
 }
 
-pub fn bare_callback(c: &Callback) -> Callback {
+/// `traits` without whether each is a leaf, which merges apart: a leaf on every target is
+/// one, as a binding calls it the same on each.
+fn unleaf(traits: &mut Traits) {
+	traits.leaf_eq = false;
+	traits.leaf_hash = false;
+	traits.leaf_sized = false;
+}
+
+/// Merge into `ours` whether `theirs`, another target's, are leaves.
+fn leaves(ours: &mut Traits, theirs: Traits) {
+	ours.leaf_eq &= theirs.leaf_eq;
+	ours.leaf_hash &= theirs.leaf_hash;
+	ours.leaf_sized &= theirs.leaf_sized;
+}
+
+pub(crate) fn bare_callback(c: &Callback) -> Callback {
 	bare(c, |c| {
 		c.span = DUMMY_SP;
 		c.docs.clear();
+		c.deprecated = None;
 		c.on = On::ALL;
 		c.methods = c.methods.iter().map(bare_function).collect();
 	})
 }
 
-pub fn bare_constant(c: &Constant) -> Constant {
+pub(crate) fn bare_constant(c: &Constant) -> Constant {
 	bare(c, |c| {
 		c.span = DUMMY_SP;
 		c.docs.clear();
+		c.deprecated = None;
 		c.on = On::ALL;
 	})
 }
@@ -353,6 +432,8 @@ impl Merged {
 
 	/// Add `api`'s items, of one target, to the merged API's.
 	fn add(&mut self, mut api: Api) {
+		self.api.links.append(&mut api.links);
+		self.api.profiles.append(&mut api.profiles);
 		let maps = Maps {
 			records: Maps::of(&api.records, self.api.records.len(), |r| {
 				(self.api.records.iter()).position(|m| m.shown == r.shown)
@@ -415,7 +496,19 @@ impl Merged {
 				let what = format!("struct `{}`", record.shown.join("::"));
 				self.differ(what, (ours.on, ours.span), (record.on, record.span));
 			}
+			let ours = &mut self.api.records[at];
+			linked(&mut ours.docs, record.docs);
+			for (field, theirs) in ours.fields.iter_mut().zip(record.fields) {
+				linked(&mut field.docs, theirs.docs);
+			}
 			self.api.records[at].on.0 |= record.on.0;
+			leaves(&mut self.api.records[at].traits, record.traits);
+			if let (Some(ours), Some(theirs)) = (&mut self.api.records[at].opaque, record.opaque) {
+				ours.size = ours.size.max(theirs.size);
+				ours.align = ours.align.max(theirs.align);
+				ours.dense &= theirs.dense;
+			}
+			self.api.records[at].sizes.extend(record.sizes);
 			let methods = std::mem::take(&mut self.api.records[at].methods);
 			self.api.records[at].methods = self.functions(methods, record.methods);
 		}
@@ -429,7 +522,9 @@ impl Merged {
 				self.differ(what.clone(), (ours.on, ours.span), (e.on, e.span));
 			}
 			self.variants(at, &e, what);
+			linked(&mut self.api.enums[at].docs, e.docs);
 			self.api.enums[at].on.0 |= e.on.0;
+			leaves(&mut self.api.enums[at].traits, e.traits);
 			let methods = std::mem::take(&mut self.api.enums[at].methods);
 			self.api.enums[at].methods = self.functions(methods, e.methods);
 		}
@@ -442,7 +537,24 @@ impl Merged {
 				let what = format!("type `{}`", object.shown.join("::"));
 				self.differ(what, (ours.on, ours.span), (object.on, object.span));
 			}
+			linked(&mut self.api.objects[at].docs, object.docs);
 			self.api.objects[at].on.0 |= object.on.0;
+			// Each variant is on the targets it is, after the one it follows in theirs.
+			let mut after = 0;
+			for variant in object.variants {
+				let ours = &mut self.api.objects[at].variants;
+				match ours.iter().position(|v| v.name == variant.name) {
+					Some(found) => {
+						ours[found].on.0 |= variant.on.0;
+						after = found + 1;
+					}
+					None => {
+						ours.insert(after, variant);
+						after += 1;
+					}
+				}
+			}
+			leaves(&mut self.api.objects[at].traits, object.traits);
 			let methods = std::mem::take(&mut self.api.objects[at].methods);
 			self.api.objects[at].methods = self.functions(methods, object.methods);
 		}
@@ -456,6 +568,10 @@ impl Merged {
 				self.differ(what, (ours.on, ours.span), (callback.on, callback.span));
 			}
 			let ours = &mut self.api.callbacks[at];
+			linked(&mut ours.docs, callback.docs);
+			for (method, theirs) in ours.methods.iter_mut().zip(callback.methods) {
+				linked(&mut method.docs, theirs.docs);
+			}
 			ours.on.0 |= callback.on.0;
 			ours.methods.iter_mut().for_each(|m| m.on.0 |= callback.on.0);
 		}
@@ -471,6 +587,7 @@ impl Merged {
 				let what = format!("const `{}`", constant.path.join("::"));
 				self.differ(what, (ours.on, ours.span), (constant.on, constant.span));
 			}
+			linked(&mut self.api.constants[at].docs, constant.docs);
 			self.api.constants[at].on.0 |= constant.on.0;
 		}
 	}
@@ -482,7 +599,7 @@ impl Merged {
 			// A field's getter and setter share its path.
 			let Some(at) = ours
 				.iter()
-				.position(|f| f.shown == function.shown && f.access == function.access)
+				.position(|f| f.shown == function.shown && same_access(&f.access, &function.access))
 			else {
 				ours.push(function);
 				continue;
@@ -491,7 +608,57 @@ impl Merged {
 				let what = format!("fn `{}`", function.shown.join("::"));
 				self.differ(what, (ours[at].on, ours[at].span), (function.on, function.span));
 			}
+			// One getter serves a field on every target, though `repr(packed)` may make one
+			// target's layout need another read than the next's: it reads by the mode that
+			// accepts both, whose value is the same, unless that is an unaligned read of what
+			// a target holds an `UnsafeCell` in, which would race there. A target that
+			// borrows a field that is not `Copy` there is not served by a `Copy` read, so
+			// that merges to `Take`.
+			let races = match (&mut ours[at].access, &function.access) {
+				(
+					Access::Field {
+						set,
+						read: ours,
+						unfrozen: ours_unfrozen,
+						copy: ours_copy,
+						..
+					},
+					Access::Field {
+						read: theirs,
+						unfrozen: theirs_unfrozen,
+						copy: theirs_copy,
+						..
+					},
+				) => {
+					let mut read = (*ours).max(*theirs);
+					if read == Read::Copy
+						&& ((*ours == Read::Borrow && !*ours_copy) || (*theirs == Read::Borrow && !*theirs_copy))
+					{
+						read = Read::Take;
+					}
+					// A setter assigns and never reads the field, so it cannot race.
+					let races = !*set
+						&& read == Read::Take
+						&& ((*ours != read && *ours_unfrozen) || (*theirs != read && *theirs_unfrozen));
+					if !races {
+						*ours = read;
+						*ours_unfrozen |= *theirs_unfrozen;
+						*ours_copy &= *theirs_copy;
+					}
+					races
+				}
+				_ => false,
+			};
+			if races {
+				let what = format!(
+					"fn `{}`, which one target reads out unaligned and another holds an atomic or `Cell` in",
+					function.shown.join("::")
+				);
+				self.differ(what, (ours[at].on, ours[at].span), (function.on, function.span));
+			}
 			ours[at].on.0 |= function.on.0;
+			ours[at].leaf &= function.leaf;
+			linked(&mut ours[at].docs, function.docs);
 		}
 		ours
 	}
@@ -635,33 +802,93 @@ fn cycle(crates: &[String], before: &[std::collections::BTreeMap<usize, (On, Spa
 }
 
 /// Spans as their file and byte offsets, which a later session loads that file for.
-pub mod span {
-	use std::cell::Cell;
+pub(crate) mod span {
+	use std::cell::{Cell, RefCell};
+	use std::collections::HashMap;
 	use std::path::{Path, PathBuf};
 
 	use rustc_span::source_map::SourceMap;
 	use rustc_span::{BytePos, DUMMY_SP, FileName, Span};
 	use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
-	thread_local! {
-		static CONTEXT: Cell<Option<(*const SourceMap, *const [PathBuf])>> = const { Cell::new(None) };
+	/// Each file and directory a session's staged spans name, each looked for once rather
+	/// than once per span: a merge of 15 targets reads about 75,000 spans, and on macOS a
+	/// look for another host's path under `/home`, which autofs serves, takes about 11 ms.
+	#[derive(Default)]
+	pub(crate) struct Loaded {
+		/// A file found is its start in the source map and its length.
+		files: RefCell<HashMap<PathBuf, Option<(BytePos, u32)>>>,
+		/// Whether each directory is on this host, so another host's checkout costs one
+		/// look, at its first missing directory, not one per file.
+		dirs: RefCell<HashMap<PathBuf, bool>>,
 	}
 
-	/// Run `f` with spans read and written through `source_map`, their files relative to
-	/// `roots`.
-	pub fn with<R>(source_map: &SourceMap, roots: &[PathBuf], f: impl FnOnce() -> R) -> R {
-		let previous = CONTEXT.replace(Some((source_map, roots)));
+	/// What spans are read and written through: the session's source map, the roots their
+	/// files are relative to, and the files its reads loaded.
+	pub(crate) struct Spans<'a> {
+		source_map: &'a SourceMap,
+		roots: &'a [PathBuf],
+		loaded: &'a Loaded,
+	}
+
+	impl<'a> Spans<'a> {
+		/// Spans in `source_map`, relative to `roots`, sharing `loaded` with each read of
+		/// the session.
+		pub(crate) fn new(source_map: &'a SourceMap, roots: &'a [PathBuf], loaded: &'a Loaded) -> Self {
+			Self {
+				source_map,
+				roots,
+				loaded,
+			}
+		}
+
+		/// The start and length of the file at `path`, loaded on its first look.
+		pub(super) fn load(&self, path: PathBuf) -> Option<(BytePos, u32)> {
+			if let Some(&file) = self.loaded.files.borrow().get(&path) {
+				return file;
+			}
+			let file = match path.parent().is_none_or(|dir| self.dir(dir)) {
+				true => (self.source_map.load_file(&path).ok())
+					.map(|file| (file.start_pos, (file.end_position() - file.start_pos).0)),
+				false => None,
+			};
+			self.loaded.files.borrow_mut().insert(path, file);
+			file
+		}
+
+		/// Whether the directory `dir` is on this host, looked for only below a parent that is.
+		/// The empty one, a relative path's last parent, is the working directory.
+		fn dir(&self, dir: &Path) -> bool {
+			if dir.as_os_str().is_empty() {
+				return true;
+			}
+			if let Some(&found) = self.loaded.dirs.borrow().get(dir) {
+				return found;
+			}
+			let found = dir.parent().is_none_or(|parent| self.dir(parent)) && dir.is_dir();
+			self.loaded.dirs.borrow_mut().insert(dir.to_path_buf(), found);
+			found
+		}
+	}
+
+	thread_local! {
+		static CONTEXT: Cell<Option<*const Spans<'static>>> = const { Cell::new(None) };
+	}
+
+	/// Run `f` with spans read and written through `spans`.
+	pub(crate) fn with<R>(spans: &Spans<'_>, f: impl FnOnce() -> R) -> R {
+		let previous = CONTEXT.replace(Some((spans as *const Spans<'_>).cast()));
 		let result = f();
 		CONTEXT.set(previous);
 		result
 	}
 
-	fn context<R>(f: impl FnOnce(&SourceMap, &[PathBuf]) -> R) -> R {
-		let (map, roots) = CONTEXT
+	fn context<R>(f: impl FnOnce(&Spans<'_>) -> R) -> R {
+		let spans = CONTEXT
 			.get()
 			.expect("a span is read or written only within `span::with`");
-		// SAFETY: `with` sets them to references that outlive `f`'s run, then restores them.
-		f(unsafe { &*map }, unsafe { &*roots })
+		// SAFETY: `with` sets it to a reference that outlives `f`'s run, then restores it.
+		f(unsafe { &*spans })
 	}
 
 	/// A span's file, relative to the root at its index if it is in one, with `/` between
@@ -685,19 +912,19 @@ pub mod span {
 		})
 	}
 
-	pub fn serialize<S: Serializer>(span: &Span, s: S) -> Result<S::Ok, S::Error> {
-		let located = context(|map, roots| {
+	pub(crate) fn serialize<S: Serializer>(span: &Span, s: S) -> Result<S::Ok, S::Error> {
+		let located = context(|spans| {
 			// A staged span whose file was not on this host as it was: no file names it.
 			if span.is_dummy() {
 				return None;
 			}
 			let span = span.source_callsite();
-			let file = map.lookup_source_file(span.lo());
+			let file = spans.source_map.lookup_source_file(span.lo());
 			let FileName::Real(real) = &file.name else {
 				return None;
 			};
 			let path = real.local_path()?;
-			let (root, path) = match relative(path, roots) {
+			let (root, path) = match relative(path, spans.roots) {
 				Some((root, path)) => (Some(root), path),
 				None => (None, path.to_path_buf()),
 			};
@@ -712,24 +939,21 @@ pub mod span {
 		located.serialize(s)
 	}
 
-	pub fn deserialize<'de, D: Deserializer<'de>>(d: D) -> Result<Span, D::Error> {
+	pub(crate) fn deserialize<'de, D: Deserializer<'de>>(d: D) -> Result<Span, D::Error> {
 		let Some(located) = Option::<Located>::deserialize(d)? else {
 			return Ok(DUMMY_SP);
 		};
-		Ok(context(|map, roots| {
+		Ok(context(|spans| {
 			let path = match located.root {
-				Some(root) => match roots.get(root) {
+				Some(root) => match spans.roots.get(root) {
 					Some(root) => root.join(&located.file),
 					None => return DUMMY_SP,
 				},
 				None => located.file,
 			};
-			match map.load_file(&path) {
-				Ok(file) if (file.end_position() - file.start_pos).0 == located.len && located.hi <= located.len => {
-					Span::with_root_ctxt(
-						file.start_pos + BytePos(located.lo),
-						file.start_pos + BytePos(located.hi),
-					)
+			match spans.load(path) {
+				Some((start, len)) if len == located.len && located.hi <= located.len => {
+					Span::with_root_ctxt(start + BytePos(located.lo), start + BytePos(located.hi))
 				}
 				// Its file is not on this host, or not as it was.
 				_ => DUMMY_SP,
@@ -739,7 +963,7 @@ pub mod span {
 }
 
 /// The path a target's API is staged at in `dir`.
-pub fn staged(dir: &Path, target: &str) -> PathBuf {
+pub(crate) fn staged(dir: &Path, target: &str) -> PathBuf {
 	dir.join(format!("{target}.json"))
 }
 
@@ -749,8 +973,42 @@ mod tests {
 
 	use rustc_span::DUMMY_SP;
 
-	use super::{On, cycle, order_crates};
-	use crate::ir::{Api, Enum, Field, Home, Traits, Type, Variant};
+	use super::{On, cycle, linked, order_crates};
+	use crate::ir::{Access, Api, Enum, Field, Function, Home, Read, Traits, Type, Variant};
+
+	/// A staged span's file loads relative to the working directory, whose path's last
+	/// parent is empty, as well as absolute, and not from another host's checkout.
+	#[test]
+	fn spans_load_files_on_this_host() {
+		use std::path::PathBuf;
+
+		use rustc_span::source_map::{FilePathMapping, SourceMap};
+
+		use super::span::{Loaded, Spans};
+
+		rustc_span::create_default_session_globals_then(|| {
+			let map = SourceMap::new(FilePathMapping::empty());
+			let loaded = Loaded::default();
+			let spans = Spans::new(&map, &[], &loaded);
+			let load = |path: &str| spans.load(PathBuf::from(path));
+			let own = load("src/merge.rs");
+			assert!(own.is_some_and(|(_, len)| len > 0));
+			assert!(load(concat!(env!("CARGO_MANIFEST_DIR"), "/src/merge.rs")).is_some());
+			assert_eq!(load("/rust2-ffi-elsewhere/src/lib.rs"), None);
+			// Twice, the second from what the first found.
+			assert_eq!(load("src/merge.rs"), own);
+		});
+	}
+
+	/// Docs keep the target's whose links resolve more, as one lacking an item does not.
+	#[test]
+	fn docs_keep_the_most_links() {
+		let mut docs = "Joins a `Spawned`.".to_string();
+		linked(&mut docs, "Joins a [`Spawned`](rust2:api::Spawned).".to_string());
+		assert_eq!(docs, "Joins a [`Spawned`](rust2:api::Spawned).");
+		linked(&mut docs, "Joins a `Spawned`.".to_string());
+		assert_eq!(docs, "Joins a [`Spawned`](rust2:api::Spawned).");
+	}
 
 	#[test]
 	fn names_a_cycle_across_targets() {
@@ -782,12 +1040,14 @@ mod tests {
 			span: DUMMY_SP,
 			on: On(on),
 			docs: String::new(),
+			deprecated: None,
 			variants: vec![Variant {
 				name: "V".into(),
 				discriminant: 0,
 				fields: vec![Field {
 					name: "0".into(),
 					docs: String::new(),
+					deprecated: None,
 					ty: Type::Enum(ty),
 				}],
 				tuple: true,
@@ -808,6 +1068,8 @@ mod tests {
 			crates: ["a", "c"].map(String::from).to_vec(),
 			reached: Vec::new(),
 			targets: ["x", "y"].map(String::from).to_vec(),
+			links: Default::default(),
+			profiles: Default::default(),
 		};
 		let Err(cycle) = order_crates(&api) else {
 			panic!("a cycle")
@@ -830,6 +1092,7 @@ mod tests {
 				span: DUMMY_SP,
 				on: On::ALL,
 				docs: String::new(),
+				deprecated: None,
 				value: crate::ir::Literal::Bool(true),
 			}],
 			crates: vec!["f".into()],
@@ -840,11 +1103,152 @@ mod tests {
 			.into_iter()
 			.collect(),
 			targets: vec![target.into()],
+			links: Default::default(),
+			profiles: Default::default(),
 		};
 		let (_, differs) = super::merge(vec![api("x", true), api("y", false)]);
 		assert_eq!(differs.len(), 1);
 		assert_eq!((differs[0].first.0.as_str(), differs[0].second.0.as_str()), ("x", "y"));
 		let (_, differs) = super::merge(vec![api("x", true), api("y", true)]);
 		assert!(differs.is_empty());
+	}
+
+	/// A packed struct's field may read another way on each target, by its layout there: the
+	/// merge keeps one getter for it, reading the way both accept, and no difference.
+	#[test]
+	fn merges_a_fields_getter_across_read_modes() {
+		let getter = |read: Read, unfrozen: bool| Function {
+			path: ["f", "Regs", "n"].map(String::from).to_vec(),
+			shown: ["f", "Regs", "n"].map(String::from).to_vec(),
+			span: DUMMY_SP,
+			on: On::ALL,
+			docs: String::new(),
+			deprecated: None,
+			receiver: Some(crate::ir::Receiver::Ref),
+			params: Vec::new(),
+			units: Vec::new(),
+			ok: Type::Int(crate::ir::Int::Usize),
+			err: None,
+			future: false,
+			eager: false,
+			holds: false,
+			task: None,
+			send: true,
+			collect: false,
+			lends: false,
+			lends_mut: false,
+			derefs: 0,
+			leaf: true,
+			ties: false,
+			access: Access::Field {
+				set: false,
+				through: false,
+				read,
+				unfrozen,
+				copy: read != Read::Take,
+			},
+			instance: None,
+			home: Home::default(),
+		};
+		let api = |target: &str, read: Read, unfrozen: bool| {
+			let path = ["f", "Regs"].map(String::from).to_vec();
+			let record = crate::ir::Record {
+				path: path.clone(),
+				home: Home::default(),
+				shown: path,
+				args: Vec::new(),
+				span: DUMMY_SP,
+				on: On::ALL,
+				docs: String::new(),
+				deprecated: None,
+				fields: Vec::new(),
+				tuple: false,
+				methods: vec![getter(read, unfrozen)],
+				traits: Traits::default(),
+				opaque: None,
+				sizes: BTreeMap::new(),
+			};
+			Api {
+				records: vec![record],
+				enums: Vec::new(),
+				objects: Vec::new(),
+				callbacks: Vec::new(),
+				functions: Vec::new(),
+				constants: Vec::new(),
+				crates: vec!["f".into()],
+				reached: Vec::new(),
+				profiles: Default::default(),
+				targets: vec![target.into()],
+				links: Default::default(),
+			}
+		};
+		for (first, second) in [(Read::Borrow, Read::Copy), (Read::Copy, Read::Borrow)] {
+			let (merged, differs) = super::merge(vec![api("x", first, false), api("y", second, false)]);
+			assert!(differs.is_empty());
+			let methods = &merged.records[0].methods;
+			assert_eq!(methods.len(), 1, "one getter for the field");
+			assert_eq!(methods[0].on.0, 3);
+			assert!(matches!(methods[0].access, Access::Field { read: Read::Copy, .. }));
+		}
+		// An unaligned read of what one target holds an atomic in would race there.
+		let (merged, differs) = super::merge(vec![api("x", Read::Borrow, false), api("y", Read::Take, false)]);
+		assert!(differs.is_empty());
+		assert!(matches!(
+			merged.records[0].methods[0].access,
+			Access::Field { read: Read::Take, .. }
+		));
+		for (first, second) in [
+			(api("x", Read::Borrow, true), api("y", Read::Take, false)),
+			(api("x", Read::Take, false), api("y", Read::Borrow, true)),
+		] {
+			let (merged, differs) = super::merge(vec![first, second]);
+			assert_eq!(differs.len(), 1);
+			assert_eq!((differs[0].first.0.as_str(), differs[0].second.0.as_str()), ("x", "y"));
+			assert_eq!(merged.records[0].methods.len(), 1);
+		}
+		// A target that borrows what is not `Copy` there is not served by a `Copy` read: the
+		// merge reads by `Take`, and it still reports a field the other target holds an atomic in.
+		let uncopied = |mut api: Api| {
+			if let Access::Field { copy, .. } = &mut api.records[0].methods[0].access {
+				*copy = false;
+			}
+			api
+		};
+		for (first, second) in [
+			(uncopied(api("x", Read::Borrow, false)), api("y", Read::Copy, false)),
+			(api("x", Read::Copy, false), uncopied(api("y", Read::Borrow, false))),
+		] {
+			let (merged, differs) = super::merge(vec![first, second]);
+			assert!(differs.is_empty());
+			assert!(matches!(
+				merged.records[0].methods[0].access,
+				Access::Field {
+					read: Read::Take,
+					copy: false,
+					..
+				}
+			));
+		}
+		let (merged, differs) = super::merge(vec![
+			uncopied(api("x", Read::Borrow, true)),
+			api("y", Read::Copy, false),
+		]);
+		assert_eq!(differs.len(), 1);
+		assert_eq!(merged.records[0].methods.len(), 1);
+		// A setter never reads the field, so the same pair merges without a difference.
+		let setter = |mut api: Api| {
+			if let Access::Field { set, .. } = &mut api.records[0].methods[0].access {
+				*set = true;
+			}
+			api
+		};
+		for (first, second) in [
+			(api("x", Read::Borrow, true), api("y", Read::Take, true)),
+			(api("x", Read::Take, true), api("y", Read::Borrow, true)),
+		] {
+			let (merged, differs) = super::merge(vec![setter(first), setter(second)]);
+			assert!(differs.is_empty());
+			assert_eq!(merged.records[0].methods.len(), 1);
+		}
 	}
 }

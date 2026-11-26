@@ -3,14 +3,14 @@
 ## Goal
 
 The work moq is waiting on: the exporter that replaces the UniFFI generator forks moq
-builds its bindings with today.
+builds its bindings with today, and the end of CodSpeed in moq, rind, and here.
 
 ## Plan
 
 Decided with the maintainer on 2026-10-25, from the
 [spike](https://github.com/kixel-ai/rust2/pull/41): the [exporter](/ffi/README.md), which
 turns a crate's `pub` API into bindings with no attributes, replaces the UniFFI fork,
-whose feature quests are folded into the [exporter's](/quest/m1/ffi-export/README.md).
+whose feature quests were folded into the exporter's.
 
 Decided 2026-11-02 (maintainer, moq's /quest-unblock): the fork is not published to crates.io. moq skips it and switches straight to the exporter ([moq's switch](https://github.com/moq-dev/moq/blob/main/quest/m3/ffi-exporter.md)), so publishing would only commit permanent `rust2-*` names to code already slated for retirement. moq keeps its own pinned generator forks until the exporter is ready.
 
@@ -19,5 +19,16 @@ since moq never builds on it and its only consumers here were the binding benchm
 baseline and nightly jobs. Rejected: keeping it until moq switches; keeping it as is.
 
 Decided with the maintainer on 2026-11-12, in the quest audit: ✅ exporter work that
-changes no generated API is [its own epic](/quest/m1/ffi-speed/README.md), so it does not
-hold moq's pin open. Rejected: keeping it in the exporter's epic.
+changes no generated API is its own epic, so it does not
+hold moq's pin open; the epic retired on 2026-11-16 once its children landed. Rejected: keeping it in the exporter's epic.
+
+Decided with the maintainer on 2026-11-18, in the per-language audit of the exporter's
+bindings and the translators: ✅ its findings join m1 where moq's switch uses them. Breaking
+changes were children of the exporter epic and landed as
+soon as possible; the rest are the speed (landed), rule cost (landed), and
+packaging (landed) epics, and the fixes and additions at this
+milestone's top. Rejected: packaging in m2.
+
+Decided 2026-11-25 (maintainer, `/quest-plan` in rust2): ✅ [removing CodSpeed](/quest/m1/codspeed/README.md),
+service, app, and code, joins m1, since moq's and rind's rewrites to `#[bench]` wait on its
+paired timing. Rejected: m2 beside the harness epic.

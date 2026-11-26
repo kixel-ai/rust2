@@ -1,0 +1,487 @@
+name: Release @NAME@ bindings
+
+# Written by rust2's `ffi/release/package.py init`; yours to edit. rust2's builder, pinned
+# below, exports @NAME@'s pub API, builds its Python wheels and sdist, Swift package, C
+# archives, Go module, Android library, pub.dev package, web package, and React Native package,
+# and checks them in clean consumers, all read-only. The jobs after it publish only a tag's build, once `attest`
+# has signed it:
+#
+# - Attestations: a build provenance attestation and an SBOM attestation for every wheel, the
+#   sdist, the XCFramework, the Go module's .zip and .mod, each C archive, each Dart library,
+#   the jar, the AAR, their POM and Gradle metadata, and the npm tarballs, from this repository's GitHub, checked with
+#   `gh attestation verify`.
+# - PyPI: the project @NAME@'s wheels and sdist, through the trusted publisher this
+#   repository registers there for this workflow and the `pypi` environment.
+# - SwiftPM: @MODULE@FFI.xcframework.zip on this repository's @NAME@-v<version> release, which
+#   the Package.swift pushed to @MIRROR@ names by URL and checksum, tagged <version>.
+#   The mirror's token comes from a GitHub App installed on it, whose ID and key live in
+#   the `swift-mirror` environment.
+# - C and C++: <crate>-<version>-<target>.tar.gz, or .zip on Windows, on the same release.
+# - pub.dev: the package its pubspec names, through pub.dev's automated publishing from this
+#   repository's @NAME@-v{{version}} tags in the `pub` environment, once the same release
+#   hosts <crate>-<version>-dart-<target>.<ext>, each library its build hook downloads.
+# - npm and JSR: the web package, when the build makes one, through the trusted publisher
+#   npm registers for this workflow and the `npm` environment, and JSR's link to this
+#   repository, each with provenance; and on npm the React Native package, when the build
+#   makes one, through its own trusted publisher for the same workflow and environment.
+# - Maven Central: the Kotlin binding, a jar for desktop JVMs and an AAR for Android under
+#   one POM, when the build makes it, signed with the armored key `SIGNING_KEY` and its
+#   passphrase `SIGNING_PASSWORD` and uploaded with the Central Portal user token
+#   `MAVEN_CENTRAL_USERNAME` and `MAVEN_CENTRAL_PASSWORD`, the `publish` environment's
+#   secrets, as Central has no trusted publishing.
+#
+# The Go module @GO_MODULE@ is the build's @NAME@-go artifact, its .info, .mod, .zip, and list laid
+# out as a GOPROXY serves them; no job here publishes it. Serve it from a module proxy: on a
+# host you control, a go-import tag of type `mod` names it, but Go resolves a github.com path
+# by git alone, so its consumers set GOPROXY to the proxy. A git mirror holds no library
+# over GitHub's 100 MiB.
+#
+# To release, push the tag @NAME@-v<version>, naming the crate's version. Without a tag, as
+# from a nightly's workflow_call, every job up to publication runs. If publishing fails, use
+# "Re-run failed jobs": it reuses this run's build, and the publishing jobs upload only what
+# is missing. A rebuild makes the same files, so "Re-run all jobs" works too.
+on:
+  push:
+    tags:
+      - "@NAME@-v*"
+  workflow_call:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-@NAME@-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    uses: kixel-ai/rust2/.github/workflows/bindings.yml@@RUST2@
+    with:
+      manifest-path: @MANIFEST@
+      go-module: @GO_MODULE@
+@WEB@
+@MAVEN@
+      # Optional: cargo features to ship, an example of the crate whose output every check
+      # program must print, and those programs: `python-check`, `swift-check`, `c-check`,
+      # `go-check`, `kotlin-check`, `dart-check`, `web-check`, and `react-native-check`.
+
+  tag:
+    needs: build
+    if: github.ref_type == 'tag'
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Tag names the crate's version
+        env:
+          TAG: ${{ github.ref_name }}
+          WANT: ${{ needs.build.outputs.tag }}
+        run: |
+          if [[ "$TAG" != "$WANT" ]]; then
+            echo "::error::$TAG is not the crate's version, $WANT: bump Cargo.toml before tagging."
+            exit 1
+          fi
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        if: needs.build.outputs.web == 'true'
+        with:
+          name: @NAME@-web
+          path: npm/web
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        if: needs.build.outputs.react-native == 'true'
+        with:
+          name: @NAME@-react-native
+          path: npm/react-native
+      # npm's provenance refuses a package whose repository is not the one publishing it,
+      # which is checked here, before any registry takes this release.
+      - name: npm packages name this repository
+        if: needs.build.outputs.web == 'true' || needs.build.outputs.react-native == 'true'
+        run: |
+          for manifest in npm/*/npm/package.json; do
+            url=$(jq -r '.repository.url // ""' "$manifest")
+            url=${url#git+}
+            url=${url%.git}
+            if [[ "${url%/}" != "https://github.com/$GITHUB_REPOSITORY" ]]; then
+              echo "::error::$(jq -r .name "$manifest")'s repository is '$url', not https://github.com/$GITHUB_REPOSITORY: set Cargo's repository to it."
+              exit 1
+            fi
+          done
+
+  # Signs what the jobs below publish, before any of it is public, as this workflow's own
+  # build of this commit. The permissions are this job's alone.
+  attest:
+    needs: [build, tag]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: @NAME@-build-*
+          path: artifacts
+          merge-multiple: true
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: @NAME@-swift
+          path: artifacts/swift
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: @NAME@-go
+          path: artifacts/go
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        if: needs.build.outputs.web == 'true'
+        with:
+          name: @NAME@-web
+          path: artifacts/web
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        if: needs.build.outputs.maven == 'true'
+        with:
+          name: @NAME@-maven
+          path: artifacts/maven
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        if: needs.build.outputs.react-native == 'true'
+        with:
+          name: @NAME@-react-native
+          path: artifacts/react-native
+      - uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-path: |
+            artifacts/wheels/*.whl
+            artifacts/sdist/*.tar.gz
+            artifacts/swift/*FFI.xcframework.zip
+            artifacts/go/**/@v/*.zip
+            artifacts/go/**/@v/*.mod
+            artifacts/c/*
+            artifacts/maven/**/*.jar
+            artifacts/maven/**/*.aar
+            artifacts/maven/**/*.pom
+            artifacts/maven/**/*.module
+            artifacts/dart/*
+            artifacts/web/*.tgz
+            artifacts/react-native/*.tgz
+      - uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-path: |
+            artifacts/wheels/*.whl
+            artifacts/sdist/*.tar.gz
+            artifacts/swift/*FFI.xcframework.zip
+            artifacts/go/**/@v/*.zip
+            artifacts/go/**/@v/*.mod
+            artifacts/c/*
+            artifacts/dart/*
+          sbom-path: artifacts/sbom.cdx.json
+      # The npm tarball's own, from the web export's dependencies.
+      - uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        if: needs.build.outputs.web == 'true'
+        with:
+          subject-path: artifacts/web/*.tgz
+          sbom-path: artifacts/web/sbom.cdx.json
+      # React Native's own, of the crates its C ABI links.
+      - uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        if: needs.build.outputs.react-native == 'true'
+        with:
+          subject-path: artifacts/react-native/*.tgz
+          sbom-path: artifacts/react-native/sbom.cdx.json
+      # The Kotlin binding's own, of the crates its JNI build links, which Central serves beside it.
+      - name: Kotlin SBOM
+        id: maven
+        if: needs.build.outputs.maven == 'true'
+        run: echo "sbom=$(find artifacts/maven -name '*-cyclonedx.json')" >> "$GITHUB_OUTPUT"
+      - uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        if: needs.build.outputs.maven == 'true'
+        with:
+          subject-path: |
+            artifacts/maven/**/*.jar
+            artifacts/maven/**/*.aar
+            artifacts/maven/**/*.pom
+            artifacts/maven/**/*.module
+          sbom-path: ${{ steps.maven.outputs.sbom }}
+
+  pypi:
+    needs: [build, tag, attest]
+    runs-on: ubuntu-24.04
+    environment:
+      name: pypi
+      url: https://pypi.org/p/@NAME@
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: @NAME@-build-*
+          path: dist
+          merge-multiple: true
+      # A rerun uploads only the files PyPI lacks, and fails on one it hosts with other bytes.
+      - name: Skip the files PyPI hosts
+        id: missing
+        env:
+          PROJECT: '@NAME@'
+        shell: python3 -I {0}
+        run: |
+          import hashlib, json, os, pathlib, sys, urllib.error, urllib.request
+          url = f"https://pypi.org/simple/{os.environ['PROJECT']}/"
+          request = urllib.request.Request(url, headers={"Accept": "application/vnd.pypi.simple.v1+json"})
+          try:
+              with urllib.request.urlopen(request) as response:
+                  hosted = {f["filename"]: f["hashes"].get("sha256") for f in json.load(response)["files"]}
+          except urllib.error.HTTPError as error:
+              if error.code != 404:
+                  raise
+              hosted = {}
+          upload = pathlib.Path("dist/pypi")
+          upload.mkdir()
+          for path in sorted([*pathlib.Path("dist/wheels").glob("*.whl"), *pathlib.Path("dist/sdist").glob("*.tar.gz")]):
+              if path.name not in hosted:
+                  path.rename(upload / path.name)
+              elif hosted[path.name] == hashlib.sha256(path.read_bytes()).hexdigest():
+                  print(f"PyPI already hosts {path.name}")
+              else:
+                  sys.exit(f"::error::PyPI hosts another {path.name}")
+          with open(os.environ["GITHUB_OUTPUT"], "a") as output:
+              print(f"upload={'true' if any(upload.iterdir()) else 'false'}", file=output)
+      - uses: pypa/gh-action-pypi-publish@7245906fb61fa33a13554f9d5fb856fe61758086 # release/v1
+        if: steps.missing.outputs.upload == 'true'
+        with:
+          packages-dir: dist/pypi/
+
+  # The XCFramework the mirror's Package.swift names, each target's C archive, and each Dart
+  # library the pub.dev package's hook downloads, uploaded
+  # once: a consumer that resolved a checksum must never see other bytes at that URL. The
+  # release stays a draft until its assets are up, as an immutable release takes none once
+  # published. The release's API, api.json, is an asset too: the next release's build checks
+  # its own against it, and its notes list what changed since the previous release's.
+  github-release:
+    needs: [build, tag, attest]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: @NAME@-swift
+          path: swift
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: @NAME@-build-*
+          path: dist
+          merge-multiple: true
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: @NAME@-release
+          path: release
+      - name: Upload
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+          XCFRAMEWORK: swift/${{ needs.build.outputs.module }}FFI.xcframework.zip
+          # Cargo's prerelease, such as 1.0.0-rc.1, is GitHub's too.
+          PRERELEASE: ${{ contains(needs.build.outputs.version, '-') }}
+        run: |
+          if ! gh release view "$TAG" --repo "$GITHUB_REPOSITORY" > /dev/null; then
+            gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --verify-tag --draft --prerelease="$PRERELEASE" --title "$TAG" --notes-file release/changes.md
+          fi
+          shopt -s nullglob
+          for path in "$XCFRAMEWORK" release/api.json dist/c/* dist/dart/*; do
+            asset=$(basename "$path")
+            if gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --pattern "$asset" --dir existing; then
+              cmp "existing/$asset" "$path" || { echo "::error::$TAG already hosts another $asset"; exit 1; }
+            else
+              gh release upload "$TAG" --repo "$GITHUB_REPOSITORY" "$path"
+            fi
+          done
+          gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --draft=false
+
+  # The hosted package, resolved by URL and checksum as a user's SwiftPM resolves it,
+  # before the mirror points anyone at it.
+  swift-resolve:
+    needs: [build, github-release]
+    runs-on: macos-26
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: @NAME@-swift
+          path: swift
+      - name: Resolve
+        env:
+          MODULE: ${{ needs.build.outputs.module }}
+        run: |
+          mkdir -p consumer/Sources/Check
+          printf 'import %s\n' "$MODULE" > consumer/Sources/Check/main.swift
+          cat > consumer/Package.swift <<SWIFT
+          // swift-tools-version: 6.2
+          import PackageDescription
+          let package = Package(
+              name: "Check",
+              platforms: [.macOS("13.0"), .iOS("16.0")],
+              dependencies: [.package(path: "../swift/package")],
+              targets: [.executableTarget(name: "Check", dependencies: [.product(name: "$MODULE", package: "package")])]
+          )
+          SWIFT
+          cd consumer
+          swift build
+
+  swift-mirror:
+    needs: [build, swift-resolve]
+    runs-on: ubuntu-24.04
+    environment: swift-mirror
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: @NAME@-swift
+          path: swift
+      - uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3
+        id: token
+        with:
+          client-id: ${{ secrets.APP_CLIENT_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+          owner: @MIRROR_OWNER@
+          repositories: @MIRROR_REPO@
+          permission-contents: write
+      - name: Push
+        env:
+          GH_TOKEN: ${{ steps.token.outputs.token }}
+          MIRROR: '@MIRROR@'
+          VERSION: ${{ needs.build.outputs.version }}
+        run: |
+          gh auth setup-git
+          git clone --quiet "https://github.com/$MIRROR.git" mirror
+          cd mirror
+          git config user.name "${GITHUB_ACTOR}"
+          git config user.email "${GITHUB_ACTOR_ID}+${GITHUB_ACTOR}@users.noreply.github.com"
+          if git rev-parse --quiet --verify "refs/tags/$VERSION" > /dev/null; then
+            # A rerun after the push: the tag must hold exactly this package.
+            git checkout --quiet "$VERSION"
+            diff -r --exclude=.git . ../swift/package || { echo "::error::$MIRROR's $VERSION holds another package"; exit 1; }
+            exit 0
+          fi
+          git rm -r --quiet --ignore-unmatch .
+          cp -R ../swift/package/. .
+          git add --all
+          # A rerun whose branch already holds this package, but no tag, commits nothing.
+          git diff --cached --quiet || git commit --quiet -m "$VERSION"
+          git tag "$VERSION"
+          git push --quiet --atomic origin HEAD "refs/tags/$VERSION"
+
+  # The package, once the release hosts every library its hook downloads. pub.dev takes it
+  # from a tag push alone, by the OIDC token setup-dart makes. A rerun publishes only a
+  # version pub.dev lacks, and fails on one it hosts with other files.
+  pub:
+    needs: [build, tag, attest, github-release]
+    runs-on: ubuntu-24.04
+    environment: pub
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: @NAME@-pub
+          path: pub
+      - uses: dart-lang/setup-dart@2286a0c042b44434fe26d292bbce8d34f7ec662b # v1.8.2
+        with:
+          sdk: stable
+      - name: Publish
+        working-directory: pub/package
+        run: |
+          name=$(sed -n 's/^name: //p' pubspec.yaml)
+          version=$(sed -n 's/^version: //p' pubspec.yaml)
+          if url=$(curl -sf "https://pub.dev/api/packages/$name/versions/$version" | jq -er .archive_url); then
+            mkdir ../hosted
+            curl -sfL "$url" | tar -xz -C ../hosted
+            diff -r . ../hosted || { echo "::error::pub.dev hosts another $name $version"; exit 1; }
+            echo "pub.dev already hosts $name $version"
+            exit 0
+          fi
+          dart pub publish --force
+
+  # The web package and the React Native package, each the build made. A rerun publishes only
+  # a version npm lacks, and fails on one it hosts with other bytes.
+  npm:
+    needs: [build, tag, attest]
+    if: needs.build.outputs.web == 'true' || needs.build.outputs.react-native == 'true'
+    runs-on: ubuntu-24.04
+    environment: npm
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        if: needs.build.outputs.web == 'true'
+        with:
+          name: @NAME@-web
+          path: npm/web
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        if: needs.build.outputs.react-native == 'true'
+        with:
+          name: @NAME@-react-native
+          path: npm/react-native
+      # Trusted publishing needs npm 11.5.1 or later.
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '24'
+      - name: Publish
+        run: |
+          for dir in npm/*/; do
+            tarball=$(echo "$dir"*.tgz)
+            name=$(jq -r .name "$dir/npm/package.json")
+            version=$(jq -r .version "$dir/npm/package.json")
+            ours="sha512-$(openssl dgst -sha512 -binary "$tarball" | base64 -w0)"
+            if hosted=$(npm view "$name@$version" dist.integrity 2> /dev/null) && [[ -n "$hosted" ]]; then
+              [[ "$hosted" == "$ours" ]] || { echo "::error::npm hosts another $name@$version"; exit 1; }
+              echo "npm already hosts $name@$version"
+              continue
+            fi
+            # npm takes a prerelease only under a tag of its own, so it is never `latest`.
+            tag=latest
+            if [[ "$version" == *-* ]]; then tag=next; fi
+            npm publish --provenance --access public --tag "$tag" "$tarball"
+          done
+
+  # JSR skips a version it already hosts.
+  jsr:
+    needs: [build, tag, attest]
+    if: needs.build.outputs.web == 'true'
+    runs-on: ubuntu-24.04
+    environment: jsr
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: @NAME@-web
+          path: web
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '24'
+      - name: Publish
+        working-directory: web/jsr
+        run: npx --yes jsr@0.14.3 publish
+
+  # The Kotlin binding's bundle, each file signed, which the Central Portal validates and
+  # publishes, through rust2's central.sh at the builder's pin. A rerun uploads nothing once
+  # Central has published the version, and fails on a file it serves with other bytes; one
+  # whose upload still publishes fails until it is done.
+  maven:
+    needs: [build, tag, attest]
+    if: needs.build.outputs.maven == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    environment: publish
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: kixel-ai/rust2
+          ref: @RUST2@
+          path: rust2
+          sparse-checkout: ffi/release/central.sh
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: @NAME@-maven
+          path: maven
+      - name: Publish
+        env:
+          USERNAME: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
+          PASSWORD: ${{ secrets.MAVEN_CENTRAL_PASSWORD }}
+          SIGNING_KEY: ${{ secrets.SIGNING_KEY }}
+          SIGNING_PASSWORD: ${{ secrets.SIGNING_PASSWORD }}
+        run: rust2/ffi/release/central.sh publish maven

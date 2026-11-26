@@ -285,9 +285,15 @@ export function pointers$Option_u16(data: rs.ByteSlice, out: rs.ByteVec): void {
 				break b2;
 			}
 			if (_35 === 1) {
-				rs.ptrCopy(rs.vecAsPtr(rs.iterToVec(rs.iterMap(new rs.Range(0, k), (i5: rs.usize): rs.u16 | undefined => {
-					return of$spare_Item_Option_u16(n ^ (i5 & 0xff));
-				}), undefined, 4, true), 4), rs.ptrAdd(rs.vecAsPtr(v, 4), len), k);
+				let start = 0;
+				let end3 = k;
+				const v2: rs.Vec<rs.u16 | undefined> = rs.vecWithCapacity(Math.max(end3 - start, 0), 4);
+				while (!(start >= end3)) {
+					const x2 = start++;
+					const y: rs.u16 | undefined = of$spare_Item_Option_u16(n ^ (x2 & 0xff));
+					v2.items.push(y);
+				}
+				rs.ptrCopy(rs.vecAsPtr(v2, 4), rs.ptrAdd(rs.vecAsPtr(v, 4), len), k);
 				rs.vecSetLen(v, rs.usizeAdd(len, k), 4, (): rs.u16 | undefined => {
 					return (undefined as unknown) as rs.u16 | undefined;
 				});
@@ -417,9 +423,15 @@ export function pointers$Vec_u8(data: rs.ByteSlice, out: rs.ByteVec): void {
 				break b2;
 			}
 			if (_35 === 1) {
-				rs.ptrCopy(rs.vecAsPtr(rs.iterToVec(rs.iterMap(new rs.Range(0, k), (i5: rs.usize): rs.ByteVec => {
-					return of$spare_Item_Vec_u8(n ^ (i5 & 0xff));
-				}), undefined, 12, true), 12), rs.ptrAdd(rs.vecAsPtr(v, 12), len), k, copy$Vec_u8);
+				let start = 0;
+				let end3 = k;
+				const v2: rs.Vec<rs.ByteVec> = rs.vecWithCapacity(Math.max(end3 - start, 0), 12);
+				while (!(start >= end3)) {
+					const x2 = start++;
+					const y: rs.ByteVec = of$spare_Item_Vec_u8(n ^ (x2 & 0xff));
+					v2.items.push(y);
+				}
+				rs.ptrCopy(rs.vecAsPtr(v2, 12), rs.ptrAdd(rs.vecAsPtr(v, 12), len), k, copy$Vec_u8);
 				rs.vecSetLen(v, rs.usizeAdd(len, k), 12, (): rs.ByteVec => {
 					return (undefined as unknown) as rs.ByteVec;
 				});
@@ -549,9 +561,15 @@ export function pointers$u32(data: rs.ByteSlice, out: rs.ByteVec): void {
 				break b2;
 			}
 			if (_35 === 1) {
-				rs.ptrCopy(rs.vecAsPtr(rs.iterToVec(rs.iterMap(new rs.Range(0, k), (i5: rs.usize): rs.u32 => {
-					return of$spare_Item_u32(n ^ (i5 & 0xff));
-				}), undefined, 4, true), 4), rs.ptrAdd(rs.vecAsPtr(v, 4), len), k);
+				let start = 0;
+				let end3 = k;
+				const v2: rs.Vec<rs.u32> = rs.vecWithCapacity(Math.max(end3 - start, 0), 4);
+				while (!(start >= end3)) {
+					const x2 = start++;
+					const y: rs.u32 = of$spare_Item_u32(n ^ (x2 & 0xff));
+					v2.items.push(y);
+				}
+				rs.ptrCopy(rs.vecAsPtr(v2, 4), rs.ptrAdd(rs.vecAsPtr(v, 4), len), k);
 				rs.vecSetLen(v, rs.usizeAdd(len, k), 4, (): rs.u32 => {
 					return (undefined as unknown) as rs.u32;
 				});
@@ -679,10 +697,15 @@ export function slots$Option_u16(data: rs.ByteSlice, out: rs.ByteVec): void {
 				return (undefined as unknown) as rs.u16 | undefined;
 			});
 		} else if (_30 === 2) {
-			const src: rs.Vec<rs.u16 | undefined> = rs.iterToVec(rs.iterMap(new rs.Range(0, k), (i3: rs.usize): rs.u16 | undefined => {
-				return of$spare_Item_Option_u16(rs.u8WrappingMul(n, i3 & 0xff));
-			}), undefined, 4, true);
-			rs.sliceReverse(rs.sliceWriteCloneOfSlice(rs.sliceRange(spare, 0, k), rs.sliceFrom(src.items), undefined));
+			let start = 0;
+			let end = k;
+			const v2: rs.Vec<rs.u16 | undefined> = rs.vecWithCapacity(Math.max(end - start, 0), 4);
+			while (!(start >= end)) {
+				const x = start++;
+				const y: rs.u16 | undefined = of$spare_Item_Option_u16(rs.u8WrappingMul(n, x & 0xff));
+				v2.items.push(y);
+			}
+			rs.sliceReverse(rs.sliceWriteCloneOfSlice(rs.sliceRange(spare, 0, k), rs.sliceFrom(v2.items), undefined));
 			rs.vecSetLen(v, rs.usizeAdd(len, k), 4, (): rs.u16 | undefined => {
 				return (undefined as unknown) as rs.u16 | undefined;
 			});
@@ -765,10 +788,15 @@ export function slots$String(data: rs.ByteSlice, out: rs.ByteVec): void {
 				return (undefined as unknown) as rs.String;
 			});
 		} else if (_30 === 2) {
-			const src: rs.Vec<rs.String> = rs.iterToVec(rs.iterMap(new rs.Range(0, k), (i3: rs.usize): rs.String => {
-				return of$spare_Item_String(rs.u8WrappingMul(n, i3 & 0xff));
-			}), undefined, 12, true);
-			rs.sliceReverse(rs.sliceWriteCloneOfSlice(rs.sliceRange(spare, 0, k), rs.sliceFrom(src.items), (a0: rs.String): rs.String => {
+			let start = 0;
+			let end = k;
+			const v2: rs.Vec<rs.String> = rs.vecWithCapacity(Math.max(end - start, 0), 12);
+			while (!(start >= end)) {
+				const x = start++;
+				const y: rs.String = of$spare_Item_String(rs.u8WrappingMul(n, x & 0xff));
+				v2.items.push(y);
+			}
+			rs.sliceReverse(rs.sliceWriteCloneOfSlice(rs.sliceRange(spare, 0, k), rs.sliceFrom(v2.items), (a0: rs.String): rs.String => {
 				return rs.stringClone(a0);
 			}));
 			rs.vecSetLen(v, rs.usizeAdd(len, k), 12, (): rs.String => {
@@ -829,43 +857,48 @@ export function slots$spare_Noted(data: rs.ByteSlice, out: rs.ByteVec): void {
 		const k: rs.usize = rs.usizeRem(n as rs.usize, rs.usizeAdd(spare.length, 1));
 		const _30: rs.u8 = rs.u8Rem(op, 6);
 		if (_30 === 0) {
-			const leaf: rs.Iter<Noted.Noted> = rs.iterSlice(rs.sliceItems(rs.sliceRange(spare, 0, k)));
-			let count: number = 0;
-			while (true) {
-				let next!: [rs.usize, Noted.Noted] | rs.Done;
-				next2: {
-					const x = leaf.next();
-					if (x === rs.DONE) {
-						next = rs.DONE;
-						break next2;
-					}
-					next = [count++, x];
-				}
-				const _38: [rs.usize, Noted.Noted] | rs.Done = next;
-				if (_38 === rs.DONE) {
-					break;
-				}
-				rs.ptrWrite(_38[1], Noted.of$spare_Item(n ^ (_38[0] & 0xff)));
+			const s2: Noted.Noted[] = rs.sliceItems(rs.sliceRange(spare, 0, k));
+			let front2: number = 0;
+			const back2: number = s2.length;
+			let count2: number = 0;
+			while (!(front2 >= back2)) {
+				const x3 = s2[front2++];
+				const i5 = count2++;
+				rs.ptrWrite(x3, Noted.of$spare_Item(n ^ (i5 & 0xff)));
 			}
 			rs.vecSetLen(v, rs.usizeAdd(len, k), 1, (): Noted.Noted => {
 				return (new Noted.Noted((undefined as unknown) as rs.u8) as unknown) as Noted.Noted;
 			});
 		} else if (_30 === 1) {
-			const iter2: rs.Iter<[rs.usize, Noted.Noted]> = rs.iterRev(rs.iterEnumerate(rs.iterSlice(rs.sliceItems(rs.sliceRange(spare, 0, k)))));
+			const s: Noted.Noted[] = rs.sliceItems(rs.sliceRange(spare, 0, k));
+			const front: number = 0;
+			let back: number = s.length;
+			let count: number = -1;
 			while (true) {
-				const _58: [rs.usize, Noted.Noted] | rs.Done = iter2.next();
-				if (_58 === rs.DONE) {
+				if (count < 0) {
+					count = back - front;
+				}
+				if (front >= back) {
 					break;
 				}
-				Object.assign(_58[1], Noted.of$spare_Item(rs.u8WrappingAdd(n, _58[0] & 0xff)));
+				back--;
+				const x2 = s[back];
+				count--;
+				Object.assign(x2, Noted.of$spare_Item(rs.u8WrappingAdd(n, count & 0xff)));
 			}
 			rs.vecSetLen(v, rs.usizeAdd(len, k), 1, (): Noted.Noted => {
 				return (new Noted.Noted((undefined as unknown) as rs.u8) as unknown) as Noted.Noted;
 			});
 		} else if (_30 === 2) {
-			const src: rs.Vec<Noted.Noted> = rs.iterToVec(rs.iterMap(new rs.Range(0, k), (i3: rs.usize): Noted.Noted => {
-				return Noted.of$spare_Item(rs.u8WrappingMul(n, i3 & 0xff));
-			}), undefined, 1, true);
+			let start = 0;
+			let end = k;
+			const v2: rs.Vec<Noted.Noted> = rs.vecWithCapacity(Math.max(end - start, 0), 1);
+			while (!(start >= end)) {
+				const x = start++;
+				const y: Noted.Noted = Noted.of$spare_Item(rs.u8WrappingMul(n, x & 0xff));
+				v2.items.push(y);
+			}
+			const src: rs.Vec<Noted.Noted> = v2;
 			rs.sliceReverse(rs.sliceWriteCloneOfSlice(rs.sliceRange(spare, 0, k), rs.sliceFrom(src.items), Noted.clone$Clone));
 			rs.vecSetLen(v, rs.usizeAdd(len, k), 1, (): Noted.Noted => {
 				return (new Noted.Noted((undefined as unknown) as rs.u8) as unknown) as Noted.Noted;
@@ -930,44 +963,48 @@ export function slots$spare_Pair(data: rs.ByteSlice, out: rs.ByteVec): void {
 		const k: rs.usize = rs.usizeRem(n as rs.usize, rs.usizeAdd(spare.length, 1));
 		const _30: rs.u8 = rs.u8Rem(op, 6);
 		if (_30 === 0) {
-			const leaf: rs.Iter<Pair.Pair> = rs.iterSlice(rs.sliceItems(rs.sliceRange(spare, 0, k)));
-			let count: number = 0;
-			while (true) {
-				let next!: [rs.usize, Pair.Pair] | rs.Done;
-				next2: {
-					const x = leaf.next();
-					if (x === rs.DONE) {
-						next = rs.DONE;
-						break next2;
-					}
-					next = [count++, x];
-				}
-				const _38: [rs.usize, Pair.Pair] | rs.Done = next;
-				if (_38 === rs.DONE) {
-					break;
-				}
-				rs.ptrWrite(_38[1], Pair.of$spare_Item(n ^ (_38[0] & 0xff)));
+			const s2: Pair.Pair[] = rs.sliceItems(rs.sliceRange(spare, 0, k));
+			let front2: number = 0;
+			const back2: number = s2.length;
+			let count2: number = 0;
+			while (!(front2 >= back2)) {
+				const x3 = s2[front2++];
+				const i5 = count2++;
+				rs.ptrWrite(x3, Pair.of$spare_Item(n ^ (i5 & 0xff)));
 			}
 			rs.vecSetLen(v, rs.usizeAdd(len, k), 16, (): Pair.Pair => {
 				return ({ a: undefined, b: undefined } as unknown) as Pair.Pair;
 			});
 		} else if (_30 === 1) {
-			const iter2: rs.Iter<[rs.usize, Pair.Pair]> = rs.iterRev(rs.iterEnumerate(rs.iterSlice(rs.sliceItems(rs.sliceRange(spare, 0, k)))));
+			const s: Pair.Pair[] = rs.sliceItems(rs.sliceRange(spare, 0, k));
+			const front: number = 0;
+			let back: number = s.length;
+			let count: number = -1;
 			while (true) {
-				const _58: [rs.usize, Pair.Pair] | rs.Done = iter2.next();
-				if (_58 === rs.DONE) {
+				if (count < 0) {
+					count = back - front;
+				}
+				if (front >= back) {
 					break;
 				}
-				Object.assign(_58[1], Pair.of$spare_Item(rs.u8WrappingAdd(n, _58[0] & 0xff)));
+				back--;
+				const x2 = s[back];
+				count--;
+				Object.assign(x2, Pair.of$spare_Item(rs.u8WrappingAdd(n, count & 0xff)));
 			}
 			rs.vecSetLen(v, rs.usizeAdd(len, k), 16, (): Pair.Pair => {
 				return ({ a: undefined, b: undefined } as unknown) as Pair.Pair;
 			});
 		} else if (_30 === 2) {
-			const src: rs.Vec<Pair.Pair> = rs.iterToVec(rs.iterMap(new rs.Range(0, k), (i3: rs.usize): Pair.Pair => {
-				return Pair.of$spare_Item(rs.u8WrappingMul(n, i3 & 0xff));
-			}), undefined, 16, true);
-			rs.sliceReverse(rs.sliceWriteCloneOfSlice(rs.sliceRange(spare, 0, k), rs.sliceFrom(src.items), Pair.clone$Clone));
+			let start = 0;
+			let end = k;
+			const v2: rs.Vec<Pair.Pair> = rs.vecWithCapacity(Math.max(end - start, 0), 16);
+			while (!(start >= end)) {
+				const x = start++;
+				const y: Pair.Pair = Pair.of$spare_Item(rs.u8WrappingMul(n, x & 0xff));
+				v2.items.push(y);
+			}
+			rs.sliceReverse(rs.sliceWriteCloneOfSlice(rs.sliceRange(spare, 0, k), rs.sliceFrom(v2.items), Pair.clone$Clone));
 			rs.vecSetLen(v, rs.usizeAdd(len, k), 16, (): Pair.Pair => {
 				return ({ a: undefined, b: undefined } as unknown) as Pair.Pair;
 			});
@@ -1026,44 +1063,48 @@ export function slots$tuple2_u8_u32(data: rs.ByteSlice, out: rs.ByteVec): void {
 		const k: rs.usize = rs.usizeRem(n as rs.usize, rs.usizeAdd(spare.length, 1));
 		const _30: rs.u8 = rs.u8Rem(op, 6);
 		if (_30 === 0) {
-			const leaf: rs.Iter<[rs.u8, rs.u32]> = rs.iterSlice(rs.sliceItems(rs.sliceRange(spare, 0, k)));
-			let count: number = 0;
-			while (true) {
-				let next!: [rs.usize, [rs.u8, rs.u32]] | rs.Done;
-				next2: {
-					const x = leaf.next();
-					if (x === rs.DONE) {
-						next = rs.DONE;
-						break next2;
-					}
-					next = [count++, x];
-				}
-				const _38: [rs.usize, [rs.u8, rs.u32]] | rs.Done = next;
-				if (_38 === rs.DONE) {
-					break;
-				}
-				rs.ptrWrite(_38[1], copy$tuple2_u8_u32(of$spare_Item_tuple2_u8_u32(n ^ (_38[0] & 0xff))));
+			const s2: [rs.u8, rs.u32][] = rs.sliceItems(rs.sliceRange(spare, 0, k));
+			let front2: number = 0;
+			const back2: number = s2.length;
+			let count2: number = 0;
+			while (!(front2 >= back2)) {
+				const x3 = s2[front2++];
+				const i5 = count2++;
+				rs.ptrWrite(x3, copy$tuple2_u8_u32(of$spare_Item_tuple2_u8_u32(n ^ (i5 & 0xff))));
 			}
 			rs.vecSetLen(v, rs.usizeAdd(len, k), 8, (): [rs.u8, rs.u32] => {
 				return ([undefined, undefined] as unknown) as [rs.u8, rs.u32];
 			});
 		} else if (_30 === 1) {
-			const iter2: rs.Iter<[rs.usize, [rs.u8, rs.u32]]> = rs.iterRev(rs.iterEnumerate(rs.iterSlice(rs.sliceItems(rs.sliceRange(spare, 0, k)))));
+			const s: [rs.u8, rs.u32][] = rs.sliceItems(rs.sliceRange(spare, 0, k));
+			const front: number = 0;
+			let back: number = s.length;
+			let count: number = -1;
 			while (true) {
-				const _58: [rs.usize, [rs.u8, rs.u32]] | rs.Done = iter2.next();
-				if (_58 === rs.DONE) {
+				if (count < 0) {
+					count = back - front;
+				}
+				if (front >= back) {
 					break;
 				}
-				Object.assign(_58[1], copy$mem_MaybeUninit_tuple2_u8_u32(copy$tuple2_u8_u32(of$spare_Item_tuple2_u8_u32(rs.u8WrappingAdd(n, _58[0] & 0xff)))));
+				back--;
+				const x2 = s[back];
+				count--;
+				Object.assign(x2, copy$mem_MaybeUninit_tuple2_u8_u32(copy$tuple2_u8_u32(of$spare_Item_tuple2_u8_u32(rs.u8WrappingAdd(n, count & 0xff)))));
 			}
 			rs.vecSetLen(v, rs.usizeAdd(len, k), 8, (): [rs.u8, rs.u32] => {
 				return ([undefined, undefined] as unknown) as [rs.u8, rs.u32];
 			});
 		} else if (_30 === 2) {
-			const src: rs.Vec<[rs.u8, rs.u32]> = rs.iterToVec(rs.iterMap(new rs.Range(0, k), (i3: rs.usize): [rs.u8, rs.u32] => {
-				return of$spare_Item_tuple2_u8_u32(rs.u8WrappingMul(n, i3 & 0xff));
-			}), undefined, 8, true);
-			rs.sliceReverse(rs.sliceWriteCloneOfSlice(rs.sliceRange(spare, 0, k), rs.sliceFrom(src.items), copy$tuple2_u8_u32));
+			let start = 0;
+			let end = k;
+			const v2: rs.Vec<[rs.u8, rs.u32]> = rs.vecWithCapacity(Math.max(end - start, 0), 8);
+			while (!(start >= end)) {
+				const x = start++;
+				const y: [rs.u8, rs.u32] = of$spare_Item_tuple2_u8_u32(rs.u8WrappingMul(n, x & 0xff));
+				v2.items.push(y);
+			}
+			rs.sliceReverse(rs.sliceWriteCloneOfSlice(rs.sliceRange(spare, 0, k), rs.sliceFrom(v2.items), copy$tuple2_u8_u32));
 			rs.vecSetLen(v, rs.usizeAdd(len, k), 8, (): [rs.u8, rs.u32] => {
 				return ([undefined, undefined] as unknown) as [rs.u8, rs.u32];
 			});
@@ -1146,10 +1187,15 @@ export function slots$u32(data: rs.ByteSlice, out: rs.ByteVec): void {
 				return (undefined as unknown) as rs.u32;
 			});
 		} else if (_30 === 2) {
-			const src: rs.Vec<rs.u32> = rs.iterToVec(rs.iterMap(new rs.Range(0, k), (i3: rs.usize): rs.u32 => {
-				return of$spare_Item_u32(rs.u8WrappingMul(n, i3 & 0xff));
-			}), undefined, 4, true);
-			rs.sliceReverse(rs.sliceWriteCloneOfSlice(rs.sliceRange(spare, 0, k), rs.sliceFrom(src.items), undefined));
+			let start = 0;
+			let end = k;
+			const v2: rs.Vec<rs.u32> = rs.vecWithCapacity(Math.max(end - start, 0), 4);
+			while (!(start >= end)) {
+				const x = start++;
+				const y: rs.u32 = of$spare_Item_u32(rs.u8WrappingMul(n, x & 0xff));
+				v2.items.push(y);
+			}
+			rs.sliceReverse(rs.sliceWriteCloneOfSlice(rs.sliceRange(spare, 0, k), rs.sliceFrom(v2.items), undefined));
 			rs.vecSetLen(v, rs.usizeAdd(len, k), 4, (): rs.u32 => {
 				return (undefined as unknown) as rs.u32;
 			});

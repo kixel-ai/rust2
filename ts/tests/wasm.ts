@@ -1,9 +1,11 @@
 // A fixture's wasm32 build (`fixtures/wasm.rs`): the host writes an input into the
 // instance's memory, runs the crate's entry on it, and copies the output back out.
-// `differential.ts` runs it beside the translation, and `bench/time.ts` times each step.
+// `differential.ts` runs it beside the translation, and `bench/time.ts` times each step,
+// also of the build Binaryen's wasm2js lowered to JavaScript, whose exports are the same.
 
-interface Exports {
-	memory: WebAssembly.Memory;
+/** The module's exports, or a lowered module's, whose memory is an object with a buffer too. */
+export interface Exports {
+	memory: { readonly buffer: ArrayBuffer };
 	input(len: number): number;
 	run(): number;
 	output(): number;
@@ -30,7 +32,7 @@ export type Glue = Record<string, unknown> & { __wbg_set_wasm(exports: unknown):
 export type Outcome = Uint8Array | { panic: string } | { thrown: string } | "abort";
 
 export class Wasm {
-	#module: WebAssembly.Module;
+	#module: WebAssembly.Module | Exports;
 	#exports!: Exports;
 	#glued: boolean;
 	/** What a fixture's panic hooks wrote before the last call trapped, if it exports `note`. */
@@ -38,13 +40,19 @@ export class Wasm {
 	/** Whether the last call left the instance mid-call, which only `renew` replaces for a module with glue. */
 	stale = false;
 
-	constructor(module: WebAssembly.Module, glue?: Glue) {
+	/** An instance of `module`, or of a lowered module, whose evaluation made its one instance. */
+	constructor(module: WebAssembly.Module | Exports, glue?: Glue) {
 		this.#module = module;
 		this.#glued = glue !== undefined;
 		this.#instantiate(glue);
 	}
 
 	#instantiate(glue?: Glue) {
+		if (!(this.#module instanceof WebAssembly.Module)) {
+			if (this.#exports) throw new Error("a lowered module has one instance, which a trap left mid-call");
+			this.#exports = this.#module;
+			return;
+		}
 		const imports: WebAssembly.Imports = {};
 		for (const { module } of WebAssembly.Module.imports(this.#module)) {
 			if (glue) imports[module] = glue as WebAssembly.ModuleImports;

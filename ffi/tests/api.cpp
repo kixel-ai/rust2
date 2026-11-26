@@ -1,22 +1,35 @@
 // The api fixture's C++ test: the script fixtures/api/examples/transcript.rs runs
-// natively, through the generated C++ header. tests/fixtures.rs compares the transcripts.
+// natively, through the C++ tests/fixtures/transcript writes from it, transcript.hpp, which
+// calls the functions in `hook` here that transcript.rs defines. tests/fixtures.rs compares
+// the transcripts.
 //
-// With an argument, it instead checks the futures' semantics, or breaks a contract of the
-// ABI, which must abort.
+// With an argument, it instead checks the futures' semantics, who owns what, or what the
+// transcript says only in Rust, or breaks a contract of the ABI, which must abort.
 
 #include <algorithm>
+#include <array>
+#include <cassert>
+#include <cerrno>
 #include <chrono>
 #include <cmath>
 #include <condition_variable>
+#include <cstddef>
 #include <cstdio>
+#include <cstdlib>
 #include <cstring>
 #include <deque>
 #include <functional>
+#include <initializer_list>
+#include <iterator>
 #include <memory>
 #include <mutex>
 #include <optional>
 #include <string>
+#include <string_view>
 #include <thread>
+#include <tuple>
+#include <type_traits>
+#include <utility>
 #include <variant>
 #include <vector>
 #if __has_include(<version>)
@@ -25,23 +38,213 @@
 #ifdef __cpp_lib_span
 #include <span>
 #endif
+#ifdef __cpp_lib_ranges
+#include <ranges>
+#endif
 
 #include "api.hpp"
+
+// A constant only some of the header's targets have is declared only where it compiles for
+// one: a 64-bit host has `WORD`.
+static_assert(api::WORD == SIZE_MAX, "api::WORD is a 64-bit target's largest size_t");
 
 #ifdef _WIN32
 #include <fcntl.h>
 #include <io.h>
 #endif
 
+#ifdef __linux__
+#include <sys/prctl.h>
+#endif
+
 namespace {
+
+// The functions transcript.rs defines, each C++'s own: what tests its idiom, such as its
+// futures and readers, or prints a value no two bindings shape alike.
+namespace hook {
 
 // Print a returned buffer.
 void print(const char *before, const api::buf &buf, const char *after) {
 	std::printf("%s%.*s%s", before, static_cast<int>(buf.size()), reinterpret_cast<const char *>(buf.data()), after);
 }
 
+const char *yes(bool b) {
+	return b ? "true" : "false";
+}
+
+unsigned long long ull(std::uint64_t v) {
+	return static_cast<unsigned long long>(v);
+}
+
+// An eraser whose methods differ only by a trailing underscore, which C++ escapes alike.
+class Eraser final : public api::clash_Eraser {
+public:
+	std::uint8_t delete_(std::uint8_t new_, std::uint8_t new_2) const override {
+		return static_cast<std::uint8_t>(new_ * 10 + new_2);
+	}
+	std::uint8_t delete_2() const override {
+		return 3;
+	}
+};
+
+// A count named with a trailing underscore in Rust, whose C names join no `__`.
+class Count final : public api::clash_Count_ {
+public:
+	std::uint32_t next() const override {
+		return 4;
+	}
+};
+
+// The Log callback: keeps even levels.
+class Print final : public api::Log {
+public:
+	bool log(std::uint8_t level, api::view line) const override {
+		std::printf("log %u %.*s\n", level, static_cast<int>(line.size()), reinterpret_cast<const char *>(line.data()));
+		return level % 2 == 0;
+	}
+	~Print() override {
+		std::printf("freed\n");
+	}
+};
+
+// The Undo callback: each method returns its own digit.
+class Edits final : public api::Undo {
+public:
+	std::uint32_t delete_(std::uint32_t n) const override {
+		return n - 1;
+	}
+	std::uint32_t free() const override {
+		return 2;
+	}
+	std::uint8_t type() const override {
+		return 3;
+	}
+};
+
+// Lowercase hex of `bytes`, two digits each.
+std::string hex(api::view bytes) {
+	std::string out;
+	char digits[3];
+	for (std::uint8_t b : bytes) {
+		std::snprintf(digits, sizeof digits, "%02x", b);
+		out += digits;
+	}
+	return out;
+}
+
+// A path's bytes as Rust's `escape_ascii` prints them.
+std::string escaped(api::view path) {
+	std::string out;
+	for (std::uint8_t b : path) {
+		switch (b) {
+		case '\t':
+			out += "\\t";
+			break;
+		case '\r':
+			out += "\\r";
+			break;
+		case '\n':
+			out += "\\n";
+			break;
+		case '\\':
+		case '\'':
+		case '"':
+			out += '\\';
+			out += static_cast<char>(b);
+			break;
+		default:
+			if (b >= 0x20 && b < 0x7f) {
+				out += static_cast<char>(b);
+			} else {
+				char escape[5];
+				std::snprintf(escape, sizeof escape, "\\x%02x", b);
+				out += escape;
+			}
+		}
+	}
+	return out;
+}
+
+std::string path_hex(api::view path) {
+	return hex(path);
+}
+
+// A duration as its seconds and nine digits of nanoseconds.
+std::string seconds(api::duration d) {
+	char out[40];
+	std::snprintf(out, sizeof out, "%llu.%09u", ull(d.secs), d.nanos);
+	return out;
+}
+
+// A duration in whole milliseconds.
+std::uint64_t millis(api::duration d) {
+	return d.secs * 1000 + d.nanos / 1000000;
+}
+
+std::uint32_t code(char32_t c) {
+	return static_cast<std::uint32_t>(c);
+}
+
+std::vector<api::tls_Codec> reversed(std::vector<api::tls_Codec> list) {
+	std::reverse(list.begin(), list.end());
+	return list;
+}
+
+std::vector<std::uint64_t> f64_bits(const std::vector<double> &floats) {
+	std::vector<std::uint64_t> out;
+	for (double f : floats) {
+		std::uint64_t bits;
+		std::memcpy(&bits, &f, sizeof bits);
+		out.push_back(bits);
+	}
+	return out;
+}
+
+// An address's bytes in hex, so the length shows its family.
+std::string ip_hex(const api::ip_addr &ip) {
+	return ip.v6 ? hex(api::view(ip.ip.v6.octets, sizeof ip.ip.v6.octets)) : hex(api::view(ip.ip.v4.octets, sizeof ip.ip.v4.octets));
+}
+
+std::string ip_hex(const api::ipv4_addr &v4) {
+	api::ip_addr ip{};
+	ip.ip.v4 = v4;
+	return ip_hex(ip);
+}
+
+std::string ip_hex(const api::ipv6_addr &v6) {
+	api::ip_addr ip{};
+	ip.v6 = true;
+	ip.ip.v6 = v6;
+	return ip_hex(ip);
+}
+
+// A socket address as its IP's bytes in hex, its port, flow label, and scope, each IPv6's
+// alone, apart by colons.
+std::string socket_hex(const api::socket_addr &addr) {
+	if (addr.v6) {
+		const api::socket_addr_v6 &v6 = addr.addr.v6;
+		return hex(api::view(v6.ip.octets, sizeof v6.ip.octets)) + ":" + std::to_string(v6.port) + ":" +
+		       std::to_string(v6.flowinfo) + ":" + std::to_string(v6.scope_id);
+	}
+	return hex(api::view(addr.addr.v4.ip.octets, sizeof addr.addr.v4.ip.octets)) + ":" + std::to_string(addr.addr.v4.port);
+}
+
+std::string socket_hex(const api::socket_addr_v4 &v4) {
+	api::socket_addr addr{};
+	addr.addr.v4 = v4;
+	return socket_hex(addr);
+}
+
+std::string socket_hex(const api::socket_addr_v6 &v6) {
+	api::socket_addr addr{};
+	addr.v6 = true;
+	addr.addr.v6 = v6;
+	return socket_hex(addr);
+}
+
 // Print a list as Rust's `{:?}` does, each item as `show` spells it.
-template <typename T, typename F> static void print_list(const std::vector<T> &list, F show) {
+template <typename T, typename F>
+void print_list(const std::vector<T> &list, F show) {
 	std::printf("[");
 	for (size_t i = 0; i < list.size(); i++) {
 		std::printf(i ? ", %s" : "%s", show(list[i]).c_str());
@@ -49,28 +252,10 @@ template <typename T, typename F> static void print_list(const std::vector<T> &l
 	std::printf("]");
 }
 
-static uint64_t f64_bits(double f) {
-	uint64_t bits;
-	std::memcpy(&bits, &f, sizeof bits);
-	return bits;
-}
-
-static double f64_from(uint64_t bits) {
-	double f;
-	std::memcpy(&f, &bits, sizeof f);
-	return f;
-}
-
-static uint32_t f32_bits(float f) {
-	uint32_t bits;
-	std::memcpy(&bits, &f, sizeof bits);
-	return bits;
-}
-
 // Print each of `n`'s lists, its floats as their bits, as transcript.rs does.
-static void numbers(const char *what, const api::Numbers &n) {
+void numbers(std::string_view what, const api::Numbers &n) {
 	auto line = [&](const char *name, const auto &list, auto show) {
-		std::printf("%s %s ", what, name);
+		std::printf("%.*s %s ", static_cast<int>(what.size()), what.data(), name);
 		print_list(list, show);
 		std::printf("\n");
 	};
@@ -82,15 +267,168 @@ static void numbers(const char *what, const api::Numbers &n) {
 	line("i16", n.i16s, num);
 	line("i32", n.i32s, num);
 	line("i64", n.i64s, num);
-	line("f32", n.f32s, [](float v) { return std::to_string(f32_bits(v)); });
-	line("f64", n.f64s, [](double v) { return std::to_string(f64_bits(v)); });
+	line("f32", n.f32s, [](float v) {
+		std::uint32_t bits;
+		std::memcpy(&bits, &v, sizeof bits);
+		return std::to_string(bits);
+	});
+	line("f64", n.f64s, [](double v) {
+		std::uint64_t bits;
+		std::memcpy(&bits, &v, sizeof bits);
+		return std::to_string(bits);
+	});
 	if (n.some) {
-		std::printf("%s some Some(", what);
+		std::printf("%.*s some Some(", static_cast<int>(what.size()), what.data());
 		print_list(*n.some, num);
 		std::printf(")\n");
 	} else {
-		std::printf("%s some None\n", what);
+		std::printf("%.*s some None\n", static_cast<int>(what.size()), what.data());
 	}
+}
+
+// A path no Rust string spells: on Unix, bytes that are not UTF-8; on Windows, a lone
+// surrogate, which is WTF-8's `ed a0 80`.
+api::buf unspelled() {
+#ifdef _WIN32
+	static const std::uint8_t stray[] = {0xed, 0xa0, 0x80};
+	return api::buf(api::view(stray, sizeof stray));
+#else
+	return api::stray();
+#endif
+}
+
+// A channel's futures, polled by hand.
+void channel() {
+	static int wakes = 0;
+	api::Channel channel = api::Channel::new_();
+	api::waker waker([]() { wakes++; });
+	{
+		api::Channel_recv_future recv = channel.recv();
+		std::printf("recv pending %s\n", yes(!recv.poll(waker).has_value()));
+		channel.send("hi");
+		std::printf("woken %d\n", wakes);
+		if (auto payload = recv.poll(waker)) {
+			print("recv ", *payload, "\n");
+		}
+	}
+	channel.send("");
+	{
+		api::Channel_recv_nonempty_future nonempty = channel.recv_nonempty();
+		if (auto r = nonempty.poll(waker)) {
+			if (*r) {
+				std::printf("nonempty %zu\n", r->value().size());
+			} else {
+				print("nonempty err ", api::Error_to_string(r->error()), "\n");
+			}
+		} else {
+			std::printf("nonempty pending\n");
+		}
+	}
+	{
+		auto fill4 = api::Batch::new_();
+		auto fill2 = api::pair();
+		auto filled4 = api::fill_4(fill4, 9).poll(waker);
+		auto filled2 = api::fill_2(fill2, 1).poll(waker);
+		if (filled4 && filled2) {
+			std::printf("fill");
+			for (auto v : *filled4) {
+				std::printf(" %u", unsigned(v));
+			}
+			for (auto v : *filled2) {
+				std::printf(" %u", unsigned(v));
+			}
+			std::printf("\n");
+		}
+	}
+
+	// The send happens at the call: the future is dropped unpolled.
+	(void)channel.send_later("eager");
+	{
+		api::Channel_recv_future recv = channel.recv();
+		if (auto payload = recv.poll(waker)) {
+			print("recv ", *payload, "\n");
+		}
+	}
+	// The send happens at the call, and the future borrows the channel and the tag.
+	{
+		api::Channel_tagged_future tagged = channel.tagged("tag");
+		if (auto text = tagged.poll(waker)) {
+			print("tagged ", *text, "\n");
+		}
+	}
+	// So does a future borrowing an optional slice, which the export owns while it is pending.
+	{
+		api::Channel_itemized_future itemized = channel.itemized(std::vector<std::uint32_t>{1, 2, 3});
+		if (auto count = itemized.poll(waker)) {
+			std::printf("itemized %zu\n", *count);
+		}
+	}
+	// Another crate's future borrowing its bytes, which the export owns while it is pending.
+	{
+		api::byte_len_future measuring = api::byte_len("abc");
+		if (auto len = measuring.poll(waker)) {
+			std::printf("byte_len %zu\n", *len);
+		}
+	}
+	channel.send("sized");
+	{
+		api::Channel_recv_sized_future sized = channel.recv_sized();
+		if (auto r = sized.poll(waker)) {
+			print("sized ", std::get<0>(*r), " ");
+			std::printf("%zu\n", std::get<1>(*r));
+		}
+	}
+	// The waker moves into Rust, which keeps it until the send wakes it.
+	channel.notify(waker);
+	channel.send("rung");
+	std::printf("woken %d\n", wakes);
+	// A poll with no async twin is a future.
+	{
+		api::Channel_poll_take_future take = channel.poll_take();
+		if (auto payload = take.poll(waker)) {
+			print("take ", *payload, "\n");
+		}
+	}
+	channel.send("measured");
+	{
+		api::Channel_poll_measure_future measure = channel.poll_measure(2);
+		if (auto r = measure.poll(waker)) {
+			std::printf("measure %zu\n", r->value());
+		}
+	}
+	// A context is made of the waker, which Rust keeps until the send wakes it.
+	channel.listen(waker);
+	channel.send("heard");
+	std::printf("woken %d\n", wakes);
+	// A returned waker wakes the waiter's task, through Rust, until its last copy drops.
+	api::Waiter waiter = api::Waiter::new_(waker);
+	waiter.waker().wake();
+	waiter.context().wake();
+	std::printf("woken %d\n", wakes);
+}
+
+// A kept closure: called again at the instant it asks for, then once its waiter wakes.
+void drive() {
+	api::Moment began = *api::Moment::new_(0, 1000);
+	int calls = 0;
+	auto drive = api::drive(began, [&](const api::Moment &now, const api::Waiter &waiter) {
+		using result = api::result<std::optional<api::Moment>, std::string>;
+		calls++;
+		if (calls == 1) {
+			return result::ok(now.after(5));
+		}
+		if (calls == 2) {
+			std::printf("drive %llu\n", ull(now.millis() - began.millis()));
+			waiter.waker().wake();
+			return result::ok(std::nullopt);
+		}
+		return result::err("stopped after " + std::to_string(calls));
+	});
+	api::waker waker([] {});
+	std::optional<api::buf> stopped;
+	while (!(stopped = drive.poll(waker))) {
+	}
+	print("drive ", *stopped, "\n");
 }
 
 // A reader of bytes in memory, which Rust reads and seeks.
@@ -137,86 +475,215 @@ void tail(R &file) {
 	auto read = api::tail(file, 5);
 	if (read) {
 		print("tail ", std::get<0>(*read), "");
-		std::printf(" %llu\n", static_cast<unsigned long long>(std::get<1>(*read)));
+		std::printf(" %llu\n", ull(std::get<1>(*read)));
 	} else {
 		print("tail error ", read.error(), "\n");
 	}
 }
 
-// Bytes as Rust's `escape_ascii` prints those of a path.
-void print_escaped(const char *before, const api::buf &buf, const char *after) {
-	std::printf("%s", before);
-	for (std::uint8_t b : buf) {
-		switch (b) {
-		case '\t':
-			std::printf("\\t");
+// Readers over bytes, whose reads fail, and that seek past `INT64_MAX`.
+void readers() {
+	memory hello{"hello world"};
+	tail(hello);
+	broken_reader broken;
+	tail(broken);
+	// A seek from the start reaches the reader whole, past `INT64_MAX`, as `Cursor` takes one.
+	far_reader far;
+	auto sought = api::seek_to(far, UINT64_MAX);
+	if (sought) {
+		std::printf("sought %llu\n", ull(*sought));
+	} else {
+		print("sought error ", sought.error(), "\n");
+	}
+}
+
+// Streams, each `next` awaited in turn, as C++ has no asynchronous iteration of its own.
+void streams() {
+	{
+		api::Countdown countdown = api::Countdown::new_(3);
+		std::printf("countdown");
+		const char *sep = " ";
+		while (auto count = countdown.next().get()) {
+			std::printf("%s%u", sep, unsigned(*count));
+		}
+		std::printf("\n");
+	}
+	api::Countdown countdown = api::Countdown::new_(5);
+	while (auto count = countdown.next().get()) {
+		if (*count == 4) {
 			break;
-		case '\r':
-			std::printf("\\r");
-			break;
-		case '\n':
-			std::printf("\\n");
-			break;
-		case '\\':
-		case '\'':
-		case '"':
-			std::printf("\\%c", b);
-			break;
-		default:
-			if (b >= 0x20 && b < 0x7f) {
-				std::putchar(b);
-			} else {
-				std::printf("\\x%02x", b);
-			}
 		}
 	}
-	std::printf("%s", after);
-}
-
-// Strings as Rust's Debug prints a list of them.
-void print_strings(const std::vector<api::buf> &strings) {
-	std::printf("[");
-	for (std::size_t i = 0; i < strings.size(); i++) {
-		print(i == 0 ? "\"" : ", \"", strings[i], "\"");
-	}
-	std::printf("]");
-}
-
-int wakes = 0;
-
-// The Log callback: keeps even levels.
-class print_log final : public api::Log {
-public:
-	bool log(std::uint8_t level, api::view line) const override {
-		std::printf("log %u %.*s\n", level, static_cast<int>(line.size()), reinterpret_cast<const char *>(line.data()));
-		return level % 2 == 0;
-	}
-	~print_log() override {
-		std::printf("freed\n");
-	}
-};
-
-// A bound, as Rust's Debug prints it.
-void print_bound(api::bound_u64 bound) {
-	switch (bound.kind) {
-	case API_BOUND_INCLUDED:
-		std::printf("Included(%llu)", static_cast<unsigned long long>(bound.value));
-		break;
-	case API_BOUND_EXCLUDED:
-		std::printf("Excluded(%llu)", static_cast<unsigned long long>(bound.value));
-		break;
-	case API_BOUND_UNBOUNDED:
-		std::printf("Unbounded");
-		break;
+	std::printf("countdown after break %u\n", unsigned(*countdown.next().get()));
+	api::Channel channel = api::Channel::new_();
+	api::Feed feed = channel.feed();
+	for (const char *first : {"a", "c"}) {
+		channel.send(first);
+		for (;;) {
+			auto next = feed.next().get();
+			if (!next) {
+				print("feed error ", api::Error_to_string(next.error()), "\n");
+				break;
+			}
+			if (!next.value()) {
+				std::printf("feed end\n");
+				break;
+			}
+			const api::buf &payload = *next.value();
+			print("feed ", payload, "\n");
+			channel.send(payload.str() == "a" ? "b" : payload.str() == "b" ? "!" : "");
+		}
 	}
 }
 
-const char *yes(bool b) {
-	return b ? "true" : "false";
+// Futures of a value that is not `Send`, polled on this thread until each is ready.
+void local_later(const api::Local &local) {
+	api::waker waker([]() {});
+	const api::Local *froms[] = {&local, nullptr};
+	for (const api::Local *from : froms) {
+		api::local_or_new_later_future later = api::local_or_new_later(from);
+		auto made = later.poll(waker);
+		while (!made) {
+			made = later.poll(waker);
+		}
+		std::printf("local later%s %u\n", from ? "" : " fresh", static_cast<unsigned>(made->bump()));
+	}
 }
 
-unsigned long long ull(std::uint64_t v) {
-	return static_cast<unsigned long long>(v);
+} // namespace hook
+
+} // namespace
+
+#include "transcript.hpp"
+
+namespace {
+
+// Each check that must hold, beyond the transcript.
+int check(bool ok, const char *what) {
+	if (!ok) {
+		std::fprintf(stderr, "failed: %s\n", what);
+		std::exit(1);
+	}
+	return 0;
+}
+
+// What the transcript's script says only in Rust: C++'s own copies, hashes, ranges, and
+// operators, each checked by an assertion.
+int checks() {
+	// Names of the macros `<cassert>`, `<cerrno>`, and `<cstddef>` define, and a field and a
+	// parameter of `errno`'s name, which each take a trailing `_` rather than expand.
+	{
+		api::macros_Streams streams{1, 2, 3, 4};
+		check(api::errno_() == 7 && api::assert_(true) && api::offsetof_(3) == 3 && streams.errno_ == 4 &&
+				  api::macros_streamed(streams, 5) == 15,
+			"names of C library macros");
+	}
+	// Fields named as an `operator==`'s argument might be.
+	{
+		api::Shadowed one{{1}, 2, 3};
+		api::Shadowed two{{1}, 2, 4};
+		check(one == one && !(one == two) && one != two, "a record with fields named other, a, and b compares");
+	}
+	// Types named as an `operator==`'s arguments might be.
+	{
+		api::a one{1};
+		api::a two{2};
+		api::b unit = api::b_One{};
+		api::b two_b = api::b_Two{2};
+		auto handle = api::c::new_(1);
+		check(one == one && !(one == two) && unit != two_b && handle == api::c::new_(1) && !(handle == api::c::new_(2)),
+			"types named a, b, and c compare");
+	}
+	// Names a system header defines as macros, escaped.
+	check(api::EOF_ == -1 && api::WEXITSTATUS_(0x300) == 3, "names of system macros escape");
+	check(api::clash_Errno::NULL_().errno_ == 0 && api::clash_Errno{5}.errno_ == 5, "members named as system macros escape");
+	// Methods C++ escapes alike: Rust's `delete_` keeps its name and `delete` moves past it.
+	{
+		api::clash_Escaped escaped{3};
+		check(escaped.delete_2() == 3 && escaped.delete_(1, 2) == 213, "methods C++ escapes alike stay apart");
+	}
+	// A name C++ reserves, which holds `__`, drops its leading `_`s and each run's others, as
+	// its C name does: `__all__` and `__all___` unreserve alike and step apart, and
+	// `_deprecated` steps past `deprecated`.
+	check(api::all_2(1) == 3 && api::all_(1) == 4 && api::deprecated_(1) == 2 && api::deprecated(1) == 1,
+		"a name C++ reserves escapes unreserved");
+	// Names that differ only by trailing underscores, each reaching its own Rust: Rust's
+	// `new_` keeps its name and `new`, which C++ escapes alike, moves past it.
+	{
+		api::clash_Underscored underscored{1, 2, 3, 4};
+		api::clash_Change set{api::clash_Change_Set{5, 6}};
+		check(api::clash_underscored(underscored, api::clash_Op::delete_2, set) == 2561234, "names apart by trailing underscores cross");
+		auto [next, change] = api::clash_underscored_next(underscored, set);
+		const auto *swapped = std::get_if<api::clash_Change_Set>(&change);
+		check(next == api::clash_Underscored{2, 3, 4, 5} && swapped && swapped->new_ == 6 && swapped->new_2 == 5,
+			"names apart by trailing underscores cross back");
+		check(api::clash_erased(std::make_unique<hook::Eraser>()) == 123, "a callback's methods apart by a trailing underscore");
+		check(api::clash_erase_() == 2 && api::clash_erase() == 1, "functions apart by a trailing underscore");
+	}
+	// Items whose Rust names end in `_`, so every C name joined to them keeps one `_`.
+	{
+		auto notch = api::clash_Notch_::new_(3);
+		auto copy = notch;
+		check(notch.count() == 3 && copy == notch && copy.hash() == notch.hash() && api::clash_Notch_::default_() < notch,
+			"a class named with a trailing underscore");
+		check(notch.to_string().str() == "notch 3" && notch.debug().str() == "Notch_ { count: 3 }",
+			"a class named with a trailing underscore prints");
+		check(api::clash_notches(2).size() == 2, "a list of a class named with a trailing underscore");
+		check(api::clash_shifted(1, api::clash_Shift_Up{2}) == 3 && api::clash_shifted(1, api::clash_Shift_Down{}) == 0,
+			"an enum named with a trailing underscore");
+		check(api::clash_Shift_debug(api::clash_Shift_Up{2}).str() == "Up(2)", "an enum named with a trailing underscore prints");
+		check(api::clash_shifted(5, api::clash_Shift_Tag{2}) == 3 && api::clash_Shift_debug(api::clash_Shift_Tag{2}).str() == "Tag(2)",
+			"a variant named as the tag");
+		check(api::clash_counted(std::make_unique<hook::Count>()) == 5, "a callback named with a trailing underscore");
+	}
+	// A name takes a copy of the caller's buffer, which is its own again after.
+	{
+		api::Name name = api::Name::owned("a");
+		std::string text = "c";
+		name.rename(text);
+		text[0] = 'x';
+		check(name.as_str().str() == "c", "a renamed name holds its own copy");
+	}
+	// `std::hash` hashes a key as Rust's `Hash` does: equal keys alike, and these two apart.
+	{
+		api::Key a = api::Key::new_("a");
+		api::Key b = api::Key::new_("b");
+		check(a.hash() == a.hash_of(), "Key::hash is Rust's own hash");
+		std::hash<api::Key> hasher;
+		check(hasher(a) == hasher(api::Key::new_("a")) && hasher(a) != hasher(b), "std::hash hashes keys as Rust does");
+	}
+	// `Copy` objects with no C++ copy, beside bytes: a returned vector moves back in, stored or
+	// not, each ticket moved and each name viewed in place.
+	{
+		std::vector<std::tuple<api::view, api::Ticket>> lent;
+		lent.emplace_back("a", api::Ticket::new_(1));
+		auto returned = api::tickets(lent);
+		auto again = api::tickets(api::tickets(std::move(returned)));
+		check(again.size() == 1 && std::get<0>(again[0]).str() == "a" && std::get<1>(again[0]).number() == 1,
+			"returned tickets pass back");
+	}
+#ifdef __cpp_lib_ranges
+	// A range whose end is a sentinel of another type than its begin.
+	{
+		std::vector<std::string> letters{"p", "q", "r"};
+		auto taken = api::counters(letters | std::views::take_while([](const std::string &n) { return n != "r"; }));
+		check(taken.size() == 2 && taken[1].name().str() == "q", "a sentinel range passes");
+	}
+#endif
+	// A kept closure, called on another thread after the call that took it returned.
+	check(api::Spawned::new_([] { return 7; }).join() == 7, "a kept closure runs on another thread");
+	// A returned `Vec<&Token>` holds clones, which the vector drops.
+	{
+		api::Token twice = api::Token::new_(9);
+		std::uint32_t before = api::dropped();
+		{
+			auto tokens = twice.twice();
+			check(tokens.size() == 2 && tokens[1].id_get() == 9, "a vector of lent tokens holds clones");
+		}
+		check(api::dropped() == before + 2, "the vector drops its clones");
+	}
+	std::printf("checks ok\n");
+	return 0;
 }
 
 // A queue of jobs that a test runs when it chooses: the executor futures run on.
@@ -247,997 +714,6 @@ struct queue {
 		}
 	}
 };
-
-int script() {
-	std::printf("limit %llu\n", ull(api::LIMIT));
-
-	api::Point start{1, 2};
-	api::Point p = start.offset(2, 3);
-	std::printf("offset %d %d\n", p.x, p.y);
-	print("debug ", p.debug(), "\n");
-	std::printf("eq %s\n", yes(p == api::Point{3, 5}));
-	api::Point d = api::Point::default_();
-	std::printf("default %d %d\n", d.x, d.y);
-
-	api::Counter c = api::Counter::new_("c", 5);
-	std::printf("get %llu\n", ull(c.get()));
-	print("name ", c.name(), "\n");
-	if (auto v = c.add(10)) {
-		std::printf("add ok %llu\n", ull(*v));
-	}
-	if (auto v = c.add(2000); !v) {
-		print("add err ", api::Error_to_string(v.error()), " ");
-		print("", api::Error_debug(v.error()), "\n");
-	}
-	if (auto v = c.sub(20); !v) {
-		std::printf("sub err underflow by %llu ", ull(std::get<api::Error_Underflow>(v.error()).by));
-		print("", api::Error_debug(v.error()), "\n");
-	}
-	c.rename("d");
-	print("name ", c.name(), "\n");
-	std::printf("is d %s\n", yes(c.is("d")));
-	{
-		api::Counter copy = c.clone();
-		(void)copy.add(1);
-		std::printf("clone %llu original %llu\n", ull(copy.get()), ull(c.get()));
-	}
-	print("debug ", c.debug(), "\n");
-	api::Label label = std::move(c).into_label(p);
-	print("label ", label.debug(), "\n");
-	// An empty buffer C++ made is not none.
-	std::printf("note %s %s\n", yes(api::has_text(api::Note{api::buf()})), yes(api::has_text(api::Note{})));
-
-	// A tuple returns through one out pointer per element.
-	auto [below, above] = api::Counter::new_("s", 7).split(5);
-	print("split ", below.name(), " ");
-	std::printf("%llu ", ull(below.get()));
-	print("", above.name(), " ");
-	std::printf("%llu\n", ull(above.get()));
-	auto [only] = api::only(api::Counter::new_("o", 3));
-	print("only ", only.name(), " ");
-	std::printf("%llu\n", ull(only.get()));
-	auto [w8, w16, w32, w64] = api::widths(98305);
-	std::printf("widths %u %d %u %llu\n", w8, w16, w32, ull(w64));
-	for (std::uint64_t divisor : {2, 0}) {
-		if (auto r = api::divide(7, divisor)) {
-			std::printf("divide %llu %llu\n", ull(std::get<0>(*r)), ull(std::get<1>(*r)));
-		} else {
-			print("divide err ", api::Error_to_string(r.error()), "\n");
-		}
-	}
-	// A tuple inside another type is a std::tuple.
-	for (std::uint64_t n : {98305, 0}) {
-		if (auto spread = api::spread(n)) {
-			auto [s8, s16, s32, s64] = *spread;
-			std::printf("spread %u %d %u %llu\n", s8, s16, s32, ull(s64));
-		} else {
-			std::printf("spread none\n");
-		}
-	}
-	for (const char *needle : {"lo", "x"}) {
-		if (auto found = api::find("hello", needle)) {
-			std::printf("find %zu %zu\n", std::get<0>(*found), std::get<1>(*found));
-		} else {
-			std::printf("find none\n");
-		}
-	}
-	std::printf("rows");
-	auto stat_rows = api::rows({api::Point{1, 2}, api::Point{3, 3}});
-	for (std::size_t i = 0; i < stat_rows.size(); i++) {
-		auto &[name, shape, at] = stat_rows[i];
-		print(i == 0 ? " " : ", ", name, " ");
-		print("", api::Shape_debug(shape), " ");
-		std::printf("%d %d", at.x, at.y);
-	}
-	std::printf("\n");
-	{
-		// Each handle in a tuple moves in, as one taken by value does.
-		std::vector<std::tuple<api::view, api::Counter>> meters;
-		meters.emplace_back("low", api::Counter::new_("l", 1));
-		meters.emplace_back("high", api::Counter::new_("h", 9));
-		auto board = api::Board::new_(std::move(meters));
-		std::printf("ranked");
-		auto ranked = board.ranked();
-		for (std::size_t i = 0; i < ranked.size(); i++) {
-			auto &[name, counter] = ranked[i];
-			print(i == 0 ? " " : ", ", name, " ");
-			print("", counter.name(), " ");
-			std::printf("%llu", ull(counter.get()));
-		}
-		std::printf("\n");
-		auto best = board.best();
-		print("best ", best.name(), " ");
-		std::printf("%llu\n", ull(best.get()));
-	}
-	{
-		// A map crosses as its pairs and a set as its items, which Rust collects in order,
-		// each key once, the last kept.
-		api::Atlas loose;
-		loose.points.emplace_back(api::buf("b"), api::Point{1, 1});
-		loose.points.emplace_back(api::buf("ab"), api::Point{2, 3});
-		loose.points.emplace_back(api::buf("b"), api::Point{4, 4});
-		loose.ids = {3, 1, 3};
-		auto atlas = loose.with("c", api::Point{5, 6});
-		std::printf("atlas");
-		for (std::size_t i = 0; i < atlas.points.size(); i++) {
-			auto &[name, at] = atlas.points[i];
-			print(i == 0 ? " " : ", ", name, " ");
-			std::printf("%d %d", at.x, at.y);
-		}
-		std::printf("; ids");
-		for (auto id : atlas.ids) {
-			std::printf(" %u", id);
-		}
-		std::printf("\n");
-	}
-	// Another crate's error crosses as its message.
-	for (const char *text : {"80", "x"}) {
-		if (auto port = api::port(text)) {
-			std::printf("port %u\n", unsigned(port.value()));
-		} else {
-			print("port err ", port.error(), "\n");
-		}
-	}
-	api::Span span{{2, 10}, std::make_tuple(api::buf("s"), api::Shape::square)};
-	auto [lower_half, upper_half] = api::halves(span);
-	std::printf("halves %u %u %u %u ", std::get<0>(lower_half), std::get<1>(lower_half), std::get<0>(upper_half),
-				std::get<1>(upper_half));
-	print("", span.debug(), "\n");
-	auto [swapped_n, swapped_text] = api::swapped({"t", 4});
-	std::printf("swapped %u ", swapped_n);
-	print("", swapped_text, "\n");
-	using single = std::tuple<std::optional<std::uint32_t>>;
-	for (const auto &value : {std::optional<single>(), std::optional<single>(single()), std::optional<single>(single(3))}) {
-		auto doubled = api::doubled(value);
-		if (!doubled) {
-			std::printf("doubled None\n");
-		} else if (auto n = std::get<0>(*doubled)) {
-			std::printf("doubled Some((Some(%u),))\n", *n);
-		} else {
-			std::printf("doubled Some((None,))\n");
-		}
-	}
-	// A borrowed or boxed tuple of one is a tuple, not its element.
-	{
-		std::uint8_t lent_bytes[] = {1, 2};
-		std::uint8_t boxed_bytes[] = {3};
-		auto [lent] = api::lent_back(std::make_tuple(api::view(lent_bytes, 2)));
-		auto [boxed] = api::boxed_tuple(api::view(boxed_bytes, 1));
-		const api::buf *both[] = {&lent, &boxed};
-		for (int i = 0; i < 2; i++) {
-			std::printf("%s[", i == 0 ? "lent back " : " boxed ");
-			for (std::size_t j = 0; j < both[i]->size(); j++) {
-				std::printf("%s%u", j == 0 ? "" : ", ", both[i]->data()[j]);
-			}
-			std::printf("]");
-		}
-		std::printf("\n");
-	}
-	// A borrowed string and an owned one share a tuple struct.
-	print("title Some((\"", std::get<0>(*api::title(true)), "\",)) ");
-	std::printf("%s ", api::title(false) ? "Some" : "None");
-	print("named Some((\"", std::get<0>(*api::named("x")), "\",))\n");
-
-	// Each lent counter is a new handle to a clone.
-	api::Registry registry = api::Registry::new_(api::Counter::new_("first", 1));
-	std::printf("last %s\n", yes(registry.last().has_value()));
-	registry.push(api::Counter::new_("last", 2));
-	{
-		api::Counter first = registry.first_get();
-		(void)first.add(10);
-		std::printf("first %llu lent %llu\n", ull(registry.first_get().get()), ull(first.get()));
-		api::Counter last = *registry.last();
-		(void)last.add(10);
-		std::printf("last %llu lent %llu\n", ull(registry.last()->get()), ull(last.get()));
-	}
-	// A closure lent for the call edits the first counter through its class.
-	std::uint64_t by = 5;
-	bool edited = registry.edit([&](api::borrow<api::Counter> counter) {
-		(void)counter->add(by);
-		return counter->edited() && counter->get() == 6;
-	});
-	std::printf("edit %s %llu\n", yes(edited), ull(registry.first_get().get()));
-	// A setter moves an object in, as assignment does.
-	registry.first_set(api::Counter::new_("second", 3));
-	std::printf("set first %llu ", ull(registry.first_get().get()));
-	print("", registry.first_get().name(), "\n");
-	std::printf("walk %llu\n", ull(api::walk(3, [](const api::Cursor &cursor) { return cursor.at() * 2; })));
-	std::printf("each %u\n", api::each(2, [](std::uint32_t at) { std::printf("visit %u\n", at); }));
-	std::printf("offset %u\n", api::offset([] { return 7u; }, 3));
-	std::printf("shift %u\n", api::shift([] { return 7u; }, 4));
-
-	// A type generic only over lifetimes is a handle to its 'static form.
-	{
-		api::Name name = api::Name::owned("a");
-		api::Name joined = name.join(api::Name::owned("b"));
-		print("joined ", joined.as_str(), " ");
-		print("", joined.debug(), " ");
-		std::printf("%s\n", yes(joined == name));
-		std::string text = "c";
-		joined.rename(text);
-		// The name took a copy: the caller's buffer is its own again.
-		text[0] = 'x';
-		print("renamed ", joined.as_str(), "\n");
-		api::Name longest = api::longer(std::move(joined), api::Name::owned("dd"));
-		print("longer ", longest.as_str(), "\n");
-		print("unnamed [", api::unnamed().as_str(), "]\n");
-		api::Name lit = api::Name::borrowed("lit");
-		print("borrowed ", lit.as_str(), " ");
-		std::printf("%s %s\n", lit.shares(api::Name::borrowed("lit")) ? "true" : "false",
-			lit.shares(api::Name::borrowed("other")) ? "true" : "false");
-	}
-
-	std::printf("total %llu\n", ull(api::total({2, 5})));
-	std::printf("reach %u\n", unsigned(api::reach(2, 5)));
-	std::printf("scaled");
-	for (auto v : {api::scaled({UINT64_MAX, UINT64_MAX}, 1), api::scaled({1, 1}, 1ULL << 63), api::scaled({0, 1ULL << 63}, 2)}) {
-		if (v) {
-			std::printf(" %016llx%016llx", ull(v->hi), ull(v->lo));
-		} else {
-			std::printf(" none");
-		}
-	}
-	std::printf("\n");
-	{
-		auto hex = [](const std::array<std::uint8_t, 4> &sum) {
-			std::printf(" %02x%02x%02x%02x", sum[0], sum[1], sum[2], sum[3]);
-		};
-		auto digest = api::Digest::new_();
-		digest.sum_set(api::fingerprint("deadbeef").value());
-		std::printf("digest");
-		hex(digest.sum_get());
-		hex(digest.flipped({0xff, 0, 0xff, 0}));
-		print(" ", api::fingerprint("zz").error(), "\n");
-	}
-	{
-		auto batch = api::Batch::new_();
-		unsigned accepted = 0;
-		for (std::uint32_t v = 1; v <= 5; v++) {
-			accepted += batch.push(v);
-		}
-		auto batch2 = api::pair();
-		unsigned paired = 0;
-		for (std::uint32_t v = 1; v <= 3; v++) {
-			paired += batch2.push(v);
-		}
-		auto emptied = api::drain_4(batch);
-		std::printf("batch %zu %u %llu %llu %zu %u %llu\n", batch.capacity(), accepted, ull(emptied), ull(api::drain_4(batch)),
-			batch2.capacity(), paired, ull(api::drain_2(batch2)));
-		std::printf("capacities %zu %zu\n", api::capacities_4_2(batch, batch2), api::capacities_2_2(batch2, batch2));
-	}
-	api::range_u64 wide = api::widen({2, 5}, 1);
-	std::printf("widen %llu %llu\n", ull(wide.start), ull(wide.end));
-	api::bounds_u64 ranges[] = {
-	    {{API_BOUND_INCLUDED, 2}, {API_BOUND_EXCLUDED, 5}}, {{API_BOUND_INCLUDED, 2}, {API_BOUND_INCLUDED, 5}},
-	    {{API_BOUND_INCLUDED, 3}, {API_BOUND_UNBOUNDED, 0}}, {{API_BOUND_UNBOUNDED, 0}, {API_BOUND_UNBOUNDED, 0}},
-	    {{API_BOUND_EXCLUDED, 2}, {API_BOUND_INCLUDED, 4}},
-	};
-	std::printf("count");
-	for (const auto &range : ranges) {
-		std::printf(" %zu", api::count(range));
-	}
-	std::printf("\n");
-	std::printf("end ");
-	print_bound(api::end(3));
-	std::printf(" ");
-	print_bound(api::end(0));
-	std::printf("\n");
-	auto [ends_start, ends_end] = api::ends(3);
-	std::printf("ends ");
-	print_bound(ends_start);
-	std::printf(" ");
-	print_bound(ends_end);
-	std::printf("\n");
-	for (std::uint64_t n : {2, 5}) {
-		if (auto r = api::below(n, 3)) {
-			std::printf("below %llu\n", ull(*r));
-		} else {
-			std::printf("below err ");
-			print_bound(r.error().start);
-			std::printf(" ");
-			print_bound(r.error().end);
-			std::printf("\n");
-		}
-	}
-	api::Window window{{2, 8}, api::end(5)};
-	std::printf("window %s %s ", yes(window.contains(4)), yes(window.contains(6)));
-	print("", window.debug(), "\n");
-
-	print("", api::greet("x", api::Shape::square), "\n");
-	std::printf("len %zu\n", api::len("abc"));
-	const std::uint8_t binary[] = {0xff, 0x00, 'a'};
-	print("hex ", api::hex(api::view(binary, sizeof binary)), "\n");
-	print("timed hex ", api::timed_hex(api::view(binary, sizeof binary)), "\n");
-	print("sample hex ", api::sample_hex(api::view(binary, sizeof binary)), "\n");
-	print("queued hex ", api::queued_hex(api::view(binary, sizeof binary)), "\n");
-	print("tick ", api::tick_name(api::Label{api::buf("tick"), std::nullopt, std::nullopt}), "\n");
-	print("rooted ", api::rooted_name(api::Label{api::buf("rooted"), std::nullopt, std::nullopt}), "\n");
-	print("stored ", api::stored_text("stored"), "\n");
-	print("layer ", api::layer_name(api::Label{api::buf("layer"), std::nullopt, std::nullopt}), "\n");
-	api::Event events[] = {api::Event_Moved{p}, api::Event_Named{api::buf("n")}, api::Event_Done{}};
-	for (const auto &event : events) {
-		print("", api::describe(event), "\n");
-	}
-
-	// A `Copy` handle passed by value is copied, so it stays usable.
-	{
-		api::Stamp stamp = api::Stamp::from_millis(2500);
-		std::printf("secs %llu\n", ull(stamp.secs()));
-		std::printf("later %s\n", yes(api::Stamp::from_millis(3000).later(stamp)));
-		std::printf("secs %llu\n", ull(stamp.secs()));
-		api::Message message = api::Message::new_(&stamp, "body");
-		print("payload ", message.payload_get(), "\n");
-		print("stamp ", message.stamp_get()->debug(), "\n");
-		std::printf("sent %s\n", yes(message.sent()));
-		// Setters assign in place: the bytes are copied in, and a `Copy` handle copied.
-		api::Stamp reset = api::Stamp::from_millis(4000);
-		message.stamp_set(&reset);
-		message.payload_set("edited");
-		print("payload ", message.payload_get(), "\n");
-		print("stamp ", message.stamp_get()->debug(), "\n");
-		std::printf("secs %llu\n", ull(reset.secs()));
-		message.stamp_set(nullptr);
-		std::printf("stamp %s\n", yes(message.stamp_get().has_value()));
-	}
-
-	std::uint8_t levels[] = {1, 2, 3, 4};
-	std::printf("kept %u\n", api::emit(std::make_unique<print_log>(), api::view(levels, sizeof levels)));
-	{
-		api::Logger logger = api::Logger::new_(std::make_unique<print_log>());
-		std::printf("write %s\n", yes(logger.write("hi")));
-	}
-	std::printf("dropped\n");
-	// Rust calls it on another thread, before the call returns.
-	std::uint8_t threshold = 2;
-	std::printf("filtered %u\n", api::filter(api::view(levels, sizeof levels), [threshold](std::uint8_t level, api::view line) {
-		std::printf("filter %u %.*s\n", level, static_cast<int>(line.size()), reinterpret_cast<const char *>(line.data()));
-		return level > threshold;
-	}));
-
-	{
-		api::Channel channel = api::Channel::new_();
-		api::waker waker([]() { wakes++; });
-		{
-			api::Channel_recv_future recv = channel.recv();
-			std::printf("recv pending %s\n", yes(!recv.poll(waker).has_value()));
-			channel.send("hi");
-			std::printf("woken %d\n", wakes);
-			if (auto payload = recv.poll(waker)) {
-				print("recv ", *payload, "\n");
-			}
-		}
-		channel.send("");
-		{
-			api::Channel_recv_nonempty_future nonempty = channel.recv_nonempty();
-			if (auto r = nonempty.poll(waker)) {
-				if (*r) {
-					std::printf("nonempty %zu\n", r->value().size());
-				} else {
-					print("nonempty err ", api::Error_to_string(r->error()), "\n");
-				}
-			} else {
-				std::printf("nonempty pending\n");
-			}
-		}
-		{
-			auto fill4 = api::Batch::new_();
-			auto fill2 = api::pair();
-			auto filled4 = api::fill_4(fill4, 9).poll(waker);
-			auto filled2 = api::fill_2(fill2, 1).poll(waker);
-			if (filled4 && filled2) {
-				std::printf("fill");
-				for (auto v : *filled4) {
-					std::printf(" %u", unsigned(v));
-				}
-				for (auto v : *filled2) {
-					std::printf(" %u", unsigned(v));
-				}
-				std::printf("\n");
-			}
-		}
-
-		// The send happens at the call: the future is dropped unpolled.
-		channel.send_later("eager");
-		{
-			api::Channel_recv_future recv = channel.recv();
-			if (auto payload = recv.poll(waker)) {
-				print("recv ", *payload, "\n");
-			}
-		}
-		channel.send("sized");
-		{
-			api::Channel_recv_sized_future sized = channel.recv_sized();
-			if (auto r = sized.poll(waker)) {
-				print("sized ", std::get<0>(*r), " ");
-				std::printf("%zu\n", std::get<1>(*r));
-			}
-		}
-		// The waker moves into Rust, which keeps it until the send wakes it.
-		channel.notify(waker);
-		channel.send("rung");
-		std::printf("woken %d\n", wakes);
-		// A poll with no async twin is a future.
-		{
-			api::Channel_poll_take_future take = channel.poll_take();
-			if (auto payload = take.poll(waker)) {
-				print("take ", *payload, "\n");
-			}
-		}
-		channel.send("measured");
-		{
-			api::Channel_poll_measure_future measure = channel.poll_measure(2);
-			if (auto r = measure.poll(waker)) {
-				std::printf("measure %zu\n", r->value());
-			}
-		}
-		// A context is made of the waker, which Rust keeps until the send wakes it.
-		channel.listen(waker);
-		channel.send("heard");
-		std::printf("woken %d\n", wakes);
-		// A returned waker wakes the waiter's task, through Rust, until its last copy drops.
-		api::Waiter waiter = api::Waiter::new_(waker);
-		waiter.waker().wake();
-		waiter.context().wake();
-		std::printf("woken %d\n", wakes);
-	}
-
-	// A value that holds itself is an object.
-	{
-		api::Node list = api::Node::new_(1, std::nullopt);
-		list.push(2);
-		std::printf("node %llu\n", ull(list.sum()));
-	}
-
-	{
-		api::Tally tally = api::Tally::new_();
-		tally.bump();
-		std::uint32_t count = tally.bump();
-		std::printf("tally %u %s\n", count, yes(tally == tally));
-		std::printf("both %u\n", api::bump_both(tally, tally));
-		std::printf("peek %u\n", api::peek(tally, [](const api::Tally &lent) { return lent.bump(); }));
-	}
-
-	// Another export's types, which this export's function takes and returns.
-	{
-		api::Area area = api::grow(api::Area::new_({2, 3}), 1);
-		api::Size size = area.size();
-		std::printf("area %u %u %llu\n", size.width, size.height, ull(area.pixels()));
-	}
-
-	// Generic types, each at the instances it infers, named by their arguments.
-	api::Pair_u32 pair{2, 5};
-	api::Pair_u32 swapped = pair.swap();
-	std::printf("pair %u %u sum %u ", swapped.left, swapped.right, pair.sum());
-	print("", pair.debug(), " ");
-	std::printf("%s\n", yes(pair == swapped));
-	std::printf("even %s %s\n", yes(pair.even()), yes(api::Pair_u32{7, 7}.even()));
-	// An instance renamed alone, beside another of `Pair` that keeps its name.
-	api::Pair_Size_u8 sizes = api::tag({1, 2}, 3);
-	api::Pair_u8_Size flipped = sizes.swap();
-	std::printf("sized %u %u ", flipped.left, flipped.right.width);
-	print("", flipped.debug(), "\n");
-	api::Pair_u8_Size beside = api::Pair_u32{258, 9}.beside_Size(sizes.left);
-	std::printf("beside %u ", beside.left);
-	print("", beside.debug(), "\n");
-	{
-		// At its default, named as the type itself.
-		api::Stack stack = api::Stack::new_();
-		const char *names[] = {"a", "b"};
-		for (int i = 0; i < 2; i++) {
-			stack.push(api::Counter::new_(names[i], static_cast<std::uint64_t>(i) + 1));
-		}
-		std::optional<api::Counter> top = stack.pop();
-		std::printf("stack %zu Some(%llu)", stack.depth(), ull(top->get()));
-		std::printf(" %s", yes(stack.pop().has_value()));
-		std::printf(" %s\n", yes(!stack.pop().has_value()));
-		// Generic functions and methods, at each implementation of the trait bounding them,
-		// by reference, which leaves C++ its handle. Two arguments sharing a last segment
-		// name their instances apart by the module of one.
-		api::Counter from_point = api::Counter::seeded_Point("p", {-3, 4});
-		api::Counter seeded_Size = api::Counter::seeded_Size("s", {5, 6});
-		api::Counter from_counter = api::Counter::seeded_Counter("c", from_point);
-		api::Counter from_polar = api::Counter::seeded_polar_Point("q", {1, 2});
-		std::printf("seeded %llu %llu %llu %llu past %llu seeds %llu\n", ull(from_point.get()), ull(seeded_Size.get()),
-		            ull(from_counter.get()), ull(from_polar.get()), ull(stack.depth_past_Point({1, 2})),
-		            ull(api::seeds_Point_Size({2, 3})));
-	}
-
-	// A trait implemented for `Point` and `&Point` apart: one instance.
-	std::printf("weigh %u\n", api::weigh_Point({-1, 2}));
-	// A function named as the type it returns, and one named as a type it does not.
-	std::printf("polar %u %s area %llu\n", api::polar_point(2).value().distance, yes(!api::polar_point(0)),
-	            ull(api::area({2, 3})));
-	std::printf("wind %u\n", api::wind(api::PolarTurn{2}, api::polar_Turn{3}));
-	// Names that clash in some language, each kept apart there.
-	print("clash ", api::clash_Tone{440}.debug(), " ");
-	print("", api::clash_TONE{3}.debug(), " ");
-	print("", api::Cancelled{2}.debug(), "");
-	api::clash_Span clash_span{4};
-	std::printf(" span %u ", clash_span.width_());
-	print("", clash_span.to_string_(), " ");
-	print("", clash_span.to_string(), "");
-	api::clash_Store clash_store = api::clash_Store::new_(7);
-	std::printf(" store %u %u", clash_store.free_(), clash_store.close());
-	std::printf(" audio %u %u nested %u\n", api::clash_audio_encoder_finish(), api::clash_audio_encoder_finish_(),
-	            api::clash_nested(std::make_tuple(std::make_tuple(std::uint8_t{1}, std::uint16_t{2}), 3u),
-	                              std::make_tuple(std::make_tuple(std::uint8_t{1}, std::uint16_t{2}, 3u))));
-	// Instances that name each other, and one made only by an impl of it.
-	std::printf("cross %u outer %u\n", api::cross(api::Left_Right_u8{api::Right_u8{1}}, api::Right_Left_u8{api::Left_u8{2}}),
-	            api::Outer_Inner_u8::new_(4).get());
-	// A bound that outlives the call takes a value, and an instance only a constant names.
-	std::printf("kept %llu boxed %u\n", ull(api::kept_Point({1, -2})), api::BOXED().value);
-	std::printf("keep %d\n", api::keep_Point({1, -2}));
-	std::printf("kept or %d %d keeper %d\n", api::kept_or_Point(api::Point{5, 2}), api::kept_or_Point(std::nullopt),
-		api::keeper_Point({5, 2}));
-	// Inferred instances taking a lent closure and a foreign implementation, and one only
-	// its impl of a trait names.
-	api::Pair_u32 sides{2, 5};
-	std::printf("apply %u\n", api::apply_u32(sides, [](std::uint32_t side) { return side * 3; }));
-	std::printf("report %u\n", api::report_u32(sides, std::make_unique<print_log>()));
-	std::printf("wrapped %llu\n", ull(api::kept_Wrap_u32({4})));
-	std::printf("keeps %u\n", api::keeps(std::make_unique<print_log>()).value);
-
-	// Its Drop runs when C++ destroys the handle, not before.
-	{
-		api::Token token = api::Token::new_(7);
-		std::printf("token %u dropped %u\n", token.id_get(), api::dropped());
-	}
-	std::printf("dropped %u\n", api::dropped());
-
-	// A field and the method of its name, each its own member.
-	api::Retry retry = api::Retry::new_(5u);
-	std::optional<std::uint32_t> limit = retry.limit_get();
-	std::printf("retry %d %u %u %u\n", limit.has_value(), limit.value_or(0), retry.limit(), retry.delay());
-	// The renamed field's setter, named as its getter.
-	retry.limit_set(std::nullopt);
-	std::printf("retry %u\n", retry.limit());
-	std::printf("slot %u\n", api::Slot_u8::new_(200).value());
-
-	// Foreign types: a URL parsed from text, socket addresses, OS paths, and `Vec`s.
-	api::Url base = api::Url::parse("https://example.com/a/b").value();
-	print("url ", base.to_string(), " host ");
-	if (auto host = api::host(base)) {
-		print("Some(\"", *host, "\")\n");
-	} else {
-		std::printf("None\n");
-	}
-	if (auto resolved = api::resolve(base, "c?d")) {
-		print("resolve ", resolved->to_string(), " ");
-		std::printf("%s\n", *resolved == base ? "true" : "false");
-	} else {
-		print("resolve err ", resolved.error(), "\n");
-	}
-	if (auto parsed = api::Url::parse("no scheme")) {
-		print("parse ", parsed->to_string(), "\n");
-	} else {
-		print("parse err ", parsed.error(), "\n");
-	}
-
-	api::socket_addr v4{};
-	v4.ip[0] = 127;
-	v4.ip[3] = 1;
-	v4.port = 8080;
-	api::socket_addr v6{};
-	v6.ip[15] = 1;
-	v6.port = 443;
-	v6.v6 = true;
-	v6.scope_id = 3;
-	auto ports = api::ports({v4, v6});
-	std::printf("ports [%u, %u]\n", ports[0], ports[1]);
-	std::vector<api::buf> names;
-	names.emplace_back(api::view("a"));
-	names.emplace_back(api::view("b"));
-	api::Peer peer = api::Peer{v6, names}.next("c");
-	std::printf("peer Peer { addr: [::%u%%%u]:%u, names: ", peer.addr.ip[15], peer.addr.scope_id, peer.addr.port);
-	print_strings(peer.names);
-	std::printf(" } ");
-	print_strings(peer.aliases());
-	std::printf("\n");
-
-	// A path's bytes as the OS holds them, which need not be UTF-8.
-	api::buf file = api::file("dir", "f\\'\"\t");
-	auto parents = api::parents({file, "/"});
-	print_escaped("file ", file, "\n");
-	std::printf("parents");
-	for (const auto &parent : parents) {
-		if (parent) {
-			print_escaped(" ", *parent, "");
-		} else {
-			std::printf(" none");
-		}
-	}
-	std::printf("\n");
-
-	auto words = api::words(" one two  three ");
-	std::printf("words %zu ", words.size());
-	print_strings(words);
-	std::printf("\n");
-	print("sentence ", api::sentence(std::vector<api::view>(words.begin(), words.end())), " ");
-	print("", api::sentence(std::nullopt), "\n");
-	print("sentence ", api::sentence(std::vector<api::view>()), "|\n");
-	std::printf("either %zu %zu\n", api::either("abc"), api::either(std::nullopt));
-	print("prefixed ", api::prefixed("cd", api::view("ab")), " ");
-	print("", api::prefixed("cd", std::nullopt), "\n");
-	std::printf("coordinates %d %d\n", api::coordinates(api::Point{2, 3}), api::coordinates(std::nullopt));
-	{
-		auto two = api::Counter::new_("two", 2);
-		auto three = api::Counter::new_("three", 3);
-		std::printf("plus %llu %llu\n", static_cast<unsigned long long>(two.plus(&three)),
-			static_cast<unsigned long long>(two.plus(nullptr)));
-		bool added = two.add_to(&three);
-		bool added_none = two.add_to(nullptr);
-		std::printf("add_to %s %s %llu\n", added ? "true" : "false", added_none ? "true" : "false",
-			static_cast<unsigned long long>(three.get()));
-	}
-
-	{
-		// A value passed for &mut, which takes what Rust wrote back.
-		api::buf encoded(api::view("0,"));
-		api::put_number(1, encoded);
-		api::put_number(23, encoded);
-		print("put_number ", encoded, "\n");
-		::std::tuple<api::buf, uint32_t> entry(api::buf(api::view("ab")), 1);
-		uint32_t stamps = api::push_counted(entry, 'c');
-		std::printf("push_counted %u ", stamps);
-		print("", ::std::get<0>(entry), " ");
-		std::printf("%u\n", ::std::get<1>(entry));
-		api::buf digits(api::view("7x9"));
-		auto first_digit = api::digit(digits);
-		auto skipped = api::digit(digits);
-		auto last_digit = api::digit(digits);
-		std::printf("digit %u %s %u %zu\n", unsigned(first_digit.value()), yes(!skipped.has_value()),
-			unsigned(last_digit.value()), digits.size());
-		api::Point nudged{1, 2};
-		api::nudge(nudged, 3);
-		std::printf("nudge %d %d\n", nudged.x, nudged.y);
-	}
-	{
-		auto config = api::secure("h3");
-		print("secure ", api::alpn_lent(config), " ");
-		print("", api::alpn(config), "\n");
-		auto session = api::resume("h3", 60);
-		print("resume ", session.value().alpn(), " ");
-		std::printf("%u\n", unsigned(session.value().lifetime().seconds));
-		print("resume err ", api::resume("", 60).error(), "\n");
-		auto meters = api::Meters::new_();
-		auto first = meters.first();
-		first.add(2);
-		unsigned long long added = first.add(3);
-		std::printf("lent %llu %llu\n", added, ull(meters.first().count()));
-		meters.clear();
-		std::printf("cleared %llu\n", ull(meters.first().count()));
-		auto tallies = api::Tallies::new_();
-		tallies.first().bump();
-		std::printf("tallied %u\n", tallies.first().bump());
-	}
-
-	std::printf("chunks [");
-	auto chunks = api::chunks("abcde", 2);
-	for (std::size_t i = 0; i < chunks.size(); i++) {
-		std::printf("%s[", i == 0 ? "" : ", ");
-		for (std::size_t j = 0; j < chunks[i].size(); j++) {
-			std::printf("%s%u", j == 0 ? "" : ", ", chunks[i].data()[j]);
-		}
-		std::printf("]");
-	}
-	std::printf("]\n");
-
-	auto counters = api::counters({"x", "y"});
-	std::printf("counters");
-	for (std::size_t i = 0; i < counters.size(); i++) {
-		print(i == 0 ? " " : ", ", counters[i].name(), " ");
-		std::printf("%llu", static_cast<unsigned long long>(counters[i].get()));
-	}
-	std::printf("\n");
-	std::vector<api::Counter> some, boxed;
-	some.push_back(std::move(counters[0]));
-	boxed.push_back(std::move(counters[1]));
-	auto worth = api::worth(std::move(some), std::move(boxed));
-	std::printf("worth %llu %llu\n", ull(worth), ull(api::worth(std::nullopt, {})));
-	std::optional<std::uint64_t> counts[] = {
-		api::held_count(std::tuple{api::Counter::new_("h", 4)}),
-		api::held_count(std::nullopt),
-	};
-	std::printf("held");
-	for (auto count : counts) {
-		if (count) {
-			std::printf(" Some(%llu)", ull(*count));
-		} else {
-			std::printf(" None");
-		}
-	}
-	std::printf("\n");
-	print("boxed Some(\"", *api::boxed_name(api::boxed_counter("b")), "\") ");
-	std::printf("%s %s\n", api::boxed_name(std::nullopt) ? "Some" : "None", api::boxed_counter(std::nullopt) ? "false" : "true");
-	std::printf("less %u\n", api::less(5, 2));
-
-	auto sums = api::sums({{1, 2}, {}, {3}});
-	std::printf("sums [%u, %u, %u]\n", sums[0], sums[1], sums[2]);
-	{
-		// Fields named as an `operator==`'s argument might be.
-		api::Shadowed one{{1}, 2, 3};
-		api::Shadowed two{{1}, 2, 4};
-		if (!(one == one) || one == two || !(one != two)) {
-			std::fprintf(stderr, "a record with fields named other, a, and b compares wrong\n");
-			std::abort();
-		}
-	}
-	{
-		// Types named as an `operator==`'s arguments might be.
-		api::a one{1};
-		api::a two{2};
-		api::b unit = api::b_One{};
-		api::b two_b = api::b_Two{2};
-		auto handle = api::c::new_(1);
-		if (!(one == one) || one == two || !(unit != two_b) || !(handle == api::c::new_(1)) || handle == api::c::new_(2)) {
-			std::fprintf(stderr, "types named a, b, and c compare wrong\n");
-			std::abort();
-		}
-	}
-	std::printf("least");
-	for (const auto &set : api::least({{3, 1}, {}, {2}})) {
-		std::printf(" [");
-		for (std::size_t j = 0; j < set.size(); j++) {
-			std::printf(j ? ", %u" : "%u", set[j]);
-		}
-		std::printf("]");
-	}
-	std::printf("\n");
-	numbers("edges", api::Numbers::edges());
-	numbers("reversed", api::Numbers::edges().reversed());
-	{
-		auto edges = api::Numbers::edges();
-		auto nan = api::Measure::new_(std::nan(""), false);
-		auto same = [](bool b) { return b ? "true" : "false"; };
-		std::printf("float equal %s %s %s %s %s\n", same(edges == edges), same(edges == api::Numbers::edges()),
-		            same(api::Numbers::zero(true) == api::Numbers::zero(false)), same(nan == nan),
-		            same(api::Measure::new_(-0.0, true) == api::Measure::new_(0.0, false)));
-	}
-	std::printf("sum u32 %llu %llu\n", static_cast<unsigned long long>(api::sum_u32({})),
-	            static_cast<unsigned long long>(api::sum_u32({UINT32_MAX, UINT32_MAX, 2})));
-	std::printf("doubled i64 ");
-	print_list(api::doubled_i64({INT64_MIN, -1, 0, INT64_MAX}), [](int64_t v) { return std::to_string(v); });
-	std::printf("\n");
-	std::printf("boxed floats ");
-	print_list(api::boxed_floats({-0.0, f64_from(0x7ff8000000000001)}), [](double v) { return std::to_string(f64_bits(v)); });
-	std::printf("\n");
-	auto summed = api::summed({{1, 2}, {-4, 6}});
-	auto none_summed = api::summed({});
-	std::printf("summed %d %d %d %d\n", summed.x, summed.y, none_summed.x, none_summed.y);
-	std::printf("longest %zu %zu\n", api::longest({"a", "abc"}), api::longest({}));
-	print("first of Some(\"", api::first_of({"a", "b"}).value(), "\") ");
-	std::printf("%s\n", api::first_of({}) ? "Some" : "None");
-	auto limits = api::byte_limits("a", "bc");
-	print("limits ", limits.low, " ");
-	print("", limits.high, " ");
-	auto breadth = api::breadth({{0, 5000000}, {2, 0}});
-	std::printf("breadth %llu\n", static_cast<unsigned long long>(breadth.secs * 1000 + breadth.nanos / 1000000));
-	print("joined ", api::joined({"ab", "", "c"}), " ");
-	std::printf("%zu read %llu\n", api::joined({}).size(), static_cast<unsigned long long>(api::read_len("hello")));
-
-	api::Json doc = api::Json::parse(R"({"b": [1, 2.5, null], "a": "\u00e9"})").value();
-	print("json ", api::encode(doc), "\n");
-	print("timed text ", api::timed_text(doc), "\n");
-	api::Json tagged = api::tagged(std::move(doc), "t");
-	print("tagged ", tagged.to_text(), "\n");
-	{
-		// A JSON object's entries cross as pairs of a key and its document, each moved in.
-		std::vector<std::tuple<api::view, api::Json>> pairs;
-		pairs.emplace_back("b", api::Json::parse("[1]").value());
-		pairs.emplace_back("a", api::Json::parse("2").value());
-		auto entries = api::entries(std::move(pairs), "t");
-		std::printf("entries");
-		for (std::size_t i = 0; i < entries.size(); i++) {
-			auto &[key, value] = entries[i];
-			print(i == 0 ? " " : ", ", key, " ");
-			print("", value.to_text(), "");
-		}
-		std::printf("\n");
-	}
-	if (auto parsed = api::Json::parse("{\"a\":")) {
-		print("json parse ", parsed->to_text(), "\n");
-	} else {
-		print("json parse err ", parsed.error(), "\n");
-	}
-
-	api::Site site = api::Site::new_(base);
-	print("site ", site.home_get().to_string(), " ");
-	print("", site.home_get().to_string(), "\n");
-
-	// Slices, passed in and returned as clones, and the socket address of each family.
-	auto shapes = api::Shape_ALL();
-	std::printf("shapes [");
-	for (std::size_t i = 0; i < shapes.size(); i++) {
-		print(i == 0 ? "" : ", ", api::Shape_debug(shapes[i]), "");
-	}
-	std::printf("] greetings ");
-	print_strings(api::GREETINGS());
-	std::printf("\n");
-	api::Trail trail = api::Trail::new_({api::Point{1, 2}, api::Point{3, 4}}, {"a", "b"});
-	auto points = trail.points();
-	std::printf("trail [");
-	for (std::size_t i = 0; i < points.size(); i++) {
-		print(i == 0 ? "" : ", ", points[i].debug(), "");
-	}
-	auto labels = trail.labels();
-	std::printf("] [");
-	for (std::size_t i = 0; i < labels.size(); i++) {
-		print(i == 0 ? "" : ", ", labels[i].debug(), "");
-	}
-	std::printf("]\n");
-	// Returned iterators, each collected at the call: drained labels are gone after.
-	auto iter_points = trail.iter();
-	std::printf("iterated [");
-	for (std::size_t i = 0; i < iter_points.size(); i++) {
-		print(i == 0 ? "" : ", ", iter_points[i].debug(), "");
-	}
-	std::printf("] ");
-	print_strings(trail.names());
-	auto iter_bytes = trail.bytes();
-	std::printf(" [");
-	for (std::size_t i = 0; i < iter_bytes.size(); i++) {
-		std::printf("%s%u", i == 0 ? "" : ", ", iter_bytes.data()[i]);
-	}
-	std::printf("]\n");
-	auto drained = trail.drain();
-	std::printf("drained [");
-	for (std::size_t i = 0; i < drained.size(); i++) {
-		print(i == 0 ? "" : ", ", drained[i].debug(), "");
-	}
-	auto left = trail.labels();
-	std::printf("] then [");
-	for (std::size_t i = 0; i < left.size(); i++) {
-		print(i == 0 ? "" : ", ", left[i].debug(), "");
-	}
-	std::printf("]\n");
-	// A filter, collected at the call.
-	auto beyond = trail.beyond(1);
-	std::printf("beyond");
-	for (std::size_t i = 0; i < beyond.size(); i++) {
-		std::printf("%s%d %d", i == 0 ? " " : ", ", beyond[i].x, beyond[i].y);
-	}
-	std::printf("\n");
-	auto numbered = api::numbered({"p", "q"});
-	std::printf("numbered");
-	for (std::size_t i = 0; i < numbered.size(); i++) {
-		print(i == 0 ? " " : ", ", numbered[i].name(), " ");
-		std::printf("%llu", static_cast<unsigned long long>(numbered[i].get()));
-	}
-	std::printf("\n");
-	api::socket_addr at4{};
-	at4.ip[0] = 127;
-	at4.ip[3] = 1;
-	at4.port = 8080;
-	api::socket_addr at6{};
-	at6.ip[15] = 1;
-	at6.port = 443;
-	at6.v6 = true;
-	at6.scope_id = 3;
-	auto [next4, next6] = api::nexts(at4, at6);
-	std::printf("nexts %u.%u.%u.%u %u %u %u\n", next4.ip[0], next4.ip[1], next4.ip[2], next4.ip[3], next4.port, next6.port,
-				next6.scope_id);
-
-	// serde_json's map iterator, collected as pairs of a key and its document.
-	{
-		std::vector<std::tuple<api::view, api::Json>> pairs;
-		pairs.emplace_back("b", api::Json::parse("[1]").value());
-		pairs.emplace_back("a", api::Json::parse("2").value());
-		auto sections = api::sections(std::move(pairs));
-		std::printf("sections");
-		for (std::size_t i = 0; i < sections.size(); i++) {
-			auto &[key, value] = sections[i];
-			print(i == 0 ? " " : ", ", key, " ");
-			print("", value.to_text(), "");
-		}
-		std::printf("\n");
-	}
-	// An instant only Rust makes, which each call copies out of its handle, and compares.
-	{
-		auto millis = [](api::duration elapsed) { return static_cast<unsigned long long>(elapsed.secs * 1000 + elapsed.nanos / 1000000); };
-		auto began = api::now();
-		auto ended = api::later(began, {1, 500000000});
-		std::printf("instants %llu %llu %s %s\n", millis(api::since(ended, began)), millis(api::since(began, ended)),
-					began == api::later(began, {0, 0}) ? "true" : "false", began == ended ? "true" : "false");
-	}
-	// tracing's level, and its filter as an optional level whose empty is `OFF`.
-	{
-		auto verbosity = api::Verbosity::new_(api::Level::warn);
-		print("verbosity ", api::spell(verbosity.filter()), " ");
-		print("", api::spell(api::louder(verbosity.filter())), "\n");
-		verbosity.level_set(api::Level::trace);
-		std::printf("verbosity %s ", verbosity.level_get() == api::Level::trace ? "true" : "false");
-		print("", api::spell(verbosity.filter()), " ");
-		print("", api::spell(api::louder(verbosity.filter())), " ");
-		print("", api::spell(api::louder(std::nullopt)), "\n");
-	}
-
-	// Closures C++ implements that return what Rust then owns, or that Rust keeps.
-	print("made ", api::made(3, [](std::uint32_t n) { return std::to_string(n) + " times"; }), "\n");
-	// A closure taking and returning `Copy` objects copies them, never running their `Clone`.
-	{
-		api::Ticket kept = api::Ticket::new_(9);
-		std::uint32_t given =
-			api::reissue(api::Ticket::new_(7), [](const api::Ticket &t) { return api::Ticket::new_(t.number() + 1); })
-				.number();
-		std::uint32_t held = api::reissue(api::Ticket::new_(7), [&kept](const api::Ticket &) {
-			return std::move(kept);
-		}).number();
-		std::printf("reissued %u %u, cloned %u\n", static_cast<unsigned>(given), static_cast<unsigned>(held),
-			static_cast<unsigned>(api::Ticket::clones()));
-	}
-	// A kept closure, called on another thread after the call that took it returned.
-	std::printf("spawned %u\n", static_cast<unsigned>(api::Spawned::new_([] { return 7; }).join()));
-	// A kept closure: called again at the instant it asks for, then once its waiter wakes.
-	{
-		auto began = api::now();
-		int calls = 0;
-		auto drive = api::drive(began, [&](const api::Instant &now, const api::Waiter &waiter) {
-			using result = api::result<std::optional<api::Instant>, std::string>;
-			calls++;
-			if (calls == 1) {
-				return result::ok(api::later(now, {0, 5000000}));
-			}
-			if (calls == 2) {
-				api::duration since = api::since(now, began);
-				std::printf("drive %llu\n", static_cast<unsigned long long>(since.secs * 1000 + since.nanos / 1000000));
-				waiter.waker().wake();
-				return result::ok(std::nullopt);
-			}
-			return result::err("stopped after " + std::to_string(calls));
-		});
-		api::waker waker([] {});
-		std::optional<api::buf> stopped;
-		while (!(stopped = drive.poll(waker))) {
-		}
-		print("drive ", *stopped, "\n");
-	}
-	{
-		memory hello{"hello world"};
-		tail(hello);
-		broken_reader broken;
-		tail(broken);
-		// A seek from the start reaches the reader whole, past `INT64_MAX`, as `Cursor` takes one.
-		far_reader far;
-		auto sought = api::seek_to(far, UINT64_MAX);
-		if (sought) {
-			std::printf("sought %llu\n", static_cast<unsigned long long>(*sought));
-		} else {
-			print("sought error ", sought.error(), "\n");
-		}
-	}
-	print("non zeros ", api::describe_non_zeros(api::non_zeros()), "\n");
-	for (auto hop : {std::optional<std::uint64_t>{}, std::optional<std::uint64_t>{1}, std::optional<std::uint64_t>{UINT64_MAX}}) {
-		if (auto next = api::next_hop(hop)) {
-			std::printf("hop Some(%llu)\n", static_cast<unsigned long long>(*next));
-		} else {
-			std::printf("hop None\n");
-		}
-	}
-	std::printf("farther hop %u\n", static_cast<unsigned>(api::farther_hop(api::Pair_non_zero_u16{3, UINT16_MAX})));
-
-	// A returned `Vec<&Token>` holds clones, which the vector drops.
-	api::Token twice = api::Token::new_(9);
-	std::uint32_t before = api::dropped();
-	{
-		auto tokens = twice.twice();
-		if (tokens.size() != 2 || tokens[1].id_get() != 9) {
-			return 1;
-		}
-	}
-	if (api::dropped() != before + 2) {
-		return 1;
-	}
-	return 0;
-}
-
-// The futures' semantics beyond the transcript, each checked by an assertion.
-int check(bool ok, const char *what) {
-	if (!ok) {
-		std::fprintf(stderr, "failed: %s\n", what);
-		std::exit(1);
-	}
-	return 0;
-}
 
 // A future C++ implements, which Rust polls: ready on its `ready`th poll, keeping the
 // waker of the last in what it shares with the test.
@@ -1331,10 +807,10 @@ int foreign_futures() {
 	// A kept closure the future of the call holds, destroyed with it before it finishes.
 	{
 		auto kept = std::make_shared<int>(0);
-		auto start = api::now();
+		api::Moment start = *api::Moment::new_(0, 1000);
 		{
-			auto drive = api::drive(start, [kept](const api::Instant &, const api::Waiter &) {
-				return api::result<std::optional<api::Instant>, api::buf>::ok(std::nullopt);
+			auto drive = api::drive(start, [kept](const api::Moment &, const api::Waiter &) {
+				return api::result<std::optional<api::Moment>, api::buf>::ok(std::nullopt);
 			});
 			check(kept.use_count() == 2, "Rust keeps its own copy of a closure");
 			api::waker waker([]() {});
@@ -1344,12 +820,12 @@ int foreign_futures() {
 	}
 	// A closure failing with an error any view takes, and a reader's seek failing.
 	{
-		auto start = api::now();
-		auto drive = api::drive(start, [](const api::Instant &, const api::Waiter &) {
-			return api::result<std::optional<api::Instant>, const char *>::err("failed");
+		api::Moment start = *api::Moment::new_(0, 1000);
+		auto drive = api::drive(start, [](const api::Moment &, const api::Waiter &) {
+			return api::result<std::optional<api::Moment>, const char *>::err("failed");
 		});
 		check(std::move(drive).get().str() == "failed", "a closure's error reaches Rust as its message");
-		memory empty{""};
+		hook::memory empty{""};
 		empty.at = 0;
 		auto read = api::tail(empty, 5);
 		check(read && std::get<0>(*read).empty() && std::get<1>(*read) == 0, "a reader of nothing reads nothing");
@@ -1389,6 +865,57 @@ int futures() {
 		api::task task = api::yielded(7).then(q.executor(), [&](std::uint32_t value) { got = value; });
 		q.drain();
 		check(got == 7, "a wake during the poll polls again");
+	}
+
+	// A value that is not Send stays on the thread that made it, whose executor polls its
+	// futures; destroyed on another thread, it drops on its own, posted to the executor of
+	// its thread's latest task, or else at its next call.
+	{
+		api::Local local = api::Local::new_();
+		api::Local shared = local.share();
+		local.bump();
+		check(shared.bump() == 2, "a shared local counts together");
+		std::uint32_t got = 0;
+		api::task later = local.later().then(q.executor(), [&](std::uint32_t value) { got = value; });
+		q.drain();
+		check(got == 3, "a local's future runs on its thread");
+		api::task doubled = api::local_later(5).then(q.executor(), [&](std::uint32_t value) { got = value; });
+		q.drain();
+		check(got == 10, "a future that is not Send runs on its thread");
+		std::uint32_t before = api::locals_dropped();
+		std::thread([&]() { api::Local gone = std::move(local); }).join();
+		check(api::locals_dropped() == before, "a local destroyed elsewhere waits for its thread");
+		q.drain();
+		check(api::locals_dropped() == before + 1, "a local destroyed elsewhere drops on its idle executor");
+
+		// An executor running the drain on another thread leaves it to the next call.
+		queue away;
+		auto kept = std::make_shared<int>(0);
+		api::task there = api::yielded(7).then(away.executor(), [&got, kept](std::uint32_t value) { got = value; });
+		api::Local other = shared.share();
+		std::thread([&]() { api::Local gone = std::move(other); }).join();
+		std::thread([&]() { away.drain(); }).join();
+		check(got == 7 && api::locals_dropped() == before + 1, "a drain on another thread drops nothing of this one");
+		check(shared.bump() == 4 && api::locals_dropped() == before + 2, "a local destroyed elsewhere drops on its thread");
+
+		// Once the latest task is gone, its executor is never called again.
+		there = api::task();
+		check(kept.use_count() == 1, "a gone task's callback is freed, though its thread's wake outlives it");
+		api::Local last = shared.share();
+		std::thread([&]() { api::Local gone = std::move(last); }).join();
+		check(away.jobs.empty(), "a drain is never posted to a gone task's executor");
+		check(shared.bump() == 5 && api::locals_dropped() == before + 3, "a local destroyed elsewhere drops at its next call");
+
+		// A drop queued before its thread's first task drains through that task's executor.
+		std::thread([]() {
+			queue mine;
+			api::Local early = api::Local::new_();
+			std::uint32_t was = api::locals_dropped();
+			std::thread([&]() { api::Local gone = std::move(early); }).join();
+			api::task first = api::yielded(1).then(mine.executor(), [](std::uint32_t) {});
+			mine.drain();
+			check(api::locals_dropped() == was + 1, "a drop queued before its thread's first task drains through it");
+		}).join();
 	}
 
 	// Cancelled between its wake and its poll, a receive loses nothing: the payload stays
@@ -1527,6 +1054,34 @@ int futures() {
 }
 
 // Who owns each handle and bytes, beyond the transcript, each checked by an assertion.
+// A payload Rust returned goes back to Rust in place: moved in, shared by a copy kept
+// meanwhile, and written back through `&mut`. Its bytes stay where Rust put them, and
+// drop once, with their last owner.
+void forwarding() {
+	std::uint32_t before = api::dropped();
+	api::Channel channel = api::Channel::new_();
+	api::buf payload = api::token_bytes(3, 64);
+	const std::uint8_t *at = payload.data();
+	channel.send(std::move(payload));
+	payload = channel.recv().get();
+	check(payload.data() == at && payload.size() == 64, "a payload moved into Rust stays in place");
+	api::buf kept = payload;
+	check(kept.data() == at, "a copy of Rust's bytes shares them");
+	channel.send(kept);
+	check(channel.recv().get().data() != at, "bytes lent to a call are copied");
+	channel.send(std::move(kept));
+	api::buf shared = channel.recv().get();
+	check(shared.data() == at && payload.data() == at, "a copy moved into Rust stays in place");
+	api::Packet packet = api::next_packet(api::Packet{1, std::move(shared)});
+	check(packet.payload.size() == 64 && api::dropped() == before, "a record carries the payload on");
+	payload = api::buf();
+	packet = api::Packet{};
+	check(api::dropped() == before + 1, "the payload drops once, with its last owner");
+	api::buf digits = api::token_bytes('0', 2);
+	api::put_number(7, digits);
+	check(digits.str() == "007," && api::dropped() == before + 2, "Rust takes its bytes passed for &mut");
+}
+
 int lifetimes() {
 	// Copies of a type whose clone no call tells apart share one handle: a write through
 	// one shows in the other, as it does between clones of an `Arc`.
@@ -1631,7 +1186,7 @@ int lifetimes() {
 	{
 		api::buf payload;
 		{
-			api::Message message = api::Message::new_(nullptr, "kept");
+			api::Message message = api::Message::new_(std::nullopt, "kept");
 			payload = message.payload_get();
 		}
 		check(payload.str() == "kept", "bytes outlive the object they came from");
@@ -1649,6 +1204,30 @@ int lifetimes() {
 		check(api::dropped() == before + 1, "bytes free their owner");
 	}
 
+	// Numbers lent in place, from wherever the caller holds them, with no copy on C++'s side.
+	{
+		const std::uint32_t array[] = {1, 2, 3};
+		std::vector<std::uint32_t> vector(array, array + 3);
+		std::array<std::uint32_t, 3> std_array = {1, 2, 3};
+		const std::uint32_t *samples = vector.data();
+		check(api::sum_u32(array) == 6, "a C array is a slice");
+		check(api::sum_u32(vector) == 6 && api::sum_u32(std_array) == 6, "a contiguous range is a slice");
+		check(api::sum_u32({samples, 2}) == 3, "a pointer and a count are a slice");
+		check(api::sum_u32({}) == 0 && api::sum_u32({nullptr, 0}) == 0, "an empty slice is one");
+		const std::int32_t owned[] = {1, 2};
+		check(api::sum_lists(owned, std::nullopt, std::vector<std::int32_t>{4}) == 7 &&
+		          api::sum_lists({}, api::slice<std::int32_t>(owned), std::nullopt) == 3,
+		      "a slice stands in for an owned Vec and in an option");
+#ifdef __cpp_lib_span
+		std::span<const std::uint32_t> span = vector;
+		check(api::sum_u32(span) == 6, "a span is a slice");
+		std::span<const std::uint32_t> back = api::slice<std::uint32_t>(vector);
+		check(back.size() == 3 && back[2] == 3, "a slice converts to a span");
+#endif
+	}
+
+	forwarding();
+
 	std::printf("lifetimes ok\n");
 	return 0;
 }
@@ -1657,6 +1236,14 @@ int lifetimes() {
 // `tests/api_strict.cpp` refuses at compile time reach the object through a reference or
 // pointer, whose state Clang does not track.
 int broken(const char *which) {
+#ifdef __linux__
+	// Non-dumpable, the expected abort writes no core and never starts the host's crash
+	// handler.
+	if (prctl(PR_SET_DUMPABLE, 0, 0, 0, 0) != 0) {
+		std::perror("prctl");
+		return 1;
+	}
+#endif
 	if (std::strcmp(which, "moved") == 0) {
 		api::Counter c = api::Counter::new_("c", 0);
 		api::Counter &same = c;
@@ -1695,6 +1282,11 @@ int broken(const char *which) {
 		recv.poll(waker);
 	} else if (std::strcmp(which, "null view") == 0) {
 		api::len(api::view(nullptr, 1));
+	} else if (std::strcmp(which, "lent ledger") == 0) {
+		// A ledger used while a draft holds its exclusive borrow.
+		api::Ledger ledger = api::Ledger::new_();
+		api::Draft draft = ledger.edit().value();
+		ledger.published();
 	} else if (std::strcmp(which, "outlived") == 0) {
 		api::Meters meters = api::Meters::new_();
 		api::Meter first = meters.first();
@@ -1715,7 +1307,7 @@ int broken(const char *which) {
 				return api::result<std::uint64_t, std::string>::ok(0);
 			}
 		} file;
-		api::tail(file, 1);
+		(void)api::tail(file, 1);
 	} else if (std::strcmp(which, "lent kept") == 0) {
 		static std::optional<api::Counter> kept;
 		api::Registry registry = api::Registry::new_(api::Counter::new_("c", 0));
@@ -1751,8 +1343,12 @@ int main(int argc, char **argv) {
 	if (argc > 1 && std::strcmp(argv[1], "rehomed") == 0) {
 		return rehomed();
 	}
+	if (argc > 1 && std::strcmp(argv[1], "checks") == 0) {
+		return checks();
+	}
 	if (argc > 1) {
 		return broken(argv[1]);
 	}
-	return script();
+	transcript::script();
+	return 0;
 }

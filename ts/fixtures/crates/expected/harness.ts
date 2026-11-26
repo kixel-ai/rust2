@@ -19,16 +19,33 @@ export function run(input: rs.ByteSlice): rs.ByteVec {
 		Point.shift(q, 1, -1);
 		rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(p.x & 0xff, p.y & 0xff, q.x & 0xff, q.y & 0xff)), undefined, true);
 	}
-	const _29: Item.Item | undefined = heaviest$harness_Item(rs.sliceFrom(rs.iterToVec(rs.iterMap(rs.iterSlice(rs.byteSliceView(input)), (_2: rs.u8): Item.Item => {
-		return { _0: _2 };
-	}), undefined, 1, true).items));
+	const s = rs.byteSliceView(input);
+	let front = 0;
+	let back = s.length;
+	const v: rs.Vec<Item.Item> = rs.vecWithCapacity(back - front, 1);
+	while (!(front >= back)) {
+		const y: Item.Item = { _0: s[front++] };
+		v.items.push(y);
+	}
+	const _29: Item.Item | undefined = heaviest$harness_Item(rs.sliceFrom(v.items));
 	if (_29 !== undefined) {
 		rs.byteVecPush(out, _29._0);
 	}
 	const log: rs.Arc<rs.Mutex<rs.ByteVec>> = new rs.Arc(new rs.Mutex(new rs.ByteVec()));
-	const guards: rs.Vec<Guard.Guard> = rs.iterToVec(rs.iterMap(rs.iterTake(rs.iterSlice(rs.byteSliceView(input)), 3), (_26: rs.u8): Guard.Guard => {
-		return Guard.new(_26, log);
-	}), undefined, 8, true);
+	const s2 = rs.byteSliceView(input);
+	let front2 = 0;
+	let back2 = s2.length;
+	let take = 3;
+	const v2: rs.Vec<Guard.Guard> = rs.vecWithCapacity(Math.min(back2 - front2, take), 8);
+	while (take !== 0) {
+		take--;
+		if (front2 >= back2) {
+			break;
+		}
+		const y2: Guard.Guard = Guard.new(s2[front2++], log);
+		v2.items.push(y2);
+	}
+	const guards: rs.Vec<Guard.Guard> = v2;
 	const held: Guard.Guard = Guard.new(255, log);
 	rs.dropVec(guards);
 	const _late: Guard.Guard = Guard.new(254, log);

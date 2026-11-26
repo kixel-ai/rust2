@@ -11,15 +11,15 @@ use rustc_middle::ty::TyCtxt;
 use crate::lower;
 
 /// Environment variables the CLI hands the wrapper.
-pub mod env {
+pub(crate) mod env {
 	/// The cargo package whose library is translated.
-	pub const PACKAGE: &str = "RUST2_GO_PACKAGE";
+	pub(crate) const PACKAGE: &str = "RUST2_GO_PACKAGE";
 	/// The output directory, absolute.
-	pub const OUT: &str = "RUST2_GO_OUT";
+	pub(crate) const OUT: &str = "RUST2_GO_OUT";
 }
 
 /// Run as rustc, with `args` as cargo passed them: the wrapped rustc's path first.
-pub fn run(args: Vec<String>) -> ExitCode {
+pub(crate) fn run(args: Vec<String>) -> ExitCode {
 	rust2_driver::rustc::run("rust2-go", args, |args, _| {
 		Ok(Translate::for_args(args)?.map(|job| Box::new(job) as rust2_driver::rustc::Job))
 	})

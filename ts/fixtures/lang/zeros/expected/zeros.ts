@@ -84,9 +84,12 @@ export function zeros(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		const args6 = [(f: rs.Formatter) => Unit.fmt$fmt_Debug(_11, f), (f: rs.Formatter) => One.fmt$fmt_Debug(_40, f)];
 		rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([args6[0], " ", args6[1]]).v), undefined, true);
 	} else if (_8 === 1) {
-		const leaf = rs.iterSlice(rs.byteSliceView(data));
+		const s2 = rs.byteSliceView(data);
+		let front = 0;
+		let back = s2.length;
 		let n2 = 0;
-		while (leaf.next() !== rs.DONE) {
+		while (!(front >= back)) {
+			s2[front++];
 			Uint8Array.of();
 			n2++;
 		}
@@ -100,13 +103,16 @@ export function zeros(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 				return item;
 			});
 		}), (value: Unit.Unit[]) => rs.iterSlice(value), true, 3)) & 0xff);
-		const leaf2 = rs.iterSlice(rs.byteSliceView(data));
+		const s3 = rs.byteSliceView(data);
+		let front2 = 0;
+		let back2 = s3.length;
 		let n3 = 0;
-		fused6: while (true) {
+		fused9: while (true) {
 			while (true) {
-				if (leaf2.next() === rs.DONE) {
-					break fused6;
+				if (front2 >= back2) {
+					break fused9;
 				}
+				s3[front2++];
 				if (Unit.eq$cmp_PartialEq(pair()._0, { _0: {}, _1: undefined }._0)) {
 					break;
 				}
@@ -390,11 +396,20 @@ export function digest$zeros_Tagged_String(value: Tagged.Tagged<rs.String>, out:
 
 /** The impls `#[derive]` calls on `PhantomData`, `PhantomPinned`, and `()` fields. */
 export function impls(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
-	const tags: rs.Vec<Tagged.Tagged<rs.String>> = rs.iterToVec(rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (_2: rs.u8): Tagged.Tagged<rs.String> => {
+	const s = rs.byteSliceView(data);
+	let front = 0;
+	let back = s.length;
+	const f = (_2: rs.u8): Tagged.Tagged<rs.String> => {
 		const n: rs.u8 = _2;
 		Tagged.default$Default_String();
 		return { n, of: undefined, pin: undefined, unit: undefined };
-	}), undefined, 1, true);
+	};
+	const v: rs.Vec<Tagged.Tagged<rs.String>> = rs.vecWithCapacity(back - front, 1);
+	while (!(front >= back)) {
+		const y: Tagged.Tagged<rs.String> = f(s[front++]);
+		v.items.push(y);
+	}
+	const tags: rs.Vec<Tagged.Tagged<rs.String>> = v;
 	const _7: rs.u8 = rs.u8Rem(kind, 4);
 	if (_7 === 0) {
 		const _11: Tagged.Tagged<rs.String> | undefined = rs.sliceFirst(rs.sliceFrom(tags.items));
@@ -429,9 +444,12 @@ export function impls(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 			const a: Tagged.Tagged<rs.String> = part;
 			const b: Tagged.Tagged<rs.String> = part2;
 			rs.byteVecPush(out, (Tagged.cmp$cmp_Ord_String(a, b) & 0xff) | (((Tagged.eq$cmp_PartialEq_String(a, b) ? 1 : 0) << 2) & 0xff) | (((Tagged.partialCmp$cmp_PartialOrd_String(a, b) === Tagged.cmp$cmp_Ord_String(a, b) as rs.Ordering | undefined ? 1 : 0) << 3) & 0xff));
-			rs.byteVecPush(out, Tagged.cmp$cmp_Ord_String(a, b) === 0 === rs.u64Eq(hash$zeros_Tagged_String(a), hash$zeros_Tagged_String(b)) ? 1 : 0);
+			const _117: boolean = Tagged.cmp$cmp_Ord_String(a, b) === 0;
+			const _120: rs.u64 = hash$zeros_Tagged_String(a);
+			const _121: rs.u64 = hash$zeros_Tagged_String(b);
+			rs.byteVecPush(out, _117 === (typeof _120 === "number" && typeof _121 === "number" ? _120 === _121 : rs.u64Eq(_120, _121)) ? 1 : 0);
 		}
-		rs.byteVecPush(out, (true ? 1 : 0) | (((true ? 1 : 0) << 1) & 0xff));
+		rs.byteVecPush(out, 1 | ((1 << 1) & 0xff));
 		rs.byteVecPush(out, rs.cmpNothing(undefined, undefined) & 0xff);
 		rs.byteVecPush(out, rs.cmpNothing(undefined, undefined) & 0xff);
 	} else if (_7 === 2) {
@@ -450,11 +468,20 @@ export function impls(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		rs.byteVecPush(out, Names.eq$cmp_PartialEq(_168, _176) ? 1 : 0);
 		const _183: Names.Names = Names.default$Default();
 		rs.byteVecPush(out, Names.cmp$cmp_Ord(_168, _183) === 0 ? 1 : 0);
-		rs.byteVecPush(out, rs.iterAll(rs.iterSlice(tags.items), (t2: Tagged.Tagged<rs.String>): boolean => {
-			return Tagged.eq$cmp_PartialEq_String(Tagged.clone$Clone_String(t2), t2);
-		}) ? 1 : 0);
+		const s2 = tags.items;
+		let front2 = 0;
+		let back2 = s2.length;
+		let found = true;
+		while (!(front2 >= back2)) {
+			const x2 = s2[front2++];
+			if (!Tagged.eq$cmp_PartialEq_String(Tagged.clone$Clone_String(x2), x2)) {
+				found = false;
+				break;
+			}
+		}
+		rs.byteVecPush(out, found ? 1 : 0);
 		Rest.default$Default();
-		rs.byteVecPush(out, true ? 1 : 0);
+		rs.byteVecPush(out, 1);
 	}
 }
 
@@ -592,13 +619,16 @@ export function unread(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		drop$zeros_Lock_zeros_Loud(Lock.new$zeros_Loud(undefined));
 		rs.iterExtendBytes(out, rs.iterSlice(rs.u32ToBeBytes(rs.atomicLoad(LOG, 0))), undefined, true);
 	} else if (_9 === 1) {
-		const leaf = rs.iterSlice(rs.iterToVec(rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (_25: rs.u8): undefined => {}), undefined, 0, true).items);
+		const s = rs.iterToVec(rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (_25: rs.u8): undefined => {}), undefined, 0, true).items;
+		let front = 0;
+		let back = s.length;
 		let n2 = 0;
-		fused2: while (true) {
+		fused3: while (true) {
 			while (true) {
-				if (leaf.next() === rs.DONE) {
-					break fused2;
+				if (front >= back) {
+					break fused3;
 				}
+				s[front++];
 				if (true) {
 					break;
 				}
@@ -616,7 +646,7 @@ export function unread(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		}));
 		rs.byteVecPush(out, (((_22: undefined): boolean => {
 			return true;
-		})(([undefined] as [undefined])[0]) ? 1 : 0) | (((true ? 1 : 0) << 1) & 0xff));
+		})(([undefined] as [undefined])[0]) ? 1 : 0) | ((1 << 1) & 0xff));
 		drop$zeros_Lock_u32(lock);
 		rs.iterExtendBytes(out, rs.iterSlice(rs.u32ToBeBytes(rs.atomicLoad(LOG, 0))), undefined, true);
 	}
@@ -644,14 +674,14 @@ export function writes(kind: rs.u8, _dataData: Uint8Array, _dataStart: number, d
 	const _9: rs.u8 = rs.u8Rem(kind, 5);
 	if (_9 === 0) {
 		leaked(1);
-		rs.byteVecPush(out, true ? 1 : 0);
+		rs.byteVecPush(out, 1);
 		leaked(2);
 		leaked(3);
 		leaked(4);
 		leaked(6);
-		rs.byteVecPush(out, (true ? 1 : 0) | ((n << 1) & 0xff));
+		rs.byteVecPush(out, 1 | ((n << 1) & 0xff));
 	} else if (_9 === 1) {
-		rs.byteVecPush(out, true ? 1 : 0);
+		rs.byteVecPush(out, 1);
 		const _53: Unit.Unit = {};
 		unit();
 		Unit.default$Default();
@@ -685,7 +715,7 @@ export function writes(kind: rs.u8, _dataData: Uint8Array, _dataStart: number, d
 		const _141: rs.Cell<undefined> = new rs.Cell(undefined);
 		rs.cellReplace(_141, undefined);
 		rs.cellReplace(_141, undefined);
-		rs.byteVecPush(out, true ? 1 : 0);
+		rs.byteVecPush(out, 1);
 	} else {
 		let o: undefined | rs.None = thenSome$1n1oy1h(n > 0, undefined);
 		const old2: undefined | rs.None = o;

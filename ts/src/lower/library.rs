@@ -19,7 +19,7 @@ use crate::ts::{Expr, Stmt, StmtKind};
 /// A type with a representation of its own: std's, or a well-known crate's that
 /// [`super::stock`] maps.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Std {
+pub(crate) enum Std {
 	/// `T | undefined`.
 	Option,
 	/// `rs.Result<T, E>`.
@@ -226,7 +226,7 @@ pub enum Std {
 impl Std {
 	/// Whether it is one of std's errors, a `Utf8Chunk`, or a raw waker or its vtable, whose
 	/// runtime fields have std's names and whose derived `PartialEq` lowers from its MIR.
-	pub fn record(self) -> bool {
+	pub(crate) fn record(self) -> bool {
 		matches!(
 			self,
 			Self::FromUtf8Error
@@ -250,7 +250,7 @@ impl Std {
 	}
 
 	/// How its operators overflow, if it is a `Wrapping` or a `Saturating`.
-	pub fn overflow(self) -> Option<Overflow> {
+	pub(crate) fn overflow(self) -> Option<Overflow> {
 		match self {
 			Self::Wrapping => Some(Overflow::Wrap),
 			Self::Saturating => Some(Overflow::Saturate),
@@ -258,7 +258,7 @@ impl Std {
 		}
 	}
 
-	pub fn of(tcx: TyCtxt<'_>, did: DefId) -> Option<Self> {
+	pub(crate) fn of(tcx: TyCtxt<'_>, did: DefId) -> Option<Self> {
 		if !is_std(tcx, did) {
 			if super::bindgen::represents(tcx, did) {
 				return Some(Self::Js);
@@ -435,7 +435,7 @@ impl Std {
 /// How a `ControlFlow<B, C>` is represented. What `?` branches on is the value it was
 /// applied to, which breaks with what can only be its `Err` or `None`.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Flow {
+pub(crate) enum Flow {
 	/// Breaking with a `Result<!, E>`: the `rs.Result<C, E>` `?` was applied to.
 	Result,
 	/// Breaking with an `Option<!>`: the `Option<C>` `?` was applied to.
@@ -446,7 +446,7 @@ pub enum Flow {
 
 impl Flow {
 	/// The representation of a `ControlFlow` with `args`, its break's type first.
-	pub fn of<'tcx>(tcx: TyCtxt<'tcx>, args: GenericArgs<'tcx>) -> Self {
+	pub(crate) fn of<'tcx>(tcx: TyCtxt<'tcx>, args: GenericArgs<'tcx>) -> Self {
 		let ty::Adt(adt, residual) = args.type_at(0).kind() else {
 			return Self::Other;
 		};
@@ -460,7 +460,7 @@ impl Flow {
 	}
 
 	/// The test that `value`, a `ControlFlow` with `args`, continues, or breaks.
-	pub fn test<'tcx>(t: &Translator<'_, 'tcx>, args: GenericArgs<'tcx>, value: Expr, continues: bool) -> Expr {
+	pub(crate) fn test<'tcx>(t: &Translator<'_, 'tcx>, args: GenericArgs<'tcx>, value: Expr, continues: bool) -> Expr {
 		match (Self::of(t.tcx, args), continues) {
 			(Self::Result | Self::Other, true) => value.member("ok"),
 			(Self::Result | Self::Other, false) => value.member("ok").not(),
@@ -473,7 +473,7 @@ impl Flow {
 /// Whether `ty` holds nothing, so its value is `undefined`: `()`, `PhantomData`,
 /// `PhantomPinned`, `..`, or `BuildHasherDefault`, whose impls each compare equal and hash
 /// nothing.
-pub fn nothing<'tcx>(tcx: TyCtxt<'tcx>, ty: Ty<'tcx>) -> bool {
+pub(crate) fn nothing<'tcx>(tcx: TyCtxt<'tcx>, ty: Ty<'tcx>) -> bool {
 	match ty.kind() {
 		ty::Tuple(tys) => tys.is_empty(),
 		ty::Adt(adt, _) => {
@@ -486,12 +486,12 @@ pub fn nothing<'tcx>(tcx: TyCtxt<'tcx>, ty: Ty<'tcx>) -> bool {
 }
 
 /// Whether `did` is `PhantomPinned`.
-pub fn pinned(tcx: TyCtxt<'_>, did: DefId) -> bool {
+pub(crate) fn pinned(tcx: TyCtxt<'_>, did: DefId) -> bool {
 	tcx.is_diagnostic_item(rustc_span::Symbol::intern("PhantomPinned"), did)
 }
 
 /// Whether `did` is `iter::Empty`, an `rs.Iter` that holds nothing.
-pub fn empty_iter(tcx: TyCtxt<'_>, did: DefId) -> bool {
+pub(crate) fn empty_iter(tcx: TyCtxt<'_>, did: DefId) -> bool {
 	is_std(tcx, did) && std_path(tcx, did) == ["iter", "sources", "empty", "Empty"]
 }
 
@@ -509,12 +509,12 @@ fn list_iter(tcx: TyCtxt<'_>, did: DefId) -> bool {
 }
 
 /// Whether `Default::default()` of `ty` is an iterator that yields nothing.
-pub fn empty_default(tcx: TyCtxt<'_>, ty: Ty<'_>) -> bool {
+pub(crate) fn empty_default(tcx: TyCtxt<'_>, ty: Ty<'_>) -> bool {
 	matches!(ty.kind(), ty::Adt(adt, _) if empty_iter(tcx, adt.did()) || list_iter(tcx, adt.did()))
 }
 
 /// Whether a `ty`'s value is a JS string: a `str` or a `Box<str>`.
-pub fn string<'tcx>(tcx: TyCtxt<'tcx>, ty: Ty<'tcx>) -> bool {
+pub(crate) fn string<'tcx>(tcx: TyCtxt<'tcx>, ty: Ty<'tcx>) -> bool {
 	match ty.kind() {
 		ty::Str => true,
 		ty::Adt(adt, args) => Std::of(tcx, adt.did()) == Some(Std::Box) && args.type_at(0).is_str(),
@@ -523,23 +523,23 @@ pub fn string<'tcx>(tcx: TyCtxt<'tcx>, ty: Ty<'tcx>) -> bool {
 }
 
 /// Whether `ty` is a `String`: an `rs.String`, whose text is its `v`.
-pub fn owned_string<'tcx>(tcx: TyCtxt<'tcx>, ty: Ty<'tcx>) -> bool {
+pub(crate) fn owned_string<'tcx>(tcx: TyCtxt<'tcx>, ty: Ty<'tcx>) -> bool {
 	matches!(ty.kind(), ty::Adt(adt, _) if Std::of(tcx, adt.did()) == Some(Std::String))
 }
 
 /// Whether `ty` is a `Cow<str>`: an `rs.StrCow`, the string it owns or the `rs.Borrowed`
 /// one it borrows.
-pub fn cow_str<'tcx>(tcx: TyCtxt<'tcx>, ty: Ty<'tcx>) -> bool {
+pub(crate) fn cow_str<'tcx>(tcx: TyCtxt<'tcx>, ty: Ty<'tcx>) -> bool {
 	cow_borrowed(tcx, ty).is_some_and(|t| t.is_str())
 }
 
 /// Whether `ty` is text: a JS string, a `String`, or a `Cow<str>`, which [`text`] reads as one.
-pub fn textual<'tcx>(tcx: TyCtxt<'tcx>, ty: Ty<'tcx>) -> bool {
+pub(crate) fn textual<'tcx>(tcx: TyCtxt<'tcx>, ty: Ty<'tcx>) -> bool {
 	string(tcx, ty) || owned_string(tcx, ty) || cow_str(tcx, ty)
 }
 
 /// `value`, of type `ty`, as the JS string it is or, for a `String` or a `Cow<str>`, derefs to.
-pub fn text<'tcx>(tcx: TyCtxt<'tcx>, ty: Ty<'tcx>, value: Expr) -> Expr {
+pub(crate) fn text<'tcx>(tcx: TyCtxt<'tcx>, ty: Ty<'tcx>, value: Expr) -> Expr {
 	match () {
 		_ if cow_str(tcx, ty) => Expr::rs("strCowStr", vec![value]),
 		_ if owned_string(tcx, ty) => value.member("v"),
@@ -548,7 +548,7 @@ pub fn text<'tcx>(tcx: TyCtxt<'tcx>, ty: Ty<'tcx>, value: Expr) -> Expr {
 }
 
 /// A `String` of `text`, a JS string, with room for exactly its bytes, as `to_owned` makes one.
-pub fn string_from(text: Expr) -> Expr {
+pub(crate) fn string_from(text: Expr) -> Expr {
 	Expr::rs("stringFrom", vec![text])
 }
 
@@ -557,7 +557,7 @@ pub fn string_from(text: Expr) -> Expr {
 /// differ only in their order, range, arithmetic, and unwind safety, a pattern type's base,
 /// the field of each of core's `niche_types` structs that hold one, and `bytes`'
 /// `UninitSlice`'s `[MaybeUninit<u8>]`.
-pub fn wrapped<'tcx>(tcx: TyCtxt<'tcx>, ty: Ty<'tcx>) -> Option<Ty<'tcx>> {
+pub(crate) fn wrapped<'tcx>(tcx: TyCtxt<'tcx>, ty: Ty<'tcx>) -> Option<Ty<'tcx>> {
 	if let Some(slice) = super::stock::uninit_slice(tcx, ty) {
 		return Some(slice);
 	}
@@ -582,7 +582,7 @@ pub fn wrapped<'tcx>(tcx: TyCtxt<'tcx>, ty: Ty<'tcx>) -> Option<Ty<'tcx>> {
 }
 
 /// What `ty` holds if it is an `AssertUnwindSafe`.
-pub fn unwind_safe<'tcx>(tcx: TyCtxt<'tcx>, ty: Ty<'tcx>) -> Option<Ty<'tcx>> {
+pub(crate) fn unwind_safe<'tcx>(tcx: TyCtxt<'tcx>, ty: Ty<'tcx>) -> Option<Ty<'tcx>> {
 	match ty.kind() {
 		ty::Adt(adt, args) if Std::of(tcx, adt.did()) == Some(Std::AssertUnwindSafe) => Some(args.type_at(0)),
 		_ => None,
@@ -591,14 +591,14 @@ pub fn unwind_safe<'tcx>(tcx: TyCtxt<'tcx>, ty: Ty<'tcx>) -> Option<Ty<'tcx>> {
 
 /// A `Bound` or a `TryLockError` of type `ty`, tagged as the crate's own enums are: its
 /// variant, by name, and the value it holds, if any.
-pub fn tagged(variant: &str, value: Option<Expr>, ty: crate::ts::Type) -> Expr {
+pub(crate) fn tagged(variant: &str, value: Option<Expr>, ty: crate::ts::Type) -> Expr {
 	let mut props = vec![(crate::ts::Key::Name("tag".into()), Expr::Str(variant.into()))];
 	props.extend(value.map(|v| (crate::ts::Key::Name("_0".into()), v)));
 	Expr::As(Box::new(Expr::Object(props)), ty)
 }
 
 /// `..end`, or `..=end` if `inclusive`: `{ end }`, or `{ end, inclusive: true }`.
-pub fn range_to(end: Expr, inclusive: bool) -> Expr {
+pub(crate) fn range_to(end: Expr, inclusive: bool) -> Expr {
 	let mut props = vec![(crate::ts::Key::Name("end".into()), end)];
 	if inclusive {
 		props.push((crate::ts::Key::Name("inclusive".into()), Expr::lit("true")));
@@ -607,7 +607,7 @@ pub fn range_to(end: Expr, inclusive: bool) -> Expr {
 }
 
 /// What a `Box<[T]>` of type `ty` holds, `T`, or `None` for any other type.
-pub fn box_slice<'tcx>(tcx: TyCtxt<'tcx>, ty: Ty<'tcx>) -> Option<Ty<'tcx>> {
+pub(crate) fn box_slice<'tcx>(tcx: TyCtxt<'tcx>, ty: Ty<'tcx>) -> Option<Ty<'tcx>> {
 	match ty.kind() {
 		ty::Adt(adt, args) if Std::of(tcx, adt.did()) == Some(Std::Box) => match args.type_at(0).kind() {
 			ty::Slice(elem) => Some(*elem),
@@ -618,7 +618,7 @@ pub fn box_slice<'tcx>(tcx: TyCtxt<'tcx>, ty: Ty<'tcx>) -> Option<Ty<'tcx>> {
 }
 
 /// `value`, a `&str` or a `Cow<str>` of type `ty`, as a `Cow<str>`, borrowing a `&str`.
-pub fn str_cow<'tcx>(tcx: TyCtxt<'tcx>, ty: Ty<'tcx>, value: Expr) -> Expr {
+pub(crate) fn str_cow<'tcx>(tcx: TyCtxt<'tcx>, ty: Ty<'tcx>, value: Expr) -> Expr {
 	match cow_str(tcx, ty) {
 		true => value,
 		false => cow_made(tcx.types.str_, rustc_abi::FIRST_VARIANT, value),
@@ -626,7 +626,7 @@ pub fn str_cow<'tcx>(tcx: TyCtxt<'tcx>, ty: Ty<'tcx>, value: Expr) -> Expr {
 }
 
 /// What a `Cow` of type `ty` borrows, a `[T]` or a `str`, or `None` for any other type.
-pub fn cow_borrowed<'tcx>(tcx: TyCtxt<'tcx>, ty: Ty<'tcx>) -> Option<Ty<'tcx>> {
+pub(crate) fn cow_borrowed<'tcx>(tcx: TyCtxt<'tcx>, ty: Ty<'tcx>) -> Option<Ty<'tcx>> {
 	match ty.kind() {
 		// Its first argument is its lifetime.
 		ty::Adt(adt, args) if Std::of(tcx, adt.did()) == Some(Std::Cow) => {
@@ -638,7 +638,7 @@ pub fn cow_borrowed<'tcx>(tcx: TyCtxt<'tcx>, ty: Ty<'tcx>) -> Option<Ty<'tcx>> {
 }
 
 /// What a `Cow<[T]>` of type `ty` holds, `T`, or `None` for any other type.
-pub fn cow_slice<'tcx>(tcx: TyCtxt<'tcx>, ty: Ty<'tcx>) -> Option<Ty<'tcx>> {
+pub(crate) fn cow_slice<'tcx>(tcx: TyCtxt<'tcx>, ty: Ty<'tcx>) -> Option<Ty<'tcx>> {
 	match cow_borrowed(tcx, ty)?.kind() {
 		ty::Slice(elem) => Some(*elem),
 		_ => None,
@@ -652,7 +652,7 @@ fn cow_bytes(borrowed: Ty<'_>) -> bool {
 
 /// What `cow`, a `Cow` of `borrowed`, derefs to: an `rs.ByteSlice` of bytes, an array, or
 /// a string.
-pub fn cow_deref(cow: Expr, borrowed: Ty<'_>) -> Expr {
+pub(crate) fn cow_deref(cow: Expr, borrowed: Ty<'_>) -> Expr {
 	match borrowed.kind() {
 		ty::Str => Expr::rs("strCowStr", vec![cow]),
 		_ if cow_bytes(borrowed) => Expr::rs("byteCowSlice", vec![cow]),
@@ -663,7 +663,7 @@ pub fn cow_deref(cow: Expr, borrowed: Ty<'_>) -> Expr {
 
 /// A `Cow` of `borrowed` made by its variant `variant` of `value`: what it owns, or what
 /// it borrows, wrapped in an `rs.Borrowed` unless it is bytes.
-pub fn cow_made(borrowed: Ty<'_>, variant: rustc_abi::VariantIdx, value: Expr) -> Expr {
+pub(crate) fn cow_made(borrowed: Ty<'_>, variant: rustc_abi::VariantIdx, value: Expr) -> Expr {
 	match variant.index() == 0 && !cow_bytes(borrowed) {
 		true => Expr::New(Box::new(Expr::Rs("Borrowed".into())), vec![value]),
 		false => value,
@@ -672,7 +672,7 @@ pub fn cow_made(borrowed: Ty<'_>, variant: rustc_abi::VariantIdx, value: Expr) -
 
 /// Whether `cow`, a `Cow` of `borrowed`, borrows: whether it is of the class its borrowed
 /// variant is.
-pub fn cow_borrows(cow: Expr, borrowed: Ty<'_>) -> Expr {
+pub(crate) fn cow_borrows(cow: Expr, borrowed: Ty<'_>) -> Expr {
 	let class = match cow_bytes(borrowed) {
 		true => "ByteSlice",
 		false => "Borrowed",
@@ -682,7 +682,7 @@ pub fn cow_borrows(cow: Expr, borrowed: Ty<'_>) -> Expr {
 
 /// The path of a std item within its crate, as `["slice", "iter", "Iter"]`; empty for
 /// any other crate's.
-pub fn std_path(tcx: TyCtxt<'_>, did: DefId) -> Vec<String> {
+pub(crate) fn std_path(tcx: TyCtxt<'_>, did: DefId) -> Vec<String> {
 	if !is_std(tcx, did) {
 		return Vec::new();
 	}
@@ -694,7 +694,7 @@ pub fn std_path(tcx: TyCtxt<'_>, did: DefId) -> Vec<String> {
 		.collect()
 }
 
-pub fn is_std(tcx: TyCtxt<'_>, did: DefId) -> bool {
+pub(crate) fn is_std(tcx: TyCtxt<'_>, did: DefId) -> bool {
 	matches!(tcx.crate_name(did.krate).as_str(), "core" | "alloc" | "std")
 }
 
@@ -702,7 +702,7 @@ pub fn is_std(tcx: TyCtxt<'_>, did: DefId) -> bool {
 /// `AsMut` impl for references, or of its `Hasher` or `fmt::Write` impl for a `&mut`, or its
 /// `Hasher` impl for a box, which calls its referents' with the operands dereferenced, the
 /// generic arguments of that call.
-pub fn referent<'tcx>(
+pub(crate) fn referent<'tcx>(
 	tcx: TyCtxt<'tcx>,
 	def_id: DefId,
 	gargs: GenericArgs<'tcx>,
@@ -736,7 +736,7 @@ pub fn referent<'tcx>(
 /// A comparison an impl of `PartialEq`, `PartialOrd`, or `Iterator` inherits from its
 /// trait, as a derived one inherits all but `eq` and `partial_cmp`.
 #[derive(Clone, Copy)]
-pub enum Inherited {
+pub(crate) enum Inherited {
 	Ne,
 	Lt,
 	Le,
@@ -747,7 +747,7 @@ pub enum Inherited {
 impl Inherited {
 	/// The comparison `instance` is, if it is the trait's own default, and what it calls,
 	/// with the same generic arguments and operands: the trait's `eq` or `partial_cmp`.
-	pub fn of(tcx: TyCtxt<'_>, instance: Instance<'_>) -> Option<(Self, DefId)> {
+	pub(crate) fn of(tcx: TyCtxt<'_>, instance: Instance<'_>) -> Option<(Self, DefId)> {
 		let ty::InstanceKind::Item(did) = instance.def else {
 			return None;
 		};
@@ -774,7 +774,7 @@ impl Inherited {
 
 	/// The comparison, from what `via` returned: `!eq`, or whether the `partial_cmp` is
 	/// `Some` and of the order wanted, as std's defaults test it.
-	pub fn test(self, b: &mut Body<'_, '_, '_>, value: Expr, out: &mut Vec<Stmt>) -> Expr {
+	pub(crate) fn test(self, b: &mut Body<'_, '_, '_>, value: Expr, out: &mut Vec<Stmt>) -> Expr {
 		let (op, order) = match self {
 			Self::Ne => return value.not(),
 			Self::Lt => return value.binary("===", Expr::lit("-1")),
@@ -794,14 +794,14 @@ impl Inherited {
 /// Whether `Clone` of `ty` only copies: `ty` is `Copy`, and no `Clone` written by hand
 /// runs for it or anything in it, as a derived or std `Clone` clones each field. `env`
 /// holds the bounds of the body naming `ty`.
-pub fn clone_copies<'tcx>(t: &super::Translator<'_, 'tcx>, env: TypingEnv<'tcx>, ty: Ty<'tcx>) -> bool {
+pub(crate) fn clone_copies<'tcx>(t: &super::Translator<'_, 'tcx>, env: TypingEnv<'tcx>, ty: Ty<'tcx>) -> bool {
 	t.tcx.type_is_copy_modulo_regions(env, ty) && clone_only_copies(t, env, ty)
 }
 
 /// Whether `Clone` of `ty` is the value itself, as JS holds it: a string, a function, or a
 /// closure that writes none of its captures, each of which only copies or clones so, as
 /// nothing else reaches what a closure owns to write it.
-pub fn clone_shares<'tcx>(t: &super::Translator<'_, 'tcx>, env: TypingEnv<'tcx>, ty: Ty<'tcx>) -> bool {
+pub(crate) fn clone_shares<'tcx>(t: &super::Translator<'_, 'tcx>, env: TypingEnv<'tcx>, ty: Ty<'tcx>) -> bool {
 	match ty.kind() {
 		ty::FnDef(..) => true,
 		ty::Closure(..) | ty::CoroutineClosure(..) => {
@@ -842,7 +842,7 @@ fn clone_only_copies<'tcx>(t: &super::Translator<'_, 'tcx>, env: TypingEnv<'tcx>
 }
 
 /// The standard type an inherent method is of, such as `Range` for `Range::contains`.
-pub fn inherent_std(tcx: TyCtxt<'_>, def_id: DefId) -> Option<Std> {
+pub(crate) fn inherent_std(tcx: TyCtxt<'_>, def_id: DefId) -> Option<Std> {
 	let imp = tcx.inherent_impl_of_assoc(def_id)?;
 	match tcx.type_of(imp).instantiate_identity().skip_norm_wip().kind() {
 		ty::Adt(adt, _) => Std::of(tcx, adt.did()),
@@ -861,7 +861,7 @@ pub fn inherent_std(tcx: TyCtxt<'_>, def_id: DefId) -> Option<Std> {
 /// Not one taking a `&mut` or a raw pointer, whose writes the crate's analysis of what it
 /// writes into would miss, nor an `unsafe` one, nor one mapped below as one expression or
 /// as the runtime's panic.
-pub fn from_mir<'tcx>(t: &Translator<'_, 'tcx>, env: TypingEnv<'tcx>, instance: Instance<'tcx>) -> bool {
+pub(crate) fn from_mir<'tcx>(t: &Translator<'_, 'tcx>, env: TypingEnv<'tcx>, instance: Instance<'tcx>) -> bool {
 	let tcx = t.tcx;
 	let ty::InstanceKind::Item(did) = instance.def else {
 		return false;
@@ -902,7 +902,7 @@ pub fn from_mir<'tcx>(t: &Translator<'_, 'tcx>, env: TypingEnv<'tcx>, instance: 
 /// The generic arguments of the first function `callee` picks that std's body of `def_id`,
 /// instantiated by `args`, calls: what that body passes on, such as an adaptor it wraps an
 /// iterator in.
-pub fn callee_args<'tcx>(
+pub(crate) fn callee_args<'tcx>(
 	t: &Translator<'_, 'tcx>,
 	def_id: DefId,
 	args: GenericArgs<'tcx>,
@@ -924,7 +924,7 @@ pub fn callee_args<'tcx>(
 
 /// Whether some instance of std's `did` may lower from its MIR, as [`from_mir`] decides
 /// for each: what only the instance decides is left to it.
-pub fn may_from_mir(tcx: TyCtxt<'_>, did: DefId) -> bool {
+pub(crate) fn may_from_mir(tcx: TyCtxt<'_>, did: DefId) -> bool {
 	if !is_std(tcx, did) {
 		return false;
 	}
@@ -1030,7 +1030,7 @@ fn int<'tcx>(tcx: TyCtxt<'tcx>, ty: Ty<'tcx>) -> bool {
 
 /// The key `def_id` makes the value of, if it is what `thread_local!` declares in a key's
 /// own initializer to: a `const { .. }` key's `const`, or a lazy key's function.
-pub fn local_init(tcx: TyCtxt<'_>, def_id: DefId) -> Option<DefId> {
+pub(crate) fn local_init(tcx: TyCtxt<'_>, def_id: DefId) -> Option<DefId> {
 	let key = tcx.opt_parent(def_id)?;
 	let is_key = tcx.def_kind(key) == DefKind::Const
 		&& matches!(tcx.type_of(key).instantiate_identity().skip_norm_wip().kind(),
@@ -1038,12 +1038,12 @@ pub fn local_init(tcx: TyCtxt<'_>, def_id: DefId) -> Option<DefId> {
 	is_key.then_some(key)
 }
 
-pub struct Call<'tcx> {
+pub(crate) struct Call<'tcx> {
 	/// The function as written, before resolving a trait method to its impl.
-	pub def_id: DefId,
+	pub(crate) def_id: DefId,
 	/// Its generic arguments: the impl's or trait's, then the function's.
-	pub args: GenericArgs<'tcx>,
-	pub span: Span,
+	pub(crate) args: GenericArgs<'tcx>,
+	pub(crate) span: Span,
 }
 
 /// What the mapping of `owner::name` may discard of the operands it takes by value, rather
@@ -1139,7 +1139,7 @@ fn releases(owner: &str, name: &str) -> bool {
 }
 
 /// Whether `owner::name` is a guard's map, filtered, tried, or split, to parts of what it lends.
-pub fn maps_guard(owner: &str, name: &str) -> bool {
+pub(crate) fn maps_guard(owner: &str, name: &str) -> bool {
 	matches!(
 		(owner, name),
 		(
@@ -1275,7 +1275,7 @@ struct Closures<'tcx> {
 /// What an argument of type `ty` that std calls holds, through any references, boxes, and
 /// `AssertUnwindSafe`s, whether a reference lends it, and `value`, the argument, read as
 /// that: a `&mut` to a function JS copies is its place, so std calls the function it holds.
-pub fn called_through<'tcx>(
+pub(crate) fn called_through<'tcx>(
 	t: &Translator<'_, 'tcx>,
 	ty: Ty<'tcx>,
 	mut value: Option<Expr>,
@@ -1446,7 +1446,7 @@ fn hook_at(b: &Body<'_, '_, '_>) -> Vec<Expr> {
 }
 
 /// `owner::name` for a standard library function.
-pub fn key(tcx: TyCtxt<'_>, def_id: DefId) -> Option<(String, String)> {
+pub(crate) fn key(tcx: TyCtxt<'_>, def_id: DefId) -> Option<(String, String)> {
 	let name = tcx.item_name(def_id).to_string();
 	if let Some(trait_id) = tcx.trait_of_assoc(def_id) {
 		return Some((tcx.item_name(trait_id).to_string(), name));
@@ -1475,7 +1475,12 @@ pub fn key(tcx: TyCtxt<'_>, def_id: DefId) -> Option<(String, String)> {
 	Some((owner, name))
 }
 
-pub fn call<'tcx>(b: &mut Body<'_, '_, 'tcx>, call: &Call<'tcx>, args: Vec<Expr>, out: &mut Vec<Stmt>) -> Option<Expr> {
+pub(crate) fn call<'tcx>(
+	b: &mut Body<'_, '_, 'tcx>,
+	call: &Call<'tcx>,
+	args: Vec<Expr>,
+	out: &mut Vec<Stmt>,
+) -> Option<Expr> {
 	let tcx = b.t.tcx;
 	let args = match super::stock::call(b, call, args, out) {
 		Ok(e) => return e,
@@ -3375,7 +3380,7 @@ fn mapping<'tcx>(
 }
 
 /// A number from its big-endian bytes, each a value: shifted and or-ed.
-pub fn be_word(int: Int, values: Vec<Expr>) -> Expr {
+pub(crate) fn be_word(int: Int, values: Vec<Expr>) -> Expr {
 	let last = values.len() - 1;
 	let mut word: Option<Expr> = None;
 	let mut top = false;
@@ -3407,7 +3412,7 @@ pub fn be_word(int: Int, values: Vec<Expr>) -> Expr {
 }
 
 /// The `n`th type among a call's generic arguments, skipping lifetimes.
-pub fn targ<'tcx>(gargs: GenericArgs<'tcx>, n: usize) -> Ty<'tcx> {
+pub(crate) fn targ<'tcx>(gargs: GenericArgs<'tcx>, n: usize) -> Ty<'tcx> {
 	gargs.types().nth(n).expect("a type argument")
 }
 
@@ -3718,7 +3723,7 @@ fn trimmed(mut args: Vec<Expr>) -> Vec<Expr> {
 /// `cow`, a `Cow<[elem]>`, through the runtime's `cow{op}`, `IntoOwned` or `Clone`, which
 /// clones what it borrows, or for `Clone` what it owns, by each item's `Clone`, into a
 /// `Vec` with room for exactly them.
-pub fn cow_cloned<'tcx>(b: &mut Body<'_, '_, 'tcx>, op: &str, cow: Expr, elem: Ty<'tcx>, span: Span) -> Expr {
+pub(crate) fn cow_cloned<'tcx>(b: &mut Body<'_, '_, 'tcx>, op: &str, cow: Expr, elem: Ty<'tcx>, span: Span) -> Expr {
 	if byte(elem) {
 		return Expr::rs(format!("byteCow{op}"), vec![cow]);
 	}
@@ -3791,7 +3796,7 @@ fn array_boxed(array: Expr, elem: Ty<'_>) -> Expr {
 }
 
 /// The operator a binary operator trait, `Add` or another, applies.
-pub fn operator(owner: &str) -> Option<rustc_middle::mir::BinOp> {
+pub(crate) fn operator(owner: &str) -> Option<rustc_middle::mir::BinOp> {
 	use rustc_middle::mir::BinOp;
 	Some(match owner {
 		"Add" => BinOp::Add,
@@ -3810,7 +3815,7 @@ pub fn operator(owner: &str) -> Option<rustc_middle::mir::BinOp> {
 
 /// How the operators of `ty` overflow and the integer it holds, if it is a `Wrapping` or a
 /// `Saturating` of an integer.
-pub fn overflowing<'tcx>(tcx: TyCtxt<'tcx>, ty: Ty<'tcx>) -> Option<(Overflow, Ty<'tcx>)> {
+pub(crate) fn overflowing<'tcx>(tcx: TyCtxt<'tcx>, ty: Ty<'tcx>) -> Option<(Overflow, Ty<'tcx>)> {
 	let ty::Adt(adt, args) = ty.kind() else {
 		return None;
 	};
@@ -3844,7 +3849,7 @@ fn pattern<'tcx>(t: &Translator<'_, 'tcx>, ty: Ty<'tcx>, p: Expr) -> Option<Expr
 
 /// The name of std's searcher of a `str` method's pattern of type `ty`, which `Debug`
 /// writes, as `pattern` reads it, or `None` for any other.
-pub fn searcher<'tcx>(t: &Translator<'_, 'tcx>, ty: Ty<'tcx>) -> Option<&'static str> {
+pub(crate) fn searcher<'tcx>(t: &Translator<'_, 'tcx>, ty: Ty<'tcx>) -> Option<&'static str> {
 	let (called, _, _) = called_through(t, ty, None);
 	Some(match ty.kind() {
 		ty::Char => "CharSearcher",
@@ -3869,7 +3874,7 @@ fn is_text<'tcx>(t: &Translator<'_, 'tcx>, ty: Ty<'tcx>) -> bool {
 }
 
 /// A `char`'s text: a literal for a constant, or `String.fromCodePoint(c)`.
-pub fn char_text(c: Expr) -> Expr {
+pub(crate) fn char_text(c: Expr) -> Expr {
 	if let Expr::Lit(n) = &c
 		&& let Some(c) = n.parse().ok().and_then(char::from_u32)
 	{
@@ -3908,7 +3913,7 @@ fn range_of(std: Std) -> Option<&'static str> {
 /// unsigned `NonZero`'s, which stops at either end where its integer's wraps, and a wide
 /// integer's, which steps past 2^53, or any integer's where `every` integer needs it to
 /// step within its type.
-pub fn range_step<'tcx>(tcx: TyCtxt<'tcx>, ty: Ty<'tcx>, every: bool) -> Option<Expr> {
+pub(crate) fn range_step<'tcx>(tcx: TyCtxt<'tcx>, ty: Ty<'tcx>, every: bool) -> Option<Expr> {
 	if let ty::Adt(adt, args) = ty.kind()
 		&& Std::of(tcx, adt.did()) == Some(Std::NonZero)
 	{
@@ -4219,7 +4224,7 @@ fn compared<'tcx>(tcx: TyCtxt<'tcx>, mut ty: Ty<'tcx>) -> Option<Ty<'tcx>> {
 	primitive(ty).then_some(ty)
 }
 
-pub fn primitive(ty: Ty<'_>) -> bool {
+pub(crate) fn primitive(ty: Ty<'_>) -> bool {
 	matches!(ty.kind(), ty::Bool | ty::Int(_) | ty::Uint(_) | ty::Char) || super::float::is(ty)
 }
 
@@ -4235,7 +4240,7 @@ fn slice_of_elem(elem: Ty<'_>) -> &'static str {
 
 /// A `Vec` of `elem`s as a slice: an `rs.ByteSlice` of a byte vector, or an `rs.Slice` of
 /// all of an `rs.Vec`'s items.
-pub fn vec_view(v: Expr, elem: Ty<'_>) -> Expr {
+pub(crate) fn vec_view(v: Expr, elem: Ty<'_>) -> Expr {
 	match elem.kind() {
 		_ if byte(elem) => Expr::rs("byteVecSlice", vec![v]),
 		_ => super::slice_items_from(v.member("items"), elem),
@@ -4251,7 +4256,7 @@ fn vec_items(v: Expr, elem: Ty<'_>) -> Expr {
 }
 
 /// A new empty `Vec`, of bytes if `bytes`.
-pub fn vec_new(bytes: bool) -> Expr {
+pub(crate) fn vec_new(bytes: bool) -> Expr {
 	Expr::New(
 		Box::new(Expr::Rs(if bytes { "ByteVec" } else { "Vec" }.into())),
 		Vec::new(),
@@ -4261,7 +4266,7 @@ pub fn vec_new(bytes: bool) -> Expr {
 /// The elements of a slice, array, or `Vec`, a `ty`, as a JS array or `Uint8Array`, for
 /// what only reads them: a view of a byte slice's or byte vector's, the elements of any
 /// other slice, and a `Vec`'s items, which the runtime's iterators and formatting index.
-pub fn elements(v: Expr, ty: Ty<'_>) -> Expr {
+pub(crate) fn elements(v: Expr, ty: Ty<'_>) -> Expr {
 	match ty.peel_refs().kind() {
 		ty::Slice(elem) if byte(*elem) => Expr::rs("byteSliceView", vec![v]),
 		// The arrays of a slice of arrays, as `rs.arraySliceItems` reads them.
@@ -4279,13 +4284,13 @@ pub fn elements(v: Expr, ty: Ty<'_>) -> Expr {
 
 /// The elements of `s`, an `rs.Slice`, as a JS array, as `rs.sliceItems` reads them: all of
 /// an array is the array.
-pub fn slice_items(s: Expr) -> Expr {
+pub(crate) fn slice_items(s: Expr) -> Expr {
 	array_of(s, "sliceItems")
 }
 
 /// The elements of `s`, a slice of `elem`s, as [`slice_items`] reads them: of arrays, the
 /// arrays of its arrays, as `rs.arraySliceItems` reads them.
-pub fn items_of(s: Expr, elem: Ty<'_>) -> Expr {
+pub(crate) fn items_of(s: Expr, elem: Ty<'_>) -> Expr {
 	match elem.is_array() {
 		true => array_of(s, "arraySliceItems"),
 		false => slice_items(s),
@@ -4298,6 +4303,16 @@ fn array_of(s: Expr, read: &str) -> Expr {
 		Expr::Call(f, mut args) if matches!(&*f, Expr::Rs(n) if n == "sliceFrom") && args.len() == 1 => {
 			args.pop().unwrap()
 		}
+		// All of an array, made of its parts, as a local held as them makes it.
+		Expr::New(f, mut args)
+			if matches!(&*f, Expr::Rs(n) if n == "Slice")
+				&& let [items, start, length] = args.as_slice()
+				&& *start == Expr::lit("0")
+				&& items.is_path()
+				&& *length == items.clone().member("length") =>
+		{
+			args.swap_remove(0)
+		}
 		// All of the arrays of a slice of arrays, which only a read takes as they are.
 		Expr::Call(f, mut args) if matches!(&*f, Expr::Rs(n) if n == "arraySliceFrom") && read == "arraySliceItems" => {
 			args.swap_remove(0)
@@ -4308,7 +4323,7 @@ fn array_of(s: Expr, read: &str) -> Expr {
 
 /// All of `items`, a JS array, as an `rs.Slice`, as `rs.sliceFrom` makes one: the elements
 /// `rs.sliceItems` reads of a slice are that slice.
-pub fn slice_from(items: Expr) -> Expr {
+pub(crate) fn slice_from(items: Expr) -> Expr {
 	match items {
 		Expr::Call(f, mut args) if matches!(&*f, Expr::Rs(n) if n == "sliceItems") && args.len() == 1 => {
 			args.pop().unwrap()
@@ -4320,7 +4335,7 @@ pub fn slice_from(items: Expr) -> Expr {
 /// The slice of a slice, array, or `Vec`, a `ty`: an `rs.ByteSlice` of bytes, an `rs.ArraySlice`
 /// of arrays, and an `rs.Slice` of other values, which the runtime's slice functions read
 /// and write.
-pub fn slice_of(v: Expr, ty: Ty<'_>) -> Expr {
+pub(crate) fn slice_of(v: Expr, ty: Ty<'_>) -> Expr {
 	match ty.peel_refs().kind() {
 		ty::Slice(_) => v,
 		_ if super::array_ref(ty).is_some() => v,
@@ -4332,7 +4347,7 @@ pub fn slice_of(v: Expr, ty: Ty<'_>) -> Expr {
 
 /// What std's sorts pick their small sorts, partitions, and scratch by, of an `elem`: its
 /// size on wasm32 and whether it is `Freeze`.
-pub fn sort_of<'tcx>(b: &mut Body<'_, '_, 'tcx>, elem: Ty<'tcx>, span: Span) -> [Expr; 2] {
+pub(crate) fn sort_of<'tcx>(b: &mut Body<'_, '_, 'tcx>, elem: Ty<'tcx>, span: Span) -> [Expr; 2] {
 	let freeze = elem.is_freeze(b.t.tcx, b.t.typing_env_pub());
 	[super::iter::size_of(b, elem, span), Expr::lit(freeze.to_string())]
 }
@@ -4348,7 +4363,12 @@ impl MethodCall for Expr {
 }
 
 /// `Default::default()` for a standard type, of its parts' defaults where it has parts.
-pub fn default_value<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, span: Span, out: &mut Vec<Stmt>) -> Option<Expr> {
+pub(crate) fn default_value<'tcx>(
+	b: &mut Body<'_, '_, 'tcx>,
+	ty: Ty<'tcx>,
+	span: Span,
+	out: &mut Vec<Stmt>,
+) -> Option<Expr> {
 	let tcx = b.t.tcx;
 	let part = |b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, out: &mut Vec<Stmt>| {
 		let f = super::collections::trait_fn(tcx, "Default", "default");
@@ -4433,7 +4453,7 @@ pub fn default_value<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, span: Span,
 }
 
 /// The text of a `fmt::Arguments` with only literal pieces, which writes it as is.
-pub fn literal(parts: &Expr) -> Option<String> {
+pub(crate) fn literal(parts: &Expr) -> Option<String> {
 	let Expr::Array(parts) = parts else {
 		return None;
 	};

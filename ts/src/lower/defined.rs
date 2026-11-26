@@ -19,13 +19,13 @@ use crate::ts::{Item, SymId, Type};
 
 /// The account of one generic type's definition.
 #[derive(Default)]
-pub struct Defined<'tcx> {
+pub(crate) struct Defined<'tcx> {
 	/// Each projection from its type parameters its fields' types name, by the name of the
 	/// TypeScript type parameter it is, after its own.
-	pub projections: Vec<(Ty<'tcx>, String)>,
+	pub(crate) projections: Vec<(Ty<'tcx>, String)>,
 	/// Each part its fields' types type that its instances decide, and those of each
 	/// instance in [`Self::held`], at that instance's arguments.
-	pub checks: Vec<Check<'tcx>>,
+	pub(crate) checks: Vec<Check<'tcx>>,
 	/// What each of those checks: its type, what it decides, and its part and what that
 	/// holds, at its arguments.
 	checked: rustc_data_structures::fx::FxHashSet<(DefId, Decides, Ty<'tcx>, Ty<'tcx>, Ty<'tcx>)>,
@@ -40,23 +40,23 @@ pub struct Defined<'tcx> {
 /// A part of a generic type's definition, over a type parameter or a projection from one,
 /// whose representation its instances decide.
 #[derive(Clone)]
-pub struct Decided<'tcx> {
+pub(crate) struct Decided<'tcx> {
 	/// The field whose type holds it.
-	pub field: DefId,
+	pub(crate) field: DefId,
 	/// It, over the definition's own parameters.
-	pub part: Ty<'tcx>,
+	pub(crate) part: Ty<'tcx>,
 	/// What an `Option` or a `Poll` holds, an `Option`-like `ControlFlow` continues with, any
 	/// other `ControlFlow` breaks with, or a future outputs.
-	pub inner: Ty<'tcx>,
+	pub(crate) inner: Ty<'tcx>,
 	/// TypeScript's type of `inner` in the definition.
-	pub defined: Type,
+	pub(crate) defined: Type,
 	/// What its instances decide of it.
-	pub decides: Decides,
+	pub(crate) decides: Decides,
 }
 
 /// What an instance decides of a [`Decided`] part.
 #[derive(Clone, Copy, PartialEq, Eq, Hash)]
-pub enum Decides {
+pub(crate) enum Decides {
 	/// An `Option`'s `None`, or that of a `ControlFlow` typed as one.
 	Option,
 	/// A `Poll`'s `Pending`.
@@ -72,14 +72,14 @@ pub enum Decides {
 /// parameters of the definition that checks it: its own at its own parameters, or an
 /// instance's it holds.
 #[derive(Clone)]
-pub struct Check<'tcx> {
-	pub adt: DefId,
-	pub decided: Decided<'tcx>,
-	pub args: GenericArgs<'tcx>,
+pub(crate) struct Check<'tcx> {
+	pub(crate) adt: DefId,
+	pub(crate) decided: Decided<'tcx>,
+	pub(crate) args: GenericArgs<'tcx>,
 }
 
 /// `args`, over a definition's parameters, at that definition's instance `at`.
-pub fn instantiate_args<'tcx>(
+pub(crate) fn instantiate_args<'tcx>(
 	tcx: ty::TyCtxt<'tcx>,
 	env: TypingEnv<'tcx>,
 	args: GenericArgs<'tcx>,
@@ -92,7 +92,7 @@ pub fn instantiate_args<'tcx>(
 
 /// The state of typing definitions.
 #[derive(Default)]
-pub struct Defining<'tcx> {
+pub(crate) struct Defining<'tcx> {
 	records: rustc_data_structures::fx::FxHashMap<DefId, Defined<'tcx>>,
 	/// The definitions being typed, innermost last.
 	typing: Vec<Typing>,
@@ -104,7 +104,7 @@ pub struct Defining<'tcx> {
 	/// instances are filled.
 	recorded: usize,
 	/// The field of the definition being typed whose type is.
-	pub field: Option<DefId>,
+	pub(crate) field: Option<DefId>,
 	/// The instances being typed in the type expression being typed, which a definition
 	/// starts afresh.
 	pub(super) instancing: Vec<Ty<'tcx>>,
@@ -161,7 +161,7 @@ struct Pending<'tcx> {
 
 impl<'tcx> Translator<'_, 'tcx> {
 	/// The record of the crate's generic `adt`, defining it if it isn't yet.
-	pub fn defined(&mut self, adt: DefId) -> &Defined<'tcx> {
+	pub(crate) fn defined(&mut self, adt: DefId) -> &Defined<'tcx> {
 		if !self.defining_state.records.contains_key(&adt) {
 			let tcx = self.tcx;
 			self.adt(tcx.adt_def(adt), tcx.def_span(adt));

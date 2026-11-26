@@ -3,11 +3,10 @@
 ## Goal
 
 Work that waits on evidence or has no consumer yet: two waits on upstream's build-speed
-levers ([relink](/quest/m3/relink.md) and [TPDE](/quest/m3/tpde.md)) and
-[the benchmark on bare metal](/quest/m3/bench-metal.md), the translator's features that
+levers ([relink](/quest/m3/relink.md) and [TPDE](/quest/m3/tpde.md)), the translator's features that
 wait on [the gate](/quest/m2/wasm/README.md), the binding targets planned ahead of a
-consumer, what waits on moq, [crabx's GitHub App](/quest/m3/crabx-app.md), and
-[the public-visibility audit](/quest/m3/pub-audit.md).
+consumer, and what waits on moq. crabx's GitHub App moved to
+[kixel-ai/crabx](https://github.com/kixel-ai/crabx).
 
 ## Plan
 
@@ -24,10 +23,34 @@ Decided with the maintainer on 2026-11-09, in the quest audit:
   continuing as before; freezing the model's work too.
 - ✅ C# and Unity, a Node-API addon, React Native, and a WASI target are planned here
   before any consumer asks, since they are the targets a media SDK's users expect: LiveKit ships Python, Node,
-  Unity, and React Native over its Rust core. Each waits on
-  [the exporter epic](/quest/m1/ffi-export/README.md), so it copies the settled C ABI,
+  Unity, and React Native over its Rust core. Each waited on
+  the exporter epic, so it copies the settled C ABI,
   types, and checks. Rejected: none until a consumer asks. Not planned: Java without
   Kotlin (the JNI library serves it, and Android has no FFM API), Ruby, PHP, Elixir, Lua, and game engines.
+
+The WASI report ([kixel-ai/rust2#967](https://github.com/kixel-ai/rust2/pull/967), 2026-11-22)
+dropped the WASI target. A WASI host should load the exporter's C ABI as a wasm32-wasip1
+core module: the api fixture's C script runs that way under wasmtime, matching native Rust,
+and calls of the binding benchmark's shapes cost 8 to 48 ns from wasmtime or wazero, with
+returned bytes lent at any size. Calls into a component cost 13 to 21 times as much, copy
+every byte, and lose the C ABI's rules: an imported closure cannot take the library's own
+objects, a failed check traps and locks the whole store, a cancelled future can lose its
+value, and NaN payloads may change. Of the runtimes a host language embeds, only Rust's
+wasmtime and JavaScript's jco run p3 components. A core module still needs a binding per
+host language over its runtime, as the web target's is over JavaScript, so none is planned
+until a host asks for one; [the pure-Go epic](/quest/m4/go/README.md) weighs Go's.
+
+The Node report ([kixel-ai/rust2#970](https://github.com/kixel-ai/rust2/pull/970), 2026-11-22)
+kept the Node-API addon and dropped a thin file over `node:ffi`. On
+bench/ffi's cases from Node 26, the addon was fastest on every per-call case, against the
+web target and `node:ffi`, and it alone takes a call into JavaScript from Rust's own thread, which
+moq-tokio's every wake is and the web target cannot build. `node:ffi` aborts on one, has
+no struct type, and was slower than the web target on every per-call case.
+The generated addon ([the binding](/ffi/README.md#node)) runs moq's script, its QUIC session
+included, on Node, Bun, and Deno. Each native function converts its own arguments, holds
+its handles, and throws a failed status. For the measured cost, see
+[the benchmark](/bench/ffi/README.md#node-api); a call while JavaScript holds a token still hands
+off to a worker thread.
 
 Decided with the maintainer on 2026-11-12, in the quest audit:
 
@@ -50,12 +73,32 @@ Decided with the maintainer on 2026-11-12, in the quest audit:
 
 The [dead `pub` spike](https://github.com/kixel-ai/rust2/pull/763) finished on
 2026-11-13 with a go for a compiler-validated audit that preserves original resolved
-references, planned in [the public-visibility audit](/quest/m3/pub-audit.md). The raw
+references, which [rust2-pub](/driver/pub/README.md) now is. The raw
 graph still fails moq publicity checks. A compiler-only narrowing loop can silently
 redirect method dispatch: the native fixture changes 99 to 3, while the graph
 retains the original method. Neither alone is an automatic cleanup tool, and
 neither establishes the absence of external API consumers. The PR holds the census,
 collective mutation checks and comparison.
+
+Decided with the maintainer on 2026-11-13, for
+[rust2-pub](https://github.com/kixel-ai/rust2/pull/785):
+
+- ✅ Validation fingerprints every item as rustc's HIR printer prints it after macro
+  expansion, which leaves visibility out, and traces a changed item back through the
+  macro calls it came from to the narrowed `pub` they read. It replaces the derive
+  fingerprint and the rule that kept every `pub` passed to a macro. Rejected: adding a
+  check per macro kind, where each review round found one more.
+- ✅ What a published crate exports, and all of an unpublished library the audit never
+  runs, stays public. Rejected: also reporting a published crate's unused exports as
+  breaking narrowings.
+- ✅ Applying the findings is follow-up work: rust2's here (applied), and moq's in moq's
+  own quest tree.
+- ✅ (2026-11-14) Validation reads narrowed source through rustc's in-memory
+  `FileLoader` overlay, and the README's Limits names the gap: a build script or proc
+  macro that reads a source file with `std::fs` sees it unnarrowed. Nothing reports
+  which files such code reads, so no check can refuse just those crates. Rejected:
+  validating on a copied tree each round, which also copies the target dir and every
+  path dependency.
 
 Decided with the maintainer on 2026-11-07, the unsafe policy, to stop one-off fixes for
 ever rarer `unsafe`:
@@ -84,3 +127,10 @@ Rejected: an unsafe std gap with no consumer becoming its own quest, as
 ([#647](https://github.com/kixel-ai/rust2/pull/647)), or as `Vec::from_raw_parts`'s adopted
 storage did ([#635](https://github.com/kixel-ai/rust2/pull/635)); and a second, byte-backed
 memory model for values whose address is reinterpreted, without a consumer.
+
+Decided with the maintainer on 2026-11-18, in the per-language audit: ✅
+free-threaded CPython through abi3t went here with no
+consumer, after m1's refusal fixes the crash; the translator's
+[fuzzing](/quest/m3/ts-fuzz.md) and [random MIR programs](/quest/m3/ts-rustlantis.md) wait
+on the gate. Dropped: rust2-go's checked multiply through `bits.Mul64`, too small for a
+quest while rust2-go is parked.

@@ -725,13 +725,16 @@ export function linked(data: rs.ByteSlice, out: rs.ByteVec): void {
  */
 export function ends$hashlink_linked_hash_map_Drain_u16_u32_maps_linked_iters_closure6(it: linked_hash_map_Drain.Drain<rs.u16, rs.u32>, steps: rs.ByteSlice, out: rs.ByteVec, f: (a0: [rs.u16, rs.u32]) => rs.usize): void {
 	let item!: [rs.u16, rs.u32] | undefined;
-	const iter: rs.Iter<rs.u8> = rs.iterTake(rs.iterSlice(rs.byteSliceView(steps)), 6);
-	while (true) {
-		const _9: rs.u8 | rs.Done = iter.next();
-		if (_9 === rs.DONE) {
+	const s: Uint8Array = rs.byteSliceView(steps);
+	let front: number = 0;
+	const back: number = s.length;
+	let take: number = 6;
+	while (take !== 0) {
+		take--;
+		if (front >= back) {
 			break;
 		}
-		const step: rs.u8 = _9;
+		const step: rs.u8 = s[front++];
 		const n: rs.usize = rs.usizeRem(step >> 2 as rs.usize, 3);
 		const _20: rs.u8 = rs.u8Rem(step, 4);
 		if (_20 === 0) {
@@ -768,13 +771,16 @@ export function ends$hashlink_linked_hash_map_Drain_u16_u32_maps_linked_iters_cl
  */
 export function ends$hashlink_linked_hash_map_IntoIter_u16_u32_maps_linked_iters_closure5(it: linked_hash_map_IntoIter.IntoIter<rs.u16, rs.u32>, steps: rs.ByteSlice, out: rs.ByteVec, f: (a0: [rs.u16, rs.u32]) => rs.usize): void {
 	let item!: [rs.u16, rs.u32] | undefined;
-	const iter: rs.Iter<rs.u8> = rs.iterTake(rs.iterSlice(rs.byteSliceView(steps)), 6);
-	while (true) {
-		const _9: rs.u8 | rs.Done = iter.next();
-		if (_9 === rs.DONE) {
+	const s: Uint8Array = rs.byteSliceView(steps);
+	let front: number = 0;
+	const back: number = s.length;
+	let take: number = 6;
+	while (take !== 0) {
+		take--;
+		if (front >= back) {
 			break;
 		}
-		const step: rs.u8 = _9;
+		const step: rs.u8 = s[front++];
 		const n: rs.usize = rs.usizeRem(step >> 2 as rs.usize, 3);
 		const _20: rs.u8 = rs.u8Rem(step, 4);
 		if (_20 === 0) {
@@ -811,13 +817,16 @@ export function ends$hashlink_linked_hash_map_IntoIter_u16_u32_maps_linked_iters
  */
 export function ends$hashlink_linked_hash_map_IterMut_u16_u32_maps_linked_iters_closure1(it: IterMut.IterMut<rs.u16, rs.u32>, steps: rs.ByteSlice, out: rs.ByteVec, f: (a0: [rs.u16, rs.Place<rs.u32>]) => rs.usize): void {
 	let item!: [rs.u16, rs.Place<rs.u32>] | undefined;
-	const iter: rs.Iter<rs.u8> = rs.iterTake(rs.iterSlice(rs.byteSliceView(steps)), 6);
-	while (true) {
-		const _9: rs.u8 | rs.Done = iter.next();
-		if (_9 === rs.DONE) {
+	const s: Uint8Array = rs.byteSliceView(steps);
+	let front: number = 0;
+	const back: number = s.length;
+	let take: number = 6;
+	while (take !== 0) {
+		take--;
+		if (front >= back) {
 			break;
 		}
-		const step: rs.u8 = _9;
+		const step: rs.u8 = s[front++];
 		const n: rs.usize = rs.usizeRem(step >> 2 as rs.usize, 3);
 		const _20: rs.u8 = rs.u8Rem(step, 4);
 		if (_20 === 0) {
@@ -853,13 +862,16 @@ export function ends$hashlink_linked_hash_map_IterMut_u16_u32_maps_linked_iters_
  */
 export function ends$hashlink_linked_hash_map_Iter_u16_u32_maps_linked_iters_closure0(it: linked_hash_map_Iter.Iter<rs.u16, rs.u32>, steps: rs.ByteSlice, out: rs.ByteVec, f: (a0: [rs.u16, rs.u32]) => rs.usize): void {
 	let item!: [rs.u16, rs.u32] | undefined;
-	const iter: rs.Iter<rs.u8> = rs.iterTake(rs.iterSlice(rs.byteSliceView(steps)), 6);
-	while (true) {
-		const _9: rs.u8 | rs.Done = iter.next();
-		if (_9 === rs.DONE) {
+	const s: Uint8Array = rs.byteSliceView(steps);
+	let front: number = 0;
+	const back: number = s.length;
+	let take: number = 6;
+	while (take !== 0) {
+		take--;
+		if (front >= back) {
 			break;
 		}
-		const step: rs.u8 = _9;
+		const step: rs.u8 = s[front++];
 		const n: rs.usize = rs.usizeRem(step >> 2 as rs.usize, 3);
 		const _20: rs.u8 = rs.u8Rem(step, 4);
 		if (_20 === 0) {
@@ -895,13 +907,16 @@ export function ends$hashlink_linked_hash_map_Iter_u16_u32_maps_linked_iters_clo
  */
 export function ends$hashlink_linked_hash_map_Keys_u16_u32_maps_linked_iters_closure3(it: Keys.Keys<rs.u16, rs.u32>, steps: rs.ByteSlice, out: rs.ByteVec, f: (a0: rs.u16) => rs.usize): void {
 	let item!: rs.u16 | undefined;
-	const iter: rs.Iter<rs.u8> = rs.iterTake(rs.iterSlice(rs.byteSliceView(steps)), 6);
-	while (true) {
-		const _9: rs.u8 | rs.Done = iter.next();
-		if (_9 === rs.DONE) {
+	const s: Uint8Array = rs.byteSliceView(steps);
+	let front: number = 0;
+	const back: number = s.length;
+	let take: number = 6;
+	while (take !== 0) {
+		take--;
+		if (front >= back) {
 			break;
 		}
-		const step: rs.u8 = _9;
+		const step: rs.u8 = s[front++];
 		const n: rs.usize = rs.usizeRem(step >> 2 as rs.usize, 3);
 		const _20: rs.u8 = rs.u8Rem(step, 4);
 		if (_20 === 0) {
@@ -937,13 +952,16 @@ export function ends$hashlink_linked_hash_map_Keys_u16_u32_maps_linked_iters_clo
  */
 export function ends$hashlink_linked_hash_map_Values_u16_u32_maps_linked_iters_closure4(it: linked_hash_map_Values.Values<rs.u16, rs.u32>, steps: rs.ByteSlice, out: rs.ByteVec, f: (a0: rs.u32) => rs.usize): void {
 	let item!: rs.u32 | undefined;
-	const iter: rs.Iter<rs.u8> = rs.iterTake(rs.iterSlice(rs.byteSliceView(steps)), 6);
-	while (true) {
-		const _9: rs.u8 | rs.Done = iter.next();
-		if (_9 === rs.DONE) {
+	const s: Uint8Array = rs.byteSliceView(steps);
+	let front: number = 0;
+	const back: number = s.length;
+	let take: number = 6;
+	while (take !== 0) {
+		take--;
+		if (front >= back) {
 			break;
 		}
-		const step: rs.u8 = _9;
+		const step: rs.u8 = s[front++];
 		const n: rs.usize = rs.usizeRem(step >> 2 as rs.usize, 3);
 		const _20: rs.u8 = rs.u8Rem(step, 4);
 		if (_20 === 0) {
@@ -1050,9 +1068,12 @@ export function linkedIters(dataData: Uint8Array, dataStart: number, dataLen: nu
 				return rs.usizeAdd(rs.usizeMul(_211[0] as rs.usize, 4096), _211[1] as rs.usize);
 			}), "next", 4);
 			put(out, rs.vecCapacity(rest, 4));
-			rs.iterForEach(rs.vecIntoIter(rest), (e: rs.usize): undefined => {
-				put(out, e);
-			});
+			const s = rest.items;
+			let front = 0;
+			let back = s.length;
+			while (!(front >= back)) {
+				put(out, s[front++]);
+			}
 			put(out, option_unwrapOr$05jq4mv(rs.iterRposition(rs.iterFrom(LinkedHashMap.keys$u16_u32_hash_RandomState(m), Keys.next$iter_Iterator_u16_u32, undefined, { hint: Keys.sizeHint$iter_Iterator_u16_u32, back: (it: Keys.Keys<rs.u16, rs.u32>) => rs.iterFromOption(Keys.nextBack$iter_DoubleEndedIterator_u16_u32(it)), len: Keys.len$iter_ExactSizeIterator_u16_u32 }), (k2: rs.u16): boolean => {
 				return rs.u16Rem(k2, 2) === 0;
 			}), 256));
@@ -1267,15 +1288,31 @@ export function ownFromIter(data: rs.ByteSlice, out: rs.ByteVec): void {
  */
 export function equal(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const log: rs.RefCell<rs.ByteVec> = new rs.RefCell(new rs.ByteVec());
-	const reversed: rs.ByteVec = rs.iterToByteVec(rs.iterRev(rs.iterSlice(rs.byteSliceView(data))), undefined, true);
-	const flipped: rs.ByteVec = rs.iterToByteVec(rs.iterMap(rs.iterEnumerate(rs.iterSlice(rs.byteSliceView(data))), (_2: [rs.usize, rs.u8]): rs.u8 => {
+	const s = rs.byteSliceView(data);
+	let front = 0;
+	let back = s.length;
+	const v: rs.ByteVec = rs.byteVecWithCapacity(back - front);
+	while (!(front >= back)) {
+		back--;
+		rs.byteVecPush(v, s[back]);
+	}
+	const s2 = rs.byteSliceView(data);
+	let front2 = 0;
+	let back2 = s2.length;
+	let count = 0;
+	const f = (_2: [rs.usize, rs.u8]): rs.u8 => {
 		const i: rs.usize = _2[0];
 		const b: rs.u8 = _2[1];
 		if (!(i === rs.usizeDiv(data.length, 2))) {
 			return b;
 		}
 		return b ^ 33;
-	}), undefined, true);
+	};
+	const v2: rs.ByteVec = rs.byteVecWithCapacity(back2 - front2);
+	while (!(front2 >= back2)) {
+		const x2 = s2[front2++];
+		rs.byteVecPush(v2, f([count++, x2]));
+	}
 	const shorter: rs.ByteSlice = rs.byteSliceRange(data, 0, rs.usizeSaturatingSub(data.length, 1));
 	const pairs: (a0: rs.u8, a1: rs.ByteSlice) => rs.HashMap<[rs.u8, boolean], rs.u8> = (seed: rs.u8, bytes: rs.ByteSlice): rs.HashMap<[rs.u8, boolean], rs.u8> => {
 		const _53: Seeded.Seeded = new Seeded.Seeded(seed, log);
@@ -1293,12 +1330,12 @@ export function equal(data: rs.ByteSlice, out: rs.ByteVec): void {
 		}
 	};
 	const keys: (a0: rs.u8, a1: rs.ByteSlice) => rs.HashSet<rs.u8> = (seed2: rs.u8, bytes2: rs.ByteSlice): rs.HashSet<rs.u8> => {
-		const s: rs.HashSet<rs.u8> = rs.hashNew(undefined, new Seeded.Seeded(seed2, log)) as rs.HashSet<rs.u8>;
+		const s3: rs.HashSet<rs.u8> = rs.hashNew(undefined, new Seeded.Seeded(seed2, log)) as rs.HashSet<rs.u8>;
 		const _84: rs.Iter<rs.u8> = rs.iterMap(rs.iterSlice(rs.byteSliceView(bytes2)), (b3: rs.u8): rs.u8 => {
 			return rs.u8Rem(b3, 16);
 		});
-		rs.hashExtendKeys(s, _84, undefined, undefined, 469762048);
-		return s;
+		rs.hashExtendKeys(s3, _84, undefined, undefined, 469762048);
+		return s3;
 	};
 	const _22: (a0: rs.ByteSlice) => rs.HashMap<rs.u16, rs.u32> = (bytes3: rs.ByteSlice): rs.HashMap<rs.u16, rs.u32> => {
 		const _3: rs.Iter<[rs.u16, rs.u32]> = rs.iterMap(rs.iterSlice(rs.byteSliceView(bytes3)), (_23: rs.u8): [rs.u16, rs.u32] => {
@@ -1310,6 +1347,8 @@ export function equal(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const _26: [rs.HashMap<[rs.u8, boolean], rs.u8>, rs.HashSet<rs.u8>, rs.HashMap<rs.u16, rs.u32>] = [pairs(1, data), keys(1, data), _22(data)];
 	const left: rs.HashMap<[rs.u8, boolean], rs.u8> = _26[0];
 	const set: rs.HashSet<rs.u8> = _26[1];
+	const reversed: rs.ByteVec = v;
+	const flipped: rs.ByteVec = v2;
 	const counts: rs.HashMap<rs.u16, rs.u32> = _26[2];
 	const iter: rs.Iter<rs.ByteSlice> = rs.iterSlice([rs.byteSliceRange(rs.byteVecSlice(reversed), 0), data, shorter, rs.byteVecSlice(flipped)]);
 	while (true) {
@@ -1397,7 +1436,7 @@ export function defaultHasher(data: rs.ByteSlice, out: rs.ByteVec): void {
 	dst2.data[pos2 + 6] = (word6 >>> 16) & 255;
 	dst2.data[pos2 + 7] = (word6 >>> 24) & 255;
 	dst2.length = dst2.length + 8;
-	rs.byteVecPush(out, true ? 1 : 0);
+	rs.byteVecPush(out, 1);
 	const _79: rs.HashMap<[rs.u8, rs.u8], rs.u32> = rs.hashClone(pairs, undefined, undefined, (_a02: undefined): undefined => {
 		return undefined;
 	});

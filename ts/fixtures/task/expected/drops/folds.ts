@@ -18,7 +18,14 @@ export function folded(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 		return Guard.new(rs.u32Add(id, n24), Log.clone$Clone(log));
 	};
 	const guards: (a0: rs.u32, a1: rs.u32) => rs.Vec<Guard.Guard> = (from: rs.u32, to: rs.u32): rs.Vec<Guard.Guard> => {
-		return rs.iterToVec(rs.iterMap(new rs.Range(from, to), guard), undefined, 8, true);
+		let start = from;
+		let end = to;
+		const v2: rs.Vec<Guard.Guard> = rs.vecWithCapacity(Math.max(end - start, 0), 8);
+		while (!(start >= end)) {
+			const y: Guard.Guard = guard(start++);
+			v2.items.push(y);
+		}
+		return v2;
 	};
 	const _10: [Guard.Guard, Guard.Guard] = [guard(10), guard(11)];
 	_1090 = true;
@@ -517,16 +524,16 @@ export function folded(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 			const captured29 = guard;
 			const captured30 = c;
 			const n11: rs.usize = rs.ownedCount(rs.iterFlatMap(_553, rs.closure((n33: rs.u32): rs.Vec<Guard.Guard> => {
-				const v6: rs.Vec<Guard.Guard> = new rs.Vec();
+				const v7: rs.Vec<Guard.Guard> = new rs.Vec();
 				const _661: Guard.Guard = captured29(n33);
-				v6.items.push(_661);
+				v7.items.push(_661);
 				const _1132: Guard.Guard = captured29(rs.u32Add(n33, 1));
-				v6.items.push(_1132);
-				const v5: rs.Vec<Guard.Guard> = v6;
+				v7.items.push(_1132);
+				const v6: rs.Vec<Guard.Guard> = v7;
 				const _227: rs.u32 = Guard.id(captured30);
 				const args112 = [(f: rs.Formatter) => rs.u32Display(n33, f), (f: rs.Formatter) => rs.u32Display(_227, f)];
 				Log.note(log, rs.fmtFormat(["flat ", args112[0], " ", args112[1]]));
-				return v5;
+				return v6;
 			}, (): void => {
 				captured30[Symbol.dispose]();
 			}), (value: rs.Vec<Guard.Guard>) => rs.vecIntoIter(value, rs.drop), true), rs.drop);
@@ -540,11 +547,11 @@ export function folded(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 			const captured24 = c;
 			const captured25 = id;
 			const flat: rs.Iter<Guard.Guard> = rs.iterFlatten(rs.iterMap(_572, rs.closure((g35: Guard.Guard): rs.Vec<Guard.Guard> => {
-				const v3: rs.Vec<Guard.Guard> = new rs.Vec();
-				v3.items.push(g35);
+				const v4: rs.Vec<Guard.Guard> = new rs.Vec();
+				v4.items.push(g35);
 				const _818: Guard.Guard = captured23(rs.u32Add(rs.u32Sub(Guard.id(captured24), captured25), 1));
-				v3.items.push(_818);
-				return v3;
+				v4.items.push(_818);
+				return v4;
 			}, (): void => {
 				captured24[Symbol.dispose]();
 			})), (value: rs.Vec<Guard.Guard>) => rs.vecIntoIter(value, rs.drop), true);
@@ -565,12 +572,12 @@ export function folded(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 			const captured27 = d;
 			const captured28 = id;
 			const _606: rs.u32 | undefined = option_map$06w9waf(rs.ownedLast(rs.iterFlatMap(_597, rs.closure((n32: rs.u32): rs.Vec<Guard.Guard> => {
-				const v4: rs.Vec<Guard.Guard> = new rs.Vec();
+				const v5: rs.Vec<Guard.Guard> = new rs.Vec();
 				const _660: Guard.Guard = captured26(n32);
-				v4.items.push(_660);
+				v5.items.push(_660);
 				const _1129: Guard.Guard = captured26(rs.u32Add(rs.u32Sub(Guard.id(captured27), captured28), n32));
-				v4.items.push(_1129);
-				return v4;
+				v5.items.push(_1129);
+				return v5;
 			}, (): void => {
 				captured27[Symbol.dispose]();
 			}), (value: rs.Vec<Guard.Guard>) => rs.vecIntoIter(value, rs.drop), true), rs.drop), (g38: Guard.Guard): rs.u32 => {
@@ -755,11 +762,11 @@ export function folded(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 			const captured8 = c;
 			const captured9 = id;
 			const flat2: rs.Iter<Guard.Guard> = rs.iterFlatten(rs.iterMap(_843, rs.closure((g14: Guard.Guard): rs.Vec<Guard.Guard> => {
-				const v2: rs.Vec<Guard.Guard> = new rs.Vec();
-				v2.items.push(g14);
+				const v3: rs.Vec<Guard.Guard> = new rs.Vec();
+				v3.items.push(g14);
 				const _86: Guard.Guard = captured7(rs.u32Add(rs.u32Sub(Guard.id(captured8), captured9), 1));
-				v2.items.push(_86);
-				return v2;
+				v3.items.push(_86);
+				return v3;
 			}, (): void => {
 				captured8[Symbol.dispose]();
 			})), (value: rs.Vec<Guard.Guard>) => rs.vecIntoIter(value, rs.drop), true);
@@ -941,7 +948,14 @@ export function rfolded(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 		return Guard.new(rs.u32Add(id, n12), Log.clone$Clone(log));
 	};
 	const guards: (a0: rs.u32, a1: rs.u32) => rs.Vec<Guard.Guard> = (from: rs.u32, to: rs.u32): rs.Vec<Guard.Guard> => {
-		return rs.iterToVec(rs.iterMap(new rs.Range(from, to), guard), undefined, 8, true);
+		let start = from;
+		let end = to;
+		const v: rs.Vec<Guard.Guard> = rs.vecWithCapacity(Math.max(end - start, 0), 8);
+		while (!(start >= end)) {
+			const y: Guard.Guard = guard(start++);
+			v.items.push(y);
+		}
+		return v;
 	};
 	const _11: [Guard.Guard, Guard.Guard, Guard.Guard] = [guard(10), guard(11), guard(12)];
 	_775 = true;
@@ -1246,11 +1260,11 @@ export function rfolded(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 			const _1218: rs.u32 = Guard.id(captured25);
 			const args100 = [(f: rs.Formatter) => rs.u32Display(_918, f), (f: rs.Formatter) => rs.u32Display(_1218, f)];
 			Log.note(log, rs.fmtFormat(["map ", args100[0], " ", args100[1]]));
-			const v: rs.Vec<Guard.Guard> = new rs.Vec();
+			const v2: rs.Vec<Guard.Guard> = new rs.Vec();
 			const _2211: Guard.Guard = captured26(rs.u32Add(rs.u32Sub(Guard.id(g27), captured27), 3));
-			v.items.push(_2211);
-			v.items.push(g27);
-			return v;
+			v2.items.push(_2211);
+			v2.items.push(g27);
+			return v2;
 		}, (): void => {
 			captured25[Symbol.dispose]();
 		})), (value: rs.Vec<Guard.Guard>) => rs.vecIntoIter(value, rs.drop), true);
@@ -1677,7 +1691,14 @@ export function options(log: Log.Log, id: rs.u32): void {
 		return Guard.new(rs.u32Add(id, n), Log.clone$Clone(log));
 	};
 	const guards: (a0: rs.u32, a1: rs.u32) => rs.Vec<Guard.Guard> = (from: rs.u32, to: rs.u32): rs.Vec<Guard.Guard> => {
-		return rs.iterToVec(rs.iterMap(new rs.Range(from, to), guard), undefined, 8, true);
+		let start = from;
+		let end = to;
+		const v: rs.Vec<Guard.Guard> = rs.vecWithCapacity(Math.max(end - start, 0), 8);
+		while (!(start >= end)) {
+			const y: Guard.Guard = guard(start++);
+			v.items.push(y);
+		}
+		return v;
 	};
 	const _10: [Guard.Guard, Guard.Guard, Guard.Guard] = [guard(10), guard(11), guard(12)];
 	const c: Guard.Guard = _10[0];
@@ -1723,7 +1744,14 @@ export function reducers(log: Log.Log, id: rs.u32): void {
 		return Guard.new(rs.u32Add(id, n), Log.clone$Clone(log));
 	};
 	const guards: (a0: rs.u32, a1: rs.u32) => rs.Vec<Guard.Guard> = (from: rs.u32, to: rs.u32): rs.Vec<Guard.Guard> => {
-		return rs.iterToVec(rs.iterMap(new rs.Range(from, to), guard), undefined, 8, true);
+		let start = from;
+		let end = to;
+		const v: rs.Vec<Guard.Guard> = rs.vecWithCapacity(Math.max(end - start, 0), 8);
+		while (!(start >= end)) {
+			const y: Guard.Guard = guard(start++);
+			v.items.push(y);
+		}
+		return v;
 	};
 	const _9: [Guard.Guard, Guard.Guard] = [guard(10), guard(11)];
 	const c: Guard.Guard = _9[0];
@@ -1817,7 +1845,14 @@ export function closures(log: Log.Log, id: rs.u32): void {
 		return Guard.new(rs.u32Add(id, n2), Log.clone$Clone(log));
 	};
 	const guards: (a0: rs.u32, a1: rs.u32) => rs.Vec<Guard.Guard> = (from: rs.u32, to: rs.u32): rs.Vec<Guard.Guard> => {
-		return rs.iterToVec(rs.iterMap(new rs.Range(from, to), guard), undefined, 8, true);
+		let start = from;
+		let end = to;
+		const v: rs.Vec<Guard.Guard> = rs.vecWithCapacity(Math.max(end - start, 0), 8);
+		while (!(start >= end)) {
+			const y: Guard.Guard = guard(start++);
+			v.items.push(y);
+		}
+		return v;
 	};
 	const _12: [Guard.Guard, Guard.Guard, Guard.Guard, Guard.Guard, Guard.Guard] = [guard(10), guard(11), guard(12), guard(13), guard(14)];
 	const c: Guard.Guard = _12[0];
@@ -2011,7 +2046,14 @@ export function zips(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 		return Guard.new(rs.u32Add(id, n7), Log.clone$Clone(log));
 	};
 	const guards: (a0: rs.u32, a1: rs.u32) => rs.Vec<Guard.Guard> = (from: rs.u32, to: rs.u32): rs.Vec<Guard.Guard> => {
-		return rs.iterToVec(rs.iterMap(new rs.Range(from, to), guard), undefined, 8, true);
+		let start = from;
+		let end = to;
+		const v3: rs.Vec<Guard.Guard> = rs.vecWithCapacity(Math.max(end - start, 0), 8);
+		while (!(start >= end)) {
+			const y: Guard.Guard = guard(start++);
+			v3.items.push(y);
+		}
+		return v3;
 	};
 	const made: (a0: rs.u32) => Guard.Guard = (n8: rs.u32): Guard.Guard => {
 		Log.note(log, rs.fmtFormat(["make ", (f: rs.Formatter) => rs.u32Display(n8, f)]));
@@ -2100,15 +2142,15 @@ export function zips(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 		const _191: rs.Iter<rs.u32> = rs.vecIntoIter(rs.vecFrom([1, 2, 3]));
 		const captured = c;
 		const captured2 = id;
-		const _190: rs.Iter<rs.u32> = rs.iterMap(_191, rs.closure((x: rs.u32): rs.u32 => {
-			return rs.u32Sub(rs.u32Add(x, Guard.id(captured)), captured2);
+		const _190: rs.Iter<rs.u32> = rs.iterMap(_191, rs.closure((x2: rs.u32): rs.u32 => {
+			return rs.u32Sub(rs.u32Add(x2, Guard.id(captured)), captured2);
 		}, (): void => {
 			captured[Symbol.dispose]();
 		}));
 		const captured3 = d;
 		const captured4 = id;
-		const kept: rs.Vec<rs.u32> = rs.iterToVec(rs.iterMap(_190, rs.closure((x2: rs.u32): rs.u32 => {
-			return rs.u32Sub(rs.u32Add(x2, Guard.id(captured3)), captured4);
+		const kept: rs.Vec<rs.u32> = rs.iterToVec(rs.iterMap(_190, rs.closure((x3: rs.u32): rs.u32 => {
+			return rs.u32Sub(rs.u32Add(x3, Guard.id(captured3)), captured4);
 		}, (): void => {
 			captured3[Symbol.dispose]();
 		})), "next", 4, true, 4);

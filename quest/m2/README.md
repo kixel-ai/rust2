@@ -3,10 +3,9 @@
 ## Goal
 
 Research work with a named consumer that is not waiting on it yet: rust2-wasm, moq's
-browser route, the TypeScript translator that has to beat it,
-[crabx](/quest/m2/crabx/README.md), which runs moq's CLIs without a Rust toolchain, and
-[registry publishing](/quest/m2/registry.md), which would replace moq's binding release
-workflows.
+browser route, the TypeScript translator that has to beat it, and [rust2-lean](/quest/m2/lean-spike.md),
+an independent MIR-to-Lean 4 extraction spike for `moq` and `kixel-ai/kio` (not gated on the browser WASM gate). crabx's quests moved
+to [kixel-ai/crabx](https://github.com/kixel-ai/crabx).
 
 ## Plan
 
@@ -44,5 +43,12 @@ runtime such as Node or Bun calls Rust through [rust2-ffi](/ffi/README.md), so N
 Bun matter only as proxies for V8 and JavaScriptCore, and a speed call that splits them
 from the browsers goes to the browsers.
 
-The fork's feature quests folded into the [exporter](/quest/m1/ffi-export/README.md);
+The fork's feature quests folded into the [exporter](/ffi/README.md);
 [m1](/quest/m1/README.md#plan) records why.
+
+Decided with the maintainer on 2026-11-18, in the per-language audit: ✅ the translator
+gets a second performance pass before the gate, all of it,
+slice scalarization included. Rejected: only the cheap levers before the gate; all of it
+after the gate. Its testing finds, [fuzzing](/quest/m3/ts-fuzz.md) and
+[random MIR programs](/quest/m3/ts-rustlantis.md), wait in m3 under the gate rule; better
+source maps were dropped, since debugging ranks below speed and size.

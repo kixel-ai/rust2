@@ -56,9 +56,14 @@ export function ops(dataData: Uint8Array, dataStart: number, dataLen: number, ou
 		} else if (_16 === 1) {
 			v = rs.smallVecWithCapacity(made, 4, 8);
 		} else if (_16 === 2) {
-			v = rs.smallVecFromVec(rs.iterToVec(rs.iterMap(new rs.Range(0, made & 0xff), (i: rs.u8): Noted.Noted => {
-				return new Noted.Noted(i, log);
-			}), undefined, 8, true), 4, 8);
+			let start = 0;
+			let end2 = made & 0xff;
+			const v2: rs.Vec<Noted.Noted> = rs.vecWithCapacity(Math.max(end2 - start, 0), 8);
+			while (!(start >= end2)) {
+				const y: Noted.Noted = new Noted.Noted(start++, log);
+				v2.items.push(y);
+			}
+			v = rs.smallVecFromVec(v2, 4, 8);
 		} else {
 			v = rs.smallVecFromElem(new Noted.Noted(first, log), made, 4, Noted.clone$Clone, rs.drop);
 		}
@@ -136,8 +141,10 @@ export function ops(dataData: Uint8Array, dataStart: number, dataLen: number, ou
 					put(out, d.len());
 					rs.drop(d);
 				} else if (_59 === 15) {
+					const _129: rs.Vec<Noted.Noted> = v;
+					const _131: rs.Range<rs.u8> = new rs.Range(0, rs.u8Rem(arg, 6));
 					const _135: rs.u8 = next;
-					rs.smallVecExtend(v, rs.iterMap(new rs.Range(0, rs.u8Rem(arg, 6)), (i3: rs.u8): Noted.Noted => {
+					rs.smallVecExtend(_129, rs.iterMap(_131, (i3: rs.u8): Noted.Noted => {
 						return new Noted.Noted(rs.u8Add(_135, i3), log);
 					}), 4, 8, "next");
 				} else if (_59 === 16) {
@@ -155,14 +162,17 @@ export function ops(dataData: Uint8Array, dataStart: number, dataLen: number, ou
 					rs.smallVecResize(v, rs.u8Rem(arg, 10) as rs.usize, new Noted.Noted(next, log), 4, 8, Noted.clone$Clone, rs.drop);
 				} else if (_59 === 19) {
 					f = 0;
+					const _161: rs.Vec<Noted.Noted> = v;
+					const _162: rs.usize = rs.u8Rem(arg, 10) as rs.usize;
 					const _167: rs.u8 = next;
-					rs.smallVecResizeWith(v, rs.u8Rem(arg, 10) as rs.usize, (): Noted.Noted => {
+					rs.smallVecResizeWith(_161, _162, (): Noted.Noted => {
 						f = rs.u8Add(f, 1);
 						return new Noted.Noted(rs.u8Add(_167, f), log);
 					}, 4, 8, rs.drop);
 				} else if (_59 === 20) {
+					const _171: rs.Range<rs.u8> = new rs.Range(0, rs.u8Rem(arg, 4));
 					const _175: rs.u8 = next;
-					const _170: rs.Iter<Noted.Noted> = rs.iterMap(new rs.Range(0, rs.u8Rem(arg, 4)), (i2: rs.u8): Noted.Noted => {
+					const _170: rs.Iter<Noted.Noted> = rs.iterMap(_171, (i2: rs.u8): Noted.Noted => {
 						return new Noted.Noted(rs.u8Add(_175, i2), log);
 					});
 					const other: rs.Vec<Noted.Noted> = rs.smallVecExtend(new rs.Vec(), _170, 2, 8, "next");
@@ -236,9 +246,15 @@ export function copies(dataData: Uint8Array, dataStart: number, dataLen: number,
 	let v!: rs.Vec<rs.u16>;
 	if (dataLen !== 0) {
 		const first: rs.u8 = dataData[dataStart];
-		const items: rs.Vec<rs.u16> = rs.iterToVec(rs.iterMap(rs.iterSlice(rs.byteSliceView(new rs.ByteSlice(dataData, dataStart + 1, dataLen - 1))), (_2: rs.u8): rs.u16 => {
-			return rs.u16Mul(_2 as rs.u16, 3);
-		}), undefined, 2, true);
+		const s = rs.byteSliceView(new rs.ByteSlice(dataData, dataStart + 1, dataLen - 1));
+		let front = 0;
+		let back = s.length;
+		const v3: rs.Vec<rs.u16> = rs.vecWithCapacity(back - front, 2);
+		while (!(front >= back)) {
+			const x2 = s[front++];
+			v3.items.push(rs.u16Mul(x2 as rs.u16, 3));
+		}
+		const items: rs.Vec<rs.u16> = v3;
 		const n: rs.usize = items.items.length;
 		const _13: rs.u8 = rs.u8Rem(first, 6);
 		if (_13 === 0) {
@@ -281,14 +297,12 @@ export function copies(dataData: Uint8Array, dataStart: number, dataLen: number,
 		const _83: rs.Vec<rs.u16> = v;
 		const _85: rs.Vec<rs.u16> = rs.smallVecFromSlice(rs.sliceFrom(items.items), 3, undefined);
 		rs.byteVecPush(out, rs.eqSlice(rs.same)(_83, _85) ? 1 : 0);
-		const leaf = rs.iterSlice(v.items);
+		const s2 = v.items;
+		let front2 = 0;
+		let back2 = s2.length;
 		let acc: rs.usize = 0;
-		while (true) {
-			const x3 = leaf.next();
-			if (x3 === rs.DONE) {
-				break;
-			}
-			acc = rs.usizeAdd(acc, x3 as rs.usize);
+		while (!(front2 >= back2)) {
+			acc = rs.usizeAdd(acc, s2[front2++] as rs.usize);
 		}
 		put(out, acc);
 		const _94: rs.u16 | undefined = rs.sliceFirst(rs.sliceFrom(v.items));
@@ -299,8 +313,8 @@ export function copies(dataData: Uint8Array, dataStart: number, dataLen: number,
 		const inline = rs.smallVecIntoInner(small2, 3, 3);
 		const _101: rs.Result<rs.u16[], rs.Vec<rs.u16>> = inline === undefined ? rs.Err(small2) : rs.Ok(inline);
 		if (_101.ok) {
-			rs.iterExtendBytes(out, rs.iterFlatMap(rs.iterSlice(_101.value), (x4: rs.u16): Uint8Array => {
-				return rs.u16ToBeBytes(x4).reverse();
+			rs.iterExtendBytes(out, rs.iterFlatMap(rs.iterSlice(_101.value), (x5: rs.u16): Uint8Array => {
+				return rs.u16ToBeBytes(x5).reverse();
 			}, (value: Uint8Array) => rs.iterSlice(value), true, 2), undefined, true);
 		} else {
 			const v2: rs.Vec<rs.u16> = _101.error;
@@ -380,9 +394,17 @@ export function waiters(data: rs.ByteSlice, out: rs.ByteVec): void {
 		}
 		put(out, entries.items.length);
 		put(out, rs.smallVecCapacity(entries, 4));
-		rs.byteVecPush(out, rs.iterAll(rs.iterSlice(entries.items), (e2: rs.Weak<rs.u8>): boolean => {
-			return e2.arc.strong === 0;
-		}) ? 1 : 0);
+		const s = entries.items;
+		let front = 0;
+		let back = s.length;
+		let found = true;
+		while (!(front >= back)) {
+			if (s[front++].arc.strong !== 0) {
+				found = false;
+				break;
+			}
+		}
+		rs.byteVecPush(out, found ? 1 : 0);
 	}
 	rs.smallVecTruncate(entries, 0, rs.drop);
 	put(out, rs.smallVecCapacity(entries, 4));

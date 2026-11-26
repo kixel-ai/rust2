@@ -12,11 +12,11 @@
 
 mod alloc;
 mod call;
-pub mod coroutine;
+pub(crate) mod coroutine;
 mod decided;
 mod encode;
 pub(super) mod fuse;
-pub mod glue;
+pub(crate) mod glue;
 pub(super) mod holders;
 mod inline;
 mod memory;
@@ -36,8 +36,8 @@ use rustc_middle::mir::{self, BasicBlock, Local, Operand, Place, Rvalue, Stateme
 use rustc_middle::ty::{self, EarlyBinder, Instance, Ty, TyCtxt, TypingEnv};
 use rustc_span::{Span, Spanned};
 
-pub use self::place::{made_slice, slice_member, writes_captures};
-pub use self::scalar::Slotted;
+pub(crate) use self::place::{made_slice, slice_member, writes_captures};
+pub(crate) use self::scalar::Slotted;
 use super::Translator;
 use super::body::Body;
 use super::copy::field_ty;
@@ -48,7 +48,7 @@ use crate::ts::{self, Expr, Param, Stmt, StmtKind, Type};
 type Exit = cfg::Exit<Expr>;
 
 /// Translate one function instance's body from its MIR.
-pub fn function<'a, 'tcx>(t: &mut Translator<'a, 'tcx>, instance: Instance<'tcx>) -> Option<ts::Function> {
+pub(crate) fn function<'a, 'tcx>(t: &mut Translator<'a, 'tcx>, instance: Instance<'tcx>) -> Option<ts::Function> {
 	let tcx = t.tcx;
 	let def_id = instance.def_id();
 	let span = tcx.def_span(def_id);
@@ -96,7 +96,7 @@ pub fn function<'a, 'tcx>(t: &mut Translator<'a, 'tcx>, instance: Instance<'tcx>
 /// A function as a value: an arrow whose body is its reify shim, which calls it as a
 /// written call does, so std's that replace what a `&mut` borrows, such as `mem::take`,
 /// lower as their calls do. Its spans are `span`'s, where the function is named.
-pub fn fn_value<'tcx>(
+pub(crate) fn fn_value<'tcx>(
 	b: &mut Body<'_, '_, 'tcx>,
 	def_id: rustc_hir::def_id::DefId,
 	args: ty::GenericArgs<'tcx>,
@@ -283,7 +283,7 @@ fn std_refused<'tcx>(tcx: TyCtxt<'tcx>, body: &mir::Body<'tcx>) -> Option<&'stat
 
 /// What `_1` is.
 #[derive(Clone)]
-pub enum Env {
+pub(crate) enum Env {
 	/// A parameter like any other.
 	Plain,
 	/// A closure's environment, whose fields are what it captured.
@@ -296,12 +296,12 @@ pub enum Env {
 
 /// What a closure captured.
 #[derive(Clone)]
-pub struct Capture {
-	pub value: Expr,
+pub(crate) struct Capture {
+	pub(crate) value: Expr,
 	/// Whether `value` is the place a `&mut` captured by reference borrows, which the
 	/// closure reads and writes as JS's do, rather than an `rs.Place` of it or the object
 	/// there.
-	pub pointee: bool,
+	pub(crate) pointee: bool,
 }
 
 /// How a MIR local lowers.
@@ -352,10 +352,10 @@ struct Pending {
 	loc: Option<ts::Loc>,
 }
 
-pub struct Fx<'m, 'b, 'a, 'tcx> {
-	pub b: &'m mut Body<'b, 'a, 'tcx>,
-	pub mir: &'m mir::Body<'tcx>,
-	pub tcx: TyCtxt<'tcx>,
+pub(crate) struct Fx<'m, 'b, 'a, 'tcx> {
+	pub(crate) b: &'m mut Body<'b, 'a, 'tcx>,
+	pub(crate) mir: &'m mir::Body<'tcx>,
+	pub(crate) tcx: TyCtxt<'tcx>,
 	env: Env,
 	/// The parameter a `#[track_caller]` function takes its caller's location by.
 	caller: Option<String>,
@@ -392,7 +392,7 @@ pub struct Fx<'m, 'b, 'a, 'tcx> {
 	/// Locals some statement assigns, which need a declaration.
 	assigned: IndexVec<Local, bool>,
 	span: Span,
-	pub labels: u32,
+	pub(crate) labels: u32,
 	/// Whether this is an `Iterator::next`'s body, which returns an item or `rs.DONE`.
 	next: bool,
 	/// Blocks whose only statement is `unreachable`.
@@ -432,14 +432,20 @@ pub struct Fx<'m, 'b, 'a, 'tcx> {
 	stepped: FxHashSet<Local>,
 	/// The borrows `next` steps them by, and what each borrows.
 	stepped_borrows: FxHashMap<Local, Local>,
-	/// Chains of adaptors that only `next` reads, by `fuse`, and the borrows it reads each by.
+	/// Chains of adaptors that only `next`, or only `next_back`, reads, by `fuse`, the
+	/// borrows it reads each by, and those `next_back` reads.
 	fused_loops: FxHashSet<Local>,
 	fused_borrows: FxHashMap<Local, Local>,
+	fused_back: FxHashSet<Local>,
 	/// Each one's parts, held in variables as it is made.
 	fused_nodes: FxHashMap<Local, fuse::Node>,
 	/// Those variables, declared up front, and whether a chain being made declares them so.
 	fused_decls: Vec<(String, Type)>,
 	fused_hoist: bool,
+	/// What each `next` of one assigns, and the closures their chains call, which the loop
+	/// reading them takes apart once it is written.
+	fused_reads: FxHashSet<String>,
+	fused_funs: FxHashSet<String>,
 	/// References a call returns to what its `&mut` argument borrows, as `Cow::to_mut`'s:
 	/// the place each reads and writes, which a store through one rebuilds as a `Ref`'s.
 	reborrows: FxHashMap<Local, Place<'tcx>>,
@@ -511,7 +517,7 @@ pub struct Fx<'m, 'b, 'a, 'tcx> {
 }
 
 impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
-	pub fn new(b: &'m mut Body<'b, 'a, 'tcx>, mir: &'m mir::Body<'tcx>, env: Env, span: Span) -> Self {
+	pub(crate) fn new(b: &'m mut Body<'b, 'a, 'tcx>, mir: &'m mir::Body<'tcx>, env: Env, span: Span) -> Self {
 		let tcx = b.t.tcx;
 		let n = mir.local_decls.len();
 		let (parted, slot) = match env {
@@ -568,9 +574,12 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 			stepped_borrows: FxHashMap::default(),
 			fused_loops: FxHashSet::default(),
 			fused_borrows: FxHashMap::default(),
+			fused_back: FxHashSet::default(),
 			fused_nodes: FxHashMap::default(),
 			fused_decls: Vec::new(),
 			fused_hoist: false,
+			fused_reads: FxHashSet::default(),
+			fused_funs: FxHashSet::default(),
 			reborrows: FxHashMap::default(),
 			stepped_vars: FxHashMap::default(),
 			stepped_into: FxHashMap::default(),
@@ -604,7 +613,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 		fx
 	}
 
-	pub fn err(&mut self, span: Span, msg: impl Into<String>) -> Expr {
+	pub(crate) fn err(&mut self, span: Span, msg: impl Into<String>) -> Expr {
 		self.b.t.err(span, msg);
 		Expr::undefined()
 	}
@@ -1786,7 +1795,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 
 	/// The parameters: `_1` through the argument count, but a closure's environment or a
 	/// coroutine's `this`.
-	pub fn params(&mut self) -> Vec<Param> {
+	pub(crate) fn params(&mut self) -> Vec<Param> {
 		let mut params = Vec::new();
 		let skip = match self.env {
 			Env::Plain | Env::Shim => 0,
@@ -1813,7 +1822,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 	}
 
 	/// The body: its locals' declarations, then its blocks as structured statements.
-	pub fn lower(&mut self) -> Vec<Stmt> {
+	pub(crate) fn lower(&mut self) -> Vec<Stmt> {
 		// A parameter changed in place gets its own copy, since the caller's may be shared.
 		let mut entry = Vec::new();
 		// A slice passed as its parts that isn't held so, made from them.
@@ -1949,6 +1958,8 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 		cfg::hoist_else(&mut out);
 		declare_in_place(&mut out, &self.widened);
 		cfg::tidy_loops(&mut out);
+		fuse::loop_parts(&mut out, &self.fused_reads);
+		fuse::inline_funs(&mut out, &self.fused_funs);
 		// A loop's own labels first, which its header's `break` names.
 		step::for_of(&mut out);
 		inline::inline_temps(&mut out, &self.shared);
@@ -2119,16 +2130,25 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 	/// Where `bb` goes, past blocks that do nothing but go on.
 	fn forward(&self, mut bb: BasicBlock) -> BasicBlock {
 		for _ in 0..self.mir.basic_blocks.len() {
-			let data = &self.mir.basic_blocks[bb];
-			let TerminatorKind::Goto { target, .. } = data.terminator().kind else {
-				return bb;
-			};
-			if !self.empty(bb) || data.is_cleanup || self.redirect.contains_key(&bb) {
+			let next = self.forward_step(bb);
+			if next == bb {
 				return bb;
 			}
-			bb = target;
+			bb = next;
 		}
 		bb
+	}
+
+	/// The block an empty `Goto` at `bb` passes to, or `bb` itself where `forward` stops.
+	fn forward_step(&self, bb: BasicBlock) -> BasicBlock {
+		let data = &self.mir.basic_blocks[bb];
+		let TerminatorKind::Goto { target, .. } = data.terminator().kind else {
+			return bb;
+		};
+		if !self.empty(bb) || data.is_cleanup || self.redirect.contains_key(&bb) {
+			return bb;
+		}
+		target
 	}
 
 	/// The JS name of a local held in a variable.
@@ -2260,7 +2280,14 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 				deferred[i] |= *lazy;
 			}
 		}
-		let fold: Vec<bool> = (0..self.pending.len()).map(|i| count[i] == 1 && !deferred[i]).collect();
+		// A constant folds into every read, however many and whether or not they run: copying
+		// it costs nothing, and a read of it written in place lets what tests it fold too.
+		let constant: Vec<bool> = (0..self.pending.len())
+			.map(|i| count[i] > 1 && self.pending[i].value.is_constant())
+			.collect();
+		let fold: Vec<bool> = (0..self.pending.len())
+			.map(|i| constant[i] || count[i] == 1 && !deferred[i])
+			.collect();
 		// Check the folded ones run in their order, after nothing they could change or be
 		// changed by.
 		let mut ok = true;
@@ -2270,6 +2297,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 		for read in &reads {
 			match read {
 				Read::Ident(name, _) => match names.get(name.as_str()) {
+					Some(&i) if constant[i] => {}
 					Some(&i) if fold[i] => {
 						let p = &self.pending[i];
 						if last.is_some_and(|l| l >= p.order)
@@ -2290,7 +2318,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 		}
 		// What stays pending past this statement, and what must run before it.
 		let first_folded = (0..self.pending.len())
-			.filter(|&i| fold[i])
+			.filter(|&i| fold[i] && !constant[i])
 			.map(|i| self.pending[i].order)
 			.min();
 		// A temporary held past a write of a name it reads would read the new value.
@@ -2315,6 +2343,21 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 				ok = false;
 			}
 		}
+		// What is flushed runs before the statement, so each earlier effect still held back
+		// runs before it too, in its order.
+		if let Some(latest) = flush
+			.iter()
+			.map(|&i| &self.pending[i])
+			.filter(|p| p.effect || p.memory)
+			.map(|p| p.order)
+			.max()
+		{
+			for (i, p) in self.pending.iter().enumerate() {
+				if !fold[i] && p.order < latest && (p.effect || p.memory) && !flush.contains(&i) {
+					flush.push(i);
+				}
+			}
+		}
 		if !ok {
 			self.flush(out);
 			out.extend(stmts);
@@ -2324,7 +2367,19 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 		let mut stmts = stmts;
 		let mut kept = Vec::new();
 		for (i, p) in pending.into_iter().enumerate() {
-			if fold[i] {
+			if constant[i] {
+				let value = located(p.value.clone(), p.loc);
+				let mut folded = 0;
+				for stmt in &mut stmts {
+					while subst_stmt(stmt, &p.name, &value) {
+						folded += 1;
+					}
+				}
+				// A read `subst` can't reach keeps the name, so it stays declared.
+				if folded < count[i] {
+					self.flush_one(p, out);
+				}
+			} else if fold[i] {
 				let value = located(p.value, p.loc);
 				for stmt in &mut stmts {
 					if subst_stmt(stmt, &p.name, &value) {
@@ -2760,7 +2815,8 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 
 	fn assign(&mut self, place: Place<'tcx>, rvalue: &Rvalue<'tcx>, span: Span, out: &mut Vec<Stmt>) {
 		if let Some(local) = place.as_local() {
-			// A borrow of a fused chain is only `next`'s receiver, which reads the chain's parts.
+			// A borrow of a fused chain is only the receiver of `next` or `next_back`, which
+			// reads the chain's parts.
 			if self.joined.contains(&local) || self.fused_borrows.contains_key(&local) {
 				return;
 			}
@@ -2929,7 +2985,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 	}
 
 	/// Hold `value` in a path that reads it again for free.
-	pub fn path(&mut self, value: Expr, base: &str, out: &mut Vec<Stmt>) -> Expr {
+	pub(crate) fn path(&mut self, value: Expr, base: &str, out: &mut Vec<Stmt>) -> Expr {
 		if value.is_path() {
 			self.materialize(&value, out);
 			return value;
@@ -3447,6 +3503,22 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 				.any(|&p| dominators.is_reachable(p) && dominators.dominates(bb, p))
 	}
 
+	/// Whether a jump to `bb` enters a loop: `bb` or a block `forward` passes from it
+	/// starts one.
+	fn enters_loop(&self, mut bb: BasicBlock) -> bool {
+		for _ in 0..self.mir.basic_blocks.len() {
+			if self.loop_header(bb) {
+				return true;
+			}
+			let next = self.forward_step(bb);
+			if next == bb {
+				return false;
+			}
+			bb = next;
+		}
+		false
+	}
+
 	/// Emit every pending temporary, in order.
 	fn flush_pending(&mut self, out: &mut Vec<Stmt>) {
 		for p in std::mem::take(&mut self.pending) {
@@ -3458,17 +3530,10 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 impl cfg::Lower<Stmt> for Fx<'_, '_, '_, '_> {
 	fn node(&mut self, node: usize, out: &mut Vec<Stmt>) -> Exit {
 		let exit = self.block(BasicBlock::from_usize(node), out);
-		let forward = |to: usize| self.forward(BasicBlock::from_usize(to)).as_usize();
-		let exit = match exit {
-			Exit::Goto(to) => Exit::Goto(forward(to)),
-			Exit::Branch(arms, default) => Exit::Branch(
-				arms.into_iter().map(|(cond, to)| (cond, forward(to))).collect(),
-				forward(default),
-			),
-			Exit::End => Exit::End,
-		};
 		// A loop runs its body anew each time: what is held back to fold into its one read
-		// runs where it was made, before the loop, if running it again would differ.
+		// runs where it was made, before the loop, if running it again would differ, or
+		// would make an object again, as a constant array would. The check walks each
+		// target's whole forwarding chain, since an empty loop header is forwarded past.
 		let targets: Vec<usize> = match &exit {
 			Exit::Goto(to) => vec![*to],
 			Exit::Branch(arms, default) => arms.iter().map(|(_, to)| *to).chain([*default]).collect(),
@@ -3476,22 +3541,42 @@ impl cfg::Lower<Stmt> for Fx<'_, '_, '_, '_> {
 		};
 		if targets
 			.into_iter()
-			.any(|to| self.loop_header(BasicBlock::from_usize(to)))
+			.any(|to| self.enters_loop(BasicBlock::from_usize(to)))
 		{
 			let (held, kept): (Vec<_>, Vec<_>) = std::mem::take(&mut self.pending)
 				.into_iter()
-				.partition(|p| p.effect || p.memory);
+				.partition(|p| p.effect || p.memory || allocates(&p.value));
 			self.pending = kept;
 			for p in held {
 				self.flush_one(p, out);
 			}
 		}
-		exit
+		let forward = |to: usize| self.forward(BasicBlock::from_usize(to)).as_usize();
+		match exit {
+			Exit::Goto(to) => Exit::Goto(forward(to)),
+			Exit::Branch(arms, default) => Exit::Branch(
+				arms.into_iter().map(|(cond, to)| (cond, forward(to))).collect(),
+				forward(default),
+			),
+			Exit::End => Exit::End,
+		}
 	}
 
 	fn flush(&mut self, out: &mut Vec<Stmt>) {
 		self.flush_pending(out);
 	}
+}
+
+/// Whether evaluating `e` makes a JS object: an array, object, class, or function literal.
+fn allocates(e: &Expr) -> bool {
+	let mut found = false;
+	visit_expr(e, &mut |e| {
+		found |= matches!(
+			e,
+			Expr::Array(_) | Expr::Object(_) | Expr::New(..) | Expr::Arrow(..) | Expr::Lambda(..)
+		)
+	});
+	found
 }
 
 impl Fx<'_, '_, '_, '_> {
@@ -4006,7 +4091,7 @@ fn subst(e: &mut Expr, name: &str, value: &Expr) -> bool {
 				return false;
 			}
 			// A constant held in a temporary compares as one written in place.
-			if compares(op) {
+			if compares(op) || *op == "&&" {
 				*e = fold(std::mem::replace(e, Expr::This));
 			}
 			true
@@ -4027,7 +4112,13 @@ fn subst(e: &mut Expr, name: &str, value: &Expr) -> bool {
 			}
 			true
 		}
-		Expr::Cond(c, a, b) => subst(c, name, value) || subst(a, name, value) || subst(b, name, value),
+		Expr::Cond(c, a, b) => {
+			if !(subst(c, name, value) || subst(a, name, value) || subst(b, name, value)) {
+				return false;
+			}
+			*e = fold(std::mem::replace(e, Expr::This));
+			true
+		}
 		Expr::Arrow(..) | Expr::Lambda(..) => false,
 	}
 }
@@ -4401,7 +4492,7 @@ fn compares(op: &str) -> bool {
 /// `e` with comparisons of two number literals or two boolean ones, and their negations,
 /// worked out. `tsc` refuses an equality of two literals that differ, as an instance of a
 /// generic function can compare its constants.
-pub fn fold(e: Expr) -> Expr {
+pub(crate) fn fold(e: Expr) -> Expr {
 	match e {
 		Expr::Binary(l, op, r) => {
 			let (l, r) = (fold(*l), fold(*r));
@@ -4419,6 +4510,30 @@ pub fn fold(e: Expr) -> Expr {
 				&& compares(op)
 			{
 				return Expr::lit(compare(op, a, b).to_string());
+			}
+			// The type of a constant is known: a number literal is one, a wide limb literal is
+			// an object, so the test that a name is a number, once it names a constant, is
+			// decided.
+			if let (Expr::Str(a), Expr::Str(b)) = (&l, &r)
+				&& matches!(op, "===" | "!==")
+			{
+				return Expr::lit(((a == b) == (op == "===")).to_string());
+			}
+			// A test that is already decided drops what it joins, which a test of types and
+			// numbers does nothing.
+			if op == "&&" {
+				let truth = |e: &Expr| match e.unlocated() {
+					Expr::Lit(t) if t == "true" => Some(true),
+					Expr::Lit(t) if t == "false" => Some(false),
+					_ => None,
+				};
+				match (truth(&l), truth(&r)) {
+					(Some(true), _) if is_test(&r) => return r,
+					(Some(false), _) if is_test(&r) && is_pure(&r) => return l,
+					(_, Some(true)) if is_test(&l) => return l,
+					(_, Some(false)) if is_test(&l) && is_pure(&l) => return r,
+					_ => {}
+				}
 			}
 			if let (Some(a), Some(b)) = (num(&l), num(&r)) {
 				// Integer arithmetic JS does exactly, in 32 bits for the bitwise operators. An
@@ -4469,6 +4584,16 @@ pub fn fold(e: Expr) -> Expr {
 			}
 			Expr::Index(Box::new(base), Box::new(index))
 		}
+		Expr::Unary("typeof ", inner) => match inner.unlocated() {
+			Expr::Lit(t) if t.parse::<f64>().is_ok() => Expr::Str("number".into()),
+			inner if inner.is_constant() && matches!(inner, Expr::As(..)) => Expr::Str("object".into()),
+			_ => Expr::Unary("typeof ", inner),
+		},
+		Expr::Cond(c, a, b) => match fold(*c) {
+			Expr::Lit(t) if t == "true" => fold(*a),
+			Expr::Lit(t) if t == "false" => fold(*b),
+			c => Expr::Cond(Box::new(c), a, b),
+		},
 		Expr::Unary("!", inner) => match fold(*inner) {
 			Expr::Lit(t) if t == "true" => Expr::lit("false"),
 			Expr::Lit(t) if t == "false" => Expr::lit("true"),
@@ -4479,6 +4604,27 @@ pub fn fold(e: Expr) -> Expr {
 			inner => Expr::Located(loc, Box::new(inner)),
 		},
 		e => e,
+	}
+}
+
+/// Whether `e` is a boolean made by a comparison, or a literal one.
+fn is_test(e: &Expr) -> bool {
+	match e.unlocated() {
+		Expr::Binary(l, "&&", r) => is_test(l) && is_test(r),
+		Expr::Binary(_, op, _) => compares(op),
+		Expr::Lit(t) => matches!(t.as_str(), "true" | "false"),
+		_ => false,
+	}
+}
+
+/// Whether evaluating `e` does nothing and reads nothing that could throw: names,
+/// literals, and operators on them.
+fn is_pure(e: &Expr) -> bool {
+	match e.unlocated() {
+		Expr::Ident(_) | Expr::Lit(_) | Expr::Str(_) => true,
+		Expr::Unary(_, e) => is_pure(e),
+		Expr::Binary(l, _, r) => is_pure(l) && is_pure(r),
+		e => e.is_constant(),
 	}
 }
 

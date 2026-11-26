@@ -14,10 +14,10 @@ use crate::ts::{Expr, Param, Stmt, StmtKind, Type};
 
 /// A converted argument, with what writes back what JS wrote into its copy after the call,
 /// and the JS function of a closure the call borrows, which it ends as it returns or throws.
-pub struct Arg {
-	pub value: Expr,
-	pub after: Vec<Stmt>,
-	pub borrowed: Option<Expr>,
+pub(crate) struct Arg {
+	pub(crate) value: Expr,
+	pub(crate) after: Vec<Stmt>,
+	pub(crate) borrowed: Option<Expr>,
 }
 
 /// The typed array JS views a slice of `elem` as, and whether its items are BigInts.
@@ -44,7 +44,7 @@ fn refuse(ty: Ty<'_>, at: &str) -> String {
 }
 
 /// The JS value the glue passes for an argument `value` of `ty`.
-pub fn arg<'tcx>(
+pub(crate) fn arg<'tcx>(
 	b: &mut Body<'_, '_, 'tcx>,
 	ty: Ty<'tcx>,
 	value: Expr,
@@ -97,7 +97,7 @@ pub fn arg<'tcx>(
 /// glue makes it: one a `Closure` owns, which drops `f` once the `Closure` drops and no call
 /// of it runs, if `owned`, or else one that borrows `f`. Its arguments from JS convert as an
 /// import's result does, and its result as an import's argument does, an `Err` thrown.
-pub fn closure<'tcx>(
+pub(crate) fn closure<'tcx>(
 	b: &mut Body<'_, '_, 'tcx>,
 	ty: Ty<'tcx>,
 	f: Expr,
@@ -170,12 +170,12 @@ pub fn closure<'tcx>(
 }
 
 /// `global.<name>`, a property of the global object.
-pub fn global(name: &str) -> Expr {
+pub(crate) fn global(name: &str) -> Expr {
 	Expr::Rs("global".into()).member(name)
 }
 
 /// The JS value of `value`, a `ty`.
-pub fn to_js<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, value: Expr, span: Span) -> Result<Expr, String> {
+pub(crate) fn to_js<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, value: Expr, span: Span) -> Result<Expr, String> {
 	Ok(match ty.kind() {
 		ty::Bool | ty::Float(_) => value,
 		ty::Int(i) if !matches!(i, ty::IntTy::I64 | ty::IntTy::I128) => value,
@@ -255,7 +255,7 @@ pub fn to_js<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, value: Expr, span: 
 }
 
 /// The Rust value of `value`, what an import returned, as a `ty`.
-pub fn from_js<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, value: Expr, span: Span) -> Result<Expr, String> {
+pub(crate) fn from_js<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, value: Expr, span: Span) -> Result<Expr, String> {
 	let int = |name: &str| Expr::rs(name, vec![value.clone()]);
 	Ok(match ty.kind() {
 		ty::Bool => int("jsToBool"),
@@ -345,7 +345,7 @@ pub fn from_js<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, value: Expr, span
 
 /// Whether the JS glue converts an import's result of `ty`, so that a `catch` import catches
 /// what converting it throws, rather than the WebAssembly ABI, after the glue has returned.
-pub fn converted_in_glue<'tcx>(b: &Body<'_, '_, 'tcx>, ty: Ty<'tcx>) -> bool {
+pub(crate) fn converted_in_glue<'tcx>(b: &Body<'_, '_, 'tcx>, ty: Ty<'tcx>) -> bool {
 	match ty.kind() {
 		// A 128-bit integer, which the glue splits into halves, and no other number.
 		ty::Bool | ty::Float(_) | ty::Int(_) | ty::Uint(_) => {
@@ -381,7 +381,7 @@ fn to_lambda<'tcx>(b: &mut Body<'_, '_, 'tcx>, elem: Ty<'tcx>, span: Span) -> Re
 }
 
 /// `(v: unknown) => <v converted from JS>`, for each item an import returns of `elem`.
-pub fn from_lambda<'tcx>(b: &mut Body<'_, '_, 'tcx>, elem: Ty<'tcx>, span: Span) -> Result<Expr, String> {
+pub(crate) fn from_lambda<'tcx>(b: &mut Body<'_, '_, 'tcx>, elem: Ty<'tcx>, span: Span) -> Result<Expr, String> {
 	let item = b.fresh("item");
 	let body = from_js(b, elem, Expr::ident(item.clone()), span)?;
 	Ok(Expr::Lambda(
@@ -415,7 +415,7 @@ fn slice_of<'tcx>(b: &Body<'_, '_, 'tcx>, ty: Ty<'tcx>, value: Expr) -> Expr {
 }
 
 /// Whether `ty` is JS-represented, seen through references.
-pub fn represented<'tcx>(b: &Body<'_, '_, 'tcx>, ty: Ty<'tcx>) -> bool {
+pub(crate) fn represented<'tcx>(b: &Body<'_, '_, 'tcx>, ty: Ty<'tcx>) -> bool {
 	b.t.std_of(ty.peel_refs()) == Some(Std::Js)
 }
 

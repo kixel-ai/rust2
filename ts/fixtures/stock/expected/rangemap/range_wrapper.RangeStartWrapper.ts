@@ -22,7 +22,7 @@ export function new$u64(range: rs.Range<rs.u64>): RangeStartWrapper<rs.u64> {
 export function eq$cmp_PartialEq_u64(self: RangeStartWrapper<rs.u64>, other: RangeStartWrapper<rs.u64>): boolean {
 	const _4: rs.Range<rs.u64> = RangeEndWrapper.deref$ops_Deref_u64(deref$ops_Deref_u64(self));
 	const _7: rs.Range<rs.u64> = RangeEndWrapper.deref$ops_Deref_u64(deref$ops_Deref_u64(other));
-	return rs.u64Eq(_4.start, _7.start);
+	return typeof _4.start === "number" && typeof _7.start === "number" ? _4.start === _7.start : rs.u64Eq(_4.start, _7.start);
 }
 
 export function cmp$cmp_Ord_u64(self: RangeStartWrapper<rs.u64>, other: RangeStartWrapper<rs.u64>): rs.Ordering {

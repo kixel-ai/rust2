@@ -45,7 +45,7 @@ Decided with the maintainer on 2026-10-27, from a census of the model's 22 publi
   the translator is specific to moq: dependencies follow general rules, and moq's own
   changes (to its `unsafe` and its address keys, dropping or binding `hashlink` and
   `slab`) are one research-tier quest in moq's tree,
-  [rs2ts-model-subset](https://github.com/moq-dev/moq/blob/main/quest/m5/rs2ts-model-subset.md).
+  [rs2ts-model-subset](https://github.com/moq-dev/moq/blob/main/quest/m4/rs2ts-model-subset.md).
 - A dependency containing `unsafe` translates when it uses only the `unsafe`
   [m3's unsafe policy](/quest/m3/README.md) translates; a common crate whose `unsafe` it
   does not is mapped into the runtime at its safe API, as hashbrown is. Decided with the
@@ -94,6 +94,6 @@ Public API: the translator's output for moq-net's model.
 
 ## Waiting
 
-- moq-dev/moq: [rs2ts-model-subset](https://github.com/moq-dev/moq/blob/main/quest/m5/rs2ts-model-subset.md)
+- moq-dev/moq: [rs2ts-model-subset](https://github.com/moq-dev/moq/blob/main/quest/m4/rs2ts-model-subset.md)
   lands: moq rewrites kio's `log.rs` and its own `unsafe` in safe Rust, or drops them from the
-  model's path. moq defers it to its m5. Check by the model census at the pin.
+  model's path. moq defers it to its m4. Check by the model census at the pin.

@@ -8,37 +8,115 @@ use rustc_span::Span;
 
 /// The exported crates' API.
 #[derive(Clone, PartialEq, serde::Serialize, serde::Deserialize)]
-pub struct Api {
-	pub records: Vec<Record>,
-	pub enums: Vec<Enum>,
-	pub objects: Vec<Object>,
-	pub callbacks: Vec<Callback>,
-	pub functions: Vec<Function>,
-	pub constants: Vec<Constant>,
+pub(crate) struct Api {
+	pub(crate) records: Vec<Record>,
+	pub(crate) enums: Vec<Enum>,
+	pub(crate) objects: Vec<Object>,
+	pub(crate) callbacks: Vec<Callback>,
+	pub(crate) functions: Vec<Function>,
+	pub(crate) constants: Vec<Constant>,
 	/// The crates items belong to, each after every crate it depends on.
-	pub crates: Vec<String>,
+	pub(crate) crates: Vec<String>,
 	/// The crates the facade does not re-export whose types an export names, which the
 	/// glue depends on directly. An API from before it reached none.
 	#[serde(default)]
-	pub reached: Vec<Reached>,
+	pub(crate) reached: Vec<Reached>,
 	/// The targets it serves, sorted: one for a single target's, several merged.
-	pub targets: Vec<String>,
+	pub(crate) targets: Vec<String>,
+	/// By target, the system libraries a static library of the export links beside it, as
+	/// rustc's `--print native-static-libs` prints them. An API from before it holds none.
+	#[serde(default)]
+	pub(crate) links: std::collections::BTreeMap<String, Vec<String>>,
+	/// By target, the profile its check compiled with, whose bodies its leaves are proven
+	/// against. An API from before it holds none, so it proves no leaf.
+	#[serde(default)]
+	pub(crate) profiles: std::collections::BTreeMap<String, Profile>,
+}
+
+/// What of a check's profile can change the code a crate compiles, as the glue's build
+/// script reads it: what cargo tells a build script and the directory it builds in, and the
+/// panic strategy and debug assertions, which `cfg`s tell the crate. Overflow checks, which neither can see, the check always makes, so its
+/// MIR asserts every overflow a build might.
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
+pub(crate) struct Profile {
+	/// Cargo's `PROFILE`: `release` for a profile that is or inherits from `release`, else
+	/// `debug`.
+	pub(crate) root: String,
+	/// The directory cargo builds the profile in, which a build script finds above its
+	/// `OUT_DIR`: the profile's name, but `debug` for `dev` and `test` and `release` for
+	/// `release` and `bench`. Its per-package overrides, which a build script cannot see,
+	/// are then the check's, as the glue carries the workspace's profiles. `None` where the
+	/// manifest sets `test` or `bench`, which share that directory, so no build is proven.
+	pub(crate) dir: Option<String>,
+	/// Cargo's `OPT_LEVEL`.
+	pub(crate) opt_level: String,
+	pub(crate) debug_assertions: bool,
+	/// `cfg(panic)`'s value.
+	pub(crate) panic: String,
+	/// Cargo's `DEBUG`, which a build script may read: whether cargo passed the facade debug
+	/// info, as it does under `cargo check` too, apart from any `RUSTFLAGS` add.
+	#[serde(default)]
+	pub(crate) debug: bool,
+	/// The target's `cfg`s as cargo gives a build script them, `CARGO_CFG_<NAME>` with its
+	/// values joined, by `<NAME>`: all but the crate's own features and debug assertions,
+	/// which the profile picks. The check's `RUSTFLAGS`, such as a `-C target-feature`,
+	/// change them. Each as cargo's rustc lists them, and as it does acting as a stable
+	/// release, which lists no unstable `cfg` or target feature, where that differs.
+	#[serde(default)]
+	pub(crate) cfgs: Vec<std::collections::BTreeMap<String, String>>,
+	/// Each `CARGO_PROFILE_*` variable that may override the profile, with its value in the
+	/// check's environment. A build script sees each, but not cargo's config, whose package
+	/// overrides no variable can set.
+	#[serde(default)]
+	pub(crate) vars: std::collections::BTreeMap<String, Option<String>>,
 }
 
 /// A crate the glue depends on beside the facade, as the facade resolves it.
 #[derive(Clone, PartialEq, serde::Serialize, serde::Deserialize)]
-pub struct Reached {
+pub(crate) struct Reached {
 	/// Its crate name, its items' second path segment.
-	pub krate: String,
+	pub(crate) krate: String,
 	/// The targets whose API names its types, sorted.
-	pub targets: Vec<String>,
+	pub(crate) targets: Vec<String>,
 }
 
 impl Api {
+	/// The path an exported record, enum, or object is shown at, which keys its names.
+	pub(crate) fn shown(&self, ty: &Type) -> &Path {
+		match ty {
+			Type::Record(i) => &self.records[*i].shown,
+			Type::Enum(i) => &self.enums[*i].shown,
+			Type::Object(i) => &self.objects[*i].shown,
+			ty => unreachable!("only an exported type is shown: {ty:?}"),
+		}
+	}
+
+	/// Each object whose handle a call borrows or moves as it lifts a value of `ty`, into
+	/// `out`: its own, and those its records and enums hold. `seen` holds the records and
+	/// enums already walked, as `(is_enum, index)`.
+	pub(crate) fn handles(&self, ty: &Type, out: &mut Vec<usize>, seen: &mut Vec<(bool, usize)>) {
+		match ty {
+			Type::Object(i) => out.push(*i),
+			Type::Option(inner) | Type::Box(inner) | Type::Ref(_, inner) | Type::List(_, inner) => {
+				self.handles(inner, out, seen)
+			}
+			Type::Tuple(elements) => elements.iter().for_each(|ty| self.handles(ty, out, seen)),
+			Type::Record(i) if !seen.contains(&(false, *i)) => {
+				seen.push((false, *i));
+				(self.records[*i].fields.iter()).for_each(|f| self.handles(&f.ty, out, seen));
+			}
+			Type::Enum(i) if !seen.contains(&(true, *i)) => {
+				seen.push((true, *i));
+				(self.enums[*i].variants.iter().flat_map(|v| &v.fields)).for_each(|f| self.handles(&f.ty, out, seen));
+			}
+			_ => {}
+		}
+	}
+
 	/// Whether a value of `ty` holds a float anywhere, its records' and enums' included, so a
 	/// language comparing it itself must use IEEE `==`, as Rust does: NaN unequal even to
 	/// itself, and -0.0 equal to 0.0.
-	pub fn holds_float(&self, ty: &Type) -> bool {
+	pub(crate) fn holds_float(&self, ty: &Type) -> bool {
 		self.floats(ty, &mut std::collections::HashSet::new())
 	}
 
@@ -63,18 +141,43 @@ impl Api {
 		}
 	}
 
+	/// This API without its functions taking a JNI value, which only Kotlin exports.
+	pub(crate) fn without_jni(&self) -> Api {
+		let mut api = self.clone();
+		let keep = |methods: &mut Vec<Function>| methods.retain(|f| !f.jni());
+		api.records.iter_mut().for_each(|r| keep(&mut r.methods));
+		api.enums.iter_mut().for_each(|e| keep(&mut e.methods));
+		api.objects.iter_mut().for_each(|o| keep(&mut o.methods));
+		keep(&mut api.functions);
+		api
+	}
+
+	/// Whether a call may make a value that is not `Send`, an object or a future, whose
+	/// thread a binding running a loop gives a wake to drain its frees elsewhere.
+	pub(crate) fn unsent(&self) -> bool {
+		let records = self.records.iter().flat_map(|r| &r.methods);
+		let enums = self.enums.iter().flat_map(|e| &e.methods);
+		let objects = self.objects.iter().flat_map(|o| &o.methods);
+		self.objects.iter().any(|o| !o.send)
+			|| records
+				.chain(enums)
+				.chain(objects)
+				.chain(&self.functions)
+				.any(|f| f.future && !f.send)
+	}
+
 	/// Whether an item on `on` is on every target the API serves.
-	pub fn everywhere(&self, on: On) -> bool {
+	pub(crate) fn everywhere(&self, on: On) -> bool {
 		on.0 & self.all().0 == self.all().0
 	}
 
 	/// Every target the API serves.
-	pub fn all(&self) -> On {
+	pub(crate) fn all(&self) -> On {
 		On(u64::MAX >> (64 - self.targets.len()))
 	}
 
 	/// The targets of `on`, by name.
-	pub fn named(&self, on: On) -> Vec<&str> {
+	pub(crate) fn named(&self, on: On) -> Vec<&str> {
 		(self.targets.iter().enumerate())
 			.filter(|(i, _)| on.0 >> i & 1 == 1)
 			.map(|(_, target)| target.as_str())
@@ -83,7 +186,7 @@ impl Api {
 
 	/// A type's Rust path with its instance's arguments, such as
 	/// `moq_mux::catalog::Producer<moq_mux::catalog::hang::Extra>`.
-	pub fn rust(&self, path: &Path, args: &[Type]) -> String {
+	pub(crate) fn rust(&self, path: &Path, args: &[Type]) -> String {
 		let path = path.join("::");
 		match args {
 			[] => path,
@@ -119,98 +222,166 @@ impl Api {
 /// The targets an item compiles on, as a bit for each index into [`Api::targets`]: at
 /// most 64 targets.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug, serde::Serialize, serde::Deserialize)]
-pub struct On(pub u64);
+pub(crate) struct On(pub(crate) u64);
 
 impl On {
 	/// On every target, as a single target's API is.
-	pub const ALL: On = On(u64::MAX);
+	pub(crate) const ALL: On = On(u64::MAX);
 }
 
 /// A Rust path: its export's package name in snake case, unique among the exports, then
 /// the path from that crate's root, such as `["moq_net", "track", "Producer", "append_group"]`.
-pub type Path = Vec<String>;
+pub(crate) type Path = Vec<String>;
 
 /// The crate an item belongs to, and how much of its path lies outside that crate.
 #[derive(Clone, Default, PartialEq, Eq, Debug, serde::Serialize, serde::Deserialize)]
-pub struct Home {
+pub(crate) struct Home {
 	/// The crate's name, followed by `#` and a number for a later crate of a name an
 	/// earlier one has: the one defining the item, or for an instance, the last of its own
 	/// and its arguments' crates in [`Api::crates`], so a crate's items name only types of
 	/// crates before it.
-	pub krate: String,
+	pub(crate) krate: String,
 	/// How many leading segments of its `shown` path, the facade's root among them, name
 	/// no module of that crate: the facade's own modules.
-	pub outside: usize,
+	pub(crate) outside: usize,
 }
 
-/// A struct whose fields are all `pub`: a value, copied across.
+/// A struct whose fields are all `pub`, or a `Copy` type C cannot see inside: a value,
+/// copied across.
 #[derive(Clone, PartialEq, serde::Serialize, serde::Deserialize)]
-pub struct Record {
-	pub path: Path,
-	pub home: Home,
+pub(crate) struct Record {
+	pub(crate) path: Path,
+	pub(crate) home: Home,
 	/// Its path with its instance's arguments, which the config names it by, such as
 	/// `moq_mux::catalog::Producer<moq_mux::catalog::hang::Extra>`.
-	pub shown: Path,
+	pub(crate) shown: Path,
 	/// The type and const arguments of the instance it is, empty unless the type is generic.
-	pub args: Vec<Type>,
+	pub(crate) args: Vec<Type>,
 	#[serde(with = "crate::merge::span")]
-	pub span: Span,
+	pub(crate) span: Span,
 	/// The targets it compiles on.
-	pub on: On,
-	pub docs: String,
-	pub fields: Vec<Field>,
+	pub(crate) on: On,
+	pub(crate) docs: String,
+	/// Its `#[deprecated]` note, if it is deprecated: empty for none. A baseline written
+	/// before it has none.
+	#[serde(default)]
+	pub(crate) deprecated: Option<String>,
+	pub(crate) fields: Vec<Field>,
 	/// Whether its fields are positional, named `0`, `1`, ...
-	pub tuple: bool,
-	pub methods: Vec<Function>,
-	pub traits: Traits,
+	pub(crate) tuple: bool,
+	pub(crate) methods: Vec<Function>,
+	pub(crate) traits: Traits,
+	/// For a `Copy` type with private fields, which has no `fields`: its bytes, which only
+	/// Rust reads or writes, its `pub` fields through accessors among its `methods`.
+	pub(crate) opaque: Option<Opaque>,
+	/// For an opaque value, its size on each target, by target, which the glue asserts, as
+	/// a value has no padding only at that size. A baseline written before it existed has
+	/// none, as its records had.
+	#[serde(default)]
+	pub(crate) sizes: std::collections::BTreeMap<String, u64>,
+}
+
+/// A `Copy` type held as its bytes, which every language copies and none reads.
+#[derive(Clone, Copy, PartialEq, Eq, Debug, serde::Serialize, serde::Deserialize)]
+pub(crate) struct Opaque {
+	/// Its size and alignment: on several targets, the largest of each, so one binding
+	/// holds it on all of them.
+	pub(crate) size: u64,
+	pub(crate) align: u64,
+	/// Whether its bytes are its fields' with no padding between them, each an integer, a
+	/// `bool`, or a `char`, and each struct's `PartialEq` in it, if any, derived or std's,
+	/// so two values Rust calls equal have equal bytes: on several targets, on all of them.
+	pub(crate) dense: bool,
+	/// How many lifetime parameters it has, each `'static` in the export, as an object's.
+	pub(crate) lifetimes: usize,
+	/// Whether it is a foreign type the facade maps, such as `std::time::Instant`: its path
+	/// is the type's in its own crate.
+	pub(crate) foreign: bool,
+}
+
+impl Opaque {
+	/// Whether it fits a 64-bit word, which a language may hold it in with no allocation.
+	pub(crate) fn word(&self) -> bool {
+		self.size <= 8
+	}
+
+	/// Whether a language may hold it in a word and compare that word: it fits one and is
+	/// dense, so values Rust calls equal have equal bits. Kotlin's type for it turns on
+	/// this, so a change of it breaks Kotlin's compiled callers.
+	pub(crate) fn compared(&self) -> bool {
+		self.word() && self.dense
+	}
+
+	/// The bytes of each unit its C struct holds it in, by its alignment, at most 8.
+	pub(crate) fn unit(&self) -> u64 {
+		self.align.clamp(1, 8)
+	}
+
+	/// How many units its C struct holds: at least one, as C has no empty struct.
+	pub(crate) fn units(&self) -> u64 {
+		self.size.div_ceil(self.unit()).max(1)
+	}
+
+	/// How many 64-bit words hold its C struct.
+	pub(crate) fn words(&self) -> u64 {
+		(self.units() * self.unit()).div_ceil(8)
+	}
 }
 
 #[derive(Clone, PartialEq, serde::Serialize, serde::Deserialize)]
-pub struct Field {
+pub(crate) struct Field {
 	/// Its Rust name: a number for a positional field.
-	pub name: String,
-	pub docs: String,
-	pub ty: Type,
+	pub(crate) name: String,
+	pub(crate) docs: String,
+	/// Its `#[deprecated]` note, if it is deprecated: empty for none. A baseline written
+	/// before it has none.
+	#[serde(default)]
+	pub(crate) deprecated: Option<String>,
+	pub(crate) ty: Type,
 }
 
 /// An enum: a value, copied across. Without fields in any variant, it is a plain
 /// enumeration.
 #[derive(Clone, PartialEq, serde::Serialize, serde::Deserialize)]
-pub struct Enum {
-	pub path: Path,
-	pub home: Home,
-	pub shown: Path,
-	pub args: Vec<Type>,
+pub(crate) struct Enum {
+	pub(crate) path: Path,
+	pub(crate) home: Home,
+	pub(crate) shown: Path,
+	pub(crate) args: Vec<Type>,
 	#[serde(with = "crate::merge::span")]
-	pub span: Span,
+	pub(crate) span: Span,
 	/// The targets it compiles on.
-	pub on: On,
-	pub docs: String,
-	pub variants: Vec<Variant>,
+	pub(crate) on: On,
+	pub(crate) docs: String,
+	/// Its `#[deprecated]` note, if it is deprecated: empty for none. A baseline written
+	/// before it has none.
+	#[serde(default)]
+	pub(crate) deprecated: Option<String>,
+	pub(crate) variants: Vec<Variant>,
 	/// Whether another crate can match it without a wildcard arm.
-	pub exhaustive: bool,
-	pub methods: Vec<Function>,
-	pub traits: Traits,
+	pub(crate) exhaustive: bool,
+	pub(crate) methods: Vec<Function>,
+	pub(crate) traits: Traits,
 	/// Whether it is a foreign type the facade maps rather than exports, such as
 	/// `tracing::Level`: its path is the type's in its own crate, and each variant is the
 	/// type's constant of that name in upper snake case.
-	pub foreign: bool,
+	pub(crate) foreign: bool,
 }
 
 #[derive(Clone, PartialEq, serde::Serialize, serde::Deserialize)]
-pub struct Variant {
-	pub name: String,
+pub(crate) struct Variant {
+	pub(crate) name: String,
 	/// Its discriminant, for an enum without fields.
-	pub discriminant: i128,
-	pub fields: Vec<Field>,
-	pub tuple: bool,
+	pub(crate) discriminant: i128,
+	pub(crate) fields: Vec<Field>,
+	pub(crate) tuple: bool,
 	/// The targets it compiles on.
-	pub on: On,
+	pub(crate) on: On,
 }
 
 impl Enum {
 	/// Whether no variant has fields.
-	pub fn plain(&self) -> bool {
+	pub(crate) fn plain(&self) -> bool {
 		self.variants.iter().all(|v| v.fields.is_empty())
 	}
 }
@@ -218,128 +389,254 @@ impl Enum {
 /// Any other type: a handle to a value the foreign side never sees inside, shared behind
 /// an `Arc`, whose receivers borrow it as Rust's do, checked at run time.
 #[derive(Clone, PartialEq, serde::Serialize, serde::Deserialize)]
-pub struct Object {
-	pub path: Path,
-	pub home: Home,
-	pub shown: Path,
-	pub args: Vec<Type>,
+pub(crate) struct Object {
+	pub(crate) path: Path,
+	pub(crate) home: Home,
+	pub(crate) shown: Path,
+	pub(crate) args: Vec<Type>,
 	#[serde(with = "crate::merge::span")]
-	pub span: Span,
+	pub(crate) span: Span,
 	/// The targets it compiles on.
-	pub on: On,
-	pub docs: String,
-	/// Whether it is `Sync`: if not, `&self` borrows it on one thread at a time.
-	pub sync: bool,
-	/// Whether it is `Copy`: taken by value, it is copied out of its handle, as Rust
-	/// copies it, rather than moved out.
-	pub copy: bool,
+	pub(crate) on: On,
+	pub(crate) docs: String,
+	/// Its `#[deprecated]` note, if it is deprecated: empty for none. A baseline written
+	/// before it has none.
+	#[serde(default)]
+	pub(crate) deprecated: Option<String>,
+	/// Whether it is `Sync`: if not, `&self` borrows it on one thread at a time. One that is
+	/// not `Send` is not, as only its thread borrows it.
+	pub(crate) sync: bool,
+	/// Whether it is `Send`: if not, its value stays on the thread that made it, which alone
+	/// borrows, moves, or drops it. A baseline written before it has none, as every
+	/// object was.
+	#[serde(default = "yes")]
+	pub(crate) send: bool,
+	/// Whether it is `Copy`, which only one that may have padding under some layout is, any
+	/// other being a value: taken by value, it is copied out of its handle, as Rust copies
+	/// it, rather than moved out.
+	pub(crate) copy: bool,
 	/// Whether copies of its handle may share one value, since no call tells that apart
 	/// from `Clone` but by an `Arc`'s or `Rc`'s count: it is `Clone` and `Sync`, its clone owns no state that changes
 	/// behind `&` or counts clones, and no export borrows it mutably.
-	pub shared: bool,
+	pub(crate) shared: bool,
 	/// How many lifetime parameters it has, each `'static` in the export.
-	pub lifetimes: usize,
-	pub methods: Vec<Function>,
-	pub traits: Traits,
+	pub(crate) lifetimes: usize,
+	pub(crate) methods: Vec<Function>,
+	pub(crate) traits: Traits,
+	/// The variants of the enum it is, by name alone, as none of their fields reaches the
+	/// API: Python raises a subclass per variant of an error. A baseline written before it
+	/// has none.
+	#[serde(default)]
+	pub(crate) variants: Vec<Variant>,
 	/// Whether it is a foreign type, such as `url::Url`, that the facade maps rather than
 	/// exports: its path is the type's in its own crate, not in the facade.
-	pub foreign: bool,
-	/// Whether it is a foreign type behind an `Arc`, held erased, which the glue never
-	/// names: a handle with none of its API, which Rust takes back as the `Arc`.
-	pub opaque: bool,
+	pub(crate) foreign: bool,
+	/// What its handle holds of another crate's type, held erased, which the glue never
+	/// names: a handle with none of its API. A baseline written before the by-value form
+	/// has a `bool`, the `Arc` form's.
+	#[serde(deserialize_with = "held")]
+	pub(crate) opaque: Option<Held>,
+}
+
+/// An [`Object::opaque`], read from a baseline written before the by-value form as the
+/// `bool` the `Arc` form was.
+fn held<'de, D: serde::Deserializer<'de>>(de: D) -> Result<Option<Held>, D::Error> {
+	#[derive(serde::Deserialize)]
+	#[serde(untagged)]
+	enum Either {
+		Arc(bool),
+		Held(Option<Held>),
+	}
+	Ok(match serde::Deserialize::deserialize(de)? {
+		Either::Arc(arc) => arc.then_some(Held::Arc),
+		Either::Held(held) => held,
+	})
+}
+
+/// What an opaque handle holds of another crate's type.
+#[derive(Clone, Copy, PartialEq, Eq, Debug, serde::Serialize, serde::Deserialize)]
+pub(crate) enum Held {
+	/// An `Arc` of it, which Rust takes back as the `Arc`, and clones share.
+	Arc,
+	/// The value itself, which Rust takes back by value or borrows.
+	Value,
 }
 
 /// A `pub` trait: implemented by the foreign side, through a table of functions.
 #[derive(Clone, PartialEq, serde::Serialize, serde::Deserialize)]
-pub struct Callback {
-	pub path: Path,
-	pub home: Home,
+pub(crate) struct Callback {
+	pub(crate) path: Path,
+	pub(crate) home: Home,
 	#[serde(with = "crate::merge::span")]
-	pub span: Span,
+	pub(crate) span: Span,
 	/// The targets it compiles on.
-	pub on: On,
-	pub docs: String,
+	pub(crate) on: On,
+	pub(crate) docs: String,
+	/// Its `#[deprecated]` note, if it is deprecated: empty for none. A baseline written
+	/// before it has none.
+	#[serde(default)]
+	pub(crate) deprecated: Option<String>,
 	/// Its required methods, each taking `&self` or `&mut self`.
-	pub methods: Vec<Function>,
+	pub(crate) methods: Vec<Function>,
 }
 
 /// The std traits a type's impls export.
 #[derive(Default, Clone, Copy, PartialEq, serde::Serialize, serde::Deserialize)]
-pub struct Traits {
-	pub clone: bool,
-	pub eq: bool,
-	pub display: bool,
-	pub debug: bool,
-	pub default: bool,
+pub(crate) struct Traits {
+	pub(crate) clone: bool,
+	pub(crate) eq: bool,
+	/// `Hash`, which a language hashes a value by where its equality is Rust's `PartialEq`.
+	/// A baseline written before it has none.
+	#[serde(default)]
+	pub(crate) hash: bool,
+	/// `PartialOrd` with itself, and whether it is a total order too, `Ord`. A baseline
+	/// written before it has none.
+	#[serde(default)]
+	pub(crate) ord: Order,
+	pub(crate) display: bool,
+	pub(crate) debug: bool,
+	pub(crate) default: bool,
+	/// Whether its `PartialEq` runs only derived impls and std's over primitives, so a call
+	/// of it is a leaf, as [`crate::abi::Abi::leaf`] says. A baseline written before it has none.
+	#[serde(default)]
+	pub(crate) leaf_eq: bool,
+	/// The same of its `Hash`, through the glue's hasher.
+	#[serde(default)]
+	pub(crate) leaf_hash: bool,
+	/// Whether each of those leaves walks a size fixed by the type, no string, slice, `Vec`,
+	/// or type holding itself, whose length the caller picks.
+	#[serde(default)]
+	pub(crate) leaf_sized: bool,
+}
+
+/// How a type orders its values.
+#[derive(Default, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug, serde::Serialize, serde::Deserialize)]
+pub(crate) enum Order {
+	/// No `PartialOrd`.
+	#[default]
+	None,
+	/// `PartialOrd` alone: two values may be unordered, so a binding exports only the
+	/// partial comparison, never its language's total one.
+	Partial,
+	/// `Ord` as well, a total order agreeing with `PartialOrd`.
+	Total,
 }
 
 /// A function or method.
 #[derive(Clone, PartialEq, serde::Serialize, serde::Deserialize)]
-pub struct Function {
+pub(crate) struct Function {
 	/// Its path, ending in its own name: a method's goes through its type's.
-	pub path: Path,
+	pub(crate) path: Path,
 	/// Its path with the arguments of its type's instance and its own, which the config
 	/// names it by: `moq_mux::catalog::Producer<moq_mux::catalog::hang::Extra>::stats`.
-	pub shown: Path,
+	pub(crate) shown: Path,
 	#[serde(with = "crate::merge::span")]
-	pub span: Span,
+	pub(crate) span: Span,
 	/// The targets it compiles on.
-	pub on: On,
+	pub(crate) on: On,
 	/// Its doc comment, as Markdown.
-	pub docs: String,
-	pub receiver: Option<Receiver>,
-	pub params: Vec<Param>,
+	pub(crate) docs: String,
+	/// Its `#[deprecated]` note, if it is deprecated: empty for none. A baseline written
+	/// before it has none.
+	#[serde(default)]
+	pub(crate) deprecated: Option<String>,
+	pub(crate) receiver: Option<Receiver>,
+	pub(crate) params: Vec<Param>,
 	/// Where among Rust's parameters each `()` one sits, which C does not pass.
-	pub units: Vec<usize>,
+	pub(crate) units: Vec<usize>,
 	/// What it returns, or for a future, what the future does.
-	pub ok: Type,
+	pub(crate) ok: Type,
 	/// The error of a `Result` it returns: `String` for another crate's error, as its message.
-	pub err: Option<Type>,
+	pub(crate) err: Option<Type>,
 	/// Whether it returns a future: an `async fn`, or a value that implements `Future`.
-	pub future: bool,
+	pub(crate) future: bool,
 	/// For a future, whether the call itself runs code, as a function that is not
 	/// `async` returning one does: the export calls it at once, and polls what it returns.
-	pub eager: bool,
+	pub(crate) eager: bool,
+	/// For an eager future, whether what it returns borrows its arguments: the export owns
+	/// them, as it does an `async fn`'s, and keeps them until the future is dropped. A
+	/// baseline written before it has none.
+	#[serde(default)]
+	pub(crate) holds: bool,
 	/// The parameter it polls its task through, if any: C passes a waker for it or, for a
 	/// future made of a returned `Poll`, the future's poll supplies it.
-	pub task: Option<Task>,
+	pub(crate) task: Option<Task>,
+	/// For a future, whether it is `Send`: if not, it stays on the thread that made it,
+	/// which alone polls or drops it. A baseline written before it has none, as every
+	/// future was.
+	#[serde(default = "yes")]
+	pub(crate) send: bool,
 	/// Whether it returns another crate's iterator, whose items the export collects into
 	/// the array it returns.
-	pub collect: bool,
+	pub(crate) collect: bool,
 	/// Whether it returns a borrow of an object that is not `Clone`, which C holds as a handle
 	/// lent from its receiver's: shared, until the receiver's value is borrowed
 	/// exclusively, moved out, or freed.
-	pub lends: bool,
+	pub(crate) lends: bool,
+	/// Whether it is a `&mut self` method of an object returning an object that borrows its
+	/// receiver, which C holds as a handle owning that value and the receiver's exclusive
+	/// borrow, given back once the value drops. A baseline written before it has none.
+	#[serde(default)]
+	pub(crate) lends_mut: bool,
+	/// For a method of a type its receiver's type derefs to, how many `Deref`s reach it from
+	/// the receiver's handle, each a `DerefMut` for `&mut self`, as Rust's auto-deref does.
+	#[serde(default)]
+	pub(crate) derefs: usize,
+	/// Whether the Rust a call runs is proven to run no code but std's and the glue's, in a
+	/// bounded number of steps: a field's read or write, or a method's body, and each
+	/// `Deref` on the way to it. [`crate::abi::Abi::leaf`] says what else a leaf needs. A
+	/// baseline written before it has none.
+	#[serde(default, skip_serializing_if = "std::ops::Not::not")]
+	pub(crate) leaf: bool,
+	/// Whether a lifetime of an object it takes is `'static`, or names something else in the
+	/// signature, so the value may outlive the call or carry its borrow out of it: a handle an
+	/// exclusive lend returned fails it, since its borrow is the lend's.
+	#[serde(default)]
+	pub(crate) ties: bool,
 	/// What it reads: Rust's function, a field it reads or writes, or a constant named as it is.
-	pub access: Access,
+	pub(crate) access: Access,
 	/// The instance it is, if a type parameter exports at several.
-	pub instance: Option<Instance>,
+	pub(crate) instance: Option<Instance>,
 	/// Where it belongs: a method with its type, unless its instance names a later crate's
 	/// type, which it then belongs with.
-	pub home: Home,
+	pub(crate) home: Home,
 }
 
 /// An instance of a generic function or method, at one of the arguments a type or const
 /// parameter exports at.
 #[derive(Clone, PartialEq, serde::Serialize, serde::Deserialize)]
-pub struct Instance {
+pub(crate) struct Instance {
 	/// The arguments of its declared type and const parameters, which the call names, as
 	/// Rust cannot infer one no argument names; its argument infers an `impl Trait` one,
 	/// and one left `None`, which takes a lent closure or a foreign implementation.
-	pub args: Vec<Option<Type>>,
+	pub(crate) args: Vec<Option<Type>>,
 	/// The arguments that tell it from its other instances, which name it.
-	pub named: Vec<Type>,
+	pub(crate) named: Vec<Type>,
 }
 
 /// What an exported function reads.
 #[derive(Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
-pub enum Access {
+pub(crate) enum Access {
 	/// It calls the function.
 	Call,
-	/// It reads a `pub` field of its receiver, or with `set` assigns it. `shared` when a
-	/// method or constant of its type takes its name, which its path then names, so the
-	/// config names the field `field@<path>`, as rustdoc does.
-	Field { shared: bool, set: bool },
+	/// It reads a `pub` field of its receiver, or with `set` assigns it; `through` the
+	/// reference the field holds, which then has no setter.
+	Field {
+		set: bool,
+		#[serde(default, skip_serializing_if = "std::ops::Not::not")]
+		through: bool,
+		#[serde(default, skip_serializing_if = "Read::is_borrow")]
+		read: Read,
+		/// Whether the field holds an `UnsafeCell` inline, so that reading it unaligned, as
+		/// `Take` does, would race: no target where it does may merge with one reading it that
+		/// way, as its struct's packing may differ between targets.
+		#[serde(default, skip_serializing_if = "std::ops::Not::not")]
+		unfrozen: bool,
+		/// Whether the field's type is `Copy` on its target, which `Copy` reads it by: a merge
+		/// reads it that way for a target that borrows it only where that target has it so.
+		#[serde(default, skip_serializing_if = "std::ops::Not::not")]
+		copy: bool,
+	},
 	/// It reads a constant that is not a `bool` or integer.
 	Const,
 	/// It parses its receiver's type from text, with `FromStr`, failing with the parse
@@ -349,23 +646,65 @@ pub enum Access {
 	Text,
 }
 
+/// How a getter reads a field in Rust, which the field's struct decides: a `repr(packed)`
+/// one's field may lie unaligned, which rustc refuses a reference to.
+///
+/// A getter's value is the same through any mode that compiles, and the order is how far one
+/// reaches: `Take` reads any field on any layout, `Copy` any `Copy` one. The merge of two
+/// targets' getters of a field reads it the greater of theirs, but by `Take` rather than `Copy`
+/// where a target that borrows the field does not have it `Copy` (`Access::Field`'s `copy`),
+/// and not at all where that reads out unaligned what the other target holds an `UnsafeCell`
+/// in (`unfrozen`), which is a difference between the targets.
+#[derive(Clone, Copy, Default, PartialEq, Eq, PartialOrd, Ord, serde::Serialize, serde::Deserialize)]
+pub(crate) enum Read {
+	/// It borrows the field.
+	#[default]
+	Borrow,
+	/// It copies the field out, as `Copy` allows of an unaligned one.
+	Copy,
+	/// It reads the field out unaligned into a `ManuallyDrop`, which never drops it: the
+	/// struct still owns and drops the original.
+	Take,
+}
+
+impl Read {
+	fn is_borrow(&self) -> bool {
+		*self == Self::Borrow
+	}
+}
+
 impl Function {
-	pub fn name(&self) -> &str {
+	pub(crate) fn name(&self) -> &str {
 		self.path.last().expect("a function has a name")
+	}
+
+	/// Whether it takes a JNI value, which only Kotlin has to pass: no other language
+	/// exports it.
+	pub(crate) fn jni(&self) -> bool {
+		self.params.iter().any(|p| matches!(p.ty, Type::Jni(_)))
+	}
+
+	/// What it yields as a stream, if it is one: a method `next` of `&self` or `&mut self`,
+	/// taking nothing else, whose future outputs `Option<T>` or `Result<Option<T>, E>`. Each
+	/// binding adds an adapter iterating it in its language's own protocol, beside it.
+	pub(crate) fn stream(&self) -> Option<&Type> {
+		let Type::Option(item) = &self.ok else { return None };
+		let receiver = matches!(self.receiver, Some(Receiver::Ref | Receiver::Mut));
+		(self.future && receiver && self.params.is_empty() && self.name() == "next").then_some(item)
 	}
 }
 
 /// A parameter a function polls its task through.
 #[derive(Clone, PartialEq, serde::Serialize, serde::Deserialize)]
-pub struct Task {
+pub(crate) struct Task {
 	/// Its place among the parameters after `self`.
-	pub at: usize,
-	pub kind: TaskKind,
+	pub(crate) at: usize,
+	pub(crate) kind: TaskKind,
 }
 
 /// What a [`Task`] parameter is.
 #[derive(Clone, PartialEq, serde::Serialize, serde::Deserialize)]
-pub enum TaskKind {
+pub(crate) enum TaskKind {
 	/// `&Context` or `&mut Context`: made from C's waker, or the future's own.
 	Context(Mutability),
 	/// A reference to an object made from a `Waker` by its associated function `make`, which
@@ -375,7 +714,7 @@ pub enum TaskKind {
 
 /// How a method takes `self`.
 #[derive(Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
-pub enum Receiver {
+pub(crate) enum Receiver {
 	/// `&self`
 	Ref,
 	/// `&mut self`
@@ -385,29 +724,34 @@ pub enum Receiver {
 }
 
 #[derive(Clone, PartialEq, serde::Serialize, serde::Deserialize)]
-pub struct Param {
-	pub name: String,
-	pub ty: Type,
-	/// Whether it is a `&str` that must be `'static`, which the glue interns: it leaks each
-	/// distinct string once and lends that copy to every later call with equal content.
-	pub interned: bool,
+pub(crate) struct Param {
+	pub(crate) name: String,
+	pub(crate) ty: Type,
+	/// Whether it is a `&str` or `&[u8]` that must be `'static`, which the glue interns: it
+	/// leaks each distinct value once and lends that copy to every later call with equal
+	/// content.
+	pub(crate) interned: bool,
 }
 
 /// A `pub const`.
 #[derive(Clone, PartialEq, serde::Serialize, serde::Deserialize)]
-pub struct Constant {
-	pub path: Path,
-	pub home: Home,
+pub(crate) struct Constant {
+	pub(crate) path: Path,
+	pub(crate) home: Home,
 	#[serde(with = "crate::merge::span")]
-	pub span: Span,
+	pub(crate) span: Span,
 	/// The targets it compiles on.
-	pub on: On,
-	pub docs: String,
-	pub value: Literal,
+	pub(crate) on: On,
+	pub(crate) docs: String,
+	/// Its `#[deprecated]` note, if it is deprecated: empty for none. A baseline written
+	/// before it has none.
+	#[serde(default)]
+	pub(crate) deprecated: Option<String>,
+	pub(crate) value: Literal,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug, serde::Serialize, serde::Deserialize)]
-pub enum Literal {
+pub(crate) enum Literal {
 	Bool(bool),
 	Int(Int, i128),
 }
@@ -424,7 +768,7 @@ impl std::fmt::Display for Literal {
 
 /// A type as the API uses it, in the exact form the Rust side takes or returns.
 #[derive(Clone, PartialEq, Eq, Hash, Debug, serde::Serialize, serde::Deserialize)]
-pub enum Type {
+pub(crate) enum Type {
 	Unit,
 	Bool,
 	Int(Int),
@@ -455,6 +799,8 @@ pub enum Type {
 	PathBuf,
 	/// `std::net::SocketAddr`, or `SocketAddrV4` or `SocketAddrV6` for one family.
 	SocketAddr(Family),
+	/// `std::net::IpAddr`, or `Ipv4Addr` or `Ipv6Addr` for one family.
+	IpAddr(Family),
 	/// A collection of `T`, which C passes and returns as an array of its items: `Vec<T>` of
 	/// any `T` but `u8`, which is [`Type::Vec`], and behind a reference, `[T]` too; a boxed
 	/// slice; a set; or a map, whose `T` is the tuple of a key and its value.
@@ -470,6 +816,8 @@ pub enum Type {
 	/// A reader the foreign side implements, `io::Read` and `io::Seek`: only behind `&mut`
 	/// as a parameter, lent for the call.
 	Reader,
+	/// A JNI value, only as a parameter of a function Kotlin alone exports.
+	Jni(Jni),
 	Option(Box<Type>),
 	/// `Box<T>`, of a non-trait type.
 	Box(Box<Type>),
@@ -495,23 +843,32 @@ pub enum Type {
 
 /// A [`Type::Closure`]: what it takes and returns.
 #[derive(Clone, PartialEq, Eq, Hash, Debug, serde::Serialize, serde::Deserialize)]
-pub struct Closure {
-	/// Each value it takes, which Rust lends for the call: a value, a borrowed object, or
-	/// a `Copy` object, lent as its handle.
-	pub params: Vec<Type>,
-	/// What it returns, or for a `Result`, its value: a value, a `String`, or a `Copy`
-	/// object or an `Option` of one, which the foreign side hands Rust.
-	pub ok: Type,
+pub(crate) struct Closure {
+	/// Each value it takes, which Rust lends for the call: a value or a borrowed object.
+	pub(crate) params: Vec<Type>,
+	/// What it returns, or for a `Result`, its value: a value or a `String`, which the
+	/// foreign side hands Rust.
+	pub(crate) ok: Type,
 	/// The error of a `Result` it returns: a `String`.
-	pub err: Option<Type>,
+	pub(crate) err: Option<Type>,
 	/// Whether Rust keeps it past the call, calling it from any thread until it frees it,
 	/// rather than only during the call.
-	pub kept: bool,
+	pub(crate) kept: bool,
+}
+
+/// A [`Type::Jni`]: what of the calling Java thread a function takes.
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug, serde::Serialize, serde::Deserialize)]
+pub(crate) enum Jni {
+	/// `&mut jni::Env`: the env of the thread calling, which Kotlin passes for it.
+	Env,
+	/// `jni::objects::JObject`: a reference to any Java object, or null, which Kotlin passes
+	/// as an `Any?`, valid for the call.
+	Object,
 }
 
 /// The Rust collection a [`Type::List`] is, which Rust builds from its items in order.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug, serde::Serialize, serde::Deserialize)]
-pub enum Collection {
+pub(crate) enum Collection {
 	/// `Vec<T>`
 	Vec,
 	/// `[T]`, only behind a reference.
@@ -524,26 +881,33 @@ pub enum Collection {
 	BTreeMap,
 	/// `serde_json::Map`, of `String` keys and `serde_json::Value`s.
 	JsonMap,
+	/// `[T; N]` of any `T` but `u8`, which is [`Type::Array`]: only returned.
+	Array(usize),
+	/// `std::vec::IntoIter<T>`, which an `impl Iterator` parameter takes: only a parameter.
+	Iter,
+	/// `std::vec::IntoIter<&str>` or `std::vec::IntoIter<&[u8]>`, of a [`Type::String`] or
+	/// [`Type::Vec`], each lent for the call: only a parameter.
+	IterRef,
 }
 
-/// The addresses a socket address type holds.
+/// The addresses a socket or IP address type holds.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug, serde::Serialize, serde::Deserialize)]
-pub enum Family {
-	/// IPv4 or IPv6: `SocketAddr`.
+pub(crate) enum Family {
+	/// IPv4 or IPv6: `SocketAddr` or `IpAddr`.
 	Any,
 	V4,
 	V6,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug, serde::Serialize, serde::Deserialize)]
-pub enum Mutability {
+pub(crate) enum Mutability {
 	Not,
 	Mut,
 }
 
 /// How a parameter takes a foreign implementation of a trait.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug, serde::Serialize, serde::Deserialize)]
-pub enum Dyn {
+pub(crate) enum Dyn {
 	/// A type parameter or `impl Trait`, given the foreign type.
 	Impl,
 	/// `Box<dyn Trait>`
@@ -553,7 +917,7 @@ pub enum Dyn {
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Hash, serde::Serialize, serde::Deserialize)]
-pub enum Int {
+pub(crate) enum Int {
 	U8,
 	U16,
 	U32,
@@ -568,7 +932,7 @@ pub enum Int {
 
 impl Int {
 	/// Its Rust name.
-	pub fn rust(self) -> &'static str {
+	pub(crate) fn rust(self) -> &'static str {
 		match self {
 			Int::U8 => "u8",
 			Int::U16 => "u16",
@@ -585,7 +949,7 @@ impl Int {
 }
 
 /// Call `f` on `ty` and on every type within it.
-pub fn each(ty: &Type, f: &mut dyn FnMut(&Type)) {
+pub(crate) fn each(ty: &Type, f: &mut dyn FnMut(&Type)) {
 	f(ty);
 	match ty {
 		Type::List(_, inner) | Type::Option(inner) | Type::Box(inner) | Type::Ref(_, inner) => each(inner, f),
@@ -608,15 +972,23 @@ pub fn each(ty: &Type, f: &mut dyn FnMut(&Type)) {
 }
 
 impl Type {
+	/// Whether it crosses as one C scalar, which no code but the glue's lifts or lowers.
+	pub(crate) fn scalar(&self) -> bool {
+		matches!(
+			self,
+			Type::Bool | Type::Int(_) | Type::NonZero(_) | Type::F32 | Type::F64 | Type::Char
+		)
+	}
+
 	/// Whether a parameter of this type is a value C passes in that Rust writes back
 	/// through an out pointer: `&mut` of anything but an object, whose handle it borrows,
 	/// or a reader, which C implements.
-	pub fn written(&self) -> bool {
+	pub(crate) fn written(&self) -> bool {
 		matches!(self, Type::Ref(Mutability::Mut, inner) if !matches!(**inner, Type::Object(_) | Type::Reader))
 	}
 
 	/// The type behind any reference or `Box`.
-	pub fn base(&self) -> &Type {
+	pub(crate) fn base(&self) -> &Type {
 		match self {
 			Type::Ref(_, inner) | Type::Box(inner) => inner.base(),
 			ty => ty,
@@ -627,19 +999,21 @@ impl Type {
 	/// holds as the language's primitive array: a `Vec`, slice, or boxed slice of a
 	/// fixed-width integer or a float. `usize` and `isize` differ in width by target, so no
 	/// one array type holds them on every target.
-	pub fn block(&self) -> Option<&Type> {
+	pub(crate) fn block(&self) -> Option<&Type> {
 		match self {
-			Type::List(Collection::Vec | Collection::Slice | Collection::Box, inner) => match &**inner {
-				Type::Int(Int::Usize | Int::Isize) => None,
-				Type::Int(_) | Type::F32 | Type::F64 => Some(inner),
-				_ => None,
-			},
+			Type::List(Collection::Vec | Collection::Slice | Collection::Box | Collection::Array(_), inner) => {
+				match &**inner {
+					Type::Int(Int::Usize | Int::Isize) => None,
+					Type::Int(_) | Type::F32 | Type::F64 => Some(inner),
+					_ => None,
+				}
+			}
 			_ => None,
 		}
 	}
 
 	/// Whether this type holds a block anywhere but in a record or enum, which compare their own.
-	pub fn holds_block(&self) -> bool {
+	pub(crate) fn holds_block(&self) -> bool {
 		match self {
 			_ if self.block().is_some() => true,
 			Type::Option(inner) | Type::Box(inner) | Type::Ref(_, inner) | Type::List(_, inner) => inner.holds_block(),
@@ -650,7 +1024,7 @@ impl Type {
 
 	/// What the buffer C passes for this type holds, in whatever form Rust takes it: a
 	/// string, bytes, or a path, or an `Option` of one, which C passes as a null buffer.
-	pub fn buffer(&self) -> Option<Type> {
+	pub(crate) fn buffer(&self) -> Option<Type> {
 		match self.base() {
 			Type::Str | Type::String => Some(Type::String),
 			Type::Slice | Type::Vec | Type::Bytes => Some(Type::Bytes),
@@ -658,5 +1032,87 @@ impl Type {
 			Type::Option(inner) => inner.buffer().map(|buffer| Type::Option(Box::new(buffer))),
 			_ => None,
 		}
+	}
+}
+
+/// `true`, the default of a flag a baseline written before it lacks.
+fn yes() -> bool {
+	true
+}
+
+#[cfg(test)]
+impl Function {
+	/// A free function `name` of the crate `ns`, taking and returning nothing.
+	pub(crate) fn bare(name: &str) -> Self {
+		Function {
+			path: vec!["ns".into(), name.into()],
+			shown: vec!["ns".into(), name.into()],
+			span: rustc_span::DUMMY_SP,
+			on: On::ALL,
+			docs: String::new(),
+			deprecated: None,
+			receiver: None,
+			params: vec![],
+			units: vec![],
+			ok: Type::Unit,
+			err: None,
+			future: false,
+			eager: false,
+			holds: false,
+			task: None,
+			send: true,
+			collect: false,
+			lends: false,
+			lends_mut: false,
+			leaf: false,
+			derefs: 0,
+			ties: false,
+			access: Access::Call,
+			instance: None,
+			home: Home {
+				krate: "ns".into(),
+				outside: 1,
+			},
+		}
+	}
+}
+
+#[cfg(test)]
+impl Api {
+	/// The API of the crate `ns` of `functions` alone.
+	pub(crate) fn of(functions: Vec<Function>) -> Self {
+		Api {
+			records: vec![],
+			enums: vec![],
+			objects: vec![],
+			callbacks: vec![],
+			functions,
+			constants: vec![],
+			crates: vec!["ns".into()],
+			targets: vec!["host".into()],
+			links: Default::default(),
+			reached: Vec::new(),
+			profiles: Default::default(),
+		}
+	}
+}
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+
+	#[derive(serde::Deserialize)]
+	struct Opaque {
+		#[serde(deserialize_with = "held")]
+		opaque: Option<Held>,
+	}
+
+	#[test]
+	fn held_reads_an_earlier_baseline() {
+		let read = |json: &str| serde_json::from_str::<Opaque>(json).unwrap().opaque;
+		assert_eq!(read(r#"{"opaque":true}"#), Some(Held::Arc));
+		assert_eq!(read(r#"{"opaque":false}"#), None);
+		assert_eq!(read(r#"{"opaque":"Value"}"#), Some(Held::Value));
+		assert_eq!(read(r#"{"opaque":null}"#), None);
 	}
 }

@@ -10,7 +10,9 @@ export function eq$cmp_PartialEq(self: Pair, other: Pair): boolean {
 	if (!(self._0 === other._0)) {
 		return false;
 	}
-	return rs.i64Eq(self._1, other._1);
+	const _6: rs.i64 = self._1;
+	const _7: rs.i64 = other._1;
+	return typeof _6 === "number" && typeof _7 === "number" ? _6 === _7 : rs.i64Eq(_6, _7);
 }
 
 export interface Pair {

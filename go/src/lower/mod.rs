@@ -69,7 +69,7 @@ fn runtime_names(text: &str) -> Vec<String> {
 
 /// Translate the crate from its `pub` API, or `None` after reporting what it refuses.
 /// Each file is a name and its text.
-pub fn translate(tcx: TyCtxt<'_>) -> Option<Vec<(String, String)>> {
+pub(crate) fn translate(tcx: TyCtxt<'_>) -> Option<Vec<(String, String)>> {
 	let mut t = Translator::new(tcx);
 	let public = names::public(tcx);
 	// Before any root's signature declares one by its own name.
@@ -124,7 +124,7 @@ pub fn translate(tcx: TyCtxt<'_>) -> Option<Vec<(String, String)>> {
 }
 
 /// Write the files into `out`, which is replaced, and format them with `gofmt`.
-pub fn write(out: &Path, files: &[(String, String)]) -> Result<(), String> {
+pub(crate) fn write(out: &Path, files: &[(String, String)]) -> Result<(), String> {
 	if out.exists() {
 		std::fs::remove_dir_all(out).map_err(|err| format!("removing {}: {err}", out.display()))?;
 	}
@@ -157,7 +157,7 @@ struct CrateOut {
 	funcs: Vec<(String, String)>,
 }
 
-pub struct Translator<'tcx> {
+pub(crate) struct Translator<'tcx> {
 	tcx: TyCtxt<'tcx>,
 	/// Each function instance reached, by its Go name.
 	funcs: HashMap<Instance<'tcx>, String>,
@@ -517,7 +517,7 @@ impl<'tcx> Translator<'tcx> {
 	}
 
 	/// A fresh package-level name based on `base`.
-	pub fn fresh(&mut self, base: &str) -> String {
+	pub(crate) fn fresh(&mut self, base: &str) -> String {
 		let base = names::ident(base);
 		if self.taken.insert(base.clone()) {
 			return base;
@@ -547,7 +547,7 @@ impl<'tcx> Translator<'tcx> {
 	}
 
 	/// Declare a type in the file of `krate`.
-	pub fn declare(&mut self, krate: CrateNum, name: &str, decl: String) {
+	pub(crate) fn declare(&mut self, krate: CrateNum, name: &str, decl: String) {
 		self.out.entry(krate).or_default().types.push((name.to_string(), decl));
 	}
 }
