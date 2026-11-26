@@ -1,7 +1,7 @@
 # bench/export.c's cases through the generated Python, so the two differ by what CPython
 # and the Python wrapper add. Each round runs twice, the first to warm CPython's caches.
 # Each case prints its wall time and the process's CPU time, or under Valgrind, runs once
-# for its CPU simulation to count. Its argument is moq/bench/codspeed.h's shared library.
+# for rust2-bench to count. Its argument is moq/bench/hooks.h's shared library.
 
 import asyncio
 import ctypes
@@ -11,16 +11,16 @@ import time
 
 import moq
 
-codspeed = ctypes.CDLL(sys.argv[1])
-codspeed.codspeed_init.argtypes = [ctypes.c_char_p]
-codspeed.codspeed_init.restype = ctypes.c_bool
-codspeed.codspeed_start.argtypes = []
-codspeed.codspeed_start.restype = None
-codspeed.codspeed_stop.argtypes = [ctypes.c_char_p]
-codspeed.codspeed_stop.restype = None
-start_case = codspeed.codspeed_start
-stop_case = codspeed.codspeed_stop
-measured = codspeed.codspeed_init(b"ffi/moq/bench/export.py::python")
+hooks = ctypes.CDLL(sys.argv[1])
+hooks.hooks_init.argtypes = [ctypes.c_char_p]
+hooks.hooks_init.restype = ctypes.c_bool
+hooks.hooks_start.argtypes = []
+hooks.hooks_start.restype = None
+hooks.hooks_stop.argtypes = [ctypes.c_char_p]
+hooks.hooks_stop.restype = None
+start_case = hooks.hooks_start
+stop_case = hooks.hooks_stop
+measured = hooks.hooks_init(b"ffi/moq/bench/export.py::python")
 
 # A tenth under Valgrind, which counts every call exactly.
 GROUPS = 100 if measured else 1000

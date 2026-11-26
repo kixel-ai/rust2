@@ -48,6 +48,9 @@ pub fn time(base: Option<&str>, options: &Options) -> Result<(), String> {
 	if !options.programs.is_empty() || options.build.is_some() {
 		return Err("time times a Cargo workspace's benchmarks, not --program's".to_owned());
 	}
+	if options.perf {
+		return Err("time measures by wall clock, not perf counters: --perf is run's and compare's".to_owned());
+	}
 	if options.jobs.is_some() {
 		return Err("time runs one benchmark at a time, so a time is never another's load: --jobs is run's".to_owned());
 	}

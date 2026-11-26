@@ -146,3 +146,9 @@ the body, its call, and the requests' own few dozen instructions at most. A prog
 
 The requests are x86_64's and aarch64's; elsewhere the harness requests nothing, and
 rust2-bench fails a job that measured no benchmark.
+
+With `RUST2_BENCH_PERF` set to a core PMU's perf type, or 0 on a host with one, it also counts
+each case's user-space instructions with Linux perf counters, on every thread, and prints
+`rust2-bench counted <instructions> <alone|threads> <name>` before `rust2-bench ran <name>`:
+`threads` when another thread ran during the count. `rust2-bench run --perf` sets it, on that
+PMU's cores, as its [README](../README.md#perf-counters) says.

@@ -45,6 +45,30 @@ impl IntoIterator for Iterations {
 	}
 }
 
+/// The variable that, set to a PMU's perf type (0 on a host with one), counts each benchmark's
+/// user-space instructions with Linux perf counters, natively.
+const PERF: &str = "RUST2_BENCH_PERF";
+
+/// What a perf count prints before each benchmark's count, `alone` or `threads`, and name.
+#[cfg(target_os = "linux")]
+const COUNTED: &str = "rust2-bench counted ";
+
+#[cfg(target_os = "linux")]
+mod perf;
+
+/// Fails unless this host lets a process count its own user-space instructions on the PMU of
+/// perf type `kind`, saying why not: rust2-bench's check before it builds anything.
+#[doc(hidden)]
+pub fn __probe_perf(kind: u32) -> Result<(), String> {
+	#[cfg(target_os = "linux")]
+	return perf::probe(kind);
+	#[cfg(not(target_os = "linux"))]
+	{
+		let _ = kind;
+		Err("perf counters are Linux's: count under Valgrind instead".to_owned())
+	}
+}
+
 /// Runs every benchmark the program's `#[bench]` functions declare, or only the one
 /// `RUST2_BENCH` names, each counted alone under Valgrind and once natively, or timed when
 /// `RUST2_BENCH_TIME` is set. Call it from a benchmark target's `main`.
@@ -93,11 +117,29 @@ fn run() -> Result<(), String> {
 		let (_, case) = cases.pop_first().expect("one case is left");
 		return serve((case.build)(), std::io::stdin().lock(), std::io::stdout());
 	}
+	let perf = match std::env::var(PERF) {
+		Ok(kind) => Some(
+			kind.parse::<u32>()
+				.map_err(|_| format!("{PERF} is {kind}, not a PMU's perf type"))?,
+		),
+		Err(std::env::VarError::NotPresent) => None,
+		Err(std::env::VarError::NotUnicode(_)) => return Err(format!("{PERF} is not UTF-8")),
+	};
+	#[cfg(target_os = "linux")]
+	if perf.is_some() {
+		perf::preloaded()?;
+	}
 	for (name, case) in cases {
-		let meter = __private::Meter::new(&name)?;
+		let meter = __private::Meter::new(&name, perf)?;
 		let mut sampler = (case.build)();
 		sampler.count(&meter);
 		drop(sampler);
+		#[cfg(target_os = "linux")]
+		if let Some(counter) = &meter.perf {
+			let count = counter.count().map_err(|err| format!("{name}: {err}"))?;
+			let threads = if count.threaded { "threads" } else { "alone" };
+			println!("{COUNTED}{} {threads} {name}", count.instructions);
+		}
 		if !quiet {
 			println!("{RAN}{name}");
 		}
@@ -218,12 +260,25 @@ pub mod __private {
 	/// request is an instruction sequence that does nothing.
 	pub struct Meter {
 		name: CString,
+		/// The case's perf counters, when it counts natively.
+		#[cfg(target_os = "linux")]
+		pub(crate) perf: Option<crate::perf::Counter>,
 	}
 
 	impl Meter {
-		pub(crate) fn new(name: &str) -> Result<Self, String> {
+		/// A meter of the case `name`, which also counts with perf counters of the PMU of perf
+		/// type `perf`, when given.
+		pub(crate) fn new(name: &str, perf: Option<u32>) -> Result<Self, String> {
 			let name = CString::new(name).map_err(|_| format!("{name:?} holds a NUL"))?;
-			Ok(Self { name })
+			#[cfg(not(target_os = "linux"))]
+			if perf.is_some() {
+				return Err(format!("{}: perf counters are Linux's", crate::PERF));
+			}
+			Ok(Self {
+				name,
+				#[cfg(target_os = "linux")]
+				perf: perf.map(crate::perf::Counter::new),
+			})
 		}
 
 		/// Zeroes the counts and starts counting.
@@ -231,11 +286,19 @@ pub mod __private {
 		pub fn start(&self) {
 			crate::valgrind::request(crate::valgrind::ZERO_STATS, 0);
 			crate::valgrind::request(crate::valgrind::START_INSTRUMENTATION, 0);
+			#[cfg(target_os = "linux")]
+			if let Some(perf) = &self.perf {
+				perf.start();
+			}
 		}
 
 		/// Stops counting and dumps the count under the case's name.
 		#[inline(always)]
 		pub fn stop(&self) {
+			#[cfg(target_os = "linux")]
+			if let Some(perf) = &self.perf {
+				perf.stop();
+			}
 			crate::valgrind::request(crate::valgrind::STOP_INSTRUMENTATION, 0);
 			crate::valgrind::request(crate::valgrind::DUMP_STATS_AT, self.name.as_ptr() as usize);
 		}
@@ -573,7 +636,7 @@ mod tests {
 
 	#[test]
 	fn a_name_with_a_nul_is_refused() {
-		assert!(Meter::new("a\0b").is_err());
+		assert!(Meter::new("a\0b", None).is_err());
 	}
 
 	#[test]
@@ -611,7 +674,7 @@ mod tests {
 		sampler.time(2);
 		assert_eq!(*log.borrow(), ["make", "make", "call", "call", "drop", "drop"]);
 		log.borrow_mut().clear();
-		sampler.count(&Meter::new("a").unwrap());
+		sampler.count(&Meter::new("a", None).unwrap());
 		assert_eq!(*log.borrow(), ["make", "call", "drop"]);
 	}
 
@@ -633,7 +696,7 @@ mod tests {
 		let each = ["before", "call", "drop", "after"];
 		assert_eq!(*log.borrow(), [each, each].concat());
 		log.borrow_mut().clear();
-		sampler.count(&Meter::new("a").unwrap());
+		sampler.count(&Meter::new("a", None).unwrap());
 		assert_eq!(*log.borrow(), each);
 
 		// Without steps, every output drops once the clock has stopped.

@@ -119,6 +119,7 @@ mod tests {
 		Counts {
 			fingerprint: "x86_64-0123456789ab".to_owned(),
 			counts: names.iter().map(|(name, ir)| ((*name).to_owned(), *ir)).collect(),
+			threaded: Default::default(),
 		}
 	}
 
