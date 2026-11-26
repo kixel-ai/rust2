@@ -9,6 +9,8 @@ Non-goals: these measures under a count, which Valgrind and perf counters alread
 
 ## Plan
 
+Decided 2026-11-25 (maintainer, pick round on [kixel-ai/rust2#1033](https://github.com/kixel-ai/rust2/pull/1033)): ✅ keep this quest (rejected: drop it). moq's and rind's rewrite quests wait on it.
+
 Decided 2026-11-25 (maintainer, in [kixel-ai/rust2#1033](https://github.com/kixel-ai/rust2/pull/1033)): ✅ CPU time, context switches, allocations, and peak RSS (rejected: CPU time and context switches only; adding them inside #1033). The maintainer: "system level metrics seem quite useful".
 
 - CPU time and context switches come from `getrusage(RUSAGE_SELF)` read around each sample, so a server or runtime thread's busy time counts, and each is a median per call like the wall time, paired by per-pair ratios with a base. moq's ~20 self-timed `iter_custom` sites that measure thread CPU or a server's busy time can then become plain bodies; self-timing (`Iterations` returning `Duration`) stays only for those that time a slice of one thread.
