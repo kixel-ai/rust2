@@ -31,15 +31,12 @@ proposals in Discussions, allows AI help if disclosed, and closes reports found 
 reading the source; this one is measured. No Discussion or issue asked it as of
 2026-11-25. If mbx ships it, re-measure the web rows and drop the ffi README's caveat.
 
+Decided 2026-11-25 (maintainer, pick round on [kixel-ai/rust2#1028](https://github.com/kixel-ai/rust2/pull/1028)):
+✅ this quest's agent posts the ask, disclosing AI help (rejected: the maintainer posts it).
+Record the Discussion link in this Plan once posted, then wait on mbx's answer under `Waiting`.
+
 A workaround here, copying the sysroot under the target directory where mbx maps it, would
 cost 120 MB a target and still leave `-Zbuild-std`'s std uncached, so it is not planned.
-
-## Waiting
-
-- Maintainer: post the ask above in jdx/mr-boxington's Discussions, or let this quest's
-  agent post it disclosing AI help, as [the wrapper ask](/quest/m1/mbx-wrapper-delegate.md)
-  allows (recommended: let the agent post, the numbers being measured); done when a
-  Discussion link is in this Plan
 
 ## Related
 
