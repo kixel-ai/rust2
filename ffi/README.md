@@ -21,7 +21,9 @@ args pick another, as a library ships, through
 the front end it shares with [rust2-ts](../ts/README.md) in [`driver/`](../driver): with
 itself as `RUSTC_WORKSPACE_WRAPPER` for the workspace's own crates, and as `RUSTC` for every
 other crate, which it compiles as rustc would. So a compiler cache in `RUSTC_WRAPPER`, as
-mbx's Cargo shim sets, serves every crate the workspace does not own: each carries on its
+mbx's Cargo shim sets, serves every crate the workspace does not own, and every crate of
+its own the export does not analyze, which the wrapper hands back to `RUSTC_WRAPPER` as cargo
+would run a crate outside the workspace: each carries on its
 command line the target's rustflags, from wherever cargo reads them, then the export's own
 in `CARGO_ENCODED_RUSTFLAGS`, which cargo passes no build script or proc macro. mbx keys no
 path under `/nix/store`, though: for wasm32 over the dev shell's MIR sysroot it serves only
