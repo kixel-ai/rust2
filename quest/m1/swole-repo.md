@@ -9,7 +9,7 @@
 Decided 2026-11-25 (maintainer, `/quest-plan` in rust2):
 
 - ✅ Name: `swole` (`swole`, `swole-macros`, and `cargo-swole` verified free on crates.io 2026-11-25) (rejected: `gains`, `barpath`, `tonnage`, `deadlift`, keeping `rust2-bench`).
-- ✅ Split into a new public `MIT OR Apache-2.0` repository `kixel-ai/swole` right after `#1032` (`--allow-missing`) and `#1033` (paired timing) merge in `rust2`, mirroring `crabx`'s filtered-history move ([kixel-ai/rust2#985](https://github.com/kixel-ai/rust2/pull/985)) (rejected: keeping in `rust2` and renaming before or after moq/rind rewrites; creating from `main` before `#1032`/`#1033` and porting both PRs; `GPL-3.0-only`, which adds friction for crates putting `swole` in `[dev-dependencies]`).
+- ✅ Split into a new public `MIT OR Apache-2.0` repository `kixel-ai/swole` right after `#1033` (paired timing) merges in `rust2`, mirroring `crabx`'s filtered-history move ([kixel-ai/rust2#985](https://github.com/kixel-ai/rust2/pull/985)) (rejected: keeping in `rust2` and renaming before or after moq/rind rewrites; creating from `main` before `#1033` and porting it; `GPL-3.0-only`, which adds friction for crates putting `swole` in `[dev-dependencies]`).
 - ✅ Crate split: `swole` (tiny harness library + `swole-macros`) and `cargo-swole` (CLI runner shipping `swole` and `cargo-swole` binaries, plus `nix run github:kixel-ai/swole`) (rejected: single `swole` crate combining harness and CLI, which pulls runner dependencies into every consumer's dev build).
 - m1: moving and renaming before `moq` and `rind` rewrite ~117 bench files to `#[bench]` avoids touching every bench file in both repositories twice.
 
@@ -24,5 +24,4 @@ Recommendations for the implementer (following [kixel-ai/rust2#974](https://gith
 
 ## Required
 
-- [A bisect step counts the named benchmarks a commit has](/quest/m0/bench-missing-names.md) - lands `--allow-missing` before filtering history into `kixel-ai/swole`
 - [Paired base-vs-head wall-clock timing](/quest/m1/codspeed/paired.md) - lands paired timing and `#[bench]` updates before filtering history into `kixel-ai/swole`
