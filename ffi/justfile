@@ -133,7 +133,6 @@ bench-build checkout="": (moq-export checkout) (moq-web checkout) ts-program nod
     #!/usr/bin/env bash
     set -euo pipefail
     [ -n "${LIBCLANG_PATH:-}" ] || { echo "LIBCLANG_PATH is unset: run this in the bench shell, nix develop .#bench" >&2; exit 1; }
-    [ -n "${RUST2_SWOLE:-}" ] || { echo "RUST2_SWOLE is unset: run this in the bench shell, nix develop .#bench" >&2; exit 1; }
     src="{{ checkout }}"
     [ -n "$src" ] || src=.work/moq
     out=target/export/moq
@@ -141,11 +140,14 @@ bench-build checkout="": (moq-export checkout) (moq-web checkout) ts-program nod
     # The exporter bench-run times, built as a consumer installs it.
     cargo build --locked --quiet --release
     # The floor: the stand-in's API called from Rust, resolved as the export is, its cases
-    # counted through swole's harness, from the flake's lock.
+    # counted through swole's harness at this checkout's own flake.lock pin, so a compare's
+    # base builds with its own harness while both sides count under the shell's one runner.
     rm -rf target/bench-rust
     mkdir -p target/bench-rust
     root=$(dirname "$PWD")
-    printf '[package]\nname = "bench"\nversion = "0.0.0"\nedition = "2024"\npublish = false\n\n[[bin]]\nname = "bench"\npath = "%s"\n\n[dependencies]\nlibc = "0.2"\nmoq = { package = "moq-ffi", path = "%s" }\nswole = { path = "%s" }\n\n[workspace]\n' "$PWD/moq/bench/export.rs" "$PWD/.work/moq-ffi" "$RUST2_SWOLE" > target/bench-rust/Cargo.toml
+    swole=$(jq -r '.nodes[.nodes.root.inputs.swole].locked | "github:\(.owner)/\(.repo)/\(.rev)?narHash=\(.narHash | @uri)"' "$root/flake.lock")
+    swole=$(nix flake metadata --json "$swole" | jq -r .path)/crates/swole
+    printf '[package]\nname = "bench"\nversion = "0.0.0"\nedition = "2024"\npublish = false\n\n[[bin]]\nname = "bench"\npath = "%s"\n\n[dependencies]\nlibc = "0.2"\nmoq = { package = "moq-ffi", path = "%s" }\nswole = { path = "%s" }\n\n[workspace]\n' "$PWD/moq/bench/export.rs" "$PWD/.work/moq-ffi" "$swole" > target/bench-rust/Cargo.toml
     cp .work/moq-ffi/Cargo.lock target/bench-rust/Cargo.lock
     # The program's own flag, so moq builds as bench-run's export does: its path relative to
     # the repository, as the harness names a benchmark by.

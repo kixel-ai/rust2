@@ -439,8 +439,6 @@
                 ];
               # `just ffi bench` builds moq's rs/libmoq, whose VAAPI bindings run bindgen.
               LIBCLANG_PATH = "${pkgs.llvmPackages.libclang.lib}/lib";
-              # The Rust floor's harness, from the lock that pins the runner.
-              RUST2_SWOLE = "${swole}/crates/swole";
             }
             # The programs' hooks build over the header of the Valgrind swole counts under, so a bump
             # moves both. swole pins it on Linux alone, the one place it counts.

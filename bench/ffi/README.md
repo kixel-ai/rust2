@@ -124,6 +124,10 @@ sets. To compare across it, count each
 revision with `just ffi count run --out <file>` in a checkout of it, in its own bench shell,
 and compare the two files by name.
 
+Counts from before [kixel-ai/rust2#1046](https://github.com/kixel-ai/rust2/pull/1046), which
+moved the runner to swole, are under another fingerprint, so their Kixel Quest series end there
+and new ones start: swole's preload differs, and its bytes enter the fingerprint.
+
 Each program brackets each case with Callgrind's client requests, from the header of the
 Valgrind swole counts under, through [`hooks.h`](../../ffi/moq/bench/hooks.h) and its
 own FFI, as swole's harness does: one benchmark per language and case, such as
