@@ -273,9 +273,9 @@ pub struct Members {
 	/// The members a build selects without `-p` or `--workspace`: the workspace's default
 	/// members from its root, or else the package of the manifest the build finds.
 	pub default: BTreeSet<String>,
-	/// Each package a `--features package/feature` may name: every member, and every member's
-	/// dependency, by the name its manifest calls it.
-	pub packages: BTreeSet<String>,
+	/// Each member by name, with the names its manifest calls its dependencies, which a
+	/// `--features dependency/feature` may name.
+	pub dependencies: BTreeMap<String, BTreeSet<String>>,
 }
 
 /// The members of the workspace the build `args` select from `dir`.
@@ -317,48 +317,46 @@ pub fn members(dir: &Path, args: &[String]) -> Result<Members, String> {
 		}
 		default
 	};
-	let benches = packages
-		.iter()
-		.map(|package| {
-			let name = package["name"]
-				.as_str()
-				.ok_or("cargo metadata listed a package without a name")?;
-			let benches = package["targets"]
-				.as_array()
-				.ok_or(format!("cargo metadata listed package {name} without targets"))?
-				.iter()
-				.filter(|target| {
-					target["kind"]
-						.as_array()
-						.is_some_and(|kinds| kinds.iter().any(|kind| kind == "bench"))
-				})
-				.map(|target| {
-					target["name"]
-						.as_str()
-						.map(str::to_owned)
-						.ok_or(format!("cargo metadata listed a target of {name} without a name"))
-				})
-				.collect::<Result<_, String>>()?;
-			Ok((name.to_owned(), benches))
-		})
-		.collect::<Result<BTreeMap<_, _>, String>>()?;
-	let mut named: BTreeSet<String> = benches.keys().cloned().collect();
+	let (mut benches, mut dependencies) = (BTreeMap::new(), BTreeMap::new());
 	for package in packages {
-		let dependencies = package["dependencies"]
+		let name = package["name"]
+			.as_str()
+			.ok_or("cargo metadata listed a package without a name")?;
+		let targets = package["targets"]
 			.as_array()
-			.ok_or("cargo metadata listed a package without dependencies")?;
-		for dependency in dependencies {
-			let name = dependency["rename"]
-				.as_str()
-				.or(dependency["name"].as_str())
-				.ok_or("cargo metadata listed a dependency without a name")?;
-			named.insert(name.to_owned());
-		}
+			.ok_or(format!("cargo metadata listed package {name} without targets"))?
+			.iter()
+			.filter(|target| {
+				target["kind"]
+					.as_array()
+					.is_some_and(|kinds| kinds.iter().any(|kind| kind == "bench"))
+			})
+			.map(|target| {
+				target["name"]
+					.as_str()
+					.map(str::to_owned)
+					.ok_or(format!("cargo metadata listed a target of {name} without a name"))
+			})
+			.collect::<Result<_, String>>()?;
+		let named = package["dependencies"]
+			.as_array()
+			.ok_or(format!("cargo metadata listed package {name} without dependencies"))?
+			.iter()
+			.map(|dependency| {
+				dependency["rename"]
+					.as_str()
+					.or(dependency["name"].as_str())
+					.map(str::to_owned)
+					.ok_or(format!("cargo metadata listed a dependency of {name} without a name"))
+			})
+			.collect::<Result<_, String>>()?;
+		benches.insert(name.to_owned(), targets);
+		dependencies.insert(name.to_owned(), named);
 	}
 	Ok(Members {
 		benches,
 		default,
-		packages: named,
+		dependencies,
 	})
 }
 

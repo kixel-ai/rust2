@@ -200,19 +200,28 @@ fn select(args: &[Arg], members: &Members) -> Selection {
 		.collect();
 	// Cargo looks for `--bench` among the packages it builds: every member but those excluded
 	// under `--workspace`, which overrides `-p`, else those `-p` selects, else the default ones.
+	let builds = |name: &&String| {
+		if whole {
+			!excluded.contains(name.as_str())
+		} else if !packages.is_empty() {
+			kept.contains(name.as_str())
+		} else {
+			members.default.contains(*name)
+		}
+	};
 	let benches: BTreeSet<&String> = members
 		.benches
 		.iter()
-		.filter(|(name, _)| {
-			if whole {
-				!excluded.contains(name.as_str())
-			} else if !packages.is_empty() {
-				kept.contains(name.as_str())
-			} else {
-				members.default.contains(*name)
-			}
-		})
+		.filter(|(name, _)| builds(name))
 		.flat_map(|(_, benches)| benches)
+		.collect();
+	// A `package/feature` names a package Cargo builds, or one of their dependencies.
+	let featured: BTreeSet<&str> = members
+		.dependencies
+		.iter()
+		.filter(|(name, _)| builds(name))
+		.flat_map(|(name, dependencies)| [name].into_iter().chain(dependencies))
+		.map(String::as_str)
 		.collect();
 	let mut selection = Selection {
 		args: None,
@@ -236,11 +245,11 @@ fn select(args: &[Arg], members: &Members) -> Selection {
 				}
 			}
 			Arg::Features(list) => {
-				// `package/feature` or `package?/feature`, of a member or a member's dependency.
+				// `package/feature` or `package?/feature`.
 				let (features, gone): (Vec<&str>, Vec<&str>) = list.iter().map(String::as_str).partition(|feature| {
-					feature.split_once('/').is_none_or(|(package, _)| {
-						members.packages.contains(package.strip_suffix('?').unwrap_or(package))
-					})
+					feature
+						.split_once('/')
+						.is_none_or(|(package, _)| featured.contains(package.strip_suffix('?').unwrap_or(package)))
 				});
 				selection
 					.lacks
@@ -710,7 +719,11 @@ mod tests {
 				.map(|(name, benches)| (name.to_owned(), benches.iter().map(|b| (*b).to_owned()).collect()))
 				.collect(),
 			default: BTreeSet::from(["a".to_owned()]),
-			packages: ["a", "c", "dep"].map(str::to_owned).into(),
+			// `c` calls a dependency `b`, as the other side calls a member.
+			dependencies: [("a", "dep"), ("c", "b")]
+				.into_iter()
+				.map(|(name, dependency)| (name.to_owned(), BTreeSet::from([dependency.to_owned()])))
+				.collect(),
 		};
 		let select = |args: &[&str]| select(&parse(&strings(args)).unwrap(), &members);
 
@@ -784,15 +797,18 @@ mod tests {
 		// With every package or every target gone, the side selects nothing rather than everything.
 		assert!(select(&["-p", "b", "--features", "b/f"]).args.is_none());
 		assert!(select(&["--bench", "y"]).args.is_none());
-		// A feature of a member's dependency stays, and one of a package the side lacks goes,
-		// whatever `-p` names.
+		// A feature stays only of a package Cargo builds or one of their dependencies, so not of
+		// `c`, or of its dependency `b`, when only `a` builds.
+		let picked = select(&["-p", "a", "-F", "dep/f,dep?/g,c/g,b/f"]);
+		assert_eq!(picked.args.unwrap(), ["-p", "a", "--features", "dep/f,dep?/g"]);
 		assert_eq!(
-			select(&["-p", "a", "-F", "dep/f,dep?/g"]).args.unwrap(),
-			["-p", "a", "--features", "dep/f,dep?/g"]
+			picked.lacks,
+			strings(&["feature b/f", "feature c/g"]).into_iter().collect()
 		);
-		let picked = select(&["--workspace", "--features", "b/f,c/g"]);
-		assert_eq!(picked.args.unwrap(), ["--workspace", "--features", "c/g"]);
-		assert_eq!(picked.lacks, BTreeSet::from(["feature b/f".to_owned()]));
+		// Without `-p` too.
+		let picked = select(&["--workspace", "--features", "e/f,c/g,b/f"]);
+		assert_eq!(picked.args.unwrap(), ["--workspace", "--features", "c/g,b/f"]);
+		assert_eq!(picked.lacks, BTreeSet::from(["feature e/f".to_owned()]));
 		// A side without the directory or manifest lacks every selector.
 		let picked = super::select(
 			&parse(&strings(&["-p", "a", "--bench", "x", "-F", "a/g,h"])).unwrap(),
