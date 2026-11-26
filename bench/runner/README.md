@@ -155,7 +155,7 @@ and one outside it is refused, since both sides would count it.
 A change may add or remove a package or benchmark target, so each side builds only the `-p`
 (`--package`) and `--bench` selectors its own revision has, from its `cargo metadata` after its
 checkout, leaving out each `--features package/feature` whose package is neither one it builds nor one
-of their dependencies, and prints each it left out; a `--bench` is looked for among the packages
+of their dependencies or the current package's, and prints each it left out; a `--bench` is looked for among the packages
 Cargo builds, every member `--workspace` does not `--exclude`, which overrides `-p`, else those
 `-p` selects, else the default ones. A side left with none of the packages, or under
 `--workspace` none `--exclude` leaves, or none of the targets, unless beside `--benches` or

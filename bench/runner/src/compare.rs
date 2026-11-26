@@ -215,11 +215,12 @@ fn select(args: &[Arg], members: &Members) -> Selection {
 		.filter(|(name, _)| builds(name))
 		.flat_map(|(_, benches)| benches)
 		.collect();
-	// A `package/feature` names a package Cargo builds, or one of their dependencies.
+	// A `package/feature` names a package Cargo builds, or one of their dependencies, or under
+	// resolver 1, which applies features to the current package, one of its dependencies.
 	let featured: BTreeSet<&str> = members
 		.dependencies
 		.iter()
-		.filter(|(name, _)| builds(name))
+		.filter(|(name, _)| builds(name) || members.default.contains(*name))
 		.flat_map(|(name, dependencies)| [name].into_iter().chain(dependencies))
 		.map(String::as_str)
 		.collect();
@@ -804,6 +805,11 @@ mod tests {
 		assert_eq!(
 			picked.lacks,
 			strings(&["feature b/f", "feature c/g"]).into_iter().collect()
+		);
+		// The current package's dependencies stay, for resolver 1.
+		assert_eq!(
+			select(&["-p", "c", "-F", "dep/f"]).args.unwrap(),
+			["-p", "c", "--features", "dep/f"]
 		);
 		// Without `-p` too.
 		let picked = select(&["--workspace", "--features", "e/f,c/g,b/f"]);
