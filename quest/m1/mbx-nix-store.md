@@ -4,8 +4,8 @@
 
 A warm wasm32 `rust2-ffi` export in the dev shell is served from mbx's cache: every crate
 mbx compiles over its MIR sysroot, and std's crates under `-Zbuild-std`, not compiled each
-time. The crates the export's wrapper compiles itself, such as the facade it analyzes, are
-[the wrapper ask](/quest/m1/mbx-wrapper-delegate.md)'s.
+time. The crates the export's wrapper analyzes, the facade and the glue the walk checks,
+compile each time.
 
 ## Plan
 
@@ -37,8 +37,3 @@ Record the Discussion link in this Plan once posted, then wait on mbx's answer u
 
 A workaround here, copying the sysroot under the target directory where mbx maps it, would
 cost 120 MB a target and still leave `-Zbuild-std`'s std uncached, so it is not planned.
-
-## Related
-
-- [Ask mbx to cache what a workspace wrapper hands back](/quest/m1/mbx-wrapper-delegate.md) -
-  the other compilations a warm export leaves uncached

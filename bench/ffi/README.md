@@ -1097,6 +1097,12 @@ warm run's `mbx explain --last`:
   and 19 CPU seconds more than the stand-in's 8 and 12, two and a half times its CPU.
   Exporting moq's own `moq-ffi`, a `staticlib` and `cdylib` only, fails ("cargo compiled no
   library of package moq-ffi"), so the stand-in stood in as a member, `rs/moq-standin`.
+  Since the wrapper hands each crate it does not analyze back to `RUSTC_WRAPPER`, mbx serves
+  the siblings too: measured 2026-11-25 on **desktop** at a load average of 4 to 6, the
+  member's warm export took 7.2 s wall and 11.5 CPU seconds, against the stand-in's 6.6 and
+  10.6 outside the workspace, both 332 hits (medians of 2 rounds, 1 cold each, 25 and 24 s).
+  `mbx explain --last` still counts 17 workspace-wrapper bypasses: each sibling's call to the
+  wrapper, before the hit the wrapper's own call makes.
 
 A cache serves a path dependency outside the workspace only at the path it was filled at:
 cargo hashes such a package's absolute path into its `-C metadata`, so the same moq at
