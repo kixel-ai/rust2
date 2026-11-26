@@ -1,6 +1,6 @@
 // bench/export.c's cases through the generated C++ header, so the two differ by what the
 // C++ wrapper adds. Futures are polled by hand with a waker that does nothing. Each case
-// prints its wall time and the process's CPU time, or under Valgrind, runs once for rust2-bench
+// prints its wall time and the process's CPU time, or under Valgrind, runs once for swole
 // to count.
 
 #include <algorithm>
@@ -344,7 +344,7 @@ void round(bool print) {
 } // namespace
 
 int main() {
-	// Under Valgrind, one round, which prints nothing: rust2-bench counts each case.
+	// Under Valgrind, one round, which prints nothing: swole counts each case.
 	measured = hooks_init("ffi/moq/bench/export.cpp::cpp");
 	if (measured) {
 		groups /= 10;

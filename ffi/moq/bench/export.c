@@ -2,7 +2,7 @@
  * language's binding builds on. bench/export.rs times the same in Rust, and
  * bench/export.cpp through the C++ header. Futures are polled by hand with a null waker.
  * Each case prints its wall time and the process's CPU time, or under Valgrind, runs once
- * for rust2-bench to count. */
+ * for swole to count. */
 
 #define _POSIX_C_SOURCE 200112L
 
@@ -444,7 +444,7 @@ static void round_(int print) {
 }
 
 int main(void) {
-	/* Under Valgrind, one round, which prints nothing: rust2-bench counts each case. */
+	/* Under Valgrind, one round, which prints nothing: swole counts each case. */
 	measured = hooks_init("ffi/moq/bench/export.c::c");
 	if (measured) {
 		GROUPS /= 10;

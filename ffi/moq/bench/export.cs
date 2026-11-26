@@ -1,7 +1,7 @@
 // bench/export.c's cases through the generated C#, so the two differ by what P/Invoke and
 // the C# wrapper add. Each round runs twice, the first to warm the JIT. Each case prints
 // its wall time and the process's CPU time, the JIT's and GC's threads included, or under
-// Valgrind, runs once for rust2-bench to count. Its argument is
+// Valgrind, runs once for swole to count. Its argument is
 // moq/bench/hooks.h's shared library.
 
 #nullable enable
@@ -470,7 +470,7 @@ static class Bench
 	static async Task Main(string[] args)
 	{
 		var measured = Clock.Open(args[0], "ffi/moq/bench/export.cs::csharp");
-		// Under Valgrind, one round, which prints nothing: rust2-bench counts each case.
+		// Under Valgrind, one round, which prints nothing: swole counts each case.
 		if (measured)
 		{
 			Groups /= 10;

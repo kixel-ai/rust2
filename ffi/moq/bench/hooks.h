@@ -1,5 +1,5 @@
 /* The binding benchmark's hooks into Callgrind: each program but the Rust floor, which counts
- * through rust2-bench-harness, calls them through its own FFI around each case it times, so
+ * through swole's harness, calls them through its own FFI around each case it times, so
  * Valgrind counts that case alone. Outside Valgrind they do nothing. */
 
 #ifndef HOOKS_H

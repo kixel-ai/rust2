@@ -1,7 +1,7 @@
 // bench/export.c's cases through the generated Dart, so the two differ by what dart:ffi and
 // the Dart wrapper add. Each round runs twice, the first to warm the JIT. Each case prints
 // its wall time and the process's CPU time, the VM's own threads included, or under
-// Valgrind, runs once for rust2-bench to count. Its argument is
+// Valgrind, runs once for swole to count. Its argument is
 // moq/bench/hooks.h's shared library.
 
 import 'dart:async';
@@ -339,7 +339,7 @@ Future<void> main(List<String> args) async {
   final bench = _cString('ffi/moq/bench/export.dart::dart');
   final measured = _hooksInit(bench);
   _free(bench.cast());
-  // Under Valgrind, one round, which prints nothing: rust2-bench counts each case.
+  // Under Valgrind, one round, which prints nothing: swole counts each case.
   if (measured) {
     groups ~/= 10;
     await round();

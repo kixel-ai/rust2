@@ -1,7 +1,7 @@
 // The Rust floor: every case the bindings time, called on the stand-in's API directly, as a
 // Rust caller holding a byte slice would. Futures are polled by hand with a no-op waker,
 // so a woken read costs a re-poll and nothing of an executor. Each single-threaded case is a
-// `#[bench]` function, which rust2-bench counts through rust2-bench-harness when
+// `#[bench]` function, which swole counts through swole's harness when
 // RUST2_COUNT is set; otherwise each case prints its wall time and the process's CPU time.
 
 use std::future::Future;
@@ -89,7 +89,7 @@ fn resolve<F: Future>(future: F) -> F::Output {
 	}
 }
 
-/// The cases rust2-bench counts, each named `ffi/moq/bench/export.rs::rust::<case>`, as each
+/// The cases swole counts, each named `ffi/moq/bench/export.rs::rust::<case>`, as each
 /// language's program names its own, and each given a broadcast of its own by its setup.
 mod rust {
 	use std::future::Future;
@@ -97,7 +97,7 @@ mod rust {
 	use std::pin::pin;
 	use std::task::{Context, Poll, Waker};
 
-	use rust2_bench_harness::bench;
+	use swole::bench;
 
 	use super::{CALLS, FRAMES, GROUPS, SIZES, resolve};
 
@@ -377,9 +377,9 @@ fn round() -> Vec<(String, (f64, f64))> {
 }
 
 fn main() {
-	// `just ffi count` sets it: each case runs once, under Valgrind, for rust2-bench to count.
+	// `just ffi count` sets it: each case runs once, under Valgrind, for swole to count.
 	if std::env::var_os("RUST2_COUNT").is_some() {
-		rust2_bench_harness::main();
+		swole::main();
 		return;
 	}
 	// A round to warm up, then one to print.

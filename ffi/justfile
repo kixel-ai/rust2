@@ -140,11 +140,14 @@ bench-build checkout="": (moq-export checkout) (moq-web checkout) ts-program nod
     # The exporter bench-run times, built as a consumer installs it.
     cargo build --locked --quiet --release
     # The floor: the stand-in's API called from Rust, resolved as the export is, its cases
-    # counted through rust2-bench-harness.
+    # counted through swole's harness at this checkout's own flake.lock pin, so a compare's
+    # base builds with its own harness while both sides count under the shell's one runner.
     rm -rf target/bench-rust
     mkdir -p target/bench-rust
     root=$(dirname "$PWD")
-    printf '[package]\nname = "bench"\nversion = "0.0.0"\nedition = "2024"\npublish = false\n\n[[bin]]\nname = "bench"\npath = "%s"\n\n[dependencies]\nlibc = "0.2"\nmoq = { package = "moq-ffi", path = "%s" }\nrust2-bench-harness = { path = "%s" }\n\n[workspace]\n' "$PWD/moq/bench/export.rs" "$PWD/.work/moq-ffi" "$root/bench/runner/harness" > target/bench-rust/Cargo.toml
+    swole=$(jq -r '.nodes[.nodes.root.inputs.swole].locked | "github:\(.owner)/\(.repo)/\(.rev)?narHash=\(.narHash | @uri)"' "$root/flake.lock")
+    swole=$(nix flake metadata --json "$swole" | jq -r .path)/crates/swole
+    printf '[package]\nname = "bench"\nversion = "0.0.0"\nedition = "2024"\npublish = false\n\n[[bin]]\nname = "bench"\npath = "%s"\n\n[dependencies]\nlibc = "0.2"\nmoq = { package = "moq-ffi", path = "%s" }\nswole = { path = "%s" }\n\n[workspace]\n' "$PWD/moq/bench/export.rs" "$PWD/.work/moq-ffi" "$swole" > target/bench-rust/Cargo.toml
     cp .work/moq-ffi/Cargo.lock target/bench-rust/Cargo.lock
     # The program's own flag, so moq builds as bench-run's export does: its path relative to
     # the repository, as the harness names a benchmark by.
@@ -349,7 +352,7 @@ bench-run rounds="3": mbx-shim mir-sysroot
     python3 -I ../bench/ffi/report.py "$raw" "$builds" "$out" target/export/moq-web target/bench-ts/export.ts > target/bench/report.md
     cat target/bench/report.md
 
-# Count each case of count_langs' programs in instructions with rust2-bench, from the bench shell, building them first: `just ffi count run --out metrics.json` for Kixel Quest's metrics.json, `just ffi count compare main` for each case's change from a commit; a path it takes is relative to ffi/. The Valgrind workflow's run.
+# Count each case of count_langs' programs in instructions with swole, from the bench shell, building them first: `just ffi count run --out metrics.json` for Kixel Quest's metrics.json, `just ffi count compare main` for each case's change from a commit; a path it takes is relative to ffi/. The Valgrind workflow's run.
 [positional-arguments]
 count *args:
     #!/usr/bin/env bash
@@ -359,10 +362,10 @@ count *args:
     # The programs' options follow these, so only a subcommand that counts takes them.
     case "${1-}" in
         run | compare) ;;
-        *) echo "count: run or compare, then rust2-bench's options" >&2; exit 1 ;;
+        *) echo "count: run or compare, then swole's options" >&2; exit 1 ;;
     esac
     for arg; do
-        # rust2-bench takes every arg after -- as cargo's, which would swallow the programs,
+        # swole takes every arg after -- as cargo's, which would swallow the programs,
         # and the programs are this recipe's to name.
         case "$arg" in
             --) echo "count: the programs take no cargo args" >&2; exit 1 ;;
@@ -374,7 +377,7 @@ count *args:
     for lang in {{ count_langs }}; do
         programs+=(--program "$just bench-program $lang")
     done
-    rust2-bench "$@" --build "$just bench-build" "${programs[@]}"
+    swole "$@" --build "$just bench-build" "${programs[@]}"
 
 # Run what bench-build or rn-bench built for one of bench_langs.
 [private]

@@ -50,6 +50,22 @@
         "type": "github"
       }
     },
+    "nixpkgs_2": {
+      "locked": {
+        "lastModified": 1794495034,
+        "narHash": "sha256-E0hYoioqUtM2XmPPvYYpJgdADF5AW9oOoPSEiM9dTHQ=",
+        "owner": "NixOS",
+        "repo": "nixpkgs",
+        "rev": "2074cc672349f14240fb7ea90d509e0b643e9dd4",
+        "type": "github"
+      },
+      "original": {
+        "owner": "NixOS",
+        "ref": "nixpkgs-unstable",
+        "repo": "nixpkgs",
+        "type": "github"
+      }
+    },
     "quest": {
       "inputs": {
         "flake-utils": [
@@ -125,7 +141,8 @@
         "nixpkgs": "nixpkgs",
         "quest": "quest",
         "ra-jit": "ra-jit",
-        "rust-overlay": "rust-overlay"
+        "rust-overlay": "rust-overlay",
+        "swole": "swole"
       }
     },
     "rust-overlay": {
@@ -145,6 +162,52 @@
       "original": {
         "owner": "oxalica",
         "repo": "rust-overlay",
+        "type": "github"
+      }
+    },
+    "rust-overlay_2": {
+      "inputs": {
+        "nixpkgs": [
+          "swole",
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1794561628,
+        "narHash": "sha256-oWtItM1eQqkp9OJXq2/Zo10Y9Vu9PDE6O8JRjj4+EkE=",
+        "owner": "oxalica",
+        "repo": "rust-overlay",
+        "rev": "84edd48f141b0c8910dffdd0296ddd577e829132",
+        "type": "github"
+      },
+      "original": {
+        "owner": "oxalica",
+        "repo": "rust-overlay",
+        "type": "github"
+      }
+    },
+    "swole": {
+      "inputs": {
+        "flake-utils": [
+          "flake-utils"
+        ],
+        "nixpkgs": "nixpkgs_2",
+        "quest": [
+          "quest"
+        ],
+        "rust-overlay": "rust-overlay_2"
+      },
+      "locked": {
+        "lastModified": 1795673131,
+        "narHash": "sha256-u4EbdeLhK1TAO0Utx1gfHqLz64MtBvTX9Itm2Lwd0Z8=",
+        "owner": "kixel-ai",
+        "repo": "swole",
+        "rev": "863128c604d7473377fc6cafdbbca6f9663fc04b",
+        "type": "github"
+      },
+      "original": {
+        "owner": "kixel-ai",
+        "repo": "swole",
         "type": "github"
       }
     },

@@ -4,7 +4,7 @@
 // and, on Node, the process's CPU time, its own threads included; a browser has no clock of
 // that, so it prints NaN. Its arguments are the module's path, which bench/browser.ts's page
 // serves in a browser, and on Node, moq/bench/hooks-node.c's addon, under Valgrind
-// for rust2-bench, which then counts one round. `just ffi bench` runs it over the Node binding's
+// for swole, which then counts one round. `just ffi bench` runs it over the Node binding's
 // addon too, its imports and load rewritten.
 
 import * as api from "./web/index.ts";
@@ -392,7 +392,7 @@ function replay(): void {
 	});
 }
 
-// Under Valgrind, one round, which prints nothing: rust2-bench counts each case.
+// Under Valgrind, one round, which prints nothing: swole counts each case.
 measured = hooks?.init("ffi/moq/bench/export.ts::ts") ?? false;
 if (measured) replay();
 const { readFileSync } = process.getBuiltinModule("node:fs");

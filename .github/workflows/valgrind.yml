@@ -1,7 +1,7 @@
 name: Valgrind
 
 # The binding benchmark's instruction counts (bench/ffi/README.md), each case counted under
-# stock Valgrind by rust2-bench into Kixel Quest's metrics.json. Nightly on main, and on
+# stock Valgrind by swole (the flake's input) into Kixel Quest's metrics.json. Nightly on main, and on
 # Kixel Quest's bisect, which dispatches it on each commit it measures with the benchmarks it
 # narrows down. Informational: nothing fails on a number, and no pull request runs it.
 
