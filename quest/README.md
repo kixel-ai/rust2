@@ -31,7 +31,8 @@ Decided with the maintainer on 2026-11-23, in kixel-ai/kixel.quest's `/quest-pla
 ([kixel-ai/kixel.quest#113](https://github.com/kixel-ai/kixel.quest/pull/113)): benchmarking
 joins the charter. [rust2-bench](/bench/runner/README.md) counts benchmarks' instructions
 under stock Valgrind for moq, rind, and here, replacing CodSpeed, and
-[a harness](/bench/runner/harness/README.md) replaces Criterion.
+[a harness](/bench/runner/harness/README.md) replaces Criterion for instruction counts,
+though not yet for wall-clock timing.
 
 Decided with the maintainer on 2026-10-23, when rust2 was planned from moq
 ([moq-dev/moq#6578](https://github.com/moq-dev/moq/pull/6578)):
