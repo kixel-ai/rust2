@@ -760,22 +760,6 @@ moq-c checkout="": (moq-write checkout)
     fi
     target/moq-c-test
 
-# THROWAWAY (quest/m0/ffi-export-cache.md): the stand-in's export as moq-write runs it, but
-# with the built exporter run directly, so its cargo check is the last build mbx records, then
-# what mbx says about that build's misses against main's bundle.
-[private]
-explain-moq: (standin "")
-    #!/usr/bin/env bash
-    set -uo pipefail
-    cargo build --locked --quiet
-    # cargo run hands the exporter the real cargo the shim chains to, not the shim.
-    CARGO="$(type -ap cargo | grep -v mbx | head -1)" target/debug/rust2-ffi --manifest-path .work/moq-ffi/Cargo.toml --out target/explain-moq
-    echo "explain-moq: exporter exited $? with CARGO=$(type -ap cargo | grep -v mbx | head -1)"
-    for f in "$(mbx cache dir)"/build-receipts/v1/checkouts/*.json; do jq -r '"receipt \(.completed_nanos) \(.workspace_root) \(.predictions | length) predictions"' "$f"; done | sort
-    (cd .work/moq-ffi && mbx explain --last; mbx analyze)
-    mbx explain --last
-    mbx analyze
-
 # Export moq's crates' C ABI into target/export/moq, unbuilt, for the host and each target moq-api staged in target/moq-api.
 [private]
 moq-write checkout="": (standin checkout)
