@@ -16,12 +16,11 @@ exporter, and ffi's tests, whose exporter inherits `cargo test`'s `$CARGO`.
 
 First measure each: a run that prints no `mbx[cache]` line for its check, or whose check's
 target directory rebuilds as slowly from a warm store, is affected. Then fix each affected run
-as `Waiting` settles, raising (c), if picked, in
-[jdx/mr-boxington#1015](https://github.com/jdx/mr-boxington/discussions/1015)'s discussion.
+by having its caller unset `$CARGO` under mbx's shim, as ffi/justfile's `exporter` runner now
+does, and having the tests clear it.
 
-## Waiting
-
-- Maintainer: where to fix it. Options: (a) the driver detects mbx's chained cargo, keyed on
-  mbx's undocumented `MBX_CARGO_SHIM_CHAIN`; (b) each caller unsets `$CARGO` under the shim,
-  as ffi/justfile's `exporter` runner now does, and the tests clear it; (c) ask mbx to cover `$CARGO`
-  children. Recommend (b) now, since it needs nothing undocumented, and (c) alongside.
+Decided 2026-11-26 (maintainer, /quest-run): fix it in each caller (b), plus raise (c) in
+[jdx/mr-boxington#1015](https://github.com/jdx/mr-boxington/discussions/1015)'s discussion
+alongside. Rejected: (b) only; (a) the driver keying on mbx's undocumented
+`MBX_CARGO_SHIM_CHAIN`; (c) only. Unverified: a consumer running our tool as a cargo
+subcommand under mbx probably skips the cache the same way, which only (c) would fix.
