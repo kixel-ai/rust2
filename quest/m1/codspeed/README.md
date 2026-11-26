@@ -23,4 +23,4 @@ Decided 2026-11-25 (maintainer, `/quest-plan` in rust2):
 
 - moq-dev/moq: its Criterion benches rewritten to swole's `#[bench]`, its `quest/m9/bench-harness.md`; check `codspeed-criterion-compat` and `criterion` are gone from `Cargo.lock` on moq's `main`.
 - kixel-ai/rind: its Criterion benches rewritten to swole's `#[bench]`, its `quest/m2/bench/harness.md`; check `codspeed-criterion-compat` and `criterion` are gone from `Cargo.lock` on rind's `main`.
-- kixel-ai/swole: its CodSpeed compatibility dropped once both rewrites land, its `quest/m0/drop-codspeed.md`; check the file is gone from swole's `main`.
+- kixel-ai/swole: its CodSpeed compatibility dropped once both rewrites land, its `quest/m0/drop-codspeed.md`; check `grep -ri codspeed crates/` finds nothing on swole's `main`.
