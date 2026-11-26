@@ -523,11 +523,14 @@ fn compares_a_selection_only_one_side_has() {
 	)
 	.unwrap();
 	package(&repo, "b", "y", &["f"]);
-	let compare = |cargo: &[&str]| {
+	// Compare from `dir`, with rust2-bench's `flags` and the `cargo` args.
+	let run = |dir: &Path, flags: &[&str], cargo: &[&str]| {
 		Command::new(env!("CARGO_BIN_EXE_rust2-bench"))
-			.args(["compare", "HEAD", "--"])
+			.args(["compare", "HEAD"])
+			.args(flags)
+			.arg("--")
 			.args(cargo)
-			.current_dir(&repo)
+			.current_dir(dir)
 			.env("XDG_CACHE_HOME", &cache)
 			.env(
 				"CARGO_TARGET_DIR",
@@ -537,6 +540,7 @@ fn compares_a_selection_only_one_side_has() {
 			.output()
 			.unwrap()
 	};
+	let compare = |cargo: &[&str]| run(&repo, &[], cargo);
 	let out = compare(&["-p", "a", "--package=b", "--bench", "x", "--bench=y", "-F", "b/f"]);
 	let err = String::from_utf8_lossy(&out.stderr);
 	assert!(out.status.success(), "{err}");
@@ -567,9 +571,35 @@ fn compares_a_selection_only_one_side_has() {
 	let out = compare(&["--manifest-path", "b/Cargo.toml", "--features", "f"]);
 	let err = String::from_utf8_lossy(&out.stderr);
 	assert!(out.status.success(), "{err}");
-	assert!(err.contains("HEAD has no b/Cargo.toml"), "{err}");
+	assert!(err.contains("HEAD has no --manifest-path b/Cargo.toml"), "{err}");
 	let table = String::from_utf8(out.stdout).unwrap();
 	assert_eq!(table.lines().count(), 3, "{table}");
+	assert!(row(&table, "b").ends_with("| added |"), "{table}");
+
+	// So does the directory of a package only the head has.
+	let out = run(&repo.join("b"), &[], &["--features", "f"]);
+	let err = String::from_utf8_lossy(&out.stderr);
+	assert!(out.status.success(), "{err}");
+	let table = String::from_utf8(out.stdout).unwrap();
+	assert_eq!(table.lines().count(), 3, "{table}");
+	assert!(row(&table, "b").ends_with("| added |"), "{table}");
+
+	// Under perf counters, the empty side carries the counted side's fingerprint.
+	let out = run(&repo, &["--perf"], &["-p", "b", "--features", "b/f"]);
+	let err = String::from_utf8_lossy(&out.stderr);
+	if out.status.success() {
+		assert!(row(&String::from_utf8(out.stdout).unwrap(), "b").ends_with("| added |"));
+	} else {
+		assert!(err.contains("this host exposes no counters"), "{err}");
+	}
+
+	// Without `-p`, the base leaves out the feature of a package it lacks.
+	let out = compare(&["--workspace", "--features", "b/f"]);
+	let err = String::from_utf8_lossy(&out.stderr);
+	assert!(out.status.success(), "{err}");
+	assert!(err.contains("HEAD has no feature b/f"), "{err}");
+	let table = String::from_utf8(out.stdout).unwrap();
+	assert!(!row(&table, "a").contains(" - "), "{table}");
 	assert!(row(&table, "b").ends_with("| added |"), "{table}");
 
 	// Beside `--benches`, a target the base lacks leaves it every other target.

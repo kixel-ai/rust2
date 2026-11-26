@@ -266,12 +266,16 @@ fn workspace_root(dir: &Path, args: &[String]) -> Result<PathBuf, String> {
 }
 
 /// The members of a workspace, as a build selects among them.
+#[derive(Default)]
 pub struct Members {
 	/// Each member by name, with the names of its benchmark targets.
 	pub benches: BTreeMap<String, BTreeSet<String>>,
 	/// The members a build selects without `-p` or `--workspace`: the workspace's default
 	/// members from its root, or else the package of the manifest the build finds.
 	pub default: BTreeSet<String>,
+	/// Each package a `--features package/feature` may name: every member, and every member's
+	/// dependency, by the name its manifest calls it.
+	pub packages: BTreeSet<String>,
 }
 
 /// The members of the workspace the build `args` select from `dir`.
@@ -337,8 +341,25 @@ pub fn members(dir: &Path, args: &[String]) -> Result<Members, String> {
 				.collect::<Result<_, String>>()?;
 			Ok((name.to_owned(), benches))
 		})
-		.collect::<Result<_, String>>()?;
-	Ok(Members { benches, default })
+		.collect::<Result<BTreeMap<_, _>, String>>()?;
+	let mut named: BTreeSet<String> = benches.keys().cloned().collect();
+	for package in packages {
+		let dependencies = package["dependencies"]
+			.as_array()
+			.ok_or("cargo metadata listed a package without dependencies")?;
+		for dependency in dependencies {
+			let name = dependency["rename"]
+				.as_str()
+				.or(dependency["name"].as_str())
+				.ok_or("cargo metadata listed a dependency without a name")?;
+			named.insert(name.to_owned());
+		}
+	}
+	Ok(Members {
+		benches,
+		default,
+		packages: named,
+	})
 }
 
 /// The stdout of `cargo <command>` on the workspace the build `args` select from `dir`: their
