@@ -309,11 +309,6 @@ pub mod __private {
 		u64::try_from(elapsed.as_nanos()).unwrap_or(u64::MAX)
 	}
 
-	/// The iterations of one sample, as a count of inputs to hold.
-	fn batch(iterations: u64) -> usize {
-		usize::try_from(iterations).expect("rust2-bench samples fewer iterations than memory holds")
-	}
-
 	/// A benchmark whose every call takes an input of its own, which `make` builds before the
 	/// count or the clock starts, or none.
 	struct Fresh<M, F> {
@@ -331,15 +326,26 @@ pub mod __private {
 		}
 
 		fn time(&mut self, iterations: u64) -> u64 {
-			let mut inputs: Vec<I> = (0..iterations).map(|_| (self.make)()).collect();
-			let mut outputs = Vec::with_capacity(batch(iterations));
-			let start = Instant::now();
-			for input in inputs.drain(..) {
-				outputs.push(black_box((self.call)(input)));
+			if !std::mem::needs_drop::<I>() && !std::mem::needs_drop::<O>() {
+				// Nothing to drop, so one clock around every call, the inputs built before it.
+				let inputs: Vec<I> = (0..iterations).map(|_| (self.make)()).collect();
+				let start = Instant::now();
+				for input in inputs {
+					black_box((self.call)(input));
+				}
+				return nanos(start.elapsed());
 			}
-			let elapsed = start.elapsed();
-			drop(outputs);
-			nanos(elapsed)
+			// A clock around each call, so no call's input or output, such as a large fixture or a
+			// lock's guard, is still held when the next runs.
+			let mut total = Duration::ZERO;
+			for _ in 0..iterations {
+				let input = (self.make)();
+				let start = Instant::now();
+				let output = black_box((self.call)(input));
+				total += start.elapsed();
+				drop(output);
+			}
+			nanos(total)
 		}
 	}
 
@@ -370,18 +376,16 @@ pub mod __private {
 		}
 
 		fn time(&mut self, iterations: u64) -> u64 {
-			if self.before.is_none() && self.after.is_none() {
-				// One clock around every call, its outputs dropped after it stops.
-				let mut outputs = Vec::with_capacity(batch(iterations));
+			if self.before.is_none() && self.after.is_none() && !std::mem::needs_drop::<O>() {
+				// No step and nothing to drop, so one clock around every call.
 				let start = Instant::now();
 				for _ in 0..iterations {
-					outputs.push(black_box((self.call)(&mut self.input)));
+					black_box((self.call)(&mut self.input));
 				}
-				let elapsed = start.elapsed();
-				drop(outputs);
-				return nanos(elapsed);
+				return nanos(start.elapsed());
 			}
-			// A step between calls, so a clock around each call.
+			// A step or a drop between calls, so a clock around each call: no output, such as a
+			// lock's guard, is still held when the next call runs.
 			let mut total = Duration::ZERO;
 			for _ in 0..iterations {
 				if let Some(before) = &mut self.before {
@@ -671,8 +675,9 @@ mod tests {
 				Dropped(called.clone())
 			},
 		);
+		// An output to drop, so each call's input is built before it, and its output dropped after.
 		sampler.time(2);
-		assert_eq!(*log.borrow(), ["make", "make", "call", "call", "drop", "drop"]);
+		assert_eq!(*log.borrow(), ["make", "call", "drop", "make", "call", "drop"]);
 		log.borrow_mut().clear();
 		sampler.count(&Meter::new("a", None).unwrap());
 		assert_eq!(*log.borrow(), ["make", "call", "drop"]);
@@ -699,7 +704,8 @@ mod tests {
 		sampler.count(&Meter::new("a", None).unwrap());
 		assert_eq!(*log.borrow(), each);
 
-		// Without steps, every output drops once the clock has stopped.
+		// Without steps, every output still drops before the next call, so a guard it holds never
+		// blocks the next.
 		let log = Log::default();
 		let called = log.clone();
 		let mut sampler = kept(
@@ -712,7 +718,7 @@ mod tests {
 			None,
 		);
 		sampler.time(2);
-		assert_eq!(*log.borrow(), ["call", "call", "drop", "drop"]);
+		assert_eq!(*log.borrow(), ["call", "drop", "call", "drop"]);
 	}
 
 	#[test]

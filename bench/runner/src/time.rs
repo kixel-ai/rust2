@@ -664,24 +664,41 @@ impl Side for Process {
 		{
 			return Err(self.failure());
 		}
-		let mut line = String::new();
+		// Bytes, since the benchmark's own output need not be UTF-8.
+		let mut line = Vec::new();
 		loop {
 			line.clear();
-			match self.stdout.read_line(&mut line) {
-				Ok(0) | Err(_) => return Err(self.failure()),
+			match self.stdout.read_until(b'\n', &mut line) {
+				Ok(0) => return Err(self.failure()),
 				Ok(_) => {}
+				Err(e) => {
+					// It may be waiting on its next request, so stop it rather than wait.
+					let _ = self.child.kill();
+					let failure = self.failure();
+					return Err(format!("cannot read {}'s output ({e}): {failure}", self.label));
+				}
 			}
-			if let Some(nanos) = line.strip_prefix(SAMPLE).and_then(|rest| rest.strip_suffix('\n')) {
-				let nanos = nanos
-					.parse()
-					.map_err(|_| format!("{} printed a sample of {nanos:?} nanoseconds", self.label))?;
+			if let Some(nanos) = line
+				.strip_prefix(SAMPLE.as_bytes())
+				.and_then(|rest| rest.strip_suffix(b"\n"))
+			{
+				let nanos = std::str::from_utf8(nanos)
+					.ok()
+					.and_then(|nanos| nanos.parse().ok())
+					.ok_or_else(|| {
+						format!(
+							"{} printed a sample of {:?} nanoseconds",
+							self.label,
+							String::from_utf8_lossy(nanos)
+						)
+					})?;
 				return Ok(Sample {
 					nanos,
 					wall: started.elapsed(),
 				});
 			}
 			self.log
-				.write_all(line.as_bytes())
+				.write_all(&line)
 				.map_err(|e| format!("cannot keep {}'s output: {e}", self.label))?;
 		}
 	}
@@ -712,6 +729,28 @@ mod tests {
 				wall: Duration::from_nanos(nanos + self.step * iterations),
 			})
 		}
+	}
+
+	#[cfg(unix)]
+	#[test]
+	fn keeps_a_benchmark_output_that_is_not_utf8() {
+		let dir = std::env::temp_dir().join(format!("rust2-bench-bytes-{}", std::process::id()));
+		let mut command = std::process::Command::new("sh");
+		command.args([
+			"-c",
+			r"while read n; do printf '\377\n'; echo rust2-bench sample $n; done",
+		]);
+		let job = Job {
+			label: "bytes".to_owned(),
+			command,
+			expect: None,
+			codspeed: false,
+		};
+		let mut process = Process::spawn(job, &dir).unwrap();
+		assert_eq!(process.sample(7).unwrap().nanos, 7);
+		process.finish().unwrap();
+		assert_eq!(std::fs::read(dir.join("stdout")).unwrap(), b"\xff\n\xff\n");
+		std::fs::remove_dir_all(&dir).unwrap();
 	}
 
 	#[test]

@@ -88,15 +88,16 @@ many times, in samples of as many calls as fill a millisecond. It takes one inpu
   clock starts, taking the case's argument when there are args. The benchmark takes the input
   by `&`, `&mut`, or by value, as its parameter's type says. Borrowed, the input is built once
   and kept across every call, so a `&mut` benchmark sees what the calls before it left;
-  moved in, each call gets one of its own, built before the sample's clock starts, and drops
-  it where the benchmark does.
+  moved in, each call gets one of its own, built just before it outside the clock, and drops
+  it where the benchmark does, so only one is live at a time.
 
 A borrowed input may take steps between calls that neither the count nor the clock sees:
 `before = <path>` names a function run on it before each call, and `after = <path>` one run
 after each, such as a step that undoes what the call did. Each takes the input as the benchmark
 borrows it, `&` or `&mut`. A step makes the clock read around each call rather than around a
-sample's, which costs a few dozen nanoseconds a call; neither steps nor inputs built between
-calls count against the millisecond a sample fills, up to 50 ms a sample.
+sample's, which costs a few dozen nanoseconds a call, as does an input or a return value that
+needs dropping; neither steps, inputs built between calls, nor drops count against the
+millisecond a sample fills, up to 50 ms a sample.
 
 A benchmark whose time is not its calls' wall clock, such as a server's own busy time, a thread's
 CPU time, or a fixture sized by how many calls it serves, times itself: its last parameter is
@@ -104,9 +105,9 @@ CPU time, or a fixture sized by how many calls it serves, times itself: its last
 `std::time::Duration` they took, after its one input if it has one. A count calls it for one
 iteration and counts all of it, untimed parts included.
 
-What the function returns goes through `black_box` and drops after the count or the sample's
-clock stops, so returning a value keeps its computation and its free out of both; it must own
-what it holds. The argument or input goes through `black_box`, and the function is called
+What the function returns goes through `black_box` and drops after the count or the call's
+clock stops, before the next call, so returning a value keeps its computation and its free out
+of both, and a returned guard never blocks the next call; it must own what it holds. The argument or input goes through `black_box`, and the function is called
 through a pointer the optimizer cannot see through, so it compiles as written rather than
 folded into its caller. A function that is async, unsafe, generic, or a method, or that takes
 more than that one input, fails to compile, saying why: an async benchmark builds its runtime
