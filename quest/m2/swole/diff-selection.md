@@ -2,7 +2,7 @@
 
 ## Goal
 
-`swole` supports diff-scoped runs (`--changed <base>`) that conservatively select benchmarks from the Cargo packages touched by `git diff <base>` and their reverse dependencies (plus any newly added or modified benchmark targets), and uses cached Callgrind file/function footprints from `swole sim` to order those selected benchmarks so directly exercised benchmarks run and report first—cutting local compare and bisect turnaround on large workspaces (such as `moq`'s 1,284 benchmarks) without skipping benchmarks affected through untimed setup code.
+`swole` supports diff-scoped runs (`--changed <base>`) that conservatively select benchmarks from the Cargo packages touched by the diff from `<base>` to the working-tree snapshot the runner builds, untracked files included, and their reverse dependencies (plus any newly added or modified benchmark targets), and uses cached Callgrind file/function footprints from `swole sim` to order those selected benchmarks so directly exercised benchmarks run and report first—cutting local compare and bisect turnaround on large workspaces (such as `moq`'s 1,284 benchmarks) without skipping benchmarks affected through untimed setup code.
 
 ## Plan
 
