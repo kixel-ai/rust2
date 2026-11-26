@@ -1,7 +1,7 @@
 // bench/export.c's cases through the generated Go, so the two differ by what cgo and the
 // Go wrapper add. Each round runs twice, the first to warm up. Each case prints its wall
 // time and the process's CPU time, the GC's threads included, or under Valgrind, runs once
-// for rust2-bench to count.
+// for swole to count.
 package main
 
 // #include <stdlib.h>
@@ -403,7 +403,7 @@ func main() {
 	bench := C.CString("ffi/moq/bench/export.go::go")
 	measured := bool(C.hooks_init(bench))
 	C.free(unsafe.Pointer(bench))
-	// Under Valgrind, one round, which prints nothing: rust2-bench counts each case.
+	// Under Valgrind, one round, which prints nothing: swole counts each case.
 	if measured {
 		groups /= 10
 		n = groups * frames

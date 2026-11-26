@@ -100,7 +100,7 @@ threads, each with a glibc malloc arena that keeps what it freed: with
 
 ## Instruction counts
 
-[rust2-bench](../runner/README.md) counts each single-threaded case's instructions under
+[swole](https://github.com/kixel-ai/swole) counts each single-threaded case's instructions under
 stock Valgrind for Kixel Quest, which keeps main's history of each and bisects a regression
 to its PR. [`valgrind.yml`](../../.github/workflows/valgrind.yml)
 runs `just ffi count` in the bench shell nightly on main, and on each commit a bisect
@@ -125,11 +125,11 @@ revision with `just ffi count run --out <file>` in a checkout of it, in its own 
 and compare the two files by name.
 
 Each program brackets each case with Callgrind's client requests, from the header of the
-Valgrind rust2-bench counts under, through [`hooks.h`](../../ffi/moq/bench/hooks.h) and its
-own FFI, as rust2-bench-harness does: one benchmark per language and case, such as
+Valgrind swole counts under, through [`hooks.h`](../../ffi/moq/bench/hooks.h) and its
+own FFI, as swole's harness does: one benchmark per language and case, such as
 `ffi/moq/bench/export.py::python::write` or `ffi/moq/bench/export.c::c::throughput[1024]`.
 The Rust floor's cases are `#[bench]` functions instead, counted through
-[rust2-bench-harness](../runner/harness/README.md) under the same names, such as `ffi/moq/bench/export.rs::rust::write`, each with a broadcast of its own.
+[swole's harness](https://github.com/kixel-ai/swole/blob/main/crates/swole/README.md), from the flake's lock, under the same names, such as `ffi/moq/bench/export.rs::rust::write`, each with a broadcast of its own.
 Counted, a program runs its round once, without the warm-up round, and with a tenth of the groups (so 100,000 calls a case, Python's
 10,000), since Valgrind counts every call exactly and costs 50 to 100 times the program's own
 time. It skips the `shared:*`, `own:*`, and Kotlin's `objects` cases: Valgrind runs one
@@ -154,7 +154,7 @@ between two runs:
 | Kotlin | 172% (`call`), 108% (`getter`) | leaves: without the warm-up, the JIT's and collector's threads compile and collect inside each case, and the JVM's C2 code crashes under Valgrind unless its implicit null checks are off |
 | Dart | does not run | leaves: the VM maps its code at an address hint off a page boundary, which Valgrind refuses |
 | C# | not measured | leaves until a pair of runs holds: CoreCLR's tiered JIT and collector run on their own threads |
-| TypeScript (Node) | 0.0003% (`payload[16]`), measured 2026-11-24 on **fedora** under rust2-bench | joins: see below |
+| TypeScript (Node) | 0.0003% (`payload[16]`), measured 2026-11-24 on **fedora** under rust2-bench, now swole | joins: see below |
 
 Node, 24.22.2, holds still only once neither V8 nor moq reads time while counted. V8
 compiles, sweeps, and collects on its own threads, by time, and Valgrind counts every

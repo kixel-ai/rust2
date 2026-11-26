@@ -1,7 +1,7 @@
 // bench/export.c's cases through the generated Swift, so the two differ by what the Swift
 // wrapper adds. Each round runs twice, the first to warm up. Each case prints its wall time
 // and the process's CPU time, the global executor's threads included, or under Valgrind,
-// runs once for rust2-bench to count.
+// runs once for swole to count.
 
 import Foundation
 import Hooks
@@ -413,7 +413,7 @@ func round(_ measured: Bool) throws -> ([(String, Span)], Int) {
 	return (out, sum)
 }
 
-// Under Valgrind, one round, which prints nothing: rust2-bench counts each case.
+// Under Valgrind, one round, which prints nothing: swole counts each case.
 var sink = 0
 if !measured {
 	sink += try round(false).1

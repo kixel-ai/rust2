@@ -1,4 +1,4 @@
-/* hooks.h over Callgrind's client requests, issued as rust2-bench-harness issues them. Built
+/* hooks.h over Callgrind's client requests, issued as swole's harness issues them. Built
  * with HOOKS_JNI, it also holds the JNI functions export.kt's `Hooks` object declares. */
 
 #include "hooks.h"

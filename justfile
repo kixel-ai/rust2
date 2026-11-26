@@ -14,9 +14,6 @@ mod go 'go/justfile'
 # The drivers' shared front end, its own workspace on the TypeScript driver's nightly: `just driver <recipe>`.
 mod driver 'driver/justfile'
 
-# The benchmark runner, its own workspace on the repo's stable toolchain: `just runner <recipe>`.
-mod runner 'bench/runner/justfile'
-
 # List the available development commands.
 default:
     @just --list
@@ -54,4 +51,3 @@ fix:
     just ffi fix
     just go fix
     just driver fix
-    just runner fix

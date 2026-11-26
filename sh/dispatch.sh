@@ -23,7 +23,7 @@ cd "$(git rev-parse --show-toplevel)"
 
 # What every `just` reads as it loads the root justfile: each module's justfile, and
 # the manifest ts's reads its moq pin from.
-justs='(ffi|go|ts|driver|bench/runner)/justfile$|ts/fixtures/model/Cargo\.toml$'
+justs='(ffi|go|ts|driver)/justfile$|ts/fixtures/model/Cargo\.toml$'
 # The impact map: a module runs when a changed path matches its pattern. An
 # empty pattern runs on every diff.
 declare -A scope=(
@@ -42,7 +42,6 @@ declare -A scope=(
     # (the driver, ts's toolchain and codec fixture) reach it in the nightly's
     # `just gate`, whose failure issue reports a break.
     [go]='^go/'
-    [runner]="^(bench/runner/|$justs)"
     [ts]="^((ts|driver)/|$justs)"
 )
 # A path a module's pattern matches that it never reads, since another module owns it.
@@ -50,7 +49,7 @@ declare -A except=(
     [ffi]='^ffi/release/'
 )
 # Cheapest first, so within one run a lint fails before the builds start.
-modules=(lint quest sh release runner driver ffi go ts)
+modules=(lint quest sh release driver ffi go ts)
 
 # Paths that only the modules every diff runs read, lint and quest, as sh/coverage.py
 # checks: among them the quests, and prose no build or test reads. A crate's README is
@@ -140,7 +139,6 @@ check_lint() {
     nixfmt --check flake.nix
 }
 check_quest() { quest check; }
-check_runner() { just runner check; }
 check_driver() { just driver check; }
 check_ffi() { just ffi check; }
 check_go() { just go check; }
@@ -150,7 +148,6 @@ test_sh() {
     python3 -I sh/coverage.test.py
 }
 test_release() { python3 -I ffi/release/test_package.py; }
-test_runner() { just runner test; }
 test_driver() { just driver test; }
 # moq's export at the pin, cut down to C, and every binding's rendered API, which the
 # surface files lock on x86_64 Linux, the queue's runners, before the slower test build.

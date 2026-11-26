@@ -1,7 +1,7 @@
 # bench/export.c's cases through the generated Python, so the two differ by what CPython
 # and the Python wrapper add. Each round runs twice, the first to warm CPython's caches.
 # Each case prints its wall time and the process's CPU time, or under Valgrind, runs once
-# for rust2-bench to count. Its argument is moq/bench/hooks.h's shared library.
+# for swole to count. Its argument is moq/bench/hooks.h's shared library.
 
 import asyncio
 import ctypes
@@ -281,7 +281,7 @@ def round(loop, measured):
 	return out
 
 
-# Under Valgrind, one round, which prints nothing: rust2-bench counts each case.
+# Under Valgrind, one round, which prints nothing: swole counts each case.
 loop = asyncio.new_event_loop()
 if measured:
 	round(loop, True)

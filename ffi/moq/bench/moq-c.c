@@ -1,6 +1,6 @@
 /* bench/export.c's stamped frame writes, through moq's hand-written rs/libmoq: a timed
  * track, groups of 100 frames of 100 bytes, each frame stamped, in wall and CPU time, or
- * under Valgrind, once for rust2-bench to count. */
+ * under Valgrind, once for swole to count. */
 
 #define _POSIX_C_SOURCE 199309L
 

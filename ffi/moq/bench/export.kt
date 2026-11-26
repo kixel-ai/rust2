@@ -1,7 +1,7 @@
 // bench/export.c's cases through the generated Kotlin, so the two differ by what JNI and
 // the Kotlin wrapper add. Each round runs twice, the first to warm the JIT. Each case prints
 // its wall time and the process's CPU time, the JIT's and GC's threads included, or under
-// Valgrind, runs once for rust2-bench to count. It runs on HotSpot and, shrunk by R8,
+// Valgrind, runs once for swole to count. It runs on HotSpot and, shrunk by R8,
 // on ART.
 
 import java.lang.management.ManagementFactory
@@ -332,7 +332,7 @@ fun round(measured: Boolean): Map<String, Span> {
 }
 
 fun main() {
-	// Under Valgrind, one round, which prints nothing: rust2-bench counts each case.
+	// Under Valgrind, one round, which prints nothing: swole counts each case.
 	if (counting && Hooks.init("ffi/moq/bench/export.kt::kotlin")) {
 		GROUPS /= 10
 		round(true)

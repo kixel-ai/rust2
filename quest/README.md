@@ -9,17 +9,16 @@ grouped into milestones ordered by priority.
 
 m0 holds urgent fixes and what every run pays for. m1 is the work with a consumer
 waiting on it now: the exporter moq switches its bindings to,
-[removing CodSpeed](/quest/m1/codspeed/README.md) from moq, rind, and here, and
-[moving rust2-bench to kixel-ai/swole](/quest/m1/swole-repo.md). m2 is research with a named
-consumer: rust2-wasm, moq's browser route, the TypeScript translator, an experiment
-that has to beat it, and [swole](/quest/m2/swole/README.md), the full-counter Rust
-benchmark tool. m3 holds work that waits on evidence or has no consumer yet:
+and [removing CodSpeed](/quest/m1/codspeed/README.md) from moq, rind, and here. m2 is research with a named
+consumer: rust2-wasm, moq's browser route, the TypeScript translator, and an experiment
+that has to beat it. m3 holds work that waits on evidence or has no consumer yet:
 upstream's build-speed levers, which the [build-speed benchmark](/bench/build/README.md)
 measures, the translator's features that wait on [the gate](/quest/m2/wasm/README.md),
 the binding targets planned ahead of a consumer, and what waits on moq. m4 holds long-term
 research.
 
-crabx, prebuilt Rust CLIs without a toolchain, lives in [kixel-ai/crabx](https://github.com/kixel-ai/crabx), with its quests.
+crabx, prebuilt Rust CLIs without a toolchain, lives in [kixel-ai/crabx](https://github.com/kixel-ai/crabx), with its quests,
+and swole, the benchmark runner and harness, moved to [kixel-ai/swole](https://github.com/kixel-ai/swole) with its own.
 
 Decided with the maintainer on 2026-11-09, in the quest audit, the goal: one Rust code
 base callable from any language or framework, with no manual wrappers or annotations.
@@ -31,10 +30,12 @@ keeps only what costs nothing.
 
 Decided with the maintainer on 2026-11-23, in kixel-ai/kixel.quest's `/quest-plan`
 ([kixel-ai/kixel.quest#113](https://github.com/kixel-ai/kixel.quest/pull/113)): benchmarking
-joins the charter. [rust2-bench](/bench/runner/README.md) counts benchmarks' instructions
+joins the charter. rust2-bench counts benchmarks' instructions
 under stock Valgrind for moq, rind, and here, replacing CodSpeed, and
-[a harness](/bench/runner/harness/README.md) replaces Criterion for instruction counts,
-though not yet for wall-clock timing.
+a harness replaces Criterion for instruction counts,
+though not yet for wall-clock timing. Decided 2026-11-25 (maintainer,
+[kixel-ai/rust2#1041](https://github.com/kixel-ai/rust2/pull/1041)): both move, as swole, to
+[kixel-ai/swole](https://github.com/kixel-ai/swole), which now holds their plan.
 
 Decided with the maintainer on 2026-10-23, when rust2 was planned from moq
 ([moq-dev/moq#6578](https://github.com/moq-dev/moq/pull/6578)):
