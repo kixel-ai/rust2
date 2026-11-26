@@ -200,10 +200,17 @@ fn expand(attr: TokenStream, item: TokenStream) -> syn::Result<TokenStream> {
 	// evaluated once, and each argument moves into the case it names, so no case can run
 	// another's. Its type is inferred from this body, so each argument gets the type and
 	// coercions it runs with, such as `u64` for `[4_294_967_296]`.
+	// Without setup, a new input is only a clone of the argument, which the harness may build
+	// for a whole sample at once.
+	let fresh = if options.setup.is_some() {
+		quote!(#h::fresh)
+	} else {
+		quote!(#h::cloned)
+	};
 	let build = match (&pass, timed) {
-		(None, None) => quote!(#h::fresh(|| (), move |()| #call)),
+		(None, None) => quote!(#h::cloned(|| (), move |()| #call)),
 		(None, Some(_)) => quote!(#h::fresh_timed(|| (), move |(), #iterations| #call)),
-		(Some(Pass::Value), None) => quote!(#h::fresh(move || #made, move |#input| #call)),
+		(Some(Pass::Value), None) => quote!(#fresh(move || #made, move |#input| #call)),
 		(Some(Pass::Value), Some(_)) => quote!(#h::fresh_timed(move || #made, move |#input, #iterations| #call)),
 		(Some(_), None) => {
 			let setup = options.setup.as_ref().expect("a borrowed input comes from setup");
@@ -335,7 +342,7 @@ mod tests {
 		let arg = expands("args = [\"a\"]", "fn f(x: &str) {}");
 		assert!(
 			arg.contains(&format!(
-				"each ([\"a\"] , | arg | move || {h} fresh (move || :: core :: clone :: Clone :: clone (& arg) , move | input |"
+				"each ([\"a\"] , | arg | move || {h} cloned (move || :: core :: clone :: Clone :: clone (& arg) , move | input |"
 			)),
 			"{arg}"
 		);

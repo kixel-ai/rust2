@@ -314,6 +314,9 @@ pub mod __private {
 	struct Fresh<M, F> {
 		make: M,
 		call: F,
+		/// Whether `make` is the benchmark's own setup, which runs just before each call, rather
+		/// than a clone of its argument, which a sample may build for all of its calls first.
+		setup: bool,
 	}
 
 	impl<I, O, M: FnMut() -> I, F: FnMut(I) -> O> Sampler for Fresh<M, F> {
@@ -326,17 +329,21 @@ pub mod __private {
 		}
 
 		fn time(&mut self, iterations: u64) -> u64 {
-			if !std::mem::needs_drop::<I>() && !std::mem::needs_drop::<O>() {
-				// Nothing to drop, so one clock around every call, the inputs built before it.
-				let inputs: Vec<I> = (0..iterations).map(|_| (self.make)()).collect();
+			if !self.setup && !std::mem::needs_drop::<I>() && !std::mem::needs_drop::<O>() {
+				// Clones with nothing to drop, so one clock around every call, the clones built
+				// before it and their vector freed after it.
+				let mut inputs: Vec<I> = (0..iterations).map(|_| (self.make)()).collect();
 				let start = Instant::now();
-				for input in inputs {
+				for input in inputs.drain(..) {
 					black_box((self.call)(input));
 				}
-				return nanos(start.elapsed());
+				let elapsed = start.elapsed();
+				drop(inputs);
+				return nanos(elapsed);
 			}
-			// A clock around each call, so no call's input or output, such as a large fixture or a
-			// lock's guard, is still held when the next runs.
+			// A clock around each call, so each setup runs just before its call, and no call's
+			// input or output, such as a large fixture or a lock's guard, is still held when the
+			// next runs.
 			let mut total = Duration::ZERO;
 			for _ in 0..iterations {
 				let input = (self.make)();
@@ -443,12 +450,28 @@ pub mod __private {
 		}
 	}
 
-	/// A benchmark whose every call takes an input `make` builds, or none.
+	/// A benchmark whose every call takes an input its setup, `make`, builds just before it.
 	pub fn fresh<I: 'static, O: 'static>(
 		make: impl FnMut() -> I + 'static,
 		call: impl FnMut(I) -> O + 'static,
 	) -> Box<dyn Sampler> {
-		Box::new(Fresh { make, call })
+		Box::new(Fresh {
+			make,
+			call,
+			setup: true,
+		})
+	}
+
+	/// A benchmark whose every call takes a clone of its argument, which `make` makes, or none.
+	pub fn cloned<I: 'static, O: 'static>(
+		make: impl FnMut() -> I + 'static,
+		call: impl FnMut(I) -> O + 'static,
+	) -> Box<dyn Sampler> {
+		Box::new(Fresh {
+			make,
+			call,
+			setup: false,
+		})
 	}
 
 	/// A benchmark that borrows `input` across every call, with optional steps between calls.
@@ -568,7 +591,9 @@ mod tests {
 	use std::rc::Rc;
 	use std::time::Duration;
 
-	use super::__private::{Bench, Meter, Sampler, each, fresh, fresh_timed, kept, kept_timed, relative, single, step};
+	use super::__private::{
+		Bench, Meter, Sampler, cloned, each, fresh, fresh_timed, kept, kept_timed, relative, single, step,
+	};
 	use super::*;
 
 	fn nothing() -> Box<dyn Sampler> {
@@ -681,6 +706,28 @@ mod tests {
 		log.borrow_mut().clear();
 		sampler.count(&Meter::new("a", None).unwrap());
 		assert_eq!(*log.borrow(), ["make", "call", "drop"]);
+
+		// With nothing to drop, setup still runs just before each call, since it may reset what
+		// the call reads, while clones of an argument are built for the whole sample first.
+		for (sampler, order) in [
+			(fresh as fn(_, _) -> _, ["make", "call", "make", "call"]),
+			(cloned, ["make", "make", "call", "call"]),
+		] {
+			let log = Log::default();
+			let (made, called) = (log.clone(), log.clone());
+			let mut sampler = sampler(
+				Box::new(move || {
+					made.borrow_mut().push("make");
+					1u64
+				}) as Box<dyn FnMut() -> u64>,
+				Box::new(move |n: u64| {
+					called.borrow_mut().push("call");
+					n
+				}) as Box<dyn FnMut(u64) -> u64>,
+			);
+			sampler.time(2);
+			assert_eq!(*log.borrow(), order);
+		}
 	}
 
 	#[test]
