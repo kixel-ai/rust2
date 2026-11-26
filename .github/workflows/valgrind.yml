@@ -39,9 +39,11 @@ jobs:
           BENCHMARKS: ${{ inputs.benchmarks }}
         run: |
           args=(run --out "$PWD/kixel-metrics/metrics.json")
+          # A bisect step names several suspects, some of which a commit may predate or have
+          # renamed: it counts the ones there, and Kixel Quest reads the rest as unmeasured.
           if [ -n "${BENCHMARKS:-}" ]; then
             printf '%s\n' "$BENCHMARKS" > "$RUNNER_TEMP/benchmarks"
-            args+=(--benchmarks "$RUNNER_TEMP/benchmarks")
+            args+=(--benchmarks "$RUNNER_TEMP/benchmarks" --allow-missing)
           fi
           nix develop .#bench --command just ffi count "${args[@]}"
 
