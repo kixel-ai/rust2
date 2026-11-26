@@ -43,7 +43,9 @@ cost 120 MB a target and still leave `-Zbuild-std`'s std uncached, so it is not 
 
 - jdx/mr-boxington: answers [the Discussion](https://github.com/jdx/mr-boxington/discussions/1015)
   and ships keying rustc paths under `/nix/store`; check its replies and mbx's changelog,
-  then re-measure the web rows with `just ffi bench-run` and drop the ffi README's caveat.
+  then re-measure both web rows and drop the ffi README's caveat: `just ffi bench-run` for
+  the MIR sysroot's, which requires `RUST2_TS_SYSROOT`, and a cold then warm web export
+  through mbx's Cargo shim with `RUST2_TS_SYSROOT=` cleared for `-Zbuild-std`'s.
 
 ## Related
 
