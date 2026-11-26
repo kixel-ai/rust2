@@ -11,6 +11,9 @@ rustc-ice-*.txt
 /.claude/worktrees/
 /.tmp/
 
+# Sources the recipes check out or generate, apart from target/, which mbx may move into its store and evict.
+.work
+
 # Build output.
 target
 result

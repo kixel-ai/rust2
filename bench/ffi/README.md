@@ -931,7 +931,7 @@ and Kotlin's calls trail it by 1.2 to 4 times, behind JNI's per-call cost and th
 
 ## TypeScript
 
-The web binding runs over its own export of the stand-in, `target/moq-ffi-web`: the same
+The web binding runs over its own export of the stand-in, `.work/moq-ffi-web`: the same
 crates less moq-tokio, which pulls in rustls-native-certs, with no wasm32-wasip1 platform
 module.
 Nothing builds for wasm32-unknown-unknown, where getrandom 0.4 has no backend without a

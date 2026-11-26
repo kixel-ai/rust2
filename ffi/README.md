@@ -2200,7 +2200,7 @@ protocol scripts' C driver runs under each sanitizer too.
 On aarch64 the glue builds without outline atomics (`-Ctarget-feature=-outline-atomics`): the
 instrumented `compiler_builtins` would answer the runtime's own atomics, before its shadow
 exists, and crash it in `__asan_init`.
-moq's crates export through `target/moq-ffi`, an empty library on each that `just ffi moq`
+moq's crates export through `.work/moq-ffi`, an empty library on each that `just ffi moq`
 writes in place of moq-ffi's remainder. The export serves the host and each target
 `just ffi moq-api` staged in `target/moq-api` from the same moq sources, and fails on a
 staged API from other sources. Nightly stages every target moq ships a binding to but the
