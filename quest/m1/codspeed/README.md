@@ -4,7 +4,7 @@
 
 No CodSpeed service, app, or code remains in any moq-dev or kixel-ai repository: every benchmark counts through rust2-bench and rust2-bench-harness, the CodSpeed GitHub App is uninstalled from both organizations, and rust2-bench drops its CodSpeed compatibility.
 
-Non-goals: what the benchmarks measure, how often they run, and native perf counters, which `rust2-bench run --perf` counts.
+Non-goals: what the benchmarks measure beyond [system metrics](/quest/m1/codspeed/sys-metrics.md), which land before the rewrites so each bench is written once, how often they run, and native perf counters, which `rust2-bench run --perf` counts.
 
 The epic's own work, once its children have merged: rust2-bench drops what it keeps for CodSpeed's crates and hooks, `--cfg codspeed`, `CODSPEED_ISOLATED_BENCHMARK`, the `Metadata: ...` dump rule, and the `ADD_DESC` note, and its README and the harness's stop describing them.
 
