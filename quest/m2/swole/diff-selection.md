@@ -1,8 +1,8 @@
-# [M] Diff-scoped benchmark selection from Callgrind function footprints
+# [M] Diff-scoped benchmark selection and Callgrind footprint ordering
 
 ## Goal
 
-`swole` caches each benchmark's executed file and function footprint from `swole sim` Callgrind dumps and supports diff-scoped runs (`--changed <base>` or automatic selection on local compare when requested) that run only the benchmarks whose footprints intersect files or functions touched by `git diff <base>` (plus any newly added or modified benchmark targets), shrinking local compare and bisect runs from full suites (e.g. `moq`'s 1,284 benchmarks) to the touched subset.
+`swole` supports diff-scoped runs (`--changed <base>`) that conservatively select benchmarks from the Cargo packages touched by `git diff <base>` and their reverse dependencies (plus any newly added or modified benchmark targets), and uses cached Callgrind file/function footprints from `swole sim` to order those selected benchmarks so directly exercised benchmarks run and report first—cutting local compare and bisect turnaround on large workspaces (such as `moq`'s 1,284 benchmarks) without skipping benchmarks affected through untimed setup code.
 
 ## Plan
 
@@ -12,10 +12,10 @@ Decided 2026-11-25 (maintainer, `/quest-plan` in rust2):
 
 Recommendations for the implementer:
 
-- Reuse the Callgrind parser from [per-function attribution](/quest/m2/swole/callgrind-attribution.md) to record each benchmark's executed source files (`fl=`) and demangled function paths (`fn=`) in a compact cache under `~/.cache/swole/` keyed by repository and commit/tree.
-- Map `git diff <base>` changed source files (and conservatively fall back to full runs when `Cargo.toml`, `Cargo.lock`, `build.rs`, or proc-macro crates change, or when no cached footprint exists for the base commit — never silently skip benchmarks on a stale or missing map).
-- Always include any benchmark whose own file or `#[bench]` target was added or edited, and print how many benchmarks were selected vs skipped (and why) before running.
-- Prove soundness with a fixture workspace containing two independent crates/modules: editing module A selects only module A's benchmarks, editing a shared helper selects both, and editing `Cargo.toml` selects all.
+- Compute affected benchmark targets conservatively from `cargo metadata`'s workspace dependency graph: any package containing a file changed by `git diff <base>` plus all workspace reverse dependencies (and fall back to the full workspace when root `Cargo.toml`, `Cargo.lock`, workspace `build.rs`, or proc-macro crates change). Because untimed setup runs before Callgrind instrumentation starts (e.g. `moq`'s `producer_tick` setup helpers), Callgrind footprints alone cannot safely exclude a benchmark in an affected package.
+- Reuse the Callgrind parser from [per-function attribution](/quest/m2/swole/callgrind-attribution.md) to cache each benchmark's executed source files (`fl=`) and demangled function paths (`fn=`) under `~/.cache/swole/` keyed by repository and commit/tree, and prioritize benchmarks whose cached footprints directly intersect the diff to run first within the selected set.
+- Print how many benchmarks were selected vs skipped by package graph, and how many directly matched Callgrind footprints, before running.
+- Prove soundness with a fixture workspace containing two independent crates plus a shared crate and an untimed setup helper: editing an independent crate runs only its benchmarks, editing a shared crate selects its reverse dependents (ordered with footprint hits first), and editing a helper used only in untimed setup still runs the benchmark that calls it in setup.
 
 ## Required
 

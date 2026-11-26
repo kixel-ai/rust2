@@ -2,7 +2,7 @@
 
 ## Goal
 
-`swole` reports exact per-benchmark heap allocation metrics—`alloc_count`, `alloc_bytes`, and `peak_live_bytes`—across `quick`, `sim`, and `bench` on Linux and macOS with zero OS privileges and zero noise, by interposing allocator calls inside `preload.rs` during the bracketed benchmark window.
+`swole` reports exact per-benchmark heap allocation metrics—`alloc_count`, `alloc_bytes`, and `peak_live_bytes`—across every mode each OS supports (`quick`, `sim`, and `bench` on Linux; `bench` on macOS) with zero OS privileges and zero noise, by interposing allocator calls inside `preload.rs` during the bracketed benchmark window.
 
 ## Plan
 

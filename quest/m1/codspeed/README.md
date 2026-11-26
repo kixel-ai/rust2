@@ -16,10 +16,10 @@ Decided 2026-11-25 (maintainer, `/quest-plan` in rust2):
 - ✅ moq's and rind's Criterion benches are rewritten to `#[bench]` (rejected: a Criterion-API count layer in the harness, deleted later by the rewrite; waiting for the m2 harness epic). That is about 25.7k lines over 84 bench files in moq and 9.2k over 33 in rind, counted 2026-11-25.
 - ✅ Wall-clock timing ships first, so each bench is written once and Criterion and `codspeed-criterion-compat` leave together (rejected: rewrite now and stop timing until it ships; keep a Criterion copy of each bench for timing, which kixel-ai/kixel.quest#113 rejected). moq's Nightly times every bench by wall clock through Criterion, including the async and `iter_custom` ones counts skip, and rind's native job times its rustcrypto rows against aws-lc-rs and ring. [Paired timing](/quest/m1/codspeed/paired.md) moves here from the m2 harness epic as the rewrite's only prerequisite; perf counters stop blocking it.
 - ✅ m1, since moq and rind wait on it once planned (rejected: m2 beside the harness epic, which ranks it with research).
-- The rewrites are quests in moq's and rind's own trees, each waiting on paired timing, planned there from this PR's follow-ups.
+- The rewrites are quests in moq's and rind's own trees, each waiting on paired timing and [the move to kixel-ai/swole](/quest/m1/swole-repo.md), so both repositories rewrite straight to `swole` once instead of migrating to `rust2-bench-harness` and renaming ~117 files afterward.
 - Each rewrite is a boundary for its repository's paired timing: a base before it has only Criterion benches and a head after it only `#[bench]` ones. Its quest says how its nightly handles a base across the boundary, such as timing each revision with its own harness until the base is past it, so the first runs after the rewrite still report.
 
 ## Waiting
 
-- moq-dev/moq: its Criterion benches rewritten to `#[bench]`; check `codspeed-criterion-compat` and `criterion` are gone from `Cargo.lock` on moq's `main`.
-- kixel-ai/rind: its Criterion benches rewritten to `#[bench]`; check `codspeed-criterion-compat` and `criterion` are gone from `Cargo.lock` on rind's `main`.
+- moq-dev/moq: its Criterion benches rewritten to `#[bench]` (waiting on [paired timing](/quest/m1/codspeed/paired.md) and [the move to kixel-ai/swole](/quest/m1/swole-repo.md)); check `codspeed-criterion-compat` and `criterion` are gone from `Cargo.lock` on moq's `main`.
+- kixel-ai/rind: its Criterion benches rewritten to `#[bench]` (waiting on [paired timing](/quest/m1/codspeed/paired.md) and [the move to kixel-ai/swole](/quest/m1/swole-repo.md)); check `codspeed-criterion-compat` and `criterion` are gone from `Cargo.lock` on rind's `main`.
