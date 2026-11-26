@@ -113,13 +113,19 @@ fn program(benches: &str, wrap: &str) -> String {
 /// rust2-bench, run in `dir` with `args`, counting the fixture as its one program, launched
 /// through the command `wrap`, if any.
 fn bench(dir: &Path, benches: &str, wrap: &str, args: &[&str]) -> Output {
-	Command::new(env!("CARGO_BIN_EXE_rust2-bench"))
+	command(dir, benches, wrap, args).output().unwrap()
+}
+
+/// The command [`bench`] runs.
+fn command(dir: &Path, benches: &str, wrap: &str, args: &[&str]) -> Command {
+	let mut command = Command::new(env!("CARGO_BIN_EXE_rust2-bench"));
+	command
 		.arg("run")
 		.args(["--program", &program(benches, wrap)])
 		.args(args)
 		.current_dir(dir)
-		.output()
-		.unwrap()
+		.env_remove("GITHUB_STEP_SUMMARY");
+	command
 }
 
 fn scratch(name: &str) -> std::path::PathBuf {
@@ -188,6 +194,37 @@ fn fails_on_a_listed_benchmark_no_program_has() {
 }
 
 #[test]
+fn allowed_counts_the_listed_benchmarks_a_program_has_and_reports_the_rest() {
+	let dir = scratch("allowed");
+	std::fs::write(dir.join("list"), "a\nsuspect\n").unwrap();
+	let summary = dir.join("summary.md");
+	let out = command(
+		&dir,
+		"a=10,b=20",
+		"",
+		&["--benchmarks", "list", "--allow-missing", "--out", "metrics.json"],
+	)
+	.env("GITHUB_STEP_SUMMARY", &summary)
+	.output()
+	.unwrap();
+	let err = String::from_utf8_lossy(&out.stderr);
+	assert!(out.status.success(), "{err}");
+	assert!(err.contains("no benchmark is named suspect; counted the rest"), "{err}");
+	assert!(std::fs::read_to_string(&summary).unwrap().contains("- `suspect`"));
+	let metrics: serde_json::Value =
+		serde_json::from_str(&std::fs::read_to_string(dir.join("metrics.json")).unwrap()).unwrap();
+	let names: Vec<&String> = metrics["samples"][0]["metrics"].as_object().unwrap().keys().collect();
+	assert_eq!(names, ["a"]);
+
+	// None of them there still fails.
+	std::fs::write(dir.join("list"), "suspect\n").unwrap();
+	let out = bench(&dir, "a=10", "", &["--benchmarks", "list", "--allow-missing"]);
+	assert!(!out.status.success());
+	let err = String::from_utf8_lossy(&out.stderr);
+	assert!(err.contains("no benchmark is named suspect"), "{err}");
+}
+
+#[test]
 fn fails_on_two_benchmarks_of_one_name() {
 	let dir = scratch("twice");
 	let out = bench(&dir, "a=10,a=20", "", &[]);
@@ -217,6 +254,7 @@ fn harness(args: &[&str]) -> Output {
 			"CARGO_TARGET_DIR",
 			Path::new(env!("CARGO_TARGET_TMPDIR")).join("harness"),
 		)
+		.env_remove("GITHUB_STEP_SUMMARY")
 		.output()
 		.unwrap()
 }
@@ -302,6 +340,20 @@ fn counts_each_harness_benchmark_alone_without_its_setup() {
 		err.contains(&format!("no benchmark is named {file}sized[3000]")),
 		"{err}"
 	);
+	// Allowed, it counts the one there.
+	std::fs::write(dir.join("list"), format!("{file}sized[2000]\n{file}sized[3000]\n")).unwrap();
+	let some = dir.join("some.json");
+	let out = harness(&[
+		"--benchmarks",
+		dir.join("list").to_str().unwrap(),
+		"--allow-missing",
+		"--out",
+		some.to_str().unwrap(),
+	]);
+	assert!(out.status.success(), "{}", String::from_utf8_lossy(&out.stderr));
+	let some: serde_json::Value = serde_json::from_str(&std::fs::read_to_string(some).unwrap()).unwrap();
+	let some = some["samples"][0]["metrics"].as_object().unwrap();
+	assert_eq!(some.keys().collect::<Vec<_>>(), [&format!("{file}sized[2000]")]);
 }
 
 /// Each count and name of the table `run` prints.

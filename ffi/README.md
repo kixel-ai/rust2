@@ -23,7 +23,10 @@ itself as `RUSTC_WORKSPACE_WRAPPER` for the workspace's own crates, and as `RUST
 other crate, which it compiles as rustc would. So a compiler cache in `RUSTC_WRAPPER`, as
 mbx's Cargo shim sets, serves every crate the workspace does not own: each carries on its
 command line the target's rustflags, from wherever cargo reads them, then the export's own
-in `CARGO_ENCODED_RUSTFLAGS`, which cargo passes no build script or proc macro. Rustflags
+in `CARGO_ENCODED_RUSTFLAGS`, which cargo passes no build script or proc macro. mbx keys no
+path under `/nix/store`, though: for wasm32 over the dev shell's MIR sysroot it serves only
+build scripts and proc macros, and under `-Zbuild-std` every crate but std's ([the
+export's cache](../bench/ffi/README.md#the-exports-cache)). Rustflags
 past 32,000 bytes, which no environment variable holds on every platform, fail the export:
 put them in an argfile, `@<path>`. A build
 script's probe of the compiler, as `rustversion` and `autocfg` make,
