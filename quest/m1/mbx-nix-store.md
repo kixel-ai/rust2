@@ -28,12 +28,21 @@ package there, so a Nix toolchain's `-Zbuild-std` std and a sysroot built by a d
 are served. jdx/mr-boxington's
 [CONTRIBUTING](https://github.com/jdx/mr-boxington/blob/main/CONTRIBUTING.md) takes
 proposals in Discussions, allows AI help if disclosed, and closes reports found only by
-reading the source; this one is measured. No Discussion or issue asked it as of
-2026-11-25. If mbx ships it, re-measure the web rows and drop the ffi README's caveat.
+reading the source; this one is measured. No Discussion or issue asked it before the post below.
+If mbx ships it, re-measure the web rows and drop the ffi README's caveat.
 
 Decided 2026-11-25 (maintainer, pick round on [kixel-ai/rust2#1028](https://github.com/kixel-ai/rust2/pull/1028)):
 ✅ this quest's agent posts the ask, disclosing AI help (rejected: the maintainer posts it).
-Record the Discussion link in this Plan once posted, then wait on mbx's answer under `Waiting`.
+Posted 2026-11-25 as [jdx/mr-boxington#1015](https://github.com/jdx/mr-boxington/discussions/1015)
+in Ideas, with the measurements and how to reproduce them.
 
 A workaround here, copying the sysroot under the target directory where mbx maps it, would
 cost 120 MB a target and still leave `-Zbuild-std`'s std uncached, so it is not planned.
+
+## Waiting
+
+- jdx/mr-boxington: answers [the Discussion](https://github.com/jdx/mr-boxington/discussions/1015)
+  and ships keying rustc paths under `/nix/store`; check its replies and mbx's changelog,
+  then re-measure both web rows and drop the ffi README's caveat: `just ffi bench` for
+  the MIR sysroot's, which requires `RUST2_TS_SYSROOT`, and a cold then warm web export
+  through mbx's Cargo shim with `RUST2_TS_SYSROOT=` cleared for `-Zbuild-std`'s.
