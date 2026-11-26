@@ -30,3 +30,11 @@ Implementation guidance:
 ## Related
 
 - [rust2-ts model epic](/quest/m2/ts-model/README.md) - shares `rust2/driver` and `moq-net`'s model subset
+
+## Waiting
+
+- moq-dev/moq: the pure-machine spike (`quest/m9/kio-state-machines/pure-machine.md`, carried to
+  `kixel-ai/kio` at its repo split) lands the pure `SendCredit` and `WarmSettle` Rust machines this
+  spike extracts, and its Aeneas friction table. On 2026-11-25 moq has only `WarmSettle.tla` and
+  that quest is unstarted. Check: the quest is gone from moq's main (or kio's), and the two
+  machines exist at a revision both extractors can pin.
