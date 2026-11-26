@@ -8,6 +8,10 @@ repository = "https://github.com/kixel-ai/rust2"
 # Installed through the flake, or with `cargo install --git`.
 publish = false
 
+# Compiled by build.rs as a separate preloaded library, not through a `mod`.
+[package.metadata.cargo-shear]
+ignored-paths = ["preload.rs"]
+
 [workspace]
 # Its own workspace, apart from the repo's other projects, on the repository's stable toolchain,
 # with the harness benchmarks are written with.
