@@ -156,8 +156,6 @@ test_ffi() {
     if [[ "$(uname -sm)" == "Linux x86_64" ]]; then
         # One invocation, so the export both read runs once: moq-c's checkout comes first.
         just ffi::moq-c '' ffi::surface --check
-        # THROWAWAY (quest/m0/ffi-export-cache.md): why the stand-in's export misses main's bundle.
-        (cd ffi/.work/moq-ffi && mbx explain --last && mbx analyze) || echo "::warning::mbx explain failed: $?"
     else
         echo "test: the surface files are x86_64 Linux's exports, which the queue checks" >&2
         just ffi moq-c
