@@ -334,7 +334,7 @@ fn counts_with_perf_counters_what_valgrind_does() {
 	);
 	let valgrind = table(&valgrind.stdout);
 	assert_eq!(perf.keys().collect::<Vec<_>>(), valgrind.keys().collect::<Vec<_>>());
-	assert_eq!(perf.len(), 14);
+	assert_eq!(perf.len(), 16);
 	let file = "harness/benches/fixture.rs::";
 	let threaded = [
 		format!("{file}handed"),
