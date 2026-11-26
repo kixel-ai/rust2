@@ -283,6 +283,8 @@ fn counts_each_harness_benchmark_alone_without_its_setup() {
 			"sized[4000]",
 			"spawned[100000]",
 			"spawned[1000]",
+			"stepped",
+			"timed",
 			"unstable[1000]",
 			"unstable[8000]",
 			"word[word]"
@@ -302,8 +304,8 @@ fn counts_each_harness_benchmark_alone_without_its_setup() {
 			count(name)
 		);
 	};
-	// Every one spins a thousand times but the larger sized ones; a setup's million spins and its
-	// input's free would count a thousand times as much, were they counted.
+	// Every one spins a thousand times but the larger sized ones; a setup's or a step's million
+	// spins and its input's free would count a thousand times as much, were they counted.
 	near("sized[1000]", alone);
 	near("sized[2000]", 2 * alone);
 	near("sized[4000]", 4 * alone);
@@ -312,6 +314,8 @@ fn counts_each_harness_benchmark_alone_without_its_setup() {
 	near("borrowed", alone);
 	near("generic[4000]", alone);
 	near("word[word]", alone);
+	near("stepped", alone);
+	near("timed", alone);
 	near("inner::nested[a]", alone);
 	near("inner::nested[bc]", alone);
 
@@ -382,7 +386,7 @@ fn counts_with_perf_counters_what_valgrind_does() {
 	);
 	let valgrind = table(&valgrind.stdout);
 	assert_eq!(perf.keys().collect::<Vec<_>>(), valgrind.keys().collect::<Vec<_>>());
-	assert_eq!(perf.len(), 14);
+	assert_eq!(perf.len(), 16);
 	let file = "harness/benches/fixture.rs::";
 	let threaded = [
 		format!("{file}handed"),

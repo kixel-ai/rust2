@@ -35,8 +35,19 @@ const HARNESS_RAN: &str = "rust2-bench ran ";
 /// The variable naming the one benchmark a harness target runs.
 const HARNESS_ONLY: &str = "RUST2_BENCH";
 
+/// The variable that has a harness target time the benchmark `RUST2_BENCH` names, which a launch
+/// sets only to time.
+pub const HARNESS_TIME: &str = "RUST2_BENCH_TIME";
+
 /// What a target of CodSpeed's crates prints for each benchmark it ran unmeasured.
 const CODSPEED_CHECKED: &str = "Checked: ";
+
+/// What a target of CodSpeed's crates prints first, before the crate's name and version.
+const CODSPEED_HARNESS: &str = "Harness: codspeed-";
+
+/// What a target of CodSpeed's crates prints for each benchmark it leaves out, such as one of
+/// custom iterations.
+const CODSPEED_SKIPPED: &str = "Skipping: ";
 
 /// The variable naming the one benchmark a target of CodSpeed's crates runs.
 const CODSPEED_ONLY: &str = "CODSPEED_ISOLATED_BENCHMARK";
@@ -77,12 +88,14 @@ struct Launch {
 }
 
 impl Launch {
-	/// `executable` as Cargo launches it.
+	/// `executable` as Cargo launches it, counting rather than timing, whatever the environment
+	/// says.
 	fn command(&self, executable: &Path, root: &Path) -> Command {
 		let mut command = Command::new(executable);
 		command
 			.current_dir(&self.dir)
 			.envs(&self.env)
+			.env_remove(HARNESS_TIME)
 			.env("CODSPEED_CARGO_WORKSPACE_ROOT", root)
 			// Only a perf count sets it, on a job pinned to its PMU's cores.
 			.env_remove(crate::perf::PERF);
@@ -196,15 +209,27 @@ fn launches(dir: &Path) -> Result<BTreeMap<PathBuf, Launch>, String> {
 	Ok(launches)
 }
 
+/// What a workspace may lack and still list its benchmarks.
+#[derive(Clone, Copy, PartialEq)]
+pub enum Lacking {
+	/// Nothing: it has a benchmark target, and each runs a benchmark, as a run's must.
+	Nothing,
+	/// Any benchmark target, as a compare's base before the first.
+	Targets,
+	/// As `Targets`, and any benchmark a target of CodSpeed's crates runs, when CodSpeed skips
+	/// each it has, as one of only `iter_custom`'s: a time's base from before a rewrite to the
+	/// harness, whose CodSpeed benchmarks time as none anyway.
+	Counted,
+}
+
 /// Builds the benchmark targets of the workspace in `dir`, passing `args` to `cargo bench`,
-/// and lists the benchmarks each runs as a job, one benchmark a process.
-/// Unless `strict`, a workspace with no benchmark target has no jobs, as a compare's base
-/// before the first one does.
-pub fn jobs(dir: &Path, args: &[String], strict: bool) -> Result<Vec<Job>, String> {
+/// and lists the benchmarks each runs as a job, one benchmark a process, failing on what it
+/// may not be `lacking`.
+pub fn jobs(dir: &Path, args: &[String], lacking: Lacking) -> Result<Vec<Job>, String> {
 	let root = codspeed_root(&workspace_root(dir, args)?)?;
 	let targets = build(dir, args)?;
 	if targets.is_empty() {
-		if strict {
+		if lacking == Lacking::Nothing {
 			return Err("cargo built no benchmark target".to_owned());
 		}
 		return Ok(Vec::new());
@@ -232,6 +257,20 @@ pub fn jobs(dir: &Path, args: &[String], strict: bool) -> Result<Vec<Job>, Strin
 				target.name
 			));
 		};
+		if names.is_empty() {
+			// Only a CodSpeed target that skipped each benchmark lists none.
+			if lacking != Lacking::Counted {
+				return Err(format!(
+					"benchmark target {} has only benchmarks CodSpeed's crates skip, such as iter_custom's, \
+					 which nothing counts: write them with rust2-bench-harness, or leave the target out with cargo's --bench",
+					target.name
+				));
+			}
+			eprintln!(
+				"rust2-bench: benchmark target {} has only benchmarks CodSpeed's crates skip, so it times as none",
+				target.name
+			);
+		}
 		for name in names {
 			if !seen.insert(name.clone()) {
 				return Err(format!("two benchmarks are named {name}"));
@@ -778,7 +817,8 @@ fn list(target: &Target, launch: &Launch, root: &Path) -> Result<Option<(Harness
 }
 
 /// What a target's output says it is written with, and the benchmarks it ran unmeasured, or
-/// `None` when it ran none.
+/// `None` when it ran none. A target of CodSpeed's crates that skipped every benchmark it has
+/// runs none, but is still CodSpeed's.
 fn ran(stdout: &str) -> Result<Option<(Harness, Vec<String>)>, String> {
 	let names = |prefix: &str| -> Vec<String> {
 		stdout
@@ -787,11 +827,15 @@ fn ran(stdout: &str) -> Result<Option<(Harness, Vec<String>)>, String> {
 			.map(str::to_owned)
 			.collect()
 	};
-	match (names(HARNESS_RAN), names(CODSPEED_CHECKED)) {
-		(harness, codspeed) if harness.is_empty() && codspeed.is_empty() => Ok(None),
-		(harness, codspeed) if codspeed.is_empty() => Ok(Some((Harness::Rust2, harness))),
-		(harness, codspeed) if harness.is_empty() => Ok(Some((Harness::CodSpeed, codspeed))),
-		_ => Err("it ran benchmarks through both rust2-bench-harness and CodSpeed's crates".to_owned()),
+	let (harness, codspeed) = (names(HARNESS_RAN), names(CODSPEED_CHECKED));
+	// A benchmark's own `Skipping:` line is not CodSpeed's, which follows CodSpeed's header.
+	let starts = |prefix: &str| stdout.lines().any(|line| line.starts_with(prefix));
+	let is_codspeed = !codspeed.is_empty() || (starts(CODSPEED_HARNESS) && starts(CODSPEED_SKIPPED));
+	match (harness.is_empty(), is_codspeed) {
+		(true, false) => Ok(None),
+		(false, false) => Ok(Some((Harness::Rust2, harness))),
+		(true, true) => Ok(Some((Harness::CodSpeed, codspeed))),
+		(false, true) => Err("it ran benchmarks through both rust2-bench-harness and CodSpeed's crates".to_owned()),
 	}
 }
 
@@ -810,6 +854,13 @@ mod tests {
 		assert_eq!(harness, Harness::Rust2);
 		assert_eq!(names, ["benches/a.rs::f[1]", "benches/a.rs::m::g"]);
 		assert_eq!(ran("Harness: codspeed-criterion-compat v6.0.0\n").unwrap(), None);
+		let skipped = "Harness: codspeed-criterion-compat v6.0.0\nSkipping: benches/a.rs::c (CodSpeed doesn't support custom iterations)\n";
+		assert_eq!(ran(skipped).unwrap(), Some((Harness::CodSpeed, Vec::new())));
+		let own = "Skipping: a warm-up\nrust2-bench ran benches/a.rs::f\n";
+		assert_eq!(
+			ran(own).unwrap(),
+			Some((Harness::Rust2, vec!["benches/a.rs::f".to_owned()]))
+		);
 		let both = "rust2-bench ran benches/a.rs::f\nChecked: benches/a.rs::g\n";
 		assert!(ran(both).unwrap_err().contains("both"));
 	}

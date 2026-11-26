@@ -1,6 +1,7 @@
 //! rust2-bench: counts each benchmark's instructions under stock Valgrind, one process a job,
 //! in parallel, for Kixel Quest's `metrics.json` and for a local base-versus-head compare, or
-//! natively with Linux perf counters, for a quick local compare.
+//! natively with Linux perf counters, for a quick local compare, and times them by wall clock,
+//! alone or paired with a base commit's.
 
 mod callgrind;
 mod cargo;
@@ -9,6 +10,7 @@ mod fingerprint;
 mod metrics;
 mod perf;
 mod preload;
+mod time;
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::ffi::{OsStr, OsString};
@@ -26,10 +28,12 @@ const PROBE: &str = "__cpu";
 const USAGE: &str = "\
 usage: rust2-bench run [options] [-- cargo bench args...]
        rust2-bench compare <base> [options] [-- cargo bench args...]
+       rust2-bench time [<base>] [options] [-- cargo bench args...]
        rust2-bench fingerprint
 
 run counts the working tree's benchmarks; compare counts <base>, a commit, then the working
-tree, both in one worktree of their own under ~/.cache/rust2-bench, and prints each change.
+tree, both in one worktree of their own under ~/.cache/rust2-bench, and prints each change. time
+times the working tree's by wall clock, one at a time, or with <base> each paired with the base's.
 
 Benchmarks are the Cargo workspace's, written with rust2-bench-harness or CodSpeed's
 compatibility crates, unless --program names them.
@@ -39,7 +43,7 @@ options:
                        benchmark has fails the run
   --allow-missing      with --benchmarks, report each name no benchmark has and count the rest,
                        failing only when none is there, as a bisect step needs (run only)
-  --out <file>         write the counts as Kixel Quest's metrics.json (run only)
+  --out <file>         write the counts or times as Kixel Quest's metrics.json (run and time)
   --perf               count rust2-bench-harness's benchmarks natively with Linux perf
                        counters, not under Valgrind: faster, comparable only on this host,
                        and never written out
@@ -82,7 +86,7 @@ fn cli(args: &[String]) -> Result<(), String> {
 			print!("{}", metrics::table(&counts.counts));
 			print!("{}", threaded(&counts.threaded));
 			if let Some(out) = &options.out {
-				metrics::write(out, &counts)?;
+				metrics::File::counts(&counts).write(out)?;
 				eprintln!("rust2-bench: wrote {}", out.display());
 			}
 			Ok(())
@@ -91,12 +95,20 @@ fn cli(args: &[String]) -> Result<(), String> {
 			let (base, rest) = rest.split_first().ok_or(USAGE)?;
 			let options = Options::parse(rest)?;
 			if options.out.is_some() {
-				return Err("compare writes no metrics.json: --out is run's".to_owned());
+				return Err("compare writes no metrics.json: --out is run's and time's".to_owned());
 			}
 			if options.allow_missing {
 				return Err("compare already counts a name only one side has: --allow-missing is run's".to_owned());
 			}
 			compare::compare(base, &options)
+		}
+		"time" => {
+			// A base is a commit, and no commit's name starts with a dash.
+			let (base, rest) = match rest.split_first() {
+				Some((base, rest)) if !base.starts_with('-') => (Some(base.as_str()), rest),
+				_ => (None, rest),
+			};
+			time::time(base, &Options::parse(rest)?)
 		}
 		"fingerprint" => {
 			if !rest.is_empty() {
@@ -316,7 +328,15 @@ fn measure(dir: &Path, options: &Options, strict: bool) -> Result<Counts, String
 	let preload = preload::install()?;
 	fits(&std::fs::read_to_string("/proc/self/limits").map_err(|e| format!("cannot read /proc/self/limits: {e}"))?)?;
 	let mut jobs = if options.programs.is_empty() {
-		cargo::jobs(dir, &options.cargo, strict)?
+		cargo::jobs(
+			dir,
+			&options.cargo,
+			if strict {
+				cargo::Lacking::Nothing
+			} else {
+				cargo::Lacking::Targets
+			},
+		)?
 	} else {
 		if let Some(build) = &options.build {
 			eprintln!("rust2-bench: {build}");
@@ -432,7 +452,7 @@ fn shell(command: &str, dir: &Path) -> Command {
 
 /// A new directory for one run's jobs in the tree at `dir`, apart from any other run's, so
 /// two runs in one tree never read each other's profiles.
-fn work(dir: &Path) -> Result<PathBuf, String> {
+pub fn work(dir: &Path) -> Result<PathBuf, String> {
 	let parent = dir.join("target/rust2-bench");
 	std::fs::create_dir_all(&parent).map_err(|e| format!("cannot create {}: {e}", parent.display()))?;
 	let pid = std::process::id();

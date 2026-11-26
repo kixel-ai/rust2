@@ -278,7 +278,8 @@
             pkgs.lib.throwIfNot (pkgs.valgrind.version == "3.27.1")
               "nixpkgs moved Valgrind to ${pkgs.valgrind.version}: bump the version flake.nix pins for rust2-bench"
               pkgs.valgrind;
-          # The benchmark runner, on the repo's stable toolchain, with its Valgrind.
+          # The benchmark runner, on the repo's stable toolchain, with its Valgrind on Linux, the
+          # one place it counts; it times anywhere.
           rust2-bench =
             (pkgs.makeRustPlatform {
               cargo = toolchain;
@@ -301,7 +302,7 @@
                 };
                 cargoLock.lockFile = ./bench/runner/Cargo.lock;
                 nativeBuildInputs = [ pkgs.makeWrapper ];
-                postInstall = ''
+                postInstall = pkgs.lib.optionalString pkgs.stdenv.hostPlatform.isLinux ''
                   wrapProgram $out/bin/rust2-bench --prefix PATH : ${valgrind}/bin
                 '';
                 # The tests run Valgrind: `just runner test` runs them.
@@ -330,9 +331,7 @@
             ffi = rust2-ffi;
             # Built only when a recipe running on it asks: it compiles from source.
             inherit hermes;
-          }
-          # Valgrind's counts are Linux's, and the fingerprint reads x86_64's CPUID.
-          // pkgs.lib.optionalAttrs (pkgs.stdenv.hostPlatform.isLinux && pkgs.stdenv.hostPlatform.isx86_64) {
+            # Every host times; only x86_64 Linux's counts, which the fingerprint reads CPUID for.
             bench = rust2-bench;
           }
           # ra-jit and its toolchain for the benchmark's ra-jit variants, which build it
