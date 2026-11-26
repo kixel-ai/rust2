@@ -39,20 +39,17 @@ fn read(path: &Path) -> (String, Value) {
 	(measure.clone(), metrics)
 }
 
-/// Each benchmark's time in a sample, checked to lie within its interval.
+/// Each benchmark's time in a sample, a bare value: a time of one side has no interval.
 fn times(sample: &Value, measure: &str) -> Vec<(String, f64)> {
 	sample["metrics"]
 		.as_object()
 		.unwrap()
 		.iter()
 		.map(|(name, measures)| {
-			let time = &measures[measure];
+			let time = measures[measure].as_object().unwrap();
+			assert_eq!(time.len(), 1, "{name}: {time:?}");
 			let value = time["value"].as_f64().unwrap();
-			let (lower, upper) = (
-				time["lower_value"].as_f64().unwrap(),
-				time["upper_value"].as_f64().unwrap(),
-			);
-			assert!(0.0 < lower && lower <= value && value <= upper, "{name}: {time}");
+			assert!(value > 0.0, "{name}: {value}");
 			(name.clone(), value)
 		})
 		.collect()
@@ -103,7 +100,7 @@ fn times_each_harness_benchmark() {
 	// Eight times the spins, which no load makes look like under twice.
 	assert!(time("unstable[8000]") > 2.0 * time("unstable[1000]"), "{times:?}");
 	let table = String::from_utf8(out.stdout).unwrap();
-	assert!(table.starts_with("| benchmark | time | 95% interval |\n"), "{table}");
+	assert!(table.starts_with("| benchmark | time |\n"), "{table}");
 	assert_eq!(table.lines().count(), 2 + names.len(), "{table}");
 }
 

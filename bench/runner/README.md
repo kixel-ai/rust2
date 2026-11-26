@@ -166,23 +166,26 @@ benchmark of rust2-bench-harness by wall clock, one at a time, each in its own p
 sets it up once and then runs a sample for each request: as many calls as fill a millisecond of
 its timed part, found by doubling from one, or of 50 ms of the whole sample, when steps or
 inputs built between calls take far longer. A benchmark takes samples for a second, and ten at
-least, and its time is their median per call, with a 95% confidence interval from the order
-statistics around it, which holds whatever the samples' distribution and leaves out the samples
-a preemption spoiled. A target written with CodSpeed's crates fails the run: only a count
-measures those. The run's processes are neither preloaded nor padded, so their randomness,
+least, after its setup, and its time is their median per call, which the samples a preemption
+spoiled cannot move. It has no interval: load that slows many samples in a row makes them no
+independent evidence of it, so one would look far tighter than a repeat run bears out. A target
+written with CodSpeed's crates fails the run: only a count measures those. The run's processes are neither preloaded nor padded, so their randomness,
 clock, and addresses are the host's own.
 
 `rust2-bench time <base>` builds `<base>` in the worktree a compare keeps, then the working tree,
 and times each benchmark both have in two processes, the base's and the head's, alive together.
 It takes their samples in pairs, one of each side, in an order drawn anew for each pair, so load
-that drifts or recurs on a shared host biases neither side; it still widens the interval, which
-pairing cannot remove, only balance. Two processes of one build still differ by a few tenths of
+that drifts or recurs on a shared host biases neither side and slows both of a pair alike; it
+still widens the change's interval, which pairing cannot remove, only balance. Two processes of one build still differ by a few tenths of
 a percent, by where each lands in memory and on the CPU, which no interval holds: a change that
 small is one a pair of processes cannot tell. Each side's time is its own samples' median, and the change
-is the median of each pair's ratio, head over base, with its interval, printed as a Markdown
+is the median of each pair's ratio, head over base, with a 95% confidence interval from the
+order statistics around it, which holds whatever the ratios' distribution, printed as a Markdown
 table. A benchmark only one side has times alone, as added or removed, and a base's benchmarks
-of CodSpeed's crates time as none, so a base from before a rewrite to the harness still has its
-head's times reported. The base's worktree stays locked until the last benchmark is timed.
+of CodSpeed's crates time as none, as does a base's target of CodSpeed's crates whose every
+benchmark CodSpeed skips, such as one of only `iter_custom`'s, so a base from before a rewrite
+to the harness still has its head's times reported. A base builds into its worktree's own
+`target/`, in place of any target directory the run names. The base's worktree stays locked until the last benchmark is timed.
 
 Times compare only on one kind of host, so each run labels its hardware: the architecture and a
 hash of the CPU's model, as `/proc/cpuinfo` or macOS's `machdep.cpu.brand_string` names it, and
@@ -200,12 +203,12 @@ for what counts miss, such as syscalls, I/O, and contention.
  "units":{"instructions (x86_64-3059cd1d9e65)":"instructions"}}
 ```
 
-`time --out` writes the working tree's times as the run's own sample, each with its interval in
-`lower_value` and `upper_value`, and with a base, the base's as a sample naming its commit:
+`time --out` writes the working tree's times as the run's own sample, and with a base, the
+base's as a sample naming its commit:
 
 ```json
-{"samples":[{"commit":"<the base's full commit ID>","metrics":{"benches/varint.rs::encode[300]":{"time (x86_64-1a2b3c4d5e6f)":{"lower_value":20.1,"upper_value":20.6,"value":20.3}}}},
-            {"metrics":{"benches/varint.rs::encode[300]":{"time (x86_64-1a2b3c4d5e6f)":{"lower_value":19.0,"upper_value":19.4,"value":19.2}}}}],
+{"samples":[{"commit":"<the base's full commit ID>","metrics":{"benches/varint.rs::encode[300]":{"time (x86_64-1a2b3c4d5e6f)":{"value":20.3}}}},
+            {"metrics":{"benches/varint.rs::encode[300]":{"time (x86_64-1a2b3c4d5e6f)":{"value":19.2}}}}],
  "units":{"time (x86_64-1a2b3c4d5e6f)":"ns"}}
 ```
 

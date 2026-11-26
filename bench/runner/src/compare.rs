@@ -96,21 +96,13 @@ impl Checkout {
 			.map_err(|e| format!("cannot lock compare's worktree: {e}"))?;
 		checkout(&top, &tree, &sha)?;
 		let mut moved = options.clone();
-		moved.cargo = rebase(&options.cargo, &real, &tree)?;
 		// The base builds into the worktree's own target directory, kept warm with it: one the
-		// environment or a config shares with the working tree would get both sides' benchmark
-		// executables at one path, since Cargo names them alike whatever the workspace's path.
+		// environment, a config, or the run's own `--target-dir` shares with the working tree
+		// would get both sides' benchmark executables at one path, since Cargo names them alike
+		// whatever the workspace's path.
 		let target = tree.join("target");
-		let target = format!(
-			"--target-dir={}",
-			target.to_str().ok_or("compare's worktree path is not UTF-8")?
-		);
-		let at = moved
-			.cargo
-			.iter()
-			.position(|arg| arg == "--")
-			.unwrap_or(moved.cargo.len());
-		moved.cargo.insert(at, target);
+		let target = target.to_str().ok_or("compare's worktree path is not UTF-8")?;
+		moved.cargo = retarget(&rebase(&options.cargo, &real, &tree)?, target);
 		Ok(Self {
 			sha,
 			dir: tree.join(prefix),
@@ -123,6 +115,27 @@ impl Checkout {
 	pub fn short(&self) -> &str {
 		&self.sha[..12.min(self.sha.len())]
 	}
+}
+
+/// Cargo `args` building into `target`, in place of any `--target-dir` they name.
+fn retarget(args: &[String], target: &str) -> Vec<String> {
+	let mut out = Vec::with_capacity(args.len() + 1);
+	let mut args = args.iter();
+	while let Some(arg) = args.next() {
+		if arg == "--" {
+			out.push(format!("--target-dir={target}"));
+			out.push(arg.clone());
+			out.extend(args.by_ref().cloned());
+			return out;
+		}
+		if arg == "--target-dir" {
+			args.next();
+		} else if !arg.starts_with("--target-dir=") {
+			out.push(arg.clone());
+		}
+	}
+	out.push(format!("--target-dir={target}"));
+	out
 }
 
 /// The working tree of the repository at `top` as a commit: `HEAD` when nothing differs from
@@ -356,6 +369,27 @@ fn table(before: &Counts, after: &Counts) -> Result<String, String> {
 #[cfg(test)]
 mod tests {
 	use super::*;
+
+	#[test]
+	fn builds_the_base_into_its_own_target_directory_alone() {
+		let args = |list: &[&str]| list.iter().map(|s| (*s).to_owned()).collect::<Vec<_>>();
+		assert_eq!(
+			retarget(
+				&args(&[
+					"--target-dir",
+					"a",
+					"--locked",
+					"--target-dir=b",
+					"--",
+					"--target-dir",
+					"c"
+				]),
+				"/t"
+			),
+			args(&["--locked", "--target-dir=/t", "--", "--target-dir", "c"])
+		);
+		assert_eq!(retarget(&[], "/t"), args(&["--target-dir=/t"]));
+	}
 
 	#[test]
 	fn rebases_an_absolute_manifest_path_into_the_base() {

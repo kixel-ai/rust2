@@ -34,33 +34,21 @@ pub struct Sample {
 	/// The commit's full ID, when it is not the run's.
 	pub commit: Option<String>,
 	/// Each benchmark's value.
-	pub points: BTreeMap<String, Point>,
-}
-
-/// One benchmark's value, and the interval it lies in when it is an estimate.
-pub struct Point {
-	pub value: Number,
-	pub interval: Option<(Number, Number)>,
+	pub values: BTreeMap<String, Number>,
 }
 
 impl File {
 	/// `counts` as one sample of the run's own commit, a measure per benchmark.
 	pub fn counts(counts: &Counts) -> Self {
-		let points = counts
+		let values = counts
 			.counts
 			.iter()
-			.map(|(name, &ir)| {
-				let point = Point {
-					value: ir.into(),
-					interval: None,
-				};
-				(name.clone(), point)
-			})
+			.map(|(name, &ir)| (name.clone(), ir.into()))
 			.collect();
 		Self {
 			measure: measure(&counts.fingerprint),
 			unit: UNIT,
-			samples: vec![Sample { commit: None, points }],
+			samples: vec![Sample { commit: None, values }],
 		}
 	}
 
@@ -73,16 +61,11 @@ impl File {
 		let mut samples = Vec::new();
 		for sample in &self.samples {
 			let mut metrics = Map::new();
-			for (name, point) in &sample.points {
+			for (name, value) in &sample.values {
 				if name.is_empty() || name.chars().count() > NAME_LIMIT || name.chars().any(char::is_control) {
 					return Err(format!("Kixel Quest takes no benchmark named {name:?}"));
 				}
-				let mut metric = Map::from_iter([("value".to_owned(), Value::Number(point.value.clone()))]);
-				if let Some((lower, upper)) = &point.interval {
-					metric.insert("lower_value".to_owned(), Value::Number(lower.clone()));
-					metric.insert("upper_value".to_owned(), Value::Number(upper.clone()));
-				}
-				metrics.insert(name.clone(), json!({ measure: metric }));
+				metrics.insert(name.clone(), json!({ measure: { "value": value } }));
 			}
 			if metrics.is_empty() {
 				continue;
@@ -166,12 +149,8 @@ mod tests {
 	}
 
 	#[test]
-	fn writes_another_commits_sample_and_each_interval() {
-		let point = |value: f64, interval: Option<(f64, f64)>| Point {
-			value: Number::from_f64(value).unwrap(),
-			interval: interval
-				.map(|(lower, upper)| (Number::from_f64(lower).unwrap(), Number::from_f64(upper).unwrap())),
-		};
+	fn writes_another_commits_sample() {
+		let value = |value: f64| Number::from_f64(value).unwrap();
 		let base = "a".repeat(40);
 		let file = File {
 			measure: "time (aarch64-0123456789ab)".to_owned(),
@@ -179,15 +158,15 @@ mod tests {
 			samples: vec![
 				Sample {
 					commit: Some(base.clone()),
-					points: BTreeMap::from([("a".to_owned(), point(2.5, Some((2.0, 3.0))))]),
+					values: BTreeMap::from([("a".to_owned(), value(2.5))]),
 				},
 				Sample {
 					commit: None,
-					points: BTreeMap::from([("a".to_owned(), point(2.0, None))]),
+					values: BTreeMap::from([("a".to_owned(), value(2.0))]),
 				},
 				Sample {
 					commit: Some("b".repeat(40)),
-					points: BTreeMap::new(),
+					values: BTreeMap::new(),
 				},
 			],
 		};
@@ -195,7 +174,7 @@ mod tests {
 			file.json().unwrap(),
 			format!(
 				"{{\"samples\":[{{\"commit\":\"{base}\",\"metrics\":{{\"a\":{{\"time (aarch64-0123456789ab)\":\
-				 {{\"lower_value\":2.0,\"upper_value\":3.0,\"value\":2.5}}}}}}}},\
+				 {{\"value\":2.5}}}}}}}},\
 				 {{\"metrics\":{{\"a\":{{\"time (aarch64-0123456789ab)\":{{\"value\":2.0}}}}}}}}],\
 				 \"units\":{{\"time (aarch64-0123456789ab)\":\"ns\"}}}}\n"
 			)

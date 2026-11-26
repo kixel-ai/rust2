@@ -133,9 +133,9 @@ after it. Natively the requests are instructions that do nothing, so `cargo benc
 runs that benchmark alone, which rust2-bench sets on each job. It takes no arguments but
 Cargo's own `--bench` and `--quiet`; rust2-bench's `--benchmarks` chooses benchmarks.
 
-With `RUST2_BENCH_TIME=1` as well, it sets that benchmark up and then times it, a sample for
-each iteration count a line of stdin holds, printing `rust2-bench sample <nanoseconds>` on a
-line of its own after each, until stdin ends. rust2-bench drives it so, and reads a benchmark's
+With `RUST2_BENCH_TIME=1` as well, it sets that benchmark up, prints `rust2-bench ready` on a
+line of its own, and then times it, a sample for each iteration count a line of stdin holds,
+printing `rust2-bench sample <nanoseconds>` on a line of its own after each, until stdin ends. rust2-bench drives it so, and reads a benchmark's
 own output on stdout around its samples.
 
 Under Valgrind with `--instr-atstart=no`, as rust2-bench runs it, each case's count is

@@ -21,6 +21,10 @@ const TIME: &str = "RUST2_BENCH_TIME";
 /// What a run prints after each benchmark, before its name, which rust2-bench lists them by.
 const RAN: &str = "rust2-bench ran ";
 
+/// What a timed run prints, alone on a line, once its benchmark is set up, so no sample's
+/// time waits on setup.
+const READY: &str = "rust2-bench ready";
+
 /// What a timed run prints, alone on a line, before each sample's nanoseconds.
 const SAMPLE: &str = "rust2-bench sample ";
 
@@ -105,10 +109,13 @@ fn run() -> Result<(), String> {
 	Ok(())
 }
 
-/// Times `sampler` once for each line of `commands`, an iteration count, printing each sample's
-/// nanoseconds to `out` until `commands` ends. Each sample's line starts a line of its own, so a
-/// benchmark's own unfinished line never runs into it.
+/// Says `sampler` is ready, then times it once for each line of `commands`, an iteration count,
+/// printing each sample's nanoseconds to `out` until `commands` ends. Each line it prints starts
+/// a line of its own, so a benchmark's own unfinished line never runs into it.
 fn serve(mut sampler: Box<dyn __private::Sampler>, commands: impl BufRead, mut out: impl Write) -> Result<(), String> {
+	write!(out, "\n{READY}\n")
+		.and_then(|()| out.flush())
+		.map_err(|e| format!("cannot say the benchmark is ready: {e}"))?;
 	for line in commands.lines() {
 		let line = line.map_err(|e| format!("cannot read a sample's iterations: {e}"))?;
 		let iterations = line
@@ -675,7 +682,7 @@ mod tests {
 		serve(sampler, "1\n4\n".as_bytes(), &mut out).unwrap();
 		assert_eq!(
 			String::from_utf8(out).unwrap(),
-			"\nrust2-bench sample 10\n\nrust2-bench sample 40\n"
+			"\nrust2-bench ready\n\nrust2-bench sample 10\n\nrust2-bench sample 40\n"
 		);
 		for bad in ["0\n", "x\n", " 1\n"] {
 			let err = serve(nothing(), bad.as_bytes(), Vec::new()).unwrap_err();

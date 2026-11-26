@@ -1,6 +1,6 @@
 //! Wall-clock times of the working tree's benchmarks, each alone, or each paired with a base
 //! commit's: a sample of one beside a sample of the other, in an order drawn anew for each pair,
-//! so host load that drifts or recurs biases neither side. Load still widens the interval.
+//! so host load that drifts or recurs biases neither side. Load still widens the change's interval.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::Write as _;
@@ -35,8 +35,8 @@ const MIN_SAMPLES: usize = 10;
 /// nothing the clock can see.
 const MAX_ITERATIONS: u64 = 1 << 40;
 
-/// The variable that has a harness target time the benchmark `RUST2_BENCH` names.
-const TIME: &str = "RUST2_BENCH_TIME";
+/// What a timed harness target prints, alone on a line, once its benchmark is set up.
+const READY: &str = "rust2-bench ready";
 
 /// What a timed harness target prints, alone on a line, before each sample's nanoseconds.
 const SAMPLE: &str = "rust2-bench sample ";
@@ -80,7 +80,9 @@ pub fn time(base: Option<&str>, options: &Options) -> Result<(), String> {
 		None => None,
 	};
 	eprintln!("rust2-bench: building the working tree");
-	let after = by_name(cargo::jobs(Path::new("."), &options.cargo, before.is_none())?);
+	// Strict even with a base, so a target of CodSpeed's crates at the head always fails below or
+	// in listing, rather than time as none.
+	let after = by_name(cargo::jobs(Path::new("."), &options.cargo, true)?);
 	if let Some(job) = after.values().find(|job| job.codspeed) {
 		return Err(format!(
 			"{} is a benchmark of CodSpeed's crates, which only a count measures: write it with rust2-bench-harness, \
@@ -377,26 +379,24 @@ impl Which {
 	}
 }
 
-/// One benchmark's times, in nanoseconds an iteration: one side's, or both sides' and the
-/// head's over the base's.
+/// One benchmark's times, each side's median in nanoseconds an iteration: one side's, or both
+/// sides' and the head's over the base's, with its interval. A side's own time has none: load
+/// that slows many samples in a row makes them no independent evidence of it, while it slows
+/// both of a pair alike.
 #[derive(Debug, PartialEq)]
 enum Times {
-	Base(Estimate),
-	Head(Estimate),
-	Both {
-		base: Estimate,
-		head: Estimate,
-		ratio: Estimate,
-	},
+	Base(f64),
+	Head(f64),
+	Both { base: f64, head: f64, ratio: Estimate },
 }
 
 impl Times {
 	/// The times of a benchmark one side has.
 	fn alone(side: Which, iterations: u64, samples: &[u64]) -> Result<Self, String> {
-		let estimate = Estimate::median(each(iterations, samples.iter().copied())?);
+		let time = Estimate::median(each(iterations, samples.iter().copied())?).value;
 		Ok(match side {
-			Which::Base => Self::Base(estimate),
-			Which::Head => Self::Head(estimate),
+			Which::Base => Self::Base(time),
+			Which::Head => Self::Head(time),
 		})
 	}
 
@@ -407,20 +407,20 @@ impl Times {
 		// Each pair's ratio, in logs, so a pair twice as slow weighs as one twice as fast.
 		let ratios = base.iter().zip(&head).map(|(b, h)| (h / b).ln()).collect();
 		Ok(Self::Both {
-			base: Estimate::median(base),
-			head: Estimate::median(head),
+			base: Estimate::median(base).value,
+			head: Estimate::median(head).value,
 			ratio: Estimate::median(ratios).map(f64::exp),
 		})
 	}
 
-	fn base(&self) -> Option<Estimate> {
+	fn base(&self) -> Option<f64> {
 		match self {
 			Self::Base(base) | Self::Both { base, .. } => Some(*base),
 			Self::Head(_) => None,
 		}
 	}
 
-	fn head(&self) -> Option<Estimate> {
+	fn head(&self) -> Option<f64> {
 		match self {
 			Self::Head(head) | Self::Both { head, .. } => Some(*head),
 			Self::Base(_) => None,
@@ -431,8 +431,8 @@ impl Times {
 	fn summary(&self) -> String {
 		match self {
 			Self::Both { ratio, .. } => change(*ratio),
-			Self::Base(base) => format!("{} (base only)", duration(base.value)),
-			Self::Head(head) => duration(head.value),
+			Self::Base(base) => format!("{} (base only)", duration(*base)),
+			Self::Head(head) => duration(*head),
 		}
 	}
 }
@@ -477,12 +477,11 @@ fn change(ratio: Estimate) -> String {
 
 /// Each benchmark's time as a Markdown table, and with a base, the base's and the change.
 fn table(times: &BTreeMap<String, Times>, paired: bool) -> String {
-	let interval = |estimate: Estimate| format!("{} to {}", duration(estimate.lower), duration(estimate.upper));
-	let cell = |estimate: Option<Estimate>| estimate.map_or("-".to_owned(), |estimate| duration(estimate.value));
+	let cell = |time: Option<f64>| time.map_or("-".to_owned(), duration);
 	let mut out = if paired {
 		String::from("| benchmark | base | head | change | 95% interval |\n|---|---:|---:|---:|---:|\n")
 	} else {
-		String::from("| benchmark | time | 95% interval |\n|---|---:|---:|\n")
+		String::from("| benchmark | time |\n|---|---:|\n")
 	};
 	for (name, times) in times {
 		// A `|` in a name would split its cell.
@@ -507,7 +506,7 @@ fn table(times: &BTreeMap<String, Times>, paired: bool) -> String {
 			)
 		} else {
 			let head = times.head().expect("an unpaired run times the working tree's alone");
-			writeln!(out, "| {shown} | {} | {} |", duration(head.value), interval(head))
+			writeln!(out, "| {shown} | {} |", duration(head))
 		}
 		.expect("a String takes every write");
 	}
@@ -517,22 +516,22 @@ fn table(times: &BTreeMap<String, Times>, paired: bool) -> String {
 /// The times as a `metrics.json`: the working tree's as the run's own commit's, and the base's,
 /// when there is one, as its commit's.
 fn file(times: &BTreeMap<String, Times>, host: &str, base: Option<&str>) -> metrics::File {
-	let points = |side: fn(&Times) -> Option<Estimate>| -> BTreeMap<String, metrics::Point> {
+	let values = |side: fn(&Times) -> Option<f64>| -> BTreeMap<String, Number> {
 		times
 			.iter()
-			.filter_map(|(name, times)| side(times).map(|estimate| (name.clone(), point(estimate))))
+			.filter_map(|(name, times)| side(times).map(|time| (name.clone(), number(time))))
 			.collect()
 	};
 	let mut samples = Vec::new();
 	if let Some(base) = base {
 		samples.push(metrics::Sample {
 			commit: Some(base.to_owned()),
-			points: points(Times::base),
+			values: values(Times::base),
 		});
 	}
 	samples.push(metrics::Sample {
 		commit: None,
-		points: points(Times::head),
+		values: values(Times::head),
 	});
 	metrics::File {
 		measure: format!("time ({host})"),
@@ -541,16 +540,10 @@ fn file(times: &BTreeMap<String, Times>, host: &str, base: Option<&str>) -> metr
 	}
 }
 
-/// An estimate as a point, to five significant digits, more than a time's interval resolves.
-fn point(estimate: Estimate) -> metrics::Point {
-	let number = |value: f64| {
-		let rounded: f64 = format!("{value:.4e}").parse().expect("a float reads back");
-		Number::from_f64(rounded).expect("a time is finite")
-	};
-	metrics::Point {
-		value: number(estimate.value),
-		interval: Some((number(estimate.lower), number(estimate.upper))),
-	}
+/// A time to five significant digits, more than load lets a run resolve.
+fn number(time: f64) -> Number {
+	let rounded: f64 = format!("{time:.4e}").parse().expect("a float reads back");
+	Number::from_f64(rounded).expect("a time is finite")
 }
 
 /// A harness target's process timing one benchmark, set up once, a sample for each request.
@@ -565,7 +558,8 @@ struct Process {
 }
 
 impl Process {
-	/// Starts `job`'s target timing its benchmark, its output in `dir`.
+	/// Starts `job`'s target timing its benchmark, its output in `dir`, and waits until its
+	/// benchmark is set up, so no sample's time takes in setup.
 	fn spawn(job: Job, dir: &Path) -> Result<Self, String> {
 		let Job { label, mut command, .. } = job;
 		std::fs::create_dir_all(dir).map_err(|e| format!("cannot create {}: {e}", dir.display()))?;
@@ -574,7 +568,7 @@ impl Process {
 				.map_err(|e| format!("cannot create {}: {e}", dir.join(name).display()))
 		};
 		let mut child = command
-			.env(TIME, "1")
+			.env(cargo::HARNESS_TIME, "1")
 			.stdin(Stdio::piped())
 			.stdout(Stdio::piped())
 			.stderr(file("stderr")?)
@@ -582,14 +576,35 @@ impl Process {
 			.map_err(|e| format!("cannot run {label}: {e}"))?;
 		let stdin = child.stdin.take().expect("stdin is piped");
 		let stdout = BufReader::new(child.stdout.take().expect("stdout is piped"));
-		Ok(Self {
+		let mut process = Self {
 			label,
 			dir: dir.to_owned(),
 			child,
 			stdin,
 			stdout,
 			log: file("stdout")?,
-		})
+		};
+		process.read(READY)?;
+		Ok(process)
+	}
+
+	/// What follows `prefix` on the next line the target prints that starts with it, keeping the
+	/// lines before it in its log.
+	fn read(&mut self, prefix: &str) -> Result<String, String> {
+		let mut line = String::new();
+		loop {
+			line.clear();
+			match self.stdout.read_line(&mut line) {
+				Ok(0) | Err(_) => return Err(self.failure()),
+				Ok(_) => {}
+			}
+			if let Some(rest) = line.strip_prefix(prefix).and_then(|rest| rest.strip_suffix('\n')) {
+				return Ok(rest.to_owned());
+			}
+			self.log
+				.write_all(line.as_bytes())
+				.map_err(|e| format!("cannot keep {}'s output: {e}", self.label))?;
+		}
 	}
 
 	/// Why the process stopped answering: how it exited, and where its output is.
@@ -639,26 +654,14 @@ impl Side for Process {
 		{
 			return Err(self.failure());
 		}
-		let mut line = String::new();
-		loop {
-			line.clear();
-			match self.stdout.read_line(&mut line) {
-				Ok(0) | Err(_) => return Err(self.failure()),
-				Ok(_) => {}
-			}
-			if let Some(nanos) = line.strip_prefix(SAMPLE).and_then(|rest| rest.strip_suffix('\n')) {
-				let nanos = nanos
-					.parse()
-					.map_err(|_| format!("{} printed a sample of {nanos:?} nanoseconds", self.label))?;
-				return Ok(Sample {
-					nanos,
-					wall: started.elapsed(),
-				});
-			}
-			self.log
-				.write_all(line.as_bytes())
-				.map_err(|e| format!("cannot keep {}'s output: {e}", self.label))?;
-		}
+		let nanos = self.read(SAMPLE)?;
+		let nanos = nanos
+			.parse()
+			.map_err(|_| format!("{} printed a sample of {nanos:?} nanoseconds", self.label))?;
+		Ok(Sample {
+			nanos,
+			wall: started.elapsed(),
+		})
 	}
 }
 
@@ -817,13 +820,13 @@ mod tests {
 			(
 				"a".to_owned(),
 				Times::Both {
-					base: estimate(2000.0),
-					head: estimate(1500.0),
+					base: 2000.0,
+					head: 1500.0,
 					ratio: estimate(0.75),
 				},
 			),
-			("gone".to_owned(), Times::Base(estimate(5.0))),
-			("new|x".to_owned(), Times::Head(estimate(12_345_678.0))),
+			("gone".to_owned(), Times::Base(5.0)),
+			("new|x".to_owned(), Times::Head(12_345_678.0)),
 		]);
 		assert_eq!(
 			table(&times, true),
@@ -839,7 +842,10 @@ mod tests {
 		assert_eq!(json["units"][measure], "ns");
 		assert_eq!(json["samples"][0]["commit"], base);
 		assert_eq!(json["samples"][0]["metrics"]["gone"][measure]["value"], 5.0);
-		assert_eq!(json["samples"][0]["metrics"]["a"][measure]["upper_value"], 2200.0);
+		assert_eq!(
+			json["samples"][0]["metrics"]["a"][measure],
+			serde_json::json!({ "value": 2000.0 })
+		);
 		assert!(json["samples"][1].get("commit").is_none());
 		assert_eq!(json["samples"][1]["metrics"]["new|x"][measure]["value"], 12_346_000.0);
 		assert!(json["samples"][1]["metrics"].get("gone").is_none());
