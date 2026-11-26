@@ -229,7 +229,12 @@ table. A benchmark only one side has times alone, as added or removed, and a bas
 of CodSpeed's crates time as none, as does a base's target of CodSpeed's crates whose every
 benchmark CodSpeed skips, such as one of only `iter_custom`'s, so a base from before a rewrite
 to the harness still has its head's times reported. A base builds into its worktree's own
-`target/`, in place of any target directory the run names. The base's worktree stays locked until the last benchmark is timed.
+`target/`, in place of any target directory the run names. Each side builds only the Cargo
+selectors its own revision has, as [compare](#compare) selects them, the working tree's from its
+files whether committed or not, so a `-p` or `--bench` naming a new or removed package or target
+times its benchmarks as added or removed, and a side left with none of them times none. A
+selector neither side has fails before either side builds.
+The base's worktree stays locked until the last benchmark is timed.
 
 Times compare only on one kind of host, so each run labels its hardware: the architecture and a
 hash of the CPU's model, as `/proc/cpuinfo` or macOS's `machdep.cpu.brand_string` names it, and

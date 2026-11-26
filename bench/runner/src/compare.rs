@@ -54,17 +54,7 @@ pub fn compare(base: &str, options: &Options) -> Result<(), String> {
 		tree.display()
 	);
 	let head_picked = pick(&dir, &both, &args, "the working tree")?;
-	let neither: Vec<&str> = picked
-		.lacks
-		.intersection(&head_picked.lacks)
-		.map(String::as_str)
-		.collect();
-	if !neither.is_empty() {
-		return Err(format!(
-			"neither {base} nor the working tree has {}",
-			neither.join(", ")
-		));
-	}
+	neither(base, &picked, &head_picked)?;
 	let after = count(&dir, &both, &head_picked, "the working tree")?;
 	drop(lock);
 	if let Some(wanted) = &options.benchmarks {
@@ -84,6 +74,8 @@ pub fn compare(base: &str, options: &Options) -> Result<(), String> {
 /// A base commit checked out alone in compare's worktree for a time, which builds the working
 /// tree where it is beside it, held from any other compare or time until dropped.
 pub struct Checkout {
+	/// The commit as the run names it.
+	pub base: String,
 	/// The commit's full ID.
 	pub sha: String,
 	/// Where to build it: the same place within the worktree as the run is within the repository.
@@ -122,6 +114,7 @@ impl Checkout {
 		let target = target.to_str().ok_or("compare's worktree path is not UTF-8")?;
 		moved.cargo = retarget(&rebase(&options.cargo, &real, &tree)?, target);
 		Ok(Self {
+			base: base.to_owned(),
 			sha,
 			dir: tree.join(prefix),
 			options: moved,
@@ -133,6 +126,40 @@ impl Checkout {
 	pub fn short(&self) -> &str {
 		&self.sha[..12.min(self.sha.len())]
 	}
+
+	/// What the base and the working tree where the run is each build of their Cargo args, the
+	/// working tree's those of `options`, as compare selects each side.
+	pub fn select(&self, options: &Options) -> Result<Sides, String> {
+		let (base, head) = (parse(&self.options.cargo)?, parse(&options.cargo)?);
+		let before = pick(&self.dir, &self.options, &base, &self.base)?;
+		// The run's own directory is the working tree's whether or not Git tracks it yet.
+		let after = pick_in(Path::new("."), options, &head, "the working tree")?;
+		neither(&self.base, &before, &after)?;
+		Ok(Sides {
+			base: before.args,
+			head: after.args,
+		})
+	}
+}
+
+/// The Cargo args each side builds, `None` for a side with nothing they select.
+pub struct Sides {
+	/// The base's, in its worktree.
+	pub base: Option<Vec<String>>,
+	/// The working tree's.
+	pub head: Option<Vec<String>>,
+}
+
+/// Fails on a selector neither `before`, the side `base`, nor `after`, the working tree, has.
+fn neither(base: &str, before: &Selection, after: &Selection) -> Result<(), String> {
+	let neither: Vec<&str> = before.lacks.intersection(&after.lacks).map(String::as_str).collect();
+	if neither.is_empty() {
+		return Ok(());
+	}
+	Err(format!(
+		"neither {base} nor the working tree has {}",
+		neither.join(", ")
+	))
 }
 
 /// Cargo `args` building into `target`, in place of any `--target-dir` they name.
@@ -369,28 +396,36 @@ fn pick(dir: &Path, options: &Options, args: &[Arg], side: &str) -> Result<Selec
 			lacks: BTreeSet::new(),
 		});
 	}
-	// A directory or manifest only one side has, such as a new package's, selects nothing on the
-	// other. The directory counts only when the side's revision tracks it, since an earlier side's
-	// build may have left its output there.
-	let absent = if !dir.exists() || git(dir, &["ls-tree", "HEAD", "--", "."])?.is_empty() {
-		Some(dir.display().to_string())
-	} else {
-		crate::cargo::manifest_path(&options.cargo)
-			.filter(|manifest| !dir.join(manifest).exists())
-			.map(|manifest| format!("--manifest-path {manifest}"))
-	};
-	if let Some(absent) = absent {
-		eprintln!("rust2-bench: {side} has no {absent}, so counts none");
-		// It lacks every selector too, so one the other side also lacks still fails.
-		let mut lacks = select(args, &Members::default())?.lacks;
-		lacks.insert(absent);
-		return Ok(Selection { args: None, lacks });
+	// A directory only one side has, such as a new package's, selects nothing on the other. The
+	// directory counts only when the side's revision tracks it, since an earlier side's build may
+	// have left its output there.
+	if !dir.exists() || git(dir, &["ls-tree", "HEAD", "--", "."])?.is_empty() {
+		return none(args, side, dir.display().to_string());
+	}
+	pick_in(dir, options, args, side)
+}
+
+/// What the side in `dir`, which has that directory, builds of `args`, as `pick` says.
+fn pick_in(dir: &Path, options: &Options, args: &[Arg], side: &str) -> Result<Selection, String> {
+	// A manifest only one side has selects nothing on the other.
+	if let Some(manifest) = crate::cargo::manifest_path(&options.cargo).filter(|manifest| !dir.join(manifest).exists())
+	{
+		return none(args, side, format!("--manifest-path {manifest}"));
 	}
 	let selection = select(args, &crate::cargo::members(dir, &options.cargo)?)?;
 	for lacked in &selection.lacks {
 		eprintln!("rust2-bench: {side} has no {lacked}, so builds without it");
 	}
 	Ok(selection)
+}
+
+/// The selection of a side, which the log calls `side`, that has no `absent` and so builds nothing.
+fn none(args: &[Arg], side: &str, absent: String) -> Result<Selection, String> {
+	eprintln!("rust2-bench: {side} has no {absent}, so builds nothing");
+	// It lacks every selector too, so one the other side also lacks still fails.
+	let mut lacks = select(args, &Members::default())?.lacks;
+	lacks.insert(absent);
+	Ok(Selection { args: None, lacks })
 }
 
 /// Counts the side checked out under `dir`, which the log calls `side`, building what `selection` picked.

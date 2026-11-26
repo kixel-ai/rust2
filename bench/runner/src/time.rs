@@ -58,15 +58,23 @@ pub fn time(base: Option<&str>, options: &Options) -> Result<(), String> {
 	eprintln!("rust2-bench: host {host}");
 	// Held until the base is timed, so no other compare checks out another commit under it.
 	let checkout = base.map(|base| Checkout::new(base, options)).transpose()?;
-	let before = match &checkout {
+	// Each side builds only the packages and targets of the Cargo args its revision has.
+	let (before, head) = match &checkout {
 		Some(checkout) => {
+			let sides = checkout.select(options)?;
+			(Some((checkout, sides.base)), sides.head)
+		}
+		None => (None, Some(options.cargo.clone())),
+	};
+	let before = match before {
+		Some((checkout, Some(cargo))) => {
 			eprintln!(
 				"rust2-bench: building {} ({}) in {}",
-				base.expect("a checkout is of the base"),
+				checkout.base,
 				checkout.short(),
 				checkout.dir.display()
 			);
-			let jobs = cargo::jobs(&checkout.dir, &checkout.options.cargo, Lacking::Counted)?;
+			let jobs = cargo::jobs(&checkout.dir, &cargo, Lacking::Counted)?;
 			// A base from before a rewrite to rust2-bench-harness has only CodSpeed's benchmarks,
 			// which a time leaves out, so every benchmark of the head times alone.
 			let (codspeed, jobs): (Vec<Job>, Vec<Job>) = jobs.into_iter().partition(|job| job.codspeed);
@@ -78,16 +86,31 @@ pub fn time(base: Option<&str>, options: &Options) -> Result<(), String> {
 			}
 			Some(by_name(jobs))
 		}
+		Some((checkout, None)) => {
+			eprintln!(
+				"rust2-bench: {} has nothing the cargo args select, so times none",
+				checkout.base
+			);
+			Some(BTreeMap::new())
+		}
 		None => None,
 	};
-	eprintln!("rust2-bench: building the working tree");
-	// With a base, the head may have no benchmark target left, its base's all removed.
-	let lacking = if before.is_some() {
-		Lacking::Targets
-	} else {
-		Lacking::Nothing
+	let after = match head {
+		Some(cargo) => {
+			eprintln!("rust2-bench: building the working tree");
+			// With a base, the head may have no benchmark target left, its base's all removed.
+			let lacking = if before.is_some() {
+				Lacking::Targets
+			} else {
+				Lacking::Nothing
+			};
+			by_name(cargo::jobs(Path::new("."), &cargo, lacking)?)
+		}
+		None => {
+			eprintln!("rust2-bench: the working tree has nothing the cargo args select, so times none");
+			BTreeMap::new()
+		}
 	};
-	let after = by_name(cargo::jobs(Path::new("."), &options.cargo, lacking)?);
 	if let Some(job) = after.values().find(|job| job.codspeed) {
 		return Err(format!(
 			"{} is a benchmark of CodSpeed's crates, which only a count measures: write it with rust2-bench-harness, \

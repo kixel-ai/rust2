@@ -224,3 +224,111 @@ fn pairs_a_base_commit_with_the_working_tree() {
 		.unwrap();
 	assert!(change > 50.0, "{table}");
 }
+
+/// Writes a workspace package `name` under `repo` with one harness benchmark target, `bench`.
+fn package(repo: &Path, name: &str, bench: &str) {
+	let dir = repo.join(name);
+	std::fs::create_dir_all(dir.join("benches")).unwrap();
+	std::fs::create_dir_all(dir.join("src")).unwrap();
+	let harness = Path::new(env!("CARGO_MANIFEST_DIR")).join("harness");
+	std::fs::write(
+		dir.join("Cargo.toml"),
+		format!(
+			"[package]\nname = \"{name}\"\nedition = \"2024\"\npublish = false\n\n\
+			 [dev-dependencies]\nrust2-bench-harness = {{ path = {harness:?} }}\n\n\
+			 [[bench]]\nname = \"{bench}\"\nharness = false\n"
+		),
+	)
+	.unwrap();
+	std::fs::write(dir.join("src/lib.rs"), "").unwrap();
+	std::fs::write(dir.join("benches").join(format!("{bench}.rs")), spins(1000, "other")).unwrap();
+}
+
+#[test]
+fn times_a_selection_only_one_side_has() {
+	let dir = scratch("time-select");
+	let repo = dir.join("repo");
+	std::fs::create_dir_all(&repo).unwrap();
+	std::fs::copy(
+		Path::new(env!("CARGO_MANIFEST_DIR")).join("Cargo.lock"),
+		repo.join("Cargo.lock"),
+	)
+	.unwrap();
+	std::fs::write(repo.join(".gitignore"), "/target\n").unwrap();
+	std::fs::write(
+		repo.join("Cargo.toml"),
+		"[workspace]\nmembers = [\"a\"]\nresolver = \"3\"\n",
+	)
+	.unwrap();
+	package(&repo, "a", "x");
+	git(&repo, &["init", "--quiet"]);
+	git(&repo, &["add", "."]);
+	git(
+		&repo,
+		&[
+			"-c",
+			"user.name=t",
+			"-c",
+			"user.email=t@t",
+			"-c",
+			"commit.gpgsign=false",
+			"commit",
+			"--quiet",
+			"-m",
+			"base",
+		],
+	);
+	// The head adds a package, which a run names before committing it.
+	std::fs::write(
+		repo.join("Cargo.toml"),
+		"[workspace]\nmembers = [\"a\", \"b\"]\nresolver = \"3\"\n",
+	)
+	.unwrap();
+	package(&repo, "b", "y");
+	let time = |cargo: &[&str]| {
+		Command::new(env!("CARGO_BIN_EXE_rust2-bench"))
+			.args(["time", "HEAD", "--"])
+			.args(cargo)
+			.current_dir(&repo)
+			.env("XDG_CACHE_HOME", dir.join("cache"))
+			.env("CARGO_TARGET_DIR", dir.join("target"))
+			.env("CARGO_NET_OFFLINE", "true")
+			.output()
+			.unwrap()
+	};
+
+	let out = time(&["-p", "a", "--package=b", "--bench", "x", "--bench=y"]);
+	let err = String::from_utf8_lossy(&out.stderr).into_owned();
+	assert!(out.status.success(), "{err}");
+	assert!(err.contains("HEAD has no -p b"), "{err}");
+	assert!(err.contains("HEAD has no --bench y"), "{err}");
+	let table = String::from_utf8(out.stdout).unwrap();
+	// Each package's three benchmarks, `b`'s only at the head.
+	assert_eq!(table.lines().count(), 2 + 6, "{table}");
+	for row in table.lines().skip(2) {
+		assert_eq!(
+			row.contains("| added |"),
+			row.starts_with("| b/benches/y.rs::"),
+			"{table}"
+		);
+	}
+
+	// The head's package alone: the base times nothing, rather than every benchmark.
+	let out = time(&["-p", "b"]);
+	let err = String::from_utf8_lossy(&out.stderr).into_owned();
+	assert!(out.status.success(), "{err}");
+	assert!(
+		err.contains("HEAD has nothing the cargo args select, so times none"),
+		"{err}"
+	);
+	let table = String::from_utf8(out.stdout).unwrap();
+	assert_eq!(table.matches("| added |").count(), 3, "{table}");
+	assert_eq!(table.lines().count(), 2 + 3, "{table}");
+
+	// A selector neither side has still fails, before either side builds.
+	let out = time(&["-p", "a", "-p", "c"]);
+	let err = String::from_utf8_lossy(&out.stderr);
+	assert!(!out.status.success());
+	assert!(err.contains("neither HEAD nor the working tree has -p c"), "{err}");
+	assert!(!err.contains("building"), "{err}");
+}
