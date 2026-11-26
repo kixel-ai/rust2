@@ -10,9 +10,10 @@ set shell := ["bash", "-euo", "pipefail", "-c"]
 cargo_shim := if env("RUST2_CARGO_SHIM", "") == "" { "" } else { env("RUST2_CARGO_SHIM") + ":" }
 export PATH := if env("RUST2_TS_TOOLCHAIN", "") == "" { env("PATH") } else { cargo_shim + env("RUST2_TS_TOOLCHAIN") / "bin:" + env("PATH") }
 
-# The exporter, built and then run itself: `cargo run` would hand it, as $CARGO, the cargo
-# that mbx's shim chains to, so its checks would compile every crate with no cache.
-exporter := "cargo build --locked --quiet; target/debug/rust2-ffi"
+# The exporter, run without the $CARGO `cargo run` hands it: that names the cargo mbx's shim
+# chains to, so its checks would compile every crate with no cache. A runner, so it keeps the
+# library paths cargo sets for the nightly's rustc_driver.
+exporter := "cargo run --locked --quiet --config \"target.'cfg(all())'.runner=['env','-u','CARGO']\" --"
 
 # The moq revision these recipes export by default. It is the exporter's own pin, apart from
 # the model fixture's in ts/fixtures/model/Cargo.toml, so bumping one does not wait on the other.
