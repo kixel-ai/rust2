@@ -12,6 +12,7 @@ nix run github:kixel-ai/rust2#bench -- run --out metrics.json   # or, without Ni
 cargo install --locked --git https://github.com/kixel-ai/rust2 rust2-bench   # Valgrind from PATH
 rust2-bench run [--benchmarks <file> [--allow-missing]] [--out metrics.json] [--jobs <n>] [-- <cargo bench args>]
 rust2-bench compare <base> [--benchmarks <file>] [--jobs <n>] [-- <cargo bench args>]
+rust2-bench run --perf    # or compare <base> --perf: natively, with Linux perf counters
 rust2-bench fingerprint
 ```
 
@@ -156,11 +157,51 @@ only its commit. A clean working tree counts `HEAD` itself. It refuses two finge
 with no benchmark at all, as a base before the first, counts as none. An
 absolute `--manifest-path` in the repository counts the same manifest in the base's worktree,
 and one outside it is refused, since both sides would count it.
-Cargo args select the same targets on both sides, so a `--bench` or `-p` naming a target or
-package only one side has fails that side's build: compare every target, and name the
-benchmarks with `--benchmarks`, which takes one present on only one side.
+A change may add or remove a package or benchmark target, so each side builds only the `-p`
+(`--package`) and `--bench` selectors its own revision has, from its `cargo metadata` after its
+checkout, leaving out each `--features package/feature` whose package is neither one it builds nor one
+of their dependencies, and prints each it left out; a `--bench` is looked for among the packages
+Cargo builds, every member `--workspace` does not `--exclude`, which overrides `-p`, else those
+`-p` selects, else the default ones. A side left with none of the packages, or under
+`--workspace` none `--exclude` leaves, or none of the targets, unless beside `--benches` or
+`--all-targets`, or without the directory compare runs from or the manifest `--manifest-path`
+names, counts none, and its benchmarks read as added or removed. A selector neither side has
+fails, as does one compare cannot resolve by name alone, such as `name@1.0` or a glob, and a
+`--features package/feature` under Cargo's resolver 1, which also applies it to the current
+package.
 Another compare of the same repository waits, on a lock beside the worktree, until this one
 has counted both sides.
+
+## Perf counters
+
+`--perf` counts each benchmark of [rust2-bench-harness](harness/README.md) natively, without
+Valgrind's 20 to 50 times slowdown, with a Linux perf counter of its user-space instructions
+(`instructions:u`), for a quick compare on one x86_64 Linux host, where the preload is built. A target of CodSpeed's crates, or a
+`--program`, fails the run, as does a host that lets no process count its own instructions,
+such as a VM without its PMU passed through, a `kernel.perf_event_paranoid` above 2, or
+GitHub's hosted runners: rust2-bench opens a counter before it builds anything, and names the
+setting. The counts never leave the host, so `--out` refuses them: a binary that picks a path by
+CPU feature counts differently on another CPU, and CI's series stay on Valgrind's.
+
+Each job runs as a count does, with the preload, which the harness fails a process for not
+having loaded, and a padded launch, but natively, without
+address randomization, which the copy loop glibc picks by alignment would follow, and pinned
+to the CPUs of one core PMU. On a host whose cores are of two kinds, such as Intel's P- and
+E-cores, each kind has its own PMU, which counts only on its own cores and whose cores report
+their own cache sizes, from which glibc sizes its copies; so every job runs on the kind with
+the most cores, and `--jobs` defaults to how many there are.
+
+The harness opens a counter on each of the process's threads after the case's setup, each
+also counting every thread its thread spawns, starts them all at once, and stops them right
+after the call, so a count holds the call on every thread and a few dozen instructions of the
+counters' own. A thread that starts while they open fails the run, since it would count twice
+or not at all; one a setup's pool is still creating as they open may yet go uncounted, a count
+already named noisy, since that pool's threads ran beside it. A counter that did not run the whole time it was enabled fails the run rather
+than be scaled up: another user of the host's counters multiplexed it, or a thread left the
+PMU's cores. A count that other threads ran beside, setup's or the benchmark's own, is noisy,
+since what they run while the call does depends on the scheduler: the table names each one.
+Run under Valgrind, the same benchmark counts within those few dozen instructions when it runs
+alone.
 
 ## Output
 

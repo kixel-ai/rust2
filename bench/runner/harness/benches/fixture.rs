@@ -1,5 +1,6 @@
 //! The benchmarks rust2-bench's tests count: a loop of known length alone, by argument, in a
-//! module, in an order that changes, and behind a setup whose own work must go uncounted.
+//! module, in an order that changes, behind a setup whose own work must go uncounted, and on
+//! another thread, which must count.
 
 use std::hint::black_box;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -73,6 +74,36 @@ fn shuffled() -> [u64; 2] {
 #[bench(args = shuffled())]
 fn unstable(n: u64) -> u64 {
 	spin(n)
+}
+
+/// Spins `n` times on a thread of its own, which a count includes.
+#[bench(args = [1000, 100_000])]
+fn spawned(n: u64) -> u64 {
+	std::thread::spawn(move || spin(n)).join().unwrap()
+}
+
+/// A thread its setup started, which spins as many times as it is sent and sends the sum back.
+struct Worker {
+	send: std::sync::mpsc::Sender<u64>,
+	recv: std::sync::mpsc::Receiver<u64>,
+}
+
+fn worker() -> Worker {
+	let (send, work) = std::sync::mpsc::channel();
+	let (done, recv) = std::sync::mpsc::channel();
+	std::thread::spawn(move || {
+		for n in work {
+			done.send(spin(n)).unwrap();
+		}
+	});
+	Worker { send, recv }
+}
+
+/// Spins 100,000 times on a thread that ran before the count started, which it includes.
+#[bench(setup = worker)]
+fn handed(worker: &Worker) -> u64 {
+	worker.send.send(100_000).unwrap();
+	worker.recv.recv().unwrap()
 }
 
 mod inner {

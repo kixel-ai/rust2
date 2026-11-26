@@ -83,7 +83,9 @@ impl Launch {
 		command
 			.current_dir(&self.dir)
 			.envs(&self.env)
-			.env("CODSPEED_CARGO_WORKSPACE_ROOT", root);
+			.env("CODSPEED_CARGO_WORKSPACE_ROOT", root)
+			// Only a perf count sets it, on a job pinned to its PMU's cores.
+			.env_remove(crate::perf::PERF);
 		command
 	}
 }
@@ -240,6 +242,7 @@ pub fn jobs(dir: &Path, args: &[String], strict: bool) -> Result<Vec<Job>, Strin
 				label: name.clone(),
 				command,
 				expect: Some(name),
+				codspeed: harness == Harness::CodSpeed,
 			});
 		}
 	}
@@ -249,12 +252,148 @@ pub fn jobs(dir: &Path, args: &[String], strict: bool) -> Result<Vec<Job>, Strin
 /// The root of the workspace in `dir`, which CodSpeed's crates name each benchmark's file
 /// relative to.
 fn workspace_root(dir: &Path, args: &[String]) -> Result<PathBuf, String> {
+	let out = workspace(
+		dir,
+		args,
+		&["locate-project", "--workspace", "--message-format", "plain"],
+	)?;
+	let manifest = String::from_utf8(out).map_err(|_| "cargo located a manifest at a path not UTF-8")?;
+	let manifest = Path::new(manifest.trim());
+	Ok(manifest
+		.parent()
+		.ok_or("cargo located a manifest with no directory")?
+		.to_owned())
+}
+
+/// The members of a workspace, as a build selects among them.
+#[derive(Default)]
+pub struct Members {
+	/// Each member by name, with the names of its benchmark targets.
+	pub benches: BTreeMap<String, BTreeSet<String>>,
+	/// The members a build selects without `-p` or `--workspace`: the workspace's default
+	/// members from its root, or else the package of the manifest the build finds.
+	pub default: BTreeSet<String>,
+	/// Each member by name, with the names its manifest calls its dependencies, which a
+	/// `--features dependency/feature` may name.
+	pub dependencies: BTreeMap<String, BTreeSet<String>>,
+	/// Whether the workspace uses Cargo's resolver 1, which applies `--features` to the current
+	/// package too.
+	pub legacy: bool,
+}
+
+/// The members of the workspace the build `args` select from `dir`.
+pub fn members(dir: &Path, args: &[String]) -> Result<Members, String> {
+	let out = workspace(dir, args, &["metadata", "--format-version", "1", "--no-deps"])?;
+	let metadata: Value =
+		serde_json::from_slice(&out).map_err(|e| format!("cargo metadata printed something not JSON: {e}"))?;
+	let packages = metadata["packages"]
+		.as_array()
+		.ok_or("cargo metadata listed no packages")?;
+	let out = workspace(dir, args, &["locate-project", "--message-format", "plain"])?;
+	let located = String::from_utf8(out).map_err(|_| "cargo located a manifest at a path not UTF-8")?;
+	let resolve = |path: &str| {
+		Path::new(path)
+			.canonicalize()
+			.map_err(|e| format!("cannot resolve {path}: {e}"))
+	};
+	let located = resolve(located.trim())?;
+	let root = resolve(
+		metadata["workspace_root"]
+			.as_str()
+			.ok_or("cargo metadata named no workspace root")?,
+	)?
+	.join("Cargo.toml");
+	// The package whose manifest is `manifest`, if any.
+	let package = |manifest: &Path| -> Result<Option<&Value>, String> {
+		for package in packages {
+			if let Some(path) = package["manifest_path"].as_str()
+				&& resolve(path)? == manifest
+			{
+				return Ok(Some(package));
+			}
+		}
+		Ok(None)
+	};
+	let current = package(&located)?
+		.and_then(|package| package["name"].as_str())
+		.map(str::to_owned);
+	let default = if located == root {
+		let ids = metadata["workspace_default_members"]
+			.as_array()
+			.ok_or("cargo metadata listed no default members: it needs Cargo 1.71 or later")?;
+		packages
+			.iter()
+			.filter(|package| ids.contains(&package["id"]))
+			.filter_map(|package| package["name"].as_str().map(str::to_owned))
+			.collect()
+	} else {
+		current.iter().cloned().collect()
+	};
+	// Cargo's metadata names no resolver, so it comes from the root manifest, else from the root
+	// package's edition; a virtual workspace without one takes resolver 1.
+	let manifest: toml::Table = std::fs::read_to_string(&root)
+		.map_err(|e| format!("cannot read {}: {e}", root.display()))?
+		.parse()
+		.map_err(|e| format!("cannot parse {}: {e}", root.display()))?;
+	let resolver = ["workspace", "package"]
+		.into_iter()
+		.find_map(|table| manifest.get(table)?.get("resolver")?.as_str());
+	let legacy = match resolver {
+		Some(resolver) => resolver == "1",
+		None => package(&root)?.is_none_or(|package| matches!(package["edition"].as_str(), Some("2015" | "2018"))),
+	};
+	let (mut benches, mut dependencies) = (BTreeMap::new(), BTreeMap::new());
+	for package in packages {
+		let name = package["name"]
+			.as_str()
+			.ok_or("cargo metadata listed a package without a name")?;
+		let targets = package["targets"]
+			.as_array()
+			.ok_or(format!("cargo metadata listed package {name} without targets"))?
+			.iter()
+			.filter(|target| {
+				target["kind"]
+					.as_array()
+					.is_some_and(|kinds| kinds.iter().any(|kind| kind == "bench"))
+			})
+			.map(|target| {
+				target["name"]
+					.as_str()
+					.map(str::to_owned)
+					.ok_or(format!("cargo metadata listed a target of {name} without a name"))
+			})
+			.collect::<Result<_, String>>()?;
+		let named = package["dependencies"]
+			.as_array()
+			.ok_or(format!("cargo metadata listed package {name} without dependencies"))?
+			.iter()
+			.map(|dependency| {
+				dependency["rename"]
+					.as_str()
+					.or(dependency["name"].as_str())
+					.map(str::to_owned)
+					.ok_or(format!("cargo metadata listed a dependency of {name} without a name"))
+			})
+			.collect::<Result<_, String>>()?;
+		benches.insert(name.to_owned(), targets);
+		dependencies.insert(name.to_owned(), named);
+	}
+	Ok(Members {
+		benches,
+		default,
+		dependencies,
+		legacy,
+	})
+}
+
+/// The stdout of `cargo <command>` on the workspace the build `args` select from `dir`: their
+/// manifest, and their configs, since a config may move the workspace.
+fn workspace(dir: &Path, args: &[String], command: &[&str]) -> Result<Vec<u8>, String> {
 	let mut cargo = Command::new("cargo");
-	cargo.args(["locate-project", "--workspace", "--message-format", "plain"]);
+	cargo.args(command);
 	if let Some(manifest) = manifest_path(args) {
 		cargo.args(["--manifest-path", manifest]);
 	}
-	// A config may move the workspace, so the build's configs locate it too.
 	let mut rest = args.iter();
 	while let Some(arg) = rest.next() {
 		if arg == "--" {
@@ -272,14 +411,9 @@ fn workspace_root(dir: &Path, args: &[String]) -> Result<PathBuf, String> {
 		.output()
 		.map_err(|e| format!("cannot run cargo: {e}"))?;
 	if !out.status.success() {
-		return Err(format!("cargo locate-project failed ({})", out.status));
+		return Err(format!("cargo {} failed ({})", command.join(" "), out.status));
 	}
-	let manifest = String::from_utf8(out.stdout).map_err(|_| "cargo located a manifest at a path not UTF-8")?;
-	let manifest = Path::new(manifest.trim());
-	Ok(manifest
-		.parent()
-		.ok_or("cargo located a manifest with no directory")?
-		.to_owned())
+	Ok(out.stdout)
 }
 
 /// The workspace at `root` as CodSpeed's crates take it: relative to its Git repository, which
@@ -456,7 +590,7 @@ fn config_table(
 }
 
 /// The manifest Cargo args select, when they name one.
-fn manifest_path(args: &[String]) -> Option<&str> {
+pub fn manifest_path(args: &[String]) -> Option<&str> {
 	let mut args = args.iter();
 	while let Some(arg) = args.next() {
 		if arg == "--" {
@@ -500,8 +634,13 @@ fn build(dir: &Path, args: &[String]) -> Result<Vec<(Target, Launch)>, String> {
 	let mut cargo = Command::new("cargo");
 	cargo.args(["bench", "--message-format=json-render-diagnostics", "--config", &runner]);
 	cargo.env(CAPTURE_DIR, captures);
-	// Every benchmark target, unless the caller names some.
-	if !args.iter().any(|arg| arg == "--bench" || arg.starts_with("--bench=")) {
+	// Every benchmark target, unless the caller names some or already asks for every one, which
+	// Cargo refuses twice.
+	if !args
+		.iter()
+		.take_while(|arg| *arg != "--")
+		.any(|arg| arg == "--bench" || arg == "--benches" || arg.starts_with("--bench="))
+	{
 		cargo.arg("--benches");
 	}
 	cargo.args(args).current_dir(dir).stdout(Stdio::piped());
@@ -840,5 +979,35 @@ mod tests {
 		assert!(bench(&lib).unwrap().is_none());
 		let done = serde_json::json!({"reason": "build-finished", "success": true});
 		assert!(bench(&done).unwrap().is_none());
+	}
+
+	#[test]
+	fn tells_a_workspace_under_resolver_1() {
+		let dir = std::env::temp_dir().join(format!("rust2-bench-resolver-{}", std::process::id()));
+		let member = dir.join("a");
+		std::fs::create_dir_all(member.join("src")).unwrap();
+		std::fs::write(member.join("src/lib.rs"), "").unwrap();
+		let legacy = |root: Option<&str>, package: &str| {
+			match root {
+				Some(root) => std::fs::write(dir.join("Cargo.toml"), root).unwrap(),
+				None => {
+					let _ = std::fs::remove_file(dir.join("Cargo.toml"));
+				}
+			}
+			std::fs::write(member.join("Cargo.toml"), format!("[package]\nname = \"a\"\n{package}")).unwrap();
+			members(&member, &[]).unwrap().legacy
+		};
+		let edition = "edition = \"2021\"\n";
+		// A virtual workspace without a resolver takes 1, whatever its members' editions.
+		assert!(legacy(Some("[workspace]\nmembers = [\"a\"]\n"), edition));
+		assert!(!legacy(
+			Some("[workspace]\nmembers = [\"a\"]\nresolver = \"2\"\n"),
+			edition
+		));
+		// A package that is its own workspace takes its edition's resolver, unless it names one.
+		assert!(legacy(None, "edition = \"2018\"\n"));
+		assert!(!legacy(None, edition));
+		assert!(legacy(None, "edition = \"2021\"\nresolver = \"1\"\n"));
+		std::fs::remove_dir_all(&dir).unwrap();
 	}
 }

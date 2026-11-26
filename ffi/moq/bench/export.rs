@@ -2,7 +2,7 @@
 // Rust caller holding a byte slice would. Futures are polled by hand with a no-op waker,
 // so a woken read costs a re-poll and nothing of an executor. Each single-threaded case is a
 // `#[bench]` function, which rust2-bench counts through rust2-bench-harness when
-// RUST2_CODSPEED is set; otherwise each case prints its wall time and the process's CPU time.
+// RUST2_COUNT is set; otherwise each case prints its wall time and the process's CPU time.
 
 use std::future::Future;
 use std::hint::black_box;
@@ -378,7 +378,7 @@ fn round() -> Vec<(String, (f64, f64))> {
 
 fn main() {
 	// `just ffi count` sets it: each case runs once, under Valgrind, for rust2-bench to count.
-	if std::env::var_os("RUST2_CODSPEED").is_some() {
+	if std::env::var_os("RUST2_COUNT").is_some() {
 		rust2_bench_harness::main();
 		return;
 	}

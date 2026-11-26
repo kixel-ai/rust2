@@ -1,11 +1,11 @@
 // bench/export.c's cases through the generated Go, so the two differ by what cgo and the
 // Go wrapper add. Each round runs twice, the first to warm up. Each case prints its wall
 // time and the process's CPU time, the GC's threads included, or under Valgrind, runs once
-// for its CPU simulation to count.
+// for rust2-bench to count.
 package main
 
 // #include <stdlib.h>
-// #include "codspeed.h"
+// #include "hooks.h"
 import "C"
 
 import (
@@ -62,14 +62,14 @@ func per(start span, calls float64) span {
 // begin is a case's start: now, and Valgrind counting from here.
 func begin() span {
 	start := now()
-	C.codspeed_start()
+	C.hooks_start()
 	return start
 }
 
 // end is the case name's nanoseconds per call since start, over calls calls.
 func end(start span, name string, calls int) span {
 	c := C.CString(name)
-	C.codspeed_stop(c)
+	C.hooks_stop(c)
 	C.free(unsafe.Pointer(c))
 	return per(start, float64(calls))
 }
@@ -401,7 +401,7 @@ func round(measured bool) []result {
 
 func main() {
 	bench := C.CString("ffi/moq/bench/export.go::go")
-	measured := bool(C.codspeed_init(bench))
+	measured := bool(C.hooks_init(bench))
 	C.free(unsafe.Pointer(bench))
 	// Under Valgrind, one round, which prints nothing: rust2-bench counts each case.
 	if measured {

@@ -14,7 +14,7 @@
 #include <thread>
 #include <vector>
 
-#include "codspeed.h"
+#include "hooks.h"
 #include "moq.hpp"
 
 namespace {
@@ -56,13 +56,13 @@ bool measured;
 // A case's start: now, and Valgrind counting from here.
 span begin() {
 	span start = now();
-	codspeed_start();
+	hooks_start();
 	return start;
 }
 
 // The case `name`'s nanoseconds per call since `start`, over `calls` calls.
 span end(span start, const char *name, double calls = n) {
-	codspeed_stop(name);
+	hooks_stop(name);
 	return per(start, calls);
 }
 
@@ -345,7 +345,7 @@ void round(bool print) {
 
 int main() {
 	// Under Valgrind, one round, which prints nothing: rust2-bench counts each case.
-	measured = codspeed_init("ffi/moq/bench/export.cpp::cpp");
+	measured = hooks_init("ffi/moq/bench/export.cpp::cpp");
 	if (measured) {
 		groups /= 10;
 		n = groups * frames;

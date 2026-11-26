@@ -129,14 +129,14 @@ census checkout="": (standin checkout)
 bench checkout="": (bench-build checkout) rn-bench bench-run
 
 # Build the binding benchmark's programs: Rust's floor, C, C++, Kotlin, Python, Swift, Go, Dart, and C# through the export, TypeScript through the wasm32 stand-in's and through the Node binding's addon, and C through moq's hand-written rs/libmoq. React Native's, which builds Hermes, is rn-bench's, which `bench` runs after it, so `count`'s build of this builds no Hermes.
-bench-build checkout="": (moq-export checkout) (moq-web checkout) ts-program node-bench codspeed-hooks
+bench-build checkout="": (moq-export checkout) (moq-web checkout) ts-program node-bench hooks
     #!/usr/bin/env bash
     set -euo pipefail
     [ -n "${LIBCLANG_PATH:-}" ] || { echo "LIBCLANG_PATH is unset: run this in the bench shell, nix develop .#bench" >&2; exit 1; }
     src="{{ checkout }}"
     [ -n "$src" ] || src=target/moq
     out=target/export/moq
-    hooks=$PWD/target/codspeed
+    hooks=$PWD/target/hooks
     # The exporter bench-run times, built as a consumer installs it.
     cargo build --locked --quiet --release
     # The floor: the stand-in's API called from Rust, resolved as the export is, its cases
@@ -152,13 +152,13 @@ bench-build checkout="": (moq-export checkout) (moq-web checkout) ts-program nod
     # libmoq's header is written to its build script's output directory.
     moqc=$(cd "$src" && cargo build --locked --quiet --release --package libmoq --message-format=json \
         | jq -r 'select(.reason == "build-script-executed" and (.package_id | contains("libmoq#"))) | .out_dir')
-    cc -O2 -std=c11 -Wall -Wextra -Werror -I "$out/include" -I "$hooks" moq/bench/export.c "$out/target/release/libmoq.a" "$hooks/libcodspeed.a" -lpthread -ldl -lm -o target/bench-export
-    cc -O2 -std=c11 -Wall -Wextra -Werror -I "$moqc/include" -I "$hooks" moq/bench/moq-c.c "$src/target/release/libmoq.a" "$hooks/libcodspeed.a" -lpthread -ldl -lm -o target/bench-moq-c
-    c++ -O2 -std=c++17 -Wall -Wextra -Werror -I "$out/include" -I "$hooks" moq/bench/export.cpp "$out/target/release/libmoq.a" "$hooks/libcodspeed.a" -lpthread -ldl -lm -o target/bench-export-cpp
+    cc -O2 -std=c11 -Wall -Wextra -Werror -I "$out/include" -I "$hooks" moq/bench/export.c "$out/target/release/libmoq.a" "$hooks/libhooks.a" -lpthread -ldl -lm -o target/bench-export
+    cc -O2 -std=c11 -Wall -Wextra -Werror -I "$moqc/include" -I "$hooks" moq/bench/moq-c.c "$src/target/release/libmoq.a" "$hooks/libhooks.a" -lpthread -ldl -lm -o target/bench-moq-c
+    c++ -O2 -std=c++17 -Wall -Wextra -Werror -I "$out/include" -I "$hooks" moq/bench/export.cpp "$out/target/release/libmoq.a" "$hooks/libhooks.a" -lpthread -ldl -lm -o target/bench-export-cpp
     {{ quote(just_executable()) }} go-module bench-go moq/bench/export.go
     # The include path goes in CGO_CPPFLAGS, so cgo keeps its default -O2 -g in CGO_CFLAGS;
     # the runtime's #cgo line links moq.
-    export CGO_CPPFLAGS="-I$hooks" CGO_LDFLAGS="$hooks/libcodspeed.a" GOFLAGS=-buildvcs=false
+    export CGO_CPPFLAGS="-I$hooks" CGO_LDFLAGS="$hooks/libhooks.a" GOFLAGS=-buildvcs=false
     (cd target/bench-go && go build -o bench .)
     {{ quote(just_executable()) }} dart-program bench-dart moq/bench/export.dart
     {{ quote(just_executable()) }} csharp exe target/bench-csharp/bench.dll "$out/csharp/moq.cs" moq/bench/export.cs
@@ -166,7 +166,7 @@ bench-build checkout="": (moq-export checkout) (moq-web checkout) ts-program nod
     # moq's Kotlin outgrows the 512 MiB heap kotlinc's launcher defaults to.
     JAVA_OPTS="-Xmx2g -Xms128M" kotlinc -Werror -cp "$KOTLINX_COROUTINES" "$out/kotlin/moq.kt" "$out/kotlin/FastNative.kt" moq/bench/export.kt -d target/bench-kt
     {{ quote(just_executable()) }} swift-module -O
-    swiftc -O -warnings-as-errors $({{ quote(just_executable()) }} swift-target 15) -I target/swift -I target/swift-collections/build -I "$out/swift" -I "$hooks" moq/bench/export.swift target/swift/libMoq.a -L target/swift-collections/build -lBasicContainers -lInternalCollectionsUtilities -lSpanPreview "$out/target/release/libmoq.a" "$hooks/libcodspeed.a" -lpthread -ldl -lm -o target/bench-export-swift
+    swiftc -O -warnings-as-errors $({{ quote(just_executable()) }} swift-target 15) -I target/swift -I target/swift-collections/build -I "$out/swift" -I "$hooks" moq/bench/export.swift target/swift/libMoq.a -L target/swift-collections/build -lBasicContainers -lInternalCollectionsUtilities -lSpanPreview "$out/target/release/libmoq.a" "$hooks/libhooks.a" -lpthread -ldl -lm -o target/bench-export-swift
 
 # Measure the binding benchmark's Kotlin rows (bench/ffi/README.md) on HotSpot here and, shrunk by R8 as an app is, on ART on the Android device adb reaches, from the pinned moq revision or a checkout, in the Android shell (nix develop .#android) with ANDROID_HOME and ANDROID_NDK_HOME set. Its tables go to target/bench-android/report.md.
 bench-android rounds="3" checkout="":
@@ -235,32 +235,23 @@ bench-android rounds="3" checkout="":
     } > "$dir/report.md"
     cat "$dir/report.md"
 
-# Build moq/bench/codspeed.c over the bench shell's instrument-hooks into target/codspeed: a static library the compiled programs link, a shared one with the JNI functions that Kotlin, Python, and Dart load, the addon Node loads, and a module map Swift imports it by.
+# Build moq/bench/hooks.c over the bench shell's Valgrind into target/hooks: a static library the compiled programs link, a shared one with the JNI functions that Kotlin, Python, and Dart load, the addon Node loads, and a module map Swift imports it by.
 [private]
-codspeed-hooks:
+hooks:
     #!/usr/bin/env bash
     set -euo pipefail
-    [ -n "${CODSPEED_INSTRUMENT_HOOKS:-}" ] || { echo "CODSPEED_INSTRUMENT_HOOKS is unset: run this in the bench shell, nix develop .#bench" >&2; exit 1; }
-    src=$CODSPEED_INSTRUMENT_HOOKS
-    dir=target/codspeed
+    [ -n "${RUST2_VALGRIND_INCLUDE:-}" ] || { echo "RUST2_VALGRIND_INCLUDE is unset: run this in the bench shell, nix develop .#bench" >&2; exit 1; }
+    dir=target/hooks
     rm -rf "$dir"
     mkdir -p "$dir"
-    case "{{ os() }}" in
-        # Node's addon leaves its napi_* symbols to the node executable that loads it.
-        macos) lib=libcodspeed.dylib jni=darwin addon=(-undefined dynamic_lookup) ;;
-        *) lib=libcodspeed.so jni=linux addon=() ;;
-    esac
-    # instrument-hooks' generated C warns, harmlessly, its guide says, and puts C23's
-    # attributes where C23 refuses them.
-    cc -O2 -fPIC -std=gnu11 -w -I "$src/includes" -c "$src/dist/core.c" -o "$dir/core.o"
-    flags=(-O2 -fPIC -std=c11 -Wall -Wextra -Werror -isystem "$src/includes")
-    cc "${flags[@]}" -c moq/bench/codspeed.c -o "$dir/codspeed.o"
-    ar rcs "$dir/libcodspeed.a" "$dir/codspeed.o" "$dir/core.o"
-    cc "${flags[@]}" -shared -DCODSPEED_JNI -isystem "${JAVA_HOME:?}/include" -isystem "$JAVA_HOME/include/$jni" moq/bench/codspeed.c "$dir/core.o" -o "$dir/$lib"
+    flags=(-O2 -fPIC -std=c11 -Wall -Wextra -Werror -isystem "$RUST2_VALGRIND_INCLUDE")
+    cc "${flags[@]}" -c moq/bench/hooks.c -o "$dir/hooks.o"
+    ar rcs "$dir/libhooks.a" "$dir/hooks.o"
+    cc "${flags[@]}" -shared -DHOOKS_JNI -isystem "${JAVA_HOME:?}/include" -isystem "$JAVA_HOME/include/linux" moq/bench/hooks.c -o "$dir/libhooks.so"
     node=$(dirname "$(dirname "$(realpath "$(command -v node)")")")/include/node
-    cc "${flags[@]}" -shared -isystem "$node" -I moq/bench moq/bench/codspeed-node.c "$dir/codspeed.o" "$dir/core.o" ${addon[@]+"${addon[@]}"} -o "$dir/codspeed.node"
-    cp moq/bench/codspeed.h "$dir/"
-    printf 'module CodSpeed {\n    header "codspeed.h"\n    export *\n}\n' > "$dir/module.modulemap"
+    cc "${flags[@]}" -shared -isystem "$node" -I moq/bench moq/bench/hooks-node.c "$dir/hooks.o" -o "$dir/hooks.node"
+    cp moq/bench/hooks.h "$dir/"
+    printf 'module Hooks {\n    header "hooks.h"\n    export *\n}\n' > "$dir/module.modulemap"
 
 # Run what bench-build and rn-bench built: each program `rounds` times into target/bench/raw.tsv, and the export and its crate's build, beside moq's, each round into target/bench/build.tsv, with the 1-minute load average over each run, and their medians and the export's sizes into target/bench/report.md.
 bench-run rounds="3":
@@ -330,9 +321,8 @@ bench-run rounds="3":
 count *args:
     #!/usr/bin/env bash
     set -euo pipefail
-    # The programs' switch to one round a case, kept CodSpeed's name so a compare with a
-    # commit before rust2-bench still runs that commit's programs the same way.
-    export RUST2_CODSPEED=1
+    # The programs' switch to one round a case.
+    export RUST2_COUNT=1
     # The programs' options follow these, so only a subcommand that counts takes them.
     case "${1-}" in
         run | compare) ;;
@@ -359,10 +349,7 @@ bench-program lang:
     #!/usr/bin/env bash
     set -euo pipefail
     out=target/export/moq
-    case "{{ os() }}" in
-        macos) hooks=$PWD/target/codspeed/libcodspeed.dylib ;;
-        *) hooks=$PWD/target/codspeed/libcodspeed.so ;;
-    esac
+    hooks=$PWD/target/hooks/libhooks.so
     wasm=target/export/moq-web/target/wasm32-wasip1/release/moq.wasm
     lang={{ lang }}
     case "$lang" in
@@ -370,7 +357,7 @@ bench-program lang:
         c) exec target/bench-export ;;
         cpp) exec target/bench-export-cpp ;;
         moq-c) exec target/bench-moq-c ;;
-        kotlin) exec kotlin -Djava.library.path="$out/target/release:$PWD/target/codspeed" -cp "target/bench-kt:$KOTLINX_COROUTINES" ExportKt ;;
+        kotlin) exec kotlin -Djava.library.path="$out/target/release:$PWD/target/hooks" -cp "target/bench-kt:$KOTLINX_COROUTINES" ExportKt ;;
         python) PYTHONPATH="$out/python" exec python3 -P moq/bench/export.py "$hooks" ;;
         swift) exec target/bench-export-swift ;;
         go) exec target/bench-go/bench ;;
@@ -381,8 +368,8 @@ bench-program lang:
             # its allocations schedule rather than time, and export.ts collects before each
             # case and gives the module a clock that moves only as it is read.
             flags=()
-            [ -z "${RUST2_CODSPEED:-}" ] || flags=(--expose-gc --predictable --predictable-gc-schedule --single-threaded --wasm-sync-tier-up)
-            exec node ${flags[@]+"${flags[@]}"} target/bench-ts/export.ts "$wasm" "$PWD/target/codspeed/codspeed.node" ;;
+            [ -z "${RUST2_COUNT:-}" ] || flags=(--expose-gc --predictable --predictable-gc-schedule --single-threaded --wasm-sync-tier-up)
+            exec node ${flags[@]+"${flags[@]}"} target/bench-ts/export.ts "$wasm" "$PWD/target/hooks/hooks.node" ;;
         ts-addon) exec node target/bench-node/main.ts ;;
         ts-chromium | ts-firefox) exec bun target/bench-ts/browser.ts "${lang#ts-}" "$wasm" "target/bench-browser/${lang#ts-}" ;;
         react-native) exec target/bench-rn/host target/bench-rn/bundle.js ;;
