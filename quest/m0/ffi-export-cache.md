@@ -13,9 +13,9 @@ check` never ran through mbx. ffi/justfile ran the exporter with `cargo run`, wh
 as `$CARGO`, the cargo mbx's shim chains to; the driver runs that cargo with
 `RUSTC_WRAPPER` empty and counts on the shim to set its own, so no cache wrapped any crate of
 the check, moq's included, and the bundle never held them. The 143 and 144 hits read before
-were the exporter's own build. The recipes now build the exporter and run it directly, so its
-cargo is the shim on `PATH`; on desktop the check then served all 332 crates from a warm store
-in 6.9 s, against 23.2 s through `cargo run`.
+were the exporter's own build. Under the shim, the recipes now run the exporter through a cargo
+runner that unsets `$CARGO`, so its cargo is the shim on `PATH`; on desktop the check then
+served all 332 crates from a warm store in 7.3 s, against 23.2 s without it.
 
 Once a main push has saved a bundle with that fix, read the next merge groups' `ffi` job
 logs (`gh api repos/kixel-ai/rust2/actions/jobs/<id>/logs`): the stand-in's export should

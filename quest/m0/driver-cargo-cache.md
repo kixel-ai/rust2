@@ -15,15 +15,13 @@ way: ts/justfile's and go/justfile's `cargo run`, ffi/release/package.py's `carg
 exporter, and ffi's tests, whose exporter inherits `cargo test`'s `$CARGO`.
 
 First measure each: a run that prints no `mbx[cache]` line for its check, or whose check's
-target directory rebuilds as slowly from a warm store, is affected. Recommend fixing it in
-the driver rather than each caller: run `cargo` from `PATH` when `$CARGO` is the cargo
-`MBX_CARGO_SHIM_CHAIN` names, or ask mbx in
-[jdx/mr-boxington#1015](https://github.com/jdx/mr-boxington/discussions/1015)'s discussion to
-reach a `$CARGO` child itself.
+target directory rebuilds as slowly from a warm store, is affected. Then fix each affected run
+as `Waiting` settles, raising (c), if picked, in
+[jdx/mr-boxington#1015](https://github.com/jdx/mr-boxington/discussions/1015)'s discussion.
 
 ## Waiting
 
 - Maintainer: where to fix it. Options: (a) the driver detects mbx's chained cargo, keyed on
-  mbx's undocumented `MBX_CARGO_SHIM_CHAIN`; (b) each caller runs the built driver directly,
-  as ffi/justfile now does, and the tests clear `$CARGO`; (c) ask mbx to cover `$CARGO`
+  mbx's undocumented `MBX_CARGO_SHIM_CHAIN`; (b) each caller unsets `$CARGO` under the shim,
+  as ffi/justfile's `exporter` runner now does, and the tests clear it; (c) ask mbx to cover `$CARGO`
   children. Recommend (b) now, since it needs nothing undocumented, and (c) alongside.
