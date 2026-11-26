@@ -10,9 +10,8 @@ grouped into milestones ordered by priority.
 m0 holds urgent fixes and what every run pays for. m1 is the work with a consumer
 waiting on it now: the exporter moq switches its bindings to, and
 [removing CodSpeed](/quest/m1/codspeed/README.md) from moq, rind, and here. m2 is research with a named
-consumer: rust2-wasm, moq's browser route, the TypeScript translator, an experiment
-that has to beat it, and [a benchmark harness](/quest/m2/harness/README.md) to replace
-Criterion. m3 holds work that waits on evidence or has no consumer yet:
+consumer: rust2-wasm, moq's browser route, the TypeScript translator, and an experiment
+that has to beat it. m3 holds work that waits on evidence or has no consumer yet:
 upstream's build-speed levers, which the [build-speed benchmark](/bench/build/README.md)
 measures, the translator's features that wait on [the gate](/quest/m2/wasm/README.md),
 the binding targets planned ahead of a consumer, and what waits on moq. m4 holds long-term
@@ -32,7 +31,7 @@ Decided with the maintainer on 2026-11-23, in kixel-ai/kixel.quest's `/quest-pla
 ([kixel-ai/kixel.quest#113](https://github.com/kixel-ai/kixel.quest/pull/113)): benchmarking
 joins the charter. [rust2-bench](/bench/runner/README.md) counts benchmarks' instructions
 under stock Valgrind for moq, rind, and here, replacing CodSpeed, and
-[a harness](/quest/m2/harness/README.md) replaces Criterion.
+[a harness](/bench/runner/harness/README.md) replaces Criterion.
 
 Decided with the maintainer on 2026-10-23, when rust2 was planned from moq
 ([moq-dev/moq#6578](https://github.com/moq-dev/moq/pull/6578)):

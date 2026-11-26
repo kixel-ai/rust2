@@ -23,7 +23,3 @@ Decided 2026-11-25 (maintainer, `/quest-plan` in rust2):
 
 - moq-dev/moq: its Criterion benches rewritten to `#[bench]`; check `codspeed-criterion-compat` and `criterion` are gone from `Cargo.lock` on moq's `main`.
 - kixel-ai/rind: its Criterion benches rewritten to `#[bench]`; check `codspeed-criterion-compat` and `criterion` are gone from `Cargo.lock` on rind's `main`.
-
-## Related
-
-- [The harness epic](/quest/m2/harness/README.md) - the harness the rewrites move to
