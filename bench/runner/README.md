@@ -161,8 +161,9 @@ Cargo builds, every member `--workspace` does not `--exclude`, which overrides `
 `--workspace` none `--exclude` leaves, or none of the targets, unless beside `--benches` or
 `--all-targets`, or without the directory compare runs from or the manifest `--manifest-path`
 names, counts none, and its benchmarks read as added or removed. A selector neither side has
-fails, as does one compare cannot resolve by name alone, such as `name@1.0` or a glob, and
-a workspace under Cargo's resolver 1, which also applies `--features` to the current package.
+fails, as does one compare cannot resolve by name alone, such as `name@1.0` or a glob, and a
+`--features package/feature` under Cargo's resolver 1, which also applies it to the current
+package.
 Another compare of the same repository waits, on a lock beside the worktree, until this one
 has counted both sides.
 

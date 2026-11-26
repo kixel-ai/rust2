@@ -168,8 +168,18 @@ struct Selection {
 
 /// The Cargo `args` for a side whose workspace has `members`: each package, benchmark target,
 /// and package's feature it lacks is left out, and a selection left with no package or no
-/// target selects nothing.
-fn select(args: &[Arg], members: &Members) -> Selection {
+/// target selects nothing. It refuses a `package/feature` under resolver 1, which applies it to
+/// the current package too, so the side could count it where the other does not.
+fn select(args: &[Arg], members: &Members) -> Result<Selection, String> {
+	if members.legacy
+		&& let Some(feature) = args.iter().find_map(|arg| match arg {
+			Arg::Features(list) => list.iter().find(|feature| feature.contains('/')),
+			_ => None,
+		}) {
+		return Err(format!(
+			"compare cannot select --features {feature} per side under Cargo's resolver 1: set resolver = \"2\" or later"
+		));
+	}
 	let packages: Vec<&String> = args
 		.iter()
 		.filter_map(|arg| match arg {
@@ -271,7 +281,7 @@ fn select(args: &[Arg], members: &Members) -> Selection {
 	if built && (!wants_bench || has_bench || every_bench) {
 		selection.args = Some(out);
 	}
-	selection
+	Ok(selection)
 }
 
 /// What the side checked out under `dir`, which the log calls `side`, builds of `args`, the Cargo
@@ -297,11 +307,11 @@ fn pick(dir: &Path, options: &Options, args: &[Arg], side: &str) -> Result<Selec
 	if let Some(absent) = absent {
 		eprintln!("rust2-bench: {side} has no {absent}, so counts none");
 		// It lacks every selector too, so one the other side also lacks still fails.
-		let mut lacks = select(args, &Members::default()).lacks;
+		let mut lacks = select(args, &Members::default())?.lacks;
 		lacks.insert(absent);
 		return Ok(Selection { args: None, lacks });
 	}
-	let selection = select(args, &crate::cargo::members(dir, &options.cargo)?);
+	let selection = select(args, &crate::cargo::members(dir, &options.cargo)?)?;
 	for lacked in &selection.lacks {
 		eprintln!("rust2-bench: {side} has no {lacked}, so builds without it");
 	}
@@ -721,13 +731,14 @@ mod tests {
 				.map(|(name, benches)| (name.to_owned(), benches.iter().map(|b| (*b).to_owned()).collect()))
 				.collect(),
 			default: BTreeSet::from(["a".to_owned()]),
+			legacy: false,
 			// `c` calls a dependency `b`, as the other side calls a member.
 			dependencies: [("a", "dep"), ("c", "b")]
 				.into_iter()
 				.map(|(name, dependency)| (name.to_owned(), BTreeSet::from([dependency.to_owned()])))
 				.collect(),
 		};
-		let select = |args: &[&str]| select(&parse(&strings(args)).unwrap(), &members);
+		let select = |args: &[&str]| select(&parse(&strings(args)).unwrap(), &members).unwrap();
 
 		// A package and its feature, and a target, only the other side has.
 		let picked = select(&[
@@ -815,10 +826,23 @@ mod tests {
 		let picked = super::select(
 			&parse(&strings(&["-p", "a", "--bench", "x", "-F", "a/g,h"])).unwrap(),
 			&Members::default(),
-		);
+		)
+		.unwrap();
 		assert_eq!(
 			picked.lacks,
 			strings(&["-p a", "--bench x", "feature a/g"]).into_iter().collect()
+		);
+		// Under resolver 1, only a `package/feature` is refused.
+		let legacy = Members {
+			legacy: true,
+			..members
+		};
+		let select = |args: &[&str]| super::select(&parse(&strings(args)).unwrap(), &legacy);
+		let err = select(&["-p", "a", "-F", "h,a/g"]).err().unwrap();
+		assert!(err.contains("--features a/g"), "{err}");
+		assert_eq!(
+			select(&["-p", "a", "--bench", "x", "-F", "h"]).unwrap().args.unwrap(),
+			["-p", "a", "--bench", "x", "--features", "h"]
 		);
 	}
 }
