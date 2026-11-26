@@ -11,6 +11,7 @@ use std::time::{Duration, Instant};
 
 use serde_json::Number;
 
+use crate::cargo::Lacking;
 use crate::compare::Checkout;
 use crate::fingerprint::Fnv;
 use crate::{Job, Options, cargo, metrics, missing, work};
@@ -34,9 +35,6 @@ const MIN_SAMPLES: usize = 10;
 /// The most iterations one sample takes: a benchmark that runs these in under a slice does
 /// nothing the clock can see.
 const MAX_ITERATIONS: u64 = 1 << 40;
-
-/// What a timed harness target prints, alone on a line, once its benchmark is set up.
-const READY: &str = "rust2-bench ready";
 
 /// What a timed harness target prints, alone on a line, before each sample's nanoseconds.
 const SAMPLE: &str = "rust2-bench sample ";
@@ -65,7 +63,7 @@ pub fn time(base: Option<&str>, options: &Options) -> Result<(), String> {
 				checkout.short(),
 				checkout.dir.display()
 			);
-			let jobs = cargo::jobs(&checkout.dir, &checkout.options.cargo, false)?;
+			let jobs = cargo::jobs(&checkout.dir, &checkout.options.cargo, Lacking::Counted)?;
 			// A base from before a rewrite to rust2-bench-harness has only CodSpeed's benchmarks,
 			// which a time leaves out, so every benchmark of the head times alone.
 			let (codspeed, jobs): (Vec<Job>, Vec<Job>) = jobs.into_iter().partition(|job| job.codspeed);
@@ -80,9 +78,13 @@ pub fn time(base: Option<&str>, options: &Options) -> Result<(), String> {
 		None => None,
 	};
 	eprintln!("rust2-bench: building the working tree");
-	// Strict even with a base, so a target of CodSpeed's crates at the head always fails below or
-	// in listing, rather than time as none.
-	let after = by_name(cargo::jobs(Path::new("."), &options.cargo, true)?);
+	// With a base, the head may have no benchmark target left, its base's all removed.
+	let lacking = if before.is_some() {
+		Lacking::Targets
+	} else {
+		Lacking::Nothing
+	};
+	let after = by_name(cargo::jobs(Path::new("."), &options.cargo, lacking)?);
 	if let Some(job) = after.values().find(|job| job.codspeed) {
 		return Err(format!(
 			"{} is a benchmark of CodSpeed's crates, which only a count measures: write it with rust2-bench-harness, \
@@ -559,7 +561,8 @@ struct Process {
 
 impl Process {
 	/// Starts `job`'s target timing its benchmark, its output in `dir`, and waits until its
-	/// benchmark is set up, so no sample's time takes in setup.
+	/// benchmark is set up: a sample of one call, which no time keeps, answers only after setup,
+	/// so no kept sample's wall time takes it in.
 	fn spawn(job: Job, dir: &Path) -> Result<Self, String> {
 		let Job { label, mut command, .. } = job;
 		std::fs::create_dir_all(dir).map_err(|e| format!("cannot create {}: {e}", dir.display()))?;
@@ -584,27 +587,8 @@ impl Process {
 			stdout,
 			log: file("stdout")?,
 		};
-		process.read(READY)?;
+		process.sample(1)?;
 		Ok(process)
-	}
-
-	/// What follows `prefix` on the next line the target prints that starts with it, keeping the
-	/// lines before it in its log.
-	fn read(&mut self, prefix: &str) -> Result<String, String> {
-		let mut line = String::new();
-		loop {
-			line.clear();
-			match self.stdout.read_line(&mut line) {
-				Ok(0) | Err(_) => return Err(self.failure()),
-				Ok(_) => {}
-			}
-			if let Some(rest) = line.strip_prefix(prefix).and_then(|rest| rest.strip_suffix('\n')) {
-				return Ok(rest.to_owned());
-			}
-			self.log
-				.write_all(line.as_bytes())
-				.map_err(|e| format!("cannot keep {}'s output: {e}", self.label))?;
-		}
 	}
 
 	/// Why the process stopped answering: how it exited, and where its output is.
@@ -654,14 +638,26 @@ impl Side for Process {
 		{
 			return Err(self.failure());
 		}
-		let nanos = self.read(SAMPLE)?;
-		let nanos = nanos
-			.parse()
-			.map_err(|_| format!("{} printed a sample of {nanos:?} nanoseconds", self.label))?;
-		Ok(Sample {
-			nanos,
-			wall: started.elapsed(),
-		})
+		let mut line = String::new();
+		loop {
+			line.clear();
+			match self.stdout.read_line(&mut line) {
+				Ok(0) | Err(_) => return Err(self.failure()),
+				Ok(_) => {}
+			}
+			if let Some(nanos) = line.strip_prefix(SAMPLE).and_then(|rest| rest.strip_suffix('\n')) {
+				let nanos = nanos
+					.parse()
+					.map_err(|_| format!("{} printed a sample of {nanos:?} nanoseconds", self.label))?;
+				return Ok(Sample {
+					nanos,
+					wall: started.elapsed(),
+				});
+			}
+			self.log
+				.write_all(line.as_bytes())
+				.map_err(|e| format!("cannot keep {}'s output: {e}", self.label))?;
+		}
 	}
 }
 

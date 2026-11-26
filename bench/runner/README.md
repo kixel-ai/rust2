@@ -166,7 +166,7 @@ benchmark of rust2-bench-harness by wall clock, one at a time, each in its own p
 sets it up once and then runs a sample for each request: as many calls as fill a millisecond of
 its timed part, found by doubling from one, or of 50 ms of the whole sample, when steps or
 inputs built between calls take far longer. A benchmark takes samples for a second, and ten at
-least, after its setup, and its time is their median per call, which the samples a preemption
+least, after a first call that waits out its setup, and its time is their median per call, which the samples a preemption
 spoiled cannot move. It has no interval: load that slows many samples in a row makes them no
 independent evidence of it, so one would look far tighter than a repeat run bears out. A target
 written with CodSpeed's crates fails the run: only a count measures those. The run's processes are neither preloaded nor padded, so their randomness,
@@ -175,12 +175,15 @@ clock, and addresses are the host's own.
 `rust2-bench time <base>` builds `<base>` in the worktree a compare keeps, then the working tree,
 and times each benchmark both have in two processes, the base's and the head's, alive together.
 It takes their samples in pairs, one of each side, in an order drawn anew for each pair, so load
-that drifts or recurs on a shared host biases neither side and slows both of a pair alike; it
-still widens the change's interval, which pairing cannot remove, only balance. Two processes of one build still differ by a few tenths of
+that drifts or recurs on a shared host biases neither side, and load common to both samples of a
+pair cancels in its ratio. Load that slows one side more than the other, such as a neighbor
+contending for memory against a memory-bound side, still widens the change's interval, which
+pairing cannot remove, only balance; the interval takes the ratios as independent, so a run
+that such load spans for long holds less than it says. Two processes of one build still differ by a few tenths of
 a percent, by where each lands in memory and on the CPU, which no interval holds: a change that
 small is one a pair of processes cannot tell. Each side's time is its own samples' median, and the change
 is the median of each pair's ratio, head over base, with a 95% confidence interval from the
-order statistics around it, which holds whatever the ratios' distribution, printed as a Markdown
+order statistics around it, whatever the ratios' distribution, printed as a Markdown
 table. A benchmark only one side has times alone, as added or removed, and a base's benchmarks
 of CodSpeed's crates time as none, as does a base's target of CodSpeed's crates whose every
 benchmark CodSpeed skips, such as one of only `iter_custom`'s, so a base from before a rewrite

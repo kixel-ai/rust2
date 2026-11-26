@@ -264,7 +264,15 @@ fn measure(dir: &Path, options: &Options, strict: bool) -> Result<Counts, String
 	let preload = preload::install()?;
 	fits(&std::fs::read_to_string("/proc/self/limits").map_err(|e| format!("cannot read /proc/self/limits: {e}"))?)?;
 	let mut jobs = if options.programs.is_empty() {
-		cargo::jobs(dir, &options.cargo, strict)?
+		cargo::jobs(
+			dir,
+			&options.cargo,
+			if strict {
+				cargo::Lacking::Nothing
+			} else {
+				cargo::Lacking::Targets
+			},
+		)?
 	} else {
 		if let Some(build) = &options.build {
 			eprintln!("rust2-bench: {build}");
