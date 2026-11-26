@@ -581,6 +581,21 @@ jobs:
 
       - uses: ./.github/actions/nix
 
+      # The warm export rows go through mbx, into a store of each round's own: the job
+      # neither restores nor saves a cache, and its cold rows bypass mbx.
+      - uses: jdx/mr-boxington-action@b3ef673bd77c5426927fe8836c6185cdae04c2dd # v1.7.4
+        with:
+          version: 1.31.0
+          backend: local
+      - name: Cargo shim
+        run: |
+          mbx setup --yes
+          shim=$(mbx setup --status 2>/dev/null | sed -n '1s/.*: //p' || true)
+          if [ ! -e "$shim" ]; then
+            echo "::error::mbx setup installed no Cargo shim: $(mbx setup --status 2>&1)"
+            exit 1
+          fi
+
       # The binding benchmark's tables go in the run's summary: no threshold fails the job.
       - name: Bench
         # Named, so a failing bench fails the pipe.

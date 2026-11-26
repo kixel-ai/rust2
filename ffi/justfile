@@ -126,7 +126,7 @@ census checkout="": (standin checkout)
     cargo run --locked --quiet -- --manifest-path .work/moq-ffi/Cargo.toml --census target/census
 
 # Measure the binding benchmark (bench/ffi/README.md) from the pinned moq revision or a checkout, in the bench shell: nix develop .#bench. Its tables go to target/bench/report.md.
-bench checkout="": (bench-build checkout) rn-bench bench-run
+bench checkout="": mbx-shim mir-sysroot (bench-build checkout) rn-bench bench-run
 
 # Build the binding benchmark's programs: Rust's floor, C, C++, Kotlin, Python, Swift, Go, Dart, and C# through the export, TypeScript through the wasm32 stand-in's and through the Node binding's addon, and C through moq's hand-written rs/libmoq. React Native's, which builds Hermes, is rn-bench's, which `bench` runs after it, so `count`'s build of this builds no Hermes.
 bench-build checkout="": (moq-export checkout) (moq-web checkout) ts-program node-bench hooks
@@ -253,8 +253,18 @@ hooks:
     cp moq/bench/hooks.h "$dir/"
     printf 'module Hooks {\n    header "hooks.h"\n    export *\n}\n' > "$dir/module.modulemap"
 
-# Run what bench-build and rn-bench built: each program `rounds` times into target/bench/raw.tsv, and the export and its crate's build, beside moq's, each round into target/bench/build.tsv, with the 1-minute load average over each run, and their medians and the export's sizes into target/bench/report.md.
-bench-run rounds="3":
+# Fail unless cargo builds through mbx's Cargo shim, which bench-run times the warm export through, before anything builds: run `mbx setup` once, and the dev shell finds it.
+[private]
+mbx-shim:
+    @[ -n "${RUST2_CARGO_SHIM:-}" ] || { echo "no mbx Cargo shim: run mbx setup once, then reenter the dev shell" >&2; exit 1; }
+
+# Fail unless the dev shell's MIR sysroot is set, which bench-run's web rows measure the export over and report.py names, before anything builds.
+[private]
+mir-sysroot:
+    @[ -n "${RUST2_TS_SYSROOT:-}" ] || { echo "RUST2_TS_SYSROOT is unset or empty: run this in the dev shell" >&2; exit 1; }
+
+# Run what bench-build and rn-bench built: each program `rounds` times into target/bench/raw.tsv, and the export, native and web, cold and warm through mbx, and its crate's build, beside moq's, each round into target/bench/build.tsv, with the 1-minute load average over each run, and their medians and the export's sizes into target/bench/report.md.
+bench-run rounds="3": mbx-shim mir-sysroot
     #!/usr/bin/env bash
     set -euo pipefail
     out=target/export/moq
@@ -280,32 +290,55 @@ bench-run rounds="3":
             'NF == 3 { print lang "\t" round "\t" $1 "\t" $2 "\t" $3 "\t" loadavg; next } { print "bench: " lang ": unexpected line: " $0 > "/dev/stderr"; exit 1 }' \
             target/bench/run.tsv >> "$raw"
     }
-    # The export and the generated crate's release build, each beside moq's own of the same
-    # crates, from an emptied target and without a compiler cache, so nothing is served
-    # cached: a step, its round, wall and CPU seconds, peak RSS in bytes, and the load average.
+    # The export, native and web, and the generated crate's release build, each beside moq's
+    # own of the same crates, from an emptied target and without a compiler cache, so nothing
+    # is served cached; and each export again warm, through mbx: a step, its round, wall and
+    # CPU seconds, peak RSS in bytes, and the load average.
     builds=target/bench/build.tsv
     : > "$builds"
     scratch=$PWD/target/bench/scratch
     sysroot=$(rustc --print sysroot)
     if [ "{{ os() }}" = macos ]; then libpath=DYLD_LIBRARY_PATH; else libpath=LD_LIBRARY_PATH; fi
     # Without mbx's Cargo shim, whose compiler cache an emptied target does not empty.
-    uncached=$(echo "$PATH" | tr : '\n' | grep -vxF "${RUST2_CARGO_SHIM:-/nonexistent}" | paste -sd: -)
+    uncached=(-u RUSTC_WRAPPER -u CARGO PATH="$(echo "$PATH" | tr : '\n' | grep -vxF "$RUST2_CARGO_SHIM" | paste -sd: -)")
+    # Through it, into a store of the round's and export's own and no remote, which only the
+    # export before the warm one fills, as an earlier CI run or another checkout would.
+    cached=(MBX_REMOTE_MODE=write-only MBX_REMOTE_TRUST_WRITES=false)
+    # Its store's objects are read-only.
+    wipe() {
+        if [ -d "$scratch" ]; then chmod -R u+w "$scratch"; fi
+        rm -rf "$scratch"
+    }
+    # The step, `uncached` or the store under the scratch directory to cache through, and the
+    # command, run from an emptied target; a step named `-` records nothing.
     measure() {
-        local step=$1 before after
-        shift
+        local step=$1 before after via
+        if [ "$2" = uncached ]; then via=("${uncached[@]}"); else via=("${cached[@]}" MBX_CACHE_DIR="$scratch/$2"); fi
+        shift 2
         rm -rf "$scratch/target"
         before=$(load)
-        line=$(env -u RUSTC_WRAPPER -u CARGO PATH="$uncached" CARGO_TARGET_DIR="$scratch/target" python3 -I ../bench/ffi/measure.py "$@")
+        line=$(env "${via[@]}" CARGO_TARGET_DIR="$scratch/target" python3 -I ../bench/ffi/measure.py "$@")
         after=$(load)
-        printf '%s\t%s\t%s\t%s\n' "$step" "$r" "$line" "$(echo "$before $after" | awk '{ print ($1 + $2) / 2 }')" >> "$builds"
+        [ "$step" = - ] || printf '%s\t%s\t%s\t%s\n' "$step" "$r" "$line" "$(echo "$before $after" | awk '{ print ($1 + $2) / 2 }')" >> "$builds"
     }
     build() {
-        rm -rf "$scratch"
-        measure export env "$libpath=$sysroot/lib" target/release/rust2-ffi --manifest-path .work/moq-ffi/Cargo.toml --out "$scratch/moq"
-        measure check cargo check --quiet --release --lib --manifest-path .work/moq-ffi/Cargo.toml
-        measure generated cargo build --locked --quiet --release --manifest-path "$scratch/moq/Cargo.toml" --features kotlin,dart,node
-        measure moq cargo build --quiet --release --lib --manifest-path .work/moq-ffi/Cargo.toml
-        rm -rf "$scratch"
+        wipe
+        local ffi=(env "$libpath=$sysroot/lib" target/release/rust2-ffi)
+        local native=(--manifest-path .work/moq-ffi/Cargo.toml --out "$scratch/moq")
+        local web=(--manifest-path .work/moq-ffi-web/Cargo.toml --target wasm32-wasip1 --out "$scratch/moq-web")
+        # Each export writes into an emptied output too, as the cold one does.
+        for step in export:uncached -:mbx-native export-warm:mbx-native; do
+            rm -rf "$scratch/moq"
+            measure "${step%:*}" "${step#*:}" "${ffi[@]}" "${native[@]}"
+        done
+        for step in web:uncached -:mbx-web web-warm:mbx-web; do
+            rm -rf "$scratch/moq-web"
+            measure "${step%:*}" "${step#*:}" "${ffi[@]}" "${web[@]}"
+        done
+        measure check uncached cargo check --quiet --release --lib --manifest-path .work/moq-ffi/Cargo.toml
+        measure generated uncached cargo build --locked --quiet --release --manifest-path "$scratch/moq/Cargo.toml" --features kotlin,dart,node
+        measure moq uncached cargo build --quiet --release --lib --manifest-path .work/moq-ffi/Cargo.toml
+        wipe
     }
     for r in $(seq {{ rounds }}); do
         build
@@ -830,7 +863,10 @@ standin checkout="" web="":
         {{ quote(just_executable()) }} moq-pin
         src=.work/moq
     fi
-    src=$(realpath "$src")
+    # Absolute, but through any symlink as spelled: cargo hashes a path dependency outside
+    # the workspace by its path, so a checkout reached through a link whose target moves,
+    # such as one in an mbx store CI names afresh each run, would key moq's crates apart.
+    src=$(cd "$src" && pwd -L)
     # Cargo on Windows reads a path as Windows writes it, not as Git Bash does.
     if [ "{{ os_family() }}" = windows ]; then
         src=$(cygpath -m "$src")
