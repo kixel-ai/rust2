@@ -4,6 +4,7 @@ What [rust2-ffi](../../ffi/README.md)'s bindings cost over Rust, per language, o
 stand-in `just ffi bench` exports, against BoltFFI's numbers below as targets.
 
 ```bash
+mbx setup  # once: the warm export rows build through mbx's Cargo shim, 1.31 or later
 nix develop .#bench --command just ffi bench  # build, run 3 rounds, and write ffi/target/bench/report.md
 nix develop .#bench --command just ffi bench-run 5  # rerun what `bench` built, 5 rounds
 nix develop .#android --command just ffi bench-android  # the Kotlin rows on HotSpot and on the Android device adb reaches
@@ -21,9 +22,11 @@ so a JIT has warmed up, in wall time and in the process's CPU time on every thre
 over each run, and [`report.py`](report.py) prints each case's median over the rounds
 beside the median load, then the export's build cost and sizes. Each round also times,
 from an emptied target and without a compiler cache, the export (`rust2-ffi`, which
-runs a release `cargo check` of moq under its driver) beside moq's own of the same
-crates, and the generated crate's release build beside moq's own release build, each with
-its peak RSS, through [`measure.py`](measure.py). Nightly runs it on arm64 Linux into
+runs a release `cargo check` of moq under its driver), native and for wasm32, beside moq's
+own of the same crates, and the generated crate's release build beside moq's own release
+build, each with its peak RSS, through [`measure.py`](measure.py); and each export again
+warm through mbx, from a store of the round's own that one export filled ([the export's
+cache](#the-exports-cache)). Nightly runs it on arm64 Linux into
 the run's summary; nothing fails on a number. [Instruction counts](#instruction-counts)
 count each single-threaded case nightly on main for Kixel Quest.
 
@@ -1056,20 +1059,65 @@ two more of its methods are leaves, `hang::Extra`'s `len` and `is_empty`, whose
 
 The export wraps only the workspace's own crates, so a compiler cache in cargo's
 `RUSTC_WRAPPER` serves the rest ([how](../../ffi/README.md)). mbx caches a compilation
-only when it models every flag on its command line, and before 1.31 it modeled none of the
-export's `-Zalways-encode-mir`, `-Zmir-opt-level=1`, and the web target's
-`-Zinline-mir=no` ("rustc flag is not modeled by the cache adapter"), so it served the build
-scripts and proc macros alone, which take no target rustflags. mbx 1.31 keys each
-([jdx/mr-boxington#1003](https://github.com/jdx/mr-boxington/issues/1003)): measured
-2026-11-25 on **desktop** with a release rust2-ffi at a load average of about 20, a second
-native export from an emptied target took 14 s wall and 14 CPU seconds against the first's
-56 and 70, with 332 hits and the facade the one compilation left to the wrapper, as the
-last row below predicted. The web export's crates stay uncached over the dev shell's MIR
-sysroot, whose `/nix/store` path mbx cannot map, which [the cached
-export](/quest/m0/ffi-export-cache.md) takes up. Measured 2026-11-22 on **desktop**, the
-stand-in's native export by a dev build of rust2-ffi, as the merge queue's `cargo run`
-runs it, from an emptied target through mbx, at a load average of about 19; the after
-rounds follow one that stored the host units:
+only when it models every flag on its command line, which from 1.31 includes the export's
+`-Zalways-encode-mir`, `-Zmir-opt-level=1`, and the web target's `-Zinline-mir=no`
+([jdx/mr-boxington#1003](https://github.com/jdx/mr-boxington/issues/1003)), and only when
+it can name every path it reads by a root it maps, such as the workspace, the target, a
+package's own directory, or cargo's registry. It maps none under `/nix/store` ("absolute
+path has no stable cache mapping"), where the dev shell's MIR sysroot and the toolchain's
+std sources live.
+
+`bench-run`'s Build table times each export cold, uncached, and warm, through mbx from a
+store one export filled. Measured 2026-11-25 on **desktop** at rust2 `79b9ee89` with mbx
+1.31.0 and a release rust2-ffi, each export from an emptied target into a fresh mbx store of
+its own with no remote, then again from an emptied target, at a load average of 11 to 54;
+the warm cells are medians of 4 or 5 rounds, the cold of 1 or 2, and the last column is the
+warm run's `mbx explain --last`:
+
+| export | cold wall s | cold CPU s | warm wall s | warm CPU s | warm, mbx |
+|---|---|---|---|---|---|
+| native | 27.6 | 114.8 | 8.1 | 12.5 | 332 hits; the facade under the wrapper |
+| web, std from the dev shell's MIR sysroot | 34.2 | 73.7 | 41.0 | 54.2 | 76 hits; 104 unconsulted; the facade; the walk's 2 |
+| web, `-Zbuild-std` (`RUST2_TS_SYSROOT=`) | 45.7 | 95.9 | 40.4 | 42.3 | 197 hits; std's 13 unconsulted; the facade; the walk's 2 |
+| native, the stand-in a member of moq's workspace | 28.2 | 122.5 | 21.4 | 31.3 | 315 hits; the facade and 16 units of its siblings under the wrapper |
+
+- **Native**: every crate but the facade is served, and the warm export costs a tenth of
+  the cold one's CPU.
+- **Web over the MIR sysroot**: only build scripts and proc macros are served. Every crate
+  for wasm32 names the sysroot in `--sysroot`, so mbx neither looks it up nor stores it, and
+  the warm export saves only the host's crates.
+- **Web over `-Zbuild-std`**: every moq crate is served, and std's 13 crates, whose sources
+  are the toolchain's under `/nix/store`, compile each time. Warm, it costs 12 CPU seconds
+  less than over the sysroot, cold 22 more.
+- **The walk**, the glue crate's second check, compiles the glue's build script and library
+  under the wrapper, which analyzes the library and so cannot be served; it reuses every
+  other crate from the check's target directory.
+- **Inside a larger workspace**, as moq's own `moq-ffi` is, the facade's siblings are
+  workspace members, which mbx leaves to the wrapper: they cost the warm export 13 s wall
+  and 19 CPU seconds more than the stand-in's 8 and 12, two and a half times its CPU.
+  Exporting moq's own `moq-ffi`, a `staticlib` and `cdylib` only, fails ("cargo compiled no
+  library of package moq-ffi"), so the stand-in stood in as a member, `rs/moq-standin`.
+
+A cache serves a path dependency outside the workspace only at the path it was filled at:
+cargo hashes such a package's absolute path into its `-C metadata`, so the same moq at
+another path is another crate. The same native export from a copy of moq and the stand-in
+elsewhere, into the same store, left moq's 17 units unconsulted, 33 and 45 CPU seconds in
+two runs against 12. Spelled through a symlink whose target moved between the runs, it
+was served whole, 332 hits in 11.7 CPU seconds. So `just ffi standin` names its checkout as
+spelled rather than resolved: CI's `ffi/target` is a link into a store mbx names afresh in
+every run, `/home/runner/work/_temp/mbx-github-objects-store-<random>/`, which until then
+put moq's crates at a new path in every merge group.
+
+The queue showed it. Over the 23 merge groups from 2026-11-24 on mbx 1.29.2, which modeled
+none of the export's flags, the `ffi` module's check and test step took 16.1 to 29.2
+minutes, median 20.8, on GitHub's 4-core runners; over the 3 groups on 1.31, 22.8, 22.4, and
+16.5, the first reading a bundle 1.29.2 stored. In both, the stand-in's export checked
+moq-net for about 12.5 s, compiling it, and took 51 and 49 s, its glue's debug build for
+`moq-c` 103 and 97 s.
+
+Measured 2026-11-22 on **desktop**, the stand-in's native export by a dev build of
+rust2-ffi, as the merge queue's `cargo run` runs it, from an emptied target through mbx, at
+a load average of about 19; the after rounds follow one that stored the host units:
 
 | export | rounds | wall s | CPU s | mbx |
 |---|---|---|---|---|
