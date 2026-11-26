@@ -126,7 +126,7 @@ census checkout="": (standin checkout)
     cargo run --locked --quiet -- --manifest-path target/moq-ffi/Cargo.toml --census target/census
 
 # Measure the binding benchmark (bench/ffi/README.md) from the pinned moq revision or a checkout, in the bench shell: nix develop .#bench. Its tables go to target/bench/report.md.
-bench checkout="": mbx-shim (bench-build checkout) rn-bench bench-run
+bench checkout="": mbx-shim mir-sysroot (bench-build checkout) rn-bench bench-run
 
 # Build the binding benchmark's programs: Rust's floor, C, C++, Kotlin, Python, Swift, Go, Dart, and C# through the export, TypeScript through the wasm32 stand-in's and through the Node binding's addon, and C through moq's hand-written rs/libmoq. React Native's, which builds Hermes, is rn-bench's, which `bench` runs after it, so `count`'s build of this builds no Hermes.
 bench-build checkout="": (moq-export checkout) (moq-web checkout) ts-program node-bench codspeed-hooks
@@ -267,8 +267,13 @@ codspeed-hooks:
 mbx-shim:
     @[ -n "${RUST2_CARGO_SHIM:-}" ] || { echo "no mbx Cargo shim: run mbx setup once, then reenter the dev shell" >&2; exit 1; }
 
+# Fail unless the dev shell's MIR sysroot is set, which bench-run's web rows measure the export over and report.py names, before anything builds.
+[private]
+mir-sysroot:
+    @[ -n "${RUST2_TS_SYSROOT:-}" ] || { echo "RUST2_TS_SYSROOT is unset or empty: run this in the dev shell" >&2; exit 1; }
+
 # Run what bench-build and rn-bench built: each program `rounds` times into target/bench/raw.tsv, and the export, native and web, cold and warm through mbx, and its crate's build, beside moq's, each round into target/bench/build.tsv, with the 1-minute load average over each run, and their medians and the export's sizes into target/bench/report.md.
-bench-run rounds="3": mbx-shim
+bench-run rounds="3": mbx-shim mir-sysroot
     #!/usr/bin/env bash
     set -euo pipefail
     out=target/export/moq
@@ -308,11 +313,6 @@ bench-run rounds="3": mbx-shim
     # Through it, into a store of the round's and export's own and no remote, which only the
     # export before the warm one fills, as an earlier CI run or another checkout would.
     cached=(MBX_REMOTE_MODE=write-only MBX_REMOTE_TRUST_WRITES=false)
-    # The web rows measure the export over the dev shell's MIR sysroot, as report.py says.
-    if [ -z "${RUST2_TS_SYSROOT:-}" ]; then
-        echo "bench-run: RUST2_TS_SYSROOT is unset or empty; run it from the dev shell" >&2
-        exit 1
-    fi
     # Its store's objects are read-only.
     wipe() {
         if [ -d "$scratch" ]; then chmod -R u+w "$scratch"; fi
