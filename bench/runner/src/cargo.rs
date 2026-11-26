@@ -266,7 +266,7 @@ fn workspace_root(dir: &Path, args: &[String]) -> Result<PathBuf, String> {
 }
 
 /// The members of a workspace, as a build selects among them.
-#[derive(Default)]
+#[derive(Clone, Default)]
 pub struct Members {
 	/// Each member by name, with the names of its benchmark targets.
 	pub benches: BTreeMap<String, BTreeSet<String>>,
@@ -276,6 +276,9 @@ pub struct Members {
 	/// Each member by name, with the names its manifest calls its dependencies, which a
 	/// `--features dependency/feature` may name.
 	pub dependencies: BTreeMap<String, BTreeSet<String>>,
+	/// The current package under resolver 1, which applies `--features` to it too, so they may
+	/// name its dependencies; none under later resolvers.
+	pub legacy: Option<String>,
 }
 
 /// The members of the workspace the build `args` select from `dir`.
@@ -294,10 +297,27 @@ pub fn members(dir: &Path, args: &[String]) -> Result<Members, String> {
 			.map_err(|e| format!("cannot resolve {path}: {e}"))
 	};
 	let located = resolve(located.trim())?;
-	let root = metadata["workspace_root"]
-		.as_str()
-		.ok_or("cargo metadata named no workspace root")?;
-	let default = if located == resolve(root)?.join("Cargo.toml") {
+	let root = resolve(
+		metadata["workspace_root"]
+			.as_str()
+			.ok_or("cargo metadata named no workspace root")?,
+	)?
+	.join("Cargo.toml");
+	// The package whose manifest is `manifest`, if any.
+	let package = |manifest: &Path| -> Result<Option<&Value>, String> {
+		for package in packages {
+			if let Some(path) = package["manifest_path"].as_str()
+				&& resolve(path)? == manifest
+			{
+				return Ok(Some(package));
+			}
+		}
+		Ok(None)
+	};
+	let current = package(&located)?
+		.and_then(|package| package["name"].as_str())
+		.map(str::to_owned);
+	let default = if located == root {
 		let ids = metadata["workspace_default_members"]
 			.as_array()
 			.ok_or("cargo metadata listed no default members: it needs Cargo 1.71 or later")?;
@@ -307,15 +327,20 @@ pub fn members(dir: &Path, args: &[String]) -> Result<Members, String> {
 			.filter_map(|package| package["name"].as_str().map(str::to_owned))
 			.collect()
 	} else {
-		let mut default = BTreeSet::new();
-		for package in packages {
-			if let Some(path) = package["manifest_path"].as_str()
-				&& resolve(path)? == located
-			{
-				default.extend(package["name"].as_str().map(str::to_owned));
-			}
-		}
-		default
+		current.iter().cloned().collect()
+	};
+	// Cargo's metadata names no resolver, so it comes from the root manifest, else from the root
+	// package's edition; a virtual workspace without one takes resolver 1.
+	let manifest: toml::Table = std::fs::read_to_string(&root)
+		.map_err(|e| format!("cannot read {}: {e}", root.display()))?
+		.parse()
+		.map_err(|e| format!("cannot parse {}: {e}", root.display()))?;
+	let resolver = ["workspace", "package"]
+		.into_iter()
+		.find_map(|table| manifest.get(table)?.get("resolver")?.as_str());
+	let legacy = match resolver {
+		Some(resolver) => resolver == "1",
+		None => package(&root)?.is_none_or(|package| matches!(package["edition"].as_str(), Some("2015" | "2018"))),
 	};
 	let (mut benches, mut dependencies) = (BTreeMap::new(), BTreeMap::new());
 	for package in packages {
@@ -357,6 +382,7 @@ pub fn members(dir: &Path, args: &[String]) -> Result<Members, String> {
 		benches,
 		default,
 		dependencies,
+		legacy: current.filter(|_| legacy),
 	})
 }
 
@@ -953,5 +979,49 @@ mod tests {
 		assert!(bench(&lib).unwrap().is_none());
 		let done = serde_json::json!({"reason": "build-finished", "success": true});
 		assert!(bench(&done).unwrap().is_none());
+	}
+
+	#[test]
+	fn names_the_current_package_only_under_resolver_1() {
+		let dir = std::env::temp_dir().join(format!("rust2-bench-resolver-{}", std::process::id()));
+		let member = dir.join("a");
+		std::fs::create_dir_all(member.join("src")).unwrap();
+		std::fs::write(member.join("src/lib.rs"), "").unwrap();
+		let legacy = |root: &str, package: &str| {
+			std::fs::write(dir.join("Cargo.toml"), root).unwrap();
+			std::fs::write(member.join("Cargo.toml"), format!("[package]\nname = \"a\"\n{package}")).unwrap();
+			members(&member, &[]).unwrap().legacy
+		};
+		let a = Some("a".to_owned());
+		// A virtual workspace without a resolver takes 1, whatever its members' editions.
+		assert_eq!(legacy("[workspace]\nmembers = [\"a\"]\n", "edition = \"2021\"\n"), a);
+		assert_eq!(
+			legacy(
+				"[workspace]\nmembers = [\"a\"]\nresolver = \"2\"\n",
+				"edition = \"2021\"\n"
+			),
+			None
+		);
+		// A package that is its own workspace takes its edition's resolver, unless it names one.
+		std::fs::remove_file(dir.join("Cargo.toml")).unwrap();
+		std::fs::write(
+			member.join("Cargo.toml"),
+			"[package]\nname = \"a\"\nedition = \"2018\"\n",
+		)
+		.unwrap();
+		assert_eq!(members(&member, &[]).unwrap().legacy, a);
+		std::fs::write(
+			member.join("Cargo.toml"),
+			"[package]\nname = \"a\"\nedition = \"2021\"\n",
+		)
+		.unwrap();
+		assert_eq!(members(&member, &[]).unwrap().legacy, None);
+		std::fs::write(
+			member.join("Cargo.toml"),
+			"[package]\nname = \"a\"\nedition = \"2021\"\nresolver = \"1\"\n",
+		)
+		.unwrap();
+		assert_eq!(members(&member, &[]).unwrap().legacy, a);
+		std::fs::remove_dir_all(&dir).unwrap();
 	}
 }

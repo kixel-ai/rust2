@@ -215,11 +215,12 @@ fn select(args: &[Arg], members: &Members) -> Selection {
 		.filter(|(name, _)| builds(name))
 		.flat_map(|(_, benches)| benches)
 		.collect();
-	// A `package/feature` names a package Cargo builds, or one of their dependencies.
+	// A `package/feature` names a package Cargo builds, or one of their dependencies, or under
+	// resolver 1 one of the current package's.
 	let featured: BTreeSet<&str> = members
 		.dependencies
 		.iter()
-		.filter(|(name, _)| builds(name))
+		.filter(|(name, _)| builds(name) || members.legacy.as_ref() == Some(*name))
 		.flat_map(|(name, dependencies)| [name].into_iter().chain(dependencies))
 		.map(String::as_str)
 		.collect();
@@ -719,6 +720,7 @@ mod tests {
 				.map(|(name, benches)| (name.to_owned(), benches.iter().map(|b| (*b).to_owned()).collect()))
 				.collect(),
 			default: BTreeSet::from(["a".to_owned()]),
+			legacy: None,
 			// `c` calls a dependency `b`, as the other side calls a member.
 			dependencies: [("a", "dep"), ("c", "b")]
 				.into_iter()
@@ -805,6 +807,18 @@ mod tests {
 			picked.lacks,
 			strings(&["feature b/f", "feature c/g"]).into_iter().collect()
 		);
+		// Under resolver 1, the current package's dependencies stay too.
+		let legacy = Members {
+			legacy: Some("a".to_owned()),
+			..members.clone()
+		};
+		assert_eq!(
+			super::select(&parse(&strings(&["-p", "c", "-F", "dep/f"])).unwrap(), &legacy)
+				.args
+				.unwrap(),
+			["-p", "c", "--features", "dep/f"]
+		);
+		assert_eq!(select(&["-p", "c", "-F", "dep/f"]).args.unwrap(), ["-p", "c"]);
 		// Without `-p` too.
 		let picked = select(&["--workspace", "--features", "e/f,c/g,b/f"]);
 		assert_eq!(picked.args.unwrap(), ["--workspace", "--features", "c/g,b/f"]);
