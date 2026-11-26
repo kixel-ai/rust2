@@ -12,7 +12,9 @@ stub attributes (`ffi/tests/unity.cs`), and running that half of it on CoreCLR.
 
 - Recommended: GameCI's `unityci/editor` image for the current LTS with the Linux IL2CPP
   module, `-batchmode -nographics -buildTarget StandaloneLinux64` and a build script that
-  sets `ScriptingImplementation.IL2CPP`, on the nightly's self-hosted runner. The player
+  sets `ScriptingImplementation.IL2CPP`, on a GitHub-hosted `ubuntu-24.04` runner like the
+  nightly's other jobs (x64: GameCI's images are amd64-only); self-hosted only if the image
+  outgrows the hosted runner's disk, since GameCI activates a Personal license there. The player
   loads the fixture's library from `Plugins/`, and its `Main` is the test's, called from
   a `RuntimeInitializeOnLoadMethod` that quits with the exit code.
 - iOS (`__Internal`, static linking) and Android stay unproven until a device job exists;
