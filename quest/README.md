@@ -8,10 +8,12 @@ grouped into milestones ordered by priority.
 ## Plan
 
 m0 holds urgent fixes and what every run pays for. m1 is the work with a consumer
-waiting on it now: the exporter moq switches its bindings to, and
-[removing CodSpeed](/quest/m1/codspeed/README.md) from moq, rind, and here. m2 is research with a named
-consumer: rust2-wasm, moq's browser route, the TypeScript translator, and an experiment
-that has to beat it. m3 holds work that waits on evidence or has no consumer yet:
+waiting on it now: the exporter moq switches its bindings to,
+[removing CodSpeed](/quest/m1/codspeed/README.md) from moq, rind, and here, and
+[moving rust2-bench to kixel-ai/swole](/quest/m1/swole-repo.md). m2 is research with a named
+consumer: rust2-wasm, moq's browser route, the TypeScript translator, an experiment
+that has to beat it, and [swole](/quest/m2/swole/README.md), the full-counter Rust
+benchmark tool. m3 holds work that waits on evidence or has no consumer yet:
 upstream's build-speed levers, which the [build-speed benchmark](/bench/build/README.md)
 measures, the translator's features that wait on [the gate](/quest/m2/wasm/README.md),
 the binding targets planned ahead of a consumer, and what waits on moq. m4 holds long-term
