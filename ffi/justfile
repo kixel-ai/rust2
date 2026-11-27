@@ -19,10 +19,9 @@ clippy_driver := if env("RUST2_TS_TOOLCHAIN", "") == "" { require("clippy-driver
 # both variables on inner cargo calls so target crates never inherit them.
 exporter := "env CARGO_BUILD_WARNINGS=deny RUSTC_WORKSPACE_WRAPPER=" + quote(clippy_driver) + " cargo run --locked --quiet" + (if cargo_shim == "" { "" } else { " --config \"target.'cfg(all())'.runner=['env','-u','CARGO']\"" }) + " --"
 
-# `cargo nextest run`, which bounds a hung test by .config/nextest.toml. Under mbx's shim, its
-# tests run without the $CARGO nextest hands them, which names the cargo the shim chains to,
-# so the drivers they start look for cargo on PATH instead; nextest reads the runner from --config.
-nextest := if cargo_shim == "" { "cargo nextest run --locked" } else { "cargo nextest run --locked --config \"target.'cfg(all())'.runner=['env','-u','CARGO']\"" }
+# `cargo nextest run`, which bounds a hung test by .config/nextest.toml. Under mbx, the exporter
+# the tests start checks through the session's own RUSTC_WRAPPER, whichever cargo it runs.
+nextest := "cargo nextest run --locked"
 
 # The moq revision these recipes export by default. It is the exporter's own pin, apart from
 # the model fixture's in ts/fixtures/model/Cargo.toml, so bumping one does not wait on the other.

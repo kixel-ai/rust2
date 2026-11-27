@@ -64,6 +64,16 @@ fn cargo() -> Command {
 	cmd
 }
 
+/// The exporter. Under mbx, its check compiles through the test run's own cache session,
+/// whose workspace is this one: shared across checkouts, as mbx's `share_workspace_root`
+/// shares a workspace's crates, a fixture would cite its source as `${workspace}/...`, which
+/// rustc cannot read back to point at, rather than by its path.
+fn rust2_ffi() -> Command {
+	let mut cmd = Command::new(env!("CARGO_BIN_EXE_rust2-ffi"));
+	cmd.env("MBX_SHARE_WORKSPACE_ROOT", "0");
+	cmd
+}
+
 /// The shared library a crate of the lib `name` builds.
 fn shared(name: &str) -> String {
 	match (cfg!(windows), cfg!(target_os = "macos")) {
@@ -105,7 +115,7 @@ fn export(name: &str, out: &Path, targets: &[&str], cargo: &[&str]) -> Output {
 /// The export of the fixture `name`, with `args` for rust2-ffi besides.
 fn exporter(name: &str, out: &Path, targets: &[&str], args: &[&std::ffi::OsStr], cargo: &[&str]) -> Command {
 	let fixture = manifest_dir().join("fixtures").join(name);
-	let mut command = Command::new(env!("CARGO_BIN_EXE_rust2-ffi"));
+	let mut command = rust2_ffi();
 	command
 		.arg("--manifest-path")
 		.arg(fixture.join("Cargo.toml"))
@@ -4962,7 +4972,7 @@ fn go_reserved_packages() {
 		);
 		std::fs::write(package.join("Cargo.toml"), manifest).unwrap();
 		let out = package.join("out");
-		let output = Command::new(env!("CARGO_BIN_EXE_rust2-ffi"))
+		let output = rust2_ffi()
 			.arg("--manifest-path")
 			.arg(package.join("Cargo.toml"))
 			.arg("--out")
@@ -5019,7 +5029,7 @@ fn go_package_names() {
 		],
 	);
 	let out = package.join("out");
-	let output = Command::new(env!("CARGO_BIN_EXE_rust2-ffi"))
+	let output = rust2_ffi()
 		.arg("--manifest-path")
 		.arg(package.join("Cargo.toml"))
 		.arg("--out")
@@ -5064,7 +5074,7 @@ fn export_is_relocatable() {
 	let export = |checkout: PathBuf| {
 		write_all(&checkout, &files);
 		let out = checkout.join("out");
-		let output = Command::new(env!("CARGO_BIN_EXE_rust2-ffi"))
+		let output = rust2_ffi()
 			.arg("--manifest-path")
 			.arg(checkout.join("Cargo.toml"))
 			.arg("--out")
@@ -5189,7 +5199,7 @@ fn unreached_types() {
 	);
 	// The export builds, naming `kio`'s types through its own dependency on `kio`.
 	let out = package.join("out");
-	run(Command::new(env!("CARGO_BIN_EXE_rust2-ffi"))
+	run(rust2_ffi()
 		.arg("--manifest-path")
 		.arg(package.join("Cargo.toml"))
 		.arg("--out")
@@ -5221,7 +5231,7 @@ fn unreached_types() {
 	// Staged on another host, with the checkout elsewhere, the merged export depends on the
 	// exporting host's `kio`, not the staging host's, though only the staged target reaches it.
 	let staged = package.join("wasm.json");
-	run(Command::new(env!("CARGO_BIN_EXE_rust2-ffi"))
+	run(rust2_ffi()
 		.arg("--manifest-path")
 		.arg(package.join("Cargo.toml"))
 		.args(["--api", staged.to_str().unwrap(), "--target", WASM])
@@ -5236,7 +5246,7 @@ fn unreached_types() {
 	let (head, rest) = lib.split_once("pub fn pending").unwrap();
 	let rest = &rest[rest.find("#[cfg(feature = \"refused\")] pub fn seal").unwrap()..];
 	std::fs::write(moved.join("src/lib.rs"), format!("{head}{rest}")).unwrap();
-	run(Command::new(env!("CARGO_BIN_EXE_rust2-ffi"))
+	run(rust2_ffi()
 		.arg("--manifest-path")
 		.arg(moved.join("Cargo.toml"))
 		.arg("--out")
@@ -5254,7 +5264,7 @@ fn unreached_types() {
 	);
 	// The census, with the items that fail the export.
 	let census = package.join("census");
-	let output = Command::new(env!("CARGO_BIN_EXE_rust2-ffi"))
+	let output = rust2_ffi()
 		.arg("--manifest-path")
 		.arg(package.join("Cargo.toml"))
 		.arg("--census")
@@ -5384,7 +5394,7 @@ fn reexport() {
 	// Without an earlier run's, such as the library it planted in libs/, which no export removes.
 	let _ = std::fs::remove_dir_all(&out);
 	let export = || {
-		run(Command::new(env!("CARGO_BIN_EXE_rust2-ffi"))
+		run(rust2_ffi()
 			.arg("--manifest-path")
 			.arg(package.join("Cargo.toml"))
 			.arg("--out")
@@ -5498,7 +5508,7 @@ fn relative_target() {
 	let dir = scratch().join("relative");
 	std::fs::create_dir_all(&dir).unwrap();
 	let census = dir.join("census");
-	let output = Command::new(env!("CARGO_BIN_EXE_rust2-ffi"))
+	let output = rust2_ffi()
 		.arg("--manifest-path")
 		.arg(manifest_dir().join("fixtures/api/Cargo.toml"))
 		.arg("--census")
@@ -6105,7 +6115,7 @@ fn no_std_links() {
 		)],
 	);
 	let out = package.join("out");
-	let output = Command::new(env!("CARGO_BIN_EXE_rust2-ffi"))
+	let output = rust2_ffi()
 		.arg("--manifest-path")
 		.arg(package.join("Cargo.toml"))
 		.arg("--out")
@@ -6222,44 +6232,53 @@ fn cached() {
 	for script in [&wrapper, &cargo] {
 		std::fs::set_permissions(script, std::os::unix::fs::PermissionsExt::from_mode(0o755)).unwrap();
 	}
-	let _ = std::fs::remove_file(&log);
-	let _ = std::fs::remove_dir_all(package.join("build"));
-	run(census(&package.join("Cargo.toml"), &[]).env("CARGO", &cargo));
-	let log = std::fs::read_to_string(&log).unwrap();
-	let compiled = |krate: &str| {
-		let line = log
-			.lines()
-			.find(|line| line.contains(&format!("--crate-name {krate} ")));
-		let line = line.unwrap_or_else(|| panic!("{krate} was not compiled through the cache:\n{log}"));
-		line.split(' ').map(str::to_string).collect::<Vec<_>>()
-	};
-	let (dep, facade) = (compiled("dep"), compiled("cached"));
-	// Cargo passes its rustc to the workspace's wrapper alone.
-	assert_ne!(dep[0], facade[0], "{log}");
-	assert_eq!(dep[0], facade[1], "{log}");
-	// The sibling reaches the cache twice: from cargo, as the facade does, then handed back
-	// with the exporter as rustc, as the dep does.
-	let sibling = log.lines().filter(|line| line.contains("--crate-name sibling "));
-	let sibling = sibling.map(|line| line.split(' ').next().unwrap()).collect::<Vec<_>>();
-	assert_eq!(sibling, [&facade[0], &dep[0]], "{log}");
-	// The facade, whose compilation writes the export, is not handed back.
-	assert_eq!(log.matches("--crate-name cached ").count(), 1, "{log}");
-	let flags = [
-		"--cfg",
-		"consumer",
-		"-Zalways-encode-mir",
-		"-Coverflow-checks=on",
-		"-Zmir-opt-level=1",
-	];
-	for krate in [&dep, &facade] {
-		assert!(krate.windows(flags.len()).any(|run| run == flags), "{log}");
+	// A cache wraps rustc from its Cargo shim, or, inside its session, as the tests run
+	// under mbx, from the environment the exporter inherits.
+	for inherited in [false, true] {
+		let _ = std::fs::remove_file(&log);
+		let _ = std::fs::remove_dir_all(package.join("build"));
+		let mut census = census(&package.join("Cargo.toml"), &[]);
+		match inherited {
+			false => census.env("CARGO", &cargo),
+			true => census.env("CARGO", env!("CARGO")).env("RUSTC_WRAPPER", &wrapper),
+		};
+		run(&mut census);
+		let log = std::fs::read_to_string(&log).unwrap();
+		let compiled = |krate: &str| {
+			let line = log
+				.lines()
+				.find(|line| line.contains(&format!("--crate-name {krate} ")));
+			let line = line.unwrap_or_else(|| panic!("{krate} was not compiled through the cache:\n{log}"));
+			line.split(' ').map(str::to_string).collect::<Vec<_>>()
+		};
+		let (dep, facade) = (compiled("dep"), compiled("cached"));
+		// Cargo passes its rustc to the workspace's wrapper alone.
+		assert_ne!(dep[0], facade[0], "{log}");
+		assert_eq!(dep[0], facade[1], "{log}");
+		// The sibling reaches the cache twice: from cargo, as the facade does, then handed back
+		// with the exporter as rustc, as the dep does.
+		let sibling = log.lines().filter(|line| line.contains("--crate-name sibling "));
+		let sibling = sibling.map(|line| line.split(' ').next().unwrap()).collect::<Vec<_>>();
+		assert_eq!(sibling, [&facade[0], &dep[0]], "{log}");
+		// The facade, whose compilation writes the export, is not handed back.
+		assert_eq!(log.matches("--crate-name cached ").count(), 1, "{log}");
+		let flags = [
+			"--cfg",
+			"consumer",
+			"-Zalways-encode-mir",
+			"-Coverflow-checks=on",
+			"-Zmir-opt-level=1",
+		];
+		for krate in [&dep, &facade] {
+			assert!(krate.windows(flags.len()).any(|run| run == flags), "{log}");
+		}
 	}
 }
 
 /// A census of the package whose manifest is `manifest` with these cargo args, to run.
 fn census(manifest: &Path, cargo: &[&str]) -> Command {
 	let dir = manifest.parent().unwrap();
-	let mut cmd = Command::new(env!("CARGO_BIN_EXE_rust2-ffi"));
+	let mut cmd = rust2_ffi();
 	cmd.arg("--manifest-path")
 		.arg(manifest)
 		.arg("--census")
@@ -6273,7 +6292,7 @@ fn census(manifest: &Path, cargo: &[&str]) -> Command {
 /// A flag given twice is an error, not the last one silently winning.
 #[test]
 fn flag_twice() {
-	let output = Command::new(env!("CARGO_BIN_EXE_rust2-ffi"))
+	let output = rust2_ffi()
 		.args(["--census", "census", "--manifest-path", "a/Cargo.toml"])
 		.args(["--manifest-path", "b/Cargo.toml"])
 		.output()
@@ -6426,7 +6445,7 @@ fn lookalike() {
 	}
 	let out = package.join("out");
 	let remap = format!("--remap-path-prefix={}=/src", package.display());
-	let output = Command::new(env!("CARGO_BIN_EXE_rust2-ffi"))
+	let output = rust2_ffi()
 		.arg("--manifest-path")
 		.arg(package.join("Cargo.toml"))
 		.arg("--out")
@@ -6460,7 +6479,7 @@ fn standard_names() {
 		std::fs::write(package.join("Cargo.toml"), manifest).unwrap();
 		let lib = "pub struct SocketAddrV4 {\n\tpub port: u16,\n}\n\npub fn port(addr: SocketAddrV4) -> u16 {\n\taddr.port\n}\n";
 		std::fs::write(package.join("src/lib.rs"), lib).unwrap();
-		let output = Command::new(env!("CARGO_BIN_EXE_rust2-ffi"))
+		let output = rust2_ffi()
 			.arg("--manifest-path")
 			.arg(package.join("Cargo.toml"))
 			.arg("--out")
@@ -6512,7 +6531,7 @@ fn opaque_values() {
 		#[derive(Clone, Copy)]\npub struct Sliced(Option<&'static [u8]>);\n\npub fn sliced() -> Sliced {\n\tSliced(None)\n}\n";
 	let package = package("opaque_values", &[("src/lib.rs", lib)]);
 	let out = package.join("out");
-	run(Command::new(env!("CARGO_BIN_EXE_rust2-ffi"))
+	run(rust2_ffi()
 		.arg("--manifest-path")
 		.arg(package.join("Cargo.toml"))
 		.arg("--out")
@@ -6620,7 +6639,7 @@ fn rust_version() {
 		)],
 	);
 	let out = package.join("out");
-	run(Command::new(env!("CARGO_BIN_EXE_rust2-ffi"))
+	run(rust2_ffi()
 		.arg("--manifest-path")
 		.arg(package.join("Cargo.toml"))
 		.arg("--out")
@@ -6696,7 +6715,7 @@ fn channel() {
 		],
 	);
 	let out = package.join("out");
-	run(Command::new(env!("CARGO_BIN_EXE_rust2-ffi"))
+	run(rust2_ffi()
 		.arg("--manifest-path")
 		.arg(package.join("Cargo.toml"))
 		.arg("--out")
@@ -6758,7 +6777,7 @@ fn target() {
 	// Each run starts from these, and drops `differing` partway, which rebuilds the glue.
 	let package = package("targeted", &[("src/lib.rs", &format!("{shared}\n{differing}"))]);
 	let exporter = |args: &[&str]| {
-		let mut cmd = Command::new(env!("CARGO_BIN_EXE_rust2-ffi"));
+		let mut cmd = rust2_ffi();
 		cmd.arg("--manifest-path")
 			.arg(package.join("Cargo.toml"))
 			.args(args)
@@ -6846,7 +6865,7 @@ fn target() {
 		std::fs::create_dir_all(moved.join(file).parent().unwrap()).unwrap();
 		std::fs::copy(package.join(file), moved.join(file)).unwrap();
 	}
-	let output = Command::new(env!("CARGO_BIN_EXE_rust2-ffi"))
+	let output = rust2_ffi()
 		.arg("--manifest-path")
 		.arg(moved.join("Cargo.toml"))
 		.arg("--out")
@@ -6905,7 +6924,7 @@ fn write_all(dir: &Path, files: &[(&str, &str)]) {
 /// here, with the lockfile the check resolved.
 fn export_and_build(dir: &Path, args: &[&str]) {
 	let out = dir.join("out");
-	let output = Command::new(env!("CARGO_BIN_EXE_rust2-ffi"))
+	let output = rust2_ffi()
 		.arg("--manifest-path")
 		.arg(dir.join("Cargo.toml"))
 		.arg("--out")
@@ -7029,7 +7048,7 @@ fn reaches_bytes_on_the_host() {
 	);
 	step::mirror(&registry, &package.join("bytes"));
 	let out = package.join("out");
-	run(Command::new(env!("CARGO_BIN_EXE_rust2-ffi"))
+	run(rust2_ffi()
 		.arg("--manifest-path")
 		.arg(package.join("Cargo.toml"))
 		.arg("--out")
@@ -7260,7 +7279,7 @@ fn config_patched() {
 		pub fn width(size: Size, cli: Margin) -> u32 {\n\tsize.width + cli.width\n}\n",
 	);
 	let out = root.join("out");
-	let output = Command::new(env!("CARGO_BIN_EXE_rust2-ffi"))
+	let output = rust2_ffi()
 		.arg("--manifest-path")
 		.arg(root.join("pkg/Cargo.toml"))
 		.arg("--out")
@@ -7324,7 +7343,7 @@ fn leaf_profile() {
 	);
 	let out = package.join("out");
 	let export = |cargo: &[&str]| {
-		Command::new(env!("CARGO_BIN_EXE_rust2-ffi"))
+		rust2_ffi()
 			.arg("--manifest-path")
 			.arg(package.join("Cargo.toml"))
 			.arg("--out")

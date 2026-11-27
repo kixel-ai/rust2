@@ -187,12 +187,14 @@ impl Check<'_> {
 			cmd.env_remove("CARGO_BUILD_WARNINGS");
 			match self.wrap {
 				Wrap::All => cmd.env("RUSTC_WRAPPER", &exe).env_remove("RUSTC_WORKSPACE_WRAPPER"),
-				// An empty wrapper is none, whatever cargo's config names, so only a cache that
-				// sets its own, as mbx's does, wraps rustc.
+				// Only a wrapper in the environment wraps rustc, whatever cargo's config names: a
+				// cache's Cargo shim sets its own, as mbx's does, and inside a cache's session,
+				// such as the tests mbx runs, the session's wrapper stays, since a nested shim
+				// passes cargo through without setting one.
 				Wrap::Workspace => cmd
 					.env("RUSTC", rustc(&exe))
 					.env("RUSTC_WORKSPACE_WRAPPER", &exe)
-					.env("RUSTC_WRAPPER", ""),
+					.env("RUSTC_WRAPPER", std::env::var_os("RUSTC_WRAPPER").unwrap_or_default()),
 			};
 			cmd.arg(subcommand)
 				.arg("--manifest-path")

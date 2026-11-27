@@ -218,7 +218,7 @@ pub struct Streams {
 	);
 	let out = package.join("out");
 	let output = super::output(
-		Command::new(env!("CARGO_BIN_EXE_rust2-ffi"))
+		super::rust2_ffi()
 			.arg("--manifest-path")
 			.arg(package.join("Cargo.toml"))
 			.arg("--out")
@@ -297,7 +297,7 @@ fn one(krate: &Krate) -> Result<Passed, Failure> {
 	let dir = base().join("crates").join(name);
 	let build = base().join("build");
 	let exporter = |mode: &str, out: &Path| {
-		let mut cmd = Command::new(env!("CARGO_BIN_EXE_rust2-ffi"));
+		let mut cmd = super::rust2_ffi();
 		cmd.arg("--manifest-path")
 			.arg(facade.join("Cargo.toml"))
 			.arg(mode)
