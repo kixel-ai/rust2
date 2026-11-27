@@ -27,6 +27,16 @@ structure cases.Record where
   x0 : UInt8
 deriving Repr, DecidableEq, Inhabited
 
+/-- `cases::Plain` -/
+structure cases.Plain where
+  x0 : UInt8
+deriving Repr, DecidableEq, Inhabited
+
+/-- `cases::Wrap` -/
+structure cases.Wrap where
+  x0 : cases.Plain
+deriving Repr, DecidableEq, Inhabited
+
 /-- `cases::M` -/
 structure cases.M where
   x0 : UInt8
@@ -126,6 +136,27 @@ def cases.snapshot_borrow (x : UInt8) : (UInt8 × UInt8) := Id.run do
   let t2 := x
   x := r
   return (t2, x)
+
+def cases.temp_borrow (x : UInt8) : UInt8 := Id.run do
+  let mut t5 := x
+  let r := cases.set t5
+  t5 := r
+  return x
+
+def cases.clone_bytes (v : (Array UInt8)) : (Array UInt8) :=
+  v
+
+def cases.clone_pairs (v : (Array ((Option UInt8) × (Option UInt8)))) : (Array ((Option UInt8) × (Option UInt8))) :=
+  v
+
+def cases.Plain.Clone.clone (self : cases.Plain) : cases.Plain :=
+  self
+
+def cases.Wrap.Clone.clone (self : cases.Wrap) : cases.Wrap :=
+  self
+
+def cases.dup_wrap (w : cases.Wrap) : cases.Wrap :=
+  w
 
 def cases.snapshot (x : UInt8) : (UInt8 × UInt8) := Id.run do
   let mut x := x

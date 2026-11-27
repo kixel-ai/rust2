@@ -307,8 +307,8 @@ impl<'tcx> Cx<'tcx> {
 							.all_fields()
 							.all(|f| self.structural_eq_in(f.ty(self.tcx, *args).skip_norm_wip(), seen))
 				} else {
-					matches!(self.std_name(def.did()).as_str(), "Option" | "Result" | "Vec")
-						&& args.types().all(|t| self.structural_eq_in(t, seen))
+					self.std_container(def.did(), args)
+						.is_some_and(|mut tys| tys.all(|t| self.structural_eq_in(t, seen)))
 				}
 			}
 			_ => false,
@@ -321,28 +321,51 @@ impl<'tcx> Cx<'tcx> {
 		self.clone_copies_in(ty, &mut HashSet::new())
 	}
 
-	/// `clone_copies`, refusing a type in `seen`, since recursive types are refused anyway.
-	fn clone_copies_in(&self, ty: Ty<'tcx>, seen: &mut HashSet<Ty<'tcx>>) -> bool {
+	/// `clone_copies`, refusing a type in `active`, the types being checked further up, since
+	/// recursive types are refused anyway.
+	fn clone_copies_in(&self, ty: Ty<'tcx>, active: &mut HashSet<Ty<'tcx>>) -> bool {
 		match ty.kind() {
 			ty::Bool | ty::Int(_) | ty::Uint(_) | ty::Char | ty::Ref(_, _, ty::Mutability::Not) => true,
-			ty::Tuple(tys) => tys.iter().all(|t| self.clone_copies_in(t, seen)),
-			ty::Array(t, _) => self.clone_copies_in(*t, seen),
+			ty::Tuple(tys) => tys.iter().all(|t| self.clone_copies_in(t, active)),
+			ty::Array(t, _) => self.clone_copies_in(*t, active),
 			ty::Adt(def, args) => {
-				if !seen.insert(ty) {
+				if !active.insert(ty) {
 					return false;
 				}
-				if def.did().is_local() {
-					self.derives(def.did(), self.tcx.lang_items().clone_trait())
-						&& def
-							.all_fields()
-							.all(|f| self.clone_copies_in(f.ty(self.tcx, *args).skip_norm_wip(), seen))
+				let copies = if def.did().is_local() {
+					let lang = self.tcx.lang_items();
+					// `#[derive(Clone, Copy)]` on a type without type parameters derives a `clone`
+					// that copies, whatever the fields' `Clone` does, and marks it `TrivialClone`.
+					if self.derives(def.did(), lang.trivial_clone_trait()) {
+						true
+					} else {
+						self.derives(def.did(), lang.clone_trait())
+							&& def
+								.all_fields()
+								.all(|f| self.clone_copies_in(f.ty(self.tcx, *args).skip_norm_wip(), active))
+					}
 				} else {
-					matches!(self.std_name(def.did()).as_str(), "Option" | "Result" | "Vec")
-						&& args.types().all(|t| self.clone_copies_in(t, seen))
-				}
+					self.std_container(def.did(), args)
+						.is_some_and(|mut tys| tys.all(|t| self.clone_copies_in(t, active)))
+				};
+				// A type met again outside its own fields is repeated, not recursive.
+				active.remove(&ty);
+				copies
 			}
 			_ => false,
 		}
+	}
+
+	/// The element types of a `std` container whose `Clone` and `PartialEq` are structural, or
+	/// `None` for any other type. A `Vec`'s allocator is not an element: the only one modeled is
+	/// `Global`, which holds no data.
+	fn std_container(&self, did: DefId, args: &'tcx ty::GenericArgs<'tcx>) -> Option<impl Iterator<Item = Ty<'tcx>>> {
+		let n = match self.std_name(did).as_str() {
+			"Option" | "Vec" => 1,
+			"Result" => 2,
+			_ => return None,
+		};
+		Some(args.types().take(n))
 	}
 
 	/// Whether the local type's `PartialEq` impl is derived.
@@ -888,8 +911,8 @@ impl<'a, 'tcx> Fx<'a, 'tcx> {
 					&& self.defs[l.as_usize()] <= 1
 					// A parameter arrives set, so any assignment changes it.
 					&& (l.as_usize() > self.body.arg_count || self.defs[l.as_usize()] == 0)
-					// Nor may a mutable borrow write it.
-					&& !self.mutable.values().any(|m| matches!(m, Mutable::Borrow(b) if b.local == l))
+					// Nor may a mutable borrow write either, since the copy is a separate value.
+					&& !self.mutable.values().any(|m| matches!(m, Mutable::Borrow(b) if b.local == l || b.local == t))
 					&& self.partial[l.as_usize()] == 0
 					&& !self.mutable.contains_key(&l)
 					&& !self.mutable.contains_key(&t)
@@ -1147,6 +1170,8 @@ impl<'a, 'tcx> Fx<'a, 'tcx> {
 			&& self.defs[i] == 1
 			&& self.uses[i] == 1
 			&& self.projected[i] == 0
+			// A write through a mutable borrow reads and sets the variable itself.
+			&& !self.mutable.values().any(|m| matches!(m, Mutable::Borrow(b) if b.local == local))
 	}
 
 	fn statement(&mut self, stmt: &mir::Statement<'tcx>, ops: &mut Vec<Op>) -> R<()> {

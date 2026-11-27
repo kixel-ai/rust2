@@ -97,6 +97,39 @@ pub mod cases {
 		})
 	}
 
+	/// `{ x }` is a copy, so writing through its borrow leaves `x` as it was.
+	pub fn temp_borrow(x: u8) -> u8 {
+		set(&mut { x });
+		x
+	}
+
+	/// A `Vec`'s clone copies its elements, whatever its allocator.
+	pub fn clone_bytes(v: &Vec<u8>) -> Vec<u8> {
+		v.clone()
+	}
+
+	/// A type that appears twice is repeated, not recursive.
+	pub fn clone_pairs(v: &Vec<(Option<u8>, Option<u8>)>) -> Vec<(Option<u8>, Option<u8>)> {
+		v.clone()
+	}
+
+	#[derive(Copy)]
+	pub struct Plain(pub u8);
+
+	impl Clone for Plain {
+		fn clone(&self) -> Self {
+			*self
+		}
+	}
+
+	/// `#[derive(Clone, Copy)]` copies `Plain` without calling its hand-written `Clone`.
+	#[derive(Clone, Copy)]
+	pub struct Wrap(pub Plain);
+
+	pub fn dup_wrap(w: &Wrap) -> Wrap {
+		w.clone()
+	}
+
 	/// The tuple's first element is `x` as it was before the block sets it.
 	pub fn snapshot(mut x: u8) -> (u8, u8) {
 		(x, {
