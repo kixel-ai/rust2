@@ -2,10 +2,11 @@
 [profile.default]
 slow-timeout = { period = "30s", terminate-after = 2 }
 
-# A fixture test translates crates and runs their output: about 80 seconds at most from cold.
+# A fixture test translates crates and runs their output: about 80 seconds idle, but nearly
+# 4 minutes warm on a loaded host and past 5 minutes cold.
 [[profile.default.overrides]]
 filter = "binary(fixtures)"
-slow-timeout = { period = "60s", terminate-after = 5 }
+slow-timeout = { period = "60s", terminate-after = 10 }
 
 # The nightly's ignored runs, each its whole job, bounded below the job's timeout, so a hang
 # names its test. An override, since the default profile's would win over a profile's own
