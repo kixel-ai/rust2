@@ -44,8 +44,10 @@ Shape, decided by the maintainer on #1070 (rejected: the Python script vendored 
 consumer; the script fetched from here at a pinned revision): a Rust binary here, published to crates.io so
 `taiki-e/install-action` and the consumers' Nix shells install it, which reads its bounds
 from the consumer's `.config/nextest.toml` profile (`slow-timeout`'s period times
-`terminate-after`, and overrides whose filters are `test(=NAME)`, `test(/REGEX/)`, or
-their `|`), so one file bounds both runners. Any other filter is an error naming it. Unit
+`terminate-after`, and its overrides), so one file bounds both runners. Overrides'
+filters are combinations of `package(...)`, matched against the package cargo reports
+running each binary, and `test(=NAME)` or `test(/REGEX/)`, with `&` and `|`, as moq's
+profile already uses; any other filter is an error naming it. Unit
 tests drive its line parser and a mocked clock; one end-to-end test runs a hanging libtest
 binary.
 
