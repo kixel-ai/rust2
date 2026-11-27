@@ -959,7 +959,9 @@ impl<'tcx> Cx<'tcx> {
 			}
 		}
 		out += "deriving Repr, DecidableEq, Inhabited";
-		if self.derives(did, tcx.get_diagnostic_item(rustc_span::sym::Ord)) {
+		// Only an order Rust's agrees with: Lean orders variants by declaration and Rust's
+		// derive by discriminant, so an enum whose two disagree gets none.
+		if self.structural_ord(tcx.type_of(did).instantiate_identity().skip_norm_wip()) {
 			out += ", Ord";
 		}
 		out += "\n";
@@ -2701,6 +2703,24 @@ impl<'a, 'tcx> Fx<'a, 'tcx> {
 				];
 				if bounds.iter().any(|b| ord.contains(&Some(*b))) && !self.cx.structural_ord(t) {
 					return refuse(span, format!("`{t}` passed where `Ord` must match a Lean order"));
+				}
+				// Lean derives `Ord (Option T)` and `DecidableEq (Option T)` from `T`'s own
+				// instance, which this function's binders hold only for a parameter it bounds
+				// directly, not through a bound such as `Option<T>: Ord`.
+				let ord = tcx.get_diagnostic_item(rustc_span::sym::Ord);
+				for tr in [ord, eq].into_iter().flatten().filter(|b| bounds.contains(b)) {
+					let missing = t.walk().filter_map(|a| a.as_type()).find(
+						|a| matches!(a.kind(), ty::Param(p) if !self.cx.param_bounds(self.did, p.index).contains(&tr)),
+					);
+					if let Some(p) = missing {
+						return refuse(
+							span,
+							format!(
+								"`{t}` passed where `{}` needs a Lean instance, which `{p}` has no bound for",
+								tcx.def_path_str(tr)
+							),
+						);
+					}
 				}
 			}
 			let shows = sig.inputs().iter().any(|t| {

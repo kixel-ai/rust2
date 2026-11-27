@@ -272,6 +272,18 @@ pub mod cases {
 		(m.get(&r).copied(), m.contains_key(&r), s.contains(&k), s.len(), m.is_empty())
 	}
 
+	/// Rust orders `Severity` by discriminant, against declaration order, so its Lean type
+	/// gets no `Ord` to disagree with; `len` needs none.
+	#[derive(PartialEq, Eq, PartialOrd, Ord)]
+	pub enum Severity {
+		High = 2,
+		Low = 1,
+	}
+
+	pub fn severities(s: &std::collections::BTreeSet<Severity>) -> usize {
+		s.len()
+	}
+
 	/// A local trait, which a type parameter's bound calls.
 	pub trait Weight {
 		fn weight(&self) -> u8;
@@ -451,6 +463,14 @@ pub mod refused {
 
 	/// `has` orders `Backwards` as Lean's derived `Ord` would not.
 	pub fn has_backwards(s: &BTreeSet<Backwards>, k: &Backwards) -> bool {
+		has(s, k)
+	}
+
+	/// `Option<T>: Ord` gives this function no `Ord T`, which Lean's `Ord (Option T)` needs.
+	pub fn has_some<T>(s: &BTreeSet<Option<T>>, k: &Option<T>) -> bool
+	where
+		Option<T>: Ord,
+	{
 		has(s, k)
 	}
 

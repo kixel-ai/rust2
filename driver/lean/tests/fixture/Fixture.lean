@@ -56,6 +56,12 @@ structure cases.Rank where
   low : (Rust.Reverse Int8)
 deriving Repr, DecidableEq, Inhabited, Ord
 
+/-- `cases::Severity` -/
+inductive cases.Severity where
+  | High
+  | Low
+deriving Repr, DecidableEq, Inhabited
+
 /-- `cases::Weight` -/
 class cases.Weight (Self : Type) where
   weight : Self → Rust.M UInt8
@@ -304,6 +310,9 @@ def cases.lookups (m : (Rust.BTreeMap cases.Rank UInt16)) (s : (Rust.BTreeSet UI
   let t13 := r
   let t17 := k
   return (m.get t9, m.containsKey t13, s.contains t17, s.len, m.entries.isEmpty)
+
+def cases.severities (s : (Rust.BTreeSet cases.Severity)) : UInt64 :=
+  s.len
 
 def cases.heavier {W : Type} [Inhabited W] [cases.Weight W] (a : W) (b : W) : Rust.M Bool := do
   let t3 := (← cases.Weight.weight a)
