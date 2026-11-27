@@ -94,7 +94,7 @@ jobs:
       # WebCodecs' encoder both ways in headless Chromium, which only the bench shell
       # carries, against the same build as the step before.
       - name: Encoder in Chromium
-        run: nix develop .#bench --command env RUST2_TS_SYSROOT= just ts test --test fixtures -- --ignored --exact encoder
+        run: nix develop .#bench --command env RUST2_TS_SYSROOT= just ts test --profile nightly --run-ignored only --test fixtures -- --exact encoder
 
   bench:
     name: Benchmark
@@ -365,10 +365,10 @@ jobs:
 
       # No Nix: its dev shell would replace the system compiler under test. The runner's
       # rustup installs rust-toolchain.toml's channel.
-      - name: Install just
+      - name: Install just and nextest
         uses: taiki-e/install-action@cfdb7ed4ccc7c7dce37759eae89dc5674b469b39 # v2.90.3
         with:
-          tool: just
+          tool: just,cargo-nextest
 
       # What a developer prompt sets for cl. VCINSTALLDIR stays unset, so rustc still finds
       # its linker itself rather than Git's link.exe on PATH.
@@ -548,10 +548,10 @@ jobs:
 
       # No Nix, as the C++ job: Xcode's toolchain builds the app. The runner's rustup
       # installs rust-toolchain.toml's channel, and the simulator's target.
-      - name: Install just
+      - name: Install just and nextest
         uses: taiki-e/install-action@cfdb7ed4ccc7c7dce37759eae89dc5674b469b39 # v2.90.3
         with:
-          tool: just
+          tool: just,cargo-nextest
 
       - name: Target
         working-directory: ffi

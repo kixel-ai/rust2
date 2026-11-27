@@ -1,7 +1,7 @@
 //! Each fixture under `fixtures/` is translated, compared with its `expected/` snapshot,
 //! type-checked with `tsc`, and, if it has a harness, run against its native build.
 //!
-//! `UPDATE_EXPECT=1 cargo test` rewrites the snapshots.
+//! `UPDATE_EXPECT=1 just ts test --test fixtures` rewrites the snapshots.
 
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output};
