@@ -24,6 +24,8 @@ use rustc_span::Span;
 
 use crate::structure::{self, Ex, Node, Op, Term, Var};
 
+mod model;
+
 /// A construct outside the subset, at its span.
 pub struct Refusal {
 	pub span: Span,
@@ -44,6 +46,8 @@ pub struct Extraction {
 	pub fns: Vec<String>,
 	/// How many functions it reached.
 	pub reached: usize,
+	/// Each reached function's Rust path, and whether it translated.
+	pub outcomes: Vec<(String, bool)>,
 	pub refusals: Vec<Refusal>,
 	/// The roots that named no function, which is an error.
 	pub unmatched: Vec<String>,
@@ -56,6 +60,14 @@ pub fn extract(tcx: TyCtxt<'_>, roots: &[String]) -> Extraction {
 		adts: Vec::new(),
 		adt_seen: HashSet::new(),
 		adt_visiting: HashSet::new(),
+		traits: HashMap::new(),
+		classes: Vec::new(),
+		root_names: tcx
+			.hir_crate_items(())
+			.definitions()
+			.filter_map(|d| tcx.def_path(d.to_def_id()).data.first()?.data.get_opt_name())
+			.map(|n| n.to_string())
+			.collect(),
 		shapes: HashMap::new(),
 		refusals: Vec::new(),
 		recursive: HashSet::new(),
@@ -65,6 +77,9 @@ pub fn extract(tcx: TyCtxt<'_>, roots: &[String]) -> Extraction {
 	for def in tcx.hir_body_owners() {
 		let did = def.to_def_id();
 		if !matches!(tcx.def_kind(did), DefKind::Fn | DefKind::AssocFn) {
+			continue;
+		}
+		if cx.skipped(did) {
 			continue;
 		}
 		let path = cx.rust_path(did);
@@ -82,18 +97,34 @@ pub fn extract(tcx: TyCtxt<'_>, roots: &[String]) -> Extraction {
 	// Callees first, so each caller knows which calls can fail.
 	let order = cx.call_order(&start);
 	let mut fns = Vec::new();
+	let mut outcomes = Vec::new();
+	let mut failed_closures = HashSet::new();
 	for &did in &order {
-		if cx.recursive.contains(&did) {
+		let ok = if cx.recursive.contains(&did) {
+			false
+		} else {
+			match cx.function(did) {
+				Ok(text) => {
+					fns.push(text);
+					true
+				}
+				Err(refusal) => {
+					cx.refusals.push(refusal);
+					false
+				}
+			}
+		};
+		if !ok {
 			cx.shapes.get_mut(&did).expect("ordered functions have shapes").failed = true;
+		}
+		// A closure counts toward the function it is written in.
+		if tcx.is_closure_like(did) {
+			if !ok {
+				failed_closures.insert(tcx.typeck_root_def_id(did));
+			}
 			continue;
 		}
-		match cx.function(did) {
-			Ok(text) => fns.push(text),
-			Err(refusal) => {
-				cx.shapes.get_mut(&did).expect("ordered functions have shapes").failed = true;
-				cx.refusals.push(refusal);
-			}
-		}
+		outcomes.push((cx.rust_path(did), ok && !failed_closures.contains(&did)));
 	}
 	let mut types = Vec::new();
 	for did in cx.adts.clone() {
@@ -102,10 +133,12 @@ pub fn extract(tcx: TyCtxt<'_>, roots: &[String]) -> Extraction {
 			Err(refusal) => cx.refusals.push(refusal),
 		}
 	}
+	types.append(&mut cx.classes);
 	Extraction {
 		types,
 		fns,
-		reached: order.len(),
+		reached: outcomes.len(),
+		outcomes,
 		refusals: cx.refusals,
 		unmatched: roots
 			.iter()
@@ -134,11 +167,25 @@ pub(crate) struct Cx<'tcx> {
 	refusals: Vec<Refusal>,
 	/// Functions that call themselves, which are refused.
 	recursive: HashSet<DefId>,
+	/// Local traits a bound names, each translated to a Lean class, or refused.
+	traits: HashMap<DefId, bool>,
+	/// The classes' Lean definitions, after the types they name.
+	classes: Vec<String>,
+	/// The names of the crate root's items, which begin the Lean names of everything else.
+	root_names: HashSet<String>,
 }
 
 impl<'tcx> Cx<'tcx> {
+	fn skipped(&self, did: DefId) -> bool {
+		skipped(self.tcx, did)
+	}
+
 	/// The item's Rust path within its crate, as `--start-from` names it.
 	fn rust_path(&self, did: DefId) -> String {
+		if self.tcx.is_closure_like(did) {
+			let n = self.tcx.def_key(did).disambiguated_data.disambiguator;
+			return format!("{}::{{closure#{n}}}", self.rust_path(self.tcx.parent(did)));
+		}
 		let mut parts = self.module_path(did);
 		if let Some(impl_id) = self.tcx.impl_of_assoc(did) {
 			let self_ty = self.tcx.type_of(impl_id).instantiate_identity().skip_norm_wip();
@@ -170,14 +217,25 @@ impl<'tcx> Cx<'tcx> {
 
 	/// The Lean name of a local type.
 	pub fn adt_name(&self, did: DefId) -> String {
-		let mut parts = self.module_path(did);
-		parts.push(self.tcx.item_name(did).to_string());
-		parts.iter().map(|p| structure::ident(p)).collect::<Vec<_>>().join(".")
+		let mut parts: Vec<String> = self.module_path(did).iter().map(|p| structure::ident(p)).collect();
+		let item = self.tcx.item_name(did);
+		let mut last = structure::ident(item.as_str());
+		// A name the emitted code uses unqualified, which a body in its namespace would
+		// resolve to this type instead.
+		if structure::LEAN_NAMES.contains(&item.as_str()) {
+			last.push('\'');
+		}
+		parts.push(last);
+		parts.join(".")
 	}
 
 	/// The Lean name of a local function.
 	pub fn fn_name(&self, did: DefId) -> String {
 		let tcx = self.tcx;
+		if tcx.is_closure_like(did) {
+			let n = tcx.def_key(did).disambiguated_data.disambiguator;
+			return format!("{}.closure{n}", self.fn_name(tcx.parent(did)));
+		}
 		let mut name = match tcx.impl_of_assoc(did) {
 			Some(impl_id) => {
 				let self_ty = tcx.type_of(impl_id).instantiate_identity().skip_norm_wip();
@@ -205,7 +263,7 @@ impl<'tcx> Cx<'tcx> {
 		// A structure's own names: its fields' projections and what Lean generates.
 		// Or a name the emitted code uses unqualified, which a body in this namespace would
 		// resolve to the function instead.
-		let clash = ["decide", "id", "pure"].contains(&item.as_str())
+		let clash = structure::LEAN_NAMES.contains(&item.as_str())
 			|| tcx.impl_of_assoc(did).is_some_and(|imp| {
 				match tcx.type_of(imp).instantiate_identity().skip_norm_wip().kind() {
 					ty::Adt(def, _) => {
@@ -273,6 +331,16 @@ impl<'tcx> Cx<'tcx> {
 		let env = TypingEnv::post_analysis(tcx, did);
 		let mut out = Vec::new();
 		for bb in body.basic_blocks.iter() {
+			// A closure's body is a function of its own, which the function hands on.
+			for stmt in &bb.statements {
+				if let StatementKind::Assign(assign) = &stmt.kind
+					&& let Rvalue::Aggregate(kind, _) = &assign.1
+					&& let AggregateKind::Closure(closure, _) = **kind
+					&& closure.is_local()
+				{
+					out.push(closure);
+				}
+			}
 			if let TerminatorKind::Call { func, .. } = &bb.terminator().kind
 				&& let ty::FnDef(callee, args) = *func.ty(body, tcx).kind()
 				&& let args = args.skip_binder()
@@ -315,6 +383,39 @@ impl<'tcx> Cx<'tcx> {
 		}
 	}
 
+	/// Whether the type's `Ord` is the lexicographic order Lean derives, and its
+	/// `PartialOrd` agrees, so a comparison and a `BTreeMap` key order as Lean's `compare`.
+	fn structural_ord(&self, ty: Ty<'tcx>) -> bool {
+		self.structural_ord_in(ty, &mut HashSet::new())
+	}
+
+	fn structural_ord_in(&self, ty: Ty<'tcx>, seen: &mut HashSet<Ty<'tcx>>) -> bool {
+		match ty.kind() {
+			ty::Bool | ty::Int(_) | ty::Uint(_) | ty::Char | ty::Param(_) => true,
+			ty::Tuple(tys) => tys.iter().all(|t| self.structural_ord_in(t, seen)),
+			ty::Array(t, _) | ty::Slice(t) | ty::Ref(_, t, _) => self.structural_ord_in(*t, seen),
+			ty::Adt(def, args) => {
+				if !seen.insert(ty) {
+					return true;
+				}
+				let tcx = self.tcx;
+				if def.did().is_local() {
+					self.derives(def.did(), tcx.get_diagnostic_item(rustc_span::sym::Ord))
+						&& self.derives(def.did(), tcx.lang_items().partial_ord_trait())
+						&& def
+							.all_fields()
+							.all(|f| self.structural_ord_in(f.ty(tcx, *args).skip_norm_wip(), seen))
+				} else if self.is_cmp_ordering(def.did()) {
+					true
+				} else {
+					self.std_container(def.did(), args)
+						.is_some_and(|mut tys| tys.all(|t| self.structural_ord_in(t, seen)))
+				}
+			}
+			_ => false,
+		}
+	}
+
 	/// Whether cloning a value of `ty` copies it, as the translation's value semantics assume.
 	/// `Copy` alone is not enough: a `Copy` type's `Clone` may be written by hand.
 	fn clone_copies(&self, ty: Ty<'tcx>) -> bool {
@@ -325,8 +426,11 @@ impl<'tcx> Cx<'tcx> {
 	/// recursive types are refused anyway.
 	fn clone_copies_in(&self, ty: Ty<'tcx>, active: &mut HashSet<Ty<'tcx>>) -> bool {
 		match ty.kind() {
-			ty::Bool | ty::Int(_) | ty::Uint(_) | ty::Char | ty::Ref(_, _, ty::Mutability::Not) => true,
+			// A type parameter's `clone` copies: each type the crate passes for one is checked.
+			ty::Bool | ty::Int(_) | ty::Uint(_) | ty::Char | ty::Ref(_, _, ty::Mutability::Not) | ty::Param(_) => true,
 			ty::Tuple(tys) => tys.iter().all(|t| self.clone_copies_in(t, active)),
+			// Cloning an `Arc` shares what it holds, which nothing writes in place.
+			ty::Adt(def, args) if self.std_name(def.did()) == "Arc" && self.global_at(args, 1) => true,
 			ty::Array(t, _) => self.clone_copies_in(*t, active),
 			ty::Adt(def, args) => {
 				if !active.insert(ty) {
@@ -360,18 +464,15 @@ impl<'tcx> Cx<'tcx> {
 	/// `None` for any other type. A `Vec`'s allocator is not an element: the only one modeled is
 	/// `Global`, which holds no data, and any other's `Clone` may do anything.
 	fn std_container(&self, did: DefId, args: &'tcx ty::GenericArgs<'tcx>) -> Option<impl Iterator<Item = Ty<'tcx>>> {
+		if self.allocator(did).is_some_and(|i| !self.global_at(args, i)) {
+			return None;
+		}
 		let n = match self.std_name(did).as_str() {
-			"Option" => 1,
-			"Vec" if self.global_alloc(args) => 1,
-			"Result" => 2,
+			"Option" | "Vec" | "Arc" | "Reverse" | "BTreeSet" => 1,
+			"Result" | "BTreeMap" => 2,
 			_ => return None,
 		};
 		Some(args.types().take(n))
-	}
-
-	/// Whether a `Vec`'s arguments name the `Global` allocator, the only one modeled.
-	fn global_alloc(&self, args: &'tcx ty::GenericArgs<'tcx>) -> bool {
-		matches!(args.type_at(1).kind(), ty::Adt(a, _) if self.std_name(a.did()) == "Global")
 	}
 
 	/// Whether the local type's `PartialEq` impl is derived.
@@ -435,6 +536,7 @@ impl<'tcx> Cx<'tcx> {
 			}
 			ty::Array(elem, len) => format!("(Vector {} {})", self.ty(*elem, span)?, self.len(*len, span)?),
 			ty::Slice(elem) => format!("(Array {})", self.ty(*elem, span)?),
+			ty::Str => "String".into(),
 			ty::Ref(_, inner, _) => self.ty(*inner, span)?,
 			ty::Param(p) => structure::ident(p.name.as_str()),
 			ty::Adt(def, args) if def.did().is_local() => {
@@ -464,15 +566,45 @@ impl<'tcx> Cx<'tcx> {
 			ty::Adt(..) if !ty.is_freeze(tcx, TypingEnv::fully_monomorphized()) && !ty.has_param() => {
 				return refuse(span, format!("`{ty}` has interior mutability, which is not supported"));
 			}
+			ty::Adt(def, args) if self.allocator(def.did()).is_some_and(|i| !self.global_at(args, i)) => {
+				return refuse(
+					span,
+					format!("`{ty}` has an allocator other than `Global`, which is not supported"),
+				);
+			}
+			ty::Adt(..) if self.iterator(ty).is_some() => {
+				let (item, deferred) = self.iterator(ty).expect("checked");
+				let item = self.ty(item, span)?;
+				if deferred {
+					format!("(List (Rust.M {item}))")
+				} else {
+					format!("(List {item})")
+				}
+			}
 			ty::Adt(def, args) => match self.std_name(def.did()).as_str() {
 				"Option" => format!("(Option {})", self.ty(args.type_at(0), span)?),
-				"Vec" if !self.global_alloc(args) => {
-					return refuse(
-						span,
-						format!("`{ty}` has an allocator other than `Global`, which is not supported"),
-					);
-				}
 				"Vec" => format!("(Array {})", self.ty(args.type_at(0), span)?),
+				// Shared and never written in place, so the value it holds.
+				"Arc" => self.ty(args.type_at(0), span)?,
+				"Reverse" => format!("(Rust.Reverse {})", self.ty(args.type_at(0), span)?),
+				"BTreeMap" => format!(
+					"(Rust.BTreeMap {} {})",
+					self.ty(args.type_at(0), span)?,
+					self.ty(args.type_at(1), span)?
+				),
+				"BTreeSet" => format!("(Rust.BTreeSet {})", self.ty(args.type_at(0), span)?),
+				"Ordering" if self.is_cmp_ordering(def.did()) => "Ordering".into(),
+				// UTF-8 text, which a Lean `String` holds exactly.
+				"String" => "String".into(),
+				// A range as slicing takes it: its bounds.
+				_ if matches!(self.ops_range(def.did()), Some("RangeTo" | "RangeFrom")) => {
+					self.ty(args.type_at(0), span)?
+				}
+				_ if self.ops_range(def.did()) == Some("Range") => {
+					let t = self.ty(args.type_at(0), span)?;
+					format!("({t} × {t})")
+				}
+				_ if self.ops_range(def.did()) == Some("RangeFull") => "Unit".into(),
 				"Result" => format!(
 					"(Except {} {})",
 					self.ty(args.type_at(1), span)?,
@@ -487,9 +619,96 @@ impl<'tcx> Cx<'tcx> {
 				_ => return refuse(span, format!("`{ty}` has no Lean model")),
 			},
 			ty::Never => "Empty".into(),
-			ty::Closure(..) => return refuse(span, "a closure is not supported"),
+			// A closure is what it captures; its body is a function of its own.
+			ty::Closure(_, args) => {
+				let closure = args.as_closure();
+				let mut parts = Vec::new();
+				for up in closure.upvar_tys() {
+					if matches!(up.kind(), ty::Ref(_, _, ty::Mutability::Mut)) {
+						return refuse(span, "a closure that changes what it captures is not supported");
+					}
+					parts.push(self.ty(up, span)?);
+				}
+				match parts.as_slice() {
+					[] => "Unit".into(),
+					[one] => one.clone(),
+					_ => format!("({})", parts.join(" × ")),
+				}
+			}
+			// An `impl Trait` or a projection, as the type it stands for.
+			ty::Alias(..) => {
+				match tcx.try_normalize_erasing_regions(TypingEnv::fully_monomorphized(), ty::Unnormalized::new_wip(ty))
+				{
+					Ok(hidden) if hidden != ty => self.ty(hidden, span)?,
+					_ => return refuse(span, format!("`{ty}` has no Lean model")),
+				}
+			}
 			_ => return refuse(span, format!("`{ty}` has no Lean model")),
 		})
+	}
+
+	/// Which type argument of a `std` container is its allocator, if it has one.
+	fn allocator(&self, did: DefId) -> Option<usize> {
+		match self.std_name(did).as_str() {
+			"Vec" | "Arc" | "BTreeSet" | "VecDeque" => Some(1),
+			"BTreeMap" => Some(2),
+			_ => None,
+		}
+	}
+
+	/// Whether type argument `i` names the `Global` allocator, the only one modeled.
+	fn global_at(&self, args: &'tcx ty::GenericArgs<'tcx>, i: usize) -> bool {
+		matches!(args.type_at(i).kind(), ty::Adt(a, _) if self.std_name(a.did()) == "Global")
+	}
+
+	/// The name of `core::ops`'s range type `did` is, if it is one.
+	fn ops_range(&self, did: DefId) -> Option<&'static str> {
+		let path = self.tcx.def_path_str(did);
+		["Range", "RangeTo", "RangeFrom", "RangeFull", "RangeInclusive"]
+			.into_iter()
+			.find(|name| {
+				["std::ops::", "core::ops::"]
+					.iter()
+					.any(|p| path.strip_prefix(p) == Some(*name))
+			})
+	}
+
+	/// Whether `did` is `core::cmp::Ordering`, not the atomic one.
+	fn is_cmp_ordering(&self, did: DefId) -> bool {
+		matches!(
+			self.tcx.def_path_str(did).as_str(),
+			"std::cmp::Ordering" | "core::cmp::Ordering"
+		)
+	}
+
+	/// A `std` iterator's item type, and whether each item is an action that may panic,
+	/// which a closure that may panic makes it. `None` for any other type.
+	fn iterator(&self, ty: Ty<'tcx>) -> Option<(Ty<'tcx>, bool)> {
+		let tcx = self.tcx;
+		let ty::Adt(def, _) = ty.kind() else {
+			return None;
+		};
+		// A range is a value too, which slicing takes.
+		if !self.is_std(def.did()) || self.ops_range(def.did()).is_some() {
+			return None;
+		}
+		let iterator = tcx.get_diagnostic_item(rustc_span::sym::Iterator)?;
+		let item = tcx
+			.associated_items(iterator)
+			.filter_by_name_unhygienic(rustc_span::sym::Item)
+			.next()?
+			.def_id;
+		let projection = Ty::new_projection(tcx, ty::IsRigid::No, item, [ty]);
+		let item = tcx
+			.try_normalize_erasing_regions(TypingEnv::fully_monomorphized(), ty::Unnormalized::new_wip(projection))
+			.ok()?;
+		let deferred = ty.walk().any(|a| {
+			a.as_type().is_some_and(|t| match t.kind() {
+				ty::Closure(did, _) => self.shapes.get(did).is_none_or(|s| s.monadic || s.failed),
+				_ => false,
+			})
+		});
+		Some((item, deferred))
 	}
 
 	fn pointer_bits(&self) -> u64 {
@@ -500,10 +719,17 @@ impl<'tcx> Cx<'tcx> {
 	fn len(&self, len: ty::Const<'tcx>, span: Span) -> R<String> {
 		match len.kind() {
 			ty::ConstKind::Param(p) => Ok(format!("{}.toNat", structure::ident(p.name.as_str()))),
-			_ => match len.try_to_target_usize(self.tcx) {
-				Some(n) => Ok(n.to_string()),
-				None => refuse(span, format!("array length `{len}` is not supported")),
-			},
+			_ => {
+				// A named constant, evaluated.
+				let len = self
+					.tcx
+					.try_normalize_erasing_regions(TypingEnv::fully_monomorphized(), ty::Unnormalized::new_wip(len))
+					.unwrap_or(len);
+				match len.try_to_target_usize(self.tcx) {
+					Some(n) => Ok(n.to_string()),
+					None => refuse(span, format!("array length `{len}` is not supported")),
+				}
+			}
 		}
 	}
 
@@ -589,22 +815,21 @@ impl<'tcx> Cx<'tcx> {
 				out += "\n";
 			}
 		}
-		out += "deriving Repr, DecidableEq, Inhabited\n";
+		out += "deriving Repr, DecidableEq, Inhabited";
+		if self.derives(did, tcx.get_diagnostic_item(rustc_span::sym::Ord)) {
+			out += ", Ord";
+		}
+		out += "\n";
 		Ok(out)
 	}
 
 	/// The Lean binders of `did`'s generics: `{N : UInt64}` and `{T : Type} [...]`.
 	pub fn binders(&mut self, did: DefId) -> R<String> {
 		let tcx = self.tcx;
-		let generics = tcx.generics_of(did);
 		let mut out = String::new();
-		let mut params = Vec::new();
-		let mut g = Some(generics);
-		while let Some(gen_) = g {
-			params.splice(0..0, gen_.own_params.iter().cloned());
-			g = gen_.parent.map(|p| tcx.generics_of(p));
-		}
+		let params = all_params(tcx, did);
 		let eq = tcx.lang_items().eq_trait();
+		let ord = tcx.get_diagnostic_item(rustc_span::sym::Ord);
 		let env = tcx.param_env(did);
 		for param in params {
 			let name = structure::ident(param.name.as_str());
@@ -616,19 +841,89 @@ impl<'tcx> Cx<'tcx> {
 				}
 				ty::GenericParamDefKind::Type { .. } => {
 					out += &format!(" {{{name} : Type}} [Inhabited {name}]");
-					let bounded = env.caller_bounds().all_clauses(tcx).iter().any(|p| {
-						p.as_trait_clause().is_some_and(|t| {
-							Some(t.def_id()) == eq
-								&& matches!(t.self_ty().skip_binder().kind(), ty::Param(pp) if pp.index == param.index)
-						})
-					});
-					if bounded {
+					let mut bounds: Vec<DefId> = env
+						.caller_bounds()
+						.all_clauses(tcx)
+						.iter()
+						.filter_map(|p| p.as_trait_clause())
+						.filter(
+							|t| matches!(t.self_ty().skip_binder().kind(), ty::Param(pp) if pp.index == param.index),
+						)
+						.map(|t| t.def_id())
+						.collect();
+					let mut seen = HashSet::new();
+					bounds.retain(|b| seen.insert(*b));
+					if bounds.iter().any(|b| Some(*b) == eq) {
 						out += &format!(" [DecidableEq {name}]");
+					}
+					if bounds.iter().any(|b| Some(*b) == ord) {
+						out += &format!(" [Ord {name}]");
+					}
+					for b in bounds {
+						if b.is_local() && self.class(b, tcx.def_span(did))? {
+							out += &format!(" [{} {name}]", self.adt_name(b));
+						}
 					}
 				}
 			}
 		}
 		Ok(out)
+	}
+
+	/// Translate local trait `did` to a Lean class once, each method a field in `Rust.M`,
+	/// since an impl may panic; `false` for a trait with no methods, which needs none.
+	fn class(&mut self, did: DefId, span: Span) -> R<bool> {
+		let tcx = self.tcx;
+		let methods: Vec<DefId> = tcx
+			.associated_items(did)
+			.in_definition_order()
+			.filter(|i| i.is_fn())
+			.map(|i| i.def_id)
+			.collect();
+		if methods.is_empty() && tcx.associated_items(did).in_definition_order().next().is_none() {
+			return Ok(false);
+		}
+		match self.traits.get(&did) {
+			Some(true) => return Ok(true),
+			Some(false) => return refuse(span, format!("trait `{}` is not supported", tcx.item_name(did))),
+			None => {}
+		}
+		self.traits.insert(did, false);
+		let name = self.adt_name(did);
+		let mut out = format!("/-- `{}` -/\nclass {name} (Self : Type) where\n", self.rust_path(did));
+		if tcx.generics_of(did).own_params.len() > 1 {
+			return refuse(span, format!("generic trait `{}` is not supported", tcx.item_name(did)));
+		}
+		for item in tcx.associated_items(did).in_definition_order() {
+			let m = item.def_id;
+			let at = tcx.def_span(m);
+			if !item.is_fn() {
+				return refuse(at, "a trait's associated type or constant is not supported");
+			}
+			if tcx
+				.generics_of(m)
+				.own_params
+				.iter()
+				.any(|p| !matches!(p.kind, ty::GenericParamDefKind::Lifetime))
+			{
+				return refuse(at, "a generic trait method is not supported");
+			}
+			let sig = tcx.fn_sig(m).instantiate_identity().skip_norm_wip().skip_binder();
+			let mut parts = Vec::new();
+			for input in sig.inputs() {
+				if matches!(input.kind(), ty::Ref(_, _, ty::Mutability::Mut)) {
+					return refuse(at, "a trait method taking a mutable reference is not supported");
+				}
+				parts.push(self.ty(*input, at)?);
+			}
+			parts.push(format!("Rust.M {}", self.ty(sig.output(), at)?));
+			let field = self.fn_name(m);
+			let field = field.rsplit('.').next().expect("names have parts");
+			out += &format!("  {field} : {}\n", parts.join(" → "));
+		}
+		self.traits.insert(did, true);
+		self.classes.push(out);
+		Ok(true)
 	}
 
 	/// Translate one function to its Lean definitions.
@@ -660,6 +955,22 @@ impl<'tcx> Cx<'tcx> {
 	}
 }
 
+/// Every generic parameter in scope at `did`, outermost first. A closure's are its
+/// function's.
+fn all_params(tcx: TyCtxt<'_>, did: DefId) -> Vec<ty::GenericParamDef> {
+	let mut params = Vec::new();
+	let mut g = Some(tcx.generics_of(did));
+	let mut own = !tcx.is_closure_like(did);
+	while let Some(gen_) = g {
+		if own {
+			params.splice(0..0, gen_.own_params.iter().cloned());
+		}
+		own = true;
+		g = gen_.parent.map(|p| tcx.generics_of(p));
+	}
+	params
+}
+
 /// A field's Lean name: a tuple field `0` is `x0`.
 fn field_ident(field: &ty::FieldDef) -> String {
 	match field.name.as_str() {
@@ -680,10 +991,19 @@ fn resolve_local<'tcx>(
 	(did.is_local()
 		&& matches!(instance.def, ty::InstanceKind::Item(_))
 		&& matches!(tcx.def_kind(did), DefKind::Fn | DefKind::AssocFn)
-		&& !tcx
-			.impl_of_assoc(did)
-			.is_some_and(|imp| tcx.is_automatically_derived(imp)))
+		&& !skipped(tcx, did))
 	.then_some((did, instance.args))
+}
+
+/// Whether a function is left out of the translation: a derived impl's, which is modeled
+/// structurally where it is called, or `Debug` formatting, which the translation leaves out.
+fn skipped(tcx: TyCtxt<'_>, did: DefId) -> bool {
+	tcx.impl_of_assoc(did)
+		.is_some_and(|imp| tcx.is_automatically_derived(imp))
+		|| tcx.trait_impl_of_assoc(did).is_some_and(|imp| {
+			Some(tcx.impl_trait_ref(imp).instantiate_identity().skip_norm_wip().def_id)
+				== tcx.get_diagnostic_item(rustc_span::sym::Debug)
+		})
 }
 
 /// What a mutable reference local stands for.
@@ -706,6 +1026,7 @@ struct Signature {
 /// One function's lowering.
 struct Fx<'a, 'tcx> {
 	cx: &'a mut Cx<'tcx>,
+	did: DefId,
 	body: &'tcx Body<'tcx>,
 	env: TypingEnv<'tcx>,
 	vars: Vec<Var>,
@@ -744,6 +1065,7 @@ impl<'a, 'tcx> Fx<'a, 'tcx> {
 		let n = body.local_decls.len();
 		let mut fx = Fx {
 			cx,
+			did,
 			body,
 			env: TypingEnv::post_analysis(tcx, did),
 			vars: Vec::new(),
@@ -843,6 +1165,14 @@ impl<'a, 'tcx> Fx<'a, 'tcx> {
 				continue;
 			}
 			if local.as_usize() >= 1 && local.as_usize() <= body.arg_count {
+				// A closure's environment, mutable when it is passed where a `FnMut` is taken,
+				// is read only: what it captures is a value the caller keeps.
+				if self.closure_env(local) && self.partial[local.as_usize()] > 0 {
+					return refuse(
+						decl.source_info.span,
+						"a closure that changes what it captures is not supported",
+					);
+				}
 				self.mutable.insert(local, Mutable::Param);
 				continue;
 			}
@@ -866,6 +1196,12 @@ impl<'a, 'tcx> Fx<'a, 'tcx> {
 					return refuse(stmt.source_info.span, "storing a mutable reference is not supported");
 				}
 				let target = match rvalue {
+					Rvalue::Ref(_, BorrowKind::Mut { .. }, borrowed) if self.closure_env(borrowed.local) => {
+						return refuse(
+							stmt.source_info.span,
+							"a closure that changes what it captures is not supported",
+						);
+					}
 					Rvalue::Ref(_, BorrowKind::Mut { .. }, borrowed) => *borrowed,
 					Rvalue::Use(Operand::Move(from) | Operand::Copy(from), _) if from.projection.is_empty() => {
 						Place::from(from.local).project_deeper(&[ProjectionElem::Deref], self.cx.tcx)
@@ -997,6 +1333,11 @@ impl<'a, 'tcx> Fx<'a, 'tcx> {
 		Ok(())
 	}
 
+	/// Whether `local` is a closure body's environment.
+	fn closure_env(&self, local: Local) -> bool {
+		local.as_usize() == 1 && self.cx.tcx.is_closure_like(self.did)
+	}
+
 	fn is_checked(&self, local: Local) -> bool {
 		self.body.basic_blocks.iter().any(|bb| {
 			bb.statements.iter().any(|s| {
@@ -1010,7 +1351,10 @@ impl<'a, 'tcx> Fx<'a, 'tcx> {
 		let base = structure::ident(name);
 		let mut unique = base.clone();
 		let mut n = 1;
-		while self.vars.iter().any(|v| v.name == unique) {
+		// A name the emitted code uses unqualified, or the first part of a qualified one, which
+		// the variable would shadow.
+		let reserved = |u: &str| structure::LEAN_NAMES.contains(&u) || self.cx.root_names.contains(u);
+		while self.vars.iter().any(|v| v.name == unique) || reserved(&unique) {
 			unique = format!("{base}{n}");
 			n += 1;
 		}
@@ -1025,7 +1369,7 @@ impl<'a, 'tcx> Fx<'a, 'tcx> {
 		for local in body.args_iter() {
 			let v = self.local_var[local.as_usize()].expect("parameters have variables");
 			params.push((self.vars[v].name.clone(), self.vars[v].ty.clone()));
-			if matches!(self.mutable.get(&local), Some(Mutable::Param)) {
+			if matches!(self.mutable.get(&local), Some(Mutable::Param)) && !self.closure_env(local) {
 				mutated.push(v);
 			}
 		}
@@ -1341,6 +1685,12 @@ impl<'a, 'tcx> Fx<'a, 'tcx> {
 					from_end: false,
 					..
 				} => projs.push(Proj::Index(lit(offset.to_string(), "UInt64"))),
+				ProjectionElem::ConstantIndex {
+					offset, from_end: true, ..
+				} if !write => projs.push(Proj::FromEnd(offset)),
+				ProjectionElem::Subslice { from, to, from_end } if !write => {
+					projs.push(Proj::Subslice { from, to, from_end })
+				}
 				_ => return refuse(span, format!("place `{place:?}` is not supported")),
 			}
 			ty = ty.projection_ty(tcx, *elem);
@@ -1352,8 +1702,18 @@ impl<'a, 'tcx> Fx<'a, 'tcx> {
 	fn field(&mut self, ty: Ty<'tcx>, variant: Option<VariantIdx>, f: FieldIdx, span: Span) -> R<Proj> {
 		match ty.kind() {
 			ty::Tuple(tys) => Ok(Proj::Tuple(f.as_usize(), tys.len())),
-			ty::Adt(def, _) if def.is_struct() && variant.is_none() => {
+			// What a closure captures, in its body.
+			ty::Closure(_, args) => Ok(Proj::Tuple(f.as_usize(), args.as_closure().upvar_tys().len())),
+			ty::Adt(def, _) if def.is_struct() && variant.is_none() && def.did().is_local() => {
 				Ok(Proj::Field(field_ident(&def.non_enum_variant().fields[f])))
+			}
+			ty::Adt(def, _) if variant.is_none() => {
+				match self.cx.ops_range(def.did()).unwrap_or(&self.cx.std_name(def.did())) {
+					"Reverse" => Ok(Proj::Field("x0".into())),
+					"Range" => Ok(Proj::Tuple(f.as_usize(), 2)),
+					"RangeTo" | "RangeFrom" => Ok(Proj::Tuple(0, 1)),
+					_ => refuse(span, format!("a field of `{ty}` is not supported")),
+				}
 			}
 			_ => refuse(span, format!("a field of `{ty}` is not supported")),
 		}
@@ -1420,6 +1780,15 @@ impl<'a, 'tcx> Fx<'a, 'tcx> {
 		}
 		if ty.is_unit() {
 			return Ok(atom("()".into()));
+		}
+		if ty.peel_refs().is_str()
+			&& let mir::Const::Val(val @ mir::ConstValue::Slice { .. }, _) = c.const_
+			&& let Some(bytes) = val.try_get_slice_bytes_for_diagnostics(tcx)
+		{
+			return match std::str::from_utf8(bytes) {
+				Ok(s) => Ok(atom(model::lean_string(s))),
+				Err(_) => refuse(span, "a string constant that is not UTF-8"),
+			};
 		}
 		let lean_ty = self.cx.ty(ty, span)?;
 		let Some(int) = c.const_.try_eval_scalar_int(tcx, self.env) else {
@@ -1572,7 +1941,13 @@ impl<'a, 'tcx> Fx<'a, 'tcx> {
 			}
 			Rvalue::Cast(CastKind::PointerCoercion(PointerCoercion::Unsize, _), op, _) => {
 				let v = self.operand(op, span)?;
-				match op.ty(self.body, tcx).builtin_deref(true).map(|t| t.kind()) {
+				let from = op.ty(self.body, tcx);
+				// Behind a reference, or an `Arc`, which is the value it holds.
+				let pointee = from.builtin_deref(true).or_else(|| match from.kind() {
+					ty::Adt(def, args) if self.cx.std_name(def.did()) == "Arc" => Some(args.type_at(0)),
+					_ => None,
+				});
+				match pointee.map(|t| t.kind()) {
 					Some(ty::Array(..)) => Ok(compound(format!("{}.toArray", v.paren()), &[&v])),
 					_ => refuse(span, "this unsizing coercion is not supported"),
 				}
@@ -1691,6 +2066,16 @@ impl<'a, 'tcx> Fx<'a, 'tcx> {
 				let def = tcx.adt_def(*did);
 				let lean_ty = self.cx.ty(ty, span)?;
 				let var = def.variant(*variant);
+				if def.is_struct() && !did.is_local() {
+					let name = self.cx.std_name(*did);
+					return match (self.cx.ops_range(*did).unwrap_or(&name), vals.as_slice()) {
+						("Reverse", [v]) => Ok(atom_of(format!("({{ x0 := {} }} : {lean_ty})", v.text), &refs)),
+						("RangeTo" | "RangeFrom", [v]) => Ok(v.clone()),
+						("Range", [a, b]) => Ok(atom_of(format!("({}, {})", a.text, b.text), &refs)),
+						("RangeFull", []) => Ok(atom("()".into())),
+						_ => refuse(span, format!("`{ty}` has no Lean model")),
+					};
+				}
 				if def.is_struct() {
 					let fields: Vec<String> = var
 						.fields
@@ -1717,7 +2102,21 @@ impl<'a, 'tcx> Fx<'a, 'tcx> {
 				let args: Vec<String> = vals.iter().map(|v| v.paren()).collect();
 				Ok(atom_of(format!("({ctor} {} : {lean_ty})", args.join(" ")), &refs))
 			}
-			AggregateKind::Closure(..) => refuse(span, "a closure is not supported"),
+			AggregateKind::Closure(..) => {
+				// Refuses one that changes what it captures.
+				self.cx.ty(ty, span)?;
+				Ok(match vals.as_slice() {
+					[] => atom("()".into()),
+					[one] => one.clone(),
+					_ => atom_of(
+						format!(
+							"({})",
+							vals.iter().map(|v| v.text.clone()).collect::<Vec<_>>().join(", ")
+						),
+						&refs,
+					),
+				})
+			}
 			_ => refuse(span, format!("aggregate `{kind:?}` is not supported")),
 		}
 	}
@@ -1848,6 +2247,12 @@ impl<'a, 'tcx> Fx<'a, 'tcx> {
 			return refuse(span, "calling a function pointer or closure is not supported");
 		};
 		let gargs = gargs.skip_binder();
+		// `f(x)` on a closure calls it through `Fn`, with its arguments in a tuple.
+		if tcx.trait_of_assoc(callee).is_some_and(|t| tcx.is_fn_trait(t))
+			&& matches!(gargs.type_at(0).peel_refs().kind(), ty::Closure(..))
+		{
+			return refuse(span, "calling a closure is not supported");
+		}
 		let path = tcx.def_path_str(callee);
 		if ["core::panicking::", "std::panicking::", "std::rt::"]
 			.iter()
@@ -1894,9 +2299,28 @@ impl<'a, 'tcx> Fx<'a, 'tcx> {
 				.local_call(local, gargs, args, *destination, span, ops)
 				.map(|_| target.is_none());
 		}
+		if let Some(tr) = tcx.trait_of_assoc(callee)
+			&& tr.is_local()
+		{
+			// A local trait's method on a type parameter: its class's field.
+			self.cx.class(tr, span)?;
+			return self
+				.local_call(callee, gargs, args, *destination, span, ops)
+				.map(|_| target.is_none());
+		}
 		let instance = ty::Instance::try_resolve(tcx, self.env, callee, gargs).ok().flatten();
 		let did = instance.map_or(callee, |i| i.def_id());
 		let key = self.std_key(did);
+		let call = model::Call {
+			callee,
+			gargs,
+			args,
+			destination: *destination,
+			span,
+		};
+		if self.model(&key, &call, ops)? {
+			return Ok(target.is_none());
+		}
 		let arg = |fx: &mut Self, i: usize| fx.operand(&args[i].node, span);
 		match key.as_str() {
 			"Clone::clone" => {
@@ -2028,6 +2452,7 @@ impl<'a, 'tcx> Fx<'a, 'tcx> {
 			ty::Adt(def, _) => tcx.item_name(def.did()).to_string(),
 			ty::Slice(_) => "slice".into(),
 			ty::Array(..) => "array".into(),
+			ty::Bool => "bool".into(),
 			ty::Uint(_) | ty::Int(_) => self_ty_name(tcx.type_of(impl_id).instantiate_identity().skip_norm_wip()),
 			_ => "?".into(),
 		};
@@ -2363,6 +2788,14 @@ enum Proj {
 	/// Field `.0` of a tuple of this many.
 	Tuple(usize, usize),
 	Index(Ex),
+	/// Element `k` from the end, which a slice pattern's length check bounds.
+	FromEnd(u64),
+	/// A slice pattern's rest: from `from`, to `to` or `to` before the end.
+	Subslice {
+		from: u64,
+		to: u64,
+		from_end: bool,
+	},
 }
 
 fn project(base: &Ex, proj: &Proj) -> Ex {
@@ -2372,13 +2805,25 @@ fn project(base: &Ex, proj: &Proj) -> Ex {
 			ex.atom = true;
 			ex
 		}
+		Proj::Tuple(_, 1) => base.clone(),
 		Proj::Tuple(i, n) => atom_of(format!("{}.{}", base.paren(), tuple_path(*i, *n)), &[base]),
 		Proj::Index(i) => atom_of(format!("{}[{}.toNat]!", base.paren(), i.paren()), &[base, i]),
+		Proj::FromEnd(k) => atom_of(format!("{}[{}.size - {k}]!", base.paren(), base.paren()), &[base]),
+		Proj::Subslice { from, to, from_end } => {
+			let end = if *from_end {
+				format!("({}.size - {to})", base.paren())
+			} else {
+				to.to_string()
+			};
+			compound(format!("{}.extract {from} {end}", base.paren()), &[base])
+		}
 	}
 }
 
 fn update(container: &Ex, proj: &Proj, value: Ex) -> Ex {
 	match proj {
+		Proj::Tuple(_, 1) => value,
+		Proj::FromEnd(_) | Proj::Subslice { .. } => unreachable!("writes through a slice pattern are refused"),
 		Proj::Field(f) => atom_of(
 			format!("{{ {} with {f} := {} }}", container.text, value.text),
 			&[container, &value],

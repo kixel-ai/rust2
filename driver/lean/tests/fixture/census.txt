@@ -1,27 +1,65 @@
-src/lib.rs:222:3: 222:19: `PartialEq` of `refused::Loose` is not structural equality
-src/lib.rs:226:3: 226:9: `PartialEq` of `&refused::Holder` is not structural equality
-src/lib.rs:238:5: 238:25: cloning `refused::Norm` may not copy it
-src/lib.rs:251:5: 251:25: cloning `refused::Zeroed` may not copy it
-src/lib.rs:256:3: 256:26: recursive type `Tree` is not supported
-src/lib.rs:256:3: 256:26: recursive type `Tree` is not supported
-src/lib.rs:264:3: 264:17: an explicit panic is not supported, since its message has no model
-src/lib.rs:268:3: 268:19: `std::string::String` has no Lean model
-src/lib.rs:275:18: 275:19: `std::cell::Cell<u8>` has interior mutability, which is not supported
-src/lib.rs:279:2: 279:31: recursion is not supported
-src/lib.rs:283:35: 283:42: returning a mutable reference is not supported
-src/lib.rs:288:44: 288:58: `std::vec::Vec<u8, Arena>` has an allocator other than `Global`, which is not supported
-src/lib.rs:306:3: 306:9: comparing `&std::vec::Vec<refused::Left>` with `&std::vec::Vec<refused::Right>` is not supported
-src/lib.rs:310:7: 310:8: a closure is not supported
+src/lib.rs:313:3: 313:9: `PartialEq` of `&refused::Holder` is not structural equality
+src/lib.rs:325:5: 325:25: cloning `refused::Norm` may not copy it
+src/lib.rs:338:5: 338:25: cloning `refused::Zeroed` may not copy it
+src/lib.rs:343:3: 343:26: recursive type `Tree` is not supported
+src/lib.rs:351:3: 351:17: an explicit panic is not supported, since its message has no model
+src/lib.rs:362:18: 362:19: `std::cell::Cell<u8>` has interior mutability, which is not supported
+src/lib.rs:366:2: 366:31: recursion is not supported
+src/lib.rs:370:35: 370:42: returning a mutable reference is not supported
+src/lib.rs:375:44: 375:58: `std::vec::Vec<u8, Arena>` has an allocator other than `Global`, which is not supported
+src/lib.rs:393:3: 393:9: comparing `&std::vec::Vec<refused::Left>` with `&std::vec::Vec<refused::Right>` is not supported
+src/lib.rs:398:3: 398:7: calling a closure is not supported
+src/lib.rs:403:21: 403:31: a mutable reference used as a value is not supported
+src/lib.rs:403:25: 403:31: this mutable reference is not supported
+src/lib.rs:410:6: 410:22: an iterator read after it is partly consumed is not supported
+src/lib.rs:429:5: 429:16: `Ord` of `refused::Odd` is not derived
+src/lib.rs:434:5: 434:11: looking up `std::string::String` by `str` is not supported
+src/lib.rs:438:3: 438:11: a trait's associated type or constant is not supported
+src/lib.rs:447:21: 447:30: collecting into `std::collections::BTreeSet<u8>` is not supported
+src/lib.rs:451:27: 451:38: enumerating items that may panic is not supported
 
-6 of 20 reached functions translated; 14 refusals
-    2  _ of _ is not structural equality
+7 of 25 reached functions translated; 19 refusals
     2  cloning _ may not copy it
-    2  recursive type _ is not supported
     1  _ has an allocator other than _, which is not supported
     1  _ has interior mutability, which is not supported
-    1  _ has no Lean model
-    1  a closure is not supported
+    1  _ of _ is not derived
+    1  _ of _ is not structural equality
+    1  a mutable reference used as a value is not supported
+    1  a trait's associated type or constant is not supported
     1  an explicit panic is not supported, since its message has no model
+    1  an iterator read after it is partly consumed is not supported
+    1  calling a closure is not supported
+    1  collecting into _ is not supported
     1  comparing _ with _ is not supported
+    1  enumerating items that may panic is not supported
+    1  looking up _ by _ is not supported
     1  recursion is not supported
+    1  recursive type _ is not supported
     1  returning a mutable reference is not supported
+    1  this mutable reference is not supported
+
+translated refused::Loose::eq
+refused    refused::holder_eq
+translated refused::Norm::clone
+refused    refused::extend
+translated refused::Zeroed::clone
+refused    refused::extend_copy
+refused    refused::grow
+refused    refused::boom
+translated refused::pass
+refused    refused::interior
+refused    refused::recursive
+refused    refused::reborrow
+refused    refused::arena_clone
+translated refused::Left::eq
+refused    refused::cross_eq
+refused    refused::closure
+refused    refused::counts
+refused    refused::twice
+translated refused::Odd::cmp
+translated refused::Odd::partial_cmp
+refused    refused::odd
+refused    refused::named
+refused    refused::pull
+refused    refused::sorted
+refused    refused::numbered

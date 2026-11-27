@@ -123,6 +123,125 @@ def checkedAdd {α : Type} [Scalar α] (a b : α) : Option α :=
 def checkedSub {α : Type} [Scalar α] (a b : α) : Option α :=
   if Scalar.lo α ≤ val a - val b then some (a - b) else none
 
+/-- `saturating_add`: the sum, clamped to the type's range. -/
+def saturatingAdd {α : Type} [Scalar α] (a b : α) : α :=
+  Scalar.ofInt (max (Scalar.lo α) (min (Scalar.hi α) (val a + val b)))
+
+/-- `saturating_sub`: the difference, clamped to the type's range. -/
+def saturatingSub {α : Type} [Scalar α] (a b : α) : α :=
+  Scalar.ofInt (max (Scalar.lo α) (min (Scalar.hi α) (val a - val b)))
+
+/-- `std::cmp::Reverse`: the value, ordered the other way. -/
+structure Reverse (α : Type) where
+  x0 : α
+deriving Repr, DecidableEq, Inhabited
+
+instance {α : Type} [Ord α] : Ord (Reverse α) where
+  compare a b := compare b.x0 a.x0
+
+/-- Tuples order lexicographically, as Rust's do. -/
+instance {α β : Type} [Ord α] [Ord β] : Ord (α × β) := lexOrd
+
+instance : Ord Unit where
+  compare _ _ := .eq
+
+/-- `Option::expect` and `unwrap`: the value, or a panic with `msg`. -/
+def expect {α : Type} (o : Option α) (msg : String) : M α :=
+  match o with
+  | some x => pure x
+  | none => throw msg
+
+/-- `Option::is_some_and` with a closure that may panic. -/
+def isSomeAndM {α : Type} (o : Option α) (f : α → M Bool) : M Bool :=
+  match o with
+  | some x => f x
+  | none => pure false
+
+/-- `Option::map` with a closure that may panic. -/
+def mapM {α β : Type} (o : Option α) (f : α → M β) : M (Option β) :=
+  match o with
+  | some x => some <$> f x
+  | none => pure none
+
+/-- `&s[..e]`, panicking as Rust's range index does. -/
+def sliceTo {α : Type} (s : Array α) (e : UInt64) : M (Array α) :=
+  if e.toNat ≤ s.size then pure (s.extract 0 e.toNat)
+  else throw s!"range end index {e} out of range for slice of length {s.size}"
+
+/-- `&s[b..]`, panicking as Rust's range index does. -/
+def sliceFrom {α : Type} (s : Array α) (b : UInt64) : M (Array α) :=
+  if b.toNat ≤ s.size then pure (s.extract b.toNat s.size)
+  else throw s!"range start index {b} out of range for slice of length {s.size}"
+
+/-- `&s[b..e]`, panicking as Rust's range index does. -/
+def slice {α : Type} (s : Array α) (b e : UInt64) : M (Array α) :=
+  if b.toNat > s.size then throw s!"range start index {b} out of range for slice of length {s.size}"
+  else if e.toNat > s.size then throw s!"range end index {e} out of range for slice of length {s.size}"
+  else if b > e then throw s!"slice index starts at {b} but ends at {e}"
+  else pure (s.extract b.toNat e.toNat)
+
+/-! Iterators. A std iterator is the list of the items it yields, eagerly made: a closure
+an adaptor runs is pure, or the list holds each item as the action that makes it
+(`List (M α)`), so a panic happens only when a consumer reaches that item, as Rust's
+laziness has it. -/
+
+/-- `slice::windows`: each run of `n` neighbours, in order. -/
+def windows {α : Type} (s : Array α) (n : UInt64) : M (List (Array α)) :=
+  if n = 0 then throw "window size must be non-zero"
+  else pure ((List.range (s.size + 1 - n.toNat)).map fun i => s.extract i (i + n.toNat))
+
+/-- `Iterator::enumerate`. -/
+def enumerate {α : Type} (l : List α) : List (UInt64 × α) :=
+  (List.range l.length).zip l |>.map fun (i, x) => (i.toUInt64, x)
+
+/-- Run each item's action, in order: `collect` of an iterator whose items may panic. -/
+def run {α : Type} (l : List (M α)) : M (List α) :=
+  l.mapM id
+
+/-- `BTreeMap`: its entries in ascending key order, each key once. -/
+structure BTreeMap (κ ν : Type) where
+  entries : List (κ × ν)
+deriving Repr, DecidableEq, Inhabited, Ord
+
+namespace BTreeMap
+
+/-- `BTreeMap::new`. -/
+def empty {κ ν : Type} : BTreeMap κ ν := ⟨[]⟩
+
+/-- `BTreeMap::get`. -/
+def get {κ ν : Type} [Ord κ] (m : BTreeMap κ ν) (k : κ) : Option ν :=
+  (m.entries.find? fun e => compare e.1 k == .eq).map (·.2)
+
+/-- `BTreeMap::contains_key`. -/
+def containsKey {κ ν : Type} [Ord κ] (m : BTreeMap κ ν) (k : κ) : Bool :=
+  m.entries.any fun e => compare e.1 k == .eq
+
+/-- `BTreeMap::len`. -/
+def len {κ ν : Type} (m : BTreeMap κ ν) : UInt64 :=
+  m.entries.length.toUInt64
+
+end BTreeMap
+
+/-- `BTreeSet`: its items in ascending order, each once. -/
+structure BTreeSet (κ : Type) where
+  items : List κ
+deriving Repr, DecidableEq, Inhabited, Ord
+
+namespace BTreeSet
+
+/-- `BTreeSet::new`. -/
+def empty {κ : Type} : BTreeSet κ := ⟨[]⟩
+
+/-- `BTreeSet::contains`. -/
+def contains {κ : Type} [Ord κ] (s : BTreeSet κ) (k : κ) : Bool :=
+  s.items.any fun x => compare x k == .eq
+
+/-- `BTreeSet::len`. -/
+def len {κ : Type} (s : BTreeSet κ) : UInt64 :=
+  s.items.length.toUInt64
+
+end BTreeSet
+
 unsigned_scalar UInt8 8
 unsigned_scalar UInt16 16
 unsigned_scalar UInt32 32

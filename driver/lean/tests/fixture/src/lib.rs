@@ -179,6 +179,93 @@ pub mod cases {
 	pub fn wait() -> u8 {
 		loop {}
 	}
+
+	/// Each `+` may overflow, so the list holds actions, and one panics only when
+	/// `collect` reaches it.
+	pub fn shifted(v: &[u8], x: u8) -> Vec<u8> {
+		v.iter().map(|y| y + x).collect()
+	}
+
+	/// `any` stops at the first match, so a later item's overflow never panics.
+	pub fn reaches(v: &[u8], x: u8) -> bool {
+		v.iter().map(|y| y + x).any(|y| y == 0)
+	}
+
+	/// `all` over items that cannot panic, chained, copied and enumerated.
+	pub fn rising(a: &[u8], b: &[u8]) -> bool {
+		a.iter().chain(b.iter()).copied().enumerate().all(|(i, y)| i <= y as usize)
+	}
+
+	/// Each overlapping pair's sum.
+	pub fn pair_sums(v: &[u8]) -> Vec<u16> {
+		v.windows(2).map(|w| w[0] as u16 + w[1] as u16).collect()
+	}
+
+	/// The first and last items, by slice pattern and by method.
+	pub fn ends(v: &[u8]) -> Option<(u8, u8, u8)> {
+		match v {
+			[first, .., last] => Some((*first, *last, *v.last()?)),
+			_ => v.first().map(|f| (*f, *f, *f)),
+		}
+	}
+
+	/// Each kind of range a slice is indexed by, which panics as Rust's does.
+	pub fn ranges(v: &[u8], n: usize) -> (usize, usize, usize, usize) {
+		(v[..n].len(), v[n..].len(), v[1..n].len(), v[..].len())
+	}
+
+	/// A panic message that Lean's string literal escapes.
+	pub fn must(o: Option<u8>) -> u8 {
+		o.expect("no \"value\"\n")
+	}
+
+	pub fn saturating(a: u8, b: u8) -> (u8, u8) {
+		(a.saturating_add(b), a.saturating_sub(b))
+	}
+
+	pub fn widen(a: u8, b: bool) -> (u32, u8) {
+		(u32::from(a), u8::from(b))
+	}
+
+	pub fn options(o: Option<u8>, b: bool) -> (bool, Option<u16>, u8, Option<u8>) {
+		(o.is_some_and(|x| x > 1), o.map(|x| x as u16 * 2), o.unwrap_or(7), b.then_some(3))
+	}
+
+	/// `Reverse` flips a derived order, compared field by field.
+	#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+	pub struct Rank {
+		pub up: bool,
+		pub low: std::cmp::Reverse<i8>,
+	}
+
+	pub fn ranked(r: Rank) -> (bool, std::cmp::Reverse<i8>) {
+		(r.up, r.low)
+	}
+
+	/// An `Arc` is the value it shares.
+	pub fn shared(v: &[u8]) -> std::sync::Arc<[u8]> {
+		let a = std::sync::Arc::new(v.iter().copied().collect::<Vec<u8>>());
+		a.iter().copied().collect()
+	}
+
+	/// Lookups in a sorted map and set, keyed by a derived order.
+	pub fn lookups(
+		m: &std::collections::BTreeMap<Rank, u16>,
+		s: &std::collections::BTreeSet<u8>,
+		r: Rank,
+		k: u8,
+	) -> (Option<u16>, bool, bool, usize, bool) {
+		(m.get(&r).copied(), m.contains_key(&r), s.contains(&k), s.len(), m.is_empty())
+	}
+
+	/// A local trait, which a type parameter's bound calls.
+	pub trait Weight {
+		fn weight(&self) -> u8;
+	}
+
+	pub fn heavier<W: Weight>(a: &W, b: &W) -> bool {
+		a.weight() > b.weight()
+	}
 }
 
 /// An inherent `impl` outside its type's module, which `--start-from crate::cases` reaches.
@@ -309,5 +396,58 @@ pub mod refused {
 	pub fn closure(x: u8) -> u8 {
 		let f = |y: u8| y + x;
 		f(1)
+	}
+
+	pub fn counts(v: &[u8]) -> usize {
+		let mut n = 0;
+		v.iter().for_each(|_| n += 1);
+		n
+	}
+
+	/// `any` consumes what it reads, which the next `any` then skips.
+	pub fn twice(v: &[u8]) -> bool {
+		let mut it = v.iter();
+		it.any(|&x| x == 0) && it.any(|&x| x == 1)
+	}
+
+	#[derive(PartialEq, Eq)]
+	pub struct Odd(pub u8);
+
+	impl PartialOrd for Odd {
+		fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+			Some(self.cmp(other))
+		}
+	}
+
+	impl Ord for Odd {
+		fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+			other.0.cmp(&self.0)
+		}
+	}
+
+	pub fn odd(s: &std::collections::BTreeSet<Odd>, k: &Odd) -> bool {
+		s.contains(k)
+	}
+
+	/// A `String` key looked up by `str`, which a different `Ord` could order.
+	pub fn named(m: &std::collections::BTreeMap<String, u8>, k: &str) -> Option<u8> {
+		m.get(k).copied()
+	}
+
+	pub trait Source {
+		type Out;
+		fn pull(&self) -> Self::Out;
+	}
+
+	pub fn pull<S: Source<Out = u8>>(s: &S) -> u8 {
+		s.pull()
+	}
+
+	pub fn sorted(v: &[u8]) -> std::collections::BTreeSet<u8> {
+		v.iter().copied().collect()
+	}
+
+	pub fn numbered(v: &[u8]) -> Vec<(usize, u8)> {
+		v.iter().map(|y| y + 1).enumerate().collect()
 	}
 }
