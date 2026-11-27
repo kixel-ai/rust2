@@ -1,35 +1,43 @@
-src/lib.rs:322:3: 322:9: `PartialEq` of `&refused::Holder` is not structural equality
-src/lib.rs:334:5: 334:25: cloning `refused::Norm` may not copy it
-src/lib.rs:363:3: 363:10: `refused::dup` clones `refused::Reset` here, which may not copy it
-src/lib.rs:376:5: 376:25: cloning `refused::Zeroed` may not copy it
-src/lib.rs:381:3: 381:26: recursive type `Tree` is not supported
-src/lib.rs:389:3: 389:17: an explicit panic is not supported, since its message has no model
-src/lib.rs:400:18: 400:19: `std::cell::Cell<u8>` has interior mutability, which is not supported
-src/lib.rs:404:2: 404:31: recursion is not supported
-src/lib.rs:408:35: 408:42: returning a mutable reference is not supported
-src/lib.rs:413:44: 413:58: `std::vec::Vec<u8, Arena>` has an allocator other than `Global`, which is not supported
-src/lib.rs:431:3: 431:9: comparing `&std::vec::Vec<refused::Left>` with `&std::vec::Vec<refused::Right>` is not supported
-src/lib.rs:436:3: 436:7: calling a closure is not supported
-src/lib.rs:441:21: 441:31: a mutable reference used as a value is not supported
-src/lib.rs:441:25: 441:31: this mutable reference is not supported
-src/lib.rs:448:6: 448:22: an iterator read after it is partly consumed is not supported
-src/lib.rs:467:5: 467:16: `Ord` of `refused::Odd` is not derived
-src/lib.rs:472:5: 472:11: looking up `std::string::String` by `str` is not supported
-src/lib.rs:476:3: 476:11: a trait's associated type or constant is not supported
-src/lib.rs:485:21: 485:30: collecting into `std::collections::BTreeSet<u8>` is not supported
-src/lib.rs:489:27: 489:38: enumerating items that may panic is not supported
+src/lib.rs:328:3: 328:9: `PartialEq` of `&refused::Holder` is not structural equality
+src/lib.rs:340:5: 340:25: cloning `refused::Norm` may not copy it
+src/lib.rs:369:3: 369:10: `refused::dup` clones `refused::Reset` here, which may not copy it
+src/lib.rs:373:42: 373:54: `refused::dup` clones `refused::Reset` here, which may not copy it
+src/lib.rs:380:21: 380:34: an iterator read after it is partly consumed is not supported
+src/lib.rs:405:3: 405:14: `refused::Heavy` passed where `refused::Weigh` needs a Lean instance, which is not supported
+src/lib.rs:410:5: 410:17: `Ord` of `std::result::Result<u8, u8>` may not match a Lean order
+src/lib.rs:421:5: 421:17: `Ord` of `refused::Backwards` may not match a Lean order
+src/lib.rs:425:17: 425:23: `std::iter::Repeat<u8>` has no Lean model
+src/lib.rs:439:5: 439:25: cloning `refused::Zeroed` may not copy it
+src/lib.rs:444:3: 444:26: recursive type `Tree` is not supported
+src/lib.rs:452:3: 452:17: an explicit panic is not supported, since its message has no model
+src/lib.rs:463:18: 463:19: `std::cell::Cell<u8>` has interior mutability, which is not supported
+src/lib.rs:467:2: 467:31: recursion is not supported
+src/lib.rs:471:35: 471:42: returning a mutable reference is not supported
+src/lib.rs:476:44: 476:58: `std::vec::Vec<u8, Arena>` has an allocator other than `Global`, which is not supported
+src/lib.rs:494:3: 494:9: comparing `&std::vec::Vec<refused::Left>` with `&std::vec::Vec<refused::Right>` is not supported
+src/lib.rs:499:3: 499:7: calling a closure is not supported
+src/lib.rs:504:21: 504:31: a mutable reference used as a value is not supported
+src/lib.rs:504:25: 504:31: this mutable reference is not supported
+src/lib.rs:511:6: 511:22: an iterator read after it is partly consumed is not supported
+src/lib.rs:530:5: 530:16: `Ord` of `refused::Odd` may not match a Lean order
+src/lib.rs:535:5: 535:11: looking up `std::string::String` by `str` is not supported
+src/lib.rs:539:3: 539:11: a trait's associated type or constant is not supported
+src/lib.rs:548:21: 548:30: collecting into `std::collections::BTreeSet<u8>` is not supported
+src/lib.rs:552:27: 552:38: enumerating items that may panic is not supported
 
-11 of 30 reached functions translated; 20 refusals
+13 of 37 reached functions translated; 26 refusals
+    3  _ of _ may not match a Lean order
+    2  _ clones _ here, which may not copy it
+    2  an iterator read after it is partly consumed is not supported
     2  cloning _ may not copy it
-    1  _ clones _ here, which may not copy it
     1  _ has an allocator other than _, which is not supported
     1  _ has interior mutability, which is not supported
-    1  _ of _ is not derived
+    1  _ has no Lean model
     1  _ of _ is not structural equality
+    1  _ passed where _ needs a Lean instance, which is not supported
     1  a mutable reference used as a value is not supported
     1  a trait's associated type or constant is not supported
     1  an explicit panic is not supported, since its message has no model
-    1  an iterator read after it is partly consumed is not supported
     1  calling a closure is not supported
     1  collecting into _ is not supported
     1  comparing _ with _ is not supported
@@ -49,6 +57,13 @@ translated refused::dup_via
 translated refused::dup_byte
 translated refused::Reset::clone
 translated refused::dup_reset
+refused    refused::any_in_loop
+translated refused::Heavy::weigh
+translated refused::weigh_of
+refused    refused::weigh_heavy
+refused    refused::result_key
+refused    refused::backwards_key
+refused    refused::endless
 translated refused::Zeroed::clone
 refused    refused::extend_copy
 refused    refused::grow

@@ -411,11 +411,15 @@ impl<'tcx> Cx<'tcx> {
 				if def.did().is_local() {
 					self.derives(def.did(), tcx.get_diagnostic_item(rustc_span::sym::Ord))
 						&& self.derives(def.did(), tcx.lang_items().partial_ord_trait())
+						&& self.discriminants_in_order(*def)
 						&& def
 							.all_fields()
 							.all(|f| self.structural_ord_in(f.ty(tcx, *args).skip_norm_wip(), seen))
 				} else if self.is_cmp_ordering(def.did()) {
 					true
+				} else if self.std_name(def.did()) == "Result" {
+					// Lean's `Except` has no `Ord`.
+					false
 				} else {
 					self.std_container(def.did(), args)
 						.is_some_and(|mut tys| tys.all(|t| self.structural_ord_in(t, seen)))
@@ -423,6 +427,42 @@ impl<'tcx> Cx<'tcx> {
 			}
 			_ => false,
 		}
+	}
+
+	/// Whether an enum's discriminants rise in declaration order: a derived `Ord` orders
+	/// variants by discriminant, and Lean's by declaration.
+	fn discriminants_in_order(&self, def: ty::AdtDef<'tcx>) -> bool {
+		if !def.is_enum() {
+			return true;
+		}
+		let tcx = self.tcx;
+		let values: Vec<i128> = def
+			.discriminants(tcx)
+			.map(|(_, d)| {
+				let (size, signed) = d.ty.int_size_and_signed(tcx);
+				let shift = 128 - size.bits();
+				match signed {
+					true => ((d.val << shift) as i128) >> shift,
+					false => d.val as i128,
+				}
+			})
+			.collect();
+		values.windows(2).all(|w| w[0] < w[1])
+	}
+
+	/// The local trait translated to a Lean class that bounds type parameter `index` of
+	/// `did`, if any: a call passing a concrete type for it needs a Lean instance, which the
+	/// translation does not emit.
+	fn class_bound(&self, did: DefId, index: u32) -> Option<DefId> {
+		let tcx = self.tcx;
+		tcx.param_env(did)
+			.caller_bounds()
+			.all_clauses(tcx)
+			.iter()
+			.filter_map(|p| p.as_trait_clause())
+			.filter(|t| matches!(t.self_ty().skip_binder().kind(), ty::Param(p) if p.index == index))
+			.map(|t| t.def_id())
+			.find(|b| b.is_local() && self.traits.get(b) == Some(&true))
 	}
 
 	/// Whether cloning a value of `ty` copies it, as the translation's value semantics assume.
@@ -487,17 +527,20 @@ impl<'tcx> Cx<'tcx> {
 		let mut uses = Vec::new();
 		for def in tcx.hir_body_owners() {
 			let did = def.to_def_id();
-			if !matches!(tcx.def_kind(did), DefKind::Fn | DefKind::AssocFn | DefKind::Closure)
-				|| !tcx.is_mir_available(did)
-			{
-				continue;
-			}
+			let body = match tcx.def_kind(did) {
+				DefKind::Fn | DefKind::AssocFn | DefKind::Closure if tcx.is_mir_available(did) => {
+					tcx.optimized_mir(did)
+				}
+				// A constant or static can name an instantiation no function does.
+				DefKind::Const | DefKind::AssocConst | DefKind::Static { .. } => tcx.mir_for_ctfe(did),
+				_ => continue,
+			};
 			let mut found = FnUses {
 				tcx,
 				env: TypingEnv::post_analysis(tcx, did),
 				out: Vec::new(),
 			};
-			mir::visit::Visitor::visit_body(&mut found, tcx.optimized_mir(did));
+			mir::visit::Visitor::visit_body(&mut found, body);
 			let root = tcx.typeck_root_def_id(did);
 			uses.extend(
 				found
@@ -765,11 +808,23 @@ impl<'tcx> Cx<'tcx> {
 	/// which a closure that may panic makes it. `None` for any other type.
 	fn iterator(&self, ty: Ty<'tcx>) -> Option<(Ty<'tcx>, bool)> {
 		let tcx = self.tcx;
-		let ty::Adt(def, _) = ty.kind() else {
+		let ty::Adt(def, args) = ty.kind() else {
 			return None;
 		};
 		// A range is a value too, which slicing takes.
 		if !self.is_std(def.did()) || self.ops_range(def.did()).is_some() {
+			return None;
+		}
+		// Only the finite iterators the models make or take: a list cannot hold `Repeat`'s.
+		let path = tcx.def_path_str(def.did());
+		let inner: &[usize] = match self.std_name(def.did()).as_str() {
+			"Iter" | "Windows" if path.contains("slice::") => &[],
+			"IntoIter" if ["vec::", "option::", "array::"].iter().any(|m| path.contains(m)) => &[],
+			"Map" | "Copied" | "Cloned" | "Enumerate" => &[0],
+			"Chain" => &[0, 1],
+			_ => return None,
+		};
+		if inner.iter().any(|&i| self.iterator(args.type_at(i)).is_none()) {
 			return None;
 		}
 		let iterator = tcx.get_diagnostic_item(rustc_span::sym::Iterator)?;
@@ -2428,6 +2483,7 @@ impl<'a, 'tcx> Fx<'a, 'tcx> {
 			args,
 			destination: *destination,
 			span,
+			block: bb,
 		};
 		if self.model(&key, &call, ops)? {
 			return Ok(target.is_none());
@@ -2608,6 +2664,19 @@ impl<'a, 'tcx> Fx<'a, 'tcx> {
 				&& !self.cx.structural_eq(t)
 			{
 				return refuse(span, format!("`{t}` passed where `PartialEq` must be structural"));
+			}
+			if let ty::GenericParamDefKind::Type { .. } = param.kind
+				&& let Some(t) = arg.as_type()
+				&& !matches!(t.kind(), ty::Param(_))
+				&& let Some(tr) = self.cx.class_bound(callee, param.index)
+			{
+				return refuse(
+					span,
+					format!(
+						"`{t}` passed where `{}` needs a Lean instance, which is not supported",
+						tcx.def_path_str(tr)
+					),
+				);
 			}
 			let shows = sig.inputs().iter().any(|t| {
 				t.walk().any(|a| match (a.as_type(), a.as_const(), &param.kind) {

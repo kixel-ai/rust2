@@ -119,6 +119,11 @@ pub mod cases {
 		(dup_generic(&x), dup_generic(&x))
 	}
 
+	/// Rust unwraps `o` whatever `b` is.
+	pub fn then_unwrap(b: bool, o: Option<u8>) -> Option<u8> {
+		b.then_some(o.unwrap())
+	}
+
 	/// A type that appears twice is repeated, not recursive.
 	pub fn clone_pairs(v: &Vec<(Option<u8>, Option<u8>)>) -> Vec<(Option<u8>, Option<u8>)> {
 		v.clone()
@@ -304,6 +309,7 @@ unsafe impl std::alloc::Allocator for Arena {
 pub mod refused {
 	use super::Arena;
 	use std::cell::Cell;
+	use std::collections::BTreeSet;
 
 	pub struct Loose(pub u8);
 
@@ -361,6 +367,63 @@ pub mod refused {
 	/// `Reset`'s `clone` does not copy, so `dup` is refused at this instantiation.
 	pub fn dup_reset(r: &Reset) -> Reset {
 		dup_via(r)
+	}
+
+	/// A static can name an instantiation no function does.
+	pub static RESET: fn(&Reset) -> Reset = dup::<Reset>;
+
+	/// The iterator is made before the loop, so each pass's `any` resumes where the last
+	/// stopped, which a list read again does not.
+	pub fn any_in_loop(v: &[u8]) -> u8 {
+		let mut it = v.iter();
+		let mut n = 0;
+		while n < 2 && it.any(|_| true) {
+			n += 1;
+		}
+		n
+	}
+
+	pub trait Weigh {
+		fn weigh(&self) -> u64;
+	}
+
+	#[derive(PartialEq)]
+	pub struct Heavy(pub u64);
+
+	impl Weigh for Heavy {
+		fn weigh(&self) -> u64 {
+			self.0
+		}
+	}
+
+	pub fn weigh_of<W: Weigh>(w: &W) -> u64 {
+		w.weigh()
+	}
+
+	/// `Weigh for Heavy` would be a Lean instance, which the translation does not emit.
+	pub fn weigh_heavy(h: &Heavy) -> u64 {
+		weigh_of(h)
+	}
+
+	/// Lean's `Except` has no `Ord`.
+	pub fn result_key(s: &BTreeSet<Result<u8, u8>>, k: Result<u8, u8>) -> bool {
+		s.contains(&k)
+	}
+
+	/// A derived `Ord` puts `Low` first by discriminant; Lean's would put `High` first.
+	#[derive(PartialEq, Eq, PartialOrd, Ord)]
+	pub enum Backwards {
+		High = 2,
+		Low = 1,
+	}
+
+	pub fn backwards_key(s: &BTreeSet<Backwards>, k: Backwards) -> bool {
+		s.contains(&k)
+	}
+
+	/// A list cannot hold an endless iterator.
+	pub fn endless(mut it: std::iter::Repeat<u8>) -> bool {
+		it.any(|x| x == 0)
 	}
 
 	#[derive(Copy)]
@@ -489,3 +552,4 @@ pub mod refused {
 		v.iter().map(|y| y + 1).enumerate().collect()
 	}
 }
+

@@ -5,7 +5,7 @@
 [rust2-lean](/driver/lean/README.md) translates every function `crate::route::relay` reaches in moq-net's `Router` (`rs/moq-net/src/route/relay.rs`), except `Debug` formatting, to Lean 4 that type-checks with core Lean.
 The census at moq 512e3d9 translates 34 of 144 reached functions; it counts closures toward the function they are written in, and leaves out derived and `Debug` impls.
 Every function of the route algebra (`Offer`, `Here`, `order`, `Claim`, `claim_order`, `precedence`, `floor_of`) translates, and `just driver lean-moq` replays native Rust's outcomes on it with no mismatch: 100,000 random cases at the bounds of moq-net's `verify/route-algebra/` vectors, and every algebra call behind those 649 checked-in vectors.
-Of the 192 refusals left:
+Of the 194 refusals left:
 
 - 70 are `std::time::Duration`, and 2 `kio::clock::Instant`.
 - 20 are calls that return a `&mut`, mostly `entry(..).or_default()` and `get_mut(..).expect(..)`, and 18 more `&mut` borrows the subset refuses.

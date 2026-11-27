@@ -14,6 +14,8 @@ pub(super) struct Call<'a, 'tcx> {
 	pub args: &'a [rustc_span::Spanned<Operand<'tcx>>],
 	pub destination: Place<'tcx>,
 	pub span: Span,
+	/// The block the call ends.
+	pub block: BasicBlock,
 }
 
 /// A closure as a Lean function: its definition applied to what it captures, and whether
@@ -254,7 +256,13 @@ impl<'tcx> Fx<'_, 'tcx> {
 			"bool::then_some" => {
 				let b = self.operand(&call.args[0].node, span)?;
 				let v = self.operand(&call.args[1].node, span)?;
-				compound(format!("if {} then some {} else none", b.text, v.paren()), &[&b, &v])
+				// A bind in `v` runs whatever `b` is, as Rust evaluates `v` first, so it is an
+				// argument rather than inside a branch, where Lean cannot lift it.
+				let text = match v.monadic {
+					true => format!("(if {} then some · else none) {}", b.text, v.paren()),
+					false => format!("if {} then some {} else none", b.text, v.paren()),
+				};
+				compound(text, &[&b, &v])
 			}
 			"Ord::cmp" if call.gargs.type_at(0).is_integral() || call.gargs.type_at(0).is_bool() => {
 				let a = self.operand(&call.args[0].node, span)?;
@@ -350,7 +358,7 @@ impl<'tcx> Fx<'_, 'tcx> {
 		if self.cx.structural_ord(ty) {
 			Ok(())
 		} else {
-			refuse(span, format!("`Ord` of `{ty}` is not derived"))
+			refuse(span, format!("`Ord` of `{ty}` may not match a Lean order"))
 		}
 	}
 
@@ -404,7 +412,10 @@ impl<'tcx> Fx<'_, 'tcx> {
 		let Some((_, deferred)) = self.cx.iterator(ty) else {
 			return refuse(call.span, format!("`{ty}` has no Lean model"));
 		};
-		if !place.projection.is_empty() || self.uses[place.local.as_usize()] != 1 {
+		if !place.projection.is_empty()
+			|| self.uses[place.local.as_usize()] != 1
+			|| self.reruns(call.block, place.local)
+		{
 			return refuse(
 				call.span,
 				"an iterator read after it is partly consumed is not supported",
@@ -414,6 +425,33 @@ impl<'tcx> Fx<'_, 'tcx> {
 			ex: self.read_place(place, call.span)?,
 			deferred,
 		})
+	}
+
+	/// Whether block `bb` can run again before `local` is set anew, as in a loop consuming an
+	/// iterator made before it.
+	fn reruns(&self, bb: BasicBlock, local: Local) -> bool {
+		let blocks = &self.body.basic_blocks;
+		let mut seen = HashSet::new();
+		let mut stack: Vec<BasicBlock> = blocks[bb].terminator().successors().collect();
+		while let Some(b) = stack.pop() {
+			if b == bb {
+				return true;
+			}
+			if !seen.insert(b) {
+				continue;
+			}
+			let data = &blocks[b];
+			let sets = data.statements.iter().any(|s| match &s.kind {
+				StatementKind::Assign(a) => a.0.local == local && a.0.projection.is_empty(),
+				StatementKind::StorageLive(l) | StatementKind::StorageDead(l) => *l == local,
+				_ => false,
+			}) || matches!(&data.terminator().kind,
+				TerminatorKind::Call { destination, .. } if destination.local == local && destination.projection.is_empty());
+			if !sets {
+				stack.extend(data.terminator().successors());
+			}
+		}
+		false
 	}
 
 	/// What `op` iterates as a list, for `IntoIterator`: an array, a `Vec`, an `Option`, or an

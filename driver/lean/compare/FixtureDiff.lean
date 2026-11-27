@@ -72,6 +72,9 @@ def case : D (List String) := do
     let m ← arr (pair rank u16); let s ← arr u8; let r ← rank; let k ← u8
     expect "lookups" (pure (cases.lookups ⟨m.toList⟩ ⟨s.toList⟩ r k))
       (pair (opt u16) (pair boolean (pair boolean (pair u64 boolean))))
+  | 13 =>
+    let b ← boolean; let o ← opt u8
+    expect "then_unwrap" (cases.then_unwrap b o) (opt u8)
   | _ => throw "kind"
 
 def main (args : List String) : IO UInt32 := do

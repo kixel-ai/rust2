@@ -145,7 +145,7 @@ fn outcome<T: Enc>(w: &mut W, f: impl FnOnce() -> T) {
 
 fn case(rng: &mut Rng) -> W {
 	let mut w = W::default();
-	let kind = 1 + rng.below(12);
+	let kind = 1 + rng.below(13);
 	w.int(kind.into());
 	match kind {
 		1 => {
@@ -208,6 +208,11 @@ fn case(rng: &mut Rng) -> W {
 			let v = rng.bytes();
 			w.put(&v);
 			outcome(&mut w, || cases::shared(&v).to_vec());
+		}
+		13 => {
+			let (b, o) = (rng.one_in(2), (!rng.one_in(3)).then(|| rng.byte()));
+			w.put(b).put(o);
+			outcome(&mut w, || cases::then_unwrap(b, o));
 		}
 		_ => {
 			let m: BTreeMap<Rank, u16> = (0..rng.below(5)).map(|_| (rng.rank(), rng.below(1000) as u16)).collect();

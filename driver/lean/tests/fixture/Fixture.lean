@@ -160,6 +160,9 @@ def cases.dup_pair (x : UInt8) : (UInt8 × UInt8) := Id.run do
   let t7 := x
   return (cases.dup_generic t4, cases.dup_generic t7)
 
+def cases.then_unwrap (b : Bool) (o : (Option UInt8)) : Rust.M (Option UInt8) := do
+  return (if b then some · else none) (← Rust.expect o "called `Option::unwrap()` on a `None` value")
+
 def cases.clone_pairs (v : (Array ((Option UInt8) × (Option UInt8)))) : (Array ((Option UInt8) × (Option UInt8))) :=
   v
 
