@@ -11,11 +11,12 @@ follow-up; this quest ships the tool and proves it on one of rind's rows.
 
 ## Plan
 
-Decided 2026-11-27 by [kixel-ai/rust2#1070](https://github.com/kixel-ai/rust2/pull/1070)'s
-report, pending the maintainer's pick there: split the runners. nextest stays on native,
+Decided 2026-11-27 by the maintainer on [kixel-ai/rust2#1070](https://github.com/kixel-ai/rust2/pull/1070)'s
+report: split the runners. nextest stays on native,
 qemu-user, wasmtime, Miri, and valgrind rows; the watchdog takes the rest.
 
-Start from the measured prototype, [sh/test-watchdog.py](/sh/test-watchdog.py). It needs no
+Start from the measured prototype, [sh/test-watchdog.py](https://github.com/kixel-ai/rust2/blob/15a938c0f79a3142f876eec93b47ad31072698f5/sh/test-watchdog.py),
+which #1070 removed once measured. It needs no
 flag in the test binary: libtest prints `test NAME has been running for over 60 seconds`
 for each test 60 s after its own start and `test NAME ... ok` when it ends, so the watchdog
 times each test from its own start, and tells a healthy slow test from a hung one. A
@@ -36,10 +37,11 @@ Measured on rind's rows (#1070, two runs each, test phase only):
   would still pay about 4 minutes over the watchdog for rind's 3690 tests.
 - SDE (Prescott, rind's library tests): nextest 768 s, the watchdog 256 s on the same CPU.
 - Native, qemu-user (riscv64, armv6), and wasmtime: within run-to-run noise, except wasm,
-  where nextest is faster (492 and 561 s against 703 and 594 s), since wasip2's libtest
+  where nextest is faster (509 and 580 s against 711 and 601 s), since wasip2's libtest
   runs one test at a time.
 
-Recommended shape, open under Waiting: a Rust binary here, published to crates.io so
+Shape, decided by the maintainer on #1070 (rejected: the Python script vendored into each
+consumer; the script fetched from here at a pinned revision): a Rust binary here, published to crates.io so
 `taiki-e/install-action` and the consumers' Nix shells install it, which reads its bounds
 from the consumer's `.config/nextest.toml` profile (`slow-timeout`'s period times
 `terminate-after`, and overrides whose filters are `test(=NAME)`, `test(/REGEX/)`, or
@@ -49,10 +51,3 @@ binary.
 
 Prove it on rind's iOS nightly row on a scratch branch: the hung test named at its bound,
 none left running in the simulator, and the test phase near the prototype's 10 minutes.
-
-## Waiting
-
-- Maintainer: how should the test watchdog ship?
-  - Rust binary in rust2 reading nextest.toml (Recommended) - one bounds file for both runners, unit-tested, installed like nextest
-  - The Python script, vendored into rind and moq - nothing to publish, but each copy drifts and its bounds are flags beside nextest.toml's
-  - The Python script fetched from rust2 at a pinned revision - one copy, but every job fetches code from another repository
