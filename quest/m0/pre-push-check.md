@@ -21,7 +21,7 @@ history before switching (rejected: switching on [#998](https://github.com/kixel
 Decided 2026-11-27 (maintainer, `/quest-plan`), superseding both: ✅ run the checks
 locally before pushing, possibly from a git hook, and trust that they ran; the merge
 queue catches what they miss (rejected: waiting on a week of PR CI, which
-[the queue-only quest](/quest/m0/ci-queue-only.md) deletes). The switch no longer waits
+[#1078](https://github.com/kixel-ai/rust2/pull/1078) deletes). The switch no longer waits
 on hosted history.
 
 - `just ci` is already diff-scoped, so the hook automates the current rule rather than
