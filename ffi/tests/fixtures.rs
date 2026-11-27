@@ -6232,37 +6232,46 @@ fn cached() {
 	for script in [&wrapper, &cargo] {
 		std::fs::set_permissions(script, std::os::unix::fs::PermissionsExt::from_mode(0o755)).unwrap();
 	}
-	let _ = std::fs::remove_file(&log);
-	let _ = std::fs::remove_dir_all(package.join("build"));
-	run(census(&package.join("Cargo.toml"), &[]).env("CARGO", &cargo));
-	let log = std::fs::read_to_string(&log).unwrap();
-	let compiled = |krate: &str| {
-		let line = log
-			.lines()
-			.find(|line| line.contains(&format!("--crate-name {krate} ")));
-		let line = line.unwrap_or_else(|| panic!("{krate} was not compiled through the cache:\n{log}"));
-		line.split(' ').map(str::to_string).collect::<Vec<_>>()
-	};
-	let (dep, facade) = (compiled("dep"), compiled("cached"));
-	// Cargo passes its rustc to the workspace's wrapper alone.
-	assert_ne!(dep[0], facade[0], "{log}");
-	assert_eq!(dep[0], facade[1], "{log}");
-	// The sibling reaches the cache twice: from cargo, as the facade does, then handed back
-	// with the exporter as rustc, as the dep does.
-	let sibling = log.lines().filter(|line| line.contains("--crate-name sibling "));
-	let sibling = sibling.map(|line| line.split(' ').next().unwrap()).collect::<Vec<_>>();
-	assert_eq!(sibling, [&facade[0], &dep[0]], "{log}");
-	// The facade, whose compilation writes the export, is not handed back.
-	assert_eq!(log.matches("--crate-name cached ").count(), 1, "{log}");
-	let flags = [
-		"--cfg",
-		"consumer",
-		"-Zalways-encode-mir",
-		"-Coverflow-checks=on",
-		"-Zmir-opt-level=1",
-	];
-	for krate in [&dep, &facade] {
-		assert!(krate.windows(flags.len()).any(|run| run == flags), "{log}");
+	// A cache wraps rustc from its Cargo shim, or, inside its session, as the tests run
+	// under mbx, from the environment the exporter inherits.
+	for inherited in [false, true] {
+		let _ = std::fs::remove_file(&log);
+		let _ = std::fs::remove_dir_all(package.join("build"));
+		let mut census = census(&package.join("Cargo.toml"), &[]);
+		match inherited {
+			false => census.env("CARGO", &cargo),
+			true => census.env("CARGO", env!("CARGO")).env("RUSTC_WRAPPER", &wrapper),
+		};
+		run(&mut census);
+		let log = std::fs::read_to_string(&log).unwrap();
+		let compiled = |krate: &str| {
+			let line = log
+				.lines()
+				.find(|line| line.contains(&format!("--crate-name {krate} ")));
+			let line = line.unwrap_or_else(|| panic!("{krate} was not compiled through the cache:\n{log}"));
+			line.split(' ').map(str::to_string).collect::<Vec<_>>()
+		};
+		let (dep, facade) = (compiled("dep"), compiled("cached"));
+		// Cargo passes its rustc to the workspace's wrapper alone.
+		assert_ne!(dep[0], facade[0], "{log}");
+		assert_eq!(dep[0], facade[1], "{log}");
+		// The sibling reaches the cache twice: from cargo, as the facade does, then handed back
+		// with the exporter as rustc, as the dep does.
+		let sibling = log.lines().filter(|line| line.contains("--crate-name sibling "));
+		let sibling = sibling.map(|line| line.split(' ').next().unwrap()).collect::<Vec<_>>();
+		assert_eq!(sibling, [&facade[0], &dep[0]], "{log}");
+		// The facade, whose compilation writes the export, is not handed back.
+		assert_eq!(log.matches("--crate-name cached ").count(), 1, "{log}");
+		let flags = [
+			"--cfg",
+			"consumer",
+			"-Zalways-encode-mir",
+			"-Coverflow-checks=on",
+			"-Zmir-opt-level=1",
+		];
+		for krate in [&dep, &facade] {
+			assert!(krate.windows(flags.len()).any(|run| run == flags), "{log}");
+		}
 	}
 }
 
