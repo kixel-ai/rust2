@@ -58,7 +58,9 @@ const WEB: &str = "wasm32-wasip1";
 /// rebuild the glue.
 fn cargo() -> Command {
 	let mut cmd = Command::new(std::env::var_os("CARGO").unwrap_or_else(|| "cargo".into()));
-	cmd.env("PATH", step::path());
+	cmd.env("PATH", step::path())
+		.env_remove("RUSTC_WORKSPACE_WRAPPER")
+		.env_remove("CARGO_BUILD_WARNINGS");
 	cmd
 }
 

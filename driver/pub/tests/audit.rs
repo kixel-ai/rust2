@@ -244,7 +244,10 @@ fn fixture() {
 
 fn cargo(dir: &Path) -> Command {
 	let mut cmd = Command::new(env!("CARGO"));
-	cmd.current_dir(dir).env("CARGO_TARGET_DIR", dir.join("target"));
+	cmd.current_dir(dir)
+		.env("CARGO_TARGET_DIR", dir.join("target"))
+		.env_remove("RUSTC_WORKSPACE_WRAPPER")
+		.env_remove("CARGO_BUILD_WARNINGS");
 	cmd
 }
 

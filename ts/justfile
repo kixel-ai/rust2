@@ -9,6 +9,7 @@ set shell := ["bash", "-euo", "pipefail", "-c"]
 # mbx's Cargo shim, which the dev shell exports, stays ahead of the nightly so cargo still builds through it.
 cargo_shim := if env("RUST2_CARGO_SHIM", "") == "" { "" } else { env("RUST2_CARGO_SHIM") + ":" }
 export PATH := if env("RUST2_TS_TOOLCHAIN", "") == "" { env("PATH") } else { cargo_shim + env("RUST2_TS_TOOLCHAIN") / "bin:" + env("PATH") }
+clippy_driver := if env("RUST2_TS_TOOLCHAIN", "") == "" { require("clippy-driver") } else { env("RUST2_TS_TOOLCHAIN") / "bin/clippy-driver" }
 
 # The model fixture, its own workspace, which builds moq-net at the moq pin.
 model := "fixtures/model/Cargo.toml"
@@ -30,6 +31,10 @@ default:
 # Lint and format-check the driver, its fixtures, and the bench.
 check:
     cargo clippy --locked --all-targets -- -D warnings
+    just lint
+
+# Everything `check` verifies besides the main workspace clippy compile, which `test` enforces in one pass.
+lint:
     cargo clippy --locked --all-targets --manifest-path {{ model }} -- -D warnings
     cargo clippy --locked --all-targets --manifest-path {{ bindgen }} -- -D warnings
     RUSTFLAGS=--cfg=web_sys_unstable_apis cargo clippy --locked --all-targets --manifest-path {{ encoder }} -- -D warnings
@@ -51,9 +56,9 @@ check:
     cd .work/moq && bun install --frozen-lockfile --ignore-scripts --filter @moq/net --silent
     tsc -p bench
 
-# Run the snapshot and differential tests.
+# Run the snapshot and differential tests, enforcing clippy from the same compile.
 test *args:
-    cargo nextest run --locked {{ args }}
+    CARGO_BUILD_WARNINGS=deny RUSTC_WORKSPACE_WRAPPER={{ quote(clippy_driver) }} cargo nextest run --locked {{ args }}
 
 # Apply formatters without changing program behavior.
 fix:
@@ -88,7 +93,7 @@ moq checkout="":
         src=.work/moq
     fi
     out=target/moq-ts
-    cargo run --locked --quiet -- --config moq/ts.toml --manifest-path "$src/rs/moq-net/Cargo.toml" --out "$out"
+    CARGO_BUILD_WARNINGS=deny RUSTC_WORKSPACE_WRAPPER={{ quote(clippy_driver) }} cargo run --locked --quiet -- --config moq/ts.toml --manifest-path "$src/rs/moq-net/Cargo.toml" --out "$out"
     printf '{ "extends": "%s/runtime/tsconfig.json", "files": [], "include": ["**/*.ts"] }\n' "$PWD" > "$out/tsconfig.json"
     tsc -p "$out"
 

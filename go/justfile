@@ -9,6 +9,7 @@ set shell := ["bash", "-euo", "pipefail", "-c"]
 # mbx's Cargo shim, which the dev shell exports, stays ahead of the nightly so cargo still builds through it.
 cargo_shim := if env("RUST2_CARGO_SHIM", "") == "" { "" } else { env("RUST2_CARGO_SHIM") + ":" }
 export PATH := if env("RUST2_TS_TOOLCHAIN", "") == "" { env("PATH") } else { cargo_shim + env("RUST2_TS_TOOLCHAIN") / "bin:" + env("PATH") }
+clippy_driver := if env("RUST2_TS_TOOLCHAIN", "") == "" { require("clippy-driver") } else { env("RUST2_TS_TOOLCHAIN") / "bin/clippy-driver" }
 
 default:
     @just --list
@@ -16,15 +17,19 @@ default:
 # Lint and format-check the translator, its fixtures, and its runtime.
 check:
     cargo clippy --locked --all-targets -- -D warnings
+    just lint
+
+# Everything `check` verifies besides the workspace clippy compile, which `test` enforces in one pass.
+lint:
     cargo fmt --all --check
     cargo shear
     cargo sort --workspace --check --no-format
     test -z "$(gofmt -l runtime tests bench)"
     cd runtime && go vet rt.go rt_fmt.go
 
-# Run the differential and refusal tests.
+# Run the differential and refusal tests, enforcing clippy from the same compile.
 test *args:
-    cargo nextest run --locked {{ args }}
+    CARGO_BUILD_WARNINGS=deny RUSTC_WORKSPACE_WRAPPER={{ quote(clippy_driver) }} cargo nextest run --locked {{ args }}
 
 # Apply formatters without changing program behavior.
 fix:
