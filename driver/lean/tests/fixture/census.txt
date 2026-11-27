@@ -1,23 +1,27 @@
-src/lib.rs:205:3: 205:19: `PartialEq` of `refused::Loose` is not structural equality
-src/lib.rs:209:3: 209:9: `PartialEq` of `&refused::Holder` is not structural equality
-src/lib.rs:221:5: 221:25: cloning `refused::Norm` may not copy it
-src/lib.rs:234:5: 234:25: cloning `refused::Zeroed` may not copy it
-src/lib.rs:239:3: 239:26: recursive type `Tree` is not supported
-src/lib.rs:239:3: 239:26: recursive type `Tree` is not supported
-src/lib.rs:247:3: 247:17: an explicit panic is not supported, since its message has no model
-src/lib.rs:251:3: 251:19: `std::string::String` has no Lean model
-src/lib.rs:258:18: 258:19: `std::cell::Cell<u8>` has interior mutability, which is not supported
-src/lib.rs:262:2: 262:31: recursion is not supported
-src/lib.rs:266:35: 266:42: returning a mutable reference is not supported
-src/lib.rs:271:7: 271:8: a closure is not supported
+src/lib.rs:222:3: 222:19: `PartialEq` of `refused::Loose` is not structural equality
+src/lib.rs:226:3: 226:9: `PartialEq` of `&refused::Holder` is not structural equality
+src/lib.rs:238:5: 238:25: cloning `refused::Norm` may not copy it
+src/lib.rs:251:5: 251:25: cloning `refused::Zeroed` may not copy it
+src/lib.rs:256:3: 256:26: recursive type `Tree` is not supported
+src/lib.rs:256:3: 256:26: recursive type `Tree` is not supported
+src/lib.rs:264:3: 264:17: an explicit panic is not supported, since its message has no model
+src/lib.rs:268:3: 268:19: `std::string::String` has no Lean model
+src/lib.rs:275:18: 275:19: `std::cell::Cell<u8>` has interior mutability, which is not supported
+src/lib.rs:279:2: 279:31: recursion is not supported
+src/lib.rs:283:35: 283:42: returning a mutable reference is not supported
+src/lib.rs:288:44: 288:58: `std::vec::Vec<u8, Arena>` has an allocator other than `Global`, which is not supported
+src/lib.rs:306:3: 306:9: comparing `&std::vec::Vec<refused::Left>` with `&std::vec::Vec<refused::Right>` is not supported
+src/lib.rs:310:7: 310:8: a closure is not supported
 
-3 of 15 reached functions translated; 12 refusals
+6 of 20 reached functions translated; 14 refusals
     2  _ of _ is not structural equality
     2  cloning _ may not copy it
     2  recursive type _ is not supported
+    1  _ has an allocator other than _, which is not supported
     1  _ has interior mutability, which is not supported
     1  _ has no Lean model
     1  a closure is not supported
     1  an explicit panic is not supported, since its message has no model
+    1  comparing _ with _ is not supported
     1  recursion is not supported
     1  returning a mutable reference is not supported

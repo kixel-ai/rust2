@@ -1,6 +1,8 @@
 //! What rust2-lean translates and refuses. `Session` holds the constructs Aeneas refused in
 //! kixel-ai/kio#9, written as kio first wrote them.
 
+#![feature(allocator_api)]
+
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct Sub {
 	pub opening: Option<u8>,
@@ -188,8 +190,23 @@ mod elsewhere {
 	}
 }
 
+/// An allocator other than `Global`, outside `refused` so the census skips its own body.
+#[derive(Clone, Copy)]
+pub struct Arena;
+
+unsafe impl std::alloc::Allocator for Arena {
+	fn allocate(&self, layout: std::alloc::Layout) -> Result<std::ptr::NonNull<[u8]>, std::alloc::AllocError> {
+		std::alloc::Global.allocate(layout)
+	}
+
+	unsafe fn deallocate(&self, ptr: std::ptr::NonNull<u8>, layout: std::alloc::Layout) {
+		unsafe { std::alloc::Global.deallocate(ptr, layout) }
+	}
+}
+
 /// Outside the subset, each refused at its span.
 pub mod refused {
+	use super::Arena;
 	use std::cell::Cell;
 
 	pub struct Loose(pub u8);
@@ -265,6 +282,28 @@ pub mod refused {
 
 	pub fn reborrow(v: &mut [u8]) -> &mut u8 {
 		&mut v[0]
+	}
+
+	/// A custom allocator's `Clone` may panic, so cloning its `Vec` is not a copy.
+	pub fn arena_clone(v: &Vec<u8, Arena>) -> Vec<u8, Arena> {
+		v.clone()
+	}
+
+	#[derive(PartialEq)]
+	pub struct Left(pub u8);
+
+	#[derive(PartialEq)]
+	pub struct Right(pub u8);
+
+	impl PartialEq<Right> for Left {
+		fn eq(&self, other: &Right) -> bool {
+			self.0 == other.0
+		}
+	}
+
+	/// Lean's `=` cannot compare an `Array Left` with an `Array Right`.
+	pub fn cross_eq(a: &Vec<Left>, b: &Vec<Right>) -> bool {
+		a == b
 	}
 
 	pub fn closure(x: u8) -> u8 {

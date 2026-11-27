@@ -358,14 +358,20 @@ impl<'tcx> Cx<'tcx> {
 
 	/// The element types of a `std` container whose `Clone` and `PartialEq` are structural, or
 	/// `None` for any other type. A `Vec`'s allocator is not an element: the only one modeled is
-	/// `Global`, which holds no data.
+	/// `Global`, which holds no data, and any other's `Clone` may do anything.
 	fn std_container(&self, did: DefId, args: &'tcx ty::GenericArgs<'tcx>) -> Option<impl Iterator<Item = Ty<'tcx>>> {
 		let n = match self.std_name(did).as_str() {
-			"Option" | "Vec" => 1,
+			"Option" => 1,
+			"Vec" if self.global_alloc(args) => 1,
 			"Result" => 2,
 			_ => return None,
 		};
 		Some(args.types().take(n))
+	}
+
+	/// Whether a `Vec`'s arguments name the `Global` allocator, the only one modeled.
+	fn global_alloc(&self, args: &'tcx ty::GenericArgs<'tcx>) -> bool {
+		matches!(args.type_at(1).kind(), ty::Adt(a, _) if self.std_name(a.did()) == "Global")
 	}
 
 	/// Whether the local type's `PartialEq` impl is derived.
@@ -460,6 +466,12 @@ impl<'tcx> Cx<'tcx> {
 			}
 			ty::Adt(def, args) => match self.std_name(def.did()).as_str() {
 				"Option" => format!("(Option {})", self.ty(args.type_at(0), span)?),
+				"Vec" if !self.global_alloc(args) => {
+					return refuse(
+						span,
+						format!("`{ty}` has an allocator other than `Global`, which is not supported"),
+					);
+				}
 				"Vec" => format!("(Array {})", self.ty(args.type_at(0), span)?),
 				"Result" => format!(
 					"(Except {} {})",
@@ -1855,6 +1867,11 @@ impl<'a, 'tcx> Fx<'a, 'tcx> {
 		let eq_trait = tcx.lang_items().eq_trait();
 		if tcx.trait_of_assoc(callee) == eq_trait && eq_trait.is_some() {
 			let self_ty = gargs.type_at(0);
+			let rhs_ty = gargs.type_at(1);
+			// Lean's `=` needs both sides of one type.
+			if tcx.erase_and_anonymize_regions(self_ty) != tcx.erase_and_anonymize_regions(rhs_ty) {
+				return refuse(span, format!("comparing `{self_ty}` with `{rhs_ty}` is not supported"));
+			}
 			if !self.cx.structural_eq(self_ty) {
 				return refuse(span, format!("`PartialEq` of `{self_ty}` is not structural equality"));
 			}
