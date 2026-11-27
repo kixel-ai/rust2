@@ -1,14 +1,13 @@
 # Build-speed benchmark
 
 `just bench` measures Rust build time on the pinned projects and build configurations in [corpus.toml](corpus.toml).
-CI ([bench.yml](../../.github/workflows/bench.yml)) runs on manual dispatch at `main`
-on nixos's `rust2-bench` runner. Its job hook holds a host lease that waits for queue
-builds and land fixers to finish, then excludes them until the benchmark job ends.
-The runner group admits only this workflow at `main`, so workflow changes must land
-before they can be measured. The workflow must never gain a `workflow_call` trigger,
-since the group would trust its jobs regardless of the calling workflow.
-The runner exposes user-space performance counters without a privileged workflow step.
-The `jobs-frontend` variant uses 32 threads to match this host's 32 logical CPUs.
+CI ([bench.yml](../../.github/workflows/bench.yml)) runs it on manual dispatch, on any
+branch, on GitHub's hosted 4-vCPU runners. They expose no performance counters, so
+instructions read `n/a` there, and their wall time is a shared VM's: read each job's
+control for the noise floor. For instructions or a quiet many-core host, run
+`just bench` on that host over SSH.
+The `jobs-frontend` variant uses 32 threads to match a 32-CPU host, so CI leaves it
+out: on 4 vCPUs it oversubscribes, as the reference report below says.
 Every build-speed change here states its effect with its numbers.
 
 ```bash

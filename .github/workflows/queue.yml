@@ -8,9 +8,9 @@ name: Queue
 # `main`'s ruleset requires the build's own `Queue build / Build` context.
 # GitHub admits a PR to the queue only once its required checks pass on the PR
 # itself, so the build is also called on main pull requests, where its jobs
-# skip under the same names; a skipped job satisfies the requirement. A pull
-# request's own build is ci.yml's, which nothing requires. Only the merge group
-# build runs code here, and only a maintainer's pick enters the queue.
+# skip under the same names; a skipped job satisfies the requirement. That
+# pull_request run builds nothing: it exists only to post the context. Only the
+# merge group build runs code, and only a maintainer's pick enters the queue.
 on:
   pull_request:
     branches: [main]

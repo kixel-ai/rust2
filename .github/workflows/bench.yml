@@ -3,8 +3,8 @@ name: Bench
 permissions:
   contents: read
 
-# Never add workflow_call: the runner group trusts this workflow even when called
-# by another workflow. Only dispatch the trusted main revision.
+# Dispatched by hand, on any branch, so a lever can be measured before it
+# lands; it holds no secret and only a read-only token.
 on:
   workflow_dispatch:
 
@@ -15,11 +15,10 @@ concurrency:
 jobs:
   bench:
     name: Bench (${{ matrix.name }})
-    if: github.ref == 'refs/heads/main'
-    # The job hook holds a host lease that excludes queue builds and land fixers.
-    runs-on:
-      group: rust2-bench
-      labels: rust2-bench
+    # Hosted, which costs a public repository nothing. A shared VM's wall time
+    # is noisy and it exposes no performance counters, so instructions read
+    # n/a; each job's control variant measures the noise floor.
+    runs-on: ubuntu-24.04
     timeout-minutes: 330
     strategy:
       fail-fast: false
@@ -28,8 +27,10 @@ jobs:
         include:
           - name: moq stable
             args: --corpus moq --variant baseline --variant mold --variant wild --variant control --no-attribute
+          # jobs-frontend is left out: its 32 threads oversubscribe the runner's 4
+          # vCPUs, where it measured no win (bench/build/README.md).
           - name: moq nightly
-            args: --corpus moq --variant nightly --variant jobs-frontend --variant cranelift --variant cache-proc-macros --variant mostly-unused --variant nightly-control
+            args: --corpus moq --variant nightly --variant cranelift --variant cache-proc-macros --variant mostly-unused --variant nightly-control
           - name: moq ra-jit
             args: --corpus moq --variant ra-jit-baseline --variant ra-jit --no-attribute
 

@@ -1,8 +1,7 @@
 name: Build
 
 # Checks and tests the modules a diff selects, on GitHub-hosted runners: ci.yml
-# calls it for every pull request into main and every push to it, and queue.yml
-# for each merge group. sh/dispatch.sh selects the modules, and this splits
+# calls it for every push to main, and queue.yml for each merge group. sh/dispatch.sh selects the modules, and this splits
 # them into jobs.
 on:
   workflow_call:
@@ -34,7 +33,7 @@ jobs:
       # differs with the modules it holds.
       - id: select
         env:
-          BASE: ${{ github.event.merge_group.base_sha || github.event.pull_request.base.sha || github.event.before }}
+          BASE: ${{ github.event.merge_group.base_sha || github.event.before }}
         run: |
           : "${BASE:?no base commit for ${GITHUB_EVENT_NAME}}"
           # A failed selection fails here; a pipe would hide it.
@@ -64,9 +63,9 @@ jobs:
       - uses: ./.github/actions/nix
       # mbx keys every compilation on its compiler, target, and inputs, and the
       # bundle holds every target directory a job's builds use, the drivers'
-      # own included. The action saves only on a push to main, so a pull
-      # request or merge group reads main's latest bundle for its job and
-      # nothing unreviewed writes one. The generation names the job and the
+      # own included. The action saves only on a push to main, so a merge
+      # group reads main's latest bundle for its job and nothing unreviewed
+      # writes one. The generation names the job and the
       # toolchains, since the dev shell's rustc is not on PATH yet.
       # 1.31.0 is the floor: 1.28.0 prints no real paths for files in a build
       # script's OUT_DIR (jdx/mr-boxington#896); 1.30 bypasses every target crate
