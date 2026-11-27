@@ -6210,7 +6210,7 @@ fn cached() {
 				&format!(
 					"#!/bin/sh\nRUSTC_WRAPPER='{}' exec '{}' \"$@\"\n",
 					wrapper.display(),
-					std::env::var("CARGO").unwrap()
+					env!("CARGO")
 				),
 			),
 		],
