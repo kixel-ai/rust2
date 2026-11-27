@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Translate moq-net's route algebra with rust2-lean, fail if the translation differs from
 # MoqNet.lean here, check it with Lean, then replay native Rust's outcomes on it
-# (moq_diff.rs, MoqDiff.lean).
+# (moq_diff.rs, MoqDiff.lean): random cases at the algebra's bounds, then every algebra call
+# behind the route proof's checked-in vectors (moq_vectors.rs).
 #
 # Usage: nix develop .#lean --command just driver lean-moq [--write]
 # With --write, replace the committed translation instead of failing on a difference.
@@ -21,9 +22,13 @@ if [ "$(git -C "$moq" rev-parse HEAD 2>/dev/null)" != "$rev" ]; then
 	git clone --quiet --filter=blob:none https://github.com/moq-dev/moq "$moq"
 	git -C "$moq" checkout --quiet "$rev"
 fi
-# Undo the last run's test hook, so the translation reads moq-net as it is.
-git -C "$moq" checkout --quiet -- rs/moq-net/src/route/tests/mod.rs
-rm -f "$net/src/route/tests/lean_diff.rs"
+tests=$net/src/route/tests
+# Undo the last run's test hooks, so the translation reads moq-net as it is.
+unhook() {
+	git -C "$moq" checkout --quiet -- rs/moq-net/src/route/tests/mod.rs
+	rm -f "$tests/lean_diff.rs" "$tests/lean_vectors.rs"
+}
+unhook
 
 timed() {
 	local start=$SECONDS
@@ -48,14 +53,25 @@ else
 	diff -u "$here/MoqNet.lean" "$work/out/MoqNet.lean"
 fi
 
-# Native Rust's outcomes, from a test in moq-net's route::tests, since what it calls is
+# Native Rust's outcomes, from tests in moq-net's route::tests, since what they call is
 # crate-private; the test profile keeps the overflow checks the translation keeps.
-cp "$here/moq_diff.rs" "$net/src/route/tests/lean_diff.rs"
-echo 'mod lean_diff;' >>"$net/src/route/tests/mod.rs"
-LEAN_DIFF_OUT=$work/out/cases.txt timed cargo test --quiet --manifest-path "$moq/Cargo.toml" -p moq-net --lib \
-	route::tests::lean_diff -- --ignored >/dev/null
-git -C "$moq" checkout --quiet -- rs/moq-net/src/route/tests/mod.rs
-rm "$net/src/route/tests/lean_diff.rs"
+cp "$here/moq_diff.rs" "$tests/lean_diff.rs"
+# The vectors' generators in algebra.rs, with each algebra call renamed to one that records
+# it (moq_vectors.rs). A call left unrenamed would go unrecorded, so none may remain.
+calls='claim_order, floor_of, order, precedence,'
+[ "$(grep -c "$calls" "$tests/algebra.rs")" = 1 ] || { echo "algebra.rs imports the algebra differently" >&2; exit 1; }
+sed -e "s/$calls//" -e 's/Offer::own(/Offer::rec_own(/g' \
+	-e 's/\.\(onward\|arrive\|over\|exported\|adopted\|lowered\)(/.rec_\1(/g' \
+	"$tests/algebra.rs" >"$tests/lean_vectors.rs"
+if grep -nE '(Offer::own|[.](onward|arrive|over|exported|adopted|lowered))\(' "$tests/lean_vectors.rs"; then
+	echo "an algebra call above was not renamed" >&2
+	exit 1
+fi
+cat "$here/moq_vectors.rs" >>"$tests/lean_vectors.rs"
+printf 'mod lean_diff;\nmod lean_vectors;\n' >>"$tests/mod.rs"
+LEAN_DIFF_OUT=$work/out/cases.txt LEAN_VECTORS_OUT=$work/out/vectors.txt timed cargo test --quiet \
+	--manifest-path "$moq/Cargo.toml" -p moq-net --lib route::tests::lean_ -- --ignored --test-threads 1 --nocapture
+unhook
 
 cd "$work/out"
 cp "$here/MoqDiff.lean" .
@@ -63,3 +79,4 @@ export LEAN_PATH=.
 timed lean -o Rust.olean Rust.lean
 timed lean -o MoqNet.olean MoqNet.lean
 timed lean --run MoqDiff.lean cases.txt
+timed lean --run MoqDiff.lean vectors.txt

@@ -110,6 +110,15 @@ pub mod cases {
 		v.clone()
 	}
 
+	/// A type parameter's `clone` copies where every type the crate passes for it does.
+	pub fn dup_generic<T: Clone>(t: &T) -> T {
+		t.clone()
+	}
+
+	pub fn dup_pair(x: u8) -> (u8, u8) {
+		(dup_generic(&x), dup_generic(&x))
+	}
+
 	/// A type that appears twice is repeated, not recursive.
 	pub fn clone_pairs(v: &Vec<(Option<u8>, Option<u8>)>) -> Vec<(Option<u8>, Option<u8>)> {
 		v.clone()
@@ -323,6 +332,35 @@ pub mod refused {
 
 	pub fn extend(v: &mut Vec<Norm>, s: &[Norm]) {
 		v.extend_from_slice(s)
+	}
+
+	/// Clones its `T`, which translates as a copy only if every type the crate passes for it
+	/// copies.
+	pub fn dup<T: Clone>(t: &T) -> T {
+		t.clone()
+	}
+
+	/// Passes its own `T` on, so `dup` relies on each type passed here too.
+	pub fn dup_via<T: Clone>(t: &T) -> T {
+		dup(t)
+	}
+
+	pub fn dup_byte(b: &u8) -> u8 {
+		dup(b)
+	}
+
+	#[derive(PartialEq)]
+	pub struct Reset(pub u8);
+
+	impl Clone for Reset {
+		fn clone(&self) -> Self {
+			Reset(0)
+		}
+	}
+
+	/// `Reset`'s `clone` does not copy, so `dup` is refused at this instantiation.
+	pub fn dup_reset(r: &Reset) -> Reset {
+		dup_via(r)
 	}
 
 	#[derive(Copy)]

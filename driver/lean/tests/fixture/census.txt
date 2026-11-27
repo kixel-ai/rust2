@@ -1,25 +1,27 @@
-src/lib.rs:313:3: 313:9: `PartialEq` of `&refused::Holder` is not structural equality
-src/lib.rs:325:5: 325:25: cloning `refused::Norm` may not copy it
-src/lib.rs:338:5: 338:25: cloning `refused::Zeroed` may not copy it
-src/lib.rs:343:3: 343:26: recursive type `Tree` is not supported
-src/lib.rs:351:3: 351:17: an explicit panic is not supported, since its message has no model
-src/lib.rs:362:18: 362:19: `std::cell::Cell<u8>` has interior mutability, which is not supported
-src/lib.rs:366:2: 366:31: recursion is not supported
-src/lib.rs:370:35: 370:42: returning a mutable reference is not supported
-src/lib.rs:375:44: 375:58: `std::vec::Vec<u8, Arena>` has an allocator other than `Global`, which is not supported
-src/lib.rs:393:3: 393:9: comparing `&std::vec::Vec<refused::Left>` with `&std::vec::Vec<refused::Right>` is not supported
-src/lib.rs:398:3: 398:7: calling a closure is not supported
-src/lib.rs:403:21: 403:31: a mutable reference used as a value is not supported
-src/lib.rs:403:25: 403:31: this mutable reference is not supported
-src/lib.rs:410:6: 410:22: an iterator read after it is partly consumed is not supported
-src/lib.rs:429:5: 429:16: `Ord` of `refused::Odd` is not derived
-src/lib.rs:434:5: 434:11: looking up `std::string::String` by `str` is not supported
-src/lib.rs:438:3: 438:11: a trait's associated type or constant is not supported
-src/lib.rs:447:21: 447:30: collecting into `std::collections::BTreeSet<u8>` is not supported
-src/lib.rs:451:27: 451:38: enumerating items that may panic is not supported
+src/lib.rs:322:3: 322:9: `PartialEq` of `&refused::Holder` is not structural equality
+src/lib.rs:334:5: 334:25: cloning `refused::Norm` may not copy it
+src/lib.rs:363:3: 363:10: `refused::dup` clones `refused::Reset` here, which may not copy it
+src/lib.rs:376:5: 376:25: cloning `refused::Zeroed` may not copy it
+src/lib.rs:381:3: 381:26: recursive type `Tree` is not supported
+src/lib.rs:389:3: 389:17: an explicit panic is not supported, since its message has no model
+src/lib.rs:400:18: 400:19: `std::cell::Cell<u8>` has interior mutability, which is not supported
+src/lib.rs:404:2: 404:31: recursion is not supported
+src/lib.rs:408:35: 408:42: returning a mutable reference is not supported
+src/lib.rs:413:44: 413:58: `std::vec::Vec<u8, Arena>` has an allocator other than `Global`, which is not supported
+src/lib.rs:431:3: 431:9: comparing `&std::vec::Vec<refused::Left>` with `&std::vec::Vec<refused::Right>` is not supported
+src/lib.rs:436:3: 436:7: calling a closure is not supported
+src/lib.rs:441:21: 441:31: a mutable reference used as a value is not supported
+src/lib.rs:441:25: 441:31: this mutable reference is not supported
+src/lib.rs:448:6: 448:22: an iterator read after it is partly consumed is not supported
+src/lib.rs:467:5: 467:16: `Ord` of `refused::Odd` is not derived
+src/lib.rs:472:5: 472:11: looking up `std::string::String` by `str` is not supported
+src/lib.rs:476:3: 476:11: a trait's associated type or constant is not supported
+src/lib.rs:485:21: 485:30: collecting into `std::collections::BTreeSet<u8>` is not supported
+src/lib.rs:489:27: 489:38: enumerating items that may panic is not supported
 
-7 of 25 reached functions translated; 19 refusals
+11 of 30 reached functions translated; 20 refusals
     2  cloning _ may not copy it
+    1  _ clones _ here, which may not copy it
     1  _ has an allocator other than _, which is not supported
     1  _ has interior mutability, which is not supported
     1  _ of _ is not derived
@@ -42,6 +44,11 @@ translated refused::Loose::eq
 refused    refused::holder_eq
 translated refused::Norm::clone
 refused    refused::extend
+refused    refused::dup
+translated refused::dup_via
+translated refused::dup_byte
+translated refused::Reset::clone
+translated refused::dup_reset
 translated refused::Zeroed::clone
 refused    refused::extend_copy
 refused    refused::grow

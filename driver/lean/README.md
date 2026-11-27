@@ -36,7 +36,7 @@ Refused at the span: recursion, a closure that changes what it captures or is ca
 - An index is `unless i < n do throw "index out of bounds"`, then `v[i.toNat]!`, which the check makes total.
 - An iterator is the Lean `List` of its items, built eagerly. When a closure that may panic maps it, each item is the `Rust.M` action that makes it, run only when a consumer reaches it, so `any` stops before a later item's panic as Rust's laziness does.
 - A closure is a function of its own, `f.closure0` for `f`'s first, taking what it captures as its first argument.
-- A type parameter's `clone` is a copy. Each type the crate instantiates one with is checked to copy where it is passed, as structural equality is.
+- A type parameter's `clone` is a copy. Every instantiation in the crate, translated or not, is checked: one whose type's `clone` may not copy refuses the function at that instantiation's span, and a generic caller passing its own parameter on has its instantiations checked in turn. Another crate's instantiations are not seen.
 - Each loop is a function of its own over what it carries, a `partial_fixpoint`, so a proof of termination is induction on its equation, separate from the translation.
 - Names follow the Rust path: `send_credit::Session::step` is `send_credit.Session.step`, and a method or type whose name a field or Lean already takes gets a `'`. A variable named like a crate-root module gets a number, so it never hides the namespace.
 
@@ -54,6 +54,7 @@ Refused at the span: recursion, a closure that changes what it captures or is ca
 
 - It fails if the translation differs from [compare/MoqNet.lean](compare/MoqNet.lean); `--write` replaces it.
 - [compare/moq_diff.rs](compare/moq_diff.rs), copied into moq-net's `route::tests` since what it calls is crate-private, records native Rust's outcomes on random offers, claims, and ports, with costs and path lengths at the bounds `route-algebra/`'s vectors probe. [compare/MoqDiff.lean](compare/MoqDiff.lean) replays them, with an `Item` impl whose `lowered` overflows, and fails on any difference.
+- [compare/moq_vectors.rs](compare/moq_vectors.rs), appended to a copy of `algebra.rs` whose algebra calls are renamed to recording ones, checks that its generators still write the proof's checked-in `Vectors.agda` and `ClaimVectors.agda` exactly, and records every algebra call behind them, which `MoqDiff.lean` replays too.
 
 ## Fixture comparison
 

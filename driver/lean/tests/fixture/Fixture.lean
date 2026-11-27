@@ -152,6 +152,14 @@ def cases.temp_borrow (x : UInt8) : UInt8 := Id.run do
 def cases.clone_bytes (v : (Array UInt8)) : (Array UInt8) :=
   v
 
+def cases.dup_generic {T : Type} [Inhabited T] (t : T) : T :=
+  t
+
+def cases.dup_pair (x : UInt8) : (UInt8 × UInt8) := Id.run do
+  let t4 := x
+  let t7 := x
+  return (cases.dup_generic t4, cases.dup_generic t7)
+
 def cases.clone_pairs (v : (Array ((Option UInt8) × (Option UInt8)))) : (Array ((Option UInt8) × (Option UInt8))) :=
   v
 

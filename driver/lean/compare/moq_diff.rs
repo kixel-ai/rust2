@@ -2,6 +2,7 @@
 //! and what native Rust returns, as one line of integers per case, for `MoqDiff.lean` to
 //! replay. `moq.sh` copies it into moq-net's `route::tests` as `lean_diff`, since what it
 //! calls is crate-private, and runs it with the test profile's overflow checks.
+//! `moq_vectors.rs` writes the calls behind moq's route-algebra vectors with its encoder.
 
 use std::cmp::Reverse;
 use std::collections::{BTreeMap, BTreeSet};
@@ -58,19 +59,19 @@ impl Rng {
 
 /// An encoder of one case.
 #[derive(Default)]
-struct W(Vec<i128>);
+pub(super) struct W(pub Vec<i128>);
 
-trait Enc {
+pub(super) trait Enc {
 	fn enc(&self, w: &mut W);
 }
 
 impl W {
-	fn put(&mut self, v: impl Enc) -> &mut Self {
+	pub fn put(&mut self, v: impl Enc) -> &mut Self {
 		v.enc(self);
 		self
 	}
 
-	fn int(&mut self, v: i128) -> &mut Self {
+	pub fn int(&mut self, v: i128) -> &mut Self {
 		self.0.push(v);
 		self
 	}
@@ -109,11 +110,16 @@ impl<T: Enc> Enc for Vec<T> {
 	}
 }
 
-impl<A: Enc, B: Enc> Enc for (A, B) {
-	fn enc(&self, w: &mut W) {
-		w.put(&self.0).put(&self.1);
-	}
+macro_rules! tuples {
+	($(($($t:ident $i:tt),*)),*) => {$(
+		impl<$($t: Enc),*> Enc for ($($t,)*) {
+			fn enc(&self, w: &mut W) {
+				$(w.put(&self.$i);)*
+			}
+		}
+	)*};
 }
+tuples!((A 0, B 1), (A 0, B 1, C 2), (A 0, B 1, C 2, D 3), (A 0, B 1, C 2, D 3, E 4, F 5, G 6, H 7));
 
 impl<T: Enc> Enc for Reverse<T> {
 	fn enc(&self, w: &mut W) {
@@ -174,7 +180,7 @@ impl Enc for Gen {
 	}
 }
 
-impl Enc for Claim<Gen> {
+impl<A: Enc> Enc for Claim<A> {
 	fn enc(&self, w: &mut W) {
 		w.put(&self.item)
 			.put(self.cost)
@@ -186,9 +192,9 @@ impl Enc for Claim<Gen> {
 	}
 }
 
-impl Enc for Best<u64> {
+impl<N: Enc> Enc for Best<N> {
 	fn enc(&self, w: &mut W) {
-		w.put(self.via).put(&self.offer);
+		w.put(&self.via).put(&self.offer);
 	}
 }
 
@@ -347,10 +353,7 @@ fn case(rng: &mut Rng) -> W {
 			};
 			let current = (!rng.one_in(3)).then(|| rng.below(4));
 			w.put(&best).put(current);
-			outcome(&mut w, || {
-				let (a, b, c, d, e, f, g, h) = order(&best, current);
-				(a, (b, (c, (d, (e, (f, (g, h)))))))
-			});
+			outcome(&mut w, || order(&best, current));
 		}
 		5 => {
 			let (c, o) = (claim(rng), offer(rng));
@@ -375,10 +378,7 @@ fn case(rng: &mut Rng) -> W {
 		9 => {
 			let (c, o, origin) = (claim(rng), (!rng.one_in(3)).then(|| offer(rng)), node(rng));
 			w.put(&c).put(&o).put(origin);
-			outcome(&mut w, || {
-				let ((a, b, c2), d, e, f) = claim_order(&c, o.as_ref(), origin);
-				((a, (b, c2)), (d, (e, f)))
-			});
+			outcome(&mut w, || claim_order(&c, o.as_ref(), origin));
 		}
 		10 => {
 			let c = claim(rng);

@@ -107,7 +107,7 @@ impl<'tcx> Fx<'_, 'tcx> {
 				let item = self.cx.iterator(call.gargs.type_at(0)).map(|(t, _)| t);
 				if key.ends_with("cloned") {
 					let t = item.map(|t| t.peel_refs());
-					if !t.is_some_and(|t| self.cx.clone_copies(t)) {
+					if !t.is_some_and(|t| self.clones(t)) {
 						return refuse(span, "cloning these items may not copy them");
 					}
 				}
@@ -246,7 +246,7 @@ impl<'tcx> Fx<'_, 'tcx> {
 			"Option::copied" => self.operand(&call.args[0].node, span)?,
 			"Option::cloned" => {
 				let t = call.gargs.type_at(0);
-				if !self.cx.clone_copies(t) {
+				if !self.clones(t) {
 					return refuse(span, format!("cloning `{t}` may not copy it"));
 				}
 				self.operand(&call.args[0].node, span)?

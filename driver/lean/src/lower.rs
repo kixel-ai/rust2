@@ -5,7 +5,7 @@
 //! mutable reference is the place it borrows, written back after each call it is passed
 //! to. Borrowck's exclusivity makes both exact. Anything else is refused with its span.
 
-use std::collections::{BTreeSet, HashMap, HashSet, VecDeque};
+use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet, VecDeque};
 
 use rustc_abi::{FieldIdx, VariantIdx};
 use rustc_hir::def::DefKind;
@@ -71,6 +71,7 @@ pub fn extract(tcx: TyCtxt<'_>, roots: &[String]) -> Extraction {
 		shapes: HashMap::new(),
 		refusals: Vec::new(),
 		recursive: HashSet::new(),
+		clone_params: HashMap::new(),
 	};
 	let mut start = Vec::new();
 	let mut matched = vec![false; roots.len()];
@@ -126,6 +127,11 @@ pub fn extract(tcx: TyCtxt<'_>, roots: &[String]) -> Extraction {
 		}
 		outcomes.push((cx.rust_path(did), ok && !failed_closures.contains(&did)));
 	}
+	for (did, refusal) in cx.clone_instantiations() {
+		cx.refusals.push(refusal);
+		let path = cx.rust_path(did);
+		outcomes.iter_mut().filter(|o| o.0 == path).for_each(|o| o.1 = false);
+	}
 	let mut types = Vec::new();
 	for did in cx.adts.clone() {
 		match cx.adt_text(did) {
@@ -173,6 +179,9 @@ pub(crate) struct Cx<'tcx> {
 	classes: Vec<String>,
 	/// The names of the crate root's items, which begin the Lean names of everything else.
 	root_names: HashSet<String>,
+	/// For each function, the indices of the type parameters it relies on cloning by copy,
+	/// each with the translated function whose `clone` relies on it.
+	clone_params: HashMap<DefId, BTreeMap<u32, DefId>>,
 }
 
 impl<'tcx> Cx<'tcx> {
@@ -417,21 +426,26 @@ impl<'tcx> Cx<'tcx> {
 	}
 
 	/// Whether cloning a value of `ty` copies it, as the translation's value semantics assume.
-	/// `Copy` alone is not enough: a `Copy` type's `Clone` may be written by hand.
-	fn clone_copies(&self, ty: Ty<'tcx>) -> bool {
-		self.clone_copies_in(ty, &mut HashSet::new())
+	/// `Copy` alone is not enough: a `Copy` type's `Clone` may be written by hand. Pushes the
+	/// index of each type parameter whose `clone` it takes to copy, which
+	/// [`Self::clone_instantiations`] checks at each type the crate passes for it.
+	fn clone_copies(&self, ty: Ty<'tcx>, params: &mut Vec<u32>) -> bool {
+		self.clone_copies_in(ty, &mut HashSet::new(), params)
 	}
 
 	/// `clone_copies`, refusing a type in `active`, the types being checked further up, since
 	/// recursive types are refused anyway.
-	fn clone_copies_in(&self, ty: Ty<'tcx>, active: &mut HashSet<Ty<'tcx>>) -> bool {
+	fn clone_copies_in(&self, ty: Ty<'tcx>, active: &mut HashSet<Ty<'tcx>>, params: &mut Vec<u32>) -> bool {
 		match ty.kind() {
-			// A type parameter's `clone` copies: each type the crate passes for one is checked.
-			ty::Bool | ty::Int(_) | ty::Uint(_) | ty::Char | ty::Ref(_, _, ty::Mutability::Not) | ty::Param(_) => true,
-			ty::Tuple(tys) => tys.iter().all(|t| self.clone_copies_in(t, active)),
+			ty::Param(p) => {
+				params.push(p.index);
+				true
+			}
+			ty::Bool | ty::Int(_) | ty::Uint(_) | ty::Char | ty::Ref(_, _, ty::Mutability::Not) => true,
+			ty::Tuple(tys) => tys.iter().all(|t| self.clone_copies_in(t, active, params)),
 			// Cloning an `Arc` shares what it holds, which nothing writes in place.
 			ty::Adt(def, args) if self.std_name(def.did()) == "Arc" && self.global_at(args, 1) => true,
-			ty::Array(t, _) => self.clone_copies_in(*t, active),
+			ty::Array(t, _) => self.clone_copies_in(*t, active, params),
 			ty::Adt(def, args) => {
 				if !active.insert(ty) {
 					return false;
@@ -446,17 +460,83 @@ impl<'tcx> Cx<'tcx> {
 						self.derives(def.did(), lang.clone_trait())
 							&& def
 								.all_fields()
-								.all(|f| self.clone_copies_in(f.ty(self.tcx, *args).skip_norm_wip(), active))
+								.all(|f| self.clone_copies_in(f.ty(self.tcx, *args).skip_norm_wip(), active, params))
 					}
 				} else {
 					self.std_container(def.did(), args)
-						.is_some_and(|mut tys| tys.all(|t| self.clone_copies_in(t, active)))
+						.is_some_and(|mut tys| tys.all(|t| self.clone_copies_in(t, active, params)))
 				};
 				// A type met again outside its own fields is repeated, not recursive.
 				active.remove(&ty);
 				copies
 			}
 			_ => false,
+		}
+	}
+
+	/// Refuses each translated function that clones a type parameter by copy where the crate
+	/// instantiates it with a type whose `clone` may not copy, at that instantiation. A generic
+	/// function passing its own parameter on relies on it in turn, so its instantiations are
+	/// checked too. Only the crate's own instantiations are seen: another crate's are not.
+	fn clone_instantiations(&mut self) -> Vec<(DefId, Refusal)> {
+		if self.clone_params.is_empty() {
+			return Vec::new();
+		}
+		let tcx = self.tcx;
+		// Every use of a local function in the crate, by the function it is written in.
+		let mut uses = Vec::new();
+		for def in tcx.hir_body_owners() {
+			let did = def.to_def_id();
+			if !matches!(tcx.def_kind(did), DefKind::Fn | DefKind::AssocFn | DefKind::Closure)
+				|| !tcx.is_mir_available(did)
+			{
+				continue;
+			}
+			let mut found = FnUses {
+				tcx,
+				env: TypingEnv::post_analysis(tcx, did),
+				out: Vec::new(),
+			};
+			mir::visit::Visitor::visit_body(&mut found, tcx.optimized_mir(did));
+			let root = tcx.typeck_root_def_id(did);
+			uses.extend(
+				found
+					.out
+					.into_iter()
+					.map(|(callee, args, span)| (root, callee, args, span)),
+			);
+		}
+		let mut out = Vec::new();
+		let mut refused = HashSet::new();
+		loop {
+			let mut changed = false;
+			for &(caller, callee, args, span) in &uses {
+				let Some(relied) = self.clone_params.get(&callee).cloned() else {
+					continue;
+				};
+				for (index, origin) in relied {
+					let t = args.type_at(index as usize);
+					let mut params = Vec::new();
+					if !self.clone_copies(t, &mut params) {
+						if refused.insert((origin, span)) {
+							let msg = format!("`{}` clones `{t}` here, which may not copy it", self.rust_path(origin));
+							out.push((origin, Refusal { span, msg }));
+						}
+						continue;
+					}
+					for q in params {
+						if let std::collections::btree_map::Entry::Vacant(e) =
+							self.clone_params.entry(caller).or_default().entry(q)
+						{
+							e.insert(origin);
+							changed = true;
+						}
+					}
+				}
+			}
+			if !changed {
+				return out;
+			}
 		}
 	}
 
@@ -995,6 +1075,23 @@ fn resolve_local<'tcx>(
 	.then_some((did, instance.args))
 }
 
+/// The local functions a body names, called or not, with the generic arguments it passes.
+struct FnUses<'tcx> {
+	tcx: TyCtxt<'tcx>,
+	env: TypingEnv<'tcx>,
+	out: Vec<(DefId, GenericArgsRef<'tcx>, Span)>,
+}
+
+impl<'tcx> mir::visit::Visitor<'tcx> for FnUses<'tcx> {
+	fn visit_const_operand(&mut self, c: &mir::ConstOperand<'tcx>, _: mir::Location) {
+		if let ty::FnDef(callee, args) = *c.ty().kind()
+			&& let Some((did, args)) = resolve_local(self.tcx, self.env, callee, args.skip_binder())
+		{
+			self.out.push((did, args, c.span));
+		}
+	}
+}
+
 /// Whether a function is left out of the translation: a derived impl's, which is modeled
 /// structurally where it is called, or `Debug` formatting, which the translation leaves out.
 fn skipped(tcx: TyCtxt<'_>, did: DefId) -> bool {
@@ -1060,6 +1157,20 @@ struct Fx<'a, 'tcx> {
 }
 
 impl<'a, 'tcx> Fx<'a, 'tcx> {
+	/// Whether cloning `ty` copies it, recording each type parameter that takes so the crate's
+	/// instantiations of this function are checked.
+	fn clones(&mut self, ty: Ty<'tcx>) -> bool {
+		let mut params = Vec::new();
+		if !self.cx.clone_copies(ty, &mut params) {
+			return false;
+		}
+		let root = self.cx.tcx.typeck_root_def_id(self.did);
+		for p in params {
+			self.cx.clone_params.entry(root).or_default().entry(p).or_insert(root);
+		}
+		true
+	}
+
 	fn new(cx: &'a mut Cx<'tcx>, did: DefId, body: &'tcx Body<'tcx>) -> R<Self> {
 		let tcx = cx.tcx;
 		let n = body.local_decls.len();
@@ -2325,7 +2436,7 @@ impl<'a, 'tcx> Fx<'a, 'tcx> {
 		match key.as_str() {
 			"Clone::clone" => {
 				let t = gargs.type_at(0);
-				if !self.cx.clone_copies(t) {
+				if !self.clones(t) {
 					return refuse(span, format!("cloning `{t}` may not copy it"));
 				}
 				let v = arg(self, 0)?;
@@ -2392,7 +2503,7 @@ impl<'a, 'tcx> Fx<'a, 'tcx> {
 			"Vec::push" | "Vec::extend_from_slice" => {
 				if key == "Vec::extend_from_slice" {
 					let elem = gargs.type_at(0);
-					if !self.cx.clone_copies(elem) {
+					if !self.clones(elem) {
 						return refuse(span, format!("cloning `{elem}` may not copy it"));
 					}
 				}
