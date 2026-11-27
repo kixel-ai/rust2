@@ -191,6 +191,42 @@ Measured on 2026-10-25 and 2026-10-26 on a busy 32-CPU host, in billions of inst
 - moq-cli shares 285 of its 548 compilations with moq-relay; the rest are crates or feature sets moq-relay does not build. crane shares none, and its dependency layer runs a `cargo check` of every dependency before building them.
 - crate2nix costs 27% more than crane on a clean build and 18% more on the second package. Cargo compiles a dependency that only fat LTO reads to bitcode alone, and build scripts and proc macros at opt-level 0; buildRustCrate compiles every crate to machine code and bitcode at opt-level 3.
 
+## Dev dynamic linking and mbx's uncached compilations
+
+Measured on 2026-11-27, outside `just bench`, on `nixos` (32 CPUs) while agents loaded it (load average 15 to 50), so instructions are the signal and CPU seconds only a guide.
+Each row times `cargo nextest run --no-run` over the `test-edit` scenario's packages after the moq-net marker edit, at the corpus pin, on the pinned nightly, 3 or 4 runs each.
+A run's instructions moved under 1% between runs.
+Recommended: no setting changes. Dynamic linking cuts at most 5%, and mbx's learned incremental reuse, which the uncached compilations come from, is already the 84% win.
+
+| configuration | instructions | CPU-s | linker CPU-s |
+| --- | ---: | ---: | ---: |
+| cargo, non-incremental (CI's `test-edit`) | 1021G | 526 | 35 |
+| the same with `-C prefer-dynamic` | 1019G | 325 | 29 |
+| cargo, incremental (a developer's default) | 164G | 76 | 31 |
+| the same with `-C prefer-dynamic` | 163G | 88 | 30 |
+| incremental, `-C prefer-dynamic -Z share-generics=n`, built by `cargo test --no-run` | 165G | 111 | 36 |
+| the same with a dylib hub, also built by `cargo test --no-run` | 157G | 95 | 24 |
+
+- The linker is 7% of a non-incremental rebuild's CPU time and about 40% of an incremental one's, but `-C prefer-dynamic` alone saves 0.2 to 0.6% of instructions: std is a small part of each link.
+- The dylib hub is one generated `dylib` crate holding all 351 third-party libraries the tests link, with the features the build gives them, which kio and moq-sock name with `extern crate`. Third-party rlibs are 389 MB of the 635 MB the test binaries link. Against the row above it, built the same way, it cuts the linker's CPU time 33% but total instructions only 4.8%. Its test binaries do not start: a symbol that notify, inside the dylib, instantiates is undefined at load time, with or without `-Z share-generics=n`. It is not worth a generated crate in moq.
+
+mbx 1.31.0, with a fresh cache of its own and no remote, in moq's own target:
+
+| configuration | test build in a second worktree | first edit | later edits |
+| --- | ---: | ---: | ---: |
+| `learned_incremental` (mbx's default) | 685G | 1157G | 170G |
+| `learned_incremental = false` | | 1042G | 1042G |
+| `eager_incremental` | 1423G | 187G | 169G |
+| `learned_incremental`, moq's tests reading `CARGO_MANIFEST_DIR` at run time | 216G | 1157G | 170G |
+
+- mbx counts a compilation it ran without a cache lookup as `unconsulted`. These made up 72 to 73% of compiler time in a 2026-11-26 audit of this host and fedora, but they are not waste.
+  Of nixos's 256 kept mbx sessions (77 hours to 2026-11-27), `no-prediction` took 273 CPU-minutes and `private-dependency` 200.
+- `no-prediction` means mbx held no prediction matching the invocation, so it had no key to look up. 99% of that CPU time went to argument and environment sets no earlier kept session had recorded, such as a changed dependency graph, `check` after `build`, or a release or clippy build. Only 0.2 CPU-minutes went to results the local cache already held.
+  A fresh `--target-dir` alone does not cause them: it took 501 hits of 502.
+- `private-dependency` compilations are learned incremental reuse at work: every crate that links an edited crate compiles with private incremental state. Turning that off costs 6.1 times the instructions per edit. Its one cost is the first edit in each checkout: 11% more than a plain compilation, while it writes the state.
+- `eager_incremental` writes private state up front: a new worktree's build costs 738G more and its first edit 970G less, 13% less for both together, but a checkout that never edits pays the 738G for nothing.
+- 5 moq test targets miss mbx's cache in every new worktree because they read `env!("CARGO_MANIFEST_DIR")`, an absolute path. Reading it with `std::env::var` at run time, as nextest and cargo set it for tests, cuts that build 469G (68%), which leaves the default 1373G for the build and first edit against `eager_incremental`'s 1610G, so the fix belongs in moq.
+
 ## Cranelift for moq's CI
 
 Recommended on 2026-10-25: moq's CI keeps building its tests with LLVM, since 42 of its 5418 tests fail under Cranelift.

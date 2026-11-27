@@ -13,6 +13,9 @@ use std::path::{Path, PathBuf};
 use std::process::{Command, ExitStatus, Output};
 use std::sync::{Arc, Mutex, OnceLock};
 
+use serde::Serialize;
+use serde::de::DeserializeOwned;
+
 /// A build step: its stamp holds the key it last ran with, what it printed, and a digest of
 /// what it wrote, so a run with the same key replays that output instead of running it.
 pub(crate) struct Step<'a> {
@@ -86,11 +89,7 @@ impl Step<'_> {
 			stamp.extend_from_slice(&(field.len() as u64).to_le_bytes());
 			stamp.extend_from_slice(field);
 		}
-		// Whole or not at all: a stamp cut short would fail to parse, but say so plainly.
-		let partial = self.stamp.with_extension("partial");
-		std::fs::create_dir_all(self.stamp.parent().unwrap()).unwrap();
-		std::fs::write(&partial, stamp).unwrap();
-		std::fs::rename(&partial, self.stamp).unwrap();
+		write(self.stamp, stamp);
 	}
 }
 
@@ -308,6 +307,8 @@ fn walk(path: &Path, rel: &Path, hasher: &mut DefaultHasher) {
 			let mut entries: Vec<_> = std::fs::read_dir(path)
 				.unwrap_or_else(|err| panic!("reading {}: {err}", path.display()))
 				.map(|entry| entry.unwrap().file_name())
+				// Another process's write in progress, renamed over its file once whole.
+				.filter(|name| !name.as_encoded_bytes().ends_with(b".partial"))
 				.collect();
 			entries.sort();
 			for name in entries {
@@ -340,7 +341,57 @@ pub(crate) fn write(path: &Path, text: impl AsRef<[u8]>) {
 		return;
 	}
 	std::fs::create_dir_all(path.parent().unwrap()).unwrap();
-	std::fs::write(path, text).unwrap_or_else(|err| panic!("writing {}: {err}", path.display()));
+	// Whole or not at all, through a file of this process's and thread's own: another test,
+	// in this process or another, may be reading or writing it too.
+	let mut partial = path.as_os_str().to_owned();
+	partial.push(format!(
+		".{}-{:?}.partial",
+		std::process::id(),
+		std::thread::current().id()
+	));
+	std::fs::write(&partial, text).unwrap_or_else(|err| panic!("writing {}: {err}", path.display()));
+	std::fs::rename(&partial, path).unwrap_or_else(|err| panic!("writing {}: {err}", path.display()));
+}
+
+/// What `init` makes, once per test run, under the lock `name` in the scratch directory.
+/// nextest runs each test in its own process: the first to get here runs `init` and saves
+/// what it made, tagged with the run's ID, and the rest read it back, rather than each
+/// running `init` again while the others wait, or removing what a step of theirs reads.
+pub(crate) fn once<'a, T: Serialize + DeserializeOwned>(
+	cell: &'a OnceLock<T>,
+	name: &str,
+	init: impl FnOnce() -> T,
+) -> &'a T {
+	cell.get_or_init(|| {
+		let locks = super::scratch().join("locks");
+		std::fs::create_dir_all(&locks).unwrap();
+		let path = locks.join(name);
+		// Not truncated: on Windows, another process may hold the lock this one waits for.
+		let lock = std::fs::OpenOptions::new()
+			.create(true)
+			.write(true)
+			.truncate(false)
+			.open(&path)
+			.unwrap_or_else(|err| panic!("creating {}: {err}", path.display()));
+		// Released as `lock` drops, after `init`, even when it panics.
+		lock.lock()
+			.unwrap_or_else(|err| panic!("locking {}: {err}", path.display()));
+		// cargo test runs every test in this one process, which the cell serves alone.
+		let Ok(run) = std::env::var("NEXTEST_RUN_ID") else {
+			return init();
+		};
+		let saved = path.with_extension("json");
+		// A value another build of the tests saved may not parse, but its run was another.
+		if let Ok(bytes) = std::fs::read(&saved)
+			&& let Ok((ran, value)) = serde_json::from_slice::<(String, T)>(&bytes)
+			&& ran == run
+		{
+			return value;
+		}
+		let value = init();
+		write(&saved, serde_json::to_vec(&(run, &value)).unwrap());
+		value
+	})
 }
 
 /// Copy the file `from` to `to` unless `to` already holds what it holds.

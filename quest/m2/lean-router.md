@@ -13,7 +13,8 @@ Each new model is checked by a differential test against native Rust, as the kio
 
 ## Plan
 
-Recommendations, open to revision:
+Decided 2026-11-27 (maintainer, /quest-run): ✅ keep this quest with the Plan below as recommended (rejected: drop it), after the Lean spike's verdict to invest in rust2-lean (rejected: adopt Aeneas; drop Lean extraction).
+
 
 - Model `BTreeMap` and `BTreeSet` as sorted association lists over a `DecidableLT` key, not Mathlib's finite maps, so translations stay core-only.
 - Translate a `&mut` returned by `get_mut` or `entry` as a lens, a getter plus setter pair. This keeps value semantics without Aeneas's backward functions.

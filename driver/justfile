@@ -25,7 +25,7 @@ lint:
 
 # Run the driver front end's and rust2-pub's tests, enforcing clippy from the same compile.
 test *args:
-    CARGO_BUILD_WARNINGS=deny RUSTC_WORKSPACE_WRAPPER={{ quote(clippy_driver) }} cargo test --locked --workspace {{ args }}
+    CARGO_BUILD_WARNINGS=deny RUSTC_WORKSPACE_WRAPPER={{ quote(clippy_driver) }} cargo nextest run --locked --workspace {{ args }}
 
 # Audit which `pub` items another crate needs, from where it is invoked: `just driver pub --help`.
 [no-cd]
