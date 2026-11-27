@@ -95,7 +95,7 @@ impl<'a> Watch<'a> {
 	/// When the earliest bound runs out, if any can.
 	pub fn deadline(&self) -> Option<Duration> {
 		if self.running.is_empty() {
-			return Some(self.last_output + self.bounds.silence);
+			return Some(self.last_output + self.silence());
 		}
 		self.running
 			.iter()
@@ -116,7 +116,7 @@ impl<'a> Watch<'a> {
 			return Some(Kill {
 				reason: format!(
 					"no output for {} and no test running, in {binary}",
-					humantime::format_duration(self.bounds.silence)
+					humantime::format_duration(self.silence())
 				),
 				grace: self.bounds.default.grace,
 			});
@@ -133,6 +133,12 @@ impl<'a> Watch<'a> {
 			),
 			grace: test.bound.grace,
 		})
+	}
+
+	// A multithreaded binary names a test only once it has run 60 s, so silence counts only
+	// after that, and a test with a longer bound is named before silence could end the run.
+	fn silence(&self) -> Duration {
+		WARN_AFTER + self.bounds.silence
 	}
 
 	fn complete(&mut self, line: &str, now: Duration) -> Result<()> {
@@ -157,17 +163,17 @@ impl<'a> Watch<'a> {
 		} else if line.starts_with("test result: ") {
 			self.running.clear();
 			self.pending = None;
+		} else if let Some(name) = warned(line) {
+			if !self.running.iter().any(|test| test.name == name) {
+				let bound = self.bound(name)?;
+				self.running.push(Test {
+					name: name.to_owned(),
+					start: now.saturating_sub(WARN_AFTER),
+					bound,
+				});
+			}
 		} else if let Some(rest) = line.strip_prefix("test ") {
-			if let Some(name) = rest.strip_suffix(WARNED) {
-				if !self.running.iter().any(|test| test.name == name) {
-					let bound = self.bound(name)?;
-					self.running.push(Test {
-						name: name.to_owned(),
-						start: now.saturating_sub(WARN_AFTER),
-						bound,
-					});
-				}
-			} else if let Some((name, outcome)) = rest.split_once(" ... ") {
+			if let Some((name, outcome)) = rest.split_once(" ... ") {
 				if is_result(outcome) {
 					self.end(name);
 				} else {
@@ -228,6 +234,16 @@ fn strip_mode(name: &str) -> &str {
 		.iter()
 		.find_map(|mode| name.strip_suffix(mode)?.strip_suffix(" - "))
 		.unwrap_or(name)
+}
+
+// The test libtest says is still running. Under `--nocapture`, a test's output without a
+// newline may come first on the line.
+fn warned(line: &str) -> Option<&str> {
+	let line = line.strip_suffix(WARNED)?;
+	match line.strip_prefix("test ") {
+		Some(name) => Some(name),
+		None => line.rfind("test ").map(|i| &line[i + "test ".len()..]),
+	}
 }
 
 fn is_result(outcome: &str) -> bool {
@@ -342,12 +358,12 @@ slow-timeout = "60s"
 		feed(&mut watch, 60, "test slow has been running for over 60 seconds\n");
 		feed(&mut watch, 200, "test slow ... ok\n");
 		// Only silence is bounded now, from the last output.
-		assert_eq!(watch.deadline(), Some(secs(500)));
-		assert_eq!(reason(&watch, 499), None);
+		assert_eq!(watch.deadline(), Some(secs(560)));
+		assert_eq!(reason(&watch, 559), None);
 		assert!(
-			reason(&watch, 500)
+			reason(&watch, 560)
 				.unwrap()
-				.starts_with("no output for 5m and no test running, in pkg-a's")
+				.starts_with("no output for 6m and no test running, in pkg-a's")
 		);
 	}
 
@@ -363,6 +379,43 @@ slow-timeout = "60s"
 		feed(&mut watch, 122, "test slow has been running for over 60 seconds\n");
 		assert_eq!(watch.deadline(), Some(secs(182)));
 		assert!(reason(&watch, 182).unwrap().contains("pkg-b's"));
+	}
+
+	#[test]
+	fn silence_waits_for_libtest_to_name_a_test() {
+		// A test with a longer bound than the profile's is named at 60 s, before silence ends.
+		let config = "[profile.default]\nslow-timeout = { period = \"30s\", terminate-after = 2 }\n[[profile.default.overrides]]\nfilter = 'test(=long)'\nslow-timeout = { period = \"60s\", terminate-after = 4 }";
+		let bounds = Bounds::parse(config, "default").unwrap();
+		let artifacts = Artifacts::parse(BUILD, |_| {}).unwrap();
+		let mut watch = Watch::new(&bounds, &artifacts);
+		feed(&mut watch, 0, A);
+		assert_eq!(watch.deadline(), Some(secs(120)));
+		feed(&mut watch, 61, "test long has been running for over 60 seconds\n");
+		assert_eq!(watch.deadline(), Some(secs(241)));
+	}
+
+	#[test]
+	fn a_warning_after_a_test_s_unfinished_output_still_names_it() {
+		let fixture = Fixture::new();
+		let mut watch = fixture.watch();
+		feed(&mut watch, 0, B);
+		feed(
+			&mut watch,
+			60,
+			"progress: 50%test slow has been running for over 60 seconds\n",
+		);
+		assert_eq!(watch.deadline(), Some(secs(120)));
+		feed(&mut watch, 61, "   Doc-tests pkg_a\n");
+		feed(
+			&mut watch,
+			121,
+			"test src/lib.rs - test (line 3) has been running for over 60 seconds\n",
+		);
+		assert!(
+			reason(&watch, 361)
+				.unwrap()
+				.starts_with("test src/lib.rs - test (line 3) in")
+		);
 	}
 
 	#[test]
@@ -397,8 +450,8 @@ slow-timeout = "60s"
 		assert_eq!(watch.deadline(), Some(secs(305)));
 		// ...and the result ends a line of its own.
 		feed(&mut watch, 6, "ok\n");
-		assert_eq!(watch.deadline(), Some(secs(306)));
-		assert!(reason(&watch, 306).unwrap().starts_with("no output"));
+		assert_eq!(watch.deadline(), Some(secs(366)));
+		assert!(reason(&watch, 366).unwrap().starts_with("no output"));
 	}
 
 	#[test]
@@ -429,7 +482,7 @@ slow-timeout = "60s"
 			3,
 			"test bench_x      ... bench:         12 ns/iter (+/- 1)\n",
 		);
-		assert_eq!(watch.deadline(), Some(secs(303)));
+		assert_eq!(watch.deadline(), Some(secs(363)));
 	}
 
 	#[test]
@@ -467,8 +520,8 @@ slow-timeout = "60s"
 		let fixture = Fixture::new();
 		let watch = fixture.watch();
 		assert_eq!(
-			reason(&watch, 300).unwrap(),
-			"no output for 5m and no test running, in before cargo ran a test binary"
+			reason(&watch, 360).unwrap(),
+			"no output for 6m and no test running, in before cargo ran a test binary"
 		);
 	}
 

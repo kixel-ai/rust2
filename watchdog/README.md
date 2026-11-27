@@ -5,7 +5,7 @@ The bounds are the workspace's nextest bounds, so one `.config/nextest.toml` bou
 
 ```bash
 rust2-watchdog cargo test -p rind --target aarch64-apple-ios-sim
-rust2-watchdog --profile emulated cross test --release --target aarch64-linux-android
+CROSS_CONTAINER_OPTS=--init rust2-watchdog --profile emulated cross test --release --target aarch64-linux-android
 ```
 
 ## When to use it
@@ -23,7 +23,7 @@ Where a launch is cheap, stay on nextest, which also isolates each test's failur
 3. It times each test from libtest's own lines.
    A multithreaded binary prints `test NAME has been running for over 60 seconds` 60 s after a test starts, which starts the test's clock 60 s back, and `test NAME ... ok` when it ends.
    A one-thread binary prints `test NAME ... ` as a test starts.
-   Silence while no test is known to run, such as a binary hung before its first test, is bounded by the profile's bound, naming the binary cargo last started.
+   Silence while no test is known to run, such as a binary hung before its first test, is bounded by 60 s plus the profile's bound, naming the binary cargo last started: the 60 s lets libtest name a test with a longer bound first.
 4. When a bound runs out it names the test and its binary, sends the process group SIGTERM, then SIGKILL after the bound's `grace-period`, and exits 124.
    SIGTERM comes first because `simctl spawn` passes it on to the test in the simulator but dies to a SIGKILL and leaves the test running there.
    Under `cross`, set `CROSS_CONTAINER_OPTS=--init`: the container's first process is otherwise a shell that ignores SIGTERM.

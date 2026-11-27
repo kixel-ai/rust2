@@ -157,9 +157,13 @@ fn supervise(test: &Test, bounds: &Bounds, artifacts: &Artifacts) -> Result<Exit
 		};
 		match event {
 			Event::Output(bytes) => {
-				stdout.write_all(&bytes)?;
-				stdout.flush()?;
-				if let Err(error) = watch.output(&bytes, start.elapsed()) {
+				// With nowhere to write, such as after `| head` exits, stop rather than leave the
+				// command running unwatched.
+				let written = stdout.write_all(&bytes).and_then(|()| stdout.flush());
+				let timed = written
+					.map_err(anyhow::Error::from)
+					.and_then(|()| watch.output(&bytes, start.elapsed()));
+				if let Err(error) = timed {
 					let kill = Kill {
 						reason: format!("{error:#}"),
 						grace: bounds.default.grace,
@@ -178,7 +182,8 @@ fn supervise(test: &Test, bounds: &Bounds, artifacts: &Artifacts) -> Result<Exit
 // SIGTERM, then SIGKILL once the grace runs out: `simctl spawn` passes a SIGTERM on to its
 // test in the simulator, but dies to a SIGKILL and leaves the test running there.
 fn stop(child: &mut Child, group: libc::pid_t, kill: &Kill) -> Result<()> {
-	eprintln!("\nrust2-watchdog: {}; killing the run", kill.reason);
+	// Best effort: stderr may be a closed pipe too, and the group must still be stopped.
+	let _ = writeln!(io::stderr(), "\nrust2-watchdog: {}; killing the run", kill.reason);
 	signal_group(group, SIGTERM)?;
 	let deadline = Instant::now() + kill.grace;
 	loop {
@@ -191,7 +196,8 @@ fn stop(child: &mut Child, group: libc::pid_t, kill: &Kill) -> Result<()> {
 		}
 		thread::sleep(Duration::from_millis(50));
 	}
-	eprintln!(
+	let _ = writeln!(
+		io::stderr(),
 		"rust2-watchdog: the run outlived its {} grace; sending SIGKILL",
 		humantime::format_duration(kill.grace)
 	);
