@@ -10,9 +10,14 @@ slow-timeout = { period = "60s", terminate-after = 2 }
 filter = "binary(fixtures)"
 slow-timeout = { period = "60s", terminate-after = 10 }
 
-# The nightly's ignored runs, each its whole job, bounded below the shortest such job's
-# timeout, so a hang names its test. An override, since the default profile's would win
-# over a profile's own setting.
+# The nightly's ignored runs, each its whole job, bounded below their job's timeout, so a
+# hang names its test. Overrides, since the default profile's would win over a profile's own
+# setting, and the first that matches applies. The corpus shards, aot, and protocol runs sit
+# in jobs allowed 120 minutes; the rest in jobs allowed 60.
+[[profile.nightly.overrides]]
+filter = "test(=corpus::nightly) | test(=api_csharp_aot) | test(protocol_nightly)"
+slow-timeout = { period = "60s", terminate-after = 110 }
+
 [[profile.nightly.overrides]]
 filter = "all()"
 slow-timeout = { period = "60s", terminate-after = 50 }

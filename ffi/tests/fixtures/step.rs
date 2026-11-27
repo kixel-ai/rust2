@@ -89,11 +89,7 @@ impl Step<'_> {
 			stamp.extend_from_slice(&(field.len() as u64).to_le_bytes());
 			stamp.extend_from_slice(field);
 		}
-		// Whole or not at all: a stamp cut short would fail to parse, but say so plainly.
-		let partial = self.stamp.with_extension("partial");
-		std::fs::create_dir_all(self.stamp.parent().unwrap()).unwrap();
-		std::fs::write(&partial, stamp).unwrap();
-		std::fs::rename(&partial, self.stamp).unwrap();
+		write(self.stamp, stamp);
 	}
 }
 
@@ -311,6 +307,8 @@ fn walk(path: &Path, rel: &Path, hasher: &mut DefaultHasher) {
 			let mut entries: Vec<_> = std::fs::read_dir(path)
 				.unwrap_or_else(|err| panic!("reading {}: {err}", path.display()))
 				.map(|entry| entry.unwrap().file_name())
+				// Another process's write in progress, renamed over its file once whole.
+				.filter(|name| !name.as_encoded_bytes().ends_with(b".partial"))
 				.collect();
 			entries.sort();
 			for name in entries {
@@ -368,7 +366,13 @@ pub(crate) fn once<'a, T: Serialize + DeserializeOwned>(
 		let locks = super::scratch().join("locks");
 		std::fs::create_dir_all(&locks).unwrap();
 		let path = locks.join(name);
-		let lock = std::fs::File::create(&path).unwrap_or_else(|err| panic!("creating {}: {err}", path.display()));
+		// Not truncated: on Windows, another process may hold the lock this one waits for.
+		let lock = std::fs::OpenOptions::new()
+			.create(true)
+			.write(true)
+			.truncate(false)
+			.open(&path)
+			.unwrap_or_else(|err| panic!("creating {}: {err}", path.display()));
 		// Released as `lock` drops, after `init`, even when it panics.
 		lock.lock()
 			.unwrap_or_else(|err| panic!("locking {}: {err}", path.display()));
