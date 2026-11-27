@@ -4655,10 +4655,7 @@ fn api_unity() {
 	let assets = dir.join("Assets");
 	step::copy(&api.out.join("csharp").join("api.cs"), &assets.join("api.cs"));
 	step::copy(&manifest_dir().join("tests").join("api.cs"), &assets.join("Test.cs"));
-	step::write(
-		&assets.join("Transcript.cs"),
-		transcript::csharp::emit(transcript()),
-	);
+	step::write(&assets.join("Transcript.cs"), transcript::csharp::emit(transcript()));
 	step::copy(
 		&api.lib.join(shared("api")),
 		&assets.join("Plugins").join("x86_64").join(shared("api")),
