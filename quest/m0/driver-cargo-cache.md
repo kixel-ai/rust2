@@ -1,26 +1,27 @@
-# [S] Every driver check reaches the cache
+# [XS] Raise the driver's cargo cache bypass with mbx
 
 ## Goal
 
-Every check a rust2 driver runs in CI compiles through mbx, so a merge group reads the
-crates it checks from main's bundle: none runs the cargo that `$CARGO` names past mbx's shim.
+A consumer that runs a rust2 driver as a cargo subcommand under mbx's shim reads its check's
+crates from the cache, or mbx documents why it cannot.
 
 ## Plan
 
-[#1050](https://github.com/kixel-ai/rust2/pull/1050) found that `rust2_driver::cargo` runs
-`$CARGO` with `RUSTC_WRAPPER` empty, counting on mbx's shim to set its own, but `cargo run`
-and `cargo test` set `$CARGO` to the cargo the shim chains to, so a driver they start checks
-with no cache. It fixed ffi/justfile's exporter runs only. The rest still start a driver that
-way: ts/justfile's and go/justfile's `cargo run`, ffi/release/package.py's `cargo run` of the
-exporter, and ffi's tests, whose exporter inherits `cargo test`'s `$CARGO`.
+The callers that run a `Wrap::Workspace` driver are fixed: ffi/justfile's `exporter`
+([#1050](https://github.com/kixel-ai/rust2/pull/1050)) and test recipes, and ffi/release/package.py's
+exporter run each run it without the `$CARGO` that `cargo run` and `cargo test` set, under mbx's
+shim. ts and go check with `Wrap::All`, so mbx defers to their `RUSTC_WRAPPER` and never caches
+them, `$CARGO` or not; caching them means moving them to `Wrap::Workspace`, which is not
+planned. driver/justfile's tests start no driver through `$CARGO`.
 
-First measure each: a run that prints no `mbx[cache]` line for its check, or whose check's
-target directory rebuilds as slowly from a warm store, is affected. Then fix each affected run
-by having its caller unset `$CARGO` under mbx's shim, as ffi/justfile's `exporter` runner now
-does, and having the tests clear it.
+What remains is option (c), decided 2026-11-26 (maintainer, /quest-run): raise it in
+[jdx/mr-boxington#1015](https://github.com/jdx/mr-boxington/discussions/1015)'s discussion. A
+driver started as a cargo subcommand (`cargo rust2-...`) gets the same `$CARGO` and probably
+skips the cache too; no caller of ours can unset it there, so only mbx can fix it. That is
+unverified. The comment's draft and evidence are in the PR that rewrote this quest.
 
-Decided 2026-11-26 (maintainer, /quest-run): fix it in each caller (b), plus raise (c) in
-[jdx/mr-boxington#1015](https://github.com/jdx/mr-boxington/discussions/1015)'s discussion
-alongside. Rejected: (b) only; (a) the driver keying on mbx's undocumented
-`MBX_CARGO_SHIM_CHAIN`; (c) only. Unverified: a consumer running our tool as a cargo
-subcommand under mbx probably skips the cache the same way, which only (c) would fix.
+## Waiting
+
+- Maintainer: post the drafted comment in jdx/mr-boxington#1015's discussion, which is outside
+  our orgs (mbx's CONTRIBUTING takes proposals in Discussions and allows AI help if disclosed).
+  Check: the comment exists. Then delete this quest, or rewrite it to mbx's answer.

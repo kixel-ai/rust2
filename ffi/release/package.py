@@ -1538,7 +1538,11 @@ def exporter(manifest, features, *args):
     for target in (str(a) for a in args):
         if target in RN_ANDROID_TARGETS:
             env.update(android_toolchain(target, ANDROID_API))
-    run("cargo", "run", "--locked", "--release", "--quiet", "--", "--manifest-path", manifest,
+    # Under mbx's shim (the dev shell's), the exporter runs without the $CARGO `cargo run` hands it,
+    # which names the cargo the shim chains to, so its checks would compile every crate uncached.
+    # Outside it, as on macOS's runners, /usr/bin/env would drop the nightly's library paths.
+    uncached = ["--config", "target.'cfg(all())'.runner=['env','-u','CARGO']"] if os.environ.get("RUST2_CARGO_SHIM") else []
+    run("cargo", "run", "--locked", "--release", "--quiet", *uncached, "--", "--manifest-path", manifest,
         *args, *cargo, cwd=ROOT / "ffi", env=env)
 
 
