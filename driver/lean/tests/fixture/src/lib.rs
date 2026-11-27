@@ -482,6 +482,14 @@ pub mod refused {
 		s.contains(k)
 	}
 
+	/// The same bound, through another crate's trait with `Ord` above it.
+	pub fn contains_ordered<T>(s: &BTreeSet<Option<T>>, k: &Option<T>) -> bool
+	where
+		Option<T>: fixture_dep::Ordered,
+	{
+		s.contains(k)
+	}
+
 	/// The mapper is a function pointer, whose panics the list cannot hold.
 	pub fn mapped(mut it: std::iter::Map<std::slice::Iter<'_, u8>, fn(&u8) -> bool>) -> bool {
 		it.any(|x| x)

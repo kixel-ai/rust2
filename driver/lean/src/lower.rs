@@ -17,7 +17,7 @@ use rustc_middle::mir::{
 	ProjectionElem, Rvalue, StatementKind, TerminatorKind, UnOp, VarDebugInfoContents,
 };
 use rustc_middle::ty::adjustment::PointerCoercion;
-use rustc_middle::ty::{self, CallerBoundsIterator as _, Ty, TyCtxt, TypeVisitableExt, TypingEnv};
+use rustc_middle::ty::{self, CallerBoundsIterator as _, Interner as _, Ty, TyCtxt, TypeVisitableExt, TypingEnv};
 
 type GenericArgsRef<'tcx> = ty::GenericArgs<'tcx>;
 use rustc_span::Span;
@@ -976,8 +976,8 @@ impl<'tcx> Cx<'tcx> {
 		let eq = tcx.lang_items().eq_trait();
 		let ord = tcx.get_diagnostic_item(rustc_span::sym::Ord);
 		let env = tcx.param_env(did);
-		// Lean binds an instance per parameter, so a bound such as `Option<T>: Ord` has none
-		// to give a body that orders or compares an `Option<T>`.
+		// Lean binds an instance per parameter, so a bound such as `Option<T>: Ord`, or one on
+		// a trait with `Ord` above it, has none to give a body that orders an `Option<T>`.
 		let instanced = [
 			eq,
 			ord,
@@ -992,7 +992,9 @@ impl<'tcx> Cx<'tcx> {
 				let self_ty = t.self_ty().skip_binder();
 				if self_ty.has_param()
 					&& !matches!(self_ty.kind(), ty::Param(_))
-					&& (t.def_id().is_local() || instanced.contains(&Some(t.def_id())))
+					&& tcx
+						.supertrait_def_ids(t.def_id())
+						.any(|s| s.is_local() || instanced.contains(&Some(s)))
 				{
 					return refuse(
 						*span,
