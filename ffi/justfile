@@ -9,12 +9,16 @@ set shell := ["bash", "-euo", "pipefail", "-c"]
 # mbx's Cargo shim, which the dev shell exports, stays ahead of the nightly so cargo still builds through it.
 cargo_shim := if env("RUST2_CARGO_SHIM", "") == "" { "" } else { env("RUST2_CARGO_SHIM") + ":" }
 export PATH := if env("RUST2_TS_TOOLCHAIN", "") == "" { env("PATH") } else { cargo_shim + env("RUST2_TS_TOOLCHAIN") / "bin:" + env("PATH") }
+clippy_driver := if env("RUST2_TS_TOOLCHAIN", "") == "" { require("clippy-driver") } else { env("RUST2_TS_TOOLCHAIN") / "bin/clippy-driver" }
 
 # The exporter. Under mbx's shim, it runs without the $CARGO `cargo run` hands it, which names
 # the cargo the shim chains to, so its checks would compile every crate with no cache. The
 # shim comes only with the dev shell, whose `env` keeps the library paths cargo sets for the
-# nightly's rustc_driver, which macOS's /usr/bin/env would drop.
-exporter := if cargo_shim == "" { "cargo run --locked --quiet --" } else { "cargo run --locked --quiet --config \"target.'cfg(all())'.runner=['env','-u','CARGO']\" --" }
+# nightly's rustc_driver, which macOS's /usr/bin/env would drop. Running under clippy-driver
+# with build.warnings=deny shares the compiled binary with `test` while unsetting both before
+# the exporter runs so target crates do not inherit them.
+exporter_runner := if cargo_shim == "" { "['env','-u','RUSTC_WORKSPACE_WRAPPER','-u','CARGO_BUILD_WARNINGS']" } else { "['env','-u','CARGO','-u','RUSTC_WORKSPACE_WRAPPER','-u','CARGO_BUILD_WARNINGS']" }
+exporter := "env CARGO_BUILD_WARNINGS=deny RUSTC_WORKSPACE_WRAPPER=" + quote(clippy_driver) + " cargo run --locked --quiet --config \"target.'cfg(all())'.runner=" + exporter_runner + "\" --"
 
 # The moq revision these recipes export by default. It is the exporter's own pin, apart from
 # the model fixture's in ts/fixtures/model/Cargo.toml, so bumping one does not wait on the other.
@@ -35,13 +39,18 @@ default:
 # Lint and format-check the exporter and its fixtures.
 check:
     cargo clippy --locked --all-targets -- -D warnings
+    just lint
+
+# Everything `check` verifies besides the main workspace clippy compile, which `test` enforces in one pass.
+lint:
+    CARGO_BUILD_WARNINGS=deny RUSTC_WORKSPACE_WRAPPER={{ quote(clippy_driver) }} cargo check --locked --examples
     cargo fmt --all --check
     cargo shear
     cargo sort --workspace --check --no-format
 
-# Export each fixture, build it, and run its C test.
+# Export each fixture, build it, and run its C test, enforcing clippy from the same compile.
 test *args:
-    cargo test --locked {{ args }}
+    CARGO_BUILD_WARNINGS=deny RUSTC_WORKSPACE_WRAPPER={{ quote(clippy_driver) }} cargo test --locked --config "target.'cfg(all())'.runner=['env','-u','RUSTC_WORKSPACE_WRAPPER','-u','CARGO_BUILD_WARNINGS']" {{ args }}
 
 # Round-trip every sampled type shape in every language, as the nightly does; the gate runs a subset.
 shapes:

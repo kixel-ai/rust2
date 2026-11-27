@@ -9,6 +9,7 @@ set shell := ["bash", "-euo", "pipefail", "-c"]
 # mbx's Cargo shim, which the dev shell exports, stays ahead of the nightly so cargo still builds through it.
 cargo_shim := if env("RUST2_CARGO_SHIM", "") == "" { "" } else { env("RUST2_CARGO_SHIM") + ":" }
 export PATH := if env("RUST2_TS_TOOLCHAIN", "") == "" { env("PATH") } else { cargo_shim + env("RUST2_TS_TOOLCHAIN") / "bin:" + env("PATH") }
+clippy_driver := if env("RUST2_TS_TOOLCHAIN", "") == "" { require("clippy-driver") } else { env("RUST2_TS_TOOLCHAIN") / "bin/clippy-driver" }
 
 default:
     @just --list
@@ -16,11 +17,15 @@ default:
 # Lint and format-check the driver front end and rust2-pub.
 check:
     cargo clippy --locked --workspace --all-targets -- -D warnings
+    just lint
+
+# Everything `check` verifies besides the workspace clippy compile, which `test` enforces in one pass.
+lint:
     cargo fmt --all --check
 
-# Run the driver front end's and rust2-pub's tests.
+# Run the driver front end's and rust2-pub's tests, enforcing clippy from the same compile.
 test *args:
-    cargo test --locked --workspace {{ args }}
+    CARGO_BUILD_WARNINGS=deny RUSTC_WORKSPACE_WRAPPER={{ quote(clippy_driver) }} cargo test --locked --workspace --config "target.'cfg(all())'.runner=['env','-u','RUSTC_WORKSPACE_WRAPPER','-u','CARGO_BUILD_WARNINGS']" {{ args }}
 
 # Audit which `pub` items another crate needs, from where it is invoked: `just driver pub --help`.
 [no-cd]

@@ -202,6 +202,7 @@ impl Workspace {
 			.args(args)
 			.env("RUSTC_WRAPPER", &exe)
 			.env_remove("RUSTC_WORKSPACE_WRAPPER")
+			.env_remove("CARGO_BUILD_WARNINGS")
 			.env(facts::env::FACTS, facts)
 			.env(facts::env::LOCAL, local)
 			.stdout(Stdio::piped());

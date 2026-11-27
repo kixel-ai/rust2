@@ -183,8 +183,10 @@ impl Check<'_> {
 					cmd.env_remove(key);
 				}
 			}
+			// Do not leak a caller's clippy/warning gate into the target package's check.
+			cmd.env_remove("CARGO_BUILD_WARNINGS");
 			match self.wrap {
-				Wrap::All => cmd.env("RUSTC_WRAPPER", &exe),
+				Wrap::All => cmd.env("RUSTC_WRAPPER", &exe).env_remove("RUSTC_WORKSPACE_WRAPPER"),
 				// An empty wrapper is none, whatever cargo's config names, so only a cache that
 				// sets its own, as mbx's does, wraps rustc.
 				Wrap::Workspace => cmd
