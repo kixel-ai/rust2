@@ -66,7 +66,7 @@ protocol:
 
 # Write the api fixture's checks, each beside the script tests/fixtures/transcript generates, into <dir>/python, <dir>/cpp, <dir>/web, <dir>/dart, <dir>/go, and <dir>/swift, the directories the release builder's check inputs take.
 transcripts dir:
-    out="$(cd {{ quote(invocation_directory()) }} && mkdir -p {{ quote(dir) }} && cd {{ quote(dir) }} && pwd)" && RUST2_TRANSCRIPTS="$out" {{ nextest }} --profile nightly --run-ignored only --test fixtures -- --exact transcripts
+    out="$(cd {{ quote(invocation_directory()) }} && mkdir -p {{ quote(dir) }} && cd {{ quote(dir) }} && pwd)" && RUST2_TRANSCRIPTS="$out" {{ nextest }} --run-ignored only --test fixtures -- --exact transcripts
 
 # Compile the api fixture's C# ahead of time with NativeAOT and run its test, as the nightly does.
 aot:
