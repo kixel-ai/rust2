@@ -12,4 +12,4 @@ Check it's done with `gh api --paginate orgs/<org>/installations --jq '.installa
 
 ## Waiting
 
-- kixel-ai/rind: [kixel-ai/rind#1013](https://github.com/kixel-ai/rind/pull/1013) merged, since rind's weekly bench uploads to CodSpeed until then.
+- Maintainer (PC): GitHub's sudo-mode "Confirm access" page blocked the agent at https://github.com/organizations/kixel-ai/settings/installations/181428216, asking for a verification code, a passkey, or GitHub Mobile. Pass it once in the shared Chrome (any GitHub tab), then rerun the quest within the sudo window; CodSpeed's dashboard is already signed in as kixelated. Check with `gh api --paginate orgs/kixel-ai/installations --jq '.installations[].app_slug'`.
