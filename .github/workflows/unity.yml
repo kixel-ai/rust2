@@ -47,10 +47,24 @@ jobs:
       - name: Build
         env:
           UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
+          UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
+          UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
         run: |
-          docker run --rm -e UNITY_LICENSE -v "$PWD/ffi/target/unity:/project" "$IMAGE" bash -euo pipefail -c '
-            mkdir -p ~/.local/share/unity3d/Unity
-            printf "%s" "$UNITY_LICENSE" | tr -d "\r" > ~/.local/share/unity3d/Unity/Unity_lic.ulf
+          docker run --rm -e UNITY_LICENSE -e UNITY_EMAIL -e UNITY_PASSWORD -v "$PWD/ffi/target/unity:/project" "$IMAGE" bash -uo pipefail -c '
+            client=/opt/unity/Editor/Data/Resources/Licensing/Client/Unity.Licensing.Client
+            "$client" --help | head -40
+            printf "%s" "$UNITY_LICENSE" | tr -d "\r" > /tmp/license.ulf
+            echo "::group::manualLicenseFile"
+            unity-editor -batchmode -nographics -logFile /dev/stdout -quit -manualLicenseFile /tmp/license.ulf 2>&1 | tee /tmp/manual.log
+            echo "exit ${PIPESTATUS[0]}"
+            echo "::endgroup::"
+            if ! grep -q "Next license update check is after" /tmp/manual.log; then
+              echo "::group::account"
+              "$client" --activate-all --include-personal --username "$UNITY_EMAIL" --password "$UNITY_PASSWORD"
+              echo "exit $?"
+              echo "::endgroup::"
+              trap "\"$client\" --return-ulf" EXIT
+            fi
             unity-editor -batchmode -nographics -logFile /dev/stdout -projectPath /project -executeMethod Build.Player -out /project/Build/api.x86_64
           '
 
