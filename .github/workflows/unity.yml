@@ -1,0 +1,73 @@
+name: Unity
+
+# The api fixture's C# test built by Unity as a headless Linux player with IL2CPP, then run:
+# it must print native Rust's transcript and pass its checks. Only the nightly calls it,
+# since it holds the maintainer's Unity credentials, which no pull request's workflow
+# receives. x64, as GameCI's editor images are amd64 only.
+on:
+  workflow_call:
+    secrets:
+      UNITY_LICENSE:
+        required: true
+  # Scratch: iterating on the job before the nightly calls it. Removed before review.
+  push:
+    branches: [quest/m3/unity-il2cpp]
+
+permissions:
+  contents: read
+
+jobs:
+  il2cpp:
+    name: api fixture under IL2CPP
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    env:
+      # GameCI's editor for the current LTS with the Linux IL2CPP module, pinned.
+      IMAGE: unityci/editor:ubuntu-6000.3.29f1-linux-il2cpp-4@sha256:9f1cecd5bac4955652cd1752efdec297de014ab3a88096a5986dad14ddf4fbaf
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: ./.github/actions/nix
+
+      - name: Disk
+        run: df -h /
+
+      - name: Project
+        run: nix develop --command just ffi unity ffi/target/unity
+
+      - name: Pull
+        run: docker pull "$IMAGE" && df -h /
+
+      # One container activates the license, builds, and exits, so nothing it activated
+      # outlives the step.
+      - name: Build
+        env:
+          UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
+        run: |
+          docker run --rm -e UNITY_LICENSE -v "$PWD/ffi/target/unity:/project" "$IMAGE" bash -euo pipefail -c '
+            mkdir -p ~/.local/share/unity3d/Unity
+            printf "%s" "$UNITY_LICENSE" | tr -d "\r" > ~/.local/share/unity3d/Unity/Unity_lic.ulf
+            unity-editor -batchmode -nographics -logFile /dev/stdout -projectPath /project -executeMethod Build.Player -out /project/Build/api.x86_64
+          '
+
+      - name: Run
+        working-directory: ffi/target/unity
+        run: |
+          ls -la Build Build/api_Data/Plugins* || true
+          ./Build/api.x86_64 -batchmode -nographics -logFile transcript.log -- > got.txt || { cat transcript.log; exit 1; }
+          diff -u transcript.txt got.txt
+          for case in checks futures; do
+            ./Build/api.x86_64 -batchmode -nographics -logFile "$case.log" -- "$case" || { cat "$case.log"; exit 1; }
+          done
+
+      - name: Logs
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: unity-logs
+          path: ffi/target/unity/*.log
+          if-no-files-found: ignore

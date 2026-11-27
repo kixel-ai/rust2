@@ -116,18 +116,19 @@ static partial class Script
 		Console.OutputEncoding = new UTF8Encoding(false);
 		// Rust's `println!` ends a line with LF alone, on Windows too.
 		Console.Out.NewLine = "\n";
-		switch (args)
+		// No list patterns: Unity's C# is 9.
+		switch (args.Length == 1 ? args[0] : null)
 		{
-			case []:
+			case null when args.Length == 0:
 				Transcript();
 				break;
-			case ["checks"]:
+			case "checks":
 				Checks();
 				break;
-			case ["futures"]:
+			case "futures":
 				Futures().GetAwaiter().GetResult();
 				break;
-			case [var which]:
+			case string which:
 				Fail(which);
 				break;
 			default:
@@ -171,6 +172,13 @@ static partial class Script
 		var t = task.AsTask();
 		Check(t.Wait(TimeSpan.FromSeconds(10)), what);
 		return t.Result;
+	}
+
+	/// `task`'s value, failing after ten seconds, as .NET Standard 2.1 has no `WaitAsync`.
+	static async Task<T> Bounded<T>(Task<T> task)
+	{
+		Check(await Task.WhenAny(task, Task.Delay(TimeSpan.FromSeconds(10))) == task, "a task ends within ten seconds");
+		return await task;
 	}
 
 	static byte[] Utf8(string text) => Encoding.UTF8.GetBytes(text);
@@ -232,7 +240,10 @@ static partial class Script
 
 	static T[] Reversed<T>(T[] list) => list.Reverse().ToArray();
 
-	static ulong[] F64Bits(double[] floats) => floats.Select(BitConverter.DoubleToUInt64Bits).ToArray();
+	static ulong[] F64Bits(double[] floats) => floats.Select(DoubleBits).ToArray();
+
+	/// A double's bits, as .NET Standard 2.1 has no `DoubleToUInt64Bits`.
+	static ulong DoubleBits(double f) => unchecked((ulong)BitConverter.DoubleToInt64Bits(f));
 
 	/// A socket address as its IP's bytes in hex, its port, flow label, and scope, each
 	/// IPv6's alone, apart by colons.
@@ -246,7 +257,7 @@ static partial class Script
 	/// A path no Rust string spells: bytes that are not UTF-8, or on Windows, WTF-8's lone
 	/// surrogate.
 	static api.PathBuf Unspelled() =>
-		OperatingSystem.IsWindows() ? new api.PathBuf(new byte[] { 0xed, 0xa0, 0x80 }) : api.Lib.Stray();
+		RuntimeInformation.IsOSPlatform(OSPlatform.Windows) ? new api.PathBuf(new byte[] { 0xed, 0xa0, 0x80 }) : api.Lib.Stray();
 
 	/// Print each of `n`'s lists, its floats as their bits.
 	static void Numbers(api.Str what, api.Numbers n)
@@ -259,8 +270,8 @@ static partial class Script
 		Console.WriteLine($"{what} i16 {Of(n.I16s)}");
 		Console.WriteLine($"{what} i32 {Of(n.I32s)}");
 		Console.WriteLine($"{what} i64 {Of(n.I64s)}");
-		Console.WriteLine($"{what} f32 {Of(n.F32s.Select(BitConverter.SingleToUInt32Bits))}");
-		Console.WriteLine($"{what} f64 {Of(n.F64s.Select(BitConverter.DoubleToUInt64Bits))}");
+		Console.WriteLine($"{what} f32 {Of(n.F32s.Select(f => unchecked((uint)BitConverter.SingleToInt32Bits(f))))}");
+		Console.WriteLine($"{what} f64 {Of(n.F64s.Select(DoubleBits))}");
 		Console.WriteLine($"{what} some {(n.Some is int[] some ? $"Some({Of(some)})" : "None")}");
 	}
 
@@ -369,7 +380,7 @@ static partial class Script
 	/// and one that seeks past `long.MaxValue`.
 	static void Readers()
 	{
-		var dir = Directory.CreateTempSubdirectory("api");
+		var dir = Directory.CreateDirectory(Path.Combine(Path.GetTempPath(), "api" + Path.GetRandomFileName()));
 		var path = Path.Combine(dir.FullName, "tail");
 		File.WriteAllText(path, "hello world");
 		using (var file = File.OpenRead(path))
@@ -473,7 +484,7 @@ static partial class Script
 	static void Checks()
 	{
 		// A constant only some targets have is read on those, and throws on any other.
-		Check(api.Lib.WORD == nuint.MaxValue, "a 64-bit host has WORD");
+		Check(api.Lib.WORD == ~(nuint)0, "a 64-bit host has WORD");
 		Throws<PlatformNotSupportedException>(() => _ = api.Lib.WASM_PAGE, "a constant only wasm32 has throws on the host", e => e.Message == "API_WASM_PAGE: it is not on this library's target");
 		// A disposed handle throws C#'s own exception, naming its type.
 		var counter = api.Counter.New("c", 1);
@@ -739,7 +750,7 @@ static partial class Script
 			);
 			try
 			{
-				await spinning.AsTask().WaitAsync(TimeSpan.FromSeconds(10));
+				await Bounded(spinning.AsTask());
 				Check(false, "a future that wakes itself throws once cancelled");
 			}
 			catch (OperationCanceledException)
@@ -803,7 +814,7 @@ static partial class Script
 			kept!.Wake();
 			try
 			{
-				await cancelling.AsTask().WaitAsync(TimeSpan.FromSeconds(10));
+				await Bounded(cancelling.AsTask());
 				Check(false, "a future cancelled in its poll throws");
 			}
 			catch (OperationCanceledException)
@@ -850,7 +861,7 @@ static partial class Script
 			var recv = channel.Recv();
 			var text = k.ToString();
 			await Task.Run(() => channel.Send(Utf8(text)));
-			Check(_Text(await recv.AsTask().WaitAsync(TimeSpan.FromSeconds(10))) == text, "a send from another thread wakes the recv");
+			Check(_Text(await Bounded(recv.AsTask())) == text, "a send from another thread wakes the recv");
 		}
 	}
 
@@ -860,7 +871,7 @@ static partial class Script
 	/// Each broken contract, which fails loud.
 	static void Fail(string which)
 	{
-		if (OperatingSystem.IsLinux())
+		if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
 		{
 			// Non-dumpable, an expected abort writes no core. PR_SET_DUMPABLE is 4.
 			Check(Prctl(4, 0, 0, 0, 0) == 0, "prctl");
