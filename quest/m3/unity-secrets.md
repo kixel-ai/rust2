@@ -9,6 +9,7 @@ A repository secret reaches every workflow on every branch of the repository, in
 
 The nightly's Unity job already runs in the `unity` environment, and an environment secret takes precedence over a repository secret of the same name, so no workflow change is needed.
 Once the maintainer has set both, delete the two repository secrets (`gh secret delete UNITY_EMAIL -R kixel-ai/rust2`, and the same for `UNITY_PASSWORD`), dispatch the nightly on `main`, and check that its Unity job passes.
+Check also that `gh api repos/kixel-ai/rust2/environments/unity/deployment-branch-policies -q '.branch_policies[].name'` lists only `main`.
 
 ## Waiting
 

@@ -26,6 +26,7 @@ jobs:
   # and only on main, which alone may deploy to its `unity` environment.
   unity:
     name: Unity
+    if: github.ref == 'refs/heads/main'
     uses: ./.github/workflows/unity.yml
     secrets: inherit
 
