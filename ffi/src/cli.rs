@@ -868,6 +868,8 @@ fn run_cargo(
 ) -> Result<Vec<u8>, String> {
 	let output = Command::new(std::env::var_os("CARGO").unwrap_or_else(|| "cargo".into()))
 		.current_dir(picks.dir)
+		.env_remove("RUSTC_WORKSPACE_WRAPPER")
+		.env_remove("CARGO_BUILD_WARNINGS")
 		.envs(env.iter().copied())
 		.args(subcommand)
 		.arg("--manifest-path")

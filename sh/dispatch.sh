@@ -139,10 +139,12 @@ check_lint() {
     nixfmt --check flake.nix
 }
 check_quest() { quest check; }
-check_driver() { just driver check; }
-check_ffi() { just ffi check; }
-check_go() { just go check; }
-check_ts() { just ts check; }
+# `ci` runs `test` right after `check`, and `test` compiles each workspace with
+# clippy-driver + build.warnings=deny, so `ci` skips the duplicate `cargo clippy` pass.
+check_driver() { just driver "$([[ "$action" == ci ]] && echo lint || echo check)"; }
+check_ffi() { just ffi "$([[ "$action" == ci ]] && echo lint || echo check)"; }
+check_go() { just go "$([[ "$action" == ci ]] && echo lint || echo check)"; }
+check_ts() { just ts "$([[ "$action" == ci ]] && echo lint || echo check)"; }
 test_sh() {
     python3 -I sh/dispatch.test.py
     python3 -I sh/coverage.test.py
