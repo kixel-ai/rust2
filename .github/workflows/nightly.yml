@@ -159,7 +159,7 @@ jobs:
       # channel, and the targets it lacks.
       - name: Install just
         if: runner.os != 'Linux'
-        uses: taiki-e/install-action@cfdb7ed4ccc7c7dce37759eae89dc5674b469b39 # v2.90.3
+        uses: taiki-e/install-action@75a7c0f87bd666af3cdb75c5b9e9d03ab6044e6f # v2.90.6
         with:
           tool: just
 
@@ -366,7 +366,7 @@ jobs:
       # No Nix: its dev shell would replace the system compiler under test. The runner's
       # rustup installs rust-toolchain.toml's channel.
       - name: Install just and nextest
-        uses: taiki-e/install-action@cfdb7ed4ccc7c7dce37759eae89dc5674b469b39 # v2.90.3
+        uses: taiki-e/install-action@75a7c0f87bd666af3cdb75c5b9e9d03ab6044e6f # v2.90.6
         with:
           tool: just,cargo-nextest
 
@@ -549,7 +549,7 @@ jobs:
       # No Nix, as the C++ job: Xcode's toolchain builds the app. The runner's rustup
       # installs rust-toolchain.toml's channel, and the simulator's target.
       - name: Install just and nextest
-        uses: taiki-e/install-action@cfdb7ed4ccc7c7dce37759eae89dc5674b469b39 # v2.90.3
+        uses: taiki-e/install-action@75a7c0f87bd666af3cdb75c5b9e9d03ab6044e6f # v2.90.6
         with:
           tool: just,cargo-nextest
 
