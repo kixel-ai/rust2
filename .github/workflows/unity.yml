@@ -73,11 +73,12 @@ jobs:
             echo "::group::$1"
             ./Build/api.x86_64 -batchmode -nographics -logFile "$PWD/$1.log" -- "$PWD/$1.out" "${@:2}" &
             local pid=$! t=0
-            while kill -0 $pid 2>/dev/null && [ $t -lt 300 ]; do sleep 5; t=$((t+5)); done
+            while kill -0 $pid 2>/dev/null && [ $t -lt 180 ]; do sleep 5; t=$((t+5)); done
             if kill -0 $pid 2>/dev/null; then
               echo "$1 hung; its threads:"
               sudo "$gdb" -batch -p $pid -ex "thread apply all bt 40" 2>&1 | grep -v "^\[New LWP" | head -600
               kill -9 $pid
+              exit 1
             fi
             wait $pid; local code=$?
             echo "$1 exit $code after ${t}s"
@@ -89,10 +90,22 @@ jobs:
           for case in checks futures; do
             play "$case" "$case" || { cat "$case.log"; exit 1; }
           done
-          if play bogus "no such case"; then
-            echo "a case that fails exits 0"
-            exit 1
-          fi
+          # Each broken contract fails loud, printing what the gate's api_csharp expects.
+          fails() {
+            if play "$1" "$2"; then
+              echo "$2 exits 0"
+              exit 1
+            fi
+            grep -qF "$3" "$1.log" || { echo "$2 printed no \"$3\""; tail -30 "$1.log"; exit 1; }
+          }
+          fails bogus "no such case" "failed: no case no such case"
+          fails moved moved "System.ObjectDisposedException: Cannot access a disposed object."
+          fails lent-kept "lent kept" "System.ObjectDisposedException: Cannot access a disposed object."
+          fails lent-moved "lent moved" "api_Counter_into_label: a handle a call lent is borrowed exclusively or moved out"
+          fails callback-threw "callback threw" "api::Log::log: a call into C# threw"
+          fails closure-threw "closure threw" "a closure: a call into C# threw"
+          fails reader-threw "reader threw" "a reader's seek: a call into C# threw"
+          fails outlived outlived "api_Meter_count: a handle lent from another outlived it"
 
       - name: Logs
         if: ${{ !cancelled() }}

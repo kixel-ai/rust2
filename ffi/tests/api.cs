@@ -145,12 +145,16 @@ static partial class Script
 		return 0;
 	}
 
+	/// Ends the process with its code. A Unity player's `Boot` sets its own, as IL2CPP's
+	/// `Environment.Exit` never returns to end it from the thread that loads the scene.
+	static Action<int> exit = Environment.Exit;
+
 	static void Check(bool ok, string what)
 	{
 		if (!ok)
 		{
 			Console.Error.WriteLine("failed: " + what);
-			Environment.Exit(1);
+			exit(1);
 		}
 	}
 
@@ -499,6 +503,12 @@ static partial class Script
 		Throws<ObjectDisposedException>(() => counter.Get(), "a disposed handle throws");
 		// A string Rust cannot hold fails where it converts, not in the call.
 		Throws<ArgumentException>(() => _ = (api.Str)"\ud800", "a lone surrogate is no Str");
+		Throws<ArgumentException>(() => _ = (api.Str)"a\udc00\ud800", "a trail before a lead is no Str");
+		Check(((api.Str)"\ud83d\ude00").Length == 4, "a surrogate pair is one scalar's UTF-8");
+		Throws<ArgumentException>(() => api.Str.FromUtf8(new byte[] { 0xff }), "bytes that are not UTF-8 are no Str");
+		Throws<ArgumentException>(() => api.Str.FromUtf8(new byte[] { 0xed, 0xa0, 0x80 }), "a surrogate's UTF-8 is no Str");
+		Check(api.Str.FromUtf8(new byte[] { 0xed, 0x9f, 0xbf }).ToString() == "\ud7ff", "the scalar before the surrogates is a Str");
+		Throws<FormatException>(() => Unspelled().ToText(), "a path that is not UTF-8 has no text");
 		// A call taking the value disposes the handle.
 		var moved = api.Counter.New("m", 0);
 		moved.IntoLabel(null);
