@@ -1,0 +1,9 @@
+# A hung test fails at the bound instead of holding the run until the job's timeout.
+[profile.default]
+slow-timeout = { period = "30s", terminate-after = 2 }
+
+# It waits out libtest's 60 s warning and the hung test's 60 s bound, which start together,
+# after building its fixture.
+[[profile.default.overrides]]
+filter = 'test(=a_hung_test_is_named_and_killed)'
+slow-timeout = { period = "60s", terminate-after = 3 }

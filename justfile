@@ -11,6 +11,9 @@ mod ffi 'ffi/justfile'
 # The Go translator, its own workspace on the TypeScript driver's nightly: `just go <recipe>`.
 mod go 'go/justfile'
 
+# The test watchdog, its own workspace on the root's stable toolchain: `just watchdog <recipe>`.
+mod watchdog 'watchdog/justfile'
+
 # The drivers' shared front end, its own workspace on the TypeScript driver's nightly: `just driver <recipe>`.
 mod driver 'driver/justfile'
 
@@ -51,3 +54,4 @@ fix:
     just ffi fix
     just go fix
     just driver fix
+    just watchdog fix

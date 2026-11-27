@@ -1,0 +1,32 @@
+#!/usr/bin/env just --justfile
+#
+# The test watchdog, invoked from the repo root as `just watchdog <recipe>`.
+# Its own workspace on the root's stable toolchain.
+
+set shell := ["bash", "-euo", "pipefail", "-c"]
+
+default:
+    @just --list
+
+# Lint and format-check the watchdog.
+check:
+    cargo clippy --locked --all-targets -- -D warnings
+    just lint
+
+# Everything `check` verifies besides the clippy compile, which `test` enforces in one pass.
+lint:
+    cargo fmt --check
+
+# Run the watchdog's tests, enforcing clippy from the same compile; the hang test takes a minute.
+test *args:
+    CARGO_BUILD_WARNINGS=deny RUSTC_WORKSPACE_WRAPPER={{ quote(require("clippy-driver")) }} cargo nextest run --locked {{ args }}
+
+# Run the watchdog over a test command, from where it is invoked: `just watchdog run cargo test`.
+[no-cd]
+run *args:
+    cargo run --quiet --locked --release --manifest-path {{ quote(source_directory() / "Cargo.toml") }} -- {{ args }}
+
+# Apply formatters without changing program behavior.
+fix:
+    cargo clippy --locked --fix --allow-staged --allow-dirty --all-targets
+    cargo fmt

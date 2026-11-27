@@ -9,7 +9,7 @@ import unittest
 from pathlib import Path
 
 DISPATCH = Path(__file__).with_name("dispatch.sh").resolve()
-EVERYTHING = ["lint", "quest", "sh", "release", "driver", "ffi", "go", "ts"]
+EVERYTHING = ["lint", "quest", "sh", "release", "watchdog", "driver", "ffi", "go", "ts"]
 # A shared input runs everything but the parked go, which only `just gate` and
 # its own diff select.
 SHARED = [m for m in EVERYTHING if m != "go"]
@@ -128,15 +128,20 @@ class SelectTests(unittest.TestCase):
             "ffi/justfile",
             "ts/justfile",
             "driver/justfile",
+            "watchdog/justfile",
             "ts/fixtures/model/Cargo.toml",
         ):
             with self.subTest(path=path):
                 self.change(path)
-                self.assertEqual(self.select(), ["lint", "quest", "driver", "ffi", "ts"])
+                self.assertEqual(self.select(), ["lint", "quest", "watchdog", "driver", "ffi", "ts"])
                 self.git("clean", "-fdq")
         # The parked go's own still selects it.
         self.change("go/justfile")
-        self.assertEqual(self.select(), ["lint", "quest", "driver", "ffi", "go", "ts"])
+        self.assertEqual(self.select(), ["lint", "quest", "watchdog", "driver", "ffi", "go", "ts"])
+
+    def test_the_watchdog_selects_only_itself(self):
+        self.change("watchdog/src/main.rs")
+        self.assertEqual(self.select(), ["lint", "quest", "watchdog"])
 
     def test_paths_on_stdin_select_without_git(self):
         for paths, expected in (

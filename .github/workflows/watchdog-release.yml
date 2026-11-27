@@ -1,0 +1,49 @@
+name: Watchdog release
+
+# Publishes rust2-watchdog to crates.io when main's version is not there yet, so a release
+# is a version bump in a pull request. crates.io's trusted publishing trusts this workflow
+# on main, so no token is stored. The runner's rustup installs the root's pinned toolchain.
+on:
+  push:
+    branches: [main]
+    paths: [watchdog/Cargo.toml]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: watchdog-release
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      # The OIDC token crates.io exchanges for a short-lived publish token.
+      id-token: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - id: version
+        run: |
+          version=$(cargo metadata --manifest-path watchdog/Cargo.toml --no-deps --format-version 1 | jq -er '.packages[0].version')
+          status=$(curl -s -o /dev/null -w '%{http_code}' -A 'kixel-ai/rust2 watchdog-release' "https://crates.io/api/v1/crates/rust2-watchdog/$version")
+          case "$status" in
+            200) echo "rust2-watchdog $version is already published" ;;
+            404) echo "publish=true" >> "$GITHUB_OUTPUT" ;;
+            *) echo "::error::crates.io answered $status for rust2-watchdog $version"; exit 1 ;;
+          esac
+
+      - id: auth
+        if: steps.version.outputs.publish == 'true'
+        uses: rust-lang/crates-io-auth-action@3268eb413133e2960fa4ae0e963ca76380c54cd9 # v1.0.6
+
+      - if: steps.version.outputs.publish == 'true'
+        run: cargo publish --locked --manifest-path watchdog/Cargo.toml
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ steps.auth.outputs.token }}

@@ -60,7 +60,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        modules: [ffi, ts, lint quest sh release driver]
+        modules: [ffi, ts, lint quest sh release watchdog driver]
 
     steps:
       - name: Checkout

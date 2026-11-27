@@ -23,7 +23,7 @@ cd "$(git rev-parse --show-toplevel)"
 
 # What every `just` reads as it loads the root justfile: each module's justfile, and
 # the manifest ts's reads its moq pin from.
-justs='(ffi|go|ts|driver)/justfile$|ts/fixtures/model/Cargo\.toml$'
+justs='(ffi|go|ts|driver|watchdog)/justfile$|ts/fixtures/model/Cargo\.toml$'
 # The impact map: a module runs when a changed path matches its pattern. An
 # empty pattern runs on every diff.
 declare -A scope=(
@@ -43,13 +43,15 @@ declare -A scope=(
     # `just gate`, whose failure issue reports a break.
     [go]='^go/'
     [ts]="^((ts|driver)/|$justs)"
+    # On the root's stable toolchain, apart from the drivers' nightly.
+    [watchdog]="^(watchdog/|$justs)"
 )
 # A path a module's pattern matches that it never reads, since another module owns it.
 declare -A except=(
     [ffi]='^ffi/release/'
 )
 # Cheapest first, so within one run a lint fails before the builds start.
-modules=(lint quest sh release driver ffi go ts)
+modules=(lint quest sh release watchdog driver ffi go ts)
 
 # Paths that only the modules every diff runs read, lint and quest, as sh/coverage.py
 # checks: among them the quests, and prose no build or test reads. A crate's README is
@@ -144,6 +146,7 @@ check_quest() { quest check; }
 check_driver() { just driver "$([[ "$action" == ci ]] && echo lint || echo check)"; }
 check_ffi() { just ffi "$([[ "$action" == ci ]] && echo lint || echo check)"; }
 check_go() { just go "$([[ "$action" == ci ]] && echo lint || echo check)"; }
+check_watchdog() { just watchdog "$([[ "$action" == ci ]] && echo lint || echo check)"; }
 check_ts() { just ts "$([[ "$action" == ci ]] && echo lint || echo check)"; }
 test_sh() {
     python3 -I sh/dispatch.test.py
@@ -165,6 +168,7 @@ test_ffi() {
     just ffi test
 }
 test_go() { just go test; }
+test_watchdog() { just watchdog test; }
 # moq-net's translation at the pin, its first consumer, before the slower test build.
 test_ts() {
     just ts moq
