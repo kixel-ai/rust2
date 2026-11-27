@@ -44,6 +44,15 @@ impl Test {
 				bail!("`--doc` builds nothing the watchdog can map to a package");
 			}
 		}
+		for arg in &args[split..] {
+			// A test's own output could then split or pose as libtest's lines.
+			if flag(arg, &["--nocapture", "--no-capture"]) {
+				bail!(
+					"{} lets a test's output pose as libtest's; rerun under plain `cargo test` to see it",
+					arg.display()
+				);
+			}
+		}
 		for arg in &args {
 			if flag(arg, &["-q", "--quiet", "--format"]) {
 				bail!("{} hides the test names the watchdog times; drop it", arg.display());
@@ -264,6 +273,7 @@ mod tests {
 			("cargo test --message-format=json", "drop --message-format=json"),
 			("cargo test --doc", "--doc"),
 			("cargo test -q", "-q hides"),
+			("cargo test -- --nocapture", "--nocapture lets"),
 			("cargo test -- --format=terse", "--format=terse hides"),
 		] {
 			let error = test(command).err().unwrap().to_string();

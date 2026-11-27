@@ -73,6 +73,9 @@ fn run() -> Result<ExitCode> {
 		None => std::env::var("NEXTEST_PROFILE").unwrap_or_else(|_| "default".to_owned()),
 	};
 	let test = Test::new(args.collect::<Vec<OsString>>())?;
+	if std::env::var_os("RUST_TEST_NOCAPTURE").is_some_and(|value| value != "0") {
+		bail!("RUST_TEST_NOCAPTURE lets a test's output pose as libtest's; unset it");
+	}
 
 	let path = test.nextest_config()?;
 	let text = std::fs::read_to_string(&path).with_context(|| format!("reading {}", path.display()))?;

@@ -43,7 +43,7 @@ So is a bound under 60 s, since a multithreaded binary names a running test no s
 
 ## What it loses against nextest
 
-A killed binary's other running tests do not report, and the hung test's captured output is lost, since libtest holds it in the process; rerun the named test with `--nocapture` to see it.
+A killed binary's other running tests do not report, and the hung test's captured output is lost, since libtest holds it in the process; rerun the named test under plain `cargo test -- --nocapture` to see it.
 Each binary's tests share one process, as under `cargo test`.
-`--doc`, `--quiet`, and libtest's `--format` are refused, since they name no test or package the watchdog can time.
+`--doc`, `--quiet`, and libtest's `--format` are refused, since they name no test or package the watchdog can time, and so are `--nocapture` and `RUST_TEST_NOCAPTURE`, which let a test's own output pose as libtest's lines.
 It runs on Unix only.

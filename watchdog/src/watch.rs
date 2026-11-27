@@ -142,7 +142,7 @@ impl<'a> Watch<'a> {
 	}
 
 	fn complete(&mut self, line: &str, now: Duration) -> Result<()> {
-		// cargo indents its status lines, which keeps a test's own output from posing as one.
+		// cargo indents its status lines, which keeps other output from posing as one.
 		if line.starts_with(' ') {
 			let status = line.trim_start();
 			if let Some(binary) = status.strip_prefix("Running ") {
@@ -177,14 +177,14 @@ impl<'a> Watch<'a> {
 				if is_result(outcome) {
 					self.end(name);
 				} else {
-					// A one-thread binary's test printed its own output after the start.
+					// Other output on the pipe, such as a cargo wrapper's, landed after a one-thread start.
 					self.start(name, now)?;
 				}
 			}
 		} else if is_result(line)
 			&& let Some(name) = self.pending.take()
 		{
-			// A one-thread binary's result, on a line of its own after the test's output.
+			// A one-thread binary's result, on a line of its own after that other output.
 			self.end(&name);
 		}
 		Ok(())
@@ -236,14 +236,9 @@ fn strip_mode(name: &str) -> &str {
 		.unwrap_or(name)
 }
 
-// The test libtest says is still running. Under `--nocapture`, a test's output without a
-// newline may come first on the line.
+// The test libtest says is still running.
 fn warned(line: &str) -> Option<&str> {
-	let line = line.strip_suffix(WARNED)?;
-	match line.strip_prefix("test ") {
-		Some(name) => Some(name),
-		None => line.rfind("test ").map(|i| &line[i + "test ".len()..]),
-	}
+	line.strip_prefix("test ")?.strip_suffix(WARNED)
 }
 
 fn is_result(outcome: &str) -> bool {
@@ -395,30 +390,6 @@ slow-timeout = "60s"
 	}
 
 	#[test]
-	fn a_warning_after_a_test_s_unfinished_output_still_names_it() {
-		let fixture = Fixture::new();
-		let mut watch = fixture.watch();
-		feed(&mut watch, 0, B);
-		feed(
-			&mut watch,
-			60,
-			"progress: 50%test slow has been running for over 60 seconds\n",
-		);
-		assert_eq!(watch.deadline(), Some(secs(120)));
-		feed(&mut watch, 61, "   Doc-tests pkg_a\n");
-		feed(
-			&mut watch,
-			121,
-			"test src/lib.rs - test (line 3) has been running for over 60 seconds\n",
-		);
-		assert!(
-			reason(&watch, 361)
-				.unwrap()
-				.starts_with("test src/lib.rs - test (line 3) in")
-		);
-	}
-
-	#[test]
 	fn a_test_without_terminate_after_is_never_killed() {
 		let fixture = Fixture::new();
 		let mut watch = fixture.watch();
@@ -441,11 +412,11 @@ slow-timeout = "60s"
 	}
 
 	#[test]
-	fn a_one_thread_test_s_own_output_splits_its_line() {
+	fn other_output_splits_a_one_thread_line() {
 		let fixture = Fixture::new();
 		let mut watch = fixture.watch();
 		feed(&mut watch, 0, A);
-		// The start and the test's own first line arrive together...
+		// The start and another process's line arrive together...
 		feed(&mut watch, 5, "test chatty ... hello\nworld\n");
 		assert_eq!(watch.deadline(), Some(secs(305)));
 		// ...and the result ends a line of its own.
