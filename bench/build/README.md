@@ -205,10 +205,10 @@ Recommended: no setting changes. Dynamic linking cuts at most 5%, and mbx's lear
 | cargo, incremental (a developer's default) | 164G | 76 | 31 |
 | the same with `-C prefer-dynamic` | 163G | 88 | 30 |
 | incremental, `-C prefer-dynamic -Z share-generics=n`, built by `cargo test --no-run` | 165G | 111 | 36 |
-| the same with a dylib hub | 157G | 95 | 24 |
+| the same with a dylib hub, also built by `cargo test --no-run` | 157G | 95 | 24 |
 
 - The linker is 7% of a non-incremental rebuild's CPU time and about 40% of an incremental one's, but `-C prefer-dynamic` alone saves 0.2 to 0.6% of instructions: std is a small part of each link.
-- The dylib hub is one generated `dylib` crate holding all 351 third-party libraries the tests link, with the features the build gives them, which kio and moq-sock name with `extern crate`. Third-party rlibs are 389 MB of the 635 MB the test binaries link. It cuts the linker's CPU time 33% but total instructions only 4.8%. Its test binaries do not start: a symbol that notify, inside the dylib, instantiates is undefined at load time, with or without `-Z share-generics=n`. It is not worth a generated crate in moq.
+- The dylib hub is one generated `dylib` crate holding all 351 third-party libraries the tests link, with the features the build gives them, which kio and moq-sock name with `extern crate`. Third-party rlibs are 389 MB of the 635 MB the test binaries link. Against the row above it, built the same way, it cuts the linker's CPU time 33% but total instructions only 4.8%. Its test binaries do not start: a symbol that notify, inside the dylib, instantiates is undefined at load time, with or without `-Z share-generics=n`. It is not worth a generated crate in moq.
 
 mbx 1.31.0, with a fresh cache of its own and no remote, in moq's own target:
 
@@ -221,10 +221,11 @@ mbx 1.31.0, with a fresh cache of its own and no remote, in moq's own target:
 
 - mbx counts a compilation it ran without a cache lookup as `unconsulted`. These made up 72 to 73% of compiler time in a 2026-11-26 audit of this host and fedora, but they are not waste.
   Of nixos's 256 kept mbx sessions (77 hours to 2026-11-27), `no-prediction` took 273 CPU-minutes and `private-dependency` 200.
-- `no-prediction` compilations are invocations mbx has never seen: 99% of their CPU time went to argument and environment sets no earlier session had recorded, such as a changed dependency graph, `check` after `build`, or a release or clippy build. Only 0.2 CPU-minutes went to results the local cache already held.
+- `no-prediction` means mbx held no prediction matching the invocation, so it had no key to look up. 99% of that CPU time went to argument and environment sets no earlier kept session had recorded, such as a changed dependency graph, `check` after `build`, or a release or clippy build. Only 0.2 CPU-minutes went to results the local cache already held.
   A fresh `--target-dir` alone does not cause them: it took 501 hits of 502.
 - `private-dependency` compilations are learned incremental reuse at work: every crate that links an edited crate compiles with private incremental state. Turning that off costs 6.1 times the instructions per edit. Its one cost is the first edit in each checkout: 11% more than a plain compilation, while it writes the state.
-- `eager_incremental` saves 13% over a new worktree's build and first edit together, but costs 738G in a checkout that never edits. Most of its gain is 5 moq test targets that miss mbx's cache in every new worktree because they read `env!("CARGO_MANIFEST_DIR")`, an absolute path. Reading it with `std::env::var` at run time, as nextest and cargo set it for tests, cuts that build 68% and beats `eager_incremental`, so the fix belongs in moq.
+- `eager_incremental` writes private state up front: a new worktree's build costs 738G more and its first edit 970G less, 13% less for both together, but a checkout that never edits pays the 738G for nothing.
+- 5 moq test targets miss mbx's cache in every new worktree because they read `env!("CARGO_MANIFEST_DIR")`, an absolute path. Reading it with `std::env::var` at run time, as nextest and cargo set it for tests, cuts that build 469G (68%), which leaves the default 1373G for the build and first edit against `eager_incremental`'s 1610G, so the fix belongs in moq.
 
 ## Cranelift for moq's CI
 
