@@ -116,6 +116,12 @@ static partial class Script
 		Console.OutputEncoding = new UTF8Encoding(false);
 		// Rust's `println!` ends a line with LF alone, on Windows too.
 		Console.Out.NewLine = "\n";
+		return Run(args);
+	}
+
+	/// Runs the case `args` names, the transcript for none; a Unity player's `Boot` calls it.
+	static int Run(string[] args)
+	{
 		// No list patterns: Unity's C# is 9.
 		switch (args.Length == 1 ? args[0] : null)
 		{
