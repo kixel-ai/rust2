@@ -35,7 +35,6 @@ check:
 
 # Everything `check` verifies besides the main workspace clippy compile, which `test` enforces in one pass.
 lint:
-    CARGO_BUILD_WARNINGS=deny RUSTC_WORKSPACE_WRAPPER={{ quote(clippy_driver) }} cargo check --locked --examples
     cargo clippy --locked --all-targets --manifest-path {{ model }} -- -D warnings
     cargo clippy --locked --all-targets --manifest-path {{ bindgen }} -- -D warnings
     RUSTFLAGS=--cfg=web_sys_unstable_apis cargo clippy --locked --all-targets --manifest-path {{ encoder }} -- -D warnings
@@ -59,7 +58,7 @@ lint:
 
 # Run the snapshot and differential tests, enforcing clippy from the same compile.
 test *args:
-    CARGO_BUILD_WARNINGS=deny RUSTC_WORKSPACE_WRAPPER={{ quote(clippy_driver) }} cargo test --locked --config "target.'cfg(all())'.runner=['env','-u','RUSTC_WORKSPACE_WRAPPER','-u','CARGO_BUILD_WARNINGS']" {{ args }}
+    CARGO_BUILD_WARNINGS=deny RUSTC_WORKSPACE_WRAPPER={{ quote(clippy_driver) }} cargo test --locked {{ args }}
 
 # Apply formatters without changing program behavior.
 fix:
@@ -94,7 +93,7 @@ moq checkout="":
         src=.work/moq
     fi
     out=target/moq-ts
-    CARGO_BUILD_WARNINGS=deny RUSTC_WORKSPACE_WRAPPER={{ quote(clippy_driver) }} cargo run --locked --quiet --config "target.'cfg(all())'.runner=['env','-u','RUSTC_WORKSPACE_WRAPPER','-u','CARGO_BUILD_WARNINGS']" -- --config moq/ts.toml --manifest-path "$src/rs/moq-net/Cargo.toml" --out "$out"
+    CARGO_BUILD_WARNINGS=deny RUSTC_WORKSPACE_WRAPPER={{ quote(clippy_driver) }} cargo run --locked --quiet -- --config moq/ts.toml --manifest-path "$src/rs/moq-net/Cargo.toml" --out "$out"
     printf '{ "extends": "%s/runtime/tsconfig.json", "files": [], "include": ["**/*.ts"] }\n' "$PWD" > "$out/tsconfig.json"
     tsc -p "$out"
 

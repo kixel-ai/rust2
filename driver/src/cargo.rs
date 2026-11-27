@@ -271,7 +271,11 @@ fn absolute(path: &Path) -> Result<PathBuf, String> {
 }
 
 fn cargo() -> Command {
-	Command::new(std::env::var_os("CARGO").unwrap_or_else(|| "cargo".into()))
+	let mut cmd = Command::new(std::env::var_os("CARGO").unwrap_or_else(|| "cargo".into()));
+	// Do not leak a caller's clippy/warning gate into an analyzed package's cargo calls.
+	cmd.env_remove("RUSTC_WORKSPACE_WRAPPER")
+		.env_remove("CARGO_BUILD_WARNINGS");
+	cmd
 }
 
 /// The cargo args that pick how the workspace resolves, which `cargo clean` resolves it

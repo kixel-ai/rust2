@@ -29,7 +29,7 @@ lint:
 
 # Run the differential and refusal tests, enforcing clippy from the same compile.
 test *args:
-    CARGO_BUILD_WARNINGS=deny RUSTC_WORKSPACE_WRAPPER={{ quote(clippy_driver) }} cargo test --locked --config "target.'cfg(all())'.runner=['env','-u','RUSTC_WORKSPACE_WRAPPER','-u','CARGO_BUILD_WARNINGS']" {{ args }}
+    CARGO_BUILD_WARNINGS=deny RUSTC_WORKSPACE_WRAPPER={{ quote(clippy_driver) }} cargo test --locked {{ args }}
 
 # Apply formatters without changing program behavior.
 fix:
