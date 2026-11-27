@@ -11,9 +11,6 @@ on:
         required: true
       UNITY_PASSWORD:
         required: true
-  # Scratch: iterating on the job before the nightly calls it. Removed before review.
-  push:
-    branches: [quest/m3/unity-il2cpp]
 
 permissions:
   contents: read
@@ -22,7 +19,8 @@ jobs:
   il2cpp:
     name: api fixture under IL2CPP
     runs-on: ubuntu-24.04
-    timeout-minutes: 90
+    # About 15 minutes: the fixture 5 to 7, the image's pull 2 to 6, the IL2CPP build 3, the run 1.
+    timeout-minutes: 45
     env:
       # GameCI's editor for the current LTS with the Linux IL2CPP module, pinned.
       IMAGE: unityci/editor:ubuntu-6000.3.29f1-linux-il2cpp-4@sha256:9f1cecd5bac4955652cd1752efdec297de014ab3a88096a5986dad14ddf4fbaf
@@ -62,35 +60,20 @@ jobs:
             unity-editor -batchmode -nographics -logFile /dev/stdout -projectPath /project -executeMethod Build.Player -out /project/Build/api.x86_64
           '
 
-      # Each case prints to a file of its own, since the player's stdout is its log; a check
-      # that fails exits 1, which the bogus case proves reaches the shell.
+      # Each case prints to a file of its own, since the player's stdout is its log, and
+      # Console.Error goes to that log. A case takes seconds; the timeout ends one that hangs.
       - name: Run
         working-directory: ffi/target/unity
+        timeout-minutes: 10
         run: |
-          nix build --no-link nixpkgs#gdb
-          gdb=$(nix build --no-link --print-out-paths nixpkgs#gdb)/bin/gdb
-          play() {
-            echo "::group::$1"
-            ./Build/api.x86_64 -batchmode -nographics -logFile "$PWD/$1.log" -- "$PWD/$1.out" "${@:2}" &
-            local pid=$! t=0
-            while kill -0 $pid 2>/dev/null && [ $t -lt 180 ]; do sleep 5; t=$((t+5)); done
-            if kill -0 $pid 2>/dev/null; then
-              echo "$1 hung; its threads:"
-              sudo "$gdb" -batch -p $pid -ex "thread apply all bt 40" 2>&1 | grep -v "^\[New LWP" | head -600
-              kill -9 $pid
-              exit 1
-            fi
-            wait $pid; local code=$?
-            echo "$1 exit $code after ${t}s"
-            echo "::endgroup::"
-            return $code
-          }
+          play() { ./Build/api.x86_64 -batchmode -nographics -logFile "$PWD/$1.log" -- "$PWD/$1.out" "${@:2}"; }
           play transcript || { cat transcript.log; exit 1; }
           diff -u transcript.txt transcript.out
           for case in checks futures; do
             play "$case" "$case" || { cat "$case.log"; exit 1; }
           done
-          # Each broken contract fails loud, printing what the gate's api_csharp expects.
+          # Each broken contract fails loud, printing what the gate's api_csharp expects; the
+          # bogus case proves a failed check's exit code reaches the shell.
           fails() {
             if play "$1" "$2"; then
               echo "$2 exits 0"

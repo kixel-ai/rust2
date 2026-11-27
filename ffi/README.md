@@ -1661,8 +1661,9 @@ fails.
 ## C#
 
 `csharp/<prefix>.cs` is one C# file over the C ABI, which .NET, NativeAOT included, and
-Unity's IL2CPP each compile: tested on .NET 10, JIT and NativeAOT, and compiled at C# 9
-against .NET Standard 2.1, Unity's level, with `UNITY_5_3_OR_NEWER` defined. Its namespace
+Unity's IL2CPP each compile: tested on .NET 10, JIT and NativeAOT, compiled at C# 9
+against .NET Standard 2.1, Unity's level, with `UNITY_5_3_OR_NEWER` defined, and run
+nightly in a headless Linux player Unity builds with IL2CPP. Its namespace
 is the prefix in Pascal case (`Moq`). Each C function is a blittable `DllImport` of the
 library `<prefix>`, so no marshalling stub runs; under Unity on iOS, which links the
 library statically, it is `__Internal`. `Native`'s static constructor checks the contract before any other call, at the first
@@ -2022,6 +2023,7 @@ just ffi corpus   # census, export, and bind each crate of corpus/crates.txt thr
 just ffi corpus-update  # take corpus/crates.txt afresh from crates.io's top crates, and resolve corpus/Cargo.lock
 just ffi protocol # run longer protocol scripts from more seeds through the C ABI and every binding, as the nightly does
 just ffi aot      # api's C# compiled ahead of time by NativeAOT, as the nightly runs it
+just ffi unity <dir>  # api's C# test as a Unity project for Linux x64 in <dir>, which the nightly builds with IL2CPP and runs
 nix develop .#bench --command just ffi browsers  # api's TypeScript in headless Chromium, Firefox, and on Linux WebKit, lowering `using` three ways for WebKit, as the nightly runs it
 nix develop .#android --command just ffi android  # the Kotlin test, shrunk by R8, under CheckJNI on the Android device adb reaches
 just ffi react-native-host  # api's script and cases through the React Native binding on Hermes off a device, the flake's `hermes`, which nix builds from source on first use
@@ -2122,7 +2124,12 @@ borrow throws and leaves the object open, from two threads at once too, that cal
 `Dispose()` on 8 threads read live values or throw, and breaks each runtime check, which
 must throw or abort with its message; a binding with another contract must refuse the
 library. `just ffi aot`, run nightly, publishes the same with NativeAOT, its trim and AOT
-analyzers' warnings as errors, and runs the transcript and checks again.
+analyzers' warnings as errors, and runs the transcript and checks again. The test and its
+script compile at Unity's level too, and the nightly's `unity` job builds them with
+`tests/unity`, a project whose `Boot.cs` runs the test before the scene loads, into a
+headless Linux player with IL2CPP (`.github/workflows/unity.yml`, Unity's current LTS in
+GameCI's editor image): its transcript must match native Rust's byte for byte, its checks
+and futures pass, and each broken contract fail loud with the message .NET prints.
 The `target` test exports a package for the host, for wasm32, and for both into one
 binding, which builds for each, and staged with `--api` and `--with`; a build for a target
 not exported fails, and items that differ between the two are refused, naming both.

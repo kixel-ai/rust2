@@ -16,8 +16,8 @@ static partial class Script
 	[RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
 	static void Boot()
 	{
-		// IL2CPP's `Environment.Exit` waits forever here, and nothing buffers what the test
-		// printed, so a failed check ends the process at once.
+		// IL2CPP's `Environment.Exit` hangs here, and nothing buffers what the test printed,
+		// so a failed check ends the process at once.
 		exit = code => Exit(code);
 		try
 		{

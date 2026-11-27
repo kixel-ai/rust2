@@ -146,7 +146,7 @@ static partial class Script
 	}
 
 	/// Ends the process with its code. A Unity player's `Boot` sets its own, as IL2CPP's
-	/// `Environment.Exit` never returns to end it from the thread that loads the scene.
+	/// `Environment.Exit` hangs on the thread that loads the scene.
 	static Action<int> exit = Environment.Exit;
 
 	static void Check(bool ok, string what)
