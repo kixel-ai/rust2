@@ -67,7 +67,7 @@ jobs:
               "$client" --activate-all --include-personal --username "$UNITY_EMAIL" --password "$UNITY_PASSWORD"
               echo "exit $?"
               echo "::endgroup::"
-              trap "\"$client\" --return-ulf" EXIT
+              trap "\"$client\" --deactivate-all --username \"\$UNITY_EMAIL\" --password \"\$UNITY_PASSWORD\"" EXIT
             fi
             unity-editor -batchmode -nographics -logFile /dev/stdout -projectPath /project -executeMethod Build.Player -out /project/Build/api.x86_64
           '
@@ -75,11 +75,16 @@ jobs:
       - name: Run
         working-directory: ffi/target/unity
         run: |
-          ls -la Build Build/api_Data/Plugins* || true
-          ./Build/api.x86_64 -batchmode -nographics -logFile transcript.log -- > got.txt || { cat transcript.log; exit 1; }
+          set +e
+          ls -la Build/api_Data/Plugins/x86_64
+          ./Build/api.x86_64 -batchmode -nographics -logFile "$PWD/transcript.log" -- > got.txt 2> err.txt
+          echo "exit $?"
+          head -c 4000 got.txt; echo; cat err.txt
+          ls; ls ~/.config/unity3d 2>/dev/null
+          set -e
           diff -u transcript.txt got.txt
           for case in checks futures; do
-            ./Build/api.x86_64 -batchmode -nographics -logFile "$case.log" -- "$case" || { cat "$case.log"; exit 1; }
+            ./Build/api.x86_64 -batchmode -nographics -logFile "$PWD/$case.log" -- "$case" || { cat "$case.log"; exit 1; }
           done
 
       - name: Logs
@@ -87,5 +92,7 @@ jobs:
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: unity-logs
-          path: ffi/target/unity/*.log
+          path: |
+            ffi/target/unity/*.log
+            ffi/target/unity/*.txt
           if-no-files-found: ignore
