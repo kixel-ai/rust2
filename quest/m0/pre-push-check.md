@@ -4,8 +4,10 @@
 
 A `pre-push` git hook runs `just ci` on the push's diff (`sh/dispatch.sh ci`, the same
 diff-scoped lint and tests the merge queue runs), so an agent can't push without it and
-nothing else needs to run the checks before the queue. AGENTS.md's rule then names the
-hook instead of asking agents to remember.
+nothing else needs to run the checks before the queue. Git installs no hooks on clone,
+so the repository's normal setup (the dev shell or `just install`) activates it, such as
+with `core.hooksPath`, and AGENTS.md keeps `just ci` before every push as the rule for a
+checkout where the hook is absent.
 
 ## Plan
 
