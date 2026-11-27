@@ -842,7 +842,7 @@ impl Item {
 }
 
 /// What a line of the script calls, each the item it is named after, of its shape and seed.
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug, serde::Serialize, serde::Deserialize)]
 enum Kind {
 	/// `digest_N(echo_N(make_N(seed)))`
 	Echo,
@@ -923,7 +923,7 @@ const ITEMS: [Item; 13] = [
 ];
 
 /// A line of the script each driver runs, printing `kind n seed value`.
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, serde::Serialize, serde::Deserialize)]
 struct Call {
 	kind: Kind,
 	/// Its shape's `N`.
@@ -947,6 +947,7 @@ impl Call {
 const SEEDS: [u64; 3] = [0, 1, 0xdead_beef];
 
 /// The shapes' crate, as the census left it: which shapes export, and the script.
+#[derive(serde::Serialize, serde::Deserialize)]
 struct Crate {
 	dir: PathBuf,
 	/// The seed the shapes past the fixed set are drawn from, if any.
@@ -1269,6 +1270,7 @@ fn ir_covered() {
 }
 
 /// The shapes' crate, exported and built once for each language's test.
+#[derive(serde::Serialize, serde::Deserialize)]
 struct Built {
 	krate: Crate,
 	/// The export.
@@ -1278,6 +1280,7 @@ struct Built {
 	/// What a program linking the static library links besides, as rustc prints it.
 	native: Vec<String>,
 	/// The web binding's module and native transcript, built for the web test alone.
+	#[serde(skip)]
 	web: std::sync::OnceLock<(PathBuf, String)>,
 }
 
@@ -3149,14 +3152,14 @@ fn round_trip(built: &Built, language: &str) {
 /// The gate's subset of shapes, built once.
 fn gated() -> &'static Built {
 	static BUILT: std::sync::OnceLock<Built> = std::sync::OnceLock::new();
-	BUILT.get_or_init(|| build("shapes", &gate(), None))
+	super::step::once(&BUILT, "shapes", || build("shapes", &gate(), None))
 }
 
 /// The nightly's shapes, built once: the fixed set, then as many again drawn from the
 /// day's seed.
 fn sampled() -> &'static Built {
 	static BUILT: std::sync::OnceLock<Built> = std::sync::OnceLock::new();
-	BUILT.get_or_init(|| {
+	super::step::once(&BUILT, "sampled", || {
 		let mut all = shapes(SAMPLES);
 		let seed = day_seed();
 		eprintln!("the nightly's new shapes are drawn from seed {seed}: RUST2_SHAPES_SEED={seed} reproduces them");

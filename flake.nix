@@ -446,6 +446,10 @@
               RUST2_VALGRIND_INCLUDE = "${swole-pkgs.valgrind.dev}/include";
             }
           );
+          # Lean 4 for rust2-lean's kio comparison (`just driver lean-kio`), apart for its size.
+          devShells.lean = self.devShells.${system}.default.overrideAttrs (old: {
+            nativeBuildInputs = old.nativeBuildInputs ++ [ pkgs.lean4 ];
+          });
           # Clang beside the default shell's GCC, which the nightly builds the exporter's C++ with.
           devShells.clang = self.devShells.${system}.default.overrideAttrs (old: {
             nativeBuildInputs = old.nativeBuildInputs ++ [ pkgs.clang ];

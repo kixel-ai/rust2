@@ -19,9 +19,10 @@ clippy_driver := if env("RUST2_TS_TOOLCHAIN", "") == "" { require("clippy-driver
 # both variables on inner cargo calls so target crates never inherit them.
 exporter := "env CARGO_BUILD_WARNINGS=deny RUSTC_WORKSPACE_WRAPPER=" + quote(clippy_driver) + " cargo run --locked --quiet" + (if cargo_shim == "" { "" } else { " --config \"target.'cfg(all())'.runner=['env','-u','CARGO']\"" }) + " --"
 
-# `cargo test`. Under mbx's shim, its tests run without the $CARGO it hands them, which names
-# the cargo the shim chains to, so the drivers they start would check with no cache.
-cargo_test := if cargo_shim == "" { "cargo test --locked" } else { "cargo test --locked --config \"target.'cfg(all())'.runner=['env','-u','CARGO']\"" }
+# `cargo nextest run`, which bounds a hung test by .config/nextest.toml. Under mbx's shim, its
+# tests run without the $CARGO nextest hands them, which names the cargo the shim chains to,
+# so the drivers they start look for cargo on PATH instead; nextest reads the runner from --config.
+nextest := if cargo_shim == "" { "cargo nextest run --locked" } else { "cargo nextest run --locked --config \"target.'cfg(all())'.runner=['env','-u','CARGO']\"" }
 
 # The moq revision these recipes export by default. It is the exporter's own pin, apart from
 # the model fixture's in ts/fixtures/model/Cargo.toml, so bumping one does not wait on the other.
@@ -52,27 +53,27 @@ lint:
 
 # Export each fixture, build it, and run its C test, enforcing clippy from the same compile.
 test *args:
-    CARGO_BUILD_WARNINGS=deny RUSTC_WORKSPACE_WRAPPER={{ quote(clippy_driver) }} {{ cargo_test }} {{ args }}
+    CARGO_BUILD_WARNINGS=deny RUSTC_WORKSPACE_WRAPPER={{ quote(clippy_driver) }} {{ nextest }} {{ args }}
 
 # Round-trip every sampled type shape in every language, as the nightly does; the gate runs a subset.
 shapes:
-    {{ cargo_test }} --test fixtures shapes::nightly -- --ignored
+    {{ nextest }} --profile nightly --run-ignored only --test fixtures shapes::nightly
 
 # Census and export each crate of corpus/crates.txt through a facade, and build every language's binding of it, as the nightly does, with the exporter optimized, which the time spent exporting repays: CORPUS_SHARD=i/n runs a slice, CORPUS_CRATES=a,b those crates. It runs their build scripts, so run it where that is safe. The report goes to target/tmp/corpus/report.md, or a shard's directory.
 corpus:
-    {{ cargo_test }} --release --test fixtures corpus::nightly -- --ignored --exact
+    {{ nextest }} --profile nightly --run-ignored only --release --test fixtures -- --exact corpus::nightly
 
 # Take corpus/crates.txt afresh from crates.io's top crates by downloads, and resolve corpus/Cargo.lock. It builds them, as `corpus` does.
 corpus-update:
-    {{ cargo_test }} --test fixtures corpus::update -- --ignored --exact
+    {{ nextest }} --profile nightly --run-ignored only --test fixtures -- --exact corpus::update
 
 # Run longer protocol scripts from more seeds through the C ABI and every binding, as the nightly does; the gate runs fewer.
 protocol:
-    {{ cargo_test }} --test fixtures protocol_nightly -- --ignored
+    {{ nextest }} --profile nightly --run-ignored only --test fixtures protocol_nightly
 
 # Write the api fixture's checks, each beside the script tests/fixtures/transcript generates, into <dir>/python, <dir>/cpp, <dir>/web, <dir>/dart, <dir>/go, and <dir>/swift, the directories the release builder's check inputs take.
 transcripts dir:
-    out="$(cd {{ quote(invocation_directory()) }} && mkdir -p {{ quote(dir) }} && cd {{ quote(dir) }} && pwd)" && RUST2_TRANSCRIPTS="$out" {{ cargo_test }} --test fixtures -- --ignored --exact transcripts
+    out="$(cd {{ quote(invocation_directory()) }} && mkdir -p {{ quote(dir) }} && cd {{ quote(dir) }} && pwd)" && RUST2_TRANSCRIPTS="$out" {{ nextest }} --run-ignored only --test fixtures -- --exact transcripts
 
 # Write the api fixture's C# test as a Unity project into <dir>, its library for Linux x64 and the native transcript beside it, which the nightly builds into an IL2CPP player and runs.
 unity dir:
@@ -80,31 +81,31 @@ unity dir:
 
 # Compile the api fixture's C# ahead of time with NativeAOT and run its test, as the nightly does.
 aot:
-    {{ cargo_test }} --test fixtures -- --ignored --exact api_csharp_aot
+    {{ nextest }} --profile nightly --run-ignored only --test fixtures -- --exact api_csharp_aot
 
 # Run the api fixture's web test in headless Chromium, Firefox, and on Linux WebKit, in the bench shell, which carries them: nix develop .#bench.
 browsers:
-    {{ cargo_test }} --test fixtures -- --ignored --exact api_browsers
+    {{ nextest }} --profile nightly --run-ignored only --test fixtures -- --exact api_browsers
 
 # Run the api fixture's script and cases through its React Native binding on Hermes off a device, the flake's, which nix builds on first use.
 react-native-host:
-    hermes=$(nix build --no-link --print-out-paths ..#hermes) && RUST2_HERMES="$hermes" {{ cargo_test }} --test fixtures -- --ignored --exact api_react_native_host
+    hermes=$(nix build --no-link --print-out-paths ..#hermes) && RUST2_HERMES="$hermes" {{ nextest }} --profile nightly --run-ignored only --test fixtures -- --exact api_react_native_host
 
 # Run the api fixture's script and cases through its React Native package in a new React Native app, built for release, on the 64-bit Android device adb reaches, in the Android shell (nix develop .#android) with ANDROID_HOME and ANDROID_NDK_HOME set, Node, and the network.
 react-native-android:
-    {{ cargo_test }} --test fixtures -- --ignored --exact api_react_native_android
+    {{ nextest }} --profile nightly --run-ignored only --test fixtures -- --exact api_react_native_android
 
 # The same on the booted iOS simulator of the host's architecture, on macOS with Xcode, CocoaPods, and the simulator's Rust target.
 react-native-ios:
-    {{ cargo_test }} --test fixtures -- --ignored --exact api_react_native_ios
+    {{ nextest }} --profile nightly --run-ignored only --test fixtures -- --exact api_react_native_ios
 
 # Shrink the api fixture's Kotlin with R8 and its generated rules, and run its test under CheckJNI on the Android device adb reaches, in the Android shell (nix develop .#android) with ANDROID_HOME and ANDROID_NDK_HOME set.
 android:
-    {{ cargo_test }} --test fixtures -- --ignored --exact api_android
+    {{ nextest }} --profile nightly --run-ignored only --test fixtures -- --exact api_android
 
 # Run the api fixture's C and C++ scripts under AddressSanitizer with UndefinedBehaviorSanitizer, ThreadSanitizer, and Valgrind, its Swift script under ThreadSanitizer, its Go script under Go's race detector and cgocheck2, its Python script looped on a debug CPython and threaded on a free-threaded one under ThreadSanitizer, and its glue's C ABI under Miri, in the sanitize shell: nix develop .#sanitize.
 sanitize:
-    {{ cargo_test }} --test fixtures -- --ignored --exact api_asan api_tsan api_valgrind api_swift_tsan api_go_checked api_python_debug api_python_tsan api_miri
+    {{ nextest }} --profile nightly --run-ignored only --test fixtures -- --exact api_asan api_tsan api_valgrind api_swift_tsan api_go_checked api_python_debug api_python_tsan api_miri
 
 # Apply formatters without changing program behavior.
 fix:

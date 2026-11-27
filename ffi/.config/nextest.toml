@@ -1,0 +1,24 @@
+# A hung test fails at the bound instead of holding the run until the job's timeout. The
+# slowest healthy tests outside fixtures, the loom models, take about 30 seconds on a loaded host.
+[profile.default]
+slow-timeout = { period = "60s", terminate-after = 2 }
+
+# A fixture test builds bindings and runs their programs: about 80 seconds at most from cold
+# here, and its first test in a run builds the api fixture's export and glue, which takes
+# minutes on a hosted runner without a cache.
+[[profile.default.overrides]]
+filter = "binary(fixtures)"
+slow-timeout = { period = "60s", terminate-after = 10 }
+
+# The nightly's ignored runs, each its whole job, bounded below their job's timeout, so a
+# hang names its test. Overrides, since the default profile's would win over a profile's own
+# setting, and the first that matches applies. A corpus shard has its 120-minute job to
+# itself but for the dev shell and its release build; every other run gets 50 minutes, which
+# fits the shortest job's 60 and the time aot and protocol have left after `just ffi moq`.
+[[profile.nightly.overrides]]
+filter = "test(=corpus::nightly)"
+slow-timeout = { period = "60s", terminate-after = 100 }
+
+[[profile.nightly.overrides]]
+filter = "all()"
+slow-timeout = { period = "60s", terminate-after = 50 }
