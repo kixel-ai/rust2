@@ -6,6 +6,9 @@
 set -euo pipefail
 
 cd "$(git rev-parse --show-toplevel)"
+# Git exports GIT_DIR to a hook of a linked worktree, which would point every `git -C`
+# in the recipes, such as `just ts`'s clone of moq, at this repository instead of theirs.
+unset GIT_DIR GIT_PREFIX GIT_WORK_TREE GIT_INDEX_FILE
 
 # The tools and variables `just` needs come from the dev shell, which a push from a
 # plain shell does not have.

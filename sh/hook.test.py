@@ -22,7 +22,7 @@ class PushTests(unittest.TestCase):
         bin.mkdir()
         self.ran = root / "ran"
         just = bin / "just"
-        just.write_text(f'#!/bin/sh\necho "$@" >> {self.ran}\nexit "${{JUST_EXIT:-0}}"\n')
+        just.write_text(f'#!/bin/sh\necho "$@${{GIT_DIR:+ GIT_DIR=$GIT_DIR}}" >> {self.ran}\nexit "${{JUST_EXIT:-0}}"\n')
         just.chmod(0o755)
         self.env = {
             "PATH": f"{bin}:{os.environ['PATH']}",
@@ -59,6 +59,12 @@ class PushTests(unittest.TestCase):
 
     def test_a_clean_push_runs_the_diffs_ci(self):
         self.git("push", "origin", "main")
+        self.assertEqual(self.calls(), ["ci"])
+
+    def test_a_linked_worktree_leaves_git_dir_unset_for_the_recipes(self):
+        worktree = Path(self.temp.name) / "worktree"
+        self.git("worktree", "add", "-q", "-b", "feature", str(worktree))
+        subprocess.run(["git", "push", "origin", "feature"], cwd=worktree, env=self.env, check=True)
         self.assertEqual(self.calls(), ["ci"])
 
     def test_a_failing_ci_stops_the_push(self):
