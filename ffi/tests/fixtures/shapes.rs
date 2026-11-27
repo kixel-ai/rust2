@@ -1103,7 +1103,7 @@ fn main() {
 /// refusals included, and what leaves itself out.
 fn refused(dir: &Path) -> Refused {
 	let census = dir.join("census");
-	run(Command::new(env!("CARGO_BIN_EXE_rust2-ffi"))
+	run(super::rust2_ffi()
 		.arg("--manifest-path")
 		.arg(dir.join("Cargo.toml"))
 		.arg("--census")
@@ -1289,7 +1289,7 @@ struct Built {
 fn build(name: &str, shapes: &[Shape], drawn: Option<u64>) -> Built {
 	let krate = emit(name, shapes, drawn);
 	let out = krate.dir.join("out");
-	run(Command::new(env!("CARGO_BIN_EXE_rust2-ffi"))
+	run(super::rust2_ffi()
 		.arg("--manifest-path")
 		.arg(krate.dir.join("Cargo.toml"))
 		.arg("--out")
