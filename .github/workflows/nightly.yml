@@ -22,13 +22,12 @@ jobs:
     uses: ./.github/workflows/bindings-test.yml
 
   # The api fixture's C# test as a Unity player with IL2CPP, which the gate proves only by
-  # compiling it at Unity's language level. Its Unity account's secrets reach this job alone.
+  # compiling it at Unity's language level. Only its job reads the Unity account's secrets,
+  # and only on main, which alone may deploy to its `unity` environment.
   unity:
     name: Unity
     uses: ./.github/workflows/unity.yml
-    secrets:
-      UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
-      UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
+    secrets: inherit
 
   # The full check over every module, catching what a merge group's diff-scoped
   # `just ci` let into main.
