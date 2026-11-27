@@ -502,8 +502,10 @@ static partial class Script
 		counter.Dispose();
 		Throws<ObjectDisposedException>(() => counter.Get(), "a disposed handle throws");
 		// A string Rust cannot hold fails where it converts, not in the call.
-		Throws<ArgumentException>(() => _ = (api.Str)"\ud800", "a lone surrogate is no Str");
-		Throws<ArgumentException>(() => _ = (api.Str)"a\udc00\ud800", "a trail before a lead is no Str");
+		// Built at run time: IL2CPP keeps a literal as UTF-8, which spells no lone surrogate.
+		var lead = new string((char)0xD800, 1);
+		Throws<ArgumentException>(() => _ = (api.Str)lead, "a lone surrogate is no Str");
+		Throws<ArgumentException>(() => _ = (api.Str)("a" + new string((char)0xDC00, 1) + lead), "a trail before a lead is no Str");
 		Check(((api.Str)"\ud83d\ude00").Length == 4, "a surrogate pair is one scalar's UTF-8");
 		Throws<ArgumentException>(() => api.Str.FromUtf8(new byte[] { 0xff }), "bytes that are not UTF-8 are no Str");
 		Throws<ArgumentException>(() => api.Str.FromUtf8(new byte[] { 0xed, 0xa0, 0x80 }), "a surrogate's UTF-8 is no Str");

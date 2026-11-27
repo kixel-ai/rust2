@@ -149,30 +149,7 @@ internal static unsafe partial class Native
 
 	/// Whether `b` is WTF-8: UTF-8 that may also hold a surrogate's code point, but never a
 	/// lead surrogate's right before a trail's, which a pair's own encoding spells.
-	internal static bool IsWtf8(ReadOnlySpan<byte> b) => Wtf8(b, true);
-
-	/// Whether `b` is UTF-8, which holds no surrogate's code point.
-	internal static bool IsUtf8(ReadOnlySpan<byte> b) => Wtf8(b, false);
-
-	/// Whether `text` holds a surrogate outside a pair, which no UTF-8 spells.
-	internal static bool HasLoneSurrogate(string text)
-	{
-		for (var i = 0; i < text.Length; i++)
-		{
-			if (char.IsHighSurrogate(text[i]) && i + 1 < text.Length && char.IsLowSurrogate(text[i + 1]))
-			{
-				i++;
-			}
-			else if (char.IsSurrogate(text[i]))
-			{
-				return true;
-			}
-		}
-		return false;
-	}
-
-	/// Whether `b` is WTF-8, or with no `surrogates`, UTF-8.
-	static bool Wtf8(ReadOnlySpan<byte> b, bool surrogates)
+	internal static bool IsWtf8(ReadOnlySpan<byte> b)
 	{
 		var lead = false;
 		var i = 0;
@@ -197,10 +174,6 @@ internal static unsafe partial class Native
 				if (c == 0xE0)
 				{
 					lo = 0xA0;
-				}
-				else if (c == 0xED && !surrogates)
-				{
-					hi = 0x9F;
 				}
 			}
 			else if (c >= 0xF0 && c <= 0xF4)
@@ -987,9 +960,7 @@ public abstract unsafe class RustObject : IDisposable
 /// `string` once; `ToString()` gives one back.
 public readonly struct Str : IEquatable<Str>, IComparable<Str>
 {
-#if !UNITY_5_3_OR_NEWER
 	static readonly System.Text.UTF8Encoding strict = new System.Text.UTF8Encoding(false, true);
-#endif
 
 	/// Its UTF-8 bytes.
 	public ReadOnlyMemory<byte> Utf8 { get; }
@@ -1007,14 +978,6 @@ public readonly struct Str : IEquatable<Str>, IComparable<Str>
 		{
 			throw new ArgumentNullException(nameof(text));
 		}
-#if UNITY_5_3_OR_NEWER
-		// IL2CPP's encoder spells a lone surrogate rather than throw, so it is checked here.
-		if (Native.HasLoneSurrogate(text))
-		{
-			throw new ArgumentException("a string holding a lone surrogate is no Rust text", nameof(text));
-		}
-		return new Str(System.Text.Encoding.UTF8.GetBytes(text));
-#else
 		try
 		{
 			return new Str(strict.GetBytes(text));
@@ -1023,7 +986,6 @@ public readonly struct Str : IEquatable<Str>, IComparable<Str>
 		{
 			throw new ArgumentException("a string holding a lone surrogate is no Rust text", nameof(text), e);
 		}
-#endif
 	}
 
 	/// The text of `utf8`, copied, so a later change to the caller's bytes cannot unmake it,
@@ -1031,13 +993,6 @@ public readonly struct Str : IEquatable<Str>, IComparable<Str>
 	public static Str FromUtf8(ReadOnlySpan<byte> utf8)
 	{
 		var copy = utf8.ToArray();
-#if UNITY_5_3_OR_NEWER
-		// As IL2CPP's encoder, its decoder may not throw, so the bytes are checked here.
-		if (!Native.IsUtf8(copy))
-		{
-			throw new ArgumentException("bytes that are not UTF-8 are no Rust text", nameof(utf8));
-		}
-#else
 		try
 		{
 			strict.GetCharCount(copy);
@@ -1046,7 +1001,6 @@ public readonly struct Str : IEquatable<Str>, IComparable<Str>
 		{
 			throw new ArgumentException("bytes that are not UTF-8 are no Rust text", nameof(utf8), e);
 		}
-#endif
 		return new Str(copy);
 	}
 
@@ -1107,14 +1061,6 @@ public readonly struct PathBuf : IEquatable<PathBuf>
 	/// Its text, throwing a `FormatException` unless it is UTF-8.
 	public string ToText()
 	{
-#if UNITY_5_3_OR_NEWER
-		// As IL2CPP's encoder, its decoder may not throw, so the bytes are checked here.
-		if (!Native.IsUtf8(Bytes.Span))
-		{
-			throw new FormatException("the path is not UTF-8");
-		}
-		return System.Text.Encoding.UTF8.GetString(Bytes.Span);
-#else
 		try
 		{
 			return new System.Text.UTF8Encoding(false, true).GetString(Bytes.Span);
@@ -1123,7 +1069,6 @@ public readonly struct PathBuf : IEquatable<PathBuf>
 		{
 			throw new FormatException("the path is not UTF-8", e);
 		}
-#endif
 	}
 
 	/// Its text, each part that is not UTF-8 as U+FFFD, as Rust's `display` shows it.
