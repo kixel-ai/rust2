@@ -74,9 +74,10 @@ impl<'tcx> Fx<'_, 'tcx> {
 				let it = self.list(call, 0)?;
 				let f = self.closure(&call.args[1].node, span)?;
 				let text = match (it.deferred, f.monadic) {
-					(false, _) => format!("{}.map {}", it.ex.paren(), f.f.paren()),
-					(true, false) => format!("{}.map (Functor.map {})", it.ex.paren(), f.f.paren()),
-					(true, true) => format!("{}.map (· >>= {})", it.ex.paren(), f.f.paren()),
+					(false, false) => format!("{}.map {}", it.ex.paren(), f.f.paren()),
+					(false, true) => format!("{}.map (Rust.defer {})", it.ex.paren(), f.f.paren()),
+					(true, false) => format!("{}.map (Rust.deferMap {})", it.ex.paren(), f.f.paren()),
+					(true, true) => format!("{}.map (Rust.deferBind {})", it.ex.paren(), f.f.paren()),
 				};
 				let deferred = it.deferred || f.monadic;
 				self.same_list(call, deferred)?;
@@ -99,7 +100,7 @@ impl<'tcx> Fx<'_, 'tcx> {
 							format!("(pure ∘ {})", f.f.paren())
 						};
 						bound(compound(
-							format!("List.{name}M (· >>= {g}) {}", it.ex.paren()),
+							format!("List.{name}M (Rust.force {g}) {}", it.ex.paren()),
 							&[&it.ex, &f.f],
 						))
 					}
@@ -124,7 +125,7 @@ impl<'tcx> Fx<'_, 'tcx> {
 				self.same_list(call, deferred)?;
 				let lift = |l: &List| {
 					if deferred && !l.deferred {
-						format!("({}.map pure)", l.ex.paren())
+						format!("({}.map Rust.ready)", l.ex.paren())
 					} else {
 						l.ex.paren()
 					}
@@ -197,6 +198,9 @@ impl<'tcx> Fx<'_, 'tcx> {
 					"RangeFrom" => format!("Rust.sliceFrom {} {}", s.paren(), r.paren()),
 					"Range" => format!("Rust.slice {} {}.1 {}.2", s.paren(), r.paren(), r.paren()),
 					"RangeFull" => {
+						if r.monadic {
+							return refuse(span, "a `..` index that may panic is not supported");
+						}
 						self.assign(call.destination, s, span, ops)?;
 						return Ok(true);
 					}

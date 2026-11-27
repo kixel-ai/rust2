@@ -209,7 +209,7 @@ def cases.shifted.closure0 (arg1 : UInt8) (y : UInt8) : Rust.M UInt8 := do
   return (← y +? t5)
 
 def cases.shifted (v : (Array UInt8)) (x : UInt8) : Rust.M (Array UInt8) := do
-  return (← Rust.run ((v.toList).map (cases.shifted.closure0 x))).toArray
+  return (← Rust.run ((v.toList).map (Rust.defer (cases.shifted.closure0 x)))).toArray
 
 def cases.reaches.closure0 (arg1 : UInt8) (y : UInt8) : Rust.M UInt8 := do
   let t5 := arg1
@@ -219,8 +219,8 @@ def cases.reaches.closure1 (arg1 : Unit) (y : UInt8) : Bool :=
   decide (y = 0)
 
 def cases.reaches (v : (Array UInt8)) (x : UInt8) : Rust.M Bool := do
-  let t4 := (v.toList).map (cases.reaches.closure0 x)
-  return (← List.anyM (· >>= (pure ∘ (cases.reaches.closure1 ()))) t4)
+  let t4 := (v.toList).map (Rust.defer (cases.reaches.closure0 x))
+  return (← List.anyM (Rust.force (pure ∘ (cases.reaches.closure1 ()))) t4)
 
 def cases.rising.closure0 (arg1 : Unit) (arg2 : (UInt64 × UInt8)) : Bool := Id.run do
   let i := arg2.1
@@ -243,7 +243,7 @@ def cases.pair_sums.closure0 (arg1 : Unit) (w : (Array UInt8)) : Rust.M UInt16 :
   return (← t3 +? t8)
 
 def cases.pair_sums (v : (Array UInt8)) : Rust.M (Array UInt16) := do
-  return (← Rust.run ((← Rust.windows v (2 : UInt64)).map (cases.pair_sums.closure0 ()))).toArray
+  return (← Rust.run ((← Rust.windows v (2 : UInt64)).map (Rust.defer (cases.pair_sums.closure0 ())))).toArray
 
 def cases.ends.closure0 (arg1 : Unit) (f : UInt8) : (UInt8 × UInt8 × UInt8) :=
   (f, f, f)

@@ -142,8 +142,8 @@ def route.relay.pairs.closure0 (arg1 : Unit) (pair : (Array route.relay.Hop)) : 
   unless t8 < t9 do throw s!"index out of bounds: the len is {t9} but the index is {t8}"
   return route.relay.floor_of pair[t4.toNat]! pair[t8.toNat]!.node
 
-def route.relay.pairs (path1 : (Array route.relay.Hop)) : Rust.M (List (Rust.M ((UInt64 × UInt64) × UInt64))) := do
-  return (← Rust.windows path1 (2 : UInt64)).map (route.relay.pairs.closure0 ())
+def route.relay.pairs (path1 : (Array route.relay.Hop)) : Rust.M (List (Unit → Rust.M ((UInt64 × UInt64) × UInt64))) := do
+  return (← Rust.windows path1 (2 : UInt64)).map (Rust.defer (route.relay.pairs.closure0 ()))
 
 def route.relay.Here.arrive.closure0.closure0 (arg1 : UInt64) (highest : UInt64) : Bool := Id.run do
   let t5 := arg1
@@ -170,7 +170,7 @@ def route.relay.Here.arrive (self : route.relay.Here) (port : route.relay.Port) 
   let t9 := t11
   let t7 := (← route.relay.pairs t9)
   let t58 := self.closed
-  let floored := (← List.anyM (· >>= (pure ∘ (route.relay.Here.arrive.closure0 t58))) t7)
+  let floored := (← List.anyM (Rust.force (pure ∘ (route.relay.Here.arrive.closure0 t58))) t7)
   let t18 := offer.path
   if (UInt64.ofNat t18.size) ≥ 32 then
     return (none : (Option route.relay.Offer))

@@ -195,8 +195,23 @@ def enumerate {α : Type} (l : List α) : List (UInt64 × α) :=
   (List.range l.length).zip l |>.map fun (i, x) => (i.toUInt64, x)
 
 /-- Run each item's action, in order: `collect` of an iterator whose items may panic. -/
-def run {α : Type} (l : List (M α)) : M (List α) :=
-  l.mapM id
+def run {α : Type} (l : List (Unit → M α)) : M (List α) :=
+  l.mapM (· ())
+
+/-- An item of an iterator whose items may panic, made only when a consumer reaches it. -/
+def defer {α β : Type} (f : α → M β) (a : α) : Unit → M β := fun _ => f a
+
+/-- `map` by `f`, which cannot panic, over a deferred item. -/
+def deferMap {α β : Type} (f : α → β) (t : Unit → M α) : Unit → M β := fun _ => f <$> t ()
+
+/-- `map` by `f`, which may panic, over a deferred item. -/
+def deferBind {α β : Type} (f : α → M β) (t : Unit → M α) : Unit → M β := fun _ => t () >>= f
+
+/-- An item that cannot panic, among deferred ones. -/
+def ready {α : Type} (a : α) : Unit → M α := fun _ => pure a
+
+/-- A consumer's step: make the deferred item, then apply `g` to it. -/
+def force {α β : Type} (g : α → M β) (t : Unit → M α) : M β := t () >>= g
 
 /-- `BTreeMap`: its entries in ascending key order, each key once. -/
 structure BTreeMap (κ ν : Type) where

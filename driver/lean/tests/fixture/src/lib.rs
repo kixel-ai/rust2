@@ -421,6 +421,49 @@ pub mod refused {
 		s.contains(&k)
 	}
 
+	/// An inline constant can name an instantiation no function does.
+	pub fn reset_const() -> fn(&Reset) -> Reset {
+		const { dup::<Reset> }
+	}
+
+	pub trait Light {
+		fn light(&self) -> u64;
+	}
+
+	impl<T: Copy + Into<u64>> Light for T {
+		fn light(&self) -> u64 {
+			(*self).into()
+		}
+	}
+
+	pub fn light_of<L: Light>(l: &L) -> u64 {
+		l.light()
+	}
+
+	/// `T`'s `Light` comes from the blanket impl, so this function has no Lean instance for it.
+	pub fn copy_light<T: Copy + Into<u64>>(t: &T) -> u64 {
+		light_of(t)
+	}
+
+	pub fn has<K: Ord>(s: &BTreeSet<K>, k: &K) -> bool {
+		s.contains(k)
+	}
+
+	/// `has` orders `Backwards` as Lean's derived `Ord` would not.
+	pub fn has_backwards(s: &BTreeSet<Backwards>, k: &Backwards) -> bool {
+		has(s, k)
+	}
+
+	/// The mapper is a function pointer, whose panics the list cannot hold.
+	pub fn mapped(mut it: std::iter::Map<std::slice::Iter<'_, u8>, fn(&u8) -> bool>) -> bool {
+		it.any(|x| x)
+	}
+
+	/// The `..` comes from an `unwrap`, which may panic.
+	pub fn whole(s: &[u8], o: Option<std::ops::RangeFull>) -> usize {
+		s[o.unwrap()].len()
+	}
+
 	/// A list cannot hold an endless iterator.
 	pub fn endless(mut it: std::iter::Repeat<u8>) -> bool {
 		it.any(|x| x == 0)

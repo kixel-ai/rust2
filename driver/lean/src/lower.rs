@@ -436,24 +436,23 @@ impl<'tcx> Cx<'tcx> {
 			return true;
 		}
 		let tcx = self.tcx;
-		let values: Vec<i128> = def
+		// Each as a `u128` that orders as the discriminant does: a signed one's sign bit flipped.
+		let values: Vec<u128> = def
 			.discriminants(tcx)
 			.map(|(_, d)| {
 				let (size, signed) = d.ty.int_size_and_signed(tcx);
 				let shift = 128 - size.bits();
 				match signed {
-					true => ((d.val << shift) as i128) >> shift,
-					false => d.val as i128,
+					true => ((((d.val << shift) as i128) >> shift) as u128) ^ (1 << 127),
+					false => d.val,
 				}
 			})
 			.collect();
 		values.windows(2).all(|w| w[0] < w[1])
 	}
 
-	/// The local trait translated to a Lean class that bounds type parameter `index` of
-	/// `did`, if any: a call passing a concrete type for it needs a Lean instance, which the
-	/// translation does not emit.
-	fn class_bound(&self, did: DefId, index: u32) -> Option<DefId> {
+	/// The traits that bound type parameter `index` of `did`.
+	fn param_bounds(&self, did: DefId, index: u32) -> Vec<DefId> {
 		let tcx = self.tcx;
 		tcx.param_env(did)
 			.caller_bounds()
@@ -462,7 +461,7 @@ impl<'tcx> Cx<'tcx> {
 			.filter_map(|p| p.as_trait_clause())
 			.filter(|t| matches!(t.self_ty().skip_binder().kind(), ty::Param(p) if p.index == index))
 			.map(|t| t.def_id())
-			.find(|b| b.is_local() && self.traits.get(b) == Some(&true))
+			.collect()
 	}
 
 	/// Whether cloning a value of `ty` copies it, as the translation's value semantics assume.
@@ -532,7 +531,9 @@ impl<'tcx> Cx<'tcx> {
 					tcx.optimized_mir(did)
 				}
 				// A constant or static can name an instantiation no function does.
-				DefKind::Const | DefKind::AssocConst | DefKind::Static { .. } => tcx.mir_for_ctfe(did),
+				DefKind::Const | DefKind::AssocConst | DefKind::Static { .. } | DefKind::AnonConst => {
+					tcx.mir_for_ctfe(did)
+				}
 				_ => continue,
 			};
 			let mut found = FnUses {
@@ -699,7 +700,7 @@ impl<'tcx> Cx<'tcx> {
 				let (item, deferred) = self.iterator(ty).expect("checked");
 				let item = self.ty(item, span)?;
 				if deferred {
-					format!("(List (Rust.M {item}))")
+					format!("(List (Unit → Rust.M {item}))")
 				} else {
 					format!("(List {item})")
 				}
@@ -825,6 +826,13 @@ impl<'tcx> Cx<'tcx> {
 			_ => return None,
 		};
 		if inner.iter().any(|&i| self.iterator(args.type_at(i)).is_none()) {
+			return None;
+		}
+		// A `Map`'s mapper must be a closure here, whose panics the list's shape records.
+		if inner == [0]
+			&& self.std_name(def.did()) == "Map"
+			&& !matches!(args.type_at(1).kind(), ty::Closure(did, _) if did.is_local())
+		{
 			return None;
 		}
 		let iterator = tcx.get_diagnostic_item(rustc_span::sym::Iterator)?;
@@ -2667,16 +2675,33 @@ impl<'a, 'tcx> Fx<'a, 'tcx> {
 			}
 			if let ty::GenericParamDefKind::Type { .. } = param.kind
 				&& let Some(t) = arg.as_type()
-				&& !matches!(t.kind(), ty::Param(_))
-				&& let Some(tr) = self.cx.class_bound(callee, param.index)
 			{
-				return refuse(
-					span,
-					format!(
-						"`{t}` passed where `{}` needs a Lean instance, which is not supported",
-						tcx.def_path_str(tr)
-					),
-				);
+				let bounds = self.cx.param_bounds(callee, param.index);
+				// A local trait's Lean class needs an instance: only a parameter of this
+				// function bounded by it has one, as its own binder.
+				let ours = match t.kind() {
+					ty::Param(p) => self.cx.param_bounds(self.did, p.index),
+					_ => Vec::new(),
+				};
+				if let Some(tr) = bounds
+					.iter()
+					.find(|b| b.is_local() && self.cx.traits.get(b) == Some(&true) && !ours.contains(b))
+				{
+					return refuse(
+						span,
+						format!(
+							"`{t}` passed where `{}` needs a Lean instance, which is not supported",
+							tcx.def_path_str(*tr)
+						),
+					);
+				}
+				let ord = [
+					tcx.get_diagnostic_item(rustc_span::sym::Ord),
+					tcx.lang_items().partial_ord_trait(),
+				];
+				if bounds.iter().any(|b| ord.contains(&Some(*b))) && !self.cx.structural_ord(t) {
+					return refuse(span, format!("`{t}` passed where `Ord` must match a Lean order"));
+				}
 			}
 			let shows = sig.inputs().iter().any(|t| {
 				t.walk().any(|a| match (a.as_type(), a.as_const(), &param.kind) {

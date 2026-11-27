@@ -29,7 +29,7 @@ Landing as a sequence of PRs, each standing on its own; the first added the rout
 
 `BTreeMap` and `BTreeSet` are sorted association lists over a key whose `Ord` is derived, not Mathlib's finite maps, so translations stay core-only.
 
-Decided 2026-11-27 (maintainer, /quest-run): ✅ iterators are lazy Lean lists (rejected: chains fused into loops, as this Plan first said). A list's items are `Rust.M` actions when a closure that may panic maps them, so a consumer meets a panic only at the item Rust's laziness meets it at, a proof reasons with `List` lemmas instead of a loop's equation, and no closure needs to capture only copies.
+Decided 2026-11-27 (maintainer, /quest-run): ✅ iterators are lazy Lean lists (rejected: chains fused into loops, as this Plan first said). A list's items are thunks of `Rust.M` actions when a closure that may panic maps them, so a consumer meets a panic only at the item Rust's laziness meets it at, a proof reasons with `List` lemmas instead of a loop's equation, and no closure needs to capture only copies.
 
 Decided 2026-11-27 (maintainer, /quest-run): ✅ a type parameter's `clone` translates as a copy, checked at every instantiation the crate uses and refused with a span otherwise (rejected: refuse it). moq's `Claim<A>` clones `A`.
 
