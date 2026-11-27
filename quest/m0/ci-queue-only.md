@@ -5,7 +5,8 @@
 Each tree is built once in CI: the merge queue's `Queue build / Build`, on
 the self-hosted `rust2-queue` runner. Pull requests run no CI, and a push to
 `main` reruns nothing the queue already tested. Asynchronous work (nightly,
-benches, valgrind, releases) stays on GitHub's runners.
+valgrind, releases) stays on GitHub's runners, and the manual benchmark keeps
+its exclusive `rust2-bench` host.
 
 ## Plan
 
@@ -34,16 +35,23 @@ Recommendations:
 
 - Delete `ci.yml`. `queue.yml` keeps reporting the skipped required context
   on a PR's head.
-- Run `build.yml` on the `rust2-queue` runner through the host's mbx store
-  (`backend: local`, as rind's and moq's queues do), so the queue warms
-  itself and nothing needs a `main` push to save a cache. Pin the mbx version
-  dotfiles' nixos fixer for rust2 carries, or note the bump that dotfiles'
-  `quest/m0/nixos/ci-shared-mbx.md` must make.
+- The `rust2-queue` runner group admits only
+  `queue-build.yml@refs/heads/main`, while `queue.yml` today calls `build.yml`
+  from the merge group's ref, so changing the runner label alone leaves the
+  next merge group with no runner. Restore a queue-only reusable workflow
+  called at `main`, as before #991, keeping the required
+  `Queue build / Build` context and the skipped report on a PR's head.
+- Build through the host's mbx store (`backend: local`, as rind's and moq's
+  queues do), so the queue warms itself and nothing needs a `main` push to
+  save a cache. Keep mbx at 1.31.0 or newer, which `build.yml` documents as its
+  minimum (older ones bypass the cache for the FFI export's MIR flags or seed
+  target dirs `cargo clean --target-dir` rejects); dotfiles'
+  `quest/m0/nixos/ci-shared-mbx.md` moves rust2's fixer to the same version.
 - Keep the shard split from #991 only if a single self-hosted job is slower;
   on one host, shards share its cores.
 - Measure one merge group's wall time and the runner's CPU before and after.
 
 ## Related
 
-- [Lighter pre-push check](/quest/m0/pre-push-check.md) - the local side of
+- [Pre-push hook runs the diff's CI](/quest/m0/pre-push-check.md) - the local side of
   the same decision

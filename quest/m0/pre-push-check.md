@@ -1,10 +1,11 @@
-# [S] Lighter pre-push check
+# [S] A pre-push hook runs the diff's CI
 
 ## Goal
 
-AGENTS.md's pre-push rule moves from `just ci` to `just check` plus the tests a change
-touches, `sh/dispatch.sh ci` on its own diff, so an agent stops paying for the whole suite
-before every push, while the merge queue still runs it.
+A `pre-push` git hook runs `just ci` on the push's diff (`sh/dispatch.sh ci`, the same
+diff-scoped lint and tests the merge queue runs), so an agent can't push without it and
+nothing else needs to run the checks before the queue. AGENTS.md's rule then names the
+hook instead of asking agents to remember.
 
 ## Plan
 
@@ -21,8 +22,9 @@ queue catches what they miss (rejected: waiting on a week of PR CI, which
 [the queue-only quest](/quest/m0/ci-queue-only.md) deletes). The switch no longer waits
 on hosted history.
 
-- Recommended: a `pre-push` git hook that runs `sh/dispatch.sh ci` on the push's diff,
-  so the rule holds without an agent remembering it. Weigh its time on a typical push
-  against the queue failures it saves.
-- The switch edits AGENTS.md's Development section and CONTRIBUTING.md's, if it repeats
+- `just ci` is already diff-scoped, so the hook automates the current rule rather than
+  lightening it. Report its time on a typical push; if it is too slow to run on every
+  push, name which modules move to the queue alone, and why the queue catching them is
+  enough.
+- The change edits AGENTS.md's Development section and CONTRIBUTING.md's, if it repeats
   the rule.
