@@ -19,11 +19,11 @@ rind's #1137 already routes around nextest in three places, and the recommendati
 Candidates, each judged on the Goal's terms:
 
 - nextest as it is, with a cheaper per-test launch: a target runner that keeps one simulator booted, or anything nextest offers to batch tests per process. First measure how much of the 38 extra minutes is `simctl spawn` itself.
-- libtest, one process per binary, with a watchdog that names and kills a hung test. libtest already prints a test running over 60 seconds on stable, so a per-binary `timeout` plus that line may be enough. Check whether that holds on each emulated row.
+- libtest, one process per binary, with a watchdog that names and kills a hung test. libtest prints each test still running after 60 seconds, so a per-binary `timeout` plus those lines is the baseline. It falls short of the Goal: with tests in parallel, healthy slow tests print the same line as the hung one, and a binary's deadline gives a test that starts late less time. A watchdog that meets the Goal times each test from its own start and names the one it kills.
 - A custom harness (`harness = false`, such as libtest-mimic) with a per-test watchdog thread that aborts the process and names the test. This changes every test target's manifest, so weigh that against configless.
 - A split: nextest on native rows, where a process costs little and buys isolation, and in-process runs with a watchdog on emulated rows.
 
 Recommendation to start (afk, reversible): measure the cost of each process launch on each row before building anything. If launches dominate, the split is the likely pick, since it keeps nextest's isolation where it is cheap. Doctests are out of scope: every candidate leaves them to `cargo test --doc` under a `timeout`, as rind and rust2 do now.
 
-Measure by dispatching rind's existing workflows on a branch, the iOS simulator nightly, sh/qemu.sh's rows, and a native row. Use the same rows for every candidate, and run each one at least twice to see the noise. A hang test is a scratch test that blocks forever: record when each candidate kills it and what it reports.
+Measure by dispatching rind's existing workflows on a branch: the iOS simulator nightly, sh/qemu.sh's rows, a native row, and a wasm row and admin/x86-cpu's SDE run, so the pick is checked on every emulated target it must serve. Use the same rows for every candidate, and run each one at least twice to see the noise. A hang test is a scratch test that blocks forever: record when each candidate kills it and what it reports.
 
