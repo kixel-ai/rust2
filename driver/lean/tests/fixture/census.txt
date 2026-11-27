@@ -1,0 +1,10 @@
+src/lib.rs:63:18: 63:19: `std::cell::Cell<u8>` has interior mutability, which is not supported
+src/lib.rs:67:2: 67:31: recursion is not supported
+src/lib.rs:71:35: 71:42: returning a mutable reference is not supported
+src/lib.rs:76:7: 76:8: a closure is not supported
+
+0 of 4 reached functions translated; 4 refusals
+    1  _ has interior mutability, which is not supported
+    1  a closure is not supported
+    1  recursion is not supported
+    1  returning a mutable reference is not supported
