@@ -1,27 +1,111 @@
-src/lib.rs:222:3: 222:19: `PartialEq` of `refused::Loose` is not structural equality
-src/lib.rs:226:3: 226:9: `PartialEq` of `&refused::Holder` is not structural equality
-src/lib.rs:238:5: 238:25: cloning `refused::Norm` may not copy it
-src/lib.rs:251:5: 251:25: cloning `refused::Zeroed` may not copy it
-src/lib.rs:256:3: 256:26: recursive type `Tree` is not supported
-src/lib.rs:256:3: 256:26: recursive type `Tree` is not supported
-src/lib.rs:264:3: 264:17: an explicit panic is not supported, since its message has no model
-src/lib.rs:268:3: 268:19: `std::string::String` has no Lean model
-src/lib.rs:275:18: 275:19: `std::cell::Cell<u8>` has interior mutability, which is not supported
-src/lib.rs:279:2: 279:31: recursion is not supported
-src/lib.rs:283:35: 283:42: returning a mutable reference is not supported
-src/lib.rs:288:44: 288:58: `std::vec::Vec<u8, Arena>` has an allocator other than `Global`, which is not supported
-src/lib.rs:306:3: 306:9: comparing `&std::vec::Vec<refused::Left>` with `&std::vec::Vec<refused::Right>` is not supported
-src/lib.rs:310:7: 310:8: a closure is not supported
+src/lib.rs:340:3: 340:9: `PartialEq` of `&refused::Holder` is not structural equality
+src/lib.rs:352:5: 352:25: cloning `refused::Norm` may not copy it
+src/lib.rs:381:3: 381:10: `refused::dup` clones `refused::Reset` here, which may not copy it
+src/lib.rs:385:42: 385:54: `refused::dup` clones `refused::Reset` here, which may not copy it
+src/lib.rs:392:21: 392:34: an iterator read after it is partly consumed is not supported
+src/lib.rs:417:3: 417:14: `refused::Heavy` passed where `refused::Weigh` needs a Lean instance, which is not supported
+src/lib.rs:422:5: 422:17: `Ord` of `std::result::Result<u8, u8>` may not match a Lean order
+src/lib.rs:433:5: 433:17: `Ord` of `refused::Backwards` may not match a Lean order
+src/lib.rs:437:26: 437:45: `for<'a> fn(&'a refused::Reset) -> refused::Reset` has no Lean model
+src/lib.rs:438:11: 438:23: `refused::dup` clones `refused::Reset` here, which may not copy it
+src/lib.rs:447:12: 447:18: `std::convert::Into::into` has no Lean model
+src/lib.rs:457:3: 457:14: `T` passed where `refused::Light` needs a Lean instance, which is not supported
+src/lib.rs:466:3: 466:12: `refused::Backwards` passed where `Ord` must match a Lean order
+src/lib.rs:472:14: 472:17: a bound on `std::option::Option<T>` is not supported, since Lean binds instances only on type parameters
+src/lib.rs:480:14: 480:17: a bound on `std::option::Option<T>` is not supported, since Lean binds instances only on type parameters
+src/lib.rs:488:14: 488:34: a bound on `std::option::Option<T>` is not supported, since Lean binds instances only on type parameters
+src/lib.rs:494:16: 494:22: `std::iter::Map<std::slice::Iter<'_, u8>, for<'a> fn(&'a u8) -> bool>` has no Lean model
+src/lib.rs:500:4: 500:16: a `..` index that may panic is not supported
+src/lib.rs:504:17: 504:23: `std::iter::Repeat<u8>` has no Lean model
+src/lib.rs:518:5: 518:25: cloning `refused::Zeroed` may not copy it
+src/lib.rs:523:3: 523:26: recursive type `Tree` is not supported
+src/lib.rs:531:3: 531:17: an explicit panic is not supported, since its message has no model
+src/lib.rs:542:18: 542:19: `std::cell::Cell<u8>` has interior mutability, which is not supported
+src/lib.rs:546:2: 546:31: recursion is not supported
+src/lib.rs:550:35: 550:42: returning a mutable reference is not supported
+src/lib.rs:555:44: 555:58: `std::vec::Vec<u8, Arena>` has an allocator other than `Global`, which is not supported
+src/lib.rs:573:3: 573:9: comparing `&std::vec::Vec<refused::Left>` with `&std::vec::Vec<refused::Right>` is not supported
+src/lib.rs:578:3: 578:7: calling a closure is not supported
+src/lib.rs:583:21: 583:31: a mutable reference used as a value is not supported
+src/lib.rs:583:25: 583:31: this mutable reference is not supported
+src/lib.rs:590:6: 590:22: an iterator read after it is partly consumed is not supported
+src/lib.rs:609:5: 609:16: `Ord` of `refused::Odd` may not match a Lean order
+src/lib.rs:614:5: 614:11: looking up `std::string::String` by `str` is not supported
+src/lib.rs:618:3: 618:11: a trait's associated type or constant is not supported
+src/lib.rs:627:21: 627:30: collecting into `std::collections::BTreeSet<u8>` is not supported
+src/lib.rs:631:27: 631:38: enumerating items that may panic is not supported
 
-6 of 20 reached functions translated; 14 refusals
-    2  _ of _ is not structural equality
+15 of 48 reached functions translated; 36 refusals
+    4  _ has no Lean model
+    3  _ clones _ here, which may not copy it
+    3  _ of _ may not match a Lean order
+    3  a bound on _ is not supported, since Lean binds instances only on type parameters
+    2  _ passed where _ needs a Lean instance, which is not supported
+    2  an iterator read after it is partly consumed is not supported
     2  cloning _ may not copy it
-    2  recursive type _ is not supported
     1  _ has an allocator other than _, which is not supported
     1  _ has interior mutability, which is not supported
-    1  _ has no Lean model
-    1  a closure is not supported
+    1  _ of _ is not structural equality
+    1  _ passed where _ must match a Lean order
+    1  a _ index that may panic is not supported
+    1  a mutable reference used as a value is not supported
+    1  a trait's associated type or constant is not supported
     1  an explicit panic is not supported, since its message has no model
+    1  calling a closure is not supported
+    1  collecting into _ is not supported
     1  comparing _ with _ is not supported
+    1  enumerating items that may panic is not supported
+    1  looking up _ by _ is not supported
     1  recursion is not supported
+    1  recursive type _ is not supported
     1  returning a mutable reference is not supported
+    1  this mutable reference is not supported
+
+translated refused::Loose::eq
+refused    refused::holder_eq
+translated refused::Norm::clone
+refused    refused::extend
+refused    refused::dup
+translated refused::dup_via
+translated refused::dup_byte
+translated refused::Reset::clone
+translated refused::dup_reset
+refused    refused::any_in_loop
+translated refused::Heavy::weigh
+translated refused::weigh_of
+refused    refused::weigh_heavy
+refused    refused::result_key
+refused    refused::backwards_key
+refused    refused::reset_const
+refused    refused::light
+translated refused::light_of
+refused    refused::copy_light
+translated refused::has
+refused    refused::has_backwards
+refused    refused::has_some
+refused    refused::contains_some
+refused    refused::contains_ordered
+refused    refused::mapped
+refused    refused::whole
+refused    refused::endless
+translated refused::Zeroed::clone
+refused    refused::extend_copy
+refused    refused::grow
+refused    refused::boom
+translated refused::pass
+refused    refused::interior
+refused    refused::recursive
+refused    refused::reborrow
+refused    refused::arena_clone
+translated refused::Left::eq
+refused    refused::cross_eq
+refused    refused::closure
+refused    refused::counts
+refused    refused::twice
+translated refused::Odd::cmp
+translated refused::Odd::partial_cmp
+refused    refused::odd
+refused    refused::named
+refused    refused::pull
+refused    refused::sorted
+refused    refused::numbered

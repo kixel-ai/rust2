@@ -41,6 +41,14 @@ lean *args:
 lean-kio *args:
     lean/compare/kio.sh {{ args }}
 
+# Translate the fixture's cases with rust2-lean, and diff them against native Rust; needs `nix develop .#lean`.
+lean-fixture *args:
+    lean/compare/fixture.sh {{ args }}
+
+# Translate moq-net's route algebra with rust2-lean, and diff it against native Rust; needs `nix develop .#lean`.
+lean-moq *args:
+    lean/compare/moq.sh {{ args }}
+
 # Apply formatters without changing program behavior.
 fix:
     cargo clippy --locked --fix --allow-staged --allow-dirty --workspace --all-targets
