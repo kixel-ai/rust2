@@ -19,7 +19,7 @@ Have at least these sections:
 # Landing
 
 Queue the reviewed head with `quest merge <pr> --land <sha>`.
-The queue's build is `.github/workflows/build.yml` on GitHub-hosted runners; it is the only CI a PR gets, since pull requests run no checks. Run `just ci` before every push, and test another platform over SSH on a host that has it.
+The queue's build is `.github/workflows/build.yml` on GitHub-hosted runners; it is the only CI a PR gets. A pull request builds nothing: `queue.yml` only posts the required `Queue build / Build` context as skipped there, so the PR can enter the queue. Run `just ci` before every push, and test another platform over SSH on a host that has it.
 A PR the queue drops for a failed build or a conflict gets a Codex fixer, which requeues it or hands it back with a diagnosis.
 The admin bypass of `main`'s ruleset is for emergencies.
 `just ci` selects what the diff touches by `sh/dispatch.sh`'s map; `just gate` runs the full suite nightly, beside `sh/coverage.py`, which fails where a module reads a path whose diff the map does not select it for.

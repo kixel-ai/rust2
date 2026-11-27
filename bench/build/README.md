@@ -4,7 +4,7 @@
 CI ([bench.yml](../../.github/workflows/bench.yml)) runs it on manual dispatch, on any
 branch, on GitHub's hosted 4-vCPU runners. They expose no performance counters, so
 instructions read `n/a` there, and their wall time is a shared VM's: read each job's
-control for the noise floor. For instructions or a quiet many-core host, run
+control for the noise floor (the stable and nightly jobs have one; ra-jit's has none). For instructions or a quiet many-core host, run
 `just bench` on that host over SSH.
 The `jobs-frontend` variant uses 32 threads to match a 32-CPU host, so CI leaves it
 out: on 4 vCPUs it oversubscribes, as the reference report below says.

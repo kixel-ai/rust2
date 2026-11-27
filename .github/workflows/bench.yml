@@ -17,7 +17,8 @@ jobs:
     name: Bench (${{ matrix.name }})
     # Hosted, which costs a public repository nothing. A shared VM's wall time
     # is noisy and it exposes no performance counters, so instructions read
-    # n/a; each job's control variant measures the noise floor.
+    # n/a; the stable and nightly jobs' control variants measure the noise
+    # floor, while the ra-jit job has none.
     runs-on: ubuntu-24.04
     timeout-minutes: 330
     strategy:
