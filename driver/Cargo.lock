@@ -37,6 +37,14 @@ name = "rust2-driver"
 version = "0.0.0"
 
 [[package]]
+name = "rust2-lean"
+version = "0.0.0"
+dependencies = [
+ "rust2-driver",
+ "serde_json",
+]
+
+[[package]]
 name = "rust2-pub"
 version = "0.0.0"
 dependencies = [

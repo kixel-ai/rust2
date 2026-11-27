@@ -3,8 +3,8 @@
 ## Goal
 
 Research work with a named consumer that is not waiting on it yet: rust2-wasm, moq's
-browser route, the TypeScript translator that has to beat it, and [rust2-lean](/quest/m2/lean-spike.md),
-an independent MIR-to-Lean 4 extraction spike for `moq` and `kixel-ai/kio` (not gated on the browser WASM gate). crabx's quests moved
+browser route, the TypeScript translator that has to beat it, and [rust2-lean](/quest/m2/lean-router.md),
+MIR-to-Lean 4 extraction for `moq` and `kixel-ai/kio` (not gated on the browser WASM gate). crabx's quests moved
 to [kixel-ai/crabx](https://github.com/kixel-ai/crabx).
 
 ## Plan

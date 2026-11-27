@@ -1,0 +1,19 @@
+[package]
+name = "rust2-lean"
+description = "Spike: extract pure Rust state machines to Lean 4 from MIR"
+version = "0.0.0"
+edition = "2024"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/kixel-ai/rust2"
+# A spike: it only builds on the pinned nightly.
+publish = false
+
+[package.metadata.rust-analyzer]
+rustc_private = true
+
+[dependencies]
+rust2-driver = { path = ".." }
+serde_json = "1.0.154"
+
+[lints]
+workspace = true
