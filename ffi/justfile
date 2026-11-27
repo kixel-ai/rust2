@@ -74,6 +74,10 @@ protocol:
 transcripts dir:
     out="$(cd {{ quote(invocation_directory()) }} && mkdir -p {{ quote(dir) }} && cd {{ quote(dir) }} && pwd)" && RUST2_TRANSCRIPTS="$out" {{ nextest }} --run-ignored only --test fixtures -- --exact transcripts
 
+# Write the api fixture's C# test as a Unity project into <dir>, its library for Linux x64 and the native transcript beside it, which the nightly builds into an IL2CPP player and runs.
+unity dir:
+    out="$(cd {{ quote(invocation_directory()) }} && mkdir -p {{ quote(dir) }} && cd {{ quote(dir) }} && pwd)" && RUST2_UNITY="$out" {{ nextest }} --profile nightly --run-ignored only --test fixtures -- --exact api_unity
+
 # Compile the api fixture's C# ahead of time with NativeAOT and run its test, as the nightly does.
 aot:
     {{ nextest }} --profile nightly --run-ignored only --test fixtures -- --exact api_csharp_aot

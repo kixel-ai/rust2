@@ -1,0 +1,5 @@
+{
+  "dependencies": {
+    "com.unity.toolchain.linux-x86_64": "2.0.11"
+  }
+}

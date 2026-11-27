@@ -1,0 +1,102 @@
+name: Unity
+
+# The api fixture's C# test built by Unity as a headless Linux player with IL2CPP, then run:
+# it must print native Rust's transcript and pass its checks. Only the nightly calls it.
+# Its job runs in the `unity` environment, which only main may deploy to, so a run on any
+# other branch never reaches the maintainer's Unity credentials. x64, as GameCI's editor
+# images are amd64 only.
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  il2cpp:
+    name: api fixture under IL2CPP
+    runs-on: ubuntu-24.04
+    environment: unity
+    # Runs of every ref share the account's one Personal seat, so they queue for it.
+    concurrency:
+      group: unity-seat
+      cancel-in-progress: false
+    # About 15 minutes: the fixture 5 to 7, the image's pull 2 to 6, the IL2CPP build 3, the run 1.
+    timeout-minutes: 45
+    env:
+      # GameCI's editor for the current LTS with the Linux IL2CPP module, pinned.
+      IMAGE: unityci/editor:ubuntu-6000.3.29f1-linux-il2cpp-4@sha256:9f1cecd5bac4955652cd1752efdec297de014ab3a88096a5986dad14ddf4fbaf
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: ./.github/actions/nix
+
+      - name: Project
+        run: nix develop --command just ffi unity ffi/target/unity
+
+      - name: Pull
+        run: docker pull "$IMAGE"
+
+      # One container takes the account's Personal seat, builds, and returns the seat on exit.
+      # Unity 6 refuses a Personal license file made on another machine ("Machine bindings
+      # don't match"), so the seat comes from the account, as GameCI's activation falls back
+      # to. The container's machine ID is the same each run, so a seat a killed run kept is
+      # the one the next takes.
+      - name: Build
+        env:
+          UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
+          UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
+        run: |
+          docker run --rm -e UNITY_EMAIL -e UNITY_PASSWORD -v "$PWD/ffi/target/unity:/project" "$IMAGE" bash -euo pipefail -c '
+            client=/opt/unity/Editor/Data/Resources/Licensing/Client/Unity.Licensing.Client
+            trap "\"$client\" --deactivate-all --username \"\$UNITY_EMAIL\" --password \"\$UNITY_PASSWORD\"" EXIT
+            "$client" --activate-all --include-personal --username "$UNITY_EMAIL" --password "$UNITY_PASSWORD" | tee /tmp/activate.log
+            # It exits 0 having assigned no seat, too.
+            if grep -qiE "No seat available|No license activation found" /tmp/activate.log; then
+              exit 1
+            fi
+            unity-editor -batchmode -nographics -logFile /dev/stdout -projectPath /project -executeMethod Build.Player -out /project/Build/api.x86_64
+          '
+
+      # Each case prints to a file of its own, since the player's stdout is its log, and
+      # Console.Error goes to that log. A case takes seconds; the timeout ends one that hangs.
+      - name: Run
+        working-directory: ffi/target/unity
+        timeout-minutes: 10
+        run: |
+          play() { ./Build/api.x86_64 -batchmode -nographics -logFile "$PWD/$1.log" -- "$PWD/$1.out" "${@:2}"; }
+          play transcript || { cat transcript.log; exit 1; }
+          diff -u transcript.txt transcript.out
+          for case in checks futures; do
+            play "$case" "$case" || { cat "$case.log"; exit 1; }
+          done
+          # Each broken contract fails loud, printing what the gate's api_csharp expects; the
+          # bogus case proves a failed check's exit code reaches the shell.
+          fails() {
+            if play "$1" "$2"; then
+              echo "$2 exits 0"
+              exit 1
+            fi
+            grep -qF "$3" "$1.log" || { echo "$2 printed no \"$3\""; tail -30 "$1.log"; exit 1; }
+          }
+          fails bogus "no such case" "failed: no case no such case"
+          fails moved moved "System.ObjectDisposedException: Cannot access a disposed object."
+          fails lent-kept "lent kept" "System.ObjectDisposedException: Cannot access a disposed object."
+          fails lent-moved "lent moved" "api_Counter_into_label: a handle a call lent is borrowed exclusively or moved out"
+          fails callback-threw "callback threw" "api::Log::log: a call into C# threw"
+          fails closure-threw "closure threw" "a closure: a call into C# threw"
+          fails reader-threw "reader threw" "a reader's seek: a call into C# threw"
+          fails outlived outlived "api_Meter_count: a handle lent from another outlived it"
+
+      - name: Logs
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: unity-logs
+          path: |
+            ffi/target/unity/*.log
+            ffi/target/unity/*.out
+          if-no-files-found: ignore

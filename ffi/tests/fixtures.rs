@@ -4403,8 +4403,8 @@ fn swiftc(module: &Path, macos: u8) -> Command {
 /// The generated C# runs `tests/api.cs` with the transcript as C#, compiled by Roslyn
 /// against .NET's reference assemblies and run by `dotnet`, prints the native transcript,
 /// then fails loud on each broken contract and on a library of another contract. The binding
-/// compiles at Unity's language level against .NET Standard 2.1 too, as IL2CPP takes it, and
-/// its Unity half runs the same on CoreCLR.
+/// and the test compile at Unity's language level against .NET Standard 2.1 too, as IL2CPP
+/// takes them, and its Unity half runs the same on CoreCLR.
 #[test]
 fn api_csharp() {
 	let api = api();
@@ -4417,10 +4417,16 @@ fn api_csharp() {
 		&exe,
 		&[&binding, &manifest_dir().join("tests/api.cs"), &script],
 	);
+	// The test too, which the nightly's Unity player runs.
 	csc(
 		Dotnet::Unity,
 		&dir.join("unity.dll"),
-		&[&binding, &manifest_dir().join("tests/unity.cs")],
+		&[
+			&binding,
+			&manifest_dir().join("tests/api.cs"),
+			&script,
+			&manifest_dir().join("tests/unity.cs"),
+		],
 	);
 	// Unity's half of the binding, its callbacks delegates and its contract checked in
 	// `Native`'s static constructor, run on CoreCLR.
@@ -4632,6 +4638,41 @@ fn api_csharp_aot() {
 	for case in ["checks", "futures"] {
 		native(&[case]);
 	}
+}
+
+/// The api fixture's C# test as a Unity project, into `RUST2_UNITY`: `tests/unity`, with the
+/// binding, `tests/api.cs`, and its script in `Assets`, the library in `Assets/Plugins/x86_64`,
+/// and the native transcript beside them as `transcript.txt`, which the nightly's player
+/// built with IL2CPP must print. Linux x64 alone, the one player the nightly builds.
+#[test]
+#[ignore = "writes outside the target: just ffi unity <dir>"]
+fn api_unity() {
+	if !cfg!(all(target_os = "linux", target_arch = "x86_64")) {
+		panic!("the Unity project holds the library for Linux x64 players only");
+	}
+	let dir = PathBuf::from(std::env::var_os("RUST2_UNITY").expect("RUST2_UNITY names the directory"));
+	let api = api();
+	let template = manifest_dir().join("tests").join("unity");
+	let mut pending = vec![template.clone()];
+	while let Some(at) = pending.pop() {
+		for entry in std::fs::read_dir(&at).unwrap() {
+			let path = entry.unwrap().path();
+			if path.is_dir() {
+				pending.push(path);
+			} else {
+				step::copy(&path, &dir.join(path.strip_prefix(&template).unwrap()));
+			}
+		}
+	}
+	let assets = dir.join("Assets");
+	step::copy(&api.out.join("csharp").join("api.cs"), &assets.join("api.cs"));
+	step::copy(&manifest_dir().join("tests").join("api.cs"), &assets.join("Test.cs"));
+	step::write(&assets.join("Transcript.cs"), transcript::csharp::emit(transcript()));
+	step::copy(
+		&api.lib.join(shared("api")),
+		&assets.join("Plugins").join("x86_64").join(shared("api")),
+	);
+	step::write(&dir.join("transcript.txt"), &api.transcript);
 }
 
 /// What a C# compile targets: .NET's own, or Unity's language level over .NET Standard 2.1.

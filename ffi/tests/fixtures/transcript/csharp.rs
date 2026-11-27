@@ -504,14 +504,29 @@ impl Emitter<'_> {
 
 	/// The C# of a format's pieces: an interpolated string, as an `api.Str`.
 	fn pieces(&mut self, pieces: &[Piece], out: &mut String) -> String {
+		let mut shown = Vec::new();
+		for piece in pieces {
+			if let Piece::Value(e, spec) = piece {
+				let v = self.expr(e, out);
+				shown.push(self.show(&v, &e.ty, *spec));
+			}
+		}
+		// C# 9, Unity's, takes no newline in a hole, as a block lambda's: each hole is then a
+		// local, bound in the order the holes would run.
+		if shown.iter().any(|s| s.contains('\n')) {
+			for s in &mut shown {
+				let local = self.fresh("s");
+				self.line(out, &format!("var {local} = {s};"));
+				*s = local;
+			}
+		}
+		let mut shown = shown.into_iter();
 		let mut template = String::from("$\"");
 		for piece in pieces {
 			match piece {
 				Piece::Text(text) => template.push_str(&escape(text).replace('{', "{{").replace('}', "}}")),
-				Piece::Value(e, spec) => {
-					let v = self.expr(e, out);
-					let shown = self.show(&v, &e.ty, *spec);
-					let _ = write!(template, "{{({shown})}}");
+				Piece::Value(..) => {
+					let _ = write!(template, "{{({})}}", shown.next().unwrap());
 				}
 			}
 		}
