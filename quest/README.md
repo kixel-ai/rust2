@@ -9,7 +9,8 @@ grouped into milestones ordered by priority.
 
 m0 holds urgent fixes and what every run pays for. m1 is the work with a consumer
 waiting on it now: the exporter moq switches its bindings to,
-and [removing CodSpeed](/quest/m1/codspeed/README.md) from moq, rind, and here. m2 is research with a named
+[removing CodSpeed](/quest/m1/codspeed/README.md) from moq, rind, and here, and
+[the test watchdog](/quest/m1/test-watchdog.md) rind's iOS nightly waits on. m2 is research with a named
 consumer: rust2-wasm, moq's browser route, the TypeScript translator, and an experiment
 that has to beat it. m3 holds work that waits on evidence or has no consumer yet:
 upstream's build-speed levers, which the [build-speed benchmark](/bench/build/README.md)

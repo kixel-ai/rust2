@@ -3,7 +3,9 @@
 ## Goal
 
 The work moq is waiting on: the exporter that replaces the UniFFI generator forks moq
-builds its bindings with today, and the end of CodSpeed in moq, rind, and here.
+builds its bindings with today, and the end of CodSpeed in moq, rind, and here. Also
+the test watchdog rind's iOS simulator nightly waits on, which bounds hung tests without
+nextest's process per test.
 
 ## Plan
 
