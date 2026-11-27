@@ -17,6 +17,22 @@ structure Session (S : UInt64) where
   out : (Array UInt8)
 deriving Repr, DecidableEq, Inhabited
 
+/-- `cases::Cost` -/
+structure cases.Cost where
+  x0 : UInt64
+deriving Repr, DecidableEq, Inhabited
+
+/-- `cases::M` -/
+structure cases.M where
+  x0 : UInt8
+deriving Repr, DecidableEq, Inhabited
+
+/-- `cases::Pair` -/
+structure cases.Pair (A : UInt64) (B : UInt64) where
+  x0 : (Vector UInt8 A.toNat)
+  x1 : (Vector UInt8 B.toNat)
+deriving Repr, DecidableEq, Inhabited
+
 def Session.opening {S : UInt64} (self : (Session S)) (s : UInt64) : Rust.M UInt8 := do
   unless s < S do throw "index out of bounds"
   match self.subs[s.toNat]!.opening with
@@ -73,5 +89,49 @@ def Session.step {S : UInt64} (self : (Session S)) (s : UInt64) : Rust.M (Bool �
     unless s < S do throw "index out of bounds"
     self := { self with subs := self.subs.set! s.toNat { self.subs[s.toNat]! with turn := (← self.subs[s.toNat]!.turn +? 1) } }
     return (true, self)
+
+def cases.Cost.Clone.clone (self : cases.Cost) : cases.Cost :=
+  self
+
+def cases.Cost.PartialEq.eq (self : cases.Cost) (other : cases.Cost) : Bool :=
+  decide (self.x0 = other.x0)
+
+def cases.Cost.value (self : cases.Cost) : UInt64 :=
+  self.x0
+
+def cases.snapshot (x : UInt8) : (UInt8 × UInt8) := Id.run do
+  let mut x := x
+  let t2 := x
+  x := (42 : UInt8)
+  return (t2, x)
+
+def cases.M.step (self : cases.M) : UInt8 :=
+  self.x0
+
+def cases.M.Machine.step (self : cases.M) : UInt8 := Id.run do
+  if self.x0 = 0 then
+    return (1 : UInt8)
+  else
+    return (0 : UInt8)
+
+def cases.both (m : cases.M) : (UInt8 × UInt8) :=
+  (m.step, cases.M.Machine.step m)
+
+def cases.Pair.Machine.step {A : UInt64} {B : UInt64} (self : (cases.Pair A B)) : UInt8 :=
+  (0 : UInt8)
+
+def cases.pair_step (p : (cases.Pair 2 3)) : UInt8 :=
+  cases.Pair.Machine.step p
+
+def cases.wait_loop  : Rust.M Empty := do
+  return (← cases.wait_loop)
+partial_fixpoint
+
+def cases.wait : Rust.M UInt8 := do
+  let r ← cases.wait_loop
+  return (Empty.elim r)
+
+def cases.Cost.raw (self : cases.Cost) : UInt64 :=
+  self.x0
 
 end fixture

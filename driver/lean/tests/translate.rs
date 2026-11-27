@@ -40,7 +40,14 @@ fn translates() {
 	let out = PathBuf::from(env!("CARGO_TARGET_TMPDIR")).join(format!("lean-out-{}", std::process::id()));
 	run(
 		"out",
-		&["--out", out.to_str().unwrap(), "--start-from", "crate::Session"],
+		&[
+			"--out",
+			out.to_str().unwrap(),
+			"--start-from",
+			"crate::Session",
+			"--start-from",
+			"crate::cases",
+		],
 	);
 	compare("Fixture.lean", &out.join("Fixture.lean"));
 	let prelude = include_str!("../lean/Rust.lean");

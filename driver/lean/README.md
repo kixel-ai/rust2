@@ -9,7 +9,7 @@ just driver lean --census census.txt --start-from 'crate::route' --manifest-path
 ```
 
 `--out` writes `Rust.lean`, the runtime every translation imports ([lean/Rust.lean](lean/Rust.lean)), and `<Crate>.lean`: every function a `--start-from` path names or prefixes, and every local function and type they reach.
-A construct outside the subset is a compile error at its span.
+A construct outside the subset is a compile error at its span, and so is a `--start-from` path that names no function. A method is named under its type's module, wherever its `impl` is written.
 `--census` lists every refusal with its span instead, then how many reached functions translated, by kind.
 Only core Lean is needed, with no Mathlib or other package.
 
@@ -22,13 +22,13 @@ Accepted:
 - Generic type and const parameters.
 - `if`, `match`, `let`-`else`, `while`, `loop`, `break`, early `return`, and `?` on `Option`.
 - `&T` as the value it borrows, and `&mut` of a whole place, written back where the borrow ends: a function's `&mut` parameters come back after its result.
-- From `std`: `Vec::new`, `push`, `len`, `extend_from_slice`, `truncate`, slice indexing and `len`, `Option::is_some` and `is_none`, `Clone::clone`, unsigned `checked_add` and `checked_sub`, and panics.
+- From `core`, `alloc`, and `std` alone, matched by crate: `Vec::new`, `push`, `len`, `extend_from_slice`, `truncate`, slice indexing and `len`, `Option::is_some` and `is_none`, `Clone::clone`, unsigned `checked_add` and `checked_sub`, and panics.
 
-Refused at the span: recursion, closures and iterators, interior mutability, raw pointers, `Drop` impls, unions, calls that return a `&mut`, a reborrow kept in a local, `PartialEq` that is not structural, and any `std` type or function without a model, such as `BTreeMap`.
+Refused at the span: recursion, closures and iterators, interior mutability, raw pointers, `Drop` impls, unions, calls that return a `&mut`, a reborrow kept in a local, `PartialEq` that is not structural, a `clone` that may not copy, and any `std` type or function without a model, such as `BTreeMap`.
 
 ## Translation
 
-- A function that can panic runs in `Rust.M`, `ExceptT String Option`: a panic is `throw` with Rust's message, and `none` is a loop that never ends. One that cannot is plain Lean.
+- A function that can panic runs in `Rust.M`, `ExceptT String Option`: a panic is `throw` with a fixed message naming its kind, and `none` is a loop that never ends. One that cannot is plain Lean. A panic's payload is not kept: a proof needs only where Rust panics, so the differential test checks that both panic, not what they say.
 - Arithmetic that Rust's overflow checks guard is `+?`, `-?`, and `*?`, which panic as Rust does; the file's header says whether the build checked overflow.
 - An index is `unless i < n do throw "index out of bounds"`, then `v[i.toNat]!`, which the check makes total.
 - Each loop is a function of its own over what it carries, a `partial_fixpoint`, so a proof of termination is induction on its equation, separate from the translation.

@@ -783,6 +783,10 @@ impl<'f> Structurer<'f> {
 				let mut scrut = var(r, self.var_name(r));
 				scrut.reads.insert(r);
 				if exits.is_empty() {
+					// A loop that neither exits nor returns yields `Empty`, which is any type.
+					if !returns {
+						scrut.text = format!("(Empty.elim {})", scrut.text);
+					}
 					out.push(self.ret(rctx, scrut));
 					return Ok(out);
 				}

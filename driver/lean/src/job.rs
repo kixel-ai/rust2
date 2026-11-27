@@ -61,6 +61,13 @@ impl Callbacks for Extract {
 			return Compilation::Stop;
 		}
 		let extraction = crate::lower::extract(tcx, &self.roots);
+		for root in &extraction.unmatched {
+			tcx.dcx()
+				.err(format!("rust2-lean: `--start-from {root}` names no function"));
+		}
+		if tcx.dcx().has_errors().is_some() {
+			return Compilation::Stop;
+		}
 		let written = match &self.output {
 			Output::Dir(out) => {
 				for refusal in &extraction.refusals {

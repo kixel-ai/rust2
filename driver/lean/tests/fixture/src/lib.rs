@@ -56,9 +56,116 @@ impl<const S: usize> Session<S> {
 	}
 }
 
+/// Constructs a translation can get subtly wrong.
+pub mod cases {
+	/// A tuple struct, whose field Lean names `x0`.
+	#[derive(Clone, Copy, PartialEq)]
+	pub struct Cost(pub u64);
+
+	impl Cost {
+		pub fn value(self) -> u64 {
+			self.0
+		}
+	}
+
+	/// The tuple's first element is `x` as it was before the block sets it.
+	pub fn snapshot(mut x: u8) -> (u8, u8) {
+		(x, {
+			x = 42;
+			x
+		})
+	}
+
+	pub trait Machine {
+		fn step(&self) -> u8;
+	}
+
+	pub struct M(pub u8);
+
+	impl M {
+		pub fn step(&self) -> u8 {
+			self.0
+		}
+	}
+
+	impl Machine for M {
+		fn step(&self) -> u8 {
+			if self.0 == 0 { 1 } else { 0 }
+		}
+	}
+
+	/// The inherent `step`, then the trait's.
+	pub fn both(m: &M) -> (u8, u8) {
+		(m.step(), Machine::step(m))
+	}
+
+	pub struct Pair<const A: usize, const B: usize>(pub [u8; A], pub [u8; B]);
+
+	impl<const A: usize, const B: usize> Machine for Pair<A, B> {
+		fn step(&self) -> u8 {
+			0
+		}
+	}
+
+	/// A trait call that resolves to an impl with more generic parameters than the trait.
+	pub fn pair_step(p: &Pair<2, 3>) -> u8 {
+		Machine::step(p)
+	}
+
+	pub fn wait() -> u8 {
+		loop {}
+	}
+}
+
+/// An inherent `impl` outside its type's module, which `--start-from crate::cases` reaches.
+mod elsewhere {
+	impl super::cases::Cost {
+		pub fn raw(self) -> u64 {
+			self.0
+		}
+	}
+}
+
 /// Outside the subset, each refused at its span.
 pub mod refused {
 	use std::cell::Cell;
+
+	pub struct Loose(pub u8);
+
+	impl PartialEq for Loose {
+		fn eq(&self, _: &Self) -> bool {
+			true
+		}
+	}
+
+	#[derive(PartialEq)]
+	pub struct Holder {
+		pub loose: Loose,
+	}
+
+	pub fn holder_eq(a: &Holder, b: &Holder) -> bool {
+		a == b
+	}
+
+	pub struct Norm(pub u8);
+
+	impl Clone for Norm {
+		fn clone(&self) -> Self {
+			Norm(0)
+		}
+	}
+
+	pub fn extend(v: &mut Vec<Norm>, s: &[Norm]) {
+		v.extend_from_slice(s)
+	}
+
+	pub struct Packet {
+		pub name: String,
+	}
+
+	pub fn pass(x: &Packet) -> &Packet {
+		x
+	}
 
 	pub fn interior(c: &Cell<u8>) -> u8 {
 		c.get()

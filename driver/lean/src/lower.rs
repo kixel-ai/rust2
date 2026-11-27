@@ -45,6 +45,8 @@ pub struct Extraction {
 	/// How many functions it reached.
 	pub reached: usize,
 	pub refusals: Vec<Refusal>,
+	/// The roots that named no function, which is an error.
+	pub unmatched: Vec<String>,
 }
 
 /// Translate every function `roots` names in the local crate, and what they reach.
@@ -58,16 +60,21 @@ pub fn extract(tcx: TyCtxt<'_>, roots: &[String]) -> Extraction {
 		recursive: HashSet::new(),
 	};
 	let mut start = Vec::new();
+	let mut matched = vec![false; roots.len()];
 	for def in tcx.hir_body_owners() {
 		let did = def.to_def_id();
 		if !matches!(tcx.def_kind(did), DefKind::Fn | DefKind::AssocFn) {
 			continue;
 		}
 		let path = cx.rust_path(did);
-		if roots
-			.iter()
-			.any(|root| path == *root || path.starts_with(&format!("{root}::")))
-		{
+		let mut hit = false;
+		for (root, m) in roots.iter().zip(&mut matched) {
+			if path == *root || path.starts_with(&format!("{root}::")) {
+				*m = true;
+				hit = true;
+			}
+		}
+		if hit {
 			start.push(did);
 		}
 	}
@@ -99,6 +106,12 @@ pub fn extract(tcx: TyCtxt<'_>, roots: &[String]) -> Extraction {
 		fns,
 		reached: order.len(),
 		refusals: cx.refusals,
+		unmatched: roots
+			.iter()
+			.zip(&matched)
+			.filter(|(_, m)| !**m)
+			.map(|(r, _)| r.clone())
+			.collect(),
 	}
 }
 
@@ -126,6 +139,10 @@ impl<'tcx> Cx<'tcx> {
 		if let Some(impl_id) = self.tcx.impl_of_assoc(did) {
 			let self_ty = self.tcx.type_of(impl_id).instantiate_identity().skip_norm_wip();
 			if let ty::Adt(def, _) = self_ty.kind() {
+				// A method is named under its type, wherever its `impl` is written.
+				if def.did().is_local() {
+					parts = self.module_path(def.did());
+				}
 				parts.push(self.tcx.item_name(def.did()).to_string());
 			}
 		}
@@ -253,7 +270,7 @@ impl<'tcx> Cx<'tcx> {
 			if let TerminatorKind::Call { func, .. } = &bb.terminator().kind
 				&& let ty::FnDef(callee, args) = *func.ty(body, tcx).kind()
 				&& let args = args.skip_binder()
-				&& let Some(local) = resolve_local(tcx, env, callee, args)
+				&& let Some((local, _)) = resolve_local(tcx, env, callee, args)
 			{
 				out.push(local);
 			}
@@ -264,17 +281,51 @@ impl<'tcx> Cx<'tcx> {
 	/// Whether the type's `PartialEq` is structural equality, which Lean's derived
 	/// `DecidableEq` is.
 	fn structural_eq(&self, ty: Ty<'tcx>) -> bool {
+		self.structural_eq_in(ty, &mut HashSet::new())
+	}
+
+	/// `structural_eq`, skipping types in `seen`, which are being checked already.
+	fn structural_eq_in(&self, ty: Ty<'tcx>, seen: &mut HashSet<Ty<'tcx>>) -> bool {
 		match ty.kind() {
 			ty::Bool | ty::Int(_) | ty::Uint(_) | ty::Char | ty::Param(_) => true,
-			ty::Tuple(tys) => tys.iter().all(|t| self.structural_eq(t)),
-			ty::Array(t, _) | ty::Slice(t) | ty::Ref(_, t, _) => self.structural_eq(*t),
+			ty::Tuple(tys) => tys.iter().all(|t| self.structural_eq_in(t, seen)),
+			ty::Array(t, _) | ty::Slice(t) | ty::Ref(_, t, _) => self.structural_eq_in(*t, seen),
 			ty::Adt(def, args) => {
-				let derived = if def.did().is_local() {
+				if !seen.insert(ty) {
+					return true;
+				}
+				if def.did().is_local() {
+					// A derived `PartialEq` calls each field's, which must be structural too.
 					self.derives_partial_eq(def.did())
+						&& def
+							.all_fields()
+							.all(|f| self.structural_eq_in(f.ty(self.tcx, *args).skip_norm_wip(), seen))
 				} else {
 					matches!(self.std_name(def.did()).as_str(), "Option" | "Result" | "Vec")
-				};
-				derived && args.types().all(|t| self.structural_eq(t))
+						&& args.types().all(|t| self.structural_eq_in(t, seen))
+				}
+			}
+			_ => false,
+		}
+	}
+
+	/// Whether cloning a value of `ty` copies it, as the translation's value semantics assume.
+	fn clone_copies(&self, ty: Ty<'tcx>, env: TypingEnv<'tcx>) -> bool {
+		if self.tcx.type_is_copy_modulo_regions(env, ty) {
+			return true;
+		}
+		match ty.kind() {
+			ty::Tuple(tys) => tys.iter().all(|t| self.clone_copies(t, env)),
+			ty::Array(t, _) => self.clone_copies(*t, env),
+			ty::Adt(def, args) if def.did().is_local() => {
+				self.derives(def.did(), self.tcx.lang_items().clone_trait())
+					&& def
+						.all_fields()
+						.all(|f| self.clone_copies(f.ty(self.tcx, *args).skip_norm_wip(), env))
+			}
+			ty::Adt(def, args) => {
+				matches!(self.std_name(def.did()).as_str(), "Option" | "Result" | "Vec")
+					&& args.types().all(|t| self.clone_copies(t, env))
 			}
 			_ => false,
 		}
@@ -282,18 +333,31 @@ impl<'tcx> Cx<'tcx> {
 
 	/// Whether the local type's `PartialEq` impl is derived.
 	fn derives_partial_eq(&self, adt: DefId) -> bool {
+		self.derives(adt, self.tcx.lang_items().eq_trait())
+	}
+
+	/// Whether the local type's impl of `tr` is derived.
+	fn derives(&self, adt: DefId, tr: Option<DefId>) -> bool {
 		let tcx = self.tcx;
-		let Some(eq) = tcx.lang_items().eq_trait() else {
+		let Some(tr) = tr else {
 			return false;
 		};
-		tcx.all_impls(eq).any(|imp| {
+		tcx.all_impls(tr).any(|imp| {
 			matches!(tcx.type_of(imp).instantiate_identity().skip_norm_wip().kind(), ty::Adt(d, _) if d.did() == adt)
 				&& tcx.is_automatically_derived(imp)
 		})
 	}
 
+	/// The item's name if it is from `core`, `alloc`, or `std`, whose models match it by name.
 	fn std_name(&self, did: DefId) -> String {
+		if !self.is_std(did) {
+			return String::new();
+		}
 		self.tcx.item_name(did).to_string()
+	}
+
+	fn is_std(&self, did: DefId) -> bool {
+		matches!(self.tcx.crate_name(did.krate).as_str(), "core" | "alloc" | "std")
 	}
 
 	/// The Lean type of `ty`, queueing each local type it names.
@@ -403,6 +467,15 @@ impl<'tcx> Cx<'tcx> {
 		if !self.adt_seen.insert(did) {
 			return Ok(());
 		}
+		// A refused type is checked again at each use, so every use is refused.
+		let res = self.queue_fields(did, span);
+		if res.is_err() {
+			self.adt_seen.remove(&did);
+		}
+		res
+	}
+
+	fn queue_fields(&mut self, did: DefId, span: Span) -> R<()> {
 		// Its fields' types first, so Lean sees each before its use.
 		let tcx = self.tcx;
 		let def = tcx.adt_def(did);
@@ -448,19 +521,15 @@ impl<'tcx> Cx<'tcx> {
 			out += &format!("structure {name}{params} where\n");
 			for field in &def.non_enum_variant().fields {
 				let fty = self.ty(field.ty(tcx, args).skip_norm_wip(), tcx.def_span(field.did))?;
-				out += &format!("  {} : {fty}\n", structure::ident(field.name.as_str()));
+				out += &format!("  {} : {fty}\n", field_ident(field));
 			}
 		} else {
 			out += &format!("inductive {name}{params} where\n");
 			for variant in def.variants() {
 				out += &format!("  | {}", structure::ident(variant.name.as_str()));
-				for (i, field) in variant.fields.iter().enumerate() {
+				for field in &variant.fields {
 					let fty = self.ty(field.ty(tcx, args).skip_norm_wip(), tcx.def_span(field.did))?;
-					let fname = match field.name.as_str() {
-						n if n.chars().all(|c| c.is_ascii_digit()) => format!("x{i}"),
-						n => structure::ident(n),
-					};
-					out += &format!(" ({fname} : {fty})");
+					out += &format!(" ({} : {fty})", field_ident(field));
 				}
 				out += "\n";
 			}
@@ -536,13 +605,21 @@ impl<'tcx> Cx<'tcx> {
 	}
 }
 
+/// A field's Lean name: a tuple field `0` is `x0`.
+fn field_ident(field: &ty::FieldDef) -> String {
+	match field.name.as_str() {
+		n if n.chars().all(|c| c.is_ascii_digit()) => format!("x{n}"),
+		n => structure::ident(n),
+	}
+}
+
 /// The local function a call of `callee` with `args` runs, if it resolves to one.
 fn resolve_local<'tcx>(
 	tcx: TyCtxt<'tcx>,
 	env: TypingEnv<'tcx>,
 	callee: DefId,
 	args: GenericArgsRef<'tcx>,
-) -> Option<DefId> {
+) -> Option<(DefId, GenericArgsRef<'tcx>)> {
 	let instance = ty::Instance::try_resolve(tcx, env, callee, args).ok().flatten()?;
 	let did = instance.def_id();
 	(did.is_local()
@@ -551,7 +628,7 @@ fn resolve_local<'tcx>(
 		&& !tcx
 			.impl_of_assoc(did)
 			.is_some_and(|imp| tcx.is_automatically_derived(imp)))
-	.then_some(did)
+	.then_some((did, instance.args))
 }
 
 /// What a mutable reference local stands for.
@@ -789,6 +866,8 @@ impl<'a, 'tcx> Fx<'a, 'tcx> {
 					&& self.defs[t.as_usize()] == 1
 					&& self.partial[t.as_usize()] == 0
 					&& self.defs[l.as_usize()] <= 1
+					// A parameter arrives set, so any assignment changes it.
+					&& (l.as_usize() > self.body.arg_count || self.defs[l.as_usize()] == 0)
 					&& self.partial[l.as_usize()] == 0
 					&& !self.mutable.contains_key(&l)
 					&& !self.mutable.contains_key(&t)
@@ -853,7 +932,7 @@ impl<'a, 'tcx> Fx<'a, 'tcx> {
 			let lean_ty = match self.cx.ty(ty, decl.source_info.span) {
 				Ok(t) => t,
 				// A local only a refused construct uses is refused there, with a better span.
-				Err(_) if !user => "Unit".into(),
+				Err(_) if !user && i > body.arg_count => "Unit".into(),
 				Err(err) => return Err(err),
 			};
 			self.local_var[i] = Some(self.var(&name, lean_ty, user));
@@ -1214,9 +1293,9 @@ impl<'a, 'tcx> Fx<'a, 'tcx> {
 	fn field(&mut self, ty: Ty<'tcx>, variant: Option<VariantIdx>, f: FieldIdx, span: Span) -> R<Proj> {
 		match ty.kind() {
 			ty::Tuple(tys) => Ok(Proj::Tuple(f.as_usize(), tys.len())),
-			ty::Adt(def, _) if def.is_struct() && variant.is_none() => Ok(Proj::Field(structure::ident(
-				def.non_enum_variant().fields[f].name.as_str(),
-			))),
+			ty::Adt(def, _) if def.is_struct() && variant.is_none() => {
+				Ok(Proj::Field(field_ident(&def.non_enum_variant().fields[f])))
+			}
 			_ => refuse(span, format!("a field of `{ty}` is not supported")),
 		}
 	}
@@ -1558,7 +1637,7 @@ impl<'a, 'tcx> Fx<'a, 'tcx> {
 						.fields
 						.iter()
 						.zip(&vals)
-						.map(|(f, v)| format!("{} := {}", structure::ident(f.name.as_str()), v.text))
+						.map(|(f, v)| format!("{} := {}", field_ident(f), v.text))
 						.collect();
 					if fields.is_empty() {
 						return Ok(atom(format!("({{}} : {lean_ty})")));
@@ -1729,7 +1808,7 @@ impl<'a, 'tcx> Fx<'a, 'tcx> {
 			self.assign(*destination, ex, span, ops)?;
 			return Ok(false);
 		}
-		if let Some(local) = resolve_local(tcx, self.env, callee, gargs) {
+		if let Some((local, gargs)) = resolve_local(tcx, self.env, callee, gargs) {
 			return self
 				.local_call(local, gargs, args, *destination, span, ops)
 				.map(|_| target.is_none());
@@ -1740,6 +1819,10 @@ impl<'a, 'tcx> Fx<'a, 'tcx> {
 		let arg = |fx: &mut Self, i: usize| fx.operand(&args[i].node, span);
 		match key.as_str() {
 			"Clone::clone" => {
+				let t = gargs.type_at(0).peel_refs();
+				if !self.cx.clone_copies(t, self.env) {
+					return refuse(span, format!("cloning `{t}` may not copy it"));
+				}
 				let v = arg(self, 0)?;
 				self.assign(*destination, v, span, ops)?;
 			}
@@ -1802,6 +1885,12 @@ impl<'a, 'tcx> Fx<'a, 'tcx> {
 				self.assign(place, new, span, ops)?;
 			}
 			"Vec::push" | "Vec::extend_from_slice" => {
+				if key == "Vec::extend_from_slice" {
+					let elem = gargs.type_at(0);
+					if !self.cx.clone_copies(elem, self.env) {
+						return refuse(span, format!("cloning `{elem}` may not copy it"));
+					}
+				}
 				let place = self.mutable_arg(&args[0].node, span)?;
 				let x = arg(self, 1)?;
 				let cur = self.read_place(place, span)?;
@@ -1836,6 +1925,9 @@ impl<'a, 'tcx> Fx<'a, 'tcx> {
 	/// `Deref::deref for Vec`.
 	fn std_key(&self, did: DefId) -> String {
 		let tcx = self.cx.tcx;
+		if !self.cx.is_std(did) {
+			return String::new();
+		}
 		let name = tcx.item_name(did);
 		if let Some(trait_id) = tcx.trait_of_assoc(did) {
 			return format!("{}::{name}", tcx.item_name(trait_id));
@@ -1930,7 +2022,9 @@ impl<'a, 'tcx> Fx<'a, 'tcx> {
 		}
 		let refs: Vec<&Ex> = reads.iter().collect();
 		// `self.method args` where Lean can find it from the receiver's type.
+		// A trait method keeps its full name: dot notation would find an inherent one first.
 		let method = tcx.opt_associated_item(callee).is_some_and(|i| i.is_method())
+			&& tcx.trait_impl_of_assoc(callee).is_none()
 			&& !text.contains(":=")
 			&& reads.first().is_some_and(|r| r.atom && !r.text.starts_with('('))
 			&& matches!(sig.inputs().first().map(|t| t.peel_refs().kind()), Some(ty::Adt(d, _)) if d.did().is_local());
