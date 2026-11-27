@@ -1125,6 +1125,35 @@ minutes, median 20.8, on GitHub's 4-core runners; over the 3 groups on 1.31, 22.
 moq-net for about 12.5 s, compiling it, and took 51 and 49 s, its glue's debug build for
 `moq-c` 103 and 97 s.
 
+The fix ([#1050](https://github.com/kixel-ai/rust2/pull/1050): the recipes run the exporter
+through a cargo runner that unsets `$CARGO`, so its `cargo check` is mbx's shim) reached the
+queue with 6 groups from 2026-11-26 20:49 UTC. Each group's job restores the bundle main's
+last push saved, and the first, which restored one saved before the fix, filled it:
+
+| group | merge commit | bundle from main at | stand-in's export | moq-net to moq-congestion | check and test, min |
+|---|---|---|---|---|---|
+| [45893767294](https://github.com/kixel-ai/rust2/actions/runs/45893767294) | `7f7b80fc2` (#1050) | `173361f35` | 332 not looked up, 53.1 s | 6.8 s | 20.7 |
+| [45927940364](https://github.com/kixel-ai/rust2/actions/runs/45927940364) | `43a991ee6` (#1055) | `7f7b80fc2` | 326 hits, 6 misses, 12.5 s | 0.0 s | 18.4 |
+| [45942410887](https://github.com/kixel-ai/rust2/actions/runs/45942410887) | `f9d29c9c1` (#1059) | `43a991ee6` | 326 hits, 6 misses, 15.7 s | 0.3 s | 24.6 |
+| [45997406986](https://github.com/kixel-ai/rust2/actions/runs/45997406986) | `c4d5fe4f5` | `f9d29c9c1` | 326 hits, 6 misses, 19.9 s | 0.0 s | 25.5 |
+| [46020911898](https://github.com/kixel-ai/rust2/actions/runs/46020911898) | `d114c3998` | `c4d5fe4f5` | 326 hits, 6 misses, 17.5 s | 0.0 s | 26.1 |
+| [46029400664](https://github.com/kixel-ai/rust2/actions/runs/46029400664) | `4d94df704` (#1068) | `d114c3998` | 326 hits, 6 misses, 12.6 s | 0.0 s | 19.3 |
+
+The stand-in's export prints its own `mbx[cache]` line, with 326 hits, 6 misses, and 1
+bypass in every group after the first: its crates come from main's bundle. The export's
+`Finished` line fell from 51 s to 12.5 to 19.9, and moq-net's check, `Checking` to
+moq-congestion's, from the 12.5 s it compiled for to nothing: every crate prints at once.
+The check and test step did not follow. Over the 5 warm groups it took 18.4 to 26.1 minutes,
+median 24.6, against the 16.1 to 29.2, median 20.8, of the 23 groups on mbx 1.29.2: the
+export's saving of about 40 s is below its spread. The step is mostly its tests: the
+`cargo nextest` run of the 3 groups that logged one took 535 to 860 s, and the test build
+before it from 4 s to 2.5 minutes by how much of it the bundle served.
+
+Only the last group holds [#1068](https://github.com/kixel-ai/rust2/pull/1068), which sends
+the tests' own exports to mbx too. The job's final `mbx[cache]` line counted 1018 hits and
+308 not looked up, against 908 to 915 hits and 6 to 13 not looked up in groups 2 to 5, and
+its tests ran in 535 s, the shortest of the 3; one group is not a trend.
+
 Measured 2026-11-22 on **desktop**, the stand-in's native export by a dev build of
 rust2-ffi, as the merge queue's `cargo run` runs it, from an emptied target through mbx, at
 a load average of about 19; the after rounds follow one that stored the host units:
