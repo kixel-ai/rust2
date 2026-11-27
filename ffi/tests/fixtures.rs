@@ -143,6 +143,7 @@ fn deref_shadowing() {
 }
 
 /// The api fixture, exported and built once for each language's test.
+#[derive(serde::Serialize, serde::Deserialize)]
 struct Api {
 	/// The export.
 	out: PathBuf,
@@ -244,7 +245,7 @@ const API_CARGO: [&str; 4] = ["--profile", "dev", "--features", "doubled"];
 
 fn api() -> &'static Api {
 	static API: OnceLock<Api> = OnceLock::new();
-	API.get_or_init(|| {
+	step::once(&API, "api", || {
 		let out = scratch().join("api").join("out");
 		let features = ["--features", "doubled"];
 		// One binding for the host and wasm32, which the web binding runs.
@@ -2069,7 +2070,7 @@ fn interpreter(var: &str, default: &str) -> std::ffi::OsString {
 /// The api fixture's Python beside its extension built with `python-abi3t`, on `abi3t`.
 fn abi3t() -> &'static Path {
 	static DIR: OnceLock<PathBuf> = OnceLock::new();
-	DIR.get_or_init(|| python_abi3t("python-abi3t", &[], ""))
+	step::once(&DIR, "python-abi3t", || python_abi3t("python-abi3t", &[], ""))
 }
 
 /// The api fixture's Python in `scratch/api/<name>`, beside its extension built on `abi3t`
@@ -2717,10 +2718,10 @@ fn swift_api(api: &Api) -> SwiftApi {
 		reads: &[&module, &include, &built],
 		writes: &[&swiftmodule, &lib],
 	};
-	// Once per process: the Swift tests share its outputs, which a second build running
+	// Once, under a lock: the Swift tests share its outputs, which a second build running
 	// beside the first would remove.
 	static BUILT: OnceLock<()> = OnceLock::new();
-	BUILT.get_or_init(|| {
+	step::once(&BUILT, "swift", || {
 		std::fs::create_dir_all(&dir).unwrap();
 		step.run(
 			swiftc(&module, 13)
@@ -2844,6 +2845,7 @@ fn wasm_transcript() -> String {
 /// The api fixture's web binding, beside copies of `tests/api.ts` and `tests/protocol.ts`
 /// as a caller's project holds them, type-checked with no issue by `tsc` and by Deno, and the module the crate's `web` feature builds
 /// for wasm32-wasip1, built once for each runtime's test.
+#[derive(serde::Serialize, serde::Deserialize)]
 struct Web {
 	dir: PathBuf,
 	wasm: PathBuf,
@@ -2853,7 +2855,7 @@ struct Web {
 
 fn web() -> &'static Web {
 	static WEB_BUILT: OnceLock<Web> = OnceLock::new();
-	WEB_BUILT.get_or_init(|| {
+	step::once(&WEB_BUILT, "web", || {
 		let api = api();
 		let dir = scratch().join("api").join("web");
 		let target = scratch().join("api").join("glue-web");
@@ -3190,7 +3192,7 @@ fn api_web_package() {
 /// `tests/api.ts`'s script and cases through it.
 fn node_dir() -> &'static Path {
 	static BUILT: OnceLock<PathBuf> = OnceLock::new();
-	BUILT.get_or_init(|| {
+	step::once(&BUILT, "node", || {
 		let api = api();
 		let dir = scratch().join("api").join("node");
 		let target = scratch().join("api").join("glue-node");
@@ -4348,7 +4350,7 @@ fn url(dir: &Path) -> String {
 /// Built once, since two tests running the recipe at once race on its checkout and build.
 fn swift_collections() -> Vec<PathBuf> {
 	static BUILT: OnceLock<()> = OnceLock::new();
-	BUILT.get_or_init(|| {
+	step::once(&BUILT, "swift-collections", || {
 		run(Command::new("just")
 			.arg("--justfile")
 			.arg(manifest_dir().join("justfile"))

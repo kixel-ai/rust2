@@ -1,0 +1,15 @@
+# A hung test fails at the bound instead of holding the run until the job's timeout.
+[profile.default]
+slow-timeout = { period = "30s", terminate-after = 2 }
+
+# A fixture test translates crates and runs their output: about 80 seconds at most from cold.
+[[profile.default.overrides]]
+filter = "binary(fixtures)"
+slow-timeout = { period = "60s", terminate-after = 5 }
+
+# The nightly's ignored runs, each its whole job, bounded below the job's timeout, so a hang
+# names its test. An override, since the default profile's would win over a profile's own
+# setting.
+[[profile.nightly.overrides]]
+filter = "all()"
+slow-timeout = { period = "60s", terminate-after = 50 }

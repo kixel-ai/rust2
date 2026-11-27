@@ -24,7 +24,7 @@ check:
 
 # Run the differential and refusal tests.
 test *args:
-    cargo test --locked {{ args }}
+    cargo nextest run --locked {{ args }}
 
 # Apply formatters without changing program behavior.
 fix:
