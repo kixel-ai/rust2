@@ -141,7 +141,7 @@ def send_credit.Session.new {S : UInt64} {G : UInt64} (shape : (send_credit.Shap
   return ({ shape := shape, subs := Vector.replicate S.toNat sub, arrivals := (0 : UInt8), resets := (0 : UInt8), opened := (0 : UInt8), freed := (0 : UInt8) } : (send_credit.Session S G))
 
 def send_credit.Session.sub {S : UInt64} {G : UInt64} (self : (send_credit.Session S G)) (s : UInt64) : Rust.M (send_credit.Sub G) := do
-  unless s < S do throw "index out of bounds"
+  unless s < S do throw s!"index out of bounds: the len is {S} but the index is {s}"
   return self.subs[s.toNat]!
 
 def send_credit.Session.freed'_loop {S : UInt64} {G : UInt64} (self : (send_credit.Session S G)) (out : (Array send_credit.Output)) (s : UInt64) : Rust.M ((Except Disabled Unit) × (send_credit.Session S G) × (Array send_credit.Output)) := do
@@ -152,7 +152,7 @@ def send_credit.Session.freed'_loop {S : UInt64} {G : UInt64} (self : (send_cred
     let t17 := (← self.sub s)
     if t17.asked then
       let t20 := s
-      unless t20 < S do throw "index out of bounds"
+      unless t20 < S do throw s!"index out of bounds: the len is {S} but the index is {t20}"
       self := { self with subs := self.subs.set! t20.toNat { self.subs[t20.toNat]! with asked := false } }
       out := out.push (send_credit.Output.Wake s : send_credit.Output)
     s := (← s +? 1)
@@ -184,11 +184,11 @@ def send_credit.Session.taken_loop {S : UInt64} {G : UInt64} (self : (send_credi
   if j < G then
     let t11 := (← self.sub s)
     let t14 := j
-    unless t14 < G do throw "index out of bounds"
+    unless t14 < G do throw s!"index out of bounds: the len is {G} but the index is {t14}"
     if t11.serving[t14.toNat]! then
       let mut t26 := j
       let mut t27 := decide (t26 < 16)
-      unless t27 do throw "arithmetic overflow"
+      unless t27 do throw "attempt to shift left with overflow"
       taken := taken ||| (1 <<< t26.toUInt16)
     else
       let t18 := (← self.sub s)
@@ -197,7 +197,7 @@ def send_credit.Session.taken_loop {S : UInt64} {G : UInt64} (self : (send_credi
       if d then
         let mut t26 := j
         let mut t27 := decide (t26 < 16)
-        unless t27 do throw "arithmetic overflow"
+        unless t27 do throw "attempt to shift left with overflow"
         taken := taken ||| (1 <<< t26.toUInt16)
     j := (← j +? 1)
     return (← send_credit.Session.taken_loop self s taken j)
@@ -239,9 +239,9 @@ def send_credit.Session.«open» {S : UInt64} {G : UInt64} (self : (send_credit.
   let mut self := self
   let mut out := out
   self := { self with opened := (← self.opened +? 1) }
-  unless s < S do throw "index out of bounds"
+  unless s < S do throw s!"index out of bounds: the len is {S} but the index is {s}"
   let t9 := (← k -? 1).toUInt64
-  unless t9 < G do throw "index out of bounds"
+  unless t9 < G do throw s!"index out of bounds: the len is {G} but the index is {t9}"
   self := { self with subs := self.subs.set! s.toNat { self.subs[s.toNat]! with serving := self.subs[s.toNat]!.serving.set! t9.toNat true } }
   self := { self with subs := self.subs.set! s.toNat { self.subs[s.toNat]! with opening := (none : (Option UInt8)) } }
   self := { self with subs := self.subs.set! s.toNat { self.subs[s.toNat]! with turn := self.opened } }
@@ -249,23 +249,23 @@ def send_credit.Session.«open» {S : UInt64} {G : UInt64} (self : (send_credit.
   return (self, out)
 
 def send_credit.Session.in_group {S : UInt64} {G : UInt64} (self : (send_credit.Session S G)) (s : UInt64) (k : UInt8) : Rust.M Int16 := do
-  unless s < S do throw "index out of bounds"
+  unless s < S do throw s!"index out of bounds: the len is {S} but the index is {s}"
   if self.shape.ascending[s.toNat]! then
     let t7 := Rust.cast Int16 k
-    unless ¬(t7 = (-32768)) do throw "arithmetic overflow"
+    unless ¬(t7 = (-32768)) do throw "attempt to negate with overflow"
     return -t7
   else
     return Rust.cast Int16 k
 
 def send_credit.Session.rank {S : UInt64} {G : UInt64} (self : (send_credit.Session S G)) (s : UInt64) (k : UInt8) : Rust.M send_credit.Rank := do
-  unless s < S do throw "index out of bounds"
+  unless s < S do throw s!"index out of bounds: the len is {S} but the index is {s}"
   let t8 := (← self.sub s)
   return ({ priority := self.shape.priority[s.toNat]!, turn := t8.turn, in_group := (← self.in_group s k) } : send_credit.Rank)
 
 def send_credit.Session.join {S : UInt64} {G : UInt64} (self : (send_credit.Session S G)) (s : UInt64) (k : UInt8) : Rust.M (send_credit.Session S G) := do
   let mut self := self
   let t4 := (some ({ rank := (← self.rank s k), arrival := self.arrivals } : send_credit.Place) : (Option send_credit.Place))
-  unless s < S do throw "index out of bounds"
+  unless s < S do throw s!"index out of bounds: the len is {S} but the index is {s}"
   self := { self with subs := self.subs.set! s.toNat { self.subs[s.toNat]! with place := t4 } }
   self := { self with arrivals := (← self.arrivals +? 1) }
   return self
@@ -340,7 +340,7 @@ def send_credit.Session.lowest_loop1 {S : UInt64} {G : UInt64} (self : (send_cre
     let k := (← t20 +? 1).toUInt8
     let t24 := (← self.sub t)
     let t27 := j
-    unless t27 < G do throw "index out of bounds"
+    unless t27 < G do throw s!"index out of bounds: the len is {G} but the index is {t27}"
     if t24.serving[t27.toNat]! then
       let mut t29 : (Option (UInt64 × UInt8)) := default
       match id low with
@@ -389,8 +389,8 @@ def send_credit.Session.lowest {S : UInt64} {G : UInt64} (self : (send_credit.Se
   return r
 
 def send_credit.Session.preempts {S : UInt64} {G : UInt64} (self : (send_credit.Session S G)) (s : UInt64) (k : UInt8) (t : UInt64) (j : UInt8) : Rust.M Bool := do
-  unless s < S do throw "index out of bounds"
-  unless t < S do throw "index out of bounds"
+  unless s < S do throw s!"index out of bounds: the len is {S} but the index is {s}"
+  unless t < S do throw s!"index out of bounds: the len is {S} but the index is {t}"
   if self.shape.priority[s.toNat]! > self.shape.priority[t.toNat]! then
     return true
   else if s = t then
@@ -435,7 +435,7 @@ def send_credit.Session.make_room_loop0 {S : UInt64} {G : UInt64} (self : (send_
     else
       t9 := false
     let t19 := s
-    unless t19 < S do throw "index out of bounds"
+    unless t19 < S do throw s!"index out of bounds: the len is {S} but the index is {t19}"
     owed := owed.set! t19.toNat t9
     s := (← s +? 1)
     return (← send_credit.Session.make_room_loop0 self out owed s)
@@ -448,7 +448,7 @@ def send_credit.Session.make_room_loop2 {S : UInt64} {G : UInt64} (self : (send_
   let mut s1 := s1
   if s1 < S then
     let t34 := s1
-    unless t34 < S do throw "index out of bounds"
+    unless t34 < S do throw s!"index out of bounds: the len is {S} but the index is {t34}"
     if owed[t34.toNat]! then
       let mut t36 : (Option UInt64) := default
       match id first with
@@ -481,7 +481,7 @@ def send_credit.Session.make_room_loop1 {S : UInt64} {G : UInt64} (self : (send_
   match id first with
   | some first_0 =>
     let s2 := first_0
-    unless s2 < S do throw "index out of bounds"
+    unless s2 < S do throw s!"index out of bounds: the len is {S} but the index is {s2}"
     owed := owed.set! s2.toNat false
     let mut t57 : Bool := default
     match self.shape.mutant with
@@ -504,9 +504,9 @@ def send_credit.Session.make_room_loop1 {S : UInt64} {G : UInt64} (self : (send_
         | some t67_0 =>
           let t := t67_0.1
           let j := t67_0.2
-          unless t < S do throw "index out of bounds"
+          unless t < S do throw s!"index out of bounds: the len is {S} but the index is {t}"
           let t76 := (← j -? 1).toUInt64
-          unless t76 < G do throw "index out of bounds"
+          unless t76 < G do throw s!"index out of bounds: the len is {G} but the index is {t76}"
           self := { self with subs := self.subs.set! t.toNat { self.subs[t.toNat]! with serving := self.subs[t.toNat]!.serving.set! t76.toNat false } }
           self := { self with resets := (← self.resets +? 1) }
           out := out.push (send_credit.Output.Reset t j : send_credit.Output)
@@ -559,7 +559,7 @@ def send_credit.Session.leave {S : UInt64} {G : UInt64} (self : (send_credit.Ses
   let mut self := self
   let mut out := out
   let was_head := (← self.is_head s)
-  unless s < S do throw "index out of bounds"
+  unless s < S do throw s!"index out of bounds: the len is {S} but the index is {s}"
   self := { self with subs := self.subs.set! s.toNat { self.subs[s.toNat]! with place := (none : (Option send_credit.Place)) } }
   let placed := (← self.placed)
   if self.resets > placed then
@@ -607,7 +607,7 @@ def send_credit.Session.poll_open {S : UInt64} {G : UInt64} (self : (send_credit
         else
           let r1 ← self.join s k
           self := r1
-          unless s < S do throw "index out of bounds"
+          unless s < S do throw s!"index out of bounds: the len is {S} but the index is {s}"
           self := { self with subs := self.subs.set! s.toNat { self.subs[s.toNat]! with asked := true } }
           let r2 ← self.make_room out
           self := r2.2.1
@@ -636,7 +636,7 @@ def send_credit.Session.poll_open {S : UInt64} {G : UInt64} (self : (send_credit
           else
             let mut t75 := (← self.sub s)
             if ¬(t75.asked) then
-              unless s < S do throw "index out of bounds"
+              unless s < S do throw s!"index out of bounds: the len is {S} but the index is {s}"
               self := { self with subs := self.subs.set! s.toNat { self.subs[s.toNat]! with asked := true } }
               changed := true
             let mut r6 ← self.make_room out
@@ -679,7 +679,7 @@ def send_credit.Session.poll_open {S : UInt64} {G : UInt64} (self : (send_credit
         else
           let mut t75 := (← self.sub s)
           if ¬(t75.asked) then
-            unless s < S do throw "index out of bounds"
+            unless s < S do throw s!"index out of bounds: the len is {S} but the index is {s}"
             self := { self with subs := self.subs.set! s.toNat { self.subs[s.toNat]! with asked := true } }
             changed := true
           let mut r6 ← self.make_room out
@@ -708,7 +708,7 @@ def send_credit.Session.stuck_loop {S : UInt64} {G : UInt64} (self : (send_credi
   if j < G then
     let t17 := (← self.sub s)
     let t20 := j
-    unless t20 < G do throw "index out of bounds"
+    unless t20 < G do throw s!"index out of bounds: the len is {G} but the index is {t20}"
     if t17.serving[t20.toNat]! then
       let t29 := j
       let t24 := (← self.in_group s ((← t29 +? 1).toUInt8))
@@ -758,7 +758,7 @@ def send_credit.Session.admits {S : UInt64} {G : UInt64} (self : (send_credit.Se
     else
       let d := (← self.stuck s)
       if d then
-        unless s < S do throw "index out of bounds"
+        unless s < S do throw s!"index out of bounds: the len is {S} but the index is {s}"
         if self.shape.ascending[s.toNat]! then
           return decide (k < w)
         else
@@ -782,7 +782,7 @@ def send_credit.Session.cursor {S : UInt64} {G : UInt64} (self : (send_credit.Se
       return (self, out)
     else
       out := out.push (send_credit.Output.Shed s w : send_credit.Output)
-      unless s < S do throw "index out of bounds"
+      unless s < S do throw s!"index out of bounds: the len is {S} but the index is {s}"
       self := { self with subs := self.subs.set! s.toNat { self.subs[s.toNat]! with opening := (none : (Option UInt8)) } }
       let t37 := (← self.sub s)
       if t37.place.isSome then
@@ -790,12 +790,12 @@ def send_credit.Session.cursor {S : UInt64} {G : UInt64} (self : (send_credit.Se
         self := r.1
         out := r.2
       out := out.push (send_credit.Output.Take s k : send_credit.Output)
-      unless s < S do throw "index out of bounds"
+      unless s < S do throw s!"index out of bounds: the len is {S} but the index is {s}"
       self := { self with subs := self.subs.set! s.toNat { self.subs[s.toNat]! with opening := (some k : (Option UInt8)) } }
       return (self, out)
   | none =>
     out := out.push (send_credit.Output.Take s k : send_credit.Output)
-    unless s < S do throw "index out of bounds"
+    unless s < S do throw s!"index out of bounds: the len is {S} but the index is {s}"
     self := { self with subs := self.subs.set! s.toNat { self.subs[s.toNat]! with opening := (some k : (Option UInt8)) } }
     return (self, out)
 
@@ -809,7 +809,7 @@ def send_credit.Session.poll_loop {S : UInt64} {G : UInt64} (self : (send_credit
   if j < G then
     let t33 := j
     let t34 := decide (t33 < 16)
-    unless t34 do throw "arithmetic overflow"
+    unless t34 do throw "attempt to shift left with overflow"
     if (cached &&& (1 <<< t33.toUInt16)) ≠ 0 then
       let t40 := j
       let d1 := (← next.admits s ((← t40 +? 1).toUInt8))
@@ -828,7 +828,7 @@ def send_credit.Session.poll_loop {S : UInt64} {G : UInt64} (self : (send_credit
       else
         let t67 := (← k -? 1)
         let t70 := decide (t67 < 16)
-        unless t70 do throw "arithmetic overflow"
+        unless t70 do throw "attempt to shift left with overflow"
         if (cached &&& (1 <<< t67.toUInt16)) = 0 then
           return (((Except.error ({} : Disabled) : (Except Disabled Unit)), self, out))
         else
@@ -887,11 +887,11 @@ def send_credit.Session.finished {S : UInt64} {G : UInt64} (self : (send_credit.
   else
     let t12 := (← self.sub s)
     let t15 := (← k -? 1).toUInt64
-    unless t15 < G do throw "index out of bounds"
+    unless t15 < G do throw s!"index out of bounds: the len is {G} but the index is {t15}"
     if t12.serving[t15.toNat]! then
-      unless s < S do throw "index out of bounds"
+      unless s < S do throw s!"index out of bounds: the len is {S} but the index is {s}"
       let t24 := (← k -? 1).toUInt64
-      unless t24 < G do throw "index out of bounds"
+      unless t24 < G do throw s!"index out of bounds: the len is {G} but the index is {t24}"
       self := { self with subs := self.subs.set! s.toNat { self.subs[s.toNat]! with serving := self.subs[s.toNat]!.serving.set! t24.toNat false } }
       out := out.push (send_credit.Output.Wake s : send_credit.Output)
       return ((Except.ok () : (Except Disabled Unit)), self, out)
@@ -959,7 +959,7 @@ def send_credit.Session.well_formed_loop {S : UInt64} {G : UInt64} (self : (send
       else
         let t26 := k1
         let t24 := (← t26 -? 1).toUInt64
-        unless t24 < G do throw "index out of bounds"
+        unless t24 < G do throw s!"index out of bounds: the len is {G} but the index is {t24}"
         if sub.serving[t24.toNat]! then
           return false
         else
@@ -1012,7 +1012,7 @@ def warm_settle.best_loop (choices : (Array warm_settle.Choice)) (best : (Option
   if i < (UInt64.ofNat choices.size) then
     let t11 := i
     let t12 := UInt64.ofNat choices.size
-    unless t11 < t12 do throw "index out of bounds"
+    unless t11 < t12 do throw s!"index out of bounds: the len is {t12} but the index is {t11}"
     let choice := choices[t11.toNat]!
     let mut t14 : (Option warm_settle.Choice) := default
     match id best with
@@ -1042,7 +1042,7 @@ def warm_settle.best (choices : (Array warm_settle.Choice)) : Rust.M (Option war
 
 def warm_settle.Relay.link {N : UInt64} (self : (warm_settle.Relay N)) (r : UInt8) : Rust.M (Option warm_settle.Link) := do
   let t3 := (← r -? 1).toUInt64
-  unless t3 < N do throw "index out of bounds"
+  unless t3 < N do throw s!"index out of bounds: the len is {N} but the index is {t3}"
   return self.links[t3.toNat]!
 
 def warm_settle.Relay.is_open {N : UInt64} (self : (warm_settle.Relay N)) (r : UInt8) : Rust.M Bool := do
@@ -1058,7 +1058,7 @@ def warm_settle.Relay.is_open {N : UInt64} (self : (warm_settle.Relay N)) (r : U
 
 def warm_settle.Relay.heard' {N : UInt64} (self : (warm_settle.Relay N)) (r : UInt8) : Rust.M warm_settle.Heard := do
   let t3 := (← r -? 1).toUInt64
-  unless t3 < N do throw "index out of bounds"
+  unless t3 < N do throw s!"index out of bounds: the len is {N} but the index is {t3}"
   return self.heard[t3.toNat]!
 
 def warm_settle.Relay.down {N : UInt64} (self : (warm_settle.Relay N)) (c : UInt8) : Rust.M Bool := do
@@ -1093,7 +1093,7 @@ def warm_settle.Relay.demand {N : UInt64} (self : (warm_settle.Relay N)) : Rust.
 def warm_settle.bit (r : UInt8) : Rust.M UInt16 := do
   let t2 := (← r -? 1)
   let t5 := decide (t2 < 16)
-  unless t5 do throw "arithmetic overflow"
+  unless t5 do throw "attempt to shift left with overflow"
   return 1 <<< t2.toUInt16
 
 def warm_settle.Relay.pull {N : UInt64} (self : (warm_settle.Relay N)) (s : UInt8) : Rust.M warm_settle.Pull := do
@@ -1332,7 +1332,7 @@ def warm_settle.Relay.StateMachine.step {N : UInt64} (self : (warm_settle.Relay 
           return ((Except.error ({} : Disabled) : (Except Disabled Unit)), self, arg3)
         else
           let t25 := (← «from» -? 1).toUInt64
-          unless t25 < N do throw "index out of bounds"
+          unless t25 < N do throw s!"index out of bounds: the len is {N} but the index is {t25}"
           self := { self with heard := self.heard.set! t25.toNat heard }
           if warm_settle.is self.up «from» then
             let mut t37 : Bool := default

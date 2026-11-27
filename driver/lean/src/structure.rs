@@ -57,7 +57,7 @@ pub enum Op {
 		value: Ex,
 		bind: bool,
 	},
-	/// `unless cond do throw msg`.
+	/// `unless cond do throw msg`, where `msg` is a Lean `String` term.
 	Check {
 		cond: Ex,
 		msg: String,
@@ -860,7 +860,7 @@ impl<'f> Structurer<'f> {
 					return Ok(out);
 				}
 				Term::Unreachable => {
-					out.push(Stmt::Op(Op::Throw("entered unreachable code".into())));
+					out.push(Stmt::Op(Op::Throw("\"entered unreachable code\"".into())));
 					return Ok(out);
 				}
 				Term::Goto(t) => {
@@ -1489,10 +1489,8 @@ impl Printer<'_> {
 					let arrow = if *bind { "←" } else { ":=" };
 					*out += &format!("{pad}{} {arrow} {}\n", self.names[*var], value.text);
 				}
-				Stmt::Op(Op::Check { cond, msg }) => {
-					*out += &format!("{pad}unless {} do throw \"{msg}\"\n", cond.cond())
-				}
-				Stmt::Op(Op::Throw(msg)) => *out += &format!("{pad}throw \"{msg}\"\n"),
+				Stmt::Op(Op::Check { cond, msg }) => *out += &format!("{pad}unless {} do throw {msg}\n", cond.cond()),
+				Stmt::Op(Op::Throw(msg)) => *out += &format!("{pad}throw {msg}\n"),
 				Stmt::Return(e) => *out += &format!("{pad}return {}\n", e.text),
 				Stmt::Let {
 					var,

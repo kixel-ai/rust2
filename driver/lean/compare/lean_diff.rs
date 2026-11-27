@@ -169,11 +169,23 @@ impl Enc for warm_settle::Event {
 	}
 }
 
-/// Native Rust's outcome: `0` for a panic, else `1` and what `f` returned.
+/// Native Rust's outcome: `0` and the panic's message as its length and bytes, else `1` and
+/// what `f` returned.
 fn outcome<T: Enc>(w: &mut W, f: impl FnOnce() -> T) {
 	match catch_unwind(AssertUnwindSafe(f)) {
 		Ok(v) => w.int(1).put(v),
-		Err(_) => w.int(0),
+		Err(payload) => {
+			let msg = match (payload.downcast_ref::<&str>(), payload.downcast_ref::<String>()) {
+				(Some(s), _) => s.to_string(),
+				(_, Some(s)) => s.clone(),
+				_ => panic!("a panic payload that is not a string"),
+			};
+			w.int(0).int(msg.len() as i64);
+			for b in msg.bytes() {
+				w.int(b as i64);
+			}
+			w
+		}
 	};
 }
 

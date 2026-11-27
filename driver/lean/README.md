@@ -22,13 +22,13 @@ Accepted:
 - Generic type and const parameters.
 - `if`, `match`, `let`-`else`, `while`, `loop`, `break`, early `return`, and `?` on `Option`.
 - `&T` as the value it borrows, and `&mut` of a whole place, written back where the borrow ends: a function's `&mut` parameters come back after its result.
-- From `core`, `alloc`, and `std` alone, matched by crate: `Vec::new`, `push`, `len`, `extend_from_slice`, `truncate`, slice indexing and `len`, `Option::is_some` and `is_none`, `Clone::clone`, unsigned `checked_add` and `checked_sub`, and panics.
+- From the sysroot's `core` and `alloc` alone: `Vec::new`, `push`, `len`, `extend_from_slice`, `truncate`, slice indexing and `len`, `Option::is_some` and `is_none`, `Clone::clone`, unsigned `checked_add` and `checked_sub`, and the panics of indexing and overflow checks.
 
-Refused at the span: recursion, closures and iterators, interior mutability, raw pointers, `Drop` impls, unions, calls that return a `&mut`, a reborrow kept in a local, `PartialEq` that is not structural, a `clone` that may not copy, and any `std` type or function without a model, such as `BTreeMap`.
+Refused at the span: recursion, closures and iterators, interior mutability, raw pointers, `Drop` impls, unions, calls that return a `&mut`, a reborrow kept in a local, `PartialEq` that is not structural, a `clone` that may not copy (a `Clone` impl written by hand, even on a `Copy` type), recursive types, and any `std` type or function without a model, such as `BTreeMap`.
 
 ## Translation
 
-- A function that can panic runs in `Rust.M`, `ExceptT String Option`: a panic is `throw` with a fixed message naming its kind, and `none` is a loop that never ends. One that cannot is plain Lean. A panic's payload is not kept: a proof needs only where Rust panics, so the differential test checks that both panic, not what they say.
+- A function that can panic runs in `Rust.M`, `ExceptT String Option`: a panic is `throw` with Rust's message, and `none` is a loop that never ends. One that cannot is plain Lean. An explicit `panic!` is refused, since its formatted message has no model.
 - Arithmetic that Rust's overflow checks guard is `+?`, `-?`, and `*?`, which panic as Rust does; the file's header says whether the build checked overflow.
 - An index is `unless i < n do throw "index out of bounds"`, then `v[i.toNat]!`, which the check makes total.
 - Each loop is a function of its own over what it carries, a `partial_fixpoint`, so a proof of termination is induction on its equation, separate from the translation.
@@ -40,4 +40,4 @@ Refused at the span: recursion, closures and iterators, interior mutability, raw
 
 - It fails if the translation differs from [compare/KioPureMachine.lean](compare/KioPureMachine.lean); `--write` replaces it.
 - [compare/Ranked.lean](compare/Ranked.lean) proves kio's `options_rank_below` on it, with the statement kio's Aeneas proof uses.
-- [compare/lean_diff.rs](compare/lean_diff.rs) records native Rust's outcomes on every reachable state of kio's seven `SendCredit` configs, sampled, and on random relays and events, panics included. [compare/Diff.lean](compare/Diff.lean) replays them on the translation and fails on any difference.
+- [compare/lean_diff.rs](compare/lean_diff.rs) records native Rust's outcomes on every reachable state of kio's seven `SendCredit` configs, sampled, and on random relays and events, panics and their messages included. [compare/Diff.lean](compare/Diff.lean) replays them on the translation and fails on any difference.

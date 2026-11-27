@@ -1,17 +1,23 @@
-src/lib.rs:143:3: 143:19: `PartialEq` of `refused::Loose` is not structural equality
-src/lib.rs:147:3: 147:9: `PartialEq` of `&refused::Holder` is not structural equality
-src/lib.rs:159:5: 159:25: cloning `refused::Norm` may not copy it
-src/lib.rs:163:3: 163:19: `std::string::String` has no Lean model
-src/lib.rs:170:18: 170:19: `std::cell::Cell<u8>` has interior mutability, which is not supported
-src/lib.rs:174:2: 174:31: recursion is not supported
-src/lib.rs:178:35: 178:42: returning a mutable reference is not supported
-src/lib.rs:183:7: 183:8: a closure is not supported
+src/lib.rs:172:3: 172:19: `PartialEq` of `refused::Loose` is not structural equality
+src/lib.rs:176:3: 176:9: `PartialEq` of `&refused::Holder` is not structural equality
+src/lib.rs:188:5: 188:25: cloning `refused::Norm` may not copy it
+src/lib.rs:201:5: 201:25: cloning `refused::Zeroed` may not copy it
+src/lib.rs:206:3: 206:26: recursive type `Tree` is not supported
+src/lib.rs:206:3: 206:26: recursive type `Tree` is not supported
+src/lib.rs:214:3: 214:17: an explicit panic is not supported, since its message has no model
+src/lib.rs:218:3: 218:19: `std::string::String` has no Lean model
+src/lib.rs:225:18: 225:19: `std::cell::Cell<u8>` has interior mutability, which is not supported
+src/lib.rs:229:2: 229:31: recursion is not supported
+src/lib.rs:233:35: 233:42: returning a mutable reference is not supported
+src/lib.rs:238:7: 238:8: a closure is not supported
 
-2 of 10 reached functions translated; 8 refusals
+3 of 15 reached functions translated; 12 refusals
     2  _ of _ is not structural equality
+    2  cloning _ may not copy it
+    2  recursive type _ is not supported
     1  _ has interior mutability, which is not supported
     1  _ has no Lean model
     1  a closure is not supported
-    1  cloning _ may not copy it
+    1  an explicit panic is not supported, since its message has no model
     1  recursion is not supported
     1  returning a mutable reference is not supported

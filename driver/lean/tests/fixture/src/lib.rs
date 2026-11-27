@@ -66,6 +66,35 @@ pub mod cases {
 		pub fn value(self) -> u64 {
 			self.0
 		}
+
+		/// Named as Lean names the field, so it gets a `'`.
+		pub fn x0(self) -> u64 {
+			self.0
+		}
+	}
+
+	/// A derived `Clone`, which copies.
+	pub fn dup(c: &Cost) -> Cost {
+		Clone::clone(c)
+	}
+
+	pub struct Record(pub u8);
+
+	/// Clones the reference, not the `Record`, which has no `Clone`.
+	pub fn dup_ref(r: &Record) -> &Record {
+		Clone::clone(&r)
+	}
+
+	fn set(x: &mut u8) {
+		*x = 42;
+	}
+
+	/// As `snapshot`, but the block writes `x` through a mutable borrow.
+	pub fn snapshot_borrow(mut x: u8) -> (u8, u8) {
+		(x, {
+			set(&mut x);
+			x
+		})
 	}
 
 	/// The tuple's first element is `x` as it was before the block sets it.
@@ -157,6 +186,32 @@ pub mod refused {
 
 	pub fn extend(v: &mut Vec<Norm>, s: &[Norm]) {
 		v.extend_from_slice(s)
+	}
+
+	#[derive(Copy)]
+	pub struct Zeroed(pub u8);
+
+	impl Clone for Zeroed {
+		fn clone(&self) -> Self {
+			Zeroed(0)
+		}
+	}
+
+	pub fn extend_copy(v: &mut Vec<Zeroed>, s: &[Zeroed]) {
+		v.extend_from_slice(s)
+	}
+
+	#[derive(Clone)]
+	pub struct Tree {
+		pub children: Vec<Tree>,
+	}
+
+	pub fn grow(v: &mut Vec<Tree>, s: &[Tree]) {
+		v.extend_from_slice(s)
+	}
+
+	pub fn boom() -> u8 {
+		panic!("boom")
 	}
 
 	pub struct Packet {

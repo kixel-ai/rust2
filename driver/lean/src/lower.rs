@@ -55,6 +55,7 @@ pub fn extract(tcx: TyCtxt<'_>, roots: &[String]) -> Extraction {
 		tcx,
 		adts: Vec::new(),
 		adt_seen: HashSet::new(),
+		adt_visiting: HashSet::new(),
 		shapes: HashMap::new(),
 		refusals: Vec::new(),
 		recursive: HashSet::new(),
@@ -125,7 +126,10 @@ struct Shape {
 pub(crate) struct Cx<'tcx> {
 	pub tcx: TyCtxt<'tcx>,
 	adts: Vec<DefId>,
+	/// Types queued with every field checked.
 	adt_seen: HashSet<DefId>,
+	/// Types whose fields are being checked.
+	adt_visiting: HashSet<DefId>,
 	shapes: HashMap<DefId, Shape>,
 	refusals: Vec<Refusal>,
 	/// Functions that call themselves, which are refused.
@@ -205,10 +209,12 @@ impl<'tcx> Cx<'tcx> {
 			|| tcx.impl_of_assoc(did).is_some_and(|imp| {
 				match tcx.type_of(imp).instantiate_identity().skip_norm_wip().kind() {
 					ty::Adt(def, _) => {
-						def.variants()
-							.iter()
-							.any(|v| v.fields.iter().any(|f| f.name == item) || v.name == item)
-							|| ["mk", "rec", "recOn", "casesOn", "noConfusion", "ctorIdx"].contains(&item.as_str())
+						def.variants().iter().any(|v| {
+							v.fields
+								.iter()
+								.any(|f| field_ident(f) == structure::ident(item.as_str()))
+								|| v.name == item
+						}) || ["mk", "rec", "recOn", "casesOn", "noConfusion", "ctorIdx"].contains(&item.as_str())
 					}
 					_ => false,
 				}
@@ -310,22 +316,30 @@ impl<'tcx> Cx<'tcx> {
 	}
 
 	/// Whether cloning a value of `ty` copies it, as the translation's value semantics assume.
-	fn clone_copies(&self, ty: Ty<'tcx>, env: TypingEnv<'tcx>) -> bool {
-		if self.tcx.type_is_copy_modulo_regions(env, ty) {
-			return true;
-		}
+	/// `Copy` alone is not enough: a `Copy` type's `Clone` may be written by hand.
+	fn clone_copies(&self, ty: Ty<'tcx>) -> bool {
+		self.clone_copies_in(ty, &mut HashSet::new())
+	}
+
+	/// `clone_copies`, refusing a type in `seen`, since recursive types are refused anyway.
+	fn clone_copies_in(&self, ty: Ty<'tcx>, seen: &mut HashSet<Ty<'tcx>>) -> bool {
 		match ty.kind() {
-			ty::Tuple(tys) => tys.iter().all(|t| self.clone_copies(t, env)),
-			ty::Array(t, _) => self.clone_copies(*t, env),
-			ty::Adt(def, args) if def.did().is_local() => {
-				self.derives(def.did(), self.tcx.lang_items().clone_trait())
-					&& def
-						.all_fields()
-						.all(|f| self.clone_copies(f.ty(self.tcx, *args).skip_norm_wip(), env))
-			}
+			ty::Bool | ty::Int(_) | ty::Uint(_) | ty::Char | ty::Ref(_, _, ty::Mutability::Not) => true,
+			ty::Tuple(tys) => tys.iter().all(|t| self.clone_copies_in(t, seen)),
+			ty::Array(t, _) => self.clone_copies_in(*t, seen),
 			ty::Adt(def, args) => {
-				matches!(self.std_name(def.did()).as_str(), "Option" | "Result" | "Vec")
-					&& args.types().all(|t| self.clone_copies(t, env))
+				if !seen.insert(ty) {
+					return false;
+				}
+				if def.did().is_local() {
+					self.derives(def.did(), self.tcx.lang_items().clone_trait())
+						&& def
+							.all_fields()
+							.all(|f| self.clone_copies_in(f.ty(self.tcx, *args).skip_norm_wip(), seen))
+				} else {
+					matches!(self.std_name(def.did()).as_str(), "Option" | "Result" | "Vec")
+						&& args.types().all(|t| self.clone_copies_in(t, seen))
+				}
 			}
 			_ => false,
 		}
@@ -348,7 +362,7 @@ impl<'tcx> Cx<'tcx> {
 		})
 	}
 
-	/// The item's name if it is from `core`, `alloc`, or `std`, whose models match it by name.
+	/// The item's name if it is from `core` or `alloc`, whose models match it by name.
 	fn std_name(&self, did: DefId) -> String {
 		if !self.is_std(did) {
 			return String::new();
@@ -356,8 +370,14 @@ impl<'tcx> Cx<'tcx> {
 		self.tcx.item_name(did).to_string()
 	}
 
+	/// Whether the item is from the sysroot's `core` or `alloc`, found by their lang items, so a
+	/// crate that only shares their names is not.
 	fn is_std(&self, did: DefId) -> bool {
-		matches!(self.tcx.crate_name(did.krate).as_str(), "core" | "alloc" | "std")
+		let items = self.tcx.lang_items();
+		[items.sized_trait(), items.owned_box()]
+			.into_iter()
+			.flatten()
+			.any(|lang| lang.krate == did.krate)
 	}
 
 	/// The Lean type of `ty`, queueing each local type it names.
@@ -464,18 +484,26 @@ impl<'tcx> Cx<'tcx> {
 	}
 
 	fn queue_adt(&mut self, did: DefId, span: Span) -> R<()> {
-		if !self.adt_seen.insert(did) {
+		if self.adt_seen.contains(&did) {
 			return Ok(());
 		}
-		// A refused type is checked again at each use, so every use is refused.
-		let res = self.queue_fields(did, span);
-		if res.is_err() {
-			self.adt_seen.remove(&did);
+		// A type reached again while its fields are checked is recursive, directly or not.
+		if !self.adt_visiting.insert(did) {
+			return refuse(
+				span,
+				format!("recursive type `{}` is not supported", self.tcx.item_name(did)),
+			);
+		}
+		// Only a type whose fields all pass is kept, so a refused one is refused at each use.
+		let res = self.queue_fields(did);
+		self.adt_visiting.remove(&did);
+		if res.is_ok() {
+			self.adt_seen.insert(did);
 		}
 		res
 	}
 
-	fn queue_fields(&mut self, did: DefId, span: Span) -> R<()> {
+	fn queue_fields(&mut self, did: DefId) -> R<()> {
 		// Its fields' types first, so Lean sees each before its use.
 		let tcx = self.tcx;
 		let def = tcx.adt_def(did);
@@ -483,14 +511,6 @@ impl<'tcx> Cx<'tcx> {
 		for variant in def.variants() {
 			for field in &variant.fields {
 				let fty = field.ty(tcx, args).skip_norm_wip();
-				if let ty::Adt(inner, _) = fty.kind()
-					&& inner.did() == did
-				{
-					return refuse(
-						span,
-						format!("recursive type `{}` is not supported", tcx.item_name(did)),
-					);
-				}
 				self.ty(fty, tcx.def_span(field.did))?;
 			}
 		}
@@ -868,6 +888,8 @@ impl<'a, 'tcx> Fx<'a, 'tcx> {
 					&& self.defs[l.as_usize()] <= 1
 					// A parameter arrives set, so any assignment changes it.
 					&& (l.as_usize() > self.body.arg_count || self.defs[l.as_usize()] == 0)
+					// Nor may a mutable borrow write it.
+					&& !self.mutable.values().any(|m| matches!(m, Mutable::Borrow(b) if b.local == l))
 					&& self.partial[l.as_usize()] == 0
 					&& !self.mutable.contains_key(&l)
 					&& !self.mutable.contains_key(&t)
@@ -1735,18 +1757,38 @@ impl<'a, 'tcx> Fx<'a, 'tcx> {
 			c = compound(format!("!{}", c.paren()), &[&c]);
 			c.prop = prop;
 		}
-		self.before(ops, None, true);
+		// Rust's own panic message, as a Lean `String` term.
 		let msg = match msg {
-			AssertKind::BoundsCheck { .. } => "index out of bounds",
-			AssertKind::Overflow(..) | AssertKind::OverflowNeg(_) => "arithmetic overflow",
-			AssertKind::DivisionByZero(_) => "attempt to divide by zero",
-			AssertKind::RemainderByZero(_) => "attempt to calculate the remainder with a divisor of zero",
-			_ => "assertion failed",
+			AssertKind::BoundsCheck { len, index } => {
+				let len = self.operand(len, span)?;
+				let index = self.operand(index, span)?;
+				c.reads.extend(len.reads.iter().copied());
+				c.reads.extend(index.reads.iter().copied());
+				format!(
+					"s!\"index out of bounds: the len is {{{}}} but the index is {{{}}}\"",
+					len.text, index.text
+				)
+			}
+			AssertKind::Overflow(op, ..) => {
+				let verb = match op {
+					BinOp::Add | BinOp::AddUnchecked => "add",
+					BinOp::Sub | BinOp::SubUnchecked => "subtract",
+					BinOp::Mul | BinOp::MulUnchecked => "multiply",
+					BinOp::Div => "divide",
+					BinOp::Rem => "calculate the remainder",
+					BinOp::Shl | BinOp::ShlUnchecked => "shift left",
+					BinOp::Shr | BinOp::ShrUnchecked => "shift right",
+					_ => return refuse(span, format!("an overflow check of `{op:?}` is not supported")),
+				};
+				format!("\"attempt to {verb} with overflow\"")
+			}
+			AssertKind::OverflowNeg(_) => "\"attempt to negate with overflow\"".into(),
+			AssertKind::DivisionByZero(_) => "\"attempt to divide by zero\"".into(),
+			AssertKind::RemainderByZero(_) => "\"attempt to calculate the remainder with a divisor of zero\"".into(),
+			_ => return refuse(span, "this assertion is not supported"),
 		};
-		ops.push(Op::Check {
-			cond: c,
-			msg: msg.into(),
-		});
+		self.before(ops, None, true);
+		ops.push(Op::Check { cond: c, msg });
 		Ok(())
 	}
 
@@ -1770,18 +1812,15 @@ impl<'a, 'tcx> Fx<'a, 'tcx> {
 		};
 		let gargs = gargs.skip_binder();
 		let path = tcx.def_path_str(callee);
-		if path.starts_with("core::panicking::")
-			|| path.starts_with("std::rt::begin_panic")
-			|| path == "core::panicking::panic_fmt"
+		if ["core::panicking::", "std::panicking::", "std::rt::"]
+			.iter()
+			.any(|p| path.starts_with(p))
 		{
-			for arg in args.iter() {
-				if let Operand::Move(p) | Operand::Copy(p) = &arg.node {
-					self.pending.remove(&p.local);
-				}
-			}
-			self.before(ops, None, true);
-			ops.push(Op::Throw("panic".into()));
-			return Ok(true);
+			// At the `panic!` the source wrote, not inside the macro's expansion.
+			return refuse(
+				span.source_callsite(),
+				"an explicit panic is not supported, since its message has no model",
+			);
 		}
 		if path.starts_with("core::fmt::Arguments::") || path.starts_with("std::fmt::Arguments::") {
 			self.assign(*destination, atom("()".into()), span, ops)?;
@@ -1819,8 +1858,8 @@ impl<'a, 'tcx> Fx<'a, 'tcx> {
 		let arg = |fx: &mut Self, i: usize| fx.operand(&args[i].node, span);
 		match key.as_str() {
 			"Clone::clone" => {
-				let t = gargs.type_at(0).peel_refs();
-				if !self.cx.clone_copies(t, self.env) {
+				let t = gargs.type_at(0);
+				if !self.cx.clone_copies(t) {
 					return refuse(span, format!("cloning `{t}` may not copy it"));
 				}
 				let v = arg(self, 0)?;
@@ -1887,7 +1926,7 @@ impl<'a, 'tcx> Fx<'a, 'tcx> {
 			"Vec::push" | "Vec::extend_from_slice" => {
 				if key == "Vec::extend_from_slice" {
 					let elem = gargs.type_at(0);
-					if !self.cx.clone_copies(elem, self.env) {
+					if !self.cx.clone_copies(elem) {
 						return refuse(span, format!("cloning `{elem}` may not copy it"));
 					}
 				}
@@ -1925,6 +1964,14 @@ impl<'a, 'tcx> Fx<'a, 'tcx> {
 	/// `Deref::deref for Vec`.
 	fn std_key(&self, did: DefId) -> String {
 		let tcx = self.cx.tcx;
+		let clone = tcx.lang_items().clone_trait();
+		if clone.is_some()
+			&& (tcx.trait_of_assoc(did) == clone
+				|| tcx.trait_impl_of_assoc(did).is_some_and(|imp| {
+					Some(tcx.impl_trait_ref(imp).instantiate_identity().skip_norm_wip().def_id) == clone
+				})) {
+			return "Clone::clone".into();
+		}
 		if !self.cx.is_std(did) {
 			return String::new();
 		}

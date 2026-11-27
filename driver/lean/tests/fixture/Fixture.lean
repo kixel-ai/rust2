@@ -22,6 +22,11 @@ structure cases.Cost where
   x0 : UInt64
 deriving Repr, DecidableEq, Inhabited
 
+/-- `cases::Record` -/
+structure cases.Record where
+  x0 : UInt8
+deriving Repr, DecidableEq, Inhabited
+
 /-- `cases::M` -/
 structure cases.M where
   x0 : UInt8
@@ -34,7 +39,7 @@ structure cases.Pair (A : UInt64) (B : UInt64) where
 deriving Repr, DecidableEq, Inhabited
 
 def Session.opening {S : UInt64} (self : (Session S)) (s : UInt64) : Rust.M UInt8 := do
-  unless s < S do throw "index out of bounds"
+  unless s < S do throw s!"index out of bounds: the len is {S} but the index is {s}"
   match self.subs[s.toNat]!.opening with
   | some k =>
     return k
@@ -46,7 +51,7 @@ def Session.turns_loop {S : UInt64} (self : (Session S)) (total : UInt16) (s : U
   let mut s := s
   if s < S then
     let t10 := s
-    unless t10 < S do throw "index out of bounds"
+    unless t10 < S do throw s!"index out of bounds: the len is {S} but the index is {t10}"
     let t8 := self.subs[t10.toNat]!.turn.toUInt16
     total := (← total +? t8)
     s := (← s +? 1)
@@ -62,12 +67,12 @@ def Session.turns {S : UInt64} (self : (Session S)) : Rust.M UInt16 := do
   return r
 
 def Session.same {S : UInt64} (self : (Session S)) (s : UInt64) (t : UInt64) : Rust.M Bool := do
-  unless s < S do throw "index out of bounds"
-  unless t < S do throw "index out of bounds"
+  unless s < S do throw s!"index out of bounds: the len is {S} but the index is {s}"
+  unless t < S do throw s!"index out of bounds: the len is {S} but the index is {t}"
   return decide (self.subs[s.toNat]!.opening = self.subs[t.toNat]!.opening)
 
 def Session.next {S : UInt64} (self : (Session S)) (s : UInt64) : Rust.M (Option UInt8) := do
-  unless s < S do throw "index out of bounds"
+  unless s < S do throw s!"index out of bounds: the len is {S} but the index is {s}"
   let t4 := Rust.branch self.subs[s.toNat]!.opening
   match t4 with
   | .Continue val =>
@@ -79,14 +84,14 @@ def Session.next {S : UInt64} (self : (Session S)) (s : UInt64) : Rust.M (Option
 def Session.step {S : UInt64} (self : (Session S)) (s : UInt64) : Rust.M (Bool × (Session S)) := do
   let mut self := self
   let len := UInt64.ofNat self.out.size
-  unless s < S do throw "index out of bounds"
+  unless s < S do throw s!"index out of bounds: the len is {S} but the index is {s}"
   self := { self with out := self.out.push self.subs[s.toNat]!.turn }
-  unless s < S do throw "index out of bounds"
+  unless s < S do throw s!"index out of bounds: the len is {S} but the index is {s}"
   if self.subs[s.toNat]!.opening.isNone then
     self := { self with out := self.out.extract 0 len.toNat }
     return (false, self)
   else
-    unless s < S do throw "index out of bounds"
+    unless s < S do throw s!"index out of bounds: the len is {S} but the index is {s}"
     self := { self with subs := self.subs.set! s.toNat { self.subs[s.toNat]! with turn := (← self.subs[s.toNat]!.turn +? 1) } }
     return (true, self)
 
@@ -98,6 +103,29 @@ def cases.Cost.PartialEq.eq (self : cases.Cost) (other : cases.Cost) : Bool :=
 
 def cases.Cost.value (self : cases.Cost) : UInt64 :=
   self.x0
+
+def cases.Cost.x0' (self : cases.Cost) : UInt64 :=
+  self.x0
+
+def cases.dup (c : cases.Cost) : cases.Cost :=
+  c
+
+def cases.dup_ref (r : cases.Record) : cases.Record := Id.run do
+  let t4 := r
+  let t2 := t4
+  return t2
+
+def cases.set (x : UInt8) : UInt8 := Id.run do
+  let mut x := x
+  x := (42 : UInt8)
+  return x
+
+def cases.snapshot_borrow (x : UInt8) : (UInt8 × UInt8) := Id.run do
+  let mut x := x
+  let r := cases.set x
+  let t2 := x
+  x := r
+  return (t2, x)
 
 def cases.snapshot (x : UInt8) : (UInt8 × UInt8) := Id.run do
   let mut x := x

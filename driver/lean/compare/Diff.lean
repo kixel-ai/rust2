@@ -69,15 +69,22 @@ def wevent : D Event := do
 def choice : D Choice := do pure { via := ← u8, cost := ← u32, copy := ← boolean, rank := ← u32 }
 end
 
-/-- Checks the translation's outcome against native Rust's next, `0` for a panic, else
-`1` and the value. Divergence never matches. -/
+/-- An ASCII string, as its length and bytes. -/
+def str : D String := do
+  let n ← nat
+  let mut cs := []
+  for _ in [0:n] do cs := Char.ofNat (← nat) :: cs
+  pure (String.ofList cs.reverse)
+
+/-- Checks the translation's outcome against native Rust's next, `0` and the message for a
+panic, else `1` and the value. Divergence never matches. -/
 def expect [DecidableEq α] (what : String) (got : Rust.M α) (d : D α) : D (List String) := do
-  let rust ← (if (← boolean) then some <$> d else pure none)
+  let rust ← (if (← boolean) then Except.ok <$> d else Except.error <$> str)
   match got.run, rust with
-  | some (.ok v), some w => pure (if v = w then [] else [s!"{what}: values differ"])
-  | some (.error _), none => pure [s!"={what}"]
-  | some (.ok _), none => pure [s!"{what}: Rust panicked, Lean returned"]
-  | some (.error e), some _ => pure [s!"{what}: Lean threw {e}, Rust returned"]
+  | some (.ok v), .ok w => pure (if v = w then [] else [s!"{what}: values differ"])
+  | some (.error e), .error m => pure (if e = m then [s!"={what}"] else [s!"{what}: Lean threw {e}, Rust panicked with {m}"])
+  | some (.ok _), .error m => pure [s!"{what}: Rust panicked with {m}, Lean returned"]
+  | some (.error e), .ok _ => pure [s!"{what}: Lean threw {e}, Rust returned"]
   | none, _ => pure [s!"{what}: Lean diverged"]
 
 def case : D (List String) := do
