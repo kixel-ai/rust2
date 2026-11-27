@@ -1,0 +1,35 @@
+#!/usr/bin/env bash
+# Git runs this before a push: run `just ci` on the diff the push adds to origin/main,
+# the same diff-scoped lint and tests the merge queue runs, so nothing else checks a
+# change before the queue. The dev shell sets `core.hooksPath` to this directory.
+# `git push --no-verify` skips it.
+set -euo pipefail
+
+cd "$(git rev-parse --show-toplevel)"
+
+# The tools and variables `just` needs come from the dev shell, which a push from a
+# plain shell does not have.
+if [[ -z "${IN_NIX_SHELL:-}" ]]; then
+    exec nix develop --command "$0" "$@"
+fi
+
+# dispatch.sh checks the working tree, so a push is only checked if the tree is exactly
+# what it pushes. Deleting a branch and pushing a tag change no code to check.
+head=$(git rev-parse HEAD)
+pushing=''
+while read -r local_ref local_sha remote_ref _; do
+    [[ "$remote_ref" == refs/heads/* && ! "$local_sha" =~ ^0+$ ]] || continue
+    if [[ "$local_sha" != "$head" ]]; then
+        echo "pre-push: $local_ref is not the checked-out commit, so \`just ci\` would test other code; check it out, or push with --no-verify" >&2
+        exit 1
+    fi
+    pushing=1
+done
+[[ -n "$pushing" ]] || exit 0
+
+if [[ -n "$(git status --porcelain)" ]]; then
+    echo "pre-push: the working tree has uncommitted changes, so \`just ci\` would test code the push lacks; commit or stash them, or push with --no-verify" >&2
+    exit 1
+fi
+
+exec just ci

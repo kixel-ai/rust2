@@ -74,6 +74,8 @@ class SelectTests(unittest.TestCase):
             (["quest/m0/example.md"], ["lint", "quest"]),
             (["sh/dispatch.test.py"], ["lint", "quest", "sh"]),
             (["sh/coverage.test.py"], ["lint", "quest", "sh"]),
+            (["sh/hook.test.py"], ["lint", "quest", "sh"]),
+            ([".githooks/pre-push"], ["lint", "quest", "sh"]),
             # The release builder's scripts are their own module, apart from the exporter's.
             (["ffi/release/package.py"], ["lint", "quest", "release"]),
             (["ffi/release/package.py", "ffi/src/lib.rs"], ["lint", "quest", "release", "ffi"]),

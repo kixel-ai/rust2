@@ -50,8 +50,3 @@ Recommendations:
 - Keep the shard split from #991 only if a single self-hosted job is slower;
   on one host, shards share its cores.
 - Measure one merge group's wall time and the runner's CPU before and after.
-
-## Related
-
-- [Pre-push hook runs the diff's CI](/quest/m0/pre-push-check.md) - the local side of
-  the same decision

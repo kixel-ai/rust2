@@ -417,6 +417,13 @@
                 export PATH="$RUST2_CARGO_SHIM:$PATH"
               fi
               unset shim
+              # Git installs no hooks on clone: point this checkout's pushes at the
+              # pre-push hook. Only a checkout that has it, since `nix develop` may run in any directory.
+              top=$(git rev-parse --show-toplevel 2>/dev/null || true)
+              if [ -x "$top/.githooks/pre-push" ] && [ "$(git config --local core.hooksPath || true)" != .githooks ]; then
+                git config --local core.hooksPath .githooks
+              fi
+              unset top
             '';
           };
           # `just ts bench` adds Chrome and Firefox as engines, and `just ffi browsers` runs the
