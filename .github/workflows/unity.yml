@@ -9,6 +9,10 @@ on:
     secrets:
       UNITY_LICENSE:
         required: true
+      UNITY_EMAIL:
+        required: true
+      UNITY_PASSWORD:
+        required: true
   # Scratch: iterating on the job before the nightly calls it. Removed before review.
   push:
     branches: [quest/m3/unity-il2cpp]
