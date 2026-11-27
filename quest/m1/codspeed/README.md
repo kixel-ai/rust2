@@ -1,4 +1,4 @@
-# No CodSpeed anywhere
+# [XS] No CodSpeed anywhere
 
 ## Goal
 
@@ -6,7 +6,7 @@ No CodSpeed service, app, or code remains in any moq-dev or kixel-ai repository:
 
 Non-goals: what the benchmarks measure, how often they run, and native perf counters, which `swole run --perf` counts. System metrics (CPU time, context switches, RSS, allocations) belong to [swole's quest tree](https://github.com/kixel-ai/swole/blob/main/quest/README.md).
 
-The epic's own work, once the waits below clear: the CodSpeed GitHub App uninstalled from both organizations. swole's side, dropping what it keeps for CodSpeed's crates and hooks, is [its own quest](https://github.com/kixel-ai/swole/blob/main/quest/m0/drop-codspeed.md).
+The CodSpeed GitHub App is uninstalled from both organizations and CodSpeed's projects for rind, rust2, and moq are deleted (2026-11-27). The empty CodSpeed organizations stay (decided 2026-11-27, maintainer: rejected emailing contact@codspeed.io to delete them). What remains waits below: moq's and rind's rewrites, and swole's side, dropping what it keeps for CodSpeed's crates and hooks, [its own quest](https://github.com/kixel-ai/swole/blob/main/quest/m0/drop-codspeed.md).
 
 ## Plan
 
