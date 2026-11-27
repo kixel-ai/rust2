@@ -474,6 +474,14 @@ pub mod refused {
 		has(s, k)
 	}
 
+	/// The same bound, at a lookup the model translates directly.
+	pub fn contains_some<T>(s: &BTreeSet<Option<T>>, k: &Option<T>) -> bool
+	where
+		Option<T>: Ord,
+	{
+		s.contains(k)
+	}
+
 	/// The mapper is a function pointer, whose panics the list cannot hold.
 	pub fn mapped(mut it: std::iter::Map<std::slice::Iter<'_, u8>, fn(&u8) -> bool>) -> bool {
 		it.any(|x| x)

@@ -976,6 +976,34 @@ impl<'tcx> Cx<'tcx> {
 		let eq = tcx.lang_items().eq_trait();
 		let ord = tcx.get_diagnostic_item(rustc_span::sym::Ord);
 		let env = tcx.param_env(did);
+		// Lean binds an instance per parameter, so a bound such as `Option<T>: Ord` has none
+		// to give a body that orders or compares an `Option<T>`.
+		let instanced = [
+			eq,
+			ord,
+			tcx.lang_items().partial_ord_trait(),
+			tcx.get_diagnostic_item(rustc_span::sym::Eq),
+		];
+		let mut owner = Some(did);
+		while let Some(d) = owner {
+			let clauses = tcx.clauses_of(d);
+			for (clause, span) in clauses.clauses {
+				let Some(t) = clause.as_trait_clause() else { continue };
+				let self_ty = t.self_ty().skip_binder();
+				if self_ty.has_param()
+					&& !matches!(self_ty.kind(), ty::Param(_))
+					&& (t.def_id().is_local() || instanced.contains(&Some(t.def_id())))
+				{
+					return refuse(
+						*span,
+						format!(
+							"a bound on `{self_ty}` is not supported, since Lean binds instances only on type parameters"
+						),
+					);
+				}
+			}
+			owner = clauses.parent;
+		}
 		for param in params {
 			let name = structure::ident(param.name.as_str());
 			match param.kind {
@@ -2703,24 +2731,6 @@ impl<'a, 'tcx> Fx<'a, 'tcx> {
 				];
 				if bounds.iter().any(|b| ord.contains(&Some(*b))) && !self.cx.structural_ord(t) {
 					return refuse(span, format!("`{t}` passed where `Ord` must match a Lean order"));
-				}
-				// Lean derives `Ord (Option T)` and `DecidableEq (Option T)` from `T`'s own
-				// instance, which this function's binders hold only for a parameter it bounds
-				// directly, not through a bound such as `Option<T>: Ord`.
-				let ord = tcx.get_diagnostic_item(rustc_span::sym::Ord);
-				for tr in [ord, eq].into_iter().flatten().filter(|b| bounds.contains(b)) {
-					let missing = t.walk().filter_map(|a| a.as_type()).find(
-						|a| matches!(a.kind(), ty::Param(p) if !self.cx.param_bounds(self.did, p.index).contains(&tr)),
-					);
-					if let Some(p) = missing {
-						return refuse(
-							span,
-							format!(
-								"`{t}` passed where `{}` needs a Lean instance, which `{p}` has no bound for",
-								tcx.def_path_str(tr)
-							),
-						);
-					}
 				}
 			}
 			let shows = sig.inputs().iter().any(|t| {
