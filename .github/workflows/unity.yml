@@ -67,7 +67,23 @@ jobs:
       - name: Run
         working-directory: ffi/target/unity
         run: |
-          play() { ./Build/api.x86_64 -batchmode -nographics -logFile "$PWD/$1.log" -- "$PWD/$1.out" "${@:2}"; }
+          nix build --no-link nixpkgs#gdb
+          gdb=$(nix build --no-link --print-out-paths nixpkgs#gdb)/bin/gdb
+          play() {
+            echo "::group::$1"
+            ./Build/api.x86_64 -batchmode -nographics -logFile "$PWD/$1.log" -- "$PWD/$1.out" "${@:2}" &
+            local pid=$! t=0
+            while kill -0 $pid 2>/dev/null && [ $t -lt 300 ]; do sleep 5; t=$((t+5)); done
+            if kill -0 $pid 2>/dev/null; then
+              echo "$1 hung; its threads:"
+              sudo "$gdb" -batch -p $pid -ex "thread apply all bt 40" 2>&1 | grep -v "^\[New LWP" | head -600
+              kill -9 $pid
+            fi
+            wait $pid; local code=$?
+            echo "$1 exit $code after ${t}s"
+            echo "::endgroup::"
+            return $code
+          }
           play transcript || { cat transcript.log; exit 1; }
           diff -u transcript.txt transcript.out
           for case in checks futures; do
