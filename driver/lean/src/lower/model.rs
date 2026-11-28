@@ -1,6 +1,6 @@
 //! Models of `std` calls that take closures or make iterators, and of the `Option`, slice,
 //! integer, `Ord`, `Arc`, `BTreeMap`/`BTreeSet`, `VecDeque`, `Duration`, and kio `Instant`
-//! functions beside them.
+//! functions beside them, and of the calls that make a lens.
 //!
 //! An iterator is the list of its items ([`Cx::iterator`]): pure, or each item the action
 //! that makes it when a closure that may panic maps it, so a consumer meets a panic only at
@@ -249,6 +249,39 @@ impl<'tcx> Fx<'_, 'tcx> {
 				let o = self.operand(&call.args[0].node, span)?;
 				let v = self.operand(&call.args[1].node, span)?;
 				compound(format!("{}.getD {}", o.paren(), v.paren()), &[&o, &v])
+			}
+			"Option::ok_or" => {
+				let o = self.operand(&call.args[0].node, span)?;
+				let e = self.operand(&call.args[1].node, span)?;
+				compound(format!("Rust.okOr {} {}", o.paren(), e.paren()), &[&o, &e])
+			}
+			"Option::unwrap_or_default" => {
+				let o = self.operand(&call.args[0].node, span)?;
+				let d = self.default_value(call.gargs.type_at(0), span)?;
+				if d.monadic {
+					bound(compound(
+						format!("Rust.getDM {} (fun _ => do pure {})", o.paren(), d.text),
+						&[&o, &d],
+					))
+				} else {
+					compound(format!("{}.getD {}", o.paren(), d.paren()), &[&o, &d])
+				}
+			}
+			"std::mem::replace" | "core::mem::replace" => {
+				let place = self.mutable_arg(&call.args[0].node, span)?;
+				let cur = self.read_place(place, span)?;
+				let v = self.operand(&call.args[1].node, span)?;
+				self.assign(call.destination, cur, span, ops)?;
+				self.assign(place, v, span, ops)?;
+				return Ok(true);
+			}
+			"std::mem::take" | "core::mem::take" => {
+				let place = self.mutable_arg(&call.args[0].node, span)?;
+				let cur = self.read_place(place, span)?;
+				let d = self.default_value(call.gargs.type_at(0), span)?;
+				self.assign(call.destination, cur, span, ops)?;
+				self.assign(place, d, span, ops)?;
+				return Ok(true);
 			}
 			"Option::copied" => self.operand(&call.args[0].node, span)?,
 			"Option::cloned" => {
@@ -504,6 +537,136 @@ impl<'tcx> Fx<'_, 'tcx> {
 		Ok(true)
 	}
 
+	/// Lower `call` if it makes a lens, or a value holding one: `false` if no model does.
+	/// `get_mut` and `entry` point at the value at a key of a map, and `get_or_insert_default`
+	/// at what an `Option` holds; `expect` and `unwrap` take the `&mut` out of an `Option`.
+	pub(super) fn lens_model(&mut self, key: &str, call: &Call<'_, 'tcx>, ops: &mut Vec<Op>) -> R<bool> {
+		let tcx = self.cx.tcx;
+		let span = call.span;
+		let dest = call.destination;
+		if !dest.projection.is_empty() {
+			return Ok(false);
+		}
+		match key {
+			"BTreeMap::get_mut" | "BTreeMap::entry" => {
+				let k = call.gargs.type_at(0);
+				if key == "BTreeMap::get_mut" {
+					let q = call.gargs.type_at(call.gargs.len() - 1);
+					if tcx.erase_and_anonymize_regions(k) != tcx.erase_and_anonymize_regions(q) {
+						return refuse(span, format!("looking up `{k}` by `{q}` is not supported"));
+					}
+				}
+				self.ordered(k, span)?;
+				let base = self.mutable_arg(&call.args[0].node, span)?;
+				let lean_k = self.cx.ty(k, span)?;
+				let x = self.operand(&call.args[1].node, span)?;
+				let x = self.capture(x, lean_k, ops);
+				let m = self.read_place(base, span)?;
+				let value = compound(format!("{}.get {}", m.paren(), x.paren()), &[&m, &x]);
+				self.hold(
+					dest.local,
+					Lens {
+						base,
+						steps: vec![Proj::At(x)],
+					},
+					span,
+				)?;
+				self.assign(dest, value, span, ops)?;
+			}
+			"Entry::or_default" | "Entry::or_insert" | "Entry::or_insert_with" | "VacantEntry::insert" => {
+				let Some(lens) = self.carrier_arg(&call.args[0].node) else {
+					return refuse(span, "this map entry is not supported");
+				};
+				let [Proj::At(k)] = lens.steps.as_slice() else {
+					return refuse(span, "this map entry is not supported");
+				};
+				let k = k.clone();
+				let m = self.read_place(lens.base, span)?;
+				// The value an absent key gets, as a thunk, since Rust makes it only then.
+				let (v, monadic) = match key {
+					"Entry::or_default" => {
+						let ty = dest.ty(self.body, tcx).ty.peel_refs();
+						let d = self.default_value(ty, span)?;
+						let m = d.monadic;
+						(
+							if m {
+								compound(format!("do pure {}", d.text), &[&d])
+							} else {
+								d
+							},
+							m,
+						)
+					}
+					"Entry::or_insert_with" => {
+						let f = self.closure(&call.args[1].node, span)?;
+						(f.f, f.monadic)
+					}
+					_ => (self.operand(&call.args[1].node, span)?, false),
+				};
+				let new = match (key, monadic) {
+					("VacantEntry::insert", _) => compound(
+						format!("{}.setAt {} {}", m.paren(), k.paren(), v.paren()),
+						&[&m, &k, &v],
+					),
+					(_, true) => bound(compound(
+						format!(
+							"Rust.BTreeMap.orInsertWithM {} {} (fun _ => {})",
+							m.paren(),
+							k.paren(),
+							v.text
+						),
+						&[&m, &k, &v],
+					)),
+					(_, false) => compound(
+						format!("{}.orInsertWith {} (fun _ => {})", m.paren(), k.paren(), v.text),
+						&[&m, &k, &v],
+					),
+				};
+				self.assign(lens.base, new, span, ops)?;
+				self.lenses.insert(dest.local, lens);
+			}
+			"Option::get_or_insert_default" => {
+				let base = self.mutable_arg(&call.args[0].node, span)?;
+				let ty = dest.ty(self.body, tcx).ty.peel_refs();
+				let d = self.default_value(ty, span)?;
+				let o = self.read_place(base, span)?;
+				let new = if d.monadic {
+					bound(compound(
+						format!("Rust.getOrInsertWithM {} (fun _ => do pure {})", o.paren(), d.text),
+						&[&o, &d],
+					))
+				} else {
+					compound(format!("some ({}.getD {})", o.paren(), d.paren()), &[&o, &d])
+				};
+				self.assign(base, new, span, ops)?;
+				self.lenses.insert(
+					dest.local,
+					Lens {
+						base,
+						steps: vec![Proj::Some],
+					},
+				);
+			}
+			"Option::expect" | "Option::unwrap" if matches!(self.mutable.get(&dest.local), Some(Mutable::Lens)) => {
+				let Some(lens) = self.carrier_arg(&call.args[0].node) else {
+					return refuse(span, "this mutable reference is not supported");
+				};
+				let o = self.operand(&call.args[0].node, span)?;
+				let msg = if key == "Option::unwrap" {
+					atom(lean_string("called `Option::unwrap()` on a `None` value"))
+				} else {
+					self.operand(&call.args[1].node, span)?
+				};
+				let cond = compound(format!("{}.isSome", o.paren()), &[&o, &msg]);
+				self.before(ops, None, true);
+				ops.push(Op::Check { cond, msg: msg.text });
+				self.lenses.insert(dest.local, lens);
+			}
+			_ => return Ok(false),
+		}
+		Ok(true)
+	}
+
 	/// Lower a collection's method that changes it through `&mut self` as the runtime's `f`,
 	/// which returns the new collection and the result, for the borrowed place and the
 	/// destination.
@@ -566,6 +729,11 @@ impl<'tcx> Fx<'_, 'tcx> {
 		};
 		// Refuses a closure that changes what it captures.
 		self.cx.ty(ty, span)?;
+		// One that takes a `&mut`, such as `Option::map` on `get_mut`'s result, returns what it
+		// wrote beside its result, which no model takes.
+		if self.cx.holds_mut(cargs.as_closure().sig().skip_binder().inputs()[0]) {
+			return refuse(span, "a closure taking a mutable reference is not supported");
+		}
 		let env = self.operand(op, span)?;
 		let monadic = self.cx.shapes.get(&did).is_none_or(|s| s.monadic || s.failed);
 		let mut text = self.cx.fn_name(did);

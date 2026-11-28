@@ -3,7 +3,8 @@
 //!
 //! The subset is value-style code: a shared reference is the value it points to, and a
 //! mutable reference is the place it borrows, written back after each call it is passed
-//! to. Borrowck's exclusivity makes both exact. Anything else is refused with its span.
+//! to, or a [`Lens`] into it, such as the value at a map's key. Borrowck's exclusivity makes
+//! all three exact. Anything else is refused with its span.
 
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet, VecDeque};
 
@@ -354,15 +355,106 @@ impl<'tcx> Cx<'tcx> {
 					out.push(closure);
 				}
 			}
-			if let TerminatorKind::Call { func, .. } = &bb.terminator().kind
+			if let TerminatorKind::Call { func, destination, .. } = &bb.terminator().kind
 				&& let ty::FnDef(callee, args) = *func.ty(body, tcx).kind()
-				&& let args = args.skip_binder()
-				&& let Some((local, _)) = resolve_local(tcx, env, callee, args)
 			{
-				out.push(local);
+				let args = args.skip_binder();
+				if let Some((local, _)) = resolve_local(tcx, env, callee, args) {
+					out.push(local);
+				} else if self.makes_default(callee) {
+					// `or_default` and the like call the `Default` of what they return.
+					let ty = destination.ty(body, tcx).ty;
+					let ty = match ty.kind() {
+						ty::Ref(_, inner, _) => *inner,
+						_ => ty,
+					};
+					self.default_callees(env, ty, &mut out, &mut HashSet::new());
+				}
 			}
 		}
 		out
+	}
+
+	/// Whether `callee` is a `std` function that makes a `Default` of what it returns, which a
+	/// local impl may write by hand: `Default::default` itself, or one that calls it.
+	fn makes_default(&self, callee: DefId) -> bool {
+		let tcx = self.tcx;
+		let default = tcx.get_diagnostic_item(rustc_span::sym::Default);
+		(default.is_some() && tcx.trait_of_assoc(callee) == default)
+			|| (self.is_std(callee)
+				&& matches!(
+					tcx.item_name(callee).as_str(),
+					"or_default" | "unwrap_or_default" | "get_or_insert_default"
+				)
+				|| matches!(tcx.def_path_str(callee).as_str(), "std::mem::take" | "core::mem::take"))
+	}
+
+	/// The local `Default` impls written by hand that a `Default` of `ty` calls, through
+	/// derived ones and tuples.
+	fn default_callees(&self, env: TypingEnv<'tcx>, ty: Ty<'tcx>, out: &mut Vec<DefId>, seen: &mut HashSet<Ty<'tcx>>) {
+		if !seen.insert(ty) {
+			return;
+		}
+		match ty.kind() {
+			ty::Tuple(tys) => tys.iter().for_each(|t| self.default_callees(env, t, out, seen)),
+			ty::Adt(def, args) if def.did().is_local() => {
+				if let Some((did, _)) = self.default_impl(env, ty) {
+					out.push(did);
+				} else if self.derives(def.did(), self.tcx.get_diagnostic_item(rustc_span::sym::Default)) {
+					for f in def.all_fields() {
+						self.default_callees(env, f.ty(self.tcx, *args).skip_norm_wip(), out, seen);
+					}
+				}
+			}
+			_ => {}
+		}
+	}
+
+	/// The local `Default::default` written by hand for `ty`, and its generic arguments.
+	fn default_impl(&self, env: TypingEnv<'tcx>, ty: Ty<'tcx>) -> Option<(DefId, GenericArgsRef<'tcx>)> {
+		let tcx = self.tcx;
+		let default = tcx.get_diagnostic_item(rustc_span::sym::Default)?;
+		let method = tcx
+			.associated_items(default)
+			.filter_by_name_unhygienic(rustc_span::Symbol::intern("default"))
+			.next()?
+			.def_id;
+		resolve_local(tcx, env, method, tcx.mk_args(&[ty.into()]))
+	}
+
+	/// Whether a value of `ty` holds a `&mut`, or a map's entry, which is one. A closure holds
+	/// what it captures, not the types its signature names.
+	fn holds_mut(&self, ty: Ty<'tcx>) -> bool {
+		let mut walk = ty.walk();
+		while let Some(arg) = walk.next() {
+			let Some(t) = arg.as_type() else { continue };
+			match t.kind() {
+				ty::Ref(_, _, ty::Mutability::Mut) => return true,
+				ty::Closure(_, args) => {
+					walk.skip_current_subtree();
+					if args.as_closure().upvar_tys().iter().any(|u| self.holds_mut(u)) {
+						return true;
+					}
+				}
+				ty::Adt(def, _)
+					if self.entry_handle(t)
+						|| (self.std_name(def.did()) == "Entry"
+							&& self.tcx.def_path_str(def.did()).contains("btree_map::")) =>
+				{
+					return true;
+				}
+				_ => {}
+			}
+		}
+		false
+	}
+
+	/// Whether `ty` is a `btree_map::VacantEntry` or `OccupiedEntry`, which a match on an
+	/// `Entry` takes out: a handle on the map, whose lens is all it is.
+	fn entry_handle(&self, ty: Ty<'tcx>) -> bool {
+		matches!(ty.kind(), ty::Adt(def, _)
+			if matches!(self.std_name(def.did()).as_str(), "VacantEntry" | "OccupiedEntry")
+				&& self.tcx.def_path_str(def.did()).contains("btree_map::"))
 	}
 
 	/// Whether the type's `PartialEq` is structural equality, which Lean's derived
@@ -765,6 +857,12 @@ impl<'tcx> Cx<'tcx> {
 				),
 				"BTreeSet" => format!("(Rust.BTreeSet {})", self.ty(args.type_at(0), span)?),
 				"Duration" => "Rust.Duration".into(),
+				// A map's entry, as a copy of the value at its key, which only a match reads; its
+				// lens writes the map.
+				"Entry" if tcx.def_path_str(def.did()).contains("btree_map::") => {
+					format!("(Option {})", self.ty(args.type_at(1), span)?)
+				}
+				"VacantEntry" | "OccupiedEntry" if self.entry_handle(ty) => "Unit".into(),
 				"VecDeque" => format!("(Rust.VecDeque {})", self.ty(args.type_at(0), span)?),
 				"Ordering" if self.is_cmp_ordering(def.did()) => "Ordering".into(),
 				// UTF-8 text, which a Lean `String` holds exactly.
@@ -1264,6 +1362,18 @@ enum Mutable<'tcx> {
 	Param,
 	/// A borrow of this place, written to directly.
 	Borrow(Place<'tcx>),
+	/// A `&mut` a call returned, or taken out of a value that holds one: a [`Lens`], which
+	/// the call's model fills in [`Fx::lenses`].
+	Lens,
+}
+
+/// Where a `&mut` that no MIR place names points: a place, then steps no place has, such as
+/// the value at a key of a map. Reading through it is the steps' getters, and writing is
+/// their setters, back into the place, so value semantics hold without backward functions.
+#[derive(Clone)]
+struct Lens<'tcx> {
+	base: Place<'tcx>,
+	steps: Vec<Proj>,
 }
 
 /// A function's Lean signature.
@@ -1308,6 +1418,12 @@ struct Fx<'a, 'tcx> {
 	pending: HashMap<Local, Ex>,
 	/// The node being lowered, and the place writes so far in it.
 	written: HashSet<usize>,
+	/// What each [`Mutable::Lens`] local points at, once its call is lowered.
+	lenses: HashMap<Local, Lens<'tcx>>,
+	/// Values holding a `&mut` that a lens model made, such as `get_mut`'s `Option<&mut V>`
+	/// or `entry`'s `Entry`: the lens a `&mut` taken out of each is. The value itself is a
+	/// copy of what it points at, which only a match reads.
+	carriers: HashMap<Local, Lens<'tcx>>,
 }
 
 impl<'a, 'tcx> Fx<'a, 'tcx> {
@@ -1348,6 +1464,8 @@ impl<'a, 'tcx> Fx<'a, 'tcx> {
 			checked: HashMap::new(),
 			pending: HashMap::new(),
 			written: HashSet::new(),
+			lenses: HashMap::new(),
+			carriers: HashMap::new(),
 		};
 		fx.count();
 		fx.find_mutable()?;
@@ -1425,6 +1543,17 @@ impl<'a, 'tcx> Fx<'a, 'tcx> {
 	/// Find what each mutable reference local stands for.
 	fn find_mutable(&mut self) -> R<()> {
 		let body = self.body;
+		// A `&mut` inside what the function returns, such as `get_mut`'s `Option<&mut V>`, which
+		// a caller would take for a copy.
+		let ret = &body.local_decls[mir::RETURN_PLACE];
+		if self.cx.holds_mut(ret.ty) {
+			// A closure's return place has no span of its own.
+			let span = match ret.source_info.span.is_empty() {
+				true => self.cx.tcx.def_span(self.did),
+				false => ret.source_info.span,
+			};
+			return refuse(span, "returning a mutable reference is not supported");
+		}
 		for (local, decl) in body.local_decls.iter_enumerated() {
 			if !matches!(decl.ty.kind(), ty::Ref(_, _, ty::Mutability::Mut)) {
 				continue;
@@ -1440,9 +1569,6 @@ impl<'a, 'tcx> Fx<'a, 'tcx> {
 				}
 				self.mutable.insert(local, Mutable::Param);
 				continue;
-			}
-			if local == mir::RETURN_PLACE {
-				return refuse(decl.source_info.span, "returning a mutable reference is not supported");
 			}
 		}
 		for bb in body.basic_blocks.iter() {
@@ -1471,6 +1597,23 @@ impl<'a, 'tcx> Fx<'a, 'tcx> {
 					Rvalue::Use(Operand::Move(from) | Operand::Copy(from), _) if from.projection.is_empty() => {
 						Place::from(from.local).project_deeper(&[ProjectionElem::Deref], self.cx.tcx)
 					}
+					// Out of a value that holds it, such as `Some(r)` of `get_mut`'s result:
+					// a lens if a lens model made that value, which lowering checks.
+					Rvalue::Use(Operand::Move(from) | Operand::Copy(from), _)
+						if matches!(
+							from.projection.as_slice(),
+							[ProjectionElem::Downcast(..), ProjectionElem::Field(..)]
+						) =>
+					{
+						if self.defs[place.local.as_usize()] != 1 {
+							return refuse(
+								stmt.source_info.span,
+								"a mutable reference assigned twice is not supported",
+							);
+						}
+						self.mutable.insert(place.local, Mutable::Lens);
+						continue;
+					}
 					_ => return refuse(stmt.source_info.span, "this mutable reference is not supported"),
 				};
 				if self.defs[place.local.as_usize()] != 1 {
@@ -1491,6 +1634,7 @@ impl<'a, 'tcx> Fx<'a, 'tcx> {
 				}
 				self.mutable.insert(place.local, Mutable::Borrow(target));
 			}
+			// A lens, if a lens model covers the call, which lowering checks.
 			if let TerminatorKind::Call {
 				destination, fn_span, ..
 			} = &bb.terminator().kind
@@ -1498,7 +1642,10 @@ impl<'a, 'tcx> Fx<'a, 'tcx> {
 					body.local_decls[destination.local].ty.kind(),
 					ty::Ref(_, _, ty::Mutability::Mut)
 				) {
-				return refuse(*fn_span, "a call returning a mutable reference is not supported");
+				if !destination.projection.is_empty() || self.defs[destination.local.as_usize()] != 1 {
+					return refuse(*fn_span, "a call returning a mutable reference is not supported");
+				}
+				self.mutable.insert(destination.local, Mutable::Lens);
 			}
 		}
 		Ok(())
@@ -1569,7 +1716,10 @@ impl<'a, 'tcx> Fx<'a, 'tcx> {
 		}
 		for (local, decl) in body.local_decls.iter_enumerated() {
 			let i = local.as_usize();
-			if matches!(self.mutable.get(&local), Some(Mutable::Borrow(_))) || self.copies.contains_key(&local) {
+			if matches!(self.mutable.get(&local), Some(Mutable::Borrow(_) | Mutable::Lens))
+				|| self.copies.contains_key(&local)
+				|| self.cx.entry_handle(decl.ty)
+			{
 				continue;
 			}
 			let (name, user) = match (&names[i], i) {
@@ -1801,10 +1951,22 @@ impl<'a, 'tcx> Fx<'a, 'tcx> {
 			StatementKind::Assign(assign) => {
 				let (place, rvalue) = &**assign;
 				if place.projection.is_empty() {
+					if matches!(self.mutable.get(&place.local), Some(Mutable::Lens))
+						|| self.cx.entry_handle(place.ty(self.body, self.cx.tcx).ty)
+					{
+						return self.take_lens(place.local, rvalue, span);
+					}
 					if matches!(self.mutable.get(&place.local), Some(Mutable::Borrow(_)))
 						|| self.copies.contains_key(&place.local)
 					{
 						return Ok(());
+					}
+					// A value holding a `&mut` moved whole keeps its lens.
+					if let Rvalue::Use(Operand::Move(from) | Operand::Copy(from), _) = rvalue
+						&& from.projection.is_empty()
+						&& let Some(lens) = self.carriers.get(&from.local).cloned()
+					{
+						self.hold(place.local, lens, span)?;
 					}
 					match rvalue {
 						Rvalue::Discriminant(p) => {
@@ -1891,6 +2053,18 @@ impl<'a, 'tcx> Fx<'a, 'tcx> {
 				projs = p;
 				(b, rest)
 			}
+			Some(Mutable::Lens) => {
+				let [ProjectionElem::Deref, rest @ ..] = place.projection.as_slice() else {
+					return refuse(span, "a mutable reference used as a value is not supported");
+				};
+				let Some(lens) = self.lenses.get(&place.local).cloned() else {
+					return refuse(span, "this mutable reference is not supported");
+				};
+				let (b, mut p, _) = self.resolve(lens.base, span, write)?;
+				p.extend(lens.steps);
+				projs = p;
+				(b, rest)
+			}
 			Some(Mutable::Param) => {
 				let [ProjectionElem::Deref, rest @ ..] = place.projection.as_slice() else {
 					return refuse(span, "a mutable reference used as a value is not supported");
@@ -1929,10 +2103,10 @@ impl<'a, 'tcx> Fx<'a, 'tcx> {
 						local: place.local,
 						projection: tcx.mk_place_elems(&place.projection[..consumed]),
 					};
-					let Some(vars) = self.pattern.get(&(prefix, v)) else {
+					let Some(&var) = self.pattern.get(&(prefix, v)).and_then(|vars| vars.get(f.as_usize())) else {
 						return refuse(span, "a variant's field read away from its match is not supported");
 					};
-					base = vars[f.as_usize()];
+					base = var;
 					projs.clear();
 					if self.written.contains(&base) {
 						return refuse(span, "a variant's field read after its place changed is not supported");
@@ -2006,6 +2180,9 @@ impl<'a, 'tcx> Fx<'a, 'tcx> {
 		let local = self.copies.get(&local).copied().unwrap_or(local);
 		if self.mutable.contains_key(&local) {
 			return refuse(span, "a mutable reference used as a value is not supported");
+		}
+		if self.local_var[local.as_usize()].is_none() {
+			return refuse(span, "a map's entry used as a value is not supported");
 		}
 		if let Some(ex) = self.pending.remove(&local) {
 			return Ok(ex);
@@ -2590,10 +2767,21 @@ impl<'a, 'tcx> Fx<'a, 'tcx> {
 			self.assign(*destination, ex, span, ops)?;
 			return Ok(false);
 		}
+		let lens = matches!(self.mutable.get(&destination.local), Some(Mutable::Lens));
 		if let Some((local, gargs)) = resolve_local(tcx, self.env, callee, gargs) {
+			if lens {
+				return refuse(span, "a call returning a mutable reference is not supported");
+			}
 			return self
 				.local_call(local, gargs, args, *destination, span, ops)
 				.map(|_| target.is_none());
+		}
+		// A derived `Default`, which is left out like every derived impl, as its fields' defaults.
+		let default = tcx.get_diagnostic_item(rustc_span::sym::Default);
+		if default.is_some() && tcx.trait_of_assoc(callee) == default {
+			let v = self.default_value(gargs.type_at(0), span)?;
+			self.assign(*destination, v, span, ops)?;
+			return Ok(target.is_none());
 		}
 		if let Some(tr) = tcx.trait_of_assoc(callee)
 			&& tr.is_local()
@@ -2615,7 +2803,14 @@ impl<'a, 'tcx> Fx<'a, 'tcx> {
 			span,
 			block: bb,
 		};
+		if self.lens_model(&key, &call, ops)? {
+			return Ok(target.is_none());
+		}
+		if lens {
+			return refuse(span, "a call returning a mutable reference is not supported");
+		}
 		if self.model(&key, &call, ops)? {
+			self.carry(args, *destination, span)?;
 			return Ok(target.is_none());
 		}
 		let arg = |fx: &mut Self, i: usize| fx.operand(&args[i].node, span);
@@ -2663,6 +2858,35 @@ impl<'a, 'tcx> Fx<'a, 'tcx> {
 				let lean_ty = self.cx.ty(destination.ty(self.body, tcx).ty, span)?;
 				self.assign(*destination, atom(format!("(none : {lean_ty})")), span, ops)?;
 			}
+			"Try::branch for Result" => {
+				let v = arg(self, 0)?;
+				self.assign(
+					*destination,
+					compound(format!("Rust.branchExcept {}", v.paren()), &[&v]),
+					span,
+					ops,
+				)?;
+			}
+			// `Err(From::from(e))`, where `From` of the same type is all that is modeled.
+			"FromResidual::from_residual for Result" => {
+				let to = destination.ty(self.body, tcx).ty;
+				let from = args[0].node.ty(self.body, tcx);
+				let (ty::Adt(_, to_args), ty::Adt(_, from_args)) = (to.kind(), from.kind()) else {
+					return refuse(span, format!("`?` into `{to}` is not supported"));
+				};
+				let (e, f) = (from_args.type_at(1), to_args.type_at(1));
+				if tcx.erase_and_anonymize_regions(e) != tcx.erase_and_anonymize_regions(f) {
+					return refuse(span, format!("converting `{e}` to `{f}` with `?` is not supported"));
+				}
+				let v = arg(self, 0)?;
+				let lean_ty = self.cx.ty(to, span)?;
+				self.assign(
+					*destination,
+					atom_of(format!("(Rust.fromResidualExcept {} : {lean_ty})", v.paren()), &[&v]),
+					span,
+					ops,
+				)?;
+			}
 			"u8::checked_add" | "u16::checked_add" | "u32::checked_add" | "u64::checked_add" | "usize::checked_add"
 			| "u8::checked_sub" | "u16::checked_sub" | "u32::checked_sub" | "u64::checked_sub"
 			| "usize::checked_sub" => {
@@ -2705,7 +2929,197 @@ impl<'a, 'tcx> Fx<'a, 'tcx> {
 			}
 			_ => return refuse(span, format!("`{}` has no Lean model", tcx.def_path_str(did))),
 		}
+		self.carry(args, *destination, span)?;
 		Ok(target.is_none())
+	}
+
+	/// A value holding a `&mut` that a model made from another, such as `ok_or` or `?` of
+	/// `get_mut`'s result, holds its lens.
+	fn carry(&mut self, args: &[rustc_span::Spanned<Operand<'tcx>>], destination: Place<'tcx>, span: Span) -> R<()> {
+		let ty = destination.ty(self.body, self.cx.tcx).ty;
+		if let Some(first) = args.first()
+			&& destination.projection.is_empty()
+			&& let Some(lens) = self.carrier_arg(&first.node)
+			&& self.cx.holds_mut(ty)
+		{
+			self.hold(destination.local, lens, span)?;
+		}
+		Ok(())
+	}
+
+	/// Record that `local` holds `lens`, which lowering knows once: a local set twice could
+	/// hold another lens on each path, as two branches' `get_mut`s.
+	fn hold(&mut self, local: Local, lens: Lens<'tcx>, span: Span) -> R<()> {
+		if self.defs[local.as_usize()] != 1 {
+			return refuse(span, "a value holding a mutable reference set twice is not supported");
+		}
+		self.carriers.insert(local, lens);
+		Ok(())
+	}
+
+	/// Fill the lens of `local`, a `&mut` or an entry's handle, from the value holding it that
+	/// `rvalue` takes it out of, which a lens model made.
+	fn take_lens(&mut self, local: Local, rvalue: &Rvalue<'tcx>, span: Span) -> R<()> {
+		if let Rvalue::Use(Operand::Move(from) | Operand::Copy(from), _) = rvalue
+			&& matches!(
+				from.projection.as_slice(),
+				[] | [ProjectionElem::Downcast(..), ProjectionElem::Field(..)]
+			)
+			&& let Some(lens) = self.carriers.get(&from.local).cloned()
+		{
+			if matches!(self.mutable.get(&local), Some(Mutable::Lens)) {
+				self.lenses.insert(local, lens);
+			} else {
+				self.hold(local, lens, span)?;
+			}
+			return Ok(());
+		}
+		refuse(span, "this mutable reference is not supported")
+	}
+
+	/// The lens of the value holding a `&mut` that `op` moves, if a lens model made it.
+	fn carrier_arg(&self, op: &Operand<'tcx>) -> Option<Lens<'tcx>> {
+		match op {
+			Operand::Move(p) | Operand::Copy(p) if p.projection.is_empty() => self.carriers.get(&p.local).cloned(),
+			_ => None,
+		}
+	}
+
+	/// `key` as a lens holds it: as it is if it reads only parameters that never change, else in
+	/// a variable of its own, since the place it was read from may change while the lens lives.
+	fn capture(&mut self, key: Ex, ty: String, ops: &mut Vec<Op>) -> Ex {
+		if !key.monadic
+			&& key.reads.iter().all(|&v| {
+				(0..self.body.local_decls.len())
+					.any(|i| self.local_var[i] == Some(v) && self.stable(Local::from_usize(i), 0))
+			}) {
+			return key;
+		}
+		let v = self.var("key", ty, false);
+		self.before(ops, Some(v), key.monadic);
+		push_set(ops, v, key);
+		self.written.insert(v);
+		var_ex(&self.vars, v)
+	}
+
+	/// Whether `local` always holds what it held when last set: a parameter nothing changes, or
+	/// a temporary set once from stable ones alone.
+	fn stable(&self, local: Local, depth: usize) -> bool {
+		let i = local.as_usize();
+		if self.defs[i] > 1
+			|| self.partial[i] > 0
+			|| self.mutable.contains_key(&local)
+			|| self
+				.mutable
+				.values()
+				.any(|m| matches!(m, Mutable::Borrow(b) if b.local == local))
+		{
+			return false;
+		}
+		if i >= 1 && i <= self.body.arg_count {
+			return self.defs[i] == 0;
+		}
+		if depth > 4 {
+			return false;
+		}
+		let place = |p: &Place<'tcx>| {
+			p.projection
+				.iter()
+				.all(|e| matches!(e, ProjectionElem::Field(..) | ProjectionElem::Deref))
+				&& self.stable(p.local, depth + 1)
+		};
+		let operand = |op: &Operand<'tcx>| match op {
+			Operand::Copy(p) | Operand::Move(p) => place(p),
+			Operand::Constant(_) => true,
+			Operand::RuntimeChecks(_) => false,
+		};
+		self.body.basic_blocks.iter().any(|bb| {
+			bb.statements.iter().any(|s| match &s.kind {
+				StatementKind::Assign(a) if a.0.local == local && a.0.projection.is_empty() => match &a.1 {
+					Rvalue::Ref(_, BorrowKind::Shared, p) | Rvalue::CopyForDeref(p) => place(p),
+					Rvalue::Use(op, _) | Rvalue::Cast(_, op, _) | Rvalue::UnaryOp(_, op) => operand(op),
+					Rvalue::BinaryOp(op, ops) => {
+						op.overflowing_to_wrapping().is_none() && operand(&ops.0) && operand(&ops.1)
+					}
+					Rvalue::Aggregate(_, ops) => ops.iter().all(operand),
+					_ => false,
+				},
+				_ => false,
+			})
+		})
+	}
+
+	/// What `Default::default` makes for `ty`: a `std` type's empty or zero value, a derived
+	/// impl's fields' defaults, or a call of a local impl written by hand.
+	fn default_value(&mut self, ty: Ty<'tcx>, span: Span) -> R<Ex> {
+		let tcx = self.cx.tcx;
+		let none = || refuse(span, format!("the `Default` of `{ty}` has no Lean model"));
+		let lean = self.cx.ty(ty, span)?;
+		Ok(match ty.kind() {
+			ty::Bool => atom("false".into()),
+			ty::Int(_) | ty::Uint(_) => lit("0".into(), &lean),
+			ty::Tuple(tys) if tys.is_empty() => atom("()".into()),
+			ty::Tuple(tys) => {
+				let parts = tys.iter().map(|t| self.default_value(t, span)).collect::<R<Vec<_>>>()?;
+				let refs: Vec<&Ex> = parts.iter().collect();
+				atom_of(
+					format!(
+						"({})",
+						parts.iter().map(|p| p.text.clone()).collect::<Vec<_>>().join(", ")
+					),
+					&refs,
+				)
+			}
+			ty::Adt(def, args) if def.did().is_local() => {
+				if let Some((did, gargs)) = self.cx.default_impl(self.env, ty) {
+					let text = self.callee_text(did, gargs, span)?;
+					let call = atom(format!("({text})"));
+					match self.cx.shapes.get(&did).is_none_or(|s| s.monadic || s.failed) {
+						true => bound(Ex { monadic: true, ..call }),
+						false => call,
+					}
+				} else if def.is_struct()
+					&& self
+						.cx
+						.derives(def.did(), tcx.get_diagnostic_item(rustc_span::sym::Default))
+				{
+					let fields = def
+						.non_enum_variant()
+						.fields
+						.iter()
+						.map(|f| {
+							Ok((
+								field_ident(f),
+								self.default_value(f.ty(tcx, *args).skip_norm_wip(), span)?,
+							))
+						})
+						.collect::<R<Vec<_>>>()?;
+					if fields.is_empty() {
+						return Ok(atom(format!("({{}} : {lean})")));
+					}
+					let refs: Vec<&Ex> = fields.iter().map(|f| &f.1).collect();
+					let text = fields
+						.iter()
+						.map(|(n, v)| format!("{n} := {}", v.text))
+						.collect::<Vec<_>>()
+						.join(", ");
+					atom_of(format!("({{ {text} }} : {lean})"), &refs)
+				} else {
+					return none();
+				}
+			}
+			ty::Adt(def, _) => match self.cx.std_name(def.did()).as_str() {
+				"Option" => atom(format!("(none : {lean})")),
+				"Vec" => atom(format!("(#[] : {lean})")),
+				"String" => atom("\"\"".into()),
+				"BTreeMap" | "BTreeSet" | "VecDeque" => {
+					atom(format!("(Rust.{}.empty : {lean})", self.cx.std_name(def.did())))
+				}
+				"Duration" => atom("Rust.Duration.ZERO".into()),
+				_ => return none(),
+			},
+			_ => return none(),
+		})
 	}
 
 	/// The place a `&mut` argument borrows.
@@ -2718,7 +3132,9 @@ impl<'a, 'tcx> Fx<'a, 'tcx> {
 		}
 		match self.mutable.get(&p.local) {
 			Some(Mutable::Borrow(target)) => Ok(*target),
-			Some(Mutable::Param) => Ok(Place::from(p.local).project_deeper(&[ProjectionElem::Deref], self.cx.tcx)),
+			Some(Mutable::Param | Mutable::Lens) => {
+				Ok(Place::from(p.local).project_deeper(&[ProjectionElem::Deref], self.cx.tcx))
+			}
 			None => refuse(span, "this mutable argument is not supported"),
 		}
 	}
@@ -2780,19 +3196,10 @@ impl<'a, 'tcx> Fx<'a, 'tcx> {
 		}
 	}
 
-	fn local_call(
-		&mut self,
-		callee: DefId,
-		gargs: GenericArgsRef<'tcx>,
-		args: &[rustc_span::Spanned<Operand<'tcx>>],
-		destination: Place<'tcx>,
-		span: Span,
-		ops: &mut Vec<Op>,
-	) -> R<()> {
+	/// The Lean name of local function `callee`, with each generic argument Lean cannot infer
+	/// from its arguments' Lean types, refusing an argument its bounds cannot take.
+	fn callee_text(&mut self, callee: DefId, gargs: GenericArgsRef<'tcx>, span: Span) -> R<String> {
 		let tcx = self.cx.tcx;
-		let shape = self.cx.shapes.get(&callee);
-		let monadic = shape.is_none_or(|s| s.monadic || s.failed);
-		let sig = tcx.fn_sig(callee).instantiate_identity().skip_norm_wip().skip_binder();
 		// A generic argument Lean cannot infer from the arguments' Lean types.
 		let mut text = self.cx.fn_name(callee);
 		let generics = tcx.generics_of(callee);
@@ -2853,6 +3260,23 @@ impl<'a, 'tcx> Fx<'a, 'tcx> {
 			};
 			text += &format!(" ({} := {value})", structure::ident(param.name.as_str()));
 		}
+		Ok(text)
+	}
+
+	fn local_call(
+		&mut self,
+		callee: DefId,
+		gargs: GenericArgsRef<'tcx>,
+		args: &[rustc_span::Spanned<Operand<'tcx>>],
+		destination: Place<'tcx>,
+		span: Span,
+		ops: &mut Vec<Op>,
+	) -> R<()> {
+		let tcx = self.cx.tcx;
+		let shape = self.cx.shapes.get(&callee);
+		let monadic = shape.is_none_or(|s| s.monadic || s.failed);
+		let sig = tcx.fn_sig(callee).instantiate_identity().skip_norm_wip().skip_binder();
+		let mut text = self.callee_text(callee, gargs, span)?;
 		let mut reads = Vec::new();
 		let mut writebacks = Vec::new();
 		for (arg, pty) in args.iter().zip(sig.inputs()) {
@@ -2977,6 +3401,15 @@ impl<'a, 'tcx> Fx<'a, 'tcx> {
 		scrut: &str,
 		span: Span,
 	) -> R<(String, Vec<usize>)> {
+		// A map's entry is a copy of the value at its key: `Occupied` where there is one. What
+		// a variant holds is a handle, whose lens is all it is.
+		if !def.did().is_local() && self.cx.std_name(def.did()) == "Entry" {
+			let pat = match def.variant(v).name.as_str() {
+				"Occupied" => "some _",
+				_ => "none",
+			};
+			return Ok((pat.into(), Vec::new()));
+		}
 		let fields = def.variant(v).fields.len();
 		let vars = match self.pattern.get(&(place, v)) {
 			Some(vars) => vars.clone(),
@@ -3130,6 +3563,10 @@ enum Proj {
 		to: u64,
 		from_end: bool,
 	},
+	/// The value at this key of a `BTreeMap`, which holds it wherever a lens reads it.
+	At(Ex),
+	/// What an `Option` holds, which is `Some` wherever a lens reads it.
+	Some,
 }
 
 fn project(base: &Ex, proj: &Proj) -> Ex {
@@ -3151,6 +3588,8 @@ fn project(base: &Ex, proj: &Proj) -> Ex {
 			};
 			compound(format!("{}.extract {from} {end}", base.paren()), &[base])
 		}
+		Proj::At(k) => compound(format!("{}.valueAt {}", base.paren(), k.paren()), &[base, k]),
+		Proj::Some => atom_of(format!("{}.get!", base.paren()), &[base]),
 	}
 }
 
@@ -3178,6 +3617,11 @@ fn update(container: &Ex, proj: &Proj, value: Ex) -> Ex {
 			format!("{}.set! {}.toNat {}", container.paren(), i.paren(), value.paren()),
 			&[container, i, &value],
 		),
+		Proj::At(k) => compound(
+			format!("{}.setAt {} {}", container.paren(), k.paren(), value.paren()),
+			&[container, k, &value],
+		),
+		Proj::Some => compound(format!("some {}", value.paren()), &[&value]),
 	}
 }
 

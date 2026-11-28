@@ -69,6 +69,25 @@ structure cases.Ledger where
   q : (Rust.VecDeque UInt8)
 deriving Repr, DecidableEq, Inhabited
 
+/-- `cases::lenses::Seeded` -/
+structure cases.lenses.Seeded where
+  x0 : UInt16
+deriving Repr, DecidableEq, Inhabited
+
+/-- `cases::lenses::Tally` -/
+structure cases.lenses.Tally where
+  hits : UInt16
+  last : UInt8
+deriving Repr, DecidableEq, Inhabited
+
+/-- `cases::lenses::Book` -/
+structure cases.lenses.Book where
+  tallies : (Rust.BTreeMap UInt8 cases.lenses.Tally)
+  nested : (Rust.BTreeMap UInt8 (Rust.BTreeMap UInt8 UInt16))
+  seeds : (Rust.BTreeMap UInt8 cases.lenses.Seeded)
+  log : (Option (Array UInt8))
+deriving Repr, DecidableEq, Inhabited
+
 /-- `cases::Weight` -/
 class cases.Weight (Self : Type) where
   weight : Self → Rust.M UInt8
@@ -393,6 +412,105 @@ def cases.peeks (l : cases.Ledger) (r : cases.Rank) : Rust.M ((Option (cases.Ran
   let t37 := r
   let t34 := (← Rust.BTreeMap.index l.m t37)
   return ((l.m.getKeyValue t7).map (cases.peeks.closure0 ()), (l.m.entries.map (·.1)).toArray, (l.m.entries.map (·.2)).toArray, ((l.m.entries).map (cases.peeks.closure1 ())).toArray, l.s.items.head?, (l.s.items).toArray, (l.q.items).toArray, t34)
+
+def cases.lenses.Seeded.Default.default' : cases.lenses.Seeded :=
+  ({ x0 := (7 : UInt16) } : cases.lenses.Seeded)
+
+def cases.lenses.Book.bump (self : cases.lenses.Book) (k : UInt8) («by» : UInt16) : Rust.M ((Option UInt16) × cases.lenses.Book) := do
+  let mut self := self
+  let t9 := k
+  let t5 := Rust.branch (self.tallies.get t9)
+  match t5 with
+  | .Continue t5_0 =>
+    self := { self with tallies := self.tallies.setAt t9 { self.tallies.valueAt t9 with hits := (← (self.tallies.valueAt t9).hits +? «by») } }
+    self := { self with tallies := self.tallies.setAt t9 { self.tallies.valueAt t9 with last := k } }
+    return ((some (self.tallies.valueAt t9).hits : (Option UInt16)), self)
+  | .Break t5_01 =>
+    return ((none : (Option UInt16)), self)
+
+def cases.lenses.Book.touch (self : cases.lenses.Book) (k : UInt8) (j : UInt8) : Rust.M ((Except UInt8 UInt8) × cases.lenses.Book) := do
+  let mut self := self
+  let t8 := k
+  let t5 := self.tallies.get t8
+  match t5 with
+  | some t5_0 =>
+    self := { self with tallies := self.tallies.setAt t8 { self.tallies.valueAt t8 with last := j } }
+  | none =>
+    pure ()
+  let t17 := j
+  let t14 := self.tallies.get t17
+  match t14 with
+  | some t14_0 =>
+    self := { self with tallies := self.tallies.setAt t17 { self.tallies.valueAt t17 with hits := Rust.saturatingAdd (self.tallies.valueAt t17).hits 1 } }
+    let t27 := k
+    let t22 := Rust.branchExcept (Rust.okOr (self.tallies.get t27) (1 : UInt8))
+    match t22 with
+    | .Continue t22_0 =>
+      self := { self with tallies := self.tallies.setAt t27 { self.tallies.valueAt t27 with hits := (self.tallies.valueAt t27).hits ^^^ 1 } }
+      let t38 := k ^^^ j
+      let t43 := "a tally"
+      unless (self.tallies.get t38).isSome do throw t43
+      return ((Except.ok (self.tallies.valueAt t38).last : (Except UInt8 UInt8)), self)
+    | .Break residual =>
+      return ((Rust.fromResidualExcept residual : (Except UInt8 UInt8)), self)
+  | none =>
+    return ((Except.error (0 : UInt8) : (Except UInt8 UInt8)), self)
+
+def cases.lenses.Book.moved_key (self : cases.lenses.Book) (k : UInt8) : ((Option UInt8) × cases.lenses.Book) := Id.run do
+  let mut self := self
+  let mut k := k
+  let t8 := k
+  let key := t8
+  let t4 := Rust.branch (self.tallies.get key)
+  match t4 with
+  | .Continue t4_0 =>
+    k := k ^^^ 1
+    self := { self with tallies := self.tallies.setAt key { self.tallies.valueAt key with last := k } }
+    return ((some k : (Option UInt8)), self)
+  | .Break t4_01 =>
+    return ((none : (Option UInt8)), self)
+
+def cases.lenses.Book.count.closure0 (arg1 : UInt8) : cases.lenses.Tally := Id.run do
+  let t3 := arg1
+  return ({ hits := (100 : UInt16), last := t3 } : cases.lenses.Tally)
+
+def cases.lenses.Book.count (self : cases.lenses.Book) (k : UInt8) (j : UInt8) : Rust.M ((UInt16 × UInt16) × cases.lenses.Book) := do
+  let mut self := self
+  self := { self with nested := self.nested.orInsertWith k (fun _ => (Rust.BTreeMap.empty : (Rust.BTreeMap UInt8 UInt16))) }
+  self := { self with nested := self.nested.setAt k ((self.nested.valueAt k).orInsertWith j (fun _ => (0 : UInt16))) }
+  self := { self with nested := self.nested.setAt k ((self.nested.valueAt k).setAt j (← ((self.nested.valueAt k).valueAt j) +? 1)) }
+  self := { self with tallies := self.tallies.orInsertWith k (fun _ => ({ hits := (0 : UInt16), last := (0 : UInt8) } : cases.lenses.Tally)) }
+  self := { self with tallies := self.tallies.setAt k { self.tallies.valueAt k with hits := Rust.saturatingAdd (self.tallies.valueAt k).hits 1 } }
+  self := { self with seeds := self.seeds.orInsertWith j (fun _ => (cases.lenses.Seeded.Default.default')) }
+  self := { self with seeds := self.seeds.setAt j { self.seeds.valueAt j with x0 := (← (self.seeds.valueAt j).x0 +? 1) } }
+  self := { self with tallies := self.tallies.orInsertWith j (fun _ => (cases.lenses.Book.count.closure0 j)) }
+  self := { self with tallies := self.tallies.setAt j { self.tallies.valueAt j with last := (self.tallies.valueAt j).last ^^^ k } }
+  let t32 := self.seeds.get (k ^^^ 1)
+  match t32 with
+  | none =>
+    self := { self with seeds := self.seeds.setAt (k ^^^ 1) ({ x0 := k.toUInt16 } : cases.lenses.Seeded) }
+  | some _ =>
+    pure ()
+  let t49 := k
+  let t46 := (← Rust.BTreeMap.index self.nested t49)
+  let t51 := j
+  let t44 := (← Rust.BTreeMap.index t46 t51)
+  let t56 := j
+  let t53 := (← Rust.BTreeMap.index self.seeds t56)
+  return ((t44, t53.x0), self)
+
+def cases.lenses.Book.logs (self : cases.lenses.Book) (x : UInt8) : (((Array UInt8) × (Option (Array UInt8)) × cases.lenses.Tally) × cases.lenses.Book) := Id.run do
+  let mut self := self
+  self := { self with log := some (self.log.getD (#[] : (Array UInt8))) }
+  self := { self with log := some (self.log.get!.push x) }
+  self := { self with log := some (self.log.getD (#[] : (Array UInt8))) }
+  let taken := self.log.get!
+  self := { self with log := some (#[] : (Array UInt8)) }
+  self := { self with log := some (self.log.getD (#[] : (Array UInt8))) }
+  self := { self with log := some (self.log.get!.push (x ^^^ 1)) }
+  let old := self.log
+  self := { self with log := (none : (Option (Array UInt8))) }
+  return ((taken, old, ({ hits := (0 : UInt16), last := (0 : UInt8) } : cases.lenses.Tally)), self)
 
 def cases.Cost.raw (self : cases.Cost) : UInt64 :=
   self.x0
