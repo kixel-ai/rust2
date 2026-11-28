@@ -110,6 +110,20 @@ pub mod cases {
 		v.clone()
 	}
 
+	/// A type parameter's `clone` copies where every type the crate passes for it does.
+	pub fn dup_generic<T: Clone>(t: &T) -> T {
+		t.clone()
+	}
+
+	pub fn dup_pair(x: u8) -> (u8, u8) {
+		(dup_generic(&x), dup_generic(&x))
+	}
+
+	/// Rust unwraps `o` whatever `b` is.
+	pub fn then_unwrap(b: bool, o: Option<u8>) -> Option<u8> {
+		b.then_some(o.unwrap())
+	}
+
 	/// A type that appears twice is repeated, not recursive.
 	pub fn clone_pairs(v: &Vec<(Option<u8>, Option<u8>)>) -> Vec<(Option<u8>, Option<u8>)> {
 		v.clone()
@@ -179,6 +193,105 @@ pub mod cases {
 	pub fn wait() -> u8 {
 		loop {}
 	}
+
+	/// Each `+` may overflow, so the list holds actions, and one panics only when
+	/// `collect` reaches it.
+	pub fn shifted(v: &[u8], x: u8) -> Vec<u8> {
+		v.iter().map(|y| y + x).collect()
+	}
+
+	/// `any` stops at the first match, so a later item's overflow never panics.
+	pub fn reaches(v: &[u8], x: u8) -> bool {
+		v.iter().map(|y| y + x).any(|y| y == 0)
+	}
+
+	/// `all` over items that cannot panic, chained, copied and enumerated.
+	pub fn rising(a: &[u8], b: &[u8]) -> bool {
+		a.iter().chain(b.iter()).copied().enumerate().all(|(i, y)| i <= y as usize)
+	}
+
+	/// Each overlapping pair's sum.
+	pub fn pair_sums(v: &[u8]) -> Vec<u16> {
+		v.windows(2).map(|w| w[0] as u16 + w[1] as u16).collect()
+	}
+
+	/// The first and last items, by slice pattern and by method.
+	pub fn ends(v: &[u8]) -> Option<(u8, u8, u8)> {
+		match v {
+			[first, .., last] => Some((*first, *last, *v.last()?)),
+			_ => v.first().map(|f| (*f, *f, *f)),
+		}
+	}
+
+	/// Each kind of range a slice is indexed by, which panics as Rust's does.
+	pub fn ranges(v: &[u8], n: usize) -> (usize, usize, usize, usize) {
+		(v[..n].len(), v[n..].len(), v[1..n].len(), v[..].len())
+	}
+
+	/// A panic message that Lean's string literal escapes.
+	pub fn must(o: Option<u8>) -> u8 {
+		o.expect("no \"value\"\n")
+	}
+
+	pub fn saturating(a: u8, b: u8) -> (u8, u8) {
+		(a.saturating_add(b), a.saturating_sub(b))
+	}
+
+	pub fn widen(a: u8, b: bool) -> (u32, u8) {
+		(u32::from(a), u8::from(b))
+	}
+
+	pub fn options(o: Option<u8>, b: bool) -> (bool, Option<u16>, u8, Option<u8>) {
+		(o.is_some_and(|x| x > 1), o.map(|x| x as u16 * 2), o.unwrap_or(7), b.then_some(3))
+	}
+
+	/// `Reverse` flips a derived order, compared field by field.
+	#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+	pub struct Rank {
+		pub up: bool,
+		pub low: std::cmp::Reverse<i8>,
+	}
+
+	pub fn ranked(r: Rank) -> (bool, std::cmp::Reverse<i8>) {
+		(r.up, r.low)
+	}
+
+	/// An `Arc` is the value it shares.
+	pub fn shared(v: &[u8]) -> std::sync::Arc<[u8]> {
+		let a = std::sync::Arc::new(v.iter().copied().collect::<Vec<u8>>());
+		a.iter().copied().collect()
+	}
+
+	/// Lookups in a sorted map and set, keyed by a derived order.
+	pub fn lookups(
+		m: &std::collections::BTreeMap<Rank, u16>,
+		s: &std::collections::BTreeSet<u8>,
+		r: Rank,
+		k: u8,
+	) -> (Option<u16>, bool, bool, usize, bool) {
+		(m.get(&r).copied(), m.contains_key(&r), s.contains(&k), s.len(), m.is_empty())
+	}
+
+	/// Rust orders `Severity` by discriminant, against declaration order, so its Lean type
+	/// gets no `Ord` to disagree with; `len` needs none.
+	#[derive(PartialEq, Eq, PartialOrd, Ord)]
+	pub enum Severity {
+		High = 2,
+		Low = 1,
+	}
+
+	pub fn severities(s: &std::collections::BTreeSet<Severity>) -> usize {
+		s.len()
+	}
+
+	/// A local trait, which a type parameter's bound calls.
+	pub trait Weight {
+		fn weight(&self) -> u8;
+	}
+
+	pub fn heavier<W: Weight>(a: &W, b: &W) -> bool {
+		a.weight() > b.weight()
+	}
 }
 
 /// An inherent `impl` outside its type's module, which `--start-from crate::cases` reaches.
@@ -208,6 +321,7 @@ unsafe impl std::alloc::Allocator for Arena {
 pub mod refused {
 	use super::Arena;
 	use std::cell::Cell;
+	use std::collections::BTreeSet;
 
 	pub struct Loose(pub u8);
 
@@ -236,6 +350,159 @@ pub mod refused {
 
 	pub fn extend(v: &mut Vec<Norm>, s: &[Norm]) {
 		v.extend_from_slice(s)
+	}
+
+	/// Clones its `T`, which translates as a copy only if every type the crate passes for it
+	/// copies.
+	pub fn dup<T: Clone>(t: &T) -> T {
+		t.clone()
+	}
+
+	/// Passes its own `T` on, so `dup` relies on each type passed here too.
+	pub fn dup_via<T: Clone>(t: &T) -> T {
+		dup(t)
+	}
+
+	pub fn dup_byte(b: &u8) -> u8 {
+		dup(b)
+	}
+
+	#[derive(PartialEq)]
+	pub struct Reset(pub u8);
+
+	impl Clone for Reset {
+		fn clone(&self) -> Self {
+			Reset(0)
+		}
+	}
+
+	/// `Reset`'s `clone` does not copy, so `dup` is refused at this instantiation.
+	pub fn dup_reset(r: &Reset) -> Reset {
+		dup_via(r)
+	}
+
+	/// A static can name an instantiation no function does.
+	pub static RESET: fn(&Reset) -> Reset = dup::<Reset>;
+
+	/// The iterator is made before the loop, so each pass's `any` resumes where the last
+	/// stopped, which a list read again does not.
+	pub fn any_in_loop(v: &[u8]) -> u8 {
+		let mut it = v.iter();
+		let mut n = 0;
+		while n < 2 && it.any(|_| true) {
+			n += 1;
+		}
+		n
+	}
+
+	pub trait Weigh {
+		fn weigh(&self) -> u64;
+	}
+
+	#[derive(PartialEq)]
+	pub struct Heavy(pub u64);
+
+	impl Weigh for Heavy {
+		fn weigh(&self) -> u64 {
+			self.0
+		}
+	}
+
+	pub fn weigh_of<W: Weigh>(w: &W) -> u64 {
+		w.weigh()
+	}
+
+	/// `Weigh for Heavy` would be a Lean instance, which the translation does not emit.
+	pub fn weigh_heavy(h: &Heavy) -> u64 {
+		weigh_of(h)
+	}
+
+	/// Lean's `Except` has no `Ord`.
+	pub fn result_key(s: &BTreeSet<Result<u8, u8>>, k: Result<u8, u8>) -> bool {
+		s.contains(&k)
+	}
+
+	/// A derived `Ord` puts `Low` first by discriminant; Lean's would put `High` first.
+	#[derive(PartialEq, Eq, PartialOrd, Ord)]
+	pub enum Backwards {
+		High = 2,
+		Low = 1,
+	}
+
+	pub fn backwards_key(s: &BTreeSet<Backwards>, k: Backwards) -> bool {
+		s.contains(&k)
+	}
+
+	/// An inline constant can name an instantiation no function does.
+	pub fn reset_const() -> fn(&Reset) -> Reset {
+		const { dup::<Reset> }
+	}
+
+	pub trait Light {
+		fn light(&self) -> u64;
+	}
+
+	impl<T: Copy + Into<u64>> Light for T {
+		fn light(&self) -> u64 {
+			(*self).into()
+		}
+	}
+
+	pub fn light_of<L: Light>(l: &L) -> u64 {
+		l.light()
+	}
+
+	/// `T`'s `Light` comes from the blanket impl, so this function has no Lean instance for it.
+	pub fn copy_light<T: Copy + Into<u64>>(t: &T) -> u64 {
+		light_of(t)
+	}
+
+	pub fn has<K: Ord>(s: &BTreeSet<K>, k: &K) -> bool {
+		s.contains(k)
+	}
+
+	/// `has` orders `Backwards` as Lean's derived `Ord` would not.
+	pub fn has_backwards(s: &BTreeSet<Backwards>, k: &Backwards) -> bool {
+		has(s, k)
+	}
+
+	/// `Option<T>: Ord` gives this function no `Ord T`, which Lean's `Ord (Option T)` needs.
+	pub fn has_some<T>(s: &BTreeSet<Option<T>>, k: &Option<T>) -> bool
+	where
+		Option<T>: Ord,
+	{
+		has(s, k)
+	}
+
+	/// The same bound, at a lookup the model translates directly.
+	pub fn contains_some<T>(s: &BTreeSet<Option<T>>, k: &Option<T>) -> bool
+	where
+		Option<T>: Ord,
+	{
+		s.contains(k)
+	}
+
+	/// The same bound, through another crate's trait with `Ord` above it.
+	pub fn contains_ordered<T>(s: &BTreeSet<Option<T>>, k: &Option<T>) -> bool
+	where
+		Option<T>: fixture_dep::Ordered,
+	{
+		s.contains(k)
+	}
+
+	/// The mapper is a function pointer, whose panics the list cannot hold.
+	pub fn mapped(mut it: std::iter::Map<std::slice::Iter<'_, u8>, fn(&u8) -> bool>) -> bool {
+		it.any(|x| x)
+	}
+
+	/// The `..` comes from an `unwrap`, which may panic.
+	pub fn whole(s: &[u8], o: Option<std::ops::RangeFull>) -> usize {
+		s[o.unwrap()].len()
+	}
+
+	/// A list cannot hold an endless iterator.
+	pub fn endless(mut it: std::iter::Repeat<u8>) -> bool {
+		it.any(|x| x == 0)
 	}
 
 	#[derive(Copy)]
@@ -310,4 +577,58 @@ pub mod refused {
 		let f = |y: u8| y + x;
 		f(1)
 	}
+
+	pub fn counts(v: &[u8]) -> usize {
+		let mut n = 0;
+		v.iter().for_each(|_| n += 1);
+		n
+	}
+
+	/// `any` consumes what it reads, which the next `any` then skips.
+	pub fn twice(v: &[u8]) -> bool {
+		let mut it = v.iter();
+		it.any(|&x| x == 0) && it.any(|&x| x == 1)
+	}
+
+	#[derive(PartialEq, Eq)]
+	pub struct Odd(pub u8);
+
+	impl PartialOrd for Odd {
+		fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+			Some(self.cmp(other))
+		}
+	}
+
+	impl Ord for Odd {
+		fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+			other.0.cmp(&self.0)
+		}
+	}
+
+	pub fn odd(s: &std::collections::BTreeSet<Odd>, k: &Odd) -> bool {
+		s.contains(k)
+	}
+
+	/// A `String` key looked up by `str`, which a different `Ord` could order.
+	pub fn named(m: &std::collections::BTreeMap<String, u8>, k: &str) -> Option<u8> {
+		m.get(k).copied()
+	}
+
+	pub trait Source {
+		type Out;
+		fn pull(&self) -> Self::Out;
+	}
+
+	pub fn pull<S: Source<Out = u8>>(s: &S) -> u8 {
+		s.pull()
+	}
+
+	pub fn sorted(v: &[u8]) -> std::collections::BTreeSet<u8> {
+		v.iter().copied().collect()
+	}
+
+	pub fn numbered(v: &[u8]) -> Vec<(usize, u8)> {
+		v.iter().map(|y| y + 1).enumerate().collect()
+	}
 }
+

@@ -2,6 +2,8 @@
 import Rust
 
 set_option linter.unusedVariables false
+-- Rust's wide tuples need deeper instance searches than Lean's default.
+set_option synthInstance.maxSize 1024
 
 namespace kio_pure_machine
 

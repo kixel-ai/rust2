@@ -182,7 +182,7 @@ class SelectTests(unittest.TestCase):
         self.assertEqual(self.select("--all"), EVERYTHING)
 
     def test_only_selects_the_named_modules_in_the_map_order(self):
-        # The diff is ignored: a CI job runs exactly its share of a selection.
+        # The diff is ignored: the named modules run, whatever changed.
         self.change("flake.nix")
         self.assertEqual(self.select("--only=ts,lint,ts"), ["lint", "ts"])
         self.assertEqual(self.select("--only=go"), ["go"])
