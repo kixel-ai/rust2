@@ -468,13 +468,19 @@ pub mod cases {
 			}
 
 			/// Arguments that may panic, which Rust evaluates whether or not the key is there.
-		pub fn eager(&mut self, k: u8, f: Option<u16>, named: bool) -> (u16, u8) {
-			let s = self.seeds.entry(k).or_insert(Seeded(f.unwrap())).0;
-			let name = if named { Some("a tally") } else { None };
-			(s, self.tallies.get_mut(&k).expect(name.unwrap()).last)
-		}
+			pub fn eager(&mut self, k: u8, f: Option<u16>, named: bool) -> (u16, u8) {
+				let s = self.seed::<3>(k, f);
+				let name = if named { Some("a tally") } else { None };
+				(s, self.tallies.get_mut(&k).expect(name.unwrap()).last)
+			}
 
-		/// `get_or_insert_default` on an `Option`, `mem::take` through it, `mem::replace`, and
+			/// A const parameter named as the variable a panicking argument is bound to.
+			#[allow(non_upper_case_globals)]
+			fn seed<const arg: usize>(&mut self, k: u8, f: Option<u16>) -> u16 {
+				self.seeds.entry(k).or_insert(Seeded(f.unwrap())).0 ^ arg as u16
+			}
+
+			/// `get_or_insert_default` on an `Option`, `mem::take` through it, `mem::replace`, and
 			/// a derived `Default`.
 			pub fn logs(&mut self, x: u8) -> (Vec<u8>, Option<Vec<u8>>, Tally) {
 				self.log.get_or_insert_default().push(x);

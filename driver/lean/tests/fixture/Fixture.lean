@@ -499,20 +499,26 @@ def cases.lenses.Book.count (self : cases.lenses.Book) (k : UInt8) (j : UInt8) :
   let t53 := (← Rust.BTreeMap.index self.seeds t56)
   return ((t44, t53.x0), self)
 
+def cases.lenses.Book.seed {arg : UInt64} (self : cases.lenses.Book) (k : UInt8) (f : (Option UInt16)) : Rust.M (UInt16 × cases.lenses.Book) := do
+  let mut self := self
+  let arg1 := ({ x0 := (← Rust.expect f "called `Option::unwrap()` on a `None` value") } : cases.lenses.Seeded)
+  self := { self with seeds := self.seeds.orInsertWith k (fun _ => arg1) }
+  return ((self.seeds.valueAt k).x0 ^^^ (arg.toUInt16), self)
+
 def cases.lenses.Book.eager (self : cases.lenses.Book) (k : UInt8) (f : (Option UInt16)) (named : Bool) : Rust.M ((UInt16 × UInt8) × cases.lenses.Book) := do
   let mut self := self
-  let arg := ({ x0 := (← Rust.expect f "called `Option::unwrap()` on a `None` value") } : cases.lenses.Seeded)
-  self := { self with seeds := self.seeds.orInsertWith k (fun _ => arg) }
-  let s := (self.seeds.valueAt k).x0
+  let r ← cases.lenses.Book.seed (arg := 3) self k f
+  let s := r.1
+  self := r.2
   let mut name : (Option String) := default
   if named then
     name := (some "a tally" : (Option String))
   else
     name := (none : (Option String))
-  let t21 := k
-  let t23 := (← Rust.expect name "called `Option::unwrap()` on a `None` value")
-  unless (self.tallies.get t21).isSome do throw t23
-  return ((s, (self.tallies.valueAt t21).last), self)
+  let t17 := k
+  let t19 := (← Rust.expect name "called `Option::unwrap()` on a `None` value")
+  unless (self.tallies.get t17).isSome do throw t19
+  return ((s, (self.tallies.valueAt t17).last), self)
 
 def cases.lenses.Book.logs (self : cases.lenses.Book) (x : UInt8) : (((Array UInt8) × (Option (Array UInt8)) × cases.lenses.Tally) × cases.lenses.Book) := Id.run do
   let mut self := self

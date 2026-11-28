@@ -1424,6 +1424,8 @@ struct Fx<'a, 'tcx> {
 	/// or `entry`'s `Entry`: the lens a `&mut` taken out of each is. The value itself is a
 	/// copy of what it points at, which only a match reads.
 	carriers: HashMap<Local, Lens<'tcx>>,
+	/// The Lean names of the generic parameters in scope, which a variable would shadow.
+	generics: HashSet<String>,
 }
 
 impl<'a, 'tcx> Fx<'a, 'tcx> {
@@ -1466,6 +1468,10 @@ impl<'a, 'tcx> Fx<'a, 'tcx> {
 			written: HashSet::new(),
 			lenses: HashMap::new(),
 			carriers: HashMap::new(),
+			generics: all_params(tcx, did)
+				.iter()
+				.map(|p| structure::ident(p.name.as_str()))
+				.collect(),
 		};
 		fx.count();
 		fx.find_mutable()?;
@@ -1783,9 +1789,10 @@ impl<'a, 'tcx> Fx<'a, 'tcx> {
 		let base = structure::ident(name);
 		let mut unique = base.clone();
 		let mut n = 1;
-		// A name the emitted code uses unqualified, or the first part of a qualified one, which
-		// the variable would shadow.
-		let reserved = |u: &str| structure::LEAN_NAMES.contains(&u) || self.cx.root_names.contains(u);
+		// A name the emitted code uses unqualified, the first part of a qualified one, or a
+		// generic parameter, which the variable would shadow.
+		let reserved =
+			|u: &str| structure::LEAN_NAMES.contains(&u) || self.cx.root_names.contains(u) || self.generics.contains(u);
 		while self.vars.iter().any(|v| v.name == unique) || reserved(&unique) {
 			unique = format!("{base}{n}");
 			n += 1;
