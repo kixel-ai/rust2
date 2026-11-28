@@ -3,19 +3,12 @@
 pub mod path {
 	/// Shaped as moq-net's: a representation the model replaces with its string.
 	#[derive(Clone)]
-	pub struct Path(Repr);
-
-	#[derive(Clone)]
-	enum Repr {
-		Static(&'static str),
-	}
+	pub struct Path(&'static str);
 
 	impl Path {
 		/// Reads the representation, which only the model's own methods may.
 		pub fn slice_from(&self, n: usize) -> Path {
-			match &self.0 {
-				Repr::Static(s) => Path(Repr::Static(&s[n..])),
-			}
+			Path(&self.0[n..])
 		}
 
 		/// Modeled through `head_len`, which this `Path` lacks.
