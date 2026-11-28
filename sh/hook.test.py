@@ -112,6 +112,19 @@ class PushTests(unittest.TestCase):
         self.git("push", "origin", "--delete", "main")
         self.assertEqual(self.calls(), [])
 
+    def test_an_empty_claim_commit_on_main_pushes_without_a_checkout_or_ci(self):
+        # What `quest start` pushes: an empty commit on the default branch, never checked out.
+        self.git("push", "--no-verify", "origin", "main")
+        self.git("fetch", "-q", "origin")
+        claim = self.git("commit-tree", "-p", "origin/main", "-m", "claim", "origin/main^{tree}").stdout.strip()
+        self.git("push", "origin", f"{claim}:refs/heads/quest/foo")
+        self.assertEqual(self.calls(), [])
+        # An empty commit on unpushed work is still refused.
+        self.commit("work")
+        work = self.git("rev-parse", "HEAD").stdout.strip()
+        on_work = self.git("commit-tree", "-p", work, "-m", "claim", f"{work}^{{tree}}").stdout.strip()
+        self.assertNotEqual(self.git("push", "origin", f"{on_work}:refs/heads/other", check=False).returncode, 0)
+
     def test_uncommitted_changes_refuse_the_push(self):
         for dirty in ("tracked", "untracked"):
             with self.subTest(dirty=dirty):

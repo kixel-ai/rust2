@@ -24,6 +24,12 @@ pushing=''
 while read -r local_ref local_sha remote_ref _; do
 	[[ "$remote_ref" == refs/heads/* && ! "$local_sha" =~ ^0+$ ]] || continue
 	if [[ "$local_sha" != "$head" ]]; then
+		# `quest start` pushes its claim, an empty commit on the default branch, without checking
+		# it out; it adds no code to test, so it is not refused.
+		if [[ "$(git rev-parse "$local_sha^{tree}")" == "$(git rev-parse "$local_sha^1^{tree}" 2>/dev/null)" ]] &&
+			git merge-base --is-ancestor "$local_sha^1" origin/main 2>/dev/null; then
+			continue
+		fi
 		echo "pre-push: $local_ref is not the checked-out commit, so \`just ci\` would test other code; check it out, or push with --no-verify" >&2
 		exit 1
 	fi
