@@ -59,6 +59,11 @@ def mul {α : Type} [Scalar α] (a b : α) : M α :=
 /-- `a as β`: wrapping, as Rust's integer casts are. -/
 def cast {α : Type} (β : Type) [Scalar α] [Scalar β] (a : α) : β := Scalar.ofInt (val a)
 
+/-- `β::try_from(a)` between integers: the value if `β` holds it, else `TryFromIntError`,
+which holds nothing. -/
+def tryFrom {α : Type} (β : Type) [Scalar α] [Scalar β] (a : α) : Except Unit β :=
+  if Scalar.lo β ≤ val a ∧ val a ≤ Scalar.hi β then .ok (Scalar.ofInt (val a)) else .error ()
+
 theorem add_ok {α : Type} [Scalar α] (a b : α) (lo : Scalar.lo α ≤ val a + val b)
     (hi : val a + val b ≤ Scalar.hi α) : a +? b = pure (a + b) := by
   simp [add, lo, hi]
@@ -101,6 +106,70 @@ macro "signed_scalar" t:ident bits:num : command =>
         rw [$(Lean.mkIdent (t.getId ++ `toInt_sub)):ident, Int.bmod_eq_of_le] <;> omega
       val_mul a b l h := by
         rw [$(Lean.mkIdent (t.getId ++ `toInt_mul)):ident, Int.bmod_eq_of_le] <;> omega)
+
+/-- `u128`, as Lean has no 128-bit integer: its bits. Arithmetic wraps, as `+` on Lean's
+fixed-width integers does; `+?` and the like check it as Rust does. -/
+structure UInt128 where
+  toBitVec : BitVec 128
+deriving DecidableEq, Inhabited
+
+namespace UInt128
+def ofNat (n : Nat) : UInt128 := ⟨BitVec.ofNat 128 n⟩
+def toNat (x : UInt128) : Nat := x.toBitVec.toNat
+instance {n : Nat} : OfNat UInt128 n := ⟨ofNat n⟩
+instance : Add UInt128 := ⟨fun a b => ⟨a.toBitVec + b.toBitVec⟩⟩
+instance : Sub UInt128 := ⟨fun a b => ⟨a.toBitVec - b.toBitVec⟩⟩
+instance : Mul UInt128 := ⟨fun a b => ⟨a.toBitVec * b.toBitVec⟩⟩
+instance : Div UInt128 := ⟨fun a b => ⟨a.toBitVec / b.toBitVec⟩⟩
+instance : Mod UInt128 := ⟨fun a b => ⟨a.toBitVec % b.toBitVec⟩⟩
+instance : AndOp UInt128 := ⟨fun a b => ⟨a.toBitVec &&& b.toBitVec⟩⟩
+instance : OrOp UInt128 := ⟨fun a b => ⟨a.toBitVec ||| b.toBitVec⟩⟩
+instance : XorOp UInt128 := ⟨fun a b => ⟨a.toBitVec ^^^ b.toBitVec⟩⟩
+instance : Complement UInt128 := ⟨fun a => ⟨~~~a.toBitVec⟩⟩
+instance : HShiftLeft UInt128 UInt128 UInt128 := ⟨fun a b => ⟨a.toBitVec <<< (b.toNat % 128)⟩⟩
+instance : HShiftRight UInt128 UInt128 UInt128 := ⟨fun a b => ⟨a.toBitVec >>> (b.toNat % 128)⟩⟩
+instance : LT UInt128 := ⟨fun a b => a.toNat < b.toNat⟩
+instance : LE UInt128 := ⟨fun a b => a.toNat ≤ b.toNat⟩
+instance (a b : UInt128) : Decidable (a < b) := inferInstanceAs (Decidable (a.toNat < b.toNat))
+instance (a b : UInt128) : Decidable (a ≤ b) := inferInstanceAs (Decidable (a.toNat ≤ b.toNat))
+instance : Ord UInt128 := ⟨fun a b => compare a.toNat b.toNat⟩
+instance : Min UInt128 := minOfLe
+instance : Max UInt128 := maxOfLe
+instance : Repr UInt128 := ⟨fun x _ => repr x.toNat⟩
+instance : ToString UInt128 := ⟨fun x => toString x.toNat⟩
+end UInt128
+
+/-- `i128`: its bits, as two's complement. `/` and `%` truncate, as Rust's do. -/
+structure Int128 where
+  toBitVec : BitVec 128
+deriving DecidableEq, Inhabited
+
+namespace Int128
+def ofInt (i : Int) : Int128 := ⟨BitVec.ofInt 128 i⟩
+def toInt (x : Int128) : Int := x.toBitVec.toInt
+instance {n : Nat} : OfNat Int128 n := ⟨⟨BitVec.ofNat 128 n⟩⟩
+instance : Neg Int128 := ⟨fun a => ⟨-a.toBitVec⟩⟩
+instance : Add Int128 := ⟨fun a b => ⟨a.toBitVec + b.toBitVec⟩⟩
+instance : Sub Int128 := ⟨fun a b => ⟨a.toBitVec - b.toBitVec⟩⟩
+instance : Mul Int128 := ⟨fun a b => ⟨a.toBitVec * b.toBitVec⟩⟩
+instance : Div Int128 := ⟨fun a b => ⟨a.toBitVec.sdiv b.toBitVec⟩⟩
+instance : Mod Int128 := ⟨fun a b => ⟨a.toBitVec.srem b.toBitVec⟩⟩
+instance : AndOp Int128 := ⟨fun a b => ⟨a.toBitVec &&& b.toBitVec⟩⟩
+instance : OrOp Int128 := ⟨fun a b => ⟨a.toBitVec ||| b.toBitVec⟩⟩
+instance : XorOp Int128 := ⟨fun a b => ⟨a.toBitVec ^^^ b.toBitVec⟩⟩
+instance : Complement Int128 := ⟨fun a => ⟨~~~a.toBitVec⟩⟩
+instance : HShiftLeft Int128 Int128 Int128 := ⟨fun a b => ⟨a.toBitVec <<< (b.toBitVec.toNat % 128)⟩⟩
+instance : HShiftRight Int128 Int128 Int128 := ⟨fun a b => ⟨a.toBitVec.sshiftRight (b.toBitVec.toNat % 128)⟩⟩
+instance : LT Int128 := ⟨fun a b => a.toInt < b.toInt⟩
+instance : LE Int128 := ⟨fun a b => a.toInt ≤ b.toInt⟩
+instance (a b : Int128) : Decidable (a < b) := inferInstanceAs (Decidable (a.toInt < b.toInt))
+instance (a b : Int128) : Decidable (a ≤ b) := inferInstanceAs (Decidable (a.toInt ≤ b.toInt))
+instance : Ord Int128 := ⟨fun a b => compare a.toInt b.toInt⟩
+instance : Min Int128 := minOfLe
+instance : Max Int128 := maxOfLe
+instance : Repr Int128 := ⟨fun x _ => repr x.toInt⟩
+instance : ToString Int128 := ⟨fun x => toString x.toInt⟩
+end Int128
 
 /-- `core::ops::ControlFlow`, which `?` matches on. -/
 inductive ControlFlow (β γ : Type) where
@@ -202,6 +271,15 @@ def saturatingSub (a b : Duration) : Duration := (checkedSub a b).getD ZERO
 /-- `Duration::saturating_mul`. -/
 def saturatingMul (a : Duration) (n : UInt32) : Duration := (checkedMul a n).getD MAX
 
+/-- `Duration::as_nanos`, which never overflows a `u128`. -/
+def asNanos (d : Duration) : UInt128 := UInt128.ofNat d.toNanos
+
+/-- `Duration::as_micros`. -/
+def asMicros (d : Duration) : UInt128 := UInt128.ofNat (d.toNanos / 1000)
+
+/-- `Duration::as_millis`. -/
+def asMillis (d : Duration) : UInt128 := UInt128.ofNat (d.toNanos / 1000000)
+
 end Duration
 
 /-- `VecDeque`: its items, front first. -/
@@ -221,44 +299,6 @@ def pushBack {α : Type} (d : VecDeque α) (x : α) : VecDeque α := ⟨d.items 
 def popFront {α : Type} (d : VecDeque α) : VecDeque α × Option α := (⟨d.items.drop 1⟩, d.items.head?)
 
 end VecDeque
-
-namespace kio
-
-/-- `kio::clock::Instant`: nanoseconds from the clock's origin, a `u64` as kio keeps it. -/
-structure Instant where
-  nanos : UInt64
-deriving Repr, DecidableEq, Inhabited, Ord
-
-namespace Instant
-
-/-- `Instant::ZERO`, the clock's origin. -/
-def ZERO : Instant := ⟨0⟩
-
-/-- `Instant::checked_add`: `none` past the clock's range. -/
-def checkedAdd (i : Instant) (d : Duration) : Option Instant :=
-  if i.nanos.toNat + d.toNanos < 2 ^ 64 then some ⟨(i.nanos.toNat + d.toNanos).toUInt64⟩ else none
-
-/-- `Instant::checked_sub`: `none` before the clock's origin. -/
-def checkedSub (i : Instant) (d : Duration) : Option Instant :=
-  if d.toNanos ≤ i.nanos.toNat then some ⟨(i.nanos.toNat - d.toNanos).toUInt64⟩ else none
-
-/-- `Instant::saturating_add`, stopping at the clock's last instant. -/
-def saturatingAdd (i : Instant) (d : Duration) : Instant := (checkedAdd i d).getD ⟨0xFFFFFFFFFFFFFFFF⟩
-
-/-- `Instant::saturating_sub`, stopping at the clock's origin. -/
-def saturatingSub (i : Instant) (d : Duration) : Instant := (checkedSub i d).getD ZERO
-
-/-- `Instant::checked_duration_since`: `none` if `earlier` is later. -/
-def checkedDurationSince (i earlier : Instant) : Option Duration :=
-  if earlier.nanos ≤ i.nanos then some (Duration.fromNanos (i.nanos - earlier.nanos)) else none
-
-/-- `Instant::saturating_duration_since`, `duration_since`, and `-`: zero if `earlier` is later. -/
-def saturatingDurationSince (i earlier : Instant) : Duration :=
-  (checkedDurationSince i earlier).getD Duration.ZERO
-
-end Instant
-
-end kio
 
 /-- `Option::expect` and `unwrap`: the value, or a panic with `msg`. -/
 def expect {α : Type} (o : Option α) (msg : String) : M α :=
@@ -476,6 +516,44 @@ signed_scalar Int8 8
 signed_scalar Int16 16
 signed_scalar Int32 32
 signed_scalar Int64 64
+
+instance : Scalar UInt128 where
+  val x := (x.toNat : Int)
+  lo := 0
+  hi := 2 ^ 128 - 1
+  ofInt i := UInt128.ofNat (i % 2 ^ 128).toNat
+  val_add a b _ h := by
+    show ((a.toBitVec + b.toBitVec).toNat : Int) = _
+    simp only [BitVec.toNat_add, UInt128.toNat] at *
+    rw [Nat.mod_eq_of_lt (by omega)]; push_cast; rfl
+  val_sub a b l _ := by
+    show ((a.toBitVec - b.toBitVec).toNat : Int) = _
+    simp only [UInt128.toNat] at *
+    have hle : b.toBitVec ≤ a.toBitVec := by rw [BitVec.le_def]; omega
+    rw [BitVec.toNat_sub_of_le hle]; omega
+  val_mul a b _ h := by
+    show ((a.toBitVec * b.toBitVec).toNat : Int) = _
+    simp only [BitVec.toNat_mul, UInt128.toNat] at *
+    have : (a.toBitVec.toNat * b.toBitVec.toNat : Int) = ((a.toBitVec.toNat * b.toBitVec.toNat : Nat) : Int) := by push_cast; rfl
+    rw [Nat.mod_eq_of_lt (by omega)]; omega
+
+instance : Scalar Int128 where
+  val x := x.toInt
+  lo := -2 ^ 127
+  hi := 2 ^ 127 - 1
+  ofInt i := Int128.ofInt i
+  val_add a b l h := by
+    show (a.toBitVec + b.toBitVec).toInt = _
+    simp only [Int128.toInt] at *
+    rw [BitVec.toInt_add, Int.bmod_eq_of_le] <;> omega
+  val_sub a b l h := by
+    show (a.toBitVec - b.toBitVec).toInt = _
+    simp only [Int128.toInt] at *
+    rw [BitVec.toInt_sub, Int.bmod_eq_of_le] <;> omega
+  val_mul a b l h := by
+    show (a.toBitVec * b.toBitVec).toInt = _
+    simp only [Int128.toInt] at *
+    rw [BitVec.toInt_mul, Int.bmod_eq_of_le] <;> omega
 
 end Rust
 

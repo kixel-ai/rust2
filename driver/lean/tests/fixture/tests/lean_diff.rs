@@ -10,7 +10,8 @@ use std::panic::{AssertUnwindSafe, catch_unwind};
 use std::time::Duration;
 
 use fixture::cases::lenses::{Book, Seeded, Tally};
-use fixture::cases::{self, Ledger, Rank};
+use fixture::cases::{self, Ledger, Rank, Step};
+use kio::clock::instant::Instant;
 
 /// xorshift64, so a seed always draws the same cases.
 struct Rng(u64);
@@ -78,6 +79,23 @@ impl Rng {
 		}
 	}
 
+	/// Near the ends of a `u128`, and of the `u64` within it.
+	fn huge(&mut self) -> u128 {
+		let picks = [0, 1, 2, u64::MAX as u128, 1 << 64, (1 << 127) - 1, 1 << 127, u128::MAX - 1, u128::MAX];
+		picks[self.below(picks.len() as u64) as usize]
+	}
+
+	/// Near the ends of an `i128`, and of the `i64` within it.
+	fn signed(&mut self) -> i128 {
+		let picks = [i128::MIN, i128::MIN + 1, i64::MIN as i128, -2, -1, 0, 1, 2, i64::MAX as i128 + 1, i128::MAX];
+		picks[self.below(picks.len() as u64) as usize]
+	}
+
+	/// Shift amounts, some past a `u128`'s width before the `% 128` that the cases take.
+	fn shift(&mut self) -> u32 {
+		[0, 1, 63, 64, 127, 128, 200][self.below(7) as usize]
+	}
+
 	fn rank(&mut self) -> Rank {
 		Rank {
 			up: self.one_in(2),
@@ -86,9 +104,9 @@ impl Rng {
 	}
 }
 
-/// An encoder of one case.
+/// An encoder of one case, each integer in decimal, which a `u128` past `i128` needs.
 #[derive(Default)]
-struct W(Vec<i128>);
+struct W(Vec<String>);
 
 trait Enc {
 	fn enc(&self, w: &mut W);
@@ -101,15 +119,36 @@ impl W {
 	}
 
 	fn int(&mut self, v: i128) -> &mut Self {
-		self.0.push(v);
+		self.0.push(v.to_string());
 		self
 	}
 }
 
 macro_rules! ints {
-	($($t:ty),*) => {$(impl Enc for $t { fn enc(&self, w: &mut W) { w.0.push(*self as i128) } })*};
+	($($t:ty),*) => {$(impl Enc for $t { fn enc(&self, w: &mut W) { w.0.push((*self as i128).to_string()) } })*};
 }
-ints!(u8, u16, u32, u64, usize, i8, bool);
+ints!(u8, u16, u32, u64, usize, i8, i64, i128, bool);
+
+impl Enc for u128 {
+	fn enc(&self, w: &mut W) {
+		w.0.push(self.to_string());
+	}
+}
+
+impl Enc for Instant {
+	fn enc(&self, w: &mut W) {
+		w.put(self.0);
+	}
+}
+
+impl Enc for Step {
+	fn enc(&self, w: &mut W) {
+		match self {
+			Step::Back => w.int(0),
+			Step::Ahead(n) => w.int(1).put(*n),
+		};
+	}
+}
 
 impl Enc for Duration {
 	fn enc(&self, w: &mut W) {
@@ -242,7 +281,7 @@ fn outcome<T: Enc>(w: &mut W, f: impl FnOnce() -> T) {
 
 fn case(rng: &mut Rng) -> W {
 	let mut w = W::default();
-	let kind = 1 + rng.below(25);
+	let kind = 1 + rng.below(34);
 	w.int(kind.into());
 	match kind {
 		1 => {
@@ -405,6 +444,73 @@ fn case(rng: &mut Rng) -> W {
 			w.put(&b).put(k).put(f).put(named);
 			outcome(&mut w, || (b.eager(k, f, named), b));
 		}
+		26 => {
+			let (i, d, j) = (Instant(rng.count()), rng.duration(), rng.count());
+			w.put(i).put(d).put(j);
+			outcome(&mut w, || {
+				let (a, b, c, e) = cases::ticks(i, d, j);
+				(a, (b, (c, e)))
+			});
+		}
+		27 => {
+			let o = (!rng.one_in(3)).then(|| rng.wide());
+			let n = (!rng.one_in(3)).then(|| rng.count());
+			w.put(o).put(n);
+			outcome(&mut w, || {
+				let (a, b, c, d, e) = cases::passed(o, n);
+				(a, (b, (c, (d, e))))
+			});
+		}
+		28 => {
+			let d = rng.duration();
+			w.put(d);
+			outcome(&mut w, || {
+				let (a, b, c) = cases::nanos(d);
+				(a, (b, c))
+			});
+		}
+		29 => {
+			let (a, b, s) = (rng.huge(), rng.huge(), rng.shift());
+			w.put(a).put(b).put(s);
+			outcome(&mut w, || {
+				let (c, d, e, f, g, h) = cases::wide_bits(a, b, s);
+				(c, (d, (e, (f, (g, h)))))
+			});
+		}
+		30 => {
+			let (a, b) = (rng.huge(), rng.huge());
+			w.put(a).put(b);
+			outcome(&mut w, || {
+				let (c, d, e, f, g, h, i, j) = cases::wide_order(a, b);
+				(c, (d, (e, (f, (g, (h, (i, j)))))))
+			});
+		}
+		31 => {
+			let (a, b, op) = (rng.huge(), rng.huge(), rng.byte());
+			w.put(a).put(b).put(op);
+			outcome(&mut w, || cases::wide_arith(a, b, op));
+		}
+		32 => {
+			let (x, y, op) = (rng.signed(), rng.signed(), rng.byte());
+			w.put(x).put(y).put(op);
+			outcome(&mut w, || cases::signed_arith(x, y, op));
+		}
+		33 => {
+			let (x, y, s) = (rng.signed(), rng.signed(), rng.shift());
+			w.put(x).put(y).put(s);
+			outcome(&mut w, || {
+				let (c, d, e, f, g, h, i, j) = cases::signed_bits(x, y, s);
+				(c, (d, (e, (f, (g, (h, (i, j)))))))
+			});
+		}
+		34 => {
+			let (a, x) = (rng.huge(), rng.signed());
+			w.put(a).put(x);
+			outcome(&mut w, || {
+				let (k, l, m, n, o, p, q, r, t, u) = cases::wide_casts(a, x);
+				(k, (l, (m, (n, (o, (p, (q, (r, (t, u)))))))))
+			});
+		}
 		_ => {
 			let m: BTreeMap<Rank, u16> = (0..rng.below(5)).map(|_| (rng.rank(), rng.below(1000) as u16)).collect();
 			let s: BTreeSet<u8> = (0..rng.below(5)).map(|_| rng.byte()).collect();
@@ -430,8 +536,7 @@ fn write_cases() {
 	let mut rng = Rng(0x9e37_79b9_7f4a_7c15);
 	for _ in 0..cases {
 		let w = case(&mut rng);
-		let line: Vec<String> = w.0.iter().map(i128::to_string).collect();
-		writeln!(out, "{}", line.join(" ")).expect("write");
+		writeln!(out, "{}", w.0.join(" ")).expect("write");
 	}
 	let _ = std::panic::take_hook();
 }

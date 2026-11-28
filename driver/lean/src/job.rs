@@ -22,15 +22,13 @@ pub(crate) mod env {
 
 /// Run as rustc, with `args` as cargo passed them: the wrapped rustc's path first.
 pub(crate) fn run(args: Vec<String>) -> ExitCode {
-	rust2_driver::rustc::run("rust2-lean", args, |args, added| {
+	rust2_driver::rustc::run("rust2-lean", args, |args, _| {
 		let Ok(package) = std::env::var(env::PACKAGE) else {
 			return Ok(None);
 		};
 		if !rust2_driver::rustc::compiles_lib(args, &package) {
 			return Ok(None);
 		}
-		// MIR as the source wrote it: no inlining or folding across statements.
-		added.push("-Zmir-opt-level=0".into());
 		let roots = std::env::var(env::ROOTS)
 			.unwrap_or_default()
 			.lines()

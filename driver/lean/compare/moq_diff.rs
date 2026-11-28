@@ -420,7 +420,7 @@ fn case(rng: &mut Rng) -> W {
 			w.put(d);
 			outcome(&mut w, || debounce(d));
 		}
-		// kio's `Instant`, which no translated function reaches yet, against its model.
+		// kio's own `Instant` methods, which `moq.sh` translates from kio.
 		13 => {
 			let (i, d, j) = (rng.instant(), rng.duration(), rng.instant());
 			w.put(i).put(d).put(j);

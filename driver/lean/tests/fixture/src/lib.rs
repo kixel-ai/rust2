@@ -337,6 +337,112 @@ pub mod cases {
 		(a < b, a <= b, a > b, a >= b, a.max(b), a.min(b), a.cmp(&b), p < q, p >= q)
 	}
 
+	/// A dependency's code, translated from its MIR, and its generic function instantiated
+	/// with its own type, from a crate further down.
+	pub fn ticks(i: kio::clock::instant::Instant, d: Duration, j: u64) -> (Option<u64>, u64, Duration, u64) {
+		let t = fixture_dep::Ticks::of(i);
+		let u = fixture_dep::Ticks::of(kio::clock::instant::Instant(j));
+		(
+			t.checked_add(d).map(fixture_dep::Ticks::get),
+			t.saturating_add(d).get(),
+			t.since(u),
+			fixture_dep::larger(t, u).get(),
+		)
+	}
+
+	#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+	pub enum Step {
+		Back,
+		Ahead(u16),
+	}
+
+	/// Functions passed where a closure is taken: constructors, and a `std` function.
+	pub fn passed(
+		o: Option<u16>,
+		n: Option<u64>,
+	) -> (Option<lenses::Seeded>, Option<Duration>, Option<Option<u16>>, Option<Result<u16, u8>>, Option<Step>) {
+		(o.map(lenses::Seeded), n.map(Duration::from_nanos), o.map(Some), o.map(Ok), o.map(Step::Ahead))
+	}
+
+	/// `Duration` in `u128`s.
+	pub fn nanos(d: Duration) -> (u128, u128, u128) {
+		(d.as_nanos(), d.as_micros(), d.as_millis())
+	}
+
+	/// `u128`'s bitwise operations, and shifts by an amount of another type.
+	pub fn wide_bits(a: u128, b: u128, s: u32) -> (u128, u128, u128, u128, u128, u128) {
+		(a & b, a | b, a ^ b, !a, a << (s % 128), a >> (s % 128))
+	}
+
+	pub fn wide_order(a: u128, b: u128) -> (Option<u128>, Option<u128>, u128, u128, u128, u128, bool, std::cmp::Ordering) {
+		(
+			a.checked_add(b),
+			a.checked_sub(b),
+			a.saturating_add(b),
+			a.saturating_sub(b),
+			a.min(b),
+			a.max(b),
+			a < b,
+			a.cmp(&b),
+		)
+	}
+
+	/// Arithmetic whose overflow, or division by zero, panics.
+	pub fn wide_arith(a: u128, b: u128, op: u8) -> u128 {
+		match op % 5 {
+			0 => a + b,
+			1 => a - b,
+			2 => a * b,
+			3 => a / b,
+			_ => a % b,
+		}
+	}
+
+	pub fn signed_arith(x: i128, y: i128, op: u8) -> i128 {
+		match op % 6 {
+			0 => x + y,
+			1 => x - y,
+			2 => x * y,
+			3 => x / y,
+			4 => x % y,
+			_ => -x,
+		}
+	}
+
+	/// An arithmetic shift, and `i128`'s order.
+	pub fn signed_bits(x: i128, y: i128, s: u32) -> (i128, i128, i128, i128, bool, std::cmp::Ordering, i128, i128) {
+		(
+			x >> (s % 128),
+			x << (s % 128),
+			x.saturating_add(y),
+			x.saturating_sub(y),
+			x <= y,
+			x.cmp(&y),
+			x.min(y),
+			!x,
+		)
+	}
+
+	/// Casts, which wrap, and conversions, which fail where the target cannot hold the value.
+	#[allow(clippy::cast_possible_truncation, reason = "the casts under test")]
+	pub fn wide_casts(
+		a: u128,
+		x: i128,
+	) -> (u64, i64, i128, u128, Option<u64>, Option<i64>, Option<u128>, Option<i128>, u128, i128) {
+		(
+			a as u64,
+			x as i64,
+			a as i128,
+			x as u128,
+			u64::try_from(a).ok(),
+			i64::try_from(x).ok(),
+			u128::try_from(x).ok(),
+			i128::try_from(a).ok(),
+			u128::from(a as u64),
+			i128::from(x as i64),
+		)
+	}
+
 	/// Collections changed in place through a field of `&mut self`.
 	pub struct Ledger {
 		pub m: BTreeMap<Rank, u16>,
@@ -856,12 +962,11 @@ pub mod refused {
 		m.remove(k)
 	}
 
-	/// A `u128`, which has no Lean model.
-	pub fn millis(d: std::time::Duration) -> u128 {
-		d.as_millis()
+	/// A `u128` method without a model.
+	pub fn spread(a: u128) -> u32 {
+		a.count_ones()
 	}
 
-	/// Another crate's trait named `Sub` on kio's `Instant`, which kio's model does not cover.
 	/// A closure returning a `&mut` into a map, which its caller would take for a copy.
 	pub fn nested_mut(m: &mut std::collections::BTreeMap<u8, std::collections::BTreeMap<u8, u8>>, a: u8, b: u8) {
 		if let Some(v) = m.get_mut(&a).and_then(|n| n.get_mut(&b)) {
@@ -919,6 +1024,7 @@ pub mod refused {
 		}
 	}
 
+	/// A dependency's function, refused at its span in the dependency.
 	pub fn elapsed(a: kio::clock::instant::Instant, b: kio::clock::instant::Instant) -> std::time::Duration {
 		fixture_dep::Sub::sub(a, b)
 	}

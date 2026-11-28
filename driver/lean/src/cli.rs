@@ -10,14 +10,23 @@ use crate::job::env;
 const USAGE: &str = "usage: rust2-lean (--out <dir> | --census <file>) --start-from <path>... [--manifest-path <Cargo.toml>] [-- <cargo args>]
 
 Translates the library of the package at --manifest-path (./Cargo.toml by default) to
-Lean 4: every function a --start-from path names, and every function and type they reach.
-A path is `crate::module::Type::method` or `crate::module::function`, or a prefix of such
-paths, such as `crate::module`, naming every function under it.
+Lean 4: every function a --start-from path names, and every function and type they reach,
+in it and in its dependencies outside the sysroot. A path is `crate::module::Type::method`
+or `crate::module::function`, or a prefix of such paths, such as `crate::module`, naming
+every function under it; `dep::module::...` names a dependency's, by its crate's name.
 
---out writes Rust.lean, the runtime every translation imports, and <Crate>.lean, the
-translation, into <dir>; a construct outside the subset is a compile error at its span.
+--out writes Rust.lean, the runtime every translation imports, and <Crate>.lean for each
+crate the translation reaches, its items under its crate's name, into <dir>; a construct
+outside the subset is a compile error at its span.
 --census writes every refusal to <file> instead, one per line with its span, followed by
 how many reached functions translated.";
+
+/// The profile every crate compiles with, as a cargo `--config`, which cargo's fingerprint
+/// sees, so a crate cached without it compiles again: its MIR as the source wrote it, with no
+/// inlining or folding across statements, and kept for the crates that call it, so the
+/// package's translation reads its dependencies' bodies as its own. The sysroot comes
+/// prebuilt, and keeps its models.
+const PROFILE: &str = r#"profile.dev.rustflags = ["-Zmir-opt-level=0", "-Zalways-encode-mir"]"#;
 
 struct Args {
 	out: Option<PathBuf>,
@@ -53,7 +62,7 @@ fn parse(args: &[String]) -> Result<Option<Args>, String> {
 				};
 				rest = tail;
 				if arg == "--start-from" {
-					roots.push(value.strip_prefix("crate::").unwrap_or(value).to_string());
+					roots.push(value.to_string());
 					continue;
 				}
 				let path = std::path::absolute(value).map_err(|err| format!("resolving {value}: {err}"))?;
@@ -110,13 +119,17 @@ fn try_run(args: &[String]) -> Result<ExitCode, String> {
 	if let Some(census) = &args.census {
 		vars.push((env::CENSUS, census.as_os_str()));
 	}
+	vars.push(("CARGO_UNSTABLE_PROFILE_RUSTFLAGS", "true".as_ref()));
+	// The profile `PROFILE` sets, which cargo refuses to combine with one the cargo args pick.
+	let mut cargo: Vec<String> = ["--config", PROFILE, "--profile", "dev"].map(String::from).into();
+	cargo.extend(args.cargo);
 	Check {
 		tool: "rust2-lean",
 		manifest: &args.manifest,
 		package: &package,
 		root: None,
 		target: None,
-		args: &args.cargo,
+		args: &cargo,
 		env: &vars,
 		target_dir: None,
 		dir: None,

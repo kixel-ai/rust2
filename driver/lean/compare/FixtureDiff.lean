@@ -5,7 +5,7 @@ import Std.Data.HashMap
 open fixture
 
 -- The widest cases' tuples need more than the default to find their `DecidableEq`.
-set_option synthInstance.maxSize 1024
+set_option synthInstance.maxSize 4096
 
 abbrev D := StateT (List Int) (Except String)
 
@@ -21,9 +21,16 @@ def u8 : D UInt8 := bounded 8 Nat.toUInt8
 def u16 : D UInt16 := bounded 16 Nat.toUInt16
 def u32 : D UInt32 := bounded 32 Nat.toUInt32
 def u64 : D UInt64 := bounded 64 Nat.toUInt64
+def u128 : D Rust.UInt128 := bounded 128 Rust.UInt128.ofNat
 def i8 : D Int8 := do
   let x ← int
   if -128 ≤ x ∧ x < 128 then pure (Int8.ofInt x) else throw "past i8"
+def i64 : D Int64 := do
+  let x ← int
+  if -2 ^ 63 ≤ x ∧ x < 2 ^ 63 then pure (Int64.ofInt x) else throw "past i64"
+def i128 : D Rust.Int128 := do
+  let x ← int
+  if -2 ^ 127 ≤ x ∧ x < 2 ^ 127 then pure (Rust.Int128.ofInt x) else throw "past i128"
 def boolean : D Bool := (· != 0) <$> int
 def opt (d : D α) : D (Option α) := do if (← int) == 0 then pure none else some <$> d
 def pair (a : D α) (b : D β) : D (α × β) := do let x ← a; pure (x, ← b)
@@ -50,6 +57,8 @@ def book : D cases.lenses.Book := do
   pure { tallies := ⟨tallies.toList⟩, nested := ⟨nested.toList⟩, seeds := ⟨seeds.toList⟩, log := ← opt (arr u8) }
 def result (a : D α) (e : D ε) : D (Except ε α) := do
   if (← int) == 0 then .error <$> e else .ok <$> a
+def instant : D kio.clock.instant.Instant := do pure ⟨← u64⟩
+def step : D cases.Step := do if (← int) == 0 then pure .Back else .Ahead <$> u16
 
 /-- A panic's message, as its length and bytes. -/
 def str : D String := do
@@ -134,6 +143,33 @@ def case : D (List String) := do
   | 25 =>
     let b ← book; let k ← u8; let f ← opt u16; let named ← boolean
     expect "eager" (b.eager k f named) (pair (pair u16 u8) book)
+  | 26 =>
+    let i ← instant; let d ← dur; let j ← u64
+    expect "ticks" (pure (cases.ticks i d j)) (pair (opt u64) (pair u64 (pair dur u64)))
+  | 27 =>
+    let o ← opt u16; let n ← opt u64
+    expect "passed" (pure (cases.passed o n))
+      (pair (opt (do pure (⟨← u16⟩ : cases.lenses.Seeded))) (pair (opt dur) (pair (opt (opt u16))
+        (pair (opt (result u16 u8)) (opt step)))))
+  | 28 => let d ← dur; expect "nanos" (pure (cases.nanos d)) (pair u128 (pair u128 u128))
+  | 29 =>
+    let a ← u128; let b ← u128; let s ← u32
+    expect "wide_bits" (cases.wide_bits a b s) (pair u128 (pair u128 (pair u128 (pair u128 (pair u128 u128)))))
+  | 30 =>
+    let a ← u128; let b ← u128
+    expect "wide_order" (pure (cases.wide_order a b))
+      (pair (opt u128) (pair (opt u128) (pair u128 (pair u128 (pair u128 (pair u128 (pair boolean ordering)))))))
+  | 31 => let a ← u128; let b ← u128; let op ← u8; expect "wide_arith" (cases.wide_arith a b op) u128
+  | 32 => let x ← i128; let y ← i128; let op ← u8; expect "signed_arith" (cases.signed_arith x y op) i128
+  | 33 =>
+    let x ← i128; let y ← i128; let s ← u32
+    expect "signed_bits" (cases.signed_bits x y s)
+      (pair i128 (pair i128 (pair i128 (pair i128 (pair boolean (pair ordering (pair i128 i128)))))))
+  | 34 =>
+    let a ← u128; let x ← i128
+    expect "wide_casts" (pure (cases.wide_casts a x))
+      (pair u64 (pair i64 (pair i128 (pair u128 (pair (opt u64) (pair (opt i64) (pair (opt u128)
+        (pair (opt i128) (pair u128 i128)))))))))
   | _ => throw "kind"
 
 def main (args : List String) : IO UInt32 := do

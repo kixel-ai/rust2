@@ -10,7 +10,7 @@ use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet, VecDeque};
 
 use rustc_abi::{FieldIdx, VariantIdx};
 use rustc_hir::def::DefKind;
-use rustc_hir::def_id::DefId;
+use rustc_hir::def_id::{CrateNum, DefId, DefIndex, LOCAL_CRATE};
 use rustc_hir::definitions::DefPathData;
 use rustc_middle::mir::interpret::GlobalId;
 use rustc_middle::mir::{
@@ -41,10 +41,8 @@ fn refuse<T>(span: Span, msg: impl Into<String>) -> R<T> {
 
 /// What a crate's translation found.
 pub struct Extraction {
-	/// Their Lean definitions.
-	pub types: Vec<String>,
-	/// The functions it translated, each after those it calls, as Lean definitions.
-	pub fns: Vec<String>,
+	/// Each crate it reached, after the crates it calls.
+	pub crates: Vec<Module>,
 	/// How many functions it reached.
 	pub reached: usize,
 	/// Each reached function's Rust path, and whether it translated.
@@ -54,38 +52,66 @@ pub struct Extraction {
 	pub unmatched: Vec<String>,
 }
 
-/// Translate every function `roots` names in the local crate, and what they reach.
+/// One crate's translation, written to its own file.
+pub struct Module {
+	/// The crate's name, which its items are named under.
+	pub krate: String,
+	/// Whether it is the package's.
+	pub local: bool,
+	/// The crates whose items it names.
+	pub imports: Vec<String>,
+	/// Its types' and traits' Lean definitions.
+	pub types: Vec<String>,
+	/// The functions it translated, each after those it calls, as Lean definitions.
+	pub fns: Vec<String>,
+}
+
+/// Translate every function `roots` names, in the package as `crate::path` or in a
+/// dependency as `dep::path`, and what they reach.
 pub fn extract(tcx: TyCtxt<'_>, roots: &[String]) -> Extraction {
 	let mut cx = Cx {
 		tcx,
+		krate: LOCAL_CRATE,
 		adts: Vec::new(),
 		adt_seen: HashSet::new(),
 		adt_visiting: HashSet::new(),
 		traits: HashMap::new(),
-		classes: Vec::new(),
-		root_names: tcx
-			.hir_crate_items(())
-			.definitions()
-			.filter_map(|d| tcx.def_path(d.to_def_id()).data.first()?.data.get_opt_name())
-			.map(|n| n.to_string())
-			.collect(),
+		modules: HashMap::new(),
+		classes: HashMap::new(),
+		imports: Default::default(),
+		root_names: HashMap::new(),
 		shapes: HashMap::new(),
 		refusals: Vec::new(),
 		recursive: HashSet::new(),
 		clone_params: HashMap::new(),
 		env: TypingEnv::fully_monomorphized(),
 	};
+	// The package's functions, and each dependency's a root names by its crate.
+	let mut candidates: Vec<DefId> = tcx.hir_body_owners().map(|d| d.to_def_id()).collect();
+	for &krate in tcx.crates(()) {
+		let name = tcx.crate_name(krate);
+		if sysroot(tcx, krate) || !roots.iter().any(|r| r.split("::").next() == Some(name.as_str())) {
+			continue;
+		}
+		let n = rustc_metadata::creader::CStore::from_tcx(tcx).num_def_ids_untracked(krate);
+		candidates.extend((0..n).map(|i| DefId {
+			krate,
+			index: DefIndex::from_usize(i),
+		}));
+	}
 	let mut start = Vec::new();
 	let mut matched = vec![false; roots.len()];
-	for def in tcx.hir_body_owners() {
-		let did = def.to_def_id();
+	for did in candidates {
 		if !matches!(tcx.def_kind(did), DefKind::Fn | DefKind::AssocFn) {
 			continue;
 		}
 		if cx.skipped(did) {
 			continue;
 		}
-		let path = cx.rust_path(did);
+		let path = match did.is_local() {
+			true => format!("crate::{}", cx.rust_path(did)),
+			false => cx.rust_path(did),
+		};
 		let mut hit = false;
 		for (root, m) in roots.iter().zip(&mut matched) {
 			if path == *root || path.starts_with(&format!("{root}::")) {
@@ -99,7 +125,6 @@ pub fn extract(tcx: TyCtxt<'_>, roots: &[String]) -> Extraction {
 	}
 	// Callees first, so each caller knows which calls can fail.
 	let order = cx.call_order(&start);
-	let mut fns = Vec::new();
 	let mut outcomes = Vec::new();
 	let mut failed_closures = HashSet::new();
 	for &did in &order {
@@ -108,7 +133,7 @@ pub fn extract(tcx: TyCtxt<'_>, roots: &[String]) -> Extraction {
 		} else {
 			match cx.function(did) {
 				Ok(text) => {
-					fns.push(text);
+					cx.module(did.krate).fns.push(text);
 					true
 				}
 				Err(refusal) => {
@@ -129,22 +154,49 @@ pub fn extract(tcx: TyCtxt<'_>, roots: &[String]) -> Extraction {
 		}
 		outcomes.push((cx.rust_path(did), ok && !failed_closures.contains(&did)));
 	}
-	for (did, refusal) in cx.clone_instantiations() {
+	for (did, refusal) in cx.clone_instantiations(&order) {
 		cx.refusals.push(refusal);
 		let path = cx.rust_path(did);
 		outcomes.iter_mut().filter(|o| o.0 == path).for_each(|o| o.1 = false);
 	}
-	let mut types = Vec::new();
 	for did in cx.adts.clone() {
+		cx.krate = did.krate;
 		match cx.adt_text(did) {
-			Ok(text) => types.push(text),
+			Ok(text) => cx.module(did.krate).types.push(text),
 			Err(refusal) => cx.refusals.push(refusal),
 		}
 	}
-	types.append(&mut cx.classes);
+	// Classes after the types they name, which a crate's own types are.
+	let mut modules: Vec<(CrateNum, Module)> = cx.modules.drain().collect();
+	modules.sort_by(|a, b| a.1.krate.cmp(&b.1.krate));
+	for (krate, module) in &mut modules {
+		module.types.extend(cx.classes.remove(krate).unwrap_or_default());
+	}
+	let imports = cx.imports.into_inner();
+	let mut crates = Vec::new();
+	// Each after the crates it names, which name no crate that names them.
+	while !modules.is_empty() {
+		let ready = modules
+			.iter()
+			.position(|(krate, _)| {
+				imports
+					.get(krate)
+					.is_none_or(|i| i.iter().all(|d| !modules.iter().any(|(k, _)| k == d)))
+			})
+			.expect("crates name each other acyclically");
+		let (krate, mut module) = modules.remove(ready);
+		let mut names: Vec<String> = imports
+			.get(&krate)
+			.into_iter()
+			.flatten()
+			.map(|d| tcx.crate_name(*d).to_string())
+			.collect();
+		names.sort();
+		module.imports = names;
+		crates.push(module);
+	}
 	Extraction {
-		types,
-		fns,
+		crates,
 		reached: outcomes.len(),
 		outcomes,
 		refusals: cx.refusals,
@@ -166,6 +218,8 @@ struct Shape {
 
 pub(crate) struct Cx<'tcx> {
 	pub tcx: TyCtxt<'tcx>,
+	/// The crate whose file is being written, which names its own items without its name.
+	krate: CrateNum,
 	adts: Vec<DefId>,
 	/// Types queued with every field checked.
 	adt_seen: HashSet<DefId>,
@@ -175,12 +229,17 @@ pub(crate) struct Cx<'tcx> {
 	refusals: Vec<Refusal>,
 	/// Functions that call themselves, which are refused.
 	recursive: HashSet<DefId>,
-	/// Local traits a bound names, each translated to a Lean class, or refused.
+	/// Translated traits a bound names, each translated to a Lean class, or refused.
 	traits: HashMap<DefId, bool>,
-	/// The classes' Lean definitions, after the types they name.
-	classes: Vec<String>,
-	/// The names of the crate root's items, which begin the Lean names of everything else.
-	root_names: HashSet<String>,
+	/// Each crate's translation so far.
+	modules: HashMap<CrateNum, Module>,
+	/// Each crate's classes, after its types, which they name.
+	classes: HashMap<CrateNum, Vec<String>>,
+	/// The crates each crate's file names items of, which it imports.
+	imports: std::cell::RefCell<HashMap<CrateNum, BTreeSet<CrateNum>>>,
+	/// Each crate's names a variable would shadow: its root's items', which begin the Lean
+	/// names of its other items, and every dependency's, which begins the names of its items.
+	root_names: HashMap<CrateNum, HashSet<String>>,
 	/// For each function, the indices of the type parameters it relies on cloning by copy,
 	/// each with the translated function whose `clone` relies on it.
 	clone_params: HashMap<DefId, BTreeMap<u32, DefId>>,
@@ -194,7 +253,71 @@ impl<'tcx> Cx<'tcx> {
 		skipped(self.tcx, did)
 	}
 
-	/// The item's Rust path within its crate, as `--start-from` names it.
+	/// Whether `did` is translated from its MIR rather than modeled.
+	fn translated(&self, did: DefId) -> bool {
+		translated(self.tcx, did)
+	}
+
+	/// The translation of crate `krate` so far.
+	fn module(&mut self, krate: CrateNum) -> &mut Module {
+		let tcx = self.tcx;
+		self.modules.entry(krate).or_insert_with(|| Module {
+			krate: tcx.crate_name(krate).to_string(),
+			local: krate == LOCAL_CRATE,
+			imports: Vec::new(),
+			types: Vec::new(),
+			fns: Vec::new(),
+		})
+	}
+
+	/// `name`, of an item of crate `krate`, as the crate being written names it: under the
+	/// crate's name, if it is another's, which its file then imports.
+	fn qualify(&self, krate: CrateNum, name: String) -> String {
+		if krate == self.krate {
+			return name;
+		}
+		self.imports.borrow_mut().entry(self.krate).or_default().insert(krate);
+		format!("{}.{name}", structure::ident(self.tcx.crate_name(krate).as_str()))
+	}
+
+	/// The names a variable in crate `krate`'s translation would shadow.
+	fn root_names(&mut self, krate: CrateNum) -> HashSet<String> {
+		let tcx = self.tcx;
+		self.root_names
+			.entry(krate)
+			.or_insert_with(|| {
+				let first = |did: DefId| Some(tcx.def_path(did).data.first()?.data.get_opt_name()?.to_string());
+				let mut names: HashSet<String> = match krate == LOCAL_CRATE {
+					true => tcx
+						.hir_crate_items(())
+						.definitions()
+						.filter_map(|d| first(d.to_def_id()))
+						.collect(),
+					false => {
+						let n = rustc_metadata::creader::CStore::from_tcx(tcx).num_def_ids_untracked(krate);
+						(0..n)
+							.filter_map(|i| {
+								first(DefId {
+									krate,
+									index: DefIndex::from_usize(i),
+								})
+							})
+							.collect()
+					}
+				};
+				names.extend(
+					tcx.crates(())
+						.iter()
+						.filter(|&&k| !sysroot(tcx, k))
+						.map(|&k| structure::ident(tcx.crate_name(k).as_str())),
+				);
+				names
+			})
+			.clone()
+	}
+
+	/// The item's Rust path, as `--start-from` names it: within the package for the package's,
+	/// and from its crate's name for a dependency's.
 	fn rust_path(&self, did: DefId) -> String {
 		if self.tcx.is_closure_like(did) {
 			let n = self.tcx.def_key(did).disambiguated_data.disambiguator;
@@ -204,14 +327,17 @@ impl<'tcx> Cx<'tcx> {
 		if let Some(impl_id) = self.tcx.impl_of_assoc(did) {
 			let self_ty = self.tcx.type_of(impl_id).instantiate_identity().skip_norm_wip();
 			if let ty::Adt(def, _) = self_ty.kind() {
-				// A method is named under its type, wherever its `impl` is written.
-				if def.did().is_local() {
+				// A method is named under its type, wherever in the type's crate its `impl` is.
+				if def.did().krate == did.krate {
 					parts = self.module_path(def.did());
 				}
 				parts.push(self.tcx.item_name(def.did()).to_string());
 			}
 		}
 		parts.push(self.tcx.item_name(did).to_string());
+		if !did.is_local() {
+			parts.insert(0, self.tcx.crate_name(did.krate).to_string());
+		}
 		parts.join("::")
 	}
 
@@ -229,8 +355,13 @@ impl<'tcx> Cx<'tcx> {
 		parts
 	}
 
-	/// The Lean name of a local type.
+	/// The Lean name of a translated type or trait, as the crate being written names it.
 	pub fn adt_name(&self, did: DefId) -> String {
+		self.qualify(did.krate, self.crate_adt_name(did))
+	}
+
+	/// The Lean name of a translated type or trait within its crate.
+	fn crate_adt_name(&self, did: DefId) -> String {
 		let mut parts: Vec<String> = self.module_path(did).iter().map(|p| structure::ident(p)).collect();
 		let item = self.tcx.item_name(did);
 		let mut last = structure::ident(item.as_str());
@@ -243,7 +374,7 @@ impl<'tcx> Cx<'tcx> {
 		parts.join(".")
 	}
 
-	/// The Lean name of a local function.
+	/// The Lean name of a translated function, as the crate being written names it.
 	pub fn fn_name(&self, did: DefId) -> String {
 		let tcx = self.tcx;
 		if tcx.is_closure_like(did) {
@@ -254,7 +385,7 @@ impl<'tcx> Cx<'tcx> {
 			Some(impl_id) => {
 				let self_ty = tcx.type_of(impl_id).instantiate_identity().skip_norm_wip();
 				let mut base = match self_ty.kind() {
-					ty::Adt(def, _) if def.did().is_local() => self.adt_name(def.did()),
+					ty::Adt(def, _) if def.did().krate == did.krate => self.crate_adt_name(def.did()),
 					_ => self.module_path(did).join("."),
 				};
 				if tcx.trait_impl_of_assoc(did).is_some() {
@@ -294,10 +425,10 @@ impl<'tcx> Cx<'tcx> {
 		if clash {
 			name.push('\'');
 		}
-		name
+		self.qualify(did.krate, name)
 	}
 
-	/// The local functions reachable from `start`, each after its callees.
+	/// The translated functions reachable from `start`, each after its callees.
 	fn call_order(&mut self, start: &[DefId]) -> Vec<DefId> {
 		let mut order = Vec::new();
 		let mut state: HashMap<DefId, bool> = HashMap::new();
@@ -338,9 +469,13 @@ impl<'tcx> Cx<'tcx> {
 		order.push(did);
 	}
 
-	/// The local functions `did`'s body calls.
+	/// The translated functions `did`'s body calls: none if it has no body to translate,
+	/// which [`Self::function`] refuses.
 	fn callees(&self, did: DefId) -> Vec<DefId> {
 		let tcx = self.tcx;
+		if !tcx.is_mir_available(did) {
+			return Vec::new();
+		}
 		let body = tcx.optimized_mir(did);
 		let env = TypingEnv::post_analysis(tcx, did);
 		let mut out = Vec::new();
@@ -350,7 +485,7 @@ impl<'tcx> Cx<'tcx> {
 				if let StatementKind::Assign(assign) = &stmt.kind
 					&& let Rvalue::Aggregate(kind, _) = &assign.1
 					&& let AggregateKind::Closure(closure, _) = **kind
-					&& closure.is_local()
+					&& self.translated(closure)
 				{
 					out.push(closure);
 				}
@@ -389,7 +524,7 @@ impl<'tcx> Cx<'tcx> {
 				|| matches!(tcx.def_path_str(callee).as_str(), "std::mem::take" | "core::mem::take"))
 	}
 
-	/// The local `Default` impls written by hand that a `Default` of `ty` calls, through
+	/// The translated `Default` impls written by hand that a `Default` of `ty` calls, through
 	/// derived ones and tuples.
 	fn default_callees(&self, env: TypingEnv<'tcx>, ty: Ty<'tcx>, out: &mut Vec<DefId>, seen: &mut HashSet<Ty<'tcx>>) {
 		if !seen.insert(ty) {
@@ -397,7 +532,7 @@ impl<'tcx> Cx<'tcx> {
 		}
 		match ty.kind() {
 			ty::Tuple(tys) => tys.iter().for_each(|t| self.default_callees(env, t, out, seen)),
-			ty::Adt(def, args) if def.did().is_local() => {
+			ty::Adt(def, args) if self.translated(def.did()) => {
 				if let Some((did, _)) = self.default_impl(env, ty) {
 					out.push(did);
 				} else if self.derives(def.did(), self.tcx.get_diagnostic_item(rustc_span::sym::Default)) {
@@ -410,7 +545,7 @@ impl<'tcx> Cx<'tcx> {
 		}
 	}
 
-	/// The local `Default::default` written by hand for `ty`, and its generic arguments.
+	/// The translated `Default::default` written by hand for `ty`, and its generic arguments.
 	fn default_impl(&self, env: TypingEnv<'tcx>, ty: Ty<'tcx>) -> Option<(DefId, GenericArgsRef<'tcx>)> {
 		let tcx = self.tcx;
 		let default = tcx.get_diagnostic_item(rustc_span::sym::Default)?;
@@ -473,7 +608,7 @@ impl<'tcx> Cx<'tcx> {
 				if !seen.insert(ty) {
 					return true;
 				}
-				if def.did().is_local() {
+				if self.translated(def.did()) {
 					// A derived `PartialEq` calls each field's, which must be structural too.
 					self.derives_partial_eq(def.did())
 						&& def
@@ -504,7 +639,7 @@ impl<'tcx> Cx<'tcx> {
 					return true;
 				}
 				let tcx = self.tcx;
-				if def.did().is_local() {
+				if self.translated(def.did()) {
 					self.derives(def.did(), tcx.get_diagnostic_item(rustc_span::sym::Ord))
 						&& self.derives(def.did(), tcx.lang_items().partial_ord_trait())
 						&& self.discriminants_in_order(*def)
@@ -604,7 +739,7 @@ impl<'tcx> Cx<'tcx> {
 				if !active.insert(ty) {
 					return false;
 				}
-				let copies = if def.did().is_local() {
+				let copies = if self.translated(def.did()) {
 					let lang = self.tcx.lang_items();
 					// `#[derive(Clone, Copy)]` on a type without type parameters derives a `clone`
 					// that copies, whatever the fields' `Clone` does, and marks it `TrivialClone`.
@@ -628,19 +763,21 @@ impl<'tcx> Cx<'tcx> {
 		}
 	}
 
-	/// Refuses each translated function that clones a type parameter by copy where the crate
-	/// instantiates it with a type whose `clone` may not copy, at that instantiation. A generic
-	/// function passing its own parameter on relies on it in turn, so its instantiations are
-	/// checked too. Only the crate's own instantiations are seen: another crate's are not.
-	fn clone_instantiations(&mut self) -> Vec<(DefId, Refusal)> {
+	/// Refuses each translated function that clones a type parameter by copy where the package
+	/// or a translated function instantiates it with a type whose `clone` may not copy, at that
+	/// instantiation. A generic function passing its own parameter on relies on it in turn, so
+	/// its instantiations are checked too. A crate depending on the package is not seen.
+	fn clone_instantiations(&mut self, order: &[DefId]) -> Vec<(DefId, Refusal)> {
 		if self.clone_params.is_empty() {
 			return Vec::new();
 		}
 		let tcx = self.tcx;
-		// Every use of a local function in the crate, by the function it is written in.
+		// Every use of a translated function in the package or a translated function, by the
+		// function it is written in.
 		let mut uses = Vec::new();
-		for def in tcx.hir_body_owners() {
-			let did = def.to_def_id();
+		let bodies = tcx.hir_body_owners().map(|d| d.to_def_id());
+		let reached = order.iter().copied().filter(|d| !d.is_local());
+		for did in bodies.chain(reached) {
 			let body = match tcx.def_kind(did) {
 				DefKind::Fn | DefKind::AssocFn | DefKind::Closure if tcx.is_mir_available(did) => {
 					tcx.optimized_mir(did)
@@ -706,9 +843,6 @@ impl<'tcx> Cx<'tcx> {
 		if self.allocator(did).is_some_and(|i| !self.global_at(args, i)) {
 			return None;
 		}
-		if self.kio_instant(did) {
-			return Some(args.types().take(0));
-		}
 		let n = match self.std_name(did).as_str() {
 			// Seconds and nanoseconds, with a derived `Clone`, `PartialEq`, and `Ord`.
 			"Duration" => 0,
@@ -744,24 +878,6 @@ impl<'tcx> Cx<'tcx> {
 		self.tcx.item_name(did).to_string()
 	}
 
-	/// Whether `did` is `kio::clock::Instant`, a `u64` of nanoseconds with derived `Clone`,
-	/// `PartialEq`, and `Ord`, which `Rust.kio.Instant` models. Matched by where kio defines
-	/// it, since a crate that sees it only through a re-export prints another path.
-	fn kio_instant(&self, did: DefId) -> bool {
-		let tcx = self.tcx;
-		let names: Vec<String> = tcx
-			.def_path(did)
-			.data
-			.iter()
-			.filter_map(|d| d.data.get_opt_name())
-			.map(|n| n.to_string())
-			.collect();
-		!did.is_local()
-			&& tcx.crate_name(did.krate).as_str() == "kio"
-			&& matches!(tcx.def_kind(did), DefKind::Struct)
-			&& names == ["clock", "instant", "Instant"]
-	}
-
 	/// Whether the item is from the sysroot's `core` or `alloc`, found by their lang items, so a
 	/// crate that only shares their names is not.
 	fn is_std(&self, did: DefId) -> bool {
@@ -772,7 +888,7 @@ impl<'tcx> Cx<'tcx> {
 			.any(|lang| lang.krate == did.krate)
 	}
 
-	/// The Lean type of `ty`, queueing each local type it names.
+	/// The Lean type of `ty`, queueing each translated type it names.
 	pub fn ty(&mut self, ty: Ty<'tcx>, span: Span) -> R<String> {
 		let tcx = self.tcx;
 		Ok(match ty.kind() {
@@ -782,6 +898,7 @@ impl<'tcx> Cx<'tcx> {
 				16 => "UInt16".into(),
 				32 => "UInt32".into(),
 				64 => "UInt64".into(),
+				128 => "Rust.UInt128".into(),
 				_ => return refuse(span, format!("`{ty}` has no Lean model")),
 			},
 			ty::Int(i) => match i.bit_width().unwrap_or(self.pointer_bits()) {
@@ -789,6 +906,7 @@ impl<'tcx> Cx<'tcx> {
 				16 => "Int16".into(),
 				32 => "Int32".into(),
 				64 => "Int64".into(),
+				128 => "Rust.Int128".into(),
 				_ => return refuse(span, format!("`{ty}` has no Lean model")),
 			},
 			ty::Tuple(tys) if tys.is_empty() => "Unit".into(),
@@ -801,7 +919,7 @@ impl<'tcx> Cx<'tcx> {
 			ty::Str => "String".into(),
 			ty::Ref(_, inner, _) => self.ty(*inner, span)?,
 			ty::Param(p) => structure::ident(p.name.as_str()),
-			ty::Adt(def, args) if def.did().is_local() => {
+			ty::Adt(def, args) if self.translated(def.did()) => {
 				if def.is_union() {
 					return refuse(span, format!("union `{ty}` is not supported"));
 				}
@@ -834,7 +952,6 @@ impl<'tcx> Cx<'tcx> {
 					format!("`{ty}` has an allocator other than `Global`, which is not supported"),
 				);
 			}
-			ty::Adt(def, _) if self.kio_instant(def.did()) => "Rust.kio.Instant".into(),
 			ty::Adt(..) if self.iterator(ty).is_some() => {
 				let (item, deferred) = self.iterator(ty).expect("checked");
 				let item = self.ty(item, span)?;
@@ -887,9 +1004,13 @@ impl<'tcx> Cx<'tcx> {
 					self.ty(args.type_at(1), span)?
 				),
 				"Infallible" => "Empty".into(),
+				// What a failed integer conversion holds: nothing.
+				"TryFromIntError" => "Unit".into(),
 				_ => return refuse(span, format!("`{ty}` has no Lean model")),
 			},
 			ty::Never => "Empty".into(),
+			// A function item is its type alone: [`Fx::closure`] reads which function it is.
+			ty::FnDef(..) => "Unit".into(),
 			// A closure is what it captures; its body is a function of its own.
 			ty::Closure(_, args) => {
 				let closure = args.as_closure();
@@ -978,7 +1099,7 @@ impl<'tcx> Cx<'tcx> {
 		// A `Map`'s mapper must be a closure here, whose panics the list's shape records.
 		if inner == [0]
 			&& self.std_name(def.did()) == "Map"
-			&& !matches!(args.type_at(1).kind(), ty::Closure(did, _) if did.is_local())
+			&& !matches!(args.type_at(1).kind(), ty::Closure(did, _) if self.translated(*did))
 		{
 			return None;
 		}
@@ -1141,7 +1262,7 @@ impl<'tcx> Cx<'tcx> {
 					&& !matches!(self_ty.kind(), ty::Param(_))
 					&& tcx
 						.supertrait_def_ids(t.def_id())
-						.any(|s| s.is_local() || instanced.contains(&Some(s)))
+						.any(|s| self.translated(s) || instanced.contains(&Some(s)))
 				{
 					return refuse(
 						*span,
@@ -1182,7 +1303,7 @@ impl<'tcx> Cx<'tcx> {
 						out += &format!(" [Ord {name}]");
 					}
 					for b in bounds {
-						if b.is_local() && self.class(b, tcx.def_span(did))? {
+						if self.translated(b) && self.class(b, tcx.def_span(did))? {
 							out += &format!(" [{} {name}]", self.adt_name(b));
 						}
 					}
@@ -1192,9 +1313,17 @@ impl<'tcx> Cx<'tcx> {
 		Ok(out)
 	}
 
-	/// Translate local trait `did` to a Lean class once, each method a field in `Rust.M`,
-	/// since an impl may panic; `false` for a trait with no methods, which needs none.
+	/// Translate trait `did` to a Lean class once, each method a field in `Rust.M`, since an
+	/// impl may panic; `false` for a trait with no methods, which needs none.
 	fn class(&mut self, did: DefId, span: Span) -> R<bool> {
+		// Named as the trait's own crate names it, in whose file it is written.
+		let outer = std::mem::replace(&mut self.krate, did.krate);
+		let class = self.class_in(did, span);
+		self.krate = outer;
+		class
+	}
+
+	fn class_in(&mut self, did: DefId, span: Span) -> R<bool> {
 		let tcx = self.tcx;
 		let methods: Vec<DefId> = tcx
 			.associated_items(did)
@@ -1244,15 +1373,26 @@ impl<'tcx> Cx<'tcx> {
 			out += &format!("  {field} : {}\n", parts.join(" → "));
 		}
 		self.traits.insert(did, true);
-		self.classes.push(out);
+		self.module(did.krate);
+		self.classes.entry(did.krate).or_default().push(out);
 		Ok(true)
 	}
 
 	/// Translate one function to its Lean definitions.
 	fn function(&mut self, did: DefId) -> R<String> {
 		let tcx = self.tcx;
-		let body = tcx.optimized_mir(did);
 		let span = tcx.def_span(did);
+		if !tcx.is_mir_available(did) {
+			return refuse(
+				span,
+				format!(
+					"`{}` has no MIR to translate, as in a crate built without rust2-lean's profile",
+					self.rust_path(did)
+				),
+			);
+		}
+		let body = tcx.optimized_mir(did);
+		self.krate = did.krate;
 		if body.coroutine.is_some() {
 			return refuse(span, "async functions and coroutines are not supported");
 		}
@@ -1322,7 +1462,7 @@ fn field_ident(field: &ty::FieldDef) -> String {
 	}
 }
 
-/// The local function a call of `callee` with `args` runs, if it resolves to one.
+/// The translated function a call of `callee` with `args` runs, if it resolves to one.
 fn resolve_local<'tcx>(
 	tcx: TyCtxt<'tcx>,
 	env: TypingEnv<'tcx>,
@@ -1331,14 +1471,14 @@ fn resolve_local<'tcx>(
 ) -> Option<(DefId, GenericArgsRef<'tcx>)> {
 	let instance = ty::Instance::try_resolve(tcx, env, callee, args).ok().flatten()?;
 	let did = instance.def_id();
-	(did.is_local()
+	(translated(tcx, did)
 		&& matches!(instance.def, ty::InstanceKind::Item(_))
 		&& matches!(tcx.def_kind(did), DefKind::Fn | DefKind::AssocFn)
 		&& !skipped(tcx, did))
 	.then_some((did, instance.args))
 }
 
-/// The local functions a body names, called or not, with the generic arguments it passes.
+/// The translated functions a body names, called or not, with the generic arguments it passes.
 struct FnUses<'tcx> {
 	tcx: TyCtxt<'tcx>,
 	env: TypingEnv<'tcx>,
@@ -1353,6 +1493,20 @@ impl<'tcx> mir::visit::Visitor<'tcx> for FnUses<'tcx> {
 			self.out.push((did, args, c.span));
 		}
 	}
+}
+
+/// Whether `did` is translated from its MIR: the package's, or a dependency's outside the
+/// sysroot, whose `core`, `alloc`, and `std` keep their models.
+fn translated(tcx: TyCtxt<'_>, did: DefId) -> bool {
+	did.is_local() || !sysroot(tcx, did.krate)
+}
+
+/// Whether crate `krate` came prebuilt with the toolchain, so its MIR was not kept.
+fn sysroot(tcx: TyCtxt<'_>, krate: CrateNum) -> bool {
+	let roots: Vec<&std::path::Path> = tcx.sess.opts.sysroot.all_paths().collect();
+	tcx.used_crate_source(krate)
+		.paths()
+		.any(|p| roots.iter().any(|r| p.starts_with(r)))
 }
 
 /// Whether a function is left out of the translation: a derived impl's, which is modeled
@@ -1458,7 +1612,7 @@ impl<'a, 'tcx> Fx<'a, 'tcx> {
 	fn new(cx: &'a mut Cx<'tcx>, did: DefId, body: &'tcx Body<'tcx>) -> R<Self> {
 		let tcx = cx.tcx;
 		let n = body.local_decls.len();
-		let mut reserved = cx.root_names.clone();
+		let mut reserved = cx.root_names(did.krate);
 		reserved.extend(generic_names(tcx, did));
 		let mut fx = Fx {
 			cx,
@@ -2175,7 +2329,7 @@ impl<'a, 'tcx> Fx<'a, 'tcx> {
 			ty::Tuple(tys) => Ok(Proj::Tuple(f.as_usize(), tys.len())),
 			// What a closure captures, in its body.
 			ty::Closure(_, args) => Ok(Proj::Tuple(f.as_usize(), args.as_closure().upvar_tys().len())),
-			ty::Adt(def, _) if def.is_struct() && variant.is_none() && def.did().is_local() => {
+			ty::Adt(def, _) if def.is_struct() && variant.is_none() && self.cx.translated(def.did()) => {
 				Ok(Proj::Field(field_ident(&def.non_enum_variant().fields[f])))
 			}
 			ty::Adt(def, _) if variant.is_none() => {
@@ -2252,7 +2406,7 @@ impl<'a, 'tcx> Fx<'a, 'tcx> {
 		{
 			return Ok(atom(structure::ident(p.name.as_str())));
 		}
-		if ty.is_unit() {
+		if ty.is_unit() || matches!(ty.kind(), ty::FnDef(..)) {
 			return Ok(atom("()".into()));
 		}
 		if ty.peel_refs().is_str()
@@ -2265,7 +2419,7 @@ impl<'a, 'tcx> Fx<'a, 'tcx> {
 			};
 		}
 		let lean_ty = self.cx.ty(ty, span)?;
-		// A one-field struct, such as kio's `Instant`, evaluates to a scalar too.
+		// A one-field struct evaluates to a scalar too.
 		let scalar = (ty.is_integral() || ty.is_bool())
 			.then(|| c.const_.try_eval_scalar_int(tcx, self.env))
 			.flatten();
@@ -2386,10 +2540,6 @@ impl<'a, 'tcx> Fx<'a, 'tcx> {
 				},
 				_ => refuse(span, format!("a constant of type `{ty}` is not supported")),
 			},
-			ty::Adt(def, _) if self.cx.kio_instant(def.did()) => match leaf(vt) {
-				Some(n) => Ok(atom(format!("(⟨{n}⟩ : Rust.kio.Instant)"))),
-				None => refuse(span, format!("a constant of type `{ty}` is not supported")),
-			},
 			ty::Adt(def, _) => {
 				let fields = children(vt);
 				let (variant, fields) = if def.is_enum() {
@@ -2439,7 +2589,14 @@ impl<'a, 'tcx> Fx<'a, 'tcx> {
 				if from == *to {
 					return Ok(v);
 				}
-				if from.is_integral() && !from.is_signed() && !to.is_signed() {
+				// Between Lean's own unsigned integers, its conversion; the runtime's 128-bit ones
+				// convert through `Rust.cast`.
+				if from.is_integral()
+					&& !from.is_signed()
+					&& !to.is_signed()
+					&& builtin(&to_lean)
+					&& builtin(&self.cx.ty(from, span)?)
+				{
 					return Ok(compound(format!("{}.to{to_lean}", v.paren()), &[&v]));
 				}
 				Ok(compound(format!("Rust.cast {to_lean} {}", v.paren()), &[&v]))
@@ -2526,7 +2683,7 @@ impl<'a, 'tcx> Fx<'a, 'tcx> {
 				};
 				let amount = if ta == tb {
 					b.paren()
-				} else if !tb.is_signed() {
+				} else if !tb.is_signed() && builtin(&lean_a) && builtin(&self.cx.ty(tb, span)?) {
 					format!("{}.to{lean_a}", b.paren())
 				} else {
 					format!("(Rust.cast {lean_a} {})", b.paren())
@@ -2571,7 +2728,7 @@ impl<'a, 'tcx> Fx<'a, 'tcx> {
 				let def = tcx.adt_def(*did);
 				let lean_ty = self.cx.ty(ty, span)?;
 				let var = def.variant(*variant);
-				if def.is_struct() && !did.is_local() {
+				if def.is_struct() && !self.cx.translated(*did) {
 					let name = self.cx.std_name(*did);
 					return match (self.cx.ops_range(*did).unwrap_or(&name), vals.as_slice()) {
 						("Reverse", [v]) => Ok(atom_of(format!("({{ x0 := {} }} : {lean_ty})", v.text), &refs)),
@@ -2593,7 +2750,11 @@ impl<'a, 'tcx> Fx<'a, 'tcx> {
 					}
 					return Ok(atom_of(format!("({{ {} }} : {lean_ty})", fields.join(", ")), &refs));
 				}
-				let ctor = match (did.is_local(), self.cx.std_name(*did).as_str(), var.name.as_str()) {
+				let ctor = match (
+					self.cx.translated(*did),
+					self.cx.std_name(*did).as_str(),
+					var.name.as_str(),
+				) {
 					(false, "Option", "Some") => "some".to_string(),
 					(false, "Option", "None") => return Ok(atom(format!("(none : {lean_ty})"))),
 					(false, "Result", "Ok") => "Except.ok".to_string(),
@@ -2646,7 +2807,7 @@ impl<'a, 'tcx> Fx<'a, 'tcx> {
 	fn drop(&mut self, place: Place<'tcx>, span: Span) -> R<()> {
 		let ty = place.ty(self.body, self.cx.tcx).ty;
 		if let ty::Adt(def, _) = ty.kind()
-			&& def.did().is_local()
+			&& self.cx.translated(def.did())
 			&& self.cx.tcx.adt_destructor(def.did()).is_some()
 		{
 			return refuse(
@@ -2816,9 +2977,9 @@ impl<'a, 'tcx> Fx<'a, 'tcx> {
 			return Ok(target.is_none());
 		}
 		if let Some(tr) = tcx.trait_of_assoc(callee)
-			&& tr.is_local()
+			&& self.cx.translated(tr)
 		{
-			// A local trait's method on a type parameter: its class's field.
+			// A translated trait's method on a type parameter: its class's field.
 			self.cx.class(tr, span)?;
 			return self
 				.local_call(callee, gargs, args, *destination, span, ops)
@@ -2919,9 +3080,9 @@ impl<'a, 'tcx> Fx<'a, 'tcx> {
 					ops,
 				)?;
 			}
-			"u8::checked_add" | "u16::checked_add" | "u32::checked_add" | "u64::checked_add" | "usize::checked_add"
-			| "u8::checked_sub" | "u16::checked_sub" | "u32::checked_sub" | "u64::checked_sub"
-			| "usize::checked_sub" => {
+			"u8::checked_add" | "u16::checked_add" | "u32::checked_add" | "u64::checked_add" | "u128::checked_add"
+			| "usize::checked_add" | "u8::checked_sub" | "u16::checked_sub" | "u32::checked_sub"
+			| "u64::checked_sub" | "u128::checked_sub" | "usize::checked_sub" => {
 				let (a, b) = (arg(self, 0)?, arg(self, 1)?);
 				let f = if key.ends_with("add") {
 					"checkedAdd"
@@ -3116,7 +3277,7 @@ impl<'a, 'tcx> Fx<'a, 'tcx> {
 					&refs,
 				)
 			}
-			ty::Adt(def, args) if def.did().is_local() => {
+			ty::Adt(def, args) if self.cx.translated(def.did()) => {
 				if let Some((did, gargs)) = self.cx.default_impl(self.env, ty) {
 					let text = self.callee_text(did, gargs, span)?;
 					let call = atom(format!("({text})"));
@@ -3198,23 +3359,6 @@ impl<'a, 'tcx> Fx<'a, 'tcx> {
 			return "Clone::clone".into();
 		}
 		let name = tcx.item_name(did);
-		// kio's `Instant`, by its own methods, or `Trait::method for kio::Instant` for a sysroot
-		// trait; another crate's trait of the same name has no model, so no key.
-		if let Some(impl_id) = tcx.impl_of_assoc(did)
-			&& let ty::Adt(def, _) = tcx.type_of(impl_id).instantiate_identity().skip_norm_wip().kind()
-			&& self.cx.kio_instant(def.did())
-		{
-			return match tcx.trait_impl_of_assoc(did) {
-				Some(imp) => {
-					let t = tcx.impl_trait_ref(imp).instantiate_identity().skip_norm_wip().def_id;
-					if !self.cx.is_std(t) {
-						return String::new();
-					}
-					format!("{}::{name} for kio::Instant", tcx.item_name(t))
-				}
-				None => format!("kio::Instant::{name}"),
-			};
-		}
 		if !self.cx.is_std(did) {
 			return String::new();
 		}
@@ -3242,7 +3386,7 @@ impl<'a, 'tcx> Fx<'a, 'tcx> {
 		}
 	}
 
-	/// The Lean name of local function `callee`, with each generic argument Lean cannot infer
+	/// The Lean name of translated function `callee`, with each generic argument Lean cannot infer
 	/// from its arguments' Lean types, refusing an argument its bounds cannot take.
 	fn callee_text(&mut self, callee: DefId, gargs: GenericArgsRef<'tcx>, span: Span) -> R<String> {
 		let tcx = self.cx.tcx;
@@ -3270,7 +3414,7 @@ impl<'a, 'tcx> Fx<'a, 'tcx> {
 				&& let Some(t) = arg.as_type()
 			{
 				let bounds = self.cx.param_bounds(callee, param.index);
-				// A local trait's Lean class needs an instance: only a parameter of this
+				// A translated trait's Lean class needs an instance: only a parameter of this
 				// function bounded by it has one, as its own binder.
 				let ours = match t.kind() {
 					ty::Param(p) => self.cx.param_bounds(self.did, p.index),
@@ -3278,7 +3422,7 @@ impl<'a, 'tcx> Fx<'a, 'tcx> {
 				};
 				if let Some(tr) = bounds
 					.iter()
-					.find(|b| b.is_local() && self.cx.traits.get(b) == Some(&true) && !ours.contains(b))
+					.find(|b| self.cx.translated(**b) && self.cx.traits.get(b) == Some(&true) && !ours.contains(b))
 				{
 					return refuse(
 						span,
@@ -3345,7 +3489,7 @@ impl<'a, 'tcx> Fx<'a, 'tcx> {
 			&& tcx.trait_impl_of_assoc(callee).is_none()
 			&& !text.contains(":=")
 			&& reads.first().is_some_and(|r| r.atom && !r.text.starts_with('('))
-			&& matches!(sig.inputs().first().map(|t| t.peel_refs().kind()), Some(ty::Adt(d, _)) if d.did().is_local());
+			&& matches!(sig.inputs().first().map(|t| t.peel_refs().kind()), Some(ty::Adt(d, _)) if self.cx.translated(d.did()));
 		let text = if method {
 			let name = self.cx.fn_name(callee);
 			let short = name.rsplit('.').next().expect("names have parts");
@@ -3449,7 +3593,7 @@ impl<'a, 'tcx> Fx<'a, 'tcx> {
 	) -> R<(String, Vec<usize>)> {
 		// A map's entry is a copy of the value at its key: `Occupied` where there is one. What
 		// a variant holds is a handle, whose lens is all it is.
-		if !def.did().is_local() && self.cx.std_name(def.did()) == "Entry" {
+		if !self.cx.translated(def.did()) && self.cx.std_name(def.did()) == "Entry" {
 			let pat = match def.variant(v).name.as_str() {
 				"Occupied" => "some _",
 				_ => "none",
@@ -3479,7 +3623,7 @@ impl<'a, 'tcx> Fx<'a, 'tcx> {
 		};
 		let names: Vec<String> = vars.iter().map(|&x| self.vars[x].name.clone()).collect();
 		let ctor = match (
-			def.did().is_local(),
+			self.cx.translated(def.did()),
 			self.cx.std_name(def.did()).as_str(),
 			def.variant(v).name.as_str(),
 		) {
@@ -3798,6 +3942,12 @@ fn bound(action: Ex) -> Ex {
 		prop: None,
 		lit: None,
 	}
+}
+
+/// Whether a Lean integer type is Lean's own, with its `toUInt64` and the like, rather than
+/// the runtime's.
+fn builtin(lean: &str) -> bool {
+	!lean.starts_with("Rust.")
 }
 
 /// A primitive integer type's Rust name, as its inherent impl's functions are keyed.
