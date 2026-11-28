@@ -731,10 +731,27 @@ pub mod cases {
 			for x in o {
 				set += x as u16;
 			}
+			for x in &o {
+				set ^= *x as u16;
+			}
 			for x in q {
 				set = (set * 3 ^ *x as u16) % 1000;
 			}
 			(range, items, map, set, q.len() as u16)
+		}
+
+		/// Which class a character's `match` puts it in, by ASCII and non-ASCII patterns, and its
+		/// code point cast to each width, truncated and sign-extended as Rust does, and its low
+		/// byte cast back to a `char`.
+		pub fn classify(c: char) -> (u8, u32, u8, i8, i64, char) {
+			let class = match c {
+				'a' => 1,
+				'/' | '\\' => 2,
+				'é' => 3,
+				'\u{10ffff}' => 4,
+				_ => 0,
+			};
+			(class, c as u32, c as u8, c as i8, c as i64, c as u8 as char)
 		}
 
 		/// An iterator written here, which a `for` loop drives through its translated `next`.
@@ -1179,6 +1196,11 @@ pub mod refused {
 	/// Which items `take_while` keeps is decided as they are made, which may panic here.
 	pub fn take_bumped(v: &[u8]) -> usize {
 		v.iter().map(|b| b + 1).take_while(|b| *b > 1).count()
+	}
+
+	/// A range of characters, whose stepping skips the surrogates.
+	pub fn char_range() -> Option<char> {
+		('a'..'d').next()
 	}
 
 	/// A string pattern, where only a character's has a model.

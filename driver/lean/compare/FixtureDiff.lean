@@ -194,6 +194,7 @@ def case : D (List String) := do
     let n ← u8; let v ← arr u8; let m ← arr (pair u8 u16); let s ← arr u8; let o ← opt u8; let q ← queue u8
     expect "loops" (loops n v ⟨m.toList⟩ ⟨s.toList⟩ o q) (pair u16 (pair u16 (pair u16 (pair u16 u16))))
   | 41 => let n ← u8; expect "countdown" (countdown n) u16
+  | 42 => let c ← char; expect "classify" (pure (classify c)) (pair u8 (pair u32 (pair u8 (pair i8 (pair i64 char)))))
   | _ => throw "kind"
 
 def main (args : List String) : IO UInt32 := do

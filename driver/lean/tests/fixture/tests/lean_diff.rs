@@ -66,10 +66,10 @@ impl Rng {
 		self.below(4) as u8
 	}
 
-	/// A character of each UTF-8 width, a `/`, and a combining one and an unassigned one,
-	/// whose `Debug` is an escape.
+	/// A character of each UTF-8 width, a `/` and a `\\`, and a combining one and an unassigned
+	/// one, whose `Debug` is an escape.
 	fn char(&mut self) -> char {
-		['a', '/', 'é', '\u{301}', '日', '😀', '\u{10ffff}'][self.below(7) as usize]
+		['a', '/', '\\', 'é', '\u{301}', '日', '😀', '\u{10ffff}'][self.below(8) as usize]
 	}
 
 	fn text(&mut self) -> String {
@@ -310,7 +310,7 @@ fn outcome<T: Enc>(w: &mut W, f: impl FnOnce() -> T) {
 
 fn case(rng: &mut Rng) -> W {
 	let mut w = W::default();
-	let kind = 1 + rng.below(41);
+	let kind = 1 + rng.below(42);
 	w.int(kind.into());
 	match kind {
 		1 => {
@@ -590,6 +590,14 @@ fn case(rng: &mut Rng) -> W {
 			let n = rng.byte();
 			w.put(n);
 			outcome(&mut w, || text::countdown(n));
+		}
+		42 => {
+			let c = rng.char();
+			w.put(c);
+			outcome(&mut w, || {
+				let (k, a, b, d, e, f) = text::classify(c);
+				(k, (a, (b, (d, (e, f)))))
+			});
 		}
 		_ => {
 			let m: BTreeMap<Rank, u16> = (0..rng.below(5)).map(|_| (rng.rank(), rng.below(1000) as u16)).collect();

@@ -126,7 +126,11 @@ impl<'tcx> Fx<'_, 'tcx> {
 				let (f, monadic) = match self.cx.iterator(ty) {
 					Some((_, false)) => ("listNext", false),
 					Some((_, true)) => ("listNextM", true),
-					None if matches!(ty.kind(), ty::Adt(d, _) if self.cx.ops_range(d.did()) == Some("Range")) => {
+					// An integer range; a `char` range's stepping skips the surrogates, which
+					// `rangeNext` does not model.
+					None if matches!(ty.kind(), ty::Adt(d, a) if self.cx.ops_range(d.did()) == Some("Range")
+						&& a.type_at(0).is_integral()) =>
+					{
 						("rangeNext", false)
 					}
 					None => return refuse(span, format!("`{ty}` has no Lean model")),

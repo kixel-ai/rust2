@@ -1111,6 +1111,7 @@ impl<'tcx> Cx<'tcx> {
 			"Iter" | "IntoIter" if path.contains("btree_set::") || path.contains("btree_map::") => &[],
 			"Keys" | "Values" | "IntoKeys" | "IntoValues" if path.contains("btree_map::") => &[],
 			"Iter" | "IntoIter" if path.contains("vec_deque::") => &[],
+			"Iter" if path.contains("option::") => &[],
 			"IntoIter" if ["vec::", "option::", "array::"].iter().any(|m| path.contains(m)) => &[],
 			"Map" | "Copied" | "Cloned" | "Enumerate" | "Rev" | "TakeWhile" => &[0],
 			"Chain" => &[0, 1],
@@ -2617,9 +2618,18 @@ impl<'a, 'tcx> Fx<'a, 'tcx> {
 				))
 			}
 			Rvalue::Cast(CastKind::IntToInt, op, to) => {
-				let v = self.operand(op, span)?;
-				let from = op.ty(self.body, tcx);
+				let mut v = self.operand(op, span)?;
+				let mut from = op.ty(self.body, tcx);
 				let to_lean = self.cx.ty(*to, span)?;
+				// A `char` casts as its code point, which a Lean `Char` holds as a `UInt32`.
+				if from.is_char() {
+					v = compound(format!("{}.val", v.paren()), &[&v]);
+					from = tcx.types.u32;
+				}
+				// Only a `u8` casts to a `char`, and every one is a code point.
+				if to.is_char() {
+					return Ok(compound(format!("Char.ofNat {}.toNat", v.paren()), &[&v]));
+				}
 				if from.is_bool() {
 					return Ok(compound(format!("if {} then (1 : {to_lean}) else 0", v.text), &[&v]));
 				}
@@ -3756,8 +3766,17 @@ impl<'a, 'tcx> Fx<'a, 'tcx> {
 				default: self.target(els),
 			});
 		}
+		// A `char`'s values are its code points, which a Lean `Char` matches as literals.
+		let chars = discr.ty(self.body, tcx).is_char();
 		let mut arms = Vec::new();
 		for (value, target) in targets.iter() {
+			let value = match chars {
+				true => {
+					let c = u32::try_from(value).ok().and_then(char::from_u32);
+					char_lit(c.expect("a `char` switch's values are code points"))
+				}
+				false => value.to_string(),
+			};
 			let prop = format!("{} = {value}", d.paren());
 			let mut c = compound(format!("decide ({prop})"), &[&d]);
 			c.prop = Some(prop);
