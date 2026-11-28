@@ -940,7 +940,7 @@ impl<'tcx> Cx<'tcx> {
 			ty::Slice(elem) => format!("(Array {})", self.ty(*elem, span)?),
 			ty::Str => "String".into(),
 			ty::Ref(_, inner, _) => self.ty(*inner, span)?,
-			ty::Param(p) => structure::ident(p.name.as_str()),
+			ty::Param(p) => structure::param(p.name.as_str()),
 			ty::Adt(..) if self.moq_path_ty(ty) => "String".into(),
 			ty::Adt(def, args) if self.translated(def.did()) => {
 				if def.is_union() {
@@ -1153,7 +1153,7 @@ impl<'tcx> Cx<'tcx> {
 	/// An array length as a Lean `Nat`.
 	fn len(&self, len: ty::Const<'tcx>, span: Span) -> R<String> {
 		match len.kind() {
-			ty::ConstKind::Param(p) => Ok(format!("{}.toNat", structure::ident(p.name.as_str()))),
+			ty::ConstKind::Param(p) => Ok(format!("{}.toNat", structure::param(p.name.as_str()))),
 			_ => {
 				// A named constant, evaluated.
 				let len = self
@@ -1171,7 +1171,7 @@ impl<'tcx> Cx<'tcx> {
 	/// A const generic argument as a Lean value.
 	fn const_value(&self, c: ty::Const<'tcx>, span: Span) -> R<String> {
 		match c.kind() {
-			ty::ConstKind::Param(p) => Ok(structure::ident(p.name.as_str())),
+			ty::ConstKind::Param(p) => Ok(structure::param(p.name.as_str())),
 			_ => match c.try_to_target_usize(self.tcx) {
 				Some(n) => Ok(n.to_string()),
 				None => refuse(span, format!("const argument `{c}` is not supported")),
@@ -1221,7 +1221,7 @@ impl<'tcx> Cx<'tcx> {
 		let args = ty::GenericArgs::identity_for_item(tcx, did);
 		let mut params = String::new();
 		for param in &tcx.generics_of(did).own_params {
-			let name = structure::ident(param.name.as_str());
+			let name = structure::param(param.name.as_str());
 			match param.kind {
 				ty::GenericParamDefKind::Lifetime => {}
 				ty::GenericParamDefKind::Const { .. } => {
@@ -1299,7 +1299,7 @@ impl<'tcx> Cx<'tcx> {
 			owner = clauses.parent;
 		}
 		for param in params {
-			let name = structure::ident(param.name.as_str());
+			let name = structure::param(param.name.as_str());
 			match param.kind {
 				ty::GenericParamDefKind::Lifetime => {}
 				ty::GenericParamDefKind::Const { .. } => {
@@ -1477,7 +1477,7 @@ fn generic_names(tcx: TyCtxt<'_>, did: DefId) -> Vec<String> {
 	all_params(tcx, did)
 		.iter()
 		.filter(|p| !matches!(p.kind, ty::GenericParamDefKind::Lifetime))
-		.map(|p| structure::ident(p.name.as_str()))
+		.map(|p| structure::param(p.name.as_str()))
 		.collect()
 }
 
@@ -2437,7 +2437,7 @@ impl<'a, 'tcx> Fx<'a, 'tcx> {
 		if let mir::Const::Ty(_, ct) = c.const_
 			&& let ty::ConstKind::Param(p) = ct.kind()
 		{
-			return Ok(atom(structure::ident(p.name.as_str())));
+			return Ok(atom(structure::param(p.name.as_str())));
 		}
 		if ty.is_unit() || matches!(ty.kind(), ty::FnDef(..)) {
 			return Ok(atom("()".into()));
@@ -3491,7 +3491,7 @@ impl<'a, 'tcx> Fx<'a, 'tcx> {
 					return refuse(span, format!("`{t}` passed where `Ord` must match a Lean order"));
 				}
 			}
-			if shown.contains(&structure::ident(param.name.as_str())) {
+			if shown.contains(&structure::param(param.name.as_str())) {
 				continue;
 			}
 			let value = match (&param.kind, arg.as_type(), arg.as_const()) {
@@ -3499,7 +3499,7 @@ impl<'a, 'tcx> Fx<'a, 'tcx> {
 				(ty::GenericParamDefKind::Const { .. }, _, Some(c)) => self.cx.const_value(c, span)?,
 				_ => continue,
 			};
-			text += &format!(" ({} := {value})", structure::ident(param.name.as_str()));
+			text += &format!(" ({} := {value})", structure::param(param.name.as_str()));
 		}
 		Ok(text)
 	}

@@ -253,6 +253,7 @@ pub const LEAN_NAMES: &[&str] = &[
 	"UInt16",
 	"UInt32",
 	"UInt64",
+	"Char",
 	"Int8",
 	"Int16",
 	"Int32",
@@ -275,6 +276,16 @@ pub fn ident(name: &str) -> String {
 		format!("«{name}»")
 	} else {
 		name.to_string()
+	}
+}
+
+/// A generic parameter's name as a Lean identifier, with a `'` where it would shadow a name
+/// the emitted code uses unqualified, as a type parameter `Char` would Lean's `Char`.
+pub fn param(name: &str) -> String {
+	let name = ident(name);
+	match LEAN_NAMES.contains(&name.as_str()) {
+		true => format!("{name}'"),
+		false => name,
 	}
 }
 

@@ -310,7 +310,7 @@ fn outcome<T: Enc>(w: &mut W, f: impl FnOnce() -> T) {
 
 fn case(rng: &mut Rng) -> W {
 	let mut w = W::default();
-	let kind = 1 + rng.below(42);
+	let kind = 1 + rng.below(43);
 	w.int(kind.into());
 	match kind {
 		1 => {
@@ -598,6 +598,11 @@ fn case(rng: &mut Rng) -> W {
 				let (k, a, b, d, e, f) = text::classify(c);
 				(k, (a, (b, (d, (e, f)))))
 			});
+		}
+		43 => {
+			let (s, b) = (rng.text(), rng.byte());
+			w.put(s.as_str()).put(b);
+			outcome(&mut w, || text::shadowed(&s, b, (), ()));
 		}
 		_ => {
 			let m: BTreeMap<Rank, u16> = (0..rng.below(5)).map(|_| (rng.rank(), rng.below(1000) as u16)).collect();

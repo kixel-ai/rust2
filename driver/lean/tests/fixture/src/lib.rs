@@ -754,6 +754,11 @@ pub mod cases {
 			(class, c as u32, c as u8, c as i8, c as i64, c as u8 as char)
 		}
 
+		/// Type parameters named as Lean types the output uses, beside a byte cast to a `char`.
+		pub fn shadowed<Char, UInt8>(s: &str, b: u8, _: Char, _: UInt8) -> (bool, char) {
+			(s.starts_with(b as char), b as char)
+		}
+
 		/// An iterator written here, which a `for` loop drives through its translated `next`.
 		pub struct Countdown(pub u8);
 

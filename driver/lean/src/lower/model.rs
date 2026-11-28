@@ -901,7 +901,7 @@ impl<'tcx> Fx<'_, 'tcx> {
 				(ty::GenericParamDefKind::Const { .. }, _, Some(c)) => self.cx.const_value(c, span)?,
 				_ => continue,
 			};
-			text += &format!(" ({} := {value})", structure::ident(param.name.as_str()));
+			text += &format!(" ({} := {value})", structure::param(param.name.as_str()));
 		}
 		text += &format!(" {}", env.paren());
 		Ok(Lambda {
