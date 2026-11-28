@@ -281,12 +281,21 @@ impl<'tcx> Fx<'_, 'tcx> {
 				self.same_list(call, false)?;
 				compound(format!("{}.takeWhile {}", it.ex.paren(), f.f.paren()), &[&it.ex, &f.f])
 			}
-			"Iterator::count" => {
-				let it = self.drained(call)?;
-				// Counting makes every item, as Rust's `fold` does.
-				let items = it.made();
-				compound(format!("{}.length.toUInt64", items.paren()), &[&items])
-			}
+			"Iterator::count" => match self.drain(call)? {
+				Some((step, it)) => bound(compound(
+					format!(
+						"Rust.drainFold {step} (fun n _ => pure (n + 1)) (0 : UInt64) {}",
+						it.paren()
+					),
+					&[&it],
+				)),
+				None => {
+					let it = self.consumed(call, false)?;
+					// Counting makes every item, as Rust's `fold` does.
+					let items = it.made();
+					compound(format!("{}.length.toUInt64", items.paren()), &[&items])
+				}
+			},
 			"str::len" | "str::is_empty" | "str::as_bytes" => {
 				let s = self.operand(&call.args[0].node, span)?;
 				let text = match key {
@@ -412,7 +421,7 @@ impl<'tcx> Fx<'_, 'tcx> {
 						&[&it],
 					)),
 					None => {
-						let it = self.list(call, 0)?;
+						let it = self.consumed(call, checked)?;
 						match (it.deferred, checked) {
 							(false, true) => bound(compound(format!("Rust.sum {}", it.ex.paren()), &[&it.ex])),
 							(false, false) => compound(format!("Rust.sumWrapping {}", it.ex.paren()), &[&it.ex]),
@@ -433,7 +442,7 @@ impl<'tcx> Fx<'_, 'tcx> {
 						&[&it, &f.f],
 					)),
 					None => {
-						let it = self.list(call, 0)?;
+						let it = self.consumed(call, f.monadic)?;
 						match it.deferred || f.monadic {
 							false => compound(
 								format!("Rust.minByKey {} {}", f.f.paren(), it.ex.paren()),
@@ -448,14 +457,22 @@ impl<'tcx> Fx<'_, 'tcx> {
 				}
 			}
 			"Iterator::min" => {
-				let it = self.drained(call)?;
 				let Some(item) = self.cx.item(call.gargs.type_at(0)) else {
 					return refuse(span, "`min` of this iterator is not supported");
 				};
 				self.ordered(item, span)?;
-				match it.deferred {
-					false => compound(format!("Rust.minByKey id {}", it.ex.paren()), &[&it.ex]),
-					true => bound(compound(format!("Rust.lazyMinByKey pure {}", it.ex.paren()), &[&it.ex])),
+				match self.drain(call)? {
+					Some((step, it)) => bound(compound(
+						format!("Rust.drainMinByKey {step} pure {}", it.paren()),
+						&[&it],
+					)),
+					None => {
+						let it = self.consumed(call, false)?;
+						match it.deferred {
+							false => compound(format!("Rust.minByKey id {}", it.ex.paren()), &[&it.ex]),
+							true => bound(compound(format!("Rust.lazyMinByKey pure {}", it.ex.paren()), &[&it.ex])),
+						}
+					}
 				}
 			}
 			"std::iter::once" | "core::iter::once" => {
@@ -480,14 +497,18 @@ impl<'tcx> Fx<'_, 'tcx> {
 				);
 			}
 			"Extend::extend for BTreeSet" | "Extend::extend for Vec" => {
-				// Extending by references clones each item.
-				if let ty::Ref(_, t, _) = call.gargs.type_at(1).kind()
+				// Extending by references to what the collection holds clones each item.
+				let item = call.gargs.type_at(1);
+				if let ty::Ref(_, t, _) = item.kind()
+					&& element(call.gargs.type_at(0)) != item
 					&& !self.clones(*t)
 				{
 					return refuse(span, "cloning these items may not copy them");
 				}
 				let place = self.mutable_arg(&call.args[0].node, span)?;
-				let it = self.iterated(&call.args[1].node, span)?;
+				let source = &call.args[1].node;
+				self.through(source.ty(self.body, tcx), span, false)?;
+				let it = self.iterated(source, span)?;
 				let cur = self.read_place(place, span)?;
 				let items = it.made();
 				let new = match key {
@@ -1218,8 +1239,15 @@ impl<'tcx> Fx<'_, 'tcx> {
 				ex: bound(compound(format!("Rust.drain {step} {}", it.paren()), &[&it])),
 				deferred: false,
 			}),
-			None => self.list(call, 0),
+			None => self.consumed(call, false),
 		}
+	}
+
+	/// The list of the iterator a consumer that reads every item takes as its first argument,
+	/// where the consumer `panics` partway if it may.
+	fn consumed(&mut self, call: &Call<'_, 'tcx>, panics: bool) -> R<List> {
+		self.through(call.args[0].node.ty(self.body, self.cx.tcx), call.span, panics)?;
+		self.list(call, 0)
 	}
 
 	/// The `next` of an iterator written in a translated crate that consumer `call` reads every
@@ -1231,18 +1259,10 @@ impl<'tcx> Fx<'_, 'tcx> {
 		};
 		// The consumer reaches `next` through `fold`, `size_hint`, and the like, so it calls
 		// only `next` where the impl writes nothing else.
-		if let Some(imp) = tcx.impl_of_assoc(next)
-			&& let Some(other) = tcx
-				.associated_items(imp)
-				.in_definition_order()
-				.find(|i| i.is_fn() && i.name() != rustc_span::sym::next)
-		{
+		if let Some(other) = super::beside_next(tcx, next) {
 			return refuse(
 				call.span,
-				format!(
-					"an iterator whose impl writes `{}` beside `next` is not supported",
-					other.name()
-				),
+				format!("an iterator whose impl writes `{other}` beside `next` is not supported"),
 			);
 		}
 		let it = self.operand(&call.args[0].node, call.span)?;
@@ -1290,13 +1310,27 @@ impl<'tcx> Fx<'_, 'tcx> {
 		})
 	}
 
-	/// Refuse a consumer that may stop before the end of an iterator of type `ty` that makes an
-	/// integer range's items, which the list makes all at once however far Rust steps it.
+	/// Refuse a consumer that may stop before the end of an iterator of type `ty` over a wide
+	/// integer range, whose list makes every item however far Rust steps it.
 	fn whole(&self, ty: Ty<'tcx>, span: Span) -> R<()> {
 		match self.cx.ranged(ty) {
 			true => refuse(
 				span,
-				"stopping early in an iterator over an integer range's items is not supported, since its list makes them all",
+				"stopping early in an iterator over a wide integer range is not supported, since its list makes every item",
+			),
+			false => Ok(()),
+		}
+	}
+
+	/// Refuse a consumer that reads every item of an iterator of type `ty` over a wide integer
+	/// range where an item, or the consumer itself if it `panics`, may panic partway, which its
+	/// list would reach only after making every item.
+	fn through(&self, ty: Ty<'tcx>, span: Span, panics: bool) -> R<()> {
+		let deferred = self.cx.iterator(ty).is_some_and(|(_, d)| d);
+		match self.cx.ranged(ty) && (deferred || panics) {
+			true => refuse(
+				span,
+				"a panic partway through an iterator over a wide integer range is not supported, since its list makes every item first",
 			),
 			false => Ok(()),
 		}

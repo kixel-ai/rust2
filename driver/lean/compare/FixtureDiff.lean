@@ -237,7 +237,13 @@ def case : D (List String) := do
     let left ← u16; let step ← u8; let x ← u8
     pure (evens
       ++ (← expect "fall_sum" (fall_sum left step) u8)
-      ++ (← expect "fall_least" (fall_least left step x) (opt u8)))
+      ++ (← expect "fall_least" (fall_least left step x) (opt u8))
+      ++ (← expect "fall_min" (fall_min left step) (pair (opt u8) u64))
+      ++ (← (do
+        let n ← nat; let v ← arr u8; let k ← u8
+        let rs ← (List.replicate n ()).toArray.mapM fun _ => pair u64 u64
+        pure ((← expect "first_range" (pure (first_range rs)) (opt u64))
+          ++ (← expect "held" (pure (held (v.map (⟨·⟩)) ⟨k⟩)) (arr u8))))))
   | _ => throw "kind"
 
 def main (args : List String) : IO UInt32 := do

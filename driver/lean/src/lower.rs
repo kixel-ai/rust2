@@ -1250,16 +1250,37 @@ impl<'tcx> Cx<'tcx> {
 			.ok()
 	}
 
-	/// Whether an iterator of type `ty` makes an integer range's items, which its list holds
-	/// all at once, where Rust steps the range only as far as a consumer reads.
+	/// Whether an iterator of type `ty` iterates an integer range of a type wider than 16 bits,
+	/// as a source or a flat map's inner iterator, whose list holds every item at once, where
+	/// Rust steps the range only as far as a consumer reads. A narrower range's list is at most
+	/// 65,536 items.
 	fn ranged(&self, ty: Ty<'tcx>) -> bool {
 		let ty::Adt(def, args) = ty.kind() else {
 			return false;
 		};
-		self.ops_range(def.did()).is_some()
-			// A flattened iterator's inner iterators are its source's items.
-			|| (self.std_name(def.did()) == "Flatten" && self.item(args.type_at(0)).is_some_and(|t| self.ranged(t)))
-			|| args.types().any(|t| self.ranged(t))
+		if self.ops_range(def.did()).is_some() {
+			let wide = |bits: Option<u64>| bits.is_none_or(|b| b > 16);
+			return match args.type_at(0).kind() {
+				ty::Int(t) => wide(t.bit_width()),
+				ty::Uint(t) => wide(t.bit_width()),
+				_ => true,
+			};
+		}
+		if !self.is_std(def.did()) {
+			return false;
+		}
+		match self.std_name(def.did()).as_str() {
+			"Map" | "Filter" | "FilterMap" | "Peekable" | "Copied" | "Cloned" | "Enumerate" | "Rev" | "TakeWhile" => {
+				self.ranged(args.type_at(0))
+			}
+			"Chain" | "FlatMap" => self.ranged(args.type_at(0)) || self.ranged(args.type_at(1)),
+			// Its inner iterators are its source's items.
+			"Flatten" => {
+				let source = args.type_at(0);
+				self.ranged(source) || self.item(source).is_some_and(|t| self.ranged(t))
+			}
+			_ => false,
+		}
 	}
 
 	/// Whether an adaptor may take a function of type `ty`: a translated closure, or a `std`
@@ -1718,6 +1739,16 @@ fn drained_next<'tcx>(
 	resolve_local(tcx, env, next, tcx.mk_args(&[args[0]]))
 }
 
+/// A method the `Iterator` impl of translated `next` writes beside it, such as `fold`, which a
+/// consumer reaches instead of calling `next` alone.
+fn beside_next(tcx: TyCtxt<'_>, next: DefId) -> Option<rustc_span::Symbol> {
+	let imp = tcx.impl_of_assoc(next)?;
+	tcx.associated_items(imp)
+		.in_definition_order()
+		.find(|i| i.is_fn() && i.name() != rustc_span::sym::next)
+		.map(|i| i.name())
+}
+
 /// The translated functions a body names, called or not, with the generic arguments it passes,
 /// and the `next` of an iterator written in a translated crate that a consumer drains.
 struct FnUses<'tcx> {
@@ -1735,6 +1766,7 @@ impl<'tcx> mir::visit::Visitor<'tcx> for FnUses<'tcx> {
 		}
 		if let ty::FnDef(callee, args) = *c.ty().kind()
 			&& let Some((next, args)) = drained_next(self.tcx, self.env, callee, args.skip_binder())
+			&& beside_next(self.tcx, next).is_none()
 		{
 			self.out.push((next, args, c.span));
 		}

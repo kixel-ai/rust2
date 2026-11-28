@@ -112,6 +112,11 @@ structure cases.adaptors.Fall where
   step : UInt8
 deriving Repr, DecidableEq, Inhabited
 
+/-- `cases::adaptors::Kept` -/
+structure cases.adaptors.Kept where
+  x0 : UInt8
+deriving Repr, DecidableEq, Inhabited
+
 /-- `cases::Weight` -/
 class cases.Weight (Self : Type) where
   weight : Self → Rust.M UInt8
@@ -1289,7 +1294,7 @@ def cases.adaptors.sources.closure2 (arg1 : (Rust.BTreeMap UInt8 UInt16)) (i : U
 def cases.adaptors.sources (m : (Rust.BTreeMap UInt8 UInt16)) (a : UInt8) (b : UInt8) : Rust.M ((Array UInt8) × (Array UInt8) × (Array UInt16) × UInt64) := do
   let t4 := (← Rust.run ((Rust.lazy [a]) ++ (Rust.lazyMap (cases.adaptors.sources.closure0 ()) (Rust.lazy (Rust.rangeItems (a, b)))))).toArray
   let t13 := (← Rust.run (Rust.lazyRev (Rust.lazyFilter (cases.adaptors.sources.closure1 ()) (Rust.lazy (Rust.rangeInclusiveItems (a, b, false)))))).toArray
-  return (t4, t13, ((Rust.rangeInclusiveItems ((0 : UInt8), a, false)).filterMap (cases.adaptors.sources.closure2 m)).toArray, (← Rust.drain (pure ∘ (cases.text.Countdown.Iterator.next)) ({ x0 := a } : cases.text.Countdown)).length.toUInt64)
+  return (t4, t13, ((Rust.rangeInclusiveItems ((0 : UInt8), a, false)).filterMap (cases.adaptors.sources.closure2 m)).toArray, (← Rust.drainFold (pure ∘ (cases.text.Countdown.Iterator.next)) (fun n _ => pure (n + 1)) (0 : UInt64) ({ x0 := a } : cases.text.Countdown)))
 
 def cases.adaptors.gather.closure0 (arg1 : Unit) (arg2 : UInt8) : Rust.M UInt8 := do
   let b := arg2
@@ -1386,6 +1391,33 @@ def cases.adaptors.fall_least.closure0 (arg1 : UInt8) (arg2 : UInt8) : Rust.M UI
 
 def cases.adaptors.fall_least (left : UInt16) (step : UInt8) (x : UInt8) : Rust.M (Option UInt8) := do
   return (← Rust.drainMinByKey (cases.adaptors.Fall.Iterator.next) (cases.adaptors.fall_least.closure0 x) ({ left := left, step := step } : cases.adaptors.Fall))
+
+def cases.adaptors.fall_min (left : UInt16) (step : UInt8) : Rust.M ((Option UInt8) × UInt64) := do
+  let t3 := (← Rust.drainMinByKey (cases.adaptors.Fall.Iterator.next) pure ({ left := left, step := step } : cases.adaptors.Fall))
+  return (t3, (← Rust.drainFold (cases.adaptors.Fall.Iterator.next) (fun n _ => pure (n + 1)) (0 : UInt64) ({ left := left, step := step } : cases.adaptors.Fall)))
+
+def cases.adaptors.first_range.closure0 (arg1 : Unit) (r : (UInt64 × UInt64)) : UInt64 :=
+  r.1
+
+def cases.adaptors.first_range (rs : (Array (UInt64 × UInt64))) : (Option UInt64) := Id.run do
+  let mut t4 := rs.toList
+  let r := Rust.listNext t4
+  t4 := r.1
+  let t2 := r.2
+  return t2.map (cases.adaptors.first_range.closure0 ())
+
+def cases.adaptors.Kept.Clone.clone (self : cases.adaptors.Kept) : cases.adaptors.Kept :=
+  ({ x0 := (0 : UInt8) } : cases.adaptors.Kept)
+
+def cases.adaptors.held.closure0 (arg1 : Unit) (k : cases.adaptors.Kept) : UInt8 := Id.run do
+  let t3 := k
+  return t3.x0
+
+def cases.adaptors.held (v : (Array cases.adaptors.Kept)) (x : cases.adaptors.Kept) : (Array UInt8) := Id.run do
+  let mut r := (v.toList).toArray
+  r := r ++ [x].toArray
+  let t13 := r
+  return ((t13.toList).map (cases.adaptors.held.closure0 ())).toArray
 
 def cases.Cost.raw (self : cases.Cost) : UInt64 :=
   self.x0

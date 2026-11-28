@@ -967,6 +967,32 @@ pub mod cases {
 		pub fn fall_least(left: u16, step: u8, x: u8) -> Option<u8> {
 			Fall { left, step }.min_by_key(|&b| b + x)
 		}
+
+		/// `Fall`'s least item and its count, each folded in without a list.
+		pub fn fall_min(left: u16, step: u8) -> (Option<u8>, usize) {
+			(Fall { left, step }.min(), Fall { left, step }.count())
+		}
+
+		/// The first of some ranges, which iterating the slice never steps.
+		pub fn first_range(rs: &[std::ops::Range<u64>]) -> Option<u64> {
+			rs.iter().next().map(|r| r.start)
+		}
+
+		/// A `clone` that does not copy, which extending by references to it never calls.
+		pub struct Kept(pub u8);
+
+		impl Clone for Kept {
+			fn clone(&self) -> Self {
+				Kept(0)
+			}
+		}
+
+		/// Extending a vector of references by one more.
+		pub fn held(v: &[Kept], x: &Kept) -> Vec<u8> {
+			let mut r: Vec<&Kept> = v.iter().collect();
+			r.extend(std::iter::once(x));
+			r.iter().map(|k| k.0).collect()
+		}
 	}
 }
 
@@ -1239,6 +1265,12 @@ pub mod refused {
 	/// `next` over a range's items, which Rust steps once and the list makes all of.
 	pub fn range_first(n: u64) -> Option<u64> {
 		(0..n).map(|x| x ^ 1).next()
+	}
+
+	/// A checked sum over a range's items, which panics on the second where the list makes
+	/// all of them first.
+	pub fn range_sum(n: u64) -> u8 {
+		(0..n).map(|_| 255u8).sum()
 	}
 
 	/// An iterator whose own `fold`, which `count` calls, never calls `next`.

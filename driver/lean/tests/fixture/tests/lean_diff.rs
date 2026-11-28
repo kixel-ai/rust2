@@ -681,6 +681,14 @@ fn case(rng: &mut Rng) -> W {
 			w.put(left).put(step).put(x);
 			outcome(&mut w, || adaptors::fall_sum(left, step));
 			outcome(&mut w, || adaptors::fall_least(left, step, x));
+			outcome(&mut w, || adaptors::fall_min(left, step));
+			let rs: Vec<std::ops::Range<u64>> = (0..rng.below(3)).map(|_| rng.below(9)..rng.below(9)).collect();
+			let (v, k) = (rng.bytes(), rng.byte());
+			w.put(rs.len()).put(&v).put(k);
+			rs.iter().for_each(|r| _ = w.put(r.start).put(r.end));
+			outcome(&mut w, || adaptors::first_range(&rs));
+			let v: Vec<adaptors::Kept> = v.iter().map(|&b| adaptors::Kept(b)).collect();
+			outcome(&mut w, || adaptors::held(&v, &adaptors::Kept(k)));
 		}
 		_ => {
 			let m: BTreeMap<Rank, u16> = (0..rng.below(5)).map(|_| (rng.rank(), rng.below(1000) as u16)).collect();
