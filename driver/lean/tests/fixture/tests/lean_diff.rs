@@ -10,7 +10,7 @@ use std::panic::{AssertUnwindSafe, catch_unwind};
 use std::time::Duration;
 
 use fixture::cases::lenses::{Book, Seeded, Tally};
-use fixture::cases::{self, Ledger, Rank, Step};
+use fixture::cases::{self, Ledger, Rank, Step, text};
 use kio::clock::instant::Instant;
 
 /// xorshift64, so a seed always draws the same cases.
@@ -64,6 +64,21 @@ impl Rng {
 	/// Keys from a few, so a lookup both finds one and misses.
 	fn key(&mut self) -> u8 {
 		self.below(4) as u8
+	}
+
+	/// A character of each UTF-8 width, a `/` and a `\\`, and a combining one and an unassigned
+	/// one, whose `Debug` is an escape.
+	fn char(&mut self) -> char {
+		['a', '/', '\\', 'é', '\u{301}', '日', '😀', '\u{10ffff}'][self.below(8) as usize]
+	}
+
+	fn text(&mut self) -> String {
+		(0..self.below(5)).map(|_| self.char()).collect()
+	}
+
+	/// A byte index into `s`, past its end now and then.
+	fn index(&mut self, s: &str) -> usize {
+		self.below(s.len() as u64 + 3) as usize
 	}
 
 	fn book(&mut self) -> Book {
@@ -128,6 +143,20 @@ macro_rules! ints {
 	($($t:ty),*) => {$(impl Enc for $t { fn enc(&self, w: &mut W) { w.0.push((*self as i128).to_string()) } })*};
 }
 ints!(u8, u16, u32, u64, usize, i8, i64, i128, bool);
+
+impl Enc for char {
+	fn enc(&self, w: &mut W) {
+		w.put(*self as u32);
+	}
+}
+
+/// Its length, then its bytes.
+impl Enc for str {
+	fn enc(&self, w: &mut W) {
+		w.int(self.len() as i128);
+		self.bytes().for_each(|b| _ = w.put(b));
+	}
+}
 
 impl Enc for u128 {
 	fn enc(&self, w: &mut W) {
@@ -281,7 +310,7 @@ fn outcome<T: Enc>(w: &mut W, f: impl FnOnce() -> T) {
 
 fn case(rng: &mut Rng) -> W {
 	let mut w = W::default();
-	let kind = 1 + rng.below(34);
+	let kind = 1 + rng.below(43);
 	w.int(kind.into());
 	match kind {
 		1 => {
@@ -511,6 +540,73 @@ fn case(rng: &mut Rng) -> W {
 				(k, (l, (m, (n, (o, (p, (q, (r, (t, u)))))))))
 			});
 		}
+		35 => {
+			let s = rng.text();
+			w.put(s.as_str());
+			outcome(&mut w, || {
+				let (n, e, b) = text::measure(&s);
+				(n, (e, b))
+			});
+		}
+		36 => {
+			let s = rng.text();
+			let (b, e, how) = (rng.index(&s), rng.index(&s), rng.byte());
+			w.put(s.as_str()).put(b).put(e).put(how);
+			outcome(&mut w, || text::cut(&s, b, e, how));
+		}
+		37 => {
+			let (s, c, p) = (rng.text(), rng.char(), rng.text());
+			let i = rng.index(&s);
+			w.put(s.as_str()).put(c).put(p.as_str()).put(i);
+			outcome(&mut w, || {
+				let (f, a, b, g) = text::search(&s, c, &p, i);
+				(f, (a, (b, g)))
+			});
+		}
+		38 => {
+			let (v, x) = (rng.bytes(), rng.byte());
+			w.put(&v).put(x);
+			outcome(&mut w, || text::tails(&v, x));
+		}
+		39 => {
+			let (v, x) = (rng.bytes(), rng.byte());
+			w.put(&v).put(x);
+			outcome(&mut w, || (text::last_bumped(&v), text::find_bumped(&v, x)));
+		}
+		40 => {
+			let (n, v, o) = (rng.byte(), rng.bytes(), (!rng.one_in(3)).then(|| rng.byte()));
+			let m: BTreeMap<u8, u16> = (0..rng.below(4))
+				.map(|_| (rng.byte(), rng.below(1000) as u16))
+				.collect();
+			let s: BTreeSet<u8> = (0..rng.below(4)).map(|_| rng.byte()).collect();
+			let q: VecDeque<u8> = (0..rng.below(4)).map(|_| rng.byte()).collect();
+			w.put(n).put(&v).put(&m).put(&s).put(o).put(&q);
+			outcome(&mut w, || {
+				let (a, b, c, d, e) = text::loops(n, v, &m, s, o, &q);
+				(a, (b, (c, (d, e))))
+			});
+		}
+		41 => {
+			let n = rng.byte();
+			w.put(n);
+			outcome(&mut w, || text::countdown(n));
+		}
+		42 => {
+			let c = rng.char();
+			w.put(c);
+			outcome(&mut w, || {
+				let (k, a, b, d, e, f) = text::classify(c);
+				(k, (a, (b, (d, (e, f)))))
+			});
+		}
+		43 => {
+			let (s, b) = (rng.text(), rng.byte());
+			w.put(s.as_str()).put(b);
+			outcome(&mut w, || {
+				let (a, c, d) = text::shadowed(&s, b, (), (), (), fixture::Int(b));
+				(a, (c, d))
+			});
+		}
 		_ => {
 			let m: BTreeMap<Rank, u16> = (0..rng.below(5)).map(|_| (rng.rank(), rng.below(1000) as u16)).collect();
 			let s: BTreeSet<u8> = (0..rng.below(5)).map(|_| rng.byte()).collect();
@@ -525,6 +621,31 @@ fn case(rng: &mut Rng) -> W {
 	w
 }
 
+/// The non-ASCII characters whose `Debug` is an escape, as half-open ranges of code points,
+/// a surrogate joining whichever run is around it, for the runtime's `debugEscaped`.
+fn debug_escaped() -> Vec<String> {
+	let mut ranges = Vec::new();
+	let mut start = None;
+	for u in 0x80..=0x11_0000u32 {
+		let escaped = match char::from_u32(u) {
+			Some(c) => format!("{c:?}").starts_with("'\\"),
+			None => start.is_some() && u < 0x11_0000,
+		};
+		match (escaped, start) {
+			(true, None) => start = Some(u),
+			(false, Some(s)) => {
+				ranges.push(s);
+				ranges.push(u);
+				start = None;
+			}
+			_ => {}
+		}
+	}
+	let mut out = vec![(ranges.len() / 2).to_string()];
+	out.extend(ranges.iter().map(u32::to_string));
+	out
+}
+
 /// `LEAN_DIFF_OUT` names the file to write, and `LEAN_DIFF_CASES` how many cases.
 #[test]
 #[ignore = "run by rust2's driver/lean/compare/fixture.sh"]
@@ -534,6 +655,7 @@ fn write_cases() {
 	std::panic::set_hook(Box::new(|_| {}));
 	let mut out = std::io::BufWriter::new(std::fs::File::create(path).expect("create"));
 	let mut rng = Rng(0x9e37_79b9_7f4a_7c15);
+	writeln!(out, "0 {}", debug_escaped().join(" ")).expect("write");
 	for _ in 0..cases {
 		let w = case(&mut rng);
 		writeln!(out, "{}", w.0.join(" ")).expect("write");

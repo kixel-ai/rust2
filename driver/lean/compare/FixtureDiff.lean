@@ -80,8 +80,17 @@ def expect [DecidableEq α] (what : String) (got : Rust.M α) (d : D α) : D (Li
   | some (.error e), .ok _ => pure [s!"{what}: Lean threw {e}, Rust returned"]
   | none, _ => pure [s!"{what}: Lean diverged"]
 
+def char : D Char := do
+  let n ← nat
+  if n.isValidChar then pure (Char.ofNat n) else throw "not a char"
+def queue (d : D α) : D (Rust.VecDeque α) := do pure ⟨(← arr d).toList⟩
+
+open cases.text in
 def case : D (List String) := do
   match (← nat) with
+  | 0 =>
+    let rs ← arr (pair nat nat)
+    pure (if rs.toList = Rust.debugEscaped.toList then ["+debugEscaped"] else ["debugEscaped: differs from Rust's"])
   | 1 => let v ← arr u8; let x ← u8; expect "shifted" (cases.shifted v x) (arr u8)
   | 2 => let v ← arr u8; let x ← u8; expect "reaches" (cases.reaches v x) boolean
   | 3 => let a ← arr u8; let b ← arr u8; expect "rising" (pure (cases.rising a b)) boolean
@@ -170,6 +179,23 @@ def case : D (List String) := do
     expect "wide_casts" (pure (cases.wide_casts a x))
       (pair u64 (pair i64 (pair i128 (pair u128 (pair (opt u64) (pair (opt i64) (pair (opt u128)
         (pair (opt i128) (pair u128 i128)))))))))
+  | 35 => let s ← str; expect "measure" (pure (measure s)) (pair u64 (pair boolean (arr u8)))
+  | 36 =>
+    let s ← str; let b ← u64; let e ← u64; let how ← u8
+    expect "cut" (cut s b e how) str
+  | 37 =>
+    let s ← str; let c ← char; let p ← str; let i ← u64
+    expect "search" (pure (search s c p i)) (pair (opt u64) (pair boolean (pair boolean (opt u8))))
+  | 38 => let v ← arr u8; let x ← u8; expect "tails" (tails v x) (pair u64 u64)
+  | 39 =>
+    let v ← arr u8; let x ← u8
+    expect "bumped" (do pure (← last_bumped v, ← find_bumped v x)) (pair (opt u8) (opt u8))
+  | 40 =>
+    let n ← u8; let v ← arr u8; let m ← arr (pair u8 u16); let s ← arr u8; let o ← opt u8; let q ← queue u8
+    expect "loops" (loops n v ⟨m.toList⟩ ⟨s.toList⟩ o q) (pair u16 (pair u16 (pair u16 (pair u16 u16))))
+  | 41 => let n ← u8; expect "countdown" (countdown n) u16
+  | 42 => let c ← char; expect "classify" (pure (classify c)) (pair u8 (pair u32 (pair u8 (pair i8 (pair i64 char)))))
+  | 43 => let s ← str; let b ← u8; expect "shadowed" (pure (shadowed s b () () () ⟨b⟩)) (pair boolean (pair char u8))
   | _ => throw "kind"
 
 def main (args : List String) : IO UInt32 := do

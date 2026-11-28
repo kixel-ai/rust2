@@ -43,7 +43,13 @@ impl<'tcx> Fx<'_, 'tcx> {
 			.filter(|t| self.cx.is_std(*t))
 			.map(|t| format!("{}::{}", tcx.item_name(t), tcx.item_name(call.callee)));
 		let key = match trait_key.as_deref() {
-			Some(t) if ["Iterator::", "Ord::", "PartialOrd::"].iter().any(|p| t.starts_with(p)) => t,
+			Some(t)
+				if ["Iterator::", "IntoIterator::", "Ord::", "PartialOrd::"]
+					.iter()
+					.any(|p| t.starts_with(p)) =>
+			{
+				t
+			}
 			_ => key,
 		};
 		// `&a + b` on integers, which std forwards to `a + b`, overflow check and all.
@@ -113,6 +119,117 @@ impl<'tcx> Fx<'_, 'tcx> {
 						))
 					}
 				}
+			}
+			"Iterator::next" => {
+				let place = self.mutable_arg(&call.args[0].node, span)?;
+				let ty = place.ty(self.body, tcx).ty;
+				let (f, monadic) = match self.cx.iterator(ty) {
+					Some((_, false)) => ("listNext", false),
+					Some((_, true)) => ("listNextM", true),
+					// An integer range; a `char` range's stepping skips the surrogates, which
+					// `rangeNext` does not model.
+					None if matches!(ty.kind(), ty::Adt(d, a) if self.cx.ops_range(d.did()) == Some("Range")
+						&& a.type_at(0).is_integral()) =>
+					{
+						("rangeNext", false)
+					}
+					None => return refuse(span, format!("`{ty}` has no Lean model")),
+				};
+				self.mutate(f, monadic, call, ops)?;
+				return Ok(true);
+			}
+			// The blanket impl for an iterator, a range, or a translated iterator, which is itself;
+			// a collection's, which is the list of its items.
+			"IntoIterator::into_iter" => {
+				let op = &call.args[0].node;
+				let from = op.ty(self.body, tcx);
+				let into = call.destination.ty(self.body, tcx).ty;
+				if tcx.erase_and_anonymize_regions(from) == tcx.erase_and_anonymize_regions(into) {
+					self.operand(op, span)?
+				} else {
+					let it = self.iterated(op, span)?;
+					self.same_list(call, it.deferred)?;
+					it.ex
+				}
+			}
+			"Iterator::rev" => {
+				let it = self.list(call, 0)?;
+				self.same_list(call, it.deferred)?;
+				compound(format!("{}.reverse", it.ex.paren()), &[&it.ex])
+			}
+			"Iterator::take_while" => {
+				let it = self.list(call, 0)?;
+				let f = self.closure(&call.args[1].node, span)?;
+				// Which items it keeps is decided as a consumer reaches them, which a list of items
+				// made ahead cannot wait for when deciding may panic.
+				if it.deferred || f.monadic {
+					return refuse(
+						span,
+						"`take_while` where an item or the closure may panic is not supported",
+					);
+				}
+				self.same_list(call, false)?;
+				compound(format!("{}.takeWhile {}", it.ex.paren(), f.f.paren()), &[&it.ex, &f.f])
+			}
+			"Iterator::count" => {
+				let it = self.list(call, 0)?;
+				// Counting makes every item, as Rust's `fold` does.
+				let items = match it.deferred {
+					true => bound(compound(format!("Rust.run {}", it.ex.paren()), &[&it.ex])),
+					false => it.ex,
+				};
+				compound(format!("{}.length.toUInt64", items.paren()), &[&items])
+			}
+			"str::len" | "str::is_empty" | "str::as_bytes" => {
+				let s = self.operand(&call.args[0].node, span)?;
+				let text = match key {
+					"str::len" => format!("Rust.strLen {}", s.paren()),
+					"str::is_empty" => format!("{}.isEmpty", s.paren()),
+					_ => format!("Rust.asBytes {}", s.paren()),
+				};
+				compound(text, &[&s])
+			}
+			"str::find" | "str::starts_with" => {
+				let pat = call.gargs.type_at(0);
+				let s = self.operand(&call.args[0].node, span)?;
+				let p = self.operand(&call.args[1].node, span)?;
+				let text = match (key, pat.kind()) {
+					("str::find", ty::Char) => format!("Rust.strFind {} {}", s.paren(), p.paren()),
+					("str::starts_with", ty::Char) => format!("{}.toList.head? == some {}", s.paren(), p.paren()),
+					("str::starts_with", ty::Ref(_, t, _)) if t.is_str() => {
+						format!("{}.isPrefixOf {}", p.paren(), s.paren())
+					}
+					_ => return refuse(span, format!("`{key}` of a `{pat}` pattern has no Lean model")),
+				};
+				compound(text, &[&s, &p])
+			}
+			"Index::index for str" => {
+				let s = self.operand(&call.args[0].node, span)?;
+				let range = call.gargs.type_at(1);
+				let r = self.operand(&call.args[1].node, span)?;
+				let ty::Adt(def, _) = range.kind() else {
+					return refuse(span, format!("indexing a `str` by `{range}` is not supported"));
+				};
+				let text = match self.cx.ops_range(def.did()).unwrap_or_default() {
+					"RangeTo" => format!("Rust.strSliceTo {} {}", s.paren(), r.paren()),
+					"RangeFrom" => format!("Rust.strSliceFrom {} {}", s.paren(), r.paren()),
+					"Range" => format!("Rust.strSlice {} {}.1 {}.2", s.paren(), r.paren(), r.paren()),
+					"RangeFull" if !r.monadic => {
+						self.assign(call.destination, s, span, ops)?;
+						return Ok(true);
+					}
+					_ => return refuse(span, format!("indexing a `str` by `{range}` is not supported")),
+				};
+				bound(compound(text, &[&s, &r]))
+			}
+			"slice::get" => {
+				let index = call.gargs.type_at(1);
+				if !matches!(index.kind(), ty::Uint(ty::UintTy::Usize)) {
+					return refuse(span, format!("`slice::get` by `{index}` is not supported"));
+				}
+				let s = self.operand(&call.args[0].node, span)?;
+				let i = self.operand(&call.args[1].node, span)?;
+				compound(format!("{}[{}.toNat]?", s.paren(), i.paren()), &[&s, &i])
 			}
 			"Iterator::copied" | "Iterator::cloned" => {
 				let item = self.cx.iterator(call.gargs.type_at(0)).map(|(t, _)| t);
@@ -419,7 +536,7 @@ impl<'tcx> Fx<'_, 'tcx> {
 			"BTreeMap::get" | "BTreeMap::get_key_value" | "BTreeMap::contains_key" | "BTreeSet::contains" => {
 				let n = call.gargs.len();
 				let (k, q) = (call.gargs.type_at(0), call.gargs.type_at(n - 1));
-				if tcx.erase_and_anonymize_regions(k) != tcx.erase_and_anonymize_regions(q) {
+				if !self.same_key(k, q) {
 					return refuse(span, format!("looking up `{k}` by `{q}` is not supported"));
 				}
 				self.ordered(k, span)?;
@@ -443,7 +560,7 @@ impl<'tcx> Fx<'_, 'tcx> {
 					_ => call.gargs.type_at(1),
 				};
 				let k = margs.type_at(0);
-				if tcx.erase_and_anonymize_regions(k) != tcx.erase_and_anonymize_regions(q) {
+				if !self.same_key(k, q) {
 					return refuse(span, format!("looking up `{k}` by `{q}` is not supported"));
 				}
 				self.ordered(k, span)?;
@@ -465,7 +582,7 @@ impl<'tcx> Fx<'_, 'tcx> {
 				// A lookup by a borrowed form of the key, such as `str` for `String`, has no model.
 				if method == "remove" {
 					let q = call.gargs.type_at(call.gargs.len() - 1);
-					if tcx.erase_and_anonymize_regions(k) != tcx.erase_and_anonymize_regions(q) {
+					if !self.same_key(k, q) {
 						return refuse(span, format!("looking up `{k}` by `{q}` is not supported"));
 					}
 				}
@@ -477,11 +594,11 @@ impl<'tcx> Fx<'_, 'tcx> {
 					"remove" => "remove",
 					_ => "popFirst",
 				};
-				self.mutate(&format!("{ns}.{f}"), call, ops)?;
+				self.mutate(&format!("{ns}.{f}"), false, call, ops)?;
 				return Ok(true);
 			}
 			"VecDeque::pop_front" => {
-				self.mutate("VecDeque.popFront", call, ops)?;
+				self.mutate("VecDeque.popFront", false, call, ops)?;
 				return Ok(true);
 			}
 			"VecDeque::new" => {
@@ -512,12 +629,17 @@ impl<'tcx> Fx<'_, 'tcx> {
 				let s = self.operand(&call.args[0].node, span)?;
 				compound(format!("{}.items.head?", s.paren()), &[&s])
 			}
-			"BTreeMap::keys" | "BTreeMap::values" | "BTreeMap::iter" | "BTreeSet::iter" => {
+			"BTreeMap::keys"
+			| "BTreeMap::values"
+			| "BTreeMap::into_keys"
+			| "BTreeMap::into_values"
+			| "BTreeMap::iter"
+			| "BTreeSet::iter" => {
 				let m = self.operand(&call.args[0].node, span)?;
 				self.same_list(call, false)?;
 				let text = match key {
-					"BTreeMap::keys" => format!("{}.entries.map (·.1)", m.paren()),
-					"BTreeMap::values" => format!("{}.entries.map (·.2)", m.paren()),
+					"BTreeMap::keys" | "BTreeMap::into_keys" => format!("{}.entries.map (·.1)", m.paren()),
+					"BTreeMap::values" | "BTreeMap::into_values" => format!("{}.entries.map (·.2)", m.paren()),
 					"BTreeMap::iter" => format!("{}.entries", m.paren()),
 					_ => format!("{}.items", m.paren()),
 				};
@@ -568,7 +690,7 @@ impl<'tcx> Fx<'_, 'tcx> {
 				let k = call.gargs.type_at(0);
 				if key == "BTreeMap::get_mut" {
 					let q = call.gargs.type_at(call.gargs.len() - 1);
-					if tcx.erase_and_anonymize_regions(k) != tcx.erase_and_anonymize_regions(q) {
+					if !self.same_key(k, q) {
 						return refuse(span, format!("looking up `{k}` by `{q}` is not supported"));
 					}
 				}
@@ -693,8 +815,8 @@ impl<'tcx> Fx<'_, 'tcx> {
 
 	/// Lower a collection's method that changes it through `&mut self` as the runtime's `f`,
 	/// which returns the new collection and the result, for the borrowed place and the
-	/// destination.
-	fn mutate(&mut self, f: &str, call: &Call<'_, 'tcx>, ops: &mut Vec<Op>) -> R<()> {
+	/// destination, in `Rust.M` if `monadic`.
+	fn mutate(&mut self, f: &str, monadic: bool, call: &Call<'_, 'tcx>, ops: &mut Vec<Op>) -> R<()> {
 		let span = call.span;
 		let place = self.mutable_arg(&call.args[0].node, span)?;
 		let cur = self.read_place(place, span)?;
@@ -708,11 +830,12 @@ impl<'tcx> Fx<'_, 'tcx> {
 		}
 		let refs: Vec<&Ex> = reads.iter().collect();
 		let r = self.var("r", String::new(), false);
-		self.before(ops, None, false);
+		self.before(ops, None, monadic);
+		let value = compound(text, &refs);
 		ops.push(Op::Set {
 			var: r,
-			value: compound(text, &refs),
-			bind: false,
+			value: Ex { monadic, ..value },
+			bind: monadic,
 		});
 		for (i, target) in [place, call.destination].into_iter().enumerate() {
 			let mut ex = atom(tuple_field(&self.vars[r].name, i, 2));
@@ -723,6 +846,14 @@ impl<'tcx> Fx<'_, 'tcx> {
 			self.written.insert(var);
 		}
 		Ok(())
+	}
+
+	/// Whether a lookup of a `K` key by a `Q` finds what a lookup by the same key does: `Q` is
+	/// `K`, or `str` for moq-net's `Path`, whose `Borrow<str>` is the string the model holds.
+	fn same_key(&self, k: Ty<'tcx>, q: Ty<'tcx>) -> bool {
+		let tcx = self.cx.tcx;
+		tcx.erase_and_anonymize_regions(k) == tcx.erase_and_anonymize_regions(q)
+			|| (self.cx.moq_path_ty(k) && q.is_str())
 	}
 
 	/// Refuse a key type whose `Ord` the translation's `Ord` may not match.
@@ -770,7 +901,7 @@ impl<'tcx> Fx<'_, 'tcx> {
 				(ty::GenericParamDefKind::Const { .. }, _, Some(c)) => self.cx.const_value(c, span)?,
 				_ => continue,
 			};
-			text += &format!(" ({} := {value})", structure::ident(param.name.as_str()));
+			text += &format!(" ({} := {value})", structure::param(param.name.as_str()));
 		}
 		text += &format!(" {}", env.paren());
 		Ok(Lambda {
@@ -899,8 +1030,8 @@ impl<'tcx> Fx<'_, 'tcx> {
 		false
 	}
 
-	/// What `op` iterates as a list, for `IntoIterator`: an array, a `Vec`, an `Option`, or an
-	/// iterator.
+	/// What `op` iterates as a list, for `IntoIterator`: an iterator, or an array, a slice, a
+	/// `Vec`, an `Option`, a `VecDeque`, a `BTreeMap`, or a `BTreeSet`, or a reference to one.
 	fn iterated(&mut self, op: &Operand<'tcx>, span: Span) -> R<List> {
 		let ty = op.ty(self.body, self.cx.tcx);
 		if let Some((_, deferred)) = self.cx.iterator(ty) {
@@ -910,16 +1041,23 @@ impl<'tcx> Fx<'_, 'tcx> {
 			});
 		}
 		let v = self.operand(op, span)?;
-		let pure = match ty.kind() {
-			ty::Array(..) => true,
-			ty::Adt(def, _) => matches!(self.cx.std_name(def.did()).as_str(), "Vec" | "Option"),
-			_ => false,
+		// By reference, the same items, borrowed.
+		let collection = match ty.kind() {
+			ty::Ref(_, inner, _) => *inner,
+			_ => ty,
 		};
-		if !pure {
-			return refuse(span, format!("iterating `{ty}` is not supported"));
-		}
+		let text = match collection.kind() {
+			ty::Array(..) | ty::Slice(_) => format!("{}.toList", v.paren()),
+			ty::Adt(def, _) => match self.cx.std_name(def.did()).as_str() {
+				"Vec" | "Option" => format!("{}.toList", v.paren()),
+				"VecDeque" | "BTreeSet" => format!("{}.items", v.paren()),
+				"BTreeMap" => format!("{}.entries", v.paren()),
+				_ => return refuse(span, format!("iterating `{ty}` is not supported")),
+			},
+			_ => return refuse(span, format!("iterating `{ty}` is not supported")),
+		};
 		Ok(List {
-			ex: compound(format!("{}.toList", v.paren()), &[&v]),
+			ex: compound(text, &[&v]),
 			deferred: false,
 		})
 	}

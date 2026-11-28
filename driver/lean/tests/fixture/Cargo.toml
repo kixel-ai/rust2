@@ -9,3 +9,4 @@ publish = false
 [dependencies]
 fixture-dep = { path = "dep" }
 kio = { path = "kio" }
+moq-net = { path = "moq-net" }

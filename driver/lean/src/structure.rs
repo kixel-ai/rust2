@@ -190,6 +190,35 @@ const KEYWORDS: &[&str] = &[
 	"syntax",
 	"local",
 	"this",
+	"prefix",
+	"infix",
+	"infixl",
+	"infixr",
+	"postfix",
+	"notation",
+	"mutual",
+	"opaque",
+	"extends",
+	"attribute",
+	"export",
+	"omit",
+	"include",
+	"termination_by",
+	"decreasing_by",
+	"elab",
+	"scoped",
+	"nonrec",
+	"initialize",
+	"sorry",
+	"using",
+	"generalizing",
+	"renaming",
+	"hiding",
+	"set_option",
+	"exists",
+	"forall",
+	"meta",
+	"unif_hint",
 ];
 
 /// Names the emitted code uses unqualified, which a definition of the same name in scope
@@ -224,6 +253,7 @@ pub const LEAN_NAMES: &[&str] = &[
 	"UInt16",
 	"UInt32",
 	"UInt64",
+	"Char",
 	"Int8",
 	"Int16",
 	"Int32",
@@ -246,6 +276,17 @@ pub fn ident(name: &str) -> String {
 		format!("«{name}»")
 	} else {
 		name.to_string()
+	}
+}
+
+/// A generic parameter's name as a Lean identifier, with a `''` where it would shadow a name
+/// the emitted code uses unqualified, as a type parameter `Char` would Lean's `Char`. Only a
+/// generic takes two: an item of such a name takes one, and a Rust name none.
+pub fn param(name: &str) -> String {
+	let name = ident(name);
+	match LEAN_NAMES.contains(&name.as_str()) {
+		true => format!("{name}''"),
+		false => name,
 	}
 }
 

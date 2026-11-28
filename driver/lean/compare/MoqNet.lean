@@ -1,5 +1,6 @@
 -- Translated from the `moq_net` crate by rust2-lean, with overflow checks on.
 import Rust
+import MoqPattern
 
 set_option linter.unusedVariables false
 -- Rust's wide tuples need deeper instance searches than Lean's default.
@@ -35,22 +36,10 @@ structure route.relay.Here where
   draining : (Rust.BTreeSet route.relay.NodeId)
 deriving Repr, DecidableEq, Inhabited
 
-/-- `path::Repr` -/
-inductive path.Repr' where
-  | Inline (len : UInt8) (buf : (Vector UInt8 22))
-  | Static (x0 : String)
-  | Shared (start : UInt16) (buf : String)
-deriving Repr, DecidableEq, Inhabited
-
-/-- `path::Path` -/
-structure path.Path where
-  x0 : path.Repr'
-deriving Repr, DecidableEq, Inhabited
-
 /-- `route::relay::Role` -/
 inductive route.relay.Role where
   | Routing (x0 : route.relay.NodeId)
-  | Scoped (x0 : (Array path.Path))
+  | Scoped (x0 : (Array String))
   | Endpoint
 deriving Repr, DecidableEq, Inhabited
 
@@ -84,6 +73,78 @@ class route.Item (Self : Type) where
   lowered : Self → UInt64 → Rust.M Self
   above : Self → Rust.M UInt64
   epoch : Self → Rust.M UInt64
+
+/-- `path::Path::as_str`, modeled on the string a `Path` holds -/
+def path.Path.as_str (self : String) : String :=
+  self
+
+def path.Path.prefix_len (self : String) («prefix» : String) : Rust.M (Option UInt64) := do
+  let prefix1 := path.Path.as_str «prefix»
+  if prefix1.isEmpty then
+    return (some (0 : UInt64) : (Option UInt64))
+  else
+    let s := path.Path.as_str self
+    if prefix1.isPrefixOf s then
+      if (Rust.strLen s) = (Rust.strLen prefix1) then
+        return (some (Rust.strLen s) : (Option UInt64))
+      else
+        let t29 := Rust.asBytes s
+        let t42 := (some (47 : UInt8) : (Option UInt8))
+        let t39 := Rust.strLen prefix1
+        return (if decide ((t29[(Rust.strLen prefix1).toNat]?) = t42) then some · else none) (← t39 +? 1)
+    else
+      return (none : (Option UInt64))
+
+def path.Path.has_prefix (self : String) («prefix» : String) : Rust.M Bool := do
+  return (← path.Path.prefix_len self «prefix»).isSome
+
+def path.Path.parts (self : String) : _root_.moq_pattern.parts.Parts := Id.run do
+  let t3 := path.Path.as_str self
+  return _root_.moq_pattern.parts.parts t3
+
+def path.Path.head_len_loop (parts : _root_.moq_pattern.parts.Parts) («end» : UInt64) (iter : (UInt64 × UInt64)) : Rust.M (Option UInt64) := do
+  let mut parts := parts
+  let mut «end» := «end»
+  let mut iter := iter
+  let r := Rust.rangeNext iter
+  iter := r.1
+  let t13 := r.2
+  match id t13 with
+  | none =>
+    return (some «end» : (Option UInt64))
+  | some t13_0 =>
+    let i := t13_0
+    let r1 ← _root_.moq_pattern.parts.Parts.Iterator.next parts
+    let t24 := r1.1
+    parts := r1.2
+    let t23 := Rust.branch t24
+    match id t23 with
+    | .Continue val =>
+      let t20 := Rust.strLen val
+      let t31 := if decide (i > 0) then (1 : UInt64) else 0
+      let t19 := (← t20 +? t31)
+      «end» := (← «end» +? t19)
+      return (← path.Path.head_len_loop parts «end» iter)
+    | .Break t23_01 =>
+      return (none : (Option UInt64))
+partial_fixpoint
+
+def path.Path.head_len (self : String) (n : UInt64) : Rust.M (Option UInt64) := do
+  let parts := path.Path.parts self
+  let «end» : UInt64 := 0
+  let iter := ((0 : UInt64), n)
+  let r2 ← path.Path.head_len_loop parts «end» iter
+  return r2
+
+/-- `path::Path::head`, modeled on the string a `Path` holds -/
+def path.Path.head (self : String) (n : UInt64) : Rust.M (Option String) := do
+  match (← path.Path.head_len self n) with
+  | none => pure none
+  | some e => pure (some (← Rust.strSliceTo self e))
+
+def path.Path.is_empty (self : String) : Bool := Id.run do
+  let t3 := path.Path.as_str self
+  return t3.isEmpty
 
 def route.relay.Offer.rank (self : route.relay.Offer) : (Bool × (Rust.Reverse Int8) × UInt64) :=
   (self.draining, ({ x0 := self.priority } : (Rust.Reverse Int8)), self.cost)

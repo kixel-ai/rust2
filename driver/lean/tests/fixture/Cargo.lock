@@ -8,6 +8,7 @@ version = "0.0.0"
 dependencies = [
  "fixture-dep",
  "kio",
+ "moq-net",
 ]
 
 [[package]]
@@ -19,4 +20,8 @@ dependencies = [
 
 [[package]]
 name = "kio"
+version = "0.0.0"
+
+[[package]]
+name = "moq-net"
 version = "0.0.0"

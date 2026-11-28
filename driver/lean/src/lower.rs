@@ -26,6 +26,7 @@ use rustc_span::Span;
 use crate::structure::{self, Ex, Node, Op, Term, Var};
 
 mod model;
+mod path;
 
 /// A construct outside the subset, at its span.
 pub struct Refusal {
@@ -477,6 +478,9 @@ impl<'tcx> Cx<'tcx> {
 	/// which [`Self::function`] refuses.
 	fn callees(&self, did: DefId) -> Vec<DefId> {
 		let tcx = self.tcx;
+		if let Some(model) = self.path_model(did) {
+			return self.path_model_callees(did, model);
+		}
 		if !tcx.is_mir_available(did) {
 			return Vec::new();
 		}
@@ -612,6 +616,9 @@ impl<'tcx> Cx<'tcx> {
 			ty::Bool | ty::Int(_) | ty::Uint(_) | ty::Char | ty::Param(_) => true,
 			ty::Tuple(tys) => tys.iter().all(|t| self.structural_eq_in(t, seen)),
 			ty::Array(t, _) | ty::Slice(t) | ty::Ref(_, t, _) => self.structural_eq_in(*t, seen),
+			// Its `PartialEq` compares the strings the model holds.
+			ty::Str => true,
+			ty::Adt(..) if self.moq_path_ty(ty) => true,
 			ty::Adt(def, args) => {
 				if !seen.insert(ty) {
 					return true;
@@ -642,6 +649,10 @@ impl<'tcx> Cx<'tcx> {
 			ty::Bool | ty::Int(_) | ty::Uint(_) | ty::Char | ty::Param(_) => true,
 			ty::Tuple(tys) => tys.iter().all(|t| self.structural_ord_in(t, seen)),
 			ty::Array(t, _) | ty::Slice(t) | ty::Ref(_, t, _) => self.structural_ord_in(*t, seen),
+			// Byte order on UTF-8, which is Lean's code point order on a `String`; `Path`'s
+			// `Ord` orders its strings so.
+			ty::Str => true,
+			ty::Adt(..) if self.moq_path_ty(ty) => true,
 			ty::Adt(def, args) => {
 				if !seen.insert(ty) {
 					return true;
@@ -742,6 +753,8 @@ impl<'tcx> Cx<'tcx> {
 			ty::Tuple(tys) => tys.iter().all(|t| self.clone_copies_in(t, active, params)),
 			// Cloning an `Arc` shares what it holds, which nothing writes in place.
 			ty::Adt(def, args) if self.std_name(def.did()) == "Arc" && self.global_at(args, 1) => true,
+			// Its derived `Clone` copies the string the model holds.
+			ty::Adt(..) if self.moq_path_ty(ty) => true,
 			ty::Array(t, _) => self.clone_copies_in(*t, active, params),
 			ty::Adt(def, args) => {
 				if !active.insert(ty) {
@@ -901,6 +914,7 @@ impl<'tcx> Cx<'tcx> {
 		let tcx = self.tcx;
 		Ok(match ty.kind() {
 			ty::Bool => "Bool".into(),
+			ty::Char => "Char".into(),
 			ty::Uint(u) => match u.bit_width().unwrap_or(self.pointer_bits()) {
 				8 => "UInt8".into(),
 				16 => "UInt16".into(),
@@ -926,7 +940,8 @@ impl<'tcx> Cx<'tcx> {
 			ty::Slice(elem) => format!("(Array {})", self.ty(*elem, span)?),
 			ty::Str => "String".into(),
 			ty::Ref(_, inner, _) => self.ty(*inner, span)?,
-			ty::Param(p) => structure::ident(p.name.as_str()),
+			ty::Param(p) => structure::param(p.name.as_str()),
+			ty::Adt(..) if self.moq_path_ty(ty) => "String".into(),
 			ty::Adt(def, args) if self.translated(def.did()) => {
 				if def.is_union() {
 					return refuse(span, format!("union `{ty}` is not supported"));
@@ -1093,20 +1108,21 @@ impl<'tcx> Cx<'tcx> {
 		let path = tcx.def_path_str(def.did());
 		let inner: &[usize] = match self.std_name(def.did()).as_str() {
 			"Iter" | "Windows" if path.contains("slice::") => &[],
-			"Iter" if path.contains("btree_set::") || path.contains("btree_map::") => &[],
-			"Keys" | "Values" if path.contains("btree_map::") => &[],
-			"Iter" if path.contains("vec_deque::") => &[],
+			"Iter" | "IntoIter" if path.contains("btree_set::") || path.contains("btree_map::") => &[],
+			"Keys" | "Values" | "IntoKeys" | "IntoValues" if path.contains("btree_map::") => &[],
+			"Iter" | "IntoIter" if path.contains("vec_deque::") => &[],
+			"Iter" if path.contains("option::") => &[],
 			"IntoIter" if ["vec::", "option::", "array::"].iter().any(|m| path.contains(m)) => &[],
-			"Map" | "Copied" | "Cloned" | "Enumerate" => &[0],
+			"Map" | "Copied" | "Cloned" | "Enumerate" | "Rev" | "TakeWhile" => &[0],
 			"Chain" => &[0, 1],
 			_ => return None,
 		};
 		if inner.iter().any(|&i| self.iterator(args.type_at(i)).is_none()) {
 			return None;
 		}
-		// A `Map`'s mapper must be a closure here, whose panics the list's shape records.
-		if inner == [0]
-			&& self.std_name(def.did()) == "Map"
+		// A `Map`'s mapper and a `TakeWhile`'s predicate must be closures here, whose panics the
+		// list's shape records.
+		if matches!(self.std_name(def.did()).as_str(), "Map" | "TakeWhile")
 			&& !matches!(args.type_at(1).kind(), ty::Closure(did, _) if self.translated(*did))
 		{
 			return None;
@@ -1137,7 +1153,7 @@ impl<'tcx> Cx<'tcx> {
 	/// An array length as a Lean `Nat`.
 	fn len(&self, len: ty::Const<'tcx>, span: Span) -> R<String> {
 		match len.kind() {
-			ty::ConstKind::Param(p) => Ok(format!("{}.toNat", structure::ident(p.name.as_str()))),
+			ty::ConstKind::Param(p) => Ok(format!("{}.toNat", structure::param(p.name.as_str()))),
 			_ => {
 				// A named constant, evaluated.
 				let len = self
@@ -1155,7 +1171,7 @@ impl<'tcx> Cx<'tcx> {
 	/// A const generic argument as a Lean value.
 	fn const_value(&self, c: ty::Const<'tcx>, span: Span) -> R<String> {
 		match c.kind() {
-			ty::ConstKind::Param(p) => Ok(structure::ident(p.name.as_str())),
+			ty::ConstKind::Param(p) => Ok(structure::param(p.name.as_str())),
 			_ => match c.try_to_target_usize(self.tcx) {
 				Some(n) => Ok(n.to_string()),
 				None => refuse(span, format!("const argument `{c}` is not supported")),
@@ -1205,7 +1221,7 @@ impl<'tcx> Cx<'tcx> {
 		let args = ty::GenericArgs::identity_for_item(tcx, did);
 		let mut params = String::new();
 		for param in &tcx.generics_of(did).own_params {
-			let name = structure::ident(param.name.as_str());
+			let name = structure::param(param.name.as_str());
 			match param.kind {
 				ty::GenericParamDefKind::Lifetime => {}
 				ty::GenericParamDefKind::Const { .. } => {
@@ -1283,7 +1299,7 @@ impl<'tcx> Cx<'tcx> {
 			owner = clauses.parent;
 		}
 		for param in params {
-			let name = structure::ident(param.name.as_str());
+			let name = structure::param(param.name.as_str());
 			match param.kind {
 				ty::GenericParamDefKind::Lifetime => {}
 				ty::GenericParamDefKind::Const { .. } => {
@@ -1390,6 +1406,9 @@ impl<'tcx> Cx<'tcx> {
 	fn function(&mut self, did: DefId) -> R<String> {
 		let tcx = self.tcx;
 		let span = tcx.def_span(did);
+		if let Some(model) = self.path_model(did) {
+			return self.path_model_text(did, model);
+		}
 		if !tcx.is_mir_available(did) {
 			return refuse(
 				span,
@@ -1458,7 +1477,7 @@ fn generic_names(tcx: TyCtxt<'_>, did: DefId) -> Vec<String> {
 	all_params(tcx, did)
 		.iter()
 		.filter(|p| !matches!(p.kind, ty::GenericParamDefKind::Lifetime))
-		.map(|p| structure::ident(p.name.as_str()))
+		.map(|p| structure::param(p.name.as_str()))
 		.collect()
 }
 
@@ -1527,6 +1546,9 @@ fn skipped(tcx: TyCtxt<'_>, did: DefId) -> bool {
 				== tcx.get_diagnostic_item(rustc_span::sym::Debug)
 		})
 }
+
+/// The refusal of a function that reads `Path`'s representation without a model of its own.
+const PATH_REPR: &str = "reading moq-net's `Path` representation is not supported: its model holds the string alone";
 
 /// What a mutable reference local stands for.
 #[derive(Clone, Copy)]
@@ -2333,6 +2355,9 @@ impl<'a, 'tcx> Fx<'a, 'tcx> {
 
 	/// A field projection from a value of type `ty`.
 	fn field(&mut self, ty: Ty<'tcx>, variant: Option<VariantIdx>, f: FieldIdx, span: Span) -> R<Proj> {
+		if self.cx.moq_path_ty(ty) {
+			return refuse(span, PATH_REPR);
+		}
 		match ty.kind() {
 			ty::Tuple(tys) => Ok(Proj::Tuple(f.as_usize(), tys.len())),
 			// What a closure captures, in its body.
@@ -2412,7 +2437,7 @@ impl<'a, 'tcx> Fx<'a, 'tcx> {
 		if let mir::Const::Ty(_, ct) = c.const_
 			&& let ty::ConstKind::Param(p) = ct.kind()
 		{
-			return Ok(atom(structure::ident(p.name.as_str())));
+			return Ok(atom(structure::param(p.name.as_str())));
 		}
 		if ty.is_unit() || matches!(ty.kind(), ty::FnDef(..)) {
 			return Ok(atom("()".into()));
@@ -2428,9 +2453,14 @@ impl<'a, 'tcx> Fx<'a, 'tcx> {
 		}
 		let lean_ty = self.cx.ty(ty, span)?;
 		// A one-field struct evaluates to a scalar too.
-		let scalar = (ty.is_integral() || ty.is_bool())
+		let scalar = (ty.is_integral() || ty.is_bool() || ty.is_char())
 			.then(|| c.const_.try_eval_scalar_int(tcx, self.env))
 			.flatten();
+		if ty.is_char()
+			&& let Some(c) = scalar.and_then(|i| char::from_u32(i.to_u32()))
+		{
+			return Ok(atom(char_lit(c)));
+		}
 		let Some(int) = scalar else {
 			let valtree = match c.const_ {
 				mir::Const::Ty(_, ct) => match ct.kind() {
@@ -2588,9 +2618,18 @@ impl<'a, 'tcx> Fx<'a, 'tcx> {
 				))
 			}
 			Rvalue::Cast(CastKind::IntToInt, op, to) => {
-				let v = self.operand(op, span)?;
-				let from = op.ty(self.body, tcx);
+				let mut v = self.operand(op, span)?;
+				let mut from = op.ty(self.body, tcx);
 				let to_lean = self.cx.ty(*to, span)?;
+				// A `char` casts as its code point, which a Lean `Char` holds as a `UInt32`.
+				if from.is_char() {
+					v = compound(format!("{}.val", v.paren()), &[&v]);
+					from = tcx.types.u32;
+				}
+				// Only a `u8` casts to a `char`, and every one is a code point.
+				if to.is_char() {
+					return Ok(compound(format!("Char.ofNat {}.toNat", v.paren()), &[&v]));
+				}
 				if from.is_bool() {
 					return Ok(compound(format!("if {} then (1 : {to_lean}) else 0", v.text), &[&v]));
 				}
@@ -2737,6 +2776,9 @@ impl<'a, 'tcx> Fx<'a, 'tcx> {
 			)),
 			AggregateKind::Adt(did, variant, _, _, None) => {
 				let tcx = self.cx.tcx;
+				if self.cx.moq_path(*did) {
+					return refuse(span, PATH_REPR);
+				}
 				let def = tcx.adt_def(*did);
 				let lean_ty = self.cx.ty(ty, span)?;
 				let var = def.variant(*variant);
@@ -3383,6 +3425,7 @@ impl<'a, 'tcx> Fx<'a, 'tcx> {
 		let head = match tcx.type_of(impl_id).instantiate_identity().skip_norm_wip().kind() {
 			ty::Adt(def, _) => tcx.item_name(def.did()).to_string(),
 			ty::Slice(_) => "slice".into(),
+			ty::Str => "str".into(),
 			ty::Array(..) => "array".into(),
 			ty::Bool => "bool".into(),
 			ty::Uint(_) | ty::Int(_) => self_ty_name(tcx.type_of(impl_id).instantiate_identity().skip_norm_wip()),
@@ -3417,15 +3460,11 @@ impl<'a, 'tcx> Fx<'a, 'tcx> {
 			let arg = gargs[param.index as usize];
 			if let ty::GenericParamDefKind::Type { .. } = param.kind
 				&& let Some(t) = arg.as_type()
-				&& eq.is_some()
-				&& !self.cx.structural_eq(t)
-			{
-				return refuse(span, format!("`{t}` passed where `PartialEq` must be structural"));
-			}
-			if let ty::GenericParamDefKind::Type { .. } = param.kind
-				&& let Some(t) = arg.as_type()
 			{
 				let bounds = self.cx.param_bounds(callee, param.index);
+				if eq.is_some_and(|eq| bounds.contains(&eq)) && !self.cx.structural_eq(t) {
+					return refuse(span, format!("`{t}` passed where `PartialEq` must be structural"));
+				}
 				// A translated trait's Lean class needs an instance: only a parameter of this
 				// function bounded by it has one, as its own binder.
 				let ours = match t.kind() {
@@ -3452,7 +3491,7 @@ impl<'a, 'tcx> Fx<'a, 'tcx> {
 					return refuse(span, format!("`{t}` passed where `Ord` must match a Lean order"));
 				}
 			}
-			if shown.contains(&structure::ident(param.name.as_str())) {
+			if shown.contains(&structure::param(param.name.as_str())) {
 				continue;
 			}
 			let value = match (&param.kind, arg.as_type(), arg.as_const()) {
@@ -3460,7 +3499,7 @@ impl<'a, 'tcx> Fx<'a, 'tcx> {
 				(ty::GenericParamDefKind::Const { .. }, _, Some(c)) => self.cx.const_value(c, span)?,
 				_ => continue,
 			};
-			text += &format!(" ({} := {value})", structure::ident(param.name.as_str()));
+			text += &format!(" ({} := {value})", structure::param(param.name.as_str()));
 		}
 		Ok(text)
 	}
@@ -3501,7 +3540,7 @@ impl<'a, 'tcx> Fx<'a, 'tcx> {
 			&& tcx.trait_impl_of_assoc(callee).is_none()
 			&& !text.contains(":=")
 			&& reads.first().is_some_and(|r| r.atom && !r.text.starts_with('('))
-			&& matches!(sig.inputs().first().map(|t| t.peel_refs().kind()), Some(ty::Adt(d, _)) if self.cx.translated(d.did()));
+			&& matches!(sig.inputs().first().map(|t| t.peel_refs().kind()), Some(ty::Adt(d, _)) if self.cx.translated(d.did()) && !self.cx.moq_path(d.did()));
 		let text = if method {
 			let name = self.cx.fn_name(callee);
 			let short = name.rsplit('.').next().expect("names have parts");
@@ -3727,8 +3766,17 @@ impl<'a, 'tcx> Fx<'a, 'tcx> {
 				default: self.target(els),
 			});
 		}
+		// A `char`'s values are its code points, which a Lean `Char` matches as literals.
+		let chars = discr.ty(self.body, tcx).is_char();
 		let mut arms = Vec::new();
 		for (value, target) in targets.iter() {
+			let value = match chars {
+				true => {
+					let c = u32::try_from(value).ok().and_then(char::from_u32);
+					char_lit(c.expect("a `char` switch's values are code points"))
+				}
+				false => value.to_string(),
+			};
 			let prop = format!("{} = {value}", d.paren());
 			let mut c = compound(format!("decide ({prop})"), &[&d]);
 			c.prop = Some(prop);
@@ -3960,6 +4008,14 @@ fn bound(action: Ex) -> Ex {
 /// the runtime's.
 fn builtin(lean: &str) -> bool {
 	!lean.starts_with("Rust.")
+}
+
+/// `c` as a Lean `Char`: a literal for a printable ASCII character, else by its code point.
+fn char_lit(c: char) -> String {
+	match c {
+		' '..='~' if c != '\'' && c != '\\' => format!("'{c}'"),
+		_ => format!("(Char.ofNat {})", c as u32),
+	}
 }
 
 /// A primitive integer type's Rust name, as its inherent impl's functions are keyed.
