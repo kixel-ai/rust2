@@ -408,6 +408,9 @@
             # line even when it is missing, and its exit code also fails over unrelated setup,
             # so only the shim existing decides.
             shellHook = ''
+              # Marks this shell for the pre-push hook, which `IN_NIX_SHELL` cannot: another
+              # shell, such as build-bench, sets that too without the tools the hook needs.
+              export RUST2_DEV_SHELL=1
               # An outer shell's shim must not outlive a host without one: the justfiles
               # would still put its directory ahead of the toolchain.
               unset RUST2_CARGO_SHIM

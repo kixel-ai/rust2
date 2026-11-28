@@ -34,7 +34,7 @@ class PushTests(unittest.TestCase):
             "GIT_CONFIG_NOSYSTEM": "1",
             "GIT_CONFIG_GLOBAL": os.devnull,
             # The dev shell, so the hook runs `just` itself instead of entering Nix.
-            "IN_NIX_SHELL": "impure",
+            "RUST2_DEV_SHELL": "1",
         }
         subprocess.run(["git", "init", "-q", "--bare", self.remote], env=self.env, check=True)
         self.repo.mkdir()
@@ -73,6 +73,16 @@ class PushTests(unittest.TestCase):
         quest.chmod(0o755)
         self.git("push", "origin", "main")
         self.assertEqual(self.calls(), ["quest gate just ci", "ci"])
+
+    def test_a_shell_without_the_dev_shell_marker_enters_the_dev_shell(self):
+        # `nix develop --command <hook>`, standing in with the marker the real shell exports.
+        nix = self.bin / "nix"
+        nix.write_text(f'#!/bin/sh\necho "nix $1" >> {self.ran}\nshift 2\nRUST2_DEV_SHELL=1 exec "$@"\n')
+        nix.chmod(0o755)
+        # Another shell, such as build-bench, sets IN_NIX_SHELL but lacks the hook's tools.
+        self.env.update({"IN_NIX_SHELL": "impure", "RUST2_DEV_SHELL": ""})
+        self.git("push", "origin", "main")
+        self.assertEqual(self.calls(), ["nix develop", "ci"])
 
     def test_a_failing_gated_ci_stops_the_push(self):
         quest = self.bin / "quest"

@@ -10,9 +10,10 @@ cd "$(git rev-parse --show-toplevel)"
 # in the recipes, such as `just ts`'s clone of moq, at this repository instead of theirs.
 unset GIT_DIR GIT_PREFIX GIT_WORK_TREE GIT_INDEX_FILE
 
-# The tools and variables `just` needs come from the dev shell, which a push from a
-# plain shell does not have.
-if [[ -z "${IN_NIX_SHELL:-}" ]]; then
+# The tools and variables `just` needs come from the default dev shell, which a push from a
+# plain shell, or from another shell such as `build-bench`, does not have. Its shellHook
+# exports RUST2_DEV_SHELL, which the shells derived from it inherit.
+if [[ -z "${RUST2_DEV_SHELL:-}" ]]; then
 	exec nix develop --command "$0" "$@"
 fi
 
