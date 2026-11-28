@@ -43,4 +43,5 @@ Decided 2026-11-27 (maintainer, /quest-run): ✅ model `Path` as a Lean `String`
 ## Related
 
 - [rust2-lean translates dependency crates' code](/quest/m2/lean-deps.md) - retires the hand model of kio's `Instant` this quest adds
+- [Verus proves kio's WithinCredit on the Rust](/quest/m2/lean-verus.md) - measures Verus's proof lines on `options_rank_below` against this quest's 141
 - [rust2-ts model epic](/quest/m2/ts-model/README.md) - shares `rust2/driver` and moq-net's `Router` as its consumer
