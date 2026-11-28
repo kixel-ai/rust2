@@ -335,4 +335,7 @@ def route.relay.precedence {A : Type} [Inhabited A] [DecidableEq A] [route.Item 
   let t2 := (← route.Item.above item)
   return (t2, ({ x0 := (← route.Item.epoch item) } : (Rust.Reverse UInt64)))
 
+def route.relay.debounce (hop : Rust.Duration) : Rust.Duration :=
+  Rust.Duration.saturatingMul hop ((32 : UInt64).toUInt32)
+
 end moq_net

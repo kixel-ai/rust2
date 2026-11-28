@@ -145,6 +145,121 @@ instance {α β : Type} [Ord α] [Ord β] : Ord (α × β) := lexOrd
 instance : Ord Unit where
   compare _ _ := .eq
 
+/-- `Ord::max` on an order Lean derives: `b` unless `a` is greater, as Rust picks. -/
+def ordMax {α : Type} [Ord α] (a b : α) : α := if compare a b == .gt then a else b
+
+/-- `Ord::min` on an order Lean derives: `a` unless it is greater, as Rust picks. -/
+def ordMin {α : Type} [Ord α] (a b : α) : α := if compare a b == .gt then b else a
+
+/-- `std::time::Duration`: whole seconds, and the nanoseconds past them, always below a
+second. Ordered as Rust's derive orders it, seconds first. -/
+structure Duration where
+  secs : UInt64
+  nanos : UInt32
+deriving Repr, DecidableEq, Inhabited, Ord
+
+namespace Duration
+
+/-- `Duration::ZERO`. -/
+def ZERO : Duration := ⟨0, 0⟩
+
+/-- `Duration::MAX`. -/
+def MAX : Duration := ⟨0xFFFFFFFFFFFFFFFF, 999999999⟩
+
+/-- The whole duration in nanoseconds. -/
+def toNanos (d : Duration) : Nat := d.secs.toNat * 1000000000 + d.nanos.toNat
+
+/-- The duration `n` nanoseconds long, or `none` past `Duration::MAX`. -/
+def ofNanos? (n : Nat) : Option Duration :=
+  if n / 1000000000 < 2 ^ 64 then some ⟨(n / 1000000000).toUInt64, (n % 1000000000).toUInt32⟩
+  else none
+
+/-- `Duration::from_secs`. -/
+def fromSecs (s : UInt64) : Duration := ⟨s, 0⟩
+
+/-- `Duration::from_millis`. -/
+def fromMillis (ms : UInt64) : Duration := ⟨ms / 1000, (ms % 1000).toUInt32 * 1000000⟩
+
+/-- `Duration::from_nanos`. -/
+def fromNanos (ns : UInt64) : Duration := ⟨ns / 1000000000, (ns % 1000000000).toUInt32⟩
+
+/-- `Duration::checked_add`. -/
+def checkedAdd (a b : Duration) : Option Duration := ofNanos? (a.toNanos + b.toNanos)
+
+/-- `Duration::checked_sub`. -/
+def checkedSub (a b : Duration) : Option Duration :=
+  if b.toNanos ≤ a.toNanos then ofNanos? (a.toNanos - b.toNanos) else none
+
+/-- `Duration::checked_mul`. -/
+def checkedMul (a : Duration) (n : UInt32) : Option Duration := ofNanos? (a.toNanos * n.toNat)
+
+/-- `Duration::saturating_add`. -/
+def saturatingAdd (a b : Duration) : Duration := (checkedAdd a b).getD MAX
+
+/-- `Duration::saturating_sub`. -/
+def saturatingSub (a b : Duration) : Duration := (checkedSub a b).getD ZERO
+
+/-- `Duration::saturating_mul`. -/
+def saturatingMul (a : Duration) (n : UInt32) : Duration := (checkedMul a n).getD MAX
+
+end Duration
+
+/-- `VecDeque`: its items, front first. -/
+structure VecDeque (α : Type) where
+  items : List α
+deriving Repr, DecidableEq, Inhabited, Ord
+
+namespace VecDeque
+
+/-- `VecDeque::new`. -/
+def empty {α : Type} : VecDeque α := ⟨[]⟩
+
+/-- `VecDeque::push_back`. -/
+def pushBack {α : Type} (d : VecDeque α) (x : α) : VecDeque α := ⟨d.items ++ [x]⟩
+
+/-- `VecDeque::pop_front`: the queue, and the item it took. -/
+def popFront {α : Type} (d : VecDeque α) : VecDeque α × Option α := (⟨d.items.drop 1⟩, d.items.head?)
+
+end VecDeque
+
+namespace kio
+
+/-- `kio::clock::Instant`: nanoseconds from the clock's origin, a `u64` as kio keeps it. -/
+structure Instant where
+  nanos : UInt64
+deriving Repr, DecidableEq, Inhabited, Ord
+
+namespace Instant
+
+/-- `Instant::ZERO`, the clock's origin. -/
+def ZERO : Instant := ⟨0⟩
+
+/-- `Instant::checked_add`: `none` past the clock's range. -/
+def checkedAdd (i : Instant) (d : Duration) : Option Instant :=
+  if i.nanos.toNat + d.toNanos < 2 ^ 64 then some ⟨(i.nanos.toNat + d.toNanos).toUInt64⟩ else none
+
+/-- `Instant::checked_sub`: `none` before the clock's origin. -/
+def checkedSub (i : Instant) (d : Duration) : Option Instant :=
+  if d.toNanos ≤ i.nanos.toNat then some ⟨(i.nanos.toNat - d.toNanos).toUInt64⟩ else none
+
+/-- `Instant::saturating_add`, stopping at the clock's last instant. -/
+def saturatingAdd (i : Instant) (d : Duration) : Instant := (checkedAdd i d).getD ⟨0xFFFFFFFFFFFFFFFF⟩
+
+/-- `Instant::saturating_sub`, stopping at the clock's origin. -/
+def saturatingSub (i : Instant) (d : Duration) : Instant := (checkedSub i d).getD ZERO
+
+/-- `Instant::checked_duration_since`: `none` if `earlier` is later. -/
+def checkedDurationSince (i earlier : Instant) : Option Duration :=
+  if earlier.nanos ≤ i.nanos then some (Duration.fromNanos (i.nanos - earlier.nanos)) else none
+
+/-- `Instant::saturating_duration_since`, `duration_since`, and `-`: zero if `earlier` is later. -/
+def saturatingDurationSince (i earlier : Instant) : Duration :=
+  (checkedDurationSince i earlier).getD Duration.ZERO
+
+end Instant
+
+end kio
+
 /-- `Option::expect` and `unwrap`: the value, or a panic with `msg`. -/
 def expect {α : Type} (o : Option α) (msg : String) : M α :=
   match o with
@@ -235,6 +350,37 @@ def containsKey {κ ν : Type} [Ord κ] (m : BTreeMap κ ν) (k : κ) : Bool :=
 def len {κ ν : Type} (m : BTreeMap κ ν) : UInt64 :=
   m.entries.length.toUInt64
 
+/-- `BTreeMap::get_key_value`. -/
+def getKeyValue {κ ν : Type} [Ord κ] (m : BTreeMap κ ν) (k : κ) : Option (κ × ν) :=
+  m.entries.find? fun e => compare e.1 k == .eq
+
+/-- `map[&k]`, panicking as Rust's does when `k` is absent. -/
+def index {κ ν : Type} [Ord κ] (m : BTreeMap κ ν) (k : κ) : M ν :=
+  expect (m.get k) "no entry found for key"
+
+/-- Insert into ascending entries: the entries, and the value `k` had. Rust keeps the key
+it had, which a structural key cannot tell apart. -/
+def insertIn {κ ν : Type} [Ord κ] (k : κ) (v : ν) : List (κ × ν) → List (κ × ν) × Option ν
+  | [] => ([(k, v)], none)
+  | e :: rest =>
+    match compare k e.1 with
+    | .lt => ((k, v) :: e :: rest, none)
+    | .eq => ((e.1, v) :: rest, some e.2)
+    | .gt => let r := insertIn k v rest; (e :: r.1, r.2)
+
+/-- `BTreeMap::insert`: the map, and the value `k` had. -/
+def insert {κ ν : Type} [Ord κ] (m : BTreeMap κ ν) (k : κ) (v : ν) : BTreeMap κ ν × Option ν :=
+  let r := insertIn k v m.entries
+  (⟨r.1⟩, r.2)
+
+/-- `BTreeMap::remove`: the map, and the value `k` had. -/
+def remove {κ ν : Type} [Ord κ] (m : BTreeMap κ ν) (k : κ) : BTreeMap κ ν × Option ν :=
+  (⟨m.entries.filter fun e => compare e.1 k != .eq⟩, m.get k)
+
+/-- `BTreeMap::pop_first`: the map, and its first entry. -/
+def popFirst {κ ν : Type} (m : BTreeMap κ ν) : BTreeMap κ ν × Option (κ × ν) :=
+  (⟨m.entries.drop 1⟩, m.entries.head?)
+
 end BTreeMap
 
 /-- `BTreeSet`: its items in ascending order, each once. -/
@@ -254,6 +400,27 @@ def contains {κ : Type} [Ord κ] (s : BTreeSet κ) (k : κ) : Bool :=
 /-- `BTreeSet::len`. -/
 def len {κ : Type} (s : BTreeSet κ) : UInt64 :=
   s.items.length.toUInt64
+
+/-- Insert into ascending items, unless one equal to `k` is there already. -/
+def insertIn {κ : Type} [Ord κ] (k : κ) : List κ → List κ
+  | [] => [k]
+  | x :: rest =>
+    match compare k x with
+    | .lt => k :: x :: rest
+    | .eq => x :: rest
+    | .gt => x :: insertIn k rest
+
+/-- `BTreeSet::insert`: the set, and whether `k` was new to it. -/
+def insert {κ : Type} [Ord κ] (s : BTreeSet κ) (k : κ) : BTreeSet κ × Bool :=
+  (⟨insertIn k s.items⟩, !s.contains k)
+
+/-- `BTreeSet::remove`: the set, and whether `k` was in it. -/
+def remove {κ : Type} [Ord κ] (s : BTreeSet κ) (k : κ) : BTreeSet κ × Bool :=
+  (⟨s.items.filter fun x => compare x k != .eq⟩, s.contains k)
+
+/-- `BTreeSet::pop_first`: the set, and its first item. -/
+def popFirst {κ : Type} (s : BTreeSet κ) : BTreeSet κ × Option κ :=
+  (⟨s.items.drop 1⟩, s.items.head?)
 
 end BTreeSet
 

@@ -17,6 +17,11 @@ def nat : D Nat := do let x ← int; if x < 0 then throw "negative" else pure x.
 def u64 : D UInt64 := do
   let n ← nat
   if n < 2 ^ 64 then pure n.toUInt64 else throw "past u64"
+def u32 : D UInt32 := do
+  let n ← nat
+  if n < 2 ^ 32 then pure n.toUInt32 else throw "past u32"
+def dur : D Rust.Duration := do pure ⟨← u64, ← u32⟩
+def instant : D Rust.kio.Instant := do pure ⟨← u64⟩
 def i8 : D Int8 := do
   let x ← int
   if -128 ≤ x ∧ x < 128 then pure (Int8.ofInt x) else throw "past i8"
@@ -123,6 +128,15 @@ def case : D (List String) := do
   | 11 =>
     let h ← hop; let far ← node
     expect "floor_of" (pure (floor_of h far)) (pair (pair u64 u64) u64)
+  | 12 => let d ← dur; expect "debounce" (pure (debounce d)) dur
+  | 13 =>
+    -- `duration_since` and `-` are `saturating_duration_since`, as kio writes them.
+    let i ← instant; let d ← dur; let j ← instant
+    let since := i.saturatingDurationSince j
+    expect "Instant" (pure (i.checkedAdd d, i.checkedSub d, i.saturatingAdd d, i.saturatingSub d,
+        i.checkedDurationSince j, since, since, since))
+      (pair (opt instant) (pair (opt instant) (pair instant (pair instant
+        (pair (opt dur) (pair dur (pair dur dur)))))))
   | _ => throw "kind"
 
 def main (args : List String) : IO UInt32 := do
