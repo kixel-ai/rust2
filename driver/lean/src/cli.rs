@@ -21,12 +21,30 @@ outside the subset is a compile error at its span.
 --census writes every refusal to <file> instead, one per line with its span, followed by
 how many reached functions translated.";
 
-/// The profile every crate compiles with, as a cargo `--config`, which cargo's fingerprint
-/// sees, so a crate cached without it compiles again: its MIR as the source wrote it, with no
-/// inlining or folding across statements, and kept for the crates that call it, so the
-/// package's translation reads its dependencies' bodies as its own. The sysroot comes
-/// prebuilt, and keeps its models.
-const PROFILE: &str = r#"profile.dev.rustflags = ["-Zmir-opt-level=0", "-Zalways-encode-mir"]"#;
+/// The flags every crate compiles with, set on the build's profile as a cargo `--config`, which
+/// cargo's fingerprint sees, so a crate cached without them compiles again: its MIR as the
+/// source wrote it, with no inlining or folding across statements, and kept for the crates
+/// that call it, so the package's translation reads its dependencies' bodies as its own. The
+/// sysroot comes prebuilt, and keeps its models.
+const RUSTFLAGS: &str = r#"["-Zmir-opt-level=0", "-Zalways-encode-mir"]"#;
+
+/// The profile the cargo args pick, `dev` unless they pick one.
+fn profile(cargo: &[String]) -> &str {
+	let mut picked = "dev";
+	let mut args = cargo.iter().take_while(|a| *a != "--");
+	while let Some(arg) = args.next() {
+		match arg.as_str() {
+			"--release" | "-r" => picked = "release",
+			"--profile" => picked = args.next().map_or(picked, String::as_str),
+			_ => {
+				if let Some(name) = arg.strip_prefix("--profile=") {
+					picked = name;
+				}
+			}
+		}
+	}
+	picked
+}
 
 struct Args {
 	out: Option<PathBuf>,
@@ -120,8 +138,8 @@ fn try_run(args: &[String]) -> Result<ExitCode, String> {
 		vars.push((env::CENSUS, census.as_os_str()));
 	}
 	vars.push(("CARGO_UNSTABLE_PROFILE_RUSTFLAGS", "true".as_ref()));
-	// The profile `PROFILE` sets, which cargo refuses to combine with one the cargo args pick.
-	let mut cargo: Vec<String> = ["--config", PROFILE, "--profile", "dev"].map(String::from).into();
+	let config = format!("profile.{}.rustflags = {RUSTFLAGS}", profile(&args.cargo));
+	let mut cargo = vec!["--config".to_string(), config];
 	cargo.extend(args.cargo);
 	Check {
 		tool: "rust2-lean",
@@ -164,4 +182,20 @@ fn package_name(manifest: &Path) -> Result<String, String> {
 		.and_then(|p| p["name"].as_str())
 		.map(str::to_string)
 		.ok_or_else(|| format!("{} is no package's manifest", manifest.display()))
+}
+
+#[cfg(test)]
+mod tests {
+	use super::profile;
+
+	#[test]
+	fn picks_the_profile() {
+		let picked = |args: &[&str]| profile(&args.iter().map(|a| a.to_string()).collect::<Vec<_>>()).to_string();
+		assert_eq!(picked(&[]), "dev");
+		assert_eq!(picked(&["--release"]), "release");
+		assert_eq!(picked(&["-r", "--profile", "profiling"]), "profiling");
+		assert_eq!(picked(&["--profile=bench", "--features", "x"]), "bench");
+		// Past `--`, the arguments are rustc's.
+		assert_eq!(picked(&["--", "--release"]), "dev");
+	}
 }

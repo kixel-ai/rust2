@@ -148,13 +148,13 @@ def case : D (List String) := do
     expect "ticks" (pure (cases.ticks i d j)) (pair (opt u64) (pair u64 (pair dur u64)))
   | 27 =>
     let o ← opt u16; let n ← opt u64
-    expect "passed" (pure (cases.passed o n))
+    expect "passed" (cases.passed o n)
       (pair (opt (do pure (⟨← u16⟩ : cases.lenses.Seeded))) (pair (opt dur) (pair (opt (opt u16))
-        (pair (opt (result u16 u8)) (opt step)))))
+        (pair (opt (result u16 u8)) (pair (opt step) (opt u16))))))
   | 28 => let d ← dur; expect "nanos" (pure (cases.nanos d)) (pair u128 (pair u128 u128))
   | 29 =>
     let a ← u128; let b ← u128; let s ← u32
-    expect "wide_bits" (cases.wide_bits a b s) (pair u128 (pair u128 (pair u128 (pair u128 (pair u128 u128)))))
+    expect "wide_bits" (cases.wide_bits a b s) (pair u128 (pair u128 (pair u128 (pair u128 (pair u128 (pair u128 u128))))))
   | 30 =>
     let a ← u128; let b ← u128
     expect "wide_order" (pure (cases.wide_order a b))

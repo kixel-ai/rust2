@@ -13,7 +13,7 @@ structure Ticks where
   x0 : UInt64
 deriving Repr, DecidableEq, Inhabited, Ord
 
-def Ticks.of (i : kio.clock.instant.Instant) : Ticks :=
+def Ticks.of (i : _root_.kio.clock.instant.Instant) : Ticks :=
   ({ x0 := i.x0 } : Ticks)
 
 def Ticks.checked_add (self : Ticks) (d : Rust.Duration) : (Option Ticks) := Id.run do
@@ -25,11 +25,11 @@ def Ticks.checked_add (self : Ticks) (d : Rust.Duration) : (Option Ticks) := Id.
   | .Break t4_01 =>
     return (none : (Option Ticks))
 
-def Ticks.saturating_add (self : Ticks) (d : Rust.Duration) : Ticks :=
-  (self.checked_add d).getD ({ x0 := (18446744073709551615 : UInt64) } : Ticks)
-
 def Ticks.get (self : Ticks) : UInt64 :=
   self.x0
+
+def Ticks.saturating_add (self : Ticks) (d : Rust.Duration) : Ticks :=
+  (self.checked_add d).getD ({ x0 := (18446744073709551615 : UInt64) } : Ticks)
 
 def Ticks.since (self : Ticks) (earlier : Ticks) : Rust.Duration :=
   ((Rust.checkedSub self.x0 earlier.x0).map Rust.Duration.fromNanos).getD Rust.Duration.ZERO

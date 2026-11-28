@@ -22,18 +22,27 @@ pub(crate) mod env {
 
 /// Run as rustc, with `args` as cargo passed them: the wrapped rustc's path first.
 pub(crate) fn run(args: Vec<String>) -> ExitCode {
-	rust2_driver::rustc::run("rust2-lean", args, |args, _| {
+	rust2_driver::rustc::run("rust2-lean", args, |args, added| {
 		let Ok(package) = std::env::var(env::PACKAGE) else {
 			return Ok(None);
 		};
 		if !rust2_driver::rustc::compiles_lib(args, &package) {
 			return Ok(None);
 		}
-		let roots = std::env::var(env::ROOTS)
+		let roots: Vec<String> = std::env::var(env::ROOTS)
 			.unwrap_or_default()
 			.lines()
 			.map(str::to_string)
 			.collect();
+		// rustc loads a dependency only once the source names it, so load each a root names.
+		for name in roots.iter().filter_map(|r| r.split("::").next()) {
+			let passed = args
+				.windows(2)
+				.any(|w| w[0] == "--extern" && w[1].split('=').next().and_then(|n| n.rsplit(':').next()) == Some(name));
+			if passed {
+				added.extend(["-Zunstable-options".into(), "--extern".into(), format!("force:{name}")]);
+			}
+		}
 		let output = match (std::env::var_os(env::OUT), std::env::var_os(env::CENSUS)) {
 			(Some(out), None) => Output::Dir(out.into()),
 			(None, Some(census)) => Output::Census(census.into()),

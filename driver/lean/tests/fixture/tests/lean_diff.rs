@@ -457,8 +457,8 @@ fn case(rng: &mut Rng) -> W {
 			let n = (!rng.one_in(3)).then(|| rng.count());
 			w.put(o).put(n);
 			outcome(&mut w, || {
-				let (a, b, c, d, e) = cases::passed(o, n);
-				(a, (b, (c, (d, e))))
+				let (a, b, c, d, e, f) = cases::passed(o, n);
+				(a, (b, (c, (d, (e, f)))))
 			});
 		}
 		28 => {
@@ -473,8 +473,8 @@ fn case(rng: &mut Rng) -> W {
 			let (a, b, s) = (rng.huge(), rng.huge(), rng.shift());
 			w.put(a).put(b).put(s);
 			outcome(&mut w, || {
-				let (c, d, e, f, g, h) = cases::wide_bits(a, b, s);
-				(c, (d, (e, (f, (g, h)))))
+				let (c, d, e, f, g, h, i) = cases::wide_bits(a, b, s);
+				(c, (d, (e, (f, (g, (h, i))))))
 			});
 		}
 		30 => {

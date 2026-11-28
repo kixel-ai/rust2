@@ -362,18 +362,21 @@ def cases.compared (a : Rust.Duration) (b : Rust.Duration) (p : (UInt8 × cases.
   let t26 := b
   return (decide (compare a b = .lt), decide (compare a b ≠ .gt), decide (compare a b = .gt), decide (compare a b ≠ .lt), Rust.ordMax a b, Rust.ordMin a b, compare a t26, decide (compare p q = .lt), decide (compare p q ≠ .lt))
 
-def cases.ticks (i : kio.clock.instant.Instant) (d : Rust.Duration) (j : UInt64) : ((Option UInt64) × UInt64 × Rust.Duration × UInt64) := Id.run do
-  let t := fixture_dep.Ticks.of i
-  let u := fixture_dep.Ticks.of ({ x0 := j } : kio.clock.instant.Instant)
-  return ((t.checked_add d).map (fixture_dep.Ticks.get), fixture_dep.Ticks.get (t.saturating_add d), t.since u, fixture_dep.Ticks.get (fixture_dep.larger t u))
+def cases.ticks (i : _root_.kio.clock.instant.Instant) (d : Rust.Duration) (j : UInt64) : ((Option UInt64) × UInt64 × Rust.Duration × UInt64) := Id.run do
+  let t := _root_.fixture_dep.Ticks.of i
+  let u := _root_.fixture_dep.Ticks.of ({ x0 := j } : _root_.kio.clock.instant.Instant)
+  return ((t.checked_add d).map (_root_.fixture_dep.Ticks.get), _root_.fixture_dep.Ticks.get (t.saturating_add d), t.since u, _root_.fixture_dep.Ticks.get (_root_.fixture_dep.larger t u))
 
-def cases.passed (o : (Option UInt16)) (n : (Option UInt64)) : ((Option cases.lenses.Seeded) × (Option Rust.Duration) × (Option (Option UInt16)) × (Option (Except UInt8 UInt16)) × (Option cases.Step)) :=
-  (o.map cases.lenses.Seeded.mk, n.map Rust.Duration.fromNanos, o.map some, o.map Except.ok, o.map cases.Step.Ahead)
+def elsewhere.doubled (x : UInt16) : Rust.M UInt16 := do
+  return (← x *? 2)
+
+def cases.passed (o : (Option UInt16)) (n : (Option UInt64)) : Rust.M ((Option cases.lenses.Seeded) × (Option Rust.Duration) × (Option (Option UInt16)) × (Option (Except UInt8 UInt16)) × (Option cases.Step) × (Option UInt16)) := do
+  return (o.map cases.lenses.Seeded.mk, n.map Rust.Duration.fromNanos, o.map some, o.map Except.ok, o.map cases.Step.Ahead, (← Rust.mapM o (elsewhere.doubled)))
 
 def cases.nanos (d : Rust.Duration) : (Rust.UInt128 × Rust.UInt128 × Rust.UInt128) :=
   (Rust.Duration.asNanos d, Rust.Duration.asMicros d, Rust.Duration.asMillis d)
 
-def cases.wide_bits (a : Rust.UInt128) (b : Rust.UInt128) (s : UInt32) : Rust.M (Rust.UInt128 × Rust.UInt128 × Rust.UInt128 × Rust.UInt128 × Rust.UInt128 × Rust.UInt128) := do
+def cases.wide_bits (a : Rust.UInt128) (b : Rust.UInt128) (s : UInt32) : Rust.M (Rust.UInt128 × Rust.UInt128 × Rust.UInt128 × Rust.UInt128 × Rust.UInt128 × Rust.UInt128 × Rust.UInt128) := do
   unless ¬((128 : UInt32) = (0 : UInt32)) do throw "attempt to calculate the remainder with a divisor of zero"
   let t17 := s % 128
   let t20 := decide (t17 < 128)
@@ -382,7 +385,11 @@ def cases.wide_bits (a : Rust.UInt128) (b : Rust.UInt128) (s : UInt32) : Rust.M 
   let t23 := s % 128
   let t26 := decide (t23 < 128)
   unless t26 do throw "attempt to shift right with overflow"
-  return (a &&& b, a ||| b, a ^^^ b, ~~~a, a <<< (Rust.cast Rust.UInt128 t17), a >>> (Rust.cast Rust.UInt128 t23))
+  let t31 := decide ((Rust.cast UInt32 (1 : Int32)) < 128)
+  unless t31 do throw "attempt to shift left with overflow"
+  let t34 := decide ((3 : UInt8) < (128 : UInt8))
+  unless t34 do throw "attempt to shift right with overflow"
+  return (a &&& b, a ||| b, a ^^^ b, ~~~a, a <<< (Rust.cast Rust.UInt128 t17), a >>> (Rust.cast Rust.UInt128 t23), (a <<< (Rust.cast Rust.UInt128 (1 : Int32))) ||| (b >>> (Rust.cast Rust.UInt128 (3 : UInt8))))
 
 def cases.wide_order (a : Rust.UInt128) (b : Rust.UInt128) : ((Option Rust.UInt128) × (Option Rust.UInt128) × Rust.UInt128 × Rust.UInt128 × Rust.UInt128 × Rust.UInt128 × Bool × Ordering) := Id.run do
   let t27 := b

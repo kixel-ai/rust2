@@ -12,8 +12,8 @@ just driver lean --out lean --start-from 'kio::clock::instant::Instant::checked_
 `--out` writes `Rust.lean`, the runtime every translation imports ([lean/Rust.lean](lean/Rust.lean)), and a `<Crate>.lean` for each crate reached: every function a `--start-from` path names or prefixes, and every function and type they reach outside the sysroot.
 A path starts with `crate::` for the package and with a dependency's name for that dependency.
 A dependency's functions are translated from its MIR under the same subset, so its own code stands in for a hand model; the sysroot's `std`, `core`, and `alloc` keep the models below.
-Its file imports the files of the crates it calls, and names their items under the crate's name, as `kio.clock.instant.Instant`.
-The translation builds every crate in its own target directory, `target/rust2-lean`, with `-Zmir-opt-level=0` and `-Zalways-encode-mir` set through a cargo profile, so a dependency's MIR is there and a cached build without it is rebuilt.
+Its file imports the files of the crates it calls, and names their items under the crate's name from the root namespace, as `_root_.kio.clock.instant.Instant`, so a module of the same name never hides them.
+The translation builds every crate in its own target directory, `target/rust2-lean`, with `-Zmir-opt-level=0` and `-Zalways-encode-mir` set on the cargo profile the arguments after `--` pick, `dev` by default, so a dependency's MIR is there and a cached build without it is rebuilt. A dependency only a `--start-from` path names is loaded as if the source named it.
 A construct outside the subset is a compile error at its span, in a dependency's source too, and so is a `--start-from` path that names no function. A method is named under its type's module, wherever its `impl` is written.
 `--census` lists every refusal with its span instead, then how many reached functions translated, by kind, then each function and whether it translated.
 A closure counts toward the function it is written in, and derived impls and `Debug` impls are not counted, since `deriving` stands in for the first and the second formats.

@@ -271,13 +271,17 @@ impl<'tcx> Cx<'tcx> {
 	}
 
 	/// `name`, of an item of crate `krate`, as the crate being written names it: under the
-	/// crate's name, if it is another's, which its file then imports.
+	/// crate's name from the root namespace, if it is another's, which its file then imports.
+	/// From the root, since a module of the writing crate may share the crate's name.
 	fn qualify(&self, krate: CrateNum, name: String) -> String {
 		if krate == self.krate {
 			return name;
 		}
 		self.imports.borrow_mut().entry(self.krate).or_default().insert(krate);
-		format!("{}.{name}", structure::ident(self.tcx.crate_name(krate).as_str()))
+		format!(
+			"_root_.{}.{name}",
+			structure::ident(self.tcx.crate_name(krate).as_str())
+		)
 	}
 
 	/// The names a variable in crate `krate`'s translation would shadow.
@@ -478,7 +482,14 @@ impl<'tcx> Cx<'tcx> {
 		}
 		let body = tcx.optimized_mir(did);
 		let env = TypingEnv::post_analysis(tcx, did);
-		let mut out = Vec::new();
+		// Every function the body names, called or passed by name, as `o.map(helper)` does.
+		let mut named = FnUses {
+			tcx,
+			env,
+			out: Vec::new(),
+		};
+		mir::visit::Visitor::visit_body(&mut named, body);
+		let mut out: Vec<DefId> = named.out.into_iter().map(|(did, _, _)| did).collect();
 		for bb in body.basic_blocks.iter() {
 			// A closure's body is a function of its own, which the function hands on.
 			for stmt in &bb.statements {
@@ -492,19 +503,16 @@ impl<'tcx> Cx<'tcx> {
 			}
 			if let TerminatorKind::Call { func, destination, .. } = &bb.terminator().kind
 				&& let ty::FnDef(callee, args) = *func.ty(body, tcx).kind()
+				&& resolve_local(tcx, env, callee, args.skip_binder()).is_none()
+				&& self.makes_default(callee)
 			{
-				let args = args.skip_binder();
-				if let Some((local, _)) = resolve_local(tcx, env, callee, args) {
-					out.push(local);
-				} else if self.makes_default(callee) {
-					// `or_default` and the like call the `Default` of what they return.
-					let ty = destination.ty(body, tcx).ty;
-					let ty = match ty.kind() {
-						ty::Ref(_, inner, _) => *inner,
-						_ => ty,
-					};
-					self.default_callees(env, ty, &mut out, &mut HashSet::new());
-				}
+				// `or_default` and the like call the `Default` of what they return.
+				let ty = destination.ty(body, tcx).ty;
+				let ty = match ty.kind() {
+					ty::Ref(_, inner, _) => *inner,
+					_ => ty,
+				};
+				self.default_callees(env, ty, &mut out, &mut HashSet::new());
 			}
 		}
 		out
@@ -2650,6 +2658,8 @@ impl<'a, 'tcx> Fx<'a, 'tcx> {
 	}
 
 	fn binop(&mut self, op: BinOp, a: Ex, b: Ex, ta: Ty<'tcx>, tb: Ty<'tcx>, span: Span) -> R<Ex> {
+		// A shift's amount may differ in type from what it shifts, where a literal keeps its own.
+		let amount = b.clone();
 		let (a, b) = strip_lits(a, b);
 		let infix = |sym: &str| compound(format!("{} {sym} {}", a.paren(), b.paren()), &[&a, &b]);
 		let cmp = |sym: &str| {
@@ -2677,13 +2687,15 @@ impl<'a, 'tcx> Fx<'a, 'tcx> {
 					">>>"
 				};
 				let lean_a = self.cx.ty(ta, span)?;
+				let lean_b = self.cx.ty(tb, span)?;
 				let a = match &a.lit {
 					Some(l) => atom(format!("({l} : {lean_a})")),
 					None => a.clone(),
 				};
+				let b = if ta == tb { b.clone() } else { amount };
 				let amount = if ta == tb {
 					b.paren()
-				} else if !tb.is_signed() && builtin(&lean_a) && builtin(&self.cx.ty(tb, span)?) {
+				} else if !tb.is_signed() && builtin(&lean_a) && builtin(&lean_b) {
 					format!("{}.to{lean_a}", b.paren())
 				} else {
 					format!("(Rust.cast {lean_a} {})", b.paren())

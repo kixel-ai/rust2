@@ -356,12 +356,28 @@ pub mod cases {
 		Ahead(u16),
 	}
 
-	/// Functions passed where a closure is taken: constructors, and a `std` function.
+	/// Functions passed where a closure is taken: constructors, a `std` function, and one of
+	/// the crate's that nothing else reaches.
+	#[allow(clippy::type_complexity, reason = "one of each kind passed")]
 	pub fn passed(
 		o: Option<u16>,
 		n: Option<u64>,
-	) -> (Option<lenses::Seeded>, Option<Duration>, Option<Option<u16>>, Option<Result<u16, u8>>, Option<Step>) {
-		(o.map(lenses::Seeded), n.map(Duration::from_nanos), o.map(Some), o.map(Ok), o.map(Step::Ahead))
+	) -> (
+		Option<lenses::Seeded>,
+		Option<Duration>,
+		Option<Option<u16>>,
+		Option<Result<u16, u8>>,
+		Option<Step>,
+		Option<u16>,
+	) {
+		(
+			o.map(lenses::Seeded),
+			n.map(Duration::from_nanos),
+			o.map(Some),
+			o.map(Ok),
+			o.map(Step::Ahead),
+			o.map(super::elsewhere::doubled),
+		)
 	}
 
 	/// `Duration` in `u128`s.
@@ -369,9 +385,9 @@ pub mod cases {
 		(d.as_nanos(), d.as_micros(), d.as_millis())
 	}
 
-	/// `u128`'s bitwise operations, and shifts by an amount of another type.
-	pub fn wide_bits(a: u128, b: u128, s: u32) -> (u128, u128, u128, u128, u128, u128) {
-		(a & b, a | b, a ^ b, !a, a << (s % 128), a >> (s % 128))
+	/// `u128`'s bitwise operations, and shifts by an amount of another type, literal or not.
+	pub fn wide_bits(a: u128, b: u128, s: u32) -> (u128, u128, u128, u128, u128, u128, u128) {
+		(a & b, a | b, a ^ b, !a, a << (s % 128), a >> (s % 128), (a << 1) | (b >> 3u8))
 	}
 
 	pub fn wide_order(a: u128, b: u128) -> (Option<u128>, Option<u128>, u128, u128, u128, u128, bool, std::cmp::Ordering) {
@@ -618,6 +634,11 @@ mod elsewhere {
 		pub fn raw(self) -> u64 {
 			self.0
 		}
+	}
+
+	/// Twice `x`, which `cases::passed` reaches only by passing it, panicking on overflow.
+	pub fn doubled(x: u16) -> u16 {
+		x * 2
 	}
 }
 
