@@ -1231,8 +1231,8 @@ impl<'tcx> Cx<'tcx> {
 			"Iter" if path.contains("option::") => &[],
 			"IntoIter" if ["vec::", "option::", "array::"].iter().any(|m| path.contains(m)) => &[],
 			"Once" => &[],
-			"Map" | "Filter" | "FilterMap" | "FlatMap" | "Flatten" | "Peekable" | "Copied" | "Cloned"
-			| "Enumerate" | "Rev" | "TakeWhile" => &[0],
+			"Map" | "Filter" | "FilterMap" | "FlatMap" | "Flatten" | "Peekable" | "Copied" | "Cloned" | "Enumerate"
+			| "Rev" | "TakeWhile" => &[0],
 			"Chain" => &[0, 1],
 			_ => return None,
 		};
@@ -1309,10 +1309,8 @@ impl<'tcx> Cx<'tcx> {
 			ty::Array(..) => Items::Collection(".toList", "Vector.toList"),
 			ty::Slice(_) => Items::Collection(".toList", "Array.toList"),
 			ty::Adt(def, args) => match (self.ops_range(def.did()), self.std_name(def.did()).as_str()) {
-				// Stepped, which `ty` alone does by value.
-				(Some("Range"), _) if !ty.is_ref() && args.type_at(0).is_integral() => {
-					Items::Range("Rust.rangeItems")
-				}
+				// Only by value: a `&Range` is not an iterator.
+				(Some("Range"), _) if !ty.is_ref() && args.type_at(0).is_integral() => Items::Range("Rust.rangeItems"),
 				(Some("RangeInclusive"), _) if !ty.is_ref() && args.type_at(0).is_integral() => {
 					Items::Range("Rust.rangeInclusiveItems")
 				}
@@ -3598,7 +3596,6 @@ impl<'a, 'tcx> Fx<'a, 'tcx> {
 			None => refuse(span, "this mutable argument is not supported"),
 		}
 	}
-
 
 	/// The Lean name of translated function `callee`, with each generic argument Lean cannot infer
 	/// from its arguments' Lean types, refusing an argument its bounds cannot take.

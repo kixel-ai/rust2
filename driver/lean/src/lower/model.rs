@@ -405,7 +405,10 @@ impl<'tcx> Fx<'_, 'tcx> {
 						&[&it.ex],
 					)),
 					(true, false) => bound(compound(
-						format!("Rust.lazyFold (fun a b => pure (a + b)) (Rust.Scalar.ofInt 0) {}", it.ex.paren()),
+						format!(
+							"Rust.lazyFold (fun a b => pure (a + b)) (Rust.Scalar.ofInt 0) {}",
+							it.ex.paren()
+						),
 						&[&it.ex],
 					)),
 				}
@@ -453,7 +456,9 @@ impl<'tcx> Fx<'_, 'tcx> {
 			"BTreeMap::range" | "BTreeSet::range" => {
 				return refuse(
 					span,
-					format!("`{key}` is not supported, since whether it panics depends on whether the collection has ever held an item"),
+					format!(
+						"`{key}` is not supported, since whether it panics depends on whether the collection has ever held an item"
+					),
 				);
 			}
 			"Extend::extend for BTreeSet" | "Extend::extend for Vec" => {
