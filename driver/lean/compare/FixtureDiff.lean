@@ -4,6 +4,9 @@ import Fixture
 import Std.Data.HashMap
 open fixture
 
+-- The widest cases' tuples need more than the default to find their `DecidableEq`.
+set_option synthInstance.maxSize 1024
+
 abbrev D := StateT (List Int) (Except String)
 
 def int : D Int := do
@@ -30,6 +33,15 @@ def arr (d : D α) : D (Array α) := do
   for _ in [0:n] do a := a.push (← d)
   pure a
 def rank : D cases.Rank := do pure { up := ← boolean, low := ⟨← i8⟩ }
+def dur : D Rust.Duration := do pure ⟨← u64, ← u32⟩
+def ordering : D Ordering := do
+  match (← int) with
+  | -1 => pure .lt
+  | 0 => pure .eq
+  | 1 => pure .gt
+  | _ => throw "an ordering"
+def ledger : D cases.Ledger := do
+  pure { m := ⟨(← arr (pair rank u16)).toList⟩, s := ⟨(← arr u8).toList⟩, q := ⟨(← arr u8).toList⟩ }
 
 /-- A panic's message, as its length and bytes. -/
 def str : D String := do
@@ -75,6 +87,29 @@ def case : D (List String) := do
   | 13 =>
     let b ← boolean; let o ← opt u8
     expect "then_unwrap" (cases.then_unwrap b o) (opt u8)
+  | 14 =>
+    let ms ← u64; let ns ← u64; let s ← u64
+    expect "spans" (pure (cases.spans ms ns s)) (pair dur (pair dur (pair dur (pair dur (pair dur dur)))))
+  | 15 =>
+    let a ← dur; let b ← dur; let k ← u32
+    expect "sums" (pure (cases.sums a b k))
+      (pair (opt dur) (pair (opt dur) (pair (opt dur) (pair dur (pair dur dur)))))
+  | 16 =>
+    let a ← dur; let b ← dur; let p ← pair u8 rank; let q ← pair u8 rank
+    expect "compared" (pure (cases.compared a b p q))
+      (pair boolean (pair boolean (pair boolean (pair boolean (pair dur (pair dur (pair ordering (pair boolean boolean))))))))
+  | 17 =>
+    let l ← ledger; let r ← rank; let v ← u16; let k ← u8
+    expect "edit" (pure (l.edit r v k))
+      (pair (pair (opt u16) (pair (opt (pair rank u16)) (pair (opt u16) (pair boolean (pair boolean (opt u8)))))) ledger)
+  | 18 =>
+    let l ← ledger; let x ← u8
+    expect "queue" (pure (l.queue x)) (pair (pair (opt u8) (pair boolean u64)) ledger)
+  | 19 =>
+    let l ← ledger; let r ← rank
+    expect "peeks" (cases.peeks l r)
+      (pair (opt (pair rank u16)) (pair (arr rank) (pair (arr u16) (pair (arr (pair rank u16))
+        (pair (opt u8) (pair (arr u8) (pair (arr u8) u16)))))))
   | _ => throw "kind"
 
 def main (args : List String) : IO UInt32 := do

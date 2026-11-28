@@ -292,6 +292,104 @@ pub mod cases {
 	pub fn heavier<W: Weight>(a: &W, b: &W) -> bool {
 		a.weight() > b.weight()
 	}
+
+	use std::collections::{BTreeMap, BTreeSet, VecDeque};
+	use std::time::Duration;
+
+	/// A `Duration` constant, which Lean builds from its seconds and nanoseconds.
+	const TICK: Duration = Duration::from_millis(1500);
+
+	pub fn spans(ms: u64, ns: u64, s: u64) -> (Duration, Duration, Duration, Duration, Duration, Duration) {
+		(
+			Duration::from_millis(ms),
+			Duration::from_nanos(ns),
+			Duration::from_secs(s),
+			Duration::ZERO,
+			Duration::MAX,
+			TICK,
+		)
+	}
+
+	/// `Duration`'s checked and saturating arithmetic, which overflows at its seconds' `u64`.
+	pub fn sums(
+		a: Duration,
+		b: Duration,
+		k: u32,
+	) -> (Option<Duration>, Option<Duration>, Option<Duration>, Duration, Duration, Duration) {
+		(
+			a.checked_add(b),
+			a.checked_sub(b),
+			a.checked_mul(k),
+			a.saturating_add(b),
+			a.saturating_sub(b),
+			a.saturating_mul(k),
+		)
+	}
+
+	/// Comparisons through `PartialOrd` and `Ord` on derived orders: a `Duration`'s, and a
+	/// tuple's, which compares field by field.
+	pub fn compared(
+		a: Duration,
+		b: Duration,
+		p: (u8, Rank),
+		q: (u8, Rank),
+	) -> (bool, bool, bool, bool, Duration, Duration, std::cmp::Ordering, bool, bool) {
+		(a < b, a <= b, a > b, a >= b, a.max(b), a.min(b), a.cmp(&b), p < q, p >= q)
+	}
+
+	/// Collections changed in place through a field of `&mut self`.
+	pub struct Ledger {
+		pub m: BTreeMap<Rank, u16>,
+		pub s: BTreeSet<u8>,
+		pub q: VecDeque<u8>,
+	}
+
+	impl Ledger {
+		pub fn edit(&mut self, r: Rank, v: u16, k: u8) -> (Option<u16>, Option<(Rank, u16)>, Option<u16>, bool, bool, Option<u8>) {
+			let old = self.m.insert(r, v);
+			let first = self.m.pop_first();
+			let gone = self.m.remove(&r);
+			let new = self.s.insert(k);
+			let had = self.s.remove(&(k ^ 1));
+			let low = self.s.pop_first();
+			(old, first, gone, new, had, low)
+		}
+
+		pub fn queue(&mut self, x: u8) -> (Option<u8>, bool, usize) {
+			self.q.push_back(x);
+			let front = self.q.pop_front();
+			(front, self.q.is_empty(), self.q.len())
+		}
+	}
+
+	/// Indexing a map whose keys are references, by a borrow of one.
+	pub fn by_ref(m: &BTreeMap<&u8, u8>, k: &u8) -> u8 {
+		m[&k]
+	}
+
+	pub fn key_list<K: Ord + Copy, V>(m: &BTreeMap<K, V>) -> Vec<K> {
+		keys_of(m.keys())
+	}
+
+	/// A `Keys<K, V>` lowers to a `List K`, so a call names the `V` it erases.
+	fn keys_of<K: Copy, V>(keys: std::collections::btree_map::Keys<'_, K, V>) -> Vec<K> {
+		keys.copied().collect()
+	}
+
+	/// What a sorted map, a sorted set, and a queue read back, in order; `m[&r]` panics when
+	/// `r` is absent.
+	pub fn peeks(l: &Ledger, r: Rank) -> (Option<(Rank, u16)>, Vec<Rank>, Vec<u16>, Vec<(Rank, u16)>, Option<u8>, Vec<u8>, Vec<u8>, u16) {
+		(
+			l.m.get_key_value(&r).map(|(k, v)| (*k, *v)),
+			l.m.keys().copied().collect(),
+			l.m.values().copied().collect(),
+			l.m.iter().map(|(k, v)| (*k, *v)).collect(),
+			l.s.first().copied(),
+			l.s.iter().copied().collect(),
+			l.q.iter().copied().collect(),
+			l.m[&r],
+		)
+	}
 }
 
 /// An inherent `impl` outside its type's module, which `--start-from crate::cases` reaches.
@@ -629,6 +727,29 @@ pub mod refused {
 
 	pub fn numbered(v: &[u8]) -> Vec<(usize, u8)> {
 		v.iter().map(|y| y + 1).enumerate().collect()
+	}
+
+	/// A parameter with no `Ord` bound, whose Lean type has no order to compare by.
+	pub fn below<T: PartialOrd>(a: &T, b: &T) -> bool {
+		a < b
+	}
+
+	pub fn oddest(a: Odd, b: Odd) -> Odd {
+		a.max(b)
+	}
+
+	pub fn unname(m: &mut std::collections::BTreeMap<String, u8>, k: &str) -> Option<u8> {
+		m.remove(k)
+	}
+
+	/// A `u128`, which has no Lean model.
+	pub fn millis(d: std::time::Duration) -> u128 {
+		d.as_millis()
+	}
+
+	/// Another crate's trait named `Sub` on kio's `Instant`, which kio's model does not cover.
+	pub fn elapsed(a: kio::clock::instant::Instant, b: kio::clock::instant::Instant) -> std::time::Duration {
+		fixture_dep::Sub::sub(a, b)
 	}
 }
 

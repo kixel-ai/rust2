@@ -1,5 +1,6 @@
 //! Models of `std` calls that take closures or make iterators, and of the `Option`, slice,
-//! integer, `Ord`, `Arc`, and `BTreeMap`/`BTreeSet` functions beside them.
+//! integer, `Ord`, `Arc`, `BTreeMap`/`BTreeSet`, `VecDeque`, `Duration`, and kio `Instant`
+//! functions beside them.
 //!
 //! An iterator is the list of its items ([`Cx::iterator`]): pure, or each item the action
 //! that makes it when a closure that may panic maps it, so a consumer meets a panic only at
@@ -42,7 +43,7 @@ impl<'tcx> Fx<'_, 'tcx> {
 			.filter(|t| self.cx.is_std(*t))
 			.map(|t| format!("{}::{}", tcx.item_name(t), tcx.item_name(call.callee)));
 		let key = match trait_key.as_deref() {
-			Some(t) if t.starts_with("Iterator::") || t.starts_with("Ord::") => t,
+			Some(t) if ["Iterator::", "Ord::", "PartialOrd::"].iter().any(|p| t.starts_with(p)) => t,
 			_ => key,
 		};
 		// `&a + b` on integers, which std forwards to `a + b`, overflow check and all.
@@ -281,7 +282,42 @@ impl<'tcx> Fx<'_, 'tcx> {
 				let f = if key == "Ord::min" { "min" } else { "max" };
 				compound(format!("{f} {} {}", a.paren(), b.paren()), &[&a, &b])
 			}
-			k if k.ends_with("::saturating_add") || k.ends_with("::saturating_sub") => {
+			// On any other type whose order Lean derives alike.
+			"Ord::cmp" | "Ord::min" | "Ord::max" => {
+				self.ordered(call.gargs.type_at(0), span)?;
+				let a = self.operand(&call.args[0].node, span)?;
+				let b = self.operand(&call.args[1].node, span)?;
+				let f = match key {
+					"Ord::cmp" => "compare",
+					"Ord::min" => "Rust.ordMin",
+					_ => "Rust.ordMax",
+				};
+				compound(format!("{f} {} {}", a.paren(), b.paren()), &[&a, &b])
+			}
+			"PartialOrd::lt" | "PartialOrd::le" | "PartialOrd::gt" | "PartialOrd::ge" => {
+				let (t, rhs) = (call.gargs.type_at(0), call.gargs.type_at(1));
+				if tcx.erase_and_anonymize_regions(t) != tcx.erase_and_anonymize_regions(rhs) {
+					return refuse(span, format!("comparing `{t}` with `{rhs}` is not supported"));
+				}
+				self.ordered(t, span)?;
+				let a = self.operand(&call.args[0].node, span)?;
+				let b = self.operand(&call.args[1].node, span)?;
+				let (a, b) = strip_lits(a, b);
+				let rel = match key {
+					"PartialOrd::lt" => "= .lt",
+					"PartialOrd::le" => "≠ .gt",
+					"PartialOrd::gt" => "= .gt",
+					_ => "≠ .lt",
+				};
+				let prop = format!("compare {} {} {rel}", a.paren(), b.paren());
+				let mut ex = compound(format!("decide ({prop})"), &[&a, &b]);
+				ex.prop = Some(prop);
+				ex
+			}
+			// On an integer: `Duration`'s and kio `Instant`'s have models of their own.
+			k if (k.ends_with("::saturating_add") || k.ends_with("::saturating_sub"))
+				&& call.args[0].node.ty(self.body, tcx).is_integral() =>
+			{
 				let a = self.operand(&call.args[0].node, span)?;
 				let b = self.operand(&call.args[1].node, span)?;
 				let (a, b) = strip_lits(a, b);
@@ -322,7 +358,7 @@ impl<'tcx> Fx<'_, 'tcx> {
 				};
 				atom(format!("(Rust.{ns}.empty : {ty})"))
 			}
-			"BTreeMap::get" | "BTreeMap::contains_key" | "BTreeSet::contains" => {
+			"BTreeMap::get" | "BTreeMap::get_key_value" | "BTreeMap::contains_key" | "BTreeSet::contains" => {
 				let n = call.gargs.len();
 				let (k, q) = (call.gargs.type_at(0), call.gargs.type_at(n - 1));
 				if tcx.erase_and_anonymize_regions(k) != tcx.erase_and_anonymize_regions(q) {
@@ -333,10 +369,121 @@ impl<'tcx> Fx<'_, 'tcx> {
 				let x = self.operand(&call.args[1].node, span)?;
 				let f = match key {
 					"BTreeMap::get" => "get",
+					"BTreeMap::get_key_value" => "getKeyValue",
 					"BTreeMap::contains_key" => "containsKey",
 					_ => "contains",
 				};
 				compound(format!("{}.{f} {}", m.paren(), x.paren()), &[&m, &x])
+			}
+			"Index::index for BTreeMap" => {
+				let ty::Adt(_, margs) = call.gargs.type_at(0).kind() else {
+					return refuse(span, "indexing this map is not supported");
+				};
+				// `&Q`: only the lookup's own borrow comes off, since a key may be a reference too.
+				let q = match call.gargs.type_at(1).kind() {
+					ty::Ref(_, q, _) => *q,
+					_ => call.gargs.type_at(1),
+				};
+				let k = margs.type_at(0);
+				if tcx.erase_and_anonymize_regions(k) != tcx.erase_and_anonymize_regions(q) {
+					return refuse(span, format!("looking up `{k}` by `{q}` is not supported"));
+				}
+				self.ordered(k, span)?;
+				let m = self.operand(&call.args[0].node, span)?;
+				let x = self.operand(&call.args[1].node, span)?;
+				bound(compound(
+					format!("Rust.BTreeMap.index {} {}", m.paren(), x.paren()),
+					&[&m, &x],
+				))
+			}
+			"BTreeMap::insert"
+			| "BTreeMap::remove"
+			| "BTreeMap::pop_first"
+			| "BTreeSet::insert"
+			| "BTreeSet::remove"
+			| "BTreeSet::pop_first" => {
+				let (ns, method) = key.split_once("::").expect("keys have a method");
+				let k = call.gargs.type_at(0);
+				// A lookup by a borrowed form of the key, such as `str` for `String`, has no model.
+				if method == "remove" {
+					let q = call.gargs.type_at(call.gargs.len() - 1);
+					if tcx.erase_and_anonymize_regions(k) != tcx.erase_and_anonymize_regions(q) {
+						return refuse(span, format!("looking up `{k}` by `{q}` is not supported"));
+					}
+				}
+				if method != "pop_first" {
+					self.ordered(k, span)?;
+				}
+				let f = match method {
+					"insert" => "insert",
+					"remove" => "remove",
+					_ => "popFirst",
+				};
+				self.mutate(&format!("{ns}.{f}"), call, ops)?;
+				return Ok(true);
+			}
+			"VecDeque::pop_front" => {
+				self.mutate("VecDeque.popFront", call, ops)?;
+				return Ok(true);
+			}
+			"VecDeque::new" => {
+				let ty = self.cx.ty(call.destination.ty(self.body, tcx).ty, span)?;
+				atom(format!("(Rust.VecDeque.empty : {ty})"))
+			}
+			"VecDeque::push_back" => {
+				let place = self.mutable_arg(&call.args[0].node, span)?;
+				let x = self.operand(&call.args[1].node, span)?;
+				let cur = self.read_place(place, span)?;
+				let new = compound(format!("{}.pushBack {}", cur.paren(), x.paren()), &[&cur, &x]);
+				self.assign(place, new, span, ops)?;
+				return Ok(true);
+			}
+			"VecDeque::is_empty" | "VecDeque::len" | "VecDeque::iter" => {
+				let d = self.operand(&call.args[0].node, span)?;
+				let text = match key {
+					"VecDeque::is_empty" => format!("{}.items.isEmpty", d.paren()),
+					"VecDeque::len" => format!("{}.items.length.toUInt64", d.paren()),
+					_ => {
+						self.same_list(call, false)?;
+						format!("{}.items", d.paren())
+					}
+				};
+				compound(text, &[&d])
+			}
+			"BTreeSet::first" => {
+				let s = self.operand(&call.args[0].node, span)?;
+				compound(format!("{}.items.head?", s.paren()), &[&s])
+			}
+			"BTreeMap::keys" | "BTreeMap::values" | "BTreeMap::iter" | "BTreeSet::iter" => {
+				let m = self.operand(&call.args[0].node, span)?;
+				self.same_list(call, false)?;
+				let text = match key {
+					"BTreeMap::keys" => format!("{}.entries.map (·.1)", m.paren()),
+					"BTreeMap::values" => format!("{}.entries.map (·.2)", m.paren()),
+					"BTreeMap::iter" => format!("{}.entries", m.paren()),
+					_ => format!("{}.items", m.paren()),
+				};
+				compound(text, &[&m])
+			}
+			"Duration::from_secs" | "Duration::from_millis" | "Duration::from_nanos" => {
+				let n = self.operand(&call.args[0].node, span)?;
+				let f = match key {
+					"Duration::from_secs" => "fromSecs",
+					"Duration::from_millis" => "fromMillis",
+					_ => "fromNanos",
+				};
+				compound(format!("Rust.Duration.{f} {}", n.paren()), &[&n])
+			}
+			// `Instant - Duration`, which an older kio also has, would take the model's `Instant`.
+			"Sub::sub for kio::Instant" if !matches!(call.args[1].node.ty(self.body, tcx).kind(), ty::Adt(d, _) if self.cx.kio_instant(d.did())) =>
+			{
+				return refuse(span, "subtracting a `Duration` from an `Instant` has no Lean model");
+			}
+			k if duration_model(k).is_some() => {
+				let a = self.operand(&call.args[0].node, span)?;
+				let b = self.operand(&call.args[1].node, span)?;
+				let f = duration_model(k).expect("matched");
+				compound(format!("Rust.{f} {} {}", a.paren(), b.paren()), &[&a, &b])
 			}
 			"BTreeMap::len" | "BTreeSet::len" => {
 				let m = self.operand(&call.args[0].node, span)?;
@@ -357,12 +504,53 @@ impl<'tcx> Fx<'_, 'tcx> {
 		Ok(true)
 	}
 
+	/// Lower a collection's method that changes it through `&mut self` as the runtime's `f`,
+	/// which returns the new collection and the result, for the borrowed place and the
+	/// destination.
+	fn mutate(&mut self, f: &str, call: &Call<'_, 'tcx>, ops: &mut Vec<Op>) -> R<()> {
+		let span = call.span;
+		let place = self.mutable_arg(&call.args[0].node, span)?;
+		let cur = self.read_place(place, span)?;
+		let mut reads = vec![cur];
+		for a in &call.args[1..] {
+			reads.push(self.operand(&a.node, span)?);
+		}
+		let mut text = format!("Rust.{f}");
+		for r in &reads {
+			text += &format!(" {}", r.paren());
+		}
+		let refs: Vec<&Ex> = reads.iter().collect();
+		let r = self.var("r", String::new(), false);
+		self.before(ops, None, false);
+		ops.push(Op::Set {
+			var: r,
+			value: compound(text, &refs),
+			bind: false,
+		});
+		for (i, target) in [place, call.destination].into_iter().enumerate() {
+			let mut ex = atom(tuple_field(&self.vars[r].name, i, 2));
+			ex.reads.insert(r);
+			let (var, update) = self.write(target, ex, span)?;
+			self.before(ops, Some(var), false);
+			push_set(ops, var, update);
+			self.written.insert(var);
+		}
+		Ok(())
+	}
+
 	/// Refuse a key type whose `Ord` the translation's `Ord` may not match.
 	fn ordered(&self, ty: Ty<'tcx>, span: Span) -> R<()> {
-		if self.cx.structural_ord(ty) {
-			Ok(())
-		} else {
-			refuse(span, format!("`Ord` of `{ty}` may not match a Lean order"))
+		if !self.cx.structural_ord(ty) {
+			return refuse(span, format!("`Ord` of `{ty}` may not match a Lean order"));
+		}
+		// A parameter's Lean instance comes from its own `Ord` bound.
+		let ord = self.cx.tcx.get_diagnostic_item(rustc_span::sym::Ord);
+		let unbound = ty.walk().filter_map(|a| a.as_type()).find(
+			|t| matches!(t.kind(), ty::Param(p) if !ord.is_some_and(|o| self.cx.param_bounds(self.did, p.index).contains(&o))),
+		);
+		match unbound {
+			Some(t) => refuse(span, format!("ordering `{t}` needs an `Ord` bound on it")),
+			None => Ok(()),
 		}
 	}
 
@@ -491,6 +679,27 @@ impl<'tcx> Fx<'_, 'tcx> {
 			_ => refuse(call.span, format!("`{ty}` has no Lean model")),
 		}
 	}
+}
+
+/// The runtime's model of a two-argument `Duration` or kio `Instant` method.
+fn duration_model(key: &str) -> Option<&'static str> {
+	Some(match key {
+		"Duration::checked_add" => "Duration.checkedAdd",
+		"Duration::checked_sub" => "Duration.checkedSub",
+		"Duration::checked_mul" => "Duration.checkedMul",
+		"Duration::saturating_add" => "Duration.saturatingAdd",
+		"Duration::saturating_sub" => "Duration.saturatingSub",
+		"Duration::saturating_mul" => "Duration.saturatingMul",
+		"kio::Instant::checked_add" => "kio.Instant.checkedAdd",
+		"kio::Instant::checked_sub" => "kio.Instant.checkedSub",
+		"kio::Instant::saturating_add" => "kio.Instant.saturatingAdd",
+		"kio::Instant::saturating_sub" => "kio.Instant.saturatingSub",
+		"kio::Instant::checked_duration_since" => "kio.Instant.checkedDurationSince",
+		"kio::Instant::saturating_duration_since" | "kio::Instant::duration_since" | "Sub::sub for kio::Instant" => {
+			"kio.Instant.saturatingDurationSince"
+		}
+		_ => return None,
+	})
 }
 
 /// `s` as a Lean string literal.

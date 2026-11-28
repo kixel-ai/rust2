@@ -7,8 +7,16 @@ name = "fixture"
 version = "0.0.0"
 dependencies = [
  "fixture-dep",
+ "kio",
 ]
 
 [[package]]
 name = "fixture-dep"
+version = "0.0.0"
+dependencies = [
+ "kio",
+]
+
+[[package]]
+name = "kio"
 version = "0.0.0"

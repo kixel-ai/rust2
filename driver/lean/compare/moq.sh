@@ -38,7 +38,8 @@ timed() {
 
 cargo build --quiet --locked --release --manifest-path "$driver/Cargo.toml" --package rust2-lean
 rm -rf "$work/out"
-# The functions the route algebra's proof binds (moq-net's route/tests/algebra.rs).
+# The functions the route algebra's proof binds (moq-net's route/tests/algebra.rs), and
+# `debounce`, the reader's time arithmetic.
 timed "$driver/target/release/rust2-lean" --out "$work/out" --manifest-path "$net/Cargo.toml" \
 	--start-from 'crate::route::relay::Offer' \
 	--start-from 'crate::route::relay::Here' \
@@ -46,7 +47,8 @@ timed "$driver/target/release/rust2-lean" --out "$work/out" --manifest-path "$ne
 	--start-from 'crate::route::relay::Claim' \
 	--start-from 'crate::route::relay::claim_order' \
 	--start-from 'crate::route::relay::precedence' \
-	--start-from 'crate::route::relay::floor_of'
+	--start-from 'crate::route::relay::floor_of' \
+	--start-from 'crate::route::relay::debounce'
 if [ "${1:-}" = --write ]; then
 	cp "$work/out/MoqNet.lean" "$here/MoqNet.lean"
 else

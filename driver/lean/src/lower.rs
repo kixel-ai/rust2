@@ -72,6 +72,7 @@ pub fn extract(tcx: TyCtxt<'_>, roots: &[String]) -> Extraction {
 		refusals: Vec::new(),
 		recursive: HashSet::new(),
 		clone_params: HashMap::new(),
+		env: TypingEnv::fully_monomorphized(),
 	};
 	let mut start = Vec::new();
 	let mut matched = vec![false; roots.len()];
@@ -182,6 +183,9 @@ pub(crate) struct Cx<'tcx> {
 	/// For each function, the indices of the type parameters it relies on cloning by copy,
 	/// each with the translated function whose `clone` relies on it.
 	clone_params: HashMap<DefId, BTreeMap<u32, DefId>>,
+	/// The typing environment of the function being translated, whose bounds a projection on
+	/// its type parameters normalizes under, such as `K: Sized` for `<Keys<K, V> as Iterator>::Item`.
+	env: TypingEnv<'tcx>,
 }
 
 impl<'tcx> Cx<'tcx> {
@@ -464,6 +468,25 @@ impl<'tcx> Cx<'tcx> {
 			.collect()
 	}
 
+	/// The names `did`'s parameters' Lean types mention, lowered in its own environment, so a
+	/// caller passes explicitly each generic argument they erase, such as `V` of a
+	/// `Keys<K, V>`, which lowers to a `List K`. A type that does not lower mentions none.
+	fn input_names(&mut self, did: DefId, span: Span) -> HashSet<String> {
+		let tcx = self.tcx;
+		let outer = std::mem::replace(&mut self.env, TypingEnv::post_analysis(tcx, did));
+		let sig = tcx.instantiate_bound_regions_with_erased(tcx.fn_sig(did).instantiate_identity().skip_norm_wip());
+		let mut names = HashSet::new();
+		for input in sig.inputs() {
+			let Ok(lean) = self.ty(*input, span) else { continue };
+			for word in lean.split(|c: char| c.is_whitespace() || "()×→".contains(c)) {
+				// An array length is its parameter's `.toNat`.
+				names.insert(word.strip_suffix(".toNat").unwrap_or(word).to_string());
+			}
+		}
+		self.env = outer;
+		names
+	}
+
 	/// Whether cloning a value of `ty` copies it, as the translation's value semantics assume.
 	/// `Copy` alone is not enough: a `Copy` type's `Clone` may be written by hand. Pushes the
 	/// index of each type parameter whose `clone` it takes to copy, which
@@ -591,8 +614,13 @@ impl<'tcx> Cx<'tcx> {
 		if self.allocator(did).is_some_and(|i| !self.global_at(args, i)) {
 			return None;
 		}
+		if self.kio_instant(did) {
+			return Some(args.types().take(0));
+		}
 		let n = match self.std_name(did).as_str() {
-			"Option" | "Vec" | "Arc" | "Reverse" | "BTreeSet" => 1,
+			// Seconds and nanoseconds, with a derived `Clone`, `PartialEq`, and `Ord`.
+			"Duration" => 0,
+			"Option" | "Vec" | "VecDeque" | "Arc" | "Reverse" | "BTreeSet" => 1,
 			"Result" | "BTreeMap" => 2,
 			_ => return None,
 		};
@@ -622,6 +650,24 @@ impl<'tcx> Cx<'tcx> {
 			return String::new();
 		}
 		self.tcx.item_name(did).to_string()
+	}
+
+	/// Whether `did` is `kio::clock::Instant`, a `u64` of nanoseconds with derived `Clone`,
+	/// `PartialEq`, and `Ord`, which `Rust.kio.Instant` models. Matched by where kio defines
+	/// it, since a crate that sees it only through a re-export prints another path.
+	fn kio_instant(&self, did: DefId) -> bool {
+		let tcx = self.tcx;
+		let names: Vec<String> = tcx
+			.def_path(did)
+			.data
+			.iter()
+			.filter_map(|d| d.data.get_opt_name())
+			.map(|n| n.to_string())
+			.collect();
+		!did.is_local()
+			&& tcx.crate_name(did.krate).as_str() == "kio"
+			&& matches!(tcx.def_kind(did), DefKind::Struct)
+			&& names == ["clock", "instant", "Instant"]
 	}
 
 	/// Whether the item is from the sysroot's `core` or `alloc`, found by their lang items, so a
@@ -696,6 +742,7 @@ impl<'tcx> Cx<'tcx> {
 					format!("`{ty}` has an allocator other than `Global`, which is not supported"),
 				);
 			}
+			ty::Adt(def, _) if self.kio_instant(def.did()) => "Rust.kio.Instant".into(),
 			ty::Adt(..) if self.iterator(ty).is_some() => {
 				let (item, deferred) = self.iterator(ty).expect("checked");
 				let item = self.ty(item, span)?;
@@ -717,6 +764,8 @@ impl<'tcx> Cx<'tcx> {
 					self.ty(args.type_at(1), span)?
 				),
 				"BTreeSet" => format!("(Rust.BTreeSet {})", self.ty(args.type_at(0), span)?),
+				"Duration" => "Rust.Duration".into(),
+				"VecDeque" => format!("(Rust.VecDeque {})", self.ty(args.type_at(0), span)?),
 				"Ordering" if self.is_cmp_ordering(def.did()) => "Ordering".into(),
 				// UTF-8 text, which a Lean `String` holds exactly.
 				"String" => "String".into(),
@@ -760,13 +809,10 @@ impl<'tcx> Cx<'tcx> {
 				}
 			}
 			// An `impl Trait` or a projection, as the type it stands for.
-			ty::Alias(..) => {
-				match tcx.try_normalize_erasing_regions(TypingEnv::fully_monomorphized(), ty::Unnormalized::new_wip(ty))
-				{
-					Ok(hidden) if hidden != ty => self.ty(hidden, span)?,
-					_ => return refuse(span, format!("`{ty}` has no Lean model")),
-				}
-			}
+			ty::Alias(..) => match tcx.try_normalize_erasing_regions(self.env, ty::Unnormalized::new_wip(ty)) {
+				Ok(hidden) if hidden != ty => self.ty(hidden, span)?,
+				_ => return refuse(span, format!("`{ty}` has no Lean model")),
+			},
 			_ => return refuse(span, format!("`{ty}` has no Lean model")),
 		})
 	}
@@ -820,6 +866,9 @@ impl<'tcx> Cx<'tcx> {
 		let path = tcx.def_path_str(def.did());
 		let inner: &[usize] = match self.std_name(def.did()).as_str() {
 			"Iter" | "Windows" if path.contains("slice::") => &[],
+			"Iter" if path.contains("btree_set::") || path.contains("btree_map::") => &[],
+			"Keys" | "Values" if path.contains("btree_map::") => &[],
+			"Iter" if path.contains("vec_deque::") => &[],
 			"IntoIter" if ["vec::", "option::", "array::"].iter().any(|m| path.contains(m)) => &[],
 			"Map" | "Copied" | "Cloned" | "Enumerate" => &[0],
 			"Chain" => &[0, 1],
@@ -843,7 +892,7 @@ impl<'tcx> Cx<'tcx> {
 			.def_id;
 		let projection = Ty::new_projection(tcx, ty::IsRigid::No, item, [ty]);
 		let item = tcx
-			.try_normalize_erasing_regions(TypingEnv::fully_monomorphized(), ty::Unnormalized::new_wip(projection))
+			.try_normalize_erasing_regions(self.env, ty::Unnormalized::new_wip(projection))
 			.ok()?;
 		let deferred = ty.walk().any(|a| {
 			a.as_type().is_some_and(|t| match t.kind() {
@@ -1109,12 +1158,22 @@ impl<'tcx> Cx<'tcx> {
 		if body.coroutine.is_some() {
 			return refuse(span, "async functions and coroutines are not supported");
 		}
+		self.env = TypingEnv::post_analysis(tcx, did);
+		let text = self.function_in_env(did, body, span);
+		self.env = TypingEnv::fully_monomorphized();
+		text
+	}
+
+	fn function_in_env(&mut self, did: DefId, body: &'tcx Body<'tcx>, span: Span) -> R<String> {
+		// The declaration's refusals first, so a bound it cannot bind is named there rather than
+		// at a use in the body.
+		let binders = self.binders(did)?;
 		let mut fx = Fx::new(self, did, body)?;
 		let nodes = fx.nodes()?;
 		let sig = fx.signature()?;
 		let lowered = structure::Function {
 			name: fx.cx.fn_name(did),
-			binders: fx.cx.binders(did)?,
+			binders,
 			params: sig.params,
 			ret: sig.ret,
 			ret_value: sig.ret_value,
@@ -1997,7 +2056,11 @@ impl<'a, 'tcx> Fx<'a, 'tcx> {
 			};
 		}
 		let lean_ty = self.cx.ty(ty, span)?;
-		let Some(int) = c.const_.try_eval_scalar_int(tcx, self.env) else {
+		// A one-field struct, such as kio's `Instant`, evaluates to a scalar too.
+		let scalar = (ty.is_integral() || ty.is_bool())
+			.then(|| c.const_.try_eval_scalar_int(tcx, self.env))
+			.flatten();
+		let Some(int) = scalar else {
 			let valtree = match c.const_ {
 				mir::Const::Ty(_, ct) => match ct.kind() {
 					ty::ConstKind::Value(v) => Some(v.valtree),
@@ -2048,6 +2111,21 @@ impl<'a, 'tcx> Fx<'a, 'tcx> {
 				ty::ValTreeKind::Leaf(_) => Vec::new(),
 			}
 		};
+		// The unsigned integer a leaf holds, or a struct of one field around one.
+		fn leaf(mut v: ty::ValTree<'_>) -> Option<u128> {
+			loop {
+				match &*v {
+					ty::ValTreeKind::Leaf(int) => return Some(int.to_bits_unchecked()),
+					ty::ValTreeKind::Branch(consts) => match consts.as_slice() {
+						[one] => match one.kind() {
+							ty::ConstKind::Value(value) => v = value.valtree,
+							_ => return None,
+						},
+						_ => return None,
+					},
+				}
+			}
+		}
 		match ty.kind() {
 			ty::Ref(_, inner, _) => self.valtree(*inner, vt, span),
 			ty::Bool => Ok(atom(
@@ -2091,6 +2169,18 @@ impl<'a, 'tcx> Fx<'a, 'tcx> {
 					parts.iter().map(|p| p.text.clone()).collect::<Vec<_>>().join(", ")
 				)))
 			}
+			// Seconds, then nanoseconds in a `Nanoseconds`, which holds them in a pattern type.
+			ty::Adt(def, _) if self.cx.std_name(def.did()) == "Duration" => match children(vt).as_slice() {
+				[(_, secs), (_, nanos)] => match (leaf(*secs), leaf(*nanos)) {
+					(Some(s), Some(n)) => Ok(atom(format!("(⟨{s}, {n}⟩ : Rust.Duration)"))),
+					_ => refuse(span, format!("a constant of type `{ty}` is not supported")),
+				},
+				_ => refuse(span, format!("a constant of type `{ty}` is not supported")),
+			},
+			ty::Adt(def, _) if self.cx.kio_instant(def.did()) => match leaf(vt) {
+				Some(n) => Ok(atom(format!("(⟨{n}⟩ : Rust.kio.Instant)"))),
+				None => refuse(span, format!("a constant of type `{ty}` is not supported")),
+			},
 			ty::Adt(def, _) => {
 				let fields = children(vt);
 				let (variant, fields) = if def.is_enum() {
@@ -2645,10 +2735,27 @@ impl<'a, 'tcx> Fx<'a, 'tcx> {
 				})) {
 			return "Clone::clone".into();
 		}
+		let name = tcx.item_name(did);
+		// kio's `Instant`, by its own methods, or `Trait::method for kio::Instant` for a sysroot
+		// trait; another crate's trait of the same name has no model, so no key.
+		if let Some(impl_id) = tcx.impl_of_assoc(did)
+			&& let ty::Adt(def, _) = tcx.type_of(impl_id).instantiate_identity().skip_norm_wip().kind()
+			&& self.cx.kio_instant(def.did())
+		{
+			return match tcx.trait_impl_of_assoc(did) {
+				Some(imp) => {
+					let t = tcx.impl_trait_ref(imp).instantiate_identity().skip_norm_wip().def_id;
+					if !self.cx.is_std(t) {
+						return String::new();
+					}
+					format!("{}::{name} for kio::Instant", tcx.item_name(t))
+				}
+				None => format!("kio::Instant::{name}"),
+			};
+		}
 		if !self.cx.is_std(did) {
 			return String::new();
 		}
-		let name = tcx.item_name(did);
 		if let Some(trait_id) = tcx.trait_of_assoc(did) {
 			return format!("{}::{name}", tcx.item_name(trait_id));
 		}
@@ -2686,7 +2793,7 @@ impl<'a, 'tcx> Fx<'a, 'tcx> {
 		let shape = self.cx.shapes.get(&callee);
 		let monadic = shape.is_none_or(|s| s.monadic || s.failed);
 		let sig = tcx.fn_sig(callee).instantiate_identity().skip_norm_wip().skip_binder();
-		// A generic argument Lean cannot infer from the arguments' types.
+		// A generic argument Lean cannot infer from the arguments' Lean types.
 		let mut text = self.cx.fn_name(callee);
 		let generics = tcx.generics_of(callee);
 		let mut all = Vec::new();
@@ -2696,6 +2803,7 @@ impl<'a, 'tcx> Fx<'a, 'tcx> {
 			g = gen_.parent.map(|p| tcx.generics_of(p));
 		}
 		let eq = tcx.lang_items().eq_trait();
+		let shown = self.cx.input_names(callee, span);
 		for param in &all {
 			let arg = gargs[param.index as usize];
 			if let ty::GenericParamDefKind::Type { .. } = param.kind
@@ -2735,18 +2843,7 @@ impl<'a, 'tcx> Fx<'a, 'tcx> {
 					return refuse(span, format!("`{t}` passed where `Ord` must match a Lean order"));
 				}
 			}
-			let shows = sig.inputs().iter().any(|t| {
-				t.walk().any(|a| match (a.as_type(), a.as_const(), &param.kind) {
-					(Some(t), _, ty::GenericParamDefKind::Type { .. }) => {
-						matches!(t.kind(), ty::Param(p) if p.index == param.index)
-					}
-					(_, Some(c), ty::GenericParamDefKind::Const { .. }) => {
-						matches!(c.kind(), ty::ConstKind::Param(p) if p.index == param.index)
-					}
-					_ => false,
-				})
-			});
-			if shows {
+			if shown.contains(&structure::ident(param.name.as_str())) {
 				continue;
 			}
 			let value = match (&param.kind, arg.as_type(), arg.as_const()) {

@@ -8,8 +8,13 @@ use std::cmp::Reverse;
 use std::collections::{BTreeMap, BTreeSet};
 use std::io::Write;
 use std::panic::{AssertUnwindSafe, catch_unwind};
+use std::time::Duration;
 
-use crate::route::relay::{Best, Claim, Here, Hop, NodeId, Offer, Port, Role, claim_order, floor_of, order, precedence};
+use kio::clock::Instant;
+
+use crate::route::relay::{
+	Best, Claim, Here, Hop, NodeId, Offer, Port, Role, claim_order, debounce, floor_of, order, precedence,
+};
 
 use super::*;
 
@@ -55,6 +60,18 @@ impl Rng {
 	fn pick<T: Copy>(&mut self, items: &[T]) -> T {
 		items[self.below(items.len() as u64) as usize]
 	}
+
+	/// Near the ends of a `Duration`'s seconds, and where its nanoseconds carry.
+	fn duration(&mut self) -> Duration {
+		let secs = self.pick(&[0, 1, 2, 1 << 63, u64::MAX - 1, u64::MAX]);
+		Duration::new(secs, self.pick(&[0, 1, 499_999_999, 500_000_000, 999_999_999]))
+	}
+
+	/// Near the ends of the clock's `u64` of nanoseconds.
+	fn instant(&mut self) -> Instant {
+		let nanos = self.pick(&[0, 1, 999_999_999, 1_000_000_000, 1 << 63, u64::MAX - 1, u64::MAX]);
+		Instant::ZERO.saturating_add(Duration::from_nanos(nanos))
+	}
 }
 
 /// An encoder of one case.
@@ -80,7 +97,20 @@ impl W {
 macro_rules! ints {
 	($($t:ty),*) => {$(impl Enc for $t { fn enc(&self, w: &mut W) { w.0.push(*self as i128) } })*};
 }
-ints!(u64, usize, i8, bool);
+ints!(u32, u64, usize, i8, bool);
+
+impl Enc for Duration {
+	fn enc(&self, w: &mut W) {
+		w.put(self.as_secs()).put(self.subsec_nanos());
+	}
+}
+
+/// As its nanoseconds from the clock's origin, which a `u64` holds.
+impl Enc for Instant {
+	fn enc(&self, w: &mut W) {
+		w.int(self.saturating_duration_since(Instant::ZERO).as_nanos() as i128);
+	}
+}
 
 impl<T: Enc + ?Sized> Enc for &T {
 	fn enc(&self, w: &mut W) {
@@ -323,7 +353,7 @@ fn outcome<T: Enc>(w: &mut W, f: impl FnOnce() -> T) {
 
 fn case(rng: &mut Rng) -> W {
 	let mut w = W::default();
-	let kind = 1 + rng.below(11);
+	let kind = 1 + rng.below(13);
 	w.int(kind.into());
 	match kind {
 		1 => {
@@ -384,6 +414,28 @@ fn case(rng: &mut Rng) -> W {
 			let c = claim(rng);
 			w.put(&c.item);
 			outcome(&mut w, || precedence(&c.item));
+		}
+		12 => {
+			let d = rng.duration();
+			w.put(d);
+			outcome(&mut w, || debounce(d));
+		}
+		// kio's `Instant`, which no translated function reaches yet, against its model.
+		13 => {
+			let (i, d, j) = (rng.instant(), rng.duration(), rng.instant());
+			w.put(i).put(d).put(j);
+			outcome(&mut w, || {
+				(
+					i.checked_add(d),
+					i.checked_sub(d),
+					i.saturating_add(d),
+					i.saturating_sub(d),
+					i.checked_duration_since(j),
+					i.saturating_duration_since(j),
+					i.duration_since(j),
+					i - j,
+				)
+			});
 		}
 		_ => {
 			let (h, far) = (hop(rng), node(rng));

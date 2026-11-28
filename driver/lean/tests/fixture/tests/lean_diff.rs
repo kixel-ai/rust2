@@ -3,11 +3,13 @@
 //! integers per case, for `FixtureDiff.lean` to replay. Run by `compare/fixture.sh`.
 
 use std::cmp::Reverse;
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::{BTreeMap, BTreeSet, VecDeque};
 use std::io::Write;
 use std::panic::{AssertUnwindSafe, catch_unwind};
 
-use fixture::cases::{self, Rank};
+use std::time::Duration;
+
+use fixture::cases::{self, Ledger, Rank};
 
 /// xorshift64, so a seed always draws the same cases.
 struct Rng(u64);
@@ -31,6 +33,25 @@ impl Rng {
 
 	fn bytes(&mut self) -> Vec<u8> {
 		(0..self.below(6)).map(|_| self.byte()).collect()
+	}
+
+	/// Counts near the ends of a `u64`, and near where milliseconds and nanoseconds carry.
+	fn count(&mut self) -> u64 {
+		[0, 1, 999, 1000, 999_999_999, 1_000_000_000, 1 << 63, u64::MAX - 1, u64::MAX][self.below(9) as usize]
+	}
+
+	fn duration(&mut self) -> Duration {
+		let secs = [0, 1, 2, 1 << 63, u64::MAX - 1, u64::MAX][self.below(6) as usize];
+		let nanos = [0, 1, 499_999_999, 500_000_000, 999_999_999][self.below(5) as usize];
+		Duration::new(secs, nanos)
+	}
+
+	fn ledger(&mut self) -> Ledger {
+		Ledger {
+			m: (0..self.below(4)).map(|_| (self.rank(), self.below(1000) as u16)).collect(),
+			s: (0..self.below(4)).map(|_| self.byte()).collect(),
+			q: (0..self.below(3)).map(|_| self.byte()).collect(),
+		}
 	}
 
 	fn rank(&mut self) -> Rank {
@@ -64,7 +85,32 @@ impl W {
 macro_rules! ints {
 	($($t:ty),*) => {$(impl Enc for $t { fn enc(&self, w: &mut W) { w.0.push(*self as i128) } })*};
 }
-ints!(u8, u16, u32, usize, i8, bool);
+ints!(u8, u16, u32, u64, usize, i8, bool);
+
+impl Enc for Duration {
+	fn enc(&self, w: &mut W) {
+		w.put(self.as_secs()).put(self.subsec_nanos());
+	}
+}
+
+impl Enc for std::cmp::Ordering {
+	fn enc(&self, w: &mut W) {
+		w.int(*self as i128);
+	}
+}
+
+impl<T: Enc> Enc for VecDeque<T> {
+	fn enc(&self, w: &mut W) {
+		w.int(self.len() as i128);
+		self.iter().for_each(|v| v.enc(w));
+	}
+}
+
+impl Enc for Ledger {
+	fn enc(&self, w: &mut W) {
+		w.put(&self.m).put(&self.s).put(&self.q);
+	}
+}
 
 impl<T: Enc + ?Sized> Enc for &T {
 	fn enc(&self, w: &mut W) {
@@ -145,7 +191,7 @@ fn outcome<T: Enc>(w: &mut W, f: impl FnOnce() -> T) {
 
 fn case(rng: &mut Rng) -> W {
 	let mut w = W::default();
-	let kind = 1 + rng.below(13);
+	let kind = 1 + rng.below(19);
 	w.int(kind.into());
 	match kind {
 		1 => {
@@ -213,6 +259,61 @@ fn case(rng: &mut Rng) -> W {
 			let (b, o) = (rng.one_in(2), (!rng.one_in(3)).then(|| rng.byte()));
 			w.put(b).put(o);
 			outcome(&mut w, || cases::then_unwrap(b, o));
+		}
+		14 => {
+			let (ms, ns, s) = (rng.count(), rng.count(), rng.count());
+			w.put(ms).put(ns).put(s);
+			outcome(&mut w, || {
+				let (a, b, c, d, e, f) = cases::spans(ms, ns, s);
+				(a, (b, (c, (d, (e, f)))))
+			});
+		}
+		15 => {
+			let (a, b) = (rng.duration(), rng.duration());
+			let k = [0, 1, 2, 3, u32::MAX][rng.below(5) as usize];
+			w.put(a).put(b).put(k);
+			outcome(&mut w, || {
+				let (c, d, e, f, g, h) = cases::sums(a, b, k);
+				(c, (d, (e, (f, (g, h)))))
+			});
+		}
+		16 => {
+			let (a, b) = (rng.duration(), rng.duration());
+			let (p, q) = ((rng.byte() % 2, rng.rank()), (rng.byte() % 2, rng.rank()));
+			w.put(a).put(b).put(p).put(q);
+			outcome(&mut w, || {
+				let (c, d, e, f, g, h, i, j, k) = cases::compared(a, b, p, q);
+				(c, (d, (e, (f, (g, (h, (i, (j, k))))))))
+			});
+		}
+		17 => {
+			let mut l = rng.ledger();
+			// A key the map may hold already, so `insert` replaces and `remove` finds it.
+			let r = l.m.keys().next().copied().filter(|_| rng.one_in(2)).unwrap_or_else(|| rng.rank());
+			let (v, k) = (rng.below(1000) as u16, rng.byte());
+			w.put(&l).put(r).put(v).put(k);
+			outcome(&mut w, || {
+				let (a, b, c, d, e, f) = l.edit(r, v, k);
+				((a, (b, (c, (d, (e, f))))), l)
+			});
+		}
+		18 => {
+			let mut l = rng.ledger();
+			let x = rng.byte();
+			w.put(&l).put(x);
+			outcome(&mut w, || {
+				let (a, b, c) = l.queue(x);
+				((a, (b, c)), l)
+			});
+		}
+		19 => {
+			let l = rng.ledger();
+			let r = l.m.keys().last().copied().filter(|_| !rng.one_in(3)).unwrap_or_else(|| rng.rank());
+			w.put(&l).put(r);
+			outcome(&mut w, || {
+				let (a, b, c, d, e, f, g, h) = cases::peeks(&l, r);
+				(a, (b, (c, (d, (e, (f, (g, h)))))))
+			});
 		}
 		_ => {
 			let m: BTreeMap<Rank, u16> = (0..rng.below(5)).map(|_| (rng.rank(), rng.below(1000) as u16)).collect();

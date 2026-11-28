@@ -62,6 +62,13 @@ inductive cases.Severity where
   | Low
 deriving Repr, DecidableEq, Inhabited
 
+/-- `cases::Ledger` -/
+structure cases.Ledger where
+  m : (Rust.BTreeMap cases.Rank UInt16)
+  s : (Rust.BTreeSet UInt8)
+  q : (Rust.VecDeque UInt8)
+deriving Repr, DecidableEq, Inhabited
+
 /-- `cases::Weight` -/
 class cases.Weight (Self : Type) where
   weight : Self → Rust.M UInt8
@@ -317,6 +324,75 @@ def cases.severities (s : (Rust.BTreeSet cases.Severity)) : UInt64 :=
 def cases.heavier {W : Type} [Inhabited W] [cases.Weight W] (a : W) (b : W) : Rust.M Bool := do
   let t3 := (← cases.Weight.weight a)
   return decide (t3 > (← cases.Weight.weight b))
+
+def cases.spans (ms : UInt64) (ns : UInt64) (s : UInt64) : (Rust.Duration × Rust.Duration × Rust.Duration × Rust.Duration × Rust.Duration × Rust.Duration) :=
+  (Rust.Duration.fromMillis ms, Rust.Duration.fromNanos ns, Rust.Duration.fromSecs s, (⟨0, 0⟩ : Rust.Duration), (⟨18446744073709551615, 999999999⟩ : Rust.Duration), (⟨1, 500000000⟩ : Rust.Duration))
+
+def cases.sums (a : Rust.Duration) (b : Rust.Duration) (k : UInt32) : ((Option Rust.Duration) × (Option Rust.Duration) × (Option Rust.Duration) × Rust.Duration × Rust.Duration × Rust.Duration) :=
+  (Rust.Duration.checkedAdd a b, Rust.Duration.checkedSub a b, Rust.Duration.checkedMul a k, Rust.Duration.saturatingAdd a b, Rust.Duration.saturatingSub a b, Rust.Duration.saturatingMul a k)
+
+def cases.compared (a : Rust.Duration) (b : Rust.Duration) (p : (UInt8 × cases.Rank)) (q : (UInt8 × cases.Rank)) : (Bool × Bool × Bool × Bool × Rust.Duration × Rust.Duration × Ordering × Bool × Bool) := Id.run do
+  let t26 := b
+  return (decide (compare a b = .lt), decide (compare a b ≠ .gt), decide (compare a b = .gt), decide (compare a b ≠ .lt), Rust.ordMax a b, Rust.ordMin a b, compare a t26, decide (compare p q = .lt), decide (compare p q ≠ .lt))
+
+def cases.Ledger.edit (self : cases.Ledger) (r : cases.Rank) (v : UInt16) (k : UInt8) : (((Option UInt16) × (Option (cases.Rank × UInt16)) × (Option UInt16) × Bool × Bool × (Option UInt8)) × cases.Ledger) := Id.run do
+  let mut self := self
+  let r1 := Rust.BTreeMap.insert self.m r v
+  self := { self with m := r1.1 }
+  let old := r1.2
+  let r2 := Rust.BTreeMap.popFirst self.m
+  self := { self with m := r2.1 }
+  let first := r2.2
+  let t14 := r
+  let r3 := Rust.BTreeMap.remove self.m t14
+  self := { self with m := r3.1 }
+  let gone := r3.2
+  let r4 := Rust.BTreeSet.insert self.s k
+  self := { self with s := r4.1 }
+  let new := r4.2
+  let t21 := k ^^^ 1
+  let r5 := Rust.BTreeSet.remove self.s t21
+  self := { self with s := r5.1 }
+  let had := r5.2
+  let r6 := Rust.BTreeSet.popFirst self.s
+  self := { self with s := r6.1 }
+  let low := r6.2
+  return ((old, first, gone, new, had, low), self)
+
+def cases.Ledger.queue (self : cases.Ledger) (x : UInt8) : (((Option UInt8) × Bool × UInt64) × cases.Ledger) := Id.run do
+  let mut self := self
+  self := { self with q := self.q.pushBack x }
+  let r := Rust.VecDeque.popFront self.q
+  self := { self with q := r.1 }
+  let front := r.2
+  return ((front, self.q.items.isEmpty, self.q.items.length.toUInt64), self)
+
+def cases.by_ref (m : (Rust.BTreeMap UInt8 UInt8)) (k : UInt8) : Rust.M UInt8 := do
+  let t6 := k
+  let t3 := (← Rust.BTreeMap.index m t6)
+  return t3
+
+def cases.keys_of {K : Type} [Inhabited K] {V : Type} [Inhabited V] (keys : (List K)) : (Array K) :=
+  keys.toArray
+
+def cases.key_list {K : Type} [Inhabited K] [DecidableEq K] [Ord K] {V : Type} [Inhabited V] (m : (Rust.BTreeMap K V)) : (Array K) :=
+  cases.keys_of (V := V) (m.entries.map (·.1))
+
+def cases.peeks.closure0 (arg1 : Unit) (arg2 : (cases.Rank × UInt16)) : (cases.Rank × UInt16) := Id.run do
+  let k := arg2.1
+  let v := arg2.2
+  return (k, v)
+
+def cases.peeks.closure1 (arg1 : Unit) (arg2 : (cases.Rank × UInt16)) : (cases.Rank × UInt16) := Id.run do
+  let k := arg2.1
+  let v := arg2.2
+  return (k, v)
+
+def cases.peeks (l : cases.Ledger) (r : cases.Rank) : Rust.M ((Option (cases.Rank × UInt16)) × (Array cases.Rank) × (Array UInt16) × (Array (cases.Rank × UInt16)) × (Option UInt8) × (Array UInt8) × (Array UInt8) × UInt16) := do
+  let t7 := r
+  let t37 := r
+  let t34 := (← Rust.BTreeMap.index l.m t37)
+  return ((l.m.getKeyValue t7).map (cases.peeks.closure0 ()), (l.m.entries.map (·.1)).toArray, (l.m.entries.map (·.2)).toArray, ((l.m.entries).map (cases.peeks.closure1 ())).toArray, l.s.items.head?, (l.s.items).toArray, (l.q.items).toArray, t34)
 
 def cases.Cost.raw (self : cases.Cost) : UInt64 :=
   self.x0

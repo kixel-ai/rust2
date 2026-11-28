@@ -3,15 +3,14 @@
 ## Goal
 
 [rust2-lean](/driver/lean/README.md) translates every function `crate::route::relay` reaches in moq-net's `Router` (`rs/moq-net/src/route/relay.rs`), except `Debug` formatting, to Lean 4 that type-checks with core Lean.
-The census at moq 512e3d9 translates 34 of 144 reached functions; it counts closures toward the function they are written in, and leaves out derived and `Debug` impls.
-Every function of the route algebra (`Offer`, `Here`, `order`, `Claim`, `claim_order`, `precedence`, `floor_of`) translates, and `just driver lean-moq` replays native Rust's outcomes on it with no mismatch: 100,000 random cases at the bounds of moq-net's `verify/route-algebra/` vectors, and every algebra call behind those 649 checked-in vectors.
-Of the 194 refusals left:
+The census at moq 512e3d9 translates 54 of 144 reached functions; it counts closures toward the function they are written in, and leaves out derived and `Debug` impls.
+Every function of the route algebra (`Offer`, `Here`, `order`, `Claim`, `claim_order`, `precedence`, `floor_of`) translates, and so does `debounce`, and `just driver lean-moq` replays native Rust's outcomes on them with no mismatch: 100,000 random cases at the bounds of moq-net's `verify/route-algebra/` vectors, and every algebra call behind those 649 checked-in vectors.
+Of the 139 refusals left:
 
-- 70 are `std::time::Duration`, and 2 `kio::clock::Instant`.
-- 20 are calls that return a `&mut`, mostly `entry(..).or_default()` and `get_mut(..).expect(..)`, and 18 more `&mut` borrows the subset refuses.
-- 9 are `VecDeque<Edit>`, and about 20 more are `BTreeMap` and `BTreeSet` functions with no model: `get_mut`, `remove`, `pop_first`, `get`, `get_key_value`, `values`, `keys`, `range`, `iter`, `first`, and `Index`.
-- 17 are hand-written `Ord` and `PartialEq` impls (`Path`, `Gone`, and others) where a structural one is required.
-- The rest are `Path`'s string internals (`str` indexing, `len`, `is_empty`, `moq_pattern::Parts`), `format!` arguments, tuple `PartialOrd::lt` and `gt`, `Iterator::scan`, `count`, `flatten`, and `flat_map`, `mem::take`, `Option::and_then`, closures called directly, and one recursion.
+- 20 are calls that return a `&mut`, mostly `entry(..).or_default()` and `get_mut(..).expect(..)`, 4 more are `BTreeMap::get_mut`, and 18 more `&mut` borrows the subset refuses.
+- 27 are `Path`'s hand-written `Ord` and `PartialEq`, mostly as part of a `(Path, I)` key, where a structural one is required, and 8 more `Path`'s string internals (`str` indexing, `len`, `is_empty`, `moq_pattern::Parts`).
+- About 35 are iterator adaptors and sources with no model: `filter`, `filter_map`, `flat_map`, `flatten`, `rev`, `find`, `count`, `sum`, `min_by_key`, `scan`, `BTreeMap::range`, and a `Vec`'s, `BTreeMap`'s, or `BTreeSet`'s `IntoIter`.
+- The rest are closures called directly (6), `Option::and_then`, `or_else`, `map_or`, and `as_mut`, `mem::take`, `BTreeSet::extend`, `Vec::is_empty`, `RangeInclusive`, a derived `Default`, `format!` arguments, one explicit panic, one promoted constant, and one recursion.
 
 Each new model is checked by a differential test against native Rust: `lean-moq` for what the route algebra reaches, `lean-fixture` for the rest. Each new refusal has a fixture case.
 
@@ -19,15 +18,19 @@ Each new model is checked by a differential test against native Rust: `lean-moq`
 
 Decided 2026-11-27 (maintainer, /quest-run): ✅ keep this quest with the Plan below as recommended (rejected: drop it), after the Lean spike's verdict to invest in rust2-lean (rejected: adopt Aeneas; drop Lean extraction).
 
-Landing as a sequence of PRs, each standing on its own; the first added the route algebra, closures, iterators, local traits, and the read-only `BTreeMap` and `BTreeSet` models. Next, in order of refusals cleared:
+Landing as a sequence of PRs, each standing on its own; the first added the route algebra, closures, iterators, local traits, and the read-only `BTreeMap` and `BTreeSet` models. The second added `Duration`, kio's `Instant`, `VecDeque` as a list, `BTreeMap`/`BTreeSet` mutation through a `&mut` of a whole place (`insert`, `remove`, `pop_first`) and their remaining reads, and comparisons on any derived order. Next, in order of refusals cleared:
 
-- Model `Duration` as its seconds and nanoseconds, with Rust's panics on overflow, and `kio::clock::Instant` as a `Duration` since an origin.
-- Translate a `&mut` returned by `get_mut` or `entry` as a lens, a getter plus setter pair. This keeps value semantics without Aeneas's backward functions. Add `BTreeMap`/`BTreeSet` mutation (`insert`, `remove`, `pop_first`) with it, and `VecDeque` as a list.
+- Translate a `&mut` returned by `get_mut` or `entry` as a lens, a getter plus setter pair. This keeps value semantics without Aeneas's backward functions.
 - Translate a hand-written `Ord` or `PartialEq` as a call to the local impl, through an instance built from it, instead of requiring a derived one.
 - Model `Path` as a Lean `String` in the runtime, diffed against native Rust like every other model.
+- Model the iterator adaptors above as list functions, as `map` and `any` are.
 - Add a `Spec` tactic to the prelude that steps through `Rust.M` binds, as Aeneas's `step*` does. kio's `Ranked.lean` port spent most of its 141 lines driving binds by hand.
 
 `BTreeMap` and `BTreeSet` are sorted association lists over a key whose `Ord` is derived, not Mathlib's finite maps, so translations stay core-only.
+
+Decided 2026-11-27 (maintainer, /quest-run): ✅ kio's `Instant` is modeled as the `u64` of nanoseconds kio keeps (rejected: a `Duration` since an origin, as this Plan first said): a `Duration` holds values an `Instant` cannot, so checked and saturating arithmetic would overflow at the wrong bound. Its model is checked against kio directly in `lean-moq`, since no translated function reaches it until `Router`'s state does.
+
+Decided 2026-11-27 (maintainer, /quest-run): ✅ plan [translating dependency crates' code](/quest/m2/lean-deps.md) now, so hand models of dependencies such as kio's `Instant` can go (rejected: wait until a second dependency needs a hand model). kio's `Instant` is already plain safe Rust, so no moq change retires it; that quest does.
 
 Decided 2026-11-27 (maintainer, /quest-run): ✅ iterators are lazy Lean lists (rejected: chains fused into loops, as this Plan first said). A list's items are thunks of `Rust.M` actions when a closure that may panic maps them, so a consumer meets a panic only at the item Rust's laziness meets it at, a proof reasons with `List` lemmas instead of a loop's equation, and no closure needs to capture only copies.
 
@@ -39,4 +42,5 @@ Decided 2026-11-27 (maintainer, /quest-run): ✅ model `Path` as a Lean `String`
 
 ## Related
 
+- [rust2-lean translates dependency crates' code](/quest/m2/lean-deps.md) - retires the hand model of kio's `Instant` this quest adds
 - [rust2-ts model epic](/quest/m2/ts-model/README.md) - shares `rust2/driver` and moq-net's `Router` as its consumer
