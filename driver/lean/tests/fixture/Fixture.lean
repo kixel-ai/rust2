@@ -96,6 +96,11 @@ structure cases.lenses.Book where
   log : (Option (Array UInt8))
 deriving Repr, DecidableEq, Inhabited
 
+/-- `cases::text::Countdown` -/
+structure cases.text.Countdown where
+  x0 : UInt8
+deriving Repr, DecidableEq, Inhabited
+
 /-- `cases::Weight` -/
 class cases.Weight (Self : Type) where
   weight : Self → Rust.M UInt8
@@ -660,6 +665,356 @@ def cases.lenses.Book.logs (self : cases.lenses.Book) (x : UInt8) : (((Array UIn
   let old := self.log
   self := { self with log := (none : (Option (Array UInt8))) }
   return ((taken, old, ({ hits := (0 : UInt16), last := (0 : UInt8) } : cases.lenses.Tally)), self)
+
+def cases.text.measure (s : String) : (UInt64 × Bool × (Array UInt8)) := Id.run do
+  let t7 := Rust.asBytes s
+  return (Rust.strLen s, s.isEmpty, t7)
+
+def cases.text.cut (s : String) (b : UInt64) (e : UInt64) (how : UInt8) : Rust.M String := do
+  unless ¬((4 : UInt8) = (0 : UInt8)) do throw "attempt to calculate the remainder with a divisor of zero"
+  let mut t5 : String := default
+  if (how % 4) = 0 then
+    let t10 := (← Rust.strSliceTo s e)
+    let t9 := t10
+    t5 := t9
+  else if (how % 4) = 1 then
+    let t15 := (← Rust.strSliceFrom s b)
+    let t14 := t15
+    t5 := t14
+  else if (how % 4) = 2 then
+    let t20 := (← Rust.strSlice s (b, e).1 (b, e).2)
+    let t19 := t20
+    t5 := t19
+  else
+    let t26 := s
+    let t25 := t26
+    t5 := t25
+  return t5
+
+def cases.text.search (s : String) (c : Char) (p : String) (i : UInt64) : ((Option UInt64) × Bool × Bool × (Option UInt8)) := Id.run do
+  let t17 := Rust.asBytes s
+  return (Rust.strFind s c, p.isPrefixOf s, s.toList.head? == some c, t17[i.toNat]?)
+
+def cases.text.tails.closure0 (arg1 : UInt8) (arg2 : UInt8) : Bool := Id.run do
+  let t6 := arg2
+  let b := t6
+  let t7 := arg1
+  return decide (b = t7)
+
+def cases.text.tails.closure1 (arg1 : Unit) (b : UInt8) : Rust.M UInt8 := do
+  return (← b +? 1)
+
+def cases.text.tails (v : (Array UInt8)) (x : UInt8) : Rust.M (UInt64 × UInt64) := do
+  return ((((v.toList).reverse).takeWhile (cases.text.tails.closure0 x)).length.toUInt64, (← Rust.run ((v.toList).map (Rust.defer (cases.text.tails.closure1 ())))).length.toUInt64)
+
+def cases.text.last_bumped.closure0 (arg1 : Unit) (b : UInt8) : Rust.M UInt8 := do
+  return (← b +? 1)
+
+def cases.text.last_bumped (v : (Array UInt8)) : Rust.M (Option UInt8) := do
+  let mut it := ((v.toList).map (Rust.defer (cases.text.last_bumped.closure0 ()))).reverse
+  let r ← Rust.listNextM it
+  it := r.1
+  return r.2
+
+def cases.text.find_bumped.closure0 (arg1 : Unit) (b : UInt8) : Rust.M UInt8 := do
+  return (← b +? 1)
+
+def cases.text.find_bumped_loop (x : UInt8) (n : UInt8) (iter : (List (Unit → Rust.M UInt8))) : Rust.M (Option UInt8) := do
+  let mut n := n
+  let mut iter := iter
+  let r ← Rust.listNextM iter
+  iter := r.1
+  let t13 := r.2
+  match id t13 with
+  | none =>
+    return (none : (Option UInt8))
+  | some b =>
+    if b = x then
+      return (some n : (Option UInt8))
+    else
+      n := (← n +? 1)
+      return (← cases.text.find_bumped_loop x n iter)
+partial_fixpoint
+
+def cases.text.find_bumped (v : (Array UInt8)) (x : UInt8) : Rust.M (Option UInt8) := do
+  let n : UInt8 := 0
+  let iter := (v.toList).map (Rust.defer (cases.text.find_bumped.closure0 ()))
+  let r1 ← cases.text.find_bumped_loop x n iter
+  return r1
+
+def cases.text.loops_loop0 (v : (Array UInt8)) (m : (Rust.BTreeMap UInt8 UInt16)) (s : (Rust.BTreeSet UInt8)) (o : (Option UInt8)) (q : (Rust.VecDeque UInt8)) (range : UInt16) (iter : (UInt8 × UInt8)) : Rust.M UInt16 := do
+  let mut range := range
+  let mut iter := iter
+  let r := Rust.rangeNext iter
+  iter := r.1
+  let t15 := r.2
+  match id t15 with
+  | none =>
+    return range
+  | some i =>
+    let t21 := i.toUInt16
+    range := (← range +? t21)
+    return (← cases.text.loops_loop0 v m s o q range iter)
+partial_fixpoint
+
+def cases.text.loops_loop1 (v : (Array UInt8)) (m : (Rust.BTreeMap UInt8 UInt16)) (s : (Rust.BTreeSet UInt8)) (o : (Option UInt8)) (q : (Rust.VecDeque UInt8)) (range : UInt16) (items : UInt16) (iter1 : (List UInt8)) : Rust.M UInt16 := do
+  let mut items := items
+  let mut iter1 := iter1
+  let r1 := Rust.listNext iter1
+  iter1 := r1.1
+  let t33 := r1.2
+  match id t33 with
+  | none =>
+    return items
+  | some x =>
+    let t41 := items
+    let t40 := (← t41 *? 3)
+    let t43 := x.toUInt16
+    let t39 := (← t40 +? t43)
+    unless ¬((1000 : UInt16) = (0 : UInt16)) do throw "attempt to calculate the remainder with a divisor of zero"
+    items := t39 % 1000
+    return (← cases.text.loops_loop1 v m s o q range items iter1)
+partial_fixpoint
+
+def cases.text.loops_loop2 (v : (Array UInt8)) (m : (Rust.BTreeMap UInt8 UInt16)) (s : (Rust.BTreeSet UInt8)) (o : (Option UInt8)) (q : (Rust.VecDeque UInt8)) (range : UInt16) (items : UInt16) (iter2 : (List UInt8)) : Rust.M UInt16 := do
+  let mut items := items
+  let mut iter2 := iter2
+  let r2 := Rust.listNext iter2
+  iter2 := r2.1
+  let t52 := r2.2
+  match id t52 with
+  | none =>
+    return items
+  | some x1 =>
+    items := items ^^^ (x1.toUInt16)
+    return (← cases.text.loops_loop2 v m s o q range items iter2)
+partial_fixpoint
+
+def cases.text.loops_loop3 (m : (Rust.BTreeMap UInt8 UInt16)) (s : (Rust.BTreeSet UInt8)) (o : (Option UInt8)) (q : (Rust.VecDeque UInt8)) (range : UInt16) (items : UInt16) (iter3 : (List UInt8)) : Rust.M UInt16 := do
+  let mut items := items
+  let mut iter3 := iter3
+  let r3 := Rust.listNext iter3
+  iter3 := r3.1
+  let t65 := r3.2
+  match id t65 with
+  | none =>
+    return items
+  | some x2 =>
+    let t72 := items
+    let t73 := x2.toUInt16
+    let t71 := (← t72 +? t73)
+    unless ¬((1000 : UInt16) = (0 : UInt16)) do throw "attempt to calculate the remainder with a divisor of zero"
+    items := t71 % 1000
+    return (← cases.text.loops_loop3 m s o q range items iter3)
+partial_fixpoint
+
+def cases.text.loops_loop4 (m : (Rust.BTreeMap UInt8 UInt16)) (s : (Rust.BTreeSet UInt8)) (o : (Option UInt8)) (q : (Rust.VecDeque UInt8)) (range : UInt16) (items : UInt16) (map : UInt16) (iter4 : (List (UInt8 × UInt16))) : Rust.M UInt16 := do
+  let mut map := map
+  let mut iter4 := iter4
+  let r4 := Rust.listNext iter4
+  iter4 := r4.1
+  let t83 := r4.2
+  match id t83 with
+  | none =>
+    return map
+  | some t83_0 =>
+    let k := t83_0.1
+    let x3 := t83_0.2
+    let t93 := map
+    let t90 := ((← t93 *? 7) ^^^ (k.toUInt16)) ^^^ x3
+    unless ¬((1000 : UInt16) = (0 : UInt16)) do throw "attempt to calculate the remainder with a divisor of zero"
+    map := t90 % 1000
+    return (← cases.text.loops_loop4 m s o q range items map iter4)
+partial_fixpoint
+
+def cases.text.loops_loop5 (m : (Rust.BTreeMap UInt8 UInt16)) (s : (Rust.BTreeSet UInt8)) (o : (Option UInt8)) (q : (Rust.VecDeque UInt8)) (range : UInt16) (items : UInt16) (map : UInt16) (iter5 : (List UInt8)) : Rust.M UInt16 := do
+  let mut map := map
+  let mut iter5 := iter5
+  let r5 := Rust.listNext iter5
+  iter5 := r5.1
+  let t105 := r5.2
+  match id t105 with
+  | none =>
+    return map
+  | some k1 =>
+    let t111 := k1.toUInt16
+    map := (← map +? t111)
+    return (← cases.text.loops_loop5 m s o q range items map iter5)
+partial_fixpoint
+
+def cases.text.loops_loop6 (m : (Rust.BTreeMap UInt8 UInt16)) (s : (Rust.BTreeSet UInt8)) (o : (Option UInt8)) (q : (Rust.VecDeque UInt8)) (range : UInt16) (items : UInt16) (map : UInt16) (iter6 : (List (UInt8 × UInt16))) : Rust.M UInt16 := do
+  let mut map := map
+  let mut iter6 := iter6
+  let r6 := Rust.listNext iter6
+  iter6 := r6.1
+  let t120 := r6.2
+  match id t120 with
+  | none =>
+    return map
+  | some t120_0 =>
+    let k2 := t120_0.1
+    let x4 := t120_0.2
+    let t128 := map ^^^ x4
+    unless ¬((1000 : UInt16) = (0 : UInt16)) do throw "attempt to calculate the remainder with a divisor of zero"
+    let t127 := t128 % 1000
+    let t132 := k2.toUInt16
+    map := (← t127 +? t132)
+    return (← cases.text.loops_loop6 m s o q range items map iter6)
+partial_fixpoint
+
+def cases.text.loops_loop7 (s : (Rust.BTreeSet UInt8)) (o : (Option UInt8)) (q : (Rust.VecDeque UInt8)) (range : UInt16) (items : UInt16) (map : UInt16) (iter7 : (List UInt8)) : Rust.M UInt16 := do
+  let mut map := map
+  let mut iter7 := iter7
+  let r7 := Rust.listNext iter7
+  iter7 := r7.1
+  let t142 := r7.2
+  match id t142 with
+  | none =>
+    return map
+  | some k3 =>
+    map := map ^^^ (k3.toUInt16)
+    return (← cases.text.loops_loop7 s o q range items map iter7)
+partial_fixpoint
+
+def cases.text.loops_loop8 (s : (Rust.BTreeSet UInt8)) (o : (Option UInt8)) (q : (Rust.VecDeque UInt8)) (range : UInt16) (items : UInt16) (map : UInt16) (set : UInt16) (iter8 : (List UInt8)) : Rust.M UInt16 := do
+  let mut set := set
+  let mut iter8 := iter8
+  let r8 := Rust.listNext iter8
+  iter8 := r8.1
+  let t156 := r8.2
+  match id t156 with
+  | none =>
+    return set
+  | some k4 =>
+    let t164 := set
+    let t163 := (← t164 *? 5)
+    let t166 := k4.toUInt16
+    let t162 := (← t163 +? t166)
+    unless ¬((1000 : UInt16) = (0 : UInt16)) do throw "attempt to calculate the remainder with a divisor of zero"
+    set := t162 % 1000
+    return (← cases.text.loops_loop8 s o q range items map set iter8)
+partial_fixpoint
+
+def cases.text.loops_loop9 (o : (Option UInt8)) (q : (Rust.VecDeque UInt8)) (range : UInt16) (items : UInt16) (map : UInt16) (set : UInt16) (iter9 : (List UInt8)) : Rust.M UInt16 := do
+  let mut set := set
+  let mut iter9 := iter9
+  let r9 := Rust.listNext iter9
+  iter9 := r9.1
+  let t175 := r9.2
+  match id t175 with
+  | none =>
+    return set
+  | some k5 =>
+    set := set ^^^ (k5.toUInt16)
+    return (← cases.text.loops_loop9 o q range items map set iter9)
+partial_fixpoint
+
+def cases.text.loops_loop10 (q : (Rust.VecDeque UInt8)) (range : UInt16) (items : UInt16) (map : UInt16) (set : UInt16) (iter10 : (List UInt8)) : Rust.M UInt16 := do
+  let mut set := set
+  let mut iter10 := iter10
+  let r10 := Rust.listNext iter10
+  iter10 := r10.1
+  let t188 := r10.2
+  match id t188 with
+  | none =>
+    return set
+  | some x5 =>
+    let t194 := x5.toUInt16
+    set := (← set +? t194)
+    return (← cases.text.loops_loop10 q range items map set iter10)
+partial_fixpoint
+
+def cases.text.loops_loop11 (q : (Rust.VecDeque UInt8)) (range : UInt16) (items : UInt16) (map : UInt16) (set : UInt16) (iter11 : (List UInt8)) : Rust.M (UInt16 × UInt16 × UInt16 × UInt16 × UInt16) := do
+  let mut set := set
+  let mut iter11 := iter11
+  let r11 := Rust.listNext iter11
+  iter11 := r11.1
+  let t202 := r11.2
+  match id t202 with
+  | none =>
+    return ((range, items, map, set, (q.items.length.toUInt64).toUInt16))
+  | some x6 =>
+    let t210 := set
+    let t208 := (← t210 *? 3) ^^^ (x6.toUInt16)
+    unless ¬((1000 : UInt16) = (0 : UInt16)) do throw "attempt to calculate the remainder with a divisor of zero"
+    set := t208 % 1000
+    return (← cases.text.loops_loop11 q range items map set iter11)
+partial_fixpoint
+
+def cases.text.loops (n : UInt8) (v : (Array UInt8)) (m : (Rust.BTreeMap UInt8 UInt16)) (s : (Rust.BTreeSet UInt8)) (o : (Option UInt8)) (q : (Rust.VecDeque UInt8)) : Rust.M (UInt16 × UInt16 × UInt16 × UInt16 × UInt16) := do
+  let mut range : UInt16 := 0
+  let iter := ((0 : UInt8), n)
+  let r12 ← cases.text.loops_loop0 v m s o q range iter
+  range := r12
+  let mut items : UInt16 := 0
+  let t29 := v
+  let iter1 := t29.toList
+  let r13 ← cases.text.loops_loop1 v m s o q range items iter1
+  items := r13
+  let iter2 := v.toList
+  let r14 ← cases.text.loops_loop2 v m s o q range items iter2
+  items := r14
+  let iter3 := v.toList
+  let r15 ← cases.text.loops_loop3 m s o q range items iter3
+  items := r15
+  let mut map : UInt16 := 0
+  let iter4 := m.entries
+  let r16 ← cases.text.loops_loop4 m s o q range items map iter4
+  map := r16
+  let iter5 := m.entries.map (·.1)
+  let r17 ← cases.text.loops_loop5 m s o q range items map iter5
+  map := r17
+  let iter6 := m.entries
+  let r18 ← cases.text.loops_loop6 m s o q range items map iter6
+  map := r18
+  let iter7 := m.entries.map (·.1)
+  let r19 ← cases.text.loops_loop7 s o q range items map iter7
+  map := r19
+  let mut set : UInt16 := 0
+  let iter8 := s.items
+  let r20 ← cases.text.loops_loop8 s o q range items map set iter8
+  set := r20
+  let iter9 := s.items
+  let r21 ← cases.text.loops_loop9 o q range items map set iter9
+  set := r21
+  let iter10 := o.toList
+  let r22 ← cases.text.loops_loop10 q range items map set iter10
+  set := r22
+  let iter11 := q.items
+  let r23 ← cases.text.loops_loop11 q range items map set iter11
+  return r23
+
+def cases.text.Countdown.Iterator.next (self : cases.text.Countdown) : ((Option UInt8) × cases.text.Countdown) := Id.run do
+  let mut self := self
+  let t3 := Rust.branch (Rust.checkedSub self.x0 (1 : UInt8))
+  match t3 with
+  | .Continue val =>
+    self := { self with x0 := val }
+    return ((some self.x0 : (Option UInt8)), self)
+  | .Break t3_01 =>
+    return ((none : (Option UInt8)), self)
+
+def cases.text.countdown_loop (t : UInt16) (iter : cases.text.Countdown) : Rust.M UInt16 := do
+  let mut t := t
+  let mut iter := iter
+  let r := cases.text.Countdown.Iterator.next iter
+  let t10 := r.1
+  iter := r.2
+  match id t10 with
+  | none =>
+    return (t)
+  | some x =>
+    let t17 := x.toUInt16
+    let t16 := (← t17 *? 2)
+    t := (← t +? t16)
+    return (← cases.text.countdown_loop t iter)
+partial_fixpoint
+
+def cases.text.countdown (n : UInt8) : Rust.M UInt16 := do
+  let t : UInt16 := 0
+  let iter := ({ x0 := n } : cases.text.Countdown)
+  let r1 ← cases.text.countdown_loop t iter
+  return r1
 
 def cases.Cost.raw (self : cases.Cost) : UInt64 :=
   self.x0

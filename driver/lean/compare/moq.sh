@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Translate moq-net's route algebra and kio's `Instant` with rust2-lean, fail if the
-# translation differs from MoqNet.lean and Kio.lean here, check it with Lean, then replay
+# Translate moq-net's route algebra, `Path`, and kio's `Instant` with rust2-lean, fail if the
+# translation differs from MoqNet.lean, MoqPattern.lean, and Kio.lean here, check it with Lean, then replay
 # native Rust's outcomes on it (moq_diff.rs, MoqDiff.lean): random cases at the algebra's
 # bounds, then every algebra call behind the route proof's checked-in vectors
 # (moq_vectors.rs).
@@ -40,7 +40,8 @@ timed() {
 cargo build --quiet --locked --release --manifest-path "$driver/Cargo.toml" --package rust2-lean
 rm -rf "$work/out"
 # The functions the route algebra's proof binds (moq-net's route/tests/algebra.rs),
-# `debounce`, the reader's time arithmetic, and the clock arithmetic of kio's `Instant`, which
+# `debounce`, the reader's time arithmetic, `Path`'s model and the methods that read it, which
+# reach moq-pattern's segment walk, and the clock arithmetic of kio's `Instant`, which
 # translates from kio's own source.
 instant=kio::clock::instant::Instant
 timed "$driver/target/release/rust2-lean" --out "$work/out" --manifest-path "$net/Cargo.toml" \
@@ -52,6 +53,9 @@ timed "$driver/target/release/rust2-lean" --out "$work/out" --manifest-path "$ne
 	--start-from 'crate::route::relay::precedence' \
 	--start-from 'crate::route::relay::floor_of' \
 	--start-from 'crate::route::relay::debounce' \
+	--start-from 'crate::path::Path::head' \
+	--start-from 'crate::path::Path::has_prefix' \
+	--start-from 'crate::path::Path::is_empty' \
 	--start-from "$instant::checked_add" \
 	--start-from "$instant::checked_sub" \
 	--start-from "$instant::saturating_add" \
@@ -60,7 +64,7 @@ timed "$driver/target/release/rust2-lean" --out "$work/out" --manifest-path "$ne
 	--start-from "$instant::saturating_duration_since" \
 	--start-from "$instant::duration_since" \
 	--start-from "$instant::sub"
-for module in MoqNet Kio; do
+for module in MoqNet MoqPattern Kio; do
 	if [ "${1:-}" = --write ]; then
 		cp "$work/out/$module.lean" "$here/$module.lean"
 	else
@@ -93,6 +97,7 @@ cp "$here/MoqDiff.lean" .
 export LEAN_PATH=.
 timed lean -o Rust.olean Rust.lean
 timed lean -o Kio.olean Kio.lean
+timed lean -o MoqPattern.olean MoqPattern.lean
 timed lean -o MoqNet.olean MoqNet.lean
 timed lean --run MoqDiff.lean cases.txt
 timed lean --run MoqDiff.lean vectors.txt

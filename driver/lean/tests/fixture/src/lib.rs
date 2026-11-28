@@ -626,6 +626,137 @@ pub mod cases {
 			}
 		}
 	}
+
+	/// `str`'s models, and `for` loops over each iterator source.
+	pub mod text {
+		use std::collections::{BTreeMap, BTreeSet, VecDeque};
+
+		/// Its length in bytes, whether it is empty, and its bytes.
+		pub fn measure(s: &str) -> (usize, bool, &[u8]) {
+			(s.len(), s.is_empty(), s.as_bytes())
+		}
+
+		/// Slicing by each kind of range, panicking where Rust does, inside a character too.
+		pub fn cut(s: &str, b: usize, e: usize, how: u8) -> &str {
+			match how % 4 {
+				0 => &s[..e],
+				1 => &s[b..],
+				2 => &s[b..e],
+				_ => &s[..],
+			}
+		}
+
+		/// Where `c` first is, whether `s` starts with `p` or with `c`, and its byte at `i`.
+		pub fn search(s: &str, c: char, p: &str, i: usize) -> (Option<usize>, bool, bool, Option<u8>) {
+			(
+				s.find(c),
+				s.starts_with(p),
+				s.starts_with(c),
+				s.as_bytes().get(i).copied(),
+			)
+		}
+
+		/// How many `x` end `v`, and how many items a map whose closure may panic counts, which
+		/// makes every one.
+		pub fn tails(v: &[u8], x: u8) -> (usize, usize) {
+			(
+				v.iter().rev().take_while(|&&b| b == x).count(),
+				v.iter().map(|b| b + 1).count(),
+			)
+		}
+
+		/// The last item of a map whose closure may panic, which makes only that one.
+		pub fn last_bumped(v: &[u8]) -> Option<u8> {
+			let mut it = v.iter().map(|b| b + 1).rev();
+			it.next()
+		}
+
+		/// Where `x` is among `v`'s items plus one, making them only up to it.
+		pub fn find_bumped(v: &[u8], x: u8) -> Option<u8> {
+			let mut n = 0;
+			for b in v.iter().map(|b| b + 1) {
+				if b == x {
+					return Some(n);
+				}
+				n += 1;
+			}
+			None
+		}
+
+		/// A `for` loop over each source: a range, a `Vec` and a slice, a map by value and by
+		/// reference, its keys, a set, an `Option`, and a `VecDeque`.
+		#[allow(for_loops_over_fallibles)]
+		pub fn loops(
+			n: u8,
+			v: Vec<u8>,
+			m: &BTreeMap<u8, u16>,
+			s: BTreeSet<u8>,
+			o: Option<u8>,
+			q: &VecDeque<u8>,
+		) -> (u16, u16, u16, u16, u16) {
+			let mut range = 0u16;
+			for i in 0..n {
+				range += i as u16;
+			}
+			let mut items = 0u16;
+			for x in v.iter() {
+				items = (items * 3 + *x as u16) % 1000;
+			}
+			for x in &v {
+				items ^= *x as u16;
+			}
+			for x in v {
+				items = (items + x as u16) % 1000;
+			}
+			let mut map = 0u16;
+			for (k, x) in m {
+				map = (map * 7 ^ *k as u16 ^ *x) % 1000;
+			}
+			for k in m.keys() {
+				map += *k as u16;
+			}
+			for (k, x) in m.clone() {
+				map = (map ^ x) % 1000 + k as u16;
+			}
+			for k in m.clone().into_keys() {
+				map ^= k as u16;
+			}
+			let mut set = 0u16;
+			for k in &s {
+				set = (set * 5 + *k as u16) % 1000;
+			}
+			for k in s {
+				set ^= k as u16;
+			}
+			for x in o {
+				set += x as u16;
+			}
+			for x in q {
+				set = (set * 3 ^ *x as u16) % 1000;
+			}
+			(range, items, map, set, q.len() as u16)
+		}
+
+		/// An iterator written here, which a `for` loop drives through its translated `next`.
+		pub struct Countdown(pub u8);
+
+		impl Iterator for Countdown {
+			type Item = u8;
+
+			fn next(&mut self) -> Option<u8> {
+				self.0 = self.0.checked_sub(1)?;
+				Some(self.0)
+			}
+		}
+
+		pub fn countdown(n: u8) -> u16 {
+			let mut t = 0;
+			for x in Countdown(n) {
+				t += x as u16 * 2;
+			}
+			t
+		}
+	}
 }
 
 /// An inherent `impl` outside its type's module, which `--start-from crate::cases` reaches.
@@ -1043,6 +1174,34 @@ pub mod refused {
 		if let Some(x) = v.last_mut() {
 			*x = 0;
 		}
+	}
+
+	/// Which items `take_while` keeps is decided as they are made, which may panic here.
+	pub fn take_bumped(v: &[u8]) -> usize {
+		v.iter().map(|b| b + 1).take_while(|b| *b > 1).count()
+	}
+
+	/// A string pattern, where only a character's has a model.
+	pub fn find_str(s: &str) -> Option<usize> {
+		s.find("ab")
+	}
+
+	pub fn cut_inclusive(s: &str) -> &str {
+		&s[0..=1]
+	}
+
+	pub fn get_range(v: &[u8]) -> Option<&[u8]> {
+		v.get(0..1)
+	}
+
+	/// moq-net's `Path` read through its representation, which its model replaces.
+	pub fn path_rest(p: &moq_net::path::Path) -> moq_net::path::Path {
+		p.slice_from(1)
+	}
+
+	/// `Path::head`, whose model reads a `head_len` this `Path` lacks.
+	pub fn path_head(p: &moq_net::path::Path) -> Option<moq_net::path::Path> {
+		p.head(0)
 	}
 
 	/// A dependency's function, refused at its span in the dependency.

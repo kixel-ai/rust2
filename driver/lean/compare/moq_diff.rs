@@ -12,6 +12,7 @@ use std::time::Duration;
 
 use kio::clock::Instant;
 
+use crate::Path;
 use crate::route::relay::{
 	Best, Claim, Here, Hop, NodeId, Offer, Port, Role, claim_order, debounce, floor_of, order, precedence,
 };
@@ -99,6 +100,20 @@ macro_rules! ints {
 }
 ints!(u32, u64, usize, i8, bool);
 
+impl Enc for std::cmp::Ordering {
+	fn enc(&self, w: &mut W) {
+		w.int(*self as i128);
+	}
+}
+
+/// Its string's length, then its bytes.
+impl Enc for Path {
+	fn enc(&self, w: &mut W) {
+		w.int(self.len() as i128);
+		self.as_str().bytes().for_each(|b| _ = w.int(b.into()));
+	}
+}
+
 impl Enc for Duration {
 	fn enc(&self, w: &mut W) {
 		w.put(self.as_secs()).put(self.subsec_nanos());
@@ -149,7 +164,13 @@ macro_rules! tuples {
 		}
 	)*};
 }
-tuples!((A 0, B 1), (A 0, B 1, C 2), (A 0, B 1, C 2, D 3), (A 0, B 1, C 2, D 3, E 4, F 5, G 6, H 7));
+tuples!(
+	(A 0, B 1),
+	(A 0, B 1, C 2),
+	(A 0, B 1, C 2, D 3),
+	(A 0, B 1, C 2, D 3, E 4, F 5),
+	(A 0, B 1, C 2, D 3, E 4, F 5, G 6, H 7)
+);
 
 impl<T: Enc> Enc for Reverse<T> {
 	fn enc(&self, w: &mut W) {
@@ -334,6 +355,14 @@ fn claim(rng: &mut Rng) -> Claim<Gen> {
 	}
 }
 
+/// A path of up to four segments, from ones where its order and boundaries turn: escapes,
+/// prefixes of each other, characters of each UTF-8 width, and a combining one.
+fn path(rng: &mut Rng) -> Path {
+	const SEGMENTS: [&str; 9] = ["a", "b", "ab", r"a\/b", r"\\", "é", "日本", "😀", "e\u{301}"];
+	let segments: Vec<&str> = (0..rng.below(5)).map(|_| rng.pick(&SEGMENTS)).collect();
+	Path::new(&segments.join("/")).expect("segments make a valid path")
+}
+
 /// What `f` returns, `1` then the value, or `0` and its panic's message.
 fn outcome<T: Enc>(w: &mut W, f: impl FnOnce() -> T) {
 	match catch_unwind(AssertUnwindSafe(f)) {
@@ -353,7 +382,7 @@ fn outcome<T: Enc>(w: &mut W, f: impl FnOnce() -> T) {
 
 fn case(rng: &mut Rng) -> W {
 	let mut w = W::default();
-	let kind = 1 + rng.below(13);
+	let kind = 1 + rng.below(14);
 	w.int(kind.into());
 	match kind {
 		1 => {
@@ -434,6 +463,21 @@ fn case(rng: &mut Rng) -> W {
 					i.saturating_duration_since(j),
 					i.duration_since(j),
 					i - j,
+				)
+			});
+		}
+		// `Path`'s model: its order and equality, and the methods that read it.
+		14 => {
+			let (a, b, n) = (path(rng), path(rng), rng.below(6) as usize);
+			w.put(&a).put(&b).put(n);
+			outcome(&mut w, || {
+				(
+					a.cmp(&b),
+					a == b,
+					a.has_prefix(&b),
+					a.is_empty(),
+					a.head_len(n),
+					a.head(n),
 				)
 			});
 		}

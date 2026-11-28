@@ -81,6 +81,13 @@ def str : D String := do
   | some s => pure s
   | none => throw "message is not UTF-8"
 
+def ordering : D Ordering := do
+  match (← int) with
+  | -1 => pure .lt
+  | 0 => pure .eq
+  | 1 => pure .gt
+  | _ => throw "an ordering"
+
 /-- Checks the translation's outcome against native Rust's next, `0` and the message for a
 panic, else `1` and the value. Divergence never matches. -/
 def expect [DecidableEq α] (what : String) (got : Rust.M α) (d : D α) : D (List String) := do
@@ -137,6 +144,11 @@ def case : D (List String) := do
         kio.clock.instant.Instant.Sub.sub i j))
       (pair (opt instant) (pair (opt instant) (pair instant (pair instant
         (pair (opt dur) (pair dur (pair dur dur)))))))
+  | 14 =>
+    let a ← str; let b ← str; let n ← u64
+    expect "Path" (do pure (compare a b, decide (a = b), ← path.Path.has_prefix a b, path.Path.is_empty a,
+        ← path.Path.head_len a n, ← path.Path.head a n))
+      (pair ordering (pair boolean (pair boolean (pair boolean (pair (opt u64) (opt str))))))
   | _ => throw "kind"
 
 def main (args : List String) : IO UInt32 := do
