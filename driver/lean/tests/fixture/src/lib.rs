@@ -755,9 +755,20 @@ pub mod cases {
 		}
 
 		/// Type parameters named as Lean types the output uses, beside a byte cast to a `char`,
-		/// and one named as the crate's `Int`, which is named as a Lean type too.
-		pub fn shadowed<Char, UInt8, Int>(s: &str, b: u8, _: Char, _: UInt8, _: Int, x: crate::Int) -> (bool, char, u8) {
-			(s.starts_with(b as char), b as char, x.0)
+		/// one named as the crate's `Int`, which is named as a Lean type too, and one named as
+		/// the crate's `Sub`, which only the crate names.
+		#[allow(clippy::too_many_arguments)]
+		pub fn shadowed<Char, UInt8, Int, Sub>(
+			s: &str,
+			b: u8,
+			_: Char,
+			_: UInt8,
+			_: Int,
+			x: crate::Int,
+			_: Sub,
+			y: crate::Sub,
+		) -> (bool, char, u8, u8) {
+			(s.starts_with(b as char), b as char, x.0, y.turn)
 		}
 
 		/// An iterator written here, which a `for` loop drives through its translated `next`.

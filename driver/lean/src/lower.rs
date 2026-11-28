@@ -80,7 +80,7 @@ pub fn extract(tcx: TyCtxt<'_>, roots: &[String]) -> Extraction {
 		modules: HashMap::new(),
 		classes: HashMap::new(),
 		imports: Default::default(),
-		root_names: HashMap::new(),
+		root_names: Default::default(),
 		shapes: HashMap::new(),
 		refusals: Vec::new(),
 		recursive: HashSet::new(),
@@ -240,7 +240,7 @@ pub(crate) struct Cx<'tcx> {
 	imports: std::cell::RefCell<HashMap<CrateNum, BTreeSet<CrateNum>>>,
 	/// Each crate's names a variable would shadow: its root's items', which begin the Lean
 	/// names of its other items, and every dependency's, which begins the names of its items.
-	root_names: HashMap<CrateNum, HashSet<String>>,
+	root_names: std::cell::RefCell<HashMap<CrateNum, HashSet<String>>>,
 	/// For each function, the indices of the type parameters it relies on cloning by copy,
 	/// each with the translated function whose `clone` relies on it.
 	clone_params: HashMap<DefId, BTreeMap<u32, DefId>>,
@@ -286,11 +286,10 @@ impl<'tcx> Cx<'tcx> {
 	}
 
 	/// The names a variable in crate `krate`'s translation would shadow.
-	fn root_names(&mut self, krate: CrateNum) -> HashSet<String> {
+	fn root_names(&self, krate: CrateNum) -> std::cell::Ref<'_, HashSet<String>> {
 		let tcx = self.tcx;
-		self.root_names
-			.entry(krate)
-			.or_insert_with(|| {
+		if !self.root_names.borrow().contains_key(&krate) {
+			self.root_names.borrow_mut().entry(krate).or_insert_with(|| {
 				let first = |did: DefId| Some(tcx.def_path(did).data.first()?.data.get_opt_name()?.to_string());
 				let mut names: HashSet<String> = match krate == LOCAL_CRATE {
 					true => tcx
@@ -317,8 +316,31 @@ impl<'tcx> Cx<'tcx> {
 						.map(|&k| structure::ident(tcx.crate_name(k).as_str())),
 				);
 				names
-			})
-			.clone()
+			});
+		}
+		std::cell::Ref::map(self.root_names.borrow(), |r| &r[&krate])
+	}
+
+	/// Generic parameter `name` of an item of crate `krate`, as that crate's translation names
+	/// it: with a `''` where it would hide a name the emitted code uses unqualified, a Lean
+	/// name such as `Char` or an item at the crate's root such as a type. Only a generic takes
+	/// two: an item of a Lean name takes one, and a Rust name none.
+	fn param(&self, krate: CrateNum, name: rustc_span::Symbol) -> String {
+		let name = structure::ident(name.as_str());
+		let hides = structure::LEAN_NAMES.contains(&name.as_str()) || self.root_names(krate).contains(&name);
+		match hides {
+			true => format!("{name}''"),
+			false => name,
+		}
+	}
+
+	/// The Lean names of the type and const parameters [`Cx::binders`] binds at `did`, in order.
+	fn generic_names(&self, did: DefId) -> Vec<String> {
+		all_params(self.tcx, did)
+			.iter()
+			.filter(|p| !matches!(p.kind, ty::GenericParamDefKind::Lifetime))
+			.map(|p| self.param(did.krate, p.name))
+			.collect()
 	}
 
 	/// The item's Rust path, as `--start-from` names it: within the package for the package's,
@@ -720,6 +742,8 @@ impl<'tcx> Cx<'tcx> {
 	fn input_names(&mut self, did: DefId, span: Span) -> HashSet<String> {
 		let tcx = self.tcx;
 		let outer = std::mem::replace(&mut self.env, TypingEnv::post_analysis(tcx, did));
+		// Its parameters as its own crate names them.
+		let krate = std::mem::replace(&mut self.krate, did.krate);
 		let sig = tcx.instantiate_bound_regions_with_erased(tcx.fn_sig(did).instantiate_identity().skip_norm_wip());
 		let mut names = HashSet::new();
 		for input in sig.inputs() {
@@ -730,6 +754,7 @@ impl<'tcx> Cx<'tcx> {
 			}
 		}
 		self.env = outer;
+		self.krate = krate;
 		names
 	}
 
@@ -940,7 +965,7 @@ impl<'tcx> Cx<'tcx> {
 			ty::Slice(elem) => format!("(Array {})", self.ty(*elem, span)?),
 			ty::Str => "String".into(),
 			ty::Ref(_, inner, _) => self.ty(*inner, span)?,
-			ty::Param(p) => structure::param(p.name.as_str()),
+			ty::Param(p) => self.param(self.krate, p.name),
 			ty::Adt(..) if self.moq_path_ty(ty) => "String".into(),
 			ty::Adt(def, args) if self.translated(def.did()) => {
 				if def.is_union() {
@@ -1153,7 +1178,7 @@ impl<'tcx> Cx<'tcx> {
 	/// An array length as a Lean `Nat`.
 	fn len(&self, len: ty::Const<'tcx>, span: Span) -> R<String> {
 		match len.kind() {
-			ty::ConstKind::Param(p) => Ok(format!("{}.toNat", structure::param(p.name.as_str()))),
+			ty::ConstKind::Param(p) => Ok(format!("{}.toNat", self.param(self.krate, p.name))),
 			_ => {
 				// A named constant, evaluated.
 				let len = self
@@ -1171,7 +1196,7 @@ impl<'tcx> Cx<'tcx> {
 	/// A const generic argument as a Lean value.
 	fn const_value(&self, c: ty::Const<'tcx>, span: Span) -> R<String> {
 		match c.kind() {
-			ty::ConstKind::Param(p) => Ok(structure::param(p.name.as_str())),
+			ty::ConstKind::Param(p) => Ok(self.param(self.krate, p.name)),
 			_ => match c.try_to_target_usize(self.tcx) {
 				Some(n) => Ok(n.to_string()),
 				None => refuse(span, format!("const argument `{c}` is not supported")),
@@ -1221,7 +1246,7 @@ impl<'tcx> Cx<'tcx> {
 		let args = ty::GenericArgs::identity_for_item(tcx, did);
 		let mut params = String::new();
 		for param in &tcx.generics_of(did).own_params {
-			let name = structure::param(param.name.as_str());
+			let name = self.param(did.krate, param.name);
 			match param.kind {
 				ty::GenericParamDefKind::Lifetime => {}
 				ty::GenericParamDefKind::Const { .. } => {
@@ -1299,7 +1324,7 @@ impl<'tcx> Cx<'tcx> {
 			owner = clauses.parent;
 		}
 		for param in params {
-			let name = structure::param(param.name.as_str());
+			let name = self.param(did.krate, param.name);
 			match param.kind {
 				ty::GenericParamDefKind::Lifetime => {}
 				ty::GenericParamDefKind::Const { .. } => {
@@ -1445,7 +1470,7 @@ impl<'tcx> Cx<'tcx> {
 			vars: fx.vars,
 			nodes,
 			reserved: fx.reserved,
-			generics: generic_names(fx.cx.tcx, did),
+			generics: fx.cx.generic_names(did),
 		};
 		let (text, monadic) = structure::emit(lowered).map_err(|msg| Refusal { span, msg })?;
 		self.shapes
@@ -1470,15 +1495,6 @@ fn all_params(tcx: TyCtxt<'_>, did: DefId) -> Vec<ty::GenericParamDef> {
 		g = gen_.parent.map(|p| tcx.generics_of(p));
 	}
 	params
-}
-
-/// The Lean names of the type and const parameters [`Cx::binders`] binds at `did`, in order.
-fn generic_names(tcx: TyCtxt<'_>, did: DefId) -> Vec<String> {
-	all_params(tcx, did)
-		.iter()
-		.filter(|p| !matches!(p.kind, ty::GenericParamDefKind::Lifetime))
-		.map(|p| structure::param(p.name.as_str()))
-		.collect()
 }
 
 /// A field's Lean name: a tuple field `0` is `x0`.
@@ -1642,8 +1658,8 @@ impl<'a, 'tcx> Fx<'a, 'tcx> {
 	fn new(cx: &'a mut Cx<'tcx>, did: DefId, body: &'tcx Body<'tcx>) -> R<Self> {
 		let tcx = cx.tcx;
 		let n = body.local_decls.len();
-		let mut reserved = cx.root_names(did.krate);
-		reserved.extend(generic_names(tcx, did));
+		let mut reserved = cx.root_names(did.krate).clone();
+		reserved.extend(cx.generic_names(did));
 		let mut fx = Fx {
 			cx,
 			did,
@@ -2437,7 +2453,7 @@ impl<'a, 'tcx> Fx<'a, 'tcx> {
 		if let mir::Const::Ty(_, ct) = c.const_
 			&& let ty::ConstKind::Param(p) = ct.kind()
 		{
-			return Ok(atom(structure::param(p.name.as_str())));
+			return Ok(atom(self.cx.param(self.did.krate, p.name)));
 		}
 		if ty.is_unit() || matches!(ty.kind(), ty::FnDef(..)) {
 			return Ok(atom("()".into()));
@@ -3491,7 +3507,8 @@ impl<'a, 'tcx> Fx<'a, 'tcx> {
 					return refuse(span, format!("`{t}` passed where `Ord` must match a Lean order"));
 				}
 			}
-			if shown.contains(&structure::param(param.name.as_str())) {
+			let name = self.cx.param(callee.krate, param.name);
+			if shown.contains(&name) {
 				continue;
 			}
 			let value = match (&param.kind, arg.as_type(), arg.as_const()) {
@@ -3499,7 +3516,7 @@ impl<'a, 'tcx> Fx<'a, 'tcx> {
 				(ty::GenericParamDefKind::Const { .. }, _, Some(c)) => self.cx.const_value(c, span)?,
 				_ => continue,
 			};
-			text += &format!(" ({} := {value})", structure::param(param.name.as_str()));
+			text += &format!(" ({name} := {value})");
 		}
 		Ok(text)
 	}

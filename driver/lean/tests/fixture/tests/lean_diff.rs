@@ -603,8 +603,9 @@ fn case(rng: &mut Rng) -> W {
 			let (s, b) = (rng.text(), rng.byte());
 			w.put(s.as_str()).put(b);
 			outcome(&mut w, || {
-				let (a, c, d) = text::shadowed(&s, b, (), (), (), fixture::Int(b));
-				(a, (c, d))
+				let sub = fixture::Sub { opening: None, turn: b };
+				let (a, c, d, e) = text::shadowed(&s, b, (), (), (), fixture::Int(b), (), sub);
+				(a, (c, (d, e)))
 			});
 		}
 		_ => {
