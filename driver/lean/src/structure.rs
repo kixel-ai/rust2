@@ -187,6 +187,47 @@ const KEYWORDS: &[&str] = &[
 	"this",
 ];
 
+/// Names the emitted code uses unqualified, which a definition of the same name in scope
+/// would shadow: such a function or type gets a `'`, and such a variable a number.
+pub const LEAN_NAMES: &[&str] = &[
+	"decide",
+	"id",
+	"pure",
+	"min",
+	"max",
+	"some",
+	"none",
+	"default",
+	"compare",
+	"Option",
+	"List",
+	"Array",
+	"Vector",
+	"String",
+	"Bool",
+	"Unit",
+	"Empty",
+	"Ordering",
+	"Except",
+	"Functor",
+	"Id",
+	"Repr",
+	"DecidableEq",
+	"Inhabited",
+	"Ord",
+	"UInt8",
+	"UInt16",
+	"UInt32",
+	"UInt64",
+	"Int8",
+	"Int16",
+	"Int32",
+	"Int64",
+	"Rust",
+	"Nat",
+	"Int",
+];
+
 /// A Rust name as a Lean identifier.
 pub fn ident(name: &str) -> String {
 	let name = name.strip_prefix("r#").unwrap_or(name);

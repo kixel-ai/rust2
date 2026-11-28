@@ -30,7 +30,7 @@ pub fn write(tcx: TyCtxt<'_>, extraction: &Extraction, out: &Path) -> Result<(),
 	let krate = tcx.crate_name(LOCAL_CRATE);
 	let checks = if tcx.sess.overflow_checks() { "on" } else { "off" };
 	let mut text = format!(
-		"-- Translated from the `{krate}` crate by rust2-lean, with overflow checks {checks}.\nimport Rust\n\nset_option linter.unusedVariables false\n\nnamespace {krate}\n\n"
+		"-- Translated from the `{krate}` crate by rust2-lean, with overflow checks {checks}.\nimport Rust\n\nset_option linter.unusedVariables false\n-- Rust's wide tuples need deeper instance searches than Lean's default.\nset_option synthInstance.maxSize 1024\n\nnamespace {krate}\n\n"
 	);
 	for ty in &extraction.types {
 		text += ty;
@@ -72,7 +72,7 @@ pub fn census(tcx: TyCtxt<'_>, extraction: &Extraction) -> String {
 	}
 	out += &format!(
 		"\n{} of {} reached functions translated; {} refusals\n",
-		extraction.fns.len(),
+		extraction.outcomes.iter().filter(|o| o.1).count(),
 		extraction.reached,
 		extraction.refusals.len()
 	);
@@ -80,6 +80,10 @@ pub fn census(tcx: TyCtxt<'_>, extraction: &Extraction) -> String {
 	kinds.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.cmp(&b.0)));
 	for (kind, n) in &kinds {
 		out += &format!("{n:>5}  {kind}\n");
+	}
+	out += "\n";
+	for (path, ok) in &extraction.outcomes {
+		out += &format!("{} {path}\n", if *ok { "translated" } else { "refused   " });
 	}
 	out
 }
