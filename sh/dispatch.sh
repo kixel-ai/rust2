@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # Run `just check`, `just test`, or `just ci` over the modules the branch changed
 # since BASE: the queue's explicit argument, the fixer's QUEST_LAND_BASE, or origin/main.
-# --all runs every module, and --only=MODULE,... the named ones, as a CI job given its
-# share of a selection does. --paths takes the changed paths on stdin, one per line,
+# --all runs every module, and --only=MODULE,... the named ones, as sh/coverage.py runs
+# one module at a time. --paths takes the changed paths on stdin, one per line,
 # as sh/coverage.py asks of one path. --query prints the selected modules instead.
 set -euo pipefail
 
@@ -152,7 +152,7 @@ test_sh() {
 test_release() { python3 -I ffi/release/test_package.py; }
 test_driver() { just driver test; }
 # moq's export at the pin, cut down to C, and every binding's rendered API, which the
-# surface files lock on x86_64 Linux, the queue's runners, before the slower test build.
+# surface files lock on x86_64 Linux, the queue's runner, before the slower test build.
 test_ffi() {
     python3 -I ffi/surface/test_surface.py
     if [[ "$(uname -sm)" == "Linux x86_64" ]]; then
