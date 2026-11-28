@@ -362,6 +362,11 @@ pub mod cases {
 		}
 	}
 
+	/// Indexing a map whose keys are references, by a borrow of one.
+	pub fn by_ref(m: &BTreeMap<&u8, u8>, k: &u8) -> u8 {
+		m[&k]
+	}
+
 	pub fn key_list<K: Ord + Copy, V>(m: &BTreeMap<K, V>) -> Vec<K> {
 		m.keys().copied().collect()
 	}

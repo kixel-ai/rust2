@@ -379,7 +379,12 @@ impl<'tcx> Fx<'_, 'tcx> {
 				let ty::Adt(_, margs) = call.gargs.type_at(0).kind() else {
 					return refuse(span, "indexing this map is not supported");
 				};
-				let (k, q) = (margs.type_at(0), call.gargs.type_at(1).peel_refs());
+				// `&Q`: only the lookup's own borrow comes off, since a key may be a reference too.
+				let q = match call.gargs.type_at(1).kind() {
+					ty::Ref(_, q, _) => *q,
+					_ => call.gargs.type_at(1),
+				};
+				let k = margs.type_at(0);
 				if tcx.erase_and_anonymize_regions(k) != tcx.erase_and_anonymize_regions(q) {
 					return refuse(span, format!("looking up `{k}` by `{q}` is not supported"));
 				}
@@ -468,6 +473,11 @@ impl<'tcx> Fx<'_, 'tcx> {
 					_ => "fromNanos",
 				};
 				compound(format!("Rust.Duration.{f} {}", n.paren()), &[&n])
+			}
+			// `Instant - Duration`, which an older kio also has, would take the model's `Instant`.
+			"Sub::sub for kio::Instant" if !matches!(call.args[1].node.ty(self.body, tcx).kind(), ty::Adt(d, _) if self.cx.kio_instant(d.did())) =>
+			{
+				return refuse(span, "subtracting a `Duration` from an `Instant` has no Lean model");
 			}
 			k if duration_model(k).is_some() => {
 				let a = self.operand(&call.args[0].node, span)?;

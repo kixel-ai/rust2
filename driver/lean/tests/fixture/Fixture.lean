@@ -367,6 +367,11 @@ def cases.Ledger.queue (self : cases.Ledger) (x : UInt8) : (((Option UInt8) × B
   let front := r.2
   return ((front, self.q.items.isEmpty, self.q.items.length.toUInt64), self)
 
+def cases.by_ref (m : (Rust.BTreeMap UInt8 UInt8)) (k : UInt8) : Rust.M UInt8 := do
+  let t6 := k
+  let t3 := (← Rust.BTreeMap.index m t6)
+  return t3
+
 def cases.key_list {K : Type} [Inhabited K] [DecidableEq K] [Ord K] {V : Type} [Inhabited V] (m : (Rust.BTreeMap K V)) : (Array K) :=
   (m.entries.map (·.1)).toArray
 

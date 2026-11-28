@@ -634,13 +634,21 @@ impl<'tcx> Cx<'tcx> {
 	}
 
 	/// Whether `did` is `kio::clock::Instant`, a `u64` of nanoseconds with derived `Clone`,
-	/// `PartialEq`, and `Ord`, which `Rust.kio.Instant` models.
+	/// `PartialEq`, and `Ord`, which `Rust.kio.Instant` models. Matched by where kio defines
+	/// it, since a crate that sees it only through a re-export prints another path.
 	fn kio_instant(&self, did: DefId) -> bool {
 		let tcx = self.tcx;
+		let names: Vec<String> = tcx
+			.def_path(did)
+			.data
+			.iter()
+			.filter_map(|d| d.data.get_opt_name())
+			.map(|n| n.to_string())
+			.collect();
 		!did.is_local()
 			&& tcx.crate_name(did.krate).as_str() == "kio"
 			&& matches!(tcx.def_kind(did), DefKind::Struct)
-			&& tcx.def_path_str(did) == "kio::clock::Instant"
+			&& names == ["clock", "instant", "Instant"]
 	}
 
 	/// Whether the item is from the sysroot's `core` or `alloc`, found by their lang items, so a
