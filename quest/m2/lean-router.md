@@ -28,7 +28,9 @@ Landing as a sequence of PRs, each standing on its own; the first added the rout
 
 `BTreeMap` and `BTreeSet` are sorted association lists over a key whose `Ord` is derived, not Mathlib's finite maps, so translations stay core-only.
 
-Decided 2026-11-27 (implementer, second PR): kio's `Instant` is modeled as the `u64` of nanoseconds kio keeps, not as a `Duration` since an origin as this Plan first said: a `Duration` holds values an `Instant` cannot, so checked and saturating arithmetic would overflow at the wrong bound. Its model is checked against kio directly in `lean-moq`, since no translated function reaches it until `Router`'s state does.
+Decided 2026-11-27 (maintainer, /quest-run): ✅ kio's `Instant` is modeled as the `u64` of nanoseconds kio keeps (rejected: a `Duration` since an origin, as this Plan first said): a `Duration` holds values an `Instant` cannot, so checked and saturating arithmetic would overflow at the wrong bound. Its model is checked against kio directly in `lean-moq`, since no translated function reaches it until `Router`'s state does.
+
+Decided 2026-11-27 (maintainer, /quest-run): ✅ plan [translating dependency crates' code](/quest/m2/lean-deps.md) now, so hand models of dependencies such as kio's `Instant` can go (rejected: wait until a second dependency needs a hand model). kio's `Instant` is already plain safe Rust, so no moq change retires it; that quest does.
 
 Decided 2026-11-27 (maintainer, /quest-run): ✅ iterators are lazy Lean lists (rejected: chains fused into loops, as this Plan first said). A list's items are thunks of `Rust.M` actions when a closure that may panic maps them, so a consumer meets a panic only at the item Rust's laziness meets it at, a proof reasons with `List` lemmas instead of a loop's equation, and no closure needs to capture only copies.
 
@@ -40,4 +42,5 @@ Decided 2026-11-27 (maintainer, /quest-run): ✅ model `Path` as a Lean `String`
 
 ## Related
 
+- [rust2-lean translates dependency crates' code](/quest/m2/lean-deps.md) - retires the hand model of kio's `Instant` this quest adds
 - [rust2-ts model epic](/quest/m2/ts-model/README.md) - shares `rust2/driver` and moq-net's `Router` as its consumer
