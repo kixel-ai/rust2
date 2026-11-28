@@ -468,6 +468,25 @@ impl<'tcx> Cx<'tcx> {
 			.collect()
 	}
 
+	/// The names `did`'s parameters' Lean types mention, lowered in its own environment, so a
+	/// caller passes explicitly each generic argument they erase, such as `V` of a
+	/// `Keys<K, V>`, which lowers to a `List K`. A type that does not lower mentions none.
+	fn input_names(&mut self, did: DefId, span: Span) -> HashSet<String> {
+		let tcx = self.tcx;
+		let outer = std::mem::replace(&mut self.env, TypingEnv::post_analysis(tcx, did));
+		let sig = tcx.instantiate_bound_regions_with_erased(tcx.fn_sig(did).instantiate_identity().skip_norm_wip());
+		let mut names = HashSet::new();
+		for input in sig.inputs() {
+			let Ok(lean) = self.ty(*input, span) else { continue };
+			for word in lean.split(|c: char| c.is_whitespace() || "()×→".contains(c)) {
+				// An array length is its parameter's `.toNat`.
+				names.insert(word.strip_suffix(".toNat").unwrap_or(word).to_string());
+			}
+		}
+		self.env = outer;
+		names
+	}
+
 	/// Whether cloning a value of `ty` copies it, as the translation's value semantics assume.
 	/// `Copy` alone is not enough: a `Copy` type's `Clone` may be written by hand. Pushes the
 	/// index of each type parameter whose `clone` it takes to copy, which
@@ -2717,7 +2736,8 @@ impl<'a, 'tcx> Fx<'a, 'tcx> {
 			return "Clone::clone".into();
 		}
 		let name = tcx.item_name(did);
-		// kio's `Instant`, by its own methods, or `Trait::method for kio::Instant`.
+		// kio's `Instant`, by its own methods, or `Trait::method for kio::Instant` for a sysroot
+		// trait; another crate's trait of the same name has no model, so no key.
 		if let Some(impl_id) = tcx.impl_of_assoc(did)
 			&& let ty::Adt(def, _) = tcx.type_of(impl_id).instantiate_identity().skip_norm_wip().kind()
 			&& self.cx.kio_instant(def.did())
@@ -2725,6 +2745,9 @@ impl<'a, 'tcx> Fx<'a, 'tcx> {
 			return match tcx.trait_impl_of_assoc(did) {
 				Some(imp) => {
 					let t = tcx.impl_trait_ref(imp).instantiate_identity().skip_norm_wip().def_id;
+					if !self.cx.is_std(t) {
+						return String::new();
+					}
 					format!("{}::{name} for kio::Instant", tcx.item_name(t))
 				}
 				None => format!("kio::Instant::{name}"),
@@ -2770,7 +2793,7 @@ impl<'a, 'tcx> Fx<'a, 'tcx> {
 		let shape = self.cx.shapes.get(&callee);
 		let monadic = shape.is_none_or(|s| s.monadic || s.failed);
 		let sig = tcx.fn_sig(callee).instantiate_identity().skip_norm_wip().skip_binder();
-		// A generic argument Lean cannot infer from the arguments' types.
+		// A generic argument Lean cannot infer from the arguments' Lean types.
 		let mut text = self.cx.fn_name(callee);
 		let generics = tcx.generics_of(callee);
 		let mut all = Vec::new();
@@ -2780,6 +2803,7 @@ impl<'a, 'tcx> Fx<'a, 'tcx> {
 			g = gen_.parent.map(|p| tcx.generics_of(p));
 		}
 		let eq = tcx.lang_items().eq_trait();
+		let shown = self.cx.input_names(callee, span);
 		for param in &all {
 			let arg = gargs[param.index as usize];
 			if let ty::GenericParamDefKind::Type { .. } = param.kind
@@ -2819,18 +2843,7 @@ impl<'a, 'tcx> Fx<'a, 'tcx> {
 					return refuse(span, format!("`{t}` passed where `Ord` must match a Lean order"));
 				}
 			}
-			let shows = sig.inputs().iter().any(|t| {
-				t.walk().any(|a| match (a.as_type(), a.as_const(), &param.kind) {
-					(Some(t), _, ty::GenericParamDefKind::Type { .. }) => {
-						matches!(t.kind(), ty::Param(p) if p.index == param.index)
-					}
-					(_, Some(c), ty::GenericParamDefKind::Const { .. }) => {
-						matches!(c.kind(), ty::ConstKind::Param(p) if p.index == param.index)
-					}
-					_ => false,
-				})
-			});
-			if shows {
+			if shown.contains(&structure::ident(param.name.as_str())) {
 				continue;
 			}
 			let value = match (&param.kind, arg.as_type(), arg.as_const()) {

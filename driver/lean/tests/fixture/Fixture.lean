@@ -372,8 +372,11 @@ def cases.by_ref (m : (Rust.BTreeMap UInt8 UInt8)) (k : UInt8) : Rust.M UInt8 :=
   let t3 := (← Rust.BTreeMap.index m t6)
   return t3
 
+def cases.keys_of {K : Type} [Inhabited K] {V : Type} [Inhabited V] (keys : (List K)) : (Array K) :=
+  keys.toArray
+
 def cases.key_list {K : Type} [Inhabited K] [DecidableEq K] [Ord K] {V : Type} [Inhabited V] (m : (Rust.BTreeMap K V)) : (Array K) :=
-  (m.entries.map (·.1)).toArray
+  cases.keys_of (V := V) (m.entries.map (·.1))
 
 def cases.peeks.closure0 (arg1 : Unit) (arg2 : (cases.Rank × UInt16)) : (cases.Rank × UInt16) := Id.run do
   let k := arg2.1

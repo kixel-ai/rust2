@@ -368,7 +368,12 @@ pub mod cases {
 	}
 
 	pub fn key_list<K: Ord + Copy, V>(m: &BTreeMap<K, V>) -> Vec<K> {
-		m.keys().copied().collect()
+		keys_of(m.keys())
+	}
+
+	/// A `Keys<K, V>` lowers to a `List K`, so a call names the `V` it erases.
+	fn keys_of<K: Copy, V>(keys: std::collections::btree_map::Keys<'_, K, V>) -> Vec<K> {
+		keys.copied().collect()
 	}
 
 	/// What a sorted map, a sorted set, and a queue read back, in order; `m[&r]` panics when
@@ -740,6 +745,11 @@ pub mod refused {
 	/// A `u128`, which has no Lean model.
 	pub fn millis(d: std::time::Duration) -> u128 {
 		d.as_millis()
+	}
+
+	/// Another crate's trait named `Sub` on kio's `Instant`, which kio's model does not cover.
+	pub fn elapsed(a: kio::clock::instant::Instant, b: kio::clock::instant::Instant) -> std::time::Duration {
+		fixture_dep::Sub::sub(a, b)
 	}
 }
 

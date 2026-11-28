@@ -1,46 +1,47 @@
-src/lib.rs:433:3: 433:9: `PartialEq` of `&refused::Holder` is not structural equality
-src/lib.rs:445:5: 445:25: cloning `refused::Norm` may not copy it
-src/lib.rs:474:3: 474:10: `refused::dup` clones `refused::Reset` here, which may not copy it
-src/lib.rs:478:42: 478:54: `refused::dup` clones `refused::Reset` here, which may not copy it
-src/lib.rs:485:21: 485:34: an iterator read after it is partly consumed is not supported
-src/lib.rs:510:3: 510:14: `refused::Heavy` passed where `refused::Weigh` needs a Lean instance, which is not supported
-src/lib.rs:515:5: 515:17: `Ord` of `std::result::Result<u8, u8>` may not match a Lean order
-src/lib.rs:526:5: 526:17: `Ord` of `refused::Backwards` may not match a Lean order
-src/lib.rs:530:26: 530:45: `for<'a> fn(&'a refused::Reset) -> refused::Reset` has no Lean model
-src/lib.rs:531:11: 531:23: `refused::dup` clones `refused::Reset` here, which may not copy it
-src/lib.rs:540:12: 540:18: `std::convert::Into::into` has no Lean model
-src/lib.rs:550:3: 550:14: `T` passed where `refused::Light` needs a Lean instance, which is not supported
-src/lib.rs:559:3: 559:12: `refused::Backwards` passed where `Ord` must match a Lean order
-src/lib.rs:565:14: 565:17: a bound on `std::option::Option<T>` is not supported, since Lean binds instances only on type parameters
-src/lib.rs:573:14: 573:17: a bound on `std::option::Option<T>` is not supported, since Lean binds instances only on type parameters
-src/lib.rs:581:14: 581:34: a bound on `std::option::Option<T>` is not supported, since Lean binds instances only on type parameters
-src/lib.rs:587:16: 587:22: `std::iter::Map<std::slice::Iter<'_, u8>, for<'a> fn(&'a u8) -> bool>` has no Lean model
-src/lib.rs:593:4: 593:16: a `..` index that may panic is not supported
-src/lib.rs:597:17: 597:23: `std::iter::Repeat<u8>` has no Lean model
-src/lib.rs:611:5: 611:25: cloning `refused::Zeroed` may not copy it
-src/lib.rs:616:3: 616:26: recursive type `Tree` is not supported
-src/lib.rs:624:3: 624:17: an explicit panic is not supported, since its message has no model
-src/lib.rs:635:18: 635:19: `std::cell::Cell<u8>` has interior mutability, which is not supported
-src/lib.rs:639:2: 639:31: recursion is not supported
-src/lib.rs:643:35: 643:42: returning a mutable reference is not supported
-src/lib.rs:648:44: 648:58: `std::vec::Vec<u8, Arena>` has an allocator other than `Global`, which is not supported
-src/lib.rs:666:3: 666:9: comparing `&std::vec::Vec<refused::Left>` with `&std::vec::Vec<refused::Right>` is not supported
-src/lib.rs:671:3: 671:7: calling a closure is not supported
-src/lib.rs:676:21: 676:31: a mutable reference used as a value is not supported
-src/lib.rs:676:25: 676:31: this mutable reference is not supported
-src/lib.rs:683:6: 683:22: an iterator read after it is partly consumed is not supported
-src/lib.rs:702:5: 702:16: `Ord` of `refused::Odd` may not match a Lean order
-src/lib.rs:707:5: 707:11: looking up `std::string::String` by `str` is not supported
-src/lib.rs:711:3: 711:11: a trait's associated type or constant is not supported
-src/lib.rs:720:21: 720:30: collecting into `std::collections::BTreeSet<u8>` is not supported
-src/lib.rs:724:27: 724:38: enumerating items that may panic is not supported
-src/lib.rs:729:3: 729:8: ordering `T` needs an `Ord` bound on it
-src/lib.rs:733:5: 733:11: `Ord` of `refused::Odd` may not match a Lean order
-src/lib.rs:737:5: 737:14: looking up `std::string::String` by `str` is not supported
-src/lib.rs:741:43: 741:47: `u128` has no Lean model
+src/lib.rs:438:3: 438:9: `PartialEq` of `&refused::Holder` is not structural equality
+src/lib.rs:450:5: 450:25: cloning `refused::Norm` may not copy it
+src/lib.rs:479:3: 479:10: `refused::dup` clones `refused::Reset` here, which may not copy it
+src/lib.rs:483:42: 483:54: `refused::dup` clones `refused::Reset` here, which may not copy it
+src/lib.rs:490:21: 490:34: an iterator read after it is partly consumed is not supported
+src/lib.rs:515:3: 515:14: `refused::Heavy` passed where `refused::Weigh` needs a Lean instance, which is not supported
+src/lib.rs:520:5: 520:17: `Ord` of `std::result::Result<u8, u8>` may not match a Lean order
+src/lib.rs:531:5: 531:17: `Ord` of `refused::Backwards` may not match a Lean order
+src/lib.rs:535:26: 535:45: `for<'a> fn(&'a refused::Reset) -> refused::Reset` has no Lean model
+src/lib.rs:536:11: 536:23: `refused::dup` clones `refused::Reset` here, which may not copy it
+src/lib.rs:545:12: 545:18: `std::convert::Into::into` has no Lean model
+src/lib.rs:555:3: 555:14: `T` passed where `refused::Light` needs a Lean instance, which is not supported
+src/lib.rs:564:3: 564:12: `refused::Backwards` passed where `Ord` must match a Lean order
+src/lib.rs:570:14: 570:17: a bound on `std::option::Option<T>` is not supported, since Lean binds instances only on type parameters
+src/lib.rs:578:14: 578:17: a bound on `std::option::Option<T>` is not supported, since Lean binds instances only on type parameters
+src/lib.rs:586:14: 586:34: a bound on `std::option::Option<T>` is not supported, since Lean binds instances only on type parameters
+src/lib.rs:592:16: 592:22: `std::iter::Map<std::slice::Iter<'_, u8>, for<'a> fn(&'a u8) -> bool>` has no Lean model
+src/lib.rs:598:4: 598:16: a `..` index that may panic is not supported
+src/lib.rs:602:17: 602:23: `std::iter::Repeat<u8>` has no Lean model
+src/lib.rs:616:5: 616:25: cloning `refused::Zeroed` may not copy it
+src/lib.rs:621:3: 621:26: recursive type `Tree` is not supported
+src/lib.rs:629:3: 629:17: an explicit panic is not supported, since its message has no model
+src/lib.rs:640:18: 640:19: `std::cell::Cell<u8>` has interior mutability, which is not supported
+src/lib.rs:644:2: 644:31: recursion is not supported
+src/lib.rs:648:35: 648:42: returning a mutable reference is not supported
+src/lib.rs:653:44: 653:58: `std::vec::Vec<u8, Arena>` has an allocator other than `Global`, which is not supported
+src/lib.rs:671:3: 671:9: comparing `&std::vec::Vec<refused::Left>` with `&std::vec::Vec<refused::Right>` is not supported
+src/lib.rs:676:3: 676:7: calling a closure is not supported
+src/lib.rs:681:21: 681:31: a mutable reference used as a value is not supported
+src/lib.rs:681:25: 681:31: this mutable reference is not supported
+src/lib.rs:688:6: 688:22: an iterator read after it is partly consumed is not supported
+src/lib.rs:707:5: 707:16: `Ord` of `refused::Odd` may not match a Lean order
+src/lib.rs:712:5: 712:11: looking up `std::string::String` by `str` is not supported
+src/lib.rs:716:3: 716:11: a trait's associated type or constant is not supported
+src/lib.rs:725:21: 725:30: collecting into `std::collections::BTreeSet<u8>` is not supported
+src/lib.rs:729:27: 729:38: enumerating items that may panic is not supported
+src/lib.rs:734:3: 734:8: ordering `T` needs an `Ord` bound on it
+src/lib.rs:738:5: 738:11: `Ord` of `refused::Odd` may not match a Lean order
+src/lib.rs:742:5: 742:14: looking up `std::string::String` by `str` is not supported
+src/lib.rs:746:43: 746:47: `u128` has no Lean model
+src/lib.rs:752:3: 752:30: `<kio::clock::instant::Instant as fixture_dep::Sub>::sub` has no Lean model
 
-15 of 52 reached functions translated; 40 refusals
-    5  _ has no Lean model
+15 of 53 reached functions translated; 41 refusals
+    6  _ has no Lean model
     4  _ of _ may not match a Lean order
     3  _ clones _ here, which may not copy it
     3  a bound on _ is not supported, since Lean binds instances only on type parameters
@@ -118,3 +119,4 @@ refused    refused::below
 refused    refused::oddest
 refused    refused::unname
 refused    refused::millis
+refused    refused::elapsed
