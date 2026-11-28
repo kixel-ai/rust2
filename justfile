@@ -44,7 +44,7 @@ bench *args:
 
 # Apply formatters without changing program behavior.
 fix:
-    shfmt -w .githooks/pre-push bench/*/*.sh sh/*.sh
+    shfmt -w bench/*/*.sh sh/*.sh
     taplo format
     nixfmt flake.nix
     just ts fix
