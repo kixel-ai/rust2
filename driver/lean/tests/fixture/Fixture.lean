@@ -109,7 +109,7 @@ def Session.turns_loop {S : UInt64} (self : (Session S)) (total : UInt16) (s : U
     let t8 := self.subs[t10.toNat]!.turn.toUInt16
     total := (← total +? t8)
     s := (← s +? 1)
-    return (← Session.turns_loop self total s)
+    return (← Session.turns_loop (S := S) self total s)
   else
     return (total)
 partial_fixpoint
@@ -117,7 +117,7 @@ partial_fixpoint
 def Session.turns {S : UInt64} (self : (Session S)) : Rust.M UInt16 := do
   let total : UInt16 := 0
   let s : UInt64 := 0
-  let r ← Session.turns_loop self total s
+  let r ← Session.turns_loop (S := S) self total s
   return r
 
 def Session.same {S : UInt64} (self : (Session S)) (s : UInt64) (t : UInt64) : Rust.M Bool := do
@@ -499,15 +499,50 @@ def cases.lenses.Book.count (self : cases.lenses.Book) (k : UInt8) (j : UInt8) :
   let t53 := (← Rust.BTreeMap.index self.seeds t56)
   return ((t44, t53.x0), self)
 
-def cases.lenses.Book.seed {arg : UInt64} (self : cases.lenses.Book) (k : UInt8) (f : (Option UInt16)) : Rust.M (UInt16 × cases.lenses.Book) := do
+def cases.lenses.Book.seed_loop0 {arg : UInt64} {r : UInt64} (self : cases.lenses.Book) (s : UInt16) (i : UInt64) : Rust.M UInt16 := do
+  let mut s := s
+  let mut i := i
+  if i < arg then
+    let t18 := i
+    let t19 := decide (t18 < 16)
+    unless t19 do throw "attempt to shift left with overflow"
+    s := s ^^^ (1 <<< t18.toUInt16)
+    i := (← i +? 1)
+    return (← cases.lenses.Book.seed_loop0 (arg := arg) (r := r) self s i)
+  else
+    return s
+partial_fixpoint
+
+def cases.lenses.Book.seed_loop1 {arg : UInt64} {r : UInt64} (self : cases.lenses.Book) (s : UInt16) («by» : UInt64) : Rust.M (UInt16 × cases.lenses.Book) := do
+  let mut s := s
+  let mut «by» := «by»
+  if «by» > 0 then
+    let t29 := «by»
+    let t30 := decide (t29 < 16)
+    unless t30 do throw "attempt to shift left with overflow"
+    s := s ^^^ (256 <<< t29.toUInt16)
+    «by» := (← «by» -? 1)
+    return (← cases.lenses.Book.seed_loop1 (arg := arg) (r := r) self s «by»)
+  else
+    let by1 := s
+    return ((by1, self))
+partial_fixpoint
+
+def cases.lenses.Book.seed {arg : UInt64} {r : UInt64} (self : cases.lenses.Book) (k : UInt8) (f : (Option UInt16)) : Rust.M (UInt16 × cases.lenses.Book) := do
   let mut self := self
   let arg1 := ({ x0 := (← Rust.expect f "called `Option::unwrap()` on a `None` value") } : cases.lenses.Seeded)
   self := { self with seeds := self.seeds.orInsertWith k (fun _ => arg1) }
-  return ((self.seeds.valueAt k).x0 ^^^ (arg.toUInt16), self)
+  let mut s := (self.seeds.valueAt k).x0
+  let i : UInt64 := 0
+  let r1 ← cases.lenses.Book.seed_loop0 (arg := arg) (r := r) self s i
+  s := r1
+  let «by» := r
+  let r2 ← cases.lenses.Book.seed_loop1 (arg := arg) (r := r) self s «by»
+  return r2
 
 def cases.lenses.Book.eager (self : cases.lenses.Book) (k : UInt8) (f : (Option UInt16)) (named : Bool) : Rust.M ((UInt16 × UInt8) × cases.lenses.Book) := do
   let mut self := self
-  let r ← cases.lenses.Book.seed (arg := 3) self k f
+  let r ← cases.lenses.Book.seed (arg := 3) (r := 2) self k f
   let s := r.1
   self := r.2
   let mut name : (Option String) := default

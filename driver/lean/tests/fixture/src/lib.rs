@@ -469,15 +469,28 @@ pub mod cases {
 
 			/// Arguments that may panic, which Rust evaluates whether or not the key is there.
 			pub fn eager(&mut self, k: u8, f: Option<u16>, named: bool) -> (u16, u8) {
-				let s = self.seed::<3>(k, f);
+				let s = self.seed::<3, 2>(k, f);
 				let name = if named { Some("a tally") } else { None };
 				(s, self.tallies.get_mut(&k).expect(name.unwrap()).last)
 			}
 
-			/// A const parameter named as the variable a panicking argument is bound to.
+			/// Const parameters named as the variables a panicking argument and a loop's result
+			/// are bound to, and two locals named as a Lean keyword.
 			#[allow(non_upper_case_globals)]
-			fn seed<const arg: usize>(&mut self, k: u8, f: Option<u16>) -> u16 {
-				self.seeds.entry(k).or_insert(Seeded(f.unwrap())).0 ^ arg as u16
+			fn seed<const arg: usize, const r: usize>(&mut self, k: u8, f: Option<u16>) -> u16 {
+				let mut s = self.seeds.entry(k).or_insert(Seeded(f.unwrap())).0;
+				let mut i = 0;
+				while i < arg {
+					s ^= 1 << i;
+					i += 1;
+				}
+				let mut by = r;
+				while by > 0 {
+					s ^= 0x100 << by;
+					by -= 1;
+				}
+				let by = s;
+				by
 			}
 
 			/// `get_or_insert_default` on an `Option`, `mem::take` through it, `mem::replace`, and

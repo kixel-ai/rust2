@@ -99,6 +99,11 @@ pub struct Function {
 	pub ret_value: Ex,
 	pub vars: Vec<Var>,
 	pub nodes: Vec<Node>,
+	/// Names besides [`LEAN_NAMES`] that a variable would shadow.
+	pub reserved: HashSet<String>,
+	/// The implicit parameters `binders` names, which a loop's function is passed by name, as
+	/// its arguments may not determine them.
+	pub generics: Vec<String>,
 }
 
 /// A structured statement.
@@ -227,6 +232,12 @@ pub const LEAN_NAMES: &[&str] = &[
 	"Nat",
 	"Int",
 ];
+
+/// Whether a variable named `name` would shadow a name the emitted code uses unqualified, or
+/// one of `reserved`.
+pub fn shadows(name: &str, reserved: &HashSet<String>) -> bool {
+	LEAN_NAMES.contains(&name) || reserved.contains(name)
+}
 
 /// A Rust name as a Lean identifier.
 pub fn ident(name: &str) -> String {
@@ -605,7 +616,7 @@ impl<'f> Structurer<'f> {
 	fn new_var(&mut self, name: &str) -> usize {
 		let mut unique = name.to_string();
 		let mut k = 1;
-		while self.f.vars.iter().chain(&self.extra).any(|v| v.name == unique) {
+		while self.f.vars.iter().chain(&self.extra).any(|v| v.name == unique) || shadows(&unique, &self.f.reserved) {
 			unique = format!("{name}{k}");
 			k += 1;
 		}
@@ -697,12 +708,14 @@ impl<'f> Structurer<'f> {
 	}
 
 	fn call_loop(&self, l: usize) -> Ex {
-		let args: Vec<&str> = self.loops[l].params.iter().map(|&v| self.var_name(v)).collect();
-		let text = if args.is_empty() {
-			self.loop_name(l)
-		} else {
-			format!("{} {}", self.loop_name(l), args.join(" "))
-		};
+		let mut text = self.loop_name(l);
+		for g in &self.f.generics {
+			text += &format!(" ({g} := {g})");
+		}
+		for &v in &self.loops[l].params {
+			text += " ";
+			text += self.var_name(v);
+		}
 		Ex {
 			text,
 			atom: false,

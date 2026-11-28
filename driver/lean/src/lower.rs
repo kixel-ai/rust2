@@ -1277,6 +1277,8 @@ impl<'tcx> Cx<'tcx> {
 			ret_value: sig.ret_value,
 			vars: fx.vars,
 			nodes,
+			reserved: fx.reserved,
+			generics: generic_names(fx.cx.tcx, did),
 		};
 		let (text, monadic) = structure::emit(lowered).map_err(|msg| Refusal { span, msg })?;
 		self.shapes
@@ -1301,6 +1303,15 @@ fn all_params(tcx: TyCtxt<'_>, did: DefId) -> Vec<ty::GenericParamDef> {
 		g = gen_.parent.map(|p| tcx.generics_of(p));
 	}
 	params
+}
+
+/// The Lean names of the type and const parameters [`Cx::binders`] binds at `did`, in order.
+fn generic_names(tcx: TyCtxt<'_>, did: DefId) -> Vec<String> {
+	all_params(tcx, did)
+		.iter()
+		.filter(|p| !matches!(p.kind, ty::GenericParamDefKind::Lifetime))
+		.map(|p| structure::ident(p.name.as_str()))
+		.collect()
 }
 
 /// A field's Lean name: a tuple field `0` is `x0`.
@@ -1424,8 +1435,9 @@ struct Fx<'a, 'tcx> {
 	/// or `entry`'s `Entry`: the lens a `&mut` taken out of each is. The value itself is a
 	/// copy of what it points at, which only a match reads.
 	carriers: HashMap<Local, Lens<'tcx>>,
-	/// The Lean names of the generic parameters in scope, which a variable would shadow.
-	generics: HashSet<String>,
+	/// Names a variable would shadow: the first part of a qualified name the emitted code uses,
+	/// and the generic parameters in scope.
+	reserved: HashSet<String>,
 }
 
 impl<'a, 'tcx> Fx<'a, 'tcx> {
@@ -1446,6 +1458,8 @@ impl<'a, 'tcx> Fx<'a, 'tcx> {
 	fn new(cx: &'a mut Cx<'tcx>, did: DefId, body: &'tcx Body<'tcx>) -> R<Self> {
 		let tcx = cx.tcx;
 		let n = body.local_decls.len();
+		let mut reserved = cx.root_names.clone();
+		reserved.extend(generic_names(tcx, did));
 		let mut fx = Fx {
 			cx,
 			did,
@@ -1468,10 +1482,7 @@ impl<'a, 'tcx> Fx<'a, 'tcx> {
 			written: HashSet::new(),
 			lenses: HashMap::new(),
 			carriers: HashMap::new(),
-			generics: all_params(tcx, did)
-				.iter()
-				.map(|p| structure::ident(p.name.as_str()))
-				.collect(),
+			reserved,
 		};
 		fx.count();
 		fx.find_mutable()?;
@@ -1786,15 +1797,12 @@ impl<'a, 'tcx> Fx<'a, 'tcx> {
 	}
 
 	fn var(&mut self, name: &str, ty: String, user: bool) -> usize {
-		let base = structure::ident(name);
-		let mut unique = base.clone();
+		let raw = name.strip_prefix("r#").unwrap_or(name);
+		let mut unique = structure::ident(raw);
 		let mut n = 1;
-		// A name the emitted code uses unqualified, the first part of a qualified one, or a
-		// generic parameter, which the variable would shadow.
-		let reserved =
-			|u: &str| structure::LEAN_NAMES.contains(&u) || self.cx.root_names.contains(u) || self.generics.contains(u);
-		while self.vars.iter().any(|v| v.name == unique) || reserved(&unique) {
-			unique = format!("{base}{n}");
+		// Numbered before escaping, as `«by»1` is two tokens.
+		while self.vars.iter().any(|v| v.name == unique) || structure::shadows(&unique, &self.reserved) {
+			unique = structure::ident(&format!("{raw}{n}"));
 			n += 1;
 		}
 		self.vars.push(Var { name: unique, ty, user });
