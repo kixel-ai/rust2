@@ -1,3 +1,4 @@
 self-hosted-runner:
   labels:
+    - rust2-queue
     - rust2-bench

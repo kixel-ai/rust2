@@ -1,0 +1,92 @@
+name: Queue build
+
+# The merge queue's build of a group, on the host's self-hosted runner. Only
+# queue.yml calls it, at main: the rust2-queue runner group admits only this
+# workflow at refs/heads/main, so no other workflow can reach the runner, an
+# approved fork run's included, and a PR's edit to this file runs only after it
+# lands. For the same reason it uses no local action: main's copy runs against
+# every group's tree, so a PR that moved or deleted one could not land.
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  # Its context, `Queue build / Build`, is the one main's ruleset requires.
+  build:
+    name: Build
+    # A caller's own event decides this. On a pull request the job skips
+    # without a runner, which reports the required context as passed so GitHub
+    # admits the PR to the queue.
+    if: github.event_name == 'merge_group'
+    runs-on: [self-hosted, rust2-queue]
+    # Below the queue's 90-minute response window, so a hung build reports
+    # before the group expires.
+    timeout-minutes: 60
+    env:
+      BASE: ${{ github.event.merge_group.base_sha }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      # Only main's merge queue writes the runner's persistent mbx store: a
+      # maintainer picked each group's PR, so nothing unreviewed writes it. The
+      # job's own condition already admits only merge_group; this also pins the
+      # caller and main's queue, as moq's rust-cache action does.
+      - name: Require main's merge queue
+        if: ${{ !(github.workflow == 'Queue' && startsWith(github.ref, 'refs/heads/gh-readonly-queue/main/')) }}
+        run: |
+          echo "::error::The persistent mbx store requires Queue on main's merge queue." >&2
+          exit 1
+      # mbx keys every compilation on its compiler, target, and inputs, so the
+      # runner's store serves every group without a cache key of ours, and each
+      # group warms it for the next. The host's ci-runners.nix supplies the
+      # store's environment and job-boundary GC.
+      # 1.31.0 is the floor: 1.28.0 prints no real paths for files in a build
+      # script's OUT_DIR (jdx/mr-boxington#896); 1.30 bypasses every target crate
+      # the ffi export checks, whose -Zalways-encode-mir, -Zmir-opt-level, and
+      # -Zinline-mir it did not model (jdx/mr-boxington#1003); and before 1.31.0
+      # target seeding recreated a donor's nested target directory, such as
+      # target/rust2-ffi, without the CACHEDIR.TAG `cargo clean --target-dir`
+      # needs (jdx/mr-boxington#993).
+      - uses: jdx/mr-boxington-action@b3ef673bd77c5426927fe8836c6185cdae04c2dd # v1.7.4
+        id: mbx
+        with:
+          version: 1.31.0
+          backend: local
+      # The runner keeps managed targets and learned incremental state across
+      # jobs, and Cargo trusts whatever outputs it finds there. State another mbx
+      # version left is not trusted, so it goes before the first build on a new
+      # version; the shared store stays. Each workspace has its own stamp.
+      - name: Drop another mbx version's private state
+        env:
+          VERSION: ${{ steps.mbx.outputs.mbx-version }}
+        run: |
+          : "${VERSION:?the mbx action reported no version}"
+          stamp="$HOME/.cache/rust2-mbx-versions$RUNNER_WORKSPACE"
+          if [ "$(cat "$stamp" 2>/dev/null)" != "$VERSION" ]; then
+            mbx clean --under "$RUNNER_WORKSPACE"
+            mkdir -p "${stamp%/*}"
+            printf '%s\n' "$VERSION" > "$stamp"
+          fi
+      # The shim is how mbx reaches Cargo; the action only puts `mbx` on PATH.
+      # flake.nix finds the shim through `mbx setup --status` and puts it ahead
+      # of the dev shell's pinned toolchain. The shim existing is the assertion:
+      # a setup that quietly did nothing would build cold and still pass.
+      - name: Cargo shim
+        run: |
+          mbx setup --yes
+          shim=$(mbx setup --status 2>/dev/null | sed -n '1s/.*: //p' || true)
+          if [ ! -e "$shim" ]; then
+            echo "::error::mbx setup installed no Cargo shim: $(mbx setup --status 2>&1)"
+            exit 1
+          fi
+      - name: Check and test the merge group
+        # Every group waits on this build, so it waits only for memory, never
+        # behind the host's agent load. A cancel or timeout signals only the
+        # step's own process, so exec hands the TERM to the build.
+        env:
+          QUEST_GATE_PRIORITY: 1
+        run: exec nix develop --command quest gate just ci "$BASE"
