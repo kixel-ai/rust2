@@ -195,7 +195,7 @@ def case : D (List String) := do
     expect "loops" (loops n v ⟨m.toList⟩ ⟨s.toList⟩ o q) (pair u16 (pair u16 (pair u16 (pair u16 u16))))
   | 41 => let n ← u8; expect "countdown" (countdown n) u16
   | 42 => let c ← char; expect "classify" (pure (classify c)) (pair u8 (pair u32 (pair u8 (pair i8 (pair i64 char)))))
-  | 43 => let s ← str; let b ← u8; expect "shadowed" (pure (shadowed s b () ())) (pair boolean char)
+  | 43 => let s ← str; let b ← u8; expect "shadowed" (pure (shadowed s b () () () ⟨b⟩)) (pair boolean (pair char u8))
   | _ => throw "kind"
 
 def main (args : List String) : IO UInt32 := do

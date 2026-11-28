@@ -754,9 +754,10 @@ pub mod cases {
 			(class, c as u32, c as u8, c as i8, c as i64, c as u8 as char)
 		}
 
-		/// Type parameters named as Lean types the output uses, beside a byte cast to a `char`.
-		pub fn shadowed<Char, UInt8>(s: &str, b: u8, _: Char, _: UInt8) -> (bool, char) {
-			(s.starts_with(b as char), b as char)
+		/// Type parameters named as Lean types the output uses, beside a byte cast to a `char`,
+		/// and one named as the crate's `Int`, which is named as a Lean type too.
+		pub fn shadowed<Char, UInt8, Int>(s: &str, b: u8, _: Char, _: UInt8, _: Int, x: crate::Int) -> (bool, char, u8) {
+			(s.starts_with(b as char), b as char, x.0)
 		}
 
 		/// An iterator written here, which a `for` loop drives through its translated `next`.
@@ -780,6 +781,9 @@ pub mod cases {
 		}
 	}
 }
+
+/// A type named as a Lean type the output uses.
+pub struct Int(pub u8);
 
 /// An inherent `impl` outside its type's module, which `--start-from crate::cases` reaches.
 mod elsewhere {

@@ -602,7 +602,10 @@ fn case(rng: &mut Rng) -> W {
 		43 => {
 			let (s, b) = (rng.text(), rng.byte());
 			w.put(s.as_str()).put(b);
-			outcome(&mut w, || text::shadowed(&s, b, (), ()));
+			outcome(&mut w, || {
+				let (a, c, d) = text::shadowed(&s, b, (), (), (), fixture::Int(b));
+				(a, (c, d))
+			});
 		}
 		_ => {
 			let m: BTreeMap<Rank, u16> = (0..rng.below(5)).map(|_| (rng.rank(), rng.below(1000) as u16)).collect();

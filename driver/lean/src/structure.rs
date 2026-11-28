@@ -279,12 +279,13 @@ pub fn ident(name: &str) -> String {
 	}
 }
 
-/// A generic parameter's name as a Lean identifier, with a `'` where it would shadow a name
-/// the emitted code uses unqualified, as a type parameter `Char` would Lean's `Char`.
+/// A generic parameter's name as a Lean identifier, with a `''` where it would shadow a name
+/// the emitted code uses unqualified, as a type parameter `Char` would Lean's `Char`. Only a
+/// generic takes two: an item of such a name takes one, and a Rust name none.
 pub fn param(name: &str) -> String {
 	let name = ident(name);
 	match LEAN_NAMES.contains(&name.as_str()) {
-		true => format!("{name}'"),
+		true => format!("{name}''"),
 		false => name,
 	}
 }

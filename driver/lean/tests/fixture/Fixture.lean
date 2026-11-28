@@ -96,6 +96,11 @@ structure cases.lenses.Book where
   log : (Option (Array UInt8))
 deriving Repr, DecidableEq, Inhabited
 
+/-- `Int` -/
+structure Int' where
+  x0 : UInt8
+deriving Repr, DecidableEq, Inhabited
+
 /-- `cases::text::Countdown` -/
 structure cases.text.Countdown where
   x0 : UInt8
@@ -1017,8 +1022,8 @@ def cases.text.classify (c : Char) : (UInt8 × UInt32 × UInt8 × Int8 × Int64 
     «class» := (0 : UInt8)
   return («class», c.val, (c.val).toUInt8, Rust.cast Int8 (c.val), Rust.cast Int64 (c.val), Char.ofNat ((c.val).toUInt8).toNat)
 
-def cases.text.shadowed {Char' : Type} [Inhabited Char'] {UInt8' : Type} [Inhabited UInt8'] (s : String) (b : UInt8) (arg3 : Char') (arg4 : UInt8') : (Bool × Char) :=
-  (s.toList.head? == some (Char.ofNat b.toNat), Char.ofNat b.toNat)
+def cases.text.shadowed {Char'' : Type} [Inhabited Char''] {UInt8'' : Type} [Inhabited UInt8''] {Int'' : Type} [Inhabited Int''] (s : String) (b : UInt8) (arg3 : Char'') (arg4 : UInt8'') (arg5 : Int'') (x : Int') : (Bool × Char × UInt8) :=
+  (s.toList.head? == some (Char.ofNat b.toNat), Char.ofNat b.toNat, x.x0)
 
 def cases.text.Countdown.Iterator.next (self : cases.text.Countdown) : ((Option UInt8) × cases.text.Countdown) := Id.run do
   let mut self := self
