@@ -158,7 +158,7 @@ def send_credit.Session.freed'_loop {S : UInt64} {G : UInt64} (self : (send_cred
       self := { self with subs := self.subs.set! t20.toNat { self.subs[t20.toNat]! with asked := false } }
       out := out.push (send_credit.Output.Wake s : send_credit.Output)
     s := (← s +? 1)
-    return (← send_credit.Session.freed'_loop self out s)
+    return (← send_credit.Session.freed'_loop (S := S) (G := G) self out s)
   else
     return (((Except.ok () : (Except Disabled Unit)), self, out))
 partial_fixpoint
@@ -170,7 +170,7 @@ def send_credit.Session.freed' {S : UInt64} {G : UInt64} (self : (send_credit.Se
   else
     self := { self with freed := (← self.freed +? 1) }
     let s : UInt64 := 0
-    let r ← send_credit.Session.freed'_loop self out s
+    let r ← send_credit.Session.freed'_loop (S := S) (G := G) self out s
     return r
 
 def send_credit.is {T : Type} [Inhabited T] [DecidableEq T] (x : (Option T)) (v : T) : Bool := Id.run do
@@ -202,7 +202,7 @@ def send_credit.Session.taken_loop {S : UInt64} {G : UInt64} (self : (send_credi
         unless t27 do throw "attempt to shift left with overflow"
         taken := taken ||| (1 <<< t26.toUInt16)
     j := (← j +? 1)
-    return (← send_credit.Session.taken_loop self s taken j)
+    return (← send_credit.Session.taken_loop (S := S) (G := G) self s taken j)
   else
     return (taken)
 partial_fixpoint
@@ -210,7 +210,7 @@ partial_fixpoint
 def send_credit.Session.taken {S : UInt64} {G : UInt64} (self : (send_credit.Session S G)) (s : UInt64) : Rust.M UInt16 := do
   let taken : UInt16 := 0
   let j : UInt64 := 0
-  let r ← send_credit.Session.taken_loop self s taken j
+  let r ← send_credit.Session.taken_loop (S := S) (G := G) self s taken j
   return r
 
 def send_credit.Session.placed_loop {S : UInt64} {G : UInt64} (self : (send_credit.Session S G)) (n : UInt8) (s : UInt64) : Rust.M UInt8 := do
@@ -221,7 +221,7 @@ def send_credit.Session.placed_loop {S : UInt64} {G : UInt64} (self : (send_cred
     if t11.place.isSome then
       n := (← n +? 1)
     s := (← s +? 1)
-    return (← send_credit.Session.placed_loop self n s)
+    return (← send_credit.Session.placed_loop (S := S) (G := G) self n s)
   else
     return (n)
 partial_fixpoint
@@ -229,7 +229,7 @@ partial_fixpoint
 def send_credit.Session.placed {S : UInt64} {G : UInt64} (self : (send_credit.Session S G)) : Rust.M UInt8 := do
   let n : UInt8 := 0
   let s : UInt64 := 0
-  let r ← send_credit.Session.placed_loop self n s
+  let r ← send_credit.Session.placed_loop (S := S) (G := G) self n s
   return r
 
 def send_credit.Session.credit {S : UInt64} {G : UInt64} (self : (send_credit.Session S G)) : Rust.M Bool := do
@@ -323,7 +323,7 @@ def send_credit.Session.ahead_loop {S : UInt64} {G : UInt64} (self : (send_credi
     if d then
       n := (← n +? 1)
     t := (← t +? 1)
-    return (← send_credit.Session.ahead_loop self s n t)
+    return (← send_credit.Session.ahead_loop (S := S) (G := G) self s n t)
   else
     return (n)
 partial_fixpoint
@@ -331,7 +331,7 @@ partial_fixpoint
 def send_credit.Session.ahead {S : UInt64} {G : UInt64} (self : (send_credit.Session S G)) (s : UInt64) : Rust.M UInt8 := do
   let n : UInt8 := 0
   let t : UInt64 := 0
-  let r ← send_credit.Session.ahead_loop self s n t
+  let r ← send_credit.Session.ahead_loop (S := S) (G := G) self s n t
   return r
 
 def send_credit.Session.lowest_loop1 {S : UInt64} {G : UInt64} (self : (send_credit.Session S G)) (only : (Option UInt64)) (low : (Option (UInt64 × UInt8))) (t : UInt64) (j : UInt64) : Rust.M (Option (UInt64 × UInt8)) := do
@@ -361,7 +361,7 @@ def send_credit.Session.lowest_loop1 {S : UInt64} {G : UInt64} (self : (send_cre
         t29 := (some (t, k) : (Option (UInt64 × UInt8)))
       low := t29
     j := (← j +? 1)
-    return (← send_credit.Session.lowest_loop1 self only low t j)
+    return (← send_credit.Session.lowest_loop1 (S := S) (G := G) self only low t j)
   else
     return low
 partial_fixpoint
@@ -372,14 +372,14 @@ def send_credit.Session.lowest_loop0 {S : UInt64} {G : UInt64} (self : (send_cre
   if t < S then
     if only.isNone then
       let mut j : UInt64 := 0
-      let r2 ← send_credit.Session.lowest_loop1 self only low t j
+      let r2 ← send_credit.Session.lowest_loop1 (S := S) (G := G) self only low t j
       low := r2
     else if send_credit.is only t then
       let mut j : UInt64 := 0
-      let r1 ← send_credit.Session.lowest_loop1 self only low t j
+      let r1 ← send_credit.Session.lowest_loop1 (S := S) (G := G) self only low t j
       low := r1
     t := (← t +? 1)
-    return (← send_credit.Session.lowest_loop0 self only low t)
+    return (← send_credit.Session.lowest_loop0 (S := S) (G := G) self only low t)
   else
     return (low)
 partial_fixpoint
@@ -387,7 +387,7 @@ partial_fixpoint
 def send_credit.Session.lowest {S : UInt64} {G : UInt64} (self : (send_credit.Session S G)) (only : (Option UInt64)) : Rust.M (Option (UInt64 × UInt8)) := do
   let low := (none : (Option (UInt64 × UInt8)))
   let t : UInt64 := 0
-  let r ← send_credit.Session.lowest_loop0 self only low t
+  let r ← send_credit.Session.lowest_loop0 (S := S) (G := G) self only low t
   return r
 
 def send_credit.Session.preempts {S : UInt64} {G : UInt64} (self : (send_credit.Session S G)) (s : UInt64) (k : UInt8) (t : UInt64) (j : UInt8) : Rust.M Bool := do
@@ -440,7 +440,7 @@ def send_credit.Session.make_room_loop0 {S : UInt64} {G : UInt64} (self : (send_
     unless t19 < S do throw s!"index out of bounds: the len is {S} but the index is {t19}"
     owed := owed.set! t19.toNat t9
     s := (← s +? 1)
-    return (← send_credit.Session.make_room_loop0 self out owed s)
+    return (← send_credit.Session.make_room_loop0 (S := S) (G := G) self out owed s)
   else
     return owed
 partial_fixpoint
@@ -466,7 +466,7 @@ def send_credit.Session.make_room_loop2 {S : UInt64} {G : UInt64} (self : (send_
         t36 := (some s1 : (Option UInt64))
       first := t36
     s1 := (← s1 +? 1)
-    return (← send_credit.Session.make_room_loop2 self out owed changed first s1)
+    return (← send_credit.Session.make_room_loop2 (S := S) (G := G) self out owed changed first s1)
   else
     return first
 partial_fixpoint
@@ -478,7 +478,7 @@ def send_credit.Session.make_room_loop1 {S : UInt64} {G : UInt64} (self : (send_
   let mut changed := changed
   let mut first := (none : (Option UInt64))
   let s1 : UInt64 := 0
-  let r2 ← send_credit.Session.make_room_loop2 self out owed changed first s1
+  let r2 ← send_credit.Session.make_room_loop2 (S := S) (G := G) self out owed changed first s1
   first := r2
   match id first with
   | some first_0 =>
@@ -496,7 +496,7 @@ def send_credit.Session.make_room_loop1 {S : UInt64} {G : UInt64} (self : (send_
     | none =>
       t57 := false
     if t57 then
-      return (← send_credit.Session.make_room_loop1 self out owed changed)
+      return (← send_credit.Session.make_room_loop1 (S := S) (G := G) self out owed changed)
     else
       let t63 := (← self.sub s2)
       match t63.opening with
@@ -516,9 +516,9 @@ def send_credit.Session.make_room_loop1 {S : UInt64} {G : UInt64} (self : (send_
           changed := true
         | none =>
           pure ()
-        return (← send_credit.Session.make_room_loop1 self out owed changed)
+        return (← send_credit.Session.make_room_loop1 (S := S) (G := G) self out owed changed)
       | none =>
-        return (← send_credit.Session.make_room_loop1 self out owed changed)
+        return (← send_credit.Session.make_room_loop1 (S := S) (G := G) self out owed changed)
   | none =>
     return ((changed, self, out))
 partial_fixpoint
@@ -526,10 +526,10 @@ partial_fixpoint
 def send_credit.Session.make_room {S : UInt64} {G : UInt64} (self : (send_credit.Session S G)) (out : (Array send_credit.Output)) : Rust.M (Bool × (send_credit.Session S G) × (Array send_credit.Output)) := do
   let mut owed := Vector.replicate S.toNat false
   let s : UInt64 := 0
-  let r ← send_credit.Session.make_room_loop0 self out owed s
+  let r ← send_credit.Session.make_room_loop0 (S := S) (G := G) self out owed s
   owed := r
   let changed := false
-  let r1 ← send_credit.Session.make_room_loop1 self out owed changed
+  let r1 ← send_credit.Session.make_room_loop1 (S := S) (G := G) self out owed changed
   return r1
 
 def send_credit.Session.is_head {S : UInt64} {G : UInt64} (self : (send_credit.Session S G)) (s : UInt64) : Rust.M Bool := do
@@ -547,14 +547,14 @@ def send_credit.Session.head_loop {S : UInt64} {G : UInt64} (self : (send_credit
       return (some s : (Option UInt64))
     else
       s := (← s +? 1)
-      return (← send_credit.Session.head_loop self s)
+      return (← send_credit.Session.head_loop (S := S) (G := G) self s)
   else
     return (none : (Option UInt64))
 partial_fixpoint
 
 def send_credit.Session.head {S : UInt64} {G : UInt64} (self : (send_credit.Session S G)) : Rust.M (Option UInt64) := do
   let s : UInt64 := 0
-  let r ← send_credit.Session.head_loop self s
+  let r ← send_credit.Session.head_loop (S := S) (G := G) self s
   return r
 
 def send_credit.Session.leave {S : UInt64} {G : UInt64} (self : (send_credit.Session S G)) (s : UInt64) (out : (Array send_credit.Output)) : Rust.M ((send_credit.Session S G) × (Array send_credit.Output)) := do
@@ -720,10 +720,10 @@ def send_credit.Session.stuck_loop {S : UInt64} {G : UInt64} (self : (send_credi
       else
         held := true
         j := (← j +? 1)
-        return (← send_credit.Session.stuck_loop self s w held j)
+        return (← send_credit.Session.stuck_loop (S := S) (G := G) self s w held j)
     else
       j := (← j +? 1)
-      return (← send_credit.Session.stuck_loop self s w held j)
+      return (← send_credit.Session.stuck_loop (S := S) (G := G) self s w held j)
   else
     return held
 partial_fixpoint
@@ -735,7 +735,7 @@ def send_credit.Session.stuck {S : UInt64} {G : UInt64} (self : (send_credit.Ses
     let w := opening_0
     let held := false
     let j : UInt64 := 0
-    let r ← send_credit.Session.stuck_loop self s w held j
+    let r ← send_credit.Session.stuck_loop (S := S) (G := G) self s w held j
     return r
   | none =>
     return false
@@ -818,7 +818,7 @@ def send_credit.Session.poll_loop {S : UInt64} {G : UInt64} (self : (send_credit
       if d1 then
         ready := true
     j := (← j +? 1)
-    return (← send_credit.Session.poll_loop self s cached pick out next scratch changed ready j)
+    return (← send_credit.Session.poll_loop (S := S) (G := G) self s cached pick out next scratch changed ready j)
   else if ready then
     match id pick with
     | some pick_0 =>
@@ -876,7 +876,7 @@ def send_credit.Session.poll {S : UInt64} {G : UInt64} (self : (send_credit.Sess
     scratch := r.2.2
     let ready := false
     let j : UInt64 := 0
-    let r2 ← send_credit.Session.poll_loop self s cached pick out next scratch changed ready j
+    let r2 ← send_credit.Session.poll_loop (S := S) (G := G) self s cached pick out next scratch changed ready j
     return r2
 
 def send_credit.Session.finished {S : UInt64} {G : UInt64} (self : (send_credit.Session S G)) (s : UInt64) (k : UInt8) (out : (Array send_credit.Output)) : Rust.M ((Except Disabled Unit) × (send_credit.Session S G) × (Array send_credit.Output)) := do
@@ -951,7 +951,7 @@ def send_credit.Session.well_formed_loop {S : UInt64} {G : UInt64} (self : (send
         return false
       else
         s := (← s +? 1)
-        return (← send_credit.Session.well_formed_loop self s)
+        return (← send_credit.Session.well_formed_loop (S := S) (G := G) self s)
     | some opening_0 =>
       let k1 := opening_0
       if k1 < 1 then
@@ -966,7 +966,7 @@ def send_credit.Session.well_formed_loop {S : UInt64} {G : UInt64} (self : (send
           return false
         else
           s := (← s +? 1)
-          return (← send_credit.Session.well_formed_loop self s)
+          return (← send_credit.Session.well_formed_loop (S := S) (G := G) self s)
   else
     let d := decide (self.resets ≤ (← self.placed))
     if d then
@@ -977,7 +977,7 @@ partial_fixpoint
 
 def send_credit.Session.well_formed {S : UInt64} {G : UInt64} (self : (send_credit.Session S G)) : Rust.M Bool := do
   let s : UInt64 := 0
-  let r ← send_credit.Session.well_formed_loop self s
+  let r ← send_credit.Session.well_formed_loop (S := S) (G := G) self s
   return r
 
 def send_credit.Session.StateMachine.step {S : UInt64} {G : UInt64} (self : (send_credit.Session S G)) (event : send_credit.Event) (out : (Array send_credit.Output)) : Rust.M ((Except Disabled Unit) × (send_credit.Session S G) × (Array send_credit.Output)) := do
@@ -1079,7 +1079,7 @@ def warm_settle.Relay.demand_loop {N : UInt64} (self : (warm_settle.Relay N)) (c
       return true
     else
       c := (← c +? 1)
-      return (← warm_settle.Relay.demand_loop self c)
+      return (← warm_settle.Relay.demand_loop (N := N) self c)
   else
     return false
 partial_fixpoint
@@ -1089,7 +1089,7 @@ def warm_settle.Relay.demand {N : UInt64} (self : (warm_settle.Relay N)) : Rust.
     return true
   else
     let c : UInt8 := 1
-    let r ← warm_settle.Relay.demand_loop self c
+    let r ← warm_settle.Relay.demand_loop (N := N) self c
     return r
 
 def warm_settle.bit (r : UInt8) : Rust.M UInt16 := do
@@ -1131,7 +1131,7 @@ def warm_settle.Relay.mine_loop {N : UInt64} (self : (warm_settle.Relay N)) (ran
       | none =>
         pure ()
     d := (← d +? 1)
-    return (← warm_settle.Relay.mine_loop self rank d)
+    return (← warm_settle.Relay.mine_loop (N := N) self rank d)
   else
     return (rank)
 partial_fixpoint
@@ -1144,7 +1144,7 @@ def warm_settle.Relay.mine {N : UInt64} (self : (warm_settle.Relay N)) : Rust.M 
   | some own =>
     rank := own
   let d : UInt8 := 1
-  let r ← warm_settle.Relay.mine_loop self rank d
+  let r ← warm_settle.Relay.mine_loop (N := N) self rank d
   return r
 
 def warm_settle.is (x : (Option UInt8)) (v : UInt8) : Bool := Id.run do
@@ -1200,7 +1200,7 @@ def warm_settle.Relay.options_loop {N : UInt64} (self : (warm_settle.Relay N)) (
     | none =>
       pure ()
     s := (← s +? 1)
-    return (← warm_settle.Relay.options_loop self u mine choices s)
+    return (← warm_settle.Relay.options_loop (N := N) self u mine choices s)
   else
     return (choices)
 partial_fixpoint
@@ -1218,7 +1218,7 @@ def warm_settle.Relay.options {N : UInt64} (self : (warm_settle.Relay N)) (u : (
   | none =>
     pure ()
   let s : UInt8 := 1
-  let r ← warm_settle.Relay.options_loop self u mine choices s
+  let r ← warm_settle.Relay.options_loop (N := N) self u mine choices s
   return r
 
 def warm_settle.toward (u : UInt8) (x : (Option UInt8)) (t : (Option UInt8)) : ((Option UInt8) × (Option UInt8)) := Id.run do
@@ -1308,7 +1308,7 @@ def warm_settle.Relay.StateMachine.step_loop {N : UInt64} (self : (warm_settle.R
         if d3 then
           answered := answered ||| (← warm_settle.bit s)
     s := (← s +? 1)
-    return (← warm_settle.Relay.StateMachine.step_loop self arg3 up next answered s)
+    return (← warm_settle.Relay.StateMachine.step_loop (N := N) self arg3 up next answered s)
   else
     self := { self with up := up }
     self := { self with next := next }
@@ -1366,7 +1366,7 @@ def warm_settle.Relay.StateMachine.step {N : UInt64} (self : (warm_settle.Relay 
     else
       let answered : UInt16 := 0
       let s : UInt8 := 1
-      let r ← warm_settle.Relay.StateMachine.step_loop self arg3 up next answered s
+      let r ← warm_settle.Relay.StateMachine.step_loop (N := N) self arg3 up next answered s
       return r
 
 end kio_pure_machine

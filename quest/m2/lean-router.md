@@ -3,14 +3,14 @@
 ## Goal
 
 [rust2-lean](/driver/lean/README.md) translates every function `crate::route::relay` reaches in moq-net's `Router` (`rs/moq-net/src/route/relay.rs`), except `Debug` formatting, to Lean 4 that type-checks with core Lean.
-The census at moq 512e3d9 translates 54 of 144 reached functions; it counts closures toward the function they are written in, and leaves out derived and `Debug` impls.
+The census at moq 512e3d9 translates 61 of 144 reached functions; it counts closures toward the function they are written in, and leaves out derived and `Debug` impls.
 Every function of the route algebra (`Offer`, `Here`, `order`, `Claim`, `claim_order`, `precedence`, `floor_of`) translates, and so does `debounce`, and `just driver lean-moq` replays native Rust's outcomes on them with no mismatch: 100,000 random cases at the bounds of moq-net's `verify/route-algebra/` vectors, and every algebra call behind those 649 checked-in vectors.
-Of the 139 refusals left:
+Of the 132 refusals left (a closure's own refusal counts apart from its function's):
 
-- 20 are calls that return a `&mut`, mostly `entry(..).or_default()` and `get_mut(..).expect(..)`, 4 more are `BTreeMap::get_mut`, and 18 more `&mut` borrows the subset refuses.
-- 27 are `Path`'s hand-written `Ord` and `PartialEq`, mostly as part of a `(Path, I)` key, where a structural one is required, and 8 more `Path`'s string internals (`str` indexing, `len`, `is_empty`, `moq_pattern::Parts`).
-- About 35 are iterator adaptors and sources with no model: `filter`, `filter_map`, `flat_map`, `flatten`, `rev`, `find`, `count`, `sum`, `min_by_key`, `scan`, `BTreeMap::range`, and a `Vec`'s, `BTreeMap`'s, or `BTreeSet`'s `IntoIter`.
-- The rest are closures called directly (6), `Option::and_then`, `or_else`, `map_or`, and `as_mut`, `mem::take`, `BTreeSet::extend`, `Vec::is_empty`, `RangeInclusive`, a derived `Default`, `format!` arguments, one explicit panic, one promoted constant, and one recursion.
+- 36 are `Path`'s hand-written `Ord` and `PartialEq`, mostly as part of a `(Path, I)` key, where a structural one is required, 2 more lookups by a `Path` key, 1 `Role`'s hand-written `PartialEq`, and 9 more `Path`'s string internals (`str` indexing, `len`, `is_empty`, `moq_pattern::Parts`, array indexing).
+- About 50 are iterator adaptors and sources with no model: `filter`, `filter_map`, `flat_map`, `flatten`, `peekable`, `rev`, `find`, `count`, `sum`, `min_by_key`, `scan`, `BTreeMap::range`, `BTreeSet::extend`, `collect` into a `BTreeSet`, and a slice's, `Vec`'s, `BTreeMap`'s, or `BTreeSet`'s `IntoIter`.
+- 8 are `&mut`s through closures: 5 closures `Option::and_then` or `filter` passes a `&mut` from `get_mut`, which would return or read through it, a `retain` closure that calls a closure parameter, and a closure that inserts into a set it captures.
+- The rest are closures called directly (6), `Option::and_then` (5), `or_else`, `map_or`, `is_none_or`, and `as_mut`, `Vec::is_empty`, `RangeInclusive`, `format!` arguments and `vec!`'s `Box::new_uninit`, two explicit panics, one promoted constant, and one recursion.
 
 Each new model is checked by a differential test against native Rust: `lean-moq` for what the route algebra reaches, `lean-fixture` for the rest. Each new refusal has a fixture case.
 
@@ -18,12 +18,12 @@ Each new model is checked by a differential test against native Rust: `lean-moq`
 
 Decided 2026-11-27 (maintainer, /quest-run): ✅ keep this quest with the Plan below as recommended (rejected: drop it), after the Lean spike's verdict to invest in rust2-lean (rejected: adopt Aeneas; drop Lean extraction).
 
-Landing as a sequence of PRs, each standing on its own; the first added the route algebra, closures, iterators, local traits, and the read-only `BTreeMap` and `BTreeSet` models. The second added `Duration`, kio's `Instant`, `VecDeque` as a list, `BTreeMap`/`BTreeSet` mutation through a `&mut` of a whole place (`insert`, `remove`, `pop_first`) and their remaining reads, and comparisons on any derived order. Next, in order of refusals cleared:
+Landing as a sequence of PRs, each standing on its own; the first added the route algebra, closures, iterators, local traits, and the read-only `BTreeMap` and `BTreeSet` models. The second added `Duration`, kio's `Instant`, `VecDeque` as a list, `BTreeMap`/`BTreeSet` mutation through a `&mut` of a whole place (`insert`, `remove`, `pop_first`) and their remaining reads, and comparisons on any derived order. The third translated a `&mut` that `get_mut`, `entry`, or `get_or_insert_default` returns as a lens: the place it was made from, then the value at a key or in a `Some`, read with `valueAt` and written with `setAt` nested into the place's update, so value semantics hold without Aeneas's backward functions. An `Option<&mut V>` or `Entry` is a copy of the value, for a match, holding the lens a `&mut` taken out of it is; the key is the one read when the lens was made, kept in a variable unless nothing can change it. It also added `Default` (a local impl written by hand is called; a type parameter's is refused, since Lean's `Inhabited` need not match), `mem::take` and `replace`, `ok_or`, and `?` on a `Result`. Next, in order of refusals cleared:
 
-- Translate a `&mut` returned by `get_mut` or `entry` as a lens, a getter plus setter pair. This keeps value semantics without Aeneas's backward functions.
 - Translate a hand-written `Ord` or `PartialEq` as a call to the local impl, through an instance built from it, instead of requiring a derived one.
 - Model `Path` as a Lean `String` in the runtime, diffed against native Rust like every other model.
 - Model the iterator adaptors above as list functions, as `map` and `any` are.
+- Compose a lens through a closure that returns one, as `get_mut(&a).and_then(|m| m.get_mut(&b))` does at 4 sites, by translating the closure to a lens step rather than a function.
 - Add a `Spec` tactic to the prelude that steps through `Rust.M` binds, as Aeneas's `step*` does. kio's `Ranked.lean` port spent most of its 141 lines driving binds by hand.
 
 `BTreeMap` and `BTreeSet` are sorted association lists over a key whose `Ord` is derived, not Mathlib's finite maps, so translations stay core-only.

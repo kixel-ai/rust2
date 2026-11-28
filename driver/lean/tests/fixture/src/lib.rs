@@ -390,6 +390,120 @@ pub mod cases {
 			l.m[&r],
 		)
 	}
+
+	/// `&mut`s into a map or an `Option`, from `get_mut`, `entry`, and `get_or_insert_default`,
+	/// which a write through changes in place.
+	pub mod lenses {
+		use std::collections::BTreeMap;
+		use std::collections::btree_map::Entry;
+
+		#[derive(Clone, Copy, Default, PartialEq, Eq, Debug)]
+		pub struct Tally {
+			pub hits: u16,
+			pub last: u8,
+		}
+
+		/// A `Default` written by hand, which `or_default` calls.
+		#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+		pub struct Seeded(pub u16);
+
+		impl Default for Seeded {
+			fn default() -> Self {
+				Seeded(7)
+			}
+		}
+
+		pub struct Book {
+			pub tallies: BTreeMap<u8, Tally>,
+			pub nested: BTreeMap<u8, BTreeMap<u8, u16>>,
+			pub seeds: BTreeMap<u8, Seeded>,
+			pub log: Option<Vec<u8>>,
+		}
+
+		impl Book {
+			/// `?` on `get_mut`, then writes through it, whose overflow panics.
+			pub fn bump(&mut self, k: u8, by: u16) -> Option<u16> {
+				let t = self.tallies.get_mut(&k)?;
+				t.hits += by;
+				t.last = k;
+				Some(t.hits)
+			}
+
+			/// `if let` and `let`-`else` on `get_mut`, `ok_or` and `?`, and `expect`.
+			pub fn touch(&mut self, k: u8, j: u8) -> Result<u8, u8> {
+				if let Some(t) = self.tallies.get_mut(&k) {
+					t.last = j;
+				}
+				let Some(t) = self.tallies.get_mut(&j) else {
+					return Err(0);
+				};
+				t.hits = t.hits.saturating_add(1);
+				let t = self.tallies.get_mut(&k).ok_or(1)?;
+				t.hits ^= 1;
+				Ok(self.tallies.get_mut(&(k ^ j)).expect("a tally").last)
+			}
+
+			/// A key that changes while its `&mut` lives, which keeps the key it was made with.
+			pub fn moved_key(&mut self, mut k: u8) -> Option<u8> {
+				let t = self.tallies.get_mut(&k)?;
+				k ^= 1;
+				t.last = k;
+				Some(k)
+			}
+
+			/// `entry` with `or_default`, nested, `or_insert`, `or_insert_with`, a `Default` written by
+			/// hand, and a match on `Entry`.
+			pub fn count(&mut self, k: u8, j: u8) -> (u16, u16) {
+				*self.nested.entry(k).or_default().entry(j).or_insert(0) += 1;
+				let t = self.tallies.entry(k).or_default();
+				t.hits = t.hits.saturating_add(1);
+				let s = self.seeds.entry(j).or_default();
+				s.0 += 1;
+				let w = self.tallies.entry(j).or_insert_with(|| Tally { hits: 100, last: j });
+				w.last ^= k;
+				if let Entry::Vacant(e) = self.seeds.entry(k ^ 1) {
+					e.insert(Seeded(k as u16));
+				}
+				(self.nested[&k][&j], self.seeds[&j].0)
+			}
+
+			/// Arguments that may panic, which Rust evaluates whether or not the key is there.
+			pub fn eager(&mut self, k: u8, f: Option<u16>, named: bool) -> (u16, u8) {
+				let s = self.seed::<3, 2>(k, f);
+				let name = if named { Some("a tally") } else { None };
+				(s, self.tallies.get_mut(&k).expect(name.unwrap()).last)
+			}
+
+			/// Const parameters named as the variables a panicking argument and a loop's result
+			/// are bound to, and two locals named as a Lean keyword.
+			#[allow(non_upper_case_globals)]
+			fn seed<const arg: usize, const r: usize>(&mut self, k: u8, f: Option<u16>) -> u16 {
+				let mut s = self.seeds.entry(k).or_insert(Seeded(f.unwrap())).0;
+				let mut i = 0;
+				while i < arg {
+					s ^= 1 << i;
+					i += 1;
+				}
+				let mut by = r;
+				while by > 0 {
+					s ^= 0x100 << by;
+					by -= 1;
+				}
+				let by = s;
+				by
+			}
+
+			/// `get_or_insert_default` on an `Option`, `mem::take` through it, `mem::replace`, and
+			/// a derived `Default`.
+			pub fn logs(&mut self, x: u8) -> (Vec<u8>, Option<Vec<u8>>, Tally) {
+				self.log.get_or_insert_default().push(x);
+				let taken = std::mem::take(self.log.get_or_insert_default());
+				self.log.get_or_insert_default().push(x ^ 1);
+				let old = std::mem::replace(&mut self.log, None);
+				(taken, old, Tally::default())
+			}
+		}
+	}
 }
 
 /// An inherent `impl` outside its type's module, which `--start-from crate::cases` reaches.
@@ -748,6 +862,63 @@ pub mod refused {
 	}
 
 	/// Another crate's trait named `Sub` on kio's `Instant`, which kio's model does not cover.
+	/// A closure returning a `&mut` into a map, which its caller would take for a copy.
+	pub fn nested_mut(m: &mut std::collections::BTreeMap<u8, std::collections::BTreeMap<u8, u8>>, a: u8, b: u8) {
+		if let Some(v) = m.get_mut(&a).and_then(|n| n.get_mut(&b)) {
+			*v = 0;
+		}
+	}
+
+	/// A type parameter's `Default`, which Lean's `Inhabited` need not match.
+	pub fn fresh<T: Default>(m: &mut std::collections::BTreeMap<u8, T>, k: u8) {
+		m.entry(k).or_default();
+	}
+
+	/// `?` converting its error through `From`.
+	pub fn widened(m: &std::collections::BTreeMap<u8, u8>) -> Result<u8, u16> {
+		Ok(*m.get(&0).ok_or(0u8)?)
+	}
+
+	/// A closure that writes through the `&mut` it is passed.
+	pub fn map_mut(m: &mut std::collections::BTreeMap<u8, u8>, k: u8) -> Option<u8> {
+		m.get_mut(&k).map(|v| {
+			*v = 0;
+			1
+		})
+	}
+
+	/// A value holding a `&mut` from either of two `get_mut`s, whose lens differs by path.
+	pub fn either_mut(m: &mut std::collections::BTreeMap<u8, u8>, c: bool) {
+		let o = if c { m.get_mut(&0) } else { m.get_mut(&1) };
+		if let Some(v) = o {
+			*v = 0;
+		}
+	}
+
+	/// A write through a `&mut` that replaces the lens a value holds.
+	pub fn swap_lens(
+		a: &mut std::collections::BTreeMap<u8, u8>,
+		b: &mut std::collections::BTreeMap<u8, u8>,
+	) {
+		let mut slot = a.get_mut(&0);
+		let _ = std::mem::replace(&mut slot, b.get_mut(&0));
+		if let Some(v) = slot {
+			*v = 1;
+		}
+	}
+
+	/// An entry's handle passed to a function, which receives no lens with it.
+	pub fn vacate(e: std::collections::btree_map::VacantEntry<'_, u8, u8>) {
+		e.insert(0);
+	}
+
+	/// A `&mut` that no lens model makes.
+	pub fn last_mut(v: &mut Vec<u8>) {
+		if let Some(x) = v.last_mut() {
+			*x = 0;
+		}
+	}
+
 	pub fn elapsed(a: kio::clock::instant::Instant, b: kio::clock::instant::Instant) -> std::time::Duration {
 		fixture_dep::Sub::sub(a, b)
 	}

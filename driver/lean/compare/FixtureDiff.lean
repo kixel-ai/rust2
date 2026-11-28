@@ -42,6 +42,14 @@ def ordering : D Ordering := do
   | _ => throw "an ordering"
 def ledger : D cases.Ledger := do
   pure { m := ⟨(← arr (pair rank u16)).toList⟩, s := ⟨(← arr u8).toList⟩, q := ⟨(← arr u8).toList⟩ }
+def tally : D cases.lenses.Tally := do pure { hits := ← u16, last := ← u8 }
+def book : D cases.lenses.Book := do
+  let tallies ← arr (pair u8 tally)
+  let nested ← arr (pair u8 (do pure (⟨(← arr (pair u8 u16)).toList⟩ : Rust.BTreeMap UInt8 UInt16)))
+  let seeds ← arr (pair u8 (do pure (⟨← u16⟩ : cases.lenses.Seeded)))
+  pure { tallies := ⟨tallies.toList⟩, nested := ⟨nested.toList⟩, seeds := ⟨seeds.toList⟩, log := ← opt (arr u8) }
+def result (a : D α) (e : D ε) : D (Except ε α) := do
+  if (← int) == 0 then .error <$> e else .ok <$> a
 
 /-- A panic's message, as its length and bytes. -/
 def str : D String := do
@@ -110,6 +118,22 @@ def case : D (List String) := do
     expect "peeks" (cases.peeks l r)
       (pair (opt (pair rank u16)) (pair (arr rank) (pair (arr u16) (pair (arr (pair rank u16))
         (pair (opt u8) (pair (arr u8) (pair (arr u8) u16)))))))
+  | 20 =>
+    let b ← book; let k ← u8; let n ← u16
+    expect "bump" (b.bump k n) (pair (opt u16) book)
+  | 21 =>
+    let b ← book; let k ← u8; let j ← u8
+    expect "touch" (b.touch k j) (pair (result u8 u8) book)
+  | 22 => let b ← book; let k ← u8; expect "moved_key" (pure (b.moved_key k)) (pair (opt u8) book)
+  | 23 =>
+    let b ← book; let k ← u8; let j ← u8
+    expect "count" (b.count k j) (pair (pair u16 u16) book)
+  | 24 =>
+    let b ← book; let x ← u8
+    expect "logs" (pure (b.logs x)) (pair (pair (arr u8) (pair (opt (arr u8)) tally)) book)
+  | 25 =>
+    let b ← book; let k ← u8; let f ← opt u16; let named ← boolean
+    expect "eager" (b.eager k f named) (pair (pair u16 u8) book)
   | _ => throw "kind"
 
 def main (args : List String) : IO UInt32 := do

@@ -266,6 +266,32 @@ def expect {α : Type} (o : Option α) (msg : String) : M α :=
   | some x => pure x
   | none => throw msg
 
+/-- `Option::ok_or`. -/
+def okOr {α ε : Type} (o : Option α) (e : ε) : Except ε α :=
+  match o with
+  | some x => .ok x
+  | none => .error e
+
+/-- `Result`'s `?`: the value, or the error to return. -/
+def branchExcept {α ε : Type} : Except ε α → ControlFlow (Except ε Empty) α
+  | .ok v => .Continue v
+  | .error e => .Break (.error e)
+
+/-- What `Result`'s `?` returns with the error it took. -/
+def fromResidualExcept {α ε : Type} : Except ε Empty → Except ε α
+  | .error e => .error e
+  | .ok v => nomatch v
+
+/-- `Option::unwrap_or_default` with a `Default` that may panic, made only for `none`. -/
+def getDM {α : Type} (o : Option α) (f : Unit → M α) : M α :=
+  match o with
+  | some x => pure x
+  | none => f ()
+
+/-- `Option::get_or_insert_default` with a `Default` that may panic: the `Option` after. -/
+def getOrInsertWithM {α : Type} (o : Option α) (f : Unit → M α) : M (Option α) :=
+  some <$> getDM o f
+
 /-- `Option::is_some_and` with a closure that may panic. -/
 def isSomeAndM {α : Type} (o : Option α) (f : α → M Bool) : M Bool :=
   match o with
@@ -376,6 +402,24 @@ def insert {κ ν : Type} [Ord κ] (m : BTreeMap κ ν) (k : κ) (v : ν) : BTre
 /-- `BTreeMap::remove`: the map, and the value `k` had. -/
 def remove {κ ν : Type} [Ord κ] (m : BTreeMap κ ν) (k : κ) : BTreeMap κ ν × Option ν :=
   (⟨m.entries.filter fun e => compare e.1 k != .eq⟩, m.get k)
+
+/-- The value at `k`, which a `&mut` from `get_mut` or `entry` reads. Such a lens exists only
+while `k` is in the map, so `default` is never the answer. -/
+def valueAt {κ ν : Type} [Ord κ] [Inhabited ν] (m : BTreeMap κ ν) (k : κ) : ν :=
+  (m.get k).getD default
+
+/-- Write `v` at `k`, as a `&mut` from `get_mut` or `entry` does. -/
+def setAt {κ ν : Type} [Ord κ] (m : BTreeMap κ ν) (k : κ) (v : ν) : BTreeMap κ ν :=
+  (m.insert k v).1
+
+/-- `entry(k).or_insert_with(f)`, `or_insert`, and `or_default`: the map, holding `f ()` at
+`k` if it held nothing there. -/
+def orInsertWith {κ ν : Type} [Ord κ] (m : BTreeMap κ ν) (k : κ) (f : Unit → ν) : BTreeMap κ ν :=
+  if m.containsKey k then m else m.setAt k (f ())
+
+/-- `orInsertWith` with an `f` that may panic, run only if `k` is absent. -/
+def orInsertWithM {κ ν : Type} [Ord κ] (m : BTreeMap κ ν) (k : κ) (f : Unit → M ν) : M (BTreeMap κ ν) :=
+  if m.containsKey k then pure m else m.setAt k <$> f ()
 
 /-- `BTreeMap::pop_first`: the map, and its first entry. -/
 def popFirst {κ ν : Type} (m : BTreeMap κ ν) : BTreeMap κ ν × Option (κ × ν) :=

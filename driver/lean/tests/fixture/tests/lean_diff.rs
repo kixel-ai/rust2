@@ -9,6 +9,7 @@ use std::panic::{AssertUnwindSafe, catch_unwind};
 
 use std::time::Duration;
 
+use fixture::cases::lenses::{Book, Seeded, Tally};
 use fixture::cases::{self, Ledger, Rank};
 
 /// xorshift64, so a seed always draws the same cases.
@@ -51,6 +52,29 @@ impl Rng {
 			m: (0..self.below(4)).map(|_| (self.rank(), self.below(1000) as u16)).collect(),
 			s: (0..self.below(4)).map(|_| self.byte()).collect(),
 			q: (0..self.below(3)).map(|_| self.byte()).collect(),
+		}
+	}
+
+	/// `u16`s near its ends, where a write through a `&mut` overflows.
+	fn wide(&mut self) -> u16 {
+		[0, 1, 7, 100, u16::MAX - 1, u16::MAX][self.below(6) as usize]
+	}
+
+	/// Keys from a few, so a lookup both finds one and misses.
+	fn key(&mut self) -> u8 {
+		self.below(4) as u8
+	}
+
+	fn book(&mut self) -> Book {
+		Book {
+			tallies: (0..self.below(4))
+				.map(|_| (self.key(), Tally { hits: self.wide(), last: self.byte() }))
+				.collect(),
+			nested: (0..self.below(3))
+				.map(|_| (self.key(), (0..self.below(3)).map(|_| (self.key(), self.wide())).collect()))
+				.collect(),
+			seeds: (0..self.below(3)).map(|_| (self.key(), Seeded(self.wide()))).collect(),
+			log: (!self.one_in(3)).then(|| self.bytes()),
 		}
 	}
 
@@ -109,6 +133,33 @@ impl<T: Enc> Enc for VecDeque<T> {
 impl Enc for Ledger {
 	fn enc(&self, w: &mut W) {
 		w.put(&self.m).put(&self.s).put(&self.q);
+	}
+}
+
+impl Enc for Tally {
+	fn enc(&self, w: &mut W) {
+		w.put(self.hits).put(self.last);
+	}
+}
+
+impl Enc for Seeded {
+	fn enc(&self, w: &mut W) {
+		w.put(self.0);
+	}
+}
+
+impl Enc for Book {
+	fn enc(&self, w: &mut W) {
+		w.put(&self.tallies).put(&self.nested).put(&self.seeds).put(&self.log);
+	}
+}
+
+impl<T: Enc, E: Enc> Enc for Result<T, E> {
+	fn enc(&self, w: &mut W) {
+		match self {
+			Ok(v) => w.int(1).put(v),
+			Err(e) => w.int(0).put(e),
+		};
 	}
 }
 
@@ -191,7 +242,7 @@ fn outcome<T: Enc>(w: &mut W, f: impl FnOnce() -> T) {
 
 fn case(rng: &mut Rng) -> W {
 	let mut w = W::default();
-	let kind = 1 + rng.below(19);
+	let kind = 1 + rng.below(25);
 	w.int(kind.into());
 	match kind {
 		1 => {
@@ -314,6 +365,45 @@ fn case(rng: &mut Rng) -> W {
 				let (a, b, c, d, e, f, g, h) = cases::peeks(&l, r);
 				(a, (b, (c, (d, (e, (f, (g, h)))))))
 			});
+		}
+		20 => {
+			let mut b = rng.book();
+			let (k, by) = (rng.key(), rng.wide());
+			w.put(&b).put(k).put(by);
+			outcome(&mut w, || (b.bump(k, by), b));
+		}
+		21 => {
+			let mut b = rng.book();
+			let (k, j) = (rng.key(), rng.key());
+			w.put(&b).put(k).put(j);
+			outcome(&mut w, || (b.touch(k, j), b));
+		}
+		22 => {
+			let mut b = rng.book();
+			let k = rng.key();
+			w.put(&b).put(k);
+			outcome(&mut w, || (b.moved_key(k), b));
+		}
+		23 => {
+			let mut b = rng.book();
+			let (k, j) = (rng.key(), rng.key());
+			w.put(&b).put(k).put(j);
+			outcome(&mut w, || (b.count(k, j), b));
+		}
+		24 => {
+			let mut b = rng.book();
+			let x = rng.byte();
+			w.put(&b).put(x);
+			outcome(&mut w, || {
+				let (taken, old, fresh) = b.logs(x);
+				((taken, (old, fresh)), b)
+			});
+		}
+		25 => {
+			let mut b = rng.book();
+			let (k, f, named) = (rng.key(), (!rng.one_in(3)).then(|| rng.wide()), !rng.one_in(3));
+			w.put(&b).put(k).put(f).put(named);
+			outcome(&mut w, || (b.eager(k, f, named), b));
 		}
 		_ => {
 			let m: BTreeMap<Rank, u16> = (0..rng.below(5)).map(|_| (rng.rank(), rng.below(1000) as u16)).collect();
