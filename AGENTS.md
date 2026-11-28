@@ -16,6 +16,8 @@ Each project lives in its own top-level directory; the [quest tree](quest/README
 
 PRs target `main`.
 Run `just ci` before every push.
+The dev shell points `core.hooksPath` at `.githooks`, whose `pre-push` hook runs it on the push's diff and refuses a push from a tree that differs from the commit pushed, so run it yourself whenever the hook is not active in the checkout: unless `git config core.hooksPath` prints `.githooks` and the branch has `.githooks/pre-push`.
+`--no-verify` skips the hook; the merge queue then catches what it would have.
 Outside the dev shell, run `just` as `nix develop --command just ...`: the shell's tools on `PATH` alone lack its variables (`PKG_CONFIG_PATH`, `NIX_LDFLAGS`, ...).
 
 Review rounds run one local reviewer, `quest review --harness codex`, or `--harness claude` when Codex changed the branch last.

@@ -408,6 +408,9 @@
             # line even when it is missing, and its exit code also fails over unrelated setup,
             # so only the shim existing decides.
             shellHook = ''
+              # Marks this shell for the pre-push hook, which `IN_NIX_SHELL` cannot: another
+              # shell, such as build-bench, sets that too without the tools the hook needs.
+              export RUST2_DEV_SHELL=1
               # An outer shell's shim must not outlive a host without one: the justfiles
               # would still put its directory ahead of the toolchain.
               unset RUST2_CARGO_SHIM
@@ -417,6 +420,13 @@
                 export PATH="$RUST2_CARGO_SHIM:$PATH"
               fi
               unset shim
+              # Git installs no hooks on clone: point this checkout's pushes at the
+              # pre-push hook. Only a checkout that has it, since `nix develop` may run in any directory.
+              top=$(git rev-parse --show-toplevel 2>/dev/null || true)
+              if [ -x "$top/.githooks/pre-push" ] && [ "$(git config --local core.hooksPath || true)" != .githooks ]; then
+                git config --local core.hooksPath .githooks
+              fi
+              unset top
             '';
           };
           # `just ts bench` adds Chrome and Firefox as engines, and `just ffi browsers` runs the

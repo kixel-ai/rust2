@@ -15,7 +15,7 @@ Everything here is early; the [quest tree](quest/README.md) holds the plan.
 
 ```bash
 nix develop   # or direnv allow
-just ci       # just check, then just test, as the merge queue runs them
+just ci       # just check, then just test, as the merge queue runs them; the shell's pre-push hook runs it on every push
 ```
 
 ## License
