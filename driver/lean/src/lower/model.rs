@@ -386,9 +386,16 @@ impl<'tcx> Fx<'_, 'tcx> {
 				self.ordered(k, span)?;
 				let m = self.operand(&call.args[0].node, span)?;
 				let x = self.operand(&call.args[1].node, span)?;
-				bound(compound(format!("Rust.BTreeMap.index {} {}", m.paren(), x.paren()), &[&m, &x]))
+				bound(compound(
+					format!("Rust.BTreeMap.index {} {}", m.paren(), x.paren()),
+					&[&m, &x],
+				))
 			}
-			"BTreeMap::insert" | "BTreeMap::remove" | "BTreeMap::pop_first" | "BTreeSet::insert" | "BTreeSet::remove"
+			"BTreeMap::insert"
+			| "BTreeMap::remove"
+			| "BTreeMap::pop_first"
+			| "BTreeSet::insert"
+			| "BTreeSet::remove"
 			| "BTreeSet::pop_first" => {
 				let (ns, method) = key.split_once("::").expect("keys have a method");
 				let k = call.gargs.type_at(0);
@@ -528,9 +535,9 @@ impl<'tcx> Fx<'_, 'tcx> {
 		}
 		// A parameter's Lean instance comes from its own `Ord` bound.
 		let ord = self.cx.tcx.get_diagnostic_item(rustc_span::sym::Ord);
-		let unbound = ty.walk().filter_map(|a| a.as_type()).find(|t| {
-			matches!(t.kind(), ty::Param(p) if !ord.is_some_and(|o| self.cx.param_bounds(self.did, p.index).contains(&o)))
-		});
+		let unbound = ty.walk().filter_map(|a| a.as_type()).find(
+			|t| matches!(t.kind(), ty::Param(p) if !ord.is_some_and(|o| self.cx.param_bounds(self.did, p.index).contains(&o))),
+		);
 		match unbound {
 			Some(t) => refuse(span, format!("ordering `{t}` needs an `Ord` bound on it")),
 			None => Ok(()),

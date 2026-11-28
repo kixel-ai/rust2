@@ -782,13 +782,10 @@ impl<'tcx> Cx<'tcx> {
 				}
 			}
 			// An `impl Trait` or a projection, as the type it stands for.
-			ty::Alias(..) => {
-				match tcx.try_normalize_erasing_regions(self.env, ty::Unnormalized::new_wip(ty))
-				{
-					Ok(hidden) if hidden != ty => self.ty(hidden, span)?,
-					_ => return refuse(span, format!("`{ty}` has no Lean model")),
-				}
-			}
+			ty::Alias(..) => match tcx.try_normalize_erasing_regions(self.env, ty::Unnormalized::new_wip(ty)) {
+				Ok(hidden) if hidden != ty => self.ty(hidden, span)?,
+				_ => return refuse(span, format!("`{ty}` has no Lean model")),
+			},
 			_ => return refuse(span, format!("`{ty}` has no Lean model")),
 		})
 	}
