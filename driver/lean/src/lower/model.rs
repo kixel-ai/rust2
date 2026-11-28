@@ -601,7 +601,12 @@ impl<'tcx> Fx<'_, 'tcx> {
 						let f = self.closure(&call.args[1].node, span)?;
 						(f.f, f.monadic)
 					}
-					_ => (self.operand(&call.args[1].node, span)?, false),
+					// Made whether the key is there or not, as Rust evaluates it first.
+					_ => {
+						let v = self.operand(&call.args[1].node, span)?;
+						let ty = call.args[1].node.ty(self.body, tcx);
+						(self.eager(v, ty, span, ops)?, false)
+					}
 				};
 				let new = match (key, monadic) {
 					("VacantEntry::insert", _) => compound(
@@ -655,7 +660,10 @@ impl<'tcx> Fx<'_, 'tcx> {
 				let msg = if key == "Option::unwrap" {
 					atom(lean_string("called `Option::unwrap()` on a `None` value"))
 				} else {
-					self.operand(&call.args[1].node, span)?
+					// Made whether the value is there or not, as Rust evaluates it first.
+					let m = self.operand(&call.args[1].node, span)?;
+					let ty = call.args[1].node.ty(self.body, tcx);
+					self.eager(m, ty, span, ops)?
 				};
 				let cond = compound(format!("{}.isSome", o.paren()), &[&o, &msg]);
 				self.before(ops, None, true);

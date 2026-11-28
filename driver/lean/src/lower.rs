@@ -1554,6 +1554,13 @@ impl<'a, 'tcx> Fx<'a, 'tcx> {
 			};
 			return refuse(span, "returning a mutable reference is not supported");
 		}
+		// An entry's handle is only its lens, which a parameter arrives without.
+		for local in body.args_iter() {
+			let decl = &body.local_decls[local];
+			if self.cx.entry_handle(decl.ty) {
+				return refuse(decl.source_info.span, "passing a map entry's handle is not supported");
+			}
+		}
 		for (local, decl) in body.local_decls.iter_enumerated() {
 			if !matches!(decl.ty.kind(), ty::Ref(_, _, ty::Mutability::Mut)) {
 				continue;
@@ -1591,6 +1598,16 @@ impl<'a, 'tcx> Fx<'a, 'tcx> {
 						return refuse(
 							stmt.source_info.span,
 							"a closure that changes what it captures is not supported",
+						);
+					}
+					// A write through it could replace the lens the value holds, such as
+					// `mem::replace(&mut slot, other.get_mut(&k))`, which lowering cannot follow.
+					Rvalue::Ref(_, BorrowKind::Mut { .. }, borrowed)
+						if self.cx.holds_mut(borrowed.ty(body, self.cx.tcx).ty) =>
+					{
+						return refuse(
+							stmt.source_info.span,
+							"borrowing a value that holds a mutable reference mutably is not supported",
 						);
 					}
 					Rvalue::Ref(_, BorrowKind::Mut { .. }, borrowed) => *borrowed,
@@ -3000,6 +3017,20 @@ impl<'a, 'tcx> Fx<'a, 'tcx> {
 		push_set(ops, v, key);
 		self.written.insert(v);
 		var_ex(&self.vars, v)
+	}
+
+	/// `ex` as a value read once, here: bound to a variable of Lean type `ty` if it may panic,
+	/// so a branch or thunk it lands in does not move or skip its panic.
+	fn eager(&mut self, ex: Ex, ty: Ty<'tcx>, span: Span, ops: &mut Vec<Op>) -> R<Ex> {
+		if !ex.monadic {
+			return Ok(ex);
+		}
+		let lean = self.cx.ty(ty, span)?;
+		let v = self.var("arg", lean, false);
+		self.before(ops, Some(v), true);
+		push_set(ops, v, ex);
+		self.written.insert(v);
+		Ok(var_ex(&self.vars, v))
 	}
 
 	/// Whether `local` always holds what it held when last set: a parameter nothing changes, or

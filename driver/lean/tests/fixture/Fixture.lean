@@ -499,6 +499,21 @@ def cases.lenses.Book.count (self : cases.lenses.Book) (k : UInt8) (j : UInt8) :
   let t53 := (← Rust.BTreeMap.index self.seeds t56)
   return ((t44, t53.x0), self)
 
+def cases.lenses.Book.eager (self : cases.lenses.Book) (k : UInt8) (f : (Option UInt16)) (named : Bool) : Rust.M ((UInt16 × UInt8) × cases.lenses.Book) := do
+  let mut self := self
+  let arg := ({ x0 := (← Rust.expect f "called `Option::unwrap()` on a `None` value") } : cases.lenses.Seeded)
+  self := { self with seeds := self.seeds.orInsertWith k (fun _ => arg) }
+  let s := (self.seeds.valueAt k).x0
+  let mut name : (Option String) := default
+  if named then
+    name := (some "a tally" : (Option String))
+  else
+    name := (none : (Option String))
+  let t21 := k
+  let t23 := (← Rust.expect name "called `Option::unwrap()` on a `None` value")
+  unless (self.tallies.get t21).isSome do throw t23
+  return ((s, (self.tallies.valueAt t21).last), self)
+
 def cases.lenses.Book.logs (self : cases.lenses.Book) (x : UInt8) : (((Array UInt8) × (Option (Array UInt8)) × cases.lenses.Tally) × cases.lenses.Book) := Id.run do
   let mut self := self
   self := { self with log := some (self.log.getD (#[] : (Array UInt8))) }

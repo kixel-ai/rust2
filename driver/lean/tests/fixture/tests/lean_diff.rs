@@ -242,7 +242,7 @@ fn outcome<T: Enc>(w: &mut W, f: impl FnOnce() -> T) {
 
 fn case(rng: &mut Rng) -> W {
 	let mut w = W::default();
-	let kind = 1 + rng.below(24);
+	let kind = 1 + rng.below(25);
 	w.int(kind.into());
 	match kind {
 		1 => {
@@ -398,6 +398,12 @@ fn case(rng: &mut Rng) -> W {
 				let (taken, old, fresh) = b.logs(x);
 				((taken, (old, fresh)), b)
 			});
+		}
+		25 => {
+			let mut b = rng.book();
+			let (k, f, named) = (rng.key(), (!rng.one_in(3)).then(|| rng.wide()), !rng.one_in(3));
+			w.put(&b).put(k).put(f).put(named);
+			outcome(&mut w, || (b.eager(k, f, named), b));
 		}
 		_ => {
 			let m: BTreeMap<Rank, u16> = (0..rng.below(5)).map(|_| (rng.rank(), rng.below(1000) as u16)).collect();

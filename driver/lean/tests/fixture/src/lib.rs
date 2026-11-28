@@ -467,7 +467,14 @@ pub mod cases {
 				(self.nested[&k][&j], self.seeds[&j].0)
 			}
 
-			/// `get_or_insert_default` on an `Option`, `mem::take` through it, `mem::replace`, and
+			/// Arguments that may panic, which Rust evaluates whether or not the key is there.
+		pub fn eager(&mut self, k: u8, f: Option<u16>, named: bool) -> (u16, u8) {
+			let s = self.seeds.entry(k).or_insert(Seeded(f.unwrap())).0;
+			let name = if named { Some("a tally") } else { None };
+			(s, self.tallies.get_mut(&k).expect(name.unwrap()).last)
+		}
+
+		/// `get_or_insert_default` on an `Option`, `mem::take` through it, `mem::replace`, and
 			/// a derived `Default`.
 			pub fn logs(&mut self, x: u8) -> (Vec<u8>, Option<Vec<u8>>, Tally) {
 				self.log.get_or_insert_default().push(x);
@@ -867,6 +874,23 @@ pub mod refused {
 		if let Some(v) = o {
 			*v = 0;
 		}
+	}
+
+	/// A write through a `&mut` that replaces the lens a value holds.
+	pub fn swap_lens(
+		a: &mut std::collections::BTreeMap<u8, u8>,
+		b: &mut std::collections::BTreeMap<u8, u8>,
+	) {
+		let mut slot = a.get_mut(&0);
+		let _ = std::mem::replace(&mut slot, b.get_mut(&0));
+		if let Some(v) = slot {
+			*v = 1;
+		}
+	}
+
+	/// An entry's handle passed to a function, which receives no lens with it.
+	pub fn vacate(e: std::collections::btree_map::VacantEntry<'_, u8, u8>) {
+		e.insert(0);
 	}
 
 	/// A `&mut` that no lens model makes.

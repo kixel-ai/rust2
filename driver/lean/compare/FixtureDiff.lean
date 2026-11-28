@@ -131,6 +131,9 @@ def case : D (List String) := do
   | 24 =>
     let b ← book; let x ← u8
     expect "logs" (pure (b.logs x)) (pair (pair (arr u8) (pair (opt (arr u8)) tally)) book)
+  | 25 =>
+    let b ← book; let k ← u8; let f ← opt u16; let named ← boolean
+    expect "eager" (b.eager k f named) (pair (pair u16 u8) book)
   | _ => throw "kind"
 
 def main (args : List String) : IO UInt32 := do
