@@ -557,9 +557,10 @@ def enumerate {α : Type} (l : List α) : List (UInt64 × α) :=
 def rangeItems {α : Type} [Scalar α] (r : α × α) : List α :=
   (List.range (val r.2 - val r.1).toNat).map fun (i : Nat) => Scalar.ofInt (val r.1 + i)
 
-/-- An integer `RangeInclusive`'s items, from its start up to its end. -/
-def rangeInclusiveItems {α : Type} [Scalar α] (r : α × α) : List α :=
-  (List.range (val r.2 + 1 - val r.1).toNat).map fun (i : Nat) => Scalar.ofInt (val r.1 + i)
+/-- An integer `RangeInclusive`'s items, from its start up to its end, or none once exhausted. -/
+def rangeInclusiveItems {α : Type} [Scalar α] (r : α × α × Bool) : List α :=
+  if r.2.2 then [] else
+  (List.range (val r.2.1 + 1 - val r.1).toNat).map fun (i : Nat) => Scalar.ofInt (val r.1 + i)
 
 /-- What one item of an iterator becomes once a consumer reaches it, by actions that may
 panic: none where a filter drops it, one, or a run of several from a flat map. -/
@@ -571,10 +572,13 @@ def ready {α : Type} (a : α) : Lazy α := fun _ => pure [a]
 /-- Items already made, as items still to make. -/
 def lazy {α : Type} (l : List α) : List (Lazy α) := l.map ready
 
-/-- `f` on each item in order, the lists it makes joined. -/
-def flatMapM {α β : Type} (f : α → M (List β)) : List α → M (List β)
-  | [] => pure []
-  | x :: r => do let a ← f x; pure (a ++ (← flatMapM f r))
+/-- `f` on each item in order, the lists it makes joined, in a loop that holds no stack. -/
+def flatMapM {α β : Type} (f : α → M (List β)) (l : List α) : M (List β) :=
+  go l []
+where
+  go : List α → List β → M (List β)
+    | [], acc => pure acc.reverse
+    | x :: r, acc => do go r ((← f x).reverseAux acc)
 
 /-- Make every item, in order: what a consumer that reads each, such as `collect`, runs. -/
 def run {α : Type} (l : List (Lazy α)) : M (List α) := flatMapM (· ()) l
@@ -657,13 +661,24 @@ def minByKey {α κ : Type} [Ord κ] (f : α → κ) (l : List α) : Option α :
 def lazyMinByKey {α κ : Type} [Ord κ] (f : α → M κ) (l : List (Lazy α)) : M (Option α) := do
   pure ((← lazyFold (minStep f) none l).map (·.2))
 
-/-- The items of an iterator written in a translated crate, by calling its `next` until it
-returns `none`: what a consumer that reads each item, such as `count`, runs. -/
-def drain {σ α : Type} (next : σ → M (Option α × σ)) (s : σ) : M (List α) := do
+/-- A fold over an iterator written in a translated crate, calling its `next` until it returns
+`none` and folding each item in before the next call, as Rust's `fold` does. -/
+def drainFold {σ α β : Type} (next : σ → M (Option α × σ)) (f : β → α → M β) (b : β) (s : σ) : M β := do
   match ← next s with
-  | (none, _) => pure []
-  | (some x, s) => pure (x :: (← drain next s))
+  | (none, _) => pure b
+  | (some x, s) => drainFold next f (← f b x) s
 partial_fixpoint
+
+/-- The items of an iterator written in a translated crate: what a consumer that reads each
+item, such as `count`, runs. -/
+def drain {σ α : Type} (next : σ → M (Option α × σ)) (s : σ) : M (List α) :=
+  List.reverse <$> drainFold next (fun l x => pure (x :: l)) [] s
+
+/-- `Iterator::min_by_key` over an iterator written in a translated crate, each key made as its
+item arrives. -/
+def drainMinByKey {σ α κ : Type} [Ord κ] (next : σ → M (Option α × σ)) (f : α → M κ) (s : σ) :
+    M (Option α) := do
+  pure ((← drainFold next (minStep f) none s).map (·.2))
 
 /-- `Iterator::next`: the items after, and the first. -/
 def listNext {α : Type} (l : List α) : List α × Option α :=

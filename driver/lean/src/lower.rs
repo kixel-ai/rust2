@@ -341,11 +341,12 @@ impl<'tcx> Cx<'tcx> {
 	/// name such as `Char` or an item at the crate's root such as a type. Only a generic takes
 	/// two: an item of a Lean name takes one, and a Rust name none.
 	fn param(&self, krate: CrateNum, name: rustc_span::Symbol) -> String {
-		let name = structure::ident(name.as_str());
-		let hides = structure::LEAN_NAMES.contains(&name.as_str()) || self.root_names(krate).contains(&name);
+		let lean = structure::ident(name.as_str());
+		let hides = structure::LEAN_NAMES.contains(&lean.as_str()) || self.root_names(krate).contains(&lean);
+		// The suffix goes inside a keyword's escape: `«local»''` is not one identifier.
 		match hides {
-			true => format!("{name}''"),
-			false => name,
+			true => structure::ident(&format!("{name}''")),
+			false => lean,
 		}
 	}
 
@@ -542,13 +543,6 @@ impl<'tcx> Cx<'tcx> {
 					out.push(closure);
 				}
 			}
-			// A consumer that drains an iterator written in a translated crate calls its `next`.
-			if let TerminatorKind::Call { func, .. } = &bb.terminator().kind
-				&& let ty::FnDef(callee, args) = *func.ty(body, tcx).kind()
-				&& let Some(next) = self.drained_next(env, callee, args.skip_binder())
-			{
-				out.push(next.0);
-			}
 			if let TerminatorKind::Call { func, destination, .. } = &bb.terminator().kind
 				&& let ty::FnDef(callee, args) = *func.ty(body, tcx).kind()
 				&& resolve_local(tcx, env, callee, args.skip_binder()).is_none()
@@ -564,33 +558,6 @@ impl<'tcx> Cx<'tcx> {
 			}
 		}
 		out
-	}
-
-	/// The translated `next` that `Iterator` method `callee` drains, when it reads every item of an
-	/// iterator written in a translated crate, such as `count`, with its generic arguments.
-	fn drained_next(
-		&self,
-		env: TypingEnv<'tcx>,
-		callee: DefId,
-		args: GenericArgsRef<'tcx>,
-	) -> Option<(DefId, GenericArgsRef<'tcx>)> {
-		let tcx = self.tcx;
-		let iterator = tcx.get_diagnostic_item(rustc_span::sym::Iterator)?;
-		if tcx.trait_of_assoc(callee) != Some(iterator) || !DRAINS.contains(&tcx.item_name(callee).as_str()) {
-			return None;
-		}
-		let ty::Adt(def, _) = args.type_at(0).kind() else {
-			return None;
-		};
-		if !self.translated(def.did()) {
-			return None;
-		}
-		let next = tcx
-			.associated_items(iterator)
-			.filter_by_name_unhygienic(rustc_span::Symbol::intern("next"))
-			.next()?
-			.def_id;
-		resolve_local(tcx, env, next, tcx.mk_args(&[args[0]]))
 	}
 
 	/// Whether `callee` is a `std` function that makes a `Default` of what it returns, which a
@@ -1126,10 +1093,16 @@ impl<'tcx> Cx<'tcx> {
 				_ if matches!(self.ops_range(def.did()), Some("RangeTo" | "RangeFrom")) => {
 					self.ty(args.type_at(0), span)?
 				}
-				// Its bounds: a `RangeInclusive` is never stepped, so its `exhausted` is always `false`.
-				_ if matches!(self.ops_range(def.did()), Some("Range" | "RangeInclusive")) => {
+				// Its bounds.
+				_ if self.ops_range(def.did()) == Some("Range") => {
 					let t = self.ty(args.type_at(0), span)?;
 					format!("({t} × {t})")
+				}
+				// Its bounds and whether it is exhausted, which a caller that stepped it past its
+				// last item may pass, though nothing here steps one.
+				_ if self.ops_range(def.did()) == Some("RangeInclusive") => {
+					let t = self.ty(args.type_at(0), span)?;
+					format!("({t} × {t} × Bool)")
 				}
 				_ if self.ops_range(def.did()) == Some("RangeFull") => "Unit".into(),
 				"Result" => format!(
@@ -1249,16 +1222,7 @@ impl<'tcx> Cx<'tcx> {
 		if closure.is_some_and(|i| !self.adaptor_fn(args.type_at(i))) {
 			return None;
 		}
-		let iterator = tcx.get_diagnostic_item(rustc_span::sym::Iterator)?;
-		let item = tcx
-			.associated_items(iterator)
-			.filter_by_name_unhygienic(rustc_span::sym::Item)
-			.next()?
-			.def_id;
-		let projection = Ty::new_projection(tcx, ty::IsRigid::No, item, [ty]);
-		let item = tcx
-			.try_normalize_erasing_regions(self.env, ty::Unnormalized::new_wip(projection))
-			.ok()?;
+		let item = self.item(ty)?;
 		// What a flat map makes of each item must be a list too.
 		let made = match name.as_str() {
 			"FlatMap" => Some(args.type_at(1)),
@@ -1270,6 +1234,32 @@ impl<'tcx> Cx<'tcx> {
 		}
 		let deferred = ty.walk().any(|a| a.as_type().is_some_and(|t| self.may_panic(t)));
 		Some((item, deferred))
+	}
+
+	/// The `Item` of iterator type `ty`.
+	fn item(&self, ty: Ty<'tcx>) -> Option<Ty<'tcx>> {
+		let tcx = self.tcx;
+		let iterator = tcx.get_diagnostic_item(rustc_span::sym::Iterator)?;
+		let item = tcx
+			.associated_items(iterator)
+			.filter_by_name_unhygienic(rustc_span::sym::Item)
+			.next()?
+			.def_id;
+		let projection = Ty::new_projection(tcx, ty::IsRigid::No, item, [ty]);
+		tcx.try_normalize_erasing_regions(self.env, ty::Unnormalized::new_wip(projection))
+			.ok()
+	}
+
+	/// Whether an iterator of type `ty` makes an integer range's items, which its list holds
+	/// all at once, where Rust steps the range only as far as a consumer reads.
+	fn ranged(&self, ty: Ty<'tcx>) -> bool {
+		let ty::Adt(def, args) = ty.kind() else {
+			return false;
+		};
+		self.ops_range(def.did()).is_some()
+			// A flattened iterator's inner iterators are its source's items.
+			|| (self.std_name(def.did()) == "Flatten" && self.item(args.type_at(0)).is_some_and(|t| self.ranged(t)))
+			|| args.types().any(|t| self.ranged(t))
 	}
 
 	/// Whether an adaptor may take a function of type `ty`: a translated closure, or a `std`
@@ -1702,7 +1692,34 @@ fn resolve_local<'tcx>(
 	.then_some((did, instance.args))
 }
 
-/// The translated functions a body names, called or not, with the generic arguments it passes.
+/// The translated `next` that `Iterator` method `callee` drains, when it reads every item of an
+/// iterator written in a translated crate, such as `count`, with its generic arguments.
+fn drained_next<'tcx>(
+	tcx: TyCtxt<'tcx>,
+	env: TypingEnv<'tcx>,
+	callee: DefId,
+	args: GenericArgsRef<'tcx>,
+) -> Option<(DefId, GenericArgsRef<'tcx>)> {
+	let iterator = tcx.get_diagnostic_item(rustc_span::sym::Iterator)?;
+	if tcx.trait_of_assoc(callee) != Some(iterator) || !DRAINS.contains(&tcx.item_name(callee).as_str()) {
+		return None;
+	}
+	let ty::Adt(def, _) = args.type_at(0).kind() else {
+		return None;
+	};
+	if !translated(tcx, def.did()) {
+		return None;
+	}
+	let next = tcx
+		.associated_items(iterator)
+		.filter_by_name_unhygienic(rustc_span::Symbol::intern("next"))
+		.next()?
+		.def_id;
+	resolve_local(tcx, env, next, tcx.mk_args(&[args[0]]))
+}
+
+/// The translated functions a body names, called or not, with the generic arguments it passes,
+/// and the `next` of an iterator written in a translated crate that a consumer drains.
 struct FnUses<'tcx> {
 	tcx: TyCtxt<'tcx>,
 	env: TypingEnv<'tcx>,
@@ -1715,6 +1732,11 @@ impl<'tcx> mir::visit::Visitor<'tcx> for FnUses<'tcx> {
 			&& let Some((did, args)) = resolve_local(self.tcx, self.env, callee, args.skip_binder())
 		{
 			self.out.push((did, args, c.span));
+		}
+		if let ty::FnDef(callee, args) = *c.ty().kind()
+			&& let Some((next, args)) = drained_next(self.tcx, self.env, callee, args.skip_binder())
+		{
+			self.out.push((next, args, c.span));
 		}
 	}
 }

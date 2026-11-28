@@ -231,6 +231,13 @@ def case : D (List String) := do
       ++ (← expect "peeked" (pure (peeked v x)) (pair (opt u8) (arr u8)))
       ++ (← expect "peeked_lazy" (peeked_lazy v x) (opt u8))
       ++ (← expect "peeked_rest" (peeked_rest v x) (pair (opt u8) (arr u8))))
+  | 50 =>
+    let a ← u8; let b ← u8; let e ← boolean
+    let evens ← expect "evens" (evens (a, b, e)) u64
+    let left ← u16; let step ← u8; let x ← u8
+    pure (evens
+      ++ (← expect "fall_sum" (fall_sum left step) u8)
+      ++ (← expect "fall_least" (fall_least left step x) (opt u8)))
   | _ => throw "kind"
 
 def main (args : List String) : IO UInt32 := do

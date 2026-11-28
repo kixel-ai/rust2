@@ -310,7 +310,7 @@ fn outcome<T: Enc>(w: &mut W, f: impl FnOnce() -> T) {
 
 fn case(rng: &mut Rng) -> W {
 	let mut w = W::default();
-	let kind = 1 + rng.below(49);
+	let kind = 1 + rng.below(50);
 	w.int(kind.into());
 	match kind {
 		1 => {
@@ -666,6 +666,21 @@ fn case(rng: &mut Rng) -> W {
 			outcome(&mut w, || adaptors::peeked(&v, x));
 			outcome(&mut w, || adaptors::peeked_lazy(&v, x));
 			outcome(&mut w, || adaptors::peeked_rest(&v, x));
+		}
+		50 => {
+			let mut r = rng.byte()..=rng.byte();
+			if rng.one_in(2) {
+				r.by_ref().for_each(drop);
+			}
+			// Exhausted, which only stepping past the last item sets, where its bounds are not
+			// out of order.
+			let exhausted = r.is_empty() && r.start() <= r.end();
+			w.put(*r.start()).put(*r.end()).put(exhausted);
+			outcome(&mut w, || adaptors::evens(r));
+			let (left, step, x) = (rng.below(1200) as u16, rng.byte().max(1), rng.byte());
+			w.put(left).put(step).put(x);
+			outcome(&mut w, || adaptors::fall_sum(left, step));
+			outcome(&mut w, || adaptors::fall_least(left, step, x));
 		}
 		_ => {
 			let m: BTreeMap<Rank, u16> = (0..rng.below(5)).map(|_| (rng.rank(), rng.below(1000) as u16)).collect();

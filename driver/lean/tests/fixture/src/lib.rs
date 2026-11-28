@@ -932,6 +932,41 @@ pub mod cases {
 			let first = it.peek().copied();
 			(first, it.collect())
 		}
+
+		/// An inclusive range's even items, which a caller may pass already stepped past its last.
+		pub fn evens(r: std::ops::RangeInclusive<u8>) -> usize {
+			r.filter(|&i| i % 2 == 0).count()
+		}
+
+		/// An iterator written here that makes `step` until `left` runs out, and panics on
+		/// subtracting past zero where `step` does not divide it.
+		pub struct Fall {
+			pub left: u16,
+			pub step: u8,
+		}
+
+		impl Iterator for Fall {
+			type Item = u8;
+
+			fn next(&mut self) -> Option<u8> {
+				if self.left == 0 {
+					return None;
+				}
+				self.left -= self.step as u16;
+				Some(self.step)
+			}
+		}
+
+		/// `Fall`'s items summed, each added before the next is made, so an overflow panics
+		/// before `Fall` does.
+		pub fn fall_sum(left: u16, step: u8) -> u8 {
+			Fall { left, step }.sum()
+		}
+
+		/// `Fall`'s least item by a key that may panic, each key made before the next item.
+		pub fn fall_least(left: u16, step: u8, x: u8) -> Option<u8> {
+			Fall { left, step }.min_by_key(|&b| b + x)
+		}
 	}
 }
 
@@ -1174,6 +1209,79 @@ pub mod refused {
 
 	pub fn grow(v: &mut Vec<Tree>, s: &[Tree]) {
 		v.extend_from_slice(s)
+	}
+
+	/// Extending by references clones each item, which `Zeroed`'s `clone` does not copy.
+	pub fn extend_refs(v: &mut Vec<Zeroed>, z: &Zeroed) {
+		v.extend(std::iter::once(z))
+	}
+
+	/// An iterator written here whose `next` clones its `T`.
+	pub struct Again<T> {
+		pub item: T,
+		pub left: u8,
+	}
+
+	impl<T: Clone> Iterator for Again<T> {
+		type Item = T;
+
+		fn next(&mut self) -> Option<T> {
+			self.left = self.left.checked_sub(1)?;
+			Some(self.item.clone())
+		}
+	}
+
+	/// `collect` calls `Again`'s `next`, which clones `Reset`, whose `clone` does not copy.
+	pub fn again_reset(r: Reset) -> Vec<Reset> {
+		Again { item: r, left: 2 }.collect()
+	}
+
+	/// `next` over a range's items, which Rust steps once and the list makes all of.
+	pub fn range_first(n: u64) -> Option<u64> {
+		(0..n).map(|x| x ^ 1).next()
+	}
+
+	/// An iterator whose own `fold`, which `count` calls, never calls `next`.
+	pub struct Folded;
+
+	impl Iterator for Folded {
+		type Item = u8;
+
+		fn next(&mut self) -> Option<u8> {
+			None
+		}
+
+		fn fold<B, F: FnMut(B, u8) -> B>(self, init: B, _: F) -> B {
+			init
+		}
+	}
+
+	pub fn count_folded() -> usize {
+		Folded.count()
+	}
+
+	/// An integer summed from items of another type, by an impl written here.
+	pub struct Reading(pub u8);
+
+	impl std::iter::Sum<Reading> for u8 {
+		fn sum<I: Iterator<Item = Reading>>(_: I) -> u8 {
+			0
+		}
+	}
+
+	pub struct Readings(pub u8);
+
+	impl Iterator for Readings {
+		type Item = Reading;
+
+		fn next(&mut self) -> Option<Reading> {
+			self.0 = self.0.checked_sub(1)?;
+			Some(Reading(self.0))
+		}
+	}
+
+	pub fn sum_readings(n: u8) -> u8 {
+		Readings(n).sum()
 	}
 
 	pub fn boom() -> u8 {

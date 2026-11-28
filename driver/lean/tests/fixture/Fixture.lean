@@ -106,6 +106,12 @@ structure cases.text.Countdown where
   x0 : UInt8
 deriving Repr, DecidableEq, Inhabited
 
+/-- `cases::adaptors::Fall` -/
+structure cases.adaptors.Fall where
+  left : UInt16
+  step : UInt8
+deriving Repr, DecidableEq, Inhabited
+
 /-- `cases::Weight` -/
 class cases.Weight (Self : Type) where
   weight : Self → Rust.M UInt8
@@ -1282,8 +1288,8 @@ def cases.adaptors.sources.closure2 (arg1 : (Rust.BTreeMap UInt8 UInt16)) (i : U
 
 def cases.adaptors.sources (m : (Rust.BTreeMap UInt8 UInt16)) (a : UInt8) (b : UInt8) : Rust.M ((Array UInt8) × (Array UInt8) × (Array UInt16) × UInt64) := do
   let t4 := (← Rust.run ((Rust.lazy [a]) ++ (Rust.lazyMap (cases.adaptors.sources.closure0 ()) (Rust.lazy (Rust.rangeItems (a, b)))))).toArray
-  let t13 := (← Rust.run (Rust.lazyRev (Rust.lazyFilter (cases.adaptors.sources.closure1 ()) (Rust.lazy (Rust.rangeInclusiveItems (a, b)))))).toArray
-  return (t4, t13, ((Rust.rangeInclusiveItems ((0 : UInt8), a)).filterMap (cases.adaptors.sources.closure2 m)).toArray, (← Rust.drain (pure ∘ (cases.text.Countdown.Iterator.next)) ({ x0 := a } : cases.text.Countdown)).length.toUInt64)
+  let t13 := (← Rust.run (Rust.lazyRev (Rust.lazyFilter (cases.adaptors.sources.closure1 ()) (Rust.lazy (Rust.rangeInclusiveItems (a, b, false)))))).toArray
+  return (t4, t13, ((Rust.rangeInclusiveItems ((0 : UInt8), a, false)).filterMap (cases.adaptors.sources.closure2 m)).toArray, (← Rust.drain (pure ∘ (cases.text.Countdown.Iterator.next)) ({ x0 := a } : cases.text.Countdown)).length.toUInt64)
 
 def cases.adaptors.gather.closure0 (arg1 : Unit) (arg2 : UInt8) : Rust.M UInt8 := do
   let b := arg2
@@ -1351,6 +1357,35 @@ def cases.adaptors.peeked_rest (v : (Array UInt8)) (x : UInt8) : Rust.M ((Option
   let t10 := r.2
   let first := t10
   return (first, (← Rust.run it).toArray)
+
+def cases.adaptors.evens.closure0 (arg1 : Unit) (arg2 : UInt8) : Rust.M Bool := do
+  let i := arg2
+  unless ¬((2 : UInt8) = (0 : UInt8)) do throw "attempt to calculate the remainder with a divisor of zero"
+  return decide ((i % 2) = 0)
+
+def cases.adaptors.evens (r : (UInt8 × UInt8 × Bool)) : Rust.M UInt64 := do
+  return (← Rust.run (Rust.lazyFilter (cases.adaptors.evens.closure0 ()) (Rust.lazy (Rust.rangeInclusiveItems r)))).length.toUInt64
+
+def cases.adaptors.Fall.Iterator.next (self : cases.adaptors.Fall) : Rust.M ((Option UInt8) × cases.adaptors.Fall) := do
+  let mut self := self
+  if self.left = 0 then
+    return ((none : (Option UInt8)), self)
+  else
+    let t6 := self.step.toUInt16
+    self := { self with left := (← self.left -? t6) }
+    return ((some self.step : (Option UInt8)), self)
+
+def cases.adaptors.fall_sum (left : UInt16) (step : UInt8) : Rust.M UInt8 := do
+  return (← Rust.drainFold (cases.adaptors.Fall.Iterator.next) (· +? ·) (Rust.Scalar.ofInt 0) ({ left := left, step := step } : cases.adaptors.Fall))
+
+def cases.adaptors.fall_least.closure0 (arg1 : UInt8) (arg2 : UInt8) : Rust.M UInt8 := do
+  let b := arg2
+  let t7 := arg1
+  let t5 := t7
+  return (← b +? t5)
+
+def cases.adaptors.fall_least (left : UInt16) (step : UInt8) (x : UInt8) : Rust.M (Option UInt8) := do
+  return (← Rust.drainMinByKey (cases.adaptors.Fall.Iterator.next) (cases.adaptors.fall_least.closure0 x) ({ left := left, step := step } : cases.adaptors.Fall))
 
 def cases.Cost.raw (self : cases.Cost) : UInt64 :=
   self.x0
