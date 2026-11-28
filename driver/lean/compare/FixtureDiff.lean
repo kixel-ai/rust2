@@ -84,8 +84,9 @@ def char : D Char := do
   let n ← nat
   if n.isValidChar then pure (Char.ofNat n) else throw "not a char"
 def queue (d : D α) : D (Rust.VecDeque α) := do pure ⟨(← arr d).toList⟩
+def set (d : D α) : D (Rust.BTreeSet α) := do pure ⟨(← arr d).toList⟩
 
-open cases.text in
+open cases.text cases.adaptors in
 def case : D (List String) := do
   match (← nat) with
   | 0 =>
@@ -195,7 +196,54 @@ def case : D (List String) := do
     expect "loops" (loops n v ⟨m.toList⟩ ⟨s.toList⟩ o q) (pair u16 (pair u16 (pair u16 (pair u16 u16))))
   | 41 => let n ← u8; expect "countdown" (countdown n) u16
   | 42 => let c ← char; expect "classify" (pure (classify c)) (pair u8 (pair u32 (pair u8 (pair i8 (pair i64 char)))))
-  | 43 => let s ← str; let b ← u8; expect "shadowed" (pure (shadowed s b () () () ⟨b⟩)) (pair boolean (pair char u8))
+  | 43 => let s ← str; let b ← u8; expect "shadowed" (pure (shadowed s b () () () ⟨b⟩ () ⟨none, b⟩)) (pair boolean (pair char (pair u8 u8)))
+  | 44 =>
+    let v ← arr u8; let x ← u8
+    expect "sift" (pure (sift v x))
+      (pair (arr u8) (pair (arr u8) (pair (arr u8) (pair (opt u8) (opt u8)))))
+  | 45 =>
+    let v ← arr u8; let x ← u8
+    pure ((← expect "filtered" (filtered v x) (arr u8))
+      ++ (← expect "any_filtered" (any_filtered v x) boolean)
+      ++ (← expect "find_filter_mapped" (find_filter_mapped v x) (opt u8))
+      ++ (← expect "find_mapped" (find_mapped v x) (opt u8))
+      ++ (← expect "found" (found v x) (opt u8)))
+  | 46 =>
+    let v ← arr u8; let w ← arr u8; let x ← u8
+    pure ((← expect "flat_runs" (flat_runs v x) (arr u8))
+      ++ (← expect "flat_back" (flat_back v x) (pair (arr u8) (opt u8)))
+      ++ (← expect "flat_first" (flat_first v x) (opt u8))
+      ++ (← expect "flat_inner" (flat_inner v w) (pair u64 boolean)))
+  | 47 =>
+    let v ← arr u8; let x ← u8
+    pure ((← expect "least" (least v x) (pair u8 (pair u16 (pair (opt u8) (opt u8)))))
+      ++ (← expect "sum_lazy" (sum_lazy v x) u8)
+      ++ (← expect "least_lazy" (least_lazy v x) (opt u8)))
+  | 48 =>
+    let m ← arr (pair u8 u16); let a ← u8; let b ← u8
+    expect "sources" (sources ⟨m.toList⟩ a b)
+      (pair (arr u8) (pair (arr u8) (pair (arr u16) u64)))
+  | 49 =>
+    let v ← arr u8; let x ← u8; let s ← set u8
+    let ms ← arr (do pure (⟨(← arr (pair u8 u16)).toList⟩ : Rust.BTreeMap UInt8 UInt16))
+    pure ((← expect "gather" (gather v s ms)
+        (pair (set u8) (pair (set u8) (pair (arr u8) (pair (arr u64) (pair (arr u8) (pair (arr u16) boolean)))))))
+      ++ (← expect "peeked" (pure (peeked v x)) (pair (opt u8) (arr u8)))
+      ++ (← expect "peeked_lazy" (peeked_lazy v x) (opt u8))
+      ++ (← expect "peeked_rest" (peeked_rest v x) (pair (opt u8) (arr u8))))
+  | 50 =>
+    let a ← u8; let b ← u8; let e ← boolean
+    let evens ← expect "evens" (evens (a, b, e)) u64
+    let left ← u16; let step ← u8; let x ← u8
+    pure (evens
+      ++ (← expect "fall_sum" (fall_sum left step) u8)
+      ++ (← expect "fall_least" (fall_least left step x) (opt u8))
+      ++ (← expect "fall_min" (fall_min left step) (pair (opt u8) u64))
+      ++ (← (do
+        let n ← nat; let v ← arr u8; let k ← u8
+        let rs ← (List.replicate n ()).toArray.mapM fun _ => pair u64 u64
+        pure ((← expect "first_range" (pure (first_range rs)) (opt u64))
+          ++ (← expect "held" (pure (held (v.map (⟨·⟩)) ⟨k⟩)) (arr u8))))))
   | _ => throw "kind"
 
 def main (args : List String) : IO UInt32 := do

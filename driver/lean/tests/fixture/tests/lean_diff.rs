@@ -10,7 +10,7 @@ use std::panic::{AssertUnwindSafe, catch_unwind};
 use std::time::Duration;
 
 use fixture::cases::lenses::{Book, Seeded, Tally};
-use fixture::cases::{self, Ledger, Rank, Step, text};
+use fixture::cases::{self, Ledger, Rank, Step, adaptors, text};
 use kio::clock::instant::Instant;
 
 /// xorshift64, so a seed always draws the same cases.
@@ -310,7 +310,7 @@ fn outcome<T: Enc>(w: &mut W, f: impl FnOnce() -> T) {
 
 fn case(rng: &mut Rng) -> W {
 	let mut w = W::default();
-	let kind = 1 + rng.below(43);
+	let kind = 1 + rng.below(50);
 	w.int(kind.into());
 	match kind {
 		1 => {
@@ -603,9 +603,92 @@ fn case(rng: &mut Rng) -> W {
 			let (s, b) = (rng.text(), rng.byte());
 			w.put(s.as_str()).put(b);
 			outcome(&mut w, || {
-				let (a, c, d) = text::shadowed(&s, b, (), (), (), fixture::Int(b));
-				(a, (c, d))
+				let sub = fixture::Sub { opening: None, turn: b };
+				let (a, c, d, e) = text::shadowed(&s, b, (), (), (), fixture::Int(b), (), sub);
+				(a, (c, (d, e)))
 			});
+		}
+		44 => {
+			let (v, x) = (rng.bytes(), rng.byte());
+			w.put(&v).put(x);
+			outcome(&mut w, || {
+				let (a, b, c, d, e) = adaptors::sift(&v, x);
+				(a, (b, (c, (d, e))))
+			});
+		}
+		45 => {
+			let (v, x) = (rng.bytes(), rng.byte());
+			w.put(&v).put(x);
+			outcome(&mut w, || adaptors::filtered(&v, x));
+			outcome(&mut w, || adaptors::any_filtered(&v, x));
+			outcome(&mut w, || adaptors::find_filter_mapped(&v, x));
+			outcome(&mut w, || adaptors::find_mapped(&v, x));
+			outcome(&mut w, || adaptors::found(&v, x));
+		}
+		46 => {
+			let (v, u, x) = (rng.bytes(), rng.bytes(), rng.byte());
+			w.put(&v).put(&u).put(x);
+			outcome(&mut w, || adaptors::flat_runs(&v, x));
+			outcome(&mut w, || adaptors::flat_back(&v, x));
+			outcome(&mut w, || adaptors::flat_first(&v, x));
+			outcome(&mut w, || adaptors::flat_inner(&v, &u));
+		}
+		47 => {
+			let (v, x) = (rng.bytes(), rng.byte());
+			w.put(&v).put(x);
+			outcome(&mut w, || {
+				let (a, b, c, d) = adaptors::least(&v, x);
+				(a, (b, (c, d)))
+			});
+			outcome(&mut w, || adaptors::sum_lazy(&v, x));
+			outcome(&mut w, || adaptors::least_lazy(&v, x));
+		}
+		48 => {
+			let m: BTreeMap<u8, u16> = (0..rng.below(5)).map(|_| (rng.byte(), rng.below(1000) as u16)).collect();
+			let (a, b) = (rng.byte(), rng.byte());
+			w.put(&m).put(a).put(b);
+			outcome(&mut w, || {
+				let (c, d, e, f) = adaptors::sources(&m, a, b);
+				(c, (d, (e, f)))
+			});
+		}
+		49 => {
+			let (v, x) = (rng.bytes(), rng.byte());
+			let s: BTreeSet<u8> = (0..rng.below(4)).map(|_| rng.byte()).collect();
+			let ms: Vec<BTreeMap<u8, u16>> = (0..rng.below(3))
+				.map(|_| (0..rng.below(3)).map(|_| (rng.key(), rng.wide())).collect())
+				.collect();
+			w.put(&v).put(x).put(&s).put(&ms);
+			outcome(&mut w, || {
+				let (a, b, c, d, (e, f, g)) = adaptors::gather(&v, &s, &ms);
+				(a, (b, (c, (d, (e, (f, g))))))
+			});
+			outcome(&mut w, || adaptors::peeked(&v, x));
+			outcome(&mut w, || adaptors::peeked_lazy(&v, x));
+			outcome(&mut w, || adaptors::peeked_rest(&v, x));
+		}
+		50 => {
+			let mut r = rng.byte()..=rng.byte();
+			if rng.one_in(2) {
+				r.by_ref().for_each(drop);
+			}
+			// Exhausted, which only stepping past the last item sets, where its bounds are not
+			// out of order.
+			let exhausted = r.is_empty() && r.start() <= r.end();
+			w.put(*r.start()).put(*r.end()).put(exhausted);
+			outcome(&mut w, || adaptors::evens(r));
+			let (left, step, x) = (rng.below(1200) as u16, rng.byte().max(1), rng.byte());
+			w.put(left).put(step).put(x);
+			outcome(&mut w, || adaptors::fall_sum(left, step));
+			outcome(&mut w, || adaptors::fall_least(left, step, x));
+			outcome(&mut w, || adaptors::fall_min(left, step));
+			let rs: Vec<std::ops::Range<u64>> = (0..rng.below(3)).map(|_| rng.below(9)..rng.below(9)).collect();
+			let (v, k) = (rng.bytes(), rng.byte());
+			w.put(rs.len()).put(&v).put(k);
+			rs.iter().for_each(|r| _ = w.put(r.start).put(r.end));
+			outcome(&mut w, || adaptors::first_range(&rs));
+			let v: Vec<adaptors::Kept> = v.iter().map(|&b| adaptors::Kept(b)).collect();
+			outcome(&mut w, || adaptors::held(&v, &adaptors::Kept(k)));
 		}
 		_ => {
 			let m: BTreeMap<Rank, u16> = (0..rng.below(5)).map(|_| (rng.rank(), rng.below(1000) as u16)).collect();

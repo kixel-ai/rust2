@@ -539,10 +539,10 @@ def strFind (s : String) (c : Char) : Option UInt64 := (findChar c s.toList 0).m
 def rangeNext {α : Type} [Scalar α] (r : α × α) : (α × α) × Option α :=
   if val r.1 < val r.2 then ((r.1 + Scalar.ofInt 1, r.2), some r.1) else (r, none)
 
-/-! Iterators. A std iterator is the list of the items it yields, eagerly made: a closure
-an adaptor runs is pure, or the list holds each item as the action that makes it
-(`List (M α)`), so a panic happens only when a consumer reaches that item, as Rust's
-laziness has it. -/
+/-! Iterators. A std iterator is the list of the items it yields, eagerly made when every
+closure its adaptors run is pure. Otherwise the list holds, for each item of its source, the
+action that makes what that item becomes (`Lazy`), so a panic happens only when a consumer
+reaches that item, as Rust's laziness has it. -/
 
 /-- `slice::windows`: each run of `n` neighbours, in order. -/
 def windows {α : Type} (s : Array α) (n : UInt64) : M (List (Array α)) :=
@@ -553,24 +553,132 @@ def windows {α : Type} (s : Array α) (n : UInt64) : M (List (Array α)) :=
 def enumerate {α : Type} (l : List α) : List (UInt64 × α) :=
   (List.range l.length).zip l |>.map fun (i, x) => (i.toUInt64, x)
 
-/-- Run each item's action, in order: `collect` of an iterator whose items may panic. -/
-def run {α : Type} (l : List (Unit → M α)) : M (List α) :=
-  l.mapM (· ())
+/-- An integer `Range`'s items, from its start up to before its end. -/
+def rangeItems {α : Type} [Scalar α] (r : α × α) : List α :=
+  (List.range (val r.2 - val r.1).toNat).map fun (i : Nat) => Scalar.ofInt (val r.1 + i)
 
-/-- An item of an iterator whose items may panic, made only when a consumer reaches it. -/
-def defer {α β : Type} (f : α → M β) (a : α) : Unit → M β := fun _ => f a
+/-- An integer `RangeInclusive`'s items, from its start up to its end, or none once exhausted. -/
+def rangeInclusiveItems {α : Type} [Scalar α] (r : α × α × Bool) : List α :=
+  if r.2.2 then [] else
+  (List.range (val r.2.1 + 1 - val r.1).toNat).map fun (i : Nat) => Scalar.ofInt (val r.1 + i)
 
-/-- `map` by `f`, which cannot panic, over a deferred item. -/
-def deferMap {α β : Type} (f : α → β) (t : Unit → M α) : Unit → M β := fun _ => f <$> t ()
+/-- What one item of an iterator becomes once a consumer reaches it, by actions that may
+panic: none where a filter drops it, one, or a run of several from a flat map. -/
+abbrev Lazy (α : Type) := Unit → M (List α)
 
-/-- `map` by `f`, which may panic, over a deferred item. -/
-def deferBind {α β : Type} (f : α → M β) (t : Unit → M α) : Unit → M β := fun _ => t () >>= f
+/-- An item that cannot panic, among ones that may. -/
+def ready {α : Type} (a : α) : Lazy α := fun _ => pure [a]
 
-/-- An item that cannot panic, among deferred ones. -/
-def ready {α : Type} (a : α) : Unit → M α := fun _ => pure a
+/-- Items already made, as items still to make. -/
+def lazy {α : Type} (l : List α) : List (Lazy α) := l.map ready
 
-/-- A consumer's step: make the deferred item, then apply `g` to it. -/
-def force {α β : Type} (g : α → M β) (t : Unit → M α) : M β := t () >>= g
+/-- `f` on each item in order, the lists it makes joined, in a loop that holds no stack. -/
+def flatMapM {α β : Type} (f : α → M (List β)) (l : List α) : M (List β) :=
+  go l []
+where
+  go : List α → List β → M (List β)
+    | [], acc => pure acc.reverse
+    | x :: r, acc => do go r ((← f x).reverseAux acc)
+
+/-- Make every item, in order: what a consumer that reads each, such as `collect`, runs. -/
+def run {α : Type} (l : List (Lazy α)) : M (List α) := flatMapM (· ()) l
+
+/-- An adaptor over items still to make: `f` makes what each item becomes. -/
+def lazyStep {α β : Type} (f : α → M (List β)) (l : List (Lazy α)) : List (Lazy β) :=
+  l.map fun t _ => do flatMapM f (← t ())
+
+/-- `Iterator::map`. -/
+def lazyMap {α β : Type} (f : α → M β) : List (Lazy α) → List (Lazy β) :=
+  lazyStep fun a => do pure [← f a]
+
+/-- `Iterator::filter`. -/
+def lazyFilter {α : Type} (p : α → M Bool) : List (Lazy α) → List (Lazy α) :=
+  lazyStep fun a => do pure (if ← p a then [a] else [])
+
+/-- `Iterator::filter_map`. -/
+def lazyFilterMap {α β : Type} (f : α → M (Option β)) : List (Lazy α) → List (Lazy β) :=
+  lazyStep fun a => do pure (← f a).toList
+
+/-- `Iterator::flat_map` and `flatten`: `f` makes what an item becomes, and `items` lists it. -/
+def lazyFlatMap {α β γ : Type} (f : α → M β) (items : β → List γ) : List (Lazy α) → List (Lazy γ) :=
+  lazyStep fun a => do pure (items (← f a))
+
+/-- `Iterator::rev`: the items from the back, a run's too. -/
+def lazyRev {α : Type} (l : List (Lazy α)) : List (Lazy α) :=
+  l.reverse.map fun t _ => List.reverse <$> t ()
+
+/-- `Iterator::any`, making items only until one passes. -/
+def lazyAny {α : Type} (g : α → M Bool) : List (Lazy α) → M Bool
+  | [] => pure false
+  | t :: r => do if ← (← t ()).anyM g then pure true else lazyAny g r
+
+/-- `Iterator::all`, making items only until one fails. -/
+def lazyAll {α : Type} (g : α → M Bool) : List (Lazy α) → M Bool
+  | [] => pure true
+  | t :: r => do if ← (← t ()).allM g then lazyAll g r else pure false
+
+/-- `Iterator::find`, making items only until one passes. -/
+def lazyFind {α : Type} (g : α → M Bool) : List (Lazy α) → M (Option α)
+  | [] => pure none
+  | t :: r => do
+    match ← (← t ()).findM? g with
+    | some x => pure (some x)
+    | none => lazyFind g r
+
+/-- `Iterator::find_map`, making items only until `f` maps one to `some`. -/
+def lazyFindMap {α β : Type} (f : α → M (Option β)) : List (Lazy α) → M (Option β)
+  | [] => pure none
+  | t :: r => do
+    match ← (← t ()).findSomeM? f with
+    | some x => pure (some x)
+    | none => lazyFindMap f r
+
+/-- A fold over every item, each made as the fold reaches it. -/
+def lazyFold {α β : Type} (f : β → α → M β) (b : β) : List (Lazy α) → M β
+  | [] => pure b
+  | t :: r => do lazyFold f (← (← t ()).foldlM f b) r
+
+/-- `Iterator::sum` of integers, panicking on overflow as Rust's checked build does. -/
+def sum {α : Type} [Scalar α] (l : List α) : M α := l.foldlM (· +? ·) (Scalar.ofInt 0)
+
+/-- `Iterator::sum` of integers, wrapping as Rust's unchecked build does. -/
+def sumWrapping {α : Type} [Scalar α] (l : List α) : α := l.foldl (· + ·) (Scalar.ofInt 0)
+
+/-- `min_by_key`'s step: the item and its key if its key is below the best so far. -/
+def minStep {α κ : Type} [Ord κ] (f : α → M κ) (best : Option (κ × α)) (x : α) : M (Option (κ × α)) := do
+  let k ← f x
+  pure (match best with
+    | some (b, _) => if compare k b == .lt then some (k, x) else best
+    | none => some (k, x))
+
+/-- `Iterator::min_by_key`: the first item of the least key. -/
+def minByKey {α κ : Type} [Ord κ] (f : α → κ) (l : List α) : Option α :=
+  (l.foldl (fun best x => match best with
+    | some (b, _) => if compare (f x) b == .lt then some (f x, x) else best
+    | none => some (f x, x)) none).map (·.2)
+
+/-- `Iterator::min_by_key` where the key or an item may panic. -/
+def lazyMinByKey {α κ : Type} [Ord κ] (f : α → M κ) (l : List (Lazy α)) : M (Option α) := do
+  pure ((← lazyFold (minStep f) none l).map (·.2))
+
+/-- A fold over an iterator written in a translated crate, calling its `next` until it returns
+`none` and folding each item in before the next call, as Rust's `fold` does. -/
+def drainFold {σ α β : Type} (next : σ → M (Option α × σ)) (f : β → α → M β) (b : β) (s : σ) : M β := do
+  match ← next s with
+  | (none, _) => pure b
+  | (some x, s) => drainFold next f (← f b x) s
+partial_fixpoint
+
+/-- The items of an iterator written in a translated crate: what a consumer that reads each
+item, such as `count`, runs. -/
+def drain {σ α : Type} (next : σ → M (Option α × σ)) (s : σ) : M (List α) :=
+  List.reverse <$> drainFold next (fun l x => pure (x :: l)) [] s
+
+/-- `Iterator::min_by_key` over an iterator written in a translated crate, each key made as its
+item arrives. -/
+def drainMinByKey {σ α κ : Type} [Ord κ] (next : σ → M (Option α × σ)) (f : α → M κ) (s : σ) :
+    M (Option α) := do
+  pure ((← drainFold next (minStep f) none s).map (·.2))
 
 /-- `Iterator::next`: the items after, and the first. -/
 def listNext {α : Type} (l : List α) : List α × Option α :=
@@ -578,11 +686,23 @@ def listNext {α : Type} (l : List α) : List α × Option α :=
   | [] => ([], none)
   | x :: r => (r, some x)
 
-/-- `Iterator::next` on items that may panic: the first is made here. -/
-def listNextM {α : Type} (l : List (Unit → M α)) : M (List (Unit → M α) × Option α) :=
-  match l with
+/-- `Iterator::next` on items that may panic: the first is made here, and the rest of its
+run kept, made. -/
+def listNextM {α : Type} : List (Lazy α) → M (List (Lazy α) × Option α)
   | [] => pure ([], none)
-  | t :: r => do pure (r, some (← t ()))
+  | t :: r => do
+    match ← t () with
+    | [] => listNextM r
+    | x :: xs => pure (lazy xs ++ r, some x)
+
+/-- `Peekable::peek`: the items, all still there, and the first. -/
+def listPeek {α : Type} (l : List α) : List α × Option α := (l, l.head?)
+
+/-- `Peekable::peek` on items that may panic: the first is made here and kept. -/
+def lazyPeek {α : Type} (l : List (Lazy α)) : M (List (Lazy α) × Option α) := do
+  match ← listNextM l with
+  | (r, some x) => pure (ready x :: r, some x)
+  | (r, none) => pure (r, none)
 
 /-- `BTreeMap`: its entries in ascending key order, each key once. -/
 structure BTreeMap (κ ν : Type) where
@@ -605,6 +725,15 @@ def containsKey {κ ν : Type} [Ord κ] (m : BTreeMap κ ν) (k : κ) : Bool :=
 /-- `BTreeMap::len`. -/
 def len {κ ν : Type} (m : BTreeMap κ ν) : UInt64 :=
   m.entries.length.toUInt64
+
+/-- `BTreeMap::keys`. -/
+def keys {κ ν : Type} (m : BTreeMap κ ν) : List κ := m.entries.map (·.1)
+
+/-- `BTreeMap::values`. -/
+def values {κ ν : Type} (m : BTreeMap κ ν) : List ν := m.entries.map (·.2)
+
+/-- `BTreeMap::is_empty`. -/
+def isEmpty {κ ν : Type} (m : BTreeMap κ ν) : Bool := m.entries.isEmpty
 
 /-- `BTreeMap::get_key_value`. -/
 def getKeyValue {κ ν : Type} [Ord κ] (m : BTreeMap κ ν) (k : κ) : Option (κ × ν) :=
@@ -695,6 +824,13 @@ def remove {κ : Type} [Ord κ] (s : BTreeSet κ) (k : κ) : BTreeSet κ × Bool
 /-- `BTreeSet::pop_first`: the set, and its first item. -/
 def popFirst {κ : Type} (s : BTreeSet κ) : BTreeSet κ × Option κ :=
   (⟨s.items.drop 1⟩, s.items.head?)
+
+/-- `BTreeSet::extend`: each item inserted in turn. -/
+def extend {κ : Type} [Ord κ] (s : BTreeSet κ) (l : List κ) : BTreeSet κ :=
+  ⟨l.foldl (fun items k => insertIn k items) s.items⟩
+
+/-- `collect` into a `BTreeSet`, and `BTreeSet::from` an array. -/
+def ofList {κ : Type} [Ord κ] (l : List κ) : BTreeSet κ := empty.extend l
 
 end BTreeSet
 
