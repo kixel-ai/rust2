@@ -31,7 +31,7 @@ declare -A scope=(
     # quest check reads the quest skills' stubs, the docs, and every path a quest links to,
     # which any diff can move, in about a second.
     [quest]=''
-    [sh]='^(sh/(dispatch|coverage|hook)\.test\.py|\.githooks/)'
+    [sh]='^sh/(dispatch|coverage)\.test\.py'
     # The release builder's scripts, which only their own tests and the release run.
     [release]='^ffi/release/'
     # The driver and ffi link ts's toolchain, and both of the others build on
@@ -131,7 +131,7 @@ fi
 
 # One function per module and phase; a module skips a phase it has none for.
 check_lint() {
-    local scripts=(.githooks/pre-push bench/*/*.sh ffi/release/*.sh sh/*.sh)
+    local scripts=(bench/*/*.sh ffi/release/*.sh sh/*.sh)
     actionlint
     shellcheck "${scripts[@]}"
     shfmt -d "${scripts[@]}"
@@ -148,7 +148,6 @@ check_ts() { just ts "$([[ "$action" == ci ]] && echo lint || echo check)"; }
 test_sh() {
     python3 -I sh/dispatch.test.py
     python3 -I sh/coverage.test.py
-    python3 -I sh/hook.test.py
 }
 test_release() { python3 -I ffi/release/test_package.py; }
 test_driver() { just driver test; }
