@@ -19,10 +19,10 @@ Have at least these sections:
 # Landing
 
 Queue the reviewed head with `quest merge <pr> --land <sha>`.
-The queue's build is `.github/workflows/build.yml` on GitHub-hosted runners, which also gives every PR the same run, as `CI / Build`, before it is picked.
+The queue's build is `.github/workflows/queue-build.yml` on the host's self-hosted runner, which the merge group calls from `main`, so a PR's edit to it runs only after the PR lands. Pull requests run no CI.
 A PR the queue drops for a failed build or a conflict gets a Codex fixer, which requeues it or hands it back with a diagnosis.
 The admin bypass of `main`'s ruleset is for emergencies.
-The dev shell installs `.githooks/pre-push`, which runs `just ci` before every push. `just ci` selects what the diff touches by `sh/dispatch.sh`'s map; `just gate` runs the full suite nightly, beside `sh/coverage.py`, which fails where a module reads a path whose diff the map does not select it for.
+The dev shell installs `.githooks/pre-push`, which runs `just ci` (through `quest gate` when `quest` is installed) before every push. `just ci` selects what the diff touches by `sh/dispatch.sh`'s map; `just gate` runs the full suite nightly, beside `sh/coverage.py`, which fails where a module reads a path whose diff the map does not select it for.
 
 # Imported code
 

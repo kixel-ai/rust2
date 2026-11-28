@@ -2,6 +2,7 @@
 """Check .githooks/pre-push through real pushes from a scratch repository."""
 
 import os
+import shutil
 import subprocess
 import tempfile
 import unittest
@@ -24,8 +25,12 @@ class PushTests(unittest.TestCase):
         just = bin / "just"
         just.write_text(f'#!/bin/sh\necho "$@${{GIT_DIR:+ GIT_DIR=$GIT_DIR}}" >> {self.ran}\nexit "${{JUST_EXIT:-0}}"\n')
         just.chmod(0o755)
+        # Only the tools the hook needs, so the host's own `quest` is not on PATH.
+        for tool in ("git", "bash", "env"):
+            (bin / tool).symlink_to(shutil.which(tool))
+        self.bin = bin
         self.env = {
-            "PATH": f"{bin}:{os.environ['PATH']}",
+            "PATH": str(bin),
             "GIT_CONFIG_NOSYSTEM": "1",
             "GIT_CONFIG_GLOBAL": os.devnull,
             # The dev shell, so the hook runs `just` itself instead of entering Nix.
@@ -57,9 +62,26 @@ class PushTests(unittest.TestCase):
     def calls(self):
         return self.ran.read_text().splitlines() if self.ran.exists() else []
 
-    def test_a_clean_push_runs_the_diffs_ci(self):
+    def test_a_clean_push_runs_the_diffs_ci_directly_without_quest(self):
         self.git("push", "origin", "main")
         self.assertEqual(self.calls(), ["ci"])
+
+    def test_ci_runs_through_quest_gate_when_quest_is_installed(self):
+        # A `quest` that records its arguments, then runs the gated command.
+        quest = self.bin / "quest"
+        quest.write_text(f'#!/bin/sh\necho "quest $@" >> {self.ran}\nshift\nexec "$@"\n')
+        quest.chmod(0o755)
+        self.git("push", "origin", "main")
+        self.assertEqual(self.calls(), ["quest gate just ci", "ci"])
+
+    def test_a_failing_gated_ci_stops_the_push(self):
+        quest = self.bin / "quest"
+        quest.write_text('#!/bin/sh\nshift\nexec "$@"\n')
+        quest.chmod(0o755)
+        self.env["JUST_EXIT"] = "1"
+        result = self.git("push", "origin", "main", check=False)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertNotIn("main", self.git("ls-remote", "origin").stdout)
 
     def test_a_linked_worktree_leaves_git_dir_unset_for_the_recipes(self):
         worktree = Path(self.temp.name) / "worktree"

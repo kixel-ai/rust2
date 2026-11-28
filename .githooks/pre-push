@@ -35,4 +35,9 @@ if [[ -n "$(git status --porcelain)" ]]; then
 	exit 1
 fi
 
+# Through `quest gate` when it is installed, so agents pushing in parallel queue for CPU
+# like every other build; a nested gate runs at once, so `quest gate git push` is fine too.
+if command -v quest >/dev/null; then
+	exec quest gate just ci
+fi
 exec just ci
