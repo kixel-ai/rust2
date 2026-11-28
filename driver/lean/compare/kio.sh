@@ -57,5 +57,13 @@ CARGO_PROFILE_RELEASE_OVERFLOW_CHECKS=true CARGO_PROFILE_RELEASE_DEBUG_ASSERTION
 	cargo run --quiet --release --manifest-path "$kio/Cargo.toml" -p kio-pure-machine --example lean_diff >cases.txt
 timed lean --run Diff.lean cases.txt
 
-# The fixture test's expected translation, which `cargo test` compares but cannot check.
-timed lean "$driver/lean/tests/fixture/Fixture.lean"
+# The fixture test's expected translation, which `cargo test` compares but cannot check:
+# each crate's after the crates it calls.
+rm -rf fixture
+mkdir fixture
+cd fixture
+cp "$driver/lean/tests/fixture/"{Kio,FixtureDep,Fixture}.lean .
+export LEAN_PATH="$work/out:$work/out/fixture"
+for module in Kio FixtureDep Fixture; do
+	timed lean -o $module.olean $module.lean
+done

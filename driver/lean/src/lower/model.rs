@@ -1,6 +1,6 @@
 //! Models of `std` calls that take closures or make iterators, and of the `Option`, slice,
-//! integer, `Ord`, `Arc`, `BTreeMap`/`BTreeSet`, `VecDeque`, `Duration`, and kio `Instant`
-//! functions beside them, and of the calls that make a lens.
+//! integer, `Ord`, `Arc`, `BTreeMap`/`BTreeSet`, `VecDeque`, and `Duration` functions beside
+//! them, and of the calls that make a lens.
 //!
 //! An iterator is the list of its items ([`Cx::iterator`]): pure, or each item the action
 //! that makes it when a closure that may panic maps it, so a consumer meets a panic only at
@@ -54,6 +54,13 @@ impl<'tcx> Fx<'_, 'tcx> {
 			&& ta.peel_refs() == tb.peel_refs()
 			&& (ta.is_ref() || tb.is_ref())
 		{
+			// std checks it as the calling crate's build does, which is the package's alone.
+			if !self.did.is_local() {
+				return refuse(
+					span,
+					"`&a + b` in a dependency, whose overflow checks the translation cannot see, is not supported",
+				);
+			}
 			let x = self.operand(&a.node, span)?;
 			let y = self.operand(&b.node, span)?;
 			let (x, y) = strip_lits(x, y);
@@ -284,6 +291,24 @@ impl<'tcx> Fx<'_, 'tcx> {
 				return Ok(true);
 			}
 			"Option::copied" => self.operand(&call.args[0].node, span)?,
+			"Result::ok" => {
+				let r = self.operand(&call.args[0].node, span)?;
+				compound(format!("{}.toOption", r.paren()), &[&r])
+			}
+			// Between integers, failing with a `TryFromIntError`, which holds nothing.
+			k if k.starts_with("TryFrom::try_from for ")
+				&& call.args[0].node.ty(self.body, tcx).is_integral()
+				&& matches!(call.destination.ty(self.body, tcx).ty.kind(),
+					ty::Adt(_, a) if a.type_at(0).is_integral()
+						&& matches!(a.type_at(1).kind(), ty::Adt(e, _) if self.cx.std_name(e.did()) == "TryFromIntError")) =>
+			{
+				let ty::Adt(_, a) = call.destination.ty(self.body, tcx).ty.kind() else {
+					unreachable!("matched")
+				};
+				let to = self.cx.ty(a.type_at(0), span)?;
+				let v = self.operand(&call.args[0].node, span)?;
+				compound(format!("Rust.tryFrom {to} {}", v.paren()), &[&v])
+			}
 			"Option::cloned" => {
 				let t = call.gargs.type_at(0);
 				if !self.clones(t) {
@@ -347,7 +372,7 @@ impl<'tcx> Fx<'_, 'tcx> {
 				ex.prop = Some(prop);
 				ex
 			}
-			// On an integer: `Duration`'s and kio `Instant`'s have models of their own.
+			// On an integer: `Duration`'s have models of their own.
 			k if (k.ends_with("::saturating_add") || k.ends_with("::saturating_sub"))
 				&& call.args[0].node.ty(self.body, tcx).is_integral() =>
 			{
@@ -498,19 +523,10 @@ impl<'tcx> Fx<'_, 'tcx> {
 				};
 				compound(text, &[&m])
 			}
-			"Duration::from_secs" | "Duration::from_millis" | "Duration::from_nanos" => {
+			k if unary_model(k).is_some() => {
 				let n = self.operand(&call.args[0].node, span)?;
-				let f = match key {
-					"Duration::from_secs" => "fromSecs",
-					"Duration::from_millis" => "fromMillis",
-					_ => "fromNanos",
-				};
-				compound(format!("Rust.Duration.{f} {}", n.paren()), &[&n])
-			}
-			// `Instant - Duration`, which an older kio also has, would take the model's `Instant`.
-			"Sub::sub for kio::Instant" if !matches!(call.args[1].node.ty(self.body, tcx).kind(), ty::Adt(d, _) if self.cx.kio_instant(d.did())) =>
-			{
-				return refuse(span, "subtracting a `Duration` from an `Instant` has no Lean model");
+				let f = unary_model(k).expect("matched");
+				compound(format!("{f} {}", n.paren()), &[&n])
 			}
 			k if duration_model(k).is_some() => {
 				let a = self.operand(&call.args[0].node, span)?;
@@ -725,10 +741,13 @@ impl<'tcx> Fx<'_, 'tcx> {
 		}
 	}
 
-	/// The closure operand `op` as a Lean function.
+	/// The closure operand `op` as a Lean function, or a function item passed in its place.
 	fn closure(&mut self, op: &Operand<'tcx>, span: Span) -> R<Lambda> {
 		let tcx = self.cx.tcx;
 		let ty = op.ty(self.body, tcx);
+		if let ty::FnDef(f, args) = *ty.kind() {
+			return self.fn_value(f, args.skip_binder(), span);
+		}
 		let ty::Closure(did, cargs) = *ty.kind() else {
 			return refuse(
 				span,
@@ -758,6 +777,64 @@ impl<'tcx> Fx<'_, 'tcx> {
 			f: atom_of(format!("({text})"), &[&env]),
 			monadic,
 		})
+	}
+
+	/// Function item `f` passed as a value, as a Lean function: a translated function, a
+	/// constructor, or a `std` function a model applies alike.
+	fn fn_value(&mut self, f: DefId, args: GenericArgsRef<'tcx>, span: Span) -> R<Lambda> {
+		let tcx = self.cx.tcx;
+		let sig = tcx.fn_sig(f).instantiate(tcx, args).skip_norm_wip().skip_binder();
+		if sig.inputs().iter().any(|t| self.cx.holds_mut(*t)) {
+			return refuse(span, "passing a function taking a mutable reference is not supported");
+		}
+		// What it returns, refused if it has no model, and queued if it is translated.
+		self.cx.ty(sig.output(), span)?;
+		if let DefKind::Ctor(of, rustc_hir::def::CtorKind::Fn) = tcx.def_kind(f) {
+			let variant = tcx.parent(f);
+			let adt = match of {
+				rustc_hir::def::CtorOf::Struct => variant,
+				rustc_hir::def::CtorOf::Variant => tcx.parent(variant),
+			};
+			let name = tcx.item_name(variant);
+			let ctor = match (self.cx.translated(adt), self.cx.std_name(adt).as_str(), name.as_str()) {
+				(true, _, _) if tcx.adt_def(adt).is_struct() => format!("{}.mk", self.cx.adt_name(adt)),
+				(true, _, name) => format!("{}.{}", self.cx.adt_name(adt), structure::ident(name)),
+				(false, "Option", "Some") => "some".into(),
+				(false, "Result", "Ok") => "Except.ok".into(),
+				(false, "Result", "Err") => "Except.error".into(),
+				_ => {
+					return refuse(
+						span,
+						format!("passing `{}` as a function has no Lean model", tcx.def_path_str(f)),
+					);
+				}
+			};
+			return Ok(Lambda {
+				f: atom(ctor),
+				monadic: false,
+			});
+		}
+		if let Some((callee, gargs)) = resolve_local(tcx, self.env, f, args) {
+			let text = self.callee_text(callee, gargs, span)?;
+			return Ok(Lambda {
+				f: atom(format!("({text})")),
+				monadic: self.cx.shapes.get(&callee).is_none_or(|s| s.monadic || s.failed),
+			});
+		}
+		let did = ty::Instance::try_resolve(tcx, self.env, f, args)
+			.ok()
+			.flatten()
+			.map_or(f, |i| i.def_id());
+		match unary_model(&self.std_key(did)) {
+			Some(model) => Ok(Lambda {
+				f: atom(model.into()),
+				monadic: false,
+			}),
+			None => refuse(
+				span,
+				format!("passing `{}` as a function has no Lean model", tcx.def_path_str(f)),
+			),
+		}
 	}
 
 	/// Argument `i` of `call`, an iterator taken by value.
@@ -857,7 +934,7 @@ impl<'tcx> Fx<'_, 'tcx> {
 	}
 }
 
-/// The runtime's model of a two-argument `Duration` or kio `Instant` method.
+/// The runtime's model of a two-argument `Duration` method.
 fn duration_model(key: &str) -> Option<&'static str> {
 	Some(match key {
 		"Duration::checked_add" => "Duration.checkedAdd",
@@ -866,14 +943,20 @@ fn duration_model(key: &str) -> Option<&'static str> {
 		"Duration::saturating_add" => "Duration.saturatingAdd",
 		"Duration::saturating_sub" => "Duration.saturatingSub",
 		"Duration::saturating_mul" => "Duration.saturatingMul",
-		"kio::Instant::checked_add" => "kio.Instant.checkedAdd",
-		"kio::Instant::checked_sub" => "kio.Instant.checkedSub",
-		"kio::Instant::saturating_add" => "kio.Instant.saturatingAdd",
-		"kio::Instant::saturating_sub" => "kio.Instant.saturatingSub",
-		"kio::Instant::checked_duration_since" => "kio.Instant.checkedDurationSince",
-		"kio::Instant::saturating_duration_since" | "kio::Instant::duration_since" | "Sub::sub for kio::Instant" => {
-			"kio.Instant.saturatingDurationSince"
-		}
+		_ => return None,
+	})
+}
+
+/// The runtime's model of a one-argument `std` function that cannot panic, as a Lean function,
+/// which a call applies and a function argument passes as it is.
+fn unary_model(key: &str) -> Option<&'static str> {
+	Some(match key {
+		"Duration::from_secs" => "Rust.Duration.fromSecs",
+		"Duration::from_millis" => "Rust.Duration.fromMillis",
+		"Duration::from_nanos" => "Rust.Duration.fromNanos",
+		"Duration::as_nanos" => "Rust.Duration.asNanos",
+		"Duration::as_micros" => "Rust.Duration.asMicros",
+		"Duration::as_millis" => "Rust.Duration.asMillis",
 		_ => return None,
 	})
 }

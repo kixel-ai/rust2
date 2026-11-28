@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
-# Translate moq-net's route algebra with rust2-lean, fail if the translation differs from
-# MoqNet.lean here, check it with Lean, then replay native Rust's outcomes on it
-# (moq_diff.rs, MoqDiff.lean): random cases at the algebra's bounds, then every algebra call
-# behind the route proof's checked-in vectors (moq_vectors.rs).
+# Translate moq-net's route algebra and kio's `Instant` with rust2-lean, fail if the
+# translation differs from MoqNet.lean and Kio.lean here, check it with Lean, then replay
+# native Rust's outcomes on it (moq_diff.rs, MoqDiff.lean): random cases at the algebra's
+# bounds, then every algebra call behind the route proof's checked-in vectors
+# (moq_vectors.rs).
 #
 # Usage: nix develop .#lean --command just driver lean-moq [--write]
 # With --write, replace the committed translation instead of failing on a difference.
@@ -38,8 +39,10 @@ timed() {
 
 cargo build --quiet --locked --release --manifest-path "$driver/Cargo.toml" --package rust2-lean
 rm -rf "$work/out"
-# The functions the route algebra's proof binds (moq-net's route/tests/algebra.rs), and
-# `debounce`, the reader's time arithmetic.
+# The functions the route algebra's proof binds (moq-net's route/tests/algebra.rs),
+# `debounce`, the reader's time arithmetic, and the clock arithmetic of kio's `Instant`, which
+# translates from kio's own source.
+instant=kio::clock::instant::Instant
 timed "$driver/target/release/rust2-lean" --out "$work/out" --manifest-path "$net/Cargo.toml" \
 	--start-from 'crate::route::relay::Offer' \
 	--start-from 'crate::route::relay::Here' \
@@ -48,12 +51,22 @@ timed "$driver/target/release/rust2-lean" --out "$work/out" --manifest-path "$ne
 	--start-from 'crate::route::relay::claim_order' \
 	--start-from 'crate::route::relay::precedence' \
 	--start-from 'crate::route::relay::floor_of' \
-	--start-from 'crate::route::relay::debounce'
-if [ "${1:-}" = --write ]; then
-	cp "$work/out/MoqNet.lean" "$here/MoqNet.lean"
-else
-	diff -u "$here/MoqNet.lean" "$work/out/MoqNet.lean"
-fi
+	--start-from 'crate::route::relay::debounce' \
+	--start-from "$instant::checked_add" \
+	--start-from "$instant::checked_sub" \
+	--start-from "$instant::saturating_add" \
+	--start-from "$instant::saturating_sub" \
+	--start-from "$instant::checked_duration_since" \
+	--start-from "$instant::saturating_duration_since" \
+	--start-from "$instant::duration_since" \
+	--start-from "$instant::sub"
+for module in MoqNet Kio; do
+	if [ "${1:-}" = --write ]; then
+		cp "$work/out/$module.lean" "$here/$module.lean"
+	else
+		diff -u "$here/$module.lean" "$work/out/$module.lean"
+	fi
+done
 
 # Native Rust's outcomes, from tests in moq-net's route::tests, since what they call is
 # crate-private; the test profile keeps the overflow checks the translation keeps.
@@ -79,6 +92,7 @@ cd "$work/out"
 cp "$here/MoqDiff.lean" .
 export LEAN_PATH=.
 timed lean -o Rust.olean Rust.lean
+timed lean -o Kio.olean Kio.lean
 timed lean -o MoqNet.olean MoqNet.lean
 timed lean --run MoqDiff.lean cases.txt
 timed lean --run MoqDiff.lean vectors.txt

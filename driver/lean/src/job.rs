@@ -1,6 +1,7 @@
 //! The binary as rustc: plain for every crate but the package's library, which it also
 //! translates once rustc has checked it.
 
+use std::collections::HashSet;
 use std::path::PathBuf;
 use std::process::ExitCode;
 
@@ -29,13 +30,26 @@ pub(crate) fn run(args: Vec<String>) -> ExitCode {
 		if !rust2_driver::rustc::compiles_lib(args, &package) {
 			return Ok(None);
 		}
-		// MIR as the source wrote it: no inlining or folding across statements.
-		added.push("-Zmir-opt-level=0".into());
-		let roots = std::env::var(env::ROOTS)
+		let roots: Vec<String> = std::env::var(env::ROOTS)
 			.unwrap_or_default()
 			.lines()
 			.map(str::to_string)
 			.collect();
+		// rustc loads a dependency only once the source names it, so load each a root names,
+		// by the crate's own name, under whatever name the package gives it.
+		let named: HashSet<&str> = roots.iter().filter_map(|r| r.split("::").next()).collect();
+		for w in args.windows(2).filter(|w| w[0] == "--extern") {
+			let (alias, path) = w[1].split_once('=').unwrap_or((&w[1], ""));
+			let alias = alias.rsplit(':').next().unwrap_or(alias);
+			// Cargo names the artifact `lib<crate>-<hash>.<ext>`.
+			let krate = std::path::Path::new(path)
+				.file_stem()
+				.and_then(|s| s.to_str()?.strip_prefix("lib")?.rsplit_once('-'))
+				.map_or(alias, |(krate, _)| krate);
+			if named.contains(alias) || named.contains(krate) {
+				added.extend(["-Zunstable-options".into(), "--extern".into(), format!("force:{alias}")]);
+			}
+		}
 		let output = match (std::env::var_os(env::OUT), std::env::var_os(env::CENSUS)) {
 			(Some(out), None) => Output::Dir(out.into()),
 			(None, Some(census)) => Output::Census(census.into()),

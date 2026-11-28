@@ -1,6 +1,7 @@
 -- Replays native Rust's outcomes, from `moq_diff.rs`, against rust2-lean's translation of
--- moq-net's route algebra.
+-- moq-net's route algebra, and of kio's `Instant`.
 import MoqNet
+import Kio
 import Std.Data.HashMap
 open moq_net
 
@@ -21,7 +22,7 @@ def u32 : D UInt32 := do
   let n ← nat
   if n < 2 ^ 32 then pure n.toUInt32 else throw "past u32"
 def dur : D Rust.Duration := do pure ⟨← u64, ← u32⟩
-def instant : D Rust.kio.Instant := do pure ⟨← u64⟩
+def instant : D kio.clock.instant.Instant := do pure ⟨← u64⟩
 def i8 : D Int8 := do
   let x ← int
   if -128 ≤ x ∧ x < 128 then pure (Int8.ofInt x) else throw "past i8"
@@ -130,11 +131,10 @@ def case : D (List String) := do
     expect "floor_of" (pure (floor_of h far)) (pair (pair u64 u64) u64)
   | 12 => let d ← dur; expect "debounce" (pure (debounce d)) dur
   | 13 =>
-    -- `duration_since` and `-` are `saturating_duration_since`, as kio writes them.
     let i ← instant; let d ← dur; let j ← instant
-    let since := i.saturatingDurationSince j
-    expect "Instant" (pure (i.checkedAdd d, i.checkedSub d, i.saturatingAdd d, i.saturatingSub d,
-        i.checkedDurationSince j, since, since, since))
+    expect "Instant" (pure (i.checked_add d, i.checked_sub d, i.saturating_add d, i.saturating_sub d,
+        i.checked_duration_since j, i.saturating_duration_since j, i.duration_since j,
+        kio.clock.instant.Instant.Sub.sub i j))
       (pair (opt instant) (pair (opt instant) (pair instant (pair instant
         (pair (opt dur) (pair dur (pair dur dur)))))))
   | _ => throw "kind"

@@ -1,4 +1,4 @@
-//! A stand-in for kio's `Instant`, which rust2-lean recognizes by where kio defines it.
+//! A crate two below the fixture, whose type a translated function of the one between names.
 
 pub mod clock {
 	pub mod instant {

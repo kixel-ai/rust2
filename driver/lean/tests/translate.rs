@@ -1,5 +1,5 @@
-//! Translate the fixture crate and compare it, and its census of refusals, with the
-//! expected files beside it. `RUST2_LEAN_BLESS=1` rewrites them instead.
+//! Translate the fixture crate and compare it, the dependencies it reaches, and its census of
+//! refusals, with the expected files beside it. `RUST2_LEAN_BLESS=1` rewrites them instead.
 
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -49,7 +49,16 @@ fn translates() {
 			"crate::cases",
 		],
 	);
-	compare("Fixture.lean", &out.join("Fixture.lean"));
+	// Each crate the translation reaches, in a file of its own.
+	let mut written: Vec<String> = std::fs::read_dir(&out)
+		.unwrap()
+		.map(|e| e.unwrap().file_name().into_string().unwrap())
+		.collect();
+	written.sort();
+	assert_eq!(written, ["Fixture.lean", "FixtureDep.lean", "Kio.lean", "Rust.lean"]);
+	for module in ["Fixture.lean", "FixtureDep.lean", "Kio.lean"] {
+		compare(module, &out.join(module));
+	}
 	let prelude = include_str!("../lean/Rust.lean");
 	assert_eq!(std::fs::read_to_string(out.join("Rust.lean")).unwrap(), prelude);
 }

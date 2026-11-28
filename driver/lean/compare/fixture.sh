@@ -30,5 +30,8 @@ cd "$work/out"
 cp "$here/FixtureDiff.lean" .
 export LEAN_PATH=.
 timed lean -o Rust.olean Rust.lean
-timed lean -o Fixture.olean Fixture.lean
+# Each crate the cases reach, after the crates it calls.
+for module in Kio FixtureDep Fixture; do
+	timed lean -o $module.olean $module.lean
+done
 timed lean --run FixtureDiff.lean cases.txt

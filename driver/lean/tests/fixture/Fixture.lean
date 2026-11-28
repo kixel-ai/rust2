@@ -1,5 +1,7 @@
 -- Translated from the `fixture` crate by rust2-lean, with overflow checks on.
 import Rust
+import FixtureDep
+import Kio
 
 set_option linter.unusedVariables false
 -- Rust's wide tuples need deeper instance searches than Lean's default.
@@ -62,16 +64,22 @@ inductive cases.Severity where
   | Low
 deriving Repr, DecidableEq, Inhabited
 
+/-- `cases::lenses::Seeded` -/
+structure cases.lenses.Seeded where
+  x0 : UInt16
+deriving Repr, DecidableEq, Inhabited
+
+/-- `cases::Step` -/
+inductive cases.Step where
+  | Back
+  | Ahead (x0 : UInt16)
+deriving Repr, DecidableEq, Inhabited
+
 /-- `cases::Ledger` -/
 structure cases.Ledger where
   m : (Rust.BTreeMap cases.Rank UInt16)
   s : (Rust.BTreeSet UInt8)
   q : (Rust.VecDeque UInt8)
-deriving Repr, DecidableEq, Inhabited
-
-/-- `cases::lenses::Seeded` -/
-structure cases.lenses.Seeded where
-  x0 : UInt16
 deriving Repr, DecidableEq, Inhabited
 
 /-- `cases::lenses::Tally` -/
@@ -353,6 +361,91 @@ def cases.sums (a : Rust.Duration) (b : Rust.Duration) (k : UInt32) : ((Option R
 def cases.compared (a : Rust.Duration) (b : Rust.Duration) (p : (UInt8 × cases.Rank)) (q : (UInt8 × cases.Rank)) : (Bool × Bool × Bool × Bool × Rust.Duration × Rust.Duration × Ordering × Bool × Bool) := Id.run do
   let t26 := b
   return (decide (compare a b = .lt), decide (compare a b ≠ .gt), decide (compare a b = .gt), decide (compare a b ≠ .lt), Rust.ordMax a b, Rust.ordMin a b, compare a t26, decide (compare p q = .lt), decide (compare p q ≠ .lt))
+
+def cases.ticks (i : _root_.kio.clock.instant.Instant) (d : Rust.Duration) (j : UInt64) : ((Option UInt64) × UInt64 × Rust.Duration × UInt64) := Id.run do
+  let t := _root_.fixture_dep.Ticks.of i
+  let u := _root_.fixture_dep.Ticks.of ({ x0 := j } : _root_.kio.clock.instant.Instant)
+  return ((t.checked_add d).map (_root_.fixture_dep.Ticks.get), _root_.fixture_dep.Ticks.get (t.saturating_add d), t.since u, _root_.fixture_dep.Ticks.get (_root_.fixture_dep.larger t u))
+
+def elsewhere.doubled (x : UInt16) : Rust.M UInt16 := do
+  return (← x *? 2)
+
+def cases.passed (o : (Option UInt16)) (n : (Option UInt64)) : Rust.M ((Option cases.lenses.Seeded) × (Option Rust.Duration) × (Option (Option UInt16)) × (Option (Except UInt8 UInt16)) × (Option cases.Step) × (Option UInt16)) := do
+  return (o.map cases.lenses.Seeded.mk, n.map Rust.Duration.fromNanos, o.map some, o.map Except.ok, o.map cases.Step.Ahead, (← Rust.mapM o (elsewhere.doubled)))
+
+def cases.nanos (d : Rust.Duration) : (Rust.UInt128 × Rust.UInt128 × Rust.UInt128) :=
+  (Rust.Duration.asNanos d, Rust.Duration.asMicros d, Rust.Duration.asMillis d)
+
+def cases.wide_bits (a : Rust.UInt128) (b : Rust.UInt128) (s : UInt32) : Rust.M (Rust.UInt128 × Rust.UInt128 × Rust.UInt128 × Rust.UInt128 × Rust.UInt128 × Rust.UInt128 × Rust.UInt128) := do
+  unless ¬((128 : UInt32) = (0 : UInt32)) do throw "attempt to calculate the remainder with a divisor of zero"
+  let t17 := s % 128
+  let t20 := decide (t17 < 128)
+  unless t20 do throw "attempt to shift left with overflow"
+  unless ¬((128 : UInt32) = (0 : UInt32)) do throw "attempt to calculate the remainder with a divisor of zero"
+  let t23 := s % 128
+  let t26 := decide (t23 < 128)
+  unless t26 do throw "attempt to shift right with overflow"
+  let t31 := decide ((Rust.cast UInt32 (1 : Int32)) < 128)
+  unless t31 do throw "attempt to shift left with overflow"
+  let t34 := decide ((3 : UInt8) < (128 : UInt8))
+  unless t34 do throw "attempt to shift right with overflow"
+  return (a &&& b, a ||| b, a ^^^ b, ~~~a, a <<< (Rust.cast Rust.UInt128 t17), a >>> (Rust.cast Rust.UInt128 t23), (a <<< (Rust.cast Rust.UInt128 (1 : Int32))) ||| (b >>> (Rust.cast Rust.UInt128 (3 : UInt8))))
+
+def cases.wide_order (a : Rust.UInt128) (b : Rust.UInt128) : ((Option Rust.UInt128) × (Option Rust.UInt128) × Rust.UInt128 × Rust.UInt128 × Rust.UInt128 × Rust.UInt128 × Bool × Ordering) := Id.run do
+  let t27 := b
+  return (Rust.checkedAdd a b, Rust.checkedSub a b, Rust.saturatingAdd a b, Rust.saturatingSub a b, min a b, max a b, decide (a < b), compare a t27)
+
+def cases.wide_arith (a : Rust.UInt128) (b : Rust.UInt128) (op : UInt8) : Rust.M Rust.UInt128 := do
+  unless ¬((5 : UInt8) = (0 : UInt8)) do throw "attempt to calculate the remainder with a divisor of zero"
+  if (op % 5) = 0 then
+    return (← a +? b)
+  else if (op % 5) = 1 then
+    return (← a -? b)
+  else if (op % 5) = 2 then
+    return (← a *? b)
+  else if (op % 5) = 3 then
+    unless ¬(b = 0) do throw "attempt to divide by zero"
+    return a / b
+  else
+    unless ¬(b = 0) do throw "attempt to calculate the remainder with a divisor of zero"
+    return a % b
+
+def cases.signed_arith (x : Rust.Int128) (y : Rust.Int128) (op : UInt8) : Rust.M Rust.Int128 := do
+  unless ¬((6 : UInt8) = (0 : UInt8)) do throw "attempt to calculate the remainder with a divisor of zero"
+  if (op % 6) = 0 then
+    return (← x +? y)
+  else if (op % 6) = 1 then
+    return (← x -? y)
+  else if (op % 6) = 2 then
+    return (← x *? y)
+  else if (op % 6) = 3 then
+    unless ¬(y = 0) do throw "attempt to divide by zero"
+    let t21 := (decide (y = (-1))) && (decide (x = (-170141183460469231731687303715884105728)))
+    unless !t21 do throw "attempt to divide with overflow"
+    return x / y
+  else if (op % 6) = 4 then
+    unless ¬(y = 0) do throw "attempt to calculate the remainder with a divisor of zero"
+    let t27 := (decide (y = (-1))) && (decide (x = (-170141183460469231731687303715884105728)))
+    unless !t27 do throw "attempt to calculate the remainder with overflow"
+    return x % y
+  else
+    unless ¬(x = (-170141183460469231731687303715884105728)) do throw "attempt to negate with overflow"
+    return -x
+
+def cases.signed_bits (x : Rust.Int128) (y : Rust.Int128) (s : UInt32) : Rust.M (Rust.Int128 × Rust.Int128 × Rust.Int128 × Rust.Int128 × Bool × Ordering × Rust.Int128 × Rust.Int128) := do
+  unless ¬((128 : UInt32) = (0 : UInt32)) do throw "attempt to calculate the remainder with a divisor of zero"
+  let t6 := s % 128
+  let t9 := decide (t6 < 128)
+  unless t9 do throw "attempt to shift right with overflow"
+  unless ¬((128 : UInt32) = (0 : UInt32)) do throw "attempt to calculate the remainder with a divisor of zero"
+  let t12 := s % 128
+  let t15 := decide (t12 < 128)
+  unless t15 do throw "attempt to shift left with overflow"
+  let t28 := y
+  return (x >>> (Rust.cast Rust.Int128 t6), x <<< (Rust.cast Rust.Int128 t12), Rust.saturatingAdd x y, Rust.saturatingSub x y, decide (x ≤ y), compare x t28, min x y, ~~~x)
+
+def cases.wide_casts (a : Rust.UInt128) (x : Rust.Int128) : (UInt64 × Int64 × Rust.Int128 × Rust.UInt128 × (Option UInt64) × (Option Int64) × (Option Rust.UInt128) × (Option Rust.Int128) × Rust.UInt128 × Rust.Int128) :=
+  (Rust.cast UInt64 a, Rust.cast Int64 x, Rust.cast Rust.Int128 a, Rust.cast Rust.UInt128 x, (Rust.tryFrom UInt64 a).toOption, (Rust.tryFrom Int64 x).toOption, (Rust.tryFrom Rust.UInt128 x).toOption, (Rust.tryFrom Rust.Int128 a).toOption, Rust.cast Rust.UInt128 (Rust.cast UInt64 a), Rust.cast Rust.Int128 (Rust.cast Int64 x))
 
 def cases.Ledger.edit (self : cases.Ledger) (r : cases.Rank) (v : UInt16) (k : UInt8) : (((Option UInt16) × (Option (cases.Rank × UInt16)) × (Option UInt16) × Bool × Bool × (Option UInt8)) × cases.Ledger) := Id.run do
   let mut self := self

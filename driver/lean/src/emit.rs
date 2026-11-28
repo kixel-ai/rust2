@@ -4,7 +4,6 @@ use std::collections::BTreeMap;
 use std::path::Path;
 
 use rustc_middle::ty::TyCtxt;
-use rustc_span::def_id::LOCAL_CRATE;
 
 use crate::lower::Extraction;
 
@@ -12,9 +11,8 @@ use crate::lower::Extraction;
 const RUNTIME: &str = include_str!("../lean/Rust.lean");
 
 /// The Lean module a crate translates to: its name in upper camel case.
-pub fn module(tcx: TyCtxt<'_>) -> String {
-	tcx.crate_name(LOCAL_CRATE)
-		.as_str()
+pub fn module(krate: &str) -> String {
+	krate
 		.split('_')
 		.map(|w| {
 			let mut c = w.chars();
@@ -25,27 +23,39 @@ pub fn module(tcx: TyCtxt<'_>) -> String {
 		.collect()
 }
 
-/// Write `Rust.lean` and the crate's module into `out`.
+/// Write `Rust.lean` and each reached crate's module into `out`.
 pub fn write(tcx: TyCtxt<'_>, extraction: &Extraction, out: &Path) -> Result<(), String> {
-	let krate = tcx.crate_name(LOCAL_CRATE);
 	let checks = if tcx.sess.overflow_checks() { "on" } else { "off" };
-	let mut text = format!(
-		"-- Translated from the `{krate}` crate by rust2-lean, with overflow checks {checks}.\nimport Rust\n\nset_option linter.unusedVariables false\n-- Rust's wide tuples need deeper instance searches than Lean's default.\nset_option synthInstance.maxSize 1024\n\nnamespace {krate}\n\n"
-	);
-	for ty in &extraction.types {
-		text += ty;
-		text += "\n";
+	let mut files = vec![("Rust.lean".to_string(), RUNTIME.to_string())];
+	for m in &extraction.crates {
+		let name = format!("{}.lean", module(&m.krate));
+		if files.iter().any(|f| f.0 == name) {
+			return Err(format!(
+				"the translation reaches two crates whose module is {name}, such as two versions of `{}`",
+				m.krate
+			));
+		}
+		let krate = &m.krate;
+		// A dependency's arithmetic is checked where its MIR checks it, as its build had it.
+		let mut text = match m.local {
+			true => format!("-- Translated from the `{krate}` crate by rust2-lean, with overflow checks {checks}.\n"),
+			false => format!("-- Translated from the `{krate}` crate by rust2-lean, which a translated crate calls.\n"),
+		};
+		text += "import Rust\n";
+		for import in &m.imports {
+			text += &format!("import {}\n", module(import));
+		}
+		text += &format!(
+			"\nset_option linter.unusedVariables false\n-- Rust's wide tuples need deeper instance searches than Lean's default.\nset_option synthInstance.maxSize 1024\n\nnamespace {krate}\n\n"
+		);
+		for item in m.types.iter().chain(&m.fns) {
+			text += item;
+			text += "\n";
+		}
+		text += &format!("end {krate}\n");
+		files.push((name, text));
 	}
-	for f in &extraction.fns {
-		text += f;
-		text += "\n";
-	}
-	text += &format!("end {krate}\n");
-	let module = module(tcx);
-	for (name, contents) in [
-		("Rust.lean".to_string(), RUNTIME.to_string()),
-		(format!("{module}.lean"), text),
-	] {
+	for (name, contents) in files {
 		let path = out.join(&name);
 		std::fs::write(&path, contents).map_err(|err| format!("writing {}: {err}", path.display()))?;
 	}
