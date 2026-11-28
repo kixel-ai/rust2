@@ -217,6 +217,21 @@ struct Shape {
 	failed: bool,
 }
 
+/// The `Iterator` methods that read every item, which drain an iterator written in a translated
+/// crate through its `next`.
+const DRAINS: [&str; 5] = ["count", "collect", "sum", "min", "min_by_key"];
+
+/// How a value becomes the list of what it iterates.
+#[derive(Clone, Copy)]
+enum Items {
+	/// An iterator, which is its list.
+	Same,
+	/// A range, which a function makes the list of its items.
+	Range(&'static str),
+	/// A collection, whose items a method suffix on it reads, such as `.toList`, and a function.
+	Collection(&'static str, &'static str),
+}
+
 pub(crate) struct Cx<'tcx> {
 	pub tcx: TyCtxt<'tcx>,
 	/// The crate whose file is being written, which names its own items without its name.
@@ -527,6 +542,13 @@ impl<'tcx> Cx<'tcx> {
 					out.push(closure);
 				}
 			}
+			// A consumer that drains an iterator written in a translated crate calls its `next`.
+			if let TerminatorKind::Call { func, .. } = &bb.terminator().kind
+				&& let ty::FnDef(callee, args) = *func.ty(body, tcx).kind()
+				&& let Some(next) = self.drained_next(env, callee, args.skip_binder())
+			{
+				out.push(next.0);
+			}
 			if let TerminatorKind::Call { func, destination, .. } = &bb.terminator().kind
 				&& let ty::FnDef(callee, args) = *func.ty(body, tcx).kind()
 				&& resolve_local(tcx, env, callee, args.skip_binder()).is_none()
@@ -542,6 +564,33 @@ impl<'tcx> Cx<'tcx> {
 			}
 		}
 		out
+	}
+
+	/// The translated `next` that `Iterator` method `callee` drains, when it reads every item of an
+	/// iterator written in a translated crate, such as `count`, with its generic arguments.
+	fn drained_next(
+		&self,
+		env: TypingEnv<'tcx>,
+		callee: DefId,
+		args: GenericArgsRef<'tcx>,
+	) -> Option<(DefId, GenericArgsRef<'tcx>)> {
+		let tcx = self.tcx;
+		let iterator = tcx.get_diagnostic_item(rustc_span::sym::Iterator)?;
+		if tcx.trait_of_assoc(callee) != Some(iterator) || !DRAINS.contains(&tcx.item_name(callee).as_str()) {
+			return None;
+		}
+		let ty::Adt(def, _) = args.type_at(0).kind() else {
+			return None;
+		};
+		if !self.translated(def.did()) {
+			return None;
+		}
+		let next = tcx
+			.associated_items(iterator)
+			.filter_by_name_unhygienic(rustc_span::Symbol::intern("next"))
+			.next()?
+			.def_id;
+		resolve_local(tcx, env, next, tcx.mk_args(&[args[0]]))
 	}
 
 	/// Whether `callee` is a `std` function that makes a `Default` of what it returns, which a
@@ -924,6 +973,47 @@ impl<'tcx> Cx<'tcx> {
 		self.tcx.item_name(did).to_string()
 	}
 
+	/// A key naming a standard library function by its impl, such as `Vec::push` or
+	/// `Deref::deref for Vec`.
+	fn std_key(&self, did: DefId) -> String {
+		let tcx = self.tcx;
+		let clone = tcx.lang_items().clone_trait();
+		if clone.is_some()
+			&& (tcx.trait_of_assoc(did) == clone
+				|| tcx.trait_impl_of_assoc(did).is_some_and(|imp| {
+					Some(tcx.impl_trait_ref(imp).instantiate_identity().skip_norm_wip().def_id) == clone
+				})) {
+			return "Clone::clone".into();
+		}
+		let name = tcx.item_name(did);
+		if !self.is_std(did) {
+			return String::new();
+		}
+		if let Some(trait_id) = tcx.trait_of_assoc(did) {
+			return format!("{}::{name}", tcx.item_name(trait_id));
+		}
+		let Some(impl_id) = tcx.impl_of_assoc(did) else {
+			return tcx.def_path_str(did);
+		};
+		let head = match tcx.type_of(impl_id).instantiate_identity().skip_norm_wip().kind() {
+			ty::Adt(def, _) => tcx.item_name(def.did()).to_string(),
+			ty::Slice(_) => "slice".into(),
+			ty::Str => "str".into(),
+			ty::Array(..) => "array".into(),
+			ty::Bool => "bool".into(),
+			ty::Uint(_) | ty::Int(_) => self_ty_name(tcx.type_of(impl_id).instantiate_identity().skip_norm_wip()),
+			_ => "?".into(),
+		};
+		let trait_id = tcx
+			.trait_impl_of_assoc(did)
+			.map(|imp| tcx.impl_trait_ref(imp).instantiate_identity().skip_norm_wip().def_id);
+		match trait_id {
+			Some(t) if tcx.item_name(t).as_str() == "Clone" => "Clone::clone".into(),
+			Some(t) => format!("{}::{name} for {head}", tcx.item_name(t)),
+			None => format!("{head}::{name}"),
+		}
+	}
+
 	/// Whether the item is from the sysroot's `core` or `alloc`, found by their lang items, so a
 	/// crate that only shares their names is not.
 	fn is_std(&self, did: DefId) -> bool {
@@ -1004,7 +1094,7 @@ impl<'tcx> Cx<'tcx> {
 				let (item, deferred) = self.iterator(ty).expect("checked");
 				let item = self.ty(item, span)?;
 				if deferred {
-					format!("(List (Unit → Rust.M {item}))")
+					format!("(List (Rust.Lazy {item}))")
 				} else {
 					format!("(List {item})")
 				}
@@ -1036,7 +1126,8 @@ impl<'tcx> Cx<'tcx> {
 				_ if matches!(self.ops_range(def.did()), Some("RangeTo" | "RangeFrom")) => {
 					self.ty(args.type_at(0), span)?
 				}
-				_ if self.ops_range(def.did()) == Some("Range") => {
+				// Its bounds: a `RangeInclusive` is never stepped, so its `exhausted` is always `false`.
+				_ if matches!(self.ops_range(def.did()), Some("Range" | "RangeInclusive")) => {
 					let t = self.ty(args.type_at(0), span)?;
 					format!("({t} × {t})")
 				}
@@ -1118,8 +1209,8 @@ impl<'tcx> Cx<'tcx> {
 		)
 	}
 
-	/// A `std` iterator's item type, and whether each item is an action that may panic,
-	/// which a closure that may panic makes it. `None` for any other type.
+	/// A `std` iterator's item type, and whether its items are lazy, each the action that makes
+	/// it, which a closure that may panic among its adaptors makes them. `None` for any other type.
 	fn iterator(&self, ty: Ty<'tcx>) -> Option<(Ty<'tcx>, bool)> {
 		let tcx = self.tcx;
 		let ty::Adt(def, args) = ty.kind() else {
@@ -1131,25 +1222,31 @@ impl<'tcx> Cx<'tcx> {
 		}
 		// Only the finite iterators the models make or take: a list cannot hold `Repeat`'s.
 		let path = tcx.def_path_str(def.did());
-		let inner: &[usize] = match self.std_name(def.did()).as_str() {
+		let name = self.std_name(def.did());
+		let inner: &[usize] = match name.as_str() {
 			"Iter" | "Windows" if path.contains("slice::") => &[],
-			"Iter" | "IntoIter" if path.contains("btree_set::") || path.contains("btree_map::") => &[],
+			"Iter" | "IntoIter" | "Range" if path.contains("btree_set::") || path.contains("btree_map::") => &[],
 			"Keys" | "Values" | "IntoKeys" | "IntoValues" if path.contains("btree_map::") => &[],
 			"Iter" | "IntoIter" if path.contains("vec_deque::") => &[],
 			"Iter" if path.contains("option::") => &[],
 			"IntoIter" if ["vec::", "option::", "array::"].iter().any(|m| path.contains(m)) => &[],
-			"Map" | "Copied" | "Cloned" | "Enumerate" | "Rev" | "TakeWhile" => &[0],
+			"Once" => &[],
+			"Map" | "Filter" | "FilterMap" | "FlatMap" | "Flatten" | "Peekable" | "Copied" | "Cloned"
+			| "Enumerate" | "Rev" | "TakeWhile" => &[0],
 			"Chain" => &[0, 1],
 			_ => return None,
 		};
-		if inner.iter().any(|&i| self.iterator(args.type_at(i)).is_none()) {
+		if inner.iter().any(|&i| self.iterable(args.type_at(i)).is_none()) {
 			return None;
 		}
-		// A `Map`'s mapper and a `TakeWhile`'s predicate must be closures here, whose panics the
-		// list's shape records.
-		if matches!(self.std_name(def.did()).as_str(), "Map" | "TakeWhile")
-			&& !matches!(args.type_at(1).kind(), ty::Closure(did, _) if self.translated(*did))
-		{
+		// An adaptor's closure must be one translated here, whose panics the list's shape records,
+		// or a `std` function modeled as one that cannot panic.
+		let closure = match name.as_str() {
+			"Map" | "Filter" | "FilterMap" | "TakeWhile" => Some(1),
+			"FlatMap" => Some(2),
+			_ => None,
+		};
+		if closure.is_some_and(|i| !self.adaptor_fn(args.type_at(i))) {
 			return None;
 		}
 		let iterator = tcx.get_diagnostic_item(rustc_span::sym::Iterator)?;
@@ -1162,13 +1259,99 @@ impl<'tcx> Cx<'tcx> {
 		let item = tcx
 			.try_normalize_erasing_regions(self.env, ty::Unnormalized::new_wip(projection))
 			.ok()?;
-		let deferred = ty.walk().any(|a| {
-			a.as_type().is_some_and(|t| match t.kind() {
-				ty::Closure(did, _) => self.shapes.get(did).is_none_or(|s| s.monadic || s.failed),
-				_ => false,
-			})
-		});
+		// What a flat map makes of each item must be a list too.
+		let made = match name.as_str() {
+			"FlatMap" => Some(args.type_at(1)),
+			"Flatten" => Some(self.iterator(args.type_at(0))?.0),
+			_ => None,
+		};
+		if made.is_some_and(|t| self.iterable(t).is_none()) {
+			return None;
+		}
+		let deferred = ty.walk().any(|a| a.as_type().is_some_and(|t| self.may_panic(t)));
 		Some((item, deferred))
+	}
+
+	/// Whether an adaptor may take a function of type `ty`: a translated closure, or a `std`
+	/// function a model passes as a Lean function, which cannot panic.
+	fn adaptor_fn(&self, ty: Ty<'tcx>) -> bool {
+		match *ty.kind() {
+			ty::Closure(did, _) => self.translated(did),
+			ty::FnDef(f, args) => {
+				let did = ty::Instance::try_resolve(self.tcx, self.env, f, args.skip_binder())
+					.ok()
+					.flatten()
+					.map_or(f, |i| i.def_id());
+				let key = self.std_key(did);
+				model::unary_model(&key).or_else(|| model::passed_model(&key)).is_some()
+			}
+			_ => false,
+		}
+	}
+
+	/// Whether `ty` is a closure translated to a function that may panic, or one not translated.
+	fn may_panic(&self, ty: Ty<'tcx>) -> bool {
+		match ty.kind() {
+			ty::Closure(did, _) => self.shapes.get(did).is_none_or(|s| s.monadic || s.failed),
+			_ => false,
+		}
+	}
+
+	/// How a value of `ty` becomes the list of what it iterates, as `IntoIterator` makes it, and
+	/// whether its items are lazy: an iterator is its list, and an integer range, an array, a
+	/// slice, a `Vec`, an `Option`, a `VecDeque`, a `BTreeMap`, or a `BTreeSet`, or a reference
+	/// to one, converts.
+	fn iterable(&self, ty: Ty<'tcx>) -> Option<(Items, bool)> {
+		if let Some((_, deferred)) = self.iterator(ty) {
+			return Some((Items::Same, deferred));
+		}
+		let items = match ty.peel_refs().kind() {
+			ty::Array(..) => Items::Collection(".toList", "Vector.toList"),
+			ty::Slice(_) => Items::Collection(".toList", "Array.toList"),
+			ty::Adt(def, args) => match (self.ops_range(def.did()), self.std_name(def.did()).as_str()) {
+				// Stepped, which `ty` alone does by value.
+				(Some("Range"), _) if !ty.is_ref() && args.type_at(0).is_integral() => {
+					Items::Range("Rust.rangeItems")
+				}
+				(Some("RangeInclusive"), _) if !ty.is_ref() && args.type_at(0).is_integral() => {
+					Items::Range("Rust.rangeInclusiveItems")
+				}
+				(Some(_), _) => return None,
+				(None, "Vec") => Items::Collection(".toList", "Array.toList"),
+				(None, "Option") => Items::Collection(".toList", "Option.toList"),
+				(None, "VecDeque") => Items::Collection(".items", "Rust.VecDeque.items"),
+				(None, "BTreeSet") => Items::Collection(".items", "Rust.BTreeSet.items"),
+				(None, "BTreeMap") => Items::Collection(".entries", "Rust.BTreeMap.entries"),
+				_ => return None,
+			},
+			_ => return None,
+		};
+		Some((items, false))
+	}
+
+	/// Whether a lazy iterator of type `ty` may make several items at once, where a flat map's
+	/// source's items or closure may panic, so a closure that may panic over its items would
+	/// run on the whole run where Rust stops at the item a consumer reaches.
+	fn runs(&self, ty: Ty<'tcx>) -> bool {
+		let ty::Adt(def, args) = ty.kind() else {
+			return false;
+		};
+		let lazy = |t: Ty<'tcx>| self.iterator(t).is_some_and(|(_, d)| d);
+		match self.std_name(def.did()).as_str() {
+			"FlatMap" => {
+				let source = args.type_at(0);
+				lazy(source) || self.may_panic(args.type_at(2)) || self.runs(source) || self.runs(args.type_at(1))
+			}
+			"Flatten" => {
+				let source = args.type_at(0);
+				lazy(source) || self.runs(source) || self.iterator(source).is_some_and(|(t, _)| self.runs(t))
+			}
+			"Map" | "Filter" | "FilterMap" | "Peekable" | "Copied" | "Cloned" | "Enumerate" | "Rev" | "TakeWhile" => {
+				self.runs(args.type_at(0))
+			}
+			"Chain" => self.runs(args.type_at(0)) || self.runs(args.type_at(1)),
+			_ => false,
+		}
 	}
 
 	fn pointer_bits(&self) -> u64 {
@@ -3057,7 +3240,7 @@ impl<'a, 'tcx> Fx<'a, 'tcx> {
 		}
 		let instance = ty::Instance::try_resolve(tcx, self.env, callee, gargs).ok().flatten();
 		let did = instance.map_or(callee, |i| i.def_id());
-		let key = self.std_key(did);
+		let key = self.cx.std_key(did);
 		let call = model::Call {
 			callee,
 			gargs,
@@ -3416,46 +3599,6 @@ impl<'a, 'tcx> Fx<'a, 'tcx> {
 		}
 	}
 
-	/// A key naming a standard library function by its impl, such as `Vec::push` or
-	/// `Deref::deref for Vec`.
-	fn std_key(&self, did: DefId) -> String {
-		let tcx = self.cx.tcx;
-		let clone = tcx.lang_items().clone_trait();
-		if clone.is_some()
-			&& (tcx.trait_of_assoc(did) == clone
-				|| tcx.trait_impl_of_assoc(did).is_some_and(|imp| {
-					Some(tcx.impl_trait_ref(imp).instantiate_identity().skip_norm_wip().def_id) == clone
-				})) {
-			return "Clone::clone".into();
-		}
-		let name = tcx.item_name(did);
-		if !self.cx.is_std(did) {
-			return String::new();
-		}
-		if let Some(trait_id) = tcx.trait_of_assoc(did) {
-			return format!("{}::{name}", tcx.item_name(trait_id));
-		}
-		let Some(impl_id) = tcx.impl_of_assoc(did) else {
-			return tcx.def_path_str(did);
-		};
-		let head = match tcx.type_of(impl_id).instantiate_identity().skip_norm_wip().kind() {
-			ty::Adt(def, _) => tcx.item_name(def.did()).to_string(),
-			ty::Slice(_) => "slice".into(),
-			ty::Str => "str".into(),
-			ty::Array(..) => "array".into(),
-			ty::Bool => "bool".into(),
-			ty::Uint(_) | ty::Int(_) => self_ty_name(tcx.type_of(impl_id).instantiate_identity().skip_norm_wip()),
-			_ => "?".into(),
-		};
-		let trait_id = tcx
-			.trait_impl_of_assoc(did)
-			.map(|imp| tcx.impl_trait_ref(imp).instantiate_identity().skip_norm_wip().def_id);
-		match trait_id {
-			Some(t) if tcx.item_name(t).as_str() == "Clone" => "Clone::clone".into(),
-			Some(t) => format!("{}::{name} for {head}", tcx.item_name(t)),
-			None => format!("{head}::{name}"),
-		}
-	}
 
 	/// The Lean name of translated function `callee`, with each generic argument Lean cannot infer
 	/// from its arguments' Lean types, refusing an argument its bounds cannot take.

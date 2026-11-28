@@ -26,10 +26,46 @@ struct Lambda {
 	monadic: bool,
 }
 
-/// An iterator's list, and whether its items are actions.
+impl Lambda {
+	/// The function as one into `Rust.M`.
+	fn action(&self) -> String {
+		match self.monadic {
+			true => self.f.paren(),
+			false => format!("(pure ∘ {})", self.f.paren()),
+		}
+	}
+}
+
+/// An iterator's list, and whether its items are lazy.
 struct List {
 	ex: Ex,
 	deferred: bool,
+}
+
+impl List {
+	/// The list as lazy items, lifting made ones.
+	fn lazy(&self) -> String {
+		match self.deferred {
+			true => self.ex.paren(),
+			false => format!("(Rust.lazy {})", self.ex.paren()),
+		}
+	}
+
+	/// Every item made, in order, as a consumer that reads each makes them.
+	fn made(self) -> Ex {
+		match self.deferred {
+			true => bound(compound(format!("Rust.run {}", self.ex.paren()), &[&self.ex])),
+			false => self.ex,
+		}
+	}
+}
+
+/// The element type of a `std` collection type.
+fn element(ty: Ty<'_>) -> Ty<'_> {
+	match ty.kind() {
+		ty::Adt(_, args) => args.type_at(0),
+		_ => ty,
+	}
 }
 
 impl<'tcx> Fx<'_, 'tcx> {
@@ -84,40 +120,105 @@ impl<'tcx> Fx<'_, 'tcx> {
 			return Ok(true);
 		}
 		let value = match key {
-			"Iterator::map" => {
+			"Iterator::map" | "Iterator::filter" | "Iterator::filter_map" => {
 				let it = self.list(call, 0)?;
 				let f = self.closure(&call.args[1].node, span)?;
-				let text = match (it.deferred, f.monadic) {
-					(false, false) => format!("{}.map {}", it.ex.paren(), f.f.paren()),
-					(false, true) => format!("{}.map (Rust.defer {})", it.ex.paren(), f.f.paren()),
-					(true, false) => format!("{}.map (Rust.deferMap {})", it.ex.paren(), f.f.paren()),
-					(true, true) => format!("{}.map (Rust.deferBind {})", it.ex.paren(), f.f.paren()),
-				};
+				if f.monadic {
+					self.no_runs(call)?;
+				}
 				let deferred = it.deferred || f.monadic;
 				self.same_list(call, deferred)?;
+				let (eager, lazy) = match key {
+					"Iterator::map" => ("map", "lazyMap"),
+					"Iterator::filter" => ("filter", "lazyFilter"),
+					_ => ("filterMap", "lazyFilterMap"),
+				};
+				let text = match deferred {
+					false => format!("{}.{eager} {}", it.ex.paren(), f.f.paren()),
+					true => format!("Rust.{lazy} {} {}", f.action(), it.lazy()),
+				};
 				compound(text, &[&it.ex, &f.f])
 			}
-			"Iterator::any" | "Iterator::all" => {
+			"Iterator::flat_map" | "Iterator::flatten" => {
+				let it = self.list(call, 0)?;
+				let (f, made) = match key {
+					"Iterator::flat_map" => (Some(self.closure(&call.args[1].node, span)?), call.gargs.type_at(1)),
+					_ => {
+						let source = call.args[0].node.ty(self.body, tcx);
+						let Some((item, _)) = self.cx.iterator(source) else {
+							return refuse(span, format!("`{source}` has no Lean model"));
+						};
+						(None, item)
+					}
+				};
+				let Some((items, inner)) = self.cx.iterable(made) else {
+					return refuse(span, format!("iterating `{made}` is not supported"));
+				};
+				let monadic = f.as_ref().is_some_and(|f| f.monadic);
+				// An item's lazy items would be made in the action that makes the item.
+				if inner && (it.deferred || monadic) {
+					return refuse(
+						span,
+						"flattening iterators whose items may panic, from items or a closure that may panic, is not supported",
+					);
+				}
+				if monadic {
+					self.no_runs(call)?;
+				}
+				self.same_list(call, it.deferred || monadic || inner)?;
+				let into = match items {
+					Items::Same => None,
+					Items::Range(into) | Items::Collection(_, into) => Some(into),
+				};
+				let text = match (&f, into) {
+					_ if it.deferred || monadic => {
+						let f = f.as_ref().map_or("pure".into(), Lambda::action);
+						format!("Rust.lazyFlatMap {f} {} {}", into.unwrap_or("id"), it.lazy())
+					}
+					(None, None) => format!("{}.flatten", it.ex.paren()),
+					(None, Some(into)) => format!("{}.flatMap {into}", it.ex.paren()),
+					(Some(f), None) => format!("{}.flatMap {}", it.ex.paren(), f.f.paren()),
+					(Some(f), Some(into)) => format!("{}.flatMap ({into} ∘ {})", it.ex.paren(), f.f.paren()),
+				};
+				match &f {
+					Some(f) => compound(text, &[&it.ex, &f.f]),
+					None => compound(text, &[&it.ex]),
+				}
+			}
+			"Iterator::peekable" => {
+				let it = self.list(call, 0)?;
+				self.same_list(call, it.deferred)?;
+				it.ex
+			}
+			"Peekable::peek" => {
+				let place = self.mutable_arg(&call.args[0].node, span)?;
+				let ty = place.ty(self.body, tcx).ty;
+				let Some((_, deferred)) = self.cx.iterator(ty) else {
+					return refuse(span, format!("`{ty}` has no Lean model"));
+				};
+				let f = if deferred { "lazyPeek" } else { "listPeek" };
+				self.mutate(f, deferred, call, ops)?;
+				return Ok(true);
+			}
+			"Iterator::any" | "Iterator::all" | "Iterator::find" | "Iterator::find_map" => {
 				let it = self.list_mut(call)?;
 				let f = self.closure(&call.args[1].node, span)?;
-				let name = if key == "Iterator::any" { "any" } else { "all" };
+				let (eager, monadic, lazy) = match key {
+					"Iterator::any" => ("any", "List.anyM", "Rust.lazyAny"),
+					"Iterator::all" => ("all", "List.allM", "Rust.lazyAll"),
+					"Iterator::find" => ("find?", "List.findM?", "Rust.lazyFind"),
+					_ => ("findSome?", "List.findSomeM?", "Rust.lazyFindMap"),
+				};
 				match (it.deferred, f.monadic) {
-					(false, false) => compound(format!("{}.{name} {}", it.ex.paren(), f.f.paren()), &[&it.ex, &f.f]),
+					(false, false) => compound(format!("{}.{eager} {}", it.ex.paren(), f.f.paren()), &[&it.ex, &f.f]),
 					(false, true) => bound(compound(
-						format!("List.{name}M {} {}", f.f.paren(), it.ex.paren()),
+						format!("{monadic} {} {}", f.f.paren(), it.ex.paren()),
 						&[&it.ex, &f.f],
 					)),
-					(true, monadic) => {
-						let g = if monadic {
-							f.f.paren()
-						} else {
-							format!("(pure ∘ {})", f.f.paren())
-						};
-						bound(compound(
-							format!("List.{name}M (Rust.force {g}) {}", it.ex.paren()),
-							&[&it.ex, &f.f],
-						))
-					}
+					(true, _) => bound(compound(
+						format!("{lazy} {} {}", f.action(), it.ex.paren()),
+						&[&it.ex, &f.f],
+					)),
 				}
 			}
 			"Iterator::next" => {
@@ -155,7 +256,11 @@ impl<'tcx> Fx<'_, 'tcx> {
 			"Iterator::rev" => {
 				let it = self.list(call, 0)?;
 				self.same_list(call, it.deferred)?;
-				compound(format!("{}.reverse", it.ex.paren()), &[&it.ex])
+				let text = match it.deferred {
+					false => format!("{}.reverse", it.ex.paren()),
+					true => format!("Rust.lazyRev {}", it.ex.paren()),
+				};
+				compound(text, &[&it.ex])
 			}
 			"Iterator::take_while" => {
 				let it = self.list(call, 0)?;
@@ -172,12 +277,9 @@ impl<'tcx> Fx<'_, 'tcx> {
 				compound(format!("{}.takeWhile {}", it.ex.paren(), f.f.paren()), &[&it.ex, &f.f])
 			}
 			"Iterator::count" => {
-				let it = self.list(call, 0)?;
+				let it = self.drained(call)?;
 				// Counting makes every item, as Rust's `fold` does.
-				let items = match it.deferred {
-					true => bound(compound(format!("Rust.run {}", it.ex.paren()), &[&it.ex])),
-					false => it.ex,
-				};
+				let items = it.made();
 				compound(format!("{}.length.toUInt64", items.paren()), &[&items])
 			}
 			"str::len" | "str::is_empty" | "str::as_bytes" => {
@@ -248,13 +350,7 @@ impl<'tcx> Fx<'_, 'tcx> {
 				let b = self.iterated(&call.args[1].node, span)?;
 				let deferred = a.deferred || b.deferred;
 				self.same_list(call, deferred)?;
-				let lift = |l: &List| {
-					if deferred && !l.deferred {
-						format!("({}.map Rust.ready)", l.ex.paren())
-					} else {
-						l.ex.paren()
-					}
-				};
+				let lift = |l: &List| if deferred { l.lazy() } else { l.ex.paren() };
 				compound(format!("{} ++ {}", lift(&a), lift(&b)), &[&a.ex, &b.ex])
 			}
 			"Iterator::enumerate" => {
@@ -266,22 +362,121 @@ impl<'tcx> Fx<'_, 'tcx> {
 				compound(format!("Rust.enumerate {}", it.ex.paren()), &[&it.ex])
 			}
 			"Iterator::collect" => {
-				let it = self.list(call, 0)?;
+				let it = self.drained(call)?;
 				let into = call.gargs.type_at(1);
-				let ty::Adt(def, _) = into.kind() else {
+				let ty::Adt(def, args) = into.kind() else {
 					return refuse(span, format!("collecting into `{into}` is not supported"));
 				};
-				match self.cx.std_name(def.did()).as_str() {
-					"Vec" | "Arc" => {}
+				let set = match self.cx.std_name(def.did()).as_str() {
+					"Vec" | "Arc" => false,
+					"BTreeSet" => {
+						self.ordered(args.type_at(0), span)?;
+						true
+					}
 					_ => return refuse(span, format!("collecting into `{into}` is not supported")),
-				}
+				};
 				self.cx.ty(into, span)?;
-				if it.deferred {
-					let run = bound(compound(format!("Rust.run {}", it.ex.paren()), &[&it.ex]));
-					compound(format!("{}.toArray", run.text), &[&run])
-				} else {
-					compound(format!("{}.toArray", it.ex.paren()), &[&it.ex])
+				let items = it.made();
+				match set {
+					false => compound(format!("{}.toArray", items.paren()), &[&items]),
+					true => compound(format!("Rust.BTreeSet.ofList {}", items.paren()), &[&items]),
 				}
+			}
+			"Iterator::sum" => {
+				let it = self.drained(call)?;
+				let sum = call.gargs.type_at(1);
+				let item = self.cx.iterator(call.args[0].node.ty(self.body, tcx)).map(|(t, _)| t);
+				if !sum.is_integral() || item.is_some_and(|t| t.peel_refs() != sum) {
+					return refuse(span, format!("summing into `{sum}` is not supported"));
+				}
+				// std checks it as the calling crate's build does, which is the package's alone.
+				if !self.did.is_local() {
+					return refuse(
+						span,
+						"`sum` in a dependency, whose overflow checks the translation cannot see, is not supported",
+					);
+				}
+				let checked = tcx.sess.overflow_checks();
+				match (it.deferred, checked) {
+					(false, true) => bound(compound(format!("Rust.sum {}", it.ex.paren()), &[&it.ex])),
+					(false, false) => compound(format!("Rust.sumWrapping {}", it.ex.paren()), &[&it.ex]),
+					(true, true) => bound(compound(
+						format!("Rust.lazyFold (· +? ·) (Rust.Scalar.ofInt 0) {}", it.ex.paren()),
+						&[&it.ex],
+					)),
+					(true, false) => bound(compound(
+						format!("Rust.lazyFold (fun a b => pure (a + b)) (Rust.Scalar.ofInt 0) {}", it.ex.paren()),
+						&[&it.ex],
+					)),
+				}
+			}
+			"Iterator::min_by_key" => {
+				let it = self.drained(call)?;
+				let f = self.closure(&call.args[1].node, span)?;
+				self.ordered(call.gargs.type_at(1), span)?;
+				match it.deferred || f.monadic {
+					false => compound(
+						format!("Rust.minByKey {} {}", f.f.paren(), it.ex.paren()),
+						&[&it.ex, &f.f],
+					),
+					true => bound(compound(
+						format!("Rust.lazyMinByKey {} {}", f.action(), it.lazy()),
+						&[&it.ex, &f.f],
+					)),
+				}
+			}
+			"Iterator::min" => {
+				let it = self.drained(call)?;
+				let item = self.cx.iterator(call.args[0].node.ty(self.body, tcx)).map(|(t, _)| t);
+				let Some(item) = item else {
+					return refuse(span, "`min` of this iterator is not supported");
+				};
+				self.ordered(item, span)?;
+				match it.deferred {
+					false => compound(format!("Rust.minByKey id {}", it.ex.paren()), &[&it.ex]),
+					true => bound(compound(format!("Rust.lazyMinByKey pure {}", it.ex.paren()), &[&it.ex])),
+				}
+			}
+			"std::iter::once" | "core::iter::once" => {
+				let x = self.operand(&call.args[0].node, span)?;
+				self.same_list(call, false)?;
+				atom_of(format!("[{}]", x.text), &[&x])
+			}
+			"RangeInclusive::new" => {
+				let a = self.operand(&call.args[0].node, span)?;
+				let b = self.operand(&call.args[1].node, span)?;
+				self.cx.ty(call.destination.ty(self.body, tcx).ty, span)?;
+				atom_of(format!("({}, {})", a.text, b.text), &[&a, &b])
+			}
+			// Whether out-of-order bounds panic depends on whether the map has held an entry, even
+			// one since removed, which its model does not record.
+			"BTreeMap::range" | "BTreeSet::range" => {
+				return refuse(
+					span,
+					format!("`{key}` is not supported, since whether it panics depends on whether the collection has ever held an item"),
+				);
+			}
+			"Extend::extend for BTreeSet" | "Extend::extend for Vec" => {
+				let place = self.mutable_arg(&call.args[0].node, span)?;
+				let it = self.iterated(&call.args[1].node, span)?;
+				let cur = self.read_place(place, span)?;
+				let items = it.made();
+				let new = match key {
+					"Extend::extend for Vec" => {
+						compound(format!("{} ++ {}.toArray", cur.paren(), items.paren()), &[&cur, &items])
+					}
+					_ => {
+						self.ordered(element(call.gargs.type_at(0)), span)?;
+						compound(format!("{}.extend {}", cur.paren(), items.paren()), &[&cur, &items])
+					}
+				};
+				self.assign(place, new, span, ops)?;
+				return Ok(true);
+			}
+			"From::from for BTreeSet" if matches!(call.args[0].node.ty(self.body, tcx).kind(), ty::Array(..)) => {
+				self.ordered(element(call.gargs.type_at(0)), span)?;
+				let a = self.operand(&call.args[0].node, span)?;
+				compound(format!("Rust.BTreeSet.ofList {}.toList", a.paren()), &[&a])
 			}
 			"slice::iter" => {
 				let s = self.operand(&call.args[0].node, span)?;
@@ -914,7 +1109,7 @@ impl<'tcx> Fx<'_, 'tcx> {
 	/// constructor, or a `std` function a model applies alike.
 	fn fn_value(&mut self, f: DefId, args: GenericArgsRef<'tcx>, span: Span) -> R<Lambda> {
 		let tcx = self.cx.tcx;
-		let sig = tcx.fn_sig(f).instantiate(tcx, args).skip_norm_wip().skip_binder();
+		let sig = tcx.instantiate_bound_regions_with_erased(tcx.fn_sig(f).instantiate(tcx, args).skip_norm_wip());
 		if sig.inputs().iter().any(|t| self.cx.holds_mut(*t)) {
 			return refuse(span, "passing a function taking a mutable reference is not supported");
 		}
@@ -956,7 +1151,8 @@ impl<'tcx> Fx<'_, 'tcx> {
 			.ok()
 			.flatten()
 			.map_or(f, |i| i.def_id());
-		match unary_model(&self.std_key(did)) {
+		let key = self.cx.std_key(did);
+		match unary_model(&key).or_else(|| passed_model(&key)) {
 			Some(model) => Ok(Lambda {
 				f: atom(model.into()),
 				monadic: false,
@@ -968,17 +1164,52 @@ impl<'tcx> Fx<'_, 'tcx> {
 		}
 	}
 
-	/// Argument `i` of `call`, an iterator taken by value.
+	/// Argument `i` of `call`, an iterator taken by value: a list, or an integer range, which
+	/// becomes the list of its items.
 	fn list(&mut self, call: &Call<'_, 'tcx>, i: usize) -> R<List> {
 		let op = &call.args[i].node;
 		let ty = op.ty(self.body, self.cx.tcx);
-		let Some((_, deferred)) = self.cx.iterator(ty) else {
-			return refuse(call.span, format!("`{ty}` has no Lean model"));
+		match self.cx.iterable(ty) {
+			Some((items @ (Items::Same | Items::Range(_)), deferred)) => {
+				let v = self.operand(op, call.span)?;
+				Ok(List {
+					ex: items_of(items, v),
+					deferred,
+				})
+			}
+			_ => refuse(call.span, format!("`{ty}` has no Lean model")),
+		}
+	}
+
+	/// The iterator a consumer that reads every item takes as its first argument: a list, or
+	/// an iterator written in a translated crate, whose `next` makes them.
+	fn drained(&mut self, call: &Call<'_, 'tcx>) -> R<List> {
+		let Some((next, args)) = self.cx.drained_next(self.env, call.callee, call.gargs) else {
+			return self.list(call, 0);
+		};
+		let it = self.operand(&call.args[0].node, call.span)?;
+		let text = self.callee_text(next, args, call.span)?;
+		let step = match self.cx.shapes.get(&next).is_none_or(|s| s.monadic || s.failed) {
+			true => format!("({text})"),
+			false => format!("(pure ∘ ({text}))"),
 		};
 		Ok(List {
-			ex: self.operand(op, call.span)?,
-			deferred,
+			ex: bound(compound(format!("Rust.drain {step} {}", it.paren()), &[&it])),
+			deferred: false,
 		})
+	}
+
+	/// Refuse a closure that may panic over `call`'s iterator, if that may make several items
+	/// at once.
+	fn no_runs(&self, call: &Call<'_, 'tcx>) -> R<()> {
+		let ty = call.args[0].node.ty(self.body, self.cx.tcx);
+		match self.cx.runs(ty) {
+			true => refuse(
+				call.span,
+				"a closure that may panic over a flat map's items, which may panic, is not supported",
+			),
+			false => Ok(()),
+		}
 	}
 
 	/// The iterator `call` borrows mutably as its first argument, which nothing reads after.
@@ -1030,35 +1261,18 @@ impl<'tcx> Fx<'_, 'tcx> {
 		false
 	}
 
-	/// What `op` iterates as a list, for `IntoIterator`: an iterator, or an array, a slice, a
-	/// `Vec`, an `Option`, a `VecDeque`, a `BTreeMap`, or a `BTreeSet`, or a reference to one.
+	/// What `op` iterates as a list, for `IntoIterator`: an iterator, or an integer range, an
+	/// array, a slice, a `Vec`, an `Option`, a `VecDeque`, a `BTreeMap`, or a `BTreeSet`, or a
+	/// reference to one.
 	fn iterated(&mut self, op: &Operand<'tcx>, span: Span) -> R<List> {
 		let ty = op.ty(self.body, self.cx.tcx);
-		if let Some((_, deferred)) = self.cx.iterator(ty) {
-			return Ok(List {
-				ex: self.operand(op, span)?,
-				deferred,
-			});
-		}
+		let Some((items, deferred)) = self.cx.iterable(ty) else {
+			return refuse(span, format!("iterating `{ty}` is not supported"));
+		};
 		let v = self.operand(op, span)?;
-		// By reference, the same items, borrowed.
-		let collection = match ty.kind() {
-			ty::Ref(_, inner, _) => *inner,
-			_ => ty,
-		};
-		let text = match collection.kind() {
-			ty::Array(..) | ty::Slice(_) => format!("{}.toList", v.paren()),
-			ty::Adt(def, _) => match self.cx.std_name(def.did()).as_str() {
-				"Vec" | "Option" => format!("{}.toList", v.paren()),
-				"VecDeque" | "BTreeSet" => format!("{}.items", v.paren()),
-				"BTreeMap" => format!("{}.entries", v.paren()),
-				_ => return refuse(span, format!("iterating `{ty}` is not supported")),
-			},
-			_ => return refuse(span, format!("iterating `{ty}` is not supported")),
-		};
 		Ok(List {
-			ex: compound(text, &[&v]),
-			deferred: false,
+			ex: items_of(items, v),
+			deferred,
 		})
 	}
 
@@ -1069,6 +1283,15 @@ impl<'tcx> Fx<'_, 'tcx> {
 			Some((_, d)) if d == deferred => Ok(()),
 			_ => refuse(call.span, format!("`{ty}` has no Lean model")),
 		}
+	}
+}
+
+/// The list of the items of `v`, which `items` iterates.
+fn items_of(items: Items, v: Ex) -> Ex {
+	match items {
+		Items::Same => v,
+		Items::Range(f) => compound(format!("{f} {}", v.paren()), &[&v]),
+		Items::Collection(method, _) => compound(format!("{}{method}", v.paren()), &[&v]),
 	}
 }
 
@@ -1087,7 +1310,7 @@ fn duration_model(key: &str) -> Option<&'static str> {
 
 /// The runtime's model of a one-argument `std` function that cannot panic, as a Lean function,
 /// which a call applies and a function argument passes as it is.
-fn unary_model(key: &str) -> Option<&'static str> {
+pub(super) fn unary_model(key: &str) -> Option<&'static str> {
 	Some(match key {
 		"Duration::from_secs" => "Rust.Duration.fromSecs",
 		"Duration::from_millis" => "Rust.Duration.fromMillis",
@@ -1095,6 +1318,18 @@ fn unary_model(key: &str) -> Option<&'static str> {
 		"Duration::as_nanos" => "Rust.Duration.asNanos",
 		"Duration::as_micros" => "Rust.Duration.asMicros",
 		"Duration::as_millis" => "Rust.Duration.asMillis",
+		_ => return None,
+	})
+}
+
+/// The runtime's model of a one-argument `std` method that cannot panic, as a Lean function a
+/// function argument passes, such as `flat_map(BTreeMap::keys)`; a call has a model of its own.
+pub(super) fn passed_model(key: &str) -> Option<&'static str> {
+	Some(match key {
+		"BTreeMap::keys" => "Rust.BTreeMap.keys",
+		"BTreeMap::values" => "Rust.BTreeMap.values",
+		"BTreeMap::len" => "Rust.BTreeMap.len",
+		"BTreeMap::is_empty" => "Rust.BTreeMap.isEmpty",
 		_ => return None,
 	})
 }

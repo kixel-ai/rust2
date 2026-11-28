@@ -10,7 +10,7 @@ use std::panic::{AssertUnwindSafe, catch_unwind};
 use std::time::Duration;
 
 use fixture::cases::lenses::{Book, Seeded, Tally};
-use fixture::cases::{self, Ledger, Rank, Step, text};
+use fixture::cases::{self, Ledger, Rank, Step, adaptors, text};
 use kio::clock::instant::Instant;
 
 /// xorshift64, so a seed always draws the same cases.
@@ -310,7 +310,7 @@ fn outcome<T: Enc>(w: &mut W, f: impl FnOnce() -> T) {
 
 fn case(rng: &mut Rng) -> W {
 	let mut w = W::default();
-	let kind = 1 + rng.below(43);
+	let kind = 1 + rng.below(49);
 	w.int(kind.into());
 	match kind {
 		1 => {
@@ -607,6 +607,65 @@ fn case(rng: &mut Rng) -> W {
 				let (a, c, d, e) = text::shadowed(&s, b, (), (), (), fixture::Int(b), (), sub);
 				(a, (c, (d, e)))
 			});
+		}
+		44 => {
+			let (v, x) = (rng.bytes(), rng.byte());
+			w.put(&v).put(x);
+			outcome(&mut w, || {
+				let (a, b, c, d, e) = adaptors::sift(&v, x);
+				(a, (b, (c, (d, e))))
+			});
+		}
+		45 => {
+			let (v, x) = (rng.bytes(), rng.byte());
+			w.put(&v).put(x);
+			outcome(&mut w, || adaptors::filtered(&v, x));
+			outcome(&mut w, || adaptors::any_filtered(&v, x));
+			outcome(&mut w, || adaptors::find_filter_mapped(&v, x));
+			outcome(&mut w, || adaptors::find_mapped(&v, x));
+			outcome(&mut w, || adaptors::found(&v, x));
+		}
+		46 => {
+			let (v, u, x) = (rng.bytes(), rng.bytes(), rng.byte());
+			w.put(&v).put(&u).put(x);
+			outcome(&mut w, || adaptors::flat_runs(&v, x));
+			outcome(&mut w, || adaptors::flat_back(&v, x));
+			outcome(&mut w, || adaptors::flat_first(&v, x));
+			outcome(&mut w, || adaptors::flat_inner(&v, &u));
+		}
+		47 => {
+			let (v, x) = (rng.bytes(), rng.byte());
+			w.put(&v).put(x);
+			outcome(&mut w, || {
+				let (a, b, c, d) = adaptors::least(&v, x);
+				(a, (b, (c, d)))
+			});
+			outcome(&mut w, || adaptors::sum_lazy(&v, x));
+			outcome(&mut w, || adaptors::least_lazy(&v, x));
+		}
+		48 => {
+			let m: BTreeMap<u8, u16> = (0..rng.below(5)).map(|_| (rng.byte(), rng.below(1000) as u16)).collect();
+			let (a, b) = (rng.byte(), rng.byte());
+			w.put(&m).put(a).put(b);
+			outcome(&mut w, || {
+				let (c, d, e, f) = adaptors::sources(&m, a, b);
+				(c, (d, (e, f)))
+			});
+		}
+		49 => {
+			let (v, x) = (rng.bytes(), rng.byte());
+			let s: BTreeSet<u8> = (0..rng.below(4)).map(|_| rng.byte()).collect();
+			let ms: Vec<BTreeMap<u8, u16>> = (0..rng.below(3))
+				.map(|_| (0..rng.below(3)).map(|_| (rng.key(), rng.wide())).collect())
+				.collect();
+			w.put(&v).put(x).put(&s).put(&ms);
+			outcome(&mut w, || {
+				let (a, b, c, d, (e, f, g)) = adaptors::gather(&v, &s, &ms);
+				(a, (b, (c, (d, (e, (f, g))))))
+			});
+			outcome(&mut w, || adaptors::peeked(&v, x));
+			outcome(&mut w, || adaptors::peeked_lazy(&v, x));
+			outcome(&mut w, || adaptors::peeked_rest(&v, x));
 		}
 		_ => {
 			let m: BTreeMap<Rank, u16> = (0..rng.below(5)).map(|_| (rng.rank(), rng.below(1000) as u16)).collect();

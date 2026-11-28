@@ -791,6 +791,148 @@ pub mod cases {
 			t
 		}
 	}
+
+	/// Iterator adaptors and consumers past `map`, over items that cannot panic, and over lazy
+	/// ones, which a closure that may panic makes: each is made only when a consumer reaches
+	/// it, so a later item's panic never happens once `any`, `find`, or `next` stops before it.
+	pub mod adaptors {
+		use std::collections::{BTreeMap, BTreeSet};
+
+		/// Filtering, mapping to options, a flat map, and searching, every closure pure.
+		pub fn sift(v: &[u8], x: u8) -> (Vec<u8>, Vec<u8>, Vec<u8>, Option<u8>, Option<u8>) {
+			(
+				v.iter().filter(|&&b| b > x).copied().collect(),
+				v.iter().filter_map(|&b| b.checked_add(x)).collect(),
+				v.iter().flat_map(|&b| [b, x]).collect(),
+				v.iter().copied().find(|&b| b == x),
+				v.iter().find_map(|&b| b.checked_sub(x)),
+			)
+		}
+
+		// Where a closure may panic, each alone, so its panic hides no other's laziness.
+
+		pub fn filtered(v: &[u8], x: u8) -> Vec<u8> {
+			v.iter().map(|&b| b + x).filter(|&b| b % 2 == 0).collect()
+		}
+
+		pub fn any_filtered(v: &[u8], x: u8) -> bool {
+			v.iter().filter(|&&b| b + x > 200).any(|&b| b == 0)
+		}
+
+		pub fn find_filter_mapped(v: &[u8], x: u8) -> Option<u8> {
+			v.iter().filter_map(|&b| (b + 1).checked_sub(x)).find(|&p| p > 100)
+		}
+
+		pub fn find_mapped(v: &[u8], x: u8) -> Option<u8> {
+			v.iter().find_map(|&b| (b + x).checked_sub(100))
+		}
+
+		pub fn found(v: &[u8], x: u8) -> Option<u8> {
+			v.iter().copied().find(|&b| b + x == 255)
+		}
+
+		/// A flat map of lazy items by a pure closure, which makes each item's run together.
+		pub fn flat_runs(v: &[u8], x: u8) -> Vec<u8> {
+			v.iter().map(|&b| b + x).flat_map(|b| [b, b / 2]).collect()
+		}
+
+		/// A flat map by a closure that may panic, from the back.
+		pub fn flat_back(v: &[u8], x: u8) -> (Vec<u8>, Option<u8>) {
+			(
+				v.iter().flat_map(|&b| [b + x, b]).rev().collect(),
+				v.iter().flat_map(|&b| [b, b - x]).rev().next(),
+			)
+		}
+
+		pub fn flat_first(v: &[u8], x: u8) -> Option<u8> {
+			v.iter().map(|&b| (b + 1).checked_sub(x)).flatten().next()
+		}
+
+		/// Flat maps of items into lazy ones.
+		pub fn flat_inner(v: &[u8], w: &[u8]) -> (usize, bool) {
+			(
+				v.iter().flat_map(|&b| w.iter().map(move |&c| c + b)).count(),
+				v.iter().flat_map(|&b| w.iter().map(move |&c| c * b)).any(|c| c == 0),
+			)
+		}
+
+		/// Sums, which panic on overflow, the least item, and the first of the least key.
+		pub fn least(v: &[u8], x: u8) -> (u8, u16, Option<u8>, Option<u8>) {
+			(
+				v.iter().sum(),
+				v.iter().map(|&b| b as u16 * 200).sum(),
+				v.iter().map(|&b| b ^ x).min(),
+				v.iter().copied().min_by_key(|&b| b % 4),
+			)
+		}
+
+		/// A sum whose items may panic, which panics at whichever comes first.
+		pub fn sum_lazy(v: &[u8], x: u8) -> u8 {
+			v.iter().map(|&b| b - x).sum()
+		}
+
+		/// The least key, where an item's and a key's panics interleave.
+		pub fn least_lazy(v: &[u8], x: u8) -> Option<u8> {
+			v.iter().map(|&b| b - x).min_by_key(|&b| (b * 3, b / 50))
+		}
+
+		/// Sources: one item, a range up to before an end and one up to it, and an iterator
+		/// written in the crate, counted.
+		pub fn sources(m: &BTreeMap<u8, u16>, a: u8, b: u8) -> (Vec<u8>, Vec<u8>, Vec<u16>, usize) {
+			(
+				std::iter::once(a).chain((a..b).map(|i| i / 2)).collect(),
+				(a..=b).filter(|&i| i % 3 == 0).rev().collect(),
+				(0..=a).filter_map(|i| m.get(&i).copied()).collect(),
+				super::text::Countdown(a).count(),
+			)
+		}
+
+		/// Collecting into and extending sets and vectors, a set from an array, and `std`
+		/// methods passed by name.
+		pub fn gather(
+			v: &[u8],
+			s: &BTreeSet<u8>,
+			ms: &[BTreeMap<u8, u16>],
+		) -> (BTreeSet<u8>, BTreeSet<u8>, Vec<u8>, Vec<usize>, (Vec<u8>, Vec<u16>, bool)) {
+			let mut t = BTreeSet::from([v.len() as u8, 7, 7]);
+			t.extend(v.iter().map(|&b| b / 2));
+			t.extend(v.iter().map(|&b| b + 1));
+			let mut u: Vec<u8> = Vec::new();
+			u.extend(v.iter().map(|&b| b * 2));
+			u.extend(s);
+			(
+				t,
+				v.iter().map(|&b| b % 5).collect(),
+				u,
+				ms.iter().map(BTreeMap::len).collect(),
+				(
+					ms.iter().flat_map(BTreeMap::keys).copied().collect(),
+					ms.iter().flat_map(BTreeMap::values).copied().collect(),
+					ms.first().is_some_and(BTreeMap::is_empty),
+				),
+			)
+		}
+
+		/// A peek, then the items read whole.
+		pub fn peeked(v: &[u8], x: u8) -> (Option<u8>, Vec<u8>) {
+			let mut it = v.iter().copied().filter(|&b| b != x).peekable();
+			let first = it.peek().copied();
+			(first, it.collect())
+		}
+
+		/// A peek at lazy items, which makes only the first.
+		pub fn peeked_lazy(v: &[u8], x: u8) -> Option<u8> {
+			let mut it = v.iter().map(|&b| b + x).peekable();
+			it.peek().copied()
+		}
+
+		/// A peek at lazy items, which keeps the first it made, then the items read whole.
+		pub fn peeked_rest(v: &[u8], x: u8) -> (Option<u8>, Vec<u8>) {
+			let mut it = v.iter().map(|&b| b + x).peekable();
+			let first = it.peek().copied();
+			(first, it.collect())
+		}
+	}
 }
 
 /// A type named as a Lean type the output uses.
@@ -1130,10 +1272,6 @@ pub mod refused {
 		s.pull()
 	}
 
-	pub fn sorted(v: &[u8]) -> std::collections::BTreeSet<u8> {
-		v.iter().copied().collect()
-	}
-
 	pub fn numbered(v: &[u8]) -> Vec<(usize, u8)> {
 		v.iter().map(|y| y + 1).enumerate().collect()
 	}
@@ -1216,6 +1354,27 @@ pub mod refused {
 	/// Which items `take_while` keeps is decided as they are made, which may panic here.
 	pub fn take_bumped(v: &[u8]) -> usize {
 		v.iter().map(|b| b + 1).take_while(|b| *b > 1).count()
+	}
+
+	/// A closure that may panic over a flat map's lazy items, which makes each one's run at once.
+	pub fn flat_then_bump(v: &[u8]) -> Vec<u8> {
+		v.iter().map(|&b| b + 1).flat_map(|b| [b, b]).map(|c| c + 1).collect()
+	}
+
+	/// Lazy iterators flattened out of lazy items.
+	pub fn flat_lazy(v: &[u8], w: &[u8]) -> usize {
+		v.iter().map(|&b| b + 1).flat_map(|b| w.iter().map(move |&c| c + b)).count()
+	}
+
+	/// `BTreeMap::range`, which panics on bounds out of order only once the map has held an
+	/// entry, even one since removed.
+	pub fn range_of(m: &std::collections::BTreeMap<u8, u8>, a: u8, b: u8) -> usize {
+		m.range(a..=b).count()
+	}
+
+	/// Stepping a `RangeInclusive`, which keeps whether it is exhausted.
+	pub fn step_inclusive() -> Option<u8> {
+		(0..=3u8).next()
 	}
 
 	/// A range of characters, whose stepping skips the surrogates.
