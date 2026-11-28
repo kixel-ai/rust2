@@ -28,24 +28,6 @@ how many reached functions translated.";
 /// sysroot comes prebuilt, and keeps its models.
 const RUSTFLAGS: &str = r#"["-Zmir-opt-level=0", "-Zalways-encode-mir"]"#;
 
-/// The profile the cargo args pick, `dev` unless they pick one.
-fn profile(cargo: &[String]) -> &str {
-	let mut picked = "dev";
-	let mut args = cargo.iter().take_while(|a| *a != "--");
-	while let Some(arg) = args.next() {
-		match arg.as_str() {
-			"--release" | "-r" => picked = "release",
-			"--profile" => picked = args.next().map_or(picked, String::as_str),
-			_ => {
-				if let Some(name) = arg.strip_prefix("--profile=") {
-					picked = name;
-				}
-			}
-		}
-	}
-	picked
-}
-
 struct Args {
 	out: Option<PathBuf>,
 	census: Option<PathBuf>,
@@ -138,7 +120,10 @@ fn try_run(args: &[String]) -> Result<ExitCode, String> {
 		vars.push((env::CENSUS, census.as_os_str()));
 	}
 	vars.push(("CARGO_UNSTABLE_PROFILE_RUSTFLAGS", "true".as_ref()));
-	let config = format!("profile.{}.rustflags = {RUSTFLAGS}", profile(&args.cargo));
+	let config = format!(
+		"profile.{}.rustflags = {RUSTFLAGS}",
+		rust2_driver::cargo::profile(&args.cargo).unwrap_or("dev")
+	);
 	let mut cargo = vec!["--config".to_string(), config];
 	cargo.extend(args.cargo);
 	Check {
@@ -182,20 +167,4 @@ fn package_name(manifest: &Path) -> Result<String, String> {
 		.and_then(|p| p["name"].as_str())
 		.map(str::to_string)
 		.ok_or_else(|| format!("{} is no package's manifest", manifest.display()))
-}
-
-#[cfg(test)]
-mod tests {
-	use super::profile;
-
-	#[test]
-	fn picks_the_profile() {
-		let picked = |args: &[&str]| profile(&args.iter().map(|a| a.to_string()).collect::<Vec<_>>()).to_string();
-		assert_eq!(picked(&[]), "dev");
-		assert_eq!(picked(&["--release"]), "release");
-		assert_eq!(picked(&["-r", "--profile", "profiling"]), "profiling");
-		assert_eq!(picked(&["--profile=bench", "--features", "x"]), "bench");
-		// Past `--`, the arguments are rustc's.
-		assert_eq!(picked(&["--", "--release"]), "dev");
-	}
 }

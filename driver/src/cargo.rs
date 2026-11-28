@@ -211,6 +211,7 @@ impl Check<'_> {
 		// Show what it says only when it fails: `--quiet` would hide even its error.
 		let clean = cargo("clean")
 			.args(resolution(self.args))
+			.args(profile(self.args).map(|p| ["--profile", p]).into_iter().flatten())
 			.output()
 			.map_err(|err| format!("running cargo clean: {err}"))?;
 		if !clean.status.success() {
@@ -288,10 +289,42 @@ fn resolution(args: &[String]) -> Vec<&str> {
 	let mut args = args.iter().map(String::as_str);
 	while let Some(arg) = args.next() {
 		match arg {
-			"--locked" | "--frozen" | "--offline" | "--release" | "-r" => picked.push(arg),
-			"--config" | "--profile" => picked.extend([Some(arg), args.next()].into_iter().flatten()),
-			_ if arg.starts_with("--config=") || arg.starts_with("--profile=") => picked.push(arg),
+			"--locked" | "--frozen" | "--offline" => picked.push(arg),
+			"--config" => picked.extend([Some(arg), args.next()].into_iter().flatten()),
+			_ if arg.starts_with("--config=") => picked.push(arg),
 			_ => {}
+		}
+	}
+	picked
+}
+
+/// The profile cargo args pick, if they pick one: by `--release`, `--profile`, or an `r` in a
+/// group of short flags such as `-qr`.
+pub fn profile(args: &[String]) -> Option<&str> {
+	let mut picked = None;
+	let mut args = args.iter().map(String::as_str).take_while(|a| *a != "--");
+	while let Some(arg) = args.next() {
+		if arg == "--release" {
+			picked = Some("release");
+		} else if arg == "--profile" {
+			picked = args.next().or(picked);
+		} else if let Some(name) = arg.strip_prefix("--profile=") {
+			picked = Some(name);
+		} else if let Some(group) = arg.strip_prefix('-').filter(|g| !g.starts_with('-')) {
+			// A short flag that takes a value ends the group, the rest of it being the value,
+			// or takes the next argument.
+			for (i, flag) in group.char_indices() {
+				match flag {
+					'r' => picked = Some("release"),
+					'p' | 'j' | 'F' | 'Z' => {
+						if i + 1 == group.len() {
+							args.next();
+						}
+						break;
+					}
+					_ => {}
+				}
+			}
 		}
 	}
 	picked
@@ -313,4 +346,24 @@ pub fn workspace_root(manifest: Option<&Path>) -> Result<PathBuf, String> {
 		.parent()
 		.expect("a manifest path has a parent")
 		.to_path_buf())
+}
+
+#[cfg(test)]
+mod tests {
+	use super::profile;
+
+	#[test]
+	fn picks_the_profile() {
+		let picked = |args: &[&str]| profile(&args.iter().map(|a| a.to_string()).collect::<Vec<_>>()).map(String::from);
+		assert_eq!(picked(&[]), None);
+		assert_eq!(picked(&["--release"]), Some("release".into()));
+		assert_eq!(picked(&["-qr"]), Some("release".into()));
+		assert_eq!(picked(&["-r", "--profile", "profiling"]), Some("profiling".into()));
+		assert_eq!(picked(&["--profile=bench", "--features", "x"]), Some("bench".into()));
+		// A short flag's value, in its group or the next argument, picks nothing.
+		assert_eq!(picked(&["-pr"]), None);
+		assert_eq!(picked(&["-qp", "r", "-j", "4"]), None);
+		// Past `--`, the arguments are rustc's.
+		assert_eq!(picked(&["--", "--release"]), None);
+	}
 }
